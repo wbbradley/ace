@@ -1,0 +1,9 @@
+module _ @1.0
+# test: pass
+ 
+def abs(x int) int
+	if x < 0
+		# for now the minus operator/function needs to be binary
+		return -x
+	else
+		return x

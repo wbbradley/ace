@@ -1,0 +1,4 @@
+module _
+
+# error: type names only support unary type variables
+type Foo{Bar{Baz}} matches int

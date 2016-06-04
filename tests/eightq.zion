@@ -1,0 +1,40 @@
+module eightq @1.0
+link module math
+ 
+def attack(pos1 any, pos2 any) bool
+	return (
+		(pos1[0] == pos2[0]) or
+ 		(pos1[1] == pos2[1]) or
+ 		math.abs(pos1[0] - pos2[0]) == math.abs(pos1[1] - pos2[1]))
+
+def safe(square pos, queens solutions)
+	i := 0
+	while i < len(queens)
+		if eightq.attack(square, queens[i])
+			return false
+		i += 1
+
+	return true
+
+def solve(n int, NQUEENS int)
+	if n == 0
+		return [[]]
+
+	smaller_solutions := eightq.solve(n - 1, NQUEENS)
+
+	solutions := []
+	solution := null
+	i := 0
+	j := 0
+	while i < NQUEENS
+		j = 0
+		while j < len(smaller_solutions)
+			if eightq.safe([n, i + 1], smaller_solutions[j])
+				solutions += [smaller_solutions[j] + [[n, i + 1]]]
+			j += 1
+		i += 1
+
+	return solutions
+
+def main(NQUEENS int) void
+	return eightq.solve(NQUEENS, NQUEENS)

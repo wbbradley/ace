@@ -1,0 +1,13 @@
+module syntax @0.1
+link module assert
+
+
+def test() int
+	var x str = 10
+	x = x + 10; x = x + 10
+	assert.equals(x, 30, "line-break error")
+	x = x
+	assert.equals(str(x), "30", "evaluate a self-referential assignment")
+
+	var y any = [0, 2, 4]
+	assert.equals(y[1], 2, "array index dereference")

@@ -1,0 +1,12 @@
+module _
+link module std
+
+# test: pass
+
+type PhoneNumber is
+	Local(int) or
+	Intl(int, int)
+
+def main()
+	number := Local(100)
+	intl_number := Intl(1, 100)

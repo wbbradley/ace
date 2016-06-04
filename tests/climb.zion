@@ -1,0 +1,9 @@
+module climb @1.0
+
+def walls() void
+	pass
+
+def boulders() void
+	var x int = 2
+	print(scopes())
+

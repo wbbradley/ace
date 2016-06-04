@@ -1,0 +1,5 @@
+module _
+
+# error: the type int already exists and is not a valid data constructor
+
+type PhoneNumber is int

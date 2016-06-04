@@ -1,0 +1,12 @@
+module _
+link module std
+
+# test: pass
+type Y matches int
+
+type Box{X} is
+	Box(X) or
+	Crate(Y)
+
+def main()
+	y := Crate(1)

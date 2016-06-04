@@ -1,0 +1,12 @@
+
+def depth(tree Tree{any Data}) any Data
+	match tree
+		case Empty
+			return 0
+
+		case Leaf(any)
+			return 1
+
+		case Node{l, r}
+			# this could use a max function, but is unwound for explicative purposes
+			return max(depth(l), depth(r))

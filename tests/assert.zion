@@ -1,0 +1,12 @@
+module assert
+link module std
+
+def fail(msg str)
+	std.print("FAILED: " + msg)
+
+def equals(input any, value any, x str)
+	if value != input
+		std.print("FAILED: " + input + " == " + value + " /*" + x + "*/")
+
+def main()
+	equals("yolo", "yono", "yolo is not 123")

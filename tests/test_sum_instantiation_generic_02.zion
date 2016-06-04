@@ -1,0 +1,13 @@
+module _
+link module std
+
+# test: pass
+
+type Box{X, Y} is
+	Box(X) or
+	Crate(X, Y)
+
+def main()
+	x := Box("not compatible")
+	y := Crate(1, x[0])
+	std.print(y[1])

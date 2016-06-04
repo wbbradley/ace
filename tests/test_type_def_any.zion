@@ -1,0 +1,8 @@
+module _
+link module std
+
+# error: any is not allowed
+type Optional{any Data} is
+	Just(Data) or None
+
+

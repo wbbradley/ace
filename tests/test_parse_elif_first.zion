@@ -1,0 +1,6 @@
+module _
+
+def main()
+	# error: out of place token 'elif'
+	elif true
+		pass

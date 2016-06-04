@@ -1,0 +1,10 @@
+module _
+link module std
+
+# test: pass
+
+type Box{X} is Box(X)
+
+def main()
+	x := Box(1)
+	std.print(x[0])

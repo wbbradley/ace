@@ -1,0 +1,10 @@
+module _
+link module std
+# test: pass
+
+def foo(x any)
+	std.print(x)
+
+def main()
+	foo("Hello world.")
+	foo(1)

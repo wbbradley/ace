@@ -1,0 +1,4 @@
+(defmacro std.List (lambda X (or std.Done (ref std.Node X))))
+(defmacro std.Node (lambda X (and X (ref std.List X))))
+(unify (ref std.List (any X)) (and int (and int std.Done)))
+

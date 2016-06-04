@@ -1,0 +1,35 @@
+# Y Combinator
+# (defmacro Y (lambda x ((lambda f (f (x x))) (lambda f (f (x x))))))
+
+(defmacro std.Empty (ref std.Empty))
+(defmacro std.Just (lambda X (ref std.Just X)))
+(defmacro std.Maybe (lambda X (or (ref std.Empty) (ref std.Just X))))
+
+# Make the double reference always expand
+(defmacro List std.List)
+(defmacro std.Done (ref std.Done))
+(defmacro std.List (lambda X (or (ref std.Done) (ref std.Node X))))
+(defmacro std.Node (lambda X (and X (ref std.List X))))
+
+# (unify (ref std.List (any X)) (ref std.List int))
+
+(defmacro Either std.Either)
+(defmacro std.Either (lambda left (lambda right ((or (ref std.Left left) (ref std.Right right))))))
+(unify (ref std.Either (any X) (any Y)) (ref std.Right float))
+(unify (ref std.Either (any X) (any Y)) (ref std.Left float))
+
+# should fail
+# (unify (List (any x)) Done)
+
+# should succeed
+# (unify (List (any x)) std.Done)
+
+(unify (ref std.List (any Y)) (ref std.List (ref std.List int)))
+# (unify ((any X) int) (Map int))
+# (unify (Goo (any X)) (Goo H))
+
+# Test that renames work, as well
+(defmacro LL std.List)
+(unify (ref LL (any X)) (ref std.List (ref std.List int)))
+(unify (ref LL (any X)) (or (ref std.Done) (ref std.Node int)))
+(unify (ref std.Either (any G) (any G)) (ref std.Left (ref std.Either float int)))

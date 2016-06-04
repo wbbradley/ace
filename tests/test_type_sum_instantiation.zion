@@ -1,0 +1,8 @@
+module _
+# test: pass
+
+
+def foo()
+	type Vector2d is Double(float, float)
+
+	x := Double(0.4, 1.3)

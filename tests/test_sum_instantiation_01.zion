@@ -1,0 +1,11 @@
+module _
+link module std
+
+type Superman is Special(int)
+
+def main()
+	x := Special(1)
+
+	# error: unable to resolve overloads for str
+	std.print(x)
+

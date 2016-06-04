@@ -1,0 +1,6 @@
+module _
+# test: pass
+
+type FloatPair has
+	var fst float
+	var snd float

@@ -1,0 +1,11 @@
+module _
+# test: pass
+
+link def puts(msg str) int
+
+def main()
+	generic("hey")
+	generic(1)
+
+def generic(value any)
+	puts(str(value))

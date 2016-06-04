@@ -1,0 +1,82 @@
+module         ::= ( module_decl (link_module | link_function)* (type_def | function)* )
+module_decl    ::= 'module' identifier module_ver
+module_ver     ::= '@' integer '.' integer ('.' integer)?
+link_module    ::= 'link' (identifier 'to')? module_decl
+link_function  ::= 'link' function_decl
+
+type_def       ::= ('type' type_decl ) type_algebra
+
+type_decl  ::= identifier ('{' type_decl (',' type_decl)* '}' )?
+
+type_ref       ::=
+ ( '[' type_ref ']' )
+ | ( '{' type_ref (',' type_ref)+ '}' )
+ | identifier ('{' type_ref (',' type_ref)* '}' )?
+ | ('any' identifier?)
+
+type_algebra   ::=
+ ( 'is' type_sum )
+ | ( 'has' type_product )
+ | ( 'matches' type_ref )
+
+data_ctor      ::= identifier ( '(' type_ref (',' type_ref)* ')' )?
+type_sum       ::= data_ctor ( 'or' data_ctor )*
+
+dimension      ::= ('var' identifier)? type_ref
+type_product   ::= dimension+
+
+function       ::= function_decl block
+function_decl ::= 'def' identifier? '(' param_list_decl ')' type_ref
+block          ::= indent (statement)* outdent
+param_list_decl::= var_decl (',' var_decl)*
+param_list     ::= expr (',' expr)*
+statement      ::=
+ ( type_def )
+ | ( 'var' var_decl_init )
+ | ( identifier ':=' expr)
+ | ( 'while' while_block )
+ | ( 'if' if_block ) 
+ | ( 'match' expr case_block+ )
+ | return_statement
+ | pass
+ | continue
+ | break
+ | assignment
+case_block     ::= 'case' expr block
+
+return_statement ::= 'return' expr?
+var_decl       ::= identifier (type_ref)?
+var_decl_init  ::= var_decl ('=' expr)?
+
+expr           ::= assignment
+assignment     ::= or_expr (( '=' | ':=' | '+=' | '-=' | '\*=' | '/=' | '%=' ) or_expr)?
+
+tuple_expr     ::= or_expr ( ',' | ( ',' or_expr )* )
+or_expr        ::= and_expr ( 'or' and_expr )*
+and_expr       ::= eq_expr ( 'and' eq_expr )*
+
+eq_expr        ::= ineq_expr (( '!=' | '==' | 'in' | ( 'not' 'in' ) ) ineq_expr)*
+ineq_expr      ::= plus_expr (( '<' | '<=' | '>' | '>=' ) plus_expr)*
+plus_expr      ::= times_expr (( '+' | '-' ) times_expr)*
+times_expr     ::= prefix_expr (( '*' | '/' | '%') prefix_expr)*
+prefix_expr    ::= (('-' | 'not' | '+'))* postfix_expr
+
+postfix_expr   ::= base_expr (callsite_expr | dot_expr | array_index)*
+callsite_expr  ::= '(' param_list ')'
+dot_expr       ::= '.' identifier
+array_index    ::= '[' expr ']'
+base_expr      ::= '(' tuple_expr ')' | reference_expr | literal_expr
+reference_expr ::= identifier
+literal_expr   ::= integer | string | boolean | float | vector | function
+
+vector         ::= '[' (expr (',')?)* ']'
+
+if_block       ::= expr block ('elif' expr block)* ('else' block)?
+while_block    ::= expr block
+integer        ::= [1-9] [0-9]*
+indent         ::= '\t'
+
+/* note that outdent does not exist in the stream, it is an abstract token */
+outdent        ::= '\n'
+
+pass           ::= 'pass'

@@ -1,0 +1,7 @@
+module _
+# test: pass
+
+type List is Done or Node(int, List)
+
+def main()
+	pass

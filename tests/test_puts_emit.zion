@@ -1,0 +1,8 @@
+module _
+# test: pass
+
+link def puts(sz str) int
+
+def main()
+	puts("Hello world.")
+	

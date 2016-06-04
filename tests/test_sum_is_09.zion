@@ -1,0 +1,5 @@
+module _
+
+type List{V} is
+	Node(V, List{V}) or
+	Done

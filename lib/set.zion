@@ -1,0 +1,53 @@
+module _
+
+link type Set to UniqueTree
+
+type UniqueTree{Data} is
+	Empty or
+	Leaf{data Data} or
+	Node{data Data, left Tree, right Tree}
+
+def set_insert(named coll any Collection, value) bool
+	# first check whether this value is in the tree already
+	if exists(coll, value)
+		return false
+	else
+		# update the named tree variable
+		coll = copy_with_insertion(coll, value)
+		return true
+
+def exists(tree UniqueTree{any Data}, value any Data} bool
+	match tree
+		case Empty
+			return false
+
+		case Leaf(value)
+			# first match the actual value
+			return true
+
+		case Node(value, any, any)
+			return true
+
+		case Node(any, left, right)
+			return exists(left, value) or exists(right, value)
+
+	return false
+
+def copy_with_insertion(tree UniqueTree{any Data}, value any Data) 
+	match tree
+		case Empty
+			# this node is empty, we can just replace it with a leaf of our
+			# value
+			return Leaf(value)
+
+		case Leaf(data)
+			if data > value
+				return Node(data, Leaf(value), Empty)
+			else
+				return Node(data, Empty, Leaf(value))
+		
+		case Node(data, left, right)
+			if data > value
+				return Node(data, copy_with_insertion(left, value), right)
+			else
+				return Node(data, copy_with_insertion(left, value), right)

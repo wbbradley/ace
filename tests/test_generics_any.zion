@@ -1,0 +1,11 @@
+module _
+
+link def puts(sz str) int
+
+def goo(x any)
+	# error: unnamed "any" is out of place
+	var y any = " world"
+	std.print(x + y)
+
+def main()
+	goo("hello")

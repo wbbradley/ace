@@ -1,0 +1,17 @@
+module capture @0.1.0
+link module assert
+
+# test: skip
+
+def test_value_capture() void
+	"Test that the abc lambda's capture gets the x by value."
+	x := 1
+	def abc() int
+		return x
+	assert.equals(abc(), 1, "capture by value should work")
+	x = 2
+	assert.equals(abc(), 1, "capture by value should work")
+
+def test() void
+	test_value_capture()
+

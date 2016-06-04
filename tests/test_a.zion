@@ -1,0 +1,9 @@
+module _ @1.0
+
+def A()
+	# error: 5:2.* undefined symbol C
+	C
+
+def ugly()
+	# error: 9:2.* undefined symbol one
+	one

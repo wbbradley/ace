@@ -1,0 +1,44 @@
+module _
+# test: pass
+
+link def puts(x str) int
+
+def print(x)
+	puts(str(x))
+
+def main()
+	# make sure pure int math compiles
+	print(3 + 10)
+	print(3 - 10)
+	print(3 % 10)
+	print(3 / 10)
+	print(3 * 10)
+	print(-3)
+	print(+3)
+	print(-+3)
+	print(+-3)
+	mask(7, 3)
+	mask(1232323, 12323)
+
+	# make sure pure float math compiles
+	print(3.0 + 10.0)
+	print(3.0 - 10.0)
+	print(3.0 / 10.0)
+	print(3.0 * 10.0)
+	print(-3.0)
+	print(+3.0)
+	print(+-3.0)
+	print(-+3.0)
+
+	# make sure mixed math compiles
+	# first look at float op int
+	print(3.0 + 10)
+	print(3.0 - 10)
+	print(3.0 / 10)
+	print(3.0 * 10)
+
+	# next look at int op float
+	print(3 + 10.0)
+	print(3 - 10.0)
+	print(3 / 10.0)
+	print(3 * 10.0)

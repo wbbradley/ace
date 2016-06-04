@@ -1,0 +1,6 @@
+module _
+
+def duplicate_locals() void
+	x := 0
+	# error: 6:2: error: variables cannot be redeclared
+	x := 1

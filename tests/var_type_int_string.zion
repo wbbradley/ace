@@ -1,0 +1,5 @@
+module _ @1.0
+
+def var_type() void
+	# error: type mismatch
+	var x str = 0

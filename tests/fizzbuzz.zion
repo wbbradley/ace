@@ -1,0 +1,17 @@
+module fizzbuzz @0.1.0
+link module std
+# test: pass
+
+def main(maximum int) int
+	var i int = 1
+	while i <= maximum
+		if i % 15 == 0
+			std.print("fizzbuzz")
+		elif i % 3 == 0
+			std.print("fizz")
+		elif i % 5 == 0
+			std.print("buzz")
+		else
+			std.print(i)
+		i = i + 1
+

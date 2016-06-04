@@ -1,0 +1,7 @@
+module _
+# test: pass
+
+# test creating tuples
+
+def main()
+	x := (1,)

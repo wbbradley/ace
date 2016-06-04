@@ -1,0 +1,9 @@
+module _
+link module std
+# test: pass
+
+def arity0()
+	pass
+
+def main()
+	arity0()	

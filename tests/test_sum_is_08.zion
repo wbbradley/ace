@@ -1,0 +1,12 @@
+module _
+
+type Expr{X} is
+	Plus(Expr{X}, Expr{X}) or
+	Minus(Expr{X}, Expr{X}) or
+	Times(Expr{X}, Expr{X}) or
+	Divide(Expr{X}, Expr{X}) or
+	Literal(X)
+
+def main()
+	expr := Divide(Plus(Literal(5), Literal(5)), Literal(2))
+	std.print(compute(expr))

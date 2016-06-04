@@ -1,0 +1,10 @@
+module _
+link module std
+# test: pass
+
+# test dereferencing into a tuple
+
+def main()
+	x := ((2,(3,)),)
+	y := x[0][1][0]
+	std.print(y)

@@ -1,0 +1,8 @@
+module _
+
+# test dereferencing into a tuple
+
+def main()
+	x := (1,)
+	# error: tuple dereferencing.*not yet impl
+	y := x["blah"]

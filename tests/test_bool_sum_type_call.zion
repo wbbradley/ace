@@ -1,0 +1,10 @@
+module _ @1.0
+# test: pass
+
+type Boolean is True or False
+
+def do_boolean(b Boolean)
+	do_boolean(b)
+	
+def main()
+	do_boolean(True())

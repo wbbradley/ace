@@ -1,0 +1,12 @@
+module _
+link module std
+# test: pass
+
+def main()
+	generic("some string")	
+
+def generic(x any)
+	concrete(x)
+
+def concrete(x str)
+	pass

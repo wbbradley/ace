@@ -1,0 +1,13 @@
+module _
+link module std
+# test: pass
+
+link def puts(x str) int
+
+def main() int
+	puts(generic("hey"))
+	puts(generic(10 + 3.4))
+	return 1
+
+def generic(value any) str
+	return str(int(str(value)))

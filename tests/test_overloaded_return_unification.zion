@@ -1,0 +1,7 @@
+module _ @1.0
+# test: pass
+
+def overloaded_return_unification() float
+	# the unary negation operator is overloaded so this test will make sure
+	# that the overloaded type returned is able to be unified against a float
+	return -1.0

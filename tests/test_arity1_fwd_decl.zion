@@ -1,0 +1,10 @@
+module _
+link module std
+# test: pass
+
+def main()
+	arity1(1)	
+
+def arity1(variable int)
+	pass
+

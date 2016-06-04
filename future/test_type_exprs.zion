@@ -1,0 +1,91 @@
+module _
+link module std
+# test: pass
+
+type Optional{Data} is
+	Just{Data} or None
+
+type Either{a, b} is Left{a} or Right{b}
+	
+type Tree{Data} is
+	Empty or
+	Leaf{Data} or
+	Node{Tree{Data}, Tree{Data}}
+
+type Pair{First, Second} has
+	var first First
+	var second Second
+
+type IntFirstPair{Second} is Pair{int, Second}
+
+def make_pair(x any X, y any Y) Pair{any X, any Y}
+	return Pair(x, y)
+
+type FloatPair has
+	var fst float
+	var snd float
+
+# A set implemented with a binary tree
+type CountingSet{Value} has
+	# each entry in our storage might have a linked list to track all the
+	# collisions
+	var storage UniqueTree{Value}
+	var count int
+
+type Set{Value} is
+	Empty or SetBuffer{Value}
+
+type Graph{Data} has
+	var nodes Set{Node{Data}}
+	var size int
+	
+	
+# type assert(FloatPair == Pair(float, float))
+
+type Signature is
+	Name{Atom} or
+	Operator{Atom, [Signature]}
+
+# create a type alias (equivalence)
+type IntList matches List{int}
+type AliasType{Param} matches RealType{Param, int}
+
+# But, IntList3 is unique and not interchangeable because of the "def"
+type IntList3 is List{int}
+
+# And generics can be forwarded to other definitions
+type GenericList{Data} is List{Data}
+
+def str(list List{any Data}) str
+	node := list
+	result := "["
+	sep := ""
+
+	while node
+		result += sep
+		var data Data = node.data
+		result += str(data)
+		sep = ", "
+		node = node.next
+
+	result += "]"
+
+	return result
+
+# type Filter{Value} matches def(Value) bool
+
+def stream_filter(stream Stream{any Value}, filter Filter{any Value}) Stream{any Value}
+	var val any Value
+
+	while read(stream, val)
+		if filter(val)
+			yield(val)
+
+# Function-y
+type List{DataType} has
+	var data DataType
+	var next List{DataType}
+
+
+def main()
+	return

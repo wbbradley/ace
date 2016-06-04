@@ -1,0 +1,19 @@
+module _
+# test: pass
+
+# test parsing of tuples, as well as type aliases to tuples, in general.
+
+type Vector2 matches {
+	float, float}
+
+type Vector3 matches {
+	float,
+	float,
+	float,
+}
+
+type Vector4 matches {
+	float, float, float, float
+}
+
+type Matrix4 is Matrix4(Vector4, Vector4, Vector4, Vector4)

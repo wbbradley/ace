@@ -1,0 +1,8 @@
+module _
+link module std
+
+# test: pass
+
+type Maybe{X} is
+	Empty or
+	Just(X)

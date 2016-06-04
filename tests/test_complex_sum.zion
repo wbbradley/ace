@@ -1,0 +1,6 @@
+module _
+
+type C{T} is
+    Ax(T, int, float) or
+    Bx(int, T, float) or
+    Cx(int, float, T)

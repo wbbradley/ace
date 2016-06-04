@@ -1,0 +1,9 @@
+module _
+link module std
+# test: pass
+
+def main()
+	generic("some string")	
+
+def generic(x any)
+	pass

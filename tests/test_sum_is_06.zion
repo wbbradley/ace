@@ -1,0 +1,9 @@
+module _
+link module std
+
+type Broken is Special(int)
+
+# error: the name Special is taken
+type Special has
+	var nothing int
+

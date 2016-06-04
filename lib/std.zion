@@ -1,0 +1,7 @@
+module _
+
+link def puts(x str) int
+
+def print(x any) void
+	s := str(x)
+	puts(s)

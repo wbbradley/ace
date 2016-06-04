@@ -1,0 +1,6 @@
+module four @0.0.1
+
+def four() int
+	var x int = 2
+	var y int = 2
+	return x + y

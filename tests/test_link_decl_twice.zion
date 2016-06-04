@@ -1,0 +1,4 @@
+module _
+link def putch(ch int) int
+# error: 4:1.* name conflict with putch
+link def putch(ch int) int

@@ -1,0 +1,8 @@
+module _ @1.0
+link module std
+# test: pass
+
+def some_code()
+	type Y matches int
+	var y Y = 123
+	std.print(y)

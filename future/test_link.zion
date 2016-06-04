@@ -1,0 +1,16 @@
+module _
+link external to module test_external
+# test: pass
+
+
+type List{DataType} has
+	var data DataType
+	var next List{DataType}
+
+type Pair{A, B} has
+	A
+	B
+
+def main()
+	external.cool()
+	return

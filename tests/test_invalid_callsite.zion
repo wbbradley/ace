@@ -1,0 +1,10 @@
+module _
+link module std
+
+def caller()
+	x := 1
+	# error: 7:2.* unable to resolve overloads .*
+	callee(x)
+
+def callee(x str)
+	pass

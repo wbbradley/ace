@@ -1,0 +1,33 @@
+module logic @1.0
+link module assert
+link module std
+# test: pass
+
+def test_failure() void
+	assert.equals(false, true, "false")
+	assert.equals(0 and false, 2, "0 and false")
+
+	print("DONE")
+
+def test() void
+	"This is like a docstring."
+	assert.equals(true != true, false, "true != true")
+	assert.equals(true and true, true, "true and true")
+	assert.equals(false and false, false, "false or false")
+	assert.equals(false and false or true, true, "false and false or true")
+	assert.equals(false and false or not true, false, "false and false or not true")
+	assert.equals(true or true, true, "true or true")
+	assert.equals(true or false, true, "true or false")
+	assert.equals(false or true, true, "false or true")
+	assert.equals(false or false, false, "false or false")
+	assert.equals(false or false and true, false, "false or false and true")
+	assert.equals(-1 and -8, -8, "-1 and -8")
+	assert.equals((-1 or false) and -8, -8, "(-1 or false) and -8")
+	assert.equals(0 and false, 0, "0 and false")
+	assert.equals(not "hello", false, "not \"hello\"")
+	assert.equals(not not "hello", true, "not not \"hello\"")
+	assert.equals(not ("hello" and ""), true, "not (\"hello\" and \"\")")
+	assert.equals(not ("" and 18), true, "not (\"\" and 18)")
+	assert.equals("1" + "2", "12", "\"1\" + \"2\" or null")
+
+	std.print("DONE")

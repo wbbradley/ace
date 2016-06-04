@@ -1,0 +1,10 @@
+module _ @1.0
+# test: pass
+
+# type names can be given as return values, and can be referenced before they
+# are declared.
+def bar() Z
+	return 2
+
+# Finally define Z to be int
+type Z matches int

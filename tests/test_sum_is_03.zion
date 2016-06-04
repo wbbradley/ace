@@ -1,0 +1,14 @@
+module _
+link module std
+
+# test: pass
+
+type Vector has
+	var x float
+	var y float
+
+type Point is
+	Relative(Vector) or Absolute(Vector)
+
+def main()
+	point := Relative(Vector(1.0, 2.0))

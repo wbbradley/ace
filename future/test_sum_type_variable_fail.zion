@@ -1,0 +1,12 @@
+module _
+link module std
+
+# test: pass
+
+type Box{X} is
+	Box(X) or
+	# TODO: this should fail because Y is not bound or even unchecked
+	Crate(Y)
+
+def main()
+	y := Crate(1)
