@@ -148,7 +148,7 @@ ssh-keygen -t rsa -b 4096 -C "latest droplet"
 cat ~/.ssh/id_rsa.pub 
 
 # copy the key to https://github.com/settings/ssh
-git clone git@github.com:wbbradley/zion.git
+git clone git@github.com:zionlang/zion.git
 git config --global user.email "<your-email@example.com>"
 git config --global user.name "Firstname Lastname"
 ```

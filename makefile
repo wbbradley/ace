@@ -1,4 +1,4 @@
-IMAGE=wbbradley/zion
+IMAGE=zionlang/zion
 VERSION=0.1
 INSTALL_DIR=/usr/local/zion
 
