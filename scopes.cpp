@@ -365,6 +365,15 @@ std::string scope_t::make_fqn(std::string leaf_name) {
 	return get_name() + SCOPE_SEP + leaf_name;
 }
 
+bound_type_t::ref scope_t::get_bound_type(types::signature signature) {
+	return null_impl();
+}
+
+bool scope_t::put_bound_type(types::signature signature, bound_type_t::ref type) {
+	not_impl();
+	return false;
+}
+
 #if 0
 ptr<module_scope_t> scope_t::get_module(atom symbol) const {
 	if (auto parent_scope = get_parent_scope()) {

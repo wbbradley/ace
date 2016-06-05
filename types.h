@@ -83,10 +83,10 @@ namespace types {
 
 		virtual ~term() {}
 
+		virtual ref evaluate(map env, int macro_depth) const = 0;
+		virtual type::ref get_type() const = 0;
 		virtual std::ostream &emit(std::ostream &os) const = 0;
 
-		virtual ref evaluate(map env, int macro_depth) const;
-		virtual type::ref get_type() const;
 
 		atom repr() const;
 		atom str() const;

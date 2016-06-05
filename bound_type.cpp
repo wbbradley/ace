@@ -109,6 +109,14 @@ types::term::ref get_args_term(bound_var_t::refs args) {
 	return get_args_term(sig_args);
 }
 
+types::term::refs get_terms(const bound_type_t::refs &bound_types) {
+	types::term::refs terms;
+	for (auto &bound_type : bound_types) {
+		assert(bound_type != nullptr);
+		terms.push_back(bound_type->get_term());
+	}
+	return terms;
+}
 
 types::term::ref get_tuple_term(const bound_type_t::refs &items_types) {
 	types::term::refs dimensions;

@@ -14,36 +14,49 @@ const atom PK_STRUCT = {"struct"};
 
 namespace types {
 
-	atom term::str() const {
-		std::stringstream ss;
-		emit(ss);
-		return {ss.str()};
-	}
-
 	namespace terms {
 		const char *UNREACHABLE = "void";
 
 		struct term_unreachable : public term {
 			term_unreachable() {}
+			virtual ~term_unreachable() {}
 
 			std::ostream &emit(std::ostream &os) const {
 				os << UNREACHABLE;
 				return os;
 			}
+
+			ref evaluate(map env, int macro_depth) const {
+				return null_impl();
+			}
+
+			type::ref get_type() const {
+				return null_impl();
+			}
 		};
 
 		struct term_id : public term {
 			term_id(identifier::ref name) : name(name) {}
+			virtual ~term_id() {}
 			identifier::ref name;
 
 			std::ostream &emit(std::ostream &os) const {
 				os << name;
 				return os;
 			}
+
+			ref evaluate(map env, int macro_depth) const {
+				return null_impl();
+			}
+
+			type::ref get_type() const {
+				return null_impl();
+			}
 		};
 
 		struct term_lambda : public term {
 			term_lambda(identifier::ref var, term::ref body) : var(var), body(body) {}
+			virtual ~term_lambda() {}
 			identifier::ref var;
 			term::ref body;
 
@@ -51,13 +64,22 @@ namespace types {
 				os << "(" << var << " " << body << ")";
 				return os;
 			}
+
+			ref evaluate(map env, int macro_depth) const {
+				return null_impl();
+			}
+
+			type::ref get_type() const {
+				return null_impl();
+			}
 		};
 
 		struct term_sum : public term {
 			term_sum(term::refs options) : options(options) {}
+			~term_sum() {}
 			term::refs options;
 
-			std::ostream &emit(std::ostream &os) const {
+			virtual std::ostream &emit(std::ostream &os) const {
 				os << "(or";
 				for (auto &option : options) {
 					os << " " << option;
@@ -65,20 +87,38 @@ namespace types {
 				os << ")";
 				return os;
 			}
+
+			virtual ref evaluate(map env, int macro_depth) const {
+				return null_impl();
+			}
+
+			virtual type::ref get_type() const {
+				return null_impl();
+			}
 		};
 
 		struct term_product : public term {
 			term_product(atom kind, term::refs dimensions) : kind(kind), dimensions(dimensions) {}
+			virtual ~term_product() {}
+
 			atom kind;
 			term::refs dimensions;
 
-			std::ostream &emit(std::ostream &os) const {
+			virtual std::ostream &emit(std::ostream &os) const {
 				os << "(" << kind;
 				for (auto &dimension : dimensions) {
 					os << " " << dimension;
 				}
 				os << ")";
 				return os;
+			}
+
+			virtual ref evaluate(map env, int macro_depth) const {
+				return null_impl();
+			}
+
+			virtual type::ref get_type() const {
+				return null_impl();
 			}
 		};
 
@@ -98,6 +138,14 @@ namespace types {
 				os << "(any " << name << ")";
 				return os;
 			}
+
+			ref evaluate(map env, int macro_depth) const {
+				return null_impl();
+			}
+
+			type::ref get_type() const {
+				return null_impl();
+			}
 		};
 
 		struct term_apply : public term {
@@ -108,6 +156,14 @@ namespace types {
 			std::ostream &emit(std::ostream &os) const {
 				os << "(" << fn << " " << arg << ")";
 				return os;
+			}
+
+			ref evaluate(map env, int macro_depth) const {
+				return null_impl();
+			}
+
+			type::ref get_type() const {
+				return null_impl();
 			}
 		};
 
@@ -122,12 +178,22 @@ namespace types {
 				os << body << ")";
 				return os;
 			}
+
+			ref evaluate(map env, int macro_depth) const {
+				return null_impl();
+			}
+
+			type::ref get_type() const {
+				return null_impl();
+			}
 		};
 
 		struct term_ref : public term {
 			term_ref(term::ref macro, term::refs args) : macro(macro), args(args) {}
 			term::ref macro;
 			term::refs args;
+
+			virtual ~term_ref() {}
 
 			std::ostream &emit(std::ostream &os) const {
 				os << "(ref " << macro;
@@ -136,6 +202,14 @@ namespace types {
 				}
 				os << ")";
 				return os;
+			}
+
+			ref evaluate(map env, int macro_depth) const {
+				return null_impl();
+			}
+
+			type::ref get_type() const {
+				return null_impl();
 			}
 		};
 	}
@@ -158,6 +232,16 @@ namespace types {
 		return false;
 	}
 #endif
+
+	atom term::repr() const {
+		std::stringstream ss;
+		emit(ss);
+		return {ss.str()};
+	}
+
+	atom term::str() const {
+		return string_format(c_type("%s"), repr().c_str());
+	}
 
 	bool term::is_generic(types::term::map env) const {
 		not_impl();
@@ -208,6 +292,10 @@ namespace types {
 		return make_ptr<terms::term_generic>(name);
 	}
 
+	term::ref term_generic() {
+		return make_ptr<terms::term_generic>();
+	}
+
 	term::ref term_apply(term::ref fn, term::ref arg) {
 		return make_ptr<terms::term_apply>(fn, arg);
 	}
@@ -221,10 +309,72 @@ namespace types {
 	}
 
 	namespace inner {
-		struct type_variable : public type {
-			type_variable(atom name) : name(name) {}
-			atom name;
+		struct type_id : public type {
+			type_id(identifier::ref id) : id(id) {}
+			identifier::ref id;
+
+			virtual std::ostream &emit(std::ostream &os) const {
+				return os << id->get_name();
+			}
+
+			/* how many free type variables exist in this type? */
+			virtual int ftv() const {
+				return 0;
+			}
+
+			virtual atom str(const map &bindings) const {
+				return {id->get_name()};
+			}
+
+			virtual ptr<const term> to_term(const map &bindings={}) const {
+				return term_id(id);
+			}
 		};
+
+		struct type_variable : public type {
+			type_variable(identifier::ref id) : id(id) {}
+			identifier::ref id;
+
+			virtual std::ostream &emit(std::ostream &os) const {
+				return os << str({});
+			}
+
+			/* how many free type variables exist in this type? */
+			virtual int ftv() const {
+				return 1;
+			}
+
+			virtual atom str(const map &bindings) const {
+				auto instance_iter = bindings.find(id->get_name());
+				if (instance_iter != bindings.end()) {
+					return instance_iter->second->str(bindings);
+				} else {
+					return string_format("(any %s)", id->get_name().c_str());
+				}
+			}
+
+			virtual ptr<const term> to_term(const map &bindings={}) const {
+				auto instance_iter = bindings.find(id->get_name());
+				if (instance_iter != bindings.end()) {
+					return instance_iter->second->to_term(bindings);
+				} else {
+					return term_generic(id);
+				}
+			}
+		};
+	}
+
+	type::ref type_id(identifier::ref id) {
+		return make_ptr<inner::type_id>(id);
+	}
+
+	type::ref type_variable(identifier::ref id) {
+		return make_ptr<inner::type_variable>(id);
+	}
+
+	bool is_type_id(type::ref type, atom type_name) {
+		not_impl();
+		return false;
 	}
 }
 
@@ -248,7 +398,7 @@ std::ostream& operator <<(std::ostream &os, const types::type::ref &type) {
 	return os;
 }
 
-std::ostream& operator <<(std::ostream &os, const ptr<types::term> &term) {
+std::ostream& operator <<(std::ostream &os, const types::term::ref &term) {
 	if (term != nullptr) {
 		return term->emit(os);
 	} else {
@@ -301,7 +451,7 @@ types::term::ref operator "" _ty(const char *value, size_t) {
 
 bool get_type_variable_name(types::type::ref type, atom &name) {
     if (auto ptv = dyncast<const types::inner::type_variable>(type)) {
-		name = ptv->name;
+		name = ptv->id->get_name();
 		return true;
 	} else {
 		return false;
