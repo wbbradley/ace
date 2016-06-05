@@ -885,7 +885,7 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_term_algebra",
 		[] () -> bool {
-			auto a1 = types::term::ref{"int"};
+			auto a1 = term_id(make_iid("int"));
 			return true;
 		}
 	},
@@ -920,37 +920,40 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_unification",
 		[] () -> bool {
-			types::term::ref::pair{{"any"}, {"float"}};
-			auto unifies = std::vector<types::term::ref::pair>{
-				types::term::ref::pair{{"any"}, {"float"}},
-				types::term::ref::pair{{"void"}, {"void"}},
-				types::term::ref::pair{{"any a"}, {"int"}},
-				types::term::ref::pair{{"any"}, {{"map", "int", "int"}}},
-				types::term::ref::pair{{"any a"}, {{"map", "int", "str"}}},
-				types::term::ref::pair{{{"map", "any a", "any b"}}, {{"map", "int", "str"}}},
-				types::term::ref::pair{{{"map", "any a", "any"}}, {{"map", "int", "str"}}},
-				types::term::ref::pair{{{"map", "any", "any b"}}, {{"map", "int", "str"}}},
-				types::term::ref::pair{{{"map", "any", "any"}}, {{"map", "int", "str"}}},
-			};
+			get_tuple_term({types::term_generic(), types::term_id(make_iid("float"))});
+			auto unifies = std::vector<types::term::pair>{{
+				make_term_pair("any", "float"),
+				make_term_pair("void", "void"),
+				make_term_pair("any a", "int"),
+				make_term_pair("any", "(map int int)"),
+				make_term_pair("any a", "(map int str)"),
+				make_term_pair("(map (any a) (any b))", "map int str)"),
+				make_term_pair("(map (any a) any)", "(map int str)"),
+				make_term_pair("(map any (any b))", "map int str)"),
+				make_term_pair("(map any any)", "(map int str)"),
+			}};
 
-			auto fails = std::vector<std::pair<types::term::ref, types::term::ref>>{
-				{{"int"}, {"void"}},
-				{{"int"}, {{"map", "int", "int"}}},
-				{{{"map", "any a", "any a"}}, {{"map", "int", "str"}}},
+			auto fails = std::vector<types::term::pair>{
+				make_term_pair("int", "void"),
+				make_term_pair("int", "(map int int)"),
+				make_term_pair("(map (any a) (any a))", "(map int str)"),
 			};
 
 			for (auto &pair : unifies) {
-				test_assert(unification_t::attempt({}, pair.first, pair.second));
+				status_t status;
+				test_assert(unify(status, {}, pair.first, pair.second));
 			}
 
 			for (auto &pair : fails) {
-				test_assert(!unification_t::attempt({}, pair.first, pair.second));
+				status_t status;
+				test_assert(!unify(status, {}, pair.first, pair.second));
 			}
 
 			return true;
 		}
 	},
 
+#if 0
 	{
 		"test_simple_unification_with_env_01",
 		[] () -> bool {
@@ -993,6 +996,7 @@ auto test_descs = std::vector<test_desc>{
 			return true;
 		}
 	},
+#endif
 
 #if 0
 	{

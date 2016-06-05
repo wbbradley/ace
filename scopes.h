@@ -49,7 +49,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	bound_var_t::ref get_bound_variable(status_t &status, const ptr<const ast::item> &obj, atom symbol);
 	bound_var_t::ref maybe_get_bound_variable(atom symbol);
 
-	types::term::ref get_type_term(types::signature signature) const;
+	types::term::ref get_type_term(types::signature signature);
 	types::term::ref maybe_get_type_term(types::signature signature);
 
 	void put_bound_variable(atom symbol, bound_var_t::ref bound_variable);
@@ -71,13 +71,13 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 
 	std::string get_name();
 
-	std::string make_fqn(std::string leaf_name) const;
+	std::string make_fqn(std::string leaf_name);
 
-	virtual llvm::Module *get_llvm_module() const;
+	virtual llvm::Module *get_llvm_module();
 
 	/* find all checked and unchecked functions that have the name given by the
 	 * symbol parameter */
-	virtual void get_callables(atom symbol, var_t::refs &fns) const;
+	virtual void get_callables(atom symbol, var_t::refs &fns);
 
 	bound_var_t::ref get_singleton(atom name);
 	types::term::map get_type_env() const;
@@ -124,7 +124,7 @@ struct module_scope_t : public scope_t {
 
 	llvm::Module * const llvm_module;
 
-	virtual void get_callables(atom symbol, var_t::refs &fns) const;
+	virtual void get_callables(atom symbol, var_t::refs &fns);
 	// virtual ptr<module_scope_t> get_module(atom symbol) const;
 
 	void put_unchecked_type(status_t &status, unchecked_type_t::ref unchecked_type);
@@ -140,14 +140,13 @@ struct module_scope_t : public scope_t {
 	 * it's already instantiated. */
 	bool has_checked(const ptr<const ast::item> &node) const;
 	void mark_checked(const ptr<const ast::item> &node);
-	virtual llvm::Module *get_llvm_module() const;
+	virtual llvm::Module *get_llvm_module();
 
 	virtual void dump(std::ostream &os) const;
 
 	std::set<ptr<const ast::item>> visited;
 
 	static module_scope_t::ref create(atom module_name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module);
-	ptr<function_scope_t> new_function_scope(atom name) const;
 
 	// void add_linked_module(status_t &status, ptr<const ast::item> obj, atom symbol, module_scope_t::ref module_scope);
 
@@ -234,7 +233,7 @@ struct generic_substitution_scope_t : public scope_t {
 
 	virtual ~generic_substitution_scope_t() throw() {}
 	virtual ptr<scope_t> get_parent_scope();
-	virtual llvm::Module *get_llvm_module() const;
+	virtual llvm::Module *get_llvm_module();
 
 	generic_substitution_scope_t(atom name, scope_t::ref parent_scope) : scope_t(name), parent_scope(parent_scope) {}
 

@@ -4,6 +4,7 @@
 #include "ast.h"
 #include "utils.h"
 #include "llvm_utils.h"
+#include "llvm_types.h"
 #include "unification.h"
 
 #define SCOPE_SEP "::"
@@ -261,7 +262,7 @@ bound_var_t::ref scope_t::get_bound_variable(status_t &status, const ast::item::
 	return nullptr;
 }
 
-types::term::ref scope_t::get_type_term(types::signature name) const {
+types::term::ref scope_t::get_type_term(types::signature signature) {
 	/* this function should only be called when we know that a type should exist */
 	auto term = maybe_get_type_term(signature);
 
@@ -278,7 +279,7 @@ types::term::ref scope_t::maybe_get_type_term(types::signature signature) {
 	/* get a type macro if it exists */
 	auto iter = bound_types.find(signature);
 	if (iter != bound_types.end()) {
-		return iter->second;
+		return iter->second->get_term();
 	} else if (auto parent_scope = get_parent_scope()) {
 		return parent_scope->get_type_term(signature);
 	} else {
@@ -351,7 +352,7 @@ types::term::ref scope_t::rebind_type_name(
 }
 #endif
 
-llvm::Module *scope_t::get_llvm_module() const {
+llvm::Module *scope_t::get_llvm_module() {
 	if (get_parent_scope()) {
 		return get_parent_scope()->get_llvm_module();
 	} else {
@@ -360,7 +361,7 @@ llvm::Module *scope_t::get_llvm_module() const {
 	}
 }
 
-std::string scope_t::make_fqn(std::string leaf_name) const {
+std::string scope_t::make_fqn(std::string leaf_name) {
 	return get_name() + SCOPE_SEP + leaf_name;
 }
 
@@ -401,7 +402,7 @@ local_scope_t::ref local_scope_t::create(
 	return make_ptr<local_scope_t>(name, parent_scope, return_type_constraint);
 }
 
-ptr<function_scope_t> scope_t::new_function_scope(atom name) const {
+ptr<function_scope_t> scope_t::new_function_scope(atom name) {
 	return function_scope_t::create(name, shared_from_this());
 }
 
@@ -412,10 +413,9 @@ void get_callables_from_bound_vars(
 {
 	auto iter = bound_vars.find(symbol);
 	if (iter != bound_vars.end()) {
-		const bound_var_t::resolve_map &overloads = iter->second;
+		const auto &overloads = iter->second;
 		for (auto &pair : overloads) {
 			auto &var = pair.second;
-			// TODO: consider stopping looking if we hit a non-function variable
 			if (var->type->is_function()) {
 				fns.push_back(var);
 			}
@@ -439,7 +439,7 @@ void get_callables_from_unchecked_vars(
 	}
 }
 
-void scope_t::get_callables(atom symbol, var_t::refs &fns) const {
+void scope_t::get_callables(atom symbol, var_t::refs &fns) {
 	/* default scope behavior is to look at bound variables */
 	get_callables_from_bound_vars(symbol, bound_vars, fns);
 
@@ -449,7 +449,7 @@ void scope_t::get_callables(atom symbol, var_t::refs &fns) const {
 	}
 }
 
-void module_scope_t::get_callables(atom symbol, var_t::refs &fns) const {
+void module_scope_t::get_callables(atom symbol, var_t::refs &fns) {
 	/* default scope behavior is to look at bound variables */
 	get_callables_from_bound_vars(symbol, bound_vars, fns);
 	get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
@@ -515,7 +515,7 @@ void dump_bindings(
 	os << "bound:\n";
 	for (auto &var_pair : bound_vars) {
 		os << C_VAR << var_pair.first << C_RESET << ": ";
-		const bound_var_t::resolve_map &overloads = var_pair.second;
+		const auto &overloads = var_pair.second;
 		os << ::str(overloads);
 	}
 
@@ -710,11 +710,11 @@ module_scope_t::ref module_scope_t::create(
 	return make_ptr<module_scope_t>(name, parent_scope, llvm_module);
 }
 
-llvm::Module *module_scope_t::get_llvm_module() const {
+llvm::Module *module_scope_t::get_llvm_module() {
 	return llvm_module;
 }
 
-llvm::Module *generic_substitution_scope_t::get_llvm_module() const {
+llvm::Module *generic_substitution_scope_t::get_llvm_module() {
 	return get_parent_scope()->get_llvm_module();
 }
 
@@ -734,23 +734,27 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 		const ptr<const unification_t> &unification)
 {
 	auto subst_scope = make_ptr<generic_substitution_scope_t>("generic substitution", parent_scope);
-	for (auto &pair : unification->generics) {
-		atom subst_type = pair.second->repr();
-		auto type = parent_scope->get_bound_type(subst_type);
-		if (!type) {
-			user_error(status, *fn_decl, "when trying to instantiate %s, couldn't find type %s",
+	for (auto &pair : unification->bindings) {
+		auto bound_type = create_bound_type(
+				status,
+				builder,
+				pair.second);
+				
+		if (!bound_type) {
+			user_error(status, *fn_decl, "when trying to instantiate %s, couldn't find or create type %s",
 					fn_decl->token.str().c_str(),
 					pair.second->str().c_str());
 			return nullptr;
 		} else {
 			/* the substitution scope allows us to masquerade a generic name as
 			 * a bound type */
-			subst_scope->put_bound_type(pair.first, type);
+			subst_scope->put_bound_type(pair.first, bound_type);
 		}
 	}
 	return subst_scope;
 }
 
+#if 0
 generic_substitution_scope_t::ref generic_substitution_scope_t::create_for_types(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -777,3 +781,4 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create_for_types
 	}
 	return subst_scope;
 }
+#endif

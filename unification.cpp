@@ -3,6 +3,7 @@
 #include <sstream>
 #include "utils.h"
 #include "types.h"
+#include "unification.h"
 
 #if 0
 template <typename T>
@@ -94,13 +95,35 @@ unification_t::ref unification_t::attempt(
 		return nullptr;
 	}
 }
+#endif
 
-bool unification_t::unify(term_t::ref lhs, term_t::ref rhs) {
+types::type::ref prune(types::type::ref t, types::type::map bindings) {
+	/* Follow the links across the bindings to reach the final binding. */
+	atom type_variable_name;
+	if (get_type_variable_name(t, type_variable_name)) {
+        if (bindings.find(type_variable_name) != bindings.end()) {
+            return prune(bindings[type_variable_name], bindings);
+		}
+	}
+
+	return t;
+}
+
+unification_t::ref unify_core(
+		status_t &status,
+		types::term::map env,
+		types::type::ref lhs,
+		types::type::ref rhs,
+		types::type::map bindings)
+{
 	debug_above(7, log(log_info, "attempting to unify %s and %s", lhs->str().c_str(), rhs->str().c_str()));
 
-	auto a = lhs->prune();
-	auto b = rhs->prune();
+    auto pruned_a = prune(lhs, bindings);
+    auto pruned_b = prune(rhs, bindings);
 
+	return null_impl();
+
+#if 0
 	/* beta reduce any operators we have */
 	if (auto pa = dyncast<term_operator_t>(a)) {
 		a = pa->beta_reduce(term_map, generics, next_unnamed_id);
@@ -188,5 +211,20 @@ bool unification_t::unify(term_t::ref lhs, term_t::ref rhs) {
 		}
 	}
 	return false;
-}
 #endif
+}
+
+unification_t::ref unify(
+		status_t &status,
+		types::term::map env,
+		types::term::ref lhs,
+		types::term::ref rhs)
+{
+	return unify_core(
+			status,
+		   	env,
+		   	lhs->evaluate(env, 0)->get_type(),
+		   	rhs->evaluate(env, 0)->get_type(),
+		   	{});
+}
+

@@ -82,10 +82,9 @@ bound_var_t::ref check_func_vs_callsite(
 					log(log_info, "building substitution for %s", data_ctor->token.str().c_str());
 
 					/* create a generic substitution scope with the unification */
-					scope_t::ref subst_scope = generic_substitution_scope_t::create_for_types(
+					scope_t::ref subst_scope = generic_substitution_scope_t::create(
 							status, builder, unchecked_fn->node,
-							unchecked_fn->module_scope, unification,
-							data_ctor->type_variables);
+							unchecked_fn->module_scope, unification);
 
 					/* instantiate the data ctor we want */
 					bool fully_bound = true;

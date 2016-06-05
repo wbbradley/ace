@@ -11,30 +11,31 @@ struct unification_t {
 
 	unification_t() = delete;
 	unification_t(
-			types::term::ref unified_type,
-		   	types::term::ref lhs,
-		   	types::term::ref rhs) :
-	   	//unified_type(unified_type),
-		lhs_initial(lhs),
-	   	rhs_initial(rhs) {}
+			bool result,
+			std::string reasons,
+			types::type::map bindings) :
+		result(result),
+		reasons(reasons),
+		bindings(bindings) {}
 
-	std::string str() const;
+	std::string str() const { return reasons; }
 
-	/* lhs is the potentially generic term of a function */
-	types::term::ref lhs_initial;
+	/* result */
+	bool result;
 
-	/* rhs is the callsite which should be fully bound */
-	types::term::ref rhs_initial;
+	/* reasons for the result */
+	std::string reasons;
 
-	/* the bound types which we end up with after the unification process */
-	types::term::map bindings;
+	/* the bindings for any quantified types which we end up with after the
+	 * unification process */
+	types::type::map bindings;
 };
 
 unification_t::ref unify(
 		status_t &status,
-		const types::term::map &env,
-		const types::term::ref &a,
-		const types::term::ref &b);
+		types::term::map env,
+		types::term::ref a,
+		types::term::ref b);
 
 
 #if 0

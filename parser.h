@@ -23,5 +23,3 @@ ptr<T> parse_text(const std::string &text, std::string filename = "repl.zion") {
 	std::istringstream iss(text);
 	return parse_text<T>(iss, filename);
 }
-
-types::term::ref operator "" _ty(const char *value, size_t);

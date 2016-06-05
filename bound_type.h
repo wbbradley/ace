@@ -37,6 +37,7 @@ struct bound_type_t {
 	bool is_void() const;
 	bool is_obj() const;
 	bool is_struct() const;
+	types::signature get_signature() const;
 
 	static refs refs_from_vars(const std::vector<ptr<const bound_var_t>> &vars);
 

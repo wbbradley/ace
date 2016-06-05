@@ -68,7 +68,6 @@ ZION_LLVM_SOURCES = \
 				type_checker.cpp \
 				type_refs.cpp \
 				type_sum.cpp \
-				types.cpp \
 				var.cpp \
 				ast.cpp \
 				compiler.cpp \
@@ -81,6 +80,7 @@ ZION_LLVM_SOURCES = \
 				lexer.cpp \
 				llvm_utils.cpp \
 				llvm_test.cpp \
+				llvm_types.cpp \
 				location.cpp \
 				logger.cpp \
 				mmap_file.cpp \

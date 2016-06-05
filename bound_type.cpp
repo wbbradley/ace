@@ -109,6 +109,7 @@ types::term::ref get_args_term(bound_var_t::refs args) {
 	return get_args_term(sig_args);
 }
 
+
 types::term::ref get_tuple_term(const bound_type_t::refs &items_types) {
 	types::term::refs dimensions;
 	for (auto &arg : items_types) {
@@ -150,6 +151,25 @@ bool bound_type_t::is_obj() const {
 bool bound_type_t::is_struct() const {
 	assert(false);
 	return false;
+}
+
+types::signature bound_type_t::get_signature() const {
+	not_impl();
+	return {"not impl"};
+}
+
+types::term::ref get_function_term(
+		const bound_type_t::refs &args,
+	   	bound_type_t::ref return_value)
+{
+	return null_impl();
+}
+
+types::term::ref get_function_term(
+		const bound_type_t::named_pairs &args,
+	   	bound_type_t::ref ret)
+{
+	return null_impl();
 }
 
 types::type::ref get_function_type(

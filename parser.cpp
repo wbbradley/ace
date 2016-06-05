@@ -878,24 +878,6 @@ types::term::ref parse_term(parse_state_t &ps, int depth=0) {
 	}
 }
 
-types::term::ref parse_type_expr(std::string input) {
-	status_t status;
-	std::istringstream iss(input);
-	zion_lexer_t lexer("", iss);
-	parse_state_t ps(status, "", lexer, nullptr);
-	types::term::ref term = null_impl(); // parse_term(ps, psc_type_ref);
-	if (!!status) {
-		return term;
-	} else {
-		panic("bad term");
-		return null_impl();
-	}
-}
-
-types::term::ref operator "" _ty(const char *value, size_t) {
-	return parse_type_expr(value);
-}
-
 type_decl::ref type_decl::parse(parse_state_t &ps) {
 	atom name;
 	atom::many type_variables;

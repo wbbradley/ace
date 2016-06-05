@@ -2,7 +2,6 @@
 #include "ast.h"
 #include "llvm_utils.h"
 #include "llvm_types.h"
-#include "type_sum.h"
 
 bound_type_t::ref create_bound_type(
 		status_t &status,
@@ -21,7 +20,7 @@ bound_type_t::ref create_bound_type(
 {
 	/* helper method to convert lambda terms to types */
 	auto type_env = scope->get_type_env();
-	auto type = term->evaluate(type_env, 0);
+	auto type = term->evaluate(type_env, 0)->get_type();
 	return create_bound_type(status, builder, type);
 }
 
@@ -32,9 +31,9 @@ bound_type_t::ref get_function_return_type(
 		scope_t::ref scope,
 		bound_type_t::ref function_type)
 {
-	types::term::ref return_sig = get_function_return_type_term(function_type->term);
-	log(log_info, "got function return type %s", return_sig.str().c_str());
-	return scope->resolve_term(status, builder, obj, return_sig, scope);
+	types::term::ref return_term = get_function_return_type_term(function_type->get_term());
+	log(log_info, "got function return type %s", return_term->str().c_str());
+	return null_impl();
 }
 
 bound_type_t::ref get_or_create_tuple_type(
@@ -45,10 +44,9 @@ bound_type_t::ref get_or_create_tuple_type(
 		const ast::item::ref &node)
 {
 	/* get the term of this tuple type */
-	types::term::ref term = get_obj_term(
-			get_tuple_term(get_terms(args)));
+	types::term::ref term = get_obj_term(get_tuple_term(get_terms(args)));
 
-	auto data_type = scope->maybe_get_bound_type(term);
+	auto data_type = null_impl(); // scope->maybe_get_bound_type(term);
 
 	if (data_type != nullptr) {
 		return data_type;
@@ -64,10 +62,12 @@ bound_type_t::ref get_or_create_tuple_type(
 		log(log_info, "created LLVM wrapped type %s", llvm_print_type(*llvm_obj_struct_type).c_str());
 
 		/* get the bound type of the data ctor's value */
-		bound_type_t::ref data_type = bound_type_t::create(term, llvm_tuple_type, node);
+		bound_type_t::ref data_type = null_impl();
+		// bound_type_t::create(term->get_type(), llvm_tuple_type, node);
 
 		/* put the type for the data type */
-		program_scope->put_bound_type(data_type->term, data_type);
+		// TODO: memoize the data type
+		// program_scope->put_bound_type(data_type->term, data_type);
 
 		return data_type;
 	}
@@ -92,8 +92,8 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
-		bound_type_t::ref data_type = get_or_create_tuple_type(
-				builder, scope, name, args, node);
+		bound_type_t::ref data_type = null_impl();
+		// get_or_create_tuple_type(builder, scope, name, args, node);
 
 		bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(status, builder,
 				scope, args, data_type, name, location, node);
@@ -188,7 +188,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 							program_scope->get_bound_type({"__mark_fn"})->llvm_type),
 
 					/* the type_id */
-					builder.getInt32(function->type->term.repr().iatom),
+					builder.getInt32(function->type->get_signature().repr().iatom),
 
 					/* allocation size */
 					llvm_sizeof_tuple
@@ -297,8 +297,9 @@ bound_type_t::ref ast::type_product::instantiate_type(
 	   	scope_t::ref scope,
 	   	types::term::ref term) const
 {
-	log(log_info, "creating product type for " c_type("%s"), term.name.c_str());
+	log(log_info, "creating product type for " c_type("%s"), term->str().c_str());
 
+#if 0
 	atom::many dim_names;
 	std::vector<bound_type_t::ref> dim_types;
 	types::term::refs dim_terms;
@@ -345,6 +346,8 @@ bound_type_t::ref ast::type_product::instantiate_type(
 
 		return struct_type;
 	}
+#endif
+
 	assert(!status);
 	return nullptr;
 }
@@ -355,8 +358,7 @@ bound_type_t::ref ast::type_alias::instantiate_type(
 		scope_t::ref scope,
 		types::term::ref term) const
 {
-	// TODO: might need to do a substitution here if the alias has type variables
-	return type_ref->resolve_type(status, builder, scope, nullptr, nullptr);
+	return null_impl(); // type_ref->resolve_type(status, builder, scope, nullptr, nullptr);
 }
 
 bound_var_t::ref call_const_subscript_operator(
@@ -367,6 +369,7 @@ bound_var_t::ref call_const_subscript_operator(
 		bound_var_t::ref lhs,
 		int subscript_index)
 {
+#if 0
 	if (subscript_index < 0) {
 		user_error(status, *node, "constant subscripts must be positive");
 	} else {
@@ -407,6 +410,7 @@ bound_var_t::ref call_const_subscript_operator(
 			}
 		}
 	}
+#endif
 
 	assert(!status);
 	return nullptr;

@@ -1,7 +1,10 @@
+#include "zion.h"
 #include "dbg.h"
 #include "types.h"
 #include <sstream>
 #include "utils.h"
+#include "types.h"
+#include "parser.h"
 
 const atom PK_OBJ = {"obj"};
 const atom PK_FUNCTION = {"fn"};
@@ -10,10 +13,6 @@ const atom PK_TUPLE = {"and"};
 const atom PK_STRUCT = {"struct"};
 
 namespace types {
-
-	identifier::ref make_iid(atom name) {
-		return make_ptr<iid>(name);
-	}
 
 	atom term::str() const {
 		std::stringstream ss;
@@ -220,6 +219,17 @@ namespace types {
 	term::ref term_ref(term::ref macro, term::refs args) {
 		return make_ptr<terms::term_ref>(macro, args);
 	}
+
+	namespace inner {
+		struct type_variable : public type {
+			type_variable(atom name) : name(name) {}
+			atom name;
+		};
+	}
+}
+
+types::identifier::ref make_iid(atom name) {
+	return make_ptr<types::iid>(name);
 }
 
 bool get_obj_struct_name_info(
@@ -255,6 +265,46 @@ types::term::ref get_function_term(types::term::ref args, types::term::ref retur
 	return types::term_product(PK_FUNCTION, {args, return_type});
 }
 
+types::term::ref get_function_return_type_term(types::term::ref function_type) {
+	return null_impl();
+}
+
+types::term::ref get_obj_term(types::term::ref item) {
+	return types::term_product(PK_OBJ, {item});
+}
+
 std::ostream &operator <<(std::ostream &os, types::identifier::ref id) {
 	return os << id->get_name();
+}
+
+types::term::pair make_term_pair(std::string fst, std::string snd) {
+	return types::term::pair{parse_type_expr(fst), parse_type_expr(snd)};
+}
+
+types::term::ref parse_type_expr(std::string input) {
+	status_t status;
+	std::istringstream iss(input);
+	zion_lexer_t lexer("", iss);
+	parse_state_t ps(status, "", lexer, nullptr);
+	types::term::ref term = null_impl(); // parse_term(ps, psc_type_ref);
+	if (!!status) {
+		return term;
+	} else {
+		panic("bad term");
+		return null_impl();
+	}
+}
+
+types::term::ref operator "" _ty(const char *value, size_t) {
+	return parse_type_expr(value);
+}
+
+bool get_type_variable_name(types::type::ref type, atom &name) {
+    if (auto ptv = dyncast<const types::inner::type_variable>(type)) {
+		name = ptv->name;
+		return true;
+	} else {
+		return false;
+	}
+	return false;
 }

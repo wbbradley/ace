@@ -35,6 +35,7 @@ struct bound_var_t : public var_t {
 	std::string str() const;
 
 	bool is_int() const;
+	types::signature get_signature() const;
 
 	typedef ptr<const bound_var_t> ref;
 	typedef ptr<const bound_var_t> ref;
@@ -44,7 +45,6 @@ struct bound_var_t : public var_t {
 	typedef std::map<atom, overloads> map;
 
 	virtual types::term::ref get_term() const;
-	virtual types::signature get_signature() const;
 	virtual location get_location() const;
 
 	static ref create(

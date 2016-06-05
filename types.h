@@ -1,6 +1,7 @@
 #pragma once
 #include "zion.h"
 #include "ast_decls.h"
+#include "signature.h"
 
 /* Product Kinds */
 extern const atom PK_OBJ;
@@ -37,6 +38,7 @@ namespace types {
 	};
 
 	struct term;
+	struct signature;
 
 	struct type {
 		typedef ptr<const type> ref;
@@ -54,9 +56,8 @@ namespace types {
 
 		atom repr() const { return this->str({}); }
 		atom str() const { return this->str({}); }
+		signature get_signature() const;
 	};
-
-	struct type_variable;
 
 	/* type data ctors */
 	type::ref type_unreachable();
@@ -78,6 +79,7 @@ namespace types {
 		typedef ptr<const term> ref;
 		typedef std::vector<ref> refs;
 		typedef std::map<identifier::ref, ref> map;
+		typedef std::pair<ref, ref> pair;
 
 		virtual ~term() {}
 
@@ -127,4 +129,11 @@ std::ostream& operator <<(std::ostream &out, const types::term::ref &term);
 types::identifier::ref make_iid(atom name);
 types::term::ref get_args_term(types::term::refs args);
 types::term::ref get_function_term(types::term::ref args, types::term::ref return_type);
+types::term::ref get_function_return_type_term(types::term::ref function_type);
+types::term::ref get_obj_term(types::term::ref item);
 bool get_obj_struct_name_info(types::type::ref type, std::string member_name, int &index, types::type::ref &member_type);
+types::term::pair make_term_pair(std::string fst, std::string snd);
+
+types::term::ref operator "" _ty(const char *value, size_t);
+types::term::ref parse_type_expr(std::string input);
+bool get_type_variable_name(types::type::ref term, atom &name);
