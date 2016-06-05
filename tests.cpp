@@ -925,18 +925,18 @@ auto test_descs = std::vector<test_desc>{
 				make_term_pair("any", "float"),
 				make_term_pair("void", "void"),
 				make_term_pair("any a", "int"),
-				make_term_pair("any", "(map int int)"),
-				make_term_pair("any a", "(map int str)"),
-				make_term_pair("(map (any a) (any b))", "map int str)"),
-				make_term_pair("(map (any a) any)", "(map int str)"),
-				make_term_pair("(map any (any b))", "map int str)"),
-				make_term_pair("(map any any)", "(map int str)"),
+				make_term_pair("any", "map{int, int}"),
+				make_term_pair("any a", "map{int, str}"),
+				make_term_pair("map{any a, any b}", "map{int, str}"),
+				make_term_pair("map{any a, any}", "map{int, str}"),
+				make_term_pair("map{any, any b}", "map{int, str}"),
+				make_term_pair("map{any, any}", "map{int, str}"),
 			}};
 
 			auto fails = std::vector<types::term::pair>{
 				make_term_pair("int", "void"),
-				make_term_pair("int", "(map int int)"),
-				make_term_pair("(map (any a) (any a))", "(map int str)"),
+				make_term_pair("int", "map{int, int}"),
+				make_term_pair("map{any a, any a}", "map{int, str}"),
 			};
 
 			for (auto &pair : unifies) {

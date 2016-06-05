@@ -23,3 +23,5 @@ ptr<T> parse_text(const std::string &text, std::string filename = "repl.zion") {
 	std::istringstream iss(text);
 	return parse_text<T>(iss, filename);
 }
+
+types::term::ref parse_term(parse_state_t &ps, int depth=0);

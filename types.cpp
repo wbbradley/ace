@@ -428,6 +428,9 @@ std::ostream &operator <<(std::ostream &os, types::identifier::ref id) {
 }
 
 types::term::pair make_term_pair(std::string fst, std::string snd) {
+	debug_above(4, log(log_info, "creating term pair with (%s, %s)",
+				fst.c_str(), snd.c_str()));
+
 	return types::term::pair{parse_type_expr(fst), parse_type_expr(snd)};
 }
 
@@ -436,7 +439,7 @@ types::term::ref parse_type_expr(std::string input) {
 	std::istringstream iss(input);
 	zion_lexer_t lexer("", iss);
 	parse_state_t ps(status, "", lexer, nullptr);
-	types::term::ref term = null_impl(); // parse_term(ps, psc_type_ref);
+	types::term::ref term = parse_term(ps);
 	if (!!status) {
 		return term;
 	} else {
