@@ -2,6 +2,7 @@
 #include "zion.h"
 #include "ast_decls.h"
 #include "signature.h"
+#include "utils.h"
 
 /* Product Kinds */
 extern const atom PK_OBJ;
@@ -46,7 +47,7 @@ namespace types {
 		typedef std::map<atom, ref> map;
 
 		virtual ~type() {}
-		virtual std::ostream &emit(std::ostream &os) const = 0;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const = 0;
 
 		/* how many free type variables exist in this type? */
 		virtual int ftv() const = 0;
@@ -59,15 +60,6 @@ namespace types {
 		signature get_signature() const;
 	};
 
-	/* type data ctors */
-	type::ref type_unreachable();
-	type::ref type_id(identifier::ref var);
-	type::ref type_variable(identifier::ref name);
-	type::ref type_ref(type::ref macro, type::refs args);
-	type::ref type_operator(type::ref operator_, type::ref operand);
-	type::ref type_sum(type::refs options);
-	type::ref type_product(type::refs dimensions);
-
 	bool is_type_id(type::ref type, atom type_name);
 
 	/* term is the base-type of terms as terms of the
@@ -75,7 +67,7 @@ namespace types {
 	 * Hindley-Damas-Milner. It also includes the
 	 * addition of the polymorph type used in Zion to
 	 * unify sum types. */
-	struct term {
+	struct term : public std::enable_shared_from_this<term> {
 		typedef ptr<const term> ref;
 		typedef std::vector<ref> refs;
 		typedef std::map<identifier::ref, ref> map;
@@ -109,7 +101,58 @@ namespace types {
 	term::ref term_apply(term::ref fn, term::ref arg);
 	term::ref term_let(identifier::ref var, term::ref defn, term::ref body);
 	term::ref term_ref(term::ref macro, term::refs args);
+
+	struct type_id : public type {
+		type_id(identifier::ref id);
+		identifier::ref id;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv() const;
+		virtual atom str(const map &bindings) const;
+		virtual ptr<const term> to_term(const map &bindings={}) const;
+	};
+
+	struct type_variable : public type {
+		type_variable(identifier::ref id);
+		identifier::ref id;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv() const;
+		virtual atom str(const map &bindings) const;
+		virtual ptr<const term> to_term(const map &bindings={}) const;
+	};
+
+	struct type_ref : public type {
+		type_ref(type::ref macro, type::refs args);
+		type::ref macro;
+		type::refs args;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv() const;
+		virtual atom str(const map &bindings) const;
+		virtual ptr<const term> to_term(const map &bindings={}) const;
+	};
+
+	struct type_operator : public type {
+		type_operator(type::ref oper, type::ref operand);
+		type::ref oper;
+		type::ref operand;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv() const;
+		virtual atom str(const map &bindings) const;
+		virtual ptr<const term> to_term(const map &bindings={}) const;
+	};
 };
+
+/* type data ctors */
+types::type::ref type_unreachable();
+types::type::ref type_id(types::identifier::ref var);
+types::type::ref type_variable(types::identifier::ref name);
+types::type::ref type_ref(types::type::ref macro, types::type::refs args);
+types::type::ref type_operator(types::type::ref operator_, types::type::ref operand);
+types::type::ref type_sum(types::type::refs options);
+types::type::ref type_product(types::type::refs dimensions);
 
 namespace std {
 	template <>

@@ -46,11 +46,11 @@ namespace types {
 			}
 
 			ref evaluate(map env, int macro_depth) const {
-				return null_impl();
+				return shared_from_this();
 			}
 
 			type::ref get_type() const {
-				return null_impl();
+				return ::type_id(name);
 			}
 		};
 
@@ -140,11 +140,12 @@ namespace types {
 			}
 
 			ref evaluate(map env, int macro_depth) const {
-				return null_impl();
+				/* Only allow substitution of "any" type variables from the environment. */
+				return shared_from_this();
 			}
 
 			type::ref get_type() const {
-				return null_impl();
+				return ::type_variable(name);
 			}
 		};
 
@@ -308,74 +309,130 @@ namespace types {
 		return make_ptr<terms::term_ref>(macro, args);
 	}
 
-	namespace inner {
-		struct type_id : public type {
-			type_id(identifier::ref id) : id(id) {}
-			identifier::ref id;
-
-			virtual std::ostream &emit(std::ostream &os) const {
-				return os << id->get_name();
-			}
-
-			/* how many free type variables exist in this type? */
-			virtual int ftv() const {
-				return 0;
-			}
-
-			virtual atom str(const map &bindings) const {
-				return {id->get_name()};
-			}
-
-			virtual ptr<const term> to_term(const map &bindings={}) const {
-				return term_id(id);
-			}
-		};
-
-		struct type_variable : public type {
-			type_variable(identifier::ref id) : id(id) {}
-			identifier::ref id;
-
-			virtual std::ostream &emit(std::ostream &os) const {
-				return os << str({});
-			}
-
-			/* how many free type variables exist in this type? */
-			virtual int ftv() const {
-				return 1;
-			}
-
-			virtual atom str(const map &bindings) const {
-				auto instance_iter = bindings.find(id->get_name());
-				if (instance_iter != bindings.end()) {
-					return instance_iter->second->str(bindings);
-				} else {
-					return string_format("(any %s)", id->get_name().c_str());
-				}
-			}
-
-			virtual ptr<const term> to_term(const map &bindings={}) const {
-				auto instance_iter = bindings.find(id->get_name());
-				if (instance_iter != bindings.end()) {
-					return instance_iter->second->to_term(bindings);
-				} else {
-					return term_generic(id);
-				}
-			}
-		};
+	type_id::type_id(identifier::ref id) : id(id) {
 	}
 
-	type::ref type_id(identifier::ref id) {
-		return make_ptr<inner::type_id>(id);
+	std::ostream &type_id::emit(std::ostream &os, const map &bindings) const {
+		return os << id->get_name();
 	}
 
-	type::ref type_variable(identifier::ref id) {
-		return make_ptr<inner::type_variable>(id);
+	int type_id::ftv() const {
+		/* how many free type variables exist in this type? */
+		return 0;
+	}
+
+	atom type_id::str(const map &bindings) const {
+		return {id->get_name()};
+	}
+
+	ptr<const term> type_id::to_term(const map &bindings) const {
+		return term_id(id);
+	}
+
+	type_variable::type_variable(identifier::ref id) : id(id) {
+	}
+
+	std::ostream &type_variable::emit(std::ostream &os, const map &bindings) const {
+		return os << str(bindings);
+	}
+
+	/* how many free type variables exist in this type? */
+	int type_variable::ftv() const {
+		return 1;
+	}
+
+	atom type_variable::str(const map &bindings) const {
+		auto instance_iter = bindings.find(id->get_name());
+		if (instance_iter != bindings.end()) {
+			return instance_iter->second->str(bindings);
+		} else {
+			return string_format("(any %s)", id->get_name().c_str());
+		}
+	}
+
+	ptr<const term> type_variable::to_term(const map &bindings) const {
+		auto instance_iter = bindings.find(id->get_name());
+		if (instance_iter != bindings.end()) {
+			return instance_iter->second->to_term(bindings);
+		} else {
+			return term_generic(id);
+		}
+	}
+
+	type_ref::type_ref(type::ref macro, type::refs args) :
+		macro(macro), args(args)
+	{
+	}
+
+	std::ostream &type_ref::emit(std::ostream &os, const map &bindings) const {
+		os << "(ref ";
+		macro->emit(os, bindings);
+		for (auto arg : args) {
+			os << " ";
+			arg->emit(os, bindings);
+		}
+		return os << ")";
+	}
+
+	int type_ref::ftv() const {
+		return 0;
+	}
+
+	atom type_ref::str(const map &bindings) const {
+		std::stringstream ss;
+		emit(ss, bindings);
+		return ss.str();
+	}
+
+	ptr<const term> type_ref::to_term(const map &bindings) const {
+		term::refs term_args;
+		for (auto arg : args) {
+			term_args.push_back(arg->to_term(bindings));
+		}
+		return term_ref(macro->to_term(bindings), term_args);
+	}
+
+	type_operator::type_operator(type::ref oper, type::ref operand) :
+		oper(oper), operand(operand)
+	{
+	}
+
+	std::ostream &type_operator::emit(std::ostream &os, const map &bindings) const {
+		os << "(";
+		oper->emit(os, bindings);
+		os << " ";
+		oper->emit(os, bindings);
+		return os << ")";
+	}
+
+	int type_operator::ftv() const {
+		return oper->ftv() + operand->ftv();
+	}
+
+	atom type_operator::str(const map &bindings) const {
+		std::stringstream ss;
+		emit(ss, bindings);
+		return ss.str();
+	}
+
+	ptr<const term> type_operator::to_term(const map &bindings) const {
+		return term_apply(oper->to_term(bindings), operand->to_term(bindings));
 	}
 
 	bool is_type_id(type::ref type, atom type_name) {
-		not_impl();
+		if (auto pti = dyncast<const types::type_id>(type)) {
+			return pti->id->get_name() == type_name;
+		}
 		return false;
 	}
+}
+
+types::type::ref type_id(types::identifier::ref id) {
+	return make_ptr<types::type_id>(id);
+}
+
+types::type::ref type_variable(types::identifier::ref id) {
+	return make_ptr<types::type_variable>(id);
 }
 
 types::identifier::ref make_iid(atom name) {
@@ -453,7 +510,7 @@ types::term::ref operator "" _ty(const char *value, size_t) {
 }
 
 bool get_type_variable_name(types::type::ref type, atom &name) {
-    if (auto ptv = dyncast<const types::inner::type_variable>(type)) {
+    if (auto ptv = dyncast<const types::type_variable>(type)) {
 		name = ptv->id->get_name();
 		return true;
 	} else {

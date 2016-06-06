@@ -74,7 +74,7 @@ bool zion_lexer_t::get_token(zion_token_t &token, bool &newline, std::vector<zio
 		}
 	} while (token.tk == tk_newline || token.tk == tk_space || token.tk == tk_comment);
 
-	debug_above(4, log(log_info, "lexed (%s) \"%s\"@%s", tkstr(token.tk), token.text.c_str(),
+	debug_above(7, log(log_info, "lexed (%s) \"%s\"@%s", tkstr(token.tk), token.text.c_str(),
 				token.location().c_str()));
 	return token.tk != tk_nil;
 }
@@ -655,7 +655,7 @@ void zion_lexer_t::pop_nested(token_kind tk) {
 }
 
 void zion_lexer_t::enqueue_indents(int line, int col, int indent_depth) {
-	debug_above(4, log(log_info, "enqueue_indents(%d)", indent_depth));
+	debug_above(7, log(log_info, "enqueue_indents(%d)", indent_depth));
 	if (indent_depth > m_last_indent_depth) {
 		if (!m_nested_tks.size()) {
 			// Handle indents

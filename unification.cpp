@@ -5,7 +5,18 @@
 #include "types.h"
 #include "unification.h"
 
-#if 0
+types::type::ref prune(types::type::ref t, types::type::map bindings) {
+	/* Follow the links across the bindings to reach the final binding. */
+	atom type_variable_name;
+	if (get_type_variable_name(t, type_variable_name)) {
+        if (bindings.find(type_variable_name) != bindings.end()) {
+            return prune(bindings[type_variable_name], bindings);
+		}
+	}
+
+	return t;
+}
+
 template <typename T>
 bool occurs_in(const ptr<types::type_variable> &var, const T &terms) {
     /* checks whether a term variable occurs in any other terms. */
@@ -17,22 +28,29 @@ bool occurs_in(const ptr<types::type_variable> &var, const T &terms) {
 	return false;
 }
 
-bool occurs_in_type(const types::type_variable::ref &var, const term_t::ref &term) {
+bool occurs_in_type(
+		types::type_variable::ref var,
+	   	types::type::ref b,
+	   	types::type::map bindings)
+{
 	/* checks whether a type variable occurs in a type expression. must be
 	 * called with var already pruned */
-	assert(var == var->prune());
-    auto pruned_term = term->prune();
-	if (auto var2 = dyncast<types::type_variable>(pruned_term)) {
-		if (var2 == var) {
-			return true;
-		}
-	} else if (auto term_operator = dyncast<term_operator_t>(pruned_term)) {
-        return occurs_in(var, term_operator->terms);
+	assert(var == prune(var, bindings));
+    auto pruned_b = prune(b, bindings);
+
+	if (auto var2 = dyncast<const types::type_variable>(pruned_b)) {
+		return var2 == var;
+	} else if (auto type_operator = dyncast<const types::type_operator>(pruned_b)) {
+        return occurs_in_type(var, type_operator->oper, bindings) ||
+		   	occurs_in_type(var, type_operator->operand, bindings);
+	} else {
+		assert(false);
 	}
     return false;
 }
 
 
+#if 0
 std::string unification_t::str() const {
 	std::stringstream ss;
 	ss << "[";
@@ -97,16 +115,24 @@ unification_t::ref unification_t::attempt(
 }
 #endif
 
-types::type::ref prune(types::type::ref t, types::type::map bindings) {
-	/* Follow the links across the bindings to reach the final binding. */
-	atom type_variable_name;
-	if (get_type_variable_name(t, type_variable_name)) {
-        if (bindings.find(type_variable_name) != bindings.end()) {
-            return prune(bindings[type_variable_name], bindings);
-		}
-	}
+types::type::ref unroll(
+		types::type::ref type,
+	   	types::term::map env,
+	   	types::type::map bindings)
+{
+    /* Handle macro expansion of one level. type_refs can be expanded. */
+    if (auto type_ref = dyncast<const types::type_ref>(type)) {
+        auto type_ref_lambdified = type_ref->to_term(bindings);
+        auto type_ref_reduced = type_ref_lambdified->evaluate(env, 1);
 
-	return t;
+		debug_above(5, log(log_info, "Unrolled:\n\t%r\n\t%s",
+			type->str({}).c_str(),
+		   	type_ref_reduced->get_type()->str(bindings).c_str()));
+
+        return type_ref_reduced->get_type();
+	} else {
+        return type;
+	}
 }
 
 unification_t::ref unify_core(
@@ -121,42 +147,56 @@ unification_t::ref unify_core(
     auto pruned_a = prune(lhs, bindings);
     auto pruned_b = prune(rhs, bindings);
 
+
+    if (pruned_a->str(bindings) == pruned_b->str(bindings)) {
+        return make_ptr<unification_t>(true, "", bindings);
+	}
+
+	if (auto ptr_a = dyncast<const struct ::types::type_ref>(pruned_a)) {
+		if (auto ptr_b = dyncast<const struct ::types::type_ref>(pruned_b)) {
+			auto a_macro_term = ptr_a->macro->to_term(bindings)->evaluate(env, 0);
+			auto b_macro_term = ptr_b->macro->to_term(bindings)->evaluate(env, 0);
+			if (a_macro_term->repr() == b_macro_term->repr()) {
+				return null_impl();
+				// unify_core(reduce(TypeOperator, pruned_a.args),
+				//		reduce(TypeOperator, pruned_b.args),
+				//		env, bindings)
+			} else {
+				debug_above(3, log(log_info, "unmatched refs: %s %s",
+						   	a_macro_term->repr().c_str(),
+							b_macro_term->repr().c_str()));
+			}
+		}
+	}
+
+
+    auto a = unroll(pruned_a, env, bindings);
+    auto b = unroll(pruned_b, env, bindings);
+
+    if (a->str(bindings) == b->str(bindings)) {
+        return make_ptr<unification_t>(true, "", bindings);
+	}
+
+	return null_impl();
+
+	if (auto ptv = dyncast<const types::type_variable>(a)) {
+		if (a != b) {
+			if (occurs_in_type(ptv, b, bindings)) {
+				return make_ptr<unification_t>(false, string_format(
+							"recursive unification on %s and %s",
+							a->str().c_str(), b->str().c_str()),
+						bindings);
+			}
+			assert(bindings.find(ptv->id->get_name()) == bindings.end());
+			bindings[ptv->id->get_name()] = b;
+		}
+
+		return make_ptr<unification_t>(true, "", bindings);
+	}
 	return null_impl();
 
 #if 0
-	/* beta reduce any operators we have */
-	if (auto pa = dyncast<term_operator_t>(a)) {
-		a = pa->beta_reduce(term_map, generics, next_unnamed_id);
-	}
-
-	if (auto pb = dyncast<term_operator_t>(b)) {
-		b = pb->beta_reduce(term_map, generics, next_unnamed_id);
-	}
-
-	if (a == b) {
-		/* we shouldn't be seeing generics get through here since we only
-		 * try to unify against bound callsites */
-		assert(!dyncast<types::type_variable>(a));
-		debug_above(6, log(log_info, "unification of %s and %s succeeded", a->str().c_str(),
-				b->str().c_str()));
-		return true;
-	}
-
-
-	if (auto ptv = dyncast<types::type_variable>(a)) {
-		if (occurs_in_type(ptv, b)) {
-			log(log_warning, "recursive unification on %s and %s",
-					a->str().c_str(), b->str().c_str());
-			return false;
-		}
-		assert(ptv->instance == nullptr);
-
-		/* let's record this variable assignment, which will implicitly
-		 * assign all `a` variables to the value of the `b` term */
-		ptv->instance = b;
-		debug_above(6, log(log_info, "making type variable substitution %s", ptv->str().c_str()));
-		return true;
-	} else if (dyncast<term_bound_t>(a) && dyncast<types::type_variable>(b)) {
+   	else if (dyncast<term_bound_t>(a) && dyncast<types::type_variable>(b)) {
 		log(log_info, "cannot handle generic input values (%s)", b->str().c_str());
         return false;
 	} else if (dyncast<term_operator_t>(a) && dyncast<types::type_variable>(b)) {

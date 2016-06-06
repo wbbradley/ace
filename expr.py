@@ -68,12 +68,7 @@ class TermGeneric(object):
 
     def evaluate(self, env, macro_depth):
         # Only allow substitution of "any" type variables from the environment.
-        substitution_name = "any %s" % self.name
-        substitution = env.get(substitution_name)
-        if substitution:
-            return substitution.evaluate(env, macro_depth)
-        else:
-            return self
+        return self
 
     def get_type(self):
         return TypeVariable(self.name)
@@ -601,6 +596,8 @@ def occurs_in_type(v, type2, bindings):
         return True
     elif isinstance(pruned_type2, TypeOperator):
         return occurs_in_type(v, pruned_type2.operand, bindings)
+
+    # TODO: also check inside of TypeSums and TypeProducts
 
     return False
 
