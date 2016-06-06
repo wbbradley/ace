@@ -160,11 +160,23 @@ namespace types {
 			}
 
 			ref evaluate(map env, int macro_depth) const {
-				return null_impl();
+				debug_above(5, log(log_info, "evaluating term_apply %s", str().c_str()));
+				auto fn_eval = fn->evaluate(env, macro_depth);
+				auto arg_eval = arg->evaluate(env, macro_depth);
+
+				if (auto pfn = dyncast<const types::terms::term_lambda>(fn_eval)) {
+					/* We should only handle substitutions in lambdas when they
+					 * are being applied. */
+					env[pfn->var->get_name()] = arg_eval;
+					return pfn->body->evaluate(env, macro_depth);
+				} else {
+					return shared_from_this();
+				}
 			}
 
 			type::ref get_type() const {
-				return null_impl();
+				return ::type_operator(fn->get_type(),
+						arg->get_type());
 			}
 		};
 
@@ -435,6 +447,14 @@ types::type::ref type_variable(types::identifier::ref id) {
 	return make_ptr<types::type_variable>(id);
 }
 
+types::type::ref type_ref(types::type::ref macro, types::type::refs args) {
+	return make_ptr<types::type_ref>(macro, args);
+}
+
+types::type::ref type_operator(types::type::ref operator_, types::type::ref operand) {
+	return make_ptr<types::type_operator>(operator_, operand);
+}
+
 types::identifier::ref make_iid(atom name) {
 	return make_ptr<types::iid>(name);
 }
@@ -517,4 +537,17 @@ bool get_type_variable_name(types::type::ref type, atom &name) {
 		return false;
 	}
 	return false;
+}
+
+std::string str(types::type::map coll) {
+	std::stringstream ss;
+	ss << "{";
+	const char *sep = "";
+	for (auto p : coll) {
+		ss << sep << p.first.c_str() << ": ";
+		ss << p.second->str().c_str();
+		sep = ", ";
+	}
+	ss << "}";
+	return ss.str();
 }

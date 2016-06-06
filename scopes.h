@@ -245,15 +245,8 @@ struct generic_substitution_scope_t : public scope_t {
 		   	llvm::IRBuilder<> &builder,
 		   	const ptr<const ast::item> &fn_decl,
 		   	scope_t::ref module_scope,
-			const ptr<const unification_t> &unification);
+			unification_t unification);
 
-	static ref create_for_types(
-			status_t &status,
-			llvm::IRBuilder<> &builder,
-			const ptr<const ast::item> &fn_decl,
-			scope_t::ref module_scope,
-			const ptr<const unification_t> &unification,
-			const atom::set &type_variables);
 private:
 	scope_t::ref parent_scope;
 };

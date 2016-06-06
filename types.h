@@ -70,7 +70,7 @@ namespace types {
 	struct term : public std::enable_shared_from_this<term> {
 		typedef ptr<const term> ref;
 		typedef std::vector<ref> refs;
-		typedef std::map<identifier::ref, ref> map;
+		typedef std::map<atom, ref> map;
 		typedef std::pair<ref, ref> pair;
 
 		virtual ~term() {}
@@ -166,6 +166,7 @@ namespace std {
 std::ostream &operator <<(std::ostream &os, types::identifier::ref id);
 std::string str(types::term::refs refs);
 std::string str(types::term::map coll);
+std::string str(types::type::map coll);
 std::ostream& operator <<(std::ostream &out, const types::term::ref &term);
 
 /* helper functions */

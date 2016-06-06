@@ -7,8 +7,6 @@
 #include "types.h"
 
 struct unification_t {
-	typedef ptr<const unification_t> ref;
-
 	unification_t() = delete;
 	unification_t(
 			bool result,
@@ -18,7 +16,7 @@ struct unification_t {
 		reasons(reasons),
 		bindings(bindings) {}
 
-	std::string str() const { return reasons; }
+	std::string str() const { return reasons + " " + ::str(bindings); }
 
 	/* result */
 	bool result;
@@ -31,11 +29,10 @@ struct unification_t {
 	types::type::map bindings;
 };
 
-unification_t::ref unify(
-		status_t &status,
-		types::term::map env,
+unification_t unify(
 		types::term::ref a,
-		types::term::ref b);
+		types::term::ref b,
+		types::term::map env);
 
 
 #if 0

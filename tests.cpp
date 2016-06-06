@@ -940,13 +940,19 @@ auto test_descs = std::vector<test_desc>{
 			};
 
 			for (auto &pair : unifies) {
-				status_t status;
-				test_assert(unify(status, {}, pair.first, pair.second));
+				test_assert(unify(pair.first, pair.second, {}).result);
 			}
 
 			for (auto &pair : fails) {
-				status_t status;
-				test_assert(!unify(status, {}, pair.first, pair.second));
+				auto unification = unify(pair.first, pair.second, {});
+				if (unification.result) {
+					log(log_error, "should have failed unifying %s and %s [%s]",
+							pair.first->str().c_str(),
+							pair.second->str().c_str(),
+							unification.str().c_str());
+				}
+
+				test_assert(!unification.result);
 			}
 
 			return true;

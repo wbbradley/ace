@@ -12,7 +12,7 @@ std::string str(const var_t::refs &vars) {
 	return ss.str();
 }
 
-unification_t::ref var_t::accepts_callsite(
+unification_t var_t::accepts_callsite(
 		ptr<scope_t> scope,
 	   	types::term::ref args) const
 {
@@ -22,7 +22,8 @@ unification_t::ref var_t::accepts_callsite(
 
 	auto env = scope->get_type_env();
 
-	status_t status;
-	return unify(status, env, sig,
-			types::term_product(PK_FUNCTION, {args, types::term_generic()}));
+	return unify(
+			sig,
+		   	types::term_product(PK_FUNCTION, {args, types::term_generic()}),
+			env);
 }

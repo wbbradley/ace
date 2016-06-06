@@ -740,10 +740,10 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 		llvm::IRBuilder<> &builder,
 		const ptr<const ast::item> &fn_decl,
 		scope_t::ref parent_scope,
-		const ptr<const unification_t> &unification)
+		unification_t unification)
 {
 	auto subst_scope = make_ptr<generic_substitution_scope_t>("generic substitution", parent_scope);
-	for (auto &pair : unification->bindings) {
+	for (auto &pair : unification.bindings) {
 		auto bound_type = create_bound_type(
 				status,
 				builder,

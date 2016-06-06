@@ -30,7 +30,8 @@ bound_var_t::ref check_func_vs_callsite(
 		var_t::ref fn,
 		types::term::ref args)
 {
-	if (auto unification = fn->accepts_callsite(scope, args)) {
+	unification_t unification = fn->accepts_callsite(scope, args);
+	if (unification.result) {
 		if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
 			/* this function has already been bound */
 			log(log_info, "override resolution has chosen %s", bound_fn->str().c_str());
@@ -40,7 +41,7 @@ bound_var_t::ref check_func_vs_callsite(
 			/* we know that fn and sig_args are compatible */
 			log(log_info, "it's time to instantiate %s with unification %s",
 					unchecked_fn->str().c_str(),
-					unification->str().c_str());
+					unification.str().c_str());
 
 			types::term::ref fn_sig = fn->get_term();
 			assert(false);

@@ -88,10 +88,12 @@ bound_var_t::ref type_check_bound_var_decl(
 					if (init_var) {
 						assert(type != nullptr);
 						not_impl();
-						unification_t::ref unification = unify(
-								status, scope->get_type_env(),
-								type->get_term(), init_var->type->get_term());
-						if (!unification) {
+						unification_t unification = unify(
+								type->get_term(),
+								init_var->type->get_term(),
+								scope->get_type_env());
+
+						if (!unification.result) {
 							/* report that the variable type does not match the initializer type */
 							user_error(status, obj, "type of " c_var("%s") " does not match type of initializer",
 									obj.token.text.c_str());
