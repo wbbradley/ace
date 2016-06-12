@@ -918,6 +918,32 @@ auto test_descs = std::vector<test_desc>{
 	T(test_parse_single_function_call),
 	T(test_parse_semicolon_line_break),
 	{
+		"test_parse_terms",
+		[] () -> bool {
+			auto parses = std::vector<std::pair<std::string, std::string>>{{
+				{"any a", "(any a)"},
+				{"any", "(any __1)"},
+				/* parsing type variables has monotonically increasing side effects */
+				{"any", "(any __2)"},
+				{"void", "void"},
+				{"map{int, int}", "((map int) int)"},
+				{"map{any b, any c}", "((map (any b)) (any c))"},
+			}};
+			for (auto p : parses) {
+				auto repr = parse_type_expr(p.first)->repr();
+				if (repr != p.second) {
+					log(log_error, c_type("%s") " parsed to " c_type("%s")
+							" - should have been " c_type("%s"),
+							p.first.c_str(),
+							repr.c_str(),
+							p.second.c_str());
+					return false;
+				}
+			}
+			return true;
+		}
+	},
+	{
 		"test_unification",
 		[] () -> bool {
 			get_tuple_term({types::term_generic(), types::term_id(make_iid("float"))});
@@ -933,11 +959,11 @@ auto test_descs = std::vector<test_desc>{
 				make_term_pair("map{any, any}", "map{int, str}"),
 			}};
 
-			auto fails = std::vector<types::term::pair>{
+			auto fails = std::vector<types::term::pair>{{
 				make_term_pair("int", "void"),
 				make_term_pair("int", "map{int, int}"),
 				make_term_pair("map{any a, any a}", "map{int, str}"),
-			};
+			}};
 
 			for (auto &pair : unifies) {
 				test_assert(unify(pair.first, pair.second, {}).result);

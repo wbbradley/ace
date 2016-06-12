@@ -413,7 +413,7 @@ namespace types {
 		os << "(";
 		oper->emit(os, bindings);
 		os << " ";
-		oper->emit(os, bindings);
+		operand->emit(os, bindings);
 		return os << ")";
 	}
 
@@ -540,6 +540,19 @@ bool get_type_variable_name(types::type::ref type, atom &name) {
 }
 
 std::string str(types::type::map coll) {
+	std::stringstream ss;
+	ss << "{";
+	const char *sep = "";
+	for (auto p : coll) {
+		ss << sep << p.first.c_str() << ": ";
+		ss << p.second->str().c_str();
+		sep = ", ";
+	}
+	ss << "}";
+	return ss.str();
+}
+
+std::string str(types::term::map coll) {
 	std::stringstream ss;
 	ss << "{";
 	const char *sep = "";
