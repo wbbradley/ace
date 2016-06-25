@@ -52,12 +52,12 @@ namespace types {
 		/* how many free type variables exist in this type? */
 		virtual int ftv() const = 0;
 
-		virtual atom str(const map &bindings) const = 0;
+		virtual atom repr(const map &bindings) const = 0;
 		virtual ptr<const term> to_term(const map &bindings={}) const = 0;
 
-		atom repr() const { return this->str({}); }
-		atom str() const { return this->str({}); }
-		signature get_signature() const;
+		atom repr() const { return this->repr({}); }
+		atom str(const map &bindings = {}) const { return {string_format(c_type("%s"), this->repr(bindings).c_str())}; }
+		atom get_signature() const { return repr(); }
 	};
 
 	bool is_type_id(type::ref type, atom type_name);
@@ -78,7 +78,6 @@ namespace types {
 		virtual ref evaluate(map env, int macro_depth) const = 0;
 		virtual type::ref get_type() const = 0;
 		virtual std::ostream &emit(std::ostream &os) const = 0;
-
 
 		atom repr() const;
 		atom str() const;
@@ -108,7 +107,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual atom str(const map &bindings) const;
+		virtual atom repr(const map &bindings) const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 	};
 
@@ -118,7 +117,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual atom str(const map &bindings) const;
+		virtual atom repr(const map &bindings) const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 	};
 
@@ -129,7 +128,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual atom str(const map &bindings) const;
+		virtual atom repr(const map &bindings) const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 	};
 
@@ -140,7 +139,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual atom str(const map &bindings) const;
+		virtual atom repr(const map &bindings) const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 	};
 };
@@ -168,6 +167,7 @@ std::string str(types::term::refs refs);
 std::string str(types::term::map coll);
 std::string str(types::type::map coll);
 std::ostream& operator <<(std::ostream &out, const types::term::ref &term);
+std::ostream& operator <<(std::ostream &out, const types::type::ref &type);
 
 /* helper functions */
 types::identifier::ref make_iid(atom name);

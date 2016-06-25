@@ -76,7 +76,7 @@ types::type::ref unroll(
         auto type_ref_reduced = type_ref_lambdified->evaluate(env, 1);
 
 		debug_above(5, log(log_info, "Unrolled:\n\t%r\n\t%s",
-			type->str({}).c_str(),
+			type->str().c_str(),
 		   	type_ref_reduced->get_type()->str(bindings).c_str()));
 
         return type_ref_reduced->get_type();

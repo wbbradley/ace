@@ -66,8 +66,7 @@ bound_type_t::ref get_or_create_tuple_type(
 		// bound_type_t::create(term->get_type(), llvm_tuple_type, node);
 
 		/* put the type for the data type */
-		// TODO: memoize the data type
-		// program_scope->put_bound_type(data_type->term, data_type);
+		program_scope->put_bound_type(data_type);
 
 		return data_type;
 	}
@@ -253,7 +252,7 @@ bound_type_t::ref ast::type_sum::instantiate_type(
 
 	/* make sure any references in child data ctors have something to refer to
 	 * at instantiation */
-	scope->put_bound_type(term, base_type);
+	scope->put_bound_type(base_type);
 
 	/* go through all of our data ctors, instantiating their functions. also, keep
 	 * track of whether they are generic */
@@ -338,7 +337,7 @@ bound_type_t::ref ast::type_product::instantiate_type(
 
 		/* add this struct's term type to the program types list */
 		auto program_scope = scope->get_program_scope();
-		program_scope->put_bound_type(struct_type->term, struct_type);
+		program_scope->put_bound_type(struct_type);
 
 		/* create the ctor for this product type */
 		instantiate_struct_ctor(status, builder, scope, struct_type, dim_types,

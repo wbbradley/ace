@@ -62,10 +62,9 @@ void scope_t::put_bound_variable(atom symbol, bound_var_t::ref bound_variable) {
 	resolve_map[signature] = bound_variable;
 }
 
-bool put_bound_type(types::signature signature, bound_type_t::ref bound_type) {
-	log(log_info, "storing type %s in scope as %s",
-			bound_type->str().c_str(),
-			signature.str().c_str());
+bool put_bound_type(bound_type_t::ref bound_type) {
+	log(log_info, "storing type %s",
+			bound_type->str().c_str());
 
 	/* check some preconditions first */
 	if (bound_type->is_function()) {
@@ -132,7 +131,7 @@ bound_type_t::ref scope_t::upsert_type(
 			   	bound_type->llvm_type->isFunctionTy() ||
 				(bound_type->llvm_type->isPointerTy() &&
 				 bound_type->llvm_type->getPointerElementType()->isFunctionTy()));
-		put_bound_type(term, bound_type);
+		put_bound_type(bound_type);
 		return bound_type;
 	}
 
@@ -163,37 +162,6 @@ bool scope_t::has_bound_variable(
 				return false;
 			} else {
 				return parent_scope->has_bound_variable(symbol,
-						resolution_constraints);
-			}
-		}
-	} else {
-		/* we're at the top and we still didn't find it, quit. */
-		return false;
-	}
-}
-
-bool scope_t::has_bound_type(
-		types::signature signature,
-	   	resolution_constraints_t resolution_constraints)
-{
-	auto iter = bound_types.find(signature);
-	if (iter != bound_types.end()) {
-		/* we found this signature */
-		return true;
-	} else if (auto parent_scope = get_parent_scope()) {
-		/* we did not find the signature, let's consider looking higher up the
-		 * scopes */
-		switch (resolution_constraints) {
-		case rc_all_scopes:
-			return parent_scope->has_bound_type(signature,
-					resolution_constraints);
-		case rc_just_current_scope:
-			return false;
-		case rc_capture_level:
-			if (dynamic_cast<const function_scope_t *>(this)) {
-				return false;
-			} else {
-				return parent_scope->has_bound_type(signature,
 						resolution_constraints);
 			}
 		}
@@ -262,6 +230,7 @@ bound_var_t::ref scope_t::get_bound_variable(status_t &status, const ast::item::
 	return nullptr;
 }
 
+#if 0
 types::term::ref scope_t::get_type_term(types::signature signature) {
 	/* this function should only be called when we know that a type should exist */
 	auto term = maybe_get_type_term(signature);
@@ -276,6 +245,7 @@ types::term::ref scope_t::get_type_term(types::signature signature) {
 }
 
 types::term::ref scope_t::maybe_get_type_term(types::signature signature) {
+	assert(false);
 	/* get a type macro if it exists */
 	auto iter = bound_types.find(signature);
 	if (iter != bound_types.end()) {
@@ -286,6 +256,7 @@ types::term::ref scope_t::maybe_get_type_term(types::signature signature) {
 		return nullptr;
 	}
 }
+#endif
 
 #if 0
 types::term::ref scope_t::rebind_type_name(
@@ -366,12 +337,22 @@ std::string scope_t::make_fqn(std::string leaf_name) {
 }
 
 bound_type_t::ref scope_t::get_bound_type(types::signature signature) {
-	return null_impl();
+	auto full_signature = types::signature{make_fqn(signature.repr().str())};
+	auto bound_type = get_program_scope()->get_bound_type(full_signature);
+	if (bound_type != nullptr) {
+		return bound_type;
+	} else {
+		return get_parent_scope()->get_bound_type(signature);
+	}
 }
 
-bool scope_t::put_bound_type(types::signature signature, bound_type_t::ref type) {
-	not_impl();
-	return false;
+bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
+	auto iter = bound_types.find(signature);
+	if (iter != bound_types.end()) {
+		return iter->second;
+	} else {
+		return nullptr;
+	}
 }
 
 #if 0
@@ -568,24 +549,24 @@ void program_scope_t::dump(std::ostream &os) const {
 
 void module_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "MODULE SCOPE: " << name << std::endl;
-	dump_bindings(os, bound_vars, bound_types);
+	dump_bindings(os, bound_vars, {});
 	dump_bindings(os, unchecked_vars, unchecked_types);
 	// dump_linked_modules(os, linked_modules);
 }
 
 void function_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "FUNCTION SCOPE: " << name << std::endl;
-	dump_bindings(os, bound_vars, bound_types);
+	dump_bindings(os, bound_vars, {});
 }
 
 void local_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "LOCAL SCOPE: " << name << std::endl;
-	dump_bindings(os, bound_vars, bound_types);
+	dump_bindings(os, bound_vars, {});
 }
 
 void generic_substitution_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "GENERIC SUBSTITUTION SCOPE: " << name << std::endl;
-	dump_bindings(os, bound_vars, bound_types);
+	dump_bindings(os, bound_vars, {});
 }
 
 module_scope_t::module_scope_t(atom name, program_scope_t::ref parent_scope, llvm::Module *llvm_module) :
@@ -644,6 +625,14 @@ unchecked_var_t::ref module_scope_t::put_unchecked_variable(
 	/* also keep a list of the order in which we encountered these */
 	unchecked_vars_ordered.push_back(unchecked_variable);
 	return unchecked_variable;
+}
+
+bool program_scope_t::put_bound_type(bound_type_t::ref type) {
+	log(log_info, "registering type %s as " c_id("%s"),
+			type->str().c_str(),
+		   	type->get_signature().repr().c_str());
+	bound_types[type->get_signature().repr()] = type;
+	return false;
 }
 
 ptr<module_scope_t> program_scope_t::new_module_scope(
@@ -757,7 +746,9 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 		} else {
 			/* the substitution scope allows us to masquerade a generic name as
 			 * a bound type */
-			subst_scope->put_bound_type(pair.first, bound_type);
+			// TODO: update the env, not the bound types
+			assert(false);
+			// subst_scope->put_bound_type(pair.first, bound_type);
 		}
 	}
 	return subst_scope;

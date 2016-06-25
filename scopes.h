@@ -44,19 +44,19 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual void dump(std::ostream &os) const = 0;
 
 	bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints);
-	bool has_bound_type(types::signature signature, resolution_constraints_t resolution_constraints);
 
 	bound_var_t::ref get_bound_variable(status_t &status, const ptr<const ast::item> &obj, atom symbol);
 	bound_var_t::ref maybe_get_bound_variable(atom symbol);
 
+#if 0
 	types::term::ref get_type_term(types::signature signature);
 	types::term::ref maybe_get_type_term(types::signature signature);
+#endif
 
 	void put_bound_variable(atom symbol, bound_var_t::ref bound_variable);
 	void put_type_term(atom name, types::term::ref type_term);
 
-	bound_type_t::ref get_bound_type(types::signature signature);
-	bool put_bound_type(types::signature signature, bound_type_t::ref type);
+	virtual bound_type_t::ref get_bound_type(types::signature signature);
 
 #if 0
 	bound_type_t::ref upsert_type(
@@ -86,7 +86,6 @@ protected:
 	atom name;
 
 	bound_var_t::map bound_vars;
-	bound_type_t::map bound_types;
 	types::term::map type_env;
 };
 
@@ -188,8 +187,12 @@ struct program_scope_t : public scope_t {
 	module_scope_t::ref lookup_module(atom symbol);
 	std::string dump_llvm_modules();
 
+	virtual bound_type_t::ref get_bound_type(types::signature signature);
+	bool put_bound_type(bound_type_t::ref type);
+
 private:
 	module_scope_t::map modules;
+	bound_type_t::map bound_types;
 };
 
 struct function_scope_t : public runnable_scope_t {

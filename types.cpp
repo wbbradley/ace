@@ -333,7 +333,7 @@ namespace types {
 		return 0;
 	}
 
-	atom type_id::str(const map &bindings) const {
+	atom type_id::repr(const map &bindings) const {
 		return {id->get_name()};
 	}
 
@@ -345,7 +345,7 @@ namespace types {
 	}
 
 	std::ostream &type_variable::emit(std::ostream &os, const map &bindings) const {
-		return os << str(bindings);
+		return os << repr(bindings);
 	}
 
 	/* how many free type variables exist in this type? */
@@ -353,10 +353,10 @@ namespace types {
 		return 1;
 	}
 
-	atom type_variable::str(const map &bindings) const {
+	atom type_variable::repr(const map &bindings) const {
 		auto instance_iter = bindings.find(id->get_name());
 		if (instance_iter != bindings.end()) {
-			return instance_iter->second->str(bindings);
+			return instance_iter->second->repr(bindings);
 		} else {
 			return string_format("(any %s)", id->get_name().c_str());
 		}
@@ -390,7 +390,7 @@ namespace types {
 		return 0;
 	}
 
-	atom type_ref::str(const map &bindings) const {
+	atom type_ref::repr(const map &bindings) const {
 		std::stringstream ss;
 		emit(ss, bindings);
 		return ss.str();
@@ -421,7 +421,7 @@ namespace types {
 		return oper->ftv() + operand->ftv();
 	}
 
-	atom type_operator::str(const map &bindings) const {
+	atom type_operator::repr(const map &bindings) const {
 		std::stringstream ss;
 		emit(ss, bindings);
 		return ss.str();
@@ -471,7 +471,7 @@ bool get_obj_struct_name_info(
 }
 
 std::ostream& operator <<(std::ostream &os, const types::type::ref &type) {
-	assert(false);
+	os << type->str();
 	return os;
 }
 

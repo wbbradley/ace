@@ -162,8 +162,7 @@ bool bound_type_t::is_struct() const {
 }
 
 types::signature bound_type_t::get_signature() const {
-	not_impl();
-	return {"not impl"};
+	return type->get_signature();
 }
 
 types::term::ref get_function_term(

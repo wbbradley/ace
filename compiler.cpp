@@ -145,15 +145,26 @@ void rt_bind_var_from_llir(
 		user_error(status, location{llvm_module.getName().str(), 0, 0},
 				"unable to find function " c_var("%s"), name_in_llir.c_str());
 	} else {
-		assert(false);
-
-#if 0
 		types::term::ref term = get_function_term(args, return_type);
 
 		/* this is putting a pointer to this function, and later we'll use the
 		 * term to deduce how to call it */
-		auto bound_type = program_scope->upsert_type(status, builder,
-				term, {}, {}, llvm_function->getType(), program);
+		auto type = term->get_type();
+
+		/* see if this bound type already exists */
+		auto bound_type = program_scope->get_bound_type(
+				type->get_signature());
+
+		if (bound_type == nullptr) {
+			/* we haven't seen this bound type before, let's
+			 * create it, and register it */
+			bound_type = bound_type_t::create(
+					type,
+					location{llvm_module.getName().str(), 0, 0},
+					llvm_function->getType());
+			program_scope->put_bound_type(bound_type);
+		}
+
 		program_scope->put_bound_variable(
 				name,
 				bound_var_t::create(
@@ -162,7 +173,6 @@ void rt_bind_var_from_llir(
 					bound_type,
 					llvm_function,
 					program));
-#endif
 	}
 }
 
@@ -193,8 +203,7 @@ void add_global_types(
 	};
 
 	for (auto type : globals) {
-		assert(false);
-		// program_scope->put_bound_type(type->type, type);
+		program_scope->put_bound_type(type);
 	}
 	debug_above(4, log(log_info, "%s", program_scope->str().c_str()));
 }
