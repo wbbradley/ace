@@ -733,9 +733,10 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 {
 	auto subst_scope = make_ptr<generic_substitution_scope_t>("generic substitution", parent_scope);
 	for (auto &pair : unification.bindings) {
-		auto bound_type = create_bound_type(
+		auto bound_type = upsert_bound_type(
 				status,
 				builder,
+				parent_scope,
 				pair.second);
 				
 		if (!bound_type) {

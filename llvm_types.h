@@ -3,16 +3,17 @@
 #include "bound_var.h"
 #include "ast.h"
 
-bound_type_t::ref create_bound_type(
+bound_type_t::ref upsert_bound_type(
 		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-	   	types::type::ref type);
-
-bound_type_t::ref create_bound_type(
-		status_t &status,
-	   	llvm::IRBuilder<> &builder,
+		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-	   	types::term::ref term);
+		types::type::ref type);
+
+bound_type_t::ref upsert_bound_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		types::term::ref term);
 
 std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		status_t &status, 

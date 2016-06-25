@@ -12,7 +12,22 @@ bound_type_t::ref create_bound_type(
 	return nullptr;
 }
 
-bound_type_t::ref create_bound_type(
+bound_type_t::ref upsert_bound_type(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+	   	types::type::ref type)
+{
+	auto signature = type->get_signature();
+	auto bound_type = scope->get_bound_type(signature);
+	if (bound_type == nullptr) {
+		bound_type = create_bound_type(status, builder, type);
+		scope->get_program_scope()->put_bound_type(bound_type);
+	}
+	return bound_type;
+}
+
+bound_type_t::ref upsert_bound_type(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
@@ -21,7 +36,9 @@ bound_type_t::ref create_bound_type(
 	/* helper method to convert lambda terms to types */
 	auto type_env = scope->get_type_env();
 	auto type = term->evaluate(type_env, 0)->get_type();
-	return create_bound_type(status, builder, type);
+
+	return upsert_bound_type(status, builder, scope,
+			type);
 }
 
 bound_type_t::ref get_function_return_type(

@@ -45,7 +45,8 @@ bound_type_t::ref get_fully_bound_param_info(
 
 	if (obj.type_ref != nullptr) {
 		/* the user specified a type */
-		return null_impl(); // obj.type_ref->resolve_type(status, builder, scope, &generics, &generic_index);
+		auto term = obj.type_ref->get_type_term();
+		return upsert_bound_type(status, builder, scope, term);
 	} else {
 		/* the user specified no type */
 		return null_impl(); // ast::type_ref::resolve_null_param_type(status, builder, obj, scope, generic_index);
@@ -80,7 +81,7 @@ bound_var_t::ref type_check_bound_var_decl(
 			}
 			if (!!status) {
 				if (obj.type_ref) {
-					type = create_bound_type(status, builder,
+					type = upsert_bound_type(status, builder,
 							scope, obj.type_ref->get_type_term());
 				}
 
@@ -375,7 +376,7 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
                     module_scope->llvm_module);
 
             /* actually create or find the finalized bound type for this function */
-			bound_type_t::ref bound_function_type = create_bound_type(
+			bound_type_t::ref bound_function_type = upsert_bound_type(
 					status, builder, scope, function_sig);
 
 			return bound_var_t::create(
@@ -681,7 +682,8 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
 
 	if (get_obj_struct_name_info(lhs_val->type->type, rhs.text, index, member_type)) {
 		/* get the type of the dimension being reference */
-		bound_type_t::ref type = create_bound_type(status, builder, member_type);
+		bound_type_t::ref type = upsert_bound_type(status, builder,
+				scope, member_type);
 
 		llvm::Value *llvm_gep = builder.CreateInBoundsGEP(
 				llvm_resolve_alloca(builder, lhs_val->llvm_value),
@@ -753,7 +755,7 @@ bound_var_t::ref ast::function_defn::resolve_instantiation(
 		assert(scope->get_llvm_module() != nullptr);
 
 		auto function_sig = get_function_term(args, return_type);
-		bound_type_t::ref function_type = create_bound_type(status,
+		bound_type_t::ref function_type = upsert_bound_type(status,
 				builder, scope, function_sig);
 
 		if (!!status) {

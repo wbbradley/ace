@@ -55,8 +55,8 @@ void resolve_type_ref_params(
 
 			bool fully_bound = param_type->ftv() == 0;
 			if (fully_bound) {
-				bound_type_t::ref bound_param_type = create_bound_type(
-						status, builder, param_type);
+				bound_type_t::ref bound_param_type = upsert_bound_type(
+						status, builder, scope, param_type);
 
 				if (!!status) {
 					/* keep track of this parameter */
