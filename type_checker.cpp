@@ -614,7 +614,7 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 		bound_type_t::refs args = get_bound_types(vars);
 
 		/* let's get the term for this tuple wrapped as an object */
-		types::term::ref tuple_term = types::term_product(PK_OBJ,
+		types::term::ref tuple_term = types::term_product(pk_obj,
 				{get_tuple_term(args)});
 
 		/* now, let's see if we already have a ctor for this tuple type, if not

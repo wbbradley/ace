@@ -42,7 +42,7 @@ namespace ast {
 			terms.push_back(type_ref->get_type_term());
 		}
 
-		return types::term_product(PK_TUPLE, terms);
+		return types::term_product(pk_tuple, terms);
 	}
 
 	types::term::ref type_ref_generic::get_type_term() const {

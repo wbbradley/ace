@@ -5,11 +5,15 @@
 #include "utils.h"
 
 /* Product Kinds */
-extern const atom PK_OBJ;
-extern const atom PK_FUNCTION;
-extern const atom PK_ARGS;
-extern const atom PK_TUPLE;
-extern const atom PK_STRUCT;
+enum product_kind_t {
+	pk_obj = 0,
+	pk_function,
+	pk_args,
+	pk_tuple,
+	pk_struct,
+};
+
+const char *pkstr(product_kind_t pk);
 
 namespace types {
 
@@ -52,10 +56,11 @@ namespace types {
 		/* how many free type variables exist in this type? */
 		virtual int ftv() const = 0;
 
-		virtual atom repr(const map &bindings) const = 0;
+		atom repr(const map &bindings) const;
+		atom repr() const { return this->repr({}); }
+
 		virtual ptr<const term> to_term(const map &bindings={}) const = 0;
 
-		atom repr() const { return this->repr({}); }
 		atom str(const map &bindings = {}) const { return {string_format(c_type("%s"), this->repr(bindings).c_str())}; }
 		atom get_signature() const { return repr(); }
 	};
@@ -94,7 +99,7 @@ namespace types {
 	term::ref term_id(identifier::ref name);
 	term::ref term_lambda(identifier::ref var, term::ref body);
 	term::ref term_sum(term::refs options);
-	term::ref term_product(atom kind, term::refs dimensions);
+	term::ref term_product(product_kind_t pk, term::refs dimensions);
 	term::ref term_generic(identifier::ref name);
 	term::ref term_generic();
 	term::ref term_apply(term::ref fn, term::ref arg);
@@ -107,7 +112,6 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual atom repr(const map &bindings) const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 	};
 
@@ -117,7 +121,6 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual atom repr(const map &bindings) const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 	};
 
@@ -128,7 +131,6 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual atom repr(const map &bindings) const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 	};
 
@@ -139,7 +141,16 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual atom repr(const map &bindings) const;
+		virtual ptr<const term> to_term(const map &bindings={}) const;
+	};
+
+	struct type_product : public type {
+		type_product(product_kind_t pk, type::refs dimensions);
+		product_kind_t pk;
+		type::refs dimensions;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv() const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 	};
 };
@@ -151,7 +162,7 @@ types::type::ref type_variable(types::identifier::ref name);
 types::type::ref type_ref(types::type::ref macro, types::type::refs args);
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand);
 types::type::ref type_sum(types::type::refs options);
-types::type::ref type_product(types::type::refs dimensions);
+types::type::ref type_product(product_kind_t pk, types::type::refs dimensions);
 
 namespace std {
 	template <>

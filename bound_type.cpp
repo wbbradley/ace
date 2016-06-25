@@ -128,7 +128,7 @@ types::term::ref get_tuple_term(const bound_type_t::refs &items_types) {
 }
 
 types::term::ref get_tuple_term(types::term::refs dimensions) {
-	return types::term_product(PK_TUPLE, dimensions);
+	return types::term_product(pk_tuple, dimensions);
 }
 
 bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {
@@ -169,7 +169,12 @@ types::term::ref get_function_term(
 		const bound_type_t::refs &args,
 	   	bound_type_t::ref return_value)
 {
-	return null_impl();
+	types::term::refs arg_terms;
+	for (auto arg : args) {
+		arg_terms.push_back(arg->type->to_term());
+	}
+	types::term::ref args_term = get_args_term(arg_terms);
+	return get_function_term(args_term, return_value->type->to_term());
 }
 
 types::term::ref get_function_term(

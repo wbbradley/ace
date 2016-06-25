@@ -70,7 +70,7 @@ types::term::ref unchecked_var_t::get_term() const {
 
 		/* get the data ctor's return type term */
 		types::term::ref data_ctor_sig = types::term_product(
-				PK_OBJ, {get_tuple_term(args)});
+				pk_obj, {get_tuple_term(args)});
 
 		types::term::ref sig = get_function_term(
 				get_args_term(args),

@@ -6,12 +6,6 @@
 #include "types.h"
 #include "parser.h"
 
-const atom PK_OBJ = {"obj"};
-const atom PK_FUNCTION = {"fn"};
-const atom PK_ARGS = {"args"};
-const atom PK_TUPLE = {"and"};
-const atom PK_STRUCT = {"struct"};
-
 namespace types {
 
 	namespace terms {
@@ -98,14 +92,14 @@ namespace types {
 		};
 
 		struct term_product : public term {
-			term_product(atom kind, term::refs dimensions) : kind(kind), dimensions(dimensions) {}
+			term_product(product_kind_t pk, term::refs dimensions) : pk(pk), dimensions(dimensions) {}
 			virtual ~term_product() {}
 
-			atom kind;
+			product_kind_t pk;
 			term::refs dimensions;
 
 			virtual std::ostream &emit(std::ostream &os) const {
-				os << "(" << kind;
+				os << "(" << pkstr(pk);
 				for (auto &dimension : dimensions) {
 					os << " " << dimension;
 				}
@@ -118,7 +112,11 @@ namespace types {
 			}
 
 			virtual type::ref get_type() const {
-				return null_impl();
+				type::refs type_dimensions;
+				for (auto dimension : dimensions) {
+					type_dimensions.push_back(dimension->get_type());
+				}
+				return ::type_product(pk, type_dimensions);
 			}
 		};
 
@@ -297,8 +295,8 @@ namespace types {
 		return make_ptr<terms::term_sum>(options);
 	}
 
-	term::ref term_product(atom kind, term::refs dimensions) {
-		return make_ptr<terms::term_product>(kind, dimensions);
+	term::ref term_product(product_kind_t pk, term::refs dimensions) {
+		return make_ptr<terms::term_product>(pk, dimensions);
 	}
 
 	term::ref term_generic(identifier::ref name) {
@@ -321,6 +319,16 @@ namespace types {
 		return make_ptr<terms::term_ref>(macro, args);
 	}
 
+	/**********************************************************************/
+	/* Types                                                              */
+	/**********************************************************************/
+
+	atom type::repr(const map &bindings) const {
+		std::stringstream ss;
+		emit(ss, bindings);
+		return ss.str();
+	}
+
 	type_id::type_id(identifier::ref id) : id(id) {
 	}
 
@@ -333,10 +341,6 @@ namespace types {
 		return 0;
 	}
 
-	atom type_id::repr(const map &bindings) const {
-		return {id->get_name()};
-	}
-
 	ptr<const term> type_id::to_term(const map &bindings) const {
 		return term_id(id);
 	}
@@ -345,21 +349,17 @@ namespace types {
 	}
 
 	std::ostream &type_variable::emit(std::ostream &os, const map &bindings) const {
-		return os << repr(bindings);
+		auto instance_iter = bindings.find(id->get_name());
+		if (instance_iter != bindings.end()) {
+			return instance_iter->second->emit(os, bindings);
+		} else {
+			return os << string_format("(any %s)", id->get_name().c_str());
+		}
 	}
 
 	/* how many free type variables exist in this type? */
 	int type_variable::ftv() const {
 		return 1;
-	}
-
-	atom type_variable::repr(const map &bindings) const {
-		auto instance_iter = bindings.find(id->get_name());
-		if (instance_iter != bindings.end()) {
-			return instance_iter->second->repr(bindings);
-		} else {
-			return string_format("(any %s)", id->get_name().c_str());
-		}
 	}
 
 	ptr<const term> type_variable::to_term(const map &bindings) const {
@@ -390,12 +390,6 @@ namespace types {
 		return 0;
 	}
 
-	atom type_ref::repr(const map &bindings) const {
-		std::stringstream ss;
-		emit(ss, bindings);
-		return ss.str();
-	}
-
 	ptr<const term> type_ref::to_term(const map &bindings) const {
 		term::refs term_args;
 		for (auto arg : args) {
@@ -421,14 +415,38 @@ namespace types {
 		return oper->ftv() + operand->ftv();
 	}
 
-	atom type_operator::repr(const map &bindings) const {
-		std::stringstream ss;
-		emit(ss, bindings);
-		return ss.str();
-	}
-
 	ptr<const term> type_operator::to_term(const map &bindings) const {
 		return term_apply(oper->to_term(bindings), operand->to_term(bindings));
+	}
+
+	type_product::type_product(product_kind_t pk, type::refs dimensions) :
+		pk(pk), dimensions(dimensions)
+	{
+	}
+
+	std::ostream &type_product::emit(std::ostream &os, const map &bindings) const {
+		os << "(" << pkstr(pk);
+		for (auto dimension : dimensions) {
+			os << " ";
+			dimension->emit(os, bindings);
+		}
+		return os << ")";
+	}
+
+	int type_product::ftv() const {
+		int ftv_sum = 0;
+		for (auto dimension : dimensions) {
+			ftv_sum += dimension->ftv();
+		}
+		return ftv_sum;
+	}
+
+	ptr<const term> type_product::to_term(const map &bindings) const {
+		term::refs term_dimensions;
+		for (auto dimension : dimensions) {
+			term_dimensions.push_back(dimension->to_term(bindings));
+		}
+		return term_product(pk, term_dimensions);
 	}
 
 	bool is_type_id(type::ref type, atom type_name) {
@@ -453,6 +471,10 @@ types::type::ref type_ref(types::type::ref macro, types::type::refs args) {
 
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand) {
 	return make_ptr<types::type_operator>(operator_, operand);
+}
+
+types::type::ref type_product(product_kind_t pk, types::type::refs dimensions) {
+	return make_ptr<types::type_product>(pk, dimensions);
 }
 
 types::identifier::ref make_iid(atom name) {
@@ -485,11 +507,11 @@ std::ostream& operator <<(std::ostream &os, const types::term::ref &term) {
 
 types::term::ref get_args_term(types::term::refs args) {
 	/* for now just use a tuple for the args */
-	return types::term_product(PK_ARGS, args);
+	return types::term_product(pk_args, args);
 }
 
 types::term::ref get_function_term(types::term::ref args, types::term::ref return_type) {
-	return types::term_product(PK_FUNCTION, {args, return_type});
+	return types::term_product(pk_function, {args, return_type});
 }
 
 types::term::ref get_function_return_type_term(types::term::ref function_type) {
@@ -497,7 +519,7 @@ types::term::ref get_function_return_type_term(types::term::ref function_type) {
 }
 
 types::term::ref get_obj_term(types::term::ref item) {
-	return types::term_product(PK_OBJ, {item});
+	return types::term_product(pk_obj, {item});
 }
 
 std::ostream &operator <<(std::ostream &os, types::identifier::ref id) {
@@ -563,4 +585,21 @@ std::string str(types::term::map coll) {
 	}
 	ss << "}";
 	return ss.str();
+}
+
+const char *pkstr(product_kind_t pk) {
+	switch (pk) {
+	case pk_obj:
+		return "obj";
+	case pk_function:
+		return "fn";
+	case pk_args:
+		return "args";
+	case pk_tuple:
+		return "and";
+	case pk_struct:
+		return "struct";
+	}
+	assert(false);
+	return nullptr;
 }
