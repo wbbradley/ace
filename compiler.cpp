@@ -184,26 +184,26 @@ void add_global_types(
 	llvm::Function *llvm_mark_fn_default = llvm_module_gc->getFunction("mark_fn_default");
 
 	/* let's add the builtin types to the program scope */
-	bound_type_t::refs globals = {
-		bound_type_t::create(type_id(make_iid("void")), INTERNAL_LOC(), builder.getVoidTy()),
-		bound_type_t::create(type_id(make_iid("module")), INTERNAL_LOC(), builder.getVoidTy()),
-		bound_type_t::create(type_id(make_iid("int")), INTERNAL_LOC(), builder.getInt64Ty()),
-		bound_type_t::create(type_id(make_iid("float")), INTERNAL_LOC(), builder.getFloatTy()),
-		bound_type_t::create(type_id(make_iid("bool")), INTERNAL_LOC(), builder.getInt1Ty()),
-		bound_type_t::create(type_id(make_iid("str")), INTERNAL_LOC(), builder.getInt8Ty()->getPointerTo()),
+	std::vector<std::pair<atom, bound_type_t::ref>> globals = {
+		{{"void"}, bound_type_t::create(type_id(make_iid("void")), INTERNAL_LOC(), builder.getVoidTy())},
+		{{"module"}, bound_type_t::create(type_id(make_iid("module")), INTERNAL_LOC(), builder.getVoidTy())},
+		{{"int"}, bound_type_t::create(type_id(make_iid("int")), INTERNAL_LOC(), builder.getInt64Ty())},
+		{{"float"}, bound_type_t::create(type_id(make_iid("float")), INTERNAL_LOC(), builder.getFloatTy())},
+		{{"bool"}, bound_type_t::create(type_id(make_iid("bool")), INTERNAL_LOC(), builder.getInt1Ty())},
+		{{"str"}, bound_type_t::create(type_id(make_iid("str")), INTERNAL_LOC(), builder.getInt8Ty()->getPointerTo())},
 
 		/* pull in the garbage collection and memory reference types */
-		bound_type_t::create(type_id(make_iid("__type_id")), INTERNAL_LOC(), builder.getInt32Ty()),
-		bound_type_t::create(type_id(make_iid("__byte_count")), INTERNAL_LOC(), builder.getInt64Ty()),
-		bound_type_t::create(type_id(make_iid("__var")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.var_t")),
-		bound_type_t::create(type_id(make_iid("__var_ref")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo()),
-		bound_type_t::create(type_id(make_iid("__type_info")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.type_info_t")->getPointerTo()),
-		bound_type_t::create(type_id(make_iid("__mark_fn")), INTERNAL_LOC(), llvm_mark_fn_default->getFunctionType()->getPointerTo()),
-		bound_type_t::create(type_id(make_iid("__bytes")), INTERNAL_LOC(), builder.getInt8Ty()->getPointerTo()),
+		{{"__type_id"}, bound_type_t::create(type_id(make_iid("__type_id")), INTERNAL_LOC(), builder.getInt32Ty())},
+		{{"__byte_count"}, bound_type_t::create(type_id(make_iid("__byte_count")), INTERNAL_LOC(), builder.getInt64Ty())},
+		{{"__var"}, bound_type_t::create(type_id(make_iid("__var")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.var_t"))},
+		{{"__var_ref"}, bound_type_t::create(type_id(make_iid("__var_ref")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
+		{{"__type_info"}, bound_type_t::create(type_id(make_iid("__type_info")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.type_info_t")->getPointerTo())},
+		{{"__mark_fn"}, bound_type_t::create(type_id(make_iid("__mark_fn")), INTERNAL_LOC(), llvm_mark_fn_default->getFunctionType()->getPointerTo())},
+		{{"__bytes"}, bound_type_t::create(type_id(make_iid("__bytes")), INTERNAL_LOC(), builder.getInt8Ty()->getPointerTo())},
 	};
 
-	for (auto type : globals) {
-		program_scope->put_bound_type(type);
+	for (auto type_pair : globals) {
+		program_scope->put_bound_type(type_pair.second);
 	}
 	debug_above(4, log(log_info, "%s", program_scope->str().c_str()));
 }

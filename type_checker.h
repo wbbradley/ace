@@ -31,4 +31,4 @@ status_t make_temp_variable(
 
 typedef atom::set bound_type_context_t;
 
-bool is_function_defn_generic(const ast::function_defn &obj);
+bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn &obj);

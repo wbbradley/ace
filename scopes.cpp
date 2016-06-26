@@ -36,8 +36,6 @@ program_scope_t::ref scope_t::get_program_scope() {
 }
 
 types::term::map scope_t::get_type_env() const {
-	assert(false);
-	// TODO: build a copy of the recursively built type env
 	return type_env;
 }
 
@@ -333,7 +331,7 @@ llvm::Module *scope_t::get_llvm_module() {
 }
 
 std::string scope_t::make_fqn(std::string leaf_name) {
-	return get_name() + SCOPE_SEP + leaf_name;
+	return get_name() + std::string(SCOPE_SEP) + leaf_name;
 }
 
 bound_type_t::ref scope_t::get_bound_type(types::signature signature) {
@@ -580,7 +578,7 @@ bool module_scope_t::has_checked(const ptr<const ast::item> &node) const {
 
 void module_scope_t::mark_checked(const ptr<const ast::item> &node) {
 	if (auto function_defn = dyncast<const ast::function_defn>(node)) {
-		if (is_function_defn_generic(*function_defn)) {
+		if (is_function_defn_generic(shared_from_this(), *function_defn)) {
 			/* for now let's never mark generic functions as checked, until we
 			 * have a mechanism to join the term to the checked-mark.  */
 			return;

@@ -108,7 +108,12 @@ namespace types {
 			}
 
 			virtual ref evaluate(map env, int macro_depth) const {
-				return null_impl();
+				term::refs evaluated_dimensions;
+				
+				for (auto &dimension : dimensions) {
+					evaluated_dimensions.push_back(dimension->evaluate(env, macro_depth));
+				}
+				return types::term_product(pk, evaluated_dimensions);
 			}
 
 			virtual type::ref get_type() const {
@@ -255,8 +260,8 @@ namespace types {
 	}
 
 	bool term::is_generic(types::term::map env) const {
-		not_impl();
-		return false;
+		auto type = evaluate(env, 0)->get_type();
+		return type->ftv() != 0;
 	}
 
 	bool term::is_function(types::term::map env) const {

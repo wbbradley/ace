@@ -11,7 +11,6 @@ ifeq ($(UNAME),Darwin)
 	LLVM_CONFIG = llvm-config-3.7
 	LLVM_CFLAGS = -nostdinc++ $(shell $(LLVM_CONFIG) --cxxflags) -g -O0
 
-
 	CPP = $(CLANG_CPP) -g -O0 -std=c++11 -I /usr/include/c++/v1 -I$(shell $(LLVM_CONFIG) --includedir)/c++/v1
 	CC = $(CLANG)
 	LINKER = $(CLANG)

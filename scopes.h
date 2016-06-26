@@ -48,26 +48,9 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	bound_var_t::ref get_bound_variable(status_t &status, const ptr<const ast::item> &obj, atom symbol);
 	bound_var_t::ref maybe_get_bound_variable(atom symbol);
 
-#if 0
-	types::term::ref get_type_term(types::signature signature);
-	types::term::ref maybe_get_type_term(types::signature signature);
-#endif
-
 	void put_bound_variable(atom symbol, bound_var_t::ref bound_variable);
-	void put_type_term(atom name, types::term::ref type_term);
 
 	virtual bound_type_t::ref get_bound_type(types::signature signature);
-
-#if 0
-	bound_type_t::ref upsert_type(
-			status_t &status,
-			llvm::IRBuilder<> &builder,
-			types::term::ref term,
-			bound_type_t::refs args,
-			bound_type_t::ref return_type,
-			llvm::Type *llvm_type,
-			ptr<const ast::item> obj);
-#endif
 
 	std::string get_name();
 
@@ -80,6 +63,8 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual void get_callables(atom symbol, var_t::refs &fns);
 
 	bound_var_t::ref get_singleton(atom name);
+
+	void put_type_term(atom name, types::term::ref type_term);
 	types::term::map get_type_env() const;
 
 protected:
@@ -219,6 +204,7 @@ struct local_scope_t : public runnable_scope_t {
 	typedef ptr<local_scope_t> ref;
 
 	local_scope_t(atom name, scope_t::ref parent_scope, return_type_constraint_t &return_type_constraint);
+
 	virtual ~local_scope_t() throw() {}
 	virtual void dump(std::ostream &os) const;
 	virtual return_type_constraint_t &get_return_type_constraint();
@@ -234,14 +220,13 @@ struct local_scope_t : public runnable_scope_t {
 struct generic_substitution_scope_t : public scope_t {
 	typedef ptr<generic_substitution_scope_t> ref;
 
+	generic_substitution_scope_t(atom name, scope_t::ref parent_scope) : scope_t(name), parent_scope(parent_scope) {}
+
 	virtual ~generic_substitution_scope_t() throw() {}
 	virtual ptr<scope_t> get_parent_scope();
 	virtual llvm::Module *get_llvm_module();
 
-	generic_substitution_scope_t(atom name, scope_t::ref parent_scope) : scope_t(name), parent_scope(parent_scope) {}
-
 	virtual void dump(std::ostream &os) const;
-	void update_type_env(atom name, types::term::ref type_term);
 
 	static ref create(
 			status_t &status,

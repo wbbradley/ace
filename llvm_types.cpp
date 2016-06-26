@@ -34,6 +34,8 @@ bound_type_t::ref upsert_bound_type(
 	   	types::term::ref term)
 {
 	/* helper method to convert lambda terms to types */
+	debug_above(2, log(log_info, "evaluating type term " c_term("%s"),
+				term->str().c_str()));
 	auto type_env = scope->get_type_env();
 	auto type = term->evaluate(type_env, 0)->get_type();
 

@@ -166,8 +166,8 @@ types::signature bound_type_t::get_signature() const {
 }
 
 types::term::ref get_function_term(
-		const bound_type_t::refs &args,
-	   	bound_type_t::ref return_value)
+		bound_type_t::refs args,
+		bound_type_t::ref return_value)
 {
 	types::term::refs arg_terms;
 	for (auto arg : args) {
@@ -178,15 +178,20 @@ types::term::ref get_function_term(
 }
 
 types::term::ref get_function_term(
-		const bound_type_t::named_pairs &args,
-	   	bound_type_t::ref ret)
+		bound_type_t::named_pairs named_args,
+		bound_type_t::ref ret)
 {
-	return null_impl();
+	bound_type_t::refs args;
+	for (auto named_arg : named_args) {
+		args.push_back(named_arg.second);
+	}
+	return get_function_term(args, ret);
 }
 
 types::type::ref get_function_type(
 		bound_type_t::refs args,
 		bound_type_t::ref return_type)
 {
+
 	return null_impl();
 }

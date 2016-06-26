@@ -55,10 +55,10 @@ std::ostream &operator <<(std::ostream &os, const bound_type_t &type);
 
 types::term::ref get_tuple_term(types::term::refs dimensions);
 types::term::ref get_tuple_term(const bound_type_t::refs &items_types);
-types::term::ref get_function_term(const bound_type_t::named_pairs &args, bound_type_t::ref ret);
-types::term::ref get_function_term(const bound_type_t::refs &args, bound_type_t::ref return_value);
-types::term::ref get_function_term(const bound_type_t::refs &args, types::term::ref return_value);
-types::term::ref get_function_term(const bound_type_t::refs &args, types::term::ref return_value);
+types::term::ref get_function_term(bound_type_t::named_pairs args, bound_type_t::ref ret);
+types::term::ref get_function_term(bound_type_t::refs args, bound_type_t::ref return_value);
+types::term::ref get_function_term(bound_type_t::refs args, types::term::ref return_value);
+types::term::ref get_function_term(bound_type_t::refs args, types::term::ref return_value);
 types::term::ref get_args_term(bound_type_t::refs args);
 types::term::refs get_terms(const bound_type_t::refs &types);
 

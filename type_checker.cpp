@@ -164,16 +164,16 @@ status_t get_fully_bound_param_list_decl_variables(
 bound_type_t::ref get_return_type_from_return_type_expr(
         status_t &status,
         llvm::IRBuilder<> &builder,
-        ast::type_ref::ref obj,
+        ast::type_ref::ref type_ref,
         scope_t::ref scope)
 {
     /* lookup the alias, default to void */
-    if (obj) {
-		return null_impl(); // obj->kresolve_type(status, builder, scope, nullptr, nullptr);
+    if (type_ref != nullptr) {
+		return upsert_bound_type(status, builder, scope,
+				type_ref->get_type_term());
     } else {
 		/* user specified no return type, default to void */
-		assert(false);
-		return null_impl(); // scope->get_program_scope()->get_bound_type("void"_ty);
+		return scope->get_program_scope()->get_bound_type({"void"});
     }
 }
 
@@ -207,7 +207,7 @@ void type_check_fully_bound_function_decl(
     assert(!status);
 }
 
-bool is_function_defn_generic_impl(const ast::function_defn &obj) {
+bool is_function_defn_generic_impl(scope_t::ref scope, const ast::function_defn &obj) {
     if (obj.decl->param_list_decl) {
 		/* check the parameters' genericity */
 		auto &params = obj.decl->param_list_decl->params;
@@ -219,14 +219,11 @@ bool is_function_defn_generic_impl(const ast::function_defn &obj) {
 			}
 			types::term::ref term = param->type_ref->get_type_term();
 
-			assert(false);
-#if 0
-			if (term->is_generic()) {
+			if (term->is_generic(scope->get_type_env())) {
 				debug_above(3, log(log_info, "found a generic parameter type on %s",
 							param->str().c_str()));
 				return true;
 			}
-#endif
 		}
 	} else {
 		panic("function declaration has no parameter list");
@@ -243,8 +240,8 @@ bool is_function_defn_generic_impl(const ast::function_defn &obj) {
 	}
 }
 
-bool is_function_defn_generic(const ast::function_defn &obj) {
-	auto generic = is_function_defn_generic_impl(obj);
+bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn &obj) {
+	auto generic = is_function_defn_generic_impl(scope, obj);
     log(log_info, "%s is %s", obj.token.str().c_str(),
 		   	generic ? c_type("generic") : c_var("fully bound"));
 	return generic;
@@ -942,7 +939,7 @@ status_t type_check_module_variables(
 			log(log_info, "checking module level variable %s", node->token.str().c_str());
 			if (auto function_defn = dyncast<const ast::function_defn>(node)) {
 				// TODO: decide whether we need treatment here
-				if (is_function_defn_generic(*function_defn)) {
+				if (is_function_defn_generic(module_scope, *function_defn)) {
 					/* this is a generic function, or we've already checked
 					 * it so let's skip checking it */
 					continue;
