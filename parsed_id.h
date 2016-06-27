@@ -13,4 +13,8 @@ struct parsed_id_t : public types::identifier {
 	virtual atom get_name() const {
 		return {token.text};
 	}
+
+	virtual ptr<location> get_location() const {
+		return make_ptr<location>(token.location);
+	}
 };

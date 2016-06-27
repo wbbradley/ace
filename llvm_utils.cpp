@@ -28,8 +28,7 @@ llvm::FunctionType *llvm_create_function_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		const bound_type_t::refs &args,
-		bound_type_t::ref return_value,
-		const ast::item &obj)
+		bound_type_t::ref return_value)
 {
 	debug_above(4, log(log_info, "creating an LLVM function type from (%s %s)",
 		::str(args).c_str(),
@@ -349,8 +348,9 @@ bound_var_t::ref llvm_start_function(status_t &status,
 {
 	if (!!status) {
 		/* get the llvm function type for the data ctor */
+		assert(false /* try re-using create_bound_type */);
 		llvm::FunctionType *llvm_ctor_fn_type = llvm_create_function_type(
-				status, builder, args, data_type, *node);
+				status, builder, args, data_type);
 
 		if (!!status) {
 			/* create the bound type for the ctor function */

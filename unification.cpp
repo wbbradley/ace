@@ -96,7 +96,6 @@ unification_t unify_core(
     auto pruned_a = prune(lhs, bindings);
     auto pruned_b = prune(rhs, bindings);
 
-
     if (pruned_a->str(bindings) == pruned_b->str(bindings)) {
 		log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str());
         return {true, "", bindings};
@@ -119,7 +118,6 @@ unification_t unify_core(
 			}
 		}
 	}
-
 
     auto a = unroll(pruned_a, env, bindings);
     auto b = unroll(pruned_b, env, bindings);

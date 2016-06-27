@@ -11,8 +11,7 @@ llvm::FunctionType *llvm_create_function_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		const bound_type_t::refs &args,
-		bound_type_t::ref return_value,
-		const ast::item &obj);
+		bound_type_t::ref return_value);
 
 bound_var_t::ref create_callsite(
 		status_t &status,

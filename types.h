@@ -23,6 +23,7 @@ namespace types {
 
 		virtual ~identifier() {}
 		virtual atom get_name() const = 0;
+		virtual ptr<location> get_location() const = 0;
 	};
 
 	/* internal identifiers - note that they lack a "location" */
@@ -40,10 +41,14 @@ namespace types {
 		virtual atom get_name() const {
 			return name;
 		}
+		virtual ptr<location> get_location() const {
+			return nullptr;
+		}
 	};
 
 	struct term;
 	struct signature;
+	struct type_visitor;
 
 	struct type {
 		typedef ptr<const type> ref;
@@ -60,9 +65,17 @@ namespace types {
 		atom repr() const { return this->repr({}); }
 
 		virtual ptr<const term> to_term(const map &bindings={}) const = 0;
+		virtual location get_location() const = 0;
 
 		atom str(const map &bindings = {}) const { return {string_format(c_type("%s"), this->repr(bindings).c_str())}; }
 		atom get_signature() const { return repr(); }
+
+		virtual bool accept(type_visitor &visitor) const = 0;
+
+		virtual bool is_function() const { return false; }
+		virtual bool is_void() const { return false; }
+		virtual bool is_obj() const { return false; }
+		virtual bool is_struct() const { return false; }
 	};
 
 	bool is_type_id(type::ref type, atom type_name);
@@ -88,10 +101,6 @@ namespace types {
 		atom str() const;
 
 		bool is_generic(types::term::map env) const;
-		bool is_function(types::term::map env) const;
-		bool is_void(types::term::map env) const;
-		bool is_obj(types::term::map env) const;
-		bool is_struct(types::term::map env) const;
 	};
 
 	/* term data ctors */
@@ -113,6 +122,9 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
+		virtual bool accept(type_visitor &visitor) const;
+		virtual location get_location() const;
+		virtual bool is_void() const;
 	};
 
 	struct type_variable : public type {
@@ -122,6 +134,8 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
+		virtual bool accept(type_visitor &visitor) const;
+		virtual location get_location() const;
 	};
 
 	struct type_ref : public type {
@@ -132,6 +146,8 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
+		virtual bool accept(type_visitor &visitor) const;
+		virtual location get_location() const;
 	};
 
 	struct type_operator : public type {
@@ -142,6 +158,8 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
+		virtual bool accept(type_visitor &visitor) const;
+		virtual location get_location() const;
 	};
 
 	struct type_product : public type {
@@ -152,6 +170,12 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
+		virtual bool accept(type_visitor &visitor) const;
+		virtual location get_location() const;
+
+		virtual bool is_function() const;
+		virtual bool is_obj() const;
+		virtual bool is_struct() const;
 	};
 };
 

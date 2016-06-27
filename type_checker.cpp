@@ -360,7 +360,7 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 
 			// TODO: rearrange this, and get the pointer type from the term
             llvm::FunctionType *llvm_func_type = llvm_create_function_type(
-                    status, builder, args, return_value, *this);
+                    status, builder, args, return_value);
 
             /* get the full function term */
             types::term::ref function_sig = get_function_term(args, return_value);
@@ -1516,7 +1516,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
         {
             int64_t value = atoll(token.text.c_str());
 			assert(false);
-            bound_type_t::ref type = nullptr; // program_scope->get_bound_type({"int"});
+            bound_type_t::ref type = program_scope->get_bound_type({"int"});
             if (!!status) {
                 return bound_var_t::create(
 						INTERNAL_LOC(), "temp_int_literal", type,
@@ -1534,7 +1534,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
     case tk_string:
         {
             std::string value = unescape_json_quotes(token.text);
-            bound_type_t::ref type = null_impl(); // program_scope->get_bound_type({"str"});
+            bound_type_t::ref type = program_scope->get_bound_type({"str"});
             if (!!status) {
                 return bound_var_t::create(INTERNAL_LOC(), "temp_str_literal", 
                         type, llvm_create_global_string(builder, value), shared_from_this());
@@ -1544,7 +1544,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
     case tk_float:
         {
             float value = atof(token.text.c_str());
-            bound_type_t::ref type = null_impl(); // program_scope->get_bound_type({"float"});
+            bound_type_t::ref type = program_scope->get_bound_type({"float"});
             if (!!status) {
                 return bound_var_t::create(INTERNAL_LOC(), "temp_float_literal", 
                         type, llvm_create_float(builder, value), shared_from_this());

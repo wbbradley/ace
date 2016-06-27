@@ -5,6 +5,7 @@
 #include "utils.h"
 #include "types.h"
 #include "parser.h"
+#include "type_visitor.h"
 
 namespace types {
 
@@ -264,26 +265,6 @@ namespace types {
 		return type->ftv() != 0;
 	}
 
-	bool term::is_function(types::term::map env) const {
-		not_impl();
-		return false;
-	}
-
-	bool term::is_void(types::term::map env) const {
-		not_impl();
-		return false;
-	}
-
-	bool term::is_obj(types::term::map env) const {
-		not_impl();
-		return false;
-	}
-
-	bool term::is_struct(types::term::map env) const {
-		not_impl();
-		return false;
-	}
-
 	term::ref term_unreachable() {
 		return make_ptr<terms::term_unreachable>();
 	}
@@ -350,6 +331,18 @@ namespace types {
 		return term_id(id);
 	}
 
+	bool type_id::accept(type_visitor &visitor) const {
+		return visitor.visit(*this);
+	}
+
+	location type_id::get_location() const {
+		return INTERNAL_LOC();
+	}
+
+	bool type_id::is_void() const {
+	   	return id->get_name() == atom{"void"};
+   	}
+
 	type_variable::type_variable(identifier::ref id) : id(id) {
 	}
 
@@ -373,6 +366,19 @@ namespace types {
 			return instance_iter->second->to_term(bindings);
 		} else {
 			return term_generic(id);
+		}
+	}
+
+	bool type_variable::accept(type_visitor &visitor) const {
+		return visitor.visit(*this);
+	}
+
+	location type_variable::get_location() const {
+		auto loc = id->get_location();
+		if (loc != nullptr) {
+			return *loc;
+		} else {
+			return INTERNAL_LOC();
 		}
 	}
 
@@ -403,6 +409,14 @@ namespace types {
 		return term_ref(macro->to_term(bindings), term_args);
 	}
 
+	bool type_ref::accept(type_visitor &visitor) const {
+		return visitor.visit(*this);
+	}
+
+	location type_ref::get_location() const {
+		return macro->get_location();
+	}
+
 	type_operator::type_operator(type::ref oper, type::ref operand) :
 		oper(oper), operand(operand)
 	{
@@ -422,6 +436,14 @@ namespace types {
 
 	ptr<const term> type_operator::to_term(const map &bindings) const {
 		return term_apply(oper->to_term(bindings), operand->to_term(bindings));
+	}
+
+	bool type_operator::accept(type_visitor &visitor) const {
+		return visitor.visit(*this);
+	}
+
+	location type_operator::get_location() const {
+		return oper->get_location();
 	}
 
 	type_product::type_product(product_kind_t pk, type::refs dimensions) :
@@ -453,6 +475,30 @@ namespace types {
 		}
 		return term_product(pk, term_dimensions);
 	}
+
+	bool type_product::accept(type_visitor &visitor) const {
+		return visitor.visit(*this);
+	}
+
+	location type_product::get_location() const {
+		if (dimensions.size() != 0) {
+			return dimensions[0]->get_location();
+		} else {
+			return INTERNAL_LOC();
+		}
+	}
+
+	bool type_product::is_function() const {
+	   	return pk == pk_function;
+   	}
+
+	bool type_product::is_obj() const {
+	   	return pk == pk_obj;
+   	}
+
+	bool type_product::is_struct() const {
+	   	return pk == pk_struct;
+   	}
 
 	bool is_type_id(type::ref type, atom type_name) {
 		if (auto pti = dyncast<const types::type_id>(type)) {

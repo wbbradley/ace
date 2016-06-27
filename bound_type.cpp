@@ -142,23 +142,19 @@ bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {
 }
 
 bool bound_type_t::is_function() const {
-	assert(false);
-	return false;
+	return type->is_function();
 }
 
 bool bound_type_t::is_void() const {
-	assert(false);
-	return false;
+	return type->is_void();
 }
 
 bool bound_type_t::is_obj() const {
-	assert(false);
-	return false;
+	return type->is_obj();
 }
 
 bool bound_type_t::is_struct() const {
-	assert(false);
-	return false;
+	return type->is_struct();
 }
 
 types::signature bound_type_t::get_signature() const {
@@ -192,6 +188,12 @@ types::type::ref get_function_type(
 		bound_type_t::refs args,
 		bound_type_t::ref return_type)
 {
+	types::type::refs type_args;
 
-	return null_impl();
+	for (auto arg : args) {
+		type_args.push_back(arg->type);
+	}
+
+	return ::type_product(pk_function,
+			{::type_product(pk_args, type_args), return_type->type});
 }

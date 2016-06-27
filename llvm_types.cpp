@@ -2,13 +2,138 @@
 #include "ast.h"
 #include "llvm_utils.h"
 #include "llvm_types.h"
+#include "type_visitor.h"
+
+bound_type_t::refs create_bound_types_from_args(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		types::type::ref args_type)
+{
+	/* iteratate over a pk_args type and pull out a list of the bound types
+	 * within */
+	if (auto product = dyncast<const types::type_product>(args_type)) {
+		assert(product->pk == pk_args);
+		bound_type_t::refs args;
+		for (auto dimension : product->dimensions) {
+			bound_type_t::ref arg = upsert_bound_type(status, builder, scope,
+					dimension);
+			if (!!status) {
+				args.push_back(arg);
+			}
+		}
+		return args;
+	} else {
+		panic("do not call create_bound_types_from_args on a non-product type");
+		return {};
+	}
+}
+
+struct bound_type_builder_t : public types::type_visitor {
+	bound_type_builder_t(
+			status_t &status,
+			llvm::IRBuilder<> &builder,
+			ptr<program_scope_t> program_scope) :
+		status(status),
+		builder(builder),
+		program_scope(program_scope)
+	{
+	}
+
+	status_t &status;
+	llvm::IRBuilder<> &builder;
+	bound_type_t::ref created_type;
+	ptr<program_scope_t> program_scope;
+
+	virtual bool visit(const types::type_id &id) {
+		assert(false);
+		return false;
+	}
+
+	virtual bool visit(const types::type_variable &variable) {
+		assert(false);
+		return false;
+	}
+
+	virtual bool visit(const types::type_ref &ref) {
+		assert(false);
+		return false;
+	}
+
+	virtual bool visit(const types::type_operator &operator_) {
+		assert(false);
+		return false;
+	}
+
+	virtual bool visit(const types::type_product &product) {
+		switch (product.pk) {
+		case pk_obj:
+			{
+				assert(false);
+				break;
+			}
+		case pk_function:
+			{
+				assert(product.dimensions.size() == 2);
+				bound_type_t::refs args = create_bound_types_from_args(status,
+						builder, program_scope, product.dimensions[0]);
+				bound_type_t::ref return_type = upsert_bound_type(status,
+						builder, program_scope, product.dimensions[1]);
+				types::type::ref fn_type = get_function_type(args, return_type);
+
+				auto signature = fn_type->get_signature();
+				created_type = program_scope->get_bound_type(signature);
+				if (created_type) {
+					return true;
+				} else {
+					auto *llvm_fn_type = llvm_create_function_type(status,
+							builder, args, return_type);
+					if (!!status) {
+						created_type = bound_type_t::create(fn_type,
+								product.get_location(), llvm_fn_type);
+					}
+					return !!status;
+				}
+			}
+		case pk_args:
+			{
+				assert(false);
+				break;
+			}
+		case pk_tuple:
+			{
+				assert(false);
+				break;
+			}
+		case pk_struct:
+			{
+				assert(false);
+				break;
+			}
+		}
+		assert(false);
+		return false;
+	}
+};
 
 bound_type_t::ref create_bound_type(
 		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-	   	types::type::ref param_type)
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		types::type::ref type)
 {
-	assert(false);
+	assert(!!status);
+
+	debug_above(1, log(log_info, "creating bound type for %s",
+				type->str().c_str()));
+	bound_type_builder_t btb(status, builder, scope->get_program_scope());
+	if (type->accept(btb)) {
+		assert(!!status);
+
+		return btb.created_type;
+	}
+
+	assert(!status);
 	return nullptr;
 }
 
@@ -21,7 +146,7 @@ bound_type_t::ref upsert_bound_type(
 	auto signature = type->get_signature();
 	auto bound_type = scope->get_bound_type(signature);
 	if (bound_type == nullptr) {
-		bound_type = create_bound_type(status, builder, type);
+		bound_type = create_bound_type(status, builder, scope, type);
 		scope->get_program_scope()->put_bound_type(bound_type);
 	}
 	return bound_type;
@@ -50,6 +175,7 @@ bound_type_t::ref get_function_return_type(
 		scope_t::ref scope,
 		bound_type_t::ref function_type)
 {
+	assert(false);
 	types::term::ref return_term = get_function_return_type_term(function_type->get_term());
 	log(log_info, "got function return type %s", return_term->str().c_str());
 	return null_impl();
