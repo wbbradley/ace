@@ -66,7 +66,7 @@ bound_module_t::bound_module_t(
 		module_scope_t::ref module_scope) :
 	bound_var_t(location_created,
 		   	name, 
-			null_impl(), // TODO: module_scope->get_bound_type("module"_ty),
+			module_scope->get_bound_type({"module"}),
 			module_scope->get_program_scope()->get_singleton("null")->llvm_value,
 			node),
 	module_scope(module_scope)

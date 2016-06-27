@@ -18,17 +18,8 @@ std::string scope_t::get_name() {
 	}
 }
 
-ptr<module_scope_t> module_scope_t::get_module_scope() {
-	return null_impl(); // const_cast<module_scope_t*>(this)->shared_from_this();
-}
-
 ptr<program_scope_t> program_scope_t::get_program_scope() {
 	return std::static_pointer_cast<program_scope_t>(shared_from_this());
-}
-
-ptr<module_scope_t> scope_t::get_module_scope() {
-	assert(false);
-	return nullptr;
 }
 
 program_scope_t::ref scope_t::get_program_scope() {
@@ -49,7 +40,7 @@ std::string scope_t::str() {
 }
 
 void scope_t::put_bound_variable(atom symbol, bound_var_t::ref bound_variable) {
-	log(log_info, "binding %s", bound_variable->str().c_str());
+	debug_above(3, log(log_info, "binding %s", bound_variable->str().c_str()));
 
 	auto &resolve_map = bound_vars[symbol];
 	types::signature signature = bound_variable->get_signature();
@@ -626,9 +617,9 @@ unchecked_var_t::ref module_scope_t::put_unchecked_variable(
 }
 
 bool program_scope_t::put_bound_type(bound_type_t::ref type) {
-	log(log_info, "registering type %s as " c_id("%s"),
-			type->str().c_str(),
-		   	type->get_signature().repr().c_str());
+	debug_above(3, log(log_info, "registering type %s as " c_id("%s"),
+				type->str().c_str(),
+				type->get_signature().repr().c_str()));
 	bound_types[type->get_signature().repr()] = type;
 	return false;
 }

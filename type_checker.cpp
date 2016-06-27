@@ -232,8 +232,7 @@ bool is_function_defn_generic_impl(scope_t::ref scope, const ast::function_defn 
 	if (obj.decl->return_type_ref) {
 		/* check the return type's genericity */
 		types::term::ref term = obj.decl->return_type_ref->get_type_term();
-		assert(false);
-		return true; // return term->is_generic();
+		return term->is_generic(scope->get_type_env());
 	} else {
 		/* default to void, which is fully bound */
 		return false;
@@ -324,7 +323,7 @@ bound_var_t::ref ast::link_module_statement::resolve_instantiation(
 		bound_module_t::ref module_variable = bound_module_t::create(INTERNAL_LOC(),
 				link_as_name.text, shared_from_this(), linked_module_scope);
 
-		scope->get_module_scope()->put_bound_variable(module_variable->name, module_variable);
+		module_scope->put_bound_variable(module_variable->name, module_variable);
 
 		return module_variable;
 	} else {

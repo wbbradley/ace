@@ -776,7 +776,7 @@ struct test_desc {
 	test_func func;
 };
 
-#define T(x) {&#x[5], x}
+#define T(x) {#x, x}
 
 auto test_descs = std::vector<test_desc>{
 	{

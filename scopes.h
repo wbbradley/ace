@@ -38,7 +38,6 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 
 	/* scope interface */
 	virtual ptr<program_scope_t> get_program_scope();
-	virtual ptr<module_scope_t> get_module_scope();
 	virtual ptr<scope_t> get_parent_scope() = 0;
 
 	virtual void dump(std::ostream &os) const = 0;
@@ -102,7 +101,6 @@ struct module_scope_t : public scope_t {
 	module_scope_t() = delete;
 	module_scope_t(atom name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module);
 	virtual ~module_scope_t() throw() {}
-	virtual ptr<module_scope_t> get_module_scope();
 
 	ptr<program_scope_t> parent_scope;
 

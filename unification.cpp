@@ -127,6 +127,11 @@ unification_t unify_core(
         return {true, "", bindings};
 	}
 
+	auto pto_a = dyncast<const types::type_operator>(a);
+	auto pto_b = dyncast<const types::type_operator>(b);
+
+	auto ptp_a = dyncast<const types::type_product>(a);
+
 	if (auto ptv = dyncast<const types::type_variable>(a)) {
 		if (a != b) {
 			if (occurs_in_type(ptv, b, bindings)) {
@@ -136,9 +141,9 @@ unification_t unify_core(
 							a->str().c_str(), b->str().c_str()),
 					bindings};
 			}
-			log(log_info, "binding " c_id("%s") " to " c_type("%s"),
-					ptv->id->get_name().c_str(),
-					b->str(bindings).c_str());
+			debug_above(3, log(log_info, "binding " c_id("%s") " to " c_type("%s"),
+						ptv->id->get_name().c_str(),
+						b->str(bindings).c_str()));
 			assert(bindings.find(ptv->id->get_name()) == bindings.end());
 			bindings[ptv->id->get_name()] = b;
 		} else {
@@ -146,32 +151,70 @@ unification_t unify_core(
 		}
 
 		return {true, "", bindings};
-	} else {
-		if (auto pto_a = dyncast<const types::type_operator>(a)) {
-			if (auto pto_b = dyncast<const types::type_operator>(b)) {
-				auto unification = unify_core(pto_a->oper, pto_b->oper, env, bindings);
-				if (!unification.result) {
-					return {false, unification.reasons, {}};
-				}
-				bindings = unification.bindings;
-
-				if ((pto_a->operand == nullptr) != (pto_b->operand == nullptr)) {
-					return {
-						false,
-						string_format("type mismatch: %s != %s",
-								a->str(bindings).c_str(), b->str(bindings).c_str()),
-						{}};
-				}
-
-				assert(pto_a->operand != nullptr && pto_b->operand != nullptr);
-
-				return unify_core(pto_a->operand, pto_b->operand, env, bindings);
+	} else if (auto ptv_b = dyncast<const types::type_variable>(b)) {
+		if (a != b) {
+			if (occurs_in_type(ptv_b, a, bindings)) {
+				return {
+					false,
+					string_format("recursive unification on %s and %s",
+							a->str().c_str(), b->str().c_str()),
+					bindings};
 			}
+			debug_above(3, log(log_info, "binding " c_id("%s") " to " c_type("%s"),
+						ptv_b->id->get_name().c_str(),
+						a->str(bindings).c_str()));
+			assert(bindings.find(ptv_b->id->get_name()) == bindings.end());
+			bindings[ptv_b->id->get_name()] = a;
+		} else {
+			assert(false);
 		}
 
+		return {true, "", bindings};
+	} else if (ptp_a != nullptr) {
+		if (auto ptp_b = dyncast<const types::type_product>(b)) {
+			if (ptp_a->dimensions.size() != ptp_b->dimensions.size()) {
+				return {false, "product type lengths do not match", bindings};
+			} else {
+				auto a_dims_end = ptp_a->dimensions.end();
+				auto b_dims_iter = ptp_b->dimensions.begin();
+				for (auto a_dims_iter = ptp_a->dimensions.begin();
+						a_dims_iter != a_dims_end;
+						++a_dims_iter, ++b_dims_iter) {
+					auto unification = unify_core(*a_dims_iter, *b_dims_iter,
+							env, bindings);
+					if (!unification.result) {
+						return {false, unification.reasons, {}};
+					}
+					bindings = unification.bindings;
+				}
+
+				return {true, "products match", bindings};
+			}
+		} else {
+			return {false, "inbound type is not a product type", bindings};
+		}
+	} else if (pto_a != nullptr && pto_b != nullptr) {
+		auto unification = unify_core(pto_a->oper, pto_b->oper, env, bindings);
+		if (!unification.result) {
+			return {false, unification.reasons, {}};
+		}
+		bindings = unification.bindings;
+
+		if ((pto_a->operand == nullptr) != (pto_b->operand == nullptr)) {
+			return {
+				false,
+				string_format("type mismatch: %s != %s",
+						a->str(bindings).c_str(), b->str(bindings).c_str()),
+				{}};
+		}
+
+		assert(pto_a->operand != nullptr && pto_b->operand != nullptr);
+
+		return unify_core(pto_a->operand, pto_b->operand, env, bindings);
+	} else {
 		/* types don't match */
-        return {false, string_format("%s <> %s",
-			   	a->str(bindings).c_str(), b->str(bindings).c_str()), {}};
+		return {false, string_format("%s <> %s",
+				a->str(bindings).c_str(), b->str(bindings).c_str()), {}};
 	}
 }
 

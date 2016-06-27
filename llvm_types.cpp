@@ -175,10 +175,24 @@ bound_type_t::ref get_function_return_type(
 		scope_t::ref scope,
 		bound_type_t::ref function_type)
 {
-	assert(false);
-	types::term::ref return_term = get_function_return_type_term(function_type->get_term());
-	log(log_info, "got function return type %s", return_term->str().c_str());
-	return null_impl();
+	if (auto product_type = dyncast<const types::type_product>(function_type->type)) {
+		assert(product_type->pk == pk_function);
+
+		/* notice the leaky encapsulation here */
+		assert(product_type->dimensions.size() == 2);
+
+		auto return_type_sig = product_type->dimensions[1]->get_signature();
+
+		auto return_type = scope->get_bound_type(return_type_sig);
+		/* this should exist, otherwise how was the function type built in the
+		 * first place */
+		assert(return_type != nullptr);
+		log(log_info, "got function return type %s", return_type->str().c_str());
+		return return_type;
+	} else {
+		panic("expected a function");
+		return nullptr;
+	}
 }
 
 bound_type_t::ref get_or_create_tuple_type(
