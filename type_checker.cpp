@@ -88,7 +88,6 @@ bound_var_t::ref type_check_bound_var_decl(
 				if (!!status) {
 					if (init_var) {
 						assert(type != nullptr);
-						not_impl();
 						unification_t unification = unify(
 								type->get_term(),
 								init_var->type->get_term(),
@@ -1544,7 +1543,6 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
     case tk_integer:
         {
             int64_t value = atoll(token.text.c_str());
-			assert(false);
             bound_type_t::ref type = program_scope->get_bound_type({"int"});
             if (!!status) {
                 return bound_var_t::create(

@@ -8,14 +8,18 @@
 #include "compiler.h"
 #include "disk.h"
 
+int usage() {
+	log(log_error, "available commands: test, read-ir, compile, compile-modules, bc, run");
+	return EXIT_FAILURE;
+}
+
 int main(int argc, char *argv[]) {
 	ptr<logger> logger(make_ptr<standard_logger>(debug_else("", "zion.log"), "."));
     std::string cmd;
 	if (argc >= 2) {
 		cmd = argv[1];
 	} else {
-		log(log_error, "available commands: test, read-ir, compile, compile-modules, bc, run");
-		return -1;
+		return usage();
 	}
 
 	if (cmd == "test") {
@@ -83,8 +87,9 @@ int main(int argc, char *argv[]) {
 		} else {
 			panic(string_format("bad CLI invocation of %s", argv[0]));
 		}
-		
-    }
+    } else {
+		return usage();
+	}
 
 	return EXIT_SUCCESS;
 }

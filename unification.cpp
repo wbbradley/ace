@@ -223,7 +223,7 @@ unification_t unify(
 		types::term::ref rhs,
 		types::term::map env)
 {
-	log(log_info, "unify(" c_term("%s") ", " c_term("%s") ", %s",
+	log(log_info, "unify(" c_term("%s") ", " c_term("%s") ", %s)",
 			lhs->str().c_str(), rhs->str().c_str(), str(env).c_str());
 
 	return unify_core(
