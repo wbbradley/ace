@@ -26,6 +26,12 @@ program_scope_t::ref scope_t::get_program_scope() {
 	return get_parent_scope()->get_program_scope();
 }
 
+void scope_t::put_type_term(atom name, types::term::ref type_term) {
+	debug_above(1, log(log_info, "registering type term " c_term("%s") " as %s",
+			name.c_str(), type_term->str().c_str()));
+	type_env[name] = type_term;
+}
+
 types::term::map scope_t::get_type_env() const {
 	return type_env;
 }

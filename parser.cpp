@@ -951,13 +951,7 @@ type_sum::ref type_sum::parse(
 		parse_state_t &ps,
 		atom::many type_variables_list)
 {
-	atom::set type_variables;
-	std::for_each(
-		type_variables_list.begin(),
-	   	type_variables_list.end(),
-		[&] (atom name) {
-			type_variables.insert(name);
-		});
+	atom::set type_variables = to_set(type_variables_list);
 	auto is_token = ps.token;
 	chomp_token(tk_is);
 	bool expect_outdent = false;

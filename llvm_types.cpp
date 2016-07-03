@@ -387,13 +387,11 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	return nullptr;
 }
 
-bound_type_t::ref ast::type_sum::instantiate_type(
+types::term::ref ast::type_sum::instantiate_type(
 		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		types::term::ref term) const
+		scope_t::ref scope) const
 {
-	log(log_info, "creating sum type for " c_type("%s"), term->str().c_str());
+	log(log_info, "creating sum type term for %s", str().c_str());
 
 #if 0
 	types::term::ref lazy_term = (term);
@@ -447,13 +445,11 @@ bound_type_t::ref ast::type_sum::instantiate_type(
 	return nullptr;
 }
 
-bound_type_t::ref ast::type_product::instantiate_type(
+types::term::ref ast::type_product::instantiate_type(
 		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-	   	scope_t::ref scope,
-	   	types::term::ref term) const
+	   	scope_t::ref scope) const
 {
-	log(log_info, "creating product type for " c_type("%s"), term->str().c_str());
+	log(log_info, "creating product type term for %s", str().c_str());
 
 #if 0
 	atom::many dim_names;
@@ -508,12 +504,12 @@ bound_type_t::ref ast::type_product::instantiate_type(
 	return nullptr;
 }
 
-bound_type_t::ref ast::type_alias::instantiate_type(
+types::term::ref ast::type_alias::instantiate_type(
 		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		types::term::ref term) const
+	   	scope_t::ref scope) const
 {
+	log(log_info, "creating type alias term for %s", str().c_str());
+
 	return null_impl(); // type_ref->resolve_type(status, builder, scope, nullptr, nullptr);
 }
 

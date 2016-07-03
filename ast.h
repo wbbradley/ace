@@ -251,14 +251,12 @@ namespace ast {
 
 		virtual ~type_algebra() throw() {}
 
-		/* instantiate_type is called from within the scope where the type
-		 * should end up living. this includes any functions like data ctors
-		 * that should be created with the type. */
-		virtual bound_type_t::ref instantiate_type(
+		/* instantiate_type is called from within the scope where the type's
+		 * ctors should end up living. this function should create the
+		 * unchecked ctors with the type. */
+		virtual types::term::ref instantiate_type(
 				status_t &status,
-				llvm::IRBuilder<> &builder,
-				scope_t::ref scope,
-				types::term::ref term) const = 0;
+				scope_t::ref scope) const = 0;
 
 		static ref parse(parse_state_t &ps, ast::type_decl::ref type_decl);
 	};
@@ -270,7 +268,7 @@ namespace ast {
 		virtual ~type_sum() throw() {}
 		static const syntax_kind_t SK = sk_type_sum;
 		static ref parse(parse_state_t &ps, atom::many type_variables);
-		virtual bound_type_t::ref instantiate_type(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, types::term::ref term) const;
+		virtual types::term::ref instantiate_type(status_t &status, scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<data_ctor::ref> data_ctors;
@@ -283,7 +281,7 @@ namespace ast {
 		virtual ~type_product() throw() {}
 		static const syntax_kind_t SK = sk_type_product;
 		static ref parse(parse_state_t &ps, atom::many type_variables);
-		virtual bound_type_t::ref instantiate_type(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, types::term::ref term) const;
+		virtual types::term::ref instantiate_type(status_t &status, scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
 		atom::set type_variables;
@@ -297,7 +295,7 @@ namespace ast {
 		virtual ~type_alias() throw() {}
 		static const syntax_kind_t SK = sk_type_alias;
 		static ref parse(parse_state_t &ps, atom::many type_variables);
-		virtual bound_type_t::ref instantiate_type(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, types::term::ref term) const;
+		virtual types::term::ref instantiate_type(status_t &status, scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
 		atom::set type_variables;

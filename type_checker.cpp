@@ -19,16 +19,6 @@
  */
 
 
-/* a resolution path is a list of possible function overloads that could
- * resolve a certain callsite, given a name. each has a term. some terms
- * may be generic. */
-struct term_var_t {
-    types::term::ref term;
-    var_t::ref var;
-};
-
-typedef std::vector<term_var_t> resolution_order_t;
-
 /************************************************************************/
 
 bound_type_t::ref get_fully_bound_param_info(
@@ -1052,25 +1042,19 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 	 * already. for those that have not been provided we will need to recurse
 	 * instantiation. */
 
-	/* substitute bound scope variables for generics in the term */
-
-	// TODO: decide how we will know whether to instantiate this. that is, is
-	// this being called, or is it being encountered at module scope?
-	assert(false);
-
-#if 0
-	// TODO: create a def_macro term and add it to the current type
-	// environment.  Use type_decl->name, and bind the type algebra expression
-	// to a lambda of the type_decl->type_variables.
-	scope->type_env
-
+	/*  create a def_macro term and add it to the current type environment.
+	 *  Use type_decl->name, and bind the type algebra expression to a lambda
+	 *  of the type_decl->type_variables. */
+	
 	/* as a test, let's see if the preexisting term is already bound. */
-	auto already_bound_type = scope->maybe_get_bound_type(term);
+	auto already_bound_type = scope->get_bound_type({type_decl->name});
 	if (already_bound_type != nullptr) {
 		log(log_warning, "found predefined bound type for %s -> %s",
-			   	term->str().c_str(),
+			   	type_decl->name.c_str(),
 				already_bound_type->str().c_str());
 		
+		// this is probably fine in practice, but maybe we should check whether
+		// the already existing type was created in this scope
 		dbg();
 	}
 
@@ -1088,38 +1072,14 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 		*new_scope = fresh_scope;
 	}
 
-	/* let's create this type with the given term with types that exist in
-	 * the current scope */
-	bound_type_t::ref bound_type = type_algebra->instantiate_type(status, builder, scope,
-			term);
-
+	// TODO: consider type namespacing here, or 
+	auto type_term = type_algebra->instantiate_type(status, scope);
 	if (!!status) {
-		/* on our way out, stash the type in the current scope, or create a scope */
-		if (auto local_scope = dyncast<local_scope_t>(scope)) {
-			assert(bound_type != nullptr);
-			*new_scope = local_scope->new_local_scope(
-					string_format("type-%s", term.name.c_str()));
-
-			(*new_scope)->put_bound_type(term, bound_type);
-		} else if (auto module_scope = dyncast<module_scope_t>(scope)) {
-			/* we may have succesfully instantiated an unchecked function
-			 * in instantiate_type but still not have a bound_type to add
-			 * to our scope here */
-
-			if (bound_type != nullptr) {
-				/* before recursing directly or indirectly, let's just add this
-				 * function to the module scope we're in */
-				module_scope->put_bound_type(term, bound_type);
-				module_scope->mark_checked(shared_from_this());
-			}
-		}
-
+		scope->put_type_term(type_decl->name, type_term);
 		return nullptr;
-    }
-#endif
-
-    assert(!status);
-    return nullptr;
+	}
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref ast::assignment::resolve_instantiation(
