@@ -5,8 +5,7 @@ link_module    ::= 'link' (identifier 'to')? module_decl
 link_function  ::= 'link' function_decl
 
 type_def       ::= ('type' type_decl ) type_algebra
-
-type_decl  ::= identifier ('{' type_decl (',' type_decl)* '}' )?
+type_decl  ::= identifier ('{' identifier (',' identifier)* '}' )?
 
 type_ref       ::=
  ( '[' type_ref ']' )

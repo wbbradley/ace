@@ -806,9 +806,30 @@ ptr<semver> semver::parse(parse_state_t &ps) {
 
 }
 
-void parse_type_decl(parse_state_t &ps, atom &name, atom::many &type_variables)
-{
-	return;
+void parse_type_decl(parse_state_t &ps, atom &name, atom::many &type_variables) {
+	name = ps.token.text;
+	ps.advance();
+	if (ps.token.tk == tk_lcurly) {
+		ps.advance();
+		while (true) {
+			if (ps.token.tk == tk_identifier) {
+				/* we found a type variable, let's stash it */
+				type_variables.push_back(ps.token.text);
+				ps.advance();
+				if (ps.token.tk == tk_comma) {
+					ps.advance();
+				} else {
+					continue;
+				}
+			} else if (ps.token.tk == tk_rcurly) {
+				ps.advance();
+				break;
+			} else {
+				ps.error("expected an identifier, or '}', got %s", tkstr(ps.token.tk));
+				break;
+			}
+		}
+	}
 }
 
 types::identifier::ref make_parsed_id(const zion_token_t &token) {
@@ -879,12 +900,13 @@ types::term::ref parse_term(parse_state_t &ps, int depth=0) {
 }
 
 type_decl::ref type_decl::parse(parse_state_t &ps) {
+	auto token = ps.token;
 	atom name;
 	atom::many type_variables;
 	parse_type_decl(ps, name, type_variables);
 
 	if (!!ps.status) {
-		return create<ast::type_decl>(ps.token, name, type_variables);
+		return create<ast::type_decl>(token, name, type_variables);
 	} else {
 		return nullptr;
 	}
@@ -917,7 +939,10 @@ type_algebra::ref type_algebra::parse(
 	case tk_matches:
 		return type_alias::parse(ps, type_decl->type_variables);
 	default:
-		ps.error("type descriptions must begin with " c_id("is") ", " c_id("has") ", or " c_id("matches") ".");
+		ps.error(
+				"type descriptions must begin with "
+			   	c_id("is") ", " c_id("has") ", or " c_id("matches") ". (Found %s)",
+				ps.token.str().c_str());
 		return nullptr;
 	}
 }

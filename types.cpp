@@ -22,11 +22,11 @@ namespace types {
 			}
 
 			ref evaluate(map env, int macro_depth) const {
-				return null_impl();
+				return shared_from_this();
 			}
 
 			type::ref get_type() const {
-				return null_impl();
+				return ::type_id(make_iid({"void"}));
 			}
 		};
 
@@ -338,7 +338,11 @@ namespace types {
 	}
 
 	ptr<const term> type_id::to_term(const map &bindings) const {
-		return term_id(id);
+		if (id->get_name() == "void") {
+			return term_unreachable();
+		} else {
+			return term_id(id);
+		}
 	}
 
 	bool type_id::accept(type_visitor &visitor) const {
