@@ -423,6 +423,13 @@ namespace ast {
 
 		static ptr<function_defn> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		bound_var_t::ref instantiate_with_args_and_return_type(
+				status_t &status,
+			   	llvm::IRBuilder<> &builder,
+			   	scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bound_type_t::named_pairs args,
+				bound_type_t::ref return_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<function_decl> decl;

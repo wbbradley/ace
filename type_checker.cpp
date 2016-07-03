@@ -137,6 +137,26 @@ bound_var_t::ref type_check_bound_var_decl(
 	return nullptr;
 }
 
+atom::many get_param_list_decl_variable_names(ast::param_list_decl::ref obj) {
+	atom::many names;
+	for (auto param : obj->params) {
+		names.push_back({param->token.text});
+    }
+    return names;
+}
+
+bound_type_t::named_pairs zip_named_pairs(
+		atom::many names,
+	   	bound_type_t::refs args)
+{
+	bound_type_t::named_pairs named_args;
+	assert(names.size() == args.size());
+	for (int i = 0; i < args.size(); ++i) {
+		named_args.push_back({names[i], args[i]});
+	}
+	return named_args;
+}
+
 status_t get_fully_bound_param_list_decl_variables(
 		llvm::IRBuilder<> &builder,
 		ast::param_list_decl &obj,
@@ -189,7 +209,7 @@ void type_check_fully_bound_function_decl(
     debug_above(4, log(log_info, "type checking function decl %s", obj.token.str().c_str()));
 
     if (obj.param_list_decl) {
-        /* the the parameter types as per the decl */
+        /* the parameter types as per the decl */
         status |= get_fully_bound_param_list_decl_variables(builder,
                 *obj.param_list_decl, scope, params);
 
@@ -249,10 +269,10 @@ bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn &obj)
 
 function_scope_t::ref make_param_list_scope(
         status_t &status,
-        llvm::IRBuilder<> &builder,
         const ast::function_decl &obj,
         scope_t::ref &scope,
-		bound_var_t::ref function_var)
+		bound_var_t::ref function_var,
+		bound_type_t::named_pairs params)
 {
     /* this function is coupled to the sbk_generic_substitution mechanism.
      * when we're not dealing with generics, it simply looks up the types in
@@ -263,14 +283,6 @@ function_scope_t::ref make_param_list_scope(
      */
     assert(!!status);
 
-    bound_type_t::named_pairs params;
-
-    if (obj.param_list_decl) {
-        status |= get_fully_bound_param_list_decl_variables(
-                builder, *obj.param_list_decl, scope, params);
-    } else {
-        assert(!"weird?");
-    }
     if (!!status) {
         auto new_scope = scope->new_function_scope(
                 string_format("function-%s", function_var->name.c_str()));
@@ -724,7 +736,7 @@ bound_var_t::ref ast::function_defn::resolve_instantiation(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
         local_scope_t::ref *new_scope,
-		bool *returns) const
+		bool *) const
 {
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 	assert(!!status);
@@ -746,98 +758,116 @@ bound_var_t::ref ast::function_defn::resolve_instantiation(
 	type_check_fully_bound_function_decl(status, builder, *decl, scope, args, return_type);
 
 	if (!!status) {
-		std::string function_name = token.text;
+		return instantiate_with_args_and_return_type(status, builder, scope,
+				new_scope, args, return_type);
+	} else {
+		user_error(status, *this, "unable to get function declaration");
+	}
 
-		assert(scope->get_llvm_module() != nullptr);
+	assert(!status);
+	return nullptr;
+}
 
-		auto function_sig = get_function_term(args, return_type);
-		bound_type_t::ref function_type = upsert_bound_type(status,
-				builder, scope, function_sig);
+bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
+        status_t &status,
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		local_scope_t::ref *new_scope,
+		bound_type_t::named_pairs args,
+		bound_type_t::ref return_type) const
+{
+	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+	assert(!!status);
+
+	std::string function_name = token.text;
+
+	assert(scope->get_llvm_module() != nullptr);
+
+	auto function_term = get_function_term(args, return_type);
+	bound_type_t::ref function_type = upsert_bound_type(status,
+			builder, scope, function_term);
+
+	if (!!status) {
+		assert(function_type->llvm_type != nullptr);
+
+		llvm::Type *llvm_type = function_type->llvm_type;
+		if (llvm_type->isPointerTy()) {
+			llvm_type = llvm_type->getPointerElementType();
+		}
+		log(log_info, "creating function %s with LLVM type %s",
+				function_name.c_str(),
+				llvm_print_type(*llvm_type).c_str());
+		assert(llvm_type->isFunctionTy());
+
+
+		llvm::Function *llvm_function = llvm::Function::Create(
+				(llvm::FunctionType *)llvm_type,
+				llvm::Function::ExternalLinkage, function_name,
+				scope->get_llvm_module());
+
+		llvm::BasicBlock *llvm_block = llvm::BasicBlock::Create(builder.getContext(), "entry", llvm_function);
+		builder.SetInsertPoint(llvm_block);
+
+		/* set up the mapping to this function for use in recursion */
+		bound_var_t::ref function_var = bound_var_t::create(
+				INTERNAL_LOC(), token.text, function_type, llvm_function,
+				shared_from_this());
+
+		/* we should be able to check its block as a callsite. note that this
+		 * code will also run for generics but only after the
+		 * sbk_generic_substitution mechanism has run its course. */
+		auto params_scope = make_param_list_scope(status, *decl, scope,
+				function_var, args);
+
+		/* now put this function declaration into the containing scope in case
+		 * of indirect recursion */
+		if (function_var->name.size() != 0) {
+			/* inline function definitions are scoped to the virtual block in which
+			 * they appear */
+			if (auto local_scope = dyncast<local_scope_t>(scope)) {
+				*new_scope = local_scope->new_local_scope(
+						string_format("function-%s", function_name.c_str()));
+
+				(*new_scope)->put_bound_variable(function_var->name, function_var);
+			} else if (auto module_scope = dyncast<module_scope_t>(scope)) {
+				/* before recursing directly or indirectly, let's just add this
+				 * function to the module scope we're in */
+				module_scope->put_bound_variable(function_var->name, function_var);
+				module_scope->mark_checked(shared_from_this());
+			}
+
+		} else {
+			user_error(status, *this, "function definitions need names");
+		}
+
+		/* keep track of whether this function returns */
+		bool all_paths_return = false;
+		params_scope->return_type_constraint = return_type;
+		block->resolve_instantiation(status, builder, params_scope,
+				nullptr, &all_paths_return);
 
 		if (!!status) {
-			assert(function_type->llvm_type != nullptr);
+			debug_above(4, log(log_info, "module dump from %s\n%s", __PRETTY_FUNCTION__,
+						llvm_print_module(*llvm_get_module(builder)).c_str()));
 
-			llvm::Type *llvm_type = function_type->llvm_type;
-			if (llvm_type->isPointerTy()) {
-				llvm_type = llvm_type->getPointerElementType();
-			}
-			log(log_info, "creating function %s with LLVM type %s",
-					function_name.c_str(),
-					llvm_print_type(*llvm_type).c_str());
-			assert(llvm_type->isFunctionTy());
-
-
-			llvm::Function *llvm_function = llvm::Function::Create(
-					(llvm::FunctionType *)llvm_type,
-					llvm::Function::ExternalLinkage, function_name,
-					scope->get_llvm_module());
-
-			llvm::BasicBlock *llvm_block = llvm::BasicBlock::Create(builder.getContext(), "entry", llvm_function);
-			builder.SetInsertPoint(llvm_block);
-
-			/* set up the mapping to this function for use in recursion */
-			bound_var_t::ref function_var = bound_var_t::create(
-					INTERNAL_LOC(), token.text, function_type, llvm_function,
-					shared_from_this());
-
-			/* we should be able to check its block as a callsite. note that this
-			 * code will also run for generics but only after the
-			 * sbk_generic_substitution mechanism has run its course. */
-			auto params_scope = make_param_list_scope(status, builder,
-					*decl, scope, function_var);
-
-			/* now put this function declaration into the containing scope in case
-			 * of indirect recursion */
-			if (function_var->name.size() != 0) {
-				/* inline function definitions are scoped to the virtual block in which
-				 * they appear */
-				if (auto local_scope = dyncast<local_scope_t>(scope)) {
-					*new_scope = local_scope->new_local_scope(
-							string_format("function-%s", function_name.c_str()));
-
-					(*new_scope)->put_bound_variable(function_var->name, function_var);
-				} else if (auto module_scope = dyncast<module_scope_t>(scope)) {
-					/* before recursing directly or indirectly, let's just add this
-					 * function to the module scope we're in */
-					module_scope->put_bound_variable(function_var->name, function_var);
-					module_scope->mark_checked(shared_from_this());
-				}
-
+			if (all_paths_return) {
+				return function_var;
 			} else {
-				user_error(status, *this, "function definitions need names");
-			}
-
-			/* keep track of whether this function returns */
-			bool all_paths_return = false;
-			params_scope->return_type_constraint = return_type;
-			block->resolve_instantiation(status, builder, params_scope,
-					nullptr, &all_paths_return);
-
-			if (!!status) {
-				debug_above(4, log(log_info, "module dump from %s\n%s", __PRETTY_FUNCTION__,
-							llvm_print_module(*llvm_get_module(builder)).c_str()));
-
-				if (all_paths_return) {
+				/* not all control paths return */
+				if (return_type->is_void()) {
+					/* if this is a void let's give the user a break and insert
+					 * a default void return */
+					builder.CreateRetVoid();
 					return function_var;
 				} else {
-					/* not all control paths return */
-					if (return_type->is_void()) {
-						/* if this is a void let's give the user a break and insert
-						 * a default void return */
-						builder.CreateRetVoid();
-						return function_var;
-					} else {
-						/* no breaks here, we don't know what to return */
-						user_error(status, *this, "not all control paths return a value");
-					}
+					/* no breaks here, we don't know what to return */
+					user_error(status, *this, "not all control paths return a value");
 				}
-
-				llvm_verify_function(status, llvm_function);
 			}
+
+			llvm_verify_function(status, llvm_function);
 		}
-    } else {
-        user_error(status, *this, "unable to get function declaration");
-    }
+	}
 
     assert(!status);
     return nullptr;

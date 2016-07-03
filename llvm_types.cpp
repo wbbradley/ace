@@ -75,10 +75,8 @@ struct bound_type_builder_t : public types::type_visitor {
 		case pk_function:
 			{
 				assert(product.dimensions.size() == 2);
-				bound_type_t::refs args = create_bound_types_from_args(status,
-						builder, program_scope, product.dimensions[0]);
-				bound_type_t::ref return_type = upsert_bound_type(status,
-						builder, program_scope, product.dimensions[1]);
+				bound_type_t::refs args = create_bound_types_from_args(status, builder, program_scope, product.dimensions[0]);
+				bound_type_t::ref return_type = upsert_bound_type(status, builder, program_scope, product.dimensions[1]);
 				types::type::ref fn_type = get_function_type(args, return_type);
 
 				auto signature = fn_type->get_signature();

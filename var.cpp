@@ -24,6 +24,6 @@ unification_t var_t::accepts_callsite(
 
 	return unify(
 			sig,
-		   	types::term_product(pk_function, {args, types::term_generic()}),
+			types::term_product(pk_function, {args, types::term_generic()}),
 			env);
 }

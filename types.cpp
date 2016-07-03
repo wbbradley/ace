@@ -41,7 +41,17 @@ namespace types {
 			}
 
 			ref evaluate(map env, int macro_depth) const {
-				return shared_from_this();
+				auto iter = env.find(name->get_name());
+				if (iter == env.end()) {
+					return shared_from_this();
+				} else {
+					auto value = iter->second;
+					if (value != shared_from_this()) {
+						return value->evaluate(env, macro_depth);
+					} else {
+						return value;
+					}
+				}
 			}
 
 			type::ref get_type() const {
@@ -335,6 +345,10 @@ namespace types {
 		return visitor.visit(*this);
 	}
 
+	type::ref type_id::rebind(const map &bindings) const {
+		return shared_from_this();
+	}
+
 	location type_id::get_location() const {
 		return INTERNAL_LOC();
 	}
@@ -358,6 +372,15 @@ namespace types {
 	/* how many free type variables exist in this type? */
 	int type_variable::ftv() const {
 		return 1;
+	}
+
+	type::ref type_variable::rebind(const map &bindings) const {
+		auto instance_iter = bindings.find(id->get_name());
+		if (instance_iter != bindings.end()) {
+			return instance_iter->second->rebind(bindings);
+		} else {
+			return shared_from_this();
+		}
 	}
 
 	ptr<const term> type_variable::to_term(const map &bindings) const {
@@ -413,6 +436,15 @@ namespace types {
 		return visitor.visit(*this);
 	}
 
+	type::ref type_ref::rebind(const map &bindings) const {
+		refs type_args;
+		for (auto arg : args) {
+			type_args.push_back(arg->rebind(bindings));
+		}
+		/* probably no need to rebind the macro */
+		return ::type_ref(macro->rebind(bindings), type_args);
+	}
+
 	location type_ref::get_location() const {
 		return macro->get_location();
 	}
@@ -440,6 +472,10 @@ namespace types {
 
 	bool type_operator::accept(type_visitor &visitor) const {
 		return visitor.visit(*this);
+	}
+
+	type::ref type_operator::rebind(const map &bindings) const {
+		return ::type_operator(oper->rebind(bindings), operand->rebind(bindings));
 	}
 
 	location type_operator::get_location() const {
@@ -478,6 +514,14 @@ namespace types {
 
 	bool type_product::accept(type_visitor &visitor) const {
 		return visitor.visit(*this);
+	}
+
+	type::ref type_product::rebind(const map &bindings) const {
+		refs type_dimensions;
+		for (auto dimension : dimensions) {
+			type_dimensions.push_back(dimension->rebind(bindings));
+		}
+		return ::type_product(pk, type_dimensions);
 	}
 
 	location type_product::get_location() const {

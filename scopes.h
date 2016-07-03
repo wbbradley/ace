@@ -218,7 +218,10 @@ struct local_scope_t : public runnable_scope_t {
 struct generic_substitution_scope_t : public scope_t {
 	typedef ptr<generic_substitution_scope_t> ref;
 
-	generic_substitution_scope_t(atom name, scope_t::ref parent_scope) : scope_t(name), parent_scope(parent_scope) {}
+	generic_substitution_scope_t(
+			atom name,
+		   	scope_t::ref parent_scope,
+		   	types::type::ref callee_signature) : scope_t(name), callee_signature(callee_signature), parent_scope(parent_scope) {}
 
 	virtual ~generic_substitution_scope_t() throw() {}
 	virtual ptr<scope_t> get_parent_scope();
@@ -231,7 +234,10 @@ struct generic_substitution_scope_t : public scope_t {
 		   	llvm::IRBuilder<> &builder,
 		   	const ptr<const ast::item> &fn_decl,
 		   	scope_t::ref module_scope,
-			unification_t unification);
+			unification_t unification,
+			types::type::ref callee_type);
+
+	const types::type::ref callee_signature;
 
 private:
 	scope_t::ref parent_scope;

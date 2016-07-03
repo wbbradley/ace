@@ -718,27 +718,40 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 		llvm::IRBuilder<> &builder,
 		const ptr<const ast::item> &fn_decl,
 		scope_t::ref parent_scope,
-		unification_t unification)
+		unification_t unification,
+		types::type::ref callee_type)
 {
-	auto subst_scope = make_ptr<generic_substitution_scope_t>("generic substitution", parent_scope);
+	/* instantiate a new scope */
+	auto subst_scope = make_ptr<generic_substitution_scope_t>(
+			"generic substitution", parent_scope, callee_type);
+
+	/* iterate over the bindings found during unifications and make
+	 * substitutions in the type environment */
 	for (auto &pair : unification.bindings) {
-		auto bound_type = upsert_bound_type(
-				status,
-				builder,
-				parent_scope,
-				pair.second);
-				
-		if (!bound_type) {
-			user_error(status, *fn_decl, "when trying to instantiate %s, couldn't find or create type %s",
-					fn_decl->token.str().c_str(),
-					pair.second->str().c_str());
-			return nullptr;
+		if (pair.first.str().find("_") != 0) {
+			auto bound_type = upsert_bound_type(
+					status,
+					builder,
+					parent_scope,
+					pair.second);
+					
+			if (!bound_type) {
+				user_error(status, *fn_decl, "when trying to instantiate %s, couldn't find or create type %s",
+						fn_decl->token.str().c_str(),
+						pair.second->str().c_str());
+				return nullptr;
+			} else {
+				/* the substitution scope allows us to masquerade a generic name as
+				 * a bound type */
+				auto term = pair.second->to_term(unification.bindings);
+				debug_above(5, log(log_info, "adding " c_id("%s") " to env as %s",
+							pair.first.c_str(),
+							term->str().c_str()));
+				subst_scope->type_env[pair.first] = term;
+			}
 		} else {
-			/* the substitution scope allows us to masquerade a generic name as
-			 * a bound type */
-			// TODO: update the env, not the bound types
-			assert(false);
-			// subst_scope->put_bound_type(pair.first, bound_type);
+			debug_above(7, log(log_info, "skipping adding %s to generic substitution scope",
+						pair.first.c_str()));
 		}
 	}
 	return subst_scope;

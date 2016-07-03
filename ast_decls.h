@@ -12,4 +12,5 @@ namespace ast {
 	struct function_decl;
 	struct expression;
 	struct return_statement;
+	struct param_list_decl;
 }

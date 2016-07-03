@@ -2,6 +2,6 @@ module _
 
 link def puts(x str) int
 
-def print(x any) void
+def print(x any T) void
 	s := str(x)
 	puts(s)

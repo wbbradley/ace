@@ -3,6 +3,12 @@
 #include "bound_var.h"
 #include "ast.h"
 
+bound_type_t::refs create_bound_types_from_args(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		types::type::ref args_type);
+
 bound_type_t::ref upsert_bound_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,

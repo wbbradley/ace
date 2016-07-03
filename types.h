@@ -50,7 +50,7 @@ namespace types {
 	struct signature;
 	struct type_visitor;
 
-	struct type {
+	struct type : public std::enable_shared_from_this<type> {
 		typedef ptr<const type> ref;
 		typedef std::vector<ref> refs;
 		typedef std::map<atom, ref> map;
@@ -71,6 +71,7 @@ namespace types {
 		atom get_signature() const { return repr(); }
 
 		virtual bool accept(type_visitor &visitor) const = 0;
+		virtual ref rebind(const map &bindings) const = 0;
 
 		virtual bool is_function() const { return false; }
 		virtual bool is_void() const { return false; }
@@ -123,6 +124,7 @@ namespace types {
 		virtual int ftv() const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 		virtual bool accept(type_visitor &visitor) const;
+		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 		virtual bool is_void() const;
 	};
@@ -135,6 +137,7 @@ namespace types {
 		virtual int ftv() const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 		virtual bool accept(type_visitor &visitor) const;
+		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 	};
 
@@ -147,6 +150,7 @@ namespace types {
 		virtual int ftv() const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 		virtual bool accept(type_visitor &visitor) const;
+		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 	};
 
@@ -159,6 +163,7 @@ namespace types {
 		virtual int ftv() const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 		virtual bool accept(type_visitor &visitor) const;
+		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 	};
 
@@ -171,6 +176,7 @@ namespace types {
 		virtual int ftv() const;
 		virtual ptr<const term> to_term(const map &bindings={}) const;
 		virtual bool accept(type_visitor &visitor) const;
+		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 
 		virtual bool is_function() const;

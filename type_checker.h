@@ -32,3 +32,5 @@ status_t make_temp_variable(
 typedef atom::set bound_type_context_t;
 
 bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn &obj);
+atom::many get_param_list_decl_variable_names(ptr<const ast::param_list_decl> obj);
+bound_type_t::named_pairs zip_named_pairs(atom::many names, bound_type_t::refs args);
