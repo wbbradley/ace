@@ -5,7 +5,7 @@
 #include "logger_decls.h"
 #include <csignal>
 #include "parse_state.h"
-#include "parsed_id.h"
+#include "code_id.h"
 
 using namespace ast;
 
@@ -806,8 +806,7 @@ ptr<semver> semver::parse(parse_state_t &ps) {
 
 }
 
-void parse_type_decl(parse_state_t &ps, atom &name, atom::many &type_variables) {
-	name = ps.token.text;
+void parse_type_decl(parse_state_t &ps, atom::many &type_variables) {
 	ps.advance();
 	if (ps.token.tk == tk_lcurly) {
 		ps.advance();
@@ -832,8 +831,8 @@ void parse_type_decl(parse_state_t &ps, atom &name, atom::many &type_variables) 
 	}
 }
 
-types::identifier::ref make_parsed_id(const zion_token_t &token) {
-	return make_ptr<parsed_id_t>(token);
+identifier::ref make_code_id(const zion_token_t &token) {
+	return make_ptr<code_id>(token);
 }
 
 types::term::ref parse_term(parse_state_t &ps, int depth=0) {
@@ -842,7 +841,7 @@ types::term::ref parse_term(parse_state_t &ps, int depth=0) {
 		ps.advance();
 		if (ps.token.tk == tk_identifier) {
 			/* named generic */
-			auto term = term_generic(make_parsed_id(ps.token));
+			auto term = types::term_generic(make_code_id(ps.token));
 			ps.advance();
 			return term;
 		} else {
@@ -855,7 +854,7 @@ types::term::ref parse_term(parse_state_t &ps, int depth=0) {
 		expect_token_or_return(tk_identifier, types::term_unreachable());
 
 		/* stash the identifier */
-		types::term::ref cur_term = term_id(make_parsed_id(ps.token));
+		types::term::ref cur_term = types::term_id(make_code_id(ps.token));
 
 		/* move on */
 		ps.advance();
@@ -901,12 +900,12 @@ types::term::ref parse_term(parse_state_t &ps, int depth=0) {
 
 type_decl::ref type_decl::parse(parse_state_t &ps) {
 	auto token = ps.token;
-	atom name;
+	expect_token(tk_identifier);
 	atom::many type_variables;
-	parse_type_decl(ps, name, type_variables);
+	parse_type_decl(ps, type_variables);
 
 	if (!!ps.status) {
-		return create<ast::type_decl>(token, name, type_variables);
+		return create<ast::type_decl>(token, type_variables);
 	} else {
 		return nullptr;
 	}
@@ -1085,6 +1084,7 @@ dimension::ref dimension::parse(parse_state_t &ps) {
 		name = primary_token.text;
 		ps.advance();
 	} else {
+		wat();
 		expect_token(tk_identifier);
 		primary_token = ps.token;
 	}

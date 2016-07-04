@@ -20,7 +20,7 @@ def sum_of_squares(N int) int
 	n := 0
 	# variable declarations are not happy inside of while blocks for now...
 	n_squared := 0
-	if n <= N
+	while n <= N
 		n_squared = n * n
 		ret += n_squared
 		n += 1

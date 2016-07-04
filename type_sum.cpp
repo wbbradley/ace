@@ -3,8 +3,10 @@
 #include "scopes.h"
 #include "ast.h"
 #include "llvm_types.h"
+#include "llvm_utils.h"
 #include "phase_scope_setup.h"
 #include "types.h"
+#include "code_id.h"
 
 /* When we encounter the Empty declaration, we have to instantiate something.
  * When we create Empty() with term __obj__{__tuple__}. We don't bother
@@ -176,4 +178,86 @@ bound_var_t::ref bind_ctor_to_scope(
 	return nullptr;
 }
 
+types::term::ref ast::type_product::instantiate_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		atom::many type_variables,
+		scope_t::ref scope) const
+{
+	log(log_info, "creating product type term for %s", str().c_str());
 
+	types::term::refs term_dimensions;
+	for (auto dimension : dimensions) {
+		auto term_dim = types::term_product(pk_named_dimension,
+				{
+					/* the "member" variable name */
+					types::term_id(make_code_id(dimension->token)),
+
+					/* the "member" variable type term */
+					dimension->type_ref->get_type_term()
+				});
+		term_dimensions.push_back(term_dim);
+	}
+
+	assert(type_variables.size() == 0);
+	return types::term_product(pk_struct, term_dimensions);
+}
+
+types::term::ref ast::type_sum::instantiate_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		atom::many type_variables,
+		scope_t::ref scope) const
+{
+	log(log_info, "creating sum type term for %s", str().c_str());
+
+	types::term::refs options;
+	for (auto data_ctor : data_ctors) {
+		options.push_back(data_ctor->instantiate_type_term(status, builder,
+					type_variables, scope));
+	}
+
+	return types::term_sum(options);
+}
+
+types::term::ref ast::data_ctor::instantiate_type_term(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		atom::many type_variables,
+		scope_t::ref scope) const
+{
+	types::term::refs dimensions;
+	for (auto type_ref : type_ref_params) {
+		dimensions.push_back(type_ref->get_type_term());
+	}
+
+	auto id = make_code_id(token);
+	assert(type_variables.size() == 0);
+	auto tag_term = types::term_product(pk_tag, {types::term_id(id)});
+	if (dimensions.size() == 0) {
+		/* it's a nullary enumeration or "tag", let's create a global value to represent
+		 * this tag. */
+
+		/* start by making a type for the tag */
+		bound_type_t::ref tag_type = bound_type_t::create(
+				tag_term->get_type(),
+				token.location,
+				/* all tags use the var_t* type */
+				scope->get_program_scope()->get_bound_type({"__var_ref"})->llvm_type);
+
+		bound_var_t::ref tag = llvm_create_global_tag(
+				builder, scope, tag_type, {token.text}, id);
+
+		assert(false);
+		/* all we need is a tag */
+		return tag_term;
+	} else {
+		assert(!"Need to implement data ctor");
+
+		/* if the data ctor has data associated with it, then it will need to
+		 * be wrapped in a tagged tuple */
+		return types::term_product(
+				pk_tagged_tuple,
+			   	{tag_term, types::term_product(pk_tuple, dimensions)});
+	}
+}

@@ -4,12 +4,10 @@
 #include "parser.h"
 
 std::string bound_var_t::str() const {
-    std::stringstream ss;
-    ss << C_VAR << name << C_RESET;
-	if (node != nullptr) {
-		ss << " : " << node->token.str();
-	}
-    ss << " : " << *type;
+	std::stringstream ss;
+	ss << C_VAR << name << C_RESET;
+	ss << " : " << id->str();
+	ss << " : " << *type;
 
 	assert(llvm_value != nullptr);
 
@@ -19,13 +17,15 @@ std::string bound_var_t::str() const {
 		trim(llir);
 		ss << C_IR << llvm_value;
 		ss << " : " << llir << C_RESET;
-		ss << " " << location_created.str();
+		ss << " " << internal_location.str();
 	}
     return ss.str();
 }
 
 location bound_var_t::get_location() const {
-	return node->token.location;
+	auto location = id->get_location();
+	assert(location != nullptr);
+	return *location;
 }
 
 bool bound_var_t::is_int() const {
@@ -60,15 +60,15 @@ std::string str(const bound_var_t::refs &args) {
 }
 
 bound_module_t::bound_module_t(
-		location location_created,
+		location internal_location,
 		atom name,
-		ptr<const ast::item> node,
+		identifier::ref id,
 		module_scope_t::ref module_scope) :
-	bound_var_t(location_created,
-		   	name, 
+	bound_var_t(internal_location,
+			name, 
 			module_scope->get_bound_type({"module"}),
 			module_scope->get_program_scope()->get_singleton("null")->llvm_value,
-			node),
+			id),
 	module_scope(module_scope)
 {
 	assert(module_scope != nullptr);

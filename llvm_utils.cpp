@@ -3,6 +3,7 @@
 #include "type_checker.h"
 #include "compiler.h"
 #include "llvm_types.h"
+#include "code_id.h"
 
 llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder, std::string value) {
 	return builder.CreateGlobalStringPtr(value);
@@ -18,6 +19,10 @@ llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value) {
 
 llvm::Value *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value) {
 	return builder.getInt64(value);
+}
+
+llvm::Value *llvm_create_int16(llvm::IRBuilder<> &builder, int16_t value) {
+	return builder.getInt16(value);
 }
 
 llvm::Value *llvm_create_float(llvm::IRBuilder<> &builder, float value) {
@@ -86,8 +91,8 @@ bound_var_t::ref create_callsite(
 			bound_type_t::ref return_type = get_function_return_type(status,
 					builder, *callsite, scope, function->type);
 
-			return bound_var_t::create(location, name, return_type, llvm_call_inst,
-					callsite);
+			return bound_var_t::create(INTERNAL_LOC(), name, return_type, llvm_call_inst,
+					make_code_id(callsite->token));
 		}
 	}
 	
@@ -291,7 +296,7 @@ llvm::Type *llvm_wrap_type(
 	 *
 	 * This is to allow this type to be managed by the GC.
 	 */
-	bound_type_t::ref var_type = null_impl(); // program_scope->get_bound_type({"__var"});
+	bound_type_t::ref var_type = program_scope->get_bound_type({"__var"});
 	llvm::Type *llvm_var_type = var_type->llvm_type;
 
 	llvm::ArrayRef<llvm::Type*> llvm_dims{llvm_var_type, llvm_data_type};
@@ -368,8 +373,8 @@ bound_var_t::ref llvm_start_function(status_t &status,
 
 			/* create the actual bound variable for the data ctor fn */
 			bound_var_t::ref function = bound_var_t::create(
-					node->token.location, name,
-					function_type, llvm_function, node);
+					INTERNAL_LOC(), name,
+					function_type, llvm_function, make_code_id(node->token));
 
 			/* start emitting code into the new function. caller should have an
 			 * insert point guard */
@@ -385,3 +390,55 @@ bound_var_t::ref llvm_start_function(status_t &status,
 	return nullptr;
 }
 
+bound_var_t::ref llvm_create_global_tag(
+		llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		bound_type_t::ref tag_type,
+		atom tag,
+		identifier::ref id)
+{
+	auto program_scope = scope->get_program_scope();
+
+	/* For a tag called "Example" with a type_id of 42, the LLIR should look
+	 * like this:
+	 *
+	 * @.str = private unnamed_addr constant [5 x i8] c"Example\00", align 1
+	 * @__tag_Example = global %struct.tag_t { i64 0, i16 0, i8* getelementptr inbounds ([5 x i8], [5 x i8]* @.str, i32 0, i32 0), i32 42 }, align 8
+	 * @Example = global %struct.var_t* bitcast (%struct.tag_t* @__tag_Example to %struct.var_t*), align 8 */
+
+	bound_type_t::ref var_ref_type = program_scope->get_bound_type({"__var_ref"});
+	bound_type_t::ref tag_struct_type = program_scope->get_bound_type({"__tag_var"});
+
+	llvm::Type *llvm_var_ref_type = var_ref_type->llvm_type;
+	llvm::StructType *llvm_tag_type = llvm::dyn_cast<llvm::StructType>(tag_struct_type->llvm_type);
+	debug_above(10, log(log_info, "var_ref_type is %s", llvm_print_type(*var_ref_type->llvm_type).c_str()));
+	debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print_type(*tag_struct_type->llvm_type).c_str()));
+	assert(llvm_tag_type != nullptr);
+
+	std::vector<llvm::Constant *> llvm_tag_data({
+		/* GC version - should always be zero since this is a global and must
+		 * never be collected */
+		(llvm::Constant *)llvm_create_int(builder, 0),
+
+		/* size - should always be zero since the type_id is part of this var_t
+		 * as builtin type info. */
+		(llvm::Constant *)llvm_create_int16(builder, 0),
+
+		/* name - for debugging */
+		(llvm::Constant *)llvm_create_global_string(builder, tag.str()),
+
+		/* type_id - the actual type "tag" */
+		(llvm::Constant *)llvm_create_int(builder, tag.iatom),
+	});
+
+	llvm::ArrayRef<llvm::Constant*> llvm_tag_initializer{llvm_tag_data};
+
+	llvm::Constant *llvm_tag_global = llvm::ConstantStruct::get(llvm_tag_type,
+			llvm_tag_initializer);
+
+	llvm::Constant *llvm_tag_value = llvm::ConstantExpr::getBitCast(
+			llvm_tag_global, llvm_var_ref_type);
+
+	return bound_var_t::create(INTERNAL_LOC(), tag, tag_struct_type, llvm_tag_value,
+			id);
+}

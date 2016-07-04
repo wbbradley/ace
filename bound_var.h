@@ -14,23 +14,24 @@
 struct bound_var_t : public var_t {
 	bound_var_t() = delete;
 	bound_var_t(
-			location location_created,
+			location internal_location,
 			atom name,
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
-			ptr<const ast::item> node)
-		: location_created(location_created), name(name), type(type), llvm_value(llvm_value), node(node)
+			identifier::ref id)
+		: internal_location(internal_location), name(name), type(type), llvm_value(llvm_value), id(id)
    	{
 		assert(name.size() != 0);
 		assert(llvm_value != nullptr);
+		assert(id != nullptr);
 	}
 	virtual ~bound_var_t() throw() {}
 
-	location location_created;
+	location internal_location;
 	atom const name;
 	bound_type_t::ref const type;
 	llvm::Value * const llvm_value;
-	ptr<const ast::item> const node;
+	identifier::ref const id;
 
 	std::string str() const;
 
@@ -48,13 +49,13 @@ struct bound_var_t : public var_t {
 	virtual location get_location() const;
 
 	static ref create(
-			location location_created,
+			location internal_location,
 			atom name,
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
-			ptr<const ast::item> node)
+			identifier::ref id)
 	{
-		return make_ptr<bound_var_t>(location_created, name, type, llvm_value, node);
+		return make_ptr<bound_var_t>(internal_location, name, type, llvm_value, id);
 	}
 
 	static std::string str(const refs &coll) {
@@ -77,18 +78,18 @@ struct bound_module_t : public bound_var_t {
 	ptr<module_scope_t> module_scope;
 
 	bound_module_t(
-			location location_created,
+			location internal_location,
 			atom name,
-			ptr<const ast::item> node,
+			identifier::ref id,
 			ptr<module_scope_t> module_scope);
 
 	static ref create(
-			location location_created,
+			location internal_location,
 			atom name,
-			ptr<const ast::item> node,
+			identifier::ref id,
 			ptr<module_scope_t> module_scope)
 	{
-		return make_ptr<bound_module_t>(location_created, name, node, module_scope);
+		return make_ptr<bound_module_t>(internal_location, name, id, module_scope);
 	}
 
 };

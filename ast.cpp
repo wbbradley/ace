@@ -119,8 +119,8 @@ namespace ast {
 	{
 	}
 
-	type_decl::type_decl(atom name, atom::many type_variables) :
-		name(name), type_variables(type_variables)
+	type_decl::type_decl(atom::many type_variables) :
+		type_variables(type_variables)
 	{
 	}
 

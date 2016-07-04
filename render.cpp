@@ -378,7 +378,7 @@ namespace ast {
 	}
 
 	void type_decl::render(render_state_t &rs) const {
-		rs.ss << name;
+		rs.ss << token.text;
 		if (type_variables.size() != 0) {
 			const char *sep = "";
 			rs.ss << "{";

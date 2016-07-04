@@ -3,11 +3,14 @@
 #include "dbg.h"
 #include "identifier.h"
 
-std::string identifier_t::str() const {
-	std::stringstream ss;
-	ss << C_ID << "`" << id.str() << "`" << C_RESET;
-	ss << location.str();
-	return ss.str();
+atom iid::get_name() const {
+	return name;
 }
 
+ptr<location> iid::get_location() const {
+	return nullptr;
+}
 
+std::string iid::str() const {
+	return string_format(c_id("%s"), name.c_str());
+}

@@ -10,6 +10,7 @@
 #include "llvm_types.h"
 #include "parser.h"
 #include "unification.h"
+#include "code_id.h"
 
 /*
  * The basic idea here is that type checking is a graph operation which can be
@@ -109,7 +110,7 @@ bound_var_t::ref type_check_bound_var_decl(
 					 * will need to know to use store/load semantics, not
 					 * just pass-by-value */
 					return bound_var_t::create(INTERNAL_LOC(), symbol,
-							type, llvm_alloca, obj.shared_from_this());
+							type, llvm_alloca, make_code_id(obj.token));
 				}
 			}
 		} else {
@@ -289,7 +290,7 @@ function_scope_t::ref make_param_list_scope(
             /* add the parameter argument to the current scope */
             new_scope->put_bound_variable(param.first,
                     bound_var_t::create(INTERNAL_LOC(), param.first, param.second,
-                        llvm_param, obj.param_list_decl->params[i++]));
+                        llvm_param, make_code_id(obj.param_list_decl->params[i++]->token)));
         }
 
         return new_scope;
@@ -322,7 +323,7 @@ bound_var_t::ref ast::link_module_statement::resolve_instantiation(
 		 * future version they can be used as run-time variables, so that we
 		 * can pass modules around for another level of polymorphism. */
 		bound_module_t::ref module_variable = bound_module_t::create(INTERNAL_LOC(),
-				link_as_name.text, shared_from_this(), linked_module_scope);
+				link_as_name.text, make_code_id(token), linked_module_scope);
 
 		module_scope->put_bound_variable(module_variable->name, module_variable);
 
@@ -381,7 +382,7 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 					scope->make_fqn(link_as_name.text),
                     bound_function_type,
                     llvm_value,
-                    extern_function);
+                    make_code_id(extern_function->token));
         }
     } else {
         user_error(status, *this, "name conflict with %s", link_as_name.text.c_str());
@@ -689,7 +690,7 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
 		llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
 		return bound_var_t::create(
 				INTERNAL_LOC(), string_format(".%s", rhs.text.c_str()),
-				type, llvm_item, shared_from_this());
+				type, llvm_item, make_code_id(token));
 	} else {
 		user_error(status, *this, "%s has no dimension called " c_id("%s"),
 				lhs_val->type->str().c_str(),
@@ -800,7 +801,7 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 		/* set up the mapping to this function for use in recursion */
 		bound_var_t::ref function_var = bound_var_t::create(
 				INTERNAL_LOC(), token.text, function_type, llvm_function,
-				shared_from_this());
+				make_code_id(token));
 
 		/* we should be able to check its block as a callsite. note that this
 		 * code will also run for generics but only after the
@@ -1047,10 +1048,10 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 	 *  of the type_decl->type_variables. */
 	
 	/* as a test, let's see if the preexisting term is already bound. */
-	auto already_bound_type = scope->get_bound_type({type_decl->name});
+	auto already_bound_type = scope->get_bound_type({type_decl->token.text});
 	if (already_bound_type != nullptr) {
 		log(log_warning, "found predefined bound type for %s -> %s",
-			   	type_decl->name.c_str(),
+			   	type_decl->token.str().c_str(),
 				already_bound_type->str().c_str());
 		
 		// this is probably fine in practice, but maybe we should check whether
@@ -1073,9 +1074,11 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 	}
 
 	// TODO: consider type namespacing here, or 
-	auto type_term = type_algebra->instantiate_type(status, scope);
+	auto type_term = type_algebra->instantiate_type(status, builder,
+			type_decl->type_variables, scope);
+
 	if (!!status) {
-		scope->put_type_term(type_decl->name, type_term);
+		scope->put_type_term(type_decl->token.text, type_term);
 		return nullptr;
 	}
 	assert(!status);
@@ -1507,7 +1510,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
             if (!!status) {
                 return bound_var_t::create(
 						INTERNAL_LOC(), "temp_int_literal", type,
-						llvm_create_int(builder, value), shared_from_this());
+						llvm_create_int(builder, value), make_code_id(token));
             }
         }
 		break;
@@ -1524,7 +1527,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
             bound_type_t::ref type = program_scope->get_bound_type({"str"});
             if (!!status) {
                 return bound_var_t::create(INTERNAL_LOC(), "temp_str_literal", 
-                        type, llvm_create_global_string(builder, value), shared_from_this());
+                        type, llvm_create_global_string(builder, value), make_code_id(token));
             }
         }
 		break;
@@ -1534,7 +1537,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
             bound_type_t::ref type = program_scope->get_bound_type({"float"});
             if (!!status) {
                 return bound_var_t::create(INTERNAL_LOC(), "temp_float_literal", 
-                        type, llvm_create_float(builder, value), shared_from_this());
+                        type, llvm_create_float(builder, value), make_code_id(token));
             }
         }
 		break;

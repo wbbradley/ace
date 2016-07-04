@@ -556,11 +556,11 @@ namespace types {
 	}
 }
 
-types::type::ref type_id(types::identifier::ref id) {
+types::type::ref type_id(identifier::ref id) {
 	return make_ptr<types::type_id>(id);
 }
 
-types::type::ref type_variable(types::identifier::ref id) {
+types::type::ref type_variable(identifier::ref id) {
 	return make_ptr<types::type_variable>(id);
 }
 
@@ -576,8 +576,8 @@ types::type::ref type_product(product_kind_t pk, types::type::refs dimensions) {
 	return make_ptr<types::type_product>(pk, dimensions);
 }
 
-types::identifier::ref make_iid(atom name) {
-	return make_ptr<types::iid>(name);
+identifier::ref make_iid(atom name) {
+	return make_ptr<iid>(name);
 }
 
 bool get_obj_struct_name_info(
@@ -621,7 +621,7 @@ types::term::ref get_obj_term(types::term::ref item) {
 	return types::term_product(pk_obj, {item});
 }
 
-std::ostream &operator <<(std::ostream &os, types::identifier::ref id) {
+std::ostream &operator <<(std::ostream &os, identifier::ref id) {
 	return os << id->get_name();
 }
 
@@ -696,8 +696,14 @@ const char *pkstr(product_kind_t pk) {
 		return "args";
 	case pk_tuple:
 		return "and";
+	case pk_tag:
+		return "tag";
+	case pk_tagged_tuple:
+		return "tagged-tuple";
 	case pk_struct:
 		return "struct";
+	case pk_named_dimension:
+		return "dim";
 	}
 	assert(false);
 	return nullptr;

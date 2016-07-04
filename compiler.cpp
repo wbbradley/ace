@@ -172,7 +172,7 @@ void rt_bind_var_from_llir(
 					name,
 					bound_type,
 					llvm_function,
-					program));
+					make_iid(name)));
 	}
 }
 
@@ -193,11 +193,11 @@ void add_global_types(
 		{{"str"}, bound_type_t::create(type_id(make_iid("str")), INTERNAL_LOC(), builder.getInt8Ty()->getPointerTo())},
 
 		/* pull in the garbage collection and memory reference types */
+		{{"__tag_var"}, bound_type_t::create(type_id(make_iid("__tag_var")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.tag_t"))},
 		{{"__type_id"}, bound_type_t::create(type_id(make_iid("__type_id")), INTERNAL_LOC(), builder.getInt32Ty())},
 		{{"__byte_count"}, bound_type_t::create(type_id(make_iid("__byte_count")), INTERNAL_LOC(), builder.getInt64Ty())},
 		{{"__var"}, bound_type_t::create(type_id(make_iid("__var")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.var_t"))},
 		{{"__var_ref"}, bound_type_t::create(type_id(make_iid("__var_ref")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
-		{{"__type_info"}, bound_type_t::create(type_id(make_iid("__type_info")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.type_info_t")->getPointerTo())},
 		{{"__mark_fn"}, bound_type_t::create(type_id(make_iid("__mark_fn")), INTERNAL_LOC(), llvm_mark_fn_default->getFunctionType()->getPointerTo())},
 		{{"__bytes"}, bound_type_t::create(type_id(make_iid("__bytes")), INTERNAL_LOC(), builder.getInt8Ty()->getPointerTo())},
 	};
@@ -232,11 +232,11 @@ void add_globals(
 	llvm::Value *llvm_null_value = llvm::ConstantPointerNull::get(llvm::dyn_cast<llvm::PointerType>(void_ptr_type->llvm_type));
 	assert(llvm_null_value != nullptr);
 
-	program_scope->put_bound_variable("true", bound_var_t::create(INTERNAL_LOC(), "true", bool_type, builder.getTrue(), nullptr));
-	program_scope->put_bound_variable("false", bound_var_t::create(INTERNAL_LOC(), "false", bool_type, builder.getFalse(), nullptr));
+	program_scope->put_bound_variable("true", bound_var_t::create(INTERNAL_LOC(), "true", bool_type, builder.getTrue(), make_iid("true")));
+	program_scope->put_bound_variable("false", bound_var_t::create(INTERNAL_LOC(), "false", bool_type, builder.getFalse(), make_iid("false")));
 	program_scope->put_bound_variable(
 			"null", bound_var_t::create(INTERNAL_LOC(), "null", void_ptr_type,
-				llvm_null_value, nullptr));
+				llvm_null_value, make_iid("null")));
 
 	if (!!status) {
 		

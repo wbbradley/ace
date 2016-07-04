@@ -1,24 +1,32 @@
 #pragma once
 #include <string>
+#include "utils.h"
 #include "location.h"
-#include "token.h"
 
-struct identifier_t {
-	identifier_t(std::string id, const location &location={{""},-1,-1}) : id(id), location(location) {}
-	identifier_t(atom id, const location &location={{""},-1,-1}) : id(id), location(location) {}
-	identifier_t(const zion_token_t &token) : id(token.text), location(token.location) {}
+/* the abstract notion of an identifer */
+struct identifier {
+	typedef ptr<const identifier> ref;
 
-	atom id;
-	location location;
-	std::string str() const;
-
-	bool operator ==(const identifier_t &rhs) const {
-		return id == rhs.id;
-	}
-
-	bool operator !=(const identifier_t &rhs) const {
-		return id != rhs.id;
-	}
+	virtual ~identifier() {}
+	virtual atom get_name() const = 0;
+	virtual ptr<location> get_location() const = 0;
+	virtual std::string str() const = 0;
 };
 
+/* internal identifiers - note that they lack a "location" */
+struct iid : public identifier {
+	typedef ptr<iid> ref;
+
+	atom name;
+
+	iid(atom name) : name(name) {}
+	iid() = delete;
+	iid(const iid &) = delete;
+	iid(const iid &&) = delete;
+	iid &operator =(const iid &) = delete;
+
+	virtual atom get_name() const;
+	virtual ptr<location> get_location() const;
+	virtual std::string str() const;
+};
 

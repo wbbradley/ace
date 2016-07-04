@@ -9,7 +9,7 @@ def attack(pos1 any, pos2 any) bool
 
 def safe(square pos, queens solutions)
 	i := 0
-	if i < len(queens)
+	while i < len(queens)
 		if eightq.attack(square, queens[i])
 			return false
 		i += 1
@@ -26,9 +26,9 @@ def solve(n int, NQUEENS int)
 	solution := null
 	i := 0
 	j := 0
-	if i < NQUEENS
+	while i < NQUEENS
 		j = 0
-		if j < len(smaller_solutions)
+		while j < len(smaller_solutions)
 			if eightq.safe([n, i + 1], smaller_solutions[j])
 				solutions += [smaller_solutions[j] + [[n, i + 1]]]
 			j += 1

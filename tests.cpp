@@ -885,7 +885,7 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_term_algebra",
 		[] () -> bool {
-			auto a1 = term_id(make_iid("int"));
+			auto a1 = types::term_id(make_iid("int"));
 			return true;
 		}
 	},

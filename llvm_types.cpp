@@ -103,7 +103,22 @@ struct bound_type_builder_t : public types::type_visitor {
 				assert(false);
 				break;
 			}
+		case pk_tag:
+			{
+				assert(false);
+				break;
+			}
+		case pk_tagged_tuple:
+			{
+				assert(false);
+				break;
+			}
 		case pk_struct:
+			{
+				assert(false);
+				break;
+			}
+		case pk_named_dimension:
 			{
 				assert(false);
 				break;
@@ -387,12 +402,6 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	return nullptr;
 }
 
-types::term::ref ast::type_sum::instantiate_type(
-		status_t &status,
-		scope_t::ref scope) const
-{
-	log(log_info, "creating sum type term for %s", str().c_str());
-
 #if 0
 	types::term::ref lazy_term = (term);
 	llvm::Type *llvm_sum_type = llvm_create_sum_type(
@@ -440,16 +449,6 @@ types::term::ref ast::type_sum::instantiate_type(
 		return base_type;
 	}
 #endif
-
-	assert(!status);
-	return nullptr;
-}
-
-types::term::ref ast::type_product::instantiate_type(
-		status_t &status,
-	   	scope_t::ref scope) const
-{
-	log(log_info, "creating product type term for %s", str().c_str());
 
 #if 0
 	atom::many dim_names;
@@ -500,16 +499,15 @@ types::term::ref ast::type_product::instantiate_type(
 	}
 #endif
 
-	assert(!status);
-	return nullptr;
-}
-
 types::term::ref ast::type_alias::instantiate_type(
 		status_t &status,
+		llvm::IRBuilder<> &builder,
+		atom::many type_variables,
 	   	scope_t::ref scope) const
 {
 	log(log_info, "creating type alias term for %s", str().c_str());
 
+	assert(type_variables.size() == 0);
 	return null_impl(); // type_ref->resolve_type(status, builder, scope, nullptr, nullptr);
 }
 

@@ -69,3 +69,10 @@ bound_var_t::ref llvm_start_function(
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
 		atom name);
+
+bound_var_t::ref llvm_create_global_tag(
+		llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		bound_type_t::ref tag_type,
+		atom tag,
+		identifier::ref id);

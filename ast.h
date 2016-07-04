@@ -159,13 +159,12 @@ namespace ast {
 	struct type_decl : public item {
 		typedef ptr<const type_decl> ref;
 
-		type_decl(atom name, atom::many type_variables);
+		type_decl(atom::many type_variables);
 		static const syntax_kind_t SK = sk_type_decl;
 
 		static ref parse(parse_state_t &ps);
 		virtual void render(render_state_t &rs) const;
 
-		atom name;
 		atom::many type_variables;
 	};
 
@@ -241,7 +240,12 @@ namespace ast {
 		data_ctor(atom::set type_variables, std::vector<type_ref::ref> type_ref_params);
 		static ref parse(parse_state_t &ps, atom::set type_variables);
 		virtual void render(render_state_t &rs) const;
-		
+		types::term::ref instantiate_type_term(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				atom::many type_variables,
+				scope_t::ref scope) const;
+
 		atom::set type_variables;
 		std::vector<type_ref::ref> type_ref_params;
 	};
@@ -256,6 +260,8 @@ namespace ast {
 		 * unchecked ctors with the type. */
 		virtual types::term::ref instantiate_type(
 				status_t &status,
+				llvm::IRBuilder<> &builder,
+				atom::many type_variables,
 				scope_t::ref scope) const = 0;
 
 		static ref parse(parse_state_t &ps, ast::type_decl::ref type_decl);
@@ -268,7 +274,11 @@ namespace ast {
 		virtual ~type_sum() throw() {}
 		static const syntax_kind_t SK = sk_type_sum;
 		static ref parse(parse_state_t &ps, atom::many type_variables);
-		virtual types::term::ref instantiate_type(status_t &status, scope_t::ref scope) const;
+		virtual types::term::ref instantiate_type(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				atom::many type_variables,
+				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<data_ctor::ref> data_ctors;
@@ -281,7 +291,11 @@ namespace ast {
 		virtual ~type_product() throw() {}
 		static const syntax_kind_t SK = sk_type_product;
 		static ref parse(parse_state_t &ps, atom::many type_variables);
-		virtual types::term::ref instantiate_type(status_t &status, scope_t::ref scope) const;
+		virtual types::term::ref instantiate_type(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				atom::many type_variables,
+				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
 		atom::set type_variables;
@@ -295,7 +309,11 @@ namespace ast {
 		virtual ~type_alias() throw() {}
 		static const syntax_kind_t SK = sk_type_alias;
 		static ref parse(parse_state_t &ps, atom::many type_variables);
-		virtual types::term::ref instantiate_type(status_t &status, scope_t::ref scope) const;
+		virtual types::term::ref instantiate_type(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				atom::many type_variables,
+				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
 		atom::set type_variables;

@@ -3,6 +3,7 @@
 #include "ast_decls.h"
 #include "signature.h"
 #include "utils.h"
+#include "identifier.h"
 
 /* Product Kinds */
 enum product_kind_t {
@@ -10,41 +11,15 @@ enum product_kind_t {
 	pk_function,
 	pk_args,
 	pk_tuple,
+	pk_tag,
+	pk_tagged_tuple,
 	pk_struct,
+	pk_named_dimension,
 };
 
 const char *pkstr(product_kind_t pk);
 
 namespace types {
-
-	/* the abstract notion of an identifer */
-	struct identifier {
-		typedef ptr<const identifier> ref;
-
-		virtual ~identifier() {}
-		virtual atom get_name() const = 0;
-		virtual ptr<location> get_location() const = 0;
-	};
-
-	/* internal identifiers - note that they lack a "location" */
-	struct iid : public identifier {
-		typedef ptr<iid> ref;
-
-		atom name;
-
-		iid(atom name) : name(name) {}
-		iid() = delete;
-		iid(const iid &) = delete;
-		iid(const iid &&) = delete;
-		iid &operator =(const iid &) = delete;
-		
-		virtual atom get_name() const {
-			return name;
-		}
-		virtual ptr<location> get_location() const {
-			return nullptr;
-		}
-	};
 
 	struct term;
 	struct signature;
@@ -187,8 +162,8 @@ namespace types {
 
 /* type data ctors */
 types::type::ref type_unreachable();
-types::type::ref type_id(types::identifier::ref var);
-types::type::ref type_variable(types::identifier::ref name);
+types::type::ref type_id(identifier::ref var);
+types::type::ref type_variable(identifier::ref name);
 types::type::ref type_ref(types::type::ref macro, types::type::refs args);
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand);
 types::type::ref type_sum(types::type::refs options);
@@ -196,14 +171,14 @@ types::type::ref type_product(product_kind_t pk, types::type::refs dimensions);
 
 namespace std {
 	template <>
-	struct hash<types::identifier::ref> {
-		int operator ()(const types::identifier::ref &s) const {
+	struct hash<identifier::ref> {
+		int operator ()(const identifier::ref &s) const {
 			return 1301081 * s->get_name().iatom;
 		}
 	};
 }
 
-std::ostream &operator <<(std::ostream &os, types::identifier::ref id);
+std::ostream &operator <<(std::ostream &os, identifier::ref id);
 std::string str(types::term::refs refs);
 std::string str(types::term::map coll);
 std::string str(types::type::map coll);
@@ -211,7 +186,7 @@ std::ostream& operator <<(std::ostream &out, const types::term::ref &term);
 std::ostream& operator <<(std::ostream &out, const types::type::ref &type);
 
 /* helper functions */
-types::identifier::ref make_iid(atom name);
+identifier::ref make_iid(atom name);
 types::term::ref get_args_term(types::term::refs args);
 types::term::ref get_function_term(types::term::ref args, types::term::ref return_type);
 types::term::ref get_function_return_type_term(types::term::ref function_type);

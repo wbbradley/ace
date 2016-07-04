@@ -25,22 +25,40 @@ struct next_var_t {
 	struct var_t *var;
 };
 
-struct type_info_t {
-	mark_fn_t mark_fn;
-	type_id_t type_id;
-};
 
 struct var_t {
 	atomic_version_t version;
 	int16_t size;
 	const char *name;
-	struct type_info_t type_info;
+	type_id_t type_id;
+	mark_fn_t mark_fn;
 	struct next_var_t next_var;
 
 	//////////////////////////////////////
 	// THE ACTUAL DATA IS APPENDED HERE //
 	//////////////////////////////////////
 };
+
+struct tag_t {
+	atomic_version_t version;
+	int16_t size;
+	const char *name;
+	type_id_t type_id;
+};
+
+
+/* An example tag (for use in examining LLIR)
+ * Note that tag's data structure is identical to var_t up to type_id */
+
+struct tag_t __tag_Example = {
+	.version = 0,
+	.size = 0,
+	.name = "True",
+	.type_id = 42,
+};
+
+struct var_t *Example = (struct var_t *)&__tag_Example;
+
 
 #define VAR_DATA_ADDR(var) (((char *)(var)) + sizeof(var))
 
@@ -179,7 +197,12 @@ void print_stack(struct zion_thread_t *thread) {
 	fprintf(stdout, "total allocated %lu\n", total);
 }
 
-struct var_t *create_var(const char *name, mark_fn_t mark_fn, int32_t type_id, size_t object_size) {
+struct var_t *create_var(
+		const char *name,
+		mark_fn_t mark_fn,
+		int32_t type_id,
+		size_t object_size)
+{
 	/*compute the size of the allocation we'll want to do */
 
 	// TODO: validate that this math isn't super sketchy and unaligned
@@ -196,11 +219,11 @@ struct var_t *create_var(const char *name, mark_fn_t mark_fn, int32_t type_id, s
 	/* give it a name */
 	var->name = strdup(name);
 
-	/* store the GC memory marking function */
-	var->type_info.mark_fn = mark_fn;
-
 	/* store the type identity */
-	var->type_info.type_id = type_id;
+	var->type_id = type_id;
+
+	/* store the GC memory marking function */
+	var->mark_fn = mark_fn;
 
 	return var;
 }
@@ -340,9 +363,9 @@ void mark_stack_var(uint_fast64_t version, struct stack_ref_t *stack_ref) {
 	/* update the version of this object */
 	var->version = version;
 
-	if (var->type_info.mark_fn != NULL) {
+	if (var->mark_fn != NULL) {
 		/* if this object has children, let's mark them */
-		(*var->type_info.mark_fn)(VAR_DATA_ADDR(var), version);
+		(*var->mark_fn)(VAR_DATA_ADDR(var), version);
 	}
 
 	print_var(c_var("marked"), var);
