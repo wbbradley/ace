@@ -103,6 +103,9 @@ bound_var_t::ref type_check_bound_var_decl(
 					llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function, type, symbol);
 
 					if (init_var) {
+						debug_above(6, log(log_info, "creating a store instruction %s := %s",
+									llvm_print_value_ptr(llvm_alloca).c_str(),
+									llvm_print_value_ptr(init_var->llvm_value).c_str()));
 						builder.CreateStore(init_var->llvm_value, llvm_alloca);	
 					}
 

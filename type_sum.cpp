@@ -245,10 +245,16 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 				/* all tags use the var_t* type */
 				scope->get_program_scope()->get_bound_type({"__var_ref"})->llvm_type);
 
+		atom tag_name = {token.text};
 		bound_var_t::ref tag = llvm_create_global_tag(
-				builder, scope, tag_type, {token.text}, id);
+				builder, scope, tag_type, tag_name, id);
 
-		assert(false);
+		/* record this data ctor for use later */
+		scope->put_bound_variable(tag_name, tag);
+
+		debug_above(7, log(log_info, "instantiated nullary data ctor %s",
+				tag->str().c_str()));
+
 		/* all we need is a tag */
 		return tag_term;
 	} else {

@@ -6,7 +6,7 @@ link def puts(x str) int
 type Boolean is True or False
 
 def main()
-	x := True()
-	y := False()
+	x := True
+	y := False
 
 	puts("Hello world")
