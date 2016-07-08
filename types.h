@@ -158,6 +158,20 @@ namespace types {
 		virtual bool is_obj() const;
 		virtual bool is_struct() const;
 	};
+
+	struct type_sum : public type {
+		type_sum(type::refs options);
+		type::refs options;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv() const;
+		virtual ptr<const term> to_term(const map &bindings={}) const;
+		virtual bool accept(type_visitor &visitor) const;
+		virtual ref rebind(const map &bindings) const;
+		virtual location get_location() const;
+
+		virtual bool is_obj() const { return true; }
+	};
 };
 
 /* type data ctors */
@@ -166,8 +180,8 @@ types::type::ref type_id(identifier::ref var);
 types::type::ref type_variable(identifier::ref name);
 types::type::ref type_ref(types::type::ref macro, types::type::refs args);
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand);
-types::type::ref type_sum(types::type::refs options);
 types::type::ref type_product(product_kind_t pk, types::type::refs dimensions);
+types::type::ref type_sum(types::type::refs options);
 
 namespace std {
 	template <>

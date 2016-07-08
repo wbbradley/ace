@@ -94,11 +94,19 @@ namespace types {
 			}
 
 			virtual ref evaluate(map env, int macro_depth) const {
-				return null_impl();
+				term::refs evaluated_options;
+				for (auto &option : options) {
+					evaluated_options.push_back(option->evaluate(env, macro_depth));
+				}
+				return types::term_sum(evaluated_options);
 			}
 
 			virtual type::ref get_type() const {
-				return null_impl();
+				type::refs type_options;
+				for (auto &option : options) {
+					type_options.push_back(option->get_type());
+				}
+				return ::type_sum(type_options);
 			}
 		};
 
@@ -548,6 +556,60 @@ namespace types {
 	   	return pk == pk_struct;
    	}
 
+	type_sum::type_sum(type::refs options) :
+		options(options)
+	{
+	}
+
+	std::ostream &type_sum::emit(std::ostream &os, const map &bindings) const {
+		os << "(or";
+		assert(options.size() != 0);
+		for (auto option : options) {
+			os << " ";
+			option->emit(os, bindings);
+		}
+		return os << ")";
+	}
+
+	int type_sum::ftv() const {
+		int ftv_sum = 0;
+		for (auto option : options) {
+			ftv_sum += option->ftv();
+		}
+		if (ftv_sum != 0) {
+			assert(!"generics should probably have been converted to unreachables....");
+		}
+		return ftv_sum;
+	}
+
+	ptr<const term> type_sum::to_term(const map &bindings) const {
+		term::refs term_options;
+		for (auto option : options) {
+			term_options.push_back(option->to_term(bindings));
+		}
+		return term_sum(term_options);
+	}
+
+	bool type_sum::accept(type_visitor &visitor) const {
+		return visitor.visit(*this);
+	}
+
+	type::ref type_sum::rebind(const map &bindings) const {
+		refs type_options;
+		for (auto option : options) {
+			type_options.push_back(option->rebind(bindings));
+		}
+		return ::type_sum(type_options);
+	}
+
+	location type_sum::get_location() const {
+		if (options.size() != 0) {
+			return options[0]->get_location();
+		} else {
+			return INTERNAL_LOC();
+		}
+	}
+
 	bool is_type_id(type::ref type, atom type_name) {
 		if (auto pti = dyncast<const types::type_id>(type)) {
 			return pti->id->get_name() == type_name;
@@ -574,6 +636,10 @@ types::type::ref type_operator(types::type::ref operator_, types::type::ref oper
 
 types::type::ref type_product(product_kind_t pk, types::type::refs dimensions) {
 	return make_ptr<types::type_product>(pk, dimensions);
+}
+
+types::type::ref type_sum(types::type::refs options) {
+	return make_ptr<types::type_sum>(options);
 }
 
 identifier::ref make_iid(atom name) {

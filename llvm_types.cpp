@@ -127,6 +127,11 @@ struct bound_type_builder_t : public types::type_visitor {
 		assert(false);
 		return false;
 	}
+
+	virtual bool visit(const types::type_sum &sum) {
+		assert(false);
+		return false;
+	}
 };
 
 bound_type_t::ref create_bound_type(
