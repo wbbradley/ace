@@ -42,7 +42,7 @@ namespace types {
 		virtual ptr<const term> to_term(const map &bindings={}) const = 0;
 		virtual location get_location() const = 0;
 
-		atom str(const map &bindings = {}) const { return {string_format(c_type("%s"), this->repr(bindings).c_str())}; }
+		std::string str(const map &bindings = {}) const;
 		atom get_signature() const { return repr(); }
 
 		virtual bool accept(type_visitor &visitor) const = 0;
@@ -74,7 +74,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os) const = 0;
 
 		atom repr() const;
-		atom str() const;
+		std::string str() const;
 
 		bool is_generic(types::term::map env) const;
 	};

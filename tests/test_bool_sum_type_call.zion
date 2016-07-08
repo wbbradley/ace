@@ -3,8 +3,8 @@ module _ @1.0
 
 type Boolean is True or False
 
-def do_boolean(b Boolean)
-	do_boolean(b)
+def do_recursive_boolean(b Boolean)
+	do_recursive_boolean(b)
 	
 def main()
-	do_boolean(True())
+	do_recursive_boolean(True)

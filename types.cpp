@@ -274,7 +274,7 @@ namespace types {
 		return {ss.str()};
 	}
 
-	atom term::str() const {
+	std::string term::str() const {
 		return string_format(c_type("%s"), repr().c_str());
 	}
 
@@ -326,6 +326,10 @@ namespace types {
 	/**********************************************************************/
 	/* Types                                                              */
 	/**********************************************************************/
+
+	std::string type::str(const map &bindings) const {
+	   	return string_format(c_type("%s"), this->repr(bindings).c_str());
+   	}
 
 	atom type::repr(const map &bindings) const {
 		std::stringstream ss;

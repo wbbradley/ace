@@ -129,8 +129,12 @@ struct bound_type_builder_t : public types::type_visitor {
 	}
 
 	virtual bool visit(const types::type_sum &sum) {
-		assert(false);
-		return false;
+		auto signature = sum.get_signature();
+		auto bound_type = program_scope->get_bound_type(signature);
+		assert(bound_type == nullptr);
+		created_type = bound_type_t::create(sum.shared_from_this(), sum.get_location(),
+				program_scope->get_bound_type({"__var_ref"})->llvm_type);
+		return true;
 	}
 };
 

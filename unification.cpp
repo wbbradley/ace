@@ -130,6 +130,9 @@ unification_t unify_core(
 	auto pto_a = dyncast<const types::type_operator>(a);
 	auto pto_b = dyncast<const types::type_operator>(b);
 
+	auto pts_a = dyncast<const types::type_sum>(a);
+	auto pts_b = dyncast<const types::type_sum>(b);
+
 	auto ptp_a = dyncast<const types::type_product>(a);
 
 	if (auto ptv = dyncast<const types::type_variable>(a)) {
@@ -170,6 +173,37 @@ unification_t unify_core(
 		}
 
 		return {true, "", bindings};
+	} else if (pts_a != nullptr) {
+		if (pts_b == nullptr) {
+			std::vector<std::string> reasons;
+			for (auto option : pts_a->options) {
+				auto unification = unify_core(option, b, env, bindings);
+				if (unification.result) {
+					bindings = unification.bindings;
+					return {true, option->str(bindings), bindings};
+				} else {
+					reasons.push_back(unification.reasons);
+				}
+			}
+			return {false, join(reasons, "\n\t"), {}};
+		} else {
+			assert(pts_b != nullptr);
+			for (auto inbound_option : pts_b->options) {
+				debug_above(8, log(log_info, "checking inbound %s against %s",
+							inbound_option->repr().c_str(), a->repr().c_str()));
+				auto unification = unify_core(a, inbound_option, env, bindings);
+				if (unification.result) {
+					bindings = unification.bindings;
+				} else {
+					return {false, string_format(
+							"\n\tcould not find a match for \n\t\t%s"
+							"\n\tin\n\t\t%s",
+							inbound_option->str(bindings).c_str(),
+							a->str(bindings).c_str()), bindings};
+				}
+			}
+			return {true, "inbound type is a subset of outbound type", bindings};
+		}
 	} else if (ptp_a != nullptr) {
 		if (auto ptp_b = dyncast<const types::type_product>(b)) {
 			if (ptp_a->dimensions.size() != ptp_b->dimensions.size()) {
