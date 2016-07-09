@@ -28,20 +28,24 @@ namespace types {
 			type::ref get_type() const {
 				return ::type_id(make_iid({"void"}));
 			}
+
+			virtual atom::set unbound_vars(atom::set bound_vars) const {
+				return {};
+			}
 		};
 
 		struct term_id : public term {
-			term_id(identifier::ref name) : name(name) {}
+			term_id(identifier::ref id) : id(id) {}
 			virtual ~term_id() {}
-			identifier::ref name;
+			identifier::ref id;
 
 			std::ostream &emit(std::ostream &os) const {
-				os << name;
+				os << id;
 				return os;
 			}
 
 			ref evaluate(map env, int macro_depth) const {
-				auto iter = env.find(name->get_name());
+				auto iter = env.find(id->get_name());
 				if (iter == env.end()) {
 					return shared_from_this();
 				} else {
@@ -55,7 +59,16 @@ namespace types {
 			}
 
 			type::ref get_type() const {
-				return ::type_id(name);
+				return ::type_id(id);
+			}
+
+			virtual atom::set unbound_vars(atom::set bound_vars) const {
+				atom name = id->get_name();
+				if (bound_vars.find(name) == bound_vars.end()) {
+					return {name};
+				} else {
+					return {};
+				}
 			}
 		};
 
@@ -66,7 +79,7 @@ namespace types {
 			term::ref body;
 
 			std::ostream &emit(std::ostream &os) const {
-				os << "(" << var << " " << body << ")";
+				os << "(lambda " << var << " " << body << ")";
 				return os;
 			}
 
@@ -76,6 +89,16 @@ namespace types {
 
 			type::ref get_type() const {
 				return null_impl();
+			}
+
+			virtual atom::set unbound_vars(atom::set bound_vars) const {
+				/* add the lambda parameter variable to the list of bound terms
+				 * since it is explicitly bound by the lambda */
+				atom name = var->get_name();
+				bound_vars.insert(name);
+
+				/* get what's left unbound from the body of the lambda */
+				return body->unbound_vars(bound_vars);
 			}
 		};
 
@@ -107,6 +130,15 @@ namespace types {
 					type_options.push_back(option->get_type());
 				}
 				return ::type_sum(type_options);
+			}
+
+			virtual atom::set unbound_vars(atom::set bound_vars) const {
+				atom::set unbound_vars;
+				for (auto option : options) {
+					auto option_unbound_vars = option->unbound_vars(bound_vars);
+					unbound_vars.insert(option_unbound_vars.begin(), option_unbound_vars.end());
+				}
+				return unbound_vars;
 			}
 		};
 
@@ -142,6 +174,15 @@ namespace types {
 				}
 				return ::type_product(pk, type_dimensions);
 			}
+
+			virtual atom::set unbound_vars(atom::set bound_vars) const {
+				atom::set unbound_vars;
+				for (auto dimension : dimensions) {
+					auto dimension_unbound_vars = dimension->unbound_vars(bound_vars);
+					unbound_vars.insert(dimension_unbound_vars.begin(), dimension_unbound_vars.end());
+				}
+				return unbound_vars;
+			}
 		};
 
 		int next_generic = 1;
@@ -169,6 +210,11 @@ namespace types {
 			type::ref get_type() const {
 				return ::type_variable(name);
 			}
+
+			virtual atom::set unbound_vars(atom::set bound_vars) const {
+				assert(!"what does this mean?");
+				return {};
+			}
 		};
 
 		struct term_apply : public term {
@@ -192,13 +238,22 @@ namespace types {
 					env[pfn->var->get_name()] = arg_eval;
 					return pfn->body->evaluate(env, macro_depth);
 				} else {
-					return shared_from_this();
+					return types::term_apply(fn_eval, arg_eval);
 				}
 			}
 
 			type::ref get_type() const {
 				return ::type_operator(fn->get_type(),
 						arg->get_type());
+			}
+
+			virtual atom::set unbound_vars(atom::set bound_vars) const {
+				atom::set unbound_vars;
+				auto fn_unbound_vars = fn->unbound_vars(bound_vars);
+				auto arg_unbound_vars = arg->unbound_vars(bound_vars);
+				unbound_vars.insert(fn_unbound_vars.begin(), fn_unbound_vars.end());
+				unbound_vars.insert(arg_unbound_vars.begin(), arg_unbound_vars.end());
+				return unbound_vars;
 			}
 		};
 
@@ -221,10 +276,15 @@ namespace types {
 			type::ref get_type() const {
 				return null_impl();
 			}
+
+			virtual atom::set unbound_vars(atom::set bound_vars) const {
+				assert(false);
+				return {};
+			}
 		};
 
 		struct term_ref : public term {
-			term_ref(term::ref macro, term::refs args) : macro(macro), args(args) {}
+			term_ref(term::ref macro, term::refs args={}) : macro(macro), args(args) {}
 			term::ref macro;
 			term::refs args;
 
@@ -245,6 +305,11 @@ namespace types {
 
 			type::ref get_type() const {
 				return null_impl();
+			}
+
+			virtual atom::set unbound_vars(atom::set bound_vars) const {
+				not_impl();
+				return {};
 			}
 		};
 	}
@@ -293,6 +358,10 @@ namespace types {
 
 	term::ref term_lambda(identifier::ref var, term::ref body) {
 		return make_ptr<terms::term_lambda>(var, body);
+	}
+
+	term::ref term_lambda_reducer(term::ref body, identifier::ref var) {
+		return term_lambda(var, body);
 	}
 
 	term::ref term_sum(term::refs options) {

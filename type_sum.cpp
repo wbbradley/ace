@@ -7,6 +7,7 @@
 #include "phase_scope_setup.h"
 #include "types.h"
 #include "code_id.h"
+#include <numeric>
 
 /* When we encounter the Empty declaration, we have to instantiate something.
  * When we create Empty() with term __obj__{__tuple__}. We don't bother
@@ -209,7 +210,9 @@ types::term::ref ast::type_sum::instantiate_type(
 		atom::many type_variables,
 		scope_t::ref scope) const
 {
-	log(log_info, "creating sum type term for %s", str().c_str());
+	log(log_info, "creating sum type term with type variables [%s] that %s",
+		   join(type_variables, ", ").c_str(),
+		   str().c_str());
 
 	types::term::refs options;
 	for (auto data_ctor : data_ctors) {
@@ -217,7 +220,13 @@ types::term::ref ast::type_sum::instantiate_type(
 					type_variables, scope));
 	}
 
-	return types::term_sum(options);
+	identifier::refs ids;
+	for (auto type_var : type_variables) {
+		ids.push_back(make_iid(type_var));
+	}
+
+	return std::accumulate(ids.rbegin(), ids.rend(),
+			types::term_sum(options), types::term_lambda_reducer);
 }
 
 types::term::ref ast::data_ctor::instantiate_type_term(
@@ -232,8 +241,9 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 	}
 
 	auto id = make_code_id(token);
-	assert(type_variables.size() == 0);
+	atom tag_name = {token.text};
 	auto tag_term = types::term_product(pk_tag, {types::term_id(id)});
+
 	if (dimensions.size() == 0) {
 		/* it's a nullary enumeration or "tag", let's create a global value to represent
 		 * this tag. */
@@ -245,7 +255,6 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 				/* all tags use the var_t* type */
 				scope->get_program_scope()->get_bound_type({"__var_ref"})->llvm_type);
 
-		atom tag_name = {token.text};
 		bound_var_t::ref tag = llvm_create_global_tag(
 				builder, scope, tag_type, tag_name, id);
 
@@ -258,12 +267,53 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 		/* all we need is a tag */
 		return tag_term;
 	} else {
-		assert(!"Need to implement data ctor");
+		/* instantiate the necessary components of a data ctor */
+		atom::set type_vars;
+		type_vars.insert(type_variables.begin(), type_variables.end());
 
-		/* if the data ctor has data associated with it, then it will need to
-		 * be wrapped in a tagged tuple */
-		return types::term_product(
-				pk_tagged_tuple,
-			   	{tag_term, types::term_product(pk_tuple, dimensions)});
+		/* ensure that there are no duplicate type variables */
+		assert(type_vars.size() == type_variables.size());
+
+		auto product = types::term_product(pk_tuple, dimensions);
+		atom::set unbound_vars = product->unbound_vars();
+
+		/* find the type variables that are referenced within the unbound
+		 * vars of the product. */
+		atom::many referenced_type_variables;
+		for (auto type_variable : type_variables) {
+			if (unbound_vars.find(type_variable) != unbound_vars.end()) {
+				referenced_type_variables.push_back(type_variable);
+			}
+		}
+
+		/* let's create the macro body for this data ctor's type and insert it
+		 * into the env first */
+		auto macro_body = types::term_product(pk_tagged_tuple, {tag_term, product});
+
+		/* fold lambda construction for the type variables that are unbound
+		 * from right to left around macro_body. */
+		for (auto iter_var = referenced_type_variables.rbegin();
+			   	iter_var != referenced_type_variables.rend();
+			   	iter_var++)
+	   	{
+			macro_body = types::term_lambda(make_iid(*iter_var), macro_body);
+		}
+
+		/* place the macro body into the environment for this data_ctor type */
+		// TODO: consider namespacing here
+		scope->put_type_term(tag_name, macro_body);
+
+		/* construct a reference to the macro invocation like:
+		 * (ref macro-name args...) where args is the list of unbound type
+		 * variables in order and return that. */
+
+		types::term::refs term_ref_args;
+		for (auto referenced_type_variable : referenced_type_variables) {
+			term_ref_args.push_back(types::term_id(make_iid(referenced_type_variable)));
+		}
+
+		return types::term_ref(
+				types::term_id(make_iid(tag_name)),
+				term_ref_args);
 	}
 }

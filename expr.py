@@ -214,7 +214,7 @@ class TermApply(object):
             env[fn.v.name] = arg
             return fn.body.evaluate(env, macro_depth)
         else:
-            return self
+            return TermApply(fn, arg)
 
     def get_type(self):
         return TypeOperator(self.fn.get_type(),

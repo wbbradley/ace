@@ -1,6 +1,12 @@
 module _
+# test: pass
 
 type C{T} is
     Ax(T, int, float) or
     Bx(int, T, float) or
     Cx(int, float, T)
+
+def main()
+	a_int := Ax(4, 5, 2.1)
+	b_int := Bx(4, 5, 2.1)
+	c_str := Cx(4, 5.2, "hello")

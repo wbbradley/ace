@@ -69,6 +69,9 @@ namespace types {
 
 		virtual ~term() {}
 
+		/* which type variables exist unbound in this type term? */
+		virtual atom::set unbound_vars(atom::set bound_vars={}) const = 0;
+
 		virtual ref evaluate(map env, int macro_depth) const = 0;
 		virtual type::ref get_type() const = 0;
 		virtual std::ostream &emit(std::ostream &os) const = 0;
@@ -81,8 +84,9 @@ namespace types {
 
 	/* term data ctors */
 	term::ref term_unreachable();
-	term::ref term_id(identifier::ref name);
+	term::ref term_id(identifier::ref id);
 	term::ref term_lambda(identifier::ref var, term::ref body);
+	term::ref term_lambda_reducer(term::ref body, identifier::ref var);
 	term::ref term_sum(term::refs options);
 	term::ref term_product(product_kind_t pk, term::refs dimensions);
 	term::ref term_generic(identifier::ref name);

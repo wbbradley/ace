@@ -2,10 +2,12 @@
 #include <string>
 #include "utils.h"
 #include "location.h"
+#include <vector>
 
 /* the abstract notion of an identifer */
 struct identifier {
 	typedef ptr<const identifier> ref;
+	typedef std::vector<ptr<const identifier>> refs;
 
 	virtual ~identifier() {}
 	virtual atom get_name() const = 0;

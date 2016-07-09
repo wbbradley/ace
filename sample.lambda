@@ -2,7 +2,7 @@
 # (defmacro Y (lambda x ((lambda f (f (x x))) (lambda f (f (x x))))))
 
 (defmacro std.Empty (ref std.Empty))
-(defmacro std.Just (lambda X (ref std.Just X)))
+(defmacro std.Just (lambda X (and X)))
 (defmacro std.Maybe (lambda X (or (ref std.Empty) (ref std.Just X))))
 
 # Make the double reference always expand
