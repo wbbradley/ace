@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 				auto executable_filename = compiler.get_program_name();
 				int ret = compiler.emit_built_program(status, executable_filename);
 				if (!!status) {
-					return system(executable_filename.c_str());
+					return system((std::string("./") + executable_filename).c_str());
 				} else {
 					return ret;
 				}

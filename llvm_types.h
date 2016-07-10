@@ -76,4 +76,4 @@ bound_var_t::ref bind_ctor_to_scope(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		ast::data_ctor::ref data_ctor,
-		bool &fully_bound);
+		types::type::ref data_ctor_sig);

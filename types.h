@@ -209,7 +209,7 @@ std::ostream& operator <<(std::ostream &out, const types::type::ref &type);
 identifier::ref make_iid(atom name);
 types::term::ref get_args_term(types::term::refs args);
 types::term::ref get_function_term(types::term::ref args, types::term::ref return_type);
-types::term::ref get_function_return_type_term(types::term::ref function_type);
+types::type::refs get_function_type_args(types::type::ref function_type);
 types::term::ref get_obj_term(types::term::ref item);
 bool get_obj_struct_name_info(types::type::ref type, std::string member_name, int &index, types::type::ref &member_type);
 types::term::pair make_term_pair(std::string fst, std::string snd);

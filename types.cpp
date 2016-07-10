@@ -790,8 +790,9 @@ types::term::ref get_function_term(types::term::ref args, types::term::ref retur
 	return types::term_product(pk_function, {args, return_type});
 }
 
-types::term::ref get_function_return_type_term(types::term::ref function_type) {
-	return null_impl();
+types::type::refs get_function_type_args(types::type::ref function_type) {
+	not_impl();
+	return {};
 }
 
 types::term::ref get_obj_term(types::term::ref item) {

@@ -90,27 +90,27 @@ bound_var_t::ref check_func_vs_callsite(
 				/* we shouldn't be here unless we found something to substitute */
 
 				log(log_info, "building substitution for %s", data_ctor->token.str().c_str());
+				auto unchecked_data_ctor = dyncast<const unchecked_data_ctor_t>(unchecked_fn);
+				assert(unchecked_data_ctor != nullptr);
 
 				/* create a generic substitution scope with the unification */
 				scope_t::ref subst_scope = generic_substitution_scope_t::create(
 						status, builder, unchecked_fn->node,
 						unchecked_fn->module_scope, unification, fn_type);
 
+				auto data_ctor_sig = unchecked_data_ctor->sig->get_type();
+				log(log_info, "going to bind ctor for %s",
+						data_ctor_sig->str().c_str());
+
 				/* instantiate the data ctor we want */
-				bool fully_bound = true;
 				bound_var_t::ref ctor_fn = bind_ctor_to_scope(
-						status, builder, subst_scope, data_ctor, fully_bound);
+						status, builder, subst_scope, data_ctor,
+						data_ctor_sig);
 
 				if (!!status) {
 					/* the ctor should now exist */
-					assert_implies(fully_bound, ctor_fn != nullptr);
-
-					if (ctor_fn == nullptr) {
-						user_error(status, *callsite,
-								"unable to fully bind data constructor");
-					} else {
-						return ctor_fn;
-					}
+					assert(ctor_fn != nullptr);
+					return ctor_fn;
 				}
 			} else {
 				panic("we should only have function defn's in unchecked var's, right?");

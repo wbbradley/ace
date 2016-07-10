@@ -11,6 +11,7 @@
 #include "phase_scope_setup.h"
 #include "utils.h"
 #include "llvm_utils.h"
+#include <sys/stat.h>
 
 const std::string module_prefix = "module:";
 const std::string file_prefix = "file:";
@@ -495,6 +496,9 @@ int compiler::emit_built_program(status_t &status, std::string executable_filena
 			if (ret != 0) {
 				user_error(status, location{}, "failure (%d) when running: %s", ss.str().c_str());
 			}
+
+			struct stat s;
+			assert(stat(executable_filename.c_str(), &s) == 0);
 
 			return ret;
 		} else {
