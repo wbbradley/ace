@@ -1001,7 +1001,7 @@ status_t type_check_program(
     status_t status;
 
     ptr<scope_t> program_scope = compiler.get_program_scope();
-    debug_above(5, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
+    debug_above(10, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
 
     /* second pass is to resolve all module-level links */
     for (auto &module : obj.modules) {

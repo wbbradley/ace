@@ -219,9 +219,8 @@ bound_var_t::ref scope_t::get_bound_variable(status_t &status, const ast::item::
 		return parent_scope->get_bound_variable(status, obj, symbol);
 	}
 
-	debug_above(3, log(log_info, "no bound variable found for %s in\n%s", 
-				obj->token.str().c_str(),
-				str().c_str()));
+	debug_above(3, log(log_info, "no bound variable found for %s", 
+				obj->token.str().c_str()));
 	return nullptr;
 }
 
@@ -605,6 +604,10 @@ unchecked_var_t::ref module_scope_t::put_unchecked_variable(
 		atom symbol,
 		unchecked_var_t::ref unchecked_variable)
 {
+	debug_above(6, log(log_info, "registering an unchecked variable %s as %s",
+				symbol.c_str(),
+				unchecked_variable->str().c_str()));
+
 	auto iter = unchecked_vars.find(symbol);
 	if (iter != unchecked_vars.end()) {
 		/* this variable already exists, let's consider overloading it */
@@ -623,7 +626,7 @@ unchecked_var_t::ref module_scope_t::put_unchecked_variable(
 }
 
 bool program_scope_t::put_bound_type(bound_type_t::ref type) {
-	debug_above(3, log(log_info, "registering type %s as " c_id("%s"),
+	debug_above(3, log(log_info, "binding type %s as " c_id("%s"),
 				type->str().c_str(),
 				type->get_signature().repr().c_str()));
 	bound_types[type->get_signature().repr()] = type;

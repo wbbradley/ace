@@ -82,6 +82,8 @@ namespace types {
 		bool is_generic(types::term::map env) const;
 	};
 
+	term::ref change_product_kind(product_kind_t pk, term::ref product);
+
 	/* term data ctors */
 	term::ref term_unreachable();
 	term::ref term_id(identifier::ref id);

@@ -205,7 +205,7 @@ void add_global_types(
 	for (auto type_pair : globals) {
 		program_scope->put_bound_type(type_pair.second);
 	}
-	debug_above(4, log(log_info, "%s", program_scope->str().c_str()));
+	debug_above(9, log(log_info, "%s", program_scope->str().c_str()));
 }
 
 void add_globals(

@@ -29,7 +29,7 @@ namespace types {
 				return ::type_id(make_iid({"void"}));
 			}
 
-			virtual atom::set unbound_vars(atom::set bound_vars) const {
+			atom::set unbound_vars(atom::set bound_vars) const {
 				return {};
 			}
 		};
@@ -62,7 +62,7 @@ namespace types {
 				return ::type_id(id);
 			}
 
-			virtual atom::set unbound_vars(atom::set bound_vars) const {
+			atom::set unbound_vars(atom::set bound_vars) const {
 				atom name = id->get_name();
 				if (bound_vars.find(name) == bound_vars.end()) {
 					return {name};
@@ -84,14 +84,16 @@ namespace types {
 			}
 
 			ref evaluate(map env, int macro_depth) const {
-				return null_impl();
+				atom var_name = var->get_name();
+				env.erase(var_name);
+				return types::term_lambda(var, body->evaluate(env, macro_depth));
 			}
 
 			type::ref get_type() const {
 				return null_impl();
 			}
 
-			virtual atom::set unbound_vars(atom::set bound_vars) const {
+			atom::set unbound_vars(atom::set bound_vars) const {
 				/* add the lambda parameter variable to the list of bound terms
 				 * since it is explicitly bound by the lambda */
 				atom name = var->get_name();
@@ -132,7 +134,7 @@ namespace types {
 				return ::type_sum(type_options);
 			}
 
-			virtual atom::set unbound_vars(atom::set bound_vars) const {
+			atom::set unbound_vars(atom::set bound_vars) const {
 				atom::set unbound_vars;
 				for (auto option : options) {
 					auto option_unbound_vars = option->unbound_vars(bound_vars);
@@ -175,7 +177,7 @@ namespace types {
 				return ::type_product(pk, type_dimensions);
 			}
 
-			virtual atom::set unbound_vars(atom::set bound_vars) const {
+			atom::set unbound_vars(atom::set bound_vars) const {
 				atom::set unbound_vars;
 				for (auto dimension : dimensions) {
 					auto dimension_unbound_vars = dimension->unbound_vars(bound_vars);
@@ -211,7 +213,7 @@ namespace types {
 				return ::type_variable(name);
 			}
 
-			virtual atom::set unbound_vars(atom::set bound_vars) const {
+			atom::set unbound_vars(atom::set bound_vars) const {
 				assert(!"what does this mean?");
 				return {};
 			}
@@ -247,7 +249,7 @@ namespace types {
 						arg->get_type());
 			}
 
-			virtual atom::set unbound_vars(atom::set bound_vars) const {
+			atom::set unbound_vars(atom::set bound_vars) const {
 				atom::set unbound_vars;
 				auto fn_unbound_vars = fn->unbound_vars(bound_vars);
 				auto arg_unbound_vars = arg->unbound_vars(bound_vars);
@@ -277,7 +279,7 @@ namespace types {
 				return null_impl();
 			}
 
-			virtual atom::set unbound_vars(atom::set bound_vars) const {
+			atom::set unbound_vars(atom::set bound_vars) const {
 				assert(false);
 				return {};
 			}
@@ -300,18 +302,54 @@ namespace types {
 			}
 
 			ref evaluate(map env, int macro_depth) const {
-				return null_impl();
+				if (macro_depth > 0) {
+					if (args.size() > 0) {
+						auto args_iter = args.begin();
+						auto term = types::term_apply(macro, *args_iter++);
+						for (;args_iter != args.end(); args_iter++) {
+							term = types::term_apply(term, *args_iter);
+						}
+						return term;
+					} else {
+						return macro;
+					}
+				} else {
+					term::refs evaluated_args;
+					for (auto arg : args) {
+						evaluated_args.push_back(arg->evaluate(env, macro_depth - 1));
+					}
+
+					return types::term_ref(macro, evaluated_args);
+				}
 			}
 
 			type::ref get_type() const {
-				return null_impl();
+				type::refs arg_types;
+				for (auto arg : args) {
+					arg_types.push_back(arg->get_type());
+				}
+				return ::type_ref(macro->get_type(), arg_types);
 			}
 
-			virtual atom::set unbound_vars(atom::set bound_vars) const {
+			atom::set unbound_vars(atom::set bound_vars) const {
 				not_impl();
 				return {};
 			}
 		};
+	}
+
+	term::ref change_product_kind(product_kind_t pk, term::ref product) {
+		auto term_product = dyncast<const struct terms::term_product>(product);
+		if (term_product != nullptr) {
+			if (term_product->pk == pk) {
+				return term_product;
+			} else {
+				return types::term_product(pk, term_product->dimensions);
+			}
+		} else {
+			panic("i thought this would be a product term!");
+		}
+		return null_impl();
 	}
 
 #if 0

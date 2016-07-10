@@ -288,14 +288,15 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 
 		/* let's create the macro body for this data ctor's type and insert it
 		 * into the env first */
-		auto macro_body = types::term_product(pk_tagged_tuple, {tag_term, product});
+		auto data_ctor_term = types::term_product(pk_tagged_tuple, {tag_term, product});
+		auto macro_body = data_ctor_term;
 
 		/* fold lambda construction for the type variables that are unbound
 		 * from right to left around macro_body. */
 		for (auto iter_var = referenced_type_variables.rbegin();
-			   	iter_var != referenced_type_variables.rend();
-			   	iter_var++)
-	   	{
+				iter_var != referenced_type_variables.rend();
+				iter_var++)
+		{
 			macro_body = types::term_lambda(make_iid(*iter_var), macro_body);
 		}
 
@@ -311,6 +312,40 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 		for (auto referenced_type_variable : referenced_type_variables) {
 			term_ref_args.push_back(types::term_id(make_iid(referenced_type_variable)));
 		}
+
+		/* now let's make sure we register this constructor as an override for
+		 * the name `tag_name` */
+		debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
+				token.str().c_str()));
+
+		auto module_scope = dyncast<module_scope_t>(scope);
+		assert(module_scope != nullptr);
+
+		/* compute the placement of the known type variables by performing as
+		 * many beta-reductions as necessary using the type variables' generic
+		 * forms as operands */
+		auto var_dims = product;
+		for (auto referenced_type_variable : referenced_type_variables) {
+			auto id = make_iid(referenced_type_variable);
+			var_dims = types::term_apply(types::term_lambda(id, var_dims), types::term_generic(id));
+		}
+		debug_above(5, log(log_info, "injecting type generics into %s",
+					var_dims->str().c_str()));
+
+		var_dims = var_dims->evaluate({}, 0 /*macro_depth*/);
+
+		types::term::ref generic_args = types::change_product_kind(pk_args, var_dims);
+
+		debug_above(5, log(log_info, "reduced to %s", var_dims->str().c_str()));
+
+		types::term::ref data_ctor_sig = get_function_term(
+				generic_args,
+				data_ctor_term);
+
+		/* side-effect: create an unchecked reference to this data ctor into the current scope */
+		module_scope->put_unchecked_variable(tag_name,
+				unchecked_data_ctor_t::create(tag_name, shared_from_this(),
+					module_scope, data_ctor_sig));
 
 		return types::term_ref(
 				types::term_id(make_iid(tag_name)),
