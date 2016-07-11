@@ -380,7 +380,6 @@ bound_var_t::ref llvm_start_function(status_t &status,
 {
 	if (!!status) {
 		/* get the llvm function type for the data ctor */
-		assert(false /* try re-using create_bound_type */);
 		llvm::FunctionType *llvm_ctor_fn_type = llvm_create_function_type(
 				status, builder, args, data_type);
 

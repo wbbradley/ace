@@ -105,7 +105,7 @@ bound_var_t::ref check_func_vs_callsite(
 				/* instantiate the data ctor we want */
 				bound_var_t::ref ctor_fn = bind_ctor_to_scope(
 						status, builder, subst_scope, data_ctor,
-						data_ctor_sig);
+						data_ctor_sig->rebind(unification.bindings));
 
 				if (!!status) {
 					/* the ctor should now exist */

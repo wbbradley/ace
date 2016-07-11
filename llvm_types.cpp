@@ -226,8 +226,46 @@ bound_type_t::ref get_or_create_tuple_type(
 {
 	/* get the term of this tuple type */
 	types::term::ref term = get_obj_term(get_tuple_term(get_terms(args)));
+	types::type::ref type = term->get_type();
+	auto data_type = scope->get_bound_type(type->get_signature());
 
-	auto data_type = null_impl(); // scope->maybe_get_bound_type(term);
+	if (data_type != nullptr) {
+		return data_type;
+	} else {
+		auto program_scope = scope->get_program_scope();
+
+		/* build the llvm return type */
+		llvm::Type *llvm_tuple_type = llvm_create_tuple_type(
+				builder, program_scope, name, args);
+
+		/* display the new type */
+		llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_tuple_type)->getElementType();
+		log(log_info, "created LLVM wrapped tuple type %s", llvm_print_type(*llvm_obj_struct_type).c_str());
+
+		/* get the bound type of the data ctor's value */
+		bound_type_t::ref data_type = bound_type_t::create(
+				type,
+			   	node->token.location,
+			   	llvm_tuple_type);
+
+		/* put the type for the data type */
+		program_scope->put_bound_type(data_type);
+
+		return data_type;
+	}
+}
+
+bound_type_t::ref get_or_create_tagged_tuple_type(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		atom name,
+		bound_type_t::refs args,
+		const ast::item::ref &node)
+{
+	/* get the term of this tuple type */
+	types::term::ref term = get_obj_term(get_tuple_term(get_terms(args)));
+	types::type::ref type = term->get_type();
+	auto data_type = scope->get_bound_type(type->get_signature());
 
 	if (data_type != nullptr) {
 		return data_type;
@@ -242,9 +280,15 @@ bound_type_t::ref get_or_create_tuple_type(
 		llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_tuple_type)->getElementType();
 		log(log_info, "created LLVM wrapped type %s", llvm_print_type(*llvm_obj_struct_type).c_str());
 
+		auto tag_term = ::type_product(pk_tag, {::type_id(make_iid(name))});
+
+		auto tagged_tuple_type = ::type_product(pk_tagged_tuple, {tag_term, type});
+
 		/* get the bound type of the data ctor's value */
-		bound_type_t::ref data_type = null_impl();
-		// bound_type_t::create(term->get_type(), llvm_tuple_type, node);
+		bound_type_t::ref data_type = bound_type_t::create(
+				tagged_tuple_type,
+			   	node->token.location,
+			   	llvm_tuple_type);
 
 		/* put the type for the data type */
 		program_scope->put_bound_type(data_type);
@@ -272,14 +316,46 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
-		bound_type_t::ref data_type = null_impl();
-		// get_or_create_tuple_type(builder, scope, name, args, node);
+		bound_type_t::ref data_type = get_or_create_tuple_type(builder, scope, name, args, node);
 
 		bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(status, builder,
 				scope, args, data_type, name, location, node);
 
 		if (!!status) {
 			return {tuple_ctor, data_type};
+		}
+	}
+
+	assert(!status);
+	return {nullptr, nullptr};
+}
+
+std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
+		status_t &status, 
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		bound_type_t::refs args,
+		atom name,
+		const location &location,
+		const ast::item::ref &node)
+{
+	/* this is a tuple constructor function */
+	std::vector<llvm::Type*> llvm_parameter_types;
+
+	for (auto &arg : args) {
+		llvm_parameter_types.push_back(arg->llvm_type);
+	}
+
+	if (!!status) {
+		program_scope_t::ref program_scope = scope->get_program_scope();
+
+		bound_type_t::ref data_type = get_or_create_tagged_tuple_type(builder, scope, name, args, node);
+
+		bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,
+				scope, args, data_type, name, location, node);
+
+		if (!!status) {
+			return {tagged_tuple_ctor, data_type};
 		}
 	}
 

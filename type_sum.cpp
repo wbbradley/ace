@@ -89,7 +89,7 @@ bound_var_t::ref bind_ctor_to_scope(
 		/* now we know the term of the ctor we want to create. let's check
 		 * whether this ctor already exists. if so, we'll just return it. if not,
 		 * we'll generate it. */
-		auto tuple_pair = instantiate_tuple_ctor(status, builder, scope,
+		auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope,
 				args, data_ctor->token.text, data_ctor->token.location, data_ctor);
 
 		if (!!status) {

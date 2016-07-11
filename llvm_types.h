@@ -30,6 +30,15 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		const location &location,
 		const ptr<const ast::item> &node);
 
+std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
+		status_t &status, 
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		bound_type_t::refs args,
+		atom name,
+		const location &location,
+		const ptr<const ast::item> &node);
+
 std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_struct_ctor(
 		status_t &status, 
 		llvm::IRBuilder<> &builder,

@@ -791,8 +791,17 @@ types::term::ref get_function_term(types::term::ref args, types::term::ref retur
 }
 
 types::type::refs get_function_type_args(types::type::ref function_type) {
-	not_impl();
-	return {};
+	log(log_info, "sig == %s", function_type->str().c_str());
+
+	auto type_product = dyncast<const types::type_product>(function_type);
+	assert(type_product != nullptr);
+	assert(type_product->pk == pk_function);
+	assert(type_product->dimensions.size() == 2);
+
+	auto type_args = dyncast<const types::type_product>(type_product->dimensions[0]);
+	assert(type_args != nullptr);
+	assert(type_args->pk == pk_args);
+	return type_args->dimensions;
 }
 
 types::term::ref get_obj_term(types::term::ref item) {
