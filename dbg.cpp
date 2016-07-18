@@ -15,3 +15,16 @@ void _emit_assert(
 	__debugbreak();
 	__noop;
 }
+
+depth_guard_t::depth_guard_t(int &depth, int max_depth) : depth(depth) {
+	++depth;
+	if (depth > max_depth) {
+		std::cerr << c_error("maximum depth reached") << std::endl;
+		__debugbreak();
+		__noop;
+	}
+}
+
+depth_guard_t::~depth_guard_t() {
+	--depth;
+}

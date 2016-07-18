@@ -792,7 +792,6 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 				llvm_print_type(*llvm_type).c_str());
 		assert(llvm_type->isFunctionTy());
 
-
 		llvm::Function *llvm_function = llvm::Function::Create(
 				(llvm::FunctionType *)llvm_type,
 				llvm::Function::ExternalLinkage, function_name,
@@ -822,13 +821,22 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 						string_format("function-%s", function_name.c_str()));
 
 				(*new_scope)->put_bound_variable(function_var->name, function_var);
-			} else if (auto module_scope = dyncast<module_scope_t>(scope)) {
-				/* before recursing directly or indirectly, let's just add this
-				 * function to the module scope we're in */
-				module_scope->put_bound_variable(function_var->name, function_var);
-				module_scope->mark_checked(shared_from_this());
-			}
+			} else {
+				module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
 
+				if (module_scope == nullptr) {
+					if (auto subst_scope = dyncast<generic_substitution_scope_t>(scope)) {
+						module_scope = dyncast<module_scope_t>(subst_scope->get_parent_scope());
+					}
+				}
+
+				if (module_scope != nullptr) {
+					/* before recursing directly or indirectly, let's just add
+					 * this function to the module scope we're in */
+					module_scope->put_bound_variable(function_var->name, function_var);
+					module_scope->mark_checked(shared_from_this());
+				}
+			}
 		} else {
 			user_error(status, *this, "function definitions need names");
 		}

@@ -19,3 +19,10 @@
 #endif
 
 #include "colors.h"
+
+struct depth_guard_t {
+	int &depth;
+	depth_guard_t(int &depth, int max_depth);
+	~depth_guard_t();
+};
+
