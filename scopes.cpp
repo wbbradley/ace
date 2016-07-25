@@ -381,6 +381,7 @@ ptr<scope_t> function_scope_t::get_parent_scope() {
 local_scope_t::ref local_scope_t::create(
 		atom name,
 		scope_t::ref parent_scope,
+		types::term::map type_env,
 		return_type_constraint_t &return_type_constraint)
 {
 	return make_ptr<local_scope_t>(name, parent_scope, return_type_constraint);
@@ -445,11 +446,11 @@ void module_scope_t::get_callables(atom symbol, var_t::refs &fns) {
 }
 
 ptr<local_scope_t> function_scope_t::new_local_scope(atom name) {
-	return local_scope_t::create(name, shared_from_this(), return_type_constraint);
+	return local_scope_t::create(name, shared_from_this(), type_env, return_type_constraint);
 }
 
 ptr<local_scope_t> local_scope_t::new_local_scope(atom name) {
-	return local_scope_t::create(name, shared_from_this(), return_type_constraint);
+	return local_scope_t::create(name, shared_from_this(), type_env, return_type_constraint);
 }
 
 return_type_constraint_t &function_scope_t::get_return_type_constraint() {
@@ -473,21 +474,33 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 	if (return_type_constraint == nullptr) {
 		return_type_constraint = return_type;
 		log(log_info, "set return type to %s", return_type_constraint->str().c_str());
-	} else if (return_type != return_type_constraint) {
-		// TODO: consider directional unification here
-		// TODO: consider storing more useful info in return_type_constraint
-		user_error(status, *return_statement, "return expression type %s does not match %s",
-				return_type->str().c_str(), return_type_constraint->str().c_str());
 	} else {
-		/* this return type checks out */
+		unification_t unification = unify(
+				return_type_constraint->type->to_term(),
+				return_type->type->to_term(),
+				get_type_env());
+
+		if (!unification.result) {
+			// TODO: consider directional unification here
+			// TODO: consider storing more useful info in return_type_constraint
+			user_error(status, *return_statement, "return expression type %s does not match %s",
+					return_type->str().c_str(), return_type_constraint->str().c_str());
+		} else {
+			/* this return type checks out */
+			debug_above(2, log(log_info, "unified %s :> %s",
+						return_type_constraint->str().c_str(),
+						return_type->str().c_str()));
+		}
 	}
 }
 
 local_scope_t::local_scope_t(
 		atom name,
 		scope_t::ref parent_scope,
-		return_type_constraint_t &return_type_constraint)
-: runnable_scope_t(name), parent_scope(parent_scope), return_type_constraint(return_type_constraint)
+		return_type_constraint_t &return_type_constraint) :
+   	runnable_scope_t(name, parent_scope->get_type_env()),
+   	parent_scope(parent_scope),
+   	return_type_constraint(return_type_constraint)
 {
 }
 
@@ -564,7 +577,7 @@ void generic_substitution_scope_t::dump(std::ostream &os) const {
 }
 
 module_scope_t::module_scope_t(atom name, program_scope_t::ref parent_scope, llvm::Module *llvm_module) :
-	scope_t(name), parent_scope(parent_scope), llvm_module(llvm_module)
+	scope_t(name, parent_scope->get_type_env()), parent_scope(parent_scope), llvm_module(llvm_module)
 {
 }
 
@@ -715,7 +728,7 @@ llvm::Module *generic_substitution_scope_t::get_llvm_module() {
 }
 
 program_scope_t::ref program_scope_t::create(atom name) {
-	return make_ptr<program_scope_t>(name);
+	return make_ptr<program_scope_t>(name, types::term::map{});
 }
 
 ptr<scope_t> generic_substitution_scope_t::get_parent_scope() {

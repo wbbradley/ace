@@ -70,16 +70,20 @@ types::type::ref unroll(
 	   	types::term::map env,
 	   	types::type::map bindings)
 {
-    /* Handle macro expansion of one level. type_refs can be expanded. */
-    if (auto type_ref = dyncast<const types::type_ref>(type)) {
-        auto type_ref_lambdified = type_ref->to_term(bindings);
-        auto type_ref_reduced = type_ref_lambdified->evaluate(env, 1);
+	debug_above(6, log(log_info, "env: %s\nbindings: %s",
+				str(env).c_str(),
+				str(bindings).c_str()));
 
-		debug_above(5, log(log_info, "Unrolled:\n\t%r\n\t%s",
-			type->str().c_str(),
-		   	type_ref_reduced->get_type()->str(bindings).c_str()));
+	/* Handle macro expansion of one level. type_refs can be expanded. */
+	if (auto type_ref = dyncast<const types::type_ref>(type)) {
+		auto type_ref_lambdified = type_ref->to_term(bindings);
+		auto type_ref_reduced = type_ref_lambdified->evaluate(env, 1);
 
-        return type_ref_reduced->get_type();
+		debug_above(5, log(log_info, "Unrolled:\n\t%s\n\t%s",
+					type->str().c_str(),
+					type_ref_reduced->get_type()->str().c_str()));
+
+		return type_ref_reduced->get_type();
 	} else {
         return type;
 	}
@@ -121,6 +125,8 @@ unification_t unify_core(
 
     auto a = unroll(pruned_a, env, bindings);
     auto b = unroll(pruned_b, env, bindings);
+
+	debug_above(4, log(log_info, "post-unroll: attempting to unify %s and %s", a->str().c_str(), b->str().c_str()));
 
     if (a->str(bindings) == b->str(bindings)) {
 		log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str());

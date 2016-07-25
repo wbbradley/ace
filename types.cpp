@@ -161,12 +161,18 @@ namespace types {
 			}
 
 			virtual ref evaluate(map env, int macro_depth) const {
-				term::refs evaluated_dimensions;
-				
-				for (auto &dimension : dimensions) {
-					evaluated_dimensions.push_back(dimension->evaluate(env, macro_depth));
+				if (pk == pk_tag) {
+					/* this is a bit of a hack, but essentially a pk_tag is
+					 * just a type literal that cannot be evaluated */
+					return shared_from_this();
+				} else {
+					term::refs evaluated_dimensions;
+					
+					for (auto &dimension : dimensions) {
+						evaluated_dimensions.push_back(dimension->evaluate(env, macro_depth));
+					}
+					return types::term_product(pk, evaluated_dimensions);
 				}
-				return types::term_product(pk, evaluated_dimensions);
 			}
 
 			virtual type::ref get_type() const {
@@ -303,16 +309,21 @@ namespace types {
 
 			ref evaluate(map env, int macro_depth) const {
 				if (macro_depth > 0) {
+					term::ref expansion;
 					if (args.size() > 0) {
+						/* this macro invocation has parameters, let's expand
+						 * it into a proper application of the macro and its
+						 * parameters */
 						auto args_iter = args.begin();
 						auto term = types::term_apply(macro, *args_iter++);
 						for (;args_iter != args.end(); args_iter++) {
 							term = types::term_apply(term, *args_iter);
 						}
-						return term;
+						expansion = term;
 					} else {
-						return macro;
+						expansion = macro;
 					}
+					return expansion->evaluate(env, macro_depth - 1);
 				} else {
 					term::refs evaluated_args;
 					for (auto arg : args) {

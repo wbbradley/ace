@@ -30,7 +30,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	scope_t() = delete;
 	scope_t(const scope_t &scope) = delete;
 
-	scope_t(atom name) : name(name) {}
+	scope_t(atom name, types::term::map type_env) : name(name), type_env(type_env) {}
 
 	/* general methods */
 	std::string str();
@@ -81,7 +81,7 @@ struct runnable_scope_t : public scope_t {
 
 	virtual ~runnable_scope_t() throw() {}
 
-	runnable_scope_t(atom name) : scope_t(name) {}
+	runnable_scope_t(atom name, types::term::map type_env) : scope_t(name, type_env) {}
 	runnable_scope_t() = delete;
 	runnable_scope_t(const runnable_scope_t &) = delete;
 
@@ -150,7 +150,7 @@ std::string str(const module_scope_t::map &modules);
 struct program_scope_t : public scope_t {
 	typedef ptr<program_scope_t> ref;
 
-	program_scope_t(atom name) : scope_t(name) {}
+	program_scope_t(atom name, types::term::map type_env) : scope_t(name, type_env) {}
 	program_scope_t() = delete;
 	virtual ~program_scope_t() throw() {}
 
@@ -182,7 +182,8 @@ struct function_scope_t : public runnable_scope_t {
 	typedef ptr<function_scope_t> ref;
 
 	virtual ~function_scope_t() throw() {}
-	function_scope_t(atom name, scope_t::ref parent_scope) : runnable_scope_t(name), parent_scope(parent_scope) {}
+	function_scope_t(atom name, scope_t::ref parent_scope) :
+	   	runnable_scope_t(name, parent_scope->get_type_env()), parent_scope(parent_scope) {}
 
 	virtual void dump(std::ostream &os) const;
 
@@ -212,7 +213,11 @@ struct local_scope_t : public runnable_scope_t {
 	scope_t::ref parent_scope;
 	return_type_constraint_t &return_type_constraint;
 
-	static local_scope_t::ref create(atom name, scope_t::ref parent_scope, return_type_constraint_t &return_type_constraint);
+	static local_scope_t::ref create(
+			atom name,
+		   	scope_t::ref parent_scope,
+			types::term::map type_env,
+		   	return_type_constraint_t &return_type_constraint);
 };
 
 struct generic_substitution_scope_t : public scope_t {
@@ -221,7 +226,10 @@ struct generic_substitution_scope_t : public scope_t {
 	generic_substitution_scope_t(
 			atom name,
 		   	scope_t::ref parent_scope,
-		   	types::type::ref callee_signature) : scope_t(name), callee_signature(callee_signature), parent_scope(parent_scope) {}
+		   	types::type::ref callee_signature) :
+	   	scope_t(name, parent_scope->get_type_env()),
+	   	callee_signature(callee_signature),
+	   	parent_scope(parent_scope) {}
 
 	virtual ~generic_substitution_scope_t() throw() {}
 	virtual ptr<scope_t> get_parent_scope();

@@ -263,7 +263,7 @@ bound_type_t::ref get_or_create_tagged_tuple_type(
 		const ast::item::ref &node)
 {
 	/* get the term of this tuple type */
-	types::term::ref term = get_obj_term(get_tuple_term(get_terms(args)));
+	types::term::ref term = get_tuple_term(get_terms(args));
 	types::type::ref type = term->get_type();
 	auto data_type = scope->get_bound_type(type->get_signature());
 
@@ -280,9 +280,9 @@ bound_type_t::ref get_or_create_tagged_tuple_type(
 		llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_tuple_type)->getElementType();
 		log(log_info, "created LLVM wrapped type %s", llvm_print_type(*llvm_obj_struct_type).c_str());
 
-		auto tag_term = ::type_product(pk_tag, {::type_id(make_iid(name))});
+		auto tag = ::type_product(pk_tag, {::type_id(make_iid(name.str()))});
 
-		auto tagged_tuple_type = ::type_product(pk_tagged_tuple, {tag_term, type});
+		auto tagged_tuple_type = ::type_product(pk_tagged_tuple, {tag, type});
 
 		/* get the bound type of the data ctor's value */
 		bound_type_t::ref data_type = bound_type_t::create(
