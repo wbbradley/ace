@@ -385,8 +385,7 @@ bound_var_t::ref llvm_start_function(status_t &status,
 
 		if (!!status) {
 			/* create the bound type for the ctor function */
-			auto function_type =
-				bound_type_t::create(
+			auto function_type = bound_type_t::create(
 						get_function_type(args, data_type),
 						node->token.location,
 						llvm_ctor_fn_type);

@@ -245,8 +245,11 @@ bound_type_t::ref get_or_create_tuple_type(
 		/* get the bound type of the data ctor's value */
 		bound_type_t::ref data_type = bound_type_t::create(
 				type,
-			   	node->token.location,
-			   	llvm_tuple_type);
+				node->token.location,
+				/* the LLVM-visible type of tuples will usually be a generic
+				 * obj */
+				scope->get_bound_type({"__var_ref"})->llvm_type,
+				llvm_tuple_type);
 
 		/* put the type for the data type */
 		program_scope->put_bound_type(data_type);
@@ -287,8 +290,11 @@ bound_type_t::ref get_or_create_tagged_tuple_type(
 		/* get the bound type of the data ctor's value */
 		bound_type_t::ref data_type = bound_type_t::create(
 				tagged_tuple_type,
-			   	node->token.location,
-			   	llvm_tuple_type);
+				node->token.location,
+				/* the LLVM-visible type of tagged tuples will usually be a
+				 * generic obj */
+				scope->get_bound_type({"__var_ref"})->llvm_type,
+				llvm_tuple_type);
 
 		/* put the type for the data type */
 		program_scope->put_bound_type(data_type);
@@ -450,10 +456,12 @@ bound_var_t::ref get_or_create_tuple_ctor(
 					llvm_sizeof_tuple
 				});
 
+		assert(data_type->llvm_specific_type != nullptr);
+
 		/* we've allocated enough space for the object type, let's get our allocation as such */
 		llvm::Value *llvm_final_obj = builder.CreatePointerBitCastOrAddrSpaceCast(
 				llvm_create_var_call_value, 
-				data_type->llvm_type);
+				data_type->llvm_specific_type);
 
 		int index = 0;
 
@@ -469,8 +477,11 @@ bound_var_t::ref get_or_create_tuple_ctor(
 			builder.CreateStore(llvm_param, llvm_gep);
 		}
 
-		/* create a return statement for the final object */
-		builder.CreateRet(llvm_final_obj);
+		/* create a return statement for the final object. NB: the returned
+		 * type is a generic object type according to LLVM. LLVM's type system
+		 * does not support Zion types so we are basically using a generic obj
+		 * pointer for all GC'd types. */
+		builder.CreateRet(llvm_create_var_call_value);
 
 		llvm_verify_function(status, llvm_function);
 

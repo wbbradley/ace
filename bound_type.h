@@ -22,7 +22,8 @@ struct bound_type_t {
 	bound_type_t(
 			types::type::ref type,
 			location location,
-			llvm::Type *llvm_type);
+			llvm::Type *llvm_type,
+			llvm::Type *llvm_specific_type = nullptr);
 
 	bound_type_t(const bound_type_t &) = delete;
 	bound_type_t(const bound_type_t &&) = delete;
@@ -31,6 +32,7 @@ struct bound_type_t {
 	types::type::ref type;
 	struct location location;
 	llvm::Type * const llvm_type;
+	llvm::Type * const llvm_specific_type;
 
 	std::string str() const;
 	bool is_function() const;
@@ -46,7 +48,8 @@ struct bound_type_t {
 	static ref create(
 			types::type::ref type,
 			struct location location,
-			llvm::Type *llvm_type);
+			llvm::Type *llvm_type,
+			llvm::Type *llvm_specific_type = nullptr);
 };
 
 std::string str(const bound_type_t::refs &args);

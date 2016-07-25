@@ -8,10 +8,12 @@
 bound_type_t::bound_type_t(
 		types::type::ref type,
 		struct location location,
-		llvm::Type *llvm_type) :
+		llvm::Type *llvm_type,
+		llvm::Type *llvm_specific_type) :
 	type(type),
 	location(location),
-	llvm_type(llvm_type)
+	llvm_type(llvm_type),
+	llvm_specific_type(llvm_specific_type)
 {
 	debug_above(4, log(log_info, "creating type with (%s, LLVM TypeID %d, %s)",
 			type->str().c_str(),
@@ -25,9 +27,11 @@ bound_type_t::bound_type_t(
 bound_type_t::ref bound_type_t::create(
 		types::type::ref type,
 		struct location location,
-		llvm::Type *llvm_type)
+		llvm::Type *llvm_type,
+		llvm::Type *llvm_specific_type)
 {
-	return make_ptr<bound_type_t>(type, location, llvm_type);
+	return make_ptr<bound_type_t>(type, location, llvm_type,
+			llvm_specific_type);
 }
 
 types::term::ref bound_type_t::get_term() const {
