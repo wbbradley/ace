@@ -859,6 +859,8 @@ types::term::ref parse_term(parse_state_t &ps, int depth=0) {
 		/* move on */
 		ps.advance();
 
+		types::term::refs arguments;
+
 		if (ps.token.tk == tk_lcurly) {
 			/* skip the curly */
 			ps.advance();
@@ -869,7 +871,7 @@ types::term::ref parse_term(parse_state_t &ps, int depth=0) {
 					/* we got an argument, recursively parse */
 					auto next_term = parse_term(ps, depth + 1);
 					if (!!ps.status) {
-						cur_term = term_apply(cur_term, next_term);
+						arguments.push_back(next_term);
 
 						if (ps.token.tk == tk_rcurly) {
 							/* move on */
@@ -894,7 +896,17 @@ types::term::ref parse_term(parse_state_t &ps, int depth=0) {
 			}
 		}
 
-		return cur_term;
+		if (depth == 0) {
+			/* we're at the top of a reference expression, return a term_ref */
+			return types::term_ref(cur_term, arguments);
+		} else {
+			/* we're somewhere deep within a reference expression, return this
+			 * as an application, if necessary */
+			for (auto term_arg : arguments) {
+				cur_term = term_apply(cur_term, term_arg);
+			}
+			return cur_term;
+		}
 	}
 }
 

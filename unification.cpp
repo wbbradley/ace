@@ -50,21 +50,6 @@ bool occurs_in_type(
 }
 
 
-#if 0
-std::string unification_t::str() const {
-	std::stringstream ss;
-	ss << "[";
-	const char *sep = "";
-	for (auto &term_pair : bindings) {
-		ss << sep << C_UNCHECKED << term_pair.first.str() << C_RESET;
-		ss << " => " << term_pair.second->str();
-		sep = ", ";
-	}
-	ss << "]";
-	return ss.str();
-}
-#endif
-
 types::type::ref unroll(
 		types::type::ref type,
 	   	types::term::map env,
@@ -103,24 +88,6 @@ unification_t unify_core(
     if (pruned_a->str(bindings) == pruned_b->str(bindings)) {
 		log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str());
         return {true, "", bindings};
-	}
-
-	if (auto ptr_a = dyncast<const struct ::types::type_ref>(pruned_a)) {
-		if (auto ptr_b = dyncast<const struct ::types::type_ref>(pruned_b)) {
-			auto a_macro_term = ptr_a->macro->to_term(bindings)->evaluate(env, 0);
-			auto b_macro_term = ptr_b->macro->to_term(bindings)->evaluate(env, 0);
-			if (a_macro_term->repr() == b_macro_term->repr()) {
-				assert(false);
-				return {false, "not impl", bindings};
-				// unify_core(reduce(TypeOperator, pruned_a.args),
-				//		reduce(TypeOperator, pruned_b.args),
-				//		env, bindings)
-			} else {
-				debug_above(3, log(log_info, "unmatched refs: %s %s",
-						   	a_macro_term->repr().c_str(),
-							b_macro_term->repr().c_str()));
-			}
-		}
 	}
 
     auto a = unroll(pruned_a, env, bindings);

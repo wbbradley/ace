@@ -925,10 +925,11 @@ auto test_descs = std::vector<test_desc>{
 				{"any", "(any __1)"},
 				/* parsing type variables has monotonically increasing side effects */
 				{"any", "(any __2)"},
-				{"void", "void"},
-				{"map{int, int}", "((map int) int)"},
-				{"map{any b, any c}", "((map (any b)) (any c))"},
+				{"void", "(ref void)"},
+				{"map{int, int}", "(ref map int int)"},
+				{"map{any b, any c}", "(ref map (any b) (any c))"},
 			}};
+
 			for (auto p : parses) {
 				auto repr = parse_type_expr(p.first)->repr();
 				if (repr != p.second) {
@@ -937,6 +938,7 @@ auto test_descs = std::vector<test_desc>{
 							p.first.c_str(),
 							repr.c_str(),
 							p.second.c_str());
+					dbg();
 					return false;
 				}
 			}

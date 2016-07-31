@@ -46,8 +46,14 @@ struct bound_type_builder_t : public types::type_visitor {
 	ptr<program_scope_t> program_scope;
 
 	virtual bool visit(const types::type_id &id) {
-		assert(false);
-		return false;
+		created_type = program_scope->get_bound_type(id.get_signature());
+		if (created_type == nullptr) {
+			user_error(status, id.get_location(), "could not find a type called " c_id("%s"),
+					id.id->get_name().c_str());
+			return false;
+		} else {
+			return true;
+		}
 	}
 
 	virtual bool visit(const types::type_variable &variable) {
@@ -56,8 +62,8 @@ struct bound_type_builder_t : public types::type_visitor {
 	}
 
 	virtual bool visit(const types::type_ref &ref) {
-		assert(false);
-		return false;
+		assert(ref.args.size() == 0);
+		return ref.macro->accept(*this);
 	}
 
 	virtual bool visit(const types::type_operator &operator_) {

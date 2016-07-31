@@ -1,11 +1,11 @@
 module _
 
 type List{X} is
-    Node(X, List{X}) or
-    Done
+	Node(X, List{X}) or
+	Done
 
 def print(l List{any X})
-   pass
+	pass
 
 def main()
-   print print(Node(4, Node(6, Done)))
+	print(Node(4, Node(6, Done)))
