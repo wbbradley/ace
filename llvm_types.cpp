@@ -33,10 +33,12 @@ struct bound_type_builder_t : public types::type_visitor {
 	bound_type_builder_t(
 			status_t &status,
 			llvm::IRBuilder<> &builder,
-			ptr<program_scope_t> program_scope) :
+			ptr<program_scope_t> program_scope,
+			types::term::map env) :
 		status(status),
 		builder(builder),
-		program_scope(program_scope)
+		program_scope(program_scope),
+		env(env)
 	{
 	}
 
@@ -44,16 +46,11 @@ struct bound_type_builder_t : public types::type_visitor {
 	llvm::IRBuilder<> &builder;
 	bound_type_t::ref created_type;
 	ptr<program_scope_t> program_scope;
+	types::term::map env;
 
 	virtual bool visit(const types::type_id &id) {
 		created_type = program_scope->get_bound_type(id.get_signature());
-		if (created_type == nullptr) {
-			user_error(status, id.get_location(), "could not find a type called " c_id("%s"),
-					id.id->get_name().c_str());
-			return false;
-		} else {
-			return true;
-		}
+		return created_type != nullptr;
 	}
 
 	virtual bool visit(const types::type_variable &variable) {
@@ -62,8 +59,20 @@ struct bound_type_builder_t : public types::type_visitor {
 	}
 
 	virtual bool visit(const types::type_ref &ref) {
-		assert(ref.args.size() == 0);
-		return ref.macro->accept(*this);
+		if (auto type_id = dyncast<const struct ::types::type_id>(ref.macro)) {
+			auto iter = env.find(type_id->id->get_name());
+			if (iter != env.end()) {
+				/* found a macro for this ref */
+				not_impl();
+				return false;
+			} else {
+				return ref.macro->accept(*this);
+			}
+		} else {
+			not_impl();
+		}
+
+		return false;
 	}
 
 	virtual bool visit(const types::type_operator &operator_) {
@@ -152,9 +161,10 @@ bound_type_t::ref create_bound_type(
 {
 	assert(!!status);
 
-	debug_above(1, log(log_info, "creating bound type for %s",
-				type->str().c_str()));
-	bound_type_builder_t btb(status, builder, scope->get_program_scope());
+	debug_above(1, log(log_info, "creating bound type for %s", type->str().c_str()));
+	bound_type_builder_t btb(status, builder,
+		   	scope->get_program_scope(),
+			scope->get_type_env());
 	if (type->accept(btb)) {
 		assert(!!status);
 
@@ -175,7 +185,11 @@ bound_type_t::ref upsert_bound_type(
 	auto bound_type = scope->get_bound_type(signature);
 	if (bound_type == nullptr) {
 		bound_type = create_bound_type(status, builder, scope, type);
-		scope->get_program_scope()->put_bound_type(bound_type);
+		if (!!status) {
+			scope->get_program_scope()->put_bound_type(bound_type);
+		} else {
+			assert(bound_type == nullptr);
+		}
 	}
 	return bound_type;
 }
@@ -437,7 +451,6 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	if (!!status) {
 		bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(status, node, "__create_var");
-		bound_type_t::ref var_type_ref = program_scope->get_bound_type({"__var_ref"});
 
 		assert(!!status);
 		assert(mem_alloc_var != nullptr);
