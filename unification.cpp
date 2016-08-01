@@ -86,7 +86,7 @@ unification_t unify_core(
     auto pruned_b = prune(rhs, bindings);
 
     if (pruned_a->str(bindings) == pruned_b->str(bindings)) {
-		log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str());
+		debug_above(4, log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str()));
         return {true, "", bindings};
 	}
 
@@ -96,7 +96,7 @@ unification_t unify_core(
 	debug_above(4, log(log_info, "post-unroll: attempting to unify %s and %s", a->str().c_str(), b->str().c_str()));
 
     if (a->str(bindings) == b->str(bindings)) {
-		log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str());
+		debug_above(4, log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str()));
         return {true, "", bindings};
 	}
 
