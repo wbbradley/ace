@@ -62,9 +62,10 @@ struct bound_type_builder_t : public types::type_visitor {
 		if (auto type_id = dyncast<const struct ::types::type_id>(ref.macro)) {
 			auto iter = env.find(type_id->id->get_name());
 			if (iter != env.end()) {
-				/* found a macro for this ref */
-				not_impl();
-				return false;
+				/* found a macro for this ref, let's evaluate it */
+				types::type::ref evaluated_macro = iter->second->evaluate(env, 1)->get_type();
+
+				return evaluated_macro->accept(*this);
 			} else {
 				return ref.macro->accept(*this);
 			}
