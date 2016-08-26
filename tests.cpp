@@ -920,6 +920,7 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_parse_terms",
 		[] () -> bool {
+			atom::set generics = {{"T"}, {"Q"}};
 			auto parses = std::vector<std::pair<std::string, std::string>>{{
 				{"any a", "(any a)"},
 				{"any", "(any __1)"},
@@ -928,10 +929,13 @@ auto test_descs = std::vector<test_desc>{
 				{"void", "(ref void)"},
 				{"map{int, int}", "(ref map int int)"},
 				{"map{any b, any c}", "(ref map (any b) (any c))"},
+				{"T", "(ref (any T))"},
+				{"T{char, Q}", "(ref (any T) char (any Q))"},
+				{"map{T{int}, Q}", "(ref map ((any T) int) (any Q))"},
 			}};
 
 			for (auto p : parses) {
-				auto repr = parse_type_expr(p.first)->repr();
+				auto repr = parse_type_expr(p.first, generics)->repr();
 				if (repr != p.second) {
 					log(log_error, c_type("%s") " parsed to " c_type("%s")
 							" - should have been " c_type("%s"),
@@ -949,22 +953,31 @@ auto test_descs = std::vector<test_desc>{
 		"test_unification",
 		[] () -> bool {
 			get_tuple_term({types::term_generic(), types::term_id(make_iid("float"))});
+			atom::set generics = {{"Container"}, {"T"}};
 			auto unifies = std::vector<types::term::pair>{{
-				make_term_pair("any", "float"),
-				make_term_pair("void", "void"),
-				make_term_pair("any a", "int"),
-				make_term_pair("any", "map{int, int}"),
-				make_term_pair("any a", "map{int, str}"),
-				make_term_pair("map{any a, any b}", "map{int, str}"),
-				make_term_pair("map{any a, any}", "map{int, str}"),
-				make_term_pair("map{any, any b}", "map{int, str}"),
-				make_term_pair("map{any, any}", "map{int, str}"),
+				types::term::pair{parse_type_expr("void", generics), types::term_id(make_iid("void"))},
+				make_term_pair("any", "float", generics),
+				make_term_pair("void", "void", generics),
+				make_term_pair("any a", "int", generics),
+				make_term_pair("any", "map{int, int}", generics),
+				make_term_pair("any a", "map{int, str}", generics),
+				make_term_pair("(int, char)", "(int, char)", generics),
+				make_term_pair("map{any a, any b}", "map{int, str}", generics),
+				make_term_pair("map{any a, any}", "map{int, str}", generics),
+				make_term_pair("map{any, any b}", "map{int, str}", generics),
+				make_term_pair("map{any, any}", "map{int, str}", generics),
+				make_term_pair("Container{any, any}", "map{int, str}", generics),
+				make_term_pair("map{any, T}", "map{int, str}", generics),
+				make_term_pair("Container{int, T}", "map{int, str}", generics),
+				make_term_pair("Container{T, T}", "map{int, int}", generics),
 			}};
 
 			auto fails = std::vector<types::term::pair>{{
-				make_term_pair("int", "void"),
-				make_term_pair("int", "map{int, int}"),
-				make_term_pair("map{any a, any a}", "map{int, str}"),
+				make_term_pair("int", "void", {}),
+				make_term_pair("int", "void", generics),
+				make_term_pair("(T, T)", "(void, int)", generics),
+				make_term_pair("int", "map{int, int}", generics),
+				make_term_pair("map{any a, any a}", "map{int, str}", generics),
 			}};
 
 			for (auto &pair : unifies) {
@@ -1201,7 +1214,7 @@ bool run_tests(std::string filter) {
 				++pass;
 			}
 		} else {
-			debug_ex(log(log_warning, "------ " c_test_msg("skipping %s") " ------", test_desc.name.c_str()));
+			debug_above(10, log(log_warning, "------ " c_test_msg("skipping %s") " ------", test_desc.name.c_str()));
 			++skipped;
 		}
 	}

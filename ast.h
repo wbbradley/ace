@@ -170,7 +170,7 @@ namespace ast {
 
 	struct type_ref : public item {
 		typedef ptr<const type_ref> ref;
-		static ref parse(parse_state_t &ps);
+		static ref parse(parse_state_t &ps, atom::set generics);
 		virtual ~type_ref() throw() {}
 
 		virtual types::term::ref get_type_term() const = 0;
@@ -181,7 +181,7 @@ namespace ast {
 
 		type_ref_named(types::term::ref term);
 		virtual types::term::ref get_type_term() const;
-		static ref parse(parse_state_t &ps);
+		static ref parse(parse_state_t &ps, atom::set generics);
 		virtual void render(render_state_t &rs) const;
 
 		types::term::ref term;
@@ -192,7 +192,7 @@ namespace ast {
 
 		type_ref_list(type_ref::ref type_ref);
 		virtual types::term::ref get_type_term() const;
-		static ref parse(parse_state_t &ps);
+		static ref parse(parse_state_t &ps, atom::set generics);
 		virtual void render(render_state_t &rs) const;
 
 		type_ref::ref type_ref;
@@ -203,7 +203,7 @@ namespace ast {
 
 		type_ref_tuple(std::vector<type_ref::ref> type_ref);
 		virtual types::term::ref get_type_term() const;
-		static ref parse(parse_state_t &ps);
+		static ref parse(parse_state_t &ps, atom::set generics);
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<type_ref::ref> type_refs;
@@ -214,7 +214,7 @@ namespace ast {
 
 		type_ref_generic(types::term::ref term);
 		virtual types::term::ref get_type_term() const;
-		static ref parse(parse_state_t &ps);
+		static ref parse(parse_state_t &ps, atom::set generics);
 		virtual void render(render_state_t &rs) const;
 
 		types::term::ref term;
@@ -227,7 +227,7 @@ namespace ast {
 		virtual ~dimension() throw() {}
 		virtual void render(render_state_t &rs) const;
 
-		static ref parse(parse_state_t &ps);
+		static ref parse(parse_state_t &ps, atom::set generics);
 
 		atom name;
 		type_ref::ref type_ref;

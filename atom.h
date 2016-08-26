@@ -54,7 +54,5 @@ inline std::string operator +(const std::string &lhs, const atom rhs) {
 
 atom get_indexed_generic(int generic_index);
 bool starts_with(atom atom_str, const std::string &search);
-atom quantify_atom(atom name, const atom::set &set);
-atom dequantify_atom(atom name, const atom::set &set);
 
 atom::set to_set(atom::many atoms);

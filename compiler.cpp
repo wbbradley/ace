@@ -317,69 +317,6 @@ void add_globals(
 			rt_bind_var_from_llir(status, builder, program_scope, program, binding.name,
 				*binding.llvm_module, binding.name_in_llir, args, return_type);
 		}
-#if 0
-		auto type_num_binary_op =	
-			type_overloads::create({
-					get_function_term(get_args_term(Integer, Integer), Bool),
-					get_function_term(get_args_term(Float, Float), Bool),
-					});
-
-		auto type_plus_ops =	
-			type_overloads::create({
-					get_function_term(get_args_term(Str, Str), Str),
-					get_function_term(get_args_term(Integer, Integer), Integer),
-					get_function_term(get_args_term(Integer), Integer),
-					get_function_term(get_args_term(Float, Float), Float),
-					get_function_term(get_args_term(Float, Integer), Float),
-					get_function_term(get_args_term(Integer, Float), Float),
-					get_function_term(get_args_term(Float), Float),
-					});
-
-		auto type_minus_ops =	
-			type_overloads::create({
-					get_function_term(get_args_term(Integer, Integer), Integer),
-					get_function_term(get_args_term(Integer), Integer),
-					get_function_term(get_args_term(Float, Float), Float),
-					get_function_term(get_args_term(Float, Integer), Float),
-					get_function_term(get_args_term(Integer, Float), Float),
-					get_function_term(get_args_term(Float), Float),
-					});
-
-		vars["+"] = {"+", type_plus_ops};
-		vars["-"] = {"-", type_minus_ops};
-		vars[">"] = {">", type_num_binary_op};
-		vars[">="] = {"<", type_num_binary_op};
-		vars["<="] = {"<=", type_num_binary_op};
-		vars["<"] = {">=", type_num_binary_op};
-
-		auto type_equality_ops =	
-			type_overloads::create({
-					get_function_term(get_args_term(Integer, Integer), Bool),
-					get_function_term(get_args_term(Float, Integer), Bool),
-					get_function_term(get_args_term(Integer, Float), Bool),
-					get_function_term(get_args_term(Bool, Bool), Bool),
-					get_function_term(get_args_term(Str, Str), Bool),
-					get_function_term(get_args_term(Str, Integer), Bool),
-					get_function_term(get_args_term(Integer, Str), Bool),
-					});
-
-		vars["=="] = {"==", type_equality_ops};
-		vars["!="] = {"!=", type_equality_ops};
-
-		auto type_multiplicative_ops =	
-			type_overloads::create({
-					get_function_term(get_args_term(Integer, Integer), Integer),
-					get_function_term(get_args_term(Float, Integer), Float),
-					get_function_term(get_args_term(Integer, Float), Float),
-					get_function_term(get_args_term(Float, Float), Float),
-					});
-
-		vars["/"] = {"/", type_multiplicative_ops};
-		vars["*"] = {"*", type_multiplicative_ops};
-		vars["%"] = {"%", get_function_term(get_args_term(Integer, Integer), Integer)};
-
-		vars["__print__"] = {"__print__", get_function_term(get_args_term(Str), Void)};
-#endif
 	}
 }
 

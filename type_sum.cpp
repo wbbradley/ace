@@ -191,27 +191,33 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 		return tag_term;
 	} else {
 		/* instantiate the necessary components of a data ctor */
-		atom::set type_vars;
-		type_vars.insert(type_variables.begin(), type_variables.end());
+		atom::set generics = to_set(type_variables);
 
 		/* ensure that there are no duplicate type variables */
-		assert(type_vars.size() == type_variables.size());
+		assert(generics.size() == type_variables.size());
 
 		auto product = types::term_product(pk_tuple, dimensions);
+		debug_above(5, log(log_info, "setting up data ctor for " c_id("%s") " with value type %s",
+						tag_name.c_str(), product->str().c_str()));
 		atom::set unbound_vars = product->unbound_vars();
 
 		/* find the type variables that are referenced within the unbound
 		 * vars of the product. */
 		atom::many referenced_type_variables;
+		types::type::map fake_bindings;
 		for (auto type_variable : type_variables) {
 			if (unbound_vars.find(type_variable) != unbound_vars.end()) {
 				referenced_type_variables.push_back(type_variable);
 			}
 		}
 
+		/* in order to create the macro body, we need to temporarily treat the
+		 * unbound variables as bound */
+		auto bound_product = product->dequantify(to_set(referenced_type_variables));
+
 		/* let's create the macro body for this data ctor's type and insert it
 		 * into the env first */
-		auto data_ctor_term = types::term_product(pk_tagged_tuple, {tag_term, product});
+		auto data_ctor_term = types::term_product(pk_tagged_tuple, {tag_term, bound_product});
 		auto macro_body = data_ctor_term;
 
 		/* fold lambda construction for the type variables that are unbound
@@ -244,22 +250,9 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 		auto module_scope = dyncast<module_scope_t>(scope);
 		assert(module_scope != nullptr);
 
-		/* compute the placement of the known type variables by performing as
-		 * many beta-reductions as necessary using the type variables' generic
-		 * forms as operands */
-		auto var_dims = product;
-		for (auto referenced_type_variable : referenced_type_variables) {
-			auto id = make_iid(referenced_type_variable);
-			var_dims = types::term_apply(types::term_lambda(id, var_dims), types::term_generic(id));
-		}
-		debug_above(5, log(log_info, "injecting type generics into %s",
-					var_dims->str().c_str()));
+		types::term::ref generic_args = types::change_product_kind(pk_args, product);
 
-		var_dims = var_dims->evaluate({}, 0 /*macro_depth*/);
-
-		types::term::ref generic_args = types::change_product_kind(pk_args, var_dims);
-
-		debug_above(5, log(log_info, "reduced to %s", var_dims->str().c_str()));
+		debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
 
 		types::term::ref data_ctor_sig = get_function_term(
 				generic_args,

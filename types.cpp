@@ -32,6 +32,10 @@ namespace types {
 			atom::set unbound_vars(atom::set bound_vars) const {
 				return {};
 			}
+
+			term::ref dequantify(atom::set generics) const {
+				return shared_from_this();
+			}
 		};
 
 		struct term_id : public term {
@@ -70,6 +74,10 @@ namespace types {
 					return {};
 				}
 			}
+
+			term::ref dequantify(atom::set generics) const {
+				return shared_from_this();
+			}
 		};
 
 		struct term_lambda : public term {
@@ -101,6 +109,11 @@ namespace types {
 
 				/* get what's left unbound from the body of the lambda */
 				return body->unbound_vars(bound_vars);
+			}
+
+			term::ref dequantify(atom::set generics) const {
+				not_impl();
+				return nullptr;
 			}
 		};
 
@@ -141,6 +154,11 @@ namespace types {
 					unbound_vars.insert(option_unbound_vars.begin(), option_unbound_vars.end());
 				}
 				return unbound_vars;
+			}
+
+			term::ref dequantify(atom::set generics) const {
+				not_impl();
+				return nullptr;
 			}
 		};
 
@@ -191,6 +209,15 @@ namespace types {
 				}
 				return unbound_vars;
 			}
+
+			term::ref dequantify(atom::set generics) const {
+				term::refs dequantified_dimensions;
+
+				for (auto &dimension : dimensions) {
+					dequantified_dimensions.push_back(dimension->dequantify(generics));
+				}
+				return types::term_product(pk, dequantified_dimensions);
+			}
 		};
 
 		int next_generic = 1;
@@ -201,12 +228,12 @@ namespace types {
 		}
 
 		struct term_generic : public term {
-			term_generic(identifier::ref name) : name(name) {}
-			term_generic() : name(_next_term_variable()) {}
-			identifier::ref name;
+			term_generic(identifier::ref var_id) : var_id(var_id) {}
+			term_generic() : var_id(_next_term_variable()) {}
+			identifier::ref var_id;
 
 			std::ostream &emit(std::ostream &os) const {
-				os << "(any " << name << ")";
+				os << "(any " << var_id << ")";
 				return os;
 			}
 
@@ -216,12 +243,19 @@ namespace types {
 			}
 
 			type::ref get_type() const {
-				return ::type_variable(name);
+				return ::type_variable(var_id);
 			}
 
 			atom::set unbound_vars(atom::set bound_vars) const {
-				assert(!"what does this mean?");
-				return {};
+				return {var_id->get_name()};
+			}
+
+			term::ref dequantify(atom::set generics) const {
+				if (generics.find(var_id->get_name()) == generics.end()) {
+					return shared_from_this();
+				} else {
+					return types::term_id(var_id);
+				}
 			}
 		};
 
@@ -263,6 +297,10 @@ namespace types {
 				unbound_vars.insert(arg_unbound_vars.begin(), arg_unbound_vars.end());
 				return unbound_vars;
 			}
+
+			term::ref dequantify(atom::set generics) const {
+				return types::term_apply(fn->dequantify(generics), arg->dequantify(generics));
+			}
 		};
 
 		struct term_let : public term {
@@ -288,6 +326,11 @@ namespace types {
 			atom::set unbound_vars(atom::set bound_vars) const {
 				assert(false);
 				return {};
+			}
+
+			term::ref dequantify(atom::set generics) const {
+				not_impl();
+				return nullptr;
 			}
 		};
 
@@ -327,7 +370,7 @@ namespace types {
 				} else {
 					term::refs evaluated_args;
 					for (auto arg : args) {
-						evaluated_args.push_back(arg->evaluate(env, macro_depth - 1));
+						evaluated_args.push_back(arg->evaluate(env, macro_depth));
 					}
 
 					return types::term_ref(macro, evaluated_args);
@@ -343,8 +386,23 @@ namespace types {
 			}
 
 			atom::set unbound_vars(atom::set bound_vars) const {
-				not_impl();
-				return {};
+				auto all_unbound_vars = macro->unbound_vars(bound_vars);
+				for (auto arg : args) {
+					auto arg_unbound_vars = arg->unbound_vars(bound_vars);
+					for (auto var : arg_unbound_vars) {
+						all_unbound_vars.insert(var);
+					}
+				}
+				return all_unbound_vars;
+			}
+
+			term::ref dequantify(atom::set generics) const {
+				term::refs dequantified_args;
+				for (auto arg : args) {
+					dequantified_args.push_back(arg->dequantify(generics));
+				}
+				return types::term_ref(macro->dequantify(generics),
+						dequantified_args);
 			}
 		};
 	}
@@ -823,19 +881,20 @@ std::ostream &operator <<(std::ostream &os, identifier::ref id) {
 	return os << id->get_name();
 }
 
-types::term::pair make_term_pair(std::string fst, std::string snd) {
-	debug_above(4, log(log_info, "creating term pair with (%s, %s)",
-				fst.c_str(), snd.c_str()));
+types::term::pair make_term_pair(std::string fst, std::string snd, atom::set generics) {
+	debug_above(4, log(log_info, "creating term pair with (%s, %s) and generics [%s]",
+				fst.c_str(), snd.c_str(),
+			   	join(generics, ", ").c_str()));
 
-	return types::term::pair{parse_type_expr(fst), parse_type_expr(snd)};
+	return types::term::pair{parse_type_expr(fst, generics), parse_type_expr(snd, generics)};
 }
 
-types::term::ref parse_type_expr(std::string input) {
+types::term::ref parse_type_expr(std::string input, atom::set generics) {
 	status_t status;
 	std::istringstream iss(input);
 	zion_lexer_t lexer("", iss);
 	parse_state_t ps(status, "", lexer, nullptr);
-	types::term::ref term = parse_term(ps);
+	types::term::ref term = parse_term(ps, generics);
 	if (!!status) {
 		return term;
 	} else {
@@ -845,7 +904,7 @@ types::term::ref parse_type_expr(std::string input) {
 }
 
 types::term::ref operator "" _ty(const char *value, size_t) {
-	return parse_type_expr(value);
+	return parse_type_expr(value, {});
 }
 
 bool get_type_variable_name(types::type::ref type, atom &name) {

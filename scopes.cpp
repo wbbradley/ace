@@ -778,32 +778,3 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 	}
 	return subst_scope;
 }
-
-#if 0
-generic_substitution_scope_t::ref generic_substitution_scope_t::create_for_types(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		const ptr<const ast::item> &fn_decl,
-		scope_t::ref parent_scope,
-		const ptr<const unification_t> &unification,
-		const atom::set &type_variables)
-{
-	auto subst_scope = make_ptr<generic_substitution_scope_t>("generic substitution", parent_scope);
-	for (auto &pair : unification->generics) {
-		atom subst_type = pair.second->repr();
-		auto type = parent_scope->get_bound_type(subst_type);
-		if (!type) {
-			user_error(status, *fn_decl, "when trying to instantiate %s, couldn't find type %s",
-					fn_decl->token.str().c_str(),
-					pair.second->str().c_str());
-			return nullptr;
-		} else {
-			/* the substitution scope allows us to masquerade a generic name as
-			 * a bound type */
-			subst_scope->put_bound_type(dequantify_atom(
-						pair.first, type_variables), type);
-		}
-	}
-	return subst_scope;
-}
-#endif

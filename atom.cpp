@@ -106,28 +106,6 @@ atom get_indexed_generic(int generic_index) {
 	return {string_format("any _%d", generic_index)};
 }
 
-atom quantify_atom(atom name, const atom::set &set) {
-	if (set.find(name) != set.end()) {
-		/* if the name is in the set, let's prefix it with "any" */
-		assert(!name.is_generic_type_alias());
-		return {string_format("any %s", name.c_str())};
-	} else {
-		/* otherwise, we assume it's tied to something */
-		return name;
-	}
-}
-
-atom dequantify_atom(atom name, const atom::set &set) {
-	if (name.is_generic_type_alias() && name.size() > 4) {
-		atom dequantified = {name.str().substr(4)};
-		if (set.find(dequantified) != set.end()) {
-			return dequantified;
-		}
-	}
-
-	return name;
-}
-
 atom::set to_set(atom::many atoms) {
 	atom::set set;
 	std::for_each(

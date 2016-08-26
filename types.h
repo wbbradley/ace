@@ -75,6 +75,7 @@ namespace types {
 		virtual ref evaluate(map env, int macro_depth) const = 0;
 		virtual type::ref get_type() const = 0;
 		virtual std::ostream &emit(std::ostream &os) const = 0;
+		virtual term::ref dequantify(atom::set generics) const = 0;
 
 		atom repr() const;
 		std::string str() const;
@@ -212,8 +213,8 @@ types::term::ref get_function_term(types::term::ref args, types::term::ref retur
 types::type::refs get_function_type_args(types::type::ref function_type);
 types::term::ref get_obj_term(types::term::ref item);
 bool get_obj_struct_name_info(types::type::ref type, std::string member_name, int &index, types::type::ref &member_type);
-types::term::pair make_term_pair(std::string fst, std::string snd);
+types::term::pair make_term_pair(std::string fst, std::string snd, atom::set generics);
 
 types::term::ref operator "" _ty(const char *value, size_t);
-types::term::ref parse_type_expr(std::string input);
+types::term::ref parse_type_expr(std::string input, atom::set generics);
 bool get_type_variable_name(types::type::ref term, atom &name);
