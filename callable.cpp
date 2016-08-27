@@ -34,7 +34,8 @@ bound_var_t::ref check_func_vs_callsite(
 	if (unification.result) {
 		if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
 			/* this function has already been bound */
-			log(log_info, "override resolution has chosen %s", bound_fn->str().c_str());
+			debug_above(3, log(log_info, "override resolution has chosen %s",
+					   	bound_fn->str().c_str()));
 			return bound_fn;
 		} else if (auto unchecked_fn = dyncast<const unchecked_var_t>(fn)) {
 			/* we're instantiating a template or a forward decl */
@@ -47,10 +48,10 @@ bound_var_t::ref check_func_vs_callsite(
 					scope->get_type_env(), 0)->get_type()->rebind(unification.bindings);
 
 
-			log(log_info, "it's time to instantiate %s with unified signature %s from %s",
-					unchecked_fn->str().c_str(),
-					fn_type->str().c_str(),
-					unification.str().c_str());
+			debug_above(4, log(log_info, "it's time to instantiate %s with unified signature %s from %s",
+						unchecked_fn->str().c_str(),
+						fn_type->str().c_str(),
+						unification.str().c_str()));
 
 			/* save and later restore the current branch insertion point */
 			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
@@ -58,9 +59,9 @@ bound_var_t::ref check_func_vs_callsite(
 			if (auto function_defn = dyncast<const ast::function_defn>(unchecked_fn->node)) {
 				/* we shouldn't be here unless we found something to substitute */
 
-				log(log_info, "building substitution for %s with unification %s",
-						function_defn->token.str().c_str(),
-						unification.str().c_str());
+				debug_above(4, log(log_info, "building substitution for %s with unification %s",
+							function_defn->token.str().c_str(),
+							unification.str().c_str()));
 
 				/* create a generic substitution scope with the unification */
 				scope_t::ref subst_scope = generic_substitution_scope_t::create(
@@ -89,7 +90,7 @@ bound_var_t::ref check_func_vs_callsite(
 			} else if (auto data_ctor = dyncast<const ast::data_ctor>(unchecked_fn->node)) {
 				/* we shouldn't be here unless we found something to substitute */
 
-				log(log_info, "building substitution for %s", data_ctor->token.str().c_str());
+				debug_above(4, log(log_info, "building substitution for %s", data_ctor->token.str().c_str()));
 				auto unchecked_data_ctor = dyncast<const unchecked_data_ctor_t>(unchecked_fn);
 				assert(unchecked_data_ctor != nullptr);
 
@@ -99,8 +100,8 @@ bound_var_t::ref check_func_vs_callsite(
 						unchecked_fn->module_scope, unification, fn_type);
 
 				auto data_ctor_sig = unchecked_data_ctor->sig->get_type();
-				log(log_info, "going to bind ctor for %s",
-						data_ctor_sig->str().c_str());
+				debug_above(4, log(log_info, "going to bind ctor for %s",
+							data_ctor_sig->str().c_str()));
 
 				/* instantiate the data ctor we want */
 				bound_var_t::ref ctor_fn = bind_ctor_to_scope(

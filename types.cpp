@@ -7,6 +7,8 @@
 #include "parser.h"
 #include "type_visitor.h"
 
+const char *BUILTIN_LIST_TYPE = "std.List";
+
 namespace types {
 
 	namespace terms {
@@ -497,6 +499,10 @@ namespace types {
 
 	term::ref term_ref(term::ref macro, term::refs args) {
 		return make_ptr<terms::term_ref>(macro, args);
+	}
+
+	term::ref term_list_type(term::ref element_term) {
+		return types::term_ref(types::term_id(make_iid(BUILTIN_LIST_TYPE)), {element_term});
 	}
 
 	/**********************************************************************/

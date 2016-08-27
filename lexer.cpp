@@ -56,7 +56,7 @@ bool zion_lexer_t::get_token(zion_token_t &token, bool &newline, std::vector<zio
 	do {
 		for (int i = 0; i < 2 && m_token_queue.empty(); ++i) {
 			if (!_get_tokens()) {
-				debug(log(log_info, "lexer - done reading input."));
+				debug_above(7, log(log_info, "lexer - done reading input."));
 				return false;
 			}
 		}
@@ -554,7 +554,7 @@ bool zion_lexer_t::_get_tokens() {
 			}
 			break;
 		case gts_error:
-			debug(log(log_warning, "token lexing error occurred, so far = (%s)", token_text.c_str()));
+			log(log_warning, "token lexing error occurred, so far = (%s)", token_text.c_str());
 			break;
 		case gts_end:
 			break;
@@ -597,7 +597,7 @@ bool zion_lexer_t::_get_tokens() {
 		if (handle_indentation) {
 			/* handle standard tab indents */
 			int indent_depth = token_text.size();
-			debug_above(4, log(log_info, "indent_depth = %d, %d",
+			debug_above(10, log(log_info, "indent_depth = %d, %d",
 						indent_depth, m_last_indent_depth));
 			assert(all(token_text, '\t'));
 			bool empty_line = (ch == '\r' && ch == '\n');
@@ -650,7 +650,7 @@ void zion_lexer_t::pop_nested(token_kind tk) {
 	if (back_tk == tk) {
 		m_nested_tks.pop_back();
 	} else if (back_tk != tk) {
-		log(log_error, "detected unbalanced %s%s", tkstr(back_tk), tkstr(tk));
+		debug_above(7, log(log_error, "detected unbalanced %s%s", tkstr(back_tk), tkstr(tk)));
 	}
 }
 

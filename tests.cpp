@@ -961,7 +961,7 @@ auto test_descs = std::vector<test_desc>{
 				make_term_pair("any a", "int", generics),
 				make_term_pair("any", "map{int, int}", generics),
 				make_term_pair("any a", "map{int, str}", generics),
-				make_term_pair("(int, char)", "(int, char)", generics),
+				make_term_pair("{int, char}", "{int, char}", generics),
 				make_term_pair("map{any a, any b}", "map{int, str}", generics),
 				make_term_pair("map{any a, any}", "map{int, str}", generics),
 				make_term_pair("map{any, any b}", "map{int, str}", generics),
@@ -970,12 +970,13 @@ auto test_descs = std::vector<test_desc>{
 				make_term_pair("map{any, T}", "map{int, str}", generics),
 				make_term_pair("Container{int, T}", "map{int, str}", generics),
 				make_term_pair("Container{T, T}", "map{int, int}", generics),
+				make_term_pair("Container{T}", "[int]", generics),
 			}};
 
 			auto fails = std::vector<types::term::pair>{{
 				make_term_pair("int", "void", {}),
 				make_term_pair("int", "void", generics),
-				make_term_pair("(T, T)", "(void, int)", generics),
+				make_term_pair("{T, T}", "{void, int}", generics),
 				make_term_pair("int", "map{int, int}", generics),
 				make_term_pair("map{any a, any a}", "map{int, str}", generics),
 			}};

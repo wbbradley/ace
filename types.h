@@ -5,6 +5,8 @@
 #include "utils.h"
 #include "identifier.h"
 
+extern const char *BUILTIN_LIST_TYPE;
+
 /* Product Kinds */
 enum product_kind_t {
 	pk_obj = 0,
@@ -97,6 +99,7 @@ namespace types {
 	term::ref term_apply(term::ref fn, term::ref arg);
 	term::ref term_let(identifier::ref var, term::ref defn, term::ref body);
 	term::ref term_ref(term::ref macro, term::refs args);
+	term::ref term_list_type(term::ref element_term);
 
 	struct type_id : public type {
 		type_id(identifier::ref id);

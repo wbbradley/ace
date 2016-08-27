@@ -378,7 +378,7 @@ std::unordered_set<std::string> compiler::compile_modules(status_t &status) {
 			assert(filenames.find(filename) == filenames.end());
 			filenames.insert(filename);
 
-			log(log_info, "opening %s...", filename.c_str());
+			debug_above(1, log(log_info, "opening %s...", filename.c_str()));
 			ofs.open(filename.c_str());
 			if (ofs.good()) {
 				llvm::raw_os_ostream os(ofs);
@@ -417,7 +417,7 @@ int compiler::emit_built_program(status_t &status, std::string executable_filena
 			ss << " " << filename;
 		}
 		ss << " -o " << bitcode_filename;
-		log(log_info, "running %s...", ss.str().c_str());
+		debug_above(1, log(log_info, "running %s...", ss.str().c_str()));
 
 		/* link the .llir files together into a bitcode file */
 		errno = 0;
@@ -451,7 +451,7 @@ int compiler::emit_built_program(status_t &status, std::string executable_filena
 int compiler::run_program(std::string bitcode_filename) {
 	std::stringstream ss;
 	ss << "lli-3.7 " << bitcode_filename;
-	log(log_info, "running %s...", ss.str().c_str());
+	debug_above(1, log(log_info, "running %s...", ss.str().c_str()));
 	return system(ss.str().c_str());
 }
 
@@ -469,7 +469,7 @@ std::unique_ptr<llvm::Module> &compiler::get_llvm_module(atom name) {
 		sep = ", ";
 	}
 	ss << "]";
-	log(log_warning, "%s", ss.str().c_str());
+	debug_above(1, log(log_warning, "%s", ss.str().c_str()));
 
 	static std::unique_ptr<llvm::Module> hack;
 	return hack;

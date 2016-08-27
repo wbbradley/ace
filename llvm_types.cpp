@@ -59,21 +59,10 @@ struct bound_type_builder_t : public types::type_visitor {
 	}
 
 	virtual bool visit(const types::type_ref &ref) {
-		if (auto type_id = dyncast<const struct ::types::type_id>(ref.macro)) {
-			auto iter = env.find(type_id->id->get_name());
-			if (iter != env.end()) {
-				/* found a macro for this ref, let's evaluate it */
-				types::type::ref evaluated_macro = iter->second->evaluate(env, 1)->get_type();
-
-				return evaluated_macro->accept(*this);
-			} else {
-				return ref.macro->accept(*this);
-			}
-		} else {
-			not_impl();
-		}
-
-		return false;
+		auto evaluated = ref.to_term({})->evaluate(env, 1);
+		debug_above(5, log(log_info, "bound_type_builder evaluated %s to be %s",
+				ref.str().c_str(), evaluated->str().c_str()));
+		return evaluated->get_type()->accept(*this);
 	}
 
 	virtual bool visit(const types::type_operator &operator_) {
@@ -166,6 +155,7 @@ bound_type_t::ref create_bound_type(
 	bound_type_builder_t btb(status, builder,
 		   	scope->get_program_scope(),
 			scope->get_type_env());
+
 	if (type->accept(btb)) {
 		assert(!!status);
 
@@ -202,7 +192,7 @@ bound_type_t::ref upsert_bound_type(
 	   	types::term::ref term)
 {
 	/* helper method to convert lambda terms to types */
-	debug_above(2, log(log_info, "evaluating type term " c_term("%s"),
+	debug_above(6, log(log_info, "evaluating type term " c_term("%s"),
 				term->str().c_str()));
 	auto type_env = scope->get_type_env();
 	auto type = term->evaluate(type_env, 0)->get_type();

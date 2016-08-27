@@ -57,6 +57,7 @@ void scope_t::put_bound_variable(atom symbol, bound_var_t::ref bound_variable) {
 	resolve_map[signature] = bound_variable;
 }
 
+#if 0
 bool put_bound_type(bound_type_t::ref bound_type) {
 	log(log_info, "storing type %s",
 			bound_type->str().c_str());
@@ -73,7 +74,6 @@ bool put_bound_type(bound_type_t::ref bound_type) {
 	return false;
 }
 
-#if 0
 	assert(type_env.find(name) == type_env.end() ||
 		   	type_env[name].str() == type_term.str());
 	type_env.insert({name, type_term});

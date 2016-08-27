@@ -5,6 +5,7 @@
 #include "logger_decls.h"
 #include <csignal>
 #include "parse_state.h"
+#include "parser.h"
 #include "code_id.h"
 
 using namespace ast;
@@ -835,86 +836,118 @@ identifier::ref make_code_id(const zion_token_t &token) {
 	return make_ptr<code_id>(token);
 }
 
-types::term::ref parse_term(parse_state_t &ps, atom::set generics, int depth=0) {
-	if (ps.token.tk == tk_any) {
-		/* parse generic refs */
-		ps.advance();
-		if (ps.token.tk == tk_identifier) {
-			/* named generic */
-			auto term = types::term_generic(make_code_id(ps.token));
-			ps.advance();
-			return term;
-		} else {
-			/* no named generic */
-			// TODO: include the location information
-			return types::term_generic();
-		}
-	} else {
-		/* ensure that we are looking at an identifier */
-		expect_token_or_return(tk_identifier, types::term_unreachable());
+types::term::refs parse_term_arguments(parse_state_t &ps, atom::set generics, int depth) {
+	types::term::refs arguments;
+	assert(ps.token.tk == tk_lcurly);
+	/* skip the curly */
+	ps.advance();
 
-		/* stash the identifier */
-		types::term::ref cur_term;
-		if (generics.find({ps.token.text}) != generics.end()) {
-			/* this term is marked as definitely unbound - aka generic. let's
-			 * create a generic for it */
-			cur_term = types::term_generic(make_code_id(ps.token));
-		} else {
-			cur_term = types::term_id(make_code_id(ps.token));
-		}
-
-		/* move on */
-		ps.advance();
-
-		types::term::refs arguments;
-
-		if (ps.token.tk == tk_lcurly) {
-			/* skip the curly */
-			ps.advance();
-
-			/* loop over the type arguments */
-			while (!!ps.status && ps.token.tk != tk_rcurly) {
-				if (ps.token.tk == tk_identifier || ps.token.tk == tk_any) {
-					/* we got an argument, recursively parse */
-					auto next_term = parse_term(ps, generics, depth + 1);
-					if (!!ps.status) {
-						arguments.push_back(next_term);
-
-						if (ps.token.tk == tk_rcurly) {
-							/* move on */
-							break;
-						} else if (ps.token.tk == tk_comma) {
-							/* if we get a comma, move past it */
-							ps.advance();
-						} else {
-							ps.error("expected ('}' or ','), got %s", tkstr(ps.token.tk));
-						}
-					}
-				} else {
-					ps.error("expected an identifier in the type declaration, found " c_id("%s"),
-							tkstr(ps.token.tk));
-				}
-			}
+	/* loop over the type arguments */
+	while (!!ps.status && (ps.token.tk == tk_identifier || ps.token.tk == tk_any)) {
+		/* we got an argument, recursively parse */
+		auto next_term = parse_term(ps, generics, depth + 1);
+		if (!!ps.status) {
+			arguments.push_back(next_term);
 
 			if (ps.token.tk == tk_rcurly) {
+				/* move on */
+				break;
+			} else if (ps.token.tk == tk_comma) {
+				/* if we get a comma, move past it */
 				ps.advance();
 			} else {
-				assert(!ps.status);
+				ps.error("expected ('}' or ','), got %s", tkstr(ps.token.tk));
 			}
-		}
-
-		if (depth == 0) {
-			/* we're at the top of a reference expression, return a term_ref */
-			return types::term_ref(cur_term, arguments);
-		} else {
-			/* we're somewhere deep within a reference expression, return this
-			 * as an application, if necessary */
-			for (auto term_arg : arguments) {
-				cur_term = term_apply(cur_term, term_arg);
-			}
-			return cur_term;
 		}
 	}
+
+	if (ps.token.tk == tk_rcurly) {
+		ps.advance();
+	} else {
+		ps.error("unexpected token found in type reference argument list, found %s",
+				tkstr(ps.token.tk));
+	}
+	return arguments;
+}
+
+types::term::ref parse_term(parse_state_t &ps, atom::set generics, int depth) {
+	switch (ps.token.tk) {
+	case tk_any:
+		{
+			/* parse generic refs */
+			ps.advance();
+			if (ps.token.tk == tk_identifier) {
+				/* named generic */
+				auto term = types::term_generic(make_code_id(ps.token));
+				ps.advance();
+				return term;
+			} else {
+				/* no named generic */
+				// TODO: include the location information
+				return types::term_generic();
+			}
+		}
+		break;
+	case tk_identifier:
+		{
+			types::term::ref cur_term;
+
+			/* stash the identifier */
+			if (generics.find({ps.token.text}) != generics.end()) {
+				/* this term is marked as definitely unbound - aka generic. let's
+				 * create a generic for it */
+				cur_term = types::term_generic(make_code_id(ps.token));
+			} else {
+				cur_term = types::term_id(make_code_id(ps.token));
+			}
+
+			/* move on */
+			ps.advance();
+
+			types::term::refs arguments;
+			if (ps.token.tk == tk_lcurly) {
+				arguments = parse_term_arguments(ps, generics, depth);
+			}
+			if (depth == 0) {
+				/* we're at the top of a reference expression, return a term_ref */
+				return types::term_ref(cur_term, arguments);
+			} else {
+				/* we're somewhere deep within a reference expression, return this
+				 * as an application, if necessary */
+				for (auto term_arg : arguments) {
+					cur_term = term_apply(cur_term, term_arg);
+				}
+				return cur_term;
+			}
+		}
+		break;
+	case tk_lsquare:
+		{
+			ps.advance();
+			auto list_element_term = parse_term(ps, generics, depth);
+			if (ps.token.tk != tk_rsquare) {
+				ps.error("list type reference must end with a ']', found %s",
+						ps.token.str().c_str());
+				return nullptr;
+			} else {
+				ps.advance();
+				return types::term_list_type(list_element_term);
+			}
+		}
+		break;
+	case tk_lcurly:
+		{
+			types::term::refs arguments = parse_term_arguments(ps, generics, depth);
+			return types::term_product(pk_tuple, arguments);
+		}
+		break;
+	default:
+		ps.error("type references cannot begin with %s", ps.token.str().c_str());
+		return nullptr;
+	}
+
+	not_impl();
+	return nullptr;
 }
 
 type_decl::ref type_decl::parse(parse_state_t &ps) {

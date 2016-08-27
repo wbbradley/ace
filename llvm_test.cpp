@@ -1,6 +1,7 @@
 #include "llvm_zion.h"
 #include <sstream>
 #include "logger_decls.h"
+#include "dbg.h"
 
 bool test_llvm_builder() {
 	/* basic sanity check that the builder integration is working. */
@@ -32,11 +33,11 @@ bool test_llvm_builder() {
 	std::stringstream ss;
 	llvm::raw_os_ostream os(ss);
 	if (!verifyModule(*module, &os)) {
-		log(log_info, "LLVM verification succeeded");
+		debug_above(8, log(log_info, "LLVM verification succeeded"));
 		return true;
 	} else {
 		os.flush();
-		log(log_error, "LLVM verification failed:\n%s", ss.str().c_str());
+		debug_above(8, log(log_error, "LLVM verification failed:\n%s", ss.str().c_str()));
 		return false;
 	}
 }

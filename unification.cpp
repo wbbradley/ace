@@ -64,7 +64,7 @@ types::type::ref unroll(
 		auto type_ref_lambdified = type_ref->to_term(bindings);
 		auto type_ref_reduced = type_ref_lambdified->evaluate(env, 1);
 
-		debug_above(5, log(log_info, "Unrolled:\n\t%s\n\t%s",
+		debug_above(7, log(log_info, "Unrolled:\n\t%s\n\t%s",
 					type->str().c_str(),
 					type_ref_reduced->get_type()->str().c_str()));
 
@@ -80,23 +80,23 @@ unification_t unify_core(
 		types::term::map env,
 		types::type::map bindings)
 {
-	debug_above(4, log(log_info, "attempting to unify %s and %s", lhs->str().c_str(), rhs->str().c_str()));
+	debug_above(7, log(log_info, "attempting to unify %s and %s", lhs->str().c_str(), rhs->str().c_str()));
 
     auto pruned_a = prune(lhs, bindings);
     auto pruned_b = prune(rhs, bindings);
 
     if (pruned_a->str(bindings) == pruned_b->str(bindings)) {
-		debug_above(4, log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str()));
+		debug_above(7, log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str()));
         return {true, "", bindings};
 	}
 
     auto a = unroll(pruned_a, env, bindings);
     auto b = unroll(pruned_b, env, bindings);
 
-	debug_above(4, log(log_info, "post-unroll: attempting to unify %s and %s", a->str().c_str(), b->str().c_str()));
+	debug_above(7, log(log_info, "post-unroll: attempting to unify %s and %s", a->str().c_str(), b->str().c_str()));
 
     if (a->str(bindings) == b->str(bindings)) {
-		debug_above(4, log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str()));
+		debug_above(7, log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str()));
         return {true, "", bindings};
 	}
 
@@ -117,7 +117,7 @@ unification_t unify_core(
 							a->str().c_str(), b->str().c_str()),
 					bindings};
 			}
-			debug_above(3, log(log_info, "binding " c_id("%s") " to " c_type("%s"),
+			debug_above(6, log(log_info, "binding " c_id("%s") " to " c_type("%s"),
 						ptv->id->get_name().c_str(),
 						b->str(bindings).c_str()));
 			assert(bindings.find(ptv->id->get_name()) == bindings.end());
@@ -136,7 +136,7 @@ unification_t unify_core(
 							a->str().c_str(), b->str().c_str()),
 					bindings};
 			}
-			debug_above(3, log(log_info, "binding " c_id("%s") " to " c_type("%s"),
+			debug_above(6, log(log_info, "binding " c_id("%s") " to " c_type("%s"),
 						ptv_b->id->get_name().c_str(),
 						a->str(bindings).c_str()));
 			assert(bindings.find(ptv_b->id->get_name()) == bindings.end());
@@ -230,8 +230,8 @@ unification_t unify(
 		types::term::ref rhs,
 		types::term::map env)
 {
-	log(log_info, "unify(" c_term("%s") ", " c_term("%s") ", %s)",
-			lhs->str().c_str(), rhs->str().c_str(), str(env).c_str());
+	debug_above(1, log(log_info, "unify(" c_term("%s") ", " c_term("%s") ", %s)",
+			lhs->str().c_str(), rhs->str().c_str(), str(env).c_str()));
 
 	return unify_core(
 		   	lhs->evaluate(env, 0)->get_type(),
