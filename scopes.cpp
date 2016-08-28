@@ -617,7 +617,7 @@ unchecked_var_t::ref module_scope_t::put_unchecked_variable(
 		atom symbol,
 		unchecked_var_t::ref unchecked_variable)
 {
-	debug_above(6, log(log_info, "registering an unchecked variable %s as %s",
+	debug_above(2, log(log_info, "registering an unchecked variable %s as %s",
 				symbol.c_str(),
 				unchecked_variable->str().c_str()));
 

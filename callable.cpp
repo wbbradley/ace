@@ -122,6 +122,12 @@ bound_var_t::ref check_func_vs_callsite(
 		}
 	}
 
+	debug_above(4, log(log_info, "fn %s at %s does not match %s because %s",
+				fn->str().c_str(),
+				callsite->str().c_str(), 
+				args->str().c_str(),
+				unification.str().c_str()));
+
 	/* it's possible to exit without finding that the callable matches the
 	 * callsite. this is not an error (unless the status indicates so.) */
 	return nullptr;

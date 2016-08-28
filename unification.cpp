@@ -1,5 +1,6 @@
 #include "zion.h"
 #include "dbg.h"
+#include "logger.h"
 #include <sstream>
 #include "utils.h"
 #include "types.h"
@@ -55,18 +56,14 @@ types::type::ref unroll(
 	   	types::term::map env,
 	   	types::type::map bindings)
 {
-	debug_above(6, log(log_info, "env: %s\nbindings: %s",
-				str(env).c_str(),
-				str(bindings).c_str()));
+	// debug_above(6, log(log_info, "env: %s\nbindings: %s", str(env).c_str(), str(bindings).c_str()));
 
 	/* Handle macro expansion of one level. type_refs can be expanded. */
 	if (auto type_ref = dyncast<const types::type_ref>(type)) {
 		auto type_ref_lambdified = type_ref->to_term(bindings);
 		auto type_ref_reduced = type_ref_lambdified->evaluate(env, 1);
 
-		debug_above(7, log(log_info, "Unrolled:\n\t%s\n\t%s",
-					type->str().c_str(),
-					type_ref_reduced->get_type()->str().c_str()));
+		// debug_above(7, log(log_info, "Unrolled:\n\t%s\n\t%s", type->str().c_str(), type_ref_reduced->get_type()->str().c_str()));
 
 		return type_ref_reduced->get_type();
 	} else {
@@ -80,7 +77,7 @@ unification_t unify_core(
 		types::term::map env,
 		types::type::map bindings)
 {
-	debug_above(7, log(log_info, "attempting to unify %s and %s", lhs->str().c_str(), rhs->str().c_str()));
+	// debug_above(7, log(log_info, "attempting to unify %s and %s", lhs->str().c_str(), rhs->str().c_str()));
 
     auto pruned_a = prune(lhs, bindings);
     auto pruned_b = prune(rhs, bindings);
@@ -93,7 +90,7 @@ unification_t unify_core(
     auto a = unroll(pruned_a, env, bindings);
     auto b = unroll(pruned_b, env, bindings);
 
-	debug_above(7, log(log_info, "post-unroll: attempting to unify %s and %s", a->str().c_str(), b->str().c_str()));
+	// debug_above(7, log(log_info, "post-unroll: attempting to unify %s and %s", a->str().c_str(), b->str().c_str()));
 
     if (a->str(bindings) == b->str(bindings)) {
 		debug_above(7, log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str()));
@@ -180,7 +177,9 @@ unification_t unify_core(
 	} else if (ptp_a != nullptr) {
 		if (auto ptp_b = dyncast<const types::type_product>(b)) {
 			if (ptp_a->dimensions.size() != ptp_b->dimensions.size()) {
-				return {false, "product type lengths do not match", bindings};
+				return {false, string_format("product type lengths do not match "
+						"(a = %s, b = %s)", ptp_a->str().c_str(),
+						ptp_b->str().c_str()), bindings};
 			} else {
 				auto a_dims_end = ptp_a->dimensions.end();
 				auto b_dims_iter = ptp_b->dimensions.begin();
@@ -230,7 +229,8 @@ unification_t unify(
 		types::term::ref rhs,
 		types::term::map env)
 {
-	debug_above(1, log(log_info, "unify(" c_term("%s") ", " c_term("%s") ", %s)",
+	indent_logger indent;
+	debug_above(1, log(log_info, "unify(\n\t" c_term("%s") ",\n\t" c_term("%s") ",\n\t%s)",
 			lhs->str().c_str(), rhs->str().c_str(), str(env).c_str()));
 
 	return unify_core(

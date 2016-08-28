@@ -993,7 +993,7 @@ status_t type_check_module_variables(
 		}
     }
 
-	debug_above(3, log(log_info, "module after its own variable pass is:\n" c_ir("%s"),
+	debug_above(9, log(log_info, "module after its own variable pass is:\n" c_ir("%s"),
 				llvm_print_module(*module_scope->get_llvm_module()).c_str()));
     return final_status;
 }

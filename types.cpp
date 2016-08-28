@@ -9,6 +9,12 @@
 
 const char *BUILTIN_LIST_TYPE = "std.List";
 
+int next_generic = 1;
+
+void reset_generics() {
+	next_generic = 1;
+}
+
 namespace types {
 
 	namespace terms {
@@ -56,7 +62,7 @@ namespace types {
 					return shared_from_this();
 				} else {
 					auto value = iter->second;
-					if (value != shared_from_this()) {
+					if (false && value != shared_from_this()) {
 						return value->evaluate(env, macro_depth);
 					} else {
 						return value;
@@ -222,8 +228,6 @@ namespace types {
 			}
 		};
 
-		int next_generic = 1;
-
 		identifier::ref _next_term_variable() {
 			/* generate fresh "any" variables */
 			return make_iid({string_format("__%d", next_generic++)});
@@ -272,18 +276,23 @@ namespace types {
 			}
 
 			ref evaluate(map env, int macro_depth) const {
-				debug_above(5, log(log_info, "evaluating term_apply %s", str().c_str()));
+				debug_above(8, log(log_info, "evaluating term_apply %s", str().c_str()));
 				auto fn_eval = fn->evaluate(env, macro_depth);
 				auto arg_eval = arg->evaluate(env, macro_depth);
 
+				ref res;
 				if (auto pfn = dyncast<const types::terms::term_lambda>(fn_eval)) {
 					/* We should only handle substitutions in lambdas when they
 					 * are being applied. */
 					env[pfn->var->get_name()] = arg_eval;
-					return pfn->body->evaluate(env, macro_depth);
+					res = pfn->body->evaluate(env, macro_depth);
+			
 				} else {
-					return types::term_apply(fn_eval, arg_eval);
+					res = types::term_apply(fn_eval, arg_eval);
 				}
+				debug_above(5, log(log_info, "%s -> %s", str().c_str(),
+							res->str().c_str()));
+				return res;
 			}
 
 			type::ref get_type() const {
@@ -337,7 +346,11 @@ namespace types {
 		};
 
 		struct term_ref : public term {
-			term_ref(term::ref macro, term::refs args={}) : macro(macro), args(args) {}
+			term_ref(term::ref macro, term::refs args={}) : macro(macro), args(args) {
+				if (dyncast<const struct types::terms::term_generic>(macro)) {
+					dbg();
+				}
+			}
 			term::ref macro;
 			term::refs args;
 
@@ -375,7 +388,8 @@ namespace types {
 						evaluated_args.push_back(arg->evaluate(env, macro_depth));
 					}
 
-					return types::term_ref(macro, evaluated_args);
+					return types::term_ref(macro, // ->evaluate(env, macro_depth),
+							evaluated_args);
 				}
 			}
 
@@ -422,25 +436,6 @@ namespace types {
 		}
 		return null_impl();
 	}
-
-#if 0
-	bool term_t::get_obj_struct_index(atom dim_name, int &index) const {
-		/* lookup the index of a particular name in this term, if it is a
-		 * struct. returns true or false for success. */
-		if (is_obj()) {
-			if (args[0].is_struct()) {
-				auto &struct_args = args[0].args;
-				for (int i = struct_args.size() - 1; i >= 0; --i) {
-					if (dim_name == struct_args[i].name) {
-						index = i;
-						return true;
-					}
-				}
-			}
-		}
-		return false;
-	}
-#endif
 
 	atom term::repr() const {
 		std::stringstream ss;
@@ -879,6 +874,18 @@ types::type::refs get_function_type_args(types::type::ref function_type) {
 	return type_args->dimensions;
 }
 
+types::term::ref get_function_term_args(types::term::ref function_term) {
+	log(log_info, "sig == %s", function_term->str().c_str());
+
+	auto term_product = dyncast<const types::terms::term_product>(function_term);
+	assert(term_product != nullptr);
+	assert(term_product->pk == pk_function);
+	assert(term_product->dimensions.size() == 2);
+
+	auto term_args = dyncast<const struct types::terms::term_product>(term_product->dimensions[0]);
+	return term_args;
+}
+
 types::term::ref get_obj_term(types::term::ref item) {
 	return types::term_product(pk_obj, {item});
 }
@@ -941,7 +948,7 @@ std::string str(types::term::map coll) {
 	ss << "{";
 	const char *sep = "";
 	for (auto p : coll) {
-		ss << sep << p.first.c_str() << ": ";
+		ss << sep << C_ID << p.first.c_str() << C_RESET << ": ";
 		ss << p.second->str().c_str();
 		sep = ", ";
 	}

@@ -187,9 +187,13 @@ bool base64_decode(const std::string &input, char ** const output, size_t * cons
 	return false;
 }
 
-bool regex_exists(const std::string &input, const std::string &regex_) {
+bool regex_exists(std::string input, std::string regex_) {
 	std::smatch match;
 	return std::regex_search(input, match, std::regex(regex_.c_str()));
+}
+
+bool regex_match(std::string input, std::string regex_) {
+	return std::regex_match(input, std::regex(regex_.c_str()));
 }
 
 std::string string_formatv(const std::string fmt_str, va_list args_) {

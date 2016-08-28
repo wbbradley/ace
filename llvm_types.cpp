@@ -66,8 +66,12 @@ struct bound_type_builder_t : public types::type_visitor {
 	}
 
 	virtual bool visit(const types::type_operator &operator_) {
-		assert(false);
-		return false;
+		auto signature = operator_.get_signature();
+		auto bound_type = program_scope->get_bound_type(signature);
+		assert(bound_type == nullptr);
+		created_type = bound_type_t::create(operator_.shared_from_this(), operator_.get_location(),
+				program_scope->get_bound_type({"__var_ref"})->llvm_type);
+		return true;
 	}
 
 	virtual bool visit(const types::type_product &product) {

@@ -908,7 +908,7 @@ types::term::ref parse_term(parse_state_t &ps, atom::set generics, int depth) {
 			if (ps.token.tk == tk_lcurly) {
 				arguments = parse_term_arguments(ps, generics, depth);
 			}
-			if (depth == 0) {
+			if (false && depth == 0) {
 				/* we're at the top of a reference expression, return a term_ref */
 				return types::term_ref(cur_term, arguments);
 			} else {

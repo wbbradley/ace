@@ -7,7 +7,8 @@
 void base64_encode(const void *buffer, unsigned long size, std::string &encoded_output);
 bool base64_decode(const std::string &input, char * * const output, size_t * const size);
 
-bool regex_exists(const std::string &input, const std::string &regex);
+bool regex_exists(std::string input, std::string regex);
+bool regex_match(std::string input, std::string regex);
 
 std::string clean_ansi_escapes_if_not_tty(FILE *fp, std::string out);
 std::string clean_ansi_escapes(std::string out);

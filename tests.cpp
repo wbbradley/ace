@@ -925,23 +925,66 @@ auto test_descs = std::vector<test_desc>{
 				{"any a", "(any a)"},
 				{"any", "(any __1)"},
 				/* parsing type variables has monotonically increasing side effects */
-				{"any", "(any __2)"},
-				{"void", "(ref void)"},
-				{"map{int, int}", "(ref map int int)"},
-				{"map{any b, any c}", "(ref map (any b) (any c))"},
-				{"T", "(ref (any T))"},
-				{"T{char, Q}", "(ref (any T) char (any Q))"},
-				{"map{T{int}, Q}", "(ref map ((any T) int) (any Q))"},
+				{"any", "(any __1)"},
+				{"void", "void"},
+				{"map{int, int}", "((map int) int)"},
+				{"map{any b, any c}", "((map (any b)) (any c))"},
+				{"T", "(any T)"},
+				{"T{char, Q}", "(((any T) char) (any Q))"},
+				{"map{T{int}, Q}", "((map ((any T) int)) (any Q))"},
 			}};
 
 			for (auto p : parses) {
-				auto repr = parse_type_expr(p.first, generics)->repr();
+				reset_generics();
+				auto repr = parse_type_expr(p.first, generics)->repr().str();
 				if (repr != p.second) {
 					log(log_error, c_type("%s") " parsed to " c_type("%s")
 							" - should have been " c_type("%s"),
 							p.first.c_str(),
 							repr.c_str(),
 							p.second.c_str());
+					dbg();
+					return false;
+				}
+			}
+			return true;
+		}
+	},
+	{
+		"test_term_evaluation",
+		[] () -> bool {
+			types::term::map env = {};
+			atom::set generics = {{"T"}, {"Q"}};
+			auto parses = std::vector<std::tuple<std::string, int, std::string>>{{
+				{"any a", 0, "(any a)"},
+				{"any", 0, "(any __1)"},
+				/* parsing type variables has monotonically increasing side effects */
+				{"any", 0, "(any __1)"},
+				{"void", 0, "void"},
+				{"map{int, int}", 0, "((map int) int)"},
+				{"map{any b, any c}", 0, "((map (any b)) (any c))"},
+				{"T", 0, "(any T)"},
+				{"T{char, Q}", 0, "(((any T) char) (any Q))"},
+				{"map{T{int}, Q}", 0, "((map ((any T) int)) (any Q))"},
+			}};
+
+			for (auto p : parses) {
+				reset_generics();
+				std::string input = std::get<0>(p);
+				int depth = std::get<1>(p);
+				std::string expect = std::get<2>(p);
+
+				auto term = parse_type_expr(input, generics);
+				auto evaluated = term->evaluate(env, depth);
+				auto repr = evaluated->repr().str();
+				if (repr != expect) {
+					log(log_error, c_type("%s") " evaluated (depth %d) to " c_type("%s")
+							" - should have been " c_type("%s") " with env: %s",
+							input.c_str(),
+							depth,
+							repr.c_str(),
+							expect.c_str(),
+							str(env).c_str());
 					dbg();
 					return false;
 				}

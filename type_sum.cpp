@@ -217,8 +217,8 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 
 		/* let's create the macro body for this data ctor's type and insert it
 		 * into the env first */
-		auto data_ctor_term = types::term_product(pk_tagged_tuple, {tag_term, bound_product});
-		auto macro_body = data_ctor_term;
+		auto macro_body = types::term_product(pk_tagged_tuple, {tag_term, bound_product});
+		auto data_ctor_term = types::term_product(pk_tagged_tuple, {tag_term, product});
 
 		/* fold lambda construction for the type variables that are unbound
 		 * from right to left around macro_body. */

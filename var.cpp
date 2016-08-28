@@ -16,14 +16,14 @@ unification_t var_t::accepts_callsite(
 		ptr<scope_t> scope,
 	   	types::term::ref args) const
 {
-	types::term::ref sig = get_term();
-	log(log_info, "checking whether %s accepts %s", str().c_str(),
-		   	args->str().c_str());
-
+	/* get the args out of the sig */
+	types::term::ref fn_args = get_function_term_args(get_term());
 	auto env = scope->get_type_env();
 
-	return unify(
-			sig,
-			types::term_product(pk_function, {args, types::term_generic()}),
-			env);
+	debug_above(2, log(log_info, "checking whether %s accepts %s in env %s",
+			   	fn_args->str().c_str(),
+				args->str().c_str(),
+				::str(env).c_str()));
+
+	return unify(fn_args, args, env);
 }
