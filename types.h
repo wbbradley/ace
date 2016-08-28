@@ -213,7 +213,6 @@ std::ostream& operator <<(std::ostream &out, const types::term::ref &term);
 std::ostream& operator <<(std::ostream &out, const types::type::ref &type);
 
 /* helper functions */
-identifier::ref make_iid(atom name);
 types::term::ref get_args_term(types::term::refs args);
 types::term::ref get_function_term(types::term::ref args, types::term::ref return_type);
 types::type::refs get_function_type_args(types::type::ref function_type);

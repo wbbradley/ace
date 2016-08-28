@@ -23,9 +23,7 @@ std::string bound_var_t::str() const {
 }
 
 location bound_var_t::get_location() const {
-	auto location = id->get_location();
-	assert(location != nullptr);
-	return *location;
+	return id->get_location();
 }
 
 bool bound_var_t::is_int() const {

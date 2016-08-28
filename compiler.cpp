@@ -262,6 +262,8 @@ void add_globals(
 			{"str", llvm_module_str, "__str_float", {"float"}, "str"},
 			{"str", llvm_module_str, "__str_str", {"str"}, "str"},
 
+			{"+",   llvm_module_str, "__str_plus_str", {"str", "str"}, "str"},
+
 			{"+", llvm_module_int, "__int_plus_int", {"int", "int"}, "int"},
 			{"-", llvm_module_int, "__int_minus_int", {"int", "int"}, "int"},
 			{"*", llvm_module_int, "__int_times_int", {"int", "int"}, "int"},

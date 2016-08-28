@@ -192,6 +192,7 @@ bound_var_t::ref get_callable(
 			return nullptr;
 		}
 	} else {
+		// REVIEW: this warning is probably not useful
 		log(log_warning, "failure when calling get_callable. probably need to have harder checks on input");
 	}
 

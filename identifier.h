@@ -11,7 +11,7 @@ struct identifier {
 
 	virtual ~identifier() {}
 	virtual atom get_name() const = 0;
-	virtual ptr<location> get_location() const = 0;
+	virtual location get_location() const = 0;
 	virtual std::string str() const = 0;
 };
 
@@ -20,15 +20,21 @@ struct iid : public identifier {
 	typedef ptr<iid> ref;
 
 	atom name;
+	struct location location;
 
-	iid(atom name) : name(name) {}
+	iid(atom name, struct location location) : name(name), location(location) {}
 	iid() = delete;
 	iid(const iid &) = delete;
 	iid(const iid &&) = delete;
 	iid &operator =(const iid &) = delete;
 
 	virtual atom get_name() const;
-	virtual ptr<location> get_location() const;
+	virtual struct location get_location() const;
 	virtual std::string str() const;
 };
+
+identifier::ref make_iid_impl(atom name, struct location location);
+identifier::ref make_iid_impl(const char *name, struct location location);
+
+#define make_iid(name) make_iid_impl(name, location{__FILE__, __LINE__, 1})
 

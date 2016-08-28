@@ -34,7 +34,7 @@ namespace types {
 			}
 
 			type::ref get_type() const {
-				return ::type_id(make_iid({"void"}));
+				return ::type_id(make_iid("void"));
 			}
 
 			atom::set unbound_vars(atom::set bound_vars) const {
@@ -590,12 +590,7 @@ namespace types {
 	}
 
 	location type_variable::get_location() const {
-		auto loc = id->get_location();
-		if (loc != nullptr) {
-			return *loc;
-		} else {
-			return INTERNAL_LOC();
-		}
+		return id->get_location();
 	}
 
 	type_ref::type_ref(type::ref macro, type::refs args) :
@@ -821,10 +816,6 @@ types::type::ref type_product(product_kind_t pk, types::type::refs dimensions) {
 
 types::type::ref type_sum(types::type::refs options) {
 	return make_ptr<types::type_sum>(options);
-}
-
-identifier::ref make_iid(atom name) {
-	return make_ptr<iid>(name);
 }
 
 bool get_obj_struct_name_info(

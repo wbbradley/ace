@@ -71,50 +71,44 @@ bound_var_t::ref type_check_bound_var_decl(
 				}
 			}
 			if (!!status) {
-				if (obj.type_ref) {
-					type = upsert_bound_type(status, builder,
-							scope, obj.type_ref->get_type_term());
-				}
+				if (obj.type_ref && init_var) {
+					auto declared_term = obj.type_ref->get_type_term();
+					assert(type != nullptr);
+					unification_t unification = unify(
+							declared_term,
+							init_var->type->get_term(),
+							scope->get_type_env());
 
-				if (!!status) {
-					if (init_var) {
-						assert(type != nullptr);
-						unification_t unification = unify(
-								type->get_term(),
-								init_var->type->get_term(),
-								scope->get_type_env());
+					if (!unification.result) {
+						/* report that the variable type does not match the initializer type */
+						user_error(status, obj, "type of " c_var("%s") " does not match type of initializer",
+								obj.token.text.c_str());
+						user_error(status, obj, c_type("%s") " != " c_type("%s"),
+								type->str().c_str(),
+								init_var->type->str().c_str());
 
-						if (!unification.result) {
-							/* report that the variable type does not match the initializer type */
-							user_error(status, obj, "type of " c_var("%s") " does not match type of initializer",
-									obj.token.text.c_str());
-							user_error(status, obj, c_type("%s") " != " c_type("%s"),
-									type->str().c_str(),
-									init_var->type->str().c_str());
-
-							/* try to continue without the initializer just to
-							 * get more feedback for the user */
-							init_var.reset();
-						}
-					} 
-
-					/* generate the mutable stack-based variable for this var */
-					llvm::Function *llvm_function = llvm_get_function(builder);
-					llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function, type, symbol);
-
-					if (init_var) {
-						debug_above(6, log(log_info, "creating a store instruction %s := %s",
-									llvm_print_value_ptr(llvm_alloca).c_str(),
-									llvm_print_value_ptr(init_var->llvm_value).c_str()));
-						builder.CreateStore(init_var->llvm_value, llvm_alloca);	
+						/* try to continue without the initializer just to
+						 * get more feedback for the user */
+						init_var.reset();
 					}
+				} 
 
-					/* the reference_expr that looks at this llvm_value
-					 * will need to know to use store/load semantics, not
-					 * just pass-by-value */
-					return bound_var_t::create(INTERNAL_LOC(), symbol,
-							type, llvm_alloca, make_code_id(obj.token));
+				/* generate the mutable stack-based variable for this var */
+				llvm::Function *llvm_function = llvm_get_function(builder);
+				llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function, type, symbol);
+
+				if (init_var) {
+					debug_above(6, log(log_info, "creating a store instruction %s := %s",
+								llvm_print_value_ptr(llvm_alloca).c_str(),
+								llvm_print_value_ptr(init_var->llvm_value).c_str()));
+					builder.CreateStore(init_var->llvm_value, llvm_alloca);	
 				}
+
+				/* the reference_expr that looks at this llvm_value
+				 * will need to know to use store/load semantics, not
+				 * just pass-by-value */
+				return bound_var_t::create(INTERNAL_LOC(), symbol,
+						type, llvm_alloca, make_code_id(obj.token));
 			}
 		} else {
 			/* we've got to have one of these to initialize this variable */

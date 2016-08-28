@@ -20,3 +20,12 @@ char *__str_float(zion_float_t x) {
 char *__str_str(char *x) {
 	return x;
 }
+
+char *__str_plus_str(char *x, char *y) {
+	zion_int_t x_len = strlen(x);
+	zion_int_t y_len = strlen(y) + 1;
+	char *res = malloc(x_len + y_len);
+	memcpy(res, x, x_len);
+	memcpy(res + x_len, y, y_len);
+	return res;
+}

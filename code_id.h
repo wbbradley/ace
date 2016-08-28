@@ -15,8 +15,8 @@ struct code_id : public identifier {
 		return {token.text};
 	}
 
-	virtual ptr<location> get_location() const {
-		return make_ptr<location>(token.location);
+	virtual location get_location() const {
+		return token.location;
 	}
 
 	virtual std::string str() const {
