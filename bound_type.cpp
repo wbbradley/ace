@@ -15,7 +15,7 @@ bound_type_t::bound_type_t(
 	llvm_type(llvm_type),
 	llvm_specific_type(llvm_specific_type)
 {
-	debug_above(4, log(log_info, "creating type with (%s, LLVM TypeID %d, %s)",
+	debug_above(6, log(log_info, "creating type with (%s, LLVM TypeID %d, %s)",
 			type->str().c_str(),
 			llvm_type ? llvm_type->getTypeID() : -1,
 			location.str().c_str()));

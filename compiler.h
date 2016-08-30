@@ -64,3 +64,5 @@ private:
 
 	friend bool _check_compiler_error(compiler &compiler, int &skipped);
 };
+
+std::string strip_zion_extension(std::string module_name);

@@ -1,7 +1,7 @@
 module _
 link module std
 
-# error: any is not allowed
+# error: unexpected token found `any`
 type Optional{any Data} is
 	Just(Data) or None
 

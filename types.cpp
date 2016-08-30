@@ -84,7 +84,7 @@ namespace types {
 			}
 
 			term::ref dequantify(atom::set generics) const {
-				return shared_from_this();
+				return types::term_ref(shared_from_this(), {});
 			}
 		};
 
@@ -265,6 +265,7 @@ namespace types {
 			}
 		};
 
+		struct term_ref;
 		struct term_apply : public term {
 			term_apply(term::ref fn, term::ref arg) : fn(fn), arg(arg) {}
 			term::ref fn;
@@ -276,7 +277,8 @@ namespace types {
 			}
 
 			ref evaluate(map env, int macro_depth) const {
-				debug_above(8, log(log_info, "evaluating term_apply %s", str().c_str()));
+				debug_above(8, log(log_info, "evaluating term_apply %s with %s",
+						   	str().c_str(), ::str(env).c_str()));
 				auto fn_eval = fn->evaluate(env, macro_depth);
 				auto arg_eval = arg->evaluate(env, macro_depth);
 
@@ -310,7 +312,13 @@ namespace types {
 			}
 
 			term::ref dequantify(atom::set generics) const {
-				return types::term_apply(fn->dequantify(generics), arg->dequantify(generics));
+				return shared_from_this();
+				/*
+				if (dyncast<const struct types::terms::term_ref>(fn)) {
+					dbg();
+				}
+				return types::term_ref(fn->dequantify(generics), {arg->dequantify(generics)});
+				*/
 			}
 		};
 
@@ -347,6 +355,9 @@ namespace types {
 
 		struct term_ref : public term {
 			term_ref(term::ref macro, term::refs args={}) : macro(macro), args(args) {
+				if (dyncast<const struct types::terms::term_ref>(macro)) {
+					dbg();
+				}
 				if (dyncast<const struct types::terms::term_generic>(macro)) {
 					dbg();
 				}
@@ -373,8 +384,9 @@ namespace types {
 						 * it into a proper application of the macro and its
 						 * parameters */
 						auto args_iter = args.begin();
+						assert(args_iter != args.end());
 						auto term = types::term_apply(macro, *args_iter++);
-						for (;args_iter != args.end(); args_iter++) {
+						for (;args_iter != args.end(); ++args_iter) {
 							term = types::term_apply(term, *args_iter);
 						}
 						expansion = term;
@@ -417,6 +429,7 @@ namespace types {
 				for (auto arg : args) {
 					dequantified_args.push_back(arg->dequantify(generics));
 				}
+				log(log_info, "quantifying %s", macro->str().c_str());
 				return types::term_ref(macro->dequantify(generics),
 						dequantified_args);
 			}
@@ -493,6 +506,7 @@ namespace types {
 	}
 
 	term::ref term_ref(term::ref macro, term::refs args) {
+		assert(!dyncast<const terms::term_ref>(macro));
 		return make_ptr<terms::term_ref>(macro, args);
 	}
 

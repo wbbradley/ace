@@ -7,8 +7,9 @@ def print(x)
 	puts(str(x))
 
 def main()
+	var x = 5
 	# make sure pure int math compiles
-	print(3 + 10)
+	print(x + 10)
 	print(3 - 10)
 	print(3 % 10)
 	print(3 / 10)

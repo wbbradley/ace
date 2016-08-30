@@ -1,0 +1,12 @@
+module _
+link module std
+
+# test: pass
+
+type Cross is
+	Val(int) or
+	One(Cross) or
+	Two(Cross)
+
+def main()
+	Two(One(Val(3)))

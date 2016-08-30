@@ -16,16 +16,20 @@
 const std::string module_prefix = "module:";
 const std::string file_prefix = "file:";
 
+std::string strip_zion_extension(std::string module_name) {
+	if (ends_with(module_name, ".zion")) {
+		/* as a courtesy, strip the extension from the filename here */
+		return module_name.substr(0, module_name.size() - strlen(".zion"));
+	} else {
+		return module_name;
+	}
+}
+
 compiler::compiler(std::string program_name_, const libs &zion_paths) :
-	program_name(program_name_),
+	program_name(strip_zion_extension(program_name_)),
 	zion_paths(make_ptr<std::vector<std::string>>(zion_paths)),
    	builder(llvm_context)
 {
-	if (ends_with(program_name, ".zion")) {
-		/* as a courtesy, strip the extension from the filename here */
-		program_name = program_name.substr(0, program_name.size() - strlen(".zion"));
-	}
-
 	auto program_symbol = string_format("program-%s", program_name.c_str());
 	program_scope = program_scope_t::create(program_symbol);
 }
@@ -582,7 +586,7 @@ llvm::Module *compiler::llvm_load_ir(status_t &status, std::string filename) {
 		user_error(status, location{filename, 0, 0}, "%s", ss.str().c_str());
 		return nullptr;
 	} else {
-		debug_above(4, log(log_info, "parsed module %s\n%s", filename.c_str(),
+		debug_above(9, log(log_info, "parsed module %s\n%s", filename.c_str(),
 					llvm_print_module(*llvm_module).c_str()));
 		return llvm_module;
 	}

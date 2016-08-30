@@ -27,7 +27,7 @@ program_scope_t::ref scope_t::get_program_scope() {
 }
 
 void scope_t::put_type_term(atom name, types::term::ref type_term) {
-	debug_above(1, log(log_info, "registering type term " c_term("%s") " as %s",
+	debug_above(2, log(log_info, "registering type term " c_term("%s") " as %s",
 			name.c_str(), type_term->str().c_str()));
 	type_env[name] = type_term;
 }
@@ -46,7 +46,7 @@ std::string scope_t::str() {
 }
 
 void scope_t::put_bound_variable(atom symbol, bound_var_t::ref bound_variable) {
-	debug_above(3, log(log_info, "binding %s", bound_variable->str().c_str()));
+	debug_above(8, log(log_info, "binding %s", bound_variable->str().c_str()));
 
 	auto &resolve_map = bound_vars[symbol];
 	types::signature signature = bound_variable->get_signature();
@@ -639,7 +639,7 @@ unchecked_var_t::ref module_scope_t::put_unchecked_variable(
 }
 
 bool program_scope_t::put_bound_type(bound_type_t::ref type) {
-	debug_above(3, log(log_info, "binding type %s as " c_id("%s"),
+	debug_above(8, log(log_info, "binding type %s as " c_id("%s"),
 				type->str().c_str(),
 				type->get_signature().repr().c_str()));
 	bound_types[type->get_signature().repr()] = type;

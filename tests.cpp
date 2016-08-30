@@ -1205,7 +1205,7 @@ bool run_tests(std::string filter) {
 	int pass=0, total=0, skipped=0;
 
 	if (getenv("DEBUG") == nullptr) {
-		setenv("DEBUG", "1", true /*overwrite*/);
+		// setenv("DEBUG", "0", true /*overwrite*/);
 	}
 
 	static bool init_from_files = false;

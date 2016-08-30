@@ -144,18 +144,20 @@ bound_var_t::ref maybe_get_callable(
 {
     llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
-	/* look through the current scope stack and get a callable that is able to
-	 * be invoked with the given args */
-	scope->get_callables(alias, fns);
-	for (auto &fn : fns) {
-		bound_var_t::ref callable = check_func_vs_callsite(status, builder,
-				scope, callsite, fn, args);
+	if (!!status) {
+		/* look through the current scope stack and get a callable that is able to
+		 * be invoked with the given args */
+		scope->get_callables(alias, fns);
+		for (auto &fn : fns) {
+			bound_var_t::ref callable = check_func_vs_callsite(status, builder,
+					scope, callsite, fn, args);
 
-		if (!status) {
-			assert(callable == nullptr);
-			return nullptr;
-		} else if (callable != nullptr) {
-			return callable;
+			if (!status) {
+				assert(callable == nullptr);
+				return nullptr;
+			} else if (callable != nullptr) {
+				return callable;
+			}
 		}
 	}
 	return nullptr;
@@ -185,15 +187,12 @@ bound_var_t::ref get_callable(
 						args->str().c_str());
 
 				for (auto &fn : fns) {
-					user_error(status, fn->get_location(), "%s",
+					user_message(log_info, status, fn->get_location(), "tried %s",
 							fn->str().c_str());
 				}
 			}
 			return nullptr;
 		}
-	} else {
-		// REVIEW: this warning is probably not useful
-		log(log_warning, "failure when calling get_callable. probably need to have harder checks on input");
 	}
 
 	assert(!status);

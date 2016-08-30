@@ -124,7 +124,17 @@ types::term::ref ast::type_product::instantiate_type(
 	}
 
 	assert(type_variables.size() == 0);
-	return types::term_product(pk_struct, term_dimensions);
+	auto product_term = types::term_product(pk_struct, term_dimensions);
+
+#if 0
+	/* side-effect: create an unchecked reference to this value ctor into the
+	 * current scope */
+	module_scope->put_unchecked_variable(tag_name,
+			unchecked_data_ctor_t::create(tag_name, shared_from_this(),
+				module_scope, data_ctor_sig));
+#endif
+
+	return product_term;
 }
 
 types::term::ref ast::type_sum::instantiate_type(
@@ -133,9 +143,9 @@ types::term::ref ast::type_sum::instantiate_type(
 		atom::many type_variables,
 		scope_t::ref scope) const
 {
-	log(log_info, "creating sum type term with type variables [%s] that %s",
-		   join(type_variables, ", ").c_str(),
-		   str().c_str());
+	debug_above(3, log(log_info, "creating sum type term with type variables [%s] that %s",
+				join(type_variables, ", ").c_str(),
+				str().c_str()));
 
 	types::term::refs options;
 	for (auto data_ctor : data_ctors) {
@@ -152,19 +162,16 @@ types::term::ref ast::type_sum::instantiate_type(
 			types::term_sum(options), types::term_lambda_reducer);
 }
 
-types::term::ref ast::data_ctor::instantiate_type_term(
+types::term::ref instantiate_data_ctor_type_term(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		atom::many type_variables,
-		scope_t::ref scope) const
+		scope_t::ref scope,
+		ptr<const ast::item> node,
+		types::term::refs dimensions,
+		identifier::ref id)
 {
-	types::term::refs dimensions;
-	for (auto type_ref : type_ref_params) {
-		dimensions.push_back(type_ref->get_type_term());
-	}
-
-	auto id = make_code_id(token);
-	atom tag_name = {token.text};
+	atom tag_name = id->get_name();
 	auto tag_term = types::term_product(pk_tag, {types::term_id(id)});
 
 	if (dimensions.size() == 0) {
@@ -174,7 +181,7 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 		/* start by making a type for the tag */
 		bound_type_t::ref tag_type = bound_type_t::create(
 				tag_term->get_type(),
-				token.location,
+				id->get_location(),
 				/* all tags use the var_t* type */
 				scope->get_program_scope()->get_bound_type({"__var_ref"})->llvm_type);
 
@@ -245,26 +252,47 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 		/* now let's make sure we register this constructor as an override for
 		 * the name `tag_name` */
 		debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
-				token.str().c_str()));
+				id->str().c_str()));
 
-		auto module_scope = dyncast<module_scope_t>(scope);
-		assert(module_scope != nullptr);
-
+		if (auto module_scope = dyncast<module_scope_t>(scope)) {
 		types::term::ref generic_args = types::change_product_kind(pk_args, product);
 
 		debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
 
-		types::term::ref data_ctor_sig = get_function_term(
-				generic_args,
-				data_ctor_term);
+		types::term::ref data_ctor_sig = get_function_term(generic_args, data_ctor_term);
 
-		/* side-effect: create an unchecked reference to this data ctor into the current scope */
+		/* side-effect: create an unchecked reference to this data ctor into
+		 * the current scope */
 		module_scope->put_unchecked_variable(tag_name,
-				unchecked_data_ctor_t::create(tag_name, shared_from_this(),
+				unchecked_data_ctor_t::create(tag_name, node,
 					module_scope, data_ctor_sig));
 
 		return types::term_ref(
 				types::term_id(make_iid(tag_name)),
 				term_ref_args);
+		} else {
+			user_error(status, node->token.location, "local type definitions are not yet impl");
+		}
 	}
+
+	assert(!status);
+	return nullptr;
 }
+
+types::term::ref ast::data_ctor::instantiate_type_term(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		atom::many type_variables,
+		scope_t::ref scope) const
+{
+	types::term::refs dimensions;
+
+	for (auto type_ref : type_ref_params) {
+		dimensions.push_back(type_ref->get_type_term());
+	}
+	auto id = make_code_id(token);
+
+	return instantiate_data_ctor_type_term(status, builder, type_variables,
+			scope, shared_from_this(), dimensions, id);
+}
+

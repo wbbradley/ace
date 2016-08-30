@@ -26,10 +26,10 @@ const char *skstr(syntax_kind_t sk) {
 namespace ast {
 	void log_named_item_create(const char *type, const std::string &name) {
 		if (name.size() > 0) {
-			debug_above(4, log(log_info, "creating a " c_ast("%s") " named " c_var("%s"),
+			debug_above(9, log(log_info, "creating a " c_ast("%s") " named " c_var("%s"),
 						type, name.c_str()));
 		} else {
-			debug_above(4, log(log_info, "creating a " c_ast("%s"), type));
+			debug_above(9, log(log_info, "creating a " c_ast("%s"), type));
 		}
 	}
 

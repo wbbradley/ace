@@ -50,11 +50,17 @@ struct bound_type_builder_t : public types::type_visitor {
 
 	virtual bool visit(const types::type_id &id) {
 		created_type = program_scope->get_bound_type(id.get_signature());
+		if (created_type == nullptr) {
+			/* no type exists by that name just create it */
+			created_type = bound_type_t::create(id.shared_from_this(), id.get_location(),
+					program_scope->get_bound_type({"__var_ref"})->llvm_type);
+		}
 		return created_type != nullptr;
 	}
 
 	virtual bool visit(const types::type_variable &variable) {
-		assert(false);
+		user_error(status, variable.get_location(), "unable to resolve type %s",
+			   	variable.str().c_str());
 		return false;
 	}
 
@@ -67,8 +73,7 @@ struct bound_type_builder_t : public types::type_visitor {
 
 	virtual bool visit(const types::type_operator &operator_) {
 		auto signature = operator_.get_signature();
-		auto bound_type = program_scope->get_bound_type(signature);
-		assert(bound_type == nullptr);
+		assert(program_scope->get_bound_type(signature) == nullptr);
 		created_type = bound_type_t::create(operator_.shared_from_this(), operator_.get_location(),
 				program_scope->get_bound_type({"__var_ref"})->llvm_type);
 		return true;
@@ -154,15 +159,12 @@ bound_type_t::ref create_bound_type(
 		types::type::ref type)
 {
 	assert(!!status);
+	auto env = scope->get_type_env();
+	debug_above(1, log(log_info, "creating bound type for %s in env %s", type->str().c_str(), str(env).c_str()));
 
-	debug_above(1, log(log_info, "creating bound type for %s", type->str().c_str()));
-	bound_type_builder_t btb(status, builder,
-		   	scope->get_program_scope(),
-			scope->get_type_env());
-
+	bound_type_builder_t btb(status, builder, scope->get_program_scope(), env);
 	if (type->accept(btb)) {
 		assert(!!status);
-
 		return btb.created_type;
 	}
 
@@ -224,7 +226,7 @@ bound_type_t::ref get_function_return_type(
 		/* this should exist, otherwise how was the function type built in the
 		 * first place */
 		assert(return_type != nullptr);
-		log(log_info, "got function return type %s", return_type->str().c_str());
+		debug_above(8, log(log_info, "got function return type %s", return_type->str().c_str()));
 		return return_type;
 	} else {
 		panic("expected a function");
@@ -503,8 +505,8 @@ bound_var_t::ref get_or_create_tuple_ctor(
 			/* bind the ctor to the scope */
 			scope->put_bound_variable(name, function);
 
-			log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
-						*llvm_get_module(builder)).c_str());
+			debug_above(7, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
+							*llvm_get_module(builder)).c_str()));
 			return function;
 		}
 	}
@@ -617,8 +619,12 @@ types::term::ref ast::type_alias::instantiate_type(
 {
 	log(log_info, "creating type alias term for %s", str().c_str());
 
-	assert(type_variables.size() == 0);
-	return null_impl(); // type_ref->resolve_type(status, builder, scope, nullptr, nullptr);
+	if (type_variables.size() != 0) {
+		user_error(status, token.location, "found type variables in type alias - not yet impl");
+		return nullptr;
+	}
+	user_error(status, token.location, "type aliasing is not yet impl");
+	return nullptr; // type_ref->resolve_type(status, builder, scope, nullptr, nullptr);
 }
 
 bound_var_t::ref call_const_subscript_operator(
@@ -629,20 +635,22 @@ bound_var_t::ref call_const_subscript_operator(
 		bound_var_t::ref lhs,
 		int subscript_index)
 {
-#if 0
+	debug_above(6, log(log_info, "generating dereference %s[%d]", lhs->str().c_str(), subscript_index));
 	if (subscript_index < 0) {
 		user_error(status, *node, "constant subscripts must be positive");
 	} else {
 		/* do some checks on the lhs */
-		types::term::ref lhs_term = lhs->type->term;
-		if (!lhs_term.is_obj()) {
+		types::type::ref lhs_type = lhs->type->type;
+		if (!lhs_type->is_obj()) {
 			user_error(status, *node, "subscript operator only works on objects for now");
-		} else {
-			if (lhs_term.args.size() != 1 || !lhs_term.args[0].is_tuple()) {
+		} else if (auto product = dyncast<const types::type_product>(lhs_type)) {
+			debug_above(6, log(log_info, "generating dereference %s[%d]", lhs->str().c_str(), subscript_index));
+#if 0
+			if (product->dimensions.size() != 1 || !product->dimensions[0]->is_tuple()) {
 				user_error(status, *node, "subscript operator only works on tuples for now");
 			} else {
 				/* actually create the subscript operator */
-				types::term::ref tuple_sig = lhs_term.args[0];
+				types::term::ref tuple_sig = lhs_type.args[0];
 				if (tuple_sig.args.size() <= subscript_index) {
 					user_error(status, *node, "subscript is out of range [%d]. last item is [%d]",
 							subscript_index, tuple_sig.args.size() - 1);
@@ -668,9 +676,12 @@ bound_var_t::ref call_const_subscript_operator(
 					}
 				}
 			}
+#endif
+			user_error(status, *node, "subscript operator is not impl", lhs_type->str().c_str());
+		} else {
+			user_error(status, *node, "subscript operator does not work on %s", lhs_type->str().c_str());
 		}
 	}
-#endif
 
 	assert(!status);
 	return nullptr;

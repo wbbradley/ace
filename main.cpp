@@ -9,7 +9,7 @@
 #include "disk.h"
 
 int usage() {
-	log(log_error, "available commands: test, read-ir, compile, compile-modules, bc, run");
+	log(log_error, "available commands: test, read-ir, compile, compile-modules, bc, run, fmt");
 	return EXIT_FAILURE;
 }
 
@@ -46,6 +46,17 @@ int main(int argc, char *argv[]) {
             }
         } else if (cmd == "compile") {
 			compiler.build(status);
+
+			if (!!status) {
+				return EXIT_SUCCESS;
+			} else {
+				return EXIT_FAILURE;
+			}
+        } else if (cmd == "fmt") {
+			compiler.build(status);
+
+			fprintf(stdout, "%s",
+					compiler.dump_program_text(strip_zion_extension(argv[2])).c_str());
 
 			if (!!status) {
 				return EXIT_SUCCESS;

@@ -1,4 +1,4 @@
 module _
 
-# error: type names only support unary type variables
+# error: unexpected token found
 type Foo{Bar{Baz}} matches int

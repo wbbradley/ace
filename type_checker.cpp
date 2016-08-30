@@ -34,14 +34,11 @@ bound_type_t::ref get_fully_bound_param_info(
 	/* get the name of this parameter */
 	var_name = obj.token.text;
 
-	if (obj.type_ref != nullptr) {
-		/* the user specified a type */
-		auto term = obj.type_ref->get_type_term();
-		return upsert_bound_type(status, builder, scope, term);
-	} else {
-		/* the user specified no type */
-		return null_impl(); // ast::type_ref::resolve_null_param_type(status, builder, obj, scope, generic_index);
-	}
+	assert(obj.type_ref != nullptr);
+
+	/* the user specified a type */
+	auto term = obj.type_ref->get_type_term();
+	return upsert_bound_type(status, builder, scope, term);
 }
 
 bound_var_t::ref type_check_bound_var_decl(
@@ -59,60 +56,57 @@ bound_var_t::ref type_check_bound_var_decl(
 		bound_var_t::ref init_var;
 		bound_type_t::ref type;
 
-		if (obj.initializer || obj.type_ref) {
-			/* we have an initializer or a type decl or both */
-			if (obj.initializer) {
-				init_var = obj.initializer->resolve_instantiation(status,
-						builder, scope, nullptr, nullptr);
+		assert(obj.type_ref != nullptr);
 
-				if (!!status) {
-					type = init_var->type;
-					assert(type != nullptr);
-				}
-			}
+		/* we have an initializer or a type decl or both */
+		if (obj.initializer) {
+			init_var = obj.initializer->resolve_instantiation(status,
+					builder, scope, nullptr, nullptr);
+
 			if (!!status) {
-				if (obj.type_ref && init_var) {
-					auto declared_term = obj.type_ref->get_type_term();
-					assert(type != nullptr);
-					unification_t unification = unify(
-							declared_term,
-							init_var->type->get_term(),
-							scope->get_type_env());
-
-					if (!unification.result) {
-						/* report that the variable type does not match the initializer type */
-						user_error(status, obj, "type of " c_var("%s") " does not match type of initializer",
-								obj.token.text.c_str());
-						user_error(status, obj, c_type("%s") " != " c_type("%s"),
-								type->str().c_str(),
-								init_var->type->str().c_str());
-
-						/* try to continue without the initializer just to
-						 * get more feedback for the user */
-						init_var.reset();
-					}
-				} 
-
-				/* generate the mutable stack-based variable for this var */
-				llvm::Function *llvm_function = llvm_get_function(builder);
-				llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function, type, symbol);
-
-				if (init_var) {
-					debug_above(6, log(log_info, "creating a store instruction %s := %s",
-								llvm_print_value_ptr(llvm_alloca).c_str(),
-								llvm_print_value_ptr(init_var->llvm_value).c_str()));
-					builder.CreateStore(init_var->llvm_value, llvm_alloca);	
-				}
-
-				/* the reference_expr that looks at this llvm_value
-				 * will need to know to use store/load semantics, not
-				 * just pass-by-value */
-				return bound_var_t::create(INTERNAL_LOC(), symbol,
-						type, llvm_alloca, make_code_id(obj.token));
+				type = init_var->type;
+				assert(type != nullptr);
 			}
-		} else {
-			/* we've got to have one of these to initialize this variable */
-			user_error(status, obj, "variables must have an initializer or a type expression");
+		}
+		if (!!status) {
+			if (obj.type_ref && init_var) {
+				auto declared_term = obj.type_ref->get_type_term();
+				assert(type != nullptr);
+				unification_t unification = unify(
+						declared_term,
+						init_var->type->get_term(),
+						scope->get_type_env());
+
+				if (!unification.result) {
+					/* report that the variable type does not match the initializer type */
+					user_error(status, obj, "type of " c_var("%s") " does not match type of initializer",
+							obj.token.text.c_str());
+					user_error(status, obj, c_type("%s") " != " c_type("%s"),
+							declared_term->str().c_str(),
+							init_var->type->str().c_str());
+
+					/* try to continue without the initializer just to
+					 * get more feedback for the user */
+					init_var.reset();
+				}
+			} 
+
+			/* generate the mutable stack-based variable for this var */
+			llvm::Function *llvm_function = llvm_get_function(builder);
+			llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function, type, symbol);
+
+			if (init_var) {
+				debug_above(6, log(log_info, "creating a store instruction %s := %s",
+							llvm_print_value_ptr(llvm_alloca).c_str(),
+							llvm_print_value_ptr(init_var->llvm_value).c_str()));
+				builder.CreateStore(init_var->llvm_value, llvm_alloca);	
+			}
+
+			/* the reference_expr that looks at this llvm_value
+			 * will need to know to use store/load semantics, not
+			 * just pass-by-value */
+			return bound_var_t::create(INTERNAL_LOC(), symbol,
+					type, llvm_alloca, make_code_id(obj.token));
 		}
 	} else {
 		// TODO: get a pointer to the prior var
@@ -675,23 +669,25 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
 	int index = -1;
 	types::type::ref member_type;
 
-	if (get_obj_struct_name_info(lhs_val->type->type, rhs.text, index, member_type)) {
-		/* get the type of the dimension being reference */
-		bound_type_t::ref type = upsert_bound_type(status, builder,
-				scope, member_type);
+	if (!!status) {
+		if (get_obj_struct_name_info(lhs_val->type->type, rhs.text, index, member_type)) {
+			/* get the type of the dimension being reference */
+			bound_type_t::ref type = upsert_bound_type(status, builder,
+					scope, member_type);
 
-		llvm::Value *llvm_gep = builder.CreateInBoundsGEP(
-				llvm_resolve_alloca(builder, lhs_val->llvm_value),
-				{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index)});
+			llvm::Value *llvm_gep = builder.CreateInBoundsGEP(
+					llvm_resolve_alloca(builder, lhs_val->llvm_value),
+					{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index)});
 
-		llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
-		return bound_var_t::create(
-				INTERNAL_LOC(), string_format(".%s", rhs.text.c_str()),
-				type, llvm_item, make_code_id(token));
-	} else {
-		user_error(status, *this, "%s has no dimension called " c_id("%s"),
-				lhs_val->type->str().c_str(),
-				rhs.text.c_str());
+			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
+			return bound_var_t::create(
+					INTERNAL_LOC(), string_format(".%s", rhs.text.c_str()),
+					type, llvm_item, make_code_id(token));
+		} else {
+			user_error(status, *this, "%s has no dimension called " c_id("%s"),
+					lhs_val->type->str().c_str(),
+					rhs.text.c_str());
+		}
 	}
 
     assert(!status);
@@ -1183,9 +1179,7 @@ bound_var_t::ref ast::return_statement::resolve_instantiation(
         }
     } else {
         /* we have an empty return, let's just use void */
-		// TODO: figure out how to find void
-		assert(false);
-        return_type = nullptr ; // scope->get_program_scope()->get_bound_type({"void"});
+        return_type = scope->get_program_scope()->get_bound_type({"void"});
     }
 
     if (!!status) {
@@ -1259,7 +1253,7 @@ bound_var_t::ref ast::block::resolve_instantiation(
 
 		local_scope_t::ref next_scope;
 
-		log(log_info, "type checking statement %s", statement->str().c_str());
+		debug_above(9, log(log_info, "type checking statement %s", statement->str().c_str()));
 
 		statement->resolve_instantiation(status, builder, current_scope,
 				&next_scope, returns);
@@ -1449,15 +1443,18 @@ bound_var_t::ref ast::var_decl::resolve_instantiation(
     bound_var_t::ref var_decl_variable = type_check_bound_var_decl(
             status, builder, *this, fresh_scope);
 
-    if (!!status) {
-        /* on our way out, stash the variable in the current scope */
-        fresh_scope->put_bound_variable(var_decl_variable->name, var_decl_variable);
-        *new_scope = fresh_scope;
-        return var_decl_variable;
-    }
+    if (!status) {
+		// TODO: try to recover even if we couldn't determine the type
+		// var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol, type, llvm_alloca, make_code_id(obj.token));
+	} else {
+		/* on our way out, stash the variable in the current scope */
+		fresh_scope->put_bound_variable(var_decl_variable->name, var_decl_variable);
+		*new_scope = fresh_scope;
+		return var_decl_variable;
+	}
 
-    assert(!status);
-    return nullptr;
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref ast::pass_flow::resolve_instantiation(

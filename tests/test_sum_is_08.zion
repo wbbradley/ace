@@ -1,4 +1,5 @@
 module _
+link module std
 
 type Expr{X} is
 	Plus(Expr{X}, Expr{X}) or
