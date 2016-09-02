@@ -1,13 +1,17 @@
 module _
 link module std
+# test: pass
 
-type Expr{X} is
-	Plus(Expr{X}, Expr{X}) or
-	Minus(Expr{X}, Expr{X}) or
-	Times(Expr{X}, Expr{X}) or
-	Divide(Expr{X}, Expr{X}) or
-	Literal(X)
+type List{T} is
+	Node(T) or
+	Divide(List{T}) or
+	Done
+
+def compute(expr List{any X}) any X
+	# TODO: implement pattern matching...
+	return 0
 
 def main()
-	expr := Divide(Plus(Literal(5), Literal(5)), Literal(2))
-	std.print(compute(expr))
+	e := Node(1)
+	d := Divide(e)
+	std.print(compute(d))

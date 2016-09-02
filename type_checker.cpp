@@ -1076,12 +1076,15 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 
 	// TODO: consider type namespacing here, or 
 	auto type_term = type_algebra->instantiate_type(status, builder,
-			type_decl->type_variables, scope);
+			make_code_id(token), type_decl->type_variables, scope);
 
 	if (!!status) {
-		scope->put_type_term(type_decl->token.text, type_term);
+		if (type_term != nullptr) {
+			scope->put_type_term(type_decl->token.text, type_term);
+		}
 		return nullptr;
 	}
+
 	assert(!status);
 	return nullptr;
 }

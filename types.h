@@ -80,7 +80,6 @@ namespace types {
 		virtual ref evaluate(map env, int macro_depth) const = 0;
 		virtual type::ref get_type() const = 0;
 		virtual std::ostream &emit(std::ostream &os) const = 0;
-		virtual term::ref dequantify(atom::set generics) const = 0;
 
 		atom repr() const;
 		std::string str() const;
@@ -101,7 +100,6 @@ namespace types {
 	term::ref term_generic();
 	term::ref term_apply(term::ref fn, term::ref arg);
 	term::ref term_let(identifier::ref var, term::ref defn, term::ref body);
-	term::ref term_ref(term::ref macro, term::refs args);
 	term::ref term_list_type(term::ref element_term);
 
 	struct type_id : public type {
@@ -120,19 +118,6 @@ namespace types {
 	struct type_variable : public type {
 		type_variable(identifier::ref id);
 		identifier::ref id;
-
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
-		virtual int ftv() const;
-		virtual ptr<const term> to_term(const map &bindings={}) const;
-		virtual bool accept(type_visitor &visitor) const;
-		virtual ref rebind(const map &bindings) const;
-		virtual location get_location() const;
-	};
-
-	struct type_ref : public type {
-		type_ref(type::ref macro, type::refs args);
-		type::ref macro;
-		type::refs args;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
@@ -191,7 +176,6 @@ namespace types {
 types::type::ref type_unreachable();
 types::type::ref type_id(identifier::ref var);
 types::type::ref type_variable(identifier::ref name);
-types::type::ref type_ref(types::type::ref macro, types::type::refs args);
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand);
 types::type::ref type_product(product_kind_t pk, types::type::refs dimensions);
 types::type::ref type_sum(types::type::refs options);
@@ -216,6 +200,7 @@ std::ostream& operator <<(std::ostream &out, const types::type::ref &type);
 types::term::ref get_args_term(types::term::refs args);
 types::term::ref get_function_term(types::term::ref args, types::term::ref return_type);
 types::type::refs get_function_type_args(types::type::ref function_type);
+types::type::ref get_function_return_type(types::type::ref function_type);
 types::term::ref get_obj_term(types::term::ref item);
 types::term::ref get_function_term_args(types::term::ref function_term);
 bool get_obj_struct_name_info(types::type::ref type, std::string member_name, int &index, types::type::ref &member_type);

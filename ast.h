@@ -243,6 +243,7 @@ namespace ast {
 		types::term::ref instantiate_type_term(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
+				identifier::ref supertype_id,
 				atom::many type_variables,
 				scope_t::ref scope) const;
 
@@ -261,6 +262,7 @@ namespace ast {
 		virtual types::term::ref instantiate_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
+				identifier::ref supertype_id,
 				atom::many type_variables,
 				scope_t::ref scope) const = 0;
 
@@ -277,6 +279,7 @@ namespace ast {
 		virtual types::term::ref instantiate_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
+				identifier::ref supertype_id,
 				atom::many type_variables,
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
@@ -294,6 +297,7 @@ namespace ast {
 		virtual types::term::ref instantiate_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
+				identifier::ref supertype_id,
 				atom::many type_variables,
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
@@ -312,6 +316,7 @@ namespace ast {
 		virtual types::term::ref instantiate_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
+				identifier::ref supertype_id,
 				atom::many type_variables,
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;

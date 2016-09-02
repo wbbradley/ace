@@ -1,8 +1,7 @@
 module _
 link module std
 
-# test: pass
-
+# error: data constructors cannot be named the same as their supertype
 type Box{X} is Box(X)
 
 def main()

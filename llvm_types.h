@@ -37,7 +37,8 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		bound_type_t::refs args,
 		atom name,
 		const location &location,
-		const ptr<const ast::item> &node);
+		const ptr<const ast::item> &node,
+		types::type::ref data_ctor_sig);
 
 std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_struct_ctor(
 		status_t &status, 

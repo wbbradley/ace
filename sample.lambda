@@ -33,3 +33,6 @@
 (unify (ref LL (any X)) (ref std.List (ref std.List int)))
 (unify (ref LL (any X)) (or (ref std.Done) (ref std.Node int)))
 (unify (ref std.Either (any G) (any G)) (ref std.Left (ref std.Either float int)))
+
+(defmacro Y (lambda f ((lambda x (f (lambda y ((x x) y)))) (lambda x (f (lambda y ((x x) y)))))))
+(defmacro C (or (tag D) (ref E)))

@@ -8,5 +8,9 @@ type Cross is
 	One(Cross) or
 	Two(Cross)
 
+# Val <: Cross 
+# One <: Cross
+# Two <: Cross
+
 def main()
-	Two(One(Val(3)))
+	One(Two(Val(3)))

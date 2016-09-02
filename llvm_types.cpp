@@ -64,13 +64,6 @@ struct bound_type_builder_t : public types::type_visitor {
 		return false;
 	}
 
-	virtual bool visit(const types::type_ref &ref) {
-		auto evaluated = ref.to_term({})->evaluate(env, 1);
-		debug_above(5, log(log_info, "bound_type_builder evaluated %s to be %s",
-				ref.str().c_str(), evaluated->str().c_str()));
-		return evaluated->get_type()->accept(*this);
-	}
-
 	virtual bool visit(const types::type_operator &operator_) {
 		auto signature = operator_.get_signature();
 		assert(program_scope->get_bound_type(signature) == nullptr);
@@ -257,7 +250,7 @@ bound_type_t::ref get_or_create_tuple_type(
 
 		/* display the new type */
 		llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_tuple_type)->getElementType();
-		log(log_info, "created LLVM wrapped tuple type %s", llvm_print_type(*llvm_obj_struct_type).c_str());
+		debug_above(5, log(log_info, "created LLVM wrapped tuple type %s", llvm_print_type(*llvm_obj_struct_type).c_str()));
 
 		/* get the bound type of the data ctor's value */
 		bound_type_t::ref data_type = bound_type_t::create(
@@ -280,12 +273,14 @@ bound_type_t::ref get_or_create_tagged_tuple_type(
 		scope_t::ref scope,
 		atom name,
 		bound_type_t::refs args,
-		const ast::item::ref &node)
+		const ast::item::ref &node,
+		types::type::ref ctor_sig)
 {
 	/* get the term of this tuple type */
-	types::term::ref term = get_tuple_term(get_terms(args));
-	types::type::ref type = term->get_type();
-	auto data_type = scope->get_bound_type(type->get_signature());
+	types::type::ref return_type = get_function_return_type(ctor_sig);
+	debug_above(5, log(log_info, "get_or_create_tagged_tuple_type looking for %s",
+			return_type->get_signature().c_str()));
+	auto data_type = scope->get_bound_type(return_type->get_signature());
 
 	if (data_type != nullptr) {
 		return data_type;
@@ -298,15 +293,11 @@ bound_type_t::ref get_or_create_tagged_tuple_type(
 
 		/* display the new type */
 		llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_tuple_type)->getElementType();
-		log(log_info, "created LLVM wrapped type %s", llvm_print_type(*llvm_obj_struct_type).c_str());
-
-		auto tag = ::type_product(pk_tag, {::type_id(make_iid(name.str()))});
-
-		auto tagged_tuple_type = ::type_product(pk_tagged_tuple, {tag, type});
+		debug_above(5, log(log_info, "created LLVM wrapped type %s", llvm_print_type(*llvm_obj_struct_type).c_str()));
 
 		/* get the bound type of the data ctor's value */
 		bound_type_t::ref data_type = bound_type_t::create(
-				tagged_tuple_type,
+				get_function_return_type(ctor_sig),
 				node->token.location,
 				/* the LLVM-visible type of tagged tuples will usually be a
 				 * generic obj */
@@ -360,7 +351,8 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		bound_type_t::refs args,
 		atom name,
 		const location &location,
-		const ast::item::ref &node)
+		const ast::item::ref &node,
+		types::type::ref data_ctor_sig)
 {
 	/* this is a tuple constructor function */
 	std::vector<llvm::Type*> llvm_parameter_types;
@@ -372,7 +364,8 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
-		bound_type_t::ref data_type = get_or_create_tagged_tuple_type(builder, scope, name, args, node);
+		bound_type_t::ref data_type = get_or_create_tagged_tuple_type(builder,
+				scope, name, args, node, data_ctor_sig);
 
 		bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,
 				scope, args, data_type, name, location, node);
@@ -488,8 +481,8 @@ bound_var_t::ref get_or_create_tuple_ctor(
 			/* get the location we should store this datapoint in */
 			llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_final_obj,
 					{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index++)});
-			log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
-					llvm_print_value(*llvm_gep).c_str());
+			debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
+					llvm_print_value(*llvm_gep).c_str()));
 			builder.CreateStore(llvm_param, llvm_gep);
 		}
 
@@ -514,110 +507,14 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	return nullptr;
 }
 
-#if 0
-	types::term::ref lazy_term = (term);
-	llvm::Type *llvm_sum_type = llvm_create_sum_type(
-			builder, scope->get_program_scope(), term.repr());
-
-	/* the base type is a lazy type that we will fill in later, but it has a
-	 * concrete LLVM type which is simply a pointer. think C structure fwd
-	 * decls with pointers */
-	auto base_type = bound_type_t::create(lazy_term,
-				llvm_sum_type,
-				shared_from_this());
-
-	/* make sure any references in child data ctors have something to refer to
-	 * at instantiation */
-	scope->put_bound_type(base_type);
-
-	/* go through all of our data ctors, instantiating their functions. also, keep
-	 * track of whether they are generic */
-	bool fully_bound = true;
-	for (int i = 0; i < data_ctors.size(); ++i) {
-		bool ctor_bound = false;
-		/* for each ctor in this type_sum, let's generate the appropriate types
-		 * and ctor functions */
-		bind_ctor_to_scope(status, builder, scope, data_ctors[i], ctor_bound);
-
-		if (!!status) {
-			/* keep track of whether we've got all of data ctors bound */
-			if (!ctor_bound) {
-				/* we can't have an unbound ctor if we don't have type parameters to our
-				 * type_def */
-				assert(term.args.size() > 0);
-				fully_bound = false;
-			}
-		}
-	}
-
-	if (!!status) {
-		assert_implies(!fully_bound, term.args.size() > 0);
-
-		// TODO: after we've instantiated or found all our data types, let's
-		// create a term which treats them all. We'll build an inverted
-		// could-be-a graph from the base type to the descendant types. Or, we
-		// don't need to do this because at the point of use it will all become
-		// clear...
-		return base_type;
-	}
-#endif
-
-#if 0
-	atom::many dim_names;
-	std::vector<bound_type_t::ref> dim_types;
-	types::term::refs dim_terms;
-
-	for (auto &dimension : dimensions) {
-		bound_type_t::ref dim_type = dimension->type_ref->resolve_type(
-				status, builder, scope, nullptr, nullptr);
-
-		if (!!status) {
-			/* pull out info per dimension */
-			dim_names.push_back(dimension->name);
-			dim_types.push_back(dim_type);
-			dim_terms.push_back(dim_type->term);
-		}
-	}
-
-	if (!!status) {
-		assert(dim_names.size() == dim_types.size());
-
-		/* construct a struct term */
-		types::term::ref data_term = get_obj_term(
-				get_struct_term(dim_names, dim_terms));
-
-		llvm::Type *llvm_struct_type = llvm_create_tuple_type(builder,
-				scope->get_program_scope(),
-				string_format("product_type!%s", data_term.repr().c_str()),
-				dim_types);
-
-		/* display the new type */
-		llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_struct_type)->getElementType();
-		log(log_info, "created LLVM wrapped type %s", llvm_print_type(*llvm_obj_struct_type).c_str());
-
-		/* get the bound type of the struct ctor's value */
-		auto struct_type = bound_type_t::create(data_term,
-				llvm_struct_type, shared_from_this());
-
-		/* add this struct's term type to the program types list */
-		auto program_scope = scope->get_program_scope();
-		program_scope->put_bound_type(struct_type);
-
-		/* create the ctor for this product type */
-		instantiate_struct_ctor(status, builder, scope, struct_type, dim_types,
-				term.name, token.location, shared_from_this());
-
-		return struct_type;
-	}
-#endif
-
 types::term::ref ast::type_alias::instantiate_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
+		identifier::ref supertype_id,
 		atom::many type_variables,
 	   	scope_t::ref scope) const
 {
-	log(log_info, "creating type alias term for %s", str().c_str());
+	debug_above(5, log(log_info, "creating type alias term for %s", str().c_str()));
 
 	if (type_variables.size() != 0) {
 		user_error(status, token.location, "found type variables in type alias - not yet impl");
@@ -660,7 +557,7 @@ bound_var_t::ref call_const_subscript_operator(
 
 					if (data_type) {
 						llvm::Value *llvm_lhs = llvm_resolve_alloca(builder, lhs->llvm_value);
-						log(log_info, "creating GEP for %s", llvm_print_value(*llvm_lhs).c_str());
+						debug_above(5, log(log_info, "creating GEP for %s", llvm_print_value(*llvm_lhs).c_str()));
 						llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_lhs,
 								{builder.getInt32(0), builder.getInt32(1), builder.getInt32(subscript_index)});
 						llvm::Value *llvm_value = builder.CreateLoad(llvm_gep);

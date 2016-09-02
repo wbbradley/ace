@@ -51,53 +51,29 @@ bool occurs_in_type(
 }
 
 
-types::type::ref unroll(
-		types::type::ref type,
-	   	types::term::map env,
-	   	types::type::map bindings)
-{
-	// debug_above(6, log(log_info, "env: %s\nbindings: %s", str(env).c_str(), str(bindings).c_str()));
-
-	/* Handle macro expansion of one level. type_refs can be expanded. */
-	if (auto type_ref = dyncast<const types::type_ref>(type)) {
-		auto type_ref_lambdified = type_ref->to_term(bindings);
-		auto type_ref_reduced = type_ref_lambdified->evaluate(env, 1);
-
-		// debug_above(7, log(log_info, "Unrolled:\n\t%s\n\t%s", type->str().c_str(), type_ref_reduced->get_type()->str().c_str()));
-
-		return type_ref_reduced->get_type();
-	} else {
-		return type;
-	}
-}
-
 unification_t unify_core(
 		types::type::ref lhs,
 		types::type::ref rhs,
 		types::term::map env,
-		types::type::map bindings)
+		types::type::map bindings,
+		int depth)
 {
+	if (depth > 12) {
+		log(log_error, "unification depth is getting big...");
+		dbg();
+	}
+
 	debug_above(7, log(log_info, "unify_core(%s, %s, %s, %s)",
 			   	lhs->str().c_str(),
 			   	rhs->str().c_str(),
 				str(env).c_str(),
 				str(bindings).c_str()));
 
-    auto pruned_a = prune(lhs, bindings);
-    auto pruned_b = prune(rhs, bindings);
-
-    if (pruned_a->str(bindings) == pruned_b->str(bindings)) {
-		debug_above(7, log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str()));
-        return {true, "", bindings};
-	}
-
-    auto a = unroll(pruned_a, env, bindings);
-    auto b = unroll(pruned_b, env, bindings);
-
-	// debug_above(7, log(log_info, "post-unroll: attempting to unify %s and %s", a->str().c_str(), b->str().c_str()));
+    auto a = prune(lhs, bindings);
+    auto b = prune(rhs, bindings);
 
     if (a->str(bindings) == b->str(bindings)) {
-		debug_above(7, log(log_info, "matched " c_type("%s"), pruned_a->str(bindings).c_str()));
+		debug_above(7, log(log_info, "matched " c_type("%s"), a->str(bindings).c_str()));
         return {true, "", bindings};
 	}
 
@@ -122,6 +98,9 @@ unification_t unify_core(
 						ptv->id->get_name().c_str(),
 						b->str(bindings).c_str()));
 			assert(bindings.find(ptv->id->get_name()) == bindings.end());
+			if (b->rebind(bindings)->ftv() != 0) {
+				log(log_warning, "note that %s is itself not fully bound", b->str().c_str());
+			}
 			bindings[ptv->id->get_name()] = b;
 		} else {
 			assert(false);
@@ -141,6 +120,9 @@ unification_t unify_core(
 						ptv_b->id->get_name().c_str(),
 						a->str(bindings).c_str()));
 			assert(bindings.find(ptv_b->id->get_name()) == bindings.end());
+			if (a->rebind(bindings)->ftv() != 0) {
+				log(log_warning, "note that %s is itself not fully bound", a->str().c_str());
+			}
 			bindings[ptv_b->id->get_name()] = a;
 		} else {
 			assert(false);
@@ -151,8 +133,11 @@ unification_t unify_core(
 		if (pts_b == nullptr) {
 			std::vector<std::string> reasons;
 			for (auto option : pts_a->options) {
-				auto unification = unify_core(option, b, env, bindings);
+				auto unification = unify_core(option, b, env, bindings, depth + 1);
 				if (unification.result) {
+					debug_above(2, log(log_info, "replacing bindings %s with %s",
+								str(bindings).c_str(),
+								str(unification.bindings).c_str()));
 					bindings = unification.bindings;
 					return {true, option->str(bindings), bindings};
 				} else {
@@ -165,7 +150,7 @@ unification_t unify_core(
 			for (auto inbound_option : pts_b->options) {
 				debug_above(8, log(log_info, "checking inbound %s against %s",
 							inbound_option->repr().c_str(), a->repr().c_str()));
-				auto unification = unify_core(a, inbound_option, env, bindings);
+				auto unification = unify_core(a, inbound_option, env, bindings, depth + 1);
 				if (unification.result) {
 					bindings = unification.bindings;
 				} else {
@@ -191,7 +176,7 @@ unification_t unify_core(
 						a_dims_iter != a_dims_end;
 						++a_dims_iter, ++b_dims_iter) {
 					auto unification = unify_core(*a_dims_iter, *b_dims_iter,
-							env, bindings);
+							env, bindings, depth + 1);
 					if (!unification.result) {
 						return {false, unification.reasons, {}};
 					}
@@ -204,7 +189,7 @@ unification_t unify_core(
 			return {false, "inbound type is not a product type", bindings};
 		}
 	} else if (pto_a != nullptr && pto_b != nullptr) {
-		auto unification = unify_core(pto_a->oper, pto_b->oper, env, bindings);
+		auto unification = unify_core(pto_a->oper, pto_b->oper, env, bindings, depth + 1);
 		if (!unification.result) {
 			return {false, unification.reasons, {}};
 		}
@@ -220,7 +205,7 @@ unification_t unify_core(
 
 		assert(pto_a->operand != nullptr && pto_b->operand != nullptr);
 
-		return unify_core(pto_a->operand, pto_b->operand, env, bindings);
+		return unify_core(pto_a->operand, pto_b->operand, env, bindings, depth + 1);
 	} else {
 		/* types don't match */
 		return {false, string_format("%s <> %s",
@@ -241,6 +226,6 @@ unification_t unify(
 		   	lhs->evaluate(env, 0)->get_type(),
 		   	rhs->evaluate(env, 0)->get_type(),
 		   	env,
-		   	{});
+		   	{}, 0 /*depth*/);
 }
 

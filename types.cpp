@@ -40,10 +40,6 @@ namespace types {
 			atom::set unbound_vars(atom::set bound_vars) const {
 				return {};
 			}
-
-			term::ref dequantify(atom::set generics) const {
-				return shared_from_this();
-			}
 		};
 
 		struct term_id : public term {
@@ -82,10 +78,6 @@ namespace types {
 					return {};
 				}
 			}
-
-			term::ref dequantify(atom::set generics) const {
-				return types::term_ref(shared_from_this(), {});
-			}
 		};
 
 		struct term_lambda : public term {
@@ -106,7 +98,8 @@ namespace types {
 			}
 
 			type::ref get_type() const {
-				return null_impl();
+				return nullptr;
+				// REVIEW: return null_impl();
 			}
 
 			atom::set unbound_vars(atom::set bound_vars) const {
@@ -117,11 +110,6 @@ namespace types {
 
 				/* get what's left unbound from the body of the lambda */
 				return body->unbound_vars(bound_vars);
-			}
-
-			term::ref dequantify(atom::set generics) const {
-				not_impl();
-				return nullptr;
 			}
 		};
 
@@ -162,11 +150,6 @@ namespace types {
 					unbound_vars.insert(option_unbound_vars.begin(), option_unbound_vars.end());
 				}
 				return unbound_vars;
-			}
-
-			term::ref dequantify(atom::set generics) const {
-				not_impl();
-				return nullptr;
 			}
 		};
 
@@ -217,15 +200,6 @@ namespace types {
 				}
 				return unbound_vars;
 			}
-
-			term::ref dequantify(atom::set generics) const {
-				term::refs dequantified_dimensions;
-
-				for (auto &dimension : dimensions) {
-					dequantified_dimensions.push_back(dimension->dequantify(generics));
-				}
-				return types::term_product(pk, dequantified_dimensions);
-			}
 		};
 
 		identifier::ref _next_term_variable() {
@@ -255,17 +229,8 @@ namespace types {
 			atom::set unbound_vars(atom::set bound_vars) const {
 				return {var_id->get_name()};
 			}
-
-			term::ref dequantify(atom::set generics) const {
-				if (generics.find(var_id->get_name()) == generics.end()) {
-					return shared_from_this();
-				} else {
-					return types::term_id(var_id);
-				}
-			}
 		};
 
-		struct term_ref;
 		struct term_apply : public term {
 			term_apply(term::ref fn, term::ref arg) : fn(fn), arg(arg) {}
 			term::ref fn;
@@ -310,16 +275,6 @@ namespace types {
 				unbound_vars.insert(arg_unbound_vars.begin(), arg_unbound_vars.end());
 				return unbound_vars;
 			}
-
-			term::ref dequantify(atom::set generics) const {
-				return shared_from_this();
-				/*
-				if (dyncast<const struct types::terms::term_ref>(fn)) {
-					dbg();
-				}
-				return types::term_ref(fn->dequantify(generics), {arg->dequantify(generics)});
-				*/
-			}
 		};
 
 		struct term_let : public term {
@@ -345,93 +300,6 @@ namespace types {
 			atom::set unbound_vars(atom::set bound_vars) const {
 				assert(false);
 				return {};
-			}
-
-			term::ref dequantify(atom::set generics) const {
-				not_impl();
-				return nullptr;
-			}
-		};
-
-		struct term_ref : public term {
-			term_ref(term::ref macro, term::refs args={}) : macro(macro), args(args) {
-				if (dyncast<const struct types::terms::term_ref>(macro)) {
-					dbg();
-				}
-				if (dyncast<const struct types::terms::term_generic>(macro)) {
-					dbg();
-				}
-			}
-			term::ref macro;
-			term::refs args;
-
-			virtual ~term_ref() {}
-
-			std::ostream &emit(std::ostream &os) const {
-				os << "(ref " << macro;
-				for (auto &arg : args) {
-					os << " " << arg;
-				}
-				os << ")";
-				return os;
-			}
-
-			ref evaluate(map env, int macro_depth) const {
-				if (macro_depth > 0) {
-					term::ref expansion;
-					if (args.size() > 0) {
-						/* this macro invocation has parameters, let's expand
-						 * it into a proper application of the macro and its
-						 * parameters */
-						auto args_iter = args.begin();
-						assert(args_iter != args.end());
-						auto term = types::term_apply(macro, *args_iter++);
-						for (;args_iter != args.end(); ++args_iter) {
-							term = types::term_apply(term, *args_iter);
-						}
-						expansion = term;
-					} else {
-						expansion = macro;
-					}
-					return expansion->evaluate(env, macro_depth - 1);
-				} else {
-					term::refs evaluated_args;
-					for (auto arg : args) {
-						evaluated_args.push_back(arg->evaluate(env, macro_depth));
-					}
-
-					return types::term_ref(macro, // ->evaluate(env, macro_depth),
-							evaluated_args);
-				}
-			}
-
-			type::ref get_type() const {
-				type::refs arg_types;
-				for (auto arg : args) {
-					arg_types.push_back(arg->get_type());
-				}
-				return ::type_ref(macro->get_type(), arg_types);
-			}
-
-			atom::set unbound_vars(atom::set bound_vars) const {
-				auto all_unbound_vars = macro->unbound_vars(bound_vars);
-				for (auto arg : args) {
-					auto arg_unbound_vars = arg->unbound_vars(bound_vars);
-					for (auto var : arg_unbound_vars) {
-						all_unbound_vars.insert(var);
-					}
-				}
-				return all_unbound_vars;
-			}
-
-			term::ref dequantify(atom::set generics) const {
-				term::refs dequantified_args;
-				for (auto arg : args) {
-					dequantified_args.push_back(arg->dequantify(generics));
-				}
-				log(log_info, "quantifying %s", macro->str().c_str());
-				return types::term_ref(macro->dequantify(generics),
-						dequantified_args);
 			}
 		};
 	}
@@ -505,13 +373,8 @@ namespace types {
 		return make_ptr<terms::term_let>(var, defn, body);
 	}
 
-	term::ref term_ref(term::ref macro, term::refs args) {
-		assert(!dyncast<const terms::term_ref>(macro));
-		return make_ptr<terms::term_ref>(macro, args);
-	}
-
 	term::ref term_list_type(term::ref element_term) {
-		return types::term_ref(types::term_id(make_iid(BUILTIN_LIST_TYPE)), {element_term});
+		return types::term_apply(types::term_id(make_iid(BUILTIN_LIST_TYPE)), {element_term});
 	}
 
 	/**********************************************************************/
@@ -605,50 +468,6 @@ namespace types {
 
 	location type_variable::get_location() const {
 		return id->get_location();
-	}
-
-	type_ref::type_ref(type::ref macro, type::refs args) :
-		macro(macro), args(args)
-	{
-	}
-
-	std::ostream &type_ref::emit(std::ostream &os, const map &bindings) const {
-		os << "(ref ";
-		macro->emit(os, bindings);
-		for (auto arg : args) {
-			os << " ";
-			arg->emit(os, bindings);
-		}
-		return os << ")";
-	}
-
-	int type_ref::ftv() const {
-		return 0;
-	}
-
-	ptr<const term> type_ref::to_term(const map &bindings) const {
-		term::refs term_args;
-		for (auto arg : args) {
-			term_args.push_back(arg->to_term(bindings));
-		}
-		return term_ref(macro->to_term(bindings), term_args);
-	}
-
-	bool type_ref::accept(type_visitor &visitor) const {
-		return visitor.visit(*this);
-	}
-
-	type::ref type_ref::rebind(const map &bindings) const {
-		refs type_args;
-		for (auto arg : args) {
-			type_args.push_back(arg->rebind(bindings));
-		}
-		/* probably no need to rebind the macro */
-		return ::type_ref(macro->rebind(bindings), type_args);
-	}
-
-	location type_ref::get_location() const {
-		return macro->get_location();
 	}
 
 	type_operator::type_operator(type::ref oper, type::ref operand) :
@@ -766,9 +585,6 @@ namespace types {
 		for (auto option : options) {
 			ftv_sum += option->ftv();
 		}
-		if (ftv_sum != 0) {
-			assert(!"generics should probably have been converted to unreachables....");
-		}
 		return ftv_sum;
 	}
 
@@ -814,10 +630,6 @@ types::type::ref type_id(identifier::ref id) {
 
 types::type::ref type_variable(identifier::ref id) {
 	return make_ptr<types::type_variable>(id);
-}
-
-types::type::ref type_ref(types::type::ref macro, types::type::refs args) {
-	return make_ptr<types::type_ref>(macro, args);
 }
 
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand) {
@@ -866,7 +678,7 @@ types::term::ref get_function_term(types::term::ref args, types::term::ref retur
 }
 
 types::type::refs get_function_type_args(types::type::ref function_type) {
-	log(log_info, "sig == %s", function_type->str().c_str());
+	log(log_info, "getting function type_args from %s", function_type->str().c_str());
 
 	auto type_product = dyncast<const types::type_product>(function_type);
 	assert(type_product != nullptr);
@@ -877,6 +689,17 @@ types::type::refs get_function_type_args(types::type::ref function_type) {
 	assert(type_args != nullptr);
 	assert(type_args->pk == pk_args);
 	return type_args->dimensions;
+}
+
+types::type::ref get_function_return_type(types::type::ref function_type) {
+	log(log_info, "getting function return type from %s", function_type->str().c_str());
+
+	auto type_product = dyncast<const types::type_product>(function_type);
+	assert(type_product != nullptr);
+	assert(type_product->pk == pk_function);
+	assert(type_product->dimensions.size() == 2);
+
+	return type_product->dimensions[1];
 }
 
 types::term::ref get_function_term_args(types::term::ref function_term) {

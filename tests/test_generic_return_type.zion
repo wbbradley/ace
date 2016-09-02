@@ -1,0 +1,11 @@
+module _
+# test: pass
+
+type C{T} is D(T) or E(C{T})
+
+def identity(expr C{any X}) any X
+	return "asdf"
+
+def main()
+	value := E(D("asdf"))
+	identity(value)

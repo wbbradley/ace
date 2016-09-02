@@ -36,9 +36,9 @@ types::term::ref unchecked_var_t::get_term() const {
 						get_args_term(args),
 						decl->return_type_ref->get_type_term());
 
-				log(log_info, "found unchecked term for %s : %s",
-						decl->token.str().c_str(),
-						sig->str().c_str());
+				debug_above(9, log(log_info, "found unchecked term for %s : %s",
+							decl->token.str().c_str(),
+							sig->str().c_str()));
 				return sig;
 			} else {
 				types::term::ref sig = get_function_term(

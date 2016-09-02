@@ -1,0 +1,12 @@
+module _
+link module std
+# test: pass
+
+type C is D or E(C)
+
+def identity(expr C)
+	pass
+
+def main()
+	identity(E(D))
+

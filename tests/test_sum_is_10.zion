@@ -1,0 +1,18 @@
+module _
+link module std
+# test: pass
+
+type Expr{T} is
+	Plus(Expr{T}, Expr{T}) or
+	Minus(Expr{T}, Expr{T}) or
+	Times(Expr{T}, Expr{T}) or
+	Divide(Expr{T}, Expr{T}) or
+	Literal(T)
+
+def compute(expr Expr{any X}) any X 
+	# TODO: implement pattern matching...
+	return 0
+
+def main()
+	expr := Divide(Plus(Literal(5), Literal(5)), Literal(2))
+	std.print(compute(expr))

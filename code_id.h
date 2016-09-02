@@ -5,7 +5,9 @@
 struct code_id : public identifier {
 	zion_token_t token;
 
-	code_id(const zion_token_t token) : token(token) {}
+	code_id(const zion_token_t token) : token(token) {
+	}
+
 	code_id() = delete;
 	code_id(const code_id &) = delete;
 	code_id(const code_id &&) = delete;

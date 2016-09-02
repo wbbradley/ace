@@ -25,6 +25,7 @@ struct generic_substitution_scope_t;
 
 struct scope_t : public std::enable_shared_from_this<scope_t> {
 	typedef ptr<scope_t> ref;
+	typedef ptr<const scope_t> cref;
 
 	virtual ~scope_t() throw() {}
 	scope_t() = delete;
@@ -39,6 +40,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	/* scope interface */
 	virtual ptr<program_scope_t> get_program_scope();
 	virtual ptr<scope_t> get_parent_scope() = 0;
+	virtual ptr<const scope_t> get_parent_scope() const = 0;
 
 	virtual void dump(std::ostream &os) const = 0;
 
@@ -51,9 +53,9 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 
 	virtual bound_type_t::ref get_bound_type(types::signature signature);
 
-	std::string get_name();
+	std::string get_name() const;
 
-	std::string make_fqn(std::string leaf_name);
+	std::string make_fqn(std::string leaf_name) const;
 
 	virtual llvm::Module *get_llvm_module();
 
@@ -113,6 +115,7 @@ struct module_scope_t : public scope_t {
 	unchecked_var_t::ref put_unchecked_variable(atom symbol, unchecked_var_t::ref unchecked_variable);
 
 	virtual ptr<scope_t> get_parent_scope();
+	virtual ptr<const scope_t> get_parent_scope() const;
 
 	/* module checking management
 	 * after checking a function regardless of whether it was generic or not
@@ -161,6 +164,10 @@ struct program_scope_t : public scope_t {
         return nullptr;
     }
 
+	virtual ptr<const scope_t> get_parent_scope() const {
+		return nullptr;
+	}
+
 	ptr<module_scope_t> new_module_scope(atom name, llvm::Module *llvm_module);
 
 	static program_scope_t::ref create(atom name);
@@ -188,6 +195,8 @@ struct function_scope_t : public runnable_scope_t {
 	virtual void dump(std::ostream &os) const;
 
 	virtual ptr<scope_t> get_parent_scope();
+	virtual ptr<const scope_t> get_parent_scope() const;
+
 	virtual return_type_constraint_t &get_return_type_constraint();
 	virtual ptr<local_scope_t> new_local_scope(atom name);
 
@@ -209,6 +218,7 @@ struct local_scope_t : public runnable_scope_t {
 	virtual return_type_constraint_t &get_return_type_constraint();
 	virtual ptr<local_scope_t> new_local_scope(atom name);
 	virtual ptr<scope_t> get_parent_scope();
+	virtual ptr<const scope_t> get_parent_scope() const;
 
 	scope_t::ref parent_scope;
 	return_type_constraint_t &return_type_constraint;
@@ -233,6 +243,7 @@ struct generic_substitution_scope_t : public scope_t {
 
 	virtual ~generic_substitution_scope_t() throw() {}
 	virtual ptr<scope_t> get_parent_scope();
+	virtual ptr<const scope_t> get_parent_scope() const;
 	virtual llvm::Module *get_llvm_module();
 
 	virtual void dump(std::ostream &os) const;

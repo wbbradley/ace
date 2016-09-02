@@ -1,4 +1,5 @@
 #include "zion.h"
+#include "logger.h"
 #include "utils.h"
 #include "dbg.h"
 #include "var.h"
@@ -16,14 +17,23 @@ unification_t var_t::accepts_callsite(
 		ptr<scope_t> scope,
 	   	types::term::ref args) const
 {
+	indent_logger indent;
 	/* get the args out of the sig */
-	types::term::ref fn_args = get_function_term_args(get_term());
+	types::term::ref fn_term = get_term();
+	// TODO: try unifying the whole fn including the return type
 	auto env = scope->get_type_env();
 
 	debug_above(2, log(log_info, "checking whether %s accepts %s in env %s",
-			   	fn_args->str().c_str(),
+				str().c_str(),
 				args->str().c_str(),
 				::str(env).c_str()));
 
-	return unify(fn_args, args, env);
+	auto u = unify(
+			fn_term,
+		   	types::term_product(pk_function, {args, types::term_generic()}),
+		   	env);
+	debug_above(2, log(log_info, "check of %s %s",
+				str().c_str(),
+				u.result ? "succeeded" : "failed"));
+	return u;
 }

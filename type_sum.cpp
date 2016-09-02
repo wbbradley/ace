@@ -8,6 +8,7 @@
 #include "types.h"
 #include "code_id.h"
 #include <numeric>
+#include <list>
 
 /* When we encounter the Empty declaration, we have to instantiate something.
  * When we create Empty() with term __obj__{__tuple__}. We don't bother
@@ -74,8 +75,9 @@ bound_var_t::ref bind_ctor_to_scope(
 
 	/* create or find an existing ctor function that satisfies the term of
 	 * this data_ctor */
-	log(log_info, "finding/creating data ctor for " c_type("%s"),
-			data_ctor->token.str().c_str());
+	log(log_info, "finding/creating data ctor for " c_type("%s") " with signature %s",
+			data_ctor->token.str().c_str(),
+			data_ctor_sig->str().c_str());
 
 	bound_type_t::refs args;
 	resolve_type_ref_params(status, builder, scope, data_ctor,
@@ -90,7 +92,8 @@ bound_var_t::ref bind_ctor_to_scope(
 		 * whether this ctor already exists. if so, we'll just return it. if not,
 		 * we'll generate it. */
 		auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope,
-				args, data_ctor->token.text, data_ctor->token.location, data_ctor);
+				args, data_ctor->token.text, data_ctor->token.location,
+				data_ctor, data_ctor_sig);
 
 		if (!!status) {
 			log(log_info, "created a ctor %s", tuple_pair.first->str().c_str());
@@ -105,6 +108,7 @@ bound_var_t::ref bind_ctor_to_scope(
 types::term::ref ast::type_product::instantiate_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
+		identifier::ref supertype_id,
 		atom::many type_variables,
 		scope_t::ref scope) const
 {
@@ -140,26 +144,20 @@ types::term::ref ast::type_product::instantiate_type(
 types::term::ref ast::type_sum::instantiate_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
+		identifier::ref supertype_id,
 		atom::many type_variables,
 		scope_t::ref scope) const
 {
-	debug_above(3, log(log_info, "creating sum type term with type variables [%s] that %s",
-				join(type_variables, ", ").c_str(),
-				str().c_str()));
+	debug_above(3, log(log_info, "creating subtypes to %s with type variables [%s]",
+				token.text.c_str(),
+				join(type_variables, ", ").c_str()));
 
-	types::term::refs options;
 	for (auto data_ctor : data_ctors) {
-		options.push_back(data_ctor->instantiate_type_term(status, builder,
-					type_variables, scope));
+		data_ctor->instantiate_type_term(status, builder, supertype_id,
+				type_variables, scope);
 	}
 
-	identifier::refs ids;
-	for (auto type_var : type_variables) {
-		ids.push_back(make_iid(type_var));
-	}
-
-	return std::accumulate(ids.rbegin(), ids.rend(),
-			types::term_sum(options), types::term_lambda_reducer);
+	return nullptr;
 }
 
 types::term::ref instantiate_data_ctor_type_term(
@@ -169,10 +167,72 @@ types::term::ref instantiate_data_ctor_type_term(
 		scope_t::ref scope,
 		ptr<const ast::item> node,
 		types::term::refs dimensions,
-		identifier::ref id)
+		identifier::ref id,
+		identifier::ref supertype_id)
 {
 	atom tag_name = id->get_name();
-	auto tag_term = types::term_product(pk_tag, {types::term_id(id)});
+	auto tag_term = types::term_id(id);
+
+	/* create a term that takes the used type ariables in the data ctor and
+	 * returns placement in given type variable order */
+	/* instantiate the necessary components of a data ctor */
+	atom::set generics = to_set(type_variables);
+
+	/* ensure that there are no duplicate type variables */
+	assert(generics.size() == type_variables.size());
+
+	auto product = types::term_product(pk_tuple, dimensions);
+	debug_above(5, log(log_info, "setting up data ctor for " c_id("%s") " with value type %s",
+					tag_name.c_str(), product->str().c_str()));
+
+	/* figure out what type names are referenced in the data ctor's dimensions */
+	atom::set unbound_vars = product->unbound_vars();
+
+	/* if any of the type names are actually inbound type variables, take note
+	 * of the order they are mentioned. this loop is important. it is
+	 * calculating what this data ctor's supertype expansion will be. that is,
+	 * it tells us how to create the lambda we'll place into the type
+	 * environment to represent the fact that this data ctor is a subtype of
+	 * the supertype. and, it tells us which types are parametrically bound to
+	 * this subtype, and which are still quantified */
+
+	/* lambda_vars tracks the order of the lambda variables we'll accept as we abstract our
+	 * supertype expansion */
+	std::list<identifier::ref> lambda_vars;
+
+	/* supertype_expansion_list tracks the total set of parameters that the
+	 * supertype expects */
+	types::term::refs supertype_expansion_list;
+
+	for (auto type_var : type_variables) {
+		if (in(type_var, unbound_vars)) {
+			/* this variable is referenced by the current data ctor (the
+			 * subtype), therefore it has opinions about its role in the
+			 * supertype */
+			auto lambda_var = make_iid(type_var);
+			lambda_vars.push_front(lambda_var);
+			supertype_expansion_list.push_back(types::term_id(lambda_var));
+		} else {
+			/* this variable is not referenced by the current data ctor (the
+			 * subtype), therefore it has no opinions about its role in the
+			 * supertype */
+			supertype_expansion_list.push_back(types::term_generic());
+		}
+	}
+
+	/* now let's create the abstraction */
+	auto supertype_expansion = types::term_id(supertype_id);
+	for (auto e : supertype_expansion_list) {
+		supertype_expansion = types::term_apply(supertype_expansion, e);
+	}
+	auto data_ctor_term = tag_term;
+	for (auto lambda_var : lambda_vars) {
+		data_ctor_term = types::term_apply(data_ctor_term, types::term_generic(lambda_var));
+		supertype_expansion = types::term_lambda(lambda_var, supertype_expansion);
+	}
+
+	log(log_info, "data_ctor_term = %s", data_ctor_term->str().c_str());
+	scope->put_type_term(tag_name, supertype_expansion);
 
 	if (dimensions.size() == 0) {
 		/* it's a nullary enumeration or "tag", let's create a global value to represent
@@ -192,73 +252,35 @@ types::term::ref instantiate_data_ctor_type_term(
 		scope->put_bound_variable(tag_name, tag);
 
 		debug_above(7, log(log_info, "instantiated nullary data ctor %s",
-				tag->str().c_str()));
+					tag->str().c_str()));
+	}
 
-		/* all we need is a tag */
-		return tag_term;
-	} else {
-		/* instantiate the necessary components of a data ctor */
-		atom::set generics = to_set(type_variables);
-
-		/* ensure that there are no duplicate type variables */
-		assert(generics.size() == type_variables.size());
-
-		auto product = types::term_product(pk_tuple, dimensions);
-		debug_above(5, log(log_info, "setting up data ctor for " c_id("%s") " with value type %s",
-						tag_name.c_str(), product->str().c_str()));
-		atom::set unbound_vars = product->unbound_vars();
-
-		/* find the type variables that are referenced within the unbound
-		 * vars of the product. */
-		atom::many referenced_type_variables;
-		types::type::map fake_bindings;
-		for (auto type_variable : type_variables) {
-			if (unbound_vars.find(type_variable) != unbound_vars.end()) {
-				referenced_type_variables.push_back(type_variable);
-			}
+	/* find the type variables that are referenced within the unbound
+	 * vars of the product. */
+	atom::many referenced_type_variables;
+	types::type::map fake_bindings;
+	for (auto type_variable : type_variables) {
+		if (unbound_vars.find(type_variable) != unbound_vars.end()) {
+			referenced_type_variables.push_back(type_variable);
 		}
+	}
 
-		/* in order to create the macro body, we need to temporarily treat the
-		 * unbound variables as bound */
-		auto bound_product = product->dequantify(to_set(referenced_type_variables));
+#if 0
+	auto data_ctor_term = types::term_product(pk_tagged_tuple,
+			{tag_term, types::term_product(pk_tuple, dimensions)});
 
-		/* let's create the macro body for this data ctor's type and insert it
-		 * into the env first */
-		auto macro_body = types::term_product(pk_tagged_tuple, {tag_term, bound_product});
-		auto data_ctor_term = types::term_product(pk_tagged_tuple, {tag_term, product});
+	log(log_info, "%s", data_ctor_term->str().c_str());
+#endif
 
-		/* fold lambda construction for the type variables that are unbound
-		 * from right to left around macro_body. */
-		for (auto iter_var = referenced_type_variables.rbegin();
-				iter_var != referenced_type_variables.rend();
-				iter_var++)
-		{
-			macro_body = types::term_lambda(make_iid(*iter_var), macro_body);
-		}
+	/* now let's make sure we register this constructor as an override for
+	 * the name `tag_name` */
+	debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
+			id->str().c_str()));
 
-		/* place the macro body into the environment for this data_ctor type */
-		// TODO: consider namespacing here
-		scope->put_type_term(tag_name, macro_body);
-
-		/* construct a reference to the macro invocation like:
-		 * (ref macro-name args...) where args is the list of unbound type
-		 * variables in order and return that. */
-
-		types::term::refs term_ref_args;
-		for (auto referenced_type_variable : referenced_type_variables) {
-			term_ref_args.push_back(types::term_id(make_iid(referenced_type_variable)));
-		}
-
-		/* now let's make sure we register this constructor as an override for
-		 * the name `tag_name` */
-		debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
-				id->str().c_str()));
-
-		if (auto module_scope = dyncast<module_scope_t>(scope)) {
+	if (auto module_scope = dyncast<module_scope_t>(scope)) {
 		types::term::ref generic_args = types::change_product_kind(pk_args, product);
 
 		debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
-
 		types::term::ref data_ctor_sig = get_function_term(generic_args, data_ctor_term);
 
 		/* side-effect: create an unchecked reference to this data ctor into
@@ -267,12 +289,9 @@ types::term::ref instantiate_data_ctor_type_term(
 				unchecked_data_ctor_t::create(tag_name, node,
 					module_scope, data_ctor_sig));
 
-		return types::term_ref(
-				types::term_id(make_iid(tag_name)),
-				term_ref_args);
-		} else {
-			user_error(status, node->token.location, "local type definitions are not yet impl");
-		}
+		return nullptr;
+	} else {
+		user_error(status, node->token.location, "local type definitions are not yet impl");
 	}
 
 	assert(!status);
@@ -282,6 +301,7 @@ types::term::ref instantiate_data_ctor_type_term(
 types::term::ref ast::data_ctor::instantiate_type_term(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
+		identifier::ref supertype_id,
 		atom::many type_variables,
 		scope_t::ref scope) const
 {
@@ -292,7 +312,14 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 	}
 	auto id = make_code_id(token);
 
-	return instantiate_data_ctor_type_term(status, builder, type_variables,
-			scope, shared_from_this(), dimensions, id);
+	if (supertype_id->get_name() != id->get_name()) {
+		return instantiate_data_ctor_type_term(status, builder, type_variables,
+				scope, shared_from_this(), dimensions, id, supertype_id);
+	} else {
+		user_error(status, token.location, "data constructors cannot be named the same as their supertype");
+	}
+
+	assert(!status);
+	return nullptr;
 }
 

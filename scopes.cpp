@@ -9,7 +9,7 @@
 
 #define SCOPE_SEP "::"
 
-std::string scope_t::get_name() {
+std::string scope_t::get_name() const {
 	auto parent_scope = this->get_parent_scope();
 	if (parent_scope) {
 		return parent_scope->get_name() + SCOPE_SEP + name.str();
@@ -326,7 +326,7 @@ llvm::Module *scope_t::get_llvm_module() {
 	}
 }
 
-std::string scope_t::make_fqn(std::string leaf_name) {
+std::string scope_t::make_fqn(std::string leaf_name) const {
 	return get_name() + std::string(SCOPE_SEP) + leaf_name;
 }
 
@@ -375,6 +375,10 @@ function_scope_t::ref function_scope_t::create(atom module_name, scope_t::ref pa
 }
 
 ptr<scope_t> function_scope_t::get_parent_scope() {
+	return parent_scope;
+}
+
+ptr<const scope_t> function_scope_t::get_parent_scope() const {
 	return parent_scope;
 }
 
@@ -462,6 +466,10 @@ return_type_constraint_t &local_scope_t::get_return_type_constraint() {
 }
 
 ptr<scope_t> local_scope_t::get_parent_scope() {
+	return parent_scope;
+}
+
+ptr<const scope_t> local_scope_t::get_parent_scope() const {
 	return parent_scope;
 }
 
@@ -711,6 +719,10 @@ ptr<scope_t> module_scope_t::get_parent_scope() {
 	return parent_scope;
 }
 
+ptr<const scope_t> module_scope_t::get_parent_scope() const {
+	return parent_scope;
+}
+
 module_scope_t::ref module_scope_t::create(
 		atom name,
 		program_scope_t::ref parent_scope,
@@ -732,6 +744,10 @@ program_scope_t::ref program_scope_t::create(atom name) {
 }
 
 ptr<scope_t> generic_substitution_scope_t::get_parent_scope() {
+	return parent_scope;
+}
+
+ptr<const scope_t> generic_substitution_scope_t::get_parent_scope() const {
 	return parent_scope;
 }
 
