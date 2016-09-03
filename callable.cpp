@@ -45,10 +45,10 @@ bound_var_t::ref check_func_vs_callsite(
 			/* create the new callee signature type for building the generic
 			 * substitution scope */
 			auto env = scope->get_type_env();
-			log(log_info, "evaluating %s in %s with %s",
+			debug_above(5, log(log_info, "evaluating %s in %s with %s",
 					fn_sig->str().c_str(),
 					::str(env).c_str(),
-					::str(unification.bindings).c_str());
+					::str(unification.bindings).c_str()));
 			types::type::ref fn_type = fn_sig->evaluate(env, 0)->get_type()->rebind(unification.bindings);
 
 

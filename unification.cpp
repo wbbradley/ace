@@ -99,7 +99,7 @@ unification_t unify_core(
 						b->str(bindings).c_str()));
 			assert(bindings.find(ptv->id->get_name()) == bindings.end());
 			if (b->rebind(bindings)->ftv() != 0) {
-				log(log_warning, "note that %s is itself not fully bound", b->str().c_str());
+				debug_above(5, log(log_warning, "note that %s is itself not fully bound", b->str().c_str()));
 			}
 			bindings[ptv->id->get_name()] = b;
 		} else {
@@ -121,7 +121,7 @@ unification_t unify_core(
 						a->str(bindings).c_str()));
 			assert(bindings.find(ptv_b->id->get_name()) == bindings.end());
 			if (a->rebind(bindings)->ftv() != 0) {
-				log(log_warning, "note that %s is itself not fully bound", a->str().c_str());
+				debug_above(5, log(log_warning, "note that %s is itself not fully bound", a->str().c_str()));
 			}
 			bindings[ptv_b->id->get_name()] = a;
 		} else {

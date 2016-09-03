@@ -678,7 +678,7 @@ types::term::ref get_function_term(types::term::ref args, types::term::ref retur
 }
 
 types::type::refs get_function_type_args(types::type::ref function_type) {
-	log(log_info, "getting function type_args from %s", function_type->str().c_str());
+	debug_above(5, log(log_info, "getting function type_args from %s", function_type->str().c_str()));
 
 	auto type_product = dyncast<const types::type_product>(function_type);
 	assert(type_product != nullptr);
@@ -692,7 +692,7 @@ types::type::refs get_function_type_args(types::type::ref function_type) {
 }
 
 types::type::ref get_function_return_type(types::type::ref function_type) {
-	log(log_info, "getting function return type from %s", function_type->str().c_str());
+	debug_above(5, log(log_info, "getting function return type from %s", function_type->str().c_str()));
 
 	auto type_product = dyncast<const types::type_product>(function_type);
 	assert(type_product != nullptr);
@@ -703,7 +703,7 @@ types::type::ref get_function_return_type(types::type::ref function_type) {
 }
 
 types::term::ref get_function_term_args(types::term::ref function_term) {
-	log(log_info, "sig == %s", function_term->str().c_str());
+	debug_above(5, log(log_info, "sig == %s", function_term->str().c_str()));
 
 	auto term_product = dyncast<const types::terms::term_product>(function_term);
 	assert(term_product != nullptr);

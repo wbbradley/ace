@@ -75,9 +75,9 @@ bound_var_t::ref bind_ctor_to_scope(
 
 	/* create or find an existing ctor function that satisfies the term of
 	 * this data_ctor */
-	log(log_info, "finding/creating data ctor for " c_type("%s") " with signature %s",
+	debug_above(5, log(log_info, "finding/creating data ctor for " c_type("%s") " with signature %s",
 			data_ctor->token.str().c_str(),
-			data_ctor_sig->str().c_str());
+			data_ctor_sig->str().c_str()));
 
 	bound_type_t::refs args;
 	resolve_type_ref_params(status, builder, scope, data_ctor,
@@ -86,7 +86,7 @@ bound_var_t::ref bind_ctor_to_scope(
 
 	if (!!status) {
 		/* now that we know the parameter types, let's see what the term looks like */
-		log(log_info, "ctor term should be %s", data_ctor_sig->str().c_str());
+		debug_above(5, log(log_info, "ctor term should be %s", data_ctor_sig->str().c_str()));
 
 		/* now we know the term of the ctor we want to create. let's check
 		 * whether this ctor already exists. if so, we'll just return it. if not,
@@ -96,7 +96,7 @@ bound_var_t::ref bind_ctor_to_scope(
 				data_ctor, data_ctor_sig);
 
 		if (!!status) {
-			log(log_info, "created a ctor %s", tuple_pair.first->str().c_str());
+			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
 			return tuple_pair.first;
 		}
 	}
@@ -112,7 +112,7 @@ types::term::ref ast::type_product::instantiate_type(
 		atom::many type_variables,
 		scope_t::ref scope) const
 {
-	log(log_info, "creating product type term for %s", str().c_str());
+	debug_above(5, log(log_info, "creating product type term for %s", str().c_str()));
 
 	types::term::refs term_dimensions;
 	for (auto dimension : dimensions) {
@@ -231,7 +231,7 @@ types::term::ref instantiate_data_ctor_type_term(
 		supertype_expansion = types::term_lambda(lambda_var, supertype_expansion);
 	}
 
-	log(log_info, "data_ctor_term = %s", data_ctor_term->str().c_str());
+	debug_above(5, log(log_info, "data_ctor_term = %s", data_ctor_term->str().c_str()));
 	scope->put_type_term(tag_name, supertype_expansion);
 
 	if (dimensions.size() == 0) {
@@ -264,13 +264,6 @@ types::term::ref instantiate_data_ctor_type_term(
 			referenced_type_variables.push_back(type_variable);
 		}
 	}
-
-#if 0
-	auto data_ctor_term = types::term_product(pk_tagged_tuple,
-			{tag_term, types::term_product(pk_tuple, dimensions)});
-
-	log(log_info, "%s", data_ctor_term->str().c_str());
-#endif
 
 	/* now let's make sure we register this constructor as an override for
 	 * the name `tag_name` */

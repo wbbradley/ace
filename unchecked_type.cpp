@@ -12,7 +12,7 @@ unchecked_type_t::unchecked_type_t(
 		ptr<scope_t> const module_scope) :
 	name(name), node(node)
 {
-	log(log_info, "creating unchecked type " c_type("%s"), this->name.c_str());
+	debug_above(5, log(log_info, "creating unchecked type " c_type("%s"), this->name.c_str()));
 
 	assert(!!this->name);
 	assert(this->node != nullptr);

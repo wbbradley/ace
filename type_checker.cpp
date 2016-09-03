@@ -391,7 +391,7 @@ bound_var_t::ref ast::dot_expr::resolve_overrides(
         const bound_type_t::refs &args) const
 {
 	indent_logger indent;
-	log(log_info, "dot_expr::resolve_overrides for %s", callsite->str().c_str());
+	debug_above(5, log(log_info, "dot_expr::resolve_overrides for %s", callsite->str().c_str()));
 
 	/* check the left-hand side first, it should be a type_namespace */
 	bound_var_t::ref lhs_var = lhs->resolve_instantiation(
@@ -453,7 +453,7 @@ bound_var_t::ref ast::callsite_expr::resolve_instantiation(
 					bound_type_t::refs_from_vars(arguments));
 
 			if (!!status) {
-				log(log_info, "function chosen is %s", function->str().c_str());
+				debug_above(5, log(log_info, "function chosen is %s", function->str().c_str()));
 
 				return make_call_value(status, builder, shared_from_this(), scope,
 						function, arguments);
@@ -733,7 +733,7 @@ bound_var_t::ref ast::function_defn::resolve_instantiation(
 	 * 2. bind the function name to the generated code within the given scope.
 	 * */
 	indent_logger indent;
-	log(log_info, "type checking %s in %s", token.str().c_str(), scope->get_name().c_str());
+	debug_above(5, log(log_info, "type checking %s in %s", token.str().c_str(), scope->get_name().c_str()));
 
 	/* see if we can get a monotype from the function declaration */
 	bound_type_t::named_pairs args;
@@ -777,9 +777,9 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 		if (llvm_type->isPointerTy()) {
 			llvm_type = llvm_type->getPointerElementType();
 		}
-		log(log_info, "creating function %s with LLVM type %s",
+		debug_above(5, log(log_info, "creating function %s with LLVM type %s",
 				function_name.c_str(),
-				llvm_print_type(*llvm_type).c_str());
+				llvm_print_type(*llvm_type).c_str()));
 		assert(llvm_type->isFunctionTy());
 
 		llvm::Function *llvm_function = llvm::Function::Create(
@@ -915,7 +915,7 @@ status_t type_check_module_types(
 			assert(!dyncast<const ast::function_defn>(node));
 
 			/* prevent recurring checks */
-			log(log_info, "checking module level type %s", node->token.str().c_str());
+			debug_above(5, log(log_info, "checking module level type %s", node->token.str().c_str()));
 
 			if (auto type_def = dyncast<const ast::type_def>(node)) {
 				/* NB: this next line creates type definitions, regardless of
@@ -932,7 +932,7 @@ status_t type_check_module_types(
 				assert(!"unhandled unchecked type node at module scope");
 			}
 		} else {
-			log(log_info, "skipping %s because it's already been checked", node->token.str().c_str());
+			debug_above(3, log(log_info, "skipping %s because it's already been checked", node->token.str().c_str()));
         }
     }
 
@@ -956,7 +956,7 @@ status_t type_check_module_variables(
 
 		if (!module_scope->has_checked(node)) {
 			/* prevent recurring checks */
-			log(log_info, "checking module level variable %s", node->token.str().c_str());
+			debug_above(4, log(log_info, "checking module level variable %s", node->token.str().c_str()));
 			if (auto function_defn = dyncast<const ast::function_defn>(node)) {
 				// TODO: decide whether we need treatment here
 				if (is_function_defn_generic(module_scope, *function_defn)) {
@@ -979,7 +979,7 @@ status_t type_check_module_variables(
 				assert(!"unhandled unchecked node at module scope");
 			}
 		} else {
-			log(log_info, "skipping %s because it's already been checked", node->token.str().c_str());
+			debug_above(3, log(log_info, "skipping %s because it's already been checked", node->token.str().c_str()));
 		}
     }
 
@@ -1051,9 +1051,9 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 	/* as a test, let's see if the preexisting term is already bound. */
 	auto already_bound_type = scope->get_bound_type({type_decl->token.text});
 	if (already_bound_type != nullptr) {
-		log(log_warning, "found predefined bound type for %s -> %s",
+		debug_above(1, log(log_warning, "found predefined bound type for %s -> %s",
 			   	type_decl->token.str().c_str(),
-				already_bound_type->str().c_str());
+				already_bound_type->str().c_str()));
 		
 		// this is probably fine in practice, but maybe we should check whether
 		// the already existing type was created in this scope
@@ -1314,8 +1314,8 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 				llvm_condition_value = llvm_resolve_alloca(builder, condition_value->llvm_value);
 				assert(llvm_condition_value->getType()->isIntegerTy());
 			} else {
-				log(log_info, "if condition %s appears to not be a bool or int, attempting to resolve a " c_var("bool") " override",
-						condition_value->str().c_str());
+				debug_above(2, log(log_info, "if condition %s appears to not be a bool or int, attempting to resolve a " c_var("bool") " override",
+						condition_value->str().c_str()));
 
 				/* convert condition to an integer */
 				bound_var_t::ref bool_fn = get_callable(
@@ -1326,8 +1326,8 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 					/* we've found a bool function that will take our condition as input */
 				   	assert(bool_fn != nullptr);
 
-					log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (term %s)",
-						   	condition->str().c_str(), bool_fn->type->str().c_str());
+					debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (term %s)",
+						   	condition->str().c_str(), bool_fn->type->str().c_str()));
 
 					/* let's call this bool function */
 					llvm_condition_value = llvm_create_call_inst(
@@ -1567,7 +1567,7 @@ bound_var_t::ref ast::reference_expr::resolve_overrides(
 		const bound_type_t::refs &args) const
 {
 	indent_logger indent;
-	log(log_info, "reference_expr::resolve_overrides for %s", callsite->str().c_str());
+	debug_above(5, log(log_info, "reference_expr::resolve_overrides for %s", callsite->str().c_str()));
 
 	/* ok, we know we've got some variable here */
 	return get_callable(status, builder, scope, token.text, shared_from_this(),
