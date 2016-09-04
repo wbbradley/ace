@@ -644,17 +644,6 @@ types::type::ref type_sum(types::type::refs options) {
 	return make_ptr<types::type_sum>(options);
 }
 
-bool get_obj_struct_name_info(
-		types::type::ref type,
-	   	std::string member_name,
-	   	int &index,
-	   	types::type::ref &member_type)
-{
-	not_impl();
-	// types::term::ref expr_sig = lhs_val->type->term.get_obj_struct_item_type(index);
-	return false;
-}
-
 std::ostream& operator <<(std::ostream &os, const types::type::ref &type) {
 	os << type->str();
 	return os;

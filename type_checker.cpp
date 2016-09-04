@@ -652,13 +652,21 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
 {
 	bound_var_t::ref lhs_val = lhs->resolve_instantiation(status,
 			builder, scope, nullptr, nullptr);
+	auto type = lhs_val->type;
 
-	int index = -1;
 	types::type::ref member_type;
 
 	if (!!status) {
-		if (get_obj_struct_name_info(lhs_val->type->type, rhs.text, index, member_type)) {
-			/* get the type of the dimension being reference */
+		atom member_name = rhs.text;
+		auto member_index = type->member_index;
+		auto member_index_iter = member_index.find(member_name);
+
+		if (member_index_iter != member_index.end()) {
+			auto index = member_index_iter->second;
+			debug_above(8, log(log_info, "found member %s at index %d", member_name.c_str(), index));
+			dbg();
+
+			/* get the type of the dimension being referenced */
 			bound_type_t::ref type = upsert_bound_type(status, builder,
 					scope, member_type);
 

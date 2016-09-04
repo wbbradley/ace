@@ -203,7 +203,6 @@ types::type::refs get_function_type_args(types::type::ref function_type);
 types::type::ref get_function_return_type(types::type::ref function_type);
 types::term::ref get_obj_term(types::term::ref item);
 types::term::ref get_function_term_args(types::term::ref function_term);
-bool get_obj_struct_name_info(types::type::ref type, std::string member_name, int &index, types::type::ref &member_type);
 types::term::pair make_term_pair(std::string fst, std::string snd, atom::set generics);
 
 types::term::ref operator "" _ty(const char *value, size_t);
