@@ -1203,7 +1203,7 @@ auto test_descs = std::vector<test_desc>{
 };
 
 bool check_filters(std::string name, std::string filter, std::vector<std::string> excludes) {
-	if (filter.size() != 0 && name.find(filter.c_str()) != std::string::npos) {
+	if (filter.size() != 0 && name.find(filter.c_str()) == std::string::npos) {
 		return false;
 	}
 	for (auto exclude : excludes) {
@@ -1254,6 +1254,7 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 
 	/* run all of the compiler test suite */
 	bool success = true;
+	std::vector<std::string> failures;
 	for (auto &test_desc : test_descs) {
 		++total;
 		if (check_filters(test_desc.name, filter, excludes)) {
@@ -1264,6 +1265,7 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 			if (test_failure) {
 				log(log_error, "------ " c_error("✗ ") c_test_msg("%s") c_error(" FAILED ") "------", test_desc.name.c_str());
 				success = false;
+				failures.push_back(test_desc.name);
 				if (getenv("ALL_TESTS") == nullptr)
 					break;
 			} else {
@@ -1283,6 +1285,9 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 	} else {
 		log(log_error, "====== %d/%d TESTS PASSED (" c_error("%d failures") ", " c_warn("%d skipped") ") ======",
 			   	pass, total, total - pass - skipped, skipped);
+		for (auto fail : failures) {
+			log(log_error, "%s failed", fail.c_str());
+		}
 	}
 	return success;
 }

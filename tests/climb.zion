@@ -1,9 +1,9 @@
 module climb @1.0
+link module std
 
 def walls() void
 	pass
 
 def boulders() void
 	var x int = 2
-	print(scopes())
-
+	std.print(x)

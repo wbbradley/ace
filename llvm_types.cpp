@@ -154,7 +154,7 @@ bound_type_t::ref create_bound_type(
 {
 	assert(!!status);
 	auto env = scope->get_type_env();
-	debug_above(1, log(log_info, "creating bound type for %s in env %s", type->str().c_str(), str(env).c_str()));
+	debug_above(3, log(log_info, "creating bound type for %s in env %s", type->str().c_str(), str(env).c_str()));
 
 	bound_type_builder_t btb(status, builder, scope->get_program_scope(), env);
 	if (type->accept(btb)) {

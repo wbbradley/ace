@@ -122,8 +122,8 @@ void compiler::build_parse(status_t &status, location location, std::string modu
 			/* no file, i guess */
 		}
 	} else {
-		info("no need to build %s as it's already been linked in",
-				module_name.c_str());
+		debug_above(3, info("no need to build %s as it's already been linked in",
+					module_name.c_str()));
 	}
 }
 

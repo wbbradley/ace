@@ -1,13 +1,12 @@
 module _
 link module std
 
-# test: pass
-
 type Box{X, Y} is
 	Part(X) or
 	Crate(X, Y)
 
 def show(b Box{any, any})
+	# error: has no dimensions to index
 	std.print(b[0])
 
 def main()

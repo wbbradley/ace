@@ -28,9 +28,6 @@ bound_type_t::bound_type_t(
 			join(dimensions, ", ").c_str()));
 
 	assert(llvm_type != nullptr);
-	if (type->ftv() != 0) {
-		log(log_warning, "type has free variables, which means it is unreachable at runtime");
-	}
 }
 
 bound_type_t::ref bound_type_t::create(

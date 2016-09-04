@@ -1,4 +1,5 @@
 module _
+# test: pass
 
 type List{V} is
 	Node(V, List{V}) or

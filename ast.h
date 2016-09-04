@@ -40,6 +40,7 @@ namespace ast {
 		virtual ~item() throw() = 0;
 		std::string str() const;
 		virtual void render(render_state_t &rs) const = 0;
+		struct location get_location() const { return token.location; }
 
 		syntax_kind_t sk;
 		zion_token_t token;

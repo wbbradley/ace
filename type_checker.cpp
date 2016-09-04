@@ -208,7 +208,7 @@ void type_check_fully_bound_function_decl(
     assert(!status);
 }
 
-bool is_function_defn_generic_impl(scope_t::ref scope, const ast::function_defn &obj) {
+bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn &obj) {
     if (obj.decl->param_list_decl) {
 		/* check the parameters' genericity */
 		auto &params = obj.decl->param_list_decl->params;
@@ -239,14 +239,6 @@ bool is_function_defn_generic_impl(scope_t::ref scope, const ast::function_defn 
 		return false;
 	}
 }
-
-bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn &obj) {
-	auto generic = is_function_defn_generic_impl(scope, obj);
-    log(log_info, "%s is %s", obj.token.str().c_str(),
-		   	generic ? c_type("generic") : c_var("fully bound"));
-	return generic;
-}
-
 
 function_scope_t::ref make_param_list_scope(
         status_t &status,
@@ -733,7 +725,7 @@ bound_var_t::ref ast::function_defn::resolve_instantiation(
 	 * 2. bind the function name to the generated code within the given scope.
 	 * */
 	indent_logger indent;
-	debug_above(5, log(log_info, "type checking %s in %s", token.str().c_str(), scope->get_name().c_str()));
+	debug_above(2, log(log_info, "type checking %s in %s", token.str().c_str(), scope->get_name().c_str()));
 
 	/* see if we can get a monotype from the function declaration */
 	bound_type_t::named_pairs args;
@@ -1010,14 +1002,14 @@ status_t type_check_program(
 
     /* third pass is to resolve all module-level types */
     for (auto &module : obj.modules) {
-        log(log_info, "resolving types in %s", module->module_key.c_str());
+        debug_above(2, log(log_info, "resolving types in %s", module->module_key.c_str()));
 
 		status |= type_check_module_types(compiler, builder, *module, program_scope);
     }
 
     /* fourth pass is to resolve all module-level variables */
     for (auto &module : obj.modules) {
-        log(log_info, "resolving variables in %s", module->module_key.c_str());
+        debug_above(2, log(log_info, "resolving variables in %s", module->module_key.c_str()));
 
         status |= type_check_module_variables(compiler, builder, *module, program_scope);
     }

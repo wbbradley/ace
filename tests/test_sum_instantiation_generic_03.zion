@@ -2,11 +2,12 @@ module _
 link module std
 
 # test: pass
-type Y matches int
+type TY is Y(int)
 
-type Box{X} is
-	Box(X) or
-	Crate(Y)
+type baz{X} is
+	foo(X) or
+	bar(Y)
 
 def main()
-	y := Crate(1)
+	y := bar(Y(1))
+	std.print(y[0][0])
