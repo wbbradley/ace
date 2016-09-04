@@ -273,3 +273,19 @@ bool starts_with(const char *str, const std::string &search) {
 bool ends_with(const std::string &str, const std::string &search) {
 	return str.find(search) == str.size() - search.size();
 }
+
+std::vector<std::string> split(std::string data, std::string delim) {
+	std::vector<std::string> output;
+    size_t pos = std::string::npos;
+    do
+    {
+        pos = data.find(delim);
+		if (pos != 0) {
+			output.push_back(data.substr(0, pos));
+		}
+        if (std::string::npos != pos) {
+            data = data.substr(pos + delim.size());
+		}
+    } while (std::string::npos != pos);
+    return output;
+}

@@ -1,8 +1,8 @@
 build
 env
 value_semantics
-zion
 python_main
+zionc
 logs
 *.log
 .*.swp
@@ -15,8 +15,7 @@ tags
 rt_gc
 *.dSYM
 *.ll
-play/*
-tests/*
-!**/*.zion
 *.html
 *.pyc
+tests/test_*
+!**/*.zion

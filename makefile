@@ -103,7 +103,7 @@ ZION_LLVM_SOURCES = \
 				json_parser.cpp \
 
 ZION_LLVM_OBJECTS = $(addprefix $(BUILD_DIR)/,$(ZION_LLVM_SOURCES:.cpp=.llvm.o))
-ZION_TARGET = zion
+ZION_TARGET = zionc
 ZION_RUNTIME = \
 				rt_int.c \
 				rt_fn.c \
@@ -136,17 +136,17 @@ value_semantics: build/value_semantics.o
 
 .PHONY: test
 test: zion
-	ALL_TESTS=1 ./zion test
+	ALL_TESTS=1 ./$(ZION_TARGET) test
 
 .PHONY: test-html
-test-html: zion
-	COLORIZE=1 ALL_TESTS=1 ./zion test \
+test-html: $(ZION_TARGET)
+	COLORIZE=1 ALL_TESTS=1 ./$(ZION_TARGET) test \
 		| ansifilter -o /var/tmp/zion-test.html --html -la -F 'Menlo' -e=utf-8
 	open /var/tmp/zion-test.html
 
 .PHONY: dbg
-dbg: zion
-	lldb -s .lldb-script -- ./zion test
+dbg: $(ZION_TARGET)
+	lldb -s .lldb-script -- ./$(ZION_TARGET) test
 
 $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_LLIR)
 	@echo Linking $@
