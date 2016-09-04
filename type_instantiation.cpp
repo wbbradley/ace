@@ -66,6 +66,7 @@ bound_var_t::ref bind_ctor_to_scope(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		identifier::ref id,
 		ast::item::ref node,
 		types::type::ref data_ctor_sig)
 {
@@ -77,8 +78,7 @@ bound_var_t::ref bind_ctor_to_scope(
 	/* create or find an existing ctor function that satisfies the term of
 	 * this node */
 	debug_above(5, log(log_info, "finding/creating data ctor for " c_type("%s") " with signature %s",
-			node->token.str().c_str(),
-			data_ctor_sig->str().c_str()));
+			id->str().c_str(), data_ctor_sig->str().c_str()));
 
 	bound_type_t::refs args;
 	resolve_type_ref_params(status, builder, scope,
@@ -92,8 +92,7 @@ bound_var_t::ref bind_ctor_to_scope(
 		 * whether this ctor already exists. if so, we'll just return it. if not,
 		 * we'll generate it. */
 		auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope,
-				args, node->token.text, node->token.location,
-				node, data_ctor_sig);
+				args, id, node, data_ctor_sig);
 
 		if (!!status) {
 			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
@@ -271,10 +270,11 @@ types::term::ref instantiate_data_ctor_type_term(
 		debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
 		types::term::ref data_ctor_sig = get_function_term(generic_args, data_ctor_term);
 
+		assert(id->get_name() == tag_name);
 		/* side-effect: create an unchecked reference to this data ctor into
 		 * the current scope */
 		module_scope->put_unchecked_variable(tag_name,
-				unchecked_data_ctor_t::create(tag_name, node,
+				unchecked_data_ctor_t::create(id, node,
 					module_scope, data_ctor_sig));
 
 		return nullptr;

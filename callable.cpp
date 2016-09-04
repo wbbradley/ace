@@ -115,7 +115,8 @@ bound_var_t::ref check_func_vs_callsite(
 
 					/* instantiate the data ctor we want */
 					bound_var_t::ref ctor_fn = bind_ctor_to_scope(
-							status, builder, subst_scope, node,
+							status, builder, subst_scope,
+							unchecked_fn->id, node,
 							data_ctor_sig->rebind(unification.bindings));
 
 					if (!!status) {

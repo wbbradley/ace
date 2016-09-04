@@ -7,7 +7,7 @@
 std::string unchecked_var_t::str() const {
    	types::term::ref sig = get_term();
     std::stringstream ss;
-    ss << name << " : " << node->token.str() << " : " << sig;
+    ss << id->str() << " : " << node->token.str() << " : " << sig;
     return ss.str();
 }
 

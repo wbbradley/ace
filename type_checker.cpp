@@ -604,12 +604,7 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 		auto program_scope = scope->get_program_scope();
 
 		std::pair<bound_var_t::ref, bound_type_t::ref> tuple = instantiate_tuple_ctor(
-				status, 
-				builder,
-				scope,
-				args,
-				tuple_term->repr(),
-				token.location,
+				status, builder, scope, args, make_iid(tuple_term->repr()),
 				shared_from_this());
 
 		if (!!status) {

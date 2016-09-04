@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "compiler.h"
 #include "ast.h"
+#include "code_id.h"
 
 /*
  * The idea here is that we need a phase that sets up a directed graph of name
@@ -23,13 +24,13 @@ void scope_setup_error(status_t &status, const ast::item &item, const char *form
 unchecked_var_t::ref scope_setup_function_defn(
 		status_t &status,
 		const ast::item &obj,
-		atom symbol,
+		identifier::ref id,
 		module_scope_t::ref module_scope)
 {
-	if (symbol.size() != 0) {
-		return module_scope->put_unchecked_variable(
-				symbol, unchecked_var_t::create(
-					symbol, obj.shared_from_this(), module_scope));
+	if (id && !!id->get_name()) {
+		return module_scope->put_unchecked_variable(id->get_name(),
+				unchecked_var_t::create(id, obj.shared_from_this(),
+					module_scope));
 	} else {
 		scope_setup_error(status, obj, "module-level function definition does not have a name");
 		return nullptr;
@@ -67,7 +68,7 @@ status_t scope_setup_module(compiler &compiler, const ast::module &obj) {
 
 	for (auto &function : obj.functions) {
 		scope_setup_function_defn(status, *function,
-				function->decl->token.text, module_scope);
+				make_code_id(function->decl->token), module_scope);
 	}
 
 	return status;

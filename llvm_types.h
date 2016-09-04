@@ -26,8 +26,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		bound_type_t::refs args,
-		atom name,
-		const location &location,
+		identifier::ref id,
 		const ptr<const ast::item> &node);
 
 std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
@@ -35,8 +34,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		bound_type_t::refs args,
-		atom name,
-		const location &location,
+		identifier::ref id,
 		const ptr<const ast::item> &node,
 		types::type::ref data_ctor_sig);
 
@@ -45,14 +43,13 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_struct_ctor(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		bound_type_t::ref struct_type,
-		atom name,
-		const location &location,
+		identifier::ref id,
 		const ptr<const ast::item> &node);
 
 bound_type_t::ref get_or_create_tuple_type(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		atom name,
+		identifier::ref id,
 		bound_type_t::refs args,
 		const ast::item::ref &node);
 
@@ -62,8 +59,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		scope_t::ref scope,
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
-		atom name,
-		const location &location,
+		identifier::ref id,
 		const ast::item::ref &node);
 
 bound_var_t::ref call_const_subscript_operator(

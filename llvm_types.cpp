@@ -231,10 +231,12 @@ bound_type_t::ref get_function_return_type(
 bound_type_t::ref get_or_create_tuple_type(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		atom name,
+		identifier::ref id,
 		bound_type_t::refs args,
 		const ast::item::ref &node)
 {
+	atom name = id->get_name();
+
 	/* get the term of this tuple type */
 	types::term::ref term = get_obj_term(get_tuple_term(get_terms(args)));
 	types::type::ref type = term->get_type();
@@ -273,7 +275,7 @@ bound_type_t::ref get_or_create_tuple_type(
 bound_type_t::ref get_or_create_tagged_tuple_type(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		atom name,
+		identifier::ref id,
 		bound_type_t::refs args,
 		const ast::item::ref &node,
 		types::type::ref ctor_sig)
@@ -291,7 +293,7 @@ bound_type_t::ref get_or_create_tagged_tuple_type(
 
 		/* build the llvm return type */
 		llvm::Type *llvm_tuple_type = llvm_create_tuple_type(
-				builder, program_scope, name, args);
+				builder, program_scope, id->get_name(), args);
 
 		/* display the new type */
 		llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_tuple_type)->getElementType();
@@ -319,8 +321,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::refs args,
-		atom name,
-		const location &location,
+		identifier::ref id,
 		const ast::item::ref &node)
 {
 	/* this is a tuple constructor function */
@@ -333,10 +334,11 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
-		bound_type_t::ref data_type = get_or_create_tuple_type(builder, scope, name, args, node);
+		bound_type_t::ref data_type = get_or_create_tuple_type(builder, scope,
+				id, args, node);
 
 		bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(status, builder,
-				scope, args, data_type, name, location, node);
+				scope, args, data_type, id, node);
 
 		if (!!status) {
 			return {tuple_ctor, data_type};
@@ -352,8 +354,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::refs args,
-		atom name,
-		const location &location,
+		identifier::ref id,
 		const ast::item::ref &node,
 		types::type::ref data_ctor_sig)
 {
@@ -368,10 +369,10 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
 		bound_type_t::ref data_type = get_or_create_tagged_tuple_type(builder,
-				scope, name, args, node, data_ctor_sig);
+				scope, id, args, node, data_ctor_sig);
 
 		bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,
-				scope, args, data_type, name, location, node);
+				scope, args, data_type, id, node);
 
 		if (!!status) {
 			return {tagged_tuple_ctor, data_type};
@@ -388,8 +389,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_struct_ctor(
 		scope_t::ref scope,
 		bound_type_t::ref struct_type,
 		bound_type_t::refs dim_types,
-		atom name,
-		const location &location,
+		identifier::ref id,
 		const ast::item::ref &node)
 {
 	/* this is a struct constructor function.
@@ -407,7 +407,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_struct_ctor(
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
 		bound_var_t::ref struct_ctor = get_or_create_tuple_ctor(status, builder,
-				scope, dim_types, struct_type, name, location, node);
+				scope, dim_types, struct_type, id, node);
 
 		if (!!status) {
 			return {struct_ctor, struct_type};
@@ -424,10 +424,10 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		scope_t::ref scope,
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
-		atom name,
-		const location &location,
+		identifier::ref id,
 		const ast::item::ref &node)
 {
+	atom name = id->get_name();
 	if (auto var = scope->maybe_get_bound_variable(name)) {
 		user_error(status, *node, "the name " c_id("%s") " is taken. see %s",
 				name.c_str(),
