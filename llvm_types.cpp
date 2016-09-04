@@ -277,6 +277,7 @@ bound_type_t::ref get_or_create_tagged_tuple_type(
 		scope_t::ref scope,
 		identifier::ref id,
 		bound_type_t::refs args,
+		atom::map<int> member_index,
 		const ast::item::ref &node,
 		types::type::ref ctor_sig)
 {
@@ -299,6 +300,8 @@ bound_type_t::ref get_or_create_tagged_tuple_type(
 		llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_tuple_type)->getElementType();
 		debug_above(5, log(log_info, "created LLVM wrapped type %s", llvm_print_type(*llvm_obj_struct_type).c_str()));
 
+		assert_implies(member_index.size() != 0, member_index.size() == args.size());
+
 		/* get the bound type of the data ctor's value */
 		bound_type_t::ref data_type = bound_type_t::create(
 				return_type,
@@ -307,7 +310,8 @@ bound_type_t::ref get_or_create_tagged_tuple_type(
 				 * generic obj */
 				scope->get_bound_type({"__var_ref"})->llvm_type,
 				llvm_tuple_type,
-				args);
+				args,
+				member_index);
 
 		/* put the type for the data type */
 		program_scope->put_bound_type(data_type);
@@ -354,6 +358,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::refs args,
+		atom::map<int> member_index,
 		identifier::ref id,
 		const ast::item::ref &node,
 		types::type::ref data_ctor_sig)
@@ -369,7 +374,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
 		bound_type_t::ref data_type = get_or_create_tagged_tuple_type(builder,
-				scope, id, args, node, data_ctor_sig);
+				scope, id, args, member_index, node, data_ctor_sig);
 
 		bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,
 				scope, args, data_type, id, node);

@@ -661,23 +661,31 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
 		auto member_index = type->member_index;
 		auto member_index_iter = member_index.find(member_name);
 
+		for (auto member_index_pair : member_index) {
+			debug_above(5, log(log_info, "%s: %d", member_index_pair.first.c_str(),
+						member_index_pair.second));
+		}
+
 		if (member_index_iter != member_index.end()) {
 			auto index = member_index_iter->second;
 			debug_above(8, log(log_info, "found member %s at index %d", member_name.c_str(), index));
-			dbg();
 
 			/* get the type of the dimension being referenced */
-			bound_type_t::ref type = upsert_bound_type(status, builder,
-					scope, member_type);
+			bound_type_t::ref member_type = type->dimensions[index];
+			assert(type->llvm_specific_type != nullptr);
+
+			llvm::Value *llvm_var_value = llvm_resolve_alloca(builder, lhs_val->llvm_value);
+			llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
+						llvm_var_value, type->llvm_specific_type);
 
 			llvm::Value *llvm_gep = builder.CreateInBoundsGEP(
-					llvm_resolve_alloca(builder, lhs_val->llvm_value),
+					llvm_value_as_specific_type,
 					{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index)});
 
 			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
 			return bound_var_t::create(
 					INTERNAL_LOC(), string_format(".%s", rhs.text.c_str()),
-					type, llvm_item, make_code_id(token));
+					member_type, llvm_item, make_code_id(token));
 		} else {
 			user_error(status, *this, "%s has no dimension called " c_id("%s"),
 					lhs_val->type->str().c_str(),

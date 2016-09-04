@@ -17,8 +17,7 @@ struct bound_type_t {
 	typedef std::vector<std::pair<atom, ref>> named_pairs;
 	typedef std::vector<ref> refs;
 	typedef std::map<types::signature, ref> map;
-	typedef std::map<atom, ref> name_map;
-	typedef std::map<atom, int> name_index;
+	typedef atom::map<int> name_index;
 
 	bound_type_t() = delete;
 	bound_type_t(
@@ -27,7 +26,6 @@ struct bound_type_t {
 			llvm::Type *llvm_type,
 			llvm::Type *llvm_specific_type,
 			refs dimensions,
-			name_map member_map,
 			name_index member_index);
 
 	bound_type_t(const bound_type_t &) = delete;
@@ -39,7 +37,6 @@ struct bound_type_t {
 	llvm::Type * const llvm_type;
 	llvm::Type * const llvm_specific_type;
 	refs const dimensions;
-	name_map const member_map;
 	name_index const member_index;
 
 	std::string str() const;
@@ -59,7 +56,6 @@ struct bound_type_t {
 			llvm::Type *llvm_type,
 			llvm::Type *llvm_specific_type = nullptr,
 			refs dimensions = {},
-			name_map member_map = {},
 			name_index member_index = {});
 };
 

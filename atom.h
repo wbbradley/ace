@@ -1,11 +1,15 @@
 #pragma once
 #include <string>
 #include <unordered_set>
+#include <map>
 #include <vector>
 
 struct atom {
 	typedef std::unordered_set<atom> set;
 	typedef std::vector<atom> many;
+
+	template <typename T>
+	using map = std::map<atom, T>;
 
 	atom() : iatom(0) {}
 	atom(std::string &&str);

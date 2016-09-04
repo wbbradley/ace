@@ -34,6 +34,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		bound_type_t::refs args,
+		atom::map<int> member_index,
 		identifier::ref id,
 		const ptr<const ast::item> &node,
 		types::type::ref data_ctor_sig);

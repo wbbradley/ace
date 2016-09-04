@@ -117,7 +117,8 @@ bound_var_t::ref check_func_vs_callsite(
 					bound_var_t::ref ctor_fn = bind_ctor_to_scope(
 							status, builder, subst_scope,
 							unchecked_fn->id, node,
-							data_ctor_sig->rebind(unification.bindings));
+							data_ctor_sig->rebind(unification.bindings),
+							unchecked_data_ctor->member_index);
 
 					if (!!status) {
 						/* the ctor should now exist */

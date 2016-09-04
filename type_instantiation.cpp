@@ -68,7 +68,8 @@ bound_var_t::ref bind_ctor_to_scope(
 		scope_t::ref scope,
 		identifier::ref id,
 		ast::item::ref node,
-		types::type::ref data_ctor_sig)
+		types::type::ref data_ctor_sig,
+		atom::map<int> member_index)
 {
 	bool is_instantiation = bool(dyncast<generic_substitution_scope_t>(scope));
 	assert(is_instantiation);
@@ -92,7 +93,7 @@ bound_var_t::ref bind_ctor_to_scope(
 		 * whether this ctor already exists. if so, we'll just return it. if not,
 		 * we'll generate it. */
 		auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope,
-				args, id, node, data_ctor_sig);
+				args, member_index, id, node, data_ctor_sig);
 
 		if (!!status) {
 			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
@@ -113,9 +114,12 @@ types::term::ref ast::type_product::instantiate_type(
 {
 	debug_above(5, log(log_info, "creating product type term for %s", str().c_str()));
 
+	atom::map<int> member_index;
 	types::term::refs term_dimensions;
+	int index = 0;
 	for (auto dimension : dimensions) {
 		term_dimensions.push_back(dimension->type_ref->get_type_term());
+		member_index[dimension->name] = index++;
 	}
 
 	/* Note that product types do not have a named super type. And, this node
@@ -124,7 +128,10 @@ types::term::ref ast::type_product::instantiate_type(
 	 * supertype_id as the name for the data ctor. */
 	return register_data_ctor(status, builder,
 			type_variables, scope, shared_from_this(),
-			term_dimensions, supertype_id /*id*/, nullptr /*supertype_id*/);
+			term_dimensions,
+			member_index,
+			supertype_id /*id*/,
+			nullptr /*supertype_id*/);
 }
 
 types::term::ref ast::type_sum::instantiate_type(
@@ -153,6 +160,7 @@ types::term::ref instantiate_data_ctor_type_term(
 		scope_t::ref scope,
 		ptr<const ast::item> node,
 		types::term::refs dimensions,
+		atom::map<int> member_index,
 		identifier::ref id,
 		identifier::ref supertype_id)
 {
@@ -275,7 +283,7 @@ types::term::ref instantiate_data_ctor_type_term(
 		 * the current scope */
 		module_scope->put_unchecked_variable(tag_name,
 				unchecked_data_ctor_t::create(id, node,
-					module_scope, data_ctor_sig));
+					module_scope, data_ctor_sig, member_index));
 
 		return nullptr;
 	} else {
@@ -303,7 +311,7 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 
 	return register_data_ctor(status, builder,
 			type_variables, scope, shared_from_this(),
-			dimensions, id, supertype_id);
+			dimensions, {} /*member_index*/, id, supertype_id);
 }
 
 types::term::ref register_data_ctor(
@@ -313,6 +321,7 @@ types::term::ref register_data_ctor(
 		scope_t::ref scope,
 		ptr<const ast::item> node,
 		types::term::refs dimensions,
+		atom::map<int> member_index,
 		identifier::ref id,
 		identifier::ref supertype_id)
 {
@@ -350,8 +359,8 @@ types::term::ref register_data_ctor(
 				} else {
 
 					return instantiate_data_ctor_type_term(status, builder,
-							type_variables, scope, node, dimensions, id,
-							supertype_id);
+							type_variables, scope, node, dimensions,
+							member_index, id, supertype_id);
 				}
 			}
 		}

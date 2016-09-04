@@ -10,6 +10,7 @@ types::term::ref register_data_ctor(
 		scope_t::ref scope,
 		ptr<const ast::item> node,
 		types::term::refs dimensions,
+		atom::map<int> member_index,
 		identifier::ref id,
 		identifier::ref supertype_id);
 
@@ -19,4 +20,5 @@ bound_var_t::ref bind_ctor_to_scope(
 		scope_t::ref scope,
 		identifier::ref id,
 		ptr<const ast::item> data_ctor,
-		types::type::ref data_ctor_sig);
+		types::type::ref data_ctor_sig,
+		atom::map<int> member_index);
