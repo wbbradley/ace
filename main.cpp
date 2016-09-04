@@ -24,11 +24,16 @@ int main(int argc, char *argv[]) {
 
 	if (cmd == "test") {
 		std::string filter = (argc == 3 ? argv[2] : "");
+		std::vector<std::string> excludes;
 		if (getenv("T")) {
 			filter = getenv("T");
 		}
 
-		if (run_tests(filter)) {
+		if (getenv("EXCLUDE")) {
+			excludes = split(getenv("EXCLUDE"));
+		}
+
+		if (run_tests(filter, excludes)) {
 			return EXIT_SUCCESS;
 		} else {
 			return EXIT_FAILURE;

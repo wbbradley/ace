@@ -93,6 +93,23 @@ static inline std::string &trim(std::string &s) {
 	return ltrim(rtrim(s));
 }
 
+std::vector<std::string> split(std::string data, std::string delim=" ")
+{
+	std::vector<std::string> output;
+    size_t pos = std::string::npos;
+    do
+    {
+        pos = data.find(delim);
+		if (pos != 0) {
+			output.push_back(data.substr(0, pos));
+		}
+        if (std::string::npos != pos) {
+            data = data.substr(pos + delim.size());
+		}
+    } while (std::string::npos != pos);
+    return output;
+}
+
 template <typename X>
 std::string join(const X &xs, std::string delim) {
 	std::stringstream ss;

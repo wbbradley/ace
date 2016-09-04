@@ -3,6 +3,7 @@
 #include "llvm_utils.h"
 #include "llvm_types.h"
 #include "type_visitor.h"
+#include "code_id.h"
 
 bound_type_t::refs create_bound_types_from_args(
 		status_t &status,
@@ -259,7 +260,8 @@ bound_type_t::ref get_or_create_tuple_type(
 				/* the LLVM-visible type of tuples will usually be a generic
 				 * obj */
 				scope->get_bound_type({"__var_ref"})->llvm_type,
-				llvm_tuple_type);
+				llvm_tuple_type,
+				args);
 
 		/* put the type for the data type */
 		program_scope->put_bound_type(data_type);
@@ -297,12 +299,13 @@ bound_type_t::ref get_or_create_tagged_tuple_type(
 
 		/* get the bound type of the data ctor's value */
 		bound_type_t::ref data_type = bound_type_t::create(
-				get_function_return_type(ctor_sig),
+				return_type,
 				node->token.location,
 				/* the LLVM-visible type of tagged tuples will usually be a
 				 * generic obj */
 				scope->get_bound_type({"__var_ref"})->llvm_type,
-				llvm_tuple_type);
+				llvm_tuple_type,
+				args);
 
 		/* put the type for the data type */
 		program_scope->put_bound_type(data_type);
@@ -537,46 +540,38 @@ bound_var_t::ref call_const_subscript_operator(
 		user_error(status, *node, "constant subscripts must be positive");
 	} else {
 		/* do some checks on the lhs */
-		types::type::ref lhs_type = lhs->type->type;
-		if (!lhs_type->is_obj()) {
-			user_error(status, *node, "subscript operator only works on objects for now");
-		} else if (auto product = dyncast<const types::type_product>(lhs_type)) {
-			debug_above(6, log(log_info, "generating dereference %s[%d]", lhs->str().c_str(), subscript_index));
-#if 0
-			if (product->dimensions.size() != 1 || !product->dimensions[0]->is_tuple()) {
-				user_error(status, *node, "subscript operator only works on tuples for now");
-			} else {
-				/* actually create the subscript operator */
-				types::term::ref tuple_sig = lhs_type.args[0];
-				if (tuple_sig.args.size() <= subscript_index) {
-					user_error(status, *node, "subscript is out of range [%d]. last item is [%d]",
-							subscript_index, tuple_sig.args.size() - 1);
-				} else {
-					/* ok, we're in range */
-					bound_type_t::ref data_type = scope->maybe_get_bound_type(tuple_sig.args[subscript_index]);
+		auto lhs_type = lhs->type;
+		if (lhs_type->dimensions.size() != 0) {
+			if (lhs_type->dimensions.size() > subscript_index) {
+				/* ok, we're in range */
+				debug_above(6, log(log_info, "generating dereference %s[%d]", lhs->str().c_str(), subscript_index));
 
-					if (data_type) {
-						llvm::Value *llvm_lhs = llvm_resolve_alloca(builder, lhs->llvm_value);
-						debug_above(5, log(log_info, "creating GEP for %s", llvm_print_value(*llvm_lhs).c_str()));
-						llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_lhs,
-								{builder.getInt32(0), builder.getInt32(1), builder.getInt32(subscript_index)});
-						llvm::Value *llvm_value = builder.CreateLoad(llvm_gep);
-						return bound_var_t::create(
-								INTERNAL_LOC(),
-								"temp_deref_subscript",
-								data_type,
-								llvm_value,
-								node);
-					} else {
-						user_error(status, *node, "could not determine the type of %s",
-								tuple_sig.args[subscript_index].str().c_str());
-					}
-				}
+				bound_type_t::ref data_type = lhs_type->dimensions[subscript_index];
+				assert(data_type != nullptr);
+				assert(lhs_type->llvm_specific_type != nullptr);
+
+				/* get the tuple */
+				llvm::Value *llvm_lhs = llvm_resolve_alloca(builder, lhs->llvm_value);
+
+				llvm::Value *llvm_lhs_subtype = builder.CreatePointerBitCastOrAddrSpaceCast(
+						llvm_lhs,
+						lhs_type->llvm_specific_type);
+
+				debug_above(5, log(log_info, "creating GEP for %s", llvm_print_value(*llvm_lhs_subtype).c_str()));
+				llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_lhs_subtype,
+						{builder.getInt32(0), builder.getInt32(1), builder.getInt32(subscript_index)});
+				llvm::Value *llvm_value = builder.CreateLoad(llvm_gep);
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						"temp_deref_subscript",
+						data_type,
+						llvm_value,
+						make_code_id(node->token));
+			} else {
+				user_error(status, *node, "index out of range");
 			}
-#endif
-			user_error(status, *node, "subscript operator is not impl", lhs_type->str().c_str());
 		} else {
-			user_error(status, *node, "subscript operator does not work on %s", lhs_type->str().c_str());
+			user_error(status, *node, "%s has no dimensions to index", lhs->str().c_str());
 		}
 	}
 

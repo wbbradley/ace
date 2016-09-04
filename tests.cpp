@@ -2,6 +2,7 @@
 #include "logger.h"
 #include "dbg.h"
 #include <sstream>
+#include <iterator>
 #include <vector>
 #include "lexer.h"
 #include "parser.h"
@@ -1201,7 +1202,19 @@ auto test_descs = std::vector<test_desc>{
 
 };
 
-bool run_tests(std::string filter) {
+bool check_filters(std::string name, std::string filter, std::vector<std::string> excludes) {
+	if (filter.size() != 0 && name.find(filter.c_str()) != std::string::npos) {
+		return false;
+	}
+	for (auto exclude : excludes) {
+		if (name.find(exclude.c_str()) != std::string::npos) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool run_tests(std::string filter, std::vector<std::string> excludes) {
 	int pass=0, total=0, skipped=0;
 
 	if (getenv("DEBUG") == nullptr) {
@@ -1243,7 +1256,7 @@ bool run_tests(std::string filter) {
 	bool success = true;
 	for (auto &test_desc : test_descs) {
 		++total;
-		if (filter.size() == 0 || test_desc.name.find(filter.c_str()) != std::string::npos) {
+		if (check_filters(test_desc.name, filter, excludes)) {
 			log(log_info, "------ " c_test_msg("running %s") " ------", test_desc.name.c_str());
 
 			bool test_failure = !test_desc.func();

@@ -4,16 +4,12 @@ link module std
 # test: pass
 
 type Box{X, Y} is
-	BigBox(X) or
+	Part(X) or
 	Crate(X, Y)
 
 def show(b Box{any, any})
 	std.print(b[0])
 
 def main()
-	x := BigBox("yay this works")
-	y := Crate(1, x[0])
+	x := Part("")
 	show(x)
-	std.print(x[0])
-	std.print(y[0])
-	std.print(y[1])
