@@ -1041,7 +1041,8 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 	 *  of the type_decl->type_variables. */
 	
 	/* as a test, let's see if the preexisting term is already bound. */
-	auto already_bound_type = scope->get_bound_type({type_decl->token.text});
+	atom type_name = type_decl->token.text;
+	auto already_bound_type = scope->get_bound_type(type_name);
 	if (already_bound_type != nullptr) {
 		debug_above(1, log(log_warning, "found predefined bound type for %s -> %s",
 			   	type_decl->token.str().c_str(),
@@ -1052,29 +1053,42 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 		dbg();
 	}
 
-	if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
-		assert(new_scope != nullptr);
-
-		/* type definitions begin new scopes */
-		local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
-				string_format("type-%s", token.text.c_str()));
-
-		/* update current scope for writing */
-		scope = fresh_scope;
-
-		/* have the caller update their current scope */
-		*new_scope = fresh_scope;
-	}
-
-	// TODO: consider type namespacing here, or 
-	auto type_term = type_algebra->instantiate_type(status, builder,
-			make_code_id(token), type_decl->type_variables, scope);
-
-	if (!!status) {
-		if (type_term != nullptr) {
-			scope->put_type_term(type_decl->token.text, type_term);
+	var_t::refs fns;
+	scope->get_callables(type_name, fns);
+	if (fns.size() != 0) {
+		user_error(status, type_decl->get_location(),
+				"type name " c_id("%s") " is already registered as a callable",
+				token.text.c_str());
+		for (auto fn : fns) {
+			user_message(log_warning, status, fn->get_location(),
+					"previous callable named %s defined here",
+					fn->str().c_str());
 		}
-		return nullptr;
+	} else {
+		if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
+			assert(new_scope != nullptr);
+
+			/* type definitions begin new scopes */
+			local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
+					string_format("type-%s", token.text.c_str()));
+
+			/* update current scope for writing */
+			scope = fresh_scope;
+
+			/* have the caller update their current scope */
+			*new_scope = fresh_scope;
+		}
+
+		// TODO: consider type namespacing here, or 
+		auto type_term = type_algebra->instantiate_type(status, builder,
+				make_code_id(token), type_decl->type_variables, scope);
+
+		if (!!status) {
+			if (type_term != nullptr) {
+				scope->put_type_term(type_decl->token.text, type_term);
+			}
+			return nullptr;
+		}
 	}
 
 	assert(!status);

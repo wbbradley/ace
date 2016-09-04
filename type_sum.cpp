@@ -1,4 +1,5 @@
 #include "zion.h"
+#include <iostream>
 #include "bound_var.h"
 #include "scopes.h"
 #include "ast.h"
@@ -310,20 +311,36 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 			/* simple check for an already bound monotype */
 			user_error(status, get_location(), "symbol " c_id("%s") " was already defined",
 					token.text.c_str());
-			user_message(log_warning, status, found_type->location, "previous version of %s defined here",
+			user_message(log_warning, status, found_type->location,
+					"previous version of %s defined here",
 					found_type->str().c_str());
 		} else {
 			auto env = scope->get_type_env();
 			auto env_iter = env.find(token.text);
 			if (env_iter != env.end()) {
 				/* simple check for an already bound type env variable */
-				user_error(status, get_location(), "symbol " c_id("%s") " is already taken in type env by %s",
+				user_error(status, get_location(),
+					   	"symbol " c_id("%s") " is already taken in type env by %s",
 						token.text.c_str(),
 						env_iter->second->str().c_str());
 			} else {
-				return instantiate_data_ctor_type_term(status, builder,
-						type_variables, scope, shared_from_this(), dimensions,
-						id, supertype_id);
+				var_t::refs fns;
+				scope->get_callables(token.text, fns);
+				if (fns.size() != 0) {
+					user_error(status, get_location(),
+						   	"symbol " c_id("%s") " is already registered as a callable",
+							token.text.c_str());
+					for (auto fn : fns) {
+						user_message(log_warning, status, fn->get_location(),
+								"previous callable named %s defined here",
+								fn->str().c_str());
+					}
+				} else {
+
+					return instantiate_data_ctor_type_term(status, builder,
+							type_variables, scope, shared_from_this(),
+							dimensions, id, supertype_id);
+				}
 			}
 		}
 	} else {

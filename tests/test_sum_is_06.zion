@@ -3,7 +3,6 @@ link module std
 
 type Broken is Special(int)
 
-# error: the name Special is taken
+# error: type name Special is already registered
 type Special has
 	var nothing int
-

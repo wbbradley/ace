@@ -4,6 +4,6 @@ link module std
 type Special has
 	var nothing int
 
-# error: the type Special already exists and is not a valid data constructor
+# error: symbol Special is already taken in type env
 type Broken is Special(int)
 
