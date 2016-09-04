@@ -1,5 +1,8 @@
 #include "zion.h"
 #include <iostream>
+#include <numeric>
+#include <list>
+#include "type_instantiation.h"
 #include "bound_var.h"
 #include "scopes.h"
 #include "ast.h"
@@ -8,8 +11,6 @@
 #include "phase_scope_setup.h"
 #include "types.h"
 #include "code_id.h"
-#include <numeric>
-#include <list>
 
 /* When we encounter the Empty declaration, we have to instantiate something.
  * When we create Empty() with term __obj__{__tuple__}. We don't bother
@@ -117,29 +118,16 @@ types::term::ref ast::type_product::instantiate_type(
 
 	types::term::refs term_dimensions;
 	for (auto dimension : dimensions) {
-		auto term_dim = types::term_product(pk_named_dimension,
-				{
-					/* the "member" variable name */
-					types::term_id(make_code_id(dimension->token)),
-
-					/* the "member" variable type term */
-					dimension->type_ref->get_type_term()
-				});
-		term_dimensions.push_back(term_dim);
+		term_dimensions.push_back(dimension->type_ref->get_type_term());
 	}
 
-	assert(type_variables.size() == 0);
-	auto product_term = types::term_product(pk_struct, term_dimensions);
-
-#if 0
-	/* side-effect: create an unchecked reference to this value ctor into the
-	 * current scope */
-	module_scope->put_unchecked_variable(tag_name,
-			unchecked_data_ctor_t::create(tag_name, shared_from_this(),
-				module_scope, data_ctor_sig));
-#endif
-
-	return product_term;
+	/* Note that product types do not have a named super type. And, this node
+	 * is a type algebra node, therefore, it's token points to "has", instead
+	 * of the actual typename we're trying to create. So, we use the given
+	 * supertype_id as the name for the data ctor. */
+	return register_data_ctor(status, builder,
+			type_variables, scope, shared_from_this(),
+			term_dimensions, supertype_id /*id*/, nullptr /*supertype_id*/);
 }
 
 types::term::ref ast::type_sum::instantiate_type(
@@ -221,23 +209,31 @@ types::term::ref instantiate_data_ctor_type_term(
 		}
 	}
 
-	/* now let's create the abstraction */
-	auto supertype_expansion = types::term_id(supertype_id);
-	for (auto e : supertype_expansion_list) {
-		supertype_expansion = types::term_apply(supertype_expansion, e);
+	if (supertype_id != nullptr) {
+		/* now let's create the abstraction */
+		auto supertype_expansion = types::term_id(supertype_id);
+		for (auto e : supertype_expansion_list) {
+			supertype_expansion = types::term_apply(supertype_expansion, e);
+		}
+		for (auto lambda_var : lambda_vars) {
+			supertype_expansion = types::term_lambda(lambda_var, supertype_expansion);
+		}
+		scope->put_type_term(tag_name, supertype_expansion);
 	}
+
+	/* let's create the return type that will be the codomain of the ctor fn */
 	auto data_ctor_term = tag_term;
 	for (auto lambda_var : lambda_vars) {
 		data_ctor_term = types::term_apply(data_ctor_term, types::term_generic(lambda_var));
-		supertype_expansion = types::term_lambda(lambda_var, supertype_expansion);
 	}
-
 	debug_above(5, log(log_info, "data_ctor_term = %s", data_ctor_term->str().c_str()));
-	scope->put_type_term(tag_name, supertype_expansion);
 
 	if (dimensions.size() == 0) {
 		/* it's a nullary enumeration or "tag", let's create a global value to represent
 		 * this tag. */
+
+		/* enum values must have a supertype, right? */
+		assert(supertype_id != nullptr);
 
 		/* start by making a type for the tag */
 		bound_type_t::ref tag_type = bound_type_t::create(
@@ -299,37 +295,55 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 		atom::many type_variables,
 		scope_t::ref scope) const
 {
-	types::term::refs dimensions;
+	debug_above(5, log(log_info, "creating sum type term for %s", str().c_str()));
 
+	types::term::refs dimensions;
 	for (auto type_ref : type_ref_params) {
 		dimensions.push_back(type_ref->get_type_term());
 	}
 	auto id = make_code_id(token);
 
-	if (supertype_id->get_name() != id->get_name()) {
+	return register_data_ctor(status, builder,
+			type_variables, scope, shared_from_this(),
+			dimensions, id, supertype_id);
+}
+
+types::term::ref register_data_ctor(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		atom::many type_variables,
+		scope_t::ref scope,
+		ptr<const ast::item> node,
+		types::term::refs dimensions,
+		identifier::ref id,
+		identifier::ref supertype_id)
+{
+	atom name = id->get_name();
+	auto location = node->get_location();
+	if (supertype_id == nullptr || (supertype_id->get_name() != id->get_name())) {
 		if (auto found_type = scope->get_bound_type(id->get_name())) {
 			/* simple check for an already bound monotype */
-			user_error(status, get_location(), "symbol " c_id("%s") " was already defined",
-					token.text.c_str());
+			user_error(status, location, "symbol " c_id("%s") " was already defined",
+					name.c_str());
 			user_message(log_warning, status, found_type->location,
 					"previous version of %s defined here",
 					found_type->str().c_str());
 		} else {
 			auto env = scope->get_type_env();
-			auto env_iter = env.find(token.text);
+			auto env_iter = env.find(name);
 			if (env_iter != env.end()) {
 				/* simple check for an already bound type env variable */
-				user_error(status, get_location(),
+				user_error(status, location,
 					   	"symbol " c_id("%s") " is already taken in type env by %s",
-						token.text.c_str(),
+						name.c_str(),
 						env_iter->second->str().c_str());
 			} else {
 				var_t::refs fns;
-				scope->get_callables(token.text, fns);
+				scope->get_callables(name, fns);
 				if (fns.size() != 0) {
-					user_error(status, get_location(),
+					user_error(status, location,
 						   	"symbol " c_id("%s") " is already registered as a callable",
-							token.text.c_str());
+							name.c_str());
 					for (auto fn : fns) {
 						user_message(log_warning, status, fn->get_location(),
 								"previous callable named %s defined here",
@@ -338,13 +352,14 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 				} else {
 
 					return instantiate_data_ctor_type_term(status, builder,
-							type_variables, scope, shared_from_this(),
-							dimensions, id, supertype_id);
+							type_variables, scope, node, dimensions, id,
+							supertype_id);
 				}
 			}
 		}
 	} else {
-		user_error(status, token.location, "data constructors cannot be named the same as their supertype");
+		user_error(status, location,
+			   	"data constructors cannot be named the same as their supertype");
 	}
 
 	assert(!status);
