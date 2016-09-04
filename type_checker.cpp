@@ -967,6 +967,8 @@ status_t type_check_module_variables(
 				final_status |= status;
 			} else if (auto data_ctor = dyncast<const ast::data_ctor>(node)) {
 				/* ignore until instantiation at a callsite */
+			} else if (auto data_ctor = dyncast<const ast::type_product>(node)) {
+				/* ignore until instantiation at a callsite */
 			} else {
 				assert(!"unhandled unchecked node at module scope");
 			}

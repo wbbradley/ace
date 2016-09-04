@@ -13,4 +13,6 @@ namespace ast {
 	struct expression;
 	struct return_statement;
 	struct param_list_decl;
+	struct data_ctor;
+	struct type_product;
 }

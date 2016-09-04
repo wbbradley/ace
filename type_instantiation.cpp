@@ -45,7 +45,6 @@ void resolve_type_ref_params(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		ast::data_ctor::ref data_ctor,
 		types::type::refs type_args,
 		bound_type_t::refs &args)
 {
@@ -67,7 +66,7 @@ bound_var_t::ref bind_ctor_to_scope(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		ast::data_ctor::ref data_ctor,
+		ast::item::ref node,
 		types::type::ref data_ctor_sig)
 {
 	bool is_instantiation = bool(dyncast<generic_substitution_scope_t>(scope));
@@ -76,15 +75,14 @@ bound_var_t::ref bind_ctor_to_scope(
 	assert(scope->get_bound_type(data_ctor_sig->get_signature()) == nullptr);
 
 	/* create or find an existing ctor function that satisfies the term of
-	 * this data_ctor */
+	 * this node */
 	debug_above(5, log(log_info, "finding/creating data ctor for " c_type("%s") " with signature %s",
-			data_ctor->token.str().c_str(),
+			node->token.str().c_str(),
 			data_ctor_sig->str().c_str()));
 
 	bound_type_t::refs args;
-	resolve_type_ref_params(status, builder, scope, data_ctor,
-			get_function_type_args(data_ctor_sig),
-			args);
+	resolve_type_ref_params(status, builder, scope,
+			get_function_type_args(data_ctor_sig), args);
 
 	if (!!status) {
 		/* now that we know the parameter types, let's see what the term looks like */
@@ -94,8 +92,8 @@ bound_var_t::ref bind_ctor_to_scope(
 		 * whether this ctor already exists. if so, we'll just return it. if not,
 		 * we'll generate it. */
 		auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope,
-				args, data_ctor->token.text, data_ctor->token.location,
-				data_ctor, data_ctor_sig);
+				args, node->token.text, node->token.location,
+				node, data_ctor_sig);
 
 		if (!!status) {
 			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
@@ -141,8 +139,8 @@ types::term::ref ast::type_sum::instantiate_type(
 				token.text.c_str(),
 				join(type_variables, ", ").c_str()));
 
-	for (auto data_ctor : data_ctors) {
-		data_ctor->instantiate_type_term(status, builder, supertype_id,
+	for (auto product_ctor : data_ctors) {
+		product_ctor->instantiate_type_term(status, builder, supertype_id,
 				type_variables, scope);
 	}
 
@@ -162,7 +160,7 @@ types::term::ref instantiate_data_ctor_type_term(
 	atom tag_name = id->get_name();
 	auto tag_term = types::term_id(id);
 
-	/* create a term that takes the used type ariables in the data ctor and
+	/* create a term that takes the used type variables in the data ctor and
 	 * returns placement in given type variable order */
 	/* instantiate the necessary components of a data ctor */
 	atom::set generics = to_set(type_variables);

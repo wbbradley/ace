@@ -5,6 +5,7 @@
 #include "unification.h"
 #include "llvm_types.h"
 #include "types.h"
+#include "type_instantiation.h"
 
 bound_var_t::ref make_call_value(
 		status_t &status,
@@ -61,6 +62,9 @@ bound_var_t::ref check_func_vs_callsite(
 				/* save and later restore the current branch insertion point */
 				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
+				ast::item::ref data_ctor = dyncast<const ast::data_ctor>(unchecked_fn->node);
+				ast::item::ref type_product = dyncast<const ast::type_product>(unchecked_fn->node);
+
 				if (auto function_defn = dyncast<const ast::function_defn>(unchecked_fn->node)) {
 					/* we shouldn't be here unless we found something to substitute */
 
@@ -92,10 +96,11 @@ bound_var_t::ref check_func_vs_callsite(
 					} else {
 						panic("we should have a product type for our fn_type");
 					}
-				} else if (auto data_ctor = dyncast<const ast::data_ctor>(unchecked_fn->node)) {
-					/* we shouldn't be here unless we found something to substitute */
+				} else if (data_ctor != nullptr || type_product != nullptr) {
+					ast::item::ref node = (data_ctor ? data_ctor : type_product);
 
-					debug_above(4, log(log_info, "building substitution for %s", data_ctor->token.str().c_str()));
+					/* we shouldn't be here unless we found something to substitute */
+					debug_above(4, log(log_info, "building substitution for %s", node->token.str().c_str()));
 					auto unchecked_data_ctor = dyncast<const unchecked_data_ctor_t>(unchecked_fn);
 					assert(unchecked_data_ctor != nullptr);
 
@@ -110,7 +115,7 @@ bound_var_t::ref check_func_vs_callsite(
 
 					/* instantiate the data ctor we want */
 					bound_var_t::ref ctor_fn = bind_ctor_to_scope(
-							status, builder, subst_scope, data_ctor,
+							status, builder, subst_scope, node,
 							data_ctor_sig->rebind(unification.bindings));
 
 					if (!!status) {

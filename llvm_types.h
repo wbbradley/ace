@@ -80,10 +80,3 @@ bound_type_t::ref get_function_return_type(
 		const ast::item &obj,
 		scope_t::ref scope,
 		bound_type_t::ref function_type);
-
-bound_var_t::ref bind_ctor_to_scope(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		ast::data_ctor::ref data_ctor,
-		types::type::ref data_ctor_sig);
