@@ -11,13 +11,15 @@ bound_type_t::bound_type_t(
 		llvm::Type *llvm_type,
 		llvm::Type *llvm_specific_type,
 		bound_type_t::refs dimensions,
-		record_map records) :
+		name_map member_map,
+		name_index member_index) :
 	type(type),
 	location(location),
 	llvm_type(llvm_type),
 	llvm_specific_type(llvm_specific_type),
 	dimensions(dimensions),
-	records(records)
+	member_map(member_map),
+	member_index(member_index)
 {
 	debug_above(6, log(log_info, "creating type with (%s, LLVM TypeID %d, %s, [%s])",
 			type->str().c_str(),
@@ -35,10 +37,11 @@ bound_type_t::ref bound_type_t::create(
 		llvm::Type *llvm_type,
 		llvm::Type *llvm_specific_type,
 		bound_type_t::refs dimensions,
-		bound_type_t::record_map records)
+		bound_type_t::name_map member_map,
+		bound_type_t::name_index member_index)
 {
 	return make_ptr<bound_type_t>(type, location, llvm_type,
-			llvm_specific_type, dimensions, records);
+			llvm_specific_type, dimensions, member_map, member_index);
 }
 
 types::term::ref bound_type_t::get_term() const {

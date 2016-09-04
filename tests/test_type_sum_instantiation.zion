@@ -1,8 +1,7 @@
 module _
-# test: pass
-
 
 def foo()
+	# error: local type definitions are not yet impl
 	type Vector2d is Double(float, float)
 
 	x := Double(0.4, 1.3)
