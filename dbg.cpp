@@ -14,7 +14,7 @@ void _emit_assert(
 	status_t status;
 	std::stringstream ss;
 	ss << c_error("assert failed");
-	ss << "--> " << C_ERROR << assertion << C_RESET << " in ";
+	ss << " --> " << C_ERROR << assertion << C_RESET << " in ";
 	ss << C_INTERNAL << function << C_RESET;
 	user_message(log_panic, status, location, ss.str().c_str());
 	::log_stack(log_warning);

@@ -267,44 +267,44 @@ void add_globals(
 			{"str", llvm_module_str, "__str_float", {"float"}, "str"},
 			{"str", llvm_module_str, "__str_str", {"str"}, "str"},
 
-			{"+",   llvm_module_str, "__str_plus_str", {"str", "str"}, "str"},
+			{"__plus__",   llvm_module_str, "__str_plus_str", {"str", "str"}, "str"},
 
-			{"+", llvm_module_int, "__int_plus_int", {"int", "int"}, "int"},
-			{"-", llvm_module_int, "__int_minus_int", {"int", "int"}, "int"},
-			{"*", llvm_module_int, "__int_times_int", {"int", "int"}, "int"},
-			{"/", llvm_module_int, "__int_divide_int", {"int", "int"}, "int"},
-			{"%", llvm_module_int, "__int_modulus_int", {"int", "int"}, "int"},
+			{"__plus__", llvm_module_int, "__int_plus_int", {"int", "int"}, "int"},
+			{"__minus__", llvm_module_int, "__int_minus_int", {"int", "int"}, "int"},
+			{"__times__", llvm_module_int, "__int_times_int", {"int", "int"}, "int"},
+			{"__divide__", llvm_module_int, "__int_divide_int", {"int", "int"}, "int"},
+			{"__modulo__", llvm_module_int, "__int_modulus_int", {"int", "int"}, "int"},
 
 			/* bitmasking */
 			{"mask", llvm_module_int, "__int_mask_int", {"int", "int"}, "int"},
 
-			{"-", llvm_module_int, "__int_neg", {"int"}, "int"},
-			{"+", llvm_module_int, "__int_pos", {"int"}, "int"},
+			{"__negative__", llvm_module_int, "__int_neg", {"int"}, "int"},
+			{"__positive__", llvm_module_int, "__int_pos", {"int"}, "int"},
 
-			{"-", llvm_module_float, "__float_neg", {"float"}, "float"},
-			{"+", llvm_module_float, "__float_pos", {"float"}, "float"},
+			{"__negative__", llvm_module_float, "__float_neg", {"float"}, "float"},
+			{"__positive__", llvm_module_float, "__float_pos", {"float"}, "float"},
 
-			{"+", llvm_module_float, "__int_plus_float", {"int", "float"}, "float"},
-			{"-", llvm_module_float, "__int_minus_float", {"int", "float"}, "float"},
-			{"*", llvm_module_float, "__int_times_float", {"int", "float"}, "float"},
-			{"/", llvm_module_float, "__int_divide_float", {"int", "float"}, "float"},
+			{"__plus__", llvm_module_float, "__int_plus_float", {"int", "float"}, "float"},
+			{"__minus__", llvm_module_float, "__int_minus_float", {"int", "float"}, "float"},
+			{"__times__", llvm_module_float, "__int_times_float", {"int", "float"}, "float"},
+			{"__divide__", llvm_module_float, "__int_divide_float", {"int", "float"}, "float"},
 
-			{"+", llvm_module_float, "__float_plus_int", {"float", "int"}, "float"},
-			{"-", llvm_module_float, "__float_minus_int", {"float", "int"}, "float"},
-			{"*", llvm_module_float, "__float_times_int", {"float", "int"}, "float"},
-			{"/", llvm_module_float, "__float_divide_int", {"float", "int"}, "float"},
+			{"__plus__", llvm_module_float, "__float_plus_int", {"float", "int"}, "float"},
+			{"__minus__", llvm_module_float, "__float_minus_int", {"float", "int"}, "float"},
+			{"__times__", llvm_module_float, "__float_times_int", {"float", "int"}, "float"},
+			{"__divide__", llvm_module_float, "__float_divide_int", {"float", "int"}, "float"},
 
-			{"+", llvm_module_float, "__float_plus_float", {"float", "float"}, "float"},
-			{"-", llvm_module_float, "__float_minus_float", {"float", "float"}, "float"},
-			{"*", llvm_module_float, "__float_times_float", {"float", "float"}, "float"},
-			{"/", llvm_module_float, "__float_divide_float", {"float", "float"}, "float"},
+			{"__plus__", llvm_module_float, "__float_plus_float", {"float", "float"}, "float"},
+			{"__minus__", llvm_module_float, "__float_minus_float", {"float", "float"}, "float"},
+			{"__times__", llvm_module_float, "__float_times_float", {"float", "float"}, "float"},
+			{"__divide__", llvm_module_float, "__float_divide_float", {"float", "float"}, "float"},
 
-			{">", llvm_module_int, "__int_gt_int", {"int", "int"}, "int"},
-			{"<", llvm_module_int, "__int_lt_int", {"int", "int"}, "int"},
-			{">=", llvm_module_int, "__int_gte_int", {"int", "int"}, "int"},
-			{"<=", llvm_module_int, "__int_lte_int", {"int", "int"}, "int"},
-			{"!=", llvm_module_int, "__int_ineq_int", {"int", "int"}, "int"},
-			{"==", llvm_module_int, "__int_eq_int", {"int", "int"}, "int"},
+			{"__gt__", llvm_module_int, "__int_gt_int", {"int", "int"}, "int"},
+			{"__lt__", llvm_module_int, "__int_lt_int", {"int", "int"}, "int"},
+			{"__gte__", llvm_module_int, "__int_gte_int", {"int", "int"}, "int"},
+			{"__lte__", llvm_module_int, "__int_lte_int", {"int", "int"}, "int"},
+			{"__ineq__", llvm_module_int, "__int_ineq_int", {"int", "int"}, "int"},
+			{"__eq__", llvm_module_int, "__int_eq_int", {"int", "int"}, "int"},
 
 			{"__push_stack_var", llvm_module_gc, "push_stack_var", {"__var_ref"}, "void"},
 			{"__pop_stack_var", llvm_module_gc, "pop_stack_var", {"__var_ref"}, "void"},
@@ -339,9 +339,6 @@ void compiler::build(status_t &status) {
 
 		/* create the program ast to contain all of the modules */
 		auto program = ast::create<ast::program>({});
-
-		/* always include the standard library */
-		build_parse(status, location{"default include", 0, 0}, "std");
 
 		/* next, merge the entire set of modules into one program */
 		for (const auto &module_data_pair : modules) {

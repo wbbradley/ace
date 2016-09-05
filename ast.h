@@ -574,11 +574,6 @@ namespace ast {
 		zion_token_t rhs;
 	};
 
-	struct binary_expr : public expression {
-		/* this is a helper class to consolidate overload resolution logic */
-		virtual atom get_function_name() const;
-	};
-
 	struct tuple_expr : public expression {
 		typedef ptr<const tuple_expr> ref;
 
@@ -590,7 +585,7 @@ namespace ast {
 		std::vector<ptr<ast::expression>> values;
 	};
 
-	struct or_expr : public binary_expr {
+	struct or_expr : public expression {
 		typedef ptr<const or_expr> ref;
 
 		static const syntax_kind_t SK = sk_or_expr;
@@ -601,7 +596,7 @@ namespace ast {
 		ptr<ast::expression> lhs, rhs;
 	};
 
-	struct and_expr : public binary_expr {
+	struct and_expr : public expression {
 		typedef ptr<const and_expr> ref;
 
 		static const syntax_kind_t SK = sk_and_expr;
@@ -612,7 +607,7 @@ namespace ast {
 		ptr<ast::expression> lhs, rhs;
 	};
 
-	struct eq_expr : public binary_expr {
+	struct eq_expr : public expression {
 		typedef ptr<const eq_expr> ref;
 
 		static const syntax_kind_t SK = sk_eq_expr;
@@ -624,7 +619,7 @@ namespace ast {
 		bool not_in = false;
 	};
 
-	struct ineq_expr : public binary_expr {
+	struct ineq_expr : public expression {
 		typedef ptr<const ineq_expr> ref;
 
 		static const syntax_kind_t SK = sk_ineq_expr;
@@ -635,7 +630,7 @@ namespace ast {
 		ptr<ast::expression> lhs, rhs;
 	};
 
-	struct plus_expr : public binary_expr {
+	struct plus_expr : public expression {
 		typedef ptr<const plus_expr> ref;
 
 		static const syntax_kind_t SK = sk_plus_expr;
@@ -646,7 +641,7 @@ namespace ast {
 		ptr<ast::expression> lhs, rhs;
 	};
 
-	struct times_expr : public binary_expr {
+	struct times_expr : public expression {
 		typedef ptr<const times_expr> ref;
 
 		static const syntax_kind_t SK = sk_times_expr;

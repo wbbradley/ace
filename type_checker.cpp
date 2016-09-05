@@ -547,9 +547,9 @@ bound_var_t::ref type_check_binary_operator(
 		scope_t::ref scope,
 		ptr<const ast::expression> lhs,
 		ptr<const ast::expression> rhs,
-		const ast::expression &obj)
+		ast::item::ref obj,
+		atom function_name)
 {
-	auto function_name = obj.token.text;
 	assert(function_name.size() != 0);
 
 	bound_var_t::ref lhs_var, rhs_var;
@@ -561,7 +561,7 @@ bound_var_t::ref type_check_binary_operator(
 			/* get or instantiate a function we can call on these arguments */
 			return call_program_function(
 					status, builder, scope, function_name,
-					obj.shared_from_this(), {lhs_var, rhs_var});
+					obj, {lhs_var, rhs_var});
 		}
 	}
 
@@ -576,7 +576,20 @@ bound_var_t::ref ast::eq_expr::resolve_instantiation(
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    return type_check_binary_operator(status, builder, scope, lhs, rhs, *this);
+	atom function_name;
+	switch (token.tk) {
+	case tk_equal:
+		function_name = "__eq__";
+		break;
+	case tk_inequal:
+		function_name = "__ineq__";
+		break;
+	default:
+		return null_impl();
+	}
+
+	return type_check_binary_operator(status, builder, scope, lhs, rhs,
+			shared_from_this(), function_name);
 }
 
 bound_var_t::ref ast::tuple_expr::resolve_instantiation(
@@ -636,7 +649,8 @@ bound_var_t::ref ast::or_expr::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    return type_check_binary_operator(status, builder, scope, lhs, rhs, *this);
+	// TODO: implement short-circuiting
+	return null_impl();
 }
 
 bound_var_t::ref ast::and_expr::resolve_instantiation(
@@ -646,7 +660,8 @@ bound_var_t::ref ast::and_expr::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    return type_check_binary_operator(status, builder, scope, lhs, rhs, *this);
+	// TODO: implement short-circuiting
+	return null_impl();
 }
 
 bound_var_t::ref ast::dot_expr::resolve_instantiation(
@@ -710,7 +725,26 @@ bound_var_t::ref ast::ineq_expr::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    return type_check_binary_operator(status, builder, scope, lhs, rhs, *this);
+	atom function_name;
+	switch (token.tk) {
+	case tk_lt:
+		function_name = "__lt__";
+		break;
+	case tk_lte:
+		function_name = "__lte__";
+		break;
+	case tk_gt:
+		function_name = "__gt__";
+		break;
+	case tk_gte:
+		function_name = "__gte__";
+		break;
+	default:
+		return null_impl();
+	}
+
+	return type_check_binary_operator(status, builder, scope, lhs, rhs,
+			shared_from_this(), function_name);
 }
 
 bound_var_t::ref ast::plus_expr::resolve_instantiation(
@@ -720,7 +754,20 @@ bound_var_t::ref ast::plus_expr::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    return type_check_binary_operator(status, builder, scope, lhs, rhs, *this);
+	atom function_name;
+	switch (token.tk) {
+	case tk_plus:
+		function_name = "__plus__";
+		break;
+	case tk_minus:
+		function_name = "__minus__";
+		break;
+	default:
+		return null_impl();
+	}
+
+	return type_check_binary_operator(status, builder, scope, lhs, rhs,
+			shared_from_this(), function_name);
 }
 
 bound_var_t::ref ast::function_defn::resolve_instantiation(
@@ -1114,6 +1161,41 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 	return nullptr;
 }
 
+bound_var_t::ref type_check_assignment(
+		status_t &status, llvm::IRBuilder<> &builder,
+		bound_var_t::ref lhs_var,
+		bound_var_t::ref rhs_var,
+		struct location location)
+{
+	if (!!status) {
+		if (lhs_var->is_lhs) {
+			// TODO: load and queue up a free of whatever the LHS is currently pointing at
+
+			// TODO: check the types for compatibility
+			unification_t unification = unify(
+					lhs_var->type->type->to_term(),
+					rhs_var->type->type->to_term(), {});
+
+			if (unification.result) {
+				if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(lhs_var->llvm_value)) {
+					builder.CreateStore(rhs_var->llvm_value, llvm_alloca);
+					return lhs_var;
+				} else {
+					assert(false);
+				}
+			} else {
+				user_error(status, location, "left-hand side is incompatible with the right-hand side (%s)",
+						unification.str().c_str());
+			}
+		} else {
+			user_error(status, location, "left-hand side of assignment is not mutable");
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref ast::assignment::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
@@ -1123,21 +1205,10 @@ bound_var_t::ref ast::assignment::resolve_instantiation(
 {
 	assert(token.text == "=");
 
-	bound_var_t::ref lhs_var, rhs_var;
-	lhs_var = lhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
-
+	auto lhs_var = lhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
 	if (!!status) {
-		if (lhs_var->is_lhs) {
-			rhs_var = rhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
-			log(log_info, "%s", llvm_print_value_ptr(lhs_var->llvm_value).c_str());
-
-			if (!!status) {
-				/* get or instantiate a function we can call on these arguments */
-				user_error(status, token.location, "assignment is not yet implemented");
-			}
-		} else {
-			user_error(status, token.location, "left-hand side of assignment is not mutable");
-		}
+		auto rhs_var = rhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+		return type_check_assignment(status, builder, lhs_var, rhs_var, token.location);
 	}
 
 	assert(!status);
@@ -1168,6 +1239,36 @@ bound_var_t::ref ast::continue_flow::resolve_instantiation(
     return nullptr;
 }
 
+bound_var_t::ref type_check_binary_op_assignment(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		ast::item::ref op_node,
+		ast::statement::ref lhs,
+		ast::statement::ref rhs,
+		struct location location,
+		atom function_name)
+{
+	auto lhs_var = lhs->resolve_instantiation(status, builder, scope, nullptr,
+			nullptr);
+
+	if (!!status) {
+		auto rhs_var = rhs->resolve_instantiation(status, builder, scope,
+				nullptr, nullptr);
+
+		if (!!status) {
+			auto computed_var = call_program_function(status, builder, scope,
+					function_name, op_node, {lhs_var, rhs_var});
+
+			return type_check_assignment(status, builder, lhs_var,
+					computed_var, location);
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref ast::mod_assignment::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
@@ -1175,9 +1276,8 @@ bound_var_t::ref ast::mod_assignment::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    not_impl();
-    assert(!status);
-    return nullptr;
+	return type_check_binary_op_assignment(status, builder, scope,
+			shared_from_this(), lhs, rhs, token.location, "__modulo__");
 }
 
 bound_var_t::ref ast::plus_assignment::resolve_instantiation(
@@ -1187,9 +1287,8 @@ bound_var_t::ref ast::plus_assignment::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    not_impl();
-    assert(!status);
-    return nullptr;
+	return type_check_binary_op_assignment(status, builder, scope,
+			shared_from_this(), lhs, rhs, token.location, "__plus__");
 }
 
 bound_var_t::ref ast::minus_assignment::resolve_instantiation(
@@ -1199,9 +1298,8 @@ bound_var_t::ref ast::minus_assignment::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    not_impl();
-    assert(!status);
-    return nullptr;
+	return type_check_binary_op_assignment(status, builder, scope,
+			shared_from_this(), lhs, rhs, token.location, "__minus__");
 }
 
 bound_var_t::ref ast::return_statement::resolve_instantiation(
@@ -1259,9 +1357,8 @@ bound_var_t::ref ast::times_assignment::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    not_impl();
-    assert(!status);
-    return nullptr;
+	return type_check_binary_op_assignment(status, builder, scope,
+			shared_from_this(), lhs, rhs, token.location, "__times__");
 }
 
 bound_var_t::ref ast::divide_assignment::resolve_instantiation(
@@ -1271,9 +1368,8 @@ bound_var_t::ref ast::divide_assignment::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    not_impl();
-    assert(!status);
-    return nullptr;
+	return type_check_binary_op_assignment(status, builder, scope,
+			shared_from_this(), lhs, rhs, token.location, "__divide__");
 }
 
 bound_var_t::ref ast::block::resolve_instantiation(
@@ -1613,7 +1709,23 @@ bound_var_t::ref ast::times_expr::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    return type_check_binary_operator(status, builder, scope, lhs, rhs, *this);
+	atom function_name;
+	switch (token.tk) {
+	case tk_times:
+		function_name = "__times__";
+		break;
+	case tk_divide_by:
+		function_name = "__divide__";
+		break;
+	case tk_mod:
+		function_name = "__modulo__";
+		break;
+	default:
+		return null_impl();
+	}
+
+	return type_check_binary_operator(status, builder, scope, lhs, rhs,
+			shared_from_this(), function_name);
 }
 
 bound_var_t::ref ast::prefix_expr::resolve_instantiation(
@@ -1623,11 +1735,23 @@ bound_var_t::ref ast::prefix_expr::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
+	atom function_name;
+	switch (token.tk) {
+	case tk_minus:
+		function_name = "__negative__";
+		break;
+	case tk_plus:
+		function_name = "__positive__";
+		break;
+	default:
+		return null_impl();
+	}
+
     /* first solve the right hand side */
     bound_var_t::ref rhs_var = rhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
 
     if (!!status) {
-        return call_program_function(status, builder, scope, token.text,
+        return call_program_function(status, builder, scope, function_name,
                 shared_from_this(), {rhs_var});
     }
     assert(!status);
@@ -1693,11 +1817,6 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
     return nullptr;
 }
 
-atom ast::binary_expr::get_function_name() const {
-	/* this implements the function name lookup for function overloads */
-	return token.text;
-}
-
 bound_var_t::ref ast::reference_expr::resolve_overrides(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -1706,7 +1825,8 @@ bound_var_t::ref ast::reference_expr::resolve_overrides(
 		const bound_type_t::refs &args) const
 {
 	indent_logger indent;
-	debug_above(5, log(log_info, "reference_expr::resolve_overrides for %s", callsite->str().c_str()));
+	debug_above(5, log(log_info, "reference_expr::resolve_overrides for %s",
+				callsite->str().c_str()));
 
 	/* ok, we know we've got some variable here */
 	return get_callable(status, builder, scope, token.text, shared_from_this(),

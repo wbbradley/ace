@@ -1,4 +1,4 @@
-module simple @1.0
+module _
 
 def main()
 	# error: left-hand side of assignment is not mutable

@@ -5,3 +5,7 @@ link def puts(x str) int
 def print(x any T) void
 	s := str(x)
 	puts(s)
+
+type List{T} is
+	Node(T, List{T}) or
+	Done
