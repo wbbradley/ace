@@ -1,0 +1,5 @@
+module simple @1.0
+
+def main()
+	# error: left-hand side of assignment is not mutable
+	5 = 3
