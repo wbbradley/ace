@@ -571,7 +571,8 @@ bound_var_t::ref call_const_subscript_operator(
 						"temp_deref_subscript",
 						data_type,
 						llvm_value,
-						make_code_id(node->token));
+						make_code_id(node->token),
+						false/*is_lhs*/);
 			} else {
 				user_error(status, *node, "index out of range");
 			}

@@ -177,7 +177,8 @@ void rt_bind_var_from_llir(
 					name,
 					bound_type,
 					llvm_function,
-					make_iid(name)));
+					make_iid(name),
+					false/*is_lhs*/));
 	}
 }
 
@@ -237,11 +238,11 @@ void add_globals(
 	llvm::Value *llvm_null_value = llvm::ConstantPointerNull::get(llvm::dyn_cast<llvm::PointerType>(void_ptr_type->llvm_type));
 	assert(llvm_null_value != nullptr);
 
-	program_scope->put_bound_variable("true", bound_var_t::create(INTERNAL_LOC(), "true", bool_type, builder.getTrue(), make_iid("true")));
-	program_scope->put_bound_variable("false", bound_var_t::create(INTERNAL_LOC(), "false", bool_type, builder.getFalse(), make_iid("false")));
+	program_scope->put_bound_variable("true", bound_var_t::create(INTERNAL_LOC(), "true", bool_type, builder.getTrue(), make_iid("true"), false/*is_lhs*/));
+	program_scope->put_bound_variable("false", bound_var_t::create(INTERNAL_LOC(), "false", bool_type, builder.getFalse(), make_iid("false"), false/*is_lhs*/));
 	program_scope->put_bound_variable(
 			"null", bound_var_t::create(INTERNAL_LOC(), "null", void_ptr_type,
-				llvm_null_value, make_iid("null")));
+				llvm_null_value, make_iid("null"), false/*is_lhs*/));
 
 	if (!!status) {
 		

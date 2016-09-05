@@ -106,7 +106,8 @@ bound_var_t::ref type_check_bound_var_decl(
 			 * will need to know to use store/load semantics, not
 			 * just pass-by-value */
 			return bound_var_t::create(INTERNAL_LOC(), symbol,
-					type, llvm_alloca, make_code_id(obj.token));
+					type, llvm_alloca, make_code_id(obj.token),
+					true /*is_lhs*/);
 		}
 	} else {
 		// TODO: get a pointer to the prior var
@@ -270,10 +271,14 @@ function_scope_t::ref make_param_list_scope(
             llvm::Value *llvm_param = args++;
             llvm_param->setName(param.first.str());
 
+			// TODO: consider creating an alloca in order to be able to
+			// reassign the named parameter to a new value by making it an LHS
+
             /* add the parameter argument to the current scope */
             new_scope->put_bound_variable(param.first,
                     bound_var_t::create(INTERNAL_LOC(), param.first, param.second,
-                        llvm_param, make_code_id(obj.param_list_decl->params[i++]->token)));
+                        llvm_param, make_code_id(obj.param_list_decl->params[i++]->token),
+						false/*is_lhs*/));
         }
 
         return new_scope;
@@ -365,7 +370,8 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 					scope->make_fqn(link_as_name.text),
                     bound_function_type,
                     llvm_value,
-                    make_code_id(extern_function->token));
+                    make_code_id(extern_function->token),
+					false/*is_lhs*/);
         }
     } else {
         user_error(status, *this, "name conflict with %s", link_as_name.text.c_str());
@@ -685,7 +691,7 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
 			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
 			return bound_var_t::create(
 					INTERNAL_LOC(), string_format(".%s", rhs.text.c_str()),
-					member_type, llvm_item, make_code_id(token));
+					member_type, llvm_item, make_code_id(token), false/*is_lhs*/);
 		} else {
 			user_error(status, *this, "%s has no dimension called " c_id("%s"),
 					lhs_val->type->str().c_str(),
@@ -796,7 +802,7 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 		/* set up the mapping to this function for use in recursion */
 		bound_var_t::ref function_var = bound_var_t::create(
 				INTERNAL_LOC(), token.text, function_type, llvm_function,
-				make_code_id(token));
+				make_code_id(token), false/*is_lhs*/);
 
 		/* we should be able to check its block as a callsite. note that this
 		 * code will also run for generics but only after the
@@ -1115,7 +1121,27 @@ bound_var_t::ref ast::assignment::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    return type_check_binary_operator(status, builder, scope, lhs, rhs, *this);
+	assert(token.text == "=");
+
+	bound_var_t::ref lhs_var, rhs_var;
+	lhs_var = lhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+
+	if (!!status) {
+		if (lhs_var->is_lhs) {
+			rhs_var = rhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+			log(log_info, "%s", llvm_print_value_ptr(lhs_var->llvm_value).c_str());
+
+			if (!!status) {
+				/* get or instantiate a function we can call on these arguments */
+				user_error(status, token.location, "assignment is not yet implemented");
+			}
+		} else {
+			user_error(status, token.location, "left-hand side of assignment is not mutable");
+		}
+	}
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref ast::break_flow::resolve_instantiation(
@@ -1625,7 +1651,8 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
             if (!!status) {
                 return bound_var_t::create(
 						INTERNAL_LOC(), "temp_int_literal", type,
-						llvm_create_int(builder, value), make_code_id(token));
+						llvm_create_int(builder, value), make_code_id(token),
+						false/*is_lhs*/);
             }
         }
 		break;
@@ -1642,7 +1669,8 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
             bound_type_t::ref type = program_scope->get_bound_type({"str"});
             if (!!status) {
                 return bound_var_t::create(INTERNAL_LOC(), "temp_str_literal", 
-                        type, llvm_create_global_string(builder, value), make_code_id(token));
+						type, llvm_create_global_string(builder, value),
+						make_code_id(token), false/*is_lhs*/);
             }
         }
 		break;
@@ -1651,8 +1679,9 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
             float value = atof(token.text.c_str());
             bound_type_t::ref type = program_scope->get_bound_type({"float"});
             if (!!status) {
-                return bound_var_t::create(INTERNAL_LOC(), "temp_float_literal", 
-                        type, llvm_create_float(builder, value), make_code_id(token));
+				return bound_var_t::create(INTERNAL_LOC(),
+						"temp_float_literal", type, llvm_create_float(builder,
+							value), make_code_id(token), false/*is_lhs*/);
             }
         }
 		break;

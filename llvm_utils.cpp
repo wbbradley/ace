@@ -119,7 +119,7 @@ bound_var_t::ref create_callsite(
 					builder, *callsite, scope, function->type);
 
 			return bound_var_t::create(INTERNAL_LOC(), name, return_type, llvm_call_inst,
-					make_code_id(callsite->token));
+					make_code_id(callsite->token), false/*is_lhs*/);
 		}
 	}
 	
@@ -395,10 +395,11 @@ bound_var_t::ref llvm_start_function(status_t &status,
 					llvm::Function::ExternalLinkage, name.str(),
 					scope->get_llvm_module());
 
-			/* create the actual bound variable for the data ctor fn */
+			/* create the actual bound variable for the fn */
 			bound_var_t::ref function = bound_var_t::create(
 					INTERNAL_LOC(), name,
-					function_type, llvm_function, make_code_id(node->token));
+					function_type, llvm_function, make_code_id(node->token),
+					false/*is_lhs*/);
 
 			/* start emitting code into the new function. caller should have an
 			 * insert point guard */
@@ -497,5 +498,5 @@ bound_var_t::ref llvm_create_global_tag(
 	llvm::Constant *llvm_tag_value = llvm::ConstantExpr::getBitCast(
 			llvm_tag_global_instance, llvm_var_ref_type);
 
-	return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_value, id);
+	return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_value, id, false/*is_lhs*/);
 }

@@ -18,13 +18,20 @@ struct bound_var_t : public var_t {
 			atom name,
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
-			identifier::ref id)
-		: internal_location(internal_location), name(name), type(type), llvm_value(llvm_value), id(id)
+			identifier::ref id,
+			bool is_lhs) :
+	   	internal_location(internal_location),
+	   	name(name),
+	   	type(type),
+	   	llvm_value(llvm_value),
+	   	id(id),
+		is_lhs(is_lhs)
    	{
 		assert(name.size() != 0);
 		assert(llvm_value != nullptr);
 		assert(id != nullptr);
 	}
+
 	virtual ~bound_var_t() throw() {}
 
 	location internal_location;
@@ -32,6 +39,7 @@ struct bound_var_t : public var_t {
 	bound_type_t::ref const type;
 	llvm::Value * const llvm_value;
 	identifier::ref const id;
+	bool const is_lhs;
 
 	std::string str() const;
 
@@ -53,9 +61,10 @@ struct bound_var_t : public var_t {
 			atom name,
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
-			identifier::ref id)
+			identifier::ref id,
+			bool is_lhs)
 	{
-		return make_ptr<bound_var_t>(internal_location, name, type, llvm_value, id);
+		return make_ptr<bound_var_t>(internal_location, name, type, llvm_value, id, is_lhs);
 	}
 
 	static std::string str(const refs &coll) {
