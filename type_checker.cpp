@@ -1302,7 +1302,98 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    not_impl();
+	/* while scope allows us to set up new variables inside while conditions */
+	local_scope_t::ref while_scope;
+
+	if (condition != nullptr) {
+		assert(token.text == "while");
+
+		llvm::Function *llvm_function_current = llvm_get_function(builder);
+
+		llvm::BasicBlock *while_cond_bb = llvm::BasicBlock::Create(builder.getContext(), "while.cond", llvm_function_current);
+
+		builder.CreateBr(while_cond_bb);
+		builder.SetInsertPoint(while_cond_bb);
+
+		/* evaluate the condition for branching */
+		bound_var_t::ref bool_condition_value;
+		bound_var_t::ref condition_value = condition->resolve_instantiation(
+				status, builder, scope, &while_scope, nullptr);
+
+		if (!!status) {
+			llvm::Value *llvm_condition_value = nullptr;
+			if (condition_value->is_int()) {
+				llvm_condition_value = llvm_resolve_alloca(builder, condition_value->llvm_value);
+				assert(llvm_condition_value->getType()->isIntegerTy());
+			} else {
+				debug_above(2, log(log_info, "while condition %s appears to not be a bool or int, attempting to resolve a " c_var("bool") " override",
+						condition_value->str().c_str()));
+
+				/* convert condition to an integer */
+				bound_var_t::ref bool_fn = get_callable(
+						status, builder, scope, "bool", condition,
+					   	get_args_term({condition_value->type}));
+
+				if (!!status) {
+					/* we've found a bool function that will take our condition as input */
+				   	assert(bool_fn != nullptr);
+
+					debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for while condition evaluation (term %s)",
+						   	condition->str().c_str(), bool_fn->type->str().c_str()));
+
+					/* let's call this bool function */
+					llvm_condition_value = llvm_create_call_inst(
+							status, builder, *condition, bool_fn,
+							{condition_value->llvm_value});
+
+					assert(llvm_condition_value->getType()->isIntegerTy());
+				} else {
+					// TODO: maybe want a better explanation for why we're
+					// trying to call bool.
+				}
+			}
+
+			if (!!status) {
+				assert(llvm_condition_value != nullptr);
+
+				/* generate some new blocks */
+				llvm::BasicBlock *while_block_bb = llvm::BasicBlock::Create(builder.getContext(), "while.block", llvm_function_current);
+				llvm::BasicBlock *while_end_bb = nullptr;
+
+				/* put the merge block after the while block */
+				while_end_bb = llvm::BasicBlock::Create(builder.getContext(), "while.end");
+
+				/* we don't have an else block, so we can just continue on */
+				llvm_create_if_branch(builder, llvm_condition_value, while_block_bb, while_end_bb);
+
+				if (!!status) {
+					/* let's generate code for the "then" block */
+					builder.SetInsertPoint(while_block_bb);
+					block->resolve_instantiation(status, builder,
+							while_scope ? while_scope : scope, nullptr,
+							nullptr);
+
+					if (!!status) {
+						builder.CreateBr(while_cond_bb);
+						builder.SetInsertPoint(while_end_bb);
+						
+						/* we know we'll need to fall through to the merge
+						 * block, let's add it to the end of the function
+						 * and let's set it as the next insert point. */
+						llvm_function_current->getBasicBlockList().push_back(while_end_bb);
+						builder.SetInsertPoint(while_end_bb);
+
+						assert(!!status);
+						return nullptr;
+					}
+				}
+			}
+		}
+	} else {
+		/* this should never happen */
+		not_impl();
+	}
+
     assert(!status);
     return nullptr;
 }

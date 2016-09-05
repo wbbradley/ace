@@ -1,7 +1,9 @@
 module while_loop @0.1.0
+link module std
+# test: pass
 
 def main() int
 	var i int = 1
 	while i <= 3
-		print(i)
-		i = i + 1
+		std.print(i)
+	return 0
