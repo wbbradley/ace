@@ -34,11 +34,12 @@ struct bound_type_builder_t : public types::type_visitor {
 	bound_type_builder_t(
 			status_t &status,
 			llvm::IRBuilder<> &builder,
-			ptr<program_scope_t> program_scope,
+			ptr<scope_t> scope,
 			types::term::map env) :
 		status(status),
 		builder(builder),
-		program_scope(program_scope),
+		scope(scope),
+		program_scope(scope->get_program_scope()),
 		env(env)
 	{
 	}
@@ -46,11 +47,12 @@ struct bound_type_builder_t : public types::type_visitor {
 	status_t &status;
 	llvm::IRBuilder<> &builder;
 	bound_type_t::ref created_type;
+	ptr<scope_t> scope;
 	ptr<program_scope_t> program_scope;
 	types::term::map env;
 
 	virtual bool visit(const types::type_id &id) {
-		created_type = program_scope->get_bound_type(id.get_signature());
+		created_type = scope->get_bound_type(id.get_signature());
 		if (created_type == nullptr) {
 			/* no type exists by that name just create it */
 			created_type = bound_type_t::create(id.shared_from_this(), id.get_location(),
@@ -67,9 +69,9 @@ struct bound_type_builder_t : public types::type_visitor {
 
 	virtual bool visit(const types::type_operator &operator_) {
 		auto signature = operator_.get_signature();
-		assert(program_scope->get_bound_type(signature) == nullptr);
+		assert(scope->get_bound_type(signature) == nullptr);
 		created_type = bound_type_t::create(operator_.shared_from_this(), operator_.get_location(),
-				program_scope->get_bound_type({"__var_ref"})->llvm_type);
+				scope->get_bound_type({"__var_ref"})->llvm_type);
 		return true;
 	}
 
@@ -83,12 +85,14 @@ struct bound_type_builder_t : public types::type_visitor {
 		case pk_function:
 			{
 				assert(product.dimensions.size() == 2);
-				bound_type_t::refs args = create_bound_types_from_args(status, builder, program_scope, product.dimensions[0]);
-				bound_type_t::ref return_type = upsert_bound_type(status, builder, program_scope, product.dimensions[1]);
+				bound_type_t::refs args = create_bound_types_from_args(status,
+						builder, scope, product.dimensions[0]);
+				bound_type_t::ref return_type = upsert_bound_type(status,
+						builder, scope, product.dimensions[1]);
 				types::type::ref fn_type = get_function_type(args, return_type);
 
 				auto signature = fn_type->get_signature();
-				created_type = program_scope->get_bound_type(signature);
+				created_type = scope->get_bound_type(signature);
 				if (created_type) {
 					return true;
 				} else {
@@ -138,10 +142,11 @@ struct bound_type_builder_t : public types::type_visitor {
 
 	virtual bool visit(const types::type_sum &sum) {
 		auto signature = sum.get_signature();
-		auto bound_type = program_scope->get_bound_type(signature);
+		auto bound_type = scope->get_bound_type(signature);
 		assert(bound_type == nullptr);
-		created_type = bound_type_t::create(sum.shared_from_this(), sum.get_location(),
-				program_scope->get_bound_type({"__var_ref"})->llvm_type);
+		created_type = bound_type_t::create(sum.shared_from_this(),
+				sum.get_location(),
+				scope->get_bound_type({"__var_ref"})->llvm_type);
 		return true;
 	}
 };
@@ -154,6 +159,9 @@ bound_type_t::ref bind_type_lazily(
 	   	unchecked_type_t::ref unchecked_type)
 {
 	assert(scope->get_program_scope()->get_bound_type(type->get_signature()) == nullptr);
+
+	debug_above(8, log(log_info, "lazily binding the type at %s",
+				unchecked_type->node->str().c_str()));
 
 	assert(!status);
 	return nullptr;
@@ -169,7 +177,7 @@ bound_type_t::ref create_bound_type(
 	auto env = scope->get_type_env();
 	debug_above(3, log(log_info, "creating bound type for %s in env %s", type->str().c_str(), str(env).c_str()));
 
-	bound_type_builder_t btb(status, builder, scope->get_program_scope(), env);
+	bound_type_builder_t btb(status, builder, scope, env);
 	if (type->accept(btb)) {
 		assert(!!status);
 		return btb.created_type;

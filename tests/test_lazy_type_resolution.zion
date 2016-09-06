@@ -1,0 +1,10 @@
+module _ @1.0
+# test: pass
+
+type B{X} is Bx(X) or C
+
+def do(b B{int})
+	pass
+
+def main()
+	do(Bx(3))

@@ -432,6 +432,9 @@ void module_scope_t::put_unchecked_type(
 		status_t &status,
 		unchecked_type_t::ref unchecked_type)
 {
+	debug_above(2, log(log_info, "registering an unchecked type %s as %s",
+				unchecked_type->str().c_str()));
+
 	auto iter_bool = unchecked_types.insert({unchecked_type->name, unchecked_type});
 	if (!iter_bool.second) {
 		/* this unchecked type already exists */
