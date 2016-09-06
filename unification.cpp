@@ -218,9 +218,9 @@ unification_t unify(
 		types::term::ref rhs,
 		types::term::map env)
 {
-	indent_logger indent;
-	debug_above(2, log(log_info, "unify(" c_term("%s") ", " c_term("%s") ", %s)",
-			lhs->str().c_str(), rhs->str().c_str(), str(env).c_str()));
+	indent_logger indent(2, string_format(
+				"unify(" c_term("%s") ", " c_term("%s") ", %s)",
+				lhs->str().c_str(), rhs->str().c_str(), str(env).c_str()));
 
 	return unify_core(
 		   	lhs->evaluate(env, 0)->get_type(),

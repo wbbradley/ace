@@ -257,7 +257,7 @@ namespace types {
 				} else {
 					res = types::term_apply(fn_eval, arg_eval);
 				}
-				debug_above(5, log(log_info, "%s -> %s", str().c_str(),
+				debug_above(5, log(log_info, "eval: %s -> %s", str().c_str(),
 							res->str().c_str()));
 				return res;
 			}

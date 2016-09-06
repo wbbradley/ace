@@ -12,7 +12,10 @@
 struct unchecked_type_t {
 	unchecked_type_t() = delete;
 	unchecked_type_t(const unchecked_type_t &) = delete;
-	unchecked_type_t(atom name, ptr<const ast::item> node, ptr<scope_t> const module_scope);
+	unchecked_type_t(
+			atom name,
+			ptr<const ast::item> node,
+			ptr<scope_t> const module_scope);
 
 	atom const name;
 	ptr<const ast::item> const node;

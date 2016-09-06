@@ -112,13 +112,17 @@ std::string tee_logger::captured_logs_as_string() const {
 	return ss.str();
 }
 
-indent_logger::indent_logger() {
-	logger_old = _logger;
+indent_logger::indent_logger(int level, std::string msg) :
+   	msg(msg), level(level), logger_old(_logger)
+{
+	debug_above(level, ::log(log_info, c_line_ref("#") " %s", msg.c_str()));
+	debug_above(level, ::log(log_info, c_control("(")));
 	_logger = this;
 }
 
 indent_logger::~indent_logger() throw() {
 	_logger = logger_old;
+	debug_above(level, ::log(log_info, c_control(")")));
 }
 
 void indent_logger::logv(log_level_t level, const location *location, const char *format, va_list args) {

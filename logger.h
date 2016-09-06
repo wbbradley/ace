@@ -55,10 +55,13 @@ struct tee_logger : public logger {
 };
 
 struct indent_logger : logger {
-	indent_logger();
+	indent_logger(int level, std::string message);
 	virtual ~indent_logger() throw();
 
 	virtual void logv(log_level_t level, const location *location, const char *format, va_list args);
 	virtual void log(log_level_t level, const location *location, const char *format, ...);
+
+	std::string msg;
+	int level;
 	logger *logger_old;
 };

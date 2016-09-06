@@ -2,7 +2,7 @@ module _ @1.0
 link module std
 # test: pass
 
-type B{X} is C(X)
+type B{X} is Bx(X)
 
-def do(b B{int})
+def do(b Bx{int})
 	std.print(b[0])

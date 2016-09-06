@@ -388,8 +388,9 @@ bound_var_t::ref ast::dot_expr::resolve_overrides(
         const ptr<const ast::item> &callsite,
         const bound_type_t::refs &args) const
 {
-	indent_logger indent;
-	debug_above(5, log(log_info, "dot_expr::resolve_overrides for %s", callsite->str().c_str()));
+	indent_logger indent(5, string_format(
+				"dot_expr::resolve_overrides for %s",
+				callsite->str().c_str()));
 
 	/* check the left-hand side first, it should be a type_namespace */
 	bound_var_t::ref lhs_var = lhs->resolve_instantiation(
@@ -789,8 +790,9 @@ bound_var_t::ref ast::function_defn::resolve_instantiation(
 	 * 1. generate code for this function.
 	 * 2. bind the function name to the generated code within the given scope.
 	 * */
-	indent_logger indent;
-	debug_above(2, log(log_info, "type checking %s in %s", token.str().c_str(), scope->get_name().c_str()));
+	indent_logger indent(2, string_format(
+				"type checking %s in %s", token.str().c_str(),
+				scope->get_name().c_str()));
 
 	/* see if we can get a monotype from the function declaration */
 	bound_type_t::named_pairs args;
@@ -895,7 +897,8 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 				nullptr, &all_paths_return);
 
 		if (!!status) {
-			debug_above(4, log(log_info, "module dump from %s\n%s", __PRETTY_FUNCTION__,
+			debug_above(10, log(log_info, "module dump from %s\n%s",
+						__PRETTY_FUNCTION__,
 						llvm_print_module(*llvm_get_module(builder)).c_str()));
 
 			if (all_paths_return) {
@@ -1052,13 +1055,15 @@ status_t type_check_program(
         const ast::program &obj,
         compiler &compiler)
 {
-    indent_logger indent;
+    indent_logger indent(2, string_format(
+				"type-checking program %s",
+				compiler.get_program_name().c_str()));
 
     /* we track type-checking success or failure in this status value object */
     status_t status;
 
     ptr<scope_t> program_scope = compiler.get_program_scope();
-    debug_above(10, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
+    debug_above(11, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
 
     /* second pass is to resolve all module-level links */
     for (auto &module : obj.modules) {
@@ -1825,8 +1830,8 @@ bound_var_t::ref ast::reference_expr::resolve_overrides(
 		const ptr<const ast::item> &callsite,
 		const bound_type_t::refs &args) const
 {
-	indent_logger indent;
-	debug_above(5, log(log_info, "reference_expr::resolve_overrides for %s",
+	indent_logger indent(5, string_format(
+				"reference_expr::resolve_overrides for %s",
 				callsite->str().c_str()));
 
 	/* ok, we know we've got some variable here */

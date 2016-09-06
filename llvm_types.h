@@ -78,3 +78,10 @@ bound_type_t::ref get_function_return_type(
 		const ast::item &obj,
 		scope_t::ref scope,
 		bound_type_t::ref function_type);
+
+bound_type_t::ref bind_type_lazily(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		types::type::ref type,
+		unchecked_type_t::ref unchecked_type);

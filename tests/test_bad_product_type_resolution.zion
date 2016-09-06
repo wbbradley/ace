@@ -1,0 +1,9 @@
+module _ @1.0
+link module std
+
+type B{X} has
+	var x X
+
+# error: say something about the fact that C doesn't exist
+def do(b C{int})
+	std.print(b.x)

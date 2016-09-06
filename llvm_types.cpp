@@ -4,6 +4,7 @@
 #include "llvm_types.h"
 #include "type_visitor.h"
 #include "code_id.h"
+#include "logger.h"
 
 bound_type_t::refs create_bound_types_from_args(
 		status_t &status,
@@ -68,11 +69,33 @@ struct bound_type_builder_t : public types::type_visitor {
 	}
 
 	virtual bool visit(const types::type_operator &operator_) {
-		auto signature = operator_.get_signature();
-		assert(scope->get_bound_type(signature) == nullptr);
-		created_type = bound_type_t::create(operator_.shared_from_this(), operator_.get_location(),
-				scope->get_bound_type({"__var_ref"})->llvm_type);
-		return true;
+		/* figure out where this type operator came from or what it means */
+		auto module_scope = scope->get_module_scope();
+		if (module_scope != nullptr) {
+			atom name = operator_.oper->get_signature();
+			/* try to resolve this type using an unchecked_type, rather than by
+			 * trying to store data in the type signature. */
+			auto unchecked_type = module_scope->get_unchecked_type(name);
+			if (unchecked_type != nullptr) {
+				debug_above(6, log(log_info, "lazily checking type %s in env %s",
+							unchecked_type->str().c_str(),
+							::str(scope->get_type_env()).c_str()));
+				created_type = bind_type_lazily(status, builder, scope,
+						operator_.shared_from_this(), unchecked_type);
+			} else {
+				debug_above(2, log(log_warning, "defaulting to just creating an object type with %s",
+						operator_.str().c_str()));
+				auto signature = operator_.get_signature();
+				assert(scope->get_bound_type(signature) == nullptr);
+				created_type = (
+					bound_type_t::create(operator_.shared_from_this(),
+							operator_.get_location(),
+							scope->get_bound_type({"__var_ref"})->llvm_type));
+			}
+		} else {
+			assert(!"no module scope?");
+		}
+		return !!status;
 	}
 
 	virtual bool visit(const types::type_product &product) {
@@ -193,7 +216,9 @@ bound_type_t::ref create_bound_type(
 {
 	assert(!!status);
 	auto env = scope->get_type_env();
-	debug_above(3, log(log_info, "creating bound type for %s in env %s", type->str().c_str(), str(env).c_str()));
+	indent_logger indent(3,
+		string_format("creating bound type for %s in env %s",
+			type->str().c_str(), str(env).c_str()));
 
 	bound_type_builder_t btb(status, builder, scope, env);
 	if (type->accept(btb)) {
@@ -216,27 +241,8 @@ bound_type_t::ref upsert_bound_type(
 	if (bound_type != nullptr) {
 		return bound_type;
 	} else {
-		auto module_scope = scope->get_module_scope();
-		if (module_scope != nullptr) {
-			/* try to resolve this type using an unchecked_type, rather than by
-			 * trying to store data in the type signature. */
-			auto unchecked_type = module_scope->get_unchecked_type(signature);
-			if (unchecked_type != nullptr) {
-				debug_above(6, log(log_info, "lazily checking type %s in env %s",
-							unchecked_type->str().c_str(),
-							::str(scope->get_type_env()).c_str()));
-				return bind_type_lazily(status, builder, scope,
-						type, unchecked_type);
-			} else {
-				return create_bound_type(status, builder, scope, type);
-			}
-		} else {
-			assert(!"no module scope?");
-		}
+		return create_bound_type(status, builder, scope, type);
 	}
-
-	assert(!status);
-	return nullptr;
 }
 
 bound_type_t::ref upsert_bound_type(
