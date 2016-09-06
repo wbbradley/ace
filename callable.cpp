@@ -202,18 +202,16 @@ bound_var_t::ref get_callable(
 				user_error(status, *callsite, "no function found named " c_id("%s") " for callsite %s",
 					   	alias.c_str(), callsite->str().c_str());
 			} else {
-				user_error(status, *callsite,
-						"unable to resolve overloads for " c_id("%s"),
+				std::stringstream ss;
+				ss << string_format("unable to resolve overloads for " c_id("%s"),
 						callsite->str().c_str());
 
-				user_message(log_info, status, callsite->get_location(),
-					   	"arguments are %s",
-						args->str().c_str());
+				ss << "\n\targuments are " << args->str();
 
 				for (auto &fn : fns) {
-					user_message(log_info, status, fn->get_location(), "tried %s",
-							fn->str().c_str());
+					ss << "\n\ttried " << fn->str();
 				}
+				user_error(status, *callsite, "%s", ss.str().c_str());
 			}
 			return nullptr;
 		}

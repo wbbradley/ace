@@ -160,8 +160,26 @@ bound_type_t::ref bind_type_lazily(
 {
 	assert(scope->get_program_scope()->get_bound_type(type->get_signature()) == nullptr);
 
-	debug_above(8, log(log_info, "lazily binding the type at %s",
-				unchecked_type->node->str().c_str()));
+	auto env = scope->get_type_env();
+
+	debug_above(8, log(log_info, "lazily binding %s with %s and env %s",
+				type->str().c_str(),
+				unchecked_type->node->str().c_str(),
+				::str(env).c_str()));
+
+	auto term_iter = env.find(unchecked_type->name);
+	if (term_iter == env.end()) {
+		auto signature = type->get_signature();
+		assert(scope->get_bound_type(signature) == nullptr);
+
+		// REVIEW: this is not going to be correct for sum type data_ctors, or
+		// for product ctors.
+		return bound_type_t::create(type,
+				unchecked_type->node->get_location(),
+				scope->get_bound_type({"__var_ref"})->llvm_type);
+	} else {
+		not_impl();
+	}
 
 	assert(!status);
 	return nullptr;

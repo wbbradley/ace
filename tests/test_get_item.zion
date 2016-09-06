@@ -1,5 +1,6 @@
 module _
 link module std
+# test: pass
 
 type ListNode is Data(int, ListNode) or Done
 
@@ -10,4 +11,5 @@ def __getitem__(l List, index int) int
 	return 42
 
 def main()
-	List(Data(12, Done))
+	l := List(Data(12, Done))
+	l.l
