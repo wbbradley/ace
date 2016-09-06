@@ -14,3 +14,5 @@ typedef float zion_float_t;
 #define int do_not_use_int
 #define float do_not_use_float
 
+struct var_t;
+

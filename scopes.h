@@ -62,6 +62,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	/* find all checked and unchecked functions that have the name given by the
 	 * symbol parameter */
 	virtual void get_callables(atom symbol, var_t::refs &fns);
+	ptr<module_scope_t> get_module_scope();
 
 	bound_var_t::ref get_singleton(atom name);
 
@@ -112,6 +113,8 @@ struct module_scope_t : public scope_t {
 	// virtual ptr<module_scope_t> get_module(atom symbol) const;
 
 	void put_unchecked_type(status_t &status, unchecked_type_t::ref unchecked_type);
+	unchecked_type_t::ref get_unchecked_type(atom symbol);
+
 	unchecked_var_t::ref put_unchecked_variable(atom symbol, unchecked_var_t::ref unchecked_variable);
 
 	virtual ptr<scope_t> get_parent_scope();

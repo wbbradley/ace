@@ -6,7 +6,7 @@ type Box{X, Y} is
 	Crate(X, Y)
 
 def show(b Box{any, any})
-	# error: has no dimensions to index
+	# error: no function found named __getitem__ for callsite b\[0\]
 	std.print(b[0])
 
 def main()

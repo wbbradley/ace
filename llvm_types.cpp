@@ -146,6 +146,19 @@ struct bound_type_builder_t : public types::type_visitor {
 	}
 };
 
+bound_type_t::ref bind_type_lazily(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+	   	types::type::ref type,
+	   	unchecked_type_t::ref unchecked_type)
+{
+	assert(scope->get_program_scope()->get_bound_type(type->get_signature()) == nullptr);
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_type_t::ref create_bound_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -174,15 +187,30 @@ bound_type_t::ref upsert_bound_type(
 {
 	auto signature = type->get_signature();
 	auto bound_type = scope->get_bound_type(signature);
-	if (bound_type == nullptr) {
-		bound_type = create_bound_type(status, builder, scope, type);
-		if (!!status) {
-			scope->get_program_scope()->put_bound_type(bound_type);
+	if (bound_type != nullptr) {
+		return bound_type;
+	} else {
+		auto module_scope = scope->get_module_scope();
+		if (module_scope != nullptr) {
+			/* try to resolve this type using an unchecked_type, rather than by
+			 * trying to store data in the type signature. */
+			auto unchecked_type = module_scope->get_unchecked_type(signature);
+			if (unchecked_type != nullptr) {
+				debug_above(6, log(log_info, "lazily checking type %s in env %s",
+							unchecked_type->str().c_str(),
+							::str(scope->get_type_env()).c_str()));
+				return bind_type_lazily(status, builder, scope,
+						type, unchecked_type);
+			} else {
+				return create_bound_type(status, builder, scope, type);
+			}
 		} else {
-			assert(bound_type == nullptr);
+			assert(!"no module scope?");
 		}
 	}
-	return bound_type;
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_type_t::ref upsert_bound_type(
@@ -247,7 +275,7 @@ bound_type_t::ref get_or_create_tuple_type(
 	} else {
 		auto program_scope = scope->get_program_scope();
 
-		/* build the llvm return type */
+		/* build the llvm specific type */
 		llvm::Type *llvm_tuple_type = llvm_create_tuple_type(
 				builder, program_scope, name, args);
 
@@ -532,12 +560,40 @@ types::term::ref ast::type_alias::instantiate_type(
 	return nullptr; // type_ref->resolve_type(status, builder, scope, nullptr, nullptr);
 }
 
+bound_var_t::ref type_check_get_item_with_int_literal(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		const ast::item::ref &node,
+		bound_var_t::ref lhs,
+		identifier::ref index_id,
+		int subscript_index)
+{
+	if (!!status) {
+		bound_var_t::ref index = bound_var_t::create(
+				INTERNAL_LOC(),
+				"temp_deref_index",
+				scope->get_program_scope()->get_bound_type({"int"}),
+				llvm_create_int(builder, subscript_index),
+				index_id,
+				false/*is_lhs*/);
+
+		/* get or instantiate a function we can call on these arguments */
+		return call_program_function(status, builder, scope, "__getitem__",
+				node, {lhs, index});
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref call_const_subscript_operator(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		const ast::item::ref &node,
 		bound_var_t::ref lhs,
+		identifier::ref index_id,
 		int subscript_index)
 {
 	debug_above(6, log(log_info, "generating dereference %s[%d]", lhs->str().c_str(), subscript_index));
@@ -577,10 +633,10 @@ bound_var_t::ref call_const_subscript_operator(
 				user_error(status, *node, "index out of range");
 			}
 		} else {
-			user_error(status, *node, "%s has no dimensions to index", lhs->str().c_str());
+			return type_check_get_item_with_int_literal(status, builder, scope,
+					node, lhs, index_id, subscript_index);
 		}
 	}
-
 	assert(!status);
 	return nullptr;
 }

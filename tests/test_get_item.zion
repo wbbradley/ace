@@ -1,0 +1,13 @@
+module _
+link module std
+
+type ListNode is Data(int, ListNode) or Done
+
+type List has
+	var l ListNode
+
+def __getitem__(l List, index int) int
+	return 42
+
+def main()
+	List(Data(12, Done))

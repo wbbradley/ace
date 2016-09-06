@@ -18,7 +18,7 @@ bool tkvisible(token_kind tk) {
 std::string zion_token_t::str() const {
 	std::stringstream ss;
 	if (text.size() != 0) {
-		ss << C_ID << "`" << text << "`" << C_RESET;
+		ss << C_ID << "'" << text << "'" << C_RESET;
 		ss << "@";
 	}
 	ss << location.str();

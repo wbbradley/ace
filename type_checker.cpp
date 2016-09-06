@@ -514,7 +514,8 @@ bound_var_t::ref ast::array_index_expr::resolve_instantiation(
 
 					/* see if we have a deref operator function for the lhs type */
 					return call_const_subscript_operator(status, builder,
-							scope, shared_from_this(), lhs_val, value);
+							scope, shared_from_this(), lhs_val,
+							make_code_id(literal_expr->token), value);
 				} else {
 					user_error(status, *this,
 							"tuple dereferencing with " c_internal("%s") " is not yet impl",

@@ -50,8 +50,8 @@ bound_var_t::ref check_func_vs_callsite(
 					fn_sig->str().c_str(),
 					::str(env).c_str(),
 					::str(unification.bindings).c_str()));
-			types::type::ref fn_type = fn_sig->evaluate(env, 0)->get_type()->rebind(unification.bindings);
-
+			types::type::ref fn_type = fn_sig->evaluate(env, 0)->get_type()->rebind(
+					unification.bindings);
 
 			if (true || fn_type->ftv() == 0) {
 				debug_above(4, log(log_info, "it's time to instantiate %s with unified signature %s from %s",
@@ -199,11 +199,15 @@ bound_var_t::ref get_callable(
 			return callable;
 		} else {
 			if (fns.size() == 0) {
-				user_error(status, *callsite, "no function found named " c_id("%s"), alias.c_str());
+				user_error(status, *callsite, "no function found named " c_id("%s") " for callsite %s",
+					   	alias.c_str(), callsite->str().c_str());
 			} else {
 				user_error(status, *callsite,
-						"unable to resolve overloads for %s. arguments are %s.",
-						callsite->str().c_str(),
+						"unable to resolve overloads for " c_id("%s"),
+						callsite->str().c_str());
+
+				user_message(log_info, status, callsite->get_location(),
+					   	"arguments are %s",
 						args->str().c_str());
 
 				for (auto &fn : fns) {

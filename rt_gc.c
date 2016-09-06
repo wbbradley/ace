@@ -15,8 +15,6 @@ void mark_fn_default(void *object, version_t version) {
 	/* do nothing */
 }
 
-struct var_t;
-
 struct next_var_t {
 	/* avoid the ABA problem */
 	uintptr_t id;
@@ -24,7 +22,6 @@ struct next_var_t {
 	/* here is the actual link to the next item */
 	struct var_t *var;
 };
-
 
 struct var_t {
 	atomic_version_t version;

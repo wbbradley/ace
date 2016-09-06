@@ -41,7 +41,6 @@ bound_type_t::ref bound_type_t::create(
 }
 
 types::term::ref bound_type_t::get_term() const {
-	assert(type->ftv() == 0);
 	return type->to_term();
 }
 

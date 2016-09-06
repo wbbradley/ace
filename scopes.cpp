@@ -26,6 +26,19 @@ program_scope_t::ref scope_t::get_program_scope() {
 	return get_parent_scope()->get_program_scope();
 }
 
+ptr<module_scope_t> scope_t::get_module_scope() {
+	if (auto module_scope = dyncast<module_scope_t>(shared_from_this())) {
+		return module_scope;
+	} else {
+		auto parent_scope = get_parent_scope();
+		if (parent_scope != nullptr) {
+			return parent_scope->get_module_scope();
+		} else {
+			return nullptr;
+		}
+	}
+}
+
 void scope_t::put_type_term(atom name, types::term::ref type_term) {
 	debug_above(2, log(log_info, "registering type term " c_term("%s") " as %s",
 			name.c_str(), type_term->str().c_str()));
@@ -428,6 +441,15 @@ void module_scope_t::put_unchecked_type(
 
 	/* also keep an ordered list of the unchecked types */
 	unchecked_types_ordered.push_back(unchecked_type);
+}
+
+unchecked_type_t::ref module_scope_t::get_unchecked_type(atom symbol) {
+	auto iter = unchecked_types.find(symbol);
+	if (iter != unchecked_types.end()) {
+		return iter->second;
+	} else {
+		return nullptr;
+	}
 }
 
 unchecked_var_t::ref module_scope_t::put_unchecked_variable(
