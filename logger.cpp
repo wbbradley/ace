@@ -53,7 +53,7 @@ const char *logstr(log_level_t ll) {
 
 void write_log_streamv(std::ostream &os, log_level_t level, const location *location, const char *format, va_list args) {
 	if (location) {
-		os << location->str() << ": ";
+		os << location->str(true/*vim_mode*/) << ": ";
 	}
 	os << level_color(level) << logstr(level) << C_RESET << " ";
 	os << string_formatv(format, args) << std::endl;

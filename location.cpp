@@ -5,7 +5,7 @@
 #include <string>
 #include <sstream>
 
-std::string location::str() const {
+std::string location::str(bool vim_mode) const {
 	std::stringstream ss;
 	if (has_file_location()) {
 		ss << C_LINE_REF;
@@ -15,7 +15,11 @@ std::string location::str() const {
 		} else {
 			ss << filename;
 		}
-		ss << ':' << line << ':' << col;
+		if (vim_mode) {
+			ss << ':' << line << ':' << col;
+		} else {
+			ss << '(' << line << ')';
+		}
 		ss << C_RESET;
 	} else {
 		ss << C_LINE_REF << "builtin" << C_RESET;

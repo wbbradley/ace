@@ -195,6 +195,7 @@ bound_type_t::ref bind_type_lazily(
 		auto signature = type->get_signature();
 		assert(scope->get_bound_type(signature) == nullptr);
 
+		assert(false);
 		// REVIEW: this is not going to be correct for sum type data_ctors, or
 		// for product ctors.
 		return bound_type_t::create(type,

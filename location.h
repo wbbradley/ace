@@ -11,7 +11,7 @@ struct location {
 	location() : line(-1), col(-1) {}
 	location(atom filename, int line, int col) : filename(filename), line(line), col(col) {}
 
-	std::string str() const;
+	std::string str(bool vim_mode=false) const;
 	std::string repr() const;
 	std::string operator()() const;
 
