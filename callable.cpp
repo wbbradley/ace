@@ -53,86 +53,81 @@ bound_var_t::ref check_func_vs_callsite(
 			types::type::ref fn_type = fn_sig->evaluate(env, 0)->get_type()->rebind(
 					unification.bindings);
 
-			if (true || fn_type->ftv() == 0) {
-				debug_above(4, log(log_info, "it's time to instantiate %s with unified signature %s from %s",
-							unchecked_fn->str().c_str(),
-							fn_type->str().c_str(),
+			debug_above(4, log(log_info, "it's time to instantiate %s with unified signature %s from %s",
+						unchecked_fn->str().c_str(),
+						fn_type->str().c_str(),
+						unification.str().c_str()));
+
+			/* save and later restore the current branch insertion point */
+			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+			ast::item::ref data_ctor = dyncast<const ast::data_ctor>(unchecked_fn->node);
+			ast::item::ref type_product = dyncast<const ast::type_product>(unchecked_fn->node);
+
+			if (auto function_defn = dyncast<const ast::function_defn>(unchecked_fn->node)) {
+				/* we shouldn't be here unless we found something to substitute */
+
+				debug_above(4, log(log_info, "building substitution for %s with unification %s",
+							function_defn->token.str().c_str(),
 							unification.str().c_str()));
 
-				/* save and later restore the current branch insertion point */
-				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+				/* create a generic substitution scope with the unification */
+				scope_t::ref subst_scope = generic_substitution_scope_t::create(
+						status, builder, unchecked_fn->node,
+						unchecked_fn->module_scope, unification, fn_type);
 
-				ast::item::ref data_ctor = dyncast<const ast::data_ctor>(unchecked_fn->node);
-				ast::item::ref type_product = dyncast<const ast::type_product>(unchecked_fn->node);
+				if (auto product = dyncast<const types::type_product>(fn_type)) {
+					bound_type_t::refs args = create_bound_types_from_args(status,
+							builder, subst_scope, product->dimensions[0]);
 
-				if (auto function_defn = dyncast<const ast::function_defn>(unchecked_fn->node)) {
-					/* we shouldn't be here unless we found something to substitute */
+					bound_type_t::named_pairs named_args = zip_named_pairs(
+							get_param_list_decl_variable_names(
+								function_defn->decl->param_list_decl),
+							args);
 
-					debug_above(4, log(log_info, "building substitution for %s with unification %s",
-								function_defn->token.str().c_str(),
-								unification.str().c_str()));
+					bound_type_t::ref return_type = upsert_bound_type(status,
+							builder, subst_scope, product->dimensions[1]);
 
-					/* create a generic substitution scope with the unification */
-					scope_t::ref subst_scope = generic_substitution_scope_t::create(
-							status, builder, unchecked_fn->node,
-							unchecked_fn->module_scope, unification, fn_type);
-
-					if (auto product = dyncast<const types::type_product>(fn_type)) {
-						bound_type_t::refs args = create_bound_types_from_args(status,
-								builder, subst_scope, product->dimensions[0]);
-
-						bound_type_t::named_pairs named_args = zip_named_pairs(
-								get_param_list_decl_variable_names(
-									function_defn->decl->param_list_decl),
-								args);
-
-						bound_type_t::ref return_type = upsert_bound_type(status,
-								builder, subst_scope, product->dimensions[1]);
-
-						/* instantiate the function we want */
-						return function_defn->instantiate_with_args_and_return_type(status,
-								builder, subst_scope, nullptr /*new_scope*/,
-								named_args, return_type);
-					} else {
-						panic("we should have a product type for our fn_type");
-					}
-				} else if (data_ctor != nullptr || type_product != nullptr) {
-					ast::item::ref node = (data_ctor ? data_ctor : type_product);
-
-					/* we shouldn't be here unless we found something to substitute */
-					debug_above(4, log(log_info, "building substitution for %s", node->token.str().c_str()));
-					auto unchecked_data_ctor = dyncast<const unchecked_data_ctor_t>(unchecked_fn);
-					assert(unchecked_data_ctor != nullptr);
-
-					/* create a generic substitution scope with the unification */
-					scope_t::ref subst_scope = generic_substitution_scope_t::create(
-							status, builder, unchecked_fn->node,
-							unchecked_fn->module_scope, unification, fn_type);
-
-					auto data_ctor_sig = unchecked_data_ctor->sig->get_type();
-					debug_above(4, log(log_info, "going to bind ctor for %s",
-								data_ctor_sig->str().c_str()));
-
-					/* instantiate the data ctor we want */
-					bound_var_t::ref ctor_fn = bind_ctor_to_scope(
-							status, builder, subst_scope,
-							unchecked_fn->id, node,
-							data_ctor_sig->rebind(unification.bindings),
-							unchecked_data_ctor->member_index);
-
-					if (!!status) {
-						/* the ctor should now exist */
-						assert(ctor_fn != nullptr);
-						return ctor_fn;
-					}
+					/* instantiate the function we want */
+					return function_defn->instantiate_with_args_and_return_type(status,
+							builder, subst_scope, nullptr /*new_scope*/,
+							named_args, return_type);
 				} else {
-					panic("we should only have function defn's in unchecked var's, right?");
-					return nullptr;
+					panic("we should have a product type for our fn_type");
+				}
+			} else if (data_ctor != nullptr || type_product != nullptr) {
+				ast::item::ref node = (data_ctor ? data_ctor : type_product);
+
+				/* we shouldn't be here unless we found something to substitute */
+				debug_above(4, log(log_info, "building substitution for %s",
+							node->token.str().c_str()));
+				auto unchecked_data_ctor = dyncast<const unchecked_data_ctor_t>(unchecked_fn);
+				assert(unchecked_data_ctor != nullptr);
+
+				/* create a generic substitution scope with the unification */
+				scope_t::ref subst_scope = generic_substitution_scope_t::create(
+						status, builder, unchecked_fn->node,
+						unchecked_fn->module_scope, unification, fn_type);
+
+				auto data_ctor_sig = unchecked_data_ctor->sig->get_type();
+				debug_above(4, log(log_info, "going to bind ctor for %s",
+							data_ctor_sig->str().c_str()));
+
+				/* instantiate the data ctor we want */
+				bound_var_t::ref ctor_fn = bind_ctor_to_scope(
+						status, builder, subst_scope,
+						unchecked_fn->id, node,
+						data_ctor_sig->rebind(unification.bindings),
+						unchecked_data_ctor->member_index);
+
+				if (!!status) {
+					/* the ctor should now exist */
+					assert(ctor_fn != nullptr);
+					return ctor_fn;
 				}
 			} else {
-				user_error(status, fn->get_location(), "unable to fully resolve type of %s with signature %s",
-						fn->str().c_str(),
-						fn_type->str(unification.bindings).c_str());
+				panic("we should only have function defn's in unchecked var's, right?");
+				return nullptr;
 			}
 		} else {
 			panic("unhandled var type");

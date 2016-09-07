@@ -173,11 +173,15 @@ std::string scope_t::make_fqn(std::string leaf_name) const {
 }
 
 bound_type_t::ref scope_t::get_bound_type(types::signature signature) {
+	debug_above(8, log(log_info, "checking whether %s is bound...",
+				signature.str().c_str()));
 	auto full_signature = types::signature{make_fqn(signature.repr().str())};
 	auto bound_type = get_program_scope()->get_bound_type(full_signature);
 	if (bound_type != nullptr) {
 		return bound_type;
 	} else {
+		debug_above(8, log(log_info, "nope. %s is not yet bound",
+					signature.str().c_str()));
 		return get_parent_scope()->get_bound_type(signature);
 	}
 }
