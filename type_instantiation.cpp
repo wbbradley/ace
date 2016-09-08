@@ -68,32 +68,33 @@ bound_var_t::ref bind_ctor_to_scope(
 		scope_t::ref scope,
 		identifier::ref id,
 		ast::item::ref node,
-		types::type::ref data_ctor_sig,
+		types::type::refs args_types,
+		types::type::ref return_type,
 		atom::map<int> member_index)
 {
 	bool is_instantiation = bool(dyncast<generic_substitution_scope_t>(scope));
 	assert(is_instantiation);
 
-	assert(scope->get_bound_type(data_ctor_sig->get_signature()) == nullptr);
+	assert(scope->get_bound_type(return_type->get_signature()) == nullptr);
 
 	/* create or find an existing ctor function that satisfies the term of
 	 * this node */
-	debug_above(5, log(log_info, "finding/creating data ctor for " c_type("%s") " with signature %s",
-			id->str().c_str(), data_ctor_sig->str().c_str()));
+	debug_above(5, log(log_info, "finding/creating data ctor for " c_type("%s") " with return type %s",
+			id->str().c_str(), return_type->str().c_str()));
 
 	bound_type_t::refs args;
-	resolve_type_ref_params(status, builder, scope,
-			get_function_type_args(data_ctor_sig), args);
+	resolve_type_ref_params(status, builder, scope, args_types, args);
 
 	if (!!status) {
 		/* now that we know the parameter types, let's see what the term looks like */
-		debug_above(5, log(log_info, "ctor term should be %s", data_ctor_sig->str().c_str()));
+		debug_above(5, log(log_info, "ctor term should be %s -> %s",
+					::str(args_types).c_str(), return_type->str().c_str()));
 
 		/* now we know the term of the ctor we want to create. let's check
 		 * whether this ctor already exists. if so, we'll just return it. if not,
 		 * we'll generate it. */
 		auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope,
-				args, member_index, id, node, data_ctor_sig);
+				args, member_index, id, node, return_type);
 
 		if (!!status) {
 			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));

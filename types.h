@@ -191,6 +191,7 @@ namespace std {
 
 std::ostream &operator <<(std::ostream &os, identifier::ref id);
 std::string str(types::term::refs refs);
+std::string str(types::type::refs refs);
 std::string str(types::term::map coll);
 std::string str(types::type::map coll);
 std::ostream& operator <<(std::ostream &out, const types::term::ref &term);

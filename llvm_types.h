@@ -37,15 +37,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		atom::map<int> member_index,
 		identifier::ref id,
 		const ptr<const ast::item> &node,
-		types::type::ref data_ctor_sig);
-
-std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_struct_ctor(
-		status_t &status, 
-		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-		bound_type_t::ref struct_type,
-		identifier::ref id,
-		const ptr<const ast::item> &node);
+		types::type::ref data_type);
 
 bound_type_t::ref get_or_create_tuple_type(
 		llvm::IRBuilder<> &builder,
@@ -85,3 +77,12 @@ bound_type_t::ref bind_type_lazily(
 		scope_t::ref scope,
 		types::type::ref type,
 		unchecked_type_t::ref unchecked_type);
+
+bound_type_t::ref get_or_create_algebraic_data_type(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		identifier::ref id,
+		bound_type_t::refs args,
+		atom::map<int> member_index,
+		const ast::item::ref &node,
+		types::type::ref data_type);

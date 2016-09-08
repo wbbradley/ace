@@ -747,6 +747,18 @@ bool get_type_variable_name(types::type::ref type, atom &name) {
 	return false;
 }
 
+std::string str(types::type::refs refs) {
+	std::stringstream ss;
+	ss << "(";
+	const char *sep = "";
+	for (auto p : refs) {
+		ss << sep << p->str();
+		sep = ", ";
+	}
+	ss << ")";
+	return ss.str();
+}
+
 std::string str(types::type::map coll) {
 	std::stringstream ss;
 	ss << "{";

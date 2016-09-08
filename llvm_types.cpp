@@ -190,20 +190,14 @@ bound_type_t::ref bind_type_lazily(
 				unchecked_type->node->str().c_str(),
 				::str(env).c_str()));
 
-	auto term_iter = env.find(unchecked_type->name);
-	if (term_iter == env.end()) {
-		auto signature = type->get_signature();
-		assert(scope->get_bound_type(signature) == nullptr);
+	identifier::ref id;
+	bound_type_t::refs args;
+	atom::map<int> member_index;
+	ast::item::ref node;
 
-		assert(false);
-		// REVIEW: this is not going to be correct for sum type data_ctors, or
-		// for product ctors.
-		return bound_type_t::create(type,
-				unchecked_type->node->get_location(),
-				scope->get_bound_type({"__var_ref"})->llvm_type);
-	} else {
-		not_impl();
-	}
+	assert(false);
+	bound_type_t::ref bound_type = get_or_create_algebraic_data_type( builder,
+			scope, id, args, member_index, node, type);
 
 	assert(!status);
 	return nullptr;
@@ -333,20 +327,16 @@ bound_type_t::ref get_or_create_tuple_type(
 	}
 }
 
-bound_type_t::ref get_or_create_tagged_tuple_type(
+bound_type_t::ref get_or_create_algebraic_data_type(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
 		bound_type_t::refs args,
 		atom::map<int> member_index,
 		const ast::item::ref &node,
-		types::type::ref ctor_sig)
+		types::type::ref type)
 {
-	/* get the term of this tuple type */
-	types::type::ref return_type = get_function_return_type(ctor_sig);
-	debug_above(5, log(log_info, "get_or_create_tagged_tuple_type looking for %s",
-			return_type->get_signature().c_str()));
-	auto data_type = scope->get_bound_type(return_type->get_signature());
+	auto data_type = scope->get_bound_type(type->get_signature());
 
 	if (data_type != nullptr) {
 		return data_type;
@@ -364,8 +354,8 @@ bound_type_t::ref get_or_create_tagged_tuple_type(
 		assert_implies(member_index.size() != 0, member_index.size() == args.size());
 
 		/* get the bound type of the data ctor's value */
-		bound_type_t::ref data_type = bound_type_t::create(
-				return_type,
+		data_type = bound_type_t::create(
+				type,
 				node->token.location,
 				/* the LLVM-visible type of tagged tuples will usually be a
 				 * generic obj */
@@ -381,6 +371,21 @@ bound_type_t::ref get_or_create_tagged_tuple_type(
 	}
 }
 
+bound_type_t::ref get_or_create_tagged_tuple_type(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		identifier::ref id,
+		bound_type_t::refs args,
+		atom::map<int> member_index,
+		const ast::item::ref &node,
+		types::type::ref type)
+{
+	debug_above(5, log(log_info, "get_or_create_tagged_tuple_type looking for %s",
+			type->get_signature().c_str()));
+	return get_or_create_algebraic_data_type(builder,
+			scope, id, args, member_index, node, type);
+}
+
 std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		status_t &status, 
 		llvm::IRBuilder<> &builder,
@@ -390,12 +395,6 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		const ast::item::ref &node)
 {
 	/* this is a tuple constructor function */
-	std::vector<llvm::Type*> llvm_parameter_types;
-
-	for (auto &arg : args) {
-		llvm_parameter_types.push_back(arg->llvm_type);
-	}
-
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
@@ -422,61 +421,20 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		atom::map<int> member_index,
 		identifier::ref id,
 		const ast::item::ref &node,
-		types::type::ref data_ctor_sig)
+		types::type::ref type)
 {
 	/* this is a tuple constructor function */
-	std::vector<llvm::Type*> llvm_parameter_types;
-
-	for (auto &arg : args) {
-		llvm_parameter_types.push_back(arg->llvm_type);
-	}
-
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
 		bound_type_t::ref data_type = get_or_create_tagged_tuple_type(builder,
-				scope, id, args, member_index, node, data_ctor_sig);
+				scope, id, args, member_index, node, type);
 
 		bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,
 				scope, args, data_type, id, node);
 
 		if (!!status) {
 			return {tagged_tuple_ctor, data_type};
-		}
-	}
-
-	assert(!status);
-	return {nullptr, nullptr};
-}
-
-std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_struct_ctor(
-		status_t &status, 
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		bound_type_t::ref struct_type,
-		bound_type_t::refs dim_types,
-		identifier::ref id,
-		const ast::item::ref &node)
-{
-	/* this is a struct constructor function.
-	 * note that structs and tuples are the same thing internally to LLVM,
-	 * however at our type-checking level, we'll want to be able to lookup
-	 * named data points within tuples. this requires a more complete
-	 * term, but results in a similar IR. */
-	std::vector<llvm::Type*> llvm_parameter_types;
-
-	for (auto &type : dim_types) {
-		llvm_parameter_types.push_back(type->llvm_type);
-	}
-
-	if (!!status) {
-		program_scope_t::ref program_scope = scope->get_program_scope();
-
-		bound_var_t::ref struct_ctor = get_or_create_tuple_ctor(status, builder,
-				scope, dim_types, struct_type, id, node);
-
-		if (!!status) {
-			return {struct_ctor, struct_type};
 		}
 	}
 

@@ -19,6 +19,7 @@ bound_var_t::ref bind_ctor_to_scope(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
-		ptr<const ast::item> data_ctor,
-		types::type::ref data_ctor_sig,
+		ptr<const ast::item> node,
+		types::type::refs args_types,
+		types::type::ref return_type,
 		atom::map<int> member_index);

@@ -113,11 +113,15 @@ bound_var_t::ref check_func_vs_callsite(
 				debug_above(4, log(log_info, "going to bind ctor for %s",
 							data_ctor_sig->str().c_str()));
 
+				auto data_ctor_type = data_ctor_sig->rebind(unification.bindings);
+				auto args_types = get_function_type_args(data_ctor_type);
+				auto return_type = get_function_return_type(data_ctor_type);
+
 				/* instantiate the data ctor we want */
 				bound_var_t::ref ctor_fn = bind_ctor_to_scope(
 						status, builder, subst_scope,
 						unchecked_fn->id, node,
-						data_ctor_sig->rebind(unification.bindings),
+						args_types, return_type,
 						unchecked_data_ctor->member_index);
 
 				if (!!status) {
