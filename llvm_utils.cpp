@@ -69,11 +69,11 @@ llvm::FunctionType *llvm_create_function_type(
 	std::vector<llvm::Type *> llvm_type_args;
 
 	for (auto &arg : args) {
-		llvm_type_args.push_back(arg->llvm_type);
+		llvm_type_args.push_back(arg->get_llvm_type());
 	}
 
 	auto p = llvm::FunctionType::get(
-			return_value->llvm_type,
+			return_value->get_llvm_type(),
 			llvm::ArrayRef<llvm::Type*>(llvm_type_args),
 			false /*isVarArg*/);
 	assert(p->isFunctionTy());
@@ -229,7 +229,7 @@ llvm::AllocaInst *llvm_create_entry_block_alloca(
 		   	llvm_function->getEntryBlock().begin());
 
 	/* create the local variable */
-	return builder.CreateAlloca(type->llvm_type, nullptr, var_name.c_str());
+	return builder.CreateAlloca(type->get_llvm_type(), nullptr, var_name.c_str());
 }
 
 void llvm_create_if_branch(
@@ -283,7 +283,7 @@ llvm::Type *llvm_create_tuple_type(
 
 	/* now add all the dimensions of the tuple */
 	for (auto &dimension : dimensions) {
-		llvm_types.push_back(dimension->llvm_type);
+		llvm_types.push_back(dimension->get_llvm_type());
 	}
 
 	llvm::Type *llvm_tuple_type = llvm_create_struct_type(builder, name, llvm_types);
@@ -324,7 +324,7 @@ llvm::Type *llvm_wrap_type(
 	 * This is to allow this type to be managed by the GC.
 	 */
 	bound_type_t::ref var_type = program_scope->get_bound_type({"__var"});
-	llvm::Type *llvm_var_type = var_type->llvm_type;
+	llvm::Type *llvm_var_type = var_type->get_llvm_type();
 
 	llvm::ArrayRef<llvm::Type*> llvm_dims{llvm_var_type, llvm_data_type};
 	auto llvm_struct_type = llvm::StructType::create(builder.getContext(), llvm_dims);
@@ -451,10 +451,10 @@ bound_var_t::ref llvm_create_global_tag(
 	bound_type_t::ref var_ref_type = program_scope->get_bound_type({"__var_ref"});
 	bound_type_t::ref tag_struct_type = program_scope->get_bound_type({"__tag_var"});
 
-	llvm::Type *llvm_var_ref_type = var_ref_type->llvm_type;
-	llvm::StructType *llvm_tag_type = llvm::dyn_cast<llvm::StructType>(tag_struct_type->llvm_type);
-	debug_above(10, log(log_info, "var_ref_type is %s", llvm_print_type(*var_ref_type->llvm_type).c_str()));
-	debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print_type(*tag_struct_type->llvm_type).c_str()));
+	llvm::Type *llvm_var_ref_type = var_ref_type->get_llvm_type();
+	llvm::StructType *llvm_tag_type = llvm::dyn_cast<llvm::StructType>(tag_struct_type->get_llvm_type());
+	debug_above(10, log(log_info, "var_ref_type is %s", llvm_print_type(*var_ref_type->get_llvm_type()).c_str()));
+	debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print_type(*tag_struct_type->get_llvm_type()).c_str()));
 	assert(llvm_tag_type != nullptr);
 
 	llvm::Module *llvm_module = scope->get_llvm_module();

@@ -68,12 +68,14 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 
 	void put_type_term(atom name, types::term::ref type_term);
 	types::term::map get_type_env() const;
+	types::term::map get_type_decl_env() const;
 
 protected:
 	atom name;
 
 	bound_var_t::map bound_vars;
 	types::term::map type_env;
+	types::term::map type_decl_env;
 };
 
 typedef bound_type_t::ref return_type_constraint_t;

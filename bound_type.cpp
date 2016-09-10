@@ -5,7 +5,7 @@
 #include "bound_var.h"
 #include "ast.h"
 
-bound_type_t::bound_type_t(
+bound_type_impl_t::bound_type_impl_t(
 		types::type::ref type,
 		struct location location,
 		llvm::Type *llvm_type,
@@ -28,6 +28,30 @@ bound_type_t::bound_type_t(
 	assert(llvm_type != nullptr);
 }
 
+types::type::ref bound_type_impl_t::get_type() const {
+	return type;
+}
+
+struct location const bound_type_impl_t::get_location() const {
+	return location;
+}
+
+llvm::Type * const bound_type_impl_t::get_llvm_type() const {
+	return llvm_type;
+}
+
+llvm::Type * const bound_type_impl_t::get_llvm_specific_type() const {
+	return llvm_specific_type;
+}
+
+bound_type_t::refs const bound_type_impl_t::get_dimensions() const {
+	return dimensions;
+}
+
+bound_type_t::name_index const bound_type_impl_t::get_member_index() const {
+	return member_index;
+}
+
 bound_type_t::ref bound_type_t::create(
 		types::type::ref type,
 		struct location location,
@@ -36,27 +60,46 @@ bound_type_t::ref bound_type_t::create(
 		bound_type_t::refs dimensions,
 		bound_type_t::name_index member_index)
 {
-	return make_ptr<bound_type_t>(type, location, llvm_type,
+	return make_ptr<bound_type_impl_t>(type, location, llvm_type,
 			llvm_specific_type, dimensions, member_index);
 }
 
-types::term::ref bound_type_t::get_term() const {
-	return type->to_term();
+bound_type_t::ref bound_type_t::create_handle(
+		bound_type_t::ref actual)
+{
+	return make_ptr<bound_type_handle_t>(actual);
 }
 
-#if 0
-std::string bound_type_t::str(const map &coll) {
-	std::stringstream ss;
-	const char *sep = "";
-	ss << "{";
-	for (auto &pair : coll) {
-		ss << sep << C_TYPE << pair.first.str() << C_RESET << ": ";
-		ss << pair.second->str();
-	}
-	ss << "}";
-	return ss.str();
+bound_type_handle_t::bound_type_handle_t(bound_type_t::ref actual) : actual(actual) {
 }
-#endif
+
+types::type::ref bound_type_handle_t::get_type() const {
+	return actual->get_type();
+}
+
+struct location const bound_type_handle_t::get_location() const {
+	return actual->get_location();
+}
+
+llvm::Type * const bound_type_handle_t::get_llvm_type() const {
+	return actual->get_llvm_type();
+}
+
+llvm::Type * const bound_type_handle_t::get_llvm_specific_type() const {
+	return actual->get_llvm_specific_type();
+}
+
+bound_type_t::refs const bound_type_handle_t::get_dimensions() const {
+	return actual->get_dimensions();
+}
+
+bound_type_t::name_index const bound_type_handle_t::get_member_index() const {
+	return actual->get_member_index();
+}
+
+types::term::ref bound_type_t::get_term() const {
+	return get_type()->to_term();
+}
 
 std::string str(const bound_type_t::refs &args) {
 	std::stringstream ss;
@@ -88,14 +131,14 @@ std::ostream &operator <<(std::ostream &os, const bound_type_t &type) {
 
 std::string bound_type_t::str() const {
 	std::stringstream ss;
-	ss << type;
+	ss << get_type();
 	return ss.str();
 }
 
 types::term::ref get_args_term(bound_type_t::named_pairs args) {
 	types::term::refs sig_args;
 	for (auto &named_pair : args) {
-		sig_args.push_back(named_pair.second->type->to_term());
+		sig_args.push_back(named_pair.second->get_type()->to_term());
 	}
 	return get_args_term(sig_args);
 }
@@ -104,7 +147,7 @@ types::term::ref get_args_term(bound_type_t::refs args) {
 	types::term::refs sig_args;
 	for (auto &arg : args) {
 		assert(arg != nullptr);
-		sig_args.push_back(arg->type->to_term());
+		sig_args.push_back(arg->get_type()->to_term());
 	}
 	return get_args_term(sig_args);
 }
@@ -131,7 +174,7 @@ types::term::ref get_tuple_term(const bound_type_t::refs &items_types) {
 	types::term::refs dimensions;
 	for (auto &arg : items_types) {
 		assert(arg != nullptr);
-		dimensions.push_back(arg->type->to_term());
+		dimensions.push_back(arg->get_type()->to_term());
 	}
 	return get_tuple_term(dimensions);
 }
@@ -151,23 +194,23 @@ bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {
 }
 
 bool bound_type_t::is_function() const {
-	return type->is_function();
+	return get_type()->is_function();
 }
 
 bool bound_type_t::is_void() const {
-	return type->is_void();
+	return get_type()->is_void();
 }
 
 bool bound_type_t::is_obj() const {
-	return type->is_obj();
+	return get_type()->is_obj();
 }
 
 bool bound_type_t::is_struct() const {
-	return type->is_struct();
+	return get_type()->is_struct();
 }
 
 types::signature bound_type_t::get_signature() const {
-	return type->get_signature();
+	return get_type()->get_signature();
 }
 
 types::term::ref get_function_term(
@@ -176,10 +219,10 @@ types::term::ref get_function_term(
 {
 	types::term::refs arg_terms;
 	for (auto arg : args) {
-		arg_terms.push_back(arg->type->to_term());
+		arg_terms.push_back(arg->get_type()->to_term());
 	}
 	types::term::ref args_term = get_args_term(arg_terms);
-	return get_function_term(args_term, return_value->type->to_term());
+	return get_function_term(args_term, return_value->get_type()->to_term());
 }
 
 types::term::ref get_function_term(
@@ -200,9 +243,9 @@ types::type::ref get_function_type(
 	types::type::refs type_args;
 
 	for (auto arg : args) {
-		type_args.push_back(arg->type);
+		type_args.push_back(arg->get_type());
 	}
 
 	return ::type_product(pk_function,
-			{::type_product(pk_args, type_args), return_type->type});
+			{::type_product(pk_args, type_args), return_type->get_type()});
 }

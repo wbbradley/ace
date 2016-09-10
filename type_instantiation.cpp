@@ -246,7 +246,7 @@ types::term::ref instantiate_data_ctor_type_term(
 				tag_term->get_type(),
 				id->get_location(),
 				/* all tags use the var_t* type */
-				scope->get_program_scope()->get_bound_type({"__var_ref"})->llvm_type);
+				scope->get_program_scope()->get_bound_type({"__var_ref"})->get_llvm_type());
 
 		bound_var_t::ref tag = llvm_create_global_tag(
 				builder, scope, tag_type, tag_name, id);
@@ -333,7 +333,7 @@ types::term::ref register_data_ctor(
 			/* simple check for an already bound monotype */
 			user_error(status, location, "symbol " c_id("%s") " was already defined",
 					name.c_str());
-			user_message(log_warning, status, found_type->location,
+			user_message(log_warning, status, found_type->get_location(),
 					"previous version of %s defined here",
 					found_type->str().c_str());
 		} else {

@@ -681,7 +681,7 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
 
 	if (!!status) {
 		atom member_name = rhs.text;
-		auto member_index = type->member_index;
+		auto member_index = type->get_member_index();
 		auto member_index_iter = member_index.find(member_name);
 
 		for (auto member_index_pair : member_index) {
@@ -694,12 +694,12 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
 			debug_above(8, log(log_info, "found member %s at index %d", member_name.c_str(), index));
 
 			/* get the type of the dimension being referenced */
-			bound_type_t::ref member_type = type->dimensions[index];
-			assert(type->llvm_specific_type != nullptr);
+			bound_type_t::ref member_type = type->get_dimensions()[index];
+			assert(type->get_llvm_specific_type() != nullptr);
 
 			llvm::Value *llvm_var_value = llvm_resolve_alloca(builder, lhs_val->llvm_value);
 			llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
-						llvm_var_value, type->llvm_specific_type);
+						llvm_var_value, type->get_llvm_specific_type());
 
 			llvm::Value *llvm_gep = builder.CreateInBoundsGEP(
 					llvm_value_as_specific_type,
@@ -830,9 +830,9 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 			builder, scope, function_term);
 
 	if (!!status) {
-		assert(function_type->llvm_type != nullptr);
+		assert(function_type->get_llvm_type() != nullptr);
 
-		llvm::Type *llvm_type = function_type->llvm_type;
+		llvm::Type *llvm_type = function_type->get_llvm_type();
 		if (llvm_type->isPointerTy()) {
 			llvm_type = llvm_type->getPointerElementType();
 		}
@@ -1179,8 +1179,8 @@ bound_var_t::ref type_check_assignment(
 
 			// TODO: check the types for compatibility
 			unification_t unification = unify(
-					lhs_var->type->type->to_term(),
-					rhs_var->type->type->to_term(), {});
+					lhs_var->type->get_type()->to_term(),
+					rhs_var->type->get_type()->to_term(), {});
 
 			if (unification.result) {
 				if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(lhs_var->llvm_value)) {
@@ -1346,7 +1346,7 @@ bound_var_t::ref ast::return_statement::resolve_instantiation(
 		if (return_value != nullptr) {
 			builder.CreateRet(llvm_resolve_alloca(builder, return_value->llvm_value));
 		} else {
-			assert(types::is_type_id(return_type->type, "void"));
+			assert(types::is_type_id(return_type->get_type(), "void"));
 			builder.CreateRetVoid();
 		}
 

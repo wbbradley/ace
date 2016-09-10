@@ -49,6 +49,10 @@ types::term::map scope_t::get_type_env() const {
 	return type_env;
 }
 
+types::term::map scope_t::get_type_decl_env() const {
+	return type_decl_env;
+}
+
 std::string scope_t::str() {
 	std::stringstream ss;
 	scope_t::ref p = shared_from_this();
@@ -310,8 +314,8 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 		debug_above(5, log(log_info, "set return type to %s", return_type_constraint->str().c_str()));
 	} else {
 		unification_t unification = unify(
-				return_type_constraint->type->to_term(),
-				return_type->type->to_term(),
+				return_type_constraint->get_type()->to_term(),
+				return_type->get_type()->to_term(),
 				get_type_env());
 
 		if (!unification.result) {

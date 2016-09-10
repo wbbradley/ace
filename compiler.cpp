@@ -235,7 +235,8 @@ void add_globals(
 	bound_type_t::ref bool_type = program_scope->get_bound_type({"bool"});
 
 	/* get the null pointer value */
-	llvm::Value *llvm_null_value = llvm::ConstantPointerNull::get(llvm::dyn_cast<llvm::PointerType>(void_ptr_type->llvm_type));
+	llvm::Value *llvm_null_value = llvm::ConstantPointerNull::get(llvm::dyn_cast<llvm::PointerType>(
+				void_ptr_type->get_llvm_type()));
 	assert(llvm_null_value != nullptr);
 
 	program_scope->put_bound_variable("true", bound_var_t::create(INTERNAL_LOC(), "true", bool_type, builder.getTrue(), make_iid("true"), false/*is_lhs*/));

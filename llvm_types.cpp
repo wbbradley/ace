@@ -57,7 +57,7 @@ struct bound_type_builder_t : public types::type_visitor {
 		if (created_type == nullptr) {
 			/* no type exists by that name just create it */
 			created_type = bound_type_t::create(id.shared_from_this(), id.get_location(),
-					program_scope->get_bound_type({"__var_ref"})->llvm_type);
+					program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
 		}
 		return created_type != nullptr;
 	}
@@ -70,6 +70,7 @@ struct bound_type_builder_t : public types::type_visitor {
 
 	virtual bool visit(const types::type_operator &operator_) {
 		/* figure out where this type operator came from or what it means */
+		dbg();
 		auto module_scope = scope->get_module_scope();
 		if (module_scope != nullptr) {
 			atom name = operator_.oper->get_signature();
@@ -90,7 +91,7 @@ struct bound_type_builder_t : public types::type_visitor {
 				created_type = (
 					bound_type_t::create(operator_.shared_from_this(),
 							operator_.get_location(),
-							scope->get_bound_type({"__var_ref"})->llvm_type));
+							scope->get_bound_type({"__var_ref"})->get_llvm_type()));
 			}
 		} else {
 			assert(!"no module scope?");
@@ -169,7 +170,7 @@ struct bound_type_builder_t : public types::type_visitor {
 		assert(bound_type == nullptr);
 		created_type = bound_type_t::create(sum.shared_from_this(),
 				sum.get_location(),
-				scope->get_bound_type({"__var_ref"})->llvm_type);
+				scope->get_bound_type({"__var_ref"})->get_llvm_type());
 		return true;
 	}
 };
@@ -210,7 +211,7 @@ bound_type_t::ref create_bound_type(
 		types::type::ref type)
 {
 	assert(!!status);
-	auto env = scope->get_type_env();
+	auto env = scope->get_type_decl_env();
 	indent_logger indent(3,
 		string_format("creating bound type for %s in env %s",
 			type->str().c_str(), str(env).c_str()));
@@ -263,7 +264,7 @@ bound_type_t::ref get_function_return_type(
 		scope_t::ref scope,
 		bound_type_t::ref function_type)
 {
-	if (auto product_type = dyncast<const types::type_product>(function_type->type)) {
+	if (auto product_type = dyncast<const types::type_product>(function_type->get_type())) {
 		assert(product_type->pk == pk_function);
 
 		/* notice the leaky encapsulation here */
@@ -316,7 +317,7 @@ bound_type_t::ref get_or_create_tuple_type(
 				node->token.location,
 				/* the LLVM-visible type of tuples will usually be a generic
 				 * obj */
-				scope->get_bound_type({"__var_ref"})->llvm_type,
+				scope->get_bound_type({"__var_ref"})->get_llvm_type(),
 				llvm_tuple_type,
 				args);
 
@@ -359,7 +360,7 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 				node->token.location,
 				/* the LLVM-visible type of tagged tuples will usually be a
 				 * generic obj */
-				scope->get_bound_type({"__var_ref"})->llvm_type,
+				scope->get_bound_type({"__var_ref"})->get_llvm_type(),
 				llvm_tuple_type,
 				args,
 				member_index);
@@ -472,7 +473,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		assert(!!status);
 		assert(mem_alloc_var != nullptr);
 
-		llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_deref_type(data_type->llvm_type));
+		llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_deref_type(data_type->get_llvm_type()));
 
 		llvm::Value *llvm_create_var_call_value = llvm_create_call_inst(
 				status, builder, *node,
@@ -483,7 +484,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 					/* no mark function yet */
 					llvm::Constant::getNullValue(
-							program_scope->get_bound_type({"__mark_fn"})->llvm_type),
+							program_scope->get_bound_type({"__mark_fn"})->get_llvm_type()),
 
 					/* the type_id */
 					builder.getInt32(function->type->get_signature().repr().iatom),
@@ -492,12 +493,12 @@ bound_var_t::ref get_or_create_tuple_ctor(
 					llvm_sizeof_tuple
 				});
 
-		assert(data_type->llvm_specific_type != nullptr);
+		assert(data_type->get_llvm_specific_type() != nullptr);
 
 		/* we've allocated enough space for the object type, let's get our allocation as such */
 		llvm::Value *llvm_final_obj = builder.CreatePointerBitCastOrAddrSpaceCast(
 				llvm_create_var_call_value, 
-				data_type->llvm_specific_type);
+				data_type->get_llvm_specific_type());
 
 		int index = 0;
 
@@ -593,21 +594,21 @@ bound_var_t::ref call_const_subscript_operator(
 	} else {
 		/* do some checks on the lhs */
 		auto lhs_type = lhs->type;
-		if (lhs_type->dimensions.size() != 0) {
-			if (lhs_type->dimensions.size() > subscript_index) {
+		if (lhs_type->get_dimensions().size() != 0) {
+			if (lhs_type->get_dimensions().size() > subscript_index) {
 				/* ok, we're in range */
 				debug_above(6, log(log_info, "generating dereference %s[%d]", lhs->str().c_str(), subscript_index));
 
-				bound_type_t::ref data_type = lhs_type->dimensions[subscript_index];
+				bound_type_t::ref data_type = lhs_type->get_dimensions()[subscript_index];
 				assert(data_type != nullptr);
-				assert(lhs_type->llvm_specific_type != nullptr);
+				assert(lhs_type->get_llvm_specific_type() != nullptr);
 
 				/* get the tuple */
 				llvm::Value *llvm_lhs = llvm_resolve_alloca(builder, lhs->llvm_value);
 
 				llvm::Value *llvm_lhs_subtype = builder.CreatePointerBitCastOrAddrSpaceCast(
 						llvm_lhs,
-						lhs_type->llvm_specific_type);
+						lhs_type->get_llvm_specific_type());
 
 				debug_above(5, log(log_info, "creating GEP for %s", llvm_print_value(*llvm_lhs_subtype).c_str()));
 				llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_lhs_subtype,
