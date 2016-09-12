@@ -50,7 +50,8 @@ public:
 			refs dimensions = {},
 			name_index member_index = {});
 
-	static ref create_handle(ref handle);
+	static ptr<struct bound_type_handle_t> create_handle(types::type::ref type,
+			llvm::Type *llvm_type);
 };
 
 struct bound_type_impl_t : public bound_type_t {
@@ -83,7 +84,8 @@ struct bound_type_impl_t : public bound_type_t {
 };
 
 struct bound_type_handle_t : public bound_type_t {
-	bound_type_handle_t(bound_type_t::ref actual);
+	typedef ptr<bound_type_handle_t> ref;
+	bound_type_handle_t(types::type::ref type, llvm::Type *llvm_type);
 	virtual ~bound_type_handle_t() {}
 
 	bound_type_handle_t(const bound_type_handle_t &) = delete;
@@ -97,7 +99,11 @@ struct bound_type_handle_t : public bound_type_t {
 	virtual refs const get_dimensions() const;
 	virtual name_index const get_member_index() const;
 
-	ref actual;
+	void set_actual(bound_type_t::ref actual);
+
+	bound_type_t::ref actual;
+	types::type::ref type;
+	llvm::Type * const llvm_type;
 };
 
 std::string str(const bound_type_t::refs &args);
@@ -114,3 +120,12 @@ types::term::ref get_args_term(bound_type_t::refs args);
 types::term::refs get_terms(const bound_type_t::refs &types);
 
 types::type::ref get_function_type(bound_type_t::refs args, bound_type_t::ref return_type);
+namespace types {
+	term::ref term_binder(
+			llvm::IRBuilder<> &builder,
+			ptr<struct scope_t> scope,
+			identifier::ref id,
+			ptr<ast::item const> node,
+			types::term::ref data_ctor_sig,
+			bound_type_t::name_index member_index);
+};

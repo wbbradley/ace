@@ -45,12 +45,28 @@ void scope_t::put_type_term(atom name, types::term::ref type_term) {
 	type_env[name] = type_term;
 }
 
+void scope_t::put_type_decl_term(atom name, types::term::ref type_term) {
+	debug_above(2, log(log_info, "registering type decl term " c_term("%s") " as %s",
+			name.c_str(), type_term->str().c_str()));
+	type_decl_env[name] = type_term;
+}
+
 types::term::map scope_t::get_type_env() const {
-	return type_env;
+	auto parent_scope = get_parent_scope();
+	if (parent_scope != nullptr) {
+		return merge(parent_scope->get_type_env(), type_env);
+	} else {
+		return type_env;
+	}
 }
 
 types::term::map scope_t::get_type_decl_env() const {
-	return type_decl_env;
+	auto parent_scope = get_parent_scope();
+	if (parent_scope != nullptr) {
+		return merge(parent_scope->get_type_decl_env(), type_decl_env);
+	} else {
+		return type_decl_env;
+	}
 }
 
 std::string scope_t::str() {
@@ -396,22 +412,26 @@ void module_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "MODULE SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
 	dump_bindings(os, unchecked_vars, unchecked_types);
+	get_parent_scope()->dump(os);
 	// dump_linked_modules(os, linked_modules);
 }
 
 void function_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "FUNCTION SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
+	get_parent_scope()->dump(os);
 }
 
 void local_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "LOCAL SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
+	get_parent_scope()->dump(os);
 }
 
 void generic_substitution_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "GENERIC SUBSTITUTION SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
+	get_parent_scope()->dump(os);
 }
 
 module_scope_t::module_scope_t(atom name, program_scope_t::ref parent_scope, llvm::Module *llvm_module) :

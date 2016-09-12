@@ -75,8 +75,6 @@ bound_var_t::ref bind_ctor_to_scope(
 	bool is_instantiation = bool(dyncast<generic_substitution_scope_t>(scope));
 	assert(is_instantiation);
 
-	assert(scope->get_bound_type(return_type->get_signature()) == nullptr);
-
 	/* create or find an existing ctor function that satisfies the term of
 	 * this node */
 	debug_above(5, log(log_info, "finding/creating data ctor for " c_type("%s") " with return type %s",
@@ -234,6 +232,28 @@ types::term::ref instantiate_data_ctor_type_term(
 	}
 	debug_above(5, log(log_info, "data_ctor_term = %s", data_ctor_term->str().c_str()));
 
+	// TODO: check whether "generics" is too heavy-handed, might be able to
+	// subtract variables that are not part of the unbound variables.
+	auto dequantified_product = product->dequantify(generics);
+	auto dequantified_data_ctor_term = data_ctor_term->dequantify(generics);
+
+	auto data_ctor_sig = get_function_term(
+			types::change_product_kind(pk_args, dequantified_product),
+		   	dequantified_data_ctor_term);
+
+	for (auto lambda_var : lambda_vars) {
+		data_ctor_sig = types::term_lambda(lambda_var, data_ctor_sig);
+	}
+
+	/* we need to register the type decl definition, so that in case we need to
+	 * instantiate it, we can */
+	types::term::refs type_ctor_terms;
+	types::term::ref term_binder = types::term_binder(builder, scope, id, node,
+			data_ctor_sig, member_index);
+
+	debug_above(6, log(log_info, "created term_binder %s", term_binder->str().c_str()));
+	scope->put_type_decl_term(tag_name, term_binder);
+
 	if (dimensions.size() == 0) {
 		/* it's a nullary enumeration or "tag", let's create a global value to represent
 		 * this tag. */
@@ -261,12 +281,12 @@ types::term::ref instantiate_data_ctor_type_term(
 	/* find the type variables that are referenced within the unbound
 	 * vars of the product. */
 	atom::many referenced_type_variables;
-	types::type::map fake_bindings;
 	for (auto type_variable : type_variables) {
 		if (unbound_vars.find(type_variable) != unbound_vars.end()) {
 			referenced_type_variables.push_back(type_variable);
 		}
 	}
+	// TODO: replace type variables with lambda var bindings
 
 	/* now let's make sure we register this constructor as an override for
 	 * the name `tag_name` */

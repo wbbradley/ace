@@ -4,6 +4,9 @@
 #include "scopes.h"
 #include "bound_var.h"
 #include "ast.h"
+#include "type_instantiation.h"
+#include "llvm_types.h"
+#include "llvm_utils.h"
 
 bound_type_impl_t::bound_type_impl_t(
 		types::type::ref type,
@@ -64,37 +67,63 @@ bound_type_t::ref bound_type_t::create(
 			llvm_specific_type, dimensions, member_index);
 }
 
-bound_type_t::ref bound_type_t::create_handle(
-		bound_type_t::ref actual)
+bound_type_handle_t::ref bound_type_t::create_handle(
+		types::type::ref type,
+		llvm::Type *llvm_type)
 {
-	return make_ptr<bound_type_handle_t>(actual);
+	return make_ptr<bound_type_handle_t>(type, llvm_type);
 }
 
-bound_type_handle_t::bound_type_handle_t(bound_type_t::ref actual) : actual(actual) {
+bound_type_handle_t::bound_type_handle_t(
+		types::type::ref type,
+		llvm::Type *llvm_type) :
+	type(type), llvm_type(llvm_type)
+{
 }
 
 types::type::ref bound_type_handle_t::get_type() const {
-	return actual->get_type();
+	return type;
 }
 
 struct location const bound_type_handle_t::get_location() const {
-	return actual->get_location();
+	return type->get_location();
 }
 
 llvm::Type * const bound_type_handle_t::get_llvm_type() const {
-	return actual->get_llvm_type();
+	return llvm_type;
 }
 
 llvm::Type * const bound_type_handle_t::get_llvm_specific_type() const {
-	return actual->get_llvm_specific_type();
+	if (actual != nullptr) {
+		return actual->get_llvm_specific_type();
+	} else {
+		assert(false);
+		return {};
+	}
 }
 
 bound_type_t::refs const bound_type_handle_t::get_dimensions() const {
-	return actual->get_dimensions();
+	if (actual != nullptr) {
+		return actual->get_dimensions();
+	} else {
+		assert(false);
+		return {};
+	}
 }
 
 bound_type_t::name_index const bound_type_handle_t::get_member_index() const {
-	return actual->get_member_index();
+	if (actual != nullptr) {
+		return actual->get_member_index();
+	} else {
+		assert(false);
+		return {};
+	}
+}
+
+void bound_type_handle_t::set_actual(bound_type_t::ref actual_) {
+	assert(actual_->get_type()->str() == type->str());
+	assert(actual_->get_llvm_type() == llvm_type);
+	actual = actual_;
 }
 
 types::term::ref bound_type_t::get_term() const {
@@ -132,6 +161,8 @@ std::ostream &operator <<(std::ostream &os, const bound_type_t &type) {
 std::string bound_type_t::str() const {
 	std::stringstream ss;
 	ss << get_type();
+	ss << " " << llvm_print_type(*get_llvm_type());
+	ss << " " << ::str(get_dimensions());
 	return ss.str();
 }
 
@@ -249,3 +280,116 @@ types::type::ref get_function_type(
 	return ::type_product(pk_function,
 			{::type_product(pk_args, type_args), return_type->get_type()});
 }
+
+namespace types {
+	struct term_binder : public term {
+		term_binder(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				identifier::ref id,
+				ptr<ast::item const> node,
+				types::term::ref data_ctor_sig,
+				bound_type_t::name_index member_index) :
+			builder(builder),
+			scope(scope),
+			id(id),
+			node(node),
+			data_ctor_sig(data_ctor_sig),
+			member_index(member_index)
+		{}
+		virtual ~term_binder() {}
+
+		llvm::IRBuilder<> &builder;
+		scope_t::ref scope;
+		identifier::ref const id;
+		ptr<ast::item const> const node;
+		types::term::ref const data_ctor_sig;
+		bound_type_t::name_index const member_index;
+
+		virtual std::ostream &emit(std::ostream &os) const {
+			os << "(" << id;
+			os << " " << data_ctor_sig;
+			os << " {index: {";
+			const char *sep = "";
+			for (auto member_index_pair : member_index) {
+				os << sep << member_index_pair.first;
+				os << ": " << member_index_pair.second;
+				sep = " ";
+			}
+			os << "}})";
+			return os;
+		}
+
+		ref apply(ref operand) const {
+			return types::term_binder(builder, scope, id, node,
+					data_ctor_sig->apply(operand), member_index);
+		}
+
+		virtual ref evaluate(map env) const {
+			return shared_from_this();
+		}
+
+		virtual type::ref get_type() const {
+			auto program_scope = scope->get_program_scope();
+			auto fn_type = data_ctor_sig->get_type();
+			debug_above(5, log(log_info, "getting the type for %s",
+						fn_type->str().c_str()));
+			types::type::ref final_type = get_function_return_type(fn_type);
+			types::type::refs data_ctor_args = get_function_type_args(fn_type);
+
+			/* start by registering a placeholder handle for the data ctor's
+			 * actual final type */
+			auto bound_type_handle = bound_type_t::create_handle(
+					final_type,
+					program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
+
+			std::stringstream ss;
+			scope->dump(ss);
+			debug_above(3, log(log_info, "looking for %s in %s",
+					  final_type->get_signature().c_str(),
+				  	  ss.str().c_str()));
+			assert(scope->get_bound_type(final_type->get_signature()) == nullptr);
+			program_scope->put_bound_type(bound_type_handle);
+
+			debug_above(6, log(log_info, "this is " c_internal("crazy")
+						" but we're going to push this type " c_type("%s") " into the scope now",
+						str().c_str()));
+
+			// TODO: plumb this status through get_type
+			status_t status;
+			bound_type_t::refs args;
+			resolve_type_ref_params(status, builder, scope, data_ctor_args, args);
+
+			if (!!status) {
+				auto final_bound_type = get_or_create_algebraic_data_type(
+						builder, scope, id, args, member_index, node,
+						final_type);
+				bound_type_handle->set_actual(final_bound_type);
+				return final_type;
+			}
+			assert(false);
+			return null_impl();
+		}
+
+		atom::set unbound_vars(atom::set bound_vars) const {
+			not_impl();
+			return atom::set{};
+		}
+
+		ref dequantify(atom::set generics) const {
+			return null_impl();
+		}
+	};
+
+	term::ref term_binder(
+			llvm::IRBuilder<> &builder,
+			scope_t::ref scope,
+			identifier::ref id,
+		   	ptr<ast::item const> node,
+		   	types::term::ref data_ctor_sig,
+		   	bound_type_t::name_index member_index)
+   	{
+		return make_ptr<struct term_binder>(builder, scope, id, node,
+				data_ctor_sig, member_index);
+	}
+};

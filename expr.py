@@ -611,8 +611,8 @@ def unify_terms(env, outbound, inbound):
     # simplify things for unification.
     log("unifying terms %s <- %s" % (outbound, inbound), 3)
 
-    outbound_type = outbound.evaluate(env, 0).get_type()
-    inbound_type = inbound.evaluate(env, 0).get_type()
+    outbound_type = outbound.evaluate(env).get_type()
+    inbound_type = inbound.evaluate(env).get_type()
 
     ret, details, bindings = unify(outbound_type, inbound_type, env, {})
 
@@ -688,8 +688,8 @@ def unify(outbound_type, inbound_type, env, bindings):
         return True, '', bindings
 
     if isinstance(a, TypeRef) and isinstance(b, TypeRef):
-        a_macro_term = a.macro.to_lambda(bindings).evaluate(env, 0)
-        b_macro_term = b.macro.to_lambda(bindings).evaluate(env, 0)
+        a_macro_term = a.macro.to_lambda(bindings).evaluate(env)
+        b_macro_term = b.macro.to_lambda(bindings).evaluate(env)
         if repr(a_macro_term) == repr(b_macro_term):
             return unify(reduce(TypeOperator, a.args),
                          reduce(TypeOperator, b.args),
@@ -910,7 +910,7 @@ def evaluate(input_name, value, env):
             if isinstance(term, DefMacro):
                 env[str(term.name)] = term.body
 
-            env['_'] = term.evaluate(env, 0)
+            env['_'] = term.evaluate(env)
             print yellow(env['_'])
 
 

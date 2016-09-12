@@ -17,6 +17,10 @@ void reset_generics() {
 
 namespace types {
 
+	term::ref term::apply(term::ref operand) const {
+		return term_apply(shared_from_this(), operand);
+	}
+
 	namespace terms {
 		const char *UNREACHABLE = "void";
 
@@ -29,7 +33,7 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env, int macro_depth) const {
+			ref evaluate(map env) const {
 				return shared_from_this();
 			}
 
@@ -39,6 +43,10 @@ namespace types {
 
 			atom::set unbound_vars(atom::set bound_vars) const {
 				return {};
+			}
+
+			term::ref dequantify(atom::set generics) const {
+				return shared_from_this();
 			}
 		};
 
@@ -52,14 +60,14 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env, int macro_depth) const {
+			ref evaluate(map env) const {
 				auto iter = env.find(id->get_name());
 				if (iter == env.end()) {
 					return shared_from_this();
 				} else {
 					auto value = iter->second;
-					if (false && value != shared_from_this()) {
-						return value->evaluate(env, macro_depth);
+					if (value != shared_from_this()) {
+						return value->evaluate(env);
 					} else {
 						return value;
 					}
@@ -78,6 +86,11 @@ namespace types {
 					return {};
 				}
 			}
+
+			term::ref dequantify(atom::set generics) const {
+				assert(generics.find(id->get_name()) == generics.end());
+				return shared_from_this();
+			}
 		};
 
 		struct term_lambda : public term {
@@ -91,10 +104,18 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env, int macro_depth) const {
+			ref evaluate(map env) const {
 				atom var_name = var->get_name();
 				env.erase(var_name);
-				return types::term_lambda(var, body->evaluate(env, macro_depth));
+				return types::term_lambda(var, body->evaluate(env));
+			}
+
+			ref apply(ref operand) const {
+				map env;
+				/* We should only handle substitutions in lambdas when they
+				 * are being applied. */
+				env[var->get_name()] = operand;
+				return body->evaluate(env);
 			}
 
 			type::ref get_type() const {
@@ -110,6 +131,11 @@ namespace types {
 
 				/* get what's left unbound from the body of the lambda */
 				return body->unbound_vars(bound_vars);
+			}
+
+			term::ref dequantify(atom::set generics) const {
+				not_impl();
+				return nullptr;
 			}
 		};
 
@@ -127,10 +153,10 @@ namespace types {
 				return os;
 			}
 
-			virtual ref evaluate(map env, int macro_depth) const {
+			virtual ref evaluate(map env) const {
 				term::refs evaluated_options;
 				for (auto &option : options) {
-					evaluated_options.push_back(option->evaluate(env, macro_depth));
+					evaluated_options.push_back(option->evaluate(env));
 				}
 				return types::term_sum(evaluated_options);
 			}
@@ -151,6 +177,11 @@ namespace types {
 				}
 				return unbound_vars;
 			}
+
+			term::ref dequantify(atom::set generics) const {
+				not_impl();
+				return nullptr;
+			}
 		};
 
 		struct term_product : public term {
@@ -169,7 +200,7 @@ namespace types {
 				return os;
 			}
 
-			virtual ref evaluate(map env, int macro_depth) const {
+			virtual ref evaluate(map env) const {
 				if (pk == pk_tag) {
 					/* this is a bit of a hack, but essentially a pk_tag is
 					 * just a type literal that cannot be evaluated */
@@ -178,7 +209,7 @@ namespace types {
 					term::refs evaluated_dimensions;
 					
 					for (auto &dimension : dimensions) {
-						evaluated_dimensions.push_back(dimension->evaluate(env, macro_depth));
+						evaluated_dimensions.push_back(dimension->evaluate(env));
 					}
 					return types::term_product(pk, evaluated_dimensions);
 				}
@@ -200,6 +231,10 @@ namespace types {
 				}
 				return unbound_vars;
 			}
+
+			term::ref dequantify(atom::set generics) const {
+				return types::term_product(pk, types::dequantify(dimensions, generics));
+			}
 		};
 
 		identifier::ref _next_term_variable() {
@@ -217,7 +252,7 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env, int macro_depth) const {
+			ref evaluate(map env) const {
 				/* Only allow substitution of "any" type variables from the environment. */
 				return shared_from_this();
 			}
@@ -228,6 +263,14 @@ namespace types {
 
 			atom::set unbound_vars(atom::set bound_vars) const {
 				return {var_id->get_name()};
+			}
+
+			term::ref dequantify(atom::set generics) const {
+				if (generics.find(var_id->get_name()) == generics.end()) {
+					return shared_from_this();
+				} else {
+					return types::term_id(var_id);
+				}
 			}
 		};
 
@@ -241,22 +284,13 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env, int macro_depth) const {
+			ref evaluate(map env) const {
 				debug_above(8, log(log_info, "evaluating term_apply %s with %s",
 						   	str().c_str(), ::str(env).c_str()));
-				auto fn_eval = fn->evaluate(env, macro_depth);
-				auto arg_eval = arg->evaluate(env, macro_depth);
+				auto fn_eval = fn->evaluate(env);
+				auto arg_eval = arg->evaluate(env);
 
-				ref res;
-				if (auto pfn = dyncast<const types::terms::term_lambda>(fn_eval)) {
-					/* We should only handle substitutions in lambdas when they
-					 * are being applied. */
-					env[pfn->var->get_name()] = arg_eval;
-					res = pfn->body->evaluate(env, macro_depth);
-			
-				} else {
-					res = types::term_apply(fn_eval, arg_eval);
-				}
+				ref res = fn_eval->apply(arg_eval);
 				debug_above(5, log(log_info, "eval: %s -> %s", str().c_str(),
 							res->str().c_str()));
 				return res;
@@ -275,6 +309,11 @@ namespace types {
 				unbound_vars.insert(arg_unbound_vars.begin(), arg_unbound_vars.end());
 				return unbound_vars;
 			}
+
+			term::ref dequantify(atom::set generics) const {
+				return types::term_apply(fn->dequantify(generics),
+						{arg->dequantify(generics)});
+			}
 		};
 
 		struct term_let : public term {
@@ -289,7 +328,7 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env, int macro_depth) const {
+			ref evaluate(map env) const {
 				return null_impl();
 			}
 
@@ -300,6 +339,11 @@ namespace types {
 			atom::set unbound_vars(atom::set bound_vars) const {
 				assert(false);
 				return {};
+			}
+
+			term::ref dequantify(atom::set generics) const {
+				not_impl();
+				return nullptr;
 			}
 		};
 	}
@@ -329,7 +373,7 @@ namespace types {
 	}
 
 	bool term::is_generic(types::term::map env) const {
-		auto type = evaluate(env, 0)->get_type();
+		auto type = evaluate(env)->get_type();
 		return type->ftv() != 0;
 	}
 
@@ -621,6 +665,14 @@ namespace types {
 			return pti->id->get_name() == type_name;
 		}
 		return false;
+	}
+
+	term::refs dequantify(term::refs dimensions, atom::set generics) {
+		term::refs dequantified;
+		for (auto dimension : dimensions) {
+			dequantified.push_back(dimension->dequantify(generics));
+		}
+		return dequantified;
 	}
 }
 

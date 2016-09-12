@@ -930,6 +930,9 @@ status_t type_check_module_links(
         const ast::module &obj,
         scope_t::ref program_scope)
 {
+	indent_logger indent(3, string_format("resolving links in " c_module("%s"),
+				obj.module_key.c_str()));
+
     status_t status;
 
     /* get module level scope variable */
@@ -963,6 +966,8 @@ status_t type_check_module_types(
         const ast::module &obj,
         scope_t::ref program_scope)
 {
+	indent_logger indent(2, string_format("type-checking types in module " c_module("%s"),
+				obj.module_key.str().c_str()));
 	status_t final_status;
 
     /* get module level scope types */
@@ -1005,6 +1010,9 @@ status_t type_check_module_variables(
         const ast::module &obj,
         scope_t::ref program_scope)
 {
+	indent_logger indent(2, string_format("resolving variables in " c_module("%s"),
+				obj.module_key.c_str()));
+
 	status_t final_status;
 
     /* get module level scope variable */
@@ -1045,7 +1053,7 @@ status_t type_check_module_variables(
 		}
     }
 
-	debug_above(9, log(log_info, "module after its own variable pass is:\n" c_ir("%s"),
+	debug_above(10, log(log_info, "module after its own variable pass is:\n" c_ir("%s"),
 				llvm_print_module(*module_scope->get_llvm_module()).c_str()));
     return final_status;
 }
@@ -1067,22 +1075,16 @@ status_t type_check_program(
 
     /* second pass is to resolve all module-level links */
     for (auto &module : obj.modules) {
-        debug_above(3, log(log_info, "resolving links in %s", module->module_key.c_str()));
-
         status |= type_check_module_links(compiler, builder, *module, program_scope);
     }
 
     /* third pass is to resolve all module-level types */
     for (auto &module : obj.modules) {
-        debug_above(2, log(log_info, "resolving types in %s", module->module_key.c_str()));
-
 		status |= type_check_module_types(compiler, builder, *module, program_scope);
     }
 
     /* fourth pass is to resolve all module-level variables */
     for (auto &module : obj.modules) {
-        debug_above(2, log(log_info, "resolving variables in %s", module->module_key.c_str()));
-
         status |= type_check_module_variables(compiler, builder, *module, program_scope);
     }
     return status;

@@ -77,9 +77,11 @@ namespace types {
 		/* which type variables exist unbound in this type term? */
 		virtual atom::set unbound_vars(atom::set bound_vars={}) const = 0;
 
-		virtual ref evaluate(map env, int macro_depth) const = 0;
+		virtual ref evaluate(map env) const = 0;
+		virtual ref apply(ref operand) const;
 		virtual type::ref get_type() const = 0;
 		virtual std::ostream &emit(std::ostream &os) const = 0;
+		virtual ref dequantify(atom::set generics) const = 0;
 
 		atom repr() const;
 		std::string str() const;
@@ -101,6 +103,7 @@ namespace types {
 	term::ref term_apply(term::ref fn, term::ref arg);
 	term::ref term_let(identifier::ref var, term::ref defn, term::ref body);
 	term::ref term_list_type(term::ref element_term);
+	term::refs dequantify(term::refs dimensions, atom::set generics);
 
 	struct type_id : public type {
 		type_id(identifier::ref id);

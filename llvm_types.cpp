@@ -70,19 +70,22 @@ struct bound_type_builder_t : public types::type_visitor {
 
 	virtual bool visit(const types::type_operator &operator_) {
 		/* figure out where this type operator came from or what it means */
-		dbg();
 		auto module_scope = scope->get_module_scope();
 		if (module_scope != nullptr) {
 			atom name = operator_.oper->get_signature();
-			/* try to resolve this type using an unchecked_type, rather than by
-			 * trying to store data in the type signature. */
-			auto unchecked_type = module_scope->get_unchecked_type(name);
-			if (unchecked_type != nullptr) {
-				debug_above(6, log(log_info, "lazily checking type %s in env %s",
-							unchecked_type->str().c_str(),
-							::str(scope->get_type_env()).c_str()));
-				created_type = bind_type_lazily(status, builder, scope,
-						operator_.shared_from_this(), unchecked_type);
+
+			auto type_decl_env = scope->get_type_decl_env();
+			if (in(name, type_decl_env)) {
+
+				auto term = operator_.to_term()->evaluate(type_decl_env);
+				debug_above(4, log(log_info, "type translates to %s",
+							term->str().c_str()));
+
+				// TODO: check whether this results in a term_binder which we
+				// will use to create all the necessary types to instantiate the
+				// data ctor's type.
+				// created_type = ...
+				dbg();
 			} else {
 				debug_above(2, log(log_warning, "defaulting to just creating an object type with %s",
 						operator_.str().c_str()));
@@ -196,8 +199,14 @@ bound_type_t::ref bind_type_lazily(
 	atom::map<int> member_index;
 	ast::item::ref node;
 
-	assert(false);
-	bound_type_t::ref bound_type = get_or_create_algebraic_data_type( builder,
+	auto type_decl_env = scope->get_type_decl_env();
+	auto term = type->to_term()->evaluate(type_decl_env);
+	debug_above(4, log(log_info, "type translates to %s",
+				term->str().c_str()));
+
+	// Note that the data is not here, need to pull it out put of type
+	dbg();
+	bound_type_t::ref bound_type = get_or_create_algebraic_data_type(builder,
 			scope, id, args, member_index, node, type);
 
 	assert(!status);
@@ -250,8 +259,8 @@ bound_type_t::ref upsert_bound_type(
 	/* helper method to convert lambda terms to types */
 	debug_above(6, log(log_info, "evaluating type term " c_term("%s"),
 				term->str().c_str()));
-	auto type_env = scope->get_type_env();
-	auto type = term->evaluate(type_env, 0)->get_type();
+	auto type_env = scope->get_type_decl_env();
+	auto type = term->evaluate(type_env)->get_type();
 
 	return upsert_bound_type(status, builder, scope,
 			type);
@@ -337,11 +346,19 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 		const ast::item::ref &node,
 		types::type::ref type)
 {
+	assert(type != nullptr);
+
+	debug_above(5, log(log_info, "get_or_create_algebraic_data_type looking for %s",
+			type->get_signature().c_str()));
+
 	auto data_type = scope->get_bound_type(type->get_signature());
 
 	if (data_type != nullptr) {
 		return data_type;
 	} else {
+		assert(id != nullptr);
+		assert(node != nullptr);
+
 		auto program_scope = scope->get_program_scope();
 
 		/* build the llvm return type */
@@ -370,21 +387,6 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 
 		return data_type;
 	}
-}
-
-bound_type_t::ref get_or_create_tagged_tuple_type(
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		identifier::ref id,
-		bound_type_t::refs args,
-		atom::map<int> member_index,
-		const ast::item::ref &node,
-		types::type::ref type)
-{
-	debug_above(5, log(log_info, "get_or_create_tagged_tuple_type looking for %s",
-			type->get_signature().c_str()));
-	return get_or_create_algebraic_data_type(builder,
-			scope, id, args, member_index, node, type);
 }
 
 std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
@@ -424,11 +426,14 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		const ast::item::ref &node,
 		types::type::ref type)
 {
+	assert(id != nullptr);
+	assert(type != nullptr);
+
 	/* this is a tuple constructor function */
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
-		bound_type_t::ref data_type = get_or_create_tagged_tuple_type(builder,
+		bound_type_t::ref data_type = get_or_create_algebraic_data_type(builder,
 				scope, id, args, member_index, node, type);
 
 		bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,

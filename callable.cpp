@@ -50,7 +50,7 @@ bound_var_t::ref check_func_vs_callsite(
 					fn_sig->str().c_str(),
 					::str(env).c_str(),
 					::str(unification.bindings).c_str()));
-			types::type::ref fn_type = fn_sig->evaluate(env, 0)->get_type()->rebind(
+			types::type::ref fn_type = fn_sig->evaluate(env)->get_type()->rebind(
 					unification.bindings);
 
 			debug_above(4, log(log_info, "it's time to instantiate %s with unified signature %s from %s",

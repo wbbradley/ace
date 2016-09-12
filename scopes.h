@@ -67,6 +67,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	bound_var_t::ref get_singleton(atom name);
 
 	void put_type_term(atom name, types::term::ref type_term);
+	void put_type_decl_term(atom name, types::term::ref type_term);
 	types::term::map get_type_env() const;
 	types::term::map get_type_decl_env() const;
 

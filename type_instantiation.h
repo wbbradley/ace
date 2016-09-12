@@ -23,3 +23,10 @@ bound_var_t::ref bind_ctor_to_scope(
 		types::type::refs args_types,
 		types::type::ref return_type,
 		atom::map<int> member_index);
+
+void resolve_type_ref_params(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		types::type::refs type_args,
+		bound_type_t::refs &args);

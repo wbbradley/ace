@@ -223,8 +223,8 @@ unification_t unify(
 				lhs->str().c_str(), rhs->str().c_str(), str(env).c_str()));
 
 	return unify_core(
-		   	lhs->evaluate(env, 0)->get_type(),
-		   	rhs->evaluate(env, 0)->get_type(),
+		   	lhs->evaluate(env)->get_type(),
+		   	rhs->evaluate(env)->get_type(),
 		   	env,
 		   	{}, 0 /*depth*/);
 }
