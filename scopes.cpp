@@ -1,4 +1,5 @@
 #include "zion.h"
+#include "logger.h"
 #include "dbg.h"
 #include "scopes.h"
 #include "ast.h"
@@ -193,11 +194,14 @@ std::string scope_t::make_fqn(std::string leaf_name) const {
 }
 
 bound_type_t::ref scope_t::get_bound_type(types::signature signature) {
-	debug_above(8, log(log_info, "checking whether %s is bound...",
+	indent_logger indent(8, string_format("checking whether %s is bound...",
 				signature.str().c_str()));
 	auto full_signature = types::signature{make_fqn(signature.repr().str())};
 	auto bound_type = get_program_scope()->get_bound_type(full_signature);
 	if (bound_type != nullptr) {
+		debug_above(8, log(log_info, "yep. %s is bound to %s",
+					signature.str().c_str(),
+					bound_type->str().c_str()));
 		return bound_type;
 	} else {
 		debug_above(8, log(log_info, "nope. %s is not yet bound",
@@ -207,10 +211,17 @@ bound_type_t::ref scope_t::get_bound_type(types::signature signature) {
 }
 
 bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
+	indent_logger indent(8, string_format("checking program scope whether %s is bound...",
+				signature.str().c_str()));
 	auto iter = bound_types.find(signature);
 	if (iter != bound_types.end()) {
+		debug_above(8, log(log_info, "yep. %s is bound to %s",
+					signature.str().c_str(),
+					iter->second->str().c_str()));
 		return iter->second;
 	} else {
+		debug_above(8, log(log_info, "nope. %s is not yet bound",
+					signature.str().c_str()));
 		return nullptr;
 	}
 }

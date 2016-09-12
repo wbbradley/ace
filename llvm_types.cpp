@@ -351,42 +351,59 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 	debug_above(5, log(log_info, "get_or_create_algebraic_data_type looking for %s",
 			type->get_signature().c_str()));
 
-	auto data_type = scope->get_bound_type(type->get_signature());
+	bound_type_t::ref data_type = scope->get_bound_type(type->get_signature());
 
 	if (data_type != nullptr) {
 		return data_type;
 	} else {
-		assert(id != nullptr);
-		assert(node != nullptr);
-
-		auto program_scope = scope->get_program_scope();
-
-		/* build the llvm return type */
-		llvm::Type *llvm_tuple_type = llvm_create_tuple_type(
-				builder, program_scope, id->get_name(), args);
-
-		/* display the new type */
-		llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_tuple_type)->getElementType();
-		debug_above(5, log(log_info, "created LLVM wrapped type %s", llvm_print_type(*llvm_obj_struct_type).c_str()));
-
-		assert_implies(member_index.size() != 0, member_index.size() == args.size());
-
-		/* get the bound type of the data ctor's value */
-		data_type = bound_type_t::create(
-				type,
-				node->token.location,
-				/* the LLVM-visible type of tagged tuples will usually be a
-				 * generic obj */
-				scope->get_bound_type({"__var_ref"})->get_llvm_type(),
-				llvm_tuple_type,
-				args,
-				member_index);
-
-		/* put the type for the data type */
-		program_scope->put_bound_type(data_type);
-
-		return data_type;
+		dbg();
+		return create_algebraic_data_type(builder, scope, id, args,
+				member_index, node, type);
 	}
+}
+
+bound_type_t::ref create_algebraic_data_type(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		identifier::ref id,
+		bound_type_t::refs args,
+		atom::map<int> member_index,
+		const ast::item::ref &node,
+		types::type::ref type)
+{
+	assert(id != nullptr);
+	assert(node != nullptr);
+
+	auto program_scope = scope->get_program_scope();
+
+	/* build the llvm return type */
+	llvm::Type *llvm_tuple_type = llvm_create_tuple_type(
+			builder, program_scope, id->get_name(), args);
+
+	/* display the new type */
+	llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_tuple_type)->getElementType();
+	debug_above(5, log(log_info, "created LLVM wrapped type %s", llvm_print_type(*llvm_obj_struct_type).c_str()));
+
+	assert_implies(member_index.size() != 0, member_index.size() == args.size());
+
+	/* get the bound type of the data ctor's value */
+	auto data_type = bound_type_t::create(
+			type,
+			node->token.location,
+			/* the LLVM-visible type of tagged tuples will usually be a
+			 * generic obj */
+			scope->get_bound_type({"__var_ref"})->get_llvm_type(),
+			llvm_tuple_type,
+			args,
+			member_index);
+
+	// TODO: check that we're not overwriting the existing type
+	dbg();
+
+	/* put the type for the data type */
+	program_scope->put_bound_type(data_type);
+
+	return data_type;
 }
 
 std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(

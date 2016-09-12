@@ -11,7 +11,7 @@
 
 struct bound_var_t;
 
-struct bound_type_t {
+struct bound_type_t : public std::enable_shared_from_this<bound_type_t> {
 	typedef ptr<const bound_type_t> ref;
 	typedef std::weak_ptr<const bound_type_t> weak_ref;
 	typedef std::vector<std::pair<atom, ref>> named_pairs;
@@ -24,13 +24,13 @@ protected:
 	virtual ~bound_type_t() {}
 
 public:
-	std::string str() const;
 	bool is_function() const;
 	bool is_void() const;
 	bool is_obj() const;
 	bool is_struct() const;
 	types::signature get_signature() const;
 
+	virtual std::string str() const = 0;
 	virtual types::type::ref get_type() const = 0;
 	virtual struct location const get_location() const = 0;
 	virtual llvm::Type * const get_llvm_type() const = 0;
@@ -68,6 +68,7 @@ struct bound_type_impl_t : public bound_type_t {
 	bound_type_impl_t(const bound_type_impl_t &&) = delete;
 	bound_type_impl_t &operator =(const bound_type_impl_t &) = delete;
 
+	virtual std::string str() const;
 	virtual types::type::ref get_type() const;
 	virtual struct location const get_location() const;
 	virtual llvm::Type * const get_llvm_type() const;
@@ -92,6 +93,7 @@ struct bound_type_handle_t : public bound_type_t {
 	bound_type_handle_t(const bound_type_handle_t &&) = delete;
 	bound_type_handle_t &operator =(const bound_type_handle_t &) = delete;
 
+	virtual std::string str() const;
 	virtual types::type::ref get_type() const;
 	virtual struct location const get_location() const;
 	virtual llvm::Type * const get_llvm_type() const;
@@ -108,6 +110,7 @@ struct bound_type_handle_t : public bound_type_t {
 
 std::string str(const bound_type_t::refs &args);
 std::string str(const bound_type_t::named_pairs &named_pairs);
+std::string str(const bound_type_t::name_index &name_index);
 std::ostream &operator <<(std::ostream &os, const bound_type_t &type);
 
 types::term::ref get_tuple_term(types::term::refs dimensions);

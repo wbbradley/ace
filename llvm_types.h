@@ -86,3 +86,12 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 		atom::map<int> member_index,
 		const ast::item::ref &node,
 		types::type::ref data_type);
+
+bound_type_t::ref create_algebraic_data_type(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		identifier::ref id,
+		bound_type_t::refs args,
+		atom::map<int> member_index,
+		const ast::item::ref &node,
+		types::type::ref data_type);

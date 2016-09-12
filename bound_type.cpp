@@ -22,11 +22,12 @@ bound_type_impl_t::bound_type_impl_t(
 	dimensions(dimensions),
 	member_index(member_index)
 {
-	debug_above(6, log(log_info, "creating type with (%s, LLVM TypeID %d, %s, [%s])",
+	debug_above(6, log(log_info, "creating type with (%s, LLVM TypeID %d, %s, %s %s)",
 			type->str().c_str(),
 			llvm_type ? llvm_type->getTypeID() : -1,
 			location.str().c_str(),
-			join(dimensions, ", ").c_str()));
+			::str(dimensions).c_str(),
+			::str(member_index).c_str()));
 
 	assert(llvm_type != nullptr);
 }
@@ -81,6 +82,18 @@ bound_type_handle_t::bound_type_handle_t(
 {
 }
 
+std::string bound_type_handle_t::str() const {
+	if (actual != nullptr) {
+		return actual->str();
+	} else {
+		std::stringstream ss;
+		ss << get_type();
+		ss << " " << llvm_print_type(*get_llvm_type());
+		ss << " " C_UNCHECKED "unresolved" C_RESET;
+		return ss.str();
+	}
+}
+
 types::type::ref bound_type_handle_t::get_type() const {
 	return type;
 }
@@ -121,6 +134,8 @@ bound_type_t::name_index const bound_type_handle_t::get_member_index() const {
 }
 
 void bound_type_handle_t::set_actual(bound_type_t::ref actual_) {
+	assert(actual_ != actual);
+	assert(actual_ != shared_from_this());
 	assert(actual_->get_type()->str() == type->str());
 	assert(actual_->get_llvm_type() == llvm_type);
 	actual = actual_;
@@ -154,11 +169,23 @@ std::string str(const bound_type_t::named_pairs &named_pairs) {
 	return ss.str();
 }
 
+std::string str(const bound_type_t::name_index &name_index) {
+	std::stringstream ss;
+	ss << "{";
+	const char *sep = "";
+	for (auto &pair : name_index) {
+		ss << sep << pair.first << ": " << pair.second;
+		sep = ", ";
+	}
+	ss << "}";
+	return ss.str();
+}
+
 std::ostream &operator <<(std::ostream &os, const bound_type_t &type) {
 	return os << type.str();
 }
 
-std::string bound_type_t::str() const {
+std::string bound_type_impl_t::str() const {
 	std::stringstream ss;
 	ss << get_type();
 	ss << " " << llvm_print_type(*get_llvm_type());
@@ -343,11 +370,14 @@ namespace types {
 					final_type,
 					program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
 
+#if 1
 			std::stringstream ss;
 			scope->dump(ss);
 			debug_above(3, log(log_info, "looking for %s in %s",
 					  final_type->get_signature().c_str(),
 				  	  ss.str().c_str()));
+#endif
+
 			assert(scope->get_bound_type(final_type->get_signature()) == nullptr);
 			program_scope->put_bound_type(bound_type_handle);
 
@@ -361,7 +391,7 @@ namespace types {
 			resolve_type_ref_params(status, builder, scope, data_ctor_args, args);
 
 			if (!!status) {
-				auto final_bound_type = get_or_create_algebraic_data_type(
+				auto final_bound_type = create_algebraic_data_type(
 						builder, scope, id, args, member_index, node,
 						final_type);
 				bound_type_handle->set_actual(final_bound_type);
