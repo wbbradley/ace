@@ -154,31 +154,33 @@ void rt_bind_var_from_llir(
 
 		/* this is putting a pointer to this function, and later we'll use the
 		 * term to deduce how to call it */
-		auto type = term->get_type();
+		auto type = term->get_type(status);
 
-		/* see if this bound type already exists */
-		auto bound_type = program_scope->get_bound_type(
-				type->get_signature());
+		if (!!status) {
+			/* see if this bound type already exists */
+			auto bound_type = program_scope->get_bound_type(
+					type->get_signature());
 
-		if (bound_type == nullptr) {
-			/* we haven't seen this bound type before, let's
-			 * create it, and register it */
-			bound_type = bound_type_t::create(
-					type,
-					location{llvm_module.getName().str(), 0, 0},
-					llvm_function->getType());
-			program_scope->put_bound_type(bound_type);
-		}
+			if (bound_type == nullptr) {
+				/* we haven't seen this bound type before, let's
+				 * create it, and register it */
+				bound_type = bound_type_t::create(
+						type,
+						location{llvm_module.getName().str(), 0, 0},
+						llvm_function->getType());
+				program_scope->put_bound_type(bound_type);
+			}
 
-		program_scope->put_bound_variable(
-				name,
-				bound_var_t::create(
-					INTERNAL_LOC(),
+			program_scope->put_bound_variable(
 					name,
-					bound_type,
-					llvm_function,
-					make_iid(name),
-					false/*is_lhs*/));
+					bound_var_t::create(
+						INTERNAL_LOC(),
+						name,
+						bound_type,
+						llvm_function,
+						make_iid(name),
+						false/*is_lhs*/));
+		}
 	}
 }
 
@@ -246,7 +248,6 @@ void add_globals(
 				llvm_null_value, make_iid("null"), false/*is_lhs*/));
 
 	if (!!status) {
-		
 		struct binding_t {
 			std::string name;
 			llvm::Module *llvm_module;
@@ -324,6 +325,9 @@ void add_globals(
 			/* go ahead and bind this function to global scope overrides */
 			rt_bind_var_from_llir(status, builder, program_scope, program, binding.name,
 				*binding.llvm_module, binding.name_in_llir, args, return_type);
+			if (!status) {
+				break;
+			}
 		}
 	}
 }

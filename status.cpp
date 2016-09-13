@@ -2,6 +2,10 @@
 #include "logger_decls.h"
 #include "ast.h"
 
+bool status_t::reported_on_error_at(location l) const {
+   	return fail && last_error_location.str() == l.str();
+}
+
 void status_t::emit_message(log_level_t level, location location, const char *format, ...) {	
 	va_list args;
 	va_start(args, format);
@@ -12,6 +16,7 @@ void status_t::emit_message(log_level_t level, location location, const char *fo
 void status_t::emit_messagev(log_level_t level, location location, const char *format, va_list args) {	
 	if (level == log_error) {
 		fail = true;
+		last_error_location = location;
 	}
 	logv_location(level, location, format, args);
 }

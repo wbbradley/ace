@@ -24,4 +24,4 @@ ptr<T> parse_text(const std::string &text, std::string filename = "repl.zion") {
 	return parse_text<T>(iss, filename);
 }
 
-types::term::ref parse_term(parse_state_t &ps, atom::set generics, int depth=0);
+types::term::ref parse_term(parse_state_t &ps, identifier::set generics, int depth=0);

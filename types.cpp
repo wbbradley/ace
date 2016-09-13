@@ -37,7 +37,7 @@ namespace types {
 				return shared_from_this();
 			}
 
-			type::ref get_type() const {
+			type::ref get_type(status_t &) const {
 				return ::type_id(make_iid("void"));
 			}
 
@@ -74,7 +74,7 @@ namespace types {
 				}
 			}
 
-			type::ref get_type() const {
+			type::ref get_type(status_t &) const {
 				return ::type_id(id);
 			}
 
@@ -118,9 +118,9 @@ namespace types {
 				return body->evaluate(env);
 			}
 
-			type::ref get_type() const {
+			type::ref get_type(status_t &status) const {
+				user_error(status, var->get_location(), "attempt to instantiate un-applied lambda type expression");
 				return nullptr;
-				// REVIEW: return null_impl();
 			}
 
 			atom::set unbound_vars(atom::set bound_vars) const {
@@ -161,10 +161,13 @@ namespace types {
 				return types::term_sum(evaluated_options);
 			}
 
-			virtual type::ref get_type() const {
+			virtual type::ref get_type(status_t &status) const {
 				type::refs type_options;
 				for (auto &option : options) {
-					type_options.push_back(option->get_type());
+					type_options.push_back(option->get_type(status));
+					if (!status) {
+						return nullptr;
+					}
 				}
 				return ::type_sum(type_options);
 			}
@@ -215,10 +218,13 @@ namespace types {
 				}
 			}
 
-			virtual type::ref get_type() const {
+			virtual type::ref get_type(status_t &status) const {
 				type::refs type_dimensions;
 				for (auto dimension : dimensions) {
-					type_dimensions.push_back(dimension->get_type());
+					type_dimensions.push_back(dimension->get_type(status));
+					if (!status) {
+						return nullptr;
+					}
 				}
 				return ::type_product(pk, type_dimensions);
 			}
@@ -257,7 +263,7 @@ namespace types {
 				return shared_from_this();
 			}
 
-			type::ref get_type() const {
+			type::ref get_type(status_t &status) const {
 				return ::type_variable(var_id);
 			}
 
@@ -296,9 +302,16 @@ namespace types {
 				return res;
 			}
 
-			type::ref get_type() const {
-				return ::type_operator(fn->get_type(),
-						arg->get_type());
+			type::ref get_type(status_t &status) const {
+				auto fn_type = fn->get_type(status);
+				if (!!status) {
+					auto arg_type = arg->get_type(status);
+					if (!!status) {
+						return ::type_operator(fn_type, arg_type);
+					}
+				}
+				assert(!status);
+				return nullptr;
 			}
 
 			atom::set unbound_vars(atom::set bound_vars) const {
@@ -332,7 +345,7 @@ namespace types {
 				return null_impl();
 			}
 
-			type::ref get_type() const {
+			type::ref get_type(status_t &status) const {
 				return null_impl();
 			}
 
@@ -372,8 +385,8 @@ namespace types {
 		return string_format(c_type("%s"), repr().c_str());
 	}
 
-	bool term::is_generic(types::term::map env) const {
-		auto type = evaluate(env)->get_type();
+	bool term::is_generic(status_t &status, types::term::map env) const {
+		auto type = evaluate(env)->get_type(status);
 		return type->ftv() != 0;
 	}
 
@@ -736,7 +749,9 @@ types::type::ref get_function_return_type(types::type::ref function_type) {
 	debug_above(5, log(log_info, "getting function return type from %s", function_type->str().c_str()));
 
 	auto type_product = dyncast<const types::type_product>(function_type);
-	assert(type_product != nullptr);
+	if (type_product == nullptr) {
+		dbg();
+	}
 	assert(type_product->pk == pk_function);
 	assert(type_product->dimensions.size() == 2);
 
@@ -763,7 +778,7 @@ std::ostream &operator <<(std::ostream &os, identifier::ref id) {
 	return os << id->get_name();
 }
 
-types::term::pair make_term_pair(std::string fst, std::string snd, atom::set generics) {
+types::term::pair make_term_pair(std::string fst, std::string snd, identifier::set generics) {
 	debug_above(4, log(log_info, "creating term pair with (%s, %s) and generics [%s]",
 				fst.c_str(), snd.c_str(),
 			   	join(generics, ", ").c_str()));
@@ -771,7 +786,7 @@ types::term::pair make_term_pair(std::string fst, std::string snd, atom::set gen
 	return types::term::pair{parse_type_expr(fst, generics), parse_type_expr(snd, generics)};
 }
 
-types::term::ref parse_type_expr(std::string input, atom::set generics) {
+types::term::ref parse_type_expr(std::string input, identifier::set generics) {
 	status_t status;
 	std::istringstream iss(input);
 	zion_lexer_t lexer("", iss);

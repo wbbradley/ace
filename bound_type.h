@@ -101,9 +101,9 @@ struct bound_type_handle_t : public bound_type_t {
 	virtual refs const get_dimensions() const;
 	virtual name_index const get_member_index() const;
 
-	void set_actual(bound_type_t::ref actual);
+	void set_actual(bound_type_t::ref actual) const;
 
-	bound_type_t::ref actual;
+	mutable bound_type_t::ref actual;
 	types::type::ref type;
 	llvm::Type * const llvm_type;
 };

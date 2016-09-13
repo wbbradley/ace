@@ -68,46 +68,52 @@ bound_var_t::ref type_check_bound_var_decl(
 				assert(type != nullptr);
 			}
 		}
+
 		if (!!status) {
 			if (obj.type_ref && init_var) {
 				auto declared_term = obj.type_ref->get_type_term();
 				assert(type != nullptr);
 				unification_t unification = unify(
+						status,
 						declared_term,
 						init_var->type->get_term(),
 						scope->get_type_env());
 
-				if (!unification.result) {
-					/* report that the variable type does not match the initializer type */
-					user_error(status, obj, "type of " c_var("%s") " does not match type of initializer",
-							obj.token.text.c_str());
-					user_error(status, obj, c_type("%s") " != " c_type("%s"),
-							declared_term->str().c_str(),
-							init_var->type->str().c_str());
+				if (!!status) {
+					if (!unification.result) {
+						/* report that the variable type does not match the initializer type */
+						user_error(status, obj, "type of " c_var("%s") " does not match type of initializer",
+								obj.token.text.c_str());
+						user_error(status, obj, c_type("%s") " != " c_type("%s"),
+								declared_term->str().c_str(),
+								init_var->type->str().c_str());
 
-					/* try to continue without the initializer just to
-					 * get more feedback for the user */
-					init_var.reset();
+						/* try to continue without the initializer just to
+						 * get more feedback for the user */
+						init_var.reset();
+					}
 				}
 			} 
 
-			/* generate the mutable stack-based variable for this var */
-			llvm::Function *llvm_function = llvm_get_function(builder);
-			llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function, type, symbol);
+			if (!!status) {
+				/* generate the mutable stack-based variable for this var */
+				llvm::Function *llvm_function = llvm_get_function(builder);
+				llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function, type, symbol);
 
-			if (init_var) {
-				debug_above(6, log(log_info, "creating a store instruction %s := %s",
-							llvm_print_value_ptr(llvm_alloca).c_str(),
-							llvm_print_value_ptr(init_var->llvm_value).c_str()));
-				builder.CreateStore(init_var->llvm_value, llvm_alloca);	
+				if (init_var) {
+					debug_above(6, log(log_info, "creating a store instruction %s := %s",
+								llvm_print_value_ptr(llvm_alloca).c_str(),
+								llvm_print_value_ptr(init_var->llvm_value).c_str()));
+					builder.CreateStore(init_var->llvm_value, llvm_alloca);	
+				}
+
+				/* the reference_expr that looks at this llvm_value
+				 * will need to know to use store/load semantics, not
+				 * just pass-by-value */
+				return bound_var_t::create(INTERNAL_LOC(), symbol,
+						type, llvm_alloca, make_code_id(obj.token),
+						true /*is_lhs*/);
 			}
-
-			/* the reference_expr that looks at this llvm_value
-			 * will need to know to use store/load semantics, not
-			 * just pass-by-value */
-			return bound_var_t::create(INTERNAL_LOC(), symbol,
-					type, llvm_alloca, make_code_id(obj.token),
-					true /*is_lhs*/);
 		}
 	} else {
 		// TODO: get a pointer to the prior var
@@ -209,7 +215,7 @@ void type_check_fully_bound_function_decl(
     assert(!status);
 }
 
-bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn &obj) {
+bool is_function_defn_generic(status_t &status, scope_t::ref scope, const ast::function_defn &obj) {
     if (obj.decl->param_list_decl) {
 		/* check the parameters' genericity */
 		auto &params = obj.decl->param_list_decl->params;
@@ -221,7 +227,7 @@ bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn &obj)
 			}
 			types::term::ref term = param->type_ref->get_type_term();
 
-			if (term->is_generic(scope->get_type_env())) {
+			if (term->is_generic(status, scope->get_type_env())) {
 				debug_above(3, log(log_info, "found a generic parameter type on %s",
 							param->str().c_str()));
 				return true;
@@ -234,7 +240,7 @@ bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn &obj)
 	if (obj.decl->return_type_ref) {
 		/* check the return type's genericity */
 		types::term::ref term = obj.decl->return_type_ref->get_type_term();
-		return term->is_generic(scope->get_type_env());
+		return term->is_generic(status, scope->get_type_env());
 	} else {
 		/* default to void, which is fully bound */
 		return false;
@@ -883,7 +889,8 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 					/* before recursing directly or indirectly, let's just add
 					 * this function to the module scope we're in */
 					module_scope->put_bound_variable(function_var->name, function_var);
-					module_scope->mark_checked(shared_from_this());
+					module_scope->mark_checked(status, shared_from_this());
+					assert(!!status);
 				}
 			}
 		} else {
@@ -1019,6 +1026,7 @@ status_t type_check_module_variables(
     module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
 
     for (int i = 0; i < module_scope->unchecked_vars_ordered.size(); ++i) {
+		status_t status;
 		auto unchecked_var = module_scope->unchecked_vars_ordered[i];
 		auto node = unchecked_var->node;
 
@@ -1027,26 +1035,29 @@ status_t type_check_module_variables(
 			debug_above(4, log(log_info, "checking module level variable %s", node->token.str().c_str()));
 			if (auto function_defn = dyncast<const ast::function_defn>(node)) {
 				// TODO: decide whether we need treatment here
-				if (is_function_defn_generic(module_scope, *function_defn)) {
+				if (is_function_defn_generic(status, module_scope, *function_defn)) {
 					/* this is a generic function, or we've already checked
 					 * it so let's skip checking it */
+					final_status |= status;
 					continue;
 				}
 			}
 
-			if (auto stmt = dyncast<const ast::statement>(node)) {
-				status_t status;
-				bound_var_t::ref variable = stmt->resolve_instantiation(
-						status, builder, module_scope, nullptr, nullptr);
+			if (!!status) {
+				if (auto stmt = dyncast<const ast::statement>(node)) {
+					status_t status;
+					bound_var_t::ref variable = stmt->resolve_instantiation(
+							status, builder, module_scope, nullptr, nullptr);
 
-				/* take note of whether this failed or not */
-				final_status |= status;
-			} else if (auto data_ctor = dyncast<const ast::data_ctor>(node)) {
-				/* ignore until instantiation at a callsite */
-			} else if (auto data_ctor = dyncast<const ast::type_product>(node)) {
-				/* ignore until instantiation at a callsite */
-			} else {
-				assert(!"unhandled unchecked node at module scope");
+					/* take note of whether this failed or not */
+					final_status |= status;
+				} else if (auto data_ctor = dyncast<const ast::data_ctor>(node)) {
+					/* ignore until instantiation at a callsite */
+				} else if (auto data_ctor = dyncast<const ast::type_product>(node)) {
+					/* ignore until instantiation at a callsite */
+				} else {
+					assert(!"unhandled unchecked node at module scope");
+				}
 			}
 		} else {
 			debug_above(3, log(log_info, "skipping %s because it's already been checked", node->token.str().c_str()));
@@ -1170,7 +1181,8 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 }
 
 bound_var_t::ref type_check_assignment(
-		status_t &status, llvm::IRBuilder<> &builder,
+		status_t &status,
+		llvm::IRBuilder<> &builder,
 		bound_var_t::ref lhs_var,
 		bound_var_t::ref rhs_var,
 		struct location location)
@@ -1181,19 +1193,22 @@ bound_var_t::ref type_check_assignment(
 
 			// TODO: check the types for compatibility
 			unification_t unification = unify(
+					status,
 					lhs_var->type->get_type()->to_term(),
 					rhs_var->type->get_type()->to_term(), {});
 
-			if (unification.result) {
-				if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(lhs_var->llvm_value)) {
-					builder.CreateStore(rhs_var->llvm_value, llvm_alloca);
-					return lhs_var;
+			if (!!status) {
+				if (unification.result) {
+					if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(lhs_var->llvm_value)) {
+						builder.CreateStore(rhs_var->llvm_value, llvm_alloca);
+						return lhs_var;
+					} else {
+						assert(false);
+					}
 				} else {
-					assert(false);
+					user_error(status, location, "left-hand side is incompatible with the right-hand side (%s)",
+							unification.str().c_str());
 				}
-			} else {
-				user_error(status, location, "left-hand side is incompatible with the right-hand side (%s)",
-						unification.str().c_str());
 			}
 		} else {
 			user_error(status, location, "left-hand side of assignment is not mutable");
@@ -1418,6 +1433,11 @@ bound_var_t::ref ast::block::resolve_instantiation(
 				next_scope = nullptr;
 				debug_above(8, log(log_info, "got a new scope %s", current_scope->str().c_str()));
 			}
+		} else {
+			if (!status.reported_on_error_at(statement->get_location())) {
+				user_error(status, statement->get_location(), "while checking this statement");
+			}
+			break;
 		}
     }
 
@@ -1837,6 +1857,14 @@ bound_var_t::ref ast::reference_expr::resolve_overrides(
 				callsite->str().c_str()));
 
 	/* ok, we know we've got some variable here */
-	return get_callable(status, builder, scope, token.text, shared_from_this(),
+	auto bound_var = get_callable(status, builder, scope, token.text, shared_from_this(),
 			get_args_term(args));
+	if (!!status) {
+		return bound_var;
+	} else {
+		user_error(status, callsite->get_location(), "while checking %s with %s",
+				callsite->str().c_str(),
+				::str(args).c_str());
+		return nullptr;
+	}
 }

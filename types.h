@@ -79,14 +79,14 @@ namespace types {
 
 		virtual ref evaluate(map env) const = 0;
 		virtual ref apply(ref operand) const;
-		virtual type::ref get_type() const = 0;
+		virtual type::ref get_type(status_t &status) const = 0;
 		virtual std::ostream &emit(std::ostream &os) const = 0;
 		virtual ref dequantify(atom::set generics) const = 0;
 
 		atom repr() const;
 		std::string str() const;
 
-		bool is_generic(types::term::map env) const;
+		bool is_generic(status_t &status, types::term::map env) const;
 	};
 
 	term::ref change_product_kind(product_kind_t pk, term::ref product);
@@ -183,15 +183,6 @@ types::type::ref type_operator(types::type::ref operator_, types::type::ref oper
 types::type::ref type_product(product_kind_t pk, types::type::refs dimensions);
 types::type::ref type_sum(types::type::refs options);
 
-namespace std {
-	template <>
-	struct hash<identifier::ref> {
-		int operator ()(const identifier::ref &s) const {
-			return 1301081 * s->get_name().iatom;
-		}
-	};
-}
-
 std::ostream &operator <<(std::ostream &os, identifier::ref id);
 std::string str(types::term::refs refs);
 std::string str(types::type::refs refs);
@@ -207,8 +198,8 @@ types::type::refs get_function_type_args(types::type::ref function_type);
 types::type::ref get_function_return_type(types::type::ref function_type);
 types::term::ref get_obj_term(types::term::ref item);
 types::term::ref get_function_term_args(types::term::ref function_term);
-types::term::pair make_term_pair(std::string fst, std::string snd, atom::set generics);
+types::term::pair make_term_pair(std::string fst, std::string snd, identifier::set generics);
 
 types::term::ref operator "" _ty(const char *value, size_t);
-types::term::ref parse_type_expr(std::string input, atom::set generics);
+types::term::ref parse_type_expr(std::string input, identifier::set generics);
 bool get_type_variable_name(types::type::ref term, atom &name);

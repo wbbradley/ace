@@ -116,21 +116,25 @@ struct bound_type_builder_t : public types::type_visitor {
 						builder, scope, product.dimensions[0]);
 				bound_type_t::ref return_type = upsert_bound_type(status,
 						builder, scope, product.dimensions[1]);
-				types::type::ref fn_type = get_function_type(args, return_type);
 
-				auto signature = fn_type->get_signature();
-				created_type = scope->get_bound_type(signature);
-				if (created_type) {
-					return true;
-				} else {
-					auto *llvm_fn_type = llvm_create_function_type(status,
-							builder, args, return_type);
-					if (!!status) {
-						created_type = bound_type_t::create(fn_type,
-								product.get_location(), llvm_fn_type);
+				if (!!status) {
+					types::type::ref fn_type = get_function_type(args, return_type);
+
+					auto signature = fn_type->get_signature();
+					created_type = scope->get_bound_type(signature);
+					if (created_type) {
+						return true;
+					} else {
+						auto *llvm_fn_type = llvm_create_function_type(status,
+								builder, args, return_type);
+						if (!!status) {
+							created_type = bound_type_t::create(fn_type,
+									product.get_location(), llvm_fn_type);
+						}
+						return !!status;
 					}
-					return !!status;
 				}
+				return !!status;
 			}
 		case pk_args:
 			{
@@ -260,10 +264,14 @@ bound_type_t::ref upsert_bound_type(
 	debug_above(6, log(log_info, "evaluating type term " c_term("%s"),
 				term->str().c_str()));
 	auto type_env = scope->get_type_decl_env();
-	auto type = term->evaluate(type_env)->get_type();
+	auto type = term->evaluate(type_env)->get_type(status);
 
-	return upsert_bound_type(status, builder, scope,
-			type);
+	if (!!status) {
+		return upsert_bound_type(status, builder, scope, type);
+	}
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_type_t::ref get_function_return_type(
@@ -294,6 +302,7 @@ bound_type_t::ref get_function_return_type(
 }
 
 bound_type_t::ref get_or_create_tuple_type(
+		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
@@ -304,7 +313,7 @@ bound_type_t::ref get_or_create_tuple_type(
 
 	/* get the term of this tuple type */
 	types::term::ref term = get_obj_term(get_tuple_term(get_terms(args)));
-	types::type::ref type = term->get_type();
+	types::type::ref type = term->get_type(status);
 	auto data_type = scope->get_bound_type(type->get_signature());
 
 	if (data_type != nullptr) {
@@ -356,7 +365,6 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 	if (data_type != nullptr) {
 		return data_type;
 	} else {
-		dbg();
 		return create_algebraic_data_type(builder, scope, id, args,
 				member_index, node, type);
 	}
@@ -397,10 +405,8 @@ bound_type_t::ref create_algebraic_data_type(
 			args,
 			member_index);
 
-	// TODO: check that we're not overwriting the existing type
-	dbg();
-
-	/* put the type for the data type */
+	/* put the type for the data type. the scope can handle the case where the
+	 * type already exists. */
 	program_scope->put_bound_type(data_type);
 
 	return data_type;
@@ -418,14 +424,16 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
-		bound_type_t::ref data_type = get_or_create_tuple_type(builder, scope,
+		bound_type_t::ref data_type = get_or_create_tuple_type(status, builder, scope,
 				id, args, node);
 
-		bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(status, builder,
-				scope, args, data_type, id, node);
-
 		if (!!status) {
-			return {tuple_ctor, data_type};
+			bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(status, builder,
+					scope, args, data_type, id, node);
+
+			if (!!status) {
+				return {tuple_ctor, data_type};
+			}
 		}
 	}
 
@@ -561,7 +569,7 @@ types::term::ref ast::type_alias::instantiate_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref supertype_id,
-		atom::many type_variables,
+		identifier::refs type_variables,
 	   	scope_t::ref scope) const
 {
 	debug_above(5, log(log_info, "creating type alias term for %s", str().c_str()));

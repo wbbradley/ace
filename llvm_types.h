@@ -40,6 +40,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		types::type::ref data_type);
 
 bound_type_t::ref get_or_create_tuple_type(
+		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,

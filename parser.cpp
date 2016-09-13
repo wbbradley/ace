@@ -811,14 +811,14 @@ ptr<semver> semver::parse(parse_state_t &ps) {
 
 }
 
-void parse_type_decl(parse_state_t &ps, atom::many &type_variables) {
+void parse_type_decl(parse_state_t &ps, identifier::refs &type_variables) {
 	ps.advance();
 	if (ps.token.tk == tk_lcurly) {
 		ps.advance();
 		while (true) {
 			if (ps.token.tk == tk_identifier) {
 				/* we found a type variable, let's stash it */
-				type_variables.push_back(ps.token.text);
+				type_variables.push_back(make_code_id(ps.token));
 				ps.advance();
 				if (ps.token.tk == tk_comma) {
 					ps.advance();
@@ -840,7 +840,11 @@ identifier::ref make_code_id(const zion_token_t &token) {
 	return make_ptr<code_id>(token);
 }
 
-types::term::refs parse_term_arguments(parse_state_t &ps, atom::set generics, int depth) {
+types::term::refs parse_term_arguments(
+		parse_state_t &ps,
+	   	identifier::set generics,
+	   	int depth)
+{
 	types::term::refs arguments;
 	assert(ps.token.tk == tk_lcurly);
 	/* skip the curly */
@@ -877,7 +881,7 @@ types::term::refs parse_term_arguments(parse_state_t &ps, atom::set generics, in
 	return arguments;
 }
 
-types::term::ref parse_term(parse_state_t &ps, atom::set generics, int depth) {
+types::term::ref parse_term(parse_state_t &ps, identifier::set generics, int depth) {
 	switch (ps.token.tk) {
 	case tk_any:
 		{
@@ -898,14 +902,14 @@ types::term::ref parse_term(parse_state_t &ps, atom::set generics, int depth) {
 	case tk_identifier:
 		{
 			types::term::ref cur_term;
-
+			auto id = make_code_id(ps.token);
 			/* stash the identifier */
-			if (generics.find({ps.token.text}) != generics.end()) {
+			if (generics.find(id) != generics.end()) {
 				/* this term is marked as definitely unbound - aka generic. let's
 				 * create a generic for it */
-				cur_term = types::term_generic(make_code_id(ps.token));
+				cur_term = types::term_generic(id);
 			} else {
-				cur_term = types::term_id(make_code_id(ps.token));
+				cur_term = types::term_id(id);
 			}
 
 			/* move on */
@@ -954,7 +958,7 @@ types::term::ref parse_term(parse_state_t &ps, atom::set generics, int depth) {
 type_decl::ref type_decl::parse(parse_state_t &ps) {
 	auto token = ps.token;
 	expect_token(tk_identifier);
-	atom::many type_variables;
+	identifier::refs type_variables;
 	parse_type_decl(ps, type_variables);
 
 	if (!!ps.status) {
@@ -1001,9 +1005,9 @@ type_algebra::ref type_algebra::parse(
 
 type_sum::ref type_sum::parse(
 		parse_state_t &ps,
-		atom::many type_variables_list)
+		identifier::refs type_variables_list)
 {
-	atom::set type_variables = to_set(type_variables_list);
+	identifier::set type_variables = to_set(type_variables_list);
 	auto is_token = ps.token;
 	chomp_token(tk_is);
 	bool expect_outdent = false;
@@ -1042,12 +1046,12 @@ type_sum::ref type_sum::parse(
 
 type_product::ref type_product::parse(
 		parse_state_t &ps,
-	   	atom::many type_variables)
+	   	identifier::refs type_variables)
 {
 	auto has_token = ps.token;
 	chomp_token(tk_has);
 	chomp_token(tk_indent);
-	auto generics = to_set(type_variables);
+	auto generics = to_identifier_set(type_variables);
 	std::vector<dimension::ref> dimensions;
 	while (!!ps.status && ps.token.tk != tk_outdent) {
 		if (!ps.line_broke() && ps.prior_token.tk != tk_indent) {
@@ -1063,15 +1067,18 @@ type_product::ref type_product::parse(
 	}
 }
 
-type_alias::ref type_alias::parse(parse_state_t &ps, atom::many type_variables) {
+type_alias::ref type_alias::parse(
+		parse_state_t &ps,
+	   	identifier::refs type_variables)
+{
 	chomp_token(tk_matches);
 
-	atom::set generics = to_set(type_variables);
+	identifier::set generics = to_identifier_set(type_variables);
 	return ast::create<type_alias>(ps.token, type_ref::parse(ps, generics),
 			generics);
 }
 
-type_ref::ref type_ref::parse(parse_state_t &ps, atom::set generics) {
+type_ref::ref type_ref::parse(parse_state_t &ps, identifier::set generics) {
 	if (ps.token.tk == tk_lsquare) {
 		return type_ref_list::parse(ps, generics);
 	} else if (ps.token.tk == tk_lcurly) {
@@ -1086,12 +1093,12 @@ type_ref::ref type_ref::parse(parse_state_t &ps, atom::set generics) {
 	}
 }
 
-type_ref::ref type_ref_named::parse(parse_state_t &ps, atom::set generics) {
+type_ref::ref type_ref_named::parse(parse_state_t &ps, identifier::set generics) {
 	assert(ps.token.tk != tk_any);
 	return create<ast::type_ref_named>(ps.token, parse_term(ps, generics));
 }
 
-type_ref::ref type_ref_list::parse(parse_state_t &ps, atom::set generics) {
+type_ref::ref type_ref_list::parse(parse_state_t &ps, identifier::set generics) {
 	chomp_token(tk_lsquare);
 	type_ref::ref type_ref_list = create<ast::type_ref_list>(ps.token,
 			type_ref::parse(ps, generics));
@@ -1099,7 +1106,7 @@ type_ref::ref type_ref_list::parse(parse_state_t &ps, atom::set generics) {
 	return type_ref_list;
 }
 
-type_ref::ref type_ref_tuple::parse(parse_state_t &ps, atom::set generics) {
+type_ref::ref type_ref_tuple::parse(parse_state_t &ps, identifier::set generics) {
 	zion_token_t tuple_token = ps.token;
 	chomp_token(tk_lcurly);
 
@@ -1123,12 +1130,12 @@ type_ref::ref type_ref_tuple::parse(parse_state_t &ps, atom::set generics) {
 	return ast::create<type_ref_tuple>(tuple_token, type_refs);
 }
 
-type_ref::ref type_ref_generic::parse(parse_state_t &ps, atom::set generics) {
+type_ref::ref type_ref_generic::parse(parse_state_t &ps, identifier::set generics) {
 	assert(ps.token.tk == tk_any);
 	return create<ast::type_ref_generic>(ps.token, parse_term(ps, generics));
 }
 
-dimension::ref dimension::parse(parse_state_t &ps, atom::set generics) {
+dimension::ref dimension::parse(parse_state_t &ps, identifier::set generics) {
 	zion_token_t primary_token;
 	atom name;
 	if (ps.token.tk == tk_var) {
@@ -1149,7 +1156,7 @@ dimension::ref dimension::parse(parse_state_t &ps, atom::set generics) {
 
 data_ctor::ref data_ctor::parse(
 		parse_state_t &ps,
-		atom::set type_variables)
+		identifier::set type_variables)
 {
 	expect_token(tk_identifier);
 	zion_token_t name_token = ps.token;

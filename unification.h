@@ -30,6 +30,7 @@ struct unification_t {
 };
 
 unification_t unify(
+		status_t &status,
 		types::term::ref a,
 		types::term::ref b,
 		types::term::map env);

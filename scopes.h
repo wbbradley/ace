@@ -130,7 +130,7 @@ struct module_scope_t : public scope_t {
 	 * instantiated. if it is not generic, then there's no need to check it because
 	 * it's already instantiated. */
 	bool has_checked(const ptr<const ast::item> &node) const;
-	void mark_checked(const ptr<const ast::item> &node);
+	void mark_checked(status_t &status, const ptr<const ast::item> &node);
 	virtual llvm::Module *get_llvm_module();
 
 	virtual void dump(std::ostream &os) const;
@@ -184,7 +184,7 @@ struct program_scope_t : public scope_t {
 	std::string dump_llvm_modules();
 
 	virtual bound_type_t::ref get_bound_type(types::signature signature);
-	bool put_bound_type(bound_type_t::ref type);
+	void put_bound_type(bound_type_t::ref type);
 
 private:
 	module_scope_t::map modules;

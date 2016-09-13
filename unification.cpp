@@ -214,6 +214,7 @@ unification_t unify_core(
 }
 
 unification_t unify(
+		status_t &status,
 		types::term::ref lhs,
 		types::term::ref rhs,
 		types::term::map env)
@@ -222,10 +223,12 @@ unification_t unify(
 				"unify(" c_term("%s") ", " c_term("%s") ", %s)",
 				lhs->str().c_str(), rhs->str().c_str(), str(env).c_str()));
 
-	return unify_core(
-		   	lhs->evaluate(env)->get_type(),
-		   	rhs->evaluate(env)->get_type(),
+	unification_t unification = unify_core(
+		   	lhs->evaluate(env)->get_type(status),
+		   	rhs->evaluate(env)->get_type(status),
 		   	env,
 		   	{}, 0 /*depth*/);
+	assert(!!status);
+	return unification;
 }
 

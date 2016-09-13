@@ -6,7 +6,7 @@
 types::term::ref register_data_ctor(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		atom::many type_variables,
+		identifier::refs type_variables,
 		scope_t::ref scope,
 		ptr<const ast::item> node,
 		types::term::refs dimensions,

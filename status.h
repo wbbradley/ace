@@ -13,10 +13,13 @@ struct status_t {
 	void emit_message(log_level_t log_level, location location, const char *format, ...);
 	void emit_messagev(log_level_t log_level, location location, const char *format, va_list args);
 
+	bool reported_on_error_at(location) const;
+
 	/* status can only get worse, so, make sure no one sets fail directly to
 	 * false except the ctor */
 private:
 	bool fail = false;
+	location last_error_location;
 };
 
 namespace ast { struct item; }

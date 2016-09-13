@@ -921,7 +921,7 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_parse_terms",
 		[] () -> bool {
-			atom::set generics = {{"T"}, {"Q"}};
+			identifier::set generics = {make_iid("T"), make_iid("Q")};
 			auto parses = std::vector<std::pair<std::string, std::string>>{{
 				{"any a", "(any a)"},
 				{"any", "(any __1)"},
@@ -955,7 +955,7 @@ auto test_descs = std::vector<test_desc>{
 		"test_term_evaluation",
 		[] () -> bool {
 			types::term::map env = {};
-			atom::set generics = {{"T"}, {"Q"}};
+			identifier::set generics = {make_iid("T"), make_iid("Q")};
 			auto parses = std::vector<std::tuple<std::string, std::string>>{{
 				{"any a", "(any a)"},
 				{"any", "(any __1)"},
@@ -995,7 +995,7 @@ auto test_descs = std::vector<test_desc>{
 		"test_unification",
 		[] () -> bool {
 			get_tuple_term({types::term_generic(), types::term_id(make_iid("float"))});
-			atom::set generics = {{"Container"}, {"T"}};
+			identifier::set generics = {make_iid("Container"), make_iid("T")};
 			auto unifies = std::vector<types::term::pair>{{
 				types::term::pair{parse_type_expr("void", generics), types::term_id(make_iid("void"))},
 				make_term_pair("any", "float", generics),
@@ -1023,12 +1023,15 @@ auto test_descs = std::vector<test_desc>{
 				make_term_pair("map{any a, any a}", "map{int, str}", generics),
 			}};
 
+			status_t status;
 			for (auto &pair : unifies) {
-				test_assert(unify(pair.first, pair.second, {}).result);
+				test_assert(unify(status, pair.first, pair.second, {}).result);
+				assert(!!status);
 			}
 
 			for (auto &pair : fails) {
-				auto unification = unify(pair.first, pair.second, {});
+				auto unification = unify(status, pair.first, pair.second, {});
+				assert(!!status);
 				if (unification.result) {
 					log(log_error, "should have failed unifying %s and %s [%s]",
 							pair.first->str().c_str(),
@@ -1042,103 +1045,6 @@ auto test_descs = std::vector<test_desc>{
 			return true;
 		}
 	},
-
-#if 0
-	{
-		"test_simple_unification_with_env_01",
-		[] () -> bool {
-			/* type List{X} is Node(X, List{X}) or Done */
-			auto env = std::vector<std::pair<atom, types::term::ref>>{
-				{"List", {get_lambda_term({"x"}, {"x"})}}
-			};
-
-			auto unifies = std::vector<types::term::ref::pair>{
-				{"__args__{any X}"_s, "__args__{List{any X}}"_s}
-			};
-
-			for (auto &pair : unifies) {
-				test_assert(unification_t::attempt(env, pair.first, pair.second));
-			}
-
-			return true;
-		}
-	},
-
-	{
-		"test_simple_unification_with_env_02",
-		[] () -> bool {
-			/* type List{X} is Node(X, List{X}) or Done */
-			auto env = std::vector<std::pair<atom, types::term::ref>>{
-				{"List", "__lambda__{X, {Node, X}}"_s},
-			};
-
-			auto unifies = std::vector<std::pair<types::term::ref, types::term::ref>>{
-				{
-					{"__args__{any X, List{any X}"_s},
-					{"__args__{int, Node{int}}"_s}
-				},
-			};
-
-			for (auto &pair : unifies) {
-				test_assert(unification_t::attempt(env, pair.first, pair.second));
-			}
-
-			return true;
-		}
-	},
-#endif
-
-#if 0
-	{
-		"test_or_unification_with_int",
-		[] () -> bool {
-			auto unifies = std::vector<std::pair<types::term::ref, types::term::ref>>{
-				{
-					{"__or__", {{"Node", {{"int"}}}, {{"Done"}}}},
-					{"Node", {{"int"}}}
-				},
-				{
-					{"__or__", {{"Node", {{"int"}}}, {{"Done"}}}},
-					{"Done"},
-				},
-			};
-
-			for (auto &pair : unifies) {
-				test_assert(unification_t::attempt({}, pair.first, pair.second));
-			}
-
-			return true;
-		}
-	},
-
-	{
-		"test_or_unification_with_generics",
-		[] () -> bool {
-			/* type List{X} is Node(X, List{X}) or Done */
-			auto env = std::vector<std::pair<atom, types::term::ref>>{
-				{"List", {get_lambda_term({"Y"},
-					{"__or__", {{"Node", {{"Y"}}}, {{"Done"}}}})}},
-			};
-
-			auto unifies = std::vector<std::pair<types::term::ref, types::term::ref>>{
-				{
-					{"List", {{"any X"}}},
-					{"Node", {{"int"}}}
-				},
-				{
-					{"__args__", {{"any X"}, {"List", {{"any X"}}}}},
-					{"__args__", {{"int"}, {"Done"}}}
-				},
-			};
-
-			for (auto &pair : unifies) {
-				test_assert(unification_t::attempt(env, pair.first, pair.second));
-			}
-
-			return true;
-		}
-	},
-#endif
 
 	{
 		"test_code_gen_module_exists",

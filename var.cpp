@@ -14,6 +14,7 @@ std::string str(const var_t::refs &vars) {
 }
 
 unification_t var_t::accepts_callsite(
+		status_t &status,
 		ptr<scope_t> scope,
 	   	types::term::ref args) const
 {
@@ -26,6 +27,7 @@ unification_t var_t::accepts_callsite(
 				args->str().c_str(), ::str(env).c_str()));
 
 	auto u = unify(
+			status,
 			fn_term,
 		   	types::term_product(pk_function, {args, types::term_generic()}),
 		   	env);

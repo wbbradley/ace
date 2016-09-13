@@ -133,7 +133,7 @@ bound_type_t::name_index const bound_type_handle_t::get_member_index() const {
 	}
 }
 
-void bound_type_handle_t::set_actual(bound_type_t::ref actual_) {
+void bound_type_handle_t::set_actual(bound_type_t::ref actual_) const {
 	assert(actual_ != actual);
 	assert(actual_ != shared_from_this());
 	assert(actual_->get_type()->str() == type->str());
@@ -188,8 +188,8 @@ std::ostream &operator <<(std::ostream &os, const bound_type_t &type) {
 std::string bound_type_impl_t::str() const {
 	std::stringstream ss;
 	ss << get_type();
-	ss << " " << llvm_print_type(*get_llvm_type());
-	ss << " " << ::str(get_dimensions());
+	// ss << " " << llvm_print_type(*get_llvm_type());
+	// ss << " " << ::str(get_dimensions());
 	return ss.str();
 }
 
@@ -356,49 +356,48 @@ namespace types {
 			return shared_from_this();
 		}
 
-		virtual type::ref get_type() const {
+		virtual type::ref get_type(status_t &status) const {
 			auto program_scope = scope->get_program_scope();
-			auto fn_type = data_ctor_sig->get_type();
-			debug_above(5, log(log_info, "getting the type for %s",
-						fn_type->str().c_str()));
-			types::type::ref final_type = get_function_return_type(fn_type);
-			types::type::refs data_ctor_args = get_function_type_args(fn_type);
-
-			/* start by registering a placeholder handle for the data ctor's
-			 * actual final type */
-			auto bound_type_handle = bound_type_t::create_handle(
-					final_type,
-					program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
-
-#if 1
-			std::stringstream ss;
-			scope->dump(ss);
-			debug_above(3, log(log_info, "looking for %s in %s",
-					  final_type->get_signature().c_str(),
-				  	  ss.str().c_str()));
-#endif
-
-			assert(scope->get_bound_type(final_type->get_signature()) == nullptr);
-			program_scope->put_bound_type(bound_type_handle);
-
-			debug_above(6, log(log_info, "this is " c_internal("crazy")
-						" but we're going to push this type " c_type("%s") " into the scope now",
-						str().c_str()));
-
-			// TODO: plumb this status through get_type
-			status_t status;
-			bound_type_t::refs args;
-			resolve_type_ref_params(status, builder, scope, data_ctor_args, args);
-
+			auto fn_type = data_ctor_sig->get_type(status);
 			if (!!status) {
-				auto final_bound_type = create_algebraic_data_type(
-						builder, scope, id, args, member_index, node,
-						final_type);
-				bound_type_handle->set_actual(final_bound_type);
-				return final_type;
+				assert(fn_type != nullptr);
+
+				debug_above(5, log(log_info, "getting the type for %s",
+							fn_type->str().c_str()));
+				types::type::ref final_type = get_function_return_type(fn_type);
+				types::type::refs data_ctor_args = get_function_type_args(fn_type);
+
+				auto already_bound_type = scope->get_bound_type(final_type->get_signature());
+				if (already_bound_type != nullptr) {
+					/* if somebody has already instantiated this type, then we
+					 * don't need to continue. it may mean that we are recursing,
+					 * and now is a good time to stop. */
+					return final_type;
+				}
+
+				/* start by registering a placeholder handle for the data ctor's
+				 * actual final type */
+				auto bound_type_handle = bound_type_t::create_handle(
+						final_type,
+						program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
+
+				program_scope->put_bound_type(bound_type_handle);
+
+				// TODO: plumb this status through get_type
+				status_t status;
+				bound_type_t::refs args;
+				resolve_type_ref_params(status, builder, scope, data_ctor_args, args);
+
+				if (!!status) {
+					auto final_bound_type = create_algebraic_data_type(
+							builder, scope, id, args, member_index, node,
+							final_type);
+					return final_type;
+				}
 			}
-			assert(false);
-			return null_impl();
+
+			assert(!status);
+			return nullptr;
 		}
 
 		atom::set unbound_vars(atom::set bound_vars) const {

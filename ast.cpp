@@ -60,66 +60,23 @@ namespace ast {
 		}
 	}
 
-	data_ctor::data_ctor(atom::set type_variables, std::vector<type_ref::ref> type_ref_params) :
+	data_ctor::data_ctor(
+			identifier::set type_variables,
+			std::vector<type_ref::ref> type_ref_params) :
 		type_variables(type_variables), type_ref_params(type_ref_params)
 	{
 	}
 
-#if 0
-	bound_type_t::ref type_expr::resolve_type(
-			status_t &status,
-			llvm::IRBuilder<> &builder,
-			scope_t::ref scope) const
-   	{
-		/* instantiate this type and ensure that it has a matching llvm
-		 * type object, also make sure that it exists in this scope */
-		bool generic = false;
-		auto symbol = get_type_name(&generic);
-		return scope->resolve_type_alias(status, shared_from_this(), symbol);
-	}
-
-	status_t type_expr::get_unchecked_type(
-			llvm::IRBuilder<> &builder,
-		   	scope_t::ref scope,
-		   	unchecked_type_t::map &generics,
-		   	unchecked_type_t::ref &result_type) const
-   	{
-		status_t status;
-
-		bool generic = false;
-		auto type_name = get_type_name(&generic);
-
-		if (generic && !scope->has_type(type_name)) {
-			/* this is a generic. let's assign an unchecked type to this name */
-			if (generics.find(type_name) == generics.end()) {
-				unchecked_type_t::add_item(generics, type_name, shared_from_this());
-			}
-
-			result_type = generics[type_name];
-		} else {
-			ptr<inference::term> type_term;
-			status |= get_type_expr_type_term(builder, *this, scope, type_term);
-			if (!!status) {
-				result_type = unchecked_type_t::create(type_name,
-					   	safe_infer_type(builder, status, *this, scope, type_term),
-						shared_from_this());
-			}
-		}
-
-		return status;
-	}
-#endif
-
 	item::~item() throw() {
 	}
 
-	type_alias::type_alias(type_ref::ref type_ref, atom::set type_variables) :
+	type_alias::type_alias(type_ref::ref type_ref, identifier::set type_variables) :
 		type_variables(type_variables),
 		type_ref(type_ref)
 	{
 	}
 
-	type_decl::type_decl(atom::many type_variables) :
+	type_decl::type_decl(identifier::refs type_variables) :
 		type_variables(type_variables)
 	{
 	}
@@ -134,7 +91,9 @@ namespace ast {
 	{
 	}
 
-	type_product::type_product(std::vector<dimension::ref> dimensions, atom::set type_variables) :
+	type_product::type_product(
+			std::vector<dimension::ref> dimensions,
+			identifier::set type_variables) :
 		type_variables(type_variables),
 		dimensions(dimensions)
 	{

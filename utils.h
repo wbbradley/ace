@@ -4,6 +4,15 @@
 #include <sstream>
 #include <vector>
 
+struct shared_comparator {
+    template <typename T>
+    bool operator()(const std::shared_ptr<T> &lhs,
+                    const std::shared_ptr<T> &rhs) const
+    {
+        return (*lhs) < (*rhs);
+    }
+};
+
 void base64_encode(const void *buffer, unsigned long size, std::string &encoded_output);
 bool base64_decode(const std::string &input, char * * const output, size_t * const size);
 

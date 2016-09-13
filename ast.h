@@ -160,18 +160,18 @@ namespace ast {
 	struct type_decl : public item {
 		typedef ptr<const type_decl> ref;
 
-		type_decl(atom::many type_variables);
+		type_decl(identifier::refs type_variables);
 		static const syntax_kind_t SK = sk_type_decl;
 
 		static ref parse(parse_state_t &ps);
 		virtual void render(render_state_t &rs) const;
 
-		atom::many type_variables;
+		identifier::refs type_variables;
 	};
 
 	struct type_ref : public item {
 		typedef ptr<const type_ref> ref;
-		static ref parse(parse_state_t &ps, atom::set generics);
+		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual ~type_ref() throw() {}
 
 		virtual types::term::ref get_type_term() const = 0;
@@ -182,7 +182,7 @@ namespace ast {
 
 		type_ref_named(types::term::ref term);
 		virtual types::term::ref get_type_term() const;
-		static ref parse(parse_state_t &ps, atom::set generics);
+		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
 		types::term::ref term;
@@ -193,7 +193,7 @@ namespace ast {
 
 		type_ref_list(type_ref::ref type_ref);
 		virtual types::term::ref get_type_term() const;
-		static ref parse(parse_state_t &ps, atom::set generics);
+		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
 		type_ref::ref type_ref;
@@ -204,7 +204,7 @@ namespace ast {
 
 		type_ref_tuple(std::vector<type_ref::ref> type_ref);
 		virtual types::term::ref get_type_term() const;
-		static ref parse(parse_state_t &ps, atom::set generics);
+		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<type_ref::ref> type_refs;
@@ -215,7 +215,7 @@ namespace ast {
 
 		type_ref_generic(types::term::ref term);
 		virtual types::term::ref get_type_term() const;
-		static ref parse(parse_state_t &ps, atom::set generics);
+		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
 		types::term::ref term;
@@ -228,7 +228,7 @@ namespace ast {
 		virtual ~dimension() throw() {}
 		virtual void render(render_state_t &rs) const;
 
-		static ref parse(parse_state_t &ps, atom::set generics);
+		static ref parse(parse_state_t &ps, identifier::set generics);
 
 		atom name;
 		type_ref::ref type_ref;
@@ -238,17 +238,17 @@ namespace ast {
 		typedef ptr<const data_ctor> ref;
 		static const syntax_kind_t SK = sk_data_ctor;
 
-		data_ctor(atom::set type_variables, std::vector<type_ref::ref> type_ref_params);
-		static ref parse(parse_state_t &ps, atom::set type_variables);
+		data_ctor(identifier::set type_variables, std::vector<type_ref::ref> type_ref_params);
+		static ref parse(parse_state_t &ps, identifier::set type_variables);
 		virtual void render(render_state_t &rs) const;
 		types::term::ref instantiate_type_term(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
-				atom::many type_variables,
+				identifier::refs type_variables,
 				scope_t::ref scope) const;
 
-		atom::set type_variables;
+		identifier::set type_variables;
 		std::vector<type_ref::ref> type_ref_params;
 	};
 
@@ -264,7 +264,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
-				atom::many type_variables,
+				identifier::refs type_variables,
 				scope_t::ref scope) const = 0;
 
 		static ref parse(parse_state_t &ps, ast::type_decl::ref type_decl);
@@ -276,12 +276,12 @@ namespace ast {
 		type_sum(std::vector<data_ctor::ref> data_ctors);
 		virtual ~type_sum() throw() {}
 		static const syntax_kind_t SK = sk_type_sum;
-		static ref parse(parse_state_t &ps, atom::many type_variables);
+		static ref parse(parse_state_t &ps, identifier::refs type_variables);
 		virtual types::term::ref instantiate_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
-				atom::many type_variables,
+				identifier::refs type_variables,
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -291,38 +291,38 @@ namespace ast {
 	struct type_product : public type_algebra {
 		typedef ptr<const type_product> ref;
 
-		type_product(std::vector<dimension::ref> dimensions, atom::set type_variables);
+		type_product(std::vector<dimension::ref> dimensions, identifier::set type_variables);
 		virtual ~type_product() throw() {}
 		static const syntax_kind_t SK = sk_type_product;
-		static ref parse(parse_state_t &ps, atom::many type_variables);
+		static ref parse(parse_state_t &ps, identifier::refs type_variables);
 		virtual types::term::ref instantiate_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
-				atom::many type_variables,
+				identifier::refs type_variables,
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
-		atom::set type_variables;
+		identifier::set type_variables;
 		std::vector<dimension::ref> dimensions;
 	};
 
 	struct type_alias : public type_algebra {
 		typedef ptr<const type_alias> ref;
 
-		type_alias(type_ref::ref type_ref, atom::set type_variables);
+		type_alias(type_ref::ref type_ref, identifier::set type_variables);
 		virtual ~type_alias() throw() {}
 		static const syntax_kind_t SK = sk_type_alias;
-		static ref parse(parse_state_t &ps, atom::many type_variables);
+		static ref parse(parse_state_t &ps, identifier::refs type_variables);
 		virtual types::term::ref instantiate_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
-				atom::many type_variables,
+				identifier::refs type_variables,
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
-		atom::set type_variables;
+		identifier::set type_variables;
 		type_ref::ref type_ref;
 	};
 

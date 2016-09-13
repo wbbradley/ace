@@ -341,20 +341,23 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 		debug_above(5, log(log_info, "set return type to %s", return_type_constraint->str().c_str()));
 	} else {
 		unification_t unification = unify(
+				status,
 				return_type_constraint->get_type()->to_term(),
 				return_type->get_type()->to_term(),
 				get_type_env());
 
-		if (!unification.result) {
-			// TODO: consider directional unification here
-			// TODO: consider storing more useful info in return_type_constraint
-			user_error(status, *return_statement, "return expression type %s does not match %s",
-					return_type->str().c_str(), return_type_constraint->str().c_str());
-		} else {
-			/* this return type checks out */
-			debug_above(2, log(log_info, "unified %s :> %s",
-						return_type_constraint->str().c_str(),
-						return_type->str().c_str()));
+		if (!!status) {
+			if (!unification.result) {
+				// TODO: consider directional unification here
+				// TODO: consider storing more useful info in return_type_constraint
+				user_error(status, *return_statement, "return expression type %s does not match %s",
+						return_type->str().c_str(), return_type_constraint->str().c_str());
+			} else {
+				/* this return type checks out */
+				debug_above(2, log(log_info, "unified %s :> %s",
+							return_type_constraint->str().c_str(),
+							return_type->str().c_str()));
+			}
 		}
 	}
 }
@@ -454,9 +457,9 @@ bool module_scope_t::has_checked(const ptr<const ast::item> &node) const {
 	return visited.find(node) != visited.end();
 }
 
-void module_scope_t::mark_checked(const ptr<const ast::item> &node) {
+void module_scope_t::mark_checked(status_t &status, const ptr<const ast::item> &node) {
 	if (auto function_defn = dyncast<const ast::function_defn>(node)) {
-		if (is_function_defn_generic(shared_from_this(), *function_defn)) {
+		if (is_function_defn_generic(status, shared_from_this(), *function_defn)) {
 			/* for now let's never mark generic functions as checked, until we
 			 * have a mechanism to join the term to the checked-mark.  */
 			return;
@@ -519,12 +522,21 @@ unchecked_var_t::ref module_scope_t::put_unchecked_variable(
 	return unchecked_variable;
 }
 
-bool program_scope_t::put_bound_type(bound_type_t::ref type) {
+void program_scope_t::put_bound_type(bound_type_t::ref type) {
 	debug_above(8, log(log_info, "binding type %s as " c_id("%s"),
 				type->str().c_str(),
 				type->get_signature().repr().c_str()));
-	bound_types[type->get_signature().repr()] = type;
-	return false;
+	atom signature = type->get_signature().repr();
+	auto iter = bound_types.find(signature);
+	if (iter == bound_types.end()) {
+		bound_types[signature] = type;
+	} else {
+		if (auto handle = dyncast<const bound_type_handle_t>(iter->second)) {
+			handle->set_actual(type);
+		} else {
+			not_impl();
+		}
+	}
 }
 
 ptr<module_scope_t> program_scope_t::new_module_scope(

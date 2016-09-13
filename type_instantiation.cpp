@@ -108,7 +108,7 @@ types::term::ref ast::type_product::instantiate_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref supertype_id,
-		atom::many type_variables,
+		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
 	debug_above(5, log(log_info, "creating product type term for %s", str().c_str()));
@@ -137,7 +137,7 @@ types::term::ref ast::type_sum::instantiate_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref supertype_id,
-		atom::many type_variables,
+		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
 	debug_above(3, log(log_info, "creating subtypes to %s with type variables [%s]",
@@ -155,7 +155,7 @@ types::term::ref ast::type_sum::instantiate_type(
 types::term::ref instantiate_data_ctor_type_term(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		atom::many type_variables,
+		identifier::refs type_variables,
 		scope_t::ref scope,
 		ptr<const ast::item> node,
 		types::term::refs dimensions,
@@ -169,7 +169,7 @@ types::term::ref instantiate_data_ctor_type_term(
 	/* create a term that takes the used type variables in the data ctor and
 	 * returns placement in given type variable order */
 	/* instantiate the necessary components of a data ctor */
-	atom::set generics = to_set(type_variables);
+	atom::set generics = to_atom_set(type_variables);
 
 	/* ensure that there are no duplicate type variables */
 	assert(generics.size() == type_variables.size());
@@ -198,13 +198,12 @@ types::term::ref instantiate_data_ctor_type_term(
 	types::term::refs supertype_expansion_list;
 
 	for (auto type_var : type_variables) {
-		if (in(type_var, unbound_vars)) {
+		if (in(type_var->get_name(), unbound_vars)) {
 			/* this variable is referenced by the current data ctor (the
 			 * subtype), therefore it has opinions about its role in the
 			 * supertype */
-			auto lambda_var = make_iid(type_var);
-			lambda_vars.push_front(lambda_var);
-			supertype_expansion_list.push_back(types::term_id(lambda_var));
+			lambda_vars.push_front(type_var);
+			supertype_expansion_list.push_back(types::term_id(type_var));
 		} else {
 			/* this variable is not referenced by the current data ctor (the
 			 * subtype), therefore it has no opinions about its role in the
@@ -261,54 +260,49 @@ types::term::ref instantiate_data_ctor_type_term(
 		/* enum values must have a supertype, right? */
 		assert(supertype_id != nullptr);
 
-		/* start by making a type for the tag */
-		bound_type_t::ref tag_type = bound_type_t::create(
-				tag_term->get_type(),
-				id->get_location(),
-				/* all tags use the var_t* type */
-				scope->get_program_scope()->get_bound_type({"__var_ref"})->get_llvm_type());
+		auto tag_type = tag_term->get_type(status);
+		if (!!status) {
+			/* start by making a type for the tag */
+			bound_type_t::ref bound_tag_type = bound_type_t::create(
+					tag_type,
+					id->get_location(),
+					/* all tags use the var_t* type */
+					scope->get_program_scope()->get_bound_type({"__var_ref"})->get_llvm_type());
 
-		bound_var_t::ref tag = llvm_create_global_tag(
-				builder, scope, tag_type, tag_name, id);
+			bound_var_t::ref tag = llvm_create_global_tag(
+					builder, scope, bound_tag_type, tag_name, id);
 
-		/* record this data ctor for use later */
-		scope->put_bound_variable(tag_name, tag);
+			/* record this data ctor for use later */
+			scope->put_bound_variable(tag_name, tag);
 
-		debug_above(7, log(log_info, "instantiated nullary data ctor %s",
-					tag->str().c_str()));
-	}
-
-	/* find the type variables that are referenced within the unbound
-	 * vars of the product. */
-	atom::many referenced_type_variables;
-	for (auto type_variable : type_variables) {
-		if (unbound_vars.find(type_variable) != unbound_vars.end()) {
-			referenced_type_variables.push_back(type_variable);
+			debug_above(7, log(log_info, "instantiated nullary data ctor %s",
+						tag->str().c_str()));
 		}
 	}
-	// TODO: replace type variables with lambda var bindings
 
-	/* now let's make sure we register this constructor as an override for
-	 * the name `tag_name` */
-	debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
-			id->str().c_str()));
+	if (!!status) {
+		/* now let's make sure we register this constructor as an override for
+		 * the name `tag_name` */
+		debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
+					id->str().c_str()));
 
-	if (auto module_scope = dyncast<module_scope_t>(scope)) {
-		types::term::ref generic_args = types::change_product_kind(pk_args, product);
+		if (auto module_scope = dyncast<module_scope_t>(scope)) {
+			types::term::ref generic_args = types::change_product_kind(pk_args, product);
 
-		debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
-		types::term::ref data_ctor_sig = get_function_term(generic_args, data_ctor_term);
+			debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
+			types::term::ref data_ctor_sig = get_function_term(generic_args, data_ctor_term);
 
-		assert(id->get_name() == tag_name);
-		/* side-effect: create an unchecked reference to this data ctor into
-		 * the current scope */
-		module_scope->put_unchecked_variable(tag_name,
-				unchecked_data_ctor_t::create(id, node,
-					module_scope, data_ctor_sig, member_index));
+			assert(id->get_name() == tag_name);
+			/* side-effect: create an unchecked reference to this data ctor into
+			 * the current scope */
+			module_scope->put_unchecked_variable(tag_name,
+					unchecked_data_ctor_t::create(id, node,
+						module_scope, data_ctor_sig, member_index));
 
-		return nullptr;
-	} else {
-		user_error(status, node->token.location, "local type definitions are not yet impl");
+			return nullptr;
+		} else {
+			user_error(status, node->token.location, "local type definitions are not yet impl");
+		}
 	}
 
 	assert(!status);
@@ -319,7 +313,7 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref supertype_id,
-		atom::many type_variables,
+		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
 	debug_above(5, log(log_info, "creating sum type term for %s", str().c_str()));
@@ -338,7 +332,7 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 types::term::ref register_data_ctor(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		atom::many type_variables,
+		identifier::refs type_variables,
 		scope_t::ref scope,
 		ptr<const ast::item> node,
 		types::term::refs dimensions,
