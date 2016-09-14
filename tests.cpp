@@ -255,6 +255,7 @@ bool test_lex_syntax() {
 		{"null", {tk_null}},
 		{"while", {tk_while}},
 		{"if", {tk_if}},
+		{"when", {tk_when}},
 		{"else", {tk_else}},
 		{"elif", {tk_elif}},
 		{"break", {tk_break}},
@@ -447,6 +448,16 @@ bool test_parse_if_else() {
 			"\t\treturn m\n"
 			"\telse\n"
 			"\t\treturn m\n",
+			"test" /*module*/);
+}
+
+bool test_parse_single_line_when() {
+	return check_parse<ast::module>(
+			"module _\n"
+			"def check() int\n"
+			"\twhen x is X\n"
+			"\t\treturn 1\n"
+			"\treturn 1\n"
 			"test" /*module*/);
 }
 
@@ -928,11 +939,11 @@ auto test_descs = std::vector<test_desc>{
 				/* parsing type variables has monotonically increasing side effects */
 				{"any", "(any __1)"},
 				{"void", "void"},
-				{"map{int, int}", "((map int) int)"},
-				{"map{any b, any c}", "((map (any b)) (any c))"},
+				{"map{int, int}", "map{int}{int}"},
+				{"map{any b, any c}", "map{(any b)}{(any c)}"},
 				{"T", "(any T)"},
-				{"T{char, Q}", "(((any T) char) (any Q))"},
-				{"map{T{int}, Q}", "((map ((any T) int)) (any Q))"},
+				{"T{char, Q}", "(any T){char}{(any Q)}"},
+				{"map{T{int}, Q}", "map{(any T){int}}{(any Q)}"},
 			}};
 
 			for (auto p : parses) {
@@ -962,11 +973,11 @@ auto test_descs = std::vector<test_desc>{
 				/* parsing type variables has monotonically increasing side effects */
 				{"any", "(any __1)"},
 				{"void", "void"},
-				{"map{int, int}", "((map int) int)"},
-				{"map{any b, any c}", "((map (any b)) (any c))"},
+				{"map{int, int}", "map{int}{int}"},
+				{"map{any b, any c}", "map{(any b)}{(any c)}"},
 				{"T", "(any T)"},
-				{"T{char, Q}", "(((any T) char) (any Q))"},
-				{"map{T{int}, Q}", "((map ((any T) int)) (any Q))"},
+				{"T{char, Q}", "(any T){char}{(any Q)}"},
+				{"map{T{int}, Q}", "map{(any T){int}}{(any Q)}"},
 			}};
 
 			for (auto p : parses) {

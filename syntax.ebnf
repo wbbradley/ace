@@ -35,13 +35,16 @@ statement      ::=
  | ( identifier ':=' expr)
  | ( 'while' while_block )
  | ( 'if' if_block ) 
- | ( 'match' expr case_block+ )
+ | ( 'when' expr ( multi_pattern_block | single_pattern_block ) )
  | return_statement
  | pass
  | continue
  | break
  | assignment
-case_block     ::= 'case' expr block
+
+pattern_block ::= 'is' pattern_ctor block
+single_pattern_block ::= ( pattern_block ( 'else' block )? )
+multi_pattern_block ::= indent pattern_block+ ( 'else' block )? outdent
 
 return_statement ::= 'return' expr?
 var_decl       ::= identifier (type_ref)?

@@ -131,4 +131,10 @@ namespace types {
 			ptr<ast::item const> node,
 			types::term::ref data_ctor_sig,
 			bound_type_t::name_index member_index);
+	term::ref term_sum_binder(
+			llvm::IRBuilder<> &builder,
+			ptr<struct scope_t> scope,
+			types::term::ref signature,
+			ptr<ast::item const> node,
+			types::term::ref term_sum);
 };

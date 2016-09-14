@@ -257,10 +257,10 @@ namespace ast {
 
 		virtual ~type_algebra() throw() {}
 
-		/* instantiate_type is called from within the scope where the type's
+		/* register_type is called from within the scope where the type's
 		 * ctors should end up living. this function should create the
 		 * unchecked ctors with the type. */
-		virtual types::term::ref instantiate_type(
+		virtual void register_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
@@ -277,7 +277,7 @@ namespace ast {
 		virtual ~type_sum() throw() {}
 		static const syntax_kind_t SK = sk_type_sum;
 		static ref parse(parse_state_t &ps, identifier::refs type_variables);
-		virtual types::term::ref instantiate_type(
+		virtual void register_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
@@ -295,7 +295,7 @@ namespace ast {
 		virtual ~type_product() throw() {}
 		static const syntax_kind_t SK = sk_type_product;
 		static ref parse(parse_state_t &ps, identifier::refs type_variables);
-		virtual types::term::ref instantiate_type(
+		virtual void register_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
@@ -314,7 +314,7 @@ namespace ast {
 		virtual ~type_alias() throw() {}
 		static const syntax_kind_t SK = sk_type_alias;
 		static ref parse(parse_state_t &ps, identifier::refs type_variables);
-		virtual types::term::ref instantiate_type(
+		virtual void register_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
@@ -483,6 +483,100 @@ namespace ast {
 
 		ptr<expression> condition;
 		ptr<block> block;
+	};
+
+	struct pattern_block : public statement {
+		typedef ptr<const pattern_block> ref;
+
+		static const syntax_kind_t SK = sk_pattern_block;
+
+		static ptr<pattern_block> parse(parse_state_t &ps);
+		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual void render(render_state_t &rs) const;
+
+		/* In the context of a pattern, calling a data_ctor amounts to creating
+		 * a predicate with side-effects on the variable scope. the predicate
+		 * is a check first of the tag of the data_ctor, then secondly a
+		 * declaration of the new variables.
+		 *
+		 *     when n is Node(x, xs)
+		 *         <block>
+		 *
+		 *     if n.tag == Node
+		 *         x := (n as Node)[0]
+		 *         xs := (n as Node)[1]
+		 *         do <block>
+		 *
+		 * or, if x is a literal or is already a variable in the running scope
+		 * of the when
+		 *
+		 *     when n is Node(3, xs)
+		 *     if n.tag == Node and 3 == (n as Node)[0]
+		 *         xs := (n as Node)[1]
+		 *         do <block>
+		 *
+		 * so in these cases, x is any expression, and the check for whether
+		 * it's new or not amounts to whether it is a reference_expr that is
+		 * defined in the current scope
+		 *
+		 * another wrinkle: in the case that Node is generic, such as type
+		 * List{T} is Node{T, List{T}} or Done 
+		 *
+		 * then the check for n.tag == Node needs to first discern what is the
+		 * true tag value or type of "Node", because the data_ctor needs it to
+		 * be specified. for example:
+		 *
+		 *     n := Node(6, Done)
+		 *     when n is Node("hello", tail)
+		 *         ...
+		 *
+		 * here the type of the Node pattern is Node{str} which will not match
+		 * Node{int}. that seems like the easy case.
+		 *
+		 * the harder case is the first one where we don't know the types.
+		 * here's another way of looking at it
+		 *
+		 *     n := Node(6, Done)
+		 *
+		 *     when n is Node(x any, xs any)
+		 *         ...
+		 *
+		 * now the type of the pattern is Node{any} which has no concrete
+		 * reachable type, and thus can't really be pattern matched. so, the
+		 * value that we're finding a match for has to have some influence over
+		 * the set of valid patterns.
+		 *
+		 * for this, we'll lean on the type_decl_env. the definition of the
+		 * base type of n
+		 *
+		 *     n : Node{int}
+		 *     Node{int} <: List{int}
+		 *
+		 * so, from List{int} we can expand from a type_sum to
+		 *
+		 *     List{int} ==> Node{int} or Done
+		 *
+		 * note that the expanded version uses the simplified forms of the
+		 * data_ctors types, not their signatures. this is important because if
+		 * we used their signatures, it would be a circular definition.  and,
+		 * unifying over cycles is an infinite type, and is not within our
+		 * realm.
+		 *
+		 */
+	};
+
+	struct when_block : public statement {
+		typedef ptr<const when_block> ref;
+
+		static const syntax_kind_t SK = sk_when_block;
+
+		static ptr<when_block> parse(parse_state_t &ps);
+		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual void render(render_state_t &rs) const;
+
+		ptr<expression> value;
+		std::vector<ptr<pattern_block>> pattern_blocks;
+		ptr<block> else_block;
 	};
 
 	struct semver : public item {

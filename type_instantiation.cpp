@@ -104,7 +104,7 @@ bound_var_t::ref bind_ctor_to_scope(
 	return nullptr;
 }
 
-types::term::ref ast::type_product::instantiate_type(
+void ast::type_product::register_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref supertype_id,
@@ -125,7 +125,7 @@ types::term::ref ast::type_product::instantiate_type(
 	 * is a type algebra node, therefore, it's token points to "has", instead
 	 * of the actual typename we're trying to create. So, we use the given
 	 * supertype_id as the name for the data ctor. */
-	return register_data_ctor(status, builder,
+	register_data_ctor(status, builder,
 			type_variables, scope, shared_from_this(),
 			term_dimensions,
 			member_index,
@@ -133,7 +133,7 @@ types::term::ref ast::type_product::instantiate_type(
 			nullptr /*supertype_id*/);
 }
 
-types::term::ref ast::type_sum::instantiate_type(
+void ast::type_sum::register_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref supertype_id,
@@ -144,12 +144,31 @@ types::term::ref ast::type_sum::instantiate_type(
 				token.text.c_str(),
 				join(type_variables, ", ").c_str()));
 
+	types::term::refs subtypes;
 	for (auto product_ctor : data_ctors) {
-		product_ctor->instantiate_type_term(status, builder, supertype_id,
-				type_variables, scope);
+		auto subtype = product_ctor->instantiate_type_term(status, builder,
+				supertype_id, type_variables, scope);
+		if (!!status) {
+			assert(subtype != nullptr);
+			subtypes.push_back(subtype);
+		}
 	}
 
-	return nullptr;
+	if (!!status) {
+		types::term::ref term_sum = types::term_sum(subtypes);
+		for (auto iter=type_variables.rbegin();
+			   iter != type_variables.rend();
+			   ++iter)
+	   	{
+			term_sum = types::term_lambda(*iter, term_sum);
+		}
+
+		/* register the type declaration of this sum type. */
+		types::term::ref term_sum_binder = types::term_sum_binder(builder, scope,
+				types::term_id(supertype_id), shared_from_this(), term_sum);
+
+		scope->put_type_decl_term(supertype_id->get_name(), term_sum_binder);
+	}
 }
 
 types::term::ref instantiate_data_ctor_type_term(
@@ -299,7 +318,7 @@ types::term::ref instantiate_data_ctor_type_term(
 					unchecked_data_ctor_t::create(id, node,
 						module_scope, data_ctor_sig, member_index));
 
-			return nullptr;
+			return dequantified_data_ctor_term;
 		} else {
 			user_error(status, node->token.location, "local type definitions are not yet impl");
 		}
@@ -341,7 +360,7 @@ types::term::ref register_data_ctor(
 		identifier::ref supertype_id)
 {
 	atom name = id->get_name();
-	auto location = node->get_location();
+	auto location = id->get_location();
 	if (supertype_id == nullptr || (supertype_id->get_name() != id->get_name())) {
 		if (auto found_type = scope->get_bound_type(id->get_name())) {
 			/* simple check for an already bound monotype */
@@ -372,7 +391,6 @@ types::term::ref register_data_ctor(
 								fn->str().c_str());
 					}
 				} else {
-
 					return instantiate_data_ctor_type_term(status, builder,
 							type_variables, scope, node, dimensions,
 							member_index, id, supertype_id);

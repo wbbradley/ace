@@ -34,30 +34,3 @@ unification_t unify(
 		types::term::ref a,
 		types::term::ref b,
 		types::term::map env);
-
-
-#if 0
-template <typename T>
-term_t::ref upsert_var_name(term_t::map &map, atom name) {
-	auto iter = map.find(name);
-	if (iter != map.end()) {
-		return iter->second;
-	} else {
-		auto term = T::create(name);
-		map[name] = term;
-		return term;
-	}
-}
-
-template <typename T, typename ...Args>
-term_t::ref upsert_var_name(term_t::map &map, atom name, Args... args) {
-	auto iter = map.find(name);
-	if (iter != map.end()) {
-		return iter->second;
-	} else {
-		auto term = T::create(name, args...);
-		map[name] = term;
-		return term;
-	}
-}
-#endif

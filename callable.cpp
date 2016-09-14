@@ -68,10 +68,12 @@ bound_var_t::ref instantiate_unchecked_fn(
 			bound_type_t::ref return_type = upsert_bound_type(status,
 					builder, subst_scope, product->dimensions[1]);
 
-			/* instantiate the function we want */
-			return function_defn->instantiate_with_args_and_return_type(status,
-					builder, subst_scope, nullptr /*new_scope*/,
-					named_args, return_type);
+			if (!!status) {
+				/* instantiate the function we want */
+				return function_defn->instantiate_with_args_and_return_type(status,
+						builder, subst_scope, nullptr /*new_scope*/,
+						named_args, return_type);
+			}
 		} else {
 			panic("we should have a product type for our fn_type");
 		}

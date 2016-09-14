@@ -63,6 +63,7 @@ CFLAGS := \
 ZION_LLVM_SOURCES = \
 				main.cpp \
 				signature.cpp \
+				patterns.cpp \
 				types.cpp \
 				type_checker.cpp \
 				type_instantiation.cpp \

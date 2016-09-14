@@ -9,7 +9,6 @@ def attack(pos1 any, pos2 any) bool
 
 def safe(square pos, queens solutions)
 	i := 0
-	# error: no function found named len
 	while i < len(queens)
 		if eightq.attack(square, queens[i])
 			return false
@@ -19,6 +18,7 @@ def safe(square pos, queens solutions)
 
 def solve(n int, NQUEENS int)
 	if n == 0
+		# error: 22:11.*not impl
 		return [[]]
 
 	smaller_solutions := eightq.solve(n - 1, NQUEENS)

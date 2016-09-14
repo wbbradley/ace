@@ -148,7 +148,7 @@ namespace types {
 				os << "(or";
 				for (auto &option : options) {
 					os << " " << option;
-				}
+			}
 				os << ")";
 				return os;
 			}
@@ -165,10 +165,10 @@ namespace types {
 				type::refs type_options;
 				for (auto &option : options) {
 					type_options.push_back(option->get_type(status));
-					if (!status) {
-						return nullptr;
+						if (!status) {
+							return nullptr;
+						}
 					}
-				}
 				return ::type_sum(type_options);
 			}
 
@@ -286,7 +286,7 @@ namespace types {
 			term::ref arg;
 
 			std::ostream &emit(std::ostream &os) const {
-				os << "(" << fn << " " << arg << ")";
+				os << fn << "{" << arg << "}";
 				return os;
 			}
 
@@ -477,7 +477,7 @@ namespace types {
 	}
 
 	location type_id::get_location() const {
-		return INTERNAL_LOC();
+		return id->get_location();
 	}
 
 	bool type_id::is_void() const {
@@ -533,11 +533,10 @@ namespace types {
 	}
 
 	std::ostream &type_operator::emit(std::ostream &os, const map &bindings) const {
-		os << "(";
 		oper->emit(os, bindings);
-		os << " ";
+		os << "{";
 		operand->emit(os, bindings);
-		return os << ")";
+		return os << "}";
 	}
 
 	int type_operator::ftv() const {

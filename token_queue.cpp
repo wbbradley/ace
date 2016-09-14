@@ -32,6 +32,7 @@ token_kind translate_tk(token_kind tk, const zion_string_t &token_text) {
 		{"type", tk_type},
 		{"var", tk_var},
 		{"while", tk_while},
+		{"when", tk_when},
 	};
 
 	if (tk == tk_identifier) {

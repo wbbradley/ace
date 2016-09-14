@@ -80,6 +80,19 @@ namespace ast {
 		block->render(rs);
 	}
 
+	void when_block::render(render_state_t &rs) const {
+		rs.ss << C_CONTROL << tkstr(tk_when) << C_RESET << " ";
+		value->render(rs);
+		newline(rs);
+		indented(rs);
+		for (auto pattern_block : pattern_blocks) {
+			pattern_block->render(rs);
+		}
+		if (else_block != nullptr) {
+			else_block->render(rs);
+		}
+	}
+
 	void literal_expr::render(render_state_t &rs) const {
 		rs.ss << token.text;
 	}

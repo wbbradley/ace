@@ -38,6 +38,9 @@ bound_type_t::ref get_fully_bound_param_info(
 
 	/* the user specified a type */
 	auto term = obj.type_ref->get_type_term();
+	debug_above(6, log(log_info, "upserting type for param %s at %s",
+				term->str().c_str(),
+				obj.type_ref->get_location().str().c_str()));
 	return upsert_bound_type(status, builder, scope, term);
 }
 
@@ -809,7 +812,8 @@ bound_var_t::ref ast::function_defn::resolve_instantiation(
 		return instantiate_with_args_and_return_type(status, builder, scope,
 				new_scope, args, return_type);
 	} else {
-		user_error(status, *this, "unable to get function declaration");
+		user_error(status, *this, "unable to declare function %s due to related errors",
+				token.str().c_str());
 	}
 
 	assert(!status);
@@ -1165,15 +1169,10 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 		}
 
 		// TODO: consider type namespacing here, or 
-		auto type_term = type_algebra->instantiate_type(status, builder,
+		type_algebra->register_type(status, builder,
 				make_code_id(token), type_decl->type_variables, scope);
 
-		if (!!status) {
-			if (type_term != nullptr) {
-				scope->put_type_term(type_decl->token.text, type_term);
-			}
-			return nullptr;
-		}
+		return nullptr;
 	}
 
 	assert(!status);

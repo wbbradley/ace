@@ -55,9 +55,7 @@ struct bound_type_builder_t : public types::type_visitor {
 	virtual bool visit(const types::type_id &id) {
 		created_type = scope->get_bound_type(id.get_signature());
 		if (created_type == nullptr) {
-			/* no type exists by that name just create it */
-			created_type = bound_type_t::create(id.shared_from_this(), id.get_location(),
-					program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
+			return false;
 		}
 		return created_type != nullptr;
 	}
@@ -75,27 +73,8 @@ struct bound_type_builder_t : public types::type_visitor {
 			atom name = operator_.oper->get_signature();
 
 			auto type_decl_env = scope->get_type_decl_env();
-			if (in(name, type_decl_env)) {
-
-				auto term = operator_.to_term()->evaluate(type_decl_env);
-				debug_above(4, log(log_info, "type translates to %s",
-							term->str().c_str()));
-
-				// TODO: check whether this results in a term_binder which we
-				// will use to create all the necessary types to instantiate the
-				// data ctor's type.
-				// created_type = ...
-				dbg();
-			} else {
-				debug_above(2, log(log_warning, "defaulting to just creating an object type with %s",
-						operator_.str().c_str()));
-				auto signature = operator_.get_signature();
-				assert(scope->get_bound_type(signature) == nullptr);
-				created_type = (
-					bound_type_t::create(operator_.shared_from_this(),
-							operator_.get_location(),
-							scope->get_bound_type({"__var_ref"})->get_llvm_type()));
-			}
+			assert(!in(name, type_decl_env));
+			return false;
 		} else {
 			assert(!"no module scope?");
 		}
@@ -114,8 +93,8 @@ struct bound_type_builder_t : public types::type_visitor {
 				assert(product.dimensions.size() == 2);
 				bound_type_t::refs args = create_bound_types_from_args(status,
 						builder, scope, product.dimensions[0]);
-				bound_type_t::ref return_type = upsert_bound_type(status,
-						builder, scope, product.dimensions[1]);
+				bound_type_t::ref return_type = upsert_bound_type(
+						status, builder, scope, product.dimensions[1]);
 
 				if (!!status) {
 					types::type::ref fn_type = get_function_type(args, return_type);
@@ -130,6 +109,7 @@ struct bound_type_builder_t : public types::type_visitor {
 						if (!!status) {
 							created_type = bound_type_t::create(fn_type,
 									product.get_location(), llvm_fn_type);
+							program_scope->put_bound_type(created_type);
 						}
 						return !!status;
 					}
@@ -172,12 +152,14 @@ struct bound_type_builder_t : public types::type_visitor {
 	}
 
 	virtual bool visit(const types::type_sum &sum) {
+		dbg();
 		auto signature = sum.get_signature();
 		auto bound_type = scope->get_bound_type(signature);
 		assert(bound_type == nullptr);
 		created_type = bound_type_t::create(sum.shared_from_this(),
 				sum.get_location(),
 				scope->get_bound_type({"__var_ref"})->get_llvm_type());
+		program_scope->put_bound_type(created_type);
 		return true;
 	}
 };
@@ -225,6 +207,23 @@ bound_type_t::ref create_bound_type(
 {
 	assert(!!status);
 	auto env = scope->get_type_decl_env();
+	auto term = type->to_term();
+	debug_above(6, log(log_info, "evaluating %s in %s",
+				term->str().c_str(),
+				::str(env).c_str()));
+	auto final_type = term->evaluate(env)->get_type(status);
+	debug_above(6, log(log_info, "evaluated %s to %s",
+				term->str().c_str(),
+				final_type->str().c_str()));
+	if (!!status) {
+		/* short-circuit for the case that we've built a term_binder and the
+		 * very act of getting a type for a term will instantiate a type. */
+		auto bound_type = scope->get_bound_type(final_type->get_signature());
+		if (bound_type) {
+			return bound_type;
+		}
+	}
+
 	indent_logger indent(3,
 		string_format("creating bound type for %s in env %s",
 			type->str().c_str(), str(env).c_str()));
@@ -233,6 +232,9 @@ bound_type_t::ref create_bound_type(
 	if (type->accept(btb)) {
 		assert(!!status);
 		return btb.created_type;
+	} else {
+		user_error(status, type->get_location(), "unable to find a definition for %s",
+				type->str().c_str());
 	}
 
 	assert(!status);
@@ -565,7 +567,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	return nullptr;
 }
 
-types::term::ref ast::type_alias::instantiate_type(
+void ast::type_alias::register_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref supertype_id,
@@ -576,10 +578,9 @@ types::term::ref ast::type_alias::instantiate_type(
 
 	if (type_variables.size() != 0) {
 		user_error(status, token.location, "found type variables in type alias - not yet impl");
-		return nullptr;
+	} else {
+		user_error(status, token.location, "type aliasing is not yet impl");
 	}
-	user_error(status, token.location, "type aliasing is not yet impl");
-	return nullptr; // type_ref->resolve_type(status, builder, scope, nullptr, nullptr);
 }
 
 bound_var_t::ref type_check_get_item_with_int_literal(

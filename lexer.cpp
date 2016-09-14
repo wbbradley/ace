@@ -51,7 +51,11 @@ bool istchar(char ch) {
 	return false;
 }
 
-bool zion_lexer_t::get_token(zion_token_t &token, bool &newline, std::vector<zion_token_t> *comments) {
+bool zion_lexer_t::get_token(
+		zion_token_t &token,
+		bool &newline,
+		std::vector<zion_token_t> *comments)
+{
 	newline = false;
 	do {
 		for (int i = 0; i < 2 && m_token_queue.empty(); ++i) {
@@ -72,7 +76,10 @@ bool zion_lexer_t::get_token(zion_token_t &token, bool &newline, std::vector<zio
 		if (comments != nullptr && token.tk == tk_comment) {
 			comments->push_back(token);
 		}
-	} while (token.tk == tk_newline || token.tk == tk_space || token.tk == tk_comment);
+	} while (
+			token.tk == tk_newline ||
+			token.tk == tk_space ||
+			token.tk == tk_comment);
 
 	debug_above(7, log(log_info, "lexed (%s) \"%s\"@%s", tkstr(token.tk), token.text.c_str(),
 				token.location().c_str()));

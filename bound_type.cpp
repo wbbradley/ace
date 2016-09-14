@@ -119,7 +119,8 @@ bound_type_t::refs const bound_type_handle_t::get_dimensions() const {
 	if (actual != nullptr) {
 		return actual->get_dimensions();
 	} else {
-		assert(false);
+		debug_above(9, log(log_info,
+				   	"attempt to fetch dimensions on an unreachable type"));
 		return {};
 	}
 }
@@ -128,7 +129,8 @@ bound_type_t::name_index const bound_type_handle_t::get_member_index() const {
 	if (actual != nullptr) {
 		return actual->get_member_index();
 	} else {
-		assert(false);
+		debug_above(9, log(log_info,
+					"attempt to fetch member_index on an unreachable type"));
 		return {};
 	}
 }
@@ -358,44 +360,144 @@ namespace types {
 
 		virtual type::ref get_type(status_t &status) const {
 			auto program_scope = scope->get_program_scope();
-			auto fn_type = data_ctor_sig->get_type(status);
+			auto type_bind = data_ctor_sig->get_type(status);
 			if (!!status) {
-				assert(fn_type != nullptr);
+				assert(type_bind != nullptr);
 
 				debug_above(5, log(log_info, "getting the type for %s",
-							fn_type->str().c_str()));
-				types::type::ref final_type = get_function_return_type(fn_type);
-				types::type::refs data_ctor_args = get_function_type_args(fn_type);
+							type_bind->str().c_str()));
+				if (dyncast<const types::type_product>(type_bind)) {
+					types::type::ref final_type = get_function_return_type(type_bind);
+					types::type::refs data_ctor_args = get_function_type_args(type_bind);
 
-				auto already_bound_type = scope->get_bound_type(final_type->get_signature());
+					auto already_bound_type = scope->get_bound_type(final_type->get_signature());
+					if (already_bound_type != nullptr) {
+						/* if somebody has already instantiated this type, then we
+						 * don't need to continue. it may mean that we are recursing,
+						 * and now is a good time to stop. */
+						return final_type;
+					}
+
+					/* start by registering a placeholder handle for the data ctor's
+					 * actual final type */
+					auto bound_type_handle = bound_type_t::create_handle(
+							final_type,
+							program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
+
+					program_scope->put_bound_type(bound_type_handle);
+
+					// TODO: plumb this status through get_type
+					status_t status;
+					bound_type_t::refs args;
+					resolve_type_ref_params(status, builder, scope, data_ctor_args, args);
+
+					if (!!status) {
+						auto final_bound_type = create_algebraic_data_type(
+								builder, scope, id, args, member_index, node,
+								final_type);
+						return final_type;
+					}
+				} else {
+					if (program_scope->get_bound_type(type_bind->get_signature())) {
+						/* this type may already exist */
+						return type_bind;
+					} else {
+						/* this type does not yet exist, let's create it */
+						auto bound_type = bound_type_t::create(type_bind,
+								type_bind->get_location(),
+								scope->get_bound_type({"__var_ref"})->get_llvm_type());
+						program_scope->put_bound_type(bound_type);
+						return type_bind;
+					}
+				}
+			}
+
+			assert(!status);
+			return nullptr;
+		}
+
+		atom::set unbound_vars(atom::set bound_vars) const {
+			not_impl();
+			return atom::set{};
+		}
+
+		ref dequantify(atom::set generics) const {
+			return null_impl();
+		}
+	};
+
+	struct term_sum_binder : public term {
+		term_sum_binder(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				types::term::ref supertype,
+				ptr<ast::item const> node,
+				types::term::ref term_sum) :
+			builder(builder),
+			scope(scope),
+			supertype(supertype),
+			node(node),
+			term_sum(term_sum)
+		{}
+		virtual ~term_sum_binder() {}
+
+		llvm::IRBuilder<> &builder;
+		scope_t::ref scope;
+		types::term::ref const supertype;
+		ptr<ast::item const> const node;
+		types::term::ref const term_sum;
+
+		virtual std::ostream &emit(std::ostream &os) const {
+			os << "(" << supertype->str();
+			os << " {sum: ";
+			os << term_sum->str();
+			os << "})";
+			return os;
+		}
+
+		ref apply(ref operand) const {
+			return types::term_sum_binder(builder, scope,
+					types::term_apply(supertype, operand), node,
+					term_sum->apply(operand));
+		}
+
+		virtual ref evaluate(map env) const {
+			return shared_from_this();
+		}
+
+		virtual type::ref get_type(status_t &status) const {
+			/* get or instantiate the appropriate sum type for this
+			 * base type */
+			debug_above(6, log(log_info, "getting type for %s",
+						str().c_str()));
+
+			auto program_scope = scope->get_program_scope();
+			auto supertype_type = supertype->get_type(status);
+			if (!!status) {
+				auto supertype_signature = supertype_type->get_signature();
+				auto already_bound_type = scope->get_bound_type(supertype_signature);
+
 				if (already_bound_type != nullptr) {
 					/* if somebody has already instantiated this type, then we
 					 * don't need to continue. it may mean that we are recursing,
 					 * and now is a good time to stop. */
-					return final_type;
+					return supertype_type;
 				}
 
-				/* start by registering a placeholder handle for the data ctor's
+				/* make sure to connect the supertype's signature with the
+				 * sum term so that it can be found later for pattern matching
+				 * option validation */
+				scope->put_type_decl_term(supertype_signature, shared_from_this());
+
+				/* register the sum type's data ctor's
 				 * actual final type */
-				auto bound_type_handle = bound_type_t::create_handle(
-						final_type,
+				auto bound_type = bound_type_t::create_handle(
+						supertype_type,
 						program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
 
-				program_scope->put_bound_type(bound_type_handle);
-
-				// TODO: plumb this status through get_type
-				status_t status;
-				bound_type_t::refs args;
-				resolve_type_ref_params(status, builder, scope, data_ctor_args, args);
-
-				if (!!status) {
-					auto final_bound_type = create_algebraic_data_type(
-							builder, scope, id, args, member_index, node,
-							final_type);
-					return final_type;
-				}
+				program_scope->put_bound_type(bound_type);
+				return supertype_type;
 			}
-
 			assert(!status);
 			return nullptr;
 		}
@@ -420,5 +522,16 @@ namespace types {
    	{
 		return make_ptr<struct term_binder>(builder, scope, id, node,
 				data_ctor_sig, member_index);
+	}
+
+	term::ref term_sum_binder(
+			llvm::IRBuilder<> &builder,
+			ptr<struct scope_t> scope,
+			types::term::ref signature,
+			ptr<ast::item const> node,
+			types::term::ref term_sum)
+	{
+		return make_ptr<struct term_sum_binder>(builder, scope, signature, node,
+				term_sum);
 	}
 };

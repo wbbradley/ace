@@ -742,6 +742,81 @@ ptr<while_block> while_block::parse(parse_state_t &ps) {
 	}
 }
 
+ptr<pattern_block> pattern_block::parse(parse_state_t &ps) {
+	dbg();
+#if 0
+	chomp_token(tk_is);
+
+	expect_token(tk_identifier);
+	zion_token_t name_token = ps.token;
+	ps.advance();
+
+	std::vector<type_ref::ref> type_ref_params;
+
+	if (ps.token.tk == tk_lparen) {
+		ps.advance();
+		while (!!ps.status) {
+			type_ref::ref type_ref = ast::type_ref::parse(ps, type_variables);
+			if (!!ps.status) {
+				type_ref_params.push_back(type_ref);
+			}
+			if (ps.token.tk != tk_comma) {
+				break;
+			}
+			ps.advance();
+		}
+		if (!!ps.status) {
+			chomp_token(tk_rparen);
+		}
+	}
+
+	if (!!ps.status) {
+		return ast::create<pattern_block>(name_token, type_variables,
+				type_ref_params);
+	} else {
+		return nullptr;
+	}
+#endif
+	return null_impl();
+}
+
+ptr<when_block> when_block::parse(parse_state_t &ps) {
+	auto when_block = create<ast::when_block>(ps.token);
+	chomp_token(tk_when);
+	auto value = expression::parse(ps);
+	if (!!ps.status) {
+		when_block->value.swap(value);
+		if (ps.token.tk == tk_indent) {
+			/* this is a multi_pattern_block */
+			chomp_token(tk_indent);
+			while (ps.token.tk == tk_is) {
+				auto pattern_block = pattern_block::parse(ps);
+				if (!!ps.status) {
+					when_block->pattern_blocks.push_back(pattern_block);
+				}
+			}
+			if (ps.token.tk == tk_else) {
+				when_block->else_block = block::parse(ps);
+			}
+			chomp_token(tk_outdent);
+		} else {
+			/* this is a single_pattern_block */
+			auto pattern_block = pattern_block::parse(ps);
+			when_block->pattern_blocks.push_back(pattern_block);
+			if (ps.token.tk == tk_else) {
+				when_block->else_block = block::parse(ps);
+			}
+		}
+		if (when_block->pattern_blocks.size() == 0) {
+			ps.error("when block did not have subsequent patterns to match");
+		}
+		return when_block;
+	} else {
+		assert(!ps.status);
+		return nullptr;
+	}
+}
+
 ptr<function_decl> function_decl::parse(parse_state_t &ps) {
 	chomp_token(tk_def);
 

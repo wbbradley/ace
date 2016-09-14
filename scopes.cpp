@@ -43,13 +43,22 @@ ptr<module_scope_t> scope_t::get_module_scope() {
 void scope_t::put_type_term(atom name, types::term::ref type_term) {
 	debug_above(2, log(log_info, "registering type term " c_term("%s") " as %s",
 			name.c_str(), type_term->str().c_str()));
+	assert(type_env.find(name) == type_env.end());
 	type_env[name] = type_term;
 }
 
 void scope_t::put_type_decl_term(atom name, types::term::ref type_term) {
-	debug_above(2, log(log_info, "registering type decl term " c_term("%s") " as %s",
-			name.c_str(), type_term->str().c_str()));
-	type_decl_env[name] = type_term;
+	auto iter = type_decl_env.find(name);
+   	if (iter == type_decl_env.end()) {
+		debug_above(2, log(log_info, "registering type decl term " c_term("%s") " as %s",
+					name.c_str(), type_term->str().c_str()));
+		type_decl_env[name] = type_term;
+	} else {
+		debug_above(8, log(log_info, "type decl term " c_term("%s") " has already been registered as %s",
+					name.c_str(), type_decl_env[name]->str().c_str()));
+		/* this term may have already been registered. */
+		assert(type_decl_env[name]->str() == type_term->str());
+	}
 }
 
 types::term::map scope_t::get_type_env() const {
@@ -194,33 +203,33 @@ std::string scope_t::make_fqn(std::string leaf_name) const {
 }
 
 bound_type_t::ref scope_t::get_bound_type(types::signature signature) {
-	indent_logger indent(8, string_format("checking whether %s is bound...",
+	indent_logger indent(9, string_format("checking whether %s is bound...",
 				signature.str().c_str()));
 	auto full_signature = types::signature{make_fqn(signature.repr().str())};
 	auto bound_type = get_program_scope()->get_bound_type(full_signature);
 	if (bound_type != nullptr) {
-		debug_above(8, log(log_info, "yep. %s is bound to %s",
+		debug_above(9, log(log_info, "yep. %s is bound to %s",
 					signature.str().c_str(),
 					bound_type->str().c_str()));
 		return bound_type;
 	} else {
-		debug_above(8, log(log_info, "nope. %s is not yet bound",
+		debug_above(9, log(log_info, "nope. %s is not yet bound",
 					signature.str().c_str()));
 		return get_parent_scope()->get_bound_type(signature);
 	}
 }
 
 bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
-	indent_logger indent(8, string_format("checking program scope whether %s is bound...",
+	indent_logger indent(9, string_format("checking program scope whether %s is bound...",
 				signature.str().c_str()));
 	auto iter = bound_types.find(signature);
 	if (iter != bound_types.end()) {
-		debug_above(8, log(log_info, "yep. %s is bound to %s",
+		debug_above(9, log(log_info, "yep. %s is bound to %s",
 					signature.str().c_str(),
 					iter->second->str().c_str()));
 		return iter->second;
 	} else {
-		debug_above(8, log(log_info, "nope. %s is not yet bound",
+		debug_above(9, log(log_info, "nope. %s is not yet bound",
 					signature.str().c_str()));
 		return nullptr;
 	}

@@ -4,6 +4,8 @@ link module std
 type B{X} has
 	var x X
 
-# error: say something about the fact that C doesn't exist
+type Sum{X} is Foo(X)
+
+# error: unable to find a definition for C\{int\}
 def do(b C{int})
 	std.print(b.x)

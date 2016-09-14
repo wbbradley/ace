@@ -1,0 +1,27 @@
+module _
+# test: skip
+
+type ListInt is Node(int, ListInt) or Done
+
+type Fruit is Apples(str, int) or Bananas(float)
+
+def how_many(f Fruit) int
+	when f
+		is Apples(x)
+			return x
+		is Bananas(x)
+			return x
+
+def len(l ListInt) int
+	when l
+		is Done
+			return 0
+		is Node(x, xs)
+			return len(xs) + 1
+
+def main()
+	f := Apples(3303)
+	f := Bananas(3.03)
+	print(how_many(f))
+	l := Done
+	len(l)
