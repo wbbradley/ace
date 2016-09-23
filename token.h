@@ -41,6 +41,7 @@ enum token_kind
 	// Types
 	tk_any, /* any */
 	tk_type, /* type */
+	tk_typeid, /* type */
 	tk_is, /* is */
 	tk_has, /* has */
 	tk_matches, /* matches */

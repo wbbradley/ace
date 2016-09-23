@@ -30,6 +30,7 @@ token_kind translate_tk(token_kind tk, const zion_string_t &token_text) {
 		{"to", tk_to},
 		{"true", tk_true},
 		{"type", tk_type},
+		{"typeid", tk_typeid},
 		{"var", tk_var},
 		{"while", tk_while},
 		{"when", tk_when},
