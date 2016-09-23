@@ -112,6 +112,12 @@ namespace ast {
 		}
 	}
 
+	void typeid_expr::render(render_state_t &rs) const {
+		rs.ss << C_TYPE << tkstr(tk_typeid) << C_RESET << "(";
+		expr->render(rs);
+		rs.ss << ")";
+	}
+
 	void callsite_expr::render(render_state_t &rs) const {
 		function_expr->render(rs);
 		params->render(rs);

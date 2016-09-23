@@ -1,0 +1,4 @@
+module _
+
+def main()
+	typeid(3)

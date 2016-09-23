@@ -70,6 +70,9 @@ namespace ast {
 	item::~item() throw() {
 	}
 
+	typeid_expr::typeid_expr(ptr<expression> expr) : expr(expr) {
+	}
+
 	type_alias::type_alias(type_ref::ref type_ref, identifier::set type_variables) :
 		type_variables(type_variables),
 		type_ref(type_ref)

@@ -67,7 +67,8 @@ postfix_expr   ::= base_expr (callsite_expr | dot_expr | array_index)*
 callsite_expr  ::= '(' param_list ')'
 dot_expr       ::= '.' identifier
 array_index    ::= '[' expr ']'
-base_expr      ::= '(' tuple_expr ')' | reference_expr | literal_expr
+base_expr      ::= '(' tuple_expr ')' | reference_expr | typeid_expr | literal_expr
+typeid_expr    ::= 'typeid' '(' assignment ')'
 reference_expr ::= identifier
 literal_expr   ::= integer | string | boolean | float | vector | function
 
