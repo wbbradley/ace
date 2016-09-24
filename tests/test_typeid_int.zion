@@ -1,0 +1,8 @@
+module _
+# test: pass
+
+type Foo is Bar
+
+def main()
+	var i int = 0
+	typeid(i)

@@ -17,6 +17,13 @@ char *__str_float(zion_float_t x) {
 	return strdup(onstack);
 }
 
+char *__str_type_id(type_id_t x) {
+	char onstack[12];
+	snprintf(onstack, sizeof(onstack), "%d", x);
+	onstack[sizeof(onstack) - 1] = 0;
+	return strdup(onstack);
+}
+
 char *__str_str(char *x) {
 	return x;
 }

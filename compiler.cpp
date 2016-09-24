@@ -227,6 +227,7 @@ void add_globals(
 	auto llvm_module_float = compiler.llvm_load_ir(status, "build/rt_float.llir");
 	auto llvm_module_str = compiler.llvm_load_ir(status, "build/rt_str.llir");
 	auto llvm_module_gc = compiler.llvm_load_ir(status, "build/rt_gc.llir");
+	auto llvm_module_typeid = compiler.llvm_load_ir(status, "build/rt_typeid.llir");
 
 	/* set up the global scalar types, as well as memory reference and garbage
 	 * collection types */
@@ -267,7 +268,11 @@ void add_globals(
 
 			{"str", llvm_module_str, "__str_int", {"int"}, "str"},
 			{"str", llvm_module_str, "__str_float", {"float"}, "str"},
+			{"str", llvm_module_str, "__str_type_id", {"__type_id"}, "str"},
 			{"str", llvm_module_str, "__str_str", {"str"}, "str"},
+
+			{"__ineq__", llvm_module_typeid, "__type_id_ineq_type_id", {"__type_id", "__type_id"}, "int"},
+			{"__eq__", llvm_module_typeid, "__type_id_eq_type_id", {"__type_id", "__type_id"}, "int"},
 
 			{"__plus__",   llvm_module_str, "__str_plus_str", {"str", "str"}, "str"},
 
@@ -311,6 +316,7 @@ void add_globals(
 			{"__push_stack_var", llvm_module_gc, "push_stack_var", {"__var_ref"}, "void"},
 			{"__pop_stack_var", llvm_module_gc, "pop_stack_var", {"__var_ref"}, "void"},
 			{"__create_var", llvm_module_gc, "create_var", {"str", "__mark_fn", "__type_id", "__byte_count"}, "__var_ref"},
+			{"__get_var_type_id", llvm_module_gc, "get_var_type_id", {"__var_ref"}, "__type_id"},
 		};
 
 		for (auto &binding : bindings) {

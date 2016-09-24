@@ -781,6 +781,52 @@ bound_var_t::ref ast::plus_expr::resolve_instantiation(
 			shared_from_this(), function_name);
 }
 
+bound_var_t::ref call_typeid(
+		status_t &status,
+		scope_t::ref scope,
+		ast::item::ref callsite,
+		identifier::ref id,
+	   	llvm::IRBuilder<> &builder,
+		bound_var_t::ref resolved_value)
+{
+	debug_above(4, log(log_info, "getting typeid of %s",
+				resolved_value->type->str().c_str()));
+	auto program_scope = scope->get_program_scope();
+
+	auto llvm_type = resolved_value->type->get_llvm_type();
+	auto llvm_obj_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
+	bool is_obj = (llvm_type == llvm_obj_type);
+	auto name = string_format("typeid(%s)", resolved_value->str().c_str());
+
+	if (is_obj) {
+		auto get_typeid_function = program_scope->get_bound_variable(status,
+				callsite, "__get_var_type_id");
+		if (!!status) {
+			return create_callsite(
+					status,
+					builder,
+					scope,
+					callsite,
+					get_typeid_function,
+					name,
+					id->get_location(),
+					{resolved_value});
+		}
+	} else {
+		return bound_var_t::create(
+				INTERNAL_LOC(),
+				string_format("typeid(%s)", resolved_value->str().c_str()),
+				program_scope->get_bound_type({"int"}),
+				llvm_create_int(builder, resolved_value->type->get_type()->get_signature().iatom),
+				id,
+				false/*is_lhs*/);
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
+
 bound_var_t::ref ast::typeid_expr::resolve_instantiation(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
@@ -788,7 +834,18 @@ bound_var_t::ref ast::typeid_expr::resolve_instantiation(
 	   	local_scope_t::ref *new_scope,
 	   	bool *returns) const
 {
-	return null_impl();
+	auto resolved_value = expr->resolve_instantiation(status,
+			builder,
+			scope,
+			nullptr,
+			returns);
+
+	if (!!status) {
+		return call_typeid(status, scope, shared_from_this(), make_code_id(token), builder, resolved_value);
+	}
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref ast::function_defn::resolve_instantiation(
@@ -1420,7 +1477,7 @@ bound_var_t::ref ast::block::resolve_instantiation(
 
     scope_t::ref current_scope = scope;
 
-    assert(builder.GetInsertBlock() != nullptr);
+	assert(builder.GetInsertBlock() != nullptr);
 
 	for (auto &statement : statements) {
 		if (*returns) {
@@ -1444,7 +1501,8 @@ bound_var_t::ref ast::block::resolve_instantiation(
 			}
 		} else {
 			if (!status.reported_on_error_at(statement->get_location())) {
-				user_error(status, statement->get_location(), "while checking this statement");
+				user_error(status, statement->get_location(), "while checking %s",
+						statement->str().c_str());
 			}
 			break;
 		}

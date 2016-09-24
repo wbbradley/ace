@@ -500,12 +500,17 @@ bound_var_t::ref get_or_create_tuple_ctor(
 			node, args, data_type, name);
 
 	if (!!status) {
-		bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(status, node, "__create_var");
+		bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(
+				status, node, "__create_var");
 
 		assert(!!status);
 		assert(mem_alloc_var != nullptr);
 
 		llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_deref_type(data_type->get_llvm_type()));
+
+		auto signature = get_function_return_type(function->type->get_type())->get_signature();
+		debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
+					signature.c_str(), signature.iatom));
 
 		llvm::Value *llvm_create_var_call_value = llvm_create_call_inst(
 				status, builder, *node,
@@ -519,7 +524,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 							program_scope->get_bound_type({"__mark_fn"})->get_llvm_type()),
 
 					/* the type_id */
-					builder.getInt32(function->type->get_signature().repr().iatom),
+					builder.getInt32(signature.iatom),
 
 					/* allocation size */
 					llvm_sizeof_tuple

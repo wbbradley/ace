@@ -1,0 +1,18 @@
+module _
+link module std
+# test: pass
+
+type Boo is Hiss or Cow
+
+# Note that this function returns an int, because we don't yet
+# support creating bools
+def test(a Boo, b Boo) int
+	return typeid(a) != typeid(b)
+
+def main()
+	i := Cow
+	j := Hiss
+	if test(i, j)
+		std.print("different types")
+	else
+		std.print("same types")

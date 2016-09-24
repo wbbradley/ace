@@ -111,6 +111,7 @@ ZION_RUNTIME = \
 				rt_float.c \
 				rt_str.c \
 				rt_gc.c \
+				rt_typeid.c
 
 ZION_RUNTIME_LLIR = $(addprefix $(BUILD_DIR)/,$(ZION_RUNTIME:.c=.llir))
 

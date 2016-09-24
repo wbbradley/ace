@@ -1,8 +1,6 @@
 /* the zion garbage collector */
 #include "zion_rt.h"
 
-typedef int32_t type_id_t;
-
 const type_id_t SENTINEL_TYPE_ID = -1;
 const type_id_t STACK_REF_TYPE_ID = -2;
 
@@ -194,10 +192,14 @@ void print_stack(struct zion_thread_t *thread) {
 	fprintf(stdout, "total allocated %lu\n", total);
 }
 
+type_id_t get_var_type_id(struct var_t *var) {
+	return var->type_id;
+}
+
 struct var_t *create_var(
 		const char *name,
 		mark_fn_t mark_fn,
-		int32_t type_id,
+		type_id_t type_id,
 		size_t object_size)
 {
 	/*compute the size of the allocation we'll want to do */
