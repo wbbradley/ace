@@ -1,0 +1,11 @@
+module _
+link module std
+# test: pass
+
+type Point{T} is
+	Cartesian(T, T) or
+	Radial(T, T)
+
+def main()
+	var p = Cartesian(2.4, 1.0)
+	std.print(p[0])

@@ -94,6 +94,14 @@ bound_var_t::ref type_check_bound_var_decl(
 						/* try to continue without the initializer just to
 						 * get more feedback for the user */
 						init_var.reset();
+					} else {
+						/* if there is a declared_term, let's make sure we compute the final bound type
+						 * so that we can use the declared type for this variable, rather than the actual
+						 * type of the right-hand side. there is covariance in var_decl assignment. */
+						auto final_type = declared_term->get_type(status)->rebind(unification.bindings);
+						if (!!status) {
+							type = upsert_bound_type(status, builder, scope, final_type);
+						}
 					}
 				}
 			} 
@@ -1497,7 +1505,7 @@ bound_var_t::ref ast::block::resolve_instantiation(
 				 * let's allow this by just keeping track of the current scope. */
 				current_scope = next_scope;
 				next_scope = nullptr;
-				debug_above(8, log(log_info, "got a new scope %s", current_scope->str().c_str()));
+				debug_above(10, log(log_info, "got a new scope %s", current_scope->str().c_str()));
 			}
 		} else {
 			if (!status.reported_on_error_at(statement->get_location())) {

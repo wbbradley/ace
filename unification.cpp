@@ -223,12 +223,27 @@ unification_t unify(
 				"unify(" c_term("%s") ", " c_term("%s") ", %s)",
 				lhs->str().c_str(), rhs->str().c_str(), str(env).c_str()));
 
+	auto lhs_type = lhs->get_type(status);
+	auto rhs_type = rhs->get_type(status);
 	unification_t unification = unify_core(
-		   	lhs->evaluate(env)->get_type(status),
-		   	rhs->evaluate(env)->get_type(status),
-		   	env,
-		   	{}, 0 /*depth*/);
-	assert(!!status);
-	return unification;
+			lhs_type, rhs_type,
+			env,
+			{}, 0 /*depth*/);
+
+	if (unification.result) {
+		return unification;
+	} else {
+		/* straight unification did not work, let's try evaluating the types
+		 * to see whether they will unify after substitution */
+		auto lhs_type = lhs->evaluate(env)->get_type(status);
+		auto rhs_type = rhs->evaluate(env)->get_type(status);
+		unification_t unification = unify_core(
+				lhs_type, rhs_type,
+				env,
+				{}, 0 /*depth*/);
+
+		assert(!!status);
+		return unification;
+	}
 }
 

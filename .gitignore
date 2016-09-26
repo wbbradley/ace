@@ -17,5 +17,6 @@ rt_gc
 *.ll
 *.html
 *.pyc
-tests/test_*
+play/*
+tests/*
 !**/*.zion
