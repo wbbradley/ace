@@ -137,7 +137,7 @@ value_semantics: build/value_semantics.o
 	$(LINKER) $(LINKER_OPTS) $< -o value_semantics
 
 .PHONY: test
-test: zion
+test: zionc
 	ALL_TESTS=1 ./$(ZION_TARGET) test
 
 .PHONY: test-html

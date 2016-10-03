@@ -22,8 +22,8 @@ using namespace ast;
 #define expect_token_or_return(_tk, fail_code) \
 	do { \
 		if (ps.token.tk != _tk) { \
-			ps.error("expected %s, got %s [at %s:%d]", tkstr(_tk), tkstr(ps.token.tk), \
-					__FILE__, __LINE__); \
+			ps.error("expected '%s', got '%s'", \
+				   	tkstr(_tk), tkstr(ps.token.tk)); \
 			dbg(); \
 			return fail_code; \
 		} \
@@ -1064,6 +1064,7 @@ type_decl::ref type_decl::parse(parse_state_t &ps) {
 
 ptr<type_def> type_def::parse(parse_state_t &ps) {
 	chomp_token(tk_type);
+	expect_token(tk_identifier);
 	auto type_def = create<ast::type_def>(ps.token);
 	type_def->type_decl = type_decl::parse(ps);
 	if (!!ps.status) {
@@ -1075,6 +1076,14 @@ ptr<type_def> type_def::parse(parse_state_t &ps) {
 
 	assert(!ps.status);
 	return nullptr;
+}
+
+ptr<tag> tag::parse(parse_state_t &ps) {
+	chomp_token(tk_tag);
+	expect_token(tk_identifier);
+	auto tag = create<ast::tag>(ps.token);
+	ps.advance();
+	return tag;
 }
 
 type_algebra::ref type_algebra::parse(
@@ -1116,9 +1125,9 @@ type_sum::ref type_sum::parse(
 				ps.token.text.c_str());
 	}
 
-	std::vector<data_ctor::ref> data_ctors;
+	type_ref::refs subtypes;
 	while (!!ps.status) {
-		data_ctors.push_back(data_ctor::parse(ps, type_variables));
+		subtypes.push_back(type_ref::parse(ps, type_variables));
 
 		if (ps.token.tk != tk_or) {
 			break;
@@ -1129,10 +1138,15 @@ type_sum::ref type_sum::parse(
 
 	if (!!ps.status) {
 		if (expect_outdent) {
-			chomp_token(tk_outdent);
+			if (ps.token.tk == tk_lparen) {
+				ps.error("subtypes of a supertype must be separated by the '" c_type("or") "' keyword");
+				return nullptr;
+			} else {
+				chomp_token(tk_outdent);
+			}
 		}
 
-		return create<type_sum>(is_token, data_ctors);
+		return create<type_sum>(is_token, subtypes);
 	} else {
 		return nullptr;
 	}
@@ -1239,6 +1253,7 @@ dimension::ref dimension::parse(parse_state_t &ps, identifier::set generics) {
 		name = primary_token.text;
 		ps.advance();
 	} else {
+		ps.error("not sure what's going on here");
 		wat();
 		expect_token(tk_identifier);
 		primary_token = ps.token;
@@ -1246,41 +1261,6 @@ dimension::ref dimension::parse(parse_state_t &ps, identifier::set generics) {
 
 	return create<ast::dimension>(primary_token, name,
 			ast::type_ref::parse(ps, generics));
-}
-
-data_ctor::ref data_ctor::parse(
-		parse_state_t &ps,
-		identifier::set type_variables)
-{
-	expect_token(tk_identifier);
-	zion_token_t name_token = ps.token;
-	ps.advance();
-
-	std::vector<type_ref::ref> type_ref_params;
-
-	if (ps.token.tk == tk_lparen) {
-		ps.advance();
-		while (!!ps.status) {
-			type_ref::ref type_ref = ast::type_ref::parse(ps, type_variables);
-			if (!!ps.status) {
-				type_ref_params.push_back(type_ref);
-			}
-			if (ps.token.tk != tk_comma) {
-				break;
-			}
-			ps.advance();
-		}
-		if (!!ps.status) {
-			chomp_token(tk_rparen);
-		}
-	}
-
-	if (!!ps.status) {
-		return ast::create<data_ctor>(name_token, type_variables,
-				type_ref_params);
-	} else {
-		return nullptr;
-	}
 }
 
 ptr<module> module::parse(parse_state_t &ps) {
@@ -1306,6 +1286,13 @@ ptr<module> module::parse(parse_state_t &ps) {
 				auto function = function_defn::parse(ps);
 				if (function) {
 					module->functions.push_back(std::move(function));
+				} else {
+					assert(!ps.status);
+				}
+			} else if (ps.token.tk == tk_tag) {
+				auto tag = tag::parse(ps);
+				if (tag) {
+					module->tags.push_back(std::move(tag));
 				} else {
 					assert(!ps.status);
 				}

@@ -48,6 +48,17 @@ void scope_setup_type_def(
 			unchecked_type_t::create({obj.token.text}, obj.shared_from_this(), module_scope));
 }
 
+void scope_setup_tag(
+		status_t &status,
+	   	const ast::tag &obj,
+	   	ptr<module_scope_t> module_scope)
+{
+	assert(obj.token.text.size() != 0);
+	module_scope->put_unchecked_type(
+			status,
+			unchecked_type_t::create({obj.token.text}, obj.shared_from_this(), module_scope));
+}
+
 status_t scope_setup_module(compiler &compiler, const ast::module &obj) {
 	status_t status;
 	auto module_name = obj.decl->get_canonical_name();
@@ -61,7 +72,11 @@ status_t scope_setup_module(compiler &compiler, const ast::module &obj) {
 
    	compiler.set_module_scope(obj.module_key, module_scope);
 
-	/* add any unchecked types, links, or variables to this module */
+	/* add any unchecked tags, types, links, or variables to this module */
+	for (auto &tag : obj.tags) {
+		scope_setup_tag(status, *tag, module_scope);
+	}
+
 	for (auto &type_def : obj.type_defs) {
 		scope_setup_type_def(status, *type_def, module_scope);
 	}

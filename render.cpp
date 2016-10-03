@@ -312,6 +312,12 @@ namespace ast {
 		block->render(rs);
 	}
 
+	void tag::render(render_state_t &rs) const {
+		rs.ss << C_TYPE << tkstr(tk_tag) << C_RESET << " ";
+		rs.ss << C_ID << token.text << C_RESET;
+		newline(rs);
+	}
+
 	void type_def::render(render_state_t &rs) const {
 		rs.ss << tkstr(tk_type) << " ";
 		type_decl->render(rs);
@@ -321,36 +327,21 @@ namespace ast {
 
 	void type_sum::render(render_state_t &rs) const {
 		rs.ss << tkstr(tk_is);
-		if (data_ctors.size() <= 1) {
+		if (subtypes.size() <= 1) {
 			rs.ss << " ";
-			data_ctors[0]->render(rs);
+			subtypes[0]->render(rs);
 		} else {
 			newline(rs);
 			indented(rs);
-			for (int i = 0; i < data_ctors.size(); ++i) {
+			for (int i = 0; i < subtypes.size(); ++i) {
 				if (i > 0) {
 					rs.ss << " " << tkstr(tk_or);
 					newline(rs);
 				}
 
 				indent(rs);
-				data_ctors[i]->render(rs);
+				subtypes[i]->render(rs);
 			}
-		}
-	}
-
-	void data_ctor::render(render_state_t &rs) const {
-		rs.ss << token.text;
-		if (type_ref_params.size() != 0) {
-			rs.ss << "(";
-			for (int i = 0; i < type_ref_params.size(); ++i) {
-				if (i > 0) {
-					rs.ss << ", ";
-				}
-
-				type_ref_params[i]->render(rs);
-			}
-			rs.ss << ")";
 		}
 	}
 

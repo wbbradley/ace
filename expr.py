@@ -258,39 +258,6 @@ class DefMacro(object):
         return self
 
 
-class TermRef(object):
-    def __init__(self, macro, args):
-        self.macro = macro
-        self.args = args or []
-
-    def __str__(self):
-        return u"(ref %s)" % ' '.join(
-            str(arg) for arg in [self.macro] + self.args)
-
-    def __repr__(self):
-        return u"TermRef(%s)" % ', '.join(
-            repr(arg) for arg in [self.macro] + self.args)
-
-    def _term(self):
-        if len(self.args) > 0:
-            return reduce(TermApply, [self.macro] + self.args)
-        else:
-            return self.macro
-
-    def evaluate(self, env, macro_depth):
-        if macro_depth > 0:
-            term = self._term()
-            return term.evaluate(env, macro_depth - 1)
-        else:
-            return TermRef(self.macro,
-                           [arg.evaluate(env, macro_depth)
-                            for arg in self.args])
-
-    def get_type(self):
-        return TypeRef(self.macro.get_type(),
-                       [arg.get_type() for arg in self.args])
-
-
 class Unify(object):
     def __init__(self, outbound, inbound):
         self.outbound = outbound
@@ -364,8 +331,6 @@ def lambdify_build(p):
         elif p[0] == 'any':
             assert len(p) == 2
             return TermGeneric(p[1])
-        elif p[0] == 'ref':
-            return TermRef(lambdify(p[1]), [lambdify(x) for x in p[2:]])
         elif p[0] == 'or':
             return TermSum([lambdify(item) for item in p[1:]])
         elif p[0] == 'and':
@@ -464,35 +429,6 @@ class TypeVariable(object):
             # trying to bind to a type implementation before lowering, it must
             # be protected by a ref so that we don't have to know its size.
             return TypeUnreachable()
-
-
-class TypeRef(object):
-
-    def __init__(self, macro, args):
-        self.macro = macro
-        self.args = args
-
-    def __str__(self):
-        assert not "Must have bindings context."
-
-    def __repr__(self):
-        return "TypeRef(%r, %r)" % (self.macro, self.args)
-
-    def to_str(self, bindings):
-        if self.args:
-            return "(ref %s %s)" % (
-                self.macro.to_str(bindings),
-                ' '.join(arg.to_str(bindings) for arg in self.args))
-        else:
-            return "(ref %s)" % self.macro.to_str(bindings)
-
-    def to_lambda(self, bindings):
-        return TermRef(self.macro.to_lambda(bindings),
-                       [arg.to_lambda(bindings) for arg in self.args])
-
-    def fully_bind(self, bindings):
-        return TypeRef(self.macro,
-                       [arg.fully_bind(bindings) for arg in self.args])
 
 
 class TypeOperator(object):
@@ -622,26 +558,6 @@ def unify_terms(env, outbound, inbound):
     return ret, details, bindings
 
 
-def unroll(type_, env, bindings):
-    """Handle macro expansion of one level."""
-    # TypeRefs can be expanded.
-    if isinstance(type_, TypeRef):
-        ref_lambdified = type_.to_lambda(bindings)
-        ref_reduced = ref_lambdified.evaluate(env, 1)
-        try:
-            log("Unrolled:\n\t%r\n\t%s" % (
-                type_,
-                ref_reduced.get_type().to_str(bindings)), 3)
-        except AssertionError:
-            import pdb
-            pdb.set_trace()
-            pass
-
-        return ref_reduced.get_type()
-    else:
-        return type_
-
-
 def no_cycles(unify):
     """Prevent cycles during unification."""
     _visited = {}
@@ -683,22 +599,6 @@ def unify(outbound_type, inbound_type, env, bindings):
 
     a = pruned_a
     b = pruned_b
-
-    if a.to_str(bindings) == b.to_str(bindings):
-        return True, '', bindings
-
-    if isinstance(a, TypeRef) and isinstance(b, TypeRef):
-        a_macro_term = a.macro.to_lambda(bindings).evaluate(env)
-        b_macro_term = b.macro.to_lambda(bindings).evaluate(env)
-        if repr(a_macro_term) == repr(b_macro_term):
-            return unify(reduce(TypeOperator, a.args),
-                         reduce(TypeOperator, b.args),
-                         env, bindings)
-        else:
-            print "unmatched refs: %r %r" % (a_macro_term, b_macro_term)
-
-    a = unroll(a, env, bindings)
-    b = unroll(b, env, bindings)
 
     if a.to_str(bindings) == b.to_str(bindings):
         return True, '', bindings

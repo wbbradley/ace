@@ -1,8 +1,11 @@
 module _
 link module std
 
-# error: data constructors cannot be named the same as their supertype
-type Box{X} is Box(X)
+type Box{T} has
+	var t T
+
+# error: type term already exists
+type Box{X} is Box{X}
 
 def main()
 	x := Box(1)

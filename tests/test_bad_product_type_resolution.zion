@@ -4,7 +4,7 @@ link module std
 type B{X} has
 	var x X
 
-type Sum{X} is Foo(X)
+type Sum{X} is B{X}
 
 # error: unable to find a definition for C\{int\}
 def do(b C{int})

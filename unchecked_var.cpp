@@ -26,7 +26,7 @@ types::term::ref unchecked_var_t::get_term() const {
 				if (!param->type_ref) {
 					args.push_back(types::term_generic());
 				} else {
-					args.push_back(param->type_ref->get_type_term());
+					args.push_back(param->type_ref->get_type_term({}));
 				}
 			}
 
@@ -34,7 +34,7 @@ types::term::ref unchecked_var_t::get_term() const {
 				/* get the return type term */
 				types::term::ref sig = get_function_term(
 						get_args_term(args),
-						decl->return_type_ref->get_type_term());
+						decl->return_type_ref->get_type_term({}));
 
 				debug_above(9, log(log_info, "found unchecked term for %s : %s",
 							decl->token.str().c_str(),

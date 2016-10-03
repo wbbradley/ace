@@ -1,8 +1,14 @@
 module _
 # test: pass
 
+type Node{T} has
+	var value T
+	var next List{T}
+
+tag Done
+
 type List{X} is
-	Node(X, List{X}) or
+	Node{X} or
 	Done
 
 # def print(l List{any X})

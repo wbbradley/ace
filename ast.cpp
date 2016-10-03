@@ -60,13 +60,6 @@ namespace ast {
 		}
 	}
 
-	data_ctor::data_ctor(
-			identifier::set type_variables,
-			std::vector<type_ref::ref> type_ref_params) :
-		type_variables(type_variables), type_ref_params(type_ref_params)
-	{
-	}
-
 	item::~item() throw() {
 	}
 
@@ -84,8 +77,8 @@ namespace ast {
 	{
 	}
 
-	type_sum::type_sum(std::vector<data_ctor::ref> data_ctors) :
-		data_ctors(data_ctors)
+	type_sum::type_sum(type_ref::refs subtypes) :
+		subtypes(subtypes)
 	{
 	}
 

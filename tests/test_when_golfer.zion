@@ -1,0 +1,20 @@
+module when_contact
+link module std
+
+type Athlete is Golfer(str, str)
+
+def recognize_golfer(athlete Athlete)
+	when athlete
+		is Golfer("Arnold", "Palmer")
+			std.print("RIP")
+		is Golfer(var x, var x)
+			std.print("golfer has the same first name as their last name?")
+		is Golfer("Tiger", var last)
+			std.print("probably Tiger Woods")
+		is Golfer(var first, var last)
+			std.print("i guess you are " + first + " " + last)
+	else
+		std.print("who are you?")
+
+def main()
+	recognize_golfer(Golfer("Arnold", "Woods"))

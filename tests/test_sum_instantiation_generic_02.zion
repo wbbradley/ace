@@ -3,9 +3,16 @@ link module std
 
 # test: pass
 
+type BigBox{T} has
+	var t T
+
+type Crate{P, Q} has
+	var p P
+	var q Q
+
 type Box{X, Y} is
-	BigBox(X) or
-	Crate(X, Y)
+	BigBox{X} or
+	Crate{X, Y}
 
 def main()
 	x := BigBox("yay this works")

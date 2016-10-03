@@ -3,9 +3,14 @@ link module std
 
 # test: pass
 
-type PhoneNumber is
-	Local(int) or
-	Intl(int, int)
+type Local has
+	var number int
+
+type Intl has
+	var country_code int
+	var number int
+
+type PhoneNumber is Local or Intl
 
 def main()
 	number := Local(100)

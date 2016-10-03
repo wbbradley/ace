@@ -27,6 +27,7 @@ token_kind translate_tk(token_kind tk, const zion_string_t &token_text) {
 		{"or", tk_or},
 		{"pass", tk_pass},
 		{"return", tk_return},
+		{"tag", tk_tag},
 		{"to", tk_to},
 		{"true", tk_true},
 		{"type", tk_type},

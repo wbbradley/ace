@@ -28,24 +28,24 @@ namespace ast {
 	{
 	}
 
-	types::term::ref type_ref_named::get_type_term() const {
+	types::term::ref type_ref_named::get_type_term(identifier::refs type_variables) const {
 		return term;
 	}
 
-	types::term::ref type_ref_list::get_type_term() const {
+	types::term::ref type_ref_list::get_type_term(identifier::refs type_variables) const {
 		return get_list_term(type_ref);
 	}
 
-	types::term::ref type_ref_tuple::get_type_term() const {
+	types::term::ref type_ref_tuple::get_type_term(identifier::refs type_variables) const {
 		types::term::refs terms;
 		for (auto &type_ref: type_refs) {
-			terms.push_back(type_ref->get_type_term());
+			terms.push_back(type_ref->get_type_term(type_variables));
 		}
 
 		return types::term_product(pk_tuple, terms);
 	}
 
-	types::term::ref type_ref_generic::get_type_term() const {
+	types::term::ref type_ref_generic::get_type_term(identifier::refs type_variables) const {
 		return term;
 	}
 }

@@ -37,7 +37,7 @@ bound_type_t::ref get_fully_bound_param_info(
 	assert(obj.type_ref != nullptr);
 
 	/* the user specified a type */
-	auto term = obj.type_ref->get_type_term();
+	auto term = obj.type_ref->get_type_term({});
 	debug_above(6, log(log_info, "upserting type for param %s at %s",
 				term->str().c_str(),
 				obj.type_ref->get_location().str().c_str()));
@@ -74,7 +74,7 @@ bound_var_t::ref type_check_bound_var_decl(
 
 		if (!!status) {
 			if (obj.type_ref && init_var) {
-				auto declared_term = obj.type_ref->get_type_term();
+				auto declared_term = obj.type_ref->get_type_term({});
 				assert(type != nullptr);
 				unification_t unification = unify(
 						status,
@@ -189,7 +189,7 @@ bound_type_t::ref get_return_type_from_return_type_expr(
     /* lookup the alias, default to void */
     if (type_ref != nullptr) {
 		return upsert_bound_type(status, builder, scope,
-				type_ref->get_type_term());
+				type_ref->get_type_term({}));
     } else {
 		/* user specified no return type, default to void */
 		return scope->get_program_scope()->get_bound_type({"void"});
@@ -236,7 +236,7 @@ bool is_function_defn_generic(status_t &status, scope_t::ref scope, const ast::f
 							param->str().c_str()));
 				return true;
 			}
-			types::term::ref term = param->type_ref->get_type_term();
+			types::term::ref term = param->type_ref->get_type_term({});
 
 			if (term->is_generic(status, scope->get_type_env())) {
 				debug_above(3, log(log_info, "found a generic parameter type on %s",
@@ -250,7 +250,7 @@ bool is_function_defn_generic(status_t &status, scope_t::ref scope, const ast::f
 
 	if (obj.decl->return_type_ref) {
 		/* check the return type's genericity */
-		types::term::ref term = obj.decl->return_type_ref->get_type_term();
+		types::term::ref term = obj.decl->return_type_ref->get_type_term({});
 		return term->is_generic(status, scope->get_type_env());
 	} else {
 		/* default to void, which is fully bound */
@@ -1068,13 +1068,21 @@ status_t type_check_module_types(
 			/* prevent recurring checks */
 			debug_above(5, log(log_info, "checking module level type %s", node->token.str().c_str()));
 
+			/* these next lines create type definitions, regardless of
+			 * their genericity.  type expressions will be added as
+			 * environment variables in the type system.  this step is
+			 * MUTATING the type environment of the module, and the
+			 * program. */
 			if (auto type_def = dyncast<const ast::type_def>(node)) {
-				/* NB: this next line creates type definitions, regardless of
-				 * their genericity.  type expressions will be added as macros
-				 * in the type system.  this step is MUTATING the type
-				 * environment of the module, and the program. */
 				status_t status;
 				type_def->resolve_instantiation(
+						status, builder, module_scope, nullptr, nullptr);
+
+				/* take note of whether this failed or not */
+				final_status |= status;
+			} else if (auto tag = dyncast<const ast::tag>(node)) {
+				status_t status;
+				tag->resolve_instantiation(
 						status, builder, module_scope, nullptr, nullptr);
 
 				/* take note of whether this failed or not */
@@ -1130,8 +1138,6 @@ status_t type_check_module_variables(
 
 					/* take note of whether this failed or not */
 					final_status |= status;
-				} else if (auto data_ctor = dyncast<const ast::data_ctor>(node)) {
-					/* ignore until instantiation at a callsite */
 				} else if (auto data_ctor = dyncast<const ast::type_product>(node)) {
 					/* ignore until instantiation at a callsite */
 				} else {
@@ -1180,9 +1186,48 @@ status_t type_check_program(
     return status;
 }
 
-bound_var_t::ref ast::type_def::resolve_instantiation(
+bound_var_t::ref ast::tag::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+        local_scope_t::ref *new_scope,
+		bool * /*returns*/) const
+{
+	auto id = make_code_id(token);
+	atom tag_name = id->get_name();
+	auto tag_term = types::term_id(id);
+
+	/* it's a nullary enumeration or "tag", let's create a global value to
+	 * represent this tag. */
+
+	auto tag_type = tag_term->get_type(status);
+	if (!!status) {
+		/* start by making a type for the tag */
+		bound_type_t::ref bound_tag_type = bound_type_t::create(
+				tag_type,
+				id->get_location(),
+				/* all tags use the var_t* type */
+				scope->get_program_scope()->get_bound_type({"__var_ref"})->get_llvm_type());
+
+		scope->get_program_scope()->put_bound_type(bound_tag_type);
+		bound_var_t::ref tag = llvm_create_global_tag(
+				builder, scope, bound_tag_type, tag_name, id);
+
+		/* record this tag variable for use later */
+		scope->put_bound_variable(tag_name, tag);
+
+		debug_above(7, log(log_info, "instantiated nullary data ctor %s",
+					tag->str().c_str()));
+		return tag;
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
+bound_var_t::ref ast::type_def::resolve_instantiation(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
         scope_t::ref scope,
         local_scope_t::ref *new_scope,
 		bool * /*returns*/) const

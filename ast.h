@@ -183,17 +183,18 @@ namespace ast {
 
 	struct type_ref : public item {
 		typedef ptr<const type_ref> ref;
+		typedef std::vector<ptr<const type_ref>> refs;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual ~type_ref() throw() {}
 
-		virtual types::term::ref get_type_term() const = 0;
+		virtual types::term::ref get_type_term(identifier::refs type_variables) const = 0;
 	};
 
 	struct type_ref_named : public type_ref {
 		static const syntax_kind_t SK = sk_type_ref_named;
 
 		type_ref_named(types::term::ref term);
-		virtual types::term::ref get_type_term() const;
+		virtual types::term::ref get_type_term(identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
@@ -204,7 +205,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_ref_list;
 
 		type_ref_list(type_ref::ref type_ref);
-		virtual types::term::ref get_type_term() const;
+		virtual types::term::ref get_type_term(identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
@@ -215,7 +216,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_ref_tuple;
 
 		type_ref_tuple(std::vector<type_ref::ref> type_ref);
-		virtual types::term::ref get_type_term() const;
+		virtual types::term::ref get_type_term(identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
@@ -226,7 +227,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_ref_generic;
 
 		type_ref_generic(types::term::ref term);
-		virtual types::term::ref get_type_term() const;
+		virtual types::term::ref get_type_term(identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
@@ -244,24 +245,6 @@ namespace ast {
 
 		atom name;
 		type_ref::ref type_ref;
-	};
-
-	struct data_ctor : public item {
-		typedef ptr<const data_ctor> ref;
-		static const syntax_kind_t SK = sk_data_ctor;
-
-		data_ctor(identifier::set type_variables, std::vector<type_ref::ref> type_ref_params);
-		static ref parse(parse_state_t &ps, identifier::set type_variables);
-		virtual void render(render_state_t &rs) const;
-		types::term::ref instantiate_type_term(
-				status_t &status,
-				llvm::IRBuilder<> &builder,
-				identifier::ref supertype_id,
-				identifier::refs type_variables,
-				scope_t::ref scope) const;
-
-		identifier::set type_variables;
-		std::vector<type_ref::ref> type_ref_params;
 	};
 
 	struct type_algebra : public item {
@@ -285,7 +268,7 @@ namespace ast {
 	struct type_sum : public type_algebra {
 		typedef ptr<const type_sum> ref;
 
-		type_sum(std::vector<data_ctor::ref> data_ctors);
+		type_sum(type_ref::refs subtypes);
 		virtual ~type_sum() throw() {}
 		static const syntax_kind_t SK = sk_type_sum;
 		static ref parse(parse_state_t &ps, identifier::refs type_variables);
@@ -297,7 +280,7 @@ namespace ast {
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
-		std::vector<data_ctor::ref> data_ctors;
+		type_ref::refs subtypes;
 	};
 
 	struct type_product : public type_algebra {
@@ -348,6 +331,16 @@ namespace ast {
 
 		type_decl::ref type_decl;
 		type_algebra::ref type_algebra;
+	};
+
+	struct tag : public statement {
+		typedef ptr<const tag> ref;
+
+		static const syntax_kind_t SK = sk_tag;
+		static ptr<tag> parse(parse_state_t &ps);
+		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual void render(render_state_t &rs) const;
+		// TODO: track type variables on tags to aid in deserialization and marshalling
 	};
 
 	struct var_decl : public statement {
@@ -653,6 +646,7 @@ namespace ast {
 
 		ptr<module_decl> decl;
 		std::vector<ptr<type_def>> type_defs;
+		std::vector<ptr<tag>> tags;
 		std::vector<ptr<function_defn>> functions;
 		std::vector<ptr<link_module_statement>> linked_modules;
 		std::vector<ptr<link_function_statement>> linked_functions;

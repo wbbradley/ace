@@ -117,7 +117,7 @@ void ast::type_product::register_type(
 	types::term::refs term_dimensions;
 	int index = 0;
 	for (auto dimension : dimensions) {
-		term_dimensions.push_back(dimension->type_ref->get_type_term());
+		term_dimensions.push_back(dimension->type_ref->get_type_term(type_variables));
 		member_index[dimension->name] = index++;
 	}
 
@@ -144,31 +144,26 @@ void ast::type_sum::register_type(
 				token.text.c_str(),
 				join(type_variables, ", ").c_str()));
 
-	types::term::refs subtypes;
-	for (auto product_ctor : data_ctors) {
-		auto subtype = product_ctor->instantiate_type_term(status, builder,
-				supertype_id, type_variables, scope);
-		if (!!status) {
-			assert(subtype != nullptr);
-			subtypes.push_back(subtype);
-		}
+	types::term::refs subtypes_terms;
+	for (auto subtype : subtypes) {
+		subtypes_terms.push_back(subtype->get_type_term(type_variables));
+		// TODO: register the subtype -> supertype mapping in the type env for
+		// this subtype.
 	}
 
-	if (!!status) {
-		types::term::ref term_sum = types::term_sum(subtypes);
-		for (auto iter=type_variables.rbegin();
-			   iter != type_variables.rend();
-			   ++iter)
-	   	{
-			term_sum = types::term_lambda(*iter, term_sum);
-		}
-
-		/* register the type declaration of this sum type. */
-		types::term::ref term_sum_binder = types::term_sum_binder(builder, scope,
-				types::term_id(supertype_id), shared_from_this(), term_sum);
-
-		scope->put_type_decl_term(supertype_id->get_name(), term_sum_binder);
+	types::term::ref term_sum = types::term_sum(subtypes_terms);
+	for (auto iter=type_variables.rbegin();
+			iter != type_variables.rend();
+			++iter)
+	{
+		term_sum = types::term_lambda(*iter, term_sum);
 	}
+
+	/* register the type declaration of this sum type. */
+	types::term::ref term_sum_binder = types::term_sum_binder(builder, scope,
+			types::term_id(supertype_id), shared_from_this(), term_sum);
+
+	scope->put_type_decl_term(supertype_id->get_name(), term_sum_binder);
 }
 
 types::term::ref instantiate_data_ctor_type_term(
@@ -328,6 +323,7 @@ types::term::ref instantiate_data_ctor_type_term(
 	return nullptr;
 }
 
+#if 0
 types::term::ref ast::data_ctor::instantiate_type_term(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -347,6 +343,7 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 			type_variables, scope, shared_from_this(),
 			dimensions, {} /*member_index*/, id, supertype_id);
 }
+#endif
 
 types::term::ref register_data_ctor(
 		status_t &status,
@@ -405,4 +402,3 @@ types::term::ref register_data_ctor(
 	assert(!status);
 	return nullptr;
 }
-

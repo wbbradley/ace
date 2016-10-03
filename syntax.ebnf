@@ -8,24 +8,24 @@ type_def       ::= ('type' type_decl ) type_algebra
 type_decl  ::= identifier ('{' identifier (',' identifier)* '}' )?
 
 type_ref       ::=
- ( '[' type_ref ']' )
- | ( '{' type_ref (',' type_ref)+ '}' )
- | identifier ('{' type_ref (',' type_ref)* '}' )?
- | ('any' identifier?)
+ ( '[' type_ref ( ',' type_ref )* ']' )
+ | ( '{' type_ref ':' type_ref '}' )
+ | ('(' type_ref ( 'or' type_ref )+ ')' )?
+ | ('any' identifier?) ( '{' type_ref ( ',' type_ref )*  '}' )?
+ | identifier ( '{' type_ref ( ',' type_ref )* '}' )?
+ | 'def' '(' type_ref ( ',' type_ref )* ')' type_ref?
 
 type_algebra   ::=
  ( 'is' type_sum )
  | ( 'has' type_product )
  | ( 'matches' type_ref )
 
-data_ctor      ::= identifier ( '(' type_ref (',' type_ref)* ')' )?
-type_sum       ::= data_ctor ( 'or' data_ctor )*
-
+type_sum       ::= type_ref ( 'or' type_ref )*
 dimension      ::= ('var' identifier)? type_ref
 type_product   ::= dimension+
 
 function       ::= function_decl block
-function_decl ::= 'def' identifier? '(' param_list_decl ')' type_ref
+function_decl  ::= 'def' identifier? '(' param_list_decl ')' type_ref
 block          ::= indent (statement)* outdent
 param_list_decl::= var_decl (',' var_decl)*
 param_list     ::= expr (',' expr)*

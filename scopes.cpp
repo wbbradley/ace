@@ -286,8 +286,7 @@ void get_callables_from_unchecked_vars(
 	if (iter != unchecked_vars.end()) {
 		const unchecked_var_t::overload_vector &overloads = iter->second;
 		for (auto &var : overloads) {
-			assert(dyncast<const ast::data_ctor>(var->node) ||
-					dyncast<const ast::function_defn>(var->node) ||
+			assert(dyncast<const ast::function_defn>(var->node) ||
 					dyncast<const ast::type_product>(var->node));
 			fns.push_back(var);
 		}

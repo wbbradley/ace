@@ -2,6 +2,10 @@ module _
 
 def foo()
 	# error: local type definitions are not yet impl
-	type Vector2d is Double(float, float)
+	type Double has
+		var x float
+		var y float
+
+	type Vector2d is Double
 
 	x := Double(0.4, 1.3)

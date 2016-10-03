@@ -91,6 +91,7 @@ const char *tkstr(token_kind tk) {
 	tk_case(string);
 	tk_case(times);
 	tk_case(times_eq);
+	tk_case(tag);
 	tk_case(to);
 	tk_case(true);
 	tk_case(type);
@@ -165,6 +166,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_return:
 	case tk_string:
 	case tk_times:
+	case tk_tag:
 	case tk_to:
 	case tk_type:
 	case tk_var:
@@ -261,6 +263,9 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 		break;
 	case tk_def:
 		printf("def");
+		break;
+	case tk_tag:
+		printf("tag");
 		break;
 	case tk_true:
 		printf("true");

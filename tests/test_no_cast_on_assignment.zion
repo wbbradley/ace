@@ -2,10 +2,18 @@ module _
 link module std
 # test: pass
 
+type Cartesian{T} has
+	var x T
+	var y T
+
+type Radial{T} has
+	var radius T
+	var theta T
+	
 type Point{T} is
-	Cartesian(T, T) or
-	Radial(T, T)
+	Cartesian{T} or
+	Radial{T}
 
 def main()
 	var p = Cartesian(2.4, 1.0)
-	std.print(p[0])
+	std.print(p.x)
