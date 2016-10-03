@@ -23,6 +23,10 @@ identifier::ref make_iid_impl(const char *name, struct location location) {
 	return make_ptr<iid>(atom{name}, location);
 }
 
+std::string str(identifier::refs ids) {
+	return std::string("[") + join(ids, ", ") + "]";
+}
+
 identifier::set to_set(identifier::refs identifiers) {
 	identifier::set set;
 	std::for_each(

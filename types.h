@@ -76,6 +76,7 @@ namespace types {
 
 		/* which type variables exist unbound in this type term? */
 		virtual atom::set unbound_vars(atom::set bound_vars={}) const = 0;
+		virtual identifier::ref get_id() const;
 
 		virtual ref evaluate(map env) const = 0;
 		virtual ref apply(ref operand) const;

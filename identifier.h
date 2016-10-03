@@ -37,6 +37,7 @@ struct iid : public identifier {
 	virtual std::string str() const;
 };
 
+std::string str(identifier::refs ids);
 identifier::ref make_iid_impl(atom name, struct location location);
 identifier::ref make_iid_impl(const char *name, struct location location);
 

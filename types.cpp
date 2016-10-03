@@ -21,6 +21,10 @@ namespace types {
 		return term_apply(shared_from_this(), operand);
 	}
 
+	identifier::ref term::get_id() const {
+		return null_impl();
+	}
+
 	namespace terms {
 		const char *UNREACHABLE = "void";
 
@@ -54,6 +58,10 @@ namespace types {
 			term_id(identifier::ref id) : id(id) {}
 			virtual ~term_id() {}
 			identifier::ref id;
+
+			identifier::ref get_id() const {
+				return id;
+			}
 
 			std::ostream &emit(std::ostream &os) const {
 				os << id;
@@ -119,6 +127,7 @@ namespace types {
 			}
 
 			type::ref get_type(status_t &status) const {
+				dbg();
 				user_error(status, var->get_location(), "attempt to instantiate un-applied lambda type expression");
 				return nullptr;
 			}
@@ -284,6 +293,10 @@ namespace types {
 			term_apply(term::ref fn, term::ref arg) : fn(fn), arg(arg) {}
 			term::ref fn;
 			term::ref arg;
+
+			identifier::ref get_id() const {
+				return fn->get_id();
+			}
 
 			std::ostream &emit(std::ostream &os) const {
 				os << fn << "{" << arg << "}";

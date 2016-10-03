@@ -133,6 +133,78 @@ void ast::type_product::register_type(
 			nullptr /*supertype_id*/);
 }
 
+void create_supertype_relationship(
+		status_t &status,
+	   	types::term::ref subtype_term,
+		identifier::ref subtype_id,
+		identifier::ref supertype_id,
+		identifier::refs type_variables,
+	   	scope_t::ref scope,
+		std::list<identifier::ref> &lambda_vars,
+		atom::set &generics)
+{
+	assert(generics.size() == 0);
+	assert(lambda_vars.size() == 0);
+	debug_above(5, log(log_info, "create_supertype_relationship(%s, %s, %s)",
+				subtype_term->str().c_str(),
+				(supertype_id != nullptr) ? supertype_id->str().c_str() : "<no supertype>",
+				::str(type_variables).c_str()));
+
+	/* create a term that takes the used type variables in the data ctor and
+	 * returns placement in given type variable order */
+	/* instantiate the necessary components of a data ctor */
+	generics = to_atom_set(type_variables);
+
+	/* ensure that there are no duplicate type variables */
+	assert(generics.size() == type_variables.size());
+
+	atom tag_name = subtype_id->get_name();
+	debug_above(5, log(log_info, "setting up data ctor for " c_id("%s") " with value type %s",
+					tag_name.c_str(), subtype_term->str().c_str()));
+
+	/* figure out what type names are referenced in the data ctor's dimensions */
+	atom::set unbound_vars = subtype_term->unbound_vars();
+
+	/* if any of the type names are actually inbound type variables, take note
+	 * of the order they are mentioned. this loop is important. it is
+	 * calculating what this data ctor's supertype expansion will be. that is,
+	 * it tells us how to create the lambda we'll place into the type
+	 * environment to represent the fact that this data ctor is a subtype of
+	 * the supertype. and, it tells us which types are parametrically bound to
+	 * this subtype, and which are still quantified */
+
+	/* supertype_expansion_list tracks the total set of parameters that the
+	 * supertype expects */
+	types::term::refs supertype_expansion_list;
+
+	for (auto type_var : type_variables) {
+		if (in(type_var->get_name(), unbound_vars)) {
+			/* this variable is referenced by the current data ctor (the
+			 * subtype), therefore it has opinions about its role in the
+			 * supertype */
+			lambda_vars.push_front(type_var);
+			supertype_expansion_list.push_back(types::term_id(type_var));
+		} else {
+			/* this variable is not referenced by the current data ctor (the
+			 * subtype), therefore it has no opinions about its role in the
+			 * supertype */
+			supertype_expansion_list.push_back(types::term_generic());
+		}
+	}
+
+	if (supertype_id != nullptr) {
+		/* now let's create the abstraction */
+		auto supertype_expansion = types::term_id(supertype_id);
+		for (auto e : supertype_expansion_list) {
+			supertype_expansion = types::term_apply(supertype_expansion, e);
+		}
+		for (auto lambda_var : lambda_vars) {
+			supertype_expansion = types::term_lambda(lambda_var, supertype_expansion);
+		}
+		scope->put_type_term(tag_name, supertype_expansion);
+	}
+}
+
 void ast::type_sum::register_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -146,9 +218,16 @@ void ast::type_sum::register_type(
 
 	types::term::refs subtypes_terms;
 	for (auto subtype : subtypes) {
-		subtypes_terms.push_back(subtype->get_type_term(type_variables));
-		// TODO: register the subtype -> supertype mapping in the type env for
-		// this subtype.
+		auto subtype_term = subtype->get_type_term(type_variables);
+		subtypes_terms.push_back(subtype_term);
+
+		std::list<identifier::ref> lambda_vars;
+		atom::set generics;
+		/* register the subtype -> supertype mapping in the type env for this
+		 * subtype. */
+		create_supertype_relationship(status, subtype_term,
+				subtype_term->get_id(), supertype_id, type_variables, scope,
+				lambda_vars, generics);
 	}
 
 	types::term::ref term_sum = types::term_sum(subtypes_terms);
@@ -180,62 +259,16 @@ types::term::ref instantiate_data_ctor_type_term(
 	atom tag_name = id->get_name();
 	auto tag_term = types::term_id(id);
 
-	/* create a term that takes the used type variables in the data ctor and
-	 * returns placement in given type variable order */
-	/* instantiate the necessary components of a data ctor */
-	atom::set generics = to_atom_set(type_variables);
-
-	/* ensure that there are no duplicate type variables */
-	assert(generics.size() == type_variables.size());
-
 	auto product = types::term_product(pk_tuple, dimensions);
-	debug_above(5, log(log_info, "setting up data ctor for " c_id("%s") " with value type %s",
-					tag_name.c_str(), product->str().c_str()));
-
-	/* figure out what type names are referenced in the data ctor's dimensions */
-	atom::set unbound_vars = product->unbound_vars();
-
-	/* if any of the type names are actually inbound type variables, take note
-	 * of the order they are mentioned. this loop is important. it is
-	 * calculating what this data ctor's supertype expansion will be. that is,
-	 * it tells us how to create the lambda we'll place into the type
-	 * environment to represent the fact that this data ctor is a subtype of
-	 * the supertype. and, it tells us which types are parametrically bound to
-	 * this subtype, and which are still quantified */
 
 	/* lambda_vars tracks the order of the lambda variables we'll accept as we abstract our
 	 * supertype expansion */
 	std::list<identifier::ref> lambda_vars;
-
-	/* supertype_expansion_list tracks the total set of parameters that the
-	 * supertype expects */
-	types::term::refs supertype_expansion_list;
-
-	for (auto type_var : type_variables) {
-		if (in(type_var->get_name(), unbound_vars)) {
-			/* this variable is referenced by the current data ctor (the
-			 * subtype), therefore it has opinions about its role in the
-			 * supertype */
-			lambda_vars.push_front(type_var);
-			supertype_expansion_list.push_back(types::term_id(type_var));
-		} else {
-			/* this variable is not referenced by the current data ctor (the
-			 * subtype), therefore it has no opinions about its role in the
-			 * supertype */
-			supertype_expansion_list.push_back(types::term_generic());
-		}
-	}
+	atom::set generics;
 
 	if (supertype_id != nullptr) {
-		/* now let's create the abstraction */
-		auto supertype_expansion = types::term_id(supertype_id);
-		for (auto e : supertype_expansion_list) {
-			supertype_expansion = types::term_apply(supertype_expansion, e);
-		}
-		for (auto lambda_var : lambda_vars) {
-			supertype_expansion = types::term_lambda(lambda_var, supertype_expansion);
-		}
-		scope->put_type_term(tag_name, supertype_expansion);
+		create_supertype_relationship(status, product, id, supertype_id,
+				type_variables, scope, lambda_vars, generics);
 	}
 
 	/* let's create the return type that will be the codomain of the ctor fn */

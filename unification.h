@@ -11,10 +11,7 @@ struct unification_t {
 	unification_t(
 			bool result,
 			std::string reasons,
-			types::type::map bindings) :
-		result(result),
-		reasons(reasons),
-		bindings(bindings) {}
+			types::type::map bindings);
 
 	std::string str() const { return reasons + " " + ::str(bindings); }
 

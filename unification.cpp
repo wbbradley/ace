@@ -6,6 +6,19 @@
 #include "types.h"
 #include "unification.h"
 
+unification_t::unification_t(
+		bool result,
+		std::string reasons,
+		types::type::map bindings) :
+	result(result),
+	reasons(reasons),
+	bindings(bindings)
+{
+	debug_above(10, log(log_info, "unification result {%s, %s, %s}",
+				result ? "success" : "failure", reasons.c_str(),
+				::str(bindings).c_str()));
+}
+
 types::type::ref prune(types::type::ref t, types::type::map bindings) {
 	/* Follow the links across the bindings to reach the final binding. */
 	atom type_variable_name;
@@ -62,6 +75,9 @@ unification_t unify_core(
 		log(log_error, "unification depth is getting big...");
 		dbg();
 	}
+
+	assert(lhs != nullptr);
+	assert(rhs != nullptr);
 
 	debug_above(7, log(log_info, "unify_core(%s, %s, %s, %s)",
 			   	lhs->str().c_str(),
@@ -233,17 +249,22 @@ unification_t unify(
 	if (unification.result) {
 		return unification;
 	} else {
+		debug_above(10, log(log_info, "straight unification did not work"));
+
 		/* straight unification did not work, let's try evaluating the types
 		 * to see whether they will unify after substitution */
 		auto lhs_type = lhs->evaluate(env)->get_type(status);
 		auto rhs_type = rhs->evaluate(env)->get_type(status);
-		unification_t unification = unify_core(
-				lhs_type, rhs_type,
-				env,
-				{}, 0 /*depth*/);
-
-		assert(!!status);
-		return unification;
+		if (!!status) {
+			unification_t unification = unify_core(
+					lhs_type, rhs_type,
+					env,
+					{}, 0 /*depth*/);
+			assert(!!status);
+			return unification;
+		} else {
+			return {false, "error during unification", {}};
+		}
 	}
 }
 
