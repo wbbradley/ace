@@ -30,8 +30,7 @@ compiler::compiler(std::string program_name_, const libs &zion_paths) :
 	zion_paths(make_ptr<std::vector<std::string>>(zion_paths)),
    	builder(llvm_context)
 {
-	auto program_symbol = string_format("program-%s", program_name.c_str());
-	program_scope = program_scope_t::create(program_symbol);
+	program_scope = program_scope_t::create("");
 }
 
 void compiler::info(const char *format, ...) {
@@ -184,6 +183,8 @@ void rt_bind_var_from_llir(
 	}
 }
 
+const char *INT_TYPE = "__int__";
+
 void add_global_types(
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
@@ -195,7 +196,7 @@ void add_global_types(
 	std::vector<std::pair<atom, bound_type_t::ref>> globals = {
 		{{"void"}, bound_type_t::create(type_id(make_iid("void")), INTERNAL_LOC(), builder.getVoidTy())},
 		{{"module"}, bound_type_t::create(type_id(make_iid("module")), INTERNAL_LOC(), builder.getVoidTy())},
-		{{"int"}, bound_type_t::create(type_id(make_iid("int")), INTERNAL_LOC(), builder.getInt64Ty())},
+		{{INT_TYPE}, bound_type_t::create(type_id(make_iid(INT_TYPE)), INTERNAL_LOC(), builder.getInt64Ty())},
 		{{"float"}, bound_type_t::create(type_id(make_iid("float")), INTERNAL_LOC(), builder.getFloatTy())},
 		{{"bool"}, bound_type_t::create(type_id(make_iid("bool")), INTERNAL_LOC(), builder.getInt1Ty())},
 		{{"str"}, bound_type_t::create(type_id(make_iid("str")), INTERNAL_LOC(), builder.getInt8Ty()->getPointerTo())},
@@ -258,60 +259,60 @@ void add_globals(
 		};
 
 		auto bindings = std::vector<binding_t>{
-			{"int", llvm_module_int, "__int_int", {"int"}, "int"},
-			{"int", llvm_module_int, "__int_float", {"float"}, "int"},
-			{"int", llvm_module_int, "__int_str", {"str"}, "int"},
+			{INT_TYPE, llvm_module_int, "__int_int", {INT_TYPE}, INT_TYPE},
+			{INT_TYPE, llvm_module_int, "__int_float", {"float"}, INT_TYPE},
+			{INT_TYPE, llvm_module_int, "__int_str", {"str"}, INT_TYPE},
 
-			{"float", llvm_module_float, "__float_int", {"int"}, "float"},
+			{"float", llvm_module_float, "__float_int", {INT_TYPE}, "float"},
 			{"float", llvm_module_float, "__float_float", {"float"}, "float"},
 			{"float", llvm_module_float, "__float_str", {"str"}, "float"},
 
-			{"str", llvm_module_str, "__str_int", {"int"}, "str"},
+			{"str", llvm_module_str, "__str_int", {INT_TYPE}, "str"},
 			{"str", llvm_module_str, "__str_float", {"float"}, "str"},
 			{"str", llvm_module_str, "__str_type_id", {"__type_id"}, "str"},
 			{"str", llvm_module_str, "__str_str", {"str"}, "str"},
 
-			{"__ineq__", llvm_module_typeid, "__type_id_ineq_type_id", {"__type_id", "__type_id"}, "int"},
-			{"__eq__", llvm_module_typeid, "__type_id_eq_type_id", {"__type_id", "__type_id"}, "int"},
+			{"__ineq__", llvm_module_typeid, "__type_id_ineq_type_id", {"__type_id", "__type_id"}, INT_TYPE},
+			{"__eq__", llvm_module_typeid, "__type_id_eq_type_id", {"__type_id", "__type_id"}, INT_TYPE},
 
 			{"__plus__",   llvm_module_str, "__str_plus_str", {"str", "str"}, "str"},
 
-			{"__plus__", llvm_module_int, "__int_plus_int", {"int", "int"}, "int"},
-			{"__minus__", llvm_module_int, "__int_minus_int", {"int", "int"}, "int"},
-			{"__times__", llvm_module_int, "__int_times_int", {"int", "int"}, "int"},
-			{"__divide__", llvm_module_int, "__int_divide_int", {"int", "int"}, "int"},
-			{"__modulo__", llvm_module_int, "__int_modulus_int", {"int", "int"}, "int"},
+			{"__plus__", llvm_module_int, "__int_plus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
+			{"__minus__", llvm_module_int, "__int_minus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
+			{"__times__", llvm_module_int, "__int_times_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
+			{"__divide__", llvm_module_int, "__int_divide_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
+			{"__modulo__", llvm_module_int, "__int_modulus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
 
 			/* bitmasking */
-			{"mask", llvm_module_int, "__int_mask_int", {"int", "int"}, "int"},
+			{"mask", llvm_module_int, "__int_mask_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
 
-			{"__negative__", llvm_module_int, "__int_neg", {"int"}, "int"},
-			{"__positive__", llvm_module_int, "__int_pos", {"int"}, "int"},
+			{"__negative__", llvm_module_int, "__int_neg", {INT_TYPE}, INT_TYPE},
+			{"__positive__", llvm_module_int, "__int_pos", {INT_TYPE}, INT_TYPE},
 
 			{"__negative__", llvm_module_float, "__float_neg", {"float"}, "float"},
 			{"__positive__", llvm_module_float, "__float_pos", {"float"}, "float"},
 
-			{"__plus__", llvm_module_float, "__int_plus_float", {"int", "float"}, "float"},
-			{"__minus__", llvm_module_float, "__int_minus_float", {"int", "float"}, "float"},
-			{"__times__", llvm_module_float, "__int_times_float", {"int", "float"}, "float"},
-			{"__divide__", llvm_module_float, "__int_divide_float", {"int", "float"}, "float"},
+			{"__plus__", llvm_module_float, "__int_plus_float", {INT_TYPE, "float"}, "float"},
+			{"__minus__", llvm_module_float, "__int_minus_float", {INT_TYPE, "float"}, "float"},
+			{"__times__", llvm_module_float, "__int_times_float", {INT_TYPE, "float"}, "float"},
+			{"__divide__", llvm_module_float, "__int_divide_float", {INT_TYPE, "float"}, "float"},
 
-			{"__plus__", llvm_module_float, "__float_plus_int", {"float", "int"}, "float"},
-			{"__minus__", llvm_module_float, "__float_minus_int", {"float", "int"}, "float"},
-			{"__times__", llvm_module_float, "__float_times_int", {"float", "int"}, "float"},
-			{"__divide__", llvm_module_float, "__float_divide_int", {"float", "int"}, "float"},
+			{"__plus__", llvm_module_float, "__float_plus_int", {"float", INT_TYPE}, "float"},
+			{"__minus__", llvm_module_float, "__float_minus_int", {"float", INT_TYPE}, "float"},
+			{"__times__", llvm_module_float, "__float_times_int", {"float", INT_TYPE}, "float"},
+			{"__divide__", llvm_module_float, "__float_divide_int", {"float", INT_TYPE}, "float"},
 
 			{"__plus__", llvm_module_float, "__float_plus_float", {"float", "float"}, "float"},
 			{"__minus__", llvm_module_float, "__float_minus_float", {"float", "float"}, "float"},
 			{"__times__", llvm_module_float, "__float_times_float", {"float", "float"}, "float"},
 			{"__divide__", llvm_module_float, "__float_divide_float", {"float", "float"}, "float"},
 
-			{"__gt__", llvm_module_int, "__int_gt_int", {"int", "int"}, "int"},
-			{"__lt__", llvm_module_int, "__int_lt_int", {"int", "int"}, "int"},
-			{"__gte__", llvm_module_int, "__int_gte_int", {"int", "int"}, "int"},
-			{"__lte__", llvm_module_int, "__int_lte_int", {"int", "int"}, "int"},
-			{"__ineq__", llvm_module_int, "__int_ineq_int", {"int", "int"}, "int"},
-			{"__eq__", llvm_module_int, "__int_eq_int", {"int", "int"}, "int"},
+			{"__gt__", llvm_module_int, "__int_gt_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
+			{"__lt__", llvm_module_int, "__int_lt_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
+			{"__gte__", llvm_module_int, "__int_gte_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
+			{"__lte__", llvm_module_int, "__int_lte_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
+			{"__ineq__", llvm_module_int, "__int_ineq_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
+			{"__eq__", llvm_module_int, "__int_eq_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
 
 			{"__push_stack_var", llvm_module_gc, "push_stack_var", {"__var_ref"}, "void"},
 			{"__pop_stack_var", llvm_module_gc, "pop_stack_var", {"__var_ref"}, "void"},

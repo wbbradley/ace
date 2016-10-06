@@ -1,0 +1,6 @@
+module _
+
+link module std
+
+def main()
+	3

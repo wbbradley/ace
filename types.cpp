@@ -128,7 +128,8 @@ namespace types {
 
 			type::ref get_type(status_t &status) const {
 				dbg();
-				user_error(status, var->get_location(), "attempt to instantiate un-applied lambda type expression");
+				user_error(status, var->get_location(), "attempt to instantiate un-applied lambda type expression %s",
+						str().c_str());
 				return nullptr;
 			}
 

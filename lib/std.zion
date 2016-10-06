@@ -2,6 +2,9 @@ module _
 
 link def puts(x str) int
 
+type int has
+	var value __int__
+
 def print(x any T) void
 	s := str(x)
 	puts(s)

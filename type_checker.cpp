@@ -2,6 +2,7 @@
 #include "logger.h"
 #include "type_checker.h"
 #include "utils.h"
+#include "callable.h"
 #include "compiler.h"
 #include "llvm_zion.h"
 #include "llvm_utils.h"
@@ -1169,17 +1170,17 @@ status_t type_check_program(
     ptr<scope_t> program_scope = compiler.get_program_scope();
     debug_above(11, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
 
-    /* second pass is to resolve all module-level links */
-    for (auto &module : obj.modules) {
-        status |= type_check_module_links(compiler, builder, *module, program_scope);
-    }
-
-    /* third pass is to resolve all module-level types */
+    /* pass to resolve all module-level types */
     for (auto &module : obj.modules) {
 		status |= type_check_module_types(compiler, builder, *module, program_scope);
     }
 
-    /* fourth pass is to resolve all module-level variables */
+    /* pass to resolve all module-level links */
+    for (auto &module : obj.modules) {
+        status |= type_check_module_links(compiler, builder, *module, program_scope);
+    }
+
+    /* pass to resolve all module-level variables */
     for (auto &module : obj.modules) {
         status |= type_check_module_variables(compiler, builder, *module, program_scope);
     }
@@ -1918,13 +1919,34 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
     switch (token.tk) {
     case tk_integer:
         {
+			/* create a boxed integer */
             int64_t value = atoll(token.text.c_str());
+            bound_type_t::ref raw_type = program_scope->get_bound_type({"__int__"});
             bound_type_t::ref type = program_scope->get_bound_type({"int"});
             if (!!status) {
-                return bound_var_t::create(
-						INTERNAL_LOC(), "temp_int_literal", type,
-						llvm_create_int(builder, value), make_code_id(token),
-						false/*is_lhs*/);
+				bound_var_t::ref box_int = get_callable(
+						status,
+						builder,
+						program_scope,
+						{SCOPE_SEP "std" SCOPE_SEP "int"},
+						shared_from_this(),
+						get_args_term({raw_type->get_term()}));
+
+				if (!!status) {
+					assert(box_int != nullptr);
+					return create_callsite(
+							status,
+							builder,
+							scope,
+							shared_from_this(),
+							box_int,
+							{"boxed_int"},
+							get_location(),
+							{bound_var_t::create(
+									INTERNAL_LOC(), "temp_int_literal", type,
+									llvm_create_int(builder, value),
+									make_code_id(token), false/*is_lhs*/)});
+				}
             }
         }
 		break;

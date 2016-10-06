@@ -9,6 +9,8 @@
 #include "unchecked_var.h"
 #include "signature.h"
 
+#define SCOPE_SEP "::"
+
 struct scope_t;
 
 enum resolution_constraints_t {
@@ -183,12 +185,19 @@ struct program_scope_t : public scope_t {
 	module_scope_t::ref lookup_module(atom symbol);
 	std::string dump_llvm_modules();
 
+	unchecked_var_t::ref put_unchecked_variable(atom symbol, unchecked_var_t::ref unchecked_variable);
+
+	virtual void get_callables(atom symbol, var_t::refs &fns);
 	virtual bound_type_t::ref get_bound_type(types::signature signature);
 	void put_bound_type(bound_type_t::ref type);
 
 private:
+	unchecked_var_t::map unchecked_vars;
 	module_scope_t::map modules;
 	bound_type_t::map bound_types;
+
+public:
+	unchecked_var_t::refs unchecked_vars_ordered;
 };
 
 struct function_scope_t : public runnable_scope_t {

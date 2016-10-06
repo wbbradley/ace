@@ -138,7 +138,7 @@ value_semantics: build/value_semantics.o
 
 .PHONY: test
 test: zionc
-	ALL_TESTS=1 ./$(ZION_TARGET) test
+	./$(ZION_TARGET) test
 
 .PHONY: test-html
 test-html: $(ZION_TARGET)
@@ -148,7 +148,7 @@ test-html: $(ZION_TARGET)
 
 .PHONY: dbg
 dbg: $(ZION_TARGET)
-	lldb -s .lldb-script -- ./$(ZION_TARGET) test
+	ALL_TESTS=1 lldb -s .lldb-script -- ./$(ZION_TARGET) test
 
 $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_LLIR)
 	@echo Linking $@

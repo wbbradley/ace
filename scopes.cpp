@@ -8,8 +8,6 @@
 #include "llvm_types.h"
 #include "unification.h"
 
-#define SCOPE_SEP "::"
-
 std::string scope_t::get_name() const {
 	auto parent_scope = this->get_parent_scope();
 	if (parent_scope) {
@@ -304,7 +302,6 @@ void scope_t::get_callables(atom symbol, var_t::refs &fns) {
 }
 
 void module_scope_t::get_callables(atom symbol, var_t::refs &fns) {
-	/* default scope behavior is to look at bound variables */
 	get_callables_from_bound_vars(symbol, bound_vars, fns);
 	get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
 
@@ -312,6 +309,11 @@ void module_scope_t::get_callables(atom symbol, var_t::refs &fns) {
 		/* let's see if our parent scope has any of this symbol */
 		parent_scope->get_callables(symbol, fns);
 	}
+}
+
+void program_scope_t::get_callables(atom symbol, var_t::refs &fns) {
+	get_callables_from_bound_vars(symbol, bound_vars, fns);
+	get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
 }
 
 ptr<local_scope_t> function_scope_t::new_local_scope(atom name) {
@@ -505,9 +507,13 @@ unchecked_type_t::ref module_scope_t::get_unchecked_type(atom symbol) {
 	}
 }
 
-unchecked_var_t::ref module_scope_t::put_unchecked_variable(
+unchecked_var_t::ref put_unchecked_variable_impl(
 		atom symbol,
-		unchecked_var_t::ref unchecked_variable)
+		unchecked_var_t::ref unchecked_variable,
+		unchecked_var_t::map &unchecked_vars,
+		unchecked_var_t::refs &unchecked_vars_ordered,
+		std::string current_scope_name,
+		program_scope_t::ref program_scope)
 {
 	debug_above(2, log(log_info, "registering an unchecked variable %s as %s",
 				symbol.c_str(),
@@ -527,7 +533,31 @@ unchecked_var_t::ref module_scope_t::put_unchecked_variable(
 
 	/* also keep a list of the order in which we encountered these */
 	unchecked_vars_ordered.push_back(unchecked_variable);
+
+	if (program_scope) {
+		program_scope->put_unchecked_variable(
+				current_scope_name + SCOPE_SEP + symbol.str(),
+				unchecked_variable);	
+	}
+
 	return unchecked_variable;
+}
+
+unchecked_var_t::ref module_scope_t::put_unchecked_variable(
+		atom symbol,
+		unchecked_var_t::ref unchecked_variable)
+{
+	return put_unchecked_variable_impl(symbol, unchecked_variable,
+			unchecked_vars, unchecked_vars_ordered, get_name(),
+			get_program_scope());
+}
+
+unchecked_var_t::ref program_scope_t::put_unchecked_variable(
+		atom symbol,
+	   	unchecked_var_t::ref unchecked_variable)
+{
+	return put_unchecked_variable_impl(symbol, unchecked_variable,
+			unchecked_vars, unchecked_vars_ordered, get_name(), nullptr);
 }
 
 void program_scope_t::put_bound_type(bound_type_t::ref type) {

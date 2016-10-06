@@ -266,10 +266,8 @@ types::term::ref instantiate_data_ctor_type_term(
 	std::list<identifier::ref> lambda_vars;
 	atom::set generics;
 
-	if (supertype_id != nullptr) {
-		create_supertype_relationship(status, product, id, supertype_id,
-				type_variables, scope, lambda_vars, generics);
-	}
+	create_supertype_relationship(status, product, id, supertype_id,
+			type_variables, scope, lambda_vars, generics);
 
 	/* let's create the return type that will be the codomain of the ctor fn */
 	auto data_ctor_term = tag_term;

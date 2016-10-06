@@ -222,6 +222,7 @@ bound_var_t::ref get_callable(
 			if (fns.size() == 0) {
 				user_error(status, *callsite, "no function found named " c_id("%s") " for callsite %s",
 					   	alias.c_str(), callsite->str().c_str());
+				log(log_info, "%s", scope->str().c_str());
 			} else {
 				std::stringstream ss;
 				ss << string_format("unable to resolve overloads for " c_id("%s"),
