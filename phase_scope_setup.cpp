@@ -64,11 +64,16 @@ status_t scope_setup_module(compiler &compiler, const ast::module &obj) {
 	auto module_name = obj.decl->get_canonical_name();
 
 	/* create this module's LLVM IR representation */
-	auto llvm_module = compiler.llvm_create_module(module_name);
+	module_scope_t::ref module_scope;
 
-	/* create a new scope for this module */
-	module_scope_t::ref module_scope = compiler.get_program_scope()->new_module_scope(
-			module_name, llvm_module);
+	if (obj.global) {
+		module_scope = compiler.get_program_scope();
+	} else {
+		auto llvm_module = compiler.llvm_create_module(module_name);
+		/* create a new scope for this module */
+		module_scope = compiler.get_program_scope()->new_module_scope(
+				module_name, llvm_module);
+	}
 
    	compiler.set_module_scope(obj.module_key, module_scope);
 

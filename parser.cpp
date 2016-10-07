@@ -1263,11 +1263,11 @@ dimension::ref dimension::parse(parse_state_t &ps, identifier::set generics) {
 			ast::type_ref::parse(ps, generics));
 }
 
-ptr<module> module::parse(parse_state_t &ps) {
+ptr<module> module::parse(parse_state_t &ps, bool global) {
 	auto module_decl = module_decl::parse(ps);
 
 	if (module_decl) {
-		auto module = create<ast::module>(ps.token, ps.filename);
+		auto module = create<ast::module>(ps.token, ps.filename, global);
 		module->decl.swap(module_decl);
 
 		// Get links

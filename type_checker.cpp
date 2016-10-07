@@ -377,7 +377,7 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 
             llvm::Value *llvm_value = llvm::Function::Create(llvm_func_type,
                     llvm::Function::ExternalLinkage, link_as_name.text,
-                    module_scope->llvm_module);
+                    module_scope->get_llvm_module());
 
             /* actually create or find the finalized bound type for this function */
 			bound_type_t::ref bound_function_type = upsert_bound_type(
@@ -1060,8 +1060,9 @@ status_t type_check_module_types(
     /* get module level scope types */
     module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
 
-    for (int i = 0; i < module_scope->unchecked_types_ordered.size(); ++i) {
-		auto unchecked_type = module_scope->unchecked_types_ordered[i];
+	auto unchecked_types_ordered = module_scope->get_unchecked_types_ordered();
+    for (int i = 0; i < unchecked_types_ordered.size(); ++i) {
+		auto unchecked_type = unchecked_types_ordered[i];
 		auto node = unchecked_type->node;
 		if (!module_scope->has_checked(node)) {
 			assert(!dyncast<const ast::function_defn>(node));
@@ -1113,11 +1114,11 @@ status_t type_check_module_variables(
     /* get module level scope variable */
     module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
 
-    for (int i = 0; i < module_scope->unchecked_vars_ordered.size(); ++i) {
+	auto unchecked_vars_ordered = module_scope->get_unchecked_vars_ordered();
+    for (int i = 0; i < unchecked_vars_ordered.size(); ++i) {
 		status_t status;
-		auto unchecked_var = module_scope->unchecked_vars_ordered[i];
-		auto node = unchecked_var->node;
 
+		auto node = unchecked_vars_ordered[i]->node;
 		if (!module_scope->has_checked(node)) {
 			/* prevent recurring checks */
 			debug_above(4, log(log_info, "checking module level variable %s", node->token.str().c_str()));
@@ -1928,7 +1929,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 						status,
 						builder,
 						program_scope,
-						{SCOPE_SEP "std" SCOPE_SEP "int"},
+						{"int"},
 						shared_from_this(),
 						get_args_term({raw_type->get_term()}));
 

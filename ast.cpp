@@ -33,7 +33,7 @@ namespace ast {
 		}
 	}
 
-	module::module(const atom filename) : filename(filename) {
+	module::module(const atom filename, bool global) : global(global), filename(filename) {
 	}
 
 	std::string module::get_canonical_name() const {

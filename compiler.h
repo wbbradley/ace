@@ -39,7 +39,7 @@ struct compiler {
 	void setup_disk_environment(status_t &status);
 
 	void build(status_t &status);
-	void build_parse(status_t &status, location location, std::string module_name);
+	void build_parse(status_t &status, location location, std::string module_name, bool global);
 	void build_parse_linked(status_t &status, ptr<const ast::module> module);
 	std::unordered_set<std::string> compile_modules(status_t &status);
 	int emit_built_program(status_t &status, std::string bitcode_filename);

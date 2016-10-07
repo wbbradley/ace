@@ -636,11 +636,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_module;
 
-		module(const atom filename);
-		static ptr<module> parse(parse_state_t &ps);
+		module(const atom filename, bool global=false);
+		static ptr<module> parse(parse_state_t &ps, bool global=false);
 		std::string get_canonical_name() const;
 		virtual void render(render_state_t &rs) const;
 
+		bool global;
 		atom filename;
 		atom module_key, filename_key;
 

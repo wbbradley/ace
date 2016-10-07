@@ -5,6 +5,9 @@ link def puts(x str) int
 type int has
 	var value __int__
 
+def __plus__(x int, y int) int
+	return int(x.value + y.value)
+
 def print(x any T) void
 	s := str(x)
 	puts(s)

@@ -30,7 +30,7 @@ compiler::compiler(std::string program_name_, const libs &zion_paths) :
 	zion_paths(make_ptr<std::vector<std::string>>(zion_paths)),
    	builder(llvm_context)
 {
-	program_scope = program_scope_t::create("");
+	program_scope = program_scope_t::create("", llvm_create_module(program_name_ + ".global"));
 }
 
 void compiler::info(const char *format, ...) {
@@ -79,7 +79,8 @@ void compiler::build_parse_linked(status_t &status, ptr<const ast::module> modul
 	/* now, recursively make sure that all of the linked modules are parsed */
 	for (auto &link : module->linked_modules) {
 		auto linked_module_name = link->extern_module->get_canonical_name();
-		build_parse(status, link->extern_module->token.location, linked_module_name);
+		build_parse(status, link->extern_module->token.location, linked_module_name,
+			   	false /*global*/);
 
 		if (!status) {
 			break;
@@ -87,7 +88,11 @@ void compiler::build_parse_linked(status_t &status, ptr<const ast::module> modul
 	}
 }
 
-void compiler::build_parse(status_t &status, location location, std::string module_name) {
+void compiler::build_parse(
+		status_t &status, location location,
+	   	std::string module_name,
+		bool global)
+{
 	// TODO: include some notion of versions
 	/* check whether this module has been parsed */
 	auto module_build_state_check = get_module(module_prefix + module_name);
@@ -105,7 +110,7 @@ void compiler::build_parse(status_t &status, location location, std::string modu
 				debug_above(4, log(log_info, "parsing module \"%s\"", module_filename.c_str()));
 				zion_lexer_t lexer({module_filename}, ifs);
 				parse_state_t ps(status, module_filename, lexer, &comments);
-				auto module = ast::module::parse(ps);
+				auto module = ast::module::parse(ps, global);
 
 				/* parse may have succeeded, either way add this module to
 				 * our list of modules */
@@ -344,38 +349,45 @@ void compiler::build(status_t &status) {
 	 * and bring them into our whole ast */
 	auto module_name = program_name;
 
-	build_parse(status, location{"command line build parameters", 0, 0}, module_name);
+	/* always include the standard library */
+	build_parse(status, location{"std lib", 0, 0}, "lib/std", true /*global*/);
 
 	if (!!status) {
-		debug_above(4, log(log_info, "build_parse of %s succeeded", module_name.c_str()));
-
-		/* create the program ast to contain all of the modules */
-		auto program = ast::create<ast::program>({});
-
-		/* next, merge the entire set of modules into one program */
-		for (const auto &module_data_pair : modules) {
-			/* note the use of the set here to ensure that each module is only
-			 * included once */
-			auto module = module_data_pair.second;
-			program->modules.insert(module);
-		}
-
-		/* set up the names that point back into the AST resolved to the right
-		 * module scopes */
-		status = scope_setup_program(*program, *this);
+		build_parse(status, location{"command line build parameters", 0, 0},
+				module_name, false /*global*/);
 
 		if (!!status) {
-			/* set up global types and variables */
-			add_globals(status, *this, builder, program_scope, program);
+			debug_above(4, log(log_info, "build_parse of %s succeeded", module_name.c_str(),
+						false /*global*/));
+
+			/* create the program ast to contain all of the modules */
+			auto program = ast::create<ast::program>({});
+
+			/* next, merge the entire set of modules into one program */
+			for (const auto &module_data_pair : modules) {
+				/* note the use of the set here to ensure that each module is only
+				 * included once */
+				auto module = module_data_pair.second;
+				program->modules.insert(module);
+			}
+
+			/* set up the names that point back into the AST resolved to the right
+			 * module scopes */
+			status = scope_setup_program(*program, *this);
 
 			if (!!status) {
-				status |= type_check_program(builder, *program, *this);
+				/* set up global types and variables */
+				add_globals(status, *this, builder, program_scope, program);
 
 				if (!!status) {
-					debug_above(2, log(log_info, "type checking found no errors"));
-					return;
-				} else {
-					debug_above(2, log(log_info, "type checking found errors"));
+					status |= type_check_program(builder, *program, *this);
+
+					if (!!status) {
+						debug_above(2, log(log_info, "type checking found no errors"));
+						return;
+					} else {
+						debug_above(2, log(log_info, "type checking found errors"));
+					}
 				}
 			}
 		}

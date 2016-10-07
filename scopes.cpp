@@ -8,161 +8,13 @@
 #include "llvm_types.h"
 #include "unification.h"
 
-std::string scope_t::get_name() const {
-	auto parent_scope = this->get_parent_scope();
-	if (parent_scope) {
-		return parent_scope->get_name() + SCOPE_SEP + name.str();
-	} else {
-		return name.str();
-	}
-}
-
-ptr<program_scope_t> program_scope_t::get_program_scope() {
-	return std::static_pointer_cast<program_scope_t>(shared_from_this());
-}
-
-program_scope_t::ref scope_t::get_program_scope() {
-	return get_parent_scope()->get_program_scope();
-}
-
-ptr<module_scope_t> scope_t::get_module_scope() {
-	if (auto module_scope = dyncast<module_scope_t>(shared_from_this())) {
-		return module_scope;
-	} else {
-		auto parent_scope = get_parent_scope();
-		if (parent_scope != nullptr) {
-			return parent_scope->get_module_scope();
-		} else {
-			return nullptr;
-		}
-	}
-}
-
-void scope_t::put_type_term(atom name, types::term::ref type_term) {
-	debug_above(2, log(log_info, "registering type term " c_term("%s") " as %s",
-			name.c_str(), type_term->str().c_str()));
-	assert(type_env.find(name) == type_env.end());
-	type_env[name] = type_term;
-}
-
-void scope_t::put_type_decl_term(atom name, types::term::ref type_term) {
-	auto iter = type_decl_env.find(name);
-   	if (iter == type_decl_env.end()) {
-		debug_above(2, log(log_info, "registering type decl term " c_term("%s") " as %s",
-					name.c_str(), type_term->str().c_str()));
-		type_decl_env[name] = type_term;
-	} else {
-		debug_above(8, log(log_info, "type decl term " c_term("%s") " has already been registered as %s",
-					name.c_str(), type_decl_env[name]->str().c_str()));
-		/* this term may have already been registered. */
-		assert(type_decl_env[name]->str() == type_term->str());
-	}
-}
-
-types::term::map scope_t::get_type_env() const {
-	auto parent_scope = get_parent_scope();
-	if (parent_scope != nullptr) {
-		return merge(parent_scope->get_type_env(), type_env);
-	} else {
-		return type_env;
-	}
-}
-
-types::term::map scope_t::get_type_decl_env() const {
-	auto parent_scope = get_parent_scope();
-	if (parent_scope != nullptr) {
-		return merge(parent_scope->get_type_decl_env(), type_decl_env);
-	} else {
-		return type_decl_env;
-	}
-}
-
-std::string scope_t::str() {
-	std::stringstream ss;
-	scope_t::ref p = shared_from_this();
-	do {
-		p->dump(ss);
-	} while ((p = p->get_parent_scope()) != nullptr);
-	return ss.str();
-}
-
-void scope_t::put_bound_variable(atom symbol, bound_var_t::ref bound_variable) {
-	debug_above(8, log(log_info, "binding %s", bound_variable->str().c_str()));
-
-	auto &resolve_map = bound_vars[symbol];
-	types::signature signature = bound_variable->get_signature();
-	if (resolve_map.find(signature) != resolve_map.end()) {
-		panic(string_format("we can't be adding variables with the same signature to the same scope (" c_var("%s") ": %s)",
-					symbol.c_str(), signature.str().c_str()));
-	}
-	resolve_map[signature] = bound_variable;
-}
-
-bool scope_t::has_bound_variable(
+bound_var_t::ref get_bound_variable_from_scope(
+		status_t &status,
+		const ptr<const ast::item> &obj,
 		atom symbol,
-	   	resolution_constraints_t resolution_constraints)
+		bound_var_t::map bound_vars,
+		scope_t::ref parent_scope)
 {
-	auto iter = bound_vars.find(symbol);
-	if (iter != bound_vars.end()) {
-		/* we found this symbol */
-		return true;
-	} else if (auto parent_scope = get_parent_scope()) {
-		/* we did not find the symbol, let's consider looking higher up the
-		 * scopes */
-		switch (resolution_constraints) {
-		case rc_all_scopes:
-			return parent_scope->has_bound_variable(symbol,
-					resolution_constraints);
-		case rc_just_current_scope:
-			return false;
-		case rc_capture_level:
-			if (dynamic_cast<const function_scope_t *>(this)) {
-				return false;
-			} else {
-				return parent_scope->has_bound_variable(symbol,
-						resolution_constraints);
-			}
-		}
-	} else {
-		/* we're at the top and we still didn't find it, quit. */
-		return false;
-	}
-}
-
-bound_var_t::ref scope_t::get_singleton(atom name) {
-	/* there can be only one */
-	auto &coll = bound_vars;
-	assert(coll.begin() != coll.end());
-	auto iter = coll.find(name);
-	assert(iter != coll.end());
-	auto &resolve_map = iter->second;
-	assert(resolve_map.begin() != resolve_map.end());
-	auto resolve_iter = resolve_map.begin();
-	auto item = resolve_iter->second;
-	assert(++resolve_iter == resolve_map.end());
-	return item;
-}
-
-bound_var_t::ref scope_t::maybe_get_bound_variable(atom symbol) {
-	auto iter = bound_vars.find(symbol);
-	if (iter != bound_vars.end()) {
-		const auto &overloads = iter->second;
-		if (overloads.size() == 0) {
-			panic("we have an empty list of overloads");
-			return nullptr;
-		} else if (overloads.size() == 1) {
-			return overloads.begin()->second;
-		} else {
-			return nullptr;
-		}
-	} else if (auto parent_scope = get_parent_scope()) {
-		return parent_scope->maybe_get_bound_variable(symbol);
-	}
-
-	return nullptr;
-}
-
-bound_var_t::ref scope_t::get_bound_variable(status_t &status, const ast::item::ref &obj, atom symbol) {
 	auto iter = bound_vars.find(symbol);
 	if (iter != bound_vars.end()) {
 		const bound_var_t::overloads &overloads = iter->second;
@@ -178,7 +30,7 @@ bound_var_t::ref scope_t::get_bound_variable(status_t &status, const ast::item::
 					::str(overloads).c_str());
 			return nullptr;
 		}
-	} else if (auto parent_scope = get_parent_scope()) {
+	} else if (parent_scope != nullptr) {
 		return parent_scope->get_bound_variable(status, obj, symbol);
 	}
 
@@ -187,24 +39,16 @@ bound_var_t::ref scope_t::get_bound_variable(status_t &status, const ast::item::
 	return nullptr;
 }
 
-llvm::Module *scope_t::get_llvm_module() {
-	if (get_parent_scope()) {
-		return get_parent_scope()->get_llvm_module();
-	} else {
-		assert(false);
-		return nullptr;
-	}
-}
-
-std::string scope_t::make_fqn(std::string leaf_name) const {
-	return get_name() + std::string(SCOPE_SEP) + leaf_name;
-}
-
-bound_type_t::ref scope_t::get_bound_type(types::signature signature) {
+bound_type_t::ref get_bound_type_from_scope(
+		types::signature signature,
+		std::string fqn_signature,
+		program_scope_t::ref program_scope,
+	   	scope_t::ref parent_scope)
+{
 	indent_logger indent(9, string_format("checking whether %s is bound...",
 				signature.str().c_str()));
-	auto full_signature = types::signature{make_fqn(signature.repr().str())};
-	auto bound_type = get_program_scope()->get_bound_type(full_signature);
+	auto full_signature = types::signature{fqn_signature};
+	auto bound_type = program_scope->get_bound_type(full_signature);
 	if (bound_type != nullptr) {
 		debug_above(9, log(log_info, "yep. %s is bound to %s",
 					signature.str().c_str(),
@@ -213,7 +57,42 @@ bound_type_t::ref scope_t::get_bound_type(types::signature signature) {
 	} else {
 		debug_above(9, log(log_info, "nope. %s is not yet bound",
 					signature.str().c_str()));
-		return get_parent_scope()->get_bound_type(signature);
+		return parent_scope->get_bound_type(signature);
+	}
+}
+
+std::string scope_t::get_name() const {
+	auto parent_scope = this->get_parent_scope();
+	if (parent_scope) {
+		return parent_scope->get_name() + SCOPE_SEP + get_leaf_name().str();
+	} else {
+		return get_leaf_name().str();
+	}
+}
+
+ptr<program_scope_t> program_scope_t::get_program_scope() {
+	return std::static_pointer_cast<program_scope_t>(shared_from_this());
+}
+
+ptr<module_scope_t> scope_t::get_module_scope() {
+	if (auto module_scope = dyncast<module_scope_t>(shared_from_this())) {
+		return module_scope;
+	} else {
+		auto parent_scope = get_parent_scope();
+		if (parent_scope != nullptr) {
+			return parent_scope->get_module_scope();
+		} else {
+			return nullptr;
+		}
+	}
+}
+
+llvm::Module *scope_t::get_llvm_module() {
+	if (get_parent_scope()) {
+		return get_parent_scope()->get_llvm_module();
+	} else {
+		assert(false);
+		return nullptr;
 	}
 }
 
@@ -254,10 +133,6 @@ local_scope_t::ref local_scope_t::create(
 	return make_ptr<local_scope_t>(name, parent_scope, return_type_constraint);
 }
 
-ptr<function_scope_t> scope_t::new_function_scope(atom name) {
-	return function_scope_t::create(name, shared_from_this());
-}
-
 void get_callables_from_bound_vars(
 		atom symbol,
 		const bound_var_t::map &bound_vars,
@@ -291,17 +166,7 @@ void get_callables_from_unchecked_vars(
 	}
 }
 
-void scope_t::get_callables(atom symbol, var_t::refs &fns) {
-	/* default scope behavior is to look at bound variables */
-	get_callables_from_bound_vars(symbol, bound_vars, fns);
-
-	if (auto parent_scope = get_parent_scope()) {
-		/* let's see if our parent scope has any of this symbol */
-		parent_scope->get_callables(symbol, fns);
-	}
-}
-
-void module_scope_t::get_callables(atom symbol, var_t::refs &fns) {
+void module_scope_impl_t::get_callables(atom symbol, var_t::refs &fns) {
 	get_callables_from_bound_vars(symbol, bound_vars, fns);
 	get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
 
@@ -309,11 +174,6 @@ void module_scope_t::get_callables(atom symbol, var_t::refs &fns) {
 		/* let's see if our parent scope has any of this symbol */
 		parent_scope->get_callables(symbol, fns);
 	}
-}
-
-void program_scope_t::get_callables(atom symbol, var_t::refs &fns) {
-	get_callables_from_bound_vars(symbol, bound_vars, fns);
-	get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
 }
 
 ptr<local_scope_t> function_scope_t::new_local_scope(atom name) {
@@ -430,9 +290,10 @@ void dump_linked_modules(std::ostream &os, const module_scope_t::map &modules) {
 void program_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "PROGRAM SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, bound_types);
+	dump_bindings(os, unchecked_vars, unchecked_types);
 }
 
-void module_scope_t::dump(std::ostream &os) const {
+void module_scope_impl_t::dump(std::ostream &os) const {
 	os << std::endl << "MODULE SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
 	dump_bindings(os, unchecked_vars, unchecked_types);
@@ -458,16 +319,20 @@ void generic_substitution_scope_t::dump(std::ostream &os) const {
 	get_parent_scope()->dump(os);
 }
 
-module_scope_t::module_scope_t(atom name, program_scope_t::ref parent_scope, llvm::Module *llvm_module) :
-	scope_t(name, parent_scope->get_type_env()), parent_scope(parent_scope), llvm_module(llvm_module)
+module_scope_impl_t::module_scope_impl_t(
+		atom name,
+	   	program_scope_t::ref parent_scope,
+		llvm::Module *llvm_module) :
+	scope_impl_t<module_scope_t>(name, {}),
+   	parent_scope(parent_scope), llvm_module(llvm_module)
 {
 }
 
-bool module_scope_t::has_checked(const ptr<const ast::item> &node) const {
+bool module_scope_impl_t::has_checked(const ptr<const ast::item> &node) const {
 	return visited.find(node) != visited.end();
 }
 
-void module_scope_t::mark_checked(status_t &status, const ptr<const ast::item> &node) {
+void module_scope_impl_t::mark_checked(status_t &status, const ptr<const ast::item> &node) {
 	if (auto function_defn = dyncast<const ast::function_defn>(node)) {
 		if (is_function_defn_generic(status, shared_from_this(), *function_defn)) {
 			/* for now let's never mark generic functions as checked, until we
@@ -480,7 +345,7 @@ void module_scope_t::mark_checked(status_t &status, const ptr<const ast::item> &
 	visited.insert(node);
 }
 
-void module_scope_t::put_unchecked_type(
+void module_scope_impl_t::put_unchecked_type(
 		status_t &status,
 		unchecked_type_t::ref unchecked_type)
 {
@@ -498,13 +363,21 @@ void module_scope_t::put_unchecked_type(
 	unchecked_types_ordered.push_back(unchecked_type);
 }
 
-unchecked_type_t::ref module_scope_t::get_unchecked_type(atom symbol) {
+unchecked_type_t::ref module_scope_impl_t::get_unchecked_type(atom symbol) {
 	auto iter = unchecked_types.find(symbol);
 	if (iter != unchecked_types.end()) {
 		return iter->second;
 	} else {
 		return nullptr;
 	}
+}
+
+unchecked_type_t::refs &module_scope_impl_t::get_unchecked_types_ordered() {
+	return unchecked_types_ordered;
+}
+
+unchecked_var_t::refs &module_scope_impl_t::get_unchecked_vars_ordered() {
+	return unchecked_vars_ordered;
 }
 
 unchecked_var_t::ref put_unchecked_variable_impl(
@@ -543,7 +416,7 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 	return unchecked_variable;
 }
 
-unchecked_var_t::ref module_scope_t::put_unchecked_variable(
+unchecked_var_t::ref module_scope_impl_t::put_unchecked_variable(
 		atom symbol,
 		unchecked_var_t::ref unchecked_variable)
 {
@@ -582,7 +455,7 @@ ptr<module_scope_t> program_scope_t::new_module_scope(
 		llvm::Module *llvm_module)
 {
 	assert(!lookup_module(name));
-	auto module_scope = module_scope_t::create(name, get_program_scope(), llvm_module);
+	auto module_scope = module_scope_impl_t::create(name, get_program_scope(), llvm_module);
 	modules.insert({name, module_scope});
 	return module_scope;
 }
@@ -615,28 +488,28 @@ std::string program_scope_t::dump_llvm_modules() {
 	std::stringstream ss;
 	for (auto &module_pair : modules) {
 		ss << C_MODULE << "MODULE " << C_RESET << module_pair.first << std::endl;
-		ss << llvm_print_module(*module_pair.second->llvm_module);
+		ss << llvm_print_module(*module_pair.second->get_llvm_module());
 	}
 	return ss.str();
 }
 
-ptr<scope_t> module_scope_t::get_parent_scope() {
+ptr<scope_t> module_scope_impl_t::get_parent_scope() {
 	return parent_scope;
 }
 
-ptr<const scope_t> module_scope_t::get_parent_scope() const {
+ptr<const scope_t> module_scope_impl_t::get_parent_scope() const {
 	return parent_scope;
 }
 
-module_scope_t::ref module_scope_t::create(
+module_scope_t::ref module_scope_impl_t::create(
 		atom name,
 		program_scope_t::ref parent_scope,
 		llvm::Module *llvm_module)
 {
-	return make_ptr<module_scope_t>(name, parent_scope, llvm_module);
+	return make_ptr<module_scope_impl_t>(name, parent_scope, llvm_module);
 }
 
-llvm::Module *module_scope_t::get_llvm_module() {
+llvm::Module *module_scope_impl_t::get_llvm_module() {
 	return llvm_module;
 }
 
@@ -644,8 +517,8 @@ llvm::Module *generic_substitution_scope_t::get_llvm_module() {
 	return get_parent_scope()->get_llvm_module();
 }
 
-program_scope_t::ref program_scope_t::create(atom name) {
-	return make_ptr<program_scope_t>(name, types::term::map{});
+program_scope_t::ref program_scope_t::create(atom name, llvm::Module *llvm_module) {
+	return make_ptr<program_scope_t>(name, llvm_module);
 }
 
 ptr<scope_t> generic_substitution_scope_t::get_parent_scope() {
