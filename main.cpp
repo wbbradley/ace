@@ -60,8 +60,10 @@ int main(int argc, char *argv[]) {
         } else if (cmd == "fmt") {
 			compiler.build(status);
 
-			fprintf(stdout, "%s",
-					compiler.dump_program_text(strip_zion_extension(argv[2])).c_str());
+			if (!!status) {
+				fprintf(stdout, "%s",
+						compiler.dump_program_text(strip_zion_extension(argv[2])).c_str());
+			}
 
 			if (!!status) {
 				return EXIT_SUCCESS;

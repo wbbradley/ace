@@ -1,5 +1,4 @@
 module _
-link module std
 
 # error: unexpected token found `any`
 type Optional{any Data} is

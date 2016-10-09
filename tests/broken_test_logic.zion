@@ -1,6 +1,5 @@
 module logic @1.0
 link module assert
-link module std
 # test: pass
 
 def test_failure() void
@@ -30,4 +29,4 @@ def test() void
 	assert.equals(not ("" and 18), true, "not (\"\" and 18)")
 	assert.equals("1" + "2", "12", "\"1\" + \"2\" or null")
 
-	std.print("DONE")
+	print("DONE")

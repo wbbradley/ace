@@ -616,7 +616,7 @@ ptr<const ast::module> compiler::get_module(status_t &status, atom key_alias) {
 		resolve_module_filename(status, INTERNAL_LOC(), key_alias.str(), module_filename);
 
 		if (!!status) {
-			auto module_iter = modules.find(key_alias);
+			auto module_iter = modules.find(module_filename);
 			if (module_iter != modules.end()) {
 				auto module = module_iter->second;
 				assert(module != nullptr);

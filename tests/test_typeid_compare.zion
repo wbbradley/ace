@@ -1,5 +1,4 @@
 module _
-link module std
 # test: pass
 
 type Boo is Hiss or Cow
@@ -13,6 +12,6 @@ def main()
 	i := Cow
 	j := Hiss
 	if test(i, j)
-		std.print("different types")
+		print("different types")
 	else
-		std.print("same types")
+		print("same types")

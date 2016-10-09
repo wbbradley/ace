@@ -1,5 +1,4 @@
 module _
-link module std
 
 # test: pass
 type TY is Y(int)
@@ -10,4 +9,4 @@ type baz{X} is
 
 def main()
 	y := bar(Y(1))
-	std.print(y[0][0])
+	print(y[0][0])

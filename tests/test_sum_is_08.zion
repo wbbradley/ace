@@ -1,5 +1,4 @@
 module _
-link module std
 # test: pass
 
 type List{T} is
@@ -14,4 +13,4 @@ def compute(expr List{any X}) any X
 def main()
 	e := Node(1)
 	d := Divide(e)
-	std.print(compute(d))
+	print(compute(d))

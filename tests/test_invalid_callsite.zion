@@ -1,5 +1,4 @@
 module _
-link module std
 
 def caller()
 	x := 1

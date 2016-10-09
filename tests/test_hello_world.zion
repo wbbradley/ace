@@ -1,8 +1,7 @@
 module hello @1.0
-link module std
 # test: pass
 
 def main() int
-	std.print("Hello, world.")
+	print("Hello, world.")
 	return 0
 

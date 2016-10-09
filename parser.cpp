@@ -1090,11 +1090,11 @@ type_algebra::ref type_algebra::parse(
 {
 	switch (ps.token.tk) {
 	case tk_is:
-		return type_sum::parse(ps, type_decl->type_variables);
+		return type_sum::parse(ps, type_decl, type_decl->type_variables);
 	case tk_has:
-		return type_product::parse(ps, type_decl->type_variables);
+		return type_product::parse(ps, type_decl, type_decl->type_variables);
 	case tk_matches:
-		return type_alias::parse(ps, type_decl->type_variables);
+		return type_alias::parse(ps, type_decl, type_decl->type_variables);
 	default:
 		ps.error(
 				"type descriptions must begin with "
@@ -1106,6 +1106,7 @@ type_algebra::ref type_algebra::parse(
 
 type_sum::ref type_sum::parse(
 		parse_state_t &ps,
+		ast::type_decl::ref type_decl,
 		identifier::refs type_variables_list)
 {
 	identifier::set type_variables = to_set(type_variables_list);
@@ -1144,7 +1145,7 @@ type_sum::ref type_sum::parse(
 			}
 		}
 
-		return create<type_sum>(is_token, subtypes);
+		return create<type_sum>(type_decl->token, subtypes);
 	} else {
 		return nullptr;
 	}
@@ -1152,6 +1153,7 @@ type_sum::ref type_sum::parse(
 
 type_product::ref type_product::parse(
 		parse_state_t &ps,
+		ast::type_decl::ref type_decl,
 	   	identifier::refs type_variables)
 {
 	auto has_token = ps.token;
@@ -1167,7 +1169,7 @@ type_product::ref type_product::parse(
 	}
 	chomp_token(tk_outdent);
 	if (!!ps.status) {
-		return create<type_product>(has_token, dimensions, generics);
+		return create<type_product>(type_decl->token, dimensions, generics);
 	} else {
 		return nullptr;
 	}
@@ -1175,12 +1177,13 @@ type_product::ref type_product::parse(
 
 type_alias::ref type_alias::parse(
 		parse_state_t &ps,
+		ast::type_decl::ref type_decl,
 	   	identifier::refs type_variables)
 {
 	chomp_token(tk_matches);
 
 	identifier::set generics = to_identifier_set(type_variables);
-	return ast::create<type_alias>(ps.token, type_ref::parse(ps, generics),
+	return ast::create<type_alias>(type_decl->token, type_ref::parse(ps, generics),
 			generics);
 }
 

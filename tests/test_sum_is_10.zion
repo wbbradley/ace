@@ -1,5 +1,4 @@
 module _
-link module std
 # test: pass
 
 type Expr{T} is
@@ -15,4 +14,4 @@ def compute(expr Expr{any X}) any X
 
 def main()
 	expr := Divide(Plus(Literal(5), Literal(5)), Literal(2))
-	std.print(compute(expr))
+	print(compute(expr))

@@ -1,11 +1,10 @@
 module _
-link module std
 # test: pass
 
 def main() int
 	var i int = 3
 	i += 10
 	while i > 0
-		std.print(i)
+		print(i)
 		i -= 1
 	return 0

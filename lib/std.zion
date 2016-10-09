@@ -10,10 +10,25 @@ type bool is true or false
 type str has
 	var raw __str__
 
+def str(s str) str
+	return s
+
 type int has
 	var raw __int__
 
+def int(x int) int
+	return x
+
 def str(x int) str
+	return str(x)
+
+type float has
+	var raw __float__
+
+def float(x float) float
+	return x
+
+def str(x float) str
 	return str(x)
 
 def __plus__(x int, y int) int

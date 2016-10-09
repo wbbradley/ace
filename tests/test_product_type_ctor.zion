@@ -1,5 +1,4 @@
 module _
-link module std
 
 # test: pass
 
@@ -16,4 +15,4 @@ def main()
 	scale := Vector(1.0, -1.0)
 
 	matrix := Matrix(position, scale)
-	std.print(matrix.row_1.x)
+	print(matrix.row_1.x)

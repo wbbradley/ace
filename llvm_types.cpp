@@ -485,12 +485,6 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		const ast::item::ref &node)
 {
 	atom name = id->get_name();
-	if (auto var = scope->maybe_get_bound_variable(name)) {
-		user_error(status, *node, "the name " c_id("%s") " is taken. see %s",
-				name.c_str(),
-				var->str().c_str());
-		return nullptr;
-	}
 
 	auto program_scope = scope->get_program_scope();
 

@@ -1,5 +1,4 @@
 module _
-link module std
 
 type Point{T} is
 	Cartesian(T, T) or
@@ -8,4 +7,4 @@ type Point{T} is
 def main()
 	# error: no function found named __getitem__
 	var p Point{float} = Cartesian(2.4, 1.0)
-	std.print(p[0])
+	print(p[0])

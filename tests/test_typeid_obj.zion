@@ -1,8 +1,7 @@
 module _
-link module std
 # test: pass
 
 type Foo is Bar
 
 def main()
-	std.print(typeid(Bar))
+	print(typeid(Bar))

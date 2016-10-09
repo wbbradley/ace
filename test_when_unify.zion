@@ -1,5 +1,4 @@
 module when_contact
-link module std
 
 type Id has
 	var name str

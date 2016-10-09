@@ -1,12 +1,11 @@
 module _
-link module std
 # test: pass
 
 link def puts(sz str) int
 
 def goo(x any)
 	var y any = " world"
-	std.print(x + y)
+	print(x + y)
 
 def main()
 	goo("hello")

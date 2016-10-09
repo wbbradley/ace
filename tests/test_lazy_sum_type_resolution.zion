@@ -1,8 +1,7 @@
 module _ @1.0
-link module std
 # test: pass
 
 type B{X} is Bx(X)
 
 def do(b Bx{int})
-	std.print(b[0])
+	print(b[0])

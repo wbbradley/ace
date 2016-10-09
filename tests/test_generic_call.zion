@@ -1,9 +1,8 @@
 module _
-link module std
 # test: pass
 
 def generic_print(x any)
-	std.print(x)
+	print(x)
 
 def main()
 	generic_print("hello world.")

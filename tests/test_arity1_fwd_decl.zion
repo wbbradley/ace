@@ -1,5 +1,4 @@
 module _
-link module std
 # test: pass
 
 def main()

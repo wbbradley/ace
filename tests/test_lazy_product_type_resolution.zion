@@ -1,9 +1,8 @@
 module _ @1.0
-link module std
 # test: pass
 
 type B{X} has
 	var x X
 
 def do(b B{int})
-	std.print(b.x)
+	print(b.x)

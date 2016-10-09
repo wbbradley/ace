@@ -1,5 +1,4 @@
 module _ @1.0
-link module std
 
 type Derived{Y} has
 	var y Y
@@ -11,4 +10,4 @@ type Base{X, Y} is Derived{X} or Derived2{Y}
 
 # error: unable to find a definition for C\{int\}
 def do(b C{int})
-	std.print(b.x)
+	print(b.x)

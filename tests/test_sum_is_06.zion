@@ -1,5 +1,4 @@
 module _
-link module std
 
 type Broken is Special(int)
 

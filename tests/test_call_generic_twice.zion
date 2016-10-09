@@ -1,11 +1,11 @@
 module _
 # test: pass
 
-link def puts(msg str) int
+link def puts(msg __str__) __int__
 
 def main()
 	generic("hey")
 	generic(1)
 
 def generic(value any)
-	puts(str(value))
+	puts(str(value).raw)

@@ -1934,7 +1934,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 							scope,
 							shared_from_this(),
 							box_int,
-							{"boxed_int"},
+							{string_format("literal int (%d)", value)},
 							get_location(),
 							{bound_var_t::create(
 									INTERNAL_LOC(), "temp_int_literal", boxed_type,
@@ -1971,7 +1971,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 							scope,
 							shared_from_this(),
 							box_str,
-							{"boxed_str"},
+							{string_format("literal str (%s)", value.c_str())},
 							get_location(),
 							{bound_var_t::create(
 									INTERNAL_LOC(), "temp_str_literal", boxed_type,
@@ -2007,7 +2007,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 							scope,
 							shared_from_this(),
 							box_float,
-							{"boxed_float"},
+							{string_format("literal float (%f)", value)},
 							get_location(),
 							{bound_var_t::create(
 									INTERNAL_LOC(), "temp_float_literal", boxed_type,

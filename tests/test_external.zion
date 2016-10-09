@@ -1,6 +1,5 @@
 module _
-link module std
 # test: pass
 
 def cool()
-	std.print("COOL")
+	print("COOL")

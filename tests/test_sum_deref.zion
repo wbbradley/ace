@@ -1,5 +1,4 @@
 module _
-link module std
 
 # test: pass
 
@@ -7,5 +6,5 @@ type A is Value(int, str)
 
 def main()
 	a := Value(42, "hey")
-	std.print(a[0])
-	std.print(a[1])
+	print(a[0])
+	print(a[1])

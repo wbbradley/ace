@@ -1,5 +1,4 @@
 module _
-link module std
 # test: pass
 
 type Cartesian{T} has
@@ -16,4 +15,4 @@ type Point{T} is
 
 def main()
 	var p = Cartesian(2.4, 1.0)
-	std.print(p.x)
+	print(p.x)

@@ -271,7 +271,7 @@ namespace ast {
 		type_sum(type_ref::refs subtypes);
 		virtual ~type_sum() throw() {}
 		static const syntax_kind_t SK = sk_type_sum;
-		static ref parse(parse_state_t &ps, identifier::refs type_variables);
+		static ref parse(parse_state_t &ps, type_decl::ref type_decl, identifier::refs type_variables);
 		virtual void register_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -289,7 +289,7 @@ namespace ast {
 		type_product(std::vector<dimension::ref> dimensions, identifier::set type_variables);
 		virtual ~type_product() throw() {}
 		static const syntax_kind_t SK = sk_type_product;
-		static ref parse(parse_state_t &ps, identifier::refs type_variables);
+		static ref parse(parse_state_t &ps, type_decl::ref type_decl, identifier::refs type_variables);
 		virtual void register_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -308,7 +308,7 @@ namespace ast {
 		type_alias(type_ref::ref type_ref, identifier::set type_variables);
 		virtual ~type_alias() throw() {}
 		static const syntax_kind_t SK = sk_type_alias;
-		static ref parse(parse_state_t &ps, identifier::refs type_variables);
+		static ref parse(parse_state_t &ps, type_decl::ref type_decl, identifier::refs type_variables);
 		virtual void register_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
