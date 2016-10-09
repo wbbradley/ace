@@ -643,7 +643,7 @@ namespace ast {
 
 		bool global;
 		atom filename;
-		atom module_key, filename_key;
+		atom module_key;
 
 		ptr<module_decl> decl;
 		std::vector<ptr<type_def>> type_defs;

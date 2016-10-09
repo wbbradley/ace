@@ -168,3 +168,6 @@ auto seconds(const std::vector<T> &in) -> std::vector<typename T::second_type> {
 	}
 	return out;
 }
+
+bool real_path(std::string filename, std::string &real_path);
+std::string get_cwd();

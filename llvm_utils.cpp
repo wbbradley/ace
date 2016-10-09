@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "location.h"
 #include "llvm_utils.h"
 #include "type_checker.h"
 #include "compiler.h"

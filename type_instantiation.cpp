@@ -407,22 +407,9 @@ types::term::ref register_data_ctor(
 						name.c_str(),
 						env_iter->second->str().c_str());
 			} else {
-				var_t::refs fns;
-				scope->get_callables(name, fns);
-				if (fns.size() != 0) {
-					user_error(status, location,
-						   	"symbol " c_id("%s") " is already registered as a callable",
-							name.c_str());
-					for (auto fn : fns) {
-						user_message(log_warning, status, fn->get_location(),
-								"previous callable named %s defined here",
-								fn->str().c_str());
-					}
-				} else {
-					return instantiate_data_ctor_type_term(status, builder,
-							type_variables, scope, node, dimensions,
-							member_index, id, supertype_id);
-				}
+				return instantiate_data_ctor_type_term(status, builder,
+						type_variables, scope, node, dimensions,
+						member_index, id, supertype_id);
 			}
 		}
 	} else {

@@ -1,7 +1,7 @@
 module _
 # test: pass
 
-link def puts(sz str) int
+link def puts(sz __str__) __int__
 
 def main()
 	puts("Hello world.")

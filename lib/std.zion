@@ -1,13 +1,24 @@
 module _
 
-link def puts(x str) int
+link def puts(x __str__) __int__
+
+tag true
+tag false
+
+type bool is true or false
+
+type str has
+	var value __str__
 
 type int has
 	var value __int__
 
+def str(x int) str
+	return str(x.value)
+
 def __plus__(x int, y int) int
 	return int(x.value + y.value)
 
-def print(x any T) void
+def print(x any) void
 	s := str(x)
 	puts(s)

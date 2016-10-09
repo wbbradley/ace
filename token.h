@@ -51,12 +51,10 @@ enum token_kind
 	tk_atom, /* atom literal */
 	tk_char, /* char literal */
 	tk_error, /* error literal */
-	tk_false, /* false */
 	tk_float, /* 3.1415e20 */
 	tk_integer, /* [0-9]+ */
 	tk_null, /* null */
 	tk_string, /* string literal */
-	tk_true, /* true */
 	tk_version, /* #blah */
 
 	// Flow control

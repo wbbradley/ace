@@ -1,5 +1,6 @@
 #include "dbg.h"
 #include "assert.h"
+#include <stdlib.h>
 #include <string>
 #include <sstream>
 #include <regex>
@@ -288,4 +289,24 @@ std::vector<std::string> split(std::string data, std::string delim) {
 		}
     } while (std::string::npos != pos);
     return output;
+}
+
+bool real_path(std::string filename, std::string &real_path) {
+	char real_path_buf[PATH_MAX];
+	if (realpath(filename.c_str(), real_path_buf)) {
+		real_path = real_path_buf;
+		return true;
+	} else {
+		return false;
+	}
+}
+
+std::string get_cwd() {
+	char cwd_buf[PATH_MAX];
+	if (getcwd(cwd_buf, PATH_MAX - 1)) {
+		return {cwd_buf};
+	} else {
+		panic("can't get current working directory");
+		return "";
+	}
 }

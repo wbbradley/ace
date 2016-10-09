@@ -1113,15 +1113,19 @@ status_t type_check_module_variables(
 
     /* get module level scope variable */
     module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
-
+	// log(log_info, "%s", module_scope->str().c_str());
 	auto unchecked_vars_ordered = module_scope->get_unchecked_vars_ordered();
     for (int i = 0; i < unchecked_vars_ordered.size(); ++i) {
 		status_t status;
 
-		auto node = unchecked_vars_ordered[i]->node;
+		auto &unchecked_var = unchecked_vars_ordered[i];
+		debug_above(5, log(log_info, "checking whether to check %s", unchecked_var->str().c_str()));
+
+		auto node = unchecked_var->node;
 		if (!module_scope->has_checked(node)) {
 			/* prevent recurring checks */
-			debug_above(4, log(log_info, "checking module level variable %s", node->token.str().c_str()));
+			debug_above(4, log(log_info, "checking module level variable %s",
+					   	node->token.str().c_str()));
 			if (auto function_defn = dyncast<const ast::function_defn>(node)) {
 				// TODO: decide whether we need treatment here
 				if (is_function_defn_generic(status, module_scope, *function_defn)) {
@@ -1264,40 +1268,24 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 		dbg();
 	}
 
-	var_t::refs fns;
-	scope->get_callables(type_name, fns);
-	if (fns.size() != 0) {
-		user_error(status, type_decl->get_location(),
-				"type name " c_id("%s") " is already registered as a callable",
-				token.text.c_str());
-		for (auto fn : fns) {
-			user_message(log_warning, status, fn->get_location(),
-					"previous callable named %s defined here",
-					fn->str().c_str());
-		}
-	} else {
-		if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
-			assert(new_scope != nullptr);
+	if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
+		assert(new_scope != nullptr);
 
-			/* type definitions begin new scopes */
-			local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
-					string_format("type-%s", token.text.c_str()));
+		/* type definitions begin new scopes */
+		local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
+				string_format("type-%s", token.text.c_str()));
 
-			/* update current scope for writing */
-			scope = fresh_scope;
+		/* update current scope for writing */
+		scope = fresh_scope;
 
-			/* have the caller update their current scope */
-			*new_scope = fresh_scope;
-		}
-
-		// TODO: consider type namespacing here, or 
-		type_algebra->register_type(status, builder,
-				make_code_id(token), type_decl->type_variables, scope);
-
-		return nullptr;
+		/* have the caller update their current scope */
+		*new_scope = fresh_scope;
 	}
 
-	assert(!status);
+	// TODO: consider type namespacing here, or 
+	type_algebra->register_type(status, builder,
+			make_code_id(token), type_decl->type_variables, scope);
+
 	return nullptr;
 }
 
@@ -1922,8 +1910,8 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
         {
 			/* create a boxed integer */
             int64_t value = atoll(token.text.c_str());
-            bound_type_t::ref raw_type = program_scope->get_bound_type({"__int__"});
-            bound_type_t::ref type = program_scope->get_bound_type({"int"});
+            bound_type_t::ref raw_type = program_scope->get_bound_type({INT_TYPE});
+            bound_type_t::ref boxed_type = program_scope->get_bound_type({"int"});
             if (!!status) {
 				bound_var_t::ref box_int = get_callable(
 						status,
@@ -1944,41 +1932,74 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 							{"boxed_int"},
 							get_location(),
 							{bound_var_t::create(
-									INTERNAL_LOC(), "temp_int_literal", type,
+									INTERNAL_LOC(), "temp_int_literal", boxed_type,
 									llvm_create_int(builder, value),
 									make_code_id(token), false/*is_lhs*/)});
 				}
             }
         }
 		break;
-    case tk_true:
-    case tk_false:
-        {
-            assert(token.text == "true" || token.text == "false");
-            return scope->get_program_scope()->get_singleton(token.text);
-        }
-		break;
     case tk_string:
-        {
-            std::string value = unescape_json_quotes(token.text);
-            bound_type_t::ref type = program_scope->get_bound_type({"str"});
-            if (!!status) {
-                return bound_var_t::create(INTERNAL_LOC(), "temp_str_literal", 
-						type, llvm_create_global_string(builder, value),
-						make_code_id(token), false/*is_lhs*/);
-            }
-        }
+		{
+			std::string value = unescape_json_quotes(token.text);
+			bound_type_t::ref raw_type = program_scope->get_bound_type({STR_TYPE});
+			bound_type_t::ref boxed_type = program_scope->get_bound_type({"str"});
+			if (!!status) {
+				bound_var_t::ref box_str = get_callable(
+						status,
+						builder,
+						program_scope,
+						{"str"},
+						shared_from_this(),
+						get_args_term({raw_type->get_term()}));
+
+				if (!!status) {
+					return create_callsite(
+							status,
+							builder,
+							scope,
+							shared_from_this(),
+							box_str,
+							{"boxed_str"},
+							get_location(),
+							{bound_var_t::create(
+									INTERNAL_LOC(), "temp_str_literal", boxed_type,
+									llvm_create_global_string(builder, value),
+									make_code_id(token), false/*is_lhs*/)});
+				}
+			}
+		}
 		break;
-    case tk_float:
-        {
-            float value = atof(token.text.c_str());
-            bound_type_t::ref type = program_scope->get_bound_type({"float"});
-            if (!!status) {
-				return bound_var_t::create(INTERNAL_LOC(),
-						"temp_float_literal", type, llvm_create_float(builder,
-							value), make_code_id(token), false/*is_lhs*/);
-            }
-        }
+	case tk_float:
+		{
+			float value = atof(token.text.c_str());
+			bound_type_t::ref raw_type = program_scope->get_bound_type({FLOAT_TYPE});
+			bound_type_t::ref boxed_type = program_scope->get_bound_type({"float"});
+			if (!!status) {
+				bound_var_t::ref box_float = get_callable(
+						status,
+						builder,
+						program_scope,
+						{"float"},
+						shared_from_this(),
+						get_args_term({raw_type->get_term()}));
+
+				if (!!status) {
+					return create_callsite(
+							status,
+							builder,
+							scope,
+							shared_from_this(),
+							box_float,
+							{"boxed_float"},
+							get_location(),
+							{bound_var_t::create(
+									INTERNAL_LOC(), "temp_float_literal", boxed_type,
+									llvm_create_float(builder, value),
+									make_code_id(token), false/*is_lhs*/)});
+				}
+			}
+		}
 		break;
     default:
         assert(false);

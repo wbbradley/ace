@@ -7,8 +7,10 @@
 #include "type_checker.h"
 #include "scopes.h"
 
-extern const std::string module_prefix;
-extern const std::string file_prefix;
+extern const char *INT_TYPE;
+extern const char *BOOL_TYPE;
+extern const char *FLOAT_TYPE;
+extern const char *STR_TYPE;
 
 struct compiler {
 	typedef std::vector<std::string> libs;
@@ -25,8 +27,8 @@ struct compiler {
 	void set_module_scope(atom module_key, module_scope_t::ref module_scope);
 
 	std::vector<zion_token_t> get_comments() const;
-	ptr<const ast::module> get_module(atom key_alias);
-	void set_module(std::string module_name, std::string filename, ptr<ast::module> module);
+	ptr<const ast::module> get_module(status_t &status, atom key_alias);
+	void set_module(status_t &status, std::string filename, ptr<ast::module> module);
 	llvm::Module *llvm_load_ir(status_t &status, std::string filename);
 	llvm::Module *llvm_create_module(atom module_name);
 

@@ -1,8 +1,7 @@
 module _
-link module std
 # test: pass
 
-link def puts(x str) int
+link def puts(x str) __int__
 
 def main() int
 	puts(generic("hey"))
@@ -10,4 +9,4 @@ def main() int
 	return 1
 
 def generic(value any) str
-	return str(int(str(value)))
+	return str(__int__(str(value)))

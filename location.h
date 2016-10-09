@@ -2,7 +2,7 @@
 #include "atom.h"
 #include <ostream>
 
-#define INTERNAL_LOC() {__FILE__, __LINE__, 1}
+#define INTERNAL_LOC() ::location{__FILE__, __LINE__, 1}
 
 struct location {
 	template <typename T>

@@ -397,7 +397,10 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 		/* this variable already exists, let's consider overloading it */
 		if (dyncast<const ast::function_defn>(unchecked_variable->node)) {
 			iter->second.push_back(unchecked_variable);
+		} else if (dyncast<const unchecked_data_ctor_t>(unchecked_variable)) {
+			iter->second.push_back(unchecked_variable);
 		} else {
+			dbg();
 			assert(!"why are we putting this here?");
 		}
 	} else {
@@ -407,11 +410,14 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 	/* also keep a list of the order in which we encountered these */
 	unchecked_vars_ordered.push_back(unchecked_variable);
 
+#if 0
+	// TODO: consider using module variables for type dereferencing
 	if (program_scope) {
 		program_scope->put_unchecked_variable(
 				current_scope_name + SCOPE_SEP + symbol.str(),
 				unchecked_variable);	
 	}
+#endif
 
 	return unchecked_variable;
 }
@@ -442,9 +448,11 @@ void program_scope_t::put_bound_type(bound_type_t::ref type) {
 	if (iter == bound_types.end()) {
 		bound_types[signature] = type;
 	} else {
+		/* this type symbol already exists */
 		if (auto handle = dyncast<const bound_type_handle_t>(iter->second)) {
 			handle->set_actual(type);
 		} else {
+			// TODO: ensure that type symbols are namespaced
 			not_impl();
 		}
 	}

@@ -99,6 +99,7 @@ status_t scope_setup_program(const ast::program &obj, compiler &compiler) {
 
 	/* create the outermost scope of the program */
 	for (auto &module : obj.modules) {
+		assert(module != nullptr);
 		status |= scope_setup_module(compiler, *module);
 	}
 	return status;

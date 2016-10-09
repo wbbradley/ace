@@ -243,8 +243,6 @@ ptr<expression> literal_expr::parse(parse_state_t &ps) {
 	case tk_string:
 	case tk_char:
 	case tk_float:
-	case tk_true:
-	case tk_false:
 		{
 			auto literal_expr = create<ast::literal_expr>(ps.token);
 			ps.advance();

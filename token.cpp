@@ -49,7 +49,6 @@ const char *tkstr(token_kind tk) {
 	tk_case(else);
 	tk_case(equal);
 	tk_case(error);
-	tk_case(false);
 	tk_case(float);
 	tk_case(gt);
 	tk_case(gte);
@@ -93,7 +92,6 @@ const char *tkstr(token_kind tk) {
 	tk_case(times_eq);
 	tk_case(tag);
 	tk_case(to);
-	tk_case(true);
 	tk_case(type);
 	tk_case(typeid);
 	tk_case(var);
@@ -114,7 +112,6 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_continue:
 	case tk_dot:
 	case tk_double_dot:
-	case tk_false:
 	case tk_indent:
 	case tk_lcurly:
 	case tk_lparen:
@@ -128,7 +125,6 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_rparen:
 	case tk_rsquare:
 	case tk_space:
-	case tk_true:
 	case tk_typeid:
 		break;
 	case tk_any:
@@ -267,9 +263,6 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 	case tk_tag:
 		printf("tag");
 		break;
-	case tk_true:
-		printf("true");
-		break;
 	case tk_typeid:
 		printf("typeid");
 		break;
@@ -311,9 +304,6 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 		break;
 	case tk_continue:
 		printf("continue");
-		break;
-	case tk_false:
-		printf("false");
 		break;
 	case tk_type:
 		printf("type");

@@ -13,9 +13,6 @@
 #include "llvm_utils.h"
 #include <sys/stat.h>
 
-const std::string module_prefix = "module:";
-const std::string file_prefix = "file:";
-
 std::string strip_zion_extension(std::string module_name) {
 	if (ends_with(module_name, ".zion")) {
 		/* as a courtesy, strip the extension from the filename here */
@@ -27,9 +24,16 @@ std::string strip_zion_extension(std::string module_name) {
 
 compiler::compiler(std::string program_name_, const libs &zion_paths) :
 	program_name(strip_zion_extension(program_name_)),
-	zion_paths(make_ptr<std::vector<std::string>>(zion_paths)),
+	zion_paths(make_ptr<std::vector<std::string>>()),
    	builder(llvm_context)
 {
+	for (auto lib_path : zion_paths) {
+		std::string real_lib_path;
+		if (real_path(lib_path, real_lib_path)) {
+			this->zion_paths->push_back(real_lib_path);
+		}
+	}
+
 	program_scope = program_scope_t::create("", llvm_create_module(program_name_ + ".global"));
 }
 
@@ -52,17 +56,50 @@ std::string compiler::get_program_name() const {
 	return program_name;
 }
 
-void compiler::resolve_module_filename(status_t &status, location location, std::string name, std::string &resolved) {
-	std::string leaf_name = name + ".zion";
+void compiler::resolve_module_filename(
+		status_t &status,
+		location location,
+		std::string name,
+		std::string &resolved)
+{
+	std::string filename_test_resolution;
+	if (real_path(name, filename_test_resolution)) {
+		if (name == filename_test_resolution) {
+			if (file_exists(filename_test_resolution)) {
+				/* short circuit if we're given a real path */
+				resolved = filename_test_resolution;
+				return;
+			} else {
+				panic(string_format("filename %s does not exist", name.c_str()));
+			}
+		}
+	}
 
+	std::string leaf_name = name + ".zion";
+	std::string working_resolution;
 	for (auto zion_path : *zion_paths) {
 		auto test_path = zion_path + "/" + leaf_name;
 		if (file_exists(test_path)) {
-			resolved = test_path;
-			debug_above(4, log(log_info, "searching for file %s, found it at %s",
-						name.c_str(),
-						test_path.c_str()));
-			return;
+			std::string test_resolution;
+			if (real_path(test_path, test_resolution)) {
+				if (working_resolution.size() && working_resolution != test_resolution) {
+					user_error(status, location, "multiple " C_FILENAME "%s"
+							C_RESET " modules found with the same name in source "
+							"path [%s, %s]", name.c_str(),
+							working_resolution.c_str(),
+							test_resolution.c_str());
+				} else {
+					working_resolution = test_resolution;
+					debug_above(4, log(log_info, "searching for file %s, found it at %s",
+								name.c_str(),
+								working_resolution.c_str()));
+				}
+			} else {
+				/* if the file exists, it should have a real_path */
+				panic(string_format("searching for file %s, unable to resolve its real path (%s)",
+							name.c_str(),
+							test_path.c_str()));
+			}
 		} else {
 			debug_above(4, log(log_info, "searching for file %s, did not find it at %s",
 						name.c_str(),
@@ -70,9 +107,16 @@ void compiler::resolve_module_filename(status_t &status, location location, std:
 		}
 	}
 
-	user_error(status, location, "module not found: " c_error("`%s`") " (Note that module names should not have .zion extensions.) Looked in ZION_PATH=[%s]",
-			name.c_str(),
-			join(*zion_paths, ":").c_str());
+	if (working_resolution.size() != 0) {
+		/* cool, we found one and only one module with the requested name in
+		 * the source paths */
+		resolved = working_resolution;
+		return;
+	} else {
+		user_error(status, location, "module not found: " c_error("`%s`") " (Note that module names should not have .zion extensions.) Looked in ZION_PATH=[%s]",
+				name.c_str(),
+				join(*zion_paths, ":").c_str());
+	}
 }
 
 void compiler::build_parse_linked(status_t &status, ptr<const ast::module> module) {
@@ -89,45 +133,52 @@ void compiler::build_parse_linked(status_t &status, ptr<const ast::module> modul
 }
 
 void compiler::build_parse(
-		status_t &status, location location,
-	   	std::string module_name,
+		status_t &status,
+		location location,
+		std::string module_name,
 		bool global)
 {
+	std::string module_filename;
+	resolve_module_filename(status, location, module_name, module_filename);
+
 	// TODO: include some notion of versions
-	/* check whether this module has been parsed */
-	auto module_build_state_check = get_module(module_prefix + module_name);
-	if (!module_build_state_check) {
-		/* this module has not been parsed, let's parse it */
-		std::string module_filename;
-		resolve_module_filename(status, location, module_name, module_filename);
-
+	if (!!status) {
+		assert(module_filename.size() != 0);
+		auto existing_module = get_module(status, module_filename);
 		if (!!status) {
-			/* we found a file */
-			std::ifstream ifs;
-			ifs.open(module_filename.c_str());
+			if (existing_module == nullptr) {
+				/* we found an unparsed file */
+				std::ifstream ifs;
+				ifs.open(module_filename.c_str());
 
-			if (ifs.good()) {
-				debug_above(4, log(log_info, "parsing module \"%s\"", module_filename.c_str()));
-				zion_lexer_t lexer({module_filename}, ifs);
-				parse_state_t ps(status, module_filename, lexer, &comments);
-				auto module = ast::module::parse(ps, global);
+				if (ifs.good()) {
+					debug_above(4, log(log_info, "parsing module \"%s\"", module_filename.c_str()));
+					zion_lexer_t lexer({module_filename}, ifs);
+					parse_state_t ps(status, module_filename, lexer, &comments);
+					auto module = ast::module::parse(ps, global);
 
-				/* parse may have succeeded, either way add this module to
-				 * our list of modules */
-				set_module(module_name, module->filename.str(), module);
-				assert(!!get_module(file_prefix + module_filename));
-				assert(!!get_module(module_prefix + module_name));
-				build_parse_linked(status, module);
+					/* parse may have succeeded, either way add this module to
+					 * our list of modules */
+					set_module(status, module->filename.str(), module);
+					if (!!status) {
+						build_parse_linked(status, module);
+					} else {
+						user_error(status, location, "failed to set module %s", module_name.c_str());
+					}
+				} else {
+					user_error(status, location, "could not open \"%s\" when trying to link module",
+							module_filename.c_str());
+				}
 			} else {
-				user_error(status, location, "could not open \"%s\" when trying to link module",
-					   	module_filename.c_str());
+				debug_above(3, info("no need to build %s as it's already been linked in",
+							module_name.c_str()));
 			}
 		} else {
-			/* no file, i guess */
+			/* a failure */
+			user_error(status, location, "failed to get module %s", module_name.c_str());
 		}
 	} else {
-		debug_above(3, info("no need to build %s as it's already been linked in",
-					module_name.c_str()));
+		/* no file, i guess */
 	}
 }
 
@@ -189,6 +240,9 @@ void rt_bind_var_from_llir(
 }
 
 const char *INT_TYPE = "__int__";
+const char *BOOL_TYPE = "__bool__";
+const char *FLOAT_TYPE = "__float__";
+const char *STR_TYPE = "__str__";
 
 void add_global_types(
 		llvm::IRBuilder<> &builder,
@@ -202,9 +256,9 @@ void add_global_types(
 		{{"void"}, bound_type_t::create(type_id(make_iid("void")), INTERNAL_LOC(), builder.getVoidTy())},
 		{{"module"}, bound_type_t::create(type_id(make_iid("module")), INTERNAL_LOC(), builder.getVoidTy())},
 		{{INT_TYPE}, bound_type_t::create(type_id(make_iid(INT_TYPE)), INTERNAL_LOC(), builder.getInt64Ty())},
-		{{"float"}, bound_type_t::create(type_id(make_iid("float")), INTERNAL_LOC(), builder.getFloatTy())},
-		{{"bool"}, bound_type_t::create(type_id(make_iid("bool")), INTERNAL_LOC(), builder.getInt1Ty())},
-		{{"str"}, bound_type_t::create(type_id(make_iid("str")), INTERNAL_LOC(), builder.getInt8Ty()->getPointerTo())},
+		{{FLOAT_TYPE}, bound_type_t::create(type_id(make_iid(FLOAT_TYPE)), INTERNAL_LOC(), builder.getFloatTy())},
+		{{BOOL_TYPE}, bound_type_t::create(type_id(make_iid(BOOL_TYPE)), INTERNAL_LOC(), builder.getInt1Ty())},
+		{{STR_TYPE}, bound_type_t::create(type_id(make_iid(STR_TYPE)), INTERNAL_LOC(), builder.getInt8Ty()->getPointerTo())},
 
 		/* pull in the garbage collection and memory reference types */
 		{{"__tag_var"}, bound_type_t::create(type_id(make_iid("__tag_var")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.tag_t"))},
@@ -241,7 +295,7 @@ void add_globals(
 
 	/* lookup the types of bool and void pointer for use below */
 	bound_type_t::ref void_ptr_type = program_scope->get_bound_type({"__bytes"});
-	bound_type_t::ref bool_type = program_scope->get_bound_type({"bool"});
+	bound_type_t::ref bool_type = program_scope->get_bound_type({BOOL_TYPE});
 
 	/* get the null pointer value */
 	llvm::Value *llvm_null_value = llvm::ConstantPointerNull::get(llvm::dyn_cast<llvm::PointerType>(
@@ -265,22 +319,22 @@ void add_globals(
 
 		auto bindings = std::vector<binding_t>{
 			{INT_TYPE, llvm_module_int, "__int_int", {INT_TYPE}, INT_TYPE},
-			{INT_TYPE, llvm_module_int, "__int_float", {"float"}, INT_TYPE},
-			{INT_TYPE, llvm_module_int, "__int_str", {"str"}, INT_TYPE},
+			{INT_TYPE, llvm_module_int, "__int_float", {FLOAT_TYPE}, INT_TYPE},
+			{INT_TYPE, llvm_module_int, "__int_str", {STR_TYPE}, INT_TYPE},
 
-			{"float", llvm_module_float, "__float_int", {INT_TYPE}, "float"},
-			{"float", llvm_module_float, "__float_float", {"float"}, "float"},
-			{"float", llvm_module_float, "__float_str", {"str"}, "float"},
+			{FLOAT_TYPE, llvm_module_float, "__float_int", {INT_TYPE}, FLOAT_TYPE},
+			{FLOAT_TYPE, llvm_module_float, "__float_float", {FLOAT_TYPE}, FLOAT_TYPE},
+			{FLOAT_TYPE, llvm_module_float, "__float_str", {STR_TYPE}, FLOAT_TYPE},
 
-			{"str", llvm_module_str, "__str_int", {INT_TYPE}, "str"},
-			{"str", llvm_module_str, "__str_float", {"float"}, "str"},
-			{"str", llvm_module_str, "__str_type_id", {"__type_id"}, "str"},
-			{"str", llvm_module_str, "__str_str", {"str"}, "str"},
+			{STR_TYPE, llvm_module_str, "__str_int", {INT_TYPE}, STR_TYPE},
+			{STR_TYPE, llvm_module_str, "__str_float", {FLOAT_TYPE}, STR_TYPE},
+			{STR_TYPE, llvm_module_str, "__str_type_id", {"__type_id"}, STR_TYPE},
+			{STR_TYPE, llvm_module_str, "__str_str", {STR_TYPE}, STR_TYPE},
 
 			{"__ineq__", llvm_module_typeid, "__type_id_ineq_type_id", {"__type_id", "__type_id"}, INT_TYPE},
 			{"__eq__", llvm_module_typeid, "__type_id_eq_type_id", {"__type_id", "__type_id"}, INT_TYPE},
 
-			{"__plus__",   llvm_module_str, "__str_plus_str", {"str", "str"}, "str"},
+			{"__plus__",   llvm_module_str, "__str_plus_str", {STR_TYPE, STR_TYPE}, STR_TYPE},
 
 			{"__plus__", llvm_module_int, "__int_plus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
 			{"__minus__", llvm_module_int, "__int_minus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
@@ -294,23 +348,23 @@ void add_globals(
 			{"__negative__", llvm_module_int, "__int_neg", {INT_TYPE}, INT_TYPE},
 			{"__positive__", llvm_module_int, "__int_pos", {INT_TYPE}, INT_TYPE},
 
-			{"__negative__", llvm_module_float, "__float_neg", {"float"}, "float"},
-			{"__positive__", llvm_module_float, "__float_pos", {"float"}, "float"},
+			{"__negative__", llvm_module_float, "__float_neg", {FLOAT_TYPE}, FLOAT_TYPE},
+			{"__positive__", llvm_module_float, "__float_pos", {FLOAT_TYPE}, FLOAT_TYPE},
 
-			{"__plus__", llvm_module_float, "__int_plus_float", {INT_TYPE, "float"}, "float"},
-			{"__minus__", llvm_module_float, "__int_minus_float", {INT_TYPE, "float"}, "float"},
-			{"__times__", llvm_module_float, "__int_times_float", {INT_TYPE, "float"}, "float"},
-			{"__divide__", llvm_module_float, "__int_divide_float", {INT_TYPE, "float"}, "float"},
+			{"__plus__", llvm_module_float, "__int_plus_float", {INT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
+			{"__minus__", llvm_module_float, "__int_minus_float", {INT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
+			{"__times__", llvm_module_float, "__int_times_float", {INT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
+			{"__divide__", llvm_module_float, "__int_divide_float", {INT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
 
-			{"__plus__", llvm_module_float, "__float_plus_int", {"float", INT_TYPE}, "float"},
-			{"__minus__", llvm_module_float, "__float_minus_int", {"float", INT_TYPE}, "float"},
-			{"__times__", llvm_module_float, "__float_times_int", {"float", INT_TYPE}, "float"},
-			{"__divide__", llvm_module_float, "__float_divide_int", {"float", INT_TYPE}, "float"},
+			{"__plus__", llvm_module_float, "__float_plus_int", {FLOAT_TYPE, INT_TYPE}, FLOAT_TYPE},
+			{"__minus__", llvm_module_float, "__float_minus_int", {FLOAT_TYPE, INT_TYPE}, FLOAT_TYPE},
+			{"__times__", llvm_module_float, "__float_times_int", {FLOAT_TYPE, INT_TYPE}, FLOAT_TYPE},
+			{"__divide__", llvm_module_float, "__float_divide_int", {FLOAT_TYPE, INT_TYPE}, FLOAT_TYPE},
 
-			{"__plus__", llvm_module_float, "__float_plus_float", {"float", "float"}, "float"},
-			{"__minus__", llvm_module_float, "__float_minus_float", {"float", "float"}, "float"},
-			{"__times__", llvm_module_float, "__float_times_float", {"float", "float"}, "float"},
-			{"__divide__", llvm_module_float, "__float_divide_float", {"float", "float"}, "float"},
+			{"__plus__", llvm_module_float, "__float_plus_float", {FLOAT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
+			{"__minus__", llvm_module_float, "__float_minus_float", {FLOAT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
+			{"__times__", llvm_module_float, "__float_times_float", {FLOAT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
+			{"__divide__", llvm_module_float, "__float_divide_float", {FLOAT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
 
 			{"__gt__", llvm_module_int, "__int_gt_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
 			{"__lt__", llvm_module_int, "__int_lt_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
@@ -321,7 +375,7 @@ void add_globals(
 
 			{"__push_stack_var", llvm_module_gc, "push_stack_var", {"__var_ref"}, "void"},
 			{"__pop_stack_var", llvm_module_gc, "pop_stack_var", {"__var_ref"}, "void"},
-			{"__create_var", llvm_module_gc, "create_var", {"str", "__mark_fn", "__type_id", "__byte_count"}, "__var_ref"},
+			{"__create_var", llvm_module_gc, "create_var", {STR_TYPE, "__mark_fn", "__type_id", "__byte_count"}, "__var_ref"},
 			{"__get_var_type_id", llvm_module_gc, "get_var_type_id", {"__var_ref"}, "__type_id"},
 		};
 
@@ -368,6 +422,7 @@ void compiler::build(status_t &status) {
 				/* note the use of the set here to ensure that each module is only
 				 * included once */
 				auto module = module_data_pair.second;
+				assert(module != nullptr);
 				program->modules.insert(module);
 			}
 
@@ -459,7 +514,8 @@ int compiler::emit_built_program(status_t &status, std::string executable_filena
 			errno = 0;
 			int ret = system(ss.str().c_str());
 			if (ret != 0) {
-				user_error(status, location{}, "failure (%d) when running: %s", ss.str().c_str());
+				user_error(status, location{}, "failure (%d) when running: %s",
+						ret, ss.str().c_str());
 			}
 
 			struct stat s;
@@ -467,7 +523,8 @@ int compiler::emit_built_program(status_t &status, std::string executable_filena
 
 			return ret;
 		} else {
-			user_error(status, location{}, "failure (%d) when running: %s", ss.str().c_str());
+			user_error(status, location{}, "failure (%d) when running: %s",
+					ret, ss.str().c_str());
 			return ret;
 		}
 	}
@@ -503,55 +560,76 @@ std::unique_ptr<llvm::Module> &compiler::get_llvm_module(atom name) {
 	return hack;
 }
 
+std::string compute_module_key(std::vector<std::string> lib_paths, std::string filename) {
+	std::string working_key;
+	for (auto lib_path : lib_paths) {
+		if (starts_with(filename, lib_path)) {
+			if (working_key.size() < (filename.size() - lib_path.size())) {
+				working_key = filename.substr(lib_path.size() + 1);
+				assert(ends_with(working_key, ".zion"));
+				working_key = working_key.substr(0, working_key.size() - strlen(".zion"));
+			}
+		}
+	}
+	if (working_key.size() == 0) {
+		panic(string_format("could not find module filename in lib paths (%s)",
+					filename.c_str()));
+	}
+	return working_key;
+}
+
 void compiler::set_module(
-		std::string module_name,
+		status_t &status,
 		std::string filename,
 		ptr<ast::module> module)
 {
-	atom module_key = module_prefix + module_name;
-	atom filename_key = file_prefix + filename;
-
-	module->module_key = module_key;
-	module->filename_key = filename_key;
+	assert(module != nullptr);
+	assert(filename[0] = '/');
+	module->module_key = compute_module_key(*zion_paths, filename);
+	assert(module->filename == filename);
 
 	debug_above(4, log(log_info, "setting syntax and scope for module (`%s`, `%s`) valid=%s",
-				module_key.str().c_str(), filename_key.str().c_str(),
+				module->module_key.c_str(),
+				module->filename.str().c_str(),
 				boolstr(!!module)));
 
-	if (!get_module(module_key) && !get_module(filename_key))  {
+	if (!get_module(status, filename))  {
 		/* add the module to the compiler's modules map */
-		modules[module_key] = module;
-		modules[filename_key] = module;
+		modules[filename] = module;
 	} else {
-		panic(string_format("module (`%s`,`%s`) already exists!", module_name.c_str(),
+		panic(string_format("module " C_FILENAME "%s" C_RESET " already exists!",
 					filename.c_str()));
 	}
 }
 
-ptr<const ast::module> compiler::get_module(atom key_alias) {
-	auto module = modules[key_alias];
+ptr<const ast::module> compiler::get_module(status_t &status, atom key_alias) {
+	auto module_iter = modules.find(key_alias);
+	if (module_iter != modules.end()) {
+		auto module = module_iter->second;
+		assert(module != nullptr);
+		return module;
+	} else {
+		debug_above(4, log(log_info, "could not find valid module for " c_module("%s"),
+				   	key_alias.c_str()));
 
-	if (!module) {
-		debug_above(4, log(log_warning, "could not find valid module for " c_module("%s"), key_alias.c_str()));
-		static const std::vector<std::string> valid_module_lookup_prefixes = {
-			module_prefix,
-			file_prefix,
-		};
+		std::string module_filename;
+		resolve_module_filename(status, INTERNAL_LOC(), key_alias.str(), module_filename);
 
-		for (auto &prefix : valid_module_lookup_prefixes) {
-			if (starts_with(key_alias, prefix)) {
+		if (!!status) {
+			auto module_iter = modules.find(key_alias);
+			if (module_iter != modules.end()) {
+				auto module = module_iter->second;
+				assert(module != nullptr);
 				return module;
+			} else {
+				return nullptr;
 			}
+		} else {
+			user_error(status, INTERNAL_LOC(),
+				"can't find module %s in compiler modules", key_alias.c_str());
+			return nullptr;
 		}
-
-		panic(string_format("get_module called with `%s`, must use one of these prefixes %s",
-					key_alias.c_str(),
-					join(valid_module_lookup_prefixes, ", ").c_str()));
-		return {};
 	}
-
-	debug_above(4, log(log_info, "found valid module for %s", key_alias.c_str()));
-	return module;
 }
 
 module_scope_t::ref compiler::get_module_scope(atom module_key) {
@@ -565,6 +643,7 @@ module_scope_t::ref compiler::get_module_scope(atom module_key) {
 
 void compiler::set_module_scope(atom module_key, module_scope_t::ref module_scope) {
     assert(get_module_scope(module_key) == nullptr);
+	assert(module_scope != nullptr);
     module_scopes[module_key] = module_scope;
 }
 
@@ -573,17 +652,17 @@ std::string compiler::dump_llvm_modules() {
 }
 
 std::string compiler::dump_program_text(atom module_name) {
-	atom module_key = module_prefix + module_name;
-    auto iter = modules.find(module_key);
-	if (iter != modules.end()) {
-		if (iter->second) {
-			return iter->second->str();
+	status_t status;
+	auto module = get_module(status, module_name);
+	if (!!status) {
+		if (module != nullptr) {
+			return module->str();
 		} else {
-			log(log_warning, "no module " c_module("%s") " found", module_name.c_str());
+			assert(!"this module does not exist");
 			return "";
 		}
 	} else {
-		assert(!"this module does not exist");
+		not_impl();
 		return "";
 	}
 }
