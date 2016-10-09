@@ -30,6 +30,7 @@ struct bound_var_t : public var_t {
 		assert(name.size() != 0);
 		assert(llvm_value != nullptr);
 		assert(id != nullptr);
+		assert(type != nullptr);
 	}
 
 	virtual ~bound_var_t() throw() {}

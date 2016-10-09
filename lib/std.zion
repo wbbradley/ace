@@ -8,17 +8,17 @@ tag false
 type bool is true or false
 
 type str has
-	var value __str__
+	var raw __str__
 
 type int has
-	var value __int__
+	var raw __int__
 
 def str(x int) str
-	return str(x.value)
+	return str(x)
 
 def __plus__(x int, y int) int
-	return int(x.value + y.value)
+	return int(x.raw + y.raw)
 
 def print(x any) void
 	s := str(x)
-	puts(s)
+	puts(s.raw)

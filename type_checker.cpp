@@ -1911,7 +1911,12 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 			/* create a boxed integer */
             int64_t value = atoll(token.text.c_str());
             bound_type_t::ref raw_type = program_scope->get_bound_type({INT_TYPE});
-            bound_type_t::ref boxed_type = program_scope->get_bound_type({"int"});
+			bound_type_t::ref boxed_type = upsert_bound_type(
+					status,
+					builder,
+					program_scope,
+					type_id(make_iid("int")));
+			assert(boxed_type != nullptr);
             if (!!status) {
 				bound_var_t::ref box_int = get_callable(
 						status,
@@ -1943,7 +1948,13 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 		{
 			std::string value = unescape_json_quotes(token.text);
 			bound_type_t::ref raw_type = program_scope->get_bound_type({STR_TYPE});
-			bound_type_t::ref boxed_type = program_scope->get_bound_type({"str"});
+			bound_type_t::ref boxed_type = upsert_bound_type(
+					status,
+					builder,
+					program_scope,
+					type_id(make_iid("str")));
+
+			assert(boxed_type != nullptr);
 			if (!!status) {
 				bound_var_t::ref box_str = get_callable(
 						status,
@@ -1974,7 +1985,12 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 		{
 			float value = atof(token.text.c_str());
 			bound_type_t::ref raw_type = program_scope->get_bound_type({FLOAT_TYPE});
-			bound_type_t::ref boxed_type = program_scope->get_bound_type({"float"});
+			bound_type_t::ref boxed_type = upsert_bound_type(
+					status,
+					builder,
+					program_scope,
+					type_id(make_iid("float")));
+			assert(boxed_type != nullptr);
 			if (!!status) {
 				bound_var_t::ref box_float = get_callable(
 						status,
