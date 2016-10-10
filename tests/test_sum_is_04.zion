@@ -1,8 +1,9 @@
 module _
 
+# error: 4:6.*see type Special declaration
 type Special has
 	var nothing int
 
-# error: symbol Special is already registered
-type Broken is Special(int)
-
+# error: 8:6.*type Special already exists
+type Special has
+	var something int

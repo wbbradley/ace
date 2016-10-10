@@ -227,6 +227,7 @@ void rt_bind_var_from_llir(
 			}
 
 			program_scope->put_bound_variable(
+					status,
 					name,
 					bound_var_t::create(
 						INTERNAL_LOC(),
@@ -243,6 +244,9 @@ const char *INT_TYPE = "__int__";
 const char *BOOL_TYPE = "__bool__";
 const char *FLOAT_TYPE = "__float__";
 const char *STR_TYPE = "__str__";
+const char *TRUE_TYPE = "__true__";
+const char *FALSE_TYPE = "__false__";
+const char *TYPEID_TYPE = "__typeid__";
 
 void add_global_types(
 		llvm::IRBuilder<> &builder,
@@ -257,12 +261,12 @@ void add_global_types(
 		{{"module"}, bound_type_t::create(type_id(make_iid("module")), INTERNAL_LOC(), builder.getVoidTy())},
 		{{INT_TYPE}, bound_type_t::create(type_id(make_iid(INT_TYPE)), INTERNAL_LOC(), builder.getInt64Ty())},
 		{{FLOAT_TYPE}, bound_type_t::create(type_id(make_iid(FLOAT_TYPE)), INTERNAL_LOC(), builder.getFloatTy())},
-		{{BOOL_TYPE}, bound_type_t::create(type_id(make_iid(BOOL_TYPE)), INTERNAL_LOC(), builder.getInt1Ty())},
+		{{BOOL_TYPE}, bound_type_t::create(type_id(make_iid(BOOL_TYPE)), INTERNAL_LOC(), builder.getInt64Ty())},
 		{{STR_TYPE}, bound_type_t::create(type_id(make_iid(STR_TYPE)), INTERNAL_LOC(), builder.getInt8Ty()->getPointerTo())},
 
 		/* pull in the garbage collection and memory reference types */
 		{{"__tag_var"}, bound_type_t::create(type_id(make_iid("__tag_var")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.tag_t"))},
-		{{"__type_id"}, bound_type_t::create(type_id(make_iid("__type_id")), INTERNAL_LOC(), builder.getInt32Ty())},
+		{{TYPEID_TYPE}, bound_type_t::create(type_id(make_iid(TYPEID_TYPE)), INTERNAL_LOC(), builder.getInt32Ty())},
 		{{"__byte_count"}, bound_type_t::create(type_id(make_iid("__byte_count")), INTERNAL_LOC(), builder.getInt64Ty())},
 		{{"__var"}, bound_type_t::create(type_id(make_iid("__var")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.var_t"))},
 		{{"__var_ref"}, bound_type_t::create(type_id(make_iid("__var_ref")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
@@ -302,11 +306,17 @@ void add_globals(
 				void_ptr_type->get_llvm_type()));
 	assert(llvm_null_value != nullptr);
 
-	program_scope->put_bound_variable("true", bound_var_t::create(INTERNAL_LOC(), "true", bool_type, builder.getTrue(), make_iid("true"), false/*is_lhs*/));
-	program_scope->put_bound_variable("false", bound_var_t::create(INTERNAL_LOC(), "false", bool_type, builder.getFalse(), make_iid("false"), false/*is_lhs*/));
+	program_scope->put_bound_variable(status, "__true__", bound_var_t::create(INTERNAL_LOC(), "__true__", bool_type, builder.getInt64(1/*true*/), make_iid("__true__"), false/*is_lhs*/));
+	assert(!!status);
+
+	program_scope->put_bound_variable(status, "__false__", bound_var_t::create(INTERNAL_LOC(), "__false__", bool_type, builder.getInt64(0/*false*/), make_iid("__false__"), false/*is_lhs*/));
+	assert(!!status);
+
 	program_scope->put_bound_variable(
-			"null", bound_var_t::create(INTERNAL_LOC(), "null", void_ptr_type,
-				llvm_null_value, make_iid("null"), false/*is_lhs*/));
+			status, "null", bound_var_t::create(INTERNAL_LOC(), "null",
+				void_ptr_type, llvm_null_value, make_iid("null"),
+				false/*is_lhs*/));
+	assert(!!status);
 
 	if (!!status) {
 		struct binding_t {
@@ -328,11 +338,10 @@ void add_globals(
 
 			{STR_TYPE, llvm_module_str, "__str_int", {INT_TYPE}, STR_TYPE},
 			{STR_TYPE, llvm_module_str, "__str_float", {FLOAT_TYPE}, STR_TYPE},
-			{STR_TYPE, llvm_module_str, "__str_type_id", {"__type_id"}, STR_TYPE},
+			{STR_TYPE, llvm_module_str, "__str_type_id", {TYPEID_TYPE}, STR_TYPE},
 			{STR_TYPE, llvm_module_str, "__str_str", {STR_TYPE}, STR_TYPE},
 
-			{"__ineq__", llvm_module_typeid, "__type_id_ineq_type_id", {"__type_id", "__type_id"}, INT_TYPE},
-			{"__eq__", llvm_module_typeid, "__type_id_eq_type_id", {"__type_id", "__type_id"}, INT_TYPE},
+			{"__ineq__", llvm_module_typeid, "__type_id_ineq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 
 			{"__plus__",   llvm_module_str, "__str_plus_str", {STR_TYPE, STR_TYPE}, STR_TYPE},
 
@@ -340,10 +349,10 @@ void add_globals(
 			{"__minus__", llvm_module_int, "__int_minus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
 			{"__times__", llvm_module_int, "__int_times_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
 			{"__divide__", llvm_module_int, "__int_divide_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
-			{"__modulo__", llvm_module_int, "__int_modulus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
+			{"__mod__", llvm_module_int, "__int_modulus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
 
 			/* bitmasking */
-			{"mask", llvm_module_int, "__int_mask_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
+			{"__mask__", llvm_module_int, "__int_mask_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
 
 			{"__negative__", llvm_module_int, "__int_neg", {INT_TYPE}, INT_TYPE},
 			{"__positive__", llvm_module_int, "__int_pos", {INT_TYPE}, INT_TYPE},
@@ -365,18 +374,26 @@ void add_globals(
 			{"__minus__", llvm_module_float, "__float_minus_float", {FLOAT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
 			{"__times__", llvm_module_float, "__float_times_float", {FLOAT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
 			{"__divide__", llvm_module_float, "__float_divide_float", {FLOAT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
+			{"__gt__", llvm_module_float, "__float_gt_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
+			{"__lt__", llvm_module_float, "__float_lt_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
+			{"__gte__", llvm_module_float, "__float_gte_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
+			{"__lte__", llvm_module_float, "__float_lte_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
 
-			{"__gt__", llvm_module_int, "__int_gt_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
-			{"__lt__", llvm_module_int, "__int_lt_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
-			{"__gte__", llvm_module_int, "__int_gte_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
-			{"__lte__", llvm_module_int, "__int_lte_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
-			{"__ineq__", llvm_module_int, "__int_ineq_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
-			{"__eq__", llvm_module_int, "__int_eq_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
+			{"__gt__", llvm_module_int, "__int_gt_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
+			{"__lt__", llvm_module_int, "__int_lt_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
+			{"__gte__", llvm_module_int, "__int_gte_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
+			{"__lte__", llvm_module_int, "__int_lte_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
+			{"__ineq__", llvm_module_int, "__int_ineq_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
+			{"__ineq__", llvm_module_float, "__float_ineq_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
+			{"__eq__", llvm_module_int, "__int_eq_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
+			{"__eq__", llvm_module_float, "__float_eq_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
+			{"__eq__", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
+			{"__int__", llvm_module_typeid, "__type_id_int", {TYPEID_TYPE}, INT_TYPE},
 
 			{"__push_stack_var", llvm_module_gc, "push_stack_var", {"__var_ref"}, "void"},
 			{"__pop_stack_var", llvm_module_gc, "pop_stack_var", {"__var_ref"}, "void"},
-			{"__create_var", llvm_module_gc, "create_var", {STR_TYPE, "__mark_fn", "__type_id", "__byte_count"}, "__var_ref"},
-			{"__get_var_type_id", llvm_module_gc, "get_var_type_id", {"__var_ref"}, "__type_id"},
+			{"__create_var", llvm_module_gc, "create_var", {STR_TYPE, "__mark_fn", TYPEID_TYPE, "__byte_count"}, "__var_ref"},
+			{"__get_var_type_id", llvm_module_gc, "get_var_type_id", {"__var_ref"}, TYPEID_TYPE},
 		};
 
 		for (auto &binding : bindings) {

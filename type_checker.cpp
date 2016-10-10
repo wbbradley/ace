@@ -293,16 +293,22 @@ function_scope_t::ref make_param_list_scope(
 			// reassign the named parameter to a new value by making it an LHS
 
             /* add the parameter argument to the current scope */
-            new_scope->put_bound_variable(param.first,
+            new_scope->put_bound_variable(status, param.first,
                     bound_var_t::create(INTERNAL_LOC(), param.first, param.second,
                         llvm_param, make_code_id(obj.param_list_decl->params[i++]->token),
 						false/*is_lhs*/));
+			if (!status) {
+				break;
+			}
         }
 
-        return new_scope;
-    } else {
-        return nullptr;
+		if (!!status) {
+			return new_scope;
+		}
     }
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref ast::link_module_statement::resolve_instantiation(
@@ -331,9 +337,11 @@ bound_var_t::ref ast::link_module_statement::resolve_instantiation(
 		bound_module_t::ref module_variable = bound_module_t::create(INTERNAL_LOC(),
 				link_as_name.text, make_code_id(token), linked_module_scope);
 
-		module_scope->put_bound_variable(module_variable->name, module_variable);
+		module_scope->put_bound_variable(status, module_variable->name, module_variable);
 
-		return module_variable;
+		if (!!status) {
+			return module_variable;
+		}
 	} else {
 		user_error(status, *this, "can't find module %s", linked_module_name.c_str());
 	}
@@ -825,7 +833,7 @@ bound_var_t::ref call_typeid(
 		return bound_var_t::create(
 				INTERNAL_LOC(),
 				string_format("typeid(%s)", resolved_value->str().c_str()),
-				program_scope->get_bound_type({"int"}),
+				program_scope->get_bound_type({TYPEID_TYPE}),
 				llvm_create_int(builder, resolved_value->type->get_type()->get_signature().iatom),
 				id,
 				false/*is_lhs*/);
@@ -955,7 +963,7 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 				*new_scope = local_scope->new_local_scope(
 						string_format("function-%s", function_name.c_str()));
 
-				(*new_scope)->put_bound_variable(function_var->name, function_var);
+				(*new_scope)->put_bound_variable(status, function_var->name, function_var);
 			} else {
 				module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
 
@@ -968,42 +976,46 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 				if (module_scope != nullptr) {
 					/* before recursing directly or indirectly, let's just add
 					 * this function to the module scope we're in */
-					module_scope->put_bound_variable(function_var->name, function_var);
-					module_scope->mark_checked(status, shared_from_this());
-					assert(!!status);
+					module_scope->put_bound_variable(status, function_var->name, function_var);
+					if (!!status) {
+						module_scope->mark_checked(status, shared_from_this());
+						assert(!!status);
+					}
 				}
 			}
 		} else {
 			user_error(status, *this, "function definitions need names");
 		}
 
-		/* keep track of whether this function returns */
-		bool all_paths_return = false;
-		params_scope->return_type_constraint = return_type;
-		block->resolve_instantiation(status, builder, params_scope,
-				nullptr, &all_paths_return);
-
 		if (!!status) {
-			debug_above(10, log(log_info, "module dump from %s\n%s",
-						__PRETTY_FUNCTION__,
-						llvm_print_module(*llvm_get_module(builder)).c_str()));
+			/* keep track of whether this function returns */
+			bool all_paths_return = false;
+			params_scope->return_type_constraint = return_type;
+			block->resolve_instantiation(status, builder, params_scope,
+					nullptr, &all_paths_return);
 
-			if (all_paths_return) {
-				return function_var;
-			} else {
-				/* not all control paths return */
-				if (return_type->is_void()) {
-					/* if this is a void let's give the user a break and insert
-					 * a default void return */
-					builder.CreateRetVoid();
+			if (!!status) {
+				debug_above(10, log(log_info, "module dump from %s\n%s",
+							__PRETTY_FUNCTION__,
+							llvm_print_module(*llvm_get_module(builder)).c_str()));
+
+				if (all_paths_return) {
 					return function_var;
 				} else {
-					/* no breaks here, we don't know what to return */
-					user_error(status, *this, "not all control paths return a value");
+					/* not all control paths return */
+					if (return_type->is_void()) {
+						/* if this is a void let's give the user a break and insert
+						 * a default void return */
+						builder.CreateRetVoid();
+						return function_var;
+					} else {
+						/* no breaks here, we don't know what to return */
+						user_error(status, *this, "not all control paths return a value");
+					}
 				}
-			}
 
-			llvm_verify_function(status, llvm_function);
+				llvm_verify_function(status, llvm_function);
+			}
 		}
 	}
 
@@ -1026,24 +1038,24 @@ status_t type_check_module_links(
 	module_scope_t::ref scope = compiler.get_module_scope(obj.module_key);
 
 	for (auto &link : obj.linked_modules) {
-		bound_var_t::ref link_value = link->resolve_instantiation(status, builder, scope, nullptr, nullptr);
-		// REVIEW: this is dumb
-		assert_implies(!status, link_value == nullptr);
-		assert_implies(!!status, link_value != nullptr);
+		link->resolve_instantiation(status, builder, scope, nullptr, nullptr);
 	}
 
-    for (auto &link : obj.linked_functions) {
-        bound_var_t::ref link_value = link->resolve_instantiation(
-                status, builder, scope, nullptr, nullptr);
+	if (!!status) {
+		for (auto &link : obj.linked_functions) {
+			bound_var_t::ref link_value = link->resolve_instantiation(
+					status, builder, scope, nullptr, nullptr);
 
-        if (!!status) {
-            if (link->link_as_name.text.size() != 0) {
-                scope->put_bound_variable(link->link_as_name.text, link_value);
-            } else {
-                user_error(status, *link, "module level link definitions need names");
-            }
-        }
+			if (!!status) {
+				if (link->link_as_name.text.size() != 0) {
+					scope->put_bound_variable(status, link->link_as_name.text, link_value);
+				} else {
+					user_error(status, *link, "module level link definitions need names");
+				}
+			}
+		}
     }
+
     return status;
 }
 
@@ -1057,11 +1069,11 @@ status_t type_check_module_types(
 				obj.module_key.str().c_str()));
 	status_t final_status;
 
-    /* get module level scope types */
-    module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
+	/* get module level scope types */
+	module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
 
 	auto unchecked_types_ordered = module_scope->get_unchecked_types_ordered();
-    for (int i = 0; i < unchecked_types_ordered.size(); ++i) {
+	for (int i = 0; i < unchecked_types_ordered.size(); ++i) {
 		auto unchecked_type = unchecked_types_ordered[i];
 		auto node = unchecked_type->node;
 		if (!module_scope->has_checked(node)) {
@@ -1220,11 +1232,13 @@ bound_var_t::ref ast::tag::resolve_instantiation(
 				builder, scope, bound_tag_type, tag_name, id);
 
 		/* record this tag variable for use later */
-		scope->put_bound_variable(tag_name, tag);
+		scope->put_bound_variable(status, tag_name, tag);
 
-		debug_above(7, log(log_info, "instantiated nullary data ctor %s",
-					tag->str().c_str()));
-		return tag;
+		if (!!status) {
+			debug_above(7, log(log_info, "instantiated nullary data ctor %s",
+						tag->str().c_str()));
+			return tag;
+		}
 	}
 
 	assert(!status);
@@ -1409,7 +1423,7 @@ bound_var_t::ref ast::mod_assignment::resolve_instantiation(
 		bool *returns) const
 {
 	return type_check_binary_op_assignment(status, builder, scope,
-			shared_from_this(), lhs, rhs, token.location, "__modulo__");
+			shared_from_this(), lhs, rhs, token.location, "__mod__");
 }
 
 bound_var_t::ref ast::plus_assignment::resolve_instantiation(
@@ -1555,6 +1569,58 @@ bound_var_t::ref ast::block::resolve_instantiation(
     return nullptr;
 }
 
+llvm::Value *get_condition_value(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		ast::item::ref condition,
+		bound_var_t::ref condition_value)
+{
+	llvm::Value *llvm_condition_value = nullptr;
+	if (condition_value->is_int()) {
+		llvm_condition_value = llvm_resolve_alloca(builder, condition_value->llvm_value);
+		assert(llvm_condition_value->getType()->isIntegerTy());
+	} else {
+		debug_above(2, log(log_info,
+					"if condition %s appears to not be a builtin integer type, "
+					"attempting to resolve a " c_var("%s") " override",
+					condition_value->str().c_str(),
+					BOOL_TYPE));
+
+		/* convert condition to an integer */
+		bound_var_t::ref bool_fn = get_callable(
+				status, builder, scope, BOOL_TYPE, condition,
+				get_args_term({condition_value->type}));
+
+		if (!!status) {
+			/* we've found a bool function that will take our condition as input */
+			assert(bool_fn != nullptr);
+
+			if (get_function_return_type(bool_fn->type->get_type())->get_signature() == "__bool__") {
+				debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (term %s)",
+							condition->str().c_str(), bool_fn->type->str().c_str()));
+
+				/* let's call this bool function */
+				llvm_condition_value = llvm_create_call_inst(
+						status, builder, *condition, bool_fn,
+						{condition_value->llvm_value});
+
+				assert(llvm_condition_value->getType()->isIntegerTy());
+			} else {
+				user_error(status, bool_fn->get_location(),
+						"__bool__ coercion function must return a " C_TYPE "__bool__" C_RESET);
+				user_error(status, bool_fn->get_location(),
+						"implicit __bool__ was defined function must return a " C_TYPE "__type__" C_RESET);
+
+			}
+		} else {
+			// TODO: maybe want a better explanation for why we're
+			// trying to call bool.
+		}
+	}
+	return llvm_condition_value;
+}
+
 bound_var_t::ref ast::while_block::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
@@ -1576,42 +1642,12 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
 		builder.SetInsertPoint(while_cond_bb);
 
 		/* evaluate the condition for branching */
-		bound_var_t::ref bool_condition_value;
 		bound_var_t::ref condition_value = condition->resolve_instantiation(
 				status, builder, scope, &while_scope, nullptr);
 
 		if (!!status) {
-			llvm::Value *llvm_condition_value = nullptr;
-			if (condition_value->is_int()) {
-				llvm_condition_value = llvm_resolve_alloca(builder, condition_value->llvm_value);
-				assert(llvm_condition_value->getType()->isIntegerTy());
-			} else {
-				debug_above(2, log(log_info, "while condition %s appears to not be a bool or int, attempting to resolve a " c_var("bool") " override",
-						condition_value->str().c_str()));
-
-				/* convert condition to an integer */
-				bound_var_t::ref bool_fn = get_callable(
-						status, builder, scope, "bool", condition,
-					   	get_args_term({condition_value->type}));
-
-				if (!!status) {
-					/* we've found a bool function that will take our condition as input */
-				   	assert(bool_fn != nullptr);
-
-					debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for while condition evaluation (term %s)",
-						   	condition->str().c_str(), bool_fn->type->str().c_str()));
-
-					/* let's call this bool function */
-					llvm_condition_value = llvm_create_call_inst(
-							status, builder, *condition, bool_fn,
-							{condition_value->llvm_value});
-
-					assert(llvm_condition_value->getType()->isIntegerTy());
-				} else {
-					// TODO: maybe want a better explanation for why we're
-					// trying to call bool.
-				}
-			}
+			llvm::Value *llvm_condition_value = get_condition_value(status,
+					builder, scope, condition, condition_value);
 
 			if (!!status) {
 				assert(llvm_condition_value != nullptr);
@@ -1674,42 +1710,12 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 		assert(token.text == "if" || token.text == "elif");
 
 		/* evaluate the condition for branching */
-		bound_var_t::ref bool_condition_value;
 		bound_var_t::ref condition_value = condition->resolve_instantiation(
 				status, builder, scope, &if_scope, nullptr);
 
 		if (!!status) {
-			llvm::Value *llvm_condition_value = nullptr;
-			if (condition_value->is_int()) {
-				llvm_condition_value = llvm_resolve_alloca(builder, condition_value->llvm_value);
-				assert(llvm_condition_value->getType()->isIntegerTy());
-			} else {
-				debug_above(2, log(log_info, "if condition %s appears to not be a bool or int, attempting to resolve a " c_var("bool") " override",
-						condition_value->str().c_str()));
-
-				/* convert condition to an integer */
-				bound_var_t::ref bool_fn = get_callable(
-						status, builder, scope, "bool", condition,
-					   	get_args_term({condition_value->type}));
-
-				if (!!status) {
-					/* we've found a bool function that will take our condition as input */
-				   	assert(bool_fn != nullptr);
-
-					debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (term %s)",
-						   	condition->str().c_str(), bool_fn->type->str().c_str()));
-
-					/* let's call this bool function */
-					llvm_condition_value = llvm_create_call_inst(
-							status, builder, *condition, bool_fn,
-							{condition_value->llvm_value});
-
-					assert(llvm_condition_value->getType()->isIntegerTy());
-				} else {
-					// TODO: maybe want a better explanation for why we're
-					// trying to call bool.
-				}
-			}
+			llvm::Value *llvm_condition_value = get_condition_value(status,
+					builder, scope, condition, condition_value);
 
 			if (!!status && llvm_condition_value != nullptr) {
 				/* test that the if statement doesn't return */
@@ -1821,9 +1827,11 @@ bound_var_t::ref ast::var_decl::resolve_instantiation(
 		// var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol, type, llvm_alloca, make_code_id(obj.token));
 	} else {
 		/* on our way out, stash the variable in the current scope */
-		fresh_scope->put_bound_variable(var_decl_variable->name, var_decl_variable);
-		*new_scope = fresh_scope;
-		return var_decl_variable;
+		fresh_scope->put_bound_variable(status, var_decl_variable->name, var_decl_variable);
+		if (!!status) {
+			*new_scope = fresh_scope;
+			return var_decl_variable;
+		}
 	}
 
 	assert(!status);
@@ -1856,7 +1864,7 @@ bound_var_t::ref ast::times_expr::resolve_instantiation(
 		function_name = "__divide__";
 		break;
 	case tk_mod:
-		function_name = "__modulo__";
+		function_name = "__mod__";
 		break;
 	default:
 		return null_impl();

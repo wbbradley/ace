@@ -29,7 +29,7 @@ token_kind translate_tk(token_kind tk, const zion_string_t &token_text) {
 		{"tag", tk_tag},
 		{"to", tk_to},
 		{"type", tk_type},
-		{"typeid", tk_typeid},
+		{"__get_typeid__", tk_get_typeid},
 		{"var", tk_var},
 		{"while", tk_while},
 		{"when", tk_when},

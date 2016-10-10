@@ -9,4 +9,4 @@ def main() int
 	return 1
 
 def generic(value any) str
-	return str(__int__(str(value)))
+	return str(value)

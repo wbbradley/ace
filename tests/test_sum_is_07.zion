@@ -1,7 +1,12 @@
 module _
 # test: pass
 
-type List is Done or Node(int, List)
+tag Done
+type Node has
+	var i int
+	var l List
+
+type List is Done or Node
 
 def main()
 	pass

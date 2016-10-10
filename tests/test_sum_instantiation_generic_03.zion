@@ -1,11 +1,20 @@
 module _
 
 # test: pass
-type TY is Y(int)
+type Y has
+	var y int
+
+type TY is Y
+
+type foo{T} has
+	var t T
+
+type bar has
+	var y Y
 
 type baz{X} is
-	foo(X) or
-	bar(Y)
+	foo{X} or
+	bar
 
 def main()
 	y := bar(Y(1))

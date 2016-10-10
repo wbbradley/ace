@@ -1,7 +1,13 @@
 module _
 # test: pass
 
-type ListNode is Data(int, ListNode) or Done
+type Data has
+	var value int
+	var node ListNode
+
+tag Done
+
+type ListNode is Data or Done
 
 type List has
 	var l ListNode

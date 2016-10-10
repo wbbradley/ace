@@ -1,7 +1,11 @@
 module _
 # test: pass
 
-type C is D or E(C)
+tag D
+type E has
+	var c C
+
+type C is D or E
 
 def identity(expr C)
 	pass

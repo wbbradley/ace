@@ -1,6 +1,7 @@
 module _
 
-type Superman is Special(int)
+type Special has
+	var i int
 
 def main()
 	x := Special(1)

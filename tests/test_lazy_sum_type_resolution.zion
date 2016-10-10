@@ -1,7 +1,10 @@
 module _ @1.0
 # test: pass
 
-type B{X} is Bx(X)
+type Bx{T} has
+	var x T
+
+type B{X} is Bx{X}
 
 def do(b Bx{int})
 	print(b[0])

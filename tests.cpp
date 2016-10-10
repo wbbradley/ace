@@ -256,7 +256,7 @@ bool test_lex_syntax() {
 		{"while", {tk_while}},
 		{"if", {tk_if}},
 		{"when", {tk_when}},
-		{"typeid", {tk_typeid}},
+		{"__get_typeid__", {tk_get_typeid}},
 		{"else", {tk_else}},
 		{"elif", {tk_elif}},
 		{"break", {tk_break}},

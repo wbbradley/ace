@@ -72,3 +72,26 @@ zion_float_t __float_divide_int(zion_float_t x, zion_int_t y) {
 	return x / (zion_float_t)y;
 }
 
+zion_bool_t __float_eq_float(zion_float_t x, zion_float_t y) {
+	return x == y;
+}
+
+zion_bool_t __float_ineq_float(zion_float_t x, zion_float_t y) {
+	return x != y;
+}
+
+zion_bool_t __float_gt_float(zion_float_t x, zion_float_t y) {
+	return x > y;
+}
+
+zion_bool_t __float_gte_float(zion_float_t x, zion_float_t y) {
+	return x >= y;
+}
+
+zion_bool_t __float_lt_float(zion_float_t x, zion_float_t y) {
+	return x < y;
+}
+
+zion_bool_t __float_lte_float(zion_float_t x, zion_float_t y) {
+	return x <= y;
+}

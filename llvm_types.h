@@ -72,13 +72,6 @@ bound_type_t::ref get_function_return_type(
 		scope_t::ref scope,
 		bound_type_t::ref function_type);
 
-bound_type_t::ref bind_type_lazily(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		types::type::ref type,
-		unchecked_type_t::ref unchecked_type);
-
 bound_type_t::ref get_or_create_algebraic_data_type(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,

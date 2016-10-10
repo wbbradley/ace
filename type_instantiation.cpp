@@ -201,7 +201,7 @@ void create_supertype_relationship(
 		for (auto lambda_var : lambda_vars) {
 			supertype_expansion = types::term_lambda(lambda_var, supertype_expansion);
 		}
-		scope->put_type_term(tag_name, supertype_expansion);
+		scope->put_type_term(status, tag_name, supertype_expansion);
 	}
 }
 
@@ -318,10 +318,12 @@ types::term::ref instantiate_data_ctor_type_term(
 					builder, scope, bound_tag_type, tag_name, id);
 
 			/* record this data ctor for use later */
-			scope->put_bound_variable(tag_name, tag);
+			scope->put_bound_variable(status, tag_name, tag);
 
-			debug_above(7, log(log_info, "instantiated nullary data ctor %s",
-						tag->str().c_str()));
+			if (!!status) {
+				debug_above(7, log(log_info, "instantiated nullary data ctor %s",
+							tag->str().c_str()));
+			}
 		}
 	}
 

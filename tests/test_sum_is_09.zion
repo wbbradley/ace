@@ -1,6 +1,11 @@
 module _
 # test: pass
 
+tag Done
+type Node{T} has
+	var value T
+	var next List{T}
+
 type List{V} is
-	Node(V, List{V}) or
+	Node{V} or
 	Done

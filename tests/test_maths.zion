@@ -1,11 +1,6 @@
 module _
 # test: pass
 
-link def puts(x str) int
-
-def print(x)
-	puts(str(x))
-
 def main()
 	var x = 5
 	# make sure pure int math compiles

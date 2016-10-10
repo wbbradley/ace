@@ -42,7 +42,7 @@ enum token_kind
 	tk_any, /* any */
 	tk_type, /* type */
 	tk_tag, /* tag */
-	tk_typeid, /* type */
+	tk_get_typeid, /* __get_typeid__ */
 	tk_is, /* is */
 	tk_has, /* has */
 	tk_matches, /* matches */

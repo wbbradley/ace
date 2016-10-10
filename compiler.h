@@ -11,6 +11,13 @@ extern const char *INT_TYPE;
 extern const char *BOOL_TYPE;
 extern const char *FLOAT_TYPE;
 extern const char *STR_TYPE;
+extern const char *INT_TYPE;
+extern const char *BOOL_TYPE;
+extern const char *FLOAT_TYPE;
+extern const char *STR_TYPE;
+extern const char *TRUE_TYPE;
+extern const char *FALSE_TYPE;
+extern const char *TYPEID_TYPE;
 
 struct compiler {
 	typedef std::vector<std::string> libs;

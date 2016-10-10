@@ -1,12 +1,18 @@
 module _
 # test: pass
 
+type Relative has
+	var value float
+
+type Absolute has
+	var value float
+
 type Point is
-	Relative(float) or Absolute(float)
+	Relative or Absolute
 
 # override the bool operator for Point
-def bool(p Point) bool
-	return true
+def __bool__(p Point) __bool__
+	return __true__
 
 def main()
 	point := Relative(1.0)

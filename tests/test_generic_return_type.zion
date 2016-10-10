@@ -1,7 +1,13 @@
 module _
 # test: pass
 
-type C{T} is D(T) or E(C{T})
+type D{T} has
+	var t T
+
+type E{T} has
+	var c C{T}
+
+type C{T} is D{T} or E{T}
 
 def identity(expr C{any X}) any X
 	return "asdf"

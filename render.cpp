@@ -113,7 +113,7 @@ namespace ast {
 	}
 
 	void typeid_expr::render(render_state_t &rs) const {
-		rs.ss << C_TYPE << tkstr(tk_typeid) << C_RESET << "(";
+		rs.ss << C_TYPE << tkstr(tk_get_typeid) << C_RESET << "(";
 		expr->render(rs);
 		rs.ss << ")";
 	}

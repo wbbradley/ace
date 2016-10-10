@@ -2,7 +2,7 @@ module _
 
 def caller()
 	x := 1
-	# error: 7:2.* unable to resolve overloads .*
+	# error: 6:2.* unable to resolve overloads .*
 	callee(x)
 
 def callee(x str)

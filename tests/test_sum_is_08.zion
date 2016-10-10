@@ -1,9 +1,17 @@
 module _
 # test: pass
 
+tag Done
+
+type Node{T} has
+	var t T
+
+type Divide{T} has
+	var l List{T}
+
 type List{T} is
-	Node(T) or
-	Divide(List{T}) or
+	Node{T} or
+	Divide{List{T}} or
 	Done
 
 def compute(expr List{any X}) any X

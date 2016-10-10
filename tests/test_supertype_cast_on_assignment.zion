@@ -1,8 +1,16 @@
 module _
 
+type Cartesian{T} has
+	var x T
+	var y T
+
+type Radial{T} has
+	var radius T
+	var theta T
+
 type Point{T} is
-	Cartesian(T, T) or
-	Radial(T, T)
+	Cartesian{T} or
+	Radial{T, T}
 
 def main()
 	# error: no function found named __getitem__

@@ -1,4 +1,3 @@
 module _
-
-# error: symbol int was already defined
+# test: pass
 type PhoneNumber is int

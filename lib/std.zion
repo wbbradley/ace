@@ -2,16 +2,47 @@ module _
 
 link def puts(x __str__) __int__
 
-tag true
 tag false
+tag true
 
-type bool is true or false
+type bool is
+	true or
+	false
+
+type TypeID has
+	var id __typeid__
+
+type typeid is TypeID
+
+def assert(condition bool)
+	if not condition
+		print("assertion failed!")
+
+def typeid(t any) typeid
+	return TypeID(__get_typeid__(t))
+
+def __ineq__(x typeid, y typeid) bool
+	# TODO: pattern matching for upcasting
+	assert(false)
+	return false
+
+def __bool__(b bool) __bool__
+	return __get_typeid__(b) == __get_typeid__(true)
+
+def bool(x __bool__) bool
+	if x
+		return true
+	else
+		return false
 
 type str has
 	var raw __str__
 
 def str(s str) str
 	return s
+
+def int(s str) int
+	return int(__int__(s.raw))
 
 type int has
 	var raw __int__
@@ -20,7 +51,7 @@ def int(x int) int
 	return x
 
 def str(x int) str
-	return str(x)
+	return str(__str__(x.raw))
 
 type float has
 	var raw __float__
@@ -29,10 +60,136 @@ def float(x float) float
 	return x
 
 def str(x float) str
-	return str(x)
+	return str(__str__(x.raw))
+
+def mask(x int, y int) int
+	return int(__mask__(x.raw, y.raw))
+
+def __mod__(x int, y int) int
+	return int(x.raw % y.raw)
+
+def __plus__(x str, y str) str
+	return str(x.raw + y.raw)
+
+def __plus__(x float, y float) float
+	return float(x.raw + y.raw)
+
+def __plus__(x float, y int) float
+	return float(x.raw + y.raw)
+
+def __plus__(x int, y float) float
+	return float(x.raw + y.raw)
 
 def __plus__(x int, y int) int
 	return int(x.raw + y.raw)
+
+def __minus__(x int, y int) int
+	return int(x.raw - y.raw)
+
+def __minus__(x float, y int) float
+	return float(x.raw - __float__(y.raw))
+
+def __minus__(x int, y float) float
+	return float(__float__(x.raw) - y.raw)
+
+def __minus__(x float, y float) float
+	return float(x.raw - y.raw)
+
+def __positive__(x int) int
+	return x
+
+def __positive__(x float) float
+	return x
+
+def __negative__(x int) int
+	return int(-x.raw)
+
+def __negative__(x float) float
+	return float(-x.raw)
+
+def __divide__(x int, y int) int
+	return int(x.raw / y.raw)
+
+def __divide__(x float, y int) float
+	return float(x.raw / __float__(y.raw))
+
+def __divide__(x int, y float) float
+	return float(__float__(x.raw) / y.raw)
+
+def __divide__(x float, y float) float
+	return float(x.raw / y.raw)
+
+def __times__(x int, y int) int
+	return int(x.raw * y.raw)
+
+def __times__(x float, y int) float
+	return float(x.raw * __float__(y.raw))
+
+def __times__(x int, y float) float
+	return float(__float__(x.raw) * y.raw)
+
+def __times__(x float, y float) float
+	return float(x.raw * y.raw)
+
+def __eq__(x int, y int) bool
+	return bool(x.raw == y.raw)
+
+def __eq__(x int, y float) bool
+	return bool(__float__(x.raw) == y.raw)
+
+def __eq__(x float, y int) bool
+	return bool(x.raw == __float__(y.raw))
+
+def __eq__(x float, y float) bool
+	return bool(x.raw == y.raw)
+
+def __ineq__(x int, y int) bool
+	return bool(x.raw != y.raw)
+
+def __ineq__(x int, y float) bool
+	return bool(__float__(x.raw) != y.raw)
+
+def __ineq__(x float, y int) bool
+	return bool(x.raw != __float__(y.raw))
+
+def __ineq__(x float, y float) bool
+	return bool(x.raw != y.raw)
+
+def __lt__(x int, y int) bool
+	return bool(x.raw < y.raw)
+
+def __lte__(x int, y int) bool
+	return bool(x.raw <= y.raw)
+
+def __gt__(x int, y int) bool
+	return bool(x.raw > y.raw)
+
+def __gte__(x int, y int) bool
+	return bool(x.raw >= y.raw)
+
+def __lt__(x int, y float) bool
+	return bool(__float__(x.raw) < y.raw)
+
+def __lte__(x int, y float) bool
+	return bool(__float__(x.raw) <= y.raw)
+
+def __gt__(x int, y float) bool
+	return bool(__float__(x.raw) > y.raw)
+
+def __gte__(x int, y float) bool
+	return bool(__float__(x.raw) >= y.raw)
+
+def __lt__(x float, y int) bool
+	return bool(x.raw < __float__(y.raw))
+
+def __lte__(x float, y int) bool
+	return bool(x.raw < __float__(y.raw))
+
+def __gt__(x float, y int) bool
+	return bool(x.raw > __float__(y.raw))
+
+def __gte__(x float, y int) bool
+	return bool(x.raw >= __float__(y.raw))
 
 def print(x any) void
 	s := str(x)

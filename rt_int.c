@@ -55,18 +55,18 @@ zion_int_t __int_lte_int(zion_int_t x, zion_int_t y) {
 	return x <= y;
 }
 
-zion_int_t __int_gt_int(zion_int_t x, zion_int_t y) {
+zion_bool_t __int_gt_int(zion_int_t x, zion_int_t y) {
 	return x > y;
 }
 
-zion_int_t __int_gte_int(zion_int_t x, zion_int_t y) {
+zion_bool_t __int_gte_int(zion_int_t x, zion_int_t y) {
 	return x >= y;
 }
 
-zion_int_t __int_ineq_int(zion_int_t x, zion_int_t y) {
+zion_bool_t __int_ineq_int(zion_int_t x, zion_int_t y) {
 	return x != y;
 }
 
-zion_int_t __int_eq_int(zion_int_t x, zion_int_t y) {
+zion_bool_t __int_eq_int(zion_int_t x, zion_int_t y) {
 	return x == y;
 }

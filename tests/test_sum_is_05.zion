@@ -1,7 +1,10 @@
 module _
 
 # test: pass
+tag Empty
+type Just{T} has
+	var value T
 
 type Maybe{X} is
 	Empty or
-	Just(X)
+	Just{X}

@@ -183,7 +183,7 @@ ptr<expression> reference_expr::parse(parse_state_t &ps) {
 
 ptr<typeid_expr> typeid_expr::parse(parse_state_t &ps) {
 	auto token = ps.token;
-	chomp_token(tk_typeid);
+	chomp_token(tk_get_typeid);
 	chomp_token(tk_lparen);
 
 	auto value = expression::parse(ps);
@@ -204,7 +204,7 @@ ptr<expression> base_expr::parse(parse_state_t &ps) {
 		return expr;
 	} else if (ps.token.tk == tk_identifier) {
 		return reference_expr::parse(ps);
-	} else if (ps.token.tk == tk_typeid) {
+	} else if (ps.token.tk == tk_get_typeid) {
 		return typeid_expr::parse(ps);
 	} else {
 		return literal_expr::parse(ps);

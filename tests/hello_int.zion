@@ -1,4 +1,5 @@
 module _
 
 def main()
-	print(3)
+	print("asdf")
+	print(int(__int__(typeid(3))))

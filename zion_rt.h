@@ -9,6 +9,7 @@
 
 /* for now let's go big and not worry about it */
 typedef int64_t zion_int_t;
+typedef int64_t zion_bool_t;
 typedef float zion_float_t;
 typedef int32_t type_id_t;
 

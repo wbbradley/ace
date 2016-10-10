@@ -1,7 +1,8 @@
 module _
+# test: pass
 
-type Broken is Special(int)
-
-# error: type name Special is already registered
 type Special has
 	var nothing int
+
+def main()
+	Special(2)

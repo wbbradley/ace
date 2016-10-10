@@ -43,7 +43,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 
 	virtual bound_var_t::ref get_bound_variable(status_t &status, const ptr<const ast::item> &obj, atom symbol) = 0;
 	virtual bound_var_t::ref maybe_get_bound_variable(atom symbol) = 0;
-	virtual void put_bound_variable(atom symbol, bound_var_t::ref bound_variable) = 0;
+	virtual void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable) = 0;
 	virtual bound_type_t::ref get_bound_type(types::signature signature) = 0;
 	virtual std::string get_name() const;
 	virtual std::string make_fqn(std::string leaf_name) const = 0;
@@ -56,7 +56,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 
 	virtual bound_var_t::ref get_singleton(atom name) = 0;
 
-	virtual void put_type_term(atom name, types::term::ref type_term) = 0;
+	virtual void put_type_term(status_t &status, atom name, types::term::ref type_term) = 0;
 	virtual void put_type_decl_term(atom name, types::term::ref type_term) = 0;
 	virtual types::term::map get_type_env() const = 0;
 	virtual types::term::map get_type_decl_env() const = 0;
@@ -79,12 +79,12 @@ struct scope_impl_t : public BASE {
 
 	ptr<function_scope_t> new_function_scope(atom name);
 	ptr<program_scope_t> get_program_scope();
-	void put_type_term(atom name, types::term::ref type_term);
+	void put_type_term(status_t &status, atom name, types::term::ref type_term);
 	void put_type_decl_term(atom name, types::term::ref type_term);
 	types::term::map get_type_env() const;
 	types::term::map get_type_decl_env() const;
 	std::string str();
-	void put_bound_variable(atom symbol, bound_var_t::ref bound_variable);
+	void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable);
 	bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints);
 	bound_var_t::ref get_singleton(atom name);
 	bound_var_t::ref maybe_get_bound_variable(atom symbol);
@@ -330,11 +330,16 @@ ptr<program_scope_t> scope_impl_t<T>::get_program_scope() {
 }
 
 template <typename T>
-void scope_impl_t<T>::put_type_term(atom name, types::term::ref type_term) {
+void scope_impl_t<T>::put_type_term(status_t &status, atom name, types::term::ref type_term) {
 	debug_above(2, log(log_info, "registering type term " c_term("%s") " as %s",
 				name.c_str(), type_term->str().c_str()));
-	assert(type_env.find(name) == type_env.end());
-	type_env[name] = type_term;
+	if (type_env.find(name) == type_env.end()) {
+		type_env[name] = type_term;
+	} else {
+		user_error(status, type_term->get_id()->get_location(),
+				"multiple supertypes are not yet implemented (" c_type("%s") " <: " c_type("%s") ")",
+				name.c_str(), type_term->str().c_str());
+	}
 }
 
 template <typename T>
@@ -383,16 +388,30 @@ std::string scope_impl_t<T>::str() {
 }
 
 template <typename T>
-void scope_impl_t<T>::put_bound_variable(atom symbol, bound_var_t::ref bound_variable) {
+void scope_impl_t<T>::put_bound_variable(
+		status_t &status,
+	   	atom symbol,
+	   	bound_var_t::ref bound_variable)
+{
 	debug_above(8, log(log_info, "binding %s", bound_variable->str().c_str()));
 
 	auto &resolve_map = bound_vars[symbol];
 	types::signature signature = bound_variable->get_signature();
-	if (resolve_map.find(signature) != resolve_map.end()) {
-		panic(string_format("we can't be adding variables with the same signature to the same scope (" c_var("%s") ": %s)",
-					symbol.c_str(), signature.str().c_str()));
+	auto existing_bound_var_iter = resolve_map.find(signature);
+	if (existing_bound_var_iter != resolve_map.end()) {
+		auto existing_bound_var = existing_bound_var_iter->second;
+
+		user_error(status, bound_variable->get_location(),
+			   "failed to bind %s as its name and signature are already taken",
+			   bound_variable->str().c_str());
+
+		user_error(status, bound_variable->get_location(),
+			   "see existing bound variable %s",
+			   existing_bound_var->str().c_str());
+
+	} else {
+		resolve_map[signature] = bound_variable;
 	}
-	resolve_map[signature] = bound_variable;
 }
 
 template <typename T>

@@ -352,15 +352,22 @@ void module_scope_impl_t::put_unchecked_type(
 	debug_above(2, log(log_info, "registering an unchecked type %s as %s",
 				unchecked_type->str().c_str()));
 
-	auto iter_bool = unchecked_types.insert({unchecked_type->name, unchecked_type});
-	if (!iter_bool.second) {
-		/* this unchecked type already exists */
-		user_error(status, *unchecked_type->node, "type term already exists (see %s)",
-				iter_bool.first->second->str().c_str());
-	}
+	auto unchecked_type_iter = unchecked_types.find(unchecked_type->name);
 
-	/* also keep an ordered list of the unchecked types */
-	unchecked_types_ordered.push_back(unchecked_type);
+	if (unchecked_type_iter == unchecked_types.end()) {
+		unchecked_types.insert({unchecked_type->name, unchecked_type});
+
+		/* also keep an ordered list of the unchecked types */
+		unchecked_types_ordered.push_back(unchecked_type);
+	} else {
+		/* this unchecked type already exists */
+		user_error(status, *unchecked_type->node, "type " c_type("%s") " already exists",
+				unchecked_type->name.c_str());
+
+		user_error(status, *unchecked_type_iter->second->node,
+				"see type " c_type("%s") " declaration",
+				unchecked_type_iter->second->name.c_str());
+	}
 }
 
 unchecked_type_t::ref module_scope_impl_t::get_unchecked_type(atom symbol) {

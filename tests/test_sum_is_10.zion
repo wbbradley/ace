@@ -1,12 +1,31 @@
 module _
 # test: pass
 
+type Literal{T} has
+	var value T
+
+type Plus{T} has
+	var e1 Expr{T}
+	var e2 Expr{T}
+
+type Minus{T} has
+	var e1 Expr{T}
+	var e2 Expr{T}
+
+type Times{T} has
+	var e1 Expr{T}
+	var e2 Expr{T}
+
+type Divide{T} has
+	var e1 Expr{T}
+	var e2 Expr{T}
+
 type Expr{T} is
-	Plus(Expr{T}, Expr{T}) or
-	Minus(Expr{T}, Expr{T}) or
-	Times(Expr{T}, Expr{T}) or
-	Divide(Expr{T}, Expr{T}) or
-	Literal(T)
+	Plus{T} or
+	Minus{T} or
+	Times{T} or
+	Divide{T} or
+	Literal{T}
 
 def compute(expr Expr{any X}) any X 
 	# TODO: implement pattern matching...

@@ -1,5 +1,6 @@
 #include "zion.h"
 #include "ast.h"
+#include "compiler.h"
 #include "llvm_utils.h"
 #include "llvm_types.h"
 #include "type_visitor.h"
@@ -163,41 +164,6 @@ struct bound_type_builder_t : public types::type_visitor {
 		return true;
 	}
 };
-
-bound_type_t::ref bind_type_lazily(
-		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-	   	types::type::ref type,
-	   	unchecked_type_t::ref unchecked_type)
-{
-	assert(scope->get_program_scope()->get_bound_type(type->get_signature()) == nullptr);
-
-	auto env = scope->get_type_env();
-
-	debug_above(8, log(log_info, "lazily binding %s with %s and env %s",
-				type->str().c_str(),
-				unchecked_type->node->str().c_str(),
-				::str(env).c_str()));
-
-	identifier::ref id;
-	bound_type_t::refs args;
-	atom::map<int> member_index;
-	ast::item::ref node;
-
-	auto type_decl_env = scope->get_type_decl_env();
-	auto term = type->to_term()->evaluate(type_decl_env);
-	debug_above(4, log(log_info, "type translates to %s",
-				term->str().c_str()));
-
-	// Note that the data is not here, need to pull it out put of type
-	dbg();
-	bound_type_t::ref bound_type = get_or_create_algebraic_data_type(builder,
-			scope, id, args, member_index, node, type);
-
-	assert(!status);
-	return nullptr;
-}
 
 bound_type_t::ref create_bound_type(
 		status_t &status,
@@ -555,11 +521,13 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 		if (!!status) {
 			/* bind the ctor to the scope */
-			scope->put_bound_variable(name, function);
+			scope->put_bound_variable(status, name, function);
 
-			debug_above(7, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
-							*llvm_get_module(builder)).c_str()));
-			return function;
+			if (!!status) {
+				debug_above(7, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
+								*llvm_get_module(builder)).c_str()));
+				return function;
+			}
 		}
 	}
 	assert(!status);
@@ -595,7 +563,7 @@ bound_var_t::ref type_check_get_item_with_int_literal(
 		bound_var_t::ref index = bound_var_t::create(
 				INTERNAL_LOC(),
 				"temp_deref_index",
-				scope->get_program_scope()->get_bound_type({"int"}),
+				scope->get_program_scope()->get_bound_type({INT_TYPE}),
 				llvm_create_int(builder, subscript_index),
 				index_id,
 				false/*is_lhs*/);
