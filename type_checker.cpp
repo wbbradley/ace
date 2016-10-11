@@ -1889,6 +1889,9 @@ bound_var_t::ref ast::prefix_expr::resolve_instantiation(
 	case tk_plus:
 		function_name = "__positive__";
 		break;
+	case tk_not:
+		function_name = "__not__";
+		break;
 	default:
 		return null_impl();
 	}

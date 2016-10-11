@@ -1,7 +1,8 @@
 module _
 # test: pass
 
+tag Bar
 type Foo is Bar
 
 def main()
-	print(typeid(Bar))
+	typeid(Bar)

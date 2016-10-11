@@ -1,6 +1,10 @@
 module when_contact
 
-type Athlete is Golfer(str, str)
+type Golfer{T} has
+	var first T
+	var last T
+
+type Athlete is Golfer{str, str}
 
 def recognize_golfer(athlete Athlete)
 	when athlete

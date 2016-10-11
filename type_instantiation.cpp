@@ -156,52 +156,66 @@ void create_supertype_relationship(
 	generics = to_atom_set(type_variables);
 
 	/* ensure that there are no duplicate type variables */
-	assert(generics.size() == type_variables.size());
-
-	atom tag_name = subtype_id->get_name();
-	debug_above(5, log(log_info, "setting up data ctor for " c_id("%s") " with value type %s",
+	if (generics.size() != type_variables.size()) {
+		atom::set seen;
+		for (auto type_variable : type_variables) {
+			atom name = type_variable->get_name();
+			if (seen.find(name) == seen.end()) {
+				seen.insert(name);
+			} else {
+				user_error(status, type_variable->get_location(),
+						"found duplicate type variable " c_id("%s"),
+						name.c_str());
+			}
+		}
+	} else {
+		atom tag_name = subtype_id->get_name();
+		debug_above(5, log(log_info,
+				   	"setting up data ctor for " c_id("%s") " with value type %s",
 					tag_name.c_str(), subtype_term->str().c_str()));
 
-	/* figure out what type names are referenced in the data ctor's dimensions */
-	atom::set unbound_vars = subtype_term->unbound_vars();
+		/* figure out what type names are referenced in the data ctor's dimensions */
+		atom::set unbound_vars = subtype_term->unbound_vars();
 
-	/* if any of the type names are actually inbound type variables, take note
-	 * of the order they are mentioned. this loop is important. it is
-	 * calculating what this data ctor's supertype expansion will be. that is,
-	 * it tells us how to create the lambda we'll place into the type
-	 * environment to represent the fact that this data ctor is a subtype of
-	 * the supertype. and, it tells us which types are parametrically bound to
-	 * this subtype, and which are still quantified */
+		/* if any of the type names are actually inbound type variables, take
+		 * note of the order they are mentioned. this loop is important. it is
+		 * calculating what this data ctor's supertype expansion will be. that
+		 * is, it tells us how to create the lambda we'll place into the type
+		 * environment to represent the fact that this data ctor is a subtype
+		 * of the supertype. and, it tells us which types are parametrically
+		 * bound to this subtype, and which are still quantified */
 
-	/* supertype_expansion_list tracks the total set of parameters that the
-	 * supertype expects */
-	types::term::refs supertype_expansion_list;
+		/* supertype_expansion_list tracks the total set of parameters that the
+		 * supertype expects */
+		types::term::refs supertype_expansion_list;
 
-	for (auto type_var : type_variables) {
-		if (in(type_var->get_name(), unbound_vars)) {
-			/* this variable is referenced by the current data ctor (the
-			 * subtype), therefore it has opinions about its role in the
-			 * supertype */
-			lambda_vars.push_front(type_var);
-			supertype_expansion_list.push_back(types::term_id(type_var));
-		} else {
-			/* this variable is not referenced by the current data ctor (the
-			 * subtype), therefore it has no opinions about its role in the
-			 * supertype */
-			supertype_expansion_list.push_back(types::term_generic());
+		for (auto type_var : type_variables) {
+			if (in(type_var->get_name(), unbound_vars)) {
+				/* this variable is referenced by the current data ctor (the
+				 * subtype), therefore it has opinions about its role in the
+				 * supertype */
+				lambda_vars.push_front(type_var);
+				supertype_expansion_list.push_back(types::term_id(type_var));
+			} else {
+				/* this variable is not referenced by the current data ctor
+				 * (the subtype), therefore it has no opinions about its role
+				 * in the supertype */
+				supertype_expansion_list.push_back(types::term_generic());
+			}
 		}
-	}
 
-	if (supertype_id != nullptr) {
-		/* now let's create the abstraction */
-		auto supertype_expansion = types::term_id(supertype_id);
-		for (auto e : supertype_expansion_list) {
-			supertype_expansion = types::term_apply(supertype_expansion, e);
+		if (supertype_id != nullptr) {
+			/* now let's create the abstraction */
+			auto supertype_expansion = types::term_id(supertype_id);
+			for (auto e : supertype_expansion_list) {
+				supertype_expansion = types::term_apply(supertype_expansion, e);
+			}
+			for (auto lambda_var : lambda_vars) {
+				supertype_expansion = types::term_lambda(lambda_var,
+						supertype_expansion);
+			}
+			scope->put_type_term(status, tag_name, supertype_expansion);
 		}
-		for (auto lambda_var : lambda_vars) {
-			supertype_expansion = types::term_lambda(lambda_var, supertype_expansion);
-		}
-		scope->put_type_term(status, tag_name, supertype_expansion);
 	}
 }
 

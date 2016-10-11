@@ -344,6 +344,7 @@ void add_globals(
 			{"__ineq__", llvm_module_typeid, "__type_id_ineq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 
 			{"__plus__",   llvm_module_str, "__str_plus_str", {STR_TYPE, STR_TYPE}, STR_TYPE},
+			{"__not__",   llvm_module_int, "__int_not", {INT_TYPE}, BOOL_TYPE},
 
 			{"__plus__", llvm_module_int, "__int_plus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
 			{"__minus__", llvm_module_int, "__int_minus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
