@@ -572,7 +572,7 @@ ptr<expression> expression::parse(parse_state_t &ps) {
 	return or_expr::parse(ps);
 }
 
-ptr<statement> assignment::parse(parse_state_t &ps) {
+ptr<expression> assignment::parse(parse_state_t &ps) {
 	auto lhs = expression::parse(ps);
 	if (lhs) {
 
@@ -711,9 +711,9 @@ ptr<if_block> if_block::parse(parse_state_t &ps) {
 		return nullptr;
 	}
 
-	auto condition = expression::parse(ps);
+	auto condition = assignment::parse(ps);
 	if (condition) {
-		if_block->condition.swap(condition);
+		if_block->condition = condition;
 		auto block = block::parse(ps);
 		if (block) {
 			if_block->block.swap(block);

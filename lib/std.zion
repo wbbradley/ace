@@ -29,6 +29,9 @@ def __ineq__(x typeid, y typeid) bool
 def __bool__(b bool) __bool__
 	return __get_typeid__(b) == __get_typeid__(true)
 
+def __bool__(x int) __bool__
+	return not x.raw
+
 def __not__(b bool) bool
 	return bool(__get_typeid__(b) != __get_typeid__(true))
 

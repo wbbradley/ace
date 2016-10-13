@@ -343,7 +343,7 @@ namespace ast {
 		// TODO: track type variables on tags to aid in deserialization and marshalling
 	};
 
-	struct var_decl : public statement {
+	struct var_decl : public expression {
 		typedef ptr<const var_decl> ref;
 
 		static const syntax_kind_t SK = sk_var_decl;
@@ -362,14 +362,14 @@ namespace ast {
 		typedef ptr<const assignment> ref;
 
 		static const syntax_kind_t SK = sk_assignment;
-		static ptr<statement> parse(parse_state_t &ps);
+		static ptr<expression> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> lhs, rhs;
 	};
 
-	struct plus_assignment : public statement {
+	struct plus_assignment : public expression {
 		typedef ptr<const plus_assignment> ref;
 
 		static const syntax_kind_t SK = sk_plus_assignment;
@@ -379,7 +379,7 @@ namespace ast {
 		ptr<expression> lhs, rhs;
 	};
 
-	struct times_assignment : public statement {
+	struct times_assignment : public expression {
 		typedef ptr<const times_assignment> ref;
 
 		static const syntax_kind_t SK = sk_times_assignment;
@@ -389,7 +389,7 @@ namespace ast {
 		ptr<expression> lhs, rhs;
 	};
 
-	struct divide_assignment : public statement {
+	struct divide_assignment : public expression {
 		typedef ptr<const divide_assignment> ref;
 
 		static const syntax_kind_t SK = sk_divide_assignment;
@@ -399,7 +399,7 @@ namespace ast {
 		ptr<expression> lhs, rhs;
 	};
 
-	struct minus_assignment : public statement {
+	struct minus_assignment : public expression {
 		typedef ptr<const minus_assignment> ref;
 
 		static const syntax_kind_t SK = sk_minus_assignment;
@@ -409,7 +409,7 @@ namespace ast {
 		ptr<expression> lhs, rhs;
 	};
 
-	struct mod_assignment : public statement {
+	struct mod_assignment : public expression {
 		typedef ptr<const mod_assignment> ref;
 
 		static const syntax_kind_t SK = sk_mod_assignment;
