@@ -1706,96 +1706,93 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 
 	bool if_block_returns = false, else_block_returns = false;
 
-	if (condition != nullptr) {
-		assert(token.text == "if" || token.text == "elif");
+	assert(condition != nullptr);
 
-		/* evaluate the condition for branching */
-		bound_var_t::ref condition_value = condition->resolve_instantiation(
-				status, builder, scope, &if_scope, nullptr);
+	assert(token.text == "if" || token.text == "elif");
 
-		if (!!status) {
-			llvm::Value *llvm_condition_value = get_condition_value(status,
-					builder, scope, condition, condition_value);
+	/* evaluate the condition for branching */
+	bound_var_t::ref condition_value = condition->resolve_instantiation(
+			status, builder, scope, &if_scope, nullptr);
 
-			if (!!status && llvm_condition_value != nullptr) {
-				/* test that the if statement doesn't return */
-				llvm::Function *llvm_function_current = llvm_get_function(builder);
+	if (!!status) {
+		llvm::Value *llvm_condition_value = get_condition_value(status,
+				builder, scope, condition, condition_value);
 
-				/* generate some new blocks */
-				llvm::BasicBlock *then_bb = llvm::BasicBlock::Create(builder.getContext(), "then", llvm_function_current);
-				llvm::BasicBlock *merge_bb = nullptr;
+		if (!!status && llvm_condition_value != nullptr) {
+			/* test that the if statement doesn't return */
+			llvm::Function *llvm_function_current = llvm_get_function(builder);
 
-				/* we have to keep track of whether we need a merge block
-				 * because our nested branches could all return */
-				bool insert_merge_bb = false;
+			/* generate some new blocks */
+			llvm::BasicBlock *then_bb = llvm::BasicBlock::Create(builder.getContext(), "then", llvm_function_current);
+			llvm::BasicBlock *merge_bb = nullptr;
 
-				if (else_ != nullptr) {
-					/* we've got an else block, so let's create an "else" basic block. */
-					llvm::BasicBlock *else_bb = llvm::BasicBlock::Create(builder.getContext(), "else", llvm_function_current);
+			/* we have to keep track of whether we need a merge block
+			 * because our nested branches could all return */
+			bool insert_merge_bb = false;
 
-					/* put the merge block after the else block */
-					merge_bb = llvm::BasicBlock::Create(builder.getContext(), "ifcont");
+			if (else_ != nullptr) {
+				/* we've got an else block, so let's create an "else" basic block. */
+				llvm::BasicBlock *else_bb = llvm::BasicBlock::Create(builder.getContext(), "else", llvm_function_current);
 
-					/* create the actual branch instruction */
-					llvm_create_if_branch(builder, llvm_condition_value, then_bb, else_bb);
+				/* put the merge block after the else block */
+				merge_bb = llvm::BasicBlock::Create(builder.getContext(), "ifcont");
 
-					builder.SetInsertPoint(else_bb);
-					else_->resolve_instantiation(status, builder, scope, nullptr, &else_block_returns);
+				/* create the actual branch instruction */
+				llvm_create_if_branch(builder, llvm_condition_value, then_bb, else_bb);
 
-					if (!else_block_returns) {
-						/* keep track of the fact that we have to have a
-						 * merged block to land in after the else block */
-						insert_merge_bb = true;
+				builder.SetInsertPoint(else_bb);
+				else_->resolve_instantiation(status, builder, scope, nullptr, &else_block_returns);
 
-						/* go ahead and jump there */
-						builder.CreateBr(merge_bb);
-					}
-				} else {
-					/* since there is no else block it cannot return */
-					else_block_returns = false;
-
-					/* keep track of the fact that we have to have a merged
-					 * block to land in after the if block */
+				if (!else_block_returns) {
+					/* keep track of the fact that we have to have a
+					 * merged block to land in after the else block */
 					insert_merge_bb = true;
 
-					/* put the merge block after the if block */
-					merge_bb = llvm::BasicBlock::Create(builder.getContext(), "ifcont");
-
-					/* we don't have an else block, so we can just continue on */
-					llvm_create_if_branch(builder, llvm_condition_value, then_bb, merge_bb);
+					/* go ahead and jump there */
+					builder.CreateBr(merge_bb);
 				}
+			} else {
+				/* since there is no else block it cannot return */
+				else_block_returns = false;
 
+				/* keep track of the fact that we have to have a merged
+				 * block to land in after the if block */
+				insert_merge_bb = true;
+
+				/* put the merge block after the if block */
+				merge_bb = llvm::BasicBlock::Create(builder.getContext(), "ifcont");
+
+				/* we don't have an else block, so we can just continue on */
+				llvm_create_if_branch(builder, llvm_condition_value, then_bb, merge_bb);
+			}
+
+			if (!!status) {
+				/* let's generate code for the "then" block */
+				builder.SetInsertPoint(then_bb);
+				block->resolve_instantiation(status, builder, if_scope ? if_scope : scope, nullptr, &if_block_returns);
 				if (!!status) {
-					/* let's generate code for the "then" block */
-					builder.SetInsertPoint(then_bb);
-					block->resolve_instantiation(status, builder, if_scope ? if_scope : scope, nullptr, &if_block_returns);
-					if (!!status) {
-						if (!if_block_returns) {
-							insert_merge_bb = true;
-							builder.CreateBr(merge_bb);
-							builder.SetInsertPoint(merge_bb);
-						}
-						
-						if (insert_merge_bb) {
-							/* we know we'll need to fall through to the merge
-							 * block, let's add it to the end of the function
-							 * and let's set it as the next insert point. */
-							llvm_function_current->getBasicBlockList().push_back(merge_bb);
-							builder.SetInsertPoint(merge_bb);
-						}
-
-						/* track whether the branches return */
-						*returns |= (if_block_returns && else_block_returns);
-
-						assert(!!status);
-						return nullptr;
+					if (!if_block_returns) {
+						insert_merge_bb = true;
+						builder.CreateBr(merge_bb);
+						builder.SetInsertPoint(merge_bb);
 					}
+					
+					if (insert_merge_bb) {
+						/* we know we'll need to fall through to the merge
+						 * block, let's add it to the end of the function
+						 * and let's set it as the next insert point. */
+						llvm_function_current->getBasicBlockList().push_back(merge_bb);
+						builder.SetInsertPoint(merge_bb);
+					}
+
+					/* track whether the branches return */
+					*returns |= (if_block_returns && else_block_returns);
+
+					assert(!!status);
+					return nullptr;
 				}
 			}
 		}
-	} else {
-		/* this should never happen */
-		not_impl();
 	}
 
 	assert(!status);

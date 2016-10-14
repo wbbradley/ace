@@ -93,6 +93,13 @@ namespace ast {
 		}
 	}
 
+	void pattern_block::render(render_state_t &rs) const {
+		newline(rs);
+		indented(rs);
+		rs.ss << C_TYPE << tkstr(tk_is) << C_RESET << " ";
+		type_ref->render(rs);
+	}
+
 	void literal_expr::render(render_state_t &rs) const {
 		rs.ss << token.text;
 	}

@@ -1,0 +1,15 @@
+module _
+
+def truthy(x any) bool
+	when x
+		is int 
+			return x != 0
+		is float
+			return x != 0
+		is bool
+			return x
+	return false
+
+def main()
+	y := 3.33
+	truthy(y)

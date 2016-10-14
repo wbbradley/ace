@@ -145,6 +145,8 @@ ptr<statement> statement::parse(parse_state_t &ps) {
 		return if_block::parse(ps);
 	} else if (ps.token.tk == tk_while) {
 		return while_block::parse(ps);
+	} else if (ps.token.tk == tk_when) {
+		return when_block::parse(ps);
 	} else if (ps.token.tk == tk_return) {
 		return return_statement::parse(ps);
 	} else if (ps.token.tk == tk_type) {
@@ -759,42 +761,26 @@ ptr<while_block> while_block::parse(parse_state_t &ps) {
 	}
 }
 
-ptr<pattern_block> pattern_block::parse(parse_state_t &ps) {
-	dbg();
-#if 0
+ast::pattern_block::ref pattern_block::parse(parse_state_t &ps) {
+	auto is_token = ps.token;
 	chomp_token(tk_is);
 
-	expect_token(tk_identifier);
-	zion_token_t name_token = ps.token;
-	ps.advance();
-
-	std::vector<type_ref::ref> type_ref_params;
-
-	if (ps.token.tk == tk_lparen) {
-		ps.advance();
-		while (!!ps.status) {
-			type_ref::ref type_ref = ast::type_ref::parse(ps, type_variables);
-			if (!!ps.status) {
-				type_ref_params.push_back(type_ref);
-			}
-			if (ps.token.tk != tk_comma) {
-				break;
-			}
-			ps.advance();
-		}
-		if (!!ps.status) {
-			chomp_token(tk_rparen);
-		}
-	}
+	auto pattern_block = ast::create<ast::pattern_block>(is_token);
+	pattern_block->type_ref = ast::type_ref::parse(ps, {});
 
 	if (!!ps.status) {
-		return ast::create<pattern_block>(name_token, type_variables,
-				type_ref_params);
-	} else {
-		return nullptr;
+		auto block = block::parse(ps);
+		if (block) {
+			pattern_block->block.swap(block);
+			return pattern_block;
+		} else {
+			assert(!ps.status);
+			return nullptr;
+		}
 	}
-#endif
-	return null_impl();
+
+	assert(!ps.status);
+	return nullptr;
 }
 
 ptr<when_block> when_block::parse(parse_state_t &ps) {
