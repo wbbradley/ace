@@ -17,6 +17,7 @@ struct logger {
 	virtual ~logger() throw() {}
 	virtual void logv(log_level_t level, const location *location, const char *format, va_list args) = 0;
 	virtual void log(log_level_t level, const location *location, const char *format, ...) = 0;
+	virtual void dump() = 0;
 };
 
 class standard_logger : public logger {
@@ -29,6 +30,7 @@ public:
 	void close();
 	void open();
 	void flush();
+	void dump();
 
 	friend void panic_(const char *filename, int line, std::string msg);
 	friend void logv(log_level_t level, const char *format, va_list args);
@@ -47,6 +49,7 @@ struct tee_logger : public logger {
 
 	virtual void logv(log_level_t level, const location *location, const char *format, va_list args);
 	virtual void log(log_level_t level, const location *location, const char *format, ...);
+	void dump();
 
 	std::string captured_logs_as_string() const;
 
@@ -60,6 +63,7 @@ struct indent_logger : logger {
 
 	virtual void logv(log_level_t level, const location *location, const char *format, va_list args);
 	virtual void log(log_level_t level, const location *location, const char *format, ...);
+	virtual void dump();
 
 	std::string msg;
 	int level;

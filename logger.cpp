@@ -226,7 +226,38 @@ void standard_logger::open() {
 	}
 }
 
+void standard_logger::dump() {
+	fprintf(stderr, "| standard_logger : " c_id("%s") " - " C_FILENAME "%s" C_RESET " - " C_FILENAME "%s" C_RESET "\n",
+			m_name.c_str(),
+			m_root_file_path.c_str(),
+			m_current_logfile.c_str());
+}
+
+void tee_logger::dump() {
+	if (logger_old != nullptr) {
+		logger_old->dump();
+	}
+	fprintf(stderr, "| tee_logger : %d logs captured\n",
+			(int)captured_logs.size());
+}
+
+void indent_logger::dump() {
+	if (logger_old != nullptr) {
+		logger_old->dump();
+	}
+	fprintf(stderr, "| indent_logger : level %d %s\n",
+			level, msg.c_str());
+}
+
+void log_dump() {
+	fprintf(stderr, "| LOG Context\n");
+	if (_logger != nullptr) {
+		_logger->dump();
+	}
+}
+
 void panic_(const char *filename, int line, std::string msg) {
+	log_dump();
 	fprintf(stderr, "%s:%d: PANIC %s\n", filename, line, msg.c_str());
 	dbg();
 	raise(SIGKILL);
