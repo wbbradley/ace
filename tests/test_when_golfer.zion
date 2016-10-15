@@ -1,23 +1,17 @@
 module when_contact
 
-type Golfer{T} has
-	var first T
-	var last T
+type Golfer has
+	var first str
+	var last str
 
-type Athlete is Golfer{str, str}
+type Athlete is Golfer
 
 def recognize_golfer(athlete Athlete)
-	when athlete
-		is Golfer("Arnold", "Palmer")
+	if athlete is Golfer
+		if golfer.first == "Arnold" and golfer.last == "Palmer"
 			print("RIP")
-		is Golfer(var x, var x)
-			print("golfer has the same first name as their last name?")
-		is Golfer("Tiger", var last)
-			print("probably Tiger Woods")
-		is Golfer(var first, var last)
-			print("i guess you are " + first + " " + last)
 	else
 		print("who are you?")
 
 def main()
-	recognize_golfer(Golfer("Arnold", "Woods"))
+	recognize_golfer(Golfer("Arnold", "Palmer"))

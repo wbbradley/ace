@@ -1,7 +1,7 @@
 module _
 
 def main()
-	if x := 3
+	where x is 3
 		print(x)
 	if true
 		# error: 8:9.* undefined symbol x
