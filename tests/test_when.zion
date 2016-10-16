@@ -1,12 +1,16 @@
 module _
+# test: pass
 
 def truthy(x any) bool
 	when x
 		is int 
+			print("int found")
 			return x != 0
 		is float
+			print("float found")
 			return x != 0
 		is bool
+			print("bool found")
 			return x
 	return false
 

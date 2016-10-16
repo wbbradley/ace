@@ -502,7 +502,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				bound_var_t::ref value,
 				identifier::ref value_name,
-				scope_t::ref block_scope,
+				runnable_scope_t::ref scope,
 				bool *returns,
 				refs::const_iterator next_iter,
 				refs::const_iterator end_iter,

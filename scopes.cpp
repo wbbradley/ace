@@ -34,8 +34,9 @@ bound_var_t::ref get_bound_variable_from_scope(
 		return parent_scope->get_bound_variable(status, obj, symbol);
 	}
 
-	debug_above(3, log(log_info, "no bound variable found for %s", 
-				obj->token.str().c_str()));
+	debug_above(3, log(log_info, "no bound variable found when resolving %s (looking for " c_id("%s"), 
+				obj->token.str().c_str(),
+				symbol.c_str()));
 	return nullptr;
 }
 

@@ -32,6 +32,7 @@ llvm::CallInst *llvm_create_call_inst(
 
 llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value);
 llvm::Value *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value);
+llvm::Value *llvm_create_int32(llvm::IRBuilder<> &builder, int32_t value);
 llvm::Value *llvm_create_float(llvm::IRBuilder<> &builder, float value);
 llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder, std::string value);
 llvm::Module *llvm_get_module(llvm::IRBuilder<> &builder);
@@ -73,6 +74,13 @@ bound_var_t::ref llvm_start_function(
 bound_var_t::ref llvm_create_global_tag(
 		llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		bound_type_t::ref tag_type,
+		atom tag,
+		identifier::ref id);
+bound_var_t::ref llvm_create_global_tag(
+		llvm::IRBuilder<> &builder,
+		program_scope_t::ref scope,
+		llvm::Module *llvm_module,
 		bound_type_t::ref tag_type,
 		atom tag,
 		identifier::ref id);

@@ -7,7 +7,7 @@ type Golfer has
 type Athlete is Golfer
 
 def recognize_golfer(athlete Athlete)
-	if athlete is Golfer
+	when athlete is Golfer
 		if golfer.first == "Arnold" and golfer.last == "Palmer"
 			print("RIP")
 	else

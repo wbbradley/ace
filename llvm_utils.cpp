@@ -49,7 +49,7 @@ llvm::Value *llvm_create_int16(llvm::IRBuilder<> &builder, int16_t value) {
 	return builder.getInt16(value);
 }
 
-llvm::Value *llvm_create_int32(llvm::IRBuilder<> &builder, int16_t value) {
+llvm::Value *llvm_create_int32(llvm::IRBuilder<> &builder, int32_t value) {
 	return builder.getInt32(value);
 }
 

@@ -1,0 +1,8 @@
+module _
+# test: pass
+
+def foo()
+	x := false
+
+def main()
+	pass

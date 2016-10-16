@@ -798,15 +798,17 @@ ptr<when_block> when_block::parse(parse_state_t &ps) {
 					when_block->pattern_blocks.push_back(pattern_block);
 				}
 			}
+			chomp_token(tk_outdent);
 			if (ps.token.tk == tk_else) {
+				ps.advance();
 				when_block->else_block = block::parse(ps);
 			}
-			chomp_token(tk_outdent);
 		} else {
 			/* this is a single_pattern_block */
 			auto pattern_block = pattern_block::parse(ps);
 			when_block->pattern_blocks.push_back(pattern_block);
 			if (ps.token.tk == tk_else) {
+				ps.advance();
 				when_block->else_block = block::parse(ps);
 			}
 		}

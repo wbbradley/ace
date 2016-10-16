@@ -21,7 +21,8 @@ extern const char *TYPEID_TYPE;
 
 struct compiler {
 	typedef std::vector<std::string> libs;
-	typedef std::list<std::pair<atom, std::unique_ptr<llvm::Module>>> llvm_modules_t;
+	typedef std::pair<atom, std::unique_ptr<llvm::Module>> llvm_module_t;
+	typedef std::list<llvm_module_t> llvm_modules_t;
 
 	compiler() = delete;
 	compiler(const compiler &) = delete;
@@ -38,6 +39,7 @@ struct compiler {
 	void set_module(status_t &status, std::string filename, ptr<ast::module> module);
 	llvm::Module *llvm_load_ir(status_t &status, std::string filename);
 	llvm::Module *llvm_create_module(atom module_name);
+	llvm::Module *llvm_get_program_module();
 
 	/* testing */
 	std::string dump_llvm_modules();
@@ -68,6 +70,7 @@ private:
 	std::map<atom, ptr<const ast::module>> modules;
 	llvm::LLVMContext llvm_context;
 	llvm::IRBuilder<> builder;
+	llvm_module_t llvm_program_module;
 	llvm_modules_t llvm_modules;
 	std::map<atom, ptr<module_scope_t>> module_scopes;
 

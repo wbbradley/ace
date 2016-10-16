@@ -3,6 +3,8 @@
 #include "code_id.h"
 #include "llvm_utils.h"
 #include "type_checker.h"
+#include "compiler.h"
+#include "llvm_types.h"
 
 bound_var_t::ref ast::when_block::resolve_instantiation(
 		status_t &status,
@@ -13,6 +15,8 @@ bound_var_t::ref ast::when_block::resolve_instantiation(
 {
 	local_scope_t::ref when_scope;
 	auto pattern_value = value->resolve_instantiation(status, builder, block_scope, &when_scope, returns);
+	scope_t::ref current_scope = (when_scope != nullptr) ? when_scope : block_scope;
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(current_scope);
 	if (!!status) {
 		identifier::ref var_name;
 		if (auto ref_expr = dyncast<const ast::reference_expr>(value)) {
@@ -21,27 +25,14 @@ bound_var_t::ref ast::when_block::resolve_instantiation(
 			var_name = make_code_id(ref_expr->token);
 		}
 
-		llvm::Function *llvm_function_current = llvm_get_function(builder);
-		// llvm::BasicBlock *merge_bb = nullptr;
-		/* we have to keep track of whether we need a merge block
-		 * because our nested branches could all return */
-		std::vector<llvm::BasicBlock *> pattern_bbs;
-		std::vector<bool> pattern_returns;
-		for (int i = 0; i < pattern_blocks.size(); ++i) {
-			pattern_bbs.push_back(llvm::BasicBlock::Create(builder.getContext(),
-						string_format("pattern_%d", i).c_str(),
-						llvm_function_current));
-			pattern_returns.push_back(false);
-		}
-		// bool insert_merge_bb = false;
-
+		/* recursively handle nested "else" conditions of the pattern match */
 		auto iter = pattern_blocks.begin();
 		pattern_blocks[0]->resolve_pattern_block(
 				status,
 				builder,
 				pattern_value,
 				var_name,
-				when_scope,
+				runnable_scope,
 				returns,
 				++iter,
 				pattern_blocks.end(),
@@ -49,6 +40,7 @@ bound_var_t::ref ast::when_block::resolve_instantiation(
 
 		if (!!status) {
 			// TODO: check whether all cases of the patter_value's type are handled
+			return nullptr;
 		}
 	}
 
@@ -58,12 +50,76 @@ bound_var_t::ref ast::when_block::resolve_instantiation(
 
 bound_var_t::ref gen_type_check(
 		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-	   	bound_var_t::ref value,
+		llvm::IRBuilder<> &builder,
+		ast::item::ref node,
+		runnable_scope_t::ref scope,
+		identifier::ref value_name,
+		bound_var_t::ref value,
 		types::term::ref type_term,
-	   	local_scope_t::ref *new_scope)
+		local_scope_t::ref *new_scope)
 {
-	return null_impl();
+	auto type = type_term->get_type(status);
+	if (!!status) {
+		auto bound_type = upsert_bound_type(status, builder, scope, type);
+
+		if (!!status) {
+			auto program_scope = scope->get_program_scope();
+			atom signature = bound_type->get_type()->get_signature();
+			auto type_id_wanted = bound_var_t::create(
+					INTERNAL_LOC(),
+					string_format("typeid(%s)", value_name->str().c_str()),
+					program_scope->get_bound_type({TYPEID_TYPE}),
+					llvm_create_int32(builder, (int32_t)signature.iatom),
+					value_name,
+					false/*is_lhs*/);
+
+			debug_above(7, log(log_info, "generating a runtime type check "
+						"for type %s with signature value %d",
+						type_term->str().c_str(), (int)signature.iatom));
+			bound_var_t::ref type_id = call_typeid(status, scope, node,
+					value_name, builder, value);
+
+			if (!!status) {
+				auto get_typeid_eq_function = program_scope->get_bound_variable(
+						status, node, "__type_id_eq_type_id");
+
+				assert(get_typeid_eq_function != nullptr);
+				if (!!status) {
+					/* generate a new scope with the value_name containing a new
+					 * variable to overwrite the prior scoped variable's type with
+					 * the new checked type */
+					*new_scope = scope->new_local_scope(string_format("when %s %s",
+								value_name->str().c_str(),
+								node->str().c_str()));
+
+					/* replace this bound variable with a version of itself with a new type */
+					(*new_scope)->put_bound_variable(status, value_name->get_name(),
+							bound_var_t::create(
+								value_name->get_location(),
+								value_name->get_name(),
+								bound_type,
+								/* perform a safe runtime cast of this value */
+								value->llvm_value,
+								value_name,
+								false /*is_lhs*/));
+
+					/* call the type_id comparator function */
+					return create_callsite(
+							status,
+							builder,
+							scope,
+							node,
+							get_typeid_eq_function,
+							value_name->get_name(),
+							value_name->get_location(),
+							{type_id, type_id_wanted});
+				}
+			}
+		}
+	}
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref ast::pattern_block::resolve_pattern_block(
@@ -71,7 +127,7 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 		llvm::IRBuilder<> &builder,
 		bound_var_t::ref value,
 		identifier::ref value_name,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		bool *returns,
 		refs::const_iterator next_iter,
 		refs::const_iterator end_iter,
@@ -87,7 +143,8 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 	assert(token.text == "is");
 
 	/* evaluate the condition for branching */
-	bound_var_t::ref condition_value = gen_type_check(status, builder, value,
+	bound_var_t::ref condition_value = gen_type_check(status, builder,
+			shared_from_this(), scope, value_name, value,
 			type_ref->get_type_term({}), &if_scope);
 
 	if (!!status) {
@@ -120,7 +177,7 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 				builder.SetInsertPoint(else_bb);
 				if (next_iter != end_iter) {
 					auto pattern_block_next = *next_iter;
-					pattern_block_next->resolve_pattern_block( status, builder,
+					pattern_block_next->resolve_pattern_block(status, builder,
 							value, value_name, scope,
 							&else_block_returns, ++next_iter, end_iter,
 							else_block);

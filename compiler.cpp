@@ -257,21 +257,73 @@ void add_global_types(
 
 	/* let's add the builtin types to the program scope */
 	std::vector<std::pair<atom, bound_type_t::ref>> globals = {
-		{{"void"}, bound_type_t::create(type_id(make_iid("void")), INTERNAL_LOC(), builder.getVoidTy())},
-		{{"module"}, bound_type_t::create(type_id(make_iid("module")), INTERNAL_LOC(), builder.getVoidTy())},
-		{{INT_TYPE}, bound_type_t::create(type_id(make_iid(INT_TYPE)), INTERNAL_LOC(), builder.getInt64Ty())},
-		{{FLOAT_TYPE}, bound_type_t::create(type_id(make_iid(FLOAT_TYPE)), INTERNAL_LOC(), builder.getFloatTy())},
-		{{BOOL_TYPE}, bound_type_t::create(type_id(make_iid(BOOL_TYPE)), INTERNAL_LOC(), builder.getInt64Ty())},
-		{{STR_TYPE}, bound_type_t::create(type_id(make_iid(STR_TYPE)), INTERNAL_LOC(), builder.getInt8Ty()->getPointerTo())},
+		{{"void"},
+		   	bound_type_t::create(
+					type_id(make_iid("void")),
+				   	INTERNAL_LOC(),
+				   	builder.getVoidTy())},
+		{{"module"},
+		   	bound_type_t::create(
+					type_id(make_iid("module")),
+				   	INTERNAL_LOC(),
+				   	builder.getVoidTy())},
+		{{INT_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(INT_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getInt64Ty())},
+		{{FLOAT_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(FLOAT_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getFloatTy())},
+		{{BOOL_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(BOOL_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getInt64Ty())},
+		{{STR_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(STR_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getInt8Ty()->getPointerTo())},
 
 		/* pull in the garbage collection and memory reference types */
-		{{"__tag_var"}, bound_type_t::create(type_id(make_iid("__tag_var")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.tag_t"))},
-		{{TYPEID_TYPE}, bound_type_t::create(type_id(make_iid(TYPEID_TYPE)), INTERNAL_LOC(), builder.getInt32Ty())},
-		{{"__byte_count"}, bound_type_t::create(type_id(make_iid("__byte_count")), INTERNAL_LOC(), builder.getInt64Ty())},
-		{{"__var"}, bound_type_t::create(type_id(make_iid("__var")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.var_t"))},
-		{{"__var_ref"}, bound_type_t::create(type_id(make_iid("__var_ref")), INTERNAL_LOC(), llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
-		{{"__mark_fn"}, bound_type_t::create(type_id(make_iid("__mark_fn")), INTERNAL_LOC(), llvm_mark_fn_default->getFunctionType()->getPointerTo())},
-		{{"__bytes"}, bound_type_t::create(type_id(make_iid("__bytes")), INTERNAL_LOC(), builder.getInt8Ty()->getPointerTo())},
+		{{TYPEID_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(TYPEID_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getInt32Ty())},
+		{{"__byte_count"},
+		   	bound_type_t::create(
+					type_id(make_iid("__byte_count")),
+				   	INTERNAL_LOC(),
+				   	builder.getInt64Ty())},
+		{{"__var"},
+		   	bound_type_t::create(
+					type_id(make_iid("__var")),
+				   	INTERNAL_LOC(),
+				   	llvm_module_gc->getTypeByName("struct.var_t"))},
+		{{"__next_var"},
+		   	bound_type_t::create(
+					type_id(make_iid("__next_var")),
+				   	INTERNAL_LOC(),
+				   	llvm_module_gc->getTypeByName("struct.next_var_t"))},
+		{{"__var_ref"},
+		   	bound_type_t::create(
+					type_id(make_iid("__var_ref")),
+				   	INTERNAL_LOC(),
+				   	llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
+		{{"__mark_fn"},
+		   	bound_type_t::create(
+					type_id(make_iid("__mark_fn")),
+				   	INTERNAL_LOC(),
+				   	llvm_mark_fn_default->getFunctionType()->getPointerTo())},
+		{{"__bytes"},
+		   	bound_type_t::create(
+					type_id(make_iid("__bytes")),
+				   	INTERNAL_LOC(),
+				   	builder.getInt8Ty()->getPointerTo())},
 	};
 
 	for (auto type_pair : globals) {
@@ -300,6 +352,7 @@ void add_globals(
 	/* lookup the types of bool and void pointer for use below */
 	bound_type_t::ref void_ptr_type = program_scope->get_bound_type({"__bytes"});
 	bound_type_t::ref bool_type = program_scope->get_bound_type({BOOL_TYPE});
+	bound_type_t::ref next_var_type = program_scope->get_bound_type({"__next_var"});
 
 	/* get the null pointer value */
 	llvm::Value *llvm_null_value = llvm::ConstantPointerNull::get(llvm::dyn_cast<llvm::PointerType>(
@@ -389,6 +442,7 @@ void add_globals(
 			{"__eq__", llvm_module_int, "__int_eq_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
 			{"__eq__", llvm_module_float, "__float_eq_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
 			{"__eq__", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
+			{"__type_id_eq_type_id", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 			{"__int__", llvm_module_typeid, "__type_id_int", {TYPEID_TYPE}, INT_TYPE},
 
 			{"__push_stack_var", llvm_module_gc, "push_stack_var", {"__var_ref"}, "void"},
@@ -421,36 +475,36 @@ void compiler::build(status_t &status) {
 	 * and bring them into our whole ast */
 	auto module_name = program_name;
 
-	/* always include the standard library */
-	build_parse(status, location{"std lib", 0, 0}, "lib/std", true /*global*/);
+	/* create the program ast to contain all of the modules */
+	auto program = ast::create<ast::program>({});
+
+	/* set up global types and variables */
+	add_globals(status, *this, builder, program_scope, program);
 
 	if (!!status) {
-		build_parse(status, location{"command line build parameters", 0, 0},
-				module_name, false /*global*/);
+		/* always include the standard library */
+		build_parse(status, location{"std lib", 0, 0}, "lib/std", true /*global*/);
 
 		if (!!status) {
-			debug_above(4, log(log_info, "build_parse of %s succeeded", module_name.c_str(),
-						false /*global*/));
-
-			/* create the program ast to contain all of the modules */
-			auto program = ast::create<ast::program>({});
-
-			/* next, merge the entire set of modules into one program */
-			for (const auto &module_data_pair : modules) {
-				/* note the use of the set here to ensure that each module is only
-				 * included once */
-				auto module = module_data_pair.second;
-				assert(module != nullptr);
-				program->modules.insert(module);
-			}
-
-			/* set up the names that point back into the AST resolved to the right
-			 * module scopes */
-			status = scope_setup_program(*program, *this);
+			build_parse(status, location{"command line build parameters", 0, 0},
+					module_name, false /*global*/);
 
 			if (!!status) {
-				/* set up global types and variables */
-				add_globals(status, *this, builder, program_scope, program);
+				debug_above(4, log(log_info, "build_parse of %s succeeded", module_name.c_str(),
+							false /*global*/));
+
+				/* next, merge the entire set of modules into one program */
+				for (const auto &module_data_pair : modules) {
+					/* note the use of the set here to ensure that each module is only
+					 * included once */
+					auto module = module_data_pair.second;
+					assert(module != nullptr);
+					program->modules.insert(module);
+				}
+
+				/* set up the names that point back into the AST resolved to the right
+				 * module scopes */
+				status = scope_setup_program(*program, *this);
 
 				if (!!status) {
 					status |= type_check_program(builder, *program, *this);
@@ -467,34 +521,47 @@ void compiler::build(status_t &status) {
 	}
 }
 
+std::string collect_filename_from_module_pair(
+		status_t &status,
+	   	const compiler::llvm_module_t &llvm_module_pair)
+{
+	std::ofstream ofs;
+	std::string filename = llvm_module_pair.first.str() + ".ir";
+
+	debug_above(1, log(log_info, "opening %s...", filename.c_str()));
+	ofs.open(filename.c_str());
+	if (ofs.good()) {
+		llvm::raw_os_ostream os(ofs);
+		llvm_module_pair.second->setTargetTriple(LLVMGetDefaultTargetTriple());
+
+		// TODO: set the data layout string to whatever llvm-link wants
+		// llvm_module_pair.second->setDataLayout(...);
+
+		status_t status;
+		llvm_verify_module(status, *llvm_module_pair.second);
+		if (!!status) {
+			llvm_module_pair.second->print(os, nullptr /*AssemblyAnnotationWriter*/);
+			os.flush();
+		}
+	} else {
+		user_error(status, INTERNAL_LOC(), "failed to open file named %s to write LLIR data",
+				filename.c_str());
+	}
+	return filename;
+}
+
 std::unordered_set<std::string> compiler::compile_modules(status_t &status) {
 	if (!!status) {
 		std::unordered_set<std::string> filenames;
+		filenames.insert(collect_filename_from_module_pair(status, llvm_program_module));
+
 		for (auto &llvm_module_pair : llvm_modules) {
-			std::ofstream ofs;
-			std::string filename = llvm_module_pair.first.str() + ".ir";
+			std::string filename = collect_filename_from_module_pair(status, llvm_module_pair);
 
 			/* make sure we're not overwriting ourselves... probably need to fix this
 			 * later */
 			assert(filenames.find(filename) == filenames.end());
 			filenames.insert(filename);
-
-			debug_above(1, log(log_info, "opening %s...", filename.c_str()));
-			ofs.open(filename.c_str());
-			if (ofs.good()) {
-				llvm::raw_os_ostream os(ofs);
-				llvm_module_pair.second->setTargetTriple(LLVMGetDefaultTargetTriple());
-
-				// TODO: set the data layout string to whatever llvm-link wants
-				// llvm_module_pair.second->setDataLayout(...);
-
-				status_t status;
-				llvm_verify_module(status, *llvm_module_pair.second);
-				if (!!status) {
-					llvm_module_pair.second->print(os, nullptr /*AssemblyAnnotationWriter*/);
-					os.flush();
-				}
-			}
 		}
 		return filenames;
 	}
@@ -562,7 +629,9 @@ std::unique_ptr<llvm::Module> &compiler::get_llvm_module(atom name) {
 	std::stringstream ss;
 	ss << "did not find module " << name << " in [";
 	const char *sep = "";
-
+	if (name == llvm_program_module.first) {
+		return llvm_program_module.second;
+	}
 	// TODO: don't use O(N)
 	for (auto &pair : llvm_modules) {
 		if (name == pair.first) {
@@ -713,10 +782,19 @@ llvm::Module *compiler::llvm_load_ir(status_t &status, std::string filename) {
 
 llvm::Module *compiler::llvm_create_module(atom module_name) {
 	llvm::LLVMContext &llvm_context = builder.getContext();
-	llvm_modules.push_front({
+	if (llvm_program_module.second == nullptr) {
+		/* only allow creating one program module */
+		llvm_program_module = {
 			module_name,
-		   	std::unique_ptr<llvm::Module>(new llvm::Module(module_name.str(), llvm_context))
-	});
+			std::unique_ptr<llvm::Module>(new llvm::Module(module_name.str(), llvm_context))
+		};
+		return llvm_program_module.second.operator ->();
+	} else {
+		panic("we are using a single LLIR module per application");
+		return nullptr;
+	}
+}
 
-	return llvm_modules.front().second.operator ->();
+llvm::Module *compiler::llvm_get_program_module() {
+	return llvm_program_module.second.operator ->();
 }

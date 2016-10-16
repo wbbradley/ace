@@ -83,7 +83,6 @@ namespace ast {
 	void when_block::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << tkstr(tk_when) << C_RESET << " ";
 		value->render(rs);
-		newline(rs);
 		indented(rs);
 		for (auto pattern_block : pattern_blocks) {
 			pattern_block->render(rs);
@@ -95,9 +94,12 @@ namespace ast {
 
 	void pattern_block::render(render_state_t &rs) const {
 		newline(rs);
-		indented(rs);
+		indent(rs);
 		rs.ss << C_TYPE << tkstr(tk_is) << C_RESET << " ";
 		type_ref->render(rs);
+		newline(rs);
+		indented(rs);
+		block->render(rs);
 	}
 
 	void literal_expr::render(render_state_t &rs) const {

@@ -9,6 +9,8 @@ type bool is
 	true or
 	false
 
+tag blah
+
 type TypeID has
 	var id __typeid__
 

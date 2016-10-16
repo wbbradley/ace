@@ -40,3 +40,10 @@ llvm::Value *get_condition_value(
 		scope_t::ref scope,
 		ptr<const ast::item> condition,
 		bound_var_t::ref condition_value);
+bound_var_t::ref call_typeid(
+		status_t &status,
+		scope_t::ref scope,
+		ptr<const ast::item> callsite,
+		identifier::ref id,
+		llvm::IRBuilder<> &builder,
+		bound_var_t::ref resolved_value);
