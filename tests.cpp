@@ -638,7 +638,7 @@ bool get_testable_comments(
 bool _check_compiler_error(compiler &compiler, int &skipped) {
 	tee_logger tee_log;
 	status_t status;
-	compiler.build(status);
+	compiler.build_parse_modules(status);
 	std::vector<std::string> error_search_terms, unseen_search_terms;
 	bool skip_file = false;
 	bool pass_file = false;
@@ -656,21 +656,23 @@ bool _check_compiler_error(compiler &compiler, int &skipped) {
 		return true;
 	} else {
 		if (!!status) {
+			compiler.build_type_check_and_code_gen(status);
+		}
+
+		if (!!status) {
 			/* if everything looks good so far, be sure to check all the modules in
 			 * the program using LLVM's built-in checker */
 			for (auto &llvm_module_pair : compiler.llvm_modules) {
 				llvm_verify_module(status, *llvm_module_pair.second);
 			}
-		}
 
-		if (!!status) {
 			if (!pass_file) {
 				log(log_error, "compilation of " c_module("%s") c_warn(" succeeded") " but we " c_error("wanted it to fail"),
 						program_name.c_str());
 				return false;
 			} else {
-				log(log_info, "compilation of " c_module("%s") c_good(" succeeded") " which is good",
-						program_name.c_str());
+				debug_above(2, log(log_info, "compilation of " c_module("%s") c_good(" succeeded") " which is good",
+							program_name.c_str()));
 				return true;
 			}
 		}
@@ -703,8 +705,8 @@ bool _check_compiler_error(compiler &compiler, int &skipped) {
 		}
 
 		if (!checked_something) {
-			log(log_error, "compilation of " c_module("%s") c_warn(" failed") " (which is fine), but " c_error("couldn't find any comment checks."),
-					program_name.c_str());
+			debug_above(2, log(log_error, "compilation of " c_module("%s") c_warn(" failed") " (which is fine), but " c_error("couldn't find any comment checks."),
+						program_name.c_str()));
 
 			return false;
 		}
@@ -729,11 +731,14 @@ bool check_code_gen_emitted(std::string test_module_name, std::string regex_stri
 	compiler compiler(test_module_name, {".", "lib", "tests"});
 
 	status_t status;
-	compiler.build(status);
+	compiler.build_parse_modules(status);
+	if (!!status) {
+		compiler.build_type_check_and_code_gen(status);
+	}
 
 	if (!!status) {
 		std::string code_gen = compiler.dump_llvm_modules();
-		log(log_info, "code generated -\n%s", code_gen.c_str());
+		debug_above(8, log(log_info, "code generated -\n%s", code_gen.c_str()));
 		std::smatch match;
 		if (std::regex_search(code_gen, match, std::regex(regex_string))) {
 			return true;
@@ -1066,7 +1071,10 @@ auto test_descs = std::vector<test_desc>{
 			compiler compiler(test_module_name, {".", "lib", "tests"});
 
 			status_t status;
-			compiler.build(status);
+			compiler.build_parse_modules(status);
+			if (!!status) {
+				compiler.build_type_check_and_code_gen(status);
+			}
 
 			if (!status) {
 				return false;
@@ -1161,7 +1169,7 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 					test_descs.push_back(test_desc);
 				}
 			}
-			log(log_info, "found %d .zion test files in tests/errors", leaf_names.size());
+			debug_above(2, log(log_info, "found %d .zion test files in tests/errors", leaf_names.size()));
 		} else {
 			panic("can't find any tests/errors files");
 			return false;
@@ -1174,18 +1182,18 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 	for (auto &test_desc : test_descs) {
 		++total;
 		if (check_filters(test_desc.name, filter, excludes)) {
-			log(log_info, "------ " c_test_msg("running %s") " ------", test_desc.name.c_str());
+			debug_above(2, log(log_info, "------ " c_test_msg("running %s") " ------", test_desc.name.c_str()));
 
 			bool test_failure = !test_desc.func();
 
 			if (test_failure) {
-				log(log_error, "------ " c_error("✗ ") c_test_msg("%s") c_error(" FAILED ") "------", test_desc.name.c_str());
+				debug_above(2, log(log_error, "------ " c_error("✗ ") c_test_msg("%s") c_error(" FAILED ") "------", test_desc.name.c_str()));
 				success = false;
 				failures.push_back(test_desc.name);
 				if (getenv("ALL_TESTS") == nullptr)
 					break;
 			} else {
-				log(log_info, "------ " c_good("✓ ") c_test_msg("%s") c_good(" PASS ") "------", test_desc.name.c_str());
+				debug_above(2, log(log_info, "------ " c_good("✓ ") c_test_msg("%s") c_good(" PASS ") "------", test_desc.name.c_str()));
 				++pass;
 			}
 		} else {
@@ -1197,10 +1205,10 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 		log(log_warning, c_warn("%d TESTS SKIPPED"), skipped);
 	}
 	if (success) {
-		log(log_info, c_good("====== %d TESTS PASSED ======"), total - skipped);
+		log(log_info, c_good("====== %d TESTS PASSED ======"), pass);
 	} else {
 		log(log_error, "====== %d/%d TESTS PASSED (" c_error("%d failures") ", " c_warn("%d skipped") ") ======",
-			   	pass, total, total - pass - skipped, skipped);
+			   	pass, total, total - pass, skipped);
 		for (auto fail : failures) {
 			log(log_error, "%s failed", fail.c_str());
 		}

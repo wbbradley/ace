@@ -1,0 +1,8 @@
+module _
+
+def takes(f true)
+	pass
+
+def main()
+	# error: unable to resolve overloads for takes
+	takes(false)

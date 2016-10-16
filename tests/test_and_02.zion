@@ -1,0 +1,5 @@
+module _
+# test: skip
+
+def main()
+	0 and 1

@@ -9,7 +9,7 @@
 #include "disk.h"
 
 int usage() {
-	log(log_error, "available commands: test, read-ir, compile, compile-modules, bc, run, fmt");
+	log(log_error, "available commands: test, read-ir, compile, bc, run, fmt");
 	return EXIT_FAILURE;
 }
 
@@ -50,15 +50,17 @@ int main(int argc, char *argv[]) {
                 return EXIT_FAILURE;
             }
         } else if (cmd == "compile") {
-			compiler.build(status);
+			compiler.build_parse_modules(status);
 
 			if (!!status) {
-				return EXIT_SUCCESS;
-			} else {
-				return EXIT_FAILURE;
+				compiler.build_type_check_and_code_gen(status);
+				if (!!status) {
+					return EXIT_SUCCESS;
+				}
 			}
+			return EXIT_FAILURE;
         } else if (cmd == "fmt") {
-			compiler.build(status);
+			compiler.build_parse_modules(status);
 
 			if (!!status) {
 				fprintf(stdout, "%s",
@@ -70,38 +72,33 @@ int main(int argc, char *argv[]) {
 			} else {
 				return EXIT_FAILURE;
 			}
-        } else if (cmd == "compile-modules") {
-			compiler.build(status);
-			compiler.compile_modules(status);
-
-			if (!!status) {
-				return EXIT_SUCCESS;
-			} else {
-				return EXIT_FAILURE;
-			}
         } else if (cmd == "bc") {
-			compiler.build(status);
+			compiler.build_parse_modules(status);
 
 			if (!!status) {
-				auto executable_filename = compiler.get_program_name();
-				return compiler.emit_built_program(status, executable_filename);
-			} else {
-				return EXIT_FAILURE;
-			}
-        } else if (cmd == "run") {
-			compiler.build(status);
-
-			if (!!status) {
-				auto executable_filename = compiler.get_program_name();
-				int ret = compiler.emit_built_program(status, executable_filename);
+				compiler.build_type_check_and_code_gen(status);
 				if (!!status) {
-					return system((std::string("./") + executable_filename).c_str());
-				} else {
-					return ret;
+					auto executable_filename = compiler.get_program_name();
+					return compiler.emit_built_program(status, executable_filename);
 				}
-			} else {
-				return EXIT_FAILURE;
 			}
+			return EXIT_FAILURE;
+        } else if (cmd == "run") {
+			compiler.build_parse_modules(status);
+
+			if (!!status) {
+				compiler.build_type_check_and_code_gen(status);
+				if (!!status) {
+					auto executable_filename = compiler.get_program_name();
+					int ret = compiler.emit_built_program(status, executable_filename);
+					if (!!status && !ret) {
+						return system((std::string("./") + executable_filename).c_str());
+					} else {
+						return ret;
+					}
+				}
+			}
+			return EXIT_FAILURE;
 		} else {
 			panic(string_format("bad CLI invocation of %s", argv[0]));
 		}

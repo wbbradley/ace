@@ -253,7 +253,6 @@ unification_t unify(
 
 		/* straight unification did not work, let's try evaluating the types
 		 * to see whether they will unify after substitution */
-		auto lhs_type = lhs->evaluate(env)->get_type(status);
 		auto rhs_type = rhs->evaluate(env)->get_type(status);
 		if (!!status) {
 			unification_t unification = unify_core(

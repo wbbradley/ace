@@ -289,6 +289,10 @@ void add_global_types(
 				   	builder.getInt8Ty()->getPointerTo())},
 
 		/* pull in the garbage collection and memory reference types */
+		{{"__tag_var"},
+		   	bound_type_t::create(type_id(make_iid("__tag_var")),
+				   	INTERNAL_LOC(),
+				   	llvm_module_gc->getTypeByName("struct.tag_t"))},
 		{{TYPEID_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(TYPEID_TYPE)),
@@ -470,13 +474,15 @@ void add_globals(
 	}
 }
 
-void compiler::build(status_t &status) {
+void compiler::build_parse_modules(status_t &status) {
 	/* first just parse all the modules that are reachable from the initial module
 	 * and bring them into our whole ast */
 	auto module_name = program_name;
 
+	assert(program == nullptr);
+
 	/* create the program ast to contain all of the modules */
-	auto program = ast::create<ast::program>({});
+	program = ast::create<ast::program>({});
 
 	/* set up global types and variables */
 	add_globals(status, *this, builder, program_scope, program);
@@ -501,21 +507,26 @@ void compiler::build(status_t &status) {
 					assert(module != nullptr);
 					program->modules.insert(module);
 				}
+			}
+		}
+	}
+}
 
-				/* set up the names that point back into the AST resolved to the right
-				 * module scopes */
-				status = scope_setup_program(*program, *this);
 
-				if (!!status) {
-					status |= type_check_program(builder, *program, *this);
+void compiler::build_type_check_and_code_gen(status_t &status) {
+	if (!!status) {
+		/* set up the names that point back into the AST resolved to the right
+		 * module scopes */
+		status = scope_setup_program(*program, *this);
 
-					if (!!status) {
-						debug_above(2, log(log_info, "type checking found no errors"));
-						return;
-					} else {
-						debug_above(2, log(log_info, "type checking found errors"));
-					}
-				}
+		if (!!status) {
+			status |= type_check_program(builder, *program, *this);
+
+			if (!!status) {
+				debug_above(2, log(log_info, "type checking found no errors"));
+				return;
+			} else {
+				debug_above(2, log(log_info, "type checking found errors"));
 			}
 		}
 	}

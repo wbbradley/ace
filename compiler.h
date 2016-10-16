@@ -49,8 +49,15 @@ struct compiler {
 
 	void setup_disk_environment(status_t &status);
 
-	void build(status_t &status);
+	/* first step is to parse all modules */
+	void build_parse_modules(status_t &status);
+
+	/* type checking and code generation happen during the same pass */
+	void build_type_check_and_code_gen(status_t &status);
+
+	/* parse a single module */
 	void build_parse(status_t &status, location location, std::string module_name, bool global);
+
 	void build_parse_linked(status_t &status, ptr<const ast::module> module);
 	std::unordered_set<std::string> compile_modules(status_t &status);
 	int emit_built_program(status_t &status, std::string bitcode_filename);
@@ -73,6 +80,7 @@ private:
 	llvm_module_t llvm_program_module;
 	llvm_modules_t llvm_modules;
 	std::map<atom, ptr<module_scope_t>> module_scopes;
+	ptr<ast::program> program;
 
 	friend bool _check_compiler_error(compiler &compiler, int &skipped);
 };

@@ -34,6 +34,26 @@ struct var_t {
 	//////////////////////////////////////
 };
 
+struct tag_t {
+	atomic_version_t version;
+	int16_t size;
+	const char *name;
+	type_id_t type_id;
+};
+
+
+/* An example tag (for use in examining LLIR)
+ * Note that tag's data structure is identical to var_t up to type_id */
+
+struct tag_t __tag_Example = {
+	.version = 0,
+	.size = 0,
+	.name = "True",
+	.type_id = 42,
+};
+
+struct var_t *Example = (struct var_t *)&__tag_Example;
+
 
 #define VAR_DATA_ADDR(var) (((char *)(var)) + sizeof(var))
 

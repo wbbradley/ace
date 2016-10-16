@@ -83,11 +83,19 @@ namespace ast {
 	void when_block::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << tkstr(tk_when) << C_RESET << " ";
 		value->render(rs);
-		indented(rs);
-		for (auto pattern_block : pattern_blocks) {
-			pattern_block->render(rs);
+		/* BLOCK */ {
+			indented(rs);
+			for (auto pattern_block : pattern_blocks) {
+				pattern_block->render(rs);
+			}
 		}
+
 		if (else_block != nullptr) {
+			newline(rs);
+			indent(rs);
+			rs.ss << C_CONTROL << tkstr(tk_else) << C_RESET;
+			newline(rs);
+			indented(rs);
 			else_block->render(rs);
 		}
 	}
