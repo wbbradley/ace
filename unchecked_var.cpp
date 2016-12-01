@@ -5,11 +5,11 @@
 #include "bound_type.h"
 
 std::string unchecked_var_t::str() const {
-   	types::term::ref sig = get_term();
     std::stringstream ss;
-    ss << id->str() << " : " << node->token.str() << " : " << sig;
+    ss << id->str() << " : " << node->token.str() << " : unchecked";
     return ss.str();
 }
+
 types::term::ref unchecked_data_ctor_t::get_term(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
@@ -43,15 +43,24 @@ types::term::ref unchecked_var_t::get_term(
 			}
 
 			if (decl->return_type_ref) {
-				/* get the return type term */
-				types::term::ref sig = get_function_term(
-						get_args_term(args),
-						decl->return_type_ref->get_type_term({}));
+				auto return_type_term = decl->return_type_ref->get_type_term(
+						status, builder, scope, nullptr, {});
 
-				debug_above(9, log(log_info, "found unchecked term for %s : %s",
-							decl->token.str().c_str(),
-							sig->str().c_str()));
-				return sig;
+				if (!!status) {
+					/* get the return type term */
+					types::term::ref sig = get_function_term(
+							get_args_term(args),
+							return_type_term);
+
+					debug_above(9, log(log_info, "found unchecked term for %s : %s",
+								decl->token.str().c_str(),
+								sig->str().c_str()));
+					return sig;
+				} else {
+					log(log_warning, "unable to get type term for return type");
+					not_impl();
+					return types::term_unreachable();
+				}
 			} else {
 				types::term::ref sig = get_function_term(
 						get_args_term(args),

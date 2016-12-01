@@ -129,7 +129,7 @@ bound_var_t::ref check_func_vs_callsite(
 		var_t::ref fn,
 		types::term::ref args)
 {
-	unification_t unification = fn->accepts_callsite(status, scope, args);
+	unification_t unification = fn->accepts_callsite(status, builder, scope, args);
 	if (!!status) {
 		if (unification.result) {
 			if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
@@ -140,19 +140,21 @@ bound_var_t::ref check_func_vs_callsite(
 			} else if (auto unchecked_fn = dyncast<const unchecked_var_t>(fn)) {
 				/* we're instantiating a template or a forward decl */
 				/* we know that fn and sig_args are compatible */
-				types::term::ref fn_sig = fn->get_term();
+				types::term::ref fn_sig = fn->get_term(status, builder, scope);
 
-				/* create the new callee signature type for building the generic
-				 * substitution scope */
-				auto env = scope->get_type_env();
-				debug_above(5, log(log_info, "evaluating %s in %s with %s",
-							fn_sig->str().c_str(),
-							::str(env).c_str(),
-							::str(unification.bindings).c_str()));
-				types::type::ref fn_type_unbound = fn_sig->evaluate(env)->get_type(status);
 				if (!!status) {
-					return instantiate_unchecked_fn(status, builder, scope,
-							unchecked_fn, fn_type_unbound, unification);
+					/* create the new callee signature type for building the generic
+					 * substitution scope */
+					auto env = scope->get_type_env();
+					debug_above(5, log(log_info, "evaluating %s in %s with %s",
+								fn_sig->str().c_str(),
+								::str(env).c_str(),
+								::str(unification.bindings).c_str()));
+					types::type::ref fn_type_unbound = fn_sig->evaluate(env)->get_type(status);
+					if (!!status) {
+						return instantiate_unchecked_fn(status, builder, scope,
+								unchecked_fn, fn_type_unbound, unification);
+					}
 				}
 			} else {
 				panic("unhandled var type");

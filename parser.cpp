@@ -920,6 +920,10 @@ identifier::ref make_code_id(const zion_token_t &token) {
 	return make_ptr<code_id>(token);
 }
 
+identifier::ref make_type_id_code_id(const location location, atom var_name) {
+	return make_ptr<type_id_code_id>(location, var_name);
+}
+
 types::term::refs parse_term_arguments(
 		parse_state_t &ps,
 	   	identifier::set generics,
@@ -1205,6 +1209,7 @@ type_ref::ref type_ref::parse(parse_state_t &ps, identifier::set generics) {
 	if (type_refs.size() == 1) {
 		return type_refs.front();
 	} else {
+		return null_impl();
 	}
 }
 

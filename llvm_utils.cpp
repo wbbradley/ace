@@ -123,7 +123,7 @@ bound_var_t::ref create_callsite(
 					make_code_id(callsite->token), false/*is_lhs*/);
 		}
 	}
-	
+
 	assert(!status);
 	return nullptr;
 }

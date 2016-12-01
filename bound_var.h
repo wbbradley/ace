@@ -55,6 +55,7 @@ struct bound_var_t : public var_t {
 	typedef std::map<atom, overloads> map;
 
 	virtual types::term::ref get_term(status_t &status, llvm::IRBuilder<> &builder, ptr<scope_t> scope) const;
+	virtual types::term::ref get_term() const;
 	virtual location get_location() const;
 
 	static ref create(
