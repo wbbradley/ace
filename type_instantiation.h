@@ -30,3 +30,13 @@ void resolve_type_ref_params(
 		scope_t::ref scope,
 		types::type::refs type_args,
 		bound_type_t::refs &args);
+
+void create_supertype_relationship(
+		status_t &status,
+	   	types::term::ref subtype_term,
+		identifier::ref subtype_id,
+		identifier::ref supertype_id,
+		identifier::refs type_variables,
+	   	scope_t::ref scope,
+		std::list<identifier::ref> &lambda_vars,
+		atom::set &generics);

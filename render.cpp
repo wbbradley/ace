@@ -153,6 +153,25 @@ namespace ast {
 		block->render(rs);
 	}
 
+	void type_ref_sum::render(render_state_t &rs) const {
+		if (subtypes.size() <= 1) {
+			rs.ss << " ";
+			subtypes[0]->render(rs);
+		} else {
+			newline(rs);
+			indented(rs);
+			for (int i = 0; i < subtypes.size(); ++i) {
+				if (i > 0) {
+					rs.ss << " " << tkstr(tk_or);
+					newline(rs);
+				}
+
+				indent(rs);
+				subtypes[i]->render(rs);
+			}
+		}
+	}
+
 	void type_ref_named::render(render_state_t &rs) const {
 		rs.ss << term->str();
 	}
@@ -344,22 +363,8 @@ namespace ast {
 
 	void type_sum::render(render_state_t &rs) const {
 		rs.ss << tkstr(tk_is);
-		if (subtypes.size() <= 1) {
-			rs.ss << " ";
-			subtypes[0]->render(rs);
-		} else {
-			newline(rs);
-			indented(rs);
-			for (int i = 0; i < subtypes.size(); ++i) {
-				if (i > 0) {
-					rs.ss << " " << tkstr(tk_or);
-					newline(rs);
-				}
-
-				indent(rs);
-				subtypes[i]->render(rs);
-			}
-		}
+		rs.ss << " ";
+		type_ref->render(rs);
 	}
 
 	void var_decl::render(render_state_t &rs) const {

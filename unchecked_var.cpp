@@ -10,8 +10,19 @@ std::string unchecked_var_t::str() const {
     ss << id->str() << " : " << node->token.str() << " : " << sig;
     return ss.str();
 }
+types::term::ref unchecked_data_ctor_t::get_term(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	ptr<scope_t> scope) const
+{
+	return sig;
+}
 
-types::term::ref unchecked_var_t::get_term() const {
+types::term::ref unchecked_var_t::get_term(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	scope_t::ref scope) const
+{
 	if (auto fn = dyncast<const ast::function_defn>(node)) {
 		auto decl = fn->decl;
 		assert(decl != nullptr);
@@ -26,7 +37,8 @@ types::term::ref unchecked_var_t::get_term() const {
 				if (!param->type_ref) {
 					args.push_back(types::term_generic());
 				} else {
-					args.push_back(param->type_ref->get_type_term({}));
+					args.push_back(param->type_ref->get_type_term(status,
+								builder, scope, nullptr, {}));
 				}
 			}
 

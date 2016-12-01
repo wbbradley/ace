@@ -140,7 +140,7 @@ struct module_scope_t : scope_t {
 	 * instantiated. if it is not generic, then there's no need to check it because
 	 * it's already instantiated. */
 	virtual bool has_checked(const ptr<const ast::item> &node) const = 0;
-	virtual void mark_checked(status_t &status, const ptr<const ast::item> &node) = 0;
+	virtual void mark_checked(status_t &status, llvm::IRBuilder<> &builder, const ptr<const ast::item> &node) = 0;
 	virtual llvm::Module *get_llvm_module() = 0;
 	virtual unchecked_type_t::refs &get_unchecked_types_ordered() = 0;
 	virtual unchecked_var_t::refs &get_unchecked_vars_ordered() = 0;
@@ -175,7 +175,7 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	 * instantiated. if it is not generic, then there's no need to check it because
 	 * it's already instantiated. */
 	bool has_checked(const ptr<const ast::item> &node) const;
-	void mark_checked(status_t &status, const ptr<const ast::item> &node);
+	void mark_checked(status_t &status, llvm::IRBuilder<> &builder, const ptr<const ast::item> &node);
 	virtual llvm::Module *get_llvm_module();
 
 	virtual void dump(std::ostream &os) const;

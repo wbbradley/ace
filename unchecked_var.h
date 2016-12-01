@@ -42,7 +42,7 @@ struct unchecked_var_t : public var_t {
 		return ref(new unchecked_var_t(id, node, module_scope));
 	}
 
-	virtual types::term::ref get_term() const;
+	virtual types::term::ref get_term(status_t &status, llvm::IRBuilder<> &builder, ptr<scope_t> scope) const;
 	virtual location get_location() const;
 };
 
@@ -68,7 +68,7 @@ struct unchecked_data_ctor_t : public unchecked_var_t {
 		return ref(new unchecked_data_ctor_t(id, node, module_scope, sig, member_index));
 	}
 
-	virtual types::term::ref get_term() const { return sig; }
+	virtual types::term::ref get_term(status_t &status, llvm::IRBuilder<> &builder, ptr<scope_t> scope) const;
 
 	types::term::ref sig;
 	atom::map<int> member_index;

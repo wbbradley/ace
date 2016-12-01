@@ -1112,16 +1112,7 @@ type_sum::ref type_sum::parse(
 				ps.token.text.c_str());
 	}
 
-	type_ref::refs subtypes;
-	while (!!ps.status) {
-		subtypes.push_back(type_ref::parse(ps, type_variables));
-
-		if (ps.token.tk != tk_or) {
-			break;
-		} else {
-			chomp_token(tk_or);
-		}
-	}
+	auto type_ref = ast::type_ref::parse(ps, type_variables);
 
 	if (!!ps.status) {
 		if (expect_outdent) {
@@ -1133,7 +1124,7 @@ type_sum::ref type_sum::parse(
 			}
 		}
 
-		return create<type_sum>(type_decl->token, subtypes);
+		return create<type_sum>(type_decl->token, type_ref);
 	} else {
 		return nullptr;
 	}
@@ -1176,17 +1167,44 @@ type_alias::ref type_alias::parse(
 }
 
 type_ref::ref type_ref::parse(parse_state_t &ps, identifier::set generics) {
-	if (ps.token.tk == tk_lsquare) {
-		return type_ref_list::parse(ps, generics);
-	} else if (ps.token.tk == tk_lcurly) {
-		return type_ref_tuple::parse(ps, generics);
-	} else if (ps.token.tk == tk_identifier) {
-		return type_ref_named::parse(ps, generics);
-	} else if (ps.token.tk == tk_any) {
-		return type_ref_generic::parse(ps, generics);
+	std::list<ast::type_ref::ref> type_refs;
+	do {
+		if (ps.token.tk == tk_lsquare) {
+			auto type_ref = type_ref_list::parse(ps, generics);
+			if (!!ps.status) {
+				type_refs.push_back(type_ref);
+			}
+		} else if (ps.token.tk == tk_lcurly) {
+			auto type_ref = type_ref_tuple::parse(ps, generics);
+			if (!!ps.status) {
+				type_refs.push_back(type_ref);
+			}
+		} else if (ps.token.tk == tk_identifier) {
+			auto type_ref = type_ref_named::parse(ps, generics);
+			if (!!ps.status) {
+				type_refs.push_back(type_ref);
+			}
+		} else if (ps.token.tk == tk_any) {
+			auto type_ref = type_ref_generic::parse(ps, generics);
+			if (!!ps.status) {
+				type_refs.push_back(type_ref);
+			}
+		} else {
+			ps.error("expected an identifier when parsing a type_ref");
+			return nullptr;
+		}
+
+		if (ps.token.tk == tk_or) {
+			ps.advance();
+			continue;
+		} else {
+			break;
+		}
+	} while (true);
+	assert(type_refs.size() > 0);
+	if (type_refs.size() == 1) {
+		return type_refs.front();
 	} else {
-		ps.error("expected an identifier when parsing a type_ref");
-		return nullptr;
 	}
 }
 

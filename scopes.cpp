@@ -333,9 +333,13 @@ bool module_scope_impl_t::has_checked(const ptr<const ast::item> &node) const {
 	return visited.find(node) != visited.end();
 }
 
-void module_scope_impl_t::mark_checked(status_t &status, const ptr<const ast::item> &node) {
+void module_scope_impl_t::mark_checked(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	const ptr<const ast::item> &node) {
 	if (auto function_defn = dyncast<const ast::function_defn>(node)) {
-		if (is_function_defn_generic(status, shared_from_this(), *function_defn)) {
+		if (is_function_defn_generic(status, builder, shared_from_this(),
+					*function_defn)) {
 			/* for now let's never mark generic functions as checked, until we
 			 * have a mechanism to join the term to the checked-mark.  */
 			return;

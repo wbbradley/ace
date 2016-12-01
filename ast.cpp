@@ -77,8 +77,8 @@ namespace ast {
 	{
 	}
 
-	type_sum::type_sum(type_ref::refs subtypes) :
-		subtypes(subtypes)
+	type_sum::type_sum(type_ref::ref type_ref) :
+		type_ref(type_ref)
 	{
 	}
 

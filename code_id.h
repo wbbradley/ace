@@ -26,4 +26,27 @@ struct code_id : public identifier {
 	}
 };
 
+struct type_id_code_id : public identifier {
+	type_id_code_id(const location location, atom var_name) :
+		location(location), name(string_format("typeid(%s)", var_name.c_str()))
+	{
+	}
+
+	virtual atom get_name() const {
+		return name;
+	}
+
+	virtual location get_location() const {
+		return location;
+	}
+
+	virtual std::string str() const {
+		return name.str();
+	}
+
+	const location location;
+	const atom name;
+};
+
 identifier::ref make_code_id(const zion_token_t &token);
+identifier::ref make_type_id_code_id(const location location, atom var_name);

@@ -187,14 +187,23 @@ namespace ast {
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual ~type_ref() throw() {}
 
-		virtual types::term::ref get_type_term(identifier::refs type_variables) const = 0;
+		virtual types::term::ref get_type_term(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const = 0;
+	};
+
+	struct type_ref_sum : public type_ref {
+		virtual ~type_ref_sum() throw() {}
+
+		type_ref_sum(type_ref::refs subtypes);
+		virtual types::term::ref get_type_term(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
+		virtual void render(render_state_t &rs) const;
+		refs subtypes;
 	};
 
 	struct type_ref_named : public type_ref {
 		static const syntax_kind_t SK = sk_type_ref_named;
 
 		type_ref_named(types::term::ref term);
-		virtual types::term::ref get_type_term(identifier::refs type_variables) const;
+		virtual types::term::ref get_type_term(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
@@ -205,7 +214,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_ref_list;
 
 		type_ref_list(type_ref::ref type_ref);
-		virtual types::term::ref get_type_term(identifier::refs type_variables) const;
+		virtual types::term::ref get_type_term(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
@@ -216,7 +225,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_ref_tuple;
 
 		type_ref_tuple(std::vector<type_ref::ref> type_ref);
-		virtual types::term::ref get_type_term(identifier::refs type_variables) const;
+		virtual types::term::ref get_type_term(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
@@ -227,7 +236,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_ref_generic;
 
 		type_ref_generic(types::term::ref term);
-		virtual types::term::ref get_type_term(identifier::refs type_variables) const;
+		virtual types::term::ref get_type_term(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
@@ -268,7 +277,7 @@ namespace ast {
 	struct type_sum : public type_algebra {
 		typedef ptr<const type_sum> ref;
 
-		type_sum(type_ref::refs subtypes);
+		type_sum(type_ref::ref type_ref);
 		virtual ~type_sum() throw() {}
 		static const syntax_kind_t SK = sk_type_sum;
 		static ref parse(parse_state_t &ps, type_decl::ref type_decl, identifier::refs type_variables);
@@ -280,7 +289,7 @@ namespace ast {
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
-		type_ref::refs subtypes;
+		type_ref::ref type_ref;
 	};
 
 	struct type_product : public type_algebra {

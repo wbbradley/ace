@@ -37,8 +37,12 @@ bound_type_t::ref get_fully_bound_param_info(
 
 	assert(obj.type_ref != nullptr);
 
+	auto type_id_name = make_type_id_code_id(
+			obj.token.location,
+			var_name);
+
 	/* the user specified a type */
-	auto term = obj.type_ref->get_type_term({});
+	auto term = obj.type_ref->get_type_term(status, builder, scope, type_id_name, {});
 	debug_above(6, log(log_info, "upserting type for param %s at %s",
 				term->str().c_str(),
 				obj.type_ref->get_location().str().c_str()));
@@ -75,7 +79,11 @@ bound_var_t::ref type_check_bound_var_decl(
 
 		if (!!status) {
 			if (obj.type_ref && init_var) {
-				auto declared_term = obj.type_ref->get_type_term({});
+				auto type_id_code_id = make_type_id_code_id(obj.token.location,
+						symbol);
+				auto declared_term = obj.type_ref->get_type_term(status,
+						builder, scope, type_id_code_id, {});
+
 				assert(type != nullptr);
 				unification_t unification = unify(
 						status,
@@ -190,7 +198,7 @@ bound_type_t::ref get_return_type_from_return_type_expr(
     /* lookup the alias, default to void */
     if (type_ref != nullptr) {
 		return upsert_bound_type(status, builder, scope,
-				type_ref->get_type_term({}));
+				type_ref->get_type_term(status, builder, scope, nullptr, {}));
     } else {
 		/* user specified no return type, default to void */
 		return scope->get_program_scope()->get_bound_type({"void"});
@@ -227,7 +235,12 @@ void type_check_fully_bound_function_decl(
     assert(!status);
 }
 
-bool is_function_defn_generic(status_t &status, scope_t::ref scope, const ast::function_defn &obj) {
+bool is_function_defn_generic(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+	   	scope_t::ref scope,
+	   	const ast::function_defn &obj)
+{
     if (obj.decl->param_list_decl) {
 		/* check the parameters' genericity */
 		auto &params = obj.decl->param_list_decl->params;
@@ -237,7 +250,8 @@ bool is_function_defn_generic(status_t &status, scope_t::ref scope, const ast::f
 							param->str().c_str()));
 				return true;
 			}
-			types::term::ref term = param->type_ref->get_type_term({});
+			types::term::ref term = param->type_ref->get_type_term(status,
+					builder, scope, nullptr, {});
 
 			if (term->is_generic(status, scope->get_type_env())) {
 				debug_above(3, log(log_info, "found a generic parameter type on %s",
@@ -251,7 +265,8 @@ bool is_function_defn_generic(status_t &status, scope_t::ref scope, const ast::f
 
 	if (obj.decl->return_type_ref) {
 		/* check the return type's genericity */
-		types::term::ref term = obj.decl->return_type_ref->get_type_term({});
+		types::term::ref term = obj.decl->return_type_ref->get_type_term(status, builder, scope,
+					nullptr, {});
 		return term->is_generic(status, scope->get_type_env());
 	} else {
 		/* default to void, which is fully bound */
@@ -978,7 +993,7 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 					 * this function to the module scope we're in */
 					module_scope->put_bound_variable(status, function_var->name, function_var);
 					if (!!status) {
-						module_scope->mark_checked(status, shared_from_this());
+						module_scope->mark_checked(status, builder, shared_from_this());
 						assert(!!status);
 					}
 				}
@@ -1140,7 +1155,7 @@ status_t type_check_module_variables(
 					   	node->token.str().c_str()));
 			if (auto function_defn = dyncast<const ast::function_defn>(node)) {
 				// TODO: decide whether we need treatment here
-				if (is_function_defn_generic(status, module_scope, *function_defn)) {
+				if (is_function_defn_generic(status, builder, module_scope, *function_defn)) {
 					/* this is a generic function, or we've already checked
 					 * it so let's skip checking it */
 					final_status |= status;

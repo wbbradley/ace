@@ -15,11 +15,12 @@ std::string str(const var_t::refs &vars) {
 
 unification_t var_t::accepts_callsite(
 		status_t &status,
+		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 	   	types::term::ref args) const
 {
 	/* get the args out of the sig */
-	types::term::ref fn_term = get_term();
+	types::term::ref fn_term = get_term(status, builder, scope);
 	auto env = scope->get_type_env();
 
 	indent_logger indent(2, string_format(

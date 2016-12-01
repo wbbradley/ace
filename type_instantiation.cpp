@@ -117,20 +117,28 @@ void ast::type_product::register_type(
 	types::term::refs term_dimensions;
 	int index = 0;
 	for (auto dimension : dimensions) {
-		term_dimensions.push_back(dimension->type_ref->get_type_term(type_variables));
-		member_index[dimension->name] = index++;
+		auto dimension_type_term = dimension->type_ref->get_type_term(status,
+				builder, scope, supertype_id, type_variables);
+		if (!!status) {
+			term_dimensions.push_back(dimension_type_term);
+			member_index[dimension->name] = index++;
+		} else {
+			break;
+		}
 	}
 
-	/* Note that product types do not have a named super type. And, this node
-	 * is a type algebra node, therefore, it's token points to "has", instead
-	 * of the actual typename we're trying to create. So, we use the given
-	 * supertype_id as the name for the data ctor. */
-	register_data_ctor(status, builder,
-			type_variables, scope, shared_from_this(),
-			term_dimensions,
-			member_index,
-			supertype_id /*id*/,
-			nullptr /*supertype_id*/);
+	if (!!status) {
+		/* Note that product types do not have a named super type. And, this
+		 * node is a type algebra node, therefore, it's token points to "has",
+		 * instead of the actual typename we're trying to create. So, we use
+		 * the given supertype_id as the name for the data ctor. */
+		register_data_ctor(status, builder,
+				type_variables, scope, shared_from_this(),
+				term_dimensions,
+				member_index,
+				supertype_id /*id*/,
+				nullptr /*supertype_id*/);
+	}
 }
 
 void create_supertype_relationship(
@@ -230,33 +238,11 @@ void ast::type_sum::register_type(
 				token.text.c_str(),
 				join(type_variables, ", ").c_str()));
 
-	types::term::refs subtypes_terms;
-	for (auto subtype : subtypes) {
-		auto subtype_term = subtype->get_type_term(type_variables);
-		subtypes_terms.push_back(subtype_term);
-
-		std::list<identifier::ref> lambda_vars;
-		atom::set generics;
-		/* register the subtype -> supertype mapping in the type env for this
-		 * subtype. */
-		create_supertype_relationship(status, subtype_term,
-				subtype_term->get_id(), supertype_id, type_variables, scope,
-				lambda_vars, generics);
+	auto term_sum = type_ref->get_type_term(status, builder, scope, supertype_id, type_variables);
+	if (!!status) {
+		scope->put_type_decl_term(supertype_id->get_name(), term_sum);
 	}
 
-	types::term::ref term_sum = types::term_sum(subtypes_terms);
-	for (auto iter=type_variables.rbegin();
-			iter != type_variables.rend();
-			++iter)
-	{
-		term_sum = types::term_lambda(*iter, term_sum);
-	}
-
-	/* register the type declaration of this sum type. */
-	types::term::ref term_sum_binder = types::term_sum_binder(builder, scope,
-			types::term_id(supertype_id), shared_from_this(), term_sum);
-
-	scope->put_type_decl_term(supertype_id->get_name(), term_sum_binder);
 }
 
 types::term::ref instantiate_data_ctor_type_term(
