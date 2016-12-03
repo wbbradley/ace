@@ -9,8 +9,6 @@ type bool is
 	true or
 	false
 
-tag blah
-
 type TypeID has
 	var id __typeid__
 
@@ -23,10 +21,8 @@ def assert(condition bool)
 def typeid(t any) typeid
 	return TypeID(__get_typeid__(t))
 
-def __ineq__(x typeid, y typeid) bool
-	# TODO: pattern matching for upcasting
-	assert(false)
-	return false
+def __ineq__(x TypeID, y TypeID) bool
+	return bool(x.id != y.id)
 
 def __bool__(b bool) __bool__
 	return __get_typeid__(b) == __get_typeid__(true)
@@ -152,6 +148,9 @@ def __eq__(x float, y int) bool
 	return bool(x.raw == __float__(y.raw))
 
 def __eq__(x float, y float) bool
+	return bool(x.raw == y.raw)
+
+def __eq__(x str, y str) bool
 	return bool(x.raw == y.raw)
 
 def __ineq__(x int, y int) bool

@@ -127,7 +127,6 @@ indent_logger::~indent_logger() throw() {
 
 void indent_logger::logv(log_level_t level, const location *location, const char *format, va_list args) {
 	auto str = string_formatv(format, args);
-
 	if (logger_old != nullptr) {
 		logger_old->log(level, location, "%s%s", (location != nullptr) ? "" : "  ", str.c_str());
 	}

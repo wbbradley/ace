@@ -7,7 +7,7 @@ type Boo is Hiss or Cow
 
 # Note that this function returns an int, because we don't yet
 # support creating bools
-def test(a Boo, b Boo) bool
+def test(a any, b any) bool
 	return typeid(a) != typeid(b)
 
 def main()

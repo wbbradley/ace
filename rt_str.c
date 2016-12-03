@@ -36,3 +36,7 @@ char *__str_plus_str(char *x, char *y) {
 	memcpy(res + x_len, y, y_len);
 	return res;
 }
+
+zion_bool_t __str_eq_str(char *x, char *y) {
+	return strcmp(x, y) == 0;
+}

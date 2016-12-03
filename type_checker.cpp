@@ -593,21 +593,22 @@ bound_var_t::ref type_check_binary_operator(
 		ast::item::ref obj,
 		atom function_name)
 {
-	assert(function_name.size() != 0);
-
-	bound_var_t::ref lhs_var, rhs_var;
-	lhs_var = lhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
 	if (!!status) {
-		rhs_var = rhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+		assert(function_name.size() != 0);
 
+		bound_var_t::ref lhs_var, rhs_var;
+		lhs_var = lhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
 		if (!!status) {
-			/* get or instantiate a function we can call on these arguments */
-			return call_program_function(
-					status, builder, scope, function_name,
-					obj, {lhs_var, rhs_var});
+			rhs_var = rhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+
+			if (!!status) {
+				/* get or instantiate a function we can call on these arguments */
+				return call_program_function(
+						status, builder, scope, function_name,
+						obj, {lhs_var, rhs_var});
+			}
 		}
 	}
-
 	assert(!status);
 	return nullptr;
 }
@@ -716,47 +717,49 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
 {
 	bound_var_t::ref lhs_val = lhs->resolve_instantiation(status,
 			builder, scope, nullptr, nullptr);
-	auto type = lhs_val->type;
-
-	types::type::ref member_type;
 
 	if (!!status) {
-		atom member_name = rhs.text;
-		auto member_index = type->get_member_index();
-		auto member_index_iter = member_index.find(member_name);
+		auto type = lhs_val->type;
 
-		for (auto member_index_pair : member_index) {
-			debug_above(5, log(log_info, "%s: %d", member_index_pair.first.c_str(),
-						member_index_pair.second));
-		}
+		types::type::ref member_type;
 
-		if (member_index_iter != member_index.end()) {
-			auto index = member_index_iter->second;
-			debug_above(8, log(log_info, "found member %s at index %d", member_name.c_str(), index));
+		if (!!status) {
+			atom member_name = rhs.text;
+			auto member_index = type->get_member_index();
+			auto member_index_iter = member_index.find(member_name);
 
-			/* get the type of the dimension being referenced */
-			bound_type_t::ref member_type = type->get_dimensions()[index];
-			assert(type->get_llvm_specific_type() != nullptr);
+			for (auto member_index_pair : member_index) {
+				debug_above(5, log(log_info, "%s: %d", member_index_pair.first.c_str(),
+							member_index_pair.second));
+			}
 
-			llvm::Value *llvm_var_value = llvm_resolve_alloca(builder, lhs_val->llvm_value);
-			llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
+			if (member_index_iter != member_index.end()) {
+				auto index = member_index_iter->second;
+				debug_above(8, log(log_info, "found member %s at index %d", member_name.c_str(), index));
+
+				/* get the type of the dimension being referenced */
+				bound_type_t::ref member_type = type->get_dimensions()[index];
+				assert(type->get_llvm_specific_type() != nullptr);
+
+				llvm::Value *llvm_var_value = llvm_resolve_alloca(builder, lhs_val->llvm_value);
+				llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
 						llvm_var_value, type->get_llvm_specific_type());
 
-			llvm::Value *llvm_gep = builder.CreateInBoundsGEP(
-					llvm_value_as_specific_type,
-					{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index)});
+				llvm::Value *llvm_gep = builder.CreateInBoundsGEP(
+						llvm_value_as_specific_type,
+						{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index)});
 
-			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
-			return bound_var_t::create(
-					INTERNAL_LOC(), string_format(".%s", rhs.text.c_str()),
-					member_type, llvm_item, make_code_id(token), false/*is_lhs*/);
-		} else {
-			user_error(status, *this, "%s has no dimension called " c_id("%s"),
-					lhs_val->type->str().c_str(),
-					rhs.text.c_str());
+				llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
+				return bound_var_t::create(
+						INTERNAL_LOC(), string_format(".%s", rhs.text.c_str()),
+						member_type, llvm_item, make_code_id(token), false/*is_lhs*/);
+			} else {
+				user_error(status, *this, "%s has no dimension called " c_id("%s"),
+						lhs_val->type->str().c_str(),
+						rhs.text.c_str());
+			}
 		}
 	}
-
     assert(!status);
     return nullptr;
 }

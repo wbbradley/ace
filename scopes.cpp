@@ -354,7 +354,7 @@ void module_scope_impl_t::put_unchecked_type(
 		status_t &status,
 		unchecked_type_t::ref unchecked_type)
 {
-	debug_above(2, log(log_info, "registering an unchecked type %s as %s",
+	debug_above(6, log(log_info, "registering an unchecked type %s as %s",
 				unchecked_type->str().c_str()));
 
 	auto unchecked_type_iter = unchecked_types.find(unchecked_type->name);
@@ -400,7 +400,7 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 		std::string current_scope_name,
 		program_scope_t::ref program_scope)
 {
-	debug_above(2, log(log_info, "registering an unchecked variable %s as %s",
+	debug_above(6, log(log_info, "registering an unchecked variable %s as %s",
 				symbol.c_str(),
 				unchecked_variable->str().c_str()));
 

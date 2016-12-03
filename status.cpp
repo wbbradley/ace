@@ -2,6 +2,11 @@
 #include "logger_decls.h"
 #include "ast.h"
 
+status_t status_t::operator |=(const status_t rhs) {
+	fail |= rhs.fail;
+	return *this;
+}
+
 bool status_t::reported_on_error_at(location l) const {
    	return fail && last_error_location.str() == l.str();
 }
@@ -15,7 +20,18 @@ void status_t::emit_message(log_level_t level, location location, const char *fo
 
 void status_t::emit_messagev(log_level_t level, location location, const char *format, va_list args) {	
 	if (level == log_error) {
+		if (fail && getenv("STATUS_BREAK")) {
+			fprintf(stderr, "Status already failed. Breaking...\n");
+			dbg();
+		}
+
 		fail = true;
+
+		if (getenv("STATUS_BREAK")) {
+			fprintf(stderr, "Status changed. Breaking...\n");
+			dbg();
+		}
+
 		last_error_location = location;
 	}
 	logv_location(level, location, format, args);

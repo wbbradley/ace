@@ -1,4 +1,5 @@
 module when_contact
+# test: pass
 
 type Golfer has
 	var first str
@@ -8,8 +9,13 @@ type Athlete is Golfer
 
 def recognize_golfer(athlete Athlete)
 	when athlete is Golfer
-		if golfer.first == "Arnold" and golfer.last == "Palmer"
-			print("RIP")
+		if athlete.first == "Arnold"
+			if athlete.last == "Palmer"
+				print("RIP")
+			else
+				print("You are alive")
+		else
+			print("You are alive")
 	else
 		print("who are you?")
 

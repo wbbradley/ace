@@ -8,7 +8,7 @@ struct status_t {
 	status_t(bool fail=false) : fail(fail) {}
 
 	operator bool() const { return !fail; }
-	status_t operator |=(const status_t rhs) { fail |= rhs.fail; return *this; }
+	status_t operator |=(const status_t rhs);
 
 	void emit_message(log_level_t log_level, location location, const char *format, ...);
 	void emit_messagev(log_level_t log_level, location location, const char *format, va_list args);

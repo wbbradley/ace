@@ -191,6 +191,8 @@ namespace ast {
 	};
 
 	struct type_ref_sum : public type_ref {
+		static const syntax_kind_t SK = sk_type_ref_sum;
+
 		virtual ~type_ref_sum() throw() {}
 
 		type_ref_sum(type_ref::refs subtypes);

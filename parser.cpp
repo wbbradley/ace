@@ -1171,7 +1171,7 @@ type_alias::ref type_alias::parse(
 }
 
 type_ref::ref type_ref::parse(parse_state_t &ps, identifier::set generics) {
-	std::list<ast::type_ref::ref> type_refs;
+	std::vector<ast::type_ref::ref> type_refs;
 	do {
 		if (ps.token.tk == tk_lsquare) {
 			auto type_ref = type_ref_list::parse(ps, generics);
@@ -1209,7 +1209,8 @@ type_ref::ref type_ref::parse(parse_state_t &ps, identifier::set generics) {
 	if (type_refs.size() == 1) {
 		return type_refs.front();
 	} else {
-		return null_impl();
+		debug_above(4, log(log_info, "found types %s", join_str(type_refs, ", ").c_str()));
+		return ast::create<ast::type_ref_sum>(type_refs[0]->token, type_refs);
 	}
 }
 
