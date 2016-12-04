@@ -5,9 +5,11 @@ type Golfer has
 	var first str
 	var last str
 
-type Athlete is Golfer
+tag Baker
 
-def recognize_golfer(athlete Athlete)
+type Athlete is Golfer or Baker
+
+def recognize(athlete Athlete)
 	when athlete is Golfer
 		if athlete.first == "Arnold"
 			if athlete.last == "Palmer"
@@ -20,4 +22,5 @@ def recognize_golfer(athlete Athlete)
 		print("who are you?")
 
 def main()
-	recognize_golfer(Golfer("Arnold", "Palmer"))
+	recognize(Golfer("Arnold", "Palmer"))
+	recognize(Baker)
