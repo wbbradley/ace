@@ -70,10 +70,20 @@ void write_logv(FILE *fp, log_level_t level, const location *location, const cha
 	std::stringstream ss;
 	write_log_streamv(ss, level, location, format, args);
 
-	std::string out = clean_ansi_escapes_if_not_tty(fp, ss.str());
+	write_fp(fp, "%s", ss.str().c_str());
+}
 
+void writev_fp(FILE *fp, const char *format, va_list args) {
+	auto out = clean_ansi_escapes_if_not_tty(fp, string_formatv(format, args));
 	fprintf(fp, "%s", out.c_str());
 	fflush(fp);
+}
+
+void write_fp(FILE *fp, const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	writev_fp(fp, format, args);
+	va_end(args);
 }
 
 tee_logger::tee_logger() : logger_old(_logger) {
@@ -146,13 +156,13 @@ standard_logger::standard_logger(const std::string &name, const std::string &roo
 	m_root_file_path.append("logs");
 	if (!ensure_directory_exists(m_root_file_path))
 	{
-		fprintf(stderr, "standard_logger : couldn't guarantee that directory %s exists\naborting...\n", m_root_file_path.c_str());
+		write_fp(stderr, "standard_logger : couldn't guarantee that directory %s exists\naborting...\n", m_root_file_path.c_str());
 		exit(1);
 	}
 	if (_logger == NULL)
 		_logger = this;
 	else
-		fprintf(stderr, "multiple loggers are loaded!");
+		write_fp(stderr, "multiple loggers are loaded!");
 
 	open();
 }
@@ -226,7 +236,7 @@ void standard_logger::open() {
 }
 
 void standard_logger::dump() {
-	fprintf(stderr, "| standard_logger : " c_id("%s") " - " C_FILENAME "%s" C_RESET " - " C_FILENAME "%s" C_RESET "\n",
+	write_fp(stderr, "| standard_logger : " c_id("%s") " - " C_FILENAME "%s" C_RESET " - " C_FILENAME "%s" C_RESET "\n",
 			m_name.c_str(),
 			m_root_file_path.c_str(),
 			m_current_logfile.c_str());
@@ -236,7 +246,7 @@ void tee_logger::dump() {
 	if (logger_old != nullptr) {
 		logger_old->dump();
 	}
-	fprintf(stderr, "| tee_logger : %d logs captured\n",
+	write_fp(stderr, "| tee_logger : %d logs captured\n",
 			(int)captured_logs.size());
 }
 
@@ -244,12 +254,12 @@ void indent_logger::dump() {
 	if (logger_old != nullptr) {
 		logger_old->dump();
 	}
-	fprintf(stderr, "| indent_logger : level %d %s\n",
-			level, msg.c_str());
+	write_fp(stderr, "| indent_logger : level %d %s\n",
+			level, clean_ansi_escapes_if_not_tty(stderr, msg).c_str());
 }
 
 void log_dump() {
-	fprintf(stderr, "| LOG Context\n");
+	write_fp(stderr, "| LOG Context\n");
 	if (_logger != nullptr) {
 		_logger->dump();
 	}
@@ -257,7 +267,7 @@ void log_dump() {
 
 void panic_(const char *filename, int line, std::string msg) {
 	log_dump();
-	fprintf(stderr, "%s:%d: PANIC %s\n", filename, line, msg.c_str());
+	write_fp(stderr, "%s:%d: PANIC %s\n", filename, line, msg.c_str());
 	dbg();
 	raise(SIGKILL);
 }
@@ -331,7 +341,7 @@ void standard_logger::logv(log_level_t level, const location *location, const ch
 }
 
 void print_stacktrace(FILE *p_out, unsigned int p_max_frames) {
-	fprintf(p_out, "stack trace:\n");
+	write_fp(p_out, "stack trace:\n");
 	
 	// storage array for stack trace address data
 	void **addrlist = (void**)alloca(sizeof(void*) * (p_max_frames + 1));
@@ -340,7 +350,7 @@ void print_stacktrace(FILE *p_out, unsigned int p_max_frames) {
 	int addrlen = backtrace(addrlist, p_max_frames + 1);
 	
 	if (addrlen == 0) {
-		fprintf(p_out, "  <empty, possibly corrupt>\n");
+		write_fp(p_out, "  <empty, possibly corrupt>\n");
 		return;
 	}
 	
@@ -451,15 +461,15 @@ void print_stacktrace(FILE *p_out, unsigned int p_max_frames) {
 			
 			if (status == 0) {
 				funcname = ret; // use possibly realloc()-ed string; static analyzer doesn't like this but it is OK I think
-				fprintf(p_out, "  %s : %s + %s\n", symbollist[i], funcname, begin_offset);
+				write_fp(p_out, "  %s : %s + %s\n", symbollist[i], funcname, begin_offset);
 			} else {
 				// demangling failed. Output function name as a C function with
 				// no arguments.
-				fprintf(p_out, "  %s : %s() + %s\n", symbollist[i], begin_name, begin_offset);
+				write_fp(p_out, "  %s : %s() + %s\n", symbollist[i], begin_name, begin_offset);
 			}
 		} else {
 			// couldn't parse the line? print the whole line.
-			fprintf(p_out, "URF:  %s\n", symbollist[i]);
+			write_fp(p_out, "URF:  %s\n", symbollist[i]);
 		}
 	}
 	
@@ -477,7 +487,7 @@ void log_stack(log_level_t level) {
 	int frames = backtrace(callstack, 128);
 	char **strs = backtrace_symbols(callstack, frames);
 	for (int i = 1; i < frames; ++i) {
-		fprintf(stdout, c_line_ref("%s") "\n", strs[i]);
+		write_fp(stdout, c_line_ref("%s") "\n", strs[i]);
 	}
 	free(strs);
 }

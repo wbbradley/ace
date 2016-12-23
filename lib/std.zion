@@ -48,6 +48,12 @@ type str has
 def str(s str) str
 	return s
 
+def str(x bool) str
+	if x
+		return "true"
+	else
+		return "false"
+
 def int(s str) int
 	return int(__int__(s.raw))
 

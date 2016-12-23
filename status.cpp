@@ -21,14 +21,14 @@ void status_t::emit_message(log_level_t level, location location, const char *fo
 void status_t::emit_messagev(log_level_t level, location location, const char *format, va_list args) {	
 	if (level == log_error) {
 		if (fail && getenv("STATUS_BREAK")) {
-			fprintf(stderr, "Status already failed. Breaking...\n");
+			write_fp(stderr, "Status already failed. Breaking...\n");
 			dbg();
 		}
 
 		fail = true;
 
 		if (getenv("STATUS_BREAK")) {
-			fprintf(stderr, "Status changed. Breaking...\n");
+			write_fp(stderr, "Status changed. Breaking...\n");
 			dbg();
 		}
 

@@ -1,5 +1,6 @@
 module _
-# test: skip
+# test: pass
 
 def main()
-	var x int or bool = false
+	var x int or bool = 3
+	print(x)

@@ -59,7 +59,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual void put_type_term(status_t &status, atom name, types::term::ref type_term) = 0;
 	virtual void put_type_decl_term(atom name, types::term::ref type_term) = 0;
 	virtual types::term::map get_type_env() const = 0;
-	virtual types::term::map get_type_decl_env() const = 0;
+	// virtual types::term::map get_type_decl_env() const = 0;
 };
 
 template <typename BASE>
@@ -82,7 +82,7 @@ struct scope_impl_t : public BASE {
 	void put_type_term(status_t &status, atom name, types::term::ref type_term);
 	void put_type_decl_term(atom name, types::term::ref type_term);
 	types::term::map get_type_env() const;
-	types::term::map get_type_decl_env() const;
+	// types::term::map get_type_decl_env() const;
 	std::string str();
 	void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable);
 	bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints);
@@ -334,6 +334,7 @@ void scope_impl_t<T>::put_type_term(status_t &status, atom name, types::term::re
 	debug_above(2, log(log_info, "registering type term " c_term("%s") " as %s",
 				name.c_str(), type_term->str().c_str()));
 	if (type_env.find(name) == type_env.end()) {
+		// WOW
 		type_env[name] = type_term;
 	} else {
 		user_error(status, type_term->get_id()->get_location(),

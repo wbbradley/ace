@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
 			compiler.build_parse_modules(status);
 
 			if (!!status) {
-				fprintf(stdout, "%s",
+				write_fp(stdout, "%s",
 						compiler.dump_program_text(strip_zion_extension(argv[2])).c_str());
 			}
 

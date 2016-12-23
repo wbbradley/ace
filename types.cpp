@@ -37,7 +37,7 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env) const {
+			ref evaluate(map env, bool most_derived) const {
 				return shared_from_this();
 			}
 
@@ -68,14 +68,18 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env) const {
+			ref evaluate(map env, bool most_derived) const {
+				if (most_derived) {
+					return shared_from_this();
+				}
+
 				auto iter = env.find(id->get_name());
 				if (iter == env.end()) {
 					return shared_from_this();
 				} else {
 					auto value = iter->second;
 					if (value != shared_from_this()) {
-						return value->evaluate(env);
+						return value->evaluate(env, most_derived);
 					} else {
 						return value;
 					}
@@ -112,10 +116,13 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env) const {
+			ref evaluate(map env, bool most_derived) const {
+				/* lambdas are not concrete, they are abstractions */
+				assert(!most_derived);
+
 				atom var_name = var->get_name();
 				env.erase(var_name);
-				return types::term_lambda(var, body->evaluate(env));
+				return types::term_lambda(var, body->evaluate(env, most_derived));
 			}
 
 			ref apply(ref operand) const {
@@ -123,7 +130,7 @@ namespace types {
 				/* We should only handle substitutions in lambdas when they
 				 * are being applied. */
 				env[var->get_name()] = operand;
-				return body->evaluate(env);
+				return body->evaluate(env, false /*most_derived*/);
 			}
 
 			type::ref get_type(status_t &status) const {
@@ -163,10 +170,10 @@ namespace types {
 				return os;
 			}
 
-			virtual ref evaluate(map env) const {
+			virtual ref evaluate(map env, bool most_derived) const {
 				term::refs evaluated_options;
 				for (auto &option : options) {
-					evaluated_options.push_back(option->evaluate(env));
+					evaluated_options.push_back(option->evaluate(env, most_derived));
 				}
 				return types::term_sum(evaluated_options);
 			}
@@ -213,7 +220,7 @@ namespace types {
 				return os;
 			}
 
-			virtual ref evaluate(map env) const {
+			virtual ref evaluate(map env, bool most_derived) const {
 				if (pk == pk_tag) {
 					/* this is a bit of a hack, but essentially a pk_tag is
 					 * just a type literal that cannot be evaluated */
@@ -222,7 +229,7 @@ namespace types {
 					term::refs evaluated_dimensions;
 					
 					for (auto &dimension : dimensions) {
-						evaluated_dimensions.push_back(dimension->evaluate(env));
+						evaluated_dimensions.push_back(dimension->evaluate(env, most_derived));
 					}
 					return types::term_product(pk, evaluated_dimensions);
 				}
@@ -268,9 +275,25 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env) const {
+			ref evaluate(map env, bool most_derived) const {
 				/* Only allow substitution of "any" type variables from the environment. */
-				return shared_from_this();
+				if (most_derived) {
+					/* when we want concreteness, we should expand generics if
+					 * possible */
+					auto iter = env.find(var_id->get_name());
+					if (iter == env.end()) {
+						return shared_from_this();
+					} else {
+						auto value = iter->second;
+						if (value != shared_from_this()) {
+							return value->evaluate(env, most_derived);
+						} else {
+							return value;
+						}
+					}
+				} else {
+					return shared_from_this();
+				}
 			}
 
 			type::ref get_type(status_t &status) const {
@@ -304,7 +327,7 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env) const {
+			ref evaluate(map env, bool most_derived) const {
 				debug_above(8, log(log_info, "evaluating term_apply %s with %s",
 						   	str().c_str(), ::str(env).c_str()));
 				auto fn_eval = fn->evaluate(env);
@@ -355,7 +378,7 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env) const {
+			ref evaluate(map env, bool most_derived) const {
 				return null_impl();
 			}
 
@@ -400,7 +423,7 @@ namespace types {
 	}
 
 	bool term::is_generic(status_t &status, types::term::map env) const {
-		auto type = evaluate(env)->get_type(status);
+		auto type = evaluate(env, false /*most_derived*/)->get_type(status);
 		return type->ftv() != 0;
 	}
 

@@ -7,6 +7,7 @@
 #include "type_instantiation.h"
 #include "llvm_types.h"
 #include "llvm_utils.h"
+#include <iostream>
 
 bound_type_impl_t::bound_type_impl_t(
 		types::type::ref type,
@@ -80,6 +81,8 @@ bound_type_handle_t::bound_type_handle_t(
 		llvm::Type *llvm_type) :
 	type(type), llvm_type(llvm_type)
 {
+	// std::cerr << str() << std::endl;
+	// dbg();
 }
 
 std::string bound_type_handle_t::str() const {
@@ -140,6 +143,8 @@ void bound_type_handle_t::set_actual(bound_type_t::ref actual_) const {
 	assert(actual_ != shared_from_this());
 	assert(actual_->get_type()->str() == type->str());
 	assert(actual_->get_llvm_type() == llvm_type);
+	debug_above(2, log(log_info, "resolving %s to %s", this->str().c_str(), actual_->str().c_str()));
+	// dbg();
 	actual = actual_;
 }
 
@@ -337,8 +342,8 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os) const {
 			os << "(" << id;
-			os << " " << data_ctor_sig;
-			os << " {index: {";
+			os << " {data_ctor_sig: " << data_ctor_sig;
+			os << "} {index: {";
 			const char *sep = "";
 			for (auto member_index_pair : member_index) {
 				os << sep << member_index_pair.first;
@@ -354,7 +359,7 @@ namespace types {
 					data_ctor_sig->apply(operand), member_index);
 		}
 
-		virtual ref evaluate(map env) const {
+		virtual ref evaluate(map env, bool most_derived) const {
 			return shared_from_this();
 		}
 
@@ -461,7 +466,7 @@ namespace types {
 					term_sum->apply(operand));
 		}
 
-		virtual ref evaluate(map env) const {
+		virtual ref evaluate(map env, bool most_derived) const {
 			return shared_from_this();
 		}
 

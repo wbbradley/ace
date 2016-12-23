@@ -1,0 +1,14 @@
+module _
+
+type Node{X} has
+	var x X
+
+type List{T} is Node{T}
+
+def foo(a Node{any A})
+	var x any A
+	x = a.x
+	print(x)
+
+def main()
+	foo(Node(1))

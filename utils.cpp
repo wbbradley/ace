@@ -232,8 +232,10 @@ std::string clean_ansi_escapes(std::string out) {
 		case ok:
 			if (ch == '\x1b') {
 				state = in_esc;
-			} else if (read != insert) {
-				out[insert] = ch;
+			} else {
+				if (read != insert) {
+					out[insert] = ch;
+				}
 				++insert;
 			}
 			break;

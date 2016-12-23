@@ -1,0 +1,54 @@
+module _
+
+type Just{T} has
+	var val T
+
+type Maybe{T} is Empty or Just{T}
+
+type Literal has
+	var value int
+
+type Plus has
+	var e1 Expr
+	var e2 Expr
+
+type Minus has
+	var e1 Expr
+	var e2 Expr
+
+type Times has
+	var e1 Expr
+	var e2 Expr
+
+type Divide has
+	var e1 Expr
+	var e2 Expr
+
+type Expr is
+	Plus or
+	Minus or
+	Times or
+	Divide or
+	Literal
+
+def compute(expr Expr) int
+	when expr
+		is Literal
+			return expr.value
+		is Plus
+			return compute(expr.e1) + compute(expr.e2)
+		is Minus
+			return compute(expr.e1) - compute(expr.e2)
+		is Times
+			return compute(expr.e1) * compute(expr.e2)
+		is Divide
+			return compute(expr.e1) / compute(expr.e2)
+
+	assert(false)
+	return 0
+
+def main()
+	expr := Divide(Plus(Literal(5), Literal(5)), Literal(2))
+
+	# Should print 5
+	print(compute(expr))

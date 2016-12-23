@@ -1,0 +1,5 @@
+module _
+
+
+def main()
+	print(3)

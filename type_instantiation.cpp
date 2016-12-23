@@ -151,6 +151,7 @@ void create_supertype_relationship(
 		std::list<identifier::ref> &lambda_vars,
 		atom::set &generics)
 {
+	// dbg();
 	assert(generics.size() == 0);
 	assert(lambda_vars.size() == 0);
 	debug_above(5, log(log_info, "create_supertype_relationship(%s, %s, %s)",
@@ -176,6 +177,7 @@ void create_supertype_relationship(
 						name.c_str());
 			}
 		}
+		assert(!"Not sure what this code path is supposed to be doing. Just investigating with this assert...");
 	} else {
 		atom tag_name = subtype_id->get_name();
 		debug_above(5, log(log_info,
@@ -222,7 +224,8 @@ void create_supertype_relationship(
 				supertype_expansion = types::term_lambda(lambda_var,
 						supertype_expansion);
 			}
-			scope->put_type_term(status, tag_name, supertype_expansion);
+			// dbg();
+			//scope->put_type_term(status, tag_name, supertype_expansion);
 		}
 	}
 }
@@ -389,6 +392,7 @@ types::term::ref register_data_ctor(
 		identifier::ref id,
 		identifier::ref supertype_id)
 {
+	dbg();
 	atom name = id->get_name();
 	auto location = id->get_location();
 	if (supertype_id == nullptr || (supertype_id->get_name() != id->get_name())) {

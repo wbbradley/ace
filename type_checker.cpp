@@ -12,6 +12,7 @@
 #include "parser.h"
 #include "unification.h"
 #include "code_id.h"
+#include <iostream>
 
 /*
  * The basic idea here is that type checking is a graph operation which can be
@@ -63,6 +64,7 @@ bound_var_t::ref type_check_bound_var_decl(
 	if (!scope->has_bound_variable(symbol, rc_capture_level)) {
 		bound_var_t::ref init_var;
 		bound_type_t::ref type;
+		types::term::ref declared_term;
 
 		assert(obj.type_ref != nullptr);
 
@@ -77,13 +79,19 @@ bound_var_t::ref type_check_bound_var_decl(
 			}
 		}
 
-		if (!!status) {
-			if (obj.type_ref && init_var) {
-				auto type_id_code_id = make_type_id_code_id(obj.token.location,
-						symbol);
-				auto declared_term = obj.type_ref->get_type_term(status,
-						builder, scope, type_id_code_id, {});
+		auto type_id_code_id = make_type_id_code_id(obj.token.location,
+				symbol);
 
+		if (!!status) {
+			if (obj.type_ref != nullptr) {
+				declared_term = obj.type_ref->get_type_term(status,
+						builder, scope, type_id_code_id, {});
+				declared_term = declared_term->evaluate(scope->get_type_decl_env(), false /*most_derived*/);
+			}
+		}
+
+		if (!!status) {
+			if (declared_term && init_var) {
 				assert(type != nullptr);
 				unification_t unification = unify(
 						status,
@@ -113,9 +121,15 @@ bound_var_t::ref type_check_bound_var_decl(
 						}
 					}
 				}
-			} 
+			} else if (declared_term != nullptr) {
+				auto final_type = declared_term->get_type(status);
+				if (!!status) {
+					type = upsert_bound_type(status, builder, scope, final_type);
+				}
+			}
 
 			if (!!status) {
+				assert(type != nullptr);
 				/* generate the mutable stack-based variable for this var */
 				llvm::Function *llvm_function = llvm_get_function(builder);
 				llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function, type, symbol);
@@ -468,22 +482,48 @@ bound_var_t::ref ast::callsite_expr::resolve_instantiation(
     bound_type_t::refs param_types;
     bound_var_t::refs arguments;
 
-    if (params && params->expressions.size() != 0) {
-        /* iterate through the parameters and add their types to a vector */
-        for (auto &param : params->expressions) {
-            bound_var_t::ref param_var = param->resolve_instantiation(
-                    status, builder, scope, nullptr, nullptr);
+	if (auto symbol = dyncast<ast::reference_expr>(function_expr)) {
+		if (symbol->token.text == "static_print") {
+			if (params->expressions.size() != 1) {
+				user_error(status, *shared_from_this(), "static_print requires one and only one parameter");
 
-            if (!status) {
-                break;
-            }
+				assert(!status);
+				return nullptr;
+			} else {
+				auto param = params->expressions[0];
+				bound_var_t::ref param_var = param->resolve_instantiation(
+						status, builder, scope, nullptr, nullptr);
 
-            arguments.push_back(param_var);
-            param_types.push_back(param_var->type);
-        }
-    } else {
-        /* the callsite has no parameters */
-    }
+				if (!!status) {
+					user_message(log_info, status, param->get_location(),
+							"static_print(%s) = %s", param->str().c_str(),
+							param_var->type->str().c_str());
+					// scope->dump(std::cerr);
+					return nullptr;
+				}
+
+				assert(!status);
+				return nullptr;
+			}
+		}
+	}
+
+	if (params && params->expressions.size() != 0) {
+		/* iterate through the parameters and add their types to a vector */
+		for (auto &param : params->expressions) {
+			bound_var_t::ref param_var = param->resolve_instantiation(
+					status, builder, scope, nullptr, nullptr);
+
+			if (!status) {
+				break;
+			}
+
+			arguments.push_back(param_var);
+			param_types.push_back(param_var->type);
+		}
+	} else {
+		/* the callsite has no parameters */
+	}
 
 	if (!!status) {
 		if (auto can_reference_overloads = dyncast<can_reference_overloads_t>(function_expr)) {
@@ -506,6 +546,7 @@ bound_var_t::ref ast::callsite_expr::resolve_instantiation(
 			return nullptr;
 		}
 	}
+
 
     assert(!status);
     return nullptr;
@@ -1207,16 +1248,25 @@ status_t type_check_program(
 
     /* pass to resolve all module-level types */
     for (auto &module : obj.modules) {
+		if (!status) {
+			break;
+		}
 		status |= type_check_module_types(compiler, builder, *module, program_scope);
     }
 
     /* pass to resolve all module-level links */
     for (auto &module : obj.modules) {
+		if (!status) {
+			break;
+		}
         status |= type_check_module_links(compiler, builder, *module, program_scope);
     }
 
     /* pass to resolve all module-level variables */
     for (auto &module : obj.modules) {
+		if (!status) {
+			break;
+		}
         status |= type_check_module_variables(compiler, builder, *module, program_scope);
     }
     return status;
@@ -1561,7 +1611,7 @@ bound_var_t::ref ast::block::resolve_instantiation(
 
 		local_scope_t::ref next_scope;
 
-		debug_above(9, log(log_info, "type checking statement %s", statement->str().c_str()));
+		debug_above(9, log(log_info, "type checking statement\n%s", statement->str().c_str()));
 
 		statement->resolve_instantiation(status, builder, current_scope,
 				&next_scope, returns);

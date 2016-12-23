@@ -6,6 +6,7 @@
 #include <sstream>
 #include "unification.h"
 #include "scopes.h"
+#include <iostream>
 
 std::string str(const var_t::refs &vars) {
 	std::stringstream ss;
@@ -24,9 +25,11 @@ unification_t var_t::accepts_callsite(
 	auto env = scope->get_type_env();
 
 	indent_logger indent(2, string_format(
-				"checking whether %s accepts %s in env %s", str().c_str(),
+				"checking whether %s accepts %s in env %s (parent env %s)", str().c_str(),
 				args->str().c_str(), ::str(env).c_str()));
 
+	scope->dump(std::cerr);
+	dbg();
 	auto u = unify(
 			status,
 			fn_term,

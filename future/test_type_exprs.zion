@@ -41,10 +41,6 @@ type Graph{Data} has
 	
 # type assert(FloatPair == Pair(float, float))
 
-type Signature is
-	Name{Atom} or
-	Operator{Atom, [Signature]}
-
 # create a type alias (equivalence)
 type IntList matches List{int}
 type AliasType{Param} matches RealType{Param, int}

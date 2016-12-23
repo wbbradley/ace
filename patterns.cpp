@@ -5,6 +5,7 @@
 #include "type_checker.h"
 #include "compiler.h"
 #include "llvm_types.h"
+#include <iostream>
 
 bound_var_t::ref ast::when_block::resolve_instantiation(
 		status_t &status,
@@ -58,8 +59,13 @@ bound_var_t::ref gen_type_check(
 		types::term::ref type_term,
 		local_scope_t::ref *new_scope)
 {
-	auto type = type_term->get_type(status);
+	auto type = type_term->evaluate(scope->get_type_decl_env(), false/*most_derived*/)->get_type(status);
 	if (!!status) {
+		/* in case we are in a generic function, we will need to assess our
+		 * type*/
+		// TODO: type = type->rebind(scope->get_unification_bindings());
+		// scope->dump(std::cerr);
+		std::cerr << std::endl;
 		auto bound_type = upsert_bound_type(status, builder, scope, type);
 
 		if (!!status) {
@@ -73,9 +79,10 @@ bound_var_t::ref gen_type_check(
 					value_name,
 					false/*is_lhs*/);
 
-			debug_above(7, log(log_info, "generating a runtime type check "
-						"for type %s with signature value %d",
-						type_term->str().c_str(), (int)signature.iatom));
+			debug_above(2, log(log_info, "generating a runtime type check "
+						"for type %s with signature value %d (for '%s') (type is %s)",
+						type_term->str().c_str(), (int)signature.iatom,
+						signature.c_str(), type->str().c_str()));
 			bound_var_t::ref type_id = call_typeid(status, scope, node,
 					value_name, builder, value);
 

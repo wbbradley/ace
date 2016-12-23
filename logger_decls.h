@@ -18,5 +18,6 @@ void log_location(log_level_t level, const location &location, const char *forma
 void panic_(const char *filename, int line, std::string msg);
 void log_stack(log_level_t level);
 void log_dump();
+void write_fp(FILE *fp, const char *format, ...);
 
 bool check_errno(const char *tag);

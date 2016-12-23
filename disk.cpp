@@ -206,13 +206,13 @@ void print_dir(FILE *fp, const char *directory, const char *match) {
 
         /* is the file a directory? */
         if (S_ISDIR(stFileInfo.st_mode)) {
-            debug(fprintf(fp, "Directory: %s\n", szFullName));
+            debug(write_fp(fp, "Directory: %s\n", szFullName));
         }
         else
         {
 			if (match == NULL || strstr(szFullName, match) != NULL)
 			{
-        	    debug(fprintf(fp, "File: %s\n", szFullName));
+        	    debug(write_fp(fp, "File: %s\n", szFullName));
 			}
         }
     }

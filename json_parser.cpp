@@ -21,7 +21,7 @@ bool json_parse(std::istream &is, jsonp &result, bool skip_comment, FILE *fp_out
 	if (!parser.parse(result)) {
 		if (fp_out != nullptr) {
 			int pos = int(is.tellg());
-			fprintf(fp_out, "json parse error near offset (%d)\n", pos);
+			write_fp(fp_out, "json parse error near offset (%d)\n", pos);
 		}
 		return false;
 	}
@@ -63,9 +63,9 @@ bool json_parse(const std::string filename, jsonp &result, bool skip_comment, FI
 			size_t pos = size_t(irs.tellg());
 			size_t line = 0, col = 0;
 			if (get_line_col(filename, pos, line, col))
-				fprintf(fp_out, "json parse error at %s:(%d, %d)\n", filename.c_str(), (int)line, (int)col);
+				write_fp(fp_out, "json parse error at %s:(%d, %d)\n", filename.c_str(), (int)line, (int)col);
 			else
-				fprintf(fp_out, "json parse error in %s near offset (%d)\n", filename.c_str(), (int)pos);
+				write_fp(fp_out, "json parse error in %s near offset (%d)\n", filename.c_str(), (int)pos);
 		}
 		return false;
 	}
