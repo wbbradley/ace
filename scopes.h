@@ -98,7 +98,7 @@ protected:
 
 	bound_var_t::map bound_vars;
 	types::term::map type_env;
-	types::term::map type_decl_env;
+	// types::term::map type_decl_env;
 };
 
 typedef bound_type_t::ref return_type_constraint_t;
@@ -345,16 +345,16 @@ void scope_impl_t<T>::put_type_term(status_t &status, atom name, types::term::re
 
 template <typename T>
 void scope_impl_t<T>::put_type_decl_term(atom name, types::term::ref type_term) {
-	auto iter = type_decl_env.find(name);
-	if (iter == type_decl_env.end()) {
+	auto iter = type_env.find(name);
+	if (iter == type_env.end()) {
 		debug_above(2, log(log_info, "registering type decl term " c_term("%s") " as %s",
 					name.c_str(), type_term->str().c_str()));
-		type_decl_env[name] = type_term;
+		type_env[name] = type_term;
 	} else {
 		debug_above(8, log(log_info, "type decl term " c_term("%s") " has already been registered as %s",
-					name.c_str(), type_decl_env[name]->str().c_str()));
+					name.c_str(), type_env[name]->str().c_str()));
 		/* this term may have already been registered. */
-		assert(type_decl_env[name]->str() == type_term->str());
+		assert(type_env[name]->str() == type_term->str());
 	}
 }
 
@@ -368,6 +368,7 @@ types::term::map scope_impl_t<T>::get_type_env() const {
 	}
 }
 
+/*
 template <typename T>
 types::term::map scope_impl_t<T>::get_type_decl_env() const {
 	auto parent_scope = this->get_parent_scope();
@@ -377,6 +378,7 @@ types::term::map scope_impl_t<T>::get_type_decl_env() const {
 		return type_decl_env;
 	}
 }
+*/
 
 template <typename T>
 std::string scope_impl_t<T>::str() {

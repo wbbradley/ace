@@ -59,7 +59,7 @@ bound_var_t::ref gen_type_check(
 		types::term::ref type_term,
 		local_scope_t::ref *new_scope)
 {
-	auto type = type_term->evaluate(scope->get_type_decl_env(), false/*most_derived*/)->get_type(status);
+	auto type = type_term->evaluate(scope->get_type_env(), false/*most_derived*/)->get_type(status);
 	if (!!status) {
 		/* in case we are in a generic function, we will need to assess our
 		 * type*/

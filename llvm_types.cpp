@@ -73,7 +73,7 @@ struct bound_type_builder_t : public types::type_visitor {
 		if (module_scope != nullptr) {
 			atom name = operator_.oper->get_signature();
 
-			auto type_decl_env = scope->get_type_decl_env();
+			auto type_decl_env = scope->get_type_env();
 			assert(!in(name, type_decl_env));
 			return false;
 		} else {
@@ -172,7 +172,7 @@ bound_type_t::ref create_bound_type(
 		types::type::ref type)
 {
 	assert(!!status);
-	auto env = scope->get_type_decl_env();
+	auto env = scope->get_type_env();
 	auto term = type->to_term();
 	debug_above(6, log(log_info, "evaluating %s in %s",
 				term->str().c_str(),
@@ -231,7 +231,7 @@ bound_type_t::ref upsert_bound_type(
 	/* helper method to convert lambda terms to types */
 	debug_above(6, log(log_info, "evaluating type term " c_term("%s"),
 				term->str().c_str()));
-	auto type_env = scope->get_type_decl_env();
+	auto type_env = scope->get_type_env();
 	auto type = term->evaluate(type_env)->get_type(status);
 
 	if (!!status) {
