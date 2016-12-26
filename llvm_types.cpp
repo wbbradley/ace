@@ -73,8 +73,8 @@ struct bound_type_builder_t : public types::type_visitor {
 		if (module_scope != nullptr) {
 			atom name = operator_.oper->get_signature();
 
-			auto type_decl_env = scope->get_type_env();
-			assert(!in(name, type_decl_env));
+			auto type_env = scope->get_type_env();
+			assert(!in(name, type_env));
 			return false;
 		} else {
 			assert(!"no module scope?");

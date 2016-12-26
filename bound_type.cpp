@@ -359,7 +359,7 @@ namespace types {
 					data_ctor_sig->apply(operand), member_index);
 		}
 
-		virtual ref evaluate(map env, bool most_derived) const {
+		virtual ref evaluate(map env) const {
 			return shared_from_this();
 		}
 
@@ -466,7 +466,7 @@ namespace types {
 					term_sum->apply(operand));
 		}
 
-		virtual ref evaluate(map env, bool most_derived) const {
+		virtual ref evaluate(map env) const {
 			return shared_from_this();
 		}
 

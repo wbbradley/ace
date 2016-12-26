@@ -392,7 +392,6 @@ types::term::ref register_data_ctor(
 		identifier::ref id,
 		identifier::ref supertype_id)
 {
-	dbg();
 	atom name = id->get_name();
 	auto location = id->get_location();
 	if (supertype_id == nullptr || (supertype_id->get_name() != id->get_name())) {

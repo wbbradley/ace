@@ -248,16 +248,21 @@ void dump_bindings(
 		const bound_var_t::map &bound_vars,
 		const bound_type_t::map &bound_types)
 {
-	os << "bound:\n";
-	for (auto &var_pair : bound_vars) {
-		os << C_VAR << var_pair.first << C_RESET << ": ";
-		const auto &overloads = var_pair.second;
-		os << ::str(overloads);
+	if (bound_vars.size() != 0) {
+		os << "bound vars:\n";
+		for (auto &var_pair : bound_vars) {
+			os << C_VAR << var_pair.first << C_RESET << ": ";
+			const auto &overloads = var_pair.second;
+			os << ::str(overloads);
+		}
 	}
 
-	for (auto &type_pair : bound_types) {
-		os << C_TYPE << type_pair.first << C_RESET << ": ";
-		os << *type_pair.second << std::endl;
+	if (bound_types.size() != 0) {
+		os << "bound types:\n";
+		for (auto &type_pair : bound_types) {
+			os << C_TYPE << type_pair.first << C_RESET << ": ";
+			os << *type_pair.second << std::endl;
+		}
 	}
 }
 
@@ -266,22 +271,26 @@ void dump_bindings(
 		const unchecked_var_t::map &unchecked_vars,
 		const unchecked_type_t::map &unchecked_types)
 {
-	os << "unchecked vars:\n";
-	for (auto &var_pair : unchecked_vars) {
-		os << C_UNCHECKED << var_pair.first << C_RESET << ": [";
-		const unchecked_var_t::overload_vector &overloads = var_pair.second;
-		const char *sep = "";
-		for (auto &var_overload : overloads) {
-			os << sep << var_overload->node->token.str();
-			sep = ", ";
+	if (unchecked_vars.size() != 0) {
+		os << "unchecked vars:\n";
+		for (auto &var_pair : unchecked_vars) {
+			os << C_UNCHECKED << var_pair.first << C_RESET << ": [";
+			const unchecked_var_t::overload_vector &overloads = var_pair.second;
+			const char *sep = "";
+			for (auto &var_overload : overloads) {
+				os << sep << var_overload->node->token.str();
+				sep = ", ";
+			}
+			os << "]" << std::endl;
 		}
-		os << "]" << std::endl;
 	}
 
-	os << "unchecked types:\n";
-	for (auto &type_pair : unchecked_types) {
-		os << C_TYPE << type_pair.first << C_RESET << ": ";
-		os << type_pair.second->node->token.str() << std::endl;
+	if (unchecked_types.size() != 0) {
+		os << "unchecked types:\n";
+		for (auto &type_pair : unchecked_types) {
+			os << C_TYPE << type_pair.first << C_RESET << ": ";
+			os << type_pair.second->node->token.str() << std::endl;
+		}
 	}
 }
 
@@ -293,17 +302,12 @@ void program_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "PROGRAM SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, bound_types);
 	dump_bindings(os, unchecked_vars, unchecked_types);
-	if (type_decl_env.size() != 0) {
-		os << std::endl << "PROGRAM TYPE DECL ENV: " << std::endl;
-		os << join_with(type_decl_env, "\n", [] (types::term::map::value_type value) -> std::string {
-				return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-				});
-	}
 	if (type_env.size() != 0) {
 		os << std::endl << "PROGRAM TYPE ENV: " << std::endl;
 		os << join_with(type_env, "\n", [] (types::term::map::value_type value) -> std::string {
-				return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-				});
+			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
+		});
+		os << std::endl;
 	}
 }
 
@@ -311,17 +315,12 @@ void module_scope_impl_t::dump(std::ostream &os) const {
 	os << std::endl << "MODULE SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
 	dump_bindings(os, unchecked_vars, unchecked_types);
-	if (type_decl_env.size() != 0) {
-		os << std::endl << "MODULE TYPE DECL ENV: " << std::endl;
-		os << join_with(type_decl_env, "\n", [] (types::term::map::value_type value) -> std::string {
-				return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-				});
-	}
 	if (type_env.size() != 0) {
 		os << std::endl << "MODULE TYPE ENV: " << std::endl;
 		os << join_with(type_env, "\n", [] (types::term::map::value_type value) -> std::string {
-				return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-				});
+			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
+		});
+		os << std::endl;
 	}
 	get_parent_scope()->dump(os);
 	// dump_linked_modules(os, linked_modules);
@@ -330,17 +329,12 @@ void module_scope_impl_t::dump(std::ostream &os) const {
 void function_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "FUNCTION SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
-	if (type_decl_env.size() != 0) {
-		os << std::endl << "FUNCTION TYPE DECL ENV: " << std::endl;
-		os << join_with(type_decl_env, "\n", [] (types::term::map::value_type value) -> std::string {
-				return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-				});
-	}
 	if (type_env.size() != 0) {
 		os << std::endl << "FUNCTION TYPE ENV: " << std::endl;
 		os << join_with(type_env, "\n", [] (types::term::map::value_type value) -> std::string {
-				return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-				});
+			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
+		});
+		os << std::endl;
 	}
 	get_parent_scope()->dump(os);
 }
@@ -348,17 +342,11 @@ void function_scope_t::dump(std::ostream &os) const {
 void local_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "LOCAL SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
-	if (type_decl_env.size() != 0) {
-		os << std::endl << "LOCAL TYPE DECL ENV: " << std::endl;
-		os << join_with(type_decl_env, "\n", [] (types::term::map::value_type value) -> std::string {
-				return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-				});
-	}
 	if (type_env.size() != 0) {
 		os << std::endl << "LOCAL TYPE ENV: " << std::endl;
 		os << join_with(type_env, "\n", [] (types::term::map::value_type value) -> std::string {
-				return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-				});
+			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
+		});
 	}
 	get_parent_scope()->dump(os);
 }
@@ -366,17 +354,12 @@ void local_scope_t::dump(std::ostream &os) const {
 void generic_substitution_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "GENERIC SUBSTITUTION SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
-	if (type_decl_env.size() != 0) {
-		os << std::endl << "GENERIC SUBSTITUTION TYPE DECL ENV: " << std::endl;
-		os << join_with(type_decl_env, "\n", [] (types::term::map::value_type value) -> std::string {
-				return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-				});
-	}
 	if (type_env.size() != 0) {
 		os << std::endl << "GENERIC SUBSTITUTION TYPE ENV: " << std::endl;
 		os << join_with(type_env, "\n", [] (types::term::map::value_type value) -> std::string {
-				return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-				});
+			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
+		});
+		os << std::endl;
 	}
 	get_parent_scope()->dump(os);
 }
@@ -644,8 +627,7 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 				debug_above(5, log(log_info, "adding " c_id("%s") " to env as %s",
 							pair.first.c_str(),
 							term->str().c_str()));
-				subst_scope->type_decl_env[pair.first] = term;
-				// subst_scope->type_env[pair.first] = term;
+				subst_scope->type_env[pair.first] = term;
 			}
 		} else {
 			debug_above(7, log(log_info, "skipping adding %s to generic substitution scope",

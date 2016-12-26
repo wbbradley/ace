@@ -78,7 +78,7 @@ namespace types {
 		virtual atom::set unbound_vars(atom::set bound_vars={}) const = 0;
 		virtual identifier::ref get_id() const;
 
-		virtual ref evaluate(map env, bool most_derived=false) const = 0;
+		virtual ref evaluate(map env) const = 0;
 		virtual ref apply(ref operand) const;
 		virtual type::ref get_type(status_t &status) const = 0;
 		virtual std::ostream &emit(std::ostream &os) const = 0;

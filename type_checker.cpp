@@ -86,7 +86,7 @@ bound_var_t::ref type_check_bound_var_decl(
 			if (obj.type_ref != nullptr) {
 				declared_term = obj.type_ref->get_type_term(status,
 						builder, scope, type_id_code_id, {});
-				declared_term = declared_term->evaluate(scope->get_type_env(), false /*most_derived*/);
+				declared_term = declared_term->evaluate(scope->get_type_env());
 			}
 		}
 

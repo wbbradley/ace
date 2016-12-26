@@ -37,7 +37,7 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env, bool most_derived) const {
+			ref evaluate(map env) const {
 				return shared_from_this();
 			}
 
@@ -68,18 +68,14 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env, bool most_derived) const {
-				if (most_derived) {
-					return shared_from_this();
-				}
-
+			ref evaluate(map env) const {
 				auto iter = env.find(id->get_name());
 				if (iter == env.end()) {
 					return shared_from_this();
 				} else {
 					auto value = iter->second;
 					if (value != shared_from_this()) {
-						return value->evaluate(env, most_derived);
+						return value->evaluate(env);
 					} else {
 						return value;
 					}
@@ -116,13 +112,12 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env, bool most_derived) const {
+			ref evaluate(map env) const {
 				/* lambdas are not concrete, they are abstractions */
-				assert(!most_derived);
 
 				atom var_name = var->get_name();
 				env.erase(var_name);
-				return types::term_lambda(var, body->evaluate(env, most_derived));
+				return types::term_lambda(var, body->evaluate(env));
 			}
 
 			ref apply(ref operand) const {
@@ -130,7 +125,7 @@ namespace types {
 				/* We should only handle substitutions in lambdas when they
 				 * are being applied. */
 				env[var->get_name()] = operand;
-				return body->evaluate(env, false /*most_derived*/);
+				return body->evaluate(env);
 			}
 
 			type::ref get_type(status_t &status) const {
@@ -170,10 +165,10 @@ namespace types {
 				return os;
 			}
 
-			virtual ref evaluate(map env, bool most_derived) const {
+			virtual ref evaluate(map env) const {
 				term::refs evaluated_options;
 				for (auto &option : options) {
-					evaluated_options.push_back(option->evaluate(env, most_derived));
+					evaluated_options.push_back(option->evaluate(env));
 				}
 				return types::term_sum(evaluated_options);
 			}
@@ -220,16 +215,17 @@ namespace types {
 				return os;
 			}
 
-			virtual ref evaluate(map env, bool most_derived) const {
+			virtual ref evaluate(map env) const {
 				if (pk == pk_tag) {
 					/* this is a bit of a hack, but essentially a pk_tag is
 					 * just a type literal that cannot be evaluated */
+					assert(!"Maybe there's no need for this...");
 					return shared_from_this();
 				} else {
 					term::refs evaluated_dimensions;
 					
 					for (auto &dimension : dimensions) {
-						evaluated_dimensions.push_back(dimension->evaluate(env, most_derived));
+						evaluated_dimensions.push_back(dimension->evaluate(env));
 					}
 					return types::term_product(pk, evaluated_dimensions);
 				}
@@ -275,24 +271,20 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env, bool most_derived) const {
-				/* Only allow substitution of "any" type variables from the environment. */
-				if (most_derived) {
-					/* when we want concreteness, we should expand generics if
-					 * possible */
-					auto iter = env.find(var_id->get_name());
-					if (iter == env.end()) {
-						return shared_from_this();
-					} else {
-						auto value = iter->second;
-						if (value != shared_from_this()) {
-							return value->evaluate(env, most_derived);
-						} else {
-							return value;
-						}
-					}
-				} else {
+			ref evaluate(map env) const {
+				/* Only allow substitution of "any" type variables from the
+				 * environment.  when we want concreteness, we should expand
+				 * generics if possible */
+				auto iter = env.find(var_id->get_name());
+				if (iter == env.end()) {
 					return shared_from_this();
+				} else {
+					auto value = iter->second;
+					if (value != shared_from_this()) {
+						return value->evaluate(env);
+					} else {
+						return value;
+					}
 				}
 			}
 
@@ -327,16 +319,15 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env, bool most_derived) const {
+			ref evaluate(map env) const {
 				debug_above(8, log(log_info, "evaluating term_apply %s with %s",
 						   	str().c_str(), ::str(env).c_str()));
 				auto fn_eval = fn->evaluate(env);
 				auto arg_eval = arg->evaluate(env);
-
-				ref res = fn_eval->apply(arg_eval);
+				auto new_term = types::term_apply(fn_eval, arg_eval);
 				debug_above(5, log(log_info, "eval: %s -> %s", str().c_str(),
-							res->str().c_str()));
-				return res;
+							new_term->str().c_str()));
+				return new_term;
 			}
 
 			type::ref get_type(status_t &status) const {
@@ -378,7 +369,7 @@ namespace types {
 				return os;
 			}
 
-			ref evaluate(map env, bool most_derived) const {
+			ref evaluate(map env) const {
 				return null_impl();
 			}
 
@@ -423,7 +414,7 @@ namespace types {
 	}
 
 	bool term::is_generic(status_t &status, types::term::map env) const {
-		auto type = evaluate(env, false /*most_derived*/)->get_type(status);
+		auto type = evaluate(env)->get_type(status);
 		return type->ftv() != 0;
 	}
 

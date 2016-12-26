@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # coding=utf8
 
 """
@@ -32,6 +32,7 @@ Hindley/Milner Algorithm W.
 import sys
 import os
 import string
+from functools import reduce
 
 UNREACHABLE = 'void'
 
@@ -51,7 +52,7 @@ def yellow(x):
 def log(msg, level=1):
     dbg_level = os.environ.get("DEBUG", 0)
     if int(dbg_level) >= int(level):
-        print msg
+        print(msg)
 
 
 class TermGeneric(object):
@@ -138,8 +139,8 @@ class TermLambda(object):
         return TermLambda(self.v, self.body.evaluate(env, macro_depth))
 
     def get_type(self):
-        print "Lambdas must be beta-reduced before we can get their type."
-        print repr(self)
+        print("Lambdas must be beta-reduced before we can get their type.")
+        print(repr(self))
         assert False
 
 
@@ -306,14 +307,14 @@ def parse_expr(text, i=0):
 
 
 def lambdify(p):
-    if isinstance(p, (str, unicode)):
+    if isinstance(p, str):
         return lambdify_build(parse(p))
     else:
         return lambdify_build(p)
 
 
 def lambdify_build(p):
-    if isinstance(p, (str, unicode)):
+    if isinstance(p, str):
         if p == UNREACHABLE:
             return TermUnreachable()
         else:
@@ -357,7 +358,7 @@ def lambdify_build(p):
 class TypeId(object):
 
     def __init__(self, name):
-        assert isinstance(name, (str, unicode))
+        assert isinstance(name, str)
         self.name = name
 
     def __str__(self):
@@ -397,7 +398,7 @@ class TypeUnreachable(object):
 class TypeVariable(object):
 
     def __init__(self, name):
-        assert isinstance(name, (str, unicode))
+        assert isinstance(name, str)
         self.name = name
 
     def __str__(self):
@@ -434,7 +435,7 @@ class TypeVariable(object):
 class TypeOperator(object):
 
     def __init__(self, operator, operand):
-        assert not isinstance(operator, (str, unicode))
+        assert not isinstance(operator, str)
         self.operator = operator
         self.operand = operand
 
@@ -581,7 +582,7 @@ def no_cycles(unify):
         if params in _visited:
             # memoize and detect recurring calls
             if type(_visited[params]) == bool:
-                print "saw already %s" % _visited[params]
+                print("saw already %s" % _visited[params])
                 assert False
 
             return _visited[params]
@@ -736,9 +737,9 @@ def main():
         input_count += 1
         prompt = "\033[48;5;95;38;5;214m %s \033[0m " % input_name
         try:
-            value = raw_input(prompt).strip()
+            value = input(prompt).strip()
         except EOFError:
-            print "\nGoodbye."
+            print("\nGoodbye.")
             break
 
         if not value:
@@ -749,7 +750,7 @@ def main():
             evaluate(input_name, value, env)
 
         except Exception as e:
-            print error("Error %s" % e)
+            print(error("Error %s" % e))
             raise
 
 
@@ -777,9 +778,9 @@ def evaluate(input_name, value, env):
         if value[1:] == 'env':
             for k, v in env.iteritems():
                 if len(k) < 2 or k[0] != "'":
-                    print "%s: %s" % (k, v)
+                    print("%s: %s" % (k, v))
         else:
-            print "Didn't understand %s" % value
+            print("Didn't understand %s" % value)
     else:
         parsed = parse(value)
         term = lambdify(parsed)
@@ -787,31 +788,31 @@ def evaluate(input_name, value, env):
             env[input_name] = term
 
         if isinstance(term, Unify):
-            print "Unifying %s <: %s" % (term.outbound, term.inbound)
+            print("Unifying %s <: %s" % (term.outbound, term.inbound))
             ret, details, bindings = unify_terms(env, term.outbound,
                                                  term.inbound)
             if ret:
-                print success("Unified %s <: %s to %s with %s") % (
+                print(success("Unified %s <: %s to %s with %s") % (
                     term.outbound, term.inbound,
                     details,
-                    bindings_to_str(bindings))
+                    bindings_to_str(bindings)))
 
                 # recreate the final unified type name
-                print "Final type is " + yellow("%s") % (
+                print("Final type is " + yellow("%s") % (
                     term.outbound
                     .get_type()
                     .fully_bind(bindings)
-                    .to_lambda({}))
+                    .to_lambda({})))
             else:
-                print error("Unification %s <: %s failed: %s" % (
-                    term.outbound, term.inbound, details))
+                print(error("Unification %s <: %s failed: %s" % (
+                    term.outbound, term.inbound, details)))
         else:
             # DefMacro is the set! operator. It can mutate the env.
             if isinstance(term, DefMacro):
                 env[str(term.name)] = term.body
 
-            env['_'] = term.evaluate(env)
-            print yellow(env['_'])
+            env['_'] = term.evaluate(env, 1)
+            print(yellow(env['_']))
 
 
 if __name__ == '__main__':
