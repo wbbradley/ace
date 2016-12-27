@@ -43,7 +43,6 @@
 #define C_ID        _ANSI_COLOR_MAGENTA
 #define C_CONTROL   _ANSI_COLOR_CYAN
 #define C_TYPE      _ANSI_COLOR_YELLOW
-#define C_TERM      _ANSI_COLOR_MAGENTA
 #define C_VAR       _ANSI_COLOR_GREEN
 #define C_UNCHECKED _ANSI_COLOR_DIM
 #define C_SIG       C_TYPE
@@ -65,7 +64,6 @@
 #define c_id(x)       _COLOR(C_ID, x)
 #define c_control(x)  _COLOR(C_CONTROL, x)
 #define c_type(x)     _COLOR(C_TYPE, x)
-#define c_term(x)     _COLOR(C_TERM, x)
 #define c_var(x)      _COLOR(C_VAR, x)
 #define c_sig(x)      _COLOR(C_SIG, x)
 #define c_ir(x)       _COLOR(C_IR, x)

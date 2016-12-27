@@ -32,7 +32,7 @@ bound_var_t::ref get_callable(
 		scope_t::ref scope,
 		atom alias,
 		const ptr<const ast::item> &obj,
-		types::term::ref sig_args);
+		types::type::ref sig_args);
 
 /* maybe_get_callable is supposed to be more lenient and not cause errors,
  * however it may go off and type check potential unifications of other generic
@@ -43,7 +43,7 @@ bound_var_t::ref maybe_get_callable(
 		scope_t::ref scope,
 		atom alias,
 		const ptr<const ast::item> &callsite,
-		types::term::ref sig_args,
+		types::type::ref sig_args,
 		var_t::refs &fns);
 
 bound_var_t::ref call_program_function(

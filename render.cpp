@@ -173,7 +173,7 @@ namespace ast {
 	}
 
 	void type_ref_named::render(render_state_t &rs) const {
-		rs.ss << term->str();
+		rs.ss << type->str();
 	}
 
 	void type_ref_list::render(render_state_t &rs) const {
@@ -211,7 +211,7 @@ namespace ast {
 	}
 
 	void type_ref_generic::render(render_state_t &rs) const {
-		rs.ss << term->str();
+		rs.ss << type->str();
 	}
 
 	void plus_assignment::render(render_state_t &rs) const {

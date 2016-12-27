@@ -205,11 +205,7 @@ void rt_bind_var_from_llir(
 		user_error(status, location{llvm_module.getName().str(), 0, 0},
 				"unable to find function " c_var("%s"), name_in_llir.c_str());
 	} else {
-		types::term::ref term = get_function_term(args, return_type);
-
-		/* this is putting a pointer to this function, and later we'll use the
-		 * term to deduce how to call it */
-		auto type = term->get_type(status);
+		types::type::ref type = get_function_type(args, return_type);
 
 		if (!!status) {
 			/* see if this bound type already exists */
@@ -458,7 +454,7 @@ void add_globals(
 		};
 
 		for (auto &binding : bindings) {
-			/* lookup the types for the function term */
+			/* lookup the types for the function type */
 			bound_type_t::refs args;
 			bound_type_t::ref return_type;
 			for (auto arg : binding.args) {

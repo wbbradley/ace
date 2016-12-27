@@ -32,10 +32,10 @@ types::type::ref prune(types::type::ref t, types::type::map bindings) {
 }
 
 template <typename T>
-bool occurs_in(const ptr<types::type_variable> &var, const T &terms) {
-    /* checks whether a term variable occurs in any other terms. */
-	for (auto &term : terms) {
-		if (occurs_in_type(var, term)) {
+bool occurs_in(const ptr<types::type_variable> &var, const T &types) {
+    /* checks whether a type variable occurs in any other types. */
+	for (auto &type : types) {
+		if (occurs_in_type(var, type)) {
 			return true;
 		}
 	}
@@ -66,7 +66,7 @@ bool occurs_in_type(
 types::type::ref eval_apply(
 		types::type::ref oper,
 	   	types::type::ref operand, 
-		types::term::map env,
+		types::type::map env,
 		types::type::map bindings)
 {
 	auto ptid = dyncast<const types::type_id>(oper);
@@ -74,9 +74,9 @@ types::type::ref eval_apply(
 
 	auto fn_iter = env.find(ptid->id->get_name());
 	if (fn_iter != env.end()) {
-		auto term_ref = fn_iter->second->apply(operand->to_term(bindings));
+		auto type_ref = fn_iter->second->apply(operand, bindings));
 		status_t status;
-		auto type = term_ref->get_type(status);
+		auto type = type_ref->get_type(status);
 		assert(!!status);
 		return type;
 	} else {
@@ -87,7 +87,7 @@ types::type::ref eval_apply(
 unification_t unify_core(
 		types::type::ref lhs,
 		types::type::ref rhs,
-		types::term::map env,
+		types::type::map env,
 		types::type::map bindings,
 		int depth)
 {
@@ -255,12 +255,12 @@ unification_t unify_core(
 
 unification_t unify(
 		status_t &status,
-		types::term::ref lhs,
-		types::term::ref rhs,
-		types::term::map env)
+		types::type::ref lhs,
+		types::type::ref rhs,
+		types::type::map env)
 {
 	indent_logger indent(2, string_format(
-				"unify(" c_term("%s") ", " c_term("%s") ", %s)",
+				"unify(" c_type("%s") ", " c_type("%s") ", %s)",
 				lhs->str().c_str(), rhs->str().c_str(), str(env).c_str()));
 
 	auto lhs_type = lhs->get_type(status);

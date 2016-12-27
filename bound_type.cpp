@@ -148,10 +148,6 @@ void bound_type_handle_t::set_actual(bound_type_t::ref actual_) const {
 	actual = actual_;
 }
 
-types::term::ref bound_type_t::get_term() const {
-	return get_type()->to_term();
-}
-
 std::string str(const bound_type_t::refs &args) {
 	std::stringstream ss;
 	ss << "[";
@@ -200,52 +196,52 @@ std::string bound_type_impl_t::str() const {
 	return ss.str();
 }
 
-types::term::ref get_args_term(bound_type_t::named_pairs args) {
-	types::term::refs sig_args;
+types::type::ref get_args_type(bound_type_t::named_pairs args) {
+	types::type::refs sig_args;
 	for (auto &named_pair : args) {
-		sig_args.push_back(named_pair.second->get_type()->to_term());
+		sig_args.push_back(named_pair.second->get_type());
 	}
-	return get_args_term(sig_args);
+	return get_args_type(sig_args);
 }
 
-types::term::ref get_args_term(bound_type_t::refs args) {
-	types::term::refs sig_args;
+types::type::ref get_args_type(bound_type_t::refs args) {
+	types::type::refs sig_args;
 	for (auto &arg : args) {
 		assert(arg != nullptr);
-		sig_args.push_back(arg->get_type()->to_term());
+		sig_args.push_back(arg->get_type());
 	}
-	return get_args_term(sig_args);
+	return get_args_type(sig_args);
 }
 
-types::term::ref get_args_term(bound_var_t::refs args) {
-	types::term::refs sig_args;
+types::type::ref get_args_type(bound_var_t::refs args) {
+	types::type::refs sig_args;
 	for (auto &arg : args) {
 		assert(arg != nullptr);
-		sig_args.push_back(arg->get_term());
+		sig_args.push_back(arg->get_type());
 	}
-	return get_args_term(sig_args);
+	return get_args_type(sig_args);
 }
 
-types::term::refs get_terms(const bound_type_t::refs &bound_types) {
-	types::term::refs terms;
+types::type::refs get_types(const bound_type_t::refs &bound_types) {
+	types::type::refs types;
 	for (auto &bound_type : bound_types) {
 		assert(bound_type != nullptr);
-		terms.push_back(bound_type->get_term());
+		types.push_back(bound_type->get_type());
 	}
-	return terms;
+	return types;
 }
 
-types::term::ref get_tuple_term(const bound_type_t::refs &items_types) {
-	types::term::refs dimensions;
+types::type::ref get_tuple_type(const bound_type_t::refs &items_types) {
+	types::type::refs dimensions;
 	for (auto &arg : items_types) {
 		assert(arg != nullptr);
-		dimensions.push_back(arg->get_type()->to_term());
+		dimensions.push_back(arg->get_type());
 	}
-	return get_tuple_term(dimensions);
+	return get_tuple_type(dimensions);
 }
 
-types::term::ref get_tuple_term(types::term::refs dimensions) {
-	return types::term_product(pk_tuple, dimensions);
+types::type::ref get_tuple_type(types::type::refs dimensions) {
+	return type_product(pk_tuple, dimensions);
 }
 
 bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {
@@ -278,19 +274,19 @@ types::signature bound_type_t::get_signature() const {
 	return get_type()->get_signature();
 }
 
-types::term::ref get_function_term(
+types::type::ref get_function_type(
 		bound_type_t::refs args,
 		bound_type_t::ref return_value)
 {
-	types::term::refs arg_terms;
+	types::type::refs arg_types;
 	for (auto arg : args) {
-		arg_terms.push_back(arg->get_type()->to_term());
+		arg_types.push_back(arg->get_type());
 	}
-	types::term::ref args_term = get_args_term(arg_terms);
-	return get_function_term(args_term, return_value->get_type()->to_term());
+	types::type::ref args_type = get_args_type(arg_types);
+	return get_function_type(args_type, return_value->get_type());
 }
 
-types::term::ref get_function_term(
+types::type::ref get_function_type(
 		bound_type_t::named_pairs named_args,
 		bound_type_t::ref ret)
 {
@@ -298,7 +294,7 @@ types::term::ref get_function_term(
 	for (auto named_arg : named_args) {
 		args.push_back(named_arg.second);
 	}
-	return get_function_term(args, ret);
+	return get_function_type(args, ret);
 }
 
 types::type::ref get_function_type(
@@ -315,6 +311,7 @@ types::type::ref get_function_type(
 			{::type_product(pk_args, type_args), return_type->get_type()});
 }
 
+#if 0
 namespace types {
 	struct term_binder : public term {
 		term_binder(
@@ -322,7 +319,7 @@ namespace types {
 				scope_t::ref scope,
 				identifier::ref id,
 				ptr<ast::item const> node,
-				types::term::ref data_ctor_sig,
+				types::type::ref data_ctor_sig,
 				bound_type_t::name_index member_index) :
 			builder(builder),
 			scope(scope),
@@ -337,7 +334,7 @@ namespace types {
 		scope_t::ref scope;
 		identifier::ref const id;
 		ptr<ast::item const> const node;
-		types::term::ref const data_ctor_sig;
+		types::type::ref const data_ctor_sig;
 		bound_type_t::name_index const member_index;
 
 		virtual std::ostream &emit(std::ostream &os) const {
@@ -431,26 +428,26 @@ namespace types {
 		}
 	};
 
-	struct term_sum_binder : public term {
-		term_sum_binder(
+	struct type_sum_binder : public term {
+		type_sum_binder(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref scope,
-				types::term::ref supertype,
+				types::type::ref supertype,
 				ptr<ast::item const> node,
-				types::term::ref term_sum) :
+				types::type::ref term_sum) :
 			builder(builder),
 			scope(scope),
 			supertype(supertype),
 			node(node),
 			term_sum(term_sum)
 		{}
-		virtual ~term_sum_binder() {}
+		virtual ~type_sum_binder() {}
 
 		llvm::IRBuilder<> &builder;
 		scope_t::ref scope;
-		types::term::ref const supertype;
+		types::type::ref const supertype;
 		ptr<ast::item const> const node;
-		types::term::ref const term_sum;
+		types::type::ref const term_sum;
 
 		virtual std::ostream &emit(std::ostream &os) const {
 			os << "(" << supertype->str();
@@ -461,7 +458,7 @@ namespace types {
 		}
 
 		ref apply(ref operand) const {
-			return types::term_sum_binder(builder, scope,
+			return types::type_sum_binder(builder, scope,
 					types::term_apply(supertype, operand), node,
 					term_sum->apply(operand));
 		}
@@ -517,26 +514,27 @@ namespace types {
 		}
 	};
 
-	term::ref term_binder(
+	type::ref term_binder(
 			llvm::IRBuilder<> &builder,
 			scope_t::ref scope,
 			identifier::ref id,
 		   	ptr<ast::item const> node,
-		   	types::term::ref data_ctor_sig,
+		   	types::type::ref data_ctor_sig,
 		   	bound_type_t::name_index member_index)
    	{
 		return make_ptr<struct term_binder>(builder, scope, id, node,
 				data_ctor_sig, member_index);
 	}
 
-	term::ref term_sum_binder(
+	type::ref type_sum_binder(
 			llvm::IRBuilder<> &builder,
 			ptr<struct scope_t> scope,
-			types::term::ref signature,
+			types::type::ref signature,
 			ptr<ast::item const> node,
-			types::term::ref term_sum)
+			types::type::ref term_sum)
 	{
-		return make_ptr<struct term_sum_binder>(builder, scope, signature, node,
+		return make_ptr<struct type_sum_binder>(builder, scope, signature, node,
 				term_sum);
 	}
 };
+#endif

@@ -37,7 +37,7 @@ struct bound_type_builder_t : public types::type_visitor {
 			status_t &status,
 			llvm::IRBuilder<> &builder,
 			ptr<scope_t> scope,
-			types::term::map env) :
+			types::type::map env) :
 		status(status),
 		builder(builder),
 		scope(scope),
@@ -51,7 +51,7 @@ struct bound_type_builder_t : public types::type_visitor {
 	bound_type_t::ref created_type;
 	ptr<scope_t> scope;
 	ptr<program_scope_t> program_scope;
-	types::term::map env;
+	types::type::map env;
 
 	virtual bool visit(const types::type_id &id) {
 		created_type = scope->get_bound_type(id.get_signature());
@@ -171,15 +171,15 @@ bound_type_t::ref create_bound_type(
 		ptr<scope_t> scope,
 		types::type::ref type)
 {
+#if 0
 	assert(!!status);
 	auto env = scope->get_type_env();
-	auto term = type->to_term();
 	debug_above(6, log(log_info, "evaluating %s in %s",
-				term->str().c_str(),
+				type->str().c_str(),
 				::str(env).c_str()));
-	auto final_type = term->evaluate(env)->get_type(status);
+	auto final_type = type->evaluate(env)->get_type(status);
 	debug_above(6, log(log_info, "evaluated %s to %s",
-				term->str().c_str(),
+				type->str().c_str(),
 				final_type->str().c_str()));
 	if (!!status) {
 		/* short-circuit for the case that we've built a term_binder and the
@@ -202,7 +202,8 @@ bound_type_t::ref create_bound_type(
 		user_error(status, type->get_location(), "unable to find a definition for %s",
 				type->str().c_str());
 	}
-
+#endif
+	not_impl();
 	assert(!status);
 	return nullptr;
 }
@@ -226,13 +227,13 @@ bound_type_t::ref upsert_bound_type(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-	   	types::term::ref term)
+	   	types::type::ref type)
 {
-	/* helper method to convert lambda terms to types */
-	debug_above(6, log(log_info, "evaluating type term " c_term("%s"),
-				term->str().c_str()));
+	/* helper method to convert lambda types to types */
+	debug_above(6, log(log_info, "evaluating type " c_type("%s"),
+				type->str().c_str()));
 	auto type_env = scope->get_type_env();
-	auto type = term->evaluate(type_env)->get_type(status);
+	auto type = type->evaluate(type_env)->get_type(status);
 
 	if (!!status) {
 		return upsert_bound_type(status, builder, scope, type);
@@ -279,9 +280,8 @@ bound_type_t::ref get_or_create_tuple_type(
 {
 	atom name = id->get_name();
 
-	/* get the term of this tuple type */
-	types::term::ref term = get_obj_term(get_tuple_term(get_terms(args)));
-	types::type::ref type = term->get_type(status);
+	/* get the type of this tuple type */
+	types::type::ref type = get_obj_type(get_tuple_type(get_types(args)));
 	auto data_type = scope->get_bound_type(type->get_signature());
 
 	if (data_type != nullptr) {
@@ -541,7 +541,7 @@ void ast::type_alias::register_type(
 		identifier::refs type_variables,
 	   	scope_t::ref scope) const
 {
-	debug_above(5, log(log_info, "creating type alias term for %s", str().c_str()));
+	debug_above(5, log(log_info, "creating type alias for %s", str().c_str()));
 
 	if (type_variables.size() != 0) {
 		user_error(status, token.location, "found type variables in type alias - not yet impl");

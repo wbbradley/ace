@@ -128,7 +128,7 @@ ptr<const scope_t> function_scope_t::get_parent_scope() const {
 local_scope_t::ref local_scope_t::create(
 		atom name,
 		scope_t::ref parent_scope,
-		types::term::map type_env,
+		types::type::map type_env,
 		return_type_constraint_t &return_type_constraint)
 {
 	return make_ptr<local_scope_t>(name, parent_scope, return_type_constraint);
@@ -213,8 +213,8 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 	} else {
 		unification_t unification = unify(
 				status,
-				return_type_constraint->get_type()->to_term(),
-				return_type->get_type()->to_term(),
+				return_type_constraint->get_type(),
+				return_type->get_type(),
 				get_type_env());
 
 		if (!!status) {
@@ -304,7 +304,7 @@ void program_scope_t::dump(std::ostream &os) const {
 	dump_bindings(os, unchecked_vars, unchecked_types);
 	if (type_env.size() != 0) {
 		os << std::endl << "PROGRAM TYPE ENV: " << std::endl;
-		os << join_with(type_env, "\n", [] (types::term::map::value_type value) -> std::string {
+		os << join_with(type_env, "\n", [] (types::type::map::value_type value) -> std::string {
 			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
 		});
 		os << std::endl;
@@ -317,7 +317,7 @@ void module_scope_impl_t::dump(std::ostream &os) const {
 	dump_bindings(os, unchecked_vars, unchecked_types);
 	if (type_env.size() != 0) {
 		os << std::endl << "MODULE TYPE ENV: " << std::endl;
-		os << join_with(type_env, "\n", [] (types::term::map::value_type value) -> std::string {
+		os << join_with(type_env, "\n", [] (types::type::map::value_type value) -> std::string {
 			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
 		});
 		os << std::endl;
@@ -331,7 +331,7 @@ void function_scope_t::dump(std::ostream &os) const {
 	dump_bindings(os, bound_vars, {});
 	if (type_env.size() != 0) {
 		os << std::endl << "FUNCTION TYPE ENV: " << std::endl;
-		os << join_with(type_env, "\n", [] (types::term::map::value_type value) -> std::string {
+		os << join_with(type_env, "\n", [] (types::type::map::value_type value) -> std::string {
 			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
 		});
 		os << std::endl;
@@ -344,7 +344,7 @@ void local_scope_t::dump(std::ostream &os) const {
 	dump_bindings(os, bound_vars, {});
 	if (type_env.size() != 0) {
 		os << std::endl << "LOCAL TYPE ENV: " << std::endl;
-		os << join_with(type_env, "\n", [] (types::term::map::value_type value) -> std::string {
+		os << join_with(type_env, "\n", [] (types::type::map::value_type value) -> std::string {
 			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
 		});
 	}
@@ -356,7 +356,7 @@ void generic_substitution_scope_t::dump(std::ostream &os) const {
 	dump_bindings(os, bound_vars, {});
 	if (type_env.size() != 0) {
 		os << std::endl << "GENERIC SUBSTITUTION TYPE ENV: " << std::endl;
-		os << join_with(type_env, "\n", [] (types::term::map::value_type value) -> std::string {
+		os << join_with(type_env, "\n", [] (types::type::map::value_type value) -> std::string {
 			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
 		});
 		os << std::endl;
@@ -385,7 +385,7 @@ void module_scope_impl_t::mark_checked(
 		if (is_function_defn_generic(status, builder, shared_from_this(),
 					*function_defn)) {
 			/* for now let's never mark generic functions as checked, until we
-			 * have a mechanism to join the term to the checked-mark.  */
+			 * have a mechanism to join the type to the checked-mark.  */
 			return;
 		}
 	}
@@ -623,11 +623,11 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 			} else {
 				/* the substitution scope allows us to masquerade a generic name as
 				 * a bound type */
-				auto term = pair.second->to_term(unification.bindings);
+				auto type = pair.second->rebind(unification.bindings);
 				debug_above(5, log(log_info, "adding " c_id("%s") " to env as %s",
 							pair.first.c_str(),
-							term->str().c_str()));
-				subst_scope->type_env[pair.first] = term;
+							type->str().c_str()));
+				subst_scope->type_env[pair.first] = type;
 			}
 		} else {
 			debug_above(7, log(log_info, "skipping adding %s to generic substitution scope",

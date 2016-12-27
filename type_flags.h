@@ -11,6 +11,6 @@ struct type_flags_t {
 
 type_flags_t infer_type_flags(
 		status_t &status,
-		const types::term::map &env,
-		types::term::ref term,
+		const types::type::map &env,
+		types::type::ref type,
 		ptr<const ast::item> node);

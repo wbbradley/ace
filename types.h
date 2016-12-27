@@ -26,7 +26,6 @@ void reset_generics();
 
 namespace types {
 
-	struct term;
 	struct signature;
 	struct type_visitor;
 
@@ -34,6 +33,7 @@ namespace types {
 		typedef ptr<const type> ref;
 		typedef std::vector<ref> refs;
 		typedef std::map<atom, ref> map;
+        typedef std::pair<ref, ref> pair;
 
 		virtual ~type() {}
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const = 0;
@@ -44,7 +44,6 @@ namespace types {
 		atom repr(const map &bindings) const;
 		atom repr() const { return this->repr({}); }
 
-		virtual ptr<const term> to_term(const map &bindings={}) const = 0;
 		virtual location get_location() const = 0;
 
 		std::string str(const map &bindings = {}) const;
@@ -61,50 +60,7 @@ namespace types {
 
 	bool is_type_id(type::ref type, atom type_name);
 
-	/* term is the base-type of terms as terms of the
-	 * lambda calculus as refined by
-	 * Hindley-Damas-Milner. It also includes the
-	 * addition of the polymorph type used in Zion to
-	 * unify sum types. */
-	struct term : public std::enable_shared_from_this<term> {
-		typedef ptr<const term> ref;
-		typedef std::vector<ref> refs;
-		typedef std::map<atom, ref> map;
-		typedef std::pair<ref, ref> pair;
-
-		virtual ~term() {}
-
-		/* which type variables exist unbound in this type term? */
-		virtual atom::set unbound_vars(atom::set bound_vars={}) const = 0;
-		virtual identifier::ref get_id() const;
-
-		virtual ref evaluate(map env) const = 0;
-		virtual ref apply(ref operand) const;
-		virtual type::ref get_type(status_t &status) const = 0;
-		virtual std::ostream &emit(std::ostream &os) const = 0;
-		virtual ref dequantify(atom::set generics) const = 0;
-
-		atom repr() const;
-		std::string str() const;
-
-		bool is_generic(status_t &status, types::term::map env) const;
-	};
-
-	term::ref change_product_kind(product_kind_t pk, term::ref product);
-
-	/* term data ctors */
-	term::ref term_unreachable();
-	term::ref term_id(identifier::ref id);
-	term::ref term_lambda(identifier::ref var, term::ref body);
-	term::ref term_lambda_reducer(term::ref body, identifier::ref var);
-	term::ref term_sum(term::refs options);
-	term::ref term_product(product_kind_t pk, term::refs dimensions);
-	term::ref term_generic(identifier::ref name);
-	term::ref term_generic();
-	term::ref term_apply(term::ref fn, term::ref arg);
-	term::ref term_let(identifier::ref var, term::ref defn, term::ref body);
-	term::ref term_list_type(term::ref element_term);
-	term::refs dequantify(term::refs dimensions, atom::set generics);
+	type::ref change_product_kind(product_kind_t pk, type::ref product);
 
 	struct type_id : public type {
 		type_id(identifier::ref id);
@@ -112,7 +68,6 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual ptr<const term> to_term(const map &bindings={}) const;
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
@@ -125,7 +80,6 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual ptr<const term> to_term(const map &bindings={}) const;
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
@@ -138,7 +92,6 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual ptr<const term> to_term(const map &bindings={}) const;
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
@@ -151,7 +104,6 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual ptr<const term> to_term(const map &bindings={}) const;
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
@@ -167,7 +119,6 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv() const;
-		virtual ptr<const term> to_term(const map &bindings={}) const;
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
@@ -185,22 +136,18 @@ types::type::ref type_product(product_kind_t pk, types::type::refs dimensions);
 types::type::ref type_sum(types::type::refs options);
 
 std::ostream &operator <<(std::ostream &os, identifier::ref id);
-std::string str(types::term::refs refs);
 std::string str(types::type::refs refs);
-std::string str(types::term::map coll);
 std::string str(types::type::map coll);
-std::ostream& operator <<(std::ostream &out, const types::term::ref &term);
 std::ostream& operator <<(std::ostream &out, const types::type::ref &type);
 
 /* helper functions */
-types::term::ref get_args_term(types::term::refs args);
-types::term::ref get_function_term(types::term::ref args, types::term::ref return_type);
+types::type::ref get_args_type(types::type::refs args);
+types::type::ref get_function_type(types::type::ref args, types::type::ref return_type);
 types::type::refs get_function_type_args(types::type::ref function_type);
 types::type::ref get_function_return_type(types::type::ref function_type);
-types::term::ref get_obj_term(types::term::ref item);
-types::term::ref get_function_term_args(types::term::ref function_term);
-types::term::pair make_term_pair(std::string fst, std::string snd, identifier::set generics);
+types::type::ref get_obj_type(types::type::ref item);
+types::type::pair make_type_pair(std::string fst, std::string snd, identifier::set generics);
 
-types::term::ref operator "" _ty(const char *value, size_t);
-types::term::ref parse_type_expr(std::string input, identifier::set generics);
-bool get_type_variable_name(types::type::ref term, atom &name);
+types::type::ref operator "" _ty(const char *value, size_t);
+types::type::ref parse_type_expr(std::string input, identifier::set generics);
+bool get_type_variable_name(types::type::ref type, atom &name);

@@ -127,7 +127,7 @@ bound_var_t::ref check_func_vs_callsite(
 		scope_t::ref scope,
 		const ast::item::ref &callsite,
 		var_t::ref fn,
-		types::term::ref args)
+		types::type::ref args)
 {
 	unification_t unification = fn->accepts_callsite(status, builder, scope, args);
 	if (!!status) {
@@ -140,7 +140,7 @@ bound_var_t::ref check_func_vs_callsite(
 			} else if (auto unchecked_fn = dyncast<const unchecked_var_t>(fn)) {
 				/* we're instantiating a template or a forward decl */
 				/* we know that fn and sig_args are compatible */
-				types::term::ref fn_sig = fn->get_term(status, builder, scope);
+				types::type::ref fn_sig = fn->get_type(status, builder, scope);
 
 				if (!!status) {
 					/* create the new callee signature type for building the generic
@@ -182,7 +182,7 @@ bound_var_t::ref maybe_get_callable(
 		scope_t::ref scope,
 		atom alias,
 		const ptr<const ast::item> &callsite,
-		types::term::ref args,
+		types::type::ref args,
 		var_t::refs &fns)
 {
     llvm::IRBuilderBase::InsertPointGuard ipg(builder);
@@ -212,7 +212,7 @@ bound_var_t::ref get_callable(
 		scope_t::ref scope,
 		atom alias,
 		const ptr<const ast::item> &callsite,
-		types::term::ref args)
+		types::type::ref args)
 {
 	var_t::refs fns;
 	auto callable = maybe_get_callable(status, builder, scope, alias, callsite,
@@ -253,7 +253,7 @@ bound_var_t::ref call_program_function(
         const ptr<const ast::item> &callsite,
         const bound_var_t::refs var_args)
 {
-    types::term::ref args = get_args_term(var_args);
+    types::type::ref args = get_args_type(var_args);
 
     /* get or instantiate a function we can call on these arguments */
     bound_var_t::ref function = get_callable(

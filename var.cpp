@@ -18,10 +18,10 @@ unification_t var_t::accepts_callsite(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-	   	types::term::ref args) const
+	   	types::type::ref args) const
 {
 	/* get the args out of the sig */
-	types::term::ref fn_term = get_term(status, builder, scope);
+	types::type::ref fn_type = get_type();
 	auto env = scope->get_type_env();
 
 	indent_logger indent(2, string_format(
@@ -32,8 +32,8 @@ unification_t var_t::accepts_callsite(
 	// dbg();
 	auto u = unify(
 			status,
-			fn_term,
-		   	types::term_product(pk_function, {args, types::term_generic()}),
+			fn_type,
+		   	type_product(pk_function, {args, type_variable()}),
 		   	env);
 
 	debug_above(2, log(log_info, "check of %s %s",

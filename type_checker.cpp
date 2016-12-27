@@ -43,11 +43,11 @@ bound_type_t::ref get_fully_bound_param_info(
 			var_name);
 
 	/* the user specified a type */
-	auto term = obj.type_ref->get_type_term(status, builder, scope, type_id_name, {});
+	auto type = obj.type_ref->get_type(status, builder, scope, type_id_name, {});
 	debug_above(6, log(log_info, "upserting type for param %s at %s",
-				term->str().c_str(),
+				type->str().c_str(),
 				obj.type_ref->get_location().str().c_str()));
-	return upsert_bound_type(status, builder, scope, term);
+	return upsert_bound_type(status, builder, scope, type);
 }
 
 bound_var_t::ref type_check_bound_var_decl(
@@ -64,7 +64,7 @@ bound_var_t::ref type_check_bound_var_decl(
 	if (!scope->has_bound_variable(symbol, rc_capture_level)) {
 		bound_var_t::ref init_var;
 		bound_type_t::ref type;
-		types::term::ref declared_term;
+		types::type::ref declared_type;
 
 		assert(obj.type_ref != nullptr);
 
@@ -84,19 +84,19 @@ bound_var_t::ref type_check_bound_var_decl(
 
 		if (!!status) {
 			if (obj.type_ref != nullptr) {
-				declared_term = obj.type_ref->get_type_term(status,
+				declared_type = obj.type_ref->get_type(status,
 						builder, scope, type_id_code_id, {});
-				declared_term = declared_term->evaluate(scope->get_type_env());
+				declared_type = declared_type->evaluate(scope->get_type_env());
 			}
 		}
 
 		if (!!status) {
-			if (declared_term && init_var) {
+			if (declared_type && init_var) {
 				assert(type != nullptr);
 				unification_t unification = unify(
 						status,
-						declared_term,
-						init_var->type->get_term(),
+						declared_type,
+						init_var->type,
 						scope->get_type_env());
 
 				if (!!status) {
@@ -105,24 +105,24 @@ bound_var_t::ref type_check_bound_var_decl(
 						user_error(status, obj, "type of " c_var("%s") " does not match type of initializer",
 								obj.token.text.c_str());
 						user_error(status, obj, c_type("%s") " != " c_type("%s"),
-								declared_term->str().c_str(),
+								declared_type->str().c_str(),
 								init_var->type->str().c_str());
 
 						/* try to continue without the initializer just to
 						 * get more feedback for the user */
 						init_var.reset();
 					} else {
-						/* if there is a declared_term, let's make sure we compute the final bound type
+						/* if there is a declared_type, let's make sure we compute the final bound type
 						 * so that we can use the declared type for this variable, rather than the actual
 						 * type of the right-hand side. there is covariance in var_decl assignment. */
-						auto final_type = declared_term->get_type(status)->rebind(unification.bindings);
+						auto final_type = declared_type->get_type(status)->rebind(unification.bindings);
 						if (!!status) {
 							type = upsert_bound_type(status, builder, scope, final_type);
 						}
 					}
 				}
-			} else if (declared_term != nullptr) {
-				auto final_type = declared_term->get_type(status);
+			} else if (declared_type != nullptr) {
+				auto final_type = declared_type->get_type(status);
 				if (!!status) {
 					type = upsert_bound_type(status, builder, scope, final_type);
 				}
@@ -212,7 +212,7 @@ bound_type_t::ref get_return_type_from_return_type_expr(
     /* lookup the alias, default to void */
     if (type_ref != nullptr) {
 		return upsert_bound_type(status, builder, scope,
-				type_ref->get_type_term(status, builder, scope, nullptr, {}));
+				type_ref->get_type_type(status, builder, scope, nullptr, {}));
     } else {
 		/* user specified no return type, default to void */
 		return scope->get_program_scope()->get_bound_type({"void"});
@@ -264,10 +264,10 @@ bool is_function_defn_generic(
 							param->str().c_str()));
 				return true;
 			}
-			types::term::ref term = param->type_ref->get_type_term(status,
+			types::type::ref type = param->type_ref->get_type(status,
 					builder, scope, nullptr, {});
 
-			if (term->is_generic(status, scope->get_type_env())) {
+			if (type->is_generic(status, scope->get_type_env())) {
 				debug_above(3, log(log_info, "found a generic parameter type on %s",
 							param->str().c_str()));
 				return true;
@@ -279,9 +279,9 @@ bool is_function_defn_generic(
 
 	if (obj.decl->return_type_ref) {
 		/* check the return type's genericity */
-		types::term::ref term = obj.decl->return_type_ref->get_type_term(status, builder, scope,
+		types::type::ref type = obj.decl->return_type_ref->get_type(status, builder, scope,
 					nullptr, {});
-		return term->is_generic(status, scope->get_type_env());
+		return type->is_generic(status, scope->get_type_env());
 	} else {
 		/* default to void, which is fully bound */
 		return false;
@@ -402,13 +402,13 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 				args.push_back(named_arg_pair.second);
 			}
 
-			// TODO: rearrange this, and get the pointer type from the term
+			// TODO: rearrange this, and get the pointer type
             llvm::FunctionType *llvm_func_type = llvm_create_function_type(
                     status, builder, args, return_value);
 
-            /* get the full function term */
-            types::term::ref function_sig = get_function_term(args, return_value);
-			debug_above(3, log(log_info, "%s has term %s",
+            /* get the full function type */
+            types::type::ref function_sig = get_function_type(args, return_value);
+			debug_above(3, log(log_info, "%s has type %s",
 						link_as_name.str().c_str(),
 						function_sig->str().c_str()));
 
@@ -460,7 +460,7 @@ bound_var_t::ref ast::dot_expr::resolve_overrides(
 
 			/* let's see if the associated module has a method that can handle this callsite */
 			return get_callable(status, builder, bound_module->module_scope,
-					rhs.text, callsite, get_args_term(args));
+					rhs.text, callsite, get_args_type(args));
 		} else {
 			user_error(status, *lhs, "left of a dot (\".\") must be a struct or module. this is not a struct or module. %s",
 					lhs_var->str().c_str());
@@ -699,26 +699,26 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 	if (!!status) {
 		bound_type_t::refs args = get_bound_types(vars);
 
-		/* let's get the term for this tuple wrapped as an object */
-		types::term::ref tuple_term = types::term_product(pk_obj,
-				{get_tuple_term(args)});
+		/* let's get the type for this tuple wrapped as an object */
+        types::type::ref tuple_type = type_product(pk_obj,
+                {get_tuple_type(args)});
 
 		/* now, let's see if we already have a ctor for this tuple type, if not
 		 * we'll need to create a data ctor for this unnamed tuple type */
 		auto program_scope = scope->get_program_scope();
 
 		std::pair<bound_var_t::ref, bound_type_t::ref> tuple = instantiate_tuple_ctor(
-				status, builder, scope, args, make_iid(tuple_term->repr()),
+				status, builder, scope, args, make_iid(tuple_type->repr()),
 				shared_from_this());
 
 		if (!!status) {
 			assert(get_function_return_type(status,
 						builder, *shared_from_this(),
-						scope, tuple.first->type)->get_term()->repr() == tuple_term->repr());
+						scope, tuple.first->type)->get_type()->repr() == tuple_type->repr());
 
 			/* now, let's call our unnamed tuple ctor and return that value */
 			return create_callsite(status, builder, scope, shared_from_this(), tuple.first,
-					tuple_term->repr(), token.location,
+					tuple_type->repr(), token.location,
 					vars);
 		}
 	}
@@ -978,9 +978,9 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 
 	assert(scope->get_llvm_module() != nullptr);
 
-	auto function_term = get_function_term(args, return_type);
+	auto function_type = get_function_type(args, return_type);
 	bound_type_t::ref function_type = upsert_bound_type(status,
-			builder, scope, function_term);
+			builder, scope, function_type);
 
 	if (!!status) {
 		assert(function_type->get_llvm_type() != nullptr);
@@ -1281,12 +1281,11 @@ bound_var_t::ref ast::tag::resolve_instantiation(
 {
 	auto id = make_code_id(token);
 	atom tag_name = id->get_name();
-	auto tag_term = types::term_id(id);
+	auto tag_type = type_id(id);
 
 	/* it's a nullary enumeration or "tag", let's create a global value to
 	 * represent this tag. */
 
-	auto tag_type = tag_term->get_type(status);
 	if (!!status) {
 		/* start by making a type for the tag */
 		bound_type_t::ref bound_tag_type = bound_type_t::create(
@@ -1385,8 +1384,8 @@ bound_var_t::ref type_check_assignment(
 			// TODO: check the types for compatibility
 			unification_t unification = unify(
 					status,
-					lhs_var->type->get_type()->to_term(),
-					rhs_var->type->get_type()->to_term(), {});
+					lhs_var->type->get_type(),
+					rhs_var->type->get_type(), {});
 
 			if (!!status) {
 				if (unification.result) {
@@ -1658,14 +1657,14 @@ llvm::Value *get_condition_value(
 		/* convert condition to an integer */
 		bound_var_t::ref bool_fn = get_callable(
 				status, builder, scope, BOOL_TYPE, condition,
-				get_args_term({condition_value->type}));
+				get_args_type({condition_value->type}));
 
 		if (!!status) {
 			/* we've found a bool function that will take our condition as input */
 			assert(bool_fn != nullptr);
 
 			if (get_function_return_type(bool_fn->type->get_type())->get_signature() == "__bool__") {
-				debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (term %s)",
+				debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (type %s)",
 							condition->str().c_str(), bool_fn->type->str().c_str()));
 
 				/* let's call this bool function */
@@ -2000,7 +1999,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 						program_scope,
 						{"int"},
 						shared_from_this(),
-						get_args_term({raw_type->get_term()}));
+						get_args_type({raw_type}));
 
 				if (!!status) {
 					assert(box_int != nullptr);
@@ -2038,7 +2037,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 						program_scope,
 						{"str"},
 						shared_from_this(),
-						get_args_term({raw_type->get_term()}));
+						get_args_type({raw_type}));
 
 				if (!!status) {
 					return create_callsite(
@@ -2074,7 +2073,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 						program_scope,
 						{"float"},
 						shared_from_this(),
-						get_args_term({raw_type->get_term()}));
+						get_args_type({raw_type}));
 
 				if (!!status) {
 					return create_callsite(
@@ -2114,7 +2113,7 @@ bound_var_t::ref ast::reference_expr::resolve_overrides(
 
 	/* ok, we know we've got some variable here */
 	auto bound_var = get_callable(status, builder, scope, token.text, shared_from_this(),
-			get_args_term(args));
+			get_args_type(args));
 	if (!!status) {
 		return bound_var;
 	} else {

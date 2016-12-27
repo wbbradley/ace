@@ -56,10 +56,10 @@ bound_var_t::ref gen_type_check(
 		runnable_scope_t::ref scope,
 		identifier::ref value_name,
 		bound_var_t::ref value,
-		types::term::ref type_term,
+		types::type::ref type,
 		local_scope_t::ref *new_scope)
 {
-	auto type = type_term->evaluate(scope->get_type_env())->get_type(status);
+	auto type = type->evaluate(scope->get_type_env())->get_type(status);
 	if (!!status) {
 		/* in case we are in a generic function, we will need to assess our
 		 * type*/
@@ -81,7 +81,7 @@ bound_var_t::ref gen_type_check(
 
 			debug_above(2, log(log_info, "generating a runtime type check "
 						"for type %s with signature value %d (for '%s') (type is %s)",
-						type_term->str().c_str(), (int)signature.iatom,
+						type->str().c_str(), (int)signature.iatom,
 						signature.c_str(), type->str().c_str()));
 			bound_var_t::ref type_id = call_typeid(status, scope, node,
 					value_name, builder, value);
@@ -152,13 +152,13 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 			value_name->get_name());
 
 	assert(token.text == "is");
-	auto cast_type_term = type_ref->get_type_term(status, builder, scope, type_id_name, {});
+	auto cast_type = type_ref->get_type(status, builder, scope, type_id_name, {});
 
 	if (!!status) {
 		/* evaluate the condition for branching */
 		bound_var_t::ref condition_value = gen_type_check(status, builder,
 				shared_from_this(), scope, value_name, value,
-				cast_type_term, &if_scope);
+				cast_type, &if_scope);
 
 		if (!!status) {
 			assert(condition_value->is_int());

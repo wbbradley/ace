@@ -3,13 +3,13 @@
 #include "types.h"
 #include "scopes.h"
 
-types::term::ref register_data_ctor(
+types::type::ref register_data_ctor(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::refs type_variables,
 		scope_t::ref scope,
 		ptr<const ast::item> node,
-		types::term::refs dimensions,
+		types::type::refs dimensions,
 		atom::map<int> member_index,
 		identifier::ref id,
 		identifier::ref supertype_id);
@@ -33,7 +33,7 @@ void resolve_type_ref_params(
 
 void create_supertype_relationship(
 		status_t &status,
-	   	types::term::ref subtype_term,
+	   	types::type::ref subtype,
 		identifier::ref subtype_id,
 		identifier::ref supertype_id,
 		identifier::refs type_variables,

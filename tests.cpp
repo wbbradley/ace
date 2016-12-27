@@ -901,9 +901,9 @@ auto test_descs = std::vector<test_desc>{
 	T(test_lex_types),
 
 	{
-		"test_term_algebra",
+		"test_type_algebra",
 		[] () -> bool {
-			auto a1 = types::term_id(make_iid("int"));
+			auto a1 = type_id(make_iid("int"));
 			return true;
 		}
 	},
@@ -936,7 +936,7 @@ auto test_descs = std::vector<test_desc>{
 	T(test_parse_single_function_call),
 	T(test_parse_semicolon_line_break),
 	{
-		"test_parse_terms",
+		"test_parse_types",
 		[] () -> bool {
 			identifier::set generics = {make_iid("T"), make_iid("Q")};
 			auto parses = std::vector<std::pair<std::string, std::string>>{{
@@ -969,9 +969,9 @@ auto test_descs = std::vector<test_desc>{
 		}
 	},
 	{
-		"test_term_evaluation",
+		"test_type_evaluation",
 		[] () -> bool {
-			types::term::map env = {};
+			types::type::map env = {};
 			identifier::set generics = {make_iid("T"), make_iid("Q")};
 			auto parses = std::vector<std::tuple<std::string, std::string>>{{
 				{"any a", "(any a)"},
@@ -991,8 +991,8 @@ auto test_descs = std::vector<test_desc>{
 				std::string input = std::get<0>(p);
 				std::string expect = std::get<1>(p);
 
-				auto term = parse_type_expr(input, generics);
-				auto evaluated = term->evaluate(env);
+				auto type = parse_type_expr(input, generics);
+				auto evaluated = type->evaluate(env);
 				auto repr = evaluated->repr().str();
 				if (repr != expect) {
 					log(log_error, c_type("%s") " evaluated to " c_type("%s")
@@ -1011,33 +1011,33 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_unification",
 		[] () -> bool {
-			get_tuple_term({types::term_generic(), types::term_id(make_iid("float"))});
+			get_tuple_type({type_variable(), type_id(make_iid("float"))});
 			identifier::set generics = {make_iid("Container"), make_iid("T")};
-			auto unifies = std::vector<types::term::pair>{{
-				types::term::pair{parse_type_expr("void", generics), types::term_id(make_iid("void"))},
-				make_term_pair("any", "float", generics),
-				make_term_pair("void", "void", generics),
-				make_term_pair("any a", "int", generics),
-				make_term_pair("any", "map{int, int}", generics),
-				make_term_pair("any a", "map{int, str}", generics),
-				make_term_pair("{int, char}", "{int, char}", generics),
-				make_term_pair("map{any a, any b}", "map{int, str}", generics),
-				make_term_pair("map{any a, any}", "map{int, str}", generics),
-				make_term_pair("map{any, any b}", "map{int, str}", generics),
-				make_term_pair("map{any, any}", "map{int, str}", generics),
-				make_term_pair("Container{any, any}", "map{int, str}", generics),
-				make_term_pair("map{any, T}", "map{int, str}", generics),
-				make_term_pair("Container{int, T}", "map{int, str}", generics),
-				make_term_pair("Container{T, T}", "map{int, int}", generics),
-				make_term_pair("Container{T}", "[int]", generics),
+			auto unifies = std::vector<types::type::pair>{{
+				types::type::pair{parse_type_expr("void", generics), type_id(make_iid("void"))},
+				make_type_pair("any", "float", generics),
+				make_type_pair("void", "void", generics),
+				make_type_pair("any a", "int", generics),
+				make_type_pair("any", "map{int, int}", generics),
+				make_type_pair("any a", "map{int, str}", generics),
+				make_type_pair("{int, char}", "{int, char}", generics),
+				make_type_pair("map{any a, any b}", "map{int, str}", generics),
+				make_type_pair("map{any a, any}", "map{int, str}", generics),
+				make_type_pair("map{any, any b}", "map{int, str}", generics),
+				make_type_pair("map{any, any}", "map{int, str}", generics),
+				make_type_pair("Container{any, any}", "map{int, str}", generics),
+				make_type_pair("map{any, T}", "map{int, str}", generics),
+				make_type_pair("Container{int, T}", "map{int, str}", generics),
+				make_type_pair("Container{T, T}", "map{int, int}", generics),
+				make_type_pair("Container{T}", "[int]", generics),
 			}};
 
-			auto fails = std::vector<types::term::pair>{{
-				make_term_pair("int", "void", {}),
-				make_term_pair("int", "void", generics),
-				make_term_pair("{T, T}", "{void, int}", generics),
-				make_term_pair("int", "map{int, int}", generics),
-				make_term_pair("map{any a, any a}", "map{int, str}", generics),
+			auto fails = std::vector<types::type::pair>{{
+				make_type_pair("int", "void", {}),
+				make_type_pair("int", "void", generics),
+				make_type_pair("{T, T}", "{void, int}", generics),
+				make_type_pair("int", "map{int, int}", generics),
+				make_type_pair("map{any a, any a}", "map{int, str}", generics),
 			}};
 
 			status_t status;

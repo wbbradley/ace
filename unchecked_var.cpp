@@ -10,7 +10,7 @@ std::string unchecked_var_t::str() const {
     return ss.str();
 }
 
-types::term::ref unchecked_data_ctor_t::get_term(
+types::type::ref unchecked_data_ctor_t::get_type(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	ptr<scope_t> scope) const
@@ -18,7 +18,7 @@ types::term::ref unchecked_data_ctor_t::get_term(
 	return sig;
 }
 
-types::term::ref unchecked_var_t::get_term(
+types::type::ref unchecked_var_t::get_type(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope) const
@@ -29,43 +29,49 @@ types::term::ref unchecked_var_t::get_term(
 
 		if (decl->param_list_decl != nullptr) {
 			/* this is a function declaration, so let's set up our output parameters */
-			types::term::refs args;
+			types::type::refs args;
 
 			/* get the parameters */
 			auto &params = decl->param_list_decl->params;
 			for (auto &param : params) {
 				if (!param->type_ref) {
-					args.push_back(types::term_generic());
+					args.push_back(types::type_generic());
 				} else {
-					args.push_back(param->type_ref->get_type_term(status,
+                    assert(0);
+#if 0
+					args.push_back(param->type_ref->get_type_type(status,
 								builder, scope, nullptr, {}));
+#endif
 				}
 			}
 
 			if (decl->return_type_ref) {
-				auto return_type_term = decl->return_type_ref->get_type_term(
+                assert(0);
+#if 0
+				auto return_type_type = decl->return_type_ref->get_type_term(
 						status, builder, scope, nullptr, {});
+#endif
 
 				if (!!status) {
-					/* get the return type term */
-					types::term::ref sig = get_function_term(
-							get_args_term(args),
-							return_type_term);
+					/* get the return type */
+					types::type::ref sig = get_function_type(
+							get_args_type(args),
+							return_type);
 
-					debug_above(9, log(log_info, "found unchecked term for %s : %s",
+					debug_above(9, log(log_info, "found unchecked type for %s : %s",
 								decl->token.str().c_str(),
 								sig->str().c_str()));
 					return sig;
 				} else {
-					log(log_warning, "unable to get type term for return type");
+					log(log_warning, "unable to get type for return type");
 					not_impl();
-					return types::term_unreachable();
+					return type_unreachable();
 				}
 			} else {
-				types::term::ref sig = get_function_term(
-						get_args_term(args),
+				types::type::ref sig = get_function_type(
+						get_args_type(args),
 						/* default to void, which is fully bound */
-						types::term_unreachable());
+						type_unreachable());
 
 				debug_above(4, log(log_info, "defaulting return type of %s to void : %s",
 							decl->token.str().c_str(),
@@ -74,12 +80,12 @@ types::term::ref unchecked_var_t::get_term(
 			}
 		} else {
 			panic("function declaration has no parameter list");
-			return types::term_unreachable();
+			return type_unreachable();
 		}
 	} else {
-		log(log_warning, "not-impl: get a term from unchecked_var %s", node->str().c_str());
+		log(log_warning, "not-impl: get a type from unchecked_var %s", node->str().c_str());
 		not_impl();
-		return types::term_unreachable();
+		return type_unreachable();
 	}
 }
 

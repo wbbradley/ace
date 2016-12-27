@@ -35,14 +35,6 @@ std::ostream &operator <<(std::ostream &os, const bound_var_t &var) {
 	return os << var.str();
 }
 
-types::term::ref bound_var_t::get_term(status_t &status, llvm::IRBuilder<> &builder, ptr<scope_t> scope) const {
-	return type->get_term();
-}
-
-types::term::ref bound_var_t::get_term() const {
-	return type->get_term();
-}
-
 std::string str(const bound_var_t::overloads &overloads) {
 	std::stringstream ss;
 	const char *indent = "\t";

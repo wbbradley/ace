@@ -19,7 +19,7 @@ bound_type_t::ref upsert_bound_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		types::term::ref term);
+		types::type::ref type);
 
 std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		status_t &status, 

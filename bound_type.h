@@ -40,8 +40,6 @@ public:
 
 	static refs refs_from_vars(const std::vector<ptr<const bound_var_t>> &vars);
 
-	types::term::ref get_term() const;
-
 	static ref create(
 			types::type::ref type,
 			struct location location,
@@ -113,28 +111,4 @@ std::string str(const bound_type_t::named_pairs &named_pairs);
 std::string str(const bound_type_t::name_index &name_index);
 std::ostream &operator <<(std::ostream &os, const bound_type_t &type);
 
-types::term::ref get_tuple_term(types::term::refs dimensions);
-types::term::ref get_tuple_term(const bound_type_t::refs &items_types);
-types::term::ref get_function_term(bound_type_t::named_pairs args, bound_type_t::ref ret);
-types::term::ref get_function_term(bound_type_t::refs args, bound_type_t::ref return_value);
-types::term::ref get_function_term(bound_type_t::refs args, types::term::ref return_value);
-types::term::ref get_function_term(bound_type_t::refs args, types::term::ref return_value);
-types::term::ref get_args_term(bound_type_t::refs args);
-types::term::refs get_terms(const bound_type_t::refs &types);
-
 types::type::ref get_function_type(bound_type_t::refs args, bound_type_t::ref return_type);
-namespace types {
-	term::ref term_binder(
-			llvm::IRBuilder<> &builder,
-			ptr<struct scope_t> scope,
-			identifier::ref id,
-			ptr<ast::item const> node,
-			types::term::ref data_ctor_sig,
-			bound_type_t::name_index member_index);
-	term::ref term_sum_binder(
-			llvm::IRBuilder<> &builder,
-			ptr<struct scope_t> scope,
-			types::term::ref signature,
-			ptr<ast::item const> node,
-			types::term::ref term_sum);
-};

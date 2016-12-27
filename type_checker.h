@@ -25,7 +25,7 @@ status_t make_temp_variable(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		const ast::item &obj,
-		types::term::ref term,
+		types::type::ref type,
 		llvm::Value *llvm_value,
 		ptr<bound_var_t> &variable);
 

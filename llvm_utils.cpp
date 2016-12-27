@@ -109,8 +109,8 @@ bound_var_t::ref create_callsite(
 {
 	if (!!status) {
 		debug_above(5, log(log_info, "create_callsite is assuming %s is compatible with %s",
-					function->get_term()->str().c_str(),
-					get_args_term(arguments)->str().c_str()));
+					function->get_type()->str().c_str(),
+					get_args_type(arguments)->str().c_str()));
 
 		llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
 				status, builder, *callsite, function, get_llvm_values(arguments));

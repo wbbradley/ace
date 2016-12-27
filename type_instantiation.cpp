@@ -85,10 +85,10 @@ bound_var_t::ref bind_ctor_to_scope(
 
 	if (!!status) {
 		/* now that we know the parameter types, let's see what the term looks like */
-		debug_above(5, log(log_info, "ctor term should be %s -> %s",
+		debug_above(5, log(log_info, "ctor type should be %s -> %s",
 					::str(args_types).c_str(), return_type->str().c_str()));
 
-		/* now we know the term of the ctor we want to create. let's check
+		/* now we know the type of the ctor we want to create. let's check
 		 * whether this ctor already exists. if so, we'll just return it. if not,
 		 * we'll generate it. */
 		auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope,
@@ -111,16 +111,16 @@ void ast::type_product::register_type(
 		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
-	debug_above(5, log(log_info, "creating product type term for %s", str().c_str()));
+	debug_above(5, log(log_info, "creating product type for %s", str().c_str()));
 
 	atom::map<int> member_index;
-	types::term::refs term_dimensions;
+	types::type::refs type_dimensions;
 	int index = 0;
 	for (auto dimension : dimensions) {
-		auto dimension_type_term = dimension->type_ref->get_type_term(status,
+		auto dimension_type = dimension->type_ref->get_type(status,
 				builder, scope, supertype_id, type_variables);
 		if (!!status) {
-			term_dimensions.push_back(dimension_type_term);
+			type_dimensions.push_back(dimension_type);
 			member_index[dimension->name] = index++;
 		} else {
 			break;
@@ -134,7 +134,7 @@ void ast::type_product::register_type(
 		 * the given supertype_id as the name for the data ctor. */
 		register_data_ctor(status, builder,
 				type_variables, scope, shared_from_this(),
-				term_dimensions,
+				type_dimensions,
 				member_index,
 				supertype_id /*id*/,
 				nullptr /*supertype_id*/);
@@ -143,7 +143,7 @@ void ast::type_product::register_type(
 
 void create_supertype_relationship(
 		status_t &status,
-	   	types::term::ref subtype_term,
+	   	types::type::ref subtype,
 		identifier::ref subtype_id,
 		identifier::ref supertype_id,
 		identifier::refs type_variables,
@@ -155,11 +155,11 @@ void create_supertype_relationship(
 	assert(generics.size() == 0);
 	assert(lambda_vars.size() == 0);
 	debug_above(5, log(log_info, "create_supertype_relationship(%s, %s, %s)",
-				subtype_term->str().c_str(),
+				subtype->str().c_str(),
 				(supertype_id != nullptr) ? supertype_id->str().c_str() : "<no supertype>",
 				::str(type_variables).c_str()));
 
-	/* create a term that takes the used type variables in the data ctor and
+	/* create a type that takes the used type variables in the data ctor and
 	 * returns placement in given type variable order */
 	/* instantiate the necessary components of a data ctor */
 	generics = to_atom_set(type_variables);
@@ -182,10 +182,10 @@ void create_supertype_relationship(
 		atom tag_name = subtype_id->get_name();
 		debug_above(5, log(log_info,
 				   	"setting up data ctor for " c_id("%s") " with value type %s",
-					tag_name.c_str(), subtype_term->str().c_str()));
+					tag_name.c_str(), subtype->str().c_str()));
 
 		/* figure out what type names are referenced in the data ctor's dimensions */
-		atom::set unbound_vars = subtype_term->unbound_vars();
+		atom::set unbound_vars = subtype->unbound_vars();
 
 		/* if any of the type names are actually inbound type variables, take
 		 * note of the order they are mentioned. this loop is important. it is
@@ -197,7 +197,7 @@ void create_supertype_relationship(
 
 		/* supertype_expansion_list tracks the total set of parameters that the
 		 * supertype expects */
-		types::term::refs supertype_expansion_list;
+		types::type::refs supertype_expansion_list;
 
 		for (auto type_var : type_variables) {
 			if (in(type_var->get_name(), unbound_vars)) {
@@ -205,27 +205,27 @@ void create_supertype_relationship(
 				 * subtype), therefore it has opinions about its role in the
 				 * supertype */
 				lambda_vars.push_front(type_var);
-				supertype_expansion_list.push_back(types::term_id(type_var));
+				supertype_expansion_list.push_back(type_id(type_var));
 			} else {
 				/* this variable is not referenced by the current data ctor
 				 * (the subtype), therefore it has no opinions about its role
 				 * in the supertype */
-				supertype_expansion_list.push_back(types::term_generic());
+				supertype_expansion_list.push_back(type_generic());
 			}
 		}
 
 		if (supertype_id != nullptr) {
 			/* now let's create the abstraction */
-			auto supertype_expansion = types::term_id(supertype_id);
+			auto supertype_expansion = type_id(supertype_id);
 			for (auto e : supertype_expansion_list) {
-				supertype_expansion = types::term_apply(supertype_expansion, e);
+				supertype_expansion = type_apply(supertype_expansion, e);
 			}
 			for (auto lambda_var : lambda_vars) {
-				supertype_expansion = types::term_lambda(lambda_var,
-						supertype_expansion);
+                supertype_expansion = type_lambda(lambda_var,
+                        supertype_expansion);
 			}
 			// dbg();
-			//scope->put_type_term(status, tag_name, supertype_expansion);
+			//scope->put_type(status, tag_name, supertype_expansion);
 		}
 	}
 }
@@ -241,28 +241,28 @@ void ast::type_sum::register_type(
 				token.text.c_str(),
 				join(type_variables, ", ").c_str()));
 
-	auto term_sum = type_ref->get_type_term(status, builder, scope, supertype_id, type_variables);
+	auto type_sum = type_ref->get_type(status, builder, scope, supertype_id, type_variables);
 	if (!!status) {
-		scope->put_type_decl_term(supertype_id->get_name(), term_sum);
+		scope->put_type_decl(supertype_id->get_name(), type_sum);
 	}
 
 }
 
-types::term::ref instantiate_data_ctor_type_term(
+types::type::ref instantiate_data_ctor_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::refs type_variables,
 		scope_t::ref scope,
 		ptr<const ast::item> node,
-		types::term::refs dimensions,
+		types::type::refs dimensions,
 		atom::map<int> member_index,
 		identifier::ref id,
 		identifier::ref supertype_id)
 {
 	atom tag_name = id->get_name();
-	auto tag_term = types::term_id(id);
+	auto tag = type_id(id);
 
-	auto product = types::term_product(pk_tuple, dimensions);
+	auto product = type_product(pk_tuple, dimensions);
 
 	/* lambda_vars tracks the order of the lambda variables we'll accept as we abstract our
 	 * supertype expansion */
@@ -273,29 +273,30 @@ types::term::ref instantiate_data_ctor_type_term(
 			type_variables, scope, lambda_vars, generics);
 
 	/* let's create the return type that will be the codomain of the ctor fn */
-	auto data_ctor_term = tag_term;
+	auto data_ctor_type = tag;
 	for (auto lambda_var : lambda_vars) {
-		data_ctor_term = types::term_apply(data_ctor_term, types::term_generic(lambda_var));
+		data_ctor_type = type_apply(data_ctor_type, type_generic(lambda_var));
 	}
-	debug_above(5, log(log_info, "data_ctor_term = %s", data_ctor_term->str().c_str()));
+	debug_above(5, log(log_info, "data_ctor_type = %s", data_ctor_type->str().c_str()));
 
 	// TODO: check whether "generics" is too heavy-handed, might be able to
 	// subtract variables that are not part of the unbound variables.
 	auto dequantified_product = product->dequantify(generics);
-	auto dequantified_data_ctor_term = data_ctor_term->dequantify(generics);
+	auto dequantified_data_ctor_type = data_ctor_type->dequantify(generics);
 
-	auto data_ctor_sig = get_function_term(
+	auto data_ctor_sig = get_function_type(
 			types::change_product_kind(pk_args, dequantified_product),
-		   	dequantified_data_ctor_term);
+		   	dequantified_data_ctor_type);
 
 	for (auto lambda_var : lambda_vars) {
-		data_ctor_sig = types::term_lambda(lambda_var, data_ctor_sig);
+		data_ctor_sig = type_lambda(lambda_var, data_ctor_sig);
 	}
 
+    assert(false);
+#if 0
 	/* we need to register the type decl definition, so that in case we need to
 	 * instantiate it, we can */
-	types::term::refs type_ctor_terms;
-	types::term::ref term_binder = types::term_binder(builder, scope, id, node,
+	types::type::ref term_binder = types::term_binder(builder, scope, id, node,
 			data_ctor_sig, member_index);
 
 	debug_above(6, log(log_info, "created term_binder %s", term_binder->str().c_str()));
@@ -308,7 +309,7 @@ types::term::ref instantiate_data_ctor_type_term(
 		/* enum values must have a supertype, right? */
 		assert(supertype_id != nullptr);
 
-		auto tag_type = tag_term->get_type(status);
+		auto tag_type = tag->get_type(status);
 		if (!!status) {
 			/* start by making a type for the tag */
 			bound_type_t::ref bound_tag_type = bound_type_t::create(
@@ -337,10 +338,10 @@ types::term::ref instantiate_data_ctor_type_term(
 					id->str().c_str()));
 
 		if (auto module_scope = dyncast<module_scope_t>(scope)) {
-			types::term::ref generic_args = types::change_product_kind(pk_args, product);
+			types::type::ref generic_args = types::change_product_kind(pk_args, product);
 
 			debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
-			types::term::ref data_ctor_sig = get_function_term(generic_args, data_ctor_term);
+			types::type::ref data_ctor_sig = get_function_term(generic_args, data_ctor_type);
 
 			assert(id->get_name() == tag_name);
 			/* side-effect: create an unchecked reference to this data ctor into
@@ -349,18 +350,19 @@ types::term::ref instantiate_data_ctor_type_term(
 					unchecked_data_ctor_t::create(id, node,
 						module_scope, data_ctor_sig, member_index));
 
-			return dequantified_data_ctor_term;
+			return dequantified_data_ctor_type;
 		} else {
 			user_error(status, node->token.location, "local type definitions are not yet impl");
 		}
 	}
+#endif
 
 	assert(!status);
 	return nullptr;
 }
 
 #if 0
-types::term::ref ast::data_ctor::instantiate_type_term(
+types::type::ref ast::data_ctor::instantiate_type_term(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref supertype_id,
@@ -369,7 +371,7 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 {
 	debug_above(5, log(log_info, "creating sum type term for %s", str().c_str()));
 
-	types::term::refs dimensions;
+	types::type::refs dimensions;
 	for (auto type_ref : type_ref_params) {
 		dimensions.push_back(type_ref->get_type_term());
 	}
@@ -381,13 +383,13 @@ types::term::ref ast::data_ctor::instantiate_type_term(
 }
 #endif
 
-types::term::ref register_data_ctor(
+types::type::ref register_data_ctor(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::refs type_variables,
 		scope_t::ref scope,
 		ptr<const ast::item> node,
-		types::term::refs dimensions,
+		types::type::refs dimensions,
 		atom::map<int> member_index,
 		identifier::ref id,
 		identifier::ref supertype_id)
@@ -412,7 +414,7 @@ types::term::ref register_data_ctor(
 						name.c_str(),
 						env_iter->second->str().c_str());
 			} else {
-				return instantiate_data_ctor_type_term(status, builder,
+				return instantiate_data_ctor_type(status, builder,
 						type_variables, scope, node, dimensions,
 						member_index, id, supertype_id);
 			}
