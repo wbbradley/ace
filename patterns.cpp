@@ -157,7 +157,7 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 			value_name->get_name());
 
 	assert(token.text == "is");
-	auto cast_type = type_ref->get_type(status, builder, scope, type_id_name, {});
+	auto cast_type = type_ref->get_type(status, scope, type_id_name, {});
 
 	if (!!status) {
 		/* evaluate the condition for branching */

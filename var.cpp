@@ -20,7 +20,7 @@ unification_t var_t::accepts_callsite(
 	   	types::type::ref args) const
 {
 	/* get the args out of the sig */
-	types::type::ref fn_type = get_type();
+	types::type::ref fn_type = get_type(scope);
 	auto env = scope->get_typename_env();
 
 	indent_logger indent(2, string_format(

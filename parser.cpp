@@ -1005,7 +1005,7 @@ types::type::ref parse_type(parse_state_t &ps, identifier::set generics, int dep
 			}
 
 			for (auto type_arg : arguments) {
-				cur_type = type_apply(cur_type, type_arg);
+				cur_type = type_operator(cur_type, type_arg);
 			}
 			return cur_type;
 		}
@@ -1020,14 +1020,14 @@ types::type::ref parse_type(parse_state_t &ps, identifier::set generics, int dep
 				return nullptr;
 			} else {
 				ps.advance();
-				return types::type_list_type(list_element_type);
+				return type_list_type(list_element_type);
 			}
 		}
 		break;
 	case tk_lcurly:
 		{
 			types::type::refs arguments = parse_type_arguments(ps, generics, depth);
-			return type_product(pk_tuple, arguments);
+			return ::type_product(pk_tuple, arguments);
 		}
 		break;
 	default:

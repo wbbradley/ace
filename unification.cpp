@@ -69,16 +69,25 @@ types::type::ref eval_apply(
 		types::type::map env,
 		types::type::map bindings)
 {
+	assert(oper != nullptr);
+	assert(operand != nullptr);
 	auto ptid = dyncast<const types::type_id>(oper);
 	assert(ptid != nullptr);
 
+	/* look in the environment for a declaration of this operator */
 	auto fn_iter = env.find(ptid->id->get_name());
 	if (fn_iter != env.end()) {
-		auto type_ref = fn_iter->second->apply(operand, bindings));
-		status_t status;
-		auto type = type_ref->get_type(status);
-		assert(!!status);
-		return type;
+		/* we found a lambda, hopefully */
+		auto lambda = dyncast<const types::type_lambda>(fn_iter->second);
+		if (lambda != nullptr) {
+			auto var_name = lambda->binding->get_name();
+			bindings[var_name] = operand;
+			return lambda->body->rebind(bindings);
+		} else {
+			// TODO: probably will need to create a new application with a new
+			// operator, and eval_apply on that.
+			return null_impl();
+		}
 	} else {
 		return nullptr;
 	}
@@ -130,12 +139,12 @@ unification_t unify(
 							a->str().c_str(), b->str().c_str()),
 					bindings};
 			}
-			debug_above(8, log(log_info, "binding " c_id("%s") " to " c_type("%s"),
+			debug_above(4, log(log_info, "binding " c_id("%s") " to " c_type("%s"),
 						ptv->id->get_name().c_str(),
 						b->str(bindings).c_str()));
 			assert(bindings.find(ptv->id->get_name()) == bindings.end());
-			if (b->rebind(bindings)->ftv() != 0) {
-				debug_above(5, log(log_warning, "note that %s is itself not fully bound", b->str().c_str()));
+			if (b->rebind(bindings)->ftv_count() != 0) {
+				debug_above(4, log(log_warning, "note that %s is itself not fully bound", b->str().c_str()));
 			}
 			bindings[ptv->id->get_name()] = b;
 		} else {

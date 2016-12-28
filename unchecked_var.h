@@ -42,7 +42,7 @@ struct unchecked_var_t : public var_t {
 		return ref(new unchecked_var_t(id, node, module_scope));
 	}
 
-    virtual types::type::ref get_type() const;
+    virtual types::type::ref get_type(ptr<scope_t> scope) const;
 	virtual location get_location() const;
 };
 
@@ -68,7 +68,7 @@ struct unchecked_data_ctor_t : public unchecked_var_t {
 		return ref(new unchecked_data_ctor_t(id, node, module_scope, sig, member_index));
 	}
 
-    virtual types::type::ref get_type() const;
+    virtual types::type::ref get_type(ptr<scope_t> scope) const;
 
 	types::type::ref sig;
 	atom::map<int> member_index;

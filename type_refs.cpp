@@ -11,8 +11,8 @@ namespace ast {
 		return nullptr;
 	}
 
-	type_ref_sum::type_ref_sum(type_ref::refs subtypes) :
-		subtypes(subtypes)
+	type_ref_sum::type_ref_sum(type_ref::refs subtype_refs) :
+		subtype_refs(subtype_refs)
 	{
 	}
 
@@ -34,89 +34,113 @@ namespace ast {
 	{
 	}
 
-#if 0
 	types::type::ref type_ref_sum::get_type(
 			status_t &status,
-		   	llvm::IRBuilder<> &builder,
 		   	scope_t::ref scope,
 			identifier::ref supertype_id,
 			identifier::refs type_variables) const
    	{
-		types::type::refs subtypes_terms;
-		for (auto subtype : subtypes) {
-			auto subtype_term = subtype->get_type_term(status, builder, scope,
-					supertype_id, type_variables);
-			subtypes_terms.push_back(subtype_term);
+		types::type::refs subtypes;
+		for (auto subtype_ref : subtype_refs) {
+			auto subtype = subtype_ref->get_type(status, scope, supertype_id,
+					type_variables);
+			if (!!status) {
+				subtypes.push_back(subtype);
 
-			std::list<identifier::ref> lambda_vars;
-			atom::set generics;
-			/* register the subtype -> supertype mapping in the type env for this
-			 * subtype. */
-			create_supertype_relationship(status, subtype_term,
-					subtype_term->get_id(), supertype_id, type_variables,
-					scope, lambda_vars, generics);
+				std::list<identifier::ref> lambda_vars;
+				atom::set generics;
+				/* register the subtype -> supertype mapping in the type env for this
+				 * subtype. */
+				identifier::ref subtype_id = subtype->get_id();
+				if (subtype_id != nullptr) {
+					create_supertype_relationship(status, subtype,
+							subtype_id, supertype_id, type_variables,
+							scope, lambda_vars, generics);
+					if (!status) {
+						break;
+					}
+				} else {
+					/* if you don't have a name for your subtype, you can't have a
+					 * supertype expansion for it, because what would we call it? */
+					debug_above(5, log(log_info, "not creating a supertype expansion for %s",
+								subtype->str().c_str()));
+				}
+			} else {
+				break;
+			}
+		}
+		
+		if (!!status) {
+			types::type::ref sum_fn = ::type_sum(subtypes);
+			for (auto iter = type_variables.rbegin();
+					iter != type_variables.rend();
+					++iter)
+			{
+				sum_fn = ::type_lambda(*iter, sum_fn);
+			}
+
+			return sum_fn;
 		}
 
-		types::type::ref term_sum = types::term_sum(subtypes_terms);
-		for (auto iter=type_variables.rbegin();
-				iter != type_variables.rend();
-				++iter)
-		{
-			term_sum = types::term_lambda(*iter, term_sum);
+		assert(!status);
+		return nullptr;
+	}
+
+	types::type::ref type_ref_named::get_type(
+			status_t &status,
+		   	scope_t::ref scope,
+			identifier::ref supertype_id,
+			identifier::refs type_variables) const
+	{
+		return type;
+	}
+
+	types::type::ref type_ref_list::get_type(
+			status_t &status,
+		   	scope_t::ref scope,
+			identifier::ref supertype_id,
+			identifier::refs type_variables) const
+	{
+		auto element_type = type_ref->get_type(status, scope, supertype_id, type_variables);
+		if (!!status) {
+			return type_list_type(element_type);
 		}
 
-		/* return the declaration of this sum type. */
-		types::type::ref term_sum_binder = types::term_sum_binder(builder,
-				scope, types::term_id(supertype_id), shared_from_this(),
-				term_sum);
-
-		return term_sum_binder;
+		assert(!status);
+		return nullptr;
 	}
 
-	types::type::ref type_ref_named::get_type_term(
+	types::type::ref type_ref_tuple::get_type(
 			status_t &status,
-		   	llvm::IRBuilder<> &builder,
 		   	scope_t::ref scope,
 			identifier::ref supertype_id,
 			identifier::refs type_variables) const
 	{
-		return term;
-	}
-
-	types::type::ref type_ref_list::get_type_term(
-			status_t &status,
-		   	llvm::IRBuilder<> &builder,
-		   	scope_t::ref scope,
-			identifier::ref supertype_id,
-			identifier::refs type_variables) const
-	{
-		return get_list_term(type_ref);
-	}
-
-	types::type::ref type_ref_tuple::get_type_term(
-			status_t &status,
-		   	llvm::IRBuilder<> &builder,
-		   	scope_t::ref scope,
-			identifier::ref supertype_id,
-			identifier::refs type_variables) const
-	{
-		types::type::refs terms;
+		types::type::refs dimensions;
 		for (auto &type_ref: type_refs) {
-			terms.push_back(type_ref->get_type_term(status, builder, scope,
-						supertype_id, type_variables));
+			auto dimension = type_ref->get_type(status, scope,
+					supertype_id, type_variables);
+			if (!!status) {
+				dimensions.push_back(dimension);
+			} else {
+				break;
+			}
 		}
 
-		return types::term_product(pk_tuple, terms);
+		if (!!status) {
+			return ::type_product(pk_tuple, dimensions);
+		}
+
+		assert(!status);
+		return nullptr;
 	}
 
-	types::type::ref type_ref_generic::get_type_term(
+	types::type::ref type_ref_generic::get_type(
 			status_t &status,
-		   	llvm::IRBuilder<> &builder,
 		   	scope_t::ref scope,
 			identifier::ref supertype_id,
 			identifier::refs type_variables) const
 	{
-		return term;
+		return type;
 	}
-#endif
 }

@@ -28,11 +28,9 @@ bound_var_t::ref instantiate_unchecked_fn(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		unchecked_var_t::ref unchecked_fn,
-		types::type::ref fn_type_unbound,
+		types::type::ref fn_type,
 		unification_t unification)
 {
-	types::type::ref fn_type = fn_type_unbound->rebind(unification.bindings);
-
 	debug_above(4, log(log_info, "it's time to instantiate %s with unified signature %s from %s",
 				unchecked_fn->str().c_str(),
 				fn_type->str().c_str(),
@@ -147,9 +145,9 @@ bound_var_t::ref check_func_vs_callsite(
 						fn->str().c_str(),
 						::str(unification.bindings).c_str()));
 
-			types::type::ref fn_type_unbound = fn->rebind(unification.bindings);
+			types::type::ref fn_type = fn->get_type(scope)->rebind(unification.bindings);
 			return instantiate_unchecked_fn(status, builder, scope,
-					unchecked_fn, fn_type_unbound, unification);
+					unchecked_fn, fn_type, unification);
 		} else {
 			panic("unhandled var type");
 		}

@@ -62,7 +62,8 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
     /* Then, there are mappings from type_variable names to type::refs */
 	virtual types::type::map get_type_variable_bindings() const = 0;
 
-    virtual void put_type_decl(atom id, types::type::ref expansion) = 0;
+    virtual void put_typename(status_t &status, atom name, types::type::ref expansion) = 0;
+    virtual void put_type_variable_binding(status_t &status, atom binding, types::type::ref type) = 0;
 };
 
 template <typename BASE>
@@ -71,24 +72,21 @@ struct scope_impl_t : public BASE {
 	typedef ptr<const scope_t> cref;
 
 	virtual ~scope_impl_t() throw() {}
-	scope_impl_t() = delete;
+	scope_impl_t(ptr<scope_t> parent_scope) = delete;
 	scope_impl_t(const scope_impl_t &scope) = delete;
 
 	virtual atom get_leaf_name() const {
 		return name;
 	}
 
-	scope_impl_t(atom name, types::type::map typename_env, types::type::map type_variable_bindings) :
+	scope_impl_t(atom name, ptr<scope_t> parent_scope) :
         name(name),
-        typename_env(typename_env),
-        type_variable_bindings(type_variable_bindings) {}
+		parent_scope(parent_scope) {}
 
 	ptr<function_scope_t> new_function_scope(atom name);
 	ptr<program_scope_t> get_program_scope();
-	// void put_type_term(status_t &status, atom name, types::type::ref type_term);
-	// void put_type_decl_term(atom name, types::type::ref type_term);
 	types::type::map get_typename_env() const;
-	types::type::map get_type_variable_env() const;
+	types::type::map get_type_variable_bindings() const;
 	std::string str();
 	void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable);
 	bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints);
@@ -98,10 +96,15 @@ struct scope_impl_t : public BASE {
 	std::string make_fqn(std::string leaf_name) const;
 	bound_type_t::ref get_bound_type(types::signature signature);
 	void get_callables(atom symbol, var_t::refs &fns);
+    virtual void put_typename(status_t &status, atom name, types::type::ref expansion);
+    virtual void put_type_variable_binding(status_t &status, atom binding, types::type::ref type);
+	virtual ptr<scope_t> get_parent_scope();
+	virtual ptr<const scope_t> get_parent_scope() const;
 
 protected:
 	atom name;
 
+	ref parent_scope;
 	bound_var_t::map bound_vars;
 	types::type::map typename_env;
 	types::type::map type_variable_bindings;
@@ -115,7 +118,7 @@ struct runnable_scope_t : public scope_impl_t<scope_t> {
 
 	virtual ~runnable_scope_t() throw() {}
 
-	runnable_scope_t(atom name, types::type::map typename_env, types::type::map type_variable_bindings);
+	runnable_scope_t(atom name, scope_t::ref parent_scope);
 	runnable_scope_t() = delete;
 	runnable_scope_t(const runnable_scope_t &) = delete;
 
@@ -160,8 +163,6 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	module_scope_impl_t(atom name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module);
 	virtual ~module_scope_impl_t() throw() {}
 
-	ptr<program_scope_t> parent_scope;
-
 	llvm::Module * const llvm_module;
 
 	virtual void get_callables(atom symbol, var_t::refs &fns);
@@ -170,9 +171,6 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	unchecked_type_t::ref get_unchecked_type(atom symbol);
 
 	unchecked_var_t::ref put_unchecked_variable(atom symbol, unchecked_var_t::ref unchecked_variable);
-
-	virtual ptr<scope_t> get_parent_scope();
-	virtual ptr<const scope_t> get_parent_scope() const;
 
 	/* module checking management
 	 * after checking a function regardless of whether it was generic or not
@@ -221,14 +219,6 @@ struct program_scope_t : public module_scope_impl_t {
 	virtual ptr<program_scope_t> get_program_scope();
 	virtual void dump(std::ostream &os) const;
 
-	virtual ptr<scope_t> get_parent_scope() {
-        return nullptr;
-    }
-
-	virtual ptr<const scope_t> get_parent_scope() const {
-		return nullptr;
-	}
-
 	ptr<module_scope_t> new_module_scope(atom name, llvm::Module *llvm_module);
 
 	static program_scope_t::ref create(atom name, llvm::Module *llvm_module);
@@ -253,12 +243,9 @@ struct function_scope_t : public runnable_scope_t {
 
 	virtual ~function_scope_t() throw() {}
 	function_scope_t(atom name, scope_t::ref parent_scope) :
-	   	runnable_scope_t(name, parent_scope->get_typename_env(), parent_scope->get_type_variable_bindings()), parent_scope(parent_scope) {}
+	   	runnable_scope_t(name, parent_scope) {}
 
 	virtual void dump(std::ostream &os) const;
-
-	virtual ptr<scope_t> get_parent_scope();
-	virtual ptr<const scope_t> get_parent_scope() const;
 
 	virtual return_type_constraint_t &get_return_type_constraint();
 	virtual ptr<local_scope_t> new_local_scope(atom name);
@@ -280,16 +267,12 @@ struct local_scope_t : public runnable_scope_t {
 	virtual void dump(std::ostream &os) const;
 	virtual return_type_constraint_t &get_return_type_constraint();
 	virtual ptr<local_scope_t> new_local_scope(atom name);
-	virtual ptr<scope_t> get_parent_scope();
-	virtual ptr<const scope_t> get_parent_scope() const;
 
-	scope_t::ref parent_scope;
 	return_type_constraint_t &return_type_constraint;
 
 	static local_scope_t::ref create(
 			atom name,
 		   	scope_t::ref parent_scope,
-			types::type::map type_env,
 		   	return_type_constraint_t &return_type_constraint);
 };
 
@@ -302,8 +285,6 @@ struct generic_substitution_scope_t : public scope_impl_t<scope_t> {
 		   	types::type::ref callee_signature);
 
 	virtual ~generic_substitution_scope_t() throw() {}
-	virtual ptr<scope_t> get_parent_scope();
-	virtual ptr<const scope_t> get_parent_scope() const;
 	virtual llvm::Module *get_llvm_module();
 
 	virtual void dump(std::ostream &os) const;
@@ -317,9 +298,6 @@ struct generic_substitution_scope_t : public scope_impl_t<scope_t> {
 			types::type::ref callee_type);
 
 	const types::type::ref callee_signature;
-
-private:
-	scope_t::ref parent_scope;
 };
 
 template <typename T>
@@ -329,39 +307,38 @@ ptr<function_scope_t> scope_impl_t<T>::new_function_scope(atom name) {
 
 template <typename T>
 ptr<program_scope_t> scope_impl_t<T>::get_program_scope() {
+	assert(!dynamic_cast<program_scope_t* const>(this));
 	return this->get_parent_scope()->get_program_scope();
 }
 
-#if 0
 template <typename T>
-void scope_impl_t<T>::put_type_term(status_t &status, atom name, types::type::ref type_term) {
-	debug_above(2, log(log_info, "registering type term " c_term("%s") " as %s",
-				name.c_str(), type_term->str().c_str()));
-	if (type_env.find(name) == type_env.end()) {
+void scope_impl_t<T>::put_typename(status_t &status, atom name, types::type::ref expansion) {
+	debug_above(2, log(log_info, "registering typename " c_type("%s") " as %s",
+				name.c_str(), expansion->str().c_str()));
+	if (typename_env.find(name) == typename_env.end()) {
 		// WOW
-		type_env[name] = type_term;
+		typename_env[name] = expansion;
 	} else {
-		user_error(status, type_term->get_id()->get_location(),
+		user_error(status, expansion->get_location(),
 				"multiple supertypes are not yet implemented (" c_type("%s") " <: " c_type("%s") ")",
-				name.c_str(), type_term->str().c_str());
+				name.c_str(), expansion->str().c_str());
 	}
 }
 
 template <typename T>
-void scope_impl_t<T>::put_type_decl_term(atom name, types::type::ref type_term) {
-	auto iter = type_env.find(name);
-	if (iter == type_env.end()) {
-		debug_above(2, log(log_info, "registering type decl term " c_term("%s") " as %s",
-					name.c_str(), type_term->str().c_str()));
-		type_env[name] = type_term;
+void scope_impl_t<T>::put_type_variable_binding(status_t &status, atom name, types::type::ref type) {
+	auto iter = type_variable_bindings.find(name);
+	if (iter == type_variable_bindings.end()) {
+		debug_above(2, log(log_info, "binding type variable " c_type("%s") " as %s",
+					name.c_str(), type->str().c_str()));
+		type_variable_bindings[name] = type;
 	} else {
-		debug_above(8, log(log_info, "type decl term " c_term("%s") " has already been registered as %s",
-					name.c_str(), type_env[name]->str().c_str()));
+		debug_above(8, log(log_info, "type variable " c_type("%s") " has already been bound as %s",
+					name.c_str(), type_variable_bindings[name]->str().c_str()));
 		/* this term may have already been registered. */
-		assert(type_env[name]->str() == type_term->str());
+		assert(type_variable_bindings[name]->str() == type->str());
 	}
 }
-#endif
 
 template <typename T>
 types::type::map scope_impl_t<T>::get_typename_env() const {
@@ -373,17 +350,15 @@ types::type::map scope_impl_t<T>::get_typename_env() const {
 	}
 }
 
-/*
 template <typename T>
-types::type::map scope_impl_t<T>::get_type_decl_env() const {
+types::type::map scope_impl_t<T>::get_type_variable_bindings() const {
 	auto parent_scope = this->get_parent_scope();
 	if (parent_scope != nullptr) {
-		return merge(parent_scope->get_type_decl_env(), type_decl_env);
+		return merge(parent_scope->get_type_variable_bindings(), typename_env);
 	} else {
-		return type_decl_env;
+		return typename_env;
 	}
 }
-*/
 
 template <typename T>
 std::string scope_impl_t<T>::str() {
@@ -533,10 +508,18 @@ void scope_impl_t<T>::get_callables(atom symbol, var_t::refs &fns) {
 	/* default scope behavior is to look at bound variables */
 	get_callables_from_bound_vars(symbol, bound_vars, fns);
 
-	if (auto parent_scope = this->get_parent_scope()) {
+	if (parent_scope != nullptr) {
 		/* let's see if our parent scope has any of this symbol */
 		parent_scope->get_callables(symbol, fns);
 	}
 }
 
+template <typename T>
+ptr<scope_t> scope_impl_t<T>::get_parent_scope() {
+	return parent_scope;
+}
 
+template <typename T>
+ptr<const scope_t> scope_impl_t<T>::get_parent_scope() const {
+	return parent_scope;
+}

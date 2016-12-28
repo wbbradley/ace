@@ -117,8 +117,8 @@ void ast::type_product::register_type(
 	types::type::refs type_dimensions;
 	int index = 0;
 	for (auto dimension : dimensions) {
-		auto dimension_type = dimension->type_ref->get_type(status,
-				builder, scope, supertype_id, type_variables);
+		auto dimension_type = dimension->type_ref->get_type(status, scope, supertype_id,
+				type_variables);
 		if (!!status) {
 			type_dimensions.push_back(dimension_type);
 			member_index[dimension->name] = index++;
@@ -180,6 +180,8 @@ void create_supertype_relationship(
 		assert(!"Not sure what this code path is supposed to be doing. Just investigating with this assert...");
 	} else {
 		atom tag_name = subtype_id->get_name();
+		assert(!!tag_name);
+
 		debug_above(5, log(log_info,
 				   	"setting up data ctor for " c_id("%s") " with value type %s",
 					tag_name.c_str(), subtype->str().c_str()));
@@ -241,11 +243,10 @@ void ast::type_sum::register_type(
 				token.text.c_str(),
 				join(type_variables, ", ").c_str()));
 
-	auto type_sum = type_ref->get_type(status, builder, scope, supertype_id, type_variables);
+	auto type_sum = type_ref->get_type(status, scope, supertype_id, type_variables);
 	if (!!status) {
-		scope->put_type_decl(supertype_id->get_name(), type_sum);
+		scope->put_typename(status, supertype_id->get_name(), type_sum);
 	}
-
 }
 
 types::type::ref instantiate_data_ctor_type(
@@ -405,12 +406,12 @@ types::type::ref register_data_ctor(
 					"previous version of %s defined here",
 					found_type->str().c_str());
 		} else {
-			auto env = scope->get_type_env();
+			auto env = scope->get_typename_env();
 			auto env_iter = env.find(name);
 			if (env_iter != env.end()) {
-				/* simple check for an already bound type env variable */
+				/* simple check for an already bound typename env variable */
 				user_error(status, location,
-					   	"symbol " c_id("%s") " is already taken in type env by %s",
+					   	"symbol " c_id("%s") " is already taken in typename env by %s",
 						name.c_str(),
 						env_iter->second->str().c_str());
 			} else {

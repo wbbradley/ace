@@ -154,20 +154,20 @@ namespace ast {
 	}
 
 	void type_ref_sum::render(render_state_t &rs) const {
-		if (subtypes.size() <= 1) {
+		if (subtype_refs.size() <= 1) {
 			rs.ss << " ";
-			subtypes[0]->render(rs);
+			subtype_refs[0]->render(rs);
 		} else {
 			newline(rs);
 			indented(rs);
-			for (int i = 0; i < subtypes.size(); ++i) {
+			for (int i = 0; i < subtype_refs.size(); ++i) {
 				if (i > 0) {
 					rs.ss << " " << tkstr(tk_or);
 					newline(rs);
 				}
 
 				indent(rs);
-				subtypes[i]->render(rs);
+				subtype_refs[i]->render(rs);
 			}
 		}
 	}

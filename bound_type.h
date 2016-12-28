@@ -106,6 +106,12 @@ struct bound_type_handle_t : public bound_type_t {
 	llvm::Type * const llvm_type;
 };
 
+types::type::refs get_types(const bound_type_t::refs &bound_types);
+types::type::ref get_tuple_type(const bound_type_t::refs &items_types);
+types::type::ref get_tuple_type(types::type::refs dimensions);
+types::type::ref get_args_type(bound_type_t::refs args);
+types::type::ref get_function_type(bound_type_t::named_pairs named_args, bound_type_t::ref ret);
+
 std::string str(const bound_type_t::refs &args);
 std::string str(const bound_type_t::named_pairs &named_pairs);
 std::string str(const bound_type_t::name_index &name_index);

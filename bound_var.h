@@ -54,8 +54,7 @@ struct bound_var_t : public var_t {
 	typedef std::weak_ptr<bound_var_t> weak_ref;
 	typedef std::map<atom, overloads> map;
 
-	// virtual types::type::ref get_type(status_t &status, llvm::IRBuilder<> &builder, ptr<scope_t> scope) const;
-	virtual types::type::ref get_type() const;
+	types::type::ref get_type() const;
 	virtual location get_location() const;
 
 	static ref create(
@@ -81,6 +80,9 @@ struct bound_var_t : public var_t {
 		ss << "}";
 		return ss.str();
 	}
+
+private:
+   	virtual types::type::ref get_type(ptr<scope_t> scope) const;
 };
 
 struct bound_module_t : public bound_var_t {

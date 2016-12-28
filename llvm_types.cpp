@@ -73,7 +73,9 @@ struct bound_type_builder_t : public types::type_visitor {
 		if (module_scope != nullptr) {
 			atom name = operator_.oper->get_signature();
 
-			auto type_env = scope->get_type_env();
+			// Note: I don't remember what this next line was doing...
+			dbg();
+			auto type_env = scope->get_typename_env();
 			assert(!in(name, type_env));
 			return false;
 		} else {
@@ -221,26 +223,6 @@ bound_type_t::ref upsert_bound_type(
 	} else {
 		return create_bound_type(status, builder, scope, type);
 	}
-}
-
-bound_type_t::ref upsert_bound_type(
-		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-	   	types::type::ref type)
-{
-	/* helper method to convert lambda types to types */
-	debug_above(6, log(log_info, "evaluating type " c_type("%s"),
-				type->str().c_str()));
-	auto type_env = scope->get_type_env();
-	auto type = type->evaluate(type_env)->get_type(status);
-
-	if (!!status) {
-		return upsert_bound_type(status, builder, scope, type);
-	}
-
-	assert(!status);
-	return nullptr;
 }
 
 bound_type_t::ref get_function_return_type(

@@ -13,7 +13,7 @@ struct var_t {
     typedef ptr<const var_t> ref;
     typedef std::list<ref> refs;
 
-	virtual types::type::ref get_type() const = 0;
+	virtual types::type::ref get_type(ptr<scope_t> scope) const = 0;
 	virtual location get_location() const = 0;
 	virtual std::string str() const = 0;
 

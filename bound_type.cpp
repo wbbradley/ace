@@ -477,7 +477,7 @@ namespace types {
 				/* make sure to connect the supertype's signature with the
 				 * sum term so that it can be found later for pattern matching
 				 * option validation */
-				scope->put_type_decl_term(supertype_signature, shared_from_this());
+				scope->put_typename(supertype_signature, shared_from_this());
 
 				/* register the sum type's data ctor's
 				 * actual final type */

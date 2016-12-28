@@ -187,7 +187,7 @@ namespace ast {
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual ~type_ref() throw() {}
 
-		virtual types::type::ref get_type(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const = 0;
+		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const = 0;
 	};
 
 	struct type_ref_sum : public type_ref {
@@ -195,17 +195,17 @@ namespace ast {
 
 		virtual ~type_ref_sum() throw() {}
 
-		type_ref_sum(type_ref::refs subtypes);
-		virtual types::type::ref get_type(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
+		type_ref_sum(type_ref::refs subtype_refs);
+		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
 		virtual void render(render_state_t &rs) const;
-		refs subtypes;
+		refs subtype_refs;
 	};
 
 	struct type_ref_named : public type_ref {
 		static const syntax_kind_t SK = sk_type_ref_named;
 
 		type_ref_named(types::type::ref type);
-		virtual types::type::ref get_type(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
+		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
@@ -216,7 +216,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_ref_list;
 
 		type_ref_list(type_ref::ref type_ref);
-		virtual types::type::ref get_type(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
+		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
@@ -227,7 +227,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_ref_tuple;
 
 		type_ref_tuple(std::vector<type_ref::ref> type_ref);
-		virtual types::type::ref get_type(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
+		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 
@@ -238,7 +238,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_ref_generic;
 
 		type_ref_generic(types::type::ref type);
-		virtual types::type::ref get_type(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
+		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
 

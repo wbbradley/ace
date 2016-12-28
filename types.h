@@ -49,6 +49,7 @@ namespace types {
 		atom repr() const { return this->repr({}); }
 
 		virtual location get_location() const = 0;
+		virtual identifier::ref get_id() const = 0;
 
 		std::string str(const map &bindings = {}) const;
 		atom get_signature() const { return repr(); }
@@ -76,6 +77,7 @@ namespace types {
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
+		virtual identifier::ref get_id() const;
 		virtual bool is_void() const;
 	};
 
@@ -90,6 +92,7 @@ namespace types {
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
+		virtual identifier::ref get_id() const;
 	};
 
 	struct type_operator : public type {
@@ -103,6 +106,7 @@ namespace types {
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
+		virtual identifier::ref get_id() const;
 	};
 
 	struct type_product : public type {
@@ -116,6 +120,7 @@ namespace types {
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
+		virtual identifier::ref get_id() const;
 
 		virtual bool is_function() const;
 		virtual bool is_obj() const;
@@ -132,8 +137,23 @@ namespace types {
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
+		virtual identifier::ref get_id() const;
 
 		virtual bool is_obj() const { return true; }
+	};
+
+	struct type_lambda : public type {
+		type_lambda(identifier::ref binding, type::ref body);
+		identifier::ref binding;
+		type::ref body;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
+		virtual bool accept(type_visitor &visitor) const;
+		virtual ref rebind(const map &bindings) const;
+		virtual location get_location() const;
+		virtual identifier::ref get_id() const;
 	};
 };
 
@@ -146,6 +166,7 @@ types::type::ref type_operator(types::type::ref operator_, types::type::ref oper
 types::type::ref type_product(product_kind_t pk, types::type::refs dimensions);
 types::type::ref type_sum(types::type::refs options);
 types::type::ref type_lambda(identifier::ref binding, types::type::ref body);
+types::type::ref type_list_type(types::type::ref element);
 
 bool type_is_unbound(types::type::ref type, types::type::map bindings);
 std::ostream &operator <<(std::ostream &os, identifier::ref id);

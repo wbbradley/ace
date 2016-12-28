@@ -43,11 +43,16 @@ bound_type_t::ref get_fully_bound_param_info(
 			var_name);
 
 	/* the user specified a type */
-	auto type = obj.type_ref->get_type(status, builder, scope, type_id_name, {});
-	debug_above(6, log(log_info, "upserting type for param %s at %s",
-				type->str().c_str(),
-				obj.type_ref->get_location().str().c_str()));
-	return upsert_bound_type(status, builder, scope, type);
+	auto type = obj.type_ref->get_type(status, scope, type_id_name, {});
+	if (!!status) {
+		debug_above(6, log(log_info, "upserting type for param %s at %s",
+					type->str().c_str(),
+					obj.type_ref->get_location().str().c_str()));
+		return upsert_bound_type(status, builder, scope, type);
+	}
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref type_check_bound_var_decl(
@@ -84,9 +89,10 @@ bound_var_t::ref type_check_bound_var_decl(
 
 		if (!!status) {
 			if (obj.type_ref != nullptr) {
-				declared_type = obj.type_ref->get_type(status,
-						builder, scope, type_id_code_id, {});
-				declared_type = declared_type->rebind(scope->get_type_variable_bindings());
+				declared_type = obj.type_ref->get_type(status, scope, type_id_code_id, {});
+				if (!!status) {
+					declared_type = declared_type->rebind(scope->get_type_variable_bindings());
+				}
 			}
 		}
 
@@ -205,11 +211,17 @@ bound_type_t::ref get_return_type_from_return_type_expr(
 {
     /* lookup the alias, default to void */
     if (type_ref != nullptr) {
-        return upsert_bound_type(status, builder, scope, type_ref->get_type());
+		auto return_type = type_ref->get_type(status, scope, nullptr, {});
+		if (!!status) {
+			return upsert_bound_type(status, builder, scope, return_type);
+		}
     } else {
 		/* user specified no return type, default to void */
 		return scope->get_program_scope()->get_bound_type({"void"});
     }
+
+	assert(!status);
+	return nullptr;
 }
 
 void type_check_fully_bound_function_decl(
@@ -242,6 +254,10 @@ void type_check_fully_bound_function_decl(
     assert(!status);
 }
 
+bool type_is_unbound(types::type::ref type, types::type::map bindings) {
+	return type->rebind(bindings)->ftv_count() > 0;
+}
+
 bool is_function_defn_generic(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -257,11 +273,17 @@ bool is_function_defn_generic(
 							param->str().c_str()));
 				return true;
 			}
-			types::type::ref type = param->type_ref->get_type();
+			types::type::ref type = param->type_ref->get_type(status, scope, nullptr, {});
 
-			if (type_is_unbound(type, scope->get_type_bindings())) {
-				debug_above(3, log(log_info, "found a generic parameter type on %s",
-							param->str().c_str()));
+			if (!!status) {
+				if (type_is_unbound(type, scope->get_type_variable_bindings())) {
+					debug_above(3, log(log_info, "found a generic parameter type on %s",
+								param->str().c_str()));
+					return true;
+				}
+			} else {
+				/* failed to check type genericity */
+				panic("what now hey?");
 				return true;
 			}
 		}
@@ -269,15 +291,20 @@ bool is_function_defn_generic(
 		panic("function declaration has no parameter list");
 	}
 
-	if (obj.decl->return_type_ref) {
-		/* check the return type's genericity */
-		types::type::ref type = obj.decl->return_type_ref->get_type(status, builder, scope,
-					nullptr, {});
-		return type->is_generic(status, scope->get_type_env());
-	} else {
-		/* default to void, which is fully bound */
-		return false;
+	if (!!status) {
+		if (obj.decl->return_type_ref != nullptr) {
+			/* check the return type's genericity */
+			types::type::ref type = obj.decl->return_type_ref->get_type(status,
+					scope, nullptr, {});
+			return type->ftv_count() > 0;
+		} else {
+			/* default to void, which is fully bound */
+			return false;
+		}
 	}
+
+	assert(!status);
+	return false;
 }
 
 function_scope_t::ref make_param_list_scope(
@@ -692,7 +719,7 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 		bound_type_t::refs args = get_bound_types(vars);
 
 		/* let's get the type for this tuple wrapped as an object */
-        types::type::ref tuple_type = type_product(pk_obj,
+        types::type::ref tuple_type = ::type_product(pk_obj,
                 {get_tuple_type(args)});
 
 		/* now, let's see if we already have a ctor for this tuple type, if not
@@ -971,13 +998,13 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 	assert(scope->get_llvm_module() != nullptr);
 
 	auto function_type = get_function_type(args, return_type);
-	bound_type_t::ref function_type = upsert_bound_type(status,
+	bound_type_t::ref bound_function_type = upsert_bound_type(status,
 			builder, scope, function_type);
 
 	if (!!status) {
-		assert(function_type->get_llvm_type() != nullptr);
+		assert(bound_function_type->get_llvm_type() != nullptr);
 
-		llvm::Type *llvm_type = function_type->get_llvm_type();
+		llvm::Type *llvm_type = bound_function_type->get_llvm_type();
 		if (llvm_type->isPointerTy()) {
 			llvm_type = llvm_type->getPointerElementType();
 		}
@@ -996,7 +1023,7 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 
 		/* set up the mapping to this function for use in recursion */
 		bound_var_t::ref function_var = bound_var_t::create(
-				INTERNAL_LOC(), token.text, function_type, llvm_function,
+				INTERNAL_LOC(), token.text, bound_function_type, llvm_function,
 				make_code_id(token), false/*is_lhs*/);
 
 		/* we should be able to check its block as a callsite. note that this
@@ -1375,7 +1402,6 @@ bound_var_t::ref type_check_assignment(
 
 			// TODO: check the types for compatibility
 			unification_t unification = unify(
-					status,
 					lhs_var->type->get_type(),
 					rhs_var->type->get_type(), {});
 

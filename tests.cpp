@@ -969,9 +969,8 @@ auto test_descs = std::vector<test_desc>{
 		}
 	},
 	{
-		"test_type_evaluation",
+		"test_type_binding",
 		[] () -> bool {
-			types::type::map env = {};
 			identifier::set generics = {make_iid("T"), make_iid("Q")};
 			auto parses = std::vector<std::tuple<std::string, std::string>>{{
 				{"any a", "(any a)"},
@@ -992,15 +991,14 @@ auto test_descs = std::vector<test_desc>{
 				std::string expect = std::get<1>(p);
 
 				auto type = parse_type_expr(input, generics);
-				auto evaluated = type->evaluate(env);
+				auto evaluated = type->rebind({});
 				auto repr = evaluated->repr().str();
 				if (repr != expect) {
 					log(log_error, c_type("%s") " evaluated to " c_type("%s")
-							" - should have been " c_type("%s") " with env: %s",
+							" - should have been " c_type("%s"),
 							input.c_str(),
 							repr.c_str(),
-							expect.c_str(),
-							str(env).c_str());
+							expect.c_str());
 					dbg();
 					return false;
 				}
@@ -1042,12 +1040,12 @@ auto test_descs = std::vector<test_desc>{
 
 			status_t status;
 			for (auto &pair : unifies) {
-				test_assert(unify(status, pair.first, pair.second, {}).result);
+				test_assert(unify(pair.first, pair.second).result);
 				assert(!!status);
 			}
 
 			for (auto &pair : fails) {
-				auto unification = unify(status, pair.first, pair.second, {});
+				auto unification = unify(pair.first, pair.second);
 				assert(!!status);
 				if (unification.result) {
 					log(log_error, "should have failed unifying %s and %s [%s]",

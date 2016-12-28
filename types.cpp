@@ -8,6 +8,7 @@
 #include "type_visitor.h"
 
 const char *BUILTIN_LIST_TYPE = "std.List";
+const char *BUILTIN_VOID_TYPE = "void";
 
 int next_generic = 1;
 
@@ -17,21 +18,19 @@ void reset_generics() {
 
 namespace types {
 
-#if 0
-	term::ref change_product_kind(product_kind_t pk, term::ref product) {
-		auto term_product = dyncast<const struct terms::term_product>(product);
-		if (term_product != nullptr) {
-			if (term_product->pk == pk) {
-				return term_product;
+	type::ref change_product_kind(product_kind_t pk, type::ref product) {
+		auto type_product = dyncast<const struct type_product>(product);
+		if (type_product != nullptr) {
+			if (type_product->pk == pk) {
+				return type_product;
 			} else {
-				return types::term_product(pk, term_product->dimensions);
+				return ::type_product(pk, type_product->dimensions);
 			}
 		} else {
-			panic("i thought this would be a product term!");
+			panic("i thought this would be a product type!");
 		}
 		return null_impl();
 	}
-#endif
 
 	/**********************************************************************/
 	/* Types                                                              */
@@ -73,6 +72,10 @@ namespace types {
 
 	location type_id::get_location() const {
 		return id->get_location();
+	}
+
+	identifier::ref type_id::get_id() const {
+		return id;
 	}
 
 	bool type_id::is_void() const {
@@ -125,6 +128,10 @@ namespace types {
 		return id->get_location();
 	}
 
+	identifier::ref type_variable::get_id() const {
+		return id;
+	}
+
 	type_operator::type_operator(type::ref oper, type::ref operand) :
 		oper(oper), operand(operand)
 	{
@@ -158,6 +165,10 @@ namespace types {
 
 	location type_operator::get_location() const {
 		return oper->get_location();
+	}
+
+	identifier::ref type_operator::get_id() const {
+		return oper->get_id();
 	}
 
 	type_product::type_product(product_kind_t pk, type::refs dimensions) :
@@ -210,6 +221,10 @@ namespace types {
 		} else {
 			return INTERNAL_LOC();
 		}
+	}
+
+	identifier::ref type_product::get_id() const {
+		return nullptr;
 	}
 
 	bool type_product::is_function() const {
@@ -276,6 +291,62 @@ namespace types {
 		}
 	}
 
+	identifier::ref type_sum::get_id() const {
+		return nullptr;
+	}
+
+	type_lambda::type_lambda(identifier::ref binding, type::ref body) :
+		binding(binding), body(body)
+	{
+	}
+
+	std::ostream &type_lambda::emit(std::ostream &os, const map &bindings_) const {
+		os << "(lambda [" << binding->str() << "] ";
+		map bindings = bindings_;
+		auto binding_iter = bindings.find(binding->get_name());
+		if (binding_iter != bindings.end()) {
+			bindings.erase(binding_iter);
+		}
+		body->emit(os, bindings);
+		return os << ")";
+	}
+
+	int type_lambda::ftv_count() const {
+		/* pretend this is getting applied */
+		assert(!"This should not really get called ....");
+		map bindings;
+		bindings[binding->get_name()] = type_unreachable();
+		return body->rebind(bindings)->ftv_count();
+	}
+
+    atom::set type_lambda::get_ftvs() const {
+		assert(!"This should not really get called ....");
+		map bindings;
+		bindings[binding->get_name()] = type_unreachable();
+		return body->rebind(bindings)->get_ftvs();
+	}
+
+	bool type_lambda::accept(type_visitor &visitor) const {
+		return visitor.visit(*this);
+	}
+
+	type::ref type_lambda::rebind(const map &bindings_) const {
+		map bindings = bindings_;
+		auto binding_iter = bindings.find(binding->get_name());
+		if (binding_iter != bindings.end()) {
+			bindings.erase(binding_iter);
+		}
+		return ::type_lambda(binding, body->rebind(bindings));
+	}
+
+	location type_lambda::get_location() const {
+		return binding->get_location();
+	}
+
+	identifier::ref type_lambda::get_id() const {
+		return nullptr;
+	}
+
 	bool is_type_id(type::ref type, atom type_name) {
 		if (auto pti = dyncast<const types::type_id>(type)) {
 			return pti->id->get_name() == type_name;
@@ -292,6 +363,14 @@ types::type::ref type_variable(identifier::ref id) {
 	return make_ptr<types::type_variable>(id);
 }
 
+types::type::ref type_variable() {
+	return make_ptr<types::type_variable>();
+}
+
+types::type::ref type_unreachable() {
+	return make_ptr<types::type_id>(make_iid(BUILTIN_VOID_TYPE));
+}
+
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand) {
 	return make_ptr<types::type_operator>(operator_, operand);
 }
@@ -302,6 +381,14 @@ types::type::ref type_product(product_kind_t pk, types::type::refs dimensions) {
 
 types::type::ref type_sum(types::type::refs options) {
 	return make_ptr<types::type_sum>(options);
+}
+
+types::type::ref type_lambda(identifier::ref binding, types::type::ref body) {
+	return make_ptr<types::type_lambda>(binding, body);
+}
+
+types::type::ref type_list_type(types::type::ref element) {
+	return type_operator(type_id(make_iid(BUILTIN_LIST_TYPE)), element);
 }
 
 std::ostream& operator <<(std::ostream &os, const types::type::ref &type) {

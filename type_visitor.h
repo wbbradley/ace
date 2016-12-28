@@ -12,6 +12,7 @@ namespace types {
 		virtual bool visit(const type_operator &operator_) = 0;
 		virtual bool visit(const type_product &product) = 0;
 		virtual bool visit(const type_sum &sum) = 0;
+		virtual bool visit(const type_lambda &lambda) = 0;
 	};
 }
 

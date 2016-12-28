@@ -29,6 +29,6 @@ struct unification_t {
 unification_t unify(
 		types::type::ref a,
 		types::type::ref b,
-		types::type::map env,
+		types::type::map env = {},
         types::type::map bindings = {},
         int depth=0);

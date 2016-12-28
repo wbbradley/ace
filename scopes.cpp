@@ -117,18 +117,9 @@ function_scope_t::ref function_scope_t::create(atom module_name, scope_t::ref pa
 	return make_ptr<function_scope_t>(module_name, parent_scope);
 }
 
-ptr<scope_t> function_scope_t::get_parent_scope() {
-	return parent_scope;
-}
-
-ptr<const scope_t> function_scope_t::get_parent_scope() const {
-	return parent_scope;
-}
-
 local_scope_t::ref local_scope_t::create(
 		atom name,
 		scope_t::ref parent_scope,
-		types::type::map type_env,
 		return_type_constraint_t &return_type_constraint)
 {
 	return make_ptr<local_scope_t>(name, parent_scope, return_type_constraint);
@@ -178,11 +169,11 @@ void module_scope_impl_t::get_callables(atom symbol, var_t::refs &fns) {
 }
 
 ptr<local_scope_t> function_scope_t::new_local_scope(atom name) {
-	return local_scope_t::create(name, shared_from_this(), type_env, return_type_constraint);
+	return local_scope_t::create(name, shared_from_this(), return_type_constraint);
 }
 
 ptr<local_scope_t> local_scope_t::new_local_scope(atom name) {
-	return local_scope_t::create(name, shared_from_this(), type_env, return_type_constraint);
+	return local_scope_t::create(name, shared_from_this(), return_type_constraint);
 }
 
 return_type_constraint_t &function_scope_t::get_return_type_constraint() {
@@ -193,19 +184,9 @@ return_type_constraint_t &local_scope_t::get_return_type_constraint() {
 	return return_type_constraint;
 }
 
-ptr<scope_t> local_scope_t::get_parent_scope() {
-	return parent_scope;
-}
-
-ptr<const scope_t> local_scope_t::get_parent_scope() const {
-	return parent_scope;
-}
-
 runnable_scope_t::runnable_scope_t(
         atom name,
-        types::type::map typename_env,
-        types::type::map type_variable_bindings) :
-    scope_impl_t(name, typename_env, type_variable_bindings)
+		scope_t::ref parent_scope) : scope_impl_t(name, parent_scope)
 {
 }
 
@@ -220,10 +201,10 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 		debug_above(5, log(log_info, "set return type to %s", return_type_constraint->str().c_str()));
 	} else {
 		unification_t unification = unify(
-				status,
 				return_type_constraint->get_type(),
 				return_type->get_type(),
-				get_type_env());
+				get_typename_env(),
+				get_type_variable_bindings());
 
 		if (!!status) {
 			if (!unification.result) {
@@ -245,8 +226,7 @@ local_scope_t::local_scope_t(
 		atom name,
 		scope_t::ref parent_scope,
 		return_type_constraint_t &return_type_constraint) :
-   	runnable_scope_t(name, parent_scope->get_type_env()),
-   	parent_scope(parent_scope),
+   	runnable_scope_t(name, parent_scope),
    	return_type_constraint(return_type_constraint)
 {
 }
@@ -306,56 +286,46 @@ void dump_linked_modules(std::ostream &os, const module_scope_t::map &modules) {
 	os << "modules: " << str(modules) << std::endl;
 }
 
-void program_scope_t::dump(std::ostream &os) const {
-	os << std::endl << "PROGRAM SCOPE: " << name << std::endl;
-	dump_bindings(os, bound_vars, bound_types);
-	dump_bindings(os, unchecked_vars, unchecked_types);
-	if (type_env.size() != 0) {
-		os << std::endl << "PROGRAM TYPE ENV: " << std::endl;
-		os << join_with(type_env, "\n", [] (types::type::map::value_type value) -> std::string {
+void dump_type_map(std::ostream &os, types::type::map env, std::string desc) {
+	if (env.size() != 0) {
+		os << std::endl << desc << std::endl;
+		os << join_with(env, "\n", [] (types::type::map::value_type value) -> std::string {
 			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
 		});
 		os << std::endl;
 	}
+}
+
+void program_scope_t::dump(std::ostream &os) const {
+	os << std::endl << "PROGRAM SCOPE: " << name << std::endl;
+	dump_bindings(os, bound_vars, bound_types);
+	dump_bindings(os, unchecked_vars, unchecked_types);
+	dump_type_map(os, typename_env, "PROGRAM TYPENAME ENV");
+	dump_type_map(os, type_variable_bindings, "PROGRAM TYPE VARIABLE BINDINGS");
 }
 
 void module_scope_impl_t::dump(std::ostream &os) const {
 	os << std::endl << "MODULE SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
 	dump_bindings(os, unchecked_vars, unchecked_types);
-	if (type_env.size() != 0) {
-		os << std::endl << "MODULE TYPE ENV: " << std::endl;
-		os << join_with(type_env, "\n", [] (types::type::map::value_type value) -> std::string {
-			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-		});
-		os << std::endl;
-	}
+	dump_type_map(os, typename_env, "MODULE TYPENAME ENV");
+	dump_type_map(os, type_variable_bindings, "MODULE TYPE VARIABLE BINDINGS");
 	get_parent_scope()->dump(os);
-	// dump_linked_modules(os, linked_modules);
 }
 
 void function_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "FUNCTION SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
-	if (type_env.size() != 0) {
-		os << std::endl << "FUNCTION TYPE ENV: " << std::endl;
-		os << join_with(type_env, "\n", [] (types::type::map::value_type value) -> std::string {
-			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-		});
-		os << std::endl;
-	}
+	dump_type_map(os, typename_env, "FUNCTION TYPENAME ENV");
+	dump_type_map(os, type_variable_bindings, "FUNCTION TYPE VARIABLE BINDINGS");
 	get_parent_scope()->dump(os);
 }
 
 void local_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "LOCAL SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
-	if (type_env.size() != 0) {
-		os << std::endl << "LOCAL TYPE ENV: " << std::endl;
-		os << join_with(type_env, "\n", [] (types::type::map::value_type value) -> std::string {
-			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-		});
-	}
+	dump_type_map(os, typename_env, "LOCAL TYPENAME ENV");
+	dump_type_map(os, type_variable_bindings, "LOCAL TYPE VARIABLE BINDINGS");
 	get_parent_scope()->dump(os);
 }
 
@@ -363,20 +333,16 @@ generic_substitution_scope_t::generic_substitution_scope_t(
         atom name,
         scope_t::ref parent_scope,
         types::type::ref callee_signature) :
-    scope_impl_t(name, parent_scope->get_type_env(), parent_scope->get_type_variable_bindings())
+    scope_impl_t(name, parent_scope), callee_signature(callee_signature)
 {
 }
 
 void generic_substitution_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "GENERIC SUBSTITUTION SCOPE: " << name << std::endl;
+	os << "For Callee Signature: " << callee_signature->str() << std::endl;
 	dump_bindings(os, bound_vars, {});
-	if (type_env.size() != 0) {
-		os << std::endl << "GENERIC SUBSTITUTION TYPE ENV: " << std::endl;
-		os << join_with(type_env, "\n", [] (types::type::map::value_type value) -> std::string {
-			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
-		});
-		os << std::endl;
-	}
+	dump_type_map(os, typename_env, "GENERIC SUBSTITUTION TYPENAME ENV");
+	dump_type_map(os, type_variable_bindings, "GENERIC SUBSTITUTION TYPE VARIABLE BINDINGS");
 	get_parent_scope()->dump(os);
 }
 
@@ -384,8 +350,8 @@ module_scope_impl_t::module_scope_impl_t(
 		atom name,
 	   	program_scope_t::ref parent_scope,
 		llvm::Module *llvm_module) :
-	scope_impl_t<module_scope_t>(name, {}),
-   	parent_scope(parent_scope), llvm_module(llvm_module)
+	scope_impl_t<module_scope_t>(name, parent_scope),
+   	llvm_module(llvm_module)
 {
 }
 
@@ -573,14 +539,6 @@ std::string program_scope_t::dump_llvm_modules() {
 	return ss.str();
 }
 
-ptr<scope_t> module_scope_impl_t::get_parent_scope() {
-	return parent_scope;
-}
-
-ptr<const scope_t> module_scope_impl_t::get_parent_scope() const {
-	return parent_scope;
-}
-
 module_scope_t::ref module_scope_impl_t::create(
 		atom name,
 		program_scope_t::ref parent_scope,
@@ -599,14 +557,6 @@ llvm::Module *generic_substitution_scope_t::get_llvm_module() {
 
 program_scope_t::ref program_scope_t::create(atom name, llvm::Module *llvm_module) {
 	return make_ptr<program_scope_t>(name, llvm_module);
-}
-
-ptr<scope_t> generic_substitution_scope_t::get_parent_scope() {
-	return parent_scope;
-}
-
-ptr<const scope_t> generic_substitution_scope_t::get_parent_scope() const {
-	return parent_scope;
 }
 
 generic_substitution_scope_t::ref generic_substitution_scope_t::create(
