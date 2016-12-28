@@ -84,7 +84,7 @@ types::type::ref eval_apply(
 	}
 }
 
-unification_t unify_core(
+unification_t unify(
 		types::type::ref lhs,
 		types::type::ref rhs,
 		types::type::map env,
@@ -99,7 +99,7 @@ unification_t unify_core(
 	assert(lhs != nullptr);
 	assert(rhs != nullptr);
 
-	debug_above(7, log(log_info, "unify_core(%s, %s, %s, %s)",
+	debug_above(7, log(log_info, "unify(%s, %s, %s, %s)",
 			   	lhs->str().c_str(),
 			   	rhs->str().c_str(),
 				str(env).c_str(),
@@ -144,7 +144,7 @@ unification_t unify_core(
 
 		return {true, "", bindings};
 	} else if (auto ptv_b = dyncast<const types::type_variable>(b)) {
-		return unify_core(ptv_b, a, env, bindings, depth + 1);
+		return unify(ptv_b, a, env, bindings, depth + 1);
 	} else if (ptp_a != nullptr) {
 		if (auto ptp_b = dyncast<const types::type_product>(b)) {
 			if (ptp_a->dimensions.size() != ptp_b->dimensions.size()) {
@@ -157,7 +157,7 @@ unification_t unify_core(
 				for (auto a_dims_iter = ptp_a->dimensions.begin();
 						a_dims_iter != a_dims_end;
 						++a_dims_iter, ++b_dims_iter) {
-					auto unification = unify_core(*a_dims_iter, *b_dims_iter,
+					auto unification = unify(*a_dims_iter, *b_dims_iter,
 							env, bindings, depth + 1);
 					if (!unification.result) {
 						return {false, unification.reasons, {}};
@@ -174,7 +174,7 @@ unification_t unify_core(
 		if (pts_b == nullptr) {
 			std::vector<std::string> reasons;
 			for (auto option : pts_a->options) {
-				auto unification = unify_core(option, b, env, bindings, depth + 1);
+				auto unification = unify(option, b, env, bindings, depth + 1);
 				if (unification.result) {
 					debug_above(2, log(log_info, "replacing bindings %s with %s",
 								str(bindings).c_str(),
@@ -191,7 +191,7 @@ unification_t unify_core(
 			for (auto inbound_option : pts_b->options) {
 				debug_above(8, log(log_info, "checking inbound %s against %s",
 							inbound_option->repr().c_str(), a->repr().c_str()));
-				auto unification = unify_core(a, inbound_option, env, bindings, depth + 1);
+				auto unification = unify(a, inbound_option, env, bindings, depth + 1);
 				if (unification.result) {
 					bindings = unification.bindings;
 				} else {
@@ -210,7 +210,7 @@ unification_t unify_core(
 		if (pto_b != nullptr) {
 			debug_above(8, log(log_info, "checking outbound type_operator %s",
 						pto_b->repr().c_str()));
-			auto unification = unify_core(pto_a->oper, pto_b->oper, env, bindings, depth + 1);
+			auto unification = unify(pto_a->oper, pto_b->oper, env, bindings, depth + 1);
 			if (unification.result) {
 				bindings = unification.bindings;
 
@@ -224,7 +224,7 @@ unification_t unify_core(
 
 				assert(pto_a->operand != nullptr && pto_b->operand != nullptr);
 
-				return unify_core(pto_a->operand, pto_b->operand, env, bindings, depth + 1);
+				return unify(pto_a->operand, pto_b->operand, env, bindings, depth + 1);
 			}
 		} else {
 			/* fallthrough, and try expanding the left-hand side */
@@ -239,7 +239,7 @@ unification_t unify_core(
 						pto_a->oper->str(bindings).c_str(), pto_a->operand->str(bindings).c_str(),
 						new_a->str(bindings).c_str()));
 			dbg();
-			return unify_core(new_a, b, env, bindings, depth + 1);
+			return unify(new_a, b, env, bindings, depth + 1);
 		} else {
 			/* types don't match */
 			return {false, string_format("%s <> %s",
@@ -252,42 +252,3 @@ unification_t unify_core(
 				a->str(bindings).c_str(), b->str(bindings).c_str()), {}};
 	}
 }
-
-unification_t unify(
-		status_t &status,
-		types::type::ref lhs,
-		types::type::ref rhs,
-		types::type::map env)
-{
-	indent_logger indent(2, string_format(
-				"unify(" c_type("%s") ", " c_type("%s") ", %s)",
-				lhs->str().c_str(), rhs->str().c_str(), str(env).c_str()));
-
-	auto lhs_type = lhs->get_type(status);
-	auto rhs_type = rhs->get_type(status);
-	unification_t unification = unify_core(
-			lhs_type, rhs_type,
-			env,
-			{}, 0 /*depth*/);
-
-	if (unification.result) {
-		return unification;
-	} else {
-		debug_above(10, log(log_info, "straight unification did not work"));
-
-		/* straight unification did not work, let's try evaluating the types
-		 * to see whether they will unify after substitution */
-		auto rhs_type = rhs->evaluate(env)->get_type(status);
-		if (!!status) {
-			unification_t unification = unify_core(
-					lhs_type, rhs_type,
-					env,
-					{}, 0 /*depth*/);
-			assert(!!status);
-			return unification;
-		} else {
-			return {false, "error during unification", {}};
-		}
-	}
-}
-

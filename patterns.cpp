@@ -59,7 +59,12 @@ bound_var_t::ref gen_type_check(
 		types::type::ref type,
 		local_scope_t::ref *new_scope)
 {
-	auto type = type->evaluate(scope->get_type_env())->get_type(status);
+	// TODO: normalize the type to get the signature (consider just rebinding
+	// into a temporary zero-based namespace), etc...
+	type = type->rebind(scope->get_type_variable_bindings());
+
+	// TODO: check for ftv's
+
 	if (!!status) {
 		/* in case we are in a generic function, we will need to assess our
 		 * type*/

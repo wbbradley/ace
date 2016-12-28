@@ -54,10 +54,14 @@ namespace types {
 		return os << id->get_name();
 	}
 
-	int type_id::ftv() const {
+	int type_id::ftv_count() const {
 		/* how many free type variables exist in this type? */
 		return 0;
 	}
+
+    atom::set type_id::get_ftvs() const {
+        return {};
+    }
 
 	bool type_id::accept(type_visitor &visitor) const {
 		return visitor.visit(*this);
@@ -78,6 +82,14 @@ namespace types {
 	type_variable::type_variable(identifier::ref id) : id(id) {
 	}
 
+    identifier::ref _next_type_variable() {
+        /* generate fresh "any" variables */
+        return make_iid({string_format("__%d", next_generic++)});
+    }
+
+	type_variable::type_variable() : id(_next_type_variable()) {
+	}
+
 	std::ostream &type_variable::emit(std::ostream &os, const map &bindings) const {
 		auto instance_iter = bindings.find(id->get_name());
 		if (instance_iter != bindings.end()) {
@@ -88,9 +100,13 @@ namespace types {
 	}
 
 	/* how many free type variables exist in this type? */
-	int type_variable::ftv() const {
+	int type_variable::ftv_count() const {
 		return 1;
 	}
+
+    atom::set type_variable::get_ftvs() const {
+        return {};
+    }
 
 	type::ref type_variable::rebind(const map &bindings) const {
 		auto instance_iter = bindings.find(id->get_name());
@@ -121,9 +137,16 @@ namespace types {
 		return os << "}";
 	}
 
-	int type_operator::ftv() const {
-		return oper->ftv() + operand->ftv();
+	int type_operator::ftv_count() const {
+		return oper->ftv_count() + operand->ftv_count();
 	}
+
+    atom::set type_operator::get_ftvs() const {
+        atom::set oper_set = oper->get_ftvs();
+        atom::set operand_set = operand->get_ftvs();
+        oper_set.insert(operand_set.begin(), operand_set.end());
+        return oper_set;
+    }
 
 	bool type_operator::accept(type_visitor &visitor) const {
 		return visitor.visit(*this);
@@ -151,13 +174,23 @@ namespace types {
 		return os << ")";
 	}
 
-	int type_product::ftv() const {
+	int type_product::ftv_count() const {
 		int ftv_sum = 0;
 		for (auto dimension : dimensions) {
-			ftv_sum += dimension->ftv();
+			ftv_sum += dimension->ftv_count();
 		}
 		return ftv_sum;
 	}
+
+    atom::set type_product::get_ftvs() const {
+        atom::set set;
+		for (auto dimension : dimensions) {
+            atom::set dim_set = dimension->get_ftvs();
+            set.insert(dim_set.begin(), dim_set.end());
+		}
+        return set;
+    }
+
 
 	bool type_product::accept(type_visitor &visitor) const {
 		return visitor.visit(*this);
@@ -206,12 +239,21 @@ namespace types {
 		return os << ")";
 	}
 
-	int type_sum::ftv() const {
+	int type_sum::ftv_count() const {
 		int ftv_sum = 0;
 		for (auto option : options) {
-			ftv_sum += option->ftv();
+			ftv_sum += option->ftv_count();
 		}
 		return ftv_sum;
+	}
+
+    atom::set type_sum::get_ftvs() const {
+        atom::set set;
+		for (auto option : options) {
+            atom::set option_set = option->get_ftvs();
+            set.insert(option_set.begin(), option_set.end());
+		}
+		return set;
 	}
 
 	bool type_sum::accept(type_visitor &visitor) const {
@@ -273,10 +315,10 @@ types::type::ref get_args_type(types::type::refs args) {
 }
 
 types::type::ref get_function_type(types::type::ref args, types::type::ref return_type) {
-	return types::type_product(pk_function, {args, return_type});
+	return type_product(pk_function, {args, return_type});
 }
 
-types::type::refs get_function_type_args(types::type::ref function_type) {
+types::type::refs get_function_type_args_dimensions(types::type::ref function_type) {
 	debug_above(5, log(log_info, "getting function type_args from %s", function_type->str().c_str()));
 
 	auto type_product = dyncast<const types::type_product>(function_type);
@@ -376,20 +418,7 @@ std::string str(types::type::map coll) {
 	ss << "{";
 	const char *sep = "";
 	for (auto p : coll) {
-		ss << sep << p.first.c_str() << ": ";
-		ss << p.second->str().c_str();
-		sep = ", ";
-	}
-	ss << "}";
-	return ss.str();
-}
-
-std::string str(types::type::map coll) {
-	std::stringstream ss;
-	ss << "{";
-	const char *sep = "";
-	for (auto p : coll) {
-		ss << sep << C_ID << p.first.c_str() << C_RESET << ": ";
+		ss << sep << C_ID << p.first.c_str() << C_RESET ": ";
 		ss << p.second->str().c_str();
 		sep = ", ";
 	}

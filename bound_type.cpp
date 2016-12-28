@@ -231,6 +231,10 @@ types::type::refs get_types(const bound_type_t::refs &bound_types) {
 	return types;
 }
 
+types::type::ref get_tuple_type(types::type::refs dimensions) {
+	return type_product(pk_tuple, dimensions);
+}
+
 types::type::ref get_tuple_type(const bound_type_t::refs &items_types) {
 	types::type::refs dimensions;
 	for (auto &arg : items_types) {
@@ -238,10 +242,6 @@ types::type::ref get_tuple_type(const bound_type_t::refs &items_types) {
 		dimensions.push_back(arg->get_type());
 	}
 	return get_tuple_type(dimensions);
-}
-
-types::type::ref get_tuple_type(types::type::refs dimensions) {
-	return type_product(pk_tuple, dimensions);
 }
 
 bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {
@@ -272,18 +272,6 @@ bool bound_type_t::is_struct() const {
 
 types::signature bound_type_t::get_signature() const {
 	return get_type()->get_signature();
-}
-
-types::type::ref get_function_type(
-		bound_type_t::refs args,
-		bound_type_t::ref return_value)
-{
-	types::type::refs arg_types;
-	for (auto arg : args) {
-		arg_types.push_back(arg->get_type());
-	}
-	types::type::ref args_type = get_args_type(arg_types);
-	return get_function_type(args_type, return_value->get_type());
 }
 
 types::type::ref get_function_type(

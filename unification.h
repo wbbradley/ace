@@ -27,7 +27,8 @@ struct unification_t {
 };
 
 unification_t unify(
-		status_t &status,
-		types::term::ref a,
-		types::term::ref b,
-		types::term::map env);
+		types::type::ref a,
+		types::type::ref b,
+		types::type::map env,
+        types::type::map bindings = {},
+        int depth=0);

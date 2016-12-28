@@ -56,10 +56,13 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 
 	virtual bound_var_t::ref get_singleton(atom name) = 0;
 
-	// virtual void put_type_term(status_t &status, atom name, types::term::ref type_term) = 0;
-	// virtual void put_type_decl_term(atom name, types::term::ref type_term) = 0;
-	virtual types::term::map get_type_env() const = 0;
-	// virtual types::term::map get_type_decl_env() const = 0;
+    /* There are mappings based on type declarations stored in the env */
+	virtual types::type::map get_typename_env() const = 0;
+
+    /* Then, there are mappings from type_variable names to type::refs */
+	virtual types::type::map get_type_variable_bindings() const = 0;
+
+    virtual void put_type_decl(atom id, types::type::ref expansion) = 0;
 };
 
 template <typename BASE>
@@ -75,14 +78,17 @@ struct scope_impl_t : public BASE {
 		return name;
 	}
 
-	scope_impl_t(atom name, types::type::map type_env) : name(name), type_env(type_env) {}
+	scope_impl_t(atom name, types::type::map typename_env, types::type::map type_variable_bindings) :
+        name(name),
+        typename_env(typename_env),
+        type_variable_bindings(type_variable_bindings) {}
 
 	ptr<function_scope_t> new_function_scope(atom name);
 	ptr<program_scope_t> get_program_scope();
-	// void put_type_term(status_t &status, atom name, types::term::ref type_term);
-	// void put_type_decl_term(atom name, types::term::ref type_term);
-	types::type::map get_type_env() const;
-	// types::term::map get_type_decl_env() const;
+	// void put_type_term(status_t &status, atom name, types::type::ref type_term);
+	// void put_type_decl_term(atom name, types::type::ref type_term);
+	types::type::map get_typename_env() const;
+	types::type::map get_type_variable_env() const;
 	std::string str();
 	void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable);
 	bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints);
@@ -97,8 +103,8 @@ protected:
 	atom name;
 
 	bound_var_t::map bound_vars;
-	types::type::map type_env;
-	// types::type::map type_decl_env;
+	types::type::map typename_env;
+	types::type::map type_variable_bindings;
 };
 
 typedef bound_type_t::ref return_type_constraint_t;
@@ -109,7 +115,7 @@ struct runnable_scope_t : public scope_impl_t<scope_t> {
 
 	virtual ~runnable_scope_t() throw() {}
 
-	runnable_scope_t(atom name, types::type::map type_env) : scope_impl_t(name, type_env) {}
+	runnable_scope_t(atom name, types::type::map typename_env, types::type::map type_variable_bindings);
 	runnable_scope_t() = delete;
 	runnable_scope_t(const runnable_scope_t &) = delete;
 
@@ -247,7 +253,7 @@ struct function_scope_t : public runnable_scope_t {
 
 	virtual ~function_scope_t() throw() {}
 	function_scope_t(atom name, scope_t::ref parent_scope) :
-	   	runnable_scope_t(name, parent_scope->get_type_env()), parent_scope(parent_scope) {}
+	   	runnable_scope_t(name, parent_scope->get_typename_env(), parent_scope->get_type_variable_bindings()), parent_scope(parent_scope) {}
 
 	virtual void dump(std::ostream &os) const;
 
@@ -293,10 +299,7 @@ struct generic_substitution_scope_t : public scope_impl_t<scope_t> {
 	generic_substitution_scope_t(
 			atom name,
 		   	scope_t::ref parent_scope,
-		   	types::type::ref callee_signature) :
-	   	scope_impl_t(name, parent_scope->get_type_env()),
-	   	callee_signature(callee_signature),
-	   	parent_scope(parent_scope) {}
+		   	types::type::ref callee_signature);
 
 	virtual ~generic_substitution_scope_t() throw() {}
 	virtual ptr<scope_t> get_parent_scope();
@@ -331,7 +334,7 @@ ptr<program_scope_t> scope_impl_t<T>::get_program_scope() {
 
 #if 0
 template <typename T>
-void scope_impl_t<T>::put_type_term(status_t &status, atom name, types::term::ref type_term) {
+void scope_impl_t<T>::put_type_term(status_t &status, atom name, types::type::ref type_term) {
 	debug_above(2, log(log_info, "registering type term " c_term("%s") " as %s",
 				name.c_str(), type_term->str().c_str()));
 	if (type_env.find(name) == type_env.end()) {
@@ -345,7 +348,7 @@ void scope_impl_t<T>::put_type_term(status_t &status, atom name, types::term::re
 }
 
 template <typename T>
-void scope_impl_t<T>::put_type_decl_term(atom name, types::term::ref type_term) {
+void scope_impl_t<T>::put_type_decl_term(atom name, types::type::ref type_term) {
 	auto iter = type_env.find(name);
 	if (iter == type_env.end()) {
 		debug_above(2, log(log_info, "registering type decl term " c_term("%s") " as %s",
@@ -361,18 +364,18 @@ void scope_impl_t<T>::put_type_decl_term(atom name, types::term::ref type_term) 
 #endif
 
 template <typename T>
-types::type::map scope_impl_t<T>::get_type_env() const {
+types::type::map scope_impl_t<T>::get_typename_env() const {
 	auto parent_scope = this->get_parent_scope();
 	if (parent_scope != nullptr) {
-		return merge(parent_scope->get_type_env(), type_env);
+		return merge(parent_scope->get_typename_env(), typename_env);
 	} else {
-		return type_env;
+		return typename_env;
 	}
 }
 
 /*
 template <typename T>
-types::term::map scope_impl_t<T>::get_type_decl_env() const {
+types::type::map scope_impl_t<T>::get_type_decl_env() const {
 	auto parent_scope = this->get_parent_scope();
 	if (parent_scope != nullptr) {
 		return merge(parent_scope->get_type_decl_env(), type_decl_env);

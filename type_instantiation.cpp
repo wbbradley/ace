@@ -185,7 +185,7 @@ void create_supertype_relationship(
 					tag_name.c_str(), subtype->str().c_str()));
 
 		/* figure out what type names are referenced in the data ctor's dimensions */
-		atom::set unbound_vars = subtype->unbound_vars();
+		atom::set unbound_vars = subtype->get_ftvs();
 
 		/* if any of the type names are actually inbound type variables, take
 		 * note of the order they are mentioned. this loop is important. it is
@@ -210,7 +210,7 @@ void create_supertype_relationship(
 				/* this variable is not referenced by the current data ctor
 				 * (the subtype), therefore it has no opinions about its role
 				 * in the supertype */
-				supertype_expansion_list.push_back(type_generic());
+				supertype_expansion_list.push_back(type_variable());
 			}
 		}
 
@@ -218,7 +218,7 @@ void create_supertype_relationship(
 			/* now let's create the abstraction */
 			auto supertype_expansion = type_id(supertype_id);
 			for (auto e : supertype_expansion_list) {
-				supertype_expansion = type_apply(supertype_expansion, e);
+				supertype_expansion = type_operator(supertype_expansion, e);
 			}
 			for (auto lambda_var : lambda_vars) {
                 supertype_expansion = type_lambda(lambda_var,
@@ -275,18 +275,18 @@ types::type::ref instantiate_data_ctor_type(
 	/* let's create the return type that will be the codomain of the ctor fn */
 	auto data_ctor_type = tag;
 	for (auto lambda_var : lambda_vars) {
-		data_ctor_type = type_apply(data_ctor_type, type_generic(lambda_var));
+		data_ctor_type = type_operator(data_ctor_type, type_variable(lambda_var));
 	}
 	debug_above(5, log(log_info, "data_ctor_type = %s", data_ctor_type->str().c_str()));
 
 	// TODO: check whether "generics" is too heavy-handed, might be able to
 	// subtract variables that are not part of the unbound variables.
-	auto dequantified_product = product->dequantify(generics);
-	auto dequantified_data_ctor_type = data_ctor_type->dequantify(generics);
+	// auto dequantified_product = product->dequantify(generics);
+	// auto dequantified_data_ctor_type = data_ctor_type->dequantify(generics);
 
 	auto data_ctor_sig = get_function_type(
-			types::change_product_kind(pk_args, dequantified_product),
-		   	dequantified_data_ctor_type);
+			types::change_product_kind(pk_args, product),
+		   	data_ctor_type);
 
 	for (auto lambda_var : lambda_vars) {
 		data_ctor_sig = type_lambda(lambda_var, data_ctor_sig);

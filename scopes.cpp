@@ -201,6 +201,14 @@ ptr<const scope_t> local_scope_t::get_parent_scope() const {
 	return parent_scope;
 }
 
+runnable_scope_t::runnable_scope_t(
+        atom name,
+        types::type::map typename_env,
+        types::type::map type_variable_bindings) :
+    scope_impl_t(name, typename_env, type_variable_bindings)
+{
+}
+
 void runnable_scope_t::check_or_update_return_type_constraint(
 		status_t &status,
 		const ast::item::ref &return_statement,
@@ -349,6 +357,14 @@ void local_scope_t::dump(std::ostream &os) const {
 		});
 	}
 	get_parent_scope()->dump(os);
+}
+
+generic_substitution_scope_t::generic_substitution_scope_t(
+        atom name,
+        scope_t::ref parent_scope,
+        types::type::ref callee_signature) :
+    scope_impl_t(name, parent_scope->get_type_env(), parent_scope->get_type_variable_bindings())
+{
 }
 
 void generic_substitution_scope_t::dump(std::ostream &os) const {
@@ -627,7 +643,7 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 				debug_above(5, log(log_info, "adding " c_id("%s") " to env as %s",
 							pair.first.c_str(),
 							type->str().c_str()));
-				subst_scope->type_env[pair.first] = type;
+				subst_scope->type_variable_bindings[pair.first] = type;
 			}
 		} else {
 			debug_above(7, log(log_info, "skipping adding %s to generic substitution scope",

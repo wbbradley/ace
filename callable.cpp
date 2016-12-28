@@ -90,13 +90,13 @@ bound_var_t::ref instantiate_unchecked_fn(
 				status, builder, unchecked_fn->node,
 				unchecked_fn->module_scope, unification, fn_type);
 
-		auto data_ctor_sig = unchecked_data_ctor->sig->get_type(status);
+		auto data_ctor_sig = unchecked_data_ctor->sig;
 		if (!!status) {
 			debug_above(4, log(log_info, "going to bind ctor for %s",
 						data_ctor_sig->str().c_str()));
 
 			auto data_ctor_type = data_ctor_sig->rebind(unification.bindings);
-			auto args_types = get_function_type_args(data_ctor_type);
+			auto args_types = get_function_type_args_dimensions(data_ctor_type);
 			auto return_type = get_function_return_type(data_ctor_type);
 
 			/* instantiate the data ctor we want */
@@ -129,47 +129,40 @@ bound_var_t::ref check_func_vs_callsite(
 		var_t::ref fn,
 		types::type::ref args)
 {
-	unification_t unification = fn->accepts_callsite(status, builder, scope, args);
-	if (!!status) {
-		if (unification.result) {
-			if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
-				/* this function has already been bound */
-				debug_above(3, log(log_info, "override resolution has chosen %s",
-							bound_fn->str().c_str()));
-				return bound_fn;
-			} else if (auto unchecked_fn = dyncast<const unchecked_var_t>(fn)) {
-				/* we're instantiating a template or a forward decl */
-				/* we know that fn and sig_args are compatible */
-				types::type::ref fn_sig = fn->get_type(status, builder, scope);
+	assert(!!status);
 
-				if (!!status) {
-					/* create the new callee signature type for building the generic
-					 * substitution scope */
-					auto env = scope->get_type_env();
-					debug_above(5, log(log_info, "evaluating %s in %s with %s",
-								fn_sig->str().c_str(),
-								::str(env).c_str(),
-								::str(unification.bindings).c_str()));
-					types::type::ref fn_type_unbound = fn_sig->evaluate(env)->get_type(status);
-					if (!!status) {
-						return instantiate_unchecked_fn(status, builder, scope,
-								unchecked_fn, fn_type_unbound, unification);
-					}
-				}
-			} else {
-				panic("unhandled var type");
-			}
+	unification_t unification = fn->accepts_callsite(builder, scope, args);
+	if (unification.result) {
+		if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
+			/* this function has already been bound */
+			debug_above(3, log(log_info, "override resolution has chosen %s",
+						bound_fn->str().c_str()));
+			return bound_fn;
+		} else if (auto unchecked_fn = dyncast<const unchecked_var_t>(fn)) {
+			/* we're instantiating a template or a forward decl */
+			/* we know that fn and args are compatible */
+			/* create the new callee signature type for building the generic
+			 * substitution scope */
+			debug_above(5, log(log_info, "rebinding %s with %s",
+						fn->str().c_str(),
+						::str(unification.bindings).c_str()));
 
-			assert(!status);
-			return nullptr;
+			types::type::ref fn_type_unbound = fn->rebind(unification.bindings);
+			return instantiate_unchecked_fn(status, builder, scope,
+					unchecked_fn, fn_type_unbound, unification);
+		} else {
+			panic("unhandled var type");
 		}
 
-		debug_above(4, log(log_info, "fn %s at %s does not match %s because %s",
-					fn->str().c_str(),
-					callsite->str().c_str(), 
-					args->str().c_str(),
-					unification.str().c_str()));
+		assert(!status);
+		return nullptr;
 	}
+
+	debug_above(4, log(log_info, "fn %s at %s does not match %s because %s",
+				fn->str().c_str(),
+				callsite->str().c_str(), 
+				args->str().c_str(),
+				unification.str().c_str()));
 
 	/* it's possible to exit without finding that the callable matches the
 	 * callsite. this is not an error (unless the status indicates so.) */

@@ -17,7 +17,7 @@ struct var_t {
 	virtual location get_location() const = 0;
 	virtual std::string str() const = 0;
 
-	unification_t accepts_callsite(status_t &status, llvm::IRBuilder<> &builder, ptr<scope_t> scope, types::type::ref args) const;
+	unification_t accepts_callsite(llvm::IRBuilder<> &builder, ptr<scope_t> scope, types::type::ref args) const;
 };
 
 std::string str(const var_t::refs &vars);

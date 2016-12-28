@@ -35,7 +35,7 @@ types::type::ref unchecked_var_t::get_type(
 			auto &params = decl->param_list_decl->params;
 			for (auto &param : params) {
 				if (!param->type_ref) {
-					args.push_back(types::type_generic());
+					args.push_back(types::type_variable());
 				} else {
                     assert(0);
 #if 0

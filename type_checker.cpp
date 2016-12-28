@@ -86,7 +86,7 @@ bound_var_t::ref type_check_bound_var_decl(
 			if (obj.type_ref != nullptr) {
 				declared_type = obj.type_ref->get_type(status,
 						builder, scope, type_id_code_id, {});
-				declared_type = declared_type->evaluate(scope->get_type_env());
+				declared_type = declared_type->rebind(scope->get_type_variable_bindings());
 			}
 		}
 
@@ -94,38 +94,32 @@ bound_var_t::ref type_check_bound_var_decl(
 			if (declared_type && init_var) {
 				assert(type != nullptr);
 				unification_t unification = unify(
-						status,
 						declared_type,
-						init_var->type,
-						scope->get_type_env());
+						init_var->get_type(),
+						scope->get_typename_env());
 
-				if (!!status) {
-					if (!unification.result) {
-						/* report that the variable type does not match the initializer type */
-						user_error(status, obj, "type of " c_var("%s") " does not match type of initializer",
-								obj.token.text.c_str());
-						user_error(status, obj, c_type("%s") " != " c_type("%s"),
-								declared_type->str().c_str(),
-								init_var->type->str().c_str());
+                if (!unification.result) {
+                    /* report that the variable type does not match the initializer type */
+                    user_error(status, obj, "type of " c_var("%s") " does not match type of initializer",
+                            obj.token.text.c_str());
+                    user_error(status, obj, c_type("%s") " != " c_type("%s"),
+                            declared_type->str().c_str(),
+                            init_var->type->str().c_str());
 
-						/* try to continue without the initializer just to
-						 * get more feedback for the user */
-						init_var.reset();
-					} else {
-						/* if there is a declared_type, let's make sure we compute the final bound type
-						 * so that we can use the declared type for this variable, rather than the actual
-						 * type of the right-hand side. there is covariance in var_decl assignment. */
-						auto final_type = declared_type->get_type(status)->rebind(unification.bindings);
-						if (!!status) {
-							type = upsert_bound_type(status, builder, scope, final_type);
-						}
-					}
-				}
+                    /* try to continue without the initializer just to
+                     * get more feedback for the user */
+                    init_var.reset();
+                } else {
+                    /* if there is a declared_type, let's make sure we compute the final bound type
+                     * so that we can use the declared type for this variable, rather than the actual
+                     * type of the right-hand side. there is covariance in var_decl assignment. */
+                    auto final_type = declared_type->rebind(unification.bindings);
+                    if (!!status) {
+                        type = upsert_bound_type(status, builder, scope, final_type);
+                    }
+                }
 			} else if (declared_type != nullptr) {
-				auto final_type = declared_type->get_type(status);
-				if (!!status) {
-					type = upsert_bound_type(status, builder, scope, final_type);
-				}
+                type = upsert_bound_type(status, builder, scope, declared_type);
 			}
 
 			if (!!status) {
@@ -211,8 +205,7 @@ bound_type_t::ref get_return_type_from_return_type_expr(
 {
     /* lookup the alias, default to void */
     if (type_ref != nullptr) {
-		return upsert_bound_type(status, builder, scope,
-				type_ref->get_type_type(status, builder, scope, nullptr, {}));
+        return upsert_bound_type(status, builder, scope, type_ref->get_type());
     } else {
 		/* user specified no return type, default to void */
 		return scope->get_program_scope()->get_bound_type({"void"});
@@ -264,10 +257,9 @@ bool is_function_defn_generic(
 							param->str().c_str()));
 				return true;
 			}
-			types::type::ref type = param->type_ref->get_type(status,
-					builder, scope, nullptr, {});
+			types::type::ref type = param->type_ref->get_type();
 
-			if (type->is_generic(status, scope->get_type_env())) {
+			if (type_is_unbound(type, scope->get_type_bindings())) {
 				debug_above(3, log(log_info, "found a generic parameter type on %s",
 							param->str().c_str()));
 				return true;

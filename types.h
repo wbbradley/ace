@@ -38,8 +38,12 @@ namespace types {
 		virtual ~type() {}
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const = 0;
 
-		/* how many free type variables exist in this type? */
-		virtual int ftv() const = 0;
+		/* how many free type variables exist in this type? NB: Assumes you have
+         * already bound existing bindings at the callsite prior to this check. */
+		virtual int ftv_count() const = 0;
+
+        /* NB: Also assumes you have rebound the bindings at the callsite. */
+		virtual atom::set get_ftvs() const = 0;
 
 		atom repr(const map &bindings) const;
 		atom repr() const { return this->repr({}); }
@@ -67,7 +71,8 @@ namespace types {
 		identifier::ref id;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
-		virtual int ftv() const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
@@ -76,10 +81,12 @@ namespace types {
 
 	struct type_variable : public type {
 		type_variable(identifier::ref id);
+		type_variable(/* auto-generated fresh type variables */);
 		identifier::ref id;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
-		virtual int ftv() const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
@@ -91,7 +98,8 @@ namespace types {
 		type::ref operand;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
-		virtual int ftv() const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
@@ -103,7 +111,8 @@ namespace types {
 		type::refs dimensions;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
-		virtual int ftv() const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
@@ -118,7 +127,8 @@ namespace types {
 		type::refs options;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
-		virtual int ftv() const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
 		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
@@ -131,10 +141,13 @@ namespace types {
 types::type::ref type_unreachable();
 types::type::ref type_id(identifier::ref var);
 types::type::ref type_variable(identifier::ref name);
+types::type::ref type_variable();
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand);
 types::type::ref type_product(product_kind_t pk, types::type::refs dimensions);
 types::type::ref type_sum(types::type::refs options);
+types::type::ref type_lambda(identifier::ref binding, types::type::ref body);
 
+bool type_is_unbound(types::type::ref type, types::type::map bindings);
 std::ostream &operator <<(std::ostream &os, identifier::ref id);
 std::string str(types::type::refs refs);
 std::string str(types::type::map coll);
@@ -143,7 +156,8 @@ std::ostream& operator <<(std::ostream &out, const types::type::ref &type);
 /* helper functions */
 types::type::ref get_args_type(types::type::refs args);
 types::type::ref get_function_type(types::type::ref args, types::type::ref return_type);
-types::type::refs get_function_type_args(types::type::ref function_type);
+types::type::ref get_function_type_args(types::type::ref function_type);
+types::type::refs get_function_type_args_dimensions(types::type::ref function_type);
 types::type::ref get_function_return_type(types::type::ref function_type);
 types::type::ref get_obj_type(types::type::ref item);
 types::type::pair make_type_pair(std::string fst, std::string snd, identifier::set generics);

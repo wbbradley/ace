@@ -15,14 +15,13 @@ std::string str(const var_t::refs &vars) {
 }
 
 unification_t var_t::accepts_callsite(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 	   	types::type::ref args) const
 {
 	/* get the args out of the sig */
 	types::type::ref fn_type = get_type();
-	auto env = scope->get_type_env();
+	auto env = scope->get_typename_env();
 
 	indent_logger indent(2, string_format(
 				"checking whether %s accepts %s in env %s", str().c_str(),
@@ -30,8 +29,10 @@ unification_t var_t::accepts_callsite(
 
 	// scope->dump(std::cerr);
 	// dbg();
+	auto bindings = scope->get_type_variable_bindings();
+
+	assert(bindings.size() == 0 && "Should we be using these bindings here?");
 	auto u = unify(
-			status,
 			fn_type,
 		   	type_product(pk_function, {args, type_variable()}),
 		   	env);

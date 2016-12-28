@@ -406,6 +406,7 @@ def eval_apply(operator, operand, env, bindings):
         bindings = copy.copy(bindings)
 
         assert isinstance(fn.var, TypeId)
+        print("Binding %r to %r" % (fn.var.name, operand))
         bindings[fn.var.name] = operand
 
         return fn.body.rebind(bindings)
