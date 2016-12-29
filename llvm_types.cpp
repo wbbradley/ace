@@ -48,14 +48,14 @@ struct bound_type_builder_t : public types::type_visitor {
 
 	status_t &status;
 	llvm::IRBuilder<> &builder;
-	bound_type_t::ref created_type;
+	bound_type_t::ref bound_type;
 	ptr<scope_t> scope;
 	ptr<program_scope_t> program_scope;
 	types::type::map env;
 
 	virtual bool visit(const types::type_id &id) {
-		created_type = scope->get_bound_type(id.get_signature());
-		if (created_type == nullptr) {
+		bound_type = scope->get_bound_type(id.get_signature());
+		if (bound_type == nullptr) {
 			auto type_iter = env.find(id.get_id()->get_name());
 			if (type_iter != env.end()) {
 				auto type = type_iter->second;
@@ -67,7 +67,7 @@ struct bound_type_builder_t : public types::type_visitor {
 			dbg();
 			return false;
 		}
-		return created_type != nullptr;
+		return bound_type != nullptr;
 	}
 
 	virtual bool visit(const types::type_variable &variable) {
@@ -112,16 +112,16 @@ struct bound_type_builder_t : public types::type_visitor {
 					types::type::ref fn_type = get_function_type(args, return_type);
 
 					auto signature = fn_type->get_signature();
-					created_type = scope->get_bound_type(signature);
-					if (created_type) {
+					bound_type = scope->get_bound_type(signature);
+					if (bound_type) {
 						return true;
 					} else {
 						auto *llvm_fn_type = llvm_create_function_type(status,
 								builder, args, return_type);
 						if (!!status) {
-							created_type = bound_type_t::create(fn_type,
+							bound_type = bound_type_t::create(fn_type,
 									product.get_location(), llvm_fn_type);
-							program_scope->put_bound_type(created_type);
+							program_scope->put_bound_type(bound_type);
 						}
 						return !!status;
 					}
@@ -163,10 +163,10 @@ struct bound_type_builder_t : public types::type_visitor {
 		auto signature = sum.get_signature();
 		auto bound_type = scope->get_bound_type(signature);
 		assert(bound_type == nullptr);
-		created_type = bound_type_t::create(sum.shared_from_this(),
+		bound_type = bound_type_t::create(sum.shared_from_this(),
 				sum.get_location(),
 				scope->get_bound_type({"__var_ref"})->get_llvm_type());
-		program_scope->put_bound_type(created_type);
+		program_scope->put_bound_type(bound_type);
 		return true;
 	}
 
@@ -202,17 +202,17 @@ bound_type_t::ref create_bound_product_type(
 				types::type::ref fn_type = get_function_type(args, return_type);
 
 				auto signature = fn_type->get_signature();
-				auto created_type = scope->get_bound_type(signature);
-				if (created_type) {
-					return created_type;
+				auto bound_type = scope->get_bound_type(signature);
+				if (bound_type) {
+					return bound_type;
 				} else {
 					auto *llvm_fn_type = llvm_create_function_type(status,
 							builder, args, return_type);
 					if (!!status) {
-						created_type = bound_type_t::create(fn_type,
+						bound_type = bound_type_t::create(fn_type,
 								product->get_location(), llvm_fn_type);
-						program_scope->put_bound_type(created_type);
-						return created_type;
+						program_scope->put_bound_type(bound_type);
+						return bound_type;
 					}
 				}
 			}
@@ -269,6 +269,23 @@ bound_type_t::ref create_bound_product_type(
 	return nullptr;
 }
 
+bound_type_t::ref create_bound_sum_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		const ptr<const types::type_sum> &sum)
+{
+	assert(!scope->get_bound_type(sum->get_signature()));
+
+	auto bound_type = bound_type_t::create(sum,
+			sum->get_location(),
+			scope->get_bound_type({"__var_ref"})->get_llvm_type());
+
+	ptr<program_scope_t> program_scope = scope->get_program_scope();
+	program_scope->put_bound_type(bound_type);
+	return bound_type;
+}
+
 bound_type_t::ref create_bound_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -312,11 +329,11 @@ bound_type_t::ref create_bound_type(
 						type->str().c_str());
 			} else {
 				/* cool, we have a term we can recurse on. */
-				auto created_type = upsert_bound_type(
+				auto bound_type = upsert_bound_type(
 						status, builder, scope, type);
 
 				if (!!status) {
-					bound_type_handle->set_actual(created_type);
+					bound_type_handle->set_actual(bound_type);
 					return bound_type_handle;
 				}
 			}
@@ -332,6 +349,10 @@ bound_type_t::ref create_bound_type(
 	} else if (auto product = dyncast<const types::type_product>(type)) {
 		return create_bound_product_type(status, builder, scope, product);
 	} else if (auto sum = dyncast<const types::type_sum>(type)) {
+		return create_bound_sum_type(status, builder, scope, sum);
+	} else if (auto apply = dyncast<const types::type_operator>(type)) {
+		not_impl();
+	} else if (auto apply = dyncast<const types::type_variable>(type)) {
 		not_impl();
 	}
 

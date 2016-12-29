@@ -63,6 +63,21 @@ bool occurs_in_type(
 	}
 }
 
+types::type::ref eval_id(
+		ptr<const types::type_id> ptid,
+		types::type::map env)
+{
+	assert(ptid != nullptr);
+
+	/* look in the environment for a declaration of this term */
+	auto fn_iter = env.find(ptid->id->get_name());
+	if (fn_iter != env.end()) {
+		return fn_iter->second;
+	} else {
+		return nullptr;
+	}
+}
+
 types::type::ref eval_apply(
 		types::type::ref oper,
 	   	types::type::ref operand, 
@@ -75,19 +90,14 @@ types::type::ref eval_apply(
 	assert(ptid != nullptr);
 
 	/* look in the environment for a declaration of this operator */
-	auto fn_iter = env.find(ptid->id->get_name());
-	if (fn_iter != env.end()) {
-		/* we found a lambda, hopefully */
-		auto lambda = dyncast<const types::type_lambda>(fn_iter->second);
-		if (lambda != nullptr) {
-			auto var_name = lambda->binding->get_name();
-			bindings[var_name] = operand;
-			return lambda->body->rebind(bindings);
-		} else {
-			// TODO: probably will need to create a new application with a new
-			// operator, and eval_apply on that.
-			return null_impl();
-		}
+	types::type::ref expansion = eval_id(ptid, env);
+
+	/* we found a lambda, hopefully */
+	auto lambda = dyncast<const types::type_lambda>(expansion);
+	if (lambda != nullptr) {
+		auto var_name = lambda->binding->get_name();
+		bindings[var_name] = operand;
+		return lambda->body->rebind(bindings);
 	} else {
 		return nullptr;
 	}
@@ -117,10 +127,15 @@ unification_t unify(
     auto a = prune(lhs, bindings);
     auto b = prune(rhs, bindings);
 
+#if 0
     if (a->str(bindings) == b->str(bindings)) {
 		debug_above(7, log(log_info, "matched " c_type("%s"), a->str(bindings).c_str()));
         return {true, "", bindings};
 	}
+#endif
+
+	auto pti_a = dyncast<const types::type_id>(a);
+	auto pti_b = dyncast<const types::type_id>(b);
 
 	auto pto_a = dyncast<const types::type_operator>(a);
 	auto pto_b = dyncast<const types::type_operator>(b);
@@ -130,9 +145,17 @@ unification_t unify(
 
 	auto ptp_a = dyncast<const types::type_product>(a);
 
-	if (auto ptv = dyncast<const types::type_variable>(a)) {
+	if (pti_a != nullptr) {
+		/* check for basic type_id matching */
+		if (pti_b != nullptr && pti_a->id->get_name() == pti_b->id->get_name()) {
+			/* simple type_id match */
+			return {true, "", bindings};
+		}
+	}
+
+   	if (auto ptv_a = dyncast<const types::type_variable>(a)) {
 		if (a != b) {
-			if (occurs_in_type(ptv, b, bindings)) {
+			if (occurs_in_type(ptv_a, b, bindings)) {
 				return {
 					false,
 					string_format("recursive unification on %s and %s",
@@ -140,13 +163,13 @@ unification_t unify(
 					bindings};
 			}
 			debug_above(4, log(log_info, "binding " c_id("%s") " to " c_type("%s"),
-						ptv->id->get_name().c_str(),
+						ptv_a->id->get_name().c_str(),
 						b->str(bindings).c_str()));
-			assert(bindings.find(ptv->id->get_name()) == bindings.end());
+			assert(bindings.find(ptv_a->id->get_name()) == bindings.end());
 			if (b->rebind(bindings)->ftv_count() != 0) {
 				debug_above(4, log(log_warning, "note that %s is itself not fully bound", b->str().c_str()));
 			}
-			bindings[ptv->id->get_name()] = b;
+			bindings[ptv_a->id->get_name()] = b;
 		} else {
 			assert(false);
 		}
@@ -154,6 +177,23 @@ unification_t unify(
 		return {true, "", bindings};
 	} else if (auto ptv_b = dyncast<const types::type_variable>(b)) {
 		return unify(ptv_b, a, env, bindings, depth + 1);
+	} else if (pti_a != nullptr) {
+		/* ok, we've got a mismatch, but we know we have an id on the left-hand
+		 * side, let's try expanding the type_id to see whether it will unify
+		 * after evaluation. */
+		auto new_a = eval_id(pti_a, env);
+		if (new_a != nullptr) {
+			debug_above(6, log(log_info, "eval_id(%s, env) -> %s",
+						pti_a->str().c_str(),
+						new_a->str().c_str()));
+			return unify(new_a, b, env, bindings, depth + 1);
+		} else {
+			/* types don't match */
+			return {false, string_format("(%s != %s) and (%s could not be expanded further)",
+					a->str().c_str(),
+					b->str().c_str(),
+					a->str().c_str()), {}};
+		}
 	} else if (ptp_a != nullptr) {
 		if (auto ptp_b = dyncast<const types::type_product>(b)) {
 			if (ptp_a->dimensions.size() != ptp_b->dimensions.size()) {
