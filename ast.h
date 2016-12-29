@@ -581,7 +581,7 @@ namespace ast {
 		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
-		zion_token_t link_as_name;
+		zion_token_t function_name;
 		ptr<function_decl> extern_function;
 	};
 

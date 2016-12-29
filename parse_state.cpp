@@ -8,7 +8,7 @@ parse_state_t::parse_state_t(status_t &status, std::string filename, zion_lexer_
 }
 
 bool parse_state_t::advance() {
-	debug_above(7, log(log_info, "advanced from %s %s", tkstr(token.tk), token.text.c_str()[0] != '\n' ? token.text.c_str() : ""));
+	debug_above(9, log(log_info, "advanced from %s %s", tkstr(token.tk), token.text.c_str()[0] != '\n' ? token.text.c_str() : ""));
 	prior_token = token;
 	return lexer.get_token(token, newline, comments);
 }

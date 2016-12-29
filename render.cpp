@@ -271,9 +271,9 @@ namespace ast {
 		rs.ss << C_SCOPE_SEP << tkstr(tk_link) << C_RESET;
 		rs.ss << " ";
 		extern_function->render(rs);
-		if (link_as_name.text != extern_function->token.text) {
+		if (function_name.text != extern_function->token.text) {
 			rs.ss << " " << C_SCOPE_SEP << tkstr(tk_to) << C_RESET;
-			rs.ss << " " << link_as_name.text;
+			rs.ss << " " << function_name.text;
 		}
 	}
 

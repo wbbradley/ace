@@ -405,10 +405,11 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
         local_scope_t::ref *new_scope,
 	   	bool *returns) const
 {
+	/* FFI */
     module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
     assert(module_scope);
 
-    if (!scope->has_bound_variable(link_as_name.text, rc_just_current_scope)) {
+    if (!scope->has_bound_variable(function_name.text, rc_just_current_scope)) {
         bound_type_t::named_pairs named_args;
         bound_type_t::ref return_value;
 
@@ -425,15 +426,18 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
             llvm::FunctionType *llvm_func_type = llvm_create_function_type(
                     status, builder, args, return_value);
 
+			/* try to find this function, if it already exists... */
+			llvm::Module *llvm_module = module_scope->get_llvm_module();
+			llvm::Value *llvm_value = llvm_module->getOrInsertFunction(function_name.text,
+					llvm_func_type);
+
+			assert(llvm_print_type(*llvm_value->getType()) != llvm_print_type(*llvm_func_type));
+
             /* get the full function type */
             types::type::ref function_sig = get_function_type(args, return_value);
 			debug_above(3, log(log_info, "%s has type %s",
-						link_as_name.str().c_str(),
+						function_name.str().c_str(),
 						function_sig->str().c_str()));
-
-            llvm::Value *llvm_value = llvm::Function::Create(llvm_func_type,
-                    llvm::Function::ExternalLinkage, link_as_name.text,
-                    module_scope->get_llvm_module());
 
             /* actually create or find the finalized bound type for this function */
 			bound_type_t::ref bound_function_type = upsert_bound_type(
@@ -441,14 +445,14 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 
 			return bound_var_t::create(
 					INTERNAL_LOC(),
-					scope->make_fqn(link_as_name.text),
+					scope->make_fqn(function_name.text),
                     bound_function_type,
                     llvm_value,
                     make_code_id(extern_function->token),
 					false/*is_lhs*/);
         }
     } else {
-        user_error(status, *this, "name conflict with %s", link_as_name.text.c_str());
+        user_error(status, *this, "name conflict with %s", function_name.text.c_str());
     }
 
     assert(!status);
@@ -1125,8 +1129,8 @@ status_t type_check_module_links(
 					status, builder, scope, nullptr, nullptr);
 
 			if (!!status) {
-				if (link->link_as_name.text.size() != 0) {
-					scope->put_bound_variable(status, link->link_as_name.text, link_value);
+				if (link->function_name.text.size() != 0) {
+					scope->put_bound_variable(status, link->function_name.text, link_value);
 				} else {
 					user_error(status, *link, "module level link definitions need names");
 				}

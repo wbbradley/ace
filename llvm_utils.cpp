@@ -150,12 +150,17 @@ llvm::CallInst *llvm_create_call_inst(
 	/* get the current module we're inserting code into */
 	llvm::Module *llvm_module = llvm_get_module(builder);
 
+	debug_above(3, log(log_info, "looking for function in LLVM %s with type %s",
+				llvm_callee_fn->getName().str().c_str(),
+				llvm_print_type(*llvm_callee_fn->getFunctionType()).c_str()));
+
 	/* before we can call a function, we must make sure it either exists in
 	 * this module, or a declaration exists */
 	auto llvm_func_decl = llvm::cast<llvm::Function>(
 			llvm_module->getOrInsertFunction(
 				llvm_callee_fn->getName(),
-				llvm_callee_fn->getFunctionType()));
+				llvm_callee_fn->getFunctionType(),
+				llvm_callee_fn->getAttributes()));
 
 	std::vector<llvm::Value *> llvm_args;
 	for (auto &llvm_value : llvm_values) {

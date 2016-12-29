@@ -99,7 +99,7 @@ ptr<statement> link_statement_parse(parse_state_t &ps) {
 		auto link_function_statement = create<ast::link_function_statement>(link_token);
 		auto function_decl = function_decl::parse(ps);
 		if (function_decl) {
-			link_function_statement->link_as_name = function_decl->token;
+			link_function_statement->function_name = function_decl->token;
 			link_function_statement->extern_function.swap(function_decl);
 		} else {
 			assert(!ps.status);
