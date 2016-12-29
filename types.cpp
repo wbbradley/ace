@@ -23,14 +23,8 @@ namespace types {
 			if (type_product->pk == pk) {
 				return type_product;
 			} else {
-				if (pk != pk_tag) {
-					// ???
-				    assert(type_product->name_index.size() != 0);
-					return ::type_product(pk, type_product->dimensions);
-				} else {
-					return ::type_product(pk, type_product->dimensions,
-							type_product->name_index);
-				}
+				return ::type_product(pk, type_product->dimensions,
+						type_product->name_index);
 			}
 		} else {
 			panic("i thought this would be a product type!");
@@ -87,12 +81,12 @@ namespace types {
 	type_variable::type_variable(identifier::ref id) : id(id) {
 	}
 
-    identifier::ref _next_type_variable() {
+    identifier::ref gensym() {
         /* generate fresh "any" variables */
         return make_iid({string_format("__%d", next_generic++)});
     }
 
-	type_variable::type_variable() : id(_next_type_variable()) {
+	type_variable::type_variable() : id(gensym()) {
 	}
 
 	std::ostream &type_variable::emit(std::ostream &os, const map &bindings) const {
@@ -205,7 +199,7 @@ namespace types {
 		for (auto dimension : dimensions) {
 			type_dimensions.push_back(dimension->rebind(bindings));
 		}
-		return ::type_product(pk, type_dimensions);
+		return ::type_product(pk, type_dimensions, name_index);
 	}
 
 	location type_product::get_location() const {

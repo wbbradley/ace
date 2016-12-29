@@ -31,6 +31,7 @@ unification_t var_t::accepts_callsite(
 	// dbg();
 	auto bindings = scope->get_type_variable_bindings();
 
+	// std::cerr << ::str(bindings) << std::endl;
 	assert(bindings.size() == 0 && "Should we be using these bindings here?");
 	auto u = unify(
 			fn_type,

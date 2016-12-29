@@ -150,6 +150,8 @@ namespace types {
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
 	};
+
+    identifier::ref gensym();
 };
 
 /* type data ctors */

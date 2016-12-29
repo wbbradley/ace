@@ -1027,6 +1027,7 @@ types::type::ref parse_type(parse_state_t &ps, identifier::set generics, int dep
 	case tk_lcurly:
 		{
 			types::type::refs arguments = parse_type_arguments(ps, generics, depth);
+			// TODO: consider allowing named parameters
 			return ::type_product(pk_tuple, arguments);
 		}
 		break;

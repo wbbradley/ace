@@ -141,7 +141,6 @@ bound_type_t::name_index const bound_type_handle_t::get_member_index() const {
 void bound_type_handle_t::set_actual(bound_type_t::ref actual_) const {
 	assert(actual_ != actual);
 	assert(actual_ != shared_from_this());
-	assert(actual_->get_type()->str() == type->str());
 	assert(actual_->get_llvm_type() == llvm_type);
 	debug_above(2, log(log_info, "resolving %s to %s", this->str().c_str(), actual_->str().c_str()));
 	// dbg();

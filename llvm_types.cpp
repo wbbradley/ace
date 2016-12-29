@@ -233,9 +233,21 @@ bound_type_t::ref create_bound_product_type(
 					program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
 			program_scope->put_bound_type(bound_type_handle);
 
-			return create_algebraic_data_type(
-					builder, scope, id, args, member_index, node,
-					final_type);
+			bound_type_t::refs args;
+			for (auto dim : product->dimensions) {
+				auto arg = upsert_bound_type(status, builder, scope, dim);
+
+				if (!status) {
+					break;
+				}
+				args.push_back(arg);
+			}
+
+			if (!!status) {
+				return create_algebraic_data_type(builder, scope,
+						types::gensym(), args, product->name_index,
+						product->get_location(), product);
+			}
 		}
 	case pk_tag:
 		{
@@ -319,6 +331,8 @@ bound_type_t::ref create_bound_type(
 		
 	} else if (auto product = dyncast<const types::type_product>(type)) {
 		return create_bound_product_type(status, builder, scope, product);
+	} else if (auto sum = dyncast<const types::type_sum>(type)) {
+		not_impl();
 	}
 
 	assert(!status);
@@ -435,7 +449,7 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 		identifier::ref id,
 		bound_type_t::refs args,
 		atom::map<int> member_index,
-		const ast::item::ref &node,
+		struct location location,
 		types::type::ref type)
 {
 	assert(type != nullptr);
@@ -449,7 +463,7 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 		return data_type;
 	} else {
 		return create_algebraic_data_type(builder, scope, id, args,
-				member_index, node, type);
+				member_index, location, type);
 	}
 }
 
@@ -459,11 +473,10 @@ bound_type_t::ref create_algebraic_data_type(
 		identifier::ref id,
 		bound_type_t::refs args,
 		atom::map<int> member_index,
-		const ast::item::ref &node,
+		struct location location,
 		types::type::ref type)
 {
 	assert(id != nullptr);
-	assert(node != nullptr);
 
 	auto program_scope = scope->get_program_scope();
 
@@ -480,7 +493,7 @@ bound_type_t::ref create_algebraic_data_type(
 	/* get the bound type of the data ctor's value */
 	auto data_type = bound_type_t::create(
 			type,
-			node->token.location,
+			location,
 			/* the LLVM-visible type of tagged tuples will usually be a
 			 * generic obj */
 			scope->get_bound_type({"__var_ref"})->get_llvm_type(),
@@ -542,7 +555,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
 		bound_type_t::ref data_type = get_or_create_algebraic_data_type(builder,
-				scope, id, args, member_index, node, type);
+				scope, id, args, member_index, node->token.location, type);
 
 		bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,
 				scope, args, data_type, id, node);

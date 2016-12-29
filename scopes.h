@@ -354,9 +354,9 @@ template <typename T>
 types::type::map scope_impl_t<T>::get_type_variable_bindings() const {
 	auto parent_scope = this->get_parent_scope();
 	if (parent_scope != nullptr) {
-		return merge(parent_scope->get_type_variable_bindings(), typename_env);
+		return merge(parent_scope->get_type_variable_bindings(), type_variable_bindings);
 	} else {
-		return typename_env;
+		return type_variable_bindings;
 	}
 }
 
