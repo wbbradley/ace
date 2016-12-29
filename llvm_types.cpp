@@ -3,7 +3,6 @@
 #include "compiler.h"
 #include "llvm_utils.h"
 #include "llvm_types.h"
-#include "type_visitor.h"
 #include "code_id.h"
 #include "logger.h"
 
@@ -32,6 +31,7 @@ bound_type_t::refs create_bound_types_from_args(
 	}
 }
 
+#if 0
 struct bound_type_builder_t : public types::type_visitor {
 	bound_type_builder_t(
 			status_t &status,
@@ -56,6 +56,15 @@ struct bound_type_builder_t : public types::type_visitor {
 	virtual bool visit(const types::type_id &id) {
 		created_type = scope->get_bound_type(id.get_signature());
 		if (created_type == nullptr) {
+			auto type_iter = env.find(id.get_id()->get_name());
+			if (type_iter != env.end()) {
+				auto type = type_iter->second;
+				debug_above(2, log(log_info, "found unbound type in env " c_type("%s") " => %s",
+							id.get_signature().c_str(),
+							type->str().c_str()));
+				
+			}
+			dbg();
 			return false;
 		}
 		return created_type != nullptr;
@@ -144,11 +153,6 @@ struct bound_type_builder_t : public types::type_visitor {
 				assert(false);
 				break;
 			}
-		case pk_named_dimension:
-			{
-				assert(false);
-				break;
-			}
 		}
 		assert(false);
 		return false;
@@ -165,7 +169,93 @@ struct bound_type_builder_t : public types::type_visitor {
 		program_scope->put_bound_type(created_type);
 		return true;
 	}
+
+	virtual bool visit(const types::type_lambda &lambda) {
+		assert(false);
+		return false;
+	}
 };
+#endif
+
+bound_type_t::ref create_bound_product_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		const ptr<const types::type_product> &product)
+{
+	ptr<program_scope_t> program_scope = scope->get_program_scope();
+	switch (product->pk) {
+	case pk_obj:
+		{
+			assert(false);
+			break;
+		}
+	case pk_function:
+		{
+			assert(product->dimensions.size() == 2);
+			bound_type_t::refs args = create_bound_types_from_args(status,
+					builder, scope, product->dimensions[0]);
+			bound_type_t::ref return_type = upsert_bound_type(
+					status, builder, scope, product->dimensions[1]);
+
+			if (!!status) {
+				types::type::ref fn_type = get_function_type(args, return_type);
+
+				auto signature = fn_type->get_signature();
+				auto created_type = scope->get_bound_type(signature);
+				if (created_type) {
+					return created_type;
+				} else {
+					auto *llvm_fn_type = llvm_create_function_type(status,
+							builder, args, return_type);
+					if (!!status) {
+						created_type = bound_type_t::create(fn_type,
+								product->get_location(), llvm_fn_type);
+						program_scope->put_bound_type(created_type);
+						return created_type;
+					}
+				}
+			}
+			break;
+		}
+	case pk_args:
+		{
+			assert(false);
+			break;
+		}
+	case pk_tuple:
+		{
+			/* start by registering a placeholder handle for the data ctor's
+			 * actual final type */
+			assert(!scope->get_bound_type(product->get_signature()));
+			auto bound_type_handle = bound_type_t::create_handle(
+					product,
+					program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
+			program_scope->put_bound_type(bound_type_handle);
+
+			return create_algebraic_data_type(
+					builder, scope, id, args, member_index, node,
+					final_type);
+		}
+	case pk_tag:
+		{
+			assert(false);
+			break;
+		}
+	case pk_tagged_tuple:
+		{
+			assert(false);
+			break;
+		}
+	case pk_struct:
+		{
+			assert(false);
+			break;
+		}
+	}
+	assert(!status);
+	return nullptr;
+}
 
 bound_type_t::ref create_bound_type(
 		status_t &status,
@@ -173,39 +263,64 @@ bound_type_t::ref create_bound_type(
 		ptr<scope_t> scope,
 		types::type::ref type)
 {
-#if 0
 	assert(!!status);
-	auto env = scope->get_type_env();
-	debug_above(6, log(log_info, "evaluating %s in %s",
-				type->str().c_str(),
-				::str(env).c_str()));
-	auto final_type = type->evaluate(env)->get_type(status);
-	debug_above(6, log(log_info, "evaluated %s to %s",
-				type->str().c_str(),
-				final_type->str().c_str()));
-	if (!!status) {
-		/* short-circuit for the case that we've built a term_binder and the
-		 * very act of getting a type for a term will instantiate a type. */
-		auto bound_type = scope->get_bound_type(final_type->get_signature());
-		if (bound_type) {
-			return bound_type;
-		}
-	}
 
+	auto env = scope->get_typename_env();
 	indent_logger indent(3,
-		string_format("creating bound type for %s in env %s",
-			type->str().c_str(), str(env).c_str()));
+		string_format("attempting to create a bound type for %s",
+			type->str().c_str()));
 
-	bound_type_builder_t btb(status, builder, scope, env);
-	if (type->accept(btb)) {
-		assert(!!status);
-		return btb.created_type;
-	} else {
-		user_error(status, type->get_location(), "unable to find a definition for %s",
-				type->str().c_str());
+	if (auto id = dyncast<const types::type_id>(type)) {
+		/* right here, we know that this type does not have a bound type. so,
+		 * let's go ahead and create a "handle" to prevent infinite recursion on
+		 * this guy. */
+		assert(!scope->get_bound_type(id->get_signature()));
+
+		auto program_scope = scope->get_program_scope();
+		auto bound_type_handle = bound_type_t::create_handle(
+				id,
+				program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
+		program_scope->put_bound_type(bound_type_handle);
+
+		/* now, we can do whatever it takes to resolve this. let's look up this
+		 * type in the environment to see if it resolves to any already known
+		 * bound_types. this will likely involve recursion. */
+		auto type_iter = env.find(id->get_id()->get_name());
+		if (type_iter != env.end()) {
+			auto type = type_iter->second;
+			debug_above(2, log(log_info, "found unbound type_id in env " c_type("%s") " => %s",
+						id->get_signature().c_str(),
+						type->str().c_str()));
+
+			if (auto lambda = dyncast<const types::type_lambda>(type)) {
+				debug_above(4, log(log_info, "type_id %s expands to type_lambda %s",
+							id->str().c_str(),
+							lambda->str().c_str()));
+				user_error(status, type->get_location(), "type %s resolves to a lambda, however we found a reference that does not supply parameters",
+						type->str().c_str());
+			} else {
+				/* cool, we have a term we can recurse on. */
+				auto created_type = upsert_bound_type(
+						status, builder, scope, type);
+
+				if (!!status) {
+					bound_type_handle->set_actual(created_type);
+					return bound_type_handle;
+				}
+			}
+		} else {
+			user_error(status, type->get_location(),
+					"unable to find a type definition for %s",
+					type->str().c_str());
+		}
+
+		assert(!status);
+		return nullptr;
+		
+	} else if (auto product = dyncast<const types::type_product>(type)) {
+		return create_bound_product_type(status, builder, scope, product);
 	}
-#endif
-	not_impl();
+
 	assert(!status);
 	return nullptr;
 }
@@ -221,8 +336,26 @@ bound_type_t::ref upsert_bound_type(
 	if (bound_type != nullptr) {
 		return bound_type;
 	} else {
-		return create_bound_type(status, builder, scope, type);
+		/* complete the binding of the type, just in case */
+		auto desired_type = type->rebind(scope->get_type_variable_bindings());
+
+		debug_above(6, log(log_info, "rebinding %s obtained %s",
+					type->str().c_str(),
+					desired_type->str().c_str()));
+
+		bound_type = create_bound_type(status, builder, scope, desired_type);
+
+		if (!!status) {
+			return bound_type;
+		}
+
+		user_error(status, desired_type->get_location(),
+			   	"unable to find a definition for %s",
+				desired_type->str().c_str());
 	}
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_type_t::ref get_function_return_type(

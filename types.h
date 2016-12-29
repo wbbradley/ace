@@ -16,7 +16,6 @@ enum product_kind_t {
 	pk_tag,
 	pk_tagged_tuple,
 	pk_struct,
-	pk_named_dimension,
 };
 
 const char *pkstr(product_kind_t pk);
@@ -26,8 +25,9 @@ void reset_generics();
 
 namespace types {
 
+	typedef atom::map<int> name_index;
+
 	struct signature;
-	struct type_visitor;
 
 	struct type : public std::enable_shared_from_this<type> {
 		typedef ptr<const type> ref;
@@ -54,7 +54,6 @@ namespace types {
 		std::string str(const map &bindings = {}) const;
 		atom get_signature() const { return repr(); }
 
-		virtual bool accept(type_visitor &visitor) const = 0;
 		virtual ref rebind(const map &bindings) const = 0;
 
 		virtual bool is_function() const { return false; }
@@ -74,7 +73,6 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual atom::set get_ftvs() const;
-		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
@@ -89,7 +87,6 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual atom::set get_ftvs() const;
-		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
@@ -103,21 +100,21 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual atom::set get_ftvs() const;
-		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
 	};
 
 	struct type_product : public type {
-		type_product(product_kind_t pk, type::refs dimensions);
+
+		type_product(product_kind_t pk, type::refs dimensions, const name_index &name_index);
 		product_kind_t pk;
 		type::refs dimensions;
+		name_index name_index;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual atom::set get_ftvs() const;
-		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
@@ -134,7 +131,6 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual atom::set get_ftvs() const;
-		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
@@ -150,7 +146,6 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual atom::set get_ftvs() const;
-		virtual bool accept(type_visitor &visitor) const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
@@ -163,7 +158,7 @@ types::type::ref type_id(identifier::ref var);
 types::type::ref type_variable(identifier::ref name);
 types::type::ref type_variable();
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand);
-types::type::ref type_product(product_kind_t pk, types::type::refs dimensions);
+types::type::ref type_product(product_kind_t pk, types::type::refs dimensions, const types::name_index &name_index={});
 types::type::ref type_sum(types::type::refs options);
 types::type::ref type_lambda(identifier::ref binding, types::type::ref body);
 types::type::ref type_list_type(types::type::ref element);

@@ -5,7 +5,6 @@
 #include "utils.h"
 #include "types.h"
 #include "parser.h"
-#include "type_visitor.h"
 
 const char *BUILTIN_LIST_TYPE = "std.List";
 const char *BUILTIN_VOID_TYPE = "void";
@@ -24,7 +23,14 @@ namespace types {
 			if (type_product->pk == pk) {
 				return type_product;
 			} else {
-				return ::type_product(pk, type_product->dimensions);
+				if (pk != pk_tag) {
+					// ???
+				    assert(type_product->name_index.size() != 0);
+					return ::type_product(pk, type_product->dimensions);
+				} else {
+					return ::type_product(pk, type_product->dimensions,
+							type_product->name_index);
+				}
 			}
 		} else {
 			panic("i thought this would be a product type!");
@@ -61,10 +67,6 @@ namespace types {
     atom::set type_id::get_ftvs() const {
         return {};
     }
-
-	bool type_id::accept(type_visitor &visitor) const {
-		return visitor.visit(*this);
-	}
 
 	type::ref type_id::rebind(const map &bindings) const {
 		return shared_from_this();
@@ -120,10 +122,6 @@ namespace types {
 		}
 	}
 
-	bool type_variable::accept(type_visitor &visitor) const {
-		return visitor.visit(*this);
-	}
-
 	location type_variable::get_location() const {
 		return id->get_location();
 	}
@@ -155,10 +153,6 @@ namespace types {
         return oper_set;
     }
 
-	bool type_operator::accept(type_visitor &visitor) const {
-		return visitor.visit(*this);
-	}
-
 	type::ref type_operator::rebind(const map &bindings) const {
 		return ::type_operator(oper->rebind(bindings), operand->rebind(bindings));
 	}
@@ -171,8 +165,8 @@ namespace types {
 		return oper->get_id();
 	}
 
-	type_product::type_product(product_kind_t pk, type::refs dimensions) :
-		pk(pk), dimensions(dimensions)
+	type_product::type_product(product_kind_t pk, type::refs dimensions, const types::name_index &name_index) :
+		pk(pk), dimensions(dimensions), name_index(name_index)
 	{
 	}
 
@@ -181,6 +175,9 @@ namespace types {
 		for (auto dimension : dimensions) {
 			os << " ";
 			dimension->emit(os, bindings);
+		}
+		if (name_index.size() != 0) {
+			os << " " << ::str(name_index);
 		}
 		return os << ")";
 	}
@@ -202,10 +199,6 @@ namespace types {
         return set;
     }
 
-
-	bool type_product::accept(type_visitor &visitor) const {
-		return visitor.visit(*this);
-	}
 
 	type::ref type_product::rebind(const map &bindings) const {
 		refs type_dimensions;
@@ -271,10 +264,6 @@ namespace types {
 		return set;
 	}
 
-	bool type_sum::accept(type_visitor &visitor) const {
-		return visitor.visit(*this);
-	}
-
 	type::ref type_sum::rebind(const map &bindings) const {
 		refs type_options;
 		for (auto option : options) {
@@ -326,10 +315,6 @@ namespace types {
 		return body->rebind(bindings)->get_ftvs();
 	}
 
-	bool type_lambda::accept(type_visitor &visitor) const {
-		return visitor.visit(*this);
-	}
-
 	type::ref type_lambda::rebind(const map &bindings_) const {
 		map bindings = bindings_;
 		auto binding_iter = bindings.find(binding->get_name());
@@ -375,8 +360,12 @@ types::type::ref type_operator(types::type::ref operator_, types::type::ref oper
 	return make_ptr<types::type_operator>(operator_, operand);
 }
 
-types::type::ref type_product(product_kind_t pk, types::type::refs dimensions) {
-	return make_ptr<types::type_product>(pk, dimensions);
+types::type::ref type_product(
+		product_kind_t pk,
+	   	types::type::refs dimensions,
+	   	const types::name_index &name_index)
+{
+	return make_ptr<types::type_product>(pk, dimensions, name_index);
 }
 
 types::type::ref type_sum(types::type::refs options) {
@@ -529,8 +518,6 @@ const char *pkstr(product_kind_t pk) {
 		return "tagged-tuple";
 	case pk_struct:
 		return "struct";
-	case pk_named_dimension:
-		return "dim";
 	}
 	assert(false);
 	return nullptr;

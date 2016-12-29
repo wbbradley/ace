@@ -129,7 +129,7 @@ void ast::type_product::register_type(
 
 	if (!!status) {
 		/* Note that product types do not have a named super type. And, this
-		 * node is a type algebra node, therefore, it's token points to "has",
+		 * node is a type algebra node, therefore, its token points to "has",
 		 * instead of the actual typename we're trying to create. So, we use
 		 * the given supertype_id as the name for the data ctor. */
 		register_data_ctor(status, builder,
@@ -260,49 +260,42 @@ types::type::ref instantiate_data_ctor_type(
 		identifier::ref id,
 		identifier::ref supertype_id)
 {
+	/* get the name of the ctor */
 	atom tag_name = id->get_name();
-	auto tag = type_id(id);
 
-	auto product = type_product(pk_tuple, dimensions);
+	/* create the tag type */
+	auto tag_type = type_id(id);
+
+	/* create the basic product type */
+	auto product = type_product(pk_tuple, dimensions, member_index);
 
 	/* lambda_vars tracks the order of the lambda variables we'll accept as we abstract our
 	 * supertype expansion */
 	std::list<identifier::ref> lambda_vars;
 	atom::set generics;
 
+	// TODO: examine whether this is necessary anymore
 	create_supertype_relationship(status, product, id, supertype_id,
 			type_variables, scope, lambda_vars, generics);
 
-	/* let's create the return type that will be the codomain of the ctor fn */
-	auto data_ctor_type = tag;
-	for (auto lambda_var : lambda_vars) {
-		data_ctor_type = type_operator(data_ctor_type, type_variable(lambda_var));
-	}
-	debug_above(5, log(log_info, "data_ctor_type = %s", data_ctor_type->str().c_str()));
-
-	// TODO: check whether "generics" is too heavy-handed, might be able to
-	// subtract variables that are not part of the unbound variables.
-	// auto dequantified_product = product->dequantify(generics);
-	// auto dequantified_data_ctor_type = data_ctor_type->dequantify(generics);
-
-	auto data_ctor_sig = get_function_type(
-			types::change_product_kind(pk_args, product),
-		   	data_ctor_type);
-
-	for (auto lambda_var : lambda_vars) {
-		data_ctor_sig = type_lambda(lambda_var, data_ctor_sig);
+	if (!status) {
+		return nullptr;
 	}
 
-    assert(false);
-#if 0
-	/* we need to register the type decl definition, so that in case we need to
-	 * instantiate it, we can */
-	types::type::ref term_binder = types::term_binder(builder, scope, id, node,
-			data_ctor_sig, member_index);
+	/* let's create the return type that will be the codomain of the ctor fn. */
+	auto type_callsite = tag_type;
+	for (auto lambda_var : lambda_vars) {
+		type_callsite = type_operator(type_callsite, type_variable(lambda_var));
+	}
+	debug_above(5, log(log_info, "type_callsite = %s", type_callsite->str().c_str()));
 
-	debug_above(6, log(log_info, "created term_binder %s", term_binder->str().c_str()));
-	scope->put_type_decl_term(tag_name, term_binder);
+	/* now build the actual typename expansion we'll put in the typename env */
+	auto type = product;
+	for (auto lambda_var : lambda_vars) {
+		type = type_lambda(lambda_var, type);
+	}
 
+	/* handle the special case of unary tags */
 	if (dimensions.size() == 0) {
 		/* it's a nullary enumeration or "tag", let's create a global value to represent
 		 * this tag. */
@@ -310,7 +303,6 @@ types::type::ref instantiate_data_ctor_type(
 		/* enum values must have a supertype, right? */
 		assert(supertype_id != nullptr);
 
-		auto tag_type = tag->get_type(status);
 		if (!!status) {
 			/* start by making a type for the tag */
 			bound_type_t::ref bound_tag_type = bound_type_t::create(
@@ -322,7 +314,7 @@ types::type::ref instantiate_data_ctor_type(
 			bound_var_t::ref tag = llvm_create_global_tag(
 					builder, scope, bound_tag_type, tag_name, id);
 
-			/* record this data ctor for use later */
+			/* record this singleton for use later */
 			scope->put_bound_variable(status, tag_name, tag);
 
 			if (!!status) {
@@ -330,36 +322,45 @@ types::type::ref instantiate_data_ctor_type(
 							tag->str().c_str()));
 			}
 		}
+	} else {
+		if (!!status) {
+			/* now let's make sure we register this constructor as an override for
+			 * the name `tag_name` */
+			debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
+						id->str().c_str()));
+
+			/* get the type of the data constructor function itself */
+			auto data_ctor_sig = get_function_type(
+					types::change_product_kind(pk_args, product),
+					type_callsite);
+
+			for (auto lambda_var : lambda_vars) {
+				data_ctor_sig = type_lambda(lambda_var, data_ctor_sig);
+			}
+
+			if (auto module_scope = dyncast<module_scope_t>(scope)) {
+				types::type::ref generic_args = types::change_product_kind(pk_args, product);
+
+				debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
+				types::type::ref data_ctor_sig = get_function_type(generic_args, type_callsite);
+
+				assert(id->get_name() == tag_name);
+				/* side-effect: create an unchecked reference to this data ctor into
+				 * the current scope */
+				module_scope->put_unchecked_variable(tag_name,
+						unchecked_data_ctor_t::create(id, node,
+							module_scope, data_ctor_sig, member_index));
+			} else {
+				user_error(status, node->token.location, "local type definitions are not yet impl");
+			}
+		}
 	}
 
 	if (!!status) {
-		/* now let's make sure we register this constructor as an override for
-		 * the name `tag_name` */
-		debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
-					id->str().c_str()));
-
-		if (auto module_scope = dyncast<module_scope_t>(scope)) {
-			types::type::ref generic_args = types::change_product_kind(pk_args, product);
-
-			debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
-			types::type::ref data_ctor_sig = get_function_term(generic_args, data_ctor_type);
-
-			assert(id->get_name() == tag_name);
-			/* side-effect: create an unchecked reference to this data ctor into
-			 * the current scope */
-			module_scope->put_unchecked_variable(tag_name,
-					unchecked_data_ctor_t::create(id, node,
-						module_scope, data_ctor_sig, member_index));
-
-			return dequantified_data_ctor_type;
-		} else {
-			user_error(status, node->token.location, "local type definitions are not yet impl");
-		}
+		return type;
+	} else {
+		return nullptr;
 	}
-#endif
-
-	assert(!status);
-	return nullptr;
 }
 
 #if 0
@@ -415,9 +416,12 @@ types::type::ref register_data_ctor(
 						name.c_str(),
 						env_iter->second->str().c_str());
 			} else {
-				return instantiate_data_ctor_type(status, builder,
+				auto type = instantiate_data_ctor_type(status, builder,
 						type_variables, scope, node, dimensions,
 						member_index, id, supertype_id);
+				/* register the typename in the current environment */
+				scope->put_typename(status, id->get_name(), type);
+				return type;
 			}
 		}
 	} else {

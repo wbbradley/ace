@@ -306,8 +306,7 @@ llvm::Type *llvm_create_sum_type(
 
 llvm::Type *llvm_wrap_type(
 		llvm::IRBuilder<> &builder,
-		program_scope_t::ref
-		program_scope,
+		program_scope_t::ref program_scope,
 		atom data_name,
 		llvm::Type *llvm_data_type)
 {
