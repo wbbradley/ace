@@ -27,7 +27,7 @@ struct unchecked_var_t : public var_t {
 	ptr<const ast::item> node;
 	ptr<module_scope_t> module_scope;
 
-	std::string str() const;
+	virtual std::string str() const;
 
 	typedef ptr<const unchecked_var_t> ref;
 	typedef std::vector<ref> refs;
@@ -69,6 +69,8 @@ struct unchecked_data_ctor_t : public unchecked_var_t {
 	}
 
     virtual types::type::ref get_type(ptr<scope_t> scope) const;
+
+	virtual std::string str() const;
 
 	types::type::ref sig;
 	atom::map<int> member_index;

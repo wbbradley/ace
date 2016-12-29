@@ -151,7 +151,6 @@ void create_supertype_relationship(
 		std::list<identifier::ref> &lambda_vars,
 		atom::set &generics)
 {
-	// dbg();
 	assert(generics.size() == 0);
 	assert(lambda_vars.size() == 0);
 	debug_above(5, log(log_info, "create_supertype_relationship(%s, %s, %s)",
@@ -166,6 +165,8 @@ void create_supertype_relationship(
 
 	/* ensure that there are no duplicate type variables */
 	if (generics.size() != type_variables.size()) {
+		/* this is a fail because there are some reused type variables, find
+		 * them and report on them */
 		atom::set seen;
 		for (auto type_variable : type_variables) {
 			atom name = type_variable->get_name();
@@ -177,7 +178,6 @@ void create_supertype_relationship(
 						name.c_str());
 			}
 		}
-		assert(!"Not sure what this code path is supposed to be doing. Just investigating with this assert...");
 	} else {
 		atom tag_name = subtype_id->get_name();
 		assert(!!tag_name);

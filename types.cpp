@@ -104,12 +104,13 @@ namespace types {
 	}
 
     atom::set type_variable::get_ftvs() const {
-        return {};
+        return {id->get_name()};
     }
 
 	type::ref type_variable::rebind(const map &bindings) const {
 		auto instance_iter = bindings.find(id->get_name());
 		if (instance_iter != bindings.end()) {
+			assert(instance_iter->second != shared_from_this());
 			return instance_iter->second->rebind(bindings);
 		} else {
 			return shared_from_this();
@@ -184,13 +185,13 @@ namespace types {
 		return ftv_sum;
 	}
 
-    atom::set type_product::get_ftvs() const {
-        atom::set set;
+	atom::set type_product::get_ftvs() const {
+		atom::set set;
 		for (auto dimension : dimensions) {
-            atom::set dim_set = dimension->get_ftvs();
-            set.insert(dim_set.begin(), dim_set.end());
+			atom::set dim_set = dimension->get_ftvs();
+			set.insert(dim_set.begin(), dim_set.end());
 		}
-        return set;
+		return set;
     }
 
 
@@ -284,7 +285,7 @@ namespace types {
 	}
 
 	std::ostream &type_lambda::emit(std::ostream &os, const map &bindings_) const {
-		os << "(lambda [" << binding->str() << "] ";
+		os << "(lambda [" << C_ID << binding->get_name().str() << C_RESET "] ";
 		map bindings = bindings_;
 		auto binding_iter = bindings.find(binding->get_name());
 		if (binding_iter != bindings.end()) {

@@ -6,7 +6,14 @@
 
 std::string unchecked_var_t::str() const {
     std::stringstream ss;
-    ss << id->str() << " : " << node->token.str() << " : unchecked";
+    ss << id->str() << " : " << node->token.str() << " : unchecked var";
+    return ss.str();
+}
+
+std::string unchecked_data_ctor_t::str() const {
+    std::stringstream ss;
+    ss << C_ID << id->str() << C_RESET << " : unchecked data ctor : ";
+	ss << sig->str();
     return ss.str();
 }
 
