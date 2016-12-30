@@ -291,7 +291,10 @@ void log(log_level_t level, const char *format, ...) {
 
 void logv_location(log_level_t level, const location &location, const char *format, va_list args) {
 	if (mask(logger_level,level) == 0)
+    {
+        dbg();
 		return;
+    }
 
 	_logger->logv(level, &location, format, args);
 }
@@ -324,12 +327,14 @@ void standard_logger::logv(log_level_t level, const location *location, const ch
 		return;
 	}
 
+#if 0
 	if (level == log_info) {
 		/* if we're not in debugging mode, never emit "info" statements */
 		if (debug_level() == 0) {
 			return;
 		}
 	}
+#endif
 
 	std::lock_guard<std::mutex> lock(m_mutex);
 

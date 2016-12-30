@@ -31,152 +31,6 @@ bound_type_t::refs create_bound_types_from_args(
 	}
 }
 
-#if 0
-struct bound_type_builder_t : public types::type_visitor {
-	bound_type_builder_t(
-			status_t &status,
-			llvm::IRBuilder<> &builder,
-			ptr<scope_t> scope,
-			types::type::map env) :
-		status(status),
-		builder(builder),
-		scope(scope),
-		program_scope(scope->get_program_scope()),
-		env(env)
-	{
-	}
-
-	status_t &status;
-	llvm::IRBuilder<> &builder;
-	bound_type_t::ref bound_type;
-	ptr<scope_t> scope;
-	ptr<program_scope_t> program_scope;
-	types::type::map env;
-
-	virtual bool visit(const types::type_id &id) {
-		bound_type = scope->get_bound_type(id.get_signature());
-		if (bound_type == nullptr) {
-			auto type_iter = env.find(id.get_id()->get_name());
-			if (type_iter != env.end()) {
-				auto type = type_iter->second;
-				debug_above(2, log(log_info, "found unbound type in env " c_type("%s") " => %s",
-							id.get_signature().c_str(),
-							type->str().c_str()));
-				
-			}
-			dbg();
-			return false;
-		}
-		return bound_type != nullptr;
-	}
-
-	virtual bool visit(const types::type_variable &variable) {
-		user_error(status, variable.get_location(), "unable to resolve type %s",
-			   	variable.str().c_str());
-		return false;
-	}
-
-	virtual bool visit(const types::type_operator &operator_) {
-		/* figure out where this type operator came from or what it means */
-		auto module_scope = scope->get_module_scope();
-		if (module_scope != nullptr) {
-			atom name = operator_.oper->get_signature();
-
-			// Note: I don't remember what this next line was doing...
-			dbg();
-			auto type_env = scope->get_typename_env();
-			assert(!in(name, type_env));
-			return false;
-		} else {
-			assert(!"no module scope?");
-		}
-		return !!status;
-	}
-
-	virtual bool visit(const types::type_product &product) {
-		switch (product.pk) {
-		case pk_obj:
-			{
-				assert(false);
-				break;
-			}
-		case pk_function:
-			{
-				assert(product.dimensions.size() == 2);
-				bound_type_t::refs args = create_bound_types_from_args(status,
-						builder, scope, product.dimensions[0]);
-				bound_type_t::ref return_type = upsert_bound_type(
-						status, builder, scope, product.dimensions[1]);
-
-				if (!!status) {
-					types::type::ref fn_type = get_function_type(args, return_type);
-
-					auto signature = fn_type->get_signature();
-					bound_type = scope->get_bound_type(signature);
-					if (bound_type) {
-						return true;
-					} else {
-						auto *llvm_fn_type = llvm_create_function_type(status,
-								builder, args, return_type);
-						if (!!status) {
-							bound_type = bound_type_t::create(fn_type,
-									product.get_location(), llvm_fn_type);
-							program_scope->put_bound_type(bound_type);
-						}
-						return !!status;
-					}
-				}
-				return !!status;
-			}
-		case pk_args:
-			{
-				assert(false);
-				break;
-			}
-		case pk_tuple:
-			{
-				assert(false);
-				break;
-			}
-		case pk_tag:
-			{
-				assert(false);
-				break;
-			}
-		case pk_tagged_tuple:
-			{
-				assert(false);
-				break;
-			}
-		case pk_struct:
-			{
-				assert(false);
-				break;
-			}
-		}
-		assert(false);
-		return false;
-	}
-
-	virtual bool visit(const types::type_sum &sum) {
-		dbg();
-		auto signature = sum.get_signature();
-		auto bound_type = scope->get_bound_type(signature);
-		assert(bound_type == nullptr);
-		bound_type = bound_type_t::create(sum.shared_from_this(),
-				sum.get_location(),
-				scope->get_bound_type({"__var_ref"})->get_llvm_type());
-		program_scope->put_bound_type(bound_type);
-		return true;
-	}
-
-	virtual bool visit(const types::type_lambda &lambda) {
-		assert(false);
-		return false;
-	}
-};
-#endif
-
 bound_type_t::ref create_bound_product_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -184,6 +38,7 @@ bound_type_t::ref create_bound_product_type(
 		const ptr<const types::type_product> &product)
 {
 	ptr<program_scope_t> program_scope = scope->get_program_scope();
+
 	switch (product->pk) {
 	case pk_obj:
 		{
@@ -200,6 +55,7 @@ bound_type_t::ref create_bound_product_type(
 
 			if (!!status) {
 				types::type::ref fn_type = get_function_type(args, return_type);
+				assert(fn_type->str() == product->str());
 
 				auto signature = fn_type->get_signature();
 				auto bound_type = scope->get_bound_type(signature);
@@ -225,6 +81,10 @@ bound_type_t::ref create_bound_product_type(
 		}
 	case pk_tuple:
 		{
+			if (product->ftv_count() != 0) {
+				return program_scope->get_bound_type({BUILTIN_UNREACHABLE_TYPE});
+			}
+
 			/* start by registering a placeholder handle for the data ctor's
 			 * actual final type */
 			assert(!scope->get_bound_type(product->get_signature()));
@@ -244,9 +104,11 @@ bound_type_t::ref create_bound_product_type(
 			}
 
 			if (!!status) {
-				return create_algebraic_data_type(builder, scope,
+				auto bound_type = create_algebraic_data_type(builder, scope,
 						types::gensym(), args, product->name_index,
 						product->get_location(), product);
+				bound_type_handle->set_actual(bound_type);
+				return bound_type;
 			}
 		}
 	case pk_tag:
@@ -265,6 +127,57 @@ bound_type_t::ref create_bound_product_type(
 			break;
 		}
 	}
+
+	assert(!status);
+	return nullptr;
+}
+
+bound_type_t::ref create_bound_operator_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		const ptr<const types::type_operator> &operator_)
+{
+	debug_above(4, log(log_info, "create_bound_operator_type(..., %s)", operator_->str().c_str()));
+
+	/* the strategy with operator types is to bind a handle for them, then
+	 * expand them and recurse by creating all of their contained or subtypes.
+	 * once we have an idea of that expansion's type, we set actual on that */
+
+	/* apply the operator */
+	auto expansion = eval_apply(operator_->oper, operator_->operand,
+			scope->get_typename_env(), {});
+
+	if (expansion == nullptr) {
+		user_error(status, operator_->get_location(),
+				"unable to find a definition for %s",
+				operator_->str().c_str());
+	} else {
+		/* we've evaluated the application of this type operator. create a
+		 * handle to track resolution of this type. */
+		auto program_scope = scope->get_program_scope();
+		auto bound_type_handle = bound_type_t::create_handle(
+				operator_,
+				program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
+		program_scope->put_bound_type(bound_type_handle);
+	
+		/* go ahead and recurse to resolve this new expanded type */
+		bound_type_t::ref bound_expansion = upsert_bound_type(status, builder,
+				scope, expansion);
+
+		if (bound_expansion != nullptr) {
+			/* we found the 'true' type for this type operator, let's map the
+			 * type operator back to this new 'truth' */
+			bound_type_handle->set_actual(bound_expansion);
+			return bound_type_handle;
+		} else {
+			user_error(status, operator_->get_location(),
+					"failed to bind concrete type to %s afer expansion to %s",
+					operator_->str().c_str(),
+					expansion->str().c_str());
+		}
+	}
+
 	assert(!status);
 	return nullptr;
 }
@@ -350,9 +263,9 @@ bound_type_t::ref create_bound_type(
 		return create_bound_product_type(status, builder, scope, product);
 	} else if (auto sum = dyncast<const types::type_sum>(type)) {
 		return create_bound_sum_type(status, builder, scope, sum);
-	} else if (auto apply = dyncast<const types::type_operator>(type)) {
-		not_impl();
-	} else if (auto apply = dyncast<const types::type_variable>(type)) {
+	} else if (auto operator_ = dyncast<const types::type_operator>(type)) {
+		return create_bound_operator_type(status, builder, scope, operator_);
+	} else if (auto variable = dyncast<const types::type_variable>(type)) {
 		not_impl();
 	}
 
@@ -473,6 +386,7 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 		struct location location,
 		types::type::ref type)
 {
+	// TODO: consider having this just call upsert_bound_type
 	assert(type != nullptr);
 
 	debug_above(5, log(log_info, "get_or_create_algebraic_data_type looking for %s",

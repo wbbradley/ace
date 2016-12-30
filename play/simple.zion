@@ -1,19 +1,20 @@
 module _
+# test: pass
 
-type Just{T} has
-	var val T
+type JustInt{G} has
+	var val int
+	var hey G
 
 tag Empty
 
-type Maybe{T} is Empty or Just{T}
+type Maybe{T} is Empty or JustInt{T}
 
-def do(t Maybe{any T})
+def do(t Maybe{any Q})
 	when t
-		is Just{T}
-			static_print(t)
-			print(t.val)
+		is JustInt{any Q}
+			pass
 		is Empty
-			print("Nothing!")
+			pass
 
 def main()
-	do(Empty)
+	do(JustInt(3, "green"))

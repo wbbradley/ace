@@ -8,6 +8,7 @@
 
 const char *BUILTIN_LIST_TYPE = "std.List";
 const char *BUILTIN_VOID_TYPE = "void";
+const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";
 
 int next_generic = 1;
 
@@ -108,10 +109,14 @@ namespace types {
     }
 
 	type::ref type_variable::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
 		auto instance_iter = bindings.find(id->get_name());
 		if (instance_iter != bindings.end()) {
 			assert(instance_iter->second != shared_from_this());
-			return instance_iter->second->rebind(bindings);
+			return instance_iter->second;
 		} else {
 			return shared_from_this();
 		}
@@ -149,6 +154,10 @@ namespace types {
     }
 
 	type::ref type_operator::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
 		return ::type_operator(oper->rebind(bindings), operand->rebind(bindings));
 	}
 
@@ -196,6 +205,10 @@ namespace types {
 
 
 	type::ref type_product::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
 		refs type_dimensions;
 		for (auto dimension : dimensions) {
 			type_dimensions.push_back(dimension->rebind(bindings));
@@ -260,6 +273,10 @@ namespace types {
 	}
 
 	type::ref type_sum::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
 		refs type_options;
 		for (auto option : options) {
 			type_options.push_back(option->rebind(bindings));
@@ -311,6 +328,10 @@ namespace types {
 	}
 
 	type::ref type_lambda::rebind(const map &bindings_) const {
+		if (bindings_.size() == 0) {
+			return shared_from_this();
+		}
+
 		map bindings = bindings_;
 		auto binding_iter = bindings.find(binding->get_name());
 		if (binding_iter != bindings.end()) {
@@ -348,6 +369,10 @@ types::type::ref type_variable() {
 }
 
 types::type::ref type_unreachable() {
+	return make_ptr<types::type_id>(make_iid(BUILTIN_UNREACHABLE_TYPE));
+}
+
+types::type::ref type_void() {
 	return make_ptr<types::type_id>(make_iid(BUILTIN_VOID_TYPE));
 }
 
@@ -517,3 +542,48 @@ const char *pkstr(product_kind_t pk) {
 	assert(false);
 	return nullptr;
 }
+
+types::type::ref eval_id(
+		ptr<const types::type_id> ptid,
+		types::type::map env)
+{
+	assert(ptid != nullptr);
+
+	/* look in the environment for a declaration of this term */
+	auto fn_iter = env.find(ptid->id->get_name());
+	if (fn_iter != env.end()) {
+		return fn_iter->second;
+	} else {
+		return nullptr;
+	}
+}
+
+types::type::ref eval_apply(
+		types::type::ref oper,
+	   	types::type::ref operand, 
+		types::type::map env,
+		types::type::map bindings)
+{
+	assert(oper != nullptr);
+	assert(operand != nullptr);
+	auto ptid = dyncast<const types::type_id>(oper);
+	assert(ptid != nullptr);
+
+	/* look in the environment for a declaration of this operator */
+	types::type::ref expansion = eval_id(ptid, env);
+
+	debug_above(7, log(log_info, "eval_apply : %s expanded to %s",
+				ptid->str().c_str(),
+			   	expansion ? expansion->str().c_str() : c_error("nothing")));
+
+	/* we found a lambda, hopefully */
+	auto lambda = dyncast<const types::type_lambda>(expansion);
+	if (lambda != nullptr) {
+		auto var_name = lambda->binding->get_name();
+		bindings[var_name] = operand;
+		return lambda->body->rebind(bindings);
+	} else {
+		return nullptr;
+	}
+}
+

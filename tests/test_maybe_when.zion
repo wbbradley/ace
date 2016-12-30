@@ -1,0 +1,20 @@
+module _
+# test: pass
+
+type Just{T} has
+	var val T
+
+tag Empty
+
+type Maybe{T} is Empty or Just{T}
+
+def do(t Maybe{any T}) void
+	when t
+		is Just{any T}
+			pass
+		is Empty
+			pass
+
+def main()
+	do(Just(3))
+	do(Empty)

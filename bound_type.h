@@ -32,6 +32,7 @@ public:
 
 	virtual std::string str() const = 0;
 	virtual types::type::ref get_type() const = 0;
+	virtual bool is_concrete() const = 0;
 	virtual struct location const get_location() const = 0;
 	virtual llvm::Type * const get_llvm_type() const = 0;
 	virtual llvm::Type * const get_llvm_specific_type() const = 0;
@@ -68,6 +69,7 @@ struct bound_type_impl_t : public bound_type_t {
 
 	virtual std::string str() const;
 	virtual types::type::ref get_type() const;
+	virtual bool is_concrete() const;
 	virtual struct location const get_location() const;
 	virtual llvm::Type * const get_llvm_type() const;
 	virtual llvm::Type * const get_llvm_specific_type() const;
@@ -93,6 +95,7 @@ struct bound_type_handle_t : public bound_type_t {
 
 	virtual std::string str() const;
 	virtual types::type::ref get_type() const;
+	virtual bool is_concrete() const;
 	virtual struct location const get_location() const;
 	virtual llvm::Type * const get_llvm_type() const;
 	virtual llvm::Type * const get_llvm_specific_type() const;

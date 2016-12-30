@@ -6,7 +6,7 @@
 
 std::string unchecked_var_t::str() const {
     std::stringstream ss;
-    ss << id->str() << " : " << node->token.str() << " : unchecked var";
+    ss << id->str() << " : unchecked var";
     return ss.str();
 }
 
@@ -70,7 +70,7 @@ types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 					types::type::ref sig = get_function_type(
 							get_args_type(args),
 							/* default to void, which is fully bound */
-							type_unreachable());
+							type_void());
 
 					debug_above(4, log(log_info, "defaulting return type of %s to void : %s",
 								decl->token.str().c_str(),

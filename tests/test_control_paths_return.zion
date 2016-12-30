@@ -1,0 +1,11 @@
+module _
+# test: pass
+
+def fib()
+	when true
+		is true
+			print("true")
+
+
+def main()
+	fib()

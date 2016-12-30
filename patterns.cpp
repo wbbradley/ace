@@ -56,77 +56,60 @@ bound_var_t::ref gen_type_check(
 		runnable_scope_t::ref scope,
 		identifier::ref value_name,
 		bound_var_t::ref value,
-		types::type::ref type,
+		bound_type_t::ref bound_type,
 		local_scope_t::ref *new_scope)
 {
-	// TODO: normalize the type to get the signature (consider just rebinding
-	// into a temporary zero-based namespace), etc...
-	type = type->rebind(scope->get_type_variable_bindings());
+	auto program_scope = scope->get_program_scope();
+	atom signature = bound_type->get_type()->get_signature();
+	auto type_id_wanted = bound_var_t::create(
+			INTERNAL_LOC(),
+			string_format("typeid(%s)", value_name->str().c_str()),
+			program_scope->get_bound_type({TYPEID_TYPE}),
+			llvm_create_int32(builder, (int32_t)signature.iatom),
+			value_name,
+			false/*is_lhs*/);
 
-	// TODO: check for ftv's
+	debug_above(2, log(log_info, "generating a runtime type check "
+				"for type %s with signature value %d (for '%s') (type is %s)",
+				bound_type->str().c_str(), (int)signature.iatom,
+				signature.c_str(), bound_type->get_type()->str().c_str()));
+	bound_var_t::ref type_id = call_typeid(status, scope, node,
+			value_name, builder, value);
 
 	if (!!status) {
-		/* in case we are in a generic function, we will need to assess our
-		 * type*/
-		// TODO: type = type->rebind(scope->get_unification_bindings());
-		// scope->dump(std::cerr);
-		std::cerr << std::endl;
-		auto bound_type = upsert_bound_type(status, builder, scope, type);
+		auto get_typeid_eq_function = program_scope->get_bound_variable(
+				status, node, "__type_id_eq_type_id");
 
+		assert(get_typeid_eq_function != nullptr);
 		if (!!status) {
-			auto program_scope = scope->get_program_scope();
-			atom signature = bound_type->get_type()->get_signature();
-			auto type_id_wanted = bound_var_t::create(
-					INTERNAL_LOC(),
-					string_format("typeid(%s)", value_name->str().c_str()),
-					program_scope->get_bound_type({TYPEID_TYPE}),
-					llvm_create_int32(builder, (int32_t)signature.iatom),
-					value_name,
-					false/*is_lhs*/);
+			/* generate a new scope with the value_name containing a new
+			 * variable to overwrite the prior scoped variable's type with
+			 * the new checked type */
+			*new_scope = scope->new_local_scope(string_format("when %s %s",
+						value_name->str().c_str(),
+						node->str().c_str()));
 
-			debug_above(2, log(log_info, "generating a runtime type check "
-						"for type %s with signature value %d (for '%s') (type is %s)",
-						type->str().c_str(), (int)signature.iatom,
-						signature.c_str(), type->str().c_str()));
-			bound_var_t::ref type_id = call_typeid(status, scope, node,
-					value_name, builder, value);
+			/* replace this bound variable with a version of itself with a new type */
+			(*new_scope)->put_bound_variable(status, value_name->get_name(),
+					bound_var_t::create(
+						value_name->get_location(),
+						value_name->get_name(),
+						bound_type,
+						/* perform a safe runtime cast of this value */
+						value->llvm_value,
+						value_name,
+						false /*is_lhs*/));
 
-			if (!!status) {
-				auto get_typeid_eq_function = program_scope->get_bound_variable(
-						status, node, "__type_id_eq_type_id");
-
-				assert(get_typeid_eq_function != nullptr);
-				if (!!status) {
-					/* generate a new scope with the value_name containing a new
-					 * variable to overwrite the prior scoped variable's type with
-					 * the new checked type */
-					*new_scope = scope->new_local_scope(string_format("when %s %s",
-								value_name->str().c_str(),
-								node->str().c_str()));
-
-					/* replace this bound variable with a version of itself with a new type */
-					(*new_scope)->put_bound_variable(status, value_name->get_name(),
-							bound_var_t::create(
-								value_name->get_location(),
-								value_name->get_name(),
-								bound_type,
-								/* perform a safe runtime cast of this value */
-								value->llvm_value,
-								value_name,
-								false /*is_lhs*/));
-
-					/* call the type_id comparator function */
-					return create_callsite(
-							status,
-							builder,
-							scope,
-							node,
-							get_typeid_eq_function,
-							value_name->get_name(),
-							value_name->get_location(),
-							{type_id, type_id_wanted});
-				}
-			}
+			/* call the type_id comparator function */
+			return create_callsite(
+					status,
+					builder,
+					scope,
+					node,
+					get_typeid_eq_function,
+					value_name->get_name(),
+					value_name->get_location(),
+					{type_id, type_id_wanted});
 		}
 	}
 
@@ -145,10 +128,11 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 		refs::const_iterator end_iter,
 		ptr<const ast::block> else_block) const
 {
+	assert(value != nullptr);
+	assert(value_name != nullptr);
+
 	/* if scope allows us to set up new variables inside if conditions */
 	local_scope_t::ref if_scope;
-
-	bool if_block_returns = false, else_block_returns = false;
 
 	assert(type_ref != nullptr);
 
@@ -157,13 +141,39 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 			value_name->get_name());
 
 	assert(token.text == "is");
-	auto cast_type = type_ref->get_type(status, scope, type_id_name, {});
+	auto type_to_match = type_ref->get_type(
+			status, scope, type_id_name, {})->rebind(
+				scope->get_type_variable_bindings());
 
 	if (!!status) {
+		/* get the bound type for this type pattern */
+		bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope,
+				type_to_match);
+
+		/* check whether this type is __unreachable */
+		if (!bound_type->is_concrete()) {
+			/* it looks like this type is too abstract to understand. that means
+			 * our code cannot possibly expect to need to pattern match against
+			 * it. let's skip it */
+			if (next_iter != end_iter) {
+				auto pattern_block_next = *next_iter;
+				return pattern_block_next->resolve_pattern_block(status, builder,
+						value, value_name, scope,
+						returns, ++next_iter, end_iter,
+						else_block);
+			} else if (else_block != nullptr) {
+				return else_block->resolve_instantiation(status, builder,
+						scope, nullptr, returns);
+			}
+
+			/* we've got nothing else to match on, so, let's bail */
+			return nullptr;
+		}
+
 		/* evaluate the condition for branching */
 		bound_var_t::ref condition_value = gen_type_check(status, builder,
 				shared_from_this(), scope, value_name, value,
-				cast_type, &if_scope);
+				bound_type, &if_scope);
 
 		if (!!status) {
 			assert(condition_value->is_int());
@@ -181,6 +191,7 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 				/* we have to keep track of whether we need a merge block
 				 * because our nested branches could all return */
 				bool insert_merge_bb = false;
+				bool else_block_returns = false;
 
 				if ((next_iter != end_iter) || (else_block != nullptr)) {
 					/* we've got an else block, so let's create an "else" basic block. */
@@ -230,7 +241,9 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 				if (!!status) {
 					/* let's generate code for the "then" block */
 					builder.SetInsertPoint(then_bb);
-					block->resolve_instantiation(status, builder, if_scope ? if_scope : scope, nullptr, &if_block_returns);
+					bool if_block_returns = false;
+					block->resolve_instantiation(status, builder,
+						   	if_scope ? if_scope : scope, nullptr, &if_block_returns);
 					if (!!status) {
 						if (!if_block_returns) {
 							insert_merge_bb = true;

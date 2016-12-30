@@ -314,6 +314,11 @@ void add_global_types(
 					type_id(make_iid("__var_ref")),
 				   	INTERNAL_LOC(),
 				   	llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
+		{{"__unreachable"},
+		   	bound_type_t::create(
+					type_unreachable(),
+				   	INTERNAL_LOC(),
+				   	llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
 		{{"__mark_fn"},
 		   	bound_type_t::create(
 					type_id(make_iid("__mark_fn")),

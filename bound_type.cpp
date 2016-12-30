@@ -37,6 +37,18 @@ types::type::ref bound_type_impl_t::get_type() const {
 	return type;
 }
 
+bool bound_type_impl_t::is_concrete() const {
+	if (type->repr() != "__unreachable") {
+		// NOTE: this assert may be ok to delete, since we could potentially have
+		// nested types that we can't actually access without pattern matching,
+		// which will check reachability
+		assert(strstr(type->repr().c_str(), "__unreachable") == nullptr);
+		return true;
+	} else {
+		return false;
+	}
+}
+
 struct location const bound_type_impl_t::get_location() const {
 	return location;
 }
@@ -86,19 +98,30 @@ bound_type_handle_t::bound_type_handle_t(
 }
 
 std::string bound_type_handle_t::str() const {
+	std::stringstream ss;
+	ss << get_type();
+	ss << " " << llvm_print_type(*get_llvm_type());
 	if (actual != nullptr) {
-		return actual->str();
+		ss << " (actual: " <<  actual->str() << ")";
 	} else {
-		std::stringstream ss;
-		ss << get_type();
-		ss << " " << llvm_print_type(*get_llvm_type());
 		ss << " " C_UNCHECKED "unresolved" C_RESET;
-		return ss.str();
 	}
+
+	return ss.str();
 }
 
 types::type::ref bound_type_handle_t::get_type() const {
 	return type;
+}
+
+bool bound_type_handle_t::is_concrete() const {
+	if (actual != nullptr) {
+		return actual->is_concrete();
+	} else {
+		assert(!"This type is not actualized yet! Why do you care about concreteness?");
+		/* err on the side of not concrete if we don't have an actual type */
+		return false;
+	}
 }
 
 struct location const bound_type_handle_t::get_location() const {
@@ -138,13 +161,14 @@ bound_type_t::name_index const bound_type_handle_t::get_member_index() const {
 	}
 }
 
-void bound_type_handle_t::set_actual(bound_type_t::ref actual_) const {
-	assert(actual_ != actual);
-	assert(actual_ != shared_from_this());
-	assert(actual_->get_llvm_type() == llvm_type);
-	debug_above(2, log(log_info, "resolving %s to %s", this->str().c_str(), actual_->str().c_str()));
+void bound_type_handle_t::set_actual(bound_type_t::ref new_actual) const {
+	assert(new_actual != nullptr);
+	assert_implies(actual != nullptr, new_actual == actual);
+	assert(new_actual != shared_from_this());
+	assert(new_actual->get_llvm_type() == llvm_type);
+	debug_above(2, log(log_info, "resolving %s to %s", this->str().c_str(), new_actual->str().c_str()));
 	// dbg();
-	actual = actual_;
+	actual = new_actual;
 }
 
 std::string str(const bound_type_t::refs &args) {

@@ -63,46 +63,6 @@ bool occurs_in_type(
 	}
 }
 
-types::type::ref eval_id(
-		ptr<const types::type_id> ptid,
-		types::type::map env)
-{
-	assert(ptid != nullptr);
-
-	/* look in the environment for a declaration of this term */
-	auto fn_iter = env.find(ptid->id->get_name());
-	if (fn_iter != env.end()) {
-		return fn_iter->second;
-	} else {
-		return nullptr;
-	}
-}
-
-types::type::ref eval_apply(
-		types::type::ref oper,
-	   	types::type::ref operand, 
-		types::type::map env,
-		types::type::map bindings)
-{
-	assert(oper != nullptr);
-	assert(operand != nullptr);
-	auto ptid = dyncast<const types::type_id>(oper);
-	assert(ptid != nullptr);
-
-	/* look in the environment for a declaration of this operator */
-	types::type::ref expansion = eval_id(ptid, env);
-
-	/* we found a lambda, hopefully */
-	auto lambda = dyncast<const types::type_lambda>(expansion);
-	if (lambda != nullptr) {
-		auto var_name = lambda->binding->get_name();
-		bindings[var_name] = operand;
-		return lambda->body->rebind(bindings);
-	} else {
-		return nullptr;
-	}
-}
-
 unification_t unify(
 		types::type::ref lhs,
 		types::type::ref rhs,
@@ -162,7 +122,7 @@ unification_t unify(
 							a->str().c_str(), b->str().c_str()),
 					bindings};
 			}
-			debug_above(4, log(log_info, "binding " c_id("%s") " to " c_type("%s"),
+			debug_above(4, log(log_info, "binding type_variable " c_id("%s") " to " c_type("%s"),
 						ptv_a->id->get_name().c_str(),
 						b->str(bindings).c_str()));
 			assert(bindings.find(ptv_a->id->get_name()) == bindings.end());
@@ -238,7 +198,7 @@ unification_t unify(
 		} else {
 			assert(pts_b != nullptr);
 			for (auto inbound_option : pts_b->options) {
-				debug_above(8, log(log_info, "checking inbound %s against %s",
+				debug_above(7, log(log_info, "checking inbound %s against %s",
 							inbound_option->repr().c_str(), a->repr().c_str()));
 				auto unification = unify(a, inbound_option, env, bindings, depth + 1);
 				if (unification.result) {
@@ -254,10 +214,10 @@ unification_t unify(
 			return {true, "inbound type is a subset of outbound type", bindings};
 		}
 	} else if (pto_a != nullptr) {
-		debug_above(8, log(log_info, "checking inbound type_operator %s",
+		debug_above(7, log(log_info, "checking inbound type_operator %s",
 					pto_a->repr().c_str()));
 		if (pto_b != nullptr) {
-			debug_above(8, log(log_info, "checking outbound type_operator %s",
+			debug_above(7, log(log_info, "checking outbound type_operator %s",
 						pto_b->repr().c_str()));
 			auto unification = unify(pto_a->oper, pto_b->oper, env, bindings, depth + 1);
 			if (unification.result) {
@@ -277,17 +237,16 @@ unification_t unify(
 			}
 		} else {
 			/* fallthrough, and try expanding the left-hand side */
-			debug_above(8, log(log_info, "falling through"));
+			debug_above(7, log(log_info, "falling through"));
 		}
 
-		debug_above(8, log(log_info, "eval_apply(%s, %s, ...)",
+		debug_above(7, log(log_info, "eval_apply(%s, %s, ...)",
 					pto_a->oper->str(bindings).c_str(), pto_a->operand->str(bindings).c_str()));
 		auto new_a = eval_apply(pto_a->oper, pto_a->operand, env, bindings);
 		if (new_a != nullptr) {
-			debug_above(8, log(log_info, "eval_apply(%s, %s, ...) -> %s",
+			debug_above(7, log(log_info, "eval_apply(%s, %s, ...) -> %s",
 						pto_a->oper->str(bindings).c_str(), pto_a->operand->str(bindings).c_str(),
 						new_a->str(bindings).c_str()));
-			dbg();
 			return unify(new_a, b, env, bindings, depth + 1);
 		} else {
 			/* types don't match */

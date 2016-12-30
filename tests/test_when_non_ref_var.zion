@@ -1,0 +1,14 @@
+module _
+# test: pass
+
+type Vector has
+	var x float
+	var y float
+
+def do(t Vector) void
+	when t.x
+		is float
+			print("yep")
+
+def main()
+	do(Vector(0, 1))

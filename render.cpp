@@ -111,7 +111,18 @@ namespace ast {
 	}
 
 	void literal_expr::render(render_state_t &rs) const {
-		rs.ss << token.text;
+		switch (token.tk) {
+		case tk_string:
+			rs.ss << C_ERROR << token.text << C_RESET;
+			break;
+		case tk_integer:
+		case tk_float:
+			rs.ss << C_CONTROL << token.text << C_RESET;
+			break;
+		default:
+			rs.ss << C_LINE_REF << token.text << C_RESET;
+			break;
+		}
 	}
 
 	void type_product::render(render_state_t &rs) const {

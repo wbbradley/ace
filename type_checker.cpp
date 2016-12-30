@@ -507,23 +507,23 @@ bound_var_t::ref ast::callsite_expr::resolve_instantiation(
 
 	if (auto symbol = dyncast<ast::reference_expr>(function_expr)) {
 		if (symbol->token.text == "static_print") {
-			if (params->expressions.size() != 1) {
-				user_error(status, *shared_from_this(), "static_print requires one and only one parameter");
-
-				assert(!status);
-				return nullptr;
-			} else {
+			if (params->expressions.size() == 1) {
 				auto param = params->expressions[0];
 				bound_var_t::ref param_var = param->resolve_instantiation(
 						status, builder, scope, nullptr, nullptr);
 
 				if (!!status) {
 					user_message(log_info, status, param->get_location(),
-							"static_print(%s) = %s", param->str().c_str(),
+							"%s is of type %s", param->str().c_str(),
 							param_var->type->str().c_str());
-					// scope->dump(std::cerr);
 					return nullptr;
 				}
+
+				assert(!status);
+				return nullptr;
+			} else {
+				user_error(status, *shared_from_this(),
+					   	"static_print requires one and only one parameter");
 
 				assert(!status);
 				return nullptr;
@@ -1291,6 +1291,11 @@ status_t type_check_program(
 			break;
 		}
         status |= type_check_module_variables(compiler, builder, *module, program_scope);
+
+		/* technically we only need to check the primary module, since that is
+		 * the one that is expected to have the entry point ... at least for
+		 * now... */
+		break;
     }
     return status;
 }

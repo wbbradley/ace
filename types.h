@@ -6,6 +6,8 @@
 #include "identifier.h"
 
 extern const char *BUILTIN_LIST_TYPE;
+extern const char *BUILTIN_VOID_TYPE;
+extern const char *BUILTIN_UNREACHABLE_TYPE;
 
 /* Product Kinds */
 enum product_kind_t {
@@ -155,6 +157,7 @@ namespace types {
 };
 
 /* type data ctors */
+types::type::ref type_void();
 types::type::ref type_unreachable();
 types::type::ref type_id(identifier::ref var);
 types::type::ref type_variable(identifier::ref name);
@@ -165,6 +168,8 @@ types::type::ref type_sum(types::type::refs options);
 types::type::ref type_lambda(identifier::ref binding, types::type::ref body);
 types::type::ref type_list_type(types::type::ref element);
 
+types::type::ref eval_id(ptr<const types::type_id> ptid, types::type::map env);
+types::type::ref eval_apply(types::type::ref oper, types::type::ref operand, types::type::map env, types::type::map bindings);
 bool type_is_unbound(types::type::ref type, types::type::map bindings);
 std::ostream &operator <<(std::ostream &os, identifier::ref id);
 std::string str(types::type::refs refs);
