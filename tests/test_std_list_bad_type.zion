@@ -1,0 +1,6 @@
+module _
+
+def main()
+	# error: unable to resolve overloads for Node
+	l := Node(3, Node("hello", Empty))
+	print(len(l))

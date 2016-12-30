@@ -78,10 +78,9 @@ unification_t unify(
 	assert(lhs != nullptr);
 	assert(rhs != nullptr);
 
-	debug_above(7, log(log_info, "unify(%s, %s, %s, %s)",
+	debug_above(7, log(log_info, "unify(%s, %s, ..., %s)",
 			   	lhs->str().c_str(),
 			   	rhs->str().c_str(),
-				str(env).c_str(),
 				str(bindings).c_str()));
 
     auto a = prune(lhs, bindings);
@@ -239,24 +238,33 @@ unification_t unify(
 			/* fallthrough, and try expanding the left-hand side */
 			debug_above(7, log(log_info, "falling through"));
 		}
+		auto operator_a = pto_a->oper->rebind(bindings);
+		auto operand_a = pto_a->operand->rebind(bindings);
 
 		debug_above(7, log(log_info, "eval_apply(%s, %s, ...)",
-					pto_a->oper->str(bindings).c_str(), pto_a->operand->str(bindings).c_str()));
-		auto new_a = eval_apply(pto_a->oper, pto_a->operand, env, bindings);
+					operator_a->str().c_str(), operand_a->str().c_str()));
+
+		/* apply the bindings first, so as to simplify the application */
+		auto new_a = eval_apply(operator_a, operand_a, env);
+
 		if (new_a != nullptr) {
 			debug_above(7, log(log_info, "eval_apply(%s, %s, ...) -> %s",
-						pto_a->oper->str(bindings).c_str(), pto_a->operand->str(bindings).c_str(),
+						operator_a->str().c_str(), operand_a->str().c_str(),
 						new_a->str(bindings).c_str()));
+
 			return unify(new_a, b, env, bindings, depth + 1);
 		} else {
 			/* types don't match */
-			return {false, string_format("%s <> %s",
-					a->str(bindings).c_str(),
-					b->str(bindings).c_str()), {}};
+			return {false, string_format("%s <> %s with attempted bindings %s",
+					a->str().c_str(),
+					b->str().c_str(),
+					str(bindings).c_str()), {}};
 		}
 	} else {
 		/* types don't match */
-		return {false, string_format("%s <> %s",
-				a->str(bindings).c_str(), b->str(bindings).c_str()), {}};
+		return {false, string_format("%s <> %s with attempted bindings %s",
+				a->str().c_str(),
+				b->str().c_str(),
+				str(bindings).c_str()), {}};
 	}
 }

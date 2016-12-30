@@ -132,7 +132,7 @@ void compiler::build_parse_linked(status_t &status, ptr<const ast::module> modul
 	}
 }
 
-void compiler::build_parse(
+ast::module::ref compiler::build_parse(
 		status_t &status,
 		location location,
 		std::string module_name,
@@ -162,6 +162,10 @@ void compiler::build_parse(
 					set_module(status, module->filename.str(), module);
 					if (!!status) {
 						build_parse_linked(status, module);
+
+						if (!!status) {
+							return module;
+						}
 					} else {
 						user_error(status, location, "failed to set module %s", module_name.c_str());
 					}
@@ -172,6 +176,7 @@ void compiler::build_parse(
 			} else {
 				debug_above(3, info("no need to build %s as it's already been linked in",
 							module_name.c_str()));
+				return existing_module;
 			}
 		} else {
 			/* a failure */
@@ -180,6 +185,9 @@ void compiler::build_parse(
 	} else {
 		/* no file, i guess */
 	}
+
+	assert(!status);
+	return nullptr;
 }
 
 void rt_bind_var_from_llir(
@@ -495,7 +503,8 @@ void compiler::build_parse_modules(status_t &status) {
 		build_parse(status, location{"std lib", 0, 0}, "lib/std", true /*global*/);
 
 		if (!!status) {
-			build_parse(status, location{"command line build parameters", 0, 0},
+			/* now parse the main program module */
+			main_module = build_parse(status, location{"command line build parameters", 0, 0},
 					module_name, false /*global*/);
 
 			if (!!status) {

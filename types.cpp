@@ -561,8 +561,7 @@ types::type::ref eval_id(
 types::type::ref eval_apply(
 		types::type::ref oper,
 	   	types::type::ref operand, 
-		types::type::map env,
-		types::type::map bindings)
+		types::type::map env)
 {
 	assert(oper != nullptr);
 	assert(operand != nullptr);
@@ -580,8 +579,7 @@ types::type::ref eval_apply(
 	auto lambda = dyncast<const types::type_lambda>(expansion);
 	if (lambda != nullptr) {
 		auto var_name = lambda->binding->get_name();
-		bindings[var_name] = operand;
-		return lambda->body->rebind(bindings);
+		return lambda->body->rebind({{var_name, operand}});
 	} else {
 		return nullptr;
 	}

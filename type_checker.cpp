@@ -1285,19 +1285,17 @@ status_t type_check_program(
         status |= type_check_module_links(compiler, builder, *module, program_scope);
     }
 
-    /* pass to resolve all module-level variables */
-    for (auto &module : obj.modules) {
-		if (!status) {
-			break;
-		}
-        status |= type_check_module_variables(compiler, builder, *module, program_scope);
+	if (!status) {
+		return status;
+	}
 
-		/* technically we only need to check the primary module, since that is
-		 * the one that is expected to have the entry point ... at least for
-		 * now... */
-		break;
-    }
-    return status;
+	assert(compiler.main_module != nullptr);
+
+	/* pass to resolve all main module-level variables.  technically we only
+	 * need to check the primary module, since that is the one that is expected
+	 * to have the entry point ... at least for now... */
+	return type_check_module_variables(compiler, builder, *compiler.main_module,
+			program_scope);
 }
 
 bound_var_t::ref ast::tag::resolve_instantiation(

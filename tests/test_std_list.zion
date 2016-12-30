@@ -1,0 +1,6 @@
+module _
+# test: pass
+
+def main()
+	l := Node(3, Node(2, Empty))
+	print(len(l))

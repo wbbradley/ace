@@ -1,15 +1,31 @@
 module _
-# test: skip
+# test: pass
 
-type ListInt is Node(int, ListInt) or Done
+type NodeInt has
+	var value int
+	var next ListInt
+
+tag Done
+
+type ListInt is NodeInt or Done
 
 def len(l ListInt) int
 	when l
 		is Done
 			return 0
-		is Node(x, xs)
-			return len(xs) + 1
+		is NodeInt
+			return 1 + len(l.next)
+	return 0
+
+def sum(l ListInt) int
+	when l
+		is Done
+			return 0
+		is NodeInt
+			return l.value + sum(l.next)
+	return 0
 
 def main()
-	l := Done
-	len(l)
+	l := NodeInt(1, NodeInt(2, NodeInt(3, Done)))
+	print(len(l))
+	print(sum(l))

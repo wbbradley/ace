@@ -210,3 +210,32 @@ def __gte__(x float, y int) bool
 def print(x any) void
 	s := str(x)
 	puts(s.raw)
+
+tag Empty
+
+type Just{T} has
+	var value T
+
+type Maybe{T} is
+	Empty or Just{T}
+
+type Node{T} has
+	var value T
+	var next List{T}
+
+type List{T} is Node{T} or Empty
+
+def first(l List{any T}) Maybe{any T}
+	when l
+		is Empty
+			return Empty
+		is Node{any T}
+			return Just(l.value)
+
+def len(l List{any T}) int
+	when l
+		is Empty
+			return 0
+		is Node{any T}
+			return 1 + len(l.next)
+	return 0

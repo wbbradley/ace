@@ -56,7 +56,7 @@ struct compiler {
 	void build_type_check_and_code_gen(status_t &status);
 
 	/* parse a single module */
-	void build_parse(status_t &status, location location, std::string module_name, bool global);
+	ptr<const ast::module> build_parse(status_t &status, location location, std::string module_name, bool global);
 
 	void build_parse_linked(status_t &status, ptr<const ast::module> module);
 	std::unordered_set<std::string> compile_modules(status_t &status);
@@ -65,6 +65,8 @@ struct compiler {
 
 	program_scope_t::ref get_program_scope() const;
 	std::string get_program_name() const;
+
+	ptr<const ast::module> main_module;
 
 	/* member variables */
 private:

@@ -93,7 +93,7 @@ static void *mem_alloc(size_t cb) {
 				&_bytes_allocated, &previous_total, previous_total + cb)) {
 	}
 
-	fprintf(stdout, "total allocated %lu\n", previous_total + cb);
+	// fprintf(stdout, "total allocated %lu\n", previous_total + cb);
 	return calloc(cb, 1);
 }
 
@@ -188,8 +188,8 @@ void print_stack(struct zion_thread_t *thread) {
 		next_var = next_var.var->next_var;
 	}
 
-	size_t total = atomic_load(&_bytes_allocated);
-	fprintf(stdout, "total allocated %lu\n", total);
+	// size_t total = atomic_load(&_bytes_allocated);
+	// fprintf(stdout, "total allocated %lu\n", total);
 }
 
 type_id_t get_var_type_id(struct var_t *var) {

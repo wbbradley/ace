@@ -146,7 +146,7 @@ bound_type_t::ref create_bound_operator_type(
 
 	/* apply the operator */
 	auto expansion = eval_apply(operator_->oper, operator_->operand,
-			scope->get_typename_env(), {});
+			scope->get_typename_env());
 
 	if (expansion == nullptr) {
 		user_error(status, operator_->get_location(),
@@ -587,7 +587,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 			scope->put_bound_variable(status, name, function);
 
 			if (!!status) {
-				debug_above(7, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
+				debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
 								*llvm_get_module(builder)).c_str()));
 				return function;
 			}
