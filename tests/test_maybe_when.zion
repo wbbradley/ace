@@ -4,16 +4,15 @@ module _
 type Just{T} has
 	var val T
 
-tag Empty
-
 type Maybe{T} is Empty or Just{T}
 
 def do(t Maybe{any T}) void
 	when t
 		is Just{any T}
-			pass
+			print("Just")
+			print(t.val)
 		is Empty
-			pass
+			print("Empty")
 
 def main()
 	do(Just(3))

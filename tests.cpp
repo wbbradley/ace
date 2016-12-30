@@ -1160,7 +1160,10 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 					test_desc test_desc = {
 						name,
 						[ext_regex, tests_errors_dir, name, &skipped] () {
-							return check_compiler_error(tests_errors_dir + "/" + name, skipped);
+							auto filename = tests_errors_dir + "/" + name;
+							note_logger note_logger(string_format("testing " C_FILENAME " %s " C_RESET "...",
+										filename.c_str()));
+							return check_compiler_error(filename, skipped);
 						}
 					};
 

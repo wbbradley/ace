@@ -227,7 +227,7 @@ void rt_bind_var_from_llir(
 						type,
 						location{llvm_module.getName().str(), 0, 0},
 						llvm_function->getType());
-				program_scope->put_bound_type(bound_type);
+				program_scope->put_bound_type(status, bound_type);
 			}
 
 			program_scope->put_bound_variable(
@@ -253,6 +253,7 @@ const char *FALSE_TYPE = "__false__";
 const char *TYPEID_TYPE = "__typeid__";
 
 void add_global_types(
+		status_t &status,
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
 		llvm::Module *llvm_module_gc)
@@ -340,9 +341,12 @@ void add_global_types(
 	};
 
 	for (auto type_pair : globals) {
-		program_scope->put_bound_type(type_pair.second);
+		program_scope->put_bound_type(status, type_pair.second);
+		if (!status) {
+			break;
+		}
 	}
-	debug_above(9, log(log_info, "%s", program_scope->str().c_str()));
+	debug_above(10, log(log_info, "%s", program_scope->str().c_str()));
 }
 
 void add_globals(
@@ -360,7 +364,8 @@ void add_globals(
 
 	/* set up the global scalar types, as well as memory reference and garbage
 	 * collection types */
-	add_global_types(builder, program_scope, llvm_module_gc);
+	add_global_types(status, builder, program_scope, llvm_module_gc);
+	assert(!!status);
 
 	/* lookup the types of bool and void pointer for use below */
 	bound_type_t::ref void_ptr_type = program_scope->get_bound_type({"__bytes"});

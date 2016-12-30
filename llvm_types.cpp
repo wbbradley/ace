@@ -67,8 +67,13 @@ bound_type_t::ref create_bound_product_type(
 					if (!!status) {
 						bound_type = bound_type_t::create(fn_type,
 								product->get_location(), llvm_fn_type);
-						program_scope->put_bound_type(bound_type);
-						return bound_type;
+						program_scope->put_bound_type(status, bound_type);
+
+						if (!!status) {
+							return bound_type;
+						} else {
+							return nullptr;
+						}
 					}
 				}
 			}
@@ -91,25 +96,31 @@ bound_type_t::ref create_bound_product_type(
 			auto bound_type_handle = bound_type_t::create_handle(
 					product,
 					program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
-			program_scope->put_bound_type(bound_type_handle);
 
-			bound_type_t::refs args;
-			for (auto dim : product->dimensions) {
-				auto arg = upsert_bound_type(status, builder, scope, dim);
-
-				if (!status) {
-					break;
-				}
-				args.push_back(arg);
-			}
+			program_scope->put_bound_type(status, bound_type_handle);
 
 			if (!!status) {
-				auto bound_type = create_algebraic_data_type(builder, scope,
-						types::gensym(), args, product->name_index,
-						product->get_location(), product);
-				bound_type_handle->set_actual(bound_type);
-				return bound_type;
+				bound_type_t::refs args;
+				for (auto dim : product->dimensions) {
+					auto arg = upsert_bound_type(status, builder, scope, dim);
+
+					if (!status) {
+						break;
+					}
+					args.push_back(arg);
+				}
+
+				if (!!status) {
+					auto bound_type = create_algebraic_data_type(status, builder, scope,
+							types::gensym(), args, product->name_index,
+							product->get_location(), product);
+					if (!!status) {
+						bound_type_handle->set_actual(bound_type);
+						return bound_type;
+					}
+				}
 			}
+			break;
 		}
 	case pk_tag:
 		{
@@ -159,22 +170,24 @@ bound_type_t::ref create_bound_operator_type(
 		auto bound_type_handle = bound_type_t::create_handle(
 				operator_,
 				program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
-		program_scope->put_bound_type(bound_type_handle);
+		program_scope->put_bound_type(status, bound_type_handle);
 	
-		/* go ahead and recurse to resolve this new expanded type */
-		bound_type_t::ref bound_expansion = upsert_bound_type(status, builder,
-				scope, expansion);
+		if (!!status) {
+			/* go ahead and recurse to resolve this new expanded type */
+			bound_type_t::ref bound_expansion = upsert_bound_type(status, builder,
+					scope, expansion);
 
-		if (bound_expansion != nullptr) {
-			/* we found the 'true' type for this type operator, let's map the
-			 * type operator back to this new 'truth' */
-			bound_type_handle->set_actual(bound_expansion);
-			return bound_type_handle;
-		} else {
-			user_error(status, operator_->get_location(),
-					"failed to bind concrete type to %s afer expansion to %s",
-					operator_->str().c_str(),
-					expansion->str().c_str());
+			if (bound_expansion != nullptr) {
+				/* we found the 'true' type for this type operator, let's map the
+				 * type operator back to this new 'truth' */
+				bound_type_handle->set_actual(bound_expansion);
+				return bound_type_handle;
+			} else {
+				user_error(status, operator_->get_location(),
+						"failed to bind concrete type to %s afer expansion to %s",
+						operator_->str().c_str(),
+						expansion->str().c_str());
+			}
 		}
 	}
 
@@ -195,8 +208,12 @@ bound_type_t::ref create_bound_sum_type(
 			scope->get_bound_type({"__var_ref"})->get_llvm_type());
 
 	ptr<program_scope_t> program_scope = scope->get_program_scope();
-	program_scope->put_bound_type(bound_type);
-	return bound_type;
+	program_scope->put_bound_type(status, bound_type);
+	if (!!status) {
+		return bound_type;
+	} else {
+		return nullptr;
+	}
 }
 
 bound_type_t::ref create_bound_type(
@@ -222,38 +239,41 @@ bound_type_t::ref create_bound_type(
 		auto bound_type_handle = bound_type_t::create_handle(
 				id,
 				program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
-		program_scope->put_bound_type(bound_type_handle);
+		program_scope->put_bound_type(status, bound_type_handle);
 
-		/* now, we can do whatever it takes to resolve this. let's look up this
-		 * type in the environment to see if it resolves to any already known
-		 * bound_types. this will likely involve recursion. */
-		auto type_iter = env.find(id->get_id()->get_name());
-		if (type_iter != env.end()) {
-			auto type = type_iter->second;
-			debug_above(2, log(log_info, "found unbound type_id in env " c_type("%s") " => %s",
-						id->get_signature().c_str(),
-						type->str().c_str()));
+		if (!!status) {
+			/* now, we can do whatever it takes to resolve this. let's look up this
+			 * type in the environment to see if it resolves to any already known
+			 * bound_types. this will likely involve recursion. */
+			auto type_iter = env.find(id->get_id()->get_name());
+			if (type_iter != env.end()) {
+				auto type = type_iter->second;
+				debug_above(2, log(log_info, "found unbound type_id in env " c_type("%s") " => %s",
+							id->get_signature().c_str(),
+							type->str().c_str()));
 
-			if (auto lambda = dyncast<const types::type_lambda>(type)) {
-				debug_above(4, log(log_info, "type_id %s expands to type_lambda %s",
-							id->str().c_str(),
-							lambda->str().c_str()));
-				user_error(status, type->get_location(), "type %s resolves to a lambda, however we found a reference that does not supply parameters",
-						type->str().c_str());
-			} else {
-				/* cool, we have a term we can recurse on. */
-				auto bound_type = upsert_bound_type(
-						status, builder, scope, type);
+				if (auto lambda = dyncast<const types::type_lambda>(type)) {
+					debug_above(4, log(log_info, "type_id %s expands to type_lambda %s",
+								id->str().c_str(),
+								lambda->str().c_str()));
+					user_error(status, type->get_location(),
+						   	"type %s resolves to a lambda, however we found a reference that does not supply parameters",
+							type->str().c_str());
+				} else {
+					/* cool, we have a term we can recurse on. */
+					auto bound_type = upsert_bound_type(
+							status, builder, scope, type);
 
-				if (!!status) {
-					bound_type_handle->set_actual(bound_type);
-					return bound_type_handle;
+					if (!!status) {
+						bound_type_handle->set_actual(bound_type);
+						return bound_type_handle;
+					}
 				}
+			} else {
+				user_error(status, type->get_location(),
+						"unable to find a type definition for %s",
+						type->str().c_str());
 			}
-		} else {
-			user_error(status, type->get_location(),
-					"unable to find a type definition for %s",
-					type->str().c_str());
 		}
 
 		assert(!status);
@@ -266,7 +286,10 @@ bound_type_t::ref create_bound_type(
 	} else if (auto operator_ = dyncast<const types::type_operator>(type)) {
 		return create_bound_operator_type(status, builder, scope, operator_);
 	} else if (auto variable = dyncast<const types::type_variable>(type)) {
-		not_impl();
+		auto program_scope = scope->get_program_scope();
+		user_error(status, variable->get_location(), "unable to resolve type for %s",
+				variable->str().c_str());
+		return nullptr;
 	}
 
 	assert(!status);
@@ -371,13 +394,18 @@ bound_type_t::ref get_or_create_tuple_type(
 				args);
 
 		/* put the type for the data type */
-		program_scope->put_bound_type(data_type);
+		program_scope->put_bound_type(status, data_type);
 
-		return data_type;
+		if (!!status) {
+			return data_type;
+		} else {
+			return nullptr;
+		}
 	}
 }
 
 bound_type_t::ref get_or_create_algebraic_data_type(
+		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
@@ -397,12 +425,13 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 	if (data_type != nullptr) {
 		return data_type;
 	} else {
-		return create_algebraic_data_type(builder, scope, id, args,
+		return create_algebraic_data_type(status, builder, scope, id, args,
 				member_index, location, type);
 	}
 }
 
 bound_type_t::ref create_algebraic_data_type(
+		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
@@ -438,9 +467,13 @@ bound_type_t::ref create_algebraic_data_type(
 
 	/* put the type for the data type. the scope can handle the case where the
 	 * type already exists. */
-	program_scope->put_bound_type(data_type);
+	program_scope->put_bound_type(status, data_type);
 
-	return data_type;
+	if (!!status) {
+		return data_type;
+	} else {
+		return nullptr;
+	}
 }
 
 std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
@@ -489,14 +522,17 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
-		bound_type_t::ref data_type = get_or_create_algebraic_data_type(builder,
-				scope, id, args, member_index, node->token.location, type);
-
-		bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,
-				scope, args, data_type, id, node);
+		bound_type_t::ref data_type = get_or_create_algebraic_data_type(status,
+				builder, scope, id, args, member_index, node->token.location,
+				type);
 
 		if (!!status) {
-			return {tagged_tuple_ctor, data_type};
+			bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,
+					scope, args, data_type, id, node);
+
+			if (!!status) {
+				return {tagged_tuple_ctor, data_type};
+			}
 		}
 	}
 

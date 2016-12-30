@@ -82,6 +82,7 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 		types::type::ref data_type);
 
 bound_type_t::ref create_algebraic_data_type(
+		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,

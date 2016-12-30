@@ -36,6 +36,6 @@ unification_t var_t::accepts_callsite(
 
 	debug_above(6, log(log_info, "check of %s %s",
 				str().c_str(),
-				u.result ? "succeeded" : "failed"));
+				u.result ? c_good("succeeded") : c_error("failed")));
 	return u;
 }

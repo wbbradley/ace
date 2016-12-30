@@ -231,7 +231,7 @@ struct program_scope_t : public module_scope_impl_t {
 	unchecked_var_t::ref put_unchecked_variable(atom symbol, unchecked_var_t::ref unchecked_variable);
 
 	virtual bound_type_t::ref get_bound_type(types::signature signature);
-	void put_bound_type(bound_type_t::ref type);
+	void put_bound_type(status_t &status, bound_type_t::ref type);
 
 private:
 	module_scope_t::map modules;

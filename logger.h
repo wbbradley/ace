@@ -69,3 +69,15 @@ struct indent_logger : logger {
 	int level;
 	logger *logger_old;
 };
+
+struct note_logger : logger {
+	note_logger(std::string message);
+	virtual ~note_logger() throw();
+
+	virtual void logv(log_level_t level, const location *location, const char *format, va_list args);
+	virtual void log(log_level_t level, const location *location, const char *format, ...);
+	virtual void dump();
+
+	std::string msg;
+	logger *logger_old;
+};

@@ -149,6 +149,29 @@ void indent_logger::log(log_level_t level, const location *location, const char 
 	va_end(args);
 }
 
+note_logger::note_logger(std::string msg) :
+   	msg(msg), logger_old(_logger)
+{
+	_logger = this;
+}
+
+note_logger::~note_logger() throw() {
+	_logger = logger_old;
+}
+
+void note_logger::logv(log_level_t level, const location *location, const char *format, va_list args) {
+	if (logger_old != nullptr) {
+		logger_old->logv(level, location, format, args);
+	}
+}
+
+void note_logger::log(log_level_t level, const location *location, const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	logv(level, location, format, args);
+	va_end(args);
+}
+
 standard_logger::standard_logger(const std::string &name, const std::string &root_file_path) : m_name(name), m_fp(NULL) {
 	m_root_file_path = root_file_path;
 	if (m_root_file_path[m_root_file_path.size() - 1] != '/')
@@ -256,6 +279,14 @@ void indent_logger::dump() {
 	}
 	write_fp(stderr, "| indent_logger : level %d %s\n",
 			level, clean_ansi_escapes_if_not_tty(stderr, msg).c_str());
+}
+
+void note_logger::dump() {
+	if (logger_old != nullptr) {
+		logger_old->dump();
+	}
+	write_fp(stderr, "| note_logger : %s\n",
+			clean_ansi_escapes_if_not_tty(stderr, msg).c_str());
 }
 
 void log_dump() {

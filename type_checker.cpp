@@ -821,6 +821,11 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
 				user_error(status, *this, "%s has no dimension called " c_id("%s"),
 						lhs_val->type->str().c_str(),
 						rhs.text.c_str());
+				user_message(log_info, status, lhs_val->type->get_location(), "%s has dimension(s) [%s]",
+						lhs_val->type->str().c_str(),
+						join_with(member_index, ", ", [] (std::pair<atom, int> index) -> std::string {
+							return std::string(C_ID) + index.first.str() + C_RESET;
+							}).c_str());
 			}
 		}
 	}
@@ -1320,17 +1325,19 @@ bound_var_t::ref ast::tag::resolve_instantiation(
 				/* all tags use the var_t* type */
 				scope->get_program_scope()->get_bound_type({"__var_ref"})->get_llvm_type());
 
-		scope->get_program_scope()->put_bound_type(bound_tag_type);
-		bound_var_t::ref tag = llvm_create_global_tag(
-				builder, scope, bound_tag_type, tag_name, id);
-
-		/* record this tag variable for use later */
-		scope->put_bound_variable(status, tag_name, tag);
-
+		scope->get_program_scope()->put_bound_type(status, bound_tag_type);
 		if (!!status) {
-			debug_above(7, log(log_info, "instantiated nullary data ctor %s",
-						tag->str().c_str()));
-			return tag;
+			bound_var_t::ref tag = llvm_create_global_tag(
+					builder, scope, bound_tag_type, tag_name, id);
+
+			/* record this tag variable for use later */
+			scope->put_bound_variable(status, tag_name, tag);
+
+			if (!!status) {
+				debug_above(7, log(log_info, "instantiated nullary data ctor %s",
+							tag->str().c_str()));
+				return tag;
+			}
 		}
 	}
 

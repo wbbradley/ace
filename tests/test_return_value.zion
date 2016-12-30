@@ -1,13 +1,13 @@
 module test_return_value @1.0
 
 def get_1(n str) int
-	# error: 5:2.* return expression type str does not match int
+	# error: 5:2.* return expression type str .*does not match int.*
 	return n
 
 def get_2(n int) str
-	# error: 9:2.* return expression type int does not match str
+	# error: 9:2.* return expression type int .*does not match str.*
 	return n
 
 def get_3() int
-	# error: 13:2.* return expression type str does not match int
+	# error: 13:2.* return expression type str .*does not match int.*
 	return "hey"

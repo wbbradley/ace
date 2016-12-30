@@ -477,7 +477,7 @@ unchecked_var_t::ref program_scope_t::put_unchecked_variable(
 			unchecked_vars, unchecked_vars_ordered, get_name(), nullptr);
 }
 
-void program_scope_t::put_bound_type(bound_type_t::ref type) {
+void program_scope_t::put_bound_type(status_t &status, bound_type_t::ref type) {
 	debug_above(8, log(log_info, "binding type %s as " c_id("%s"),
 				type->str().c_str(),
 				type->get_signature().repr().c_str()));
@@ -490,8 +490,10 @@ void program_scope_t::put_bound_type(bound_type_t::ref type) {
 		if (auto handle = dyncast<const bound_type_handle_t>(iter->second)) {
 			handle->set_actual(type);
 		} else {
-			// TODO: ensure that type symbols are namespaced
-			not_impl();
+			user_error(status, type->get_location(), "type %s already exists",
+					type->str().c_str());
+			user_error(status, iter->second->get_location(), "type %s was declared here",
+					iter->second->str().c_str());
 		}
 	}
 }
@@ -574,31 +576,20 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 	/* iterate over the bindings found during unifications and make
 	 * substitutions in the type environment */
 	for (auto &pair : unification.bindings) {
-		if (true || pair.first.str().find("_") != 0) {
-			auto bound_type = upsert_bound_type(
-					status,
-					builder,
-					parent_scope,
-					pair.second);
-					
-			if (!bound_type) {
-				user_error(status, *fn_decl, "when trying to instantiate %s, couldn't find or create type %s",
-						fn_decl->token.str().c_str(),
-						pair.second->str().c_str());
-				return nullptr;
-			} else {
-				/* the substitution scope allows us to masquerade a generic name as
-				 * a bound type */
-				auto type = pair.second->rebind(unification.bindings);
-				debug_above(5, log(log_info, "adding " c_id("%s") " to env as %s",
-							pair.first.c_str(),
-							type->str().c_str()));
-				subst_scope->type_variable_bindings[pair.first] = type;
+		if (pair.first.str().find("_") != 0) {
+			subst_scope->put_type_variable_binding(status, pair.first, pair.second);
+			if (!status) {
+				break;
 			}
 		} else {
 			debug_above(7, log(log_info, "skipping adding %s to generic substitution scope",
 						pair.first.c_str()));
 		}
 	}
-	return subst_scope;
+
+	if (!!status) {
+		return subst_scope;
+	} else {
+		return nullptr;
+	}
 }
