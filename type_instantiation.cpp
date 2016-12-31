@@ -419,9 +419,11 @@ types::type::ref register_data_ctor(
 				auto type = instantiate_data_ctor_type(status, builder,
 						type_variables, scope, node, dimensions,
 						member_index, id, supertype_id);
-				/* register the typename in the current environment */
-				scope->put_typename(status, id->get_name(), type);
-				return type;
+				if (!!status) {
+					/* register the typename in the current environment */
+					scope->put_typename(status, id->get_name(), type);
+					return type;
+				}
 			}
 		}
 	} else {

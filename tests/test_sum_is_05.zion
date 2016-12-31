@@ -1,7 +1,6 @@
 module _
 
 # test: pass
-tag Empty
 type Just{T} has
 	var value T
 

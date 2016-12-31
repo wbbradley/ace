@@ -1,5 +1,5 @@
 module _
-# test: pass
+# test: skip
 
 type Vector has
 	var x float

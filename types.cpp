@@ -115,7 +115,6 @@ namespace types {
 
 		auto instance_iter = bindings.find(id->get_name());
 		if (instance_iter != bindings.end()) {
-			assert(instance_iter->second != shared_from_this());
 			return instance_iter->second;
 		} else {
 			return shared_from_this();
@@ -565,23 +564,26 @@ types::type::ref eval_apply(
 {
 	assert(oper != nullptr);
 	assert(operand != nullptr);
-	auto ptid = dyncast<const types::type_id>(oper);
-	assert(ptid != nullptr);
+	if (auto ptid = dyncast<const types::type_id>(oper)) {
+		/* look in the environment for a declaration of this operator */
+		types::type::ref expansion = eval_id(ptid, env);
 
-	/* look in the environment for a declaration of this operator */
-	types::type::ref expansion = eval_id(ptid, env);
-
-	debug_above(7, log(log_info, "eval_apply : %s expanded to %s",
-				ptid->str().c_str(),
-			   	expansion ? expansion->str().c_str() : c_error("nothing")));
-
-	/* we found a lambda, hopefully */
-	auto lambda = dyncast<const types::type_lambda>(expansion);
-	if (lambda != nullptr) {
+		debug_above(7, log(log_info, "eval_apply : %s expanded to %s",
+					ptid->str().c_str(),
+					expansion ? expansion->str().c_str() : c_error("nothing")));
+		if (expansion != nullptr) {
+			return eval_apply(expansion, operand, env);
+		} else {
+			return nullptr;
+		}
+	} else if (auto lambda = dyncast<const types::type_lambda>(oper)) {
 		auto var_name = lambda->binding->get_name();
 		return lambda->body->rebind({{var_name, operand}});
+	} else if (auto pto = dyncast<const types::type_operator>(oper)) {
+		auto new_operator = eval_apply(pto->oper, pto->operand, env);
+		return eval_apply(new_operator, operand, env);
 	} else {
-		return nullptr;
+		return null_impl();
 	}
 }
 

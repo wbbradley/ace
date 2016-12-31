@@ -1,6 +1,6 @@
 module _
-# test: pass
 
 def main()
 	var x int or bool = 3
+	# error: unable to resolve overloads for str
 	print(x)

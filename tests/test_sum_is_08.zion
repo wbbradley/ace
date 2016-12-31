@@ -7,14 +7,14 @@ type Node{T} has
 	var t T
 
 type Divide{T} has
-	var l List{T}
+	var l Expr{T}
 
-type List{T} is
+type Expr{T} is
 	Node{T} or
-	Divide{List{T}} or
+	Divide{T} or
 	Done
 
-def compute(expr List{any X}) any X
+def compute(expr Expr{any X}) any X
 	# TODO: implement pattern matching...
 	return 0
 

@@ -12,13 +12,11 @@ type bool is
 type TypeID has
 	var id __typeid__
 
-type typeid is TypeID
-
 def assert(condition bool)
 	if not condition
 		print("assertion failed!")
 
-def typeid(t any) typeid
+def typeid(t any) TypeID
 	return TypeID(__get_typeid__(t))
 
 def __ineq__(x TypeID, y TypeID) bool

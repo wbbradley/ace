@@ -4,9 +4,9 @@ module _
 type Literal{T} has
 	var value T
 
-type Plus{T} has
-	var e1 Expr{T}
-	var e2 Expr{T}
+type Plus{S} has
+	var e1 Expr{S}
+	var e2 Expr{S}
 
 type Minus{T} has
 	var e1 Expr{T}
@@ -28,7 +28,19 @@ type Expr{T} is
 	Literal{T}
 
 def compute(expr Expr{any X}) any X 
-	# TODO: implement pattern matching...
+	when expr
+		is Literal{any X}
+			return expr.value
+		is Plus{any X}
+			return compute(expr.e1) + compute(expr.e2)
+		is Minus{any X}
+			return compute(expr.e1) - compute(expr.e2)
+		is Times{any X}
+			return compute(expr.e1) * compute(expr.e2)
+		is Times{any X}
+			return compute(expr.e1) * compute(expr.e2)
+		is Divide{any X}
+			return compute(expr.e1) / compute(expr.e2)
 	return 0
 
 def main()
