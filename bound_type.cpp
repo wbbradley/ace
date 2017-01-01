@@ -100,12 +100,14 @@ bound_type_handle_t::bound_type_handle_t(
 std::string bound_type_handle_t::str() const {
 	std::stringstream ss;
 	ss << get_type();
+#if 0
 	ss << " " << llvm_print_type(*get_llvm_type());
 	if (actual != nullptr) {
 		ss << " (actual: " <<  actual->str() << ")";
 	} else {
 		ss << " " C_UNCHECKED "unresolved" C_RESET;
 	}
+#endif
 
 	return ss.str();
 }

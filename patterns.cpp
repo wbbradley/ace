@@ -24,25 +24,29 @@ bound_var_t::ref ast::when_block::resolve_instantiation(
 			/* this is a single variable reference, which we can override in our pattern_blocks */
 			// TODO: handle assignment (when x := f(a.b.c) ...) to allow for naming more complex expressions
 			var_name = make_code_id(ref_expr->token);
-		}
+		} else {
+            user_error(status, value->get_location(), "pattern matching on non variable-reference expressions is not yet impl");
+        }
 
-		/* recursively handle nested "else" conditions of the pattern match */
-		auto iter = pattern_blocks.begin();
-		pattern_blocks[0]->resolve_pattern_block(
-				status,
-				builder,
-				pattern_value,
-				var_name,
-				runnable_scope,
-				returns,
-				++iter,
-				pattern_blocks.end(),
-				else_block);
+        if (!!status) {
+            /* recursively handle nested "else" conditions of the pattern match */
+            auto iter = pattern_blocks.begin();
+            pattern_blocks[0]->resolve_pattern_block(
+                    status,
+                    builder,
+                    pattern_value,
+                    var_name,
+                    runnable_scope,
+                    returns,
+                    ++iter,
+                    pattern_blocks.end(),
+                    else_block);
 
-		if (!!status) {
-			// TODO: check whether all cases of the patter_value's type are handled
-			return nullptr;
-		}
+            if (!!status) {
+                // TODO: check whether all cases of the patter_value's type are handled
+                return nullptr;
+            }
+        }
 	}
 
 	assert(!status);
@@ -98,7 +102,10 @@ bound_var_t::ref gen_type_check(
 						/* perform a safe runtime cast of this value */
 						value->llvm_value,
 						value_name,
-						false /*is_lhs*/));
+                        /* because this type is more specific than the original,
+                         * we should still be able to assign to it, if it
+                         * intended to be assigned to */
+						value->is_lhs /*is_lhs*/));
 
 			/* call the type_id comparator function */
 			return create_callsite(

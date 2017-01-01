@@ -1,0 +1,13 @@
+module _
+# test: pass
+
+def g(x)
+	y := nth(x, 0)
+	static_print(y)
+
+def f(x)
+	g(x)
+
+def main()
+	x := Node(Node(3, Empty), Empty)
+	f(x)

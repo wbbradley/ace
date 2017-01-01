@@ -67,6 +67,7 @@ const char *tkstr(token_kind tk) {
 	tk_case(lt);
 	tk_case(lte);
 	tk_case(matches);
+	tk_case(maybe);
 	tk_case(minus);
 	tk_case(minus_eq);
 	tk_case(mod);
@@ -81,6 +82,7 @@ const char *tkstr(token_kind tk) {
 	tk_case(pass);
 	tk_case(plus);
 	tk_case(plus_eq);
+	tk_case(maybe_eq);
 	tk_case(rcurly);
 	tk_case(return);
 	tk_case(rparen);
@@ -126,6 +128,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_rsquare:
 	case tk_space:
 	case tk_get_typeid:
+	case tk_maybe:
 		break;
 	case tk_any:
 	case tk_and:
@@ -169,6 +172,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_while:
 	case tk_becomes:
 	case tk_plus_eq:
+	case tk_maybe_eq:
 	case tk_minus_eq:
 	case tk_times_eq:
 	case tk_divide_by_eq:
@@ -319,6 +323,12 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 		break;
 	case tk_plus_eq:
 		printf("+=");
+		break;
+	case tk_maybe:
+		printf("?");
+		break;
+	case tk_maybe_eq:
+		printf("?=");
 		break;
 	case tk_minus_eq:
 		printf("-=");

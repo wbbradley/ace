@@ -117,6 +117,9 @@ ZION_RUNTIME_LLIR = $(addprefix $(BUILD_DIR)/,$(ZION_RUNTIME:.c=.llir))
 
 TARGETS = $(ZION_TARGET)
 
+timed:
+	time make all
+
 all: $(TARGETS) rt_gc
 
 -include $(ZION_LLVM_OBJECTS:.o=.d)

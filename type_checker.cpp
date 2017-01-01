@@ -106,9 +106,9 @@ bound_var_t::ref type_check_bound_var_decl(
 
                 if (!unification.result) {
                     /* report that the variable type does not match the initializer type */
-                    user_error(status, obj, "type of " c_var("%s") " does not match type of initializer",
+                    user_error(status, obj, "declared type of `" c_var("%s") "` does not match type of initializer",
                             obj.token.text.c_str());
-                    user_error(status, obj, c_type("%s") " != " c_type("%s"),
+                    user_message(log_info, status, init_var->get_location(), c_type("%s") " != " c_type("%s"),
                             declared_type->str().c_str(),
                             init_var->type->str().c_str());
 
@@ -138,7 +138,7 @@ bound_var_t::ref type_check_bound_var_decl(
 					debug_above(6, log(log_info, "creating a store instruction %s := %s",
 								llvm_print_value_ptr(llvm_alloca).c_str(),
 								llvm_print_value_ptr(init_var->llvm_value).c_str()));
-					builder.CreateStore(init_var->llvm_value, llvm_alloca);	
+					builder.CreateStore(llvm_resolve_alloca(builder, init_var->llvm_value), llvm_alloca);	
 				}
 
 				/* the reference_expr that looks at this llvm_value
@@ -309,6 +309,7 @@ bool is_function_defn_generic(
 
 function_scope_t::ref make_param_list_scope(
         status_t &status,
+		llvm::IRBuilder<> &builder,
         const ast::function_decl &obj,
         scope_t::ref &scope,
 		bound_var_t::ref function_var,
@@ -329,7 +330,8 @@ function_scope_t::ref make_param_list_scope(
 
         assert(obj.param_list_decl->params.size() == params.size());
 
-        llvm::Function::arg_iterator args = llvm::cast<llvm::Function>(function_var->llvm_value)->arg_begin();
+		llvm::Function *llvm_function = llvm::cast<llvm::Function>(function_var->llvm_value);
+        llvm::Function::arg_iterator args = llvm_function->arg_begin();
 
         int i = 0;
 
@@ -337,14 +339,22 @@ function_scope_t::ref make_param_list_scope(
             llvm::Value *llvm_param = args++;
             llvm_param->setName(param.first.str());
 
-			// TODO: consider creating an alloca in order to be able to
-			// reassign the named parameter to a new value by making it an LHS
+			/* create an alloca in order to be able to reassign the named
+			 * parameter to a new value. this does not mean that the parameter
+			 * is an out param, we are simply enabling reuse of the name */
+			llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(
+					llvm_function, param.second, param.first.str());
+
+			debug_above(6, log(log_info, "creating a local alloca for parameter %s := %s",
+						llvm_print_value_ptr(llvm_alloca).c_str(),
+						llvm_print_value_ptr(llvm_param).c_str()));
+			builder.CreateStore(llvm_param, llvm_alloca);	
 
             /* add the parameter argument to the current scope */
             new_scope->put_bound_variable(status, param.first,
                     bound_var_t::create(INTERNAL_LOC(), param.first, param.second,
-                        llvm_param, make_code_id(obj.param_list_decl->params[i++]->token),
-						false/*is_lhs*/));
+                        llvm_alloca, make_code_id(obj.param_list_decl->params[i++]->token),
+						true/*is_lhs*/));
 			if (!status) {
 				break;
 			}
@@ -514,7 +524,7 @@ bound_var_t::ref ast::callsite_expr::resolve_instantiation(
 
 				if (!!status) {
 					user_message(log_info, status, param->get_location(),
-							"%s is of type %s", param->str().c_str(),
+							"%s : %s", param->str().c_str(),
 							param_var->type->str().c_str());
 					return nullptr;
 				}
@@ -818,11 +828,14 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
 						INTERNAL_LOC(), string_format(".%s", rhs.text.c_str()),
 						member_type, llvm_item, make_code_id(token), false/*is_lhs*/);
 			} else {
+				auto bindings = scope->get_type_variable_bindings();
+				std::cerr << ::str(bindings) << std::endl;
+				auto full_type = lhs_val->type->get_type()->rebind(bindings);
 				user_error(status, *this, "%s has no dimension called " c_id("%s"),
-						lhs_val->type->str().c_str(),
+						full_type->str().c_str(),
 						rhs.text.c_str());
 				user_message(log_info, status, lhs_val->type->get_location(), "%s has dimension(s) [%s]",
-						lhs_val->type->str().c_str(),
+						full_type->str().c_str(),
 						join_with(member_index, ", ", [] (std::pair<atom, int> index) -> std::string {
 							return std::string(C_ID) + index.first.str() + C_RESET;
 							}).c_str());
@@ -1038,7 +1051,7 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 		/* we should be able to check its block as a callsite. note that this
 		 * code will also run for generics but only after the
 		 * sbk_generic_substitution mechanism has run its course. */
-		auto params_scope = make_param_list_scope(status, *decl, scope,
+		auto params_scope = make_param_list_scope(status, builder, *decl, scope,
 				function_var, args);
 
 		/* now put this function declaration into the containing scope in case
@@ -1406,23 +1419,28 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 bound_var_t::ref type_check_assignment(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
 		bound_var_t::ref lhs_var,
 		bound_var_t::ref rhs_var,
 		struct location location)
 {
 	if (!!status) {
+		indent_logger indent(5, string_format(
+					"type checking assignment %s = %s",
+					lhs_var->str().c_str(),
+					rhs_var->str().c_str()));
+
 		if (lhs_var->is_lhs) {
 			// TODO: load and queue up a free of whatever the LHS is currently pointing at
 
-			// TODO: check the types for compatibility
 			unification_t unification = unify(
 					lhs_var->type->get_type(),
-					rhs_var->type->get_type(), {});
+					rhs_var->type->get_type(), scope->get_typename_env());
 
 			if (!!status) {
 				if (unification.result) {
 					if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(lhs_var->llvm_value)) {
-						builder.CreateStore(rhs_var->llvm_value, llvm_alloca);
+						builder.CreateStore(llvm_resolve_alloca(builder, rhs_var->llvm_value), llvm_alloca);
 						return lhs_var;
 					} else {
 						assert(false);
@@ -1453,7 +1471,7 @@ bound_var_t::ref ast::assignment::resolve_instantiation(
 	auto lhs_var = lhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
 	if (!!status) {
 		auto rhs_var = rhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
-		return type_check_assignment(status, builder, lhs_var, rhs_var, token.location);
+		return type_check_assignment(status, builder, scope, lhs_var, rhs_var, token.location);
 	}
 
 	assert(!status);
@@ -1505,7 +1523,7 @@ bound_var_t::ref type_check_binary_op_assignment(
 			auto computed_var = call_program_function(status, builder, scope,
 					function_name, op_node, {lhs_var, rhs_var});
 
-			return type_check_assignment(status, builder, lhs_var,
+			return type_check_assignment(status, builder, scope, lhs_var,
 					computed_var, location);
 		}
 	}
@@ -1808,10 +1826,21 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 	assert(condition != nullptr);
 
 	assert(token.text == "if" || token.text == "elif");
+	bound_var_t::ref condition_value;
 
 	/* evaluate the condition for branching */
-	bound_var_t::ref condition_value = condition->resolve_instantiation(
-			status, builder, scope, &if_scope, nullptr);
+	if (auto var_decl = dyncast<const ast::var_decl>(condition)) {
+		/* our user is attempting an assignment inside of an if statement, let's
+		 * grant them a favor, and automatically unbox the Maybe type if it
+		 * exists, and if their object is indeed not Empty. */
+		// TODO: plumb the notion of unboxing into the var_decl resolution, and
+		// have the var_decl expression return true or false.
+		condition_value = condition->resolve_instantiation(
+				status, builder, scope, &if_scope, nullptr);
+	} else {
+		condition_value = condition->resolve_instantiation(
+				status, builder, scope, &if_scope, nullptr);
+	}
 
 	if (!!status) {
 		llvm::Value *llvm_condition_value = get_condition_value(status,

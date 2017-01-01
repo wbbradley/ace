@@ -218,15 +218,17 @@ bound_var_t::ref get_callable(
 				debug_above(8, log(log_info, "%s", scope->str().c_str()));
 			} else {
 				std::stringstream ss;
-				ss << string_format("unable to resolve overloads for " c_id("%s"),
-						callsite->str().c_str());
-
-				ss << "\n\targuments are " << args->str();
-
-				for (auto &fn : fns) {
-					ss << "\n\ttried " << fn->str();
-				}
+				ss << "unable to resolve overloads for " C_ID << callsite->str();
+				ss << " arguments are " << args->str();
 				user_error(status, *callsite, "%s", ss.str().c_str());
+
+				/* report on the places we tried to look for a match */
+				for (auto &fn : fns) {
+                    // TODO: a bunch of plumbing to provide a more verbose reason why this unification did not work.
+					ss.str("");
+					ss << "this option did not match";
+					user_message(log_info, status, fn->get_location(), "%s", ss.str().c_str());
+				}
 			}
 			return nullptr;
 		}

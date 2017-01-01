@@ -269,8 +269,8 @@ bool test_lex_syntax() {
 		{" not", {tk_not}},
 		{" nothing", {tk_identifier}},
 		{" not\n\tnot", {tk_not, tk_indent, tk_not, tk_outdent}},
-		{"+ - * / %", {tk_plus, tk_minus, tk_times, tk_divide_by, tk_mod}},
-		{"+=-=*=/=%=:=", {tk_plus_eq, tk_minus_eq, tk_times_eq, tk_divide_by_eq, tk_mod_eq, tk_becomes}},
+		{"? + - * / %", {tk_maybe, tk_plus, tk_minus, tk_times, tk_divide_by, tk_mod}},
+		{"+=-=*=/=%=:=?=", {tk_plus_eq, tk_minus_eq, tk_times_eq, tk_divide_by_eq, tk_mod_eq, tk_becomes, tk_maybe_eq}},
 	};
 	return lexer_test(tests);
 }

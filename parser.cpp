@@ -595,6 +595,7 @@ ptr<expression> assignment::parse(parse_state_t &ps) {
 
 		handle_assign(tk_assign, ast::assignment);
 		handle_assign(tk_plus_eq, ast::plus_assignment);
+		// handle_assign(tk_maybe_eq, ast::maybe_assignment);
 		handle_assign(tk_minus_eq, ast::minus_assignment);
 		handle_assign(tk_divide_by_eq, ast::divide_assignment);
 		handle_assign(tk_times_eq, ast::times_assignment);

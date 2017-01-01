@@ -70,6 +70,7 @@ enum token_kind
 	// Operators
 	tk_equal, /* == */
 	tk_inequal, /* != */
+	tk_maybe, /* ? */
 	tk_lt, /* < */
 	tk_gt, /* > */
 	tk_lte, /* <= */
@@ -90,6 +91,7 @@ enum token_kind
 
 	// Mutating binary ops
 	tk_plus_eq, /* += */
+	tk_maybe_eq, /* ?= */
 	tk_minus_eq, /* -= */
 	tk_times_eq, /* *= */
 	tk_divide_by_eq, /* /= */

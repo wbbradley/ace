@@ -1,44 +1,89 @@
 module eightq @1.0
 link module math
+# test: pass
 
 type Pos has
-	var x int
-	var y int
+	var col int
+	var row int
 
-def attack(pos1 any, pos2 any) bool
-	return (
-		(pos1.x == pos2.x) or
- 		(pos1.y == pos2.y) or
- 		math.abs(pos1.x - pos2.x) == math.abs(pos1.y - pos2.y))
+def under_attack(pos, queens) bool
+	if len(queens) == 0
+		return false
 
-def safe(square Pos, queens solutions)
-	i := 0
+	i := 0	
 	while i < len(queens)
-		if attack(square, queens[i])
-			return false
+		maybe_queen := nth(queens, i)
+		when maybe_queen is Just{Pos}
+			queen := maybe_queen.value
+			if pos.col == queen.col
+				return true
+			if pos.row == queen.row
+				return true
+			if math.abs(pos.row-queen.row) == math.abs(pos.col-queen.col)
+				return true
 		i += 1
 
-	return true
+	return false
 
-def solve(n int, NQUEENS int)
-	if n == 0
-		# error: 26:11.*not impl
-		return [[]]
-
-	smaller_solutions := eightq.solve(n - 1, NQUEENS)
-
-	solutions := []
-	i := 0
-	j := 0
-	while i < NQUEENS
-		j = 0
-		while j < len(smaller_solutions)
-			if eightq.safe([n, i + 1], smaller_solutions[j])
-				solutions += [smaller_solutions[j] + [[n, i + 1]]]
-			j = j + 1
-		i = i + 1
-
+def iter_solve(n) List{List{Pos}}
+	var solutions List{List{Pos}} = Empty
+	row := 0
+	while row < n
+		solutions = check(solutions, row, n)
+		row += 1
 	return solutions
 
-def main(NQUEENS int) void
-	return eightq.solve(NQUEENS, NQUEENS)
+def check(solutions, row, n) List{List{Pos}}
+	var new_solutions List{List{Pos}} = Empty
+
+	col := 0
+	while col < n
+		var result List{List{Pos}}
+		when solutions is Empty
+			result = conj(solutions, Node(Pos(col, row), Empty))
+		else
+			result = append_if_not_under_attack(new_solutions, col, row, solutions)
+		new_solutions = result
+		col += 1
+
+	return new_solutions
+
+def append_if_not_under_attack(new_solutions List{List{Pos}}, col, row, solutions List{List{Pos}}) List{List{Pos}}
+	i := 0
+	while i < len(solutions)
+		maybe_solution := nth(solutions, i)
+		when maybe_solution is Just{List{Pos}}
+			solution := maybe_solution.value
+			if not under_attack(Pos(col, row), solution)
+				new_solutions = conj(new_solutions,
+					conj(solution, Pos(col, row)))
+		i += 1
+
+	return new_solutions
+
+def str(list List{any T}) str
+	s := "["
+	var seen_one bool = false
+	var done bool = false
+	while not done
+		node := list
+		when node
+			is Node{any T}
+				if seen_one
+					s += ", "
+				else
+					seen_one = true
+
+				s += str(node.value)
+				list = node.next
+			is Empty
+				done = true
+
+	return s + "]"
+
+def str(p Pos) str
+	return "(" + p.col + ", " + p.row + ")"
+
+
+def main() void
+	print(str(iter_solve(8)))

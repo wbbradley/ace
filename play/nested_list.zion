@@ -1,0 +1,9 @@
+module _
+# test: pass
+
+def main() void
+	var solution List{List{int}} = Empty
+	var node List{int} = Node(0, Empty)
+	new_solution := Node(node, Empty)
+	solution = new_solution
+	print(len(solution))

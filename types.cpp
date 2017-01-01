@@ -568,9 +568,10 @@ types::type::ref eval_apply(
 		/* look in the environment for a declaration of this operator */
 		types::type::ref expansion = eval_id(ptid, env);
 
-		debug_above(7, log(log_info, "eval_apply : %s expanded to %s",
+		debug_above(7, log(log_info, "eval_apply : %s expanded to %s in %s",
 					ptid->str().c_str(),
-					expansion ? expansion->str().c_str() : c_error("nothing")));
+					expansion ? expansion->str().c_str() : c_error("nothing"),
+                    str(env).c_str()));
 		if (expansion != nullptr) {
 			return eval_apply(expansion, operand, env);
 		} else {

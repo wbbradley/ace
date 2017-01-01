@@ -150,7 +150,7 @@ llvm::CallInst *llvm_create_call_inst(
 	/* get the current module we're inserting code into */
 	llvm::Module *llvm_module = llvm_get_module(builder);
 
-	debug_above(3, log(log_info, "looking for function in LLVM %s with type %s",
+	debug_above(3, log(log_info, "looking for function in LLVM " c_id("%s") " with type %s",
 				llvm_callee_fn->getName().str().c_str(),
 				llvm_print_type(*llvm_callee_fn->getFunctionType()).c_str()));
 
@@ -173,7 +173,7 @@ llvm::CallInst *llvm_create_call_inst(
 	}
 	llvm::ArrayRef<llvm::Value *> llvm_args_array(llvm_args);
 
-	debug_above(3, log(log_info, "creating call to %s %s with [%s]",
+	debug_above(3, log(log_info, "creating call to " c_id("%s") " %s with [%s]",
 				llvm_func_decl->getName().str().c_str(),
 				llvm_print_type(*llvm_func_decl->getType()).c_str(),
 				join_with(llvm_args, ", ", llvm_print_value_ptr).c_str()));

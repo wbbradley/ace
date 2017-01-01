@@ -1,0 +1,8 @@
+module _
+# test: pass
+
+def main()
+	# test that Maybe{int} is automatically unboxed for the
+	# type of 'x'
+	if x := Just("Hello world")
+		print(x)

@@ -154,6 +154,7 @@ bool zion_lexer_t::_get_tokens() {
 		gts_lt,
 		gts_gt,
 		gts_plus,
+		gts_maybe,
 		gts_minus,
 		gts_times,
 		gts_divide_by,
@@ -211,6 +212,16 @@ bool zion_lexer_t::_get_tokens() {
 			default:
 				tk = tk_nil;
 				gts = gts_error;
+			}
+			break;
+		case gts_maybe:
+			if (ch == '=') {
+				gts = gts_end;
+				tk = tk_maybe_eq;
+			} else {
+				scan_ahead = false;
+				gts = gts_end;
+				tk = tk_maybe;
 			}
 			break;
 		case gts_plus:
@@ -323,6 +334,10 @@ bool zion_lexer_t::_get_tokens() {
 			break;
 		case gts_start:
 			switch (ch) {
+			case '?':
+				gts = gts_maybe;
+				tk = tk_maybe;
+				break;
 			case '!':
 				gts = gts_bang;
 				tk = tk_inequal;

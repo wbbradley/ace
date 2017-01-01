@@ -3,13 +3,13 @@ module math @1.0
 def rounded_tenth(x int) int
 	return (x + 5) / 10
 
-def abs(x any) any
+def abs(x any T) any T
 	if x < 0
 		return -x
 	else
 		return x
 
-def min(x any, y any) any
+def min(x any T, y any T) any T
 	if x < y
 		return x
 	else
@@ -18,7 +18,6 @@ def min(x any, y any) any
 def sum_of_squares(N int) int
 	ret := 0
 	n := 0
-	# variable declarations are not happy inside of while blocks for now...
 	n_squared := 0
 	while n <= N
 		n_squared = n * n

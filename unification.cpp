@@ -214,10 +214,10 @@ unification_t unify(
 		}
 	} else if (pto_a != nullptr) {
 		debug_above(7, log(log_info, "checking inbound type_operator %s",
-					pto_a->repr().c_str()));
+					pto_a->str().c_str()));
 		if (pto_b != nullptr) {
 			debug_above(7, log(log_info, "checking outbound type_operator %s",
-						pto_b->repr().c_str()));
+						pto_b->str().c_str()));
 			auto unification = unify(pto_a->oper, pto_b->oper, env, bindings, depth + 1);
 			if (unification.result) {
 				bindings = unification.bindings;
