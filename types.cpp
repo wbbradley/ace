@@ -77,7 +77,11 @@ namespace types {
 	}
 
 	bool type_id::is_void() const {
-	   	return id->get_name() == atom{"void"};
+	   	return id->get_name() == BUILTIN_VOID_TYPE;
+   	}
+
+	bool type_id::is_nil() const {
+	   	return id->get_name() == BUILTIN_NIL_TYPE;
    	}
 
 	type_variable::type_variable(identifier::ref id) : id(id) {
@@ -232,17 +236,15 @@ namespace types {
 	   	return pk == pk_function;
    	}
 
-	bool type_product::is_obj() const {
-	   	return pk == pk_obj;
-   	}
-
 	bool type_product::is_struct() const {
 	   	return pk == pk_struct;
    	}
 
-	type_sum::type_sum(type::refs options) :
-		options(options)
-	{
+	type_sum::type_sum(type::refs options) : options(options) {
+		for (auto option : options) {
+            assert(!dyncast<const type_maybe>(option));
+            assert(!option->is_nil());
+        }
 	}
 
 	std::ostream &type_sum::emit(std::ostream &os, const map &bindings) const {
@@ -296,15 +298,41 @@ namespace types {
 		return nullptr;
 	}
 
-    ref type_sum::without_nil() const {
-		refs type_options;
-		for (auto option : options) {
-            if (option == type_nil()) {
-                type_options.push_back(option);
-            }
+	type_maybe::type_maybe(type::ref just) : just(just) {
+        assert(!dyncast<const type_maybe>(just));
+        assert(!just->is_nil());
+	}
+
+	std::ostream &type_maybe::emit(std::ostream &os, const map &bindings) const {
+		os << "(maybe ";
+        os << " ";
+        just->emit(os, bindings);
+		return os << ")";
+	}
+
+	int type_maybe::ftv_count() const {
+        return just->ftv_count();
+	}
+
+    atom::set type_maybe::get_ftvs() const {
+        return just->get_ftvs();
+	}
+
+	type::ref type_maybe::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
 		}
-		return ::type_sum(type_options);
-    }
+
+        return ::type_maybe(just->rebind(bindings));
+	}
+
+	location type_maybe::get_location() const {
+        return just->get_location();
+	}
+
+	identifier::ref type_maybe::get_id() const {
+		return nullptr;
+	}
 
 	type_lambda::type_lambda(identifier::ref binding, type::ref body) :
 		binding(binding), body(body)
@@ -405,6 +433,10 @@ types::type::ref type_product(
 
 types::type::ref type_sum(types::type::refs options) {
 	return make_ptr<types::type_sum>(options);
+}
+
+types::type::ref type_maybe(types::type::ref just) {
+	return make_ptr<types::type_maybe>(just);
 }
 
 types::type::ref type_lambda(identifier::ref binding, types::type::ref body) {

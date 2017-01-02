@@ -60,7 +60,6 @@ namespace types {
 
 		virtual bool is_function() const { return false; }
 		virtual bool is_void() const { return false; }
-		virtual bool is_obj() const { return false; }
 		virtual bool is_struct() const { return false; }
 		virtual bool is_nil() const { return false; }
 	};
@@ -80,6 +79,7 @@ namespace types {
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
 		virtual bool is_void() const;
+		virtual bool is_nil() const;
 	};
 
 	struct type_variable : public type {
@@ -123,7 +123,6 @@ namespace types {
 		virtual identifier::ref get_id() const;
 
 		virtual bool is_function() const;
-		virtual bool is_obj() const;
 		virtual bool is_struct() const;
 	};
 
@@ -137,8 +136,18 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
-        ref without_nil() const;
-		virtual bool is_obj() const { return true; }
+	};
+
+	struct type_maybe : public type {
+		type_maybe(type::ref just);
+		type::ref just;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
+		virtual ref rebind(const map &bindings) const;
+		virtual location get_location() const;
+		virtual identifier::ref get_id() const;
 	};
 
 	struct type_lambda : public type {
@@ -167,6 +176,7 @@ types::type::ref type_variable();
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand);
 types::type::ref type_product(product_kind_t pk, types::type::refs dimensions, const types::name_index &name_index={});
 types::type::ref type_sum(types::type::refs options);
+types::type::ref type_maybe(types::type::ref just);
 types::type::ref type_lambda(identifier::ref binding, types::type::ref body);
 types::type::ref type_list_type(types::type::ref element);
 

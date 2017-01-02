@@ -152,57 +152,14 @@ bound_var_t::ref type_check_bound_var_decl(
 					user_error(status, obj.get_location(), "missing initialization value");
 				} else {
 					/* since we are maybe unboxing, then let's first off see if
-					 * this is even a Maybe type. */
-					// TODO: consider checking whether nil is a valid input to the init_var's type, then deducing the type without nil.
-					unification_t unification = unify(
-							init_var->get_type(),
-							type_nil(),
-							scope->get_typename_env());
-
-					if (unification.result) {
+					 * this is even a maybe type. */
+					if (auto maybe_type = dyncast<const types::type_maybe>(lhs_type)) {
 						/* looks like the initialization variable is a supertype
 						 * of the nil type */
 						unboxed = true;
 
-						/* let's figure out what the non-nil type of this
-						 * object is. */
-						types::type::ref start_type = init_var->get_type()->rebind(unification.bindings);
-
-						/* let's see if we can remove the nil type from
-						 * 'start_type' */
-						auto expansion = eval_type(start_type, scope->get_typename_env());
-						types::type::ref desired_type;
-						if (auto sum_type = dyn_cast<const types::type_sum>(expansion)) {
-							/* since this is a sum type, let's remove the nil
-							 * type */
-							desired_type = sum_type->without_nil();
-							bound_type = upsert_bound_type(status, builder, scope, desired_type);
-							auto just_bound_type = upsert_bound_type(status, builder, scope,
-									desired_type);
-
-							condition_value = call_check_null_and_truthy(
-									status, builder, obj.shared_from_this(), scope,
-									make_iid("maybe_unboxing_check"), init_var,
-									bound_type, nullptr /*new_scope*/);
-
-									gen_type_check(
-									status, builder, obj.shared_from_this(), scope,
-									make_iid("maybe_unboxing_check"), init_var,
-									bound_type, nullptr /*new_scope*/);
-
-							// TODO: combine the type check with a bool check
-
-							/* now that we have a runtime value to check, let's also
-							 * pull out the 'value' element of the Just type */
-							// init_var = 
-						} else if (expansion->is_nil()) {
-							condition_value = bound_var_t::create(
-									INTERNAL_LOC(), "always nil",
-									program_scope->get_bound_type({BOOL_TYPE}),
-									llvm_create_bool(builder, false),
-									"always nil",
-									false/*is_lhs*/);
-						}
+						bound_type = upsert_bound_type(status, builder, scope,
+								maybe_type->just);
 					} else {
 						/* this is not a maybe, so let's just move along */
 					}
@@ -216,9 +173,11 @@ bound_var_t::ref type_check_bound_var_decl(
 
 		if (!!status) {
 			assert(bound_type != nullptr);
+
 			/* generate the mutable stack-based variable for this var */
 			llvm::Function *llvm_function = llvm_get_function(builder);
-			llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function, bound_type, symbol);
+			llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function,
+				   	bound_type, symbol);
 
 			if (init_var) {
 				debug_above(6, log(log_info, "creating a store instruction %s := %s",
@@ -236,6 +195,16 @@ bound_var_t::ref type_check_bound_var_decl(
 			/* on our way out, stash the variable in the current scope */
 			scope->put_bound_variable(status, var_decl_variable->name,
 					var_decl_variable);
+
+			if (unboxed) {
+				assert(init_var != nullptr);
+
+				/* get the maybe type so that we can use it as a conditional */
+				bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, lhs_type);
+				condition_value = bound_var_t::create(INTERNAL_LOC(), symbol,
+							condition_type, init_var->llvm_value, make_code_id(obj.token),
+							false /*is_lhs*/);
+			}
 
 			if (!!status) {
 				if (condition_value != nullptr) {
@@ -1809,8 +1778,6 @@ llvm::Value *get_condition_value(
 	if (condition_value->is_int()) {
 		llvm_condition_value = llvm_resolve_alloca(builder, condition_value->llvm_value);
 		assert(llvm_condition_value->getType()->isIntegerTy());
-	} else if (condition_value->is_pointer()) {
-		llvm_condition_value = llvm_resolve_alloca(builder, condition_value->llvm_value);
 	} else {
 		debug_above(2, log(log_info,
 					"if condition %s appears to not be a builtin integer type, "

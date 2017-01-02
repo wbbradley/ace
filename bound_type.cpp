@@ -287,10 +287,6 @@ bool bound_type_t::is_void() const {
 	return get_type()->is_void();
 }
 
-bool bound_type_t::is_obj() const {
-	return get_type()->is_obj();
-}
-
 bool bound_type_t::is_struct() const {
 	return get_type()->is_struct();
 }

@@ -22,11 +22,18 @@ def typeid(t any) TypeID
 def __ineq__(x TypeID, y TypeID) bool
 	return bool(x.id != y.id)
 
+def __bool__(x any?) __bool__
+	# Handle coercion of nil types to boolean
+	if __nil__(x)
+		return __false__
+
+	return __try_bool__(x!)
+    
 def __bool__(b bool) __bool__
 	return __get_typeid__(b) == __get_typeid__(true)
 
 def __bool__(x int) __bool__
-	return not x.raw
+	return not not x.raw
 
 def __not__(b bool) bool
 	return bool(__get_typeid__(b) != __get_typeid__(true))
@@ -215,15 +222,9 @@ def print(x any) void
 	s := str(x)
 	puts(s.raw)
 
-tag Empty
-
-type Maybe{T} is nil or T
-
-type Node{T} has
+type Cons{T} has
 	var value T
-	var next List{T}
-
-type List{T} is Node{T} or Empty
+	var next Cons{T}?
 
 def first(l List{any T}) Maybe{any T}
 	when l

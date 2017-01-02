@@ -26,7 +26,6 @@ protected:
 public:
 	bool is_function() const;
 	bool is_void() const;
-	bool is_obj() const;
 	bool is_struct() const;
 	types::signature get_signature() const;
 

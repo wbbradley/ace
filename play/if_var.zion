@@ -1,15 +1,13 @@
 module _
 # test: pass
 
-type str has
-	var raw __str__
-
-type int has
-	var raw __int__
+link def puts(x __str__) __int__
 
 def main()
 	# test that Maybe{int} is automatically unboxed for the
 	# type of 'x'
-	var x str = "Hello world."
+	var x int = 0
 	if y := x
-		pass
+		puts("0 is falsey!".raw)
+	else
+		puts("something else".raw)
