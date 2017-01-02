@@ -177,7 +177,7 @@ bound_var_t::ref maybe_get_callable(
 		var_t::refs &fns)
 {
     llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-
+    std::list<bound_var_t::ref> callables;
 	if (!!status) {
 		/* look through the current scope stack and get a callable that is able to
 		 * be invoked with the given args */
@@ -190,9 +190,24 @@ bound_var_t::ref maybe_get_callable(
 				assert(callable == nullptr);
 				return nullptr;
 			} else if (callable != nullptr) {
-				return callable;
+				callables.push_front(callable);
 			}
 		}
+
+        if (!!status) {
+            if (callables.size() == 1) {
+                return callables.front();
+            } else if (callables.size() == 0) {
+                return nullptr;
+            } else {
+                user_error(status, callsite->get_location(), "multiple matching overloads found for %s at %s",
+                        alias.c_str(), callsite->str().c_str());
+                for (auto callable :callables) {
+                    user_message(log_info, status, callable->get_location(), "matching overload : %s",
+                            callable->type->get_type()->str().c_str());
+                }
+            }
+        }
 	}
 	return nullptr;
 }
@@ -208,6 +223,7 @@ bound_var_t::ref get_callable(
 	var_t::refs fns;
 	auto callable = maybe_get_callable(status, builder, scope, alias, callsite,
 			args, fns);
+
 	if (!!status) {
 		if (callable != nullptr) {
 			return callable;

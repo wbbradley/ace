@@ -1,8 +1,6 @@
 module _
 # test: pass
 
-link def puts(x __str__) __int__
-
 def main()
 	# test that Maybe{int} is automatically unboxed for the
 	# type of 'x'

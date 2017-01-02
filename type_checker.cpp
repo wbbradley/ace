@@ -1767,7 +1767,7 @@ bound_var_t::ref ast::block::resolve_instantiation(
     return nullptr;
 }
 
-llvm::Value *get_condition_value(
+llvm::Value *get_raw_condition_value(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -1779,7 +1779,7 @@ llvm::Value *get_condition_value(
 	} else if (condition_value->is_pointer()) {
 		return llvm_resolve_alloca(builder, condition_value->llvm_value);
 	} else {
-		user_error(status, condition, "unknown basic type: %s",
+		user_error(status, condition->get_location(), "unknown basic type: %s",
 				condition_value->str().c_str());
 	}
 
@@ -1787,7 +1787,7 @@ llvm::Value *get_condition_value(
 	return nullptr;
 }
 
-llvm::Value *get_bool_overload_condition_value(
+llvm::Value *maybe_get_bool_overload_value(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -1795,22 +1795,28 @@ llvm::Value *get_bool_overload_condition_value(
 		bound_var_t::ref condition_value)
 {
 	llvm::Value *llvm_condition_value = nullptr;
-	if (condition_value->is_int()) {
-		llvm_condition_value = llvm_resolve_alloca(builder, condition_value->llvm_value);
-		assert(llvm_condition_value->getType()->isIntegerTy());
+	// TODO: check whether we are checking a raw value or not
+
+	debug_above(2, log(log_info,
+				"attempting to resolve a " c_var("%s") " override if condition %s, ",
+				BOOL_TYPE,
+				condition->str().c_str()));
+
+	/* we only ever get in here if we are definitely non-null, so we can discard
+	 * maybe type specifiers */
+	types::type::ref condition_type;
+	if (auto maybe = dyncast<const types::type_maybe>(condition_value->type->get_type())) {
+		condition_type = maybe->just;
 	} else {
-		debug_above(2, log(log_info,
-					"if condition %s appears to not be a builtin integer type, "
-					"attempting to resolve a " c_var("%s") " override",
-					condition_value->str().c_str(),
-					BOOL_TYPE));
+		condition_type = condition_value->type->get_type();
+	}
 
-		/* convert condition to an integer */
-		bound_var_t::ref bool_fn = get_callable(
-				status, builder, scope, BOOL_TYPE, condition,
-				get_args_type({condition_value->type}));
+	var_t::refs fns;
+	auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE, condition,
+			get_args_type({condition_type}), fns);
 
-		if (!!status) {
+	if (!!status) {
+		if (bool_fn != nullptr) {
 			/* we've found a bool function that will take our condition as input */
 			assert(bool_fn != nullptr);
 
@@ -1824,19 +1830,21 @@ llvm::Value *get_bool_overload_condition_value(
 						{condition_value->llvm_value});
 
 				assert(llvm_condition_value->getType()->isIntegerTy());
+				return llvm_condition_value;
 			} else {
 				user_error(status, bool_fn->get_location(),
 						"__bool__ coercion function must return a " C_TYPE "__bool__" C_RESET);
 				user_error(status, bool_fn->get_location(),
 						"implicit __bool__ was defined function must return a " C_TYPE "__type__" C_RESET);
-
 			}
 		} else {
-			// TODO: maybe want a better explanation for why we're
-			// trying to call bool.
+			/* treat all values without overloaded bool functions as truthy */
+			return nullptr;
 		}
 	}
-	return llvm_condition_value;
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref ast::while_block::resolve_instantiation(
@@ -1864,11 +1872,11 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
 				status, builder, scope, &while_scope, nullptr);
 
 		if (!!status) {
-			llvm::Value *llvm_condition_value = get_condition_value(status,
+			llvm::Value *llvm_raw_condition_value = get_raw_condition_value(status,
 					builder, scope, condition, condition_value);
 
 			if (!!status) {
-				assert(llvm_condition_value != nullptr);
+				assert(llvm_raw_condition_value != nullptr);
 
 				/* generate some new blocks */
 				llvm::BasicBlock *while_block_bb = llvm::BasicBlock::Create(builder.getContext(), "while.block", llvm_function_current);
@@ -1878,7 +1886,7 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
 				while_end_bb = llvm::BasicBlock::Create(builder.getContext(), "while.end");
 
 				/* we don't have an else block, so we can just continue on */
-				llvm_create_if_branch(builder, llvm_condition_value, while_block_bb, while_end_bb);
+				llvm_create_if_branch(builder, llvm_raw_condition_value, while_block_bb, while_end_bb);
 
 				if (!!status) {
 					/* let's generate code for the "then" block */
@@ -1911,25 +1919,6 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
     assert(!status);
     return nullptr;
 }
-
-std::list<llvm::Value *> get_conditions(
-		status_t &status,
-	   	llvm::IRBuidler<> &builder,
-	   	scope_t::ref scope,
-	   	ast::expression::ref condition,
-		bound_var_t::ref condition_value)
-{
-	std::list<llvm::Value *> conditions;
-
-	/* first let's make sure this type doesn't need a null check */
-	types::type::ref type = condition_value->type->get_type();
-	if (auto maybe = dyncast<types::type_maybe>(type)) {
-		assert(condition_value->type->get_llvm_value->getType()->isPointerTy());
-	}
-	llvm::Value *llvm_condition_value = get_condition_value(status,
-			builder, scope, condition, condition_value);
-}
-
 
 bound_var_t::ref ast::if_block::resolve_instantiation(
         status_t &status,
@@ -1990,10 +1979,10 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 		/* if the condition value is a maybe type, then we'll need multiple
 		 * anded conditions to be true in order to actuall fall into the then
 		 * block, let's figure out those conditions */
-		llvm::Value *llvm_condition_value = get_condition_value(status,
+		llvm::Value *llvm_raw_condition_value = get_raw_condition_value(status,
 				builder, scope, condition, condition_value);
 
-		if (!!status && llvm_condition_value != nullptr) {
+		if (!!status && llvm_raw_condition_value != nullptr) {
 			/* test that the if statement doesn't return */
 			llvm::Function *llvm_function_current = llvm_get_function(builder);
 
@@ -2013,7 +2002,7 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 				merge_bb = llvm::BasicBlock::Create(builder.getContext(), "ifcont");
 
 				/* create the actual branch instruction */
-				llvm_create_if_branch(builder, llvm_condition_value, then_bb, else_bb);
+				llvm_create_if_branch(builder, llvm_raw_condition_value, then_bb, else_bb);
 
 				builder.SetInsertPoint(else_bb);
 				else_->resolve_instantiation(status, builder, scope, nullptr, &else_block_returns);
@@ -2038,33 +2027,42 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 				merge_bb = llvm::BasicBlock::Create(builder.getContext(), "ifcont");
 
 				/* we don't have an else block, so we can just continue on */
-				llvm_create_if_branch(builder, llvm_condition_value, then_bb, merge_bb);
+				llvm_create_if_branch(builder, llvm_raw_condition_value, then_bb, merge_bb);
 			}
 
 			if (!!status) {
 				/* let's generate code for the "then" block */
 				builder.SetInsertPoint(then_bb);
-				block->resolve_instantiation(status, builder, if_scope ? if_scope : scope, nullptr, &if_block_returns);
+				llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
+						builder, scope, condition, condition_value);
+
 				if (!!status) {
-					if (!if_block_returns) {
-						insert_merge_bb = true;
-						builder.CreateBr(merge_bb);
-						builder.SetInsertPoint(merge_bb);
-					}
-					
-					if (insert_merge_bb) {
-						/* we know we'll need to fall through to the merge
-						 * block, let's add it to the end of the function
-						 * and let's set it as the next insert point. */
-						llvm_function_current->getBasicBlockList().push_back(merge_bb);
-						builder.SetInsertPoint(merge_bb);
-					}
+					if (llvm_bool_overload_value != nullptr) {
+						assert(false);
+					} else {
+						block->resolve_instantiation(status, builder, if_scope ? if_scope : scope, nullptr, &if_block_returns);
+						if (!!status) {
+							if (!if_block_returns) {
+								insert_merge_bb = true;
+								builder.CreateBr(merge_bb);
+								builder.SetInsertPoint(merge_bb);
+							}
 
-					/* track whether the branches return */
-					*returns |= (if_block_returns && else_block_returns);
+							if (insert_merge_bb) {
+								/* we know we'll need to fall through to the merge
+								 * block, let's add it to the end of the function
+								 * and let's set it as the next insert point. */
+								llvm_function_current->getBasicBlockList().push_back(merge_bb);
+								builder.SetInsertPoint(merge_bb);
+							}
 
-					assert(!!status);
-					return nullptr;
+							/* track whether the branches return */
+							*returns |= (if_block_returns && else_block_returns);
+
+							assert(!!status);
+							return nullptr;
+						}
+					}
 				}
 			}
 		}
