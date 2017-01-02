@@ -230,13 +230,14 @@ bound_type_t::ref create_bound_type(
 		string_format("attempting to create a bound type for %s in scope " c_id("%s"),
 			type->str().c_str(), scope->get_name().c_str()));
 
+    auto program_scope = scope->get_program_scope();
+
 	if (auto id = dyncast<const types::type_id>(type)) {
 		/* right here, we know that this type does not have a bound type. so,
 		 * let's go ahead and create a "handle" to prevent infinite recursion on
 		 * this guy. */
 		assert(!scope->get_bound_type(id->get_signature()));
 
-		auto program_scope = scope->get_program_scope();
 		auto bound_type_handle = bound_type_t::create_handle(
 				id,
 				program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
@@ -280,7 +281,25 @@ bound_type_t::ref create_bound_type(
 
 		assert(!status);
 		return nullptr;
-		
+    } else if (auto maybe = dyncast<const types::type_maybe>(type)) {
+	    bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
+        if (!!status) {
+            auto llvm_type = bound_just_type->get_llvm_type();
+            if (llvm_type->isPointerTy()) {
+                /* create a maybe wrapper around the real underlying type */
+                return bound_type_t::create(
+                        type,
+                        bound_just_type->get_location(),
+                        llvm_type,
+                        bound_just_type->get_llvm_specific_type(),
+                        bound_just_type->get_dimensions(),
+                        bound_just_type->get_member_index());
+            } else {
+                user_error(status, type->get_location(), "type %s cannot be a " c_type("maybe") " type because the underlying storage is not a pointer (it is %s)",
+                        type->str().c_str(),
+                        llvm_print_type(*llvm_type).c_str());
+            }
+        }
 	} else if (auto product = dyncast<const types::type_product>(type)) {
 		return create_bound_product_type(status, builder, scope, product);
 	} else if (auto sum = dyncast<const types::type_sum>(type)) {
@@ -288,7 +307,6 @@ bound_type_t::ref create_bound_type(
 	} else if (auto operator_ = dyncast<const types::type_operator>(type)) {
 		return create_bound_operator_type(status, builder, scope, operator_);
 	} else if (auto variable = dyncast<const types::type_variable>(type)) {
-		auto program_scope = scope->get_program_scope();
 		user_error(status, variable->get_location(), "unable to resolve type for %s",
 				variable->str().c_str());
 		return nullptr;

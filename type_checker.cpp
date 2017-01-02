@@ -1774,6 +1774,26 @@ llvm::Value *get_condition_value(
 		ast::item::ref condition,
 		bound_var_t::ref condition_value)
 {
+	if (condition_value->is_int()) {
+		return llvm_resolve_alloca(builder, condition_value->llvm_value);
+	} else if (condition_value->is_pointer()) {
+		return llvm_resolve_alloca(builder, condition_value->llvm_value);
+	} else {
+		user_error(status, condition, "unknown basic type: %s",
+				condition_value->str().c_str());
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
+llvm::Value *get_bool_overload_condition_value(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		ast::item::ref condition,
+		bound_var_t::ref condition_value)
+{
 	llvm::Value *llvm_condition_value = nullptr;
 	if (condition_value->is_int()) {
 		llvm_condition_value = llvm_resolve_alloca(builder, condition_value->llvm_value);
@@ -1892,6 +1912,25 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
     return nullptr;
 }
 
+std::list<llvm::Value *> get_conditions(
+		status_t &status,
+	   	llvm::IRBuidler<> &builder,
+	   	scope_t::ref scope,
+	   	ast::expression::ref condition,
+		bound_var_t::ref condition_value)
+{
+	std::list<llvm::Value *> conditions;
+
+	/* first let's make sure this type doesn't need a null check */
+	types::type::ref type = condition_value->type->get_type();
+	if (auto maybe = dyncast<types::type_maybe>(type)) {
+		assert(condition_value->type->get_llvm_value->getType()->isPointerTy());
+	}
+	llvm::Value *llvm_condition_value = get_condition_value(status,
+			builder, scope, condition, condition_value);
+}
+
+
 bound_var_t::ref ast::if_block::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
@@ -1913,7 +1952,14 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 	if (auto var_decl = dyncast<const ast::var_decl>(condition)) {
 		/* our user is attempting an assignment inside of an if statement, let's
 		 * grant them a favor, and automatically unbox the Maybe type if it
-		 * exists, and if their object is indeed not Empty. */
+		 * exists. */
+		condition_value = var_decl->resolve_as_condition(
+				status, builder, scope, &if_scope);
+	} else {
+		condition_value = condition->resolve_instantiation(
+				status, builder, scope, &if_scope, nullptr);
+	}
+
 		/*
 		 * var maybe_vector Vector? = maybe_a_vector()
 		 *
@@ -1939,14 +1985,11 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 		 * if nil is not a subtype of maybe_vector, for example, for a Vector
 		 * class, 
 		 */
-		condition_value = var_decl->resolve_as_condition(
-				status, builder, scope, &if_scope);
-	} else {
-		condition_value = condition->resolve_instantiation(
-				status, builder, scope, &if_scope, nullptr);
-	}
 
 	if (!!status) {
+		/* if the condition value is a maybe type, then we'll need multiple
+		 * anded conditions to be true in order to actuall fall into the then
+		 * block, let's figure out those conditions */
 		llvm::Value *llvm_condition_value = get_condition_value(status,
 				builder, scope, condition, condition_value);
 

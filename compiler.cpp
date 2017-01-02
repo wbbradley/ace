@@ -469,6 +469,7 @@ void add_globals(
 			{"__pop_stack_var", llvm_module_gc, "pop_stack_var", {"__var_ref"}, "void"},
 			{"__create_var", llvm_module_gc, "create_var", {STR_TYPE, "__mark_fn", TYPEID_TYPE, "__byte_count"}, "__var_ref"},
 			{"__get_var_type_id", llvm_module_gc, "get_var_type_id", {"__var_ref"}, TYPEID_TYPE},
+			{"__isnil", llvm_module_gc, "__isnil", {"__var_ref"}, BOOL_TYPE},
 		};
 
 		for (auto &binding : bindings) {

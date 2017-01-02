@@ -87,6 +87,10 @@ struct zion_thread_t {
 static _Atomic(struct zion_thread_t *) head_thread = ATOMIC_VAR_INIT(NULL);
 static _Atomic size_t _bytes_allocated = 0;
 
+zion_bool_t __isnil(struct var_t *p) {
+    return p == 0;
+}
+
 static void *mem_alloc(size_t cb) {
 	size_t previous_total = atomic_load(&_bytes_allocated);
 	while (!atomic_compare_exchange_weak(
@@ -193,7 +197,11 @@ void print_stack(struct zion_thread_t *thread) {
 }
 
 type_id_t get_var_type_id(struct var_t *var) {
-	return var->type_id;
+    if (var != 0) {
+        return var->type_id;
+    } else {
+        return 0;
+    }
 }
 
 struct var_t *create_var(
