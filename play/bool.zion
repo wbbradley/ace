@@ -1,0 +1,4 @@
+module _
+def main() void
+	var x bool = true
+	x = false

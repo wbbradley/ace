@@ -226,8 +226,8 @@ bound_type_t::ref create_bound_type(
 
 	auto env = scope->get_typename_env();
 	indent_logger indent(3,
-		string_format("attempting to create a bound type for %s",
-			type->str().c_str()));
+		string_format("attempting to create a bound type for %s in scope %s",
+			type->str().c_str(), scope->get_name().c_str()));
 
 	if (auto id = dyncast<const types::type_id>(type)) {
 		/* right here, we know that this type does not have a bound type. so,

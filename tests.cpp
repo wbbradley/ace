@@ -1094,7 +1094,7 @@ auto test_descs = std::vector<test_desc>{
 			tee_logger tee_log;
 			status_t status;
 			compiler compiler("rt_str", compiler::libs{});
-			compiler.llvm_load_ir(status, "build/rt_str.llir");
+			compiler.llvm_load_ir(status, "rt_str.llir");
 			return !!status;
 		}
 	},

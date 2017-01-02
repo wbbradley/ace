@@ -361,6 +361,7 @@ namespace ast {
 		static ptr<var_decl> parse(parse_state_t &ps);
 		static ptr<var_decl> parse_param(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		bound_var_t::ref resolve_as_condition(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope) const;
 		virtual void render(render_state_t &rs) const;
 
 		/* the inherited ast::item::token member contains the actual identifier

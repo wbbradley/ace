@@ -29,7 +29,7 @@ def iter_solve(n) List{List{Pos}}
 	var solutions List{List{Pos}} = Empty
 	row := 0
 	while row < n
-		solutions = check(solutions, row, n)
+		# solutions = check(solutions, row, n)
 		row += 1
 	return solutions
 
@@ -43,7 +43,7 @@ def check(solutions, row, n) List{List{Pos}}
 			result = conj(solutions, Node(Pos(col, row), Empty))
 		else
 			result = append_if_not_under_attack(new_solutions, col, row, solutions)
-		new_solutions = result
+		# new_solutions = result
 		col += 1
 
 	return new_solutions
@@ -65,6 +65,7 @@ def str(list List{any T}) str
 	s := "["
 	var seen_one bool = false
 	var done bool = false
+	static_print(done)
 	while not done
 		node := list
 		when node

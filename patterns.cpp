@@ -57,7 +57,7 @@ bound_var_t::ref gen_type_check(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ast::item::ref node,
-		runnable_scope_t::ref scope,
+		scope_t::ref scope,
 		identifier::ref value_name,
 		bound_var_t::ref value,
 		bound_type_t::ref bound_type,
@@ -84,39 +84,45 @@ bound_var_t::ref gen_type_check(
 		auto get_typeid_eq_function = program_scope->get_bound_variable(
 				status, node, "__type_id_eq_type_id");
 
-		assert(get_typeid_eq_function != nullptr);
-		if (!!status) {
-			/* generate a new scope with the value_name containing a new
-			 * variable to overwrite the prior scoped variable's type with
-			 * the new checked type */
-			*new_scope = scope->new_local_scope(string_format("when %s %s",
-						value_name->str().c_str(),
-						node->str().c_str()));
+        assert(get_typeid_eq_function != nullptr);
+        if (!!status) {
+            if (new_scope != nullptr) {
+                if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
+                    /* generate a new scope with the value_name containing a new
+                     * variable to overwrite the prior scoped variable's type with
+                     * the new checked type */
+                    *new_scope = runnable_scope->new_local_scope(string_format("when %s %s",
+                                value_name->str().c_str(),
+                                node->str().c_str()));
 
-			/* replace this bound variable with a version of itself with a new type */
-			(*new_scope)->put_bound_variable(status, value_name->get_name(),
-					bound_var_t::create(
-						value_name->get_location(),
-						value_name->get_name(),
-						bound_type,
-						/* perform a safe runtime cast of this value */
-						value->llvm_value,
-						value_name,
-                        /* because this type is more specific than the original,
-                         * we should still be able to assign to it, if it
-                         * intended to be assigned to */
-						value->is_lhs /*is_lhs*/));
+                    /* replace this bound variable with a version of itself with a new type */
+                    (*new_scope)->put_bound_variable(status, value_name->get_name(),
+                            bound_var_t::create(
+                                value_name->get_location(),
+                                value_name->get_name(),
+                                bound_type,
+                                /* perform a safe runtime cast of this value */
+                                value->llvm_value,
+                                value_name,
+                                /* because this type is more specific than the original,
+                                 * we should still be able to assign to it, if it
+                                 * intended to be assigned to */
+                                value->is_lhs /*is_lhs*/));
+                }
+            }
 
-			/* call the type_id comparator function */
-			return create_callsite(
-					status,
-					builder,
-					scope,
-					node,
-					get_typeid_eq_function,
-					value_name->get_name(),
-					value_name->get_location(),
-					{type_id, type_id_wanted});
+            if (!!status) {
+                /* call the type_id comparator function */
+                return create_callsite(
+                        status,
+                        builder,
+                        scope,
+                        node,
+                        get_typeid_eq_function,
+                        value_name->get_name(),
+                        value_name->get_location(),
+                        {type_id, type_id_wanted});
+            }
 		}
 	}
 

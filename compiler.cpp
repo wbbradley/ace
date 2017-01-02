@@ -356,11 +356,11 @@ void add_globals(
 		program_scope_t::ref program_scope, 
 		ast::item::ref program)
 {
-	auto llvm_module_int = compiler.llvm_load_ir(status, "build/rt_int.llir");
-	auto llvm_module_float = compiler.llvm_load_ir(status, "build/rt_float.llir");
-	auto llvm_module_str = compiler.llvm_load_ir(status, "build/rt_str.llir");
-	auto llvm_module_gc = compiler.llvm_load_ir(status, "build/rt_gc.llir");
-	auto llvm_module_typeid = compiler.llvm_load_ir(status, "build/rt_typeid.llir");
+	auto llvm_module_int = compiler.llvm_load_ir(status, "rt_int.llir");
+	auto llvm_module_float = compiler.llvm_load_ir(status, "rt_float.llir");
+	auto llvm_module_str = compiler.llvm_load_ir(status, "rt_str.llir");
+	auto llvm_module_gc = compiler.llvm_load_ir(status, "rt_gc.llir");
+	auto llvm_module_typeid = compiler.llvm_load_ir(status, "rt_typeid.llir");
 
 	/* set up the global scalar types, as well as memory reference and garbage
 	 * collection types */
@@ -505,7 +505,9 @@ void compiler::build_parse_modules(status_t &status) {
 
 	if (!!status) {
 		/* always include the standard library */
-		build_parse(status, location{"std lib", 0, 0}, "lib/std", true /*global*/);
+        if (getenv("NO_STD_LIB") == nullptr) {
+            build_parse(status, location{"std lib", 0, 0}, "lib/std", true /*global*/);
+        }
 
 		if (!!status) {
 			/* now parse the main program module */

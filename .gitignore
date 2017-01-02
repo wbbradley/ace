@@ -1,9 +1,10 @@
-build
+build-*
 env
 value_semantics
 python_main
 zionc
 logs
+*.llir
 *.log
 .*.swp
 tags

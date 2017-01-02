@@ -28,10 +28,15 @@ else
 ifeq ($(UNAME),Linux)
 	CLANG := ccache clang-3.6
 	CLANG_CPP := ccache clang++-3.6
-	LLVM_CONFIG := /usr/local/opt/llvm37/bin/llvm-config-3.6
+	LLVM_CONFIG := llvm-config-3.6
 	LLVM_CFLAGS = -nostdinc++ $(shell $(LLVM_CONFIG) --cxxflags) -g -O0
 
-	CPP = $(CLANG_CPP) -g -O0 -std=c++11 -I$(shell $(LLVM_CONFIG) --includedir)/llvm -I/usr/include/x86_64-linux-gnu/c++/4.9 -I/usr/include/c++/4.9
+	# -I$(shell $(LLVM_CONFIG) --includedir)/llvm
+	CPP = $(CLANG_CPP) \
+		  -I/usr/include/c++/v1 \
+		  -g \
+		  -O0 \
+		  -std=c++11
 	CC = $(CLANG)
 	LINKER = $(CLANG)
 	LINKER_OPTS := \
@@ -48,7 +53,7 @@ endif
 endif
 
 VPATH = .:$(BUILD_DIR)
-BUILD_DIR = build
+BUILD_DIR = build-$(UNAME)
 
 CFLAGS := \
 	-c \
@@ -113,12 +118,12 @@ ZION_RUNTIME = \
 				rt_gc.c \
 				rt_typeid.c
 
-ZION_RUNTIME_LLIR = $(addprefix $(BUILD_DIR)/,$(ZION_RUNTIME:.c=.llir))
+ZION_RUNTIME_LLIR = $(ZION_RUNTIME:.c=.llir)
 
 TARGETS = $(ZION_TARGET)
 
 timed:
-	time make all
+	time make all 
 
 all: $(TARGETS) rt_gc
 
@@ -136,7 +141,7 @@ $(BUILD_DIR)/.gitignore:
 	mkdir -p $(BUILD_DIR)
 	echo "*" > $(BUILD_DIR)/.gitignore
 
-value_semantics: build/value_semantics.o
+value_semantics: $(BUILD_DIR)/value_semantics.o
 	$(LINKER) $(LINKER_OPTS) $< -o value_semantics
 
 .PHONY: test
@@ -174,7 +179,7 @@ $(BUILD_DIR)/%.o: %.c
 	@$(CPP) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
 	@$(CC) $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/%.llir: %.c
+%.llir: %.c
 	@echo Emitting LLIR from $<
 	@$(CLANG) -S -emit-llvm $< -o - | grep -v -e 'llvm\.ident' -e 'Apple LLVM version 6' > $@
 
@@ -193,5 +198,6 @@ shell:
 		--rm \
 		--name zion-shell \
 		-it $(IMAGE):$(VERSION) \
+		-v `pwd`:/opt/zion \
 		bash
 
