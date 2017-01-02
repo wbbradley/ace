@@ -62,6 +62,7 @@ namespace types {
 		virtual bool is_void() const { return false; }
 		virtual bool is_obj() const { return false; }
 		virtual bool is_struct() const { return false; }
+		virtual bool is_nil() const { return false; }
 	};
 
 	bool is_type_id(type::ref type, atom type_name);
@@ -136,7 +137,7 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
-
+        ref without_nil() const;
 		virtual bool is_obj() const { return true; }
 	};
 
@@ -157,6 +158,7 @@ namespace types {
 };
 
 /* type data ctors */
+types::type::ref type_nil();
 types::type::ref type_void();
 types::type::ref type_unreachable();
 types::type::ref type_id(identifier::ref var);

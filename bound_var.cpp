@@ -31,6 +31,11 @@ bool bound_var_t::is_int() const {
 	return llvm_resolve_type(llvm_value)->isIntegerTy();
 }
 
+bool bound_var_t::is_pointer() const {
+	/* anything that is an pointer */
+	return llvm_resolve_type(llvm_value)->isPointerTy();
+}
+
 std::ostream &operator <<(std::ostream &os, const bound_var_t &var) {
 	return os << var.str();
 }

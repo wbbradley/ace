@@ -247,6 +247,13 @@ void llvm_create_if_branch(
 	llvm::Type *llvm_type = llvm_value->getType();
 	assert(llvm_value->getType()->isIntegerTy());
 
+	if (llvm_type->isPointerTy()) {
+		/* automatically cast pointers down to ints */
+		llvm_type = builder.getInt64Ty();
+		llvm_value = llvm::ConstantExpr::getBitCast(
+					llvm_value, llvm_type);
+	}
+
 	if (!llvm_type->isIntegerTy(1)) {
 		llvm::Constant *zero = llvm::ConstantInt::get(llvm_type, 0);
 		llvm_value = builder.CreateICmpNE(llvm_value, zero);

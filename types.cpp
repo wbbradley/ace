@@ -6,6 +6,7 @@
 #include "types.h"
 #include "parser.h"
 
+const char *BUILTIN_NIL_TYPE = "nil";
 const char *BUILTIN_LIST_TYPE = "std.List";
 const char *BUILTIN_VOID_TYPE = "void";
 const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";
@@ -295,6 +296,16 @@ namespace types {
 		return nullptr;
 	}
 
+    ref type_sum::without_nil() const {
+		refs type_options;
+		for (auto option : options) {
+            if (option == type_nil()) {
+                type_options.push_back(option);
+            }
+		}
+		return ::type_sum(type_options);
+    }
+
 	type_lambda::type_lambda(identifier::ref binding, type::ref body) :
 		binding(binding), body(body)
 	{
@@ -369,6 +380,11 @@ types::type::ref type_variable() {
 
 types::type::ref type_unreachable() {
 	return make_ptr<types::type_id>(make_iid(BUILTIN_UNREACHABLE_TYPE));
+}
+
+types::type::ref type_nil() {
+	static auto nil_type = make_ptr<types::type_id>(make_iid(BUILTIN_NIL_TYPE));
+    return nil_type;
 }
 
 types::type::ref type_void() {

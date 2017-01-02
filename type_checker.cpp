@@ -155,38 +155,54 @@ bound_var_t::ref type_check_bound_var_decl(
 					 * this is even a Maybe type. */
 					// TODO: consider checking whether nil is a valid input to the init_var's type, then deducing the type without nil.
 					unification_t unification = unify(
-							type_operator(type_id(make_iid("Maybe")), type_variable()),
 							init_var->get_type(),
+							type_nil(),
 							scope->get_typename_env());
 
 					if (unification.result) {
-						/* looks like the initialization variable is a Maybe */
+						/* looks like the initialization variable is a supertype
+						 * of the nil type */
 						unboxed = true;
 
-						/* let's figure out what the inner type of this
-						 * object is by pulling it out of the unification
-						 * bindings */
-						assert(unification.bindings.size() != 0);
+						/* let's figure out what the non-nil type of this
+						 * object is. */
+						types::type::ref start_type = init_var->get_type()->rebind(unification.bindings);
 
-						types::type::ref type_inner = unification.bindings.begin()->second;
-						bound_type = upsert_bound_type(status, builder, scope, type_inner);
-						auto just_bound_type = upsert_bound_type(status, builder, scope,
-								type_operator(type_id(make_iid("Just")),
-									type_inner));
+						/* let's see if we can remove the nil type from
+						 * 'start_type' */
+						auto expansion = eval_type(start_type, scope->get_typename_env());
+						types::type::ref desired_type;
+						if (auto sum_type = dyn_cast<const types::type_sum>(expansion)) {
+							/* since this is a sum type, let's remove the nil
+							 * type */
+							desired_type = sum_type->without_nil();
+							bound_type = upsert_bound_type(status, builder, scope, desired_type);
+							auto just_bound_type = upsert_bound_type(status, builder, scope,
+									desired_type);
 
-						/* let's generate a runtime check for the
-						 * Just{'type_inner'} type */
+							condition_value = call_check_null_and_truthy(
+									status, builder, obj.shared_from_this(), scope,
+									make_iid("maybe_unboxing_check"), init_var,
+									bound_type, nullptr /*new_scope*/);
 
-						condition_value = gen_type_check(
-								status, builder, obj.shared_from_this(), scope,
-								make_iid("maybe_unboxing_check"), init_var,
-								bound_type, nullptr /*new_scope*/);
+									gen_type_check(
+									status, builder, obj.shared_from_this(), scope,
+									make_iid("maybe_unboxing_check"), init_var,
+									bound_type, nullptr /*new_scope*/);
 
-						// TODO: combine the type check with a bool check
+							// TODO: combine the type check with a bool check
 
-						/* now that we have a runtime value to check, let's also
-						 * pull out the 'value' element of the Just type */
-						// init_var = 
+							/* now that we have a runtime value to check, let's also
+							 * pull out the 'value' element of the Just type */
+							// init_var = 
+						} else if (expansion->is_nil()) {
+							condition_value = bound_var_t::create(
+									INTERNAL_LOC(), "always nil",
+									program_scope->get_bound_type({BOOL_TYPE}),
+									llvm_create_bool(builder, false),
+									"always nil",
+									false/*is_lhs*/);
+						}
 					} else {
 						/* this is not a maybe, so let's just move along */
 					}
@@ -1793,6 +1809,8 @@ llvm::Value *get_condition_value(
 	if (condition_value->is_int()) {
 		llvm_condition_value = llvm_resolve_alloca(builder, condition_value->llvm_value);
 		assert(llvm_condition_value->getType()->isIntegerTy());
+	} else if (condition_value->is_pointer()) {
+		llvm_condition_value = llvm_resolve_alloca(builder, condition_value->llvm_value);
 	} else {
 		debug_above(2, log(log_info,
 					"if condition %s appears to not be a builtin integer type, "
@@ -1930,21 +1948,29 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 		 * grant them a favor, and automatically unbox the Maybe type if it
 		 * exists, and if their object is indeed not Empty. */
 		/*
+		 * var maybe_vector Vector? = maybe_a_vector()
+		 *
 		 * if v := maybe_vector
 		 *   print("x-value is " + v.x)
 		 * else
 		 *   print("no x-value available")
 		 *
-		 * if maybe_vector unifies against Maybe{any T}, then the above code
+		 * if nil is a subtype of maybe_vector, then the above code
 		 * effectively becomes:
 		 *
-		 * __tmp_1 := maybe_vector
-		 * when __tmp_1 is Just{any T}
-		 *   v := tmp.value
+		 * if __not_nil__(maybe_vector)
+		 *   v := __discard_nil__(maybe_vector)
+		 *   // if there is a __bool__ function defined for type(v), add another
+		 *   // if statement:
+		 *   if not v
+		 *     goto l_else
 		 *   print("x-axis is " + v.x)
 		 * else
+		 * l_else:
 		 *   print("no x-value available")
 		 *
+		 * if nil is not a subtype of maybe_vector, for example, for a Vector
+		 * class, 
 		 */
 		condition_value = var_decl->resolve_as_condition(
 				status, builder, scope, &if_scope);

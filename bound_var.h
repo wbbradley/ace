@@ -45,6 +45,7 @@ struct bound_var_t : public var_t {
 	std::string str() const;
 
 	bool is_int() const;
+	bool is_pointer() const;
 	types::signature get_signature() const;
 
 	typedef ptr<const bound_var_t> ref;
