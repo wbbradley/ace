@@ -33,7 +33,7 @@ def __bool__(b bool) __bool__
 	return __get_typeid__(b) == __get_typeid__(true)
 
 def __bool__(x int) __bool__
-	return not not x.raw
+	return __bool__(x != 0)
 
 def __not__(b bool) bool
 	return bool(__get_typeid__(b) != __get_typeid__(true))

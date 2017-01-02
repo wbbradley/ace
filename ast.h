@@ -24,7 +24,6 @@ enum syntax_kind_t {
 #include "sk_ops.h"
 #undef OP
 
-	sk_base_expr,
 	sk_expression,
 	sk_statement,
 };
@@ -749,6 +748,16 @@ namespace ast {
 		std::vector<ptr<expression>> items;
 	};
 
+    struct bang_expr : public expression {
+		typedef ptr<const bang_expr> ref;
+
+		static const syntax_kind_t SK = sk_bang_expr;
+		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual void render(render_state_t &rs) const;
+
+		ptr<expression> lhs;
+    };
+
 	struct array_index_expr : public expression {
 		typedef ptr<const array_index_expr> ref;
 
@@ -761,10 +770,7 @@ namespace ast {
 		ptr<expression> index;
 	};
 
-	struct base_expr : public expression {
-		typedef ptr<const base_expr> ref;
-
-		virtual ~base_expr() {}
-		static ptr<expression> parse(parse_state_t &ps);
-	};
+	namespace base_expr {
+		ptr<expression> parse(parse_state_t &ps);
+	}
 }

@@ -2031,6 +2031,34 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
     return nullptr;
 }
 
+bound_var_t::ref ast::bang_expr::resolve_instantiation(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	scope_t::ref scope,
+	   	local_scope_t::ref *new_scope,
+	   	bool *) const
+{
+	auto lhs_value = lhs->resolve_instantiation(status, builder, scope, new_scope, nullptr);
+	if (!!status) {
+		auto type = lhs_value->type->get_type();
+		auto maybe_type = dyncast<const types::type_maybe>(type);
+		if (maybe_type != nullptr) {
+			bound_type_t::ref just_bound_type = upsert_bound_type(status, builder, scope, maybe_type->just);
+			return bound_var_t::create(INTERNAL_LOC(), lhs_value->name,
+					just_bound_type,
+					lhs_value->llvm_value,
+					lhs_value->id,
+					lhs_value->is_lhs);
+		} else {
+			user_error(status, *this, "bang expression is unnecessary since this is not a 'maybe' type: %s",
+					type->str().c_str());
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref ast::var_decl::resolve_as_condition(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,

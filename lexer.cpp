@@ -326,10 +326,11 @@ bool zion_lexer_t::_get_tokens() {
 			}
 			break;
 		case gts_bang:
+            gts = gts_end;
 			if (ch == '=') {
-				gts = gts_end;
+                tk = tk_inequal;
 			} else {
-				gts = gts_error;
+                scan_ahead = false;
 			}
 			break;
 		case gts_start:
@@ -340,7 +341,7 @@ bool zion_lexer_t::_get_tokens() {
 				break;
 			case '!':
 				gts = gts_bang;
-				tk = tk_inequal;
+				tk = tk_bang;
 				break;
 			case '/':
 				gts = gts_divide_by;

@@ -86,13 +86,6 @@ unification_t unify(
     auto a = prune(lhs, bindings);
     auto b = prune(rhs, bindings);
 
-#if 0
-    if (a->str(bindings) == b->str(bindings)) {
-		debug_above(7, log(log_info, "matched " c_type("%s"), a->str(bindings).c_str()));
-        return {true, "", bindings};
-	}
-#endif
-
 	auto pti_a = dyncast<const types::type_id>(a);
 	auto pti_b = dyncast<const types::type_id>(b);
 

@@ -305,7 +305,6 @@ namespace types {
 
 	std::ostream &type_maybe::emit(std::ostream &os, const map &bindings) const {
 		os << "(maybe ";
-        os << " ";
         just->emit(os, bindings);
 		return os << ")";
 	}

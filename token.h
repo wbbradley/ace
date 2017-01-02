@@ -70,6 +70,7 @@ enum token_kind
 	// Operators
 	tk_equal, /* == */
 	tk_inequal, /* != */
+	tk_bang, /* ! */
 	tk_maybe, /* ? */
 	tk_lt, /* < */
 	tk_gt, /* > */

@@ -526,4 +526,9 @@ namespace ast {
 			module->render(rs);
 		}
 	}
+
+    void bang_expr::render(render_state_t &rs) const {
+        lhs->render(rs);
+        rs.ss << "!";
+    }
 }

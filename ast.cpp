@@ -16,7 +16,6 @@ const char *skstr(syntax_kind_t sk) {
 #include "sk_ops.h"
 #undef OP
 
-		sk_case(base_expr)
 		sk_case(expression)
 		sk_case(statement)
 	};
