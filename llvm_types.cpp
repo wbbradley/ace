@@ -161,8 +161,9 @@ bound_type_t::ref create_bound_operator_type(
 
 	if (expansion == nullptr) {
 		user_error(status, operator_->get_location(),
-				"unable to find a definition for %s",
-				operator_->str().c_str());
+				"unable to find a definition for %s in scope " c_id("%s"),
+				operator_->str().c_str(),
+                scope->get_name().c_str());
 	} else {
 		/* we've evaluated the application of this type operator. create a
 		 * handle to track resolution of this type. */
@@ -226,7 +227,7 @@ bound_type_t::ref create_bound_type(
 
 	auto env = scope->get_typename_env();
 	indent_logger indent(3,
-		string_format("attempting to create a bound type for %s in scope %s",
+		string_format("attempting to create a bound type for %s in scope " c_id("%s"),
 			type->str().c_str(), scope->get_name().c_str()));
 
 	if (auto id = dyncast<const types::type_id>(type)) {
@@ -270,9 +271,10 @@ bound_type_t::ref create_bound_type(
 					}
 				}
 			} else {
-				user_error(status, type->get_location(),
-						"unable to find a type definition for %s",
-						type->str().c_str());
+                user_error(status, type->get_location(),
+                        "unable to find a type definition for %s in " c_id("%s"),
+                        type->str().c_str(),
+                        scope->get_name().c_str());
 			}
 		}
 
@@ -321,8 +323,9 @@ bound_type_t::ref upsert_bound_type(
 		}
 
 		user_error(status, desired_type->get_location(),
-			   	"unable to find a definition for %s",
-				desired_type->str().c_str());
+			   	"unable to find a definition for %s in scope " c_id("%s"),
+				desired_type->str().c_str(),
+                scope->get_name().c_str());
 	}
 
 	assert(!status);

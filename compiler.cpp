@@ -34,7 +34,7 @@ compiler::compiler(std::string program_name_, const libs &zion_paths) :
 		}
 	}
 
-	program_scope = program_scope_t::create("", llvm_create_module(program_name_ + ".global"));
+	program_scope = program_scope_t::create("program", llvm_create_module(program_name_ + ".global"));
 }
 
 void compiler::info(const char *format, ...) {

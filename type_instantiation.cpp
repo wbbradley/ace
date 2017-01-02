@@ -393,13 +393,13 @@ types::type::ref register_data_ctor(
 		ptr<const ast::item> node,
 		types::type::refs dimensions,
 		atom::map<int> member_index,
-		identifier::ref id,
+		identifier::ref id_,
 		identifier::ref supertype_id)
 {
-	atom name = id->get_name();
-	auto location = id->get_location();
-	if (supertype_id == nullptr || (supertype_id->get_name() != id->get_name())) {
-		if (auto found_type = scope->get_bound_type(id->get_name())) {
+	atom name = id_->get_name();
+	auto location = id_->get_location();
+	if (supertype_id == nullptr || (supertype_id->get_name() != id_->get_name())) {
+		if (auto found_type = scope->get_bound_type(id_->get_name())) {
 			/* simple check for an already bound monotype */
 			user_error(status, location, "symbol " c_id("%s") " was already defined",
 					name.c_str());
@@ -418,10 +418,12 @@ types::type::ref register_data_ctor(
 			} else {
 				auto type = instantiate_data_ctor_type(status, builder,
 						type_variables, scope, node, dimensions,
-						member_index, id, supertype_id);
+						member_index, id_, supertype_id);
 				if (!!status) {
 					/* register the typename in the current environment */
-					scope->put_typename(status, id->get_name(), type);
+                    debug_above(7, log(log_info, "registering type " c_type("%s") " in scope %s",
+                                name.c_str(), scope->get_name().c_str()));
+					scope->put_typename(status, name, type);
 					return type;
 				}
 			}

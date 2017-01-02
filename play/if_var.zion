@@ -1,8 +1,15 @@
 module _
 # test: pass
 
+type str has
+	var raw __str__
+
+type int has
+	var raw __int__
+
 def main()
 	# test that Maybe{int} is automatically unboxed for the
 	# type of 'x'
-	if x := Just("Hello world")
-		print(x)
+	var x str = "Hello world."
+	if y := x
+		pass

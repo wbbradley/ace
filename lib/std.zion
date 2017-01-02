@@ -217,11 +217,7 @@ def print(x any) void
 
 tag Empty
 
-type Just{T} has
-	var value T
-
-type Maybe{T} is
-	Empty or Just{T}
+type Maybe{T} is nil or T
 
 type Node{T} has
 	var value T

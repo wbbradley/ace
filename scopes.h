@@ -9,7 +9,7 @@
 #include "unchecked_var.h"
 #include "signature.h"
 
-#define SCOPE_SEP "::"
+#define SCOPE_SEP "/"
 
 struct scope_t;
 

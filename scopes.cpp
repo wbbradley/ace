@@ -426,9 +426,10 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 		std::string current_scope_name,
 		program_scope_t::ref program_scope)
 {
-	debug_above(6, log(log_info, "registering an unchecked variable %s as %s",
+	debug_above(6, log(log_info, "registering an unchecked variable %s as %s in " c_id("%s"),
 				symbol.c_str(),
-				unchecked_variable->str().c_str()));
+				unchecked_variable->str().c_str(),
+                current_scope_name.c_str()));
 
 	auto iter = unchecked_vars.find(symbol);
 	if (iter != unchecked_vars.end()) {

@@ -99,6 +99,7 @@ bound_var_t::ref type_check_bound_var_decl(
 		init_var = obj.initializer->resolve_instantiation(status, builder,
 				scope, nullptr, nullptr);
 	}
+
 	if (!!status) {
 		/* we have a declared type on the left-hand side */
 		if (obj.type_ref != nullptr) {
@@ -116,22 +117,26 @@ bound_var_t::ref type_check_bound_var_decl(
 		if (init_var != nullptr) {
 			/* we have an initializer */
 			if (declared_type != nullptr) {
-			/* ensure 'init_var' <: 'declared_type' */
-			unification_t unification = unify(
-					declared_type,
-					init_var->get_type(),
-					scope->get_typename_env());
+				/* ensure 'init_var' <: 'declared_type' */
+				unification_t unification = unify(
+						declared_type,
+						init_var->get_type(),
+						scope->get_typename_env());
 
-			if (unification.result) {
+				if (unification.result) {
 					/* the lhs is a supertype of the rhs */
-				lhs_type = declared_type->rebind(unification.bindings);
+					lhs_type = declared_type->rebind(unification.bindings);
+				} else {
+					/* report that the variable type does not match the initializer type */
+					user_error(status, obj, "declared type of `" c_var("%s") "` does not match type of initializer",
+							obj.token.text.c_str());
+					user_message(log_info, status, init_var->get_location(), c_type("%s") " != " c_type("%s"),
+							declared_type->str().c_str(),
+							init_var->type->str().c_str());
+				}
 			} else {
-				/* report that the variable type does not match the initializer type */
-				user_error(status, obj, "declared type of `" c_var("%s") "` does not match type of initializer",
-						obj.token.text.c_str());
-				user_message(log_info, status, init_var->get_location(), c_type("%s") " != " c_type("%s"),
-						declared_type->str().c_str(),
-						init_var->type->str().c_str());
+				/* we must get the type from the initializer */
+				lhs_type = init_var->type->get_type();
 			}
 		}
 
@@ -140,13 +145,15 @@ bound_var_t::ref type_check_bound_var_decl(
 			assert(lhs_type != nullptr);
 
 			if (maybe_unbox) {
-				dbg();
+				debug_above(3, log(log_info, "attempting to unbox %s", obj.str().c_str()));
+
 				/* try to see if we can unbox this if it's a Maybe */
 				if (init_var == nullptr) {
 					user_error(status, obj.get_location(), "missing initialization value");
 				} else {
 					/* since we are maybe unboxing, then let's first off see if
 					 * this is even a Maybe type. */
+					// TODO: consider checking whether nil is a valid input to the init_var's type, then deducing the type without nil.
 					unification_t unification = unify(
 							type_operator(type_id(make_iid("Maybe")), type_variable()),
 							init_var->get_type(),
@@ -175,6 +182,8 @@ bound_var_t::ref type_check_bound_var_decl(
 								make_iid("maybe_unboxing_check"), init_var,
 								bound_type, nullptr /*new_scope*/);
 
+						// TODO: combine the type check with a bool check
+
 						/* now that we have a runtime value to check, let's also
 						 * pull out the 'value' element of the Just type */
 						// init_var = 
@@ -202,9 +211,8 @@ bound_var_t::ref type_check_bound_var_decl(
 				builder.CreateStore(llvm_resolve_alloca(builder, init_var->llvm_value), llvm_alloca);	
 			}
 
-			/* the reference_expr that looks at this llvm_value
-			 * will need to know to use store/load semantics, not
-			 * just pass-by-value */
+			/* the reference_expr that looks at this llvm_value will need to
+			 * know to use store/load semantics, not just pass-by-value */
 			bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
 					bound_type, llvm_alloca, make_code_id(obj.token),
 					true /*is_lhs*/);
@@ -2174,14 +2182,14 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 			bound_type_t::ref boxed_type = upsert_bound_type(
 					status,
 					builder,
-					program_scope,
+					scope,
 					type_id(make_iid("int")));
-			assert(boxed_type != nullptr);
-            if (!!status) {
+			if (!!status) {
+				assert(boxed_type != nullptr);
 				bound_var_t::ref box_int = get_callable(
 						status,
 						builder,
-						program_scope,
+						scope,
 						{"int"},
 						shared_from_this(),
 						get_args_type({raw_type}));
@@ -2201,7 +2209,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 									llvm_create_int(builder, value),
 									make_code_id(token), false/*is_lhs*/)});
 				}
-            }
+			}
         }
 		break;
     case tk_string:
@@ -2211,15 +2219,15 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 			bound_type_t::ref boxed_type = upsert_bound_type(
 					status,
 					builder,
-					program_scope,
+					scope,
 					type_id(make_iid("str")));
 
-			assert(boxed_type != nullptr);
 			if (!!status) {
+				assert(boxed_type != nullptr);
 				bound_var_t::ref box_str = get_callable(
 						status,
 						builder,
-						program_scope,
+						scope,
 						{"str"},
 						shared_from_this(),
 						get_args_type({raw_type}));
@@ -2248,14 +2256,14 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 			bound_type_t::ref boxed_type = upsert_bound_type(
 					status,
 					builder,
-					program_scope,
+					scope,
 					type_id(make_iid("float")));
-			assert(boxed_type != nullptr);
 			if (!!status) {
+				assert(boxed_type != nullptr);
 				bound_var_t::ref box_float = get_callable(
 						status,
 						builder,
-						program_scope,
+						scope,
 						{"float"},
 						shared_from_this(),
 						get_args_type({raw_type}));
