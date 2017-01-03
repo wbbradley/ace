@@ -83,7 +83,7 @@ bool zion_lexer_t::get_token(
 
 	debug_above(9, log(log_info, "lexed (%s) \"%s\"@%s", tkstr(token.tk), token.text.c_str(),
 				token.location().c_str()));
-	return token.tk != tk_nil;
+	return token.tk != tk_none;
 }
 
 #define gts_keyword_case_ex(wor, letter, _gts) \
@@ -169,7 +169,7 @@ bool zion_lexer_t::_get_tokens() {
 	char ch = 0;
 	size_t sequence_length = 0;
 	zion_string_t token_text;
-	token_kind tk = tk_nil;
+	token_kind tk = tk_none;
 	int line = m_line;
 	int col = m_col;
 	while (gts != gts_end && gts != gts_error) {
@@ -210,7 +210,7 @@ bool zion_lexer_t::_get_tokens() {
 				tk = tk_space;
 				gts = gts_end;
 			default:
-				tk = tk_nil;
+				tk = tk_none;
 				gts = gts_error;
 			}
 			break;
@@ -442,7 +442,7 @@ bool zion_lexer_t::_get_tokens() {
 
 			if (gts == gts_start) {
 				if (ch == EOF || m_is.fail()) {
-					tk = tk_nil;
+					tk = tk_none;
 					gts = gts_end;
 					break;
 				} else if (isdigit(ch)) {
@@ -628,14 +628,14 @@ bool zion_lexer_t::_get_tokens() {
 				enqueue_indents(m_line, m_col, indent_depth);
 			}
 		} else {
-			if (tk != tk_nil) {
+			if (tk != tk_none) {
 				m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
 			}
 		}
 
 		if (ch == EOF) {
 			enqueue_indents(m_line, m_col, 0);
-			m_token_queue.enqueue({m_filename, line, col}, tk_nil, token_text);
+			m_token_queue.enqueue({m_filename, line, col}, tk_none, token_text);
 		}
 
 		return true;
@@ -669,7 +669,7 @@ bool zion_lexer_t::handle_nests(token_kind tk) {
 }
 
 void zion_lexer_t::pop_nested(token_kind tk) {
-	auto back_tk = m_nested_tks.size() > 0 ? m_nested_tks.back() : tk_nil;
+	auto back_tk = m_nested_tks.size() > 0 ? m_nested_tks.back() : tk_none;
 	if (back_tk == tk) {
 		m_nested_tks.pop_back();
 	} else if (back_tk != tk) {
@@ -693,7 +693,7 @@ void zion_lexer_t::enqueue_indents(int line, int col, int indent_depth) {
 		}
 		m_last_indent_depth = indent_depth;
 	} else {
-		m_token_queue.set_last_tk(tk_nil);
+		m_token_queue.set_last_tk(tk_none);
 	}
 }
 

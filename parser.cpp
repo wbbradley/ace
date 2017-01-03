@@ -117,7 +117,7 @@ ptr<statement> link_statement_parse(parse_state_t &ps) {
 		if (ps.token.tk == tk_module) {
 			auto module_decl = module_decl::parse(ps);
 			if (module_decl) {
-				if (link_statement->link_as_name.tk == tk_nil) {
+				if (link_statement->link_as_name.tk == tk_none) {
 					link_statement->link_as_name = module_decl->get_name();
 				}
 				if (link_statement->link_as_name.tk != tk_identifier) {
@@ -229,7 +229,7 @@ ptr<expression> array_literal_expr::parse(parse_state_t &ps) {
 	auto &items = array->items;
 
 	int i = 0;
-	while (ps.token.tk != tk_rsquare && ps.token.tk != tk_nil) {
+	while (ps.token.tk != tk_rsquare && ps.token.tk != tk_none) {
 		++i;
 		auto item = expression::parse(ps);
 		if (item) {
@@ -250,7 +250,7 @@ ptr<expression> array_literal_expr::parse(parse_state_t &ps) {
 
 ptr<expression> literal_expr::parse(parse_state_t &ps) {
 	switch (ps.token.tk) {
-	case tk_null:
+	case tk_nil:
 	case tk_integer:
 	case tk_string:
 	case tk_char:
@@ -692,7 +692,7 @@ ptr<block> block::parse(parse_state_t &ps) {
 	}
 
 	while (!!ps.status && ps.token.tk != tk_outdent) {
-		assert(ps.token.tk != tk_nil);
+		assert(ps.token.tk != tk_none);
 		while (ps.token.tk == tk_semicolon) {
 			ps.advance();
 		}
@@ -1348,7 +1348,7 @@ ptr<module> module::parse(parse_state_t &ps, bool global) {
 			}
 		}
 
-		if (ps.token.tk != tk_nil) {
+		if (ps.token.tk != tk_none) {
 			if (!!ps.status) {
 				ps.error("unexpected '" c_error("%s") "' at top-level module scope",
 						tkstr(ps.token.tk));

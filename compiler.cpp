@@ -372,10 +372,10 @@ void add_globals(
 	bound_type_t::ref bool_type = program_scope->get_bound_type({BOOL_TYPE});
 	bound_type_t::ref next_var_type = program_scope->get_bound_type({"__next_var"});
 
-	/* get the null pointer value */
-	llvm::Value *llvm_null_value = llvm::ConstantPointerNull::get(llvm::dyn_cast<llvm::PointerType>(
+	/* get the nil pointer value */
+	llvm::Value *llvm_nil_value = llvm::ConstantPointerNull::get(llvm::dyn_cast<llvm::PointerType>(
 				void_ptr_type->get_llvm_type()));
-	assert(llvm_null_value != nullptr);
+	assert(llvm_nil_value != nullptr);
 
 	program_scope->put_bound_variable(status, "__true__", bound_var_t::create(INTERNAL_LOC(), "__true__", bool_type, builder.getInt64(1/*true*/), make_iid("__true__"), false/*is_lhs*/));
 	assert(!!status);
@@ -384,8 +384,8 @@ void add_globals(
 	assert(!!status);
 
 	program_scope->put_bound_variable(
-			status, "null", bound_var_t::create(INTERNAL_LOC(), "null",
-				void_ptr_type, llvm_null_value, make_iid("null"),
+			status, "nil", bound_var_t::create(INTERNAL_LOC(), "nil",
+				void_ptr_type, llvm_nil_value, make_iid("nil"),
 				false/*is_lhs*/));
 	assert(!!status);
 

@@ -107,7 +107,7 @@ const char *tkstr(token_kind tk) {
 
 void ensure_space_before(token_kind prior_tk) {
 	switch (prior_tk) {
-	case tk_nil:
+	case tk_none:
 	case tk_break:
 	case tk_char:
 	case tk_colon:
@@ -120,7 +120,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_lparen:
 	case tk_lsquare:
 	case tk_newline:
-	case tk_null:
+	case tk_nil:
 	case tk_outdent:
 	case tk_pass:
 	case tk_rcurly:
@@ -229,7 +229,7 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 	}
 
 	switch (tk) {
-	case tk_nil: break;
+	case tk_none: break;
 	case tk_lparen:
 		printf("(");
 		break;
@@ -305,7 +305,7 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 	case tk_break:
 		printf("break");
 		break;
-	case tk_null:
+	case tk_nil:
 		printf("null");
 		break;
 	case tk_continue:
@@ -454,7 +454,7 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 
 void emit_tokens(const std::vector<zion_token_t> &tokens) {
 	int indent_level = 0;
-	token_kind tk = tk_nil;
+	token_kind tk = tk_none;
 	bool indented_line = false;
 	for (auto token : tokens) {
 		token.emit(indent_level, tk, indented_line);

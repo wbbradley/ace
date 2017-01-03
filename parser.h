@@ -11,7 +11,7 @@ ptr<T> parse_text(std::istream &is, std::string filename = "repl.zion") {
 	status_t status;
 	parse_state_t ps(status, filename, lexer);
 	auto item = T::parse(ps);
-	if (ps.token.tk != tk_nil) {
+	if (ps.token.tk != tk_none) {
 		assert(!status);
 		return nullptr;
 	}

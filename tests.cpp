@@ -252,7 +252,7 @@ bool test_lex_syntax() {
 		{"return note not", {tk_return, tk_identifier, tk_not}},
 		{"return var = == pass.pass..", {tk_return, tk_var, tk_assign, tk_equal, tk_pass, tk_dot, tk_pass, tk_double_dot}},
 		{"not", {tk_not}},
-		{"null", {tk_null}},
+		{"nil", {tk_nil}},
 		{"while", {tk_while}},
 		{"if", {tk_if}},
 		{"when", {tk_when}},

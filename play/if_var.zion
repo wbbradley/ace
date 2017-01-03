@@ -1,11 +1,12 @@
 module _
 # test: pass
 
+def foo(i int?)
+	if i != nil
+		print(i)
+
 def main()
-	# test that Maybe{int} is automatically unboxed for the
-	# type of 'x'
-	var x int? = 0
+	var x int? = 1
+	foo(x)
 	if y := x
-		puts("0 is falsey!".raw)
-	else
 		puts("something else".raw)

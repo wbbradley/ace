@@ -8,7 +8,7 @@ typedef stackstring_t<(1024 * 4) - sizeof(char) - sizeof(size_t)> zion_string_t;
 
 enum token_kind
 {
-	tk_nil, /* NULL TOKEN */
+	tk_none, /* NULL TOKEN */
 
 	// Comment
 	tk_comment, /* # hey */
@@ -53,7 +53,7 @@ enum token_kind
 	tk_error, /* error literal */
 	tk_float, /* 3.1415e20 */
 	tk_integer, /* [0-9]+ */
-	tk_null, /* null */
+	tk_nil, /* null */
 	tk_string, /* string literal */
 	tk_version, /* #blah */
 
@@ -106,9 +106,9 @@ enum token_kind
 
 
 struct zion_token_t {
-	zion_token_t(const location &location={{""},-1,-1}, token_kind tk=tk_nil, std::string text="") : location(location), tk(tk), text(text) {}
+	zion_token_t(const location &location={{""},-1,-1}, token_kind tk=tk_none, std::string text="") : location(location), tk(tk), text(text) {}
 	location location;
-	token_kind tk = tk_nil;
+	token_kind tk = tk_none;
 	std::string text;
 	std::string str() const;
 	void emit(int &indent_level, token_kind &last_tk, bool &indented_line);
