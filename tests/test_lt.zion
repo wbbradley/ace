@@ -1,0 +1,7 @@
+module _
+
+def main()
+	x := 3
+	while x.raw < (5).raw
+		print(x)
+		x = x + 1

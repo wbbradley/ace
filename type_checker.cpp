@@ -1872,6 +1872,9 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
 				status, builder, scope, &while_scope, nullptr);
 
 		if (!!status) {
+			debug_above(5, log(log_info,
+						"getting raw condition for value %s",
+						condition_value->str().c_str()));
 			llvm::Value *llvm_raw_condition_value = get_raw_condition_value(status,
 					builder, scope, condition, condition_value);
 
@@ -1891,6 +1894,10 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
 				if (!!status) {
 					/* let's generate code for the "then" block */
 					builder.SetInsertPoint(while_block_bb);
+
+					// TODO: add the bool overload checks back in
+					assert(false);
+
 					block->resolve_instantiation(status, builder,
 							while_scope ? while_scope : scope, nullptr,
 							nullptr);
