@@ -39,6 +39,10 @@ std::ostream &operator <<(std::ostream &os, const location &location) {
 	return os << location.str();
 }
 
+bool location::operator ==(const location &rhs) const {
+    return filename == rhs.filename && line == rhs.line && col == rhs.col;
+}
+
 bool location::has_file_location() const {
 	return filename.size() != 0 && line != -1 && col != -1;
 }

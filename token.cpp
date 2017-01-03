@@ -76,8 +76,8 @@ const char *tkstr(token_kind tk) {
 	tk_case(module);
 	tk_case(newline);
 	tk_case(nil);
+	tk_case(none);
 	tk_case(not);
-	tk_case(null);
 	tk_case(or);
 	tk_case(outdent);
 	tk_case(pass);
@@ -306,7 +306,7 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 		printf("break");
 		break;
 	case tk_nil:
-		printf("null");
+		printf("nil");
 		break;
 	case tk_continue:
 		printf("continue");

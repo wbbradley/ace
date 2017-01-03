@@ -446,6 +446,14 @@ types::type::ref type_list_type(types::type::ref element) {
 	return type_operator(type_id(make_iid(BUILTIN_LIST_TYPE)), element);
 }
 
+types::type::ref type_strip_maybe(types::type::ref maybe_maybe) {
+    if (auto maybe = dyncast<const types::type_maybe>(maybe_maybe)) {
+        return maybe->just;
+    } else {
+        return maybe_maybe;
+    }
+}
+
 std::ostream& operator <<(std::ostream &os, const types::type::ref &type) {
 	os << type->str();
 	return os;

@@ -119,7 +119,7 @@ bound_var_t::ref type_check_bound_var_decl(
 			if (declared_type != nullptr) {
 				/* ensure 'init_var' <: 'declared_type' */
 				unification_t unification = unify(
-						declared_type,
+						type_strip_maybe(declared_type),
 						init_var->get_type(),
 						scope->get_typename_env());
 
@@ -1515,7 +1515,7 @@ bound_var_t::ref type_check_assignment(
 			// TODO: load and queue up a free of whatever the LHS is currently pointing at
 
 			unification_t unification = unify(
-					lhs_var->type->get_type(),
+					type_strip_maybe(lhs_var->type->get_type()),
 					rhs_var->type->get_type(), scope->get_typename_env());
 
 			if (!!status) {

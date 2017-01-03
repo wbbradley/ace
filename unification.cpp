@@ -132,13 +132,8 @@ unification_t unify(
 		return {true, "", bindings};
 	} else if (auto ptv_b = dyncast<const types::type_variable>(b)) {
 		return unify(ptv_b, a, env, bindings, depth + 1);
-    } else if (ptm_a != nullptr) {
-        if (ptm_b != nullptr) {
-            return unify(ptm_a->just, ptm_b->just, env, bindings, depth + 1);
-        } else {
-            /* a maybe{T} will accept a T */
-            return unify(ptm_a->just, b, env, bindings, depth + 1);
-        }
+    } else if (ptm_a != nullptr && ptm_b != nullptr) {
+        return unify(ptm_a->just, ptm_b->just, env, bindings, depth + 1);
 	} else if (pti_a != nullptr) {
 		/* ok, we've got a mismatch, but we know we have an id on the left-hand
 		 * side, let's try expanding the type_id to see whether it will unify

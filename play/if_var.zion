@@ -1,12 +1,16 @@
 module _
 # test: pass
 
-def foo(i int?)
-	if i != nil
-		print(i)
+type BinaryTree{T} has
+	var left BinaryTree{T}?
+	var right BinaryTree{T}?
+	var value T
+	
 
 def main()
-	var x int? = 1
-	foo(x)
+	var x int? = 34
 	if y := x
-		puts("something else".raw)
+		print(y)
+	else
+		print("hi")
+		

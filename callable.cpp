@@ -167,6 +167,15 @@ bound_var_t::ref check_func_vs_callsite(
 	return nullptr;
 }
 
+bool function_exists_in(var_t::ref fn, std::list<bound_var_t::ref> callables) {
+    for (auto callable : callables) {
+        if (callable->get_location() == fn->get_location()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bound_var_t::ref maybe_get_callable(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -183,6 +192,11 @@ bound_var_t::ref maybe_get_callable(
 		 * be invoked with the given args */
 		scope->get_callables(alias, fns);
 		for (auto &fn : fns) {
+            if (function_exists_in(fn, callables)) {
+                /* we've already found a matching version of this function,
+                 * let's not bind it again */
+                continue;
+            }
 			bound_var_t::ref callable = check_func_vs_callsite(status, builder,
 					scope, callsite, fn, args);
 
@@ -244,7 +258,7 @@ bound_var_t::ref get_callable(
 				for (auto &fn : fns) {
                     // TODO: a bunch of plumbing to provide a more verbose reason why this unification did not work.
 					ss.str("");
-					ss << "this option did not match";
+					ss << fn->get_type(scope)->str() << " did not match";
 					user_message(log_info, status, fn->get_location(), "%s", ss.str().c_str());
 				}
 			}
