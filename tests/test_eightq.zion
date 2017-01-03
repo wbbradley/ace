@@ -2,6 +2,8 @@ module eightq @1.0
 link module math
 # test: pass
 
+link def exit(x __int__) void
+
 type Pos has
 	var col int
 	var row int
@@ -26,11 +28,17 @@ def under_attack(pos, queens) bool
 	return false
 
 def iter_solve(n) List{List{Pos}}
-	var solutions List{List{Pos}} = Empty
+	var solutions List{List{Pos}}
 	row := 0
+	print(row < n)
 	while row < n
 		# solutions = check(solutions, row, n)
 		row += 1
+		print(row)
+		if row < n
+			print("row is less than n")
+		else
+			print("row is greater than n")
 	return solutions
 
 def check(solutions, row, n) List{List{Pos}}
@@ -48,7 +56,9 @@ def check(solutions, row, n) List{List{Pos}}
 
 	return new_solutions
 
-def append_if_not_under_attack(new_solutions List{List{Pos}}, col, row, solutions List{List{Pos}}) List{List{Pos}}
+def append_if_not_under_attack(new_solutions List{List{Pos}}, col, row,
+solutionsonsons
+C{C{Pos}}) List{List{Pos}}
 	i := 0
 	while i < len(solutions)
 		maybe_solution := nth(solutions, i)
@@ -61,24 +71,24 @@ def append_if_not_under_attack(new_solutions List{List{Pos}}, col, row, solution
 
 	return new_solutions
 
-def str(list List{any T}) str
+def str(list List{any T}?) str
 	s := "["
 	var seen_one bool = false
 	var done bool = false
-	static_print(done)
 	while not done
-		node := list
-		when node
-			is Node{any T}
-				if seen_one
-					s += ", "
-				else
-					seen_one = true
+		print("loop")
+		if node := list
+			print("node := list")
+			if seen_one
+				s += ", "
+			else
+				seen_one = true
 
-				s += str(node.value)
-				list = node.next
-			is Empty
-				done = true
+			s += str(node.value)
+			list = node.next
+		else
+			print("false")
+			done = true
 
 	return s + "]"
 
@@ -87,4 +97,5 @@ def str(p Pos) str
 
 
 def main() void
+	print("starting")
 	print(str(iter_solve(8)))

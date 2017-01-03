@@ -66,7 +66,7 @@ bound_module_t::bound_module_t(
 	bound_var_t(internal_location,
 			name, 
 			module_scope->get_bound_type({"module"}),
-			module_scope->get_program_scope()->get_singleton("null")->llvm_value,
+			module_scope->get_program_scope()->get_singleton("nil")->llvm_value,
 			id,
 			false/*is_lhs*/),
 	module_scope(module_scope)

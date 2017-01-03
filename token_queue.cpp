@@ -22,7 +22,7 @@ token_kind translate_tk(token_kind tk, const zion_string_t &token_text) {
 		{"matches", tk_matches},
 		{"module", tk_module},
 		{"not", tk_not},
-		{"null", tk_nil},
+		{"nil", tk_nil},
 		{"or", tk_or},
 		{"pass", tk_pass},
 		{"return", tk_return},

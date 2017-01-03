@@ -214,3 +214,7 @@ def __gte__(x float, y int) bool
 def print(x any) void
 	s := str(x)
 	puts(s.raw)
+
+type List{T} has
+	var value T
+	var next List{T}?

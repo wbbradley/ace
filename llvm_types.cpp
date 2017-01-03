@@ -282,18 +282,17 @@ bound_type_t::ref create_bound_type(
 		assert(!status);
 		return nullptr;
     } else if (auto maybe = dyncast<const types::type_maybe>(type)) {
+		auto bound_type_handle = bound_type_t::create_handle(
+				maybe,
+				program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
+		program_scope->put_bound_type(status, bound_type_handle);
+
 	    bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
         if (!!status) {
             auto llvm_type = bound_just_type->get_llvm_type();
             if (llvm_type->isPointerTy()) {
-                /* create a maybe wrapper around the real underlying type */
-                return bound_type_t::create(
-                        type,
-                        bound_just_type->get_location(),
-                        llvm_type,
-                        bound_just_type->get_llvm_specific_type(),
-                        bound_just_type->get_dimensions(),
-                        bound_just_type->get_member_index());
+				bound_type_handle->set_actual(bound_just_type);
+				return bound_type_handle;
             } else {
                 user_error(status, type->get_location(), "type %s cannot be a " c_type("maybe") " type because the underlying storage is not a pointer (it is %s)",
                         type->str().c_str(),
