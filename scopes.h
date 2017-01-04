@@ -48,7 +48,6 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual std::string get_name() const;
 	virtual std::string make_fqn(std::string leaf_name) const = 0;
 	virtual llvm::Module *get_llvm_module();
-
 	/* find all checked and unchecked functions that have the name given by the
 	 * symbol parameter */
 	virtual void get_callables(atom symbol, var_t::refs &fns) = 0;
@@ -129,6 +128,26 @@ struct runnable_scope_t : public scope_impl_t<scope_t> {
 			status_t &status,
 		   	const ptr<const ast::item> &return_statement,
 		   	return_type_constraint_t return_type);
+
+	llvm::BasicBlock *get_innermost_loop_break() const;
+	llvm::BasicBlock *get_innermost_loop_continue() const;
+
+private:
+	friend struct loop_tracker_t;
+	void set_innermost_loop_bbs(llvm::BasicBlock *loop_continue_bb, llvm::BasicBlock *loop_break_bb);
+	llvm::BasicBlock *loop_break_bb = nullptr;
+	llvm::BasicBlock *loop_continue_bb = nullptr;
+};
+
+struct loop_tracker_t {
+	/* use dtors + the call stack to manage the basic block jumps for loops */
+	loop_tracker_t(runnable_scope_t::ref scope, llvm::BasicBlock *loop_continue_bb, llvm::BasicBlock *loop_break_bb);
+	~loop_tracker_t();
+
+private:
+	runnable_scope_t::ref scope;
+	llvm::BasicBlock *prior_loop_continue_bb;
+	llvm::BasicBlock *prior_loop_break_bb;
 };
 
 struct module_scope_t : scope_t {

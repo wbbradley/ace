@@ -222,6 +222,61 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 	}
 }
 
+void runnable_scope_t::set_innermost_loop_bbs(llvm::BasicBlock *new_loop_continue_bb, llvm::BasicBlock *new_loop_break_bb) {
+	assert(new_loop_continue_bb != loop_continue_bb);
+	assert(new_loop_break_bb != loop_break_bb);
+
+	loop_continue_bb = new_loop_continue_bb;
+	loop_break_bb = new_loop_break_bb;
+}
+
+llvm::BasicBlock *runnable_scope_t::get_innermost_loop_break() const {
+	/* regular scopes (not runnable scope) doesn't have the concept of loop
+	 * exits */
+	if (loop_break_bb == nullptr) {
+		if (auto parent_scope = dyncast<const runnable_scope_t>(get_parent_scope())) {
+			return parent_scope->get_innermost_loop_break();
+		} else {
+			return nullptr;
+		}
+	} else {
+		return loop_break_bb;
+	}
+}
+
+llvm::BasicBlock *runnable_scope_t::get_innermost_loop_continue() const {
+	/* regular scopes (not runnable scope) doesn't have the concept of loop
+	 * exits */
+	if (loop_continue_bb == nullptr) {
+		if (auto parent_scope = dyncast<const runnable_scope_t>(get_parent_scope())) {
+			return parent_scope->get_innermost_loop_continue();
+		} else {
+			return nullptr;
+		}
+	} else {
+		return loop_continue_bb;
+	}
+}
+
+loop_tracker_t::loop_tracker_t(
+		runnable_scope_t::ref scope,
+	   	llvm::BasicBlock *loop_continue_bb,
+	   	llvm::BasicBlock *loop_break_bb) :
+	scope(scope),
+   	prior_loop_continue_bb(scope->get_innermost_loop_continue()),
+   	prior_loop_break_bb(scope->get_innermost_loop_break())
+{
+	assert(scope != nullptr);
+	assert(loop_continue_bb != nullptr);
+	assert(loop_break_bb != nullptr);
+
+	scope->set_innermost_loop_bbs(loop_continue_bb, loop_break_bb);
+}
+
+loop_tracker_t::~loop_tracker_t() {
+	scope->set_innermost_loop_bbs(prior_loop_continue_bb, prior_loop_break_bb);
+}
+
 local_scope_t::local_scope_t(
 		atom name,
 		scope_t::ref parent_scope,

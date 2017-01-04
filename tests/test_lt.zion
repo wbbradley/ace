@@ -1,7 +1,12 @@
 module _
+# test: pass
 
 def main()
-	x := 3
-	while x.raw < (5).raw
+	x := 1
+	while true
+		x += 1
+		if x < 20
+			continue
 		print(x)
-		x = x + 1
+		if x > 34
+			break

@@ -1,12 +1,31 @@
 module _
 # test: pass
 
+def nth(l MyList{any T}, i int) any T?
+	when l
+		is Empty
+			return nil
+		is Node{any T}
+			if i == 0
+				return l.value
+			else
+				return nth(l.next, i - 1)
+	return Empty
+
+
 def g(x)
 	y := nth(x, 0)
 	static_print(y)
 
 def f(x)
 	g(x)
+
+tag Empty
+type Node{T} has
+	var value T
+	var next MyList{T}
+
+type MyList{T} is Node{T} or Empty
 
 def main()
 	x := Node(Node(3, Empty), Empty)

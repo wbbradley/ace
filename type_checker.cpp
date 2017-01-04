@@ -13,6 +13,7 @@
 #include "unification.h"
 #include "code_id.h"
 #include "patterns.h"
+#include <iostream>
 
 /*
  * The basic idea here is that type checking is a graph operation which can be
@@ -1566,9 +1567,20 @@ bound_var_t::ref ast::break_flow::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    not_impl();
-    assert(!status);
-    return nullptr;
+	if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
+		llvm::BasicBlock *break_bb = runnable_scope->get_innermost_loop_break();
+		if (break_bb != nullptr) {
+			assert(!builder.GetInsertBlock()->getTerminator());
+			builder.CreateBr(break_bb);
+			return nullptr;
+		} else {
+			user_error(status, get_location(), c_control("break") " outside of a loop");
+		}
+	} else {
+		panic("we should not be looking at a break statement here!");
+	}
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref ast::continue_flow::resolve_instantiation(
@@ -1578,9 +1590,20 @@ bound_var_t::ref ast::continue_flow::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    not_impl();
-    assert(!status);
-    return nullptr;
+	if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
+		llvm::BasicBlock *continue_bb = runnable_scope->get_innermost_loop_continue();
+		if (continue_bb != nullptr) {
+			assert(!builder.GetInsertBlock()->getTerminator());
+			builder.CreateBr(continue_bb);
+			return nullptr;
+		} else {
+			user_error(status, get_location(), c_control("continue") " outside of a loop");
+		}
+	} else {
+		panic("we should not be looking at a continue statement here!");
+	}
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref type_check_binary_op_assignment(
@@ -1864,6 +1887,7 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
 
 		llvm::BasicBlock *while_cond_bb = llvm::BasicBlock::Create(builder.getContext(), "while.cond", llvm_function_current);
 
+		assert(!builder.GetInsertBlock()->getTerminator());
 		builder.CreateBr(while_cond_bb);
 		builder.SetInsertPoint(while_cond_bb);
 
@@ -1888,6 +1912,9 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
 				/* put the merge block after the while block */
 				while_end_bb = llvm::BasicBlock::Create(builder.getContext(), "while.end");
 
+				/* keep track of the "break" and "continue" jump locations */
+				loop_tracker_t loop_tracker(dyncast<runnable_scope_t>(scope), while_cond_bb, while_end_bb);
+
 				/* we don't have an else block, so we can just continue on */
 				llvm_create_if_branch(builder, llvm_raw_condition_value, while_block_bb, while_end_bb);
 
@@ -1895,15 +1922,28 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
 					/* let's generate code for the "then" block */
 					builder.SetInsertPoint(while_block_bb);
 
-					// TODO: add the bool overload checks back in
-					assert(false);
+					llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
+							builder, scope, condition, condition_value);
+
+					if (!!status) {
+						if (llvm_bool_overload_value != nullptr) {
+							/* we've got a second condition to check, let's do it */
+							auto deep_while_bb = llvm::BasicBlock::Create(builder.getContext(), "deep-while", llvm_function_current);
+
+							llvm_create_if_branch(builder, llvm_bool_overload_value,
+									deep_while_bb, while_end_bb);
+							builder.SetInsertPoint(deep_while_bb);
+						}
+					}
 
 					block->resolve_instantiation(status, builder,
 							while_scope ? while_scope : scope, nullptr,
 							nullptr);
 
 					if (!!status) {
-						builder.CreateBr(while_cond_bb);
+						if (!builder.GetInsertBlock()->getTerminator()) {
+							builder.CreateBr(while_cond_bb);
+						}
 						builder.SetInsertPoint(while_end_bb);
 						
 						/* we know we'll need to fall through to the merge
@@ -2021,7 +2061,9 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 					insert_merge_bb = true;
 
 					/* go ahead and jump there */
-					builder.CreateBr(merge_bb);
+					if (!builder.GetInsertBlock()->getTerminator()) {
+						builder.CreateBr(merge_bb);
+					}
 				}
 			} else {
 				/* since there is no else block it cannot return */
@@ -2055,11 +2097,13 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 					}
 
 					block->resolve_instantiation(status, builder,
-						   	if_scope ?  if_scope : scope, nullptr, &if_block_returns);
+						   	if_scope ? if_scope : scope, nullptr, &if_block_returns);
 					if (!!status) {
 						if (!if_block_returns) {
 							insert_merge_bb = true;
-							builder.CreateBr(merge_bb);
+							if (!builder.GetInsertBlock()->getTerminator()) {
+								builder.CreateBr(merge_bb);
+							}
 							builder.SetInsertPoint(merge_bb);
 						}
 
@@ -2359,6 +2403,12 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 									make_code_id(token), false/*is_lhs*/)});
 				}
 			}
+		}
+		break;
+	case tk_nil:
+		{
+			// TODO: implement returning a nil value
+			assert(false);
 		}
 		break;
     default:

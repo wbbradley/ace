@@ -234,7 +234,9 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 						insert_merge_bb = true;
 
 						/* go ahead and jump there */
-						builder.CreateBr(merge_bb);
+						if (!builder.GetInsertBlock()->getTerminator()) {
+							builder.CreateBr(merge_bb);
+						}
 					}
 				} else {
 					/* since there is no else block it cannot return */
@@ -260,7 +262,9 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 					if (!!status) {
 						if (!if_block_returns) {
 							insert_merge_bb = true;
-							builder.CreateBr(merge_bb);
+							if (!builder.GetInsertBlock()->getTerminator()) {
+								builder.CreateBr(merge_bb);
+							}
 							builder.SetInsertPoint(merge_bb);
 						}
 
