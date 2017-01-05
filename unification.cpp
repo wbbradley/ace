@@ -135,6 +135,8 @@ unification_t unify(
 	} else if (ptm_a != nullptr) {
 		if (ptm_b != nullptr) {
 			return unify(ptm_a->just, ptm_b->just, env, bindings, depth + 1);
+		} else if (b->is_nil()) {
+			return {true, "", bindings};
 		} else {
 			return unify(ptm_a->just, b, env, bindings, depth + 1);
 		}

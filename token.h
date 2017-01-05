@@ -53,7 +53,6 @@ enum token_kind
 	tk_error, /* error literal */
 	tk_float, /* 3.1415e20 */
 	tk_integer, /* [0-9]+ */
-	tk_nil, /* null */
 	tk_string, /* string literal */
 	tk_version, /* #blah */
 

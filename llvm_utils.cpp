@@ -247,7 +247,7 @@ void llvm_create_if_branch(
 	llvm::Type *llvm_type = llvm_value->getType();
 
 	if (llvm_type->isPointerTy()) {
-		/* automatically cast pointers down to ints */
+		/* automatically check pointers against null */
 		llvm::Constant *null_value = llvm::Constant::getNullValue(llvm_type);
 		llvm_value = builder.CreateICmpNE(llvm_value, null_value);
 		llvm_type = llvm_value->getType();

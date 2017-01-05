@@ -254,12 +254,13 @@ bound_var_t::ref get_callable(
 				ss << " arguments are " << args->str();
 				user_error(status, *callsite, "%s", ss.str().c_str());
 
-				/* report on the places we tried to look for a match */
-				for (auto &fn : fns) {
-                    // TODO: a bunch of plumbing to provide a more verbose reason why this unification did not work.
-					ss.str("");
-					ss << fn->get_type(scope)->str() << " did not match";
-					user_message(log_info, status, fn->get_location(), "%s", ss.str().c_str());
+				if (debug_level() >= 1) {
+					/* report on the places we tried to look for a match */
+					for (auto &fn : fns) {
+						ss.str("");
+						ss << fn->get_type(scope)->str() << " did not match";
+						user_message(log_info, status, fn->get_location(), "%s", ss.str().c_str());
+					}
 				}
 			}
 			return nullptr;

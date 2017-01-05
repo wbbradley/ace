@@ -250,7 +250,6 @@ ptr<expression> array_literal_expr::parse(parse_state_t &ps) {
 
 ptr<expression> literal_expr::parse(parse_state_t &ps) {
 	switch (ps.token.tk) {
-	case tk_nil:
 	case tk_integer:
 	case tk_string:
 	case tk_char:

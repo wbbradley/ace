@@ -670,6 +670,69 @@ bound_var_t::ref ast::reference_expr::resolve_instantiation(
     return var;
 }
 
+bound_var_t::ref ast::reference_expr::resolve_as_condition(
+        status_t &status,
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+        local_scope_t::ref *new_scope) const
+{
+	/* we wouldn't be referencing a variable name here unless it was unique
+	 * override resolution only happens on callsites, and we don't allow
+	 * passing around unresolved overload references */
+    bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(), token.text);
+
+    if (!var) {
+        user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
+    }
+
+	if (auto maybe_type = dyncast<const types::type_maybe>(var->type->get_type())) {
+		runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+		assert(runnable_scope);
+
+		/* variable declarations begin new scopes */
+		local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
+				string_format("if-assignment-%s", token.text.c_str()));
+
+		scope = fresh_scope;
+		*new_scope = fresh_scope;
+
+		/* looks like the initialization variable is a supertype
+		 * of the nil type */
+		auto bound_type = upsert_bound_type(status, builder, scope,
+				maybe_type->just);
+
+		if (!!status) {
+			/* because we're evaluating this maybe value in the context of a
+			 * condition (super simplified at this point), let's redeclare it
+			 * without its maybe, since we know it will be valid if the
+			 * condition passes */
+			bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), token.text,
+					bound_type, var->llvm_value, make_code_id(token),
+					var->is_lhs /*is_lhs*/);
+
+			/* on our way out, stash the variable in the current scope */
+			scope->put_bound_variable(status, var_decl_variable->name,
+					var_decl_variable);
+
+			/* get the maybe type so that we can use it as a conditional */
+			bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, maybe_type);
+			if (!!status) {
+				bound_var_t::ref condition_value = bound_var_t::create(INTERNAL_LOC(), token.text,
+						condition_type, var->llvm_value, make_code_id(token),
+						false /*is_lhs*/);
+				return condition_value;
+			}
+		}
+
+		assert(!status);
+		return nullptr;
+	} else {
+		/* this is not a maybe, so let's just move along */
+	}
+
+    return var;
+}
+
 bound_var_t::ref ast::array_index_expr::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
@@ -1991,6 +2054,9 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 		 * exists. */
 		condition_value = var_decl->resolve_as_condition(
 				status, builder, scope, &if_scope);
+	} else if (auto ref_expr = dyncast<const ast::reference_expr>(condition)) {
+		condition_value = ref_expr->resolve_as_condition(
+				status, builder, scope, &if_scope);
 	} else {
 		condition_value = condition->resolve_instantiation(
 				status, builder, scope, &if_scope, nullptr);
@@ -2403,12 +2469,6 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 									make_code_id(token), false/*is_lhs*/)});
 				}
 			}
-		}
-		break;
-	case tk_nil:
-		{
-			// TODO: implement returning a nil value
-			assert(false);
 		}
 		break;
     default:

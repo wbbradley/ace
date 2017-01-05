@@ -75,7 +75,6 @@ const char *tkstr(token_kind tk) {
 	tk_case(mod_eq);
 	tk_case(module);
 	tk_case(newline);
-	tk_case(nil);
 	tk_case(none);
 	tk_case(not);
 	tk_case(or);
@@ -120,7 +119,6 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_lparen:
 	case tk_lsquare:
 	case tk_newline:
-	case tk_nil:
 	case tk_outdent:
 	case tk_pass:
 	case tk_rcurly:
@@ -304,9 +302,6 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 		break;
 	case tk_break:
 		printf("break");
-		break;
-	case tk_nil:
-		printf("nil");
 		break;
 	case tk_continue:
 		printf("continue");

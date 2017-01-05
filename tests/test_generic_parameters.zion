@@ -1,32 +1,44 @@
 module _
 # test: pass
 
-def nth(l MyList{any T}, i int) any T?
+def nth(l Node{any T}?, i int) any T?
 	when l
-		is Empty
+		is nil
 			return nil
 		is Node{any T}
 			if i == 0
 				return l.value
 			else
 				return nth(l.next, i - 1)
-	return Empty
+	return nil
 
 
-def g(x)
-	y := nth(x, 0)
-	static_print(y)
-
-def f(x)
-	g(x)
-
-tag Empty
 type Node{T} has
 	var value T
-	var next MyList{T}
+	var next Node{T}?
 
-type MyList{T} is Node{T} or Empty
+def str(node Node{any T}?) str
+	sum := "["
+	delim := ""
+	while true
+		cur_node := node
+		when cur_node
+			is nil
+				sum = sum + "]"
+				break
+			is Node{any T}
+				sum = sum + delim + cur_node.value
+				print(sum)
+				node = cur_node.next
+			# TODO: handle correctly covering all enum possibilities
+		else
+			print("Fail")
+			assert(false)
+			break
+	
+	return sum
 
 def main()
-	x := Node(Node(3, Empty), Empty)
-	f(x)
+	x := Node(Node(3, nil), nil)
+	y := nth(x, 0)
+	print(str(y))

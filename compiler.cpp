@@ -323,6 +323,11 @@ void add_global_types(
 					type_id(make_iid("__var_ref")),
 				   	INTERNAL_LOC(),
 				   	llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
+		{{"nil"},
+		   	bound_type_t::create(
+					type_id(make_iid("nil")),
+				   	INTERNAL_LOC(),
+				   	llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
 		{{"__unreachable"},
 		   	bound_type_t::create(
 					type_unreachable(),
@@ -368,14 +373,11 @@ void add_globals(
 	assert(!!status);
 
 	/* lookup the types of bool and void pointer for use below */
+	bound_type_t::ref nil_type = program_scope->get_bound_type({"nil"});
 	bound_type_t::ref void_ptr_type = program_scope->get_bound_type({"__bytes"});
 	bound_type_t::ref bool_type = program_scope->get_bound_type({BOOL_TYPE});
 	bound_type_t::ref next_var_type = program_scope->get_bound_type({"__next_var"});
 
-	/* get the nil pointer value */
-	llvm::Value *llvm_nil_value = llvm::ConstantPointerNull::get(llvm::dyn_cast<llvm::PointerType>(
-				void_ptr_type->get_llvm_type()));
-	assert(llvm_nil_value != nullptr);
 
 	program_scope->put_bound_variable(status, "__true__", bound_var_t::create(INTERNAL_LOC(), "__true__", bool_type, builder.getInt64(1/*true*/), make_iid("__true__"), false/*is_lhs*/));
 	assert(!!status);
@@ -383,10 +385,13 @@ void add_globals(
 	program_scope->put_bound_variable(status, "__false__", bound_var_t::create(INTERNAL_LOC(), "__false__", bool_type, builder.getInt64(0/*false*/), make_iid("__false__"), false/*is_lhs*/));
 	assert(!!status);
 
+	/* get the nil pointer value cast as our __var_ref type */
+	llvm::Type *llvm_nil_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
+	llvm::Constant *llvm_nil_value = llvm::Constant::getNullValue(llvm_nil_type);
 	program_scope->put_bound_variable(
 			status, "nil", bound_var_t::create(INTERNAL_LOC(), "nil",
-				void_ptr_type, llvm_nil_value, make_iid("nil"),
-				false/*is_lhs*/));
+				nil_type, llvm_nil_value, make_iid("nil"),
+				false /*is_lhs*/));
 	assert(!!status);
 
 	if (!!status) {
