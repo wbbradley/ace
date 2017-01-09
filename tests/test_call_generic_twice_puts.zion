@@ -1,12 +1,10 @@
 module _
 # test: pass
 
-link def puts(x str) __int__
-
 def main() int
 	puts(generic("hey"))
 	puts(generic(10 + 3.4))
 	return 1
 
-def generic(value any) str
-	return str(value)
+def generic(value any) __str__
+	return str(value).raw

@@ -28,9 +28,8 @@ unchecked_var_t::ref scope_setup_function_defn(
 		module_scope_t::ref module_scope)
 {
 	if (id && !!id->get_name()) {
-		return module_scope->put_unchecked_variable(id->get_name(),
-				unchecked_var_t::create(id, obj.shared_from_this(),
-					module_scope));
+		return module_scope->get_program_scope()->put_unchecked_variable(
+				id->get_name(), unchecked_var_t::create(id, obj.shared_from_this(), module_scope));
 	} else {
 		scope_setup_error(status, obj, "module-level function definition does not have a name");
 		return nullptr;

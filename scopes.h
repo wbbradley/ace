@@ -57,6 +57,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 
     /* There are mappings based on type declarations stored in the env */
 	virtual types::type::map get_typename_env() const = 0;
+	virtual types::type::ref get_module_type();
 
     /* Then, there are mappings from type_variable names to type::refs */
 	virtual types::type::map get_type_variable_bindings() const = 0;
@@ -159,8 +160,6 @@ struct module_scope_t : scope_t {
 	virtual void put_unchecked_type(status_t &status, unchecked_type_t::ref unchecked_type) = 0;
 	virtual unchecked_type_t::ref get_unchecked_type(atom symbol) = 0;
 
-	virtual unchecked_var_t::ref put_unchecked_variable(atom symbol, unchecked_var_t::ref unchecked_variable) = 0;
-
 	/* module checking management
 	 * after checking a function regardless of whether it was generic or not
 	 * we'll mark it as checked so we don't try to check it again. if it was generic
@@ -171,7 +170,7 @@ struct module_scope_t : scope_t {
 	virtual void mark_checked(status_t &status, llvm::IRBuilder<> &builder, const ptr<const ast::item> &node) = 0;
 	virtual llvm::Module *get_llvm_module() = 0;
 	virtual unchecked_type_t::refs &get_unchecked_types_ordered() = 0;
-	virtual unchecked_var_t::refs &get_unchecked_vars_ordered() = 0;
+	virtual types::type::ref get_type_fn_context() = 0;
 };
 
 struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
@@ -179,17 +178,15 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	typedef std::map<atom, ref> map;
 
 	module_scope_impl_t() = delete;
-	module_scope_impl_t(atom name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module);
+	module_scope_impl_t(atom name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module, types::type::ref type_fn_context);
 	virtual ~module_scope_impl_t() throw() {}
 
 	llvm::Module * const llvm_module;
 
-	virtual void get_callables(atom symbol, var_t::refs &fns);
-
 	void put_unchecked_type(status_t &status, unchecked_type_t::ref unchecked_type);
 	unchecked_type_t::ref get_unchecked_type(atom symbol);
 
-	unchecked_var_t::ref put_unchecked_variable(atom symbol, unchecked_var_t::ref unchecked_variable);
+	virtual unchecked_type_t::refs &get_unchecked_types_ordered();
 
 	/* module checking management
 	 * after checking a function regardless of whether it was generic or not
@@ -205,20 +202,19 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 
 	std::set<ptr<const ast::item>> visited;
 
-	static module_scope_t::ref create(atom module_name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module);
+	static module_scope_t::ref create(atom module_name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module, types::type::ref type_fn_context);
 
 	// void add_linked_module(status_t &status, ptr<const ast::item> obj, atom symbol, module_scope_impl_t::ref module_scope);
 
-	virtual unchecked_type_t::refs &get_unchecked_types_ordered();
-	virtual unchecked_var_t::refs &get_unchecked_vars_ordered();
+	virtual types::type::ref get_type_fn_context();
 
 protected:
-	/* modules can have all sorts of bound and unchecked vars and types */
-	unchecked_var_t::map unchecked_vars;
+	const types::type::ref type_fn_context;
+
+	/* modules can have unchecked types */
 	unchecked_type_t::map unchecked_types;
 
 	/* let code look at the ordered list for iteration purposes */
-	unchecked_var_t::refs unchecked_vars_ordered;
 	unchecked_type_t::refs unchecked_types_ordered;
 };
 
@@ -229,8 +225,8 @@ std::string str(const module_scope_t::map &modules);
 struct program_scope_t : public module_scope_impl_t {
 	typedef ptr<program_scope_t> ref;
 
-	program_scope_t(atom name, llvm::Module *llvm_module) :
-	   	module_scope_impl_t(name, nullptr, llvm_module) {}
+	program_scope_t(atom name, llvm::Module *llvm_module, types::type::ref type_fn_context) :
+	   	module_scope_impl_t(name, nullptr, llvm_module, type_fn_context) {}
 
 	program_scope_t() = delete;
 	virtual ~program_scope_t() throw() {}
@@ -242,6 +238,8 @@ struct program_scope_t : public module_scope_impl_t {
 
 	static program_scope_t::ref create(atom name, llvm::Module *llvm_module);
 
+	virtual void get_callables(atom symbol, var_t::refs &fns);
+
 	/* this is meant to be called when we know we're looking in program scope.
 	 * this is not an implementation of get_symbol.  */
 	module_scope_t::ref lookup_module(atom symbol);
@@ -252,9 +250,16 @@ struct program_scope_t : public module_scope_impl_t {
 	virtual bound_type_t::ref get_bound_type(types::signature signature);
 	void put_bound_type(status_t &status, bound_type_t::ref type);
 
+	unchecked_var_t::map unchecked_vars;
+
+	virtual unchecked_var_t::refs &get_unchecked_vars_ordered();
+
 private:
 	module_scope_t::map modules;
 	bound_type_t::map bound_types;
+
+	/* let code look at the ordered list for iteration purposes */
+	unchecked_var_t::refs unchecked_vars_ordered;
 };
 
 struct function_scope_t : public runnable_scope_t {
@@ -395,7 +400,9 @@ void scope_impl_t<T>::put_bound_variable(
 	   	atom symbol,
 	   	bound_var_t::ref bound_variable)
 {
-	debug_above(8, log(log_info, "binding %s", bound_variable->str().c_str()));
+	debug_above(4, log(log_info, "binding %s in scope " c_id("%s"),
+			   	bound_variable->str().c_str(),
+				this->get_name().c_str()));
 
 	auto &resolve_map = bound_vars[symbol];
 	types::signature signature = bound_variable->get_signature();
@@ -486,6 +493,7 @@ bound_var_t::ref scope_impl_t<T>::maybe_get_bound_variable(atom symbol) {
 bound_var_t::ref get_bound_variable_from_scope(
 		status_t &status,
 		const ptr<const ast::item> &obj,
+		atom scope_name,
 		atom symbol,
 		bound_var_t::map bound_vars,
 		scope_t::ref parent_scope);
@@ -496,7 +504,8 @@ bound_var_t::ref scope_impl_t<T>::get_bound_variable(
 	   	const ptr<const ast::item> &obj,
 	   	atom symbol)
 {
-	return ::get_bound_variable_from_scope(status, obj, symbol, bound_vars, this->get_parent_scope());
+	return ::get_bound_variable_from_scope(status, obj, this->get_name(),
+			symbol, bound_vars, this->get_parent_scope());
 }
 
 template <typename T>

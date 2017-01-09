@@ -125,8 +125,6 @@ unification_t unify(
 				debug_above(4, log(log_warning, "note that %s is itself not fully bound", b->str().c_str()));
 			}
 			bindings[ptv_a->id->get_name()] = b;
-		} else {
-			assert(false);
 		}
 
 		return {true, "", bindings};

@@ -4,6 +4,7 @@ module _
 type Just{T} has
 	var val T
 
+tag Empty
 type Maybe{T} is Empty or Just{T}
 
 def do(t Maybe{any T}) void

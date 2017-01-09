@@ -1,8 +1,6 @@
 module _ @1.0
 # test: pass
 
-link def puts(x str) int
-
 tag True
 tag False
 
@@ -12,4 +10,4 @@ def main()
 	x := True
 	y := False
 
-	puts("Hello world")
+	print("Hello world")

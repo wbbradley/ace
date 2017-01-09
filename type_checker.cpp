@@ -510,7 +510,8 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 			assert(llvm_print_type(*llvm_value->getType()) != llvm_print_type(*llvm_func_type));
 
             /* get the full function type */
-            types::type::ref function_sig = get_function_type(args, return_value);
+            types::type::ref function_sig = get_function_type(
+					type_variable(), args, return_value);
 			debug_above(3, log(log_info, "%s has type %s",
 						function_name.str().c_str(),
 						function_sig->str().c_str()));
@@ -870,7 +871,7 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 		auto program_scope = scope->get_program_scope();
 
 		std::pair<bound_var_t::ref, bound_type_t::ref> tuple = instantiate_tuple_ctor(
-				status, builder, scope, args, make_iid(tuple_type->repr()),
+				status, builder, scope, type_variable(), args, make_iid(tuple_type->repr()),
 				shared_from_this());
 
 		if (!!status) {
@@ -1163,8 +1164,23 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 	std::string function_name = token.text;
 
 	assert(scope->get_llvm_module() != nullptr);
+	types::type::ref type_fn_context;
+	if (decl->context_type_ref != nullptr) {
+		type_fn_context = decl->context_type_ref->get_type(status,
+				scope, nullptr /*supertype_id*/, {} /* type_variables */);
 
-	auto function_type = get_function_type(args, return_type);
+		if (!status) {
+			user_message(log_info, status, get_location(),
+				   	"while instantiating %s", token.str().c_str());
+			return nullptr;
+		}
+	} else {
+		/* this function does not have a context declaration, use the current
+		 * module's type (which basically defaults to private scope */
+		type_fn_context = scope->get_module_type();
+	}
+
+	auto function_type = get_function_type(type_fn_context, args, return_type);
 	bound_type_t::ref bound_function_type = upsert_bound_type(status,
 			builder, scope, function_type);
 
@@ -1223,7 +1239,8 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 					 * this function to the module scope we're in */
 					module_scope->put_bound_variable(status, function_var->name, function_var);
 					if (!!status) {
-						module_scope->mark_checked(status, builder, shared_from_this());
+						module_scope->mark_checked(status, builder,
+								shared_from_this());
 						assert(!!status);
 					}
 				}
@@ -1357,35 +1374,33 @@ status_t type_check_module_types(
     return final_status;
 }
 
-status_t type_check_module_variables(
+status_t type_check_program_variables(
         compiler &compiler,
         llvm::IRBuilder<> &builder,
-        const ast::module &obj,
-        scope_t::ref program_scope)
+        program_scope_t::ref program_scope)
 {
-	indent_logger indent(2, string_format("resolving variables in " c_module("%s"),
-				obj.module_key.c_str()));
+	indent_logger indent(2, string_format("resolving variables in program"));
 
 	status_t final_status;
 
-    /* get module level scope variable */
-    module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
-	// log(log_info, "%s", module_scope->str().c_str());
-	auto unchecked_vars_ordered = module_scope->get_unchecked_vars_ordered();
+	auto unchecked_vars_ordered = program_scope->get_unchecked_vars_ordered();
     for (int i = 0; i < unchecked_vars_ordered.size(); ++i) {
 		status_t status;
 
 		auto &unchecked_var = unchecked_vars_ordered[i];
-		debug_above(5, log(log_info, "checking whether to check %s", unchecked_var->str().c_str()));
+		debug_above(5, log(log_info, "checking whether to check %s",
+					unchecked_var->str().c_str()));
 
 		auto node = unchecked_var->node;
-		if (!module_scope->has_checked(node)) {
+		if (!unchecked_var->module_scope->has_checked(node)) {
 			/* prevent recurring checks */
 			debug_above(4, log(log_info, "checking module level variable %s",
 					   	node->token.str().c_str()));
 			if (auto function_defn = dyncast<const ast::function_defn>(node)) {
 				// TODO: decide whether we need treatment here
-				if (is_function_defn_generic(status, builder, module_scope, *function_defn)) {
+				if (is_function_defn_generic(status, builder,
+							unchecked_var->module_scope, *function_defn))
+			   	{
 					/* this is a generic function, or we've already checked
 					 * it so let's skip checking it */
 					final_status |= status;
@@ -1397,7 +1412,8 @@ status_t type_check_module_variables(
 				if (auto stmt = dyncast<const ast::statement>(node)) {
 					status_t status;
 					bound_var_t::ref variable = stmt->resolve_instantiation(
-							status, builder, module_scope, nullptr, nullptr);
+							status, builder, unchecked_var->module_scope,
+							nullptr, nullptr);
 
 					/* take note of whether this failed or not */
 					final_status |= status;
@@ -1412,8 +1428,6 @@ status_t type_check_module_variables(
 		}
     }
 
-	debug_above(10, log(log_info, "module after its own variable pass is:\n" c_ir("%s"),
-				llvm_print_module(*module_scope->get_llvm_module()).c_str()));
     return final_status;
 }
 
@@ -1429,7 +1443,7 @@ status_t type_check_program(
     /* we track type-checking success or failure in this status value object */
     status_t status;
 
-    ptr<scope_t> program_scope = compiler.get_program_scope();
+    ptr<program_scope_t> program_scope = compiler.get_program_scope();
     debug_above(11, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
 
     /* pass to resolve all module-level types */
@@ -1457,8 +1471,7 @@ status_t type_check_program(
 	/* pass to resolve all main module-level variables.  technically we only
 	 * need to check the primary module, since that is the one that is expected
 	 * to have the entry point ... at least for now... */
-	return type_check_module_variables(compiler, builder, *compiler.main_module,
-			program_scope);
+	return type_check_program_variables(compiler, builder, program_scope);
 }
 
 bound_var_t::ref ast::tag::resolve_instantiation(
@@ -1898,7 +1911,8 @@ llvm::Value *maybe_get_bool_overload_value(
 	}
 
 	var_t::refs fns;
-	auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE, condition,
+	auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE,
+			condition, scope->get_module_type(),
 			get_args_type({condition_type}), fns);
 
 	if (!!status) {
@@ -1914,9 +1928,10 @@ llvm::Value *maybe_get_bool_overload_value(
 				llvm_condition_value = llvm_create_call_inst(
 						status, builder, *condition, bool_fn,
 						{condition_value->llvm_value});
-
-				assert(llvm_condition_value->getType()->isIntegerTy());
-				return llvm_condition_value;
+				if (!!status) {
+					assert(llvm_condition_value->getType()->isIntegerTy());
+					return llvm_condition_value;
+				}
 			} else {
 				user_error(status, bool_fn->get_location(),
 						"__bool__ coercion function must return a " C_TYPE "__bool__" C_RESET);

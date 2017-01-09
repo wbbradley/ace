@@ -25,6 +25,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		status_t &status, 
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
+		types::type::ref type_fn_context,
 		bound_type_t::refs args,
 		identifier::ref id,
 		const ptr<const ast::item> &node);
@@ -33,6 +34,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		status_t &status, 
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
+		types::type::ref type_fn_context,
 		bound_type_t::refs args,
 		atom::map<int> member_index,
 		identifier::ref id,
@@ -51,6 +53,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		types::type::ref type_fn_context,
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
 		identifier::ref id,

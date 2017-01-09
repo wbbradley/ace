@@ -144,7 +144,9 @@ llvm::CallInst *llvm_create_call_inst(
 
 	/* get the function we want to call */
 	if (!llvm_callee_fn) {
-		panic("somehow we did not get a function from our llvm_value");
+		user_error(status, obj, "could not find function %s",
+				callee->str().c_str());
+		return nullptr;
 	}
 
 	/* get the current module we're inserting code into */
@@ -385,6 +387,7 @@ bound_var_t::ref llvm_start_function(status_t &status,
 		llvm::IRBuilder<> &builder, 
 		scope_t::ref scope,
 		const ast::item::ref &node,
+		types::type::ref type_fn_context,
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
 		atom name)
@@ -397,7 +400,7 @@ bound_var_t::ref llvm_start_function(status_t &status,
 		if (!!status) {
 			/* create the bound type for the ctor function */
 			auto function_type = bound_type_t::create(
-						get_function_type(args, data_type),
+						get_function_type(type_fn_context, args, data_type),
 						node->token.location,
 						llvm_ctor_fn_type);
 			/* now let's generate our actual data ctor fn */

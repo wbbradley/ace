@@ -1,5 +1,22 @@
 module math @1.0
 
+type Complex has
+	var real float
+	var imag float
+
+def {any} str(c Complex) str
+	s := ""
+	delim := ""
+	if c.real != 0.0
+		s += str(c.real)
+		delim = " "
+	if c.imag != 0.0
+		s += delim
+		s += str(c.imag)
+		s += "i"
+
+	return s
+
 def rounded_tenth(x int) int
 	return (x + 5) / 10
 

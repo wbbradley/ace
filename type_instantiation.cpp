@@ -68,6 +68,7 @@ bound_var_t::ref bind_ctor_to_scope(
 		scope_t::ref scope,
 		identifier::ref id,
 		ast::item::ref node,
+		types::type::ref type_fn_context,
 		types::type::refs args_types,
 		types::type::ref return_type,
 		atom::map<int> member_index)
@@ -92,7 +93,7 @@ bound_var_t::ref bind_ctor_to_scope(
 		 * whether this ctor already exists. if so, we'll just return it. if not,
 		 * we'll generate it. */
 		auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope,
-				args, member_index, id, node, return_type);
+				type_fn_context, args, member_index, id, node, return_type);
 
 		if (!!status) {
 			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
@@ -318,8 +319,8 @@ types::type::ref instantiate_data_ctor_type(
 			scope->put_bound_variable(status, tag_name, tag);
 
 			if (!!status) {
-				debug_above(7, log(log_info, "instantiated nullary data ctor %s",
-							tag->str().c_str()));
+				debug_above(7, log(log_info, "instantiated nullary data ctor %s in scope %s",
+							tag->str().c_str(), scope->get_name().c_str()));
 			}
 		}
 	} else {
@@ -331,6 +332,7 @@ types::type::ref instantiate_data_ctor_type(
 
 			/* get the type of the data constructor function itself */
 			auto data_ctor_sig = get_function_type(
+					scope->get_module_type(),
 					types::change_product_kind(pk_args, product),
 					type_callsite);
 
@@ -339,15 +341,17 @@ types::type::ref instantiate_data_ctor_type(
 			}
 
 			if (auto module_scope = dyncast<module_scope_t>(scope)) {
+				/* we're declaring a ctor at module scope */
 				types::type::ref generic_args = types::change_product_kind(pk_args, product);
 
 				debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
-				types::type::ref data_ctor_sig = get_function_type(generic_args, type_callsite);
+				types::type::ref data_ctor_sig = get_function_type(
+						scope->get_module_type(), generic_args, type_callsite);
 
 				assert(id->get_name() == tag_name);
 				/* side-effect: create an unchecked reference to this data ctor into
 				 * the current scope */
-				module_scope->put_unchecked_variable(tag_name,
+				module_scope->get_program_scope()->put_unchecked_variable(tag_name,
 						unchecked_data_ctor_t::create(id, node,
 							module_scope, data_ctor_sig, member_index));
 			} else {

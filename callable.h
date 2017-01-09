@@ -43,6 +43,7 @@ bound_var_t::ref maybe_get_callable(
 		scope_t::ref scope,
 		atom alias,
 		const ptr<const ast::item> &callsite,
+		types::type::ref type_fn_context,
 		types::type::ref sig_args,
 		var_t::refs &fns);
 

@@ -12,6 +12,7 @@ extern const char *BUILTIN_UNREACHABLE_TYPE;
 /* Product Kinds */
 enum product_kind_t {
 	pk_obj = 0,
+	pk_module,
 	pk_function,
 	pk_args,
 	pk_tuple,
@@ -191,7 +192,8 @@ std::ostream& operator <<(std::ostream &out, const types::type::ref &type);
 
 /* helper functions */
 types::type::ref get_args_type(types::type::refs args);
-types::type::ref get_function_type(types::type::ref args, types::type::ref return_type);
+types::type::ref get_function_type(types::type::ref type_fn_context, types::type::ref args, types::type::ref return_type);
+types::type::ref get_function_type_context(types::type::ref function_type);
 types::type::ref get_function_type_args(types::type::ref function_type);
 types::type::refs get_function_type_args_dimensions(types::type::ref function_type);
 types::type::ref get_function_return_type(types::type::ref function_type);

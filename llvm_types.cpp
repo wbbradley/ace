@@ -40,6 +40,11 @@ bound_type_t::ref create_bound_product_type(
 	ptr<program_scope_t> program_scope = scope->get_program_scope();
 
 	switch (product->pk) {
+	case pk_module:
+		{
+			assert(false);
+			break;
+		}
 	case pk_obj:
 		{
 			assert(false);
@@ -47,14 +52,15 @@ bound_type_t::ref create_bound_product_type(
 		}
 	case pk_function:
 		{
-			assert(product->dimensions.size() == 2);
+			assert(product->dimensions.size() == 3);
 			bound_type_t::refs args = create_bound_types_from_args(status,
-					builder, scope, product->dimensions[0]);
+					builder, scope, product->dimensions[1]);
 			bound_type_t::ref return_type = upsert_bound_type(
-					status, builder, scope, product->dimensions[1]);
+					status, builder, scope, product->dimensions[2]);
 
 			if (!!status) {
-				types::type::ref fn_type = get_function_type(args, return_type);
+				types::type::ref fn_type = get_function_type(
+						product->dimensions[0], args, return_type);
 				assert(fn_type->str() == product->str());
 
 				auto signature = fn_type->get_signature();
@@ -360,9 +366,9 @@ bound_type_t::ref get_function_return_type(
 		assert(product_type->pk == pk_function);
 
 		/* notice the leaky encapsulation here */
-		assert(product_type->dimensions.size() == 2);
+		assert(product_type->dimensions.size() == 3);
 
-		auto return_type_sig = product_type->dimensions[1]->get_signature();
+		auto return_type_sig = product_type->dimensions[2]->get_signature();
 
 		auto return_type = scope->get_bound_type(return_type_sig);
 		/* this should exist, otherwise how was the function type built in the
@@ -500,6 +506,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		status_t &status, 
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		types::type::ref type_fn_context,
 		bound_type_t::refs args,
 		identifier::ref id,
 		const ast::item::ref &node)
@@ -513,7 +520,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 
 		if (!!status) {
 			bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(status, builder,
-					scope, args, data_type, id, node);
+					scope, type_fn_context, args, data_type, id, node);
 
 			if (!!status) {
 				return {tuple_ctor, data_type};
@@ -529,6 +536,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		status_t &status, 
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		types::type::ref type_fn_context,
 		bound_type_t::refs args,
 		atom::map<int> member_index,
 		identifier::ref id,
@@ -548,7 +556,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 
 		if (!!status) {
 			bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,
-					scope, args, data_type, id, node);
+					scope, type_fn_context, args, data_type, id, node);
 
 			if (!!status) {
 				return {tagged_tuple_ctor, data_type};
@@ -564,6 +572,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		types::type::ref type_fn_context,
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
 		identifier::ref id,
@@ -576,7 +585,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	/* save and later restore the current branch insertion point */
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 	auto function = llvm_start_function(status, builder, scope,
-			node, args, data_type, name);
+			node, type_fn_context, args, data_type, name);
 
 	if (!!status) {
 		bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(
@@ -609,46 +618,49 @@ bound_var_t::ref get_or_create_tuple_ctor(
 					llvm_sizeof_tuple
 				});
 
-		assert(data_type->get_llvm_specific_type() != nullptr);
-
-		/* we've allocated enough space for the object type, let's get our allocation as such */
-		llvm::Value *llvm_final_obj = builder.CreatePointerBitCastOrAddrSpaceCast(
-				llvm_create_var_call_value, 
-				data_type->get_llvm_specific_type());
-
-		int index = 0;
-
-		llvm::Function *llvm_function = (llvm::Function *)function->llvm_value;
-		llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
-		while (args_iter != llvm_function->arg_end()) {
-			llvm::Value *llvm_param = args_iter++;
-			/* get the location we should store this datapoint in */
-			llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_final_obj,
-					{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index++)});
-			debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
-					llvm_print_value(*llvm_gep).c_str()));
-			builder.CreateStore(llvm_param, llvm_gep);
-		}
-
-		/* create a return statement for the final object. NB: the returned
-		 * type is a generic object type according to LLVM. LLVM's type system
-		 * does not support Zion types so we are basically using a generic obj
-		 * pointer for all GC'd types. */
-		builder.CreateRet(llvm_create_var_call_value);
-
-		llvm_verify_function(status, llvm_function);
-
 		if (!!status) {
-			/* bind the ctor to the scope */
-			scope->put_bound_variable(status, name, function);
+			assert(data_type->get_llvm_specific_type() != nullptr);
+
+			/* we've allocated enough space for the object type, let's get our allocation as such */
+			llvm::Value *llvm_final_obj = builder.CreatePointerBitCastOrAddrSpaceCast(
+					llvm_create_var_call_value, 
+					data_type->get_llvm_specific_type());
+
+			int index = 0;
+
+			llvm::Function *llvm_function = (llvm::Function *)function->llvm_value;
+			llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
+			while (args_iter != llvm_function->arg_end()) {
+				llvm::Value *llvm_param = args_iter++;
+				/* get the location we should store this datapoint in */
+				llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_final_obj,
+						{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index++)});
+				debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
+							llvm_print_value(*llvm_gep).c_str()));
+				builder.CreateStore(llvm_param, llvm_gep);
+			}
+
+			/* create a return statement for the final object. NB: the returned
+			 * type is a generic object type according to LLVM. LLVM's type system
+			 * does not support Zion types so we are basically using a generic obj
+			 * pointer for all GC'd types. */
+			builder.CreateRet(llvm_create_var_call_value);
+
+			llvm_verify_function(status, llvm_function);
 
 			if (!!status) {
-				debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
-								*llvm_get_module(builder)).c_str()));
-				return function;
+				/* bind the ctor to the scope */
+				scope->put_bound_variable(status, name, function);
+
+				if (!!status) {
+					debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
+									*llvm_get_module(builder)).c_str()));
+					return function;
+				}
 			}
 		}
 	}
+
 	assert(!status);
 	return nullptr;
 }

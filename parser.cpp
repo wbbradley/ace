@@ -50,12 +50,17 @@ ptr<var_decl> var_decl::parse(parse_state_t &ps) {
 		var_decl->type_ref = create<ast::type_ref_generic>(ps.token, type_variable());
 	}
 
-	if (ps.token.tk == tk_assign) {
-		eat_token();
-		var_decl->initializer = expression::parse(ps);
+	if (!!ps.status) {
+		if (ps.token.tk == tk_assign) {
+			eat_token();
+			var_decl->initializer = expression::parse(ps);
+		}
+
+		return var_decl;
 	}
 
-	return var_decl;
+	assert(!ps.status);
+	return nullptr;
 }
 
 ptr<var_decl> var_decl::parse_param(parse_state_t &ps) {
@@ -835,19 +840,30 @@ ptr<when_block> when_block::parse(parse_state_t &ps) {
 ptr<function_decl> function_decl::parse(parse_state_t &ps) {
 	chomp_token(tk_def);
 
-	auto function_decl = create<ast::function_decl>(ps.token);
-
-	chomp_token(tk_identifier);
-	chomp_token(tk_lparen);
-
-	function_decl->param_list_decl = param_list_decl::parse(ps);
-
-	chomp_token(tk_rparen);
-	if (ps.token.tk == tk_identifier || ps.token.tk == tk_any) {
-		function_decl->return_type_ref = type_ref::parse(ps, {} /*generics*/);
+	ast::type_ref::ref context_type_ref;
+	if (ps.token.tk == tk_lcurly) {
+		context_type_ref = ast::type_ref::parse(ps, {} /*generics*/);
 	}
 
-	return function_decl;
+	if (!!ps.status) {
+		auto function_decl = create<ast::function_decl>(ps.token);
+
+		chomp_token(tk_identifier);
+		chomp_token(tk_lparen);
+
+		function_decl->context_type_ref = context_type_ref;
+		function_decl->param_list_decl = param_list_decl::parse(ps);
+
+		chomp_token(tk_rparen);
+		if (ps.token.tk == tk_identifier || ps.token.tk == tk_any) {
+			function_decl->return_type_ref = type_ref::parse(ps, {} /*generics*/);
+		}
+
+		return function_decl;
+	}
+
+	assert(!ps.status);
+	return nullptr;
 }
 
 ptr<function_defn> function_defn::parse(parse_state_t &ps) {
@@ -940,9 +956,6 @@ types::type::refs parse_type_arguments(
 	   	int depth)
 {
 	types::type::refs arguments;
-	assert(ps.token.tk == tk_lcurly);
-	/* skip the curly */
-	ps.advance();
 
 	/* loop over the type arguments */
 	while (!!ps.status && (ps.token.tk == tk_identifier || ps.token.tk == tk_any)) {
@@ -1020,6 +1033,7 @@ types::type::ref parse_type(parse_state_t &ps, identifier::set generics, int dep
 
 			types::type::refs arguments;
 			if (ps.token.tk == tk_lcurly) {
+				ps.advance();
 				arguments = parse_type_arguments(ps, generics, depth + 1);
 			}
 
@@ -1051,9 +1065,24 @@ types::type::ref parse_type(parse_state_t &ps, identifier::set generics, int dep
 		break;
 	case tk_lcurly:
 		{
-			types::type::refs arguments = parse_type_arguments(ps, generics, depth);
-			// TODO: allow named members
-			return ::type_product(pk_tuple, arguments);
+			ps.advance();
+			if (ps.token.tk == tk_module) {
+				/* we're looking at a module type reference */
+				ps.advance();
+				if (ps.token.tk == tk_identifier) {
+					/* create a module type */
+					auto type = ::type_product(pk_module, {type_id(make_code_id(ps.token))});
+					ps.advance();
+					chomp_token(tk_rcurly);
+					return type;
+				} else {
+					ps.error("expected a module name, found %s", ps.token.str().c_str());
+				}
+			} else {
+				types::type::refs arguments = parse_type_arguments(ps, generics, depth);
+				// TODO: allow named members
+				return ::type_product(pk_tuple, arguments);
+			}
 		}
 		break;
 	default:
@@ -1135,11 +1164,6 @@ type_sum::ref type_sum::parse(
 		/* take note of whether the user has indented or not */
 		expect_outdent = true;
 		ps.advance();
-	}
-
-	if (ps.token.tk != tk_identifier) {
-		ps.error("sum types must begin with an identifier. found " c_error("%s"),
-				ps.token.text.c_str());
 	}
 
 	auto type_ref = ast::type_ref::parse(ps, type_variables);
@@ -1231,13 +1255,19 @@ type_ref::ref type_ref::parse(parse_state_t &ps, identifier::set generics) {
 			break;
 		}
 	} while (true);
-	assert(type_refs.size() > 0);
-	if (type_refs.size() == 1) {
-		return type_refs.front();
-	} else {
-		debug_above(4, log(log_info, "found types %s", join_str(type_refs, ", ").c_str()));
-		return ast::create<ast::type_ref_sum>(type_refs[0]->token, type_refs);
+
+	if (!!ps.status) {
+		assert(type_refs.size() > 0);
+		if (type_refs.size() == 1) {
+			return type_refs.front();
+		} else {
+			debug_above(4, log(log_info, "found types %s", join_str(type_refs, ", ").c_str()));
+			return ast::create<ast::type_ref_sum>(type_refs[0]->token, type_refs);
+		}
 	}
+
+	assert(!ps.status);
+	return nullptr;
 }
 
 type_ref::ref type_ref_named::parse(parse_state_t &ps, identifier::set generics) {
@@ -1258,21 +1288,25 @@ type_ref::ref type_ref_tuple::parse(parse_state_t &ps, identifier::set generics)
 	chomp_token(tk_lcurly);
 
 	std::vector<type_ref::ref> type_refs;
-   	while (ps.token.tk != tk_rparen) {
+   	while (ps.token.tk != tk_rcurly) {
 		/* parse the nested type_ref */
 		type_ref::ref type_ref = ast::type_ref::parse(ps, generics);
 
-		/* add the parsed type_ref to our tuple list */
-		type_refs.push_back(type_ref);
+		if (!!ps.status) {
+			/* add the parsed type_ref to our tuple list */
+			type_refs.push_back(type_ref);
 
-		if (ps.token.tk == tk_comma) {
-			ps.advance();
-		} else if (ps.token.tk == tk_rparen) {
-			break;
+			if (ps.token.tk == tk_comma) {
+				ps.advance();
+			} else if (ps.token.tk == tk_rparen) {
+				break;
+			}
+		} else {
+			return nullptr;
 		}
 	}
 
-	chomp_token(tk_rparen);
+	chomp_token(tk_rcurly);
 
 	return ast::create<type_ref_tuple>(tuple_token, type_refs);
 }

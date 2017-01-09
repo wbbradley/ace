@@ -218,3 +218,12 @@ def print(x any) void
 type List{T} has
 	var value T
 	var next List{T}?
+
+def len(l List{any T}?) int
+	when l
+		is nil
+			return 0
+		is List{any T}
+			return 1 + len(l.next)
+
+	return 0

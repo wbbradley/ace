@@ -1,0 +1,12 @@
+module _
+link module math
+# test: pass
+
+def main()
+	str(math.abs(-3))
+	c := math.Complex(1.0, 1.0)
+
+	# The math library should have been able to provide a global override for
+	# the str(Complex) function
+	print(math.str(c))
+	print(c)

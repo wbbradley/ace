@@ -17,6 +17,7 @@ std::string str(const var_t::refs &vars) {
 unification_t var_t::accepts_callsite(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
+		types::type::ref type_fn_context,
 	   	types::type::ref args) const
 {
 	/* get the args out of the sig */
@@ -29,9 +30,11 @@ unification_t var_t::accepts_callsite(
 
 	auto bindings = scope->get_type_variable_bindings();
 
+	/* consider allowing the caller to invoke from a different context
+	 * deliberately in order to claim access to a separate module's context */
 	auto u = unify(
 			fn_type,
-		   	type_product(pk_function, {args, type_variable()}),
+		   	get_function_type(type_fn_context, args, type_variable()),
 		   	env);
 
 	debug_above(6, log(log_info, "check of %s %s",

@@ -1,18 +1,16 @@
 module _
+# test: pass
 
-# test parsing of tuples, as well as type aliases to tuples, in general.
-
-# error: not yet impl
-type Vector2 matches {
+type Vector2 is {
 	float, float}
 
-type Vector3 matches {
+type Vector3 is {
 	float,
 	float,
 	float,
 }
 
-type Vector4 matches {
+type Vector4 is {
 	float, float, float, float
 }
 

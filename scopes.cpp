@@ -8,9 +8,24 @@
 #include "llvm_types.h"
 #include "unification.h"
 
+types::type::ref scope_t::get_module_type() {
+	auto module_scope = get_module_scope();
+	if (module_scope != nullptr) {
+		return module_scope->get_type_fn_context();
+	} else {
+		panic("all scopes should be able to find a module scope");
+		return null_impl();
+	}
+}
+
+types::type::ref module_scope_impl_t::get_type_fn_context() {
+	return type_fn_context;
+}
+
 bound_var_t::ref get_bound_variable_from_scope(
 		status_t &status,
 		const ptr<const ast::item> &obj,
+		atom scope_name,
 		atom symbol,
 		bound_var_t::map bound_vars,
 		scope_t::ref parent_scope)
@@ -34,9 +49,11 @@ bound_var_t::ref get_bound_variable_from_scope(
 		return parent_scope->get_bound_variable(status, obj, symbol);
 	}
 
-	debug_above(3, log(log_info, "no bound variable found when resolving %s (looking for " c_id("%s"), 
+	debug_above(3, log(log_info,
+			   	"no bound variable found when resolving %s (looking for " c_id("%s") " in " c_id("%s") ")", 
 				obj->token.str().c_str(),
-				symbol.c_str()));
+				symbol.c_str(),
+				scope_name.c_str()));
 	return nullptr;
 }
 
@@ -158,14 +175,9 @@ void get_callables_from_unchecked_vars(
 	}
 }
 
-void module_scope_impl_t::get_callables(atom symbol, var_t::refs &fns) {
+void program_scope_t::get_callables(atom symbol, var_t::refs &fns) {
 	get_callables_from_bound_vars(symbol, bound_vars, fns);
 	get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
-
-	if (auto parent_scope = get_parent_scope()) {
-		/* let's see if our parent scope has any of this symbol */
-		parent_scope->get_callables(symbol, fns);
-	}
 }
 
 ptr<local_scope_t> function_scope_t::new_local_scope(atom name) {
@@ -311,8 +323,7 @@ void dump_bindings(
 
 void dump_bindings(
 		std::ostream &os,
-		const unchecked_var_t::map &unchecked_vars,
-		const unchecked_type_t::map &unchecked_types)
+		const unchecked_var_t::map &unchecked_vars)
 {
 	if (unchecked_vars.size() != 0) {
 		os << "unchecked vars:\n";
@@ -327,7 +338,12 @@ void dump_bindings(
 			os << "]" << std::endl;
 		}
 	}
+}
 
+void dump_bindings(
+		std::ostream &os,
+		const unchecked_type_t::map &unchecked_types)
+{
 	if (unchecked_types.size() != 0) {
 		os << "unchecked types:\n";
 		for (auto &type_pair : unchecked_types) {
@@ -354,7 +370,8 @@ void dump_type_map(std::ostream &os, types::type::map env, std::string desc) {
 void program_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "PROGRAM SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, bound_types);
-	dump_bindings(os, unchecked_vars, unchecked_types);
+	dump_bindings(os, unchecked_vars);
+	dump_bindings(os, unchecked_types);
 	dump_type_map(os, typename_env, "PROGRAM TYPENAME ENV");
 	dump_type_map(os, type_variable_bindings, "PROGRAM TYPE VARIABLE BINDINGS");
 }
@@ -362,7 +379,7 @@ void program_scope_t::dump(std::ostream &os) const {
 void module_scope_impl_t::dump(std::ostream &os) const {
 	os << std::endl << "MODULE SCOPE: " << name << std::endl;
 	dump_bindings(os, bound_vars, {});
-	dump_bindings(os, unchecked_vars, unchecked_types);
+	dump_bindings(os, unchecked_types);
 	dump_type_map(os, typename_env, "MODULE TYPENAME ENV");
 	dump_type_map(os, type_variable_bindings, "MODULE TYPE VARIABLE BINDINGS");
 	get_parent_scope()->dump(os);
@@ -404,9 +421,11 @@ void generic_substitution_scope_t::dump(std::ostream &os) const {
 module_scope_impl_t::module_scope_impl_t(
 		atom name,
 	   	program_scope_t::ref parent_scope,
-		llvm::Module *llvm_module) :
+		llvm::Module *llvm_module,
+		types::type::ref type_fn_context) :
 	scope_impl_t<module_scope_t>(name, parent_scope),
-   	llvm_module(llvm_module)
+   	llvm_module(llvm_module),
+	type_fn_context(type_fn_context)
 {
 }
 
@@ -469,7 +488,7 @@ unchecked_type_t::refs &module_scope_impl_t::get_unchecked_types_ordered() {
 	return unchecked_types_ordered;
 }
 
-unchecked_var_t::refs &module_scope_impl_t::get_unchecked_vars_ordered() {
+unchecked_var_t::refs &program_scope_t::get_unchecked_vars_ordered() {
 	return unchecked_vars_ordered;
 }
 
@@ -481,7 +500,8 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 		std::string current_scope_name,
 		program_scope_t::ref program_scope)
 {
-	debug_above(6, log(log_info, "registering an unchecked variable %s as %s in " c_id("%s"),
+	debug_above(6, log(log_info,
+			   	"registering an unchecked variable " c_id("%s") " as %s in " c_id("%s"),
 				symbol.c_str(),
 				unchecked_variable->str().c_str(),
                 current_scope_name.c_str()));
@@ -504,31 +524,29 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 	/* also keep a list of the order in which we encountered these */
 	unchecked_vars_ordered.push_back(unchecked_variable);
 
-#if 0
-	// TODO: consider using module variables for type dereferencing
-	if (program_scope) {
+	if (program_scope != nullptr) {
+		/* register this variable so that it can be found by other modules */
+
+		// TODO: if variable was created with the injection property (whether
+		// "global" or otherwise) then don't prefix the current_scope_name, but
+		// try to just inject it into the associated namespace
+
 		program_scope->put_unchecked_variable(
 				current_scope_name + SCOPE_SEP + symbol.str(),
 				unchecked_variable);	
 	}
-#endif
 
 	return unchecked_variable;
-}
-
-unchecked_var_t::ref module_scope_impl_t::put_unchecked_variable(
-		atom symbol,
-		unchecked_var_t::ref unchecked_variable)
-{
-	return put_unchecked_variable_impl(symbol, unchecked_variable,
-			unchecked_vars, unchecked_vars_ordered, get_name(),
-			get_program_scope());
 }
 
 unchecked_var_t::ref program_scope_t::put_unchecked_variable(
 		atom symbol,
 	   	unchecked_var_t::ref unchecked_variable)
 {
+	if (symbol == "True") {
+		dbg();
+	}
+
 	return put_unchecked_variable_impl(symbol, unchecked_variable,
 			unchecked_vars, unchecked_vars_ordered, get_name(), nullptr);
 }
@@ -559,7 +577,8 @@ ptr<module_scope_t> program_scope_t::new_module_scope(
 		llvm::Module *llvm_module)
 {
 	assert(!lookup_module(name));
-	auto module_scope = module_scope_impl_t::create(name, get_program_scope(), llvm_module);
+	auto module_scope = module_scope_impl_t::create(name, get_program_scope(), llvm_module,
+		   	type_variable());
 	modules.insert({name, module_scope});
 	return module_scope;
 }
@@ -600,9 +619,10 @@ std::string program_scope_t::dump_llvm_modules() {
 module_scope_t::ref module_scope_impl_t::create(
 		atom name,
 		program_scope_t::ref parent_scope,
-		llvm::Module *llvm_module)
+		llvm::Module *llvm_module,
+		types::type::ref type_fn_context)
 {
-	return make_ptr<module_scope_impl_t>(name, parent_scope, llvm_module);
+	return make_ptr<module_scope_impl_t>(name, parent_scope, llvm_module, type_fn_context);
 }
 
 llvm::Module *module_scope_impl_t::get_llvm_module() {
@@ -614,7 +634,7 @@ llvm::Module *generic_substitution_scope_t::get_llvm_module() {
 }
 
 program_scope_t::ref program_scope_t::create(atom name, llvm::Module *llvm_module) {
-	return make_ptr<program_scope_t>(name, llvm_module);
+	return make_ptr<program_scope_t>(name, llvm_module, type_variable());
 }
 
 generic_substitution_scope_t::ref generic_substitution_scope_t::create(

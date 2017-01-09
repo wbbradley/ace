@@ -31,6 +31,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 		types::type::ref fn_type,
 		unification_t unification)
 {
+	debug_above(4, log(log_info, "we are in scope " c_id("%s"), scope->get_name().c_str()));
 	debug_above(4, log(log_info, "it's time to instantiate %s with unified signature %s from %s",
 				unchecked_fn->str().c_str(),
 				fn_type->str().c_str(),
@@ -54,8 +55,10 @@ bound_var_t::ref instantiate_unchecked_fn(
 				unchecked_fn->module_scope, unification, fn_type);
 
 		if (auto product = dyncast<const types::type_product>(fn_type)) {
+			assert(product->pk == pk_function);
+
 			bound_type_t::refs args = create_bound_types_from_args(status,
-					builder, subst_scope, product->dimensions[0]);
+					builder, subst_scope, product->dimensions[1]);
 
 			bound_type_t::named_pairs named_args = zip_named_pairs(
 					get_param_list_decl_variable_names(
@@ -63,7 +66,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 					args);
 
 			bound_type_t::ref return_type = upsert_bound_type(status,
-					builder, subst_scope, product->dimensions[1]);
+					builder, subst_scope, product->dimensions[2]);
 
 			if (!!status) {
 				/* instantiate the function we want */
@@ -101,6 +104,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 			bound_var_t::ref ctor_fn = bind_ctor_to_scope(
 					status, builder, subst_scope,
 					unchecked_fn->id, node,
+					subst_scope->get_module_type(),
 					args_types, return_type,
 					unchecked_data_ctor->member_index);
 
@@ -125,11 +129,12 @@ bound_var_t::ref check_func_vs_callsite(
 		scope_t::ref scope,
 		const ast::item::ref &callsite,
 		var_t::ref fn,
+		types::type::ref type_fn_context,
 		types::type::ref args)
 {
 	assert(!!status);
 
-	unification_t unification = fn->accepts_callsite(builder, scope, args);
+	unification_t unification = fn->accepts_callsite(builder, scope, type_fn_context, args);
 	if (unification.result) {
 		if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
 			/* this function has already been bound */
@@ -182,23 +187,27 @@ bound_var_t::ref maybe_get_callable(
 		scope_t::ref scope,
 		atom alias,
 		const ptr<const ast::item> &callsite,
+		types::type::ref type_fn_context,
 		types::type::ref args,
 		var_t::refs &fns)
 {
     llvm::IRBuilderBase::InsertPointGuard ipg(builder);
     std::list<bound_var_t::ref> callables;
 	if (!!status) {
-		/* look through the current scope stack and get a callable that is able to
-		 * be invoked with the given args */
+		/* look through the current scope stack and get a callable that is able
+		 * to be invoked with the given args */
 		scope->get_callables(alias, fns);
 		for (auto &fn : fns) {
             if (function_exists_in(fn, callables)) {
                 /* we've already found a matching version of this function,
                  * let's not bind it again */
-                continue;
+				debug_above(7, log(log_info,
+							"skipping checking %s because we've already got a matched version of that function",
+							fn->str().c_str()));
+				continue;
             }
 			bound_var_t::ref callable = check_func_vs_callsite(status, builder,
-					scope, callsite, fn, args);
+					scope, callsite, fn, type_fn_context, args);
 
 			if (!status) {
 				assert(callable == nullptr);
@@ -214,10 +223,12 @@ bound_var_t::ref maybe_get_callable(
             } else if (callables.size() == 0) {
                 return nullptr;
             } else {
-                user_error(status, callsite->get_location(), "multiple matching overloads found for %s at %s",
-                        alias.c_str(), callsite->str().c_str());
+				user_error(status, callsite->get_location(),
+						"multiple matching overloads found for %s at %s",
+						alias.c_str(), callsite->str().c_str());
                 for (auto callable :callables) {
-                    user_message(log_info, status, callable->get_location(), "matching overload : %s",
+                    user_message(log_info, status, callable->get_location(),
+						   	"matching overload : %s",
                             callable->type->get_type()->str().c_str());
                 }
             }
@@ -235,8 +246,11 @@ bound_var_t::ref get_callable(
 		types::type::ref args)
 {
 	var_t::refs fns;
+	// TODO: potentially allow fake calling contexts by adding syntax to the
+	// callsite
+	types::type::ref type_fn_context = scope->get_module_type();
 	auto callable = maybe_get_callable(status, builder, scope, alias, callsite,
-			args, fns);
+			type_fn_context, args, fns);
 
 	if (!!status) {
 		if (callable != nullptr) {
@@ -250,11 +264,13 @@ bound_var_t::ref get_callable(
 				debug_above(11, log(log_info, "%s", scope->str().c_str()));
 			} else {
 				std::stringstream ss;
-				ss << "unable to resolve overloads for " C_ID << callsite->str();
+				ss << "unable to resolve overloads for " << callsite->str();
+				ss << " in scope " << scope->get_name();
+				ss << " in context " << type_fn_context->str();
 				ss << " arguments are " << args->str();
 				user_error(status, *callsite, "%s", ss.str().c_str());
 
-				if (debug_level() >= 1) {
+				if (debug_level() >= 0) {
 					/* report on the places we tried to look for a match */
 					for (auto &fn : fns) {
 						ss.str("");

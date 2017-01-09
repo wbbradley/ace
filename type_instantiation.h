@@ -20,6 +20,7 @@ bound_var_t::ref bind_ctor_to_scope(
 		scope_t::ref scope,
 		identifier::ref id,
 		ptr<const ast::item> node,
+		types::type::ref type_fn_context,
 		types::type::refs args_types,
 		types::type::ref return_type,
 		atom::map<int> member_index);
