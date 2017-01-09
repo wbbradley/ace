@@ -1237,7 +1237,7 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 				if (module_scope != nullptr) {
 					/* before recursing directly or indirectly, let's just add
 					 * this function to the module scope we're in */
-					module_scope->put_bound_variable(status, function_var->name, function_var);
+					scope->get_program_scope()->put_bound_variable(status, function_var->name, function_var);
 					if (!!status) {
 						module_scope->mark_checked(status, builder,
 								shared_from_this());

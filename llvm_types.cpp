@@ -649,8 +649,8 @@ bound_var_t::ref get_or_create_tuple_ctor(
 			llvm_verify_function(status, llvm_function);
 
 			if (!!status) {
-				/* bind the ctor to the scope */
-				scope->put_bound_variable(status, name, function);
+				/* bind the ctor to the program scope */
+				scope->get_program_scope()->put_bound_variable(status, name, function);
 
 				if (!!status) {
 					debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(

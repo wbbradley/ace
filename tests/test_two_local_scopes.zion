@@ -1,11 +1,9 @@
 module _
 # test: pass
 
-link def puts(buf str) int
-
 def main()
 	x := "Hello world."
-	puts(x)
+	print(x)
 
 	y := "Hillo world."
-	puts(x)
+	print(x)

@@ -178,7 +178,9 @@ unification_t unify(
 				return {true, "products match", bindings};
 			}
 		} else {
-			return {false, "inbound type is not a product type", bindings};
+			return {false, string_format("%s <> %s",
+					a->str().c_str(),
+					b->str().c_str()), bindings};
 		}
 	} else if (pts_a != nullptr) {
 		if (pts_b == nullptr) {
