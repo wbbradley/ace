@@ -1,0 +1,13 @@
+module _
+# test: pass
+
+def main()
+	var x {int, int} = (3, 4)
+	print(x[1])
+
+	# Should print "5"
+	maybe_n := nth((3, (4, (5, nil))), 2)
+	if n := maybe_n
+		print(n)
+	else
+		print("hmm")

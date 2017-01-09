@@ -229,9 +229,9 @@ unification_t unify(
 				if ((pto_a->operand == nullptr) != (pto_b->operand == nullptr)) {
 					return {
 						false,
-							string_format("type mismatch: %s != %s",
-									a->str(bindings).c_str(), b->str(bindings).c_str()),
-							{}};
+						string_format("type mismatch: %s != %s",
+								a->str(bindings).c_str(), b->str(bindings).c_str()),
+						{}};
 				}
 
 				assert(pto_a->operand != nullptr && pto_b->operand != nullptr);

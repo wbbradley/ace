@@ -5,9 +5,10 @@
 #include "utils.h"
 #include "types.h"
 #include "parser.h"
+#include <iostream>
 
 const char *BUILTIN_NIL_TYPE = "nil";
-const char *BUILTIN_LIST_TYPE = "std.List";
+const char *BUILTIN_LIST_TYPE = "List";
 const char *BUILTIN_VOID_TYPE = "void";
 const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";
 
@@ -37,6 +38,10 @@ namespace types {
 	/**********************************************************************/
 	/* Types                                                              */
 	/**********************************************************************/
+
+	std::string type::str() const {
+		return str(map{});
+	}
 
 	std::string type::str(const map &bindings) const {
 	   	return string_format(c_type("%s"), this->repr(bindings).c_str());
@@ -309,9 +314,8 @@ namespace types {
 	}
 
 	std::ostream &type_maybe::emit(std::ostream &os, const map &bindings) const {
-		os << "(maybe ";
         just->emit(os, bindings);
-		return os << ")";
+		return os << "?";
 	}
 
 	int type_maybe::ftv_count() const {
@@ -440,6 +444,9 @@ types::type::ref type_sum(types::type::refs options) {
 }
 
 types::type::ref type_maybe(types::type::ref just) {
+    if (auto maybe = dyncast<const types::type_maybe>(just)) {
+		return just;
+	}
 	return make_ptr<types::type_maybe>(just);
 }
 
@@ -448,7 +455,7 @@ types::type::ref type_lambda(identifier::ref binding, types::type::ref body) {
 }
 
 types::type::ref type_list_type(types::type::ref element) {
-	return type_operator(type_id(make_iid(BUILTIN_LIST_TYPE)), element);
+	return type_maybe(type_operator(type_id(make_iid(BUILTIN_LIST_TYPE)), element));
 }
 
 types::type::ref type_strip_maybe(types::type::ref maybe_maybe) {
@@ -513,10 +520,6 @@ types::type::ref get_function_type_args(types::type::ref function_type) {
 	return type_args;
 }
 
-types::type::ref get_obj_type(types::type::ref item) {
-	return type_product(pk_obj, {item});
-}
-
 std::ostream &operator <<(std::ostream &os, identifier::ref id) {
 	return os << id->get_name();
 }
@@ -534,7 +537,7 @@ types::type::ref parse_type_expr(std::string input, identifier::set generics) {
 	std::istringstream iss(input);
 	zion_lexer_t lexer("", iss);
 	parse_state_t ps(status, "", lexer, nullptr);
-	types::type::ref type = parse_type(ps, generics);
+	types::type::ref type = parse_maybe_type(ps, generics);
 	if (!!status) {
 		return type;
 	} else {
@@ -584,12 +587,10 @@ std::string str(types::type::map coll) {
 
 const char *pkstr(product_kind_t pk) {
 	switch (pk) {
-	case pk_obj:
-		return "obj";
-	case pk_function:
-		return "fn";
 	case pk_module:
 		return "module";
+	case pk_function:
+		return "fn";
 	case pk_args:
 		return "args";
 	case pk_tuple:
@@ -646,7 +647,11 @@ types::type::ref eval_apply(
 	} else if (auto pto = dyncast<const types::type_operator>(oper)) {
 		auto new_operator = eval_apply(pto->oper, pto->operand, env);
 		return eval_apply(new_operator, operand, env);
+	} else if (auto ptv = dyncast<const types::type_variable>(oper)) {
+		/* type_variables cannot be applied */
+		return nullptr;
 	} else {
+		std::cerr << "what is this? " << oper->str() << std::endl;
 		return null_impl();
 	}
 }

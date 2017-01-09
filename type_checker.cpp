@@ -863,8 +863,7 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 		bound_type_t::refs args = get_bound_types(vars);
 
 		/* let's get the type for this tuple wrapped as an object */
-        types::type::ref tuple_type = ::type_product(pk_obj,
-                {get_tuple_type(args)});
+        types::type::ref tuple_type = get_tuple_type(args);
 
 		/* now, let's see if we already have a ctor for this tuple type, if not
 		 * we'll need to create a data ctor for this unnamed tuple type */
@@ -931,7 +930,9 @@ bound_var_t::ref extract_member_variable(
 
 	if (member_index_iter != member_index.end()) {
 		auto index = member_index_iter->second;
-		debug_above(8, log(log_info, "found member %s at index %d", member_name.c_str(), index));
+		debug_above(5, log(log_info, "found member %s of type %s at index %d",
+					member_name.c_str(),
+					bound_type->str().c_str(), index));
 
 		/* get the type of the dimension being referenced */
 		bound_type_t::ref member_type = bound_type->get_dimensions()[index];
@@ -979,7 +980,6 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
 
 	if (!!status) {
 		auto bound_type = lhs_val->type;
-
 		types::type::ref member_type;
 
 		if (!!status) {
@@ -2516,4 +2516,32 @@ bound_var_t::ref ast::reference_expr::resolve_overrides(
 				::str(args).c_str());
 		return nullptr;
 	}
+}
+
+bound_var_t::ref ast::cast_expr::resolve_instantiation(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	scope_t::ref scope,
+	   	local_scope_t::ref *new_scope,
+	   	bool *returns) const
+{
+	bound_var_t::ref bound_var = lhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+	if (!!status) {
+		types::type::ref type_cast = type_ref_cast->get_type(status, scope, nullptr, {});
+
+		if (!!status) {
+			bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_cast);
+			if (!!status) {
+				llvm::Value *llvm_var_value = llvm_resolve_alloca(builder, bound_var->llvm_value);
+				llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
+						llvm_var_value, bound_type->get_llvm_most_specific_type());
+				return bound_var_t::create(INTERNAL_LOC(), "cast",
+					bound_type, llvm_value_as_specific_type, make_iid("cast"),
+					false /*is_lhs*/);
+			}
+		}
+	}
+
+	assert(!status);
+	return nullptr;
 }

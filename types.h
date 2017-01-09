@@ -11,8 +11,7 @@ extern const char *BUILTIN_UNREACHABLE_TYPE;
 
 /* Product Kinds */
 enum product_kind_t {
-	pk_obj = 0,
-	pk_module,
+	pk_module = 0,
 	pk_function,
 	pk_args,
 	pk_tuple,
@@ -54,7 +53,8 @@ namespace types {
 		virtual location get_location() const = 0;
 		virtual identifier::ref get_id() const = 0;
 
-		std::string str(const map &bindings = {}) const;
+		std::string str() const;
+		std::string str(const map &bindings) const;
 		atom get_signature() const { return repr(); }
 
 		virtual ref rebind(const map &bindings) const = 0;
@@ -197,7 +197,6 @@ types::type::ref get_function_type_context(types::type::ref function_type);
 types::type::ref get_function_type_args(types::type::ref function_type);
 types::type::refs get_function_type_args_dimensions(types::type::ref function_type);
 types::type::ref get_function_return_type(types::type::ref function_type);
-types::type::ref get_obj_type(types::type::ref item);
 types::type::pair make_type_pair(std::string fst, std::string snd, identifier::set generics);
 
 types::type::ref operator "" _ty(const char *value, size_t);

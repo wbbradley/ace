@@ -9,6 +9,15 @@
 #include "llvm_utils.h"
 #include <iostream>
 
+llvm::Type * const bound_type_t::get_llvm_most_specific_type() const {
+	auto llvm_type = get_llvm_specific_type();
+	if (llvm_type != nullptr) {
+		return llvm_type;
+	} else {
+		return get_llvm_type();
+	}
+}
+
 bound_type_impl_t::bound_type_impl_t(
 		types::type::ref type,
 		struct location location,

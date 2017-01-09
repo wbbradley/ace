@@ -45,11 +45,6 @@ bound_type_t::ref create_bound_product_type(
 			assert(false);
 			break;
 		}
-	case pk_obj:
-		{
-			assert(false);
-			break;
-		}
 	case pk_function:
 		{
 			assert(product->dimensions.size() == 3);
@@ -297,7 +292,17 @@ bound_type_t::ref create_bound_type(
         if (!!status) {
             auto llvm_type = bound_just_type->get_llvm_type();
             if (llvm_type->isPointerTy()) {
-				bound_type_handle->set_actual(bound_just_type);
+				/* we've figured out what this type is, but let's be sure to
+				 * prevent fully dereferencing it until its properly deduced as
+				 * non-nil at runtime */
+
+				bound_type_handle->set_actual(bound_type_t::create(
+							maybe, 
+							bound_just_type->get_location(),
+							bound_just_type->get_llvm_type(),
+							nullptr /*llvm_specific_type*/,
+							{} /* dimensions */,
+							{} /* member_index */));
 				return bound_type_handle;
             } else {
                 user_error(status, type->get_location(), "type %s cannot be a " c_type("maybe") " type because the underlying storage is not a pointer (it is %s)",
@@ -393,7 +398,7 @@ bound_type_t::ref get_or_create_tuple_type(
 	atom name = id->get_name();
 
 	/* get the type of this tuple type */
-	types::type::ref type = get_obj_type(get_tuple_type(get_types(args)));
+	types::type::ref type = get_tuple_type(get_types(args));
 	auto data_type = scope->get_bound_type(type->get_signature());
 
 	if (data_type != nullptr) {

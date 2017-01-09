@@ -35,6 +35,7 @@ public:
 	virtual struct location const get_location() const = 0;
 	virtual llvm::Type * const get_llvm_type() const = 0;
 	virtual llvm::Type * const get_llvm_specific_type() const = 0;
+	llvm::Type * const get_llvm_most_specific_type() const;
 	virtual refs const get_dimensions() const = 0;
 	virtual name_index const get_member_index() const = 0;
 

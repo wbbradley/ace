@@ -192,3 +192,13 @@ in a single place. The core challenge of control flow abstraction of logic is
 to understand which of these poles the domain problem would most benefit from.
 When it seems too difficult to choose between one of the two poles, it's likely
 that we don't yet understand the problem space fully enough.
+
+### TODO
+
+- Ternary operator
+- and/or (build with ternary operator)
+- fully implement binary as! -> T, as -> maybe{T}
+- figure out how to make tuples' runtime types typecheck consistently against
+  rtti for other data ctor types. probably have to put up some guardrails somehow
+- Use DIBuilder to add line-level debugging information
+

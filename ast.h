@@ -189,6 +189,18 @@ namespace ast {
 		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const = 0;
 	};
 
+	struct cast_expr : public expression {
+		typedef ptr<const cast_expr> ref;
+
+		static const syntax_kind_t SK = sk_cast_expr;
+		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual void render(render_state_t &rs) const;
+
+		ptr<expression> lhs;
+		type_ref::ref type_ref_cast;
+		bool force_cast = false;
+	};
+
 	struct type_ref_sum : public type_ref {
 		static const syntax_kind_t SK = sk_type_ref_sum;
 

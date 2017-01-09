@@ -1,0 +1,10 @@
+module _
+# test: pass
+# expect: pass
+
+def main()
+	var x [int] = (4, nil)
+	if x != nil
+		print("pass")
+	else
+		print("fail")

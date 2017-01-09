@@ -531,4 +531,15 @@ namespace ast {
         lhs->render(rs);
         rs.ss << "!";
     }
+
+	void cast_expr::render(render_state_t &rs) const {
+		lhs->render(rs);
+		rs.ss << " as";
+		if (force_cast) {
+			rs.ss << "! ";
+		} else {
+			rs.ss << " ";
+		}
+		type_ref_cast->render(rs);
+	}
 }

@@ -30,6 +30,7 @@ std::string zion_token_t::str() const {
 const char *tkstr(token_kind tk) {
 	switch (tk) {
 	tk_case(any);
+	tk_case(as);
 	tk_case(and);
 	tk_case(assign);
 	tk_case(atom);
@@ -130,15 +131,16 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_maybe:
 	case tk_bang:
 		break;
-	case tk_any:
 	case tk_and:
-	case tk_semicolon:
-	case tk_version:
+	case tk_any:
+	case tk_as:
 	case tk_assign:
 	case tk_atom:
+	case tk_becomes:
 	case tk_comma:
 	case tk_def:
 	case tk_divide_by:
+	case tk_divide_by_eq:
 	case tk_elif:
 	case tk_else:
 	case tk_equal:
@@ -156,28 +158,28 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_lt:
 	case tk_lte:
 	case tk_matches:
+	case tk_maybe_eq:
 	case tk_minus:
+	case tk_minus_eq:
 	case tk_mod:
+	case tk_mod_eq:
 	case tk_module:
 	case tk_not:
 	case tk_or:
 	case tk_plus:
+	case tk_plus_eq:
 	case tk_return:
+	case tk_semicolon:
 	case tk_string:
-	case tk_times:
 	case tk_tag:
+	case tk_times:
+	case tk_times_eq:
 	case tk_to:
 	case tk_type:
 	case tk_var:
-	case tk_while:
-	case tk_becomes:
-	case tk_plus_eq:
-	case tk_maybe_eq:
-	case tk_minus_eq:
-	case tk_times_eq:
-	case tk_divide_by_eq:
-	case tk_mod_eq:
+	case tk_version:
 	case tk_when:
+	case tk_while:
 		printf(" ");
 		break;
 	}
@@ -257,6 +259,9 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 		break;
 	case tk_any:
 		printf("any");
+		break;
+	case tk_as:
+		printf("as");
 		break;
 	case tk_has:
 		printf("has");

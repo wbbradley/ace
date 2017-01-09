@@ -1027,7 +1027,7 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("map{any, T}", "map{int, str}", generics),
 				make_type_pair("Container{int, T}", "map{int, str}", generics),
 				make_type_pair("Container{T, T}", "map{int, int}", generics),
-				make_type_pair("Container{T}", "[int]", generics),
+				make_type_pair("Container{T}?", "[int]", generics),
 			}};
 
 			auto fails = std::vector<types::type::pair>{{
@@ -1036,6 +1036,7 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("{T, T}", "{void, int}", generics),
 				make_type_pair("int", "map{int, int}", generics),
 				make_type_pair("map{any a, any a}", "map{int, str}", generics),
+				make_type_pair("Container{T}", "[int]", generics),
 			}};
 
 			status_t status;

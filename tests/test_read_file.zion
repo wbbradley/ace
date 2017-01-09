@@ -1,0 +1,25 @@
+module _
+# test: pass
+
+link def malloc(cb __int__) __bytes
+link def calloc(count __int__, size __int__) __bytes
+link def exit(cb __int__) __int__
+link def read(fd __int__, buf __bytes, nbyte __int__) __int__
+
+def allocate(cb int) __bytes
+	if cb <= 0
+		exit((-1).raw)
+
+	return calloc(cb.raw, (1).raw)
+
+def read(fd int) str
+	buf := allocate(1024)
+	res := read((0).raw, buf, (1024).raw)
+	print(int(res))
+	return str(buf as! __str__)
+
+def main()
+	buffer := allocate(1024)
+	data := read(0)
+	print(data)
+	

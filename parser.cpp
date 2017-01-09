@@ -216,11 +216,29 @@ ptr<expression> parse_bang_wrap(parse_state_t &ps, ptr<expression> expr) {
     }
 }
 
+ptr<expression> parse_cast_wrap(parse_state_t &ps, ptr<expression> expr) {
+    if (ps.token.tk == tk_as) {
+		auto token = ps.token;
+		ps.advance();
+		auto cast = ast::create<ast::cast_expr>(token);
+		cast->lhs = expr;
+
+		if (ps.token.tk == tk_bang) {
+			ps.advance();
+			cast->force_cast = true;
+		}
+		cast->type_ref_cast = type_ref::parse(ps, {});
+        return cast;
+    } else {
+        return expr;
+    }
+}
+
 ptr<expression> base_expr::parse(parse_state_t &ps) {
 	if (ps.token.tk == tk_lparen) {
-		return parse_bang_wrap(ps, tuple_expr::parse(ps));
+		return tuple_expr::parse(ps);
 	} else if (ps.token.tk == tk_identifier) {
-		return parse_bang_wrap(ps, reference_expr::parse(ps));
+		return reference_expr::parse(ps);
 	} else if (ps.token.tk == tk_get_typeid) {
 		return typeid_expr::parse(ps);
 	} else {
@@ -297,7 +315,7 @@ namespace ast {
 						callsite->params.swap(params);
 						callsite->function_expr.swap(expr);
 						assert(expr == nullptr);
-						expr = parse_bang_wrap(ps, callsite);
+						expr = callsite;
 					} else {
 						assert(!ps.status);
 					}
@@ -310,7 +328,7 @@ namespace ast {
 					ps.advance();
 					dot_expr->lhs.swap(expr);
 					assert(expr == nullptr);
-                    expr = parse_bang_wrap(ps, dot_expr);
+                    expr = dot_expr;
 				}
 				if (ps.token.tk == tk_lsquare) {
 					eat_token();
@@ -321,7 +339,7 @@ namespace ast {
 						array_index_expr->index.swap(index);
 						array_index_expr->lhs.swap(expr);
 						assert(expr == nullptr);
-						expr = ptr<expression>(std::move(array_index_expr));
+						expr = array_index_expr;
 					} else {
 						assert(!ps.status);
 						return nullptr;
@@ -330,7 +348,16 @@ namespace ast {
 				}
 			}
 
-			return expr;
+			if (!!ps.status) {
+				expr = parse_bang_wrap(ps, expr);
+
+				if (!!ps.status) {
+					return parse_cast_wrap(ps, expr);
+				}
+			}
+
+			assert(!ps.status);
+			return nullptr;
 		}
 	}
 }
@@ -855,7 +882,12 @@ ptr<function_decl> function_decl::parse(parse_state_t &ps) {
 		function_decl->param_list_decl = param_list_decl::parse(ps);
 
 		chomp_token(tk_rparen);
-		if (ps.token.tk == tk_identifier || ps.token.tk == tk_any) {
+		if (ps.token.tk == tk_identifier ||
+			   	ps.token.tk == tk_any ||
+			   	ps.token.tk == tk_lsquare ||
+			   	ps.token.tk == tk_lcurly ||
+			   	ps.token.tk == tk_identifier)
+	   	{
 			function_decl->return_type_ref = type_ref::parse(ps, {} /*generics*/);
 		}
 
@@ -917,7 +949,7 @@ ptr<semver> semver::parse(parse_state_t &ps) {
 
 }
 
-void parse_type_decl(parse_state_t &ps, identifier::refs &type_variables) {
+void parse_maybe_type_decl(parse_state_t &ps, identifier::refs &type_variables) {
 	ps.advance();
 	if (ps.token.tk == tk_lcurly) {
 		ps.advance();
@@ -950,7 +982,7 @@ identifier::ref make_type_id_code_id(const location location, atom var_name) {
 	return make_ptr<type_id_code_id>(location, var_name);
 }
 
-types::type::refs parse_type_arguments(
+types::type::refs parse_type_operands(
 		parse_state_t &ps,
 	   	identifier::set generics,
 	   	int depth)
@@ -963,7 +995,7 @@ types::type::refs parse_type_arguments(
 		if (depth > 1) {
 			generics = {};
 		}
-		auto next_type = parse_type(ps, generics, depth);
+		auto next_type = parse_maybe_type(ps, generics, depth);
 		if (!!ps.status) {
 			arguments.push_back(next_type);
 
@@ -988,7 +1020,7 @@ types::type::refs parse_type_arguments(
 	return arguments;
 }
 
-types::type::ref parse_type(parse_state_t &ps, identifier::set generics, int depth) {
+types::type::ref _parse_type(parse_state_t &ps, identifier::set generics, int depth) {
 	switch (ps.token.tk) {
 	case tk_any:
 		{
@@ -999,15 +1031,6 @@ types::type::ref parse_type(parse_state_t &ps, identifier::set generics, int dep
 				/* named generic */
 				type = type_variable(make_code_id(ps.token));
 				ps.advance();
-                if (ps.token.tk == tk_maybe) {
-                    /* no named maybe generic */
-                    type = type_maybe(type);
-                    ps.advance();
-                }
-			} else if (ps.token.tk == tk_maybe) {
-				/* no named maybe generic */
-                type = type_maybe(type_variable());
-                ps.advance();
             } else {
 				/* no named generic */
 				type = type_variable();
@@ -1034,25 +1057,20 @@ types::type::ref parse_type(parse_state_t &ps, identifier::set generics, int dep
 			types::type::refs arguments;
 			if (ps.token.tk == tk_lcurly) {
 				ps.advance();
-				arguments = parse_type_arguments(ps, generics, depth + 1);
+				arguments = parse_type_operands(ps, generics, depth + 1);
 			}
 
 			for (auto type_arg : arguments) {
 				cur_type = type_operator(cur_type, type_arg);
 			}
 
-            if (ps.token.tk == tk_maybe) {
-                /* maybe type */
-                cur_type = type_maybe(cur_type);
-                ps.advance();
-            }
 			return cur_type;
 		}
 		break;
 	case tk_lsquare:
 		{
 			ps.advance();
-			auto list_element_type = parse_type(ps, generics, depth);
+			auto list_element_type = parse_maybe_type(ps, generics, depth);
 			if (ps.token.tk != tk_rsquare) {
 				ps.error("list type reference must end with a ']', found %s",
 						ps.token.str().c_str());
@@ -1079,7 +1097,7 @@ types::type::ref parse_type(parse_state_t &ps, identifier::set generics, int dep
 					ps.error("expected a module name, found %s", ps.token.str().c_str());
 				}
 			} else {
-				types::type::refs arguments = parse_type_arguments(ps, generics, depth);
+				types::type::refs arguments = parse_type_operands(ps, generics, depth);
 				// TODO: allow named members
 				return ::type_product(pk_tuple, arguments);
 			}
@@ -1094,11 +1112,27 @@ types::type::ref parse_type(parse_state_t &ps, identifier::set generics, int dep
 	return nullptr;
 }
 
+types::type::ref parse_maybe_type(parse_state_t &ps, identifier::set generics, int depth) {
+	types::type::ref type = _parse_type(ps, generics, depth);
+	if (!!ps.status) {
+		if (ps.token.tk == tk_maybe) {
+			/* no named maybe generic */
+			type = type_maybe(type);
+			ps.advance();
+			return type;
+		} else {
+			return type;
+		}
+	}
+	assert(!ps.status);
+	return nullptr;
+}
+
 type_decl::ref type_decl::parse(parse_state_t &ps) {
 	auto token = ps.token;
 	expect_token(tk_identifier);
 	identifier::refs type_variables;
-	parse_type_decl(ps, type_variables);
+	parse_maybe_type_decl(ps, type_variables);
 
 	if (!!ps.status) {
 		return create<ast::type_decl>(token, type_variables);
@@ -1272,7 +1306,7 @@ type_ref::ref type_ref::parse(parse_state_t &ps, identifier::set generics) {
 
 type_ref::ref type_ref_named::parse(parse_state_t &ps, identifier::set generics) {
 	assert(ps.token.tk != tk_any);
-	return create<ast::type_ref_named>(ps.token, parse_type(ps, generics));
+	return create<ast::type_ref_named>(ps.token, parse_maybe_type(ps, generics));
 }
 
 type_ref::ref type_ref_list::parse(parse_state_t &ps, identifier::set generics) {
@@ -1313,7 +1347,7 @@ type_ref::ref type_ref_tuple::parse(parse_state_t &ps, identifier::set generics)
 
 type_ref::ref type_ref_generic::parse(parse_state_t &ps, identifier::set generics) {
 	assert(ps.token.tk == tk_any);
-	return create<ast::type_ref_generic>(ps.token, parse_type(ps, generics));
+	return create<ast::type_ref_generic>(ps.token, parse_maybe_type(ps, generics));
 }
 
 dimension::ref dimension::parse(parse_state_t &ps, identifier::set generics) {

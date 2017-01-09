@@ -15,8 +15,7 @@ def under_attack(pos, queens) bool
 	i := 0	
 	while i < len(queens)
 		maybe_queen := nth(queens, i)
-		when maybe_queen is Just{Pos}
-			queen := maybe_queen.value
+		if queen := maybe_queen
 			if pos.col == queen.col
 				return true
 			if pos.row == queen.row
@@ -27,12 +26,12 @@ def under_attack(pos, queens) bool
 
 	return false
 
-def iter_solve(n) List{List{Pos}}
-	var solutions List{List{Pos}}
+def iter_solve(n) [[Pos]]
+	var solutions [[Pos]]
 	row := 0
-	print(row < n)
 	while row < n
-		# solutions = check(solutions, row, n)
+		solutions = check(solutions, row, n)
+		print(solutions)
 		row += 1
 		print(row)
 		if row < n
@@ -41,29 +40,27 @@ def iter_solve(n) List{List{Pos}}
 			print("row is greater than n")
 	return solutions
 
-def check(solutions, row, n) List{List{Pos}}
-	var new_solutions List{List{Pos}} = Empty
+def check(solutions, row, n) [[Pos]]
+	var new_solutions [[Pos]] = nil
 
 	col := 0
 	while col < n
-		var result List{List{Pos}}
-		when solutions is Empty
-			result = conj(solutions, Node(Pos(col, row), Empty))
+		var result [[Pos]]
+		print("before crash")
+		if solutions == nil
+			result = List(List(Pos(col, row), nil), nil)
 		else
 			result = append_if_not_under_attack(new_solutions, col, row, solutions)
-		# new_solutions = result
+		new_solutions = result
 		col += 1
 
 	return new_solutions
 
-def append_if_not_under_attack(new_solutions List{List{Pos}}, col, row,
-solutionsonsons
-C{C{Pos}}) List{List{Pos}}
+def append_if_not_under_attack(new_solutions [[Pos]], col, row, solutions [[Pos]]) [[Pos]]
 	i := 0
 	while i < len(solutions)
 		maybe_solution := nth(solutions, i)
-		when maybe_solution is Just{List{Pos}}
-			solution := maybe_solution.value
+		if solution := maybe_solution
 			if not under_attack(Pos(col, row), solution)
 				new_solutions = conj(new_solutions,
 					conj(solution, Pos(col, row)))

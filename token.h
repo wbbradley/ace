@@ -44,6 +44,7 @@ enum token_kind
 	tk_tag, /* tag */
 	tk_get_typeid, /* __get_typeid__ */
 	tk_is, /* is */
+	tk_as, /* as */
 	tk_has, /* has */
 	tk_matches, /* matches */
 

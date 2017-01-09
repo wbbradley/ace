@@ -8,6 +8,7 @@ struct token_matcher {
 token_kind translate_tk(token_kind tk, const zion_string_t &token_text) {
 	static const auto token_matchers = std::vector<token_matcher>{
 		{"any", tk_any},
+		{"as", tk_as},
 		{"and", tk_and},
 		{"break", tk_break},
 		{"continue", tk_continue},
