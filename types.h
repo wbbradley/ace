@@ -12,7 +12,6 @@ extern const char *BUILTIN_UNREACHABLE_TYPE;
 /* Product Kinds */
 enum product_kind_t {
 	pk_module = 0,
-	pk_function,
 	pk_args,
 	pk_tuple,
 	pk_tag,
@@ -123,8 +122,24 @@ namespace types {
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
 
-		virtual bool is_function() const;
 		virtual bool is_struct() const;
+	};
+
+	struct type_function : public type {
+
+		type_function(type::ref inbound_context, type::ref args, type::ref return_type);
+		type::ref inbound_context;
+		type::ref args;
+		type::ref return_type;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
+		virtual ref rebind(const map &bindings) const;
+		virtual location get_location() const;
+		virtual identifier::ref get_id() const;
+
+		virtual bool is_function() const;
 	};
 
 	struct type_sum : public type {
@@ -176,6 +191,7 @@ types::type::ref type_variable(identifier::ref name);
 types::type::ref type_variable();
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand);
 types::type::ref type_product(product_kind_t pk, types::type::refs dimensions, const types::name_index &name_index={});
+types::type::ref type_function(types::type::ref inbound_context, types::type::ref args, types::type::ref return_type);
 types::type::ref type_sum(types::type::refs options);
 types::type::ref type_maybe(types::type::ref just);
 types::type::ref type_lambda(identifier::ref binding, types::type::ref body);

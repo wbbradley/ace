@@ -185,37 +185,47 @@ bound_var_t::ref type_check_bound_var_decl(
 							llvm_print_value_ptr(llvm_alloca).c_str(),
 							llvm_print_value_ptr(init_var->llvm_value).c_str()));
 				builder.CreateStore(llvm_resolve_alloca(builder, init_var->llvm_value), llvm_alloca);	
-			}
-
-			/* the reference_expr that looks at this llvm_value will need to
-			 * know to use store/load semantics, not just pass-by-value */
-			bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
-					bound_type, llvm_alloca, make_code_id(obj.token),
-					true /*is_lhs*/);
-
-			/* on our way out, stash the variable in the current scope */
-			scope->put_bound_variable(status, var_decl_variable->name,
-					var_decl_variable);
-
-			if (unboxed) {
-				assert(init_var != nullptr);
-
-				/* get the maybe type so that we can use it as a conditional */
-				bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, lhs_type);
-				condition_value = bound_var_t::create(INTERNAL_LOC(), symbol,
-							condition_type, init_var->llvm_value, make_code_id(obj.token),
-							false /*is_lhs*/);
+			} else {
+				if (dyncast<const types::type_maybe>(lhs_type)) {
+					/* this can be null, let's initialize it as such */
+					llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_type());
+					builder.CreateStore(llvm_null_value, llvm_alloca);
+				} else {
+					user_error(status, obj, "missing initializer");
+				}
 			}
 
 			if (!!status) {
-				if (condition_value != nullptr) {
-					/* we're unboxing a Maybe{any}, so let's return
-					 * whether this was Empty or not... */
-					assert(unboxed);
-					assert(maybe_unbox);
-					return condition_value;
-				} else {
-					return var_decl_variable;
+				/* the reference_expr that looks at this llvm_value will need to
+				 * know to use store/load semantics, not just pass-by-value */
+				bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
+						bound_type, llvm_alloca, make_code_id(obj.token),
+						true /*is_lhs*/);
+
+				/* on our way out, stash the variable in the current scope */
+				scope->put_bound_variable(status, var_decl_variable->name,
+						var_decl_variable);
+
+				if (unboxed) {
+					assert(init_var != nullptr);
+
+					/* get the maybe type so that we can use it as a conditional */
+					bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, lhs_type);
+					condition_value = bound_var_t::create(INTERNAL_LOC(), symbol,
+							condition_type, init_var->llvm_value, make_code_id(obj.token),
+							false /*is_lhs*/);
+				}
+
+				if (!!status) {
+					if (condition_value != nullptr) {
+						/* we're unboxing a Maybe{any}, so let's return
+						 * whether this was Empty or not... */
+						assert(unboxed);
+						assert(maybe_unbox);
+						return condition_value;
+					} else {
+						return var_decl_variable;
+					}
 				}
 			}
 		}
@@ -295,11 +305,26 @@ void type_check_fully_bound_function_decl(
         llvm::IRBuilder<> &builder,
         const ast::function_decl &obj,
         scope_t::ref scope,
+		types::type::ref &inbound_context,
         bound_type_t::named_pairs &params,
         bound_type_t::ref &return_value)
 {
     /* returns the parameters and the return value types fully resolved */
     debug_above(4, log(log_info, "type checking function decl %s", obj.token.str().c_str()));
+
+	if (obj.context_type_ref != nullptr) {
+		inbound_context = obj.context_type_ref->get_type(status,
+				scope, nullptr /*supertype_id*/, {} /* type_variables */);
+
+		if (!status) {
+			user_message(log_info, status, obj, "while instantiating %s", obj.token.str().c_str());
+			return;
+		}
+	} else {
+		/* this function does not have a context declaration, use the current
+		 * module's type (which basically defaults to private scope */
+		inbound_context = scope->get_inbound_context();
+	}
 
     if (obj.param_list_decl) {
         /* the parameter types as per the decl */
@@ -486,11 +511,12 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
     assert(module_scope);
 
     if (!scope->has_bound_variable(function_name.text, rc_just_current_scope)) {
+		types::type::ref inbound_context;
         bound_type_t::named_pairs named_args;
         bound_type_t::ref return_value;
 
-        type_check_fully_bound_function_decl(status, builder,
-                *extern_function, scope, named_args, return_value);
+		type_check_fully_bound_function_decl(status, builder, *extern_function,
+				scope, inbound_context, named_args, return_value);
 
         if (!!status) {
 			bound_type_t::refs args;
@@ -511,7 +537,7 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 
             /* get the full function type */
             types::type::ref function_sig = get_function_type(
-					type_variable(), args, return_value);
+					inbound_context, args, return_value);
 			debug_above(3, log(log_info, "%s has type %s",
 						function_name.str().c_str(),
 						function_sig->str().c_str()));
@@ -1134,13 +1160,14 @@ bound_var_t::ref ast::function_defn::resolve_instantiation(
 				scope->get_name().c_str()));
 
 	/* see if we can get a monotype from the function declaration */
+	types::type::ref inbound_context;
 	bound_type_t::named_pairs args;
 	bound_type_t::ref return_type;
-	type_check_fully_bound_function_decl(status, builder, *decl, scope, args, return_type);
+	type_check_fully_bound_function_decl(status, builder, *decl, scope, inbound_context, args, return_type);
 
 	if (!!status) {
 		return instantiate_with_args_and_return_type(status, builder, scope,
-				new_scope, args, return_type);
+				new_scope, inbound_context, args, return_type);
 	} else {
 		user_error(status, *this, "unable to declare function %s due to related errors",
 				token.str().c_str());
@@ -1155,6 +1182,7 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		local_scope_t::ref *new_scope,
+		types::type::ref inbound_context,
 		bound_type_t::named_pairs args,
 		bound_type_t::ref return_type) const
 {
@@ -1164,23 +1192,8 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 	std::string function_name = token.text;
 
 	assert(scope->get_llvm_module() != nullptr);
-	types::type::ref type_fn_context;
-	if (decl->context_type_ref != nullptr) {
-		type_fn_context = decl->context_type_ref->get_type(status,
-				scope, nullptr /*supertype_id*/, {} /* type_variables */);
 
-		if (!status) {
-			user_message(log_info, status, get_location(),
-				   	"while instantiating %s", token.str().c_str());
-			return nullptr;
-		}
-	} else {
-		/* this function does not have a context declaration, use the current
-		 * module's type (which basically defaults to private scope */
-		type_fn_context = scope->get_module_type();
-	}
-
-	auto function_type = get_function_type(type_fn_context, args, return_type);
+	auto function_type = get_function_type(inbound_context, args, return_type);
 	bound_type_t::ref bound_function_type = upsert_bound_type(status,
 			builder, scope, function_type);
 
@@ -1912,7 +1925,7 @@ llvm::Value *maybe_get_bool_overload_value(
 
 	var_t::refs fns;
 	auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE,
-			condition, scope->get_module_type(),
+			condition, scope->get_outbound_context(),
 			get_args_type({condition_type}), fns);
 
 	if (!!status) {

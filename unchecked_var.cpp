@@ -60,7 +60,7 @@ types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 						return nullptr;
 					}
 				} else {
-					type_fn_context = module_scope->get_module_type();
+					type_fn_context = module_scope->get_inbound_context();
 				}
 
 				/* figure out the return type */

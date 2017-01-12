@@ -1,0 +1,11 @@
+module _
+# test: pass
+
+type Foo has
+	var x int
+
+def str(f Foo) str
+	return str(f.x)
+
+def main()
+	print(Foo(3))

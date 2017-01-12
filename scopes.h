@@ -57,7 +57,9 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 
     /* There are mappings based on type declarations stored in the env */
 	virtual types::type::map get_typename_env() const = 0;
-	virtual types::type::ref get_module_type();
+
+	virtual types::type::ref get_outbound_context() = 0;
+	virtual types::type::ref get_inbound_context() = 0;
 
     /* Then, there are mappings from type_variable names to type::refs */
 	virtual types::type::map get_type_variable_bindings() const = 0;
@@ -100,6 +102,9 @@ struct scope_impl_t : public BASE {
     virtual void put_type_variable_binding(status_t &status, atom binding, types::type::ref type);
 	virtual ptr<scope_t> get_parent_scope();
 	virtual ptr<const scope_t> get_parent_scope() const;
+
+	virtual types::type::ref get_outbound_context();
+	virtual types::type::ref get_inbound_context();
 
 protected:
 	atom name;
@@ -170,7 +175,8 @@ struct module_scope_t : scope_t {
 	virtual void mark_checked(status_t &status, llvm::IRBuilder<> &builder, const ptr<const ast::item> &node) = 0;
 	virtual llvm::Module *get_llvm_module() = 0;
 	virtual unchecked_type_t::refs &get_unchecked_types_ordered() = 0;
-	virtual types::type::ref get_type_fn_context() = 0;
+	virtual types::type::ref get_outbound_context() = 0;
+	virtual types::type::ref get_inbound_context() = 0;
 };
 
 struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
@@ -178,7 +184,7 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	typedef std::map<atom, ref> map;
 
 	module_scope_impl_t() = delete;
-	module_scope_impl_t(atom name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module, types::type::ref type_fn_context);
+	module_scope_impl_t(atom name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module, types::type::ref inbound_context, types::type::ref outbound_context);
 	virtual ~module_scope_impl_t() throw() {}
 
 	llvm::Module * const llvm_module;
@@ -202,14 +208,16 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 
 	std::set<ptr<const ast::item>> visited;
 
-	static module_scope_t::ref create(atom module_name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module, types::type::ref type_fn_context);
+	static module_scope_t::ref create(atom module_name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module, types::type::ref inbound_context, types::type::ref outbound_context);
 
 	// void add_linked_module(status_t &status, ptr<const ast::item> obj, atom symbol, module_scope_impl_t::ref module_scope);
 
-	virtual types::type::ref get_type_fn_context();
+	virtual types::type::ref get_outbound_context();
+	virtual types::type::ref get_inbound_context();
 
 protected:
-	const types::type::ref type_fn_context;
+	const types::type::ref inbound_context;
+	const types::type::ref outbound_context;
 
 	/* modules can have unchecked types */
 	unchecked_type_t::map unchecked_types;
@@ -225,8 +233,12 @@ std::string str(const module_scope_t::map &modules);
 struct program_scope_t : public module_scope_impl_t {
 	typedef ptr<program_scope_t> ref;
 
-	program_scope_t(atom name, llvm::Module *llvm_module, types::type::ref type_fn_context) :
-	   	module_scope_impl_t(name, nullptr, llvm_module, type_fn_context) {}
+	program_scope_t(
+			atom name,
+		   	llvm::Module *llvm_module,
+		   	types::type::ref inbound_context,
+		   	types::type::ref outbound_context) :
+	   	module_scope_impl_t(name, nullptr, llvm_module, inbound_context, outbound_context) {}
 
 	program_scope_t() = delete;
 	virtual ~program_scope_t() throw() {}
@@ -346,6 +358,28 @@ void scope_impl_t<T>::put_typename(status_t &status, atom name, types::type::ref
 		user_error(status, expansion->get_location(),
 				"multiple supertypes are not yet implemented (" c_type("%s") " <: " c_type("%s") ")",
 				name.c_str(), expansion->str().c_str());
+	}
+}
+
+template <typename T>
+types::type::ref scope_impl_t<T>::get_inbound_context() {
+	auto module_scope = this->get_module_scope();
+	if (module_scope != nullptr) {
+		return module_scope->get_inbound_context();
+	} else {
+		panic("all scopes should be able to find a module scope");
+		return null_impl();
+	}
+}
+
+template <typename T>
+types::type::ref scope_impl_t<T>::get_outbound_context() {
+	auto module_scope = this->get_module_scope();
+	if (module_scope != nullptr) {
+		return module_scope->get_outbound_context();
+	} else {
+		panic("all scopes should be able to find a module scope");
+		return null_impl();
 	}
 }
 

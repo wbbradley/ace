@@ -54,11 +54,9 @@ bound_var_t::ref instantiate_unchecked_fn(
 				status, builder, unchecked_fn->node,
 				unchecked_fn->module_scope, unification, fn_type);
 
-		if (auto product = dyncast<const types::type_product>(fn_type)) {
-			assert(product->pk == pk_function);
-
+		if (auto function = dyncast<const types::type_function>(fn_type)) {
 			bound_type_t::refs args = create_bound_types_from_args(status,
-					builder, subst_scope, product->dimensions[1]);
+					builder, subst_scope, function->args);
 
 			bound_type_t::named_pairs named_args = zip_named_pairs(
 					get_param_list_decl_variable_names(
@@ -66,13 +64,13 @@ bound_var_t::ref instantiate_unchecked_fn(
 					args);
 
 			bound_type_t::ref return_type = upsert_bound_type(status,
-					builder, subst_scope, product->dimensions[2]);
+					builder, subst_scope, function->return_type);
 
 			if (!!status) {
 				/* instantiate the function we want */
 				return function_defn->instantiate_with_args_and_return_type(status,
 						builder, subst_scope, nullptr /*new_scope*/,
-						named_args, return_type);
+						function->inbound_context, named_args, return_type);
 			}
 		} else {
 			panic("we should have a product type for our fn_type");
@@ -104,7 +102,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 			bound_var_t::ref ctor_fn = bind_ctor_to_scope(
 					status, builder, subst_scope,
 					unchecked_fn->id, node,
-					subst_scope->get_module_type(),
+					subst_scope->get_inbound_context(),
 					args_types, return_type,
 					unchecked_data_ctor->member_index);
 
@@ -191,6 +189,12 @@ bound_var_t::ref maybe_get_callable(
 		types::type::ref args,
 		var_t::refs &fns)
 {
+	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, type_fn_context=%s, args=%s, ...)",
+				scope->get_name().c_str(),
+				alias.c_str(),
+				type_fn_context->str().c_str(),
+				args->str().c_str()));
+
     llvm::IRBuilderBase::InsertPointGuard ipg(builder);
     std::list<bound_var_t::ref> callables;
 	if (!!status) {
@@ -248,7 +252,7 @@ bound_var_t::ref get_callable(
 	var_t::refs fns;
 	// TODO: potentially allow fake calling contexts by adding syntax to the
 	// callsite
-	types::type::ref type_fn_context = scope->get_module_type();
+	types::type::ref type_fn_context = scope->get_outbound_context();
 	auto callable = maybe_get_callable(status, builder, scope, alias, callsite,
 			type_fn_context, args, fns);
 

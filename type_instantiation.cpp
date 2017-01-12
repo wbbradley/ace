@@ -332,7 +332,7 @@ types::type::ref instantiate_data_ctor_type(
 
 			/* get the type of the data constructor function itself */
 			auto data_ctor_sig = get_function_type(
-					scope->get_module_type(),
+					scope->get_inbound_context(),
 					types::change_product_kind(pk_args, product),
 					type_callsite);
 
@@ -346,7 +346,7 @@ types::type::ref instantiate_data_ctor_type(
 
 				debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
 				types::type::ref data_ctor_sig = get_function_type(
-						scope->get_module_type(), generic_args, type_callsite);
+						scope->get_inbound_context(), generic_args, type_callsite);
 
 				assert(id->get_name() == tag_name);
 				/* side-effect: create an unchecked reference to this data ctor into

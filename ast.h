@@ -479,6 +479,7 @@ namespace ast {
 			   	llvm::IRBuilder<> &builder,
 			   	scope_t::ref block_scope,
 				local_scope_t::ref *new_scope,
+				types::type::ref inbound_context,
 				bound_type_t::named_pairs args,
 				bound_type_t::ref return_type) const;
 		virtual void render(render_state_t &rs) const;

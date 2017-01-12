@@ -14,8 +14,7 @@ def under_attack(pos, queens) bool
 
 	i := 0	
 	while i < len(queens)
-		maybe_queen := nth(queens, i)
-		if queen := maybe_queen
+		if queen := nth(queens, i)
 			if pos.col == queen.col
 				return true
 			if pos.row == queen.row
@@ -31,13 +30,7 @@ def iter_solve(n) [[Pos]]
 	row := 0
 	while row < n
 		solutions = check(solutions, row, n)
-		print(solutions)
 		row += 1
-		print(row)
-		if row < n
-			print("row is less than n")
-		else
-			print("row is greater than n")
 	return solutions
 
 def check(solutions, row, n) [[Pos]]
@@ -46,7 +39,6 @@ def check(solutions, row, n) [[Pos]]
 	col := 0
 	while col < n
 		var result [[Pos]]
-		print("before crash")
 		if solutions == nil
 			result = List(List(Pos(col, row), nil), nil)
 		else
@@ -58,6 +50,8 @@ def check(solutions, row, n) [[Pos]]
 
 def append_if_not_under_attack(new_solutions [[Pos]], col, row, solutions [[Pos]]) [[Pos]]
 	i := 0
+	l := len(solutions)
+
 	while i < len(solutions)
 		maybe_solution := nth(solutions, i)
 		if solution := maybe_solution
@@ -89,10 +83,10 @@ def str(list List{any T}?) str
 
 	return s + "]"
 
-def str(p Pos) str
+def sstr(p Pos) str
 	return "(" + p.col + ", " + p.row + ")"
 
 
-def main() void
-	print("starting")
-	print(str(iter_solve(8)))
+def main() __int__
+	print(iter_solve(8))
+	return (0).raw

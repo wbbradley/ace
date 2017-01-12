@@ -8,18 +8,12 @@
 #include "llvm_types.h"
 #include "unification.h"
 
-types::type::ref scope_t::get_module_type() {
-	auto module_scope = get_module_scope();
-	if (module_scope != nullptr) {
-		return module_scope->get_type_fn_context();
-	} else {
-		panic("all scopes should be able to find a module scope");
-		return null_impl();
-	}
+types::type::ref module_scope_impl_t::get_inbound_context() {
+	return inbound_context;
 }
 
-types::type::ref module_scope_impl_t::get_type_fn_context() {
-	return type_fn_context;
+types::type::ref module_scope_impl_t::get_outbound_context() {
+	return outbound_context;
 }
 
 bound_var_t::ref get_bound_variable_from_scope(
@@ -422,10 +416,12 @@ module_scope_impl_t::module_scope_impl_t(
 		atom name,
 	   	program_scope_t::ref parent_scope,
 		llvm::Module *llvm_module,
-		types::type::ref type_fn_context) :
+		types::type::ref inbound_context,
+		types::type::ref outbound_context) :
 	scope_impl_t<module_scope_t>(name, parent_scope),
    	llvm_module(llvm_module),
-	type_fn_context(type_fn_context)
+	inbound_context(inbound_context),
+	outbound_context(outbound_context)
 {
 }
 
@@ -577,8 +573,21 @@ ptr<module_scope_t> program_scope_t::new_module_scope(
 		llvm::Module *llvm_module)
 {
 	assert(!lookup_module(name));
+
+	// TODO: the inbound/outbound contexts will need to be flipped during
+	// unification...
+	/* inbound context says that anyone that purports to be calling this module
+	 * may call this function */
+	auto inbound_context = type_operator(
+			type_id(make_iid("module")),
+			type_id(make_iid(name)));
+
+	auto outbound_context = type_sum({get_program_scope()->get_inbound_context(),
+			inbound_context});
+
 	auto module_scope = module_scope_impl_t::create(name, get_program_scope(), llvm_module,
-		   	type_variable());
+			inbound_context, outbound_context);
+
 	modules.insert({name, module_scope});
 	return module_scope;
 }
@@ -620,9 +629,10 @@ module_scope_t::ref module_scope_impl_t::create(
 		atom name,
 		program_scope_t::ref parent_scope,
 		llvm::Module *llvm_module,
-		types::type::ref type_fn_context)
+		types::type::ref inbound_context,
+		types::type::ref outbound_context)
 {
-	return make_ptr<module_scope_impl_t>(name, parent_scope, llvm_module, type_fn_context);
+	return make_ptr<module_scope_impl_t>(name, parent_scope, llvm_module, inbound_context, outbound_context);
 }
 
 llvm::Module *module_scope_impl_t::get_llvm_module() {
@@ -634,7 +644,10 @@ llvm::Module *generic_substitution_scope_t::get_llvm_module() {
 }
 
 program_scope_t::ref program_scope_t::create(atom name, llvm::Module *llvm_module) {
-	return make_ptr<program_scope_t>(name, llvm_module, type_variable());
+	auto inbound_context = type_id(make_iid("global"));
+	auto outbound_context = inbound_context;
+
+	return make_ptr<program_scope_t>(name, llvm_module, inbound_context, outbound_context);
 }
 
 generic_substitution_scope_t::ref generic_substitution_scope_t::create(

@@ -327,6 +327,6 @@ types::type::ref get_function_type(
 		type_args.push_back(arg->get_type());
 	}
 
-	return ::type_product(pk_function,
-			{type_fn_context, ::type_product(pk_args, type_args), return_type->get_type()});
+	return ::type_function(type_fn_context, ::type_product(pk_args, type_args),
+			return_type->get_type());
 }

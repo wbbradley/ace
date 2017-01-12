@@ -45,41 +45,6 @@ bound_type_t::ref create_bound_product_type(
 			assert(false);
 			break;
 		}
-	case pk_function:
-		{
-			assert(product->dimensions.size() == 3);
-			bound_type_t::refs args = create_bound_types_from_args(status,
-					builder, scope, product->dimensions[1]);
-			bound_type_t::ref return_type = upsert_bound_type(
-					status, builder, scope, product->dimensions[2]);
-
-			if (!!status) {
-				types::type::ref fn_type = get_function_type(
-						product->dimensions[0], args, return_type);
-				assert(fn_type->str() == product->str());
-
-				auto signature = fn_type->get_signature();
-				auto bound_type = scope->get_bound_type(signature);
-				if (bound_type) {
-					return bound_type;
-				} else {
-					auto *llvm_fn_type = llvm_create_function_type(status,
-							builder, args, return_type);
-					if (!!status) {
-						bound_type = bound_type_t::create(fn_type,
-								product->get_location(), llvm_fn_type);
-						program_scope->put_bound_type(status, bound_type);
-
-						if (!!status) {
-							return bound_type;
-						} else {
-							return nullptr;
-						}
-					}
-				}
-			}
-			break;
-		}
 	case pk_args:
 		{
 			assert(false);
@@ -218,6 +183,44 @@ bound_type_t::ref create_bound_sum_type(
 	}
 }
 
+bound_type_t::ref create_bound_function_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		const ptr<const types::type_function> &function)
+{
+	bound_type_t::refs args = create_bound_types_from_args(status,
+			builder, scope, function->args);
+	bound_type_t::ref return_type = upsert_bound_type(
+			status, builder, scope, function->return_type);
+
+	if (!!status) {
+		auto signature = function->get_signature();
+		auto bound_type = scope->get_bound_type(signature);
+		if (bound_type) {
+			return bound_type;
+		} else {
+			auto *llvm_fn_type = llvm_create_function_type(status,
+					builder, args, return_type);
+			if (!!status) {
+				bound_type = bound_type_t::create(function,
+						function->get_location(), llvm_fn_type);
+				ptr<program_scope_t> program_scope = scope->get_program_scope();
+				program_scope->put_bound_type(status, bound_type);
+
+				if (!!status) {
+					return bound_type;
+				} else {
+					return nullptr;
+				}
+			}
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_type_t::ref create_bound_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -312,6 +315,8 @@ bound_type_t::ref create_bound_type(
         }
 	} else if (auto product = dyncast<const types::type_product>(type)) {
 		return create_bound_product_type(status, builder, scope, product);
+	} else if (auto function = dyncast<const types::type_function>(type)) {
+		return create_bound_function_type(status, builder, scope, function);
 	} else if (auto sum = dyncast<const types::type_sum>(type)) {
 		return create_bound_sum_type(status, builder, scope, sum);
 	} else if (auto operator_ = dyncast<const types::type_operator>(type)) {
@@ -367,17 +372,12 @@ bound_type_t::ref get_function_return_type(
 		scope_t::ref scope,
 		bound_type_t::ref function_type)
 {
-	if (auto product_type = dyncast<const types::type_product>(function_type->get_type())) {
-		assert(product_type->pk == pk_function);
-
-		/* notice the leaky encapsulation here */
-		assert(product_type->dimensions.size() == 3);
-
-		auto return_type_sig = product_type->dimensions[2]->get_signature();
-
+	if (auto type_function = dyncast<const types::type_function>(function_type->get_type())) {
+		auto return_type_sig = type_function->return_type->get_signature();
 		auto return_type = scope->get_bound_type(return_type_sig);
+
 		/* this should exist, otherwise how was the function type built in the
-		 * first place */
+		 * first place? */
 		assert(return_type != nullptr);
 		debug_above(8, log(log_info, "got function return type %s", return_type->str().c_str()));
 		return return_type;

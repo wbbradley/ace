@@ -70,7 +70,7 @@ unification_t unify(
 		types::type::map bindings,
 		int depth)
 {
-	if (depth > 12) {
+	if (depth > 120) {
 		log(log_error, "unification depth is getting big...");
 		dbg();
 	}
@@ -99,6 +99,8 @@ unification_t unify(
 	auto pts_b = dyncast<const types::type_sum>(b);
 
 	auto ptp_a = dyncast<const types::type_product>(a);
+
+	auto ptf_a = dyncast<const types::type_function>(a);
 
 	if (pti_a != nullptr) {
 		/* check for basic type_id matching */
@@ -177,6 +179,37 @@ unification_t unify(
 
 				return {true, "products match", bindings};
 			}
+		} else {
+			return {false, string_format("%s <> %s",
+					a->str().c_str(),
+					b->str().c_str()), bindings};
+		}
+	} else if (ptf_a != nullptr) {
+		if (auto ptf_b = dyncast<const types::type_function>(b)) {
+			/* note that the context unification is contravariant to the rest */
+			auto context_unification = unify(ptf_b->inbound_context, ptf_a->inbound_context,
+					env, bindings, depth + 1);
+			if (!context_unification.result) {
+				return {false, context_unification.reasons, {}};
+			}
+			bindings = context_unification.bindings;
+
+			/* now make sure the arguments unify */
+			auto args_unification = unify(ptf_a->args, ptf_b->args,
+					env, bindings, depth + 1);
+			if (!args_unification.result) {
+				return {false, args_unification.reasons, {}};
+			}
+			bindings = args_unification.bindings;
+
+			/* finally, make sure the return types unify */
+			auto return_type_unification = unify(ptf_a->return_type, ptf_b->return_type,
+					env, bindings, depth + 1);
+			if (!return_type_unification.result) {
+				return {false, return_type_unification.reasons, {}};
+			}
+			bindings = return_type_unification.bindings;
+			return {true, "functions match", bindings};
 		} else {
 			return {false, string_format("%s <> %s",
 					a->str().c_str(),
