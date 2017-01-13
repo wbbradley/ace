@@ -255,11 +255,8 @@ def conj(maybe_list List{any T}?, item any T) List{any T}
 def str(list List{any T}?) str
 	s := "["
 	var seen_one __bool__ = __false__
-	var done bool = false
-	while not done
-		print("loop")
+	while __true__
 		if node := list
-			print("node := list")
 			if seen_one
 				s += ", "
 			else
@@ -268,7 +265,6 @@ def str(list List{any T}?) str
 			s += str(node.value)
 			list = node.next
 		else
-			print("false")
-			done = true
+			break
 
 	return s + "]"
