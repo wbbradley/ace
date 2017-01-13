@@ -11,6 +11,8 @@
 
 #define SCOPE_SEP "/"
 
+extern const char *GLOBAL_ID;
+
 struct scope_t;
 
 enum resolution_constraints_t {

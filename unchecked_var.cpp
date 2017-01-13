@@ -51,9 +51,8 @@ types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 			if (!!status) {
 				/* figure out the context of this declaration */
 				types::type::ref type_fn_context;
-				if (decl->context_type_ref != nullptr) {
-					type_fn_context = decl->context_type_ref->get_type(status,
-							module_scope, nullptr, {})->rebind(module_scope->get_typename_env());
+				if (decl->inbound_context != nullptr) {
+					type_fn_context = decl->inbound_context;
 					if (!status) {
 						user_message(log_info, status, node->get_location(), "while checking unchecked variable %s",
 								node->token.str().c_str());

@@ -250,3 +250,25 @@ def conj(maybe_list List{any T}?, item any T) List{any T}
 	if list := maybe_list
 		return List(item, list)
 	return List(item, nil)
+
+
+def str(list List{any T}?) str
+	s := "["
+	var seen_one __bool__ = __false__
+	var done bool = false
+	while not done
+		print("loop")
+		if node := list
+			print("node := list")
+			if seen_one
+				s += ", "
+			else
+				seen_one = __true__
+
+			s += str(node.value)
+			list = node.next
+		else
+			print("false")
+			done = true
+
+	return s + "]"

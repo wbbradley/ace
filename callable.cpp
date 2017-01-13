@@ -269,8 +269,7 @@ bound_var_t::ref get_callable(
 			} else {
 				std::stringstream ss;
 				ss << "unable to resolve overloads for " << callsite->str();
-				ss << " in scope " << scope->get_name();
-				ss << " in context " << type_fn_context->str();
+				ss << " from context " << type_fn_context->str();
 				ss << " arguments are " << args->str();
 				user_error(status, *callsite, "%s", ss.str().c_str());
 

@@ -8,6 +8,10 @@ type Pos has
 	var col int
 	var row int
 
+[module any]
+def str(p Pos) str
+	return "(" + p.col + ", " + p.row + ")"
+
 def under_attack(pos, queens) bool
 	if len(queens) == 0
 		return false
@@ -61,30 +65,6 @@ def append_if_not_under_attack(new_solutions [[Pos]], col, row, solutions [[Pos]
 		i += 1
 
 	return new_solutions
-
-def str(list List{any T}?) str
-	s := "["
-	var seen_one bool = false
-	var done bool = false
-	while not done
-		print("loop")
-		if node := list
-			print("node := list")
-			if seen_one
-				s += ", "
-			else
-				seen_one = true
-
-			s += str(node.value)
-			list = node.next
-		else
-			print("false")
-			done = true
-
-	return s + "]"
-
-def sstr(p Pos) str
-	return "(" + p.col + ", " + p.row + ")"
 
 
 def main() __int__

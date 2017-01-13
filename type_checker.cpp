@@ -309,12 +309,11 @@ void type_check_fully_bound_function_decl(
         bound_type_t::named_pairs &params,
         bound_type_t::ref &return_value)
 {
-    /* returns the parameters and the return value types fully resolved */
-    debug_above(4, log(log_info, "type checking function decl %s", obj.token.str().c_str()));
+	/* returns the parameters and the return value types fully resolved */
+	debug_above(4, log(log_info, "type checking function decl %s", obj.token.str().c_str()));
 
-	if (obj.context_type_ref != nullptr) {
-		inbound_context = obj.context_type_ref->get_type(status,
-				scope, nullptr /*supertype_id*/, {} /* type_variables */);
+	if (obj.inbound_context != nullptr) {
+		inbound_context = obj.inbound_context;
 
 		if (!status) {
 			user_message(log_info, status, obj, "while instantiating %s", obj.token.str().c_str());
@@ -326,23 +325,23 @@ void type_check_fully_bound_function_decl(
 		inbound_context = scope->get_inbound_context();
 	}
 
-    if (obj.param_list_decl) {
-        /* the parameter types as per the decl */
-        status |= get_fully_bound_param_list_decl_variables(builder,
-                *obj.param_list_decl, scope, params);
+	if (obj.param_list_decl) {
+		/* the parameter types as per the decl */
+		status |= get_fully_bound_param_list_decl_variables(builder,
+				*obj.param_list_decl, scope, params);
 
-        if (!!status) {
-            return_value = get_return_type_from_return_type_expr(status, builder,
-                    obj.return_type_ref, scope);
+		if (!!status) {
+			return_value = get_return_type_from_return_type_expr(status, builder,
+					obj.return_type_ref, scope);
 
-            /* we got the params, and the return value */
-            return;
-        }
-    } else {
-        user_error(status, obj, "no param_list_decl was present");
-    }
+			/* we got the params, and the return value */
+			return;
+		}
+	} else {
+		user_error(status, obj, "no param_list_decl was present");
+	}
 
-    assert(!status);
+	assert(!status);
 }
 
 bool type_is_unbound(types::type::ref type, types::type::map bindings) {
@@ -510,23 +509,23 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
     module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
     assert(module_scope);
 
-    if (!scope->has_bound_variable(function_name.text, rc_just_current_scope)) {
+	if (!scope->has_bound_variable(function_name.text, rc_just_current_scope)) {
 		types::type::ref inbound_context;
-        bound_type_t::named_pairs named_args;
-        bound_type_t::ref return_value;
+		bound_type_t::named_pairs named_args;
+		bound_type_t::ref return_value;
 
 		type_check_fully_bound_function_decl(status, builder, *extern_function,
 				scope, inbound_context, named_args, return_value);
 
-        if (!!status) {
+		if (!!status) {
 			bound_type_t::refs args;
 			for (auto &named_arg_pair : named_args) {
 				args.push_back(named_arg_pair.second);
 			}
 
 			// TODO: rearrange this, and get the pointer type
-            llvm::FunctionType *llvm_func_type = llvm_create_function_type(
-                    status, builder, args, return_value);
+			llvm::FunctionType *llvm_func_type = llvm_create_function_type(
+					status, builder, args, return_value);
 
 			/* try to find this function, if it already exists... */
 			llvm::Module *llvm_module = module_scope->get_llvm_module();
@@ -535,31 +534,31 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 
 			assert(llvm_print_type(*llvm_value->getType()) != llvm_print_type(*llvm_func_type));
 
-            /* get the full function type */
-            types::type::ref function_sig = get_function_type(
+			/* get the full function type */
+			types::type::ref function_sig = get_function_type(
 					inbound_context, args, return_value);
 			debug_above(3, log(log_info, "%s has type %s",
 						function_name.str().c_str(),
 						function_sig->str().c_str()));
 
-            /* actually create or find the finalized bound type for this function */
+			/* actually create or find the finalized bound type for this function */
 			bound_type_t::ref bound_function_type = upsert_bound_type(
 					status, builder, scope, function_sig);
 
 			return bound_var_t::create(
 					INTERNAL_LOC(),
 					scope->make_fqn(function_name.text),
-                    bound_function_type,
-                    llvm_value,
-                    make_code_id(extern_function->token),
+					bound_function_type,
+					llvm_value,
+					make_code_id(extern_function->token),
 					false/*is_lhs*/);
-        }
-    } else {
-        user_error(status, *this, "name conflict with %s", function_name.text.c_str());
-    }
+		}
+	} else {
+		user_error(status, *this, "name conflict with %s", function_name.text.c_str());
+	}
 
-    assert(!status);
-    return nullptr;
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref ast::dot_expr::resolve_overrides(

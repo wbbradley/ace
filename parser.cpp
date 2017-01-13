@@ -24,7 +24,7 @@ using namespace ast;
 		if (ps.token.tk != _tk) { \
 			ps.error("expected '%s', got '%s'", \
 				   	tkstr(_tk), tkstr(ps.token.tk)); \
-			dbg(); \
+			/* dbg(); */ \
 			return fail_code; \
 		} \
 	} while (0)
@@ -865,33 +865,57 @@ ptr<when_block> when_block::parse(parse_state_t &ps) {
 }
 
 ptr<function_decl> function_decl::parse(parse_state_t &ps) {
-	chomp_token(tk_def);
+	types::type::ref inbound_context;
+	if (ps.token.tk == tk_lsquare) {
+		ps.advance();
+		if (ps.token.tk == tk_module) {
+			ps.advance();
+			inbound_context = parse_maybe_type(ps, {}, 0 /*depth*/);
+			if (!!ps.status) {
+				chomp_token(tk_rsquare);
 
-	ast::type_ref::ref context_type_ref;
-	if (ps.token.tk == tk_lcurly) {
-		context_type_ref = ast::type_ref::parse(ps, {} /*generics*/);
+				/* in an inbound context declaration, we transform all type
+				 * variables to global scope */
+				auto ftvs = inbound_context->get_ftvs();
+				types::type::ref global = type_id(make_iid(GLOBAL_ID));
+				types::type::map bindings;
+				for (auto ftv : ftvs) {
+					bindings[ftv] = global;
+				}
+				inbound_context = ::type_product(pk_module, {inbound_context->rebind(bindings)});
+				debug_above(5, log(log_info,
+							"parsed module inbound context declaration %s",
+							inbound_context->str().c_str()));
+			}
+		} else {
+			ps.error("expected inbound module declaration");
+		}
 	}
 
 	if (!!ps.status) {
-		auto function_decl = create<ast::function_decl>(ps.token);
+		chomp_token(tk_def);
 
-		chomp_token(tk_identifier);
-		chomp_token(tk_lparen);
+		if (!!ps.status) {
+			auto function_decl = create<ast::function_decl>(ps.token);
 
-		function_decl->context_type_ref = context_type_ref;
-		function_decl->param_list_decl = param_list_decl::parse(ps);
+			chomp_token(tk_identifier);
+			chomp_token(tk_lparen);
 
-		chomp_token(tk_rparen);
-		if (ps.token.tk == tk_identifier ||
-			   	ps.token.tk == tk_any ||
-			   	ps.token.tk == tk_lsquare ||
-			   	ps.token.tk == tk_lcurly ||
-			   	ps.token.tk == tk_identifier)
-	   	{
-			function_decl->return_type_ref = type_ref::parse(ps, {} /*generics*/);
+			function_decl->inbound_context = inbound_context;
+			function_decl->param_list_decl = param_list_decl::parse(ps);
+
+			chomp_token(tk_rparen);
+			if (ps.token.tk == tk_identifier ||
+					ps.token.tk == tk_any ||
+					ps.token.tk == tk_lsquare ||
+					ps.token.tk == tk_lcurly ||
+					ps.token.tk == tk_identifier)
+			{
+				function_decl->return_type_ref = type_ref::parse(ps, {} /*generics*/);
+			}
+
+			return function_decl;
 		}
-
-		return function_decl;
 	}
 
 	assert(!ps.status);
@@ -1084,23 +1108,9 @@ types::type::ref _parse_type(parse_state_t &ps, identifier::set generics, int de
 	case tk_lcurly:
 		{
 			ps.advance();
-			if (ps.token.tk == tk_module) {
-				/* we're looking at a module type reference */
-				ps.advance();
-				if (ps.token.tk == tk_identifier) {
-					/* create a module type */
-					auto type = ::type_product(pk_module, {type_id(make_code_id(ps.token))});
-					ps.advance();
-					chomp_token(tk_rcurly);
-					return type;
-				} else {
-					ps.error("expected a module name, found %s", ps.token.str().c_str());
-				}
-			} else {
-				types::type::refs arguments = parse_type_operands(ps, generics, depth);
-				// TODO: allow named members
-				return ::type_product(pk_tuple, arguments);
-			}
+			types::type::refs arguments = parse_type_operands(ps, generics, depth);
+			// TODO: allow named members
+			return ::type_product(pk_tuple, arguments);
 		}
 		break;
 	default:
@@ -1389,7 +1399,7 @@ ptr<module> module::parse(parse_state_t &ps, bool global) {
 		
 		// Get functions or type defs
 		while (true) {
-			if (ps.token.tk == tk_def) {
+			if (ps.token.tk == tk_lsquare || ps.token.tk == tk_def) {
 				auto function = function_defn::parse(ps);
 				if (function) {
 					module->functions.push_back(std::move(function));

@@ -159,6 +159,11 @@ unification_t unify(
 		}
 	} else if (ptp_a != nullptr) {
 		if (auto ptp_b = dyncast<const types::type_product>(b)) {
+			if (ptp_a->pk != ptp_b->pk) {
+				return {false, string_format("product kinds are different %s <> %s",
+						pkstr(ptp_a->pk),
+						pkstr(ptp_b->pk)), bindings};
+			}
 			if (ptp_a->dimensions.size() != ptp_b->dimensions.size()) {
 				return {false, string_format("product type lengths do not match "
 						"(a = %s, b = %s)", ptp_a->str().c_str(),

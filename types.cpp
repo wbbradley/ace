@@ -258,7 +258,7 @@ namespace types {
 	}
 
 	std::ostream &type_function::emit(std::ostream &os, const map &bindings) const {
-		os << "def {" << inbound_context->str() << "} ";
+		os << "[" << inbound_context->str() << "] def ";
 		os << args->str() << " " << return_type->str();
 		return os;
 	}
@@ -552,9 +552,7 @@ types::type::ref get_function_return_type(types::type::ref function_type) {
 	debug_above(5, log(log_info, "getting function return type from %s", function_type->str().c_str()));
 
 	auto type_function = dyncast<const types::type_function>(function_type);
-	if (type_function == nullptr) {
-		dbg();
-	}
+	assert(type_function != nullptr);
 
 	return type_function->return_type;
 }

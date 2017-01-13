@@ -4,7 +4,8 @@ type Complex has
 	var real float
 	var imag float
 
-def {any} str(c Complex) str
+[module any]
+def str(c Complex) str
 	s := ""
 	delim := ""
 	if c.real != 0.0

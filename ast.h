@@ -464,7 +464,7 @@ namespace ast {
 
 		type_ref::ref return_type_ref;
 		ptr<param_list_decl> param_list_decl;
-		ptr<const type_ref> context_type_ref;
+		types::type::ref inbound_context;
 	};
 
 	struct function_defn : public expression {

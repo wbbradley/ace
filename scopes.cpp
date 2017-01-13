@@ -8,6 +8,8 @@
 #include "llvm_types.h"
 #include "unification.h"
 
+const char *GLOBAL_ID = "🌐 ";
+
 types::type::ref module_scope_impl_t::get_inbound_context() {
 	return inbound_context;
 }
@@ -539,10 +541,6 @@ unchecked_var_t::ref program_scope_t::put_unchecked_variable(
 		atom symbol,
 	   	unchecked_var_t::ref unchecked_variable)
 {
-	if (symbol == "True") {
-		dbg();
-	}
-
 	return put_unchecked_variable_impl(symbol, unchecked_variable,
 			unchecked_vars, unchecked_vars_ordered, get_name(), nullptr);
 }
@@ -574,14 +572,12 @@ ptr<module_scope_t> program_scope_t::new_module_scope(
 {
 	assert(!lookup_module(name));
 
-	// TODO: the inbound/outbound contexts will need to be flipped during
-	// unification...
 	/* inbound context says that anyone that purports to be calling this module
 	 * may call this function */
-	auto inbound_context = type_operator(
-			type_id(make_iid("module")),
-			type_id(make_iid(name)));
+	auto inbound_context = ::type_product(pk_module, {type_id(make_iid(name))});
 
+	/* outbound context says that callsites within this module by default are
+	 * aiming for either program context, or this module's context */
 	auto outbound_context = type_sum({get_program_scope()->get_inbound_context(),
 			inbound_context});
 
@@ -644,7 +640,7 @@ llvm::Module *generic_substitution_scope_t::get_llvm_module() {
 }
 
 program_scope_t::ref program_scope_t::create(atom name, llvm::Module *llvm_module) {
-	auto inbound_context = type_id(make_iid("global"));
+	auto inbound_context = ::type_product(pk_module, {type_id(make_iid(GLOBAL_ID))});
 	auto outbound_context = inbound_context;
 
 	return make_ptr<program_scope_t>(name, llvm_module, inbound_context, outbound_context);

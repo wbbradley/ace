@@ -1,4 +1,5 @@
 module _
+# test: pass
 
 def max(mml [any T], mlast any T?) any T?
 	if ml := mml

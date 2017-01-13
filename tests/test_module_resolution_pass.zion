@@ -1,11 +1,12 @@
 module _
+# test: pass
 
 type Foo has
 	var x int
 
-# error: unable to resolve overloads for str
+[module any]
 def str(f Foo) str
-	return str(f.x)
+	return "print a Foo: " + str(f.x)
 
 def main()
 	print(Foo(3))
