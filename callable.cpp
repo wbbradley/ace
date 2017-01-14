@@ -247,14 +247,14 @@ bound_var_t::ref get_callable(
 		scope_t::ref scope,
 		atom alias,
 		const ptr<const ast::item> &callsite,
+		types::type::ref outbound_context,
 		types::type::ref args)
 {
 	var_t::refs fns;
 	// TODO: potentially allow fake calling contexts by adding syntax to the
 	// callsite
-	types::type::ref type_fn_context = scope->get_outbound_context();
 	auto callable = maybe_get_callable(status, builder, scope, alias, callsite,
-			type_fn_context, args, fns);
+			outbound_context, args, fns);
 
 	if (!!status) {
 		if (callable != nullptr) {
@@ -268,9 +268,8 @@ bound_var_t::ref get_callable(
 				debug_above(11, log(log_info, "%s", scope->str().c_str()));
 			} else {
 				std::stringstream ss;
-				ss << "unable to resolve overloads for " << callsite->str();
-				ss << " from context " << type_fn_context->str();
-				ss << " arguments are " << args->str();
+				ss << "unable to resolve overloads for " << callsite->str() << args->str();
+				ss << " from context " << outbound_context->str();
 				user_error(status, *callsite, "%s", ss.str().c_str());
 
 				if (debug_level() >= 0) {
@@ -299,11 +298,11 @@ bound_var_t::ref call_program_function(
         const bound_var_t::refs var_args)
 {
     types::type::ref args = get_args_type(var_args);
-
+	auto program_scope = scope->get_program_scope();
     /* get or instantiate a function we can call on these arguments */
     bound_var_t::ref function = get_callable(
-			status, builder, scope->get_program_scope(), function_name,
-			callsite, args);
+			status, builder, program_scope, function_name, callsite,
+			program_scope->get_inbound_context(), args);
 
     if (!!status) {
 		return make_call_value(status, builder, callsite, scope, function,

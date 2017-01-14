@@ -100,12 +100,12 @@ ptr<statement> link_statement_parse(parse_state_t &ps) {
 	auto link_token = ps.token;
 	ps.advance();
 
-	if (ps.token.tk == tk_def) {
+	if (ps.token.tk == tk_lsquare || ps.token.tk == tk_def) {
 		auto link_function_statement = create<ast::link_function_statement>(link_token);
 		auto function_decl = function_decl::parse(ps);
 		if (function_decl) {
 			link_function_statement->function_name = function_decl->token;
-			link_function_statement->extern_function.swap(function_decl);
+			link_function_statement->extern_function = function_decl;
 		} else {
 			assert(!ps.status);
 		}
@@ -1398,7 +1398,7 @@ ptr<module> module::parse(parse_state_t &ps, bool global) {
 		}
 		
 		// Get functions or type defs
-		while (true) {
+		while (!!ps.status) {
 			if (ps.token.tk == tk_lsquare || ps.token.tk == tk_def) {
 				auto function = function_defn::parse(ps);
 				if (function) {

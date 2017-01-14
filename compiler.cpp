@@ -166,8 +166,6 @@ ast::module::ref compiler::build_parse(
 						if (!!status) {
 							return module;
 						}
-					} else {
-						user_error(status, location, "failed to set module %s", module_name.c_str());
 					}
 				} else {
 					user_error(status, location, "could not open \"%s\" when trying to link module",
@@ -747,12 +745,11 @@ ptr<const ast::module> compiler::get_module(status_t &status, atom key_alias) {
 			} else {
 				return nullptr;
 			}
-		} else {
-			user_error(status, INTERNAL_LOC(),
-				"can't find module %s in compiler modules", key_alias.c_str());
-			return nullptr;
 		}
 	}
+
+	assert(!status);
+	return nullptr;
 }
 
 module_scope_t::ref compiler::get_module_scope(atom module_key) {

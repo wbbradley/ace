@@ -1,5 +1,6 @@
 module _
 # test: pass
+link module posix
 
 def main()
 	puts("Hello world.".raw)

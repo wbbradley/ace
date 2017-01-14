@@ -584,8 +584,9 @@ bound_var_t::ref ast::dot_expr::resolve_overrides(
 			assert(bound_module->module_scope != nullptr);
 
 			/* let's see if the associated module has a method that can handle this callsite */
-			return get_callable(status, builder, bound_module->module_scope,
-					rhs.text, callsite, get_args_type(args));
+			return get_callable(status, builder, scope, rhs.text, callsite,
+					bound_module->module_scope->get_outbound_context(),
+					get_args_type(args));
 		} else {
 			user_error(status, *lhs, "left of a dot (\".\") must be a struct or module. this is not a struct or module. %s",
 					lhs_var->str().c_str());
@@ -2405,6 +2406,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 						scope,
 						{"int"},
 						shared_from_this(),
+						scope->get_outbound_context(),
 						get_args_type({raw_type}));
 
 				if (!!status) {
@@ -2443,6 +2445,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 						scope,
 						{"str"},
 						shared_from_this(),
+						scope->get_outbound_context(),
 						get_args_type({raw_type}));
 
 				if (!!status) {
@@ -2479,6 +2482,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 						scope,
 						{"float"},
 						shared_from_this(),
+						scope->get_outbound_context(),
 						get_args_type({raw_type}));
 
 				if (!!status) {
@@ -2518,7 +2522,8 @@ bound_var_t::ref ast::reference_expr::resolve_overrides(
 				callsite->str().c_str()));
 
 	/* ok, we know we've got some variable here */
-	auto bound_var = get_callable(status, builder, scope, token.text, shared_from_this(),
+	auto bound_var = get_callable(status, builder, scope, token.text,
+			shared_from_this(), scope->get_outbound_context(),
 			get_args_type(args));
 	if (!!status) {
 		return bound_var;
