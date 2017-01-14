@@ -1,0 +1,31 @@
+module mem
+link module posix
+
+# native
+type Value has
+	var size __uint64__
+	var name __str__
+	var typeinfo TypeInfo
+
+# native
+type TypeInfo has
+	var typeid __typeid__
+	var addref def (v Value) void
+	var release def (v Value) void
+
+[module any]
+def allocate_value(size __int__, name __str__, type_info TypeInfo) Value
+	buf := posix.calloc(size, native 0) as! Value
+	buf.size = size
+	buf.name = posix.strdup(name)
+	buf.type_info = type_info
+	return buf
+
+[module any]
+def addref_value(v Value) void
+	v.typeinfo.addref(v)
+	
+[module any]
+def release_value(v Value) void
+	if v.typeinfo.release(v) == 0
+		free(v.name)

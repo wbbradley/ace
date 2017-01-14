@@ -16,7 +16,7 @@ namespace ast {
 	{
 	}
 
-	type_ref_named::type_ref_named(types::type::ref type) :
+	type_ref_standard::type_ref_standard(types::type::ref type) :
 		type(type)
 	{
 	}
@@ -26,11 +26,6 @@ namespace ast {
 
 	type_ref_tuple::type_ref_tuple(std::vector<type_ref::ref> type_refs) :
 		type_refs(type_refs)
-	{
-	}
-
-	type_ref_generic::type_ref_generic(types::type::ref type) :
-		type(type)
 	{
 	}
 
@@ -86,7 +81,7 @@ namespace ast {
 		return nullptr;
 	}
 
-	types::type::ref type_ref_named::get_type(
+	types::type::ref type_ref_standard::get_type(
 			status_t &status,
 		   	scope_t::ref scope,
 			identifier::ref supertype_id,
@@ -133,14 +128,5 @@ namespace ast {
 
 		assert(!status);
 		return nullptr;
-	}
-
-	types::type::ref type_ref_generic::get_type(
-			status_t &status,
-		   	scope_t::ref scope,
-			identifier::ref supertype_id,
-			identifier::refs type_variables) const
-	{
-		return type;
 	}
 }

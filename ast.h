@@ -212,10 +212,10 @@ namespace ast {
 		refs subtype_refs;
 	};
 
-	struct type_ref_named : public type_ref {
-		static const syntax_kind_t SK = sk_type_ref_named;
+	struct type_ref_standard : public type_ref {
+		static const syntax_kind_t SK = sk_type_ref_standard;
 
-		type_ref_named(types::type::ref type);
+		type_ref_standard(types::type::ref type);
 		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
 		static ref parse(parse_state_t &ps, identifier::set generics);
 		virtual void render(render_state_t &rs) const;
@@ -243,17 +243,6 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<type_ref::ref> type_refs;
-	};
-
-	struct type_ref_generic : public type_ref {
-		static const syntax_kind_t SK = sk_type_ref_generic;
-
-		type_ref_generic(types::type::ref type);
-		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
-		static ref parse(parse_state_t &ps, identifier::set generics);
-		virtual void render(render_state_t &rs) const;
-
-		types::type::ref type;
 	};
 
 	struct dimension : public item {

@@ -5,4 +5,5 @@ link def open(path __str__, oflag __int__) __int__
 link def read(fileds __int__, buf __bytes, nbytes __int__) __int__
 link def malloc(cb __int__) __bytes
 link def calloc(cb __int__, size __int__) __bytes
+link def strdup(s __str__) __str__
 

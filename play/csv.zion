@@ -1,0 +1,10 @@
+module _
+link posix
+
+def main()
+	bufsize := (1024).raw
+	filename := "test.csv"
+	buf := posix.calloc(bufsize, (1).raw)
+	filedes := open(filename.raw, (0).raw)
+	res := read(filedes, buf, bufsize - (1).raw)
+	print(buf as __str__)
