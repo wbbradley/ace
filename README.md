@@ -195,10 +195,35 @@ that we don't yet understand the problem space fully enough.
 
 ### TODO
 
+- Memory management scheme options
+  - ref counting since all data is immutable, there can be no cycles
+  - GC 1 - wrap creation and scope termination with shadow stack operations
+  - Rust style owning/borrowing semantics
+  - C style explicit allocation/free
+- Rework debug logging to filter based on taglevels, rather than just one global
+  level (to enable debugging particular parts more specifically)
+- Include runtime behavior in test suite (not just compilation errors)
 - Ternary operator
-- and/or (build with ternary operator)
+  - Logical and/or (build with ternary operator)
 - fully implement binary as! -> T, as -> maybe{T}
 - figure out how to make tuples' runtime types typecheck consistently against
   rtti for other data ctor types. probably have to put up some guardrails somehow
 - Use DIBuilder to add line-level debugging information
+- Builtin persistent data structures
+  - vector
+  - hash map
+  - binary tree
+  - avl tree
+- Plumb "desired type" through resolve_instantiation in order to influence
+  literals into being native by default, unless boxed by a "desired type"
+  - This quickly leads to complexity around the following scenario:
+	  def foo(x int)
+		  pass
+	  def foo(x __int__)
+		  pass
+	  foo(4)
+    where the '4' literal should get the type `int lazy-or __int__`, which then
+	allows it to resolve against both versions of `foo`. This would be an
+	ambiguity error. the `lazy-or` type is a lazily bound type that could cause
+	a bound_var to be automatically boxed at a callsite or assignment.
 
