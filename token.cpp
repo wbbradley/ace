@@ -89,6 +89,7 @@ const char *tkstr(token_kind tk) {
 	tk_case(rparen);
 	tk_case(rsquare);
 	tk_case(semicolon);
+	tk_case(sizeof);
 	tk_case(space);
 	tk_case(string);
 	tk_case(times);
@@ -128,6 +129,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_rsquare:
 	case tk_space:
 	case tk_get_typeid:
+	case tk_sizeof:
 	case tk_maybe:
 	case tk_bang:
 		break;
@@ -271,6 +273,9 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 		break;
 	case tk_tag:
 		printf("tag");
+		break;
+	case tk_sizeof:
+		printf("__sizeof__");
 		break;
 	case tk_get_typeid:
 		printf("__get_typeid__");

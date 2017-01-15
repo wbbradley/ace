@@ -3,7 +3,7 @@ link module posix
 
 # native
 type Value has
-	var size __uint64__
+	var size __int64__
 	var name __str__
 	var typeinfo TypeInfo
 
@@ -15,7 +15,7 @@ type TypeInfo has
 
 [module any]
 def allocate_value(size __int__, name __str__, type_info TypeInfo) Value
-	buf := posix.calloc(size, native 0) as! Value
+	buf := posix.calloc(__sizeof__(Value) + size, (1).raw) as! Value
 	buf.size = size
 	buf.name = posix.strdup(name)
 	buf.type_info = type_info

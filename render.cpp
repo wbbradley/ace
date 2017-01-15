@@ -145,6 +145,12 @@ namespace ast {
 		rs.ss << ")";
 	}
 
+	void sizeof_expr::render(render_state_t &rs) const {
+		rs.ss << C_TYPE << tkstr(tk_sizeof) << C_RESET << "(";
+		rs.ss << type->str();
+		rs.ss << ")";
+	}
+
 	void callsite_expr::render(render_state_t &rs) const {
 		function_expr->render(rs);
 		params->render(rs);

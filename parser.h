@@ -27,11 +27,10 @@ ptr<T> parse_text(const std::string &text, std::string filename = "repl.zion") {
 types::type::ref parse_maybe_type(parse_state_t &ps,
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,
-	   	identifier::set generics, int depth=0);
+	   	identifier::set generics);
 
 types::type::ref _parse_type(
 		parse_state_t &ps,
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,
-	   	identifier::set generics,
-	   	int depth);
+	   	identifier::set generics);

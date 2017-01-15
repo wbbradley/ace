@@ -1122,6 +1122,20 @@ bound_var_t::ref ast::typeid_expr::resolve_instantiation(
 	return nullptr;
 }
 
+bound_var_t::ref ast::sizeof_expr::resolve_instantiation(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	scope_t::ref scope,
+	   	local_scope_t::ref *new_scope,
+	   	bool *returns) const
+{
+	// TODO: calculate the size of the object being referenced assume native
+	// types...
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref ast::function_defn::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,

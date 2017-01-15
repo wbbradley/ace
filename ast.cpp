@@ -65,6 +65,9 @@ namespace ast {
 	typeid_expr::typeid_expr(ptr<expression> expr) : expr(expr) {
 	}
 
+	sizeof_expr::sizeof_expr(types::type::ref type) : type(type) {
+	}
+
 	type_decl::type_decl(identifier::refs type_variables) :
 		type_variables(type_variables)
 	{

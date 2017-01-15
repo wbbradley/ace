@@ -205,6 +205,23 @@ ptr<typeid_expr> typeid_expr::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
+ptr<sizeof_expr> sizeof_expr::parse(parse_state_t &ps) {
+	auto token = ps.token;
+	chomp_token(tk_sizeof);
+	chomp_token(tk_lparen);
+
+	auto type = parse_maybe_type(ps, {}, {}, {});
+	if (!!ps.status) {
+		assert(type != nullptr);
+		auto expr = ast::create<sizeof_expr>(token, type);
+		chomp_token(tk_rparen);
+		return expr;
+	}
+
+	assert(!ps.status);
+	return nullptr;
+}
+
 ptr<expression> parse_bang_wrap(parse_state_t &ps, ptr<expression> expr) {
     if (ps.token.tk == tk_bang) {
         auto bang = ast::create<ast::bang_expr>(ps.token);
@@ -241,6 +258,8 @@ ptr<expression> base_expr::parse(parse_state_t &ps) {
 		return reference_expr::parse(ps);
 	} else if (ps.token.tk == tk_get_typeid) {
 		return typeid_expr::parse(ps);
+	} else if (ps.token.tk == tk_sizeof) {
+		return sizeof_expr::parse(ps);
 	} else {
 		return literal_expr::parse(ps);
 	}
@@ -869,7 +888,7 @@ ptr<function_decl> function_decl::parse(parse_state_t &ps) {
 		ps.advance();
 		if (ps.token.tk == tk_module) {
 			ps.advance();
-			inbound_context = _parse_type(ps, {}, {}, {}, 0);
+			inbound_context = _parse_type(ps, {}, {}, {});
 			if (!!ps.status) {
 				chomp_token(tk_rsquare);
 
@@ -1008,18 +1027,14 @@ types::type::refs parse_type_operands(
 		parse_state_t &ps,
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,
-	   	identifier::set generics,
-	   	int depth)
+	   	identifier::set generics)
 {
 	types::type::refs arguments;
 
 	/* loop over the type arguments */
 	while (!!ps.status && (ps.token.tk == tk_identifier || ps.token.tk == tk_any)) {
 		/* we got an argument, recursively parse */
-		if (depth > 1) {
-			generics = {};
-		}
-		auto next_type = parse_maybe_type(ps, supertype_id, type_variables, generics, depth);
+		auto next_type = parse_maybe_type(ps, supertype_id, type_variables, generics);
 		if (!!ps.status) {
 			arguments.push_back(next_type);
 
@@ -1044,14 +1059,71 @@ types::type::refs parse_type_operands(
 	return arguments;
 }
 
+types::type::ref _parse_function_type(parse_state_t &ps, identifier::set generics) {
+	chomp_token(tk_def);
+	chomp_token(tk_lparen);
+	types::type::refs param_types;
+	types::type::ref return_type;
+	atom::map<int> name_index;
+	int index = 0;
+
+	while (!!ps.status) {
+		if (ps.token.tk == tk_identifier) {
+			auto var_name = ps.token;
+			ps.advance();
+			types::type::ref type = parse_maybe_type(ps, {}, {}, generics);
+			if (!!ps.status) {
+				param_types.push_back(type);
+				if (name_index.find(var_name.text) != name_index.end()) {
+					ps.error("duplicated parameter name: %s",
+							var_name.text.c_str());
+				} else {
+					name_index[var_name.text] = index;
+					++index;
+				}
+				if (ps.token.tk == tk_comma) {
+					/* advance past a comma */
+					ps.advance();
+				}
+			}
+		} else if (ps.token.tk == tk_rparen) {
+			ps.advance();
+			break;
+		} else {
+			ps.error("expected a parameter name");
+			return nullptr;
+		}
+	}
+
+	if (!!ps.status) {
+		/* now let's parse the return type */
+		if (!ps.line_broke()) {
+			return_type = parse_maybe_type(ps, {}, {}, generics);
+		} else {
+			return_type = type_void();
+		}
+
+		if (!!ps.status) {
+			return type_function(
+					type_variable(INTERNAL_LOC()),
+					get_args_type(param_types),
+					return_type);
+		}
+	}
+
+	assert(!ps.status);
+	return nullptr;
+}
+
 types::type::ref _parse_single_type(
 		parse_state_t &ps,
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,
-	   	identifier::set generics,
-	   	int depth)
+	   	identifier::set generics)
 {
 	switch (ps.token.tk) {
+	case tk_def:
+		return _parse_function_type(ps, generics);
 	case tk_any:
 		{
 			/* parse generic refs */
@@ -1087,7 +1159,8 @@ types::type::ref _parse_single_type(
 			types::type::refs arguments;
 			if (ps.token.tk == tk_lcurly) {
 				ps.advance();
-				arguments = parse_type_operands(ps, supertype_id, type_variables, generics, depth + 1);
+				arguments = parse_type_operands(ps, supertype_id,
+						type_variables, generics);
 			}
 
 			for (auto type_arg : arguments) {
@@ -1101,7 +1174,7 @@ types::type::ref _parse_single_type(
 		{
 			ps.advance();
 			auto list_element_type = parse_maybe_type(ps, supertype_id,
-					type_variables, generics, depth);
+					type_variables, generics);
 
 			if (ps.token.tk != tk_rsquare) {
 				ps.error("list type reference must end with a ']', found %s",
@@ -1116,7 +1189,7 @@ types::type::ref _parse_single_type(
 	case tk_lcurly:
 		{
 			ps.advance();
-			types::type::refs arguments = parse_type_operands(ps, supertype_id, type_variables, generics, depth);
+			types::type::refs arguments = parse_type_operands(ps, supertype_id, type_variables, generics);
 			// TODO: allow named members
 			return ::type_product(pk_tuple, arguments);
 		}
@@ -1134,12 +1207,11 @@ types::type::ref _parse_type(
 		parse_state_t &ps,
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,
-	   	identifier::set generics,
-	   	int depth)
+	   	identifier::set generics)
 {
 	types::type::refs options;
 	while (!!ps.status) {
-		auto type = _parse_single_type(ps, supertype_id, type_variables, generics, depth);
+		auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
 
 		if (!!ps.status) {
 			options.push_back(type);
@@ -1175,10 +1247,9 @@ types::type::ref _parse_type(
 types::type::ref parse_maybe_type(parse_state_t &ps,
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,
-	   	identifier::set generics,
-	   	int depth)
+	   	identifier::set generics)
 {
-	types::type::ref type = _parse_type(ps, supertype_id, type_variables, generics, depth);
+	types::type::ref type = _parse_type(ps, supertype_id, type_variables, generics);
 	if (!!ps.status) {
 		if (ps.token.tk == tk_maybe) {
 			/* no named maybe generic */
@@ -1266,7 +1337,7 @@ type_sum::ref type_sum::parse(
 	}
 
 	auto type = _parse_type(ps, make_code_id(type_decl->token),
-			type_variables_list, type_variables, 0);
+			type_variables_list, type_variables);
 
 	if (!!ps.status) {
 		if (expect_outdent) {

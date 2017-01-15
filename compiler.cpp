@@ -245,6 +245,10 @@ void rt_bind_var_from_llir(
 }
 
 const char *INT_TYPE = "__int__";
+const char *INT64_TYPE = "__int64__";
+const char *INT32_TYPE = "__int32__";
+const char *INT16_TYPE = "__int16__";
+const char *INT8_TYPE = "__int8__";
 const char *BOOL_TYPE = "__bool__";
 const char *FLOAT_TYPE = "__float__";
 const char *STR_TYPE = "__str__";
@@ -277,6 +281,26 @@ void add_global_types(
 					type_id(make_iid(INT_TYPE)),
 				   	INTERNAL_LOC(),
 				   	builder.getInt64Ty())},
+		{{INT64_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(INT64_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getInt64Ty())},
+		{{INT32_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(INT32_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getInt32Ty())},
+		{{INT16_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(INT16_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getInt16Ty())},
+		{{INT8_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(INT8_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getInt8Ty())},
 		{{FLOAT_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(FLOAT_TYPE)),

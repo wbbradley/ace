@@ -43,6 +43,7 @@ enum token_kind
 	tk_type, /* type */
 	tk_tag, /* tag */
 	tk_get_typeid, /* __get_typeid__ */
+	tk_sizeof, /* sizeof */
 	tk_is, /* is */
 	tk_as, /* as */
 	tk_has, /* has */

@@ -146,6 +146,18 @@ namespace ast {
 		ptr<expression> expr;
 	};
 
+	struct sizeof_expr : public expression {
+		typedef ptr<const typeid_expr> ref;
+
+		static const syntax_kind_t SK = sk_sizeof;
+		sizeof_expr(types::type::ref type);
+		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual void render(render_state_t &rs) const;
+		static ptr<sizeof_expr> parse(parse_state_t &ps);
+
+		types::type::ref type;
+	};
+
 	struct callsite_expr : public expression {
 		typedef ptr<const callsite_expr> ref;
 
