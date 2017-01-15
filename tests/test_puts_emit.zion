@@ -3,5 +3,5 @@ module _
 link module posix
 
 def main()
-	puts("Hello world.".raw)
+	posix.puts("Hello world.".raw)
 	

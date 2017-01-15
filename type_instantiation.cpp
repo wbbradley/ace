@@ -118,14 +118,8 @@ void ast::type_product::register_type(
 	types::type::refs type_dimensions;
 	int index = 0;
 	for (auto dimension : dimensions) {
-		auto dimension_type = dimension->type_ref->get_type(status, scope, supertype_id,
-				type_variables);
-		if (!!status) {
-			type_dimensions.push_back(dimension_type);
-			member_index[dimension->name] = index++;
-		} else {
-			break;
-		}
+		type_dimensions.push_back(dimension->type);
+		member_index[dimension->name] = index++;
 	}
 
 	if (!!status) {
@@ -213,7 +207,7 @@ void create_supertype_relationship(
 				/* this variable is not referenced by the current data ctor
 				 * (the subtype), therefore it has no opinions about its role
 				 * in the supertype */
-				supertype_expansion_list.push_back(type_variable());
+				supertype_expansion_list.push_back(type_variable(type_var->get_location()));
 			}
 		}
 
@@ -244,10 +238,7 @@ void ast::type_sum::register_type(
 				token.text.c_str(),
 				join(type_variables, ", ").c_str()));
 
-	auto type_sum = type_ref->get_type(status, scope, supertype_id, type_variables);
-	if (!!status) {
-		scope->put_typename(status, supertype_id->get_name(), type_sum);
-	}
+	scope->put_typename(status, supertype_id->get_name(), type);
 }
 
 types::type::ref instantiate_data_ctor_type(

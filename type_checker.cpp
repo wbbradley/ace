@@ -37,19 +37,18 @@ bound_type_t::ref get_fully_bound_param_info(
 	/* get the name of this parameter */
 	var_name = obj.token.text;
 
-	assert(obj.type_ref != nullptr);
+	assert(obj.type != nullptr);
 
 	auto type_id_name = make_type_id_code_id(
 			obj.token.location,
 			var_name);
 
 	/* the user specified a type */
-	auto type = obj.type_ref->get_type(status, scope, type_id_name, {});
 	if (!!status) {
 		debug_above(6, log(log_info, "upserting type for param %s at %s",
-					type->str().c_str(),
-					obj.type_ref->get_location().str().c_str()));
-		return upsert_bound_type(status, builder, scope, type);
+					obj.type->str().c_str(),
+					obj.type->get_location().str().c_str()));
+		return upsert_bound_type(status, builder, scope, obj.type);
 	}
 
 	assert(!status);
@@ -93,7 +92,7 @@ bound_var_t::ref type_check_bound_var_decl(
 	/* 'condition_value' refers to whether this was an unboxed maybe */
 	bound_var_t::ref condition_value;
 
-	assert(obj.type_ref != nullptr);
+	assert(obj.type != nullptr);
 
 	if (obj.initializer) {
 		/* we have an initializer */
@@ -103,17 +102,8 @@ bound_var_t::ref type_check_bound_var_decl(
 
 	if (!!status) {
 		/* we have a declared type on the left-hand side */
-		if (obj.type_ref != nullptr) {
-			auto type_id_code_id = make_type_id_code_id(obj.token.location,
-					symbol);
-			declared_type = obj.type_ref->get_type(status, scope, type_id_code_id, {});
-			if (!!status) {
-				declared_type = declared_type->rebind(scope->get_type_variable_bindings());
-			}
-		}
-	}
+		declared_type = obj.type->rebind(scope->get_type_variable_bindings());
 
-	if (!!status) {
 		types::type::ref lhs_type = declared_type;
 		if (init_var != nullptr) {
 			/* we have an initializer */
@@ -282,15 +272,12 @@ status_t get_fully_bound_param_list_decl_variables(
 bound_type_t::ref get_return_type_from_return_type_expr(
         status_t &status,
         llvm::IRBuilder<> &builder,
-        ast::type_ref::ref type_ref,
+		types::type::ref type,
         scope_t::ref scope)
 {
     /* lookup the alias, default to void */
-    if (type_ref != nullptr) {
-		auto return_type = type_ref->get_type(status, scope, nullptr, {});
-		if (!!status) {
-			return upsert_bound_type(status, builder, scope, return_type);
-		}
+    if (type != nullptr) {
+		return upsert_bound_type(status, builder, scope, type);
     } else {
 		/* user specified no return type, default to void */
 		return scope->get_program_scope()->get_bound_type({"void"});
@@ -331,8 +318,8 @@ void type_check_fully_bound_function_decl(
 				*obj.param_list_decl, scope, params);
 
 		if (!!status) {
-			return_value = get_return_type_from_return_type_expr(status, builder,
-					obj.return_type_ref, scope);
+			return_value = get_return_type_from_return_type_expr(status,
+					builder, obj.return_type, scope);
 
 			/* we got the params, and the return value */
 			return;
@@ -358,15 +345,14 @@ bool is_function_defn_generic(
 		/* check the parameters' genericity */
 		auto &params = obj.decl->param_list_decl->params;
 		for (auto &param : params) {
-			if (!param->type_ref) {
+			if (!param->type) {
 				debug_above(3, log(log_info, "found a missing parameter type on %s, defaulting it to an unnamed generic",
 							param->str().c_str()));
 				return true;
 			}
-			types::type::ref type = param->type_ref->get_type(status, scope, nullptr, {});
 
 			if (!!status) {
-				if (type_is_unbound(type, scope->get_type_variable_bindings())) {
+				if (type_is_unbound(param->type, scope->get_type_variable_bindings())) {
 					debug_above(3, log(log_info, "found a generic parameter type on %s",
 								param->str().c_str()));
 					return true;
@@ -382,11 +368,9 @@ bool is_function_defn_generic(
 	}
 
 	if (!!status) {
-		if (obj.decl->return_type_ref != nullptr) {
+		if (obj.decl->return_type != nullptr) {
 			/* check the return type's genericity */
-			types::type::ref type = obj.decl->return_type_ref->get_type(status,
-					scope, nullptr, {});
-			return type->ftv_count() > 0;
+			return obj.decl->return_type->ftv_count() > 0;
 		} else {
 			/* default to void, which is fully bound */
 			return false;
@@ -584,7 +568,7 @@ bound_var_t::ref ast::dot_expr::resolve_overrides(
 			assert(bound_module->module_scope != nullptr);
 
 			/* let's see if the associated module has a method that can handle this callsite */
-			return get_callable(status, builder, scope, rhs.text, callsite,
+			return get_callable(status, builder, bound_module->module_scope, rhs.text, callsite,
 					bound_module->module_scope->get_outbound_context(),
 					get_args_type(args));
 		} else {
@@ -896,8 +880,9 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 		auto program_scope = scope->get_program_scope();
 
 		std::pair<bound_var_t::ref, bound_type_t::ref> tuple = instantiate_tuple_ctor(
-				status, builder, scope, type_variable(), args, make_iid(tuple_type->repr()),
-				shared_from_this());
+				status, builder, scope,
+				scope->get_inbound_context(), args,
+				make_iid(tuple_type->repr()), shared_from_this());
 
 		if (!!status) {
 			assert(get_function_return_type(status,
@@ -1307,9 +1292,9 @@ status_t type_check_module_links(
 	indent_logger indent(3, string_format("resolving links in " c_module("%s"),
 				obj.module_key.c_str()));
 
-    status_t status;
+	status_t status;
 
-    /* get module level scope variable */
+	/* get module level scope variable */
 	module_scope_t::ref scope = compiler.get_module_scope(obj.module_key);
 
 	for (auto &link : obj.linked_modules) {
@@ -1329,9 +1314,9 @@ status_t type_check_module_links(
 				}
 			}
 		}
-    }
+	}
 
-    return status;
+	return status;
 }
 
 status_t type_check_module_types(
@@ -1449,31 +1434,31 @@ status_t type_check_program(
         const ast::program &obj,
         compiler &compiler)
 {
-    indent_logger indent(2, string_format(
+	indent_logger indent(2, string_format(
 				"type-checking program %s",
 				compiler.get_program_name().c_str()));
 
-    /* we track type-checking success or failure in this status value object */
-    status_t status;
+	/* we track type-checking success or failure in this status value object */
+	status_t status;
 
-    ptr<program_scope_t> program_scope = compiler.get_program_scope();
-    debug_above(11, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
+	ptr<program_scope_t> program_scope = compiler.get_program_scope();
+	debug_above(11, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
 
-    /* pass to resolve all module-level types */
-    for (auto &module : obj.modules) {
+	/* pass to resolve all module-level types */
+	for (auto &module : obj.modules) {
 		if (!status) {
 			break;
 		}
 		status |= type_check_module_types(compiler, builder, *module, program_scope);
-    }
+	}
 
-    /* pass to resolve all module-level links */
-    for (auto &module : obj.modules) {
+	/* pass to resolve all module-level links */
+	for (auto &module : obj.modules) {
 		if (!status) {
 			break;
 		}
-        status |= type_check_module_links(compiler, builder, *module, program_scope);
-    }
+		status |= type_check_module_links(compiler, builder, *module, program_scope);
+	}
 
 	if (!status) {
 		return status;
@@ -2544,7 +2529,6 @@ bound_var_t::ref ast::cast_expr::resolve_instantiation(
 {
 	bound_var_t::ref bound_var = lhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
 	if (!!status) {
-		types::type::ref type_cast = type_ref_cast->get_type(status, scope, nullptr, {});
 
 		if (!!status) {
 			bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_cast);

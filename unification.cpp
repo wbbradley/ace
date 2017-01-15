@@ -226,9 +226,11 @@ unification_t unify(
 			for (auto option : pts_a->options) {
 				auto unification = unify(option, b, env, bindings, depth + 1);
 				if (unification.result) {
-					debug_above(2, log(log_info, "replacing bindings %s with %s",
-								str(bindings).c_str(),
-								str(unification.bindings).c_str()));
+					if (unification.bindings.size() > bindings.size()) {
+						debug_above(2, log(log_info, "replacing bindings %s with %s",
+									str(bindings).c_str(),
+									str(unification.bindings).c_str()));
+					}
 					bindings = unification.bindings;
 					return {true, option->str(bindings), bindings};
 				} else {

@@ -65,24 +65,18 @@ namespace ast {
 	typeid_expr::typeid_expr(ptr<expression> expr) : expr(expr) {
 	}
 
-	type_alias::type_alias(type_ref::ref type_ref, identifier::set type_variables) :
-		type_variables(type_variables),
-		type_ref(type_ref)
-	{
-	}
-
 	type_decl::type_decl(identifier::refs type_variables) :
 		type_variables(type_variables)
 	{
 	}
 
-	type_sum::type_sum(type_ref::ref type_ref) :
-		type_ref(type_ref)
+	type_sum::type_sum(types::type::ref type) :
+		type(type)
 	{
 	}
 
-	dimension::dimension(atom name, type_ref::ref type_ref) :
-		name(name), type_ref(type_ref)
+	dimension::dimension(atom name, types::type::ref type) :
+		name(name), type(type)
 	{
 	}
 

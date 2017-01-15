@@ -211,7 +211,9 @@ void rt_bind_var_from_llir(
 		user_error(status, location{llvm_module.getName().str(), 0, 0},
 				"unable to find function " c_var("%s"), name_in_llir.c_str());
 	} else {
-		types::type::ref type = get_function_type(type_variable(), args, return_type);
+		types::type::ref type = get_function_type(
+				type_variable(location{llvm_module.getName().str(), 0, 0}),
+			   	args, return_type);
 
 		if (!!status) {
 			/* see if this bound type already exists */

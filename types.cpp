@@ -89,7 +89,7 @@ namespace types {
 	   	return id->get_name() == BUILTIN_NIL_TYPE;
    	}
 
-	type_variable::type_variable(identifier::ref id) : id(id) {
+	type_variable::type_variable(identifier::ref id) : id(id), location(id->get_location()) {
 	}
 
     identifier::ref gensym() {
@@ -97,7 +97,7 @@ namespace types {
         return make_iid({string_format("__%d", next_generic++)});
     }
 
-	type_variable::type_variable() : id(gensym()) {
+	type_variable::type_variable(struct location location) : id(gensym()), location(location) {
 	}
 
 	std::ostream &type_variable::emit(std::ostream &os, const map &bindings) const {
@@ -132,7 +132,7 @@ namespace types {
 	}
 
 	location type_variable::get_location() const {
-		return id->get_location();
+		return location;
 	}
 
 	identifier::ref type_variable::get_id() const {
@@ -457,8 +457,8 @@ types::type::ref type_variable(identifier::ref id) {
 	return make_ptr<types::type_variable>(id);
 }
 
-types::type::ref type_variable() {
-	return make_ptr<types::type_variable>();
+types::type::ref type_variable(struct location location) {
+	return make_ptr<types::type_variable>(location);
 }
 
 types::type::ref type_unreachable() {
@@ -584,7 +584,7 @@ types::type::ref parse_type_expr(std::string input, identifier::set generics) {
 	std::istringstream iss(input);
 	zion_lexer_t lexer("", iss);
 	parse_state_t ps(status, "", lexer, nullptr);
-	types::type::ref type = parse_maybe_type(ps, generics);
+	types::type::ref type = parse_maybe_type(ps, {}, {}, generics);
 	if (!!status) {
 		return type;
 	} else {

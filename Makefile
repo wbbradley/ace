@@ -72,7 +72,6 @@ ZION_LLVM_SOURCES = \
 				types.cpp \
 				type_checker.cpp \
 				type_instantiation.cpp \
-				type_refs.cpp \
 				var.cpp \
 				ast.cpp \
 				compiler.cpp \

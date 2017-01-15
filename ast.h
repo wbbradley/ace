@@ -180,15 +180,6 @@ namespace ast {
 		identifier::refs type_variables;
 	};
 
-	struct type_ref : public item {
-		typedef ptr<const type_ref> ref;
-		typedef std::vector<ptr<const type_ref>> refs;
-		static ref parse(parse_state_t &ps, identifier::set generics);
-		virtual ~type_ref() throw() {}
-
-		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const = 0;
-	};
-
 	struct cast_expr : public expression {
 		typedef ptr<const cast_expr> ref;
 
@@ -197,65 +188,21 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> lhs;
-		type_ref::ref type_ref_cast;
+		types::type::ref type_cast;
 		bool force_cast = false;
-	};
-
-	struct type_ref_sum : public type_ref {
-		static const syntax_kind_t SK = sk_type_ref_sum;
-
-		virtual ~type_ref_sum() throw() {}
-
-		type_ref_sum(type_ref::refs subtype_refs);
-		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
-		virtual void render(render_state_t &rs) const;
-		refs subtype_refs;
-	};
-
-	struct type_ref_standard : public type_ref {
-		static const syntax_kind_t SK = sk_type_ref_standard;
-
-		type_ref_standard(types::type::ref type);
-		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
-		static ref parse(parse_state_t &ps, identifier::set generics);
-		virtual void render(render_state_t &rs) const;
-
-		types::type::ref type;
-	};
-
-	struct type_ref_list : public type_ref {
-		static const syntax_kind_t SK = sk_type_ref_list;
-
-		type_ref_list(type_ref::ref type_ref);
-		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
-		static ref parse(parse_state_t &ps, identifier::set generics);
-		virtual void render(render_state_t &rs) const;
-
-		type_ref::ref type_ref;
-	};
-
-	struct type_ref_tuple : public type_ref {
-		static const syntax_kind_t SK = sk_type_ref_tuple;
-
-		type_ref_tuple(std::vector<type_ref::ref> type_ref);
-		virtual types::type::ref get_type(status_t &status, scope_t::ref scope, identifier::ref supertype_id, identifier::refs type_variables) const;
-		static ref parse(parse_state_t &ps, identifier::set generics);
-		virtual void render(render_state_t &rs) const;
-
-		std::vector<type_ref::ref> type_refs;
 	};
 
 	struct dimension : public item {
 		typedef ptr<const dimension> ref;
 		static const syntax_kind_t SK = sk_dimension;
-		dimension(atom name, type_ref::ref type_ref);
+		dimension(atom name, types::type::ref type);
 		virtual ~dimension() throw() {}
 		virtual void render(render_state_t &rs) const;
 
 		static ref parse(parse_state_t &ps, identifier::set generics);
 
 		atom name;
-		type_ref::ref type_ref;
+		types::type::ref type;
 	};
 
 	struct type_algebra : public item {
@@ -279,7 +226,7 @@ namespace ast {
 	struct type_sum : public type_algebra {
 		typedef ptr<const type_sum> ref;
 
-		type_sum(type_ref::ref type_ref);
+		type_sum(types::type::ref type);
 		virtual ~type_sum() throw() {}
 		static const syntax_kind_t SK = sk_type_sum;
 		static ref parse(parse_state_t &ps, type_decl::ref type_decl, identifier::refs type_variables);
@@ -291,7 +238,7 @@ namespace ast {
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
-		type_ref::ref type_ref;
+		types::type::ref type;
 	};
 
 	struct type_product : public type_algebra {
@@ -316,7 +263,6 @@ namespace ast {
 	struct type_alias : public type_algebra {
 		typedef ptr<const type_alias> ref;
 
-		type_alias(type_ref::ref type_ref, identifier::set type_variables);
 		virtual ~type_alias() throw() {}
 		static const syntax_kind_t SK = sk_type_alias;
 		static ref parse(parse_state_t &ps, type_decl::ref type_decl, identifier::refs type_variables);
@@ -328,8 +274,8 @@ namespace ast {
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
+		types::type::ref type;
 		identifier::set type_variables;
-		type_ref::ref type_ref;
 	};
 
 	struct type_def : public statement {
@@ -366,7 +312,7 @@ namespace ast {
 
 		/* the inherited ast::item::token member contains the actual identifier
 		 * name */
-		type_ref::ref type_ref;
+		types::type::ref type;
 		ptr<expression> initializer;
 	};
 
@@ -451,7 +397,7 @@ namespace ast {
 
 		virtual void render(render_state_t &rs) const;
 
-		type_ref::ref return_type_ref;
+		types::type::ref return_type;
 		ptr<param_list_decl> param_list_decl;
 		types::type::ref inbound_context;
 	};
@@ -523,7 +469,7 @@ namespace ast {
 				ptr<const block> else_block) const;
 		virtual void render(render_state_t &rs) const;
 		
-		ptr<const type_ref> type_ref;
+		types::type::ref type;
 		ptr<block> block;
 	};
 

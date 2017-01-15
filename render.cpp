@@ -58,8 +58,7 @@ namespace ast {
 	}
 
 	void type_alias::render(render_state_t &rs) const {
-		rs.ss << tkstr(tk_matches) << " ";
-		type_ref->render(rs);
+		rs.ss << tkstr(tk_matches) << " " << type->str();
 	}
 
 	void prefix_expr::render(render_state_t &rs) const {
@@ -104,7 +103,7 @@ namespace ast {
 		newline(rs);
 		indent(rs);
 		rs.ss << C_TYPE << tkstr(tk_is) << C_RESET << " ";
-		type_ref->render(rs);
+		rs.ss << type->str();
 		newline(rs);
 		indented(rs);
 		block->render(rs);
@@ -164,46 +163,6 @@ namespace ast {
 		block->render(rs);
 	}
 
-	void type_ref_sum::render(render_state_t &rs) const {
-		if (subtype_refs.size() <= 1) {
-			rs.ss << " ";
-			subtype_refs[0]->render(rs);
-		} else {
-			newline(rs);
-			indented(rs);
-			for (int i = 0; i < subtype_refs.size(); ++i) {
-				if (i > 0) {
-					rs.ss << " " << tkstr(tk_or);
-					newline(rs);
-				}
-
-				indent(rs);
-				subtype_refs[i]->render(rs);
-			}
-		}
-	}
-
-	void type_ref_named::render(render_state_t &rs) const {
-		rs.ss << type->str();
-	}
-
-	void type_ref_list::render(render_state_t &rs) const {
-		rs.ss << '[';
-		type_ref->render(rs);
-	   	rs.ss << ']';
-	}
-
-	void type_ref_tuple::render(render_state_t &rs) const {
-		rs.ss << '(';
-		for (int i = 0; i < type_refs.size(); ++i) {
-			if (i > 0) {
-				rs.ss << ", ";
-			}
-			type_refs[i]->render(rs);
-		}
-		rs.ss << ')';
-	}
-
 	void mod_assignment::render(render_state_t &rs) const {
 		not_done();
 	}
@@ -217,11 +176,6 @@ namespace ast {
 			rs.ss << C_TYPE << tkstr(tk_var) << C_RESET << " ";
 			rs.ss << C_VAR << name << C_RESET << " ";
 		}
-
-		type_ref->render(rs);
-	}
-
-	void type_ref_generic::render(render_state_t &rs) const {
 		rs.ss << type->str();
 	}
 
@@ -374,8 +328,7 @@ namespace ast {
 
 	void type_sum::render(render_state_t &rs) const {
 		rs.ss << tkstr(tk_is);
-		rs.ss << " ";
-		type_ref->render(rs);
+		rs.ss << " " << type->str();
 	}
 
 	void var_decl::render(render_state_t &rs) const {
@@ -385,9 +338,8 @@ namespace ast {
 
 		rs.ss << C_VAR << token.text << C_RESET;
 
-		if (type_ref != nullptr) {
-			rs.ss << " ";
-			type_ref->render(rs);
+		if (type != nullptr) {
+			rs.ss << " " << type->str();
 		}
 
 		if (initializer != nullptr) {
@@ -456,11 +408,15 @@ namespace ast {
 	}
 
 	void function_decl::render(render_state_t &rs) const {
+		if (inbound_context != nullptr) {
+			rs.ss << '[' << inbound_context->str() << ']';
+			newline(rs);
+			indent(rs);
+		}
 		rs.ss << C_TYPE << tkstr(tk_def) << C_RESET << " " << token.text;
 		param_list_decl->render(rs);
-		if (return_type_ref != nullptr) {
-			rs.ss << " ";
-			return_type_ref->render(rs);
+		if (return_type != nullptr) {
+			rs.ss << " " << return_type->str();
 		}
 	}
 
@@ -540,6 +496,6 @@ namespace ast {
 		} else {
 			rs.ss << " ";
 		}
-		type_ref_cast->render(rs);
+		rs.ss << type_cast->str();
 	}
 }

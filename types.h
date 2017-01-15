@@ -84,14 +84,15 @@ namespace types {
 
 	struct type_variable : public type {
 		type_variable(identifier::ref id);
-		type_variable(/* auto-generated fresh type variables */);
+		type_variable(struct location location /* auto-generated fresh type variables */);
 		identifier::ref id;
+		struct location location;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual atom::set get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
-		virtual location get_location() const;
+		virtual struct location get_location() const;
 		virtual identifier::ref get_id() const;
 	};
 
@@ -188,7 +189,7 @@ types::type::ref type_void();
 types::type::ref type_unreachable();
 types::type::ref type_id(identifier::ref var);
 types::type::ref type_variable(identifier::ref name);
-types::type::ref type_variable();
+types::type::ref type_variable(struct location location);
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand);
 types::type::ref type_product(product_kind_t pk, types::type::refs dimensions, const types::name_index &name_index={});
 types::type::ref type_function(types::type::ref inbound_context, types::type::ref args, types::type::ref return_type);

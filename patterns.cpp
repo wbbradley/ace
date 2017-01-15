@@ -147,15 +147,12 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 	/* if scope allows us to set up new variables inside if conditions */
 	local_scope_t::ref if_scope;
 
-	assert(type_ref != nullptr);
-
 	auto type_id_name = make_type_id_code_id(
 			value_name->get_location(),
 			value_name->get_name());
 
 	assert(token.text == "is");
-	auto type_to_match = type_ref->get_type(
-			status, scope, type_id_name, {})->rebind(
+	auto type_to_match = this->type->rebind(
 				scope->get_type_variable_bindings());
 
 	if (!!status) {

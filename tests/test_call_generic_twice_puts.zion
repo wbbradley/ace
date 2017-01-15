@@ -2,8 +2,8 @@ module _
 # test: pass
 
 def main() int
-	puts(generic("hey"))
-	puts(generic(10 + 3.4))
+	posix.puts(generic("hey"))
+	posix.puts(generic(10 + 3.4))
 	return 1
 
 def generic(value any) __str__

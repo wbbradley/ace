@@ -35,55 +35,37 @@ types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 			/* get the parameters */
 			auto &params = decl->param_list_decl->params;
 			for (auto &param : params) {
-				if (!param->type_ref) {
-					args.push_back(type_variable());
+				if (param->type == nullptr) {
+					args.push_back(type_variable(param->get_location()));
 				} else {
-					auto arg_type = param->type_ref->get_type(status, scope,
-							nullptr, {});
-					if (!!status) {
-						args.push_back(arg_type);
-					} else {
-						break;
-					}
+					args.push_back(param->type);
 				}
 			}
 
 			if (!!status) {
 				/* figure out the context of this declaration */
-				types::type::ref type_fn_context;
-				if (decl->inbound_context != nullptr) {
-					type_fn_context = decl->inbound_context;
-					if (!status) {
-						user_message(log_info, status, node->get_location(), "while checking unchecked variable %s",
-								node->token.str().c_str());
-						return nullptr;
-					}
-				} else {
-					type_fn_context = module_scope->get_inbound_context();
+				types::type::ref inbound_context = decl->inbound_context;
+
+				if (inbound_context == nullptr) {
+					/* the function didn't specify an inbound context */
+					inbound_context = module_scope->get_inbound_context();
 				}
 
 				/* figure out the return type */
-				if (decl->return_type_ref != nullptr) {
-					auto return_type = decl->return_type_ref->get_type(status,
-							scope, nullptr, {});
+				if (decl->return_type != nullptr) {
+					/* get the return type */
+					types::type::ref sig = get_function_type(
+							inbound_context,
+							get_args_type(args),
+							decl->return_type);
 
-					if (!!status) {
-						/* get the return type */
-						types::type::ref sig = get_function_type(
-								type_fn_context,
-								get_args_type(args),
-								return_type);
-
-						debug_above(9, log(log_info, "found unchecked type for %s : %s",
-									decl->token.str().c_str(),
-									sig->str().c_str()));
-						return sig;
-					} else {
-						/* fallthrough */
-					}
+					debug_above(9, log(log_info, "found unchecked type for %s : %s",
+								decl->token.str().c_str(),
+								sig->str().c_str()));
+					return sig;
 				} else {
 					types::type::ref sig = get_function_type(
-							type_fn_context,
+							inbound_context,
 							get_args_type(args),
 							/* default to void, which is fully bound */
 							type_void());

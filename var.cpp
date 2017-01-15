@@ -34,7 +34,7 @@ unification_t var_t::accepts_callsite(
 	 * deliberately in order to claim access to a separate module's context */
 	auto u = unify(
 			fn_type,
-		   	get_function_type(type_fn_context, args, type_variable()),
+		   	get_function_type(type_fn_context, args, type_variable(INTERNAL_LOC())),
 		   	env);
 
 	debug_above(6, log(log_info, "check of %s %s",
