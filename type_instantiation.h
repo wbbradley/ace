@@ -23,7 +23,8 @@ bound_var_t::ref bind_ctor_to_scope(
 		types::type::ref type_fn_context,
 		types::type::refs args_types,
 		types::type::ref return_type,
-		atom::map<int> member_index);
+		atom::map<int> member_index,
+		bool native);
 
 void resolve_type_ref_params(
 		status_t &status,

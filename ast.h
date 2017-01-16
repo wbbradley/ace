@@ -256,7 +256,7 @@ namespace ast {
 	struct type_product : public type_algebra {
 		typedef ptr<const type_product> ref;
 
-		type_product(std::vector<dimension::ref> dimensions, identifier::set type_variables);
+		type_product(types::type::ref type, identifier::set type_variables);
 		virtual ~type_product() throw() {}
 		static const syntax_kind_t SK = sk_type_product;
 		static ref parse(parse_state_t &ps, type_decl::ref type_decl, identifier::refs type_variables);
@@ -268,8 +268,8 @@ namespace ast {
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
+		types::type::ref type;
 		identifier::set type_variables;
-		std::vector<dimension::ref> dimensions;
 	};
 
 	struct type_alias : public type_algebra {

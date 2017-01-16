@@ -40,6 +40,39 @@ bound_type_t::ref create_bound_product_type(
 	ptr<program_scope_t> program_scope = scope->get_program_scope();
 
 	switch (product->pk) {
+	case pk_ref:
+		{
+			assert(!scope->get_bound_type(product->get_signature()));
+			bound_type_t::ref bound_type = scope->get_bound_type(
+					product->dimensions[0]->get_signature());
+			if (bound_type != nullptr) {
+				return bound_type_t::create(product,
+						product->get_location(),
+						bound_type->get_llvm_most_specific_type()->getPointerTo());
+			}
+						
+			/* we've never seen the internal type, so start by registering an
+			 * opaque placeholder for the struct's concrete type */
+			
+			/* first create the opaque type */
+			llvm::StructType *llvm_type = llvm::StructType::create(
+					builder.getContext(),
+					product->dimensions[0]->get_signature().str());
+			assert(!llvm_type->isSized());
+			assert(llvm_type->isOpaque());
+
+			auto bound_pointer_type = bound_type_t::create(
+					product,
+					product->get_location(),
+					llvm_type->getPointerTo());
+
+			program_scope->put_bound_type(status, bound_pointer_type);
+
+			debug_above(4, log(log_info, "%s", product->dimensions[0]->str().c_str()));
+			assert(dyncast<const types::type_product>(product->dimensions[0]) != nullptr);
+
+			return bound_pointer_type;
+		}
 	case pk_module:
 		{
 			assert(false);
@@ -50,8 +83,14 @@ bound_type_t::ref create_bound_product_type(
 			assert(false);
 			break;
 		}
+	case pk_native_struct:
+		{
+			assert(false);
+			break;
+		}
 	case pk_tuple:
 		{
+#ifdef VAR_T
 			if (product->ftv_count() != 0) {
 				return program_scope->get_bound_type({BUILTIN_UNREACHABLE_TYPE});
 			}
@@ -86,6 +125,8 @@ bound_type_t::ref create_bound_product_type(
 					}
 				}
 			}
+#endif
+			not_impl();
 			break;
 		}
 	case pk_tag:
@@ -93,18 +134,102 @@ bound_type_t::ref create_bound_product_type(
 			assert(false);
 			break;
 		}
-	case pk_tagged_tuple:
-		{
-			assert(false);
-			break;
-		}
-	case pk_struct:
-		{
-			assert(false);
-			break;
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
+bound_type_t::ref bind_type_expansion(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	scope_t::ref scope,
+	   	types::type::ref type,
+		std::string struct_name)
+{
+	/* first create the opaque type */
+	llvm::StructType *llvm_type = llvm::StructType::create(
+			builder.getContext(), struct_name);
+	assert(!llvm_type->isSized());
+	assert(llvm_type->isOpaque());
+
+	auto bound_type = bound_type_t::create(type, type->get_location(), llvm_type);
+	auto program_scope = scope->get_program_scope();
+	program_scope->put_bound_type(status, bound_type);
+
+	if (!!status) {
+		/* now, we can do whatever it takes to resolve this. let's look up this
+		 * type in the environment to see if it resolves to any already known
+		 * bound_types. this involves recursion on contained types. */
+		if (type != nullptr) {
+			debug_above(2, log(log_info, "found unbound type_id in env " c_type("%s") " => %s",
+						type->get_signature().c_str(),
+						type->str().c_str()));
+
+			if (auto lambda = dyncast<const types::type_lambda>(type)) {
+				debug_above(4, log(log_info, "type_id %s expands to type_lambda %s",
+							type->str().c_str(),
+							lambda->str().c_str()));
+				user_error(status, type->get_location(),
+						"type %s resolves to a lambda, however we found a reference that does not supply parameters",
+						type->str().c_str());
+			} else {
+				/* cool, we have a term we can recurse on. */
+				auto bound_type = upsert_bound_type(status, builder, scope, type);
+
+				if (!!status) {
+					llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
+							bound_type->get_llvm_most_specific_type());
+
+					if (llvm_struct_type != nullptr) {
+						/* we're resolved what the structure looks like,
+						 * let's set that as the structure's body */
+						llvm_type->setBody(llvm_struct_type->elements());
+
+						/* and we're done instantiating this type in LLVM */
+						return bound_type;
+					} else {
+						user_error(status, type->get_location(),
+								"failed to find a structure definition for %s",
+								type->str().c_str());
+						user_message(log_info, status, type->get_location(),
+								"did find: %s %s",
+								bound_type->str().c_str(),
+								llvm_print_type(*bound_type->get_llvm_most_specific_type()).c_str());
+					}
+				}
+			}
+		} else {
+			user_error(status, type->get_location(),
+					"unable to find a type definition for %s in " c_id("%s"),
+					type->str().c_str(),
+					scope->get_name().c_str());
 		}
 	}
 
+	assert(!status);
+	return nullptr;
+}
+
+bound_type_t::ref create_bound_id_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		const ptr<const types::type_id> &id)
+{
+	/* right here, we know that this type does not have a bound type. so,
+	 * let's go ahead and create a "handle" to prevent infinite recursion on
+	 * this guy. */
+	assert(!scope->get_bound_type(id->get_signature()));
+	auto env = scope->get_typename_env();
+	auto expansion = eval_id(id, env);
+	if (expansion != nullptr) {
+		return bind_type_expansion(status, builder, scope, expansion,
+			scope->make_fqn(id->get_id()->get_name().str()));
+	} else {
+		user_error(status, id->get_location(), "no type definition found for %s",
+				id->str().c_str());
+	}
 	assert(!status);
 	return nullptr;
 }
@@ -125,36 +250,34 @@ bound_type_t::ref create_bound_operator_type(
 	auto expansion = eval_apply(operator_->oper, operator_->operand,
 			scope->get_typename_env());
 
-	if (expansion == nullptr) {
-		user_error(status, operator_->get_location(),
-				"unable to find a definition for %s in scope " c_id("%s"),
-				operator_->str().c_str(),
-                scope->get_name().c_str());
-	} else {
-		/* we've evaluated the application of this type operator. create a
-		 * handle to track resolution of this type. */
-		auto program_scope = scope->get_program_scope();
-		auto bound_type_handle = bound_type_t::create_handle(
-				operator_,
-				program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
-		program_scope->put_bound_type(status, bound_type_handle);
-	
-		if (!!status) {
-			/* go ahead and recurse to resolve this new expanded type */
-			bound_type_t::ref bound_expansion = upsert_bound_type(status, builder,
-					scope, expansion);
+	return bind_type_expansion(status, builder, scope, expansion,
+			scope->make_fqn(operator_->get_id()->get_name().str()));
+}
 
-			if (bound_expansion != nullptr) {
-				/* we found the 'true' type for this type operator, let's map the
-				 * type operator back to this new 'truth' */
-				bound_type_handle->set_actual(bound_expansion);
-				return bound_type_handle;
-			} else {
-				user_error(status, operator_->get_location(),
-						"failed to bind concrete type to %s afer expansion to %s",
-						operator_->str().c_str(),
-						expansion->str().c_str());
+bound_type_t::ref create_bound_maybe_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		const ptr<const types::type_maybe> &maybe)
+{
+	auto program_scope = scope->get_program_scope();
+	bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
+	if (!!status) {
+		auto llvm_type = bound_just_type->get_llvm_most_specific_type();
+		if (!llvm_type->isPointerTy()) {
+			auto bound_type = bound_type_t::create(
+					maybe,
+					bound_just_type->get_location(),
+					llvm_type->getPointerTo());
+			program_scope->put_bound_type(status, bound_type);
+			if (!!status) {
+				return bound_type;
 			}
+		} else {
+			user_error(status, maybe->get_location(),
+				   	"type %s cannot be a " c_type("maybe") " type because the underlying storage is already a pointer (it is %s)",
+					maybe->str().c_str(),
+					llvm_print_type(*llvm_type).c_str());
 		}
 	}
 
@@ -229,7 +352,6 @@ bound_type_t::ref create_bound_type(
 {
 	assert(!!status);
 
-	auto env = scope->get_typename_env();
 	indent_logger indent(3,
 		string_format("attempting to create a bound type for %s in scope " c_id("%s"),
 			type->str().c_str(), scope->get_name().c_str()));
@@ -237,82 +359,9 @@ bound_type_t::ref create_bound_type(
     auto program_scope = scope->get_program_scope();
 
 	if (auto id = dyncast<const types::type_id>(type)) {
-		/* right here, we know that this type does not have a bound type. so,
-		 * let's go ahead and create a "handle" to prevent infinite recursion on
-		 * this guy. */
-		assert(!scope->get_bound_type(id->get_signature()));
-
-		auto bound_type_handle = bound_type_t::create_handle(
-				id,
-				program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
-		program_scope->put_bound_type(status, bound_type_handle);
-
-		if (!!status) {
-			/* now, we can do whatever it takes to resolve this. let's look up this
-			 * type in the environment to see if it resolves to any already known
-			 * bound_types. this will likely involve recursion. */
-			auto type_iter = env.find(id->get_id()->get_name());
-			if (type_iter != env.end()) {
-				auto type = type_iter->second;
-				debug_above(2, log(log_info, "found unbound type_id in env " c_type("%s") " => %s",
-							id->get_signature().c_str(),
-							type->str().c_str()));
-
-				if (auto lambda = dyncast<const types::type_lambda>(type)) {
-					debug_above(4, log(log_info, "type_id %s expands to type_lambda %s",
-								id->str().c_str(),
-								lambda->str().c_str()));
-					user_error(status, type->get_location(),
-						   	"type %s resolves to a lambda, however we found a reference that does not supply parameters",
-							type->str().c_str());
-				} else {
-					/* cool, we have a term we can recurse on. */
-					auto bound_type = upsert_bound_type(
-							status, builder, scope, type);
-
-					if (!!status) {
-						bound_type_handle->set_actual(bound_type);
-						return bound_type_handle;
-					}
-				}
-			} else {
-                user_error(status, type->get_location(),
-                        "unable to find a type definition for %s in " c_id("%s"),
-                        type->str().c_str(),
-                        scope->get_name().c_str());
-			}
-		}
-
-		assert(!status);
-		return nullptr;
+		return create_bound_id_type(status, builder, scope, id);
     } else if (auto maybe = dyncast<const types::type_maybe>(type)) {
-		auto bound_type_handle = bound_type_t::create_handle(
-				maybe,
-				program_scope->get_bound_type({"__var_ref"})->get_llvm_type());
-		program_scope->put_bound_type(status, bound_type_handle);
-
-	    bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
-        if (!!status) {
-            auto llvm_type = bound_just_type->get_llvm_type();
-            if (llvm_type->isPointerTy()) {
-				/* we've figured out what this type is, but let's be sure to
-				 * prevent fully dereferencing it until its properly deduced as
-				 * non-nil at runtime */
-
-				bound_type_handle->set_actual(bound_type_t::create(
-							maybe, 
-							bound_just_type->get_location(),
-							bound_just_type->get_llvm_type(),
-							nullptr /*llvm_specific_type*/,
-							{} /* dimensions */,
-							{} /* member_index */));
-				return bound_type_handle;
-            } else {
-                user_error(status, type->get_location(), "type %s cannot be a " c_type("maybe") " type because the underlying storage is not a pointer (it is %s)",
-                        type->str().c_str(),
-                        llvm_print_type(*llvm_type).c_str());
-            }
-        }
+		return create_bound_maybe_type(status, builder, scope, maybe);
 	} else if (auto product = dyncast<const types::type_product>(type)) {
 		return create_bound_product_type(status, builder, scope, product);
 	} else if (auto function = dyncast<const types::type_function>(type)) {
@@ -322,9 +371,7 @@ bound_type_t::ref create_bound_type(
 	} else if (auto operator_ = dyncast<const types::type_operator>(type)) {
 		return create_bound_operator_type(status, builder, scope, operator_);
 	} else if (auto variable = dyncast<const types::type_variable>(type)) {
-		user_error(status, variable->get_location(), "unable to resolve type for %s",
-				variable->str().c_str());
-		return nullptr;
+		user_error(status, variable->get_location(), "unable to resolve type for %s", variable->str().c_str());
 	}
 
 	assert(!status);
@@ -410,8 +457,11 @@ bound_type_t::ref get_or_create_tuple_type(
 		llvm::Type *llvm_tuple_type = llvm_create_tuple_type(
 				builder, program_scope, name, args);
 
+		llvm::Type *llvm_wrapped_tuple_type = llvm_wrap_type(builder, program_scope,
+				name, llvm_tuple_type);
+
 		/* display the new type */
-		llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_tuple_type)->getElementType();
+		llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_wrapped_tuple_type)->getElementType();
 		debug_above(5, log(log_info, "created LLVM wrapped tuple type %s", llvm_print_type(*llvm_obj_struct_type).c_str()));
 
 		/* get the bound type of the data ctor's value */
@@ -421,7 +471,7 @@ bound_type_t::ref get_or_create_tuple_type(
 				/* the LLVM-visible type of tuples will usually be a generic
 				 * obj */
 				scope->get_bound_type({"__var_ref"})->get_llvm_type(),
-				llvm_tuple_type,
+				llvm_wrapped_tuple_type,
 				args);
 
 		/* put the type for the data type */
@@ -479,8 +529,11 @@ bound_type_t::ref create_algebraic_data_type(
 	llvm::Type *llvm_tuple_type = llvm_create_tuple_type(
 			builder, program_scope, id->get_name(), args);
 
+	llvm::Type *llvm_wrapped_tuple_type = llvm_wrap_type(builder, program_scope,
+			id->get_name(), llvm_tuple_type);
+
 	/* display the new type */
-	llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_tuple_type)->getElementType();
+	llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_wrapped_tuple_type)->getElementType();
 	debug_above(5, log(log_info, "created LLVM wrapped type %s", llvm_print_type(*llvm_obj_struct_type).c_str()));
 
 	assert_implies(member_index.size() != 0, member_index.size() == args.size());
@@ -492,7 +545,7 @@ bound_type_t::ref create_algebraic_data_type(
 			/* the LLVM-visible type of tagged tuples will usually be a
 			 * generic obj */
 			scope->get_bound_type({"__var_ref"})->get_llvm_type(),
-			llvm_tuple_type,
+			llvm_wrapped_tuple_type,
 			args,
 			member_index);
 
@@ -546,7 +599,8 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		atom::map<int> member_index,
 		identifier::ref id,
 		const ast::item::ref &node,
-		types::type::ref type)
+		types::type::ref type,
+		bool native)
 {
 	assert(id != nullptr);
 	assert(type != nullptr);
@@ -599,7 +653,8 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		assert(!!status);
 		assert(mem_alloc_var != nullptr);
 
-		llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_deref_type(data_type->get_llvm_type()));
+		llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder,
+			   	llvm_deref_type(data_type->get_llvm_type()));
 
 		auto signature = get_function_return_type(function->type->get_type())->get_signature();
 		debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",

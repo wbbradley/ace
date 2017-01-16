@@ -296,10 +296,6 @@ bool bound_type_t::is_void() const {
 	return get_type()->is_void();
 }
 
-bool bound_type_t::is_struct() const {
-	return get_type()->is_struct();
-}
-
 types::signature bound_type_t::get_signature() const {
 	return get_type()->get_signature();
 }

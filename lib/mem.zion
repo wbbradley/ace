@@ -28,4 +28,4 @@ def addref_value(v Value) void
 [module any]
 def release_value(v Value) void
 	if v.typeinfo.release(v) == 0
-		free(v.name)
+		posix.free(v.name as __bytes)

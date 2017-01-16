@@ -39,7 +39,8 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		atom::map<int> member_index,
 		identifier::ref id,
 		const ptr<const ast::item> &node,
-		types::type::ref data_type);
+		types::type::ref data_type,
+		bool native);
 
 bound_type_t::ref get_or_create_tuple_type(
 		status_t &status,

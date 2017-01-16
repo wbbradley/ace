@@ -14,9 +14,9 @@ enum product_kind_t {
 	pk_module = 0,
 	pk_args,
 	pk_tuple,
+	pk_native_struct,
+	pk_ref,
 	pk_tag,
-	pk_tagged_tuple,
-	pk_struct,
 };
 
 const char *pkstr(product_kind_t pk);
@@ -60,7 +60,6 @@ namespace types {
 
 		virtual bool is_function() const { return false; }
 		virtual bool is_void() const { return false; }
-		virtual bool is_struct() const { return false; }
 		virtual bool is_nil() const { return false; }
 	};
 
@@ -122,8 +121,6 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
-
-		virtual bool is_struct() const;
 	};
 
 	struct type_function : public type {

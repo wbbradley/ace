@@ -264,9 +264,9 @@ status_t get_fully_bound_param_list_decl_variables(
 
 		if (!!status) {
 			params.push_back({var_name, param_type});
-        }
-    }
-    return status;
+		}
+	}
+	return status;
 }
 
 bound_type_t::ref get_return_type_from_return_type_expr(
@@ -561,10 +561,7 @@ bound_var_t::ref ast::dot_expr::resolve_overrides(
 			status, builder, scope, nullptr, nullptr);
 
 	if (!!status) {
-		if (lhs_var->type->is_struct()) {
-			/* we've got a struct on the lhs, let's lookup the member by name */
-			not_impl();
-		} else if (auto bound_module = dyncast<const bound_module_t>(lhs_var)) {
+		if (auto bound_module = dyncast<const bound_module_t>(lhs_var)) {
 			assert(bound_module->module_scope != nullptr);
 
 			/* let's see if the associated module has a method that can handle this callsite */
@@ -1129,8 +1126,16 @@ bound_var_t::ref ast::sizeof_expr::resolve_instantiation(
 	   	local_scope_t::ref *new_scope,
 	   	bool *returns) const
 {
-	// TODO: calculate the size of the object being referenced assume native
-	// types...
+	/* calculate the size of the object being referenced assume native types */
+	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type);
+	bound_type_t::ref size_type = scope->get_program_scope()->get_bound_type({INT_TYPE});
+	if (!!status) {
+		llvm::Value *llvm_size = llvm_sizeof_type(builder,
+				llvm_deref_type(bound_type->get_llvm_most_specific_type()));
+		return bound_var_t::create(
+				INTERNAL_LOC(), type->str(), size_type, llvm_size,
+				make_iid("sizeof"), false /*is_lhs*/);
+	}
 
 	assert(!status);
 	return nullptr;

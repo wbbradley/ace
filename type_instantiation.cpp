@@ -71,7 +71,8 @@ bound_var_t::ref bind_ctor_to_scope(
 		types::type::ref type_fn_context,
 		types::type::refs args_types,
 		types::type::ref return_type,
-		atom::map<int> member_index)
+		atom::map<int> member_index,
+		bool native)
 {
 	bool is_instantiation = bool(dyncast<generic_substitution_scope_t>(scope));
 	assert(is_instantiation);
@@ -93,7 +94,8 @@ bound_var_t::ref bind_ctor_to_scope(
 		 * whether this ctor already exists. if so, we'll just return it. if not,
 		 * we'll generate it. */
 		auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope,
-				type_fn_context, args, member_index, id, node, return_type);
+				type_fn_context, args, member_index, id, node, return_type,
+				native);
 
 		if (!!status) {
 			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
@@ -114,23 +116,13 @@ void ast::type_product::register_type(
 {
 	debug_above(5, log(log_info, "creating product type for %s", str().c_str()));
 
-	atom::map<int> member_index;
-	types::type::refs type_dimensions;
-	int index = 0;
-	for (auto dimension : dimensions) {
-		type_dimensions.push_back(dimension->type);
-		member_index[dimension->name] = index++;
-	}
-
 	if (!!status) {
 		/* Note that product types do not have a named super type. And, this
 		 * node is a type algebra node, therefore, its token points to "has",
 		 * instead of the actual typename we're trying to create. So, we use
 		 * the given supertype_id as the name for the data ctor. */
 		register_data_ctor(status, builder,
-				type_variables, scope, shared_from_this(),
-				type_dimensions,
-				member_index,
+				type, type_variables, scope, shared_from_this(),
 				supertype_id /*id*/,
 				nullptr /*supertype_id*/);
 	}
@@ -244,11 +236,10 @@ void ast::type_sum::register_type(
 types::type::ref instantiate_data_ctor_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
+		types::type::ref unbound_type,
 		identifier::refs type_variables,
 		scope_t::ref scope,
 		ptr<const ast::item> node,
-		types::type::refs dimensions,
-		atom::map<int> member_index,
 		identifier::ref id,
 		identifier::ref supertype_id)
 {
@@ -383,11 +374,10 @@ types::type::ref ast::data_ctor::instantiate_type_term(
 types::type::ref register_data_ctor(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
+		types::type::ref type,
 		identifier::refs type_variables,
 		scope_t::ref scope,
 		ptr<const ast::item> node,
-		types::type::refs dimensions,
-		atom::map<int> member_index,
 		identifier::ref id_,
 		identifier::ref supertype_id)
 {
@@ -411,15 +401,14 @@ types::type::ref register_data_ctor(
 						name.c_str(),
 						env_iter->second->str().c_str());
 			} else {
-				auto type = instantiate_data_ctor_type(status, builder,
-						type_variables, scope, node, dimensions,
-						member_index, id_, supertype_id);
+				auto data_ctor_type = instantiate_data_ctor_type(status, builder, type,
+						type_variables, scope, node, id_, supertype_id);
 				if (!!status) {
 					/* register the typename in the current environment */
                     debug_above(7, log(log_info, "registering type " c_type("%s") " in scope %s",
                                 name.c_str(), scope->get_name().c_str()));
-					scope->put_typename(status, name, type);
-					return type;
+					scope->put_typename(status, name, data_ctor_type);
+					return data_ctor_type;
 				}
 			}
 		}

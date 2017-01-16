@@ -104,7 +104,8 @@ bound_var_t::ref instantiate_unchecked_fn(
 					unchecked_fn->id, node,
 					subst_scope->get_inbound_context(),
 					args_types, return_type,
-					unchecked_data_ctor->member_index);
+					unchecked_data_ctor->member_index,
+					type_product->native);
 
 			if (!!status) {
 				/* the ctor should now exist */

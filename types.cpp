@@ -242,10 +242,6 @@ namespace types {
 		return nullptr;
 	}
 
-	bool type_product::is_struct() const {
-	   	return pk == pk_struct;
-   	}
-
 	type_function::type_function(
 		type::ref inbound_context,
 		type::ref args,
@@ -640,12 +636,12 @@ const char *pkstr(product_kind_t pk) {
 		return "args";
 	case pk_tuple:
 		return "and";
+	case pk_ref:
+		return "ref";
 	case pk_tag:
 		return "tag";
-	case pk_tagged_tuple:
-		return "tagged-tuple";
-	case pk_struct:
-		return "struct";
+	case pk_native_struct:
+		return "native struct";
 	}
 	assert(false);
 	return nullptr;

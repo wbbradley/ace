@@ -1059,6 +1059,16 @@ types::type::refs parse_type_operands(
 	return arguments;
 }
 
+bool token_begins_type(token_kind tk) {
+	return (
+			tk == tk_ref ||
+			tk == tk_def ||
+			tk == tk_any ||
+			tk == tk_identifier ||
+			tk == tk_lsquare ||
+			tk == tk_lcurly);
+}
+
 types::type::ref _parse_function_type(parse_state_t &ps, identifier::set generics) {
 	chomp_token(tk_def);
 	chomp_token(tk_lparen);
@@ -1097,7 +1107,7 @@ types::type::ref _parse_function_type(parse_state_t &ps, identifier::set generic
 
 	if (!!ps.status) {
 		/* now let's parse the return type */
-		if (!ps.line_broke()) {
+		if (!ps.line_broke() && token_begins_type(ps.token.tk)) {
 			return_type = parse_maybe_type(ps, {}, {}, generics);
 		} else {
 			return_type = type_void();
@@ -1121,7 +1131,67 @@ types::type::ref _parse_single_type(
 	   	identifier::refs type_variables,
 	   	identifier::set generics)
 {
+	if (!token_begins_type(ps.token.tk)) {
+		ps.error("type references cannot begin with %s", ps.token.str().c_str());
+		return nullptr;
+	}
+
 	switch (ps.token.tk) {
+	case tk_has:
+		{
+			ps.advance();
+			/* see if we're declaring a native structure with no memory management */
+			bool native = false;
+			if (ps.token.tk == tk_identifier && ps.token.text == "native") {
+				native = true;
+				ps.advance();
+			}
+
+			chomp_token(tk_indent);
+			types::type::refs dimensions;
+			types::name_index name_index;
+			int index = 0;
+			while (!!ps.status && ps.token.tk != tk_outdent) {
+				if (!ps.line_broke() && ps.prior_token.tk != tk_indent) {
+					ps.error("product type dimensions must be separated by a newline");
+				}
+
+				zion_token_t var_token;
+				if (ps.token.tk == tk_var) {
+					ps.advance();
+					expect_token(tk_identifier);
+					var_token = ps.token;
+					name_index[index++] = var_token.text;
+					ps.advance();
+				} else {
+					ps.error("not sure what's going on here");
+					wat();
+					expect_token(tk_identifier);
+					var_token = ps.token;
+				}
+
+				types::type::ref dim_type = parse_maybe_type(ps, {}, {}, generics);
+				if (!!ps.status) {
+					dimensions.push_back(dim_type);
+				}
+			}
+			chomp_token(tk_outdent);
+			if (!!ps.status) {
+				return ::type_product(pk_tuple, dimensions, name_index);
+			} else {
+				return nullptr;
+			}
+		}
+		break;
+	case tk_ref:
+		{
+		ps.advance();
+			auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
+			if (!!ps.status) {
+				return ::type_product(pk_ref, {type});
+			}
+		}
+		break;
 	case tk_def:
 		return _parse_function_type(ps, generics);
 	case tk_any:
@@ -1195,8 +1265,7 @@ types::type::ref _parse_single_type(
 		}
 		break;
 	default:
-		ps.error("type references cannot begin with %s", ps.token.str().c_str());
-		return nullptr;
+		panic("should have been caught above.");
 	}
 
 	not_impl();
@@ -1360,23 +1429,9 @@ type_product::ref type_product::parse(
 		ast::type_decl::ref type_decl,
 	   	identifier::refs type_variables)
 {
-	auto has_token = ps.token;
-	chomp_token(tk_has);
-	chomp_token(tk_indent);
-	auto generics = to_identifier_set(type_variables);
-	std::vector<dimension::ref> dimensions;
-	while (!!ps.status && ps.token.tk != tk_outdent) {
-		if (!ps.line_broke() && ps.prior_token.tk != tk_indent) {
-			ps.error("product type dimensions must be separated by a newline");
-		}
-		dimensions.push_back(dimension::parse(ps, generics));
-	}
-	chomp_token(tk_outdent);
-	if (!!ps.status) {
-		return create<type_product>(type_decl->token, dimensions, generics);
-	} else {
-		return nullptr;
-	}
+	expect_token(tk_has);
+	auto type = _parse_single_type(ps, {}, {}, generics);
+	return create<type_product>(type_decl->token, type, generics);
 }
 
 type_alias::ref type_alias::parse(

@@ -1,0 +1,12 @@
+module _
+# test: pass
+
+type Vector has native
+	var x __float__
+	var y __float__
+
+type float has native
+	var x __float__
+
+def main()
+	v := Vector(3.4, 3.2)

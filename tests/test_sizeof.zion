@@ -1,0 +1,21 @@
+module _
+
+type __Value__ has
+	var size __int64__
+	var name __str__
+	var typeinfo ref __TypeInfo__
+
+rawtype __TypeInfo__ has
+	var typeid __typeid__
+	var addref ref def (v ref __Value__) void
+	var release ref def (v ref __Value__) void
+
+def addref(v ref __Value__) void
+	pass
+
+def release(v ref __Value__) void
+	pass
+
+def main()
+	print(__sizeof__(__TypeInfo__))
+

@@ -262,7 +262,9 @@ void add_global_types(
 	   	program_scope_t::ref program_scope,
 		llvm::Module *llvm_module_gc)
 {
+#ifdef VAR_T
 	llvm::Function *llvm_mark_fn_default = llvm_module_gc->getFunction("mark_fn_default");
+#endif
 
 	/* let's add the builtin types to the program scope */
 	std::vector<std::pair<atom, bound_type_t::ref>> globals = {
@@ -332,6 +334,7 @@ void add_global_types(
 					type_id(make_iid("__byte_count")),
 				   	INTERNAL_LOC(),
 				   	builder.getInt64Ty())},
+#ifdef VAR_T
 		{{"__var"},
 		   	bound_type_t::create(
 					type_id(make_iid("__var")),
@@ -347,6 +350,7 @@ void add_global_types(
 					type_id(make_iid("__var_ref")),
 				   	INTERNAL_LOC(),
 				   	llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
+#endif
 		{{"nil"},
 		   	bound_type_t::create(
 					type_id(make_iid("nil")),
@@ -357,11 +361,13 @@ void add_global_types(
 					type_unreachable(),
 				   	INTERNAL_LOC(),
 				   	llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
+#ifdef VAR_T
 		{{"__mark_fn"},
 		   	bound_type_t::create(
 					type_id(make_iid("__mark_fn")),
 				   	INTERNAL_LOC(),
 				   	llvm_mark_fn_default->getFunctionType()->getPointerTo())},
+#endif
 		{{"__bytes"},
 		   	bound_type_t::create(
 					type_id(make_iid("__bytes")),
@@ -409,6 +415,7 @@ void add_globals(
 	program_scope->put_bound_variable(status, "__false__", bound_var_t::create(INTERNAL_LOC(), "__false__", bool_type, builder.getInt64(0/*false*/), make_iid("__false__"), false/*is_lhs*/));
 	assert(!!status);
 
+#ifdef VAR_T
 	/* get the nil pointer value cast as our __var_ref type */
 	llvm::Type *llvm_nil_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
 	llvm::Constant *llvm_nil_value = llvm::Constant::getNullValue(llvm_nil_type);
@@ -417,6 +424,7 @@ void add_globals(
 				nil_type, llvm_nil_value, make_iid("nil"),
 				false /*is_lhs*/));
 	assert(!!status);
+#endif
 
 	if (!!status) {
 		struct binding_t {
@@ -494,11 +502,13 @@ void add_globals(
 			{"__type_id_eq_type_id", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 			{"__int__", llvm_module_typeid, "__type_id_int", {TYPEID_TYPE}, INT_TYPE},
 
+#ifdef VAR_T
 			{"__push_stack_var", llvm_module_gc, "push_stack_var", {"__var_ref"}, "void"},
 			{"__pop_stack_var", llvm_module_gc, "pop_stack_var", {"__var_ref"}, "void"},
 			{"__create_var", llvm_module_gc, "create_var", {STR_TYPE, "__mark_fn", TYPEID_TYPE, "__byte_count"}, "__var_ref"},
 			{"__get_var_type_id", llvm_module_gc, "get_var_type_id", {"__var_ref"}, TYPEID_TYPE},
 			{"__isnil", llvm_module_gc, "__isnil", {"__var_ref"}, BOOL_TYPE},
+#endif
 		};
 
 		for (auto &binding : bindings) {
@@ -535,7 +545,7 @@ void compiler::build_parse_modules(status_t &status) {
 
 	if (!!status) {
 		/* always include the standard library */
-        if (getenv("NO_STD_LIB") == nullptr) {
+        if (false && getenv("NO_STD_LIB") == nullptr) {
             build_parse(status, location{"std lib", 0, 0}, "lib/std", true /*global*/);
         }
 

@@ -303,7 +303,7 @@ llvm::Type *llvm_create_tuple_type(
 	llvm::Type *llvm_tuple_type = llvm_create_struct_type(builder, name, llvm_types);
 
 	/* the actual llvm return type is a managed variable */
-	return llvm_wrap_type(builder, program_scope, name, llvm_tuple_type);
+	return llvm_tuple_type;
 }
 
 llvm::Type *llvm_create_sum_type(
@@ -379,8 +379,12 @@ llvm::Value *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type)
 
 }
 
-llvm::Type *llvm_deref_type(llvm::Type *llvm_pointer_type) {
-	return llvm::cast<llvm::PointerType>(llvm_pointer_type)->getElementType();
+llvm::Type *llvm_deref_type(llvm::Type *llvm_type) {
+	if (llvm_type->isPointerTy()) {
+		return llvm::cast<llvm::PointerType>(llvm_type)->getElementType();
+	} else {
+		return llvm_type;
+	}
 }
 
 bound_var_t::ref llvm_start_function(status_t &status,
