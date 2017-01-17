@@ -6,12 +6,11 @@
 types::type::ref register_data_ctor(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
+		types::type::ref type,
 		identifier::refs type_variables,
 		scope_t::ref scope,
 		ptr<const ast::item> node,
-		types::type::refs dimensions,
-		atom::map<int> member_index,
-		identifier::ref id,
+		identifier::ref id_,
 		identifier::ref supertype_id);
 
 bound_var_t::ref bind_ctor_to_scope(
@@ -20,11 +19,7 @@ bound_var_t::ref bind_ctor_to_scope(
 		scope_t::ref scope,
 		identifier::ref id,
 		ptr<const ast::item> node,
-		types::type::ref type_fn_context,
-		types::type::refs args_types,
-		types::type::ref return_type,
-		atom::map<int> member_index,
-		bool native);
+		types::type::ref fn_type);
 
 void resolve_type_ref_params(
 		status_t &status,

@@ -52,20 +52,17 @@ struct unchecked_data_ctor_t : public unchecked_var_t {
 			identifier::ref id,
 			ptr<const ast::item> node,
 			ptr<module_scope_t> module_scope,
-			types::type::ref sig,
-			atom::map<int> member_index) :
+			types::type::ref sig) :
 	   	unchecked_var_t(id, node, module_scope),
-	   	sig(sig),
-		member_index(member_index) {}
+	   	sig(sig) {}
 
 	static ref create(
 			identifier::ref id,
 		   	ptr<const ast::item> node,
 		   	ptr<module_scope_t> module_scope,
-		   	types::type::ref sig,
-			atom::map<int> member_index)
+		   	types::type::ref sig)
    	{
-		return ref(new unchecked_data_ctor_t(id, node, module_scope, sig, member_index));
+		return ref(new unchecked_data_ctor_t(id, node, module_scope, sig));
 	}
 
     virtual types::type::ref get_type(ptr<scope_t> scope) const;
@@ -73,5 +70,4 @@ struct unchecked_data_ctor_t : public unchecked_var_t {
 	virtual std::string str() const;
 
 	types::type::ref sig;
-	atom::map<int> member_index;
 };

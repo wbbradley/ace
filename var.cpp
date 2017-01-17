@@ -18,7 +18,7 @@ unification_t var_t::accepts_callsite(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		types::type::ref type_fn_context,
-	   	types::type::ref args) const
+	   	types::type_product::ref args) const
 {
 	/* get the args out of the sig */
 	types::type::ref fn_type = get_type(scope);

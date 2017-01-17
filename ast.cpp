@@ -84,14 +84,10 @@ namespace ast {
 	}
 
 	type_product::type_product(
-			// TODO: plumb types::type::ref through and get 'native' bit from
-			// there
-			std::vector<dimension::ref> dimensions,
-			identifier::set type_variables,
-			bool native) :
-		type_variables(type_variables),
-		dimensions(dimensions),
-		native(native)
+			types::type::ref type,
+			identifier::set type_variables) :
+		type(type),
+		type_variables(type_variables)
 	{
 	}
 }

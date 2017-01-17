@@ -20,7 +20,7 @@ void reset_generics() {
 
 namespace types {
 
-	type::ref change_product_kind(product_kind_t pk, type::ref product) {
+	type_product::ref change_product_kind(product_kind_t pk, type::ref product) {
 		auto type_product = dyncast<const struct type_product>(product);
 		if (type_product != nullptr) {
 			if (type_product->pk == pk) {
@@ -243,9 +243,9 @@ namespace types {
 	}
 
 	type_function::type_function(
-		type::ref inbound_context,
-		type::ref args,
-		type::ref return_type) :
+			type::ref inbound_context,
+		   	type_product::ref args,
+			type::ref return_type) :
 		inbound_context(inbound_context), args(args), return_type(return_type)
 	{
 		assert(inbound_context != nullptr);
@@ -278,7 +278,11 @@ namespace types {
 			return shared_from_this();
 		}
 
-		return ::type_function(inbound_context, args->rebind(bindings), return_type->rebind(bindings));
+		types::type_product::ref bound_args = dyncast<const types::type_product>(
+			   	args->rebind(bindings));
+		assert(args != nullptr);
+		return ::type_function(inbound_context,
+				bound_args, return_type->rebind(bindings));
 	}
 
 	location type_function::get_location() const {
@@ -474,7 +478,7 @@ types::type::ref type_operator(types::type::ref operator_, types::type::ref oper
 	return make_ptr<types::type_operator>(operator_, operand);
 }
 
-types::type::ref type_product(
+types::type_product::ref type_product(
 		product_kind_t pk,
 	   	types::type::refs dimensions,
 	   	const types::name_index &name_index)
@@ -482,9 +486,9 @@ types::type::ref type_product(
 	return make_ptr<types::type_product>(pk, dimensions, name_index);
 }
 
-types::type::ref type_function(
+types::type_function::ref type_function(
 		types::type::ref inbound_context,
-		types::type::ref args,
+		types::type_product::ref args,
 		types::type::ref return_type)
 {
 	return make_ptr<types::type_function>(inbound_context, args, return_type);
@@ -522,12 +526,12 @@ std::ostream& operator <<(std::ostream &os, const types::type::ref &type) {
 	return os;
 }
 
-types::type::ref get_args_type(types::type::refs args) {
+types::type_product::ref get_args_type(types::type::refs args) {
 	/* for now just use a tuple for the args */
 	return type_product(pk_args, args);
 }
 
-types::type::ref get_function_type(types::type::ref type_fn_context, types::type::ref args, types::type::ref return_type) {
+types::type::ref get_function_type(types::type::ref type_fn_context, types::type_product::ref args, types::type::ref return_type) {
 	assert(type_fn_context != nullptr);
 	return type_function(type_fn_context, args, return_type);
 }

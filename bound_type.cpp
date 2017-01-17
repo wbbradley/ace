@@ -230,7 +230,7 @@ std::string bound_type_impl_t::str() const {
 	return ss.str();
 }
 
-types::type::ref get_args_type(bound_type_t::named_pairs args) {
+types::type_product::ref get_args_type(bound_type_t::named_pairs args) {
 	types::type::refs sig_args;
 	for (auto &named_pair : args) {
 		sig_args.push_back(named_pair.second->get_type());
@@ -238,7 +238,7 @@ types::type::ref get_args_type(bound_type_t::named_pairs args) {
 	return get_args_type(sig_args);
 }
 
-types::type::ref get_args_type(bound_type_t::refs args) {
+types::type_product::ref get_args_type(bound_type_t::refs args) {
 	types::type::refs sig_args;
 	for (auto &arg : args) {
 		assert(arg != nullptr);
@@ -247,7 +247,7 @@ types::type::ref get_args_type(bound_type_t::refs args) {
 	return get_args_type(sig_args);
 }
 
-types::type::ref get_args_type(bound_var_t::refs args) {
+types::type_product::ref get_args_type(bound_var_t::refs args) {
 	types::type::refs sig_args;
 	for (auto &arg : args) {
 		assert(arg != nullptr);
@@ -300,7 +300,7 @@ types::signature bound_type_t::get_signature() const {
 	return get_type()->get_signature();
 }
 
-types::type::ref get_function_type(
+types::type_function::ref get_function_type(
 		types::type::ref type_fn_context,
 		bound_type_t::named_pairs named_args,
 		bound_type_t::ref ret)
@@ -312,7 +312,7 @@ types::type::ref get_function_type(
 	return get_function_type(type_fn_context, args, ret);
 }
 
-types::type::ref get_function_type(
+types::type_function::ref get_function_type(
 		types::type::ref type_fn_context,
 		bound_type_t::refs args,
 		bound_type_t::ref return_type)
@@ -323,6 +323,8 @@ types::type::ref get_function_type(
 		type_args.push_back(arg->get_type());
 	}
 
-	return ::type_function(type_fn_context, ::type_product(pk_args, type_args),
+	return ::type_function(
+			type_fn_context,
+			::type_product(pk_args, type_args),
 			return_type->get_type());
 }

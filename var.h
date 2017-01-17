@@ -21,7 +21,7 @@ struct var_t {
 			llvm::IRBuilder<> &builder,
 		   	ptr<scope_t> scope,
 		   	types::type::ref type_fn_context,
-		   	types::type::ref args) const;
+		   	types::type_product::ref args) const;
 };
 
 std::string str(const var_t::refs &vars);

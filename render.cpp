@@ -125,18 +125,7 @@ namespace ast {
 	}
 
 	void type_product::render(render_state_t &rs) const {
-		rs.ss << C_TYPE << tkstr(tk_has) << C_RESET;
-		newline(rs);
-
-		indented(rs);
-		for (int i = 0; i < dimensions.size(); ++i) {
-			if (i > 0) {
-				newline(rs);
-			}
-
-			indent(rs);
-			dimensions[i]->render(rs);
-		}
+		rs.ss << type->str();
 	}
 
 	void typeid_expr::render(render_state_t &rs) const {

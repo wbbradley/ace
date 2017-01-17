@@ -1061,6 +1061,7 @@ types::type::refs parse_type_operands(
 
 bool token_begins_type(token_kind tk) {
 	return (
+			tk == tk_has ||
 			tk == tk_ref ||
 			tk == tk_def ||
 			tk == tk_any ||
@@ -1161,7 +1162,7 @@ types::type::ref _parse_single_type(
 					ps.advance();
 					expect_token(tk_identifier);
 					var_token = ps.token;
-					name_index[index++] = var_token.text;
+					name_index[var_token.text] = index++;
 					ps.advance();
 				} else {
 					ps.error("not sure what's going on here");
@@ -1429,6 +1430,7 @@ type_product::ref type_product::parse(
 		ast::type_decl::ref type_decl,
 	   	identifier::refs type_variables)
 {
+	identifier::set generics = to_identifier_set(type_variables);
 	expect_token(tk_has);
 	auto type = _parse_single_type(ps, {}, {}, generics);
 	return create<type_product>(type_decl->token, type, generics);

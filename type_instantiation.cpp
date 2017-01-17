@@ -68,34 +68,32 @@ bound_var_t::ref bind_ctor_to_scope(
 		scope_t::ref scope,
 		identifier::ref id,
 		ast::item::ref node,
-		types::type::ref type_fn_context,
-		types::type::refs args_types,
-		types::type::ref return_type,
-		atom::map<int> member_index,
-		bool native)
+		types::type::ref fn_type)
 {
+	auto function = dyncast<const types::type_function>(fn_type);
+	assert(function != nullptr);
+
 	bool is_instantiation = bool(dyncast<generic_substitution_scope_t>(scope));
 	assert(is_instantiation);
-
 	/* create or find an existing ctor function that satisfies the term of
 	 * this node */
 	debug_above(5, log(log_info, "finding/creating data ctor for " c_type("%s") " with return type %s",
-			id->str().c_str(), return_type->str().c_str()));
+			id->str().c_str(), function->return_type->str().c_str()));
 
+	const types::type_product::ref &args_types = function->args;
 	bound_type_t::refs args;
-	resolve_type_ref_params(status, builder, scope, args_types, args);
+	resolve_type_ref_params(status, builder, scope, args_types->dimensions, args);
 
 	if (!!status) {
 		/* now that we know the parameter types, let's see what the term looks like */
-		debug_above(5, log(log_info, "ctor type should be %s -> %s",
-					::str(args_types).c_str(), return_type->str().c_str()));
+		debug_above(5, log(log_info, "ctor type should be %s",
+					function->str().c_str()));
 
 		/* now we know the type of the ctor we want to create. let's check
 		 * whether this ctor already exists. if so, we'll just return it. if not,
 		 * we'll generate it. */
 		auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope,
-				type_fn_context, args, member_index, id, node, return_type,
-				native);
+				function->inbound_context, args, id, node, function->return_type);
 
 		if (!!status) {
 			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
@@ -250,8 +248,10 @@ types::type::ref instantiate_data_ctor_type(
 	auto tag_type = type_id(id);
 
 	/* create the basic product type */
-	auto product = type_product(pk_tuple, dimensions, member_index);
+	ptr<const types::type_product> product = dyncast<const types::type_product>(unbound_type);
+	assert(product != nullptr);
 
+	types::type::refs dimensions = product->dimensions;
 	/* lambda_vars tracks the order of the lambda variables we'll accept as we abstract our
 	 * supertype expansion */
 	std::list<identifier::ref> lambda_vars;
@@ -273,7 +273,7 @@ types::type::ref instantiate_data_ctor_type(
 	debug_above(5, log(log_info, "type_callsite = %s", type_callsite->str().c_str()));
 
 	/* now build the actual typename expansion we'll put in the typename env */
-	auto type = product;
+	types::type::ref type = product;
 	for (auto lambda_var : lambda_vars) {
 		type = type_lambda(lambda_var, type);
 	}
@@ -324,7 +324,7 @@ types::type::ref instantiate_data_ctor_type(
 
 			if (auto module_scope = dyncast<module_scope_t>(scope)) {
 				/* we're declaring a ctor at module scope */
-				types::type::ref generic_args = types::change_product_kind(pk_args, product);
+				types::type_product::ref generic_args = types::change_product_kind(pk_args, product);
 
 				debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
 				types::type::ref data_ctor_sig = get_function_type(
@@ -335,7 +335,7 @@ types::type::ref instantiate_data_ctor_type(
 				 * the current scope */
 				module_scope->get_program_scope()->put_unchecked_variable(tag_name,
 						unchecked_data_ctor_t::create(id, node,
-							module_scope, data_ctor_sig, member_index));
+							module_scope, data_ctor_sig));
 			} else {
 				user_error(status, node->token.location, "local type definitions are not yet impl");
 			}

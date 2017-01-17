@@ -491,9 +491,8 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 		scope_t::ref scope,
 		identifier::ref id,
 		bound_type_t::refs args,
-		atom::map<int> member_index,
 		struct location location,
-		types::type::ref type)
+		types::type_product::ref type)
 {
 	// TODO: consider having this just call upsert_bound_type
 	assert(type != nullptr);
@@ -507,7 +506,7 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 		return data_type;
 	} else {
 		return create_algebraic_data_type(status, builder, scope, id, args,
-				member_index, location, type);
+				location, type);
 	}
 }
 
@@ -517,26 +516,34 @@ bound_type_t::ref create_algebraic_data_type(
 		scope_t::ref scope,
 		identifier::ref id,
 		bound_type_t::refs args,
-		atom::map<int> member_index,
 		struct location location,
-		types::type::ref type)
+		types::type_product::ref type)
 {
 	assert(id != nullptr);
 
 	auto program_scope = scope->get_program_scope();
 
+	// TODO: figure out where to inject var_t base properties... is that here,
+	// or at the dimensions list level...
+	//
 	/* build the llvm return type */
 	llvm::Type *llvm_tuple_type = llvm_create_tuple_type(
 			builder, program_scope, id->get_name(), args);
+	debug_above(5, log(log_info, "created LLVM type %s", llvm_print_type(*llvm_tuple_type).c_str()));
 
-	llvm::Type *llvm_wrapped_tuple_type = llvm_wrap_type(builder, program_scope,
-			id->get_name(), llvm_tuple_type);
+	// TODO: Some condition that leads to knowing whether to wrap the type and
+	// return a pointer, which i don't think is correct, since pointers should
+	// be dealt with above ...
+	//
+	if (type->pk == pk_tuple) {
+		llvm_tuple_type = llvm_wrap_type(builder, program_scope,
+				id->get_name(), llvm_tuple_type);
+	}
 
 	/* display the new type */
 	llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_wrapped_tuple_type)->getElementType();
-	debug_above(5, log(log_info, "created LLVM wrapped type %s", llvm_print_type(*llvm_obj_struct_type).c_str()));
 
-	assert_implies(member_index.size() != 0, member_index.size() == args.size());
+	types::type_product::ref product = dyncast<const types::type_product>(type);
 
 	/* get the bound type of the data ctor's value */
 	auto data_type = bound_type_t::create(
@@ -547,7 +554,7 @@ bound_type_t::ref create_algebraic_data_type(
 			scope->get_bound_type({"__var_ref"})->get_llvm_type(),
 			llvm_wrapped_tuple_type,
 			args,
-			member_index);
+			product->name_index);
 
 	/* put the type for the data type. the scope can handle the case where the
 	 * type already exists. */
@@ -596,11 +603,9 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		scope_t::ref scope,
 		types::type::ref type_fn_context,
 		bound_type_t::refs args,
-		atom::map<int> member_index,
 		identifier::ref id,
 		const ast::item::ref &node,
-		types::type::ref type,
-		bool native)
+		types::type::ref type)
 {
 	assert(id != nullptr);
 	assert(type != nullptr);
@@ -610,8 +615,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
 		bound_type_t::ref data_type = get_or_create_algebraic_data_type(status,
-				builder, scope, id, args, member_index, node->token.location,
-				type);
+				builder, scope, id, args, node->token.location, type);
 
 		if (!!status) {
 			bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,

@@ -40,7 +40,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 	/* save and later restore the current branch insertion point */
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
-	ast::item::ref type_product = dyncast<const ast::type_product>(unchecked_fn->node);
+	ast::type_product::ref type_product = dyncast<const ast::type_product>(unchecked_fn->node);
 
 	if (auto function_defn = dyncast<const ast::function_defn>(unchecked_fn->node)) {
 		/* we shouldn't be here unless we found something to substitute */
@@ -95,17 +95,12 @@ bound_var_t::ref instantiate_unchecked_fn(
 						data_ctor_sig->str().c_str()));
 
 			auto data_ctor_type = data_ctor_sig->rebind(unification.bindings);
-			auto args_types = get_function_type_args_dimensions(data_ctor_type);
-			auto return_type = get_function_return_type(data_ctor_type);
 
 			/* instantiate the data ctor we want */
 			bound_var_t::ref ctor_fn = bind_ctor_to_scope(
 					status, builder, subst_scope,
 					unchecked_fn->id, node,
-					subst_scope->get_inbound_context(),
-					args_types, return_type,
-					unchecked_data_ctor->member_index,
-					type_product->native);
+					data_ctor_type);
 
 			if (!!status) {
 				/* the ctor should now exist */
@@ -129,7 +124,7 @@ bound_var_t::ref check_func_vs_callsite(
 		const ast::item::ref &callsite,
 		var_t::ref fn,
 		types::type::ref type_fn_context,
-		types::type::ref args)
+		types::type_product::ref args)
 {
 	assert(!!status);
 
@@ -187,7 +182,7 @@ bound_var_t::ref maybe_get_callable(
 		atom alias,
 		const ptr<const ast::item> &callsite,
 		types::type::ref type_fn_context,
-		types::type::ref args,
+		types::type_product::ref args,
 		var_t::refs &fns)
 {
 	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, type_fn_context=%s, args=%s, ...)",
@@ -249,7 +244,7 @@ bound_var_t::ref get_callable(
 		atom alias,
 		const ptr<const ast::item> &callsite,
 		types::type::ref outbound_context,
-		types::type::ref args)
+		types::type_product::ref args)
 {
 	var_t::refs fns;
 	// TODO: potentially allow fake calling contexts by adding syntax to the
@@ -298,7 +293,7 @@ bound_var_t::ref call_program_function(
         const ptr<const ast::item> &callsite,
         const bound_var_t::refs var_args)
 {
-    types::type::ref args = get_args_type(var_args);
+    types::type_product::ref args = get_args_type(var_args);
 	auto program_scope = scope->get_program_scope();
     /* get or instantiate a function we can call on these arguments */
     bound_var_t::ref function = get_callable(

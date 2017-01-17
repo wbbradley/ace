@@ -111,6 +111,6 @@ struct bound_module_t : public bound_var_t {
 std::string str(const bound_var_t::refs &arguments);
 std::string str(const bound_var_t::overloads &arguments);
 std::ostream &operator <<(std::ostream &os, const bound_var_t &var);
-types::type::ref get_args_type(bound_var_t::refs args);
+types::type_product::ref get_args_type(bound_var_t::refs args);
 bound_type_t::refs get_bound_types(bound_var_t::refs values);
 std::vector<llvm::Value *> get_llvm_values(const bound_var_t::refs &vars);
