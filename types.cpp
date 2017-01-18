@@ -531,7 +531,11 @@ types::type_product::ref get_args_type(types::type::refs args) {
 	return type_product(pk_args, args);
 }
 
-types::type::ref get_function_type(types::type::ref type_fn_context, types::type_product::ref args, types::type::ref return_type) {
+types::type_function::ref get_function_type(
+		types::type::ref type_fn_context,
+	   	types::type_product::ref args,
+	   	types::type::ref return_type)
+{
 	assert(type_fn_context != nullptr);
 	return type_function(type_fn_context, args, return_type);
 }
@@ -557,7 +561,7 @@ types::type::ref get_function_return_type(types::type::ref function_type) {
 	return type_function->return_type;
 }
 
-types::type::ref get_function_type_args(types::type::ref function_type) {
+types::type_product::ref get_function_type_args(types::type::ref function_type) {
 	debug_above(5, log(log_info, "sig == %s", function_type->str().c_str()));
 
 	auto type_function = dyncast<const types::type_function>(function_type);

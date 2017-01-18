@@ -17,7 +17,7 @@ std::string unchecked_data_ctor_t::str() const {
     return ss.str();
 }
 
-types::type::ref unchecked_data_ctor_t::get_type(scope_t::ref scope) const {
+types::type_function::ref unchecked_data_ctor_t::get_type(scope_t::ref scope) const {
 	return sig;
 }
 
@@ -54,7 +54,7 @@ types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 				/* figure out the return type */
 				if (decl->return_type != nullptr) {
 					/* get the return type */
-					types::type::ref sig = get_function_type(
+					types::type_function::ref sig = get_function_type(
 							inbound_context,
 							get_args_type(args),
 							decl->return_type);
@@ -64,7 +64,7 @@ types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 								sig->str().c_str()));
 					return sig;
 				} else {
-					types::type::ref sig = get_function_type(
+					types::type_function::ref sig = get_function_type(
 							inbound_context,
 							get_args_type(args),
 							/* default to void, which is fully bound */

@@ -68,11 +68,8 @@ bound_var_t::ref bind_ctor_to_scope(
 		scope_t::ref scope,
 		identifier::ref id,
 		ast::item::ref node,
-		types::type::ref fn_type)
+		types::type_function::ref function)
 {
-	auto function = dyncast<const types::type_function>(fn_type);
-	assert(function != nullptr);
-
 	bool is_instantiation = bool(dyncast<generic_substitution_scope_t>(scope));
 	assert(is_instantiation);
 	/* create or find an existing ctor function that satisfies the term of
@@ -89,15 +86,23 @@ bound_var_t::ref bind_ctor_to_scope(
 		debug_above(5, log(log_info, "ctor type should be %s",
 					function->str().c_str()));
 
-		/* now we know the type of the ctor we want to create. let's check
-		 * whether this ctor already exists. if so, we'll just return it. if not,
-		 * we'll generate it. */
-		auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope,
-				function->inbound_context, args, id, node, function->return_type);
+		if (function->return_type != nullptr) {
+			/* now we know the type of the ctor we want to create. let's check
+			 * whether this ctor already exists. if so, we'll just return it. if
+			 * not, we'll generate it. */
+			auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder,
+					scope, function->inbound_context, args,
+					function->args->name_index, id, node,
+					function->return_type);
 
-		if (!!status) {
-			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
-			return tuple_pair.first;
+			if (!!status) {
+				debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
+				return tuple_pair.first;
+			}
+		} else {
+			user_error(status, node->get_location(),
+				   	"constructor is not returning a product type: %s",
+					function->str().c_str());
 		}
 	}
 
@@ -313,7 +318,7 @@ types::type::ref instantiate_data_ctor_type(
 						id->str().c_str()));
 
 			/* get the type of the data constructor function itself */
-			auto data_ctor_sig = get_function_type(
+			types::type::ref data_ctor_sig = get_function_type(
 					scope->get_inbound_context(),
 					types::change_product_kind(pk_args, product),
 					type_callsite);
@@ -327,7 +332,7 @@ types::type::ref instantiate_data_ctor_type(
 				types::type_product::ref generic_args = types::change_product_kind(pk_args, product);
 
 				debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
-				types::type::ref data_ctor_sig = get_function_type(
+				types::type_function::ref data_ctor_sig = get_function_type(
 						scope->get_inbound_context(), generic_args, type_callsite);
 
 				assert(id->get_name() == tag_name);

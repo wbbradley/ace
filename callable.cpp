@@ -89,12 +89,12 @@ bound_var_t::ref instantiate_unchecked_fn(
 				status, builder, unchecked_fn->node,
 				unchecked_fn->module_scope, unification, fn_type);
 
-		auto data_ctor_sig = unchecked_data_ctor->sig;
 		if (!!status) {
+			types::type_function::ref data_ctor_type = dyncast<const types::type_function>(
+					unchecked_data_ctor->sig->rebind(unification.bindings));
+			assert(data_ctor_type != nullptr);
 			debug_above(4, log(log_info, "going to bind ctor for %s",
-						data_ctor_sig->str().c_str()));
-
-			auto data_ctor_type = data_ctor_sig->rebind(unification.bindings);
+						data_ctor_type->str().c_str()));
 
 			/* instantiate the data ctor we want */
 			bound_var_t::ref ctor_fn = bind_ctor_to_scope(

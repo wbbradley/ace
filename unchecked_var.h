@@ -52,7 +52,7 @@ struct unchecked_data_ctor_t : public unchecked_var_t {
 			identifier::ref id,
 			ptr<const ast::item> node,
 			ptr<module_scope_t> module_scope,
-			types::type::ref sig) :
+			types::type_function::ref sig) :
 	   	unchecked_var_t(id, node, module_scope),
 	   	sig(sig) {}
 
@@ -60,7 +60,7 @@ struct unchecked_data_ctor_t : public unchecked_var_t {
 			identifier::ref id,
 		   	ptr<const ast::item> node,
 		   	ptr<module_scope_t> module_scope,
-		   	types::type::ref sig)
+		   	types::type_function::ref sig)
    	{
 		return ref(new unchecked_data_ctor_t(id, node, module_scope, sig));
 	}
@@ -69,5 +69,5 @@ struct unchecked_data_ctor_t : public unchecked_var_t {
 
 	virtual std::string str() const;
 
-	types::type::ref sig;
+	types::type_function::ref sig;
 };

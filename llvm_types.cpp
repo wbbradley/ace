@@ -48,7 +48,7 @@ bound_type_t::ref create_bound_product_type(
 			if (bound_type != nullptr) {
 				return bound_type_t::create(product,
 						product->get_location(),
-						bound_type->get_llvm_most_specific_type()->getPointerTo());
+						bound_type->get_llvm_type()->getPointerTo());
 			}
 						
 			/* we've never seen the internal type, so start by registering an
@@ -179,7 +179,7 @@ bound_type_t::ref bind_type_expansion(
 
 				if (!!status) {
 					llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
-							bound_type->get_llvm_most_specific_type());
+							bound_type->get_llvm_type());
 
 					if (llvm_struct_type != nullptr) {
 						/* we're resolved what the structure looks like,
@@ -195,7 +195,7 @@ bound_type_t::ref bind_type_expansion(
 						user_message(log_info, status, type->get_location(),
 								"did find: %s %s",
 								bound_type->str().c_str(),
-								llvm_print_type(*bound_type->get_llvm_most_specific_type()).c_str());
+								llvm_print_type(*bound_type->get_llvm_type()).c_str());
 					}
 				}
 			}
@@ -263,7 +263,7 @@ bound_type_t::ref create_bound_maybe_type(
 	auto program_scope = scope->get_program_scope();
 	bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
 	if (!!status) {
-		auto llvm_type = bound_just_type->get_llvm_most_specific_type();
+		auto llvm_type = bound_just_type->get_llvm_type();
 		if (!llvm_type->isPointerTy()) {
 			auto bound_type = bound_type_t::create(
 					maybe,
@@ -457,6 +457,7 @@ bound_type_t::ref get_or_create_tuple_type(
 		llvm::Type *llvm_tuple_type = llvm_create_tuple_type(
 				builder, program_scope, name, args);
 
+		assert(!"need to treat native types");
 		llvm::Type *llvm_wrapped_tuple_type = llvm_wrap_type(builder, program_scope,
 				name, llvm_tuple_type);
 
@@ -468,9 +469,6 @@ bound_type_t::ref get_or_create_tuple_type(
 		bound_type_t::ref data_type = bound_type_t::create(
 				type,
 				node->token.location,
-				/* the LLVM-visible type of tuples will usually be a generic
-				 * obj */
-				scope->get_bound_type({"__var_ref"})->get_llvm_type(),
 				llvm_wrapped_tuple_type,
 				args);
 
@@ -491,10 +489,10 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 		scope_t::ref scope,
 		identifier::ref id,
 		bound_type_t::refs args,
+		atom::map<int> name_index,
 		struct location location,
 		types::type_product::ref type)
 {
-	// TODO: consider having this just call upsert_bound_type
 	assert(type != nullptr);
 
 	debug_above(5, log(log_info, "get_or_create_algebraic_data_type looking for %s",
@@ -506,7 +504,7 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 		return data_type;
 	} else {
 		return create_algebraic_data_type(status, builder, scope, id, args,
-				location, type);
+				name_index, location, type);
 	}
 }
 
@@ -516,32 +514,32 @@ bound_type_t::ref create_algebraic_data_type(
 		scope_t::ref scope,
 		identifier::ref id,
 		bound_type_t::refs args,
+		atom::map<int> name_index,
 		struct location location,
-		types::type_product::ref type)
+		types::type::ref type)
 {
 	assert(id != nullptr);
-
 	auto program_scope = scope->get_program_scope();
 
-	// TODO: figure out where to inject var_t base properties... is that here,
-	// or at the dimensions list level...
-	//
 	/* build the llvm return type */
 	llvm::Type *llvm_tuple_type = llvm_create_tuple_type(
 			builder, program_scope, id->get_name(), args);
-	debug_above(5, log(log_info, "created LLVM type %s", llvm_print_type(*llvm_tuple_type).c_str()));
 
 	// TODO: Some condition that leads to knowing whether to wrap the type and
 	// return a pointer, which i don't think is correct, since pointers should
 	// be dealt with above ...
 	//
 	if (type->pk == pk_tuple) {
-		llvm_tuple_type = llvm_wrap_type(builder, program_scope,
-				id->get_name(), llvm_tuple_type);
+		// TODO: consider injecting the appropriate "args" before the passed in
+		// "args" to track object lifetime
+		llvm_tuple_type = llvm_wrap_type(builder, program_scope, id->get_name(),
+				llvm_tuple_type);
+	} else {
+		assert(false);
 	}
 
 	/* display the new type */
-	llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_wrapped_tuple_type)->getElementType();
+	debug_above(5, log(log_info, "created LLVM type %s", llvm_print_type(*llvm_tuple_type).c_str()));
 
 	types::type_product::ref product = dyncast<const types::type_product>(type);
 
@@ -549,12 +547,9 @@ bound_type_t::ref create_algebraic_data_type(
 	auto data_type = bound_type_t::create(
 			type,
 			location,
-			/* the LLVM-visible type of tagged tuples will usually be a
-			 * generic obj */
-			scope->get_bound_type({"__var_ref"})->get_llvm_type(),
-			llvm_wrapped_tuple_type,
+			llvm_tuple_type,
 			args,
-			product->name_index);
+			name_index);
 
 	/* put the type for the data type. the scope can handle the case where the
 	 * type already exists. */
@@ -603,6 +598,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		scope_t::ref scope,
 		types::type::ref type_fn_context,
 		bound_type_t::refs args,
+		atom::map<int> name_index,
 		identifier::ref id,
 		const ast::item::ref &node,
 		types::type::ref type)
@@ -615,7 +611,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
 		bound_type_t::ref data_type = get_or_create_algebraic_data_type(status,
-				builder, scope, id, args, node->token.location, type);
+				builder, scope, id, args, name_index, node->token.location, type);
 
 		if (!!status) {
 			bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,
@@ -683,44 +679,49 @@ bound_var_t::ref get_or_create_tuple_ctor(
 				});
 
 		if (!!status) {
-			assert(data_type->get_llvm_specific_type() != nullptr);
+			assert(data_type->get_llvm_type() != nullptr);
+			if (data_type->get_llvm_type()->isPointerTy()) {
+				/* we've allocated enough space for the object type, let's get our allocation as such */
+				llvm::Value *llvm_final_obj = builder.CreatePointerBitCastOrAddrSpaceCast(
+						llvm_create_var_call_value, 
+						data_type->get_llvm_type());
 
-			/* we've allocated enough space for the object type, let's get our allocation as such */
-			llvm::Value *llvm_final_obj = builder.CreatePointerBitCastOrAddrSpaceCast(
-					llvm_create_var_call_value, 
-					data_type->get_llvm_specific_type());
+				int index = 0;
 
-			int index = 0;
+				llvm::Function *llvm_function = (llvm::Function *)function->llvm_value;
+				llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
+				while (args_iter != llvm_function->arg_end()) {
+					llvm::Value *llvm_param = args_iter++;
+					/* get the location we should store this datapoint in */
+					llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_final_obj,
+							{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index++)});
+					debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
+								llvm_print_value(*llvm_gep).c_str()));
+					builder.CreateStore(llvm_param, llvm_gep);
+				}
 
-			llvm::Function *llvm_function = (llvm::Function *)function->llvm_value;
-			llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
-			while (args_iter != llvm_function->arg_end()) {
-				llvm::Value *llvm_param = args_iter++;
-				/* get the location we should store this datapoint in */
-				llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_final_obj,
-						{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index++)});
-				debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
-							llvm_print_value(*llvm_gep).c_str()));
-				builder.CreateStore(llvm_param, llvm_gep);
-			}
+				/* create a return statement for the final object. NB: the returned
+				 * type is a generic object type according to LLVM. LLVM's type system
+				 * does not support Zion types so we are basically using a generic obj
+				 * pointer for all GC'd types. */
+				builder.CreateRet(llvm_create_var_call_value);
 
-			/* create a return statement for the final object. NB: the returned
-			 * type is a generic object type according to LLVM. LLVM's type system
-			 * does not support Zion types so we are basically using a generic obj
-			 * pointer for all GC'd types. */
-			builder.CreateRet(llvm_create_var_call_value);
-
-			llvm_verify_function(status, llvm_function);
-
-			if (!!status) {
-				/* bind the ctor to the program scope */
-				scope->get_program_scope()->put_bound_variable(status, name, function);
+				llvm_verify_function(status, llvm_function);
 
 				if (!!status) {
-					debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
-									*llvm_get_module(builder)).c_str()));
-					return function;
+					/* bind the ctor to the program scope */
+					scope->get_program_scope()->put_bound_variable(status, name, function);
+
+					if (!!status) {
+						debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
+										*llvm_get_module(builder)).c_str()));
+						return function;
+					}
 				}
+			} else {
+				user_error(status, node->get_location(),
+					   	"data type %s is not a pointer type",
+						data_type->str().c_str());
 			}
 		}
 	}
@@ -794,26 +795,32 @@ bound_var_t::ref call_const_subscript_operator(
 
 				bound_type_t::ref data_type = lhs_type->get_dimensions()[subscript_index];
 				assert(data_type != nullptr);
-				assert(lhs_type->get_llvm_specific_type() != nullptr);
+				assert(lhs_type->get_llvm_type() != nullptr);
 
 				/* get the tuple */
 				llvm::Value *llvm_lhs = llvm_resolve_alloca(builder, lhs->llvm_value);
 
-				llvm::Value *llvm_lhs_subtype = builder.CreatePointerBitCastOrAddrSpaceCast(
-						llvm_lhs,
-						lhs_type->get_llvm_specific_type());
+				if (lhs_type->get_llvm_type()) {
+					llvm::Value *llvm_lhs_subtype = builder.CreatePointerBitCastOrAddrSpaceCast(
+							llvm_lhs,
+							lhs_type->get_llvm_type());
 
-				debug_above(5, log(log_info, "creating GEP for %s", llvm_print_value(*llvm_lhs_subtype).c_str()));
-				llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_lhs_subtype,
-						{builder.getInt32(0), builder.getInt32(1), builder.getInt32(subscript_index)});
-				llvm::Value *llvm_value = builder.CreateLoad(llvm_gep);
-				return bound_var_t::create(
-						INTERNAL_LOC(),
-						"temp_deref_subscript",
-						data_type,
-						llvm_value,
-						make_code_id(node->token),
-						false/*is_lhs*/);
+					debug_above(5, log(log_info, "creating GEP for %s", llvm_print_value(*llvm_lhs_subtype).c_str()));
+					llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_lhs_subtype,
+							{builder.getInt32(0), builder.getInt32(1), builder.getInt32(subscript_index)});
+					llvm::Value *llvm_value = builder.CreateLoad(llvm_gep);
+					return bound_var_t::create(
+							INTERNAL_LOC(),
+							"temp_deref_subscript",
+							data_type,
+							llvm_value,
+							make_code_id(node->token),
+							false/*is_lhs*/);
+				} else {
+					user_error(status, node->get_location(),
+						   	"lhs type %s is not a pointer type",
+							lhs_type->str().c_str());
+				}
 			} else {
 				user_error(status, *node, "index out of range");
 			}
@@ -822,6 +829,7 @@ bound_var_t::ref call_const_subscript_operator(
 					node, lhs, index_id, subscript_index);
 		}
 	}
+
 	assert(!status);
 	return nullptr;
 }

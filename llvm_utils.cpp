@@ -346,7 +346,7 @@ llvm::Type *llvm_wrap_type(
 	llvm_struct_type->setName(std::string("__var_ref_") + data_name.str());
 
 	/* we'll be referring to pointers to these variable structures */
-	return llvm_struct_type->getPointerTo();
+	return llvm_struct_type;
 }
 
 void llvm_verify_function(status_t &status, llvm::Function *llvm_function) {

@@ -19,7 +19,7 @@ bound_var_t::ref bind_ctor_to_scope(
 		scope_t::ref scope,
 		identifier::ref id,
 		ptr<const ast::item> node,
-		types::type::ref fn_type);
+		types::type_function::ref function);
 
 void resolve_type_ref_params(
 		status_t &status,

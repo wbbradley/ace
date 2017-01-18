@@ -36,9 +36,10 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		ptr<scope_t> scope,
 		types::type::ref type_fn_context,
 		bound_type_t::refs args,
+		atom::map<int> name_index,
 		identifier::ref id,
 		const ptr<const ast::item> &node,
-		types::type::ref data_type);
+		types::type::ref type);
 
 bound_type_t::ref get_or_create_tuple_type(
 		status_t &status,
@@ -79,6 +80,7 @@ bound_type_t::ref get_or_create_algebraic_data_type(
 		scope_t::ref scope,
 		identifier::ref id,
 		bound_type_t::refs args,
+		atom::map<int> name_index,
 		struct location location,
 		types::type_product::ref data_type);
 
@@ -88,5 +90,6 @@ bound_type_t::ref create_algebraic_data_type(
 		scope_t::ref scope,
 		identifier::ref id,
 		bound_type_t::refs args,
+		atom::map<int> name_index,
 		struct location location,
-		types::type_product::ref type);
+		types::type::ref type);

@@ -9,26 +9,15 @@
 #include "llvm_utils.h"
 #include <iostream>
 
-llvm::Type * const bound_type_t::get_llvm_most_specific_type() const {
-	auto llvm_type = get_llvm_specific_type();
-	if (llvm_type != nullptr) {
-		return llvm_type;
-	} else {
-		return get_llvm_type();
-	}
-}
-
 bound_type_impl_t::bound_type_impl_t(
 		types::type::ref type,
 		struct location location,
 		llvm::Type *llvm_type,
-		llvm::Type *llvm_specific_type,
 		bound_type_t::refs dimensions,
 		name_index member_index) :
 	type(type),
 	location(location),
 	llvm_type(llvm_type),
-	llvm_specific_type(llvm_specific_type),
 	dimensions(dimensions),
 	member_index(member_index)
 {
@@ -66,10 +55,6 @@ llvm::Type * const bound_type_impl_t::get_llvm_type() const {
 	return llvm_type;
 }
 
-llvm::Type * const bound_type_impl_t::get_llvm_specific_type() const {
-	return llvm_specific_type;
-}
-
 bound_type_t::refs const bound_type_impl_t::get_dimensions() const {
 	return dimensions;
 }
@@ -82,104 +67,11 @@ bound_type_t::ref bound_type_t::create(
 		types::type::ref type,
 		struct location location,
 		llvm::Type *llvm_type,
-		llvm::Type *llvm_specific_type,
 		bound_type_t::refs dimensions,
 		bound_type_t::name_index member_index)
 {
 	return make_ptr<bound_type_impl_t>(type, location, llvm_type,
-			llvm_specific_type, dimensions, member_index);
-}
-
-bound_type_handle_t::ref bound_type_t::create_handle(
-		types::type::ref type,
-		llvm::Type *llvm_type)
-{
-	return make_ptr<bound_type_handle_t>(type, llvm_type);
-}
-
-bound_type_handle_t::bound_type_handle_t(
-		types::type::ref type,
-		llvm::Type *llvm_type) :
-	type(type), llvm_type(llvm_type)
-{
-	// std::cerr << str() << std::endl;
-	// dbg();
-}
-
-std::string bound_type_handle_t::str() const {
-	std::stringstream ss;
-	ss << get_type();
-#if 0
-	ss << " " << llvm_print_type(*get_llvm_type());
-	if (actual != nullptr) {
-		ss << " (actual: " <<  actual->str() << ")";
-	} else {
-		ss << " " C_UNCHECKED "unresolved" C_RESET;
-	}
-#endif
-
-	return ss.str();
-}
-
-types::type::ref bound_type_handle_t::get_type() const {
-	return type;
-}
-
-bool bound_type_handle_t::is_concrete() const {
-	if (actual != nullptr) {
-		return actual->is_concrete();
-	} else {
-		assert(!"This type is not actualized yet! Why do you care about concreteness?");
-		/* err on the side of not concrete if we don't have an actual type */
-		return false;
-	}
-}
-
-struct location const bound_type_handle_t::get_location() const {
-	return type->get_location();
-}
-
-llvm::Type * const bound_type_handle_t::get_llvm_type() const {
-	return llvm_type;
-}
-
-llvm::Type * const bound_type_handle_t::get_llvm_specific_type() const {
-	if (actual != nullptr) {
-		return actual->get_llvm_specific_type();
-	} else {
-		assert(false);
-		return {};
-	}
-}
-
-bound_type_t::refs const bound_type_handle_t::get_dimensions() const {
-	if (actual != nullptr) {
-		return actual->get_dimensions();
-	} else {
-		debug_above(9, log(log_info,
-				   	"attempt to fetch dimensions on an unreachable type"));
-		return {};
-	}
-}
-
-bound_type_t::name_index const bound_type_handle_t::get_member_index() const {
-	if (actual != nullptr) {
-		return actual->get_member_index();
-	} else {
-		debug_above(9, log(log_info,
-					"attempt to fetch member_index on an unreachable type"));
-		return {};
-	}
-}
-
-void bound_type_handle_t::set_actual(bound_type_t::ref new_actual) const {
-	assert(new_actual != nullptr);
-	assert_implies(actual != nullptr, new_actual == actual);
-	assert(new_actual != shared_from_this());
-	assert(new_actual->get_llvm_type() == llvm_type);
-	debug_above(2, log(log_info, "resolving %s to %s", this->str().c_str(), new_actual->str().c_str()));
-	// dbg();
-	actual = new_actual;
+			dimensions, member_index);
 }
 
 std::string str(const bound_type_t::refs &args) {

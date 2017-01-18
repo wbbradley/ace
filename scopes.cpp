@@ -555,14 +555,10 @@ void program_scope_t::put_bound_type(status_t &status, bound_type_t::ref type) {
 		bound_types[signature] = type;
 	} else {
 		/* this type symbol already exists */
-		if (auto handle = dyncast<const bound_type_handle_t>(iter->second)) {
-			handle->set_actual(type);
-		} else {
-			user_error(status, type->get_location(), "type %s already exists",
-					type->str().c_str());
-			user_error(status, iter->second->get_location(), "type %s was declared here",
-					iter->second->str().c_str());
-		}
+		user_error(status, type->get_location(), "type %s already exists",
+				type->str().c_str());
+		user_error(status, iter->second->get_location(), "type %s was declared here",
+				iter->second->str().c_str());
 	}
 }
 

@@ -519,7 +519,7 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 			assert(llvm_print_type(*llvm_value->getType()) != llvm_print_type(*llvm_func_type));
 
 			/* get the full function type */
-			types::type::ref function_sig = get_function_type(
+			types::type_function::ref function_sig = get_function_type(
 					inbound_context, args, return_value);
 			debug_above(3, log(log_info, "%s has type %s",
 						function_name.str().c_str(),
@@ -944,20 +944,26 @@ bound_var_t::ref extract_member_variable(
 
 		/* get the type of the dimension being referenced */
 		bound_type_t::ref member_type = bound_type->get_dimensions()[index];
-		assert(bound_type->get_llvm_specific_type() != nullptr);
+		assert(bound_type->get_llvm_type() != nullptr);
 
 		llvm::Value *llvm_var_value = llvm_resolve_alloca(builder, bound_var->llvm_value);
-		llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
-				llvm_var_value, bound_type->get_llvm_specific_type());
+		if (!bound_type->get_llvm_type()->isPointerTy()) {
+			user_error(status, node->get_location(), "type is not a pointer type: %s",
+					bound_type->str().c_str());
+		}
+		if (!!status) {
+			llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
+					llvm_var_value, bound_type->get_llvm_type());
 
-		llvm::Value *llvm_gep = builder.CreateInBoundsGEP(
-				llvm_value_as_specific_type,
-				{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index)});
+			llvm::Value *llvm_gep = builder.CreateInBoundsGEP(
+					llvm_value_as_specific_type,
+					{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index)});
 
-		llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
-		return bound_var_t::create(
-				INTERNAL_LOC(), string_format(".%s", member_name.c_str()),
-				member_type, llvm_item, make_iid(member_name), false/*is_lhs*/);
+			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
+			return bound_var_t::create(
+					INTERNAL_LOC(), string_format(".%s", member_name.c_str()),
+					member_type, llvm_item, make_iid(member_name), false/*is_lhs*/);
+		}
 	} else {
 		auto bindings = scope->get_type_variable_bindings();
 		auto full_type = bound_var->type->get_type()->rebind(bindings);
@@ -1131,7 +1137,8 @@ bound_var_t::ref ast::sizeof_expr::resolve_instantiation(
 	bound_type_t::ref size_type = scope->get_program_scope()->get_bound_type({INT_TYPE});
 	if (!!status) {
 		llvm::Value *llvm_size = llvm_sizeof_type(builder,
-				llvm_deref_type(bound_type->get_llvm_most_specific_type()));
+				llvm_deref_type(bound_type->get_llvm_type()));
+
 		return bound_var_t::create(
 				INTERNAL_LOC(), type->str(), size_type, llvm_size,
 				make_iid("sizeof"), false /*is_lhs*/);
@@ -2554,7 +2561,8 @@ bound_var_t::ref ast::cast_expr::resolve_instantiation(
 			if (!!status) {
 				llvm::Value *llvm_var_value = llvm_resolve_alloca(builder, bound_var->llvm_value);
 				llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
-						llvm_var_value, bound_type->get_llvm_most_specific_type());
+						llvm_var_value, bound_type->get_llvm_type());
+
 				return bound_var_t::create(INTERNAL_LOC(), "cast",
 					bound_type, llvm_value_as_specific_type, make_iid("cast"),
 					false /*is_lhs*/);

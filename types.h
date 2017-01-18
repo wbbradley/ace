@@ -209,9 +209,9 @@ std::ostream& operator <<(std::ostream &out, const types::type::ref &type);
 
 /* helper functions */
 types::type_product::ref get_args_type(types::type::refs args);
-types::type::ref get_function_type(types::type::ref type_fn_context, types::type_product::ref args, types::type::ref return_type);
+types::type_function::ref get_function_type(types::type::ref type_fn_context, types::type_product::ref args, types::type::ref return_type);
 types::type::ref get_function_type_context(types::type::ref function_type);
-types::type::ref get_function_type_args(types::type::ref function_type);
+types::type_product::ref get_function_type_args(types::type::ref function_type);
 types::type::refs get_function_type_args_dimensions(types::type::ref function_type);
 types::type::ref get_function_return_type(types::type::ref function_type);
 types::type::pair make_type_pair(std::string fst, std::string snd, identifier::set generics);
