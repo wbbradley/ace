@@ -17,7 +17,7 @@ std::string unchecked_data_ctor_t::str() const {
     return ss.str();
 }
 
-types::type_function::ref unchecked_data_ctor_t::get_type(scope_t::ref scope) const {
+types::type::ref unchecked_data_ctor_t::get_type(scope_t::ref scope) const {
 	return sig;
 }
 

@@ -55,7 +55,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 				unchecked_fn->module_scope, unification, fn_type);
 
 		if (auto function = dyncast<const types::type_function>(fn_type)) {
-			bound_type_t::refs args = create_bound_types_from_args(status,
+			bound_type_t::refs args = create_bound_types_from_product(status,
 					builder, subst_scope, function->args);
 
 			bound_type_t::named_pairs named_args = zip_named_pairs(

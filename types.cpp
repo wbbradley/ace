@@ -655,6 +655,14 @@ const char *pkstr(product_kind_t pk) {
 	return nullptr;
 }
 
+types::type::ref eval(types::type::ref type, types::type::map env) {
+	if (auto id = dyncast<const types::type_id>(type)) {
+		return eval_id(id, env);
+	} else {
+		return null_impl();
+	}
+}
+
 types::type::ref eval_id(
 		ptr<const types::type_id> ptid,
 		types::type::map env)

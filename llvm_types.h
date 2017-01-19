@@ -3,11 +3,11 @@
 #include "bound_var.h"
 #include "ast.h"
 
-bound_type_t::refs create_bound_types_from_args(
+bound_type_t::refs create_bound_types_from_product(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		types::type::ref args_type);
+		types::type_product::ref product);
 
 bound_type_t::ref upsert_bound_type(
 		status_t &status,
@@ -35,8 +35,6 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		types::type::ref type_fn_context,
-		bound_type_t::refs args,
-		atom::map<int> name_index,
 		identifier::ref id,
 		const ptr<const ast::item> &node,
 		types::type::ref type);
@@ -54,7 +52,6 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		types::type::ref type_fn_context,
-		bound_type_t::refs args,
 		bound_type_t::ref data_type,
 		identifier::ref id,
 		const ast::item::ref &node);
@@ -76,6 +73,7 @@ bound_type_t::ref get_function_return_type(
 		bound_type_t::ref function_type);
 
 bound_type_t::ref get_or_create_algebraic_data_type(
+		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,

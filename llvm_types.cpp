@@ -6,29 +6,23 @@
 #include "code_id.h"
 #include "logger.h"
 
-bound_type_t::refs create_bound_types_from_args(
+bound_type_t::refs create_bound_types_from_product(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		types::type::ref args_type)
+		types::type_product::ref product)
 {
-	/* iteratate over a pk_args type and pull out a list of the bound types
+	/* iteratate over a product type and pull out a list of the bound types
 	 * within */
-	if (auto product = dyncast<const types::type_product>(args_type)) {
-		assert(product->pk == pk_args);
-		bound_type_t::refs args;
-		for (auto dimension : product->dimensions) {
-			bound_type_t::ref arg = upsert_bound_type(status, builder, scope,
-					dimension);
-			if (!!status) {
-				args.push_back(arg);
-			}
+	bound_type_t::refs args;
+	for (auto dimension : product->dimensions) {
+		bound_type_t::ref arg = upsert_bound_type(status, builder, scope,
+				dimension);
+		if (!!status) {
+			args.push_back(arg);
 		}
-		return args;
-	} else {
-		panic("do not call create_bound_types_from_args on a non-product type");
-		return {};
 	}
+	return args;
 }
 
 bound_type_t::ref create_bound_product_type(
@@ -217,13 +211,14 @@ bound_type_t::ref create_bound_id_type(
 		ptr<scope_t> scope,
 		const ptr<const types::type_id> &id)
 {
-	/* right here, we know that this type does not have a bound type. so,
-	 * let's go ahead and create a "handle" to prevent infinite recursion on
-	 * this guy. */
+	/* this id type does not yet have a bound type. */
 	assert(!scope->get_bound_type(id->get_signature()));
 	auto env = scope->get_typename_env();
 	auto expansion = eval_id(id, env);
+
+	/* however, what it expands to might already have a bound type */
 	if (expansion != nullptr) {
+		return upsert_bound_type(status, builder, scope, expansion);
 		return bind_type_expansion(status, builder, scope, expansion,
 			scope->make_fqn(id->get_id()->get_name().str()));
 	} else {
@@ -312,7 +307,7 @@ bound_type_t::ref create_bound_function_type(
 		ptr<scope_t> scope,
 		const ptr<const types::type_function> &function)
 {
-	bound_type_t::refs args = create_bound_types_from_args(status,
+	bound_type_t::refs args = create_bound_types_from_product(status,
 			builder, scope, function->args);
 	bound_type_t::ref return_type = upsert_bound_type(
 			status, builder, scope, function->return_type);
@@ -384,27 +379,23 @@ bound_type_t::ref upsert_bound_type(
 		ptr<scope_t> scope,
 	   	types::type::ref type)
 {
+	type = type->rebind(scope->get_type_variable_bindings());
+
 	auto signature = type->get_signature();
 	auto bound_type = scope->get_bound_type(signature);
 	if (bound_type != nullptr) {
 		return bound_type;
 	} else {
-		/* complete the binding of the type, just in case */
-		auto desired_type = type->rebind(scope->get_type_variable_bindings());
-
-		debug_above(6, log(log_info, "rebinding %s obtained %s",
-					type->str().c_str(),
-					desired_type->str().c_str()));
-
-		bound_type = create_bound_type(status, builder, scope, desired_type);
+		/* we believe that this type does not exist. let's build it */
+		bound_type = create_bound_type(status, builder, scope, type);
 
 		if (!!status) {
 			return bound_type;
 		}
 
-		user_error(status, desired_type->get_location(),
+		user_error(status, type->get_location(),
 			   	"unable to find a definition for %s in scope " c_id("%s"),
-				desired_type->str().c_str(),
+				type->str().c_str(),
                 scope->get_name().c_str());
 	}
 
@@ -525,6 +516,7 @@ bound_type_t::ref create_algebraic_data_type(
 	llvm::Type *llvm_tuple_type = llvm_create_tuple_type(
 			builder, program_scope, id->get_name(), args);
 
+#ifdef VAR_T
 	// TODO: Some condition that leads to knowing whether to wrap the type and
 	// return a pointer, which i don't think is correct, since pointers should
 	// be dealt with above ...
@@ -537,6 +529,7 @@ bound_type_t::ref create_algebraic_data_type(
 	} else {
 		assert(false);
 	}
+#endif
 
 	/* display the new type */
 	debug_above(5, log(log_info, "created LLVM type %s", llvm_print_type(*llvm_tuple_type).c_str()));
@@ -571,6 +564,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		identifier::ref id,
 		const ast::item::ref &node)
 {
+#ifdef VAR_T
 	/* this is a tuple constructor function */
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
@@ -580,13 +574,14 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 
 		if (!!status) {
 			bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(status, builder,
-					scope, type_fn_context, args, data_type, id, node);
+					scope, type_fn_context, data_type, id, node);
 
 			if (!!status) {
 				return {tuple_ctor, data_type};
 			}
 		}
 	}
+#endif
 
 	assert(!status);
 	return {nullptr, nullptr};
@@ -597,8 +592,6 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		types::type::ref type_fn_context,
-		bound_type_t::refs args,
-		atom::map<int> name_index,
 		identifier::ref id,
 		const ast::item::ref &node,
 		types::type::ref type)
@@ -610,12 +603,18 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
-		bound_type_t::ref data_type = get_or_create_algebraic_data_type(status,
-				builder, scope, id, args, name_index, node->token.location, type);
+		auto ctor_args_type = eval(type, scope->get_typename_env());
+		debug_above(4, log(log_info, "instantiating with type %s -> %s",
+					ctor_args_type->str().c_str(), type->str().c_str()));
+
+		auto product = dyncast<const types::type_product>(ctor_args_type);
+		assert(product != nullptr);
+
+		bound_type_t::ref data_type = upsert_bound_type(status, builder, scope, type);
 
 		if (!!status) {
 			bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,
-					scope, type_fn_context, args, data_type, id, node);
+					scope, type_fn_context, data_type, id, node);
 
 			if (!!status) {
 				return {tagged_tuple_ctor, data_type};
@@ -632,7 +631,6 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		types::type::ref type_fn_context,
-		bound_type_t::refs args,
 		bound_type_t::ref data_type,
 		identifier::ref id,
 		const ast::item::ref &node)
@@ -640,6 +638,16 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	atom name = id->get_name();
 
 	auto program_scope = scope->get_program_scope();
+
+	auto ctor_args_type = eval(data_type->get_type(), scope->get_typename_env());
+	debug_above(4, log(log_info, "get_or_create_tuple_ctor instantiating with type %s -> %s",
+				ctor_args_type->str().c_str(), data_type->str().c_str()));
+
+	auto product = dyncast<const types::type_product>(ctor_args_type);
+	assert(product != nullptr);
+
+	bound_type_t::refs args = create_bound_types_from_product(status,
+			builder, scope, product);
 
 	/* save and later restore the current branch insertion point */
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);

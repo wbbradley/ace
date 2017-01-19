@@ -1,14 +1,12 @@
 module mem
 link module posix
 
-# native
-type Value has
+type Value has native
 	var size __int64__
 	var name __str__
 	var typeinfo TypeInfo
 
-# native
-type TypeInfo has
+type TypeInfo has native
 	var typeid __typeid__
 	var addref def (v Value) void
 	var release def (v Value) void
@@ -29,3 +27,11 @@ def addref_value(v Value) void
 def release_value(v Value) void
 	if v.typeinfo.release(v) == 0
 		posix.free(v.name as __bytes)
+
+type Vector has
+	var x float
+	var y float
+
+def sample()
+	
+	x := Vector(2.3, 4.4)

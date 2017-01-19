@@ -199,6 +199,7 @@ types::type::ref type_lambda(identifier::ref binding, types::type::ref body);
 types::type::ref type_list_type(types::type::ref element);
 types::type::ref type_strip_maybe(types::type::ref maybe_maybe);
 
+types::type::ref eval(types::type::ref type, types::type::map env);
 types::type::ref eval_id(ptr<const types::type_id> ptid, types::type::map env);
 types::type::ref eval_apply(types::type::ref oper, types::type::ref operand, types::type::map env);
 bool type_is_unbound(types::type::ref type, types::type::map bindings);

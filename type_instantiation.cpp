@@ -77,6 +77,10 @@ bound_var_t::ref bind_ctor_to_scope(
 	debug_above(5, log(log_info, "finding/creating data ctor for " c_type("%s") " with return type %s",
 			id->str().c_str(), function->return_type->str().c_str()));
 
+	debug_above(5, log(log_info, "function return_type %s expands to %s",
+				function->return_type->str().c_str(),
+				eval(function->return_type, scope->get_typename_env())->str().c_str()));
+
 	const types::type_product::ref &args_types = function->args;
 	bound_type_t::refs args;
 	resolve_type_ref_params(status, builder, scope, args_types->dimensions, args);
@@ -91,8 +95,7 @@ bound_var_t::ref bind_ctor_to_scope(
 			 * whether this ctor already exists. if so, we'll just return it. if
 			 * not, we'll generate it. */
 			auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder,
-					scope, function->inbound_context, args,
-					function->args->name_index, id, node,
+					scope, function->inbound_context, id, node,
 					function->return_type);
 
 			if (!!status) {
