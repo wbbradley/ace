@@ -289,7 +289,6 @@ llvm::Type *llvm_create_struct_type(
 
 llvm::Type *llvm_create_tuple_type(
 		llvm::IRBuilder<> &builder,
-		program_scope_t::ref program_scope,
 		atom name,
 		const bound_type_t::refs &dimensions) 
 {

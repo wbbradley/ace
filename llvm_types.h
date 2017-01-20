@@ -71,23 +71,3 @@ bound_type_t::ref get_function_return_type(
 		const ast::item &obj,
 		scope_t::ref scope,
 		bound_type_t::ref function_type);
-
-bound_type_t::ref get_or_create_algebraic_data_type(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		identifier::ref id,
-		bound_type_t::refs args,
-		atom::map<int> name_index,
-		struct location location,
-		types::type_product::ref data_type);
-
-bound_type_t::ref create_algebraic_data_type(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		identifier::ref id,
-		bound_type_t::refs args,
-		atom::map<int> name_index,
-		struct location location,
-		types::type::ref type);

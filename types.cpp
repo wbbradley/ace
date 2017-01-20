@@ -656,8 +656,13 @@ const char *pkstr(product_kind_t pk) {
 }
 
 types::type::ref eval(types::type::ref type, types::type::map env) {
+	/* if there is no expansion of the type passed in, we will return nullptr */
+
 	if (auto id = dyncast<const types::type_id>(type)) {
 		return eval_id(id, env);
+	} else if (auto product = dyncast<const types::type_product>(type)) {
+		/* there is no expansion of product types */
+		return nullptr;
 	} else {
 		return null_impl();
 	}
@@ -667,6 +672,8 @@ types::type::ref eval_id(
 		ptr<const types::type_id> ptid,
 		types::type::map env)
 {
+	/* if there is no expansion of the type passed in, we will return nullptr */
+
 	assert(ptid != nullptr);
 
 	/* look in the environment for a declaration of this term */
@@ -683,6 +690,8 @@ types::type::ref eval_apply(
 	   	types::type::ref operand, 
 		types::type::map env)
 {
+	/* if there is no expansion of the type passed in, we will return nullptr */
+
 	assert(oper != nullptr);
 	assert(operand != nullptr);
 	if (auto ptid = dyncast<const types::type_id>(oper)) {
