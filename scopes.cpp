@@ -546,7 +546,7 @@ unchecked_var_t::ref program_scope_t::put_unchecked_variable(
 }
 
 void program_scope_t::put_bound_type(status_t &status, bound_type_t::ref type) {
-	debug_above(8, log(log_info, "binding type %s as " c_id("%s"),
+	debug_above(5, log(log_info, "binding type %s as " c_id("%s"),
 				type->str().c_str(),
 				type->get_signature().repr().c_str()));
 	atom signature = type->get_signature().repr();

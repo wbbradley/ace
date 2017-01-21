@@ -117,8 +117,8 @@ std::ostream &operator <<(std::ostream &os, const bound_type_t &type) {
 std::string bound_type_impl_t::str() const {
 	std::stringstream ss;
 	ss << get_type();
-	// ss << " " << llvm_print_type(*get_llvm_type());
-	// ss << " " << ::str(get_dimensions());
+	ss << " " << llvm_print_type(*get_llvm_type());
+	ss << " " << ::str(get_dimensions());
 	return ss.str();
 }
 
@@ -186,6 +186,22 @@ bool bound_type_t::is_function() const {
 
 bool bound_type_t::is_void() const {
 	return get_type()->is_void();
+}
+
+bool bound_type_t::is_maybe() const {
+	if (auto maybe = dyncast<const types::type_maybe>(get_type())) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool bound_type_t::is_ref() const {
+	if (auto product = dyncast<const types::type_product>(get_type())) {
+		return product->pk == pk_ref;
+	} else {
+		return false;
+	}
 }
 
 types::signature bound_type_t::get_signature() const {

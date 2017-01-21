@@ -502,6 +502,7 @@ void add_globals(
 			{"__type_id_eq_type_id", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 			{"__int__", llvm_module_typeid, "__type_id_int", {TYPEID_TYPE}, INT_TYPE},
 
+			{"__mem_alloc", llvm_module_gc, "mem_alloc", {INT_TYPE}, "__bytes"},
 #ifdef VAR_T
 			{"__push_stack_var", llvm_module_gc, "push_stack_var", {"__var_ref"}, "void"},
 			{"__pop_stack_var", llvm_module_gc, "pop_stack_var", {"__var_ref"}, "void"},
@@ -545,7 +546,7 @@ void compiler::build_parse_modules(status_t &status) {
 
 	if (!!status) {
 		/* always include the standard library */
-        if (false && getenv("NO_STD_LIB") == nullptr) {
+        if (getenv("NO_STD_LIB") == nullptr) {
             build_parse(status, location{"std lib", 0, 0}, "lib/std", true /*global*/);
         }
 

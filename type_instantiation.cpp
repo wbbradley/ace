@@ -113,25 +113,166 @@ bound_var_t::ref bind_ctor_to_scope(
 	return nullptr;
 }
 
+types::type::ref instantiate_data_ctor_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		types::type::ref unbound_type,
+		identifier::refs type_variables,
+		scope_t::ref scope,
+		ptr<const ast::item> node,
+		identifier::ref id,
+		identifier::ref supertype_id)
+{
+	/* get the name of the ctor */
+	atom tag_name = id->get_name();
+
+	/* create the tag type */
+	auto tag_type = type_id(id);
+
+	/* create the basic product type */
+	ptr<const types::type_product> product = dyncast<const types::type_product>(unbound_type);
+	assert(product != nullptr);
+
+	/* lambda_vars tracks the order of the lambda variables we'll accept as we abstract our
+	 * supertype expansion */
+	std::list<identifier::ref> lambda_vars;
+	atom::set generics;
+
+	// TODO: examine whether this is necessary anymore
+	create_supertype_relationship(status, product, id, supertype_id,
+			type_variables, scope, lambda_vars, generics);
+
+	if (!status) {
+		return nullptr;
+	}
+
+	/* now build the actual typename expansion we'll put in the typename env */
+	/**********************************************/
+	/* Register a data ctor for this product type */
+	/**********************************************/
+	assert(!!status);
+
+	if (product->dimensions.size() != 0) {
+		assert(id->get_name() == tag_name);
+
+		/* we're declaring a ctor at module scope */
+		if (auto module_scope = dyncast<module_scope_t>(scope)) {
+			/* create the actual expanded type signature of this type */
+			types::type::ref type = type_product(pk_ref, {product});
+
+			/* make sure we allow for parameterized expansion */
+			for (auto lambda_var : lambda_vars) {
+				type = type_lambda(lambda_var, type);
+			}
+
+			/* let's create the return type (an unexpanded operator) that will be the codomain of the ctor fn. */
+			auto ctor_return_type = tag_type;
+			for (auto lambda_var : lambda_vars) {
+				ctor_return_type = type_operator(ctor_return_type, type_variable(lambda_var));
+			}
+
+			/* for now assume all ctors return refs */
+			debug_above(4, log(log_info, "return type for %s will be %s",
+						id->str().c_str(), ctor_return_type->str().c_str()));
+
+			/* we need to register this constructor as an override for the name `tag_name` */
+			debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
+						id->str().c_str()));
+
+			types::type_function::ref data_ctor_sig = get_function_type(
+					scope->get_inbound_context(),
+					types::change_product_kind(pk_args, product),
+					ctor_return_type);
+
+			module_scope->get_program_scope()->put_unchecked_variable(tag_name,
+					unchecked_data_ctor_t::create(id, node,
+						module_scope, data_ctor_sig));
+			return type;
+		} else {
+			user_error(status, node->token.location, "local type definitions are not yet impl");
+		}
+	} else {
+		/* it's a nullary enumeration or "tag", let's create a global value to represent
+		 * this tag. */
+		types::type::ref type = product;
+		for (auto lambda_var : lambda_vars) {
+			type = type_lambda(lambda_var, type);
+		}
+
+		/* enum values must have a supertype, right? */
+		assert(supertype_id != nullptr);
+
+		/* start by making a type for the tag */
+		bound_type_t::ref bound_tag_type = bound_type_t::create(
+				tag_type,
+				id->get_location(),
+				/* all tags use the var_t* type */
+				scope->get_program_scope()->get_bound_type({"__var_ref"})->get_llvm_type());
+
+		bound_var_t::ref tag = llvm_create_global_tag(
+				builder, scope, bound_tag_type, tag_name, id);
+
+		/* record this singleton for use later */
+		scope->put_bound_variable(status, tag_name, tag);
+
+		if (!!status) {
+			debug_above(7, log(log_info, "instantiated nullary data ctor %s in scope %s",
+						tag->str().c_str(), scope->get_name().c_str()));
+			return type;
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 void ast::type_product::register_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		identifier::ref supertype_id,
+		identifier::ref id_,
 		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
 	debug_above(5, log(log_info, "creating product type for %s", str().c_str()));
 
-	if (!!status) {
-		/* Note that product types do not have a named super type. And, this
-		 * node is a type algebra node, therefore, its token points to "has",
-		 * instead of the actual typename we're trying to create. So, we use
-		 * the given supertype_id as the name for the data ctor. */
-		register_data_ctor(status, builder,
-				type, type_variables, scope, shared_from_this(),
-				supertype_id /*id*/,
-				nullptr /*supertype_id*/);
+	atom name = id_->get_name();
+	auto location = id_->get_location();
+
+	if (auto found_type = scope->get_bound_type(id_->get_name())) {
+		/* simple check for an already bound monotype */
+		user_error(status, location, "symbol " c_id("%s") " was already defined",
+				name.c_str());
+		user_message(log_warning, status, found_type->get_location(),
+				"previous version of %s defined here",
+				found_type->str().c_str());
+	} else {
+		auto env = scope->get_typename_env();
+		auto env_iter = env.find(name);
+		if (env_iter == env.end()) {
+			/* instantiate_data_ctor_type has the side-effect of creating an
+			 * unchecked data ctor for the type */
+			auto data_ctor_type = instantiate_data_ctor_type(status, builder, type,
+					type_variables, scope, shared_from_this(), id_, nullptr);
+
+			if (!!status) {
+				/* register the typename in the current environment */
+				debug_above(7, log(log_info, "registering type " c_type("%s") " in scope %s",
+							name.c_str(), scope->get_name().c_str()));
+				scope->put_typename(status, name, data_ctor_type);
+
+				/* success */
+				return;
+			}
+		} else {
+			/* simple check for an already bound typename env variable */
+			user_error(status, location,
+					"symbol " c_id("%s") " is already taken in typename env by %s",
+					name.c_str(),
+					env_iter->second->str().c_str());
+		}
 	}
+
+	assert(!status);
 }
 
 void create_supertype_relationship(
@@ -237,194 +378,4 @@ void ast::type_sum::register_type(
 				join(type_variables, ", ").c_str()));
 
 	scope->put_typename(status, supertype_id->get_name(), type);
-}
-
-types::type::ref instantiate_data_ctor_type(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		types::type::ref unbound_type,
-		identifier::refs type_variables,
-		scope_t::ref scope,
-		ptr<const ast::item> node,
-		identifier::ref id,
-		identifier::ref supertype_id)
-{
-	/* get the name of the ctor */
-	atom tag_name = id->get_name();
-
-	/* create the tag type */
-	auto tag_type = type_id(id);
-
-	/* create the basic product type */
-	ptr<const types::type_product> product = dyncast<const types::type_product>(unbound_type);
-	assert(product != nullptr);
-
-	types::type::refs dimensions = product->dimensions;
-	/* lambda_vars tracks the order of the lambda variables we'll accept as we abstract our
-	 * supertype expansion */
-	std::list<identifier::ref> lambda_vars;
-	atom::set generics;
-
-	// TODO: examine whether this is necessary anymore
-	create_supertype_relationship(status, product, id, supertype_id,
-			type_variables, scope, lambda_vars, generics);
-
-	if (!status) {
-		return nullptr;
-	}
-
-	/* let's create the return type that will be the codomain of the ctor fn. */
-	auto type_callsite = tag_type;
-	for (auto lambda_var : lambda_vars) {
-		type_callsite = type_operator(type_callsite, type_variable(lambda_var));
-	}
-	debug_above(5, log(log_info, "type_callsite = %s", type_callsite->str().c_str()));
-
-	/* now build the actual typename expansion we'll put in the typename env */
-	types::type::ref type = product;
-	for (auto lambda_var : lambda_vars) {
-		type = type_lambda(lambda_var, type);
-	}
-
-	/* handle the special case of unary tags */
-	if (dimensions.size() == 0) {
-		/* it's a nullary enumeration or "tag", let's create a global value to represent
-		 * this tag. */
-
-		/* enum values must have a supertype, right? */
-		assert(supertype_id != nullptr);
-
-		if (!!status) {
-			/* start by making a type for the tag */
-			bound_type_t::ref bound_tag_type = bound_type_t::create(
-					tag_type,
-					id->get_location(),
-					/* all tags use the var_t* type */
-					scope->get_program_scope()->get_bound_type({"__var_ref"})->get_llvm_type());
-
-			bound_var_t::ref tag = llvm_create_global_tag(
-					builder, scope, bound_tag_type, tag_name, id);
-
-			/* record this singleton for use later */
-			scope->put_bound_variable(status, tag_name, tag);
-
-			if (!!status) {
-				debug_above(7, log(log_info, "instantiated nullary data ctor %s in scope %s",
-							tag->str().c_str(), scope->get_name().c_str()));
-			}
-		}
-	} else {
-		if (!!status) {
-			/* now let's make sure we register this constructor as an override for
-			 * the name `tag_name` */
-			debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
-						id->str().c_str()));
-
-			/* get the type of the data constructor function itself */
-			types::type::ref data_ctor_sig = get_function_type(
-					scope->get_inbound_context(),
-					types::change_product_kind(pk_args, product),
-					type_callsite);
-
-			for (auto lambda_var : lambda_vars) {
-				data_ctor_sig = type_lambda(lambda_var, data_ctor_sig);
-			}
-
-			if (auto module_scope = dyncast<module_scope_t>(scope)) {
-				/* we're declaring a ctor at module scope */
-				types::type_product::ref generic_args = types::change_product_kind(pk_args, product);
-
-				debug_above(5, log(log_info, "reduced to %s", generic_args->str().c_str()));
-				types::type_function::ref data_ctor_sig = get_function_type(
-						scope->get_inbound_context(), generic_args, type_callsite);
-
-				assert(id->get_name() == tag_name);
-				/* side-effect: create an unchecked reference to this data ctor into
-				 * the current scope */
-				module_scope->get_program_scope()->put_unchecked_variable(tag_name,
-						unchecked_data_ctor_t::create(id, node,
-							module_scope, data_ctor_sig));
-			} else {
-				user_error(status, node->token.location, "local type definitions are not yet impl");
-			}
-		}
-	}
-
-	if (!!status) {
-		return type;
-	} else {
-		return nullptr;
-	}
-}
-
-#if 0
-types::type::ref ast::data_ctor::instantiate_type_term(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		identifier::ref supertype_id,
-		identifier::refs type_variables,
-		scope_t::ref scope) const
-{
-	debug_above(5, log(log_info, "creating sum type term for %s", str().c_str()));
-
-	types::type::refs dimensions;
-	for (auto type_ref : type_ref_params) {
-		dimensions.push_back(type_ref->get_type_term());
-	}
-	auto id = make_code_id(token);
-
-	return register_data_ctor(status, builder,
-			type_variables, scope, shared_from_this(),
-			dimensions, {} /*member_index*/, id, supertype_id);
-}
-#endif
-
-types::type::ref register_data_ctor(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		types::type::ref type,
-		identifier::refs type_variables,
-		scope_t::ref scope,
-		ptr<const ast::item> node,
-		identifier::ref id_,
-		identifier::ref supertype_id)
-{
-	atom name = id_->get_name();
-	auto location = id_->get_location();
-	if (supertype_id == nullptr || (supertype_id->get_name() != id_->get_name())) {
-		if (auto found_type = scope->get_bound_type(id_->get_name())) {
-			/* simple check for an already bound monotype */
-			user_error(status, location, "symbol " c_id("%s") " was already defined",
-					name.c_str());
-			user_message(log_warning, status, found_type->get_location(),
-					"previous version of %s defined here",
-					found_type->str().c_str());
-		} else {
-			auto env = scope->get_typename_env();
-			auto env_iter = env.find(name);
-			if (env_iter != env.end()) {
-				/* simple check for an already bound typename env variable */
-				user_error(status, location,
-					   	"symbol " c_id("%s") " is already taken in typename env by %s",
-						name.c_str(),
-						env_iter->second->str().c_str());
-			} else {
-				auto data_ctor_type = instantiate_data_ctor_type(status, builder, type,
-						type_variables, scope, node, id_, supertype_id);
-				if (!!status) {
-					/* register the typename in the current environment */
-                    debug_above(7, log(log_info, "registering type " c_type("%s") " in scope %s",
-                                name.c_str(), scope->get_name().c_str()));
-					scope->put_typename(status, name, data_ctor_type);
-					return data_ctor_type;
-				}
-			}
-		}
-	} else {
-		user_error(status, location,
-			   	"data constructors cannot be named the same as their supertype");
-	}
-
-	assert(!status);
-	return nullptr;
 }

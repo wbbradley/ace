@@ -27,11 +27,11 @@
 
 bound_type_t::ref get_fully_bound_param_info(
 		status_t &status,
-        llvm::IRBuilder<> &builder,
-        const ast::var_decl &obj,
-        scope_t::ref scope,
-        atom &var_name,
-        atom::set &generics,
+		llvm::IRBuilder<> &builder,
+		const ast::var_decl &obj,
+		scope_t::ref scope,
+		atom &var_name,
+		atom::set &generics,
 		int &generic_index)
 {
 	/* get the name of this parameter */
@@ -56,10 +56,10 @@ bound_type_t::ref get_fully_bound_param_info(
 }
 
 bound_var_t::ref type_check_bound_var_decl(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        const ast::var_decl &obj,
-        scope_t::ref scope,
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		const ast::var_decl &obj,
+		scope_t::ref scope,
 		bool maybe_unbox)
 {
 	const atom symbol = obj.token.text;
@@ -168,7 +168,7 @@ bound_var_t::ref type_check_bound_var_decl(
 			/* generate the mutable stack-based variable for this var */
 			llvm::Function *llvm_function = llvm_get_function(builder);
 			llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function,
-				   	bound_type, symbol);
+					bound_type, symbol);
 
 			if (init_var) {
 				debug_above(6, log(log_info, "creating a store instruction %s := %s",
@@ -229,13 +229,13 @@ atom::many get_param_list_decl_variable_names(ast::param_list_decl::ref obj) {
 	atom::many names;
 	for (auto param : obj->params) {
 		names.push_back({param->token.text});
-    }
-    return names;
+	}
+	return names;
 }
 
 bound_type_t::named_pairs zip_named_pairs(
 		atom::many names,
-	   	bound_type_t::refs args)
+		bound_type_t::refs args)
 {
 	bound_type_t::named_pairs named_args;
 	assert(names.size() == args.size());
@@ -270,31 +270,31 @@ status_t get_fully_bound_param_list_decl_variables(
 }
 
 bound_type_t::ref get_return_type_from_return_type_expr(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
+		status_t &status,
+		llvm::IRBuilder<> &builder,
 		types::type::ref type,
-        scope_t::ref scope)
+		scope_t::ref scope)
 {
-    /* lookup the alias, default to void */
-    if (type != nullptr) {
+	/* lookup the alias, default to void */
+	if (type != nullptr) {
 		return upsert_bound_type(status, builder, scope, type);
-    } else {
+	} else {
 		/* user specified no return type, default to void */
 		return scope->get_program_scope()->get_bound_type({"void"});
-    }
+	}
 
 	assert(!status);
 	return nullptr;
 }
 
 void type_check_fully_bound_function_decl(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        const ast::function_decl &obj,
-        scope_t::ref scope,
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		const ast::function_decl &obj,
+		scope_t::ref scope,
 		types::type::ref &inbound_context,
-        bound_type_t::named_pairs &params,
-        bound_type_t::ref &return_value)
+		bound_type_t::named_pairs &params,
+		bound_type_t::ref &return_value)
 {
 	/* returns the parameters and the return value types fully resolved */
 	debug_above(4, log(log_info, "type checking function decl %s", obj.token.str().c_str()));
@@ -338,10 +338,10 @@ bool type_is_unbound(types::type::ref type, types::type::map bindings) {
 bool is_function_defn_generic(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-	   	scope_t::ref scope,
-	   	const ast::function_defn &obj)
+		scope_t::ref scope,
+		const ast::function_defn &obj)
 {
-    if (obj.decl->param_list_decl) {
+	if (obj.decl->param_list_decl) {
 		/* check the parameters' genericity */
 		auto &params = obj.decl->param_list_decl->params;
 		for (auto &param : params) {
@@ -382,36 +382,36 @@ bool is_function_defn_generic(
 }
 
 function_scope_t::ref make_param_list_scope(
-        status_t &status,
+		status_t &status,
 		llvm::IRBuilder<> &builder,
-        const ast::function_decl &obj,
-        scope_t::ref &scope,
+		const ast::function_decl &obj,
+		scope_t::ref &scope,
 		bound_var_t::ref function_var,
 		bound_type_t::named_pairs params)
 {
-    /* this function is coupled to the sbk_generic_substitution mechanism.
-     * when we're not dealing with generics, it simply looks up the types in
-     * the decl parameter's type expressions. when we're dealing with generics
-     * after using the incoming scope to find the bound parameter types (based
-     * on upstream callsite arguments), we drop the sbk_generic_substitution in
-     * order to prevent those type names from being visible within the function.
-     */
-    assert(!!status);
+	/* this function is coupled to the sbk_generic_substitution mechanism.
+	 * when we're not dealing with generics, it simply looks up the types in
+	 * the decl parameter's type expressions. when we're dealing with generics
+	 * after using the incoming scope to find the bound parameter types (based
+	 * on upstream callsite arguments), we drop the sbk_generic_substitution in
+	 * order to prevent those type names from being visible within the function.
+	 */
+	assert(!!status);
 
-    if (!!status) {
-        auto new_scope = scope->new_function_scope(
-                string_format("function-%s", function_var->name.c_str()));
+	if (!!status) {
+		auto new_scope = scope->new_function_scope(
+				string_format("function-%s", function_var->name.c_str()));
 
-        assert(obj.param_list_decl->params.size() == params.size());
+		assert(obj.param_list_decl->params.size() == params.size());
 
 		llvm::Function *llvm_function = llvm::cast<llvm::Function>(function_var->llvm_value);
-        llvm::Function::arg_iterator args = llvm_function->arg_begin();
+		llvm::Function::arg_iterator args = llvm_function->arg_begin();
 
-        int i = 0;
+		int i = 0;
 
-        for (auto &param : params) {
-            llvm::Value *llvm_param = args++;
-            llvm_param->setName(param.first.str());
+		for (auto &param : params) {
+			llvm::Value *llvm_param = args++;
+			llvm_param->setName(param.first.str());
 
 			/* create an alloca in order to be able to reassign the named
 			 * parameter to a new value. this does not mean that the parameter
@@ -424,36 +424,36 @@ function_scope_t::ref make_param_list_scope(
 						llvm_print_value_ptr(llvm_param).c_str()));
 			builder.CreateStore(llvm_param, llvm_alloca);	
 
-            /* add the parameter argument to the current scope */
-            new_scope->put_bound_variable(status, param.first,
-                    bound_var_t::create(INTERNAL_LOC(), param.first, param.second,
-                        llvm_alloca, make_code_id(obj.param_list_decl->params[i++]->token),
+			/* add the parameter argument to the current scope */
+			new_scope->put_bound_variable(status, param.first,
+					bound_var_t::create(INTERNAL_LOC(), param.first, param.second,
+						llvm_alloca, make_code_id(obj.param_list_decl->params[i++]->token),
 						true/*is_lhs*/));
 			if (!status) {
 				break;
 			}
-        }
+		}
 
 		if (!!status) {
 			return new_scope;
 		}
-    }
+	}
 
 	assert(!status);
 	return nullptr;
 }
 
 bound_var_t::ref ast::link_module_statement::resolve_instantiation(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-        local_scope_t::ref *new_scope,
-	   	bool *returns) const
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		local_scope_t::ref *new_scope,
+		bool *returns) const
 {
 	module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
 	assert(module_scope != nullptr);
 
-    auto linked_module_name = extern_module->get_canonical_name();
+	auto linked_module_name = extern_module->get_canonical_name();
 	assert(linked_module_name.size() != 0);
 
 	program_scope_t::ref program_scope = scope->get_program_scope();
@@ -483,15 +483,15 @@ bound_var_t::ref ast::link_module_statement::resolve_instantiation(
 }
 
 bound_var_t::ref ast::link_function_statement::resolve_instantiation(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-        local_scope_t::ref *new_scope,
-	   	bool *returns) const
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		local_scope_t::ref *new_scope,
+		bool *returns) const
 {
 	/* FFI */
-    module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
-    assert(module_scope);
+	module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
+	assert(module_scope);
 
 	if (!scope->has_bound_variable(function_name.text, rc_just_current_scope)) {
 		types::type::ref inbound_context;
@@ -546,11 +546,11 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 }
 
 bound_var_t::ref ast::dot_expr::resolve_overrides(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-        const ptr<const ast::item> &callsite,
-        const bound_type_t::refs &args) const
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		const ptr<const ast::item> &callsite,
+		const bound_type_t::refs &args) const
 {
 	indent_logger indent(5, string_format(
 				"dot_expr::resolve_overrides for %s",
@@ -579,15 +579,15 @@ bound_var_t::ref ast::dot_expr::resolve_overrides(
 }
 
 bound_var_t::ref ast::callsite_expr::resolve_instantiation(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-        local_scope_t::ref *new_scope,
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    /* get the value of calling a function */
-    bound_type_t::refs param_types;
-    bound_var_t::refs arguments;
+	/* get the value of calling a function */
+	bound_type_t::refs param_types;
+	bound_var_t::refs arguments;
 
 	if (auto symbol = dyncast<ast::reference_expr>(function_expr)) {
 		if (symbol->token.text == "static_print") {
@@ -607,7 +607,7 @@ bound_var_t::ref ast::callsite_expr::resolve_instantiation(
 				return nullptr;
 			} else {
 				user_error(status, *shared_from_this(),
-					   	"static_print requires one and only one parameter");
+						"static_print requires one and only one parameter");
 
 				assert(!status);
 				return nullptr;
@@ -655,43 +655,43 @@ bound_var_t::ref ast::callsite_expr::resolve_instantiation(
 	}
 
 
-    assert(!status);
-    return nullptr;
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref ast::reference_expr::resolve_instantiation(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-        local_scope_t::ref *new_scope,
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	/* we wouldn't be referencing a variable name here unless it was unique
 	 * override resolution only happens on callsites, and we don't allow
 	 * passing around unresolved overload references */
-    bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(), token.text);
+	bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(), token.text);
 
-    if (!var) {
-        user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
-    }
+	if (!var) {
+		user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
+	}
 
-    return var;
+	return var;
 }
 
 bound_var_t::ref ast::reference_expr::resolve_as_condition(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-        local_scope_t::ref *new_scope) const
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		local_scope_t::ref *new_scope) const
 {
 	/* we wouldn't be referencing a variable name here unless it was unique
 	 * override resolution only happens on callsites, and we don't allow
 	 * passing around unresolved overload references */
-    bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(), token.text);
+	bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(), token.text);
 
-    if (!var) {
-        user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
-    }
+	if (!var) {
+		user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
+	}
 
 	if (auto maybe_type = dyncast<const types::type_maybe>(var->type->get_type())) {
 		runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
@@ -738,14 +738,14 @@ bound_var_t::ref ast::reference_expr::resolve_as_condition(
 		/* this is not a maybe, so let's just move along */
 	}
 
-    return var;
+	return var;
 }
 
 bound_var_t::ref ast::array_index_expr::resolve_instantiation(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-        local_scope_t::ref *new_scope,
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	/* this expression looks like this
@@ -785,14 +785,14 @@ bound_var_t::ref ast::array_index_expr::resolve_instantiation(
 }
 
 bound_var_t::ref ast::array_literal_expr::resolve_instantiation(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-        local_scope_t::ref *new_scope,
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-    user_error(status, *this, "not impl");
-    return nullptr;
+	user_error(status, *this, "not impl");
+	return nullptr;
 }
 
 bound_var_t::ref type_check_binary_operator(
@@ -849,10 +849,10 @@ bound_var_t::ref ast::eq_expr::resolve_instantiation(
 
 bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-	   	scope_t::ref scope,
-	   	local_scope_t::ref *new_scope,
-	   	bool *returns) const
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		local_scope_t::ref *new_scope,
+		bool *returns) const
 {
 	/* let's get the actual values in our tuple. */
 	bound_var_t::refs vars;
@@ -870,7 +870,7 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 		bound_type_t::refs args = get_bound_types(vars);
 
 		/* let's get the type for this tuple wrapped as an object */
-        types::type::ref tuple_type = get_tuple_type(args);
+		types::type::ref tuple_type = get_tuple_type(args);
 
 		/* now, let's see if we already have a ctor for this tuple type, if not
 		 * we'll need to create a data ctor for this unnamed tuple type */
@@ -898,10 +898,10 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 }
 
 bound_var_t::ref ast::or_expr::resolve_instantiation(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-        local_scope_t::ref *new_scope,
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	// TODO: implement short-circuiting
@@ -909,14 +909,79 @@ bound_var_t::ref ast::or_expr::resolve_instantiation(
 }
 
 bound_var_t::ref ast::and_expr::resolve_instantiation(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-        local_scope_t::ref *new_scope,
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	// TODO: implement short-circuiting
 	return null_impl();
+}
+
+bound_type_t::ref eval_to_bound_struct_ref(
+		status_t &status,
+		scope_t::ref scope,
+		ast::item::ref node,
+		bound_type_t::ref bound_type)
+{
+	if (bound_type->is_ref()) {
+		return bound_type;
+	} else if (bound_type->is_maybe()) {
+		user_error(status, node->get_location(),
+				"maybe type %s cannot be dereferenced. todo implement ?.",
+				bound_type->str().c_str());
+		return nullptr;
+	}
+
+	types::type::ref expansion = eval(bound_type->get_type(),
+			scope->get_typename_env());
+
+	if (expansion != nullptr) {
+		debug_above(5, log(log_info,
+					"expanded %s to %s",
+					bound_type->str().c_str(),
+					expansion->str().c_str()));
+		auto bound_expansion = scope->get_bound_type(expansion->get_signature());
+		assert(bound_expansion != nullptr);
+		return bound_expansion;
+	} else {
+		user_error(status, node->get_location(),
+				"maybe type %s cannot be dereferenced. todo implement ?.",
+				bound_type->str().c_str());
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
+types::type_product::ref get_struct_type_from_ref(
+		status_t &status,
+	   	ast::item::ref node,
+	   	bound_type_t::ref bound_struct_ref)
+{
+	if (auto product = dyncast<const types::type_product>(
+				bound_struct_ref->get_type())) {
+		if (product->pk == pk_ref) {
+			auto struct_type = dyncast<const types::type_product>(product->dimensions[0]);
+			if (struct_type != nullptr) {
+				if (struct_type->pk == pk_tuple) {
+					return struct_type;
+				} else {
+					user_error(status, node->get_location(),
+							"%s is pointing to %s, which is not a struct",
+							bound_struct_ref->str().c_str(),
+							struct_type->str().c_str());
+				}
+			}
+		} else {
+			user_error(status, node->get_location(),
+					"unable to dereference %s, it's not a ref",
+					node->str().c_str());
+		}
+	}
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref extract_member_variable(
@@ -928,7 +993,21 @@ bound_var_t::ref extract_member_variable(
 		atom member_name,
 		bound_type_t::ref bound_type)
 {
-	auto member_index = bound_type->get_member_index();
+	bound_type_t::ref bound_struct_ref = eval_to_bound_struct_ref(status, scope,
+			node, bound_type);
+
+	if (!status) {
+		return nullptr;
+	}
+
+	types::type_product::ref struct_type = get_struct_type_from_ref(
+			status, node, bound_struct_ref);
+
+	if (!status) {
+		return nullptr;
+	}
+
+	auto member_index = struct_type->name_index;
 	auto member_index_iter = member_index.find(member_name);
 
 	for (auto member_index_pair : member_index) {
@@ -940,24 +1019,25 @@ bound_var_t::ref extract_member_variable(
 		auto index = member_index_iter->second;
 		debug_above(5, log(log_info, "found member %s of type %s at index %d",
 					member_name.c_str(),
-					bound_type->str().c_str(), index));
+					bound_struct_ref->str().c_str(), index));
 
 		/* get the type of the dimension being referenced */
-		bound_type_t::ref member_type = bound_type->get_dimensions()[index];
-		assert(bound_type->get_llvm_type() != nullptr);
+		bound_type_t::ref member_type = scope->get_bound_type(
+				struct_type->dimensions[index]->get_signature());
+		assert(bound_struct_ref->get_llvm_type() != nullptr);
 
 		llvm::Value *llvm_var_value = llvm_resolve_alloca(builder, bound_var->llvm_value);
-		if (!bound_type->get_llvm_type()->isPointerTy()) {
+		if (!bound_struct_ref->get_llvm_type()->isPointerTy()) {
 			user_error(status, node->get_location(), "type is not a pointer type: %s",
-					bound_type->str().c_str());
+					bound_struct_ref->str().c_str());
 		}
 		if (!!status) {
 			llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
-					llvm_var_value, bound_type->get_llvm_type());
+					llvm_var_value, bound_struct_ref->get_llvm_type());
 
 			llvm::Value *llvm_gep = builder.CreateInBoundsGEP(
 					llvm_value_as_specific_type,
-					{builder.getInt32(0), builder.getInt32(1), builder.getInt32(index)});
+					{builder.getInt32(0), builder.getInt32(index)});
 
 			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
 			return bound_var_t::create(
@@ -1555,16 +1635,8 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 	 * names.  the type will eventually be able to be referenced by its
 	 * name. types can be imported across module boundaries, and type
 	 * definitions can be generic in declaration, but concrete in resolution.
-	 * this function is the resolution step, so we assume all types referenced
-	 * within are bound to some scope and have concrete definitions provided
-	 * already. for those that have not been provided we will need to recurse
-	 * instantiation. */
+	 * this function is the declaration step. */
 
-	/*  create a def_macro term and add it to the current type environment.
-	 *  Use type_decl->name, and bind the type algebra expression to a lambda
-	 *  of the type_decl->type_variables. */
-	
-	/* as a test, let's see if the preexisting term is already bound. */
 	atom type_name = type_decl->token.text;
 	auto already_bound_type = scope->get_bound_type(type_name);
 	if (already_bound_type != nullptr) {

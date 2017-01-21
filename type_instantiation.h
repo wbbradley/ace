@@ -3,16 +3,6 @@
 #include "types.h"
 #include "scopes.h"
 
-types::type::ref register_data_ctor(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		types::type::ref type,
-		identifier::refs type_variables,
-		scope_t::ref scope,
-		ptr<const ast::item> node,
-		identifier::ref id_,
-		identifier::ref supertype_id);
-
 bound_var_t::ref bind_ctor_to_scope(
 		status_t &status,
 		llvm::IRBuilder<> &builder,

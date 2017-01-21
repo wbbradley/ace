@@ -199,6 +199,14 @@ std::string llvm_print_module(llvm::Module &llvm_module) {
 	return ss.str();
 }
 
+std::string llvm_print_function(llvm::Function *llvm_function) {
+	std::stringstream ss;
+	llvm::raw_os_ostream os(ss);
+	llvm_function->print(os, nullptr /*AssemblyAnnotationWriter*/);
+	os.flush();
+	return ss.str();
+}
+
 std::string llvm_print_value_ptr(llvm::Value *llvm_value) {
 	return llvm_print_value(*llvm_value);
 }
@@ -353,6 +361,7 @@ void llvm_verify_function(status_t &status, llvm::Function *llvm_function) {
 	llvm::raw_os_ostream os(ss);
 	if (llvm::verifyFunction(*llvm_function, &os)) {
 		os.flush();
+		ss << llvm_print_function(llvm_function);
 		user_error(status, location{}, "LLVM function verification failed: %s", ss.str().c_str());
 	}
 }

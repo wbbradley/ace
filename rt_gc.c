@@ -91,7 +91,7 @@ zion_bool_t __isnil(struct var_t *p) {
     return p == 0;
 }
 
-static void *mem_alloc(size_t cb) {
+void *mem_alloc(zion_int_t cb) {
 	size_t previous_total = atomic_load(&_bytes_allocated);
 	while (!atomic_compare_exchange_weak(
 				&_bytes_allocated, &previous_total, previous_total + cb)) {
