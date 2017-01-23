@@ -127,7 +127,7 @@ types::type_product::ref get_args_type(bound_type_t::named_pairs args) {
 	for (auto &named_pair : args) {
 		sig_args.push_back(named_pair.second->get_type());
 	}
-	return get_args_type(sig_args);
+	return type_args(sig_args);
 }
 
 types::type_product::ref get_args_type(bound_type_t::refs args) {
@@ -136,7 +136,7 @@ types::type_product::ref get_args_type(bound_type_t::refs args) {
 		assert(arg != nullptr);
 		sig_args.push_back(arg->get_type());
 	}
-	return get_args_type(sig_args);
+	return type_args(sig_args);
 }
 
 types::type_product::ref get_args_type(bound_var_t::refs args) {
@@ -145,7 +145,7 @@ types::type_product::ref get_args_type(bound_var_t::refs args) {
 		assert(arg != nullptr);
 		sig_args.push_back(arg->get_type());
 	}
-	return get_args_type(sig_args);
+	return type_args(sig_args);
 }
 
 types::type::refs get_types(const bound_type_t::refs &bound_types) {
@@ -157,17 +157,16 @@ types::type::refs get_types(const bound_type_t::refs &bound_types) {
 	return types;
 }
 
-types::type::ref get_tuple_type(types::type::refs dimensions) {
-	return type_product(pk_tuple, dimensions);
-}
-
 types::type::ref get_tuple_type(const bound_type_t::refs &items_types) {
 	types::type::refs dimensions;
+	types::name_index name_index;
+	int i = 0;
 	for (auto &arg : items_types) {
 		assert(arg != nullptr);
 		dimensions.push_back(arg->get_type());
+		name_index[string_format("_%d", i++)] = i;
 	}
-	return get_tuple_type(dimensions);
+	return type_struct(dimensions);
 }
 
 bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {

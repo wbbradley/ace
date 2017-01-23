@@ -7,11 +7,11 @@
 #include "logger.h"
 #include <iostream>
 
-bound_type_t::refs create_bound_types_from_product(
+bound_type_t::refs create_bound_types_from_args(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		types::type_product::ref product)
+		types::type_args::ref product)
 {
 	/* iteratate over a product type and pull out a list of the bound types
 	 * within */
@@ -28,18 +28,18 @@ bound_type_t::refs create_bound_types_from_product(
 
 bound_type_t::ref create_ref_ptr_type(
 		llvm::IRBuilder<> &builder,
-		types::type_product::ref product)
+		types::type_ref::ref ref_type)
 {
-	assert(product->pk == pk_ref);
-	debug_above(4, log(log_info, "creating ref type for %s", product->dimensions[0]->str().c_str()));
+	assert(ref_type->native && "TODO: handle managed types here?");
+	debug_above(4, log(log_info, "creating ref type for %s", ref_type->element_type->str().c_str()));
 	llvm::StructType *llvm_type = llvm::StructType::create(
 			builder.getContext(),
-			product->dimensions[0]->get_signature().str());
+			ref_type->dimensions[0]->get_signature().str());
 	assert(!llvm_type->isSized());
 	assert(llvm_type->isOpaque());
 
 	return bound_type_t::create(
-			product,
+			ref_type,
 			product->get_location(),
 			llvm_type->getPointerTo());
 }
@@ -62,6 +62,7 @@ bound_type_t::ref create_tuple_type(
 			name_index);
 }
 
+// TODO: break this apart into creation functions for each new product subtype
 bound_type_t::ref create_bound_product_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -98,21 +99,6 @@ bound_type_t::ref create_bound_product_type(
 			if (!!status) {
 				return bound_pointer_type;
 			}
-		}
-	case pk_module:
-		{
-			assert(false);
-			break;
-		}
-	case pk_args:
-		{
-			assert(false);
-			break;
-		}
-	case pk_native_struct:
-		{
-			assert(false);
-			break;
 		}
 	case pk_tuple:
 		{
@@ -320,8 +306,17 @@ bound_type_t::ref create_bound_operator_type(
 	auto expansion = eval_apply(operator_->oper, operator_->operand,
 			scope->get_typename_env());
 
-	return bind_type_expansion(status, builder, scope, expansion,
-			scope->make_fqn(operator_->get_id()->get_name().str()));
+	if (expansion != nullptr) {
+		return bind_type_expansion(status, builder, scope, expansion,
+				scope->make_fqn(operator_->get_id()->get_name().str()));
+	} else {
+		user_error(status, operator_->get_location(),
+				"unable to expand type: %s",
+				operator_->str().c_str());
+	}
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_type_t::ref create_bound_maybe_type(
@@ -382,7 +377,7 @@ bound_type_t::ref create_bound_function_type(
 		ptr<scope_t> scope,
 		const ptr<const types::type_function> &function)
 {
-	bound_type_t::refs args = create_bound_types_from_product(status,
+	bound_type_t::refs args = create_bound_types_from_args(status,
 			builder, scope, function->args);
 	bound_type_t::ref return_type = upsert_bound_type(
 			status, builder, scope, function->return_type);
@@ -661,7 +656,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		auto product = dyncast<const types::type_product>(ctor_args_type);
 		assert(product != nullptr);
 
-		bound_type_t::refs args = create_bound_types_from_product(status,
+		bound_type_t::refs args = create_bound_types_from_args(status,
 				builder, scope, product);
 
 		/* save and later restore the current branch insertion point */

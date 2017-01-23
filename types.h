@@ -13,10 +13,8 @@ extern const char *BUILTIN_UNREACHABLE_TYPE;
 enum product_kind_t {
 	pk_module = 0,
 	pk_args,
-	pk_tuple,
-	pk_native_struct,
+	pk_struct,
 	pk_ref,
-	pk_tag,
 };
 
 const char *pkstr(product_kind_t pk);
@@ -110,10 +108,19 @@ namespace types {
 	struct type_product : public type {
 		typedef ptr<const type_product> ref;
 
-		type_product(product_kind_t pk, type::refs dimensions, const name_index &name_index);
-		product_kind_t pk;
-		type::refs dimensions;
-		name_index name_index;
+		virtual product_kind_t get_pk() const = 0;
+		virtual type::refs get_dimensions() = 0;
+		virtual name_index get_name_index() = 0;
+	};
+
+	struct type_module : public type_product {
+		typedef ptr<const type_module> ref;
+
+		type_module(type::ref module_type);
+
+		virtual product_kind_t get_pk() const;
+		virtual type::refs get_dimensions();
+		virtual name_index get_name_index();
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -121,16 +128,76 @@ namespace types {
 		virtual type::ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
+
+		type::ref module_type;
 	};
 
-	types::type_product::ref change_product_kind(product_kind_t pk, type::ref product);
+	struct type_ref : public type_product {
+		typedef ptr<const type_ref> ref;
+
+		type_ref(type::ref element_type, bool native);
+
+		virtual product_kind_t get_pk() const;
+		virtual type::refs get_dimensions();
+		virtual name_index get_name_index();
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
+		virtual type::ref rebind(const map &bindings) const;
+		virtual location get_location() const;
+		virtual identifier::ref get_id() const;
+
+		type::ref element_type;
+		bool native;
+	};
+
+	struct type_args : public type_product {
+		typedef ptr<const type_args> ref;
+
+		type_args(type::refs args, name_index name_index);
+
+		virtual product_kind_t get_pk() const;
+		virtual type::refs get_dimensions();
+		virtual name_index get_name_index();
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
+		virtual type::ref rebind(const map &bindings) const;
+		virtual location get_location() const;
+		virtual identifier::ref get_id() const;
+
+		type::refs args;
+		name_index name_index;
+	};
+
+	struct type_struct : public type_product {
+		typedef ptr<const type_struct> ref;
+
+		type_struct(type::refs dimensions, name_index name_index);
+
+		virtual product_kind_t get_pk() const;
+		virtual type::refs get_dimensions();
+		virtual name_index get_name_index();
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
+		virtual type::ref rebind(const map &bindings) const;
+		virtual location get_location() const;
+		virtual identifier::ref get_id() const;
+
+		type::refs dimensions;
+		name_index name_index;
+	};
 
 	struct type_function : public type {
 		typedef ptr<const type_function> ref;
-		type_function(type::ref inbound_context, types::type_product::ref args, type::ref return_type);
+		type_function(type::ref inbound_context, types::type_args::ref args, type::ref return_type);
 
 		type::ref inbound_context;
-		type_product::ref args;
+		type_args::ref args;
 		type::ref return_type;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
@@ -191,8 +258,10 @@ types::type::ref type_id(identifier::ref var);
 types::type::ref type_variable(identifier::ref name);
 types::type::ref type_variable(struct location location);
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand);
-types::type_product::ref type_product(product_kind_t pk, types::type::refs dimensions, const types::name_index &name_index={});
-types::type_function::ref type_function(types::type::ref inbound_context, types::type_product::ref args, types::type::ref return_type);
+types::type_ref::ref type_ref(types::type::ref element, bool native);
+types::type_struct::ref type_struct(types::type::refs dimensions, types::name_index name_index);
+types::type_args::ref type_args(types::type::refs args, const types::name_index &name_index={});
+types::type_function::ref type_function(types::type::ref inbound_context, types::type_args::ref args, types::type::ref return_type);
 types::type::ref type_sum(types::type::refs options);
 types::type::ref type_maybe(types::type::ref just);
 types::type::ref type_lambda(identifier::ref binding, types::type::ref body);
@@ -209,11 +278,7 @@ std::string str(types::type::map coll);
 std::ostream& operator <<(std::ostream &out, const types::type::ref &type);
 
 /* helper functions */
-types::type_product::ref get_args_type(types::type::refs args);
-types::type_function::ref get_function_type(types::type::ref type_fn_context, types::type_product::ref args, types::type::ref return_type);
 types::type::ref get_function_type_context(types::type::ref function_type);
-types::type_product::ref get_function_type_args(types::type::ref function_type);
-types::type::refs get_function_type_args_dimensions(types::type::ref function_type);
 types::type::ref get_function_return_type(types::type::ref function_type);
 types::type::pair make_type_pair(std::string fst, std::string snd, identifier::set generics);
 

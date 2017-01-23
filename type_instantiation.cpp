@@ -81,9 +81,9 @@ bound_var_t::ref bind_ctor_to_scope(
 				function->return_type->str().c_str(),
 				eval(function->return_type, scope->get_typename_env())->str().c_str()));
 
-	const types::type_product::ref &args_types = function->args;
+	const types::type_args::ref &args_types = function->args;
 	bound_type_t::refs args;
-	resolve_type_ref_params(status, builder, scope, args_types->dimensions, args);
+	resolve_type_ref_params(status, builder, scope, args_types->args, args);
 
 	if (!!status) {
 		/* now that we know the parameter types, let's see what the term looks like */
@@ -129,9 +129,9 @@ types::type::ref instantiate_data_ctor_type(
 	/* create the tag type */
 	auto tag_type = type_id(id);
 
-	/* create the basic product type */
-	ptr<const types::type_product> product = dyncast<const types::type_product>(unbound_type);
-	assert(product != nullptr);
+	/* create the basic struct type */
+	ptr<const types::type_struct> struct_ = dyncast<const types::type_struct>(unbound_type);
+	assert(struct_ != nullptr);
 
 	/* lambda_vars tracks the order of the lambda variables we'll accept as we abstract our
 	 * supertype expansion */
@@ -139,7 +139,7 @@ types::type::ref instantiate_data_ctor_type(
 	atom::set generics;
 
 	// TODO: examine whether this is necessary anymore
-	create_supertype_relationship(status, product, id, supertype_id,
+	create_supertype_relationship(status, struct_, id, supertype_id,
 			type_variables, scope, lambda_vars, generics);
 
 	if (!status) {
@@ -148,17 +148,19 @@ types::type::ref instantiate_data_ctor_type(
 
 	/* now build the actual typename expansion we'll put in the typename env */
 	/**********************************************/
-	/* Register a data ctor for this product type */
+	/* Register a data ctor for this struct_ type */
 	/**********************************************/
 	assert(!!status);
 
-	if (product->dimensions.size() != 0) {
+	if (struct_->dimensions.size() != 0) {
 		assert(id->get_name() == tag_name);
 
 		/* we're declaring a ctor at module scope */
 		if (auto module_scope = dyncast<module_scope_t>(scope)) {
+			bool native = !isupper(tag_name.str()[0]);
+
 			/* create the actual expanded type signature of this type */
-			types::type::ref type = type_product(pk_ref, {product});
+			types::type::ref type = type_ref(struct_, native);
 
 			/* make sure we allow for parameterized expansion */
 			for (auto lambda_var : lambda_vars) {
@@ -179,9 +181,9 @@ types::type::ref instantiate_data_ctor_type(
 			debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
 						id->str().c_str()));
 
-			types::type_function::ref data_ctor_sig = get_function_type(
+			types::type_function::ref data_ctor_sig = type_function(
 					scope->get_inbound_context(),
-					types::change_product_kind(pk_args, product),
+					type_args(struct_->dimensions),
 					ctor_return_type);
 
 			module_scope->get_program_scope()->put_unchecked_variable(tag_name,
@@ -192,9 +194,11 @@ types::type::ref instantiate_data_ctor_type(
 			user_error(status, node->token.location, "local type definitions are not yet impl");
 		}
 	} else {
+		assert(!"is this still getting called?");
+
 		/* it's a nullary enumeration or "tag", let's create a global value to represent
 		 * this tag. */
-		types::type::ref type = product;
+		types::type::ref type = struct_;
 		for (auto lambda_var : lambda_vars) {
 			type = type_lambda(lambda_var, type);
 		}

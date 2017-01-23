@@ -55,7 +55,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 				unchecked_fn->module_scope, unification, fn_type);
 
 		if (auto function = dyncast<const types::type_function>(fn_type)) {
-			bound_type_t::refs args = create_bound_types_from_product(status,
+			bound_type_t::refs args = create_bound_types_from_args(status,
 					builder, subst_scope, function->args);
 
 			bound_type_t::named_pairs named_args = zip_named_pairs(
@@ -124,7 +124,7 @@ bound_var_t::ref check_func_vs_callsite(
 		const ast::item::ref &callsite,
 		var_t::ref fn,
 		types::type::ref type_fn_context,
-		types::type_product::ref args)
+		types::type_args::ref args)
 {
 	assert(!!status);
 
@@ -182,7 +182,7 @@ bound_var_t::ref maybe_get_callable(
 		atom alias,
 		const ptr<const ast::item> &callsite,
 		types::type::ref type_fn_context,
-		types::type_product::ref args,
+		types::type_args::ref args,
 		var_t::refs &fns)
 {
 	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, type_fn_context=%s, args=%s, ...)",

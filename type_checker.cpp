@@ -171,18 +171,21 @@ bound_var_t::ref type_check_bound_var_decl(
 					bound_type, symbol);
 
 			if (init_var) {
-				debug_above(6, log(log_info, "creating a store instruction %s := %s",
-							llvm_print_value_ptr(llvm_alloca).c_str(),
-							llvm_print_value_ptr(init_var->llvm_value).c_str()));
-				builder.CreateStore(llvm_resolve_alloca(builder, init_var->llvm_value), llvm_alloca);	
-			} else {
-				if (dyncast<const types::type_maybe>(lhs_type)) {
-					/* this can be null, let's initialize it as such */
+				if (!init_var->type->get_type()->is_nil()) {
+					debug_above(6, log(log_info, "creating a store instruction %s := %s",
+								llvm_print_value_ptr(llvm_alloca).c_str(),
+								llvm_print_value_ptr(init_var->llvm_value).c_str()));
+					builder.CreateStore(llvm_resolve_alloca(builder, init_var->llvm_value), llvm_alloca);	
+				} else {
 					llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_type());
 					builder.CreateStore(llvm_null_value, llvm_alloca);
-				} else {
-					user_error(status, obj, "missing initializer");
 				}
+			} else if (dyncast<const types::type_maybe>(lhs_type)) {
+				/* this can be null, let's initialize it as such */
+				llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_type());
+				builder.CreateStore(llvm_null_value, llvm_alloca);
+			} else {
+				user_error(status, obj, "missing initializer");
 			}
 
 			if (!!status) {
@@ -960,26 +963,25 @@ types::type_product::ref get_struct_type_from_ref(
 	   	ast::item::ref node,
 	   	bound_type_t::ref bound_struct_ref)
 {
-	if (auto product = dyncast<const types::type_product>(
+	if (auto product = dyncast<const types::type_ref>(
 				bound_struct_ref->get_type())) {
-		if (product->pk == pk_ref) {
-			auto struct_type = dyncast<const types::type_product>(product->dimensions[0]);
-			if (struct_type != nullptr) {
-				if (struct_type->pk == pk_tuple) {
-					return struct_type;
-				} else {
-					user_error(status, node->get_location(),
-							"%s is pointing to %s, which is not a struct",
-							bound_struct_ref->str().c_str(),
-							struct_type->str().c_str());
-				}
+		auto struct_type = dyncast<const types::type_product>(product->dimensions[0]);
+		if (struct_type != nullptr) {
+			if (struct_type->pk == pk_tuple) {
+				return struct_type;
+			} else {
+				user_error(status, node->get_location(),
+						"%s is pointing to %s, which is not a struct",
+						bound_struct_ref->str().c_str(),
+						struct_type->str().c_str());
 			}
-		} else {
-			user_error(status, node->get_location(),
-					"unable to dereference %s, it's not a ref",
-					node->str().c_str());
 		}
+	} else {
+		user_error(status, node->get_location(),
+				"unable to dereference %s, it's not a ref",
+				node->str().c_str());
 	}
+
 	assert(!status);
 	return nullptr;
 }

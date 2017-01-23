@@ -71,7 +71,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_statement;
 		virtual ~statement() {}
 		static ptr<ast::statement> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const = 0;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const = 0;
 	};
 
 	struct module;
@@ -114,7 +119,12 @@ namespace ast {
 		typedef ptr<const continue_flow> ref;
 
 		static const syntax_kind_t SK = sk_continue_flow;
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 	};
 
@@ -122,7 +132,12 @@ namespace ast {
 		typedef ptr<const break_flow> ref;
 
 		static const syntax_kind_t SK = sk_break_flow;
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 	};
 
@@ -130,7 +145,12 @@ namespace ast {
 		typedef ptr<const pass_flow> ref;
 
 		static const syntax_kind_t SK = sk_pass_flow;
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 	};
 
@@ -139,7 +159,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_typeid_expr;
 		typeid_expr(ptr<expression> expr);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 		static ptr<typeid_expr> parse(parse_state_t &ps);
 
@@ -151,7 +176,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_sizeof;
 		sizeof_expr(types::type::ref type);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 		static ptr<sizeof_expr> parse(parse_state_t &ps);
 
@@ -162,7 +192,12 @@ namespace ast {
 		typedef ptr<const callsite_expr> ref;
 
 		static const syntax_kind_t SK = sk_callsite_expr;
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> function_expr;
@@ -177,7 +212,12 @@ namespace ast {
 		ptr<expression> expr;
 		virtual void render(render_state_t &rs) const;
 
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 	};
 
 	struct type_decl : public item {
@@ -196,7 +236,12 @@ namespace ast {
 		typedef ptr<const cast_expr> ref;
 
 		static const syntax_kind_t SK = sk_cast_expr;
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> lhs;
@@ -295,7 +340,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_type_def;
 		static ptr<type_def> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		type_decl::ref type_decl;
@@ -307,7 +357,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_tag;
 		static ptr<tag> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 		// TODO: track type variables on tags to aid in deserialization and marshalling
 	};
@@ -318,7 +373,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_var_decl;
 		static ptr<var_decl> parse(parse_state_t &ps);
 		static ptr<var_decl> parse_param(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		bound_var_t::ref resolve_as_condition(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -333,7 +393,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_assignment;
 		static ptr<expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> lhs, rhs;
@@ -343,7 +408,12 @@ namespace ast {
 		typedef ptr<const plus_assignment> ref;
 
 		static const syntax_kind_t SK = sk_plus_assignment;
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> lhs, rhs;
@@ -353,7 +423,12 @@ namespace ast {
 		typedef ptr<const times_assignment> ref;
 
 		static const syntax_kind_t SK = sk_times_assignment;
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> lhs, rhs;
@@ -363,7 +438,12 @@ namespace ast {
 		typedef ptr<const divide_assignment> ref;
 
 		static const syntax_kind_t SK = sk_divide_assignment;
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> lhs, rhs;
@@ -373,7 +453,12 @@ namespace ast {
 		typedef ptr<const minus_assignment> ref;
 
 		static const syntax_kind_t SK = sk_minus_assignment;
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> lhs, rhs;
@@ -383,7 +468,12 @@ namespace ast {
 		typedef ptr<const mod_assignment> ref;
 
 		static const syntax_kind_t SK = sk_mod_assignment;
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> lhs, rhs;
@@ -395,7 +485,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_block;
 
 		static ptr<block> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<ptr<statement>> statements;
@@ -420,7 +515,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_function_defn;
 
 		static ptr<function_defn> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		bound_var_t::ref instantiate_with_args_and_return_type(
 				status_t &status,
 			   	llvm::IRBuilder<> &builder,
@@ -441,7 +541,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_if_block;
 
 		static ptr<if_block> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> condition;
@@ -455,7 +560,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_while_block;
 
 		static ptr<while_block> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> condition;
@@ -491,7 +601,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_when_block;
 
 		static ptr<when_block> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> value;
@@ -527,7 +642,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_link_module_statement;
 
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		zion_token_t link_as_name;
@@ -539,7 +659,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_link_function_statement;
 
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		zion_token_t function_name;
@@ -582,7 +707,12 @@ namespace ast {
 		typedef ptr<const dot_expr> ref;
 
 		static const syntax_kind_t SK = sk_dot_expr;
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
         virtual bound_var_t::ref resolve_overrides(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, const ptr<const ast::item> &obj, const bound_type_t::refs &args) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -595,7 +725,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_tuple_expr;
 		static ptr<ast::expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<ptr<ast::expression>> values;
@@ -606,7 +741,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_or_expr;
 		static ptr<ast::expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression> lhs, rhs;
@@ -617,7 +757,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_and_expr;
 		static ptr<ast::expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression> lhs, rhs;
@@ -628,7 +773,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_eq_expr;
 		static ptr<ast::expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression> lhs, rhs;
@@ -640,7 +790,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_ineq_expr;
 		static ptr<ast::expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression> lhs, rhs;
@@ -651,7 +806,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_plus_expr;
 		static ptr<ast::expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression> lhs, rhs;
@@ -662,7 +822,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_times_expr;
 		static ptr<ast::expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression> lhs, rhs;
@@ -673,7 +838,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_prefix_expr;
 		static ptr<ast::expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression> rhs;
@@ -684,7 +854,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_reference_expr;
 		static ptr<expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
         virtual bound_var_t::ref resolve_overrides(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, const ptr<const ast::item> &obj, const bound_type_t::refs &args) const;
 		bound_var_t::ref resolve_as_condition(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope) const;
 		virtual void render(render_state_t &rs) const;
@@ -695,7 +870,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_literal_expr;
 		static ptr<expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 	};
 
@@ -704,7 +884,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_array_literal_expr;
 		static ptr<expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<ptr<expression>> items;
@@ -714,7 +899,12 @@ namespace ast {
 		typedef ptr<const bang_expr> ref;
 
 		static const syntax_kind_t SK = sk_bang_expr;
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> lhs;
@@ -725,7 +915,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_array_index_expr;
 		static ptr<expression> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, local_scope_t::ref *new_scope, bool *returns) const;
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression> lhs;

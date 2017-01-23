@@ -20,21 +20,6 @@ void reset_generics() {
 
 namespace types {
 
-	type_product::ref change_product_kind(product_kind_t pk, type::ref product) {
-		auto type_product = dyncast<const struct type_product>(product);
-		if (type_product != nullptr) {
-			if (type_product->pk == pk) {
-				return type_product;
-			} else {
-				return ::type_product(pk, type_product->dimensions,
-						type_product->name_index);
-			}
-		} else {
-			panic("i thought this would be a product type!");
-		}
-		return null_impl();
-	}
-
 	/**********************************************************************/
 	/* Types                                                              */
 	/**********************************************************************/
@@ -178,8 +163,8 @@ namespace types {
 		return oper->get_id();
 	}
 
-	type_product::type_product(product_kind_t pk, type::refs dimensions, const types::name_index &name_index) :
-		pk(pk), dimensions(dimensions), name_index(name_index)
+	type_struct::type_struct(type::refs dimensions, types::name_index name_index) :
+		dimensions(dimensions), name_index(name_index)
 	{
 #ifdef ZION_DEBUG
 		for (auto dimension: dimensions) {
@@ -188,8 +173,8 @@ namespace types {
 #endif
 	}
 
-	std::ostream &type_product::emit(std::ostream &os, const map &bindings) const {
-		os << "(" << pkstr(pk);
+	std::ostream &type_struct::emit(std::ostream &os, const map &bindings) const {
+		os << "struct (";
 		for (auto dimension : dimensions) {
 			os << " ";
 			dimension->emit(os, bindings);
@@ -200,7 +185,7 @@ namespace types {
 		return os << ")";
 	}
 
-	int type_product::ftv_count() const {
+	int type_struct::ftv_count() const {
 		int ftv_sum = 0;
 		for (auto dimension : dimensions) {
 			ftv_sum += dimension->ftv_count();
@@ -208,7 +193,7 @@ namespace types {
 		return ftv_sum;
 	}
 
-	atom::set type_product::get_ftvs() const {
+	atom::set type_struct::get_ftvs() const {
 		atom::set set;
 		for (auto dimension : dimensions) {
 			atom::set dim_set = dimension->get_ftvs();
@@ -218,7 +203,7 @@ namespace types {
     }
 
 
-	type::ref type_product::rebind(const map &bindings) const {
+	type::ref type_struct::rebind(const map &bindings) const {
 		if (bindings.size() == 0) {
 			return shared_from_this();
 		}
@@ -227,10 +212,10 @@ namespace types {
 		for (auto dimension : dimensions) {
 			type_dimensions.push_back(dimension->rebind(bindings));
 		}
-		return ::type_product(pk, type_dimensions, name_index);
+		return ::type_struct(type_dimensions, name_index);
 	}
 
-	location type_product::get_location() const {
+	location type_struct::get_location() const {
 		if (dimensions.size() != 0) {
 			return dimensions[0]->get_location();
 		} else {
@@ -238,13 +223,13 @@ namespace types {
 		}
 	}
 
-	identifier::ref type_product::get_id() const {
+	identifier::ref type_struct::get_id() const {
 		return nullptr;
 	}
 
 	type_function::type_function(
 			type::ref inbound_context,
-		   	type_product::ref args,
+		   	type_args::ref args,
 			type::ref return_type) :
 		inbound_context(inbound_context), args(args), return_type(return_type)
 	{
@@ -278,11 +263,11 @@ namespace types {
 			return shared_from_this();
 		}
 
-		types::type_product::ref bound_args = dyncast<const types::type_product>(
+		types::type_args::ref rebound_args = dyncast<const types::type_args>(
 			   	args->rebind(bindings));
 		assert(args != nullptr);
 		return ::type_function(inbound_context,
-				bound_args, return_type->rebind(bindings));
+				rebound_args, return_type->rebind(bindings));
 	}
 
 	location type_function::get_location() const {
@@ -478,17 +463,23 @@ types::type::ref type_operator(types::type::ref operator_, types::type::ref oper
 	return make_ptr<types::type_operator>(operator_, operand);
 }
 
-types::type_product::ref type_product(
-		product_kind_t pk,
+types::type_struct::ref type_struct(
 	   	types::type::refs dimensions,
-	   	const types::name_index &name_index)
+	   	types::name_index name_index)
 {
-	return make_ptr<types::type_product>(pk, dimensions, name_index);
+	if (name_index.size() == 0) {
+		/* if we omit names for our dimensions, give them names like _0, _1, _2,
+		 * etc... so they can be accessed like mytuple._5 if necessary */
+		for (int i = 0; i < dimensions.size(); ++i) {
+			name_index[string_format("_%d", i)] = i;
+		}
+	}
+	return make_ptr<types::type_struct>(dimensions, name_index);
 }
 
 types::type_function::ref type_function(
 		types::type::ref inbound_context,
-		types::type_product::ref args,
+		types::type_args::ref args,
 		types::type::ref return_type)
 {
 	return make_ptr<types::type_function>(inbound_context, args, return_type);
@@ -526,32 +517,6 @@ std::ostream& operator <<(std::ostream &os, const types::type::ref &type) {
 	return os;
 }
 
-types::type_product::ref get_args_type(types::type::refs args) {
-	/* for now just use a tuple for the args */
-	return type_product(pk_args, args);
-}
-
-types::type_function::ref get_function_type(
-		types::type::ref type_fn_context,
-	   	types::type_product::ref args,
-	   	types::type::ref return_type)
-{
-	assert(type_fn_context != nullptr);
-	return type_function(type_fn_context, args, return_type);
-}
-
-types::type::refs get_function_type_args_dimensions(types::type::ref function_type) {
-	debug_above(5, log(log_info, "getting function type_args from %s", function_type->str().c_str()));
-
-	auto type_function = dyncast<const types::type_function>(function_type);
-	assert(type_function != nullptr);
-
-	auto type_args = dyncast<const types::type_product>(type_function->args);
-	assert(type_args != nullptr);
-	assert(type_args->pk == pk_args);
-	return type_args->dimensions;
-}
-
 types::type::ref get_function_return_type(types::type::ref function_type) {
 	debug_above(5, log(log_info, "getting function return type from %s", function_type->str().c_str()));
 
@@ -559,16 +524,6 @@ types::type::ref get_function_return_type(types::type::ref function_type) {
 	assert(type_function != nullptr);
 
 	return type_function->return_type;
-}
-
-types::type_product::ref get_function_type_args(types::type::ref function_type) {
-	debug_above(5, log(log_info, "sig == %s", function_type->str().c_str()));
-
-	auto type_function = dyncast<const types::type_function>(function_type);
-	assert(type_function != nullptr);
-
-	auto type_args = dyncast<const struct types::type_product>(type_function->args);
-	return type_args;
 }
 
 std::ostream &operator <<(std::ostream &os, identifier::ref id) {
@@ -640,16 +595,12 @@ const char *pkstr(product_kind_t pk) {
 	switch (pk) {
 	case pk_module:
 		return "module";
-	case pk_args:
-		return "args";
-	case pk_tuple:
-		return "and";
+	case pk_struct:
+		return "struct";
 	case pk_ref:
 		return "ref";
-	case pk_tag:
-		return "tag";
-	case pk_native_struct:
-		return "native struct";
+	case pk_args:
+		return "args";
 	}
 	assert(false);
 	return nullptr;
@@ -660,6 +611,8 @@ types::type::ref eval(types::type::ref type, types::type::map env) {
 
 	if (auto id = dyncast<const types::type_id>(type)) {
 		return eval_id(id, env);
+	} else if (auto operator_ = dyncast<const types::type_operator>(type)) {
+		return eval_apply(operator_->oper, operator_->operand, env);
 	} else if (auto product = dyncast<const types::type_product>(type)) {
 		/* there is no expansion of product types */
 		return nullptr;
