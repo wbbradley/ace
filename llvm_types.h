@@ -3,11 +3,11 @@
 #include "bound_var.h"
 #include "ast.h"
 
-bound_type_t::refs create_bound_types_from_args(
+bound_type_t::refs upsert_bound_types(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		types::type_args::ref product);
+		types::type::refs types);
 
 bound_type_t::ref upsert_bound_type(
 		status_t &status,
@@ -27,6 +27,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		ptr<scope_t> scope,
 		types::type::ref type_fn_context,
 		bound_type_t::refs args,
+		bool managed,
 		identifier::ref id,
 		const ptr<const ast::item> &node);
 

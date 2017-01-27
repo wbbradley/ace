@@ -157,16 +157,17 @@ types::type::refs get_types(const bound_type_t::refs &bound_types) {
 	return types;
 }
 
-types::type::ref get_tuple_type(const bound_type_t::refs &items_types) {
+types::type::ref get_tuple_type(const bound_type_t::refs &items_types, bool managed) {
 	types::type::refs dimensions;
 	types::name_index name_index;
 	int i = 0;
 	for (auto &arg : items_types) {
 		assert(arg != nullptr);
 		dimensions.push_back(arg->get_type());
-		name_index[string_format("_%d", i++)] = i;
+		name_index[string_format("_%d", i)] = i;
+		++i;
 	}
-	return type_struct(dimensions);
+	return type_struct(dimensions, name_index, managed);
 }
 
 bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {
@@ -196,8 +197,8 @@ bool bound_type_t::is_maybe() const {
 }
 
 bool bound_type_t::is_ref() const {
-	if (auto product = dyncast<const types::type_product>(get_type())) {
-		return product->pk == pk_ref;
+	if (auto product = dyncast<const types::type_ref>(get_type())) {
+		return true;
 	} else {
 		return false;
 	}
@@ -232,6 +233,6 @@ types::type_function::ref get_function_type(
 
 	return ::type_function(
 			type_fn_context,
-			::type_product(pk_args, type_args),
+			::type_args(type_args),
 			return_type->get_type());
 }

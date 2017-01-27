@@ -54,9 +54,9 @@ types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 				/* figure out the return type */
 				if (decl->return_type != nullptr) {
 					/* get the return type */
-					types::type_function::ref sig = get_function_type(
+					types::type_function::ref sig = type_function(
 							inbound_context,
-							get_args_type(args),
+							type_args(args),
 							decl->return_type);
 
 					debug_above(9, log(log_info, "found unchecked type for %s : %s",
@@ -64,9 +64,9 @@ types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 								sig->str().c_str()));
 					return sig;
 				} else {
-					types::type_function::ref sig = get_function_type(
+					types::type_function::ref sig = type_function(
 							inbound_context,
-							get_args_type(args),
+							type_args(args),
 							/* default to void, which is fully bound */
 							type_void());
 

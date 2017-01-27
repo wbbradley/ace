@@ -570,7 +570,7 @@ ptr<module_scope_t> program_scope_t::new_module_scope(
 
 	/* inbound context says that anyone that purports to be calling this module
 	 * may call this function */
-	auto inbound_context = ::type_product(pk_module, {type_id(make_iid(name))});
+	auto inbound_context = ::type_module(type_id(make_iid(name)));
 
 	/* outbound context says that callsites within this module by default are
 	 * aiming for either program context, or this module's context */
@@ -636,7 +636,7 @@ llvm::Module *generic_substitution_scope_t::get_llvm_module() {
 }
 
 program_scope_t::ref program_scope_t::create(atom name, llvm::Module *llvm_module) {
-	auto inbound_context = ::type_product(pk_module, {type_id(make_iid(GLOBAL_ID))});
+	auto inbound_context = ::type_module(type_id(make_iid(GLOBAL_ID)));
 	auto outbound_context = inbound_context;
 
 	return make_ptr<program_scope_t>(name, llvm_module, inbound_context, outbound_context);

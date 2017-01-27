@@ -7,40 +7,41 @@
 #include "logger.h"
 #include <iostream>
 
-bound_type_t::refs create_bound_types_from_args(
+bound_type_t::refs upsert_bound_types(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		types::type_args::ref product)
+		types::type::refs types)
 {
 	/* iteratate over a product type and pull out a list of the bound types
 	 * within */
-	bound_type_t::refs args;
-	for (auto dimension : product->dimensions) {
-		bound_type_t::ref arg = upsert_bound_type(status, builder, scope,
-				dimension);
+	bound_type_t::refs bound_args;
+	for (auto type : types) {
+		bound_type_t::ref bound_arg = upsert_bound_type(status, builder, scope,
+				type);
 		if (!!status) {
-			args.push_back(arg);
+			bound_args.push_back(bound_arg);
+		} else {
+			return {};
 		}
 	}
-	return args;
+	return bound_args;
 }
 
 bound_type_t::ref create_ref_ptr_type(
 		llvm::IRBuilder<> &builder,
 		types::type_ref::ref ref_type)
 {
-	assert(ref_type->native && "TODO: handle managed types here?");
 	debug_above(4, log(log_info, "creating ref type for %s", ref_type->element_type->str().c_str()));
 	llvm::StructType *llvm_type = llvm::StructType::create(
 			builder.getContext(),
-			ref_type->dimensions[0]->get_signature().str());
+			ref_type->element_type->get_signature().str());
 	assert(!llvm_type->isSized());
 	assert(llvm_type->isOpaque());
 
 	return bound_type_t::create(
 			ref_type,
-			product->get_location(),
+			ref_type->get_location(),
 			llvm_type->getPointerTo());
 }
 
@@ -62,113 +63,111 @@ bound_type_t::ref create_tuple_type(
 			name_index);
 }
 
-// TODO: break this apart into creation functions for each new product subtype
-bound_type_t::ref create_bound_product_type(
+bound_type_t::ref create_bound_ref_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		const ptr<const types::type_product> &product)
+		const ptr<const types::type_ref> &ref_type)
 {
 	ptr<program_scope_t> program_scope = scope->get_program_scope();
 
-	switch (product->pk) {
-	case pk_ref:
-		{
-			assert(!scope->get_bound_type(product->get_signature()));
-			bound_type_t::ref bound_type = scope->get_bound_type(
-					product->dimensions[0]->get_signature());
-			if (bound_type != nullptr) {
-				return bound_type_t::create(product,
-						product->get_location(),
-						bound_type->get_llvm_type()->getPointerTo());
+	assert(!scope->get_bound_type(ref_type->get_signature()));
+	bound_type_t::ref bound_type = scope->get_bound_type(
+			ref_type->element_type->get_signature());
+	if (bound_type != nullptr) {
+		return bound_type_t::create(ref_type,
+				ref_type->get_location(),
+				bound_type->get_llvm_type()->getPointerTo());
+	}
+				
+	/* we've never seen the internal type, so start by registering an
+	 * opaque placeholder for the struct's concrete type */
+	
+	/* first create the opaque pointer type */
+	auto bound_pointer_type = create_ref_ptr_type(builder, ref_type);
+	program_scope->put_bound_type(status, bound_pointer_type);
+
+	assert(dyncast<const types::type_product>(ref_type->element_type) != nullptr);
+	
+	/* before we return the pointer type, let's go ahead and instantiate
+	 * the actual structural type */
+	upsert_bound_type(status, builder, scope, ref_type->element_type);
+
+	if (!!status) {
+		return bound_pointer_type;
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
+bound_type_t::ref create_bound_struct_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		const ptr<const types::type_struct> &struct_type)
+{
+	assert(!"handle managed bit");
+	ptr<program_scope_t> program_scope = scope->get_program_scope();
+
+	if (struct_type->ftv_count() != 0) {
+		debug_above(5, log(log_info,
+					"found abstract type %s when attempting to create a bound type",
+					struct_type->str().c_str()));
+		return program_scope->get_bound_type({BUILTIN_UNREACHABLE_TYPE});
+	}
+
+	/* tuples don't have names, so there's no need for a placeholder, as
+	 * they cannot be self referential */
+
+	/* make sure one of these doesn't already exist */
+	assert(!scope->get_bound_type(struct_type->get_signature()));
+
+	/* get the pointer type to this, if it exists, get the opaque struct
+	 * pointer that it had created. fill it out. if it doesn't exist,
+	 * create it, then extract this tuple type from that. */
+	types::type::ref ref_type = type_ref(struct_type);
+	bound_type_t::ref bound_ref_type = scope->get_bound_type(
+			ref_type->get_signature());
+
+	if (ref_type != nullptr) {
+		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm::cast<llvm::PointerType>(
+					bound_ref_type->get_llvm_type())->getElementType());
+		assert(llvm_struct_type != nullptr);
+		assert(!llvm_struct_type->isSized());
+		assert(llvm_struct_type->isOpaque());
+
+		/* create the structure in place in this struct type */
+		std::vector<llvm::Type *> elements;
+
+		/* bind the tuple type to this struct */
+		bound_type_t::refs args;
+		for (auto dim : struct_type->dimensions) {
+			auto arg = upsert_bound_type(status, builder, scope, dim);
+
+			if (!status) {
+				break;
 			}
-						
-			/* we've never seen the internal type, so start by registering an
-			 * opaque placeholder for the struct's concrete type */
-			
-			/* first create the opaque pointer type */
-			auto bound_pointer_type = create_ref_ptr_type(builder, product);
-			program_scope->put_bound_type(status, bound_pointer_type);
+			elements.push_back(arg->get_llvm_type());
+		}
 
-			assert(dyncast<const types::type_product>(product->dimensions[0]) != nullptr);
-			
-			/* before we return the pointer type, let's go ahead and instantiate
-			 * the actual structural type */
-			upsert_bound_type(status, builder, scope, product->dimensions[0]);
-
+		if (!!status) {
+			llvm_struct_type->setBody(elements);
+			auto bound_type = bound_type_t::create(struct_type, struct_type->get_location(), llvm_struct_type);
 			if (!!status) {
-				return bound_pointer_type;
-			}
-		}
-	case pk_tuple:
-		{
-			if (product->ftv_count() != 0) {
-				debug_above(5, log(log_info,
-							"found abstract type %s when attempting to create a bound type",
-							product->str().c_str()));
-				return program_scope->get_bound_type({BUILTIN_UNREACHABLE_TYPE});
-			}
-
-			/* tuples don't have names, so there's no need for a placeholder, as
-			 * they cannot be self referential */
-
-			/* make sure one of these doesn't already exist */
-			assert(!scope->get_bound_type(product->get_signature()));
-
-			/* get the pointer type to this, if it exists, get the opaque struct
-			 * pointer that it had created. fill it out. if it doesn't exist,
-			 * create it, then extract this tuple type from that. */
-			types::type::ref ref_type = type_product(pk_ref, {product});
-			bound_type_t::ref bound_ref_type = scope->get_bound_type(
-					ref_type->get_signature());
-
-			if (ref_type != nullptr) {
-				llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm::cast<llvm::PointerType>(
-							bound_ref_type->get_llvm_type())->getElementType());
-				assert(llvm_struct_type != nullptr);
-				assert(!llvm_struct_type->isSized());
-				assert(llvm_struct_type->isOpaque());
-
-				/* create the structure in place in this struct type */
-				std::vector<llvm::Type *> elements;
-
-				/* bind the tuple type to this struct */
-				bound_type_t::refs args;
-				for (auto dim : product->dimensions) {
-					auto arg = upsert_bound_type(status, builder, scope, dim);
-
-					if (!status) {
-						break;
-					}
-					elements.push_back(arg->get_llvm_type());
-				}
-
+				program_scope->put_bound_type(status, bound_type);
 				if (!!status) {
-					llvm_struct_type->setBody(elements);
-					auto bound_type = bound_type_t::create(product, product->get_location(), llvm_struct_type);
-					if (!!status) {
-						program_scope->put_bound_type(status, bound_type);
-						if (!!status) {
-							return bound_type;
-						}
-					}
+					return bound_type;
 				}
-
-				return null_impl();
-			} else {
-				/* we created this type through recursion */
-				auto bound_type = scope->get_bound_type(product->get_signature());
-				assert(bound_type != nullptr);
-				return bound_type;
 			}
+		}
 
-			break;
-		}
-	case pk_tag:
-		{
-			assert(false);
-			break;
-		}
+		return null_impl();
+	} else {
+		/* we created this type through recursion */
+		auto bound_type = scope->get_bound_type(struct_type->get_signature());
+		assert(bound_type != nullptr);
+		return bound_type;
 	}
 
 	assert(!status);
@@ -377,29 +376,32 @@ bound_type_t::ref create_bound_function_type(
 		ptr<scope_t> scope,
 		const ptr<const types::type_function> &function)
 {
-	bound_type_t::refs args = create_bound_types_from_args(status,
-			builder, scope, function->args);
-	bound_type_t::ref return_type = upsert_bound_type(
-			status, builder, scope, function->return_type);
+	bound_type_t::refs args = upsert_bound_types(status,
+			builder, scope, function->args->args);
 
 	if (!!status) {
-		auto signature = function->get_signature();
-		auto bound_type = scope->get_bound_type(signature);
-		if (bound_type) {
-			return bound_type;
-		} else {
-			auto *llvm_fn_type = llvm_create_function_type(status,
-					builder, args, return_type);
-			if (!!status) {
-				bound_type = bound_type_t::create(function,
-						function->get_location(), llvm_fn_type);
-				ptr<program_scope_t> program_scope = scope->get_program_scope();
-				program_scope->put_bound_type(status, bound_type);
+		bound_type_t::ref return_type = upsert_bound_type(
+				status, builder, scope, function->return_type);
 
+		if (!!status) {
+			auto signature = function->get_signature();
+			auto bound_type = scope->get_bound_type(signature);
+			if (bound_type) {
+				return bound_type;
+			} else {
+				auto *llvm_fn_type = llvm_create_function_type(status,
+						builder, args, return_type);
 				if (!!status) {
-					return bound_type;
-				} else {
-					return nullptr;
+					bound_type = bound_type_t::create(function,
+							function->get_location(), llvm_fn_type);
+					ptr<program_scope_t> program_scope = scope->get_program_scope();
+					program_scope->put_bound_type(status, bound_type);
+
+					if (!!status) {
+						return bound_type;
+					} else {
+						return nullptr;
+					}
 				}
 			}
 		}
@@ -427,8 +429,10 @@ bound_type_t::ref create_bound_type(
 		return create_bound_id_type(status, builder, scope, id);
     } else if (auto maybe = dyncast<const types::type_maybe>(type)) {
 		return create_bound_maybe_type(status, builder, scope, maybe);
-	} else if (auto product = dyncast<const types::type_product>(type)) {
-		return create_bound_product_type(status, builder, scope, product);
+	} else if (auto ref = dyncast<const types::type_ref>(type)) {
+		return create_bound_ref_type(status, builder, scope, ref);
+	} else if (auto struct_ = dyncast<const types::type_struct>(type)) {
+		return create_bound_struct_type(status, builder, scope, struct_);
 	} else if (auto function = dyncast<const types::type_function>(type)) {
 		return create_bound_function_type(status, builder, scope, function);
 	} else if (auto sum = dyncast<const types::type_sum>(type)) {
@@ -501,12 +505,13 @@ bound_type_t::ref get_or_create_tuple_type(
 		scope_t::ref scope,
 		identifier::ref id,
 		bound_type_t::refs args,
+		bool managed,
 		const ast::item::ref &node)
 {
 	atom name = id->get_name();
 
 	/* get the type of this tuple type */
-	types::type::ref type = get_tuple_type(get_types(args));
+	types::type::ref type = get_tuple_type(get_types(args), managed);
 	auto data_type = scope->get_bound_type(type->get_signature());
 
 	if (data_type != nullptr) {
@@ -550,6 +555,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		scope_t::ref scope,
 		types::type::ref type_fn_context,
 		bound_type_t::refs args,
+		bool managed,
 		identifier::ref id,
 		const ast::item::ref &node)
 {
@@ -559,7 +565,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
 		bound_type_t::ref data_type = get_or_create_tuple_type(status, builder, scope,
-				id, args, node);
+				id, args, managed, node);
 
 		if (!!status) {
 			bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(status, builder,
@@ -630,17 +636,17 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	if (auto id = dyncast<const types::type_id>(type)) {
 		ctor_args_type = eval(type, scope->get_typename_env());
+	} else if (auto ref_type = dyncast<const types::type_ref>(type)) {
+		ctor_args_type = ref_type;
 	} else {
-		auto product = dyncast<const types::type_product>(type);
-		assert(product->pk == pk_ref);
-		ctor_args_type = type;
+		user_error(status, id->get_location(), "creating a tuple with %s is not yet implemented",
+				type->str().c_str());
+		return nullptr;
 	}
 
 	/* destructure the ref ptr that this should be */
-	if (auto ref = dyncast<const types::type_product>(ctor_args_type)) {
-		assert(ref->pk == pk_ref);
-		assert(ref->dimensions.size() == 1);
-		ctor_args_type = ref->dimensions[0];
+	if (auto ref = dyncast<const types::type_ref>(ctor_args_type)) {
+		ctor_args_type = ref->element_type;
 	} else {
 		user_error(status, id->get_location(), "we should have created a ref type as the return value: %s",
 				ctor_args_type->str().c_str());
@@ -653,76 +659,80 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		debug_above(4, log(log_info, "get_or_create_tuple_ctor instantiating with type %s -> %s",
 					ctor_args_type->str().c_str(), type->str().c_str()));
 
-		auto product = dyncast<const types::type_product>(ctor_args_type);
-		assert(product != nullptr);
+		auto struct_ = dyncast<const types::type_struct>(ctor_args_type);
+		assert(struct_ != nullptr);
 
-		bound_type_t::refs args = create_bound_types_from_args(status,
-				builder, scope, product);
-
-		/* save and later restore the current branch insertion point */
-		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-		auto function = llvm_start_function(status, builder, scope,
-				node, type_fn_context, args, data_type, name);
+		bound_type_t::refs args = upsert_bound_types(status,
+				builder, scope, struct_->dimensions);
 
 		if (!!status) {
-			bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(
-					status, node, "__mem_alloc");
-
-			assert(!!status);
-			assert(mem_alloc_var != nullptr);
-
-			llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder,
-					llvm_deref_type(data_type->get_llvm_type()));
-
-			auto signature = get_function_return_type(function->type->get_type())->get_signature();
-			debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
-						signature.c_str(), signature.iatom));
-
-			/* create the call to mem_alloc */
-			llvm::Value *llvm_mem_alloc_call_value = llvm_create_call_inst(
-					status, builder, *node, mem_alloc_var, {llvm_sizeof_tuple});
+			/* save and later restore the current branch insertion point */
+			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+			auto function = llvm_start_function(status, builder, scope, node,
+					type_fn_context, args, data_type, name);
 
 			if (!!status) {
-				assert(data_type->get_llvm_type() != nullptr);
-				if (data_type->get_llvm_type()->isPointerTy()) {
-					/* we've allocated enough space for the object type, let's get our allocation as such */
-					llvm::Value *llvm_final_obj = builder.CreatePointerBitCastOrAddrSpaceCast(
-							llvm_mem_alloc_call_value, 
-							data_type->get_llvm_type());
+				bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(
+						status, node, "__mem_alloc");
 
-					int index = 0;
+				assert(!!status);
+				assert(mem_alloc_var != nullptr);
 
-					llvm::Function *llvm_function = (llvm::Function *)function->llvm_value;
-					llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
-					while (args_iter != llvm_function->arg_end()) {
-						llvm::Value *llvm_param = args_iter++;
-						/* get the location we should store this datapoint in */
-						llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_final_obj,
-								{builder.getInt32(0), builder.getInt32(index++)});
-						debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
-									llvm_print_value(*llvm_gep).c_str()));
-						builder.CreateStore(llvm_param, llvm_gep);
-					}
+				llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder,
+						llvm_deref_type(data_type->get_llvm_type()));
 
-					/* create a return statement for the final object. */
-					builder.CreateRet(llvm_final_obj);
+				auto signature = get_function_return_type(
+						function->type->get_type())->get_signature();
+				debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
+							signature.c_str(), signature.iatom));
 
-					llvm_verify_function(status, llvm_function);
+				/* create the call to mem_alloc */
+				llvm::Value *llvm_mem_alloc_call_value = llvm_create_call_inst(
+						status, builder, *node, mem_alloc_var, {llvm_sizeof_tuple});
 
-					if (!!status) {
-						/* bind the ctor to the program scope */
-						scope->get_program_scope()->put_bound_variable(status, name, function);
+				if (!!status) {
+					assert(data_type->get_llvm_type() != nullptr);
+					if (data_type->get_llvm_type()->isPointerTy()) {
+						/* we've allocated enough space for the object type,
+						 * let's get our allocation as such */
+						llvm::Value *llvm_final_obj = builder.CreatePointerBitCastOrAddrSpaceCast(
+								llvm_mem_alloc_call_value, 
+								data_type->get_llvm_type());
+
+						int index = 0;
+
+						llvm::Function *llvm_function = (llvm::Function *)function->llvm_value;
+						llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
+						while (args_iter != llvm_function->arg_end()) {
+							llvm::Value *llvm_param = args_iter++;
+							/* get the location we should store this datapoint in */
+							llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_final_obj,
+									{builder.getInt32(0), builder.getInt32(index++)});
+							debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
+										llvm_print_value(*llvm_gep).c_str()));
+							builder.CreateStore(llvm_param, llvm_gep);
+						}
+
+						/* create a return statement for the final object. */
+						builder.CreateRet(llvm_final_obj);
+
+						llvm_verify_function(status, llvm_function);
 
 						if (!!status) {
-							debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
-											*llvm_get_module(builder)).c_str()));
-							return function;
+							/* bind the ctor to the program scope */
+							scope->get_program_scope()->put_bound_variable(status, name, function);
+
+							if (!!status) {
+								debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
+												*llvm_get_module(builder)).c_str()));
+								return function;
+							}
 						}
+					} else {
+						user_error(status, node->get_location(),
+								"data type %s is not a pointer type",
+								data_type->str().c_str());
 					}
-				} else {
-					user_error(status, node->get_location(),
-							"data type %s is not a pointer type",
-							data_type->str().c_str());
 				}
 			}
 		}

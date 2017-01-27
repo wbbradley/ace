@@ -163,8 +163,8 @@ namespace types {
 		return oper->get_id();
 	}
 
-	type_struct::type_struct(type::refs dimensions, types::name_index name_index) :
-		dimensions(dimensions), name_index(name_index)
+	type_struct::type_struct(type::refs dimensions, types::name_index name_index, bool managed) :
+		dimensions(dimensions), name_index(name_index), managed(managed)
 	{
 #ifdef ZION_DEBUG
 		for (auto dimension: dimensions) {
@@ -212,7 +212,7 @@ namespace types {
 		for (auto dimension : dimensions) {
 			type_dimensions.push_back(dimension->rebind(bindings));
 		}
-		return ::type_struct(type_dimensions, name_index);
+		return ::type_struct(type_dimensions, name_index, managed);
 	}
 
 	location type_struct::get_location() const {
@@ -465,7 +465,8 @@ types::type::ref type_operator(types::type::ref operator_, types::type::ref oper
 
 types::type_struct::ref type_struct(
 	   	types::type::refs dimensions,
-	   	types::name_index name_index)
+	   	types::name_index name_index,
+		bool managed)
 {
 	if (name_index.size() == 0) {
 		/* if we omit names for our dimensions, give them names like _0, _1, _2,
@@ -474,7 +475,7 @@ types::type_struct::ref type_struct(
 			name_index[string_format("_%d", i)] = i;
 		}
 	}
-	return make_ptr<types::type_struct>(dimensions, name_index);
+	return make_ptr<types::type_struct>(dimensions, name_index, managed);
 }
 
 types::type_function::ref type_function(

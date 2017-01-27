@@ -59,7 +59,6 @@ namespace types {
 		virtual bool is_function() const { return false; }
 		virtual bool is_void() const { return false; }
 		virtual bool is_nil() const { return false; }
-		virtual bool is_native() const { return true; }
 	};
 
 	bool is_type_id(type::ref type, atom type_name);
@@ -109,8 +108,8 @@ namespace types {
 		typedef ptr<const type_product> ref;
 
 		virtual product_kind_t get_pk() const = 0;
-		virtual type::refs get_dimensions() = 0;
-		virtual name_index get_name_index() = 0;
+		virtual type::refs get_dimensions() const = 0;
+		virtual name_index get_name_index() const = 0;
 	};
 
 	struct type_module : public type_product {
@@ -119,8 +118,8 @@ namespace types {
 		type_module(type::ref module_type);
 
 		virtual product_kind_t get_pk() const;
-		virtual type::refs get_dimensions();
-		virtual name_index get_name_index();
+		virtual type::refs get_dimensions() const;
+		virtual name_index get_name_index() const;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -135,11 +134,11 @@ namespace types {
 	struct type_ref : public type_product {
 		typedef ptr<const type_ref> ref;
 
-		type_ref(type::ref element_type, bool native);
+		type_ref(type::ref element_type);
 
 		virtual product_kind_t get_pk() const;
-		virtual type::refs get_dimensions();
-		virtual name_index get_name_index();
+		virtual type::refs get_dimensions() const;
+		virtual name_index get_name_index() const;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -149,7 +148,6 @@ namespace types {
 		virtual identifier::ref get_id() const;
 
 		type::ref element_type;
-		bool native;
 	};
 
 	struct type_args : public type_product {
@@ -158,8 +156,8 @@ namespace types {
 		type_args(type::refs args, name_index name_index);
 
 		virtual product_kind_t get_pk() const;
-		virtual type::refs get_dimensions();
-		virtual name_index get_name_index();
+		virtual type::refs get_dimensions() const;
+		virtual name_index get_name_index() const;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -175,11 +173,11 @@ namespace types {
 	struct type_struct : public type_product {
 		typedef ptr<const type_struct> ref;
 
-		type_struct(type::refs dimensions, name_index name_index);
+		type_struct(type::refs dimensions, name_index name_index, bool managed);
 
 		virtual product_kind_t get_pk() const;
-		virtual type::refs get_dimensions();
-		virtual name_index get_name_index();
+		virtual type::refs get_dimensions() const;
+		virtual name_index get_name_index() const;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -190,6 +188,7 @@ namespace types {
 
 		type::refs dimensions;
 		name_index name_index;
+		bool managed;
 	};
 
 	struct type_function : public type {
@@ -258,8 +257,9 @@ types::type::ref type_id(identifier::ref var);
 types::type::ref type_variable(identifier::ref name);
 types::type::ref type_variable(struct location location);
 types::type::ref type_operator(types::type::ref operator_, types::type::ref operand);
-types::type_ref::ref type_ref(types::type::ref element, bool native);
-types::type_struct::ref type_struct(types::type::refs dimensions, types::name_index name_index);
+types::type_module::ref type_module(types::type::ref module);
+types::type_ref::ref type_ref(types::type::ref element);
+types::type_struct::ref type_struct(types::type::refs dimensions, types::name_index name_index, bool managed);
 types::type_args::ref type_args(types::type::refs args, const types::name_index &name_index={});
 types::type_function::ref type_function(types::type::ref inbound_context, types::type_args::ref args, types::type::ref return_type);
 types::type::ref type_sum(types::type::refs options);

@@ -873,7 +873,7 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 		bound_type_t::refs args = get_bound_types(vars);
 
 		/* let's get the type for this tuple wrapped as an object */
-		types::type::ref tuple_type = get_tuple_type(args);
+		types::type::ref tuple_type = get_tuple_type(args, true /*managed*/);
 
 		/* now, let's see if we already have a ctor for this tuple type, if not
 		 * we'll need to create a data ctor for this unnamed tuple type */
@@ -882,6 +882,7 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 		std::pair<bound_var_t::ref, bound_type_t::ref> tuple = instantiate_tuple_ctor(
 				status, builder, scope,
 				scope->get_inbound_context(), args,
+				true /* managed */,
 				make_iid(tuple_type->repr()), shared_from_this());
 
 		if (!!status) {
@@ -890,9 +891,8 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 						scope, tuple.first->type)->get_type()->repr() == tuple_type->repr());
 
 			/* now, let's call our unnamed tuple ctor and return that value */
-			return create_callsite(status, builder, scope, shared_from_this(), tuple.first,
-					tuple_type->repr(), token.location,
-					vars);
+			return create_callsite(status, builder, scope, shared_from_this(),
+					tuple.first, tuple_type->repr(), token.location, vars);
 		}
 	}
 
@@ -958,23 +958,17 @@ bound_type_t::ref eval_to_bound_struct_ref(
 	return nullptr;
 }
 
-types::type_product::ref get_struct_type_from_ref(
+types::type_struct::ref get_struct_type_from_ref(
 		status_t &status,
 	   	ast::item::ref node,
 	   	bound_type_t::ref bound_struct_ref)
 {
-	if (auto product = dyncast<const types::type_ref>(
+	if (auto type_ref = dyncast<const types::type_ref>(
 				bound_struct_ref->get_type())) {
-		auto struct_type = dyncast<const types::type_product>(product->dimensions[0]);
-		if (struct_type != nullptr) {
-			if (struct_type->pk == pk_tuple) {
-				return struct_type;
-			} else {
-				user_error(status, node->get_location(),
-						"%s is pointing to %s, which is not a struct",
-						bound_struct_ref->str().c_str(),
-						struct_type->str().c_str());
-			}
+		if (auto struct_type = dyncast<const types::type_struct>(type_ref->element_type)) {
+			return struct_type;
+		} else {
+			panic("no struct type found in ref");
 		}
 	} else {
 		user_error(status, node->get_location(),
@@ -1002,7 +996,7 @@ bound_var_t::ref extract_member_variable(
 		return nullptr;
 	}
 
-	types::type_product::ref struct_type = get_struct_type_from_ref(
+	types::type_struct::ref struct_type = get_struct_type_from_ref(
 			status, node, bound_struct_ref);
 
 	if (!status) {
@@ -2011,7 +2005,7 @@ llvm::Value *maybe_get_bool_overload_value(
 	var_t::refs fns;
 	auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE,
 			condition, scope->get_outbound_context(),
-			get_args_type({condition_type}), fns);
+			type_args({condition_type}), fns);
 
 	if (!!status) {
 		if (bool_fn != nullptr) {

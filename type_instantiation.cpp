@@ -157,10 +157,9 @@ types::type::ref instantiate_data_ctor_type(
 
 		/* we're declaring a ctor at module scope */
 		if (auto module_scope = dyncast<module_scope_t>(scope)) {
-			bool native = !isupper(tag_name.str()[0]);
 
 			/* create the actual expanded type signature of this type */
-			types::type::ref type = type_ref(struct_, native);
+			types::type::ref type = type_ref(struct_);
 
 			/* make sure we allow for parameterized expansion */
 			for (auto lambda_var : lambda_vars) {

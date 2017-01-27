@@ -900,7 +900,7 @@ ptr<function_decl> function_decl::parse(parse_state_t &ps) {
 				for (auto ftv : ftvs) {
 					bindings[ftv] = global;
 				}
-				inbound_context = ::type_product(pk_module, {inbound_context->rebind(bindings)});
+				inbound_context = ::type_module(inbound_context->rebind(bindings));
 				debug_above(5, log(log_info,
 							"parsed module inbound context declaration %s",
 							inbound_context->str().c_str()));
@@ -1117,7 +1117,7 @@ types::type::ref _parse_function_type(parse_state_t &ps, identifier::set generic
 		if (!!ps.status) {
 			return type_function(
 					type_variable(INTERNAL_LOC()),
-					get_args_type(param_types),
+					type_args(param_types),
 					return_type);
 		}
 	}
@@ -1178,7 +1178,7 @@ types::type::ref _parse_single_type(
 			}
 			chomp_token(tk_outdent);
 			if (!!ps.status) {
-				return ::type_product(pk_tuple, dimensions, name_index);
+				return ::type_struct(dimensions, name_index, !native /* managed */);
 			} else {
 				return nullptr;
 			}
@@ -1189,7 +1189,7 @@ types::type::ref _parse_single_type(
 		ps.advance();
 			auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
 			if (!!ps.status) {
-				return ::type_product(pk_ref, {type});
+				return ::type_ref(type);
 			}
 		}
 		break;
@@ -1262,7 +1262,7 @@ types::type::ref _parse_single_type(
 			ps.advance();
 			types::type::refs arguments = parse_type_operands(ps, supertype_id, type_variables, generics);
 			// TODO: allow named members
-			return ::type_product(pk_tuple, arguments);
+			return ::type_struct(arguments, {}, true /* managed */);
 		}
 		break;
 	default:

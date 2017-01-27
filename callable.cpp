@@ -55,22 +55,24 @@ bound_var_t::ref instantiate_unchecked_fn(
 				unchecked_fn->module_scope, unification, fn_type);
 
 		if (auto function = dyncast<const types::type_function>(fn_type)) {
-			bound_type_t::refs args = create_bound_types_from_args(status,
-					builder, subst_scope, function->args);
-
-			bound_type_t::named_pairs named_args = zip_named_pairs(
-					get_param_list_decl_variable_names(
-						function_defn->decl->param_list_decl),
-					args);
-
-			bound_type_t::ref return_type = upsert_bound_type(status,
-					builder, subst_scope, function->return_type);
+			bound_type_t::refs args = upsert_bound_types(status,
+					builder, subst_scope, function->args->args);
 
 			if (!!status) {
-				/* instantiate the function we want */
-				return function_defn->instantiate_with_args_and_return_type(status,
-						builder, subst_scope, nullptr /*new_scope*/,
-						function->inbound_context, named_args, return_type);
+				bound_type_t::named_pairs named_args = zip_named_pairs(
+						get_param_list_decl_variable_names(
+							function_defn->decl->param_list_decl),
+						args);
+
+				bound_type_t::ref return_type = upsert_bound_type(status,
+						builder, subst_scope, function->return_type);
+
+				if (!!status) {
+					/* instantiate the function we want */
+					return function_defn->instantiate_with_args_and_return_type(status,
+							builder, subst_scope, nullptr /*new_scope*/,
+							function->inbound_context, named_args, return_type);
+				}
 			}
 		} else {
 			panic("we should have a product type for our fn_type");

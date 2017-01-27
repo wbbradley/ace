@@ -159,19 +159,21 @@ unification_t unify(
 		}
 	} else if (ptp_a != nullptr) {
 		if (auto ptp_b = dyncast<const types::type_product>(b)) {
-			if (ptp_a->pk != ptp_b->pk) {
+			if (ptp_a->get_pk() != ptp_b->get_pk()) {
 				return {false, string_format("product kinds are different %s <> %s",
-						pkstr(ptp_a->pk),
-						pkstr(ptp_b->pk)), bindings};
+						pkstr(ptp_a->get_pk()),
+						pkstr(ptp_b->get_pk())), bindings};
 			}
-			if (ptp_a->dimensions.size() != ptp_b->dimensions.size()) {
+			auto a_dimensions = ptp_a->get_dimensions();
+			auto b_dimensions = ptp_b->get_dimensions();
+			if (a_dimensions.size() != b_dimensions.size()) {
 				return {false, string_format("product type lengths do not match "
 						"(a = %s, b = %s)", ptp_a->str().c_str(),
 						ptp_b->str().c_str()), bindings};
 			} else {
-				auto a_dims_end = ptp_a->dimensions.end();
-				auto b_dims_iter = ptp_b->dimensions.begin();
-				for (auto a_dims_iter = ptp_a->dimensions.begin();
+				auto a_dims_end = a_dimensions.end();
+				auto b_dims_iter = b_dimensions.begin();
+				for (auto a_dims_iter = a_dimensions.begin();
 						a_dims_iter != a_dims_end;
 						++a_dims_iter, ++b_dims_iter) {
 					auto unification = unify(*a_dims_iter, *b_dims_iter,
