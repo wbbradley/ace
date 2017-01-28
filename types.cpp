@@ -187,6 +187,7 @@ namespace types {
 	}
 
 	std::ostream &type_struct::emit(std::ostream &os, const map &bindings) const {
+		os << (managed ? "managed " : "native ");
 		os << "struct (";
 		const char *sep = "";
 		for (auto dimension : dimensions) {

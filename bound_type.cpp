@@ -9,33 +9,29 @@
 #include "llvm_utils.h"
 #include <iostream>
 
-bound_type_impl_t::bound_type_impl_t(
+bound_type_t::bound_type_t(
 		types::type::ref type,
 		struct location location,
 		llvm::Type *llvm_type,
-		bound_type_t::refs dimensions,
-		name_index member_index) :
+		llvm::Type *llvm_specific_type) :
 	type(type),
 	location(location),
 	llvm_type(llvm_type),
-	dimensions(dimensions),
-	member_index(member_index)
+	llvm_specific_type(llvm_specific_type)
 {
 	debug_above(6, log(log_info, "creating type with (%s, LLVM TypeID %d, %s, %s %s)",
 			type->str().c_str(),
 			llvm_type ? llvm_type->getTypeID() : -1,
-			location.str().c_str(),
-			::str(dimensions).c_str(),
-			::str(member_index).c_str()));
+			location.str().c_str()));
 
 	assert(llvm_type != nullptr);
 }
 
-types::type::ref bound_type_impl_t::get_type() const {
+types::type::ref bound_type_t::get_type() const {
 	return type;
 }
 
-bool bound_type_impl_t::is_concrete() const {
+bool bound_type_t::is_concrete() const {
 	if (type->repr() != "__unreachable") {
 		// NOTE: this assert may be ok to delete, since we could potentially have
 		// nested types that we can't actually access without pattern matching,
@@ -47,31 +43,36 @@ bool bound_type_impl_t::is_concrete() const {
 	}
 }
 
-struct location const bound_type_impl_t::get_location() const {
+struct location const bound_type_t::get_location() const {
 	return location;
 }
 
-llvm::Type * const bound_type_impl_t::get_llvm_type() const {
+llvm::Type * const bound_type_t::get_llvm_type() const {
 	return llvm_type;
 }
 
-bound_type_t::refs const bound_type_impl_t::get_dimensions() const {
-	return dimensions;
+llvm::Type * const bound_type_t::get_llvm_specific_type() const {
+	return llvm_specific_type ? llvm_specific_type : llvm_type;
 }
 
-bound_type_t::name_index const bound_type_impl_t::get_member_index() const {
-	return member_index;
+/*
+bound_type_t::refs const bound_type_t::get_dimensions() const {
+	return type->get_dimensions();
 }
+
+bound_type_t::name_index const bound_type_t::get_member_index() const {
+	return type->get_name_index();
+}
+*/
 
 bound_type_t::ref bound_type_t::create(
 		types::type::ref type,
 		struct location location,
 		llvm::Type *llvm_type,
-		bound_type_t::refs dimensions,
-		bound_type_t::name_index member_index)
+		llvm::Type *llvm_specific_type)
 {
-	return make_ptr<bound_type_impl_t>(type, location, llvm_type,
-			dimensions, member_index);
+	return make_ptr<bound_type_t>(type, location, llvm_type,
+			llvm_specific_type ? llvm_specific_type : llvm_type);
 }
 
 std::string str(const bound_type_t::refs &args) {
@@ -114,11 +115,10 @@ std::ostream &operator <<(std::ostream &os, const bound_type_t &type) {
 	return os << type.str();
 }
 
-std::string bound_type_impl_t::str() const {
+std::string bound_type_t::str() const {
 	std::stringstream ss;
 	ss << get_type();
 	ss << " " << llvm_print_type(*get_llvm_type());
-	ss << " " << ::str(get_dimensions());
 	return ss.str();
 }
 

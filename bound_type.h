@@ -11,7 +11,7 @@
 
 struct bound_var_t;
 
-struct bound_type_t : public std::enable_shared_from_this<bound_type_t> {
+struct bound_type_t {
 	typedef ptr<const bound_type_t> ref;
 	typedef std::weak_ptr<const bound_type_t> weak_ref;
 	typedef std::vector<std::pair<atom, ref>> named_pairs;
@@ -19,9 +19,18 @@ struct bound_type_t : public std::enable_shared_from_this<bound_type_t> {
 	typedef std::map<types::signature, ref> map;
 	typedef atom::map<int> name_index;
 
-protected:
-	bound_type_t() {}
+	bound_type_t(
+			types::type::ref type,
+			location location,
+			llvm::Type *llvm_type,
+			llvm::Type *llvm_specific_type);
+
 	virtual ~bound_type_t() {}
+
+protected:
+	bound_type_t(const bound_type_t &) = delete;
+	bound_type_t(const bound_type_t &&) = delete;
+	bound_type_t &operator =(const bound_type_t &) = delete;
 
 public:
 	bool is_function() const;
@@ -30,13 +39,14 @@ public:
 	bool is_maybe() const;
 	types::signature get_signature() const;
 
-	virtual std::string str() const = 0;
-	virtual types::type::ref get_type() const = 0;
-	virtual bool is_concrete() const = 0;
-	virtual struct location const get_location() const = 0;
-	virtual llvm::Type * const get_llvm_type() const = 0;
-	virtual refs const get_dimensions() const = 0;
-	virtual name_index const get_member_index() const = 0;
+	std::string str() const;
+	types::type::ref get_type() const;
+	bool is_concrete() const;
+	struct location const get_location() const;
+	llvm::Type * const get_llvm_type() const;
+	llvm::Type * const get_llvm_specific_type() const;
+	// refs const get_dimensions() const;
+	// name_index const get_member_index() const;
 
 	static refs refs_from_vars(const std::vector<ptr<const bound_var_t>> &vars);
 
@@ -44,36 +54,13 @@ public:
 			types::type::ref type,
 			struct location location,
 			llvm::Type *llvm_type,
-			refs dimensions = {},
-			name_index member_index = {});
-};
+			llvm::Type *llvm_specific_type = nullptr);
 
-struct bound_type_impl_t : public bound_type_t {
-	bound_type_impl_t(
-			types::type::ref type,
-			location location,
-			llvm::Type *llvm_type,
-			refs dimensions,
-			name_index member_index);
-	virtual ~bound_type_impl_t() {}
-
-	bound_type_impl_t(const bound_type_impl_t &) = delete;
-	bound_type_impl_t(const bound_type_impl_t &&) = delete;
-	bound_type_impl_t &operator =(const bound_type_impl_t &) = delete;
-
-	virtual std::string str() const;
-	virtual types::type::ref get_type() const;
-	virtual bool is_concrete() const;
-	virtual struct location const get_location() const;
-	virtual llvm::Type * const get_llvm_type() const;
-	virtual refs const get_dimensions() const;
-	virtual name_index const get_member_index() const;
-
+private:
 	types::type::ref type;
 	struct location location;
 	llvm::Type * const llvm_type;
-	refs const dimensions;
-	name_index const member_index;
+	llvm::Type * const llvm_specific_type;
 };
 
 types::type::refs get_types(const bound_type_t::refs &bound_types);

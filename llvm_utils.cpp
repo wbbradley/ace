@@ -277,7 +277,7 @@ llvm::Type *llvm_get_data_ctor_tag_basetype(llvm::IRBuilder<> &builder) {
 	return builder.getInt64Ty();
 }
 
-llvm::Type *llvm_create_struct_type(
+llvm::StructType *llvm_create_struct_type(
 		llvm::IRBuilder<> &builder,
 		atom name,
 		const std::vector<llvm::Type*> &llvm_types)
@@ -296,7 +296,7 @@ llvm::Type *llvm_create_struct_type(
 	return llvm_struct_type;
 }
 
-llvm::Type *llvm_create_tuple_type(
+llvm::StructType *llvm_create_struct_type(
 		llvm::IRBuilder<> &builder,
 		atom name,
 		const bound_type_t::refs &dimensions) 
@@ -308,7 +308,7 @@ llvm::Type *llvm_create_tuple_type(
 		llvm_types.push_back(dimension->get_llvm_type());
 	}
 
-	llvm::Type *llvm_tuple_type = llvm_create_struct_type(builder, name, llvm_types);
+	llvm::StructType *llvm_tuple_type = llvm_create_struct_type(builder, name, llvm_types);
 
 	/* the actual llvm return type is a managed variable */
 	return llvm_tuple_type;
@@ -319,7 +319,8 @@ llvm::Type *llvm_create_sum_type(
 		program_scope_t::ref program_scope,
 		atom name)
 {
-	llvm::Type *llvm_sum_type = llvm_create_struct_type(builder, name, {});
+	llvm::StructType *llvm_sum_type = llvm_create_struct_type(builder, name,
+			std::vector<llvm::Type*>{});
 
 	/* the actual llvm return type is a managed variable */
 	return llvm_wrap_type(builder, program_scope, name, llvm_sum_type);

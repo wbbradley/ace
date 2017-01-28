@@ -45,9 +45,9 @@ std::string llvm_print_function(llvm::Function *llvm_function);
 llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function, bound_type_t::ref type, atom var_name);
 llvm::Value *llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_value);
 llvm::Type *llvm_resolve_type(llvm::Value *llvm_value);
-llvm::Type *llvm_create_tuple_type(llvm::IRBuilder<> &builder, atom name, const bound_type_t::refs &dimensions);
 llvm::Type *llvm_create_sum_type(llvm::IRBuilder<> &builder, program_scope_t::ref program_scope, atom name);
-llvm::Type *llvm_create_struct_type(llvm::IRBuilder<> &builder, atom name, const std::vector<llvm::Type*> &llvm_types);
+llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder, atom name, const bound_type_t::refs &dimensions);
+llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder, atom name, const std::vector<llvm::Type*> &llvm_types);
 llvm::Value *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type);
 
 void llvm_verify_function(status_t &status, llvm::Function *llvm_function);

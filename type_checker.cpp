@@ -1024,22 +1024,28 @@ bound_var_t::ref extract_member_variable(
 		assert(bound_struct_ref->get_llvm_type() != nullptr);
 
 		llvm::Value *llvm_var_value = llvm_resolve_alloca(builder, bound_var->llvm_value);
-		if (!bound_struct_ref->get_llvm_type()->isPointerTy()) {
+		if (bound_struct_ref->get_llvm_type()->isPointerTy()) {
+			/* the following code is heavily coupled to the physical layout of
+			 * managed vs. native structures */
+
+			llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
+					llvm_var_value, bound_struct_ref->get_llvm_specific_type());
+
+			/* GEP and load the member value from the structure */
+			llvm::Value *llvm_item = builder.CreateLoad(llvm_make_gep(builder,
+						llvm_value_as_specific_type, index,
+						struct_type->managed));
+
+			/* add a helpful descriptive name to this local value */
+			auto value_name = string_format(".%s", member_name.c_str());
+			llvm_item->setName(value_name);
+
+			return bound_var_t::create(
+					INTERNAL_LOC(), value_name,
+					member_type, llvm_item, make_iid(member_name), false/*is_lhs*/);
+		} else {
 			user_error(status, node->get_location(), "type is not a pointer type: %s",
 					bound_struct_ref->str().c_str());
-		}
-		if (!!status) {
-			llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
-					llvm_var_value, bound_struct_ref->get_llvm_type());
-
-			llvm::Value *llvm_gep = builder.CreateInBoundsGEP(
-					llvm_value_as_specific_type,
-					{builder.getInt32(0), builder.getInt32(index)});
-
-			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
-			return bound_var_t::create(
-					INTERNAL_LOC(), string_format(".%s", member_name.c_str()),
-					member_type, llvm_item, make_iid(member_name), false/*is_lhs*/);
 		}
 	} else {
 		auto bindings = scope->get_type_variable_bindings();

@@ -72,3 +72,5 @@ bound_type_t::ref get_function_return_type(
 		const ast::item &obj,
 		scope_t::ref scope,
 		bound_type_t::ref function_type);
+
+llvm::Value *llvm_make_gep(llvm::IRBuilder<> &builder, llvm::Value *llvm_value, int index, bool managed);

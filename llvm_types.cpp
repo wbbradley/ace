@@ -45,24 +45,6 @@ bound_type_t::ref create_ref_ptr_type(
 			llvm_type->getPointerTo());
 }
 
-bound_type_t::ref create_tuple_type(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		identifier::ref id,
-		bound_type_t::refs args,
-		atom::map<int> name_index,
-		struct location location,
-		types::type::ref type)
-{
-	return bound_type_t::create(
-			type,
-			location,
-			llvm_create_tuple_type(builder, id->get_name(), args),
-			args,
-			name_index);
-}
-
 bound_type_t::ref create_bound_ref_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -101,13 +83,46 @@ bound_type_t::ref create_bound_ref_type(
 	return nullptr;
 }
 
+std::vector<llvm::Type *> build_struct_elements(
+		llvm::IRBuilder<> &builder,
+	   	program_scope_t::ref program_scope,
+	   	types::type_struct::ref struct_type,
+		bound_type_t::refs bound_dimensions)
+{
+		/* create the structure in place in this struct type */
+		std::vector<llvm::Type *> elements;
+		if (struct_type->managed) {
+			/* let's prefix the data in this structure with the managed runtime
+			 * data */
+			bound_type_t::ref var_type = program_scope->get_bound_type({"__var"});
+			llvm::Type *llvm_var_type = var_type->get_llvm_type();
+
+			/* place the var_t struct into the structure */
+			elements.push_back(llvm_var_type);
+
+			/* now place the logical data into the structure */
+			elements.push_back(llvm_create_struct_type(
+						builder, struct_type->get_signature(), bound_dimensions));
+		} else {
+			/* this is a native structure, let's just iterate over the bound
+			 * dimensions and place those directly into this structure */
+			for (auto bound_dimension : bound_dimensions) {
+				elements.push_back(bound_dimension->get_llvm_type());
+			}
+		}
+
+		assert(elements.size() != 0);
+		assert_implies(struct_type->managed, elements.size() == 2);
+
+		return elements;
+}
+
 bound_type_t::ref create_bound_struct_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		const ptr<const types::type_struct> &struct_type)
 {
-	assert(!"handle managed bit");
 	ptr<program_scope_t> program_scope = scope->get_program_scope();
 
 	if (struct_type->ftv_count() != 0) {
@@ -131,43 +146,55 @@ bound_type_t::ref create_bound_struct_type(
 			ref_type->get_signature());
 
 	if (ref_type != nullptr) {
+		/* fetch the previously created pointer to this type */
 		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm::cast<llvm::PointerType>(
 					bound_ref_type->get_llvm_type())->getElementType());
 		assert(llvm_struct_type != nullptr);
 		assert(!llvm_struct_type->isSized());
 		assert(llvm_struct_type->isOpaque());
 
-		/* create the structure in place in this struct type */
-		std::vector<llvm::Type *> elements;
+		/* ensure that if this type is managed we refer to it generally by its
+		 * managed structure definition (upwards pointer bitcasts happen
+		 * automatically at reference locations) */
+		llvm::Type *llvm_least_specific_type = (
+				struct_type->managed
+				? program_scope->get_bound_type({"__var"})->get_llvm_type()
+				: llvm_struct_type);
 
-		/* bind the tuple type to this struct */
-		bound_type_t::refs args;
-		for (auto dim : struct_type->dimensions) {
-			auto arg = upsert_bound_type(status, builder, scope, dim);
-
-			if (!status) {
-				break;
-			}
-			elements.push_back(arg->get_llvm_type());
-		}
+		/* resolve all of the contained dimensions. NB: cycles should be broken
+		 * by the existence of the pointer to this type */
+		bound_type_t::refs bound_dimensions = upsert_bound_types(status,
+				builder, scope, struct_type->dimensions);
 
 		if (!!status) {
+			/* fill out the internals of this structure */
+			std::vector<llvm::Type *> elements = build_struct_elements(
+					builder, program_scope, struct_type, bound_dimensions);
+
+			/* finally set the elements into the structure */
 			llvm_struct_type->setBody(elements);
-			auto bound_type = bound_type_t::create(struct_type, struct_type->get_location(), llvm_struct_type);
+
+			auto bound_type = bound_type_t::create(struct_type,
+					struct_type->get_location(), llvm_least_specific_type,
+					llvm_struct_type);
+
+			/* register this type */
+			program_scope->put_bound_type(status, bound_type);
+
 			if (!!status) {
-				program_scope->put_bound_type(status, bound_type);
-				if (!!status) {
-					return bound_type;
-				}
+				return bound_type;
 			}
 		}
-
-		return null_impl();
 	} else {
+		user_error(status, struct_type->get_location(),
+				"cyclical type definition? %s",
+				struct_type->str().c_str());
+#if 0
 		/* we created this type through recursion */
 		auto bound_type = scope->get_bound_type(struct_type->get_signature());
 		assert(bound_type != nullptr);
 		return bound_type;
+#endif
 	}
 
 	assert(!status);
@@ -431,8 +458,8 @@ bound_type_t::ref create_bound_type(
 		return create_bound_maybe_type(status, builder, scope, maybe);
 	} else if (auto ref = dyncast<const types::type_ref>(type)) {
 		return create_bound_ref_type(status, builder, scope, ref);
-	} else if (auto struct_ = dyncast<const types::type_struct>(type)) {
-		return create_bound_struct_type(status, builder, scope, struct_);
+	} else if (auto struct_type = dyncast<const types::type_struct>(type)) {
+		return create_bound_struct_type(status, builder, scope, struct_type);
 	} else if (auto function = dyncast<const types::type_function>(type)) {
 		return create_bound_function_type(status, builder, scope, function);
 	} else if (auto sum = dyncast<const types::type_sum>(type)) {
@@ -520,10 +547,11 @@ bound_type_t::ref get_or_create_tuple_type(
 		auto program_scope = scope->get_program_scope();
 
 		/* build the llvm specific type */
-		llvm::Type *llvm_tuple_type = llvm_create_tuple_type(
+		llvm::Type *llvm_tuple_type = llvm_create_struct_type(
 				builder, name, args);
 
-		assert(!"need to treat native types");
+		assert_implies(!managed, !"need to treat native types");
+
 		llvm::Type *llvm_wrapped_tuple_type = llvm_wrap_type(builder, program_scope,
 				name, llvm_tuple_type);
 
@@ -535,8 +563,10 @@ bound_type_t::ref get_or_create_tuple_type(
 		bound_type_t::ref data_type = bound_type_t::create(
 				type,
 				node->token.location,
-				llvm_wrapped_tuple_type,
-				args);
+				managed
+					? scope->get_program_scope()->get_bound_type({"__var"})->get_llvm_type()
+				   	: llvm_wrapped_tuple_type,
+				llvm_wrapped_tuple_type);
 
 		/* put the type for the data type */
 		program_scope->put_bound_type(status, data_type);
@@ -614,6 +644,58 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 	return {nullptr, nullptr};
 }
 
+llvm::Value *llvm_call_allocator(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+	   	program_scope_t::ref program_scope,
+	   	const ast::item::ref &node,
+		bound_type_t::ref data_type,
+		types::type_struct::ref struct_type,
+		atom name)
+{
+	bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(status, node,
+			struct_type->managed ? "__create_var" : "__mem_alloc");
+
+	if (!!status) {
+		assert(mem_alloc_var != nullptr);
+
+		llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder,
+				llvm_deref_type(data_type->get_llvm_type()));
+
+		auto signature = data_type->get_signature();
+		debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
+					signature.str().c_str(), signature.repr().iatom));
+
+		llvm::Value *llvm_alloced = (
+				struct_type->managed
+				? llvm_create_call_inst(
+					status, builder, *node,
+					mem_alloc_var,
+					{
+					/* name this variable */
+					builder.CreateGlobalStringPtr(name.str()),
+
+					/* no mark function yet */
+					llvm::Constant::getNullValue(
+							program_scope->get_bound_type({"__mark_fn"})->get_llvm_type()),
+
+					/* the type_id */
+					builder.getInt32(signature.repr().iatom),
+
+					/* allocation size */
+					llvm_sizeof_tuple
+					})
+
+				: llvm_create_call_inst(status, builder, *node,
+					mem_alloc_var, {llvm_sizeof_tuple}));
+
+		return llvm_alloced;
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref get_or_create_tuple_ctor(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -653,17 +735,20 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		return null_impl();
 	}
 
-	/* at this point we should have a tuple type in ctor_args_type */
+	/* at this point we should have a struct type in ctor_args_type */
 
 	if (ctor_args_type != nullptr) {
 		debug_above(4, log(log_info, "get_or_create_tuple_ctor instantiating with type %s -> %s",
 					ctor_args_type->str().c_str(), type->str().c_str()));
 
-		auto struct_ = dyncast<const types::type_struct>(ctor_args_type);
-		assert(struct_ != nullptr);
+		auto struct_type = dyncast<const types::type_struct>(ctor_args_type);
+		assert(struct_type != nullptr);
+
+		// TODO: implement managed allocation
+		assert(!struct_type->managed);
 
 		bound_type_t::refs args = upsert_bound_types(status,
-				builder, scope, struct_->dimensions);
+				builder, scope, struct_type->dimensions);
 
 		if (!!status) {
 			/* save and later restore the current branch insertion point */
@@ -672,23 +757,9 @@ bound_var_t::ref get_or_create_tuple_ctor(
 					type_fn_context, args, data_type, name);
 
 			if (!!status) {
-				bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(
-						status, node, "__mem_alloc");
-
-				assert(!!status);
-				assert(mem_alloc_var != nullptr);
-
-				llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder,
-						llvm_deref_type(data_type->get_llvm_type()));
-
-				auto signature = get_function_return_type(
-						function->type->get_type())->get_signature();
-				debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
-							signature.c_str(), signature.iatom));
-
-				/* create the call to mem_alloc */
-				llvm::Value *llvm_mem_alloc_call_value = llvm_create_call_inst(
-						status, builder, *node, mem_alloc_var, {llvm_sizeof_tuple});
+				llvm::Value *llvm_alloced = llvm_call_allocator(
+						status, builder, program_scope, node, data_type,
+						struct_type, name);
 
 				if (!!status) {
 					assert(data_type->get_llvm_type() != nullptr);
@@ -696,7 +767,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 						/* we've allocated enough space for the object type,
 						 * let's get our allocation as such */
 						llvm::Value *llvm_final_obj = builder.CreatePointerBitCastOrAddrSpaceCast(
-								llvm_mem_alloc_call_value, 
+								llvm_alloced, 
 								data_type->get_llvm_type());
 
 						int index = 0;
@@ -706,8 +777,8 @@ bound_var_t::ref get_or_create_tuple_ctor(
 						while (args_iter != llvm_function->arg_end()) {
 							llvm::Value *llvm_param = args_iter++;
 							/* get the location we should store this datapoint in */
-							llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_final_obj,
-									{builder.getInt32(0), builder.getInt32(index++)});
+							llvm::Value *llvm_gep = llvm_make_gep(builder, llvm_final_obj,
+									index++, struct_type->managed);
 							debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
 										llvm_print_value(*llvm_gep).c_str()));
 							builder.CreateStore(llvm_param, llvm_gep);
@@ -789,6 +860,37 @@ bound_var_t::ref type_check_get_item_with_int_literal(
 	return nullptr;
 }
 
+
+llvm::Value *llvm_make_gep(
+		llvm::IRBuilder<> &builder,
+	   	llvm::Value *llvm_value,
+	   	int index,
+	   	bool managed)
+{
+	debug_above(5, log(log_info,
+			   	"creating GEP+load for %s%s[%d]",
+			   	managed ? "managed " : "",
+			   	llvm_print_value(*llvm_value).c_str(), index));
+
+	std::vector<llvm::Value *> gep_path = (
+			managed
+
+			/* the physical layout of managed types wraps the logical
+			 * type, so, if this is a managed type, let's unbox the
+			 * managed wrapper to get to the inner cell data */
+			? std::vector<llvm::Value *>{
+			builder.getInt32(0),
+			builder.getInt32(1),
+			builder.getInt32(index)}
+
+			/* native types can be accessed directly */
+			: std::vector<llvm::Value *>{
+			builder.getInt32(0),
+			builder.getInt32(index)});
+
+	return builder.CreateInBoundsGEP(llvm_value, gep_path);
+}
+
 bound_var_t::ref call_const_subscript_operator(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -803,39 +905,39 @@ bound_var_t::ref call_const_subscript_operator(
 		user_error(status, *node, "constant subscripts must be positive");
 	} else {
 		/* do some checks on the lhs */
-		auto lhs_type = lhs->type;
-		if (lhs_type->get_dimensions().size() != 0) {
-			if (lhs_type->get_dimensions().size() > subscript_index) {
+		if (auto struct_type = dyncast<const types::type_struct>(lhs->type->get_type())) {
+			if (struct_type->dimensions.size() > subscript_index) {
 				/* ok, we're in range */
-				debug_above(6, log(log_info, "generating dereference %s[%d]", lhs->str().c_str(), subscript_index));
+				debug_above(6, log(log_info, "generating dereference %s[%d]",
+							lhs->str().c_str(), subscript_index));
 
-				bound_type_t::ref data_type = lhs_type->get_dimensions()[subscript_index];
-				assert(data_type != nullptr);
-				assert(lhs_type->get_llvm_type() != nullptr);
+				bound_type_t::ref data_type = upsert_bound_type(status, builder,
+						scope, struct_type->dimensions[subscript_index]);
 
-				/* get the tuple */
-				llvm::Value *llvm_lhs = llvm_resolve_alloca(builder, lhs->llvm_value);
+				if (!!status) {
+					/* get the tuple */
+					llvm::Value *llvm_lhs = llvm_resolve_alloca(builder, lhs->llvm_value);
+					if (lhs->type->get_llvm_specific_type()->isPointerTy()) {
+						llvm::Value *llvm_lhs_subtype = builder.CreatePointerBitCastOrAddrSpaceCast(
+								llvm_lhs,
+								lhs->type->get_llvm_specific_type());
 
-				if (lhs_type->get_llvm_type()) {
-					llvm::Value *llvm_lhs_subtype = builder.CreatePointerBitCastOrAddrSpaceCast(
-							llvm_lhs,
-							lhs_type->get_llvm_type());
+						llvm::Value *llvm_value = builder.CreateLoad(llvm_make_gep(builder,
+									llvm_lhs_subtype, subscript_index,
+									struct_type->managed));
 
-					debug_above(5, log(log_info, "creating GEP for %s", llvm_print_value(*llvm_lhs_subtype).c_str()));
-					llvm::Value *llvm_gep = builder.CreateInBoundsGEP(llvm_lhs_subtype,
-							{builder.getInt32(0), builder.getInt32(1), builder.getInt32(subscript_index)});
-					llvm::Value *llvm_value = builder.CreateLoad(llvm_gep);
-					return bound_var_t::create(
-							INTERNAL_LOC(),
-							"temp_deref_subscript",
-							data_type,
-							llvm_value,
-							make_code_id(node->token),
-							false/*is_lhs*/);
-				} else {
-					user_error(status, node->get_location(),
-							"lhs type %s is not a pointer type",
-							lhs_type->str().c_str());
+						return bound_var_t::create(
+								INTERNAL_LOC(),
+								"temp_deref_subscript",
+								data_type,
+								llvm_value,
+								make_code_id(node->token),
+								false/*is_lhs*/);
+					} else {
+						user_error(status, node->get_location(),
+								"lhs type %s is not a pointer type",
+								struct_type->str().c_str());
+					}
 				}
 			} else {
 				user_error(status, *node, "index out of range");
