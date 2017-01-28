@@ -56,7 +56,6 @@ inline std::string operator +(const std::string &lhs, const atom rhs) {
 	return lhs + rhs.str();
 }
 
-atom get_indexed_generic(int generic_index);
 bool starts_with(atom atom_str, const std::string &search);
 
 template <typename U, typename COLL>

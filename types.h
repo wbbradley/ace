@@ -260,7 +260,7 @@ types::type::ref type_operator(types::type::ref operator_, types::type::ref oper
 types::type_module::ref type_module(types::type::ref module);
 types::type_ref::ref type_ref(types::type::ref element);
 types::type_struct::ref type_struct(types::type::refs dimensions, types::name_index name_index, bool managed);
-types::type_args::ref type_args(types::type::refs args, const types::name_index &name_index={});
+types::type_args::ref type_args(types::type::refs args, types::name_index name_index={});
 types::type_function::ref type_function(types::type::ref inbound_context, types::type_args::ref args, types::type::ref return_type);
 types::type::ref type_sum(types::type::refs options);
 types::type::ref type_maybe(types::type::ref just);

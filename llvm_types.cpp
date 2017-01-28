@@ -511,7 +511,7 @@ bound_type_t::ref get_or_create_tuple_type(
 	atom name = id->get_name();
 
 	/* get the type of this tuple type */
-	types::type::ref type = get_tuple_type(get_types(args), managed);
+	types::type_struct::ref type = type_struct(get_types(args), {} /* name_index */, managed);
 	auto data_type = scope->get_bound_type(type->get_signature());
 
 	if (data_type != nullptr) {

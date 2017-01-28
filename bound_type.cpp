@@ -122,7 +122,7 @@ std::string bound_type_impl_t::str() const {
 	return ss.str();
 }
 
-types::type_product::ref get_args_type(bound_type_t::named_pairs args) {
+types::type_args::ref get_args_type(bound_type_t::named_pairs args) {
 	types::type::refs sig_args;
 	for (auto &named_pair : args) {
 		sig_args.push_back(named_pair.second->get_type());
@@ -130,7 +130,7 @@ types::type_product::ref get_args_type(bound_type_t::named_pairs args) {
 	return type_args(sig_args);
 }
 
-types::type_product::ref get_args_type(bound_type_t::refs args) {
+types::type_args::ref get_args_type(bound_type_t::refs args) {
 	types::type::refs sig_args;
 	for (auto &arg : args) {
 		assert(arg != nullptr);
@@ -139,7 +139,7 @@ types::type_product::ref get_args_type(bound_type_t::refs args) {
 	return type_args(sig_args);
 }
 
-types::type_product::ref get_args_type(bound_var_t::refs args) {
+types::type_args::ref get_args_type(bound_var_t::refs args) {
 	types::type::refs sig_args;
 	for (auto &arg : args) {
 		assert(arg != nullptr);

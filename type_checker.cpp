@@ -568,7 +568,8 @@ bound_var_t::ref ast::dot_expr::resolve_overrides(
 			assert(bound_module->module_scope != nullptr);
 
 			/* let's see if the associated module has a method that can handle this callsite */
-			return get_callable(status, builder, bound_module->module_scope, rhs.text, callsite,
+			return get_callable(status, builder, bound_module->module_scope,
+					rhs.text, callsite,
 					bound_module->module_scope->get_outbound_context(),
 					get_args_type(args));
 		} else {

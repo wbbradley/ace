@@ -170,7 +170,20 @@ namespace types {
 		for (auto dimension: dimensions) {
 			assert(dimension != nullptr);
 		}
+		assert(name_index.size() == dimensions.size() || name_index.size() == 0);
 #endif
+	}
+
+	product_kind_t type_struct::get_pk() const {
+		return pk_struct;
+	}
+
+	type::refs type_struct::get_dimensions() const {
+		return dimensions;
+	}
+
+	name_index type_struct::get_name_index() const {
+		return name_index;
 	}
 
 	std::ostream &type_struct::emit(std::ostream &os, const map &bindings) const {
@@ -225,6 +238,187 @@ namespace types {
 
 	identifier::ref type_struct::get_id() const {
 		return nullptr;
+	}
+
+	type_args::type_args(type::refs args, types::name_index name_index) :
+		args(args), name_index(name_index)
+	{
+#ifdef ZION_DEBUG
+		for (auto arg: args) {
+			assert(arg != nullptr);
+		}
+		assert(name_index.size() == args.size() || name_index.size() == 0);
+#endif
+	}
+
+	product_kind_t type_args::get_pk() const {
+		return pk_args;
+	}
+
+	type::refs type_args::get_dimensions() const {
+		return args;
+	}
+
+	name_index type_args::get_name_index() const {
+		return name_index;
+	}
+
+	std::ostream &type_args::emit(std::ostream &os, const map &bindings) const {
+		os << "(";
+		const char *sep = "";
+		for (auto arg : args) {
+			os << sep;
+			arg->emit(os, bindings);
+			sep = ", ";
+		}
+		if (name_index.size() != 0) {
+			os << " " << ::str(name_index);
+		}
+		return os << ")";
+	}
+
+	int type_args::ftv_count() const {
+		int ftv_sum = 0;
+		for (auto arg : args) {
+			ftv_sum += arg->ftv_count();
+		}
+		return ftv_sum;
+	}
+
+	atom::set type_args::get_ftvs() const {
+		atom::set set;
+		for (auto arg : args) {
+			atom::set dim_set = arg->get_ftvs();
+			set.insert(dim_set.begin(), dim_set.end());
+		}
+		return set;
+    }
+
+
+	type::ref type_args::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
+		refs type_args;
+		for (auto arg : args) {
+			type_args.push_back(arg->rebind(bindings));
+		}
+		return ::type_args(type_args, name_index);
+	}
+
+	location type_args::get_location() const {
+		if (args.size() != 0) {
+			return args[0]->get_location();
+		} else {
+			return INTERNAL_LOC();
+		}
+	}
+
+	identifier::ref type_args::get_id() const {
+		return nullptr;
+	}
+
+	type_ref::type_ref(type::ref element_type) :
+		element_type(element_type)
+	{
+#ifdef ZION_DEBUG
+		assert(element_type != nullptr);
+#endif
+	}
+
+	product_kind_t type_ref::get_pk() const {
+		return pk_ref;
+	}
+
+	type::refs type_ref::get_dimensions() const {
+		return {element_type};
+	}
+
+	name_index type_ref::get_name_index() const {
+		return {};
+	}
+
+	std::ostream &type_ref::emit(std::ostream &os, const map &bindings) const {
+		os << "ref ";
+		element_type->emit(os, bindings);
+		return os;
+	}
+
+	int type_ref::ftv_count() const {
+		return element_type->ftv_count();
+	}
+
+	atom::set type_ref::get_ftvs() const {
+		return element_type->get_ftvs();
+    }
+
+
+	type::ref type_ref::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
+		return ::type_ref(element_type->rebind(bindings));
+	}
+
+	location type_ref::get_location() const {
+		return element_type->get_location();
+	}
+
+	identifier::ref type_ref::get_id() const {
+		return element_type->get_id();
+	}
+
+	type_module::type_module(type::ref module_type) :
+		module_type(module_type)
+	{
+#ifdef ZION_DEBUG
+		assert(module_type != nullptr);
+#endif
+	}
+
+	product_kind_t type_module::get_pk() const {
+		return pk_module;
+	}
+
+	type::refs type_module::get_dimensions() const {
+		return {module_type};
+	}
+
+	name_index type_module::get_name_index() const {
+		return {};
+	}
+
+	std::ostream &type_module::emit(std::ostream &os, const map &bindings) const {
+		os << "module ";
+		module_type->emit(os, bindings);
+		return os;
+	}
+
+	int type_module::ftv_count() const {
+		return module_type->ftv_count();
+	}
+
+	atom::set type_module::get_ftvs() const {
+		return module_type->get_ftvs();
+    }
+
+
+	type::ref type_module::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
+		return ::type_module(module_type->rebind(bindings));
+	}
+
+	location type_module::get_location() const {
+		return module_type->get_location();
+	}
+
+	identifier::ref type_module::get_id() const {
+		return module_type->get_id();
 	}
 
 	type_function::type_function(
@@ -478,6 +672,21 @@ types::type_struct::ref type_struct(
 	return make_ptr<types::type_struct>(dimensions, name_index, managed);
 }
 
+types::type_args::ref type_args(
+	   	types::type::refs args,
+	   	types::name_index name_index)
+{
+	return make_ptr<types::type_args>(args, name_index);
+}
+
+types::type_module::ref type_module(types::type::ref module_type) {
+	return make_ptr<types::type_module>(module_type);
+}
+
+types::type_ref::ref type_ref(types::type::ref element_type) {
+	return make_ptr<types::type_ref>(element_type);
+}
+
 types::type_function::ref type_function(
 		types::type::ref inbound_context,
 		types::type_args::ref args,
@@ -614,9 +823,9 @@ types::type::ref eval(types::type::ref type, types::type::map env) {
 		return eval_id(id, env);
 	} else if (auto operator_ = dyncast<const types::type_operator>(type)) {
 		return eval_apply(operator_->oper, operator_->operand, env);
-	} else if (auto product = dyncast<const types::type_product>(type)) {
+	// } else if (auto product = dyncast<const types::type_product>(type)) {
 		/* there is no expansion of product types */
-		return nullptr;
+	// 	return nullptr;
 	} else {
 		return null_impl();
 	}

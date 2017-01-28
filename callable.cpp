@@ -246,7 +246,7 @@ bound_var_t::ref get_callable(
 		atom alias,
 		const ptr<const ast::item> &callsite,
 		types::type::ref outbound_context,
-		types::type_product::ref args)
+		types::type_args::ref args)
 {
 	var_t::refs fns;
 	// TODO: potentially allow fake calling contexts by adding syntax to the
@@ -295,7 +295,7 @@ bound_var_t::ref call_program_function(
         const ptr<const ast::item> &callsite,
         const bound_var_t::refs var_args)
 {
-    types::type_product::ref args = get_args_type(var_args);
+    types::type_args::ref args = get_args_type(var_args);
 	auto program_scope = scope->get_program_scope();
     /* get or instantiate a function we can call on these arguments */
     bound_var_t::ref function = get_callable(

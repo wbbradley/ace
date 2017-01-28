@@ -102,10 +102,6 @@ bool atom::is_generic_type_alias() const {
 	return starts_with(val, "any ") || val == "any";
 }
 
-atom get_indexed_generic(int generic_index) {
-	return {string_format("any _%d", generic_index)};
-}
-
 atom::set to_set(atom::many atoms) {
 	atom::set set;
 	std::for_each(
