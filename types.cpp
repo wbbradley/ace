@@ -188,9 +188,11 @@ namespace types {
 
 	std::ostream &type_struct::emit(std::ostream &os, const map &bindings) const {
 		os << "struct (";
+		const char *sep = "";
 		for (auto dimension : dimensions) {
-			os << " ";
+			os << sep;
 			dimension->emit(os, bindings);
+			sep = ", ";
 		}
 		if (name_index.size() != 0) {
 			os << " " << ::str(name_index);
