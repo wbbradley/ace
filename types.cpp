@@ -436,9 +436,12 @@ namespace types {
 	}
 
 	std::ostream &type_function::emit(std::ostream &os, const map &bindings) const {
-		os << "[" << inbound_context->str() << "] def ";
-		os << args->str() << " " << return_type->str();
-		return os;
+		os << "[";
+		inbound_context->emit(os, bindings);
+		os << "] def ";
+		args->emit(os, bindings);
+		os << " ";
+		return return_type->emit(os, bindings);
 	}
 
 	int type_function::ftv_count() const {
@@ -577,7 +580,7 @@ namespace types {
 	}
 
 	std::ostream &type_lambda::emit(std::ostream &os, const map &bindings_) const {
-		os << "(lambda [" << C_ID << binding->get_name().str() << C_RESET "] ";
+		os << "(lambda [" << binding->get_name() << "] ";
 		map bindings = bindings_;
 		auto binding_iter = bindings.find(binding->get_name());
 		if (binding_iter != bindings.end()) {

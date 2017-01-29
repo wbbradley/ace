@@ -112,16 +112,51 @@ bound_var_t::ref create_callsite(
 					function->get_type()->str().c_str(),
 					str(arguments).c_str(),
 					llvm_print_function(static_cast<llvm::Function *>(function->llvm_value)).c_str()));
+		debug_above(5, log(log_info, "calling function %s",
+					llvm_print_type(*function->llvm_value->getType()).c_str()));
+		llvm::FunctionType *llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(llvm_deref_type(function->llvm_value->getType()));
 
-		llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
-				status, builder, *callsite, function, get_llvm_values(arguments));
+		/* downcast the arguments as necessary to var_t * */
+		types::type_function::ref function_type = dyncast<const types::type_function>(function->get_type());
+		if (function_type != nullptr) {
+			auto args_type = function_type->args;
 
-		if (!!status) {
-			bound_type_t::ref return_type = get_function_return_type(status,
-					builder, *callsite, scope, function->type);
+			std::vector<llvm::Value *> final_arguments;
+			int i = 0;
+			for (auto param_iter = llvm_function_type->param_begin();
+					param_iter != llvm_function_type->param_end();
+					++param_iter)
+			{
+				debug_above(6, log(log_info, "assume %s == %s",
+							llvm_print_type(**param_iter).c_str(),
+							llvm_print_type(*arguments[i]->llvm_value->getType()).c_str()));
 
-			return bound_var_t::create(INTERNAL_LOC(), name, return_type, llvm_call_inst,
-					make_code_id(callsite->token), false/*is_lhs*/);
+				if ((*param_iter)->isPointerTy()) {
+					assert(arguments[i]->llvm_value->getType()->isPointerTy());
+
+					final_arguments.push_back(builder.CreatePointerBitCastOrAddrSpaceCast(
+								arguments[i]->llvm_value,
+								*param_iter));
+				} else {
+					final_arguments.push_back(arguments[i]->llvm_value);
+				}
+				++i;
+			}
+
+			llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
+					status, builder, *callsite, function, final_arguments);
+
+			if (!!status) {
+				bound_type_t::ref return_type = get_function_return_type(status,
+						builder, *callsite, scope, function->type);
+
+				return bound_var_t::create(INTERNAL_LOC(), name, return_type, llvm_call_inst,
+						make_code_id(callsite->token), false/*is_lhs*/);
+			}
+		} else {
+			user_error(status, location,
+					"tried to create_callsite for %s, but it's not a function?",
+					function->str().c_str());
 		}
 	}
 
@@ -381,6 +416,12 @@ void llvm_verify_module(status_t &status, llvm::Module &llvm_module) {
 }
 
 llvm::Value *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type) {
+	llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_type);
+	if (llvm_struct_type != nullptr) {
+		assert(!llvm_struct_type->isOpaque());
+		assert(llvm_struct_type->elements().size() != 0);
+	}
+
 	llvm::Constant *alloc_size_const = llvm::ConstantExpr::getSizeOf(llvm_type);
 	llvm::Value *size_value = llvm::ConstantExpr::getTruncOrBitCast(alloc_size_const, builder.getInt64Ty());
 	debug_above(3, log(log_info, "size of %s is: %s", llvm_print_type(*llvm_type).c_str(),

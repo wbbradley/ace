@@ -69,13 +69,20 @@ bound_type_t::ref create_bound_ref_type(
 	auto bound_pointer_type = create_ref_ptr_type(builder, ref_type);
 	program_scope->put_bound_type(status, bound_pointer_type);
 
-	assert(dyncast<const types::type_product>(ref_type->element_type) != nullptr);
+	assert(dyncast<const types::type_struct>(ref_type->element_type) != nullptr);
 	
 	/* before we return the pointer type, let's go ahead and instantiate
 	 * the actual structural type */
-	upsert_bound_type(status, builder, scope, ref_type->element_type);
+	auto element = upsert_bound_type(status, builder, scope, ref_type->element_type);
+	auto llvm_element_type = llvm::dyn_cast<llvm::StructType>(element->get_llvm_specific_type());
+	assert(llvm_element_type != nullptr);
+	assert(!llvm_element_type->isOpaque());
 
 	if (!!status) {
+		auto bound_element_type = scope->get_bound_type(ref_type->element_type->get_signature());
+		assert(bound_element_type != nullptr);
+		assert(bound_element_type->get_llvm_specific_type() == element->get_llvm_specific_type());
+
 		return bound_pointer_type;
 	}
 
@@ -334,7 +341,7 @@ bound_type_t::ref create_bound_operator_type(
 
 	if (expansion != nullptr) {
 		return bind_type_expansion(status, builder, scope, expansion,
-				scope->make_fqn(operator_->get_id()->get_name().str()));
+				scope->make_fqn(operator_->repr()));
 	} else {
 		user_error(status, operator_->get_location(),
 				"unable to expand type: %s",
@@ -653,6 +660,8 @@ llvm::Value *llvm_call_allocator(
 		types::type_struct::ref struct_type,
 		atom name)
 {
+	debug_above(5, log(log_info, "calling allocator for %s",
+				data_type->str().c_str()));
 	bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(status, node,
 			struct_type->managed ? "__create_var" : "__mem_alloc");
 
@@ -660,7 +669,7 @@ llvm::Value *llvm_call_allocator(
 		assert(mem_alloc_var != nullptr);
 
 		llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder,
-				llvm_deref_type(data_type->get_llvm_type()));
+				llvm_deref_type(data_type->get_llvm_specific_type()));
 
 		auto signature = data_type->get_signature();
 		debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
@@ -744,9 +753,6 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		auto struct_type = dyncast<const types::type_struct>(ctor_args_type);
 		assert(struct_type != nullptr);
 
-		// TODO: implement managed allocation
-		assert(!struct_type->managed);
-
 		bound_type_t::refs args = upsert_bound_types(status,
 				builder, scope, struct_type->dimensions);
 
@@ -768,7 +774,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 						 * let's get our allocation as such */
 						llvm::Value *llvm_final_obj = builder.CreatePointerBitCastOrAddrSpaceCast(
 								llvm_alloced, 
-								data_type->get_llvm_type());
+								data_type->get_llvm_specific_type());
 
 						int index = 0;
 
