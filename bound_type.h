@@ -45,8 +45,6 @@ public:
 	struct location const get_location() const;
 	llvm::Type * const get_llvm_type() const;
 	llvm::Type * const get_llvm_specific_type() const;
-	// refs const get_dimensions() const;
-	// name_index const get_member_index() const;
 
 	static refs refs_from_vars(const std::vector<ptr<const bound_var_t>> &vars);
 

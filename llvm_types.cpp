@@ -106,10 +106,16 @@ std::vector<llvm::Type *> build_struct_elements(
 
 			/* place the var_t struct into the structure */
 			elements.push_back(llvm_var_type);
+			llvm::StructType *inner_struct = llvm_create_struct_type(
+					builder, struct_type->get_signature(), bound_dimensions);
+
+			inner_struct->setName(type_struct(
+						struct_type->dimensions,
+						struct_type->name_index,
+						false /* managed */)->get_signature().str());
 
 			/* now place the logical data into the structure */
-			elements.push_back(llvm_create_struct_type(
-						builder, struct_type->get_signature(), bound_dimensions));
+			elements.push_back(inner_struct);
 		} else {
 			/* this is a native structure, let's just iterate over the bound
 			 * dimensions and place those directly into this structure */
@@ -208,77 +214,6 @@ bound_type_t::ref create_bound_struct_type(
 	return nullptr;
 }
 
-bound_type_t::ref bind_type_expansion(
-		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-	   	scope_t::ref scope,
-	   	types::type::ref type,
-		std::string struct_name)
-{
-	/* first create the opaque type */
-	llvm::StructType *llvm_type = llvm::StructType::create(
-			builder.getContext(), struct_name);
-	assert(!llvm_type->isSized());
-	assert(llvm_type->isOpaque());
-
-	auto bound_type = bound_type_t::create(type, type->get_location(), llvm_type);
-	auto program_scope = scope->get_program_scope();
-	program_scope->put_bound_type(status, bound_type);
-
-	if (!!status) {
-		/* now, we can do whatever it takes to resolve this. let's look up this
-		 * type in the environment to see if it resolves to any already known
-		 * bound_types. this involves recursion on contained types. */
-		if (type != nullptr) {
-			debug_above(2, log(log_info, "found unbound type_id in env " c_type("%s") " => %s",
-						type->get_signature().c_str(),
-						type->str().c_str()));
-
-			if (auto lambda = dyncast<const types::type_lambda>(type)) {
-				debug_above(4, log(log_info, "type_id %s expands to type_lambda %s",
-							type->str().c_str(),
-							lambda->str().c_str()));
-				user_error(status, type->get_location(),
-						"type %s resolves to a lambda, however we found a reference that does not supply parameters",
-						type->str().c_str());
-			} else {
-				/* cool, we have a term we can recurse on. */
-				auto bound_type = upsert_bound_type(status, builder, scope, type);
-
-				if (!!status) {
-					llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
-							bound_type->get_llvm_type());
-
-					if (llvm_struct_type != nullptr) {
-						/* we're resolved what the structure looks like,
-						 * let's set that as the structure's body */
-						llvm_type->setBody(llvm_struct_type->elements());
-
-						/* and we're done instantiating this type in LLVM */
-						return bound_type;
-					} else {
-						user_error(status, type->get_location(),
-								"failed to find a structure definition for %s",
-								type->str().c_str());
-						user_message(log_info, status, type->get_location(),
-								"did find: %s %s",
-								bound_type->str().c_str(),
-								llvm_print_type(*bound_type->get_llvm_type()).c_str());
-					}
-				}
-			}
-		} else {
-			user_error(status, type->get_location(),
-					"unable to find a type definition for %s in " c_id("%s"),
-					type->str().c_str(),
-					scope->get_name().c_str());
-		}
-	}
-
-	assert(!status);
-	return nullptr;
-}
-
 bound_type_t::ref create_bound_id_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -331,17 +266,42 @@ bound_type_t::ref create_bound_operator_type(
 {
 	debug_above(4, log(log_info, "create_bound_operator_type(..., %s)", operator_->str().c_str()));
 
-	/* the strategy with operator types is to bind a handle for them, then
-	 * expand them and recurse by creating all of their contained or subtypes.
-	 * once we have an idea of that expansion's type, we set actual on that */
-
 	/* apply the operator */
 	auto expansion = eval_apply(operator_->oper, operator_->operand,
 			scope->get_typename_env());
 
 	if (expansion != nullptr) {
-		return bind_type_expansion(status, builder, scope, expansion,
-				scope->make_fqn(operator_->repr()));
+		/* make sure this isn't already bound */
+		auto signature = operator_->get_signature();
+		assert(scope->get_bound_type(signature) == nullptr);
+
+		auto program_scope = scope->get_program_scope();
+
+		/* set up a mapping at the program level for these bound types */
+		program_scope->put_bound_type_mapping(status, signature,
+				expansion->get_signature());
+
+		/* make sure we have a bound type for the expansion type. NB: this will
+		 * rely on the bound type mapping to ensure that when the instantiation
+		 * process looks for our operator_ type (via self-referencing type
+		 * definitions) it translates into whatever cycle breaking we already
+		 * have. */
+		auto expansion_bound_type = upsert_bound_type(status, builder, scope,
+				expansion);
+
+		if (!!status) {
+			/* let's finally create the official bound type for this operator */
+			auto bound_type = bound_type_t::create(
+					operator_,
+					operator_->get_location(),
+					expansion_bound_type->get_llvm_type(),
+					expansion_bound_type->get_llvm_specific_type());
+
+			program_scope->put_bound_type(status, bound_type);
+			if (!!status) {
+				return bound_type;
+			}
+		}
 	} else {
 		user_error(status, operator_->get_location(),
 				"unable to expand type: %s",
@@ -723,36 +683,24 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	debug_above(4, log(log_info, "get_or_create_tuple_ctor evaluating %s with llvm type %s",
 				type->str().c_str(),
 				llvm_print_type(*data_type->get_llvm_type()).c_str()));
-	types::type::ref ctor_args_type;
+	types::type::ref expanded_type;
 
-	if (auto id = dyncast<const types::type_id>(type)) {
-		ctor_args_type = eval(type, scope->get_typename_env());
-	} else if (auto ref_type = dyncast<const types::type_ref>(type)) {
-		ctor_args_type = ref_type;
-	} else {
-		user_error(status, id->get_location(), "creating a tuple with %s is not yet implemented",
-				type->str().c_str());
-		return nullptr;
+	expanded_type = eval(type, scope->get_typename_env());
+	if (expanded_type == nullptr) {
+		expanded_type = type;
 	}
 
 	/* destructure the ref ptr that this should be */
-	if (auto ref = dyncast<const types::type_ref>(ctor_args_type)) {
-		ctor_args_type = ref->element_type;
+	if (auto ref = dyncast<const types::type_ref>(expanded_type)) {
+		expanded_type = ref->element_type;
 	} else {
 		user_error(status, id->get_location(), "we should have created a ref type as the return value: %s",
-				ctor_args_type->str().c_str());
+				expanded_type->str().c_str());
 		return null_impl();
 	}
 
-	/* at this point we should have a struct type in ctor_args_type */
-
-	if (ctor_args_type != nullptr) {
-		debug_above(4, log(log_info, "get_or_create_tuple_ctor instantiating with type %s -> %s",
-					ctor_args_type->str().c_str(), type->str().c_str()));
-
-		auto struct_type = dyncast<const types::type_struct>(ctor_args_type);
-		assert(struct_type != nullptr);
-
+	/* at this point we should have a struct type in expanded_type */
+	if (auto struct_type = dyncast<const types::type_struct>(expanded_type)) {
 		bound_type_t::refs args = upsert_bound_types(status,
 				builder, scope, struct_type->dimensions);
 
@@ -784,10 +732,13 @@ bound_var_t::ref get_or_create_tuple_ctor(
 							llvm::Value *llvm_param = args_iter++;
 							/* get the location we should store this datapoint in */
 							llvm::Value *llvm_gep = llvm_make_gep(builder, llvm_final_obj,
-									index++, struct_type->managed);
+									index, struct_type->managed);
+							llvm_gep->setName(string_format("address_of.member.%d", index));
+
 							debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
 										llvm_print_value(*llvm_gep).c_str()));
 							builder.CreateStore(llvm_param, llvm_gep);
+							++index;
 						}
 
 						/* create a return statement for the final object. */

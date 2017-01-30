@@ -4,6 +4,9 @@
 #include <sstream>
 
 namespace types {
+	signature::signature(const signature &sig) : signature(sig.name) {
+	}
+
 	signature::signature(const char *name) : name(name) {
 		assert(!!name);
 	}

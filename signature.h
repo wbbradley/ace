@@ -10,6 +10,7 @@ namespace types {
 	struct signature {
 		const atom name;
 
+		signature(const signature &sig);
 		signature(const char *name);
 		signature(const atom name);
 		signature &operator =(const signature &rhs);

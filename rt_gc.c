@@ -1,6 +1,5 @@
 /* the zion garbage collector */
 #include "zion_rt.h"
-
 const type_id_t SENTINEL_TYPE_ID = -1;
 const type_id_t STACK_REF_TYPE_ID = -2;
 
@@ -208,12 +207,12 @@ struct var_t *create_var(
 		const char *name,
 		mark_fn_t mark_fn,
 		type_id_t type_id,
-		size_t object_size)
+		uint64_t object_size)
 {
-	/*compute the size of the allocation we'll want to do */
+	/* compute the size of the allocation we'll want to do */
 
 	// TODO: validate that this math isn't super sketchy and unaligned
-	size_t size = sizeof(struct var_t) + object_size;
+	size_t size = /* sizeof(struct var_t) + */  object_size;
 
 	/* allocate the variable tracking object */
 	struct var_t *var = (struct var_t *)mem_alloc(size);

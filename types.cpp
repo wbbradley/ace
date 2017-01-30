@@ -18,6 +18,17 @@ void reset_generics() {
 	next_generic = 1;
 }
 
+atom get_name_from_index(const types::name_index &name_index, int i) {
+	atom name;
+	for (auto name_pair : name_index) {
+		if (name_pair.second == i) {
+			assert(!name);
+			name = name_pair.first;
+		}
+	}
+	return name;
+}
+
 namespace types {
 
 	/**********************************************************************/
@@ -187,18 +198,20 @@ namespace types {
 	}
 
 	std::ostream &type_struct::emit(std::ostream &os, const map &bindings) const {
-		os << (managed ? "managed " : "native ");
-		os << "struct (";
+		os << (managed ? "managed." : "native.");
+		os << "struct[";
 		const char *sep = "";
+		int i = 0;
 		for (auto dimension : dimensions) {
 			os << sep;
+			auto name = get_name_from_index(name_index, i++);
+			if (!!name) {
+				os << name << " ";
+			}
 			dimension->emit(os, bindings);
 			sep = ", ";
 		}
-		if (name_index.size() != 0) {
-			os << " " << ::str(name_index);
-		}
-		return os << ")";
+		return os << "]";
 	}
 
 	int type_struct::ftv_count() const {
@@ -269,13 +282,15 @@ namespace types {
 	std::ostream &type_args::emit(std::ostream &os, const map &bindings) const {
 		os << "(";
 		const char *sep = "";
+		int i = 0;
 		for (auto arg : args) {
 			os << sep;
+			auto name = get_name_from_index(name_index, i++);
+			if (!!name) {
+				os << name << " ";
+			}
 			arg->emit(os, bindings);
 			sep = ", ";
-		}
-		if (name_index.size() != 0) {
-			os << " " << ::str(name_index);
 		}
 		return os << ")";
 	}

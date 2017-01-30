@@ -114,37 +114,12 @@ bound_var_t::ref create_callsite(
 					llvm_print_function(static_cast<llvm::Function *>(function->llvm_value)).c_str()));
 		debug_above(5, log(log_info, "calling function %s",
 					llvm_print_type(*function->llvm_value->getType()).c_str()));
-		llvm::FunctionType *llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(llvm_deref_type(function->llvm_value->getType()));
 
 		/* downcast the arguments as necessary to var_t * */
 		types::type_function::ref function_type = dyncast<const types::type_function>(function->get_type());
 		if (function_type != nullptr) {
-			auto args_type = function_type->args;
-
-			std::vector<llvm::Value *> final_arguments;
-			int i = 0;
-			for (auto param_iter = llvm_function_type->param_begin();
-					param_iter != llvm_function_type->param_end();
-					++param_iter)
-			{
-				debug_above(6, log(log_info, "assume %s == %s",
-							llvm_print_type(**param_iter).c_str(),
-							llvm_print_type(*arguments[i]->llvm_value->getType()).c_str()));
-
-				if ((*param_iter)->isPointerTy()) {
-					assert(arguments[i]->llvm_value->getType()->isPointerTy());
-
-					final_arguments.push_back(builder.CreatePointerBitCastOrAddrSpaceCast(
-								arguments[i]->llvm_value,
-								*param_iter));
-				} else {
-					final_arguments.push_back(arguments[i]->llvm_value);
-				}
-				++i;
-			}
-
 			llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
-					status, builder, *callsite, function, final_arguments);
+					status, builder, *callsite, function, get_llvm_values(arguments));
 
 			if (!!status) {
 				bound_type_t::ref return_type = get_function_return_type(status,
@@ -200,20 +175,45 @@ llvm::CallInst *llvm_create_call_inst(
 				llvm_callee_fn->getFunctionType(),
 				llvm_callee_fn->getAttributes()));
 
+
+
+	auto llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(llvm_func_decl->getType()->getElementType());
+	assert(llvm_function_type != nullptr);
+	debug_above(3, log(log_info, "creating call to %s",
+				llvm_print_type(*llvm_function_type).c_str()));
+
+	auto param_iter = llvm_function_type->param_begin();
 	std::vector<llvm::Value *> llvm_args;
+
+	/* make one last pass over the parameters before we make this call */
+	int index = 0;
 	for (auto &llvm_value : llvm_values) {
 		if (llvm_value != nullptr) {
-			llvm_args.push_back(llvm_resolve_alloca(builder, llvm_value));
+			/* resolve against alloca's */
+			llvm::Value *llvm_arg = llvm_resolve_alloca(builder, llvm_value);
+
+			/* check whether we need to implicitly cast any pointer types to
+			 * make LLVM happy (while we keep our fingers crossed with our type
+			 * system) */
+			if ((*param_iter)->isPointerTy()) {
+				assert(llvm_arg->getType()->isPointerTy());
+				llvm_arg = builder.CreatePointerBitCastOrAddrSpaceCast(llvm_arg, *param_iter);
+				llvm_arg->setName(string_format("arg.%d.ptrcast", index));
+			}
+
+			llvm_args.push_back(llvm_arg);
 		} else {
 			panic(string_format("found a null llvm_value while creating call instruction: %s",
 						llvm_print_value_ptr(llvm_value).c_str()));
 		}
+		++param_iter;
+		++index;
 	}
 	llvm::ArrayRef<llvm::Value *> llvm_args_array(llvm_args);
 
 	debug_above(3, log(log_info, "creating call to " c_id("%s") " %s with [%s]",
 				llvm_func_decl->getName().str().c_str(),
-				llvm_print_type(*llvm_func_decl->getType()).c_str(),
+				llvm_print_type(*llvm_function_type).c_str(),
 				join_with(llvm_args, ", ", llvm_print_value_ptr).c_str()));
 
 	return builder.CreateCall(llvm_func_decl, llvm_args_array);

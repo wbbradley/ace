@@ -120,10 +120,15 @@ bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
 					iter->second->str().c_str()));
 		return iter->second;
 	} else {
-		debug_above(9, log(log_info, "nope. %s is not yet bound",
-					signature.str().c_str()));
-		return nullptr;
+		auto dest_iter = bound_type_mappings.find(signature);
+		if (dest_iter != bound_type_mappings.end()) {
+			return get_bound_type(dest_iter->second);
+		}
 	}
+
+	debug_above(9, log(log_info, "nope. %s is not yet bound",
+				signature.str().c_str()));
+	return nullptr;
 }
 
 function_scope_t::ref function_scope_t::create(atom module_name, scope_t::ref parent_scope) {
@@ -543,6 +548,20 @@ unchecked_var_t::ref program_scope_t::put_unchecked_variable(
 {
 	return put_unchecked_variable_impl(symbol, unchecked_variable,
 			unchecked_vars, unchecked_vars_ordered, get_name(), nullptr);
+}
+
+void program_scope_t::put_bound_type_mapping(
+		status_t &status,
+	   	types::signature source,
+	   	types::signature dest)
+{
+	auto dest_iter = bound_type_mappings.find(source);
+	if (dest_iter == bound_type_mappings.end()) {
+		bound_type_mappings.insert({source, dest});
+	} else {
+		user_error(status, INTERNAL_LOC(), "bound type mapping %s already exists!",
+				source.str().c_str());
+	}
 }
 
 void program_scope_t::put_bound_type(status_t &status, bound_type_t::ref type) {

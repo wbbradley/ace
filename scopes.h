@@ -263,6 +263,7 @@ struct program_scope_t : public module_scope_impl_t {
 
 	virtual bound_type_t::ref get_bound_type(types::signature signature);
 	void put_bound_type(status_t &status, bound_type_t::ref type);
+	void put_bound_type_mapping(status_t &status, types::signature source, types::signature dest);
 
 	unchecked_var_t::map unchecked_vars;
 
@@ -271,6 +272,7 @@ struct program_scope_t : public module_scope_impl_t {
 private:
 	module_scope_t::map modules;
 	bound_type_t::map bound_types;
+	std::map<types::signature, types::signature> bound_type_mappings;
 
 	/* let code look at the ordered list for iteration purposes */
 	unchecked_var_t::refs unchecked_vars_ordered;

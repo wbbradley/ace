@@ -431,7 +431,7 @@ function_scope_t::ref make_param_list_scope(
 			new_scope->put_bound_variable(status, param.first,
 					bound_var_t::create(INTERNAL_LOC(), param.first, param.second,
 						llvm_alloca, make_code_id(obj.param_list_decl->params[i++]->token),
-						true/*is_lhs*/));
+						true /*is_lhs*/));
 			if (!status) {
 				break;
 			}
@@ -1032,9 +1032,12 @@ bound_var_t::ref extract_member_variable(
 					llvm_var_value, bound_struct_ref->get_llvm_specific_type());
 
 			/* GEP and load the member value from the structure */
-			llvm::Value *llvm_item = builder.CreateLoad(llvm_make_gep(builder,
-						llvm_value_as_specific_type, index,
-						struct_type->managed));
+			llvm::Value *llvm_gep = llvm_make_gep(builder,
+					llvm_value_as_specific_type, index,
+					struct_type->managed);
+			llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
+
+			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
 
 			/* add a helpful descriptive name to this local value */
 			auto value_name = string_format(".%s", member_name.c_str());
@@ -1516,6 +1519,14 @@ status_t type_check_program_variables(
 			}
 
 			if (!!status) {
+				if (auto function_defn = dyncast<const ast::function_defn>(node)) {
+					if (node->token.text != "main") {
+						debug_above(8, log(log_info, "skipping %s because it's not 'main'",
+									node->str().c_str()));
+						continue;
+					}
+				}
+
 				if (auto stmt = dyncast<const ast::statement>(node)) {
 					status_t status;
 					bound_var_t::ref variable = stmt->resolve_instantiation(
