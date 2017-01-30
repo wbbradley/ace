@@ -74,16 +74,19 @@ bound_type_t::ref create_bound_ref_type(
 	/* before we return the pointer type, let's go ahead and instantiate
 	 * the actual structural type */
 	auto element = upsert_bound_type(status, builder, scope, ref_type->element_type);
-	auto llvm_element_type = llvm::dyn_cast<llvm::StructType>(element->get_llvm_specific_type());
-	assert(llvm_element_type != nullptr);
-	assert(!llvm_element_type->isOpaque());
 
 	if (!!status) {
-		auto bound_element_type = scope->get_bound_type(ref_type->element_type->get_signature());
-		assert(bound_element_type != nullptr);
-		assert(bound_element_type->get_llvm_specific_type() == element->get_llvm_specific_type());
+		auto llvm_element_type = llvm::dyn_cast<llvm::StructType>(element->get_llvm_specific_type());
+		assert(llvm_element_type != nullptr);
+		assert(!llvm_element_type->isOpaque());
 
-		return bound_pointer_type;
+		if (!!status) {
+			auto bound_element_type = scope->get_bound_type(ref_type->element_type->get_signature());
+			assert(bound_element_type != nullptr);
+			assert(bound_element_type->get_llvm_specific_type() == element->get_llvm_specific_type());
+
+			return bound_pointer_type;
+		}
 	}
 
 	assert(!status);

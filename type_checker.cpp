@@ -1520,7 +1520,7 @@ status_t type_check_program_variables(
 
 			if (!!status) {
 				if (auto function_defn = dyncast<const ast::function_defn>(node)) {
-					if (node->token.text != "main") {
+					if (getenv("MAIN_ONLY") != nullptr && node->token.text != "main") {
 						debug_above(8, log(log_info, "skipping %s because it's not 'main'",
 									node->str().c_str()));
 						continue;
