@@ -39,10 +39,6 @@ bound_type_t::ref get_fully_bound_param_info(
 
 	assert(obj.type != nullptr);
 
-	auto type_id_name = make_type_id_code_id(
-			obj.token.location,
-			var_name);
-
 	/* the user specified a type */
 	if (!!status) {
 		debug_above(6, log(log_info, "upserting type for param %s at %s",
@@ -1023,18 +1019,14 @@ bound_var_t::ref extract_member_variable(
 				struct_type->dimensions[index]->get_signature());
 		assert(bound_struct_ref->get_llvm_type() != nullptr);
 
-		llvm::Value *llvm_var_value = llvm_resolve_alloca(builder, bound_var->llvm_value);
-		if (bound_struct_ref->get_llvm_type()->isPointerTy()) {
+		llvm::Value *llvm_var_value = llvm_maybe_pointer_cast(builder, bound_var->llvm_value, bound_struct_ref);
+
 			/* the following code is heavily coupled to the physical layout of
 			 * managed vs. native structures */
 
-			llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
-					llvm_var_value, bound_struct_ref->get_llvm_specific_type());
-
 			/* GEP and load the member value from the structure */
 			llvm::Value *llvm_gep = llvm_make_gep(builder,
-					llvm_value_as_specific_type, index,
-					struct_type->managed);
+				llvm_var_value, index, struct_type->managed);
 			llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
 
 			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
@@ -1047,10 +1039,6 @@ bound_var_t::ref extract_member_variable(
 					INTERNAL_LOC(), value_name,
 					member_type, llvm_item, make_iid(member_name), false/*is_lhs*/);
 		} else {
-			user_error(status, node->get_location(), "type is not a pointer type: %s",
-					bound_struct_ref->str().c_str());
-		}
-	} else {
 		auto bindings = scope->get_type_variable_bindings();
 		auto full_type = bound_var->type->get_type()->rebind(bindings);
 		user_error(status, node->get_location(),
@@ -1180,7 +1168,7 @@ bound_var_t::ref call_typeid(
 				INTERNAL_LOC(),
 				string_format("typeid(%s)", resolved_value->str().c_str()),
 				program_scope->get_bound_type({TYPEID_TYPE}),
-				llvm_create_int(builder, resolved_value->type->get_type()->get_signature().iatom),
+				llvm_create_int32(builder, resolved_value->type->get_type()->get_signature().iatom),
 				id,
 				false/*is_lhs*/);
 	}
@@ -1891,7 +1879,9 @@ bound_var_t::ref ast::return_statement::resolve_instantiation(
 				shared_from_this(), return_type);
 
 		if (return_value != nullptr) {
-			builder.CreateRet(llvm_resolve_alloca(builder, return_value->llvm_value));
+			auto llvm_return_value = llvm_maybe_pointer_cast(builder, return_value->llvm_value, return_type);
+			llvm_return_value->setName("return.value");
+			builder.CreateRet(llvm_return_value);
 		} else {
 			assert(types::is_type_id(return_type->get_type(), "void"));
 			builder.CreateRetVoid();
@@ -2645,12 +2635,11 @@ bound_var_t::ref ast::cast_expr::resolve_instantiation(
 		if (!!status) {
 			bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_cast);
 			if (!!status) {
-				llvm::Value *llvm_var_value = llvm_resolve_alloca(builder, bound_var->llvm_value);
-				llvm::Value *llvm_value_as_specific_type = builder.CreatePointerBitCastOrAddrSpaceCast(
-						llvm_var_value, bound_type->get_llvm_type());
+				// TODO: consider checking for certain casting
+				llvm::Value *llvm_var_value = llvm_maybe_pointer_cast(builder, bound_var->llvm_value, bound_type);
 
 				return bound_var_t::create(INTERNAL_LOC(), "cast",
-					bound_type, llvm_value_as_specific_type, make_iid("cast"),
+					bound_type, llvm_var_value, make_iid("cast"),
 					false /*is_lhs*/);
 			}
 		}

@@ -175,8 +175,6 @@ llvm::CallInst *llvm_create_call_inst(
 				llvm_callee_fn->getFunctionType(),
 				llvm_callee_fn->getAttributes()));
 
-
-
 	auto llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(llvm_func_decl->getType()->getElementType());
 	assert(llvm_function_type != nullptr);
 	debug_above(3, log(log_info, "creating call to %s",
@@ -188,24 +186,11 @@ llvm::CallInst *llvm_create_call_inst(
 	/* make one last pass over the parameters before we make this call */
 	int index = 0;
 	for (auto &llvm_value : llvm_values) {
-		if (llvm_value != nullptr) {
-			/* resolve against alloca's */
-			llvm::Value *llvm_arg = llvm_resolve_alloca(builder, llvm_value);
+		llvm::Value *llvm_arg = llvm_maybe_pointer_cast(builder, llvm_value, *param_iter);
+		llvm_arg->setName(string_format("call.arg.%d", index));
 
-			/* check whether we need to implicitly cast any pointer types to
-			 * make LLVM happy (while we keep our fingers crossed with our type
-			 * system) */
-			if ((*param_iter)->isPointerTy()) {
-				assert(llvm_arg->getType()->isPointerTy());
-				llvm_arg = builder.CreatePointerBitCastOrAddrSpaceCast(llvm_arg, *param_iter);
-				llvm_arg->setName(string_format("arg.%d.ptrcast", index));
-			}
+		llvm_args.push_back(llvm_arg);
 
-			llvm_args.push_back(llvm_arg);
-		} else {
-			panic(string_format("found a null llvm_value while creating call instruction: %s",
-						llvm_print_value_ptr(llvm_value).c_str()));
-		}
 		++param_iter;
 		++index;
 	}
@@ -568,4 +553,30 @@ bound_var_t::ref llvm_create_global_tag(
 			llvm_tag_global_instance, llvm_var_ref_type);
 
 	return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_value, id, false/*is_lhs*/);
+}
+
+llvm::Value *llvm_maybe_pointer_cast(
+		llvm::IRBuilder<> &builder,
+	   	llvm::Value *llvm_value,
+	   	llvm::Type *llvm_type)
+{
+	llvm_value = llvm_resolve_alloca(builder, llvm_value);
+
+	if (llvm_type->isPointerTy()) {
+		assert(llvm_value->getType()->isPointerTy());
+
+		return builder.CreatePointerBitCastOrAddrSpaceCast(
+				llvm_value, 
+				llvm_type);
+	}
+
+	return llvm_value;
+}
+
+llvm::Value *llvm_maybe_pointer_cast(
+		llvm::IRBuilder<> &builder,
+	   	llvm::Value *llvm_value,
+	   	const bound_type_t::ref &bound_type)
+{
+	return llvm_maybe_pointer_cast(builder, llvm_value, bound_type->get_llvm_specific_type());
 }

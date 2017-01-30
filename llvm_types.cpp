@@ -325,18 +325,25 @@ bound_type_t::ref create_bound_maybe_type(
 	bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
 	if (!!status) {
 		auto llvm_type = bound_just_type->get_llvm_type();
-		if (!llvm_type->isPointerTy()) {
-			auto bound_type = bound_type_t::create(
-					maybe,
-					bound_just_type->get_location(),
-					llvm_type->getPointerTo());
-			program_scope->put_bound_type(status, bound_type);
+		if (llvm_type->isPointerTy()) {
+			debug_above(5, log(log_info,
+						"creating maybe type for %s",
+						maybe->just->str().c_str()));
+			auto bound_type = scope->get_bound_type(maybe->get_signature());
+			if (bound_type == nullptr) {
+				bound_type = bound_type_t::create(
+						maybe,
+						bound_just_type->get_location(),
+						llvm_type);
+				program_scope->put_bound_type(status, bound_type);
+			}
+
 			if (!!status) {
 				return bound_type;
 			}
 		} else {
 			user_error(status, maybe->get_location(),
-				   	"type %s cannot be a " c_type("maybe") " type because the underlying storage is already a pointer (it is %s)",
+				   	"type %s cannot be a " c_type("maybe") " type because the underlying storage is not a pointer (it is %s)",
 					maybe->str().c_str(),
 					llvm_print_type(*llvm_type).c_str());
 		}
@@ -559,7 +566,6 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		identifier::ref id,
 		const ast::item::ref &node)
 {
-#ifdef VAR_T
 	/* this is a tuple constructor function */
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
@@ -576,7 +582,6 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 			}
 		}
 	}
-#endif
 
 	assert(!status);
 	return {nullptr, nullptr};
@@ -720,49 +725,43 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 				if (!!status) {
 					assert(data_type->get_llvm_type() != nullptr);
-					if (data_type->get_llvm_type()->isPointerTy()) {
-						/* we've allocated enough space for the object type,
-						 * let's get our allocation as such */
-						llvm::Value *llvm_final_obj = builder.CreatePointerBitCastOrAddrSpaceCast(
-								llvm_alloced, 
-								data_type->get_llvm_specific_type());
+			
+					/* we've allocated enough space for the object type,
+					 * let's get our allocation as such */
+					llvm::Value *llvm_final_obj = llvm_maybe_pointer_cast(builder,
+							llvm_alloced, data_type);
 
-						int index = 0;
+					int index = 0;
 
-						llvm::Function *llvm_function = (llvm::Function *)function->llvm_value;
-						llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
-						while (args_iter != llvm_function->arg_end()) {
-							llvm::Value *llvm_param = args_iter++;
-							/* get the location we should store this datapoint in */
-							llvm::Value *llvm_gep = llvm_make_gep(builder, llvm_final_obj,
-									index, struct_type->managed);
-							llvm_gep->setName(string_format("address_of.member.%d", index));
+					llvm::Function *llvm_function = (llvm::Function *)function->llvm_value;
+					llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
+					while (args_iter != llvm_function->arg_end()) {
+						llvm::Value *llvm_param = args_iter++;
+						/* get the location we should store this datapoint in */
+						llvm::Value *llvm_gep = llvm_make_gep(builder, llvm_final_obj,
+								index, struct_type->managed);
+						llvm_gep->setName(string_format("address_of.member.%d", index));
 
-							debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
-										llvm_print_value(*llvm_gep).c_str()));
-							builder.CreateStore(llvm_param, llvm_gep);
-							++index;
-						}
+						debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
+									llvm_print_value(*llvm_gep).c_str()));
+						builder.CreateStore(llvm_param, llvm_gep);
+						++index;
+					}
 
-						/* create a return statement for the final object. */
-						builder.CreateRet(llvm_final_obj);
+					/* create a return statement for the final object. */
+					builder.CreateRet(llvm_final_obj);
 
-						llvm_verify_function(status, llvm_function);
+					llvm_verify_function(status, llvm_function);
+
+					if (!!status) {
+						/* bind the ctor to the program scope */
+						scope->get_program_scope()->put_bound_variable(status, name, function);
 
 						if (!!status) {
-							/* bind the ctor to the program scope */
-							scope->get_program_scope()->put_bound_variable(status, name, function);
-
-							if (!!status) {
-								debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
-												*llvm_get_module(builder)).c_str()));
-								return function;
-							}
+							debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
+											*llvm_get_module(builder)).c_str()));
+							return function;
 						}
-					} else {
-						user_error(status, node->get_location(),
-								"data type %s is not a pointer type",
-								data_type->str().c_str());
 					}
 				}
 			}
@@ -876,28 +875,20 @@ bound_var_t::ref call_const_subscript_operator(
 
 				if (!!status) {
 					/* get the tuple */
-					llvm::Value *llvm_lhs = llvm_resolve_alloca(builder, lhs->llvm_value);
-					if (lhs->type->get_llvm_specific_type()->isPointerTy()) {
-						llvm::Value *llvm_lhs_subtype = builder.CreatePointerBitCastOrAddrSpaceCast(
-								llvm_lhs,
-								lhs->type->get_llvm_specific_type());
+					llvm::Value *llvm_lhs_subtype = llvm_maybe_pointer_cast(builder,
+							lhs->llvm_value, lhs->type);
 
-						llvm::Value *llvm_value = builder.CreateLoad(llvm_make_gep(builder,
-									llvm_lhs_subtype, subscript_index,
-									struct_type->managed));
+					llvm::Value *llvm_value = builder.CreateLoad(llvm_make_gep(builder,
+								llvm_lhs_subtype, subscript_index,
+								struct_type->managed));
 
-						return bound_var_t::create(
-								INTERNAL_LOC(),
-								"temp_deref_subscript",
-								data_type,
-								llvm_value,
-								make_code_id(node->token),
-								false/*is_lhs*/);
-					} else {
-						user_error(status, node->get_location(),
-								"lhs type %s is not a pointer type",
-								struct_type->str().c_str());
-					}
+					return bound_var_t::create(
+							INTERNAL_LOC(),
+							"temp_deref_subscript",
+							data_type,
+							llvm_value,
+							make_code_id(node->token),
+							false/*is_lhs*/);
 				}
 			} else {
 				user_error(status, *node, "index out of range");

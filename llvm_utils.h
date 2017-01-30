@@ -49,6 +49,8 @@ llvm::Type *llvm_create_sum_type(llvm::IRBuilder<> &builder, program_scope_t::re
 llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder, atom name, const bound_type_t::refs &dimensions);
 llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder, atom name, const std::vector<llvm::Type*> &llvm_types);
 llvm::Value *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type);
+llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder, llvm::Value *llvm_value, llvm::Type *llvm_type);
+llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder, llvm::Value *llvm_value, const bound_type_t::ref &bound_type);
 
 void llvm_verify_function(status_t &status, llvm::Function *llvm_function);
 void llvm_verify_module(status_t &status, llvm::Module &llvm_module);
