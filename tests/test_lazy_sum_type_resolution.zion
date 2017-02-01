@@ -7,4 +7,4 @@ type Bx{T} has
 type B{X} is Bx{X}
 
 def do(b Bx{int})
-	print(b[0])
+	print(b.x)

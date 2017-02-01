@@ -70,11 +70,11 @@ llvm::FunctionType *llvm_create_function_type(
 	std::vector<llvm::Type *> llvm_type_args;
 
 	for (auto &arg : args) {
-		llvm_type_args.push_back(arg->get_llvm_type());
+		llvm_type_args.push_back(arg->get_llvm_specific_type());
 	}
 
 	auto p = llvm::FunctionType::get(
-			return_value->get_llvm_type(),
+			return_value->get_llvm_specific_type(),
 			llvm::ArrayRef<llvm::Type*>(llvm_type_args),
 			false /*isVarArg*/);
 	assert(p->isFunctionTy());
@@ -266,7 +266,7 @@ llvm::AllocaInst *llvm_create_entry_block_alloca(
 		   	llvm_function->getEntryBlock().begin());
 
 	/* create the local variable */
-	return builder.CreateAlloca(type->get_llvm_type(), nullptr, var_name.c_str());
+	return builder.CreateAlloca(type->get_llvm_specific_type(), nullptr, var_name.c_str());
 }
 
 void llvm_create_if_branch(
@@ -325,7 +325,7 @@ llvm::StructType *llvm_create_struct_type(
 
 	/* now add all the dimensions of the tuple */
 	for (auto &dimension : dimensions) {
-		llvm_types.push_back(dimension->get_llvm_type());
+		llvm_types.push_back(dimension->get_llvm_specific_type());
 	}
 
 	llvm::StructType *llvm_tuple_type = llvm_create_struct_type(builder, name, llvm_types);
@@ -372,7 +372,7 @@ llvm::Type *llvm_wrap_type(
 	auto llvm_struct_type = llvm::StructType::create(builder.getContext(), llvm_dims);
 
 	/* give the struct a helpful name internally */
-	llvm_struct_type->setName(std::string("__var_ref_") + data_name.str());
+	llvm_struct_type->setName(data_name.str());
 
 	/* we'll be referring to pointers to these variable structures */
 	return llvm_struct_type;
@@ -565,9 +565,11 @@ llvm::Value *llvm_maybe_pointer_cast(
 	if (llvm_type->isPointerTy()) {
 		assert(llvm_value->getType()->isPointerTy());
 
-		return builder.CreatePointerBitCastOrAddrSpaceCast(
-				llvm_value, 
-				llvm_type);
+		if (llvm_type != llvm_value->getType()) {
+			return builder.CreatePointerBitCastOrAddrSpaceCast(
+					llvm_value, 
+					llvm_type);
+		}
 	}
 
 	return llvm_value;

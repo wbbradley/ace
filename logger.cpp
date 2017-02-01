@@ -310,8 +310,15 @@ void log_location(log_level_t level, const location &location, const char *forma
 	va_end(args);
 }
 
+void log(const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	logv(log_info, format, args);
+	va_end(args);
+}
+
 void log(log_level_t level, const char *format, ...) {
-	if (mask(logger_level,level) == 0)
+	if (mask(logger_level, level) == 0)
 		return;
 
 	va_list args;
@@ -321,7 +328,7 @@ void log(log_level_t level, const char *format, ...) {
 }
 
 void logv_location(log_level_t level, const location &location, const char *format, va_list args) {
-	if (mask(logger_level,level) == 0)
+	if (mask(logger_level, level) == 0)
     {
         dbg();
 		return;
@@ -331,7 +338,7 @@ void logv_location(log_level_t level, const location &location, const char *form
 }
 
 void logv(log_level_t level, const char *format, va_list args) {
-	if (mask(logger_level,level) == 0)
+	if (mask(logger_level, level) == 0)
 		return;
 
 	_logger->logv(level, nullptr, format, args);

@@ -171,14 +171,20 @@ bound_var_t::ref type_check_bound_var_decl(
 					debug_above(6, log(log_info, "creating a store instruction %s := %s",
 								llvm_print_value_ptr(llvm_alloca).c_str(),
 								llvm_print_value_ptr(init_var->llvm_value).c_str()));
-					builder.CreateStore(llvm_resolve_alloca(builder, init_var->llvm_value), llvm_alloca);	
+
+					llvm::Value *llvm_init_value = llvm_resolve_alloca(builder, init_var->llvm_value);
+					llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+
+					builder.CreateStore(
+							llvm_maybe_pointer_cast(builder, llvm_init_value, bound_type->get_llvm_specific_type()),
+						   	llvm_alloca);	
 				} else {
-					llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_type());
+					llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_specific_type());
 					builder.CreateStore(llvm_null_value, llvm_alloca);
 				}
 			} else if (dyncast<const types::type_maybe>(lhs_type)) {
 				/* this can be null, let's initialize it as such */
-				llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_type());
+				llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_specific_type());
 				builder.CreateStore(llvm_null_value, llvm_alloca);
 			} else {
 				user_error(status, obj, "missing initializer");
@@ -885,7 +891,7 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 		if (!!status) {
 			assert(get_function_return_type(status,
 						builder, *shared_from_this(),
-						scope, tuple.first->type)->get_type()->repr() == tuple_type->repr());
+						scope, tuple.first->type)->get_type()->repr() == type_ref(tuple_type)->repr());
 
 			/* now, let's call our unnamed tuple ctor and return that value */
 			return create_callsite(status, builder, scope, shared_from_this(),
@@ -1021,24 +1027,24 @@ bound_var_t::ref extract_member_variable(
 
 		llvm::Value *llvm_var_value = llvm_maybe_pointer_cast(builder, bound_var->llvm_value, bound_struct_ref);
 
-			/* the following code is heavily coupled to the physical layout of
-			 * managed vs. native structures */
+		/* the following code is heavily coupled to the physical layout of
+		 * managed vs. native structures */
 
-			/* GEP and load the member value from the structure */
-			llvm::Value *llvm_gep = llvm_make_gep(builder,
+		/* GEP and load the member value from the structure */
+		llvm::Value *llvm_gep = llvm_make_gep(builder,
 				llvm_var_value, index, struct_type->managed);
-			llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
+		llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
 
-			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
+		llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
 
-			/* add a helpful descriptive name to this local value */
-			auto value_name = string_format(".%s", member_name.c_str());
-			llvm_item->setName(value_name);
+		/* add a helpful descriptive name to this local value */
+		auto value_name = string_format(".%s", member_name.c_str());
+		llvm_item->setName(value_name);
 
-			return bound_var_t::create(
-					INTERNAL_LOC(), value_name,
-					member_type, llvm_item, make_iid(member_name), false/*is_lhs*/);
-		} else {
+		return bound_var_t::create(
+				INTERNAL_LOC(), value_name,
+				member_type, llvm_item, make_iid(member_name), false/*is_lhs*/);
+	} else {
 		auto bindings = scope->get_type_variable_bindings();
 		auto full_type = bound_var->type->get_type()->rebind(bindings);
 		user_error(status, node->get_location(),
@@ -1144,9 +1150,18 @@ bound_var_t::ref call_typeid(
 				resolved_value->type->str().c_str()));
 	auto program_scope = scope->get_program_scope();
 
-	auto llvm_type = resolved_value->type->get_llvm_type();
-	auto llvm_obj_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
-	bool is_obj = (llvm_type == llvm_obj_type);
+	auto llvm_type = resolved_value->type->get_llvm_specific_type();
+	auto llvm_obj_type = program_scope->get_bound_type({"__var"})->get_llvm_type();
+	bool is_obj = false;
+
+	if (llvm_type->isPointerTy()) {
+		if (auto llvm_struct = llvm::dyn_cast<llvm::StructType>(llvm_type->getPointerElementType())) {
+			is_obj = (
+					llvm_struct == llvm_obj_type ||
+				   	llvm_struct->getStructElementType(0) == llvm_obj_type);
+		}
+	}
+
 	auto name = string_format("typeid(%s)", resolved_value->str().c_str());
 
 	if (is_obj) {
@@ -1211,7 +1226,7 @@ bound_var_t::ref ast::sizeof_expr::resolve_instantiation(
 	bound_type_t::ref size_type = scope->get_program_scope()->get_bound_type({INT_TYPE});
 	if (!!status) {
 		llvm::Value *llvm_size = llvm_sizeof_type(builder,
-				llvm_deref_type(bound_type->get_llvm_type()));
+				llvm_deref_type(bound_type->get_llvm_specific_type()));
 
 		return bound_var_t::create(
 				INTERNAL_LOC(), type->str(), size_type, llvm_size,
@@ -1285,7 +1300,7 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 	if (!!status) {
 		assert(bound_function_type->get_llvm_type() != nullptr);
 
-		llvm::Type *llvm_type = bound_function_type->get_llvm_type();
+		llvm::Type *llvm_type = bound_function_type->get_llvm_specific_type();
 		if (llvm_type->isPointerTy()) {
 			llvm_type = llvm_type->getPointerElementType();
 		}

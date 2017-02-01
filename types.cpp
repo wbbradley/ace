@@ -844,9 +844,12 @@ types::type::ref eval(types::type::ref type, types::type::map env) {
 		return eval_id(id, env);
 	} else if (auto operator_ = dyncast<const types::type_operator>(type)) {
 		return eval_apply(operator_->oper, operator_->operand, env);
-	// } else if (auto product = dyncast<const types::type_product>(type)) {
-		/* there is no expansion of product types */
-	// 	return nullptr;
+	} else if (auto struct_type = dyncast<const types::type_struct>(type)) {
+		/* there is no expansion of struct types */
+		return nullptr;
+	} else if (auto ref_type = dyncast<const types::type_ref>(type)) {
+		/* there is no expansion of ref types */
+		return nullptr;
 	} else {
 		return null_impl();
 	}

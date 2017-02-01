@@ -1,11 +1,12 @@
 module _
+# test: pass
 
-type __Value__ has
+type __Value__ has native
 	var size __int64__
 	var name __str__
 	var typeinfo ref __TypeInfo__
 
-rawtype __TypeInfo__ has
+type __TypeInfo__ has native
 	var typeid __typeid__
 	var addref ref def (v ref __Value__) void
 	var release ref def (v ref __Value__) void
@@ -16,6 +17,18 @@ def addref(v ref __Value__) void
 def release(v ref __Value__) void
 	pass
 
+type __TwoInts__ has native
+	var x __int__
+	var y __int__
+
+type TwoInts has
+	var x int
+	var y int
+
 def main()
-	print(__sizeof__(__TypeInfo__))
+	# With standard aligned sizeof we get some extra padding for the managed
+	# types
+	print(__sizeof__(__TwoInts__))  # 16
+	print(__sizeof__(TwoInts))      # 72
+	print(__sizeof__(__TypeInfo__)) # 24
 

@@ -8,7 +8,5 @@ type Value has
 
 def main()
 	a := Value(42, "hey")
-	print(a[0])
-	print(a[1])
 	print(a.i)
 	print(a.s)

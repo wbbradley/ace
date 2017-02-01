@@ -59,7 +59,7 @@ bound_type_t::ref create_bound_ref_type(
 	if (bound_type != nullptr) {
 		return bound_type_t::create(ref_type,
 				ref_type->get_location(),
-				bound_type->get_llvm_type()->getPointerTo());
+				bound_type->get_llvm_specific_type()->getPointerTo());
 	}
 				
 	/* we've never seen the internal type, so start by registering an
@@ -69,24 +69,23 @@ bound_type_t::ref create_bound_ref_type(
 	auto bound_pointer_type = create_ref_ptr_type(builder, ref_type);
 	program_scope->put_bound_type(status, bound_pointer_type);
 
-	assert(dyncast<const types::type_struct>(ref_type->element_type) != nullptr);
+	debug_above(6, log("create_bound_ref_type(..., %s)",
+				ref_type->str().c_str()));
 	
 	/* before we return the pointer type, let's go ahead and instantiate
 	 * the actual structural type */
 	auto element = upsert_bound_type(status, builder, scope, ref_type->element_type);
 
 	if (!!status) {
-		auto llvm_element_type = llvm::dyn_cast<llvm::StructType>(element->get_llvm_specific_type());
-		assert(llvm_element_type != nullptr);
-		assert(!llvm_element_type->isOpaque());
+		// auto llvm_element_type = llvm::dyn_cast<llvm::StructType>(element->get_llvm_specific_type());
+		// assert(llvm_element_type != nullptr);
+		// assert(!llvm_element_type->isOpaque());
 
-		if (!!status) {
-			auto bound_element_type = scope->get_bound_type(ref_type->element_type->get_signature());
-			assert(bound_element_type != nullptr);
-			assert(bound_element_type->get_llvm_specific_type() == element->get_llvm_specific_type());
+		// auto bound_element_type = scope->get_bound_type(ref_type->element_type->get_signature());
+		// assert(bound_element_type != nullptr);
+		// assert(bound_element_type->get_llvm_specific_type() == element->get_llvm_specific_type());
 
-			return bound_pointer_type;
-		}
+		return bound_pointer_type;
 	}
 
 	assert(!status);
@@ -123,7 +122,7 @@ std::vector<llvm::Type *> build_struct_elements(
 			/* this is a native structure, let's just iterate over the bound
 			 * dimensions and place those directly into this structure */
 			for (auto bound_dimension : bound_dimensions) {
-				elements.push_back(bound_dimension->get_llvm_type());
+				elements.push_back(bound_dimension->get_llvm_specific_type());
 			}
 		}
 
@@ -158,13 +157,17 @@ bound_type_t::ref create_bound_struct_type(
 	 * pointer that it had created. fill it out. if it doesn't exist,
 	 * create it, then extract this tuple type from that. */
 	types::type::ref ref_type = type_ref(struct_type);
-	bound_type_t::ref bound_ref_type = scope->get_bound_type(
-			ref_type->get_signature());
+	bound_type_t::ref bound_ref_type = upsert_bound_type(status, builder, scope, ref_type);
 
-	if (ref_type != nullptr) {
+	if (auto bound_type = scope->get_bound_type(struct_type->get_signature())) {
+		/* while instantiating our pointer type, we also instantiated this */
+		return bound_type;
+	}
+
+	if (bound_ref_type != nullptr) {
 		/* fetch the previously created pointer to this type */
 		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm::cast<llvm::PointerType>(
-					bound_ref_type->get_llvm_type())->getElementType());
+					bound_ref_type->get_llvm_specific_type())->getElementType());
 		assert(llvm_struct_type != nullptr);
 		assert(!llvm_struct_type->isSized());
 		assert(llvm_struct_type->isOpaque());
@@ -242,7 +245,8 @@ bound_type_t::ref create_bound_id_type(
 				bound_type_t::ref bound_type = bound_type_t::create(
 						id,
 						bound_expansion->get_location(),
-						bound_expansion->get_llvm_type());
+						bound_expansion->get_llvm_type(),
+						bound_expansion->get_llvm_specific_type());
 				auto program_scope = scope->get_program_scope();
 				program_scope->put_bound_type(status, bound_type);
 				if (!!status) {
@@ -324,7 +328,7 @@ bound_type_t::ref create_bound_maybe_type(
 	auto program_scope = scope->get_program_scope();
 	bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
 	if (!!status) {
-		auto llvm_type = bound_just_type->get_llvm_type();
+		auto llvm_type = bound_just_type->get_llvm_specific_type();
 		if (llvm_type->isPointerTy()) {
 			debug_above(5, log(log_info,
 						"creating maybe type for %s",
@@ -462,6 +466,8 @@ bound_type_t::ref upsert_bound_type(
 	auto signature = type->get_signature();
 	auto bound_type = scope->get_bound_type(signature);
 	if (bound_type != nullptr) {
+		/* this case is critical for breaking cycles during structure
+		 * instantiation */
 		return bound_type;
 	} else {
 		/* we believe that this type does not exist. let's build it */
@@ -503,59 +509,6 @@ bound_type_t::ref get_function_return_type(
 	}
 }
 
-bound_type_t::ref get_or_create_tuple_type(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		identifier::ref id,
-		bound_type_t::refs args,
-		bool managed,
-		const ast::item::ref &node)
-{
-	atom name = id->get_name();
-
-	/* get the type of this tuple type */
-	types::type_struct::ref type = type_struct(get_types(args), {} /* name_index */, managed);
-	auto data_type = scope->get_bound_type(type->get_signature());
-
-	if (data_type != nullptr) {
-		return data_type;
-	} else {
-		auto program_scope = scope->get_program_scope();
-
-		/* build the llvm specific type */
-		llvm::Type *llvm_tuple_type = llvm_create_struct_type(
-				builder, name, args);
-
-		assert_implies(!managed, !"need to treat native types");
-
-		llvm::Type *llvm_wrapped_tuple_type = llvm_wrap_type(builder, program_scope,
-				name, llvm_tuple_type);
-
-		/* display the new type */
-		llvm::Type *llvm_obj_struct_type = llvm::cast<llvm::PointerType>(llvm_wrapped_tuple_type)->getElementType();
-		debug_above(5, log(log_info, "created LLVM wrapped tuple type %s", llvm_print_type(*llvm_obj_struct_type).c_str()));
-
-		/* get the bound type of the data ctor's value */
-		bound_type_t::ref data_type = bound_type_t::create(
-				type,
-				node->token.location,
-				managed
-					? scope->get_program_scope()->get_bound_type({"__var"})->get_llvm_type()
-				   	: llvm_wrapped_tuple_type,
-				llvm_wrapped_tuple_type);
-
-		/* put the type for the data type */
-		program_scope->put_bound_type(status, data_type);
-
-		if (!!status) {
-			return data_type;
-		} else {
-			return nullptr;
-		}
-	}
-}
-
 std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		status_t &status, 
 		llvm::IRBuilder<> &builder,
@@ -570,8 +523,8 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
-		bound_type_t::ref data_type = get_or_create_tuple_type(status, builder, scope,
-				id, args, managed, node);
+		types::type_ref::ref type = type_ref(type_struct(get_types(args), {} /* name_index */, managed));
+		bound_type_t::ref data_type = upsert_bound_type(status, builder, scope, type);
 
 		if (!!status) {
 			bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(status, builder,
@@ -690,7 +643,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	debug_above(4, log(log_info, "get_or_create_tuple_ctor evaluating %s with llvm type %s",
 				type->str().c_str(),
-				llvm_print_type(*data_type->get_llvm_type()).c_str()));
+				llvm_print_type(*data_type->get_llvm_specific_type()).c_str()));
 	types::type::ref expanded_type;
 
 	expanded_type = eval(type, scope->get_typename_env());

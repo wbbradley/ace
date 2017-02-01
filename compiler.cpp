@@ -65,6 +65,10 @@ void compiler::resolve_module_filename(
 	std::string filename_test_resolution;
 	if (real_path(name, filename_test_resolution)) {
 		if (name == filename_test_resolution) {
+			if (!ends_with(filename_test_resolution, ".zion")) {
+				filename_test_resolution = filename_test_resolution + ".zion";
+			}
+
 			if (file_exists(filename_test_resolution)) {
 				/* short circuit if we're given a real path */
 				resolved = filename_test_resolution;
@@ -149,6 +153,7 @@ ast::module::ref compiler::build_parse(
 			if (existing_module == nullptr) {
 				/* we found an unparsed file */
 				std::ifstream ifs;
+				assert(ends_with(module_filename, ".zion"));
 				ifs.open(module_filename.c_str());
 
 				if (ifs.good()) {

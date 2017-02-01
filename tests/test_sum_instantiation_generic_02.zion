@@ -15,7 +15,7 @@ type Box{X, Y} is
 
 def main()
 	x := BigBox("yay this works")
-	y := Crate(1, x[0])
-	print(x[0])
-	print(y[0])
-	print(y[1])
+	y := Crate(1, x.t)
+	print(x.t)
+	print(y.p)
+	print(y.q)

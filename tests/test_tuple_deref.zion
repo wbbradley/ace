@@ -4,6 +4,6 @@ module _
 # test dereferencing into a tuple
 
 def main()
-	x := ((2,(3,)),)
-	y := x[0][1][0]
-	print(y)
+	x := ((2,("hello",)),)
+	y := x._0._1._0
+	posix.puts(y.raw)

@@ -18,4 +18,4 @@ type baz{X} is
 
 def main()
 	y := bar(Y(1))
-	print(y[0][0])
+	print(y.y.y)
