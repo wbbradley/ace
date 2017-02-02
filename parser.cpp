@@ -1126,6 +1126,19 @@ types::type::ref _parse_function_type(parse_state_t &ps, identifier::set generic
 	return nullptr;
 }
 
+identifier::ref reduce_ids(std::list<identifier::ref> ids) {
+	assert(ids.size() != 0);
+	struct location location = (*ids.begin())->get_location();
+	std::stringstream ss;
+	const char *inner_sep = SCOPE_SEP;
+	const char *sep = "";
+	for (auto id : ids) {
+		ss << sep << id->get_name();
+		sep = inner_sep;
+	}
+	return make_iid_impl(ss.str(), location);
+}
+
 types::type::ref _parse_single_type(
 		parse_state_t &ps,
 	   	identifier::ref supertype_id,
@@ -1213,8 +1226,26 @@ types::type::ref _parse_single_type(
 		break;
 	case tk_identifier:
 		{
+			// TODO: consider a type-path type which would allow for
+			// type-variables within the type-path...
+
+			/* build the type-path that is referenced here */
 			types::type::ref cur_type;
-			auto id = make_code_id(ps.token);
+			std::list<identifier::ref> ids;
+			while (ps.token.tk == tk_identifier) {
+				ids.push_back(make_code_id(ps.token));
+				ps.advance();
+				if (ps.token.tk == SCOPE_TK) {
+					ps.advance();
+					expect_token(tk_identifier);
+				} else {
+					break;
+				}
+			}
+
+			/* reduce the type-path to a single simplified id */
+			identifier::ref id = reduce_ids(ids);
+
 			/* stash the identifier */
 			if (generics.find(id) != generics.end()) {
 				/* this type is marked as definitely unbound - aka generic. let's
@@ -1223,9 +1254,6 @@ types::type::ref _parse_single_type(
 			} else {
 				cur_type = type_id(id);
 			}
-
-			/* move on */
-			ps.advance();
 
 			types::type::refs arguments;
 			if (ps.token.tk == tk_lcurly) {

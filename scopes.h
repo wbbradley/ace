@@ -9,8 +9,8 @@
 #include "unchecked_var.h"
 #include "signature.h"
 
-#define SCOPE_SEP "/"
-
+extern const token_kind SCOPE_TK;
+extern const char *SCOPE_SEP;
 extern const char *GLOBAL_ID;
 
 struct scope_t;
@@ -353,11 +353,17 @@ ptr<program_scope_t> scope_impl_t<T>::get_program_scope() {
 
 template <typename T>
 void scope_impl_t<T>::put_typename(status_t &status, atom name, types::type::ref expansion) {
-	debug_above(2, log(log_info, "registering typename " c_type("%s") " as %s",
-				name.c_str(), expansion->str().c_str()));
+	debug_above(2, log(log_info, "registering typename " c_type("%s") " as %s in scope " c_id("%s"),
+				name.c_str(), expansion->str().c_str(),
+				this->name.c_str()));
 	if (typename_env.find(name) == typename_env.end()) {
-		// WOW
+		// TODO: extend expansion to be fully-qualified
 		typename_env[name] = expansion;
+		if (auto parent_scope = get_parent_scope()) {
+			parent_scope->put_typename(status,
+				   	this->name.str() + SCOPE_SEP + name.str(),
+					expansion);
+		}
 	} else {
 		user_error(status, expansion->get_location(),
 				"multiple supertypes are not yet implemented (" c_type("%s") " <: " c_type("%s") ")",
@@ -548,7 +554,7 @@ bound_var_t::ref scope_impl_t<T>::get_bound_variable(
 
 template <typename T>
 std::string scope_impl_t<T>::make_fqn(std::string leaf_name) const {
-	return this->get_name() + std::string(SCOPE_SEP) + leaf_name;
+	return this->get_name() + SCOPE_SEP + leaf_name;
 }
 
 bound_type_t::ref get_bound_type_from_scope(

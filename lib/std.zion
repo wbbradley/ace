@@ -1,5 +1,6 @@
 module _
 link module posix
+link module math
 
 tag false
 tag true

@@ -9,6 +9,8 @@
 #include "unification.h"
 
 const char *GLOBAL_ID = "🌐 ";
+const token_kind SCOPE_TK = tk_divide_by;
+const char *SCOPE_SEP = "/";
 
 types::type::ref module_scope_impl_t::get_inbound_context() {
 	return inbound_context;

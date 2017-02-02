@@ -6,21 +6,24 @@ type Complex has
 
 [module any]
 def str(c Complex) str
-	s := ""
-	delim := ""
-	if c.real != 0.0
-		s += str(c.real)
-		delim = " "
-	if c.imag != 0.0
-		s += delim
-		s += str(c.imag)
-		s += "i"
+	s := "" + str(c.real);
+	if c.imag < 0
+		s = s + " -"
+	else
+		if c.imag == 0.0
+			return s
+		s = s + " + "
+	return s + str(math.abs(c.real)) + "i"
 
-	return s
+[module any]
+def __times__(a Complex, b Complex) Complex
+	return Complex(a.real * b.real - a.imag * b.imag,
+		a.imag * b.real + a.real * b.imag)
 
 def rounded_tenth(x int) int
 	return (x + 5) / 10
 
+[module any]
 def abs(x any T) any T
 	if x < 0
 		return -x
