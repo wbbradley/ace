@@ -4,6 +4,11 @@
 #include "atom.h"
 #include "logger_decls.h"
 #include "status.h"
+#include "ptr.h"
+
+namespace types {
+	struct type;
+}
 
 struct parse_state_t {
 	typedef log_level_t parse_error_level_t;
@@ -23,6 +28,9 @@ struct parse_state_t {
 	zion_lexer_t &lexer;
 	status_t &status;
 	std::vector<zion_token_t> *comments;
+
+	/* nullary reader macros for types */
+	std::map<atom, ptr<const types::type>> type_macros;
 
 	/* keep track of the current function declaration parameter position */
 	int argument_index;

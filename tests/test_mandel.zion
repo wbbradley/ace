@@ -1,0 +1,10 @@
+module _
+# test: pass
+
+link Complex to math.Complex
+
+def unit() Complex
+	return math.Complex(3.4, 2.3)
+
+def main()
+	unit()

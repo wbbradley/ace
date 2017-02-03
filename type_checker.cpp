@@ -550,6 +550,16 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 	return nullptr;
 }
 
+bound_var_t::ref ast::link_name::resolve_instantiation(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		local_scope_t::ref *new_scope,
+		bool *returns) const
+{
+	return null_impl();
+}
+
 bound_var_t::ref ast::dot_expr::resolve_overrides(
 		status_t &status,
 		llvm::IRBuilder<> &builder,

@@ -226,7 +226,7 @@ namespace ast {
 		type_decl(identifier::refs type_variables);
 		static const syntax_kind_t SK = sk_type_decl;
 
-		static ref parse(parse_state_t &ps);
+		static ref parse(parse_state_t &ps, zion_token_t name_token);
 		virtual void render(render_state_t &rs) const;
 
 		identifier::refs type_variables;
@@ -627,12 +627,13 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_module_decl;
 
-		static ptr<module_decl> parse(parse_state_t &ps);
+		static ptr<module_decl> parse(parse_state_t &ps, bool skip_module_token=false);
 		virtual void render(render_state_t &rs) const;
 
 		ptr<semver> semver;
 		std::string get_canonical_name() const;
 		zion_token_t get_name() const;
+
 	private:
 		zion_token_t name;
 	};
@@ -652,6 +653,24 @@ namespace ast {
 
 		zion_token_t link_as_name;
 		ptr<module_decl> extern_module;
+	};
+
+	struct link_name : public statement {
+		typedef ptr<const link_name> ref;
+
+		static const syntax_kind_t SK = sk_link_name;
+
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
+		virtual void render(render_state_t &rs) const;
+
+		zion_token_t local_name;
+		ptr<module_decl> extern_module;
+		zion_token_t remote_name;
 	};
 
 	struct link_function_statement : public statement {
@@ -691,6 +710,7 @@ namespace ast {
 		std::vector<ptr<function_defn>> functions;
 		std::vector<ptr<link_module_statement>> linked_modules;
 		std::vector<ptr<link_function_statement>> linked_functions;
+		std::vector<ptr<link_name>> linked_names;
 	};
 
 	struct program : public item {

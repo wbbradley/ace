@@ -496,7 +496,7 @@ bool test_parse_empty_quote() {
 bool test_parse_link_extern_module_with_link_as() {
 	return check_parse<ast::module>(
 		   	"module www @1.0.0\n"
-			"link http1 to module http @1.0.0\n");
+			"link module http @1.0.0 as http1\n");
 }
 
 bool test_parse_link_extern_module() {

@@ -222,9 +222,16 @@ namespace ast {
 		rs.ss << " ";
 		extern_module->render(rs);
 		if (link_as_name.text != extern_module->token.text) {
-			rs.ss << " " << C_SCOPE_SEP << tkstr(tk_to) << C_RESET;
+			rs.ss << " " << C_SCOPE_SEP << tkstr(tk_as) << C_RESET;
 			rs.ss << " " << link_as_name.text;
 		}
+	}
+
+	void link_name::render(render_state_t &rs) const {
+		rs.ss << C_SCOPE_SEP << tkstr(tk_link) << C_RESET;
+		rs.ss << " " << local_name.text << " " << tkstr(tk_to) << " ";
+		extern_module->render(rs);
+		rs.ss << "." << remote_name.text;
 	}
 
 	void link_function_statement::render(render_state_t &rs) const {

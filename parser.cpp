@@ -111,32 +111,60 @@ ptr<statement> link_statement_parse(parse_state_t &ps) {
 		}
 		return link_function_statement;
 	} else {
-		auto link_statement = create<link_module_statement>(link_token);
-
-		if (ps.token.tk == tk_identifier) {
-			link_statement->link_as_name = ps.token;
-			ps.advance();
-			chomp_token(tk_to);
-		}
-
 		if (ps.token.tk == tk_module) {
 			auto module_decl = module_decl::parse(ps);
-			if (module_decl) {
+			if (!!ps.status) {
+				auto link_statement = create<link_module_statement>(link_token);
+				link_statement->extern_module = module_decl;
+
+				if (ps.token.tk == tk_as) {
+					/* get the local name for this module */
+					ps.advance();
+					expect_token(tk_identifier);
+					link_statement->link_as_name = ps.token;
+					ps.advance();
+				}
+
 				if (link_statement->link_as_name.tk == tk_none) {
 					link_statement->link_as_name = module_decl->get_name();
 				}
+
 				if (link_statement->link_as_name.tk != tk_identifier) {
 					ps.error("expected an identifier for link module name (either implicit or explicit)");
 				}
-				link_statement->extern_module.swap(module_decl);
-			} else {
-				assert(!ps.status);
+
+				if (!!ps.status) {
+					return link_statement;
+				}
+			}
+		} else if (ps.token.tk == tk_identifier) {
+			auto link_name = create<struct ast::link_name>(link_token);
+			/*
+			 * link name to some_module.something
+			 *
+			 * 1. Sets up a type parser macro "name" => "some_module/something"
+			 * 2. Sets up a "scope link" from this module to the "some_module" for the
+			 * "something" name so that if there is a call to "something" from
+			 * within this module, we also search "some_module" when enumerating
+			 * callables.
+			 * 3. Start tracking whether the link is in use in the module
+			 */
+			link_name->local_name = ps.token;
+			ps.advance();
+			chomp_token(tk_to);
+			link_name->extern_module = module_decl::parse(ps, true /* skip_module_token */);
+			if (!!ps.status) {
+				chomp_token(tk_dot);
+				expect_token(tk_identifier);
+				link_name->remote_name = ps.token;
+				ps.advance();
+				return link_name;
 			}
 		} else {
 			ps.error("link must be followed by function declaration or module import");
 		}
-
-		return link_statement;
+		assert(!ps.status);
+		return nullptr;
 	}
 }
 
@@ -156,8 +184,6 @@ ptr<statement> statement::parse(parse_state_t &ps) {
 		return return_statement::parse(ps);
 	} else if (ps.token.tk == tk_type) {
 		return type_def::parse(ps);
-	} else if (ps.token.tk == tk_link) {
-		return link_statement_parse(ps);
 	} else if (ps.token.tk == tk_pass) {
 		auto pass_flow = create<ast::pass_flow>(ps.token);
 		eat_token();
@@ -959,10 +985,13 @@ ptr<function_defn> function_defn::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-ptr<module_decl> module_decl::parse(parse_state_t &ps) {
-	auto module_decl = create<ast::module_decl>(ps.token);
+ptr<module_decl> module_decl::parse(parse_state_t &ps, bool skip_module_token) {
+	if (!skip_module_token) {
+		chomp_token(tk_module);
+	}
 
-	chomp_token(tk_module);
+	/* we've skipped the check for the 'module' token */
+	auto module_decl = create<ast::module_decl>(ps.token);
 
 	expect_token(tk_identifier);
 	module_decl->name = ps.token;
@@ -991,7 +1020,6 @@ ptr<semver> semver::parse(parse_state_t &ps) {
 }
 
 void parse_maybe_type_decl(parse_state_t &ps, identifier::refs &type_variables) {
-	ps.advance();
 	if (ps.token.tk == tk_lcurly) {
 		ps.advance();
 		while (true) {
@@ -1362,14 +1390,12 @@ types::type::ref parse_maybe_type(parse_state_t &ps,
 	return nullptr;
 }
 
-type_decl::ref type_decl::parse(parse_state_t &ps) {
-	auto token = ps.token;
-	expect_token(tk_identifier);
+type_decl::ref type_decl::parse(parse_state_t &ps, zion_token_t name_token) {
 	identifier::refs type_variables;
 	parse_maybe_type_decl(ps, type_variables);
 
 	if (!!ps.status) {
-		return create<ast::type_decl>(token, type_variables);
+		return create<ast::type_decl>(name_token, type_variables);
 	} else {
 		return nullptr;
 	}
@@ -1378,8 +1404,11 @@ type_decl::ref type_decl::parse(parse_state_t &ps) {
 ptr<type_def> type_def::parse(parse_state_t &ps) {
 	chomp_token(tk_type);
 	expect_token(tk_identifier);
-	auto type_def = create<ast::type_def>(ps.token);
-	type_def->type_decl = type_decl::parse(ps);
+	auto type_name_token = ps.token;
+	ps.advance();
+
+	auto type_def = create<ast::type_def>(type_name_token);
+	type_def->type_decl = type_decl::parse(ps, type_name_token);
 	if (!!ps.status) {
 		type_def->type_algebra = ast::type_algebra::parse(ps, type_def->type_decl);
 		if (!!ps.status) {
@@ -1522,9 +1551,13 @@ ptr<module> module::parse(parse_state_t &ps, bool global) {
 				module->linked_modules.push_back(linked_module);
 			} else if (auto linked_function = dyncast<link_function_statement>(link_statement)) {
 				module->linked_functions.push_back(linked_function);
+			} else if (auto linked_name = dyncast<link_name>(link_statement)) {
+				module->linked_names.push_back(linked_name);
 			}
 		}
 		
+		/* TODO: update the parser to contain the type maps from the link_names */
+
 		// Get functions or type defs
 		while (!!ps.status) {
 			if (ps.token.tk == tk_lsquare || ps.token.tk == tk_def) {
@@ -1543,10 +1576,10 @@ ptr<module> module::parse(parse_state_t &ps, bool global) {
 				}
 			} else if (ps.token.tk == tk_type) {
 				auto type_def = type_def::parse(ps);
-				if (type_def) {
+				if (type_def != nullptr) {
 					module->type_defs.push_back(std::move(type_def));
 				} else {
-					assert(!ps.status);
+					/* it's ok, this may have just been a type macro */
 				}
 			} else {
 				break;
