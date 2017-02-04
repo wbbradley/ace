@@ -11,6 +11,8 @@ namespace types {
 	struct type;
 }
 
+typedef std::map<atom, ptr<const types::type>> type_macros_t;
+
 struct parse_state_t {
 	typedef log_level_t parse_error_level_t;
 	parse_error_level_t pel_error = log_error;
@@ -20,7 +22,7 @@ struct parse_state_t {
 			status_t &status,
 			std::string filename,
 			zion_lexer_t &lexer,
-			std::map<atom, ptr<const types::type>> type_macros,
+			type_macros_t type_macros,
 			std::vector<zion_token_t> *comments=nullptr);
 
 	bool advance();
@@ -34,7 +36,7 @@ struct parse_state_t {
 	identifier::ref module_id;
 	zion_lexer_t &lexer;
 	status_t &status;
-	std::map<atom, ptr<const types::type>> type_macros;
+	type_macros_t type_macros;
 	std::vector<zion_token_t> *comments;
 
 	/* keep track of the current function declaration parameter position */

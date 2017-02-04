@@ -6,6 +6,7 @@
 #include <list>
 #include "type_checker.h"
 #include "scopes.h"
+#include "parse_state.h"
 
 extern const char *INT_TYPE;
 extern const char *BOOL_TYPE;
@@ -56,9 +57,9 @@ struct compiler {
 	void build_type_check_and_code_gen(status_t &status);
 
 	/* parse a single module */
-	ptr<const ast::module> build_parse(status_t &status, location location, std::string module_name, bool global);
+	ptr<const ast::module> build_parse(status_t &status, location location, std::string module_name, bool global, type_macros_t &global_type_macros);
 
-	void build_parse_linked(status_t &status, ptr<const ast::module> module);
+	void build_parse_linked(status_t &status, ptr<const ast::module> module, type_macros_t &global_type_macros);
 	std::unordered_set<std::string> compile_modules(status_t &status);
 	int emit_built_program(status_t &status, std::string bitcode_filename);
 	int run_program(std::string bitcode_filename);
@@ -67,7 +68,7 @@ struct compiler {
 	std::string get_program_name() const;
 
 	ptr<const ast::module> main_module;
-	std::map<atom, ptr<const types::type>> type_macros;
+	type_macros_t base_type_macros;
 
 	/* member variables */
 private:

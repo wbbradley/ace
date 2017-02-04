@@ -12,6 +12,7 @@
 #include "utils.h"
 #include "llvm_utils.h"
 #include <sys/stat.h>
+#include <iostream>
 
 std::string strip_zion_extension(std::string module_name) {
 	if (ends_with(module_name, ".zion")) {
@@ -123,12 +124,12 @@ void compiler::resolve_module_filename(
 	}
 }
 
-void compiler::build_parse_linked(status_t &status, ptr<const ast::module> module) {
+void compiler::build_parse_linked(status_t &status, ptr<const ast::module> module, type_macros_t &global_type_macros) {
 	/* now, recursively make sure that all of the linked modules are parsed */
 	for (auto &link : module->linked_modules) {
 		auto linked_module_name = link->extern_module->get_canonical_name();
 		build_parse(status, link->extern_module->token.location, linked_module_name,
-			   	false /*global*/);
+			   	false /*global*/, global_type_macros);
 
 		if (!status) {
 			break;
@@ -140,7 +141,8 @@ ast::module::ref compiler::build_parse(
 		status_t &status,
 		location location,
 		std::string module_name,
-		bool global)
+		bool global,
+		type_macros_t &global_type_macros)
 {
 	std::string module_filename;
 	resolve_module_filename(status, location, module_name, module_filename);
@@ -159,14 +161,38 @@ ast::module::ref compiler::build_parse(
 				if (ifs.good()) {
 					debug_above(4, log(log_info, "parsing module \"%s\"", module_filename.c_str()));
 					zion_lexer_t lexer({module_filename}, ifs);
-					parse_state_t ps(status, module_filename, lexer, type_macros, &comments);
+
+					assert_implies(global, global_type_macros.size() == base_type_macros.size());
+
+					parse_state_t ps(status, module_filename, lexer, global_type_macros, &comments);
 					auto module = ast::module::parse(ps, global);
+
+					if (global) {
+						/* add std types to type_macros to ensure they are not
+						 * rewritten by modules */
+						std::string std_types[] = {
+							"bool",
+							"true",
+							"false",
+							"int",
+							"str",
+							"float",
+							"TypeID",
+							"List",
+						};
+
+						for (auto std_type : std_types) {
+							assert(global_type_macros.find(std_type) == global_type_macros.end());
+							atom new_name = std::string("std/") + std_type;
+							global_type_macros[std_type] = type_id(make_iid(new_name));
+						}
+					}
 
 					/* parse may have succeeded, either way add this module to
 					 * our list of modules */
 					set_module(status, module->filename.str(), module);
 					if (!!status) {
-						build_parse_linked(status, module);
+						build_parse_linked(status, module, global_type_macros);
 
 						if (!!status) {
 							return module;
@@ -380,8 +406,9 @@ void add_global_types(
 		if (!status) {
 			break;
 		}
-		compiler.type_macros[type_pair.first] = type_id(make_iid(type_pair.first));
+		compiler.base_type_macros[type_pair.first] = type_id(make_iid(type_pair.first));
 	}
+
 	debug_above(10, log(log_info, "%s", program_scope->str().c_str()));
 }
 
@@ -542,15 +569,19 @@ void compiler::build_parse_modules(status_t &status) {
 	add_globals(status, *this, builder, program_scope, program);
 
 	if (!!status) {
+		type_macros_t global_type_macros = base_type_macros;
+
 		/* always include the standard library */
         if (getenv("NO_STD_LIB") == nullptr) {
-            build_parse(status, location{"std lib", 0, 0}, "lib/std", true /*global*/);
+            build_parse(status, location{"std lib", 0, 0}, "lib/std",
+				   	true /*global*/, global_type_macros);
+
         }
 
 		if (!!status) {
 			/* now parse the main program module */
 			main_module = build_parse(status, location{"command line build parameters", 0, 0},
-					module_name, false /*global*/);
+					module_name, false /*global*/, global_type_macros);
 
 			if (!!status) {
 				debug_above(4, log(log_info, "build_parse of %s succeeded", module_name.c_str(),

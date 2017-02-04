@@ -357,11 +357,15 @@ void scope_impl_t<T>::put_typename(status_t &status, atom name, types::type::ref
 				name.c_str(), expansion->str().c_str(),
 				this->name.c_str()));
 	if (typename_env.find(name) == typename_env.end()) {
-		// typename_env[name] = expansion;
 		if (auto parent_scope = get_parent_scope()) {
 			parent_scope->put_typename(status,
 				   	this->name.str() + SCOPE_SEP + name.str(),
 					expansion);
+		} else {
+			/* we are at the outermost scope, let's go ahead and register this
+			 * typename */
+			assert(dynamic_cast<program_scope_t *>(this));
+			typename_env[name] = expansion;
 		}
 	} else {
 		user_error(status, expansion->get_location(),
