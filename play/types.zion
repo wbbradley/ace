@@ -1,0 +1,13 @@
+module types
+# test: pass
+
+type MutualInt has   # MutualInt -> types/MutualInt
+	var value int
+	var friend MutualFloat?
+
+type MutualB has
+	var value float
+	var friend MutualInt?
+
+def main()
+	m := MutualInt(3, MutualFloat(3.4, nil))

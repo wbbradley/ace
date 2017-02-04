@@ -67,6 +67,7 @@ struct compiler {
 	std::string get_program_name() const;
 
 	ptr<const ast::module> main_module;
+	std::map<atom, ptr<const types::type>> type_macros;
 
 	/* member variables */
 private:

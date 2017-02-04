@@ -710,7 +710,7 @@ namespace ast {
 		std::vector<ptr<function_defn>> functions;
 		std::vector<ptr<link_module_statement>> linked_modules;
 		std::vector<ptr<link_function_statement>> linked_functions;
-		std::vector<ptr<link_name>> linked_names;
+		std::vector<ptr<const link_name>> linked_names;
 	};
 
 	struct program : public item {

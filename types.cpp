@@ -766,14 +766,22 @@ types::type::pair make_type_pair(std::string fst, std::string snd, identifier::s
 				fst.c_str(), snd.c_str(),
 			   	join(generics, ", ").c_str()));
 
-	return types::type::pair{parse_type_expr(fst, generics), parse_type_expr(snd, generics)};
+	auto module_id = make_iid("tests");
+	return types::type::pair{
+		parse_type_expr(fst, generics, module_id),
+	   	parse_type_expr(snd, generics, module_id)};
 }
 
-types::type::ref parse_type_expr(std::string input, identifier::set generics) {
+types::type::ref parse_type_expr(std::string input, identifier::set generics, identifier::ref module_id) {
 	status_t status;
 	std::istringstream iss(input);
 	zion_lexer_t lexer("", iss);
-	parse_state_t ps(status, "", lexer, nullptr);
+	parse_state_t ps(status, "", lexer, {}, nullptr);
+	if (module_id != nullptr) {
+		ps.module_id = module_id;
+	} else {
+		ps.module_id = make_iid("__parse_type_expr__");
+	}
 	types::type::ref type = parse_maybe_type(ps, {}, {}, generics);
 	if (!!status) {
 		return type;
@@ -781,10 +789,6 @@ types::type::ref parse_type_expr(std::string input, identifier::set generics) {
 		panic("bad type");
 		return null_impl();
 	}
-}
-
-types::type::ref operator "" _ty(const char *value, size_t) {
-	return parse_type_expr(value, {});
 }
 
 bool get_type_variable_name(types::type::ref type, atom &name) {

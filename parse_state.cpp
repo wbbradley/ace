@@ -3,7 +3,18 @@
 #include "logger_decls.h"
 
 
-parse_state_t::parse_state_t(status_t &status, std::string filename, zion_lexer_t &lexer, std::vector<zion_token_t> *comments) : filename(filename), lexer(lexer), status(status), comments(comments) {
+parse_state_t::parse_state_t(
+		status_t &status,
+		std::string filename,
+		zion_lexer_t &lexer,
+		std::map<atom, ptr<const types::type>> type_macros,
+		std::vector<zion_token_t> *comments) :
+	filename(filename),
+	lexer(lexer),
+	status(status),
+	type_macros(type_macros),
+	comments(comments)
+{
 	advance();
 }
 

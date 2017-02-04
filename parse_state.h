@@ -5,6 +5,7 @@
 #include "logger_decls.h"
 #include "status.h"
 #include "ptr.h"
+#include "identifier.h"
 
 namespace types {
 	struct type;
@@ -15,7 +16,12 @@ struct parse_state_t {
 	parse_error_level_t pel_error = log_error;
 	parse_error_level_t pel_warning = log_warning;
 
-	parse_state_t(status_t &status, std::string filename, zion_lexer_t &lexer, std::vector<zion_token_t> *comments=nullptr);
+	parse_state_t(
+			status_t &status,
+			std::string filename,
+			zion_lexer_t &lexer,
+			std::map<atom, ptr<const types::type>> type_macros,
+			std::vector<zion_token_t> *comments=nullptr);
 
 	bool advance();
 	void warning(const char *format, ...);
@@ -25,12 +31,11 @@ struct parse_state_t {
 	zion_token_t token;
 	zion_token_t prior_token;
 	atom filename;
+	identifier::ref module_id;
 	zion_lexer_t &lexer;
 	status_t &status;
-	std::vector<zion_token_t> *comments;
-
-	/* nullary reader macros for types */
 	std::map<atom, ptr<const types::type>> type_macros;
+	std::vector<zion_token_t> *comments;
 
 	/* keep track of the current function declaration parameter position */
 	int argument_index;

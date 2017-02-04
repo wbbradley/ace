@@ -3,6 +3,7 @@
 #include "ast.h"
 #include "token.h"
 #include "logger_decls.h"
+#include "compiler.h"
 #include <csignal>
 #include "parse_state.h"
 #include "parser.h"
@@ -1154,9 +1155,8 @@ types::type::ref _parse_function_type(parse_state_t &ps, identifier::set generic
 	return nullptr;
 }
 
-identifier::ref reduce_ids(std::list<identifier::ref> ids) {
+identifier::ref reduce_ids(std::list<identifier::ref> ids, struct location location) {
 	assert(ids.size() != 0);
-	struct location location = (*ids.begin())->get_location();
 	std::stringstream ss;
 	const char *inner_sep = SCOPE_SEP;
 	const char *sep = "";
@@ -1254,12 +1254,10 @@ types::type::ref _parse_single_type(
 		break;
 	case tk_identifier:
 		{
-			// TODO: consider a type-path type which would allow for
-			// type-variables within the type-path...
-
 			/* build the type-path that is referenced here */
 			types::type::ref cur_type;
 			std::list<identifier::ref> ids;
+			struct location location = ps.token.location;
 			while (ps.token.tk == tk_identifier) {
 				ids.push_back(make_code_id(ps.token));
 				ps.advance();
@@ -1272,7 +1270,7 @@ types::type::ref _parse_single_type(
 			}
 
 			/* reduce the type-path to a single simplified id */
-			identifier::ref id = reduce_ids(ids);
+			identifier::ref id = reduce_ids(ids, location);
 
 			/* stash the identifier */
 			if (generics.find(id) != generics.end()) {
@@ -1280,7 +1278,18 @@ types::type::ref _parse_single_type(
 				 * create a generic for it */
 				cur_type = type_variable(id);
 			} else {
-				cur_type = type_id(id);
+				/* this is not a generic */
+				if (in(id->get_name(), ps.type_macros)) {
+					debug_above(7, log("checking whether type " c_id("%s") " expands...",
+								id->get_name().c_str()));
+
+					/* macro type expansion */
+					cur_type = ps.type_macros[id->get_name()];
+				} else {
+					/* we don't have a macro/type_name link for this type, so
+					 * let's assume it's in this module */
+					cur_type = type_id(reduce_ids({ps.module_id, id}, location));
+				}
 			}
 
 			types::type::refs arguments;
@@ -1537,10 +1546,39 @@ dimension::ref dimension::parse(parse_state_t &ps, identifier::set generics) {
 	return nullptr;
 }
 
+void add_type_macros_to_parser(
+		parse_state_t &ps,
+		std::vector<ptr<const ast::link_name>> linked_names)
+{
+	atom::set names_seen;
+	for (auto link_name : linked_names) {
+		atom local_name = {link_name->local_name.text};
+		if (in(local_name, ps.type_macros)) {
+			user_error(ps.status, link_name->local_name.location,
+					"you may not import multiple instances of the same name: " c_id("%s"),
+					link_name->local_name.text.c_str());
+		}
+
+		std::list<identifier::ref> ids;
+		ids.push_back(make_code_id(link_name->extern_module->get_name()));
+		ids.push_back(make_code_id(link_name->remote_name));
+		auto type_macro_expansion = type_id(reduce_ids(ids, link_name->remote_name.location));
+
+		debug_above(4, log("creating type macro " c_id("%s") " => %s",
+					local_name.c_str(),
+					type_macro_expansion->str().c_str()));
+		ps.type_macros.insert({local_name, type_macro_expansion});
+	}
+}
+
 ptr<module> module::parse(parse_state_t &ps, bool global) {
 	auto module_decl = module_decl::parse(ps);
 
-	if (module_decl) {
+	if (module_decl != nullptr) {
+		atom module_name = strip_zion_extension(ps.filename.str());
+		ps.module_id = make_iid(module_decl->get_canonical_name());
+		assert(ps.module_id != nullptr);
+
 		auto module = create<ast::module>(ps.token, ps.filename, global);
 		module->decl.swap(module_decl);
 
@@ -1557,10 +1595,12 @@ ptr<module> module::parse(parse_state_t &ps, bool global) {
 		}
 		
 		/* TODO: update the parser to contain the type maps from the link_names */
+		add_type_macros_to_parser(ps, module->linked_names);
 
 		// Get functions or type defs
 		while (!!ps.status) {
 			if (ps.token.tk == tk_lsquare || ps.token.tk == tk_def) {
+				/* function definitions */
 				auto function = function_defn::parse(ps);
 				if (function) {
 					module->functions.push_back(std::move(function));
@@ -1568,6 +1608,7 @@ ptr<module> module::parse(parse_state_t &ps, bool global) {
 					assert(!ps.status);
 				}
 			} else if (ps.token.tk == tk_tag) {
+				/* tags */
 				auto tag = tag::parse(ps);
 				if (tag) {
 					module->tags.push_back(std::move(tag));
@@ -1575,6 +1616,7 @@ ptr<module> module::parse(parse_state_t &ps, bool global) {
 					assert(!ps.status);
 				}
 			} else if (ps.token.tk == tk_type) {
+				/* type definitions */
 				auto type_def = type_def::parse(ps);
 				if (type_def != nullptr) {
 					module->type_defs.push_back(std::move(type_def));

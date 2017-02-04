@@ -282,6 +282,5 @@ types::type::ref get_function_type_context(types::type::ref function_type);
 types::type::ref get_function_return_type(types::type::ref function_type);
 types::type::pair make_type_pair(std::string fst, std::string snd, identifier::set generics);
 
-types::type::ref operator "" _ty(const char *value, size_t);
-types::type::ref parse_type_expr(std::string input, identifier::set generics);
+types::type::ref parse_type_expr(std::string input, identifier::set generics, identifier::ref module_id);
 bool get_type_variable_name(types::type::ref type, atom &name);

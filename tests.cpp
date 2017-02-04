@@ -939,22 +939,24 @@ auto test_descs = std::vector<test_desc>{
 		"test_parse_types",
 		[] () -> bool {
 			identifier::set generics = {make_iid("T"), make_iid("Q")};
+			auto module_id = make_iid("M");
+
 			auto parses = std::vector<std::pair<std::string, std::string>>{{
 				{"any a", "(any a)"},
 				{"any", "(any __1)"},
 				/* parsing type variables has monotonically increasing side effects */
 				{"any", "(any __1)"},
-				{"void", "void"},
-				{"map{int, int}", "map{int}{int}"},
-				{"map{any b, any c}", "map{(any b)}{(any c)}"},
+				{"void", "M/void"},
+				{"map{int, int}", "M/map{M/int}{M/int}"},
+				{"map{any b, any c}", "M/map{(any b)}{(any c)}"},
 				{"T", "(any T)"},
-				{"T{char, Q}", "(any T){char}{(any Q)}"},
-				{"map{T{int}, Q}", "map{(any T){int}}{(any Q)}"},
+				{"T{char, Q}", "(any T){M/char}{(any Q)}"},
+				{"map{T{int}, Q}", "M/map{(any T){M/int}}{(any Q)}"},
 			}};
 
 			for (auto p : parses) {
 				reset_generics();
-				auto repr = parse_type_expr(p.first, generics)->repr().str();
+				auto repr = parse_type_expr(p.first, generics, module_id)->repr().str();
 				if (repr != p.second) {
 					log(log_error, c_type("%s") " parsed to " c_type("%s")
 							" - should have been " c_type("%s"),
@@ -969,50 +971,14 @@ auto test_descs = std::vector<test_desc>{
 		}
 	},
 	{
-		"test_type_binding",
-		[] () -> bool {
-			identifier::set generics = {make_iid("T"), make_iid("Q")};
-			auto parses = std::vector<std::tuple<std::string, std::string>>{{
-				{"any a", "(any a)"},
-				{"any", "(any __1)"},
-				/* parsing type variables has monotonically increasing side effects */
-				{"any", "(any __1)"},
-				{"void", "void"},
-				{"map{int, int}", "map{int}{int}"},
-				{"map{any b, any c}", "map{(any b)}{(any c)}"},
-				{"T", "(any T)"},
-				{"T{char, Q}", "(any T){char}{(any Q)}"},
-				{"map{T{int}, Q}", "map{(any T){int}}{(any Q)}"},
-			}};
-
-			for (auto p : parses) {
-				reset_generics();
-				std::string input = std::get<0>(p);
-				std::string expect = std::get<1>(p);
-
-				auto type = parse_type_expr(input, generics);
-				auto evaluated = type->rebind({});
-				auto repr = evaluated->repr().str();
-				if (repr != expect) {
-					log(log_error, c_type("%s") " evaluated to " c_type("%s")
-							" - should have been " c_type("%s"),
-							input.c_str(),
-							repr.c_str(),
-							expect.c_str());
-					dbg();
-					return false;
-				}
-			}
-			return true;
-		}
-	},
-	{
 		"test_unification",
 		[] () -> bool {
 			type_struct({type_variable(INTERNAL_LOC()), type_id(make_iid("float"))}, {} /* name_index */, false);
 			identifier::set generics = {make_iid("Container"), make_iid("T")};
 			auto unifies = std::vector<types::type::pair>{{
-				types::type::pair{parse_type_expr("void", generics), type_id(make_iid("void"))},
+				types::type::pair{
+					parse_type_expr("void", generics, make_iid("foobar")),
+					   	type_id(make_iid("foobar/void"))},
 				make_type_pair("any", "float", generics),
 				make_type_pair("void", "void", generics),
 				make_type_pair("any a", "int", generics),

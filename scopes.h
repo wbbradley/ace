@@ -357,8 +357,7 @@ void scope_impl_t<T>::put_typename(status_t &status, atom name, types::type::ref
 				name.c_str(), expansion->str().c_str(),
 				this->name.c_str()));
 	if (typename_env.find(name) == typename_env.end()) {
-		// TODO: extend expansion to be fully-qualified
-		typename_env[name] = expansion;
+		// typename_env[name] = expansion;
 		if (auto parent_scope = get_parent_scope()) {
 			parent_scope->put_typename(status,
 				   	this->name.str() + SCOPE_SEP + name.str(),

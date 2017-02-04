@@ -159,7 +159,7 @@ ast::module::ref compiler::build_parse(
 				if (ifs.good()) {
 					debug_above(4, log(log_info, "parsing module \"%s\"", module_filename.c_str()));
 					zion_lexer_t lexer({module_filename}, ifs);
-					parse_state_t ps(status, module_filename, lexer, &comments);
+					parse_state_t ps(status, module_filename, lexer, type_macros, &comments);
 					auto module = ast::module::parse(ps, global);
 
 					/* parse may have succeeded, either way add this module to
@@ -263,6 +263,7 @@ const char *TYPEID_TYPE = "__typeid__";
 
 void add_global_types(
 		status_t &status,
+		compiler &compiler,
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
 		llvm::Module *llvm_module_gc)
@@ -379,6 +380,7 @@ void add_global_types(
 		if (!status) {
 			break;
 		}
+		compiler.type_macros[type_pair.first] = type_id(make_iid(type_pair.first));
 	}
 	debug_above(10, log(log_info, "%s", program_scope->str().c_str()));
 }
@@ -398,7 +400,7 @@ void add_globals(
 
 	/* set up the global scalar types, as well as memory reference and garbage
 	 * collection types */
-	add_global_types(status, builder, program_scope, llvm_module_gc);
+	add_global_types(status, compiler, builder, program_scope, llvm_module_gc);
 	assert(!!status);
 
 	/* lookup the types of bool and void pointer for use below */

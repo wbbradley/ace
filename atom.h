@@ -59,7 +59,7 @@ inline std::string operator +(const std::string &lhs, const atom rhs) {
 bool starts_with(atom atom_str, const std::string &search);
 
 template <typename U, typename COLL>
-bool in(U item, const COLL set) {
+bool in(U item, const COLL &set) {
 	return set.find(item) != set.end();
 }
 
