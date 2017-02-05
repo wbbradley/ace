@@ -260,8 +260,6 @@ bound_type_t::ref create_bound_id_type(
 	} else {
 		user_error(status, id->get_location(), "no type definition found for %s",
 				id->str().c_str());
-		scope->dump(std::cout);
-		dbg();
 	}
 	assert(!status);
 	return nullptr;

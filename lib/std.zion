@@ -73,6 +73,9 @@ type float has
 def float(x float) float
 	return x
 
+def float(x int) float
+	return float(__float__(x.raw))
+
 def str(x float) str
 	return str(__str__(x.raw))
 
@@ -228,6 +231,18 @@ def __lte__(x float, y int) bool
 def __gt__(x float, y int) bool
 	return bool(x.raw > __float__(y.raw))
 
+def __lt__(x float, y float) bool
+	return bool(x.raw < y.raw)
+
+def __gt__(x float, y float) bool
+	return bool(x.raw > y.raw)
+
+def __lte__(x float, y float) bool
+	return bool(x.raw <= y.raw)
+
+def __gte__(x float, y float) bool
+	return bool(x.raw >= y.raw)
+
 def __gte__(x float, y int) bool
 	return bool(x.raw >= __float__(y.raw))
 
@@ -259,12 +274,15 @@ def conj(maybe_list list{any T}?, item any T) list{any T}
 
 
 def str(l list{any T}?) str
-	s := "["
+	return "[" + join(l, ", ") + "]"
+
+def join(l [any T], delim str) str
+	s := ""
 	var seen_one __bool__ = __false__
 	while __true__
 		if node := l
 			if seen_one
-				s += ", "
+				s += delim
 			else
 				seen_one = __true__
 
@@ -272,5 +290,4 @@ def str(l list{any T}?) str
 			l = node.next
 		else
 			break
-
-	return s + "]"
+	return s

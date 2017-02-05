@@ -1288,6 +1288,10 @@ types::type::ref _parse_single_type(
 
 					/* macro type expansion */
 					cur_type = ps.type_macros[id->get_name()];
+				} else if (id->get_name().str().find(SCOPE_SEP_CHAR) != std::string::npos) {
+					/* if we're explicit about the type path, then let's just
+					 * use that as the id */
+					cur_type = type_id(id);
 				} else {
 					/* we don't have a macro/type_name link for this type, so
 					 * let's assume it's in this module */

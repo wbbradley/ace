@@ -20,6 +20,10 @@ def __times__(a Complex, b Complex) Complex
 	return Complex(a.real * b.real - a.imag * b.imag,
 		a.imag * b.real + a.real * b.imag)
 
+[module any]
+def __plus__(a Complex, b Complex) Complex
+	return Complex(a.real + b.real, a.imag + b.imag)
+
 def rounded_tenth(x int) int
 	return (x + 5) / 10
 
