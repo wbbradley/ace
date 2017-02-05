@@ -11,6 +11,7 @@
 
 extern const token_kind SCOPE_TK;
 extern const char *SCOPE_SEP;
+extern const char SCOPE_SEP_CHAR;
 extern const char *GLOBAL_ID;
 
 struct scope_t;
@@ -54,6 +55,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	 * symbol parameter */
 	virtual void get_callables(atom symbol, var_t::refs &fns) = 0;
 	ptr<module_scope_t> get_module_scope();
+	ptr<const module_scope_t> get_module_scope() const;
 
 	virtual bound_var_t::ref get_singleton(atom name) = 0;
 
@@ -80,11 +82,11 @@ struct scope_impl_t : public BASE {
 	scope_impl_t(const scope_impl_t &scope) = delete;
 
 	virtual atom get_leaf_name() const {
-		return name;
+		return scope_name;
 	}
 
 	scope_impl_t(atom name, ptr<scope_t> parent_scope) :
-        name(name),
+        scope_name(name),
 		parent_scope(parent_scope) {}
 
 	ptr<function_scope_t> new_function_scope(atom name);
@@ -109,7 +111,7 @@ struct scope_impl_t : public BASE {
 	virtual types::type::ref get_inbound_context();
 
 protected:
-	atom name;
+	atom scope_name;
 
 	ref parent_scope;
 	bound_var_t::map bound_vars;
@@ -352,25 +354,34 @@ ptr<program_scope_t> scope_impl_t<T>::get_program_scope() {
 }
 
 template <typename T>
-void scope_impl_t<T>::put_typename(status_t &status, atom name, types::type::ref expansion) {
-	debug_above(2, log(log_info, "registering typename " c_type("%s") " as %s in scope " c_id("%s"),
-				name.c_str(), expansion->str().c_str(),
-				this->name.c_str()));
-	if (typename_env.find(name) == typename_env.end()) {
+void scope_impl_t<T>::put_typename(status_t &status, atom type_name, types::type::ref expansion) {
+#ifdef DEBUG
+	/* make sure that all type_names come in fully qualified */
+	int slash_count = 0;
+	for (auto ch : type_name.str()) {
+		if (ch == SCOPE_SEP_CHAR) {
+			++slash_count;
+		}
+	}
+	assert(slash_count == 1);
+#endif
+
+	if (typename_env.find(type_name) == typename_env.end()) {
 		if (auto parent_scope = get_parent_scope()) {
-			parent_scope->put_typename(status,
-				   	this->name.str() + SCOPE_SEP + name.str(),
-					expansion);
+			parent_scope->put_typename(status, type_name.str(), expansion);
 		} else {
 			/* we are at the outermost scope, let's go ahead and register this
 			 * typename */
 			assert(dynamic_cast<program_scope_t *>(this));
-			typename_env[name] = expansion;
+			debug_above(2, log(log_info, "registering typename " c_type("%s") " as %s in scope " c_id("%s"),
+						type_name.c_str(), expansion->str().c_str(),
+						this->scope_name.c_str()));
+			typename_env[type_name] = expansion;
 		}
 	} else {
 		user_error(status, expansion->get_location(),
 				"multiple supertypes are not yet implemented (" c_type("%s") " <: " c_type("%s") ")",
-				name.c_str(), expansion->str().c_str());
+				type_name.c_str(), expansion->str().c_str());
 	}
 }
 
@@ -557,20 +568,22 @@ bound_var_t::ref scope_impl_t<T>::get_bound_variable(
 
 template <typename T>
 std::string scope_impl_t<T>::make_fqn(std::string leaf_name) const {
-	return this->get_name() + SCOPE_SEP + leaf_name;
+	assert(leaf_name.find("/") == -1);
+	if (auto module_scope = this->get_module_scope()) {
+		return module_scope->get_leaf_name().str() + SCOPE_SEP + leaf_name;
+	} else {
+		assert(false);
+		return leaf_name;
+	}
 }
 
 bound_type_t::ref get_bound_type_from_scope(
 		types::signature signature,
-		std::string fqn_signature,
-		program_scope_t::ref program_scope,
-	   	scope_t::ref parent_scope);
+		program_scope_t::ref program_scope);
 
 template <typename T>
 bound_type_t::ref scope_impl_t<T>::get_bound_type(types::signature signature) {
-	return get_bound_type_from_scope(signature,
-			this->make_fqn(signature.repr().str()), get_program_scope(),
-			this->get_parent_scope());
+	return get_bound_type_from_scope(signature, this->get_program_scope());
 }
 
 void get_callables_from_bound_vars(

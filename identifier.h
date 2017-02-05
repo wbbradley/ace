@@ -4,6 +4,7 @@
 #include "location.h"
 #include <vector>
 #include <set>
+#include <list>
 
 /* the abstract notion of an identifer */
 struct identifier {
@@ -43,7 +44,7 @@ identifier::ref make_iid_impl(const char *name, struct location location);
 
 identifier::set to_set(identifier::refs identifiers);
 
-#define make_iid(name) make_iid_impl(name, location{__FILE__, __LINE__, 1})
+#define make_iid(name_) make_iid_impl(name_, location{__FILE__, __LINE__, 1})
 
 namespace std {
 	template <>
@@ -56,3 +57,4 @@ namespace std {
 
 atom::set to_atom_set(const identifier::refs &refs);
 identifier::set to_identifier_set(const identifier::refs &refs);
+identifier::ref reduce_ids(std::list<identifier::ref> ids, struct location location);

@@ -5,7 +5,7 @@
 #include "utils.h"
 #include "identifier.h"
 
-extern const char *BUILTIN_LIST_TYPE;
+extern const char *STD_LIST_TYPE;
 extern const char *BUILTIN_VOID_TYPE;
 extern const char *BUILTIN_UNREACHABLE_TYPE;
 

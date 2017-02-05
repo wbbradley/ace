@@ -1,5 +1,5 @@
 module _
-link external to module test_external
+link module test_external as external
 # test: pass
 
 
@@ -8,8 +8,8 @@ type List{DataType} has
 	var next List{DataType}
 
 type Pair{A, B} has
-	A
-	B
+	var a A
+	var b B
 
 def main()
 	external.cool()

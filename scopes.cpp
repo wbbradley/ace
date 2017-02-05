@@ -8,9 +8,10 @@
 #include "llvm_types.h"
 #include "unification.h"
 
-const char *GLOBAL_ID = "🌐 ";
+const char *GLOBAL_ID = "_";
 const token_kind SCOPE_TK = tk_divide_by;
 const char *SCOPE_SEP = "/";
+const char SCOPE_SEP_CHAR = '/';
 
 types::type::ref module_scope_impl_t::get_inbound_context() {
 	return inbound_context;
@@ -57,23 +58,20 @@ bound_var_t::ref get_bound_variable_from_scope(
 
 bound_type_t::ref get_bound_type_from_scope(
 		types::signature signature,
-		std::string fqn_signature,
-		program_scope_t::ref program_scope,
-	   	scope_t::ref parent_scope)
+		program_scope_t::ref program_scope)
 {
-	indent_logger indent(9, string_format("checking whether %s is bound...",
+	indent_logger indent(8, string_format("checking whether %s is bound...",
 				signature.str().c_str()));
-	auto full_signature = types::signature{fqn_signature};
-	auto bound_type = program_scope->get_bound_type(full_signature);
+	auto bound_type = program_scope->get_bound_type(signature);
 	if (bound_type != nullptr) {
-		debug_above(9, log(log_info, "yep. %s is bound to %s",
+		debug_above(8, log(log_info, "yep. %s is bound to %s",
 					signature.str().c_str(),
 					bound_type->str().c_str()));
 		return bound_type;
 	} else {
-		debug_above(9, log(log_info, "nope. %s is not yet bound",
+		debug_above(8, log(log_info, "nope. %s is not yet bound",
 					signature.str().c_str()));
-		return parent_scope->get_bound_type(signature);
+		return nullptr;
 	}
 }
 
@@ -92,6 +90,19 @@ ptr<program_scope_t> program_scope_t::get_program_scope() {
 
 ptr<module_scope_t> scope_t::get_module_scope() {
 	if (auto module_scope = dyncast<module_scope_t>(shared_from_this())) {
+		return module_scope;
+	} else {
+		auto parent_scope = get_parent_scope();
+		if (parent_scope != nullptr) {
+			return parent_scope->get_module_scope();
+		} else {
+			return nullptr;
+		}
+	}
+}
+
+ptr<const module_scope_t> scope_t::get_module_scope() const {
+	if (auto module_scope = dyncast<const module_scope_t>(shared_from_this())) {
 		return module_scope;
 	} else {
 		auto parent_scope = get_parent_scope();
@@ -371,7 +382,7 @@ void dump_type_map(std::ostream &os, types::type::map env, std::string desc) {
 }
 
 void program_scope_t::dump(std::ostream &os) const {
-	os << std::endl << "PROGRAM SCOPE: " << name << std::endl;
+	os << std::endl << "PROGRAM SCOPE: " << scope_name << std::endl;
 	dump_bindings(os, bound_vars, bound_types);
 	dump_bindings(os, unchecked_vars);
 	dump_bindings(os, unchecked_types);
@@ -380,7 +391,7 @@ void program_scope_t::dump(std::ostream &os) const {
 }
 
 void module_scope_impl_t::dump(std::ostream &os) const {
-	os << std::endl << "MODULE SCOPE: " << name << std::endl;
+	os << std::endl << "MODULE SCOPE: " << scope_name << std::endl;
 	dump_bindings(os, bound_vars, {});
 	dump_bindings(os, unchecked_types);
 	dump_type_map(os, typename_env, "MODULE TYPENAME ENV");
@@ -389,7 +400,7 @@ void module_scope_impl_t::dump(std::ostream &os) const {
 }
 
 void function_scope_t::dump(std::ostream &os) const {
-	os << std::endl << "FUNCTION SCOPE: " << name << std::endl;
+	os << std::endl << "FUNCTION SCOPE: " << scope_name << std::endl;
 	dump_bindings(os, bound_vars, {});
 	dump_type_map(os, typename_env, "FUNCTION TYPENAME ENV");
 	dump_type_map(os, type_variable_bindings, "FUNCTION TYPE VARIABLE BINDINGS");
@@ -397,7 +408,7 @@ void function_scope_t::dump(std::ostream &os) const {
 }
 
 void local_scope_t::dump(std::ostream &os) const {
-	os << std::endl << "LOCAL SCOPE: " << name << std::endl;
+	os << std::endl << "LOCAL SCOPE: " << scope_name << std::endl;
 	dump_bindings(os, bound_vars, {});
 	dump_type_map(os, typename_env, "LOCAL TYPENAME ENV");
 	dump_type_map(os, type_variable_bindings, "LOCAL TYPE VARIABLE BINDINGS");
@@ -413,7 +424,7 @@ generic_substitution_scope_t::generic_substitution_scope_t(
 }
 
 void generic_substitution_scope_t::dump(std::ostream &os) const {
-	os << std::endl << "GENERIC SUBSTITUTION SCOPE: " << name << std::endl;
+	os << std::endl << "GENERIC SUBSTITUTION SCOPE: " << scope_name << std::endl;
 	os << "For Callee Signature: " << callee_signature->str() << std::endl;
 	dump_bindings(os, bound_vars, {});
 	dump_type_map(os, typename_env, "GENERIC SUBSTITUTION TYPENAME ENV");
@@ -459,7 +470,8 @@ void module_scope_impl_t::put_unchecked_type(
 		status_t &status,
 		unchecked_type_t::ref unchecked_type)
 {
-	debug_above(6, log(log_info, "registering an unchecked type %s as %s",
+	assert(unchecked_type->name.str().find("/") != -1);
+	debug_above(6, log(log_info, "registering an unchecked type %s",
 				unchecked_type->str().c_str()));
 
 	auto unchecked_type_iter = unchecked_types.find(unchecked_type->name);

@@ -3,19 +3,8 @@ module _
 
 type Node{T} has
 	var value T
-	var next List{T}
-
-tag Done
-
-type List{X} is
-	Node{X} or
-	Done
-
-# def print(l List{any X})
-# pass
+	var next [T]
 
 def main()
-	n1 := Node(6, Done)
-	n2 := Node(4, n1)
-
-	
+	n1 := Node(6, nil)
+	n2 := Node(4, n1.next)

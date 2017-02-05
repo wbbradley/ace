@@ -1612,9 +1612,10 @@ bound_var_t::ref ast::tag::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool * /*returns*/) const
 {
-	auto id = make_code_id(token);
-	atom tag_name = id->get_name();
-	auto tag_type = type_id(id);
+	atom tag_name = token.text;
+	auto qualified_id = make_iid_impl(scope->make_fqn(token.text), token.location);
+
+	auto tag_type = type_id(qualified_id);
 
 	/* it's a nullary enumeration or "tag", let's create a global value to
 	 * represent this tag. */
@@ -1623,14 +1624,14 @@ bound_var_t::ref ast::tag::resolve_instantiation(
 		/* start by making a type for the tag */
 		bound_type_t::ref bound_tag_type = bound_type_t::create(
 				tag_type,
-				id->get_location(),
+				token.location,
 				/* all tags use the var_t* type */
 				scope->get_program_scope()->get_bound_type({"__var_ref"})->get_llvm_type());
 
 		scope->get_program_scope()->put_bound_type(status, bound_tag_type);
 		if (!!status) {
 			bound_var_t::ref tag = llvm_create_global_tag(
-					builder, scope, bound_tag_type, tag_name, id);
+					builder, scope, bound_tag_type, tag_name, make_code_id(token));
 
 			/* record this tag variable for use later */
 			scope->put_bound_variable(status, tag_name, tag);
@@ -2509,7 +2510,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 					status,
 					builder,
 					scope,
-					type_id(make_iid("int")));
+					type_id(make_iid("std/int")));
 			if (!!status) {
 				assert(boxed_type != nullptr);
 				bound_var_t::ref box_int = get_callable(
@@ -2547,7 +2548,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 					status,
 					builder,
 					scope,
-					type_id(make_iid("str")));
+					type_id(make_iid("std/str")));
 
 			if (!!status) {
 				assert(boxed_type != nullptr);
@@ -2585,7 +2586,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 					status,
 					builder,
 					scope,
-					type_id(make_iid("float")));
+					type_id(make_iid("std/float")));
 			if (!!status) {
 				assert(boxed_type != nullptr);
 				bound_var_t::ref box_float = get_callable(

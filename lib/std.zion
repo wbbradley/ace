@@ -234,42 +234,42 @@ def __gte__(x float, y int) bool
 def print(x any) void
 	posix.puts(str(x).raw)
 
-type List{T} has
+type list{T} has
 	var value T
-	var next List{T}?
+	var next list{T}?
 
-def nth(list List{any T}?, index int) any T?
-	if list
+def nth(l list{any T}?, index int) any T?
+	if l
 		if index == 0
-			return list.value
+			return l.value
 		else
-			return nth(list.next, index - 1)
+			return nth(l.next, index - 1)
 
 	return nil
 
-def len(list List{any T}?) int
-	if list
-		return len(list.next) + 1
+def len(l list{any T}?) int
+	if l
+		return len(l.next) + 1
 	return 0
 
-def conj(maybe_list List{any T}?, item any T) List{any T}
-	if list := maybe_list
-		return List(item, list)
-	return List(item, nil)
+def conj(maybe_list list{any T}?, item any T) list{any T}
+	if l := maybe_list
+		return list(item, l)
+	return list(item, nil)
 
 
-def str(list List{any T}?) str
+def str(l list{any T}?) str
 	s := "["
 	var seen_one __bool__ = __false__
 	while __true__
-		if node := list
+		if node := l
 			if seen_one
 				s += ", "
 			else
 				seen_one = __true__
 
 			s += str(node.value)
-			list = node.next
+			l = node.next
 		else
 			break
 

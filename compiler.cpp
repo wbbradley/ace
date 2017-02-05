@@ -35,7 +35,7 @@ compiler::compiler(std::string program_name_, const libs &zion_paths) :
 		}
 	}
 
-	program_scope = program_scope_t::create("program", llvm_create_module(program_name_ + ".global"));
+	program_scope = program_scope_t::create("std", llvm_create_module(program_name_ + ".global"));
 }
 
 void compiler::info(const char *format, ...) {
@@ -164,9 +164,6 @@ ast::module::ref compiler::build_parse(
 
 					assert_implies(global, global_type_macros.size() == base_type_macros.size());
 
-					parse_state_t ps(status, module_filename, lexer, global_type_macros, &comments);
-					auto module = ast::module::parse(ps, global);
-
 					if (global) {
 						/* add std types to type_macros to ensure they are not
 						 * rewritten by modules */
@@ -178,15 +175,18 @@ ast::module::ref compiler::build_parse(
 							"str",
 							"float",
 							"TypeID",
-							"List",
+							"list",
 						};
 
 						for (auto std_type : std_types) {
 							assert(global_type_macros.find(std_type) == global_type_macros.end());
 							atom new_name = std::string("std/") + std_type;
-							global_type_macros[std_type] = type_id(make_iid(new_name));
+							global_type_macros.insert({std_type, type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
 						}
 					}
+
+					parse_state_t ps(status, module_filename, lexer, global_type_macros, &comments);
+					auto module = ast::module::parse(ps, global);
 
 					/* parse may have succeeded, either way add this module to
 					 * our list of modules */

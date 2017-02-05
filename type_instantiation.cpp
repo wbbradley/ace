@@ -70,6 +70,9 @@ bound_var_t::ref bind_ctor_to_scope(
 		ast::item::ref node,
 		types::type_function::ref function)
 {
+	assert(!!status);
+	assert(id != nullptr);
+	assert(function != nullptr);
 	bool is_instantiation = bool(dyncast<generic_substitution_scope_t>(scope));
 	assert(is_instantiation);
 	/* create or find an existing ctor function that satisfies the term of
@@ -113,6 +116,64 @@ bound_var_t::ref bind_ctor_to_scope(
 	return nullptr;
 }
 
+void get_generics_and_lambda_vars(
+		status_t &status,
+	   	types::type::ref subtype,
+		identifier::refs type_variables,
+	   	scope_t::ref scope,
+		std::list<identifier::ref> &lambda_vars,
+		atom::set &generics)
+{
+	assert(generics.size() == 0);
+	assert(lambda_vars.size() == 0);
+	debug_above(5, log(log_info, "get_generics_and_lambda_vars(%s, %s)",
+				subtype->str().c_str(),
+				::str(type_variables).c_str()));
+
+	/* create a type that takes the used type variables in the data ctor and
+	 * returns placement in given type variable order */
+	/* instantiate the necessary components of a data ctor */
+	generics = to_atom_set(type_variables);
+
+	/* ensure that there are no duplicate type variables */
+	if (generics.size() != type_variables.size()) {
+		/* this is a fail because there are some reused type variables, find
+		 * them and report on them */
+		atom::set seen;
+		for (auto type_variable : type_variables) {
+			atom name = type_variable->get_name();
+			if (seen.find(name) == seen.end()) {
+				seen.insert(name);
+			} else {
+				user_error(status, type_variable->get_location(),
+						"found duplicate type variable " c_id("%s"),
+						name.c_str());
+			}
+		}
+	} else {
+		debug_above(5, log(log_info,
+				   	"getting lambda_vars for value type %s",
+					subtype->str().c_str()));
+
+		/* if any of the type names are actually inbound type variables, take
+		 * note of the order they are mentioned. tell us how to create the
+		 * lambda we'll place into the type environment to represent the fact
+		 * that this data ctor is a subtype of the supertype. and, tell us which
+		 * types are parametrically bound to this subtype, and which are still
+		 * quantified */
+
+		atom::set unbound_vars = subtype->get_ftvs();
+		for (auto type_var : type_variables) {
+			if (in(type_var->get_name(), unbound_vars)) {
+				/* this variable is referenced by the current data ctor (the
+				 * subtype), therefore it has opinions about its role in the
+				 * supertype */
+				lambda_vars.push_front(type_var);
+			}
+		}
+	}
+}
+
 types::type::ref instantiate_data_ctor_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -123,11 +184,13 @@ types::type::ref instantiate_data_ctor_type(
 		identifier::ref id,
 		identifier::ref supertype_id)
 {
+	auto qualified_id = make_iid_impl(scope->make_fqn(id->get_name().str()), id->get_location());
+
 	/* get the name of the ctor */
 	atom tag_name = id->get_name();
 
 	/* create the tag type */
-	auto tag_type = type_id(id);
+	auto tag_type = type_id(qualified_id);
 
 	/* create the basic struct type */
 	ptr<const types::type_struct> struct_ = dyncast<const types::type_struct>(unbound_type);
@@ -138,9 +201,8 @@ types::type::ref instantiate_data_ctor_type(
 	std::list<identifier::ref> lambda_vars;
 	atom::set generics;
 
-	// TODO: examine whether this is necessary anymore
-	create_supertype_relationship(status, struct_, id, supertype_id,
-			type_variables, scope, lambda_vars, generics);
+	get_generics_and_lambda_vars(status, struct_, type_variables, scope,
+			lambda_vars, generics);
 
 	if (!status) {
 		return nullptr;
@@ -261,7 +323,7 @@ void ast::type_product::register_type(
 				/* register the typename in the current environment */
 				debug_above(7, log(log_info, "registering type " c_type("%s") " in scope %s",
 							name.c_str(), scope->get_name().c_str()));
-				scope->put_typename(status, name, data_ctor_type);
+				scope->put_typename(status, scope->make_fqn(name.str()), data_ctor_type);
 
 				/* success */
 				return;
@@ -278,101 +340,10 @@ void ast::type_product::register_type(
 	assert(!status);
 }
 
-void create_supertype_relationship(
-		status_t &status,
-	   	types::type::ref subtype,
-		identifier::ref subtype_id,
-		identifier::ref supertype_id,
-		identifier::refs type_variables,
-	   	scope_t::ref scope,
-		std::list<identifier::ref> &lambda_vars,
-		atom::set &generics)
-{
-	assert(generics.size() == 0);
-	assert(lambda_vars.size() == 0);
-	debug_above(5, log(log_info, "create_supertype_relationship(%s, %s, %s)",
-				subtype->str().c_str(),
-				(supertype_id != nullptr) ? supertype_id->str().c_str() : "<no supertype>",
-				::str(type_variables).c_str()));
-
-	/* create a type that takes the used type variables in the data ctor and
-	 * returns placement in given type variable order */
-	/* instantiate the necessary components of a data ctor */
-	generics = to_atom_set(type_variables);
-
-	/* ensure that there are no duplicate type variables */
-	if (generics.size() != type_variables.size()) {
-		/* this is a fail because there are some reused type variables, find
-		 * them and report on them */
-		atom::set seen;
-		for (auto type_variable : type_variables) {
-			atom name = type_variable->get_name();
-			if (seen.find(name) == seen.end()) {
-				seen.insert(name);
-			} else {
-				user_error(status, type_variable->get_location(),
-						"found duplicate type variable " c_id("%s"),
-						name.c_str());
-			}
-		}
-	} else {
-		atom tag_name = subtype_id->get_name();
-		assert(!!tag_name);
-
-		debug_above(5, log(log_info,
-				   	"setting up data ctor for " c_id("%s") " with value type %s",
-					tag_name.c_str(), subtype->str().c_str()));
-
-		/* figure out what type names are referenced in the data ctor's dimensions */
-		atom::set unbound_vars = subtype->get_ftvs();
-
-		/* if any of the type names are actually inbound type variables, take
-		 * note of the order they are mentioned. this loop is important. it is
-		 * calculating what this data ctor's supertype expansion will be. that
-		 * is, it tells us how to create the lambda we'll place into the type
-		 * environment to represent the fact that this data ctor is a subtype
-		 * of the supertype. and, it tells us which types are parametrically
-		 * bound to this subtype, and which are still quantified */
-
-		/* supertype_expansion_list tracks the total set of parameters that the
-		 * supertype expects */
-		types::type::refs supertype_expansion_list;
-
-		for (auto type_var : type_variables) {
-			if (in(type_var->get_name(), unbound_vars)) {
-				/* this variable is referenced by the current data ctor (the
-				 * subtype), therefore it has opinions about its role in the
-				 * supertype */
-				lambda_vars.push_front(type_var);
-				supertype_expansion_list.push_back(type_id(type_var));
-			} else {
-				/* this variable is not referenced by the current data ctor
-				 * (the subtype), therefore it has no opinions about its role
-				 * in the supertype */
-				supertype_expansion_list.push_back(type_variable(type_var->get_location()));
-			}
-		}
-
-		if (supertype_id != nullptr) {
-			/* now let's create the abstraction */
-			auto supertype_expansion = type_id(supertype_id);
-			for (auto e : supertype_expansion_list) {
-				supertype_expansion = type_operator(supertype_expansion, e);
-			}
-			for (auto lambda_var : lambda_vars) {
-                supertype_expansion = type_lambda(lambda_var,
-                        supertype_expansion);
-			}
-			// dbg();
-			//scope->put_type(status, tag_name, supertype_expansion);
-		}
-	}
-}
-
 void ast::type_sum::register_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		identifier::ref supertype_id,
+		identifier::ref id,
 		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
@@ -380,5 +351,5 @@ void ast::type_sum::register_type(
 				token.text.c_str(),
 				join(type_variables, ", ").c_str()));
 
-	scope->put_typename(status, supertype_id->get_name(), type);
+	scope->put_typename(status, scope->make_fqn(id->get_name().str()), type);
 }

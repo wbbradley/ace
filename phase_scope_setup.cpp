@@ -41,10 +41,12 @@ void scope_setup_type_def(
 	   	const ast::type_def &obj,
 	   	ptr<module_scope_t> module_scope)
 {
+	assert(obj.token.text.find("/") == -1);
 	assert(obj.token.text.size() != 0);
+	atom fqn_name = module_scope->make_fqn(obj.token.text);
 	module_scope->put_unchecked_type(
 			status,
-			unchecked_type_t::create({obj.token.text}, obj.shared_from_this(), module_scope));
+			unchecked_type_t::create(fqn_name, obj.shared_from_this(), module_scope));
 }
 
 void scope_setup_tag(
@@ -52,10 +54,12 @@ void scope_setup_tag(
 	   	const ast::tag &obj,
 	   	ptr<module_scope_t> module_scope)
 {
+	assert(obj.token.text.find("/") == -1);
 	assert(obj.token.text.size() != 0);
+	atom fqn_name = module_scope->make_fqn(obj.token.text);
 	module_scope->put_unchecked_type(
 			status,
-			unchecked_type_t::create({obj.token.text}, obj.shared_from_this(), module_scope));
+			unchecked_type_t::create(fqn_name, obj.shared_from_this(), module_scope));
 }
 
 status_t scope_setup_module(compiler &compiler, const ast::module &obj) {

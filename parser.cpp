@@ -1272,6 +1272,9 @@ types::type::ref _parse_single_type(
 			/* reduce the type-path to a single simplified id */
 			identifier::ref id = reduce_ids(ids, location);
 
+			debug_above(9, log("checking what " c_id("%s") " is",
+						id->str().c_str()));
+
 			/* stash the identifier */
 			if (generics.find(id) != generics.end()) {
 				/* this type is marked as definitely unbound - aka generic. let's
@@ -1280,7 +1283,7 @@ types::type::ref _parse_single_type(
 			} else {
 				/* this is not a generic */
 				if (in(id->get_name(), ps.type_macros)) {
-					debug_above(7, log("checking whether type " c_id("%s") " expands...",
+					debug_above(9, log("checking whether type " c_id("%s") " expands...",
 								id->get_name().c_str()));
 
 					/* macro type expansion */
@@ -1289,6 +1292,9 @@ types::type::ref _parse_single_type(
 					/* we don't have a macro/type_name link for this type, so
 					 * let's assume it's in this module */
 					cur_type = type_id(reduce_ids({ps.module_id, id}, location));
+					debug_above(9, log("transformed " c_id("%s") " to " c_id("%s"),
+								id->get_name().c_str(),
+								cur_type->str().c_str()));
 				}
 			}
 
@@ -1572,6 +1578,12 @@ void add_type_macros_to_parser(
 }
 
 ptr<module> module::parse(parse_state_t &ps, bool global) {
+	debug_above(6, log("about to parse %s with type_macros: [%s]",
+				ps.filename.str().c_str(),
+				join_with(ps.type_macros, ", ", [] (type_macros_t::value_type v) -> std::string {
+					return v.first.str() + ": " + v.second->str();
+				}).c_str()));
+
 	auto module_decl = module_decl::parse(ps);
 
 	if (module_decl != nullptr) {

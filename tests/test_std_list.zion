@@ -2,5 +2,5 @@ module _
 # test: pass
 
 def main()
-	l := List(3, List(2, nil))
+	l := list(3, list(2, nil))
 	print(len(l))

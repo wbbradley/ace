@@ -1,6 +1,6 @@
 module _
 
 def main()
-	# error: unable to resolve overloads for List
-	l := List(3, List("hello", nil))
+	# error: unable to resolve overloads for list
+	l := list(3, list("hello", nil))
 	print(len(l))

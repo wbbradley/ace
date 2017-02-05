@@ -44,7 +44,7 @@ def check(solutions, row, n) [[Pos]]
 	while col < n
 		var result [[Pos]]
 		if solutions == nil
-			result = List(List(Pos(col, row), nil), nil)
+			result = list(list(Pos(col, row), nil), nil)
 		else
 			result = append_if_not_under_attack(new_solutions, col, row, solutions)
 		new_solutions = result

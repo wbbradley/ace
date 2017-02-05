@@ -9,12 +9,12 @@ tag Done
 
 type ListNode is Data or Done
 
-type List has
+type HList has
 	var l ListNode
 
-def __getitem__(l List, index int) int
+def __getitem__(l HList, index int) int
 	return 42
 
 def main()
-	l := List(Data(12, Done))
+	l := HList(Data(12, Done))
 	l.l

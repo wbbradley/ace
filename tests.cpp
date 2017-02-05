@@ -1173,7 +1173,11 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 		log(log_warning, c_warn("%d TESTS SKIPPED"), skipped);
 	}
 	if (success) {
-		log(log_info, c_good("====== %d TESTS PASSED ======"), pass);
+		if (pass != 0) {
+			log(log_info, c_good("====== %d TESTS PASSED ======"), pass);
+		} else {
+			log(log_warning, c_warn("====== NO TESTS WERE RUN ======"), pass);
+		}
 	} else {
 		log(log_error, "====== %d/%d TESTS PASSED (" c_error("%d failures") ", " c_warn("%d skipped") ") ======",
 			   	pass, total, total - pass, skipped);

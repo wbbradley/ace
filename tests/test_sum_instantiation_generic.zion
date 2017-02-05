@@ -3,7 +3,7 @@ module _
 type Box{T} has
 	var t T
 
-# error: type Box already exists
+# error: type .*/Box already exists
 type Box{X} is Box{X}
 
 def main()
