@@ -289,6 +289,14 @@ namespace ast {
 		rs.ss << ")";
 	}
 
+	void ternary_expr::render(render_state_t &rs) const {
+		condition->render(rs);
+		rs.ss << " ? ";
+		when_true->render(rs);
+		rs.ss << " : ";
+		when_false->render(rs);
+	}
+
 	void and_expr::render(render_state_t &rs) const {
 		rs.ss << "(";
 

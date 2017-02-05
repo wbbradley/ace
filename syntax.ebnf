@@ -51,9 +51,10 @@ var_decl       ::= identifier (type_ref)?
 var_decl_init  ::= var_decl ('=' expr)?
 
 expr           ::= assignment
-assignment     ::= or_expr (( '=' | ':=' | '+=' | '-=' | '\*=' | '/=' | '%=' ) or_expr)?
+assignment     ::= ternary_expr (( '=' | ':=' | '+=' | '-=' | '\*=' | '/=' | '%=' ) ternary_expr)?
 
-tuple_expr     ::= or_expr ( ',' | ( ',' or_expr )* )
+tuple_expr     ::= ternary_expr ( ',' | ( ',' ternary_expr )* )
+ternary_expr   ::= or_expr ( '?' or_expr ':' or_expr )
 or_expr        ::= and_expr ( 'or' and_expr )*
 and_expr       ::= eq_expr ( 'and' eq_expr )*
 

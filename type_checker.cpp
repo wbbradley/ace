@@ -913,6 +913,16 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 	return nullptr;
 }
 
+bound_var_t::ref ast::ternary_expr::resolve_instantiation(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref block_scope,
+		local_scope_t::ref *new_scope,
+		bool *returns) const
+{
+	return null_impl();
+}
+
 bound_var_t::ref ast::or_expr::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,

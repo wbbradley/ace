@@ -756,6 +756,22 @@ namespace ast {
 		std::vector<ptr<ast::expression>> values;
 	};
 
+	struct ternary_expr : public expression {
+		typedef ptr<const ternary_expr> ref;
+
+		static const syntax_kind_t SK = sk_ternary_expr;
+		static ptr<ast::expression> parse(parse_state_t &ps);
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
+		virtual void render(render_state_t &rs) const;
+
+		ptr<ast::expression> condition, when_true, when_false;
+	};
+
 	struct or_expr : public expression {
 		typedef ptr<const or_expr> ref;
 

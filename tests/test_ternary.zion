@@ -1,0 +1,5 @@
+module _
+
+def main()
+	x := true ? 12 : 34
+	print(x)

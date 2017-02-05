@@ -594,7 +594,7 @@ ptr<expression> and_expr::parse(parse_state_t &ps) {
 ptr<expression> tuple_expr::parse(parse_state_t &ps) {
 	auto start_token = ps.token;
 	chomp_token(tk_lparen);
-	auto expr = or_expr::parse(ps);
+	auto expr = expression::parse(ps);
 	if (ps.token.tk != tk_comma) {
 		chomp_token(tk_rparen);
 		return expr;
@@ -609,7 +609,7 @@ ptr<expression> tuple_expr::parse(parse_state_t &ps) {
 
 		/* now let's find the rest of the values */
 		while (ps.token.tk != tk_rparen) {
-			expr = or_expr::parse(ps);
+			expr = expression::parse(ps);
 			if (expr) {
 				tuple_expr->values.push_back(expr);
 				if (ps.token.tk == tk_comma) {
@@ -657,8 +657,37 @@ ptr<expression> or_expr::parse(parse_state_t &ps) {
 	return expr;
 }
 
+ptr<expression> ternary_expr::parse(parse_state_t &ps) {
+	auto condition = or_expr::parse(ps);
+	if (!!ps.status) {
+		if (ps.token.tk == tk_maybe) {
+			ps.advance();
+			// TODO: handle a ?? b form
+
+			auto truthy_expr = or_expr::parse(ps);
+			if (!!ps.status) {
+				expect_token(tk_colon);
+				ps.advance();
+				auto falsey_expr = or_expr::parse(ps);
+				if (!!ps.status) {
+					auto ternary = ast::create<ternary_expr>(condition->token);
+					ternary->condition = condition;
+					ternary->when_true = truthy_expr;
+					ternary->when_false = falsey_expr;
+					return ternary;
+				}
+			}
+		} else {
+			return condition;
+		}
+	}
+
+	assert(!ps.status);
+	return nullptr;
+}
+
 ptr<expression> expression::parse(parse_state_t &ps) {
-	return or_expr::parse(ps);
+	return ternary_expr::parse(ps);
 }
 
 ptr<expression> assignment::parse(parse_state_t &ps) {
@@ -693,7 +722,7 @@ ptr<expression> assignment::parse(parse_state_t &ps) {
 				auto var_decl = create<ast::var_decl>(lhs->token);
 				var_decl->type = type_variable(lhs->token.location);
 				chomp_token(tk_becomes);
-				auto initializer = or_expr::parse(ps);
+				auto initializer = expression::parse(ps);
 				if (initializer) {
 					var_decl->initializer.swap(initializer);
 					return var_decl;
