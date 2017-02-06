@@ -913,14 +913,209 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 	return nullptr;
 }
 
+llvm::Value *get_raw_condition_value(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		ast::item::ref condition,
+		bound_var_t::ref condition_value)
+{
+	if (condition_value->is_int()) {
+		return llvm_resolve_alloca(builder, condition_value->llvm_value);
+	} else if (condition_value->is_pointer()) {
+		return llvm_resolve_alloca(builder, condition_value->llvm_value);
+	} else {
+		user_error(status, condition->get_location(), "unknown basic type: %s",
+				condition_value->str().c_str());
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
+llvm::Value *maybe_get_bool_overload_value(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		ast::item::ref condition,
+		bound_var_t::ref condition_value)
+{
+	llvm::Value *llvm_condition_value = nullptr;
+	// TODO: check whether we are checking a raw value or not
+
+	debug_above(2, log(log_info,
+				"attempting to resolve a " c_var("%s") " override if condition %s, ",
+				BOOL_TYPE,
+				condition->str().c_str()));
+
+	/* we only ever get in here if we are definitely non-null, so we can discard
+	 * maybe type specifiers */
+	types::type::ref condition_type;
+	if (auto maybe = dyncast<const types::type_maybe>(condition_value->type->get_type())) {
+		condition_type = maybe->just;
+	} else {
+		condition_type = condition_value->type->get_type();
+	}
+
+	var_t::refs fns;
+	auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE,
+			condition, scope->get_outbound_context(),
+			type_args({condition_type}), fns);
+
+	if (!!status) {
+		if (bool_fn != nullptr) {
+			/* we've found a bool function that will take our condition as input */
+			assert(bool_fn != nullptr);
+
+			if (get_function_return_type(bool_fn->type->get_type())->get_signature() == "__bool__") {
+				debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (type %s)",
+							condition->str().c_str(), bool_fn->type->str().c_str()));
+
+				/* let's call this bool function */
+				llvm_condition_value = llvm_create_call_inst(
+						status, builder, *condition, bool_fn,
+						{condition_value->llvm_value});
+				if (!!status) {
+					assert(llvm_condition_value->getType()->isIntegerTy());
+					return llvm_condition_value;
+				}
+			} else {
+				user_error(status, bool_fn->get_location(),
+						"__bool__ coercion function must return a " C_TYPE "__bool__" C_RESET);
+				user_error(status, bool_fn->get_location(),
+						"implicit __bool__ was defined function must return a " C_TYPE "__type__" C_RESET);
+			}
+		} else {
+			/* treat all values without overloaded bool functions as truthy */
+			return nullptr;
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref ast::ternary_expr::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		scope_t::ref block_scope,
+		scope_t::ref scope,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	return null_impl();
+	/* if scope allows us to set up new variables inside if conditions */
+	local_scope_t::ref if_scope;
+
+	bound_type_t::ref type_constraint;
+
+	assert(condition != nullptr);
+
+	bound_var_t::ref condition_value;
+
+	/* evaluate the condition for branching */
+	if (auto var_decl = dyncast<const ast::var_decl>(condition)) {
+		/* our user is attempting an assignment inside of an if statement, let's
+		 * grant them a favor, and automatically unbox the Maybe type if it
+		 * exists. */
+		condition_value = var_decl->resolve_as_condition(
+				status, builder, scope, &if_scope);
+	} else if (auto ref_expr = dyncast<const ast::reference_expr>(condition)) {
+		condition_value = ref_expr->resolve_as_condition(
+				status, builder, scope, &if_scope);
+	} else {
+		condition_value = condition->resolve_instantiation(
+				status, builder, scope, &if_scope, nullptr);
+	}
+
+	if (!!status) {
+		/* if the condition value is a maybe type, then we'll need multiple
+		 * anded conditions to be true in order to actually fall into the then
+		 * block, let's figure out those conditions */
+		llvm::Value *llvm_raw_condition_value = get_raw_condition_value(status,
+				builder, scope, condition, condition_value);
+
+		if (!!status) {
+			assert(llvm_raw_condition_value != nullptr);
+
+			llvm::Function *llvm_function_current = llvm_get_function(builder);
+
+			/* generate some new blocks */
+			llvm::BasicBlock *then_bb = llvm::BasicBlock::Create(
+					builder.getContext(), "ternary.truthy", llvm_function_current);
+
+			/* we've got an else block, so let's create an "else" basic block. */
+			llvm::BasicBlock *else_bb = llvm::BasicBlock::Create(
+					builder.getContext(), "ternary.falsey", llvm_function_current);
+
+			/* put the merge block after the else block */
+			llvm::BasicBlock *merge_bb = llvm::BasicBlock::Create(
+					builder.getContext(), "ternary.phi", llvm_function_current);
+
+			/* create the actual branch instruction */
+			llvm_create_if_branch(builder, llvm_raw_condition_value, then_bb, else_bb);
+
+			/* calculate the false path's value in the else block */
+			builder.SetInsertPoint(else_bb);
+			bound_var_t::ref false_path_value = when_false->resolve_instantiation(
+					status, builder, scope, nullptr, nullptr);
+
+			/* after calculation, the code should jump to the phi node's basic block */
+			builder.CreateBr(merge_bb);
+
+			if (!!status) {
+				/* let's generate code for the "true-path" block */
+				builder.SetInsertPoint(then_bb);
+				llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
+						builder, scope, condition, condition_value);
+
+				if (!!status) {
+					llvm::BasicBlock *truth_path_bb = then_bb;
+
+					if (llvm_bool_overload_value != nullptr) {
+						/* we've got a second condition to check, let's do it */
+						auto deep_then_bb = llvm::BasicBlock::Create(
+								builder.getContext(), "ternary.truthy.__bool__", llvm_function_current);
+
+						llvm_create_if_branch(builder, llvm_bool_overload_value,
+								deep_then_bb, else_bb ? else_bb : merge_bb);
+						builder.SetInsertPoint(deep_then_bb);
+
+						/* make sure the phi node knows to consider this deeper
+						 * block as the source of one of its possible inbound
+						 * values */
+						truth_path_bb = deep_then_bb;
+					}
+
+					/* get the bound_var for the truthy path */
+					bound_var_t::ref true_path_value = when_true->resolve_instantiation(
+							status, builder, if_scope, nullptr, nullptr);
+
+					// TODO: check that true_path_value and false_path_value share the same
+					// type.
+					if (!!status) {
+						builder.CreateBr(merge_bb);
+						builder.SetInsertPoint(merge_bb);
+
+						llvm::PHINode *llvm_phi_node = llvm::PHINode::Create(
+								true_path_value->type->get_llvm_type(),
+								2, "ternary.phi.node", merge_bb);
+						llvm_phi_node->addIncoming(true_path_value->llvm_value, truth_path_bb);
+						llvm_phi_node->addIncoming(false_path_value->llvm_value, else_bb);
+
+						return bound_var_t::create(
+								INTERNAL_LOC(),
+								{"ternary.value"},
+								true_path_value->type,
+								llvm_phi_node,
+								make_code_id(this->token),
+								false /* is_lhs */);
+					}
+				}
+			}
+		}
+	}
+
+	assert(!status);
+    return nullptr;
 }
 
 bound_var_t::ref ast::or_expr::resolve_instantiation(
@@ -2000,88 +2195,6 @@ bound_var_t::ref ast::block::resolve_instantiation(
 
     /* blocks don't really have values */
     return nullptr;
-}
-
-llvm::Value *get_raw_condition_value(
-		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		ast::item::ref condition,
-		bound_var_t::ref condition_value)
-{
-	if (condition_value->is_int()) {
-		return llvm_resolve_alloca(builder, condition_value->llvm_value);
-	} else if (condition_value->is_pointer()) {
-		return llvm_resolve_alloca(builder, condition_value->llvm_value);
-	} else {
-		user_error(status, condition->get_location(), "unknown basic type: %s",
-				condition_value->str().c_str());
-	}
-
-	assert(!status);
-	return nullptr;
-}
-
-llvm::Value *maybe_get_bool_overload_value(
-		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		ast::item::ref condition,
-		bound_var_t::ref condition_value)
-{
-	llvm::Value *llvm_condition_value = nullptr;
-	// TODO: check whether we are checking a raw value or not
-
-	debug_above(2, log(log_info,
-				"attempting to resolve a " c_var("%s") " override if condition %s, ",
-				BOOL_TYPE,
-				condition->str().c_str()));
-
-	/* we only ever get in here if we are definitely non-null, so we can discard
-	 * maybe type specifiers */
-	types::type::ref condition_type;
-	if (auto maybe = dyncast<const types::type_maybe>(condition_value->type->get_type())) {
-		condition_type = maybe->just;
-	} else {
-		condition_type = condition_value->type->get_type();
-	}
-
-	var_t::refs fns;
-	auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE,
-			condition, scope->get_outbound_context(),
-			type_args({condition_type}), fns);
-
-	if (!!status) {
-		if (bool_fn != nullptr) {
-			/* we've found a bool function that will take our condition as input */
-			assert(bool_fn != nullptr);
-
-			if (get_function_return_type(bool_fn->type->get_type())->get_signature() == "__bool__") {
-				debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (type %s)",
-							condition->str().c_str(), bool_fn->type->str().c_str()));
-
-				/* let's call this bool function */
-				llvm_condition_value = llvm_create_call_inst(
-						status, builder, *condition, bool_fn,
-						{condition_value->llvm_value});
-				if (!!status) {
-					assert(llvm_condition_value->getType()->isIntegerTy());
-					return llvm_condition_value;
-				}
-			} else {
-				user_error(status, bool_fn->get_location(),
-						"__bool__ coercion function must return a " C_TYPE "__bool__" C_RESET);
-				user_error(status, bool_fn->get_location(),
-						"implicit __bool__ was defined function must return a " C_TYPE "__type__" C_RESET);
-			}
-		} else {
-			/* treat all values without overloaded bool functions as truthy */
-			return nullptr;
-		}
-	}
-
-	assert(!status);
-	return nullptr;
 }
 
 bound_var_t::ref ast::while_block::resolve_instantiation(

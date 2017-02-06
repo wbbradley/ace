@@ -28,6 +28,7 @@ struct compiler {
 	compiler() = delete;
 	compiler(const compiler &) = delete;
 	compiler(std::string program_name, const libs &zion_paths);
+	~compiler();
 
 	void resolve_module_filename(status_t &status, location location, std::string name, std::string &resolved);
 	void info(const char *format, ...);

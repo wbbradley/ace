@@ -1,5 +1,6 @@
 module _
+# test: pass
 
 def main()
-	x := true ? 12 : 34
+	x := nil ? 12 : 34
 	print(x)

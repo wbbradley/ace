@@ -38,6 +38,10 @@ compiler::compiler(std::string program_name_, const libs &zion_paths) :
 	program_scope = program_scope_t::create("std", llvm_create_module(program_name_ + ".global"));
 }
 
+compiler::~compiler() {
+	debug_above(12, std::cout << dump_llvm_modules());
+}
+
 void compiler::info(const char *format, ...) {
 	va_list args;
 	va_start(args, format);
