@@ -1,0 +1,30 @@
+module _
+# test: pass
+# This tests whether we can instantiate recursive abstract types when they are
+# not necessary.
+
+type Plus{T} has
+	var lhs Expr{T}
+	var rhs Expr{T}
+
+type Times{T} has
+	var lhs Expr{T}
+	var rhs Expr{T}
+
+type Expr{T} is
+	Plus{T} or
+	Times{T} or
+	int
+
+def eval(expr Expr{any T}) int
+	when expr
+		is Plus{any T}
+			return eval(expr.lhs) + eval(expr.rhs)
+		is Times{any T}
+			return eval(expr.lhs) * eval(expr.rhs)
+		is int
+			return expr
+	return 0
+
+def main()
+	print(eval(Plus(Times(4, 2), 3)))

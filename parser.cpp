@@ -1402,15 +1402,17 @@ types::type::ref _parse_type(
 		if (options.size() == 1) {
 			return options[0];
 		} else {
-			types::type::ref sum_fn = ::type_sum(options);
-			for (auto iter = type_variables.rbegin();
-					iter != type_variables.rend();
-					++iter)
-			{
-				sum_fn = ::type_lambda(*iter, sum_fn);
-			}
+			types::type::ref sum_fn = type_sum_safe(ps.status, options);
+			if (!!ps.status) {
+				for (auto iter = type_variables.rbegin();
+						iter != type_variables.rend();
+						++iter)
+				{
+					sum_fn = ::type_lambda(*iter, sum_fn);
+				}
 
-			return sum_fn;
+				return sum_fn;
+			}
 		}
 	}
 	assert(!ps.status);

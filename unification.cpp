@@ -119,12 +119,14 @@ unification_t unify(
 							a->str().c_str(), b->str().c_str()),
 					bindings};
 			}
-			debug_above(4, log(log_info, "binding type_variable " c_id("%s") " to " c_type("%s"),
+			debug_above(4, log(log_info,
+					   	"binding type_variable " c_id("%s") " to " c_type("%s"),
 						ptv_a->id->get_name().c_str(),
 						b->str(bindings).c_str()));
 			assert(bindings.find(ptv_a->id->get_name()) == bindings.end());
 			if (b->rebind(bindings)->ftv_count() != 0) {
-				debug_above(4, log(log_warning, "note that %s is itself not fully bound", b->str().c_str()));
+				debug_above(4, log(log_info,
+						   	"note that %s is itself not fully bound", b->str().c_str()));
 			}
 			bindings[ptv_a->id->get_name()] = b;
 		}

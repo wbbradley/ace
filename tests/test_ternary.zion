@@ -2,5 +2,5 @@ module _
 # test: pass
 
 def main()
-	x := nil ? 12 : 34
+	x := nil ? 12 : "hey"
 	print(x)

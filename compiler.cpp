@@ -61,6 +61,10 @@ std::string compiler::get_program_name() const {
 	return program_name;
 }
 
+std::string compiler::get_executable_filename() const {
+	return program_name + ".zx";
+}
+
 void compiler::resolve_module_filename(
 		status_t &status,
 		location location,
@@ -388,7 +392,7 @@ void add_global_types(
 					type_id(make_iid("nil")),
 				   	INTERNAL_LOC(),
 				   	llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
-		{{"__unreachable"},
+		{{BUILTIN_UNREACHABLE_TYPE},
 		   	bound_type_t::create(
 					type_unreachable(),
 				   	INTERNAL_LOC(),

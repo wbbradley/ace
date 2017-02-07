@@ -31,6 +31,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 		types::type::ref fn_type,
 		unification_t unification)
 {
+	assert(fn_type->ftv_count() == 0 && "we cannot instantiate an abstract function");
 	debug_above(4, log(log_info, "we are in scope " c_id("%s"), scope->get_name().c_str()));
 	debug_above(4, log(log_info, "it's time to instantiate %s with unified signature %s from %s",
 				unchecked_fn->str().c_str(),
@@ -95,6 +96,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 			types::type_function::ref data_ctor_type = dyncast<const types::type_function>(
 					unchecked_data_ctor->sig->rebind(unification.bindings));
 			assert(data_ctor_type != nullptr);
+			// if (data_ctor_type->ftv_count() == 0) {
 			debug_above(4, log(log_info, "going to bind ctor for %s",
 						data_ctor_type->str().c_str()));
 
@@ -129,7 +131,7 @@ bound_var_t::ref check_func_vs_callsite(
 		types::type_args::ref args)
 {
 	assert(!!status);
-
+	assert(args->ftv_count() == 0 && "how did you get abstract arguments? are you a wizard?");
 	unification_t unification = fn->accepts_callsite(builder, scope, type_fn_context, args);
 	if (unification.result) {
 		if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
@@ -147,6 +149,7 @@ bound_var_t::ref check_func_vs_callsite(
 						::str(unification.bindings).c_str()));
 
 			types::type::ref fn_type = fn->get_type(scope)->rebind(unification.bindings);
+
 			return instantiate_unchecked_fn(status, builder, scope,
 					unchecked_fn, fn_type, unification);
 		} else {

@@ -21,3 +21,4 @@ rt_gc
 play/*
 tests/*
 !**/*.zion
+*.zx

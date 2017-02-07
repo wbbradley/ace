@@ -41,27 +41,6 @@
  * can later be upcast, based on pattern matching on the type_id.
  */
 
-void resolve_type_ref_params(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		types::type::refs type_args,
-		bound_type_t::refs &args)
-{
-	if (!!status) {
-		/* get the parameter list */
-		for (auto &type_arg : type_args) {
-			bound_type_t::ref bound_param_type = upsert_bound_type(
-					status, builder, scope, type_arg);
-
-			if (!!status) {
-				/* keep track of this parameter */
-				args.push_back(bound_param_type);
-			}
-		}
-	}
-}
-
 bound_var_t::ref bind_ctor_to_scope(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -84,12 +63,12 @@ bound_var_t::ref bind_ctor_to_scope(
 				function->return_type->str().c_str(),
 				eval(function->return_type, scope->get_typename_env())->str().c_str()));
 
-	const types::type_args::ref &args_types = function->args;
-	bound_type_t::refs args;
-	resolve_type_ref_params(status, builder, scope, args_types->args, args);
+	bound_type_t::refs args = upsert_bound_types(status, builder, scope,
+			function->args->args);
 
 	if (!!status) {
-		/* now that we know the parameter types, let's see what the term looks like */
+		/* now that we know the parameter types, let's see what the term looks
+		 * like */
 		debug_above(5, log(log_info, "ctor type should be %s",
 					function->str().c_str()));
 

@@ -1,0 +1,19 @@
+module _
+# test: pass
+
+def do(y str) bool
+	return true
+
+def do(y int)
+	return false
+
+def do(y bool)
+	return false
+
+def main()
+	x := true ? 12 : "hey"
+
+	# this call to `do` should invoke auto-code-generation of runtime
+	# polymorphism switching constructs to ensure that a sum type can be
+	# dispatched at runtime if necessary
+	g := do(x)

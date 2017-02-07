@@ -144,7 +144,6 @@ bound_type_t::ref create_bound_struct_type(
 		debug_above(5, log(log_info,
 					"found abstract type %s when attempting to create a bound type",
 					struct_type->str().c_str()));
-		return program_scope->get_bound_type({BUILTIN_UNREACHABLE_TYPE});
 	}
 
 	/* tuples don't have names, so there's no need for a placeholder, as
@@ -349,7 +348,7 @@ bound_type_t::ref create_bound_maybe_type(
 			user_error(status, maybe->get_location(),
 				   	"type %s cannot be a " c_type("maybe") " type because the underlying storage is not a pointer (it is %s)",
 					maybe->str().c_str(),
-					llvm_print_type(*llvm_type).c_str());
+					llvm_print_type(llvm_type).c_str());
 		}
 	}
 
@@ -643,7 +642,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	debug_above(4, log(log_info, "get_or_create_tuple_ctor evaluating %s with llvm type %s",
 				type->str().c_str(),
-				llvm_print_type(*data_type->get_llvm_specific_type()).c_str()));
+				llvm_print_type(data_type->get_llvm_specific_type()).c_str()));
 	types::type::ref expanded_type;
 
 	expanded_type = eval(type, scope->get_typename_env());

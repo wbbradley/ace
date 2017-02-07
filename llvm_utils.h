@@ -40,7 +40,7 @@ llvm::Function *llvm_get_function(llvm::IRBuilder<> &builder);
 std::string llvm_print_module(llvm::Module &module);
 std::string llvm_print_value(llvm::Value &llvm_value);
 std::string llvm_print_value_ptr(llvm::Value *llvm_value);
-std::string llvm_print_type(llvm::Type &llvm_type);
+std::string llvm_print_type(llvm::Type *llvm_type);
 std::string llvm_print_function(llvm::Function *llvm_function);
 llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function, bound_type_t::ref type, atom var_name);
 llvm::Value *llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_value);

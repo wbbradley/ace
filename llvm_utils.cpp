@@ -67,6 +67,7 @@ llvm::FunctionType *llvm_create_function_type(
 		::str(args).c_str(),
 		return_value->str().c_str()));
 
+	assert(return_value->get_type()->ftv_count() == 0 && "return values should never be abstract");
 	std::vector<llvm::Type *> llvm_type_args;
 
 	for (auto &arg : args) {
@@ -113,7 +114,7 @@ bound_var_t::ref create_callsite(
 					str(arguments).c_str(),
 					llvm_print_function(static_cast<llvm::Function *>(function->llvm_value)).c_str()));
 		debug_above(5, log(log_info, "calling function %s",
-					llvm_print_type(*function->llvm_value->getType()).c_str()));
+					llvm_print_type(function->llvm_value->getType()).c_str()));
 
 		/* downcast the arguments as necessary to var_t * */
 		types::type_function::ref function_type = dyncast<const types::type_function>(function->get_type());
@@ -165,7 +166,7 @@ llvm::CallInst *llvm_create_call_inst(
 
 	debug_above(3, log(log_info, "looking for function in LLVM " c_id("%s") " with type %s",
 				llvm_callee_fn->getName().str().c_str(),
-				llvm_print_type(*llvm_callee_fn->getFunctionType()).c_str()));
+				llvm_print_type(llvm_callee_fn->getFunctionType()).c_str()));
 
 	/* before we can call a function, we must make sure it either exists in
 	 * this module, or a declaration exists */
@@ -178,7 +179,7 @@ llvm::CallInst *llvm_create_call_inst(
 	auto llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(llvm_func_decl->getType()->getElementType());
 	assert(llvm_function_type != nullptr);
 	debug_above(3, log(log_info, "creating call to %s",
-				llvm_print_type(*llvm_function_type).c_str()));
+				llvm_print_type(llvm_function_type).c_str()));
 
 	auto param_iter = llvm_function_type->param_begin();
 	std::vector<llvm::Value *> llvm_args;
@@ -198,7 +199,7 @@ llvm::CallInst *llvm_create_call_inst(
 
 	debug_above(3, log(log_info, "creating call to " c_id("%s") " %s with [%s]",
 				llvm_func_decl->getName().str().c_str(),
-				llvm_print_type(*llvm_function_type).c_str(),
+				llvm_print_type(llvm_function_type).c_str(),
 				join_with(llvm_args, ", ", llvm_print_value_ptr).c_str()));
 
 	return builder.CreateCall(llvm_func_decl, llvm_args_array);
@@ -244,12 +245,20 @@ std::string llvm_print_value(llvm::Value &llvm_value) {
 	return ss.str();
 }
 
-std::string llvm_print_type(llvm::Type &llvm_type) {
+std::string llvm_print_type(llvm::Type *llvm_type) {
 	std::stringstream ss;
 	llvm::raw_os_ostream os(ss);
 	ss << C_IR;
-	llvm_type.print(os);
-	os.flush();
+	if (llvm_type->isPointerTy()) {
+		llvm_type = llvm::cast<llvm::PointerType>(llvm_type)->getElementType();
+		ss << " {";
+		llvm_type->print(os);
+		os.flush();
+	   	ss << "}*";
+	} else {
+		llvm_type->print(os);
+		os.flush();
+	}
 	ss << C_RESET;
 	return ss.str();
 }
@@ -309,9 +318,9 @@ llvm::StructType *llvm_create_struct_type(
 	/* give the struct a helpful name internally */
 	llvm_struct_type->setName(name.str());
 
-	debug_above(3, log(log_info, "created " c_ir("%s") " LLVM struct type %s",
+	debug_above(3, log(log_info, "created struct type " c_id("%s") " %s",
 				name.c_str(),
-				llvm_print_type(*llvm_struct_type).c_str()));
+				llvm_print_type(llvm_struct_type).c_str()));
 
 	return llvm_struct_type;
 }
@@ -403,13 +412,17 @@ void llvm_verify_module(status_t &status, llvm::Module &llvm_module) {
 llvm::Value *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type) {
 	llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_type);
 	if (llvm_struct_type != nullptr) {
-		assert(!llvm_struct_type->isOpaque());
+		if (llvm_struct_type->isOpaque()) {
+			debug_above(1, log("llvm_struct_type is opaque when we're trying to get its size: %s",
+						llvm_print_type(llvm_struct_type).c_str()));
+			assert(false);
+		}
 		assert(llvm_struct_type->elements().size() != 0);
 	}
 
 	llvm::Constant *alloc_size_const = llvm::ConstantExpr::getSizeOf(llvm_type);
 	llvm::Value *size_value = llvm::ConstantExpr::getTruncOrBitCast(alloc_size_const, builder.getInt64Ty());
-	debug_above(3, log(log_info, "size of %s is: %s", llvm_print_type(*llvm_type).c_str(),
+	debug_above(3, log(log_info, "size of %s is: %s", llvm_print_type(llvm_type).c_str(),
 				llvm_print_value(*size_value).c_str()));
 	return size_value;
 
@@ -480,7 +493,7 @@ void check_struct_initialization(
 			debug_above(10, log(log_error, "llvm_struct_initialization[%d] mismatch is %s should be %s",
 						i,
 					   	llvm_print_value(*llvm_struct_initialization[i]).c_str(),
-						llvm_print_type(*llvm_struct_type->getElementType(i)).c_str()));
+						llvm_print_type(llvm_struct_type->getElementType(i)).c_str()));
 			assert(false);
 		}
 	}
@@ -507,8 +520,8 @@ bound_var_t::ref llvm_create_global_tag(
 
 	llvm::Type *llvm_var_ref_type = var_ref_type->get_llvm_type();
 	llvm::StructType *llvm_tag_type = llvm::dyn_cast<llvm::StructType>(tag_struct_type->get_llvm_type());
-	debug_above(10, log(log_info, "var_ref_type is %s", llvm_print_type(*var_ref_type->get_llvm_type()).c_str()));
-	debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print_type(*tag_struct_type->get_llvm_type()).c_str()));
+	debug_above(10, log(log_info, "var_ref_type is %s", llvm_print_type(var_ref_type->get_llvm_type()).c_str()));
+	debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print_type(tag_struct_type->get_llvm_type()).c_str()));
 	assert(llvm_tag_type != nullptr);
 
 	llvm::Module *llvm_module = scope->get_llvm_module();
@@ -548,7 +561,7 @@ bound_var_t::ref llvm_create_global_tag(
 
 	debug_above(10, log(log_info, "getBitCast(%s, %s)",
 				llvm_print_value(*llvm_tag_global_instance).c_str(),
-				llvm_print_type(*llvm_var_ref_type).c_str()));
+				llvm_print_type(llvm_var_ref_type).c_str()));
 	llvm::Constant *llvm_tag_value = llvm::ConstantExpr::getBitCast(
 			llvm_tag_global_instance, llvm_var_ref_type);
 

@@ -19,11 +19,13 @@ bound_type_t::bound_type_t(
 	llvm_type(llvm_type),
 	llvm_specific_type(llvm_specific_type)
 {
-	debug_above(6, log(log_info, "creating type with (%s, LLVM TypeID %d, %s)",
+	debug_above(6, log(log_info, "creating type %s with (%s, LLVM TypeID %d, %s)",
 			type->str().c_str(),
+			llvm_print_type(llvm_specific_type).c_str(),
 			llvm_type ? llvm_type->getTypeID() : -1,
 			location.str().c_str()));
 
+	assert(type->ftv_count() == 0 && "bound types should not contain type variables");
 	assert(llvm_type != nullptr);
 }
 
@@ -32,15 +34,8 @@ types::type::ref bound_type_t::get_type() const {
 }
 
 bool bound_type_t::is_concrete() const {
-	if (type->repr() != "__unreachable") {
-		// NOTE: this assert may be ok to delete, since we could potentially have
-		// nested types that we can't actually access without pattern matching,
-		// which will check reachability
-		assert(strstr(type->repr().c_str(), "__unreachable") == nullptr);
-		return true;
-	} else {
-		return false;
-	}
+	assert(type->ftv_count() == 0);
+	return !is_type_id(type, {BUILTIN_UNREACHABLE_TYPE});
 }
 
 struct location const bound_type_t::get_location() const {
@@ -118,7 +113,7 @@ std::ostream &operator <<(std::ostream &os, const bound_type_t &type) {
 std::string bound_type_t::str() const {
 	std::stringstream ss;
 	ss << get_type();
-	ss << " " << llvm_print_type(*get_llvm_type());
+	ss << " " << llvm_print_type(get_llvm_specific_type());
 	return ss.str();
 }
 

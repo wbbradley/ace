@@ -9,6 +9,7 @@ type Rectangle has
 	var width float
 	var height float
 
+
 def alpha(x float, min float, max float) float
 	return (x - min) / (max - min)
 

@@ -99,6 +99,7 @@ namespace types {
 	std::ostream &type_variable::emit(std::ostream &os, const map &bindings) const {
 		auto instance_iter = bindings.find(id->get_name());
 		if (instance_iter != bindings.end()) {
+			assert(instance_iter->second != shared_from_this());
 			return instance_iter->second->emit(os, bindings);
 		} else {
 			return os << string_format("(any %s)", id->get_name().c_str());
@@ -716,6 +717,48 @@ types::type_function::ref type_function(
 	return make_ptr<types::type_function>(inbound_context, args, return_type);
 }
 
+types::type::ref type_sum_safe(status_t &status, types::type::refs options) {
+	/* sum types must take care to avoid creating sums over maybe types and over
+	 * builtin types */
+	bool make_maybe = false;
+	types::type::refs safe_options;
+	for (auto option : options) {
+		if (auto maybe = dyncast<const types::type_maybe>(option)) {
+			make_maybe = true;
+			option = maybe->just;
+		}
+		
+		/* check for disallowed types */
+		if (auto struct_type = dyncast<const types::type_struct>(option)) {
+			if (!struct_type->managed) {
+				/* we don't allow native structs to be part of sum types because
+				 * they lack RTTI */
+				user_error(status, option->get_location(),
+						"native type %s cannot be included in a sum type",
+						option->str().c_str());
+				return nullptr;
+			}
+		} else if (auto id_type = dyncast<const types::type_id>(option)) {
+			if (id_type->id->get_name().str().find("__") == 0) {
+				user_error(status, option->get_location(),
+						"builtin type %s cannot be included in a sum type",
+						id_type->str().c_str());
+				return nullptr;
+			}
+		}
+		safe_options.push_back(option);
+	}
+
+	auto ret = type_sum(safe_options);
+	if (make_maybe) {
+		/* lift the maybe-ness of one of the inner types up to the whole
+		 * type */
+		return type_maybe(ret);
+	} else {
+		return ret;
+	}
+}
+
 types::type::ref type_sum(types::type::refs options) {
 	return make_ptr<types::type_sum>(options);
 }
@@ -906,6 +949,9 @@ types::type::ref eval_apply(
 		auto new_operator = eval_apply(pto->oper, pto->operand, env);
 		return eval_apply(new_operator, operand, env);
 	} else if (auto ptv = dyncast<const types::type_variable>(oper)) {
+		/* type_variables cannot be applied */
+		return nullptr;
+	} else if (auto pts = dyncast<const types::type_sum>(oper)) {
 		/* type_variables cannot be applied */
 		return nullptr;
 	} else {

@@ -1,0 +1,14 @@
+module _
+# test: pass
+
+def takes(x)
+	when x
+		is int
+			print(x)
+		is str
+			print(x)
+
+def main()
+	x := true ? 12 : "hey"
+	static_print(x)
+	takes(x)

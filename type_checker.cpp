@@ -521,7 +521,7 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 			llvm::Value *llvm_value = llvm_module->getOrInsertFunction(function_name.text,
 					llvm_func_type);
 
-			assert(llvm_print_type(*llvm_value->getType()) != llvm_print_type(*llvm_func_type));
+			assert(llvm_print_type(llvm_value->getType()) != llvm_print_type(llvm_func_type));
 
 			/* get the full function type */
 			types::type_function::ref function_sig = get_function_type(
@@ -1087,27 +1087,49 @@ bound_var_t::ref ast::ternary_expr::resolve_instantiation(
 
 					/* get the bound_var for the truthy path */
 					bound_var_t::ref true_path_value = when_true->resolve_instantiation(
-							status, builder, if_scope, nullptr, nullptr);
+							status, builder, if_scope ? if_scope : scope, nullptr, nullptr);
 
-					// TODO: check that true_path_value and false_path_value share the same
-					// type.
 					if (!!status) {
-						builder.CreateBr(merge_bb);
-						builder.SetInsertPoint(merge_bb);
+						bound_type_t::ref ternary_type;
+						if (true_path_value->type->get_llvm_specific_type() != false_path_value->type->get_llvm_specific_type()) {
+							/* the when_true and when_false values have different
+							 * types, let's create a sum type to represent this */
+							auto ternary_sum_type = type_sum_safe(status, {
+									true_path_value->type->get_type(),
+									false_path_value->type->get_type()});
 
-						llvm::PHINode *llvm_phi_node = llvm::PHINode::Create(
-								true_path_value->type->get_llvm_type(),
-								2, "ternary.phi.node", merge_bb);
-						llvm_phi_node->addIncoming(true_path_value->llvm_value, truth_path_bb);
-						llvm_phi_node->addIncoming(false_path_value->llvm_value, else_bb);
+							if (!!status) {
+								ternary_type = upsert_bound_type(status,
+										builder, scope, ternary_sum_type);
+							}
+						} else {
+							ternary_type = true_path_value->type;
+						}
 
-						return bound_var_t::create(
-								INTERNAL_LOC(),
-								{"ternary.value"},
-								true_path_value->type,
-								llvm_phi_node,
-								make_code_id(this->token),
-								false /* is_lhs */);
+						if (!!status) {
+							builder.CreateBr(merge_bb);
+							builder.SetInsertPoint(merge_bb);
+
+							llvm::PHINode *llvm_phi_node = llvm::PHINode::Create(
+									ternary_type->get_llvm_specific_type(),
+									2, "ternary.phi.node", merge_bb);
+
+							llvm_phi_node->addIncoming(llvm_maybe_pointer_cast(
+										builder, true_path_value->llvm_value, ternary_type),
+									truth_path_bb);
+
+							llvm_phi_node->addIncoming(llvm_maybe_pointer_cast(
+										builder, false_path_value->llvm_value, ternary_type),
+									else_bb);
+
+							return bound_var_t::create(
+									INTERNAL_LOC(),
+									{"ternary.value"},
+									ternary_type,
+									llvm_phi_node,
+									make_code_id(this->token),
+									false /* is_lhs */);
+						}
 					}
 				}
 			}
@@ -1521,7 +1543,7 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 		}
 		debug_above(5, log(log_info, "creating function %s with LLVM type %s",
 				function_name.c_str(),
-				llvm_print_type(*llvm_type).c_str()));
+				llvm_print_type(llvm_type).c_str()));
 		assert(llvm_type->isFunctionTy());
 
 		llvm::Function *llvm_function = llvm::Function::Create(

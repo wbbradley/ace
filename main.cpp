@@ -72,24 +72,13 @@ int main(int argc, char *argv[]) {
 			} else {
 				return EXIT_FAILURE;
 			}
-        } else if (cmd == "bc") {
-			compiler.build_parse_modules(status);
-
-			if (!!status) {
-				compiler.build_type_check_and_code_gen(status);
-				if (!!status) {
-					auto executable_filename = compiler.get_program_name();
-					return compiler.emit_built_program(status, executable_filename);
-				}
-			}
-			return EXIT_FAILURE;
         } else if (cmd == "run") {
 			compiler.build_parse_modules(status);
 
 			if (!!status) {
 				compiler.build_type_check_and_code_gen(status);
 				if (!!status) {
-					auto executable_filename = compiler.get_program_name();
+					auto executable_filename = compiler.get_executable_filename();
 					int ret = compiler.emit_built_program(status, executable_filename);
 					if (!!status && !ret) {
 						return system((std::string("./") + executable_filename).c_str());
@@ -99,13 +88,13 @@ int main(int argc, char *argv[]) {
 				}
 			}
 			return EXIT_FAILURE;
-        } else if (cmd == "bin") {
+        } else if (cmd == "bc") {
 			compiler.build_parse_modules(status);
 
 			if (!!status) {
 				compiler.build_type_check_and_code_gen(status);
 				if (!!status) {
-					auto executable_filename = compiler.get_program_name();
+					auto executable_filename = compiler.get_executable_filename();
 					int ret = compiler.emit_built_program(status, executable_filename);
 					if (!!status && !ret) {
 						return EXIT_SUCCESS;

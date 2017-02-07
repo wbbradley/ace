@@ -67,6 +67,7 @@ struct compiler {
 
 	program_scope_t::ref get_program_scope() const;
 	std::string get_program_name() const;
+	std::string get_executable_filename() const;
 
 	ptr<const ast::module> main_module;
 	type_macros_t base_type_macros;

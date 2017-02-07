@@ -263,6 +263,7 @@ types::type_struct::ref type_struct(types::type::refs dimensions, types::name_in
 types::type_args::ref type_args(types::type::refs args, types::name_index name_index={});
 types::type_function::ref type_function(types::type::ref inbound_context, types::type_args::ref args, types::type::ref return_type);
 types::type::ref type_sum(types::type::refs options);
+types::type::ref type_sum_safe(status_t &status, types::type::refs options);
 types::type::ref type_maybe(types::type::ref just);
 types::type::ref type_lambda(identifier::ref binding, types::type::ref body);
 types::type::ref type_list_type(types::type::ref element);

@@ -18,7 +18,7 @@ void _emit_assert(
 	ss << C_INTERNAL << function << C_RESET;
 	user_message(log_panic, status, location, ss.str().c_str());
 	log_dump();
-	::log_stack(log_warning);
+	// ::log_stack(log_warning);
 	__debugbreak();
 	__noop;
 }
