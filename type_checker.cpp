@@ -2132,8 +2132,12 @@ bound_var_t::ref ast::return_statement::resolve_instantiation(
 				shared_from_this(), return_type);
 
 		if (return_value != nullptr) {
-			auto llvm_return_value = llvm_maybe_pointer_cast(builder, return_value->llvm_value, return_type);
+			auto llvm_return_value = llvm_maybe_pointer_cast(builder,
+					return_value->llvm_value,
+					runnable_scope->get_return_type_constraint());
+
 			llvm_return_value->setName("return.value");
+			debug_above(8, log("emitting a return of %s", llvm_print_value_ptr(llvm_return_value).c_str()));
 			builder.CreateRet(llvm_return_value);
 		} else {
 			assert(types::is_type_id(return_type->get_type(), "void"));
