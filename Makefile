@@ -26,9 +26,9 @@ ifeq ($(UNAME),Darwin)
 else
 
 ifeq ($(UNAME),Linux)
-	CLANG := ccache clang-3.6
-	CLANG_CPP := ccache clang++-3.6
-	LLVM_CONFIG := llvm-config-3.6
+	CLANG := ccache clang-4.0
+	CLANG_CPP := ccache clang++-4.0
+	LLVM_CONFIG := llvm-config-4.0
 	LLVM_CFLAGS = -nostdinc++ $(shell $(LLVM_CONFIG) --cxxflags) -g -O0
 
 	# -I$(shell $(LLVM_CONFIG) --includedir)/llvm
