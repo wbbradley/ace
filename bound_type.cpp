@@ -42,23 +42,13 @@ struct location const bound_type_t::get_location() const {
 	return location;
 }
 
-llvm::Type * const bound_type_t::get_llvm_type() const {
+llvm::Type *bound_type_t::get_llvm_type() const {
 	return llvm_type;
 }
 
-llvm::Type * const bound_type_t::get_llvm_specific_type() const {
+llvm::Type *bound_type_t::get_llvm_specific_type() const {
 	return llvm_specific_type ? llvm_specific_type : llvm_type;
 }
-
-/*
-bound_type_t::refs const bound_type_t::get_dimensions() const {
-	return type->get_dimensions();
-}
-
-bound_type_t::name_index const bound_type_t::get_member_index() const {
-	return type->get_name_index();
-}
-*/
 
 bound_type_t::ref bound_type_t::create(
 		types::type::ref type,

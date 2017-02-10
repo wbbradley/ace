@@ -225,8 +225,8 @@ std::string string_format(const std::string fmt_str, ...) {
 
 std::string clean_ansi_escapes(std::string out) {
 	enum {ok, in_esc} state = ok;
-	int insert = 0;
-	for (int read = 0; read < out.size(); ++read) {
+	size_t insert = 0;
+	for (size_t read = 0; read < out.size(); ++read) {
 		char ch = out[read];
 		switch (state) {
 		case ok:

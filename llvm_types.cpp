@@ -688,7 +688,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 					llvm::Function *llvm_function = (llvm::Function *)function->llvm_value;
 					llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
 					while (args_iter != llvm_function->arg_end()) {
-						llvm::Value *llvm_param = args_iter++;
+						llvm::Value *llvm_param = &*args_iter++;
 						/* get the location we should store this datapoint in */
 						llvm::Value *llvm_gep = llvm_make_gep(builder, llvm_final_obj,
 								index, struct_type->managed);
@@ -809,46 +809,43 @@ bound_var_t::ref call_const_subscript_operator(
 		const ast::item::ref &node,
 		bound_var_t::ref lhs,
 		identifier::ref index_id,
-		int subscript_index)
+		uint64_t subscript_index)
 {
 	debug_above(6, log(log_info, "generating dereference %s[%d]", lhs->str().c_str(), subscript_index));
-	if (subscript_index < 0) {
-		user_error(status, *node, "constant subscripts must be positive");
-	} else {
-		/* do some checks on the lhs */
-		if (auto struct_type = dyncast<const types::type_struct>(lhs->type->get_type())) {
-			if (struct_type->dimensions.size() > subscript_index) {
-				/* ok, we're in range */
-				debug_above(6, log(log_info, "generating dereference %s[%d]",
-							lhs->str().c_str(), subscript_index));
 
-				bound_type_t::ref data_type = upsert_bound_type(status, builder,
-						scope, struct_type->dimensions[subscript_index]);
+	/* do some checks on the lhs */
+	if (auto struct_type = dyncast<const types::type_struct>(lhs->type->get_type())) {
+		if (struct_type->dimensions.size() > subscript_index) {
+			/* ok, we're in range */
+			debug_above(6, log(log_info, "generating dereference %s[%d]",
+						lhs->str().c_str(), (int)subscript_index));
 
-				if (!!status) {
-					/* get the tuple */
-					llvm::Value *llvm_lhs_subtype = llvm_maybe_pointer_cast(builder,
-							lhs->llvm_value, lhs->type);
+			bound_type_t::ref data_type = upsert_bound_type(status, builder,
+					scope, struct_type->dimensions[subscript_index]);
 
-					llvm::Value *llvm_value = builder.CreateLoad(llvm_make_gep(builder,
-								llvm_lhs_subtype, subscript_index,
-								struct_type->managed));
+			if (!!status) {
+				/* get the tuple */
+				llvm::Value *llvm_lhs_subtype = llvm_maybe_pointer_cast(builder,
+						lhs->llvm_value, lhs->type);
 
-					return bound_var_t::create(
-							INTERNAL_LOC(),
-							"temp_deref_subscript",
-							data_type,
-							llvm_value,
-							make_code_id(node->token),
-							false/*is_lhs*/);
-				}
-			} else {
-				user_error(status, *node, "index out of range");
+				llvm::Value *llvm_value = builder.CreateLoad(llvm_make_gep(builder,
+							llvm_lhs_subtype, subscript_index,
+							struct_type->managed));
+
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						"temp_deref_subscript",
+						data_type,
+						llvm_value,
+						make_code_id(node->token),
+						false/*is_lhs*/);
 			}
 		} else {
-			return type_check_get_item_with_int_literal(status, builder, scope,
-					node, lhs, index_id, subscript_index);
+			user_error(status, *node, "index out of range");
 		}
+	} else {
+		return type_check_get_item_with_int_literal(status, builder, scope,
+				node, lhs, index_id, subscript_index);
 	}
 
 	assert(!status);

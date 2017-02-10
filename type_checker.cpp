@@ -244,7 +244,7 @@ bound_type_t::named_pairs zip_named_pairs(
 {
 	bound_type_t::named_pairs named_args;
 	assert(names.size() == args.size());
-	for (int i = 0; i < args.size(); ++i) {
+	for (size_t i = 0; i < args.size(); ++i) {
 		named_args.push_back({names[i], args[i]});
 	}
 	return named_args;
@@ -415,7 +415,7 @@ function_scope_t::ref make_param_list_scope(
 		int i = 0;
 
 		for (auto &param : params) {
-			llvm::Value *llvm_param = args++;
+			llvm::Value *llvm_param = &(*args++);
 			llvm_param->setName(param.first.str());
 
 			/* create an alloca in order to be able to reassign the named
@@ -780,11 +780,14 @@ bound_var_t::ref ast::array_index_expr::resolve_instantiation(
 				/* check to see if it is an integer */
 				if (literal_expr->token.tk == tk_integer) {
 					int64_t value = atoll(literal_expr->token.text.c_str());
-
-					/* see if we have a deref operator function for the lhs type */
-					return call_const_subscript_operator(status, builder,
-							scope, shared_from_this(), lhs_val,
-							make_code_id(literal_expr->token), value);
+					if (value >= 0) {
+						/* see if we have a deref operator function for the lhs type */
+						return call_const_subscript_operator(status, builder,
+								scope, shared_from_this(), lhs_val,
+								make_code_id(literal_expr->token), value);
+					} else {
+						user_error(status, *this, "you must use a number zero or greater");
+					}
 				} else {
 					user_error(status, *this,
 							"tuple dereferencing with " c_internal("%s") " is not yet impl",
@@ -1685,8 +1688,7 @@ status_t type_check_module_types(
 	module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
 
 	auto unchecked_types_ordered = module_scope->get_unchecked_types_ordered();
-	for (int i = 0; i < unchecked_types_ordered.size(); ++i) {
-		auto unchecked_type = unchecked_types_ordered[i];
+	for (auto unchecked_type : unchecked_types_ordered) {
 		auto node = unchecked_type->node;
 		if (!module_scope->has_checked(node)) {
 			assert(!dyncast<const ast::function_defn>(node));
@@ -1734,10 +1736,9 @@ status_t type_check_program_variables(
 	status_t final_status;
 
 	auto unchecked_vars_ordered = program_scope->get_unchecked_vars_ordered();
-    for (int i = 0; i < unchecked_vars_ordered.size(); ++i) {
+    for (auto unchecked_var : unchecked_vars_ordered) {
 		status_t status;
 
-		auto &unchecked_var = unchecked_vars_ordered[i];
 		debug_above(5, log(log_info, "checking whether to check %s",
 					unchecked_var->str().c_str()));
 

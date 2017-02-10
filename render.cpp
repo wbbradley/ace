@@ -207,7 +207,7 @@ namespace ast {
 
 	void array_literal_expr::render(render_state_t &rs) const {
 		rs.ss << "[";
-		for (int i = 0; i < items.size(); ++i) {
+		for (size_t i = 0; i < items.size(); ++i) {
 			if (i > 0) {
 				rs.ss << ", ";
 			}
@@ -245,7 +245,7 @@ namespace ast {
 	}
 
 	void block::render(render_state_t &rs) const {
-		for (int i = 0; i < statements.size(); ++i) {
+		for (size_t i = 0; i < statements.size(); ++i) {
 			if (i > 0) {
 				newline(rs);
 			}
@@ -398,7 +398,7 @@ namespace ast {
 	void param_list::render(render_state_t &rs) const {
 		rs.ss << "(";
 
-		for (int i = 0; i < expressions.size(); ++i) {
+		for (size_t i = 0; i < expressions.size(); ++i) {
 			if (i > 0) {
 				rs.ss << ", ";
 			}
@@ -435,7 +435,7 @@ namespace ast {
 
 		rs.ss << "(";
 
-		for (int i = 0; i < params.size(); ++i) {
+		for (size_t i = 0; i < params.size(); ++i) {
 			if (i > 0) {
 				rs.ss << ", ";
 			}

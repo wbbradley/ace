@@ -1,12 +1,17 @@
 FROM debian:latest
 
 RUN \
-	wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | apt-key add - \
-	echo "deb http://apt.llvm.org/jessie/ llvm-toolchain-jessie-4.0 main" > /etc/apt/sources.list.d/llvm.list \
-	echo "deb-src http://apt.llvm.org/jessie/ llvm-toolchain-jessie-4.0 main" >> /etc/apt/sources.list.d/llvm.list \
 	apt-get update \
 	&& apt-get install -y \
-		wget \
+		wget
+
+RUN wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | apt-key add -
+RUN echo "deb http://apt.llvm.org/jessie/ llvm-toolchain-jessie-4.0 main" > /etc/apt/sources.list.d/llvm.list
+RUN echo "deb-src http://apt.llvm.org/jessie/ llvm-toolchain-jessie-4.0 main" >> /etc/apt/sources.list.d/llvm.list
+
+RUN \
+	apt-get update \
+	&& apt-get install -y \
 		ccache \
 		stow \
         time \
@@ -29,8 +34,10 @@ RUN \
 		llvm-4.0-runtime \
 		clang-format-4.0 \
 		python-clang-4.0 \
-		lldb-4.0-dev \
 		lld-4.0 \
 		libc++-dev
+
+COPY . /opt/zion
+WORKDIR /opt/zion
 
 CMD bash

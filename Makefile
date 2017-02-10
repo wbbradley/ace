@@ -29,7 +29,35 @@ ifeq ($(UNAME),Linux)
 	CLANG := ccache clang-4.0
 	CLANG_CPP := ccache clang++-4.0
 	LLVM_CONFIG := llvm-config-4.0
-	LLVM_CFLAGS = -nostdinc++ $(shell $(LLVM_CONFIG) --cxxflags) -g -O0
+	LLVM_CFLAGS = -nostdinc++ \
+				  -I/usr/lib/llvm-4.0/include \
+				  -std=c++0x \
+				  -gsplit-dwarf \
+				  -fPIC \
+				  -fvisibility-inlines-hidden \
+				  -Wall \
+				  -W \
+				  -Wno-unused-parameter \
+				  -Wwrite-strings \
+				  -Wcast-qual \
+				  -Wno-missing-field-initializers \
+				  -pedantic \
+				  -Wno-long-long \
+				  -Wno-uninitialized \
+				  -Wdelete-non-virtual-dtor \
+				  -Wno-comment \
+				  -Werror=date-time \
+				  -std=c++11 \
+				  -ffunction-sections \
+				  -fdata-sections \
+				  -O0 \
+				  -g \
+				  -DNDEBUG \
+				  -fno-exceptions \
+				  -D_GNU_SOURCE \
+				  -D__STDC_CONSTANT_MACROS \
+				  -D__STDC_FORMAT_MACROS \
+				  -D__STDC_LIMIT_MACROS
 
 	# -I$(shell $(LLVM_CONFIG) --includedir)/llvm
 	CPP = $(CLANG_CPP) \
@@ -192,11 +220,16 @@ image: Dockerfile
 	docker build -t $(IMAGE):$(VERSION) .
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
 
-shell:
+docker-build: image
 	docker run \
 		--rm \
 		--name zion-shell \
 		-it $(IMAGE):$(VERSION) \
-		-v `pwd`:/opt/zion \
-		bash
+		make -j4 test | tee
 
+shell: image
+	docker run \
+		--rm \
+		--name zion-shell \
+		-it $(IMAGE):$(VERSION) \
+		bash

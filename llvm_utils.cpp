@@ -29,7 +29,7 @@ llvm::Constant *llvm_create_global_string_constant(llvm::IRBuilder<> &builder, l
 			StrConstant, std::string("__global_") + str, nullptr,
 			llvm::GlobalVariable::NotThreadLocal,
 			0 /*AddressSpace*/);
-	llvm_value->setUnnamedAddr(true);
+	llvm_value->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 	return llvm_get_pointer_to_constant(builder, llvm_value);
 }
 

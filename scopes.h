@@ -568,7 +568,7 @@ bound_var_t::ref scope_impl_t<T>::get_bound_variable(
 
 template <typename T>
 std::string scope_impl_t<T>::make_fqn(std::string leaf_name) const {
-	assert(leaf_name.find("/") == -1);
+	assert(leaf_name.find(SCOPE_SEP) == std::string::npos);
 	if (auto module_scope = this->get_module_scope()) {
 		return module_scope->get_leaf_name().str() + SCOPE_SEP + leaf_name;
 	} else {

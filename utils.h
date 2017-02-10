@@ -160,14 +160,5 @@ std::string join_with(const X &xs, std::string delim, F f) {
 	return ss.str();
 }
 
-template <typename T>
-auto seconds(const std::vector<T> &in) -> std::vector<typename T::second_type> {
-	std::vector<typename T::second_type> out;
-	for (auto p : in) {
-		out.push_back(p.second);
-	}
-	return out;
-}
-
 bool real_path(std::string filename, std::string &real_path);
 std::string get_cwd();

@@ -43,8 +43,8 @@ public:
 	types::type::ref get_type() const;
 	bool is_concrete() const;
 	struct location const get_location() const;
-	llvm::Type * const get_llvm_type() const;
-	llvm::Type * const get_llvm_specific_type() const;
+	llvm::Type *get_llvm_type() const;
+	llvm::Type *get_llvm_specific_type() const;
 
 	static refs refs_from_vars(const std::vector<ptr<const bound_var_t>> &vars);
 

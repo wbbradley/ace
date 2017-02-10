@@ -41,7 +41,7 @@ void scope_setup_type_def(
 	   	const ast::type_def &obj,
 	   	ptr<module_scope_t> module_scope)
 {
-	assert(obj.token.text.find("/") == -1);
+	assert(obj.token.text.find(SCOPE_SEP) == std::string::npos);
 	assert(obj.token.text.size() != 0);
 	atom fqn_name = module_scope->make_fqn(obj.token.text);
 	module_scope->put_unchecked_type(
@@ -54,7 +54,7 @@ void scope_setup_tag(
 	   	const ast::tag &obj,
 	   	ptr<module_scope_t> module_scope)
 {
-	assert(obj.token.text.find("/") == -1);
+	assert(obj.token.text.find(SCOPE_SEP) == std::string::npos);
 	assert(obj.token.text.size() != 0);
 	atom fqn_name = module_scope->make_fqn(obj.token.text);
 	module_scope->put_unchecked_type(

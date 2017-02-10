@@ -687,7 +687,7 @@ types::type_struct::ref type_struct(
 	if (name_index.size() == 0) {
 		/* if we omit names for our dimensions, give them names like _0, _1, _2,
 		 * etc... so they can be accessed like mytuple._5 if necessary */
-		for (int i = 0; i < dimensions.size(); ++i) {
+		for (size_t i = 0; i < dimensions.size(); ++i) {
 			name_index[string_format("_%d", i)] = i;
 		}
 	}
