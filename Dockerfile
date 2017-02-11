@@ -37,7 +37,5 @@ RUN \
 		lld-4.0 \
 		libc++-dev
 
-COPY . /opt/zion
 WORKDIR /opt/zion
-
 CMD bash

@@ -69,6 +69,7 @@ ifeq ($(UNAME),Linux)
 	LINKER = $(CLANG)
 	LINKER_OPTS := \
 		$(DEBUG_FLAGS) \
+		-lm \
 		$(shell $(LLVM_CONFIG) --ldflags) \
 		-stdlib=libc++ \
 		-lstdc++ \
@@ -223,13 +224,15 @@ image: Dockerfile
 docker-build: image
 	docker run \
 		--rm \
-		--name zion-shell \
+		--name zion-build \
+		-v `pwd`:/opt/zion \
 		-it $(IMAGE):$(VERSION) \
-		make -j4 test | tee
+		make -j4 test
 
 shell: image
 	docker run \
 		--rm \
 		--name zion-shell \
+		-v `pwd`:/opt/zion \
 		-it $(IMAGE):$(VERSION) \
 		bash
