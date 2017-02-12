@@ -6,6 +6,7 @@
 #include <regex>
 #include "logger_decls.h"
 #include <unistd.h>
+#include <limits.h>
 
 #define SWP(x,y) (x^=y, y^=x, x^=y)
 

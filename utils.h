@@ -3,6 +3,7 @@
 #include <functional> 
 #include <sstream>
 #include <vector>
+#include <memory>
 
 struct shared_comparator {
     template <typename T>

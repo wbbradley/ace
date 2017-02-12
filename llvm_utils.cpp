@@ -21,12 +21,17 @@ llvm::Constant *llvm_get_pointer_to_constant(
 			llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(0)});
 }
 
-llvm::Constant *llvm_create_global_string_constant(llvm::IRBuilder<> &builder, llvm::Module &M, std::string str) {
+llvm::Constant *llvm_create_global_string_constant(
+		llvm::IRBuilder<> &builder,
+	   	llvm::Module &M,
+	   	std::string str)
+{
 	llvm::LLVMContext &Context = builder.getContext();
 	llvm::Constant *StrConstant = llvm::ConstantDataArray::getString(Context, str);
+	std::string name = std::string("__global_") + str;
 	llvm::GlobalVariable *llvm_value = new llvm::GlobalVariable(M, StrConstant->getType(),
 			true, llvm::GlobalValue::PrivateLinkage,
-			StrConstant, std::string("__global_") + str, nullptr,
+			StrConstant, name, nullptr,
 			llvm::GlobalVariable::NotThreadLocal,
 			0 /*AddressSpace*/);
 	llvm_value->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);

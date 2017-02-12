@@ -98,7 +98,7 @@ tee_logger::~tee_logger() throw() {
 void tee_logger::logv(log_level_t level, const location *location, const char *format, va_list args) {
 	auto str = string_formatv(format, args);
 
-	captured_logs.push_back({level, location, str});
+	captured_logs.push_back(std::tuple<log_level_t, maybe<struct location>, std::string>{level, location, str});
 
 	if (logger_old != nullptr) {
 		logger_old->log(level, location, "%s", str.c_str());

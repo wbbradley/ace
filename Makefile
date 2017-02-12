@@ -4,12 +4,21 @@ INSTALL_DIR=/usr/local/zion
 
 UNAME := $(shell uname)
 DEBUG_FLAGS := -DZION_DEBUG -g -O0
+CFLAGS = \
+	-c \
+	-Wall \
+	-Werror \
+	-pthread \
+	-DZION_DEBUG \
+	-g \
+	-O0 \
+	-fms-extensions \
 
 ifeq ($(UNAME),Darwin)
 	CLANG = ccache clang-3.7
 	CLANG_CPP = ccache clang++-3.7
 	LLVM_CONFIG = llvm-config-3.7
-	LLVM_CFLAGS = -nostdinc++ $(shell $(LLVM_CONFIG) --cxxflags) -g -O0
+	LLVM_CFLAGS = $(CFLAGS) -nostdinc++ $(shell $(LLVM_CONFIG) --cxxflags) -g -O0
 
 	CPP = $(CLANG_CPP) -g -O0 -std=c++11 -I /usr/include/c++/v1 -I$(shell $(LLVM_CONFIG) --includedir)/c++/v1
 	CC = $(CLANG)
@@ -23,15 +32,20 @@ ifeq ($(UNAME),Darwin)
 		$(shell $(LLVM_CONFIG) --system-libs) \
 
 	LINKER_DEBUG_OPTS := $(DEBUG_FLAGS)
+	LLDB = lldb
 else
 
 ifeq ($(UNAME),Linux)
-	CLANG := ccache clang-4.0
-	CLANG_CPP := ccache clang++-4.0
-	LLVM_CONFIG := llvm-config-4.0
-	LLVM_CFLAGS = -nostdinc++ \
-				  -I/usr/lib/llvm-4.0/include \
-				  -std=c++0x \
+	CLANG := ccache clang-3.9
+	CLANG_CPP := ccache clang++-3.9
+	LLVM_CONFIG := llvm-config-3.9
+	LLVM_CFLAGS = $(CFLAGS) \
+				  -nostdinc++ \
+				  -I/usr/lib/llvm-3.9/include \
+				  -I/usr/include/c++/5 \
+				  -I/usr/include/x86_64-linux-gnu \
+				  -I/usr/include/x86_64-linux-gnu/c++/5 \
+				  -std=gnu++11 \
 				  -gsplit-dwarf \
 				  -fPIC \
 				  -fvisibility-inlines-hidden \
@@ -47,7 +61,6 @@ ifeq ($(UNAME),Linux)
 				  -Wdelete-non-virtual-dtor \
 				  -Wno-comment \
 				  -Werror=date-time \
-				  -std=c++11 \
 				  -ffunction-sections \
 				  -fdata-sections \
 				  -O0 \
@@ -57,42 +70,34 @@ ifeq ($(UNAME),Linux)
 				  -D_GNU_SOURCE \
 				  -D__STDC_CONSTANT_MACROS \
 				  -D__STDC_FORMAT_MACROS \
-				  -D__STDC_LIMIT_MACROS
+				  -D__STDC_LIMIT_MACROS \
+				  -DLINUX
 
 	# -I$(shell $(LLVM_CONFIG) --includedir)/llvm
 	CPP = $(CLANG_CPP) \
 		  -I/usr/include/c++/v1 \
 		  -g \
 		  -O0 \
-		  -std=c++11
+		  -fno-color-diagnostics \
+		  -fno-caret-diagnostics
 	CC = $(CLANG)
 	LINKER = $(CLANG)
 	LINKER_OPTS := \
 		$(DEBUG_FLAGS) \
 		-lm \
 		$(shell $(LLVM_CONFIG) --ldflags) \
-		-stdlib=libc++ \
 		-lstdc++ \
 		$(shell $(LLVM_CONFIG) --libs) \
 		$(shell $(LLVM_CONFIG) --system-libs) \
 
 	LINKER_DEBUG_OPTS := $(DEBUG_FLAGS)
+	LLDB = lldb-3.9
 endif
 
 endif
 
 VPATH = .:$(BUILD_DIR)
 BUILD_DIR = build-$(UNAME)
-
-CFLAGS := \
-	-c \
-	-Wall \
-	-Werror \
-	-pthread \
-	-DZION_DEBUG \
-	-g \
-	-O0 \
-	-fms-extensions \
 
 ZION_LLVM_SOURCES = \
 				main.cpp \
@@ -151,7 +156,7 @@ ZION_RUNTIME_LLIR = $(ZION_RUNTIME:.c=.llir)
 TARGETS = $(ZION_TARGET)
 
 timed:
-	time make all 
+	time make all
 
 all: $(TARGETS) rt_gc
 
@@ -174,7 +179,7 @@ value_semantics: $(BUILD_DIR)/value_semantics.o
 
 .PHONY: test
 test: zionc
-	./$(ZION_TARGET) test
+	./$(ZION_TARGET) test | tee
 
 .PHONY: test-html
 test-html: $(ZION_TARGET)
@@ -184,7 +189,7 @@ test-html: $(ZION_TARGET)
 
 .PHONY: dbg
 dbg: $(ZION_TARGET)
-	ALL_TESTS=1 lldb -s .lldb-script -- ./$(ZION_TARGET) test
+	ALL_TESTS=1 $(LLDB) -s .lldb-script -- ./$(ZION_TARGET) test
 
 $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_LLIR)
 	@echo Linking $@
@@ -195,12 +200,12 @@ $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_LLIR
 
 $(BUILD_DIR)/%.e: %.cpp
 	@echo Precompiling $<
-	@$(CPP) $(CFLAGS) $(LLVM_CFLAGS) -E $< -o $@
+	@$(CPP) $(LLVM_CFLAGS) -E $< -o $@
 
 $(BUILD_DIR)/%.llvm.o: %.cpp
 	@echo Compiling $<
-	@$(CPP) $(CFLAGS) $(LLVM_CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	@$(CPP) $(CFLAGS) $(LLVM_CFLAGS) $< -o $@
+	@$(CPP) $(LLVM_CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
+	@$(CPP) $(LLVM_CFLAGS) $< -o $@
 
 $(BUILD_DIR)/%.o: %.c
 	@echo Compiling $<
@@ -221,18 +226,20 @@ image: Dockerfile
 	docker build -t $(IMAGE):$(VERSION) .
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
 
-docker-build: image
+linux-test: image
 	docker run \
 		--rm \
 		--name zion-build \
 		-v `pwd`:/opt/zion \
+		--privileged \
 		-it $(IMAGE):$(VERSION) \
 		make -j4 test
 
-shell: image
+linux-shell: image
 	docker run \
 		--rm \
 		--name zion-shell \
 		-v `pwd`:/opt/zion \
+		--privileged \
 		-it $(IMAGE):$(VERSION) \
 		bash

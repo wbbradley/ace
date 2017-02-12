@@ -6,6 +6,7 @@
 
 #pragma once
 #include <string>
+#include <string.h>
 
 template <size_t MAX_STRLEN>
 struct stackstring_t {

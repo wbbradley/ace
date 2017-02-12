@@ -56,7 +56,7 @@ bound_var_t::ref call_const_subscript_operator(
 		const ast::item::ref &node,
 		bound_var_t::ref lhs,
 		identifier::ref index_id,
-		unsigned subscript_index);
+		uint64_t subscript_index);
 
 bound_type_t::ref get_function_return_type(
 		status_t &status,
