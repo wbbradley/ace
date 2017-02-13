@@ -1,5 +1,7 @@
 # Zion Language
 
+[![Build Status](https://travis-ci.org/zionlang/zion.svg?branch=master)](https://travis-ci.org/zionlang/zion)
+
 “I think that it’s extraordinarily important that we in computer science keep
 fun in computing. When it started out, it was an awful lot of fun. Of course,
 the paying customers got shafted every now and then, and after a while we began
