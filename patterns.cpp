@@ -43,7 +43,7 @@ bound_var_t::ref ast::when_block::resolve_instantiation(
                     else_block);
 
             if (!!status) {
-                // TODO: check whether all cases of the patter_value's type are handled
+                // TODO: check whether all cases of the pattern_value's type are handled
                 return nullptr;
             }
         }
