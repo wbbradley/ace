@@ -15,9 +15,9 @@ CFLAGS = \
 	-fms-extensions \
 
 ifeq ($(UNAME),Darwin)
-	CLANG = ccache clang-3.7
-	CLANG_CPP = ccache clang++-3.7
-	LLVM_CONFIG = llvm-config-3.7
+	CLANG = ccache clang
+	CLANG_CPP = ccache clang++
+	LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
 	LLVM_CFLAGS = $(CFLAGS) -nostdinc++ $(shell $(LLVM_CONFIG) --cxxflags) -g -O0
 
 	CPP = $(CLANG_CPP) -g -O0 -std=c++11 -I /usr/include/c++/v1 -I$(shell $(LLVM_CONFIG) --includedir)/c++/v1
