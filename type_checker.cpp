@@ -1621,6 +1621,8 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 					if (return_type->is_void()) {
 						/* if this is a void let's give the user a break and insert
 						 * a default void return */
+
+						// TODO: release live variables in scope
 						builder.CreateRetVoid();
 						return function_var;
 					} else {
@@ -2139,9 +2141,14 @@ bound_var_t::ref ast::return_statement::resolve_instantiation(
 
 			llvm_return_value->setName("return.value");
 			debug_above(8, log("emitting a return of %s", llvm_print_value_ptr(llvm_return_value).c_str()));
+
+			// TODO: release live variables in scope, except the one being
+			// returned
 			builder.CreateRet(llvm_return_value);
 		} else {
 			assert(types::is_type_id(return_type->get_type(), "void"));
+
+			// TODO: release live variables in scope
 			builder.CreateRetVoid();
 		}
 
@@ -2219,6 +2226,9 @@ bound_var_t::ref ast::block::resolve_instantiation(
 			break;
 		}
     }
+
+	// TODO: release all variables available in the new_scope that aren't in the
+	// parent scope
 
     /* blocks don't really have values */
     return nullptr;
