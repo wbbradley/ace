@@ -678,6 +678,18 @@ std::unordered_set<std::string> compiler::compile_modules(status_t &status) {
 }
 
 int compiler::emit_built_program(status_t &status, std::string executable_filename) {
+	std::string clang_bin = getenv("CLANG_BIN") ? getenv("CLANG_BIN") : "";
+	if (clang_bin.size() == 0) {
+		user_error(status, INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called CLANG_BIN");
+		return -1;
+	}
+
+	std::string llvm_link_bin = getenv("LLVM_LINK_BIN") ? getenv("LLVM_LINK_BIN") : "";
+	if (llvm_link_bin.size() == 0) {
+		user_error(status, INTERNAL_LOC(), "cannot find llvm-link! please specify it in an ENV var called LLVM_LINK_BIN");
+		return -1;
+	}
+
 	std::unordered_set<std::string> filenames;
 	if (!!status) {
 		filenames = compile_modules(status);
@@ -687,7 +699,7 @@ int compiler::emit_built_program(status_t &status, std::string executable_filena
 		std::string bitcode_filename = executable_filename + ".bc";
 
 		std::stringstream ss;
-		ss << "llvm-link-3.7 -suppress-warnings";
+		ss << llvm_link_bin << " -suppress-warnings";
 		for (auto filename : filenames) {
 			ss << " " << filename;
 		}
@@ -699,7 +711,7 @@ int compiler::emit_built_program(status_t &status, std::string executable_filena
 		int ret = system(ss.str().c_str());
 		if (ret == 0) {
 			ss.str("");
-			ss << "clang-3.7 -Wno-override-module -std=c11 -Wall -O0 -mcx16 -pthread ";
+			ss << clang_bin << " -lc -Wno-override-module -std=c11 -Wall -O0 -mcx16 -pthread ";
 			ss << bitcode_filename << " -o " << executable_filename;
 
 			/* compile the bitcode into a local machine executable */

@@ -15,12 +15,14 @@ CFLAGS = \
 	-fms-extensions \
 
 ifeq ($(UNAME),Darwin)
-	CLANG = ccache clang
-	CLANG_CPP = ccache clang++
+	CLANG_BIN = /usr/local/opt/llvm/bin/clang
+	LLVM_LINK_BIN = /usr/local/opt/llvm/bin/llvm-link
+	CLANG = ccache $(CLANG_BIN)
+	CLANG_CPP = ccache /usr/local/opt/llvm/bin/clang++
 	LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
 	LLVM_CFLAGS = $(CFLAGS) -nostdinc++ $(shell $(LLVM_CONFIG) --cxxflags) -g -O0
 
-	CPP = $(CLANG_CPP) -g -O0 -std=c++11 -I /usr/include/c++/v1 -I$(shell $(LLVM_CONFIG) --includedir)/c++/v1
+	CPP = $(CLANG_CPP) -g -O0 -std=c++11 -I$(shell $(LLVM_CONFIG) --includedir)/c++/v1
 	CC = $(CLANG)
 	LINKER = $(CLANG)
 	LINKER_OPTS := \
@@ -32,13 +34,15 @@ ifeq ($(UNAME),Darwin)
 		$(shell $(LLVM_CONFIG) --system-libs) \
 
 	LINKER_DEBUG_OPTS := $(DEBUG_FLAGS)
-	LLDB = lldb
+	LLDB = /usr/local/opt/llvm/bin/lldb
 else
 
 ifeq ($(UNAME),Linux)
-	CLANG := ccache clang-3.9
+	CLANG_BIN = clang-3.9
+	CLANG := ccache $(CLANG_BIN)
 	CLANG_CPP := ccache clang++-3.9
-	LLVM_CONFIG := llvm-config-3.9
+	LLVM_LINK_BIN = llvm-link-3.9
+	LLVM_CONFIG = llvm-config-3.9
 	LLVM_CFLAGS = $(CFLAGS) \
 				  -nostdinc++ \
 				  -I/usr/lib/llvm-3.9/include \
@@ -179,7 +183,7 @@ value_semantics: $(BUILD_DIR)/value_semantics.o
 
 .PHONY: test
 test: zionc
-	./$(ZION_TARGET) test | tee
+	CLANG_BIN=$(CLANG_BIN) LLVM_LINK_BIN=$(LLVM_LINK_BIN) ./$(ZION_TARGET) test
 
 .PHONY: test-html
 test-html: $(ZION_TARGET)
@@ -227,18 +231,26 @@ image: Dockerfile
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
 
 linux-test: image
+	-docker kill zion-build
+	-docker rm zion-build
 	docker run \
 		--rm \
 		--name zion-build \
+		-e LLVM_LINK_BIN=$(LLVM_LINK_BIN) \
+		-e CLANG_BIN=$(CLANG_BIN) \
 		-v `pwd`:/opt/zion \
 		--privileged \
 		-it $(IMAGE):$(VERSION) \
 		make -j4 test
 
 linux-shell: image
+	-docker kill zion-shell
+	-docker rm zion-shell
 	docker run \
 		--rm \
 		--name zion-shell \
+		-e LLVM_LINK_BIN=$(LLVM_LINK_BIN) \
+		-e CLANG_BIN=$(CLANG_BIN) \
 		-v `pwd`:/opt/zion \
 		--privileged \
 		-it $(IMAGE):$(VERSION) \

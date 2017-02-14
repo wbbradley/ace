@@ -30,9 +30,10 @@ RUN apt-get update -y && apt-get install -y \
 	libstdc++6 \
 	libz-dev
 
-# RUN apt-get update -y && apt-get install -y \
-	# libc++-dev \
-	# libc++abi-dev \
+# Make sure llvm-link and clang are linked to be available without version numbers
+RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-link-3.9 100 \
+	&& update-alternatives --install /usr/bin/clang clang /usr/bin/clang-3.9 100 \
+	&& update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-3.9 100
 
 WORKDIR /opt/zion
 CMD bash

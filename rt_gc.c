@@ -1,5 +1,6 @@
 /* the zion garbage collector */
 #include "zion_rt.h"
+
 const type_id_t SENTINEL_TYPE_ID = -1;
 const type_id_t STACK_REF_TYPE_ID = -2;
 
@@ -118,11 +119,11 @@ static void make_thread_key() {
 
 
 intptr_t _init_thread(struct zion_thread_t *zion_thread) {
-	fprintf(stderr, "Initializing a " c_id("%s") " thread...\n",
+	printf("Initializing a " c_id("%s") " thread...\n",
 			zion_thread->thread_type);
 
     if (pthread_once(&key_once, make_thread_key) != 0) {
-		fprintf(stderr, "pthread_once failed\n");
+		printf("pthread_once failed\n");
 		return 1;
 	}
 
@@ -141,7 +142,7 @@ static struct zion_thread_t *zion_thread_create(const char *thread_type) {
 	head_thread = thread;
 
 	if (_init_thread(thread) != 0) {
-		fprintf(stderr, "failed to initialize thread");
+		printf("failed to initialize thread");
 		exit(-1);
 	}
 
@@ -166,7 +167,7 @@ uint_fast64_t get_atomic_version() {
 
 void print_var(const char *msg, struct var_t *var) {
 	// TODO: warn if we try to do this on a non-gc thread (or fix it)
-	fprintf(stdout, "%s var '" c_var("%s") "' size: %d (version %lld)\n", msg, var->name, var->size, var->version);
+	printf("%s var '" c_var("%s") "' size: %d (version %lu)\n", msg, var->name, var->size, (unsigned long)var->version);
 }
 
 void print_stack(struct zion_thread_t *thread) {
@@ -178,13 +179,13 @@ void print_stack(struct zion_thread_t *thread) {
 	 * thread, it is valid to walk since other free threads are not allowed to
 	 * see it, and it should still be alive on the local thread */
 	while (stack_ref != NULL) {
-		fprintf(stdout, "depth %d\n", stack_depth++);
+		printf("depth %d\n", stack_depth++);
 		print_var(c_good(":"), stack_ref->self_var);
 		print_var(c_var("="), stack_ref->var);
 		stack_ref = stack_ref->next_stack_ref;
 	}
 
-	fprintf(stdout, "allocated vars:\n");
+	printf("allocated vars:\n");
 	struct next_var_t next_var = atomic_load(&thread->head_next_var);
 	while (next_var.var != NULL) {
 		print_var(c_unchecked("\\"), next_var.var);
@@ -277,7 +278,7 @@ void push_stack_var(struct var_t *var) {
 	atomic_store(&thread->head_stack_ref, (void *)VAR_DATA_ADDR(stack_ref_var));
 
 	if (atomic_load(&var->version) != 0) {
-		fprintf(stderr, "var %s version should not be set to non-zero value "
+		printf("var %s version should not be set to non-zero value "
 				"prior to pushing the var on the stack.\n", var->name);
 		exit(-1);
 	}
@@ -326,12 +327,12 @@ void pop_stack_var(struct var_t *var) {
 	 * collector */
 	struct stack_ref_t *head_stack_ref = atomic_load(head_stack_ref_handle);
 	if (head_stack_ref == NULL) {
-		fprintf(stderr, "head of stack is NULL, instead of '%s'. FAIL.", var->name);
+		printf("head of stack is NULL, instead of '%s'. FAIL.", var->name);
 		exit(-1);
 	}
 
 	if (head_stack_ref->var != var) {
-		fprintf(stderr, "head of stack should have been var '%s'. it is '%s'. "
+		printf("head of stack should have been var '%s'. it is '%s'. "
 				"FAIL.", var->name, head_stack_ref->var->name);
 		exit(-1);
 	}
@@ -362,7 +363,7 @@ void mark_stack_var(uint_fast64_t version, struct stack_ref_t *stack_ref) {
 	struct var_t *var = stack_ref->var;
 
 	if (var->version == 0) {
-		fprintf(stderr, "the gc should never see unversioned variables in the stack");
+		printf("the gc should never see unversioned variables in the stack");
 		exit(-1);
 	}
 
@@ -391,7 +392,7 @@ void *gc(void *context) {
 	struct zion_thread_t *gc_head_thread = atomic_load(&head_thread);
 	struct zion_thread_t *thread = gc_head_thread;
 
-	fprintf(stdout, "gc - generation " c_id("%lld") "\n", gc_version);
+	printf("gc - generation " c_id("%lu") "\n", (unsigned long)gc_version);
 	/* walk over all threads */
 	while (thread != NULL) {
 		/* create a sentinel variable, and add it to the allocations list. use
@@ -407,7 +408,7 @@ void *gc(void *context) {
 		add_to_thread_allocations(thread, var);
 
 		if (thread->sentinel_var != NULL) {
-			fprintf(stderr, "we should not have a known sentinel at the beginning of the gc\n");
+			printf("we should not have a known sentinel at the beginning of the gc\n");
 			exit(-1);
 		}
 
@@ -476,7 +477,7 @@ void *gc(void *context) {
 		thread = thread->next_thread;
 	}
 
-	fprintf(stdout, "gc done.\nfreed %d objects.\n", freed_objects);
+	printf("gc done.\nfreed %d objects.\n", freed_objects);
 	return NULL;
 }
 
@@ -498,7 +499,7 @@ int32_t main(int32_t argc, char *argv[]) {
 
 	// new x := 5
 	while (1) {
-		fprintf(stdout, "> ");
+		printf("> ");
 		linelen = getline(&line, &linecap, stdin);
 		if (linelen >= 0) {
 			if (strlen(line) >= 1) {
@@ -537,7 +538,7 @@ int32_t main(int32_t argc, char *argv[]) {
 		/* not really necessary, but just for cleanliness */
 		free(line);
 		line = NULL;
-		fprintf(stdout, "\n");
+		printf("\n");
 	}
 
 	return EXIT_SUCCESS;
