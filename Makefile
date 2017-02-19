@@ -180,7 +180,21 @@ value_semantics: $(BUILD_DIR)/value_semantics.o
 
 .PHONY: test
 test: zionc
-	CLANG_BIN=$(CLANG_BIN) LLVM_LINK_BIN=$(LLVM_LINK_BIN) ./$(ZION_TARGET) test
+	@echo "Ensure that clang and llvm-link exist..."
+	/usr/bin/clang --version
+	/usr/bin/llvm-link --version
+
+	@echo "Executing tests..."
+	./$(ZION_TARGET) test
+
+	@echo "Executing runtime test (test_hello_world)..."
+	./$(ZION_TARGET) run test_hello_world
+
+	@echo "Executing runtime test (test_recursion)..."
+	./$(ZION_TARGET) run test_recursion
+
+	@echo "Executing runtime test (test_mike)..."
+	./$(ZION_TARGET) run test_mike
 
 .PHONY: test-html
 test-html: $(ZION_TARGET)
