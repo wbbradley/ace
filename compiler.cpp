@@ -300,9 +300,9 @@ void add_global_types(
 		compiler &compiler,
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
-		llvm::Module *llvm_module_gc)
+		llvm::Module *llvm_module_ref)
 {
-	llvm::Function *llvm_mark_fn_default = llvm_module_gc->getFunction("mark_fn_default");
+	llvm::Function *llvm_mark_fn_default = llvm_module_ref->getFunction("mark_fn_default");
 
 	/* let's add the builtin types to the program scope */
 	std::vector<std::pair<atom, bound_type_t::ref>> globals = {
@@ -361,7 +361,7 @@ void add_global_types(
 		{{"__tag_var"},
 		   	bound_type_t::create(type_id(make_iid("__tag_var")),
 				   	INTERNAL_LOC(),
-				   	llvm_module_gc->getTypeByName("struct.tag_t"))},
+					llvm_module_ref->getTypeByName("struct.tag_t"))},
 		{{TYPEID_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(TYPEID_TYPE)),
@@ -376,27 +376,22 @@ void add_global_types(
 		   	bound_type_t::create(
 					type_id(make_iid("__var")),
 				   	INTERNAL_LOC(),
-				   	llvm_module_gc->getTypeByName("struct.var_t"))},
-		{{"__next_var"},
-		   	bound_type_t::create(
-					type_id(make_iid("__next_var")),
-				   	INTERNAL_LOC(),
-				   	llvm_module_gc->getTypeByName("struct.next_var_t"))},
+				   	llvm_module_ref->getTypeByName("struct.var_t"))},
 		{{"__var_ref"},
 		   	bound_type_t::create(
 					type_id(make_iid("__var_ref")),
 				   	INTERNAL_LOC(),
-				   	llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
+				   	llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
 		{{"nil"},
 		   	bound_type_t::create(
 					type_id(make_iid("nil")),
 				   	INTERNAL_LOC(),
-				   	llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
+				   	llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
 		{{BUILTIN_UNREACHABLE_TYPE},
 		   	bound_type_t::create(
 					type_unreachable(),
 				   	INTERNAL_LOC(),
-				   	llvm_module_gc->getTypeByName("struct.var_t")->getPointerTo())},
+				   	llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
 		{{"__mark_fn"},
 		   	bound_type_t::create(
 					type_id(make_iid("__mark_fn")),
@@ -430,12 +425,12 @@ void add_globals(
 	auto llvm_module_int = compiler.llvm_load_ir(status, "rt_int.llir");
 	auto llvm_module_float = compiler.llvm_load_ir(status, "rt_float.llir");
 	auto llvm_module_str = compiler.llvm_load_ir(status, "rt_str.llir");
-	auto llvm_module_gc = compiler.llvm_load_ir(status, "rt_gc.llir");
+	auto llvm_module_ref = compiler.llvm_load_ir(status, "rt_ref.llir");
 	auto llvm_module_typeid = compiler.llvm_load_ir(status, "rt_typeid.llir");
 
 	/* set up the global scalar types, as well as memory reference and garbage
 	 * collection types */
-	add_global_types(status, compiler, builder, program_scope, llvm_module_gc);
+	add_global_types(status, compiler, builder, program_scope, llvm_module_ref);
 	assert(!!status);
 
 	/* lookup the types of bool and void pointer for use below */
@@ -536,12 +531,10 @@ void add_globals(
 			{"__type_id_eq_type_id", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 			{"__int__", llvm_module_typeid, "__type_id_int", {TYPEID_TYPE}, INT_TYPE},
 
-			{"__mem_alloc", llvm_module_gc, "mem_alloc", {INT_TYPE}, "__bytes"},
-			{"__push_stack_var", llvm_module_gc, "push_stack_var", {"__var_ref"}, "void"},
-			{"__pop_stack_var", llvm_module_gc, "pop_stack_var", {"__var_ref"}, "void"},
-			{"__create_var", llvm_module_gc, "create_var", {STR_TYPE, "__mark_fn", TYPEID_TYPE, "__byte_count"}, "__var_ref"},
-			{"__get_var_type_id", llvm_module_gc, "get_var_type_id", {"__var_ref"}, TYPEID_TYPE},
-			{"__isnil", llvm_module_gc, "__isnil", {"__var_ref"}, BOOL_TYPE},
+			{"__mem_alloc", llvm_module_ref, "mem_alloc", {INT_TYPE}, "__bytes"},
+			{"__create_var", llvm_module_ref, "create_var", {STR_TYPE, "__mark_fn", TYPEID_TYPE, "__byte_count"}, "__var_ref"},
+			{"__get_var_type_id", llvm_module_ref, "get_var_type_id", {"__var_ref"}, TYPEID_TYPE},
+			{"__isnil", llvm_module_ref, "__isnil", {"__var_ref"}, BOOL_TYPE},
 		};
 
 		for (auto &binding : bindings) {
@@ -678,13 +671,13 @@ std::unordered_set<std::string> compiler::compile_modules(status_t &status) {
 }
 
 int compiler::emit_built_program(status_t &status, std::string executable_filename) {
-	std::string clang_bin = getenv("CLANG_BIN") ? getenv("CLANG_BIN") : "";
+	std::string clang_bin = getenv("CLANG_BIN") ? getenv("CLANG_BIN") : "/usr/bin/clang";
 	if (clang_bin.size() == 0) {
 		user_error(status, INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called CLANG_BIN");
 		return -1;
 	}
 
-	std::string llvm_link_bin = getenv("LLVM_LINK_BIN") ? getenv("LLVM_LINK_BIN") : "";
+	std::string llvm_link_bin = getenv("LLVM_LINK_BIN") ? getenv("LLVM_LINK_BIN") : "/usr/bin/llvm-link";
 	if (llvm_link_bin.size() == 0) {
 		user_error(status, INTERNAL_LOC(), "cannot find llvm-link! please specify it in an ENV var called LLVM_LINK_BIN");
 		return -1;
@@ -711,7 +704,7 @@ int compiler::emit_built_program(status_t &status, std::string executable_filena
 		int ret = system(ss.str().c_str());
 		if (ret == 0) {
 			ss.str("");
-			ss << clang_bin << " -lc -Wno-override-module -std=c11 -Wall -O0 -mcx16 -pthread ";
+			ss << clang_bin << " -lc -Wno-override-module -Wall -O0 -mcx16 -pthread ";
 			ss << bitcode_filename << " -o " << executable_filename;
 
 			/* compile the bitcode into a local machine executable */

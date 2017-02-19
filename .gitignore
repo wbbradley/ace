@@ -1,3 +1,4 @@
+.*.swo
 build-*
 env
 value_semantics

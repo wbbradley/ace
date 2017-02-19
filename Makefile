@@ -17,8 +17,8 @@ CFLAGS = \
 ifeq ($(UNAME),Darwin)
 	CLANG_BIN = /usr/local/opt/llvm/bin/clang
 	LLVM_LINK_BIN = /usr/local/opt/llvm/bin/llvm-link
-	CLANG = ccache $(CLANG_BIN)
-	CLANG_CPP = ccache /usr/local/opt/llvm/bin/clang++
+	CLANG = $(CLANG_BIN)
+	CLANG_CPP = /usr/local/opt/llvm/bin/clang++
 	LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
 	LLVM_CFLAGS = $(CFLAGS) -nostdinc++ $(shell $(LLVM_CONFIG) --cxxflags) -g -O0
 
@@ -39,8 +39,8 @@ else
 
 ifeq ($(UNAME),Linux)
 	CLANG_BIN = clang-3.9
-	CLANG := ccache $(CLANG_BIN)
-	CLANG_CPP := ccache clang++-3.9
+	CLANG := $(CLANG_BIN)
+	CLANG_CPP := clang++-3.9
 	LLVM_LINK_BIN = llvm-link-3.9
 	LLVM_CONFIG = llvm-config-3.9
 	LLVM_CFLAGS = $(CFLAGS) \
@@ -152,17 +152,14 @@ ZION_RUNTIME = \
 				rt_fn.c \
 				rt_float.c \
 				rt_str.c \
-				rt_gc.c \
+				rt_ref.c \
 				rt_typeid.c
 
 ZION_RUNTIME_LLIR = $(ZION_RUNTIME:.c=.llir)
 
 TARGETS = $(ZION_TARGET)
 
-timed:
-	time make all
-
-all: $(TARGETS) rt_gc
+all: $(TARGETS)
 
 -include $(ZION_LLVM_OBJECTS:.o=.d)
 
@@ -172,7 +169,7 @@ rt_float.c: zion_rt.h
 
 rt_str.c: zion_rt.h
 
-rt_gc.c: zion_rt.h
+rt_ref.c: zion_rt.h
 
 $(BUILD_DIR)/.gitignore:
 	mkdir -p $(BUILD_DIR)
@@ -199,7 +196,6 @@ $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_LLIR
 	@echo Linking $@
 	$(LINKER) $(LINKER_OPTS) $(ZION_LLVM_OBJECTS) -o $@
 	@echo $@ successfully built
-	@ccache -s
 	@du -hs $@ | cut -f1 | xargs echo Target \`$@\` is
 
 $(BUILD_DIR)/%.e: %.cpp
@@ -219,9 +215,6 @@ $(BUILD_DIR)/%.o: %.c
 %.llir: %.c
 	@echo Emitting LLIR from $<
 	@$(CLANG) -S -emit-llvm $< -o - | grep -v -e 'llvm\.ident' -e 'Apple LLVM version 6' > $@
-
-rt_gc: rt_gc.c
-	$(CLANG) -DRT_GC_TEST -g -std=c11 -Wall -O0 -mcx16 -pthread rt_gc.c -o rt_gc
 
 clean:
 	rm -rf $(BUILD_DIR)/* $(TARGETS)

@@ -495,7 +495,7 @@ void check_struct_initialization(
 		if (llvm_struct_initialization[i]->getType() == llvm_struct_type->getElementType(i)) {
 		   continue;
 		} else {
-			debug_above(10, log(log_error, "llvm_struct_initialization[%d] mismatch is %s should be %s",
+			debug_above(7, log(log_error, "llvm_struct_initialization[%d] mismatch is %s should be %s",
 						i,
 					   	llvm_print_value(*llvm_struct_initialization[i]).c_str(),
 						llvm_print_type(llvm_struct_type->getElementType(i)).c_str()));
@@ -536,10 +536,6 @@ bound_var_t::ref llvm_create_global_tag(
 	debug_above(10, log(log_info, "llvm_name is %s", llvm_print_value(*llvm_name).c_str()));
 
 	std::vector<llvm::Constant *> llvm_tag_data({
-			/* GC version - should always be zero since this is a global and must
-			 * never be collected */
-			(llvm::Constant *)llvm_create_int(builder, 0),
-
 			/* size - should always be zero since the type_id is part of this var_t
 			 * as builtin type info. */
 			(llvm::Constant *)llvm_create_int16(builder, 0),
