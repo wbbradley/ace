@@ -30,12 +30,7 @@ llvm::Constant *llvm_create_global_string_constant(
 	llvm::LLVMContext &Context = builder.getContext();
 	llvm::Constant *StrConstant = llvm::ConstantDataArray::getString(Context, str);
 	std::string name = std::string("__global_") + str;
-	llvm::GlobalVariable *llvm_value = new llvm::GlobalVariable(M, StrConstant->getType(),
-			true, llvm::GlobalValue::PrivateLinkage,
-			StrConstant, name, nullptr,
-			llvm::GlobalVariable::NotThreadLocal,
-			0 /*AddressSpace*/);
-	llvm_value->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+	llvm::GlobalVariable *llvm_value = llvm_get_global(&M, name, StrConstant);
 	return llvm_get_pointer_to_constant(builder, llvm_value);
 }
 
@@ -508,6 +503,21 @@ void check_struct_initialization(
 	}
 }
 
+llvm::GlobalVariable *llvm_get_global(
+		llvm::Module *llvm_module,
+		std::string name,
+		llvm::Constant *llvm_constant)
+{
+	auto llvm_global_variable = new llvm::GlobalVariable(*llvm_module,
+			llvm_constant->getType(),
+			true /* isConstant */, llvm::GlobalValue::PrivateLinkage,
+			llvm_constant, name, nullptr,
+			llvm::GlobalVariable::NotThreadLocal);
+
+	llvm_global_variable->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+	return llvm_global_variable;
+}
+
 bound_var_t::ref llvm_create_global_tag(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -520,8 +530,8 @@ bound_var_t::ref llvm_create_global_tag(
 	/* For a tag called "Example" with a type_id of 42, the LLIR should look
 	 * like this:
 	 *
-	 * @.str = private unnamed_addr constant [5 x i8] c"Example\00", align 1
-	 * @__tag_Example = global %struct.tag_t { i64 0, i16 0, i8* getelementptr inbounds ([5 x i8], [5 x i8]* @.str, i32 0, i32 0), i32 42 }, align 8
+	 * @__tag_type_info_Example = global %struct.type_info_t { i32 42, i16 -1, i16* null, i8* getelementptr inbounds ([5 x i8], [5 x i8]* @.str, i32 0, i32 0), i16 0 }, align 8
+	 * @__tag_Example = global %struct.tag_t { %struct.type_info_t* @__tag_type_info_Example }, align 8
 	 * @Example = global %struct.var_t* bitcast (%struct.tag_t* @__tag_Example to %struct.var_t*), align 8 */
 
 	bound_type_t::ref var_ref_type = program_scope->get_bound_type({"__var_ref"});
@@ -539,38 +549,48 @@ bound_var_t::ref llvm_create_global_tag(
 	llvm::Constant *llvm_name = llvm_create_global_string_constant(builder, *llvm_module, tag.str());
 	debug_above(10, log(log_info, "llvm_name is %s", llvm_print_value(*llvm_name).c_str()));
 
+	llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
+			program_scope->get_bound_type({"__type_info"})->get_llvm_type());
+
 	std::vector<llvm::Constant *> llvm_tag_data({
-			/* size - should always be zero since the type_id is part of this var_t
-			 * as builtin type info. */
-			(llvm::Constant *)llvm_create_int16(builder, 0),
+			/* type_id - the actual type "tag" */
+			(llvm::Constant *)llvm_create_int32(builder, tag.iatom),
+
+			/* the number of contained references */
+			builder.getInt16(-1),
+
+			/* there are no managed references in a tag */
+			llvm::Constant::getNullValue(builder.getInt16Ty()->getPointerTo()),
 
 			/* name - for debugging */
 			llvm_name,
 
-			/* type_id - the actual type "tag" */
-			(llvm::Constant *)llvm_create_int32(builder, tag.iatom),
-		});
+			/* size - should always be zero since the type_id is part of this var_t
+			 * as builtin type info. */
+			builder.getInt16(0)});
 
 	llvm::ArrayRef<llvm::Constant*> llvm_tag_initializer{llvm_tag_data};
 
-	check_struct_initialization(llvm_tag_initializer, llvm_tag_type);
+	check_struct_initialization(llvm_tag_initializer, llvm_type_info_type);
 
-	llvm::Constant *llvm_tag_constant = llvm::ConstantStruct::get(llvm_tag_type,
-			llvm_tag_initializer);
+	llvm::GlobalVariable *llvm_type_info = llvm_get_global(
+			llvm_module, std::string("__tag_type_info_") + tag.str(),
+			llvm::ConstantStruct::get(llvm_type_info_type,
+				llvm_tag_initializer));
 
-	llvm::GlobalVariable *llvm_tag_global_instance = new llvm::GlobalVariable(*llvm_module,
-			llvm_tag_constant->getType(),
-			true /* isConstant */, llvm::GlobalValue::PrivateLinkage,
-			llvm_tag_constant, std::string("__tag_") + tag.str(), nullptr,
-			llvm::GlobalVariable::NotThreadLocal);
+	llvm::GlobalVariable *llvm_tag_constant = llvm_get_global(llvm_module,
+			std::string("__tag_") + tag.str(),
+			llvm::ConstantStruct::get(llvm_tag_type,
+				llvm_type_info, nullptr));
 
 	debug_above(10, log(log_info, "getBitCast(%s, %s)",
-				llvm_print_value(*llvm_tag_global_instance).c_str(),
+				llvm_print_value(*llvm_tag_constant).c_str(),
 				llvm_print_type(llvm_var_ref_type).c_str()));
-	llvm::Constant *llvm_tag_value = llvm::ConstantExpr::getBitCast(
-			llvm_tag_global_instance, llvm_var_ref_type);
+	llvm::Constant *llvm_tag_value = llvm::ConstantExpr::getPointerCast(
+			llvm_tag_constant, llvm_var_ref_type);
 
-	return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_value, id, false/*is_lhs*/);
+	return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_value,
+			id, false/*is_lhs*/);
 }
 
 llvm::Value *llvm_maybe_pointer_cast(

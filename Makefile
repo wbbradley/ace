@@ -205,7 +205,8 @@ test-html: $(ZION_TARGET)
 
 .PHONY: dbg
 dbg: $(ZION_TARGET)
-	ALL_TESTS=1 $(LLDB) -s .lldb-script -- ./$(ZION_TARGET) test
+	# ALL_TESTS=1 $(LLDB) -s .lldb-script -- ./$(ZION_TARGET) test
+	ALL_TESTS=1 gdb --args ./$(ZION_TARGET) test
 
 $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_LLIR)
 	@echo Linking $@

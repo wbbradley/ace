@@ -2280,7 +2280,7 @@ bound_var_t::ref ast::block::resolve_instantiation(
 		auto stmt_life = life->new_life(lf_statement);
 
 		/* resolve the statement */
-		statement->resolve_instantiation(status, builder, current_scope, life,
+		statement->resolve_instantiation(status, builder, current_scope, stmt_life,
 				&next_scope, returns);
 
 		if (!!status) {
@@ -2420,6 +2420,8 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
+	assert(life->life_form == lf_statement);
+
 	/* if scope allows us to set up new variables inside if conditions */
 	local_scope_t::ref if_scope;
 

@@ -9,7 +9,7 @@ life_t::life_t(life_form_t life_form, life_t::ref former_life) :
 }
 
 life_t::~life_t() {
-	assert(release_vars_called && "We've cleaned up the bound vars");
+	assert(((values.size() == 0) ^ release_vars_called) && "We've cleaned up the bound vars");
 }
 
 life_t::ref life_t::new_life(life_form_t life_form) {
@@ -28,10 +28,9 @@ void life_t::release_vars(
 		auto release_function = program_scope->get_singleton({"__release_var"});
 
 		if (!!status) {
+			release_vars_called = true;
 			// TODO: call the release
 			not_impl();
 		}
 	}
-
-	release_vars_called = true;
 }

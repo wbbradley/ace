@@ -609,7 +609,9 @@ llvm::Value *llvm_call_allocator(
 				llvm_deref_type(data_type->get_llvm_specific_type()));
 
 		if (struct_type->managed) {
-			llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(data_type->get_llvm_specific_type());
+			llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
+					llvm::dyn_cast<llvm::PointerType>(
+						data_type->get_llvm_specific_type())->getElementType());
 			assert(llvm_struct_type != nullptr);
 			assert(llvm_struct_type->elements().size() != 0);
 
@@ -629,37 +631,43 @@ llvm::Value *llvm_call_allocator(
 			llvm::ArrayType *llvm_dim_offsets_type = llvm::ArrayType::get(
 					builder.getInt16Ty(), llvm_offsets.size());
 
+			llvm::Module *llvm_module = llvm_get_module(builder);
+
 			/* create the actual list of offsets */
-			llvm::Constant *llvm_dim_offsets = llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(
-						llvm::ConstantArray::get(llvm_dim_offsets_type, llvm_offsets),
-						builder.getInt16Ty()->getPointerTo());
+			llvm::Constant *llvm_dim_offsets = llvm_get_global(llvm_module,
+					std::string("__dim_offsets_") + name.str(),
+					llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(
+						llvm::ConstantArray::get(llvm_dim_offsets_type,
+							llvm_offsets),
+						builder.getInt16Ty()->getPointerTo()));
 
-			llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
-					program_scope->get_bound_type({"__type_info"})->get_llvm_type());
+					llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
+						program_scope->get_bound_type({"__type_info"})->get_llvm_type());
 
-			auto signature = data_type->get_signature();
-			debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
-						signature.str().c_str(), signature.repr().iatom));
+					auto signature = data_type->get_signature();
+					debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
+							signature.str().c_str(), signature.repr().iatom));
 
-			llvm_type_info = llvm::ConstantStruct::get(
-					llvm_type_info_type,
+					llvm_type_info = llvm_get_global(llvm_module, string_format("__type_info_%s", signature.str().c_str()),
+						llvm::ConstantStruct::get(
+							llvm_type_info_type,
 
-					/* the type_id */
-					builder.getInt32(signature.repr().iatom),
+							/* the type_id */
+							builder.getInt32(signature.repr().iatom),
 
-					/* the number of contained references */
-					builder.getInt16(llvm_offsets.size()),
+							/* the number of contained references */
+							builder.getInt16(llvm_offsets.size()),
 
-					/* the actual offsets to the managed references */
-					llvm_dim_offsets,
+							/* the actual offsets to the managed references */
+							llvm_dim_offsets,
 
-					/* name this variable */
-					builder.CreateGlobalStringPtr(name.str()),
+							/* name this variable */
+							builder.CreateGlobalStringPtr(name.str()),
 
-					/* allocation size */
-					llvm_sizeof_tuple,
+							/* allocation size */
+							llvm_sizeof_tuple,
 
-					nullptr);
+							nullptr));
 		}
 
 		llvm::Value *llvm_alloced = (
@@ -668,8 +676,8 @@ llvm::Value *llvm_call_allocator(
 					status, builder, *node,
 					mem_alloc_var,
 					{
-						/* the type info for this value */
-						llvm_type_info,
+					/* the type info for this value */
+					llvm_type_info,
 					}, life)
 
 				: llvm_create_call_inst(status, builder, *node,

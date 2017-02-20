@@ -38,6 +38,7 @@ llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value);
 llvm::Value *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value);
 llvm::Value *llvm_create_int32(llvm::IRBuilder<> &builder, int32_t value);
 llvm::Value *llvm_create_float(llvm::IRBuilder<> &builder, float value);
+llvm::GlobalVariable *llvm_get_global(llvm::Module *llvm_module, std::string name, llvm::Constant *llvm_constant);
 llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder, std::string value);
 llvm::Module *llvm_get_module(llvm::IRBuilder<> &builder);
 llvm::Function *llvm_get_function(llvm::IRBuilder<> &builder);
