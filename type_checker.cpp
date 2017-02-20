@@ -56,6 +56,7 @@ bound_var_t::ref type_check_bound_var_decl(
 		llvm::IRBuilder<> &builder,
 		const ast::var_decl &obj,
 		scope_t::ref scope,
+		life_t::ref life,
 		bool maybe_unbox)
 {
 	const atom symbol = obj.token.text;
@@ -93,7 +94,7 @@ bound_var_t::ref type_check_bound_var_decl(
 	if (obj.initializer) {
 		/* we have an initializer */
 		init_var = obj.initializer->resolve_instantiation(status, builder,
-				scope, nullptr, nullptr);
+				scope, life, nullptr, nullptr);
 	}
 
 	if (!!status) {
@@ -452,6 +453,7 @@ bound_var_t::ref ast::link_module_statement::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -491,6 +493,7 @@ bound_var_t::ref ast::link_function_statement::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -554,6 +557,7 @@ bound_var_t::ref ast::link_name::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -564,6 +568,7 @@ bound_var_t::ref ast::dot_expr::resolve_overrides(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		const ptr<const ast::item> &callsite,
 		const bound_type_t::refs &args) const
 {
@@ -573,7 +578,7 @@ bound_var_t::ref ast::dot_expr::resolve_overrides(
 
 	/* check the left-hand side first, it should be a type_namespace */
 	bound_var_t::ref lhs_var = lhs->resolve_instantiation(
-			status, builder, scope, nullptr, nullptr);
+			status, builder, scope, life, nullptr, nullptr);
 
 	if (!!status) {
 		if (auto bound_module = dyncast<const bound_module_t>(lhs_var)) {
@@ -598,6 +603,7 @@ bound_var_t::ref ast::callsite_expr::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -610,7 +616,7 @@ bound_var_t::ref ast::callsite_expr::resolve_instantiation(
 			if (params->expressions.size() == 1) {
 				auto param = params->expressions[0];
 				bound_var_t::ref param_var = param->resolve_instantiation(
-						status, builder, scope, nullptr, nullptr);
+						status, builder, scope, life, nullptr, nullptr);
 
 				if (!!status) {
 					user_message(log_info, status, param->get_location(),
@@ -635,7 +641,7 @@ bound_var_t::ref ast::callsite_expr::resolve_instantiation(
 		/* iterate through the parameters and add their types to a vector */
 		for (auto &param : params->expressions) {
 			bound_var_t::ref param_var = param->resolve_instantiation(
-					status, builder, scope, nullptr, nullptr);
+					status, builder, scope, life, nullptr, nullptr);
 
 			if (!status) {
 				break;
@@ -652,13 +658,13 @@ bound_var_t::ref ast::callsite_expr::resolve_instantiation(
 		if (auto can_reference_overloads = dyncast<can_reference_overloads_t>(function_expr)) {
 			/* we need to figure out which overload to call, if there are any */
 			bound_var_t::ref function = can_reference_overloads->resolve_overrides(
-					status, builder, scope, shared_from_this(),
+					status, builder, scope, life, shared_from_this(),
 					bound_type_t::refs_from_vars(arguments));
 
 			if (!!status) {
 				debug_above(5, log(log_info, "function chosen is %s", function->str().c_str()));
 
-				return make_call_value(status, builder, shared_from_this(), scope,
+				return make_call_value(status, builder, shared_from_this(), scope, life,
 						function, arguments);
 			}
 		} else {
@@ -679,6 +685,7 @@ bound_var_t::ref ast::reference_expr::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -698,6 +705,7 @@ bound_var_t::ref ast::reference_expr::resolve_as_condition(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope) const
 {
 	/* we wouldn't be referencing a variable name here unless it was unique
@@ -761,6 +769,7 @@ bound_var_t::ref ast::array_index_expr::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -772,7 +781,7 @@ bound_var_t::ref ast::array_index_expr::resolve_instantiation(
 
 	if (!!status) {
 		bound_var_t::ref lhs_val = lhs->resolve_instantiation(status, builder,
-				scope, nullptr, nullptr);
+				scope, life, nullptr, nullptr);
 
 		if (!!status) {
 			/* check to see if we have a literal index */
@@ -783,7 +792,7 @@ bound_var_t::ref ast::array_index_expr::resolve_instantiation(
 					if (value >= 0) {
 						/* see if we have a deref operator function for the lhs type */
 						return call_const_subscript_operator(status, builder,
-								scope, shared_from_this(), lhs_val,
+								scope, life, shared_from_this(), lhs_val,
 								make_code_id(literal_expr->token), value);
 					} else {
 						user_error(status, *this, "you must use a number zero or greater");
@@ -807,6 +816,7 @@ bound_var_t::ref ast::array_literal_expr::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -818,6 +828,7 @@ bound_var_t::ref type_check_binary_operator(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		ptr<const ast::expression> lhs,
 		ptr<const ast::expression> rhs,
 		ast::item::ref obj,
@@ -827,14 +838,16 @@ bound_var_t::ref type_check_binary_operator(
 		assert(function_name.size() != 0);
 
 		bound_var_t::ref lhs_var, rhs_var;
-		lhs_var = lhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+		lhs_var = lhs->resolve_instantiation(status, builder, scope, life,
+				nullptr, nullptr);
 		if (!!status) {
-			rhs_var = rhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+			rhs_var = rhs->resolve_instantiation(status, builder, scope, life,
+					nullptr, nullptr);
 
 			if (!!status) {
 				/* get or instantiate a function we can call on these arguments */
 				return call_program_function(
-						status, builder, scope, function_name,
+						status, builder, scope, life, function_name,
 						obj, {lhs_var, rhs_var});
 			}
 		}
@@ -847,6 +860,7 @@ bound_var_t::ref ast::eq_expr::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -862,7 +876,7 @@ bound_var_t::ref ast::eq_expr::resolve_instantiation(
 		return null_impl();
 	}
 
-	return type_check_binary_operator(status, builder, scope, lhs, rhs,
+	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
 			shared_from_this(), function_name);
 }
 
@@ -870,6 +884,7 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -879,7 +894,7 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 
 	for (auto &value: values) {
 		bound_var_t::ref var = value->resolve_instantiation(status, builder,
-				scope, nullptr, nullptr);
+				scope, life, nullptr, nullptr);
 		if (!!status) {
 			vars.push_back(var);
 		}
@@ -907,8 +922,9 @@ bound_var_t::ref ast::tuple_expr::resolve_instantiation(
 						scope, tuple.first->type)->get_type()->repr() == type_ref(tuple_type)->repr());
 
 			/* now, let's call our unnamed tuple ctor and return that value */
-			return create_callsite(status, builder, scope, shared_from_this(),
-					tuple.first, tuple_type->repr(), token.location, vars);
+			return create_callsite(status, builder, scope, life,
+					shared_from_this(), tuple.first, tuple_type->repr(),
+					token.location, vars);
 		}
 	}
 
@@ -940,9 +956,12 @@ llvm::Value *maybe_get_bool_overload_value(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		ast::item::ref condition,
 		bound_var_t::ref condition_value)
 {
+	assert(life->life_form == lf_statement);
+
 	llvm::Value *llvm_condition_value = nullptr;
 	// TODO: check whether we are checking a raw value or not
 
@@ -977,7 +996,7 @@ llvm::Value *maybe_get_bool_overload_value(
 				/* let's call this bool function */
 				llvm_condition_value = llvm_create_call_inst(
 						status, builder, *condition, bool_fn,
-						{condition_value->llvm_value});
+						{condition_value->llvm_value}, life);
 				if (!!status) {
 					assert(llvm_condition_value->getType()->isIntegerTy());
 					return llvm_condition_value;
@@ -1002,6 +1021,7 @@ bound_var_t::ref ast::ternary_expr::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -1020,13 +1040,13 @@ bound_var_t::ref ast::ternary_expr::resolve_instantiation(
 		 * grant them a favor, and automatically unbox the Maybe type if it
 		 * exists. */
 		condition_value = var_decl->resolve_as_condition(
-				status, builder, scope, &if_scope);
+				status, builder, scope, life, &if_scope);
 	} else if (auto ref_expr = dyncast<const ast::reference_expr>(condition)) {
 		condition_value = ref_expr->resolve_as_condition(
-				status, builder, scope, &if_scope);
+				status, builder, scope, life, &if_scope);
 	} else {
 		condition_value = condition->resolve_instantiation(
-				status, builder, scope, &if_scope, nullptr);
+				status, builder, scope, life, &if_scope, nullptr);
 	}
 
 	if (!!status) {
@@ -1059,7 +1079,7 @@ bound_var_t::ref ast::ternary_expr::resolve_instantiation(
 			/* calculate the false path's value in the else block */
 			builder.SetInsertPoint(else_bb);
 			bound_var_t::ref false_path_value = when_false->resolve_instantiation(
-					status, builder, scope, nullptr, nullptr);
+					status, builder, scope, life, nullptr, nullptr);
 
 			/* after calculation, the code should jump to the phi node's basic block */
 			builder.CreateBr(merge_bb);
@@ -1068,7 +1088,7 @@ bound_var_t::ref ast::ternary_expr::resolve_instantiation(
 				/* let's generate code for the "true-path" block */
 				builder.SetInsertPoint(then_bb);
 				llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
-						builder, scope, condition, condition_value);
+						builder, scope, life, condition, condition_value);
 
 				if (!!status) {
 					llvm::BasicBlock *truth_path_bb = then_bb;
@@ -1090,7 +1110,7 @@ bound_var_t::ref ast::ternary_expr::resolve_instantiation(
 
 					/* get the bound_var for the truthy path */
 					bound_var_t::ref true_path_value = when_true->resolve_instantiation(
-							status, builder, if_scope ? if_scope : scope, nullptr, nullptr);
+							status, builder, if_scope ? if_scope : scope, life, nullptr, nullptr);
 
 					if (!!status) {
 						bound_type_t::ref ternary_type;
@@ -1147,6 +1167,7 @@ bound_var_t::ref ast::or_expr::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -1158,6 +1179,7 @@ bound_var_t::ref ast::and_expr::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -1227,6 +1249,7 @@ bound_var_t::ref extract_member_variable(
 		status_t &status, 
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		ast::item::ref node,
 		bound_var_t::ref bound_var,
 		atom member_name,
@@ -1306,18 +1329,19 @@ bound_var_t::ref ast::dot_expr::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	bound_var_t::ref lhs_val = lhs->resolve_instantiation(status,
-			builder, scope, nullptr, nullptr);
+			builder, scope, life, nullptr, nullptr);
 
 	if (!!status) {
 		auto bound_type = lhs_val->type;
 		types::type::ref member_type;
 
 		if (!!status) {
-			return extract_member_variable(status, builder, scope,
+			return extract_member_variable(status, builder, scope, life,
 					shared_from_this(), lhs_val, rhs.text, bound_type);
 		}
 	}
@@ -1330,6 +1354,7 @@ bound_var_t::ref ast::ineq_expr::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -1351,7 +1376,7 @@ bound_var_t::ref ast::ineq_expr::resolve_instantiation(
 		return null_impl();
 	}
 
-	return type_check_binary_operator(status, builder, scope, lhs, rhs,
+	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
 			shared_from_this(), function_name);
 }
 
@@ -1359,6 +1384,7 @@ bound_var_t::ref ast::plus_expr::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -1374,13 +1400,14 @@ bound_var_t::ref ast::plus_expr::resolve_instantiation(
 		return null_impl();
 	}
 
-	return type_check_binary_operator(status, builder, scope, lhs, rhs,
+	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
 			shared_from_this(), function_name);
 }
 
 bound_var_t::ref call_typeid(
 		status_t &status,
 		scope_t::ref scope,
+		life_t::ref life,
 		ast::item::ref callsite,
 		identifier::ref id,
 	   	llvm::IRBuilder<> &builder,
@@ -1412,6 +1439,7 @@ bound_var_t::ref call_typeid(
 					status,
 					builder,
 					scope,
+					life,
 					callsite,
 					get_typeid_function,
 					name,
@@ -1437,17 +1465,20 @@ bound_var_t::ref ast::typeid_expr::resolve_instantiation(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
+		life_t::ref life,
 	   	local_scope_t::ref *new_scope,
 	   	bool *returns) const
 {
 	auto resolved_value = expr->resolve_instantiation(status,
 			builder,
 			scope,
+			life,
 			nullptr,
 			returns);
 
 	if (!!status) {
-		return call_typeid(status, scope, shared_from_this(), make_code_id(token), builder, resolved_value);
+		return call_typeid(status, scope, life, shared_from_this(),
+				make_code_id(token), builder, resolved_value);
 	}
 
 	assert(!status);
@@ -1458,6 +1489,7 @@ bound_var_t::ref ast::sizeof_expr::resolve_instantiation(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
+		life_t::ref life,
 	   	local_scope_t::ref *new_scope,
 	   	bool *returns) const
 {
@@ -1481,10 +1513,15 @@ bound_var_t::ref ast::function_defn::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref,
         local_scope_t::ref *new_scope,
 		bool *) const
 {
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+	/* lifetimes have extents at function boundaries */
+	auto life = make_ptr<life_t>(lf_function);
+
 	assert(!!status);
 
 	/* function definitions are type checked at instantiation points. callsites
@@ -1506,7 +1543,7 @@ bound_var_t::ref ast::function_defn::resolve_instantiation(
 	type_check_fully_bound_function_decl(status, builder, *decl, scope, inbound_context, args, return_type);
 
 	if (!!status) {
-		return instantiate_with_args_and_return_type(status, builder, scope,
+		return instantiate_with_args_and_return_type(status, builder, scope, life,
 				new_scope, inbound_context, args, return_type);
 	} else {
 		user_error(status, *this, "unable to declare function %s due to related errors",
@@ -1521,6 +1558,7 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
 		local_scope_t::ref *new_scope,
 		types::type::ref inbound_context,
 		bound_type_t::named_pairs args,
@@ -1528,6 +1566,8 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 {
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 	assert(!!status);
+	assert(life->life_form == lf_function);
+	assert(life->values.size() == 0);
 
 	std::string function_name = token.text;
 
@@ -1606,7 +1646,7 @@ bound_var_t::ref ast::function_defn::instantiate_with_args_and_return_type(
 			/* keep track of whether this function returns */
 			bool all_paths_return = false;
 			params_scope->return_type_constraint = return_type;
-			block->resolve_instantiation(status, builder, params_scope,
+			block->resolve_instantiation(status, builder, params_scope, life,
 					nullptr, &all_paths_return);
 
 			if (!!status) {
@@ -1655,13 +1695,14 @@ status_t type_check_module_links(
 	module_scope_t::ref scope = compiler.get_module_scope(obj.module_key);
 
 	for (auto &link : obj.linked_modules) {
-		link->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+		link->resolve_instantiation(status, builder, scope, nullptr, nullptr,
+				nullptr);
 	}
 
 	if (!!status) {
 		for (auto &link : obj.linked_functions) {
 			bound_var_t::ref link_value = link->resolve_instantiation(
-					status, builder, scope, nullptr, nullptr);
+					status, builder, scope, nullptr, nullptr, nullptr);
 
 			if (!!status) {
 				if (link->function_name.text.size() != 0) {
@@ -1706,14 +1747,14 @@ status_t type_check_module_types(
 			if (auto type_def = dyncast<const ast::type_def>(node)) {
 				status_t status;
 				type_def->resolve_instantiation(
-						status, builder, module_scope, nullptr, nullptr);
+						status, builder, module_scope, nullptr, nullptr, nullptr);
 
 				/* take note of whether this failed or not */
 				final_status |= status;
 			} else if (auto tag = dyncast<const ast::tag>(node)) {
 				status_t status;
 				tag->resolve_instantiation(
-						status, builder, module_scope, nullptr, nullptr);
+						status, builder, module_scope, nullptr, nullptr, nullptr);
 
 				/* take note of whether this failed or not */
 				final_status |= status;
@@ -1774,7 +1815,7 @@ status_t type_check_program_variables(
 					status_t status;
 					bound_var_t::ref variable = stmt->resolve_instantiation(
 							status, builder, unchecked_var->module_scope,
-							nullptr, nullptr);
+							nullptr, nullptr, nullptr);
 
 					/* take note of whether this failed or not */
 					final_status |= status;
@@ -1839,6 +1880,7 @@ bound_var_t::ref ast::tag::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool * /*returns*/) const
 {
@@ -1882,6 +1924,7 @@ bound_var_t::ref ast::type_def::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool * /*returns*/) const
 {
@@ -1932,6 +1975,7 @@ bound_var_t::ref type_check_assignment(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		bound_var_t::ref lhs_var,
 		bound_var_t::ref rhs_var,
 		struct location location)
@@ -1952,7 +1996,15 @@ bound_var_t::ref type_check_assignment(
 			if (!!status) {
 				if (unification.result) {
 					if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(lhs_var->llvm_value)) {
+						// TODO: release the prior value held by this var
+						not_impl();
+
 						builder.CreateStore(llvm_resolve_alloca(builder, rhs_var->llvm_value), llvm_alloca);
+
+						// assert(in(rhs_var, life->values));
+						// TODO: remove the rhs_var from lf_statement
+						not_impl();
+
 						return lhs_var;
 					} else {
 						assert(false);
@@ -1975,15 +2027,17 @@ bound_var_t::ref ast::assignment::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	assert(token.text == "=");
 
-	auto lhs_var = lhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+	auto lhs_var = lhs->resolve_instantiation(status, builder, scope, life, nullptr, nullptr);
 	if (!!status) {
-		auto rhs_var = rhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
-		return type_check_assignment(status, builder, scope, lhs_var, rhs_var, token.location);
+		auto rhs_var = rhs->resolve_instantiation(status, builder, scope, life, nullptr, nullptr);
+		return type_check_assignment(status, builder, scope, life, lhs_var,
+				rhs_var, token.location);
 	}
 
 	assert(!status);
@@ -1994,6 +2048,7 @@ bound_var_t::ref ast::break_flow::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -2017,6 +2072,7 @@ bound_var_t::ref ast::continue_flow::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -2040,24 +2096,25 @@ bound_var_t::ref type_check_binary_op_assignment(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		ast::item::ref op_node,
 		ast::statement::ref lhs,
 		ast::statement::ref rhs,
 		struct location location,
 		atom function_name)
 {
-	auto lhs_var = lhs->resolve_instantiation(status, builder, scope, nullptr,
+	auto lhs_var = lhs->resolve_instantiation(status, builder, scope, life, nullptr,
 			nullptr);
 
 	if (!!status) {
-		auto rhs_var = rhs->resolve_instantiation(status, builder, scope,
+		auto rhs_var = rhs->resolve_instantiation(status, builder, scope, life,
 				nullptr, nullptr);
 
 		if (!!status) {
 			auto computed_var = call_program_function(status, builder, scope,
-					function_name, op_node, {lhs_var, rhs_var});
+					life, function_name, op_node, {lhs_var, rhs_var});
 
-			return type_check_assignment(status, builder, scope, lhs_var,
+			return type_check_assignment(status, builder, scope, life, lhs_var,
 					computed_var, location);
 		}
 	}
@@ -2070,10 +2127,11 @@ bound_var_t::ref ast::mod_assignment::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	return type_check_binary_op_assignment(status, builder, scope,
+	return type_check_binary_op_assignment(status, builder, scope, life,
 			shared_from_this(), lhs, rhs, token.location, "__mod__");
 }
 
@@ -2081,10 +2139,11 @@ bound_var_t::ref ast::plus_assignment::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	return type_check_binary_op_assignment(status, builder, scope,
+	return type_check_binary_op_assignment(status, builder, scope, life,
 			shared_from_this(), lhs, rhs, token.location, "__plus__");
 }
 
@@ -2092,10 +2151,11 @@ bound_var_t::ref ast::minus_assignment::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	return type_check_binary_op_assignment(status, builder, scope,
+	return type_check_binary_op_assignment(status, builder, scope, life,
 			shared_from_this(), lhs, rhs, token.location, "__minus__");
 }
 
@@ -2103,6 +2163,7 @@ bound_var_t::ref ast::return_statement::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -2115,7 +2176,8 @@ bound_var_t::ref ast::return_statement::resolve_instantiation(
 
     if (expr) {
         /* if there is a return expression resolve it into a value */
-        return_value = expr->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+		return_value = expr->resolve_instantiation(status, builder, scope, life,
+				nullptr, nullptr);
         if (!!status) {
             /* get the type suggested by this return value */
             return_type = return_value->type;
@@ -2162,10 +2224,11 @@ bound_var_t::ref ast::times_assignment::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	return type_check_binary_op_assignment(status, builder, scope,
+	return type_check_binary_op_assignment(status, builder, scope, life,
 			shared_from_this(), lhs, rhs, token.location, "__times__");
 }
 
@@ -2173,10 +2236,11 @@ bound_var_t::ref ast::divide_assignment::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	return type_check_binary_op_assignment(status, builder, scope,
+	return type_check_binary_op_assignment(status, builder, scope, life,
 			shared_from_this(), lhs, rhs, token.location, "__divide__");
 }
 
@@ -2184,6 +2248,7 @@ bound_var_t::ref ast::block::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns_) const
 {
@@ -2198,27 +2263,42 @@ bound_var_t::ref ast::block::resolve_instantiation(
 
 	assert(builder.GetInsertBlock() != nullptr);
 
+	/* create a new life for tracking value lifetimes across this block */
+	life = life->new_life(lf_block);
+
 	for (auto &statement : statements) {
 		if (*returns) {
 			user_error(status, *statement, "this statement will never run");
+			break;
 		}
 
 		local_scope_t::ref next_scope;
 
 		debug_above(9, log(log_info, "type checking statement\n%s", statement->str().c_str()));
 
-		statement->resolve_instantiation(status, builder, current_scope,
+		/* create a new life for tracking the rhs values (temp values) in this statement */
+		auto stmt_life = life->new_life(lf_statement);
+
+		/* resolve the statement */
+		statement->resolve_instantiation(status, builder, current_scope, life,
 				&next_scope, returns);
 
 		if (!!status) {
-			if (next_scope != nullptr) {
-				/* the statement just executed wants to create a new nested scope.
-				 * let's allow this by just keeping track of the current scope. */
-				current_scope = next_scope;
-				next_scope = nullptr;
-				debug_above(10, log(log_info, "got a new scope %s", current_scope->str().c_str()));
+			/* inject release operations for rhs values out of extent */
+			stmt_life->release_vars(status, builder, scope, lf_statement);
+
+			if (!!status) {
+				if (next_scope != nullptr) {
+					/* the statement just executed wants to create a new nested scope.
+					 * let's allow this by just keeping track of the current scope. */
+					current_scope = next_scope;
+					next_scope = nullptr;
+					debug_above(10, log(log_info, "got a new scope %s", current_scope->str().c_str()));
+				}
 			}
-		} else {
+		}
+
+		if (!status) {
 			if (!status.reported_on_error_at(statement->get_location())) {
 				user_error(status, statement->get_location(), "while checking %s",
 						statement->str().c_str());
@@ -2238,6 +2318,7 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -2257,7 +2338,7 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
 
 		/* evaluate the condition for branching */
 		bound_var_t::ref condition_value = condition->resolve_instantiation(
-				status, builder, scope, &while_scope, nullptr);
+				status, builder, scope, life, &while_scope, nullptr);
 
 		if (!!status) {
 			debug_above(5, log(log_info,
@@ -2287,7 +2368,7 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
 					builder.SetInsertPoint(while_block_bb);
 
 					llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
-							builder, scope, condition, condition_value);
+							builder, scope, life, condition, condition_value);
 
 					if (!!status) {
 						if (llvm_bool_overload_value != nullptr) {
@@ -2301,7 +2382,7 @@ bound_var_t::ref ast::while_block::resolve_instantiation(
 					}
 
 					block->resolve_instantiation(status, builder,
-							while_scope ? while_scope : scope, nullptr,
+							while_scope ? while_scope : scope, life, nullptr,
 							nullptr);
 
 					if (!!status) {
@@ -2335,6 +2416,7 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -2354,13 +2436,13 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 		 * grant them a favor, and automatically unbox the Maybe type if it
 		 * exists. */
 		condition_value = var_decl->resolve_as_condition(
-				status, builder, scope, &if_scope);
+				status, builder, scope, life, &if_scope);
 	} else if (auto ref_expr = dyncast<const ast::reference_expr>(condition)) {
 		condition_value = ref_expr->resolve_as_condition(
-				status, builder, scope, &if_scope);
+				status, builder, scope, life, &if_scope);
 	} else {
 		condition_value = condition->resolve_instantiation(
-				status, builder, scope, &if_scope, nullptr);
+				status, builder, scope, life, &if_scope, nullptr);
 	}
 
 		/*
@@ -2420,7 +2502,8 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 				llvm_create_if_branch(builder, llvm_raw_condition_value, then_bb, else_bb);
 
 				builder.SetInsertPoint(else_bb);
-				else_->resolve_instantiation(status, builder, scope, nullptr, &else_block_returns);
+				else_->resolve_instantiation(status, builder, scope, life,
+						nullptr, &else_block_returns);
 
 				if (!else_block_returns) {
 					/* keep track of the fact that we have to have a
@@ -2451,7 +2534,7 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 				/* let's generate code for the "then" block */
 				builder.SetInsertPoint(then_bb);
 				llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
-						builder, scope, condition, condition_value);
+						builder, scope, life, condition, condition_value);
 
 				if (!!status) {
 					if (llvm_bool_overload_value != nullptr) {
@@ -2464,7 +2547,7 @@ bound_var_t::ref ast::if_block::resolve_instantiation(
 					}
 
 					block->resolve_instantiation(status, builder,
-						   	if_scope ? if_scope : scope, nullptr, &if_block_returns);
+						   	if_scope ? if_scope : scope, life, nullptr, &if_block_returns);
 					if (!!status) {
 						if (!if_block_returns) {
 							insert_merge_bb = true;
@@ -2501,15 +2584,20 @@ bound_var_t::ref ast::bang_expr::resolve_instantiation(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
+		life_t::ref life,
 	   	local_scope_t::ref *new_scope,
 	   	bool *) const
 {
-	auto lhs_value = lhs->resolve_instantiation(status, builder, scope, new_scope, nullptr);
+	auto lhs_value = lhs->resolve_instantiation(status, builder, scope, life,
+			new_scope, nullptr);
+
 	if (!!status) {
 		auto type = lhs_value->type->get_type();
 		auto maybe_type = dyncast<const types::type_maybe>(type);
 		if (maybe_type != nullptr) {
-			bound_type_t::ref just_bound_type = upsert_bound_type(status, builder, scope, maybe_type->just);
+			bound_type_t::ref just_bound_type = upsert_bound_type(status,
+					builder, scope, maybe_type->just);
+
 			return bound_var_t::create(INTERNAL_LOC(), lhs_value->name,
 					just_bound_type,
 					lhs_value->llvm_value,
@@ -2527,9 +2615,10 @@ bound_var_t::ref ast::bang_expr::resolve_instantiation(
 
 bound_var_t::ref ast::var_decl::resolve_as_condition(
 		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-	   	scope_t::ref scope,
-	   	local_scope_t::ref *new_scope) const
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		local_scope_t::ref *new_scope) const
 {
     runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
     assert(runnable_scope);
@@ -2542,7 +2631,7 @@ bound_var_t::ref ast::var_decl::resolve_as_condition(
 
     /* check to make sure this var decl is sound */
     bound_var_t::ref var_decl_value = type_check_bound_var_decl(
-            status, builder, *this, fresh_scope, true /*maybe_unbox*/);
+            status, builder, *this, fresh_scope, life, true /*maybe_unbox*/);
 
 	if (!!status) {
 		*new_scope = fresh_scope;
@@ -2557,6 +2646,7 @@ bound_var_t::ref ast::var_decl::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool * /*returns*/) const
 {
@@ -2571,7 +2661,7 @@ bound_var_t::ref ast::var_decl::resolve_instantiation(
 
     /* check to make sure this var decl is sound */
     bound_var_t::ref var_decl_value = type_check_bound_var_decl(
-            status, builder, *this, fresh_scope, false /*maybe_unbox*/);
+            status, builder, *this, fresh_scope, life, false /*maybe_unbox*/);
 
 	if (!!status) {
 		*new_scope = fresh_scope;
@@ -2586,6 +2676,7 @@ bound_var_t::ref ast::pass_flow::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -2596,6 +2687,7 @@ bound_var_t::ref ast::times_expr::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -2614,7 +2706,7 @@ bound_var_t::ref ast::times_expr::resolve_instantiation(
 		return null_impl();
 	}
 
-	return type_check_binary_operator(status, builder, scope, lhs, rhs,
+	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
 			shared_from_this(), function_name);
 }
 
@@ -2622,6 +2714,7 @@ bound_var_t::ref ast::prefix_expr::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -2641,11 +2734,12 @@ bound_var_t::ref ast::prefix_expr::resolve_instantiation(
 	}
 
     /* first solve the right hand side */
-    bound_var_t::ref rhs_var = rhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+	bound_var_t::ref rhs_var = rhs->resolve_instantiation(status, builder,
+			scope, life, nullptr, nullptr);
 
     if (!!status) {
-        return call_program_function(status, builder, scope, function_name,
-                shared_from_this(), {rhs_var});
+		return call_program_function(status, builder, scope, life,
+				function_name, shared_from_this(), {rhs_var});
     }
     assert(!status);
     return nullptr;
@@ -2655,6 +2749,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -2688,6 +2783,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 							status,
 							builder,
 							scope,
+							life,
 							shared_from_this(),
 							box_int,
 							{string_format("literal int (%d)", value)},
@@ -2726,6 +2822,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 							status,
 							builder,
 							scope,
+							life,
 							shared_from_this(),
 							box_str,
 							{string_format("literal str (%s)", value.c_str())},
@@ -2763,6 +2860,7 @@ bound_var_t::ref ast::literal_expr::resolve_instantiation(
 							status,
 							builder,
 							scope,
+							life,
 							shared_from_this(),
 							box_float,
 							{string_format("literal float (%f)", value)},
@@ -2787,6 +2885,7 @@ bound_var_t::ref ast::reference_expr::resolve_overrides(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		const ptr<const ast::item> &callsite,
 		const bound_type_t::refs &args) const
 {
@@ -2812,10 +2911,11 @@ bound_var_t::ref ast::cast_expr::resolve_instantiation(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
+		life_t::ref life,
 	   	local_scope_t::ref *new_scope,
 	   	bool *returns) const
 {
-	bound_var_t::ref bound_var = lhs->resolve_instantiation(status, builder, scope, nullptr, nullptr);
+	bound_var_t::ref bound_var = lhs->resolve_instantiation(status, builder, scope, life, nullptr, nullptr);
 	if (!!status) {
 
 		if (!!status) {

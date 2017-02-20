@@ -53,6 +53,7 @@ bound_var_t::ref call_const_subscript_operator(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		const ast::item::ref &node,
 		bound_var_t::ref lhs,
 		identifier::ref index_id,

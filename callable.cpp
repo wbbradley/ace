@@ -12,11 +12,12 @@ bound_var_t::ref make_call_value(
 		llvm::IRBuilder<> &builder,
 		ptr<const ast::item> callsite,
 		scope_t::ref scope,
+		life_t::ref life,
 		bound_var_t::ref function,
 		bound_var_t::refs arguments)
 {
 	return create_callsite(
-			status, builder, scope, callsite, function,
+			status, builder, scope, life, callsite, function,
 			"temp_call_value", INTERNAL_LOC(), arguments);
 
 	assert(!status);
@@ -40,6 +41,9 @@ bound_var_t::ref instantiate_unchecked_fn(
 
 	/* save and later restore the current branch insertion point */
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+	/* lifetimes have extents at function boundaries */
+	auto life = make_ptr<life_t>(lf_function);
 
 	ast::type_product::ref type_product = dyncast<const ast::type_product>(unchecked_fn->node);
 
@@ -71,7 +75,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 				if (!!status) {
 					/* instantiate the function we want */
 					return function_defn->instantiate_with_args_and_return_type(status,
-							builder, subst_scope, nullptr /*new_scope*/,
+							builder, subst_scope, life, nullptr /*new_scope*/,
 							function->inbound_context, named_args, return_type);
 				}
 			}
@@ -294,6 +298,7 @@ bound_var_t::ref call_program_function(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         atom function_name,
         const ptr<const ast::item> &callsite,
         const bound_var_t::refs var_args)
@@ -306,7 +311,7 @@ bound_var_t::ref call_program_function(
 			program_scope->get_inbound_context(), args);
 
     if (!!status) {
-		return make_call_value(status, builder, callsite, scope, function,
+		return make_call_value(status, builder, callsite, scope, life, function,
 				var_args);
     } else {
 		user_error(status, callsite->get_location(), "failed to resolve function with args: %s",

@@ -571,14 +571,30 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 	return {nullptr, nullptr};
 }
 
+llvm::Constant *llvm_dim_offset_gep(llvm::StructType *llvm_struct_type, int index) {
+	auto &llvm_context = llvm_struct_type->getContext();
+	llvm::Constant *llvm_gep_index[] = {
+		llvm::ConstantInt::get(llvm::Type::getInt64Ty(llvm_context), 0),
+		llvm::ConstantInt::get(llvm::Type::getInt64Ty(llvm_context), 1),
+		llvm::ConstantInt::get(llvm::Type::getInt64Ty(llvm_context), index),
+	};
+	llvm::Constant *llvm_gep = llvm::ConstantExpr::getGetElementPtr(
+			llvm_struct_type,
+			llvm::Constant::getNullValue(llvm::PointerType::getUnqual(llvm_struct_type)), llvm_gep_index);
+
+	return llvm::ConstantExpr::getPtrToInt(llvm_gep, llvm::Type::getInt64Ty(llvm_struct_type->getContext()));
+}
+
 llvm::Value *llvm_call_allocator(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
+		life_t::ref life,
 	   	const ast::item::ref &node,
 		bound_type_t::ref data_type,
 		types::type_struct::ref struct_type,
-		atom name)
+		atom name,
+		bound_type_t::refs args)
 {
 	debug_above(5, log(log_info, "calling allocator for %s",
 				data_type->str().c_str()));
@@ -588,12 +604,63 @@ llvm::Value *llvm_call_allocator(
 	if (!!status) {
 		assert(mem_alloc_var != nullptr);
 
+		llvm::Constant *llvm_type_info = nullptr;
 		llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder,
 				llvm_deref_type(data_type->get_llvm_specific_type()));
 
-		auto signature = data_type->get_signature();
-		debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
-					signature.str().c_str(), signature.repr().iatom));
+		if (struct_type->managed) {
+			llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(data_type->get_llvm_specific_type());
+			assert(llvm_struct_type != nullptr);
+			assert(llvm_struct_type->elements().size() != 0);
+
+			/* calculate the type map */
+			std::vector<llvm::Constant *> llvm_offsets;
+			for (size_t i=0; i<args.size(); ++i) {
+				if (args[i]->is_managed()) {
+					/* this element is managed, so let's store its memory offset in
+					 * our array */
+					llvm_offsets.push_back(llvm::ConstantExpr::getTrunc(
+								llvm_dim_offset_gep(llvm_struct_type, i),
+								builder.getInt16Ty(), true));
+				}
+			}
+
+			/* now let's create a placeholder type for the dim offsets map */
+			llvm::ArrayType *llvm_dim_offsets_type = llvm::ArrayType::get(
+					builder.getInt16Ty(), llvm_offsets.size());
+
+			/* create the actual list of offsets */
+			llvm::Constant *llvm_dim_offsets = llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(
+						llvm::ConstantArray::get(llvm_dim_offsets_type, llvm_offsets),
+						builder.getInt16Ty()->getPointerTo());
+
+			llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
+					program_scope->get_bound_type({"__type_info"})->get_llvm_type());
+
+			auto signature = data_type->get_signature();
+			debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
+						signature.str().c_str(), signature.repr().iatom));
+
+			llvm_type_info = llvm::ConstantStruct::get(
+					llvm_type_info_type,
+
+					/* the type_id */
+					builder.getInt32(signature.repr().iatom),
+
+					/* the number of contained references */
+					builder.getInt16(llvm_offsets.size()),
+
+					/* the actual offsets to the managed references */
+					llvm_dim_offsets,
+
+					/* name this variable */
+					builder.CreateGlobalStringPtr(name.str()),
+
+					/* allocation size */
+					llvm_sizeof_tuple,
+
+					nullptr);
+		}
 
 		llvm::Value *llvm_alloced = (
 				struct_type->managed
@@ -601,22 +668,12 @@ llvm::Value *llvm_call_allocator(
 					status, builder, *node,
 					mem_alloc_var,
 					{
-					/* name this variable */
-					builder.CreateGlobalStringPtr(name.str()),
-
-					/* no mark function yet */
-					llvm::Constant::getNullValue(
-							program_scope->get_bound_type({"__mark_fn"})->get_llvm_type()),
-
-					/* the type_id */
-					builder.getInt32(signature.repr().iatom),
-
-					/* allocation size */
-					llvm_sizeof_tuple
-					})
+						/* the type info for this value */
+						llvm_type_info,
+					}, life)
 
 				: llvm_create_call_inst(status, builder, *node,
-					mem_alloc_var, {llvm_sizeof_tuple}));
+					mem_alloc_var, {llvm_sizeof_tuple}, life));
 
 		return llvm_alloced;
 	}
@@ -667,13 +724,16 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		if (!!status) {
 			/* save and later restore the current branch insertion point */
 			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
 			auto function = llvm_start_function(status, builder, scope, node,
 					type_fn_context, args, data_type, name);
 
+			life_t::ref life = make_ptr<life_t>(lf_function);
+
 			if (!!status) {
 				llvm::Value *llvm_alloced = llvm_call_allocator(
-						status, builder, program_scope, node, data_type,
-						struct_type, name);
+						status, builder, program_scope, life, node, data_type,
+						struct_type, name, args);
 
 				if (!!status) {
 					assert(data_type->get_llvm_type() != nullptr);
@@ -697,6 +757,34 @@ bound_var_t::ref get_or_create_tuple_ctor(
 						debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
 									llvm_print_value(*llvm_gep).c_str()));
 						builder.CreateStore(llvm_param, llvm_gep);
+
+						if (args[index]->is_managed()) {
+							debug_above(5, log(log_info, "inserting call to addref_var for member %d",
+										index));
+
+							/* addref the contained variables in this structure
+							 * because we have taken new references to them */
+							auto release_function = program_scope->get_singleton({"__construct_var"});
+							call_program_function(
+									status,
+									builder,
+									scope,
+									life,
+									{"__addref_var"},
+									node,
+									{bound_var_t::create(
+											INTERNAL_LOC(),
+											"temp_ctor_dim",
+											args[index],
+											llvm_param,
+											make_iid("ctor_dim_value"),
+											false /*is_lhs*/)});
+
+							if (!status) {
+								break;
+							}
+						}
+
 						++index;
 					}
 
@@ -748,6 +836,7 @@ bound_var_t::ref type_check_get_item_with_int_literal(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		const ast::item::ref &node,
 		bound_var_t::ref lhs,
 		identifier::ref index_id,
@@ -763,7 +852,7 @@ bound_var_t::ref type_check_get_item_with_int_literal(
 				false/*is_lhs*/);
 
 		/* get or instantiate a function we can call on these arguments */
-		return call_program_function(status, builder, scope, "__getitem__",
+		return call_program_function(status, builder, scope, life, "__getitem__",
 				node, {lhs, index});
 	}
 
@@ -806,6 +895,7 @@ bound_var_t::ref call_const_subscript_operator(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		const ast::item::ref &node,
 		bound_var_t::ref lhs,
 		identifier::ref index_id,
@@ -844,7 +934,7 @@ bound_var_t::ref call_const_subscript_operator(
 			user_error(status, *node, "index out of range");
 		}
 	} else {
-		return type_check_get_item_with_int_literal(status, builder, scope,
+		return type_check_get_item_with_int_literal(status, builder, scope, life,
 				node, lhs, index_id, subscript_index);
 	}
 

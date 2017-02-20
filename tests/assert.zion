@@ -6,6 +6,8 @@ def fail(msg str)
 def equals(input any, value any, x str)
 	if value != input
 		print("FAILED: " + input + " == " + value + " /*" + x + "*/")
+	else
+		print("PASS")
 
 def main()
 	equals("yolo", "yono", "yolo is not 123")

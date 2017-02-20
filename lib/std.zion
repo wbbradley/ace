@@ -178,6 +178,9 @@ def __eq__(x float, y float) bool
 def __eq__(x str, y str) bool
 	return bool(x.raw == y.raw)
 
+def __ineq__(x str, y str) bool
+	return bool(x.raw == y.raw)
+
 def __ineq__(x any, y nil) bool
 	# TODO: optimize
 	return not bool(__isnil(x as __var_ref))

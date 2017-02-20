@@ -37,6 +37,7 @@ public:
 	bool is_void() const;
 	bool is_ref() const;
 	bool is_maybe() const;
+	bool is_managed() const;
 	types::signature get_signature() const;
 
 	std::string str() const;

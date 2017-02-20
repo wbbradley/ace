@@ -1,6 +1,7 @@
 #pragma once
 #include "ast_decls.h"
 #include "scopes.h"
+#include "life.h"
 #include <unordered_map>
 #include <map>
 #include "llvm_zion.h"
@@ -16,17 +17,10 @@ status_t type_check_program(
 status_t type_check_binary_operator(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
+		life_t::ref life,
 		ptr<const ast::expression> lhs,
 		ptr<const ast::expression> rhs,
 		const ast::expression &obj,
-		ptr<bound_var_t> &variable);
-
-status_t make_temp_variable(
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		const ast::item &obj,
-		types::type::ref type,
-		llvm::Value *llvm_value,
 		ptr<bound_var_t> &variable);
 
 typedef atom::set bound_type_context_t;
@@ -37,6 +31,7 @@ bound_type_t::named_pairs zip_named_pairs(atom::many names, bound_type_t::refs a
 bound_var_t::ref call_typeid(
 		status_t &status,
 		scope_t::ref scope,
+		life_t::ref life,
 		ptr<const ast::item> callsite,
 		identifier::ref id,
 		llvm::IRBuilder<> &builder,

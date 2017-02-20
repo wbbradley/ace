@@ -3,9 +3,11 @@
 #include "ast_decls.h"
 #include "bound_var.h"
 #include "scopes.h"
+#include "life.h"
 
 struct compiler;
 struct status_t;
+struct life_t;
 
 llvm::FunctionType *llvm_create_function_type(
 		status_t &status,
@@ -16,7 +18,8 @@ llvm::FunctionType *llvm_create_function_type(
 bound_var_t::ref create_callsite(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
+		scope_t::ref scope,
+		ptr<life_t> life,
 		const ptr<const ast::item> &callsite,
 		ptr<const bound_var_t> callee,
 		atom name,
@@ -28,7 +31,8 @@ llvm::CallInst *llvm_create_call_inst(
 		llvm::IRBuilder<> &builder,
 		const ast::item &obj,
 		ptr<const bound_var_t> callee,
-		std::vector<llvm::Value *> llvm_values);
+		std::vector<llvm::Value *> llvm_values,
+		ptr<life_t> life);
 
 llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value);
 llvm::Value *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value);

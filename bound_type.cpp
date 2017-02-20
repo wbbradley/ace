@@ -181,6 +181,10 @@ bool bound_type_t::is_maybe() const {
 	}
 }
 
+bool bound_type_t::is_managed() const {
+	return get_type()->is_managed();
+}
+
 bool bound_type_t::is_ref() const {
 	if (auto product = dyncast<const types::type_ref>(get_type())) {
 		return true;

@@ -302,14 +302,12 @@ void add_global_types(
 	   	program_scope_t::ref program_scope,
 		llvm::Module *llvm_module_ref)
 {
-	llvm::Function *llvm_mark_fn_default = llvm_module_ref->getFunction("mark_fn_default");
-
 	/* let's add the builtin types to the program scope */
 	std::vector<std::pair<atom, bound_type_t::ref>> globals = {
 		{{"void"},
-		   	bound_type_t::create(
+			bound_type_t::create(
 					type_id(make_iid("void")),
-				   	INTERNAL_LOC(),
+					INTERNAL_LOC(),
 				   	builder.getVoidTy())},
 		{{"module"},
 		   	bound_type_t::create(
@@ -359,49 +357,54 @@ void add_global_types(
 
 		/* pull in the garbage collection and memory reference types */
 		{{"__tag_var"},
-		   	bound_type_t::create(type_id(make_iid("__tag_var")),
-				   	INTERNAL_LOC(),
+			bound_type_t::create(type_id(make_iid("__tag_var")),
+					INTERNAL_LOC(),
 					llvm_module_ref->getTypeByName("struct.tag_t"))},
 		{{TYPEID_TYPE},
-		   	bound_type_t::create(
+			bound_type_t::create(
 					type_id(make_iid(TYPEID_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getInt32Ty())},
+					INTERNAL_LOC(),
+					builder.getInt32Ty())},
 		{{"__byte_count"},
-		   	bound_type_t::create(
+			bound_type_t::create(
 					type_id(make_iid("__byte_count")),
-				   	INTERNAL_LOC(),
-				   	builder.getInt64Ty())},
+					INTERNAL_LOC(),
+					builder.getInt64Ty())},
 		{{"__var"},
-		   	bound_type_t::create(
+			bound_type_t::create(
 					type_id(make_iid("__var")),
-				   	INTERNAL_LOC(),
-				   	llvm_module_ref->getTypeByName("struct.var_t"))},
+					INTERNAL_LOC(),
+					llvm_module_ref->getTypeByName("struct.var_t"))},
+		{{"__type_info"},
+			bound_type_t::create(
+					type_id(make_iid("__type_info")),
+					INTERNAL_LOC(),
+					llvm_module_ref->getTypeByName("struct.type_info_t"))},
+		{{"__type_info_ref"},
+			bound_type_t::create(
+					type_id(make_iid("__type_info_ref")),
+					INTERNAL_LOC(),
+					llvm_module_ref->getTypeByName("struct.type_info_t")->getPointerTo())},
 		{{"__var_ref"},
-		   	bound_type_t::create(
+			bound_type_t::create(
 					type_id(make_iid("__var_ref")),
-				   	INTERNAL_LOC(),
-				   	llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
+					INTERNAL_LOC(),
+					llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
 		{{"nil"},
-		   	bound_type_t::create(
+			bound_type_t::create(
 					type_id(make_iid("nil")),
-				   	INTERNAL_LOC(),
-				   	llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
+					INTERNAL_LOC(),
+					llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
 		{{BUILTIN_UNREACHABLE_TYPE},
-		   	bound_type_t::create(
+			bound_type_t::create(
 					type_unreachable(),
-				   	INTERNAL_LOC(),
-				   	llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
-		{{"__mark_fn"},
-		   	bound_type_t::create(
-					type_id(make_iid("__mark_fn")),
-				   	INTERNAL_LOC(),
-				   	llvm_mark_fn_default->getFunctionType()->getPointerTo())},
+					INTERNAL_LOC(),
+					llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
 		{{"__bytes"},
-		   	bound_type_t::create(
+			bound_type_t::create(
 					type_id(make_iid("__bytes")),
-				   	INTERNAL_LOC(),
-				   	builder.getInt8Ty()->getPointerTo())},
+					INTERNAL_LOC(),
+					builder.getInt8Ty()->getPointerTo())},
 	};
 
 	for (auto type_pair : globals) {
@@ -531,10 +534,13 @@ void add_globals(
 			{"__type_id_eq_type_id", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 			{"__int__", llvm_module_typeid, "__type_id_int", {TYPEID_TYPE}, INT_TYPE},
 
+			{"__construct_var", llvm_module_ref, "construct_var", {"__var_ref"}, "void"},
+			{"__addref_var", llvm_module_ref, "addref_var", {"__var_ref"}, "void"},
+			{"__release_var", llvm_module_ref, "release_var", {"__var_ref"}, "void"},
 			{"__mem_alloc", llvm_module_ref, "mem_alloc", {INT_TYPE}, "__bytes"},
-			{"__create_var", llvm_module_ref, "create_var", {STR_TYPE, "__mark_fn", TYPEID_TYPE, "__byte_count"}, "__var_ref"},
+			{"__create_var", llvm_module_ref, "create_var", {"__type_info_ref"}, "__var_ref"},
 			{"__get_var_type_id", llvm_module_ref, "get_var_type_id", {"__var_ref"}, TYPEID_TYPE},
-			{"__isnil", llvm_module_ref, "__isnil", {"__var_ref"}, BOOL_TYPE},
+			{"__isnil", llvm_module_ref, "isnil", {"__var_ref"}, BOOL_TYPE},
 		};
 
 		for (auto &binding : bindings) {

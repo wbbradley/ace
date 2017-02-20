@@ -59,6 +59,7 @@ namespace types {
 		virtual bool is_function() const { return false; }
 		virtual bool is_void() const { return false; }
 		virtual bool is_nil() const { return false; }
+		virtual bool is_managed() const { return false; }
 	};
 
 	bool is_type_id(type::ref type, atom type_name);
@@ -185,6 +186,8 @@ namespace types {
 		virtual type::ref rebind(const map &bindings) const;
 		virtual location get_location() const;
 		virtual identifier::ref get_id() const;
+
+		virtual bool is_managed() const { return managed; }
 
 		type::refs dimensions;
 		name_index name_index;

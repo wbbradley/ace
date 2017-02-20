@@ -11,11 +11,15 @@ bound_var_t::ref ast::when_block::resolve_instantiation(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref block_scope,
+		life_t::ref life,
 	   	local_scope_t::ref *,
 	   	bool *returns) const
 {
+	assert(life->life_form == lf_statement);
+
 	local_scope_t::ref when_scope;
-	auto pattern_value = value->resolve_instantiation(status, builder, block_scope, &when_scope, returns);
+	auto pattern_value = value->resolve_instantiation(status, builder,
+			block_scope, life, &when_scope, returns);
 	scope_t::ref current_scope = (when_scope != nullptr) ? when_scope : block_scope;
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(current_scope);
 	if (!!status) {
@@ -37,6 +41,7 @@ bound_var_t::ref ast::when_block::resolve_instantiation(
                     pattern_value,
                     var_name,
                     runnable_scope,
+					life,
                     returns,
                     ++iter,
                     pattern_blocks.end(),
@@ -58,11 +63,14 @@ bound_var_t::ref gen_type_check(
 		llvm::IRBuilder<> &builder,
 		ast::item::ref node,
 		scope_t::ref scope,
+		life_t::ref life,
 		identifier::ref value_name,
 		bound_var_t::ref value,
 		bound_type_t::ref bound_type,
 		local_scope_t::ref *new_scope)
 {
+	assert(life->life_form == lf_statement);
+
 	auto program_scope = scope->get_program_scope();
 	atom signature = bound_type->get_type()->get_signature();
 	auto type_id_wanted = bound_var_t::create(
@@ -77,52 +85,53 @@ bound_var_t::ref gen_type_check(
 				"for type %s with signature value %d (for '%s') (type is %s)",
 				bound_type->str().c_str(), (int)signature.iatom,
 				signature.c_str(), bound_type->get_type()->str().c_str()));
-	bound_var_t::ref type_id = call_typeid(status, scope, node,
+	bound_var_t::ref type_id = call_typeid(status, scope, life, node,
 			value_name, builder, value);
 
 	if (!!status) {
 		auto get_typeid_eq_function = program_scope->get_bound_variable(
 				status, node, "__type_id_eq_type_id");
 
-        assert(get_typeid_eq_function != nullptr);
-        if (!!status) {
-            if (new_scope != nullptr) {
-                if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
-                    /* generate a new scope with the value_name containing a new
-                     * variable to overwrite the prior scoped variable's type with
-                     * the new checked type */
-                    *new_scope = runnable_scope->new_local_scope(string_format("when %s %s",
-                                value_name->str().c_str(),
-                                node->str().c_str()));
+		assert(get_typeid_eq_function != nullptr);
+		if (!!status) {
+			if (new_scope != nullptr) {
+				if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
+					/* generate a new scope with the value_name containing a new
+					 * variable to overwrite the prior scoped variable's type with
+					 * the new checked type */
+					*new_scope = runnable_scope->new_local_scope(string_format("when %s %s",
+								value_name->str().c_str(),
+								node->str().c_str()));
 
-                    /* replace this bound variable with a version of itself with a new type */
-                    (*new_scope)->put_bound_variable(status, value_name->get_name(),
-                            bound_var_t::create(
-                                value_name->get_location(),
-                                value_name->get_name(),
-                                bound_type,
-                                /* perform a safe runtime cast of this value */
-                                value->llvm_value,
-                                value_name,
-                                /* because this type is more specific than the original,
-                                 * we should still be able to assign to it, if it
-                                 * intended to be assigned to */
-                                value->is_lhs /*is_lhs*/));
-                }
-            }
+					/* replace this bound variable with a version of itself with a new type */
+					(*new_scope)->put_bound_variable(status, value_name->get_name(),
+							bound_var_t::create(
+								value_name->get_location(),
+								value_name->get_name(),
+								bound_type,
+								/* perform a safe runtime cast of this value */
+								value->llvm_value,
+								value_name,
+								/* because this type is more specific than the original,
+								 * we should still be able to assign to it, if it
+								 * intended to be assigned to */
+								value->is_lhs /*is_lhs*/));
+				}
+			}
 
-            if (!!status) {
-                /* call the type_id comparator function */
-                return create_callsite(
-                        status,
-                        builder,
-                        scope,
-                        node,
-                        get_typeid_eq_function,
-                        value_name->get_name(),
-                        value_name->get_location(),
-                        {type_id, type_id_wanted});
-            }
+			if (!!status) {
+				/* call the type_id comparator function */
+				return create_callsite(
+						status,
+						builder,
+						scope,
+						life,
+						node,
+						get_typeid_eq_function,
+						value_name->get_name(),
+						value_name->get_location(),
+						{type_id, type_id_wanted});
+			}
 		}
 	}
 
@@ -136,6 +145,7 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 		bound_var_t::ref value,
 		identifier::ref value_name,
 		runnable_scope_t::ref scope,
+		life_t::ref life,
 		bool *returns,
 		refs::const_iterator next_iter,
 		refs::const_iterator end_iter,
@@ -164,12 +174,12 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 			if (next_iter != end_iter) {
 				auto pattern_block_next = *next_iter;
 				return pattern_block_next->resolve_pattern_block(status, builder,
-						value, value_name, scope,
+						value, value_name, scope, life,
 						returns, ++next_iter, end_iter,
 						else_block);
 			} else if (else_block != nullptr) {
 				return else_block->resolve_instantiation(status, builder,
-						scope, nullptr, returns);
+						scope, life, nullptr, returns);
 			}
 
 			/* we've got nothing else to match on, so, let's bail */
@@ -178,7 +188,7 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 
 		/* evaluate the condition for branching */
 		bound_var_t::ref condition_value = gen_type_check(status, builder,
-				shared_from_this(), scope, value_name, value,
+				shared_from_this(), scope, life, value_name, value,
 				bound_type, &if_scope);
 
 		if (!!status) {
@@ -213,12 +223,12 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 					if (next_iter != end_iter) {
 						auto pattern_block_next = *next_iter;
 						pattern_block_next->resolve_pattern_block(status, builder,
-								value, value_name, scope,
+								value, value_name, scope, life,
 								&else_block_returns, ++next_iter, end_iter,
 								else_block);
 					} else {
 						else_block->resolve_instantiation(status, builder,
-								scope, nullptr, &else_block_returns);
+								scope, life, nullptr, &else_block_returns);
 					}
 
 					if (!else_block_returns) {
@@ -251,7 +261,8 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 					builder.SetInsertPoint(then_bb);
 					bool if_block_returns = false;
 					block->resolve_instantiation(status, builder,
-						   	if_scope ? if_scope : scope, nullptr, &if_block_returns);
+							if_scope ? if_scope : scope, life, nullptr,
+							&if_block_returns);
 					if (!!status) {
 						if (!if_block_returns) {
 							insert_merge_bb = true;

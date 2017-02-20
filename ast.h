@@ -10,7 +10,7 @@
 #include "scopes.h"
 #include "type_checker.h"
 #include "callable.h"
-
+#include "life.h"
 
 struct parse_state_t;
 
@@ -75,6 +75,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const = 0;
 	};
@@ -123,6 +124,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -136,6 +138,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -149,6 +152,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -163,6 +167,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -180,6 +185,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -196,6 +202,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -216,6 +223,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 	};
@@ -240,6 +248,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -344,6 +353,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -361,6 +371,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -377,9 +388,15 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
-		bound_var_t::ref resolve_as_condition(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope) const;
+		bound_var_t::ref resolve_as_condition(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				local_scope_t::ref *new_scope) const;
 		virtual void render(render_state_t &rs) const;
 
 		/* the inherited ast::item::token member contains the actual identifier
@@ -397,6 +414,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -412,6 +430,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -427,6 +446,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -442,6 +462,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -457,6 +478,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -472,6 +494,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -489,6 +512,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -519,12 +543,14 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		bound_var_t::ref instantiate_with_args_and_return_type(
 				status_t &status,
 			   	llvm::IRBuilder<> &builder,
 			   	scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				types::type::ref inbound_context,
 				bound_type_t::named_pairs args,
@@ -545,6 +571,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -564,6 +591,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -585,6 +613,7 @@ namespace ast {
 				bound_var_t::ref value,
 				identifier::ref value_name,
 				runnable_scope_t::ref scope,
+				life_t::ref life,
 				bool *returns,
 				refs::const_iterator next_iter,
 				refs::const_iterator end_iter,
@@ -605,6 +634,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -647,6 +677,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -664,6 +695,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -682,6 +714,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -731,9 +764,16 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
-        virtual bound_var_t::ref resolve_overrides(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, const ptr<const ast::item> &obj, const bound_type_t::refs &args) const;
+        virtual bound_var_t::ref resolve_overrides(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				life_t::ref,
+				const ptr<const ast::item> &obj,
+				const bound_type_t::refs &args) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression> lhs;
@@ -749,6 +789,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -765,6 +806,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -781,6 +823,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -797,6 +840,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -813,6 +857,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -830,6 +875,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -846,6 +892,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -862,6 +909,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -878,6 +926,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -894,10 +943,22 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
-        virtual bound_var_t::ref resolve_overrides(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, const ptr<const ast::item> &obj, const bound_type_t::refs &args) const;
-		bound_var_t::ref resolve_as_condition(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref block_scope, local_scope_t::ref *new_scope) const;
+		virtual bound_var_t::ref resolve_overrides(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				life_t::ref,
+				const ptr<const ast::item> &obj,
+				const bound_type_t::refs &args) const;
+		bound_var_t::ref resolve_as_condition(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				local_scope_t::ref *new_scope) const;
 		virtual void render(render_state_t &rs) const;
 	};
 
@@ -910,6 +971,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -924,6 +986,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -939,6 +1002,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
@@ -955,6 +1019,7 @@ namespace ast {
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
+				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;

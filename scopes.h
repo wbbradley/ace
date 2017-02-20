@@ -45,7 +45,6 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints) = 0;
 
 	virtual bound_var_t::ref get_bound_variable(status_t &status, const ptr<const ast::item> &obj, atom symbol) = 0;
-	virtual bound_var_t::ref maybe_get_bound_variable(atom symbol) = 0;
 	virtual void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable) = 0;
 	virtual bound_type_t::ref get_bound_type(types::signature signature) = 0;
 	virtual std::string get_name() const;
@@ -97,7 +96,6 @@ struct scope_impl_t : public BASE {
 	void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable);
 	bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints);
 	bound_var_t::ref get_singleton(atom name);
-	bound_var_t::ref maybe_get_bound_variable(atom symbol);
 	bound_var_t::ref get_bound_variable(status_t &status, const ptr<const ast::item> &obj, atom symbol);
 	std::string make_fqn(std::string leaf_name) const;
 	bound_type_t::ref get_bound_type(types::signature signature);
@@ -526,26 +524,6 @@ bound_var_t::ref scope_impl_t<T>::get_singleton(atom name) {
 	auto item = resolve_iter->second;
 	assert(++resolve_iter == resolve_map.end());
 	return item;
-}
-
-template <typename T>
-bound_var_t::ref scope_impl_t<T>::maybe_get_bound_variable(atom symbol) {
-	auto iter = bound_vars.find(symbol);
-	if (iter != bound_vars.end()) {
-		const auto &overloads = iter->second;
-		if (overloads.size() == 0) {
-			panic("we have an empty list of overloads");
-			return nullptr;
-		} else if (overloads.size() == 1) {
-			return overloads.begin()->second;
-		} else {
-			return nullptr;
-		}
-	} else if (auto parent_scope = this->get_parent_scope()) {
-		return parent_scope->maybe_get_bound_variable(symbol);
-	}
-
-	return nullptr;
 }
 
 bound_var_t::ref get_bound_variable_from_scope(

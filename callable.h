@@ -3,6 +3,7 @@
 #include "status.h"
 #include "bound_var.h"
 #include "scopes.h"
+#include "life.h"
 
 namespace ast {
     struct item;
@@ -14,6 +15,7 @@ struct can_reference_overloads_t {
 			status_t &status,
 			llvm::IRBuilder<> &builder,
 			scope_t::ref scope,
+			life_t::ref,
 			const ptr<const ast::item> &obj,
 			const bound_type_t::refs &args) const = 0;
 };
@@ -23,6 +25,7 @@ bound_var_t::ref make_call_value(
 		llvm::IRBuilder<> &builder,
 		ptr<const ast::item> callsite,
 		scope_t::ref scope,
+		life_t::ref life,
 		bound_var_t::ref function,
 		bound_var_t::refs arguments);
 
@@ -52,6 +55,7 @@ bound_var_t::ref call_program_function(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
         atom function_name,
         const ptr<const ast::item> &callsite,
         const bound_var_t::refs args);

@@ -5,6 +5,7 @@
 #include "compiler.h"
 #include "llvm_types.h"
 #include "code_id.h"
+#include "life.h"
 
 llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder, std::string value) {
 	return builder.CreateGlobalStringPtr(value);
@@ -107,6 +108,7 @@ bound_var_t::ref create_callsite(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
         scope_t::ref scope,
+		life_t::ref life,
 		const ptr<const ast::item> &callsite,
 		const bound_var_t::ref function,
 		atom name,
@@ -125,7 +127,8 @@ bound_var_t::ref create_callsite(
 		types::type_function::ref function_type = dyncast<const types::type_function>(function->get_type());
 		if (function_type != nullptr) {
 			llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
-					status, builder, *callsite, function, get_llvm_values(arguments));
+					status, builder, *callsite, function, get_llvm_values(arguments),
+					life);
 
 			if (!!status) {
 				bound_type_t::ref return_type = get_function_return_type(status,
@@ -150,7 +153,8 @@ llvm::CallInst *llvm_create_call_inst(
 		llvm::IRBuilder<> &builder,
 		const ast::item &obj,
 		ptr<const bound_var_t> callee,
-		std::vector<llvm::Value *> llvm_values)
+		std::vector<llvm::Value *> llvm_values,
+		life_t::ref life)
 {
 	assert(callee != nullptr);
 	assert(callee->llvm_value != nullptr);

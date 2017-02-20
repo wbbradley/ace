@@ -120,6 +120,7 @@ ZION_LLVM_SOURCES = \
 				disk.cpp \
 				identifier.cpp \
 				lexer.cpp \
+				life.cpp \
 				llvm_utils.cpp \
 				llvm_test.cpp \
 				llvm_types.cpp \
@@ -231,7 +232,7 @@ $(BUILD_DIR)/%.o: %.c
 	@$(CLANG) -S -emit-llvm $< -o - | grep -v -e 'llvm\.ident' -e 'Apple LLVM version 6' > $@
 
 clean:
-	rm -rf $(BUILD_DIR)/* $(TARGETS)
+	rm -rf *.llir.ir $(BUILD_DIR)/* $(TARGETS)
 
 image: Dockerfile
 	docker build -t $(IMAGE):$(VERSION) .
