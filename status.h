@@ -10,21 +10,21 @@ struct status_t {
 	operator bool() const { return !fail; }
 	status_t operator |=(const status_t rhs);
 
-	void emit_message(log_level_t log_level, location location, const char *format, ...);
-	void emit_messagev(log_level_t log_level, location location, const char *format, va_list args);
+	void emit_message(log_level_t log_level, location_t location, const char *format, ...);
+	void emit_messagev(log_level_t log_level, location_t location, const char *format, va_list args);
 
-	bool reported_on_error_at(location) const;
+	bool reported_on_error_at(location_t) const;
 
 	/* status can only get worse, so, make sure no one sets fail directly to
 	 * false except the ctor */
 private:
 	bool fail = false;
-	location last_error_location;
+	location_t last_error_location;
 };
 
-namespace ast { struct item; }
-void user_message(log_level_t level, status_t &status, const ast::item &item, const char *msg, ...);
-void user_message(log_level_t level, status_t &status, location location, const char *format, ...);
+namespace ast { struct item_t; }
+void user_message(log_level_t level, status_t &status, const ast::item_t &item, const char *msg, ...);
+void user_message(log_level_t level, status_t &status, location_t location, const char *format, ...);
 
 template <typename Loc>
 void user_error(status_t &status, const Loc &loc, const char *msg) {

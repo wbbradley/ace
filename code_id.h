@@ -17,7 +17,7 @@ struct code_id : public identifier {
 		return {token.text};
 	}
 
-	virtual location get_location() const {
+	virtual location_t get_location() const {
 		return token.location;
 	}
 
@@ -27,7 +27,7 @@ struct code_id : public identifier {
 };
 
 struct type_id_code_id : public identifier {
-	type_id_code_id(const location location, atom var_name) :
+	type_id_code_id(const location_t location, atom var_name) :
 		location(location), name(string_format("typeid(%s)", var_name.c_str()))
 	{
 	}
@@ -36,7 +36,7 @@ struct type_id_code_id : public identifier {
 		return name;
 	}
 
-	virtual location get_location() const {
+	virtual location_t get_location() const {
 		return location;
 	}
 
@@ -44,9 +44,9 @@ struct type_id_code_id : public identifier {
 		return name.str();
 	}
 
-	const location location;
+	const location_t location;
 	const atom name;
 };
 
 identifier::ref make_code_id(const zion_token_t &token);
-identifier::ref make_type_id_code_id(const location location, atom var_name);
+identifier::ref make_type_id_code_id(const location_t location, atom var_name);

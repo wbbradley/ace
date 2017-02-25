@@ -22,7 +22,7 @@ std::string bound_var_t::str() const {
     return ss.str();
 }
 
-location bound_var_t::get_location() const {
+location_t bound_var_t::get_location() const {
 	return id->get_location();
 }
 
@@ -59,7 +59,7 @@ std::string str(const bound_var_t::refs &args) {
 }
 
 bound_module_t::bound_module_t(
-		location internal_location,
+		location_t internal_location,
 		atom name,
 		identifier::ref id,
 		module_scope_t::ref module_scope) :
@@ -100,10 +100,10 @@ types::signature bound_var_t::get_signature() const {
 	return type->get_signature();
 }
 
-types::type::ref bound_var_t::get_type(ptr<scope_t> scope) const {
+types::type_t::ref bound_var_t::get_type(ptr<scope_t> scope) const {
 	return type->get_type();
 }
 
-types::type::ref bound_var_t::get_type() const {
+types::type_t::ref bound_var_t::get_type() const {
 	return type->get_type();
 }

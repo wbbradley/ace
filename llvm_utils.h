@@ -5,7 +5,7 @@
 #include "scopes.h"
 #include "life.h"
 
-struct compiler;
+struct compiler_t;
 struct status_t;
 struct life_t;
 
@@ -20,16 +20,15 @@ bound_var_t::ref create_callsite(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		ptr<life_t> life,
-		const ptr<const ast::item> &callsite,
 		ptr<const bound_var_t> callee,
 		atom name,
-		const location &location,
+		const location_t &location,
 		bound_var_t::refs values);
 
 llvm::CallInst *llvm_create_call_inst(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		const ast::item &obj,
+		location_t location,
 		ptr<const bound_var_t> callee,
 		std::vector<llvm::Value *> llvm_values,
 		ptr<life_t> life);
@@ -74,8 +73,8 @@ bound_var_t::ref llvm_start_function(
 		status_t &status,
 		llvm::IRBuilder<> &builder, 
 		scope_t::ref scope,
-		const ptr<const ast::item> &node,
-		types::type::ref type_fn_context,
+		const ptr<const ast::item_t> &node,
+		types::type_t::ref type_fn_context,
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
 		atom name);

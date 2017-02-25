@@ -20,25 +20,25 @@ extern const char *TRUE_TYPE;
 extern const char *FALSE_TYPE;
 extern const char *TYPEID_TYPE;
 
-struct compiler {
+struct compiler_t {
 	typedef std::vector<std::string> libs;
 	typedef std::pair<atom, std::unique_ptr<llvm::Module>> llvm_module_t;
 	typedef std::list<llvm_module_t> llvm_modules_t;
 
-	compiler() = delete;
-	compiler(const compiler &) = delete;
-	compiler(std::string program_name, const libs &zion_paths);
-	~compiler();
+	compiler_t() = delete;
+	compiler_t(const compiler_t &) = delete;
+	compiler_t(std::string program_name, const libs &zion_paths);
+	~compiler_t();
 
-	void resolve_module_filename(status_t &status, location location, std::string name, std::string &resolved);
+	void resolve_module_filename(status_t &status, location_t location, std::string name, std::string &resolved);
 	void info(const char *format, ...);
 
 	module_scope_t::ref get_module_scope(atom module_key);
 	void set_module_scope(atom module_key, module_scope_t::ref module_scope);
 
 	std::vector<zion_token_t> get_comments() const;
-	ptr<const ast::module> get_module(status_t &status, atom key_alias);
-	void set_module(status_t &status, std::string filename, ptr<ast::module> module);
+	ptr<const ast::module_t> get_module(status_t &status, atom key_alias);
+	void set_module(status_t &status, std::string filename, ptr<ast::module_t> module);
 	llvm::Module *llvm_load_ir(status_t &status, std::string filename);
 	llvm::Module *llvm_create_module(atom module_name);
 	llvm::Module *llvm_get_program_module();
@@ -58,9 +58,9 @@ struct compiler {
 	void build_type_check_and_code_gen(status_t &status);
 
 	/* parse a single module */
-	ptr<const ast::module> build_parse(status_t &status, location location, std::string module_name, bool global, type_macros_t &global_type_macros);
+	ptr<const ast::module_t> build_parse(status_t &status, location_t location, std::string module_name, bool global, type_macros_t &global_type_macros);
 
-	void build_parse_linked(status_t &status, ptr<const ast::module> module, type_macros_t &global_type_macros);
+	void build_parse_linked(status_t &status, ptr<const ast::module_t> module, type_macros_t &global_type_macros);
 	std::unordered_set<std::string> compile_modules(status_t &status);
 	int emit_built_program(status_t &status, std::string bitcode_filename);
 	int run_program(std::string bitcode_filename);
@@ -69,7 +69,7 @@ struct compiler {
 	std::string get_program_name() const;
 	std::string get_executable_filename() const;
 
-	ptr<const ast::module> main_module;
+	ptr<const ast::module_t> main_module;
 	type_macros_t base_type_macros;
 
 	/* member variables */
@@ -80,15 +80,15 @@ private:
 	ptr<std::vector<std::string>> zion_paths;
 	std::vector<zion_token_t> comments;
 	program_scope_t::ref program_scope;
-	std::map<atom, ptr<const ast::module>> modules;
+	std::map<atom, ptr<const ast::module_t>> modules;
 	llvm::LLVMContext llvm_context;
 	llvm::IRBuilder<> builder;
 	llvm_module_t llvm_program_module;
 	llvm_modules_t llvm_modules;
 	std::map<atom, ptr<module_scope_t>> module_scopes;
-	ptr<ast::program> program;
+	ptr<ast::program_t> program;
 
-	friend bool _check_compiler_error(compiler &compiler, int &skipped);
+	friend bool _check_compiler_error(compiler_t &compiler, int &skipped);
 };
 
 std::string strip_zion_extension(std::string module_name);

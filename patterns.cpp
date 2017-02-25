@@ -7,7 +7,7 @@
 #include "llvm_types.h"
 #include <iostream>
 
-bound_var_t::ref ast::when_block::resolve_instantiation(
+bound_var_t::ref ast::when_block_t::resolve_instantiation(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref block_scope,
@@ -24,7 +24,7 @@ bound_var_t::ref ast::when_block::resolve_instantiation(
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(current_scope);
 	if (!!status) {
 		identifier::ref var_name;
-		if (auto ref_expr = dyncast<const ast::reference_expr>(value)) {
+		if (auto ref_expr = dyncast<const ast::reference_expr_t>(value)) {
 			/* this is a single variable reference, which we can override in our pattern_blocks */
 			// TODO: handle assignment (when x := f(a.b.c) ...) to allow for naming more complex expressions
 			var_name = make_code_id(ref_expr->token);
@@ -61,7 +61,7 @@ bound_var_t::ref ast::when_block::resolve_instantiation(
 bound_var_t::ref gen_type_check(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		ast::item::ref node,
+		ast::item_t::ref node,
 		scope_t::ref scope,
 		life_t::ref life,
 		identifier::ref value_name,
@@ -126,7 +126,6 @@ bound_var_t::ref gen_type_check(
 						builder,
 						scope,
 						life,
-						node,
 						get_typeid_eq_function,
 						value_name->get_name(),
 						value_name->get_location(),
@@ -139,7 +138,7 @@ bound_var_t::ref gen_type_check(
 	return nullptr;
 }
 
-bound_var_t::ref ast::pattern_block::resolve_pattern_block(
+bound_var_t::ref ast::pattern_block_t::resolve_pattern_block(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		bound_var_t::ref value,
@@ -149,7 +148,7 @@ bound_var_t::ref ast::pattern_block::resolve_pattern_block(
 		bool *returns,
 		refs::const_iterator next_iter,
 		refs::const_iterator end_iter,
-		ptr<const ast::block> else_block) const
+		ptr<const ast::block_t> else_block) const
 {
 	assert(value != nullptr);
 	assert(value_name != nullptr);

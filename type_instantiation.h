@@ -8,5 +8,5 @@ bound_var_t::ref bind_ctor_to_scope(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
-		ptr<const ast::item> node,
-		types::type_function::ref function);
+		ptr<const ast::item_t> node,
+		types::type_function_t::ref function);

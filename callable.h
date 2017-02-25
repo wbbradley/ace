@@ -6,7 +6,7 @@
 #include "life.h"
 
 namespace ast {
-    struct item;
+    struct item_t;
 };
 
 struct can_reference_overloads_t {
@@ -16,14 +16,14 @@ struct can_reference_overloads_t {
 			llvm::IRBuilder<> &builder,
 			scope_t::ref scope,
 			life_t::ref,
-			const ptr<const ast::item> &obj,
+			const ptr<const ast::item_t> &obj,
 			const bound_type_t::refs &args) const = 0;
 };
 
 bound_var_t::ref make_call_value(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		ptr<const ast::item> callsite,
+		location_t location,
 		scope_t::ref scope,
 		life_t::ref life,
 		bound_var_t::ref function,
@@ -34,9 +34,9 @@ bound_var_t::ref get_callable(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		atom alias,
-		const ptr<const ast::item> &obj,
-		types::type::ref outbound_context,
-		types::type_args::ref sig_args);
+		const ptr<const ast::item_t> &obj,
+		types::type_t::ref outbound_context,
+		types::type_args_t::ref sig_args);
 
 /* maybe_get_callable is supposed to be more lenient and not cause errors,
  * however it may go off and type check potential unifications of other generic
@@ -46,9 +46,9 @@ bound_var_t::ref maybe_get_callable(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		atom alias,
-		const ptr<const ast::item> &callsite,
-		types::type::ref type_fn_context,
-		types::type_args::ref sig_args,
+		const ptr<const ast::item_t> &callsite,
+		types::type_t::ref type_fn_context,
+		types::type_args_t::ref sig_args,
 		var_t::refs &fns);
 
 bound_var_t::ref call_program_function(
@@ -57,5 +57,5 @@ bound_var_t::ref call_program_function(
         scope_t::ref scope,
 		life_t::ref life,
         atom function_name,
-        const ptr<const ast::item> &callsite,
+        const ptr<const ast::item_t> &callsite,
         const bound_var_t::refs args);

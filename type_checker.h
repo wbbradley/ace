@@ -7,32 +7,32 @@
 #include "llvm_zion.h"
 
 struct status_t;
-struct compiler;
+struct compiler_t;
 
 status_t type_check_program(
 		llvm::IRBuilder<> &builder,
-		const ast::program &obj,
-		compiler &compiler);
+		const ast::program_t &obj,
+		compiler_t &compiler);
 
 status_t type_check_binary_operator(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		ptr<const ast::expression> lhs,
-		ptr<const ast::expression> rhs,
-		const ast::expression &obj,
+		ptr<const ast::expression_t> lhs,
+		ptr<const ast::expression_t> rhs,
+		const ast::expression_t &obj,
 		ptr<bound_var_t> &variable);
 
 typedef atom::set bound_type_context_t;
 
-bool is_function_defn_generic(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, const ast::function_defn &obj);
-atom::many get_param_list_decl_variable_names(ptr<const ast::param_list_decl> obj);
+bool is_function_defn_generic(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, const ast::function_defn_t &obj);
+atom::many get_param_list_decl_variable_names(ptr<const ast::param_list_decl_t> obj);
 bound_type_t::named_pairs zip_named_pairs(atom::many names, bound_type_t::refs args);
 bound_var_t::ref call_typeid(
 		status_t &status,
 		scope_t::ref scope,
 		life_t::ref life,
-		ptr<const ast::item> callsite,
+		ptr<const ast::item_t> callsite,
 		identifier::ref id,
 		llvm::IRBuilder<> &builder,
 		bound_var_t::ref resolved_value);

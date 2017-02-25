@@ -15,8 +15,8 @@ void append_time(std::ostream &os, double time_exact, bool exact, bool for_human
 
 struct logger {
 	virtual ~logger() throw() {}
-	virtual void logv(log_level_t level, const location *location, const char *format, va_list args) = 0;
-	virtual void log(log_level_t level, const location *location, const char *format, ...) = 0;
+	virtual void logv(log_level_t level, const location_t *location, const char *format, va_list args) = 0;
+	virtual void log(log_level_t level, const location_t *location, const char *format, ...) = 0;
 	virtual void dump() = 0;
 };
 
@@ -25,8 +25,8 @@ public:
 	standard_logger(const std::string &name, const std::string &root_file_path);
 	virtual ~standard_logger();
 
-	void logv(log_level_t level, const location *location, const char *format, va_list args);
-	void log(log_level_t level, const location *location, const char *format, ...);
+	void logv(log_level_t level, const location_t *location, const char *format, va_list args);
+	void log(log_level_t level, const location_t *location, const char *format, ...);
 	void close();
 	void open();
 	void flush();
@@ -47,22 +47,22 @@ struct tee_logger : public logger {
 	tee_logger();
 	virtual ~tee_logger() throw();
 
-	virtual void logv(log_level_t level, const location *location, const char *format, va_list args);
-	virtual void log(log_level_t level, const location *location, const char *format, ...);
+	virtual void logv(log_level_t level, const location_t *location, const char *format, va_list args);
+	virtual void log(log_level_t level, const location_t *location, const char *format, ...);
 	void dump();
 
 	std::string captured_logs_as_string() const;
 
 	logger *logger_old;
-	std::list<std::tuple<log_level_t, maybe<location>, std::string>> captured_logs;
+	std::list<std::tuple<log_level_t, maybe<location_t>, std::string>> captured_logs;
 };
 
 struct indent_logger : logger {
 	indent_logger(int level, std::string message);
 	virtual ~indent_logger() throw();
 
-	virtual void logv(log_level_t level, const location *location, const char *format, va_list args);
-	virtual void log(log_level_t level, const location *location, const char *format, ...);
+	virtual void logv(log_level_t level, const location_t *location, const char *format, va_list args);
+	virtual void log(log_level_t level, const location_t *location, const char *format, ...);
 	virtual void dump();
 
 	std::string msg;
@@ -74,8 +74,8 @@ struct note_logger : logger {
 	note_logger(std::string message);
 	virtual ~note_logger() throw();
 
-	virtual void logv(log_level_t level, const location *location, const char *format, va_list args);
-	virtual void log(log_level_t level, const location *location, const char *format, ...);
+	virtual void logv(log_level_t level, const location_t *location, const char *format, va_list args);
+	virtual void log(log_level_t level, const location_t *location, const char *format, ...);
 	virtual void dump();
 
 	std::string msg;

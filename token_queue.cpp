@@ -47,12 +47,12 @@ token_kind translate_tk(token_kind tk, const zion_string_t &token_text) {
 	return tk;
 }
 
-void zion_token_queue_t::enqueue(const location &location, token_kind tk) {
+void zion_token_queue_t::enqueue(const location_t &location, token_kind tk) {
 	zion_string_t token_text;
 	enqueue(location, tk, token_text);
 }
 
-void zion_token_queue_t::enqueue(const location &location, token_kind tk, const zion_string_t &token_text) {
+void zion_token_queue_t::enqueue(const location_t &location, token_kind tk, const zion_string_t &token_text) {
 	tk = translate_tk(tk, token_text);
 	m_last_tk = tk;
 	m_queue.push_back({location, tk, token_text.str()});

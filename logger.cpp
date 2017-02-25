@@ -51,7 +51,7 @@ const char *logstr(log_level_t ll) {
 	}
 }
 
-void write_log_streamv(std::ostream &os, log_level_t level, const location *location, const char *format, va_list args) {
+void write_log_streamv(std::ostream &os, log_level_t level, const location_t *location, const char *format, va_list args) {
 	if (location) {
 		os << location->str(true/*vim_mode*/) << ": ";
 	}
@@ -59,14 +59,14 @@ void write_log_streamv(std::ostream &os, log_level_t level, const location *loca
 	os << string_formatv(format, args) << std::endl;
 }
 
-void write_log_stream(std::ostream &os, log_level_t level, const location *location, const char *format, ...) {
+void write_log_stream(std::ostream &os, log_level_t level, const location_t *location, const char *format, ...) {
 	va_list args;
 	va_start(args, format);
 	write_log_streamv(os, level, location, format, args);
 	va_end(args);
 }
 
-void write_logv(FILE *fp, log_level_t level, const location *location, const char *format, va_list args) {
+void write_logv(FILE *fp, log_level_t level, const location_t *location, const char *format, va_list args) {
 	std::stringstream ss;
 	write_log_streamv(ss, level, location, format, args);
 
@@ -95,17 +95,17 @@ tee_logger::~tee_logger() throw() {
 	_logger = logger_old;
 }
 
-void tee_logger::logv(log_level_t level, const location *location, const char *format, va_list args) {
+void tee_logger::logv(log_level_t level, const location_t *location, const char *format, va_list args) {
 	auto str = string_formatv(format, args);
 
-	captured_logs.push_back(std::tuple<log_level_t, maybe<struct location>, std::string>{level, location, str});
+	captured_logs.push_back(std::tuple<log_level_t, maybe<location_t>, std::string>{level, location, str});
 
 	if (logger_old != nullptr) {
 		logger_old->log(level, location, "%s", str.c_str());
 	}
 }
 
-void tee_logger::log(log_level_t level, const location *location, const char *format, ...) {
+void tee_logger::log(log_level_t level, const location_t *location, const char *format, ...) {
 	va_list args;
 	va_start(args, format);
 	logv(level, location, format, args);
@@ -115,7 +115,7 @@ void tee_logger::log(log_level_t level, const location *location, const char *fo
 std::string tee_logger::captured_logs_as_string() const {
 	std::stringstream ss;
 	for (const auto &tuple : captured_logs) {
-		const maybe<location> maybe_location = std::get<1>(tuple);
+		const maybe<location_t> maybe_location = std::get<1>(tuple);
 		write_log_stream(ss, std::get<0>(tuple), maybe_location.as_ptr(),
 				"%s", std::get<2>(tuple).c_str());
 	}
@@ -135,14 +135,14 @@ indent_logger::~indent_logger() throw() {
 	debug_above(level, ::log(log_info, c_control(")")));
 }
 
-void indent_logger::logv(log_level_t level, const location *location, const char *format, va_list args) {
+void indent_logger::logv(log_level_t level, const location_t *location, const char *format, va_list args) {
 	auto str = string_formatv(format, args);
 	if (logger_old != nullptr) {
 		logger_old->log(level, location, "%s%s", (location != nullptr) ? "" : "  ", str.c_str());
 	}
 }
 
-void indent_logger::log(log_level_t level, const location *location, const char *format, ...) {
+void indent_logger::log(log_level_t level, const location_t *location, const char *format, ...) {
 	va_list args;
 	va_start(args, format);
 	logv(level, location, format, args);
@@ -159,13 +159,13 @@ note_logger::~note_logger() throw() {
 	_logger = logger_old;
 }
 
-void note_logger::logv(log_level_t level, const location *location, const char *format, va_list args) {
+void note_logger::logv(log_level_t level, const location_t *location, const char *format, va_list args) {
 	if (logger_old != nullptr) {
 		logger_old->logv(level, location, format, args);
 	}
 }
 
-void note_logger::log(log_level_t level, const location *location, const char *format, ...) {
+void note_logger::log(log_level_t level, const location_t *location, const char *format, ...) {
 	va_list args;
 	va_start(args, format);
 	logv(level, location, format, args);
@@ -303,7 +303,7 @@ void panic_(const char *filename, int line, std::string msg) {
 	raise(SIGKILL);
 }
 
-void log_location(log_level_t level, const location &location, const char *format, ...) {
+void log_location(log_level_t level, const location_t &location, const char *format, ...) {
 	va_list args;
 	va_start(args, format);
 	logv_location(level, location, format, args);
@@ -327,7 +327,7 @@ void log(log_level_t level, const char *format, ...) {
 	va_end(args);
 }
 
-void logv_location(log_level_t level, const location &location, const char *format, va_list args) {
+void logv_location(log_level_t level, const location_t &location, const char *format, va_list args) {
 	if (mask(logger_level, level) == 0)
     {
         dbg();
@@ -350,7 +350,7 @@ void standard_logger::flush() {
 		fflush(m_fp);
 }
 
-void standard_logger::log(log_level_t level, const location *location, const char *format, ...) {
+void standard_logger::log(log_level_t level, const location_t *location, const char *format, ...) {
 	if (mask(logger_level, level) == 0)
 		return;
 
@@ -360,7 +360,7 @@ void standard_logger::log(log_level_t level, const location *location, const cha
 	va_end(args);
 }
 
-void standard_logger::logv(log_level_t level, const location *location, const char *format, va_list args) {
+void standard_logger::logv(log_level_t level, const location_t *location, const char *format, va_list args) {
 	if (mask(logger_level, level) == 0) {
 		return;
 	}

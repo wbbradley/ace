@@ -9,7 +9,7 @@
 unification_t::unification_t(
 		bool result,
 		std::string reasons,
-		types::type::map bindings) :
+		types::type_t::map bindings) :
 	result(result),
 	reasons(reasons),
 	bindings(bindings)
@@ -19,7 +19,7 @@ unification_t::unification_t(
 				::str(bindings).c_str()));
 }
 
-types::type::ref prune(types::type::ref t, types::type::map bindings) {
+types::type_t::ref prune(types::type_t::ref t, types::type_t::map bindings) {
 	/* Follow the links across the bindings to reach the final binding. */
 	atom type_variable_name;
 	if (get_type_variable_name(t, type_variable_name)) {
@@ -32,7 +32,7 @@ types::type::ref prune(types::type::ref t, types::type::map bindings) {
 }
 
 template <typename T>
-bool occurs_in(const ptr<types::type_variable> &var, const T &types) {
+bool occurs_in(const ptr<types::type_variable_t> &var, const T &types) {
     /* checks whether a type variable occurs in any other types. */
 	for (auto &type : types) {
 		if (occurs_in_type(var, type)) {
@@ -43,18 +43,18 @@ bool occurs_in(const ptr<types::type_variable> &var, const T &types) {
 }
 
 bool occurs_in_type(
-		types::type_variable::ref var,
-	   	types::type::ref b,
-	   	types::type::map bindings)
+		types::type_variable_t::ref var,
+	   	types::type_t::ref b,
+	   	types::type_t::map bindings)
 {
 	/* checks whether a type variable occurs in a type expression. must be
 	 * called with var already pruned */
 	assert(var == prune(var, bindings));
     auto pruned_b = prune(b, bindings);
 
-	if (auto var2 = dyncast<const types::type_variable>(pruned_b)) {
+	if (auto var2 = dyncast<const types::type_variable_t>(pruned_b)) {
 		return var2 == var;
-	} else if (auto type_operator = dyncast<const types::type_operator>(pruned_b)) {
+	} else if (auto type_operator = dyncast<const types::type_operator_t>(pruned_b)) {
 		return occurs_in_type(var, type_operator->oper, bindings) ||
 			occurs_in_type(var, type_operator->operand, bindings);
 	} else {
@@ -64,10 +64,10 @@ bool occurs_in_type(
 }
 
 unification_t unify(
-		types::type::ref lhs,
-		types::type::ref rhs,
-		types::type::map env,
-		types::type::map bindings,
+		types::type_t::ref lhs,
+		types::type_t::ref rhs,
+		types::type_t::map env,
+		types::type_t::map bindings,
 		int depth)
 {
 	if (depth > 120) {
@@ -86,21 +86,21 @@ unification_t unify(
     auto a = prune(lhs, bindings);
     auto b = prune(rhs, bindings);
 
-	auto ptm_a = dyncast<const types::type_maybe>(a);
-	auto ptm_b = dyncast<const types::type_maybe>(b);
+	auto ptm_a = dyncast<const types::type_maybe_t>(a);
+	auto ptm_b = dyncast<const types::type_maybe_t>(b);
 
-	auto pti_a = dyncast<const types::type_id>(a);
-	auto pti_b = dyncast<const types::type_id>(b);
+	auto pti_a = dyncast<const types::type_id_t>(a);
+	auto pti_b = dyncast<const types::type_id_t>(b);
 
-	auto pto_a = dyncast<const types::type_operator>(a);
-	auto pto_b = dyncast<const types::type_operator>(b);
+	auto pto_a = dyncast<const types::type_operator_t>(a);
+	auto pto_b = dyncast<const types::type_operator_t>(b);
 
-	auto pts_a = dyncast<const types::type_sum>(a);
-	auto pts_b = dyncast<const types::type_sum>(b);
+	auto pts_a = dyncast<const types::type_sum_t>(a);
+	auto pts_b = dyncast<const types::type_sum_t>(b);
 
-	auto ptp_a = dyncast<const types::type_product>(a);
+	auto ptp_a = dyncast<const types::type_product_t>(a);
 
-	auto ptf_a = dyncast<const types::type_function>(a);
+	auto ptf_a = dyncast<const types::type_function_t>(a);
 
 	if (pti_a != nullptr) {
 		/* check for basic type_id matching */
@@ -110,7 +110,7 @@ unification_t unify(
 		}
 	}
 
-   	if (auto ptv_a = dyncast<const types::type_variable>(a)) {
+   	if (auto ptv_a = dyncast<const types::type_variable_t>(a)) {
 		if (a != b) {
 			if (occurs_in_type(ptv_a, b, bindings)) {
 				return {
@@ -132,7 +132,7 @@ unification_t unify(
 		}
 
 		return {true, "", bindings};
-	} else if (auto ptv_b = dyncast<const types::type_variable>(b)) {
+	} else if (auto ptv_b = dyncast<const types::type_variable_t>(b)) {
 		return unify(ptv_b, a, env, bindings, depth + 1);
 	} else if (ptm_a != nullptr) {
 		if (ptm_b != nullptr) {
@@ -160,7 +160,7 @@ unification_t unify(
 					a->str().c_str()), {}};
 		}
 	} else if (ptp_a != nullptr) {
-		if (auto ptp_b = dyncast<const types::type_product>(b)) {
+		if (auto ptp_b = dyncast<const types::type_product_t>(b)) {
 			if (ptp_a->get_pk() != ptp_b->get_pk()) {
 				return {false, string_format("product kinds are different %s <> %s",
 						pkstr(ptp_a->get_pk()),
@@ -194,7 +194,7 @@ unification_t unify(
 					b->str().c_str()), bindings};
 		}
 	} else if (ptf_a != nullptr) {
-		if (auto ptf_b = dyncast<const types::type_function>(b)) {
+		if (auto ptf_b = dyncast<const types::type_function_t>(b)) {
 			/* note that the context unification is contravariant to the rest */
 			auto context_unification = unify(ptf_b->inbound_context, ptf_a->inbound_context,
 					env, bindings, depth + 1);

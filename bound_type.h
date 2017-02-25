@@ -20,8 +20,8 @@ struct bound_type_t {
 	typedef atom::map<int> name_index;
 
 	bound_type_t(
-			types::type::ref type,
-			location location,
+			types::type_t::ref type,
+			location_t location,
 			llvm::Type *llvm_type,
 			llvm::Type *llvm_specific_type);
 
@@ -41,35 +41,35 @@ public:
 	types::signature get_signature() const;
 
 	std::string str() const;
-	types::type::ref get_type() const;
+	types::type_t::ref get_type() const;
 	bool is_concrete() const;
-	struct location const get_location() const;
+	location_t const get_location() const;
 	llvm::Type *get_llvm_type() const;
 	llvm::Type *get_llvm_specific_type() const;
 
 	static refs refs_from_vars(const std::vector<ptr<const bound_var_t>> &vars);
 
 	static ref create(
-			types::type::ref type,
-			struct location location,
+			types::type_t::ref type,
+			location_t location,
 			llvm::Type *llvm_type,
 			llvm::Type *llvm_specific_type = nullptr);
 
 private:
-	types::type::ref type;
-	struct location location;
+	types::type_t::ref type;
+	location_t location;
 	llvm::Type * const llvm_type;
 	llvm::Type * const llvm_specific_type;
 };
 
-types::type::refs get_types(const bound_type_t::refs &bound_types);
-types::type::ref get_tuple_type(const bound_type_t::refs &items_types, bool managed);
-types::type_args::ref get_args_type(bound_type_t::refs args);
-types::type_function::ref get_function_type(types::type::ref context, bound_type_t::named_pairs named_args, bound_type_t::ref ret);
+types::type_t::refs get_types(const bound_type_t::refs &bound_types);
+types::type_t::ref get_tuple_type(const bound_type_t::refs &items_types, bool managed);
+types::type_args_t::ref get_args_type(bound_type_t::refs args);
+types::type_function_t::ref get_function_type(types::type_t::ref context, bound_type_t::named_pairs named_args, bound_type_t::ref ret);
 
 std::string str(const bound_type_t::refs &args);
 std::string str(const bound_type_t::named_pairs &named_pairs);
 std::string str(const bound_type_t::name_index &name_index);
 std::ostream &operator <<(std::ostream &os, const bound_type_t &type);
 
-types::type_function::ref get_function_type(types::type::ref context, bound_type_t::refs args, bound_type_t::ref return_type);
+types::type_function_t::ref get_function_type(types::type_t::ref context, bound_type_t::refs args, bound_type_t::ref return_type);

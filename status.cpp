@@ -7,18 +7,18 @@ status_t status_t::operator |=(const status_t rhs) {
 	return *this;
 }
 
-bool status_t::reported_on_error_at(location l) const {
+bool status_t::reported_on_error_at(location_t l) const {
    	return fail && last_error_location.str() == l.str();
 }
 
-void status_t::emit_message(log_level_t level, location location, const char *format, ...) {	
+void status_t::emit_message(log_level_t level, location_t location, const char *format, ...) {	
 	va_list args;
 	va_start(args, format);
 	emit_messagev(level, location, format, args);
 	va_end(args);
 }
 
-void status_t::emit_messagev(log_level_t level, location location, const char *format, va_list args) {	
+void status_t::emit_messagev(log_level_t level, location_t location, const char *format, va_list args) {	
 	if (level == log_error) {
 		if (fail && getenv("STATUS_BREAK")) {
 			write_fp(stderr, "Status already failed. Breaking...\n");
@@ -37,7 +37,7 @@ void status_t::emit_messagev(log_level_t level, location location, const char *f
 	logv_location(level, location, format, args);
 }
 
-void user_message(log_level_t level, status_t &status, const ast::item &item, const char *format, ...) {
+void user_message(log_level_t level, status_t &status, const ast::item_t &item, const char *format, ...) {
     va_list args;
     va_start(args, format);
     auto str = string_formatv(format, args);
@@ -46,7 +46,7 @@ void user_message(log_level_t level, status_t &status, const ast::item &item, co
     status.emit_message(level, item.token.location, "%s", str.c_str());
 }
 
-void user_message(log_level_t level, status_t &status, location location, const char *format, ...) {
+void user_message(log_level_t level, status_t &status, location_t location, const char *format, ...) {
     va_list args;
     va_start(args, format);
     auto str = string_formatv(format, args);

@@ -3,6 +3,7 @@
 #include "location.h"
 #include "status.h"
 #include <sstream>
+#include <signal.h>
 
 void _emit_assert(
 		const char *filename,
@@ -10,7 +11,7 @@ void _emit_assert(
 	   	const char *assertion,
 	   	const char *function)
 {
-	struct location location(filename, line, 1);
+	location_t location(filename, line, 1);
 	status_t status;
 	std::stringstream ss;
 	ss << c_error("assert failed");
@@ -19,16 +20,14 @@ void _emit_assert(
 	user_message(log_panic, status, location, ss.str().c_str());
 	log_dump();
 	// ::log_stack(log_warning);
-	__debugbreak();
-	__noop;
+    DEBUG_BREAK();
 }
 
 depth_guard_t::depth_guard_t(int &depth, int max_depth) : depth(depth) {
 	++depth;
 	if (depth > max_depth) {
 		std::cerr << c_error("maximum depth reached") << std::endl;
-		__debugbreak();
-		__noop;
+        DEBUG_BREAK();
 	}
 }
 

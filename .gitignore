@@ -23,3 +23,10 @@ play/*
 tests/*
 !**/*.zion
 *.zx
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+Makefile.bak
+CTestTestfile.cmake
+Testing/

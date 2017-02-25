@@ -11,7 +11,7 @@ struct unification_t {
 	unification_t(
 			bool result,
 			std::string reasons,
-			types::type::map bindings);
+			types::type_t::map bindings);
 
 	std::string str() const { return reasons + " " + ::str(bindings); }
 
@@ -23,12 +23,12 @@ struct unification_t {
 
 	/* the bindings for any quantified types which we end up with after the
 	 * unification process */
-	types::type::map bindings;
+	types::type_t::map bindings;
 };
 
 unification_t unify(
-		types::type::ref a,
-		types::type::ref b,
-		types::type::map env = {},
-        types::type::map bindings = {},
+		types::type_t::ref a,
+		types::type_t::ref b,
+		types::type_t::map env = {},
+        types::type_t::map bindings = {},
         int depth=0);

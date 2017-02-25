@@ -108,8 +108,8 @@ enum token_kind
 
 
 struct zion_token_t {
-	zion_token_t(const location &location={{""},-1,-1}, token_kind tk=tk_none, std::string text="") : location(location), tk(tk), text(text) {}
-	location location;
+	zion_token_t(const location_t &location={{""},-1,-1}, token_kind tk=tk_none, std::string text="") : location(location), tk(tk), text(text) {}
+	location_t location;
 	token_kind tk = tk_none;
 	std::string text;
 	std::string str() const;

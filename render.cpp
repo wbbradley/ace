@@ -8,7 +8,7 @@ namespace ast {
 		std::stringstream ss;
 	};
 
-	std::string item::str() const {
+	std::string item_t::str() const {
 		render_state_t render_state;
 		this->render(render_state);
 		return render_state.ss.str();
@@ -37,17 +37,17 @@ namespace ast {
 		}
 	}
 
-	void assignment::render(render_state_t &rs) const {
+	void assignment_t::render(render_state_t &rs) const {
 		lhs->render(rs);
 		rs.ss << " " << token.text << " ";
 		rhs->render(rs);
 	}
 
-	void break_flow::render(render_state_t &rs) const {
+	void break_flow_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << tkstr(tk_break) << C_RESET << " ";
 	}
 
-	void times_expr::render(render_state_t &rs) const {
+	void times_expr_t::render(render_state_t &rs) const {
 		rs.ss << "(";
 
 		lhs->render(rs);
@@ -57,11 +57,11 @@ namespace ast {
 		rs.ss << ")";
 	}
 
-	void type_alias::render(render_state_t &rs) const {
+	void type_alias_t::render(render_state_t &rs) const {
 		rs.ss << tkstr(tk_matches) << " " << type->str();
 	}
 
-	void prefix_expr::render(render_state_t &rs) const {
+	void prefix_expr_t::render(render_state_t &rs) const {
 		rs.ss << token.text;
 		if (isalpha(token.text[0])) {
 			rs.ss << " ";
@@ -70,7 +70,7 @@ namespace ast {
 		rhs->render(rs);
 	}
 
-	void while_block::render(render_state_t &rs) const {
+	void while_block_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << tkstr(tk_while) << C_RESET << " ";
 		condition->render(rs);
 		newline(rs);
@@ -79,7 +79,7 @@ namespace ast {
 		block->render(rs);
 	}
 
-	void when_block::render(render_state_t &rs) const {
+	void when_block_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << tkstr(tk_when) << C_RESET << " ";
 		value->render(rs);
 		/* BLOCK */ {
@@ -99,7 +99,7 @@ namespace ast {
 		}
 	}
 
-	void pattern_block::render(render_state_t &rs) const {
+	void pattern_block_t::render(render_state_t &rs) const {
 		newline(rs);
 		indent(rs);
 		rs.ss << C_TYPE << tkstr(tk_is) << C_RESET << " ";
@@ -109,7 +109,7 @@ namespace ast {
 		block->render(rs);
 	}
 
-	void literal_expr::render(render_state_t &rs) const {
+	void literal_expr_t::render(render_state_t &rs) const {
 		switch (token.tk) {
 		case tk_string:
 			rs.ss << C_ERROR << token.text << C_RESET;
@@ -124,32 +124,32 @@ namespace ast {
 		}
 	}
 
-	void type_product::render(render_state_t &rs) const {
+	void type_product_t::render(render_state_t &rs) const {
 		rs.ss << type->str();
 	}
 
-	void typeid_expr::render(render_state_t &rs) const {
+	void typeid_expr_t::render(render_state_t &rs) const {
 		rs.ss << C_TYPE << tkstr(tk_get_typeid) << C_RESET << "(";
 		expr->render(rs);
 		rs.ss << ")";
 	}
 
-	void sizeof_expr::render(render_state_t &rs) const {
+	void sizeof_expr_t::render(render_state_t &rs) const {
 		rs.ss << C_TYPE << tkstr(tk_sizeof) << C_RESET << "(";
 		rs.ss << type->str();
 		rs.ss << ")";
 	}
 
-	void callsite_expr::render(render_state_t &rs) const {
+	void callsite_expr_t::render(render_state_t &rs) const {
 		function_expr->render(rs);
 		params->render(rs);
 	}
 
-	void continue_flow::render(render_state_t &rs) const {
+	void continue_flow_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << tkstr(tk_continue) << C_RESET;
 	}
 
-	void function_defn::render(render_state_t &rs) const {
+	void function_defn_t::render(render_state_t &rs) const {
 		newline(rs);
 		decl->render(rs);
 		newline(rs);
@@ -158,15 +158,15 @@ namespace ast {
 		block->render(rs);
 	}
 
-	void mod_assignment::render(render_state_t &rs) const {
+	void mod_assignment_t::render(render_state_t &rs) const {
 		not_done();
 	}
 
-	void reference_expr::render(render_state_t &rs) const {
+	void reference_expr_t::render(render_state_t &rs) const {
 		rs.ss << C_VAR << token.text << C_RESET;
 	}
 
-	void dimension::render(render_state_t &rs) const {
+	void dimension_t::render(render_state_t &rs) const {
 		if (!!name) {
 			rs.ss << C_TYPE << tkstr(tk_var) << C_RESET << " ";
 			rs.ss << C_VAR << name << C_RESET << " ";
@@ -174,38 +174,38 @@ namespace ast {
 		rs.ss << type->str();
 	}
 
-	void plus_assignment::render(render_state_t &rs) const {
+	void plus_assignment_t::render(render_state_t &rs) const {
 		lhs->render(rs);
 		rs.ss << " " << token.text << " ";
 		rhs->render(rs);
 	}
 
-	void array_index_expr::render(render_state_t &rs) const {
+	void array_index_expr_t::render(render_state_t &rs) const {
 		lhs->render(rs);
 		rs.ss << "[";
 		index->render(rs);
 		rs.ss << "]";
 	}
 
-	void minus_assignment::render(render_state_t &rs) const {
+	void minus_assignment_t::render(render_state_t &rs) const {
 		lhs->render(rs);
 		rs.ss << " " << token.text << " ";
 		rhs->render(rs);
 	}
 
-	void times_assignment::render(render_state_t &rs) const {
+	void times_assignment_t::render(render_state_t &rs) const {
 		lhs->render(rs);
 		rs.ss << " " << token.text << " ";
 		rhs->render(rs);
 	}
 
-	void divide_assignment::render(render_state_t &rs) const {
+	void divide_assignment_t::render(render_state_t &rs) const {
 		lhs->render(rs);
 		rs.ss << " " << token.text << " ";
 		rhs->render(rs);
 	}
 
-	void array_literal_expr::render(render_state_t &rs) const {
+	void array_literal_expr_t::render(render_state_t &rs) const {
 		rs.ss << "[";
 		for (size_t i = 0; i < items.size(); ++i) {
 			if (i > 0) {
@@ -217,7 +217,7 @@ namespace ast {
 		rs.ss << "]";
 	}
 
-	void link_module_statement::render(render_state_t &rs) const {
+	void link_module_statement_t::render(render_state_t &rs) const {
 		rs.ss << C_SCOPE_SEP << tkstr(tk_link) << C_RESET;
 		rs.ss << " ";
 		extern_module->render(rs);
@@ -227,14 +227,14 @@ namespace ast {
 		}
 	}
 
-	void link_name::render(render_state_t &rs) const {
+	void link_name_t::render(render_state_t &rs) const {
 		rs.ss << C_SCOPE_SEP << tkstr(tk_link) << C_RESET;
 		rs.ss << " " << local_name.text << " " << tkstr(tk_to) << " ";
 		extern_module->render(rs);
 		rs.ss << "." << remote_name.text;
 	}
 
-	void link_function_statement::render(render_state_t &rs) const {
+	void link_function_statement_t::render(render_state_t &rs) const {
 		rs.ss << C_SCOPE_SEP << tkstr(tk_link) << C_RESET;
 		rs.ss << " ";
 		extern_function->render(rs);
@@ -244,7 +244,7 @@ namespace ast {
 		}
 	}
 
-	void block::render(render_state_t &rs) const {
+	void block_t::render(render_state_t &rs) const {
 		for (size_t i = 0; i < statements.size(); ++i) {
 			if (i > 0) {
 				newline(rs);
@@ -255,7 +255,7 @@ namespace ast {
 		}
 	}
 
-	void eq_expr::render(render_state_t &rs) const {
+	void eq_expr_t::render(render_state_t &rs) const {
 		rs.ss << "(";
 
 		lhs->render(rs);
@@ -265,7 +265,7 @@ namespace ast {
 		rs.ss << ")";
 	}
 
-	void tuple_expr::render(render_state_t &rs) const {
+	void tuple_expr_t::render(render_state_t &rs) const {
 		rs.ss << "(";
 
 		const char *sep = "";
@@ -279,7 +279,7 @@ namespace ast {
 		rs.ss << ")";
 	}
 
-	void or_expr::render(render_state_t &rs) const {
+	void or_expr_t::render(render_state_t &rs) const {
 		rs.ss << "(";
 
 		lhs->render(rs);
@@ -289,7 +289,7 @@ namespace ast {
 		rs.ss << ")";
 	}
 
-	void ternary_expr::render(render_state_t &rs) const {
+	void ternary_expr_t::render(render_state_t &rs) const {
 		condition->render(rs);
 		rs.ss << " ? ";
 		when_true->render(rs);
@@ -297,7 +297,7 @@ namespace ast {
 		when_false->render(rs);
 	}
 
-	void and_expr::render(render_state_t &rs) const {
+	void and_expr_t::render(render_state_t &rs) const {
 		rs.ss << "(";
 
 		lhs->render(rs);
@@ -307,13 +307,13 @@ namespace ast {
 		rs.ss << ")";
 	}
 
-	void dot_expr::render(render_state_t &rs) const {
+	void dot_expr_t::render(render_state_t &rs) const {
 		lhs->render(rs);
 		rs.ss << C_SCOPE_SEP << '.' << C_RESET;
 		rs.ss << rhs.text;
 	}
 
-	void if_block::render(render_state_t &rs) const {
+	void if_block_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << tkstr(tk_if) << C_RESET << " ";
 		condition->render(rs);
 
@@ -323,25 +323,25 @@ namespace ast {
 		block->render(rs);
 	}
 
-	void tag::render(render_state_t &rs) const {
+	void tag_t::render(render_state_t &rs) const {
 		rs.ss << C_TYPE << tkstr(tk_tag) << C_RESET << " ";
 		rs.ss << C_ID << token.text << C_RESET;
 		newline(rs);
 	}
 
-	void type_def::render(render_state_t &rs) const {
+	void type_def_t::render(render_state_t &rs) const {
 		rs.ss << tkstr(tk_type) << " ";
 		type_decl->render(rs);
 		rs.ss << " ";
 		type_algebra->render(rs);
 	}
 
-	void type_sum::render(render_state_t &rs) const {
+	void type_sum_t::render(render_state_t &rs) const {
 		rs.ss << tkstr(tk_is);
 		rs.ss << " " << type->str();
 	}
 
-	void var_decl::render(render_state_t &rs) const {
+	void var_decl_t::render(render_state_t &rs) const {
 		if (rs.param_list_decl_depth == 0) {
 			rs.ss << C_TYPE << tkstr(tk_var) << C_RESET << " ";
 		}
@@ -358,7 +358,7 @@ namespace ast {
 		}
 	}
 
-	void ineq_expr::render(render_state_t &rs) const {
+	void ineq_expr_t::render(render_state_t &rs) const {
 		rs.ss << "(";
 
 		lhs->render(rs);
@@ -368,11 +368,11 @@ namespace ast {
 		rs.ss << ")";
 	}
 
-	void pass_flow::render(render_state_t &rs) const {
+	void pass_flow_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << tkstr(tk_pass) << C_RESET;
 	}
 
-	void plus_expr::render(render_state_t &rs) const {
+	void plus_expr_t::render(render_state_t &rs) const {
 		rs.ss << "(";
 
 		lhs->render(rs);
@@ -382,7 +382,7 @@ namespace ast {
 		rs.ss << ")";
 	}
 
-	void type_decl::render(render_state_t &rs) const {
+	void type_decl_t::render(render_state_t &rs) const {
 		rs.ss << token.text;
 		if (type_variables.size() != 0) {
 			const char *sep = "";
@@ -395,7 +395,7 @@ namespace ast {
 		}
 	}
 
-	void param_list::render(render_state_t &rs) const {
+	void param_list_t::render(render_state_t &rs) const {
 		rs.ss << "(";
 
 		for (size_t i = 0; i < expressions.size(); ++i) {
@@ -409,7 +409,7 @@ namespace ast {
 		rs.ss << ")";
 	}
 
-	void module_decl::render(render_state_t &rs) const {
+	void module_decl_t::render(render_state_t &rs) const {
 		rs.ss << C_MODULE << tkstr(tk_module) << C_RESET << " " << get_canonical_name();
 		if (semver != nullptr) {
 			rs.ss << " ";
@@ -417,7 +417,7 @@ namespace ast {
 		}
 	}
 
-	void function_decl::render(render_state_t &rs) const {
+	void function_decl_t::render(render_state_t &rs) const {
 		if (inbound_context != nullptr) {
 			rs.ss << '[' << inbound_context->str() << ']';
 			newline(rs);
@@ -430,7 +430,7 @@ namespace ast {
 		}
 	}
 
-	void param_list_decl::render(render_state_t &rs) const {
+	void param_list_decl_t::render(render_state_t &rs) const {
 		++rs.param_list_decl_depth;
 
 		rs.ss << "(";
@@ -446,14 +446,14 @@ namespace ast {
 		--rs.param_list_decl_depth;
 	}
 
-	void return_statement::render(render_state_t &rs) const {
+	void return_statement_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << tkstr(tk_return) << C_RESET << " ";
 		if (expr != nullptr) {
 			expr->render(rs);
 		}
 	}
 
-	void module::render(render_state_t &rs) const {
+	void module_t::render(render_state_t &rs) const {
 		decl->render(rs);
 		newline(rs, 2);
 
@@ -478,11 +478,11 @@ namespace ast {
 		}
 	}
 
-	void semver::render(render_state_t &rs) const {
+	void semver_t::render(render_state_t &rs) const {
 		rs.ss << token.text;
 	}
 
-	void program::render(render_state_t &rs) const {
+	void program_t::render(render_state_t &rs) const {
 		int count = 0;
 		for (auto &module : modules) {
 			if (count++ > 0) {
@@ -493,12 +493,12 @@ namespace ast {
 		}
 	}
 
-    void bang_expr::render(render_state_t &rs) const {
+    void bang_expr_t::render(render_state_t &rs) const {
         lhs->render(rs);
         rs.ss << "!";
     }
 
-	void cast_expr::render(render_state_t &rs) const {
+	void cast_expr_t::render(render_state_t &rs) const {
 		lhs->render(rs);
 		rs.ss << " as";
 		if (force_cast) {

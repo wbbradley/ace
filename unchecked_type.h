@@ -14,11 +14,11 @@ struct unchecked_type_t {
 	unchecked_type_t(const unchecked_type_t &) = delete;
 	unchecked_type_t(
 			atom name,
-			ptr<const ast::item> node,
+			ptr<const ast::item_t> node,
 			ptr<scope_t> const module_scope);
 
 	atom const name;
-	ptr<const ast::item> const node;
+	ptr<const ast::item_t> const node;
 	ptr<scope_t> const module_scope;
 
 	std::string str() const;
@@ -29,6 +29,6 @@ struct unchecked_type_t {
 
 	static ref create(
 			atom name,
-			ptr<const ast::item> node,
+			ptr<const ast::item_t> node,
 			ptr<scope_t> const module_scope);
 };

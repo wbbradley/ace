@@ -3,7 +3,7 @@
 bound_var_t::ref gen_type_check(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		ast::item::ref node,
+		ast::item_t::ref node,
 		scope_t::ref scope,
 		life_t::ref life,
 		identifier::ref value_name,

@@ -8,10 +8,10 @@
 #include "identifier.h"
 
 namespace types {
-	struct type;
+	struct type_t;
 }
 
-typedef std::map<atom, ptr<const types::type>> type_macros_t;
+typedef std::map<atom, ptr<const types::type_t>> type_macros_t;
 
 struct parse_state_t {
 	typedef log_level_t parse_error_level_t;

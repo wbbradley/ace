@@ -39,10 +39,10 @@ using namespace ast;
 	} while (0)
 #define chomp_token(_tk) chomp_token_or_return(_tk, nullptr)
 
-ptr<var_decl> var_decl::parse(parse_state_t &ps) {
+ptr<var_decl_t> var_decl_t::parse(parse_state_t &ps) {
 	expect_token(tk_identifier);
 
-	auto var_decl = create<ast::var_decl>(ps.token);
+	auto var_decl = create<ast::var_decl_t>(ps.token);
 	eat_token();
 
 	if (ps.token.tk != tk_assign) {
@@ -54,7 +54,7 @@ ptr<var_decl> var_decl::parse(parse_state_t &ps) {
 	if (!!ps.status) {
 		if (ps.token.tk == tk_assign) {
 			eat_token();
-			var_decl->initializer = expression::parse(ps);
+			var_decl->initializer = expression_t::parse(ps);
 		}
 
 		return var_decl;
@@ -64,10 +64,10 @@ ptr<var_decl> var_decl::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-ptr<var_decl> var_decl::parse_param(parse_state_t &ps) {
+ptr<var_decl_t> var_decl_t::parse_param(parse_state_t &ps) {
 	expect_token(tk_identifier);
 
-	auto var_decl = create<ast::var_decl>(ps.token);
+	auto var_decl = create<ast::var_decl_t>(ps.token);
 	eat_token();
 
 	if (ps.token.tk == tk_assign) {
@@ -83,11 +83,11 @@ ptr<var_decl> var_decl::parse_param(parse_state_t &ps) {
 	return var_decl;
 }
 
-ptr<return_statement> return_statement::parse(parse_state_t &ps) {
-	auto return_statement = create<ast::return_statement>(ps.token);
+ptr<return_statement_t> return_statement_t::parse(parse_state_t &ps) {
+	auto return_statement = create<ast::return_statement_t>(ps.token);
 	chomp_token(tk_return);
 	if (!ps.line_broke() && ps.token.tk != tk_outdent) {
-		return_statement->expr = expression::parse(ps);
+		return_statement->expr = expression_t::parse(ps);
 		if (!return_statement->expr) {
 			assert(!ps.status);
 			return nullptr;
@@ -96,14 +96,14 @@ ptr<return_statement> return_statement::parse(parse_state_t &ps) {
 	return return_statement;
 }
 
-ptr<statement> link_statement_parse(parse_state_t &ps) {
+ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 	expect_token(tk_link);
 	auto link_token = ps.token;
 	ps.advance();
 
 	if (ps.token.tk == tk_lsquare || ps.token.tk == tk_def) {
-		auto link_function_statement = create<ast::link_function_statement>(link_token);
-		auto function_decl = function_decl::parse(ps);
+		auto link_function_statement = create<ast::link_function_statement_t>(link_token);
+		auto function_decl = function_decl_t::parse(ps);
 		if (function_decl) {
 			link_function_statement->function_name = function_decl->token;
 			link_function_statement->extern_function = function_decl;
@@ -113,9 +113,9 @@ ptr<statement> link_statement_parse(parse_state_t &ps) {
 		return link_function_statement;
 	} else {
 		if (ps.token.tk == tk_module) {
-			auto module_decl = module_decl::parse(ps);
+			auto module_decl = module_decl_t::parse(ps);
 			if (!!ps.status) {
-				auto link_statement = create<link_module_statement>(link_token);
+				auto link_statement = create<link_module_statement_t>(link_token);
 				link_statement->extern_module = module_decl;
 
 				if (ps.token.tk == tk_as) {
@@ -139,7 +139,7 @@ ptr<statement> link_statement_parse(parse_state_t &ps) {
 				}
 			}
 		} else if (ps.token.tk == tk_identifier) {
-			auto link_name = create<struct ast::link_name>(link_token);
+			auto link_name = create<ast::link_name_t>(link_token);
 			/*
 			 * link name to some_module.something
 			 *
@@ -153,7 +153,7 @@ ptr<statement> link_statement_parse(parse_state_t &ps) {
 			link_name->local_name = ps.token;
 			ps.advance();
 			chomp_token(tk_to);
-			link_name->extern_module = module_decl::parse(ps, true /* skip_module_token */);
+			link_name->extern_module = module_decl_t::parse(ps, true /* skip_module_token */);
 			if (!!ps.status) {
 				chomp_token(tk_dot);
 				expect_token(tk_identifier);
@@ -169,44 +169,44 @@ ptr<statement> link_statement_parse(parse_state_t &ps) {
 	}
 }
 
-ptr<statement> statement::parse(parse_state_t &ps) {
+ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 	assert(ps.token.tk != tk_outdent);
 
 	if (ps.token.tk == tk_var) {
 		eat_token();
-		return var_decl::parse(ps);
+		return var_decl_t::parse(ps);
 	} else if (ps.token.tk == tk_if) {
-		return if_block::parse(ps);
+		return if_block_t::parse(ps);
 	} else if (ps.token.tk == tk_while) {
-		return while_block::parse(ps);
+		return while_block_t::parse(ps);
 	} else if (ps.token.tk == tk_when) {
-		return when_block::parse(ps);
+		return when_block_t::parse(ps);
 	} else if (ps.token.tk == tk_return) {
-		return return_statement::parse(ps);
+		return return_statement_t::parse(ps);
 	} else if (ps.token.tk == tk_type) {
-		return type_def::parse(ps);
+		return type_def_t::parse(ps);
 	} else if (ps.token.tk == tk_pass) {
-		auto pass_flow = create<ast::pass_flow>(ps.token);
+		auto pass_flow = create<ast::pass_flow_t>(ps.token);
 		eat_token();
 		return std::move(pass_flow);
 	} else if (ps.token.tk == tk_continue) {
-		auto continue_flow = create<ast::continue_flow>(ps.token);
+		auto continue_flow = create<ast::continue_flow_t>(ps.token);
 		eat_token();
 		return std::move(continue_flow);
 	} else if (ps.token.tk == tk_def) {
-		return function_defn::parse(ps);
+		return function_defn_t::parse(ps);
 	} else if (ps.token.tk == tk_break) {
-		auto break_flow = create<ast::break_flow>(ps.token);
+		auto break_flow = create<ast::break_flow_t>(ps.token);
 		eat_token();
 		return std::move(break_flow);
 	} else {
-		return assignment::parse(ps);
+		return assignment_t::parse(ps);
 	}
 }
 
-ptr<expression> reference_expr::parse(parse_state_t &ps) {
+ptr<expression_t> reference_expr_t::parse(parse_state_t &ps) {
 	if (ps.token.tk == tk_identifier) {
-		auto reference_expr = create<ast::reference_expr>(ps.token);
+		auto reference_expr = create<ast::reference_expr_t>(ps.token);
 		ps.advance();
 		return std::move(reference_expr);
 	} else {
@@ -215,15 +215,15 @@ ptr<expression> reference_expr::parse(parse_state_t &ps) {
 	}
 }
 
-ptr<typeid_expr> typeid_expr::parse(parse_state_t &ps) {
+ptr<typeid_expr_t> typeid_expr_t::parse(parse_state_t &ps) {
 	auto token = ps.token;
 	chomp_token(tk_get_typeid);
 	chomp_token(tk_lparen);
 
-	auto value = expression::parse(ps);
+	auto value = expression_t::parse(ps);
 	if (!!ps.status) {
 		assert(value != nullptr);
-		auto expr = ast::create<typeid_expr>(token, value);
+		auto expr = ast::create<typeid_expr_t>(token, value);
 		chomp_token(tk_rparen);
 		return expr;
 	}
@@ -232,7 +232,7 @@ ptr<typeid_expr> typeid_expr::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-ptr<sizeof_expr> sizeof_expr::parse(parse_state_t &ps) {
+ptr<sizeof_expr_t> sizeof_expr_t::parse(parse_state_t &ps) {
 	auto token = ps.token;
 	chomp_token(tk_sizeof);
 	chomp_token(tk_lparen);
@@ -240,7 +240,7 @@ ptr<sizeof_expr> sizeof_expr::parse(parse_state_t &ps) {
 	auto type = parse_maybe_type(ps, {}, {}, {});
 	if (!!ps.status) {
 		assert(type != nullptr);
-		auto expr = ast::create<sizeof_expr>(token, type);
+		auto expr = ast::create<sizeof_expr_t>(token, type);
 		chomp_token(tk_rparen);
 		return expr;
 	}
@@ -249,9 +249,9 @@ ptr<sizeof_expr> sizeof_expr::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-ptr<expression> parse_bang_wrap(parse_state_t &ps, ptr<expression> expr) {
+ptr<expression_t> parse_bang_wrap(parse_state_t &ps, ptr<expression_t> expr) {
     if (ps.token.tk == tk_bang) {
-        auto bang = ast::create<ast::bang_expr>(ps.token);
+        auto bang = ast::create<ast::bang_expr_t>(ps.token);
         bang->lhs = expr;
         ps.advance();
         return bang;
@@ -260,11 +260,11 @@ ptr<expression> parse_bang_wrap(parse_state_t &ps, ptr<expression> expr) {
     }
 }
 
-ptr<expression> parse_cast_wrap(parse_state_t &ps, ptr<expression> expr) {
+ptr<expression_t> parse_cast_wrap(parse_state_t &ps, ptr<expression_t> expr) {
     if (ps.token.tk == tk_as) {
 		auto token = ps.token;
 		ps.advance();
-		auto cast = ast::create<ast::cast_expr>(token);
+		auto cast = ast::create<ast::cast_expr_t>(token);
 		cast->lhs = expr;
 
 		if (ps.token.tk == tk_bang) {
@@ -278,29 +278,29 @@ ptr<expression> parse_cast_wrap(parse_state_t &ps, ptr<expression> expr) {
     }
 }
 
-ptr<expression> base_expr::parse(parse_state_t &ps) {
+ptr<expression_t> base_expr::parse(parse_state_t &ps) {
 	if (ps.token.tk == tk_lparen) {
-		return tuple_expr::parse(ps);
+		return tuple_expr_t::parse(ps);
 	} else if (ps.token.tk == tk_identifier) {
-		return reference_expr::parse(ps);
+		return reference_expr_t::parse(ps);
 	} else if (ps.token.tk == tk_get_typeid) {
-		return typeid_expr::parse(ps);
+		return typeid_expr_t::parse(ps);
 	} else if (ps.token.tk == tk_sizeof) {
-		return sizeof_expr::parse(ps);
+		return sizeof_expr_t::parse(ps);
 	} else {
-		return literal_expr::parse(ps);
+		return literal_expr_t::parse(ps);
 	}
 }
 
-ptr<expression> array_literal_expr::parse(parse_state_t &ps) {
+ptr<expression_t> array_literal_expr_t::parse(parse_state_t &ps) {
 	chomp_token(tk_lsquare);
-	auto array = create<array_literal_expr>(ps.token);
+	auto array = create<array_literal_expr_t>(ps.token);
 	auto &items = array->items;
 
 	int i = 0;
 	while (ps.token.tk != tk_rsquare && ps.token.tk != tk_none) {
 		++i;
-		auto item = expression::parse(ps);
+		auto item = expression_t::parse(ps);
 		if (item) {
 			items.push_back(item);
 		} else {
@@ -317,21 +317,21 @@ ptr<expression> array_literal_expr::parse(parse_state_t &ps) {
 	return array;
 }
 
-ptr<expression> literal_expr::parse(parse_state_t &ps) {
+ptr<expression_t> literal_expr_t::parse(parse_state_t &ps) {
 	switch (ps.token.tk) {
 	case tk_integer:
 	case tk_string:
 	case tk_char:
 	case tk_float:
 		{
-			auto literal_expr = create<ast::literal_expr>(ps.token);
+			auto literal_expr = create<ast::literal_expr_t>(ps.token);
 			ps.advance();
 			return std::move(literal_expr);
 		}
 	case tk_lsquare:
-		return array_literal_expr::parse(ps);
+		return array_literal_expr_t::parse(ps);
 	case tk_def:
-		return function_defn::parse(ps);
+		return function_defn_t::parse(ps);
 	case tk_indent:
 		ps.error("unexpected indent");
 		return nullptr;
@@ -345,8 +345,8 @@ ptr<expression> literal_expr::parse(parse_state_t &ps) {
 
 namespace ast {
 	namespace postfix_expr {
-		ptr<expression> parse(parse_state_t &ps) {
-			ptr<expression> expr = base_expr::parse(ps);
+		ptr<expression_t> parse(parse_state_t &ps) {
+			ptr<expression_t> expr = base_expr::parse(ps);
 			if (!expr) {
 				assert(!ps.status);
 				return nullptr;
@@ -355,8 +355,8 @@ namespace ast {
 			while (!ps.line_broke() && (ps.token.tk == tk_lsquare || ps.token.tk == tk_lparen || ps.token.tk == tk_dot)) {
 				if (ps.token.tk == tk_lparen) {
 					/* function call */
-					auto callsite = create<callsite_expr>(ps.token);
-					auto params = param_list::parse(ps);
+					auto callsite = create<callsite_expr_t>(ps.token);
+					auto params = param_list_t::parse(ps);
 					if (params) {
 						callsite->params.swap(params);
 						callsite->function_expr.swap(expr);
@@ -367,7 +367,7 @@ namespace ast {
 					}
 				}
 				if (ps.token.tk == tk_dot) {
-					auto dot_expr = create<ast::dot_expr>(ps.token);
+					auto dot_expr = create<ast::dot_expr_t>(ps.token);
 					eat_token();
 					expect_token(tk_identifier);
 					dot_expr->rhs = ps.token;
@@ -378,9 +378,9 @@ namespace ast {
 				}
 				if (ps.token.tk == tk_lsquare) {
 					eat_token();
-					auto array_index_expr = create<ast::array_index_expr>(ps.token);
+					auto array_index_expr = create<ast::array_index_expr_t>(ps.token);
 
-					auto index = expression::parse(ps);
+					auto index = expression_t::parse(ps);
 					if (index) {
 						array_index_expr->index.swap(index);
 						array_index_expr->lhs.swap(expr);
@@ -408,22 +408,22 @@ namespace ast {
 	}
 }
 
-ptr<expression> prefix_expr::parse(parse_state_t &ps) {
-	ptr<prefix_expr> prefix_expr;
+ptr<expression_t> prefix_expr_t::parse(parse_state_t &ps) {
+	ptr<prefix_expr_t> prefix_expr;
 	if (ps.token.tk == tk_not
 			|| ps.token.tk == tk_minus
 			|| ps.token.tk == tk_plus)
 	{
-		prefix_expr = create<ast::prefix_expr>(ps.token);
+		prefix_expr = create<ast::prefix_expr_t>(ps.token);
 		eat_token();
 	}
 
-	ptr<expression> rhs;
+	ptr<expression_t> rhs;
 	if (ps.token.tk == tk_not
 			|| ps.token.tk == tk_minus
 			|| ps.token.tk == tk_plus) {
 		/* recurse to find more prefix expressions */
-		rhs = prefix_expr::parse(ps);
+		rhs = prefix_expr_t::parse(ps);
 	} else {
 		/* ok, we're done with prefix operators */
 		rhs = postfix_expr::parse(ps);
@@ -442,8 +442,8 @@ ptr<expression> prefix_expr::parse(parse_state_t &ps) {
 	}
 }
 
-ptr<expression> times_expr::parse(parse_state_t &ps) {
-	auto expr = prefix_expr::parse(ps);
+ptr<expression_t> times_expr_t::parse(parse_state_t &ps) {
+	auto expr = prefix_expr_t::parse(ps);
 	if (!expr) {
 		assert(!ps.status);
 		return nullptr;
@@ -452,11 +452,11 @@ ptr<expression> times_expr::parse(parse_state_t &ps) {
 	while (!ps.line_broke() && (ps.token.tk == tk_times
 			   	|| ps.token.tk == tk_divide_by
 			   	|| ps.token.tk == tk_mod)) {
-		auto times_expr = create<ast::times_expr>(ps.token);
+		auto times_expr = create<ast::times_expr_t>(ps.token);
 
 		eat_token();
 
-		auto rhs = prefix_expr::parse(ps);
+		auto rhs = prefix_expr_t::parse(ps);
 		if (rhs) {
 			times_expr->lhs = std::move(expr);
 			times_expr->rhs = std::move(rhs);
@@ -470,19 +470,19 @@ ptr<expression> times_expr::parse(parse_state_t &ps) {
 	return expr;
 }
 
-ptr<expression> plus_expr::parse(parse_state_t &ps) {
-	auto expr = times_expr::parse(ps);
+ptr<expression_t> plus_expr_t::parse(parse_state_t &ps) {
+	auto expr = times_expr_t::parse(ps);
 	if (!expr) {
 		assert(!ps.status);
 		return nullptr;
 	}
 
 	while (!ps.line_broke() && (ps.token.tk == tk_plus || ps.token.tk == tk_minus)) {
-		auto plus_expr = create<ast::plus_expr>(ps.token);
+		auto plus_expr = create<ast::plus_expr_t>(ps.token);
 
 		eat_token();
 
-		auto rhs = times_expr::parse(ps);
+		auto rhs = times_expr_t::parse(ps);
 		if (rhs) {
 			plus_expr->lhs = std::move(expr);
 			plus_expr->rhs = std::move(rhs);
@@ -496,8 +496,8 @@ ptr<expression> plus_expr::parse(parse_state_t &ps) {
 	return expr;
 }
 
-ptr<expression> ineq_expr::parse(parse_state_t &ps) {
-	auto lhs = plus_expr::parse(ps);
+ptr<expression_t> ineq_expr_t::parse(parse_state_t &ps) {
+	auto lhs = plus_expr_t::parse(ps);
 	if (lhs) {
 		if (ps.line_broke()
 				|| !(ps.token.tk == tk_gt
@@ -508,11 +508,11 @@ ptr<expression> ineq_expr::parse(parse_state_t &ps) {
 			return lhs;
 		}
 
-		auto ineq_expr = create<ast::ineq_expr>(ps.token);
+		auto ineq_expr = create<ast::ineq_expr_t>(ps.token);
 
 		eat_token();
 
-		auto rhs = plus_expr::parse(ps);
+		auto rhs = plus_expr_t::parse(ps);
 		if (rhs) {
 			ineq_expr->lhs = std::move(lhs);
 			ineq_expr->rhs = std::move(rhs);
@@ -527,8 +527,8 @@ ptr<expression> ineq_expr::parse(parse_state_t &ps) {
 	}
 }
 
-ptr<expression> eq_expr::parse(parse_state_t &ps) {
-	auto lhs = ineq_expr::parse(ps);
+ptr<expression_t> eq_expr_t::parse(parse_state_t &ps) {
+	auto lhs = ineq_expr_t::parse(ps);
 	if (lhs) {
 		bool not_in = false;
 		if (ps.token.tk == tk_not) {
@@ -545,12 +545,12 @@ ptr<expression> eq_expr::parse(parse_state_t &ps) {
 			return lhs;
 		}
 
-		auto eq_expr = create<ast::eq_expr>(ps.token);
+		auto eq_expr = create<ast::eq_expr_t>(ps.token);
 		eq_expr->not_in = not_in;
 
 		eat_token();
 
-		auto rhs = ineq_expr::parse(ps);
+		auto rhs = ineq_expr_t::parse(ps);
 		if (rhs) {
 			eq_expr->lhs = std::move(lhs);
 			eq_expr->rhs = std::move(rhs);
@@ -565,19 +565,19 @@ ptr<expression> eq_expr::parse(parse_state_t &ps) {
 	}
 }
 
-ptr<expression> and_expr::parse(parse_state_t &ps) {
-	auto expr = eq_expr::parse(ps);
+ptr<expression_t> and_expr_t::parse(parse_state_t &ps) {
+	auto expr = eq_expr_t::parse(ps);
 	if (!expr) {
 		assert(!ps.status);
 		return nullptr;
 	}
 
 	while (!ps.line_broke() && (ps.token.tk == tk_and)) {
-		auto and_expr = create<ast::and_expr>(ps.token);
+		auto and_expr = create<ast::and_expr_t>(ps.token);
 
 		eat_token();
 
-		auto rhs = eq_expr::parse(ps);
+		auto rhs = eq_expr_t::parse(ps);
 		if (rhs) {
 			and_expr->lhs = std::move(expr);
 			and_expr->rhs = std::move(rhs);
@@ -591,10 +591,10 @@ ptr<expression> and_expr::parse(parse_state_t &ps) {
 	return expr;
 }
 
-ptr<expression> tuple_expr::parse(parse_state_t &ps) {
+ptr<expression_t> tuple_expr_t::parse(parse_state_t &ps) {
 	auto start_token = ps.token;
 	chomp_token(tk_lparen);
-	auto expr = expression::parse(ps);
+	auto expr = expression_t::parse(ps);
 	if (ps.token.tk != tk_comma) {
 		chomp_token(tk_rparen);
 		return expr;
@@ -602,14 +602,14 @@ ptr<expression> tuple_expr::parse(parse_state_t &ps) {
 		ps.advance();
 
 		/* we've got a tuple */
-		auto tuple_expr = create<ast::tuple_expr>(start_token);
+		auto tuple_expr = create<ast::tuple_expr_t>(start_token);
 
 		/* add the first value */
 		tuple_expr->values.push_back(expr);
 
 		/* now let's find the rest of the values */
 		while (ps.token.tk != tk_rparen) {
-			expr = expression::parse(ps);
+			expr = expression_t::parse(ps);
 			if (expr) {
 				tuple_expr->values.push_back(expr);
 				if (ps.token.tk == tk_comma) {
@@ -631,19 +631,19 @@ ptr<expression> tuple_expr::parse(parse_state_t &ps) {
 	}
 }
 
-ptr<expression> or_expr::parse(parse_state_t &ps) {
-	auto expr = and_expr::parse(ps);
+ptr<expression_t> or_expr_t::parse(parse_state_t &ps) {
+	auto expr = and_expr_t::parse(ps);
 	if (!expr) {
 		assert(!ps.status);
 		return nullptr;
 	}
 
 	while (!ps.line_broke() && (ps.token.tk == tk_or)) {
-		auto or_expr = create<ast::or_expr>(ps.token);
+		auto or_expr = create<ast::or_expr_t>(ps.token);
 
 		eat_token();
 
-		auto rhs = and_expr::parse(ps);
+		auto rhs = and_expr_t::parse(ps);
 		if (rhs) {
 			or_expr->lhs = std::move(expr);
 			or_expr->rhs = std::move(rhs);
@@ -657,20 +657,20 @@ ptr<expression> or_expr::parse(parse_state_t &ps) {
 	return expr;
 }
 
-ptr<expression> ternary_expr::parse(parse_state_t &ps) {
-	auto condition = or_expr::parse(ps);
+ptr<expression_t> ternary_expr_t::parse(parse_state_t &ps) {
+	auto condition = or_expr_t::parse(ps);
 	if (!!ps.status) {
 		if (ps.token.tk == tk_maybe) {
 			ps.advance();
 			// TODO: handle a ?? b form
 
-			auto truthy_expr = or_expr::parse(ps);
+			auto truthy_expr = or_expr_t::parse(ps);
 			if (!!ps.status) {
 				expect_token(tk_colon);
 				ps.advance();
-				auto falsey_expr = or_expr::parse(ps);
+				auto falsey_expr = or_expr_t::parse(ps);
 				if (!!ps.status) {
-					auto ternary = ast::create<ternary_expr>(condition->token);
+					auto ternary = ast::create<ternary_expr_t>(condition->token);
 					ternary->condition = condition;
 					ternary->when_true = truthy_expr;
 					ternary->when_false = falsey_expr;
@@ -686,19 +686,19 @@ ptr<expression> ternary_expr::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-ptr<expression> expression::parse(parse_state_t &ps) {
-	return ternary_expr::parse(ps);
+ptr<expression_t> expression_t::parse(parse_state_t &ps) {
+	return ternary_expr_t::parse(ps);
 }
 
-ptr<expression> assignment::parse(parse_state_t &ps) {
-	auto lhs = expression::parse(ps);
+ptr<expression_t> assignment_t::parse(parse_state_t &ps) {
+	auto lhs = expression_t::parse(ps);
 	if (lhs) {
 
 #define handle_assign(tk_, type) \
 		if (!ps.line_broke() && ps.token.tk == tk_) { \
 			auto assignment = create<type>(ps.token); \
 			chomp_token(tk_); \
-			auto rhs = expression::parse(ps); \
+			auto rhs = expression_t::parse(ps); \
 			if (rhs) { \
 				assignment->lhs = std::move(lhs); \
 				assignment->rhs = std::move(rhs); \
@@ -709,20 +709,20 @@ ptr<expression> assignment::parse(parse_state_t &ps) {
 			} \
 		}
 
-		handle_assign(tk_assign, ast::assignment);
-		handle_assign(tk_plus_eq, ast::plus_assignment);
-		// handle_assign(tk_maybe_eq, ast::maybe_assignment);
-		handle_assign(tk_minus_eq, ast::minus_assignment);
-		handle_assign(tk_divide_by_eq, ast::divide_assignment);
-		handle_assign(tk_times_eq, ast::times_assignment);
-		handle_assign(tk_mod_eq, ast::mod_assignment);
+		handle_assign(tk_assign, ast::assignment_t);
+		handle_assign(tk_plus_eq, ast::plus_assignment_t);
+		// handle_assign(tk_maybe_eq, ast::maybe_assignment_t);
+		handle_assign(tk_minus_eq, ast::minus_assignment_t);
+		handle_assign(tk_divide_by_eq, ast::divide_assignment_t);
+		handle_assign(tk_times_eq, ast::times_assignment_t);
+		handle_assign(tk_mod_eq, ast::mod_assignment_t);
 
 		if (!ps.line_broke() && ps.token.tk == tk_becomes) {
 			if (lhs->sk == sk_reference_expr) {
-				auto var_decl = create<ast::var_decl>(lhs->token);
+				auto var_decl = create<ast::var_decl_t>(lhs->token);
 				var_decl->type = type_variable(lhs->token.location);
 				chomp_token(tk_becomes);
-				auto initializer = expression::parse(ps);
+				auto initializer = expression_t::parse(ps);
 				if (initializer) {
 					var_decl->initializer.swap(initializer);
 					return var_decl;
@@ -745,13 +745,13 @@ ptr<expression> assignment::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-ptr<param_list_decl> param_list_decl::parse(parse_state_t &ps) {
+ptr<param_list_decl_t> param_list_decl_t::parse(parse_state_t &ps) {
 	/* reset the argument index */
 	ps.argument_index = 0;
 
-	auto param_list_decl = create<ast::param_list_decl>(ps.token);
+	auto param_list_decl = create<ast::param_list_decl_t>(ps.token);
 	while (ps.token.tk != tk_rparen) {
-		param_list_decl->params.push_back(var_decl::parse_param(ps));
+		param_list_decl->params.push_back(var_decl_t::parse_param(ps));
 		if (ps.token.tk == tk_comma) {
 			eat_token();
 		} else if (ps.token.tk != tk_rparen) {
@@ -762,13 +762,13 @@ ptr<param_list_decl> param_list_decl::parse(parse_state_t &ps) {
 	return param_list_decl;
 }
 
-ptr<param_list> param_list::parse(parse_state_t &ps) {
-	auto param_list = create<ast::param_list>(ps.token);
+ptr<param_list_t> param_list_t::parse(parse_state_t &ps) {
+	auto param_list = create<ast::param_list_t>(ps.token);
 	chomp_token(tk_lparen);
 	int i = 0;
 	while (ps.token.tk != tk_rparen) {
 		++i;
-		auto expr = expression::parse(ps);
+		auto expr = expression_t::parse(ps);
 		if (expr) {
 			param_list->expressions.push_back(std::move(expr));
 			if (ps.token.tk == tk_comma) {
@@ -788,8 +788,8 @@ ptr<param_list> param_list::parse(parse_state_t &ps) {
 	return param_list;
 }
 
-ptr<block> block::parse(parse_state_t &ps) {
-	auto block = create<ast::block>(ps.token);
+ptr<block_t> block_t::parse(parse_state_t &ps) {
+	auto block = create<ast::block_t>(ps.token);
 	chomp_token(tk_indent);
 	if (ps.token.tk == tk_outdent) {
 		ps.error("empty blocks are not allowed, sorry. use pass.");
@@ -806,7 +806,7 @@ ptr<block> block::parse(parse_state_t &ps) {
 					|| ps.prior_token.tk == tk_outdent)) {
 			ps.error("statements must be separated by a newline (or a semicolon)");
 		}
-		auto statement = statement::parse(ps);
+		auto statement = statement_t::parse(ps);
 		if (statement) {
 			block->statements.push_back(std::move(statement));
 		} else {
@@ -820,8 +820,8 @@ ptr<block> block::parse(parse_state_t &ps) {
 	return block;
 }
 
-ptr<if_block> if_block::parse(parse_state_t &ps) {
-	auto if_block = create<ast::if_block>(ps.token);
+ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
+	auto if_block = create<ast::if_block_t>(ps.token);
 	if (ps.token.tk == tk_if || ps.token.tk == tk_elif) {
 		ps.advance();
 	} else {
@@ -829,20 +829,20 @@ ptr<if_block> if_block::parse(parse_state_t &ps) {
 		return nullptr;
 	}
 
-	auto condition = assignment::parse(ps);
+	auto condition = assignment_t::parse(ps);
 	if (condition) {
 		if_block->condition = condition;
-		auto block = block::parse(ps);
+		auto block = block_t::parse(ps);
 		if (block) {
 			if_block->block.swap(block);
 
 			if (ps.prior_token.tk == tk_outdent) {
 				/* check the successive instructions for elif or else */
 				if (ps.token.tk == tk_elif) {
-					if_block->else_ = if_block::parse(ps);
+					if_block->else_ = if_block_t::parse(ps);
 				} else if (ps.token.tk == tk_else) {
 					ps.advance();
-					if_block->else_ = block::parse(ps);
+					if_block->else_ = block_t::parse(ps);
 				}
 			}
 
@@ -857,13 +857,13 @@ ptr<if_block> if_block::parse(parse_state_t &ps) {
 	}
 }
 
-ptr<while_block> while_block::parse(parse_state_t &ps) {
-	auto while_block = create<ast::while_block>(ps.token);
+ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {
+	auto while_block = create<ast::while_block_t>(ps.token);
 	chomp_token(tk_while);
-	auto condition = expression::parse(ps);
+	auto condition = expression_t::parse(ps);
 	if (condition) {
 		while_block->condition.swap(condition);
-		auto block = block::parse(ps);
+		auto block = block_t::parse(ps);
 		if (block) {
 			while_block->block.swap(block);
 			return while_block;
@@ -877,15 +877,15 @@ ptr<while_block> while_block::parse(parse_state_t &ps) {
 	}
 }
 
-ast::pattern_block::ref pattern_block::parse(parse_state_t &ps) {
+ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 	auto is_token = ps.token;
 	chomp_token(tk_is);
 
-	auto pattern_block = ast::create<ast::pattern_block>(is_token);
+	auto pattern_block = ast::create<ast::pattern_block_t>(is_token);
 	pattern_block->type = parse_maybe_type(ps, {}, {}, {});
 
 	if (!!ps.status) {
-		auto block = block::parse(ps);
+		auto block = block_t::parse(ps);
 		if (block) {
 			pattern_block->block.swap(block);
 			return pattern_block;
@@ -899,17 +899,17 @@ ast::pattern_block::ref pattern_block::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-ptr<when_block> when_block::parse(parse_state_t &ps) {
-	auto when_block = create<ast::when_block>(ps.token);
+ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
+	auto when_block = create<ast::when_block_t>(ps.token);
 	chomp_token(tk_when);
-	auto value = expression::parse(ps);
+	auto value = expression_t::parse(ps);
 	if (!!ps.status) {
 		when_block->value.swap(value);
 		if (ps.token.tk == tk_indent) {
 			/* this is a multi_pattern_block */
 			chomp_token(tk_indent);
 			while (ps.token.tk == tk_is) {
-				auto pattern_block = pattern_block::parse(ps);
+				auto pattern_block = pattern_block_t::parse(ps);
 				if (!!ps.status) {
 					when_block->pattern_blocks.push_back(pattern_block);
 				}
@@ -917,15 +917,15 @@ ptr<when_block> when_block::parse(parse_state_t &ps) {
 			chomp_token(tk_outdent);
 			if (ps.token.tk == tk_else) {
 				ps.advance();
-				when_block->else_block = block::parse(ps);
+				when_block->else_block = block_t::parse(ps);
 			}
 		} else {
 			/* this is a single_pattern_block */
-			auto pattern_block = pattern_block::parse(ps);
+			auto pattern_block = pattern_block_t::parse(ps);
 			when_block->pattern_blocks.push_back(pattern_block);
 			if (ps.token.tk == tk_else) {
 				ps.advance();
-				when_block->else_block = block::parse(ps);
+				when_block->else_block = block_t::parse(ps);
 			}
 		}
 		if (when_block->pattern_blocks.size() == 0) {
@@ -938,8 +938,8 @@ ptr<when_block> when_block::parse(parse_state_t &ps) {
 	}
 }
 
-ptr<function_decl> function_decl::parse(parse_state_t &ps) {
-	types::type::ref inbound_context;
+ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
+	types::type_t::ref inbound_context;
 	if (ps.token.tk == tk_lsquare) {
 		ps.advance();
 		if (ps.token.tk == tk_module) {
@@ -951,8 +951,8 @@ ptr<function_decl> function_decl::parse(parse_state_t &ps) {
 				/* in an inbound context declaration, we transform all type
 				 * variables to global scope */
 				auto ftvs = inbound_context->get_ftvs();
-				types::type::ref global = type_id(make_iid(GLOBAL_ID));
-				types::type::map bindings;
+				types::type_t::ref global = type_id(make_iid(GLOBAL_ID));
+				types::type_t::map bindings;
 				for (auto ftv : ftvs) {
 					bindings[ftv] = global;
 				}
@@ -970,13 +970,13 @@ ptr<function_decl> function_decl::parse(parse_state_t &ps) {
 		chomp_token(tk_def);
 
 		if (!!ps.status) {
-			auto function_decl = create<ast::function_decl>(ps.token);
+			auto function_decl = create<ast::function_decl_t>(ps.token);
 
 			chomp_token(tk_identifier);
 			chomp_token(tk_lparen);
 
 			function_decl->inbound_context = inbound_context;
-			function_decl->param_list_decl = param_list_decl::parse(ps);
+			function_decl->param_list_decl = param_list_decl_t::parse(ps);
 
 			chomp_token(tk_rparen);
 			if (ps.token.tk == tk_identifier ||
@@ -996,15 +996,15 @@ ptr<function_decl> function_decl::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-ptr<function_defn> function_defn::parse(parse_state_t &ps) {
-	auto function_decl = function_decl::parse(ps);
+ptr<function_defn_t> function_defn_t::parse(parse_state_t &ps) {
+	auto function_decl = function_decl_t::parse(ps);
 
 	if (!!ps.status) {
 		assert(function_decl != nullptr);
-		auto block = block::parse(ps);
+		auto block = block_t::parse(ps);
 		if (!!ps.status) {
 			assert(block != nullptr);
-			auto function_defn = create<ast::function_defn>(function_decl->token);
+			auto function_defn = create<ast::function_defn_t>(function_decl->token);
 			function_defn->decl = function_decl;
 			function_defn->block = block;
 			return function_defn;
@@ -1015,20 +1015,20 @@ ptr<function_defn> function_defn::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-ptr<module_decl> module_decl::parse(parse_state_t &ps, bool skip_module_token) {
+ptr<module_decl_t> module_decl_t::parse(parse_state_t &ps, bool skip_module_token) {
 	if (!skip_module_token) {
 		chomp_token(tk_module);
 	}
 
 	/* we've skipped the check for the 'module' token */
-	auto module_decl = create<ast::module_decl>(ps.token);
+	auto module_decl = create<ast::module_decl_t>(ps.token);
 
 	expect_token(tk_identifier);
 	module_decl->name = ps.token;
 	eat_token();
 
 	if (ps.token.tk == tk_version) {
-		auto semver = semver::parse(ps);
+		auto semver = semver_t::parse(ps);
 		if (semver) {
 			module_decl->semver.swap(semver);
 		} else {
@@ -1038,9 +1038,9 @@ ptr<module_decl> module_decl::parse(parse_state_t &ps, bool skip_module_token) {
 	return module_decl;
 }
 
-ptr<semver> semver::parse(parse_state_t &ps) {
+ptr<semver_t> semver_t::parse(parse_state_t &ps) {
 	if (ps.token.tk == tk_version) {
-		auto semver = create<ast::semver>(ps.token);
+		auto semver = create<ast::semver_t>(ps.token);
 		eat_token();
 		return semver;
 	} else {
@@ -1077,17 +1077,17 @@ identifier::ref make_code_id(const zion_token_t &token) {
 	return make_ptr<code_id>(token);
 }
 
-identifier::ref make_type_id_code_id(const location location, atom var_name) {
+identifier::ref make_type_id_code_id(const location_t location, atom var_name) {
 	return make_ptr<type_id_code_id>(location, var_name);
 }
 
-types::type::refs parse_type_operands(
+types::type_t::refs parse_type_operands(
 		parse_state_t &ps,
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,
 	   	identifier::set generics)
 {
-	types::type::refs arguments;
+	types::type_t::refs arguments;
 
 	/* loop over the type arguments */
 	while (!!ps.status && (ps.token.tk == tk_identifier || ps.token.tk == tk_any)) {
@@ -1128,11 +1128,11 @@ bool token_begins_type(token_kind tk) {
 			tk == tk_lcurly);
 }
 
-types::type::ref _parse_function_type(parse_state_t &ps, identifier::set generics) {
+types::type_t::ref _parse_function_type(parse_state_t &ps, identifier::set generics) {
 	chomp_token(tk_def);
 	chomp_token(tk_lparen);
-	types::type::refs param_types;
-	types::type::ref return_type;
+	types::type_t::refs param_types;
+	types::type_t::ref return_type;
 	atom::map<int> name_index;
 	int index = 0;
 
@@ -1140,7 +1140,7 @@ types::type::ref _parse_function_type(parse_state_t &ps, identifier::set generic
 		if (ps.token.tk == tk_identifier) {
 			auto var_name = ps.token;
 			ps.advance();
-			types::type::ref type = parse_maybe_type(ps, {}, {}, generics);
+			types::type_t::ref type = parse_maybe_type(ps, {}, {}, generics);
 			if (!!ps.status) {
 				param_types.push_back(type);
 				if (name_index.find(var_name.text) != name_index.end()) {
@@ -1184,7 +1184,7 @@ types::type::ref _parse_function_type(parse_state_t &ps, identifier::set generic
 	return nullptr;
 }
 
-identifier::ref reduce_ids(std::list<identifier::ref> ids, struct location location) {
+identifier::ref reduce_ids(std::list<identifier::ref> ids, location_t location) {
 	assert(ids.size() != 0);
 	std::stringstream ss;
 	const char *inner_sep = SCOPE_SEP;
@@ -1196,7 +1196,7 @@ identifier::ref reduce_ids(std::list<identifier::ref> ids, struct location locat
 	return make_iid_impl(ss.str(), location);
 }
 
-types::type::ref _parse_single_type(
+types::type_t::ref _parse_single_type(
 		parse_state_t &ps,
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,
@@ -1219,8 +1219,8 @@ types::type::ref _parse_single_type(
 			}
 
 			chomp_token(tk_indent);
-			types::type::refs dimensions;
-			types::name_index name_index;
+			types::type_t::refs dimensions;
+			types::name_index_t name_index;
 			int index = 0;
 			while (!!ps.status && ps.token.tk != tk_outdent) {
 				if (!ps.line_broke() && ps.prior_token.tk != tk_indent) {
@@ -1241,7 +1241,7 @@ types::type::ref _parse_single_type(
 					var_token = ps.token;
 				}
 
-				types::type::ref dim_type = parse_maybe_type(ps, {}, {}, generics);
+				types::type_t::ref dim_type = parse_maybe_type(ps, {}, {}, generics);
 				if (!!ps.status) {
 					dimensions.push_back(dim_type);
 				}
@@ -1269,7 +1269,7 @@ types::type::ref _parse_single_type(
 		{
 			/* parse generic refs */
 			ps.advance();
-            types::type::ref type;
+            types::type_t::ref type;
 			if (ps.token.tk == tk_identifier) {
 				/* named generic */
 				type = type_variable(make_code_id(ps.token));
@@ -1284,9 +1284,9 @@ types::type::ref _parse_single_type(
 	case tk_identifier:
 		{
 			/* build the type-path that is referenced here */
-			types::type::ref cur_type;
+			types::type_t::ref cur_type;
 			std::list<identifier::ref> ids;
-			struct location location = ps.token.location;
+			location_t location = ps.token.location;
 			while (ps.token.tk == tk_identifier) {
 				ids.push_back(make_code_id(ps.token));
 				ps.advance();
@@ -1331,7 +1331,7 @@ types::type::ref _parse_single_type(
 				}
 			}
 
-			types::type::refs arguments;
+			types::type_t::refs arguments;
 			if (ps.token.tk == tk_lcurly) {
 				ps.advance();
 				arguments = parse_type_operands(ps, supertype_id,
@@ -1364,7 +1364,7 @@ types::type::ref _parse_single_type(
 	case tk_lcurly:
 		{
 			ps.advance();
-			types::type::refs arguments = parse_type_operands(ps, supertype_id, type_variables, generics);
+			types::type_t::refs arguments = parse_type_operands(ps, supertype_id, type_variables, generics);
 			// TODO: allow named members
 			return ::type_struct(arguments, {}, true /* managed */);
 		}
@@ -1377,13 +1377,13 @@ types::type::ref _parse_single_type(
 	return nullptr;
 }
 
-types::type::ref _parse_type(
+types::type_t::ref _parse_type(
 		parse_state_t &ps,
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,
 	   	identifier::set generics)
 {
-	types::type::refs options;
+	types::type_t::refs options;
 	while (!!ps.status) {
 		auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
 
@@ -1402,7 +1402,7 @@ types::type::ref _parse_type(
 		if (options.size() == 1) {
 			return options[0];
 		} else {
-			types::type::ref sum_fn = type_sum_safe(ps.status, options);
+			types::type_t::ref sum_fn = type_sum_safe(ps.status, options);
 			if (!!ps.status) {
 				for (auto iter = type_variables.rbegin();
 						iter != type_variables.rend();
@@ -1420,12 +1420,12 @@ types::type::ref _parse_type(
 }
 
 
-types::type::ref parse_maybe_type(parse_state_t &ps,
+types::type_t::ref parse_maybe_type(parse_state_t &ps,
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,
 	   	identifier::set generics)
 {
-	types::type::ref type = _parse_type(ps, supertype_id, type_variables, generics);
+	types::type_t::ref type = _parse_type(ps, supertype_id, type_variables, generics);
 	if (!!ps.status) {
 		if (ps.token.tk == tk_maybe) {
 			/* no named maybe generic */
@@ -1440,27 +1440,27 @@ types::type::ref parse_maybe_type(parse_state_t &ps,
 	return nullptr;
 }
 
-type_decl::ref type_decl::parse(parse_state_t &ps, zion_token_t name_token) {
+type_decl_t::ref type_decl_t::parse(parse_state_t &ps, zion_token_t name_token) {
 	identifier::refs type_variables;
 	parse_maybe_type_decl(ps, type_variables);
 
 	if (!!ps.status) {
-		return create<ast::type_decl>(name_token, type_variables);
+		return create<ast::type_decl_t>(name_token, type_variables);
 	} else {
 		return nullptr;
 	}
 }
 
-ptr<type_def> type_def::parse(parse_state_t &ps) {
+ptr<type_def_t> type_def_t::parse(parse_state_t &ps) {
 	chomp_token(tk_type);
 	expect_token(tk_identifier);
 	auto type_name_token = ps.token;
 	ps.advance();
 
-	auto type_def = create<ast::type_def>(type_name_token);
-	type_def->type_decl = type_decl::parse(ps, type_name_token);
+	auto type_def = create<ast::type_def_t>(type_name_token);
+	type_def->type_decl = type_decl_t::parse(ps, type_name_token);
 	if (!!ps.status) {
-		type_def->type_algebra = ast::type_algebra::parse(ps, type_def->type_decl);
+		type_def->type_algebra = ast::type_algebra_t::parse(ps, type_def->type_decl);
 		if (!!ps.status) {
 			return type_def;
 		}
@@ -1470,25 +1470,25 @@ ptr<type_def> type_def::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-ptr<tag> tag::parse(parse_state_t &ps) {
+ptr<tag_t> tag_t::parse(parse_state_t &ps) {
 	chomp_token(tk_tag);
 	expect_token(tk_identifier);
-	auto tag = create<ast::tag>(ps.token);
+	auto tag = create<ast::tag_t>(ps.token);
 	ps.advance();
 	return tag;
 }
 
-type_algebra::ref type_algebra::parse(
+type_algebra_t::ref type_algebra_t::parse(
 		parse_state_t &ps,
-		ast::type_decl::ref type_decl)
+		ast::type_decl_t::ref type_decl)
 {
 	switch (ps.token.tk) {
 	case tk_is:
-		return type_sum::parse(ps, type_decl, type_decl->type_variables);
+		return type_sum_t::parse(ps, type_decl, type_decl->type_variables);
 	case tk_has:
-		return type_product::parse(ps, type_decl, type_decl->type_variables);
+		return type_product_t::parse(ps, type_decl, type_decl->type_variables);
 	case tk_matches:
-		return type_alias::parse(ps, type_decl, type_decl->type_variables);
+		return type_alias_t::parse(ps, type_decl, type_decl->type_variables);
 	default:
 		ps.error(
 				"type descriptions must begin with "
@@ -1498,9 +1498,9 @@ type_algebra::ref type_algebra::parse(
 	}
 }
 
-type_sum::ref type_sum::parse(
+type_sum_t::ref type_sum_t::parse(
 		parse_state_t &ps,
-		ast::type_decl::ref type_decl,
+		ast::type_decl_t::ref type_decl,
 		identifier::refs type_variables_list)
 {
 	identifier::set type_variables = to_set(type_variables_list);
@@ -1526,34 +1526,34 @@ type_sum::ref type_sum::parse(
 			}
 		}
 
-		return create<type_sum>(type_decl->token, type);
+		return create<type_sum_t>(type_decl->token, type);
 	} else {
 		return nullptr;
 	}
 }
 
-type_product::ref type_product::parse(
+type_product_t::ref type_product_t::parse(
 		parse_state_t &ps,
-		ast::type_decl::ref type_decl,
+		ast::type_decl_t::ref type_decl,
 	   	identifier::refs type_variables)
 {
 	identifier::set generics = to_identifier_set(type_variables);
 	expect_token(tk_has);
 	auto type = _parse_single_type(ps, {}, {}, generics);
-	return create<type_product>(type_decl->token, type, generics);
+	return create<type_product_t>(type_decl->token, type, generics);
 }
 
-type_alias::ref type_alias::parse(
+type_alias_t::ref type_alias_t::parse(
 		parse_state_t &ps,
-		ast::type_decl::ref type_decl,
+		ast::type_decl_t::ref type_decl,
 	   	identifier::refs type_variables)
 {
 	chomp_token(tk_matches);
 
 	identifier::set generics = to_identifier_set(type_variables);
-	types::type::ref type = parse_maybe_type(ps, make_code_id(type_decl->token), type_variables, generics);
+	types::type_t::ref type = parse_maybe_type(ps, make_code_id(type_decl->token), type_variables, generics);
 	if (!!ps.status) {
-		auto type_alias = ast::create<ast::type_alias>(type_decl->token);
+		auto type_alias = ast::create<ast::type_alias_t>(type_decl->token);
 		type_alias->type = type;
 		type_alias->type_variables = generics;
 		return type_alias;
@@ -1563,7 +1563,7 @@ type_alias::ref type_alias::parse(
 	return nullptr;
 }
 
-dimension::ref dimension::parse(parse_state_t &ps, identifier::set generics) {
+dimension_t::ref dimension_t::parse(parse_state_t &ps, identifier::set generics) {
 	zion_token_t primary_token;
 	atom name;
 	if (ps.token.tk == tk_var) {
@@ -1579,9 +1579,9 @@ dimension::ref dimension::parse(parse_state_t &ps, identifier::set generics) {
 		primary_token = ps.token;
 	}
 
-	types::type::ref type = parse_maybe_type(ps, {}, {}, generics);
+	types::type_t::ref type = parse_maybe_type(ps, {}, {}, generics);
 	if (!!ps.status) {
-		return ast::create<ast::dimension>(primary_token, name, type);
+		return ast::create<ast::dimension_t>(primary_token, name, type);
 	}
 	assert(!ps.status);
 	return nullptr;
@@ -1589,7 +1589,7 @@ dimension::ref dimension::parse(parse_state_t &ps, identifier::set generics) {
 
 void add_type_macros_to_parser(
 		parse_state_t &ps,
-		std::vector<ptr<const ast::link_name>> linked_names)
+		std::vector<ptr<const ast::link_name_t>> linked_names)
 {
 	atom::set names_seen;
 	for (auto link_name : linked_names) {
@@ -1612,31 +1612,31 @@ void add_type_macros_to_parser(
 	}
 }
 
-ptr<module> module::parse(parse_state_t &ps, bool global) {
+ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 	debug_above(6, log("about to parse %s with type_macros: [%s]",
 				ps.filename.str().c_str(),
 				join_with(ps.type_macros, ", ", [] (type_macros_t::value_type v) -> std::string {
 					return v.first.str() + ": " + v.second->str();
 				}).c_str()));
 
-	auto module_decl = module_decl::parse(ps);
+	auto module_decl = module_decl_t::parse(ps);
 
 	if (module_decl != nullptr) {
 		atom module_name = strip_zion_extension(ps.filename.str());
 		ps.module_id = make_iid(module_decl->get_canonical_name());
 		assert(ps.module_id != nullptr);
 
-		auto module = create<ast::module>(ps.token, ps.filename, global);
+		auto module = create<ast::module_t>(ps.token, ps.filename, global);
 		module->decl.swap(module_decl);
 
 		// Get links
 		while (ps.token.tk == tk_link) {
 			auto link_statement = link_statement_parse(ps);
-			if (auto linked_module = dyncast<link_module_statement>(link_statement)) {
+			if (auto linked_module = dyncast<link_module_statement_t>(link_statement)) {
 				module->linked_modules.push_back(linked_module);
-			} else if (auto linked_function = dyncast<link_function_statement>(link_statement)) {
+			} else if (auto linked_function = dyncast<link_function_statement_t>(link_statement)) {
 				module->linked_functions.push_back(linked_function);
-			} else if (auto linked_name = dyncast<link_name>(link_statement)) {
+			} else if (auto linked_name = dyncast<link_name_t>(link_statement)) {
 				module->linked_names.push_back(linked_name);
 			}
 		}
@@ -1648,7 +1648,7 @@ ptr<module> module::parse(parse_state_t &ps, bool global) {
 		while (!!ps.status) {
 			if (ps.token.tk == tk_lsquare || ps.token.tk == tk_def) {
 				/* function definitions */
-				auto function = function_defn::parse(ps);
+				auto function = function_defn_t::parse(ps);
 				if (function) {
 					module->functions.push_back(std::move(function));
 				} else {
@@ -1656,7 +1656,7 @@ ptr<module> module::parse(parse_state_t &ps, bool global) {
 				}
 			} else if (ps.token.tk == tk_tag) {
 				/* tags */
-				auto tag = tag::parse(ps);
+				auto tag = tag_t::parse(ps);
 				if (tag) {
 					module->tags.push_back(std::move(tag));
 				} else {
@@ -1664,7 +1664,7 @@ ptr<module> module::parse(parse_state_t &ps, bool global) {
 				}
 			} else if (ps.token.tk == tk_type) {
 				/* type definitions */
-				auto type_def = type_def::parse(ps);
+				auto type_def = type_def_t::parse(ps);
 				if (type_def != nullptr) {
 					module->type_defs.push_back(std::move(type_def));
 				} else {

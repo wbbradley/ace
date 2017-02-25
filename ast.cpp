@@ -32,18 +32,18 @@ namespace ast {
 		}
 	}
 
-	module::module(const atom filename, bool global) : global(global), filename(filename) {
+	module_t::module_t(const atom filename, bool global) : global(global), filename(filename) {
 	}
 
-	std::string module::get_canonical_name() const {
+	std::string module_t::get_canonical_name() const {
 		return decl->get_canonical_name();
 	}
 
-	zion_token_t module_decl::get_name() const {
+	zion_token_t module_decl_t::get_name() const {
 		return name;
 	}
 
-	std::string module_decl::get_canonical_name() const {
+	std::string module_decl_t::get_canonical_name() const {
 		static std::string ext = ".zion";
 		if (name.text == "_") {
 			/* this name is too generic, let's use the leaf filename */
@@ -59,32 +59,32 @@ namespace ast {
 		}
 	}
 
-	item::~item() throw() {
+	item_t::~item_t() throw() {
 	}
 
-	typeid_expr::typeid_expr(ptr<expression> expr) : expr(expr) {
+	typeid_expr_t::typeid_expr_t(ptr<expression_t> expr) : expr(expr) {
 	}
 
-	sizeof_expr::sizeof_expr(types::type::ref type) : type(type) {
+	sizeof_expr_t::sizeof_expr_t(types::type_t::ref type) : type(type) {
 	}
 
-	type_decl::type_decl(identifier::refs type_variables) :
+	type_decl_t::type_decl_t(identifier::refs type_variables) :
 		type_variables(type_variables)
 	{
 	}
 
-	type_sum::type_sum(types::type::ref type) :
+	type_sum_t::type_sum_t(types::type_t::ref type) :
 		type(type)
 	{
 	}
 
-	dimension::dimension(atom name, types::type::ref type) :
+	dimension_t::dimension_t(atom name, types::type_t::ref type) :
 		name(name), type(type)
 	{
 	}
 
-	type_product::type_product(
-			types::type::ref type,
+	type_product_t::type_product_t(
+			types::type_t::ref type,
 			identifier::set type_variables) :
 		type(type),
 		type_variables(type_variables)

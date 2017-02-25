@@ -11,7 +11,7 @@
  * resolution and adds names to the appropriate scopes.
  */
 
-void scope_setup_error(status_t &status, const ast::item &item, const char *format, ...) {
+void scope_setup_error(status_t &status, const ast::item_t &item, const char *format, ...) {
 	va_list args;
 	va_start(args, format);
 	auto str = string_formatv(format, args);
@@ -23,7 +23,7 @@ void scope_setup_error(status_t &status, const ast::item &item, const char *form
 
 unchecked_var_t::ref scope_setup_function_defn(
 		status_t &status,
-		const ast::item &obj,
+		const ast::item_t &obj,
 		identifier::ref id,
 		module_scope_t::ref module_scope)
 {
@@ -38,7 +38,7 @@ unchecked_var_t::ref scope_setup_function_defn(
 
 void scope_setup_type_def(
 		status_t &status,
-	   	const ast::type_def &obj,
+	   	const ast::type_def_t &obj,
 	   	ptr<module_scope_t> module_scope)
 {
 	assert(obj.token.text.find(SCOPE_SEP) == std::string::npos);
@@ -51,7 +51,7 @@ void scope_setup_type_def(
 
 void scope_setup_tag(
 		status_t &status,
-	   	const ast::tag &obj,
+	   	const ast::tag_t &obj,
 	   	ptr<module_scope_t> module_scope)
 {
 	assert(obj.token.text.find(SCOPE_SEP) == std::string::npos);
@@ -62,7 +62,7 @@ void scope_setup_tag(
 			unchecked_type_t::create(fqn_name, obj.shared_from_this(), module_scope));
 }
 
-status_t scope_setup_module(compiler &compiler, const ast::module &obj) {
+status_t scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 	status_t status;
 	auto module_name = obj.decl->get_canonical_name();
 
@@ -97,7 +97,7 @@ status_t scope_setup_module(compiler &compiler, const ast::module &obj) {
 	return status;
 }
 
-status_t scope_setup_program(const ast::program &obj, compiler &compiler) {
+status_t scope_setup_program(const ast::program_t &obj, compiler_t &compiler) {
 	status_t status;
 
 	/* create the outermost scope of the program */

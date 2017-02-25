@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
 		}
 	} else if (argc >= 3) {
 		status_t status;
-		compiler compiler(argv[2], {".", "lib", "tests"});
+		compiler_t compiler(argv[2], {".", "lib", "tests"});
 
 		if (cmd == "read-ir") {
 				compiler.llvm_load_ir(status, argv[2]);

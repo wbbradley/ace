@@ -5,7 +5,7 @@
 #include <string>
 #include <sstream>
 
-std::string location::str(bool vim_mode) const {
+std::string location_t::str(bool vim_mode) const {
 	std::stringstream ss;
 	if (has_file_location()) {
 		ss << C_LINE_REF;
@@ -27,22 +27,22 @@ std::string location::str(bool vim_mode) const {
 	return ss.str();
 }
 
-std::string location::repr() const {
+std::string location_t::repr() const {
 	return clean_ansi_escapes(str());
 }
 
-std::string location::operator()() const {
+std::string location_t::operator()() const {
 	return str();
 }
 
-std::ostream &operator <<(std::ostream &os, const location &location) {
+std::ostream &operator <<(std::ostream &os, const location_t &location) {
 	return os << location.str();
 }
 
-bool location::operator ==(const location &rhs) const {
+bool location_t::operator ==(const location_t &rhs) const {
     return filename == rhs.filename && line == rhs.line && col == rhs.col;
 }
 
-bool location::has_file_location() const {
+bool location_t::has_file_location() const {
 	return filename.size() != 0 && line != -1 && col != -1;
 }

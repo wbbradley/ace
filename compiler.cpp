@@ -23,7 +23,7 @@ std::string strip_zion_extension(std::string module_name) {
 	}
 }
 
-compiler::compiler(std::string program_name_, const libs &zion_paths) :
+compiler_t::compiler_t(std::string program_name_, const libs &zion_paths) :
 	program_name(strip_zion_extension(program_name_)),
 	zion_paths(make_ptr<std::vector<std::string>>()),
    	builder(llvm_context)
@@ -38,36 +38,36 @@ compiler::compiler(std::string program_name_, const libs &zion_paths) :
 	program_scope = program_scope_t::create("std", llvm_create_module(program_name_ + ".global"));
 }
 
-compiler::~compiler() {
+compiler_t::~compiler_t() {
 	debug_above(12, std::cout << dump_llvm_modules());
 }
 
-void compiler::info(const char *format, ...) {
+void compiler_t::info(const char *format, ...) {
 	va_list args;
 	va_start(args, format);
 	logv(log_info, format, args);
 	va_end(args);
 }
 
-program_scope_t::ref compiler::get_program_scope() const {
+program_scope_t::ref compiler_t::get_program_scope() const {
 	return program_scope;
 }
 
-std::vector<zion_token_t> compiler::get_comments() const {
+std::vector<zion_token_t> compiler_t::get_comments() const {
 	return comments;
 }
 
-std::string compiler::get_program_name() const {
+std::string compiler_t::get_program_name() const {
 	return program_name;
 }
 
-std::string compiler::get_executable_filename() const {
+std::string compiler_t::get_executable_filename() const {
 	return program_name + ".zx";
 }
 
-void compiler::resolve_module_filename(
+void compiler_t::resolve_module_filename(
 		status_t &status,
-		location location,
+		location_t location,
 		std::string name,
 		std::string &resolved)
 {
@@ -132,7 +132,7 @@ void compiler::resolve_module_filename(
 	}
 }
 
-void compiler::build_parse_linked(status_t &status, ptr<const ast::module> module, type_macros_t &global_type_macros) {
+void compiler_t::build_parse_linked(status_t &status, ptr<const ast::module_t> module, type_macros_t &global_type_macros) {
 	/* now, recursively make sure that all of the linked modules are parsed */
 	for (auto &link : module->linked_modules) {
 		auto linked_module_name = link->extern_module->get_canonical_name();
@@ -145,9 +145,9 @@ void compiler::build_parse_linked(status_t &status, ptr<const ast::module> modul
 	}
 }
 
-ast::module::ref compiler::build_parse(
+ast::module_t::ref compiler_t::build_parse(
 		status_t &status,
-		location location,
+		location_t location,
 		std::string module_name,
 		bool global,
 		type_macros_t &global_type_macros)
@@ -189,12 +189,13 @@ ast::module::ref compiler::build_parse(
 						for (auto std_type : std_types) {
 							assert(global_type_macros.find(std_type) == global_type_macros.end());
 							atom new_name = std::string("std/") + std_type;
-							global_type_macros.insert({std_type, type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
+							global_type_macros.insert({std_type,
+                                    type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
 						}
 					}
 
 					parse_state_t ps(status, module_filename, lexer, global_type_macros, &comments);
-					auto module = ast::module::parse(ps, global);
+					auto module = ast::module_t::parse(ps, global);
 
 					/* parse may have succeeded, either way add this module to
 					 * our list of modules */
@@ -231,7 +232,7 @@ void rt_bind_var_from_llir(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		program_scope_t::ref program_scope,
-		ast::item::ref &program,
+		ast::item_t::ref &program,
 		std::string name,
 		llvm::Module &llvm_module,
 		std::string name_in_llir,
@@ -247,11 +248,11 @@ void rt_bind_var_from_llir(
 	 * resolve_map */
 	auto llvm_function = llvm_module.getFunction(name_in_llir);
 	if (!llvm_function) {
-		user_error(status, location{llvm_module.getName().str(), 0, 0},
+		user_error(status, location_t{llvm_module.getName().str(), 0, 0},
 				"unable to find function " c_var("%s"), name_in_llir.c_str());
 	} else {
-		types::type_function::ref type = get_function_type(
-				type_variable(location{llvm_module.getName().str(), 0, 0}),
+		types::type_function_t::ref type = get_function_type(
+				type_variable(location_t{llvm_module.getName().str(), 0, 0}),
 			   	args, return_type);
 
 		if (!!status) {
@@ -264,7 +265,7 @@ void rt_bind_var_from_llir(
 				 * create it, and register it */
 				bound_type = bound_type_t::create(
 						type,
-						location{llvm_module.getName().str(), 0, 0},
+						location_t{llvm_module.getName().str(), 0, 0},
 						llvm_function->getType());
 				program_scope->put_bound_type(status, bound_type);
 			}
@@ -297,7 +298,7 @@ const char *TYPEID_TYPE = "__typeid__";
 
 void add_global_types(
 		status_t &status,
-		compiler &compiler,
+		compiler_t &compiler,
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
 		llvm::Module *llvm_module_ref)
@@ -420,10 +421,10 @@ void add_global_types(
 
 void add_globals(
 		status_t &status,
-		compiler &compiler,
+		compiler_t &compiler,
 	   	llvm::IRBuilder<> &builder,
 		program_scope_t::ref program_scope, 
-		ast::item::ref program)
+		ast::item_t::ref program)
 {
 	auto llvm_module_int = compiler.llvm_load_ir(status, "rt_int.llir");
 	auto llvm_module_float = compiler.llvm_load_ir(status, "rt_float.llir");
@@ -562,7 +563,7 @@ void add_globals(
 	}
 }
 
-void compiler::build_parse_modules(status_t &status) {
+void compiler_t::build_parse_modules(status_t &status) {
 	/* first just parse all the modules that are reachable from the initial module
 	 * and bring them into our whole ast */
 	auto module_name = program_name;
@@ -570,7 +571,7 @@ void compiler::build_parse_modules(status_t &status) {
 	assert(program == nullptr);
 
 	/* create the program ast to contain all of the modules */
-	program = ast::create<ast::program>({});
+	program = ast::create<ast::program_t>({});
 
 	/* set up global types and variables */
 	add_globals(status, *this, builder, program_scope, program);
@@ -580,14 +581,14 @@ void compiler::build_parse_modules(status_t &status) {
 
 		/* always include the standard library */
         if (getenv("NO_STD_LIB") == nullptr) {
-            build_parse(status, location{"std lib", 0, 0}, "lib/std",
+            build_parse(status, location_t{"std lib", 0, 0}, "lib/std",
 				   	true /*global*/, global_type_macros);
 
         }
 
 		if (!!status) {
 			/* now parse the main program module */
-			main_module = build_parse(status, location{"command line build parameters", 0, 0},
+			main_module = build_parse(status, location_t{"command line build parameters", 0, 0},
 					module_name, false /*global*/, global_type_macros);
 
 			if (!!status) {
@@ -608,7 +609,7 @@ void compiler::build_parse_modules(status_t &status) {
 }
 
 
-void compiler::build_type_check_and_code_gen(status_t &status) {
+void compiler_t::build_type_check_and_code_gen(status_t &status) {
 	if (!!status) {
 		/* set up the names that point back into the AST resolved to the right
 		 * module scopes */
@@ -629,7 +630,7 @@ void compiler::build_type_check_and_code_gen(status_t &status) {
 
 std::string collect_filename_from_module_pair(
 		status_t &status,
-	   	const compiler::llvm_module_t &llvm_module_pair)
+	   	const compiler_t::llvm_module_t &llvm_module_pair)
 {
 	std::ofstream ofs;
 	std::string filename = llvm_module_pair.first.str() + ".ir";
@@ -656,7 +657,7 @@ std::string collect_filename_from_module_pair(
 	return filename;
 }
 
-std::unordered_set<std::string> compiler::compile_modules(status_t &status) {
+std::unordered_set<std::string> compiler_t::compile_modules(status_t &status) {
 	if (!!status) {
 		std::unordered_set<std::string> filenames;
 		filenames.insert(collect_filename_from_module_pair(status, llvm_program_module));
@@ -676,7 +677,7 @@ std::unordered_set<std::string> compiler::compile_modules(status_t &status) {
 	return {};
 }
 
-int compiler::emit_built_program(status_t &status, std::string executable_filename) {
+int compiler_t::emit_built_program(status_t &status, std::string executable_filename) {
 	std::string clang_bin = getenv("CLANG_BIN") ? getenv("CLANG_BIN") : "/usr/bin/clang";
 	if (clang_bin.size() == 0) {
 		user_error(status, INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called CLANG_BIN");
@@ -717,7 +718,7 @@ int compiler::emit_built_program(status_t &status, std::string executable_filena
 			errno = 0;
 			int ret = system(ss.str().c_str());
 			if (ret != 0) {
-				user_error(status, location{}, "failure (%d) when running: %s",
+				user_error(status, location_t{}, "failure (%d) when running: %s",
 						ret, ss.str().c_str());
 			}
 
@@ -726,7 +727,7 @@ int compiler::emit_built_program(status_t &status, std::string executable_filena
 
 			return ret;
 		} else {
-			user_error(status, location{}, "failure (%d) when running: %s",
+			user_error(status, location_t{}, "failure (%d) when running: %s",
 					ret, ss.str().c_str());
 			return ret;
 		}
@@ -736,14 +737,14 @@ int compiler::emit_built_program(status_t &status, std::string executable_filena
 	return -1;
 }
 
-int compiler::run_program(std::string bitcode_filename) {
+int compiler_t::run_program(std::string bitcode_filename) {
 	std::stringstream ss;
 	ss << "lli-3.7 " << bitcode_filename;
 	debug_above(1, log(log_info, "running %s...", ss.str().c_str()));
 	return system(ss.str().c_str());
 }
 
-std::unique_ptr<llvm::Module> &compiler::get_llvm_module(atom name) {
+std::unique_ptr<llvm::Module> &compiler_t::get_llvm_module(atom name) {
 	std::stringstream ss;
 	ss << "did not find module " << name << " in [";
 	const char *sep = "";
@@ -783,10 +784,10 @@ std::string compute_module_key(std::vector<std::string> lib_paths, std::string f
 	return working_key;
 }
 
-void compiler::set_module(
+void compiler_t::set_module(
 		status_t &status,
 		std::string filename,
-		ptr<ast::module> module)
+		ptr<ast::module_t> module)
 {
 	assert(module != nullptr);
 	assert(filename[0] = '/');
@@ -807,7 +808,7 @@ void compiler::set_module(
 	}
 }
 
-ptr<const ast::module> compiler::get_module(status_t &status, atom key_alias) {
+ptr<const ast::module_t> compiler_t::get_module(status_t &status, atom key_alias) {
 	auto module_iter = modules.find(key_alias);
 	if (module_iter != modules.end()) {
 		auto module = module_iter->second;
@@ -836,7 +837,7 @@ ptr<const ast::module> compiler::get_module(status_t &status, atom key_alias) {
 	return nullptr;
 }
 
-module_scope_t::ref compiler::get_module_scope(atom module_key) {
+module_scope_t::ref compiler_t::get_module_scope(atom module_key) {
     auto iter = module_scopes.find(module_key);
     if (iter != module_scopes.end()) {
         return iter->second;
@@ -845,17 +846,17 @@ module_scope_t::ref compiler::get_module_scope(atom module_key) {
     }
 }
 
-void compiler::set_module_scope(atom module_key, module_scope_t::ref module_scope) {
+void compiler_t::set_module_scope(atom module_key, module_scope_t::ref module_scope) {
     assert(get_module_scope(module_key) == nullptr);
 	assert(module_scope != nullptr);
     module_scopes[module_key] = module_scope;
 }
 
-std::string compiler::dump_llvm_modules() {
+std::string compiler_t::dump_llvm_modules() {
 	return program_scope->dump_llvm_modules();
 }
 
-std::string compiler::dump_program_text(atom module_name) {
+std::string compiler_t::dump_program_text(atom module_name) {
 	status_t status;
 	auto module = get_module(status, module_name);
 	if (!!status) {
@@ -872,7 +873,7 @@ std::string compiler::dump_program_text(atom module_name) {
 }
 
 
-llvm::Module *compiler::llvm_load_ir(status_t &status, std::string filename) {
+llvm::Module *compiler_t::llvm_load_ir(status_t &status, std::string filename) {
 	llvm::LLVMContext &llvm_context = builder.getContext();
 	llvm::SMDiagnostic err;
 	llvm_modules.push_back({filename, parseIRFile(filename, err, llvm_context)});
@@ -888,7 +889,7 @@ llvm::Module *compiler::llvm_load_ir(status_t &status, std::string filename) {
 		os.flush();
 
 		/* report the error */
-		user_error(status, location{filename, 0, 0}, "%s", ss.str().c_str());
+		user_error(status, location_t{filename, 0, 0}, "%s", ss.str().c_str());
 		return nullptr;
 	} else {
 		debug_above(9, log(log_info, "parsed module %s\n%s", filename.c_str(),
@@ -897,7 +898,7 @@ llvm::Module *compiler::llvm_load_ir(status_t &status, std::string filename) {
 	}
 }
 
-llvm::Module *compiler::llvm_create_module(atom module_name) {
+llvm::Module *compiler_t::llvm_create_module(atom module_name) {
 	llvm::LLVMContext &llvm_context = builder.getContext();
 	if (llvm_program_module.second == nullptr) {
 		/* only allow creating one program module */
@@ -912,6 +913,6 @@ llvm::Module *compiler::llvm_create_module(atom module_name) {
 	}
 }
 
-llvm::Module *compiler::llvm_get_program_module() {
+llvm::Module *compiler_t::llvm_get_program_module() {
 	return llvm_program_module.second.operator ->();
 }

@@ -26,12 +26,12 @@ ptr<T> parse_text(const std::string &text, std::string filename = "repl.zion") {
 	return parse_text<T>(iss, filename);
 }
 
-types::type::ref parse_maybe_type(parse_state_t &ps,
+types::type_t::ref parse_maybe_type(parse_state_t &ps,
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,
 	   	identifier::set generics);
 
-types::type::ref _parse_type(
+types::type_t::ref _parse_type(
 		parse_state_t &ps,
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,

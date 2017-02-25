@@ -104,10 +104,9 @@ bound_var_t::ref create_callsite(
 		llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-		const ptr<const ast::item> &callsite,
 		const bound_var_t::ref function,
 		atom name,
-		const location &location,
+		const location_t &location,
 		bound_var_t::refs arguments)
 {
 	if (!!status) {
@@ -119,18 +118,18 @@ bound_var_t::ref create_callsite(
 					llvm_print_type(function->llvm_value->getType()).c_str()));
 
 		/* downcast the arguments as necessary to var_t * */
-		types::type_function::ref function_type = dyncast<const types::type_function>(function->get_type());
+		types::type_function_t::ref function_type = dyncast<const types::type_function_t>(function->get_type());
 		if (function_type != nullptr) {
 			llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
-					status, builder, *callsite, function, get_llvm_values(arguments),
+					status, builder, location, function, get_llvm_values(arguments),
 					life);
 
 			if (!!status) {
 				bound_type_t::ref return_type = get_function_return_type(status,
-						builder, *callsite, scope, function->type);
+						builder, scope, function->type);
 
 				return bound_var_t::create(INTERNAL_LOC(), name, return_type, llvm_call_inst,
-						make_code_id(callsite->token), false/*is_lhs*/);
+						make_type_id_code_id(INTERNAL_LOC(), name), false/*is_lhs*/);
 			}
 		} else {
 			user_error(status, location,
@@ -146,7 +145,7 @@ bound_var_t::ref create_callsite(
 llvm::CallInst *llvm_create_call_inst(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		const ast::item &obj,
+		location_t location,
 		ptr<const bound_var_t> callee,
 		std::vector<llvm::Value *> llvm_values,
 		life_t::ref life)
@@ -160,7 +159,7 @@ llvm::CallInst *llvm_create_call_inst(
 
 	/* get the function we want to call */
 	if (!llvm_callee_fn) {
-		user_error(status, obj, "could not find function %s",
+		user_error(status, location, "could not find function %s",
 				callee->str().c_str());
 		return nullptr;
 	}
@@ -397,7 +396,7 @@ void llvm_verify_function(status_t &status, llvm::Function *llvm_function) {
 	if (llvm::verifyFunction(*llvm_function, &os)) {
 		os.flush();
 		ss << llvm_print_function(llvm_function);
-		user_error(status, location{}, "LLVM function verification failed: %s", ss.str().c_str());
+		user_error(status, location_t{}, "LLVM function verification failed: %s", ss.str().c_str());
 	}
 }
 
@@ -406,7 +405,7 @@ void llvm_verify_module(status_t &status, llvm::Module &llvm_module) {
 	llvm::raw_os_ostream os(ss);
 	if (llvm::verifyModule(llvm_module, &os)) {
 		os.flush();
-		user_error(status, location{}, "module %s: failed verification. %s\nModule listing:\n%s",
+		user_error(status, location_t{}, "module %s: failed verification. %s\nModule listing:\n%s",
 				llvm_module.getName().str().c_str(), ss.str().c_str(),
 				llvm_print_module(llvm_module).c_str());
 		
@@ -443,8 +442,8 @@ llvm::Type *llvm_deref_type(llvm::Type *llvm_type) {
 bound_var_t::ref llvm_start_function(status_t &status,
 		llvm::IRBuilder<> &builder, 
 		scope_t::ref scope,
-		const ast::item::ref &node,
-		types::type::ref type_fn_context,
+		const ast::item_t::ref &node,
+		types::type_t::ref type_fn_context,
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
 		atom name)
@@ -601,6 +600,9 @@ llvm::Value *llvm_maybe_pointer_cast(
 	llvm_value = llvm_resolve_alloca(builder, llvm_value);
 
 	if (llvm_type->isPointerTy()) {
+		debug_above(6, log("attempting to cast %s to a %s",
+					llvm_print_value_ptr(llvm_value).c_str(),
+					llvm_print_type(llvm_type).c_str()));
 		assert(llvm_value->getType()->isPointerTy());
 
 		if (llvm_type != llvm_value->getType()) {

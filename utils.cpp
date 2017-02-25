@@ -7,6 +7,7 @@
 #include "logger_decls.h"
 #include <unistd.h>
 #include <limits.h>
+#include <cstdarg>
 
 #define SWP(x,y) (x^=y, y^=x, x^=y)
 

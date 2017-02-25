@@ -10,14 +10,14 @@
 bound_var_t::ref make_call_value(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		ptr<const ast::item> callsite,
+		location_t location,
 		scope_t::ref scope,
 		life_t::ref life,
 		bound_var_t::ref function,
 		bound_var_t::refs arguments)
 {
 	return create_callsite(
-			status, builder, scope, life, callsite, function,
+			status, builder, scope, life, function,
 			"temp_call_value", INTERNAL_LOC(), arguments);
 
 	assert(!status);
@@ -29,7 +29,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		unchecked_var_t::ref unchecked_fn,
-		types::type::ref fn_type,
+		types::type_t::ref fn_type,
 		unification_t unification)
 {
 	assert(fn_type->ftv_count() == 0 && "we cannot instantiate an abstract function");
@@ -45,9 +45,9 @@ bound_var_t::ref instantiate_unchecked_fn(
 	/* lifetimes have extents at function boundaries */
 	auto life = make_ptr<life_t>(lf_function);
 
-	ast::type_product::ref type_product = dyncast<const ast::type_product>(unchecked_fn->node);
+	ast::type_product_t::ref type_product = dyncast<const ast::type_product_t>(unchecked_fn->node);
 
-	if (auto function_defn = dyncast<const ast::function_defn>(unchecked_fn->node)) {
+	if (auto function_defn = dyncast<const ast::function_defn_t>(unchecked_fn->node)) {
 		/* we shouldn't be here unless we found something to substitute */
 
 		debug_above(4, log(log_info, "building substitution for %s with unification %s",
@@ -59,7 +59,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 				status, builder, unchecked_fn->node,
 				unchecked_fn->module_scope, unification, fn_type);
 
-		if (auto function = dyncast<const types::type_function>(fn_type)) {
+		if (auto function = dyncast<const types::type_function_t>(fn_type)) {
 			bound_type_t::refs args = upsert_bound_types(status,
 					builder, subst_scope, function->args->args);
 
@@ -83,7 +83,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 			panic("we should have a product type for our fn_type");
 		}
 	} else if (type_product != nullptr) {
-		ast::item::ref node = type_product;
+		ast::item_t::ref node = type_product;
 
 		/* we shouldn't be here unless we found something to substitute */
 		debug_above(4, log(log_info, "building substitution for %s",
@@ -97,7 +97,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 				unchecked_fn->module_scope, unification, fn_type);
 
 		if (!!status) {
-			types::type_function::ref data_ctor_type = dyncast<const types::type_function>(
+			types::type_function_t::ref data_ctor_type = dyncast<const types::type_function_t>(
 					unchecked_data_ctor->sig->rebind(unification.bindings));
 			assert(data_ctor_type != nullptr);
 			// if (data_ctor_type->ftv_count() == 0) {
@@ -129,10 +129,10 @@ bound_var_t::ref check_func_vs_callsite(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		const ast::item::ref &callsite,
+		const ast::item_t::ref &callsite,
 		var_t::ref fn,
-		types::type::ref type_fn_context,
-		types::type_args::ref args)
+		types::type_t::ref type_fn_context,
+		types::type_args_t::ref args)
 {
 	assert(!!status);
 	assert(args->ftv_count() == 0 && "how did you get abstract arguments? are you a wizard?");
@@ -152,7 +152,7 @@ bound_var_t::ref check_func_vs_callsite(
 						fn->str().c_str(),
 						::str(unification.bindings).c_str()));
 
-			types::type::ref fn_type = fn->get_type(scope)->rebind(unification.bindings);
+			types::type_t::ref fn_type = fn->get_type(scope)->rebind(unification.bindings);
 
 			return instantiate_unchecked_fn(status, builder, scope,
 					unchecked_fn, fn_type, unification);
@@ -189,9 +189,9 @@ bound_var_t::ref maybe_get_callable(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		atom alias,
-		const ptr<const ast::item> &callsite,
-		types::type::ref type_fn_context,
-		types::type_args::ref args,
+		const ptr<const ast::item_t> &callsite,
+		types::type_t::ref type_fn_context,
+		types::type_args_t::ref args,
 		var_t::refs &fns)
 {
 	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, type_fn_context=%s, args=%s, ...)",
@@ -251,9 +251,9 @@ bound_var_t::ref get_callable(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		atom alias,
-		const ptr<const ast::item> &callsite,
-		types::type::ref outbound_context,
-		types::type_args::ref args)
+		const ptr<const ast::item_t> &callsite,
+		types::type_t::ref outbound_context,
+		types::type_args_t::ref args)
 {
 	var_t::refs fns;
 	// TODO: potentially allow fake calling contexts by adding syntax to the
@@ -300,10 +300,10 @@ bound_var_t::ref call_program_function(
         scope_t::ref scope,
 		life_t::ref life,
         atom function_name,
-        const ptr<const ast::item> &callsite,
+        const ptr<const ast::item_t> &callsite,
         const bound_var_t::refs var_args)
 {
-    types::type_args::ref args = get_args_type(var_args);
+    types::type_args_t::ref args = get_args_type(var_args);
 	auto program_scope = scope->get_program_scope();
     /* get or instantiate a function we can call on these arguments */
     bound_var_t::ref function = get_callable(
@@ -311,8 +311,8 @@ bound_var_t::ref call_program_function(
 			program_scope->get_inbound_context(), args);
 
     if (!!status) {
-		return make_call_value(status, builder, callsite, scope, life, function,
-				var_args);
+		return make_call_value(status, builder, callsite->get_location(), scope,
+				life, function, var_args);
     } else {
 		user_error(status, callsite->get_location(), "failed to resolve function with args: %s",
 				::str(var_args).c_str());

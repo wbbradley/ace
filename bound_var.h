@@ -14,7 +14,7 @@
 struct bound_var_t : public var_t {
 	bound_var_t() = delete;
 	bound_var_t(
-			location internal_location,
+			location_t internal_location,
 			atom name,
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
@@ -35,7 +35,7 @@ struct bound_var_t : public var_t {
 
 	virtual ~bound_var_t() throw() {}
 
-	location internal_location;
+	location_t internal_location;
 	atom const name;
 	bound_type_t::ref const type;
 	llvm::Value * const llvm_value;
@@ -49,17 +49,16 @@ struct bound_var_t : public var_t {
 	types::signature get_signature() const;
 
 	typedef ptr<const bound_var_t> ref;
-	typedef ptr<const bound_var_t> ref;
 	typedef std::vector<ref> refs;
 	typedef std::map<types::signature, ref> overloads;
 	typedef std::weak_ptr<bound_var_t> weak_ref;
 	typedef std::map<atom, overloads> map;
 
-	types::type::ref get_type() const;
-	virtual location get_location() const;
+	types::type_t::ref get_type() const;
+	virtual location_t get_location() const;
 
 	static ref create(
-			location internal_location,
+			location_t internal_location,
 			atom name,
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
@@ -83,7 +82,7 @@ struct bound_var_t : public var_t {
 	}
 
 private:
-   	virtual types::type::ref get_type(ptr<scope_t> scope) const;
+   	virtual types::type_t::ref get_type(ptr<scope_t> scope) const;
 };
 
 struct bound_module_t : public bound_var_t {
@@ -92,13 +91,13 @@ struct bound_module_t : public bound_var_t {
 	ptr<module_scope_t> module_scope;
 
 	bound_module_t(
-			location internal_location,
+			location_t internal_location,
 			atom name,
 			identifier::ref id,
 			ptr<module_scope_t> module_scope);
 
 	static ref create(
-			location internal_location,
+			location_t internal_location,
 			atom name,
 			identifier::ref id,
 			ptr<module_scope_t> module_scope)
@@ -111,6 +110,6 @@ struct bound_module_t : public bound_var_t {
 std::string str(const bound_var_t::refs &arguments);
 std::string str(const bound_var_t::overloads &arguments);
 std::ostream &operator <<(std::ostream &os, const bound_var_t &var);
-types::type_args::ref get_args_type(bound_var_t::refs args);
+types::type_args_t::ref get_args_type(bound_var_t::refs args);
 bound_type_t::refs get_bound_types(bound_var_t::refs values);
 std::vector<llvm::Value *> get_llvm_values(const bound_var_t::refs &vars);

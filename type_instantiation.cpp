@@ -46,8 +46,8 @@ bound_var_t::ref bind_ctor_to_scope(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
-		ast::item::ref node,
-		types::type_function::ref function)
+		ast::item_t::ref node,
+		types::type_function_t::ref function)
 {
 	assert(!!status);
 	assert(id != nullptr);
@@ -97,7 +97,7 @@ bound_var_t::ref bind_ctor_to_scope(
 
 void get_generics_and_lambda_vars(
 		status_t &status,
-	   	types::type::ref subtype,
+	   	types::type_t::ref subtype,
 		identifier::refs type_variables,
 	   	scope_t::ref scope,
 		std::list<identifier::ref> &lambda_vars,
@@ -153,13 +153,13 @@ void get_generics_and_lambda_vars(
 	}
 }
 
-types::type::ref instantiate_data_ctor_type(
+types::type_t::ref instantiate_data_ctor_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		types::type::ref unbound_type,
+		types::type_t::ref unbound_type,
 		identifier::refs type_variables,
 		scope_t::ref scope,
-		ptr<const ast::item> node,
+		ptr<const ast::item_t> node,
 		identifier::ref id,
 		identifier::ref supertype_id)
 {
@@ -172,7 +172,7 @@ types::type::ref instantiate_data_ctor_type(
 	auto tag_type = type_id(qualified_id);
 
 	/* create the basic struct type */
-	ptr<const types::type_struct> struct_ = dyncast<const types::type_struct>(unbound_type);
+	ptr<const types::type_struct_t> struct_ = dyncast<const types::type_struct_t>(unbound_type);
 	assert(struct_ != nullptr);
 
 	/* lambda_vars tracks the order of the lambda variables we'll accept as we abstract our
@@ -200,7 +200,7 @@ types::type::ref instantiate_data_ctor_type(
 		if (auto module_scope = dyncast<module_scope_t>(scope)) {
 
 			/* create the actual expanded type signature of this type */
-			types::type::ref type = type_ref(struct_);
+			types::type_t::ref type = type_ref(struct_);
 
 			/* make sure we allow for parameterized expansion */
 			for (auto lambda_var : lambda_vars) {
@@ -221,7 +221,7 @@ types::type::ref instantiate_data_ctor_type(
 			debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
 						id->str().c_str()));
 
-			types::type_function::ref data_ctor_sig = type_function(
+			types::type_function_t::ref data_ctor_sig = type_function(
 					scope->get_inbound_context(),
 					type_args(struct_->dimensions),
 					ctor_return_type);
@@ -238,7 +238,7 @@ types::type::ref instantiate_data_ctor_type(
 
 		/* it's a nullary enumeration or "tag", let's create a global value to represent
 		 * this tag. */
-		types::type::ref type = struct_;
+		types::type_t::ref type = struct_;
 		for (auto lambda_var : lambda_vars) {
 			type = type_lambda(lambda_var, type);
 		}
@@ -270,7 +270,7 @@ types::type::ref instantiate_data_ctor_type(
 	return nullptr;
 }
 
-void ast::type_product::register_type(
+void ast::type_product_t::register_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref id_,
@@ -319,7 +319,7 @@ void ast::type_product::register_type(
 	assert(!status);
 }
 
-void ast::type_sum::register_type(
+void ast::type_sum_t::register_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref id,

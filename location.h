@@ -2,14 +2,14 @@
 #include "atom.h"
 #include <ostream>
 
-#define INTERNAL_LOC() ::location{__FILE__, __LINE__, 1}
+#define INTERNAL_LOC() ::location_t{__FILE__, __LINE__, 1}
 
-struct location {
+struct location_t {
 	template <typename T>
-	location(T t) = delete;
+	location_t(T t) = delete;
 
-	location() : line(-1), col(-1) {}
-	location(atom filename, int line, int col) : filename(filename), line(line), col(col) {}
+	location_t() : line(-1), col(-1) {}
+	location_t(atom filename, int line, int col) : filename(filename), line(line), col(col) {}
 
 	std::string str(bool vim_mode=false) const;
 	std::string repr() const;
@@ -19,7 +19,7 @@ struct location {
 	int line;
 	int col;
 	bool has_file_location() const;
-    bool operator ==(const location &rhs) const;
+    bool operator ==(const location_t &rhs) const;
 };
 
-std::ostream &operator <<(std::ostream &os, const location &location);
+std::ostream &operator <<(std::ostream &os, const location_t &location);

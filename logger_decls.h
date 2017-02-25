@@ -12,10 +12,10 @@ enum log_level_t
 
 void log_enable(int log_level);
 void logv(log_level_t level, const char *format, va_list args);
-void logv_location(log_level_t level, const location &location, const char *format, va_list args);
+void logv_location(log_level_t level, const location_t &location, const char *format, va_list args);
 void log(const char *format, ...);
 void log(log_level_t level, const char *format, ...);
-void log_location(log_level_t level, const location &location, const char *format, ...);
+void log_location(log_level_t level, const location_t &location, const char *format, ...);
 void panic_(const char *filename, int line, std::string msg);
 void log_stack(log_level_t level);
 void log_dump();

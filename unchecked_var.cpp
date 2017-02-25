@@ -17,20 +17,20 @@ std::string unchecked_data_ctor_t::str() const {
     return ss.str();
 }
 
-types::type::ref unchecked_data_ctor_t::get_type(scope_t::ref scope) const {
+types::type_t::ref unchecked_data_ctor_t::get_type(scope_t::ref scope) const {
 	return sig;
 }
 
-types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
+types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 	/* TODO: plumb status down here */
 	status_t status;
-	if (auto fn = dyncast<const ast::function_defn>(node)) {
+	if (auto fn = dyncast<const ast::function_defn_t>(node)) {
 		auto decl = fn->decl;
 		assert(decl != nullptr);
 
 		if (decl->param_list_decl != nullptr) {
 			/* this is a function declaration, so let's set up our output parameters */
-			types::type::refs args;
+			types::type_t::refs args;
 
 			/* get the parameters */
 			auto &params = decl->param_list_decl->params;
@@ -44,7 +44,7 @@ types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 
 			if (!!status) {
 				/* figure out the context of this declaration */
-				types::type::ref inbound_context = decl->inbound_context;
+				types::type_t::ref inbound_context = decl->inbound_context;
 
 				if (inbound_context == nullptr) {
 					/* the function didn't specify an inbound context */
@@ -54,7 +54,7 @@ types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 				/* figure out the return type */
 				if (decl->return_type != nullptr) {
 					/* get the return type */
-					types::type_function::ref sig = type_function(
+					types::type_function_t::ref sig = type_function(
 							inbound_context,
 							type_args(args),
 							decl->return_type);
@@ -64,7 +64,7 @@ types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 								sig->str().c_str()));
 					return sig;
 				} else {
-					types::type_function::ref sig = type_function(
+					types::type_function_t::ref sig = type_function(
 							inbound_context,
 							type_args(args),
 							/* default to void, which is fully bound */
@@ -91,6 +91,6 @@ types::type::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 	return nullptr;
 }
 
-location unchecked_var_t::get_location() const {
+location_t unchecked_var_t::get_location() const {
 	return node->token.location;
 }

@@ -1,5 +1,6 @@
 #include "zion.h"
 #include "life.h"
+#include "callable.h"
 
 life_t::life_t(life_form_t life_form, life_t::ref former_life) :
 	former_life(former_life), life_form(life_form), release_vars_called(false)
@@ -22,15 +23,80 @@ void life_t::release_vars(
 		scope_t::ref scope,
 		life_form_t life_form) const
 {
-	auto program_scope = scope->get_program_scope();
-	for (auto value: values) {
-		debug_above(4, log("releasing var %s", value->str().c_str()));
+	release_vars_called = values.size() != 0;
+
+	if (!!status) {
+		auto program_scope = scope->get_program_scope();
 		auto release_function = program_scope->get_singleton({"__release_var"});
 
-		if (!!status) {
-			release_vars_called = true;
-			// TODO: call the release
-			not_impl();
+		/* this is just a placeholder life to capture any spurious output from the
+		 * release call. none should exist */
+		life_t::ref life = make_ptr<life_t>(lf_function, nullptr);
+		for (auto value: values) {
+			debug_above(4, log("releasing var %s", value->str().c_str()));
+
+			if (!!status) {
+				assert(value->type->is_managed());
+				make_call_value(
+						status,
+						builder,
+						INTERNAL_LOC(),
+						scope,
+						life,
+						release_function,
+						{value});
+			}
 		}
 	}
+}
+
+void life_t::track_var(
+		llvm::IRBuilder<> &builder,
+	   	bound_var_t::ref value,
+	   	life_form_t track_in_life_form)
+{
+	assert(value->type->is_managed());
+	/* we only track managed variables */
+	if (this->life_form == track_in_life_form) {
+		/* first check if this value is an alloca, if it is, then we need to store
+		 * its current value so we can release it later. if it's an rhs, then we can
+		 * just stash it */
+		if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(value->llvm_value)) {
+			assert(value->is_lhs);
+			values.push_back(
+					bound_var_t::create(
+						INTERNAL_LOC(),
+						string_format("__saved_for_release_%s", value->name.c_str()),
+						value->type,
+						llvm_resolve_alloca(builder, llvm_alloca),
+						value->id,
+						false /*is_lhs*/));
+		} else {
+			assert(!value->is_lhs);
+			not_impl();
+		}
+	} else {
+		assert(this->former_life != nullptr && "We found a track_in_life_form for a life_form that is not on the stack.");
+		this->former_life->track_var(builder, value, track_in_life_form);
+	}
+}
+
+void call_addref_var(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+	   	bound_var_t::ref var)
+{
+	assert(var->type->is_managed());
+	auto program_scope = scope->get_program_scope();
+	auto addref_function = program_scope->get_singleton({"__addref_var"});
+	life_t::ref life = make_ptr<life_t>(lf_function, nullptr);
+	make_call_value(
+			status,
+			builder,
+			INTERNAL_LOC(),
+			scope,
+			life,
+			addref_function,
+			{var});
 }

@@ -13,17 +13,17 @@ const token_kind SCOPE_TK = tk_divide_by;
 const char *SCOPE_SEP = "/";
 const char SCOPE_SEP_CHAR = '/';
 
-types::type::ref module_scope_impl_t::get_inbound_context() {
+types::type_t::ref module_scope_impl_t::get_inbound_context() {
 	return inbound_context;
 }
 
-types::type::ref module_scope_impl_t::get_outbound_context() {
+types::type_t::ref module_scope_impl_t::get_outbound_context() {
 	return outbound_context;
 }
 
 bound_var_t::ref get_bound_variable_from_scope(
 		status_t &status,
-		const ptr<const ast::item> &obj,
+		const ptr<const ast::item_t> &obj,
 		atom scope_name,
 		atom symbol,
 		bound_var_t::map bound_vars,
@@ -182,8 +182,8 @@ void get_callables_from_unchecked_vars(
 	if (iter != unchecked_vars.end()) {
 		const unchecked_var_t::overload_vector &overloads = iter->second;
 		for (auto &var : overloads) {
-			assert(dyncast<const ast::function_defn>(var->node) ||
-					dyncast<const ast::type_product>(var->node));
+			assert(dyncast<const ast::function_defn_t>(var->node) ||
+					dyncast<const ast::type_product_t>(var->node));
 			fns.push_back(var);
 		}
 	}
@@ -218,7 +218,7 @@ runnable_scope_t::runnable_scope_t(
 
 void runnable_scope_t::check_or_update_return_type_constraint(
 		status_t &status,
-		const ast::item::ref &return_statement,
+		const ast::item_t::ref &return_statement,
 		bound_type_t::ref return_type)
 {
 	return_type_constraint_t &return_type_constraint = get_return_type_constraint();
@@ -371,10 +371,10 @@ void dump_linked_modules(std::ostream &os, const module_scope_t::map &modules) {
 	os << "modules: " << str(modules) << std::endl;
 }
 
-void dump_type_map(std::ostream &os, types::type::map env, std::string desc) {
+void dump_type_map(std::ostream &os, types::type_t::map env, std::string desc) {
 	if (env.size() != 0) {
 		os << std::endl << desc << std::endl;
-		os << join_with(env, "\n", [] (types::type::map::value_type value) -> std::string {
+		os << join_with(env, "\n", [] (types::type_t::map::value_type value) -> std::string {
 			return string_format("%s: %s", value.first.c_str(), value.second->str().c_str());
 		});
 		os << std::endl;
@@ -418,7 +418,7 @@ void local_scope_t::dump(std::ostream &os) const {
 generic_substitution_scope_t::generic_substitution_scope_t(
         atom name,
         scope_t::ref parent_scope,
-        types::type::ref callee_signature) :
+        types::type_t::ref callee_signature) :
     scope_impl_t(name, parent_scope), callee_signature(callee_signature)
 {
 }
@@ -436,8 +436,8 @@ module_scope_impl_t::module_scope_impl_t(
 		atom name,
 	   	program_scope_t::ref parent_scope,
 		llvm::Module *llvm_module,
-		types::type::ref inbound_context,
-		types::type::ref outbound_context) :
+		types::type_t::ref inbound_context,
+		types::type_t::ref outbound_context) :
 	scope_impl_t<module_scope_t>(name, parent_scope),
    	llvm_module(llvm_module),
 	inbound_context(inbound_context),
@@ -445,15 +445,15 @@ module_scope_impl_t::module_scope_impl_t(
 {
 }
 
-bool module_scope_impl_t::has_checked(const ptr<const ast::item> &node) const {
+bool module_scope_impl_t::has_checked(const ptr<const ast::item_t> &node) const {
 	return visited.find(node) != visited.end();
 }
 
 void module_scope_impl_t::mark_checked(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
-	   	const ptr<const ast::item> &node) {
-	if (auto function_defn = dyncast<const ast::function_defn>(node)) {
+	   	const ptr<const ast::item_t> &node) {
+	if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
 		if (is_function_defn_generic(status, builder, shared_from_this(),
 					*function_defn)) {
 			/* for now let's never mark generic functions as checked, until we
@@ -526,7 +526,7 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 	auto iter = unchecked_vars.find(symbol);
 	if (iter != unchecked_vars.end()) {
 		/* this variable already exists, let's consider overloading it */
-		if (dyncast<const ast::function_defn>(unchecked_variable->node)) {
+		if (dyncast<const ast::function_defn_t>(unchecked_variable->node)) {
 			iter->second.push_back(unchecked_variable);
 		} else if (dyncast<const unchecked_data_ctor_t>(unchecked_variable)) {
 			iter->second.push_back(unchecked_variable);
@@ -654,8 +654,8 @@ module_scope_t::ref module_scope_impl_t::create(
 		atom name,
 		program_scope_t::ref parent_scope,
 		llvm::Module *llvm_module,
-		types::type::ref inbound_context,
-		types::type::ref outbound_context)
+		types::type_t::ref inbound_context,
+		types::type_t::ref outbound_context)
 {
 	return make_ptr<module_scope_impl_t>(name, parent_scope, llvm_module, inbound_context, outbound_context);
 }
@@ -678,10 +678,10 @@ program_scope_t::ref program_scope_t::create(atom name, llvm::Module *llvm_modul
 generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		const ptr<const ast::item> &fn_decl,
+		const ptr<const ast::item_t> &fn_decl,
 		scope_t::ref parent_scope,
 		unification_t unification,
-		types::type::ref callee_type)
+		types::type_t::ref callee_type)
 {
 	/* instantiate a new scope */
 	auto subst_scope = make_ptr<generic_substitution_scope_t>(

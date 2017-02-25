@@ -321,12 +321,12 @@ bool compare_texts(std::string result, std::string expect) {
 	return e_i == e_end && r_i == r_end;
 }
 
-bool compare_texts(ast::item &result, std::string expect) {
+bool compare_texts(ast::item_t &result, std::string expect) {
 	auto printed_result = result.str();
 	return compare_texts(printed_result, expect);
 }
 
-bool compare_lispy_results(std::string text, ast::item &result, std::string expect) {
+bool compare_lispy_results(std::string text, ast::item_t &result, std::string expect) {
 	if (compare_texts(result, expect)) {
 		return true;
 	} else {
@@ -355,82 +355,82 @@ bool check_parse(std::string text, std::string filename = test_module_name) {
  * PARSER TESTS
  */
 bool test_parse_minimal_module() {
-	return check_parse<ast::module>("module minimal @0.1.0");
+	return check_parse<ast::module_t>("module minimal @0.1.0");
 }
 
 bool test_parse_module_one_function() {
-	return check_parse<ast::module>("module foobar @0.1.0\n\ndef foo()\n\tpass");
+	return check_parse<ast::module_t>("module foobar @0.1.0\n\ndef foo()\n\tpass");
 }
 
-ptr<ast::plus_expr> make_one_plus_two() {
-	auto expect = ast::create<ast::plus_expr>({{"", 1, 3}, tk_plus, "+"});
+ptr<ast::plus_expr_t> make_one_plus_two() {
+	auto expect = ast::create<ast::plus_expr_t>({{"", 1, 3}, tk_plus, "+"});
 
-	expect->lhs = ast::create<ast::literal_expr>({{"", 1, 1}, tk_integer, "1"});
-	expect->rhs = ast::create<ast::literal_expr>({{"", 1, 5}, tk_integer, "2"});
+	expect->lhs = ast::create<ast::literal_expr_t>({{"", 1, 1}, tk_integer, "1"});
+	expect->rhs = ast::create<ast::literal_expr_t>({{"", 1, 5}, tk_integer, "2"});
 	return expect;
 }
 
 bool test_parse_integer_add() {
-	return check_parse<ast::expression>("1 + 2");
+	return check_parse<ast::expression_t>("1 + 2");
 }
 
 bool test_parse_return_integer_add() {
-	return check_parse<ast::expression>("1 + \"2\"");
+	return check_parse<ast::expression_t>("1 + \"2\"");
 }
 
 bool test_parse_module_function_with_return_plus_expr() {
-	return check_parse<ast::module>(
+	return check_parse<ast::module_t>(
 			"module foobar @0.1.0\ndef foo()\n\treturn 1 + 2");
 }
 
 bool test_parse_math_expression() {
-	return check_parse<ast::expression>("(1 + 2) * -92323");
+	return check_parse<ast::expression_t>("(1 + 2) * -92323");
 }
 
 bool test_parse_array_literal() {
-	return check_parse<ast::expression>("[0, 1, 2]");
+	return check_parse<ast::expression_t>("[0, 1, 2]");
 }
 
 bool test_parse_multiple_pluses() {
-	return check_parse<ast::expression>("1 + 2 + 3");
+	return check_parse<ast::expression_t>("1 + 2 + 3");
 }
 
 bool test_parse_multiple_minuses() {
-	return check_parse<ast::expression>("1 - 2 - 3");
+	return check_parse<ast::expression_t>("1 - 2 - 3");
 }
 
 bool test_parse_multiple_times() {
-	return check_parse<ast::expression>("0 * 1 * 2 / 3");
+	return check_parse<ast::expression_t>("0 * 1 * 2 / 3");
 }
 
 bool test_parse_multiple_dots() {
-	return check_parse<ast::expression>("a.b.c.d.e.f");
+	return check_parse<ast::expression_t>("a.b.c.d.e.f");
 }
 
 bool test_parse_multiple_logical_ops_1() {
-	return check_parse<ast::expression>("1 and 2 or 3");
+	return check_parse<ast::expression_t>("1 and 2 or 3");
 }
 
 bool test_parse_multiple_logical_ops_2() {
-	return check_parse<ast::expression>("1 or 2 and 3");
+	return check_parse<ast::expression_t>("1 or 2 and 3");
 }
 
 bool test_parse_multiple_logical_ops_3() {
-	return check_parse<ast::expression>("1 and 2 and 3 and 4");
+	return check_parse<ast::expression_t>("1 and 2 and 3 and 4");
 }
 
 bool test_parse_multiple_logical_ops_4() {
-	return check_parse<ast::expression>("1 or 2 or 3 or 4");
+	return check_parse<ast::expression_t>("1 or 2 or 3 or 4");
 }
 
 bool test_parse_mixed_precedences() {
-	return check_parse<ast::expression>(
+	return check_parse<ast::expression_t>(
 			"true and -a.b(false, -1 or 2 + 3 and 3 * 4).zion_rules.sour");
 }
 
 
 bool test_parse_recursive_function_call() {
-	return check_parse<ast::module>(
+	return check_parse<ast::module_t>(
 		   	"module math @1.0\n"
 			"def fib(n int) int\n"
 			"\tif n < 2\n"
@@ -440,7 +440,7 @@ bool test_parse_recursive_function_call() {
 }
 
 bool test_parse_if_else() {
-	return check_parse<ast::module>(
+	return check_parse<ast::module_t>(
 		   	"module minmax @1.0\n"
 			"def min(m int, n int) int\n"
 			"\tif n < m\n"
@@ -453,7 +453,7 @@ bool test_parse_if_else() {
 }
 
 bool test_parse_single_line_when() {
-	return check_parse<ast::module>(
+	return check_parse<ast::module_t>(
 			"module _\n"
 			"def check() int\n"
 			"\twhen x is X\n"
@@ -463,56 +463,56 @@ bool test_parse_single_line_when() {
 }
 
 bool test_parse_single_function_call() {
-	return check_parse<ast::block>(
+	return check_parse<ast::block_t>(
 		   	"\tfib(n-1)",
 			"test" /*module*/);
 }
 
 bool test_parse_semicolon_line_break() {
-	return check_parse<ast::block>(
+	return check_parse<ast::block_t>(
 		   	"\tx(n-1);var y int = 7\n",
 			"test" /*module*/);
 }
 
 bool test_parse_n_minus_one() {
-	return check_parse<ast::expression>(
+	return check_parse<ast::expression_t>(
 		   	"n-1");
 }
 
 bool test_parse_param_list() {
-	return check_parse<ast::param_list>(
+	return check_parse<ast::param_list_t>(
 		   	"(n-1)");
 }
 
 bool test_parse_prefix_expression_not() {
-	return check_parse<ast::expression>(
+	return check_parse<ast::expression_t>(
 		   	"d != not (b >c and a > b)");
 }
 
 bool test_parse_empty_quote() {
-	return check_parse<ast::statement>("\"\"", "\"\"");
+	return check_parse<ast::statement_t>("\"\"", "\"\"");
 }
 
 bool test_parse_link_extern_module_with_link_as() {
-	return check_parse<ast::module>(
+	return check_parse<ast::module_t>(
 		   	"module www @1.0.0\n"
 			"link module http @1.0.0 as http1\n");
 }
 
 bool test_parse_link_extern_module() {
-	return check_parse<ast::module>(
+	return check_parse<ast::module_t>(
 		   	"module www @1.0.0\n"
 			"link module http @7.0.0\n");
 }
 
 bool test_parse_link_extern_function() {
-	return check_parse<ast::module>(
+	return check_parse<ast::module_t>(
 		   	"module www @1.3.2\n"
 			"link def open(filename str, mode str) int\n");
 }
 
 bool test_parse_fizz_buzz() {
-	return check_parse<ast::module>(
+	return check_parse<ast::module_t>(
 		   	"module fizzbuzz @1.2.3\n"
 			"def main(maximum int) int\n"
 			"\tvar i int = 1\n"
@@ -635,7 +635,7 @@ bool get_testable_comments(
 	return true;
 }
 
-bool _check_compiler_error(compiler &compiler, int &skipped) {
+bool _check_compiler_error(compiler_t &compiler, int &skipped) {
 	tee_logger tee_log;
 	status_t status;
 	compiler.build_parse_modules(status);
@@ -716,7 +716,7 @@ bool _check_compiler_error(compiler &compiler, int &skipped) {
 }
 
 bool check_compiler_error(std::string module_name, int &skipped) {
-	compiler compiler(module_name, {".", "lib", "tests"});
+	compiler_t compiler(module_name, {".", "lib", "tests"});
 	bool result = _check_compiler_error(compiler, skipped);
 	if (!result) {
 		log(log_info, "\n--- " c_internal("test program listing") " of " c_module("%s") " ---\n%s",
@@ -728,7 +728,7 @@ bool check_compiler_error(std::string module_name, int &skipped) {
 
 bool check_code_gen_emitted(std::string test_module_name, std::string regex_string) {
 	tee_logger tee_log;
-	compiler compiler(test_module_name, {".", "lib", "tests"});
+	compiler_t compiler(test_module_name, {".", "lib", "tests"});
 
 	status_t status;
 	compiler.build_parse_modules(status);
@@ -840,7 +840,7 @@ auto test_descs = std::vector<test_desc>{
 		[] () -> bool {
 			auto filename = "xyz.zion";
 			zion_token_t token({filename, 1, 1}, tk_module, "xyz");
-			auto module = ast::create<ast::module>(token, filename);
+			auto module = ast::create<ast::module_t>(token, filename);
 			return !!module;
 		}
 	},
@@ -975,8 +975,8 @@ auto test_descs = std::vector<test_desc>{
 		[] () -> bool {
 			type_struct({type_variable(INTERNAL_LOC()), type_id(make_iid("float"))}, {} /* name_index */, false);
 			identifier::set generics = {make_iid("Container"), make_iid("T")};
-			auto unifies = std::vector<types::type::pair>{{
-				types::type::pair{
+			auto unifies = std::vector<types::type_t::pair>{{
+				types::type_t::pair{
 					parse_type_expr("void", generics, make_iid("foobar")),
 					   	type_id(make_iid("foobar/void"))},
 				make_type_pair("any", "float", generics),
@@ -996,7 +996,7 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("Container{T}?", "[int]", generics),
 			}};
 
-			auto fails = std::vector<types::type::pair>{{
+			auto fails = std::vector<types::type_t::pair>{{
 				make_type_pair("int", "void", {}),
 				make_type_pair("int", "void", generics),
 				make_type_pair("{T, T}", "{void, int}", generics),
@@ -1033,7 +1033,7 @@ auto test_descs = std::vector<test_desc>{
 		[] () -> bool {
 			tee_logger tee_log;
 			auto test_module_name = "test_puts_emit";
-			compiler compiler(test_module_name, {".", "lib", "tests"});
+			compiler_t compiler(test_module_name, {".", "lib", "tests"});
 
 			status_t status;
 			compiler.build_parse_modules(status);
@@ -1060,7 +1060,7 @@ auto test_descs = std::vector<test_desc>{
 		[] () -> bool {
 			tee_logger tee_log;
 			status_t status;
-			compiler compiler("rt_str", compiler::libs{});
+			compiler_t compiler("rt_str", compiler_t::libs{});
 			compiler.llvm_load_ir(status, "rt_str.llir");
 			return !!status;
 		}

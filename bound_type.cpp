@@ -10,8 +10,8 @@
 #include <iostream>
 
 bound_type_t::bound_type_t(
-		types::type::ref type,
-		struct location location,
+		types::type_t::ref type,
+		location_t location,
 		llvm::Type *llvm_type,
 		llvm::Type *llvm_specific_type) :
 	type(type),
@@ -29,7 +29,7 @@ bound_type_t::bound_type_t(
 	assert(llvm_type != nullptr);
 }
 
-types::type::ref bound_type_t::get_type() const {
+types::type_t::ref bound_type_t::get_type() const {
 	return type;
 }
 
@@ -38,7 +38,7 @@ bool bound_type_t::is_concrete() const {
 	return !is_type_id(type, {BUILTIN_UNREACHABLE_TYPE});
 }
 
-struct location const bound_type_t::get_location() const {
+location_t const bound_type_t::get_location() const {
 	return location;
 }
 
@@ -51,8 +51,8 @@ llvm::Type *bound_type_t::get_llvm_specific_type() const {
 }
 
 bound_type_t::ref bound_type_t::create(
-		types::type::ref type,
-		struct location location,
+		types::type_t::ref type,
+		location_t location,
 		llvm::Type *llvm_type,
 		llvm::Type *llvm_specific_type)
 {
@@ -107,16 +107,16 @@ std::string bound_type_t::str() const {
 	return ss.str();
 }
 
-types::type_args::ref get_args_type(bound_type_t::named_pairs args) {
-	types::type::refs sig_args;
+types::type_args_t::ref get_args_type(bound_type_t::named_pairs args) {
+	types::type_t::refs sig_args;
 	for (auto &named_pair : args) {
 		sig_args.push_back(named_pair.second->get_type());
 	}
 	return type_args(sig_args);
 }
 
-types::type_args::ref get_args_type(bound_type_t::refs args) {
-	types::type::refs sig_args;
+types::type_args_t::ref get_args_type(bound_type_t::refs args) {
+	types::type_t::refs sig_args;
 	for (auto &arg : args) {
 		assert(arg != nullptr);
 		sig_args.push_back(arg->get_type());
@@ -124,8 +124,8 @@ types::type_args::ref get_args_type(bound_type_t::refs args) {
 	return type_args(sig_args);
 }
 
-types::type_args::ref get_args_type(bound_var_t::refs args) {
-	types::type::refs sig_args;
+types::type_args_t::ref get_args_type(bound_var_t::refs args) {
+	types::type_t::refs sig_args;
 	for (auto &arg : args) {
 		assert(arg != nullptr);
 		sig_args.push_back(arg->get_type());
@@ -133,8 +133,8 @@ types::type_args::ref get_args_type(bound_var_t::refs args) {
 	return type_args(sig_args);
 }
 
-types::type::refs get_types(const bound_type_t::refs &bound_types) {
-	types::type::refs types;
+types::type_t::refs get_types(const bound_type_t::refs &bound_types) {
+	types::type_t::refs types;
 	for (auto &bound_type : bound_types) {
 		assert(bound_type != nullptr);
 		types.push_back(bound_type->get_type());
@@ -142,9 +142,9 @@ types::type::refs get_types(const bound_type_t::refs &bound_types) {
 	return types;
 }
 
-types::type::ref get_tuple_type(const bound_type_t::refs &items_types, bool managed) {
-	types::type::refs dimensions;
-	types::name_index name_index;
+types::type_t::ref get_tuple_type(const bound_type_t::refs &items_types, bool managed) {
+	types::type_t::refs dimensions;
+	types::name_index_t name_index;
 	int i = 0;
 	for (auto &arg : items_types) {
 		assert(arg != nullptr);
@@ -174,7 +174,7 @@ bool bound_type_t::is_void() const {
 }
 
 bool bound_type_t::is_maybe() const {
-	if (auto maybe = dyncast<const types::type_maybe>(get_type())) {
+	if (auto maybe = dyncast<const types::type_maybe_t>(get_type())) {
 		return true;
 	} else {
 		return false;
@@ -182,11 +182,12 @@ bool bound_type_t::is_maybe() const {
 }
 
 bool bound_type_t::is_managed() const {
-	return get_type()->is_managed();
+    not_impl();
+    return false;
 }
 
 bool bound_type_t::is_ref() const {
-	if (auto product = dyncast<const types::type_ref>(get_type())) {
+	if (auto product = dyncast<const types::type_ref_t>(get_type())) {
 		return true;
 	} else {
 		return false;
@@ -197,8 +198,8 @@ types::signature bound_type_t::get_signature() const {
 	return get_type()->get_signature();
 }
 
-types::type_function::ref get_function_type(
-		types::type::ref type_fn_context,
+types::type_function_t::ref get_function_type(
+		types::type_t::ref type_fn_context,
 		bound_type_t::named_pairs named_args,
 		bound_type_t::ref ret)
 {
@@ -209,12 +210,12 @@ types::type_function::ref get_function_type(
 	return get_function_type(type_fn_context, args, ret);
 }
 
-types::type_function::ref get_function_type(
-		types::type::ref type_fn_context,
+types::type_function_t::ref get_function_type(
+		types::type_t::ref type_fn_context,
 		bound_type_t::refs args,
 		bound_type_t::ref return_type)
 {
-	types::type::refs type_args;
+	types::type_t::refs type_args;
 
 	for (auto arg : args) {
 		type_args.push_back(arg->get_type());

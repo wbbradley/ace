@@ -15,8 +15,8 @@ std::string str(const var_t::refs &vars) {
 }
 
 void add_bindings_to_make_type_concrete(
-		types::type::ref type, 
-		types::type::map &bindings) 
+		types::type_t::ref type, 
+		types::type_t::map &bindings) 
 {
 	/* make sure that if there are any free type variables, we mark
 	 * them as unreachable */
@@ -33,12 +33,12 @@ void add_bindings_to_make_type_concrete(
 unification_t var_t::accepts_callsite(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		types::type::ref type_fn_context,
-	   	types::type_args::ref args) const
+		types::type_t::ref type_fn_context,
+	   	types::type_args_t::ref args) const
 {
 	/* get the args out of the sig */
-	types::type::ref type = get_type(scope);
-	types::type_function::ref fn_type = dyncast<const types::type_function>(type);
+	types::type_t::ref type = get_type(scope);
+	types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(type);
 	auto env = scope->get_typename_env();
 
 	indent_logger indent(6, string_format(

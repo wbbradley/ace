@@ -44,7 +44,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual void dump(std::ostream &os) const = 0;
 	virtual bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints) = 0;
 
-	virtual bound_var_t::ref get_bound_variable(status_t &status, const ptr<const ast::item> &obj, atom symbol) = 0;
+	virtual bound_var_t::ref get_bound_variable(status_t &status, const ptr<const ast::item_t> &obj, atom symbol) = 0;
 	virtual void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable) = 0;
 	virtual bound_type_t::ref get_bound_type(types::signature signature) = 0;
 	virtual std::string get_name() const;
@@ -59,16 +59,16 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual bound_var_t::ref get_singleton(atom name) = 0;
 
     /* There are mappings based on type declarations stored in the env */
-	virtual types::type::map get_typename_env() const = 0;
+	virtual types::type_t::map get_typename_env() const = 0;
 
-	virtual types::type::ref get_outbound_context() = 0;
-	virtual types::type::ref get_inbound_context() = 0;
+	virtual types::type_t::ref get_outbound_context() = 0;
+	virtual types::type_t::ref get_inbound_context() = 0;
 
-    /* Then, there are mappings from type_variable names to type::refs */
-	virtual types::type::map get_type_variable_bindings() const = 0;
+    /* Then, there are mappings from type_variable names to type_t::refs */
+	virtual types::type_t::map get_type_variable_bindings() const = 0;
 
-    virtual void put_typename(status_t &status, atom name, types::type::ref expansion) = 0;
-    virtual void put_type_variable_binding(status_t &status, atom binding, types::type::ref type) = 0;
+    virtual void put_typename(status_t &status, atom name, types::type_t::ref expansion) = 0;
+    virtual void put_type_variable_binding(status_t &status, atom binding, types::type_t::ref type) = 0;
 };
 
 template <typename BASE>
@@ -90,31 +90,31 @@ struct scope_impl_t : public BASE {
 
 	ptr<function_scope_t> new_function_scope(atom name);
 	ptr<program_scope_t> get_program_scope();
-	types::type::map get_typename_env() const;
-	types::type::map get_type_variable_bindings() const;
+	types::type_t::map get_typename_env() const;
+	types::type_t::map get_type_variable_bindings() const;
 	std::string str();
 	void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable);
 	bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints);
 	bound_var_t::ref get_singleton(atom name);
-	bound_var_t::ref get_bound_variable(status_t &status, const ptr<const ast::item> &obj, atom symbol);
+	bound_var_t::ref get_bound_variable(status_t &status, const ptr<const ast::item_t> &obj, atom symbol);
 	std::string make_fqn(std::string leaf_name) const;
 	bound_type_t::ref get_bound_type(types::signature signature);
 	void get_callables(atom symbol, var_t::refs &fns);
-    virtual void put_typename(status_t &status, atom name, types::type::ref expansion);
-    virtual void put_type_variable_binding(status_t &status, atom binding, types::type::ref type);
+    virtual void put_typename(status_t &status, atom name, types::type_t::ref expansion);
+    virtual void put_type_variable_binding(status_t &status, atom binding, types::type_t::ref type);
 	virtual ptr<scope_t> get_parent_scope();
 	virtual ptr<const scope_t> get_parent_scope() const;
 
-	virtual types::type::ref get_outbound_context();
-	virtual types::type::ref get_inbound_context();
+	virtual types::type_t::ref get_outbound_context();
+	virtual types::type_t::ref get_inbound_context();
 
 protected:
 	atom scope_name;
 
 	ref parent_scope;
 	bound_var_t::map bound_vars;
-	types::type::map typename_env;
-	types::type::map type_variable_bindings;
+	types::type_t::map typename_env;
+	types::type_t::map type_variable_bindings;
 };
 
 typedef bound_type_t::ref return_type_constraint_t;
@@ -134,7 +134,7 @@ struct runnable_scope_t : public scope_impl_t<scope_t> {
 
 	void check_or_update_return_type_constraint(
 			status_t &status,
-		   	const ptr<const ast::item> &return_statement,
+		   	const ptr<const ast::item_t> &return_statement,
 		   	return_type_constraint_t return_type);
 
 	llvm::BasicBlock *get_innermost_loop_break() const;
@@ -173,12 +173,12 @@ struct module_scope_t : scope_t {
 	 * then it won't make sense to check it again at the top level since it's not being
 	 * instantiated. if it is not generic, then there's no need to check it because
 	 * it's already instantiated. */
-	virtual bool has_checked(const ptr<const ast::item> &node) const = 0;
-	virtual void mark_checked(status_t &status, llvm::IRBuilder<> &builder, const ptr<const ast::item> &node) = 0;
+	virtual bool has_checked(const ptr<const ast::item_t> &node) const = 0;
+	virtual void mark_checked(status_t &status, llvm::IRBuilder<> &builder, const ptr<const ast::item_t> &node) = 0;
 	virtual llvm::Module *get_llvm_module() = 0;
 	virtual unchecked_type_t::refs &get_unchecked_types_ordered() = 0;
-	virtual types::type::ref get_outbound_context() = 0;
-	virtual types::type::ref get_inbound_context() = 0;
+	virtual types::type_t::ref get_outbound_context() = 0;
+	virtual types::type_t::ref get_inbound_context() = 0;
 };
 
 struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
@@ -186,7 +186,7 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	typedef std::map<atom, ref> map;
 
 	module_scope_impl_t() = delete;
-	module_scope_impl_t(atom name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module, types::type::ref inbound_context, types::type::ref outbound_context);
+	module_scope_impl_t(atom name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module, types::type_t::ref inbound_context, types::type_t::ref outbound_context);
 	virtual ~module_scope_impl_t() throw() {}
 
 	llvm::Module * const llvm_module;
@@ -202,24 +202,24 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	 * then it won't make sense to check it again at the top level since it's not being
 	 * instantiated. if it is not generic, then there's no need to check it because
 	 * it's already instantiated. */
-	bool has_checked(const ptr<const ast::item> &node) const;
-	void mark_checked(status_t &status, llvm::IRBuilder<> &builder, const ptr<const ast::item> &node);
+	bool has_checked(const ptr<const ast::item_t> &node) const;
+	void mark_checked(status_t &status, llvm::IRBuilder<> &builder, const ptr<const ast::item_t> &node);
 	virtual llvm::Module *get_llvm_module();
 
 	virtual void dump(std::ostream &os) const;
 
-	std::set<ptr<const ast::item>> visited;
+	std::set<ptr<const ast::item_t>> visited;
 
-	static module_scope_t::ref create(atom module_name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module, types::type::ref inbound_context, types::type::ref outbound_context);
+	static module_scope_t::ref create(atom module_name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module, types::type_t::ref inbound_context, types::type_t::ref outbound_context);
 
-	// void add_linked_module(status_t &status, ptr<const ast::item> obj, atom symbol, module_scope_impl_t::ref module_scope);
+	// void add_linked_module(status_t &status, ptr<const ast::item_t> obj, atom symbol, module_scope_impl_t::ref module_scope);
 
-	virtual types::type::ref get_outbound_context();
-	virtual types::type::ref get_inbound_context();
+	virtual types::type_t::ref get_outbound_context();
+	virtual types::type_t::ref get_inbound_context();
 
 protected:
-	const types::type::ref inbound_context;
-	const types::type::ref outbound_context;
+	const types::type_t::ref inbound_context;
+	const types::type_t::ref outbound_context;
 
 	/* modules can have unchecked types */
 	unchecked_type_t::map unchecked_types;
@@ -238,8 +238,8 @@ struct program_scope_t : public module_scope_impl_t {
 	program_scope_t(
 			atom name,
 		   	llvm::Module *llvm_module,
-		   	types::type::ref inbound_context,
-		   	types::type::ref outbound_context) :
+		   	types::type_t::ref inbound_context,
+		   	types::type_t::ref outbound_context) :
 	   	module_scope_impl_t(name, nullptr, llvm_module, inbound_context, outbound_context) {}
 
 	program_scope_t() = delete;
@@ -322,7 +322,7 @@ struct generic_substitution_scope_t : public scope_impl_t<scope_t> {
 	generic_substitution_scope_t(
 			atom name,
 		   	scope_t::ref parent_scope,
-		   	types::type::ref callee_signature);
+		   	types::type_t::ref callee_signature);
 
 	virtual ~generic_substitution_scope_t() throw() {}
 	virtual llvm::Module *get_llvm_module();
@@ -332,12 +332,12 @@ struct generic_substitution_scope_t : public scope_impl_t<scope_t> {
 	static ref create(
 			status_t &status,
 		   	llvm::IRBuilder<> &builder,
-		   	const ptr<const ast::item> &fn_decl,
+		   	const ptr<const ast::item_t> &fn_decl,
 		   	scope_t::ref module_scope,
 			unification_t unification,
-			types::type::ref callee_type);
+			types::type_t::ref callee_type);
 
-	const types::type::ref callee_signature;
+	const types::type_t::ref callee_signature;
 };
 
 template <typename T>
@@ -352,7 +352,7 @@ ptr<program_scope_t> scope_impl_t<T>::get_program_scope() {
 }
 
 template <typename T>
-void scope_impl_t<T>::put_typename(status_t &status, atom type_name, types::type::ref expansion) {
+void scope_impl_t<T>::put_typename(status_t &status, atom type_name, types::type_t::ref expansion) {
 #ifdef DEBUG
 	/* make sure that all type_names come in fully qualified */
 	int slash_count = 0;
@@ -384,7 +384,7 @@ void scope_impl_t<T>::put_typename(status_t &status, atom type_name, types::type
 }
 
 template <typename T>
-types::type::ref scope_impl_t<T>::get_inbound_context() {
+types::type_t::ref scope_impl_t<T>::get_inbound_context() {
 	auto module_scope = this->get_module_scope();
 	if (module_scope != nullptr) {
 		return module_scope->get_inbound_context();
@@ -395,7 +395,7 @@ types::type::ref scope_impl_t<T>::get_inbound_context() {
 }
 
 template <typename T>
-types::type::ref scope_impl_t<T>::get_outbound_context() {
+types::type_t::ref scope_impl_t<T>::get_outbound_context() {
 	auto module_scope = this->get_module_scope();
 	if (module_scope != nullptr) {
 		return module_scope->get_outbound_context();
@@ -406,7 +406,7 @@ types::type::ref scope_impl_t<T>::get_outbound_context() {
 }
 
 template <typename T>
-void scope_impl_t<T>::put_type_variable_binding(status_t &status, atom name, types::type::ref type) {
+void scope_impl_t<T>::put_type_variable_binding(status_t &status, atom name, types::type_t::ref type) {
 	auto iter = type_variable_bindings.find(name);
 	if (iter == type_variable_bindings.end()) {
 		debug_above(2, log(log_info, "binding type variable " c_type("%s") " as %s",
@@ -421,7 +421,7 @@ void scope_impl_t<T>::put_type_variable_binding(status_t &status, atom name, typ
 }
 
 template <typename T>
-types::type::map scope_impl_t<T>::get_typename_env() const {
+types::type_t::map scope_impl_t<T>::get_typename_env() const {
 	auto parent_scope = this->get_parent_scope();
 	if (parent_scope != nullptr) {
 		return merge(parent_scope->get_typename_env(), typename_env);
@@ -431,7 +431,7 @@ types::type::map scope_impl_t<T>::get_typename_env() const {
 }
 
 template <typename T>
-types::type::map scope_impl_t<T>::get_type_variable_bindings() const {
+types::type_t::map scope_impl_t<T>::get_type_variable_bindings() const {
 	auto parent_scope = this->get_parent_scope();
 	if (parent_scope != nullptr) {
 		return merge(parent_scope->get_type_variable_bindings(), type_variable_bindings);
@@ -528,7 +528,7 @@ bound_var_t::ref scope_impl_t<T>::get_singleton(atom name) {
 
 bound_var_t::ref get_bound_variable_from_scope(
 		status_t &status,
-		const ptr<const ast::item> &obj,
+		const ptr<const ast::item_t> &obj,
 		atom scope_name,
 		atom symbol,
 		bound_var_t::map bound_vars,
@@ -537,7 +537,7 @@ bound_var_t::ref get_bound_variable_from_scope(
 template <typename T>
 bound_var_t::ref scope_impl_t<T>::get_bound_variable(
 		status_t &status,
-	   	const ptr<const ast::item> &obj,
+	   	const ptr<const ast::item_t> &obj,
 	   	atom symbol)
 {
 	return ::get_bound_variable_from_scope(status, obj, this->get_name(),
