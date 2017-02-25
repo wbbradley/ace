@@ -7,7 +7,8 @@ RUN apt-get update -y && apt-get install -y \
 	time \
 	ccache \
 	exuberant-ctags \
-	make
+	make \
+	cmake
 
 RUN \
 	wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | apt-key add -

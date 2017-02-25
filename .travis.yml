@@ -7,5 +7,5 @@ before_install:
   - make image
 
 script:
-  - make linux-test
-
+  - cmake --build .
+  - ctest -V
