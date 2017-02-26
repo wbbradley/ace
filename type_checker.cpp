@@ -913,7 +913,7 @@ bound_var_t::ref ast::tuple_expr_t::resolve_instantiation(
 		bound_type_t::refs args = get_bound_types(vars);
 
 		/* let's get the type for this tuple wrapped as an object */
-		types::type_t::ref tuple_type = get_tuple_type(args, true /*managed*/);
+		types::type_t::ref tuple_type = get_tuple_type(args);
 
 		/* now, let's see if we already have a ctor for this tuple type, if not
 		 * we'll need to create a data ctor for this unnamed tuple type */
@@ -922,7 +922,6 @@ bound_var_t::ref ast::tuple_expr_t::resolve_instantiation(
 		std::pair<bound_var_t::ref, bound_type_t::ref> tuple = instantiate_tuple_ctor(
 				status, builder, scope,
 				scope->get_inbound_context(), args,
-				true /* managed */,
 				make_iid(tuple_type->repr()), shared_from_this());
 
 		if (!!status) {
@@ -1303,7 +1302,7 @@ bound_var_t::ref extract_member_variable(
 
 		/* GEP and load the member value from the structure */
 		llvm::Value *llvm_gep = llvm_make_gep(builder,
-				llvm_var_value, index, struct_type->managed);
+				llvm_var_value, index, true /* managed */);
 		llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
 
 		llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
@@ -1314,7 +1313,7 @@ bound_var_t::ref extract_member_variable(
 
 		return bound_var_t::create(
 				INTERNAL_LOC(), value_name,
-				member_type, llvm_item, make_iid(member_name), false/*is_lhs*/);
+				member_type, llvm_item, make_iid(member_name), false /*is_lhs*/);
 	} else {
 		auto bindings = scope->get_type_variable_bindings();
 		auto full_type = bound_var->type->get_type()->rebind(bindings);

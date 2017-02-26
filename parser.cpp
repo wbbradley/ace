@@ -1211,12 +1211,6 @@ types::type_t::ref _parse_single_type(
 	case tk_has:
 		{
 			ps.advance();
-			/* see if we're declaring a native structure with no memory management */
-			bool native = false;
-			if (ps.token.tk == tk_identifier && ps.token.text == "native") {
-				native = true;
-				ps.advance();
-			}
 
 			chomp_token(tk_indent);
 			types::type_t::refs dimensions;
@@ -1248,7 +1242,7 @@ types::type_t::ref _parse_single_type(
 			}
 			chomp_token(tk_outdent);
 			if (!!ps.status) {
-				return ::type_struct(dimensions, name_index, !native /* managed */);
+				return ::type_struct(dimensions, name_index);
 			} else {
 				return nullptr;
 			}
@@ -1366,7 +1360,7 @@ types::type_t::ref _parse_single_type(
 			ps.advance();
 			types::type_t::refs arguments = parse_type_operands(ps, supertype_id, type_variables, generics);
 			// TODO: allow named members
-			return ::type_struct(arguments, {}, true /* managed */);
+			return ::type_struct(arguments, {});
 		}
 		break;
 	default:

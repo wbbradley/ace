@@ -175,8 +175,8 @@ namespace types {
 		return oper->get_id();
 	}
 
-	type_struct_t::type_struct_t(type_t::refs dimensions, types::name_index_t name_index, bool managed) :
-		dimensions(dimensions), name_index(name_index), managed(managed)
+	type_struct_t::type_struct_t(type_t::refs dimensions, types::name_index_t name_index) :
+		dimensions(dimensions), name_index(name_index)
 	{
 #ifdef ZION_DEBUG
 		for (auto dimension: dimensions) {
@@ -184,7 +184,6 @@ namespace types {
 		}
 		assert(name_index.size() == dimensions.size() || name_index.size() == 0);
 #endif
-		assert_implies(str().find("std/") != std::string::npos, managed);
 	}
 
 	product_kind_t type_struct_t::get_pk() const {
@@ -200,19 +199,8 @@ namespace types {
 	}
 
 	std::ostream &type_struct_t::emit(std::ostream &os, const map &bindings) const {
-		os << (managed ? "managed." : "native.");
-		os << "struct[";
-		const char *sep = "";
-		int i = 0;
-		for (auto dimension : dimensions) {
-			os << sep;
-			auto name = get_name_from_index(name_index, i++);
-			if (!!name) {
-				os << name << " ";
-			}
-			dimension->emit(os, bindings);
-			sep = ", ";
-		}
+		os << "managed.struct[";
+		join_dimensions(os, dimensions, name_index, bindings);
 		return os << "]";
 	}
 
@@ -243,7 +231,7 @@ namespace types {
 		for (auto dimension : dimensions) {
 			type_dimensions.push_back(dimension->rebind(bindings));
 		}
-		return ::type_struct(type_dimensions, name_index, managed);
+		return ::type_struct(type_dimensions, name_index);
 	}
 
 	location_t type_struct_t::get_location() const {
@@ -682,8 +670,7 @@ types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::re
 
 types::type_struct_t::ref type_struct(
 	   	types::type_t::refs dimensions,
-	   	types::name_index_t name_index,
-		bool managed)
+	   	types::name_index_t name_index)
 {
 	if (name_index.size() == 0) {
 		/* if we omit names for our dimensions, give them names like _0, _1, _2,
@@ -692,7 +679,7 @@ types::type_struct_t::ref type_struct(
 			name_index[string_format("_%d", i)] = i;
 		}
 	}
-	return make_ptr<types::type_struct_t>(dimensions, name_index, managed);
+	return make_ptr<types::type_struct_t>(dimensions, name_index);
 }
 
 types::type_args_t::ref type_args(
@@ -730,16 +717,7 @@ types::type_t::ref type_sum_safe(status_t &status, types::type_t::refs options) 
 		}
 		
 		/* check for disallowed types */
-		if (auto struct_type = dyncast<const types::type_struct_t>(option)) {
-			if (!struct_type->managed) {
-				/* we don't allow native structs to be part of sum types because
-				 * they lack RTTI */
-				user_error(status, option->get_location(),
-						"native type %s cannot be included in a sum type",
-						option->str().c_str());
-				return nullptr;
-			}
-		} else if (auto id_type = dyncast<const types::type_id_t>(option)) {
+		if (auto id_type = dyncast<const types::type_id_t>(option)) {
 			if (id_type->id->get_name().str().find("__") == 0) {
 				user_error(status, option->get_location(),
 						"builtin type %s cannot be included in a sum type",
@@ -959,5 +937,20 @@ types::type_t::ref eval_apply(
 		std::cerr << "what is this? " << oper->str() << std::endl;
 		return null_impl();
 	}
+}
+
+std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings) {
+	const char *sep = "";
+	int i = 0;
+	for (auto dimension : dimensions) {
+		os << sep;
+		auto name = get_name_from_index(name_index, i++);
+		if (!!name) {
+			os << name << " ";
+		}
+		dimension->emit(os, bindings);
+		sep = ", ";
+	}
+	return os;
 }
 

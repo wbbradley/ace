@@ -32,7 +32,8 @@ bound_type_t::ref create_ref_ptr_type(
 		llvm::IRBuilder<> &builder,
 		types::type_ref_t::ref ref_type)
 {
-	debug_above(4, log(log_info, "creating ref type for %s", ref_type->element_type->str().c_str()));
+	debug_above(4, log(log_info, "creating ref type for %s",
+				ref_type->element_type->str().c_str()));
 	llvm::StructType *llvm_type = llvm::StructType::create(
 			builder.getContext(),
 			ref_type->element_type->get_signature().str());
@@ -51,12 +52,26 @@ bound_type_t::ref create_bound_ref_type(
 		ptr<scope_t> scope,
 		const ptr<const types::type_ref_t> &ref_type)
 {
+	/* create a bound_type for a pointer/ref type */
 	ptr<program_scope_t> program_scope = scope->get_program_scope();
 
 	assert(!scope->get_bound_type(ref_type->get_signature()));
-	bound_type_t::ref bound_type = scope->get_bound_type(
-			ref_type->element_type->get_signature());
+
+	/* get the element type's bound type, if it exists */
+	bound_type_t::ref bound_type = scope->get_bound_type(ref_type->element_type->get_signature());
+
 	if (bound_type != nullptr) {
+		bool managed = false;
+
+		dbg();
+		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(bound_type->get_llvm_specific_type());
+		if (llvm_struct_type != nullptr) {
+			auto type_name = llvm_struct_type->getStructName();
+
+			// HACKHACK: I don't love this coupling
+			managed = type_name.find("managed.struct") == 0;
+		}
+
 		return bound_type_t::create(ref_type,
 				ref_type->get_location(),
 				bound_type->get_llvm_specific_type()->getPointerTo());
@@ -100,34 +115,30 @@ std::vector<llvm::Type *> build_struct_elements(
 {
 		/* create the structure in place in this struct type */
 		std::vector<llvm::Type *> elements;
-		if (struct_type->managed) {
-			/* let's prefix the data in this structure with the managed runtime
-			 * data */
-			bound_type_t::ref var_type = program_scope->get_bound_type({"__var"});
-			llvm::Type *llvm_var_type = var_type->get_llvm_type();
 
-			/* place the var_t struct into the structure */
-			elements.push_back(llvm_var_type);
-			llvm::StructType *inner_struct = llvm_create_struct_type(
-					builder, struct_type->get_signature(), bound_dimensions);
+		/* let's prefix the data in this structure with the managed runtime */
+		bound_type_t::ref var_type = program_scope->get_bound_type({"__var"});
+		llvm::Type *llvm_var_type = var_type->get_llvm_type();
 
-			inner_struct->setName(type_struct(
-						struct_type->dimensions,
-						struct_type->name_index,
-						false /* managed */)->get_signature().str());
+		/* place the var_t struct into the structure */
+		elements.push_back(llvm_var_type);
+		llvm::StructType *inner_struct = llvm_create_struct_type(
+				builder, struct_type->get_signature(), bound_dimensions);
 
-			/* now place the logical data into the structure */
-			elements.push_back(inner_struct);
-		} else {
-			/* this is a native structure, let's just iterate over the bound
-			 * dimensions and place those directly into this structure */
-			for (auto bound_dimension : bound_dimensions) {
-				elements.push_back(bound_dimension->get_llvm_specific_type());
-			}
-		}
+		/* make a name for this inner native struct */
+		std::stringstream ss;
+		ss << "native.struct[";
+		join_dimensions(ss, 
+				struct_type->dimensions,
+				struct_type->name_index, {});
+		ss << "]";
 
-		assert(elements.size() != 0);
-		assert_implies(struct_type->managed, elements.size() == 2);
+		inner_struct->setName(ss.str());
+
+		/* now place the logical data into the structure */
+		elements.push_back(inner_struct);
+
+		assert(elements.size() == 2);
 
 		return elements;
 }
@@ -174,10 +185,7 @@ bound_type_t::ref create_bound_struct_type(
 		/* ensure that if this type is managed we refer to it generally by its
 		 * managed structure definition (upwards pointer bitcasts happen
 		 * automatically at reference locations) */
-		llvm::Type *llvm_least_specific_type = (
-				struct_type->managed
-				? program_scope->get_bound_type({"__var"})->get_llvm_type()
-				: llvm_struct_type);
+		llvm::Type *llvm_least_specific_type = program_scope->get_bound_type({"__var"})->get_llvm_type();
 
 		/* resolve all of the contained dimensions. NB: cycles should be broken
 		 * by the existence of the pointer to this type */
@@ -399,6 +407,7 @@ bound_type_t::ref create_bound_function_type(
 				auto *llvm_fn_type = llvm_create_function_type(status,
 						builder, args, return_type);
 				if (!!status) {
+					// TODO: support dynamic function creation
 					bound_type = bound_type_t::create(function,
 							function->get_location(), llvm_fn_type);
 					ptr<program_scope_t> program_scope = scope->get_program_scope();
@@ -513,7 +522,6 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		scope_t::ref scope,
 		types::type_t::ref type_fn_context,
 		bound_type_t::refs args,
-		bool managed,
 		identifier::ref id,
 		const ast::item_t::ref &node)
 {
@@ -521,7 +529,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 	if (!!status) {
 		program_scope_t::ref program_scope = scope->get_program_scope();
 
-		types::type_ref_t::ref type = type_ref(type_struct(get_types(args), {} /* name_index */, managed));
+		types::type_ref_t::ref type = type_ref(type_struct(get_types(args), {} /* name_index */));
 		bound_type_t::ref data_type = upsert_bound_type(status, builder, scope, type);
 
 		if (!!status) {
@@ -572,14 +580,24 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
 
 llvm::Constant *llvm_dim_offset_gep(llvm::StructType *llvm_struct_type, int index) {
 	auto &llvm_context = llvm_struct_type->getContext();
-	llvm::Constant *llvm_gep_index[] = {
-		llvm::ConstantInt::get(llvm::Type::getInt64Ty(llvm_context), 0),
-		llvm::ConstantInt::get(llvm::Type::getInt64Ty(llvm_context), 1),
-		llvm::ConstantInt::get(llvm::Type::getInt64Ty(llvm_context), index),
+	auto llvm_type_int32 = llvm::Type::getInt32Ty(llvm_context);
+	std::vector<llvm::Constant *> llvm_gep_index = {
+		llvm::ConstantInt::get(llvm_type_int32, 0),
+		llvm::ConstantInt::get(llvm_type_int32, 1),
+		llvm::ConstantInt::get(llvm_type_int32, index),
 	};
-	llvm::Constant *llvm_gep = llvm::ConstantExpr::getGetElementPtr(
-			llvm_struct_type,
-			llvm::Constant::getNullValue(llvm::PointerType::getUnqual(llvm_struct_type)), llvm_gep_index);
+	debug_above(6, explain(llvm_struct_type));
+
+	llvm::Constant *llvm_null_struct = llvm::Constant::getNullValue(llvm::PointerType::getUnqual(llvm_struct_type));
+
+	debug_above(6, log(log_info, "null struct is %s", llvm_print_value_ptr(llvm_null_struct).c_str()));
+
+	// llvm::Constant *llvm_null_struct = llvm::Constant::getNullValue(llvm_struct_type);
+	assert(llvm_struct_type == llvm::dyn_cast<llvm::PointerType>(
+				llvm_null_struct->getType()->getScalarType())->getContainedType(0u));
+
+	llvm::Constant *llvm_gep = llvm::ConstantExpr::getInBoundsGetElementPtr(
+			llvm_struct_type, llvm_null_struct, llvm_gep_index);
 
 	return llvm::ConstantExpr::getPtrToInt(llvm_gep, llvm::Type::getInt64Ty(llvm_struct_type->getContext()));
 }
@@ -597,8 +615,7 @@ llvm::Value *llvm_call_allocator(
 {
 	debug_above(5, log(log_info, "calling allocator for %s",
 				data_type->str().c_str()));
-	bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(status, node,
-			struct_type->managed ? "__create_var" : "__mem_alloc");
+	bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(status, node, "__create_var");
 
 	if (!!status) {
 		assert(mem_alloc_var != nullptr);
@@ -607,82 +624,77 @@ llvm::Value *llvm_call_allocator(
 		llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder,
 				llvm_deref_type(data_type->get_llvm_specific_type()));
 
-		if (struct_type->managed) {
-			llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
-					llvm::dyn_cast<llvm::PointerType>(
-						data_type->get_llvm_specific_type())->getElementType());
-			assert(llvm_struct_type != nullptr);
-			assert(llvm_struct_type->elements().size() != 0);
+		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
+				llvm::dyn_cast<llvm::PointerType>(
+					data_type->get_llvm_specific_type())->getElementType());
+		assert(llvm_struct_type != nullptr);
+		assert(llvm_struct_type->elements().size() >= args.size());
 
-			/* calculate the type map */
-			std::vector<llvm::Constant *> llvm_offsets;
-			for (size_t i=0; i<args.size(); ++i) {
-				if (args[i]->is_managed()) {
-					/* this element is managed, so let's store its memory offset in
-					 * our array */
-					llvm_offsets.push_back(llvm::ConstantExpr::getTrunc(
-								llvm_dim_offset_gep(llvm_struct_type, i),
-								builder.getInt16Ty(), true));
-				}
+		/* calculate the type map */
+		std::vector<llvm::Constant *> llvm_offsets;
+		for (size_t i=0; i<args.size(); ++i) {
+			debug_above(5, log(log_info, "args[%d] is %s",
+						i, args[i]->str().c_str()));
+			if (args[i]->is_managed()) {
+				/* this element is managed, so let's store its memory offset in
+				 * our array */
+				debug_above(5, log(log_info, "getting offset of %d in %s",
+							i, llvm_print_type(llvm_struct_type).c_str()));
+				llvm_offsets.push_back(llvm::ConstantExpr::getTrunc(
+							llvm_dim_offset_gep(llvm_struct_type, i),
+							builder.getInt16Ty(), true));
 			}
-
-			/* now let's create a placeholder type for the dim offsets map */
-			llvm::ArrayType *llvm_dim_offsets_type = llvm::ArrayType::get(
-					builder.getInt16Ty(), llvm_offsets.size());
-
-			llvm::Module *llvm_module = llvm_get_module(builder);
-
-			/* create the actual list of offsets */
-			llvm::Constant *llvm_dim_offsets = llvm_get_global(llvm_module,
-					std::string("__dim_offsets_") + name.str(),
-					llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(
-						llvm::ConstantArray::get(llvm_dim_offsets_type,
-							llvm_offsets),
-						builder.getInt16Ty()->getPointerTo()));
-
-					llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
-						program_scope->get_bound_type({"__type_info"})->get_llvm_type());
-
-					auto signature = data_type->get_signature();
-					debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
-							signature.str().c_str(), signature.repr().iatom));
-
-					llvm_type_info = llvm_get_global(llvm_module, string_format("__type_info_%s", signature.str().c_str()),
-						llvm::ConstantStruct::get(
-							llvm_type_info_type,
-
-							/* the type_id */
-							builder.getInt32(signature.repr().iatom),
-
-							/* the number of contained references */
-							builder.getInt16(llvm_offsets.size()),
-
-							/* the actual offsets to the managed references */
-							llvm_dim_offsets,
-
-							/* name this variable */
-							builder.CreateGlobalStringPtr(name.str()),
-
-							/* allocation size */
-							llvm_sizeof_tuple,
-
-							nullptr));
 		}
 
-		llvm::Value *llvm_alloced = (
-				struct_type->managed
-				? llvm_create_call_inst(
-					status, builder, node->get_location(),
-					mem_alloc_var,
-					{
+		/* now let's create a placeholder type for the dim offsets map */
+		llvm::ArrayType *llvm_dim_offsets_type = llvm::ArrayType::get(
+				builder.getInt16Ty(), llvm_offsets.size());
+
+		llvm::Module *llvm_module = llvm_get_module(builder);
+
+		/* create the actual list of offsets */
+		llvm::Constant *llvm_dim_offsets = llvm_get_global(llvm_module,
+				std::string("__dim_offsets_") + name.str(),
+				llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(
+					llvm::ConstantArray::get(llvm_dim_offsets_type,
+						llvm_offsets),
+					builder.getInt16Ty()->getPointerTo()));
+
+		llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
+				program_scope->get_bound_type({"__type_info"})->get_llvm_type());
+
+		auto signature = data_type->get_signature();
+		debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
+					signature.str().c_str(), signature.repr().iatom));
+
+		llvm_type_info = llvm_get_global(llvm_module, string_format("__type_info_%s", signature.str().c_str()),
+				llvm::ConstantStruct::get(
+					llvm_type_info_type,
+
+					/* the type_id */
+					builder.getInt32(signature.repr().iatom),
+
+					/* the number of contained references */
+					builder.getInt16(llvm_offsets.size()),
+
+					/* the actual offsets to the managed references */
+					llvm_dim_offsets,
+
+					/* name this variable */
+					builder.CreateGlobalStringPtr(name.str()),
+
+					/* allocation size */
+					llvm_sizeof_tuple,
+
+					nullptr));
+
+		return llvm_create_call_inst(
+				status, builder, node->get_location(),
+				mem_alloc_var,
+				{
 					/* the type info for this value */
 					llvm_type_info,
-					}, life)
-
-				: llvm_create_call_inst(status, builder, node->get_location(),
-					mem_alloc_var, {llvm_sizeof_tuple}, life));
-
-		return llvm_alloced;
+				}, life);
 	}
 
 	assert(!status);
@@ -758,7 +770,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 						llvm::Value *llvm_param = &*args_iter++;
 						/* get the location we should store this datapoint in */
 						llvm::Value *llvm_gep = llvm_make_gep(builder, llvm_final_obj,
-								index, struct_type->managed);
+								index, true /* managed */);
 						llvm_gep->setName(string_format("address_of.member.%d", index));
 
 						debug_above(5, log(log_info, "store %s at %s", llvm_print_value(*llvm_param).c_str(),
@@ -927,7 +939,7 @@ bound_var_t::ref call_const_subscript_operator(
 
 				llvm::Value *llvm_value = builder.CreateLoad(llvm_make_gep(builder,
 							llvm_lhs_subtype, subscript_index,
-							struct_type->managed));
+							true /* managed */));
 
 				return bound_var_t::create(
 						INTERNAL_LOC(),

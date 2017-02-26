@@ -27,7 +27,6 @@ std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
 		ptr<scope_t> scope,
 		types::type_t::ref type_fn_context,
 		bound_type_t::refs args,
-		bool managed,
 		identifier::ref id,
 		const ptr<const ast::item_t> &node);
 

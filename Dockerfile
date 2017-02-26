@@ -8,7 +8,11 @@ RUN apt-get update -y && apt-get install -y \
 	ccache \
 	exuberant-ctags \
 	make \
+	gdb \
 	cmake
+
+RUN apt-get install -y \
+	build-essential
 
 RUN \
 	wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | apt-key add -

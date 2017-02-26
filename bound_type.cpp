@@ -142,7 +142,7 @@ types::type_t::refs get_types(const bound_type_t::refs &bound_types) {
 	return types;
 }
 
-types::type_t::ref get_tuple_type(const bound_type_t::refs &items_types, bool managed) {
+types::type_t::ref get_tuple_type(const bound_type_t::refs &items_types) {
 	types::type_t::refs dimensions;
 	types::name_index_t name_index;
 	int i = 0;
@@ -152,7 +152,7 @@ types::type_t::ref get_tuple_type(const bound_type_t::refs &items_types, bool ma
 		name_index[string_format("_%d", i)] = i;
 		++i;
 	}
-	return type_struct(dimensions, name_index, managed);
+	return type_struct(dimensions, name_index);
 }
 
 bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {
@@ -181,17 +181,16 @@ bool bound_type_t::is_maybe() const {
 	}
 }
 
-bool bound_type_t::is_managed() const {
-    not_impl();
-    return false;
-}
-
 bool bound_type_t::is_ref() const {
 	if (auto product = dyncast<const types::type_ref_t>(get_type())) {
 		return true;
 	} else {
 		return false;
 	}
+}
+
+bool bound_type_t::is_managed() const {
+    return !starts_with(type->repr(), "__");
 }
 
 types::signature bound_type_t::get_signature() const {

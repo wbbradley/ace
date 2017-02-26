@@ -973,7 +973,7 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_unification",
 		[] () -> bool {
-			type_struct({type_variable(INTERNAL_LOC()), type_id(make_iid("float"))}, {} /* name_index */, false);
+			type_struct({type_variable(INTERNAL_LOC()), type_id(make_iid("float"))}, {} /* name_index */);
 			identifier::set generics = {make_iid("Container"), make_iid("T")};
 			auto unifies = std::vector<types::type_t::pair>{{
 				types::type_t::pair{

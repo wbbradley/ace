@@ -36,7 +36,6 @@ void life_t::release_vars(
 			debug_above(4, log("releasing var %s", value->str().c_str()));
 
 			if (!!status) {
-				assert(value->type->is_managed());
 				make_call_value(
 						status,
 						builder,
@@ -55,7 +54,6 @@ void life_t::track_var(
 	   	bound_var_t::ref value,
 	   	life_form_t track_in_life_form)
 {
-	assert(value->type->is_managed());
 	/* we only track managed variables */
 	if (this->life_form == track_in_life_form) {
 		/* first check if this value is an alloca, if it is, then we need to store
@@ -87,7 +85,6 @@ void call_addref_var(
 		scope_t::ref scope,
 	   	bound_var_t::ref var)
 {
-	assert(var->type->is_managed());
 	auto program_scope = scope->get_program_scope();
 	auto addref_function = program_scope->get_singleton({"__addref_var"});
 	life_t::ref life = make_ptr<life_t>(lf_function, nullptr);

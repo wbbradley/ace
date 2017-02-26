@@ -37,7 +37,7 @@ public:
 	bool is_void() const;
 	bool is_ref() const;
 	bool is_maybe() const;
-	bool is_managed() const;
+    bool is_managed() const;
 	types::signature get_signature() const;
 
 	std::string str() const;
@@ -57,13 +57,13 @@ public:
 
 private:
 	types::type_t::ref type;
-	location_t location;
+	const location_t location;
 	llvm::Type * const llvm_type;
 	llvm::Type * const llvm_specific_type;
 };
 
 types::type_t::refs get_types(const bound_type_t::refs &bound_types);
-types::type_t::ref get_tuple_type(const bound_type_t::refs &items_types, bool managed);
+types::type_t::ref get_tuple_type(const bound_type_t::refs &items_types);
 types::type_args_t::ref get_args_type(bound_type_t::refs args);
 types::type_function_t::ref get_function_type(types::type_t::ref context, bound_type_t::named_pairs named_args, bound_type_t::ref ret);
 

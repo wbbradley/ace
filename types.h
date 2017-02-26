@@ -59,7 +59,6 @@ namespace types {
 		virtual bool is_function() const { return false; }
 		virtual bool is_void() const { return false; }
 		virtual bool is_nil() const { return false; }
-		virtual bool is_managed() const { return false; }
 	};
 
 	bool is_type_id(type_t::ref type, atom type_name);
@@ -174,7 +173,7 @@ namespace types {
 	struct type_struct_t : public type_product_t {
 		typedef ptr<const type_struct_t> ref;
 
-		type_struct_t(type_t::refs dimensions, name_index_t name_index, bool managed);
+		type_struct_t(type_t::refs dimensions, name_index_t name_index);
 
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
@@ -187,11 +186,8 @@ namespace types {
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
 
-		virtual bool is_managed() const { return managed; }
-
 		type_t::refs dimensions;
 		name_index_t name_index;
-		bool managed;
 	};
 
 	struct type_function_t : public type_t {
@@ -262,7 +258,7 @@ types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
 types::type_module_t::ref type_module(types::type_t::ref module);
 types::type_ref_t::ref type_ref(types::type_t::ref element);
-types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index, bool managed);
+types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
 types::type_args_t::ref type_args(types::type_t::refs args, types::name_index_t name_index={});
 types::type_function_t::ref type_function(types::type_t::ref inbound_context, types::type_args_t::ref args, types::type_t::ref return_type);
 types::type_t::ref type_sum(types::type_t::refs options);
@@ -288,3 +284,4 @@ types::type_t::pair make_type_pair(std::string fst, std::string snd, identifier:
 
 types::type_t::ref parse_type_expr(std::string input, identifier::set generics, identifier::ref module_id);
 bool get_type_variable_name(types::type_t::ref type, atom &name);
+std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings);

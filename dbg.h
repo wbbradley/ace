@@ -1,9 +1,17 @@
 #pragma once
 
-#ifdef CLANG
-#define DEBUG_BREAK() __debugbreak(); __noop
+#ifdef _MSC_VER
+	#ifdef _X86_
+		#define DEBUG_BREAK() { __asm { int 3 } }
+	#else
+		#define DEBUG_BREAK()  { __debugbreak(); }
+	#endif
 #else
-#define DEBUG_BREAK() raise(SIGTRAP)
+	#ifdef __clang__
+		#define DEBUG_BREAK() do { __debugbreak(); __noop; } while (0)
+	#else
+		#define DEBUG_BREAK() do { raise(SIGTRAP); } while (0)
+	#endif
 #endif
 
 /* DEBUG preprocessor directives */

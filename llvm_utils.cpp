@@ -1,3 +1,4 @@
+#include "logger.h"
 #include "utils.h"
 #include "location.h"
 #include "llvm_utils.h"
@@ -303,10 +304,6 @@ void llvm_create_if_branch(
 
 	assert(llvm_value->getType()->isIntegerTy(1));
 	builder.CreateCondBr(llvm_value, then_bb, else_bb);
-}
-
-llvm::Type *llvm_get_data_ctor_tag_basetype(llvm::IRBuilder<> &builder) {
-	return builder.getInt64Ty();
 }
 
 llvm::StructType *llvm_create_struct_type(
@@ -622,3 +619,18 @@ llvm::Value *llvm_maybe_pointer_cast(
 {
 	return llvm_maybe_pointer_cast(builder, llvm_value, bound_type->get_llvm_specific_type());
 }
+
+void explain(llvm::Type *llvm_type) {
+	indent_logger indent(6,
+		string_format("explain %s",
+			llvm_print_type(llvm_type).c_str()));
+
+	if (auto llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_type)) {
+		for (auto element: llvm_struct_type->elements()) {
+			explain(element);
+		}
+	} else if (auto lp = llvm::dyn_cast<llvm::PointerType>(llvm_type)) {
+		explain(lp->getElementType());
+	}
+}
+

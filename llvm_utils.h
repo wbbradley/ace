@@ -67,7 +67,6 @@ void llvm_create_if_branch(
 	   	llvm::Value *llvm_value,
 	   	llvm::BasicBlock *then_bb,
 	   	llvm::BasicBlock *else_bb);
-llvm::Type *llvm_get_data_ctor_tag_basetype(llvm::IRBuilder<> &builder);
 llvm::Type *llvm_deref_type(llvm::Type *llvm_pointer_type);
 bound_var_t::ref llvm_start_function(
 		status_t &status,
@@ -85,3 +84,5 @@ bound_var_t::ref llvm_create_global_tag(
 		bound_type_t::ref tag_type,
 		atom tag,
 		identifier::ref id);
+
+void explain(llvm::Type *llvm_type);
