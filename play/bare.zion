@@ -1,7 +1,7 @@
 module _
 
-type JustInt has
-	var val int
-
-def main()
-	JustInt(9)
+def main() __int__
+	x := 2
+	if x == 4
+		pass
+	return x.raw

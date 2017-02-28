@@ -13,7 +13,7 @@ std::string bound_var_t::str() const {
 
 	if (debug_level() >= 10) {
 		ss << " IR: ";
-		std::string llir = llvm_print_value(*llvm_value);
+		std::string llir = llvm_print(*llvm_value);
 		trim(llir);
 		ss << C_IR << llvm_value;
 		ss << " : " << llir << C_RESET;

@@ -43,7 +43,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
 	/* lifetimes have extents at function boundaries */
-	auto life = make_ptr<life_t>(lf_function);
+	auto life = make_ptr<life_t>(status, lf_function);
 
 	ast::type_product_t::ref type_product = dyncast<const ast::type_product_t>(unchecked_fn->node);
 
@@ -266,14 +266,15 @@ bound_var_t::ref get_callable(
 			return callable;
 		} else {
 			if (fns.size() == 0) {
-                user_error(status, *callsite, "no function found named " c_id("%s") " for callsite %s with %s in " c_id("%s"),
-                        alias.c_str(), callsite->str().c_str(),
-                        args->str().c_str(),
-                        scope->get_name().c_str());
+				user_error(status, *callsite, "no function found named " c_id("%s") " for callsite %s with %s in " c_id("%s"),
+						alias.c_str(), callsite->str().c_str(),
+						args->str().c_str(),
+						scope->get_name().c_str());
 				debug_above(11, log(log_info, "%s", scope->str().c_str()));
 			} else {
 				std::stringstream ss;
-				ss << "unable to resolve overloads for " << callsite->str() << args->str();
+				ss << "unable to resolve overloads for " << C_ID << alias << C_RESET;
+				ss << " at " << callsite->str() << args->str();
 				ss << " from context " << outbound_context->str();
 				user_error(status, *callsite, "%s", ss.str().c_str());
 

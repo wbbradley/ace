@@ -30,8 +30,7 @@ llvm::CallInst *llvm_create_call_inst(
 		llvm::IRBuilder<> &builder,
 		location_t location,
 		ptr<const bound_var_t> callee,
-		std::vector<llvm::Value *> llvm_values,
-		ptr<life_t> life);
+		std::vector<llvm::Value *> llvm_values);
 
 llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value);
 llvm::Value *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value);
@@ -42,9 +41,11 @@ llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder, std::string v
 llvm::Module *llvm_get_module(llvm::IRBuilder<> &builder);
 llvm::Function *llvm_get_function(llvm::IRBuilder<> &builder);
 std::string llvm_print_module(llvm::Module &module);
-std::string llvm_print_value(llvm::Value &llvm_value);
-std::string llvm_print_value_ptr(llvm::Value *llvm_value);
+std::string llvm_print_value(llvm::Value *llvm_value);
 std::string llvm_print_type(llvm::Type *llvm_type);
+std::string llvm_print(llvm::Value &llvm_value);
+std::string llvm_print(llvm::Value *llvm_value);
+std::string llvm_print(llvm::Type *llvm_type);
 std::string llvm_print_function(llvm::Function *llvm_function);
 llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function, bound_type_t::ref type, atom var_name);
 llvm::Value *llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_value);
@@ -55,6 +56,7 @@ llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder, atom name,
 llvm::Value *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type);
 llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder, llvm::Value *llvm_value, llvm::Type *llvm_type);
 llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder, llvm::Value *llvm_value, const bound_type_t::ref &bound_type);
+llvm::Constant *llvm_get_pointer_to_constant(llvm::IRBuilder<> &builder, llvm::Constant *llvm_constant);
 
 void llvm_verify_function(status_t &status, llvm::Function *llvm_function);
 void llvm_verify_module(status_t &status, llvm::Module &llvm_module);

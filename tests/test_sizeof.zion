@@ -1,12 +1,12 @@
 module _
 # test: pass
 
-type __Value__ has native
+type __Value__ has
 	var size __int64__
 	var name __str__
 	var typeinfo ref __TypeInfo__
 
-type __TypeInfo__ has native
+type __TypeInfo__ has
 	var typeid __typeid__
 	var addref ref def (v ref __Value__) void
 	var release ref def (v ref __Value__) void
@@ -17,7 +17,7 @@ def addref(v ref __Value__) void
 def release(v ref __Value__) void
 	pass
 
-type __TwoInts__ has native
+type __TwoInts__ has
 	var x __int__
 	var y __int__
 

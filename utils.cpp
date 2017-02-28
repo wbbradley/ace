@@ -276,7 +276,12 @@ bool starts_with(const char *str, const std::string &search) {
 }
 
 bool ends_with(const std::string &str, const std::string &search) {
-	return str.find(search) == str.size() - search.size();
+	int pos = str.size() - search.size();
+	if (pos >= 0) {
+		return str.find(search, pos) == (size_t)pos;
+	} else {
+		return false;
+	}
 }
 
 std::vector<std::string> split(std::string data, std::string delim) {

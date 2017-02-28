@@ -170,8 +170,8 @@ bound_var_t::ref type_check_bound_var_decl(
 			if (init_var) {
 				if (!init_var->type->get_type()->is_nil()) {
 					debug_above(6, log(log_info, "creating a store instruction %s := %s",
-								llvm_print_value_ptr(llvm_alloca).c_str(),
-								llvm_print_value_ptr(init_var->llvm_value).c_str()));
+								llvm_print(llvm_alloca).c_str(),
+								llvm_print(init_var->llvm_value).c_str()));
 
 					llvm::Value *llvm_init_value = llvm_resolve_alloca(builder, init_var->llvm_value);
 					llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
@@ -199,10 +199,8 @@ bound_var_t::ref type_check_bound_var_decl(
 						true /*is_lhs*/);
 
 				/* memory management */
-				if (var_decl_variable->type->is_managed()) {
-					call_addref_var(status, builder, scope, var_decl_variable);
-					life->track_var(builder, var_decl_variable, lf_block);
-				}
+				call_addref_var(status, builder, scope, var_decl_variable);
+				life->track_var(builder, var_decl_variable, lf_block);
 
 				/* on our way out, stash the variable in the current scope */
 				scope->put_bound_variable(status, var_decl_variable->name,
@@ -358,14 +356,14 @@ bool is_function_defn_generic(
 		auto &params = obj.decl->param_list_decl->params;
 		for (auto &param : params) {
 			if (!param->type) {
-				debug_above(3, log(log_info, "found a missing parameter type on %s, defaulting it to an unnamed generic",
+				debug_above(6, log(log_info, "found a missing parameter type on %s, defaulting it to an unnamed generic",
 							param->str().c_str()));
 				return true;
 			}
 
 			if (!!status) {
 				if (type_is_unbound(param->type, scope->get_type_variable_bindings())) {
-					debug_above(3, log(log_info, "found a generic parameter type on %s",
+					debug_above(6, log(log_info, "found a generic parameter type on %s",
 								param->str().c_str()));
 					return true;
 				}
@@ -435,8 +433,8 @@ function_scope_t::ref make_param_list_scope(
 			// changing their value then we have to enforce addref/release
 			// semantics on them...
 			debug_above(6, log(log_info, "creating a local alloca for parameter %s := %s",
-						llvm_print_value_ptr(llvm_alloca).c_str(),
-						llvm_print_value_ptr(llvm_param).c_str()));
+						llvm_print(llvm_alloca).c_str(),
+						llvm_print(llvm_param).c_str()));
 			builder.CreateStore(llvm_param, llvm_alloca);	
 
 			/* add the parameter argument to the current scope */
@@ -533,7 +531,7 @@ bound_var_t::ref ast::link_function_statement_t::resolve_instantiation(
 			llvm::Value *llvm_value = llvm_module->getOrInsertFunction(function_name.text,
 					llvm_func_type);
 
-			assert(llvm_print_type(llvm_value->getType()) != llvm_print_type(llvm_func_type));
+			assert(llvm_print(llvm_value->getType()) != llvm_print(llvm_func_type));
 
 			/* get the full function type */
 			types::type_function_t::ref function_sig = get_function_type(
@@ -1003,8 +1001,11 @@ llvm::Value *maybe_get_bool_overload_value(
 				/* let's call this bool function */
 				llvm_condition_value = llvm_create_call_inst(
 						status, builder, condition->get_location(), bool_fn,
-						{condition_value->llvm_value}, life);
+						{condition_value->llvm_value});
+
 				if (!!status) {
+					/* NB: no need to track this value in a life because it's
+					 * returning an integer type */
 					assert(llvm_condition_value->getType()->isIntegerTy());
 					return llvm_condition_value;
 				}
@@ -1526,7 +1527,7 @@ bound_var_t::ref ast::function_defn_t::resolve_instantiation(
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
 	/* lifetimes have extents at function boundaries */
-	auto life = make_ptr<life_t>(lf_function);
+	auto life = make_ptr<life_t>(status, lf_function);
 
 	assert(!!status);
 
@@ -1592,7 +1593,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		}
 		debug_above(5, log(log_info, "creating function %s with LLVM type %s",
 				function_name.c_str(),
-				llvm_print_type(llvm_type).c_str()));
+				llvm_print(llvm_type).c_str()));
 		assert(llvm_type->isFunctionTy());
 
 		llvm::Function *llvm_function = llvm::Function::Create(
@@ -1652,6 +1653,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 			/* keep track of whether this function returns */
 			bool all_paths_return = false;
 			params_scope->return_type_constraint = return_type;
+
 			block->resolve_instantiation(status, builder, params_scope, life,
 					nullptr, &all_paths_return);
 
@@ -2065,6 +2067,10 @@ bound_var_t::ref ast::break_flow_t::resolve_instantiation(
 		llvm::BasicBlock *break_bb = runnable_scope->get_innermost_loop_break();
 		if (break_bb != nullptr) {
 			assert(!builder.GetInsertBlock()->getTerminator());
+
+			/* release everything held back to the loop we're in */
+			life->release_vars(status, builder, scope, lf_loop);
+
 			builder.CreateBr(break_bb);
 			return nullptr;
 		} else {
@@ -2089,6 +2095,10 @@ bound_var_t::ref ast::continue_flow_t::resolve_instantiation(
 		llvm::BasicBlock *continue_bb = runnable_scope->get_innermost_loop_continue();
 		if (continue_bb != nullptr) {
 			assert(!builder.GetInsertBlock()->getTerminator());
+
+			/* release everything held back to the loop we're in */
+			life->release_vars(status, builder, scope, lf_loop);
+
 			builder.CreateBr(continue_bb);
 			return nullptr;
 		} else {
@@ -2176,6 +2186,8 @@ bound_var_t::ref ast::return_statement_t::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
+	life = life->new_life(status, lf_statement);
+
 	/* obviously... */
 	*returns = true;
 
@@ -2187,6 +2199,10 @@ bound_var_t::ref ast::return_statement_t::resolve_instantiation(
         /* if there is a return expression resolve it into a value */
 		return_value = expr->resolve_instantiation(status, builder, scope, life,
 				nullptr, nullptr);
+
+		/* addref this return value on behalf of the caller */
+		call_addref_var(status, builder, scope, return_value);
+
         if (!!status) {
             /* get the type suggested by this return value */
             return_type = return_value->type;
@@ -2197,6 +2213,9 @@ bound_var_t::ref ast::return_statement_t::resolve_instantiation(
     }
 
     if (!!status) {
+		/* release all variables from all lives */
+		life->release_vars(status, builder, scope, lf_function);
+
         runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
         assert(runnable_scope != nullptr);
 
@@ -2211,7 +2230,7 @@ bound_var_t::ref ast::return_statement_t::resolve_instantiation(
 					runnable_scope->get_return_type_constraint());
 
 			llvm_return_value->setName("return.value");
-			debug_above(8, log("emitting a return of %s", llvm_print_value_ptr(llvm_return_value).c_str()));
+			debug_above(8, log("emitting a return of %s", llvm_print(llvm_return_value).c_str()));
 
 			// TODO: release live variables in scope, except the one being
 			// returned
@@ -2273,7 +2292,7 @@ bound_var_t::ref ast::block_t::resolve_instantiation(
 	assert(builder.GetInsertBlock() != nullptr);
 
 	/* create a new life for tracking value lifetimes across this block */
-	life = life->new_life(lf_block);
+	life = life->new_life(status, lf_block);
 
 	for (auto &statement : statements) {
 		if (*returns) {
@@ -2286,14 +2305,16 @@ bound_var_t::ref ast::block_t::resolve_instantiation(
 		debug_above(9, log(log_info, "type checking statement\n%s", statement->str().c_str()));
 
 		/* create a new life for tracking the rhs values (temp values) in this statement */
-		auto stmt_life = life->new_life(lf_statement);
+		auto stmt_life = life->new_life(status, lf_statement);
 
 		/* resolve the statement */
 		statement->resolve_instantiation(status, builder, current_scope, stmt_life,
 				&next_scope, returns);
 
-		/* inject release operations for rhs values out of extent */
-		stmt_life->release_vars(status, builder, scope, lf_statement);
+		if (!*returns) {
+			/* inject release operations for rhs values out of extent */
+			stmt_life->release_vars(status, builder, scope, lf_statement);
+		}
 
 		if (!!status) {
 			if (next_scope != nullptr) {
@@ -2314,8 +2335,9 @@ bound_var_t::ref ast::block_t::resolve_instantiation(
 		}
     }
 
-
-	life->release_vars(status, builder, scope, lf_block);
+	if (!*returns) {
+		life->release_vars(status, builder, scope, lf_block);
+	}
 
     /* blocks don't really have values */
     return nullptr;
@@ -2343,9 +2365,14 @@ bound_var_t::ref ast::while_block_t::resolve_instantiation(
 		builder.CreateBr(while_cond_bb);
 		builder.SetInsertPoint(while_cond_bb);
 
+		/* demarcate a loop boundary here */
+		life = life->new_life(status, lf_loop);
+
+		auto cond_life = life->new_life(status, lf_statement);
+
 		/* evaluate the condition for branching */
 		bound_var_t::ref condition_value = condition->resolve_instantiation(
-				status, builder, scope, life, &while_scope, nullptr);
+				status, builder, scope, cond_life, &while_scope, nullptr);
 
 		if (!!status) {
 			debug_above(5, log(log_info,
@@ -2388,9 +2415,16 @@ bound_var_t::ref ast::while_block_t::resolve_instantiation(
 						}
 					}
 
+					/* before we run the block, let's release the condition
+					 * expression's values */
+					cond_life->release_vars(status, builder, scope, lf_statement);
+
 					block->resolve_instantiation(status, builder,
 							while_scope ? while_scope : scope, life, nullptr,
 							nullptr);
+
+					/* the loop can't store values */
+					assert(life->values.size() == 0 && life->life_form == lf_loop);
 
 					if (!!status) {
 						if (!builder.GetInsertBlock()->getTerminator()) {
@@ -2439,19 +2473,21 @@ bound_var_t::ref ast::if_block_t::resolve_instantiation(
 	assert(token.text == "if" || token.text == "elif");
 	bound_var_t::ref condition_value;
 
+	auto cond_life = life->new_life(status, lf_statement);
+
 	/* evaluate the condition for branching */
 	if (auto var_decl = dyncast<const ast::var_decl_t>(condition)) {
 		/* our user is attempting an assignment inside of an if statement, let's
 		 * grant them a favor, and automatically unbox the Maybe type if it
 		 * exists. */
 		condition_value = var_decl->resolve_as_condition(
-				status, builder, scope, life, &if_scope);
+				status, builder, scope, cond_life, &if_scope);
 	} else if (auto ref_expr = dyncast<const ast::reference_expr_t>(condition)) {
 		condition_value = ref_expr->resolve_as_condition(
-				status, builder, scope, life, &if_scope);
+				status, builder, scope, cond_life, &if_scope);
 	} else {
 		condition_value = condition->resolve_instantiation(
-				status, builder, scope, life, &if_scope, nullptr);
+				status, builder, scope, cond_life, &if_scope, nullptr);
 	}
 
 		/*
@@ -2511,6 +2547,7 @@ bound_var_t::ref ast::if_block_t::resolve_instantiation(
 				llvm_create_if_branch(builder, llvm_raw_condition_value, then_bb, else_bb);
 
 				builder.SetInsertPoint(else_bb);
+
 				else_->resolve_instantiation(status, builder, scope, life,
 						nullptr, &else_block_returns);
 
@@ -2555,6 +2592,9 @@ bound_var_t::ref ast::if_block_t::resolve_instantiation(
 						builder.SetInsertPoint(deep_then_bb);
 					}
 
+					/* free up the condition temporary variable */
+					cond_life->release_vars(status, builder, scope, lf_statement);
+
 					block->resolve_instantiation(status, builder,
 						   	if_scope ? if_scope : scope, life, nullptr, &if_block_returns);
 					if (!!status) {
@@ -2572,6 +2612,9 @@ bound_var_t::ref ast::if_block_t::resolve_instantiation(
 							 * and let's set it as the next insert point. */
 							llvm_function_current->getBasicBlockList().push_back(merge_bb);
 							builder.SetInsertPoint(merge_bb);
+
+							/* free up the condition temporary variable */
+							cond_life->release_vars(status, builder, scope, lf_statement);
 						}
 
 						/* track whether the branches return */

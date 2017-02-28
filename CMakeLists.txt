@@ -28,8 +28,8 @@ foreach(_rt_module
 
 	add_custom_command(
 		OUTPUT ${_rt_module}.llir
-		COMMAND clang-3.9 -S -Wall -emit-llvm ${_rt_module}.c -o ${_rt_module}.llir
-		DEPENDS zionc)
+		COMMAND clang -S -Wall -emit-llvm ${_rt_module}.c -o ${_rt_module}.llir
+		DEPENDS ${_rt_module}.c)
 
 endforeach(_rt_module)
 

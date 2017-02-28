@@ -21,6 +21,7 @@ const char *pkstr(product_kind_t pk);
 
 /* used to reset the generic type id counter */
 void reset_generics();
+bool is_managed_type_name(std::string type_name);
 
 namespace types {
 

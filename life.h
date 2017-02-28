@@ -9,20 +9,22 @@
  * the statement level. these may not have names and thusly are not mentioned in
  * scopes. */
 enum life_form_t {
-	lf_statement=0,
+	lf_function=0,
 	lf_block,
 	lf_loop,
-	lf_function,
+	lf_statement,
 };
 
 struct life_t : std::enable_shared_from_this<life_t> {
 	typedef ptr<life_t> ref;
 
-	life_t(life_form_t life_form, life_t::ref former_life=nullptr);
+	life_t(status_t &status_tracker, life_form_t life_form, life_t::ref former_life=nullptr);
 	~life_t();
 
 	life_t(const life_t &life) = delete;
 	life_t &operator =(const life_t &life) = delete;
+
+	std::string str() const;
 
 	/* track a value for later release at a given life_form level */
 	void track_var(
@@ -37,12 +39,17 @@ struct life_t : std::enable_shared_from_this<life_t> {
 			scope_t::ref scope,
 			life_form_t life_form) const;
 
-	/* create a new life */
-	life_t::ref new_life(life_form_t life_form);
+	void exempt_life_release() const;
 
+	/* create a new life */
+	life_t::ref new_life(status_t &status, life_form_t life_form);
+
+	const status_t &status_tracker;
 	const life_t::ref former_life;
 	const life_form_t life_form;
 	std::vector<bound_var_t::ref> values;
+
+private:
 	mutable bool release_vars_called;
 };
 
@@ -51,3 +58,4 @@ void call_addref_var(
 	   	llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 	   	bound_var_t::ref var);
+void life_dump(ptr<const life_t> life);

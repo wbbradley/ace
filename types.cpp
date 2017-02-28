@@ -18,6 +18,10 @@ void reset_generics() {
 	next_generic = 1;
 }
 
+bool is_managed_type_name(std::string type_name) {
+	return !starts_with(type_name, "__") && type_name != "void";
+}
+
 atom get_name_from_index(const types::name_index_t &name_index, int i) {
 	atom name;
 	for (auto name_pair : name_index) {
@@ -718,7 +722,8 @@ types::type_t::ref type_sum_safe(status_t &status, types::type_t::refs options) 
 		
 		/* check for disallowed types */
 		if (auto id_type = dyncast<const types::type_id_t>(option)) {
-			if (id_type->id->get_name().str().find("__") == 0) {
+			auto type_name = id_type->id->get_name().str();
+			if (!is_managed_type_name(type_name)) {
 				user_error(status, option->get_location(),
 						"builtin type %s cannot be included in a sum type",
 						id_type->str().c_str());
@@ -953,4 +958,3 @@ std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimen
 	}
 	return os;
 }
-

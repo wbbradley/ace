@@ -21,7 +21,7 @@ bound_type_t::bound_type_t(
 {
 	debug_above(6, log(log_info, "creating type %s with (%s, LLVM TypeID %d, %s)",
 			type->str().c_str(),
-			llvm_print_type(llvm_specific_type).c_str(),
+			llvm_print(llvm_specific_type).c_str(),
 			llvm_type ? llvm_type->getTypeID() : -1,
 			location.str().c_str()));
 
@@ -103,7 +103,7 @@ std::ostream &operator <<(std::ostream &os, const bound_type_t &type) {
 std::string bound_type_t::str() const {
 	std::stringstream ss;
 	ss << get_type();
-	ss << " " << llvm_print_type(get_llvm_specific_type());
+	ss << " " << llvm_print(get_llvm_specific_type());
 	return ss.str();
 }
 
@@ -190,7 +190,7 @@ bool bound_type_t::is_ref() const {
 }
 
 bool bound_type_t::is_managed() const {
-    return !starts_with(type->repr(), "__");
+	return is_managed_type_name(type->repr().str());
 }
 
 types::signature bound_type_t::get_signature() const {

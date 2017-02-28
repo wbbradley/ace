@@ -15,7 +15,7 @@ struct type_info_t {
 	const char *name;
 
 	/* the size of the allocation for memory profiling purposes */
-	int16_t size;
+	int64_t size;
 };
 
 struct var_t {
@@ -23,7 +23,7 @@ struct var_t {
 	struct type_info_t *type_info;
 
 	/* and a ref-count of its own */
-	zion_int_t refcount;
+	zion_int_t ref_count;
 
 	//////////////////////////////////////
 	// THE ACTUAL DATA IS APPENDED HERE //
@@ -39,11 +39,15 @@ struct tag_t {
 
 /* An example tag (for use in examining LLIR) */
 
+int16_t test_array[] = {
+	2, 3, 4
+};
+
 struct type_info_t __tag_type_info_Example = {
 	.type_id = 42,
 	.name = "True",
-	.refs_count = -1,
-	.ref_offsets = NULL,
+	.refs_count = 3,
+	.ref_offsets = test_array,
 	.size = 0,
 };
 
@@ -69,8 +73,11 @@ void mem_free(void *p, size_t cb) {
 	free(p);
 }
 
+const char *_zion_rt = "zion-rt: ";
+
 #define MEM_PANIC(msg, str, error_code) \
 	do { \
+		write(2, _zion_rt, strlen(_zion_rt)); \
 		write(2, msg, strlen(msg)); \
 		write(2, str, strlen(str)); \
 		write(2, "\n", 1); \
@@ -79,50 +86,39 @@ void mem_free(void *p, size_t cb) {
 
 
 void addref_var(struct var_t *var) {
-	if (var->type_info->refs_count >= 0) {
-		// TODO: atomicize for multi-threaded purposes
-		++var->refcount;
+	if (var == 0) {
+		MEM_PANIC("attempt to addref a null value", "", 111);
+	} else if (var->type_info == 0) {
+		MEM_PANIC("attempt to addref a value with a null type_info", "", 111);
+	} else if (var->type_info->refs_count >= 0) {
+		++var->ref_count;
+		printf("addref %s 0x%08lx to (%ld)\n", var->type_info->name, (intptr_t)var, var->ref_count);
 	} else {
-		MEM_PANIC("attempt to addref a singleton of type ", var->type_info->name, 111);
-	}
-}
-
-void construct_var(struct var_t *var) {
-	if (var->type_info->refs_count >= 0) {
-		if (var->refcount != 0) {
-			MEM_PANIC("invalid construction (bad refcount) ", var->type_info->name, 114);
-		}
-
-		var->refcount = 1;
-
-		/* increment the refcounts for all subordinate objects */
-		for (int16_t i = var->type_info->refs_count - 1; i >= 0; --i) {
-			struct var_t *ref = (struct var_t *)(((char *)var) + sizeof(struct var_t));
-			addref_var(ref);
-		}
-	} else {
-		MEM_PANIC("attempt to construct a singleton of type ", var->type_info->name, 115);
+		printf("attempt to addref a singleton of type %s\n", var->type_info->name);
 	}
 }
 
 void release_var(struct var_t *var) {
+	printf("attempt to release var 0x%08lx\n", (intptr_t)var);
 	if (var->type_info->refs_count >= 0) {
-		if (var->refcount <= 0) {
-			MEM_PANIC("invalid release (bad refcount) ", var->type_info->name, 113);
+		if (var->ref_count <= 0) {
+			MEM_PANIC("invalid release (bad ref_count) ", var->type_info->name, 113);
 		}
 
 		// TODO: atomicize for multi-threaded purposes
-		--var->refcount;
+		--var->ref_count;
+		printf("release %s 0x%08lx to (%ld)\n", var->type_info->name, (intptr_t)var, var->ref_count);
 
-		if (var->refcount == 0) {
+		if (var->ref_count == 0) {
 			for (int16_t i = var->type_info->refs_count - 1; i >= 0; --i) {
 				struct var_t *ref = (struct var_t *)(((char *)var) + sizeof(struct var_t));
 				release_var(ref);
 			}
+			printf("freeing %s 0x%08lx\n", var->type_info->name, (intptr_t)var);
 			mem_free(var, var->type_info->size);
 		}
 	} else {
-		MEM_PANIC("attempt to release a singleton of type ", var->type_info->name, 112);
+		printf("attempt to release a singleton of type %s\n", var->type_info->name);
 	}
 }
 
@@ -142,5 +138,9 @@ type_id_t get_var_type_id(struct var_t *var) {
 struct var_t *create_var(struct type_info_t *type_info)
 {
 	/* allocate the variable tracking object */
-	return (struct var_t *)mem_alloc(type_info->size);
+	struct var_t *var = (struct var_t *)mem_alloc(type_info->size);
+	var->type_info = type_info;
+	var->ref_count = 1;
+	printf("creating %s 0x%08lx at (%ld)\n", type_info->name, (intptr_t)var, var->ref_count);
+	return var;
 }
