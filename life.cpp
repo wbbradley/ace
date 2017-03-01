@@ -50,23 +50,14 @@ void life_t::release_vars(
 	exempt_life_release();
 
 	if (!!status) {
-		auto program_scope = scope->get_program_scope();
-		auto release_function = program_scope->get_singleton({"__release_var"});
-
-		/* this is just a placeholder life to capture any spurious output from the
-		 * release call. none should exist */
-		life_t::ref life = make_ptr<life_t>(status, lf_statement, nullptr);
 		for (auto value: values) {
-			debug_above(4, log("releasing var %s", value->str().c_str()));
-
-			make_call_value(
+			call_release_var(
 					status,
 					builder,
-					INTERNAL_LOC(),
 					scope,
-					life,
-					release_function,
-					{value});
+					value,
+					string_format("releasing vars at level %s",
+						lfstr(life_form)));
 
 			if (!status) {
 				break;
@@ -102,23 +93,8 @@ void life_t::track_var(
 
 	/* we only track managed variables */
 	if (this->life_form == track_in_life_form) {
-		/* first check if this value is an alloca, if it is, then we need to store
-		 * its current value so we can release it later. if it's an rhs, then we can
-		 * just stash it */
-		if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(value->llvm_value)) {
-			assert(value->is_lhs);
-			values.push_back(
-					bound_var_t::create(
-						INTERNAL_LOC(),
-						string_format("__saved_for_release_%s", value->name.c_str()),
-						value->type,
-						llvm_resolve_alloca(builder, llvm_alloca),
-						value->id,
-						false /*is_lhs*/));
-		} else {
-			assert(!value->is_lhs);
-			values.push_back(value);
-		}
+		/* we track both LHS's and RHS's */
+		values.push_back(value);
 	} else {
 		assert(this->former_life != nullptr && "We found a track_in_life_form for a life_form that is not on the stack.");
 		this->former_life->track_var(builder, value, track_in_life_form);
@@ -134,31 +110,51 @@ std::string life_t::str() const {
 	return ss.str();
 }
 
-void call_addref_var(
+void call_refcount_func(
 		status_t &status,
-	   	llvm::IRBuilder<> &builder,
+		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-	   	bound_var_t::ref var)
+		bound_var_t::ref var,
+		std::string reason,
+		std::string function)
 {
 	if (!!status) {
 		assert(var != nullptr);
 
 		if (var->type->is_managed()) {
 			auto program_scope = scope->get_program_scope();
-			auto addref_function = program_scope->get_singleton({"__addref_var"});
-			life_t::ref life = make_ptr<life_t>(status, lf_statement, nullptr);
+			auto refcount_function = program_scope->get_singleton(function);
+
+			debug_above(4, log("calling refcounting function %s on var %s", function.c_str(),
+						var->str().c_str()));
+			bound_var_t::ref reason_var = bound_var_t::create(
+					INTERNAL_LOC(), "reason",
+					program_scope->get_bound_type({"__str__"}),
+					llvm_create_global_string(builder, reason),
+					make_iid("refcount_reason"),
+					false/*is_lhs*/);
+
+			auto life = make_ptr<life_t>(status, lf_statement, nullptr);
 			make_call_value(
 					status,
 					builder,
 					INTERNAL_LOC(),
 					scope,
 					life,
-					addref_function,
-					{var});
-			/* since addref_var returns a void, we can discard this life as it
-			 * won't have anything to clean up. */
+					refcount_function,
+					{var, reason_var});
+			/* since the refcount functions return a void, we can discard this
+			 * life as it won't have anything to clean up. */
 		}
 	}
+}
+
+void call_release_var(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, bound_var_t::ref var, std::string reason) {
+	call_refcount_func(status, builder, scope, var, reason, "__release_var");
+}
+
+void call_addref_var(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, bound_var_t::ref var, std::string reason) {
+	call_refcount_func(status, builder, scope, var, reason, "__addref_var");
 }
 
 void life_dump(ptr<const life_t> life) {

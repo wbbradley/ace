@@ -280,17 +280,18 @@ def str(l list{any T}?) str
 	return "[" + join(l, ", ") + "]"
 
 def join(l [any T], delim str) str
+	iter_l := l
 	s := ""
 	var seen_one __bool__ = __false__
 	while __true__
-		if node := l
+		if node := iter_l
 			if seen_one
 				s += delim
 			else
 				seen_one = __true__
 
 			s += str(node.value)
-			l = node.next
+			iter_l = node.next
 		else
 			break
 	return s

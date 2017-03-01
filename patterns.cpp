@@ -216,28 +216,31 @@ bound_var_t::ref ast::pattern_block_t::resolve_pattern_block(
 					merge_bb = llvm::BasicBlock::Create(builder.getContext(), "pattern.merge");
 
 					/* create the actual branch instruction */
-					llvm_create_if_branch(builder, llvm_condition_value, then_bb, else_bb);
+					llvm_create_if_branch(status, builder, scope,
+							0, nullptr, llvm_condition_value, then_bb, else_bb);
 
-					builder.SetInsertPoint(else_bb);
-					if (next_iter != end_iter) {
-						auto pattern_block_next = *next_iter;
-						pattern_block_next->resolve_pattern_block(status, builder,
-								value, value_name, scope, life,
-								&else_block_returns, ++next_iter, end_iter,
-								else_block);
-					} else {
-						else_block->resolve_instantiation(status, builder,
-								scope, life, nullptr, &else_block_returns);
-					}
+					if (!!status) {
+						builder.SetInsertPoint(else_bb);
+						if (next_iter != end_iter) {
+							auto pattern_block_next = *next_iter;
+							pattern_block_next->resolve_pattern_block(status, builder,
+									value, value_name, scope, life,
+									&else_block_returns, ++next_iter, end_iter,
+									else_block);
+						} else {
+							else_block->resolve_instantiation(status, builder,
+									scope, life, nullptr, &else_block_returns);
+						}
 
-					if (!else_block_returns) {
-						/* keep track of the fact that we have to have a
-						 * merged block to land in after the else block */
-						insert_merge_bb = true;
+						if (!else_block_returns) {
+							/* keep track of the fact that we have to have a
+							 * merged block to land in after the else block */
+							insert_merge_bb = true;
 
-						/* go ahead and jump there */
-						if (!builder.GetInsertBlock()->getTerminator()) {
-							builder.CreateBr(merge_bb);
+							/* go ahead and jump there */
+							if (!builder.GetInsertBlock()->getTerminator()) {
+								builder.CreateBr(merge_bb);
+							}
 						}
 					}
 				} else {
@@ -252,7 +255,8 @@ bound_var_t::ref ast::pattern_block_t::resolve_pattern_block(
 					merge_bb = llvm::BasicBlock::Create(builder.getContext(), "pattern.merge");
 
 					/* we don't have an else block, so we can just continue on */
-					llvm_create_if_branch(builder, llvm_condition_value, then_bb, merge_bb);
+					llvm_create_if_branch(status, builder, scope,
+							0, nullptr, llvm_condition_value, then_bb, merge_bb);
 				}
 
 				if (!!status) {

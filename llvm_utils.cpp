@@ -201,8 +201,11 @@ llvm::CallInst *llvm_create_call_inst(
 	/* make one last pass over the parameters before we make this call */
 	int index = 0;
 	for (auto &llvm_value : llvm_values) {
-		llvm::Value *llvm_arg = llvm_maybe_pointer_cast(builder, llvm_value, *param_iter);
-		// llvm_arg->setName(string_format("call.arg.%d", index));
+		llvm::Value *llvm_arg = llvm_maybe_pointer_cast(
+				builder,
+				llvm_value,
+				*param_iter);
+		llvm_arg->setName(string_format("call.arg.%d", index));
 
 		llvm_args.push_back(llvm_arg);
 
@@ -304,7 +307,11 @@ llvm::AllocaInst *llvm_create_entry_block_alloca(
 }
 
 void llvm_create_if_branch(
+		status_t &status,
 	   	llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		int iff,
+		life_t::ref life,
 	   	llvm::Value *llvm_value,
 	   	llvm::BasicBlock *then_bb,
 	   	llvm::BasicBlock *else_bb)
@@ -324,6 +331,39 @@ void llvm_create_if_branch(
 	}
 
 	assert(llvm_value->getType()->isIntegerTy(1));
+
+	llvm::Function *llvm_function_current = llvm_get_function(builder);
+
+	if (iff & IFF_ELSE) {
+		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+		llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
+				builder.getContext(), "else.release", llvm_function_current);
+		builder.SetInsertPoint(release_block_bb);
+		life->release_vars(status, builder, scope, lf_statement);
+
+		assert(!builder.GetInsertBlock()->getTerminator());
+		builder.CreateBr(else_bb);
+
+		/* trick the code below to jumping to this release guard block */
+		else_bb = release_block_bb;
+	}
+
+	if (iff & IFF_THEN) {
+		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+		llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
+				builder.getContext(), "then.release", llvm_function_current);
+		builder.SetInsertPoint(release_block_bb);
+		life->release_vars(status, builder, scope, lf_statement);
+
+		assert(!builder.GetInsertBlock()->getTerminator());
+		builder.CreateBr(then_bb);
+
+		/* trick the code below to jumping to this release guard block */
+		then_bb = release_block_bb;
+	}
+
 	builder.CreateCondBr(llvm_value, then_bb, else_bb);
 }
 
@@ -636,16 +676,16 @@ llvm::Value *llvm_maybe_pointer_cast(
 
 llvm::Value *llvm_maybe_pointer_cast(
 		llvm::IRBuilder<> &builder,
-	   	llvm::Value *llvm_value,
-	   	const bound_type_t::ref &bound_type)
+		llvm::Value *llvm_value,
+		const bound_type_t::ref &bound_type)
 {
 	return llvm_maybe_pointer_cast(builder, llvm_value, bound_type->get_llvm_specific_type());
 }
 
 void explain(llvm::Type *llvm_type) {
 	indent_logger indent(6,
-		string_format("explain %s",
-			llvm_print(llvm_type).c_str()));
+			string_format("explain %s",
+				llvm_print(llvm_type).c_str()));
 
 	if (auto llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_type)) {
 		for (auto element: llvm_struct_type->elements()) {

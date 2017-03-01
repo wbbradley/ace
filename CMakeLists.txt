@@ -9,6 +9,8 @@ find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
+option(DETECT_MEMLEAKS "Detect memory leaks on every function return" ON)
+
 # Set your project compile flags.
 # E.g. if using the C++ header files
 # you will need to enable C++11 support
@@ -16,7 +18,12 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
-add_compile_options(-std=gnu++11 -g -O0)
+
+if(DETECT_MEMLEAKS)
+	set(memleak_flags -DZION_DETECT_MEMLEAKS)
+endif()
+
+add_compile_options(-std=gnu++11 -g -O0 ${memleak_flags})
 
 # add build steps for each of the runtime modules
 foreach(_rt_module
@@ -28,7 +35,7 @@ foreach(_rt_module
 
 	add_custom_command(
 		OUTPUT ${_rt_module}.llir
-		COMMAND clang -S -Wall -emit-llvm ${_rt_module}.c -o ${_rt_module}.llir
+		COMMAND clang -S -Wall -emit-llvm ${memleak_flags} ${_rt_module}.c -o ${_rt_module}.llir
 		DEPENDS ${_rt_module}.c)
 
 endforeach(_rt_module)

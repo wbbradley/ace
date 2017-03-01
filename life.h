@@ -55,7 +55,14 @@ private:
 
 void call_addref_var(
 		status_t &status,
-	   	llvm::IRBuilder<> &builder,
+		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-	   	bound_var_t::ref var);
+		bound_var_t::ref var,
+		std::string reason);
+void call_release_var(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		bound_var_t::ref var,
+		std::string reason);
 void life_dump(ptr<const life_t> life);

@@ -199,7 +199,8 @@ bound_var_t::ref type_check_bound_var_decl(
 						true /*is_lhs*/);
 
 				/* memory management */
-				call_addref_var(status, builder, scope, var_decl_variable);
+				call_addref_var(status, builder, scope, var_decl_variable,
+						string_format("variable %s initialization", symbol.c_str()));
 				life->track_var(builder, var_decl_variable, lf_block);
 
 				/* on our way out, stash the variable in the current scope */
@@ -441,7 +442,8 @@ function_scope_t::ref make_param_list_scope(
 			new_scope->put_bound_variable(status, param.first,
 					bound_var_t::create(INTERNAL_LOC(), param.first, param.second,
 						llvm_alloca, make_code_id(obj.param_list_decl->params[i++]->token),
-						true /*is_lhs*/));
+						// HACK
+						false /*is_lhs*/));
 			if (!status) {
 				break;
 			}
@@ -1082,84 +1084,90 @@ bound_var_t::ref ast::ternary_expr_t::resolve_instantiation(
 					builder.getContext(), "ternary.phi", llvm_function_current);
 
 			/* create the actual branch instruction */
-			llvm_create_if_branch(builder, llvm_raw_condition_value, then_bb, else_bb);
-
-			/* calculate the false path's value in the else block */
-			builder.SetInsertPoint(else_bb);
-			bound_var_t::ref false_path_value = when_false->resolve_instantiation(
-					status, builder, scope, life, nullptr, nullptr);
-
-			/* after calculation, the code should jump to the phi node's basic block */
-			builder.CreateBr(merge_bb);
+			llvm_create_if_branch(status, builder, scope, 0,
+					nullptr, llvm_raw_condition_value, then_bb, else_bb);
 
 			if (!!status) {
-				/* let's generate code for the "true-path" block */
-				builder.SetInsertPoint(then_bb);
-				llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
-						builder, scope, life, condition, condition_value);
+				/* calculate the false path's value in the else block */
+				builder.SetInsertPoint(else_bb);
+				bound_var_t::ref false_path_value = when_false->resolve_instantiation(
+						status, builder, scope, life, nullptr, nullptr);
+
+				/* after calculation, the code should jump to the phi node's basic block */
+				builder.CreateBr(merge_bb);
 
 				if (!!status) {
-					llvm::BasicBlock *truth_path_bb = then_bb;
-
-					if (llvm_bool_overload_value != nullptr) {
-						/* we've got a second condition to check, let's do it */
-						auto deep_then_bb = llvm::BasicBlock::Create(
-								builder.getContext(), "ternary.truthy.__bool__", llvm_function_current);
-
-						llvm_create_if_branch(builder, llvm_bool_overload_value,
-								deep_then_bb, else_bb ? else_bb : merge_bb);
-						builder.SetInsertPoint(deep_then_bb);
-
-						/* make sure the phi node knows to consider this deeper
-						 * block as the source of one of its possible inbound
-						 * values */
-						truth_path_bb = deep_then_bb;
-					}
-
-					/* get the bound_var for the truthy path */
-					bound_var_t::ref true_path_value = when_true->resolve_instantiation(
-							status, builder, if_scope ? if_scope : scope, life, nullptr, nullptr);
+					/* let's generate code for the "true-path" block */
+					builder.SetInsertPoint(then_bb);
+					llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
+							builder, scope, life, condition, condition_value);
 
 					if (!!status) {
-						bound_type_t::ref ternary_type;
-						if (true_path_value->type->get_llvm_specific_type() != false_path_value->type->get_llvm_specific_type()) {
-							/* the when_true and when_false values have different
-							 * types, let's create a sum type to represent this */
-							auto ternary_sum_type = type_sum_safe(status, {
-									true_path_value->type->get_type(),
-									false_path_value->type->get_type()});
+						llvm::BasicBlock *truth_path_bb = then_bb;
 
-							if (!!status) {
-								ternary_type = upsert_bound_type(status,
-										builder, scope, ternary_sum_type);
-							}
-						} else {
-							ternary_type = true_path_value->type;
+						if (llvm_bool_overload_value != nullptr) {
+							/* we've got a second condition to check, let's do it */
+							auto deep_then_bb = llvm::BasicBlock::Create(
+									builder.getContext(), "ternary.truthy.__bool__", llvm_function_current);
+
+							llvm_create_if_branch(status, builder, scope, 0,
+									nullptr, llvm_bool_overload_value,
+									deep_then_bb, else_bb ? else_bb : merge_bb);
+							builder.SetInsertPoint(deep_then_bb);
+
+							/* make sure the phi node knows to consider this deeper
+							 * block as the source of one of its possible inbound
+							 * values */
+							truth_path_bb = deep_then_bb;
 						}
 
 						if (!!status) {
-							builder.CreateBr(merge_bb);
-							builder.SetInsertPoint(merge_bb);
+							/* get the bound_var for the truthy path */
+							bound_var_t::ref true_path_value = when_true->resolve_instantiation(
+									status, builder, if_scope ? if_scope : scope, life, nullptr, nullptr);
 
-							llvm::PHINode *llvm_phi_node = llvm::PHINode::Create(
-									ternary_type->get_llvm_specific_type(),
-									2, "ternary.phi.node", merge_bb);
+							if (!!status) {
+								bound_type_t::ref ternary_type;
+								if (true_path_value->type->get_llvm_specific_type() != false_path_value->type->get_llvm_specific_type()) {
+									/* the when_true and when_false values have different
+									 * types, let's create a sum type to represent this */
+									auto ternary_sum_type = type_sum_safe(status, {
+											true_path_value->type->get_type(),
+											false_path_value->type->get_type()});
 
-							llvm_phi_node->addIncoming(llvm_maybe_pointer_cast(
-										builder, true_path_value->llvm_value, ternary_type),
-									truth_path_bb);
+									if (!!status) {
+										ternary_type = upsert_bound_type(status,
+												builder, scope, ternary_sum_type);
+									}
+								} else {
+									ternary_type = true_path_value->type;
+								}
 
-							llvm_phi_node->addIncoming(llvm_maybe_pointer_cast(
-										builder, false_path_value->llvm_value, ternary_type),
-									else_bb);
+								if (!!status) {
+									builder.CreateBr(merge_bb);
+									builder.SetInsertPoint(merge_bb);
 
-							return bound_var_t::create(
-									INTERNAL_LOC(),
-									{"ternary.value"},
-									ternary_type,
-									llvm_phi_node,
-									make_code_id(this->token),
-									false /* is_lhs */);
+									llvm::PHINode *llvm_phi_node = llvm::PHINode::Create(
+											ternary_type->get_llvm_specific_type(),
+											2, "ternary.phi.node", merge_bb);
+
+									llvm_phi_node->addIncoming(llvm_maybe_pointer_cast(
+												builder, true_path_value->llvm_value, ternary_type),
+											truth_path_bb);
+
+									llvm_phi_node->addIncoming(llvm_maybe_pointer_cast(
+												builder, false_path_value->llvm_value, ternary_type),
+											else_bb);
+
+									return bound_var_t::create(
+											INTERNAL_LOC(),
+											{"ternary.value"},
+											ternary_type,
+											llvm_phi_node,
+											make_code_id(this->token),
+											false /* is_lhs */);
+								}
+							}
 						}
 					}
 				}
@@ -1601,7 +1609,8 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 				llvm::Function::ExternalLinkage, function_name,
 				scope->get_llvm_module());
 
-		llvm::BasicBlock *llvm_block = llvm::BasicBlock::Create(builder.getContext(), "entry", llvm_function);
+		llvm::BasicBlock *llvm_block = llvm::BasicBlock::Create(
+				builder.getContext(), "entry", llvm_function);
 		builder.SetInsertPoint(llvm_block);
 
 		/* set up the mapping to this function for use in recursion */
@@ -1995,7 +2004,6 @@ bound_var_t::ref type_check_assignment(
 					rhs_var->str().c_str()));
 
 		if (lhs_var->is_lhs) {
-			// TODO: load and queue up a free of whatever the LHS is currently pointing at
 
 			unification_t unification = unify(
 					lhs_var->type->get_type(),
@@ -2004,16 +2012,27 @@ bound_var_t::ref type_check_assignment(
 			if (!!status) {
 				if (unification.result) {
 					if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(lhs_var->llvm_value)) {
-						life->track_var(builder, lhs_var, lf_statement);
+						/* ensure that whatever was being pointed to by this LHS
+						 * is released after this statement */
+						auto prior_lhs_value = bound_var_t::create(
+								INTERNAL_LOC(),
+								string_format("%s.old", lhs_var->name.c_str()),
+								lhs_var->type,
+								llvm_resolve_alloca(builder, llvm_alloca),
+								lhs_var->id, false /*is_lhs*/);
 
-						builder.CreateStore(llvm_resolve_alloca(builder, rhs_var->llvm_value), llvm_alloca);
-
-						// TODO: potential optimization to not addref this rhs,
-						// but rather to detect whether we can simply remove it
-						// from the list of values to release
+						builder.CreateStore(
+								llvm_maybe_pointer_cast(builder, rhs_var->llvm_value,
+									lhs_var->type->get_llvm_specific_type()),
+								llvm_alloca);
 
 						if (rhs_var->type->is_managed()) {
-							call_addref_var(status, builder, scope, rhs_var);
+							/* only bother addref/release if these are different
+							 * things */
+							if (rhs_var->llvm_value != prior_lhs_value->llvm_value) {
+								call_addref_var(status, builder, scope, rhs_var, "addref after assignment");
+								call_release_var(status, builder, scope, prior_lhs_value, "release after assignment");
+							}
 						}
 
 						return lhs_var;
@@ -2026,7 +2045,7 @@ bound_var_t::ref type_check_assignment(
 				}
 			}
 		} else {
-			user_error(status, location, "left-hand side of assignment is not mutable");
+			user_error(status, location, "left-hand side of assignment is immutable");
 		}
 	}
 
@@ -2201,7 +2220,7 @@ bound_var_t::ref ast::return_statement_t::resolve_instantiation(
 				nullptr, nullptr);
 
 		/* addref this return value on behalf of the caller */
-		call_addref_var(status, builder, scope, return_value);
+		call_addref_var(status, builder, scope, return_value, "return statement");
 
         if (!!status) {
             /* get the type suggested by this return value */
@@ -2386,60 +2405,65 @@ bound_var_t::ref ast::while_block_t::resolve_instantiation(
 
 				/* generate some new blocks */
 				llvm::BasicBlock *while_block_bb = llvm::BasicBlock::Create(builder.getContext(), "while.block", llvm_function_current);
-				llvm::BasicBlock *while_end_bb = nullptr;
-
-				/* put the merge block after the while block */
-				while_end_bb = llvm::BasicBlock::Create(builder.getContext(), "while.end");
+				llvm::BasicBlock *while_end_bb = llvm::BasicBlock::Create(builder.getContext(), "while.end");
 
 				/* keep track of the "break" and "continue" jump locations */
 				loop_tracker_t loop_tracker(dyncast<runnable_scope_t>(scope), while_cond_bb, while_end_bb);
 
 				/* we don't have an else block, so we can just continue on */
-				llvm_create_if_branch(builder, llvm_raw_condition_value, while_block_bb, while_end_bb);
+				llvm_create_if_branch(status, builder, scope,
+						IFF_ELSE, cond_life, llvm_raw_condition_value,
+						while_block_bb, while_end_bb);
 
 				if (!!status) {
+					assert(builder.GetInsertBlock()->getTerminator());
+
 					/* let's generate code for the "then" block */
 					builder.SetInsertPoint(while_block_bb);
+					assert(!builder.GetInsertBlock()->getTerminator());
 
 					llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
-							builder, scope, life, condition, condition_value);
+							builder, scope, cond_life, condition, condition_value);
 
 					if (!!status) {
 						if (llvm_bool_overload_value != nullptr) {
 							/* we've got a second condition to check, let's do it */
-							auto deep_while_bb = llvm::BasicBlock::Create(builder.getContext(), "deep-while", llvm_function_current);
+							auto deep_while_bb = llvm::BasicBlock::Create(builder.getContext(),
+									"deep-while", llvm_function_current);
 
-							llvm_create_if_branch(builder, llvm_bool_overload_value,
-									deep_while_bb, while_end_bb);
+							llvm_create_if_branch(status, builder, scope,
+									IFF_BOTH, cond_life,
+									llvm_bool_overload_value, deep_while_bb,
+									while_end_bb);
 							builder.SetInsertPoint(deep_while_bb);
+						} else {
+							cond_life->release_vars(status, builder, scope, lf_statement);
 						}
-					}
 
-					/* before we run the block, let's release the condition
-					 * expression's values */
-					cond_life->release_vars(status, builder, scope, lf_statement);
+						if (!!status) {
+							block->resolve_instantiation(status, builder,
+									while_scope ? while_scope : scope, life, nullptr,
+									nullptr);
 
-					block->resolve_instantiation(status, builder,
-							while_scope ? while_scope : scope, life, nullptr,
-							nullptr);
+							/* the loop can't store values */
+							assert(life->values.size() == 0 && life->life_form == lf_loop);
 
-					/* the loop can't store values */
-					assert(life->values.size() == 0 && life->life_form == lf_loop);
+							if (!!status) {
+								if (!builder.GetInsertBlock()->getTerminator()) {
+									builder.CreateBr(while_cond_bb);
+								}
+								builder.SetInsertPoint(while_end_bb);
 
-					if (!!status) {
-						if (!builder.GetInsertBlock()->getTerminator()) {
-							builder.CreateBr(while_cond_bb);
+								/* we know we'll need to fall through to the merge
+								 * block, let's add it to the end of the function
+								 * and let's set it as the next insert point. */
+								llvm_function_current->getBasicBlockList().push_back(while_end_bb);
+								builder.SetInsertPoint(while_end_bb);
+
+								assert(!!status);
+								return nullptr;
+							}
 						}
-						builder.SetInsertPoint(while_end_bb);
-						
-						/* we know we'll need to fall through to the merge
-						 * block, let's add it to the end of the function
-						 * and let's set it as the next insert point. */
-						llvm_function_current->getBasicBlockList().push_back(while_end_bb);
-						builder.SetInsertPoint(while_end_bb);
-
-						assert(!!status);
-						return nullptr;
 					}
 				}
 			}
@@ -2529,27 +2553,27 @@ bound_var_t::ref ast::if_block_t::resolve_instantiation(
 
 			/* generate some new blocks */
 			llvm::BasicBlock *then_bb = llvm::BasicBlock::Create(builder.getContext(), "then", llvm_function_current);
-			llvm::BasicBlock *merge_bb = nullptr;
 
 			/* we have to keep track of whether we need a merge block
 			 * because our nested branches could all return */
 			bool insert_merge_bb = false;
 
-			llvm::BasicBlock *else_bb = nullptr;
-			if (else_ != nullptr) {
-				/* we've got an else block, so let's create an "else" basic block. */
-				else_bb = llvm::BasicBlock::Create(builder.getContext(), "else", llvm_function_current);
+			llvm::BasicBlock *else_bb = llvm::BasicBlock::Create(builder.getContext(), "else", llvm_function_current);
 
-				/* put the merge block after the else block */
-				merge_bb = llvm::BasicBlock::Create(builder.getContext(), "ifcont");
+			/* put the merge block after the else block */
+			llvm::BasicBlock *merge_bb = llvm::BasicBlock::Create(builder.getContext(), "ifcont");
 
-				/* create the actual branch instruction */
-				llvm_create_if_branch(builder, llvm_raw_condition_value, then_bb, else_bb);
+			/* create the actual branch instruction */
+			llvm_create_if_branch(status, builder, scope, IFF_ELSE, cond_life,
+					llvm_raw_condition_value, then_bb, else_bb);
 
+			if (!!status) {
 				builder.SetInsertPoint(else_bb);
 
-				else_->resolve_instantiation(status, builder, scope, life,
-						nullptr, &else_block_returns);
+				if (else_ != nullptr) {
+					else_->resolve_instantiation(status, builder, scope, life,
+							nullptr, &else_block_returns);
+				}
 
 				if (!else_block_returns) {
 					/* keep track of the fact that we have to have a
@@ -2561,67 +2585,56 @@ bound_var_t::ref ast::if_block_t::resolve_instantiation(
 						builder.CreateBr(merge_bb);
 					}
 				}
-			} else {
-				/* since there is no else block it cannot return */
-				else_block_returns = false;
-
-				/* keep track of the fact that we have to have a merged
-				 * block to land in after the if block */
-				insert_merge_bb = true;
-
-				/* put the merge block after the if block */
-				merge_bb = llvm::BasicBlock::Create(builder.getContext(), "ifcont");
-
-				/* we don't have an else block, so we can just continue on */
-				llvm_create_if_branch(builder, llvm_raw_condition_value, then_bb, merge_bb);
-			}
-
-			if (!!status) {
-				/* let's generate code for the "then" block */
-				builder.SetInsertPoint(then_bb);
-				llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
-						builder, scope, life, condition, condition_value);
 
 				if (!!status) {
-					if (llvm_bool_overload_value != nullptr) {
-						/* we've got a second condition to check, let's do it */
-						auto deep_then_bb = llvm::BasicBlock::Create(builder.getContext(), "deep-then", llvm_function_current);
+					/* let's generate code for the "then" block */
+					builder.SetInsertPoint(then_bb);
+					llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
+							builder, scope, cond_life, condition, condition_value);
 
-						llvm_create_if_branch(builder, llvm_bool_overload_value,
-								deep_then_bb, else_bb ? else_bb : merge_bb);
-						builder.SetInsertPoint(deep_then_bb);
-					}
-
-					/* free up the condition temporary variable */
-					cond_life->release_vars(status, builder, scope, lf_statement);
-
-					block->resolve_instantiation(status, builder,
-						   	if_scope ? if_scope : scope, life, nullptr, &if_block_returns);
 					if (!!status) {
-						if (!if_block_returns) {
-							insert_merge_bb = true;
-							if (!builder.GetInsertBlock()->getTerminator()) {
-								builder.CreateBr(merge_bb);
-							}
-							builder.SetInsertPoint(merge_bb);
-						}
+						if (llvm_bool_overload_value != nullptr) {
+							/* we've got a second condition to check, let's do it */
+							auto deep_then_bb = llvm::BasicBlock::Create(builder.getContext(), "deep-then", llvm_function_current);
 
-						if (insert_merge_bb) {
-							/* we know we'll need to fall through to the merge
-							 * block, let's add it to the end of the function
-							 * and let's set it as the next insert point. */
-							llvm_function_current->getBasicBlockList().push_back(merge_bb);
-							builder.SetInsertPoint(merge_bb);
-
-							/* free up the condition temporary variable */
+							llvm_create_if_branch(status, builder, scope,
+									IFF_THEN | IFF_ELSE, cond_life,
+									llvm_bool_overload_value, deep_then_bb,
+									else_bb ? else_bb : merge_bb);
+							builder.SetInsertPoint(deep_then_bb);
+						} else {
 							cond_life->release_vars(status, builder, scope, lf_statement);
 						}
 
-						/* track whether the branches return */
-						*returns |= (if_block_returns && else_block_returns);
+						if (!!status) {
+							block->resolve_instantiation(status, builder,
+									if_scope ? if_scope : scope, life, nullptr, &if_block_returns);
 
-						assert(!!status);
-						return nullptr;
+							if (!!status) {
+								if (!if_block_returns) {
+									insert_merge_bb = true;
+									if (!builder.GetInsertBlock()->getTerminator()) {
+										builder.CreateBr(merge_bb);
+									}
+									builder.SetInsertPoint(merge_bb);
+								}
+
+								if (insert_merge_bb) {
+									/* we know we'll need to fall through to the merge
+									 * block, let's add it to the end of the function
+									 * and let's set it as the next insert point. */
+									llvm_function_current->getBasicBlockList().push_back(merge_bb);
+									builder.SetInsertPoint(merge_bb);
+
+								}
+
+								/* track whether the branches return */
+								*returns |= (if_block_returns && else_block_returns);
+
+								assert(!!status);
+								return nullptr;
+							}
+						}
 					}
 				}
 			}

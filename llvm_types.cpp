@@ -585,8 +585,6 @@ llvm::Constant *llvm_dim_offset_gep(llvm::StructType *llvm_struct_type, int inde
 		llvm::ConstantInt::get(llvm_type_int32, 1),
 		llvm::ConstantInt::get(llvm_type_int32, index),
 	};
-	debug_above(6, explain(llvm_struct_type));
-
 	llvm::Constant *llvm_null_struct = llvm::Constant::getNullValue(llvm::PointerType::getUnqual(llvm_struct_type));
 
 	debug_above(6, log(log_info, "null struct is %s", llvm_print(llvm_null_struct).c_str()));
@@ -806,7 +804,9 @@ bound_var_t::ref get_or_create_tuple_ctor(
 										args[index],
 										llvm_param,
 										make_iid("ctor_dim_value"),
-										false /*is_lhs*/));
+										false /*is_lhs*/),
+									string_format("incrementing refcount of member %d on %s",
+										index, struct_type->str().c_str()));
 
 							if (!status) {
 								break;

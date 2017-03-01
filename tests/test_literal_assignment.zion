@@ -1,5 +1,5 @@
 module _
 
 def main()
-	# error: left-hand side of assignment is not mutable
+	# error: left-hand side of assignment is immutable
 	5 = 3

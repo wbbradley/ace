@@ -19,9 +19,6 @@ bound_var_t::ref make_call_value(
 	return create_callsite(
 			status, builder, scope, life, function,
 			"temp_call_value", INTERNAL_LOC(), arguments);
-
-	assert(!status);
-	return nullptr;
 }
 
 bound_var_t::ref instantiate_unchecked_fn(

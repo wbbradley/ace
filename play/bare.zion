@@ -1,7 +1,8 @@
 module _
 
-def main() __int__
-	x := 2
-	if x == 4
-		pass
-	return x.raw
+def foo(y [int])
+	print(y)
+
+def main()
+	var l [int] = list(1, nil)
+	foo(l)

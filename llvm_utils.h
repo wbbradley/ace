@@ -64,11 +64,25 @@ void llvm_verify_module(status_t &status, llvm::Module &llvm_module);
 /* llvm_wrap_type - wrap a normal data type in a managed var_t from the GC */
 llvm::Type *llvm_wrap_type(llvm::IRBuilder<> &builder, program_scope_t::ref program_scope, atom data_name, llvm::Type *llvm_data_type);
 
+/* flags for llvm_create_if_branch that tell it whether to invoke release_vars
+ * for either branch */
+
+struct life_t;
+
+#define IFF_THEN 1
+#define IFF_ELSE 2
+#define IFF_BOTH (IFF_ELSE | IFF_THEN)
+
 void llvm_create_if_branch(
-	   	llvm::IRBuilder<> &builder,
-	   	llvm::Value *llvm_value,
-	   	llvm::BasicBlock *then_bb,
-	   	llvm::BasicBlock *else_bb);
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		int iff,
+		ptr<life_t> life,
+		llvm::Value *llvm_value,
+		llvm::BasicBlock *then_bb,
+		llvm::BasicBlock *else_bb);
+
 llvm::Type *llvm_deref_type(llvm::Type *llvm_pointer_type);
 bound_var_t::ref llvm_start_function(
 		status_t &status,
@@ -82,9 +96,11 @@ bound_var_t::ref llvm_start_function(
 
 bound_var_t::ref llvm_create_global_tag(
 		llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
+		scope_t::ref scope,
 		bound_type_t::ref tag_type,
 		atom tag,
 		identifier::ref id);
 
+// NOTE: the explain function is a tool to learn about LLVM types, it does not
+// handle cyclic types, so it should only be used for debugging.
 void explain(llvm::Type *llvm_type);

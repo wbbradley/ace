@@ -535,8 +535,8 @@ void add_globals(
 			{"__type_id_eq_type_id", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 			{"__int__", llvm_module_typeid, "__type_id_int", {TYPEID_TYPE}, INT_TYPE},
 
-			{"__addref_var", llvm_module_ref, "addref_var", {"__var_ref"}, "void"},
-			{"__release_var", llvm_module_ref, "release_var", {"__var_ref"}, "void"},
+			{"__addref_var", llvm_module_ref, "addref_var", {"__var_ref", STR_TYPE}, "void"},
+			{"__release_var", llvm_module_ref, "release_var", {"__var_ref", STR_TYPE}, "void"},
 			{"__mem_alloc", llvm_module_ref, "mem_alloc", {INT_TYPE}, "__bytes"},
 			{"__create_var", llvm_module_ref, "create_var", {"__type_info_ref"}, "__var_ref"},
 			{"__get_var_type_id", llvm_module_ref, "get_var_type_id", {"__var_ref"}, TYPEID_TYPE},
