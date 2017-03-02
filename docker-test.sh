@@ -17,4 +17,4 @@ docker run \
 	-v `pwd`:/opt/zion \
 	--privileged \
 	-it $IMAGE:$VERSION \
-	./build-and-run-tests.sh
+	./make-and-run-tests.sh
