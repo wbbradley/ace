@@ -61,6 +61,9 @@ type int has
 def int(x int) int
 	return x
 
+def int(x float) int
+	return int(__int__(x.raw))
+
 def str(x int) str
 	return str(__str__(x.raw))
 

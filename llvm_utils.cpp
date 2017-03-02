@@ -62,7 +62,7 @@ llvm::Value *llvm_create_int32(llvm::IRBuilder<> &builder, int32_t value) {
 	return builder.getInt32(value);
 }
 
-llvm::Value *llvm_create_float(llvm::IRBuilder<> &builder, float value) {
+llvm::Value *llvm_create_double(llvm::IRBuilder<> &builder, double value) {
 	return llvm::ConstantFP::get(builder.getContext(), llvm::APFloat(value));
 }
 

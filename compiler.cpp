@@ -343,8 +343,8 @@ void add_global_types(
 		{{FLOAT_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(FLOAT_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getFloatTy())},
+					INTERNAL_LOC(),
+					builder.getDoubleTy())},
 		{{BOOL_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(BOOL_TYPE)),
@@ -710,7 +710,7 @@ int compiler_t::emit_built_program(status_t &status, std::string executable_file
 		int ret = system(ss.str().c_str());
 		if (ret == 0) {
 			ss.str("");
-			ss << clang_bin << " -lc -Wno-override-module -Wall -O0 -mcx16 -pthread ";
+			ss << clang_bin << " -lc -lm -Wno-override-module -Wall -O0 -mcx16 -pthread ";
 			ss << bitcode_filename << " -o " << executable_filename;
 
 			/* compile the bitcode into a local machine executable */

@@ -7,4 +7,4 @@ link def malloc(cb __int__) __bytes
 link def free(pb __bytes) __bytes
 link def calloc(cb __int__, size __int__) __bytes
 link def strdup(s __str__) __str__
-
+link def sqrt(x __float__) __float__

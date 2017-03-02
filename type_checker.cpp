@@ -2913,7 +2913,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
 		break;
 	case tk_float:
 		{
-			float value = atof(token.text.c_str());
+			double value = atof(token.text.c_str());
 			bound_type_t::ref raw_type = program_scope->get_bound_type({FLOAT_TYPE});
 			bound_type_t::ref boxed_type = upsert_bound_type(
 					status,
@@ -2942,7 +2942,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
 							get_location(),
 							{bound_var_t::create(
 									INTERNAL_LOC(), "temp_float_literal", boxed_type,
-									llvm_create_float(builder, value),
+									llvm_create_double(builder, value),
 									make_code_id(token), false/*is_lhs*/)});
 				}
 			}

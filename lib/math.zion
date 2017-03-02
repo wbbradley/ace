@@ -1,4 +1,5 @@
 module math @1.0
+link module posix
 
 type Complex has
 	var real float
@@ -23,6 +24,10 @@ def __times__(a Complex, b Complex) Complex
 [module any]
 def __plus__(a Complex, b Complex) Complex
 	return Complex(a.real + b.real, a.imag + b.imag)
+
+[module any]
+def sqrt(f float) float
+	return float(posix.sqrt(f.raw))
 
 def rounded_tenth(x int) int
 	return (x + 5) / 10
