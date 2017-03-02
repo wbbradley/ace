@@ -397,6 +397,7 @@ function_scope_t::ref make_param_list_scope(
 		llvm::IRBuilder<> &builder,
 		const ast::function_decl_t &obj,
 		scope_t::ref &scope,
+		life_t::ref life,
 		bound_var_t::ref function_var,
 		bound_type_t::named_pairs params)
 {
@@ -408,6 +409,7 @@ function_scope_t::ref make_param_list_scope(
 	 * order to prevent those type names from being visible within the function.
 	 */
 	assert(!!status);
+	assert(life->life_form == lf_function);
 
 	if (!!status) {
 		auto new_scope = scope->new_function_scope(
@@ -438,12 +440,23 @@ function_scope_t::ref make_param_list_scope(
 						llvm_print(llvm_param).c_str()));
 			builder.CreateStore(llvm_param, llvm_alloca);	
 
-			/* add the parameter argument to the current scope */
-			new_scope->put_bound_variable(status, param.first,
-					bound_var_t::create(INTERNAL_LOC(), param.first, param.second,
-						llvm_alloca, make_code_id(obj.param_list_decl->params[i++]->token),
-						// HACK
-						false /*is_lhs*/));
+			auto param_var = bound_var_t::create(INTERNAL_LOC(), param.first, param.second,
+					llvm_alloca, make_code_id(obj.param_list_decl->params[i++]->token),
+					true /*is_lhs*/);
+
+			// TODO: an easy optimization here (to avoid the addref/release
+			// overhead would be to check whether this symbol is on the LHS of
+			// any assignment operations within this function AST's body. For
+			// now, we'll be safe.
+			call_addref_var(status, builder, scope, param_var, "function parameter lifetime");
+
+			if (!!status) {
+				life->track_var(builder, param_var, lf_function);
+
+				/* add the parameter argument to the current scope */
+				new_scope->put_bound_variable(status, param.first, param_var);
+			}
+
 			if (!status) {
 				break;
 			}
@@ -1622,7 +1635,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		 * code will also run for generics but only after the
 		 * sbk_generic_substitution mechanism has run its course. */
 		auto params_scope = make_param_list_scope(status, builder, *decl, scope,
-				function_var, args);
+				life, function_var, args);
 
 		/* now put this function declaration into the containing scope in case
 		 * of indirect recursion */
@@ -1679,7 +1692,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 						/* if this is a void let's give the user a break and insert
 						 * a default void return */
 
-						// TODO: release live variables in scope
+						life->release_vars(status, builder, scope, lf_function);
 						builder.CreateRetVoid();
 						return function_var;
 					} else {

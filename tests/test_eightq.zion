@@ -60,8 +60,7 @@ def append_if_not_under_attack(new_solutions [[Pos]], col, row, solutions [[Pos]
 		maybe_solution := nth(solutions, i)
 		if solution := maybe_solution
 			if not under_attack(Pos(col, row), solution)
-				new_solutions = conj(new_solutions,
-					conj(solution, Pos(col, row)))
+				new_solutions = conj(new_solutions, conj(solution, Pos(col, row)))
 		i += 1
 
 	return new_solutions
