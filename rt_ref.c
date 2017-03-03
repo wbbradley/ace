@@ -27,7 +27,7 @@ struct var_t {
 	/* and a ref-count of its own */
 	zion_int_t ref_count;
 
-#ifdef ZION_DETECT_MEMLEAKS
+#ifdef MEMORY_DEBUGGING
 	int64_t allocation;
 	struct var_t *next;
 	struct var_t *prev;
@@ -61,13 +61,17 @@ struct var_t *Example = (struct var_t *)&__tag_Example;
 
 
 static size_t _bytes_allocated = 0;
+#ifdef MEMORY_DEBUGGING
 static size_t _all_bytes_allocated = 0;
+#endif
 
 void *mem_alloc(zion_int_t cb) {
 	_bytes_allocated += cb;
+#ifdef MEMORY_DEBUGGING
 	_all_bytes_allocated += cb;
 	printf("memory allocation is at %ld %ld\n", _bytes_allocated,
 			_all_bytes_allocated);
+#endif
 
 	return calloc(cb, 1);
 }
@@ -75,8 +79,10 @@ void *mem_alloc(zion_int_t cb) {
 void mem_free(void *p, size_t cb) {
 	_bytes_allocated -= cb;
 	free(p);
+#ifdef MEMORY_DEBUGGING
 	printf("memory allocation is at %ld %ld\n", _bytes_allocated,
 			_all_bytes_allocated);
+#endif
 }
 
 const char *_zion_rt = "zion-rt: ";
@@ -91,7 +97,7 @@ const char *_zion_rt = "zion-rt: ";
 	} while (0)
 
 
-#ifdef ZION_DETECT_MEMLEAKS
+#ifdef MEMORY_DEBUGGING
 struct var_t head_var = {
 	.type_info = &__tag_type_info_Example,
 	.ref_count = 1,
@@ -99,7 +105,6 @@ struct var_t head_var = {
 	.next = 0,
 	.prev = 0,
 };
-#endif
 
 void check_node_existence(struct var_t *node, zion_bool_t should_exist) {
 	struct var_t *p = &head_var;
@@ -132,32 +137,37 @@ void check_node_existence(struct var_t *node, zion_bool_t should_exist) {
 		assert(!should_exist);
 	}
 }
+#endif
 
 void addref_var(struct var_t *var, const char *reason) {
+#ifdef MEMORY_DEBUGGING
 	printf("attempt to addref 0x08%lx because \"%s\"\n", (intptr_t)var, reason);
+#endif
+
 	if (var == 0) {
 		return;
 	} else if (var->type_info == 0) {
 		MEM_PANIC("attempt to addref a value with a null type_info", "", 111);
 	} else if (var->type_info->refs_count >= 0) {
+#ifdef MEMORY_DEBUGGING
 		check_node_existence(var, 1 /* should_exist */);
+#endif
 
 		++var->ref_count;
-#ifdef ZION_DETECT_MEMLEAKS
+
+#ifdef MEMORY_DEBUGGING
 		printf("addref %s #%ld 0x%08lx to (%ld)\n",
 				var->type_info->name,
 				var->allocation, (intptr_t)var, var->ref_count);
-#else
-		printf("addref %s 0x%08lx to (%ld)\n",
-				var->type_info->name,
-				(intptr_t)var, var->ref_count);
 #endif
 	} else {
+#ifdef MEMORY_DEBUGGING
 		printf("attempt to addref a singleton of type %s\n", var->type_info->name);
+#endif
 	}
 }
 
-#ifdef ZION_DETECT_MEMLEAKS
+#ifdef MEMORY_DEBUGGING
 void add_node(struct var_t *node) {
 	assert(node->ref_count == 1);
 
@@ -204,7 +214,7 @@ void remove_node(struct var_t *node) {
 	check_node_existence(node, 0 /* should_exist */);
 }
 
-#endif // ZION_DETECT_MEMLEAKS
+#endif // MEMORY_DEBUGGING
 
 void release_var(struct var_t *var, const char *reason) {
 	if (var == 0) {
@@ -213,54 +223,55 @@ void release_var(struct var_t *var, const char *reason) {
 
 	assert(var->type_info != 0);
 
+#ifdef MEMORY_DEBUGGING
 	printf("attempt to release var 0x%08lx because \"%s\"\n",
 			(intptr_t)var,
 			reason);
+#endif
 
 	if (var->type_info->refs_count >= 0) {
+#ifdef MEMORY_DEBUGGING
 		check_node_existence(var, 1 /* should_exist */);
+#endif
 
+		// TODO: eliminate this assertion at some higher optimization level
 		assert(var->ref_count > 0);
 
 		// TODO: atomicize for multi-threaded purposes
 		--var->ref_count;
 
-#ifdef ZION_DETECT_MEMLEAKS
+#ifdef MEMORY_DEBUGGING
 		printf("release %s #%ld 0x%08lx to (%ld)\n",
 				var->type_info->name, var->allocation, (intptr_t)var,
-				var->ref_count);
-#else
-		printf("release %s 0x%08lx to (%ld)\n",
-				var->type_info->name, (intptr_t)var,
 				var->ref_count);
 #endif
 
 		if (var->ref_count == 0) {
 			for (int16_t i = var->type_info->refs_count - 1; i >= 0; --i) {
 				struct var_t *ref = *(struct var_t **)(((char *)var) + var->type_info->ref_offsets[i]);
+#ifdef MEMORY_DEBUGGING
 				printf("recursively calling release_var on offset %ld of %s which is 0x%08lx\n",
 						(intptr_t)var->type_info->ref_offsets[i],
 						var->type_info->name,
 						(intptr_t)ref);
+#endif
 				release_var(ref, "release recursion");
 			}
 
-#ifdef ZION_DETECT_MEMLEAKS
+#ifdef MEMORY_DEBUGGING
 			printf("freeing %s #%ld 0x%08lx\n",
 					var->type_info->name,
 					var->allocation,
 					(intptr_t)var);
 			remove_node(var);
-#else
-			printf("freeing %s 0x%08lx\n",
-					var->type_info->name,
-					(intptr_t)var);
 #endif
 
 			mem_free(var, var->type_info->size);
 		}
 	} else {
+#ifdef MEMORY_DEBUGGING
 		printf("attempt to release a singleton of type %s\n", var->type_info->name);
+#endif
 	}
 }
 
@@ -277,7 +288,9 @@ type_id_t get_var_type_id(struct var_t *var) {
 	}
 }
 
+#ifdef MEMORY_DEBUGGING
 int64_t _allocation = 1;
+#endif
 
 struct var_t *create_var(struct type_info_t *type_info)
 {
@@ -285,13 +298,16 @@ struct var_t *create_var(struct type_info_t *type_info)
 	struct var_t *var = (struct var_t *)mem_alloc(type_info->size);
 	var->type_info = type_info;
 	var->ref_count = 1;
+
+#ifdef MEMORY_DEBUGGING
 	var->allocation = _allocation;
 	_allocation += 1;
-
-#ifdef ZION_DETECT_MEMLEAKS
-	add_node(var);
 #endif
 
+#ifdef MEMORY_DEBUGGING
+	add_node(var);
 	printf("creating %s #%ld 0x%08lx\n", type_info->name, var->allocation, (intptr_t)var);
+#endif
+
 	return var;
 }

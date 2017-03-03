@@ -9,18 +9,13 @@ find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-option(DETECT_MEMLEAKS "Detect memory leaks on every function return" ON)
-
-# Set your project compile flags.
-# E.g. if using the C++ header files
-# you will need to enable C++11 support
-# for your compiler.
+option(MEMORY_DEBUGGING "Track all allocations and spew to stdout about it" OFF)
 
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-if(DETECT_MEMLEAKS)
-	set(memleak_flags -DZION_DETECT_MEMLEAKS)
+if(MEMORY_DEBUGGING)
+	set(memleak_flags -DMEMORY_DEBUGGING)
 endif()
 
 add_compile_options(-std=gnu++11 -g -O0 ${memleak_flags})
