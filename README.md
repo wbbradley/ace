@@ -2,230 +2,169 @@
 
 [![Build Status](https://travis-ci.org/zionlang/zion.svg?branch=master)](https://travis-ci.org/zionlang/zion)
 
-“I think that it’s extraordinarily important that we in computer science keep
-fun in computing. When it started out, it was an awful lot of fun. Of course,
-the paying customers got shafted every now and then, and after a while we began
-to take their complaints seriously.  We began to feel as if we really were
-responsible for the successful, error-free perfect use of these machines. I
-don’t think we are. I think we’re responsible for stretching them, setting them
-off in new directions and keeping fun in the house. I hope the field of
-computer science never loses its sense of fun. Above all, I hope we don’t
-become missionaries. Don’t feel as if you’re Bible salesmen.  The world has too
-many of those already. What you know about computing other people will learn.
-Don’t feel as if the key to successful computing is only in your hands. What’s
-in your hands, I think and hope, is intelligence: the ability to see the
-machine as more than when you were first led up to it, that you can make it
-more.”
-	— Alan J. Perlis (April 1, 1922 – February 7, 1990)
-
-
-Zion is an imperative exploration of strong static polymorphic (optionally
-recursive) data types. Zion defaults all heap variables to an immutable state,
-where stack variables are mutable.
-
+Zion is a programming language. It is an imperative exploration of strong static
+polymorphic (optionally recursive) data types. Zion defaults all heap data to an
+immutable state, where variable names can be repointed to other values. This is
+similar to how Python treats its basic types, `int`, `str`, `float`, `bool`, but
+Zion extends this treatment to all types.
 
 ## Tenets
 
- - Avoid mutability at almost all costs
- - Multi-pass compilation into a single binary
+ - Keep it simple, when possible
+ - Keep it readable, when possible
+ - Keep it stateless, when possible. Avoid mutability. Gently nudge the
+   developer towards product and sum types when they are modeling stateful things.
+ - The ability to express complex domain relationships with static types is
+   critical
+ - Deterministic destruction is good
+ - Serialization and marshalling in general must be foremost in both the syntax
+   and the runtime
+ - Compile down to a copyable binary
  - No preprocessor
- - Explicit versioning directly in module code
- - Simple and mandatory code formatting tools
+ - In-proc parallelism is a non-goal, scaling is intended to happen at a higher
+   level
+ - Heavy compute problems are a non-goal, solve those problems at a lower level,
+   and use the FFI, or RPC to access those libraries/components. Generally
+   performance optimization is treated as an unwelcome afterthought. Favor
+   algorithms and horizontal scaling over bit twiddling.
 
 ## Notes
 
-### LLVM
-
-(MacOS)
-
-`llvm-link` takes a bunch of .ir modules and links them into a single bitcode
-binary. You can run a bitcode binary with `lli`.
+Zion looks a bit like Python:
 
 ```
-llvm-link-3.7 *.ir -o output.bc
-lli output.bc
+module hello_world
+
+def main()
+	print("Hello, world!")
 ```
 
+Here's an old friend:
 ```
-brew tap homebrew/boneyard
-brew install homebrew/versions/llvm37
-# add /usr/local/opt/llvm/bin to your path
+def fib(n int) int
+	if n <= 2
+		return 1
 
-# add these flags to the makefile
-# LDFLAGS:  -L/usr/local/opt/llvm/lib
-# CPPFLAGS: -I/usr/local/opt/llvm/include
-# or this to the clang++ command line
-llvm-config --cxxflags --ldflags --system-libs --libs core
+	return fib(n-1) + fib(n-2)
 ```
 
-#### More info on LLVM and Compilers is available at:
+Zion contains elements from ML's type system. Zion is strict, not lazy. It is
+compiled down to machine code using LLVM. Memory is managed using an extremely
+simplistic reference counting scheme. All data is immutable, therefore cycles
+are impossible, which eliminates the need for generational mark and sweep or
+"stop the world" garbage collection.
 
- - http://llvm.org/docs/index.html
- - http://llvm.org/docs/tutorial/LangImpl3.html
- - http://llvm.org/docs/GettingStarted.html
- - http://www.ibm.com/developerworks/library/os-createcompilerllvm1/
- - http://gnuu.org/2009/09/18/writing-your-own-toy-compiler/6/
- - https://en.wikipedia.org/wiki/Control_flow_graph
- - https://en.wikipedia.org/wiki/Compiler
- - https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form
- - https://en.wikipedia.org/wiki/Abstract_syntax_tree
- - https://en.wikipedia.org/wiki/Recursive_descent_parser
-
-#### Tools for BNF analysis and code generation.
-
- - http://www.nongnu.org/bnf/
+### TODO
+- [ ] discuss function overrides.
+- [ ] discuss callsite context types.
+- [ ] discuss future plans for safe dynamic dispatch.
+- [ ] discuss the std library layout.
 
 ## Syntax
 
-See `syntax.bnf`
+The Backus–Naur form for the syntax is in `syntax.ebnf`.
 
-TODO: use http://www.bottlecaps.de/rr/ui to make pretty diagrams
+## Type system
 
-## Type Theory and Generics
+Zion uses unification to match substitutable types at function callsites.
+Type inference is built-in.
 
- - http://julien.richard-foy.fr/blog/2013/02/21/be-friend-with-covariance-and-contravariance/
-
-## Debugging
-
- - http://www.bergel.eu/download/papers/Berg07d-debugger.pdf
-
-## Other ideas to explore:
-
- - https://en.wikipedia.org/wiki/Typed_lambda_calculus
-
-## Syscalls
-
-### Mac OS
-
- - http://www.opensource.apple.com/source/xnu/xnu-1504.3.12/bsd/kern/syscalls.master
-
-## Linux Notes
-
-### Ubuntu
+Types are declared as follows:
 
 ```
-sudo apt-get update
-sudo apt-get install
-	clang-3.6 \
-	llvm-3.6-tools \
-	llvm-3.6 \
-	lldb-3.6-dev \
-	llvm-3.6-runtime \
-	libllvm3.6-dbg \
-	libc++1
+# Declare a structure type (aka product type, aka "struct")
+type Vector2D has
+	var x float
+	var y float
+
+# Note the use of the word "has" after the type name. This signifies that the
+# Giraffe type "has" the succeeding "dimensions" of data associated with its
+# instances.
+type Giraffe has
+	var name str
+	var age int
+	var number_of_spots int
+
+type Gender is Male or Female
+
+type Lion has
+	var name str
+	var age int
+	var gender Gender
+
+type Mouse has
+	var fur_color str
+
+# tags are how you declare a global singleton enum values.
+
+tag Zion
+tag Yellowstone
+tag Yosemite
+
+type NationalPark is
+	Zion or
+	Yellowstone or
+	Yosemite
+
+type Bison has
+	var favorite_national_park NationalPark
+
+# Types are not limited to being included in only one sum type, they can be
+# included as subtypes of multiple supertypes. Note that Mouse is a possible
+# substitutable type for either AfricanAnimal, or NorthAmericanAnimal.
+
+type AfricanAnimal is
+	Lion or
+	Giraffe or
+	Mouse
+
+type NorthAmericanAnimal is
+	Mouse or
+	Bison
+```
+etc...
+
+Some examples of standard types are:
+```
+type bool is
+	true or
+	false
+
+# The squiggly braces are "type variables", they are not bound to the type until
+# an instance of the type is created by calling its implicit constructor. If the
+# "has" type contains 2 dimensions, then the generated constructor takes 2
+# parameters. The question-mark indicates that the preceding type is a "maybe"
+# type. This means that it can sometimes be nil. Zion will not let you
+# dereference nil pointers.
+
+type list{T} has
+	var value T
+	var next list{T}?
 ```
 
-OR on Debian
-
-```
-# edit /etc/apt/sources.list with deb packages from http://llvm.org/apt/
-apt-get update
-apt-get install \
-	git \
-	clang-3.7 \
-	clang-3.7-doc \
-	libclang-common-3.7-dev \
-	libclang-3.7-dev \
-	libclang1-3.7 \
-	libclang1-3.7-dbg \
-	libllvm-3.7-ocaml-dev \
-	libllvm3.7 \
-	libllvm3.7-dbg \
-	lldb-3.7 \
-	llvm-3.7 \
-	llvm-3.7-dev \
-	llvm-3.7-doc \
-	llvm-3.7-examples \
-	llvm-3.7-runtime \
-	clang-modernize-3.7 \
-	clang-format-3.7 \
-	python-clang-3.7 \
-	lldb-3.7-dev \
-	liblldb-3.7-dbg
-
-cd ~
-mkdir src
-cd src
-ssh-keygen -t rsa -b 4096 -C "latest droplet"
-cat ~/.ssh/id_rsa.pub 
-
-# copy the key to https://github.com/settings/ssh
-git clone git@github.com:zionlang/zion.git
-git config --global user.email "<your-email@example.com>"
-git config --global user.name "Firstname Lastname"
-```
-
-OR on Standard AMI
-```
-sudo yum update
-sudo yum install llvm-devel.x86_64 llvm-libs.x86_64 llvm.x86_64 clang.x86_64 git
-cd ~/.ssh
-ssh-keygen -t rsa -b 4096 -C "latest droplet"
-cat ~/.ssh/id_rsa.pub 
-```
-
-### Notes on type system
-
-New scopes contain:
-- Immutable Type environments
-- Variable references
-- Deferred actions
-  - Variable cleanup
+The bool and list types are declared in the standard library exactly as depicted
+above. See `lib/std.zion`.
 
 When a call to a function that takes a sum type unifies and there are still
 non-unified type terms, they will be substituted with the "unreachable" type
 (void).
 
-### Random areas to think about
-
- - RAII
- - Namespaces (besides modules)
- - Bubbling
-   - Like defer with exceptions but yields up to enclosing scope
- - Type decorators (think tags and an algebra that integrates with Liskov's
-   substitution principle but is multi-dimensional)
-   - ie: const in C++ but fully extensible
-
-There are types of abstractions beyond functions. The more practical of them
-correspond to giving or relinquishing control of logic in an inward or outward
-fashion. Examples of this are IoC and generators. Often it is useful to
-federate out the control, and, often it is best to maintain control internally
-in a single place. The core challenge of control flow abstraction of logic is
-to understand which of these poles the domain problem would most benefit from.
-When it seems too difficult to choose between one of the two poles, it's likely
-that we don't yet understand the problem space fully enough.
 
 ### TODO
 
-- Memory management scheme options
-  - ref counting since all data is immutable, there can be no cycles
-  - GC 1 - wrap creation and scope termination with shadow stack operations
-  - Rust style owning/borrowing semantics
-  - C style explicit allocation/free
-- Rework debug logging to filter based on taglevels, rather than just one global
-  level (to enable debugging particular parts more specifically)
-- Include runtime behavior in test suite (not just compilation errors)
-- Ternary operator
-  - Logical and/or (build with ternary operator)
-- fully implement binary as! -> T, as -> maybe{T}
-- figure out how to make tuples' runtime types typecheck consistently against
-  rtti for other data ctor types. probably have to put up some guardrails somehow
-- Use DIBuilder to add line-level debugging information
-- Builtin persistent data structures
-  - vector
-  - hash map
-  - binary tree
-  - avl tree
-- Plumb "desired type" through resolve_instantiation in order to influence
-  literals into being native by default, unless boxed by a "desired type"
-  - This quickly leads to complexity around the following scenario:
-	  def foo(x int)
-		  pass
-	  def foo(x __int__)
-		  pass
-	  foo(4)
-    where the '4' literal should get the type `int lazy-or __int__`, which then
-	allows it to resolve against both versions of `foo`. This would be an
-	ambiguity error. the `lazy-or` type is a lazily bound type that could cause
-	a bound_var to be automatically boxed at a callsite or assignment.
-
+- [x] Memory management scheme options
+ - [x] ref counting since all data is immutable, there can be no cycles
+ - [x] GC 1 - wrap creation and scope termination with shadow stack operations
+ - [ ] C style explicit allocation/free - this requires some explicit memory management affordances, such as `with` syntax to get deterministic destruction.
+- [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
+[x] Include runtime behavior in test suite (not just compilation errors)
+[x] Ternary operator
+  - [ ] Logical and/or (build with ternary operator)
+- [ ] fully implement binary as! -> T, as -> maybe{T}
+- [ ] figure out how to make tuples' runtime types typecheck consistently against rtti for other data ctor types. probably have to put up some guardrails somehow
+- [ ] Use DIBuilder to add line-level debugging information
+- [ ] Builtin persistent data structures
+  - [ ] vector
+  - [ ] hash map - looking into hash array map tries
+  - [ ] binary tree
+  - [ ] avl tree
