@@ -10,14 +10,15 @@ tag Baker
 type Athlete is Golfer or Baker
 
 def recognize(athlete Athlete)
-	when athlete is Golfer
-		if athlete.first == "Arnold"
-			if athlete.last == "Palmer"
-				print("RIP")
+	when athlete
+		is Golfer
+			if athlete.first == "Arnold"
+				if athlete.last == "Palmer"
+					print("RIP")
+				else
+					print("You are alive")
 			else
 				print("You are alive")
-		else
-			print("You are alive")
 	else
 		print("who are you?")
 

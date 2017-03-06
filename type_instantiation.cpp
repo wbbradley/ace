@@ -209,8 +209,8 @@ types::type_t::ref instantiate_data_ctor_type(
 
 			/* let's create the return type (an unexpanded operator) that will be the codomain of the ctor fn. */
 			auto ctor_return_type = tag_type;
-			for (auto lambda_var : lambda_vars) {
-				ctor_return_type = type_operator(ctor_return_type, type_variable(lambda_var));
+			for (auto lambda_var_iter = lambda_vars.rbegin(); lambda_var_iter != lambda_vars.rend(); ++lambda_var_iter) {
+				ctor_return_type = type_operator(ctor_return_type, type_variable(*lambda_var_iter));
 			}
 
 			/* for now assume all ctors return refs */

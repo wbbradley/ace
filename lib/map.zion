@@ -1,0 +1,101 @@
+module map
+
+type Map{K, V} has
+	var left Map{K, V}?
+	var key K
+	var value V
+	var right Map{K, V}?
+
+def upsert(map Map{any K, any V}?, key any K, value any V) Map{any K, any V}
+	if map
+		if key > map.key
+			inserted_right := upsert(map.right, key, value)
+			if inserted_right is map.right
+				# this key already exists, just return the existing map
+				return map
+			else
+				return Map(map.left, map.key, map.value, inserted_right)
+
+		elif map.key > key
+			inserted_left := upsert(map.left, key, value)
+			if inserted_left is map.left
+				# this key already exists, just return the existing map
+				return map
+			else
+				return Map(inserted_left, map.key, map.value, map.right)
+
+		else
+			# this key already exists, just return the existing map
+			if value is value
+				if key is key
+					# we have this exact 
+					return map
+			return Map(map.left, key, value, map.right)
+
+	else
+		return Map(nil, key, value, nil)
+
+[module any]
+def str(map Map{any K, any V}) str
+	s := "{"
+	sep := ""
+	comma := ", "
+	if map
+		if left := map.left
+			s += str(left)
+			sep = comma
+		s += sep
+		s += str(map.key)
+		s += ": "
+		s += str(map.value)
+		sep = comma
+		if right := map.right
+			s += sep
+			s += str(right)
+	s += "}"
+	return s
+
+type MapIter{K, V} has
+	var stack [Map{K,V}]
+	var next_move MapNextMove
+
+tag InOrder
+tag MapIterPop
+tag MapIterPush
+tag Stop
+
+type MapNextMove is
+	InOrder or
+	MapIterPop or
+	Stop
+
+def iter(map Map{any K, any V}?) MapIter{any K, any V}
+	if map
+		if map.left
+			# Place the root node on the stack
+			var stack [Map{any K, any V}]
+
+			while true
+				if left := map.left
+					stack = list(map, stack)
+					map = left
+				else
+					break
+			return MapIter(stack, InOrder)
+		else
+			return MapIter(list(map, nil), InOrder)
+	else
+		return MapIter(nil as list{Map{any K, any V}}?, Stop)
+
+
+def next(map_iter MapIter{any K, any V}) {any K, any V, MapIter{any K, any V}}
+	var map_node Map{any K, any V}?
+	next_move := map_iter.next_move
+	when next_move
+		is InOrder
+			if stack := map_iter.stack
+				map_node = stack.value
+			else
+				assert(false)
+
+	return (3, "hey", map_iter)

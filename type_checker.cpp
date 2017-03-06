@@ -714,7 +714,8 @@ bound_var_t::ref ast::reference_expr_t::resolve_instantiation(
 	/* we wouldn't be referencing a variable name here unless it was unique
 	 * override resolution only happens on callsites, and we don't allow
 	 * passing around unresolved overload references */
-	bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(), token.text);
+	bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(),
+			token.text);
 
 	if (!var) {
 		user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
@@ -878,6 +879,79 @@ bound_var_t::ref type_check_binary_operator(
 	return nullptr;
 }
 
+bound_var_t::ref type_check_binary_equality(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		ptr<const ast::expression_t> lhs,
+		ptr<const ast::expression_t> rhs,
+		ast::item_t::ref obj,
+		bool negated)
+{
+	if (!!status) {
+		bound_var_t::ref lhs_var, rhs_var;
+		lhs_var = lhs->resolve_instantiation(status, builder, scope, life,
+				nullptr, nullptr);
+		if (!!status) {
+			rhs_var = rhs->resolve_instantiation(status, builder, scope, life,
+					nullptr, nullptr);
+
+			if (!!status) {
+				unification_t unification_rtl = unify(
+					lhs_var->type->get_type(),
+					rhs_var->type->get_type(),
+					scope->get_typename_env());
+
+				if (!unification_rtl.result) {
+					unification_t unification_ltr = unify(
+						rhs_var->type->get_type(),
+						lhs_var->type->get_type(),
+						scope->get_typename_env());
+
+					if (!unification_ltr.result) {
+						user_error(status, obj->get_location(),
+								   "these two expressions cannot possibly refer to the same value");
+						user_message(log_info, status, obj->get_location(), "%s is of type %s, %s is of type %s",
+									 lhs->str().c_str(),
+									 lhs_var->type->get_type()->str().c_str(),
+									 rhs->str().c_str(),
+									 rhs_var->type->get_type()->str().c_str());
+						return nullptr;
+					}
+				}
+
+				if (lhs_var->type->is_managed()) {
+					assert(rhs_var->type->is_managed());
+					auto program_scope = scope->get_program_scope();
+					auto llvm_var_ref_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
+					llvm::Value *llvm_value = negated
+						? builder.CreateICmpNE(
+							llvm_maybe_pointer_cast(builder, lhs_var->llvm_value, llvm_var_ref_type),
+							llvm_maybe_pointer_cast(builder, rhs_var->llvm_value, llvm_var_ref_type))
+						: builder.CreateICmpEQ(
+							llvm_maybe_pointer_cast(builder, lhs_var->llvm_value, llvm_var_ref_type),
+							llvm_maybe_pointer_cast(builder, rhs_var->llvm_value, llvm_var_ref_type));
+
+					return bound_var_t::create(
+						INTERNAL_LOC(),
+						{"equality.cond"},
+						program_scope->get_bound_type(BOOL_TYPE),
+						llvm_value,
+						make_code_id(obj->token),
+						false /* is_lhs */);
+				} else {
+					// TODO: consider enabling comparison of raw pointers?
+					user_error(status, obj->get_location(),
+							   "comparing identities of native values is not yet implemented");
+				}
+			}
+		}
+	}
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref ast::eq_expr_t::resolve_instantiation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -894,6 +968,9 @@ bound_var_t::ref ast::eq_expr_t::resolve_instantiation(
 	case tk_inequal:
 		function_name = "__ineq__";
 		break;
+	case tk_is:
+		return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
+										  shared_from_this(), negated);
 	default:
 		return null_impl();
 	}
@@ -1244,7 +1321,7 @@ bound_type_t::ref eval_to_bound_struct_ref(
 		return bound_expansion;
 	} else {
 		user_error(status, node->get_location(),
-				"maybe type %s cannot be dereferenced. todo implement ?.",
+				"type %s could not be expanded",
 				bound_type->str().c_str());
 	}
 
@@ -1362,6 +1439,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_instantiation(
         local_scope_t::ref *new_scope,
 		bool *returns) const
 {
+	debug_above(6, log("resolving dot_expr %s", str().c_str()));
 	bound_var_t::ref lhs_val = lhs->resolve_instantiation(status,
 			builder, scope, life, nullptr, nullptr);
 
@@ -1370,8 +1448,27 @@ bound_var_t::ref ast::dot_expr_t::resolve_instantiation(
 		types::type_t::ref member_type;
 
 		if (!!status) {
-			return extract_member_variable(status, builder, scope, life,
-					shared_from_this(), lhs_val, rhs.text, bound_type);
+			if (bound_type->is_module()) {
+				std::string qualified_id = string_format("%s%s%s",
+						lhs_val->name.c_str(),
+						SCOPE_SEP,
+						rhs.text.c_str());
+				debug_above(5,
+						log("attempt to find global id %s",
+							qualified_id.c_str()));
+				auto var = scope->get_bound_variable(status, shared_from_this(),
+						qualified_id);
+				if (var != nullptr) {
+					return var;
+				} else {
+					user_error(status, get_location(),
+							"could not find symbol %s",
+							qualified_id.c_str());
+				}
+			} else {
+				return extract_member_variable(status, builder, scope, life,
+						shared_from_this(), lhs_val, rhs.text, bound_type);
+			}
 		}
 	}
 

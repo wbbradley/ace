@@ -57,6 +57,17 @@ bound_type_t::ref create_bound_ref_type(
 
 	assert(!scope->get_bound_type(ref_type->get_signature()));
 
+	atom::set ftvs = ref_type->get_ftvs();
+	if (ftvs.size() != 0) {
+		user_error(status, ref_type->get_location(),
+				"unable to instantiate type %s because free variables [%s] still exist",
+				ref_type->str().c_str(),
+				join_with(ftvs, ", ", [] (atom a) -> std::string {
+					return string_format(c_id("%s"), a.c_str());
+					}).c_str());
+		return nullptr;
+	}
+
 	/* get the element type's bound type, if it exists */
 	bound_type_t::ref bound_type = scope->get_bound_type(ref_type->element_type->get_signature());
 

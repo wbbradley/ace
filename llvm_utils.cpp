@@ -118,13 +118,14 @@ bound_var_t::ref create_callsite(
 		bound_var_t::refs arguments)
 {
 	if (!!status) {
-		debug_above(5, log(log_info, "create_callsite is assuming %s is compatible with %s\n%s",
+		debug_above(5, log(log_info, "create_callsite is assuming %s is compatible with %s",
 					function->get_type()->str().c_str(),
-					str(arguments).c_str(),
-					llvm_print_function(static_cast<llvm::Function *>(function->llvm_value)).c_str()));
+					str(arguments).c_str()));
 		debug_above(5, log(log_info, "calling function " c_id("%s") " with type %s",
 					function->name.c_str(),
 					llvm_print(function->llvm_value->getType()).c_str()));
+		debug_above(9, log(log_info, "function looks like this %s\n",
+					llvm_print_function(static_cast<llvm::Function *>(function->llvm_value)).c_str()));
 
 		/* downcast the arguments as necessary to var_t * */
 		types::type_function_t::ref function_type = dyncast<const types::type_function_t>(function->get_type());

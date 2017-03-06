@@ -1,6 +1,7 @@
 module _
 link module posix
 link module math
+link module map
 
 tag false
 tag true

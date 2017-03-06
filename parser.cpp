@@ -537,18 +537,27 @@ ptr<expression_t> eq_expr_t::parse(parse_state_t &ps) {
 			not_in = true;
 		}
 
+		// TODO: consider breaking in and is out to a higher priority level
 		if (ps.line_broke() ||
 				!(ps.token.tk == tk_in
 					|| ps.token.tk == tk_equal
-					|| ps.token.tk == tk_inequal)) {
+					|| ps.token.tk == tk_inequal
+					|| ps.token.tk == tk_is)) {
 			/* there is no rhs */
 			return lhs;
 		}
 
 		auto eq_expr = create<ast::eq_expr_t>(ps.token);
-		eq_expr->not_in = not_in;
-
 		eat_token();
+
+		if (ps.token.tk == tk_not && eq_expr->token.tk == tk_is) {
+			eq_expr->negated = true;
+			ps.advance();
+		}
+
+		if (not_in) {
+			eq_expr->negated = true;
+		}
 
 		auto rhs = ineq_expr_t::parse(ps);
 		if (rhs) {
@@ -905,32 +914,26 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 	auto value = expression_t::parse(ps);
 	if (!!ps.status) {
 		when_block->value.swap(value);
-		if (ps.token.tk == tk_indent) {
-			/* this is a multi_pattern_block */
-			chomp_token(tk_indent);
-			while (ps.token.tk == tk_is) {
-				auto pattern_block = pattern_block_t::parse(ps);
-				if (!!ps.status) {
-					when_block->pattern_blocks.push_back(pattern_block);
-				}
-			}
-			chomp_token(tk_outdent);
-			if (ps.token.tk == tk_else) {
-				ps.advance();
-				when_block->else_block = block_t::parse(ps);
-			}
-		} else {
-			/* this is a single_pattern_block */
+
+		/* this is a multi_pattern_block */
+		chomp_token(tk_indent);
+		while (ps.token.tk == tk_is) {
 			auto pattern_block = pattern_block_t::parse(ps);
-			when_block->pattern_blocks.push_back(pattern_block);
-			if (ps.token.tk == tk_else) {
-				ps.advance();
-				when_block->else_block = block_t::parse(ps);
+			if (!!ps.status) {
+				when_block->pattern_blocks.push_back(pattern_block);
 			}
 		}
+
+		chomp_token(tk_outdent);
+		if (ps.token.tk == tk_else) {
+			ps.advance();
+			when_block->else_block = block_t::parse(ps);
+		}
+
 		if (when_block->pattern_blocks.size() == 0) {
 			ps.error("when block did not have subsequent patterns to match");
 		}
+
 		return when_block;
 	} else {
 		assert(!ps.status);
@@ -986,6 +989,9 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 					ps.token.tk == tk_identifier)
 			{
 				function_decl->return_type = parse_maybe_type(ps, {}, {}, {});
+				debug_above(6, log("parsed function return type %s at %s",
+								   function_decl->return_type->str().c_str(),
+								   ps.token.str().c_str()));
 			}
 
 			return function_decl;
@@ -1250,7 +1256,7 @@ types::type_t::ref _parse_single_type(
 		break;
 	case tk_ref:
 		{
-		ps.advance();
+			ps.advance();
 			auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
 			if (!!ps.status) {
 				return ::type_ref(type);
@@ -1360,7 +1366,7 @@ types::type_t::ref _parse_single_type(
 			ps.advance();
 			types::type_t::refs arguments = parse_type_operands(ps, supertype_id, type_variables, generics);
 			// TODO: allow named members
-			return ::type_struct(arguments, {});
+			return ::type_ref(::type_struct(arguments, {}));
 		}
 		break;
 	default:

@@ -863,7 +863,7 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression_t> lhs, rhs;
-		bool not_in = false;
+		bool negated = false;
 	};
 
 	struct ineq_expr_t : public expression_t {

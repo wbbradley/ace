@@ -451,6 +451,17 @@ std::string scope_impl_t<T>::str() {
 }
 
 template <typename T>
+std::string scope_impl_t<T>::make_fqn(std::string leaf_name) const {
+	assert(leaf_name.find(SCOPE_SEP) == std::string::npos);
+	if (auto module_scope = this->get_module_scope()) {
+		return module_scope->get_leaf_name().str() + SCOPE_SEP + leaf_name;
+	} else {
+		assert(false);
+		return leaf_name;
+	}
+}
+
+template <typename T>
 void scope_impl_t<T>::put_bound_variable(
 		status_t &status,
 	   	atom symbol,
@@ -476,6 +487,15 @@ void scope_impl_t<T>::put_bound_variable(
 
 	} else {
 		resolve_map[signature] = bound_variable;
+		if (!dynamic_cast<program_scope_t *>(this)
+				&& dynamic_cast<module_scope_t *>(this))
+		{
+			auto program_scope = get_program_scope();
+			program_scope->put_bound_variable(
+					status,
+					this->make_fqn(symbol.str()),
+					bound_variable);
+		}
 	}
 }
 
@@ -542,17 +562,6 @@ bound_var_t::ref scope_impl_t<T>::get_bound_variable(
 {
 	return ::get_bound_variable_from_scope(status, obj, this->get_name(),
 			symbol, bound_vars, this->get_parent_scope());
-}
-
-template <typename T>
-std::string scope_impl_t<T>::make_fqn(std::string leaf_name) const {
-	assert(leaf_name.find(SCOPE_SEP) == std::string::npos);
-	if (auto module_scope = this->get_module_scope()) {
-		return module_scope->get_leaf_name().str() + SCOPE_SEP + leaf_name;
-	} else {
-		assert(false);
-		return leaf_name;
-	}
 }
 
 bound_type_t::ref get_bound_type_from_scope(

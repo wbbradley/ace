@@ -10,15 +10,20 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
 option(MEMORY_DEBUGGING "Track all allocations and spew to stdout about it" OFF)
+if(MEMORY_DEBUGGING)
+	set(option_flags -DMEMORY_DEBUGGING)
+endif()
+
+option(DEBUG_LLVM_TYPES "Print out LLVM type information a lot" OFF)
+if(DEBUG_LLVM_TYPES)
+	set(option_flags -DDEBUG_LLVM_TYPES)
+endif()
+
 
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-if(MEMORY_DEBUGGING)
-	set(memleak_flags -DMEMORY_DEBUGGING)
-endif()
-
-add_compile_options(-std=gnu++11 -g -O0 ${memleak_flags})
+add_compile_options(-std=gnu++11 -g -O0 ${option_flags})
 
 # add build steps for each of the runtime modules
 foreach(_rt_module
@@ -30,7 +35,7 @@ foreach(_rt_module
 
 	add_custom_command(
 		OUTPUT ${_rt_module}.llir
-		COMMAND clang -S -Wall -emit-llvm ${memleak_flags} ${_rt_module}.c -o ${_rt_module}.llir
+		COMMAND clang -S -Wall -emit-llvm ${option_flags} ${_rt_module}.c -o ${_rt_module}.llir
 		DEPENDS ${_rt_module}.c)
 
 endforeach(_rt_module)

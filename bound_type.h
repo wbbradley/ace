@@ -38,6 +38,7 @@ public:
 	bool is_ref() const;
 	bool is_maybe() const;
     bool is_managed() const;
+    bool is_module() const;
 	types::signature get_signature() const;
 
 	std::string str() const;

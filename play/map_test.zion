@@ -1,0 +1,20 @@
+module _
+link module map
+
+def main()
+	# map.Stop
+	# m := map.Map(nil, 5, "hey", nil)
+	m := map.upsert(nil, 5, "doctor holmes")
+	m = map.upsert(m, 6, "doctor who")
+	m = map.upsert(m, 4, "doctor spock")
+	m = map.upsert(m, 40, "doctor doctor")
+	m4 := map.upsert(m, 39, "doctor jenkins")
+	m = map.upsert(m4, 3, "doctor max")
+	print(m4)
+	print(m)
+	i := map.iter(m)
+	while i.next_move is not map.Stop
+		next_state := map.next(i)
+		i = next_state[2]
+
+

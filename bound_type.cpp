@@ -65,7 +65,7 @@ std::string str(const bound_type_t::refs &args) {
 	ss << "[";
 	const char *sep = "";
 	for (auto &arg : args) {
-		ss << sep << arg->str();
+		ss << sep << arg->get_type()->str();
 		sep = ", ";
 	}
 	ss << "]";
@@ -103,7 +103,9 @@ std::ostream &operator <<(std::ostream &os, const bound_type_t &type) {
 std::string bound_type_t::str() const {
 	std::stringstream ss;
 	ss << get_type();
+#ifdef DEBUG_LLVM_TYPES
 	ss << " " << llvm_print(get_llvm_specific_type());
+#endif
 	return ss.str();
 }
 
@@ -187,6 +189,10 @@ bool bound_type_t::is_ref() const {
 	} else {
 		return false;
 	}
+}
+
+bool bound_type_t::is_module() const {
+	return types::is_type_id(get_type(), "module");
 }
 
 bool bound_type_t::is_managed() const {

@@ -1,0 +1,46 @@
+module tree
+
+type Tree{T} has
+	var left Tree{T}?
+	var value T
+	var right Tree{T}?
+
+def insert(tree Tree{any T}?, value any T) Tree{any T}
+	if tree
+		if value > tree.value
+			inserted_right := insert(tree.right, value)
+			if inserted_right is tree.right
+				# this value already exists, just return the existing tree
+				return tree
+			else
+				return Tree(tree.left, tree.value, inserted_right)
+		elif tree.value > value
+			inserted_left := insert(tree.left, value)
+			if inserted_left is tree.left
+				# this value already exists, just return the existing tree
+				return tree
+			else
+				return Tree(inserted_left, tree.value, tree.right)
+		else
+			# this value already exists, just return the existing tree
+			return tree
+	else
+		return Tree(nil, value, nil)
+
+[module any]
+def str(tree Tree{any T}?) str
+	s := "["
+	sep := ""
+	comma := ", "
+	if tree
+		if left := tree.left
+			s += str(left)
+			sep = comma
+		s += sep
+		s += str(tree.value)
+		sep = comma
+		if right := tree.right
+			s += sep
+			s += str(right)
+	s += "]"
+	return s

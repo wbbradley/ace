@@ -1,0 +1,12 @@
+module _
+link module tree
+
+def main()
+	t := tree.insert(nil, 5)
+	t = tree.insert(t, 6)
+	t = tree.insert(t, 4)
+	t = tree.insert(t, 40)
+	t4 := tree.insert(t, 39)
+	t = tree.insert(t4, 3)
+	print(t4)
+	print(t)

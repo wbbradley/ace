@@ -44,8 +44,8 @@ void life_t::release_vars(
 		scope_t::ref scope,
 		life_form_t life_form_to_release_to) const
 {
-	debug_above(4, log("releasing vars from %s", lfstr(life_form_to_release_to)));
-	life_dump(shared_from_this());
+	debug_above(8, log("releasing vars from %s", lfstr(life_form_to_release_to)));
+	debug_above(8, life_dump(shared_from_this()));
 
 	exempt_life_release();
 
@@ -85,7 +85,7 @@ void life_t::track_var(
 {
 	assert(life_form != lf_loop);
 	if (!value->type->is_managed()) {
-		debug_above(6, log("not tracking %s because it's not managed : %s",
+		debug_above(8, log("not tracking %s because it's not managed : %s",
 					value->str().c_str(),
 					value->type->str().c_str()));
 		return;
@@ -125,7 +125,7 @@ void call_refcount_func(
 			auto program_scope = scope->get_program_scope();
 			auto refcount_function = program_scope->get_singleton(function);
 
-			debug_above(4, log("calling refcounting function %s on var %s", function.c_str(),
+			debug_above(8, log("calling refcounting function %s on var %s", function.c_str(),
 						var->str().c_str()));
 			bound_var_t::ref reason_var = bound_var_t::create(
 					INTERNAL_LOC(), "reason",
@@ -164,5 +164,5 @@ void life_dump(ptr<const life_t> life) {
 		ss << life->str() << std::endl;
 		life = life->former_life;
 	}
-	debug_above(3, log("%s", ss.str().c_str()));
+	log("%s", ss.str().c_str());
 }
