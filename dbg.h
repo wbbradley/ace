@@ -7,7 +7,7 @@
 		#define DEBUG_BREAK()  { __debugbreak(); }
 	#endif
 #else
-	#ifdef __clang__
+	#if __clang__ && 0
 		#define DEBUG_BREAK() do { __debugbreak(); __noop; } while (0)
 	#else
 		#define DEBUG_BREAK() do { raise(SIGTRAP); } while (0)

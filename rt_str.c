@@ -5,7 +5,7 @@
 
 char *__str_int(zion_int_t x) {
 	char onstack[50];
-	snprintf(onstack, sizeof(onstack), "%ld", x);
+	snprintf(onstack, sizeof(onstack), "%lld", (long long)x);
 	onstack[sizeof(onstack) - 1] = 0;
 	return strdup(onstack);
 }

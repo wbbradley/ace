@@ -4,7 +4,8 @@ project(Zion)
 include_directories(BEFORE .)
 add_definitions(-DZION_DEBUG)
 
-find_package(LLVM REQUIRED CONFIG)
+find_package(LLVM REQUIRED CONFIG
+	HINTS /usr/local/Cellar/llvm/3.9.1)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
