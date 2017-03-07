@@ -8,3 +8,5 @@ link def free(pb __bytes) __bytes
 link def calloc(cb __int__, size __int__) __bytes
 link def strdup(s __str__) __str__
 link def sqrt(x __float__) __float__
+link def rand() __int__
+link def exit(code __int__) __int__

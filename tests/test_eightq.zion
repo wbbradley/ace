@@ -2,8 +2,6 @@ module eightq @1.0
 link module math
 # test: pass
 
-link def exit(x __int__) void
-
 type Pos has
 	var col int
 	var row int

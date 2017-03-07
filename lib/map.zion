@@ -1,4 +1,5 @@
 module map
+link module posix
 
 type Map{K, V} has
 	var left Map{K, V}?
@@ -37,12 +38,15 @@ def upsert(map Map{any K, any V}?, key any K, value any V) Map{any K, any V}
 
 [module any]
 def str(map Map{any K, any V}) str
-	s := "{"
+	return "{" + _str(map) + "}"
+
+def _str(map Map{any K, any V}) str
+	s := ""
 	sep := ""
 	comma := ", "
 	if map
 		if left := map.left
-			s += str(left)
+			s += _str(left)
 			sep = comma
 		s += sep
 		s += str(map.key)
@@ -51,23 +55,17 @@ def str(map Map{any K, any V}) str
 		sep = comma
 		if right := map.right
 			s += sep
-			s += str(right)
-	s += "}"
+			s += _str(right)
 	return s
 
 type MapIter{K, V} has
 	var stack [Map{K,V}]
-	var next_move MapNextMove
+	var status MapNextMove
 
 tag InOrder
-tag MapIterPop
-tag MapIterPush
 tag Stop
 
-type MapNextMove is
-	InOrder or
-	MapIterPop or
-	Stop
+type MapNextMove is InOrder or Stop
 
 def iter(map Map{any K, any V}?) MapIter{any K, any V}
 	if map
@@ -80,22 +78,82 @@ def iter(map Map{any K, any V}?) MapIter{any K, any V}
 					stack = list(map, stack)
 					map = left
 				else
+					stack = list(map, stack)
 					break
 			return MapIter(stack, InOrder)
+
 		else
 			return MapIter(list(map, nil), InOrder)
+
 	else
-		return MapIter(nil as list{Map{any K, any V}}?, Stop)
+		return MapIter(nil as [Map{any K, any V}], Stop)
 
+type MapStep{K, V} has
+	var key K
+	var value V
+	var next_iter MapIter{any K, any V}
 
-def next(map_iter MapIter{any K, any V}) {any K, any V, MapIter{any K, any V}}
-	var map_node Map{any K, any V}?
-	next_move := map_iter.next_move
-	when next_move
-		is InOrder
-			if stack := map_iter.stack
-				map_node = stack.value
+def next(map_iter MapIter{any K, any V}) MapStep{any K, any V}?
+	# store the map node that this call will return
+	status := map_iter.status
+	if status is Stop
+		return nil as MapStep{any K, any V}?
+	elif status is InOrder
+		if stack := map_iter.stack
+			if map_node := stack.value
+				# traverse down to the right
+				if map := map_node.right
+					stack = list(map, stack)
+					while true
+						if left := map.left
+							stack = list(left, stack)
+							map = left
+						else
+							break
+					return MapStep(map_node.key, map_node.value, MapIter(stack, InOrder))
+				else
+					sav_node := map_node
+					while true
+						if next := stack.next
+							stack = next
+							if parent := stack.value
+								if parent.right is map_node
+									# we have already visited this node
+									map_node = parent
+									continue
+								else
+									return MapStep(sav_node.key, sav_node.value,
+											MapIter(stack, InOrder))
+						return MapStep(sav_node.key, sav_node.value, MapIter(nil, Stop))
+
+					assert(false)
 			else
 				assert(false)
 
-	return (3, "hey", map_iter)
+		else
+			assert(false)
+
+	assert(false)
+	return nil
+
+[module any]
+def str(status MapNextMove) str
+	if status is Stop
+		return "Stop"
+	elif status is InOrder
+		return "InOrder"
+	else
+		print("wat is this MapNextMove?")
+		posix.exit((-1).raw)
+		return "Fail"
+
+[module any]
+def str(map_iter MapIter{any K, any V}) str
+	return "MapIter(" + str(map_iter.stack) + ", " + str(map_iter.status) + ")"
+
+[module any]
+def str(map_step MapStep{any K, any V}?) str
+	if map_step
+		return "MapStep(" + str(map_step.key) + ", " + str(map_step.value) + ", " + str(map_step.next_iter) + ")"
+	else
+		return "nil"

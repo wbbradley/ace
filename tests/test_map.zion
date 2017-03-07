@@ -1,0 +1,18 @@
+module _
+link module map
+link module posix
+# test: pass
+
+def main()
+	i := 0
+	m := map.Map(nil, int(posix.rand()), str(i), nil)
+	i += 1
+	while i < 100
+		m = map.upsert(m, int(posix.rand()), str(i))
+		i += 1
+
+	map_step := map.next(map.iter(m))
+	while map_step
+		if step := map_step
+			print(str(step.key) + ": " + str(step.value))
+			map_step = map.next(step.next_iter)

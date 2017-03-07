@@ -16,6 +16,7 @@ type TypeID has
 def assert(condition bool)
 	if not condition
 		print("assertion failed!")
+		posix.exit((-1).raw)
 
 def typeid(t any) TypeID
 	return TypeID(__get_typeid__(t))
@@ -259,6 +260,12 @@ def print(x any) void
 type list{T} has
 	var value T
 	var next list{T}?
+
+def __bool__(l [any]) __bool__
+	if l is nil
+		return __false__
+	else
+		return __true__
 
 def nth(l list{any T}?, index int) any T?
 	if l
