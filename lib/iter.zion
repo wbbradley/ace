@@ -1,0 +1,7 @@
+module iter
+
+
+type Step{T, IterState} has
+	var item T
+	var next_iter IterState
+

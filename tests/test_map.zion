@@ -11,8 +11,8 @@ def main()
 		m = map.upsert(m, int(posix.rand()), str(i))
 		i += 1
 
-	map_step := map.next(map.iter(m))
+	map_step := next(iter(m))
 	while map_step
 		if step := map_step
-			print(str(step.key) + ": " + str(step.value))
+			print(str(step.item.key) + ": " + str(step.item.value))
 			map_step = map.next(step.next_iter)

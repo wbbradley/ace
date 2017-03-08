@@ -154,7 +154,6 @@ non-unified type terms, they will be substituted with the "unreachable" type
 
 - [x] Memory management scheme options
  - [x] ref counting since all data is immutable, there can be no cycles
- - [x] GC 1 - wrap creation and scope termination with shadow stack operations
  - [ ] C style explicit allocation/free - this requires some explicit memory management affordances, such as `with` syntax to get deterministic destruction.
 - [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
 [x] Include runtime behavior in test suite (not just compilation errors)

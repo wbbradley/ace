@@ -921,8 +921,9 @@ types::type_t::ref eval_apply(
 
 		debug_above(7, log(log_info, "eval_apply : %s expanded to %s in %s",
 					ptid->str().c_str(),
-					expansion ? expansion->str().c_str() : c_error("nothing"),
+					((expansion != nullptr) ? expansion->str().c_str() : c_error("nothing")),
                     str(env).c_str()));
+
 		if (expansion != nullptr) {
 			return eval_apply(expansion, operand, env);
 		} else {
@@ -933,7 +934,11 @@ types::type_t::ref eval_apply(
 		return lambda->body->rebind({{var_name, operand}});
 	} else if (auto pto = dyncast<const types::type_operator_t>(oper)) {
 		auto new_operator = eval_apply(pto->oper, pto->operand, env);
-		return eval_apply(new_operator, operand, env);
+		if (new_operator != nullptr) {
+			return eval_apply(new_operator, operand, env);
+		} else {
+			return nullptr;
+		}
 	} else if (auto ptv = dyncast<const types::type_variable_t>(oper)) {
 		/* type_variables cannot be applied */
 		return nullptr;

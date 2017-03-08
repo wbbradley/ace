@@ -467,6 +467,9 @@ bound_type_t::ref create_bound_type(
 		return create_bound_operator_type(status, builder, scope, operator_);
 	} else if (auto variable = dyncast<const types::type_variable_t>(type)) {
 		user_error(status, variable->get_location(), "unable to resolve type for %s", variable->str().c_str());
+	} else if (auto lambda = dyncast<const types::type_lambda_t>(type)) {
+		user_error(status, lambda->get_location(), "unable to instantiate generic type %s without the necessary type application",
+				lambda->str().c_str());
 	}
 
 	assert(!status);

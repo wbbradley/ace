@@ -1,5 +1,6 @@
 module map
 link module posix
+link module iter
 
 type Map{K, V} has
 	var left Map{K, V}?
@@ -58,7 +59,7 @@ def _str(map Map{any K, any V}) str
 			s += _str(right)
 	return s
 
-type MapIter{K, V} has
+type Iter{K, V} has
 	var stack [Map{K,V}]
 	var status MapNextMove
 
@@ -67,7 +68,12 @@ tag Stop
 
 type MapNextMove is InOrder or Stop
 
-def iter(map Map{any K, any V}?) MapIter{any K, any V}
+type KeyValue{K, V} has
+	var key K
+	var value V
+
+[module any]
+def iter(map Map{any K, any V}?) Iter{any K, any V}
 	if map
 		if map.left
 			# Place the root node on the stack
@@ -80,24 +86,20 @@ def iter(map Map{any K, any V}?) MapIter{any K, any V}
 				else
 					stack = list(map, stack)
 					break
-			return MapIter(stack, InOrder)
+			return Iter(stack, InOrder)
 
 		else
-			return MapIter(list(map, nil), InOrder)
+			return Iter(list(map, nil), InOrder)
 
 	else
-		return MapIter(nil as [Map{any K, any V}], Stop)
+		return Iter(nil as [Map{any K, any V}], Stop)
 
-type MapStep{K, V} has
-	var key K
-	var value V
-	var next_iter MapIter{any K, any V}
-
-def next(map_iter MapIter{any K, any V}) MapStep{any K, any V}?
+[module any]
+def next(map_iter Iter{any K, any V}) iter/Step{KeyValue{any K, any V}, Iter{any K, any V}}?
 	# store the map node that this call will return
 	status := map_iter.status
 	if status is Stop
-		return nil as MapStep{any K, any V}?
+		return nil as iter/Step{KeyValue{any K, any V}, Iter{any K, any V}}?
 	elif status is InOrder
 		if stack := map_iter.stack
 			if map_node := stack.value
@@ -110,7 +112,9 @@ def next(map_iter MapIter{any K, any V}) MapStep{any K, any V}?
 							map = left
 						else
 							break
-					return MapStep(map_node.key, map_node.value, MapIter(stack, InOrder))
+					return iter.Step(
+							KeyValue(map_node.key, map_node.value),
+							Iter(stack, InOrder))
 				else
 					sav_node := map_node
 					while true
@@ -122,9 +126,12 @@ def next(map_iter MapIter{any K, any V}) MapStep{any K, any V}?
 									map_node = parent
 									continue
 								else
-									return MapStep(sav_node.key, sav_node.value,
-											MapIter(stack, InOrder))
-						return MapStep(sav_node.key, sav_node.value, MapIter(nil, Stop))
+									return iter.Step(
+											KeyValue(
+												sav_node.key,
+												sav_node.value),
+											Iter(stack, InOrder))
+						return iter.Step(KeyValue(sav_node.key, sav_node.value), Iter(nil, Stop))
 
 					assert(false)
 			else
@@ -134,7 +141,7 @@ def next(map_iter MapIter{any K, any V}) MapStep{any K, any V}?
 			assert(false)
 
 	assert(false)
-	return nil
+	return nil as iter/Step{KeyValue{any K, any V}, Iter{any K, any V}}?
 
 [module any]
 def str(status MapNextMove) str
@@ -148,8 +155,8 @@ def str(status MapNextMove) str
 		return "Fail"
 
 [module any]
-def str(map_iter MapIter{any K, any V}) str
-	return "MapIter(" + str(map_iter.stack) + ", " + str(map_iter.status) + ")"
+def str(map_iter Iter{any K, any V}) str
+	return "map/Iter(" + str(map_iter.stack) + ", " + str(map_iter.status) + ")"
 
 [module any]
 def str(map_step MapStep{any K, any V}?) str

@@ -74,6 +74,10 @@ bound_var_t::ref instantiate_unchecked_fn(
 					return function_defn->instantiate_with_args_and_return_type(status,
 							builder, subst_scope, life, nullptr /*new_scope*/,
 							function->inbound_context, named_args, return_type);
+				} else {
+					user_message(log_info, status, unchecked_fn->get_location(),
+							"while instantiating function %s",
+							unchecked_fn->str().c_str());
 				}
 			}
 		} else {
