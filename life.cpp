@@ -9,6 +9,8 @@ const char *lfstr(life_form_t lf) {
 		return "function";
 	case lf_block:
 		return "block";
+	case lf_with_block:
+		return "with";
 	case lf_statement:
 		return "statement";
 	case lf_loop:
@@ -16,7 +18,10 @@ const char *lfstr(life_form_t lf) {
 	}
 }
 
-life_t::life_t(status_t &status_tracker, life_form_t life_form, life_t::ref former_life) :
+life_t::life_t(
+		status_t &status_tracker,
+	   	life_form_t life_form,
+	   	life_t::ref former_life) :
 	status_tracker(status_tracker),
    	former_life(former_life),
    	life_form(life_form),
@@ -38,6 +43,56 @@ void life_t::exempt_life_release() const {
 	release_vars_called = values.size() != 0;
 }
 
+void attempt_destruct_var(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		bound_var_t::ref object)
+{
+	auto location = object->get_location();
+	var_t::refs fn_dtors;
+	bound_var_t::ref dtor = maybe_get_callable(
+			status,
+			builder,
+			scope,
+			{"__dtor__"},
+			location,
+			scope->get_outbound_context(),
+			type_args({object->type->get_type()}, {}),
+			fn_dtors);
+
+	if (!!status) {
+		if (dtor != nullptr) {
+			auto life = make_ptr<life_t>(status, lf_statement);
+			make_call_value(
+					status,
+					builder,
+					location,
+					scope,
+					life,
+					dtor,
+					{object});
+
+			if (life->values.size() != 0) {
+				user_error(status, dtor->get_location(),
+						"destructor cannot return a managed type, it returns %s",
+						life->values[0]->type->str().c_str());
+			}
+
+			if (!!status) {
+				return;
+			}
+		} else {
+			user_error(status, location, "no __dtor__ found for type %s in context %s",
+					object->type->str().c_str(),
+					scope->get_outbound_context()->str().c_str());
+			debug_above(11, log(log_info, "%s", scope->str().c_str()));
+		}
+	}
+
+	assert(!status);
+}
+
 void life_t::release_vars(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -49,8 +104,20 @@ void life_t::release_vars(
 
 	exempt_life_release();
 
+	assert_implies(life_form == lf_with_block, values.size() == 1);
+
 	if (!!status) {
 		for (auto value: values) {
+			if (life_form == lf_with_block) {
+				/* we are releasing a "with" object, let's make sure that this
+				 * object's type implements a __without__ function */
+				attempt_destruct_var(status, builder, scope, value);
+
+				if (!status) {
+					break;
+				}
+			}
+
 			call_release_var(
 					status,
 					builder,
@@ -127,12 +194,14 @@ void call_refcount_func(
 
 			debug_above(8, log("calling refcounting function %s on var %s", function.c_str(),
 						var->str().c_str()));
+#ifdef MEMORY_DEBUGGING
 			bound_var_t::ref reason_var = bound_var_t::create(
 					INTERNAL_LOC(), "reason",
 					program_scope->get_bound_type({"__str__"}),
 					llvm_create_global_string(builder, reason),
 					make_iid("refcount_reason"),
 					false/*is_lhs*/);
+#endif
 
 			auto life = make_ptr<life_t>(status, lf_statement, nullptr);
 			make_call_value(
@@ -142,7 +211,11 @@ void call_refcount_func(
 					scope,
 					life,
 					refcount_function,
-					{var, reason_var});
+					{var
+#ifdef MEMORY_DEBUGGING
+					, reason_var
+#endif
+					});
 			/* since the refcount functions return a void, we can discard this
 			 * life as it won't have anything to clean up. */
 		}

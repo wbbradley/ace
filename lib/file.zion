@@ -1,0 +1,48 @@
+module _
+link module posix
+
+# Stolen from /usr/include/sys/fcntl.h on Mac
+# TODO: generate cross-platform compatibility for these constants
+#define	O_RDONLY	0x0000		/* open for reading only */
+#define	O_WRONLY	0x0001		/* open for writing only */
+#define	O_RDWR		0x0002		/* open for reading and writing */
+# TODO: get append mode, etc...
+
+type File has
+	var fd int
+
+tag ReadOnly
+tag WriteOnly
+tag ReadWrite
+
+type FileOpenMode is
+	ReadOnly or
+	WriteOnly or
+	ReadWrite
+
+def open(name str, mode FileOpenMode) File?
+	zero := (0).raw
+	var flags __int__ = zero
+
+	if mode is ReadOnly
+		flags = zero
+	elif mode is WriteOnly
+		flags = (1).raw
+	elif mode is ReadWrite
+		flags = (2).raw
+
+	fd := int(posix.open(name.raw, flags))
+	if fd != -1
+		return File(fd)
+	else
+		return nil
+
+def close(f File) int
+	return int(posix.close(f.fd.raw))
+
+[module any]
+def __dtor__(f File?)
+	if f
+		if close(f)
+			print("Failed to close file descriptor: " + str(f.fd))
+

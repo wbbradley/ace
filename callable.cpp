@@ -130,7 +130,7 @@ bound_var_t::ref check_func_vs_callsite(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		const ast::item_t::ref &callsite,
+		location_t location,
 		var_t::ref fn,
 		types::type_t::ref type_fn_context,
 		types::type_args_t::ref args)
@@ -167,7 +167,7 @@ bound_var_t::ref check_func_vs_callsite(
 
 	debug_above(4, log(log_info, "fn %s at %s does not match %s because %s",
 				fn->str().c_str(),
-				callsite->str().c_str(), 
+				location.str().c_str(), 
 				args->str().c_str(),
 				unification.str().c_str()));
 
@@ -190,7 +190,7 @@ bound_var_t::ref maybe_get_callable(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		atom alias,
-		const ptr<const ast::item_t> &callsite,
+		location_t location,
 		types::type_t::ref type_fn_context,
 		types::type_args_t::ref args,
 		var_t::refs &fns)
@@ -217,7 +217,7 @@ bound_var_t::ref maybe_get_callable(
 				continue;
             }
 			bound_var_t::ref callable = check_func_vs_callsite(status, builder,
-					scope, callsite, fn, type_fn_context, args);
+					scope, location, fn, type_fn_context, args);
 
 			if (!status) {
 				assert(callable == nullptr);
@@ -233,9 +233,9 @@ bound_var_t::ref maybe_get_callable(
             } else if (callables.size() == 0) {
                 return nullptr;
             } else {
-				user_error(status, callsite->get_location(),
-						"multiple matching overloads found for %s at %s",
-						alias.c_str(), callsite->str().c_str());
+				user_error(status, location,
+						"multiple matching overloads found for %s",
+						alias.c_str());
                 for (auto callable :callables) {
                     user_message(log_info, status, callable->get_location(),
 						   	"matching overload : %s",
@@ -259,8 +259,8 @@ bound_var_t::ref get_callable(
 	var_t::refs fns;
 	// TODO: potentially allow fake calling contexts by adding syntax to the
 	// callsite
-	auto callable = maybe_get_callable(status, builder, scope, alias, callsite,
-			outbound_context, args, fns);
+	auto callable = maybe_get_callable(status, builder, scope, alias,
+			callsite->get_location(), outbound_context, args, fns);
 
 	if (!!status) {
 		if (callable != nullptr) {

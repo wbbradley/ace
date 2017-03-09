@@ -644,6 +644,25 @@ namespace ast {
 		ptr<block_t> else_block;
 	};
 
+	struct with_block_t : public statement_t {
+		typedef ptr<const with_block_t> ref;
+
+		static const syntax_kind_t SK = sk_with_block;
+
+		static ptr<with_block_t> parse(parse_state_t &ps);
+		virtual bound_var_t::ref resolve_instantiation(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
+		virtual void render(render_state_t &rs) const;
+
+		ptr<expression_t> object;
+		ptr<block_t> block;
+	};
+
 	struct semver_t : public item_t {
 		typedef ptr<const semver_t> ref;
 		virtual void render(render_state_t &rs) const;

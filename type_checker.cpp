@@ -1078,7 +1078,7 @@ llvm::Value *maybe_get_bool_overload_value(
 
 	var_t::refs fns;
 	auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE,
-			condition, scope->get_outbound_context(),
+			condition->get_location(), scope->get_outbound_context(),
 			type_args({condition_type}), fns);
 
 	if (!!status) {
@@ -2124,12 +2124,7 @@ bound_var_t::ref type_check_assignment(
 					if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(lhs_var->llvm_value)) {
 						/* ensure that whatever was being pointed to by this LHS
 						 * is released after this statement */
-						auto prior_lhs_value = bound_var_t::create(
-								INTERNAL_LOC(),
-								string_format("%s.old", lhs_var->name.c_str()),
-								lhs_var->type,
-								llvm_resolve_alloca(builder, llvm_alloca),
-								lhs_var->id, false /*is_lhs*/);
+						auto prior_lhs_value = resolve_alloca(builder, lhs_var);
 
 						builder.CreateStore(
 								llvm_maybe_pointer_cast(builder, rhs_var->llvm_value,
@@ -2584,6 +2579,76 @@ bound_var_t::ref ast::while_block_t::resolve_instantiation(
 	}
 
     assert(!status);
+    return nullptr;
+}
+
+bound_var_t::ref ast::with_block_t::resolve_instantiation(
+        status_t &status,
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		life_t::ref life,
+        local_scope_t::ref *new_scope,
+		bool *returns) const
+{
+	assert(life->life_form == lf_statement);
+
+	/* with scope allows us to set up new variables inside the object declaration */
+	local_scope_t::ref with_scope;
+
+	bool with_block_returns = false;
+
+	assert(token.text == "with");
+
+	auto object_life = life->new_life(status, lf_statement);
+	assert(!!status);
+
+	/* evaluate the object declaration */
+	bound_var_t::ref object_value = object->resolve_instantiation(
+			status, builder, scope, object_life, &with_scope, nullptr);
+
+	if (!!status) {
+		bound_var_t::ref snapshot = resolve_alloca(builder, object_value);
+
+		/* make sure that the object we are managing lives until the end of the with
+		 * block */
+		call_addref_var(status, builder, with_scope ? with_scope : scope, snapshot,
+				string_format("with %s", object->str().c_str()));
+
+		if (!!status) {
+			/* release any intermediary values created while creating the snapshot */
+			object_life->release_vars(status, builder, with_scope ? with_scope : scope, lf_statement);
+
+			if (!!status) {
+				life = life->new_life(status, lf_with_block);
+
+				if (!!status) {
+					life->track_var(builder, snapshot, lf_with_block);
+
+					if (!!status) {
+						block->resolve_instantiation(status, builder,
+							   	with_scope ? with_scope : scope,
+							   	life, nullptr,
+								&with_block_returns);
+
+						if (!!status) {
+							if (!with_block_returns) {
+								life->release_vars(status, builder,
+									   	with_scope ? with_scope : scope,
+									   	lf_with_block);
+
+								if (returns != nullptr) {
+									*returns = with_block_returns;
+								}
+								return nullptr;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	assert(!status);
     return nullptr;
 }
 

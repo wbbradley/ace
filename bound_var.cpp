@@ -107,3 +107,18 @@ types::type_t::ref bound_var_t::get_type(ptr<scope_t> scope) const {
 types::type_t::ref bound_var_t::get_type() const {
 	return type->get_type();
 }
+
+bound_var_t::ref resolve_alloca(llvm::IRBuilder<> &builder, bound_var_t::ref var) {
+	if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(var->llvm_value)) {
+		assert(var->is_lhs);
+		return bound_var_t::create(
+				INTERNAL_LOC(),
+				string_format("%s.snapshot", var->name.c_str()),
+				var->type,
+				llvm_resolve_alloca(builder, llvm_alloca),
+				var->id, false /*is_lhs*/);
+	} else {
+		assert(!var->is_lhs);
+		return var;
+	}
+}

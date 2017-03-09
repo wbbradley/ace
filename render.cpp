@@ -99,6 +99,14 @@ namespace ast {
 		}
 	}
 
+	void with_block_t::render(render_state_t &rs) const {
+		rs.ss << C_CONTROL << tkstr(tk_with) << C_RESET << " ";
+		object->render(rs);
+		newline(rs);
+		indented(rs);
+		block->render(rs);
+	}
+
 	void pattern_block_t::render(render_state_t &rs) const {
 		newline(rs);
 		indent(rs);

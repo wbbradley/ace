@@ -68,6 +68,7 @@ enum token_kind
 	tk_continue, /* continue */
 	tk_break, /* break */
 	tk_when, /* when */
+	tk_with, /* with */
 
 	// Operators
 	tk_equal, /* == */

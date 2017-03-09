@@ -103,6 +103,7 @@ const char *tkstr(token_kind tk) {
 	tk_case(version);
 	tk_case(while);
 	tk_case(when);
+	tk_case(with);
 	}
 	return "";
 }
@@ -183,6 +184,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_var:
 	case tk_version:
 	case tk_when:
+	case tk_with:
 	case tk_while:
 		printf(" ");
 		break;
@@ -302,6 +304,9 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 		break;
 	case tk_when:
 		printf("when");
+		break;
+	case tk_with:
+		printf("with");
 		break;
 	case tk_matches:
 		printf("matches");

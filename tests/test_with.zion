@@ -1,0 +1,12 @@
+module _
+link module file
+# test: pass
+
+def main()
+	filename := "tests/test_with.zion"
+	with f := file.open(filename, file.ReadOnly)
+		if f
+			print("opened " + filename + " as fd " + str(f.fd))
+		else
+			print("unable to open " + filename)
+			

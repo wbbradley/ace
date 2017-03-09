@@ -139,7 +139,13 @@ void check_node_existence(struct var_t *node, zion_bool_t should_exist) {
 }
 #endif
 
-void addref_var(struct var_t *var, const char *reason) {
+void addref_var(
+		struct var_t *var
+#ifdef MEMORY_DEBUGGING
+		, const char *reason
+#endif
+		)
+{
 #ifdef MEMORY_DEBUGGING
 	printf("attempt to addref 0x08%lx because \"%s\"\n", (intptr_t)var, reason);
 #endif
@@ -216,7 +222,12 @@ void remove_node(struct var_t *node) {
 
 #endif // MEMORY_DEBUGGING
 
-void release_var(struct var_t *var, const char *reason) {
+void release_var(struct var_t *var
+#ifdef MEMORY_DEBUGGING
+		, const char *reason
+#endif
+		)
+{
 	if (var == 0) {
 		return;
 	}
@@ -255,7 +266,11 @@ void release_var(struct var_t *var, const char *reason) {
 						var->type_info->name,
 						(intptr_t)ref);
 #endif
-				release_var(ref, "release recursion");
+				release_var(ref
+#ifdef MEMORY_DEBUGGING
+						, "release recursion"
+#endif
+						);
 			}
 
 #ifdef MEMORY_DEBUGGING

@@ -106,9 +106,10 @@ add_test(
 
 foreach(_test_name
 		test_hello_world
-		test_recursion
+		test_map
 		test_mike
-		test_map)
+		test_recursion
+		test_with)
 	add_test(
 		NAME ${_test_name}
 		COMMAND ./zionc run ${_test_name})
