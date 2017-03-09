@@ -2,7 +2,7 @@
 set +e
 set +x
 
-echo "Running from "`pwd`
+cd /opt/zion
 ls -tr -la | grep -i cmake
 cmake --version
 ctest --version
