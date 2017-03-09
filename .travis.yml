@@ -4,8 +4,7 @@ services:
   - docker
 
 before_install:
-  - docker build -t zion:0.1 .
-  - docker tag zion:0.1 zion:latest
+  - ./docker-build.sh
 
 script:
-  docker run --rm --name zion-build -e LLVM_LINK_BIN=llvm-link-3.9 -e CLANG_BIN=clang-3.9 -v `pwd`:/opt/zion --privileged -it zion:latest ./make-and-run-tests.sh
+  ./docker-run.sh

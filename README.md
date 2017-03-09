@@ -152,18 +152,21 @@ non-unified type terms, they will be substituted with the "unreachable" type
 
 ### TODO
 
-- [x] Memory management scheme options
- - [x] ref counting since all data is immutable, there can be no cycles
- - [ ] C style explicit allocation/free - this requires some explicit memory management affordances, such as `with` syntax to get deterministic destruction.
-- [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
-[x] Include runtime behavior in test suite (not just compilation errors)
-[x] Ternary operator
-  - [ ] Logical and/or (build with ternary operator)
+- [ ] 'for' syntax - based on `tests/test_list_iter.zion` pattern
+- [ ] vectors
+- [ ] 'with' syntax - deterministic destruction
+- [ ] C style explicit allocation/free - this requires some explicit memory management affordances, such as `with` syntax to get deterministic destruction.
+- [ ] consider overloading += operator semantics for lists (or contemplate other syntax for making stack variable mutation more seamless)
+- [x] Ternary operator
+- [ ] Logical and/or (build with ternary operator)
 - [ ] fully implement binary as! -> T, as -> maybe{T}
-- [ ] figure out how to make tuples' runtime types typecheck consistently against rtti for other data ctor types. probably have to put up some guardrails somehow
-- [ ] Use DIBuilder to add line-level debugging information
 - [ ] Builtin persistent data structures
-  - [ ] vector
+  - [ ] vectors
   - [ ] hash map - looking into hash array map tries
   - [ ] binary tree
   - [ ] avl tree
+- [ ] Use DIBuilder to add line-level debugging information
+- [ ] make tuples' runtime types typecheck consistently against rtti for other
+		structurally equivalent data ctor types. probably have to put up some
+		guardrails somehow
+- [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)

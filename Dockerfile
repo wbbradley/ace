@@ -40,5 +40,5 @@ RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-lin
 	&& update-alternatives --install /usr/bin/clang clang /usr/bin/clang-3.9 100 \
 	&& update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-3.9 100
 
-WORKDIR /opt/zion
+ADD . /opt/zion
 CMD bash

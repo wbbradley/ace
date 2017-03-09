@@ -10,14 +10,12 @@ def main()
 		l = list(int(posix.rand()), l)
 		i += 1
 
+	# TODO: implement 'for' syntax for iter behavior
+	# for item in l
+	#     print(item)
+
 	list_step := next(iter(l))
 	while list_step
 		if step := list_step
 			print(step.item)
 			list_step = next(step.next_iter)
-
-	# TODO: implement 'for' syntax for iter behavior
-	for item in l
-		print(item)
-		
-
