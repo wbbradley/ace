@@ -64,3 +64,4 @@ bool in(U item, const COLL &set) {
 }
 
 atom::set to_set(atom::many atoms);
+void dump_atoms();

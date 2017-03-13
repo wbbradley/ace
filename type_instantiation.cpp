@@ -163,10 +163,10 @@ types::type_t::ref instantiate_data_ctor_type(
 		identifier::ref id,
 		identifier::ref supertype_id)
 {
-	auto qualified_id = make_iid_impl(scope->make_fqn(id->get_name().str()), id->get_location());
-
 	/* get the name of the ctor */
 	atom tag_name = id->get_name();
+	atom fqn_tag_name = scope->make_fqn(tag_name.str());
+	auto qualified_id = make_iid_impl(fqn_tag_name, id->get_location());
 
 	/* create the tag type */
 	auto tag_type = type_id(qualified_id);
@@ -234,36 +234,8 @@ types::type_t::ref instantiate_data_ctor_type(
 			user_error(status, node->token.location, "local type definitions are not yet impl");
 		}
 	} else {
-		assert(!"is this still getting called?");
-
-		/* it's a nullary enumeration or "tag", let's create a global value to represent
-		 * this tag. */
-		types::type_t::ref type = struct_;
-		for (auto lambda_var : lambda_vars) {
-			type = type_lambda(lambda_var, type);
-		}
-
-		/* enum values must have a supertype, right? */
-		assert(supertype_id != nullptr);
-
-		/* start by making a type for the tag */
-		bound_type_t::ref bound_tag_type = bound_type_t::create(
-				tag_type,
-				id->get_location(),
-				/* all tags use the var_t* type */
-				scope->get_program_scope()->get_bound_type({"__var_ref"})->get_llvm_type());
-
-		bound_var_t::ref tag = llvm_create_global_tag(
-				builder, scope, bound_tag_type, tag_name, id);
-
-		/* record this singleton for use later */
-		scope->put_bound_variable(status, tag_name, tag);
-
-		if (!!status) {
-			debug_above(7, log(log_info, "instantiated nullary data ctor %s in scope %s",
-						tag->str().c_str(), scope->get_name().c_str()));
-			return type;
-		}
+		// This should not happen...
+		not_impl();
 	}
 
 	assert(!status);

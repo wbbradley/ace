@@ -14,6 +14,9 @@ type bool is
 type TypeID has
 	var id __typeid__
 
+def str(t TypeID) str
+	return str(__int__(t.id))
+
 def assert(condition bool)
 	if not condition
 		print("assertion failed!")
@@ -319,3 +322,23 @@ def next(list_iter ListIter{any V}) iter/Step{any V, ListIter{any V}}?
 		return iter_module.Step(item.value, ListIter(item.next))
 	else
 		return nil as iter/Step{any V, ListIter{any V}}?
+
+type bytes has
+	var data __bytes
+	var cb __int__
+
+def len(b bytes) int
+	return int(b.cb)
+
+def alloc(cb int) bytes
+	return bytes(posix.calloc((1).raw, cb.raw), cb.raw)
+
+def __dtor__(b bytes)
+	posix.free(b.data)
+
+def str(b __bytes, length __int__, encoding str) str
+	one := (1).raw
+	dest_len := length + one
+	dest := posix.calloc(one, dest_len)
+	posix.memcpy(dest, b, length)
+	return str(dest as __str__)

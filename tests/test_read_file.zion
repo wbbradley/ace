@@ -1,25 +1,18 @@
 module _
-# test: pass
+link module file
 
-link def malloc(cb __int__) __bytes
-link def calloc(count __int__, size __int__) __bytes
-link def exit(cb __int__) __int__
-link def read(fd __int__, buf __bytes, nbyte __int__) __int__
-
-def allocate(cb int) __bytes
-	if cb <= 0
-		exit((-1).raw)
-
-	return calloc(cb.raw, (1).raw)
-
-def read(fd int) str
-	buf := allocate(1024)
-	res := read((0).raw, buf, (1024).raw)
-	print(int(res))
-	return str(buf as! __str__)
-
-def main()
-	buffer := allocate(1024)
-	data := read(0)
-	print(data)
-	
+def main() __int__
+	stdout := (1).raw
+	with f := file.open("play/read_file.zion", file.ReadOnly)
+		if f
+			while true
+				buffer := file.read(f, 4 * 1024)
+				when buffer
+					is file/EOF
+						break
+					is std/bytes
+						posix.write(stdout, buffer.data, buffer.cb)
+					is file/ReadError
+						print("Read Error")
+						return (-1).raw
+	return (0).raw

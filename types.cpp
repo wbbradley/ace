@@ -884,7 +884,13 @@ types::type_t::ref eval(types::type_t::ref type, types::type_t::map env) {
 	} else if (auto ref_type = dyncast<const types::type_ref_t>(type)) {
 		/* there is no expansion of ref types */
 		return nullptr;
+	} else if (auto sum_type = dyncast<const types::type_sum_t>(type)) {
+		/* there is no expansion of sum types */
+		return nullptr;
 	} else {
+		log("unhandled type evaluation for type %s in env %s",
+				type->str().c_str(),
+				str(env).c_str());
 		return null_impl();
 	}
 }

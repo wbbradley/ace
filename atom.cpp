@@ -1,6 +1,7 @@
 #include "zion.h"
 #include "dbg.h"
 #include "atom.h"
+#include <iostream>
 #include <vector>
 #include <unordered_map>
 #include "utils.h"
@@ -111,4 +112,11 @@ atom::set to_set(atom::many atoms) {
 				set.insert(x);
 			});
 	return set;
+}
+
+void dump_atoms() {
+	int i = 0;
+	for (auto a: atoms) {
+		std::cerr << i++ << ": " << a << std::endl;
+	}
 }

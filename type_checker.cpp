@@ -2012,7 +2012,8 @@ bound_var_t::ref ast::tag_t::resolve_instantiation(
 		bool * /*returns*/) const
 {
 	atom tag_name = token.text;
-	auto qualified_id = make_iid_impl(scope->make_fqn(token.text), token.location);
+	atom fqn_tag_name = scope->make_fqn(tag_name.str());
+	auto qualified_id = make_iid_impl(fqn_tag_name, token.location);
 
 	auto tag_type = type_id(qualified_id);
 
@@ -2030,7 +2031,8 @@ bound_var_t::ref ast::tag_t::resolve_instantiation(
 		scope->get_program_scope()->put_bound_type(status, bound_tag_type);
 		if (!!status) {
 			bound_var_t::ref tag = llvm_create_global_tag(
-					builder, scope, bound_tag_type, tag_name, make_code_id(token));
+					builder, scope, bound_tag_type, fqn_tag_name,
+					make_code_id(token));
 
 			/* record this tag variable for use later */
 			scope->put_bound_variable(status, tag_name, tag);
