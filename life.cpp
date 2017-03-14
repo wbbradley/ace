@@ -111,6 +111,7 @@ void life_t::release_vars(
 			if (life_form == lf_with_block) {
 				/* we are releasing a "with" object, let's make sure that this
 				 * object's type implements a __without__ function */
+				// TODO: remove this
 				attempt_destruct_var(status, builder, scope, value);
 
 				if (!status) {

@@ -613,6 +613,45 @@ llvm::Constant *llvm_dim_offset_gep(llvm::StructType *llvm_struct_type, int inde
 	return llvm::ConstantExpr::getPtrToInt(llvm_gep, llvm::Type::getInt64Ty(llvm_struct_type->getContext()));
 }
 
+
+bound_var_t::ref maybe_get_dtor(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		program_scope_t::ref program_scope,
+		bound_type_t::ref data_type,
+		types::type_struct_t::ref struct_type)
+{
+	indent_logger indent(3,
+		string_format("attempting to get a dtor for %s",
+			data_type->str().c_str()));
+
+	auto location = data_type->get_location();
+	var_t::refs fn_dtors;
+	bound_var_t::ref dtor = maybe_get_callable(
+			status,
+			builder,
+			program_scope,
+			{"__dtor__"},
+			location,
+			program_scope->get_outbound_context(),
+			type_args({data_type->get_type()}, {}),
+			fn_dtors);
+
+	if (!!status) {
+		if (dtor != nullptr) {
+			return dtor;
+		} else {
+			debug_above(2, user_info(status, location, "no __dtor__ found for type %s in context %s",
+					data_type->str().c_str(),
+					program_scope->get_outbound_context()->str().c_str()));
+			return nullptr;
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 llvm::Value *llvm_call_allocator(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -629,97 +668,121 @@ llvm::Value *llvm_call_allocator(
 	bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(status, node, "__create_var");
 
 	if (!!status) {
-		assert(mem_alloc_var != nullptr);
+		bound_var_t::ref dtor_fn = maybe_get_dtor(status, builder,
+				program_scope, data_type, struct_type);
 
-		llvm::Constant *llvm_type_info = nullptr;
-		llvm::Value *llvm_sizeof_tuple = llvm_sizeof_type(builder,
-				llvm_deref_type(data_type->get_llvm_specific_type()));
+		if (!!status) {
+			llvm::Value *llvm_dtor_fn = nullptr;
 
-		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
-				llvm::dyn_cast<llvm::PointerType>(
-					data_type->get_llvm_specific_type())->getElementType());
-		assert(llvm_struct_type != nullptr);
+			llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
+					program_scope->get_bound_type({"__type_info"})->get_llvm_type());
+			llvm::Type *llvm_dtor_fn_type = llvm_type_info_type->getElementType(DTOR_INDEX);
 
-		/* calculate the type map */
-		std::vector<llvm::Constant *> llvm_offsets;
-		for (size_t i=0; i<args.size(); ++i) {
-			debug_above(5, log(log_info, "args[%d] is %s",
-						i, args[i]->str().c_str()));
-			if (args[i]->is_managed()) {
-				/* this element is managed, so let's store its memory offset in
-				 * our array */
-				debug_above(5, log(log_info, "getting offset of %d in %s",
-							i, llvm_print(llvm_struct_type).c_str()));
-				llvm_offsets.push_back(llvm::ConstantExpr::getTrunc(
-							llvm_dim_offset_gep(llvm_struct_type, i),
-							builder.getInt16Ty(), true));
+			if (dtor_fn != nullptr) {
+				/* we found a dtor for this type of object */
+				llvm_dtor_fn = llvm::ConstantExpr::getBitCast((llvm::Constant *)dtor_fn->llvm_value, llvm_dtor_fn_type);
+
+			} else {
+				/* there is no dtor, just put a NULL value in instead */
+				llvm_dtor_fn = llvm::Constant::getNullValue(llvm_dtor_fn_type);
 			}
-		}
 
-		/* now let's create a placeholder type for the dim offsets map */
-		llvm::ArrayType *llvm_dim_offsets_type = llvm::ArrayType::get(
-				builder.getInt16Ty(), llvm_offsets.size());
+			assert(mem_alloc_var != nullptr);
 
-		llvm::Module *llvm_module = llvm_get_module(builder);
+			llvm::Constant *llvm_type_info = nullptr;
+			llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder,
+					llvm_deref_type(data_type->get_llvm_specific_type()));
 
-		llvm::Constant *llvm_dim_offsets;
+			llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
+					llvm::dyn_cast<llvm::PointerType>(
+						data_type->get_llvm_specific_type())->getElementType());
+			assert(llvm_struct_type != nullptr);
 
-		if (llvm_offsets.size() != 0) {
-			/* create the actual list of offsets */
-			llvm::Constant *llvm_dim_offsets_raw = llvm_get_global(llvm_module,
-					std::string("__dim_offsets_raw_") + name.str(),
-					llvm::ConstantArray::get(llvm_dim_offsets_type, llvm_offsets));
-			debug_above(5, log(log_info, "llvm_dim_offsets_raw = %s",
-						llvm_print(llvm_dim_offsets_raw).c_str()));
+			/* calculate the type map */
+			std::vector<llvm::Constant *> llvm_offsets;
+			for (size_t i=0; i<args.size(); ++i) {
+				debug_above(5, log(log_info, "args[%d] is %s",
+							i, args[i]->str().c_str()));
+				if (args[i]->is_managed()) {
+					/* this element is managed, so let's store its memory offset in
+					 * our array */
+					debug_above(5, log(log_info, "getting offset of %d in %s",
+								i, llvm_print(llvm_struct_type).c_str()));
+					llvm_offsets.push_back(llvm::ConstantExpr::getTrunc(
+								llvm_dim_offset_gep(llvm_struct_type, i),
+								builder.getInt16Ty(), true));
+				}
+			}
 
-			llvm_dim_offsets = llvm::ConstantExpr::getBitCast(
-					llvm_dim_offsets_raw, builder.getInt16Ty()->getPointerTo());
+			/* now let's create a placeholder type for the dim offsets map */
+			llvm::ArrayType *llvm_dim_offsets_type = llvm::ArrayType::get(
+					builder.getInt16Ty(), llvm_offsets.size());
 
-		} else {
-			llvm_dim_offsets = llvm::Constant::getNullValue(builder.getInt16Ty()->getPointerTo());
-		}
+			llvm::Module *llvm_module = llvm_get_module(builder);
 
-		debug_above(5, log(log_info, "llvm_dim_offsets = %s",
-					llvm_print(llvm_dim_offsets).c_str()));
+			llvm::Constant *llvm_dim_offsets;
 
-		llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
-				program_scope->get_bound_type({"__type_info"})->get_llvm_type());
+			if (llvm_offsets.size() != 0) {
+				/* create the actual list of offsets */
+				llvm::Constant *llvm_dim_offsets_raw = llvm_get_global(llvm_module,
+						std::string("__dim_offsets_raw_") + name.str(),
+						llvm::ConstantArray::get(llvm_dim_offsets_type, llvm_offsets));
+				debug_above(5, log(log_info, "llvm_dim_offsets_raw = %s",
+							llvm_print(llvm_dim_offsets_raw).c_str()));
 
-		auto signature = data_type->get_signature();
-		debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
-					signature.str().c_str(), signature.repr().iatom));
+				llvm_dim_offsets = llvm::ConstantExpr::getBitCast(
+						llvm_dim_offsets_raw, builder.getInt16Ty()->getPointerTo());
 
-		llvm_type_info = llvm_get_global(llvm_module, string_format("__type_info_%s", signature.repr().c_str()),
-				llvm::ConstantStruct::get(
-					llvm_type_info_type,
+			} else {
+				llvm_dim_offsets = llvm::Constant::getNullValue(builder.getInt16Ty()->getPointerTo());
+			}
 
-					/* the type_id */
-					builder.getInt32(signature.repr().iatom),
+			debug_above(5, log(log_info, "llvm_dim_offsets = %s",
+						llvm_print(llvm_dim_offsets).c_str()));
 
-					/* the number of contained references */
-					builder.getInt16(llvm_offsets.size()),
+			auto signature = data_type->get_signature();
+			debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
+						signature.str().c_str(), signature.repr().iatom));
 
-					/* the actual offsets to the managed references */
-					llvm_dim_offsets,
+			std::vector<llvm::Constant *> llvm_type_info_data({
+						/* the type_id */
+						builder.getInt32(signature.repr().iatom),
 
-					/* name this variable */
-					builder.CreateGlobalStringPtr(name.str()),
+						/* the number of contained references */
+						builder.getInt16(llvm_offsets.size()),
 
-					/* allocation size */
-					llvm_sizeof_tuple,
+						/* the actual offsets to the managed references */
+						llvm_dim_offsets,
 
-					nullptr));
+						/* name this variable */
+						(llvm::Constant *)builder.CreateGlobalStringPtr(name.str()),
 
-		debug_above(5, log(log_info, "llvm_type_info = %s",
-					llvm_print(llvm_type_info).c_str()));
+						/* allocation size */
+						llvm_sizeof_tuple,
 
-		return llvm_create_call_inst(
-				status, builder, node->get_location(),
-				mem_alloc_var,
-				{
+						/* destructor */
+						(llvm::Constant *)llvm_dtor_fn,
+						});
+
+			llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
+			check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
+
+			llvm_type_info = llvm_get_global(
+					llvm_module, string_format("__type_info_%s", signature.repr().c_str()),
+					llvm::ConstantStruct::get(llvm_type_info_type,
+						llvm_type_info_data));
+
+			debug_above(5, log(log_info, "llvm_type_info = %s",
+						llvm_print(llvm_type_info).c_str()));
+
+			return llvm_create_call_inst(
+					status, builder, node->get_location(),
+					mem_alloc_var,
+					{
 					/* the type info for this value */
 					llvm_type_info,
-				});
+					});
+		}
 	}
 
 	assert(!status);

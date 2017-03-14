@@ -50,10 +50,10 @@ def read(f File, cb int) std/bytes or ReadError or EOF
 
 	if bytes_read < zero
 		return ReadError
-	
+
 	if bytes_read == zero
 		return EOF
-	
+
 	return bytes(buffer, bytes_read)
 
 [module any]

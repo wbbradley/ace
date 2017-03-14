@@ -47,7 +47,11 @@ def bool(x __bool__) bool
 		return false
 
 type str has
+	# TODO: override str ctor to strdup strings
 	var raw __str__
+
+def __dtor__(s str)
+	posix.free(s.raw as __bytes)
 
 def str(s str) str
 	return s

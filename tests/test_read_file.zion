@@ -1,5 +1,7 @@
 module _
 link module file
+# test: pass
+# expect: This text should appear
 
 def main() __int__
 	stdout := (1).raw

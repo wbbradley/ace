@@ -3,6 +3,9 @@
 #include <signal.h>
 #include "zion_rt.h"
 
+
+typedef void (*dtor_fn_t)(struct var_t *var);
+
 struct type_info_t {
 	/* the id for the type - a unique number */
 	type_id_t type_id;
@@ -18,6 +21,10 @@ struct type_info_t {
 
 	/* the size of the allocation for memory profiling purposes */
 	int64_t size;
+
+	/* the destructor for this type, if one exists. NB: if you change the index
+	 * of this dimension, update DTOR_INDEX */
+	dtor_fn_t dtor_fn;
 };
 
 struct var_t {
@@ -51,6 +58,7 @@ struct type_info_t __tag_type_info_Example = {
 	.refs_count = 0,
 	.ref_offsets = 0,
 	.size = 0,
+	.dtor_fn = 0,
 };
 
 struct tag_t __tag_Example = {
@@ -258,6 +266,10 @@ void release_var(struct var_t *var
 #endif
 
 		if (var->ref_count == 0) {
+			if (var->type_info->dtor_fn != 0) {
+				/* call the destructor if it exists */
+				var->type_info->dtor_fn(var);
+			}
 			for (int16_t i = var->type_info->refs_count - 1; i >= 0; --i) {
 				struct var_t *ref = *(struct var_t **)(((char *)var) + var->type_info->ref_offsets[i]);
 #ifdef MEMORY_DEBUGGING

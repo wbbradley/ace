@@ -11,6 +11,7 @@
 enum life_form_t {
 	lf_function=0,
 	lf_block,
+	// TODO: delete lf_with_block and get rid of with syntax
 	lf_with_block,
 	lf_loop,
 	lf_statement,

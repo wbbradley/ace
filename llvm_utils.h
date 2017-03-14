@@ -5,6 +5,8 @@
 #include "scopes.h"
 #include "life.h"
 
+#define DTOR_INDEX 5
+
 struct compiler_t;
 struct status_t;
 struct life_t;
@@ -53,10 +55,13 @@ llvm::Type *llvm_resolve_type(llvm::Value *llvm_value);
 llvm::Type *llvm_create_sum_type(llvm::IRBuilder<> &builder, program_scope_t::ref program_scope, atom name);
 llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder, atom name, const bound_type_t::refs &dimensions);
 llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder, atom name, const std::vector<llvm::Type*> &llvm_types);
-llvm::Value *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type);
+llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type);
 llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder, llvm::Value *llvm_value, llvm::Type *llvm_type);
 llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder, llvm::Value *llvm_value, const bound_type_t::ref &bound_type);
 llvm::Constant *llvm_get_pointer_to_constant(llvm::IRBuilder<> &builder, llvm::Constant *llvm_constant);
+void check_struct_initialization(
+		llvm::ArrayRef<llvm::Constant*> llvm_struct_initialization,
+		llvm::StructType *llvm_struct_type);
 
 void llvm_verify_function(status_t &status, llvm::Function *llvm_function);
 void llvm_verify_module(status_t &status, llvm::Module &llvm_module);

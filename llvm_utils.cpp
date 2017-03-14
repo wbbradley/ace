@@ -472,7 +472,7 @@ void llvm_verify_module(status_t &status, llvm::Module &llvm_module) {
 	}
 }
 
-llvm::Value *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type) {
+llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type) {
 	llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_type);
 	if (llvm_struct_type != nullptr) {
 		if (llvm_struct_type->isOpaque()) {
@@ -484,7 +484,7 @@ llvm::Value *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type)
 	}
 
 	llvm::Constant *alloc_size_const = llvm::ConstantExpr::getSizeOf(llvm_type);
-	llvm::Value *size_value = llvm::ConstantExpr::getTruncOrBitCast(alloc_size_const, builder.getInt64Ty());
+	llvm::Constant *size_value = llvm::ConstantExpr::getTruncOrBitCast(alloc_size_const, builder.getInt64Ty());
 	debug_above(3, log(log_info, "size of %s is: %s", llvm_print(llvm_type).c_str(),
 				llvm_print(*size_value).c_str()));
 	return size_value;
@@ -549,6 +549,12 @@ void check_struct_initialization(
 		llvm::ArrayRef<llvm::Constant*> llvm_struct_initialization,
 		llvm::StructType *llvm_struct_type)
 {
+	if (llvm_struct_type->elements().size() != llvm_struct_initialization.size()) {
+		debug_above(7, log(log_error, "mismatch in number of elements for %s",
+					llvm_print(llvm_struct_type).c_str()));
+		assert(false);
+	}
+
 	for (unsigned i = 0, e = llvm_struct_initialization.size(); i != e; ++i) {
 		if (llvm_struct_initialization[i]->getType() == llvm_struct_type->getElementType(i)) {
 			continue;
@@ -611,6 +617,8 @@ bound_var_t::ref llvm_create_global_tag(
 	llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
 			program_scope->get_bound_type({"__type_info"})->get_llvm_type());
 
+	bound_type_t::ref dtor_type = program_scope->get_bound_type({"__dtor_fn_ref"});
+
 	std::vector<llvm::Constant *> llvm_tag_data({
 			/* type_id - the actual type "tag" */
 			(llvm::Constant *)llvm_create_int32(builder, tag.iatom),
@@ -626,7 +634,11 @@ bound_var_t::ref llvm_create_global_tag(
 
 			/* size - should always be zero since the type_id is part of this var_t
 			 * as builtin type info. */
-			builder.getInt64(0)});
+			builder.getInt64(0),
+
+			/* singletons do not have dtors */
+			llvm::Constant::getNullValue(llvm_type_info_type->getElementType(DTOR_INDEX)),
+		});
 
 	llvm::ArrayRef<llvm::Constant*> llvm_tag_initializer{llvm_tag_data};
 

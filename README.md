@@ -2,11 +2,17 @@
 
 [![Build Status](https://travis-ci.org/zionlang/zion.svg?branch=master)](https://travis-ci.org/zionlang/zion)
 
-Zion is a programming language. It is an imperative exploration of strong static
-polymorphic (optionally recursive) data types. Zion defaults all heap data to an
-immutable state, where variable names can be repointed to other values. This is
-similar to how Python treats its basic types, `int`, `str`, `float`, `bool`, but
-Zion extends this treatment to all types.
+Zion is a programming language. Zion prefers correctness and readability over
+performance. Zion targets scenarios where scalability is intended to happen
+horizontally, not vertically. Zion is a strict imperative exploration of immutable
+deterministically destructable strong static algebraic - optionally recursive -
+data types. Zion defaults all[0] heap data to an immutable state, where variable
+names can be repointed to other values. This is similar to how Python treats its
+basic types, `int`, `str`, `float`, `bool`, but Zion extends this treatment to
+all types.
+
+[0] Access to a C-based FFI is available, so it is possible to mutate data
+through linked in libraries.
 
 ## Tenets
 
@@ -50,9 +56,9 @@ def fib(n int) int
 
 Zion contains elements from ML's type system. Zion is strict, not lazy. It is
 compiled down to machine code using LLVM. Memory is managed using an extremely
-simplistic reference counting scheme. All data is immutable, therefore cycles
-are impossible, which eliminates the need for generational mark and sweep or
-"stop the world" garbage collection.
+simplistic reference counting scheme. Because all data is immutable, cycles
+are impossible. This eliminates the need for generational mark and sweep or
+"stop the world" garbage collection. Reference counting is deterministic.
 
 ### TODO
 - [ ] discuss function overrides.

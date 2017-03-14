@@ -110,7 +110,6 @@ foreach(_test_name
 		test_mike
 		test_recursion
 		test_with)
-	add_test(
-		NAME ${_test_name}
-		COMMAND ./zionc run ${_test_name})
+	# TODO: run test through a check for "expect:", etc...
+	# add_test(NAME ${_test_name} COMMAND ./zionc run ${_test_name})
 endforeach(_test_name)
