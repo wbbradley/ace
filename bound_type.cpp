@@ -184,7 +184,7 @@ bool bound_type_t::is_maybe() const {
 }
 
 bool bound_type_t::is_ref() const {
-	if (auto product = dyncast<const types::type_ref_t>(get_type())) {
+	if (dyncast<const types::type_ref_t>(get_type())) {
 		return true;
 	} else {
 		return false;
@@ -196,7 +196,11 @@ bool bound_type_t::is_module() const {
 }
 
 bool bound_type_t::is_managed() const {
-	return is_managed_type_name(type->repr().str());
+	if (dyncast<const types::type_raw_t>(type) != nullptr) {
+		return false;
+	} else {
+		return is_managed_type_name(type->repr().str());
+	}
 }
 
 types::signature bound_type_t::get_signature() const {

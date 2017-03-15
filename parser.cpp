@@ -1128,6 +1128,7 @@ types::type_t::refs parse_type_operands(
 
 bool token_begins_type(token_kind tk) {
 	return (
+			tk == tk_times ||
 			tk == tk_has ||
 			tk == tk_ref ||
 			tk == tk_def ||
@@ -1217,6 +1218,19 @@ types::type_t::ref _parse_single_type(
 	}
 
 	switch (ps.token.tk) {
+	case tk_times:
+		{
+			ps.advance();
+			auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
+			if (!!ps.status) {
+				if (!dyncast<const types::type_raw_t>(type)) {
+					return ::type_raw(type);
+				} else {
+					ps.error("you cannot declare a raw pointer to a raw pointer");
+				}
+			}
+		}
+		break;
 	case tk_has:
 		{
 			ps.advance();

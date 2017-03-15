@@ -233,6 +233,18 @@ namespace types {
 		virtual identifier::ref get_id() const;
 	};
 
+	struct type_raw_t : public type_t {
+		type_raw_t(type_t::ref raw);
+		type_t::ref raw;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
+		virtual ref rebind(const map &bindings) const;
+		virtual location_t get_location() const;
+		virtual identifier::ref get_id() const;
+	};
+
 	struct type_lambda_t : public type_t {
 		type_lambda_t(identifier::ref binding, type_t::ref body);
 		identifier::ref binding;
@@ -265,6 +277,7 @@ types::type_function_t::ref type_function(types::type_t::ref inbound_context, ty
 types::type_t::ref type_sum(types::type_t::refs options);
 types::type_t::ref type_sum_safe(status_t &status, types::type_t::refs options);
 types::type_t::ref type_maybe(types::type_t::ref just);
+types::type_t::ref type_raw(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body);
 types::type_t::ref type_list_type(types::type_t::ref element);
 types::type_t::ref type_strip_maybe(types::type_t::ref maybe_maybe);

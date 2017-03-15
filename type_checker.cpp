@@ -439,18 +439,14 @@ function_scope_t::ref make_param_list_scope(
 
 			bound_type_t::ref return_type = get_function_return_type(scope, function_var->type);
 
-			if (!types::is_type_id(return_type->get_type(), {"void"})
-					&& function_var->name != "__dtor__") {
-				// TODO: come up with a better syntax for avoiding refcounting inside destructors
-				// TODO: an easy optimization here (to avoid the addref/release
-				// overhead would be to check whether this symbol is on the LHS of
-				// any assignment operations within this function AST's body. For
-				// now, we'll be safe.
-				call_addref_var(status, builder, scope, param_var, "function parameter lifetime");
+			// TODO: an easy optimization here (to avoid the addref/release
+			// overhead would be to check whether this symbol is on the LHS of
+			// any assignment operations within this function AST's body. For
+			// now, we'll be safe.
+			call_addref_var(status, builder, scope, param_var, "function parameter lifetime");
 
-				if (!!status) {
-					life->track_var(builder, param_var, lf_function);
-				}
+			if (!!status) {
+				life->track_var(builder, param_var, lf_function);
 			}
 
 			if (!!status) {
@@ -1293,36 +1289,33 @@ bound_var_t::ref ast::and_expr_t::resolve_instantiation(
 	return null_impl();
 }
 
-bound_type_t::ref eval_to_bound_struct_ref(
+types::type_t::ref eval_to_struct_ref(
 		status_t &status,
 		scope_t::ref scope,
 		ast::item_t::ref node,
-		bound_type_t::ref bound_type)
+		types::type_t::ref type)
 {
-	if (bound_type->is_ref()) {
-		return bound_type;
-	} else if (bound_type->is_maybe()) {
+	if (dyncast<const types::type_ref_t>(type)) {
+		return type;
+	} else if (dyncast<const types::type_maybe_t>(type)) {
 		user_error(status, node->get_location(),
 				"maybe type %s cannot be dereferenced. todo implement ?.",
-				bound_type->str().c_str());
+				type->str().c_str());
 		return nullptr;
 	}
 
-	types::type_t::ref expansion = eval(bound_type->get_type(),
-			scope->get_typename_env());
+	types::type_t::ref expansion = eval(type, scope->get_typename_env());
 
 	if (expansion != nullptr) {
 		debug_above(5, log(log_info,
 					"expanded %s to %s",
-					bound_type->str().c_str(),
+					type->str().c_str(),
 					expansion->str().c_str()));
-		auto bound_expansion = scope->get_bound_type(expansion->get_signature());
-		assert(bound_expansion != nullptr);
-		return bound_expansion;
+		return expansion;
 	} else {
 		user_error(status, node->get_location(),
 				"type %s could not be expanded",
-				bound_type->str().c_str());
+				type->str().c_str());
 	}
 
 	assert(!status);
@@ -1331,11 +1324,10 @@ bound_type_t::ref eval_to_bound_struct_ref(
 
 types::type_struct_t::ref get_struct_type_from_ref(
 		status_t &status,
-	   	ast::item_t::ref node,
-	   	bound_type_t::ref bound_struct_ref)
+		ast::item_t::ref node,
+		types::type_t::ref type)
 {
-	if (auto type_ref = dyncast<const types::type_ref_t>(
-				bound_struct_ref->get_type())) {
+	if (auto type_ref = dyncast<const types::type_ref_t>(type)) {
 		if (auto struct_type = dyncast<const types::type_struct_t>(type_ref->element_type)) {
 			return struct_type;
 		} else {
@@ -1361,15 +1353,22 @@ bound_var_t::ref extract_member_variable(
 		atom member_name,
 		bound_type_t::ref bound_type)
 {
-	bound_type_t::ref bound_struct_ref = eval_to_bound_struct_ref(status, scope,
-			node, bound_type);
+	types::type_t::ref object_type = bound_type->get_type();
+	if (auto raw = dyncast<const types::type_raw_t>(object_type)) {
+		object_type = raw->raw;
+	}
+
+	types::type_t::ref type = eval_to_struct_ref(status, scope,
+			node, object_type);
 
 	if (!status) {
 		return nullptr;
 	}
 
+	auto bound_struct_ref = upsert_bound_type(status, builder, scope, type);
+
 	types::type_struct_t::ref struct_type = get_struct_type_from_ref(
-			status, node, bound_struct_ref);
+			status, node, type);
 
 	if (!status) {
 		return nullptr;
@@ -1394,7 +1393,8 @@ bound_var_t::ref extract_member_variable(
 				struct_type->dimensions[index]->get_signature());
 		assert(bound_struct_ref->get_llvm_type() != nullptr);
 
-		llvm::Value *llvm_var_value = llvm_maybe_pointer_cast(builder, bound_var->llvm_value, bound_struct_ref);
+		llvm::Value *llvm_var_value = llvm_maybe_pointer_cast(builder,
+				bound_var->llvm_value, bound_struct_ref);
 
 		/* the following code is heavily coupled to the physical layout of
 		 * managed vs. native structures */
@@ -3117,17 +3117,14 @@ bound_var_t::ref ast::cast_expr_t::resolve_instantiation(
 {
 	bound_var_t::ref bound_var = lhs->resolve_instantiation(status, builder, scope, life, nullptr, nullptr);
 	if (!!status) {
-
+		bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_cast);
 		if (!!status) {
-			bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_cast);
-			if (!!status) {
-				// TODO: consider checking for certain casting
-				llvm::Value *llvm_var_value = llvm_maybe_pointer_cast(builder, bound_var->llvm_value, bound_type);
+			// TODO: consider checking for certain casting
+			llvm::Value *llvm_var_value = llvm_maybe_pointer_cast(builder, bound_var->llvm_value, bound_type);
 
-				return bound_var_t::create(INTERNAL_LOC(), "cast",
+			return bound_var_t::create(INTERNAL_LOC(), "cast",
 					bound_type, llvm_var_value, make_iid("cast"),
 					false /*is_lhs*/);
-			}
 		}
 	}
 

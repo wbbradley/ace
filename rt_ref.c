@@ -93,6 +93,10 @@ void mem_free(void *p, size_t cb) {
 #endif
 }
 
+zion_int_t get_total_allocated() {
+	return _bytes_allocated;
+}
+
 const char *_zion_rt = "zion-rt: ";
 
 #define MEM_PANIC(msg, str, error_code) \

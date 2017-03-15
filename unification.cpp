@@ -98,6 +98,9 @@ unification_t unify(
 	auto pts_a = dyncast<const types::type_sum_t>(a);
 	auto pts_b = dyncast<const types::type_sum_t>(b);
 
+	auto ptr_a = dyncast<const types::type_raw_t>(a);
+	auto ptr_b = dyncast<const types::type_raw_t>(b);
+
 	auto ptp_a = dyncast<const types::type_product_t>(a);
 
 	auto ptf_a = dyncast<const types::type_function_t>(a);
@@ -308,6 +311,8 @@ unification_t unify(
 					b->str().c_str(),
 					str(bindings).c_str()), {}};
 		}
+	} else if (ptr_a != nullptr && ptr_b != nullptr) {
+		return unify(ptr_a->raw, ptr_b->raw, env, bindings, depth + 1);
 	} else {
 		/* types don't match */
 		return {false, string_format("%s <> %s with attempted bindings %s",
