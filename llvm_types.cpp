@@ -509,8 +509,6 @@ bound_type_t::ref upsert_bound_type(
 }
 
 bound_type_t::ref get_function_return_type(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::ref function_type)
 {

@@ -181,8 +181,6 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 		return while_block_t::parse(ps);
 	} else if (ps.token.tk == tk_when) {
 		return when_block_t::parse(ps);
-	} else if (ps.token.tk == tk_with) {
-		return with_block_t::parse(ps);
 	} else if (ps.token.tk == tk_return) {
 		return return_statement_t::parse(ps);
 	} else if (ps.token.tk == tk_type) {
@@ -321,6 +319,9 @@ ptr<expression_t> array_literal_expr_t::parse(parse_state_t &ps) {
 
 ptr<expression_t> literal_expr_t::parse(parse_state_t &ps) {
 	switch (ps.token.tk) {
+	case tk_raw_float:
+	case tk_raw_integer:
+	case tk_raw_string:
 	case tk_integer:
 	case tk_string:
 	case tk_char:
@@ -866,23 +867,6 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 		assert(!ps.status);
 		return nullptr;
 	}
-}
-
-ptr<with_block_t> with_block_t::parse(parse_state_t &ps) {
-	auto with_block = create<ast::with_block_t>(ps.token);
-	chomp_token(tk_with);
-
-	with_block->object = assignment_t::parse(ps);
-
-	if (!!ps.status) {
-		with_block->block = block_t::parse(ps);
-		if (!!ps.status) {
-			return with_block;
-		}
-	}
-
-	assert(!ps.status);
-	return nullptr;
 }
 
 ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {

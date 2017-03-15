@@ -1,0 +1,5 @@
+module _
+# test: pass
+
+def main() __int__
+	return 4r

@@ -53,6 +53,9 @@ type str has
 def __dtor__(s str)
 	posix.free(s.raw as __bytes)
 
+def __box__(s __str__) str
+	return str(posix.strdup(s))
+
 def str(s str) str
 	return s
 

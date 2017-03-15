@@ -1,7 +1,7 @@
 module _
 link module file
 def main()
-	with f := file.open("foo", file.ReadOnly)
+	if f := file.open("foo", file.ReadOnly)
 		f
-	# error: undefined symbol x
-	print(x)
+	# error: undefined symbol f
+	print(f)

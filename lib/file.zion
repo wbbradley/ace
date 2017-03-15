@@ -21,19 +21,18 @@ type FileOpenMode is
 	ReadWrite
 
 def open(name str, mode FileOpenMode) File?
-	zero := (0).raw
-	var flags __int__ = zero
+	var flags __int__ = 0r
 
 	if mode is ReadOnly
-		flags = zero
+		flags = 0r
 	elif mode is WriteOnly
-		flags = (1).raw
+		flags = 1r
 	elif mode is ReadWrite
-		flags = (2).raw
+		flags = 2r
 
-	fd := int(posix.open(name.raw, flags))
-	if fd != -1
-		return File(fd)
+	fd := posix.open(name.raw, flags)
+	if fd != -1r
+		return File(int(fd))
 	else
 		return nil
 
@@ -44,14 +43,13 @@ tag ReadError
 tag EOF
 
 def read(f File, cb int) std/bytes or ReadError or EOF
-	buffer := posix.calloc((1).raw, cb.raw)
+	buffer := posix.calloc(1r, cb.raw)
 	bytes_read := posix.read(f.fd.raw, buffer, cb.raw)
-	zero := (0).raw
 
-	if bytes_read < zero
+	if bytes_read < 0r
 		return ReadError
 
-	if bytes_read == zero
+	if bytes_read == 0r
 		return EOF
 
 	return bytes(buffer, bytes_read)

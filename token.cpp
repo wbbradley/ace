@@ -52,6 +52,7 @@ const char *tkstr(token_kind tk) {
 	tk_case(equal);
 	tk_case(error);
 	tk_case(float);
+	tk_case(raw_float);
 	tk_case(gt);
 	tk_case(gte);
 	tk_case(has);
@@ -61,6 +62,7 @@ const char *tkstr(token_kind tk) {
 	tk_case(indent);
 	tk_case(inequal);
 	tk_case(integer);
+	tk_case(raw_integer);
 	tk_case(is);
 	tk_case(lcurly);
 	tk_case(link);
@@ -93,6 +95,7 @@ const char *tkstr(token_kind tk) {
 	tk_case(sizeof);
 	tk_case(space);
 	tk_case(string);
+	tk_case(raw_string);
 	tk_case(times);
 	tk_case(times_eq);
 	tk_case(tag);
@@ -127,6 +130,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_pass:
 	case tk_rcurly:
 	case tk_float:
+	case tk_raw_float:
 	case tk_rparen:
 	case tk_rsquare:
 	case tk_space:
@@ -158,6 +162,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_in:
 	case tk_inequal:
 	case tk_integer:
+	case tk_raw_integer:
 	case tk_is:
 	case tk_link:
 	case tk_lt:
@@ -176,6 +181,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_return:
 	case tk_semicolon:
 	case tk_string:
+	case tk_raw_string:
 	case tk_tag:
 	case tk_times:
 	case tk_times_eq:
@@ -383,8 +389,11 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 	case tk_atom:
 	case tk_char:
 	case tk_string:
+	case tk_raw_string:
 	case tk_integer:
+	case tk_raw_integer:
 	case tk_float:
+	case tk_raw_float:
 	case tk_version:
 		ensure_space_before(last_tk);
 		printf("%s", text.c_str());

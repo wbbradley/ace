@@ -137,6 +137,7 @@ bool zion_lexer_t::_get_tokens() {
 		gts_single_quoted_escape,
 		gts_quoted,
 		gts_quoted_escape,
+		gts_end_quoted,
 		gts_whitespace,
 		gts_indenting,
 		gts_token,
@@ -486,6 +487,9 @@ bool zion_lexer_t::_get_tokens() {
 		case gts_float:
 			if (ch == 'e' || ch == 'E') {
 				gts = gts_expon_symbol;
+			} else if (ch == 'r') {
+				tk = tk_raw_float;
+				gts = gts_end;
 			} else if (!isdigit(ch)) {
 				tk = tk_float;
 				gts = gts_end;
@@ -500,7 +504,10 @@ bool zion_lexer_t::_get_tokens() {
 			}
 			break;
 		case gts_expon:
-			if (!isdigit(ch)) {
+			if (ch == 'r') {
+				tk = tk_raw_float;
+				gts = gts_end;
+			} else if (!isdigit(ch)) {
 				gts = gts_end;
 				tk = tk_float;
 				scan_ahead = false;
@@ -511,6 +518,9 @@ bool zion_lexer_t::_get_tokens() {
 				gts = gts_expon_symbol;
 			} else if (ch == '.') {
 				gts = gts_float_symbol;
+			} else if (ch == 'r') {
+				tk = tk_raw_integer;
+				gts = gts_end;
 			} else if (!isdigit(ch)) {
 				gts = gts_end;
 				scan_ahead = false;
@@ -544,12 +554,20 @@ bool zion_lexer_t::_get_tokens() {
 				gts = gts_quoted_escape;
 			} else if (ch == '"') {
 				tk = tk_string;
-				gts = gts_end;
+				gts = gts_end_quoted;
 			} else {
 				sequence_length = utf8_sequence_length(ch);
 				if (sequence_length != 0)
 					--sequence_length;
  			}
+			break;
+		case gts_end_quoted:
+			gts = gts_end;
+			if (ch == 'r') {
+				tk = tk_raw_string;
+			} else {
+				scan_ahead = false;
+			}
 			break;
 		case gts_quoted_escape:
 			gts = gts_quoted;

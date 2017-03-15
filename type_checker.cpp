@@ -401,13 +401,6 @@ function_scope_t::ref make_param_list_scope(
 		bound_var_t::ref function_var,
 		bound_type_t::named_pairs params)
 {
-	/* this function is coupled to the sbk_generic_substitution mechanism.
-	 * when we're not dealing with generics, it simply looks up the types in
-	 * the decl parameter's type expressions. when we're dealing with generics
-	 * after using the incoming scope to find the bound parameter types (based
-	 * on upstream callsite arguments), we drop the sbk_generic_substitution in
-	 * order to prevent those type names from being visible within the function.
-	 */
 	assert(!!status);
 	assert(life->life_form == lf_function);
 
@@ -444,15 +437,23 @@ function_scope_t::ref make_param_list_scope(
 					llvm_alloca, make_code_id(obj.param_list_decl->params[i++]->token),
 					true /*is_lhs*/);
 
-			// TODO: an easy optimization here (to avoid the addref/release
-			// overhead would be to check whether this symbol is on the LHS of
-			// any assignment operations within this function AST's body. For
-			// now, we'll be safe.
-			call_addref_var(status, builder, scope, param_var, "function parameter lifetime");
+			bound_type_t::ref return_type = get_function_return_type(scope, function_var->type);
+
+			if (!types::is_type_id(return_type->get_type(), {"void"})
+					&& function_var->name != "__dtor__") {
+				// TODO: come up with a better syntax for avoiding refcounting inside destructors
+				// TODO: an easy optimization here (to avoid the addref/release
+				// overhead would be to check whether this symbol is on the LHS of
+				// any assignment operations within this function AST's body. For
+				// now, we'll be safe.
+				call_addref_var(status, builder, scope, param_var, "function parameter lifetime");
+
+				if (!!status) {
+					life->track_var(builder, param_var, lf_function);
+				}
+			}
 
 			if (!!status) {
-				life->track_var(builder, param_var, lf_function);
-
 				/* add the parameter argument to the current scope */
 				new_scope->put_bound_variable(status, param.first, param_var);
 			}
@@ -1015,8 +1016,7 @@ bound_var_t::ref ast::tuple_expr_t::resolve_instantiation(
 				make_iid(tuple_type->repr()), shared_from_this());
 
 		if (!!status) {
-			assert(get_function_return_type(status, builder,
-						scope, tuple.first->type)->get_type()->repr() == type_ref(tuple_type)->repr());
+			assert(get_function_return_type(scope, tuple.first->type)->get_type()->repr() == type_ref(tuple_type)->repr());
 
 			/* now, let's call our unnamed tuple ctor and return that value */
 			return create_callsite(status, builder, scope, life,
@@ -2584,76 +2584,6 @@ bound_var_t::ref ast::while_block_t::resolve_instantiation(
     return nullptr;
 }
 
-bound_var_t::ref ast::with_block_t::resolve_instantiation(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-		life_t::ref life,
-        local_scope_t::ref *new_scope,
-		bool *returns) const
-{
-	assert(life->life_form == lf_statement);
-
-	/* with scope allows us to set up new variables inside the object declaration */
-	local_scope_t::ref with_scope;
-
-	bool with_block_returns = false;
-
-	assert(token.text == "with");
-
-	auto object_life = life->new_life(status, lf_statement);
-	assert(!!status);
-
-	/* evaluate the object declaration */
-	bound_var_t::ref object_value = object->resolve_instantiation(
-			status, builder, scope, object_life, &with_scope, nullptr);
-
-	if (!!status) {
-		bound_var_t::ref snapshot = resolve_alloca(builder, object_value);
-
-		/* make sure that the object we are managing lives until the end of the with
-		 * block */
-		call_addref_var(status, builder, with_scope ? with_scope : scope, snapshot,
-				string_format("with %s", object->str().c_str()));
-
-		if (!!status) {
-			/* release any intermediary values created while creating the snapshot */
-			object_life->release_vars(status, builder, with_scope ? with_scope : scope, lf_statement);
-
-			if (!!status) {
-				life = life->new_life(status, lf_with_block);
-
-				if (!!status) {
-					life->track_var(builder, snapshot, lf_with_block);
-
-					if (!!status) {
-						block->resolve_instantiation(status, builder,
-							   	with_scope ? with_scope : scope,
-							   	life, nullptr,
-								&with_block_returns);
-
-						if (!!status) {
-							if (!with_block_returns) {
-								life->release_vars(status, builder,
-									   	with_scope ? with_scope : scope,
-									   	lf_with_block);
-
-								if (returns != nullptr) {
-									*returns = with_block_returns;
-								}
-								return nullptr;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	assert(!status);
-    return nullptr;
-}
-
 bound_var_t::ref ast::if_block_t::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,
@@ -2998,6 +2928,17 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
     scope_t::ref program_scope = scope->get_program_scope();
 
     switch (token.tk) {
+	case tk_raw_integer:
+        {
+			/* create a raw integer */
+			int64_t value = atoll(token.text.substr(0, token.text.size() - 1).c_str());
+			bound_type_t::ref raw_type = program_scope->get_bound_type({INT_TYPE});
+			return bound_var_t::create(
+					INTERNAL_LOC(), "raw_int_literal", raw_type,
+					llvm_create_int(builder, value),
+					make_code_id(token), false /*is_lhs*/);
+        }
+		break;
     case tk_integer:
         {
 			/* create a boxed integer */
@@ -3037,6 +2978,16 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
 			}
         }
 		break;
+    case tk_raw_string:
+		{
+			std::string value = unescape_json_quotes(token.text.substr(0, token.text.size() - 1));
+			bound_type_t::ref raw_type = program_scope->get_bound_type({STR_TYPE});
+			return bound_var_t::create(
+					INTERNAL_LOC(), "raw_str_literal", raw_type,
+					llvm_create_global_string(builder, value),
+					make_code_id(token), false /*is_lhs*/);
+		}
+		break;
     case tk_string:
 		{
 			std::string value = unescape_json_quotes(token.text);
@@ -3053,7 +3004,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
 						status,
 						builder,
 						scope,
-						{"str"},
+						{"__box__"},
 						shared_from_this(),
 						scope->get_outbound_context(),
 						get_args_type({raw_type}));
@@ -3073,6 +3024,16 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
 									make_code_id(token), false/*is_lhs*/)});
 				}
 			}
+		}
+		break;
+	case tk_raw_float:
+		{
+			double value = atof(token.text.substr(0, token.text.size() - 1).c_str());
+			bound_type_t::ref raw_type = program_scope->get_bound_type({FLOAT_TYPE});
+			return bound_var_t::create(
+					INTERNAL_LOC(), "raw_float_literal", raw_type,
+					llvm_create_double(builder, value),
+					make_code_id(token), false/*is_lhs*/);
 		}
 		break;
 	case tk_float:

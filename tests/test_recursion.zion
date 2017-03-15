@@ -1,16 +1,15 @@
 module _
 # test: pass
+# expect: 4
 
 def max(mml [any T], mlast any T?) any T?
 	if ml := mml
 		if last := mlast
-			print("Last max is " + str(last))
 			if ml.value > last
 				return max(ml.next, ml.value)
 			else
 				return max(ml.next, last)
 
-		print("No max yet")
 		return max(ml.next, ml.value)
 	return mlast
 

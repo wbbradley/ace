@@ -134,8 +134,7 @@ bound_var_t::ref create_callsite(
 					status, builder, location, function, get_llvm_values(arguments));
 
 			if (!!status) {
-				bound_type_t::ref return_type = get_function_return_type(status,
-						builder, scope, function->type);
+				bound_type_t::ref return_type = get_function_return_type(scope, function->type);
 
 				bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name, return_type, llvm_call_inst,
 						make_type_id_code_id(INTERNAL_LOC(), name), false/*is_lhs*/);
@@ -579,7 +578,7 @@ llvm::GlobalVariable *llvm_get_global(
 			llvm_constant, name, nullptr,
 			llvm::GlobalVariable::NotThreadLocal);
 
-	llvm_global_variable->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+	// llvm_global_variable->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 	return llvm_global_variable;
 }
 

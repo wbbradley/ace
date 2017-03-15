@@ -4,17 +4,15 @@ link module file
 # expect: This text should appear
 
 def main() __int__
-	stdout := (1).raw
-	with f := file.open("play/read_file.zion", file.ReadOnly)
-		if f
-			while true
-				buffer := file.read(f, 4 * 1024)
-				when buffer
-					is file/EOF
-						break
-					is std/bytes
-						posix.write(stdout, buffer.data, buffer.cb)
-					is file/ReadError
-						print("Read Error")
-						return (-1).raw
-	return (0).raw
+	if f := file.open("play/read_file.zion", file.ReadOnly)
+		while true
+			buffer := file.read(f, 4 * 1024)
+			when buffer
+				is std/bytes
+					posix.write(1r, buffer.data, buffer.cb)
+				is file/EOF
+					break
+				is file/ReadError
+					print("Read Error")
+					return -1r
+	return 0r

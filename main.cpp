@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <fstream>
+#include <iostream>
 #include "lexer.h"
 #include "logger_decls.h"
 #include "logger.h"
@@ -49,6 +50,16 @@ int main(int argc, char *argv[]) {
             } else {
                 return EXIT_FAILURE;
             }
+        } else if (cmd == "find") {
+            std::string filename;
+            compiler.resolve_module_filename(status, INTERNAL_LOC(),
+                    argv[2], filename);
+
+			if (!!status) {
+                std::cout << filename << std::endl;
+                return EXIT_SUCCESS;
+			}
+			return EXIT_FAILURE;
         } else if (cmd == "compile") {
 			compiler.build_parse_modules(status);
 

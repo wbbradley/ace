@@ -1,7 +1,6 @@
 module hello @1.0
 # test: pass
+# expect: Hello, world.
 
-def main() int
+def main()
 	print("Hello, world.")
-	return 0
-

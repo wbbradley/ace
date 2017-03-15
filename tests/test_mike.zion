@@ -1,5 +1,7 @@
 module _
 # test: pass
+# expect: 11
+
 # This tests whether we can instantiate recursive abstract types when they are
 # not necessary.
 

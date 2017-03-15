@@ -1,6 +1,6 @@
 module _
-link module file
+# test: pass
+
 def main()
-	# error: no __dtor__ found for type std/int
-	with x := 3
+	if x := 3
 		pass

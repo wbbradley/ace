@@ -1,0 +1,13 @@
+module _
+link module file
+# test: pass
+# expect: opened tests/test_if_dtor.zion as fd
+
+def main() __int__
+	filename := "tests/test_if_dtor.zion"
+	if f := file.open(filename, file.ReadOnly)
+		print("opened " + filename + " as fd " + str(f.fd))
+	else
+		print("unable to open " + filename)
+
+	return 0r

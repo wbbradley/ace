@@ -5,7 +5,8 @@ include_directories(BEFORE .)
 add_definitions(-DZION_DEBUG)
 
 find_package(LLVM REQUIRED CONFIG
-	HINTS /usr/local/Cellar/llvm/3.9.1)
+	HINTS /usr/local/Cellar/llvm/3.9.1
+	HINTS /usr/local/Cellar/llvm@3.7/3.7.1/lib/llvm-3.7)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
@@ -36,7 +37,7 @@ foreach(_rt_module
 
 	add_custom_command(
 		OUTPUT ${_rt_module}.llir
-		COMMAND clang -S -Wall -emit-llvm ${option_flags} ${_rt_module}.c -o ${_rt_module}.llir
+		COMMAND clang-3.7 -S -Wall -emit-llvm ${option_flags} ${_rt_module}.c -o ${_rt_module}.llir
 		DEPENDS ${_rt_module}.c)
 
 endforeach(_rt_module)
@@ -109,7 +110,6 @@ foreach(_test_name
 		test_map
 		test_mike
 		test_recursion
-		test_with)
-	# TODO: run test through a check for "expect:", etc...
-	# add_test(NAME ${_test_name} COMMAND ./zionc run ${_test_name})
+		test_if_dtor)
+	add_test(NAME ${_test_name} COMMAND python expect.py -p ${_test_name})
 endforeach(_test_name)

@@ -241,7 +241,9 @@ bool test_lex_literals() {
 		{":atom \"hello world\\n\" 13493839", {tk_atom, tk_string, tk_integer}},
 		{"\"\"", {tk_string}},
 		{"0", {tk_integer}},
+		{"0r", {tk_raw_integer}},
 		{"10", {tk_integer}},
+		{"10r", {tk_raw_integer}},
 	};
 	return lexer_test(tests);
 }
@@ -279,10 +281,15 @@ bool test_lex_syntax() {
 bool test_lex_floats() {
 	lexer_tests tests = {
 		{"1.0", {tk_float}},
+		{"1.0r", {tk_raw_float}},
 		{"1.0e1", {tk_float}},
+		{"1.0e1r", {tk_raw_float}},
 		{"123e12 # whatever this is not here\n", {tk_float}},
+		{"123e12r # whatever this is not here\n", {tk_raw_float}},
 		{"-123.29382974284e12", {tk_minus, tk_float}},
+		{"-123.29382974284e12r", {tk_minus, tk_raw_float}},
 		{"h(3.14159265)", {tk_identifier, tk_lparen, tk_float, tk_rparen}},
+		{"h(3.14159265r)", {tk_identifier, tk_lparen, tk_raw_float, tk_rparen}},
 	};
 	return lexer_test(tests);
 }
