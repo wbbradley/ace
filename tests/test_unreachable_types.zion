@@ -12,7 +12,7 @@ type Box{X, Y} is
 	Crate{X, Y}
 
 def show(b Box{any, any})
-	# error: no function found named __getitem__ for callsite b\[0\]
+	# error: unable to resolve overloads for __getitem__ at b
 	print(b[0])
 
 def main()

@@ -109,3 +109,9 @@ bound_var_t::ref llvm_create_global_tag(
 // NOTE: the explain function is a tool to learn about LLVM types, it does not
 // handle cyclic types, so it should only be used for debugging.
 void explain(llvm::Type *llvm_type);
+
+bound_var_t::ref maybe_load_from_pointer(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		bound_var_t::ref var);

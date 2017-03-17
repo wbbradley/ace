@@ -1223,8 +1223,8 @@ types::type_t::ref _parse_single_type(
 			ps.advance();
 			auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
 			if (!!ps.status) {
-				if (!dyncast<const types::type_raw_t>(type)) {
-					return ::type_raw(type);
+				if (!dyncast<const types::type_raw_pointer_t>(type)) {
+					return ::type_raw_pointer(type);
 				} else {
 					ps.error("you cannot declare a raw pointer to a raw pointer");
 				}

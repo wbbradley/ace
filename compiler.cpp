@@ -292,6 +292,7 @@ const char *INT8_TYPE = "__int8__";
 const char *BOOL_TYPE = "__bool__";
 const char *FLOAT_TYPE = "__float__";
 const char *STR_TYPE = "__str__";
+const char *PTR_TO_STR_TYPE = "*__str__";
 const char *TRUE_TYPE = "__true__";
 const char *FALSE_TYPE = "__false__";
 const char *TYPEID_TYPE = "__typeid__";
@@ -355,6 +356,11 @@ void add_global_types(
 					type_id(make_iid(STR_TYPE)),
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty()->getPointerTo())},
+		{{PTR_TO_STR_TYPE},
+		   	bound_type_t::create(
+					type_raw_pointer(type_id(make_iid(STR_TYPE))),
+				   	INTERNAL_LOC(),
+				   	builder.getInt8Ty()->getPointerTo()->getPointerTo())},
 
 		/* pull in the garbage collection and memory reference types */
 		{{"__tag_var"},
@@ -479,6 +485,8 @@ void add_globals(
 			std::string return_type;
 		};
 
+		/* add builtin functions to the program namespace. these functions are
+		 * all defined in the rt_*.c files */
 		auto bindings = std::vector<binding_t>{
 			{INT_TYPE, llvm_module_int, "__int_int", {INT_TYPE}, INT_TYPE},
 			{INT_TYPE, llvm_module_int, "__int_float", {FLOAT_TYPE}, INT_TYPE},
@@ -492,6 +500,7 @@ void add_globals(
 			{STR_TYPE, llvm_module_str, "__str_float", {FLOAT_TYPE}, STR_TYPE},
 			{STR_TYPE, llvm_module_str, "__str_type_id", {TYPEID_TYPE}, STR_TYPE},
 			{STR_TYPE, llvm_module_str, "__str_str", {STR_TYPE}, STR_TYPE},
+			{"__getitem__", llvm_module_str, "__ptr_to_str_get_item", {PTR_TO_STR_TYPE, INT_TYPE}, STR_TYPE},
 
 			{"__ineq__", llvm_module_typeid, "__type_id_ineq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 

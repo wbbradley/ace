@@ -41,7 +41,7 @@ Zion looks a bit like Python:
 ```
 module hello_world
 
-def main()
+def main(args [str]) int
 	print("Hello, world!")
 ```
 

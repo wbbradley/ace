@@ -2,6 +2,7 @@ module _
 # test: pass
 link module posix
 
-def main()
+def main(args [str]) int
 	posix.puts("Hello world.".raw)
+	return 0
 	

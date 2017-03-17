@@ -107,6 +107,38 @@ llvm::Value *llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_v
 	}
 }
 
+bound_var_t::ref maybe_load_from_pointer(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		bound_var_t::ref var)
+{
+	if (auto raw = dyncast<const types::type_raw_pointer_t>(var->type->get_type())) {
+		auto bound_type = upsert_bound_type(status, builder, scope, raw->raw);
+		if (!!status) {
+			assert(var->llvm_value->getType()->isPointerTy());
+			assert(llvm::cast<llvm::PointerType>(var->llvm_value->getType())->getElementType()->isPointerTy());
+			llvm::Value *llvm_value = builder.CreateLoad(var->llvm_value);
+			debug_above(5, log(log_info, "maybe_load_from_pointer is loading %s which has type %s",
+						llvm_print(llvm_value).c_str(),
+						llvm_print(llvm_value->getType()).c_str()));
+			return bound_var_t::create(
+					INTERNAL_LOC(),
+					string_format("load.%s", var->name.c_str()),
+					bound_type,
+					llvm_value,
+					var->id,
+					false /*is_lhs*/);
+		}
+	} else {
+		return var;
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
+
 bound_var_t::ref create_callsite(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -518,6 +550,7 @@ bound_var_t::ref llvm_start_function(status_t &status,
 						get_function_type(type_fn_context, args, data_type),
 						node->token.location,
 						llvm_ctor_fn_type);
+
 			/* now let's generate our actual data ctor fn */
 			auto llvm_function = llvm::Function::Create(
 					(llvm::FunctionType *)llvm_ctor_fn_type,
@@ -675,6 +708,7 @@ llvm::Value *llvm_maybe_pointer_cast(
 					llvm_print(llvm_value).c_str(),
 					llvm_print(llvm_type).c_str()));
 		assert(llvm_value->getType()->isPointerTy());
+		assert(llvm_value->getType() != llvm_type->getPointerTo());
 
 		if (llvm_type != llvm_value->getType()) {
 			return builder.CreatePointerBitCastOrAddrSpaceCast(

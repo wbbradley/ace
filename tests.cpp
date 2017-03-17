@@ -519,24 +519,6 @@ bool test_parse_link_extern_function() {
 			"link def open(filename str, mode str) int\n");
 }
 
-bool test_parse_fizz_buzz() {
-	return check_parse<ast::module_t>(
-		   	"module fizzbuzz @1.2.3\n"
-			"def main(maximum int) int\n"
-			"\tvar i int = 1\n"
-			"\twhile i <= maximum\n"
-			"\t\tif i % 15 == 0\n"
-			"\t\t\tprint(\"fizzbuzz\")\n"
-			"\t\t\ti = i + 1\n"
-			"\t\t\tcontinue\n"
-			"\t\tif i % 3 == 0\n"
-			"\t\t\tprint(\"fizz\")\n"
-			"\t\tif i % 5 == 0\n"
-			"\t\t\tprint(\"buzz\")\n"
-			"\t\ti = i + 1\n",
-			"test" /*module*/);
-}
-
 struct expression_check {
 	std::string expr_text;
 	runtime::variant expected;
@@ -917,7 +899,6 @@ auto test_descs = std::vector<test_desc>{
 	},
 
 	T(test_parse_empty_quote),
-	T(test_parse_fizz_buzz),
 	T(test_parse_if_else),
 	T(test_parse_integer_add),
 	T(test_parse_link_extern_function),

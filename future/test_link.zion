@@ -11,6 +11,6 @@ type Pair{A, B} has
 	var a A
 	var b B
 
-def main()
+def main(args [str]) int
 	external.cool()
 	return

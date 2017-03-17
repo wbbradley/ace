@@ -14,3 +14,4 @@ link def sqrt(x __float__) __float__
 link def rand() __int__
 link def exit(code __int__) __int__
 link def getch() __int__
+link def getcwd(space __str__) __str__

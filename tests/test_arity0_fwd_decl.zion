@@ -1,8 +1,9 @@
 module _
 # test: pass
 
-def main()
+def main(args [str]) int
 	arity0()	
+	return 0
 
 def arity0()
 	pass

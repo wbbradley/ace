@@ -47,7 +47,7 @@ def compute(expr Expr) int
 	assert(false)
 	return 0
 
-def main()
+def main(args [str]) int
 	expr := Divide(Plus(Literal(5), Literal(5)), Literal(2))
 
 	# Should print 5

@@ -16,5 +16,5 @@ def do(t Maybe{any Q})
 		is Empty
 			pass
 
-def main()
+def main(args [str]) int
 	do(JustInt(3, "green"))

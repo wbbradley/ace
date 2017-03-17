@@ -374,35 +374,28 @@ bound_type_t::ref create_bound_maybe_type(
 	return nullptr;
 }
 
-bound_type_t::ref create_bound_raw_type(
+bound_type_t::ref create_bound_raw_pointer_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		const ptr<const types::type_raw_t> &raw)
+		const ptr<const types::type_raw_pointer_t> &raw_pointer)
 {
 	auto program_scope = scope->get_program_scope();
-	bound_type_t::ref bound_raw_type = upsert_bound_type(status, builder, scope, raw->raw);
+	bound_type_t::ref bound_raw_pointer_type = upsert_bound_type(status, builder, scope, raw_pointer->raw);
 	if (!!status) {
-		auto llvm_type = bound_raw_type->get_llvm_specific_type();
-		if (bound_raw_type->is_managed()) {
-			debug_above(5, log(log_info, "creating raw type for %s", raw->raw->str().c_str()));
-			auto bound_type = scope->get_bound_type(raw->get_signature());
-			if (bound_type == nullptr) {
-				bound_type = bound_type_t::create(
-						raw,
-						bound_raw_type->get_location(),
-						llvm_type);
-				program_scope->put_bound_type(status, bound_type);
-			}
+		auto llvm_type = bound_raw_pointer_type->get_llvm_specific_type();
+		debug_above(5, log(log_info, "creating raw_pointer type for %s", raw_pointer->raw->str().c_str()));
+		auto bound_type = scope->get_bound_type(raw_pointer->get_signature());
+		if (bound_type == nullptr) {
+			bound_type = bound_type_t::create(
+					raw_pointer,
+					bound_raw_pointer_type->get_location(),
+					llvm_type->getPointerTo());
+			program_scope->put_bound_type(status, bound_type);
+		}
 
-			if (!!status) {
-				return bound_type;
-			}
-		} else {
-			user_error(status, raw->get_location(),
-					"type %s cannot be a " c_type("raw") " type because the underlying storage is not a pointer (it is %s)",
-					raw->str().c_str(),
-					llvm_print(llvm_type).c_str());
+		if (!!status) {
+			return bound_type;
 		}
 	}
 
@@ -506,8 +499,8 @@ bound_type_t::ref create_bound_type(
 	} else if (auto lambda = dyncast<const types::type_lambda_t>(type)) {
 		user_error(status, lambda->get_location(), "unable to instantiate generic type %s without the necessary type application",
 				lambda->str().c_str());
-	} else if (auto raw = dyncast<const types::type_raw_t>(type)) {
-		return create_bound_raw_type(status, builder, scope, raw);
+	} else if (auto raw = dyncast<const types::type_raw_pointer_t>(type)) {
+		return create_bound_raw_pointer_type(status, builder, scope, raw);
 	}
 
 	assert(!status);
@@ -670,7 +663,7 @@ bound_var_t::ref maybe_get_dtor(
 			{"__dtor__"},
 			location,
 			program_scope->get_outbound_context(),
-			type_args({type_raw(data_type->get_type())}, {}),
+			type_args({type_raw_pointer(data_type->get_type())}, {}),
 			fn_dtors);
 
 	if (!!status) {

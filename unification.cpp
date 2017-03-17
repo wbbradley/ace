@@ -98,8 +98,8 @@ unification_t unify(
 	auto pts_a = dyncast<const types::type_sum_t>(a);
 	auto pts_b = dyncast<const types::type_sum_t>(b);
 
-	auto ptr_a = dyncast<const types::type_raw_t>(a);
-	auto ptr_b = dyncast<const types::type_raw_t>(b);
+	auto ptr_a = dyncast<const types::type_raw_pointer_t>(a);
+	auto ptr_b = dyncast<const types::type_raw_pointer_t>(b);
 
 	auto ptp_a = dyncast<const types::type_product_t>(a);
 

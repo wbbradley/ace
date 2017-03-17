@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
 #include <fstream>
 #include <iostream>
 #include "lexer.h"
@@ -12,6 +14,39 @@
 int usage() {
 	log(log_error, "available commands: test, read-ir, compile, bc, run, fmt, bin");
 	return EXIT_FAILURE;
+}
+
+int run_program(std::string executable, std::vector<const char *> args)  {
+	pid_t pid = fork();
+
+	if (pid == -1) {
+		perror(string_format("unable to fork() child process %s",
+					executable.c_str()).c_str());
+	} else if (pid > 0) {
+		/* parent */
+		int status;
+
+		// printf("Child has pid %ld\n", (long)pid);
+
+		if (wait(&status) == -1) {
+			perror("wait()");
+		} else {
+			if (WIFEXITED(status)) {
+				/* did the child terminate normally? */
+				// printf("%ld exited with return code %d\n", (long)pid, WEXITSTATUS(status));
+				return WEXITSTATUS(status);
+			} else if (WIFSIGNALED(status)) {
+				/* was the child terminated by a signal? */
+				// printf("%ld terminated because it didn't catch signal number %d\n", (long)pid, WTERMSIG(status));
+				return -1;
+			}
+		}
+	} else {
+		/* child */
+		execvp(executable.c_str(), (char **)&args[0]);
+	}
+
+	return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -92,7 +127,14 @@ int main(int argc, char *argv[]) {
 					auto executable_filename = compiler.get_executable_filename();
 					int ret = compiler.emit_built_program(status, executable_filename);
 					if (!!status && !ret) {
-						return system((std::string("./") + executable_filename).c_str());
+						std::vector<const char *> args;
+						std::string final_exe = std::string("./") + executable_filename;
+						args.push_back(final_exe.c_str());
+						for (int i=3; i<argc; i++) {
+							args.push_back(argv[i]);
+						}
+						args.push_back(nullptr);
+						return run_program(final_exe, args);
 					} else {
 						return ret;
 					}
@@ -124,3 +166,4 @@ int main(int argc, char *argv[]) {
 
 	return EXIT_SUCCESS;
 }
+

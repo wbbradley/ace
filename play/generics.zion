@@ -10,5 +10,5 @@ def foo(a Node{any A})
 	x = a.x
 	print(x)
 
-def main()
+def main(args [str]) int
 	foo(Node(1))

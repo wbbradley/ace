@@ -4,7 +4,7 @@
 #include "zion_rt.h"
 
 
-typedef void (*dtor_fn_t)(struct var_t *var);
+typedef void (*dtor_fn_t)(struct var_t **var);
 
 struct type_info_t {
 	/* the id for the type - a unique number */
@@ -272,7 +272,7 @@ void release_var(struct var_t *var
 		if (var->ref_count == 0) {
 			if (var->type_info->dtor_fn != 0) {
 				/* call the destructor if it exists */
-				var->type_info->dtor_fn(var);
+				var->type_info->dtor_fn(&var);
 			}
 			for (int16_t i = var->type_info->refs_count - 1; i >= 0; --i) {
 				struct var_t *ref = *(struct var_t **)(((char *)var) + var->type_info->ref_offsets[i]);

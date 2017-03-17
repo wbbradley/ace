@@ -13,6 +13,6 @@ type Point{T} is
 	Radial{T, T}
 
 def main()
-	# error: no function found named __getitem__
 	var p Point{float} = Cartesian(2.4, 1.0)
+	# error: unable to resolve overloads for __getitem__ at p\[0\]
 	print(p[0])

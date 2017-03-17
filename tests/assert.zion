@@ -9,5 +9,5 @@ def equals(input any, value any, x str)
 	else
 		print("PASS")
 
-def main()
+def main(args [str]) int
 	equals("yolo", "yono", "yolo is not 123")

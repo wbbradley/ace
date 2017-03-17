@@ -804,26 +804,13 @@ bound_var_t::ref ast::array_index_expr_t::resolve_instantiation(
 				scope, life, nullptr, nullptr);
 
 		if (!!status) {
-			/* check to see if we have a literal index */
-			if (auto literal_expr = dyncast<ast::literal_expr_t>(index)) {
-				/* check to see if it is an integer */
-				if (literal_expr->token.tk == tk_integer) {
-					int64_t value = atoll(literal_expr->token.text.c_str());
-					if (value >= 0) {
-						/* see if we have a deref operator function for the lhs type */
-						return call_const_subscript_operator(status, builder,
-								scope, life, shared_from_this(), lhs_val,
-								make_code_id(literal_expr->token), value);
-					} else {
-						user_error(status, *this, "you must use a number zero or greater");
-					}
-				} else {
-					user_error(status, *this,
-							"tuple dereferencing with " c_internal("%s") " is not yet impl",
-							tkstr(literal_expr->token.tk));
-				}
-			} else {
-				user_error(status, *this, "not impl");
+			bound_var_t::ref index_val = index->resolve_instantiation(status, builder,
+					scope, life, nullptr, nullptr);
+
+			if (!!status) {
+				/* get or instantiate a function we can call on these arguments */
+				return call_program_function(status, builder, scope, life,
+						"__getitem__", shared_from_this(), {lhs_val, index_val});
 			}
 		}
 	}
@@ -1350,81 +1337,89 @@ bound_var_t::ref extract_member_variable(
 		life_t::ref life,
 		ast::item_t::ref node,
 		bound_var_t::ref bound_var,
-		atom member_name,
-		bound_type_t::ref bound_type)
+		atom member_name)
 {
-	types::type_t::ref object_type = bound_type->get_type();
-	if (auto raw = dyncast<const types::type_raw_t>(object_type)) {
-		object_type = raw->raw;
-	}
+	bound_var = maybe_load_from_pointer(status, builder, scope, bound_var);
 
-	types::type_t::ref type = eval_to_struct_ref(status, scope,
-			node, object_type);
+	if (!!status) {
+		types::type_t::ref object_type = bound_var->type->get_type();
 
-	if (!status) {
-		return nullptr;
-	}
+		types::type_t::ref type = eval_to_struct_ref(status, scope,
+				node, object_type);
 
-	auto bound_struct_ref = upsert_bound_type(status, builder, scope, type);
+		if (!status) {
+			return nullptr;
+		}
 
-	types::type_struct_t::ref struct_type = get_struct_type_from_ref(
-			status, node, type);
+		auto bound_struct_ref = upsert_bound_type(status, builder, scope, type);
 
-	if (!status) {
-		return nullptr;
-	}
+		types::type_struct_t::ref struct_type = get_struct_type_from_ref(
+				status, node, type);
 
-	auto member_index = struct_type->name_index;
-	auto member_index_iter = member_index.find(member_name);
+		if (!status) {
+			return nullptr;
+		}
 
-	for (auto member_index_pair : member_index) {
-		debug_above(5, log(log_info, "%s: %d", member_index_pair.first.c_str(),
-					member_index_pair.second));
-	}
+		auto member_index = struct_type->name_index;
+		auto member_index_iter = member_index.find(member_name);
 
-	if (member_index_iter != member_index.end()) {
-		auto index = member_index_iter->second;
-		debug_above(5, log(log_info, "found member %s of type %s at index %d",
-					member_name.c_str(),
-					bound_struct_ref->str().c_str(), index));
+		for (auto member_index_pair : member_index) {
+			debug_above(5, log(log_info, "%s: %d", member_index_pair.first.c_str(),
+						member_index_pair.second));
+		}
 
-		/* get the type of the dimension being referenced */
-		bound_type_t::ref member_type = scope->get_bound_type(
-				struct_type->dimensions[index]->get_signature());
-		assert(bound_struct_ref->get_llvm_type() != nullptr);
+		if (member_index_iter != member_index.end()) {
+			auto index = member_index_iter->second;
+			debug_above(5, log(log_info, "found member " c_id("%s") " of type %s at index %d",
+						member_name.c_str(),
+						bound_struct_ref->str().c_str(), index));
 
-		llvm::Value *llvm_var_value = llvm_maybe_pointer_cast(builder,
-				bound_var->llvm_value, bound_struct_ref);
+			/* get the type of the dimension being referenced */
+			bound_type_t::ref member_type = scope->get_bound_type(
+					struct_type->dimensions[index]->get_signature());
+			assert(bound_struct_ref->get_llvm_type() != nullptr);
 
-		/* the following code is heavily coupled to the physical layout of
-		 * managed vs. native structures */
+			/* get an GEP-able version of the object */
+			llvm::Value *llvm_var_value = bound_var->llvm_value;
+			llvm::Type *llvm_bound_struct_ref = bound_struct_ref->get_llvm_type();
+			if (llvm_var_value->getType() == bound_struct_ref->get_llvm_type()->getPointerTo()) {
+				/* a pointer to a pointer, let's load the final pointer */
+				llvm_var_value = builder.CreateLoad(llvm_var_value);
+			}
 
-		/* GEP and load the member value from the structure */
-		llvm::Value *llvm_gep = llvm_make_gep(builder,
-				llvm_var_value, index, true /* managed */);
-		llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
+			llvm_var_value = llvm_maybe_pointer_cast(builder, llvm_var_value,
+					bound_struct_ref->get_llvm_specific_type());
 
-		llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
+			/* the following code is heavily coupled to the physical layout of
+			 * managed vs. native structures */
 
-		/* add a helpful descriptive name to this local value */
-		auto value_name = string_format(".%s", member_name.c_str());
-		llvm_item->setName(value_name);
+			/* GEP and load the member value from the structure */
+			llvm::Value *llvm_gep = llvm_make_gep(builder,
+					llvm_var_value, index, true /* managed */);
+			llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
 
-		return bound_var_t::create(
-				INTERNAL_LOC(), value_name,
-				member_type, llvm_item, make_iid(member_name), false /*is_lhs*/);
-	} else {
-		auto bindings = scope->get_type_variable_bindings();
-		auto full_type = bound_var->type->get_type()->rebind(bindings);
-		user_error(status, node->get_location(),
-			   	"%s has no dimension called " c_id("%s"),
-				full_type->str().c_str(),
-				member_name.c_str());
-		user_message(log_info, status, bound_var->type->get_location(), "%s has dimension(s) [%s]",
-				full_type->str().c_str(),
-				join_with(member_index, ", ", [] (std::pair<atom, int> index) -> std::string {
-					return std::string(C_ID) + index.first.str() + C_RESET;
-					}).c_str());
+			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
+
+			/* add a helpful descriptive name to this local value */
+			auto value_name = string_format(".%s", member_name.c_str());
+			llvm_item->setName(value_name);
+
+			return bound_var_t::create(
+					INTERNAL_LOC(), value_name,
+					member_type, llvm_item, make_iid(member_name), false /*is_lhs*/);
+		} else {
+			auto bindings = scope->get_type_variable_bindings();
+			auto full_type = bound_var->type->get_type()->rebind(bindings);
+			user_error(status, node->get_location(),
+					"%s has no dimension called " c_id("%s"),
+					full_type->str().c_str(),
+					member_name.c_str());
+			user_message(log_info, status, bound_var->type->get_location(), "%s has dimension(s) [%s]",
+					full_type->str().c_str(),
+					join_with(member_index, ", ", [] (std::pair<atom, int> index) -> std::string {
+						return std::string(C_ID) + index.first.str() + C_RESET;
+						}).c_str());
+		}
 	}
 
 	assert(!status);
@@ -1444,11 +1439,10 @@ bound_var_t::ref ast::dot_expr_t::resolve_instantiation(
 			builder, scope, life, nullptr, nullptr);
 
 	if (!!status) {
-		auto bound_type = lhs_val->type;
 		types::type_t::ref member_type;
 
 		if (!!status) {
-			if (bound_type->is_module()) {
+			if (lhs_val->type->is_module()) {
 				std::string qualified_id = string_format("%s%s%s",
 						lhs_val->name.c_str(),
 						SCOPE_SEP,
@@ -1467,7 +1461,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_instantiation(
 				}
 			} else {
 				return extract_member_variable(status, builder, scope, life,
-						shared_from_this(), lhs_val, rhs.text, bound_type);
+						shared_from_this(), lhs_val, rhs.text);
 			}
 		}
 	}
@@ -1679,6 +1673,18 @@ bound_var_t::ref ast::function_defn_t::resolve_instantiation(
 	return nullptr;
 }
 
+#define USER_MAIN_FN "user/main"
+
+std::string switch_std_main(std::string name) {
+	if (name == "main") {
+		return USER_MAIN_FN;
+	} else if (name == "__main__") {
+		return "main";
+	} else {
+		return name;
+	}
+}
+
 bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
         status_t &status,
         llvm::IRBuilder<> &builder,
@@ -1694,9 +1700,13 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 	assert(life->life_form == lf_function);
 	assert(life->values.size() == 0);
 
-	std::string function_name = token.text;
+	std::string function_name = switch_std_main(token.text);
 
 	assert(scope->get_llvm_module() != nullptr);
+
+	if (function_name == USER_MAIN_FN) {
+		inbound_context = type_module(type_variable(get_location()));
+	}
 
 	auto function_type = get_function_type(inbound_context, args, return_type);
 	bound_type_t::ref bound_function_type = upsert_bound_type(status,
@@ -1931,8 +1941,8 @@ status_t type_check_program_variables(
 
 			if (!!status) {
 				if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
-					if (getenv("MAIN_ONLY") != nullptr && node->token.text != "main") {
-						debug_above(8, log(log_info, "skipping %s because it's not 'main'",
+					if (getenv("MAIN_ONLY") != nullptr && node->token.text != "__main__") {
+						debug_above(8, log(log_info, "skipping %s because it's not '__main__'",
 									node->str().c_str()));
 						continue;
 					}
@@ -2930,11 +2940,11 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
     switch (token.tk) {
 	case tk_raw_integer:
         {
-			/* create a raw integer */
+			/* create a native integer */
 			int64_t value = atoll(token.text.substr(0, token.text.size() - 1).c_str());
-			bound_type_t::ref raw_type = program_scope->get_bound_type({INT_TYPE});
+			bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
 			return bound_var_t::create(
-					INTERNAL_LOC(), "raw_int_literal", raw_type,
+					INTERNAL_LOC(), "raw_int_literal", native_type,
 					llvm_create_int(builder, value),
 					make_code_id(token), false /*is_lhs*/);
         }
@@ -2943,7 +2953,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
         {
 			/* create a boxed integer */
             int64_t value = atoll(token.text.c_str());
-            bound_type_t::ref raw_type = program_scope->get_bound_type({INT_TYPE});
+            bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
 			bound_type_t::ref boxed_type = upsert_bound_type(
 					status,
 					builder,
@@ -2958,7 +2968,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
 						{"int"},
 						shared_from_this(),
 						scope->get_outbound_context(),
-						get_args_type({raw_type}));
+						get_args_type({native_type}));
 
 				if (!!status) {
 					assert(box_int != nullptr);
@@ -2981,9 +2991,9 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
     case tk_raw_string:
 		{
 			std::string value = unescape_json_quotes(token.text.substr(0, token.text.size() - 1));
-			bound_type_t::ref raw_type = program_scope->get_bound_type({STR_TYPE});
+			bound_type_t::ref native_type = program_scope->get_bound_type({STR_TYPE});
 			return bound_var_t::create(
-					INTERNAL_LOC(), "raw_str_literal", raw_type,
+					INTERNAL_LOC(), "raw_str_literal", native_type,
 					llvm_create_global_string(builder, value),
 					make_code_id(token), false /*is_lhs*/);
 		}
@@ -2991,7 +3001,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
     case tk_string:
 		{
 			std::string value = unescape_json_quotes(token.text);
-			bound_type_t::ref raw_type = program_scope->get_bound_type({STR_TYPE});
+			bound_type_t::ref native_type = program_scope->get_bound_type({STR_TYPE});
 			bound_type_t::ref boxed_type = upsert_bound_type(
 					status,
 					builder,
@@ -3007,7 +3017,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
 						{"__box__"},
 						shared_from_this(),
 						scope->get_outbound_context(),
-						get_args_type({raw_type}));
+						get_args_type({native_type}));
 
 				if (!!status) {
 					return create_callsite(
@@ -3029,9 +3039,9 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
 	case tk_raw_float:
 		{
 			double value = atof(token.text.substr(0, token.text.size() - 1).c_str());
-			bound_type_t::ref raw_type = program_scope->get_bound_type({FLOAT_TYPE});
+			bound_type_t::ref native_type = program_scope->get_bound_type({FLOAT_TYPE});
 			return bound_var_t::create(
-					INTERNAL_LOC(), "raw_float_literal", raw_type,
+					INTERNAL_LOC(), "raw_float_literal", native_type,
 					llvm_create_double(builder, value),
 					make_code_id(token), false/*is_lhs*/);
 		}
@@ -3039,7 +3049,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
 	case tk_float:
 		{
 			double value = atof(token.text.c_str());
-			bound_type_t::ref raw_type = program_scope->get_bound_type({FLOAT_TYPE});
+			bound_type_t::ref native_type = program_scope->get_bound_type({FLOAT_TYPE});
 			bound_type_t::ref boxed_type = upsert_bound_type(
 					status,
 					builder,
@@ -3054,7 +3064,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_instantiation(
 						{"float"},
 						shared_from_this(),
 						scope->get_outbound_context(),
-						get_args_type({raw_type}));
+						get_args_type({native_type}));
 
 				if (!!status) {
 					return create_callsite(

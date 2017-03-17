@@ -1,7 +1,7 @@
 module _
 link module posix
 
-def main()
+def main(args [str]) int
 	var bufsize __int__ = (1024).raw
 	filename := "test.csv"
 	buf := posix.calloc(bufsize, (1).raw)

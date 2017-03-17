@@ -1,10 +1,12 @@
 module _
 link module file
+link module os
 # test: pass
 # expect: This text should appear
 
-def main() __int__
-	if f := file.open("play/read_file.zion", file.ReadOnly)
+[module any]
+def main(args [str]) int
+	if f := file.open("tests/test_read_file.zion", file.ReadOnly)
 		while true
 			buffer := file.read(f, 4 * 1024)
 			when buffer
@@ -14,5 +16,5 @@ def main() __int__
 					break
 				is file/ReadError
 					print("Read Error")
-					return -1r
-	return 0r
+					return -1
+	return 0

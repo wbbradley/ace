@@ -583,38 +583,38 @@ namespace types {
 		return nullptr;
 	}
 
-	type_raw_t::type_raw_t(type_t::ref raw) : raw(raw) {
-		assert(!dyncast<const type_raw_t>(raw));
+	type_raw_pointer_t::type_raw_pointer_t(type_t::ref raw) : raw(raw) {
+		assert(!dyncast<const type_raw_pointer_t>(raw));
 		assert(!raw->is_nil());
 	}
 
-	std::ostream &type_raw_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_raw_pointer_t::emit(std::ostream &os, const map &bindings) const {
 		os << "*";
 		raw->emit(os, bindings);
 		return os;
 	}
 
-	int type_raw_t::ftv_count() const {
+	int type_raw_pointer_t::ftv_count() const {
 		return raw->ftv_count();
 	}
 
-	atom::set type_raw_t::get_ftvs() const {
+	atom::set type_raw_pointer_t::get_ftvs() const {
 		return raw->get_ftvs();
 	}
 
-	type_t::ref type_raw_t::rebind(const map &bindings) const {
+	type_t::ref type_raw_pointer_t::rebind(const map &bindings) const {
 		if (bindings.size() == 0) {
 			return shared_from_this();
 		}
 
-		return ::type_raw(raw->rebind(bindings));
+		return ::type_raw_pointer(raw->rebind(bindings));
 	}
 
-	location_t type_raw_t::get_location() const {
+	location_t type_raw_pointer_t::get_location() const {
 		return raw->get_location();
 	}
 
-	identifier::ref type_raw_t::get_id() const {
+	identifier::ref type_raw_pointer_t::get_id() const {
 		return nullptr;
 	}
 
@@ -789,11 +789,11 @@ types::type_t::ref type_maybe(types::type_t::ref just) {
 	return make_ptr<types::type_maybe_t>(just);
 }
 
-types::type_t::ref type_raw(types::type_t::ref raw) {
-    if (auto maybe = dyncast<const types::type_raw_t>(raw)) {
+types::type_t::ref type_raw_pointer(types::type_t::ref raw) {
+    if (auto maybe = dyncast<const types::type_raw_pointer_t>(raw)) {
 		return raw;
 	}
-	return make_ptr<types::type_raw_t>(raw);
+	return make_ptr<types::type_raw_pointer_t>(raw);
 }
 
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body) {
@@ -920,10 +920,10 @@ types::type_t::ref eval(types::type_t::ref type, types::type_t::map env) {
 		return eval_id(id, env);
 	} else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
 		return eval_apply(operator_->oper, operator_->operand, env);
-	} else if (auto raw = dyncast<const types::type_raw_t>(type)) {
+	} else if (auto raw = dyncast<const types::type_raw_pointer_t>(type)) {
 		auto evaled = eval(raw->raw, env);
 		if (evaled != nullptr) {
-			return type_raw(evaled);
+			return type_raw_pointer(evaled);
 		} else {
 			return nullptr;
 		}

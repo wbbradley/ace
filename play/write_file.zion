@@ -4,7 +4,7 @@ link def open(x str, fd int) int
 link def write(fd int, x str, fd int) int
 link def close(fd int) int
 
-def main()
+def main(args [str]) int
 	O_CREAT := 512
 	O_WRONLY := 1
 	fd := open("test.txt", O_CREAT + O_WRONLY)

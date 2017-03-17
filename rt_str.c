@@ -40,3 +40,7 @@ char *__str_plus_str(char *x, char *y) {
 zion_bool_t __str_eq_str(char *x, char *y) {
 	return strcmp(x, y) == 0;
 }
+
+char *__ptr_to_str_get_item(char **x, zion_int_t index) {
+	return x[index];
+}

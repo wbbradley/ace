@@ -20,7 +20,7 @@ def str(t TypeID) str
 def assert(condition bool)
 	if not condition
 		print("assertion failed!")
-		posix.exit((-1).raw)
+		posix.exit(-1r)
 
 def typeid(t any) TypeID
 	return TypeID(__get_typeid__(t))
@@ -41,6 +41,9 @@ def __not__(x int) bool
 	return x == 0
 
 def bool(x __bool__) bool
+	# Since bool is a sum type, there is no default constructor
+	# but since it also represents this obvious binary type, we should
+	# have a default "boxing" function.
 	if x
 		return true
 	else
@@ -338,14 +341,23 @@ def len(b bytes) int
 	return int(b.cb)
 
 def alloc(cb int) bytes
-	return bytes(posix.calloc((1).raw, cb.raw), cb.raw)
+	return bytes(posix.calloc(1r, cb.raw), cb.raw)
 
 def __dtor__(b *bytes)
 	posix.free(b.data)
 
 def str(b __bytes, length __int__, encoding str) str
-	one := (1).raw
-	dest_len := length + one
-	dest := posix.calloc(one, dest_len)
+	dest_len := length + 1r
+	dest := posix.calloc(1r, dest_len)
 	posix.memcpy(dest, b, length)
 	return str(dest as __str__)
+
+# this is the actual default entry point to every program
+[module any]
+def __main__(argc __int__, argv *__str__) __int__
+	var args [str] = nil
+	i := argc - 1r
+	while i >= 0r
+		args = list(__box__(argv[i]), args)
+		i = i - 1r
+	return main(args).raw
