@@ -353,11 +353,7 @@ def str(b __bytes, length __int__, encoding str) str
 	return str(dest as __str__)
 
 # this is the actual default entry point to every program
-[module any]
 def __main__(argc __int__, argv *__str__) __int__
-	var args [str] = nil
-	i := argc - 1r
-	while i >= 0r
-		args = list(__box__(argv[i]), args)
-		i = i - 1r
-	return main(args).raw
+	sys.set_args(argc, argv)
+	main()
+	return 0r

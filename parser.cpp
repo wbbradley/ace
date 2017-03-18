@@ -1661,9 +1661,17 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 		/* TODO: update the parser to contain the type maps from the link_names */
 		add_type_macros_to_parser(ps, module->linked_names);
 
-		// Get functions or type defs
+		// Get vars, functions or type defs
 		while (!!ps.status) {
-			if (ps.token.tk == tk_lsquare || ps.token.tk == tk_def) {
+			if (ps.token.tk == tk_var) {
+				ps.advance();
+				auto var = var_decl_t::parse(ps);
+				if (var) {
+					module->var_decls.push_back(var);
+				} else {
+					assert(!ps.status);
+				}
+			} else if (ps.token.tk == tk_lsquare || ps.token.tk == tk_def) {
 				/* function definitions */
 				auto function = function_defn_t::parse(ps);
 				if (function) {

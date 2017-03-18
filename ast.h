@@ -738,6 +738,7 @@ namespace ast {
 		atom module_key;
 
 		ptr<module_decl_t> decl;
+		std::vector<ptr<var_decl_t>> var_decls;
 		std::vector<ptr<type_def_t>> type_defs;
 		std::vector<ptr<tag_t>> tags;
 		std::vector<ptr<function_defn_t>> functions;

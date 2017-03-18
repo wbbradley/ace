@@ -1854,6 +1854,44 @@ status_t type_check_module_links(
 	return status;
 }
 
+status_t type_check_module_vars(
+        compiler_t &compiler,
+        llvm::IRBuilder<> &builder,
+        const ast::module_t &obj,
+        scope_t::ref program_scope)
+{
+	indent_logger indent(3, string_format("resolving vars in " c_module("%s"),
+				obj.module_key.c_str()));
+
+	status_t status;
+
+	/* get module level scope variable */
+	module_scope_t::ref scope = compiler.get_module_scope(obj.module_key);
+
+	for (auto &var_decl : obj.var_decls) {
+		/* the idea here is to put this variable into module scope */
+		var_decl->resolve_instantiation(status, builder, scope, nullptr, nullptr,
+				nullptr);
+	}
+
+	if (!!status) {
+		for (auto &link : obj.linked_functions) {
+			bound_var_t::ref link_value = link->resolve_instantiation(
+					status, builder, scope, nullptr, nullptr, nullptr);
+
+			if (!!status) {
+				if (link->function_name.text.size() != 0) {
+					scope->put_bound_variable(status, link->function_name.text, link_value);
+				} else {
+					user_error(status, *link, "module level link definitions need names");
+				}
+			}
+		}
+	}
+
+	return status;
+}
+
 status_t type_check_module_types(
         compiler_t &compiler,
         llvm::IRBuilder<> &builder,
@@ -1999,6 +2037,14 @@ status_t type_check_program(
 			break;
 		}
 		status |= type_check_module_links(compiler, builder, *module, program_scope);
+	}
+
+	/* pass to resolve all module-level vars */
+	for (auto &module : obj.modules) {
+		if (!status) {
+			break;
+		}
+		status |= type_check_module_vars(compiler, builder, *module, program_scope);
 	}
 
 	if (!status) {
@@ -2829,27 +2875,28 @@ bound_var_t::ref ast::var_decl_t::resolve_instantiation(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+		local_scope_t::ref *new_scope,
 		bool * /*returns*/) const
 {
-    runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
-    assert(runnable_scope);
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+	if (runnable_scope != nullptr) {
+		/* variable declarations begin new scopes */
+		local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
+				string_format("variable-%s", token.text.c_str()));
 
-    /* variable declarations begin new scopes */
-    local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
-            string_format("variable-%s", token.text.c_str()));
+		scope = fresh_scope;
 
-    scope = fresh_scope;
+		/* check to make sure this var decl is sound */
+		bound_var_t::ref var_decl_value = type_check_bound_var_decl(
+				status, builder, *this, fresh_scope, life, false /*maybe_unbox*/);
 
-    /* check to make sure this var decl is sound */
-    bound_var_t::ref var_decl_value = type_check_bound_var_decl(
-            status, builder, *this, fresh_scope, life, false /*maybe_unbox*/);
-
-	if (!!status) {
-		*new_scope = fresh_scope;
-		return var_decl_value;
+		if (!!status) {
+			*new_scope = fresh_scope;
+			return var_decl_value;
+		}
+	} else if (auto module_scope = dyncast<module_scope_t>(scope)) {
+		not_impl();
 	}
-
 	assert(!status);
 	return nullptr;
 }
