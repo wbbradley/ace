@@ -8,7 +8,6 @@
 #include "logger_decls.h"
 #include "json_lexer.h"
 
-
 template <typename T, typename U>
 bool all(const T &xs, U u) {
 	for (auto x : xs) {
@@ -60,7 +59,7 @@ bool zion_lexer_t::get_token(
 	do {
 		for (int i = 0; i < 2 && m_token_queue.empty(); ++i) {
 			if (!_get_tokens()) {
-				debug_above(9, log(log_info, "lexer - done reading input."));
+				debug_lexer(log(log_info, "lexer - done reading input."));
 				return false;
 			}
 		}
@@ -81,7 +80,7 @@ bool zion_lexer_t::get_token(
 			token.tk == tk_space ||
 			token.tk == tk_comment);
 
-	debug_above(9, log(log_info, "lexed (%s) \"%s\"@%s", tkstr(token.tk), token.text.c_str(),
+	debug_lexer(log(log_info, "lexed (%s) \"%s\"@%s", tkstr(token.tk), token.text.c_str(),
 				token.location().c_str()));
 	return token.tk != tk_none;
 }
@@ -638,7 +637,7 @@ bool zion_lexer_t::_get_tokens() {
 		if (handle_indentation) {
 			/* handle standard tab indents */
 			int indent_depth = token_text.size();
-			debug_above(10, log(log_info, "indent_depth = %d, %d",
+			debug_lexer(log(log_info, "indent_depth = %d, %d",
 						indent_depth, m_last_indent_depth));
 			assert(all(token_text, '\t'));
 			bool empty_line = (ch == '\r' && ch == '\n');
@@ -691,12 +690,12 @@ void zion_lexer_t::pop_nested(token_kind tk) {
 	if (back_tk == tk) {
 		m_nested_tks.pop_back();
 	} else if (back_tk != tk) {
-		debug_above(9, log(log_error, "detected unbalanced %s%s", tkstr(back_tk), tkstr(tk)));
+		debug_lexer(log(log_error, "detected unbalanced %s%s", tkstr(back_tk), tkstr(tk)));
 	}
 }
 
 void zion_lexer_t::enqueue_indents(int line, int col, int indent_depth) {
-	debug_above(9, log(log_info, "enqueue_indents(%d)", indent_depth));
+	debug_lexer(log(log_info, "enqueue_indents(%d)", indent_depth));
 	if (indent_depth > m_last_indent_depth) {
 		if (!m_nested_tks.size()) {
 			// Handle indents

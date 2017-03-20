@@ -2,6 +2,12 @@
 #include "token.h"
 #include "token_queue.h"
 
+#ifdef DEBUG_LEXER
+#define debug_lexer(x) x
+#else
+#define debug_lexer(x)
+#endif
+
 struct token_pair
 {
 	token_kind tk;

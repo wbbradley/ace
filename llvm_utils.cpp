@@ -99,7 +99,7 @@ llvm::Type *llvm_resolve_type(llvm::Value *llvm_value) {
 	}
 }
 
-llvm::Value *llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_value) {
+llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_value) {
 	if (llvm::AllocaInst *alloca = llvm::dyn_cast<llvm::AllocaInst>(llvm_value)) {
 		return builder.CreateLoad(alloca);
 	} else {
@@ -113,22 +113,27 @@ bound_var_t::ref maybe_load_from_pointer(
 		ptr<scope_t> scope,
 		bound_var_t::ref var)
 {
+	// TODO: check this codepath when used by globals
+	assert(!var->is_global());
 	if (auto raw = dyncast<const types::type_raw_pointer_t>(var->type->get_type())) {
 		auto bound_type = upsert_bound_type(status, builder, scope, raw->raw);
 		if (!!status) {
-			assert(var->llvm_value->getType()->isPointerTy());
-			assert(llvm::cast<llvm::PointerType>(var->llvm_value->getType())->getElementType()->isPointerTy());
-			llvm::Value *llvm_value = builder.CreateLoad(var->llvm_value);
-			debug_above(5, log(log_info, "maybe_load_from_pointer is loading %s which has type %s",
-						llvm_print(llvm_value).c_str(),
-						llvm_print(llvm_value->getType()).c_str()));
+			llvm::Value *llvm_value = var->get_llvm_value();
+			assert(llvm_value->getType()->isPointerTy());
+			assert(llvm::cast<llvm::PointerType>(llvm_value->getType())->getElementType()->isPointerTy());
+			llvm::Value *llvm_loaded_value = builder.CreateLoad(llvm_value);
+			debug_above(5, log(log_info,
+					   	"maybe_load_from_pointer loaded %s which has type %s",
+						llvm_print(llvm_loaded_value).c_str(),
+						llvm_print(llvm_loaded_value->getType()).c_str()));
 			return bound_var_t::create(
 					INTERNAL_LOC(),
 					string_format("load.%s", var->name.c_str()),
 					bound_type,
-					llvm_value,
+					llvm_loaded_value,
 					var->id,
-					false /*is_lhs*/);
+					false /*is_lhs*/,
+					false /*is_global*/);
 		}
 	} else {
 		return var;
@@ -150,26 +155,33 @@ bound_var_t::ref create_callsite(
 		bound_var_t::refs arguments)
 {
 	if (!!status) {
+		llvm::Value *llvm_function = function->get_llvm_value();
 		debug_above(5, log(log_info, "create_callsite is assuming %s is compatible with %s",
 					function->get_type()->str().c_str(),
 					str(arguments).c_str()));
 		debug_above(5, log(log_info, "calling function " c_id("%s") " with type %s",
 					function->name.c_str(),
-					llvm_print(function->llvm_value->getType()).c_str()));
+					llvm_print(llvm_function->getType()).c_str()));
 		debug_above(9, log(log_info, "function looks like this %s\n",
-					llvm_print_function(static_cast<llvm::Function *>(function->llvm_value)).c_str()));
+					llvm_print_function(static_cast<llvm::Function *>(llvm_function)).c_str()));
 
 		/* downcast the arguments as necessary to var_t * */
-		types::type_function_t::ref function_type = dyncast<const types::type_function_t>(function->get_type());
+		types::type_function_t::ref function_type = dyncast<const types::type_function_t>(
+				function->get_type());
+
 		if (function_type != nullptr) {
 			llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
-					status, builder, location, function, get_llvm_values(arguments));
+					status, builder, location, function,
+					get_llvm_values(builder, arguments));
 
 			if (!!status) {
 				bound_type_t::ref return_type = get_function_return_type(scope, function->type);
 
-				bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name, return_type, llvm_call_inst,
-						make_type_id_code_id(INTERNAL_LOC(), name), false/*is_lhs*/);
+				bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
+						return_type, llvm_call_inst,
+						make_type_id_code_id(INTERNAL_LOC(), name),
+						false /*is_lhs*/,
+						false /*is_global*/);
 				/* all return values must be tracked since the callee is
 				 * expected to return a ref-counted value */
 				life->track_var(builder, ret, lf_statement);
@@ -193,12 +205,11 @@ llvm::CallInst *llvm_create_call_inst(
 		ptr<const bound_var_t> callee,
 		std::vector<llvm::Value *> llvm_values)
 {
+	assert(!!status);
 	assert(callee != nullptr);
-	assert(callee->llvm_value != nullptr);
 
-	llvm::Value *llvm_value = llvm_resolve_alloca(builder, callee->llvm_value);
-
-	llvm::Function *llvm_callee_fn = llvm::dyn_cast<llvm::Function>(llvm_value);
+	llvm::Function *llvm_callee_fn = llvm::dyn_cast<llvm::Function>(
+			callee->resolve_value(builder));
 
 	/* get the function we want to call */
 	if (!llvm_callee_fn) {
@@ -233,6 +244,7 @@ llvm::CallInst *llvm_create_call_inst(
 	/* make one last pass over the parameters before we make this call */
 	int index = 0;
 	for (auto &llvm_value : llvm_values) {
+		// REVIEW: consider resolving alloca's here...
 		llvm::Value *llvm_arg = llvm_maybe_pointer_cast(
 				builder,
 				llvm_value,
@@ -541,7 +553,7 @@ bound_var_t::ref llvm_start_function(status_t &status,
 {
 	if (!!status) {
 		/* get the llvm function type for the data ctor */
-		llvm::FunctionType *llvm_ctor_fn_type = llvm_create_function_type(
+		llvm::FunctionType *llvm_fn_type = llvm_create_function_type(
 				status, builder, args, data_type);
 
 		if (!!status) {
@@ -549,11 +561,11 @@ bound_var_t::ref llvm_start_function(status_t &status,
 			auto function_type = bound_type_t::create(
 						get_function_type(type_fn_context, args, data_type),
 						node->token.location,
-						llvm_ctor_fn_type);
+						llvm_fn_type);
 
 			/* now let's generate our actual data ctor fn */
 			auto llvm_function = llvm::Function::Create(
-					(llvm::FunctionType *)llvm_ctor_fn_type,
+					(llvm::FunctionType *)llvm_fn_type,
 					llvm::Function::ExternalLinkage, name.str(),
 					scope->get_llvm_module());
 
@@ -561,7 +573,8 @@ bound_var_t::ref llvm_start_function(status_t &status,
 			bound_var_t::ref function = bound_var_t::create(
 					INTERNAL_LOC(), name,
 					function_type, llvm_function, make_code_id(node->token),
-					false/*is_lhs*/);
+					false /*is_lhs*/,
+					false /*is_global*/);
 
 			/* start emitting code into the new function. caller should have an
 			 * insert point guard */
@@ -693,7 +706,7 @@ bound_var_t::ref llvm_create_global_tag(
 			llvm_tag_constant, llvm_var_ref_type);
 
 	return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_value,
-			id, false/*is_lhs*/);
+			id, false /*is_lhs*/, false /*is_global*/);
 }
 
 llvm::Value *llvm_maybe_pointer_cast(
@@ -701,8 +714,6 @@ llvm::Value *llvm_maybe_pointer_cast(
 	   	llvm::Value *llvm_value,
 	   	llvm::Type *llvm_type)
 {
-	llvm_value = llvm_resolve_alloca(builder, llvm_value);
-
 	if (llvm_type->isPointerTy()) {
 		debug_above(6, log("attempting to cast %s to a %s",
 					llvm_print(llvm_value).c_str(),

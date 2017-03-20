@@ -14,7 +14,7 @@ using namespace ast;
 
 #define eat_token_or_return(fail_code) \
 	do { \
-		debug_above(9, log(log_info, "eating a %s", tkstr(ps.token.tk))); \
+		debug_lexer(log(log_info, "eating a %s", tkstr(ps.token.tk))); \
 		ps.advance(); \
 	} while (0)
 

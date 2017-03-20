@@ -1,8 +1,13 @@
 module _
+link module sys
 link module posix
 link module math
 link module map
 link module iter as iter_module
+
+# initialization of modules is automatically generated.
+link def __init_module_vars() void
+link def __init_modules() void
 
 tag false
 tag true
@@ -354,6 +359,12 @@ def str(b __bytes, length __int__, encoding str) str
 
 # this is the actual default entry point to every program
 def __main__(argc __int__, argv *__str__) __int__
+	# Allocate global space for each module's top-level variables.
+	__init_module_vars()
+
 	sys.set_args(argc, argv)
-	main()
-	return 0r
+
+	# Modules' respective __init__ functions will be called in order. The order
+	# is determined using a topological sort of their link references. If module
+	# A links in module B, then the order of initialization is [B, A].
+	__init_modules()

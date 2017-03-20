@@ -26,6 +26,15 @@ location_t bound_var_t::get_location() const {
 	return id->get_location();
 }
 
+bool bound_var_t::is_lhs() const {
+	assert(!_is_global);
+	return _is_lhs;
+}
+
+bool bound_var_t::is_global() const {
+	return _is_global;
+}
+
 bool bound_var_t::is_int() const {
 	/* anything that is an integer value is a bool under the covers */
 	return llvm_resolve_type(llvm_value)->isIntegerTy();
@@ -34,6 +43,28 @@ bool bound_var_t::is_int() const {
 bool bound_var_t::is_pointer() const {
 	/* anything that is an pointer */
 	return llvm_resolve_type(llvm_value)->isPointerTy();
+}
+
+llvm::Value *bound_var_t::get_llvm_value() const {
+	return llvm_value;
+}
+
+llvm::Value *bound_var_t::resolve_value(llvm::IRBuilder<> &builder) const {
+	if (_is_lhs) {
+		return _llvm_resolve_alloca(builder, llvm_value);
+	} else {
+		assert(!_is_global);
+		// maybe...
+		if (llvm_value->getType() == type->get_llvm_type()->getPointerTo()) {
+			/* a pointer to a pointer, let's load the final pointer */
+			return builder.CreateLoad(llvm_value);
+		}
+		return llvm_value;
+	}
+}
+
+bound_var_t::ref bound_var_t::resolve_bound_value(llvm::IRBuilder<> &builder) const {
+	return null_impl();
 }
 
 std::ostream &operator <<(std::ostream &os, const bound_var_t &var) {
@@ -66,20 +97,24 @@ bound_module_t::bound_module_t(
 	bound_var_t(internal_location,
 			name, 
 			module_scope->get_bound_type({"module"}),
-			module_scope->get_program_scope()->get_singleton("nil")->llvm_value,
+			module_scope->get_program_scope()->get_singleton("nil")->get_llvm_value(),
 			id,
-			false/*is_lhs*/),
+			false /*is_lhs*/,
+			false /*is_global*/),
 	module_scope(module_scope)
 {
 	assert(module_scope != nullptr);
 }
 
-std::vector<llvm::Value *> get_llvm_values(const bound_var_t::refs &vars) {
+std::vector<llvm::Value *> get_llvm_values(
+		llvm::IRBuilder<> &builder,
+	   	const bound_var_t::refs &vars)
+{
 	std::vector<llvm::Value *> llvm_values;
 	llvm_values.reserve(vars.size());
 
 	for (auto var : vars) {
-		llvm_values.push_back(var->llvm_value);
+		llvm_values.push_back(var->resolve_value(builder));
 	}
 
 	return llvm_values;
@@ -108,17 +143,24 @@ types::type_t::ref bound_var_t::get_type() const {
 	return type->get_type();
 }
 
+#if 0
 bound_var_t::ref resolve_alloca(llvm::IRBuilder<> &builder, bound_var_t::ref var) {
-	if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(var->llvm_value)) {
-		assert(var->is_lhs);
+	if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(
+				var->get_llvm_value()))
+   	{
+		assert(var->is_lhs());
+		assert(!var->is_global());
 		return bound_var_t::create(
 				INTERNAL_LOC(),
 				string_format("%s.snapshot", var->name.c_str()),
 				var->type,
 				llvm_resolve_alloca(builder, llvm_alloca),
-				var->id, false /*is_lhs*/);
+				var->id,
+			   	false /*is_lhs*/,
+				false /*is_global*/);
 	} else {
-		assert(!var->is_lhs);
+		assert(!var->is_lhs());
 		return var;
 	}
 }
+#endif

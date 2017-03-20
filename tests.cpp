@@ -787,6 +787,8 @@ struct test_desc {
 #define T(x) {#x, x}
 
 auto test_descs = std::vector<test_desc>{
+	T(test_llvm_builder),
+
 	{
 		"test_string_format",
 		[] () -> bool {
@@ -1075,8 +1077,6 @@ auto test_descs = std::vector<test_desc>{
 			return check_code_gen_emitted("test_puts_emit", "entry:");
 		}
 	},
-
-	T(test_llvm_builder),
 
 };
 

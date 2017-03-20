@@ -1,51 +1,13 @@
 module sys @0.1
+link module posix
 
 var args [str] = nil
+
+def exit(code int)
+	posix.exit(code.raw)
 
 def set_args(argc __int__, argv *__str__)
 	i := argc - 1r
 	while i >= 0r
 		args = list(__box__(argv[i]), args)
 		i = i - 1r
-
-def read(fd int, buf buffer, size int) int
-	ret := syscall(3, fd, buf, size)
-	if ret == -1
-		print("failed to read \"" + text + "\" to fd", fd)
-
-	return ret
-
-def write(fd int, text string) int
-	ret := syscall(4, fd, text, len(text))
-	if ret == -1
-		print("failed to write \"" + text + "\" to fd", fd)
-
-	return ret
-
-def open(path string, flags int, mode int) int
-	ret := syscall(5, path, flags, mode)
-	if ret != 0
-		print("failed to open \"" + path + "\" with flags " + flags + " mode " + mode)
-
-	return ret
-
-def close(fd int) int
-	ret := syscall(6, path, flags, mode)
-	if ret != 0
-		print("failed to close fd " + fd)
-
-	return ret
-
-def unlink(path string) int
-	ret := syscall(10, path)
-	if ret != 0
-		print("failed to unlink", path)
-
-	return ret
-
-def chdir(path string) int
-	ret := syscall(12, path)
-	if ret != 0
-		print("failed to chdir", path)
-
-	return ret

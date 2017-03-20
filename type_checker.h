@@ -9,21 +9,11 @@
 struct status_t;
 struct compiler_t;
 
-status_t type_check_program(
+void type_check_program(
+        status_t &status,
 		llvm::IRBuilder<> &builder,
 		const ast::program_t &obj,
 		compiler_t &compiler);
-
-status_t type_check_binary_operator(
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		life_t::ref life,
-		ptr<const ast::expression_t> lhs,
-		ptr<const ast::expression_t> rhs,
-		const ast::expression_t &obj,
-		ptr<bound_var_t> &variable);
-
-typedef atom::set bound_type_context_t;
 
 bool is_function_defn_generic(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, const ast::function_defn_t &obj);
 atom::many get_param_list_decl_variable_names(ptr<const ast::param_list_decl_t> obj);

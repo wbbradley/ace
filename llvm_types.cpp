@@ -709,7 +709,8 @@ llvm::Value *llvm_call_allocator(
 
 			if (dtor_fn != nullptr) {
 				/* we found a dtor for this type of object */
-				llvm_dtor_fn = llvm::ConstantExpr::getBitCast((llvm::Constant *)dtor_fn->llvm_value, llvm_dtor_fn_type);
+				llvm_dtor_fn = llvm::ConstantExpr::getBitCast(
+						(llvm::Constant *)dtor_fn->get_llvm_value(), llvm_dtor_fn_type);
 
 			} else {
 				/* there is no dtor, just put a NULL value in instead */
@@ -881,7 +882,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 					int index = 0;
 
-					llvm::Function *llvm_function = (llvm::Function *)function->llvm_value;
+					llvm::Function *llvm_function = llvm::cast<llvm::Function>(function->get_llvm_value());
 					llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
 					while (args_iter != llvm_function->arg_end()) {
 						llvm::Value *llvm_param = &*args_iter++;
@@ -910,7 +911,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 										args[index],
 										llvm_param,
 										make_iid("ctor_dim_value"),
-										false /*is_lhs*/),
+										false /*is_lhs*/, false /*is_global*/),
 									string_format("incrementing refcount of member %d on %s",
 										index, struct_type->str().c_str()));
 
@@ -983,7 +984,7 @@ bound_var_t::ref type_check_get_item_with_int_literal(
 				scope->get_program_scope()->get_bound_type({INT_TYPE}),
 				llvm_create_int(builder, subscript_index),
 				index_id,
-				false/*is_lhs*/);
+				false/*is_lhs*/, false /*is_global*/);
 
 		/* get or instantiate a function we can call on these arguments */
 		return call_program_function(status, builder, scope, life, "__getitem__",
@@ -1050,7 +1051,7 @@ bound_var_t::ref call_const_subscript_operator(
 			if (!!status) {
 				/* get the tuple */
 				llvm::Value *llvm_lhs_subtype = llvm_maybe_pointer_cast(builder,
-						lhs->llvm_value, lhs->type);
+						lhs->resolve_value(builder), lhs->type);
 
 				llvm::Value *llvm_value = builder.CreateLoad(llvm_make_gep(builder,
 							llvm_lhs_subtype, subscript_index,
@@ -1062,7 +1063,7 @@ bound_var_t::ref call_const_subscript_operator(
 						data_type,
 						llvm_value,
 						make_code_id(node->token),
-						false/*is_lhs*/);
+						false/*is_lhs*/, false /*is_global*/);
 			}
 		} else {
 			user_error(status, *node, "index out of range");

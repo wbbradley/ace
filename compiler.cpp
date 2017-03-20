@@ -279,7 +279,8 @@ void rt_bind_var_from_llir(
 						bound_type,
 						llvm_function,
 						make_iid(name),
-						false/*is_lhs*/));
+						false /*is_lhs*/,
+						false /*is_global*/));
 		}
 	}
 }
@@ -461,10 +462,10 @@ void add_globals(
 	bound_type_t::ref next_var_type = program_scope->get_bound_type({"__next_var"});
 
 
-	program_scope->put_bound_variable(status, "__true__", bound_var_t::create(INTERNAL_LOC(), "__true__", bool_type, builder.getInt64(1/*true*/), make_iid("__true__"), false/*is_lhs*/));
+	program_scope->put_bound_variable(status, "__true__", bound_var_t::create(INTERNAL_LOC(), "__true__", bool_type, builder.getInt64(1/*true*/), make_iid("__true__"), false/*is_lhs*/, false /*is_global*/));
 	assert(!!status);
 
-	program_scope->put_bound_variable(status, "__false__", bound_var_t::create(INTERNAL_LOC(), "__false__", bool_type, builder.getInt64(0/*false*/), make_iid("__false__"), false/*is_lhs*/));
+	program_scope->put_bound_variable(status, "__false__", bound_var_t::create(INTERNAL_LOC(), "__false__", bool_type, builder.getInt64(0/*false*/), make_iid("__false__"), false/*is_lhs*/, false /*is_global*/));
 	assert(!!status);
 
 	/* get the nil pointer value cast as our __var_ref type */
@@ -473,7 +474,7 @@ void add_globals(
 	program_scope->put_bound_variable(
 			status, "nil", bound_var_t::create(INTERNAL_LOC(), "nil",
 				nil_type, llvm_nil_value, make_iid("nil"),
-				false /*is_lhs*/));
+				false /*is_lhs*/, false /*is_global*/));
 	assert(!!status);
 
 	if (!!status) {
@@ -644,7 +645,7 @@ void compiler_t::build_type_check_and_code_gen(status_t &status) {
 		status = scope_setup_program(*program, *this);
 
 		if (!!status) {
-			status |= type_check_program(builder, *program, *this);
+			type_check_program(status, builder, *program, *this);
 
 			if (!!status) {
 				debug_above(2, log(log_info, "type checking found no errors"));
@@ -654,6 +655,8 @@ void compiler_t::build_type_check_and_code_gen(status_t &status) {
 			}
 		}
 	}
+
+	assert(!status);
 }
 
 std::string collect_filename_from_module_pair(

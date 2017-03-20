@@ -19,18 +19,22 @@ struct bound_var_t : public var_t {
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
 			identifier::ref id,
-			bool is_lhs) :
+			bool is_lhs,
+			bool is_global) :
 	   	internal_location(internal_location),
 	   	name(name),
 	   	type(type),
 	   	llvm_value(llvm_value),
 	   	id(id),
-		is_lhs(is_lhs)
+		_is_lhs(is_lhs),
+		_is_global(is_global)
    	{
 		assert(name.size() != 0);
 		assert(llvm_value != nullptr);
 		assert(id != nullptr);
 		assert(type != nullptr);
+		assert_implies(llvm::dyn_cast<llvm::GlobalVariable>(llvm_value) != nullptr, is_global);
+		assert_implies(llvm::dyn_cast<llvm::AllocaInst>(llvm_value) != nullptr, is_lhs);
 	}
 
 	virtual ~bound_var_t() throw() {}
@@ -38,12 +42,19 @@ struct bound_var_t : public var_t {
 	location_t internal_location;
 	atom const name;
 	bound_type_t::ref const type;
-	llvm::Value * const llvm_value;
 	identifier::ref const id;
-	bool const is_lhs;
 
+private:
+	llvm::Value * const llvm_value;
+	bool const _is_lhs;
+	bool const _is_global;
+
+public:
+	llvm::Value *get_llvm_value() const;
 	std::string str() const;
 
+	bool is_lhs() const;
+	bool is_global() const;
 	bool is_int() const;
 	bool is_pointer() const;
 	types::signature get_signature() const;
@@ -57,15 +68,19 @@ struct bound_var_t : public var_t {
 	types::type_t::ref get_type() const;
 	virtual location_t get_location() const;
 
+	llvm::Value *resolve_value(llvm::IRBuilder<> &builder) const;
+	ref resolve_bound_value(llvm::IRBuilder<> &builder) const;
+
 	static ref create(
 			location_t internal_location,
 			atom name,
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
 			identifier::ref id,
-			bool is_lhs)
+			bool is_lhs,
+			bool is_global)
 	{
-		return make_ptr<bound_var_t>(internal_location, name, type, llvm_value, id, is_lhs);
+		return make_ptr<bound_var_t>(internal_location, name, type, llvm_value, id, is_lhs, is_global);
 	}
 
 	static std::string str(const refs &coll) {
@@ -112,5 +127,7 @@ std::string str(const bound_var_t::overloads &arguments);
 std::ostream &operator <<(std::ostream &os, const bound_var_t &var);
 types::type_args_t::ref get_args_type(bound_var_t::refs args);
 bound_type_t::refs get_bound_types(bound_var_t::refs values);
-std::vector<llvm::Value *> get_llvm_values(const bound_var_t::refs &vars);
+std::vector<llvm::Value *> get_llvm_values(
+		llvm::IRBuilder<> &builder,
+		const bound_var_t::refs &vars);
 bound_var_t::ref resolve_alloca(llvm::IRBuilder<> &builder, bound_var_t::ref var);
