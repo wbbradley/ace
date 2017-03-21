@@ -1064,11 +1064,11 @@ bound_var_t::ref type_check_binary_equality(
 					auto llvm_var_ref_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
 					llvm::Value *llvm_value = negated
 						? builder.CreateICmpNE(
-							llvm_maybe_pointer_cast(builder, lhs_var->get_llvm_value(), llvm_var_ref_type),
-							llvm_maybe_pointer_cast(builder, rhs_var->get_llvm_value(), llvm_var_ref_type))
+							llvm_maybe_pointer_cast(builder, lhs_var->resolve_value(builder), llvm_var_ref_type),
+							llvm_maybe_pointer_cast(builder, rhs_var->resolve_value(builder), llvm_var_ref_type))
 						: builder.CreateICmpEQ(
-							llvm_maybe_pointer_cast(builder, lhs_var->get_llvm_value(), llvm_var_ref_type),
-							llvm_maybe_pointer_cast(builder, rhs_var->get_llvm_value(), llvm_var_ref_type));
+							llvm_maybe_pointer_cast(builder, lhs_var->resolve_value(builder), llvm_var_ref_type),
+							llvm_maybe_pointer_cast(builder, rhs_var->resolve_value(builder), llvm_var_ref_type));
 
 					return bound_var_t::create(
 						INTERNAL_LOC(),
@@ -1378,11 +1378,11 @@ bound_var_t::ref ast::ternary_expr_t::resolve_instantiation(
 											2, "ternary.phi.node", merge_bb);
 
 									llvm_phi_node->addIncoming(llvm_maybe_pointer_cast(
-												builder, true_path_value->get_llvm_value(), ternary_type),
+												builder, true_path_value->resolve_value(builder), ternary_type),
 											truth_path_bb);
 
 									llvm_phi_node->addIncoming(llvm_maybe_pointer_cast(
-												builder, false_path_value->get_llvm_value(), ternary_type),
+												builder, false_path_value->resolve_value(builder), ternary_type),
 											else_bb);
 
 									return bound_var_t::create(

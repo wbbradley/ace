@@ -52,13 +52,11 @@ llvm::Value *bound_var_t::get_llvm_value() const {
 llvm::Value *bound_var_t::resolve_value(llvm::IRBuilder<> &builder) const {
 	if (_is_lhs) {
 		return _llvm_resolve_alloca(builder, llvm_value);
-	} else {
-		assert(!_is_global);
+	} else if (_is_global) {
 		// maybe...
-		if (llvm_value->getType() == type->get_llvm_type()->getPointerTo()) {
-			/* a pointer to a pointer, let's load the final pointer */
-			return builder.CreateLoad(llvm_value);
-		}
+		assert(llvm_value->getType() == type->get_llvm_type()->getPointerTo());
+		return builder.CreateLoad(llvm_value);
+	} else {
 		return llvm_value;
 	}
 }

@@ -26,15 +26,15 @@ void status_t::emit_messagev(log_level_t level, location_t location, const char 
 		}
 
 		fail = true;
-
-		if (getenv("STATUS_BREAK")) {
-			write_fp(stderr, "Status changed. Breaking...\n");
-			dbg();
-		}
-
 		last_error_location = location;
 	}
+
 	logv_location(level, location, format, args);
+
+    if (fail && getenv("STATUS_BREAK")) {
+        write_fp(stderr, "Status changed. Breaking...\n");
+        dbg();
+    }
 }
 
 void user_message(log_level_t level, status_t &status, const ast::item_t &item, const char *format, ...) {

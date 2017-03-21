@@ -207,9 +207,13 @@ llvm::CallInst *llvm_create_call_inst(
 {
 	assert(!!status);
 	assert(callee != nullptr);
+	llvm::Value *llvm_callee_value = callee->resolve_value(builder);
+	debug_above(6, log("found llvm_callee_value %s of type %s",
+				llvm_print(llvm_callee_value).c_str(),
+				llvm_print(llvm_callee_value->getType()).c_str()));
 
 	llvm::Function *llvm_callee_fn = llvm::dyn_cast<llvm::Function>(
-			callee->resolve_value(builder));
+			llvm_callee_value);
 
 	/* get the function we want to call */
 	if (!llvm_callee_fn) {
@@ -244,7 +248,8 @@ llvm::CallInst *llvm_create_call_inst(
 	/* make one last pass over the parameters before we make this call */
 	int index = 0;
 	for (auto &llvm_value : llvm_values) {
-		// REVIEW: consider resolving alloca's here...
+		assert(!llvm::dyn_cast<llvm::AllocaInst>(llvm_value));
+
 		llvm::Value *llvm_arg = llvm_maybe_pointer_cast(
 				builder,
 				llvm_value,
