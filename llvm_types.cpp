@@ -75,7 +75,9 @@ bound_type_t::ref create_bound_ref_type(
 		bool managed = false;
 
 		dbg();
-		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(bound_type->get_llvm_specific_type());
+		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
+				bound_type->get_llvm_specific_type());
+
 		if (llvm_struct_type != nullptr) {
 			auto type_name = llvm_struct_type->getStructName();
 

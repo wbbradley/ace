@@ -118,7 +118,7 @@ bound_var_t::ref maybe_load_from_pointer(
 	if (auto raw = dyncast<const types::type_raw_pointer_t>(var->type->get_type())) {
 		auto bound_type = upsert_bound_type(status, builder, scope, raw->raw);
 		if (!!status) {
-			llvm::Value *llvm_value = var->get_llvm_value();
+			llvm::Value *llvm_value = var->resolve_value(builder);
 			assert(llvm_value->getType()->isPointerTy());
 			assert(llvm::cast<llvm::PointerType>(llvm_value->getType())->getElementType()->isPointerTy());
 			llvm::Value *llvm_loaded_value = builder.CreateLoad(llvm_value);

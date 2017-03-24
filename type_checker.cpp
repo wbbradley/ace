@@ -1532,6 +1532,10 @@ bound_var_t::ref extract_member_variable(
 					struct_type->dimensions[index]->get_signature());
 			assert(bound_struct_ref->get_llvm_type() != nullptr);
 
+			debug_above(5, log(log_info, "looking at bound_var %s : %s",
+						bound_var->str().c_str(),
+						llvm_print(bound_var->type->get_llvm_type()).c_str()));
+
 			/* get an GEP-able version of the object */
 			llvm::Value *llvm_var_value = bound_var->resolve_value(builder);
 
