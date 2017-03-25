@@ -9,5 +9,5 @@ type MutualB has
 	var value float
 	var friend MutualInt?
 
-def main(args [str]) int
+def main()
 	m := MutualInt(3, MutualFloat(3.4, nil))

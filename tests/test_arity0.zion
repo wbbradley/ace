@@ -4,6 +4,5 @@ module _
 def arity0()
 	pass
 
-def main(args [str]) int
+def main()
 	arity0()
-	return 0

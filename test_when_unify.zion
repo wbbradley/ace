@@ -41,5 +41,5 @@ def unify(a Term, b Term) bool
 			return false
 			
 
-def main(args [str]) int
+def main()
 	recognize_golfer(Golfer("Arnold", "Woods"))

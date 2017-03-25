@@ -7,3 +7,6 @@ type Just{T} has
 type Maybe{X} is
 	Empty or
 	Just{X}
+
+def main()
+	pass

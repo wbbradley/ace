@@ -7,3 +7,6 @@ def has_an_x_var()
 
 def has_an_x_param(x int)
 	pass
+
+def main()
+	pass

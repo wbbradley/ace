@@ -1,7 +1,7 @@
 module fizzbuzz @0.1.0
 # test: pass
 
-def main(args [str]) int
+def main()
 	var maximum int = 10
 	if max_arg := nth(args, 1)
 		maximum = int(max_arg)
@@ -17,5 +17,3 @@ def main(args [str]) int
 		else
 			print(i)
 		i = i + 1
-
-	return 0

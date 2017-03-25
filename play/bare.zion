@@ -3,6 +3,6 @@ module _
 def foo(y [int])
 	print(y)
 
-def main(args [str]) int
+def main()
 	var l [int] = list(1, nil)
 	foo(l)

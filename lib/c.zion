@@ -9,5 +9,5 @@ type Foo has
 def {module a} g(f Foo)
 	print(f.i)
 
-def main(args [str]) int
+def main()
 	a.f(Foo(4))

@@ -8,3 +8,6 @@ type B{X} is Bx{X}
 
 def do(b Bx{int})
 	print(b.x)
+
+def main()
+	do(Bx(3))

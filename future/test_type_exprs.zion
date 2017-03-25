@@ -82,5 +82,5 @@ type List{DataType} has
 	var next List{DataType}
 
 
-def main(args [str]) int
+def main()
 	return

@@ -34,17 +34,19 @@ bound_type_t::ref get_fully_bound_param_info(
 		atom::set &generics,
 		int &generic_index)
 {
-	/* get the name of this parameter */
-	var_name = obj.token.text;
-
-	assert(obj.type != nullptr);
-
-	/* the user specified a type */
 	if (!!status) {
-		debug_above(6, log(log_info, "upserting type for param %s at %s",
-					obj.type->str().c_str(),
-					obj.type->get_location().str().c_str()));
-		return upsert_bound_type(status, builder, scope, obj.type);
+		/* get the name of this parameter */
+		var_name = obj.token.text;
+
+		assert(obj.type != nullptr);
+
+		/* the user specified a type */
+		if (!!status) {
+			debug_above(6, log(log_info, "upserting type for param %s at %s",
+						obj.type->str().c_str(),
+						obj.type->get_location().str().c_str()));
+			return upsert_bound_type(status, builder, scope, obj.type);
+		}
 	}
 
 	assert(!status);
@@ -135,73 +137,75 @@ bound_var_t::ref generate_stack_variable(
 		bound_type = upsert_bound_type(status, builder, scope, lhs_type);
 	}
 
-	/* generate the mutable stack-based variable for this var */
-	llvm::Function *llvm_function = llvm_get_function(builder);
-	llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function,
-			bound_type, symbol);
+	if (!!status) {
+		/* generate the mutable stack-based variable for this var */
+		llvm::Function *llvm_function = llvm_get_function(builder);
+		llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function,
+				bound_type, symbol);
 
-	if (init_var) {
-		if (!init_var->type->get_type()->is_nil()) {
-			debug_above(6, log(log_info, "creating a store instruction %s := %s",
-						llvm_print(llvm_alloca).c_str(),
-						llvm_print(init_var->get_llvm_value()).c_str()));
+		if (init_var) {
+			if (!init_var->type->get_type()->is_nil()) {
+				debug_above(6, log(log_info, "creating a store instruction %s := %s",
+							llvm_print(llvm_alloca).c_str(),
+							llvm_print(init_var->get_llvm_value()).c_str()));
 
-			llvm::Value *llvm_init_value = init_var->resolve_value(builder);
-			if (llvm_init_value->getName().size() == 0) {
-				llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+				llvm::Value *llvm_init_value = init_var->resolve_value(builder);
+				if (llvm_init_value->getName().size() == 0) {
+					llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+				}
+
+				builder.CreateStore(
+						llvm_maybe_pointer_cast(builder, llvm_init_value,
+							bound_type->get_llvm_specific_type()),
+						llvm_alloca);
+			} else {
+				llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_specific_type());
+				builder.CreateStore(llvm_null_value, llvm_alloca);
 			}
-
-			builder.CreateStore(
-					llvm_maybe_pointer_cast(builder, llvm_init_value,
-						bound_type->get_llvm_specific_type()),
-					llvm_alloca);
-		} else {
+		} else if (dyncast<const types::type_maybe_t>(lhs_type)) {
+			/* this can be null, let's initialize it as such */
 			llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_specific_type());
 			builder.CreateStore(llvm_null_value, llvm_alloca);
+		} else {
+			user_error(status, obj, "missing initializer");
 		}
-	} else if (dyncast<const types::type_maybe_t>(lhs_type)) {
-		/* this can be null, let's initialize it as such */
-		llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_specific_type());
-		builder.CreateStore(llvm_null_value, llvm_alloca);
-	} else {
-		user_error(status, obj, "missing initializer");
-	}
-
-	if (!!status) {
-		/* the reference_expr that looks at this llvm_value will need to
-		 * know to use store/load semantics, not just pass-by-value */
-		bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
-				bound_type, llvm_alloca, make_code_id(obj.token),
-				true /*is_lhs*/, false /*is_global*/);
-
-		/* memory management */
-		call_addref_var(status, builder, scope, var_decl_variable,
-				string_format("variable %s initialization", symbol.c_str()));
-		life->track_var(builder, var_decl_variable, lf_block);
-
-		/* on our way out, stash the variable in the current scope */
-		scope->put_bound_variable(status, var_decl_variable->name,
-				var_decl_variable);
 
 		if (!!status) {
-			if (unboxed) {
-				/* 'condition_value' refers to whether this was an unboxed maybe */
-				bound_var_t::ref condition_value;
+			/* the reference_expr that looks at this llvm_value will need to
+			 * know to use store/load semantics, not just pass-by-value */
+			bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
+					bound_type, llvm_alloca, make_code_id(obj.token),
+					true /*is_lhs*/, false /*is_global*/);
 
-				assert(init_var != nullptr);
-				assert(maybe_unbox);
+			/* memory management */
+			call_addref_var(status, builder, scope, var_decl_variable,
+					string_format("variable %s initialization", symbol.c_str()));
+			life->track_var(builder, var_decl_variable, lf_block);
 
-				/* get the maybe type so that we can use it as a conditional */
-				bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, lhs_type);
+			/* on our way out, stash the variable in the current scope */
+			scope->put_bound_variable(status, var_decl_variable->name,
+					var_decl_variable);
 
-				/* we're unboxing a Maybe{any}, so let's return
-				 * whether this was Empty or not... */
-				return bound_var_t::create(INTERNAL_LOC(), symbol,
-						condition_type, init_var->get_llvm_value(),
-						make_code_id(obj.token), false /*is_lhs*/,
-					   	false /*is_global*/);
-			} else {
-				return var_decl_variable;
+			if (!!status) {
+				if (unboxed) {
+					/* 'condition_value' refers to whether this was an unboxed maybe */
+					bound_var_t::ref condition_value;
+
+					assert(init_var != nullptr);
+					assert(maybe_unbox);
+
+					/* get the maybe type so that we can use it as a conditional */
+					bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, lhs_type);
+
+					/* we're unboxing a Maybe{any}, so let's return
+					 * whether this was Empty or not... */
+					return bound_var_t::create(INTERNAL_LOC(), symbol,
+							condition_type, init_var->resolve_value(builder),
+							make_code_id(obj.token), false /*is_lhs*/,
+							false /*is_global*/);
+				} else {
+					return var_decl_variable;
+				}
 			}
 		}
 	}
@@ -274,7 +278,8 @@ bound_var_t::ref generate_module_variable(
 			llvm::GlobalVariable *llvm_global_variable = llvm_get_global(
 					llvm_get_module(builder),
 					symbol.str(),
-					llvm_constant);
+					llvm_constant,
+					false /*is_constant*/);
 
 			if (init_var != nullptr) {
 				debug_above(6, log(log_info, "creating a store instruction %s := %s",
@@ -922,10 +927,9 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 			/* get the maybe type so that we can use it as a conditional */
 			bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, maybe_type);
 			if (!!status) {
-				bound_var_t::ref condition_value = bound_var_t::create(INTERNAL_LOC(), token.text,
-						condition_type, var->get_llvm_value(), make_code_id(token),
+				return bound_var_t::create(INTERNAL_LOC(), token.text,
+						condition_type, var->resolve_value(builder), make_code_id(token),
 						false /*is_lhs*/, false /*is_global*/);
-				return condition_value;
 			}
 		}
 
@@ -1857,10 +1861,6 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 
 	assert(scope->get_llvm_module() != nullptr);
 
-	if (function_name == USER_MAIN_FN) {
-		inbound_context = type_module(type_variable(get_location()));
-	}
-
 	auto function_type = get_function_type(inbound_context, args, return_type);
 	bound_type_t::ref bound_function_type = upsert_bound_type(status,
 			builder, scope, function_type);
@@ -2121,24 +2121,24 @@ void type_check_program_variables(
 				}
 			}
 
-			if (!!status) {
-				if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
-					if (getenv("MAIN_ONLY") != nullptr && node->token.text != "__main__") {
-						debug_above(8, log(log_info, "skipping %s because it's not '__main__'",
-									node->str().c_str()));
-						continue;
-					}
+			if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
+				if (getenv("MAIN_ONLY") != nullptr && node->token.text != "__main__") {
+					debug_above(8, log(log_info, "skipping %s because it's not '__main__'",
+								node->str().c_str()));
+					continue;
 				}
+			}
 
-				if (auto stmt = dyncast<const ast::statement_t>(node)) {
-					bound_var_t::ref variable = stmt->resolve_instantiation(
-							status, builder, unchecked_var->module_scope,
-							nullptr, nullptr, nullptr);
-				} else if (auto data_ctor = dyncast<const ast::type_product_t>(node)) {
-					/* ignore until instantiation at a callsite */
-				} else {
-					assert(!"unhandled unchecked node at module scope");
-				}
+			status_t local_status;
+			if (auto stmt = dyncast<const ast::statement_t>(node)) {
+				stmt->resolve_instantiation(
+						local_status, builder, unchecked_var->module_scope,
+						nullptr, nullptr, nullptr);
+				status |= local_status;
+			} else if (auto data_ctor = dyncast<const ast::type_product_t>(node)) {
+				/* ignore until instantiation at a callsite */
+			} else {
+				assert(!"unhandled unchecked node at module scope");
 			}
 		} else {
 			debug_above(3, log(log_info, "skipping %s because it's already been checked", node->token.str().c_str()));
@@ -2156,20 +2156,26 @@ void type_check_all_module_var_slots(
 	/* build the global __init_module_vars function */
 	if (!!status) {
 		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-		bound_var_t::ref llvm_init_function = llvm_start_function(status,
+		bound_var_t::ref init_module_vars = llvm_start_function(status,
 				builder, 
 				program_scope,
 				static_cast<const ast::item_t&>(obj).shared_from_this(),
 				type_module(type_variable(INTERNAL_LOC())),
 				{},
 				program_scope->get_bound_type({"void"}),
-				program_scope->make_fqn("__init_module_vars"));
+				"__init_module_vars");
 
-		for (auto &module : obj.modules) {
-			type_check_module_vars(status, compiler, builder, *module, program_scope);
+		if (!!status) {
+			program_scope->put_bound_variable(status, "__init_module_vars", init_module_vars);
+
+			if (!!status) {
+				for (auto &module : obj.modules) {
+					type_check_module_vars(status, compiler, builder, *module, program_scope);
+				}
+
+				builder.CreateRetVoid();
+			}
 		}
-
-		builder.CreateRetVoid();
 	}
 }
 
@@ -2328,50 +2334,51 @@ bound_var_t::ref type_check_assignment(
 					lhs_var->str().c_str(),
 					rhs_var->str().c_str()));
 
-		if (lhs_var->is_lhs()) {
+		unification_t unification = unify(
+				lhs_var->type->get_type(),
+				rhs_var->type->get_type(), scope->get_typename_env());
 
-			unification_t unification = unify(
-					lhs_var->type->get_type(),
-					rhs_var->type->get_type(), scope->get_typename_env());
+		if (unification.result) {
+			/* ensure that whatever was being pointed to by this LHS
+			 * is released after this statement */
+			auto prior_lhs_value = lhs_var->resolve_bound_value(builder);
+
+			if (lhs_var->is_global()) {
+				/* handle assignment to globals */
+				builder.CreateStore(
+						llvm_maybe_pointer_cast(builder,
+							rhs_var->resolve_value(builder),
+							lhs_var->type->get_llvm_specific_type()),
+						lhs_var->get_llvm_value());
+			} else if (lhs_var->is_lhs()) {
+				llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(
+						lhs_var->get_llvm_value());
+				assert(llvm_alloca != nullptr);
+
+				builder.CreateStore(
+						llvm_maybe_pointer_cast(builder,
+							rhs_var->resolve_value(builder),
+							lhs_var->type->get_llvm_specific_type()),
+						llvm_alloca);
+			} else {
+				user_error(status, location, "left-hand side of assignment is immutable");
+			}
 
 			if (!!status) {
-				if (unification.result) {
-					// TODO: handle assignment to globals .. or error
-					if (lhs_var->is_lhs()) {
-						/* ensure that whatever was being pointed to by this LHS
-						 * is released after this statement */
-						auto prior_lhs_value = lhs_var->resolve_bound_value(builder);
-
-						llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(
-								lhs_var->get_llvm_value());
-						assert(llvm_alloca != nullptr);
-
-						builder.CreateStore(
-								llvm_maybe_pointer_cast(builder,
-									rhs_var->resolve_value(builder),
-									lhs_var->type->get_llvm_specific_type()),
-								llvm_alloca);
-
-						if (rhs_var->type->is_managed()) {
-							/* only bother addref/release if these are different
-							 * things */
-							if (rhs_var->get_llvm_value() != prior_lhs_value->get_llvm_value()) {
-								call_addref_var(status, builder, scope, rhs_var, "addref after assignment");
-								call_release_var(status, builder, scope, prior_lhs_value, "release after assignment");
-							}
-						}
-
-						return lhs_var;
-					} else {
-						assert(false);
+				if (rhs_var->type->is_managed()) {
+					/* only bother addref/release if these are different
+					 * things */
+					if (rhs_var->get_llvm_value() != prior_lhs_value->get_llvm_value()) {
+						call_addref_var(status, builder, scope, rhs_var, "addref after assignment");
+						call_release_var(status, builder, scope, prior_lhs_value, "release after assignment");
 					}
-				} else {
-					user_error(status, location, "left-hand side is incompatible with the right-hand side (%s)",
-							unification.str().c_str());
 				}
+
+				return lhs_var;
 			}
 		} else {
-			user_error(status, location, "left-hand side of assignment is immutable");
+			user_error(status, location, "left-hand side is incompatible with the right-hand side (%s)",
+					unification.str().c_str());
 		}
 	}
 

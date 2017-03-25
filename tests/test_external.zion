@@ -3,3 +3,6 @@ module _
 
 def cool()
 	print("COOL")
+
+def main()
+	cool()

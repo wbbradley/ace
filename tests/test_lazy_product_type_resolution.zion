@@ -6,3 +6,6 @@ type B{X} has
 
 def do(b B{int})
 	print(b.x)
+
+def main()
+	do(B(3))

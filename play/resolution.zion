@@ -1,5 +1,5 @@
 module _
 
 
-def main(args [str]) int
+def main()
 	print(3)

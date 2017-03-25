@@ -9,3 +9,6 @@ type Node{T} has
 type List{V} is
 	Node{V} or
 	Done
+
+def main()
+	pass

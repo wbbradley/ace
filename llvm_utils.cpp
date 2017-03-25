@@ -38,7 +38,7 @@ llvm::Constant *llvm_create_global_string_constant(
 	llvm::LLVMContext &Context = builder.getContext();
 	llvm::Constant *StrConstant = llvm::ConstantDataArray::getString(Context, str);
 	std::string name = std::string("__global_") + str;
-	llvm::GlobalVariable *llvm_value = llvm_get_global(&M, name, StrConstant);
+	llvm::GlobalVariable *llvm_value = llvm_get_global(&M, name, StrConstant, true /*is_constant*/);
 	return llvm_get_pointer_to_constant(builder, llvm_value);
 }
 
@@ -621,11 +621,12 @@ void check_struct_initialization(
 llvm::GlobalVariable *llvm_get_global(
 		llvm::Module *llvm_module,
 		std::string name,
-		llvm::Constant *llvm_constant)
+		llvm::Constant *llvm_constant,
+		bool is_constant)
 {
 	auto llvm_global_variable = new llvm::GlobalVariable(*llvm_module,
 			llvm_constant->getType(),
-			true /* isConstant */, llvm::GlobalValue::PrivateLinkage,
+			is_constant, llvm::GlobalValue::PrivateLinkage,
 			llvm_constant, name, nullptr,
 			llvm::GlobalVariable::NotThreadLocal);
 
@@ -697,12 +698,12 @@ bound_var_t::ref llvm_create_global_tag(
 	llvm::GlobalVariable *llvm_type_info = llvm_get_global(
 			llvm_module, std::string("__tag_type_info_") + tag.str(),
 			llvm::ConstantStruct::get(llvm_type_info_type,
-				llvm_tag_initializer));
+				llvm_tag_initializer), true /*is_constant*/);
 
 	llvm::GlobalVariable *llvm_tag_constant = llvm_get_global(llvm_module,
 			std::string("__tag_") + tag.str(),
 			llvm::ConstantStruct::get(llvm_tag_type,
-				llvm_type_info, nullptr));
+				llvm_type_info, nullptr), true /*is_constant*/);
 
 	debug_above(10, log(log_info, "getBitCast(%s, %s)",
 				llvm_print(*llvm_tag_constant).c_str(),

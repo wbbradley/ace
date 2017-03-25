@@ -62,7 +62,14 @@ llvm::Value *bound_var_t::resolve_value(llvm::IRBuilder<> &builder) const {
 }
 
 bound_var_t::ref bound_var_t::resolve_bound_value(llvm::IRBuilder<> &builder) const {
-	return null_impl();
+	return bound_var_t::create(
+			INTERNAL_LOC(),
+			this->name,
+			type,
+			resolve_value(builder),
+			this->id,
+			false /*is_lhs*/,
+			false /*is_global*/);
 }
 
 std::ostream &operator <<(std::ostream &os, const bound_var_t &var) {

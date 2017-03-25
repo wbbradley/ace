@@ -1,7 +1,7 @@
 module _
 # test: pass
 
-def main(args [str]) int
+def main()
 	var solution List{List{int}} = Empty
 	var node List{int} = Node(0, Empty)
 	new_solution := Node(node, Empty)

@@ -7,5 +7,5 @@ type Box{X} is
 	# TODO: this should fail because Y is not bound or even unchecked
 	Crate(Y)
 
-def main(args [str]) int
+def main()
 	y := Crate(1)

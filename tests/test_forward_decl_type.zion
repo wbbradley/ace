@@ -8,3 +8,6 @@ def bar() Z
 
 # Finally define Z to be int
 type Z is int or float
+
+def main()
+	pass

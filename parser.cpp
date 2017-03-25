@@ -946,7 +946,11 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 
 ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 	types::type_t::ref inbound_context;
+	bool has_inbound_context = false;
+	location_t inbound_context_location;
 	if (ps.token.tk == tk_lsquare) {
+		has_inbound_context = true;
+		inbound_context_location = ps.token.location;
 		ps.advance();
 		if (ps.token.tk == tk_module) {
 			ps.advance();
@@ -977,6 +981,15 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 
 		if (!!ps.status) {
 			auto function_decl = create<ast::function_decl_t>(ps.token);
+
+			if (ps.token.text == "main") {
+				if (!has_inbound_context) {
+					inbound_context = type_module(type_variable(ps.token.location));
+				} else {
+					user_error(ps.status, inbound_context_location,
+							"the main function may not specify an inbound context");
+				}
+			}
 
 			chomp_token(tk_identifier);
 			chomp_token(tk_lparen);

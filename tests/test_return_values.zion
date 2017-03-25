@@ -21,3 +21,6 @@ def get_string_4() str
 	x := 9
 	y := str(9)
 	return y
+
+def main()
+	pass

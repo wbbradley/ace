@@ -1,7 +1,7 @@
 module _
 link module posix
 
-def __declare() undone
+def __declare()
 	"
 	O_RDONLY := 0x0000
 	O_WRONLY := 0x0001

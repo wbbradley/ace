@@ -515,28 +515,29 @@ bound_type_t::ref upsert_bound_type(
 		ptr<scope_t> scope,
 	   	types::type_t::ref type)
 {
-	type = type->rebind(scope->get_type_variable_bindings());
+	if (!!status) {
+		type = type->rebind(scope->get_type_variable_bindings());
 
-	auto signature = type->get_signature();
-	auto bound_type = scope->get_bound_type(signature);
-	if (bound_type != nullptr) {
-		/* this case is critical for breaking cycles during structure
-		 * instantiation */
-		return bound_type;
-	} else {
-		/* we believe that this type does not exist. let's build it */
-		bound_type = create_bound_type(status, builder, scope, type);
-
-		if (!!status) {
+		auto signature = type->get_signature();
+		auto bound_type = scope->get_bound_type(signature);
+		if (bound_type != nullptr) {
+			/* this case is critical for breaking cycles during structure
+			 * instantiation */
 			return bound_type;
+		} else {
+			/* we believe that this type does not exist. let's build it */
+			bound_type = create_bound_type(status, builder, scope, type);
+
+			if (!!status) {
+				return bound_type;
+			}
+
+			user_error(status, type->get_location(),
+					"unable to find a definition for %s in scope " c_id("%s"),
+					type->str().c_str(),
+					scope->get_name().c_str());
 		}
-
-		user_error(status, type->get_location(),
-			   	"unable to find a definition for %s in scope " c_id("%s"),
-				type->str().c_str(),
-                scope->get_name().c_str());
 	}
-
 	assert(!status);
 	return nullptr;
 }
@@ -758,7 +759,8 @@ llvm::Value *llvm_call_allocator(
 				/* create the actual list of offsets */
 				llvm::Constant *llvm_dim_offsets_raw = llvm_get_global(llvm_module,
 						std::string("__dim_offsets_raw_") + name.str(),
-						llvm::ConstantArray::get(llvm_dim_offsets_type, llvm_offsets));
+						llvm::ConstantArray::get(llvm_dim_offsets_type, llvm_offsets),
+						true /*is_constant*/);
 				debug_above(5, log(log_info, "llvm_dim_offsets_raw = %s",
 							llvm_print(llvm_dim_offsets_raw).c_str()));
 
@@ -802,7 +804,8 @@ llvm::Value *llvm_call_allocator(
 			llvm_type_info = llvm_get_global(
 					llvm_module, string_format("__type_info_%s", signature.repr().c_str()),
 					llvm::ConstantStruct::get(llvm_type_info_type,
-						llvm_type_info_data));
+						llvm_type_info_data),
+					true /*is_constant*/);
 
 			debug_above(5, log(log_info, "llvm_type_info = %s",
 						llvm_print(llvm_type_info).c_str()));

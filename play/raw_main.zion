@@ -1,5 +1,4 @@
 module _
 
-def main(args [str]) int
+def main()
 	print(args)
-	return 0

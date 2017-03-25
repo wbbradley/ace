@@ -7,3 +7,6 @@ def inner_function(x int) void
 
 def inner_function() void
 	pass
+
+def main()
+	pass

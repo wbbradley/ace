@@ -11,3 +11,6 @@ def get_2(n int) str
 def get_3() int
 	# error: 13:2.* return expression type std/str .*does not match std/int.*
 	return "hey"
+
+def main()
+	pass
