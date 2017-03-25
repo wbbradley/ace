@@ -10,6 +10,7 @@
 #include "llvm_utils.h"
 #include "compiler.h"
 #include "disk.h"
+#include <sys/wait.h>
 
 int usage() {
 	log(log_error, "available commands: test, read-ir, compile, bc, run, fmt, bin");
@@ -28,7 +29,7 @@ int run_program(std::string executable, std::vector<const char *> args)  {
 
 		// printf("Child has pid %ld\n", (long)pid);
 
-		if (wait(&status) == -1) {
+		if (::wait(&status) == -1) {
 			perror("wait()");
 		} else {
 			if (WIFEXITED(status)) {
