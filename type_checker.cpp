@@ -2112,11 +2112,13 @@ void type_check_program_variables(
 					   	node->token.str().c_str()));
 			if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
 				// TODO: decide whether we need treatment here
-				if (is_function_defn_generic(status, builder,
+				status_t local_status;
+				if (is_function_defn_generic(local_status, builder,
 							unchecked_var->module_scope, *function_defn))
 			   	{
 					/* this is a generic function, or we've already checked
 					 * it so let's skip checking it */
+					status |= local_status;
 					continue;
 				}
 			}
