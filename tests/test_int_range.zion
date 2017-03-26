@@ -1,0 +1,28 @@
+module _
+link module iter
+# test: pass
+
+type IntRangeIter has
+	var item __int__
+	var lim __int__
+
+def range(x int) IntRangeIter
+	return IntRangeIter(0r, x.raw)
+
+def iter(iri IntRangeIter) iter/Step{__int__, IntRangeIter}?
+	return next(iri)
+
+def next(iri IntRangeIter) iter/Step{__int__, IntRangeIter}?
+	if iri.item < iri.lim
+		return iter.Step(iri.item, IntRangeIter(iri.item + 1r, iri.lim))
+	else
+		return nil
+
+def main()
+	int_step := next(range(10))
+	while int_step
+		if step := int_step
+			print(step.item)
+			int_step = next(step.next_iter)
+	print("pass")
+

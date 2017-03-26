@@ -254,7 +254,9 @@ llvm::CallInst *llvm_create_call_inst(
 				builder,
 				llvm_value,
 				*param_iter);
-		llvm_arg->setName(string_format("arg.%d", index));
+		if (llvm_arg->getName().str().size() == 0) {
+			llvm_arg->setName(string_format("arg.%d", index));
+		}
 
 		llvm_args.push_back(llvm_arg);
 

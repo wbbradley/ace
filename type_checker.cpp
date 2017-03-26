@@ -288,7 +288,9 @@ bound_var_t::ref generate_module_variable(
 
 				llvm::Value *llvm_init_value = init_var->resolve_value(builder);
 
-				llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+				if (llvm_init_value->getName().str().size() == 0) {
+					llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+				}
 
 				builder.CreateStore(
 						llvm_maybe_pointer_cast(builder, llvm_init_value,
@@ -572,7 +574,9 @@ function_scope_t::ref make_param_list_scope(
 
 		for (auto &param : params) {
 			llvm::Value *llvm_param = &(*args++);
-			llvm_param->setName(param.first.str());
+			if (llvm_param->getName().str().size() == 0) {
+				llvm_param->setName(param.first.str());
+			}
 
 			/* create an alloca in order to be able to reassign the named
 			 * parameter to a new value. this does not mean that the parameter
@@ -1552,7 +1556,9 @@ bound_var_t::ref extract_member_variable(
 			/* GEP and load the member value from the structure */
 			llvm::Value *llvm_gep = llvm_make_gep(builder,
 					llvm_var_value, index, true /* managed */);
-			llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
+			if (llvm_gep->getName().str().size() == 0) {
+				llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
+			}
 
 			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
 
@@ -2583,7 +2589,9 @@ bound_var_t::ref ast::return_statement_t::resolve_instantiation(
 					return_value->resolve_value(builder),
 					runnable_scope->get_return_type_constraint());
 
-			llvm_return_value->setName("return.value");
+			if (llvm_return_value->getName().str().size() == 0) {
+				llvm_return_value->setName("return.value");
+			}
 			debug_above(8, log("emitting a return of %s", llvm_print(llvm_return_value).c_str()));
 
 			// TODO: release live variables in scope, except the one being

@@ -894,7 +894,9 @@ bound_var_t::ref get_or_create_tuple_ctor(
 						/* get the location we should store this datapoint in */
 						llvm::Value *llvm_gep = llvm_make_gep(builder, llvm_final_obj,
 								index, true /* managed */);
-						llvm_gep->setName(string_format("address_of.member.%d", index));
+						if (llvm_gep->getName().str().size() == 0) {
+							llvm_gep->setName(string_format("address_of.member.%d", index));
+						}
 
 						debug_above(5, log(log_info, "store %s at %s", llvm_print(*llvm_param).c_str(),
 									llvm_print(*llvm_gep).c_str()));
