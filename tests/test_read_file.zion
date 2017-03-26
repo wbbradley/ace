@@ -1,6 +1,8 @@
 module _
 link module file
 link module os
+link module sys
+
 # test: pass
 # expect: This text should appear
 
