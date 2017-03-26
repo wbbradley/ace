@@ -144,7 +144,7 @@ void check_node_existence(struct var_t *node, zion_bool_t should_exist) {
 	}
 
 	if (should_exist) {
-		printf("node 0x%08lx #%ld of type %s does not exist in memory tracking list!\n",
+		printf("node 0x%08lx #%lld of type %s does not exist in memory tracking list!\n",
 				(intptr_t)node, node->allocation, node->type_info->name);
 		assert(!should_exist);
 	}
@@ -174,7 +174,7 @@ void addref_var(
 		++var->ref_count;
 
 #ifdef MEMORY_DEBUGGING
-		printf("addref %s #%ld 0x%08lx to (%ld)\n",
+		printf("addref %s #%lld 0x%08lx to (%lld)\n",
 				var->type_info->name,
 				var->allocation, (intptr_t)var, var->ref_count);
 #endif
@@ -192,7 +192,7 @@ void add_node(struct var_t *node) {
 	check_node_existence(node, 0 /* should_exist */);
 
 	if (node->prev != 0 || node->next != 0) {
-		printf("node 0x%08lx #%ld of type %s already has prev and next ptrs?!\n",
+		printf("node 0x%08lx #%lld of type %s already has prev and next ptrs?!\n",
 				(intptr_t)node, node->allocation, node->type_info->name);
 		exit(-1);
 	}
@@ -264,7 +264,7 @@ void release_var(struct var_t *var
 		--var->ref_count;
 
 #ifdef MEMORY_DEBUGGING
-		printf("release %s #%ld 0x%08lx to (%ld)\n",
+		printf("release %s #%lld 0x%08lx to (%lld)\n",
 				var->type_info->name, var->allocation, (intptr_t)var,
 				var->ref_count);
 #endif
@@ -290,7 +290,7 @@ void release_var(struct var_t *var
 			}
 
 #ifdef MEMORY_DEBUGGING
-			printf("freeing %s #%ld 0x%08lx\n",
+			printf("freeing %s #%lld 0x%08lx\n",
 					var->type_info->name,
 					var->allocation,
 					(intptr_t)var);
@@ -337,7 +337,7 @@ struct var_t *create_var(struct type_info_t *type_info)
 
 #ifdef MEMORY_DEBUGGING
 	add_node(var);
-	printf("creating %s #%ld 0x%08lx\n", type_info->name, var->allocation, (intptr_t)var);
+	printf("creating %s #%lld 0x%08lx\n", type_info->name, var->allocation, (intptr_t)var);
 #endif
 
 	return var;
