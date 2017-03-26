@@ -2705,6 +2705,17 @@ bound_var_t::ref ast::block_t::resolve_instantiation(
     return nullptr;
 }
 
+bound_var_t::ref ast::for_block_t::resolve_instantiation(
+        status_t &status,
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		life_t::ref life,
+        local_scope_t::ref *new_scope,
+		bool *returns) const
+{
+	return null_impl();
+}
+
 bound_var_t::ref ast::while_block_t::resolve_instantiation(
         status_t &status,
         llvm::IRBuilder<> &builder,

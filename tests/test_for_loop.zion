@@ -1,0 +1,7 @@
+module _
+# test: skip
+
+def main()
+	# for x in list(2, nil)
+	# 	print(x)
+	pass

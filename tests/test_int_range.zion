@@ -23,6 +23,6 @@ def main()
 	while int_step
 		if step := int_step
 			print(step.item)
-			int_step = next(step.next_iter)
+			int_step = next(step.next_state)
 	print("pass")
 

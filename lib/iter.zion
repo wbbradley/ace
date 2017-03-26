@@ -3,4 +3,12 @@ module iter
 
 type Step{T, IterState} has
 	var item T
-	var next_iter IterState
+	var next_state IterState
+
+# for X in Y
+#   maybe_step := next(iter(Y))
+#   while maybe_step
+#       if step := maybe_step
+#           set X to step.item
+#           evaluate for block
+#           maybe_step = next(step.next_state)

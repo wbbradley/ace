@@ -16,5 +16,5 @@ def main()
 	while map_step
 		if step := map_step
 			print(str(step.item.key) + ": " + str(step.item.value))
-			map_step = map.next(step.next_iter)
+			map_step = map.next(step.next_state)
 	print("pass")

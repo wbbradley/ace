@@ -79,6 +79,15 @@ namespace ast {
 		block->render(rs);
 	}
 
+	void for_block_t::render(render_state_t &rs) const {
+		rs.ss << C_CONTROL << tkstr(tk_for) << C_RESET << " " << var_token.str() << C_CONTROL << tkstr(tk_in) << C_RESET << " ";
+		collection->render(rs);
+		newline(rs);
+
+		indented(rs);
+		block->render(rs);
+	}
+
 	void when_block_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << tkstr(tk_when) << C_RESET << " ";
 		value->render(rs);

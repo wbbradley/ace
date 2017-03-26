@@ -15,6 +15,7 @@ token_kind translate_tk(token_kind tk, const zion_string_t &token_text) {
 		{"def", tk_def},
 		{"elif", tk_elif},
 		{"else", tk_else},
+		{"for", tk_for},
 		{"has", tk_has},
 		{"if", tk_if},
 		{"in", tk_in},

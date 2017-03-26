@@ -179,6 +179,8 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 		return if_block_t::parse(ps);
 	} else if (ps.token.tk == tk_while) {
 		return while_block_t::parse(ps);
+	} else if (ps.token.tk == tk_for) {
+		return for_block_t::parse(ps);
 	} else if (ps.token.tk == tk_when) {
 		return when_block_t::parse(ps);
 	} else if (ps.token.tk == tk_return) {
@@ -873,12 +875,36 @@ ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {
 	auto while_block = create<ast::while_block_t>(ps.token);
 	chomp_token(tk_while);
 	auto condition = expression_t::parse(ps);
-	if (condition) {
+	if (condition != nullptr) {
 		while_block->condition.swap(condition);
 		auto block = block_t::parse(ps);
 		if (block) {
 			while_block->block.swap(block);
 			return while_block;
+		} else {
+			assert(!ps.status);
+			return nullptr;
+		}
+	} else {
+		assert(!ps.status);
+		return nullptr;
+	}
+}
+
+ptr<for_block_t> for_block_t::parse(parse_state_t &ps) {
+	auto for_block = create<ast::for_block_t>(ps.token);
+	chomp_token(tk_for);
+	expect_token(tk_identifier);
+	for_block->var_token = ps.token;
+	ps.advance();
+	chomp_token(tk_in);
+	auto collection = expression_t::parse(ps);
+	if (collection != nullptr) {
+		for_block->collection.swap(collection);
+		auto block = block_t::parse(ps);
+		if (block != nullptr) {
+			for_block->block.swap(block);
+			return for_block;
 		} else {
 			assert(!ps.status);
 			return nullptr;

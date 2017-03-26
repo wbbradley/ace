@@ -52,6 +52,7 @@ const char *tkstr(token_kind tk) {
 	tk_case(equal);
 	tk_case(error);
 	tk_case(float);
+	tk_case(for);
 	tk_case(raw_float);
 	tk_case(gt);
 	tk_case(gte);
@@ -154,6 +155,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_else:
 	case tk_equal:
 	case tk_error:
+	case tk_for:
 	case tk_gt:
 	case tk_gte:
 	case tk_has:
@@ -292,6 +294,9 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 		break;
 	case tk_get_typeid:
 		printf("__get_typeid__");
+		break;
+	case tk_for:
+		printf("for");
 		break;
 	case tk_if:
 		printf("if");

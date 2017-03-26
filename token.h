@@ -67,6 +67,7 @@ enum token_kind
 	tk_if, /* if */
 	tk_elif, /* else */
 	tk_else, /* else */
+	tk_for, /* for */
 	tk_while, /* while */
 	tk_continue, /* continue */
 	tk_break, /* break */

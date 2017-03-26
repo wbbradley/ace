@@ -161,6 +161,6 @@ def str(map_iter Iter{any K, any V}) str
 [module any]
 def str(map_step MapStep{any K, any V}?) str
 	if map_step
-		return "MapStep(" + str(map_step.key) + ", " + str(map_step.value) + ", " + str(map_step.next_iter) + ")"
+		return "MapStep(" + str(map_step.key) + ", " + str(map_step.value) + ", " + str(map_step.next_state) + ")"
 	else
 		return "nil"

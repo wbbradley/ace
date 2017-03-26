@@ -18,4 +18,4 @@ def main()
 	while list_step
 		if step := list_step
 			print(step.item)
-			list_step = next(step.next_iter)
+			list_step = next(step.next_state)
