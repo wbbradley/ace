@@ -91,4 +91,29 @@ namespace ast {
 		type_variables(type_variables)
 	{
 	}
+
+    atom var_decl_t::get_symbol() const {
+        return {token.text};
+    }
+
+    location_t var_decl_t::get_location() const  {
+        return token.location;
+    }
+
+    types::type_t::ref var_decl_t::get_type() const {
+        return type;
+    }
+
+    bool var_decl_t::has_initializer() const {
+        return initializer != nullptr;
+    }
+
+    bound_var_t::ref var_decl_t::resolve_initializer(
+            status_t &status,
+            llvm::IRBuilder<> &builder,
+            scope_t::ref scope,
+            life_t::ref life) const
+    {
+        return initializer->resolve_instantiation(status, builder, scope, life, nullptr, nullptr);
+    }
 }

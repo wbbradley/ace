@@ -58,7 +58,7 @@ bound_var_t::ref generate_stack_variable(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		const ast::var_decl_t &obj,
+		const ast::like_var_decl_t &obj,
 		atom symbol,
 		types::type_t::ref declared_type,
 		bool maybe_unbox)
@@ -70,71 +70,73 @@ bound_var_t::ref generate_stack_variable(
 	/* only check initializers inside a runnable scope */
 	assert(dyncast<runnable_scope_t>(scope) != nullptr);
 
-	if (obj.initializer) {
+	if (obj.has_initializer()) {
 		/* we have an initializer */
-		init_var = obj.initializer->resolve_instantiation(status, builder,
-				scope, life, nullptr, nullptr);
-	}
-
-	types::type_t::ref lhs_type = declared_type;
-	if (init_var != nullptr) {
-		/* we have an initializer */
-		if (declared_type != nullptr) {
-			/* ensure 'init_var' <: 'declared_type' */
-			unification_t unification = unify(
-					declared_type,
-					init_var->get_type(),
-					scope->get_typename_env());
-
-			if (unification.result) {
-				/* the lhs is a supertype of the rhs */
-				lhs_type = declared_type->rebind(unification.bindings);
-			} else {
-				/* report that the variable type does not match the initializer type */
-				user_error(status, obj, "declared type of `" c_var("%s") "` does not match type of initializer",
-						obj.token.text.c_str());
-				user_message(log_info, status, init_var->get_location(), c_type("%s") " != " c_type("%s"),
-						declared_type->str().c_str(),
-						init_var->type->str().c_str());
-			}
-		} else {
-			/* we must get the type from the initializer */
-			lhs_type = init_var->type->get_type();
-		}
+		init_var = obj.resolve_initializer(status, builder, scope, life);
 	}
 
 	/* 'type' is keeping track of what the variable's ending type will be */
 	bound_type_t::ref bound_type;
-
-	assert(lhs_type != nullptr);
+	types::type_t::ref lhs_type = declared_type;
 
 	/* 'unboxed' tracks whether we are doing maybe unboxing for this var_decl */
 	bool unboxed = false;
 
-	if (maybe_unbox) {
-		debug_above(3, log(log_info, "attempting to unbox %s", obj.str().c_str()));
+	if (!!status) {
+		if (init_var != nullptr) {
+			/* we have an initializer */
+			if (declared_type != nullptr) {
+				/* ensure 'init_var' <: 'declared_type' */
+				unification_t unification = unify(
+						declared_type,
+						init_var->get_type(),
+						scope->get_typename_env());
 
-		/* try to see if we can unbox this if it's a Maybe */
-		if (init_var == nullptr) {
-			user_error(status, obj.get_location(), "missing initialization value");
-		} else {
-			/* since we are maybe unboxing, then let's first off see if
-			 * this is even a maybe type. */
-			if (auto maybe_type = dyncast<const types::type_maybe_t>(lhs_type)) {
-				/* looks like the initialization variable is a supertype
-				 * of the nil type */
-				unboxed = true;
-
-				bound_type = upsert_bound_type(status, builder, scope,
-						maybe_type->just);
+				if (unification.result) {
+					/* the lhs is a supertype of the rhs */
+					lhs_type = declared_type->rebind(unification.bindings);
+				} else {
+					/* report that the variable type does not match the initializer type */
+					user_error(status, obj.get_location(),
+							"declared type of `" c_var("%s") "` does not match type of initializer",
+							obj.get_symbol().c_str());
+					user_message(log_info, status, init_var->get_location(), c_type("%s") " != " c_type("%s"),
+							declared_type->str().c_str(),
+							init_var->type->str().c_str());
+				}
 			} else {
-				/* this is not a maybe, so let's just move along */
+				/* we must get the type from the initializer */
+				lhs_type = init_var->type->get_type();
 			}
 		}
-	}
 
-	if (bound_type == nullptr) {
-		bound_type = upsert_bound_type(status, builder, scope, lhs_type);
+		assert(lhs_type != nullptr);
+
+		if (maybe_unbox) {
+			debug_above(3, log(log_info, "attempting to unbox %s", obj.get_symbol().c_str()));
+
+			/* try to see if we can unbox this if it's a Maybe */
+			if (init_var == nullptr) {
+				user_error(status, obj.get_location(), "missing initialization value");
+			} else {
+				/* since we are maybe unboxing, then let's first off see if
+				 * this is even a maybe type. */
+				if (auto maybe_type = dyncast<const types::type_maybe_t>(lhs_type)) {
+					/* looks like the initialization variable is a supertype
+					 * of the nil type */
+					unboxed = true;
+
+					bound_type = upsert_bound_type(status, builder, scope,
+							maybe_type->just);
+				} else {
+					/* this is not a maybe, so let's just move along */
+				}
+			}
+		}
+
+		if (bound_type == nullptr) {
+			bound_type = upsert_bound_type(status, builder, scope, lhs_type);
+		}
 	}
 
 	if (!!status) {
@@ -167,14 +169,14 @@ bound_var_t::ref generate_stack_variable(
 			llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_specific_type());
 			builder.CreateStore(llvm_null_value, llvm_alloca);
 		} else {
-			user_error(status, obj, "missing initializer");
+			user_error(status, obj.get_location(), "missing initializer");
 		}
 
 		if (!!status) {
 			/* the reference_expr that looks at this llvm_value will need to
 			 * know to use store/load semantics, not just pass-by-value */
 			bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
-					bound_type, llvm_alloca, make_code_id(obj.token),
+					bound_type, llvm_alloca, make_type_id_code_id(obj.get_location(), obj.get_symbol()),
 					true /*is_lhs*/, false /*is_global*/);
 
 			/* memory management */
@@ -201,7 +203,8 @@ bound_var_t::ref generate_stack_variable(
 					 * whether this was Empty or not... */
 					return bound_var_t::create(INTERNAL_LOC(), symbol,
 							condition_type, init_var->resolve_value(builder),
-							make_code_id(obj.token), false /*is_lhs*/,
+							make_type_id_code_id(obj.get_location(), obj.get_symbol()),
+							false /*is_lhs*/,
 							false /*is_global*/);
 				} else {
 					return var_decl_variable;
@@ -325,28 +328,28 @@ bound_var_t::ref type_check_bound_var_decl(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		const ast::var_decl_t &obj,
+		const ast::like_var_decl_t &obj,
 		life_t::ref life,
 		bool maybe_unbox)
 {
-	const atom symbol = obj.token.text;
+	const atom symbol = obj.get_symbol();
 
 	debug_above(4, log(log_info, "type_check_var_decl is looking for a type for variable " c_var("%s") " : %s",
-				symbol.c_str(), obj.str().c_str()));
+				symbol.c_str(), obj.get_symbol().c_str()));
 
 	assert(dyncast<module_scope_t>(scope) == nullptr);
 	if (scope->has_bound_variable(symbol, rc_capture_level)) {
-		user_error(status, obj, "variables cannot be redeclared");
+		user_error(status, obj.get_location(), "variables cannot be redeclared");
 		return nullptr;
 	}
 
 	if (!!status) {
-		assert(obj.type != nullptr);
+		assert(obj.get_type() != nullptr);
 
 		/* 'declared_type' tells us the user-declared type on the left-hand side of
 		 * the assignment. this is generally used to allow a variable to be more
 		 * generalized than the specific right-hand side initial value might be. */
-		types::type_t::ref declared_type = obj.type->rebind(scope->get_type_variable_bindings());
+		types::type_t::ref declared_type = obj.get_type()->rebind(scope->get_type_variable_bindings());
 
 		assert(dyncast<runnable_scope_t>(scope) != nullptr);
 
@@ -2705,23 +2708,73 @@ bound_var_t::ref ast::block_t::resolve_instantiation(
     return nullptr;
 }
 
+struct for_like_var_decl_t : public ast::like_var_decl_t {
+	atom symbol;
+	location_t location;
+	const ast::expression_t &collection;
+	types::type_t::ref type;
+
+	for_like_var_decl_t(atom symbol, location_t location, const ast::expression_t &collection) :
+		symbol(symbol), location(location), collection(collection), type(::type_variable(location))
+	{
+	}
+
+	virtual atom get_symbol() const {
+		return symbol;
+	}
+
+	virtual location_t get_location() const {
+		return location;
+	}
+
+	virtual types::type_t::ref get_type() const {
+		return type;
+	}
+
+	virtual bool has_initializer() const {
+		return true;
+	}
+
+	virtual bound_var_t::ref resolve_initializer(
+			status_t &status,
+			llvm::IRBuilder<> &builder,
+			scope_t::ref scope,
+			life_t::ref life) const
+	{
+		return null_impl();
+	}
+};
+
 bound_var_t::ref ast::for_block_t::resolve_instantiation(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
+	auto maybe_step_symbol = types::gensym();
+
+	bound_var_t::ref maybe_step = type_check_bound_var_decl(
+			status,
+			builder,
+			scope,
+			for_like_var_decl_t(
+				maybe_step_symbol->get_name(),
+				maybe_step_symbol->get_location(),
+				*collection),
+			life,
+			false /*maybe_unbox*/);
+
 	return null_impl();
 }
 
 bound_var_t::ref ast::while_block_t::resolve_instantiation(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	/* while scope allows us to set up new variables inside while conditions */

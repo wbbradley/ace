@@ -33,6 +33,17 @@ const char *skstr(syntax_kind_t sk);
 namespace ast {
 	struct render_state_t;
 
+	struct like_var_decl_t {
+		virtual ~like_var_decl_t() {}
+		virtual atom get_symbol() const = 0;
+		virtual location_t get_location() const = 0;
+		virtual types::type_t::ref get_type() const = 0;
+		virtual bool has_initializer() const = 0;
+		virtual bound_var_t::ref resolve_initializer(
+				status_t &status,
+				llvm::IRBuilder<> &builder, scope_t::ref scope, life_t::ref life) const = 0;
+	};
+
 	struct item_t : std::enable_shared_from_this<item_t> {
 		typedef ptr<const item_t> ref;
 
@@ -378,7 +389,7 @@ namespace ast {
 		// TODO: track type variables on tags to aid in deserialization and marshalling
 	};
 
-	struct var_decl_t : public expression_t {
+	struct var_decl_t : public expression_t, like_var_decl_t {
 		typedef ptr<const var_decl_t> ref;
 
 		static const syntax_kind_t SK = sk_var_decl;
@@ -399,6 +410,13 @@ namespace ast {
 				local_scope_t::ref *new_scope) const;
 		virtual void render(render_state_t &rs) const;
 
+		virtual atom get_symbol() const;
+		virtual types::type_t::ref get_type() const;
+		location_t get_location() const;
+		virtual bool has_initializer() const;
+		virtual bound_var_t::ref resolve_initializer(
+				status_t &status,
+				llvm::IRBuilder<> &builder, scope_t::ref scope, life_t::ref life) const;
 		/* the inherited ast::item::token member contains the actual identifier
 		 * name */
 		types::type_t::ref type;
