@@ -79,12 +79,12 @@ unification_t unify(
 	assert(rhs != nullptr);
 
 	debug_above(7, log(log_info, "unify(%s, %s, ..., %s)",
-			   	lhs->str().c_str(),
-			   	rhs->str().c_str(),
+				lhs->str().c_str(),
+				rhs->str().c_str(),
 				str(bindings).c_str()));
 
-    auto a = prune(lhs, bindings);
-    auto b = prune(rhs, bindings);
+	auto a = prune(lhs, bindings);
+	auto b = prune(rhs, bindings);
 
 	auto ptm_a = dyncast<const types::type_maybe_t>(a);
 	auto ptm_b = dyncast<const types::type_maybe_t>(b);
@@ -113,7 +113,7 @@ unification_t unify(
 		}
 	}
 
-   	if (auto ptv_a = dyncast<const types::type_variable_t>(a)) {
+	if (auto ptv_a = dyncast<const types::type_variable_t>(a)) {
 		if (a != b) {
 			if (occurs_in_type(ptv_a, b, bindings)) {
 				return {
@@ -123,13 +123,13 @@ unification_t unify(
 					bindings};
 			}
 			debug_above(4, log(log_info,
-					   	"binding type_variable " c_id("%s") " to " c_type("%s"),
+						"binding type_variable " c_id("%s") " to " c_type("%s"),
 						ptv_a->id->get_name().c_str(),
 						b->str(bindings).c_str()));
 			assert(bindings.find(ptv_a->id->get_name()) == bindings.end());
 			if (b->rebind(bindings)->ftv_count() != 0) {
 				debug_above(4, log(log_info,
-						   	"note that %s is itself not fully bound", b->str().c_str()));
+							"note that %s is itself not fully bound", b->str().c_str()));
 			}
 			bindings[ptv_a->id->get_name()] = b;
 		}
@@ -157,24 +157,33 @@ unification_t unify(
 			return unify(new_a, b, env, bindings, depth + 1);
 		} else {
 			/* types don't match */
-			return {false, string_format("(%s != %s) and (%s could not be expanded further)",
-					a->str().c_str(),
-					b->str().c_str(),
-					a->str().c_str()), {}};
+			return {
+				false,
+				string_format("(%s != %s) and (%s could not be expanded further)",
+						a->str().c_str(),
+						b->str().c_str(),
+						a->str().c_str()),
+				{}};
 		}
 	} else if (ptp_a != nullptr) {
 		if (auto ptp_b = dyncast<const types::type_product_t>(b)) {
 			if (ptp_a->get_pk() != ptp_b->get_pk()) {
-				return {false, string_format("product kinds are different %s <> %s",
-						pkstr(ptp_a->get_pk()),
-						pkstr(ptp_b->get_pk())), bindings};
+				return {
+					false,
+					string_format("product kinds are different %s <> %s",
+							pkstr(ptp_a->get_pk()),
+							pkstr(ptp_b->get_pk())),
+					bindings};
 			}
 			auto a_dimensions = ptp_a->get_dimensions();
 			auto b_dimensions = ptp_b->get_dimensions();
 			if (a_dimensions.size() != b_dimensions.size()) {
-				return {false, string_format("product type lengths do not match "
-						"(a = %s, b = %s)", ptp_a->str().c_str(),
-						ptp_b->str().c_str()), bindings};
+				return {
+					false,
+					string_format("product type lengths do not match "
+							"(a = %s, b = %s)", ptp_a->str().c_str(),
+							ptp_b->str().c_str()),
+					bindings};
 			} else {
 				auto a_dims_end = a_dimensions.end();
 				auto b_dims_iter = b_dimensions.begin();
@@ -192,9 +201,12 @@ unification_t unify(
 				return {true, "products match", bindings};
 			}
 		} else {
-			return {false, string_format("%s <> %s",
-					a->str().c_str(),
-					b->str().c_str()), bindings};
+			return {
+				false,
+				string_format("%s <> %s",
+						a->str().c_str(),
+						b->str().c_str()),
+				bindings};
 		}
 	} else if (ptf_a != nullptr) {
 		if (auto ptf_b = dyncast<const types::type_function_t>(b)) {
@@ -223,9 +235,12 @@ unification_t unify(
 			bindings = return_type_unification.bindings;
 			return {true, "functions match", bindings};
 		} else {
-			return {false, string_format("%s <> %s",
-					a->str().c_str(),
-					b->str().c_str()), bindings};
+			return {
+				false,
+				string_format("%s <> %s",
+						a->str().c_str(),
+						b->str().c_str()),
+				bindings};
 		}
 	} else if (pts_a != nullptr) {
 		if (pts_b == nullptr) {
@@ -254,11 +269,14 @@ unification_t unify(
 				if (unification.result) {
 					bindings = unification.bindings;
 				} else {
-					return {false, string_format(
-							"\n\tcould not find a match for \n\t\t%s"
-							"\n\tin\n\t\t%s",
-							inbound_option->str(bindings).c_str(),
-							a->str(bindings).c_str()), bindings};
+					return {
+						false,
+						string_format(
+								"\n\tcould not find a match for \n\t\t%s"
+								"\n\tin\n\t\t%s",
+								inbound_option->str(bindings).c_str(),
+								a->str(bindings).c_str()),
+						bindings};
 				}
 			}
 			return {true, "inbound type is a subset of outbound type", bindings};
@@ -306,18 +324,24 @@ unification_t unify(
 			return unify(new_a, b, env, bindings, depth + 1);
 		} else {
 			/* types don't match */
-			return {false, string_format("%s <> %s with attempted bindings %s",
-					a->str().c_str(),
-					b->str().c_str(),
-					str(bindings).c_str()), {}};
+			return {
+				false,
+				string_format("%s <> %s with attempted bindings %s",
+						a->str().c_str(),
+						b->str().c_str(),
+						str(bindings).c_str()),
+				{}};
 		}
 	} else if (ptr_a != nullptr && ptr_b != nullptr) {
 		return unify(ptr_a->raw, ptr_b->raw, env, bindings, depth + 1);
 	} else {
 		/* types don't match */
-		return {false, string_format("%s <> %s with attempted bindings %s",
-				a->str().c_str(),
-				b->str().c_str(),
-				str(bindings).c_str()), {}};
+		return {
+			false,
+			string_format("%s <> %s with attempted bindings %s",
+					a->str().c_str(),
+					b->str().c_str(),
+					str(bindings).c_str()),
+			{}};
 	}
 }
