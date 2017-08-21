@@ -115,25 +115,30 @@ bound_var_t::ref maybe_load_from_pointer(
 {
 	// TODO: check this codepath when used by globals
 	assert(!var->is_global());
-	if (auto raw = dyncast<const types::type_raw_pointer_t>(var->type->get_type())) {
-		auto bound_type = upsert_bound_type(status, builder, scope, raw->raw);
-		if (!!status) {
-			llvm::Value *llvm_value = var->resolve_value(builder);
-			assert(llvm_value->getType()->isPointerTy());
-			assert(llvm::cast<llvm::PointerType>(llvm_value->getType())->getElementType()->isPointerTy());
-			llvm::Value *llvm_loaded_value = builder.CreateLoad(llvm_value);
-			debug_above(5, log(log_info,
-					   	"maybe_load_from_pointer loaded %s which has type %s",
-						llvm_print(llvm_loaded_value).c_str(),
-						llvm_print(llvm_loaded_value->getType()).c_str()));
-			return bound_var_t::create(
-					INTERNAL_LOC(),
-					string_format("load.%s", var->name.c_str()),
-					bound_type,
-					llvm_loaded_value,
-					var->id,
-					false /*is_lhs*/,
-					false /*is_global*/);
+	if (var->type->is_ptr(scope)) {
+		auto type = eval(var->type->get_type(), scope->get_typename_env());
+		if (auto pointer = dyncast<const types::type_ptr_t>(type)) {
+			auto bound_type = upsert_bound_type(status, builder, scope, pointer->element_type);
+			if (!!status) {
+				llvm::Value *llvm_value = var->resolve_value(builder);
+				assert(llvm_value->getType()->isPointerTy());
+				// assert(llvm::cast<llvm::PointerType>(llvm_value->getType())->getElementType()->isPointerTy());
+				llvm::Value *llvm_loaded_value = builder.CreateLoad(llvm_value);
+				debug_above(5, log(log_info,
+							"maybe_load_from_pointer loaded %s which has type %s",
+							llvm_print(llvm_loaded_value).c_str(),
+							llvm_print(llvm_loaded_value->getType()).c_str()));
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						string_format("load.%s", var->name.c_str()),
+						bound_type,
+						llvm_loaded_value,
+						var->id,
+						false /*is_lhs*/,
+						false /*is_global*/);
+			}
+		} else {
+			assert(!"Why is this not a pointer?");
 		}
 	} else {
 		return var;
@@ -184,7 +189,7 @@ bound_var_t::ref create_callsite(
 						false /*is_global*/);
 				/* all return values must be tracked since the callee is
 				 * expected to return a ref-counted value */
-				life->track_var(builder, ret, lf_statement);
+				life->track_var(builder, scope, ret, lf_statement);
 				return ret;
 			}
 		} else {

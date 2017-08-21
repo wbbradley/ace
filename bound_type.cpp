@@ -183,25 +183,57 @@ bool bound_type_t::is_maybe() const {
 	}
 }
 
-bool bound_type_t::is_ref() const {
-	if (dyncast<const types::type_ref_t>(get_type())) {
-		return true;
-	} else {
-		return false;
-	}
-}
-
 bool bound_type_t::is_module() const {
 	return types::is_type_id(get_type(), "module");
 }
 
-bool bound_type_t::is_managed() const {
-	if (dyncast<const types::type_raw_pointer_t>(type) != nullptr) {
-		return false;
-	} else {
-		return is_managed_type_name(type->repr().str());
-	}
+bool bound_type_t::is_ptr(scope_t::ref scope) const {
+	bool res = types::is_ptr(type, scope->get_typename_env());
+	debug_above(7, log("checking whether %s is a ptr of some kind: %s",
+				type->str().c_str(),
+				res ? c_good("it is") : c_error("it isn't")));
+
+	assert(!!res == !!llvm::dyn_cast<llvm::PointerType>(get_llvm_specific_type()));
+	return res;
 }
+
+bool bound_type_t::is_managed_ptr(scope_t::ref scope) const {
+	bool res = types::is_managed_ptr(type, scope->get_typename_env());
+	debug_above(7, log("checking whether %s is a managed ptr: %s",
+				type->str().c_str(),
+				res ? c_good("it is") : c_error("it isn't")));
+
+	/* get the memory management structure type */
+	auto var = scope->get_bound_type("__var");
+	assert(var != nullptr);
+
+	if (res) {
+		/* sanity check that the LLVM types are sane with regards to the scope we're
+		 * looking in for the typename environment */
+		if (llvm::PointerType *llvm_pointer_type = llvm::dyn_cast<llvm::PointerType>(get_llvm_specific_type())) {
+			if (llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_pointer_type->getElementType())) {
+				/* either this type is an unspecified managed pointer (which would
+				 * need runtime type information to decipher, or it's a concrete
+				 * static managed type (or not). */
+				if (var->get_llvm_type() != llvm_struct_type) {
+					auto &elems = llvm_struct_type->elements();
+					assert_implies(res, elems.size() == 2);
+					if (elems.size() != 2 || var->get_llvm_specific_type() != elems[0]) {
+						std::cerr << llvm_print_type(var->get_llvm_type()) << " != " << llvm_print_type(llvm_struct_type) << std::endl;
+						dbg();
+					}
+				}
+			} else {
+				assert(false);
+			}
+		} else {
+			assert(false);
+		}
+	}
+
+	return res;
+}
+
 
 types::signature bound_type_t::get_signature() const {
 	return get_type()->get_signature();

@@ -98,8 +98,8 @@ unification_t unify(
 	auto pts_a = dyncast<const types::type_sum_t>(a);
 	auto pts_b = dyncast<const types::type_sum_t>(b);
 
-	auto ptr_a = dyncast<const types::type_raw_pointer_t>(a);
-	auto ptr_b = dyncast<const types::type_raw_pointer_t>(b);
+	auto ptr_a = dyncast<const types::type_ptr_t>(a);
+	auto ptr_b = dyncast<const types::type_ptr_t>(b);
 
 	auto ptp_a = dyncast<const types::type_product_t>(a);
 
@@ -333,7 +333,7 @@ unification_t unify(
 				{}};
 		}
 	} else if (ptr_a != nullptr && ptr_b != nullptr) {
-		return unify(ptr_a->raw, ptr_b->raw, env, bindings, depth + 1);
+		return unify(ptr_a->element_type, ptr_b->element_type, env, bindings, depth + 1);
 	} else {
 		/* types don't match */
 		return {

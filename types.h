@@ -14,14 +14,13 @@ enum product_kind_t {
 	pk_module = 0,
 	pk_args,
 	pk_struct,
-	pk_ref,
+	pk_managed,
 };
 
 const char *pkstr(product_kind_t pk);
 
 /* used to reset the generic type id counter */
 void reset_generics();
-bool is_managed_type_name(std::string type_name);
 
 namespace types {
 
@@ -63,6 +62,8 @@ namespace types {
 	};
 
 	bool is_type_id(type_t::ref type, atom type_name);
+	bool is_managed_ptr(types::type_t::ref type, types::type_t::map env);
+	bool is_ptr(types::type_t::ref type, types::type_t::map env);
 
 	struct type_id_t : public type_t {
 		type_id_t(identifier::ref id);
@@ -132,10 +133,10 @@ namespace types {
 		type_t::ref module_type;
 	};
 
-	struct type_ref_t : public type_product_t {
-		typedef ptr<const type_ref_t> ref;
+	struct type_managed_t : public type_product_t {
+		typedef ptr<const type_managed_t> ref;
 
-		type_ref_t(type_t::ref element_type);
+		type_managed_t(type_t::ref element_type);
 
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
@@ -233,14 +234,15 @@ namespace types {
 		virtual identifier::ref get_id() const;
 	};
 
-	struct type_raw_pointer_t : public type_t {
-		type_raw_pointer_t(type_t::ref raw);
-		type_t::ref raw;
+	struct type_ptr_t : public type_t {
+		typedef ptr<const type_ptr_t> ref;
+		type_ptr_t(type_t::ref raw);
+		type_t::ref element_type;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual atom::set get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
 	};
@@ -270,14 +272,14 @@ types::type_t::ref type_variable(identifier::ref name);
 types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
 types::type_module_t::ref type_module(types::type_t::ref module);
-types::type_ref_t::ref type_ref(types::type_t::ref element);
+types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
 types::type_args_t::ref type_args(types::type_t::refs args, types::name_index_t name_index={});
 types::type_function_t::ref type_function(types::type_t::ref inbound_context, types::type_args_t::ref args, types::type_t::ref return_type);
 types::type_t::ref type_sum(types::type_t::refs options);
 types::type_t::ref type_sum_safe(status_t &status, types::type_t::refs options);
 types::type_t::ref type_maybe(types::type_t::ref just);
-types::type_t::ref type_raw_pointer(types::type_t::ref raw);
+types::type_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body);
 types::type_t::ref type_list_type(types::type_t::ref element);
 types::type_t::ref type_strip_maybe(types::type_t::ref maybe_maybe);

@@ -293,6 +293,7 @@ const char *INT8_TYPE = "__int8__";
 const char *BOOL_TYPE = "__bool__";
 const char *FLOAT_TYPE = "__float__";
 const char *STR_TYPE = "__str__";
+const char *UTF8_TYPE = "__utf8__";
 const char *PTR_TO_STR_TYPE = "*__str__";
 const char *TRUE_TYPE = "__true__";
 const char *FALSE_TYPE = "__false__";
@@ -342,6 +343,11 @@ void add_global_types(
 					type_id(make_iid(INT8_TYPE)),
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty())},
+		{{UTF8_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(UTF8_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getInt8Ty())},
 		{{FLOAT_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(FLOAT_TYPE)),
@@ -359,7 +365,7 @@ void add_global_types(
 				   	builder.getInt8Ty()->getPointerTo())},
 		{{PTR_TO_STR_TYPE},
 		   	bound_type_t::create(
-					type_raw_pointer(type_id(make_iid(STR_TYPE))),
+					type_ptr(type_id(make_iid(STR_TYPE))),
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty()->getPointerTo()->getPointerTo())},
 
@@ -578,7 +584,13 @@ void add_globals(
 			bound_type_t::refs args;
 			bound_type_t::ref return_type;
 			for (auto arg : binding.args) {
-				args.push_back(program_scope->get_bound_type({arg}));
+				auto bound_type = program_scope->get_bound_type({arg});
+				if (bound_type == nullptr) {
+					debug_above(2, log("can't find bound type for %s",
+								arg.c_str()));
+					assert(false);
+				}
+				args.push_back(bound_type);
 			}
 			return_type = program_scope->get_bound_type({binding.return_type});
 

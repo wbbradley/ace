@@ -182,7 +182,7 @@ bound_var_t::ref generate_stack_variable(
 			/* memory management */
 			call_addref_var(status, builder, scope, var_decl_variable,
 					string_format("variable %s initialization", symbol.c_str()));
-			life->track_var(builder, var_decl_variable, lf_block);
+			life->track_var(builder, scope, var_decl_variable, lf_block);
 
 			/* on our way out, stash the variable in the current scope */
 			scope->put_bound_variable(status, var_decl_variable->name,
@@ -608,7 +608,7 @@ function_scope_t::ref make_param_list_scope(
 			call_addref_var(status, builder, scope, param_var, "function parameter lifetime");
 
 			if (!!status) {
-				life->track_var(builder, param_var, lf_function);
+				life->track_var(builder, scope, param_var, lf_function);
 			}
 
 			if (!!status) {
@@ -1069,8 +1069,8 @@ bound_var_t::ref type_check_binary_equality(
 					}
 				}
 
-				if (lhs_var->type->is_managed()) {
-					assert(rhs_var->type->is_managed());
+				if (lhs_var->type->is_managed_ptr(scope)) {
+					assert(rhs_var->type->is_managed_ptr(scope));
 					auto program_scope = scope->get_program_scope();
 					auto llvm_var_ref_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
 					llvm::Value *llvm_value = negated
@@ -1163,7 +1163,7 @@ bound_var_t::ref ast::tuple_expr_t::resolve_instantiation(
 				make_iid(tuple_type->repr()), shared_from_this());
 
 		if (!!status) {
-			assert(get_function_return_type(scope, tuple.first->type)->get_type()->repr() == type_ref(tuple_type)->repr());
+			assert(get_function_return_type(scope, tuple.first->type)->get_type()->repr() == type_ptr(type_managed(tuple_type))->repr());
 
 			/* now, let's call our unnamed tuple ctor and return that value */
 			return create_callsite(status, builder, scope, life,
@@ -1446,9 +1446,15 @@ types::type_t::ref eval_to_struct_ref(
 		ast::item_t::ref node,
 		types::type_t::ref type)
 {
-	if (dyncast<const types::type_ref_t>(type)) {
-		return type;
-	} else if (dyncast<const types::type_maybe_t>(type)) {
+	if (auto type_ptr = dyncast<const types::type_ptr_t>(type)) {
+		if (auto managed_type = dyncast<const types::type_managed_t>(type_ptr->element_type)) {
+			if (auto struct_type = dyncast<const types::type_struct_t>(managed_type->element_type)) {
+				return type;
+			}
+		}
+	}
+
+	if (dyncast<const types::type_maybe_t>(type)) {
 		user_error(status, node->get_location(),
 				"maybe type %s cannot be dereferenced. todo implement ?.",
 				type->str().c_str());
@@ -1478,11 +1484,15 @@ types::type_struct_t::ref get_struct_type_from_ref(
 		ast::item_t::ref node,
 		types::type_t::ref type)
 {
-	if (auto type_ref = dyncast<const types::type_ref_t>(type)) {
-		if (auto struct_type = dyncast<const types::type_struct_t>(type_ref->element_type)) {
-			return struct_type;
+	if (auto type_ptr = dyncast<const types::type_ptr_t>(type)) {
+		if (auto managed_type = dyncast<const types::type_managed_t>(type_ptr->element_type)) {
+			if (auto struct_type = dyncast<const types::type_struct_t>(managed_type->element_type)) {
+				return struct_type;
+			} else {
+				panic("no struct type found in managed");
+			}
 		} else {
-			panic("no struct type found in ref");
+			panic("no managed type found in ptr");
 		}
 	} else {
 		user_error(status, node->get_location(),
@@ -2376,7 +2386,7 @@ bound_var_t::ref type_check_assignment(
 			}
 
 			if (!!status) {
-				if (rhs_var->type->is_managed()) {
+				if (rhs_var->type->is_managed_ptr(scope)) {
 					/* only bother addref/release if these are different
 					 * things */
 					if (rhs_var->get_llvm_value() != prior_lhs_value->get_llvm_value()) {

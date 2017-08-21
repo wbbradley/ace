@@ -35,7 +35,6 @@ enum token_kind
 	tk_colon, /* : */
 	tk_semicolon, /* ; */
 	tk_def, /* def */
-	tk_ref, /* ref */
 	tk_var, /* var */
 	tk_return, /* return */
 

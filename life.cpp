@@ -83,11 +83,12 @@ void life_t::release_vars(
 
 void life_t::track_var(
 		llvm::IRBuilder<> &builder,
-	   	bound_var_t::ref value,
-	   	life_form_t track_in_life_form)
+		scope_t::ref scope,
+		bound_var_t::ref value,
+		life_form_t track_in_life_form)
 {
 	assert(life_form != lf_loop);
-	if (!value->type->is_managed()) {
+	if (!value->type->is_managed_ptr(scope)) {
 		debug_above(8, log("not tracking %s because it's not managed : %s",
 					value->str().c_str(),
 					value->type->str().c_str()));
@@ -100,7 +101,7 @@ void life_t::track_var(
 		values.push_back(value);
 	} else {
 		assert(this->former_life != nullptr && "We found a track_in_life_form for a life_form that is not on the stack.");
-		this->former_life->track_var(builder, value, track_in_life_form);
+		this->former_life->track_var(builder, scope, value, track_in_life_form);
 	}
 }
 
@@ -124,7 +125,7 @@ void call_refcount_func(
 	if (!!status) {
 		assert(var != nullptr);
 
-		if (var->type->is_managed()) {
+		if (var->type->is_managed_ptr(scope)) {
 			auto program_scope = scope->get_program_scope();
 			auto refcount_function = program_scope->get_singleton(function);
 

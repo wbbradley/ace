@@ -42,7 +42,6 @@ const char *tkstr(token_kind tk) {
 	tk_case(comment);
 	tk_case(continue);
 	tk_case(def);
-	tk_case(ref);
 	tk_case(divide_by);
 	tk_case(divide_by_eq);
 	tk_case(dot);
@@ -148,7 +147,6 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_becomes:
 	case tk_comma:
 	case tk_def:
-	case tk_ref:
 	case tk_divide_by:
 	case tk_divide_by_eq:
 	case tk_elif:
@@ -282,9 +280,6 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 		break;
 	case tk_def:
 		printf("def");
-		break;
-	case tk_ref:
-		printf("ref");
 		break;
 	case tk_tag:
 		printf("tag");

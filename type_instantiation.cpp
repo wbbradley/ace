@@ -153,7 +153,7 @@ void get_generics_and_lambda_vars(
 	}
 }
 
-types::type_t::ref instantiate_data_ctor_type(
+void instantiate_data_ctor_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		types::type_t::ref unbound_type,
@@ -184,28 +184,17 @@ types::type_t::ref instantiate_data_ctor_type(
 			lambda_vars, generics);
 
 	if (!status) {
-		return nullptr;
+		return;
 	}
 
-	/* now build the actual typename expansion we'll put in the typename env */
 	/**********************************************/
 	/* Register a data ctor for this struct_ type */
 	/**********************************************/
-	assert(!!status);
-
 	if (struct_->dimensions.size() != 0) {
 		assert(id->get_name() == tag_name);
 
 		/* we're declaring a ctor at module scope */
 		if (auto module_scope = dyncast<module_scope_t>(scope)) {
-
-			/* create the actual expanded type signature of this type */
-			types::type_t::ref type = type_ref(struct_);
-
-			/* make sure we allow for parameterized expansion */
-			for (auto lambda_var : lambda_vars) {
-				type = type_lambda(lambda_var, type);
-			}
 
 			/* let's create the return type (an unexpanded operator) that will be the codomain of the ctor fn. */
 			auto ctor_return_type = tag_type;
@@ -229,7 +218,19 @@ types::type_t::ref instantiate_data_ctor_type(
 			module_scope->get_program_scope()->put_unchecked_variable(tag_name,
 					unchecked_data_ctor_t::create(id, node,
 						module_scope, data_ctor_sig));
-			return type;
+
+			/* now build the actual typename expansion we'll put in the typename env */
+			/* 1. create the actual expanded type signature of this type */
+			types::type_t::ref type = type_ptr(type_managed(struct_));
+
+			/* 2. make sure we allow for parameterized expansion */
+			for (auto lambda_var : lambda_vars) {
+				type = type_lambda(lambda_var, type);
+			}
+
+			scope->put_typename(status, fqn_tag_name, type);
+
+			return;
 		} else {
 			user_error(status, node->token.location, "local type definitions are not yet impl");
 		}
@@ -239,7 +240,6 @@ types::type_t::ref instantiate_data_ctor_type(
 	}
 
 	assert(!status);
-	return nullptr;
 }
 
 void ast::type_product_t::register_type(
@@ -267,18 +267,9 @@ void ast::type_product_t::register_type(
 		if (env_iter == env.end()) {
 			/* instantiate_data_ctor_type has the side-effect of creating an
 			 * unchecked data ctor for the type */
-			auto data_ctor_type = instantiate_data_ctor_type(status, builder, type,
+			instantiate_data_ctor_type(status, builder, type,
 					type_variables, scope, shared_from_this(), id_, nullptr);
-
-			if (!!status) {
-				/* register the typename in the current environment */
-				debug_above(7, log(log_info, "registering type " c_type("%s") " in scope %s",
-							name.c_str(), scope->get_name().c_str()));
-				scope->put_typename(status, scope->make_fqn(name.str()), data_ctor_type);
-
-				/* success */
-				return;
-			}
+			return;
 		} else {
 			/* simple check for an already bound typename env variable */
 			user_error(status, location,

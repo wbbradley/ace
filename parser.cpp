@@ -1169,7 +1169,6 @@ bool token_begins_type(token_kind tk) {
 	return (
 			tk == tk_times ||
 			tk == tk_has ||
-			tk == tk_ref ||
 			tk == tk_def ||
 			tk == tk_any ||
 			tk == tk_identifier ||
@@ -1262,11 +1261,7 @@ types::type_t::ref _parse_single_type(
 			ps.advance();
 			auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
 			if (!!ps.status) {
-				if (!dyncast<const types::type_raw_pointer_t>(type)) {
-					return ::type_raw_pointer(type);
-				} else {
-					ps.error("you cannot declare a raw pointer to a raw pointer");
-				}
+				return ::type_ptr(type);
 			}
 		}
 		break;
@@ -1307,15 +1302,6 @@ types::type_t::ref _parse_single_type(
 				return ::type_struct(dimensions, name_index);
 			} else {
 				return nullptr;
-			}
-		}
-		break;
-	case tk_ref:
-		{
-			ps.advance();
-			auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
-			if (!!ps.status) {
-				return ::type_ref(type);
 			}
 		}
 		break;
@@ -1422,7 +1408,7 @@ types::type_t::ref _parse_single_type(
 			ps.advance();
 			types::type_t::refs arguments = parse_type_operands(ps, supertype_id, type_variables, generics);
 			// TODO: allow named members
-			return ::type_ref(::type_struct(arguments, {}));
+			return type_ptr(type_managed(type_struct(arguments, {})));
 		}
 		break;
 	default:

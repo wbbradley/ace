@@ -35,9 +35,9 @@ protected:
 public:
 	bool is_function() const;
 	bool is_void() const;
-	bool is_ref() const;
+	bool is_managed_ptr(ptr<scope_t> scope) const;
+	bool is_ptr(ptr<scope_t> scope) const;
 	bool is_maybe() const;
-    bool is_managed() const;
     bool is_module() const;
 	types::signature get_signature() const;
 

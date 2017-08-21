@@ -1,0 +1,17 @@
+module _ @1.0
+
+type Foo has
+	var x int
+
+[module any]
+def __plus__(l Foo, r Foo) Foo
+	return Foo(l.x + r.x)
+
+[module any]
+def str(l Foo) str
+	return "Foo(" + str(l.x) + ")"
+
+def main()
+	f := Foo(2) + Foo(4)
+	(1 + 2)(f)
+	
