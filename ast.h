@@ -82,7 +82,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_statement;
 		virtual ~statement_t() {}
 		static ptr<ast::statement_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_instantiation(
+		virtual bound_var_t::ref resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -121,6 +121,19 @@ namespace ast {
 		static const syntax_kind_t SK = sk_expression;
 		virtual ~expression_t() {}
 		static ptr<expression_t> parse(parse_state_t &ps);
+		virtual bound_var_t::ref resolve_statement(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
+		virtual bound_var_t::ref resolve_expression(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				bool as_ref) const = 0;
 	};
 
 	namespace postfix_expr {
@@ -131,7 +144,7 @@ namespace ast {
 		typedef ptr<const continue_flow_t> ref;
 
 		static const syntax_kind_t SK = sk_continue_flow;
-		virtual bound_var_t::ref resolve_instantiation(
+		virtual bound_var_t::ref resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -145,7 +158,7 @@ namespace ast {
 		typedef ptr<const break_flow_t> ref;
 
 		static const syntax_kind_t SK = sk_break_flow;
-		virtual bound_var_t::ref resolve_instantiation(
+		virtual bound_var_t::ref resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -159,7 +172,7 @@ namespace ast {
 		typedef ptr<const pass_flow_t> ref;
 
 		static const syntax_kind_t SK = sk_pass_flow;
-		virtual bound_var_t::ref resolve_instantiation(
+		virtual bound_var_t::ref resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -174,13 +187,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_typeid_expr;
 		typeid_expr_t(ptr<expression_t> expr);
-		virtual bound_var_t::ref resolve_instantiation(
+		virtual bound_var_t::ref resolve_expression(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
-				bool *returns) const;
+				bool as_ref) const;
 		virtual void render(render_state_t &rs) const;
 		static ptr<typeid_expr_t> parse(parse_state_t &ps);
 
