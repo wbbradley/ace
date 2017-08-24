@@ -39,6 +39,17 @@ using namespace ast;
 	} while (0)
 #define chomp_token(_tk) chomp_token_or_return(_tk, nullptr)
 
+bool token_begins_type(token_kind tk) {
+	return (
+			tk == tk_times ||
+			tk == tk_has ||
+			tk == tk_def ||
+			tk == tk_any ||
+			tk == tk_identifier ||
+			tk == tk_lsquare ||
+			tk == tk_lcurly);
+}
+
 ptr<var_decl_t> var_decl_t::parse(parse_state_t &ps) {
 	expect_token(tk_identifier);
 
@@ -1024,16 +1035,22 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 			function_decl->param_list_decl = param_list_decl_t::parse(ps);
 
 			chomp_token(tk_rparen);
-			if (ps.token.tk == tk_identifier ||
-					ps.token.tk == tk_any ||
-					ps.token.tk == tk_lsquare ||
-					ps.token.tk == tk_lcurly ||
-					ps.token.tk == tk_identifier)
-			{
+			if (token_begins_type(ps.token.tk)) {
 				function_decl->return_type = parse_maybe_type(ps, {}, {}, {});
 				debug_above(6, log("parsed function return type %s at %s",
 								   function_decl->return_type->str().c_str(),
 								   ps.token.str().c_str()));
+			}
+
+			if (function_decl->token.text == "__finalize__") {
+				if (function_decl->param_list_decl->params.size() != 1) {
+					user_error(ps.status, function_decl->token.location,
+							"finalizers must only take one parameter");
+				}
+				if (function_decl->return_type != nullptr) {
+					user_error(ps.status, function_decl->return_type->get_location(),
+							"finalizers cannot return anything");
+				}
 			}
 
 			return function_decl;
@@ -1165,17 +1182,6 @@ types::type_t::refs parse_type_operands(
 	return arguments;
 }
 
-bool token_begins_type(token_kind tk) {
-	return (
-			tk == tk_times ||
-			tk == tk_has ||
-			tk == tk_def ||
-			tk == tk_any ||
-			tk == tk_identifier ||
-			tk == tk_lsquare ||
-			tk == tk_lcurly);
-}
-
 types::type_t::ref _parse_function_type(parse_state_t &ps, identifier::set generics) {
 	chomp_token(tk_def);
 	chomp_token(tk_lparen);
@@ -1265,6 +1271,17 @@ types::type_t::ref _parse_single_type(
 			}
 		}
 		break;
+#if 0
+	case tk_ampersand:
+		{
+			ps.advance();
+			auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
+			if (!!ps.status) {
+				return ::type_unmanage_ptr(type);
+			}
+		}
+		break;
+#endif
 	case tk_has:
 		{
 			ps.advance();

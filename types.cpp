@@ -580,7 +580,6 @@ namespace types {
 	}
 
 	type_ptr_t::type_ptr_t(type_t::ref element_type) : element_type(element_type) {
-		assert(!dyncast<const type_ptr_t>(element_type));
 		assert(!element_type->is_nil());
 	}
 
@@ -818,9 +817,6 @@ types::type_t::ref type_maybe(types::type_t::ref just) {
 }
 
 types::type_t::ref type_ptr(types::type_t::ref raw) {
-    if (auto maybe = dyncast<const types::type_ptr_t>(raw)) {
-		return raw;
-	}
 	return make_ptr<types::type_ptr_t>(raw);
 }
 
@@ -958,7 +954,7 @@ types::type_t::ref eval(types::type_t::ref type, types::type_t::map env) {
 	} else if (auto struct_type = dyncast<const types::type_struct_t>(type)) {
 		/* there is no expansion of struct types */
 		return nullptr;
-	} else if (auto ref_type = dyncast<const types::type_managed_t>(type)) {
+	} else if (auto managed_type = dyncast<const types::type_managed_t>(type)) {
 		/* there is no expansion of managed types, since they are fully concrete */
 		return nullptr;
 	} else if (auto sum_type = dyncast<const types::type_sum_t>(type)) {
@@ -1029,8 +1025,8 @@ types::type_t::ref eval_apply(
 		/* type_variables cannot be applied */
 		return nullptr;
 	} else {
-		std::cerr << "what is this? " << oper->str() << std::endl;
-		return null_impl();
+		/* other strange oddities are not applicable */
+		return nullptr;
 	}
 }
 

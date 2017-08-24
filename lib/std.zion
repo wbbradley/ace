@@ -57,7 +57,7 @@ type str has
 	# TODO: override str ctor to strdup strings
 	var raw __str__
 
-def __dtor__(s *str)
+def __finalize__(s str)
 	posix.free(s.raw as __bytes)
 
 def __box__(s __str__) str
@@ -347,7 +347,7 @@ def len(b bytes) int
 def alloc(cb int) bytes
 	return bytes(posix.calloc(1r, cb.raw), cb.raw)
 
-def __dtor__(b *bytes)
+def __finalize__(b bytes)
 	posix.free(b.data)
 
 def str(b __bytes, length __int__, encoding str) str

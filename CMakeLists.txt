@@ -110,6 +110,6 @@ foreach(_test_name
 		test_map
 		test_mike
 		test_recursion
-		test_if_dtor)
+		test_if_finalizer)
 	add_test(NAME ${_test_name} COMMAND python expect.py -p ${_test_name})
 endforeach(_test_name)

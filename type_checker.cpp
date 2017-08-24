@@ -1070,7 +1070,7 @@ bound_var_t::ref type_check_binary_equality(
 				}
 
 				if (lhs_var->type->is_managed_ptr(scope)) {
-					assert(rhs_var->type->is_managed_ptr(scope));
+					assert(rhs_var->type->get_type()->is_nil() || rhs_var->type->is_managed_ptr(scope));
 					auto program_scope = scope->get_program_scope();
 					auto llvm_var_ref_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
 					llvm::Value *llvm_value = negated
@@ -1446,14 +1446,8 @@ types::type_t::ref eval_to_struct_ref(
 		ast::item_t::ref node,
 		types::type_t::ref type)
 {
-	if (auto type_ptr = dyncast<const types::type_ptr_t>(type)) {
-		if (auto managed_type = dyncast<const types::type_managed_t>(type_ptr->element_type)) {
-			if (auto struct_type = dyncast<const types::type_struct_t>(managed_type->element_type)) {
-				return type;
-			}
-		}
-	}
-
+	return type;
+#if 0
 	if (dyncast<const types::type_maybe_t>(type)) {
 		user_error(status, node->get_location(),
 				"maybe type %s cannot be dereferenced. todo implement ?.",
@@ -1468,37 +1462,52 @@ types::type_t::ref eval_to_struct_ref(
 					"expanded %s to %s",
 					type->str().c_str(),
 					expansion->str().c_str()));
-		return expansion;
-	} else {
-		user_error(status, node->get_location(),
-				"type %s could not be expanded",
-				type->str().c_str());
+		type = expansion;
 	}
 
-	assert(!status);
-	return nullptr;
-}
-
-types::type_struct_t::ref get_struct_type_from_ref(
-		status_t &status,
-		ast::item_t::ref node,
-		types::type_t::ref type)
-{
 	if (auto type_ptr = dyncast<const types::type_ptr_t>(type)) {
 		if (auto managed_type = dyncast<const types::type_managed_t>(type_ptr->element_type)) {
 			if (auto struct_type = dyncast<const types::type_struct_t>(managed_type->element_type)) {
+				return type;
+			}
+		}
+	}
+
+	user_error(status, node->get_location(),
+			"type %s appears to not be a managed struct pointer",
+			type->str().c_str());
+
+	assert(!status);
+	return nullptr;
+#endif
+}
+
+types::type_struct_t::ref get_struct_type_from_ptr(
+		status_t &status,
+		scope_t::ref scope,
+		ast::item_t::ref node,
+		types::type_t::ref type)
+{
+	auto original_type = type;
+	auto expanded_type = eval(type, scope->get_typename_env());
+	if (expanded_type != nullptr) {
+		type = expanded_type;
+	}
+
+	if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
+		if (auto managed_type = dyncast<const types::type_managed_t>(ptr_type->element_type)) {
+			if (auto struct_type = dyncast<const types::type_struct_t>(managed_type->element_type)) {
 				return struct_type;
-			} else {
-				panic("no struct type found in managed");
 			}
 		} else {
-			panic("no managed type found in ptr");
+			if (auto struct_type = dyncast<const types::type_struct_t>(ptr_type->element_type)) {
+				return struct_type;
+			}
 		}
-	} else {
-		user_error(status, node->get_location(),
-				"unable to dereference %s, it's not a ref",
-				node->str().c_str());
 	}
+
+	user_error(status, node->get_location(),
+		   	"could not find structured type within %s", original_type->str().c_str());
 
 	assert(!status);
 	return nullptr;
@@ -1513,26 +1522,25 @@ bound_var_t::ref extract_member_variable(
 		bound_var_t::ref bound_var,
 		atom member_name)
 {
-	bound_var = maybe_load_from_pointer(status, builder, scope, bound_var);
-
 	if (!!status) {
-		types::type_t::ref object_type = bound_var->type->get_type();
-
-		types::type_t::ref type = eval_to_struct_ref(status, scope,
-				node, object_type);
+		types::type_struct_t::ref struct_type = get_struct_type_from_ptr(
+				status, scope, node, bound_var->get_type());
 
 		if (!status) {
 			return nullptr;
 		}
 
-		auto bound_struct_ref = upsert_bound_type(status, builder, scope, type);
-
-		types::type_struct_t::ref struct_type = get_struct_type_from_ref(
-				status, node, type);
-
-		if (!status) {
-			return nullptr;
+		bound_type_t::ref bound_obj_type = bound_var->type;
+		auto expanded_type = eval(bound_var->type->get_type(), scope->get_typename_env());
+		if (expanded_type != nullptr) {
+			bound_obj_type = upsert_bound_type(status, builder, scope, expanded_type);
+		} else {
+			/* this may be an unnamed tuple, so in that case it doesn't need
+			 * expanding */
 		}
+
+		debug_above(5, log(log_info, "looking for member " c_id("%s") " in %s", member_name.c_str(),
+					bound_obj_type->str().c_str()));
 
 		auto member_index = struct_type->name_index;
 		auto member_index_iter = member_index.find(member_name);
@@ -1546,12 +1554,13 @@ bound_var_t::ref extract_member_variable(
 			auto index = member_index_iter->second;
 			debug_above(5, log(log_info, "found member " c_id("%s") " of type %s at index %d",
 						member_name.c_str(),
-						bound_struct_ref->str().c_str(), index));
+						struct_type->str().c_str(),
+					   	index));
 
 			/* get the type of the dimension being referenced */
 			bound_type_t::ref member_type = scope->get_bound_type(
 					struct_type->dimensions[index]->get_signature());
-			assert(bound_struct_ref->get_llvm_type() != nullptr);
+			assert(bound_obj_type->get_llvm_type() != nullptr);
 
 			debug_above(5, log(log_info, "looking at bound_var %s : %s",
 						bound_var->str().c_str(),
@@ -1561,14 +1570,16 @@ bound_var_t::ref extract_member_variable(
 			llvm::Value *llvm_var_value = bound_var->resolve_value(builder);
 
 			llvm_var_value = llvm_maybe_pointer_cast(builder, llvm_var_value,
-					bound_struct_ref->get_llvm_specific_type());
+					bound_obj_type->get_llvm_specific_type());
 
 			/* the following code is heavily coupled to the physical layout of
 			 * managed vs. native structures */
 
 			/* GEP and load the member value from the structure */
 			llvm::Value *llvm_gep = llvm_make_gep(builder,
-					llvm_var_value, index, true /* managed */);
+					llvm_var_value, index,
+				   	types::is_managed_ptr(bound_var->get_type(),
+					   	scope->get_typename_env()) /* managed */);
 			if (llvm_gep->getName().str().size() == 0) {
 				llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
 			}
@@ -1981,6 +1992,8 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 				}
 
 				llvm_verify_function(status, llvm_function);
+			} else {
+				user_error(status, get_location(), "while checking %s", function_var->str().c_str());
 			}
 		}
 	}
@@ -2268,19 +2281,22 @@ bound_var_t::ref ast::tag_t::resolve_instantiation(
 				/* all tags use the var_t* type */
 				scope->get_program_scope()->get_bound_type({"__var_ref"})->get_llvm_type());
 
-		scope->get_program_scope()->put_bound_type(status, bound_tag_type);
+		scope->put_typename(status, fqn_tag_name, type_ptr(type_managed(type_struct({}, {}))));
 		if (!!status) {
-			bound_var_t::ref tag = llvm_create_global_tag(
-					builder, scope, bound_tag_type, fqn_tag_name,
-					make_code_id(token));
-
-			/* record this tag variable for use later */
-			scope->put_bound_variable(status, tag_name, tag);
-
+			scope->get_program_scope()->put_bound_type(status, bound_tag_type);
 			if (!!status) {
-				debug_above(7, log(log_info, "instantiated nullary data ctor %s",
-							tag->str().c_str()));
-				return tag;
+				bound_var_t::ref tag = llvm_create_global_tag(
+						builder, scope, bound_tag_type, fqn_tag_name,
+						make_code_id(token));
+
+				/* record this tag variable for use later */
+				scope->put_bound_variable(status, tag_name, tag);
+
+				if (!!status) {
+					debug_above(7, log(log_info, "instantiated nullary data ctor %s",
+								tag->str().c_str()));
+					return tag;
+				}
 			}
 		}
 	}

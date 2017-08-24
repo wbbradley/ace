@@ -374,6 +374,12 @@ bool zion_lexer_t::_get_tokens() {
 				gts = gts_end;
 				tk = tk_semicolon;
 				break;
+#if 0
+			case '&':
+				gts = gts_end;
+				tk = tk_ampersand;
+				break;
+#endif
 			case ':':
 				gts = gts_colon;
 				tk = tk_colon;

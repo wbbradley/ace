@@ -404,15 +404,15 @@ void add_global_types(
 					type_id(make_iid("__var_ref")),
 					INTERNAL_LOC(),
 					llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
-		{{"__dtor_fn_ref"},
+		{{"__finalizer_fn_ref"},
 			bound_type_t::create(
-					type_id(make_iid("__dtor_fn_ref")),
+					type_id(make_iid("__finalizer_fn_ref")),
 					INTERNAL_LOC(),
 					llvm::FunctionType::get(
 						builder.getVoidTy(),
 						llvm::ArrayRef<llvm::Type*>(
 							std::vector<llvm::Type*>{
-							llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo()
+								llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo()
 							}),
 						false /*isVarArg*/)->getPointerTo())},
 		{{"nil"},

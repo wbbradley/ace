@@ -51,8 +51,8 @@ def open(name str, mode FileOpenMode) File?
 	else
 		return nil
 
-def _close(f *File) int
-	return int(posix.close(f.fd.raw))
+# def _close(f *File) int
+# return int(posix.close(f.fd.raw))
 
 tag ReadError
 tag EOF
@@ -69,7 +69,8 @@ def read(f File, cb int) std/bytes or ReadError or EOF
 
 	return bytes(buffer, bytes_read)
 
-[module any]
-def __dtor__(f *File)
-	if _close(f)
-		print("Failed to close file descriptor: " + str(f.fd))
+
+# [module any]
+# def __dtor__(f File)
+# if _close(f)
+# print("Failed to close file descriptor: " + str(f.fd))

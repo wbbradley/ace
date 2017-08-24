@@ -4,17 +4,17 @@ module _
 type __Value__ has
 	var size __int64__
 	var name __str__
-	var typeinfo ref __TypeInfo__
+	var typeinfo *__TypeInfo__
 
 type __TypeInfo__ has
 	var typeid __typeid__
-	var addref ref def (v ref __Value__) void
-	var release ref def (v ref __Value__) void
+	var addref *def (v *__Value__) void
+	var release *def (v *__Value__) void
 
-def addref(v ref __Value__) void
+def addref(v *__Value__) void
 	pass
 
-def release(v ref __Value__) void
+def release(v *__Value__) void
 	pass
 
 type __TwoInts__ has

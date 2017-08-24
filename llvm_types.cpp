@@ -465,9 +465,12 @@ bound_type_t::ref create_bound_sum_type(
 	auto typename_env = scope->get_typename_env();
 	for (auto subtype : sum->options) {
 		if (!types::is_managed_ptr(subtype, typename_env)) {
+			user_error(status, subtype->get_location(),
+					"subtype %s does not have run-time type information, or is just too weird",
+					subtype->str().c_str());
 			user_error(status, sum->get_location(),
-					"cannot create sum type %s. subtype %s does not have run-time type information",
-					sum->str().c_str(), subtype->str().c_str());
+					"while attempting to instantiate sum type %s",
+					sum->str().c_str());
 			break;
 		}
 	}
@@ -706,10 +709,19 @@ bound_var_t::ref maybe_get_dtor(
 		bound_type_t::ref data_type,
 		types::type_struct_t::ref struct_type)
 {
-	indent_logger indent(3,
-		string_format("attempting to get a dtor for %s",
-			data_type->str().c_str()));
+	return nullptr;
+#if 0
+	auto evaled_type = eval(data_type->get_type(), program_scope->get_typename_env());
+	if (evaled_type == nullptr) {
+		evaled_type = data_type->get_type();
+	}
 
+	indent_logger indent(3, string_format("attempting to get a dtor for %s",
+				evaled_type->str().c_str()));
+
+	// TODO: look at what data_type is, and whether it can be passed as a raw
+	// pointer.
+	dbg();
 	auto location = data_type->get_location();
 	var_t::refs fn_dtors;
 	bound_var_t::ref dtor = maybe_get_callable(
@@ -735,6 +747,7 @@ bound_var_t::ref maybe_get_dtor(
 
 	assert(!status);
 	return nullptr;
+#endif
 }
 
 llvm::Value *llvm_call_allocator(
