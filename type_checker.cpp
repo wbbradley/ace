@@ -1440,48 +1440,6 @@ bound_var_t::ref ast::and_expr_t::resolve_instantiation(
 	return null_impl();
 }
 
-types::type_t::ref eval_to_struct_ref(
-		status_t &status,
-		scope_t::ref scope,
-		ast::item_t::ref node,
-		types::type_t::ref type)
-{
-	return type;
-#if 0
-	if (dyncast<const types::type_maybe_t>(type)) {
-		user_error(status, node->get_location(),
-				"maybe type %s cannot be dereferenced. todo implement ?.",
-				type->str().c_str());
-		return nullptr;
-	}
-
-	types::type_t::ref expansion = eval(type, scope->get_typename_env());
-
-	if (expansion != nullptr) {
-		debug_above(5, log(log_info,
-					"expanded %s to %s",
-					type->str().c_str(),
-					expansion->str().c_str()));
-		type = expansion;
-	}
-
-	if (auto type_ptr = dyncast<const types::type_ptr_t>(type)) {
-		if (auto managed_type = dyncast<const types::type_managed_t>(type_ptr->element_type)) {
-			if (auto struct_type = dyncast<const types::type_struct_t>(managed_type->element_type)) {
-				return type;
-			}
-		}
-	}
-
-	user_error(status, node->get_location(),
-			"type %s appears to not be a managed struct pointer",
-			type->str().c_str());
-
-	assert(!status);
-	return nullptr;
-#endif
-}
-
 types::type_struct_t::ref get_struct_type_from_ptr(
 		status_t &status,
 		scope_t::ref scope,
