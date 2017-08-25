@@ -7,7 +7,7 @@
 #include "llvm_types.h"
 #include <iostream>
 
-bound_var_t::ref ast::when_block_t::resolve_instantiation(
+bound_var_t::ref ast::when_block_t::resolve_statement(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref block_scope,
@@ -17,16 +17,16 @@ bound_var_t::ref ast::when_block_t::resolve_instantiation(
 {
 	assert(life->life_form == lf_statement);
 
-	local_scope_t::ref when_scope;
-	auto pattern_value = value->resolve_instantiation(status, builder,
-			block_scope, life, &when_scope, returns);
-	scope_t::ref current_scope = (when_scope != nullptr) ? when_scope : block_scope;
+	auto pattern_value = value->resolve_expression(status, builder,
+			block_scope, life, true /*as_ref*/);
+	scope_t::ref current_scope = block_scope;
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(current_scope);
 	if (!!status) {
 		identifier::ref var_name;
 		if (auto ref_expr = dyncast<const ast::reference_expr_t>(value)) {
 			/* this is a single variable reference, which we can override in our pattern_blocks */
-			// TODO: handle assignment (when x := f(a.b.c) ...) to allow for naming more complex expressions
+			// TODO: handle assignment (when x := f(a.b.c) ...) as a special form
+			// to allow for naming more complex expressions
 			var_name = make_code_id(ref_expr->token);
 		} else {
             user_error(status, value->get_location(), "pattern matching on non variable-reference expressions is not yet impl");
@@ -178,7 +178,7 @@ bound_var_t::ref ast::pattern_block_t::resolve_pattern_block(
 							returns, ++next_iter, end_iter,
 							else_block);
 				} else if (else_block != nullptr) {
-					return else_block->resolve_instantiation(status, builder,
+					return else_block->resolve_statement(status, builder,
 							scope, life, nullptr, returns);
 				}
 
@@ -229,7 +229,7 @@ bound_var_t::ref ast::pattern_block_t::resolve_pattern_block(
 										&else_block_returns, ++next_iter, end_iter,
 										else_block);
 							} else {
-								else_block->resolve_instantiation(status, builder,
+								else_block->resolve_statement(status, builder,
 										scope, life, nullptr, &else_block_returns);
 							}
 
@@ -264,7 +264,7 @@ bound_var_t::ref ast::pattern_block_t::resolve_pattern_block(
 						/* let's generate code for the "then" block */
 						builder.SetInsertPoint(then_bb);
 						bool if_block_returns = false;
-						block->resolve_instantiation(status, builder,
+						block->resolve_statement(status, builder,
 								if_scope ? if_scope : scope, life, nullptr,
 								&if_block_returns);
 						if (!!status) {

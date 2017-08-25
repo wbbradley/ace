@@ -232,8 +232,8 @@ bound_var_t::ref generate_module_variable(
 
 	if (obj.initializer) {
 		/* we have an initializer */
-		init_var = obj.initializer->resolve_instantiation(status, builder,
-				scope, life, nullptr, nullptr);
+		init_var = obj.initializer->resolve_expression(status, builder,
+				scope, life, false /*as_ref*/);
 	}
 
 	types::type_t::ref lhs_type = declared_type;
@@ -630,7 +630,7 @@ function_scope_t::ref make_param_list_scope(
 	return nullptr;
 }
 
-bound_var_t::ref ast::link_module_statement_t::resolve_instantiation(
+bound_var_t::ref ast::link_module_statement_t::resolve_statement(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -670,7 +670,7 @@ bound_var_t::ref ast::link_module_statement_t::resolve_instantiation(
 	return nullptr;
 }
 
-bound_var_t::ref ast::link_function_statement_t::resolve_instantiation(
+bound_var_t::ref ast::link_function_statement_t::resolve_statement(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -736,7 +736,7 @@ bound_var_t::ref ast::link_function_statement_t::resolve_instantiation(
 	return nullptr;
 }
 
-bound_var_t::ref ast::link_name_t::resolve_instantiation(
+bound_var_t::ref ast::link_name_t::resolve_statement(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -760,8 +760,8 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 				callsite->str().c_str()));
 
 	/* check the left-hand side first, it should be a type_namespace */
-	bound_var_t::ref lhs_var = lhs->resolve_instantiation(
-			status, builder, scope, life, nullptr, nullptr);
+	bound_var_t::ref lhs_var = lhs->resolve_expression(
+			status, builder, scope, life, false /*as_ref*/);
 
 	if (!!status) {
 		if (auto bound_module = dyncast<const bound_module_t>(lhs_var)) {
@@ -782,14 +782,15 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 	return nullptr;
 }
 
-bound_var_t::ref ast::callsite_expr_t::resolve_instantiation(
+bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope,
-		bool *returns) const
+		bool as_ref) const
 {
+	assert(!as_ref);
+
 	/* get the value of calling a function */
 	bound_type_t::refs param_types;
 	bound_var_t::refs arguments;
@@ -798,8 +799,8 @@ bound_var_t::ref ast::callsite_expr_t::resolve_instantiation(
 		if (symbol->token.text == "static_print") {
 			if (params->expressions.size() == 1) {
 				auto param = params->expressions[0];
-				bound_var_t::ref param_var = param->resolve_instantiation(
-						status, builder, scope, life, nullptr, nullptr);
+				bound_var_t::ref param_var = param->resolve_expression(
+						status, builder, scope, life, false /*as_ref*/);
 
 				if (!!status) {
 					user_message(log_info, status, param->get_location(),
@@ -823,8 +824,8 @@ bound_var_t::ref ast::callsite_expr_t::resolve_instantiation(
 	if (params && params->expressions.size() != 0) {
 		/* iterate through the parameters and add their types to a vector */
 		for (auto &param : params->expressions) {
-			bound_var_t::ref param_var = param->resolve_instantiation(
-					status, builder, scope, life, nullptr, nullptr);
+			bound_var_t::ref param_var = param->resolve_expression(
+					status, builder, scope, life, false /*as_ref*/);
 
 			if (!status) {
 				break;
@@ -864,14 +865,15 @@ bound_var_t::ref ast::callsite_expr_t::resolve_instantiation(
 	return nullptr;
 }
 
-bound_var_t::ref ast::reference_expr_t::resolve_instantiation(
+bound_var_t::ref ast::reference_expr_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope,
-		bool *returns) const
+		bool as_ref) const
 {
+	assert(!as_ref);
+
 	/* we wouldn't be referencing a variable name here unless it was unique
 	 * override resolution only happens on callsites, and we don't allow
 	 * passing around unresolved overload references */
@@ -949,14 +951,15 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 	return var;
 }
 
-bound_var_t::ref ast::array_index_expr_t::resolve_instantiation(
+bound_var_t::ref ast::array_index_expr_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope,
-		bool *returns) const
+		bool as_ref) const
 {
+	assert(!as_ref);
+
 	/* this expression looks like this
 	 *
 	 *   lhs[index]
@@ -964,12 +967,12 @@ bound_var_t::ref ast::array_index_expr_t::resolve_instantiation(
 	 */
 
 	if (!!status) {
-		bound_var_t::ref lhs_val = lhs->resolve_instantiation(status, builder,
-				scope, life, nullptr, nullptr);
+		bound_var_t::ref lhs_val = lhs->resolve_expression(status, builder,
+				scope, life, false /*as_ref*/);
 
 		if (!!status) {
-			bound_var_t::ref index_val = index->resolve_instantiation(status, builder,
-					scope, life, nullptr, nullptr);
+			bound_var_t::ref index_val = index->resolve_expression(status, builder,
+					scope, life, false /*as_ref*/);
 
 			if (!!status) {
 				/* get or instantiate a function we can call on these arguments */
@@ -983,14 +986,14 @@ bound_var_t::ref ast::array_index_expr_t::resolve_instantiation(
 	return nullptr;
 }
 
-bound_var_t::ref ast::array_literal_expr_t::resolve_instantiation(
+bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope,
-		bool *returns) const
+		bool as_ref) const
 {
+	assert(!as_ref);
 	user_error(status, *this, "not impl");
 	return nullptr;
 }
@@ -1009,11 +1012,11 @@ bound_var_t::ref type_check_binary_operator(
 		assert(function_name.size() != 0);
 
 		bound_var_t::ref lhs_var, rhs_var;
-		lhs_var = lhs->resolve_instantiation(status, builder, scope, life,
-				nullptr, nullptr);
+		lhs_var = lhs->resolve_expression(status, builder, scope, life,
+				false /*as_ref*/);
 		if (!!status) {
-			rhs_var = rhs->resolve_instantiation(status, builder, scope, life,
-					nullptr, nullptr);
+			rhs_var = rhs->resolve_expression(status, builder, scope, life,
+					false /*as_ref*/);
 
 			if (!!status) {
 				/* get or instantiate a function we can call on these arguments */
@@ -1039,11 +1042,11 @@ bound_var_t::ref type_check_binary_equality(
 {
 	if (!!status) {
 		bound_var_t::ref lhs_var, rhs_var;
-		lhs_var = lhs->resolve_instantiation(status, builder, scope, life,
-				nullptr, nullptr);
+		lhs_var = lhs->resolve_expression(status, builder, scope, life,
+				false /*as_ref*/);
 		if (!!status) {
-			rhs_var = rhs->resolve_instantiation(status, builder, scope, life,
-					nullptr, nullptr);
+			rhs_var = rhs->resolve_expression(status, builder, scope, life,
+					false /*as_ref*/);
 
 			if (!!status) {
 				unification_t unification_rtl = unify(

@@ -114,6 +114,6 @@ namespace ast {
             scope_t::ref scope,
             life_t::ref life) const
     {
-        return initializer->resolve_instantiation(status, builder, scope, life, nullptr, nullptr);
+        return initializer->resolve_expression(status, builder, scope, life, false /*as_ref*/);
     }
 }
