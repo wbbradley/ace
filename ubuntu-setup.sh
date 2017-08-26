@@ -13,6 +13,7 @@ apt-get install -y \
 	make \
 	gdb \
 	cmake \
+	htop \
 	build-essential
 
 wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | apt-key add -

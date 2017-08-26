@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include "status.h"
 #include "logger_decls.h"
 #include "ast.h"

@@ -1,4 +1,5 @@
 #include "zion.h"
+#include <stdarg.h>
 #include "ast.h"
 #include "compiler.h"
 #include "lexer.h"

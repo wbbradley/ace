@@ -1,4 +1,5 @@
 #include "zion.h"
+#include <stdarg.h>
 #include "phase_scope_setup.h"
 #include "logger_decls.h"
 #include "utils.h"
