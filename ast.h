@@ -616,9 +616,9 @@ namespace ast {
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
-		ptr<expression_t> condition;
-		ptr<block_t> block;
-		ptr<statement_t> else_;
+		ptr<const item_t> condition;
+		ptr<const block_t> block;
+		ptr<const statement_t> else_;
 	};
 
 	struct while_block_t : public statement_t {

@@ -2940,8 +2940,6 @@ void ast::if_block_t::resolve_statement(
 
 	bool if_block_returns = false, else_block_returns = false;
 
-	assert(condition != nullptr);
-
 	assert(token.text == "if" || token.text == "elif");
 	bound_var_t::ref condition_value;
 
@@ -2957,36 +2955,38 @@ void ast::if_block_t::resolve_statement(
 	} else if (auto ref_expr = dyncast<const ast::reference_expr_t>(condition)) {
 		condition_value = ref_expr->resolve_as_condition(
 				status, builder, scope, cond_life, &if_scope);
-	} else {
-		condition_value = condition->resolve_expression(
+	} else if (auto expr = dyncast<const ast::expression_t>(condition)) {
+		condition_value = expr->resolve_expression(
 				status, builder, scope, cond_life, false /*as_ref*/);
+	} else {
+		panic("how did this get here?");
 	}
 
-		/*
-		 * var maybe_vector Vector? = maybe_a_vector()
-		 *
-		 * if v := maybe_vector
-		 *   print("x-value is " + v.x)
-		 * else
-		 *   print("no x-value available")
-		 *
-		 * if nil is a subtype of maybe_vector, then the above code
-		 * effectively becomes:
-		 *
-		 * if __not_nil__(maybe_vector)
-		 *   v := __discard_nil__(maybe_vector)
-		 *   // if there is a __bool__ function defined for type(v), add another
-		 *   // if statement:
-		 *   if not v
-		 *     goto l_else
-		 *   print("x-axis is " + v.x)
-		 * else
-		 * l_else:
-		 *   print("no x-value available")
-		 *
-		 * if nil is not a subtype of maybe_vector, for example, for a Vector
-		 * class, 
-		 */
+	/*
+	 * var maybe_vector Vector? = maybe_a_vector()
+	 *
+	 * if v := maybe_vector
+	 *   print("x-value is " + v.x)
+	 * else
+	 *   print("no x-value available")
+	 *
+	 * if nil is a subtype of maybe_vector, then the above code
+	 * effectively becomes:
+	 *
+	 * if __not_nil__(maybe_vector)
+	 *   v := __discard_nil__(maybe_vector)
+	 *   // if there is a __bool__ function defined for type(v), add another
+	 *   // if statement:
+	 *   if not v
+	 *     goto l_else
+	 *   print("x-axis is " + v.x)
+	 * else
+	 * l_else:
+	 *   print("no x-value available")
+	 *
+	 * if nil is not a subtype of maybe_vector, for example, for a Vector
+	 * class...
+	 */
 
 	if (!!status) {
 		/* if the condition value is a maybe type, then we'll need multiple

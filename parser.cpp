@@ -854,32 +854,43 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 		return nullptr;
 	}
 
-	auto condition = expression_t::parse(ps);
+	zion_token_t condition_token = ps.token;
+	auto assignment = assignment_t::parse(ps);
 	if (!!ps.status) {
-		if_block->condition = condition;
-		auto block = block_t::parse(ps);
-		if (!!ps.status) {
-			if_block->block.swap(block);
-
-			if (ps.prior_token.tk == tk_outdent) {
-				/* check the successive instructions for elif or else */
-				if (ps.token.tk == tk_elif) {
-					if_block->else_ = if_block_t::parse(ps);
-				} else if (ps.token.tk == tk_else) {
-					ps.advance();
-					if_block->else_ = block_t::parse(ps);
-				}
-			}
-
-			return if_block;
+		if (auto condition = dyncast<const expression_t>(assignment)) {
+			if_block->condition = condition;
+		} else if (auto var_decl = dyncast<const var_decl_t>(assignment)) {
+			if_block->condition = var_decl;
 		} else {
-			assert(!ps.status);
-			return nullptr;
+			user_error(ps.status, condition_token.location,
+					"if conditions may be expressions or := statements");
 		}
-	} else {
-		assert(!ps.status);
-		return nullptr;
+
+		if (!!ps.status) {
+			auto block = block_t::parse(ps);
+			if (!!ps.status) {
+				if_block->block = block;
+
+				if (ps.prior_token.tk == tk_outdent) {
+					/* check the successive instructions for elif or else */
+					if (ps.token.tk == tk_elif) {
+						if_block->else_ = if_block_t::parse(ps);
+					} else if (ps.token.tk == tk_else) {
+						ps.advance();
+						if_block->else_ = block_t::parse(ps);
+					}
+				}
+
+				return if_block;
+			} else {
+				assert(!ps.status);
+				return nullptr;
+			}
+		}
 	}
+
+	assert(!ps.status);
+	return nullptr;
 }
 
 ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {
