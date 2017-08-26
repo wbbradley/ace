@@ -167,6 +167,10 @@ bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {
 	return arg_types;
 }
 
+bool bound_type_t::is_ref() const {
+	return get_type()->is_ref();
+}
+
 bool bound_type_t::is_function() const {
 	return get_type()->is_function();
 }

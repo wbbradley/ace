@@ -7,7 +7,7 @@
 #include "llvm_types.h"
 #include <iostream>
 
-bound_var_t::ref ast::when_block_t::resolve_statement(
+void ast::when_block_t::resolve_statement(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref block_scope,
@@ -49,13 +49,13 @@ bound_var_t::ref ast::when_block_t::resolve_statement(
 
             if (!!status) {
                 // TODO: check whether all cases of the pattern_value's type are handled
-                return nullptr;
+                return;
             }
         }
 	}
 
 	assert(!status);
-	return nullptr;
+	return;
 }
 
 bound_var_t::ref gen_type_check(
@@ -138,7 +138,7 @@ bound_var_t::ref gen_type_check(
 	return nullptr;
 }
 
-bound_var_t::ref ast::pattern_block_t::resolve_pattern_block(
+void ast::pattern_block_t::resolve_pattern_block(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		bound_var_t::ref value,
@@ -183,7 +183,7 @@ bound_var_t::ref ast::pattern_block_t::resolve_pattern_block(
 				}
 
 				/* we've got nothing else to match on, so, let's bail */
-				return nullptr;
+				return;
 			}
 
 			/* evaluate the condition for branching */
@@ -288,7 +288,7 @@ bound_var_t::ref ast::pattern_block_t::resolve_pattern_block(
 							*returns |= (if_block_returns && else_block_returns);
 
 							assert(!!status);
-							return nullptr;
+							return;
 						}
 					}
 				}
@@ -297,5 +297,5 @@ bound_var_t::ref ast::pattern_block_t::resolve_pattern_block(
 	}
 
 	assert(!status);
-    return nullptr;
+    return;
 }

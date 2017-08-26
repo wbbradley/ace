@@ -715,9 +715,9 @@ ptr<expression_t> expression_t::parse(parse_state_t &ps) {
 	return ternary_expr_t::parse(ps);
 }
 
-ptr<expression_t> assignment_t::parse(parse_state_t &ps) {
+ptr<statement_t> assignment_t::parse(parse_state_t &ps) {
 	auto lhs = expression_t::parse(ps);
-	if (lhs) {
+	if (lhs != nullptr) {
 
 #define handle_assign(tk_, type) \
 		if (!ps.line_broke() && ps.token.tk == tk_) { \
@@ -854,11 +854,11 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 		return nullptr;
 	}
 
-	auto condition = assignment_t::parse(ps);
-	if (condition) {
+	auto condition = expression_t::parse(ps);
+	if (!!ps.status) {
 		if_block->condition = condition;
 		auto block = block_t::parse(ps);
-		if (block) {
+		if (!!ps.status) {
 			if_block->block.swap(block);
 
 			if (ps.prior_token.tk == tk_outdent) {

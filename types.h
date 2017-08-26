@@ -56,6 +56,7 @@ namespace types {
 
 		virtual ref rebind(const map &bindings) const = 0;
 
+		virtual bool is_ref() const { not_impl(); return false; }
 		virtual bool is_function() const { return false; }
 		virtual bool is_void() const { return false; }
 		virtual bool is_nil() const { return false; }

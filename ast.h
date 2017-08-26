@@ -82,7 +82,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_statement;
 		virtual ~statement_t() {}
 		static ptr<ast::statement_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -121,7 +121,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_expression;
 		virtual ~expression_t() {}
 		static ptr<expression_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -144,7 +144,7 @@ namespace ast {
 		typedef ptr<const continue_flow_t> ref;
 
 		static const syntax_kind_t SK = sk_continue_flow;
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -158,7 +158,7 @@ namespace ast {
 		typedef ptr<const break_flow_t> ref;
 
 		static const syntax_kind_t SK = sk_break_flow;
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -172,7 +172,7 @@ namespace ast {
 		typedef ptr<const pass_flow_t> ref;
 
 		static const syntax_kind_t SK = sk_pass_flow;
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -240,7 +240,7 @@ namespace ast {
 		ptr<expression_t> expr;
 		virtual void render(render_state_t &rs) const;
 
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -369,7 +369,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_type_def;
 		static ptr<type_def_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -387,7 +387,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_tag;
 		static ptr<tag_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -398,13 +398,13 @@ namespace ast {
 		// TODO: track type variables on tags to aid in deserialization and marshalling
 	};
 
-	struct var_decl_t : public expression_t, like_var_decl_t {
+	struct var_decl_t : public statement_t, like_var_decl_t {
 		typedef ptr<const var_decl_t> ref;
 
 		static const syntax_kind_t SK = sk_var_decl;
 		static ptr<var_decl_t> parse(parse_state_t &ps);
 		static ptr<var_decl_t> parse_param(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -432,12 +432,12 @@ namespace ast {
 		ptr<expression_t> initializer;
 	};
 
-	struct assignment_t : public expression_t {
+	struct assignment_t : public statement_t {
 		typedef ptr<const assignment_t> ref;
 
 		static const syntax_kind_t SK = sk_assignment;
-		static ptr<expression_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_statement(
+		static ptr<statement_t> parse(parse_state_t &ps);
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -449,11 +449,11 @@ namespace ast {
 		ptr<expression_t> lhs, rhs;
 	};
 
-	struct plus_assignment_t : public expression_t {
+	struct plus_assignment_t : public statement_t {
 		typedef ptr<const plus_assignment_t> ref;
 
 		static const syntax_kind_t SK = sk_plus_assignment;
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -465,11 +465,11 @@ namespace ast {
 		ptr<expression_t> lhs, rhs;
 	};
 
-	struct times_assignment_t : public expression_t {
+	struct times_assignment_t : public statement_t {
 		typedef ptr<const times_assignment_t> ref;
 
 		static const syntax_kind_t SK = sk_times_assignment;
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -481,11 +481,11 @@ namespace ast {
 		ptr<expression_t> lhs, rhs;
 	};
 
-	struct divide_assignment_t : public expression_t {
+	struct divide_assignment_t : public statement_t {
 		typedef ptr<const divide_assignment_t> ref;
 
 		static const syntax_kind_t SK = sk_divide_assignment;
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -497,11 +497,11 @@ namespace ast {
 		ptr<expression_t> lhs, rhs;
 	};
 
-	struct minus_assignment_t : public expression_t {
+	struct minus_assignment_t : public statement_t {
 		typedef ptr<const minus_assignment_t> ref;
 
 		static const syntax_kind_t SK = sk_minus_assignment;
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -513,11 +513,11 @@ namespace ast {
 		ptr<expression_t> lhs, rhs;
 	};
 
-	struct mod_assignment_t : public expression_t {
+	struct mod_assignment_t : public statement_t {
 		typedef ptr<const mod_assignment_t> ref;
 
 		static const syntax_kind_t SK = sk_mod_assignment;
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -535,7 +535,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_block;
 
 		static ptr<block_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -566,7 +566,20 @@ namespace ast {
 		static const syntax_kind_t SK = sk_function_defn;
 
 		static ptr<function_defn_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_statement(
+		virtual bound_var_t::ref resolve_expression(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				bool as_ref) const;
+		virtual void resolve_statement(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
+		virtual bound_var_t::ref resolve_function(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -594,7 +607,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_if_block;
 
 		static ptr<if_block_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -614,7 +627,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_while_block;
 
 		static ptr<while_block_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -633,7 +646,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_for_block;
 
 		static ptr<for_block_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -654,7 +667,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_pattern_block;
 
 		static ref parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_pattern_block(
+		virtual void resolve_pattern_block(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				bound_var_t::ref value,
@@ -677,7 +690,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_when_block;
 
 		static ptr<when_block_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -720,7 +733,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_link_module_statement;
 
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -738,7 +751,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_link_name;
 
-		virtual bound_var_t::ref resolve_statement(
+		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -752,18 +765,17 @@ namespace ast {
 		zion_token_t remote_name;
 	};
 
-	struct link_function_statement_t : public statement_t {
+	struct link_function_statement_t : public expression_t {
 		typedef ptr<const link_function_statement_t> ref;
 
 		static const syntax_kind_t SK = sk_link_function_statement;
 
-		virtual bound_var_t::ref resolve_statement(
+		virtual bound_var_t::ref resolve_expression(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
-				bool *returns) const;
+				bool as_ref) const;
 		virtual void render(render_state_t &rs) const;
 
 		zion_token_t function_name;
