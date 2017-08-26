@@ -885,19 +885,20 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	assert(!as_ref);
-
 	/* we wouldn't be referencing a variable name here unless it was unique
 	 * override resolution only happens on callsites, and we don't allow
 	 * passing around unresolved overload references */
 	bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(),
 			token.text);
 
-	if (!var) {
-		user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
+	if (!!ps.status) {
+		if (as_ref) {
+			if (var->
+		}
 	}
 
-	return var;
+	user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
+	return nullptr;
 }
 
 bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
