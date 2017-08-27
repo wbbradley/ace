@@ -19,14 +19,12 @@ struct bound_var_t : public var_t {
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
 			identifier::ref id,
-			bool is_lhs,
 			bool is_global) :
 	   	internal_location(internal_location),
 	   	name(name),
 	   	type(type),
 	   	llvm_value(llvm_value),
 	   	id(id),
-		_is_lhs(is_lhs),
 		_is_global(is_global)
    	{
 		assert(name.size() != 0);
@@ -34,7 +32,6 @@ struct bound_var_t : public var_t {
 		assert(id != nullptr);
 		assert(type != nullptr);
 		assert_implies(llvm::dyn_cast<llvm::GlobalVariable>(llvm_value) != nullptr, is_global);
-		assert_implies(llvm::dyn_cast<llvm::AllocaInst>(llvm_value) != nullptr, is_lhs);
 	}
 
 	virtual ~bound_var_t() throw() {}
@@ -46,14 +43,13 @@ struct bound_var_t : public var_t {
 
 private:
 	llvm::Value * const llvm_value;
-	bool const _is_lhs;
 	bool const _is_global;
 
 public:
 	llvm::Value *get_llvm_value() const;
 	std::string str() const;
 
-	bool is_lhs() const;
+	bool is_ref() const;
 	bool is_global() const;
 	bool is_int() const;
 	bool is_pointer() const;
@@ -68,8 +64,10 @@ public:
 	types::type_t::ref get_type() const;
 	virtual location_t get_location() const;
 
+private:
 	llvm::Value *resolve_value(llvm::IRBuilder<> &builder) const;
-	ref resolve_bound_value(llvm::IRBuilder<> &builder) const;
+public:
+	ref resolve_bound_value(status_t &status, llvm::IRBuilder<> &builder, ptr<scope_t> scope) const;
 
 	static ref create(
 			location_t internal_location,
@@ -77,11 +75,7 @@ public:
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
 			identifier::ref id,
-			bool is_lhs,
-			bool is_global)
-	{
-		return make_ptr<bound_var_t>(internal_location, name, type, llvm_value, id, is_lhs, is_global);
-	}
+			bool is_global);
 
 	static std::string str(const refs &coll) {
 		std::stringstream ss;

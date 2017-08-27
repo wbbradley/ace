@@ -613,6 +613,40 @@ namespace types {
 		return nullptr;
 	}
 
+	type_ref_t::type_ref_t(type_t::ref element_type) : element_type(element_type) {
+		assert(!element_type->is_nil());
+	}
+
+	std::ostream &type_ref_t::emit(std::ostream &os, const map &bindings) const {
+		os << "&";
+		element_type->emit(os, bindings);
+		return os;
+	}
+
+	int type_ref_t::ftv_count() const {
+		return element_type->ftv_count();
+	}
+
+	atom::set type_ref_t::get_ftvs() const {
+		return element_type->get_ftvs();
+	}
+
+	type_t::ref type_ref_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
+		return ::type_ref(element_type->rebind(bindings));
+	}
+
+	location_t type_ref_t::get_location() const {
+		return element_type->get_location();
+	}
+
+	identifier::ref type_ref_t::get_id() const {
+		return nullptr;
+	}
+
 	type_lambda_t::type_lambda_t(identifier::ref binding, type_t::ref body) :
 		binding(binding), body(body)
 	{
@@ -818,6 +852,10 @@ types::type_t::ref type_maybe(types::type_t::ref just) {
 
 types::type_t::ref type_ptr(types::type_t::ref raw) {
 	return make_ptr<types::type_ptr_t>(raw);
+}
+
+types::type_t::ref type_ref(types::type_t::ref raw) {
+	return make_ptr<types::type_ref_t>(raw);
 }
 
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body) {

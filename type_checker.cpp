@@ -76,7 +76,8 @@ bound_var_t::ref generate_stack_variable(
 	}
 
 	/* 'type' is keeping track of what the variable's ending type will be */
-	bound_type_t::ref bound_type;
+	bound_type_t::ref stack_var_type;
+	bound_type_t::ref value_type;
 	types::type_t::ref lhs_type = declared_type;
 
 	/* 'unboxed' tracks whether we are doing maybe unboxing for this var_decl */
@@ -126,16 +127,22 @@ bound_var_t::ref generate_stack_variable(
 					 * of the nil type */
 					unboxed = true;
 
-					bound_type = upsert_bound_type(status, builder, scope,
-							maybe_type->just);
+					stack_var_type = upsert_bound_type(status, builder, scope,
+							type_ref(maybe_type->just));
+					if (!!status) {
+						value_type = upsert_bound_type(status, builder, scope, maybe_type->just);
+					}
 				} else {
 					/* this is not a maybe, so let's just move along */
 				}
 			}
 		}
 
-		if (bound_type == nullptr) {
-			bound_type = upsert_bound_type(status, builder, scope, lhs_type);
+		if (stack_var_type == nullptr) {
+			stack_var_type = upsert_bound_type(status, builder, scope, type_ref(lhs_type));
+			if (!!status) {
+				value_type = upsert_bound_type(status, builder, scope, lhs_type);
+			}
 		}
 	}
 
@@ -143,7 +150,7 @@ bound_var_t::ref generate_stack_variable(
 		/* generate the mutable stack-based variable for this var */
 		llvm::Function *llvm_function = llvm_get_function(builder);
 		llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function,
-				bound_type, symbol);
+				value_type, symbol);
 
 		if (init_var) {
 			if (!init_var->type->get_type()->is_nil()) {
@@ -151,22 +158,23 @@ bound_var_t::ref generate_stack_variable(
 							llvm_print(llvm_alloca).c_str(),
 							llvm_print(init_var->get_llvm_value()).c_str()));
 
-				llvm::Value *llvm_init_value = init_var->resolve_value(builder);
+				// Should resolve_value be allowed?
+				llvm::Value *llvm_init_value = init_var->get_llvm_value(); // ->resolve_value(builder);
 				if (llvm_init_value->getName().size() == 0) {
 					llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
 				}
 
 				builder.CreateStore(
 						llvm_maybe_pointer_cast(builder, llvm_init_value,
-							bound_type->get_llvm_specific_type()),
+							value_type->get_llvm_specific_type()),
 						llvm_alloca);
 			} else {
-				llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_specific_type());
+				llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
 				builder.CreateStore(llvm_null_value, llvm_alloca);
 			}
 		} else if (dyncast<const types::type_maybe_t>(lhs_type)) {
 			/* this can be null, let's initialize it as such */
-			llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(bound_type->get_llvm_specific_type());
+			llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
 			builder.CreateStore(llvm_null_value, llvm_alloca);
 		} else {
 			user_error(status, obj.get_location(), "missing initializer");
@@ -176,8 +184,8 @@ bound_var_t::ref generate_stack_variable(
 			/* the reference_expr that looks at this llvm_value will need to
 			 * know to use store/load semantics, not just pass-by-value */
 			bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
-					bound_type, llvm_alloca, make_type_id_code_id(obj.get_location(), obj.get_symbol()),
-					true /*is_lhs*/, false /*is_global*/);
+					stack_var_type, llvm_alloca, make_type_id_code_id(obj.get_location(), obj.get_symbol()),
+					false /*is_global*/);
 
 			/* memory management */
 			call_addref_var(status, builder, scope, var_decl_variable,
@@ -204,7 +212,6 @@ bound_var_t::ref generate_stack_variable(
 					return bound_var_t::create(INTERNAL_LOC(), symbol,
 							condition_type, init_var->resolve_value(builder),
 							make_type_id_code_id(obj.get_location(), obj.get_symbol()),
-							false /*is_lhs*/,
 							false /*is_global*/);
 				} else {
 					return var_decl_variable;
@@ -309,7 +316,7 @@ bound_var_t::ref generate_module_variable(
 				 * know to use store/load semantics, not just pass-by-value */
 				bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
 						bound_type, llvm_global_variable, make_code_id(obj.token),
-						false /*is_lhs*/, true /*is_global*/);
+						true /*is_global*/);
 
 				/* on our way out, stash the variable in the current scope */
 				scope->get_module_scope()->put_bound_variable(status, var_decl_variable->name,
@@ -581,6 +588,8 @@ function_scope_t::ref make_param_list_scope(
 				llvm_param->setName(param.first.str());
 			}
 
+			assert(!param.second->is_ref());
+
 			/* create an alloca in order to be able to reassign the named
 			 * parameter to a new value. this does not mean that the parameter
 			 * is an out param, we are simply enabling reuse of the name */
@@ -595,25 +604,29 @@ function_scope_t::ref make_param_list_scope(
 						llvm_print(llvm_param).c_str()));
 			builder.CreateStore(llvm_param, llvm_alloca);	
 
-			auto param_var = bound_var_t::create(INTERNAL_LOC(), param.first, param.second,
-					llvm_alloca, make_code_id(obj.param_list_decl->params[i++]->token),
-					true /*is_lhs*/, false /*is_global*/);
-
-			bound_type_t::ref return_type = get_function_return_type(scope, function_var->type);
-
-			// TODO: an easy optimization here (to avoid the addref/release
-			// overhead would be to check whether this symbol is on the LHS of
-			// any assignment operations within this function AST's body. For
-			// now, we'll be safe.
-			call_addref_var(status, builder, scope, param_var, "function parameter lifetime");
-
+			auto bound_stack_var_type = upsert_bound_type(status, builder,
+					scope, type_ref(param.second->get_type()));
 			if (!!status) {
-				life->track_var(builder, scope, param_var, lf_function);
-			}
+				auto param_var = bound_var_t::create(INTERNAL_LOC(), param.first, bound_stack_var_type,
+						llvm_alloca, make_code_id(obj.param_list_decl->params[i++]->token),
+						false /*is_global*/);
 
-			if (!!status) {
-				/* add the parameter argument to the current scope */
-				new_scope->put_bound_variable(status, param.first, param_var);
+				bound_type_t::ref return_type = get_function_return_type(scope, function_var->type);
+
+				// TODO: an optimization here (to avoid the addref/release
+				// overhead would be to check whether this symbol is on the LHS of
+				// any assignment operations within this function AST's body. For
+				// now, we'll be safe.
+				call_addref_var(status, builder, scope, param_var, "function parameter lifetime");
+
+				if (!!status) {
+					life->track_var(builder, scope, param_var, lf_function);
+				}
+
+				if (!!status) {
+					/* add the parameter argument to the current scope */
+					new_scope->put_bound_variable(status, param.first, param_var);
+				}
 			}
 
 			if (!status) {
@@ -737,7 +750,7 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 					bound_function_type,
 					llvm_value,
 					make_code_id(extern_function->token),
-					false /*is_lhs*/, false /*is_global*/);
+					false /*is_global*/);
 		}
 	} else {
 		auto bound_var = scope->get_bound_variable(status, shared_from_this(), function_name.text);
@@ -891,9 +904,11 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 	bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(),
 			token.text);
 
-	if (!!ps.status) {
-		if (as_ref) {
-			if (var->
+	if (!!status) {
+		if (!as_ref && var->is_ref()) {
+			return var->resolve_bound_value();
+		} else {
+			return var;
 		}
 	}
 

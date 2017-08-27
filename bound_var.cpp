@@ -1,7 +1,26 @@
 #include "bound_var.h"
 #include "llvm_utils.h"
+#include "llvm_types.h"
 #include "ast.h"
 #include "parser.h"
+
+bound_var_t::ref bound_var_t::create(
+		location_t internal_location,
+		atom name,
+		bound_type_t::ref type,
+		llvm::Value *llvm_value,
+		identifier::ref id,
+		bool is_global)
+{
+	if (auto llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(llvm_value)) {
+		assert(type->is_ref());
+	}
+	if (type->is_ref()) {
+		assert(llvm::dyn_cast<llvm::AllocaInst>(llvm_value) || llvm_value->getType()->isPointerTy());
+	}
+
+	return make_ptr<bound_var_t>(internal_location, name, type, llvm_value, id, is_global);
+}
 
 std::string bound_var_t::str() const {
 	std::stringstream ss;
@@ -26,9 +45,9 @@ location_t bound_var_t::get_location() const {
 	return id->get_location();
 }
 
-bool bound_var_t::is_lhs() const {
+bool bound_var_t::is_ref() const {
 	assert(!_is_global);
-	return _is_lhs;
+	return type->is_ref();
 }
 
 bool bound_var_t::is_global() const {
@@ -50,26 +69,34 @@ llvm::Value *bound_var_t::get_llvm_value() const {
 }
 
 llvm::Value *bound_var_t::resolve_value(llvm::IRBuilder<> &builder) const {
-	if (_is_lhs) {
-		return _llvm_resolve_alloca(builder, llvm_value);
-	} else if (_is_global) {
+	assert(false);
+	if (_is_global) {
 		// maybe...
 		assert(llvm_value->getType() == type->get_llvm_type()->getPointerTo());
 		return builder.CreateLoad(llvm_value);
-	} else {
-		return llvm_value;
 	}
+
+	if (type->is_ref()) {
+		return _llvm_resolve_alloca(builder, llvm_value);
+	}
+
+	return llvm_value;
 }
 
-bound_var_t::ref bound_var_t::resolve_bound_value(llvm::IRBuilder<> &builder) const {
-	return bound_var_t::create(
-			INTERNAL_LOC(),
-			this->name,
-			type,
-			resolve_value(builder),
-			this->id,
-			false /*is_lhs*/,
-			false /*is_global*/);
+bound_var_t::ref bound_var_t::resolve_bound_value(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope) const {
+	if (auto ref_type = dyncast<const types::type_ref_t>(type->get_type())) {
+		auto bound_type = upsert_bound_type(status, builder, scope, ref_type->element_type);
+		return bound_var_t::create(
+				INTERNAL_LOC(),
+				this->name,
+				bound_type,
+				resolve_value(builder),
+				this->id,
+				false /*is_global*/);
+	} else {
+		panic("why are we trying to resolve this?");
+	}
+	return nullptr;
 }
 
 std::ostream &operator <<(std::ostream &os, const bound_var_t &var) {
@@ -104,7 +131,6 @@ bound_module_t::bound_module_t(
 			module_scope->get_bound_type({"module"}),
 			module_scope->get_program_scope()->get_singleton("nil")->get_llvm_value(),
 			id,
-			false /*is_lhs*/,
 			false /*is_global*/),
 	module_scope(module_scope)
 {
@@ -147,25 +173,3 @@ types::type_t::ref bound_var_t::get_type(ptr<scope_t> scope) const {
 types::type_t::ref bound_var_t::get_type() const {
 	return type->get_type();
 }
-
-#if 0
-bound_var_t::ref resolve_alloca(llvm::IRBuilder<> &builder, bound_var_t::ref var) {
-	if (llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(
-				var->get_llvm_value()))
-   	{
-		assert(var->is_lhs());
-		assert(!var->is_global());
-		return bound_var_t::create(
-				INTERNAL_LOC(),
-				string_format("%s.snapshot", var->name.c_str()),
-				var->type,
-				llvm_resolve_alloca(builder, llvm_alloca),
-				var->id,
-			   	false /*is_lhs*/,
-				false /*is_global*/);
-	} else {
-		assert(!var->is_lhs());
-		return var;
-	}
-}
-#endif
