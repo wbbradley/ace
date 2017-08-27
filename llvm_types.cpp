@@ -1103,6 +1103,7 @@ llvm::Value *llvm_make_gep(
 	return builder.CreateInBoundsGEP(llvm_value, gep_path);
 }
 
+#if 0
 bound_var_t::ref call_const_subscript_operator(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -1153,3 +1154,4 @@ bound_var_t::ref call_const_subscript_operator(
 	assert(!status);
 	return nullptr;
 }
+#endif

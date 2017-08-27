@@ -68,9 +68,9 @@ llvm::Value *bound_var_t::get_llvm_value() const {
 	return llvm_value;
 }
 
-llvm::Value *bound_var_t::resolve_value(llvm::IRBuilder<> &builder) const {
-	assert(false);
-	if (_is_global) {
+
+llvm::Value *bound_var_t::resolve_bound_var_value(llvm::IRBuilder<> &builder) const {
+	if (is_global()) {
 		// maybe...
 		assert(llvm_value->getType() == type->get_llvm_type()->getPointerTo());
 		return builder.CreateLoad(llvm_value);
@@ -78,6 +78,8 @@ llvm::Value *bound_var_t::resolve_value(llvm::IRBuilder<> &builder) const {
 
 	if (type->is_ref()) {
 		return _llvm_resolve_alloca(builder, llvm_value);
+	} else {
+		assert(!llvm::dyn_cast<llvm::AllocaInst>(llvm_value));
 	}
 
 	return llvm_value;
@@ -90,7 +92,7 @@ bound_var_t::ref bound_var_t::resolve_bound_value(status_t &status, llvm::IRBuil
 				INTERNAL_LOC(),
 				this->name,
 				bound_type,
-				resolve_value(builder),
+				resolve_bound_var_value(builder),
 				this->id,
 				false /*is_global*/);
 	} else {
@@ -138,14 +140,49 @@ bound_module_t::bound_module_t(
 }
 
 std::vector<llvm::Value *> get_llvm_values(
+		status_t &status,
 		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		location_t location,
+		ptr<const types::type_args_t> type_args,
 	   	const bound_var_t::refs &vars)
 {
 	std::vector<llvm::Value *> llvm_values;
 	llvm_values.reserve(vars.size());
 
+	if (type_args->args.size() != vars.size()) {
+		user_error(status, location, "invalid parameter count to function call. expected %d parameters, got %d",
+				(int)type_args->args.size(),
+				(int)vars.size());
+		return {};
+	}
+
+	auto type_iter = type_args->args.begin();
 	for (auto var : vars) {
-		llvm_values.push_back(var->resolve_value(builder));
+		auto &lhs_arg_type = *type_iter;
+		auto rhs_arg_type = var->type->get_type();
+
+		if (rhs_arg_type->get_signature() != lhs_arg_type->get_signature()) {
+			// There is probably going to end up being some coupling here with
+			// unification, since we'll need to make these compatible. Perhaps
+			// unification could produce a list of instructions on how to do the
+			// conversion...
+			not_impl();
+#if 0
+			/* check pragmatically for certain coercions that should take place */
+			if (/* the param is a native type and the target is a managed type */false) {
+				not_impl();
+			} else if (rhs_arg_type->is_ref() && !lhs_arg_type->is_ref()) {
+				llvm_values.push_back(var->resolve_value(builder));
+			} else {
+				panic("wat is happening!?")
+			}
+#endif
+		} else {
+			llvm_values.push_back(var->get_llvm_value());
+		}
+
+		++type_iter;
 	}
 
 	return llvm_values;

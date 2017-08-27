@@ -206,13 +206,16 @@ bound_var_t::ref generate_stack_variable(
 
 					/* get the maybe type so that we can use it as a conditional */
 					bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, lhs_type);
+					llvm::Value *llvm_resolved_value = init_var->resolve_bound_var_value(builder);
 
-					/* we're unboxing a Maybe{any}, so let's return
-					 * whether this was Empty or not... */
-					return bound_var_t::create(INTERNAL_LOC(), symbol,
-							condition_type, init_var->resolve_value(builder),
-							make_type_id_code_id(obj.get_location(), obj.get_symbol()),
-							false /*is_global*/);
+					if (!!status) {
+						/* we're unboxing a Maybe{any}, so let's return
+						 * whether this was Empty or not... */
+						return bound_var_t::create(INTERNAL_LOC(), symbol,
+								condition_type, llvm_resolved_value,
+								make_type_id_code_id(obj.get_location(), obj.get_symbol()),
+								false /*is_global*/);
+					}
 				} else {
 					return var_decl_variable;
 				}
@@ -296,7 +299,7 @@ bound_var_t::ref generate_module_variable(
 							llvm_print(llvm_global_variable).c_str(),
 							llvm_print(init_var->get_llvm_value()).c_str()));
 
-				llvm::Value *llvm_init_value = init_var->resolve_value(builder);
+				llvm::Value *llvm_init_value = init_var->resolve_bound_var_value(builder);
 
 				if (llvm_init_value->getName().str().size() == 0) {
 					llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
@@ -906,8 +909,9 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 
 	if (!!status) {
 		if (!as_ref && var->is_ref()) {
-			return var->resolve_bound_value();
+			return var->resolve_bound_value(status, builder, scope);
 		} else {
+			assert(var->type->is_ref());
 			return var;
 		}
 	}
@@ -931,6 +935,9 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 	if (!var) {
 		user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
 	}
+
+	// TODO: handle refs
+	assert(!var->type->is_ref());
 
 	if (auto maybe_type = dyncast<const types::type_maybe_t>(var->type->get_type())) {
 		runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
@@ -956,7 +963,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 			bound_var_t::ref var_decl_variable =
 				bound_var_t::create(INTERNAL_LOC(), token.text, bound_type,
 						var->get_llvm_value(), make_code_id(token),
-					   	var->is_lhs() /*is_lhs*/, false /*is_global*/);
+					   	false /*is_global*/);
 
 			/* on our way out, stash the variable in the current scope */
 			scope->put_bound_variable(status, var_decl_variable->name,
@@ -966,8 +973,8 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 			bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, maybe_type);
 			if (!!status) {
 				return bound_var_t::create(INTERNAL_LOC(), token.text,
-						condition_type, var->resolve_value(builder), make_code_id(token),
-						false /*is_lhs*/, false /*is_global*/);
+						condition_type, var->resolve_bound_var_value(builder), make_code_id(token),
+						false /*is_global*/);
 			}
 		}
 
@@ -1107,11 +1114,11 @@ bound_var_t::ref type_check_binary_equality(
 					auto llvm_var_ref_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
 					llvm::Value *llvm_value = negated
 						? builder.CreateICmpNE(
-							llvm_maybe_pointer_cast(builder, lhs_var->resolve_value(builder), llvm_var_ref_type),
-							llvm_maybe_pointer_cast(builder, rhs_var->resolve_value(builder), llvm_var_ref_type))
+							llvm_maybe_pointer_cast(builder, lhs_var->resolve_bound_var_value(builder), llvm_var_ref_type),
+							llvm_maybe_pointer_cast(builder, rhs_var->resolve_bound_var_value(builder), llvm_var_ref_type))
 						: builder.CreateICmpEQ(
-							llvm_maybe_pointer_cast(builder, lhs_var->resolve_value(builder), llvm_var_ref_type),
-							llvm_maybe_pointer_cast(builder, rhs_var->resolve_value(builder), llvm_var_ref_type));
+							llvm_maybe_pointer_cast(builder, lhs_var->resolve_bound_var_value(builder), llvm_var_ref_type),
+							llvm_maybe_pointer_cast(builder, rhs_var->resolve_bound_var_value(builder), llvm_var_ref_type));
 
 					return bound_var_t::create(
 						INTERNAL_LOC(),
@@ -1119,7 +1126,7 @@ bound_var_t::ref type_check_binary_equality(
 						program_scope->get_bound_type(BOOL_TYPE),
 						llvm_value,
 						make_code_id(obj->token),
-						false /* is_lhs */, false /*is_global*/);
+						false /*is_global*/);
 				} else {
 					// TODO: consider enabling comparison of raw pointers?
 					user_error(status, obj->get_location(),
@@ -1218,9 +1225,9 @@ llvm::Value *get_raw_condition_value(
 		bound_var_t::ref condition_value)
 {
 	if (condition_value->is_int()) {
-		return condition_value->resolve_value(builder);
+		return condition_value->resolve_bound_var_value(builder);
 	} else if (condition_value->is_pointer()) {
-		return condition_value->resolve_value(builder);
+		return condition_value->resolve_bound_var_value(builder);
 	} else {
 		user_error(status, condition->get_location(), "unknown basic type: %s",
 				condition_value->str().c_str());
@@ -1274,7 +1281,7 @@ llvm::Value *maybe_get_bool_overload_value(
 				/* let's call this bool function */
 				llvm_condition_value = llvm_create_call_inst(
 						status, builder, condition->get_location(), bool_fn,
-						{condition_value->resolve_value(builder)});
+						{condition_value->resolve_bound_var_value(builder)});
 
 				if (!!status) {
 					/* NB: no need to track this value in a life because it's
@@ -1424,11 +1431,11 @@ bound_var_t::ref ast::ternary_expr_t::resolve_expression(
 											2, "ternary.phi.node", merge_bb);
 
 									llvm_phi_node->addIncoming(llvm_maybe_pointer_cast(
-												builder, true_path_value->resolve_value(builder), ternary_type),
+												builder, true_path_value->resolve_bound_var_value(builder), ternary_type),
 											truth_path_bb);
 
 									llvm_phi_node->addIncoming(llvm_maybe_pointer_cast(
-												builder, false_path_value->resolve_value(builder), ternary_type),
+												builder, false_path_value->resolve_bound_var_value(builder), ternary_type),
 											else_bb);
 
 									return bound_var_t::create(
@@ -1437,7 +1444,7 @@ bound_var_t::ref ast::ternary_expr_t::resolve_expression(
 											ternary_type,
 											llvm_phi_node,
 											make_code_id(this->token),
-											false /* is_lhs */, false /*is_global*/);
+											false /*is_global*/);
 								}
 							}
 						}
@@ -1562,7 +1569,7 @@ bound_var_t::ref extract_member_variable(
 						llvm_print(bound_var->type->get_llvm_type()).c_str()));
 
 			/* get an GEP-able version of the object */
-			llvm::Value *llvm_var_value = bound_var->resolve_value(builder);
+			llvm::Value *llvm_var_value = bound_var->resolve_bound_var_value(builder);
 
 			llvm_var_value = llvm_maybe_pointer_cast(builder, llvm_var_value,
 					bound_obj_type->get_llvm_specific_type());
@@ -1587,7 +1594,7 @@ bound_var_t::ref extract_member_variable(
 
 			return bound_var_t::create(
 					INTERNAL_LOC(), value_name,
-					member_type, llvm_item, make_iid(member_name), false /*is_lhs*/,
+					member_type, llvm_item, make_iid(member_name),
 				   	false /*is_global*/);
 		} else {
 			auto bindings = scope->get_type_variable_bindings();
@@ -1757,7 +1764,7 @@ bound_var_t::ref call_typeid(
 				program_scope->get_bound_type({TYPEID_TYPE}),
 				llvm_create_int32(builder, resolved_value->type->get_type()->get_signature().iatom),
 				id,
-				false/*is_lhs*/, false /*is_global*/);
+				false /*is_global*/);
 	}
 
 	assert(!status);
@@ -1807,7 +1814,7 @@ bound_var_t::ref ast::sizeof_expr_t::resolve_expression(
 
 		return bound_var_t::create(
 				INTERNAL_LOC(), type->str(), size_type, llvm_size,
-				make_iid("sizeof"), false /*is_lhs*/, false /*is_global*/);
+				make_iid("sizeof"), false /*is_global*/);
 	}
 
 	assert(!status);
@@ -1942,7 +1949,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		/* set up the mapping to this function for use in recursion */
 		bound_var_t::ref function_var = bound_var_t::create(
 				INTERNAL_LOC(), token.text, bound_function_type, llvm_function,
-				make_code_id(token), false/*is_lhs*/, false /*is_global*/);
+				make_code_id(token), false /*is_global*/);
 
 		/* we should be able to check its block as a callsite. note that this
 		 * code will also run for generics but only after the
@@ -2389,6 +2396,10 @@ bound_var_t::ref type_check_assignment(
 		location_t location)
 {
 	assert(!"check that the lhs_var is a ref...");
+	if (lhs_var->is_ref()) {
+		user_error(status, lhs_var->get_location(),
+				"lhs is not a ref");
+	}
 
 	if (!!status) {
 		indent_logger indent(5, string_format(
@@ -2403,40 +2414,42 @@ bound_var_t::ref type_check_assignment(
 		if (unification.result) {
 			/* ensure that whatever was being pointed to by this LHS
 			 * is released after this statement */
-			auto prior_lhs_value = lhs_var->resolve_bound_value(builder);
-
-			if (lhs_var->is_global()) {
-				/* handle assignment to globals */
-				builder.CreateStore(
-						llvm_maybe_pointer_cast(builder,
-							rhs_var->resolve_value(builder),
-							lhs_var->type->get_llvm_specific_type()),
-						lhs_var->get_llvm_value());
-			} else if (lhs_var->is_lhs()) {
-				llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(
-						lhs_var->get_llvm_value());
-				assert(llvm_alloca != nullptr);
-
-				builder.CreateStore(
-						llvm_maybe_pointer_cast(builder,
-							rhs_var->resolve_value(builder),
-							lhs_var->type->get_llvm_specific_type()),
-						llvm_alloca);
-			} else {
-				user_error(status, location, "left-hand side of assignment is immutable");
-			}
+			auto prior_lhs_value = lhs_var->resolve_bound_value(status, builder, scope);
 
 			if (!!status) {
-				if (rhs_var->type->is_managed_ptr(scope)) {
-					/* only bother addref/release if these are different
-					 * things */
-					if (rhs_var->get_llvm_value() != prior_lhs_value->get_llvm_value()) {
-						call_addref_var(status, builder, scope, rhs_var, "addref after assignment");
-						call_release_var(status, builder, scope, prior_lhs_value, "release after assignment");
-					}
+				if (lhs_var->is_global()) {
+					/* handle assignment to globals */
+					builder.CreateStore(
+							llvm_maybe_pointer_cast(builder,
+								rhs_var->resolve_bound_var_value(builder),
+								lhs_var->type->get_llvm_specific_type()),
+							lhs_var->get_llvm_value());
+				} else if (lhs_var->is_ref()) {
+					llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(
+							lhs_var->get_llvm_value());
+					assert(llvm_alloca != nullptr);
+
+					builder.CreateStore(
+							llvm_maybe_pointer_cast(builder,
+								rhs_var->resolve_bound_var_value(builder),
+								lhs_var->type->get_llvm_specific_type()),
+							llvm_alloca);
+				} else {
+					user_error(status, location, "left-hand side of assignment is immutable");
 				}
 
-				return lhs_var;
+				if (!!status) {
+					if (rhs_var->type->is_managed_ptr(scope)) {
+						/* only bother addref/release if these are different
+						 * things */
+						if (rhs_var->get_llvm_value() != prior_lhs_value->get_llvm_value()) {
+							call_addref_var(status, builder, scope, rhs_var, "addref after assignment");
+							call_release_var(status, builder, scope, prior_lhs_value, "release after assignment");
+						}
+					}
+
+					return lhs_var;
+				}
 			}
 		} else {
 			user_error(status, location, "left-hand side is incompatible with the right-hand side (%s)",
@@ -2642,7 +2655,7 @@ void ast::return_statement_t::resolve_statement(
 
 		if (return_value != nullptr) {
 			auto llvm_return_value = llvm_maybe_pointer_cast(builder,
-					return_value->resolve_value(builder),
+					return_value->resolve_bound_var_value(builder),
 					runnable_scope->get_return_type_constraint());
 
 			if (llvm_return_value->getName().str().size() == 0) {
@@ -3132,7 +3145,6 @@ bound_var_t::ref ast::bang_expr_t::resolve_expression(
 					just_bound_type,
 					lhs_value->get_llvm_value(),
 					lhs_value->id,
-					lhs_value->is_lhs(),
 					false /*is_global*/);
 		} else {
 			user_error(status, *this, "bang expression is unnecessary since this is not a 'maybe' type: %s",
@@ -3295,7 +3307,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 			return bound_var_t::create(
 					INTERNAL_LOC(), "raw_int_literal", native_type,
 					llvm_create_int(builder, value),
-					make_code_id(token), false /*is_lhs*/,
+					make_code_id(token),
 					false /*is_global*/);
         }
 		break;
@@ -3333,7 +3345,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 							{bound_var_t::create(
 									INTERNAL_LOC(), "temp_int_literal", boxed_type,
 									llvm_create_int(builder, value),
-									make_code_id(token), false/*is_lhs*/,
+									make_code_id(token),
 									false /*is_global*/)});
 				}
 			}
@@ -3346,7 +3358,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 			return bound_var_t::create(
 					INTERNAL_LOC(), "raw_str_literal", native_type,
 					llvm_create_global_string(builder, value),
-					make_code_id(token), false /*is_lhs*/,
+					make_code_id(token),
 					false /*is_global*/);
 		}
 		break;
@@ -3383,7 +3395,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 							{bound_var_t::create(
 									INTERNAL_LOC(), "temp_str_literal", boxed_type,
 									llvm_create_global_string(builder, value),
-									make_code_id(token), false /*is_lhs*/,
+									make_code_id(token),
 									false /*is_global*/)});
 				}
 			}
@@ -3396,7 +3408,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 			return bound_var_t::create(
 					INTERNAL_LOC(), "raw_float_literal", native_type,
 					llvm_create_double(builder, value),
-					make_code_id(token), false/*is_lhs*/,
+					make_code_id(token),
 					false /*is_global*/);
 		}
 		break;
@@ -3432,7 +3444,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 							{bound_var_t::create(
 									INTERNAL_LOC(), "temp_float_literal", boxed_type,
 									llvm_create_double(builder, value),
-									make_code_id(token), false /*is_lhs*/,
+									make_code_id(token),
 									false /*is_global*/)});
 				}
 			}
@@ -3487,11 +3499,10 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 		if (!!status) {
 			// TODO: consider checking for certain casting
 			llvm::Value *llvm_var_value = llvm_maybe_pointer_cast(builder,
-					bound_var->resolve_value(builder), bound_type);
+					bound_var->resolve_bound_var_value(builder), bound_type);
 
 			return bound_var_t::create(INTERNAL_LOC(), "cast",
 					bound_type, llvm_var_value, make_iid("cast"),
-					false /*is_lhs*/,
 					false /*is_global*/);
 		}
 	}

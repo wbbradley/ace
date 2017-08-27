@@ -108,6 +108,7 @@ llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_
 	}
 }
 
+#if 0
 bound_var_t::ref maybe_load_from_pointer(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -159,7 +160,7 @@ bound_var_t::ref maybe_load_from_pointer(
 	assert(!status);
 	return nullptr;
 }
-
+#endif
 
 bound_var_t::ref create_callsite(
 		status_t &status,
@@ -187,21 +188,24 @@ bound_var_t::ref create_callsite(
 				function->get_type());
 
 		if (function_type != nullptr) {
-			llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
-					status, builder, location, function,
-					get_llvm_values(builder, arguments));
-
+			auto coerced_parameter_values = get_llvm_values(status, builder,
+					scope, location, function_type->args, arguments);
 			if (!!status) {
-				bound_type_t::ref return_type = get_function_return_type(scope, function->type);
+				llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
+						status, builder, location, function, coerced_parameter_values);
 
-				bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
-						return_type, llvm_call_inst,
-						make_type_id_code_id(INTERNAL_LOC(), name),
-						false /*is_global*/);
-				/* all return values must be tracked since the callee is
-				 * expected to return a ref-counted value */
-				life->track_var(builder, scope, ret, lf_statement);
-				return ret;
+				if (!!status) {
+					bound_type_t::ref return_type = get_function_return_type(scope, function->type);
+
+					bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
+							return_type, llvm_call_inst,
+							make_type_id_code_id(INTERNAL_LOC(), name),
+							false /*is_global*/);
+					/* all return values must be tracked since the callee is
+					 * expected to return a ref-counted value */
+					life->track_var(builder, scope, ret, lf_statement);
+					return ret;
+				}
 			}
 		} else {
 			user_error(status, location,
@@ -223,7 +227,7 @@ llvm::CallInst *llvm_create_call_inst(
 {
 	assert(!!status);
 	assert(callee != nullptr);
-	llvm::Value *llvm_callee_value = callee->resolve_value(builder);
+	llvm::Value *llvm_callee_value = callee->resolve_bound_var_value(builder);
 	debug_above(6, log("found llvm_callee_value %s of type %s",
 				llvm_print(llvm_callee_value).c_str(),
 				llvm_print(llvm_callee_value->getType()).c_str()));

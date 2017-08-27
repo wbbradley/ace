@@ -48,6 +48,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		identifier::ref id,
 		const ast::item_t::ref &node);
 
+#if 0
 bound_var_t::ref call_const_subscript_operator(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -57,6 +58,7 @@ bound_var_t::ref call_const_subscript_operator(
 		bound_var_t::ref lhs,
 		identifier::ref index_id,
 		uint64_t subscript_index);
+#endif
 
 bound_type_t::ref get_function_return_type(
 		scope_t::ref scope,
