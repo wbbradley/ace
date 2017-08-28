@@ -85,7 +85,11 @@ llvm::Value *bound_var_t::resolve_bound_var_value(llvm::IRBuilder<> &builder) co
 	return llvm_value;
 }
 
-bound_var_t::ref bound_var_t::resolve_bound_value(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope) const {
+bound_var_t::ref bound_var_t::resolve_bound_value(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope) const
+{
 	if (auto ref_type = dyncast<const types::type_ref_t>(type->get_type())) {
 		auto bound_type = upsert_bound_type(status, builder, scope, ref_type->element_type);
 		return bound_var_t::create(
@@ -95,10 +99,8 @@ bound_var_t::ref bound_var_t::resolve_bound_value(status_t &status, llvm::IRBuil
 				resolve_bound_var_value(builder),
 				this->id,
 				false /*is_global*/);
-	} else {
-		panic("why are we trying to resolve this?");
 	}
-	return nullptr;
+	return shared_from_this();
 }
 
 std::ostream &operator <<(std::ostream &os, const bound_var_t &var) {
@@ -167,17 +169,24 @@ std::vector<llvm::Value *> get_llvm_values(
 			// unification, since we'll need to make these compatible. Perhaps
 			// unification could produce a list of instructions on how to do the
 			// conversion...
-			not_impl();
-#if 0
+			debug_above(5, log(log_info, "seeing about coercion from %s",
+						llvm_print(var->get_llvm_value()).c_str()));
+			debug_above(5, log(log_info, "seeing about coercion from %s to %s",
+						rhs_arg_type->get_signature().c_str(),
+						lhs_arg_type->get_signature().c_str()));
+			debug_above(5, log(log_info, "seeing about coercion from %s to %s",
+						rhs_arg_type->str().c_str(),
+						lhs_arg_type->str().c_str()));
+
 			/* check pragmatically for certain coercions that should take place */
-			if (/* the param is a native type and the target is a managed type */false) {
+			if (false /* the param is a native type and the target is a managed type */) {
 				not_impl();
 			} else if (rhs_arg_type->is_ref() && !lhs_arg_type->is_ref()) {
-				llvm_values.push_back(var->resolve_value(builder));
+				llvm_values.push_back(var->resolve_bound_var_value(builder));
 			} else {
-				panic("wat is happening!?")
+				debug_above(1, log(log_info, "probably need to write some smarter coercion code"));
+				llvm_values.push_back(var->resolve_bound_var_value(builder));
 			}
-#endif
 		} else {
 			llvm_values.push_back(var->get_llvm_value());
 		}

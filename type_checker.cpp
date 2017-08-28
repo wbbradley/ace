@@ -316,16 +316,20 @@ bound_var_t::ref generate_module_variable(
 
 			if (!!status) {
 				/* the reference_expr that looks at this llvm_value will need to
-				 * know to use store/load semantics, not just pass-by-value */
-				bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
-						bound_type, llvm_global_variable, make_code_id(obj.token),
-						true /*is_global*/);
+				 * know to use store/load semantics, not just pass-by-value, so
+				 * we will mark the actual global variable as a type_ref */
+				auto bound_global_type = upsert_bound_type(status, builder, scope, type_ref(bound_type->get_type()));
+				if (!!status) {
+					bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
+							bound_global_type, llvm_global_variable, make_code_id(obj.token),
+							true /*is_global*/);
 
-				/* on our way out, stash the variable in the current scope */
-				scope->get_module_scope()->put_bound_variable(status, var_decl_variable->name,
-						var_decl_variable);
+					/* on our way out, stash the variable in the current scope */
+					scope->get_module_scope()->put_bound_variable(status, var_decl_variable->name,
+							var_decl_variable);
 
-				return var_decl_variable;
+					return var_decl_variable;
+				}
 			}
 		}
 	}
@@ -908,10 +912,9 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 			token.text);
 
 	if (!!status) {
-		if (!as_ref && var->is_ref()) {
+		if (!as_ref) {
 			return var->resolve_bound_value(status, builder, scope);
 		} else {
-			assert(var->type->is_ref());
 			return var;
 		}
 	}

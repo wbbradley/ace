@@ -989,6 +989,13 @@ types::type_t::ref eval(types::type_t::ref type, types::type_t::map env) {
 		} else {
 			return nullptr;
 		}
+	} else if (auto ref = dyncast<const types::type_ref_t>(type)) {
+		auto evaled = eval(ref->element_type, env);
+		if (evaled != nullptr) {
+			return type_ref(evaled);
+		} else {
+			return nullptr;
+		}
 	} else if (auto struct_type = dyncast<const types::type_struct_t>(type)) {
 		/* there is no expansion of struct types */
 		return nullptr;

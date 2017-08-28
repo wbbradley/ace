@@ -28,9 +28,10 @@ bound_type_t::refs upsert_bound_types(
 	return bound_args;
 }
 
+template <typename T>
 bound_type_t::ref create_ptr_type(
 		llvm::IRBuilder<> &builder,
-		types::type_ptr_t::ref ptr_type)
+		T ptr_type)
 {
 	debug_above(4, log(log_info, "creating ptr type for %s",
 				ptr_type->element_type->str().c_str()));
@@ -46,11 +47,12 @@ bound_type_t::ref create_ptr_type(
 			llvm_type->getPointerTo());
 }
 
+template <typename T>
 bound_type_t::ref create_bound_ptr_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		const ptr<const types::type_ptr_t> &type_ptr)
+		const T &type_ptr)
 {
 	/* create a bound_type for a pointer/ref type */
 	ptr<program_scope_t> program_scope = scope->get_program_scope();
@@ -72,9 +74,6 @@ bound_type_t::ref create_bound_ptr_type(
 	bound_type_t::ref bound_type = scope->get_bound_type(type_ptr->element_type->get_signature());
 
 	if (bound_type != nullptr) {
-		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
-				bound_type->get_llvm_specific_type());
-
 		return bound_type_t::create(type_ptr,
 				type_ptr->get_location(),
 				bound_type->get_llvm_specific_type()->getPointerTo());
@@ -84,10 +83,10 @@ bound_type_t::ref create_bound_ptr_type(
 	 * opaque placeholder for the struct's concrete type */
 	
 	/* first create the opaque pointer type */
-	auto bound_pointer_type = create_ptr_type(builder, type_ptr);
+	auto bound_pointer_type = create_ptr_type<T>(builder, type_ptr);
 	program_scope->put_bound_type(status, bound_pointer_type);
 
-	debug_above(6, log("create_bound_ref_type(..., %s)",
+	debug_above(6, log("create_bound_ptr_type(..., %s)",
 				type_ptr->str().c_str()));
 	
 	/* before we return the pointer type, let's go ahead and instantiate
@@ -559,6 +558,8 @@ bound_type_t::ref create_bound_type(
 	} else if (auto lambda = dyncast<const types::type_lambda_t>(type)) {
 		user_error(status, lambda->get_location(), "unable to instantiate generic type %s without the necessary type application",
 				lambda->str().c_str());
+	} else if (auto ref = dyncast<const types::type_ref_t>(type)) {
+		return create_bound_ptr_type(status, builder, scope, ref);
 	}
 
 	assert(!status);

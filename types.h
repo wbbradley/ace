@@ -56,7 +56,7 @@ namespace types {
 
 		virtual ref rebind(const map &bindings) const = 0;
 
-		virtual bool is_ref() const { not_impl(); return false; }
+		virtual bool is_ref() const { return false; }
 		virtual bool is_function() const { return false; }
 		virtual bool is_void() const { return false; }
 		virtual bool is_nil() const { return false; }
@@ -259,6 +259,8 @@ namespace types {
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
+
+		virtual bool is_ref() const { return true; }
 	};
 
 	struct type_lambda_t : public type_t {

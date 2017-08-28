@@ -11,7 +11,7 @@
 #include "var.h"
 #include "signature.h"
 
-struct bound_var_t : public var_t {
+struct bound_var_t : public std::enable_shared_from_this<bound_var_t>, public var_t {
 	bound_var_t() = delete;
 	bound_var_t(
 			location_t internal_location,
