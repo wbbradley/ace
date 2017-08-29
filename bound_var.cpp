@@ -171,7 +171,7 @@ std::vector<llvm::Value *> get_llvm_values(
 			} else if (rhs_arg_type->is_ref() && !lhs_arg_type->is_ref()) {
 				llvm_values.push_back(var->resolve_bound_var_value(builder));
 			} else {
-				debug_above(1, log(log_info, "probably need to write some smarter coercion code"));
+				debug_above(2, log(log_info, "probably need to write some smarter coercion code"));
 				llvm_values.push_back(var->resolve_bound_var_value(builder));
 			}
 		} else {

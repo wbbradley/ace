@@ -547,6 +547,7 @@ namespace types {
 
 	type_maybe_t::type_maybe_t(type_t::ref just) : just(just) {
         assert(!dyncast<const type_maybe_t>(just));
+        assert(!dyncast<const type_ref_t>(just));
         assert(!just->is_nil());
 	}
 

@@ -925,62 +925,67 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 		life_t::ref life,
 		local_scope_t::ref *new_scope) const
 {
-	/* we wouldn't be referencing a variable name here unless it was unique
-	 * override resolution only happens on callsites, and we don't allow
-	 * passing around unresolved overload references */
 	bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(), token.text);
 
 	if (!var) {
 		user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
 	}
 
-	// TODO: handle refs
-	assert(!var->type->is_ref());
-
-	if (auto maybe_type = dyncast<const types::type_maybe_t>(var->type->get_type())) {
-		runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
-		assert(runnable_scope);
-
-		/* variable declarations begin new scopes */
-		local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
-				string_format("if-assignment-%s", token.text.c_str()));
-
-		scope = fresh_scope;
-		*new_scope = fresh_scope;
-
-		/* looks like the initialization variable is a supertype
-		 * of the nil type */
-		auto bound_type = upsert_bound_type(status, builder, scope,
-				maybe_type->just);
-
-		if (!!status) {
-			/* because we're evaluating this maybe value in the context of a
-			 * condition (super simplified at this point), let's redeclare it
-			 * without its maybe, since we know it will be valid if the
-			 * condition passes */
-			bound_var_t::ref var_decl_variable =
-				bound_var_t::create(INTERNAL_LOC(), token.text, bound_type,
-						var->get_llvm_value(), make_code_id(token));
-
-			/* on our way out, stash the variable in the current scope */
-			scope->put_bound_variable(status, var_decl_variable->name,
-					var_decl_variable);
-
-			/* get the maybe type so that we can use it as a conditional */
-			bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, maybe_type);
-			if (!!status) {
-				return bound_var_t::create(INTERNAL_LOC(), token.text,
-						condition_type, var->resolve_bound_var_value(builder), make_code_id(token));
-			}
-		}
-
-		assert(!status);
-		return nullptr;
-	} else {
-		/* this is not a maybe, so let's just move along */
+	bool was_ref = var->type->is_ref();
+	if (was_ref) {
+		var = var->resolve_bound_value(status, builder, scope);
+		assert(!var->type->is_ref());
 	}
 
-	return var;
+	if (!!status) {
+		if (auto maybe_type = dyncast<const types::type_maybe_t>(var->type->get_type())) {
+			runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+			assert(runnable_scope);
+
+			/* variable declarations begin new scopes */
+			local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
+					string_format("if-assignment-%s", token.text.c_str()));
+
+			scope = fresh_scope;
+			*new_scope = fresh_scope;
+
+			/* looks like the initialization variable is a supertype
+			 * of the nil type */
+			auto bound_type = upsert_bound_type(status, builder, scope,
+					maybe_type->just);
+
+			if (!!status) {
+				/* because we're evaluating this maybe value in the context of a
+				 * condition (super simplified at this point), let's redeclare it
+				 * without its maybe, since we know it will be valid if the
+				 * condition passes */
+				bound_var_t::ref var_decl_variable =
+					bound_var_t::create(INTERNAL_LOC(), token.text, bound_type,
+							var->get_llvm_value(), make_code_id(token));
+
+				/* on our way out, stash the variable in the current scope */
+				scope->put_bound_variable(status, var_decl_variable->name,
+						var_decl_variable);
+
+				/* get the maybe type so that we can use it as a conditional */
+				bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, maybe_type);
+				if (!!status) {
+					return bound_var_t::create(INTERNAL_LOC(), token.text,
+							condition_type, var->resolve_bound_var_value(builder), make_code_id(token));
+				}
+			}
+
+			assert(!status);
+			return nullptr;
+		} else {
+			/* this is not a maybe, so let's just move along */
+		}
+
+		return var;
+	}
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref ast::array_index_expr_t::resolve_expression(
@@ -2387,9 +2392,10 @@ bound_var_t::ref type_check_assignment(
 		bound_var_t::ref rhs_var,
 		location_t location)
 {
-	if (lhs_var->is_ref()) {
+	if (!lhs_var->is_ref()) {
 		user_error(status, lhs_var->get_location(),
-				"lhs is not a ref");
+				"you cannot assign to a variable that is immutable. "
+				" %s is not a ref", lhs_var->str().c_str());
 	}
 
 	if (!!status) {
@@ -2398,45 +2404,46 @@ bound_var_t::ref type_check_assignment(
 					lhs_var->str().c_str(),
 					rhs_var->str().c_str()));
 
-		unification_t unification = unify(
-				lhs_var->type->get_type(),
-				rhs_var->type->get_type(), scope->get_typename_env());
+		auto lhs_unreferenced_type = dyncast<const types::type_ref_t>(lhs_var->type->get_type())->element_type;
+		bound_type_t::ref lhs_unreferenced_bound_type = upsert_bound_type(status, builder, scope, lhs_unreferenced_type);
 
-		if (unification.result) {
-			/* ensure that whatever was being pointed to by this LHS
-			 * is released after this statement */
-			auto prior_lhs_value = lhs_var->resolve_bound_value(status, builder, scope);
+		if (!!status) {
+			unification_t unification = unify(
+					lhs_unreferenced_type,
+					rhs_var->type->get_type(), scope->get_typename_env());
 
-			if (!!status) {
-				if (lhs_var->is_ref()) {
+			if (unification.result) {
+				/* ensure that whatever was being pointed to by this LHS
+				 * is released after this statement */
+				auto prior_lhs_value = lhs_var->resolve_bound_value(status, builder, scope);
+
+				if (!!status) {
+					// TODO: handle assignments to member variables
 					assert(llvm::dyn_cast<llvm::AllocaInst>(lhs_var->get_llvm_value())
 							|| llvm::dyn_cast<llvm::GlobalVariable>(lhs_var->get_llvm_value()));
 
 					builder.CreateStore(
 							llvm_maybe_pointer_cast(builder,
 								rhs_var->resolve_bound_var_value(builder),
-								lhs_var->type->get_llvm_specific_type()),
+								lhs_unreferenced_bound_type->get_llvm_specific_type()),
 							lhs_var->get_llvm_value());
-				} else {
-					user_error(status, location, "left-hand side of assignment is immutable");
-				}
 
-				if (!!status) {
-					if (rhs_var->type->is_managed_ptr(scope)) {
-						/* only bother addref/release if these are different
-						 * things */
-						if (rhs_var->get_llvm_value() != prior_lhs_value->get_llvm_value()) {
-							call_addref_var(status, builder, scope, rhs_var, "addref after assignment");
-							call_release_var(status, builder, scope, prior_lhs_value, "release after assignment");
+					if (!!status) {
+						if (rhs_var->type->is_managed_ptr(scope)) {
+							if (rhs_var->get_llvm_value() != prior_lhs_value->get_llvm_value()) {
+								/* only bother addref/release if these are different things */
+								call_addref_var(status, builder, scope, rhs_var, "addref after assignment");
+								call_release_var(status, builder, scope, prior_lhs_value, "release after assignment");
+							}
 						}
-					}
 
-					return lhs_var;
+						return lhs_var;
+					}
 				}
+			} else {
+				user_error(status, location, "left-hand side is incompatible with the right-hand side (%s)",
+						unification.str().c_str());
 			}
-		} else {
-			user_error(status, location, "left-hand side is incompatible with the right-hand side (%s)",
-					unification.str().c_str());
 		}
 	}
 
