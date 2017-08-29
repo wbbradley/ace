@@ -18,20 +18,18 @@ struct bound_var_t : public std::enable_shared_from_this<bound_var_t>, public va
 			atom name,
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
-			identifier::ref id,
-			bool is_global) :
+			identifier::ref id) :
 	   	internal_location(internal_location),
 	   	name(name),
 	   	type(type),
 	   	llvm_value(llvm_value),
-	   	id(id),
-		_is_global(is_global)
+	   	id(id)
    	{
 		assert(name.size() != 0);
 		assert(llvm_value != nullptr);
 		assert(id != nullptr);
 		assert(type != nullptr);
-		assert_implies(llvm::dyn_cast<llvm::GlobalVariable>(llvm_value) != nullptr, is_global);
+		assert_implies(llvm::dyn_cast<llvm::GlobalVariable>(llvm_value) != nullptr, type->is_ref());
 	}
 
 	virtual ~bound_var_t() throw() {}
@@ -43,14 +41,12 @@ struct bound_var_t : public std::enable_shared_from_this<bound_var_t>, public va
 
 private:
 	llvm::Value * const llvm_value;
-	bool const _is_global;
 
 public:
 	llvm::Value *get_llvm_value() const;
 	std::string str() const;
 
 	bool is_ref() const;
-	bool is_global() const;
 	bool is_int() const;
 	bool is_pointer() const;
 	types::signature get_signature() const;
@@ -73,8 +69,7 @@ public:
 			atom name,
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
-			identifier::ref id,
-			bool is_global);
+			identifier::ref id);
 
 	static std::string str(const refs &coll) {
 		std::stringstream ss;

@@ -136,9 +136,7 @@ void call_refcount_func(
 					INTERNAL_LOC(), "reason",
 					program_scope->get_bound_type({"__str__"}),
 					llvm_create_global_string(builder, reason),
-					make_iid("refcount_reason"),
-					false /*is_lhs*/,
-					false /*is_global*/);
+					make_iid("refcount_reason"));
 #endif
 
 			auto life = make_ptr<life_t>(status, lf_statement, nullptr);

@@ -9,8 +9,7 @@ bound_var_t::ref bound_var_t::create(
 		atom name,
 		bound_type_t::ref type,
 		llvm::Value *llvm_value,
-		identifier::ref id,
-		bool is_global)
+		identifier::ref id)
 {
 	if (auto llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(llvm_value)) {
 		assert(type->is_ref());
@@ -19,7 +18,7 @@ bound_var_t::ref bound_var_t::create(
 		assert(llvm::dyn_cast<llvm::AllocaInst>(llvm_value) || llvm_value->getType()->isPointerTy());
 	}
 
-	return make_ptr<bound_var_t>(internal_location, name, type, llvm_value, id, is_global);
+	return make_ptr<bound_var_t>(internal_location, name, type, llvm_value, id);
 }
 
 std::string bound_var_t::str() const {
@@ -46,12 +45,7 @@ location_t bound_var_t::get_location() const {
 }
 
 bool bound_var_t::is_ref() const {
-	assert(!_is_global);
 	return type->is_ref();
-}
-
-bool bound_var_t::is_global() const {
-	return _is_global;
 }
 
 bool bound_var_t::is_int() const {
@@ -70,16 +64,11 @@ llvm::Value *bound_var_t::get_llvm_value() const {
 
 
 llvm::Value *bound_var_t::resolve_bound_var_value(llvm::IRBuilder<> &builder) const {
-	if (is_global()) {
-		// maybe...
-		assert(llvm_value->getType() == type->get_llvm_type()->getPointerTo());
-		return builder.CreateLoad(llvm_value);
-	}
-
 	if (type->is_ref()) {
-		return _llvm_resolve_alloca(builder, llvm_value);
+		return builder.CreateLoad(llvm_value);
 	} else {
 		assert(!llvm::dyn_cast<llvm::AllocaInst>(llvm_value));
+		assert(!llvm::dyn_cast<llvm::GlobalVariable>(llvm_value));
 	}
 
 	return llvm_value;
@@ -97,8 +86,7 @@ bound_var_t::ref bound_var_t::resolve_bound_value(
 				this->name,
 				bound_type,
 				resolve_bound_var_value(builder),
-				this->id,
-				false /*is_global*/);
+				this->id);
 	}
 	return shared_from_this();
 }
@@ -134,8 +122,7 @@ bound_module_t::bound_module_t(
 			name, 
 			module_scope->get_bound_type({"module"}),
 			module_scope->get_program_scope()->get_singleton("nil")->get_llvm_value(),
-			id,
-			false /*is_global*/),
+			id),
 	module_scope(module_scope)
 {
 	assert(module_scope != nullptr);

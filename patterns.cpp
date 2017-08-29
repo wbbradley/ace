@@ -78,8 +78,7 @@ bound_var_t::ref gen_type_check(
 			string_format("typeid(%s)", value_name->str().c_str()),
 			program_scope->get_bound_type({TYPEID_TYPE}),
 			llvm_create_int32(builder, (int32_t)signature.iatom),
-			value_name,
-			false /*is_global*/);
+			value_name);
 
 	debug_above(2, log(log_info, "generating a runtime type check "
 				"for type %s with signature value %d (for '%s') (type is %s)",
@@ -111,8 +110,7 @@ bound_var_t::ref gen_type_check(
 								bound_type,
 								/* perform a safe runtime cast of this value */
 								value->get_llvm_value(),
-								value_name,
-								false /*is_global*/));
+								value_name));
 				}
 			}
 

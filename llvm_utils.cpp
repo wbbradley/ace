@@ -117,7 +117,6 @@ bound_var_t::ref maybe_load_from_pointer(
 		bool as_ref)
 {
 	// TODO: check this codepath when used by globals
-	assert(!var->is_global());
 	if (var->type->is_ptr(scope)) {
 		auto type = eval(var->type->get_type(), scope->get_typename_env());
 		if (auto pointer = dyncast<const types::type_ptr_t>(type)) {
@@ -128,8 +127,7 @@ bound_var_t::ref maybe_load_from_pointer(
 						string_format("ref.%s", var->name.c_str()),
 						bound_type,
 						var->get_llvm_value(),
-						var->id,
-						false /*is_global*/);
+						var->id);
 			} else {
 				auto bound_type = upsert_bound_type(status, builder, scope, pointer->element_type);
 				if (!!status) {
@@ -146,8 +144,7 @@ bound_var_t::ref maybe_load_from_pointer(
 							string_format("load.%s", var->name.c_str()),
 							bound_type,
 							llvm_loaded_value,
-							var->id,
-							false /*is_global*/);
+							var->id);
 				}
 			}
 		} else {
@@ -199,8 +196,7 @@ bound_var_t::ref create_callsite(
 
 					bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
 							return_type, llvm_call_inst,
-							make_type_id_code_id(INTERNAL_LOC(), name),
-							false /*is_global*/);
+							make_type_id_code_id(INTERNAL_LOC(), name));
 					/* all return values must be tracked since the callee is
 					 * expected to return a ref-counted value */
 					life->track_var(builder, scope, ret, lf_statement);
@@ -599,8 +595,7 @@ bound_var_t::ref llvm_start_function(status_t &status,
 			/* create the actual bound variable for the fn */
 			bound_var_t::ref function = bound_var_t::create(
 					INTERNAL_LOC(), name,
-					function_type, llvm_function, make_code_id(node->token),
-					false /*is_global*/);
+					function_type, llvm_function, make_code_id(node->token));
 
 			/* start emitting code into the new function. caller should have an
 			 * insert point guard */
@@ -732,8 +727,7 @@ bound_var_t::ref llvm_create_global_tag(
 	llvm::Constant *llvm_tag_value = llvm::ConstantExpr::getPointerCast(
 			llvm_tag_constant, llvm_var_ref_type);
 
-	return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_value,
-			id, false /*is_global*/);
+	return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_value, id);
 }
 
 llvm::Value *llvm_maybe_pointer_cast(
