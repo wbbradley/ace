@@ -708,6 +708,7 @@ namespace types {
 	}
 
 	bool is_managed_ptr(types::type_t::ref type, types::type_t::map env) {
+		debug_above(6, log(log_info, "checking if %s is a managed ptr", type->str().c_str()));
 		if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 			type = maybe_type->just;
 		}
@@ -797,6 +798,9 @@ types::type_args_t::ref type_args(
 	   	types::type_t::refs args,
 	   	types::name_index_t name_index)
 {
+	for (auto arg : args) {
+		assert(!arg->is_ref());
+	}
 	return make_ptr<types::type_args_t>(args, name_index);
 }
 

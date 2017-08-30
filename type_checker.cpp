@@ -801,6 +801,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 					bound_module->module_scope->get_outbound_context(),
 					get_args_type(args));
 		} else {
+			// TODO: this looks like it needs to handle member functions
 			user_error(status, *lhs, "left of a dot (\".\") must be a struct or module. this is not a struct or module. %s",
 					lhs_var->str().c_str());
 		}
@@ -852,12 +853,17 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 	if (params && params->expressions.size() != 0) {
 		/* iterate through the parameters and add their types to a vector */
 		for (auto &param : params->expressions) {
+			// TODO: consider changing the semantics of as_ref to be "allow_ref"
+			// which would disallow the parameter from being a ref type, even if
+			// it is naturally.
 			bound_var_t::ref param_var = param->resolve_expression(
 					status, builder, scope, life, false /*as_ref*/);
 
 			if (!status) {
 				break;
 			}
+
+			assert(!param_var->get_type()->is_ref());
 
 			arguments.push_back(param_var);
 			param_types.push_back(param_var->type);
@@ -906,7 +912,10 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 	bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(),
 			token.text);
 
-	if (!!status) {
+	/* get_bound_variable can return nullptr without an user_error */
+	if (var != nullptr) {
+		assert(!!status);
+
 		if (!as_ref) {
 			return var->resolve_bound_value(status, builder, scope);
 		} else {
@@ -1051,9 +1060,12 @@ bound_var_t::ref type_check_binary_operator(
 		bound_var_t::ref lhs_var, rhs_var;
 		lhs_var = lhs->resolve_expression(status, builder, scope, life,
 				false /*as_ref*/);
+		assert(!lhs_var->type->is_ref());
+
 		if (!!status) {
 			rhs_var = rhs->resolve_expression(status, builder, scope, life,
 					false /*as_ref*/);
+			assert(!rhs_var->type->is_ref());
 
 			if (!!status) {
 				/* get or instantiate a function we can call on these arguments */
@@ -2541,16 +2553,19 @@ bound_var_t::ref type_check_binary_op_assignment(
 		atom function_name)
 {
 	auto lhs_var = lhs->resolve_expression(status, builder, scope, life, true /*as_ref*/);
-
 	if (!!status) {
-		auto rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+		bound_var_t::ref lhs_val = lhs_var->resolve_bound_value(status, builder, scope);
 
 		if (!!status) {
-			auto computed_var = call_program_function(status, builder, scope,
-					life, function_name, op_node, {lhs_var, rhs_var});
+			auto rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
 
-			return type_check_assignment(status, builder, scope, life, lhs_var,
-					computed_var, location);
+			if (!!status) {
+				auto computed_var = call_program_function(status, builder, scope,
+						life, function_name, op_node, {lhs_val, rhs_var});
+
+				return type_check_assignment(status, builder, scope, life, lhs_var,
+						computed_var, location);
+			}
 		}
 	}
 
