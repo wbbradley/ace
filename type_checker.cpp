@@ -594,6 +594,17 @@ function_scope_t::ref make_param_list_scope(
 
 			assert(!param.second->is_ref());
 
+			bool allow_reassignment = false;
+			auto param_type = param.second->get_type();
+			if (!param_type->is_ref() && !param_type->is_nil()) {
+				allow_reassignment = true;
+			}
+
+			/* create a slot for the final param value to be determined */
+			llvm::Value *llvm_param_final = llvm_param;
+
+			if (allow_reassignment) {
+				param_type = type_ref(param_type);
 			/* create an alloca in order to be able to reassign the named
 			 * parameter to a new value. this does not mean that the parameter
 			 * is an out param, we are simply enabling reuse of the name */
@@ -607,12 +618,14 @@ function_scope_t::ref make_param_list_scope(
 						llvm_print(llvm_alloca).c_str(),
 						llvm_print(llvm_param).c_str()));
 			builder.CreateStore(llvm_param, llvm_alloca);	
+				llvm_param_final = llvm_alloca;
+			}
 
 			auto bound_stack_var_type = upsert_bound_type(status, builder,
-					scope, type_ref(param.second->get_type()));
+					scope, param_type);
 			if (!!status) {
 				auto param_var = bound_var_t::create(INTERNAL_LOC(), param.first, bound_stack_var_type,
-						llvm_alloca, make_code_id(obj.param_list_decl->params[i++]->token));
+						llvm_param_final, make_code_id(obj.param_list_decl->params[i++]->token));
 
 				bound_type_t::ref return_type = get_function_return_type(scope, function_var->type);
 
@@ -1060,6 +1073,7 @@ bound_var_t::ref type_check_binary_operator(
 		bound_var_t::ref lhs_var, rhs_var;
 		lhs_var = lhs->resolve_expression(status, builder, scope, life,
 				false /*as_ref*/);
+		if (!!status) {
 		assert(!lhs_var->type->is_ref());
 
 		if (!!status) {
@@ -1074,6 +1088,7 @@ bound_var_t::ref type_check_binary_operator(
 						obj, {lhs_var, rhs_var});
 			}
 		}
+	}
 	}
 	assert(!status);
 	return nullptr;
@@ -1735,6 +1750,8 @@ bound_var_t::ref call_typeid(
 	   	llvm::IRBuilder<> &builder,
 		bound_var_t::ref resolved_value)
 {
+	resolved_value = resolved_value->resolve_bound_value(status, builder, scope);
+	if (!!status) {
 	debug_above(4, log(log_info, "getting typeid of %s",
 				resolved_value->type->str().c_str()));
 	auto program_scope = scope->get_program_scope();
@@ -1774,6 +1791,7 @@ bound_var_t::ref call_typeid(
 				program_scope->get_bound_type({TYPEID_TYPE}),
 				llvm_create_int32(builder, resolved_value->type->get_type()->get_signature().iatom),
 				id);
+	}
 	}
 
 	assert(!status);

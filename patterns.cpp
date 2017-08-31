@@ -69,6 +69,7 @@ bound_var_t::ref gen_type_check(
 		bound_type_t::ref bound_type,
 		local_scope_t::ref *new_scope)
 {
+	// TODO: consider an alternate codepath for 'is nil'
 	assert(life->life_form == lf_statement);
 
 	auto program_scope = scope->get_program_scope();
@@ -81,7 +82,8 @@ bound_var_t::ref gen_type_check(
 			value_name);
 
 	debug_above(2, log(log_info, "generating a runtime type check "
-				"for type %s with signature value %d (for '%s') (type is %s)",
+				"of variable %s for type %s with signature value %d (for '%s') (type is %s)",
+				value->str().c_str(),
 				bound_type->str().c_str(), (int)signature.iatom,
 				signature.c_str(), bound_type->get_type()->str().c_str()));
 	bound_var_t::ref type_id = call_typeid(status, scope, life, node,

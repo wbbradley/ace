@@ -708,6 +708,7 @@ namespace types {
 	}
 
 	bool is_managed_ptr(types::type_t::ref type, types::type_t::map env) {
+		// TODO: handle refs here...
 		debug_above(6, log(log_info, "checking if %s is a managed ptr", type->str().c_str()));
 		if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 			type = maybe_type->just;
@@ -1010,6 +1011,14 @@ types::type_t::ref eval(types::type_t::ref type, types::type_t::map env) {
 	} else if (auto sum_type = dyncast<const types::type_sum_t>(type)) {
 		/* there is no expansion of sum types */
 		return nullptr;
+	} else if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
+		/* there is no expansion of sum types */
+		auto evaled = eval(maybe_type->just, env);
+		if (evaled != nullptr) {
+			return type_maybe(evaled);
+		} else {
+			return nullptr;
+		}
 	} else {
 		log("unhandled type evaluation for type %s in env %s",
 				type->str().c_str(),
