@@ -605,19 +605,19 @@ function_scope_t::ref make_param_list_scope(
 
 			if (allow_reassignment) {
 				param_type = type_ref(param_type);
-			/* create an alloca in order to be able to reassign the named
-			 * parameter to a new value. this does not mean that the parameter
-			 * is an out param, we are simply enabling reuse of the name */
-			llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(
-					llvm_function, param.second, param.first.str());
+				/* create an alloca in order to be able to reassign the named
+				 * parameter to a new value. this does not mean that the parameter
+				 * is an out param, we are simply enabling reuse of the name */
+				llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(
+						llvm_function, param.second, param.first.str());
 
-			// REVIEW: how to manage memory for named parameters? if we allow
-			// changing their value then we have to enforce addref/release
-			// semantics on them...
-			debug_above(6, log(log_info, "creating a local alloca for parameter %s := %s",
-						llvm_print(llvm_alloca).c_str(),
-						llvm_print(llvm_param).c_str()));
-			builder.CreateStore(llvm_param, llvm_alloca);	
+				// REVIEW: how to manage memory for named parameters? if we allow
+				// changing their value then we have to enforce addref/release
+				// semantics on them...
+				debug_above(6, log(log_info, "creating a local alloca for parameter %s := %s",
+							llvm_print(llvm_alloca).c_str(),
+							llvm_print(llvm_param).c_str()));
+				builder.CreateStore(llvm_param, llvm_alloca);	
 				llvm_param_final = llvm_alloca;
 			}
 
@@ -957,7 +957,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 	if (was_ref) {
 		var = var->resolve_bound_value(status, builder, scope);
 		assert(!var->type->is_ref());
-	}
+		}
 
 	if (!!status) {
 		if (auto maybe_type = dyncast<const types::type_maybe_t>(var->type->get_type())) {
@@ -977,6 +977,14 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 					maybe_type->just);
 
 			if (!!status) {
+				// TODO: decide whether this variable can be made into a ref
+				// type is "was_ref" is true, to enable reassignment. The
+				// downfall of this is that even if this is allowed, then a null
+				// value can never be assigned to this value. This could
+				// generally be considered good in the abstract, however in
+				// practice it's common for users to want to assign variables a
+				// nil value as a way of signaling loop exits and the like.
+
 				/* because we're evaluating this maybe value in the context of a
 				 * condition (super simplified at this point), let's redeclare it
 				 * without its maybe, since we know it will be valid if the
@@ -1074,21 +1082,21 @@ bound_var_t::ref type_check_binary_operator(
 		lhs_var = lhs->resolve_expression(status, builder, scope, life,
 				false /*as_ref*/);
 		if (!!status) {
-		assert(!lhs_var->type->is_ref());
-
-		if (!!status) {
-			rhs_var = rhs->resolve_expression(status, builder, scope, life,
-					false /*as_ref*/);
-			assert(!rhs_var->type->is_ref());
+			assert(!lhs_var->type->is_ref());
 
 			if (!!status) {
-				/* get or instantiate a function we can call on these arguments */
-				return call_program_function(
-						status, builder, scope, life, function_name,
-						obj, {lhs_var, rhs_var});
+				rhs_var = rhs->resolve_expression(status, builder, scope, life,
+						false /*as_ref*/);
+				assert(!rhs_var->type->is_ref());
+
+				if (!!status) {
+					/* get or instantiate a function we can call on these arguments */
+					return call_program_function(
+							status, builder, scope, life, function_name,
+							obj, {lhs_var, rhs_var});
+				}
 			}
 		}
-	}
 	}
 	assert(!status);
 	return nullptr;
@@ -1272,59 +1280,62 @@ llvm::Value *maybe_get_bool_overload_value(
 		ast::item_t::ref condition,
 		bound_var_t::ref condition_value)
 {
-	assert(life->life_form == lf_statement);
-
-	llvm::Value *llvm_condition_value = nullptr;
-	// TODO: check whether we are checking a raw value or not
-
-	debug_above(2, log(log_info,
-				"attempting to resolve a " c_var("%s") " override if condition %s, ",
-				BOOL_TYPE,
-				condition->str().c_str()));
-
-	/* we only ever get in here if we are definitely non-null, so we can discard
-	 * maybe type specifiers */
-	types::type_t::ref condition_type;
-	if (auto maybe = dyncast<const types::type_maybe_t>(condition_value->type->get_type())) {
-		condition_type = maybe->just;
-	} else {
-		condition_type = condition_value->type->get_type();
-	}
-
-	var_t::refs fns;
-	auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE,
-			condition->get_location(), scope->get_outbound_context(),
-			type_args({condition_type}), fns);
-
+	condition_value = condition_value->resolve_bound_value(status, builder, scope);
 	if (!!status) {
-		if (bool_fn != nullptr) {
-			/* we've found a bool function that will take our condition as input */
-			assert(bool_fn != nullptr);
+		assert(life->life_form == lf_statement);
 
-			if (get_function_return_type(bool_fn->type->get_type())->get_signature() == "__bool__") {
-				debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (type %s)",
-							condition->str().c_str(), bool_fn->type->str().c_str()));
+		llvm::Value *llvm_condition_value = nullptr;
+		// TODO: check whether we are checking a raw value or not
 
-				/* let's call this bool function */
-				llvm_condition_value = llvm_create_call_inst(
-						status, builder, condition->get_location(), bool_fn,
-						{condition_value->resolve_bound_var_value(builder)});
+		debug_above(2, log(log_info,
+					"attempting to resolve a " c_var("%s") " override if condition %s, ",
+					BOOL_TYPE,
+					condition->str().c_str()));
 
-				if (!!status) {
-					/* NB: no need to track this value in a life because it's
-					 * returning an integer type */
-					assert(llvm_condition_value->getType()->isIntegerTy());
-					return llvm_condition_value;
+		/* we only ever get in here if we are definitely non-null, so we can discard
+		 * maybe type specifiers */
+		types::type_t::ref condition_type;
+		if (auto maybe = dyncast<const types::type_maybe_t>(condition_value->type->get_type())) {
+			condition_type = maybe->just;
+		} else {
+			condition_type = condition_value->type->get_type();
+		}
+
+		var_t::refs fns;
+		auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE,
+				condition->get_location(), scope->get_outbound_context(),
+				type_args({condition_type}), fns);
+
+		if (!!status) {
+			if (bool_fn != nullptr) {
+				/* we've found a bool function that will take our condition as input */
+				assert(bool_fn != nullptr);
+
+				if (get_function_return_type(bool_fn->type->get_type())->get_signature() == "__bool__") {
+					debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (type %s)",
+								condition->str().c_str(), bool_fn->type->str().c_str()));
+
+					/* let's call this bool function */
+					llvm_condition_value = llvm_create_call_inst(
+							status, builder, condition->get_location(), bool_fn,
+							{condition_value->resolve_bound_var_value(builder)});
+
+					if (!!status) {
+						/* NB: no need to track this value in a life because it's
+						 * returning an integer type */
+						assert(llvm_condition_value->getType()->isIntegerTy());
+						return llvm_condition_value;
+					}
+				} else {
+					user_error(status, bool_fn->get_location(),
+							"__bool__ coercion function must return a " C_TYPE "__bool__" C_RESET);
+					user_error(status, bool_fn->get_location(),
+							"implicit __bool__ was defined function must return a " C_TYPE "__type__" C_RESET);
 				}
 			} else {
-				user_error(status, bool_fn->get_location(),
-						"__bool__ coercion function must return a " C_TYPE "__bool__" C_RESET);
-				user_error(status, bool_fn->get_location(),
-						"implicit __bool__ was defined function must return a " C_TYPE "__type__" C_RESET);
+				/* treat all values without overloaded bool functions as truthy */
+				return nullptr;
 			}
-		} else {
-			/* treat all values without overloaded bool functions as truthy */
-			return nullptr;
 		}
 	}
 
@@ -1752,46 +1763,46 @@ bound_var_t::ref call_typeid(
 {
 	resolved_value = resolved_value->resolve_bound_value(status, builder, scope);
 	if (!!status) {
-	debug_above(4, log(log_info, "getting typeid of %s",
-				resolved_value->type->str().c_str()));
-	auto program_scope = scope->get_program_scope();
+		debug_above(4, log(log_info, "getting typeid of %s",
+					resolved_value->type->str().c_str()));
+		auto program_scope = scope->get_program_scope();
 
-	auto llvm_type = resolved_value->type->get_llvm_specific_type();
-	auto llvm_obj_type = program_scope->get_bound_type({"__var"})->get_llvm_type();
-	bool is_obj = false;
+		auto llvm_type = resolved_value->type->get_llvm_specific_type();
+		auto llvm_obj_type = program_scope->get_bound_type({"__var"})->get_llvm_type();
+		bool is_obj = false;
 
-	if (llvm_type->isPointerTy()) {
-		if (auto llvm_struct = llvm::dyn_cast<llvm::StructType>(llvm_type->getPointerElementType())) {
-			is_obj = (
-					llvm_struct == llvm_obj_type ||
-				   	llvm_struct->getStructElementType(0) == llvm_obj_type);
+		if (llvm_type->isPointerTy()) {
+			if (auto llvm_struct = llvm::dyn_cast<llvm::StructType>(llvm_type->getPointerElementType())) {
+				is_obj = (
+						llvm_struct == llvm_obj_type ||
+						llvm_struct->getStructElementType(0) == llvm_obj_type);
+			}
 		}
-	}
 
-	auto name = string_format("typeid(%s)", resolved_value->str().c_str());
+		auto name = string_format("typeid(%s)", resolved_value->str().c_str());
 
-	if (is_obj) {
-		auto get_typeid_function = program_scope->get_bound_variable(status,
-				callsite, "__get_var_type_id");
-		if (!!status) {
-			return create_callsite(
-					status,
-					builder,
-					scope,
-					life,
-					get_typeid_function,
-					name,
-					id->get_location(),
-					{resolved_value});
+		if (is_obj) {
+			auto get_typeid_function = program_scope->get_bound_variable(status,
+					callsite, "__get_var_type_id");
+			if (!!status) {
+				return create_callsite(
+						status,
+						builder,
+						scope,
+						life,
+						get_typeid_function,
+						name,
+						id->get_location(),
+						{resolved_value});
+			}
+		} else {
+			return bound_var_t::create(
+					INTERNAL_LOC(),
+					string_format("typeid(%s)", resolved_value->str().c_str()),
+					program_scope->get_bound_type({TYPEID_TYPE}),
+					llvm_create_int32(builder, resolved_value->type->get_type()->get_signature().iatom),
+					id);
 		}
-	} else {
-		return bound_var_t::create(
-				INTERNAL_LOC(),
-				string_format("typeid(%s)", resolved_value->str().c_str()),
-				program_scope->get_bound_type({TYPEID_TYPE}),
-				llvm_create_int32(builder, resolved_value->type->get_type()->get_signature().iatom),
-				id);
-	}
 	}
 
 	assert(!status);
@@ -1939,12 +1950,15 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		bound_type_t::named_pairs args,
 		bound_type_t::ref return_type) const
 {
+	std::string function_name = switch_std_main(token.text);
+	indent_logger indent(5, string_format(
+				"instantiating function " c_id("%s"),
+				function_name.c_str()));
+
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 	assert(!!status);
 	assert(life->life_form == lf_function);
 	assert(life->values.size() == 0);
-
-	std::string function_name = switch_std_main(token.text);
 
 	assert(scope->get_llvm_module() != nullptr);
 
@@ -3316,8 +3330,6 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	assert(!as_ref);
-
     scope_t::ref program_scope = scope->get_program_scope();
 
     switch (token.tk) {
@@ -3482,10 +3494,6 @@ bound_var_t::ref ast::reference_expr_t::resolve_overrides(
 		const ptr<const ast::item_t> &callsite,
 		const bound_type_t::refs &args) const
 {
-	indent_logger indent(5, string_format(
-				"reference_expr_t::resolve_overrides for %s",
-				callsite->str().c_str()));
-
 	/* ok, we know we've got some variable here */
 	auto bound_var = get_callable(status, builder, scope, token.text,
 			shared_from_this(), scope->get_outbound_context(),

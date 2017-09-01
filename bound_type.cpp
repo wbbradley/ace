@@ -197,7 +197,7 @@ bool bound_type_t::is_ptr(scope_t::ref scope) const {
 				type->str().c_str(),
 				res ? c_good("it is") : c_error("it isn't")));
 
-	assert(!!res == !!llvm::dyn_cast<llvm::PointerType>(get_llvm_specific_type()));
+	assert_implies(res, llvm::dyn_cast<llvm::PointerType>(get_llvm_specific_type()));
 	return res;
 }
 

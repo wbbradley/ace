@@ -58,6 +58,35 @@ void ast::when_block_t::resolve_statement(
 	return;
 }
 
+bound_var_t::ref gen_nil_check(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ast::item_t::ref node,
+		scope_t::ref scope,
+		life_t::ref life,
+		identifier::ref value_name,
+		bound_var_t::ref value,
+		local_scope_t::ref *new_scope)
+{
+	value = value->resolve_bound_value(status, builder, scope);
+	if (!!status) {
+		if (!value->type->is_ptr(scope)) {
+			user_error(status, node->get_location(),
+					"type %s cannot be compared to nil", value->type->str().c_str());
+		}
+
+		if (!!status) {
+			value = value->resolve_bound_value(status, builder, scope);
+			if (!!status) {
+				assert(llvm::dyn_cast<llvm::PointerType>(value->type->get_llvm_specific_type()));
+				return value;
+			}
+		}
+	}
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref gen_type_check(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -69,64 +98,72 @@ bound_var_t::ref gen_type_check(
 		bound_type_t::ref bound_type,
 		local_scope_t::ref *new_scope)
 {
-	// TODO: consider an alternate codepath for 'is nil'
-	assert(life->life_form == lf_statement);
+	if (bound_type->get_type()->is_nil()) {
+		/* checking for the nil type means checking for a zero value from a
+		 * pointer. */
+		return gen_nil_check(status, builder, node, scope, life, value_name, value, new_scope);
+	}
 
-	auto program_scope = scope->get_program_scope();
-	atom signature = bound_type->get_type()->get_signature();
-	auto type_id_wanted = bound_var_t::create(
-			INTERNAL_LOC(),
-			string_format("typeid(%s)", value_name->str().c_str()),
-			program_scope->get_bound_type({TYPEID_TYPE}),
-			llvm_create_int32(builder, (int32_t)signature.iatom),
-			value_name);
-
-	debug_above(2, log(log_info, "generating a runtime type check "
-				"of variable %s for type %s with signature value %d (for '%s') (type is %s)",
-				value->str().c_str(),
-				bound_type->str().c_str(), (int)signature.iatom,
-				signature.c_str(), bound_type->get_type()->str().c_str()));
-	bound_var_t::ref type_id = call_typeid(status, scope, life, node,
-			value_name, builder, value);
-
+	value = value->resolve_bound_value(status, builder, scope);
 	if (!!status) {
-		auto get_typeid_eq_function = program_scope->get_bound_variable(
-				status, node, "__type_id_eq_type_id");
+		assert(life->life_form == lf_statement);
 
-		assert(get_typeid_eq_function != nullptr);
+		auto program_scope = scope->get_program_scope();
+		atom signature = bound_type->get_type()->get_signature();
+		auto type_id_wanted = bound_var_t::create(
+				INTERNAL_LOC(),
+				string_format("typeid(%s)", value_name->str().c_str()),
+				program_scope->get_bound_type({TYPEID_TYPE}),
+				llvm_create_int32(builder, (int32_t)signature.iatom),
+				value_name);
+
+		debug_above(2, log(log_info, "generating a runtime type check "
+					"of variable %s for type %s with signature value %d (for '%s') (type is %s)",
+					value->str().c_str(),
+					bound_type->str().c_str(), (int)signature.iatom,
+					signature.c_str(), bound_type->get_type()->str().c_str()));
+		bound_var_t::ref type_id = call_typeid(status, scope, life, node,
+				value_name, builder, value);
+
 		if (!!status) {
-			if (new_scope != nullptr) {
-				if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
-					/* generate a new scope with the value_name containing a new
-					 * variable to overwrite the prior scoped variable's type with
-					 * the new checked type */
-					*new_scope = runnable_scope->new_local_scope(string_format("when %s %s",
-								value_name->str().c_str(),
-								node->str().c_str()));
+			auto get_typeid_eq_function = program_scope->get_bound_variable(
+					status, node, "__type_id_eq_type_id");
 
-					/* replace this bound variable with a version of itself with a new type */
-					(*new_scope)->put_bound_variable(status, value_name->get_name(),
-							bound_var_t::create(
-								value_name->get_location(),
-								value_name->get_name(),
-								bound_type,
-								/* perform a safe runtime cast of this value */
-								value->get_llvm_value(),
-								value_name));
-				}
-			}
-
+			assert(get_typeid_eq_function != nullptr);
 			if (!!status) {
-				/* call the type_id comparator function */
-				return create_callsite(
-						status,
-						builder,
-						scope,
-						life,
-						get_typeid_eq_function,
-						value_name->get_name(),
-						value_name->get_location(),
-						{type_id, type_id_wanted});
+				if (new_scope != nullptr) {
+					if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
+						/* generate a new scope with the value_name containing a new
+						 * variable to overwrite the prior scoped variable's type with
+						 * the new checked type */
+						*new_scope = runnable_scope->new_local_scope(string_format("when %s %s",
+									value_name->str().c_str(),
+									node->str().c_str()));
+
+						/* replace this bound variable with a version of itself with a new type */
+						(*new_scope)->put_bound_variable(status, value_name->get_name(),
+								bound_var_t::create(
+									value_name->get_location(),
+									value_name->get_name(),
+									bound_type,
+									/* perform a safe runtime cast of this value */
+									value->get_llvm_value(),
+									value_name));
+					}
+				}
+
+				if (!!status) {
+					/* call the type_id comparator function */
+					return create_callsite(
+							status,
+							builder,
+							scope,
+							life,
+							get_typeid_eq_function,
+							value_name->get_name(),
+							value_name->get_location(),
+							{type_id, type_id_wanted});
+				}
 			}
 		}
 	}
@@ -189,9 +226,8 @@ void ast::pattern_block_t::resolve_pattern_block(
 					bound_type, &if_scope);
 
 			if (!!status) {
-				assert(condition_value->is_int());
-
 				llvm::Value *llvm_condition_value = condition_value->get_llvm_value();
+				assert(condition_value->is_int() || llvm::dyn_cast<llvm::PointerType>(llvm_condition_value->getType()));
 
 				if (!!status) {
 					/* test that the if statement doesn't return */

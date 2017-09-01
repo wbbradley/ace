@@ -1147,8 +1147,9 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 				debug_above(2, log(log_error, "------ " c_error("✗ ") c_test_msg("%s") c_error(" FAILED ") "------", test_desc.name.c_str()));
 				success = false;
 				failures.push_back(test_desc.name);
-				if (getenv("ALL_TESTS") == nullptr)
+				if (getenv("FAST_FAIL") != nullptr) {
 					break;
+				}
 			} else {
 				debug_above(2, log(log_info, "------ " c_good("✓ ") c_test_msg("%s") c_good(" PASS ") "------", test_desc.name.c_str()));
 				++pass;

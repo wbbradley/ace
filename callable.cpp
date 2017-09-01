@@ -1,4 +1,5 @@
 #include "callable.h"
+#include "logger.h"
 #include "llvm_utils.h"
 #include "type_checker.h"
 #include "ast.h"
@@ -30,8 +31,8 @@ bound_var_t::ref instantiate_unchecked_fn(
 		unification_t unification)
 {
 	assert(fn_type->ftv_count() == 0 && "we cannot instantiate an abstract function");
-	debug_above(4, log(log_info, "we are in scope " c_id("%s"), scope->get_name().c_str()));
-	debug_above(4, log(log_info, "it's time to instantiate %s with unified signature %s from %s",
+	debug_above(5, log(log_info, "we are in scope " c_id("%s"), scope->get_name().c_str()));
+	debug_above(5, log(log_info, "it's time to instantiate %s with unified signature %s from %s",
 				unchecked_fn->str().c_str(),
 				fn_type->str().c_str(),
 				unification.str().c_str()));
