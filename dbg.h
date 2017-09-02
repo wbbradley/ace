@@ -15,7 +15,10 @@
 #endif
 
 /* DEBUG preprocessor directives */
-#define debug_level() (atoi((getenv("DEBUG") != nullptr) ? getenv("DEBUG") : "0"))
+void init_dbg();
+extern const int __dbg_level;
+
+#define debug_level() __dbg_level
 
 #define dbg(x) do { log_dump(); ::fprintf(stderr, C_LINE_REF "%s(%d) " C_RESET ": " c_warn("BREAKPOINT HIT") " in " c_internal("%s") " : %s\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, #x); /*::log_stack(log_warning); */ DEBUG_BREAK(); } while (0)
 #define wat() assert(!"wat is this branch doing?")
