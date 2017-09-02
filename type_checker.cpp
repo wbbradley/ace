@@ -2775,9 +2775,15 @@ void ast::block_t::resolve_statement(
 		/* create a new life for tracking the rhs values (temp values) in this statement */
 		auto stmt_life = life->new_life(status, lf_statement);
 
-		/* resolve the statement */
-		statement->resolve_statement(status, builder, current_scope, stmt_life,
-				&next_scope, returns);
+		{
+			indent_logger indent(5, string_format(
+						"while checking statement at %s",
+						statement->get_location().str().c_str()));
+
+			/* resolve the statement */
+			statement->resolve_statement(status, builder, current_scope, stmt_life,
+					&next_scope, returns);
+		}
 
 		if (!*returns) {
 			/* inject release operations for rhs values out of extent */
@@ -2796,7 +2802,7 @@ void ast::block_t::resolve_statement(
 
 		if (!status) {
 			if (!status.reported_on_error_at(statement->get_location())) {
-				user_error(status, statement->get_location(), "while checking block");
+				user_error(status, statement->get_location(), "while checking statement");
 			}
 			break;
 		}
