@@ -710,6 +710,10 @@ namespace types {
 	bool is_managed_ptr(types::type_t::ref type, types::type_t::map env) {
 		// TODO: handle refs here...
 		debug_above(6, log(log_info, "checking if %s is a managed ptr", type->str().c_str()));
+		if (auto ref_type = dyncast<const types::type_ref_t>(type)) {
+			type = ref_type->element_type;
+		}
+
 		if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 			type = maybe_type->just;
 		}

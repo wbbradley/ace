@@ -2437,7 +2437,7 @@ bound_var_t::ref type_check_assignment(
 		location_t location)
 {
 	if (!lhs_var->is_ref()) {
-		user_error(status, lhs_var->get_location(),
+		user_error(status, location,
 				"you cannot assign to a variable that is immutable. "
 				" %s is not a ref", lhs_var->str().c_str());
 	}
@@ -2796,8 +2796,7 @@ void ast::block_t::resolve_statement(
 
 		if (!status) {
 			if (!status.reported_on_error_at(statement->get_location())) {
-				user_error(status, statement->get_location(), "while checking %s",
-						statement->str().c_str());
+				user_error(status, statement->get_location(), "while checking block");
 			}
 			break;
 		}

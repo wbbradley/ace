@@ -212,9 +212,19 @@ bool bound_type_t::is_managed_ptr(scope_t::ref scope) const {
 	assert(var != nullptr);
 
 	if (res) {
+		auto llvm_type = get_llvm_specific_type();
+		if (is_ref()) {
+			llvm::PointerType *llvm_pointer_type = llvm::dyn_cast<llvm::PointerType>(llvm_type);
+			if (llvm_pointer_type != nullptr) {
+				llvm_type = llvm_pointer_type->getElementType();
+			} else {
+				assert(false);
+			}
+		}
+
 		/* sanity check that the LLVM types are sane with regards to the scope we're
 		 * looking in for the typename environment */
-		if (llvm::PointerType *llvm_pointer_type = llvm::dyn_cast<llvm::PointerType>(get_llvm_specific_type())) {
+		if (llvm::PointerType *llvm_pointer_type = llvm::dyn_cast<llvm::PointerType>(llvm_type)) {
 			if (llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_pointer_type->getElementType())) {
 				/* either this type is an unspecified managed pointer (which would
 				 * need runtime type information to decipher, or it's a concrete
@@ -228,9 +238,11 @@ bool bound_type_t::is_managed_ptr(scope_t::ref scope) const {
 					}
 				}
 			} else {
-				assert(false);
+				debug_above(1, log("%s is not a struct", llvm_print(llvm_pointer_type->getElementType()).c_str()));
+				dbg();
 			}
 		} else {
+			debug_above(1, log("%s is not a pointer", llvm_print(llvm_type).c_str()));
 			assert(false);
 		}
 	}
