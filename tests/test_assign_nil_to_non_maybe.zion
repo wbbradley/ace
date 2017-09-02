@@ -1,0 +1,13 @@
+module _
+
+type Vector has
+	var x float
+	var y float
+
+def main()
+	var v Vector? = Vector(2.0, 4.3)
+	if v
+		v = Vector(1.0, 2.0)
+		# error: left-hand side is incompatible
+		v = nil
+	print("pass")

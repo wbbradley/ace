@@ -953,14 +953,15 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 		user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
 	}
 
+	bound_var_t::ref test_var = var;
 	bool was_ref = var->type->is_ref();
 	if (was_ref) {
-		var = var->resolve_bound_value(status, builder, scope);
-		assert(!var->type->is_ref());
-		}
+		test_var = var->resolve_bound_value(status, builder, scope);
+		assert(!test_var->type->is_ref());
+	}
 
 	if (!!status) {
-		if (auto maybe_type = dyncast<const types::type_maybe_t>(var->type->get_type())) {
+		if (auto maybe_type = dyncast<const types::type_maybe_t>(test_var->type->get_type())) {
 			runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 			assert(runnable_scope);
 
@@ -974,11 +975,11 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 			/* looks like the initialization variable is a supertype
 			 * of the nil type */
 			auto bound_type = upsert_bound_type(status, builder, scope,
-					maybe_type->just);
+					was_ref ? type_ref(maybe_type->just) : maybe_type->just);
 
 			if (!!status) {
 				// TODO: decide whether this variable can be made into a ref
-				// type is "was_ref" is true, to enable reassignment. The
+				// type if "was_ref" is true, to enable reassignment. The
 				// downfall of this is that even if this is allowed, then a null
 				// value can never be assigned to this value. This could
 				// generally be considered good in the abstract, however in
@@ -1001,7 +1002,8 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 				bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, maybe_type);
 				if (!!status) {
 					return bound_var_t::create(INTERNAL_LOC(), token.text,
-							condition_type, var->resolve_bound_var_value(builder), make_code_id(token));
+							condition_type, test_var->get_llvm_value(),
+						   	make_code_id(token));
 				}
 			}
 
@@ -1009,9 +1011,8 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 			return nullptr;
 		} else {
 			/* this is not a maybe, so let's just move along */
+			return test_var;
 		}
-
-		return var;
 	}
 
 	assert(!status);

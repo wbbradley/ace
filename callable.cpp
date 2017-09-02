@@ -282,10 +282,16 @@ bound_var_t::ref get_callable(
 
 				if (debug_level() >= 0) {
 					/* report on the places we tried to look for a match */
-					for (auto &fn : fns) {
-						ss.str("");
-						ss << fn->get_type(scope)->str() << " did not match";
-						user_message(log_info, status, fn->get_location(), "%s", ss.str().c_str());
+					if (fns.size() > 3) {
+						user_message(log_info, status, callsite->get_location(),
+								"%d non-matching functions called " c_id("%s")
+							   	" found (skipping listing them all)", fns.size(), alias.c_str());
+					} else {
+						for (auto &fn : fns) {
+							ss.str("");
+							ss << fn->get_type(scope)->str() << " did not match";
+							user_message(log_info, status, fn->get_location(), "%s", ss.str().c_str());
+						}
 					}
 				}
 			}
