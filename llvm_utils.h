@@ -7,6 +7,8 @@
 
 #define DTOR_INDEX 5
 
+extern const char *GC_STRATEGY;
+
 struct compiler_t;
 struct status_t;
 struct life_t;

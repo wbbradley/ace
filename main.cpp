@@ -142,6 +142,21 @@ int main(int argc, char *argv[]) {
 				}
 			}
 			return EXIT_FAILURE;
+		} else if (cmd == "jit") {
+			compiler.build_parse_modules(status);
+
+			if (!!status) {
+				compiler.build_type_check_and_code_gen(status);
+				if (!!status) {
+					int ret = compiler.run_jit(status);
+					if (!!status && !ret) {
+						return EXIT_SUCCESS;
+					} else {
+						return ret;
+					}
+				}
+			}
+			return EXIT_FAILURE;
         } else if (cmd == "bc") {
 			compiler.build_parse_modules(status);
 

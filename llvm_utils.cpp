@@ -8,6 +8,9 @@
 #include "code_id.h"
 #include "life.h"
 
+const char *GC_STRATEGY = "shadow-stack";
+
+
 llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder, std::string value) {
 	return builder.CreateGlobalStringPtr(value);
 }
@@ -591,6 +594,9 @@ bound_var_t::ref llvm_start_function(status_t &status,
 					(llvm::FunctionType *)llvm_fn_type,
 					llvm::Function::ExternalLinkage, name.str(),
 					scope->get_llvm_module());
+
+			llvm_function->setGC(GC_STRATEGY);
+			llvm_function->setDoesNotThrow();
 
 			/* create the actual bound variable for the fn */
 			bound_var_t::ref function = bound_var_t::create(

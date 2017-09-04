@@ -1984,6 +1984,9 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 				llvm::Function::ExternalLinkage, function_name,
 				scope->get_llvm_module());
 
+		llvm_function->setGC(GC_STRATEGY);
+		llvm_function->setDoesNotThrow();
+
 		llvm::BasicBlock *llvm_block = llvm::BasicBlock::Create(
 				builder.getContext(), "entry", llvm_function);
 		builder.SetInsertPoint(llvm_block);

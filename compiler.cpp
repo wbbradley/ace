@@ -785,6 +785,34 @@ int compiler_t::run_program(std::string bitcode_filename) {
 	return system(ss.str().c_str());
 }
 
+int compiler_t::run_jit(status_t &status) {
+	using namespace llvm;
+
+	/*
+	InitializeAllTargetInfos();
+	InitializeAllTargets();
+	InitializeAllTargetMCs();
+	InitializeAllAsmParsers();
+	InitializeAllAsmPrinters();
+	*/
+
+	auto TargetTriple = llvm::sys::getDefaultTargetTriple();
+	auto llvm_module = llvm_get_program_module();
+	llvm_module->setTargetTriple(TargetTriple);
+
+	std::string error_msg;
+	auto Target = TargetRegistry::lookupTarget(TargetTriple, error_msg);
+
+	// Print an error and exit if we couldn't find the requested target.
+	// This generally occurs if we've forgotten to initialise the
+	// TargetRegistry or we have a bogus target triple.
+	if (!Target) {
+		llvm::errs() << error_msg;
+		return 1;
+	}
+	return -1;
+}
+
 std::unique_ptr<llvm::Module> &compiler_t::get_llvm_module(atom name) {
 	std::stringstream ss;
 	ss << "did not find module " << name << " in [";
