@@ -28,6 +28,7 @@ struct life_t : std::enable_shared_from_this<life_t> {
 
 	/* track a value for later release at a given life_form level */
 	void track_var(
+			status_t &status,
 			llvm::IRBuilder<> &builder,
 			scope_t::ref scope,
 			bound_var_t::ref value,

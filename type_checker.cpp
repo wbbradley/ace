@@ -149,6 +149,8 @@ bound_var_t::ref generate_stack_variable(
 	if (!!status) {
 		/* generate the mutable stack-based variable for this var */
 		llvm::Function *llvm_function = llvm_get_function(builder);
+
+		// NOTE: we don't make this a gcroot until a little later on
 		llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function,
 				value_type, symbol);
 
@@ -189,33 +191,37 @@ bound_var_t::ref generate_stack_variable(
 			/* memory management */
 			call_addref_var(status, builder, scope, var_decl_variable,
 					string_format("variable %s initialization", symbol.c_str()));
-			life->track_var(builder, scope, var_decl_variable, lf_block);
-
-			/* on our way out, stash the variable in the current scope */
-			scope->put_bound_variable(status, var_decl_variable->name,
-					var_decl_variable);
-
 			if (!!status) {
-				if (unboxed) {
-					/* 'condition_value' refers to whether this was an unboxed maybe */
-					bound_var_t::ref condition_value;
+				life->track_var(status, builder, scope, var_decl_variable, lf_block);
 
-					assert(init_var != nullptr);
-					assert(maybe_unbox);
-
-					/* get the maybe type so that we can use it as a conditional */
-					bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, lhs_type);
-					llvm::Value *llvm_resolved_value = init_var->resolve_bound_var_value(builder);
+				if (!!status) {
+					/* on our way out, stash the variable in the current scope */
+					scope->put_bound_variable(status, var_decl_variable->name,
+							var_decl_variable);
 
 					if (!!status) {
-						/* we're unboxing a Maybe{any}, so let's return
-						 * whether this was Empty or not... */
-						return bound_var_t::create(INTERNAL_LOC(), symbol,
-								condition_type, llvm_resolved_value,
-								make_type_id_code_id(obj.get_location(), obj.get_symbol()));
+						if (unboxed) {
+							/* 'condition_value' refers to whether this was an unboxed maybe */
+							bound_var_t::ref condition_value;
+
+							assert(init_var != nullptr);
+							assert(maybe_unbox);
+
+							/* get the maybe type so that we can use it as a conditional */
+							bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, lhs_type);
+							llvm::Value *llvm_resolved_value = init_var->resolve_bound_var_value(builder);
+
+							if (!!status) {
+								/* we're unboxing a Maybe{any}, so let's return
+								 * whether this was Empty or not... */
+								return bound_var_t::create(INTERNAL_LOC(), symbol,
+										condition_type, llvm_resolved_value,
+										make_type_id_code_id(obj.get_location(), obj.get_symbol()));
+							}
+						} else {
+							return var_decl_variable;
+						}
 					}
-				} else {
-					return var_decl_variable;
 				}
 			}
 		}
@@ -636,7 +642,7 @@ function_scope_t::ref make_param_list_scope(
 				call_addref_var(status, builder, scope, param_var, "function parameter lifetime");
 
 				if (!!status) {
-					life->track_var(builder, scope, param_var, lf_function);
+					life->track_var(status, builder, scope, param_var, lf_function);
 				}
 
 				if (!!status) {
@@ -1932,13 +1938,14 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 #define USER_MAIN_FN "user/main"
 
 std::string switch_std_main(std::string name) {
-	if (name == "main") {
-		return USER_MAIN_FN;
-	} else if (name == "__main__") {
-		return "main";
-	} else {
-		return name;
-	}
+    if (!getenv("NO_STD_LIB")) {
+        if (name == "main") {
+            return USER_MAIN_FN;
+        } else if (name == "__main__") {
+            return "main";
+        }
+    }
+    return name;
 }
 
 bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(

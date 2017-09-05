@@ -200,10 +200,13 @@ bound_var_t::ref create_callsite(
 					bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
 							return_type, llvm_call_inst,
 							make_type_id_code_id(INTERNAL_LOC(), name));
+
 					/* all return values must be tracked since the callee is
 					 * expected to return a ref-counted value */
-					life->track_var(builder, scope, ret, lf_statement);
-					return ret;
+					life->track_var(status, builder, scope, ret, lf_statement);
+					if (!!status) {
+						return ret;
+					}
 				}
 			}
 		} else {
@@ -374,6 +377,66 @@ llvm::AllocaInst *llvm_create_entry_block_alloca(
 
 	/* create the local variable */
 	return builder.CreateAlloca(type->get_llvm_specific_type(), nullptr, var_name.c_str());
+}
+
+llvm::AllocaInst *llvm_call_gcroot(
+        llvm::Function *llvm_function,
+        bound_type_t::ref type,
+        atom var_name)
+{
+    llvm::IRBuilder<> builder(
+            &llvm_function->getEntryBlock(),
+            llvm_function->getEntryBlock().begin());
+
+    /* create the local variable */
+    llvm::AllocaInst *llvm_alloca = builder.CreateAlloca(
+            type->get_llvm_specific_type(), nullptr, var_name.c_str());
+    auto module = llvm_get_module(builder);
+    auto &context = builder.getContext();
+
+    std::vector<llvm::Type *> arg_types;
+    arg_types.push_back(llvm::PointerType::get(
+                llvm::Type::getInt8PtrTy(context), 0));
+    arg_types.push_back(llvm::Type::getInt8PtrTy(context));
+    auto func_type = llvm::FunctionType::get(
+            llvm::Type::getVoidTy(context), arg_types, false);
+
+    auto func = module->getOrInsertFunction("llvm.gcroot", func_type);
+
+    llvm::Value *v = builder.CreatePointerCast(
+            llvm_alloca, llvm::PointerType::get(
+                llvm::PointerType::get(
+                    llvm::Type::getInt8Ty(context), 0),
+                0));
+
+    std::vector<llvm::Value *> arg_vec;
+    arg_vec.push_back(v);
+    arg_vec.push_back(llvm::Constant::getNullValue(llvm::PointerType::get(
+                    llvm::Type::getInt8Ty(context), 0)));
+    builder.CreateCall(module->getFunction("llvm.gcroot"), arg_vec);
+    return llvm_alloca;
+}
+
+bound_var_t::ref llvm_stack_map_value(
+        status_t &status,
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+        bound_var_t::ref value)
+{
+    if (value->type->is_ref()) {
+        return value;
+    }
+
+    llvm::Function *llvm_function = llvm_get_function(builder);
+    auto name = string_format("stack_map.%s", value->name.c_str());
+	/* put this stack variable into the shadow-stack */
+	llvm::AllocaInst *llvm_alloca = llvm_call_gcroot(llvm_function, value->type, name);
+
+	auto bound_type = upsert_bound_type(status, builder, scope, type_ref(value->type->get_type()));
+	return bound_var_t::create(INTERNAL_LOC(),
+			name, bound_type,
+			llvm_alloca,
+			make_iid(name));
 }
 
 void llvm_create_if_branch(

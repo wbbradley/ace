@@ -28,6 +28,7 @@ bool test_llvm_builder() {
 	builder.CreateCall(putsFunc, helloWorld);
 
 	builder.CreateRetVoid();
+
 	module->dump();
 
 	std::stringstream ss;

@@ -1,8 +1,10 @@
 module _
 
-def foo(y [int])
-	print(y)
+link def puts(x __str__) __int__
+
+type int has
+	var val __int__
 
 def main()
-	var l [int] = list(1, nil)
-	foo(l)
+	var l int = int(2r)
+	puts("hey"r)

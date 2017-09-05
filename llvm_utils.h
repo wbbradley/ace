@@ -117,3 +117,8 @@ bound_var_t::ref maybe_load_from_pointer(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		bound_var_t::ref var);
+bound_var_t::ref llvm_stack_map_value(
+        status_t &status,
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+        bound_var_t::ref value);

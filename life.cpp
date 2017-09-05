@@ -82,6 +82,7 @@ void life_t::release_vars(
 }
 
 void life_t::track_var(
+		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_var_t::ref value,
@@ -89,20 +90,28 @@ void life_t::track_var(
 {
 	assert(life_form != lf_loop);
 	if (!value->type->is_managed_ptr(scope)) {
+		/* we only track managed variables */
 		debug_above(8, log("not tracking %s because it's not managed : %s",
 					value->str().c_str(),
 					value->type->str().c_str()));
 		return;
 	}
 
-	/* we only track managed variables */
-	if (this->life_form == track_in_life_form) {
-		/* we track both LHS's and RHS's */
-		values.push_back(value);
-	} else {
-		assert(this->former_life != nullptr && "We found a track_in_life_form for a life_form that is not on the stack.");
-		this->former_life->track_var(builder, scope, value, track_in_life_form);
+	/* ensure there is a slot in the stack map the stack for this heap pointer */
+	value = llvm_stack_map_value(status, builder, scope, value);
+
+	if (!!status) {
+		if (this->life_form == track_in_life_form) {
+			/* we track both LHS's and RHS's */
+			values.push_back(value);
+		} else {
+			assert(this->former_life != nullptr && "We found a track_in_life_form for a life_form that is not on the stack.");
+			this->former_life->track_var(status, builder, scope, value, track_in_life_form);
+		}
+		return;
 	}
+
+	assert(!status);
 }
 
 std::string life_t::str() const {
