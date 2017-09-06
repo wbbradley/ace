@@ -151,8 +151,13 @@ bound_var_t::ref generate_stack_variable(
 		llvm::Function *llvm_function = llvm_get_function(builder);
 
 		// NOTE: we don't make this a gcroot until a little later on
-		llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(llvm_function,
-				value_type, symbol);
+		llvm::AllocaInst *llvm_alloca;
+		if (value_type->is_managed_ptr(scope)) {
+			llvm_alloca = llvm_call_gcroot(llvm_function, value_type, symbol);
+		} else {
+			llvm_alloca = lvm_create_entry_block_alloca(llvm_function,
+					value_type, symbol);
+		}
 
 		if (init_var) {
 			if (!init_var->type->get_type()->is_nil()) {
@@ -1567,7 +1572,6 @@ bound_var_t::ref extract_member_variable(
 		atom member_name,
 		bool as_ref)
 {
-	assert(!as_ref);
 	if (!!status) {
 		types::type_struct_t::ref struct_type = get_struct_type_from_ptr(
 				status, scope, node, bound_var->get_type());
@@ -1577,6 +1581,7 @@ bound_var_t::ref extract_member_variable(
 		}
 
 		bound_type_t::ref bound_obj_type = bound_var->type;
+
 		auto expanded_type = eval(bound_var->type->get_type(), scope->get_typename_env());
 		if (expanded_type != nullptr) {
 			bound_obj_type = upsert_bound_type(status, builder, scope, expanded_type);
@@ -1601,12 +1606,7 @@ bound_var_t::ref extract_member_variable(
 			debug_above(5, log(log_info, "found member " c_id("%s") " of type %s at index %d",
 						member_name.c_str(),
 						struct_type->str().c_str(),
-					   	index));
-
-			/* get the type of the dimension being referenced */
-			bound_type_t::ref member_type = scope->get_bound_type(
-					struct_type->dimensions[index]->get_signature());
-			assert(bound_obj_type->get_llvm_type() != nullptr);
+						index));
 
 			debug_above(5, log(log_info, "looking at bound_var %s : %s",
 						bound_var->str().c_str(),
@@ -1624,21 +1624,32 @@ bound_var_t::ref extract_member_variable(
 			/* GEP and load the member value from the structure */
 			llvm::Value *llvm_gep = llvm_make_gep(builder,
 					llvm_var_value, index,
-				   	types::is_managed_ptr(bound_var->get_type(),
-					   	scope->get_typename_env()) /* managed */);
+					types::is_managed_ptr(bound_var->get_type(),
+						scope->get_typename_env()) /* managed */);
 			if (llvm_gep->getName().str().size() == 0) {
 				llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
 			}
 
-			llvm::Value *llvm_item = builder.CreateLoad(llvm_gep);
+			llvm::Value *llvm_item = as_ref ? llvm_gep : builder.CreateLoad(llvm_gep);
 
 			/* add a helpful descriptive name to this local value */
 			auto value_name = string_format(".%s", member_name.c_str());
 			llvm_item->setName(value_name);
 
-			return bound_var_t::create(
-					INTERNAL_LOC(), value_name,
-					member_type, llvm_item, make_iid(member_name));
+			/* get the type of the dimension being referenced */
+			bound_type_t::ref member_type;
+			if (as_ref) {
+				member_type = upsert_bound_type(status, builder, scope, 
+						type_ref(struct_type->dimensions[index]));
+			} else {
+				member_type = scope->get_bound_type(struct_type->dimensions[index]->get_signature());
+			}
+
+			if (!!status) {
+				return bound_var_t::create(
+						INTERNAL_LOC(), value_name,
+						member_type, llvm_item, make_iid(member_name));
+			}
 		} else {
 			auto bindings = scope->get_type_variable_bindings();
 			auto full_type = bound_var->type->get_type()->rebind(bindings);
@@ -1665,8 +1676,6 @@ bound_var_t::ref ast::dot_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	assert(!as_ref);
-
 	debug_above(6, log("resolving dot_expr %s", str().c_str()));
 	bound_var_t::ref lhs_val = lhs->resolve_expression(status,
 			builder, scope, life, false /*as_ref*/);
@@ -2475,7 +2484,8 @@ bound_var_t::ref type_check_assignment(
 				if (!!status) {
 					// TODO: handle assignments to member variables
 					assert(llvm::dyn_cast<llvm::AllocaInst>(lhs_var->get_llvm_value())
-							|| llvm::dyn_cast<llvm::GlobalVariable>(lhs_var->get_llvm_value()));
+							|| llvm::dyn_cast<llvm::GlobalVariable>(lhs_var->get_llvm_value())
+                            || llvm_value_is_pointer(lhs_var->get_llvm_value()));
 
 					builder.CreateStore(
 							llvm_maybe_pointer_cast(builder,

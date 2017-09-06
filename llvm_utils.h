@@ -51,7 +51,11 @@ std::string llvm_print(llvm::Value &llvm_value);
 std::string llvm_print(llvm::Value *llvm_value);
 std::string llvm_print(llvm::Type *llvm_type);
 std::string llvm_print_function(llvm::Function *llvm_function);
+
+// TODO: consider consolidating mem management into just one of these...
 llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function, bound_type_t::ref type, atom var_name);
+llvm::AllocaInst *llvm_call_gcroot(llvm::Function *llvm_function, bound_type_t::ref type, atom var_name);
+
 llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_value);
 llvm::Type *llvm_resolve_type(llvm::Value *llvm_value);
 llvm::Type *llvm_create_sum_type(llvm::IRBuilder<> &builder, program_scope_t::ref program_scope, atom name);
@@ -122,3 +126,5 @@ bound_var_t::ref llvm_stack_map_value(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
         bound_var_t::ref value);
+bool llvm_value_is_handle(llvm::Value *llvm_value);
+bool llvm_value_is_pointer(llvm::Value *llvm_value);

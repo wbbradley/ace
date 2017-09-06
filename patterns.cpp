@@ -29,8 +29,9 @@ void ast::when_block_t::resolve_statement(
 			// to allow for naming more complex expressions
 			var_name = make_code_id(ref_expr->token);
 		} else {
-            user_error(status, value->get_location(), "pattern matching on non variable-reference expressions is not yet impl");
-        }
+			/* create a fake name for this pattern match expression */
+			var_name = make_iid(types::gensym()->get_name());
+		}
 
         if (!!status) {
             /* recursively handle nested "else" conditions of the pattern match */

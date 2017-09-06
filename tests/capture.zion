@@ -3,6 +3,7 @@ link module assert
 
 # test: skip
 
+
 def test_value_capture() void
 	"Test that the abc lambda's capture gets the x by value."
 	x := 1
@@ -12,6 +13,6 @@ def test_value_capture() void
 	x = 2
 	assert.equals(abc(), 1, "capture by value should work")
 
-def test() void
+def main()
 	test_value_capture()
 

@@ -423,6 +423,8 @@ bound_var_t::ref llvm_stack_map_value(
         scope_t::ref scope,
         bound_var_t::ref value)
 {
+	assert(value->type->is_managed_ptr(scope));
+
     if (value->type->is_ref()) {
         return value;
     }
@@ -431,6 +433,9 @@ bound_var_t::ref llvm_stack_map_value(
     auto name = string_format("stack_map.%s", value->name.c_str());
 	/* put this stack variable into the shadow-stack */
 	llvm::AllocaInst *llvm_alloca = llvm_call_gcroot(llvm_function, value->type, name);
+	builder.CreateStore(
+			value->resolve_bound_var_value(builder),
+			llvm_alloca);
 
 	auto bound_type = upsert_bound_type(status, builder, scope, type_ref(value->type->get_type()));
 	return bound_var_t::create(INTERNAL_LOC(),
@@ -843,3 +848,12 @@ void explain(llvm::Type *llvm_type) {
 	}
 }
 
+bool llvm_value_is_handle(llvm::Value *llvm_value) {
+    llvm::Type *llvm_type = llvm_value->getType();
+    return llvm_type->isPointerTy() && llvm::cast<llvm::PointerType>(llvm_type)->getElementType()->isPointerTy();
+}
+
+bool llvm_value_is_pointer(llvm::Value *llvm_value) {
+    llvm::Type *llvm_type = llvm_value->getType();
+    return llvm_type->isPointerTy();
+}

@@ -282,7 +282,7 @@ bound_var_t::ref get_callable(
 
 				if (debug_level() >= 0) {
 					/* report on the places we tried to look for a match */
-					if (fns.size() > 3) {
+					if (fns.size() > 10) {
 						user_message(log_info, status, callsite->get_location(),
 								"%d non-matching functions called " c_id("%s")
 							   	" found (skipping listing them all)", fns.size(), alias.c_str());

@@ -1,9 +1,9 @@
 module _
-# test: skip
+# test: pass
 
 type Value has
-	var x float
+	var x __float__
 
 def main()
-	v := Value(2.0)
-	v.x = 5.0
+	v := Value(2.0r)
+	v.x = 5.0r

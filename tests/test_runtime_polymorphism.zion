@@ -4,10 +4,10 @@ module _
 def do(y str) bool
 	return true
 
-def do(y int)
+def do(y int) bool
 	return false
 
-def do(y bool)
+def do(y bool) bool
 	return false
 
 def main()

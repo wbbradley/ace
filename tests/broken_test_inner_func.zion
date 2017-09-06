@@ -1,8 +1,7 @@
 module _ @1.0
 # test: skip
 
-def is_tty() bool
-	inner_func := def () bool
-		return true
-	return true # inner_func()
-
+def main()
+	inner_func := def foo() bool
+		return "hey"
+	print(inner_func())

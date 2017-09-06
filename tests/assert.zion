@@ -8,6 +8,3 @@ def equals(input any, value any, x str)
 		print("FAILED: " + input + " == " + value + " /*" + x + "*/")
 	else
 		print("PASS")
-
-def main()
-	equals("yolo", "yono", "yolo is not 123")
