@@ -155,8 +155,7 @@ bound_var_t::ref generate_stack_variable(
 		if (value_type->is_managed_ptr(scope)) {
 			llvm_alloca = llvm_call_gcroot(llvm_function, value_type, symbol);
 		} else {
-			llvm_alloca = lvm_create_entry_block_alloca(llvm_function,
-					value_type, symbol);
+			llvm_alloca = llvm_create_entry_block_alloca(llvm_function, value_type, symbol);
 		}
 
 		if (init_var) {

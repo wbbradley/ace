@@ -97,7 +97,9 @@ void life_t::track_var(
 		return;
 	}
 
-	/* ensure there is a slot in the stack map the stack for this heap pointer */
+	// TODO: just track allocas for cleanup. avoid refcounting for now
+
+	/* ensure there is a slot in the stack map for this heap pointer */
 	value = llvm_stack_map_value(status, builder, scope, value);
 
 	if (!!status) {
