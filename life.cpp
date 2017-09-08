@@ -54,6 +54,12 @@ void life_t::release_vars(
 
 	if (!!status) {
 		for (auto value: values) {
+			assert(value->type->is_ref());
+			llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(value->get_llvm_value());
+			builder.CreateStore(
+					llvm::Constant::getNullValue(llvm_deref_type(llvm_alloca->getType())),
+					llvm_alloca);
+
 			call_release_var(
 					status,
 					builder,
@@ -133,6 +139,7 @@ void call_refcount_func(
 		std::string reason,
 		std::string function)
 {
+	return;
 	if (!!status) {
 		assert(var != nullptr);
 
