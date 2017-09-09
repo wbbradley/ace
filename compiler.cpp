@@ -494,6 +494,7 @@ void add_globals(
 		 * all defined in the rt_*.c files */
 		auto bindings = std::vector<binding_t>{
 			{INT_TYPE, llvm_module_int, "__int_int", {INT_TYPE}, INT_TYPE},
+			{INT_TYPE, llvm_module_int, "__int_int32", {INT32_TYPE}, INT_TYPE},
 			{INT_TYPE, llvm_module_int, "__int_float", {FLOAT_TYPE}, INT_TYPE},
 			{INT_TYPE, llvm_module_int, "__int_str", {STR_TYPE}, INT_TYPE},
 
@@ -785,31 +786,69 @@ int compiler_t::run_program(std::string bitcode_filename) {
 	return system(ss.str().c_str());
 }
 
+std::unique_ptr<llvm::MemoryBuffer> codegen(llvm::Module &module) {
+	return nullptr;
+}
+
 int compiler_t::run_jit(status_t &status) {
 	using namespace llvm;
 
-	/*
+	llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
+
 	InitializeAllTargetInfos();
 	InitializeAllTargets();
 	InitializeAllTargetMCs();
 	InitializeAllAsmParsers();
 	InitializeAllAsmPrinters();
-	*/
 
-	auto TargetTriple = llvm::sys::getDefaultTargetTriple();
+	auto TargetTriple = llvm::sys::getProcessTriple();
+	log(log_info, "target triple is %s", TargetTriple.c_str());
 	auto llvm_module = llvm_get_program_module();
 	llvm_module->setTargetTriple(TargetTriple);
 
-	std::string error_msg;
-	auto Target = TargetRegistry::lookupTarget(TargetTriple, error_msg);
+	// Create the llvm_target
+	std::string Error;
+	auto llvm_target = TargetRegistry::lookupTarget(TargetTriple, Error);
 
 	// Print an error and exit if we couldn't find the requested target.
 	// This generally occurs if we've forgotten to initialise the
 	// TargetRegistry or we have a bogus target triple.
-	if (!Target) {
-		llvm::errs() << error_msg;
+	if (!llvm_target) {
+		errs() << Error;
 		return 1;
 	}
+
+	auto CPU = "generic";
+	auto Features = "";
+	TargetOptions opt;
+	auto RM = Optional<Reloc::Model>();
+	auto llvm_target_machine = llvm_target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
+
+	llvm_module->setDataLayout(llvm_target_machine->createDataLayout());
+
+	auto Filename = "output.o";
+	std::error_code EC;
+	raw_fd_ostream dest(Filename, EC, sys::fs::F_None);
+
+	if (EC) {
+		  errs() << "Could not open file: " << EC.message();
+		    return 1;
+	}
+
+	std::string runtime_error;
+	llvm::TargetOptions target_options;
+	target_options.ExceptionModel = llvm::ExceptionHandling::None;
+
+	llvm::ExecutionEngine *llvm_engine = llvm::EngineBuilder(std::unique_ptr<llvm::Module>(llvm_module))
+		.setEngineKind(llvm::EngineKind::Either)
+		.setErrorStr(&runtime_error)
+		// .setTargetOptions(target_options)
+		.setVerifyModules(true)
+		.create(llvm_target_machine);
+
+
+	log(log_info, "the end");
+
 	return -1;
 }
 

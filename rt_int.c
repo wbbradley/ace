@@ -3,6 +3,10 @@
  * */
 #include "zion_rt.h"
 
+zion_int_t __int_int32(int32_t x) {
+    return x;
+}
+
 zion_int_t __int_not(zion_int_t x) {
 	return !x;
 }
