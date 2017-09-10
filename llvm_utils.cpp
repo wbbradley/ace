@@ -151,7 +151,7 @@ bound_var_t::ref maybe_load_from_pointer(
 				}
 			}
 		} else {
-			assert(!"Why is this not a pointer?");
+			panic("Why is this not a pointer?");
 		}
 	} else {
 		return var;
@@ -401,7 +401,7 @@ llvm::AllocaInst *llvm_call_gcroot(
     auto func_type = llvm::FunctionType::get(
             llvm::Type::getVoidTy(context), arg_types, false);
 
-    auto func = module->getOrInsertFunction("llvm.gcroot", func_type);
+	module->getOrInsertFunction("llvm.gcroot", func_type);
 
     llvm::Value *v = builder.CreatePointerCast(
             llvm_alloca, llvm::PointerType::get(

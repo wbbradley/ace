@@ -22,13 +22,13 @@ void _emit_assert(
 #define null_impl() nullptr
 #endif // ZION_DEBUG
 
-#define not_impl() assert(!"not yet implemented")
+#define not_impl() panic("not yet implemented")
 
 #ifndef assert
 #error We should have had assert defined in here.
 #endif
 
-#define ship_assert(x) do { int y = (x); if (!y) assert(!#x); } while (0)
+#define ship_assert(x) do { int y = (x); if (!y) panic(#x); } while (0)
 
 #ifdef ZION_DEBUG
 #define assert_implies(x, y) do { if (x) assert(y); } while (0)

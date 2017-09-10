@@ -792,15 +792,6 @@ std::unique_ptr<llvm::MemoryBuffer> codegen(llvm::Module &module) {
 
 int compiler_t::emit_object_file(status_t &status) {
 	using namespace llvm;
-
-	llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
-
-	InitializeAllTargetInfos();
-	InitializeAllTargets();
-	InitializeAllTargetMCs();
-	InitializeAllAsmParsers();
-	InitializeAllAsmPrinters();
-
 	auto TargetTriple = llvm::sys::getProcessTriple();
 	log(log_info, "target triple is %s", TargetTriple.c_str());
 	auto llvm_module = llvm_get_program_module();
@@ -971,7 +962,7 @@ std::string compiler_t::dump_program_text(atom module_name) {
 		if (module != nullptr) {
 			return module->str();
 		} else {
-			assert(!"this module does not exist");
+			panic("this module does not exist");
 			return "";
 		}
 	} else {

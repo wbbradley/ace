@@ -59,6 +59,19 @@ int main(int argc, char *argv[]) {
 		return usage();
 	}
 
+	{
+		using namespace llvm;
+
+		llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
+
+		InitializeAllTargetInfos();
+		InitializeAllTargets();
+		InitializeAllTargetMCs();
+		InitializeAllAsmParsers();
+		InitializeAllAsmPrinters();
+		
+	}
+
 	if (cmd == "test") {
 		std::string filter = (argc == 3 ? argv[2] : "");
 		std::vector<std::string> excludes;
@@ -129,22 +142,24 @@ int main(int argc, char *argv[]) {
 					// Create the JIT.  This takes ownership of the module.
 					std::string ErrStr;
 
-					auto TheExecutionEngine = EngineBuilder(std::unique_ptr<llvm::Module>(compiler.llvm_get_program_module()))
-						.setErrorStr(&ErrStr).create();
+					auto llvm_engine = EngineBuilder(std::unique_ptr<llvm::Module>(compiler.llvm_get_program_module()))
+						.setErrorStr(&ErrStr)
+						.setVerifyModules(true)
+						.create();
 
-					if (!TheExecutionEngine) {
+					if (llvm_engine == nullptr) {
 						fprintf(stderr, "Could not create ExecutionEngine: %s\n", ErrStr.c_str());
 						exit(1);
 					}
 
-					void *fn_main = TheExecutionEngine->getPointerToNamedFunction("main");
+					void *fn_main = llvm_engine->getPointerToNamedFunction("main");
 					log("compiled function pointer at 0x%08xll", (long long)fn_main);
 #if 0
-					FunctionPassManager OurFPM(TheExecutionEngine->Modules[0]);
+					FunctionPassManager OurFPM(llvm_engine->Modules[0]);
 
 					// Set up the optimizer pipeline.  Start with registering info about how the
 					// target lays out data structures.
-					OurFPM.add(new DataLayout(*TheExecutionEngine->getDataLayout()));
+					OurFPM.add(new DataLayout(*llvm_engine->getDataLayout()));
 					// Provide basic AliasAnalysis support for GVN.
 					OurFPM.add(createBasicAliasAnalysisPass());
 					// Promote allocas to registers.

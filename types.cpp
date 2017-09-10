@@ -666,14 +666,14 @@ namespace types {
 
 	int type_lambda_t::ftv_count() const {
 		/* pretend this is getting applied */
-		assert(!"This should not really get called ....");
+		panic("This should not really get called ....");
 		map bindings;
 		bindings[binding->get_name()] = type_unreachable();
 		return body->rebind(bindings)->ftv_count();
 	}
 
     atom::set type_lambda_t::get_ftvs() const {
-		assert(!"This should not really get called ....");
+		panic("This should not really get called ....");
 		map bindings;
 		bindings[binding->get_name()] = type_unreachable();
 		return body->rebind(bindings)->get_ftvs();

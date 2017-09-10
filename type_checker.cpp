@@ -2205,7 +2205,7 @@ void type_check_module_types(
 					/* take note of whether this failed or not */
 					status |= local_status;
 				} else {
-					assert(!"unhandled unchecked type node at module scope");
+					panic("unhandled unchecked type node at module scope");
 				}
 			} else {
 				debug_above(3, log(log_info, "skipping %s because it's already been checked", node->token.str().c_str()));
@@ -2262,7 +2262,7 @@ void type_check_program_variables(
 			} else if (auto data_ctor = dyncast<const ast::type_product_t>(node)) {
 				/* ignore until instantiation at a callsite */
 			} else {
-				assert(!"unhandled unchecked node at module scope");
+				panic("unhandled unchecked node at module scope");
 			}
 		} else {
 			debug_above(3, log(log_info, "skipping %s because it's already been checked", node->token.str().c_str()));

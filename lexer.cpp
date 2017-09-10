@@ -579,7 +579,7 @@ bool zion_lexer_t::_get_tokens() {
 			break;
 		case gts_single_quoted:
 			if (sequence_length > 0) {
-				assert(!"not yet handling multibyte chars as tk_char - up for debate");
+				panic("not yet handling multibyte chars as tk_char - up for debate");
 			} else if (ch == '\\') {
 				gts = gts_single_quoted_escape;
 			} else if (ch == '\'') {

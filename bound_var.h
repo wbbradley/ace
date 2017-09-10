@@ -22,8 +22,8 @@ struct bound_var_t : public std::enable_shared_from_this<bound_var_t>, public va
 	   	internal_location(internal_location),
 	   	name(name),
 	   	type(type),
-	   	llvm_value(llvm_value),
-	   	id(id)
+	   	id(id),
+	   	llvm_value(llvm_value)
    	{
 		assert(name.size() != 0);
 		assert(llvm_value != nullptr);

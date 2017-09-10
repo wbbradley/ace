@@ -534,7 +534,7 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 			iter->second.push_back(unchecked_variable);
 		} else {
 			dbg();
-			assert(!"why are we putting this here?");
+			panic("why are we putting this here?");
 		}
 	} else {
 		unchecked_vars[symbol] = {unchecked_variable};

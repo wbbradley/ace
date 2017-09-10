@@ -94,7 +94,8 @@ add_executable(zionc
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use
-llvm_map_components_to_libnames(llvm_libs all) # support core irreader mcjit target)
+llvm_map_components_to_libnames(llvm_libs all)
+# engine interpreter support core irreader target jit)
 
 # Link against LLVM libraries
 target_link_libraries(zionc ${llvm_libs})
