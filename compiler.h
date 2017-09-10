@@ -64,7 +64,7 @@ struct compiler_t {
 	std::unordered_set<std::string> compile_modules(status_t &status);
 	int emit_built_program(status_t &status, std::string bitcode_filename);
 	int run_program(std::string bitcode_filename);
-	int run_jit(status_t &status);
+	int emit_object_file(status_t &status);
 
 	program_scope_t::ref get_program_scope() const;
 	std::string get_program_name() const;

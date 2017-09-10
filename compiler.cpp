@@ -790,7 +790,7 @@ std::unique_ptr<llvm::MemoryBuffer> codegen(llvm::Module &module) {
 	return nullptr;
 }
 
-int compiler_t::run_jit(status_t &status) {
+int compiler_t::emit_object_file(status_t &status) {
 	using namespace llvm;
 
 	llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
@@ -826,30 +826,30 @@ int compiler_t::run_jit(status_t &status) {
 
 	llvm_module->setDataLayout(llvm_target_machine->createDataLayout());
 
-	auto Filename = "output.o";
+	auto Filename = get_program_name() + ".o";
 	std::error_code EC;
 	raw_fd_ostream dest(Filename, EC, sys::fs::F_None);
 
 	if (EC) {
-		  errs() << "Could not open file: " << EC.message();
-		    return 1;
+		errs() << "Could not open file: " << EC.message();
+		return 1;
 	}
 
-	std::string runtime_error;
-	llvm::TargetOptions target_options;
-	target_options.ExceptionModel = llvm::ExceptionHandling::None;
 
-	llvm::ExecutionEngine *llvm_engine = llvm::EngineBuilder(std::unique_ptr<llvm::Module>(llvm_module))
-		.setEngineKind(llvm::EngineKind::Either)
-		.setErrorStr(&runtime_error)
-		// .setTargetOptions(target_options)
-		.setVerifyModules(true)
-		.create(llvm_target_machine);
+	legacy::PassManager pass;
+	auto FileType = TargetMachine::CGFT_ObjectFile;
 
+	if (llvm_target_machine->addPassesToEmitFile(pass, dest, FileType)) {
+		llvm::errs() << "TargetMachine can't emit a file of this type";
+		return 1;
+	}
 
-	log(log_info, "the end");
+	pass.run(*llvm_module);
+	dest.flush();
 
-	return -1;
+	log(log_info, "%s was created sucessfully. the end", Filename.c_str());
+
+	return 0;
 }
 
 std::unique_ptr<llvm::Module> &compiler_t::get_llvm_module(atom name) {

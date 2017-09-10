@@ -125,6 +125,44 @@ int main(int argc, char *argv[]) {
 			if (!!status) {
 				compiler.build_type_check_and_code_gen(status);
 				if (!!status) {
+					using namespace llvm;
+					// Create the JIT.  This takes ownership of the module.
+					std::string ErrStr;
+
+					auto TheExecutionEngine = EngineBuilder(std::unique_ptr<llvm::Module>(compiler.llvm_get_program_module()))
+						.setErrorStr(&ErrStr).create();
+
+					if (!TheExecutionEngine) {
+						fprintf(stderr, "Could not create ExecutionEngine: %s\n", ErrStr.c_str());
+						exit(1);
+					}
+
+					void *fn_main = TheExecutionEngine->getPointerToNamedFunction("main");
+					log("compiled function pointer at 0x%08xll", (long long)fn_main);
+#if 0
+					FunctionPassManager OurFPM(TheExecutionEngine->Modules[0]);
+
+					// Set up the optimizer pipeline.  Start with registering info about how the
+					// target lays out data structures.
+					OurFPM.add(new DataLayout(*TheExecutionEngine->getDataLayout()));
+					// Provide basic AliasAnalysis support for GVN.
+					OurFPM.add(createBasicAliasAnalysisPass());
+					// Promote allocas to registers.
+					OurFPM.add(createPromoteMemoryToRegisterPass());
+					// Do simple "peephole" optimizations and bit-twiddling optzns.
+					OurFPM.add(createInstructionCombiningPass());
+					// Reassociate expressions.
+					OurFPM.add(createReassociatePass());
+					// Eliminate Common SubExpressions.
+					OurFPM.add(createGVNPass());
+					// Simplify the control flow graph (deleting unreachable blocks, etc).
+					OurFPM.add(createCFGSimplificationPass());
+
+					OurFPM.doInitialization();
+
+					// Set the global so the code gen can use this.
+					TheFPM = &OurFPM;
+
 					auto executable_filename = compiler.get_executable_filename();
 					int ret = compiler.emit_built_program(status, executable_filename);
 					if (!!status && !ret) {
@@ -139,16 +177,17 @@ int main(int argc, char *argv[]) {
 					} else {
 						return ret;
 					}
+#endif
 				}
 			}
 			return EXIT_FAILURE;
-		} else if (cmd == "jit") {
+		} else if (cmd == "obj") {
 			compiler.build_parse_modules(status);
 
 			if (!!status) {
 				compiler.build_type_check_and_code_gen(status);
 				if (!!status) {
-					int ret = compiler.run_jit(status);
+					int ret = compiler.emit_object_file(status);
 					if (!!status && !ret) {
 						return EXIT_SUCCESS;
 					} else {
