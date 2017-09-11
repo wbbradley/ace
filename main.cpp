@@ -138,64 +138,9 @@ int main(int argc, char *argv[]) {
 			if (!!status) {
 				compiler.build_type_check_and_code_gen(status);
 				if (!!status) {
-					using namespace llvm;
-					// Create the JIT.  This takes ownership of the module.
-					std::string ErrStr;
-
-					auto llvm_engine = EngineBuilder(std::unique_ptr<llvm::Module>(compiler.llvm_get_program_module()))
-						.setErrorStr(&ErrStr)
-						.setVerifyModules(true)
-						.create();
-
-					if (llvm_engine == nullptr) {
-						fprintf(stderr, "Could not create ExecutionEngine: %s\n", ErrStr.c_str());
-						exit(1);
-					}
-
-					void *fn_main = llvm_engine->getPointerToNamedFunction("main");
-					log("compiled function pointer at 0x%08xll", (long long)fn_main);
-#if 0
-					FunctionPassManager OurFPM(llvm_engine->Modules[0]);
-
-					// Set up the optimizer pipeline.  Start with registering info about how the
-					// target lays out data structures.
-					OurFPM.add(new DataLayout(*llvm_engine->getDataLayout()));
-					// Provide basic AliasAnalysis support for GVN.
-					OurFPM.add(createBasicAliasAnalysisPass());
-					// Promote allocas to registers.
-					OurFPM.add(createPromoteMemoryToRegisterPass());
-					// Do simple "peephole" optimizations and bit-twiddling optzns.
-					OurFPM.add(createInstructionCombiningPass());
-					// Reassociate expressions.
-					OurFPM.add(createReassociatePass());
-					// Eliminate Common SubExpressions.
-					OurFPM.add(createGVNPass());
-					// Simplify the control flow graph (deleting unreachable blocks, etc).
-					OurFPM.add(createCFGSimplificationPass());
-
-					OurFPM.doInitialization();
-
-					// Set the global so the code gen can use this.
-					TheFPM = &OurFPM;
-
-					auto executable_filename = compiler.get_executable_filename();
-					int ret = compiler.emit_built_program(status, executable_filename);
-					if (!!status && !ret) {
-						std::vector<const char *> args;
-						std::string final_exe = std::string("./") + executable_filename;
-						args.push_back(final_exe.c_str());
-						for (int i=3; i<argc; i++) {
-							args.push_back(argv[i]);
-						}
-						args.push_back(nullptr);
-						return run_program(final_exe, args);
-					} else {
-						return ret;
-					}
-#endif
+					return compiler.run_program(argc-2, &argv[2]);
 				}
 			}
-			return EXIT_FAILURE;
 		} else if (cmd == "obj") {
 			compiler.build_parse_modules(status);
 

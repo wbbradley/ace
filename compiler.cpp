@@ -495,6 +495,7 @@ void add_globals(
 		auto bindings = std::vector<binding_t>{
 			{INT_TYPE, llvm_module_int, "__int_int", {INT_TYPE}, INT_TYPE},
 			{INT_TYPE, llvm_module_int, "__int_int32", {INT32_TYPE}, INT_TYPE},
+			{INT32_TYPE, llvm_module_int, "__int32_int", {INT_TYPE}, INT32_TYPE},
 			{INT_TYPE, llvm_module_int, "__int_float", {FLOAT_TYPE}, INT_TYPE},
 			{INT_TYPE, llvm_module_int, "__int_str", {STR_TYPE}, INT_TYPE},
 
@@ -779,11 +780,53 @@ int compiler_t::emit_built_program(status_t &status, std::string executable_file
 	return -1;
 }
 
-int compiler_t::run_program(std::string bitcode_filename) {
-	std::stringstream ss;
-	ss << "lli-3.7 " << bitcode_filename;
-	debug_above(1, log(log_info, "running %s...", ss.str().c_str()));
-	return system(ss.str().c_str());
+int compiler_t::run_program(int argc, char *argv_input[]) {
+	using namespace llvm;
+	// Create the JIT.  This takes ownership of the module.
+	std::string error_str;
+
+	auto llvm_engine = EngineBuilder(std::unique_ptr<llvm::Module>(llvm_get_program_module()))
+		.setErrorStr(&error_str)
+		.setVerifyModules(true)
+		.create();
+
+	if (llvm_engine == nullptr) {
+		fprintf(stderr, "Could not create ExecutionEngine: %s\n", error_str.c_str());
+		exit(1);
+	}
+
+	while (llvm_modules.size() != 0) {
+		std::unique_ptr<llvm::Module> llvm_module;
+
+		/* grab the module from the list of included modules */
+		std::swap(llvm_module, llvm_modules.back().second);
+
+		/* make sure that the engine can find functions from this module */
+		llvm_engine->addModule(std::move(llvm_module));
+
+		/* remove this module from the list, now that we've transitioned it over to the engine */
+		llvm_modules.pop_back();
+	}
+
+	/* prepare for dumping info about any crashes in the user's program */
+	sys::PrintStackTraceOnErrorSignal(argv_input[0]);
+	PrettyStackTraceProgram X(argc, argv_input);
+
+	/* Call llvm_shutdown() on exit. */
+	atexit(llvm_shutdown);
+
+	/* find the standard library's main entry point. */
+	auto llvm_fn_main = llvm_engine->FindFunctionNamed("__main__");
+	char **envp = (char**)malloc(sizeof(char**) * 1);
+	envp[0] = nullptr;
+
+	std::vector<std::string> argv;
+	for (int i = 0; i < argc; ++i) {
+		argv.push_back(argv_input[i]);
+	}
+
+	/* finally, run the user's program */
+	return llvm_engine->runFunctionAsMain(llvm_fn_main, argv, envp);
 }
 
 std::unique_ptr<llvm::MemoryBuffer> codegen(llvm::Module &module) {

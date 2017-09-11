@@ -63,7 +63,7 @@ struct compiler_t {
 	void build_parse_linked(status_t &status, ptr<const ast::module_t> module, type_macros_t &global_type_macros);
 	std::unordered_set<std::string> compile_modules(status_t &status);
 	int emit_built_program(status_t &status, std::string bitcode_filename);
-	int run_program(std::string bitcode_filename);
+	int run_program(int argc, char *argv[]);
 	int emit_object_file(status_t &status);
 
 	program_scope_t::ref get_program_scope() const;

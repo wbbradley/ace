@@ -4,11 +4,11 @@ link module sys
 
 # this is the actual default entry point to every program
 [module any]
-def __main__(argc __int32__, argv *__str__) __int__
+def __main__(argc __int32__, argv *__str__) __int32__
 	# Allocate global space for each module's top-level variables, and
 	# initialize them. NB: Order of initialization is currently undefined.
 	__init_module_vars()
 
 	sys.set_args(__int__(argc), argv)
 	main()
-	return 0r
+	return __int32__(0r)

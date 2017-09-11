@@ -1950,7 +1950,9 @@ std::string switch_std_main(std::string name) {
         if (name == "main") {
             return USER_MAIN_FN;
         } else if (name == "__main__") {
-            return "main";
+			// TODO: for JIT purposes, leave this as is, but for building .o or executable files,
+			// change it to just "main"
+            return "__main__";
         }
     }
     return name;

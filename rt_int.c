@@ -7,6 +7,10 @@ zion_int_t __int_int32(int32_t x) {
     return x;
 }
 
+int32_t __int32_int(zion_int_t x) {
+    return x;
+}
+
 zion_int_t __int_not(zion_int_t x) {
 	return !x;
 }
