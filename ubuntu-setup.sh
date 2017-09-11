@@ -14,7 +14,8 @@ apt-get install -y \
 	gdb \
 	cmake \
 	htop \
-	build-essential
+	build-essential \
+	libedit-dev
 
 wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | apt-key add -
 

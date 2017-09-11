@@ -9,9 +9,8 @@ RUN apt-get update -y && apt-get install -y \
 	exuberant-ctags \
 	make \
 	gdb \
-	cmake
-
-RUN apt-get install -y \
+	cmake \
+	libedit-dev \
 	build-essential
 
 RUN \
