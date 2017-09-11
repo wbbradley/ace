@@ -575,6 +575,7 @@ void add_globals(
 
 			{"__mem_alloc", llvm_module_ref, "mem_alloc", {INT_TYPE}, "__bytes"},
 			{"__create_var", llvm_module_ref, "create_var", {"__type_info_ref"}, "__var_ref"},
+			{"__dump_heap", llvm_module_ref, "dump_heap", {}, "void"},
 			{"__get_var_type_id", llvm_module_ref, "get_var_type_id", {"__var_ref"}, TYPEID_TYPE},
 			{"__isnil", llvm_module_ref, "isnil", {"__var_ref"}, BOOL_TYPE},
 		};
@@ -784,8 +785,8 @@ int compiler_t::run_program(int argc, char *argv_input[]) {
 	using namespace llvm;
 	// Create the JIT.  This takes ownership of the module.
 	std::string error_str;
-
-	auto llvm_engine = EngineBuilder(std::unique_ptr<llvm::Module>(llvm_get_program_module()))
+	llvm::Module *llvm_program_module = llvm_get_program_module();
+	auto llvm_engine = EngineBuilder(std::unique_ptr<llvm::Module>(llvm_program_module))
 		.setErrorStr(&error_str)
 		.setVerifyModules(true)
 		.create();
@@ -825,6 +826,7 @@ int compiler_t::run_program(int argc, char *argv_input[]) {
 		argv.push_back(argv_input[i]);
 	}
 
+	// printf("%s\n", llvm_print_module(*llvm_program_module).c_str());
 	/* finally, run the user's program */
 	return llvm_engine->runFunctionAsMain(llvm_fn_main, argv, envp);
 }
