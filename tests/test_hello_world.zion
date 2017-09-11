@@ -4,16 +4,7 @@ module hello @1.0
 
 link def gc()
 
-def foo(x)
-	when x
-		is int
-			f := x + 4
-			print(f)
-		is str
-			f := x + 4
-			print(f)
-			t := gc()
-
 def main()
-	var x str or int = "Hello, world."
-	foo(x)
+	x := "Hello, world."
+	print(x)
+	gc()
