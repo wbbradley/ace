@@ -575,7 +575,6 @@ void add_globals(
 
 			{"__mem_alloc", llvm_module_ref, "mem_alloc", {INT_TYPE}, "__bytes"},
 			{"__create_var", llvm_module_ref, "create_var", {"__type_info_ref"}, "__var_ref"},
-			{"__dump_heap", llvm_module_ref, "dump_heap", {}, "void"},
 			{"__get_var_type_id", llvm_module_ref, "get_var_type_id", {"__var_ref"}, TYPEID_TYPE},
 			{"__isnil", llvm_module_ref, "isnil", {"__var_ref"}, BOOL_TYPE},
 		};

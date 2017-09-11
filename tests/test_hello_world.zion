@@ -2,5 +2,18 @@ module hello @1.0
 # test: pass
 # expect: Hello, world.
 
+link def gc()
+
+def foo(x)
+	when x
+		is int
+			f := x + 4
+			print(f)
+		is str
+			f := x + 4
+			print(f)
+			t := gc()
+
 def main()
-	print("Hello, world.")
+	var x str or int = "Hello, world."
+	foo(x)

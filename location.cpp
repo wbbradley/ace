@@ -4,8 +4,16 @@
 #include "utils.h"
 #include <string>
 #include <sstream>
+#include <unistd.h>
 
-std::string location_t::str(bool vim_mode) const {
+std::string location_t::str(bool vim_mode, bool make_dir_relative) const {
+	static char *cwd = (char *)calloc(4096, 1);
+	static int cwdlen = 0;
+	if (cwd[0] == 0) {
+		getcwd(cwd, 4096);
+		cwdlen = strlen(cwd);
+	}
+
 	std::stringstream ss;
 	if (has_file_location()) {
 		ss << C_LINE_REF;
@@ -13,7 +21,11 @@ std::string location_t::str(bool vim_mode) const {
 			auto str = filename.c_str();
 			ss << (str + 2);
 		} else {
-			ss << filename;
+			if (starts_with(filename, cwd) && filename.size() > cwdlen) {
+				ss << filename.c_str() + strlen(cwd) + 1;
+			} else {
+				ss << filename;
+			}
 		}
 		if (vim_mode) {
 			ss << ':' << line << ':' << col;

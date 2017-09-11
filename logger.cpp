@@ -328,8 +328,7 @@ void log(log_level_t level, const char *format, ...) {
 }
 
 void logv_location(log_level_t level, const location_t &location, const char *format, va_list args) {
-	if (mask(logger_level, level) == 0)
-    {
+	if (mask(logger_level, level) == 0) {
         dbg();
 		return;
     }

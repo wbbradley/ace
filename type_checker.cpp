@@ -73,6 +73,12 @@ bound_var_t::ref generate_stack_variable(
 	if (obj.has_initializer()) {
 		/* we have an initializer */
 		init_var = obj.resolve_initializer(status, builder, scope, life);
+		if (!!status) {
+			if (init_var->type->is_void()) {
+				user_error(status, obj.get_location(),
+						"cannot initialize a variable with void, since it has no value");
+			}
+		}
 	}
 
 	/* 'type' is keeping track of what the variable's ending type will be */

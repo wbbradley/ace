@@ -27,18 +27,20 @@ struct type_info_t {
 	dtor_fn_t dtor_fn;
 };
 
+#define GET_CHILD_REF(var, index) (*(struct var_t **)(((char *)var) + var->type_info->ref_offsets[index]))
+
 struct var_t {
 	/* each runtime variable has a pointer to its type info */
 	struct type_info_t *type_info;
 
 	/* and a ref-count of its own */
-	zion_int_t ref_count;
+	int32_t ref_count : 31;
+	int32_t mark      :  1;
 
-#ifdef MEMORY_DEBUGGING
-	int64_t allocation;
 	struct var_t *next;
 	struct var_t *prev;
-#endif
+
+	int64_t allocation;
 
 	//////////////////////////////////////
 	// THE ACTUAL DATA IS APPENDED HERE //
@@ -68,15 +70,14 @@ struct tag_t __tag_Example = {
 struct var_t *Example = (struct var_t *)&__tag_Example;
 
 
+
 static size_t _bytes_allocated = 0;
-#ifdef MEMORY_DEBUGGING
 static size_t _all_bytes_allocated = 0;
-#endif
 
 void *mem_alloc(zion_int_t cb) {
 	_bytes_allocated += cb;
-#ifdef MEMORY_DEBUGGING
 	_all_bytes_allocated += cb;
+#ifdef MEMORY_DEBUGGING
 	printf("memory allocation is at %ld %ld\n", _bytes_allocated,
 			_all_bytes_allocated);
 #endif
@@ -109,9 +110,8 @@ const char *_zion_rt = "zion-rt: ";
 	} while (0)
 
 
-#ifdef MEMORY_DEBUGGING
 struct var_t head_var = {
-	.type_info = &__tag_type_info_Example,
+	.type_info = 0,
 	.ref_count = 1,
 	.allocation = 0,
 	.next = 0,
@@ -144,12 +144,13 @@ void check_node_existence(struct var_t *node, zion_bool_t should_exist) {
 	}
 
 	if (should_exist) {
+#ifdef MEMORY_DEBUGGING
 		printf("node 0x%08lx #%lld of type %s does not exist in memory tracking list!\n",
 				(intptr_t)node, node->allocation, node->type_info->name);
+#endif
 		assert(!should_exist);
 	}
 }
-#endif
 
 void addref_var(
 		struct var_t *var
@@ -185,7 +186,6 @@ void addref_var(
 	}
 }
 
-#ifdef MEMORY_DEBUGGING
 void add_node(struct var_t *node) {
 	assert(node->ref_count == 1);
 
@@ -215,7 +215,11 @@ void add_node(struct var_t *node) {
 }
 
 void remove_node(struct var_t *node) {
-	assert(node->ref_count == 0);
+#ifdef MEMORY_DEBUGGING
+	printf("removing node 0x%08llx %s\n",
+		   	(long long)node, node->type_info->name);
+#endif
+	assert(node->ref_count == 0 || node->mark == 0);
 
 	check_node_existence(node, 1 /* should_exist */);
 
@@ -231,8 +235,6 @@ void remove_node(struct var_t *node) {
 
 	check_node_existence(node, 0 /* should_exist */);
 }
-
-#endif // MEMORY_DEBUGGING
 
 void release_var(struct var_t *var
 #ifdef MEMORY_DEBUGGING
@@ -275,7 +277,7 @@ void release_var(struct var_t *var
 				var->type_info->dtor_fn(&var);
 			}
 			for (int16_t i = var->type_info->refs_count - 1; i >= 0; --i) {
-				struct var_t *ref = *(struct var_t **)(((char *)var) + var->type_info->ref_offsets[i]);
+				struct var_t *ref = GET_CHILD_REF(var, i);
 #ifdef MEMORY_DEBUGGING
 				printf("recursively calling release_var on offset %ld of %s which is 0x%08lx\n",
 						(intptr_t)var->type_info->ref_offsets[i],
@@ -294,8 +296,8 @@ void release_var(struct var_t *var
 					var->type_info->name,
 					var->allocation,
 					(intptr_t)var);
-			remove_node(var);
 #endif
+			remove_node(var);
 
 			mem_free(var, var->type_info->size);
 		}
@@ -319,24 +321,21 @@ type_id_t get_var_type_id(struct var_t *var) {
 	}
 }
 
-#ifdef MEMORY_DEBUGGING
 int64_t _allocation = 1;
-#endif
 
-struct var_t *create_var(struct type_info_t *type_info)
-{
+struct var_t *create_var(struct type_info_t *type_info) {
 	/* allocate the variable tracking object */
 	struct var_t *var = (struct var_t *)mem_alloc(type_info->size);
 	var->type_info = type_info;
 	var->ref_count = 1;
 
-#ifdef MEMORY_DEBUGGING
+	/* track this allocation */
 	var->allocation = _allocation;
 	_allocation += 1;
-#endif
+
+	add_node(var);
 
 #ifdef MEMORY_DEBUGGING
-	add_node(var);
 	printf("creating %s #%lld 0x%08lx\n", type_info->name, var->allocation, (intptr_t)var);
 #endif
 
@@ -376,30 +375,83 @@ struct llvm_stack_entry_t *llvm_gc_root_chain;
  * might copy them to another heap or generation.
  *
  * @param heap_visit A function to invoke for every GC root on the stack. */
-void visit_heap_roots(void (*heap_visit)(struct var_t **root_var, const void *meta)) {
+void visit_heap_roots(void (*heap_visit)(struct var_t *var)) {
 	for (struct llvm_stack_entry_t *R = llvm_gc_root_chain; R; R = R->next) {
-		unsigned i = 0;
-
-		// For roots [0, num_meta), the metadata pointer is in the stack_frame_map_t.
-		for (unsigned e = R->map->num_meta; i != e; ++i)
-			heap_visit(&R->stack_roots[i], R->map->meta[i]);
+		if (R->map->num_meta != 0) {
+			raise(SIGTRAP);
+		}
 
 		// For roots [num_meta, num_roots), the metadata pointer is null.
-		for (unsigned e = R->map->num_roots; i != e; ++i)
-			heap_visit(&R->stack_roots[i], NULL);
+		for (unsigned i = 0, e = R->map->num_roots; i != e; ++i) {
+			/* we have a heap variable */
+			heap_visit(R->stack_roots[i]);
+		}
 	}
 }
 
-void print_heap_var(struct var_t **root_var, const void *meta) {
-	if (*root_var != 0) {
-		printf("heap variable is referenced on the stack at 0x%08llx and is a '%s'\n",
-				(long long)root_var, (*root_var)->type_info->name);
-	} else {
-		printf("null heap variable is referenced on the stack at 0x%08llx\n",
-				(long long)root_var);
+void visit_allocations(void (*visit)(struct var_t *var)) {
+	struct var_t *node = head_var.next;
+	while (node != 0) {
+		/* cache the next node in case our current node gets deleted as part of the fn */
+		struct var_t *next = node->next;
+
+		/* visit the node */
+		visit(node);
+
+		/* move along */
+		node = next;
 	}
 }
 
-void dump_heap() {
-	visit_heap_roots(print_heap_var);
+void mark_allocation(struct var_t *var) {
+	if (var != 0) {
+#ifdef MEMORY_DEBUGGING
+		printf("heap variable is referenced on the stack at 0x%08llx and is a '%s'\n", (long long)var, var->type_info->name);
+#endif
+		if (var->mark == 0) {
+			/* mark this node in the heap so that we break any potential cycles */
+			var->mark = 1;
+#ifdef MEMORY_DEBUGGING
+			printf("marking heap variable at 0x%08llx '%s'\n", (long long)var, var->type_info->name);
+#endif
+
+			assert(var->type_info);
+			/* we may be holding on to child nodes, let's recurse. */
+			int16_t refs_count = var->type_info->refs_count;
+
+			for (int16_t j = 0; j < refs_count; ++j) {
+				/* compute the offset to this referenced dimension */
+				struct var_t *child = GET_CHILD_REF(var, j);
+				mark_allocation(child);
+			}
+		}
+	}
+}
+
+void clear_mark_bit(struct var_t *var) {
+	/* this is highly inefficient due to cache non-locality, revisit later */
+	var->mark = 0;
+}
+
+void free_unmarked(struct var_t *var) {
+	assert(var != &head_var);
+	if (var->mark == 0) {
+		remove_node(var);
+		mem_free(var, var->type_info->size);
+	}
+}
+
+void gc() {
+	visit_allocations(clear_mark_bit);
+	visit_heap_roots(mark_allocation);
+	visit_allocations(free_unmarked);
+}
+
+void print_var(struct var_t *node) {
+	printf("heap variable is still allocated at 0x%08llx and is a '%s'\n", (long long)node,
+			node->type_info->name);
+}
+
+extern void heap_dump() {
+	visit_allocations(print_var);
 }

@@ -1046,21 +1046,23 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 			function_decl->param_list_decl = param_list_decl_t::parse(ps);
 
 			chomp_token(tk_rparen);
-			if (token_begins_type(ps.token.tk)) {
-				function_decl->return_type = parse_maybe_type(ps, {}, {}, {});
-				debug_above(6, log("parsed function return type %s at %s",
-								   function_decl->return_type->str().c_str(),
-								   ps.token.str().c_str()));
-			}
-
-			if (function_decl->token.text == "__finalize__") {
-				if (function_decl->param_list_decl->params.size() != 1) {
-					user_error(ps.status, function_decl->token.location,
-							"finalizers must only take one parameter");
+			if (!ps.line_broke()) {
+				if (token_begins_type(ps.token.tk)) {
+					function_decl->return_type = parse_maybe_type(ps, {}, {}, {});
+					debug_above(6, log("parsed function return type %s at %s",
+									   function_decl->return_type->str().c_str(),
+									   ps.token.str().c_str()));
 				}
-				if (function_decl->return_type != nullptr) {
-					user_error(ps.status, function_decl->return_type->get_location(),
-							"finalizers cannot return anything");
+
+				if (function_decl->token.text == "__finalize__") {
+					if (function_decl->param_list_decl->params.size() != 1) {
+						user_error(ps.status, function_decl->token.location,
+								"finalizers must only take one parameter");
+					}
+					if (function_decl->return_type != nullptr) {
+						user_error(ps.status, function_decl->return_type->get_location(),
+								"finalizers cannot return anything");
+					}
 				}
 			}
 
