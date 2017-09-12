@@ -6,7 +6,7 @@ cmake --version
 ctest --version
 
 cmake .
-make -j8
+make VERBOSE=1 -j8
 
 ./zionc test
 ./zionc run test_hello_world
