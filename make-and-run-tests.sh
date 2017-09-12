@@ -1,6 +1,5 @@
 #!/bin/sh
-set +e
-set +x
+set -ex
 
 cd /opt/zion
 cmake --version

@@ -146,7 +146,7 @@ void check_node_existence(struct var_t *node, zion_bool_t should_exist) {
 	if (should_exist) {
 #ifdef MEMORY_DEBUGGING
 		printf("node 0x%08lx #%lld of type %s does not exist in memory tracking list!\n",
-				(intptr_t)node, node->allocation, node->type_info->name);
+				(intptr_t)node, (long long)node->allocation, node->type_info->name);
 #endif
 		assert(!should_exist);
 	}
@@ -193,7 +193,7 @@ void add_node(struct var_t *node) {
 
 	if (node->prev != 0 || node->next != 0) {
 		printf("node 0x%08lx #%lld of type %s already has prev and next ptrs?!\n",
-				(intptr_t)node, node->allocation, node->type_info->name);
+				(intptr_t)node, (long long)node->allocation, node->type_info->name);
 		exit(-1);
 	}
 
