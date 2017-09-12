@@ -1,9 +1,9 @@
 IMAGE=zionlang/zion
 VERSION=0.1
 INSTALL_DIR=/usr/local/zion
-
+OPT_LEVEL=-O3
 UNAME := $(shell uname)
-DEBUG_FLAGS := -DZION_DEBUG -g -O0
+DEBUG_FLAGS := -DZION_DEBUG -g $(OPT_LEVEL)
 CFLAGS = \
 	-c \
 	-Wall \
@@ -12,7 +12,7 @@ CFLAGS = \
 	-pthread \
 	-DZION_DEBUG \
 	-g \
-	-O0 \
+	$(OPT_LEVEL) \
 	-fms-extensions \
 
 ifeq ($(UNAME),Darwin)
@@ -20,9 +20,9 @@ ifeq ($(UNAME),Darwin)
 	CLANG = $(LLVM_CLANG_BIN)
 	CLANG_CPP = clang++
 	LLVM_CONFIG = llvm-config
-	LLVM_CFLAGS = $(CFLAGS) -nostdinc++ $(shell $(LLVM_CONFIG) --cxxflags) -g -O0
+	LLVM_CFLAGS = $(CFLAGS) -nostdinc++ $(shell $(LLVM_CONFIG) --cxxflags) -g $(OPT_LEVEL)
 
-	CPP = $(CLANG_CPP) -g -O0 -std=c++11 -I$(shell $(LLVM_CONFIG) --includedir)/c++/v1
+	CPP = $(CLANG_CPP) -g $(OPT_LEVEL) -std=c++11 -I$(shell $(LLVM_CONFIG) --includedir)/c++/v1
 	CC = $(CLANG)
 	LINKER = $(CLANG)
 	LINKER_OPTS := \
@@ -66,7 +66,7 @@ ifeq ($(UNAME),Linux)
 				  -Werror=date-time \
 				  -ffunction-sections \
 				  -fdata-sections \
-				  -O0 \
+				  $(OPT_LEVEL) \
 				  -g \
 				  -DNDEBUG \
 				  -fno-exceptions \
@@ -80,18 +80,17 @@ ifeq ($(UNAME),Linux)
 	CPP = $(CLANG_CPP) \
 		  -I/usr/include/c++/v1 \
 		  -g \
-		  -O0 \
+		  $(OPT_LEVEL) \
 		  -fno-color-diagnostics \
 		  -fno-caret-diagnostics
 	CC = $(CLANG)
 	LINKER = $(CLANG)
+
 	LINKER_OPTS := \
 		$(DEBUG_FLAGS) \
-		-lm \
 		$(shell $(LLVM_CONFIG) --ldflags) \
 		-lstdc++ \
-		$(shell $(LLVM_CONFIG) --libs) \
-		$(shell $(LLVM_CONFIG) --system-libs) \
+		$(shell $(LLVM_CONFIG) --cxxflags --ldflags --system-libs --libs)
 
 	LINKER_DEBUG_OPTS := $(DEBUG_FLAGS)
 	LLDB = lldb-3.9
@@ -179,22 +178,23 @@ value_semantics: $(BUILD_DIR)/value_semantics.o
 	$(LINKER) $(LINKER_OPTS) $< -o value_semantics
 
 .PHONY: test
-test: zionc
-	@echo "Ensure that clang and llvm-link exist..."
-	/usr/bin/clang --version
-	/usr/bin/llvm-link --version
+test: unit-tests hello-world-test expect-tests
 
+.PHONY: unit-tests
+unit-tests: $(ZION_TARGET)
 	@echo "Executing tests..."
 	./$(ZION_TARGET) test
 
+.PHONY: hello-world-test
+hello-world-test: $(ZION_TARGET)
 	@echo "Executing runtime test (test_hello_world)..."
 	./$(ZION_TARGET) run test_hello_world
 
-	@echo "Executing runtime test (test_recursion)..."
-	./$(ZION_TARGET) run test_recursion
 
-	@echo "Executing runtime test (test_mike)..."
-	./$(ZION_TARGET) run test_mike
+.PHONY: expect-tests
+expect-tests: $(ZION_TARGET)
+	@echo "Executing expect tests..."
+	for f in tests/test_*.zion; do python expect.py -p $$f; done
 
 .PHONY: test-html
 test-html: $(ZION_TARGET)

@@ -1,1 +1,7 @@
+build-*
 build
+docs
+*.llir
+*.ir
+zionc
+*.o

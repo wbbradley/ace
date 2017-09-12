@@ -40,4 +40,5 @@ RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-lin
 	&& update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-3.9 100
 
 ADD . /opt/zion
+WORKDIR /opt/zion
 CMD bash

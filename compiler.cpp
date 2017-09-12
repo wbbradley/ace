@@ -723,7 +723,7 @@ std::unordered_set<std::string> compiler_t::compile_modules(status_t &status) {
 int compiler_t::emit_built_program(status_t &status, std::string executable_filename) {
 	std::string clang_bin = getenv("LLVM_CLANG_BIN") ? getenv("LLVM_CLANG_BIN") : "/usr/bin/clang";
 	if (clang_bin.size() == 0) {
-		user_error(status, INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called CLANG_BIN");
+		user_error(status, INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called LLVM_CLANG_BIN");
 		return -1;
 	}
 

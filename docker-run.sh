@@ -13,7 +13,5 @@ docker rm $NAME
 docker run \
 	--rm \
 	--name $NAME \
-	-e LLVM_LINK_BIN=llvm-link-3.9 \
-	-e CLANG_BIN=clang-3.9 \
 	-it $IMAGE:$VERSION \
-	${1:-/opt/zion/make-and-run-tests.sh}
+	${1:-make -j8 test}

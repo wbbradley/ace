@@ -24,33 +24,24 @@ def main():
     args = _parse_args(parser)
 
     try:
-        program_filename = subprocess.check_output(
-            "./zionc find %s" % args.program, shell=True).strip()
-
-        if not program_filename:
-            print("Zion could not find %s" % args.program)
-            sys.exit(0)
-
         expect = (subprocess.check_output(
-            'grep "^# expect: " < %s' % program_filename, shell=True) or "").strip()
-
-        if not expect:
-            print("Could not find 'expect' declaration in %s" % program_filename)
-            sys.exit(0)
+            'grep "^# expect: " < %s' % args.program, shell=True) or "").strip()
     except subprocess.CalledProcessError as e:
-        print(e)
-        sys.exit(-1)
+        expect = None
+
+    if not expect:
+        sys.exit(0)
 
     expect = expect[len("# expect: "):]
 
-    print("Searching for %s in output from %s..." % (expect, program_filename))
+    print("Searching for %s in output from %s..." % (expect, args.program))
     try:
         actual = subprocess.check_output("./zionc run %s" % args.program, shell=True)
     except subprocess.CalledProcessError as e:
         print(e)
         sys.exit(-1)
 
-    print("-" * 10 + " " + program_filename + " " + "-" * 20)
+    print("-" * 10 + " " + args.program + " " + "-" * 20)
     print(actual)
     if actual.find(expect) == -1:
         sys.exit(-1)
