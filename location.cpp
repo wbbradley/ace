@@ -8,7 +8,7 @@
 
 std::string location_t::str(bool vim_mode, bool make_dir_relative) const {
 	static char *cwd = (char *)calloc(4096, 1);
-	static int cwdlen = 0;
+	static unsigned cwdlen = 0;
 	if (cwd[0] == 0) {
 		getcwd(cwd, 4096);
 		cwdlen = strlen(cwd);
