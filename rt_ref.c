@@ -8,7 +8,7 @@ typedef void (*dtor_fn_t)(struct var_t **var);
 
 struct type_info_t {
 	/* the id for the type - a unique number */
-	type_id_t type_id;
+	uint32_t type_id;
 
 	/* refs_count gives the type-map for memory management/ref counting. */
 	int16_t refs_count;

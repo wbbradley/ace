@@ -1,0 +1,13 @@
+module _
+
+link def __getarrayitem__(array __array_ref, index __int__) __var_ref
+link def __setarrayitem__(array __array_ref, index __int__) void
+
+def __getitem__(array any T[], index int) T
+	return __getarrayitem__(array, index.raw) as T
+
+def __setitem__(array any T[], index int, t T)
+	return __setarrayitem__(array, index.raw, t) as T?
+
+def append(array any T[], t T)
+	return __arrayappend__(array, t) as T?
