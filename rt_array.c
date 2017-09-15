@@ -4,6 +4,7 @@ struct array_t {
 	zion_int_t reserved;
 	zion_int_t size;
 	struct var_t **items;
+	// TODO: var_t _fast_items[DEFAULT_ARRAY_RESERVE];
 };
 
 struct var_t *__getarrayitem__(struct array_t *array, zion_int_t index) {
@@ -31,13 +32,20 @@ void __arrayappend__(struct array_t *array, struct var_t *item) {
 		array->items[array->size] = item;
 		array->size += 1;
 	} else if (array->items != 0) {
-		assert(array->reserved > 0);
-		zion_int_t new_reserved = array->reserved * 3 / 2 + 1;
+		assert(array->reserved == array->size);
+		zion_int_t new_reserved = array->reserved * 2;
+		if (new_reserved < 16) {
+			/* start at a level that we avoid a lot of extra calls to malloc */
+			new_reserved = 16;
+		}
+
 		struct var_t **new_items = (struct var_t **)calloc(sizeof(struct var_t *), new_reserved);
 		memcpy(new_items, array->items, sizeof(struct var_t *) * array->size);
 		new_items[array->size] = item;
 		array->size += 1;
+
 		free(array->items);
 		array->items = new_items;
 	}
 }
+

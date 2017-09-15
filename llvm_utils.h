@@ -5,7 +5,8 @@
 #include "scopes.h"
 #include "life.h"
 
-#define DTOR_INDEX 5
+#define DTOR_FN_INDEX 5
+#define MARK_FN_INDEX 6
 
 extern const char *GC_STRATEGY;
 

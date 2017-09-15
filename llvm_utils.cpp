@@ -777,8 +777,11 @@ bound_var_t::ref llvm_create_global_tag(
 			 * as builtin type info. */
 			builder.getInt64(0),
 
-			/* singletons do not have dtors */
-			llvm::Constant::getNullValue(llvm_type_info_type->getElementType(DTOR_INDEX)),
+			/* singletons do not have dtor fns */
+			llvm::Constant::getNullValue(llvm_type_info_type->getElementType(DTOR_FN_INDEX)),
+
+			/* singletons do not have mark fns */
+			llvm::Constant::getNullValue(llvm_type_info_type->getElementType(MARK_FN_INDEX)),
 		});
 
 	llvm::ArrayRef<llvm::Constant*> llvm_tag_initializer{llvm_tag_data};

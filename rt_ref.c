@@ -4,7 +4,8 @@
 #include "zion_rt.h"
 
 
-typedef void (*dtor_fn_t)(struct var_t **var);
+typedef void (*dtor_fn_t)(struct var_t *var);
+typedef void (*mark_fn_t)(struct var_t *var);
 
 struct type_info_t {
 	/* the id for the type - a unique number */
@@ -25,6 +26,10 @@ struct type_info_t {
 	/* the destructor for this type, if one exists. NB: if you change the index
 	 * of this dimension, update DTOR_INDEX */
 	dtor_fn_t dtor_fn;
+
+	/* the mark function for this type, if one exists. NB: if you change the index
+	 * of this dimension, update MARK_FN_INDEX */
+	mark_fn_t mark_fn;
 };
 
 #define GET_CHILD_REF(var, index) (*(struct var_t **)(((char *)var) + var->type_info->ref_offsets[index]))

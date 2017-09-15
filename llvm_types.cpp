@@ -816,12 +816,13 @@ llvm::Value *llvm_call_allocator(
 
 			llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
 					program_scope->get_bound_type({"__type_info"})->get_llvm_type());
-			llvm::Type *llvm_dtor_fn_type = llvm_type_info_type->getElementType(DTOR_INDEX);
+			llvm::Type *llvm_dtor_fn_type = llvm_type_info_type->getElementType(DTOR_FN_INDEX);
 
 			if (dtor_fn != nullptr) {
 				/* we found a dtor for this type of object */
 				llvm_dtor_fn = llvm::ConstantExpr::getBitCast(
-						(llvm::Constant *)dtor_fn->get_llvm_value(), llvm_dtor_fn_type);
+					//	(llvm::Constant *)
+						dtor_fn->get_llvm_value(), llvm_dtor_fn_type);
 
 			} else {
 				/* there is no dtor, just put a NULL value in instead */
