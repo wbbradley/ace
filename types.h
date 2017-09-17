@@ -299,6 +299,7 @@ types::type_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_ref(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body);
 types::type_t::ref type_list_type(types::type_t::ref element);
+types::type_t::ref type_vector_type(types::type_t::ref element);
 types::type_t::ref type_strip_maybe(types::type_t::ref maybe_maybe);
 
 types::type_t::ref eval(types::type_t::ref type, types::type_t::map env);

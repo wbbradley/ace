@@ -5,7 +5,7 @@
 #include <sstream>
 #include <signal.h>
 
-const int __dbg_level = 0;
+int __dbg_level = 0;
 
 void init_dbg() {
 	const_cast<int&>(__dbg_level) = atoi((getenv("DEBUG") != nullptr) ? getenv("DEBUG") : "0");

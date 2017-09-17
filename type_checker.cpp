@@ -324,6 +324,20 @@ bound_var_t::ref generate_module_variable(
 							bound_type->get_llvm_specific_type()),
 						llvm_global_variable);
 			} else {
+				/* the user didn't supply an initializer, let's see if this type has one */
+				auto init_fn = get_callable(
+						status,
+					   	builder,
+					   	scope->get_module_scope(),
+						"__init__",
+					   	obj.shared_from_this(),
+						type_variable(obj.get_location()),
+						type_args({}, {}),
+						declared_type);
+				if (!!status) {
+
+				}
+
 				user_error(status, obj, "module var " c_id("%s") " missing initializer",
 						symbol.c_str());
 			}
@@ -740,53 +754,47 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 	module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
 	assert(module_scope);
 
-	if (!scope->has_bound_variable(function_name.text, rc_just_current_scope)) {
-		types::type_t::ref inbound_context;
-		bound_type_t::named_pairs named_args;
-		bound_type_t::ref return_value;
+	types::type_t::ref inbound_context;
+	bound_type_t::named_pairs named_args;
+	bound_type_t::ref return_value;
 
-		type_check_fully_bound_function_decl(status, builder, *extern_function,
-				scope, inbound_context, named_args, return_value);
+	type_check_fully_bound_function_decl(status, builder, *extern_function,
+			scope, inbound_context, named_args, return_value);
 
-		if (!!status) {
-			bound_type_t::refs args;
-			for (auto &named_arg_pair : named_args) {
-				args.push_back(named_arg_pair.second);
-			}
-
-			// TODO: rearrange this, and get the pointer type
-			llvm::FunctionType *llvm_func_type = llvm_create_function_type(
-					status, builder, args, return_value);
-
-			/* try to find this function, if it already exists... */
-			llvm::Module *llvm_module = module_scope->get_llvm_module();
-			llvm::Value *llvm_value = llvm_module->getOrInsertFunction(function_name.text,
-					llvm_func_type);
-
-			assert(llvm_print(llvm_value->getType()) != llvm_print(llvm_func_type));
-
-			/* get the full function type */
-			types::type_function_t::ref function_sig = get_function_type(
-					inbound_context, args, return_value);
-			debug_above(3, log(log_info, "%s has type %s",
-						function_name.str().c_str(),
-						function_sig->str().c_str()));
-
-			/* actually create or find the finalized bound type for this function */
-			bound_type_t::ref bound_function_type = upsert_bound_type(
-					status, builder, scope, function_sig);
-
-			return bound_var_t::create(
-					INTERNAL_LOC(),
-					scope->make_fqn(function_name.text),
-					bound_function_type,
-					llvm_value,
-					make_code_id(extern_function->token));
+	if (!!status) {
+		bound_type_t::refs args;
+		for (auto &named_arg_pair : named_args) {
+			args.push_back(named_arg_pair.second);
 		}
-	} else {
-		auto bound_var = scope->get_bound_variable(status, shared_from_this(), function_name.text);
-		user_error(status, *this, "name of " c_id("%s") " conflicts with %s",
-			   function_name.text.c_str(), bound_var->str().c_str());
+
+		// TODO: rearrange this, and get the pointer type
+		llvm::FunctionType *llvm_func_type = llvm_create_function_type(
+				status, builder, args, return_value);
+
+		/* try to find this function, if it already exists... */
+		llvm::Module *llvm_module = module_scope->get_llvm_module();
+		llvm::Value *llvm_value = llvm_module->getOrInsertFunction(function_name.text,
+				llvm_func_type);
+
+		assert(llvm_print(llvm_value->getType()) != llvm_print(llvm_func_type));
+
+		/* get the full function type */
+		types::type_function_t::ref function_sig = get_function_type(
+				inbound_context, args, return_value);
+		debug_above(3, log(log_info, "%s has type %s",
+					function_name.str().c_str(),
+					function_sig->str().c_str()));
+
+		/* actually create or find the finalized bound type for this function */
+		bound_type_t::ref bound_function_type = upsert_bound_type(
+				status, builder, scope, function_sig);
+
+		return bound_var_t::create(
+				INTERNAL_LOC(),
+				scope->make_fqn(function_name.text),
+				bound_function_type,
+				llvm_value,
+				make_code_id(extern_function->token));
 	}
 
 	assert(!status);
@@ -828,7 +836,8 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 			return get_callable(status, builder, bound_module->module_scope,
 					rhs.text, callsite,
 					bound_module->module_scope->get_outbound_context(),
-					get_args_type(args));
+					get_args_type(args),
+					nullptr);
 		} else {
 			// TODO: this looks like it needs to handle member functions
 			user_error(status, *lhs, "left of a dot (\".\") must be a struct or module. this is not a struct or module. %s",
@@ -1321,7 +1330,7 @@ llvm::Value *maybe_get_bool_overload_value(
 		var_t::refs fns;
 		auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE,
 				condition->get_location(), scope->get_outbound_context(),
-				type_args({condition_type}), fns);
+				type_args({condition_type}), nullptr, fns);
 
 		if (!!status) {
 			if (bool_fn != nullptr) {
@@ -3322,6 +3331,16 @@ bound_var_t::ref ast::times_expr_t::resolve_expression(
 			shared_from_this(), function_name);
 }
 
+bound_var_t::ref take_address(
+        status_t &status,
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		life_t::ref life)
+{
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref ast::prefix_expr_t::resolve_expression(
         status_t &status,
         llvm::IRBuilder<> &builder,
@@ -3340,6 +3359,9 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
 	case tk_not:
 		function_name = "__not__";
 		break;
+	case tk_ampersand:
+		assert(!as_ref);
+		return take_address(status, builder, scope, life);
 	default:
 		return null_impl();
 	}
@@ -3386,7 +3408,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 					status,
 					builder,
 					scope,
-					type_id(make_iid("std/int")));
+					type_id(make_iid(std::string("std") + SCOPE_SEP + "int")));
 			if (!!status) {
 				assert(boxed_type != nullptr);
 				bound_var_t::ref box_int = get_callable(
@@ -3396,7 +3418,8 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 						{"int"},
 						shared_from_this(),
 						scope->get_outbound_context(),
-						get_args_type({native_type}));
+						get_args_type({native_type}),
+						nullptr);
 
 				if (!!status) {
 					assert(box_int != nullptr);
@@ -3434,7 +3457,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 					status,
 					builder,
 					scope,
-					type_id(make_iid("std/str")));
+					type_id(make_iid(std::string("std") + SCOPE_SEP + "str")));
 
 			if (!!status) {
 				assert(boxed_type != nullptr);
@@ -3445,7 +3468,8 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 						{"__box__"},
 						shared_from_this(),
 						scope->get_outbound_context(),
-						get_args_type({native_type}));
+						get_args_type({native_type}),
+						nullptr);
 
 				if (!!status) {
 					return create_callsite(
@@ -3482,7 +3506,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 					status,
 					builder,
 					scope,
-					type_id(make_iid("std/float")));
+					type_id(make_iid(std::string("std") + SCOPE_SEP + "float")));
 			if (!!status) {
 				assert(boxed_type != nullptr);
 				bound_var_t::ref box_float = get_callable(
@@ -3492,7 +3516,8 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 						{"float"},
 						shared_from_this(),
 						scope->get_outbound_context(),
-						get_args_type({native_type}));
+						get_args_type({native_type}),
+						nullptr);
 
 				if (!!status) {
 					return create_callsite(
@@ -3530,7 +3555,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_overrides(
 	/* ok, we know we've got some variable here */
 	auto bound_var = get_callable(status, builder, scope, token.text,
 			shared_from_this(), scope->get_outbound_context(),
-			get_args_type(args));
+			get_args_type(args), nullptr);
 	if (!!status) {
 		return bound_var;
 	} else {

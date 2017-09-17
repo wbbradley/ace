@@ -8,6 +8,12 @@ link module main
 # initialization of modules is automatically generated.
 # link def __init_modules() void
 
+# Vector routines
+link def __getitem__(vec __vector_ref, index __int__) __var_ref
+link def __setitem__(vec __vector_ref, index __int__) void
+link def __resize__(vec __vector_ref, size __int__) __vector_ref
+link def __vectorfree__(v *__vector)
+
 tag false
 tag true
 
@@ -355,3 +361,27 @@ def str(b __bytes, length __int__, encoding str) str
 	dest := posix.calloc(1r, dest_len)
 	posix.memcpy(dest, b, length)
 	return str(dest as __str__)
+
+type vector{T} has
+	var buffer __vector
+
+def __init__() vector{any T}
+	return __vectorcreate__() as vector{any T}
+		
+def __finalize__(v vector{any T})
+	__vectorfree__(&v.buffer)
+
+def __getitem__(vec [any T], index int) T
+	return __getitem__(&vec.buffer, index.raw) as T
+
+def __setitem__(vec [any T], index int, t T) void
+	return __setvectoritem__(&vec.buffer, index.raw, t)
+
+def append(vec [any T], t T) void
+	return __append__(&vec.buffer, t)
+
+def resize(vec [any T], size int, default any T) void
+	return __resize__(vec as __vector_ref, size.raw, default) as! [any T]
+
+# link def vec(TYPE, capacity int) TYPE[]
+

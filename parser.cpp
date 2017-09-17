@@ -426,7 +426,8 @@ namespace ast {
 
 ptr<expression_t> prefix_expr_t::parse(parse_state_t &ps) {
 	ptr<prefix_expr_t> prefix_expr;
-	if (ps.token.tk == tk_not
+	if (ps.token.tk == tk_ampersand
+			|| ps.token.tk == tk_not
 			|| ps.token.tk == tk_minus
 			|| ps.token.tk == tk_plus)
 	{
@@ -1284,17 +1285,6 @@ types::type_t::ref _parse_single_type(
 			}
 		}
 		break;
-#if 0
-	case tk_ampersand:
-		{
-			ps.advance();
-			auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
-			if (!!ps.status) {
-				return ::type_unmanage_ptr(type);
-			}
-		}
-		break;
-#endif
 	case tk_has:
 		{
 			ps.advance();
@@ -1420,16 +1410,16 @@ types::type_t::ref _parse_single_type(
 	case tk_lsquare:
 		{
 			ps.advance();
-			auto list_element_type = parse_maybe_type(ps, supertype_id,
+			auto element_type = parse_maybe_type(ps, supertype_id,
 					type_variables, generics);
 
 			if (ps.token.tk != tk_rsquare) {
-				ps.error("list type reference must end with a ']', found %s",
+				ps.error("vector type reference must end with a ']', found %s",
 						ps.token.str().c_str());
 				return nullptr;
 			} else {
 				ps.advance();
-				return type_list_type(list_element_type);
+				return type_vector_type(element_type);
 			}
 		}
 		break;

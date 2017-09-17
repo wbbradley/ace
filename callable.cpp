@@ -134,11 +134,16 @@ bound_var_t::ref check_func_vs_callsite(
 		location_t location,
 		var_t::ref fn,
 		types::type_t::ref type_fn_context,
-		types::type_args_t::ref args)
+		types::type_args_t::ref args,
+		types::type_t::ref return_type)
 {
 	assert(!!status);
 	assert(args->ftv_count() == 0 && "how did you get abstract arguments? are you a wizard?");
-	unification_t unification = fn->accepts_callsite(builder, scope, type_fn_context, args);
+	if (return_type == nullptr) {
+		return_type = type_variable(location);
+	}
+
+	unification_t unification = fn->accepts_callsite(builder, scope, type_fn_context, args, return_type);
 	if (unification.result) {
 		if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
 			/* this function has already been bound */
@@ -194,6 +199,7 @@ bound_var_t::ref maybe_get_callable(
 		location_t location,
 		types::type_t::ref type_fn_context,
 		types::type_args_t::ref args,
+		types::type_t::ref return_type,
 		var_t::refs &fns)
 {
 	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, type_fn_context=%s, args=%s, ...)",
@@ -218,7 +224,7 @@ bound_var_t::ref maybe_get_callable(
 				continue;
             }
 			bound_var_t::ref callable = check_func_vs_callsite(status, builder,
-					scope, location, fn, type_fn_context, args);
+					scope, location, fn, type_fn_context, args, return_type);
 
 			if (!status) {
 				assert(callable == nullptr);
@@ -237,7 +243,7 @@ bound_var_t::ref maybe_get_callable(
 				user_error(status, location,
 						"multiple matching overloads found for %s",
 						alias.c_str());
-                for (auto callable :callables) {
+                for (auto callable : callables) {
                     user_message(log_info, status, callable->get_location(),
 						   	"matching overload : %s",
                             callable->type->get_type()->str().c_str());
@@ -255,13 +261,14 @@ bound_var_t::ref get_callable(
 		atom alias,
 		const ptr<const ast::item_t> &callsite,
 		types::type_t::ref outbound_context,
-		types::type_args_t::ref args)
+		types::type_args_t::ref args,
+		types::type_t::ref return_type)
 {
 	var_t::refs fns;
 	// TODO: potentially allow fake calling contexts by adding syntax to the
 	// callsite
 	auto callable = maybe_get_callable(status, builder, scope, alias,
-			callsite->get_location(), outbound_context, args, fns);
+			callsite->get_location(), outbound_context, args, return_type, fns);
 
 	if (!!status) {
 		if (callable != nullptr) {
@@ -317,7 +324,7 @@ bound_var_t::ref call_program_function(
     /* get or instantiate a function we can call on these arguments */
     bound_var_t::ref function = get_callable(
 			status, builder, program_scope, function_name, callsite,
-			program_scope->get_inbound_context(), args);
+			program_scope->get_inbound_context(), args, type_variable(callsite->token.location));
 
     if (!!status) {
 		return make_call_value(status, builder, callsite->get_location(), scope,

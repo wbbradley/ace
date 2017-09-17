@@ -16,7 +16,7 @@
 
 /* DEBUG preprocessor directives */
 void init_dbg();
-extern const int __dbg_level;
+extern int __dbg_level;
 
 #define debug_level() __dbg_level
 

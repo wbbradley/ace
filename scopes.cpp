@@ -10,8 +10,8 @@
 
 const char *GLOBAL_ID = "_";
 const token_kind SCOPE_TK = tk_divide_by;
-const char *SCOPE_SEP = "/";
-const char SCOPE_SEP_CHAR = '/';
+const char SCOPE_SEP_CHAR = '.';
+const char *SCOPE_SEP = ".";
 
 types::type_t::ref module_scope_impl_t::get_inbound_context() {
 	return inbound_context;
@@ -531,6 +531,8 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 		if (dyncast<const ast::function_defn_t>(unchecked_variable->node)) {
 			iter->second.push_back(unchecked_variable);
 		} else if (dyncast<const unchecked_data_ctor_t>(unchecked_variable)) {
+			iter->second.push_back(unchecked_variable);
+		} else if (dyncast<const ast::link_function_statement_t>(unchecked_variable->node)) {
 			iter->second.push_back(unchecked_variable);
 		} else {
 			dbg();

@@ -402,9 +402,11 @@ bound_type_t::ref create_bound_operator_type(
 {
 	debug_above(4, log(log_info, "create_bound_operator_type(..., %s)", operator_->str().c_str()));
 
+	auto typename_env = scope->get_typename_env();
+
 	/* apply the operator */
 	auto expansion = eval_apply(operator_->oper, operator_->operand,
-			scope->get_typename_env());
+			typename_env);
 
 	if (expansion != nullptr) {
 		/* make sure this isn't already bound */
@@ -440,8 +442,9 @@ bound_type_t::ref create_bound_operator_type(
 		}
 	} else {
 		user_error(status, operator_->get_location(),
-				"unable to expand type operation %s",
-				operator_->str().c_str());
+				"unable to expand type operation %s in env %s",
+				operator_->str().c_str(),
+				str(typename_env).c_str());
 	}
 
 	assert(!status);
@@ -821,8 +824,7 @@ llvm::Value *llvm_call_allocator(
 			if (dtor_fn != nullptr) {
 				/* we found a dtor for this type of object */
 				llvm_dtor_fn = llvm::ConstantExpr::getBitCast(
-					//	(llvm::Constant *)
-						dtor_fn->get_llvm_value(), llvm_dtor_fn_type);
+						(llvm::Constant *)dtor_fn->get_llvm_value(), llvm_dtor_fn_type);
 
 			} else {
 				/* there is no dtor, just put a NULL value in instead */

@@ -10,6 +10,8 @@ typedef double zion_float_t;
 #include <stdint.h>
 #include <stdatomic.h>
 #include <pthread.h>
+#include <assert.h>
+#include <signal.h>
 #include "colors.h"
 
 typedef int64_t zion_int_t;

@@ -937,12 +937,12 @@ auto test_descs = std::vector<test_desc>{
 				{"any", "(any __1)"},
 				/* parsing type variables has monotonically increasing side effects */
 				{"any", "(any __1)"},
-				{"void", "M/void"},
-				{"map{int, int}", "M/map{M/int}{M/int}"},
-				{"map{any b, any c}", "M/map{(any b)}{(any c)}"},
+				{"void", "M.void"},
+				{"map{int, int}", "M.map{M.int}{M.int}"},
+				{"map{any b, any c}", "M.map{(any b)}{(any c)}"},
 				{"T", "(any T)"},
-				{"T{char, Q}", "(any T){M/char}{(any Q)}"},
-				{"map{T{int}, Q}", "M/map{(any T){M/int}}{(any Q)}"},
+				{"T{char, Q}", "(any T){M.char}{(any Q)}"},
+				{"map{T{int}, Q}", "M.map{(any T){M.int}}{(any Q)}"},
 			}};
 
 			for (auto p : parses) {
@@ -969,7 +969,7 @@ auto test_descs = std::vector<test_desc>{
 			auto unifies = std::vector<types::type_t::pair>{{
 				types::type_t::pair{
 					parse_type_expr("void", generics, make_iid("foobar")),
-					   	type_id(make_iid("foobar/void"))},
+					   	type_id(make_iid("foobar.void"))},
 				make_type_pair("any", "float", generics),
 				make_type_pair("void", "void", generics),
 				make_type_pair("any a", "int", generics),
@@ -985,6 +985,7 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("Container{int, T}", "map{int, str}", generics),
 				make_type_pair("Container{T, T}", "map{int, int}", generics),
 				make_type_pair("Container{T}?", "[int]", generics),
+				make_type_pair("Container{T}", "[int]", generics),
 			}};
 
 			auto fails = std::vector<types::type_t::pair>{{
@@ -993,7 +994,7 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("{T, T}", "{void, int}", generics),
 				make_type_pair("int", "map{int, int}", generics),
 				make_type_pair("map{any a, any a}", "map{int, str}", generics),
-				make_type_pair("Container{T}", "[int]", generics),
+				make_type_pair("Container{float}", "[int]", generics),
 			}};
 
 			status_t status;

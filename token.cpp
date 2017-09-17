@@ -29,6 +29,7 @@ std::string zion_token_t::str() const {
 
 const char *tkstr(token_kind tk) {
 	switch (tk) {
+	tk_case(ampersand);
 	tk_case(any);
 	tk_case(as);
 	tk_case(and);
@@ -184,6 +185,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_raw_string:
 	case tk_tag:
 	case tk_times:
+	case tk_ampersand:
 	case tk_times_eq:
 	case tk_to:
 	case tk_type:
@@ -460,6 +462,9 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 	case tk_minus:
 		ensure_space_before(last_tk);
 		printf("-");
+		break;
+	case tk_ampersand:
+		printf("&");
 		break;
 	case tk_times:
 		printf("*");

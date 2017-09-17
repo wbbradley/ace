@@ -78,7 +78,8 @@ unification_t unify(
 	assert(lhs != nullptr);
 	assert(rhs != nullptr);
 
-	debug_above(7, log(log_info, "unify(%s, %s, ..., %s)",
+	indent_logger indent(7,
+			string_format("unify(%s, %s, ..., %s)",
 				lhs->str().c_str(),
 				rhs->str().c_str(),
 				str(bindings).c_str()));
@@ -136,13 +137,17 @@ unification_t unify(
 
 		return {true, "", bindings};
 	} else if (auto ptv_b = dyncast<const types::type_variable_t>(b)) {
+		debug_above(7, log("flipping type variable from rhs to lhs"));
 		return unify(ptv_b, a, env, bindings, depth + 1);
 	} else if (ptm_a != nullptr) {
 		if (ptm_b != nullptr) {
+			debug_above(7, log("matching maybe types"));
 			return unify(ptm_a->just, ptm_b->just, env, bindings, depth + 1);
 		} else if (b->is_nil()) {
+			debug_above(7, log("matching nil"));
 			return {true, "", bindings};
 		} else {
+			debug_above(7, log("matching maybe on the lhs"));
 			return unify(ptm_a->just, b, env, bindings, depth + 1);
 		}
 	} else if (pti_a != nullptr) {
@@ -190,6 +195,7 @@ unification_t unify(
 				for (auto a_dims_iter = a_dimensions.begin();
 						a_dims_iter != a_dims_end;
 						++a_dims_iter, ++b_dims_iter) {
+					debug_above(7, log("matching subitem in product type"));
 					auto unification = unify(*a_dims_iter, *b_dims_iter,
 							env, bindings, depth + 1);
 					if (!unification.result) {
@@ -210,6 +216,7 @@ unification_t unify(
 		}
 	} else if (ptf_a != nullptr) {
 		if (auto ptf_b = dyncast<const types::type_function_t>(b)) {
+			debug_above(7, log("matching function contexts (contravariant)"));
 			/* note that the context unification is contravariant to the rest */
 			auto context_unification = unify(ptf_b->inbound_context, ptf_a->inbound_context,
 					env, bindings, depth + 1);
@@ -218,6 +225,7 @@ unification_t unify(
 			}
 			bindings = context_unification.bindings;
 
+			debug_above(7, log("matching function arguments"));
 			/* now make sure the arguments unify */
 			auto args_unification = unify(ptf_a->args, ptf_b->args,
 					env, bindings, depth + 1);
@@ -226,6 +234,7 @@ unification_t unify(
 			}
 			bindings = args_unification.bindings;
 
+			debug_above(7, log("matching function return types"));
 			/* finally, make sure the return types unify */
 			auto return_type_unification = unify(ptf_a->return_type, ptf_b->return_type,
 					env, bindings, depth + 1);
@@ -246,6 +255,7 @@ unification_t unify(
 		if (pts_b == nullptr) {
 			std::vector<std::string> reasons;
 			for (auto option : pts_a->options) {
+				debug_above(7, log("matching option of sum type against rhs"));
 				auto unification = unify(option, b, env, bindings, depth + 1);
 				if (unification.result) {
 					if (unification.bindings.size() > bindings.size()) {
@@ -263,7 +273,7 @@ unification_t unify(
 		} else {
 			assert(pts_b != nullptr);
 			for (auto inbound_option : pts_b->options) {
-				debug_above(7, log(log_info, "checking inbound %s against %s",
+				debug_above(7, log("checking inbound %s against lhs %s",
 							inbound_option->repr().c_str(), a->repr().c_str()));
 				auto unification = unify(a, inbound_option, env, bindings, depth + 1);
 				if (unification.result) {
@@ -301,6 +311,7 @@ unification_t unify(
 
 				assert(pto_a->operand != nullptr && pto_b->operand != nullptr);
 
+				debug_above(7, log("matching type operands"));
 				return unify(pto_a->operand, pto_b->operand, env, bindings, depth + 1);
 			}
 		} else {
@@ -333,6 +344,7 @@ unification_t unify(
 				{}};
 		}
 	} else if (ptr_a != nullptr && ptr_b != nullptr) {
+		debug_above(7, log("matching type refs"));
 		return unify(ptr_a->element_type, ptr_b->element_type, env, bindings, depth + 1);
 	} else {
 		/* types don't match */

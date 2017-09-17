@@ -95,6 +95,7 @@ enum token_kind
 	tk_in, /* in */
 	tk_or, /* or */
 	tk_and, /* and */
+	tk_ampersand, /* & */
 
 	// Mutating binary ops
 	tk_plus_eq, /* += */

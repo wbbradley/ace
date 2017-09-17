@@ -95,6 +95,11 @@ status_t scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 				make_code_id(function->decl->token), module_scope);
 	}
 
+	for (auto &linked_function : obj.linked_functions) {
+		scope_setup_function_defn(status, *linked_function,
+				make_code_id(linked_function->function_name), module_scope);
+	}
+
 	return status;
 }
 

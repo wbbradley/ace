@@ -189,7 +189,7 @@ ast::module_t::ref compiler_t::build_parse(
 
 						for (auto std_type : std_types) {
 							assert(global_type_macros.find(std_type) == global_type_macros.end());
-							atom new_name = std::string("std/") + std_type;
+							atom new_name = std::string("std") + SCOPE_SEP + std_type;
 							global_type_macros.insert({std_type,
                                     type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
 						}
@@ -303,7 +303,8 @@ void add_global_types(
 		compiler_t &compiler,
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
-		llvm::Module *llvm_module_ref)
+		llvm::Module *llvm_module_ref,
+		llvm::Module *llvm_module_vector)
 {
 	/* let's add the builtin types to the program scope */
 	std::vector<std::pair<atom, bound_type_t::ref>> globals = {
@@ -403,6 +404,16 @@ void add_global_types(
 					type_id(make_iid("__var_ref")),
 					INTERNAL_LOC(),
 					llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
+		{{"__vector_ref"},
+			bound_type_t::create(
+					type_id(make_iid("__vector_ref")),
+					INTERNAL_LOC(),
+					llvm_module_vector->getTypeByName("struct.vector_t")->getPointerTo())},
+		{{"__vector"},
+			bound_type_t::create(
+					type_id(make_iid("__vector")),
+					INTERNAL_LOC(),
+					llvm_module_vector->getTypeByName("struct.vector_t"))},
 		{{"__finalizer_fn_ref"},
 			bound_type_t::create(
 					type_id(make_iid("__finalizer_fn_ref")),
@@ -453,11 +464,13 @@ void add_globals(
 	auto llvm_module_float = compiler.llvm_load_ir(status, "rt_float.llir");
 	auto llvm_module_str = compiler.llvm_load_ir(status, "rt_str.llir");
 	auto llvm_module_ref = compiler.llvm_load_ir(status, "rt_ref.llir");
+	auto llvm_module_vector = compiler.llvm_load_ir(status, "rt_vector.llir");
 	auto llvm_module_typeid = compiler.llvm_load_ir(status, "rt_typeid.llir");
 
 	/* set up the global scalar types, as well as memory reference and garbage
 	 * collection types */
-	add_global_types(status, compiler, builder, program_scope, llvm_module_ref);
+	add_global_types(status, compiler, builder, program_scope, llvm_module_ref,
+			llvm_module_vector);
 	assert(!!status);
 
 	/* lookup the types of bool and void pointer for use below */

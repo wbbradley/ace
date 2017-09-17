@@ -1,44 +1,35 @@
 module _
 
-link def __getarrayitem__(array __array_ref, index __int__) __var_ref
-link def __setarrayitem__(array __array_ref, index __int__) void
-link def __resize__(array __array_ref, size __int__) __array_ref
-
-def __getitem__(array any T[], index int) T
-	return __getarrayitem__(array, index.raw) as T
-
-def __setitem__(array any T[], index int, t T)
-	return __setarrayitem__(array, index.raw, t) as T?
-
-def append(array any T[], t T)
-	return __arrayappend__(array, t) as T?
-
-def resize(array any T[], size int, default any T) as any T[]
-	return __resizearray__(array, size.raw, default) as any T[]
-
-link def array(TYPE, capacity int) TYPE[]
-link def mkbuffer(type_info type(any T?), capacity int) any T?[]
-
-
 type SetItemCache{T} has
 	var value T
 	var hash int
 
 type Set{T} has
-	var buffer list{SetItemCache{T}}?[]
+	var buffer [list{SetItemCache{T}}?]
+	var count int
 
 def hash(v str) int
 	return int(hash(v.raw))
 
-def insert()
-	s := Set(mkbuffer(int?[], 4))
-	key := "some value"
-	index := hash(key)
-	index = index % cap(s.buffer)
-	slot := s.buffer[]
-	if slot
-		append(slot, key)
+def add(s Set{any T}, t any T)
+	index := hash(t)
+	index = index % len(s.buffer)
+	p := s.buffer[index]
+	if p
+		while p.val != t
+		
+		prepend(list_at_slot, key)
 	else
-		s.buffer[
+		s.buffer[index] = list(key, nil)
 
+def remove(s Set{any T}, t any T) bool
+	index := hash(t)
+	index = index % len(s.buffer)
+	list_at_slot := s.buffer[index]
+
+
+
+
+def main()
+	s := Set(mkbuffer(int?[], 4))
 

@@ -143,13 +143,14 @@ void get_generics_and_lambda_vars(
 
 		atom::set unbound_vars = subtype->get_ftvs();
 		for (auto type_var : type_variables) {
-			if (in(type_var->get_name(), unbound_vars)) {
+			if (true || in(type_var->get_name(), unbound_vars)) {
 				/* this variable is referenced by the current data ctor (the
 				 * subtype), therefore it has opinions about its role in the
 				 * supertype */
 				lambda_vars.push_front(type_var);
 			}
 		}
+		assert(lambda_vars.size() == type_variables.size());
 	}
 }
 

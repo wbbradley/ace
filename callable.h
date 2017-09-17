@@ -36,7 +36,8 @@ bound_var_t::ref get_callable(
 		atom alias,
 		const ptr<const ast::item_t> &obj,
 		types::type_t::ref outbound_context,
-		types::type_args_t::ref sig_args);
+		types::type_args_t::ref sig_args,
+		types::type_t::ref return_type);
 
 /* maybe_get_callable is supposed to be more lenient and not cause errors,
  * however it may go off and type check potential unifications of other generic
@@ -49,6 +50,7 @@ bound_var_t::ref maybe_get_callable(
 		location_t location,
 		types::type_t::ref type_fn_context,
 		types::type_args_t::ref sig_args,
+		types::type_t::ref return_type,
 		var_t::refs &fns);
 
 bound_var_t::ref call_program_function(

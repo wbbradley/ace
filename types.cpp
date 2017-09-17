@@ -8,7 +8,8 @@
 #include <iostream>
 
 const char *BUILTIN_NIL_TYPE = "nil";
-const char *STD_LIST_TYPE = "std/list";
+const char *STD_LIST_TYPE = "std.list";
+const char *STD_VECTOR_TYPE = "std.vector";
 const char *BUILTIN_VOID_TYPE = "void";
 const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";
 
@@ -875,6 +876,11 @@ types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body)
 types::type_t::ref type_list_type(types::type_t::ref element) {
 	return type_maybe(type_operator(type_id(make_iid_impl(
 						STD_LIST_TYPE, element->get_location())), element));
+}
+
+types::type_t::ref type_vector_type(types::type_t::ref element) {
+	return type_operator(type_id(make_iid_impl(
+					STD_VECTOR_TYPE, element->get_location())), element);
 }
 
 types::type_t::ref type_strip_maybe(types::type_t::ref maybe_maybe) {
