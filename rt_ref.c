@@ -3,34 +3,7 @@
 #include <signal.h>
 #include "zion_rt.h"
 
-
-typedef void (*dtor_fn_t)(struct var_t *var);
-typedef void (*mark_fn_t)(struct var_t *var);
-
-struct type_info_t {
-	/* the id for the type - a unique number */
-	uint32_t type_id;
-
-	/* refs_count gives the type-map for memory management/ref counting. */
-	int16_t refs_count;
-
-	/* ref_offsets is the list of offsets to managed members */
-	int16_t *ref_offsets;
-
-	/* a helpful name for this type */
-	const char *name;
-
-	/* the size of the allocation for memory profiling purposes */
-	int64_t size;
-
-	/* the destructor for this type, if one exists. NB: if you change the index
-	 * of this dimension, update DTOR_INDEX */
-	dtor_fn_t dtor_fn;
-
-	/* the mark function for this type, if one exists. NB: if you change the index
-	 * of this dimension, update MARK_FN_INDEX */
-	mark_fn_t mark_fn;
-};
+const uint32_t TYPE_ID_VECTOR = -2;
 
 #define GET_CHILD_REF(var, index) (*(struct var_t **)(((char *)var) + var->type_info->ref_offsets[index]))
 
@@ -279,7 +252,7 @@ void release_var(struct var_t *var
 		if (var->ref_count == 0) {
 			if (var->type_info->dtor_fn != 0) {
 				/* call the destructor if it exists */
-				var->type_info->dtor_fn(&var);
+				var->type_info->dtor_fn(var);
 			}
 			for (int16_t i = var->type_info->refs_count - 1; i >= 0; --i) {
 				struct var_t *ref = GET_CHILD_REF(var, i);

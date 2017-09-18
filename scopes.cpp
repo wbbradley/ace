@@ -23,7 +23,7 @@ types::type_t::ref module_scope_impl_t::get_outbound_context() {
 
 bound_var_t::ref get_bound_variable_from_scope(
 		status_t &status,
-		const ptr<const ast::item_t> &obj,
+		location_t location,
 		atom scope_name,
 		atom symbol,
 		bound_var_t::map bound_vars,
@@ -39,18 +39,18 @@ bound_var_t::ref get_bound_variable_from_scope(
 			return overloads.begin()->second;
 		} else {
 			assert(overloads.size() > 1);
-			user_error(status, *obj, "a non-callsite reference to an overloaded variable usage %s was found. overloads at this immediate location are:\n%s",
-					obj->token.str().c_str(),
+			user_error(status, location,
+				   	"a non-callsite reference to an overloaded variable " c_id("%s") " was found. overloads at this immediate location are:\n%s",
+					symbol.c_str(),
 					::str(overloads).c_str());
 			return nullptr;
 		}
 	} else if (parent_scope != nullptr) {
-		return parent_scope->get_bound_variable(status, obj, symbol);
+		return parent_scope->get_bound_variable(status, location, symbol);
 	}
 
 	debug_above(3, log(log_info,
-			   	"no bound variable found when resolving %s (looking for " c_id("%s") " in " c_id("%s") ")", 
-				obj->token.str().c_str(),
+			   	"no bound variable found when looking for " c_id("%s") " in " c_id("%s"), 
 				symbol.c_str(),
 				scope_name.c_str()));
 	return nullptr;
@@ -183,7 +183,8 @@ void get_callables_from_unchecked_vars(
 		const unchecked_var_t::overload_vector &overloads = iter->second;
 		for (auto &var : overloads) {
 			assert(dyncast<const ast::function_defn_t>(var->node) ||
-					dyncast<const ast::type_product_t>(var->node));
+					dyncast<const ast::type_product_t>(var->node) ||
+					dyncast<const ast::link_function_statement_t>(var->node));
 			fns.push_back(var);
 		}
 	}

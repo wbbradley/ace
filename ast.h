@@ -395,7 +395,9 @@ namespace ast {
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
-		// TODO: track type variables on tags to aid in deserialization and marshalling
+
+		/* track type variables on tags to aid in type enforcement, deserialization and marshalling */
+		identifier::refs type_variables;
 	};
 
 	struct var_decl_t : public statement_t, like_var_decl_t {

@@ -1,11 +1,26 @@
 #include "zion_rt.h"
 
+struct var_t *create_var(struct type_info_t *type_info);
+
 struct vector_t {
 	zion_int_t reserved;
 	zion_int_t size;
 	struct var_t **items;
 	// TODO: var_t _fast_items[DEFAULT_ARRAY_RESERVE];
 };
+
+struct vector_t __example_vector = {
+	.reserved = 0,
+	.size = 0,
+	.items = 0,
+};
+
+struct var_t *__vectorcreate__(struct type_info_t *typeinfo) {
+	struct type_info_t __vector_type_info = {
+	};
+	
+	return create_var(typeinfo);
+}
 
 void __vectorfree__(struct vector_t *vector) {
 	assert(vector != 0);

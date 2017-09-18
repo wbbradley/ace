@@ -1152,7 +1152,7 @@ ptr<semver_t> semver_t::parse(parse_state_t &ps) {
 }
 
 void parse_maybe_type_decl(parse_state_t &ps, identifier::refs &type_variables) {
-	if (ps.token.tk == tk_lcurly) {
+	if (!ps.line_broke() && ps.token.tk == tk_lcurly) {
 		ps.advance();
 		while (true) {
 			if (ps.token.tk == tk_identifier) {
@@ -1560,7 +1560,15 @@ ptr<tag_t> tag_t::parse(parse_state_t &ps) {
 	expect_token(tk_identifier);
 	auto tag = create<ast::tag_t>(ps.token);
 	ps.advance();
-	return tag;
+
+	parse_maybe_type_decl(ps, tag->type_variables);
+
+	if (!!ps.status) {
+		return tag;
+	}
+
+	assert(!ps.status);
+	return nullptr;
 }
 
 type_algebra_t::ref type_algebra_t::parse(

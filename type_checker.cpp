@@ -310,76 +310,78 @@ bound_var_t::ref generate_module_variable(
 		assert(lhs_type != nullptr);
 		bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, lhs_type);
 
-		/* generate the immutable global variable for this var */
-		llvm::Constant *llvm_constant = nullptr;
-		if (bound_type->get_llvm_specific_type()->isPointerTy()) {
-			llvm_constant = llvm::Constant::getNullValue(bound_type->get_llvm_specific_type());
-		} else {
-			user_error(status, obj, "unsupported type for module variable %s. currently only managed types are supported",
-					bound_type->str().c_str());
-		}
-
 		if (!!status) {
-			llvm::GlobalVariable *llvm_global_variable = llvm_get_global(
-					llvm_get_module(builder),
-					symbol.str(),
-					llvm_constant,
-					false /*is_constant*/);
-
-			if (init_var == nullptr) {
-				/* the user didn't supply an initializer, let's see if this type has one */
-				auto init_fn = get_callable(
-						status,
-					   	builder,
-					   	scope->get_module_scope(),
-						"__init__",
-					   	obj.get_location(),
-						type_variable(obj.get_location()),
-						type_args({}, {}),
-						declared_type);
-
-				if (!!status) {
-					init_var = make_call_value(status, builder, obj.get_location(), scope,
-							life, init_fn, {} /*arguments*/);
-				}
+			/* generate the immutable global variable for this var */
+			llvm::Constant *llvm_constant = nullptr;
+			if (bound_type->get_llvm_specific_type()->isPointerTy()) {
+				llvm_constant = llvm::Constant::getNullValue(bound_type->get_llvm_specific_type());
+			} else {
+				user_error(status, obj, "unsupported type for module variable %s. currently only managed types are supported",
+						bound_type->str().c_str());
 			}
 
 			if (!!status) {
-				if (init_var != nullptr) {
-					debug_above(6, log(log_info, "creating a store instruction %s := %s",
-								llvm_print(llvm_global_variable).c_str(),
-								llvm_print(init_var->get_llvm_value()).c_str()));
+				llvm::GlobalVariable *llvm_global_variable = llvm_get_global(
+						llvm_get_module(builder),
+						symbol.str(),
+						llvm_constant,
+						false /*is_constant*/);
 
-					llvm::Value *llvm_init_value = init_var->resolve_bound_var_value(builder);
+				if (init_var == nullptr) {
+					/* the user didn't supply an initializer, let's see if this type has one */
+					auto init_fn = get_callable(
+							status,
+							builder,
+							scope->get_module_scope(),
+							"__init__",
+							obj.get_location(),
+							type_variable(obj.get_location()),
+							type_args({}, {}),
+							declared_type);
 
-					if (llvm_init_value->getName().str().size() == 0) {
-						llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+					if (!!status) {
+						init_var = make_call_value(status, builder, obj.get_location(), scope,
+								life, init_fn, {} /*arguments*/);
 					}
-
-					builder.CreateStore(
-							llvm_maybe_pointer_cast(builder, llvm_init_value,
-								bound_type->get_llvm_specific_type()),
-							llvm_global_variable);
-				} else {
-					user_error(status, obj, "module var " c_id("%s") " missing initializer",
-							symbol.c_str());
 				}
-			}
 
-			if (!!status) {
-				/* the reference_expr that looks at this llvm_value will need to
-				 * know to use store/load semantics, not just pass-by-value, so
-				 * we will mark the actual global variable as a type_ref */
-				auto bound_global_type = upsert_bound_type(status, builder, scope, type_ref(bound_type->get_type()));
 				if (!!status) {
-					bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
-							bound_global_type, llvm_global_variable, make_code_id(obj.token));
+					if (init_var != nullptr) {
+						debug_above(6, log(log_info, "creating a store instruction %s := %s",
+									llvm_print(llvm_global_variable).c_str(),
+									llvm_print(init_var->get_llvm_value()).c_str()));
 
-					/* on our way out, stash the variable in the current scope */
-					scope->get_module_scope()->put_bound_variable(status, var_decl_variable->name,
-							var_decl_variable);
+						llvm::Value *llvm_init_value = init_var->resolve_bound_var_value(builder);
 
-					return var_decl_variable;
+						if (llvm_init_value->getName().str().size() == 0) {
+							llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+						}
+
+						builder.CreateStore(
+								llvm_maybe_pointer_cast(builder, llvm_init_value,
+									bound_type->get_llvm_specific_type()),
+								llvm_global_variable);
+					} else {
+						user_error(status, obj, "module var " c_id("%s") " missing initializer",
+								symbol.c_str());
+					}
+				}
+
+				if (!!status) {
+					/* the reference_expr that looks at this llvm_value will need to
+					 * know to use store/load semantics, not just pass-by-value, so
+					 * we will mark the actual global variable as a type_ref */
+					auto bound_global_type = upsert_bound_type(status, builder, scope, type_ref(bound_type->get_type()));
+					if (!!status) {
+						bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
+								bound_global_type, llvm_global_variable, make_code_id(obj.token));
+
+						/* on our way out, stash the variable in the current scope */
+						scope->get_module_scope()->put_bound_variable(status, var_decl_variable->name,
+								var_decl_variable);
+
+						return var_decl_variable;
+					}
 				}
 			}
 		}
@@ -961,6 +963,22 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 	return nullptr;
 }
 
+bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bool as_ref) const
+{
+	auto bindings = scope->get_type_variable_bindings();
+	auto full_type = type->rebind(bindings);
+	debug_above(3, log("evaluating typeinfo(%s)",
+				full_type->str().c_str()));
+	auto bound_type = upsert_bound_type(status, builder, scope, full_type);
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref ast::reference_expr_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -971,7 +989,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 	/* we wouldn't be referencing a variable name here unless it was unique
 	 * override resolution only happens on callsites, and we don't allow
 	 * passing around unresolved overload references */
-	bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(),
+	bound_var_t::ref var = scope->get_bound_variable(status, get_location(),
 			token.text);
 
 	/* get_bound_variable can return nullptr without an user_error */
@@ -996,7 +1014,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 		life_t::ref life,
 		local_scope_t::ref *new_scope) const
 {
-	bound_var_t::ref var = scope->get_bound_variable(status, shared_from_this(), token.text);
+	bound_var_t::ref var = scope->get_bound_variable(status, get_location(), token.text);
 
 	if (!var) {
 		user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
@@ -1730,8 +1748,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_expression(
 				debug_above(5,
 						log("attempt to find global id %s",
 							qualified_id.c_str()));
-				auto var = scope->get_bound_variable(status, shared_from_this(),
-						qualified_id);
+				auto var = scope->get_bound_variable(status, get_location(), qualified_id);
 				if (var != nullptr) {
 					return var;
 				} else {
@@ -1837,7 +1854,7 @@ bound_var_t::ref call_typeid(
 
 		if (is_obj) {
 			auto get_typeid_function = program_scope->get_bound_variable(status,
-					callsite, "__get_var_type_id");
+					callsite->get_location(), "__get_var_type_id");
 			if (!!status) {
 				return create_callsite(
 						status,
@@ -2395,6 +2412,10 @@ void ast::tag_t::resolve_statement(
         local_scope_t::ref *new_scope,
 		bool * /*returns*/) const
 {
+	if (type_variables.size() != 0) {
+		return;
+	}
+
 	atom tag_name = token.text;
 	atom fqn_tag_name = scope->make_fqn(tag_name.str());
 	auto qualified_id = make_iid_impl(fqn_tag_name, token.location);

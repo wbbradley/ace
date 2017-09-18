@@ -24,3 +24,32 @@ typedef int32_t type_id_t;
 
 struct var_t;
 
+typedef void (*dtor_fn_t)(struct var_t *var);
+typedef void (*mark_fn_t)(struct var_t *var);
+
+
+struct type_info_t {
+	/* the id for the type - a unique number */
+	type_id_t type_id;
+
+	/* refs_count gives the type-map for memory management/ref counting. */
+	int16_t refs_count;
+
+	/* ref_offsets is the list of offsets to managed members */
+	int16_t *ref_offsets;
+
+	/* a helpful name for this type */
+	const char *name;
+
+	/* the size of the allocation for memory profiling purposes */
+	int64_t size;
+
+	/* the destructor for this type, if one exists. NB: if you change the index
+	 * of this dimension, update DTOR_INDEX */
+	dtor_fn_t dtor_fn;
+
+	/* the mark function for this type, if one exists. NB: if you change the index
+	 * of this dimension, update MARK_FN_INDEX */
+	mark_fn_t mark_fn;
+};
+

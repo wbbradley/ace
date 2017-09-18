@@ -12,7 +12,8 @@ link module main
 link def __getitem__(vec __vector_ref, index __int__) __var_ref
 link def __setitem__(vec __vector_ref, index __int__) void
 link def __resize__(vec __vector_ref, size __int__) __vector_ref
-link def __vectorfree__(v *__vector)
+link def __vectorcreate__(typeinfo *__type_info) *__var
+link def __vectorfree__(v *__var)
 
 tag false
 tag true
@@ -362,14 +363,13 @@ def str(b __bytes, length __int__, encoding str) str
 	posix.memcpy(dest, b, length)
 	return str(dest as __str__)
 
-type vector{T} has
-	var buffer __vector
+tag vector{T}
 
 def __init__() vector{any T}
-	return __vectorcreate__() as vector{any T}
+	return __vectorcreate__(typeinfo(vector{any T})) as vector{any T}
 		
 def __finalize__(v vector{any T})
-	__vectorfree__(&v.buffer)
+	__vectorfree__(v as *__var)
 
 def __getitem__(vec [any T], index int) T
 	return __getitem__(&vec.buffer, index.raw) as T

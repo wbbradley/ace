@@ -6,6 +6,7 @@
 #include "code_id.h"
 #include "logger.h"
 #include <iostream>
+#include "unification.h"
 
 bound_type_t::refs upsert_bound_types(
 		status_t &status,
@@ -626,17 +627,29 @@ bound_type_t::ref upsert_bound_type(
 			 * instantiation */
 			return bound_type;
 		} else {
-			/* we believe that this type does not exist. let's build it */
-			bound_type = create_bound_type(status, builder, scope, type);
+			unification_t unification = unify(
+					type_operator(type_id(make_iid(std::string("std") + SCOPE_SEP + "vector")),
+						type_variable(INTERNAL_LOC())),
+					type,
+					scope->get_typename_env());
 
-			if (!!status) {
-				return bound_type;
+			if (unification.result) {
+				/* this is the builtin vector type */
+				// TODO: probably find a better way to represent opaque types that need runtime treatment
+				assert(false);
+			} else {
+				/* we believe that this type does not exist. let's build it */
+				bound_type = create_bound_type(status, builder, scope, type);
+
+				if (!!status) {
+					return bound_type;
+				}
+
+				user_error(status, type->get_location(),
+						"unable to find a definition for %s in scope " c_id("%s"),
+						type->str().c_str(),
+						scope->get_name().c_str());
 			}
-
-			user_error(status, type->get_location(),
-					"unable to find a definition for %s in scope " c_id("%s"),
-					type->str().c_str(),
-					scope->get_name().c_str());
 		}
 	}
 	assert(!status);
