@@ -34,7 +34,7 @@ bound_var_t::ref get_callable(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		atom alias,
-		const ptr<const ast::item_t> &obj,
+		location_t callsite_location,
 		types::type_t::ref outbound_context,
 		types::type_args_t::ref sig_args,
 		types::type_t::ref return_type);

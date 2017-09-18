@@ -128,7 +128,7 @@ bound_var_t::ref gen_type_check(
 
 		if (!!status) {
 			auto get_typeid_eq_function = program_scope->get_bound_variable(
-					status, node, "__type_id_eq_type_id");
+					status, node->get_location(), "__type_id_eq_type_id");
 
 			assert(get_typeid_eq_function != nullptr);
 			if (!!status) {

@@ -154,6 +154,11 @@ namespace ast {
 		params->render(rs);
 	}
 
+	void typeinfo_expr_t::render(render_state_t &rs) const {
+		rs.ss << C_TYPE << "typeinfo" << C_RESET;
+		rs.ss << "(" << type->str() << ")";
+	}
+
 	void continue_flow_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << tkstr(tk_continue) << C_RESET;
 	}

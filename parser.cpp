@@ -359,6 +359,22 @@ ptr<expression_t> literal_expr_t::parse(parse_state_t &ps) {
 	}
 }
 
+ptr<typeinfo_expr_t> typeinfo_expr_t::parse(parse_state_t &ps) {
+	expect_token(tk_lparen);
+	auto typeinfo_expr = ast::create<typeinfo_expr_t>(ps.prior_token);
+	ps.advance();
+	if (!!ps.status) {
+		typeinfo_expr->type = parse_maybe_type(ps, {}, {}, {});
+		if (!!ps.status) {
+			chomp_token(tk_rparen);
+			return typeinfo_expr;
+		}
+	}
+
+	assert(!ps.status);
+	return nullptr;
+}
+
 namespace ast {
 	namespace postfix_expr {
 		ptr<expression_t> parse(parse_state_t &ps) {
@@ -370,6 +386,13 @@ namespace ast {
 
 			while (!ps.line_broke() && (ps.token.tk == tk_lsquare || ps.token.tk == tk_lparen || ps.token.tk == tk_dot)) {
 				if (ps.token.tk == tk_lparen) {
+					if (auto ref_expr = dyncast<reference_expr_t>(expr)) {
+						if (ref_expr->token.text == "typeinfo") {
+							/* override the typeinfo keyword */
+							return typeinfo_expr_t::parse(ps);
+						}
+					}
+
 					/* function call */
 					auto callsite = create<callsite_expr_t>(ps.token);
 					auto params = param_list_t::parse(ps);

@@ -1,7 +1,7 @@
 IMAGE=zionlang/zion
 VERSION=0.1
 INSTALL_DIR=/usr/local/zion
-OPT_LEVEL=-O3
+OPT_LEVEL=-O0
 UNAME := $(shell uname)
 DEBUG_FLAGS := -DZION_DEBUG -g $(OPT_LEVEL)
 CFLAGS = \

@@ -404,16 +404,16 @@ void add_global_types(
 					type_id(make_iid("__var_ref")),
 					INTERNAL_LOC(),
 					llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
-		{{"__vector_ref"},
-			bound_type_t::create(
-					type_id(make_iid("__vector_ref")),
-					INTERNAL_LOC(),
-					llvm_module_vector->getTypeByName("struct.vector_t")->getPointerTo())},
 		{{"__vector"},
 			bound_type_t::create(
 					type_id(make_iid("__vector")),
 					INTERNAL_LOC(),
 					llvm_module_vector->getTypeByName("struct.vector_t"))},
+		{{"__vector_ref"},
+			bound_type_t::create(
+					type_id(make_iid("__vector_ref")),
+					INTERNAL_LOC(),
+					llvm_module_vector->getTypeByName("struct.vector_t")->getPointerTo())},
 		{{"__finalizer_fn_ref"},
 			bound_type_t::create(
 					type_id(make_iid("__finalizer_fn_ref")),

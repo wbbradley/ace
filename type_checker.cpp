@@ -164,6 +164,24 @@ bound_var_t::ref generate_stack_variable(
 			llvm_alloca = llvm_create_entry_block_alloca(llvm_function, value_type, symbol);
 		}
 
+		if (init_var == nullptr) {
+			/* the user didn't supply an initializer, let's see if this type has one */
+			auto init_fn = get_callable(
+					status,
+					builder,
+					scope->get_module_scope(),
+					"__init__",
+					obj.get_location(),
+					type_variable(obj.get_location()),
+					type_args({}, {}),
+					value_type->get_type());
+
+			if (!!status) {
+				init_var = make_call_value(status, builder, obj.get_location(), scope,
+						life, init_fn, {} /*arguments*/);
+			}
+		}
+
 		if (init_var) {
 			if (!init_var->type->get_type()->is_nil()) {
 				debug_above(6, log(log_info, "creating a store instruction %s := %s",
@@ -308,38 +326,44 @@ bound_var_t::ref generate_module_variable(
 					llvm_constant,
 					false /*is_constant*/);
 
-			if (init_var != nullptr) {
-				debug_above(6, log(log_info, "creating a store instruction %s := %s",
-							llvm_print(llvm_global_variable).c_str(),
-							llvm_print(init_var->get_llvm_value()).c_str()));
-
-				llvm::Value *llvm_init_value = init_var->resolve_bound_var_value(builder);
-
-				if (llvm_init_value->getName().str().size() == 0) {
-					llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
-				}
-
-				builder.CreateStore(
-						llvm_maybe_pointer_cast(builder, llvm_init_value,
-							bound_type->get_llvm_specific_type()),
-						llvm_global_variable);
-			} else {
+			if (init_var == nullptr) {
 				/* the user didn't supply an initializer, let's see if this type has one */
 				auto init_fn = get_callable(
 						status,
 					   	builder,
 					   	scope->get_module_scope(),
 						"__init__",
-					   	obj.shared_from_this(),
+					   	obj.get_location(),
 						type_variable(obj.get_location()),
 						type_args({}, {}),
 						declared_type);
+
 				if (!!status) {
-
+					init_var = make_call_value(status, builder, obj.get_location(), scope,
+							life, init_fn, {} /*arguments*/);
 				}
+			}
 
-				user_error(status, obj, "module var " c_id("%s") " missing initializer",
-						symbol.c_str());
+			if (!!status) {
+				if (init_var != nullptr) {
+					debug_above(6, log(log_info, "creating a store instruction %s := %s",
+								llvm_print(llvm_global_variable).c_str(),
+								llvm_print(init_var->get_llvm_value()).c_str()));
+
+					llvm::Value *llvm_init_value = init_var->resolve_bound_var_value(builder);
+
+					if (llvm_init_value->getName().str().size() == 0) {
+						llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+					}
+
+					builder.CreateStore(
+							llvm_maybe_pointer_cast(builder, llvm_init_value,
+								bound_type->get_llvm_specific_type()),
+							llvm_global_variable);
+				} else {
+					user_error(status, obj, "module var " c_id("%s") " missing initializer",
+							symbol.c_str());
+				}
 			}
 
 			if (!!status) {
@@ -834,7 +858,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 
 			/* let's see if the associated module has a method that can handle this callsite */
 			return get_callable(status, builder, bound_module->module_scope,
-					rhs.text, callsite,
+					rhs.text, callsite->get_location(),
 					bound_module->module_scope->get_outbound_context(),
 					get_args_type(args),
 					nullptr);
@@ -3416,7 +3440,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 						builder,
 						scope,
 						{"int"},
-						shared_from_this(),
+						get_location(),
 						scope->get_outbound_context(),
 						get_args_type({native_type}),
 						nullptr);
@@ -3466,7 +3490,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 						builder,
 						scope,
 						{"__box__"},
-						shared_from_this(),
+						get_location(),
 						scope->get_outbound_context(),
 						get_args_type({native_type}),
 						nullptr);
@@ -3514,7 +3538,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 						builder,
 						scope,
 						{"float"},
-						shared_from_this(),
+						get_location(),
 						scope->get_outbound_context(),
 						get_args_type({native_type}),
 						nullptr);
@@ -3554,7 +3578,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_overrides(
 {
 	/* ok, we know we've got some variable here */
 	auto bound_var = get_callable(status, builder, scope, token.text,
-			shared_from_this(), scope->get_outbound_context(),
+			get_location(), scope->get_outbound_context(),
 			get_args_type(args), nullptr);
 	if (!!status) {
 		return bound_var;
