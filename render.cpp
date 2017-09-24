@@ -141,7 +141,7 @@ namespace ast {
 		rs.ss << tkstr(tk_link) << " ";
 		rs.ss << C_ID << type_name.text << " ";
 		rs.ss << finalize_fn.text << " ";
-		rs.ss << mark_fn.text;
+		rs.ss << mark_fn.text << C_RESET;
 		newline(rs);
 	}
 

@@ -368,7 +368,7 @@ namespace ast {
 		typedef ptr<const type_link_t> ref;
 
 		virtual ~type_link_t() throw() {}
-		static const syntax_kind_t SK = sk_type_alias;
+		static const syntax_kind_t SK = sk_type_link;
 		static ref parse(parse_state_t &ps, type_decl_t::ref type_decl, identifier::refs type_variables);
 		virtual void register_type(
 				status_t &status,
