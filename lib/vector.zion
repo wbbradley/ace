@@ -33,3 +33,6 @@ def remove(s Set{any T}, t any T) bool
 def main()
 	s := Set(mkbuffer(int?[], 4))
 
+type __vector__ struct
+	var type_info *__typeinfo
+	

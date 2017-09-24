@@ -217,8 +217,6 @@ bound_var_t::ref generate_stack_variable(
 					stack_var_type, llvm_alloca, make_type_id_code_id(obj.get_location(), obj.get_symbol()));
 
 			/* memory management */
-			call_addref_var(status, builder, scope, var_decl_variable,
-					string_format("variable %s initialization", symbol.c_str()));
 			if (!!status) {
 				life->track_var(status, builder, scope, var_decl_variable, lf_block);
 
@@ -685,15 +683,7 @@ function_scope_t::ref make_param_list_scope(
 
 				bound_type_t::ref return_type = get_function_return_type(scope, function_var->type);
 
-				// TODO: an optimization here (to avoid the addref/release
-				// overhead would be to check whether this symbol is on the LHS of
-				// any assignment operations within this function AST's body. For
-				// now, we'll be safe.
-				call_addref_var(status, builder, scope, param_var, "function parameter lifetime");
-
-				if (!!status) {
-					life->track_var(status, builder, scope, param_var, lf_function);
-				}
+				life->track_var(status, builder, scope, param_var, lf_function);
 
 				if (!!status) {
 					/* add the parameter argument to the current scope */
@@ -975,6 +965,16 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 	debug_above(3, log("evaluating typeinfo(%s)",
 				full_type->str().c_str()));
 	auto bound_type = upsert_bound_type(status, builder, scope, full_type);
+	if (!!status) {
+		auto bound_typeid = bound_var_t::create(
+				INTERNAL_LOC(),
+				std::string("typeid(") + full_type->repr() + ")",
+				scope->get_bound_type(TYPEID_TYPE),
+				llvm_create_int32(builder, bound_type->get_signature().repr().iatom),
+				make_code_id(token));
+		return bound_typeid;
+	}
+
 	assert(!status);
 	return nullptr;
 }
@@ -2555,14 +2555,6 @@ bound_var_t::ref type_check_assignment(
 							lhs_var->get_llvm_value());
 
 					if (!!status) {
-						if (rhs_var->type->is_managed_ptr(scope)) {
-							if (rhs_var->get_llvm_value() != prior_lhs_value->get_llvm_value()) {
-								/* only bother addref/release if these are different things */
-								call_addref_var(status, builder, scope, rhs_var, "addref after assignment");
-								call_release_var(status, builder, scope, prior_lhs_value, "release after assignment");
-							}
-						}
-
 						return lhs_var;
 					}
 				}
@@ -2750,9 +2742,6 @@ void ast::return_statement_t::resolve_statement(
 		 * sure to retain whether the function signature necessitates a ref type */
 		return_value = expr->resolve_expression(status, builder, scope, life,
 				return_type_constraint ? return_type_constraint->is_ref() : false /*as_ref*/);
-
-		/* addref this return value on behalf of the caller */
-		call_addref_var(status, builder, scope, return_value, "return statement");
 
         if (!!status) {
             /* get the type suggested by this return value */

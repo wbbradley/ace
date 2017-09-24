@@ -1580,6 +1580,8 @@ type_algebra_t::ref type_algebra_t::parse(
 		return type_sum_t::parse(ps, type_decl, type_decl->type_variables);
 	case tk_has:
 		return type_product_t::parse(ps, type_decl, type_decl->type_variables);
+	case tk_link:
+		return type_link_t::parse(ps, type_decl, type_decl->type_variables);
 	case tk_matches:
 		return type_alias_t::parse(ps, type_decl, type_decl->type_variables);
 	default:
@@ -1634,6 +1636,37 @@ type_product_t::ref type_product_t::parse(
 	expect_token(tk_has);
 	auto type = _parse_single_type(ps, {}, {}, generics);
 	return create<type_product_t>(type_decl->token, type, generics);
+}
+
+type_link_t::ref type_link_t::parse(
+		parse_state_t &ps,
+		ast::type_decl_t::ref type_decl,
+	   	identifier::refs type_variables)
+{
+	identifier::set generics = to_identifier_set(type_variables);
+	chomp_token(tk_link);
+
+	zion_token_t type_name, finalize_fn, mark_fn;
+
+	/* read the type name of the finalize function */
+	expect_token(tk_identifier);
+	type_name = ps.token;
+	ps.advance();
+
+	/* read the name of the finalize function */
+	expect_token(tk_identifier);
+	finalize_fn = ps.token;
+	ps.advance();
+
+	/* read the name of the mark function */
+	expect_token(tk_identifier);
+	mark_fn = ps.token;
+	ps.advance();
+	auto type_link = create<type_link_t>(type_decl->token);
+	type_link->type_name = type_name;
+	type_link->finalize_fn = finalize_fn;
+	type_link->mark_fn = mark_fn;
+	return type_link;
 }
 
 type_alias_t::ref type_alias_t::parse(

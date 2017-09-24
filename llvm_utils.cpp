@@ -7,6 +7,7 @@
 #include "llvm_types.h"
 #include "code_id.h"
 #include "life.h"
+#include "type_kind.h"
 
 const char *GC_STRATEGY = "shadow-stack";
 
@@ -758,31 +759,20 @@ bound_var_t::ref llvm_create_global_tag(
 	llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
 			program_scope->get_bound_type({"__type_info"})->get_llvm_type());
 
-	bound_type_t::ref dtor_type = program_scope->get_bound_type({"__dtor_fn_ref"});
-
 	std::vector<llvm::Constant *> llvm_tag_data({
-			/* type_id - the actual type "tag" */
-			(llvm::Constant *)llvm_create_int32(builder, tag.iatom),
+		/* type_id - the actual type "tag" */
+		(llvm::Constant *)llvm_create_int32(builder, tag.iatom),
 
-			/* the number of contained references */
-			builder.getInt16(-1),
+		/* size - should always be zero since the type_id is part of this var_t
+		 * as builtin type info. */
+		builder.getInt64(0),
 
-			/* there are no managed references in a tag */
-			llvm::Constant::getNullValue(builder.getInt16Ty()->getPointerTo()),
+		/* the type kind */
+		builder.getInt32(type_kind_tag),
 
-			/* name - for debugging */
-			llvm_name,
-
-			/* size - should always be zero since the type_id is part of this var_t
-			 * as builtin type info. */
-			builder.getInt64(0),
-
-			/* singletons do not have dtor fns */
-			llvm::Constant::getNullValue(llvm_type_info_type->getElementType(DTOR_FN_INDEX)),
-
-			/* singletons do not have mark fns */
-			llvm::Constant::getNullValue(llvm_type_info_type->getElementType(MARK_FN_INDEX)),
-		});
+		/* name - for debugging */
+		llvm_name,
+	});
 
 	llvm::ArrayRef<llvm::Constant*> llvm_tag_initializer{llvm_tag_data};
 

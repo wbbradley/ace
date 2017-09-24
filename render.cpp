@@ -137,6 +137,14 @@ namespace ast {
 		rs.ss << type->str();
 	}
 
+	void type_link_t::render(render_state_t &rs) const {
+		rs.ss << tkstr(tk_link) << " ";
+		rs.ss << C_ID << type_name.text << " ";
+		rs.ss << finalize_fn.text << " ";
+		rs.ss << mark_fn.text;
+		newline(rs);
+	}
+
 	void typeid_expr_t::render(render_state_t &rs) const {
 		rs.ss << C_TYPE << tkstr(tk_get_typeid) << C_RESET << "(";
 		expr->render(rs);

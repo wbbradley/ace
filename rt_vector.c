@@ -2,37 +2,37 @@
 
 struct var_t *create_var(struct type_info_t *type_info);
 
-struct vector_t {
+struct __vector_t {
 	zion_int_t reserved;
 	zion_int_t size;
 	struct var_t **items;
 	// TODO: var_t _fast_items[DEFAULT_ARRAY_RESERVE];
 };
 
-struct vector_t __example_vector = {
+struct __vector_t __example_vector = {
 	.reserved = 0,
 	.size = 0,
 	.items = 0,
 };
 
-struct var_t *__vectorcreate__(struct type_info_t *typeinfo) {
+struct var_t *__vectorcreate__(type_id_t typeid, type_id_t element_typeid) {
 	struct type_info_t __vector_type_info = {
 	};
 	
-	return create_var(typeinfo);
+	return create_var(&__vector_type_info);
 }
 
-void __vectorfree__(struct vector_t *vector) {
+void __vectorfree__(struct __vector_t *vector) {
 	assert(vector != 0);
 
 	/* the gc will handle cleaning up everything that we pointed to */
 	free(vector->items);
 
-	/* zion will handle deleting the actual vector_t, since it will be attached to the managed
+	/* zion will handle deleting the actual __vector_t, since it will be attached to the managed
 	 * object */
 }
 
-struct var_t *__getvectoritem__(struct vector_t *vector, zion_int_t index) {
+struct var_t *__getvectoritem__(struct __vector_t *vector, zion_int_t index) {
 	if (index >= 0 && index < vector->size) {
 		return vector->items[index];
 	} else {
@@ -43,7 +43,7 @@ struct var_t *__getvectoritem__(struct vector_t *vector, zion_int_t index) {
 	}
 }
 
-void __setvectoritem__(struct vector_t *vector, zion_int_t index, struct var_t *item) {
+void __setvectoritem__(struct __vector_t *vector, zion_int_t index, struct var_t *item) {
 	if (index < 0) {
 	   return;
 	}
@@ -56,7 +56,7 @@ void __setvectoritem__(struct vector_t *vector, zion_int_t index, struct var_t *
 	}
 }
 
-void __vectorappend__(struct vector_t *vector, struct var_t *item) {
+void __vectorappend__(struct __vector_t *vector, struct var_t *item) {
 	if (vector->reserved > vector->size) {
 		vector->items[vector->size] = item;
 		vector->size += 1;

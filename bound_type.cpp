@@ -19,14 +19,14 @@ bound_type_t::bound_type_t(
 	llvm_type(llvm_type),
 	llvm_specific_type(llvm_specific_type)
 {
+	assert(llvm_type != nullptr);
+	assert(type->ftv_count() == 0 && "bound types should not contain type variables");
+
 	debug_above(6, log(log_info, "creating type %s with (%s, LLVM TypeID %d, %s)",
 			type->str().c_str(),
 			llvm_print(llvm_specific_type).c_str(),
 			llvm_type ? llvm_type->getTypeID() : -1,
 			location.str().c_str()));
-
-	assert(type->ftv_count() == 0 && "bound types should not contain type variables");
-	assert(llvm_type != nullptr);
 }
 
 types::type_t::ref bound_type_t::get_type() const {

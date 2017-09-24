@@ -7,6 +7,7 @@
 #include "logger.h"
 #include <iostream>
 #include "unification.h"
+#include "type_kind.h"
 
 bound_type_t::refs upsert_bound_types(
 		status_t &status,
@@ -636,7 +637,12 @@ bound_type_t::ref upsert_bound_type(
 			if (unification.result) {
 				/* this is the builtin vector type */
 				// TODO: probably find a better way to represent opaque types that need runtime treatment
-				assert(false);
+				auto bound_type = bound_type_t::create(
+						type,
+						type->get_location(),
+						scope->get_bound_type({"__var_ref"})->get_llvm_type());
+				scope->get_program_scope()->put_bound_type(status, bound_type);
+				return bound_type;
 			} else {
 				/* we believe that this type does not exist. let's build it */
 				bound_type = create_bound_type(status, builder, scope, type);
@@ -808,35 +814,42 @@ bound_var_t::ref maybe_get_dtor(
 #endif
 }
 
-bound_var_t::ref upsert_type_info(
+bound_var_t::ref upsert_type_info_mark_fn(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 		atom name,
 		location_t location,
 		bound_type_t::ref data_type,
-		bound_type_t::refs args,
 		bound_var_t::ref dtor_fn,
-		bound_var_t::ref mark_fn)
+		bound_var_t::ref mark_fn,
+		types::signature signature,
+		std::string type_info_name)
 {
-	/* first check if we have already created this type info, memoized */
-	auto program_scope = scope->get_program_scope();
-	auto signature = data_type->get_signature();
-	auto type_info_name = string_format("__type_info_%s", signature.repr().c_str());
-	auto bound_type_info_var = program_scope->get_bound_variable(status, location, type_info_name);
-	if (bound_type_info_var != nullptr) {
-		/* we found it, let's bail */
-		return bound_type_info_var;
-	}
+	assert(0);
+	return nullptr;
+}
 
+
+bound_var_t::ref upsert_type_info_offsets(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	scope_t::ref scope,
+		atom name,
+		location_t location,
+		bound_type_t::ref data_type,
+		bound_var_t::ref dtor_fn,
+		bound_type_t::refs args,
+		types::signature signature,
+		std::string type_info_name)
+{
 	llvm::Value *llvm_dtor_fn = nullptr;
-	llvm::Value *llvm_mark_fn = nullptr;
-	bound_type_t::ref type_info = program_scope->get_bound_type({"__type_info"});
+	auto program_scope = scope->get_program_scope();
+	bound_type_t::ref type_info = program_scope->get_bound_type({"__type_info_offsets"});
 
 	llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
 			type_info->get_llvm_type());
 	llvm::Type *llvm_dtor_fn_type = llvm_type_info_type->getElementType(DTOR_FN_INDEX);
-	llvm::Type *llvm_mark_fn_type = llvm_type_info_type->getElementType(MARK_FN_INDEX);
 
 	if (dtor_fn != nullptr) {
 		/* we found a dtor for this type of object */
@@ -846,16 +859,6 @@ bound_var_t::ref upsert_type_info(
 	} else {
 		/* there is no dtor, just put a NULL value in instead */
 		llvm_dtor_fn = llvm::Constant::getNullValue(llvm_dtor_fn_type);
-	}
-
-	if (mark_fn != nullptr) {
-		/* we found a mark fn for this type of object */
-		llvm_mark_fn = llvm::ConstantExpr::getBitCast(
-				(llvm::Constant *)mark_fn->get_llvm_value(), llvm_mark_fn_type);
-
-	} else {
-		/* there is no dtor, just put a NULL value in instead */
-		llvm_mark_fn = llvm::Constant::getNullValue(llvm_mark_fn_type);
 	}
 
 	llvm::Constant *llvm_type_info = nullptr;
@@ -869,6 +872,8 @@ bound_var_t::ref upsert_type_info(
 
 	/* calculate the type map */
 	std::vector<llvm::Constant *> llvm_offsets;
+	llvm::Constant *llvm_dim_offsets = nullptr;
+
 	for (size_t i=0; i<args.size(); ++i) {
 		debug_above(5, log(log_info, "args[%d] is %s",
 					i, args[i]->str().c_str()));
@@ -888,8 +893,6 @@ bound_var_t::ref upsert_type_info(
 			builder.getInt16Ty(), llvm_offsets.size());
 
 	llvm::Module *llvm_module = llvm_get_module(builder);
-
-	llvm::Constant *llvm_dim_offsets;
 
 	if (llvm_offsets.size() != 0) {
 		/* create the actual list of offsets */
@@ -914,27 +917,27 @@ bound_var_t::ref upsert_type_info(
 				signature.str().c_str(), signature.repr().iatom));
 
 	std::vector<llvm::Constant *> llvm_type_info_data({
-			/* the type_id */
-			builder.getInt32(signature.repr().iatom),
+		/* the type_id */
+		builder.getInt32(signature.repr().iatom),
 
-			/* the number of contained references */
-			builder.getInt16(llvm_offsets.size()),
+		/* allocation size */
+		llvm_sizeof_tuple,
 
-			/* the actual offsets to the managed references */
-			llvm_dim_offsets,
+		/* the kind of this type_info */
+		builder.getInt32(type_kind_use_offsets),
 
-			/* name this variable */
-			(llvm::Constant *)builder.CreateGlobalStringPtr(name.str()),
+		/* name this variable */
+		(llvm::Constant *)builder.CreateGlobalStringPtr(name.str()),
 
-			/* allocation size */
-			llvm_sizeof_tuple,
+		/* the number of contained references */
+		builder.getInt16(llvm_offsets.size()),
 
-			/* finalizer */
-			(llvm::Constant *)llvm_dtor_fn,
+		/* the actual offsets to the managed references */
+		llvm_dim_offsets,
 
-			/* mark fn */
-			(llvm::Constant *)llvm_mark_fn,
-			});
+		/* finalizer */
+		(llvm::Constant *)llvm_dtor_fn,
+	});
 
 	llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
 	check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
@@ -948,14 +951,47 @@ bound_var_t::ref upsert_type_info(
 	debug_above(5, log(log_info, "llvm_type_info = %s",
 				llvm_print(llvm_type_info).c_str()));
 	bound_type_t::ref type_info_ref = program_scope->get_bound_type({"__type_info_ref"});
-	bound_type_info_var = bound_var_t::create(
+	auto bound_type_info_var = bound_var_t::create(
 			INTERNAL_LOC(),
 			type_info_name,
 			type_info_ref,
-			llvm_type_info,
+			llvm::ConstantExpr::getPointerCast(
+				llvm_type_info,
+				type_info_ref->get_llvm_type()),
 			make_iid("type info value"));
+
 	program_scope->put_bound_variable(status, type_info_name, bound_type_info_var);
 	return bound_type_info_var;
+}
+
+bound_var_t::ref upsert_type_info(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	scope_t::ref scope,
+		atom name,
+		location_t location,
+		bound_type_t::ref data_type,
+		bound_type_t::refs args,
+		bound_var_t::ref dtor_fn,
+		bound_var_t::ref mark_fn)
+{
+	/* first check if we have already created this type info, memoized */
+	auto program_scope = scope->get_program_scope();
+	auto signature = data_type->get_signature();
+	auto type_info_name = string_format("__type_info_%s", signature.repr().c_str());
+	auto bound_type_info_var = program_scope->get_bound_variable(status, location, type_info_name);
+	if (bound_type_info_var != nullptr) {
+		/* we found it, let's bail */
+		return bound_type_info_var;
+	}
+
+	if (mark_fn != nullptr) {
+		return upsert_type_info_mark_fn(status, builder, scope, name, location, data_type, dtor_fn,
+				mark_fn, signature, type_info_name);
+	} else {
+		return upsert_type_info_offsets(status, builder, scope, name, location, data_type, dtor_fn,
+				args, signature, type_info_name);
+	}
 }
 
 
@@ -1077,30 +1113,6 @@ bound_var_t::ref get_or_create_tuple_ctor(
 						debug_above(5, log(log_info, "store %s at %s", llvm_print(*llvm_param).c_str(),
 									llvm_print(*llvm_gep).c_str()));
 						builder.CreateStore(llvm_param, llvm_gep);
-
-						if (args[index]->is_managed_ptr(scope)) {
-							debug_above(5, log(log_info, "inserting call to addref_var for member %d",
-										index));
-
-							/* addref the contained variables in this structure
-							 * because we have taken new references to them */
-							call_addref_var(
-									status,
-									builder,
-									scope,
-									bound_var_t::create(
-										INTERNAL_LOC(),
-										"temp_ctor_dim",
-										args[index],
-										llvm_param,
-										make_iid("ctor_dim_value")),
-									string_format("incrementing refcount of member %d on %s",
-										index, struct_type->str().c_str()));
-
-							if (!status) {
-								break;
-							}
-						}
 
 						++index;
 					}

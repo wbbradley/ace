@@ -56,32 +56,20 @@ void life_t::release_vars(
 		for (auto value: values) {
 			assert(value->type->is_ref());
 			llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(value->get_llvm_value());
+			/* be sure to null out any stack references as we pass out of scope so that the GC
+			 * can avoid marking this guy */
 			builder.CreateStore(
 					llvm::Constant::getNullValue(llvm_deref_type(llvm_alloca->getType())),
 					llvm_alloca);
-
-			call_release_var(
-					status,
-					builder,
-					scope,
-					value,
-					string_format("releasing vars at level %s",
-						lfstr(life_form)));
-
-			if (!status) {
-				break;
-			}
 		}
 
-		if (!!status) {
-			if (life_form_to_release_to != life_form) {
-				if (former_life != nullptr) {
-					/* recurse into former lives */
-					former_life->release_vars(status, builder, scope,
-							life_form_to_release_to);
-				} else {
-					assert(false && "We can't release to the requested life form because it doesn't exist!");
-				}
+		if (life_form_to_release_to != life_form) {
+			if (former_life != nullptr) {
+				/* recurse into former lives */
+				former_life->release_vars(status, builder, scope,
+						life_form_to_release_to);
+			} else {
+				assert(false && "We can't release to the requested life form because it doesn't exist!");
 			}
 		}
 	}
@@ -174,14 +162,6 @@ void call_refcount_func(
 			 * life as it won't have anything to clean up. */
 		}
 	}
-}
-
-void call_release_var(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, bound_var_t::ref var, std::string reason) {
-	call_refcount_func(status, builder, scope, var, reason, "__release_var");
-}
-
-void call_addref_var(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, bound_var_t::ref var, std::string reason) {
-	call_refcount_func(status, builder, scope, var, reason, "__addref_var");
 }
 
 void life_dump(ptr<const life_t> life) {

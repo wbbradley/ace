@@ -400,6 +400,18 @@ void add_global_types(
 					type_id(make_iid("__type_info_ref")),
 					INTERNAL_LOC(),
 					llvm_module_ref->getTypeByName("struct.type_info_t")->getPointerTo())},
+		/* user defined in-lang types use offsets */
+		{{"__type_info_offsets"},
+			bound_type_t::create(
+					type_id(make_iid("__type_info_offsets")),
+					INTERNAL_LOC(),
+					llvm_module_ref->getTypeByName("struct.type_info_offsets_t"))},
+		/* user defined extern types use mark_fn */
+		{{"__type_info_mark_fn"},
+			bound_type_t::create(
+					type_id(make_iid("__type_info_mark_fn")),
+					INTERNAL_LOC(),
+					llvm_module_ref->getTypeByName("struct.type_info_mark_fn_t"))},
 		{{"__var_ref"},
 			bound_type_t::create(
 					type_id(make_iid("__var_ref")),
@@ -409,12 +421,12 @@ void add_global_types(
 			bound_type_t::create(
 					type_id(make_iid("__vector")),
 					INTERNAL_LOC(),
-					llvm_module_vector->getTypeByName("struct.vector_t"))},
+					llvm_module_vector->getTypeByName("struct.__vector_t"))},
 		{{"__vector_ref"},
 			bound_type_t::create(
 					type_id(make_iid("__vector_ref")),
 					INTERNAL_LOC(),
-					llvm_module_vector->getTypeByName("struct.vector_t")->getPointerTo())},
+					llvm_module_vector->getTypeByName("struct.__vector_t")->getPointerTo())},
 		{{"__finalizer_fn_ref"},
 			bound_type_t::create(
 					type_id(make_iid("__finalizer_fn_ref")),
@@ -575,17 +587,6 @@ void add_globals(
 
 			{"__type_id_eq_type_id", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 			{"__int__", llvm_module_typeid, "__type_id_int", {TYPEID_TYPE}, INT_TYPE},
-
-			{"__addref_var", llvm_module_ref, "addref_var", {"__var_ref"
-#ifdef MEMORY_DEBUGGING
-																, STR_TYPE
-#endif
-															}, "void"},
-			{"__release_var", llvm_module_ref, "release_var", {"__var_ref"
-#ifdef MEMORY_DEBUGGING
-																  , STR_TYPE
-#endif
-															  }, "void"},
 
 			{"__mem_alloc", llvm_module_ref, "mem_alloc", {INT_TYPE}, "__bytes"},
 			{"__create_var", llvm_module_ref, "create_var", {"__type_info_ref"}, "__var_ref"},

@@ -2,6 +2,7 @@ module _
 # test: pass
 
 def foo(x any)
+	var y int
 	print(x)
 
 def main()

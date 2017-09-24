@@ -364,6 +364,23 @@ namespace ast {
 		identifier::set type_variables;
 	};
 
+	struct type_link_t : public type_algebra_t {
+		typedef ptr<const type_link_t> ref;
+
+		virtual ~type_link_t() throw() {}
+		static const syntax_kind_t SK = sk_type_alias;
+		static ref parse(parse_state_t &ps, type_decl_t::ref type_decl, identifier::refs type_variables);
+		virtual void register_type(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				identifier::ref supertype_id,
+				identifier::refs type_variables,
+				scope_t::ref scope) const;
+		virtual void render(render_state_t &rs) const;
+
+		zion_token_t type_name, finalize_fn, mark_fn;
+	};
+
 	struct type_def_t : public statement_t {
 		typedef ptr<const type_def_t> ref;
 

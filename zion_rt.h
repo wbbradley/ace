@@ -13,10 +13,12 @@ typedef double zion_float_t;
 #include <assert.h>
 #include <signal.h>
 #include "colors.h"
+#include "type_kind.h"
 
 typedef int64_t zion_int_t;
 typedef int64_t zion_bool_t;
 typedef int32_t type_id_t;
+typedef int32_t type_kind_t;
 
 #define int do_not_use_int
 #define float do_not_use_float
@@ -27,22 +29,37 @@ struct var_t;
 typedef void (*dtor_fn_t)(struct var_t *var);
 typedef void (*mark_fn_t)(struct var_t *var);
 
+#define TYPE_INFO_HEADER \
+	/* the id for the type - a unique number */ \
+	type_id_t type_id; \
+	/* the size of this managed heap allocation */ \
+	int64_t size; \
+	/* discern how memory management should perform marks */ \
+	type_kind_t type_kind;  \
+	/* a helpful name for this type */ \
+	const char *name;
+
 
 struct type_info_t {
-	/* the id for the type - a unique number */
-	type_id_t type_id;
+	TYPE_INFO_HEADER;
+};
+
+struct type_info_offsets_t {
+	TYPE_INFO_HEADER;
+
+	/* the destructor for this type, if one exists. NB: if you change the index
+	 * of this dimension, update DTOR_INDEX */
+	dtor_fn_t dtor_fn;
 
 	/* refs_count gives the type-map for memory management/ref counting. */
 	int16_t refs_count;
 
 	/* ref_offsets is the list of offsets to managed members */
 	int16_t *ref_offsets;
+};
 
-	/* a helpful name for this type */
-	const char *name;
-
-	/* the size of the allocation for memory profiling purposes */
-	int64_t size;
+struct type_info_mark_fn_t {
+	TYPE_INFO_HEADER;
 
 	/* the destructor for this type, if one exists. NB: if you change the index
 	 * of this dimension, update DTOR_INDEX */

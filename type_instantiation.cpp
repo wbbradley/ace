@@ -296,3 +296,13 @@ void ast::type_sum_t::register_type(
 
 	scope->put_typename(status, scope->make_fqn(id->get_name().str()), type);
 }
+
+void ast::type_link_t::register_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		identifier::ref supertype_id,
+		identifier::refs type_variables,
+		scope_t::ref scope) const
+{
+	assert(false);
+}

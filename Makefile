@@ -228,7 +228,7 @@ $(BUILD_DIR)/%.o: %.c
 
 %.llir: %.c
 	@echo Emitting LLIR from $<
-	@$(CLANG) -S -emit-llvm $< -o - | grep -v -e 'llvm\.ident' -e 'Apple LLVM version 6' > $@
+	@$(CLANG) -S -emit-llvm $< -o $@
 
 clean:
 	rm -rf *.llir.ir $(BUILD_DIR)/* $(TARGETS)

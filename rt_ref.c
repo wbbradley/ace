@@ -5,7 +5,9 @@
 
 const uint32_t TYPE_ID_VECTOR = -2;
 
-#define GET_CHILD_REF(var, index) (*(struct var_t **)(((char *)var) + var->type_info->ref_offsets[index]))
+#define GET_CHILD_REF(var, index) \
+	(*(struct var_t **)(((char *)var) + \
+						((struct type_info_offsets_t *)var->type_info)->ref_offsets[index]))
 
 struct var_t {
 	/* each runtime variable has a pointer to its type info */
@@ -31,18 +33,27 @@ struct tag_t {
 	/* tags don't have refcounts - as described in their refs_count of -1 */
 };
 
-/* An example tag (for use in examining LLIR) */
-struct type_info_t __tag_type_info_Example = {
+struct type_info_offsets_t __type_info_Offsets = {
 	.type_id = 42,
-	.name = "True",
+	.size = sizeof(struct type_info_offsets_t) + 0,
+	.type_kind = type_kind_use_offsets,
+	.name = "example-1",
 	.refs_count = 0,
 	.ref_offsets = 0,
-	.size = 0,
 	.dtor_fn = 0,
 };
 
+struct type_info_mark_fn_t __type_info_MarkFn = {
+	.type_id = 43,
+	.size = sizeof(struct type_info_mark_fn_t) + 0,
+	.type_kind = type_kind_use_mark_fn,
+	.name = "example-2",
+	.dtor_fn = 0,
+	.mark_fn = 0,
+};
+
 struct tag_t __tag_Example = {
-	.type_info = &__tag_type_info_Example,
+	.type_info = (struct type_info_t *)&__type_info_Offsets,
 };
 
 struct var_t *Example = (struct var_t *)&__tag_Example;
@@ -130,40 +141,6 @@ void check_node_existence(struct var_t *node, zion_bool_t should_exist) {
 	}
 }
 
-void addref_var(
-		struct var_t *var
-#ifdef MEMORY_DEBUGGING
-		, const char *reason
-#endif
-		)
-{
-#ifdef MEMORY_DEBUGGING
-	printf("attempt to addref 0x08%lx because \"%s\"\n", (intptr_t)var, reason);
-#endif
-
-	if (var == 0) {
-		return;
-	} else if (var->type_info == 0) {
-		MEM_PANIC("attempt to addref a value with a null type_info", "", 111);
-	} else if (var->type_info->refs_count >= 0) {
-#ifdef MEMORY_DEBUGGING
-		check_node_existence(var, 1 /* should_exist */);
-#endif
-
-		++var->ref_count;
-
-#ifdef MEMORY_DEBUGGING
-		printf("addref %s #%lld 0x%08lx to (%lld)\n",
-				var->type_info->name,
-				var->allocation, (intptr_t)var, var->ref_count);
-#endif
-	} else {
-#ifdef MEMORY_DEBUGGING
-		printf("attempt to addref a singleton of type %s\n", var->type_info->name);
-#endif
-	}
-}
-
 void add_node(struct var_t *node) {
 	assert(node->ref_count == 1);
 
@@ -212,78 +189,6 @@ void remove_node(struct var_t *node) {
 	node->prev = (struct var_t *)0xdeadbeef;
 
 	check_node_existence(node, 0 /* should_exist */);
-}
-
-void release_var(struct var_t *var
-#ifdef MEMORY_DEBUGGING
-		, const char *reason
-#endif
-		)
-{
-	if (var == 0) {
-		return;
-	}
-
-	assert(var->type_info != 0);
-
-#ifdef MEMORY_DEBUGGING
-	printf("attempt to release var 0x%08lx because \"%s\"\n",
-			(intptr_t)var,
-			reason);
-#endif
-
-	if (var->type_info->refs_count >= 0) {
-#ifdef MEMORY_DEBUGGING
-		check_node_existence(var, 1 /* should_exist */);
-#endif
-
-		// TODO: eliminate this assertion at some higher optimization level
-		assert(var->ref_count > 0);
-
-		// TODO: atomicize for multi-threaded purposes
-		--var->ref_count;
-
-#ifdef MEMORY_DEBUGGING
-		printf("release %s #%lld 0x%08lx to (%lld)\n",
-				var->type_info->name, var->allocation, (intptr_t)var,
-				var->ref_count);
-#endif
-
-		if (var->ref_count == 0) {
-			if (var->type_info->dtor_fn != 0) {
-				/* call the destructor if it exists */
-				var->type_info->dtor_fn(var);
-			}
-			for (int16_t i = var->type_info->refs_count - 1; i >= 0; --i) {
-				struct var_t *ref = GET_CHILD_REF(var, i);
-#ifdef MEMORY_DEBUGGING
-				printf("recursively calling release_var on offset %ld of %s which is 0x%08lx\n",
-						(intptr_t)var->type_info->ref_offsets[i],
-						var->type_info->name,
-						(intptr_t)ref);
-#endif
-				release_var(ref
-#ifdef MEMORY_DEBUGGING
-						, "release recursion"
-#endif
-						);
-			}
-
-#ifdef MEMORY_DEBUGGING
-			printf("freeing %s #%lld 0x%08lx\n",
-					var->type_info->name,
-					var->allocation,
-					(intptr_t)var);
-#endif
-			remove_node(var);
-
-			mem_free(var, var->type_info->size);
-		}
-	} else {
-#ifdef MEMORY_DEBUGGING
-		printf("attempt to release a singleton of type %s\n", var->type_info->name);
-#endif
-	}
 }
 
 zion_bool_t isnil(struct var_t *p) {
@@ -389,18 +294,34 @@ void mark_allocation(struct var_t *var) {
 		if (var->mark == 0) {
 			/* mark this node in the heap so that we break any potential cycles */
 			var->mark = 1;
+
 #ifdef MEMORY_DEBUGGING
-			printf("marking heap variable at 0x%08llx '%s'\n", (long long)var, var->type_info->name);
+			printf("marking heap variable at 0x%08llx '%s'\n", (long long)var,
+					var->type_info->name);
 #endif
 
 			assert(var->type_info);
-			/* we may be holding on to child nodes, let's recurse. */
-			int16_t refs_count = var->type_info->refs_count;
 
-			for (int16_t j = 0; j < refs_count; ++j) {
-				/* compute the offset to this referenced dimension */
-				struct var_t *child = GET_CHILD_REF(var, j);
-				mark_allocation(child);
+			type_kind_t type_kind = var->type_info->type_kind;
+			if (type_kind == type_kind_tag) {
+				/* tags don't have dependencies */
+				return;
+			} else if (var->type_info->type_kind == type_kind_use_offsets) {
+				struct type_info_offsets_t *type_info_offsets = (struct type_info_offsets_t *)var->type_info;
+
+				/* we may be holding on to child nodes, let's recurse. */
+				int16_t refs_count = type_info_offsets->refs_count;
+
+				for (int16_t j = 0; j < refs_count; ++j) {
+					/* compute the offset to this referenced dimension */
+					struct var_t *child = GET_CHILD_REF(var, j);
+					mark_allocation(child);
+				}
+			} else if (var->type_info->type_kind == type_kind_use_mark_fn) {
+				/* call the type's mark function to recurse */
+				((struct type_info_mark_fn_t *)var->type_info)->mark_fn(var);
+			} else {
+				 assert(0 && "found a heap variable with an invalid type_kind");
 			}
 		}
 	}
