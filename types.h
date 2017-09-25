@@ -276,6 +276,24 @@ namespace types {
 		virtual identifier::ref get_id() const;
 	};
 
+	struct type_extern_t : public type_t {
+		typedef ptr<const type_extern_t> ref;
+		type_extern_t(type_t::ref inner, identifier::ref link_type_name, identifier::ref dtor_fn,
+				identifier::ref finalizer);
+		type_t::ref inner;
+		identifier::ref link_type_name;
+		identifier::ref link_finalize_fn;
+		identifier::ref link_mark_fn;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
+		virtual type_t::ref rebind(const map &bindings) const;
+		virtual location_t get_location() const;
+		virtual identifier::ref get_id() const;
+	};
+
+
     identifier::ref gensym();
 };
 
@@ -298,6 +316,8 @@ types::type_t::ref type_maybe(types::type_t::ref just);
 types::type_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_ref(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body);
+types::type_t::ref type_extern(types::type_t::ref inner, identifier::ref link_type_name, identifier::ref link_finalize_fn, identifier::ref link_mark_fn);
+
 types::type_t::ref type_list_type(types::type_t::ref element);
 types::type_t::ref type_vector_type(types::type_t::ref element);
 types::type_t::ref type_strip_maybe(types::type_t::ref maybe_maybe);

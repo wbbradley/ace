@@ -237,6 +237,7 @@ struct program_scope_t : public module_scope_impl_t {
 
 	program_scope_t(
 			atom name,
+			compiler_t &compiler,
 		   	llvm::Module *llvm_module,
 		   	types::type_t::ref inbound_context,
 		   	types::type_t::ref outbound_context) :
@@ -253,6 +254,7 @@ struct program_scope_t : public module_scope_impl_t {
 	static program_scope_t::ref create(atom name, llvm::Module *llvm_module);
 
 	virtual void get_callables(atom symbol, var_t::refs &fns);
+	llvm::Type *get_llvm_type(std::string type_name);
 
 	/* this is meant to be called when we know we're looking in program scope.
 	 * this is not an implementation of get_symbol.  */
@@ -270,6 +272,7 @@ struct program_scope_t : public module_scope_impl_t {
 	virtual unchecked_var_t::refs &get_unchecked_vars_ordered();
 
 private:
+	compiler_t &compiler;
 	module_scope_t::map modules;
 	bound_type_t::map bound_types;
 	std::map<types::signature, types::signature> bound_type_mappings;

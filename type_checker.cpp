@@ -966,6 +966,58 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 				full_type->str().c_str()));
 	auto bound_type = upsert_bound_type(status, builder, scope, full_type);
 	if (!!status) {
+		types::type_t::ref expanded_type;
+
+		expanded_type = eval(type, scope->get_typename_env());
+		if (expanded_type == nullptr) {
+			expanded_type = type;
+		}
+
+		/* destructure the structure that this should have */
+		if (auto pointer = dyncast<const types::type_ptr_t>(expanded_type)) {
+			if (auto managed = dyncast<const types::type_managed_t>(pointer->element_type)) {
+				expanded_type = managed->element_type;
+			} else {
+				assert(false);
+				return null_impl();
+			}
+		} else {
+			assert(false);
+			return null_impl();
+		}
+
+		/* at this point we should have a struct type in expanded_type */
+		if (auto struct_type = dyncast<const types::type_struct_t>(expanded_type)) {
+			bound_type_t::refs args = upsert_bound_types(status,
+					builder, scope, struct_type->dimensions);
+
+			not_impl();
+		} else if (auto extern_type = dyncast<const types::type_extern_t>(expanded_type)) {
+			/* we need this in order to be able to get runtime type information into the 
+			 */
+			// TODO: we really only need the typeid. the compiler will pass that in to the runtime engine to make sure
+			// that the __vectorcreate__ (or whatever other external function needs) has it to ensure that runtime type
+			// checks happen correctly. all other runtime type information can be supplied by the data structure
+			// provider, as long as they follow the pattern
+			auto program_scope = scope->get_program_scope()
+			program_scope->get_llvm_type(extern_type->type_link_name)k
+		} else {
+			not_impl();
+		}
+			// TODO: fix this to return the right type info based on the whole type
+			bound_type_t::refs args = upsert_bound_types(status,
+					builder, scope, struct_type->dimensions);
+			return upsert_type_info(
+					status,
+					builder,
+					scope,
+				full_type->repr().c_str(),
+				type->get_location(),
+				full_type,
+				{},
+				nullptr,
+				nullptr);
+
 		auto bound_typeid = bound_var_t::create(
 				INTERNAL_LOC(),
 				std::string("typeid(") + full_type->repr() + ")",

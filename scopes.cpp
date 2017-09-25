@@ -195,6 +195,9 @@ void program_scope_t::get_callables(atom symbol, var_t::refs &fns) {
 	get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
 }
 
+llvm::Type *program_scope_t::get_llvm_type(std::string type_name) {
+}
+
 ptr<local_scope_t> function_scope_t::new_local_scope(atom name) {
 	return local_scope_t::create(name, shared_from_this(), return_type_constraint);
 }
@@ -532,8 +535,6 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 		if (dyncast<const ast::function_defn_t>(unchecked_variable->node)) {
 			iter->second.push_back(unchecked_variable);
 		} else if (dyncast<const unchecked_data_ctor_t>(unchecked_variable)) {
-			iter->second.push_back(unchecked_variable);
-		} else if (dyncast<const ast::link_function_statement_t>(unchecked_variable->node)) {
 			iter->second.push_back(unchecked_variable);
 		} else {
 			dbg();

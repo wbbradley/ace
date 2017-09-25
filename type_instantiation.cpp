@@ -300,9 +300,40 @@ void ast::type_sum_t::register_type(
 void ast::type_link_t::register_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		identifier::ref supertype_id,
+		identifier::ref id,
 		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
-	assert(false);
+	debug_above(3, log("registering type link for " c_type("%s") " link " c_type("%s")
+			   	", " c_id("%s") ", " c_id("%s"),
+				id->get_name().str().c_str(),
+				type_name.text.c_str(),
+				finalize_fn.text.c_str(),
+				mark_fn.text.c_str()));
+
+	/* first construct the inner type which will basically be a call back to the outer type.
+	 * type_links are constructed recursively - being defined by themselves - since they are not
+	 * defined inside the language. */
+	types::type_t::ref inner = type_id(id);
+	for (auto type_variable : type_variables) {
+		inner = type_operator(inner, ::type_variable(type_variable));
+	}
+		
+	/* now construct the lambda that points back to the type */
+	auto type = type_extern(inner, make_code_id(type_name), make_code_id(finalize_fn), make_code_id(mark_fn));
+	for (auto iter = type_variables.rbegin();
+			iter != type_variables.rend();
+			++iter)
+	{
+		type = ::type_lambda(*iter, type);
+	}
+
+	scope->put_typename(status, scope->make_fqn(id->get_name().str()), type);
+
+	if (!!status) {
+		return;
+	}
+
+	assert(!status);
+	return;
 }

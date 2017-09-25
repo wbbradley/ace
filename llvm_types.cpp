@@ -90,6 +90,43 @@ bound_type_t::ref create_bound_ref_type(
 	return nullptr;
 }
 
+bound_type_t::ref create_bound_extern_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		types::type_extern_t::ref type_extern)
+{
+	/* create a bound_type for a ref type */
+	ptr<program_scope_t> program_scope = scope->get_program_scope();
+
+	assert(!scope->get_bound_type(type_extern->get_signature()));
+
+	auto ftvs = type_extern->get_ftvs();
+	if (ftvs.size() != 0) {
+		user_error(status, type_extern->get_location(),
+				"unable to instantiate type %s because free variables [%s] still exist",
+				type_extern->str().c_str(),
+				join_with(ftvs, ", ", [] (atom a) -> std::string {
+					return string_format(c_id("%s"), a.c_str());
+				}).c_str());
+	}
+
+	if (!!status) {
+		auto link_type_name = type_extern->link_type_name;
+		auto var_ref_type = program_scope->get_bound_type({"__var_ref"});
+		if (!!status) {
+			auto bound_type = bound_type_t::create(type_extern,
+					type_extern->get_location(),
+					var_ref_type->get_llvm_type());
+			program_scope->put_bound_type(status, bound_type);
+			return bound_type;
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 template <typename T>
 bound_type_t::ref create_bound_ptr_type(
 		status_t &status,
@@ -606,6 +643,8 @@ bound_type_t::ref create_bound_type(
 				lambda->str().c_str());
 	} else if (auto ref = dyncast<const types::type_ref_t>(type)) {
 		return create_bound_ref_type(status, builder, scope, ref);
+	} else  if (auto extern_type = dyncast<const types::type_extern_t>(type)) {
+		return create_bound_extern_type(status, builder, scope, extern_type);
 	}
 
 	assert(!status);
@@ -628,34 +667,17 @@ bound_type_t::ref upsert_bound_type(
 			 * instantiation */
 			return bound_type;
 		} else {
-			unification_t unification = unify(
-					type_operator(type_id(make_iid(std::string("std") + SCOPE_SEP + "vector")),
-						type_variable(INTERNAL_LOC())),
-					type,
-					scope->get_typename_env());
+			/* we believe that this type does not exist. let's build it */
+			bound_type = create_bound_type(status, builder, scope, type);
 
-			if (unification.result) {
-				/* this is the builtin vector type */
-				// TODO: probably find a better way to represent opaque types that need runtime treatment
-				auto bound_type = bound_type_t::create(
-						type,
-						type->get_location(),
-						scope->get_bound_type({"__var_ref"})->get_llvm_type());
-				scope->get_program_scope()->put_bound_type(status, bound_type);
+			if (!!status) {
 				return bound_type;
-			} else {
-				/* we believe that this type does not exist. let's build it */
-				bound_type = create_bound_type(status, builder, scope, type);
-
-				if (!!status) {
-					return bound_type;
-				}
-
-				user_error(status, type->get_location(),
-						"unable to find a definition for %s in scope " c_id("%s"),
-						type->str().c_str(),
-						scope->get_name().c_str());
 			}
+
+			user_error(status, type->get_location(),
+					"unable to find a definition for %s in scope " c_id("%s"),
+					type->str().c_str(),
+					scope->get_name().c_str());
 		}
 	}
 	assert(!status);

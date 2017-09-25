@@ -701,6 +701,53 @@ namespace types {
 		return nullptr;
 	}
 
+	type_extern_t::type_extern_t(
+			types::type_t::ref inner,
+		   	identifier::ref link_type_name,
+		   	identifier::ref link_finalize_fn,
+		   	identifier::ref link_mark_fn) :
+		inner(inner),
+	   	link_type_name(link_type_name),
+	   	link_finalize_fn(link_finalize_fn),
+	   	link_mark_fn(link_mark_fn)
+	{
+	}
+
+	std::ostream &type_extern_t::emit(std::ostream &os, const map &bindings_) const {
+		os << "(extern ";
+	   	inner->emit(os, bindings_);
+		os << " " << link_type_name->get_name();
+		os << " " << link_finalize_fn->get_name();
+		os << " " << link_mark_fn->get_name();
+		return os << ")";
+	}
+
+	int type_extern_t::ftv_count() const {
+		/* pretend this is getting applied */
+		return inner->ftv_count();
+	}
+
+    atom::set type_extern_t::get_ftvs() const {
+		return inner->get_ftvs();
+	}
+
+	type_t::ref type_extern_t::rebind(const map &bindings_) const {
+		if (bindings_.size() == 0) {
+			return shared_from_this();
+		}
+
+		return ::type_extern(inner->rebind(bindings_), link_type_name, link_finalize_fn, link_mark_fn);
+	}
+
+	location_t type_extern_t::get_location() const {
+		return inner->get_location();
+	}
+
+	identifier::ref type_extern_t::get_id() const {
+		assert(false && "what is this for?");
+		return inner->get_id();
+	}
+
 	bool is_type_id(type_t::ref type, atom type_name) {
 		if (auto pti = dyncast<const types::type_id_t>(type)) {
 			return pti->id->get_name() == type_name;
@@ -871,6 +918,10 @@ types::type_t::ref type_ref(types::type_t::ref raw) {
 
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body) {
 	return make_ptr<types::type_lambda_t>(binding, body);
+}
+
+types::type_t::ref type_extern(types::type_t::ref inner, identifier::ref link_type_name, identifier::ref link_finalize_fn, identifier::ref link_mark_fn) {
+	return make_ptr<types::type_extern_t>(inner, link_type_name, link_finalize_fn, link_mark_fn);
 }
 
 types::type_t::ref type_list_type(types::type_t::ref element) {
