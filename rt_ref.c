@@ -9,30 +9,6 @@ const uint32_t TYPE_ID_VECTOR = -2;
 	(*(struct var_t **)(((char *)var) + \
 						((struct type_info_offsets_t *)var->type_info)->ref_offsets[index]))
 
-struct var_t {
-	/* each runtime variable has a pointer to its type info */
-	struct type_info_t *type_info;
-
-	/* and a ref-count of its own */
-	int32_t ref_count : 31;
-	int32_t mark      :  1;
-
-	struct var_t *next;
-	struct var_t *prev;
-
-	int64_t allocation;
-
-	//////////////////////////////////////
-	// THE ACTUAL DATA IS APPENDED HERE //
-	//////////////////////////////////////
-};
-
-struct tag_t {
-	struct type_info_t *type_info;
-
-	/* tags don't have refcounts - as described in their refs_count of -1 */
-};
-
 struct type_info_offsets_t __type_info_Offsets = {
 	.type_id = 42,
 	.size = sizeof(struct type_info_offsets_t) + 0,

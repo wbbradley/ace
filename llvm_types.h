@@ -64,4 +64,14 @@ bound_type_t::ref get_function_return_type(
 		scope_t::ref scope,
 		bound_type_t::ref function_type);
 
+bound_var_t::ref upsert_type_info(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	scope_t::ref scope,
+		atom name,
+		location_t location,
+		bound_type_t::ref data_type,
+		bound_type_t::refs args,
+		bound_var_t::ref dtor_fn,
+		bound_var_t::ref mark_fn);
 llvm::Value *llvm_make_gep(llvm::IRBuilder<> &builder, llvm::Value *llvm_value, int index, bool managed);

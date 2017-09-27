@@ -7,6 +7,7 @@
 #include "llvm_utils.h"
 #include "llvm_types.h"
 #include "unification.h"
+#include "compiler.h"
 
 const char *GLOBAL_ID = "_";
 const token_kind SCOPE_TK = tk_divide_by;
@@ -195,7 +196,24 @@ void program_scope_t::get_callables(atom symbol, var_t::refs &fns) {
 	get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
 }
 
-llvm::Type *program_scope_t::get_llvm_type(std::string type_name) {
+llvm::Type *program_scope_t::get_llvm_type(status_t &status, location_t location, std::string type_name) {
+	for (auto &module_pair : compiler.llvm_modules) {
+		debug_above(4, log("looking for %s in module %s",
+					type_name.c_str(),
+					module_pair.first.c_str()));
+		auto &llvm_module = module_pair.second;
+		llvm::Type *llvm_type = llvm_module->getTypeByName(type_name);
+		if (llvm_type != nullptr) {
+			return llvm_type;
+		}
+	}
+
+	user_error(status, location, "couldn't find type " c_type("%s"), type_name.c_str());
+	return nullptr;
+}
+
+llvm::Type *program_scope_t::get_llvm_function(status_t &status, location_t location, std::string function_name) {
+	return null_impl();
 }
 
 ptr<local_scope_t> function_scope_t::new_local_scope(atom name) {
@@ -674,11 +692,11 @@ llvm::Module *generic_substitution_scope_t::get_llvm_module() {
 	return get_parent_scope()->get_llvm_module();
 }
 
-program_scope_t::ref program_scope_t::create(atom name, llvm::Module *llvm_module) {
+program_scope_t::ref program_scope_t::create(atom name, compiler_t &compiler, llvm::Module *llvm_module) {
 	auto inbound_context = ::type_module(type_id(make_iid(GLOBAL_ID)));
 	auto outbound_context = inbound_context;
 
-	return make_ptr<program_scope_t>(name, llvm_module, inbound_context, outbound_context);
+	return make_ptr<program_scope_t>(name, compiler, llvm_module, inbound_context, outbound_context);
 }
 
 generic_substitution_scope_t::ref generic_substitution_scope_t::create(

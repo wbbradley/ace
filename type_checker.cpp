@@ -968,11 +968,13 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 	if (!!status) {
 		types::type_t::ref expanded_type;
 
-		expanded_type = eval(type, scope->get_typename_env());
+		expanded_type = eval(full_type, scope->get_typename_env());
 		if (expanded_type == nullptr) {
-			expanded_type = type;
+			expanded_type = full_type;
 		}
 
+		debug_above(3, log("type evaluated to %s", expanded_type->str().c_str()));
+		
 		/* destructure the structure that this should have */
 		if (auto pointer = dyncast<const types::type_ptr_t>(expanded_type)) {
 			if (auto managed = dyncast<const types::type_managed_t>(pointer->element_type)) {
@@ -981,36 +983,44 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 				assert(false);
 				return null_impl();
 			}
-		} else {
-			assert(false);
-			return null_impl();
-		}
+		} 
 
 		/* at this point we should have a struct type in expanded_type */
 		if (auto struct_type = dyncast<const types::type_struct_t>(expanded_type)) {
 			bound_type_t::refs args = upsert_bound_types(status,
 					builder, scope, struct_type->dimensions);
 
-			not_impl();
-		} else if (auto extern_type = dyncast<const types::type_extern_t>(expanded_type)) {
-			/* we need this in order to be able to get runtime type information into the 
-			 */
-			// TODO: we really only need the typeid. the compiler will pass that in to the runtime engine to make sure
-			// that the __vectorcreate__ (or whatever other external function needs) has it to ensure that runtime type
-			// checks happen correctly. all other runtime type information can be supplied by the data structure
-			// provider, as long as they follow the pattern
-			auto program_scope = scope->get_program_scope()
-			program_scope->get_llvm_type(extern_type->type_link_name)k
-		} else {
-			not_impl();
-		}
-			// TODO: fix this to return the right type info based on the whole type
-			bound_type_t::refs args = upsert_bound_types(status,
-					builder, scope, struct_type->dimensions);
+			// TODO: find the dtor
 			return upsert_type_info(
 					status,
 					builder,
 					scope,
+					struct_type->repr().c_str(),
+					full_type->get_location(),
+					bound_type,
+					args,
+					nullptr,
+					nullptr);
+		} else if (auto extern_type = dyncast<const types::type_extern_t>(expanded_type)) {
+			/* we need this in order to be able to get runtime type information */
+			auto program_scope = scope->get_program_scope();
+			auto llvm_linked_type = program_scope->get_llvm_type(
+					status,
+					token.location,
+					std::string("struct.") + extern_type->link_type_name->get_name().str());
+			if (!!status) {
+				std::cerr << llvm_print(llvm_linked_type) << std::endl;
+				not_impl();
+			}
+		} else {
+			not_impl();
+		}
+
+#if 0
+		return upsert_type_info(
+				status,
+				builder,
+				scope,
 				full_type->repr().c_str(),
 				type->get_location(),
 				full_type,
@@ -1024,7 +1034,10 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 				scope->get_bound_type(TYPEID_TYPE),
 				llvm_create_int32(builder, bound_type->get_signature().repr().iatom),
 				make_code_id(token));
-		return bound_typeid;
+#endif
+
+		assert(!status);
+		return nullptr;
 	}
 
 	assert(!status);

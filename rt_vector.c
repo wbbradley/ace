@@ -3,21 +3,22 @@
 struct var_t *create_var(struct type_info_t *type_info);
 
 struct __vector_t {
+	/* the managed portion of the heap allocated object */
+	struct var_t var;
+
+	/* the vector-specific parts */
 	zion_int_t reserved;
 	zion_int_t size;
 	struct var_t **items;
 	// TODO: var_t _fast_items[DEFAULT_ARRAY_RESERVE];
 };
 
-struct __vector_t __example_vector = {
-	.reserved = 0,
-	.size = 0,
-	.items = 0,
+struct __vector_t __example_vector = {0};
+
+static struct type_info_t __vector_type_info = {
 };
 
 struct var_t *__vectorcreate__(type_id_t typeid, type_id_t element_typeid) {
-	struct type_info_t __vector_type_info = {
-	};
 	
 	return create_var(&__vector_type_info);
 }

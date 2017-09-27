@@ -22,6 +22,7 @@ enum resolution_constraints_t {
 	rc_capture_level,
 };
 
+struct compiler_t;
 struct program_scope_t;
 struct module_scope_t;
 struct function_scope_t;
@@ -241,7 +242,8 @@ struct program_scope_t : public module_scope_impl_t {
 		   	llvm::Module *llvm_module,
 		   	types::type_t::ref inbound_context,
 		   	types::type_t::ref outbound_context) :
-	   	module_scope_impl_t(name, nullptr, llvm_module, inbound_context, outbound_context) {}
+	   	module_scope_impl_t(name, nullptr, llvm_module, inbound_context, outbound_context),
+		compiler(compiler) {}
 
 	program_scope_t() = delete;
 	virtual ~program_scope_t() throw() {}
@@ -251,10 +253,11 @@ struct program_scope_t : public module_scope_impl_t {
 
 	ptr<module_scope_t> new_module_scope(atom name, llvm::Module *llvm_module);
 
-	static program_scope_t::ref create(atom name, llvm::Module *llvm_module);
+	static program_scope_t::ref create(atom name, compiler_t &compiler, llvm::Module *llvm_module);
 
 	virtual void get_callables(atom symbol, var_t::refs &fns);
-	llvm::Type *get_llvm_type(std::string type_name);
+	llvm::Type *get_llvm_type(status_t &status, location_t location, std::string type_name);
+	llvm::Type *get_llvm_function(status_t &status, location_t location, std::string function_name);
 
 	/* this is meant to be called when we know we're looking in program scope.
 	 * this is not an implementation of get_symbol.  */
