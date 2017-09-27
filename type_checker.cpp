@@ -1010,7 +1010,21 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 					std::string("struct.") + extern_type->link_type_name->get_name().str());
 			if (!!status) {
 				std::cerr << llvm_print(llvm_linked_type) << std::endl;
-				not_impl();
+				auto llvm_finalize_fn = program_scope->get_llvm_function(
+						status,
+						token.location,
+						extern_type->link_finalize_fn->get_name().str());
+				if (!!status) {
+					std::cerr << llvm_print(llvm_finalize_fn) << std::endl;
+					auto llvm_mark_fn = program_scope->get_llvm_function(
+							status,
+							token.location,
+							extern_type->link_mark_fn->get_name().str());
+					if (!!status) {
+						std::cerr << llvm_print(llvm_mark_fn) << std::endl;
+						not_impl();
+					}
+				}
 			}
 		} else {
 			not_impl();

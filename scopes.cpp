@@ -198,7 +198,7 @@ void program_scope_t::get_callables(atom symbol, var_t::refs &fns) {
 
 llvm::Type *program_scope_t::get_llvm_type(status_t &status, location_t location, std::string type_name) {
 	for (auto &module_pair : compiler.llvm_modules) {
-		debug_above(4, log("looking for %s in module %s",
+		debug_above(4, log("looking for type " c_type("%s") " in module " C_FILENAME "%s" C_RESET,
 					type_name.c_str(),
 					module_pair.first.c_str()));
 		auto &llvm_module = module_pair.second;
@@ -212,8 +212,20 @@ llvm::Type *program_scope_t::get_llvm_type(status_t &status, location_t location
 	return nullptr;
 }
 
-llvm::Type *program_scope_t::get_llvm_function(status_t &status, location_t location, std::string function_name) {
-	return null_impl();
+llvm::Function *program_scope_t::get_llvm_function(status_t &status, location_t location, std::string function_name) {
+	for (auto &module_pair : compiler.llvm_modules) {
+		debug_above(4, log("looking for function " c_var("%s") " in module " C_FILENAME "%s" C_RESET,
+					function_name.c_str(),
+					module_pair.first.c_str()));
+		auto &llvm_module = module_pair.second;
+		llvm::Function *llvm_function = llvm_module->getFunction(function_name);
+		if (llvm_function != nullptr) {
+			return llvm_function;
+		}
+	}
+
+	user_error(status, location, "couldn't find function " c_var("%s"), function_name.c_str());
+	return nullptr;
 }
 
 ptr<local_scope_t> function_scope_t::new_local_scope(atom name) {
