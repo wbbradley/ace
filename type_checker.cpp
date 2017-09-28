@@ -1004,6 +1004,16 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 		} else if (auto extern_type = dyncast<const types::type_extern_t>(expanded_type)) {
 			/* we need this in order to be able to get runtime type information */
 			auto program_scope = scope->get_program_scope();
+			std::string type_info_var_name = std::string("__type_info_") + extern_type->repr();
+
+			/* before we go create this type info, let's see if it already exists */
+			auto bound_type_info = program_scope->maybe_get_bound_variable(type_info_var_name);
+			if (bound_type_info != nullptr) {
+				/* we've already created this bound type info, so let's just return it */
+				return bound_type_info;
+			}
+
+			/* we have to create it */
 			auto llvm_linked_type = program_scope->get_llvm_type(
 					status,
 					token.location,

@@ -258,6 +258,7 @@ struct program_scope_t : public module_scope_impl_t {
 	virtual void get_callables(atom symbol, var_t::refs &fns);
 	llvm::Type *get_llvm_type(status_t &status, location_t location, std::string type_name);
 	llvm::Function *get_llvm_function(status_t &status, location_t location, std::string function_name);
+	bound_var_t::ref maybe_get_bound_variable(atom symbol);
 
 	/* this is meant to be called when we know we're looking in program scope.
 	 * this is not an implementation of get_symbol.  */

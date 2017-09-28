@@ -23,14 +23,27 @@ struct var_t *__vectorcreate__(type_id_t typeid, type_id_t element_typeid) {
 	return create_var(&__vector_type_info);
 }
 
-void __vectorfree__(struct __vector_t *vector) {
-	assert(vector != 0);
+void __vectorfree__(struct var_t *var) {
+	assert(var != 0);
+	struct __vector_t *vector = (struct __vector_t *)var;
 
-	/* the gc will handle cleaning up everything that we pointed to */
+	/* the gc will handle cleaning up everything that we pointed to, but we need to free up our extra allocated heap
+	 * space. */
 	free(vector->items);
 
 	/* zion will handle deleting the actual __vector_t, since it will be attached to the managed
 	 * object */
+}
+
+void mark_allocation(struct var_t *var);
+
+void __vectormark__(struct var_t *var) {
+	assert(var != 0);
+	struct __vector_t *vector = (struct __vector_t *)var;
+	struct var_t **items = vector->items;
+	for (zion_int_t index = 0, end = vector->size; index < end; ++index) {
+		mark_allocation(items[index]);
+	}
 }
 
 struct var_t *__getvectoritem__(struct __vector_t *vector, zion_int_t index) {
