@@ -14,6 +14,7 @@
 #include "code_id.h"
 #include "patterns.h"
 #include <iostream>
+#include "type_kind.h"
 
 /*
  * The basic idea here is that type checking is a graph operation which can be
@@ -1032,7 +1033,55 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 							extern_type->link_mark_fn->get_name().str());
 					if (!!status) {
 						std::cerr << llvm_print(llvm_mark_fn) << std::endl;
-						not_impl();
+
+						bound_type_t::ref type_info = program_scope->get_bound_type({"__type_info_mark_fn"});
+						llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
+								type_info->get_llvm_type());
+
+						llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
+						auto signature = extern_type->get_signature();
+						std::vector<llvm::Constant *> llvm_type_info_data({
+							/* the type_id */
+							builder.getInt32(signature.iatom),
+
+							/* allocation size */
+							llvm_sizeof_tuple,
+
+							/* the kind of this type_info */
+							builder.getInt32(type_kind_use_mark_fn),
+
+							/* name this variable */
+							(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
+
+							/* finalize_fn */
+							(llvm::Constant *)llvm_finalize_fn,
+
+							/* mark_fn */
+							(llvm::Constant *)llvm_mark_fn,
+						});
+						llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
+						check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
+						llvm::Module *llvm_module = llvm_get_module(builder);
+						llvm::Constant *llvm_type_info = llvm_get_global(
+								llvm_module, string_format("__type_info_%s", signature.c_str()),
+								llvm::ConstantStruct::get(llvm_type_info_type,
+									llvm_type_info_data),
+								true /*is_constant*/);
+
+						debug_above(5, log(log_info, "llvm_type_info = %s",
+									llvm_print(llvm_type_info).c_str()));
+						bound_type_t::ref type_info_ref = program_scope->get_bound_type({"__type_info_ref"});
+						auto bound_type_info_var = bound_var_t::create(
+								INTERNAL_LOC(),
+								type_info_var_name,
+								type_info_ref,
+								llvm::ConstantExpr::getPointerCast(
+									llvm_type_info,
+									type_info_ref->get_llvm_type()),
+								make_iid("type info value"));
+
+						program_scope->put_bound_variable(status, type_info_var_name, bound_type_info_var);
+						return bound_type_info_var;
 					}
 				}
 			}

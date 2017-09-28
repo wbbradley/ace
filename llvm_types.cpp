@@ -951,14 +951,14 @@ bound_var_t::ref upsert_type_info_offsets(
 		/* name this variable */
 		(llvm::Constant *)builder.CreateGlobalStringPtr(name.str()),
 
+		/* finalizer */
+		(llvm::Constant *)llvm_dtor_fn,
+
 		/* the number of contained references */
 		builder.getInt16(llvm_offsets.size()),
 
 		/* the actual offsets to the managed references */
 		llvm_dim_offsets,
-
-		/* finalizer */
-		(llvm::Constant *)llvm_dtor_fn,
 	});
 
 	llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
