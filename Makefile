@@ -226,7 +226,7 @@ $(BUILD_DIR)/%.o: %.c
 	@$(CPP) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
 	@$(CC) $(CFLAGS) $< -o $@
 
-%.llir: %.c
+%.llir: %.c zion_rt.h
 	@echo Emitting LLIR from $<
 	@$(CLANG) -S -emit-llvm $< -o $@
 

@@ -386,25 +386,25 @@ namespace ast {
 
 			while (!ps.line_broke() && (ps.token.tk == tk_lsquare || ps.token.tk == tk_lparen || ps.token.tk == tk_dot)) {
 				if (ps.token.tk == tk_lparen) {
-					if (auto ref_expr = dyncast<reference_expr_t>(expr)) {
-						if (ref_expr->token.text == "typeinfo") {
-							/* override the typeinfo keyword */
-							return typeinfo_expr_t::parse(ps);
+					auto ref_expr = dyncast<reference_expr_t>(expr);
+					if (ref_expr != nullptr && ref_expr->token.text == "typeinfo") {
+						/* override the typeinfo keyword */
+						expr = typeinfo_expr_t::parse(ps);
+					} else {
+						/* function call */
+						auto callsite = create<callsite_expr_t>(ps.token);
+						auto params = param_list_t::parse(ps);
+						if (params) {
+							callsite->params.swap(params);
+							callsite->function_expr.swap(expr);
+							assert(expr == nullptr);
+							expr = callsite;
+						} else {
+							assert(!ps.status);
 						}
 					}
-
-					/* function call */
-					auto callsite = create<callsite_expr_t>(ps.token);
-					auto params = param_list_t::parse(ps);
-					if (params) {
-						callsite->params.swap(params);
-						callsite->function_expr.swap(expr);
-						assert(expr == nullptr);
-						expr = callsite;
-					} else {
-						assert(!ps.status);
-					}
 				}
+
 				if (ps.token.tk == tk_dot) {
 					auto dot_expr = create<ast::dot_expr_t>(ps.token);
 					eat_token();
@@ -415,6 +415,7 @@ namespace ast {
 					assert(expr == nullptr);
                     expr = dot_expr;
 				}
+
 				if (ps.token.tk == tk_lsquare) {
 					eat_token();
 					auto array_index_expr = create<ast::array_index_expr_t>(ps.token);

@@ -4,7 +4,7 @@ struct var_t *create_var(struct type_info_t *type_info);
 
 struct __vector_t {
 	/* the managed portion of the heap allocated object */
-	struct var_t var;
+	VAR_CONTENTS;
 
 	/* the vector-specific parts */
 	zion_int_t reserved;
@@ -14,14 +14,6 @@ struct __vector_t {
 };
 
 struct __vector_t __example_vector = {0};
-
-static struct type_info_t __vector_type_info = {
-};
-
-struct var_t *__vectorcreate__(type_id_t typeid, type_id_t element_typeid) {
-	
-	return create_var(&__vector_type_info);
-}
 
 void __vectorfree__(struct var_t *var) {
 	assert(var != 0);

@@ -22,16 +22,12 @@ types::type_t::ref module_scope_impl_t::get_outbound_context() {
 	return outbound_context;
 }
 
-bound_var_t::ref program_scope_t::maybe_get_bound_variable(atom symbol) {
-	return null_impl();
-}
-
 bound_var_t::ref get_bound_variable_from_scope(
 		status_t &status,
 		location_t location,
 		atom scope_name,
 		atom symbol,
-		bound_var_t::map bound_vars,
+		const bound_var_t::map &bound_vars,
 		scope_t::ref parent_scope)
 {
 	auto iter = bound_vars.find(symbol);
