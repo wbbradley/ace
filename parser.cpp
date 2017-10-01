@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string>
+#include "logger.h"
 #include "ast.h"
 #include "token.h"
 #include "logger_decls.h"
@@ -43,6 +44,7 @@ bool token_begins_type(token_kind tk) {
 	return (
 			tk == tk_times ||
 			tk == tk_has ||
+			tk == tk_struct ||
 			tk == tk_def ||
 			tk == tk_any ||
 			tk == tk_identifier ||
@@ -1310,6 +1312,7 @@ types::type_t::ref _parse_single_type(
 		}
 		break;
 	case tk_has:
+	case tk_struct:
 		{
 			ps.advance();
 
@@ -1327,6 +1330,9 @@ types::type_t::ref _parse_single_type(
 					ps.advance();
 					expect_token(tk_identifier);
 					var_token = ps.token;
+					if (name_index.find(var_token.text) != name_index.end()) {
+						ps.error("name " c_id("%s") " already exists in type", var_token.text.c_str());
+					}
 					name_index[var_token.text] = index++;
 					ps.advance();
 				} else {
@@ -1576,6 +1582,9 @@ type_algebra_t::ref type_algebra_t::parse(
 		parse_state_t &ps,
 		ast::type_decl_t::ref type_decl)
 {
+	INDENT(8, string_format("parsing type algebra for %s",
+				type_decl->token.text.c_str()));
+
 	switch (ps.token.tk) {
 	case tk_is:
 		return type_sum_t::parse(ps, type_decl, type_decl->type_variables);
@@ -1637,7 +1646,11 @@ type_product_t::ref type_product_t::parse(
 		bool native)
 {
 	identifier::set generics = to_identifier_set(type_variables);
-	expect_token(tk_has);
+	if (native) {
+		expect_token(tk_struct);
+	} else {
+		expect_token(tk_has);
+	}
 	auto type = _parse_single_type(ps, {}, {}, generics);
 	return create<type_product_t>(type_decl->token, native, type, generics);
 }

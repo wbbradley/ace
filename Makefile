@@ -150,7 +150,6 @@ ZION_RUNTIME = \
 				rt_fn.c \
 				rt_float.c \
 				rt_str.c \
-				rt_ref.c \
 				rt_typeid.c
 
 ZION_RUNTIME_LLIR = $(ZION_RUNTIME:.c=.llir)
@@ -160,14 +159,6 @@ TARGETS = $(ZION_TARGET)
 all: $(TARGETS)
 
 -include $(ZION_LLVM_OBJECTS:.o=.d)
-
-rt_int.c: zion_rt.h
-
-rt_float.c: zion_rt.h
-
-rt_str.c: zion_rt.h
-
-rt_ref.c: zion_rt.h
 
 $(BUILD_DIR)/.gitignore:
 	mkdir -p $(BUILD_DIR)

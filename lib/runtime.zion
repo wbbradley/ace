@@ -1,9 +1,10 @@
-module zrt
+module runtime
 
-# the zion garbage collector
+# the zion runtime and garbage collector
 
-var TYPE_ID_VECTOR __int32__ = -2
-var __debug_zion_runtime __int__ = 0
+var TYPE_ID_VECTOR __int32__ = -2r
+var __debug_zion_runtime __int__ = 0r
+var nil *var_t = 0r as *var_t
 
 #define GET_CHILD_REF(var, index) \
 #           (*(struct var_t **)(((char *)var) + \
@@ -30,7 +31,7 @@ type type_info_offsets_t struct
 	var type_info_head type_info_t
 	var finalize_fn def (v *var_t) void
 	var refs_count __int16__
-	var ref_offsets __int16__[0]
+	var ref_offsets *__int16__
 
 type type_info_mark_fn_t struct
 	var type_info_head type_info_t
@@ -41,7 +42,7 @@ type type_info_mark_fn_t struct
 
 	# the mark function for this type, if one exists. NB: if you change the index
 	# of this dimension, update MARK_FN_INDEX
-	var finalize_fn def (v *var_t) void
+	var mark_fn def (v *var_t) void
 
 type tag_t struct
 	var type_info *type_info_t

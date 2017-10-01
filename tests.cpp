@@ -709,9 +709,8 @@ bool check_compiler_error(std::string module_name, int &skipped) {
 	compiler_t compiler(module_name, {".", "lib", "tests"});
 	bool result = _check_compiler_error(compiler, skipped);
 	if (!result) {
-		log(log_info, "\n--- " c_internal("test program listing") " of " c_module("%s") " ---\n%s",
-				module_name.c_str(),
-				compiler.dump_program_text(module_name).c_str());
+		log(log_warning, c_internal("test failed") " for module " c_module("%s") " ---",
+				module_name.c_str());
 	}
 	return result;
 }

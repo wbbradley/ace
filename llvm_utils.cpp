@@ -854,3 +854,29 @@ bool llvm_value_is_pointer(llvm::Value *llvm_value) {
     llvm::Type *llvm_type = llvm_value->getType();
     return llvm_type->isPointerTy();
 }
+
+bound_var_t::ref get_nil_constant(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		location_t location,
+		types::type_t::ref type)
+{
+	if (!types::is_ptr(type, scope->get_typename_env())) {
+		user_error(status, location, c_id("nil") " is not defined for non-pointer types");
+	}
+
+	if (!!status) {
+		bound_type_t::ref var_type = upsert_bound_type(status, builder, scope, type);
+		if (!!status) {
+			llvm::Type *llvm_nil_type = var_type->get_llvm_type();
+			llvm::Constant *llvm_nil_value = llvm::Constant::getNullValue(llvm_nil_type);
+			program_scope_t::ref program_scope = scope->get_program_scope();
+			return bound_var_t::create(INTERNAL_LOC(), "nil",
+					var_type, llvm_nil_value, make_iid("nil"));
+		}
+	}
+	assert(!status);
+	return nullptr;
+}
+

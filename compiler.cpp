@@ -304,7 +304,6 @@ void add_global_types(
 		compiler_t &compiler,
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
-		llvm::Module *llvm_module_ref,
 		llvm::Module *llvm_module_vector)
 {
 	/* let's add the builtin types to the program scope */
@@ -370,11 +369,6 @@ void add_global_types(
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty()->getPointerTo()->getPointerTo())},
 
-		/* pull in the garbage collection and memory reference types */
-		{{"__tag_var"},
-			bound_type_t::create(type_id(make_iid("__tag_var")),
-					INTERNAL_LOC(),
-					llvm_module_ref->getTypeByName("struct.tag_t"))},
 		{{TYPEID_TYPE},
 			bound_type_t::create(
 					type_id(make_iid(TYPEID_TYPE)),
@@ -385,38 +379,6 @@ void add_global_types(
 					type_id(make_iid("__byte_count")),
 					INTERNAL_LOC(),
 					builder.getInt64Ty())},
-		{{"__var"},
-			bound_type_t::create(
-					type_id(make_iid("__var")),
-					INTERNAL_LOC(),
-					llvm_module_ref->getTypeByName("struct.var_t"))},
-		{{"__type_info"},
-			bound_type_t::create(
-					type_id(make_iid("__type_info")),
-					INTERNAL_LOC(),
-					llvm_module_ref->getTypeByName("struct.type_info_t"))},
-		{{"__type_info_ref"},
-			bound_type_t::create(
-					type_id(make_iid("__type_info_ref")),
-					INTERNAL_LOC(),
-					llvm_module_ref->getTypeByName("struct.type_info_t")->getPointerTo())},
-		/* user defined in-lang types use offsets */
-		{{"__type_info_offsets"},
-			bound_type_t::create(
-					type_id(make_iid("__type_info_offsets")),
-					INTERNAL_LOC(),
-					llvm_module_ref->getTypeByName("struct.type_info_offsets_t"))},
-		/* user defined extern types use mark_fn */
-		{{"__type_info_mark_fn"},
-			bound_type_t::create(
-					type_id(make_iid("__type_info_mark_fn")),
-					INTERNAL_LOC(),
-					llvm_module_ref->getTypeByName("struct.type_info_mark_fn_t"))},
-		{{"__var_ref"},
-			bound_type_t::create(
-					type_id(make_iid("__var_ref")),
-					INTERNAL_LOC(),
-					llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
 		{{"__vector"},
 			bound_type_t::create(
 					type_id(make_iid("__vector")),
@@ -427,38 +389,6 @@ void add_global_types(
 					type_id(make_iid("__vector_ref")),
 					INTERNAL_LOC(),
 					llvm_module_vector->getTypeByName("struct.__vector_t")->getPointerTo())},
-		{{"__finalize_fn"},
-			bound_type_t::create(
-					type_id(make_iid("__finalize_fn")),
-					INTERNAL_LOC(),
-					llvm::FunctionType::get(
-						builder.getVoidTy(),
-						llvm::ArrayRef<llvm::Type*>(
-							std::vector<llvm::Type*>{
-								llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo()
-							}),
-						false /*isVarArg*/))},
-		{{"__mark_fn"},
-			bound_type_t::create(
-					type_id(make_iid("__mark_fn")),
-					INTERNAL_LOC(),
-					llvm::FunctionType::get(
-						builder.getVoidTy(),
-						llvm::ArrayRef<llvm::Type*>(
-							std::vector<llvm::Type*>{
-								llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo()
-							}),
-						false /*isVarArg*/))},
-		{{"nil"},
-			bound_type_t::create(
-					type_id(make_iid("nil")),
-					INTERNAL_LOC(),
-					llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
-		{{BUILTIN_UNREACHABLE_TYPE},
-			bound_type_t::create(
-					type_unreachable(),
-					INTERNAL_LOC(),
-					llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo())},
 		{{"__bytes"},
 			bound_type_t::create(
 					type_id(make_iid("__bytes")),
@@ -487,13 +417,12 @@ void add_globals(
 	auto llvm_module_int = compiler.llvm_load_ir(status, "rt_int.llir");
 	auto llvm_module_float = compiler.llvm_load_ir(status, "rt_float.llir");
 	auto llvm_module_str = compiler.llvm_load_ir(status, "rt_str.llir");
-	auto llvm_module_ref = compiler.llvm_load_ir(status, "rt_ref.llir");
 	auto llvm_module_vector = compiler.llvm_load_ir(status, "rt_vector.llir");
 	auto llvm_module_typeid = compiler.llvm_load_ir(status, "rt_typeid.llir");
 
 	/* set up the global scalar types, as well as memory reference and garbage
 	 * collection types */
-	add_global_types(status, compiler, builder, program_scope, llvm_module_ref,
+	add_global_types(status, compiler, builder, program_scope,
 			llvm_module_vector);
 	assert(!!status);
 
@@ -508,14 +437,6 @@ void add_globals(
 	assert(!!status);
 
 	program_scope->put_bound_variable(status, "__false__", bound_var_t::create(INTERNAL_LOC(), "__false__", bool_type, builder.getInt64(0/*false*/), make_iid("__false__")));
-	assert(!!status);
-
-	/* get the nil pointer value cast as our __var_ref type */
-	llvm::Type *llvm_nil_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
-	llvm::Constant *llvm_nil_value = llvm::Constant::getNullValue(llvm_nil_type);
-	program_scope->put_bound_variable(
-			status, "nil", bound_var_t::create(INTERNAL_LOC(), "nil",
-				nil_type, llvm_nil_value, make_iid("nil")));
 	assert(!!status);
 
 	if (!!status) {
@@ -598,11 +519,6 @@ void add_globals(
 
 			{"__type_id_eq_type_id", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 			{"__int__", llvm_module_typeid, "__type_id_int", {TYPEID_TYPE}, INT_TYPE},
-
-			{"__mem_alloc", llvm_module_ref, "mem_alloc", {INT_TYPE}, "__bytes"},
-			{"__create_var", llvm_module_ref, "create_var", {"__type_info_ref"}, "__var_ref"},
-			{"__get_var_type_id", llvm_module_ref, "get_var_type_id", {"__var_ref"}, TYPEID_TYPE},
-			{"__isnil", llvm_module_ref, "isnil", {"__var_ref"}, BOOL_TYPE},
 		};
 
 		for (auto &binding : bindings) {

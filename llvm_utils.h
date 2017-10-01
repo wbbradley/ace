@@ -129,3 +129,9 @@ bound_var_t::ref llvm_stack_map_value(
         bound_var_t::ref value);
 bool llvm_value_is_handle(llvm::Value *llvm_value);
 bool llvm_value_is_pointer(llvm::Value *llvm_value);
+bound_var_t::ref get_nil_constant(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		location_t location,
+		types::type_t::ref type);
