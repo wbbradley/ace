@@ -4,6 +4,7 @@
 #include "zion_rt.h"
 
 const uint32_t TYPE_ID_VECTOR = -2;
+zion_int_t __debug_zion_runtime = 0;
 
 #define GET_CHILD_REF(var, index) \
 	(*(struct var_t **)(((char *)var) + \
@@ -86,10 +87,8 @@ static size_t _all_bytes_allocated = 0;
 void *mem_alloc(zion_int_t cb) {
 	_bytes_allocated += cb;
 	_all_bytes_allocated += cb;
-#ifdef MEMORY_DEBUGGING
-	printf("memory allocation is at %ld %ld\n", _bytes_allocated,
-			_all_bytes_allocated);
-#endif
+	dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated,
+			_all_bytes_allocated));
 
 	return calloc(cb, 1);
 }
@@ -97,10 +96,8 @@ void *mem_alloc(zion_int_t cb) {
 void mem_free(void *p, size_t cb) {
 	_bytes_allocated -= cb;
 	free(p);
-#ifdef MEMORY_DEBUGGING
-	printf("memory allocation is at %ld %ld\n", _bytes_allocated,
-			_all_bytes_allocated);
-#endif
+	dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated,
+				_all_bytes_allocated));
 }
 
 zion_int_t get_total_allocated() {
@@ -141,8 +138,8 @@ void check_node_existence(struct var_t *node, zion_bool_t should_exist) {
 	while (p != 0) {
 		if (p == node) {
 			if (!should_exist) {
-				printf("node 0x%08lx of type %s already exists!\n",
-						(intptr_t)node, node->type_info->name);
+				dbg_zrt(printf("node 0x%08lx of type %s already exists!\n",
+							(intptr_t)node, node->type_info->name));
 				assert(should_exist);
 			} else {
 				/* found it, and that's expected. */
@@ -153,10 +150,8 @@ void check_node_existence(struct var_t *node, zion_bool_t should_exist) {
 	}
 
 	if (should_exist) {
-#ifdef MEMORY_DEBUGGING
-		printf("node 0x%08lx #%lld of type %s does not exist in memory tracking list!\n",
-				(intptr_t)node, (long long)node->allocation, node->type_info->name);
-#endif
+		dbg_zrt(printf("node 0x%08lx #%lld of type %s does not exist in memory tracking list!\n",
+					(intptr_t)node, (long long)node->allocation, node->type_info->name));
 		assert(!should_exist);
 	}
 }
@@ -167,8 +162,8 @@ void add_node(struct var_t *node) {
 	check_node_existence(node, 0 /* should_exist */);
 
 	if (node->prev != 0 || node->next != 0) {
-		printf("node 0x%08lx #%lld of type %s already has prev and next ptrs?!\n",
-				(intptr_t)node, (long long)node->allocation, node->type_info->name);
+		dbg_zrt(printf("node 0x%08lx #%lld of type %s already has prev and next ptrs?!\n",
+					(intptr_t)node, (long long)node->allocation, node->type_info->name));
 		exit(-1);
 	}
 
@@ -190,10 +185,8 @@ void add_node(struct var_t *node) {
 }
 
 void remove_node(struct var_t *node) {
-#ifdef MEMORY_DEBUGGING
-	printf("removing node 0x%08llx %s\n",
-		   	(long long)node, node->type_info->name);
-#endif
+	dbg_zrt(printf("removing node 0x%08llx %s\n",
+				(long long)node, node->type_info->name));
 	assert(node->ref_count == 0 || node->mark == 0);
 
 	check_node_existence(node, 1 /* should_exist */);
@@ -238,9 +231,7 @@ struct var_t *create_var(struct type_info_t *type_info) {
 
 	add_node(var);
 
-#ifdef MEMORY_DEBUGGING
-	printf("creating %s #%lld 0x%08lx\n", type_info->name, var->allocation, (intptr_t)var);
-#endif
+	dbg_zrt(printf("creating %s #%lld 0x%08lx\n", type_info->name, var->allocation, (intptr_t)var));
 
 	return var;
 }
@@ -278,7 +269,7 @@ struct llvm_stack_entry_t *llvm_gc_root_chain;
  * might copy them to another heap or generation.
  *
  * @param heap_visit A function to invoke for every GC root on the stack. */
-void visit_heap_roots(void (*heap_visit)(struct var_t *var)) {
+void visit_heap_roots(void (*heap_visit)(void *var)) {
 	for (struct llvm_stack_entry_t *R = llvm_gc_root_chain; R; R = R->next) {
 		if (R->map->num_meta != 0) {
 			raise(SIGTRAP);
@@ -287,19 +278,19 @@ void visit_heap_roots(void (*heap_visit)(struct var_t *var)) {
 		// For roots [num_meta, num_roots), the metadata pointer is null.
 		for (unsigned i = 0, e = R->map->num_roots; i != e; ++i) {
 			/* we have a heap variable */
-			heap_visit(R->stack_roots[i]);
+			heap_visit((void *)R->stack_roots[i]);
 		}
 	}
 }
 
-void visit_allocations(void (*visit)(struct var_t *var)) {
+void visit_allocations(void (*visit)(void *var)) {
 	struct var_t *node = head_var.next;
 	while (node != 0) {
 		/* cache the next node in case our current node gets deleted as part of the fn */
 		struct var_t *next = node->next;
 
 		/* visit the node */
-		visit(node);
+		visit((void *)node);
 
 		/* move along */
 		node = next;
@@ -308,17 +299,13 @@ void visit_allocations(void (*visit)(struct var_t *var)) {
 
 void mark_allocation(struct var_t *var) {
 	if (var != 0) {
-#ifdef MEMORY_DEBUGGING
-		printf("heap variable is referenced on the stack at 0x%08llx and is a '%s'\n", (long long)var, var->type_info->name);
-#endif
+		dbg_zrt(printf("heap variable is referenced on the stack at 0x%08llx and is a '%s'\n", (long long)var, var->type_info->name));
 		if (var->mark == 0) {
 			/* mark this node in the heap so that we break any potential cycles */
 			var->mark = 1;
 
-#ifdef MEMORY_DEBUGGING
-			printf("marking heap variable at 0x%08llx '%s'\n", (long long)var,
-					var->type_info->name);
-#endif
+			dbg_zrt(printf("marking heap variable at 0x%08llx '%s'\n", (long long)var,
+					var->type_info->name));
 
 			assert(var->type_info);
 
@@ -361,9 +348,12 @@ void free_unmarked(struct var_t *var) {
 }
 
 void gc() {
-	visit_allocations(clear_mark_bit);
-	visit_heap_roots(mark_allocation);
-	visit_allocations(free_unmarked);
+	__debug_zion_runtime = getenv("DBG_ZRT") != 0;
+	// HACK: because type unification does not seem to work well when linking IR from C -> llir -> in-memory Zion, we
+	// are just using the void * type to allow for a "universal" translation layer between modules.
+	visit_allocations((void (*)(void *))clear_mark_bit);
+	visit_heap_roots((void (*)(void *))mark_allocation);
+	visit_allocations((void (*)(void *))free_unmarked);
 }
 
 void print_var(struct var_t *node) {
@@ -372,5 +362,5 @@ void print_var(struct var_t *node) {
 }
 
 extern void heap_dump() {
-	visit_allocations(print_var);
+	visit_allocations((void (*)(void *))print_var);
 }

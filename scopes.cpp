@@ -61,7 +61,7 @@ bound_type_t::ref get_bound_type_from_scope(
 		types::signature signature,
 		program_scope_t::ref program_scope)
 {
-	indent_logger indent(8, string_format("checking whether %s is bound...",
+	INDENT(8, string_format("checking whether %s is bound...",
 				signature.str().c_str()));
 	auto bound_type = program_scope->get_bound_type(signature);
 	if (bound_type != nullptr) {
@@ -125,7 +125,7 @@ llvm::Module *scope_t::get_llvm_module() {
 }
 
 bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
-	indent_logger indent(9, string_format("checking program scope whether %s is bound...",
+	INDENT(9, string_format("checking program scope whether %s is bound...",
 				signature.str().c_str()));
 	auto iter = bound_types.find(signature);
 	if (iter != bound_types.end()) {

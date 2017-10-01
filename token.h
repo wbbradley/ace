@@ -47,6 +47,7 @@ enum token_kind
 	tk_is, /* is */
 	tk_as, /* as */
 	tk_has, /* has */
+	tk_struct, /* struct */
 	tk_matches, /* matches */
 
 	// Literals

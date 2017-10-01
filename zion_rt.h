@@ -31,6 +31,7 @@ struct type_info_mark_fn_t;
 
 typedef void (*dtor_fn_t)(struct var_t *var);
 typedef void (*mark_fn_t)(struct var_t *var);
+typedef void (*void_fn_t)(void *var);
 
 #define TYPE_INFO_HEADER \
 	/* the id for the type - a unique number */ \
@@ -51,3 +52,6 @@ typedef void (*mark_fn_t)(struct var_t *var);
 	struct var_t *next; \
 	struct var_t *prev; \
 	int64_t allocation
+
+extern zion_bool_t __debug_zion_runtime;
+#define dbg_zrt(x) if (__debug_zion_runtime) { (x); } else {}

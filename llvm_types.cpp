@@ -614,7 +614,7 @@ bound_type_t::ref create_bound_type(
 {
 	assert(!!status);
 
-	indent_logger indent(3,
+	INDENT(3,
 		string_format("attempting to create a bound type for %s in scope " c_id("%s"),
 			type->str().c_str(), scope->get_name().c_str()));
 
@@ -685,22 +685,18 @@ bound_type_t::ref upsert_bound_type(
 }
 
 bound_type_t::ref get_function_return_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::ref function_type)
 {
 	if (auto type_function = dyncast<const types::type_function_t>(function_type->get_type())) {
 		auto return_type_sig = type_function->return_type->get_signature();
-		auto return_type = scope->get_bound_type(return_type_sig);
-
-		/* this should exist, otherwise how was the function type built in the
-		 * first place? */
-		assert(return_type != nullptr);
-		debug_above(8, log(log_info, "got function return type %s", return_type->str().c_str()));
-		return return_type;
-	} else {
-		panic("expected a function");
-		return nullptr;
+		return upsert_bound_type(status, builder, scope, type_function->return_type);
 	}
+
+	assert(!status);
+	return nullptr;
 }
 
 std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
@@ -802,7 +798,7 @@ bound_var_t::ref maybe_get_dtor(
 		evaled_type = data_type->get_type();
 	}
 
-	indent_logger indent(3, string_format("attempting to get a dtor for %s",
+	INDENT(3, string_format("attempting to get a dtor for %s",
 				evaled_type->str().c_str()));
 
 	// TODO: look at what data_type is, and whether it can be passed as a raw

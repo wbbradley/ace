@@ -330,10 +330,10 @@ namespace ast {
 	struct type_product_t : public type_algebra_t {
 		typedef ptr<const type_product_t> ref;
 
-		type_product_t(types::type_t::ref type, identifier::set type_variables);
+		type_product_t(bool native, types::type_t::ref type, identifier::set type_variables);
 		virtual ~type_product_t() throw() {}
 		static const syntax_kind_t SK = sk_type_product;
-		static ref parse(parse_state_t &ps, type_decl_t::ref type_decl, identifier::refs type_variables);
+		static ref parse(parse_state_t &ps, type_decl_t::ref type_decl, identifier::refs type_variables, bool native);
 		virtual void register_type(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -342,6 +342,7 @@ namespace ast {
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
+		bool native;
 		types::type_t::ref type;
 		identifier::set type_variables;
 	};

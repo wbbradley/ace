@@ -7,9 +7,11 @@ struct token_matcher {
 
 token_kind translate_tk(token_kind tk, const zion_string_t &token_text) {
 	static const auto token_matchers = std::vector<token_matcher>{
+		{"__get_typeid__", tk_get_typeid},
+		{"__sizeof__", tk_sizeof},
+		{"and", tk_and},
 		{"any", tk_any},
 		{"as", tk_as},
-		{"and", tk_and},
 		{"break", tk_break},
 		{"continue", tk_continue},
 		{"def", tk_def},
@@ -27,14 +29,13 @@ token_kind translate_tk(token_kind tk, const zion_string_t &token_text) {
 		{"or", tk_or},
 		{"pass", tk_pass},
 		{"return", tk_return},
-		{"__sizeof__", tk_sizeof},
+		{"struct", tk_struct},
 		{"tag", tk_tag},
 		{"to", tk_to},
 		{"type", tk_type},
-		{"__get_typeid__", tk_get_typeid},
 		{"var", tk_var},
-		{"while", tk_while},
 		{"when", tk_when},
+		{"while", tk_while},
 		{"with", tk_with},
 	};
 

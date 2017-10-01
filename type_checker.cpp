@@ -682,13 +682,15 @@ function_scope_t::ref make_param_list_scope(
 				auto param_var = bound_var_t::create(INTERNAL_LOC(), param.first, bound_stack_var_type,
 						llvm_param_final, make_code_id(obj.param_list_decl->params[i++]->token));
 
-				bound_type_t::ref return_type = get_function_return_type(scope, function_var->type);
-
-				life->track_var(status, builder, scope, param_var, lf_function);
+				bound_type_t::ref return_type = get_function_return_type(status, builder, scope, function_var->type);
 
 				if (!!status) {
-					/* add the parameter argument to the current scope */
-					new_scope->put_bound_variable(status, param.first, param_var);
+					life->track_var(status, builder, scope, param_var, lf_function);
+
+					if (!!status) {
+						/* add the parameter argument to the current scope */
+						new_scope->put_bound_variable(status, param.first, param_var);
+					}
 				}
 			}
 
@@ -777,6 +779,7 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 
 	type_check_fully_bound_function_decl(status, builder, *extern_function,
 			scope, inbound_context, named_args, return_value);
+	assert(return_value != nullptr);
 
 	if (!!status) {
 		bound_type_t::refs args;
@@ -837,7 +840,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 		const ptr<const ast::item_t> &callsite,
 		const bound_type_t::refs &args) const
 {
-	indent_logger indent(5, string_format(
+	INDENT(5, string_format(
 				"dot_expr_t::resolve_overrides for %s",
 				callsite->str().c_str()));
 
@@ -1023,70 +1026,74 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 						token.location,
 						std::string("struct.") + extern_type->link_type_name->get_name().str());
 				if (!!status) {
-					std::cerr << llvm_print(llvm_linked_type) << std::endl;
-					auto llvm_finalize_fn = program_scope->get_llvm_function(
-							status,
-							token.location,
-							extern_type->link_finalize_fn->get_name().str());
-					if (!!status) {
-						std::cerr << llvm_print(llvm_finalize_fn) << std::endl;
-						auto llvm_mark_fn = program_scope->get_llvm_function(
-								status,
-								token.location,
-								extern_type->link_mark_fn->get_name().str());
-						if (!!status) {
-							std::cerr << llvm_print(llvm_mark_fn) << std::endl;
+					llvm::Module *llvm_module = llvm_get_module(builder);
 
-							bound_type_t::ref type_info = program_scope->get_bound_type({"__type_info_mark_fn"});
-							llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
-									type_info->get_llvm_type());
+					// module_scope_t::ref module_scope = scope->get_module_scope();
 
-							llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
-							auto signature = extern_type->get_signature();
-							std::vector<llvm::Constant *> llvm_type_info_data({
-									/* the type_id */
-									builder.getInt32(signature.iatom),
+					bound_type_t::ref finalize_fn_type = program_scope->get_bound_type({"__finalize_fn"});
+					assert(finalize_fn_type != nullptr);
 
-									/* allocation size */
-									llvm_sizeof_tuple,
+					bound_type_t::ref mark_fn_type = program_scope->get_bound_type({"__mark_fn"});
+					assert(mark_fn_type != nullptr);
 
-									/* the kind of this type_info */
-									builder.getInt32(type_kind_use_mark_fn),
+					// llvm::Module *llvm_module = module_scope->get_llvm_module();
 
-									/* name this variable */
-									(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
+					/* get references to the functions named by the user */
+					llvm::Constant *llvm_finalize_fn = llvm_module->getOrInsertFunction(
+							extern_type->link_finalize_fn->get_name().str(),
+						   	llvm::dyn_cast<llvm::FunctionType>(finalize_fn_type->get_llvm_type()));
+					llvm::Constant *llvm_mark_fn = llvm_module->getOrInsertFunction(
+							extern_type->link_mark_fn->get_name().str(),
+						   	llvm::dyn_cast<llvm::FunctionType>(mark_fn_type->get_llvm_type()));
 
-									/* finalize_fn */
-									(llvm::Constant *)llvm_finalize_fn,
+					bound_type_t::ref type_info = program_scope->get_bound_type({"__type_info_mark_fn"});
 
-									/* mark_fn */
-									(llvm::Constant *)llvm_mark_fn,
-									});
-							llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
-							check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
-							llvm::Module *llvm_module = llvm_get_module(builder);
-							llvm::Constant *llvm_type_info = llvm_get_global(
-									llvm_module, string_format("__type_info_%s", signature.c_str()),
-									llvm::ConstantStruct::get(llvm_type_info_type,
-										llvm_type_info_data),
-									true /*is_constant*/);
+					llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
+							type_info->get_llvm_type());
 
-							debug_above(5, log(log_info, "llvm_type_info = %s",
-										llvm_print(llvm_type_info).c_str()));
-							bound_type_t::ref type_info_ref = program_scope->get_bound_type({"__type_info_ref"});
-							auto bound_type_info_var = bound_var_t::create(
-									INTERNAL_LOC(),
-									type_info_var_name,
-									type_info_ref,
-									llvm::ConstantExpr::getPointerCast(
-										llvm_type_info,
-										type_info_ref->get_llvm_type()),
-									make_iid("type info value"));
+					llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
+					auto signature = extern_type->get_signature();
+					std::vector<llvm::Constant *> llvm_type_info_data({
+							/* the type_id */
+							builder.getInt32(signature.iatom),
 
-							program_scope->put_bound_variable(status, type_info_var_name, bound_type_info_var);
-							return bound_type_info_var;
-						}
-					}
+							/* allocation size */
+							llvm_sizeof_tuple,
+
+							/* the kind of this type_info */
+							builder.getInt32(type_kind_use_mark_fn),
+
+							/* name this variable */
+							(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
+
+							/* finalize_fn */
+							llvm_finalize_fn,
+
+							/* mark_fn */
+							llvm_mark_fn,
+							});
+					llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
+					check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
+					llvm::Constant *llvm_type_info = llvm_get_global(
+							llvm_module, string_format("__type_info_%s", signature.c_str()),
+							llvm::ConstantStruct::get(llvm_type_info_type,
+								llvm_type_info_data),
+							true /*is_constant*/);
+
+					debug_above(5, log(log_info, "llvm_type_info = %s",
+								llvm_print(llvm_type_info).c_str()));
+					bound_type_t::ref type_info_ref = program_scope->get_bound_type({"__type_info_ref"});
+					auto bound_type_info_var = bound_var_t::create(
+							INTERNAL_LOC(),
+							type_info_var_name,
+							type_info_ref,
+							llvm::ConstantExpr::getPointerCast(
+								llvm_type_info,
+								type_info_ref->get_llvm_type()),
+							make_iid("type info value"));
+
+					program_scope->put_bound_variable(status, type_info_var_name, bound_type_info_var);
+					return bound_type_info_var;
 				}
 			}
 		} else {
@@ -1232,6 +1239,8 @@ bound_var_t::ref ast::array_index_expr_t::resolve_expression(
 					scope, life, false /*as_ref*/);
 
 			if (!!status) {
+				debug_above(5, log("attempting to call " c_id("__getitem__")
+							" on %s and %s", lhs_val->str().c_str(), index_val->str().c_str()));
 				/* get or instantiate a function we can call on these arguments */
 				return call_program_function(status, builder, scope, life,
 						"__getitem__", shared_from_this(), {lhs_val, index_val});
@@ -1429,8 +1438,6 @@ bound_var_t::ref ast::tuple_expr_t::resolve_expression(
 				make_iid(tuple_type->repr()), shared_from_this());
 
 		if (!!status) {
-			assert(get_function_return_type(scope, tuple.first->type)->get_type()->repr() == type_ptr(type_managed(tuple_type))->repr());
-
 			/* now, let's call our unnamed tuple ctor and return that value */
 			return create_callsite(status, builder, scope, life,
 					tuple.first, tuple_type->repr(),
@@ -1871,12 +1878,19 @@ bound_var_t::ref ast::dot_expr_t::resolve_expression(
 						log("attempt to find global id %s",
 							qualified_id.c_str()));
 				auto var = scope->get_bound_variable(status, get_location(), qualified_id);
-				if (var != nullptr) {
-					return var;
-				} else {
-					user_error(status, get_location(),
-							"could not find symbol %s",
-							qualified_id.c_str());
+				if (!!status) {
+					if (var != nullptr) {
+						if (!as_ref) {
+							/* if we're not asking for a ref, then get rid of it if it's there */
+							return var->resolve_bound_value(status, builder, scope);
+						} else {
+							return var;
+						}
+					} else {
+						user_error(status, get_location(),
+								"could not find symbol %s",
+								qualified_id.c_str());
+					}
 				}
 			} else {
 				return extract_member_variable(status, builder, scope, life,
@@ -2099,7 +2113,7 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 	 * 1. generate code for this function.
 	 * 2. bind the function name to the generated code within the given scope.
 	 * */
-	indent_logger indent(2, string_format(
+	INDENT(2, string_format(
 				"type checking %s in %s", token.str().c_str(),
 				scope->get_name().c_str()));
 
@@ -2147,7 +2161,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		bound_type_t::ref return_type) const
 {
 	std::string function_name = switch_std_main(token.text);
-	indent_logger indent(5, string_format(
+	INDENT(5, string_format(
 				"instantiating function " c_id("%s"),
 				function_name.c_str()));
 
@@ -2280,7 +2294,7 @@ void type_check_module_links(
 		scope_t::ref program_scope)
 {
 	if (!!status) {
-		indent_logger indent(3, string_format("resolving links in " c_module("%s"),
+		INDENT(3, string_format("resolving links in " c_module("%s"),
 					obj.module_key.c_str()));
 
 		/* get module level scope variable */
@@ -2316,7 +2330,7 @@ void type_check_module_vars(
 		scope_t::ref program_scope)
 {
 	if (!!status) {
-		indent_logger indent(3, string_format("resolving module vars in " c_module("%s"),
+		INDENT(3, string_format("resolving module vars in " c_module("%s"),
 					obj.module_key.c_str()));
 
 
@@ -2350,7 +2364,7 @@ void type_check_module_types(
         scope_t::ref program_scope)
 {
 	if (!!status) {
-		indent_logger indent(2, string_format("type-checking types in module " c_module("%s"),
+		INDENT(2, string_format("type-checking types in module " c_module("%s"),
 					obj.module_key.str().c_str()));
 
 		/* get module level scope types */
@@ -2400,7 +2414,7 @@ void type_check_program_variables(
         llvm::IRBuilder<> &builder,
         program_scope_t::ref program_scope)
 {
-	indent_logger indent(2, string_format("resolving variables in program"));
+	INDENT(2, string_format("resolving variables in program"));
 
 	auto unchecked_vars_ordered = program_scope->get_unchecked_vars_ordered();
     for (auto unchecked_var : unchecked_vars_ordered) {
@@ -2489,7 +2503,7 @@ void type_check_program(
 		const ast::program_t &obj,
 		compiler_t &compiler)
 {
-	indent_logger indent(2, string_format(
+	INDENT(2, string_format(
 				"type-checking program %s",
 				compiler.get_program_name().c_str()));
 
@@ -2646,7 +2660,7 @@ bound_var_t::ref type_check_assignment(
 	}
 
 	if (!!status) {
-		indent_logger indent(5, string_format(
+		INDENT(5, string_format(
 					"type checking assignment %s = %s",
 					lhs_var->str().c_str(),
 					rhs_var->str().c_str()));
@@ -2884,18 +2898,23 @@ void ast::return_statement_t::resolve_statement(
 				shared_from_this(), return_type);
 
 		if (return_value != nullptr) {
-			auto llvm_return_value = llvm_maybe_pointer_cast(builder,
-					return_value->resolve_bound_var_value(builder),
-					runnable_scope->get_return_type_constraint());
+			if (return_value->type->is_void()) {
+				user_error(status, get_location(),
+						"return expressions cannot be " c_type("void") ". use an empty return statement to return from this function");
+			} else {
+				auto llvm_return_value = llvm_maybe_pointer_cast(builder,
+						return_value->resolve_bound_var_value(builder),
+						runnable_scope->get_return_type_constraint());
 
-			if (llvm_return_value->getName().str().size() == 0) {
-				llvm_return_value->setName("return.value");
+				if (llvm_return_value->getName().str().size() == 0) {
+					llvm_return_value->setName("return.value");
+				}
+				debug_above(8, log("emitting a return of %s", llvm_print(llvm_return_value).c_str()));
+
+				// TODO: release live variables in scope, except the one being
+				// returned
+				builder.CreateRet(llvm_return_value);
 			}
-			debug_above(8, log("emitting a return of %s", llvm_print(llvm_return_value).c_str()));
-
-			// TODO: release live variables in scope, except the one being
-			// returned
-			builder.CreateRet(llvm_return_value);
 		} else {
 			assert(types::is_type_id(return_type->get_type(), "void"));
 
@@ -2969,9 +2988,7 @@ void ast::block_t::resolve_statement(
 		auto stmt_life = life->new_life(status, lf_statement);
 
 		{
-			indent_logger indent(5, string_format(
-						"while checking statement at %s",
-						statement->get_location().str().c_str()));
+			indent_logger indent(statement->get_location(), 5, "while checking statement");
 
 			/* resolve the statement */
 			statement->resolve_statement(status, builder, current_scope, stmt_life,

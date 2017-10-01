@@ -1580,11 +1580,13 @@ type_algebra_t::ref type_algebra_t::parse(
 	case tk_is:
 		return type_sum_t::parse(ps, type_decl, type_decl->type_variables);
 	case tk_has:
-		return type_product_t::parse(ps, type_decl, type_decl->type_variables);
+		return type_product_t::parse(ps, type_decl, type_decl->type_variables, false /*native*/);
 	case tk_link:
 		return type_link_t::parse(ps, type_decl, type_decl->type_variables);
 	case tk_matches:
 		return type_alias_t::parse(ps, type_decl, type_decl->type_variables);
+	case tk_struct:
+		return type_product_t::parse(ps, type_decl, type_decl->type_variables, true /*native*/);
 	default:
 		ps.error(
 				"type descriptions must begin with "
@@ -1631,12 +1633,13 @@ type_sum_t::ref type_sum_t::parse(
 type_product_t::ref type_product_t::parse(
 		parse_state_t &ps,
 		ast::type_decl_t::ref type_decl,
-	   	identifier::refs type_variables)
+	   	identifier::refs type_variables,
+		bool native)
 {
 	identifier::set generics = to_identifier_set(type_variables);
 	expect_token(tk_has);
 	auto type = _parse_single_type(ps, {}, {}, generics);
-	return create<type_product_t>(type_decl->token, type, generics);
+	return create<type_product_t>(type_decl->token, native, type, generics);
 }
 
 type_link_t::ref type_link_t::parse(

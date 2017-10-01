@@ -427,9 +427,9 @@ void add_global_types(
 					type_id(make_iid("__vector_ref")),
 					INTERNAL_LOC(),
 					llvm_module_vector->getTypeByName("struct.__vector_t")->getPointerTo())},
-		{{"__finalizer_fn_ref"},
+		{{"__finalize_fn"},
 			bound_type_t::create(
-					type_id(make_iid("__finalizer_fn_ref")),
+					type_id(make_iid("__finalize_fn")),
 					INTERNAL_LOC(),
 					llvm::FunctionType::get(
 						builder.getVoidTy(),
@@ -437,7 +437,18 @@ void add_global_types(
 							std::vector<llvm::Type*>{
 								llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo()
 							}),
-						false /*isVarArg*/)->getPointerTo())},
+						false /*isVarArg*/))},
+		{{"__mark_fn"},
+			bound_type_t::create(
+					type_id(make_iid("__mark_fn")),
+					INTERNAL_LOC(),
+					llvm::FunctionType::get(
+						builder.getVoidTy(),
+						llvm::ArrayRef<llvm::Type*>(
+							std::vector<llvm::Type*>{
+								llvm_module_ref->getTypeByName("struct.var_t")->getPointerTo()
+							}),
+						false /*isVarArg*/))},
 		{{"nil"},
 			bound_type_t::create(
 					type_id(make_iid("nil")),
@@ -817,7 +828,9 @@ int compiler_t::run_program(int argc, char *argv_input[]) {
 		std::swap(llvm_module, llvm_modules.back().second);
 
 		/* make sure that the engine can find functions from this module */
-		llvm_engine->addModule(std::move(llvm_module));
+		// llvm_engine->addModule(std::move(llvm_module));
+		// REVIEW: alternatively... 
+		llvm::Linker::linkModules(*llvm_program_module, std::move(llvm_module));
 
 		/* remove this module from the list, now that we've transitioned it over to the engine */
 		llvm_modules.pop_back();
@@ -840,7 +853,10 @@ int compiler_t::run_program(int argc, char *argv_input[]) {
 		argv.push_back(argv_input[i]);
 	}
 
-	// printf("%s\n", llvm_print_module(*llvm_program_module).c_str());
+	FILE *fp = fopen("jit.llir", "wt");
+	fprintf(fp, "%s\n", llvm_print_module(*llvm_program_module).c_str());
+	fclose(fp);
+
 	/* finally, run the user's program */
 	return llvm_engine->runFunctionAsMain(llvm_fn_main, argv, envp);
 }

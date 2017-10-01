@@ -85,8 +85,10 @@ namespace ast {
 	}
 
 	type_product_t::type_product_t(
+			bool native,
 			types::type_t::ref type,
 			identifier::set type_variables) :
+		native(native),
 		type(type),
 		type_variables(type_variables)
 	{

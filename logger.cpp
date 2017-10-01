@@ -15,6 +15,8 @@
 #include "utils.h"
 #include <cxxabi.h>
 
+#define STDERR stdout
+
 int logger_level = log_info | log_warning | log_error | log_panic;
 
 void log_enable(int log_level) {
@@ -122,8 +124,8 @@ std::string tee_logger::captured_logs_as_string() const {
 	return ss.str();
 }
 
-indent_logger::indent_logger(int level, std::string msg) :
-   	msg(msg), level(level), logger_old(_logger)
+indent_logger::indent_logger(location_t location, int level, std::string msg) :
+   	location(location), msg(msg), level(level), logger_old(_logger)
 {
 	debug_above(level, ::log(log_info, c_line_ref("#") " %s", msg.c_str()));
 	debug_above(level, ::log(log_info, c_control("(")));
@@ -179,13 +181,13 @@ standard_logger::standard_logger(const std::string &name, const std::string &roo
 	m_root_file_path.append("logs");
 	if (!ensure_directory_exists(m_root_file_path))
 	{
-		write_fp(stderr, "standard_logger : couldn't guarantee that directory %s exists\naborting...\n", m_root_file_path.c_str());
+		write_fp(STDERR, "standard_logger : couldn't guarantee that directory %s exists\naborting...\n", m_root_file_path.c_str());
 		exit(1);
 	}
 	if (_logger == NULL)
 		_logger = this;
 	else
-		write_fp(stderr, "multiple loggers are loaded!");
+		write_fp(STDERR, "multiple loggers are loaded!");
 
 	open();
 }
@@ -259,7 +261,7 @@ void standard_logger::open() {
 }
 
 void standard_logger::dump() {
-	write_fp(stderr, "| standard_logger : " c_id("%s") " - " C_FILENAME "%s" C_RESET " - " C_FILENAME "%s" C_RESET "\n",
+	write_fp(STDERR, "| standard_logger : " c_id("%s") " - " C_FILENAME "%s" C_RESET " - " C_FILENAME "%s" C_RESET "\n",
 			m_name.c_str(),
 			m_root_file_path.c_str(),
 			m_current_logfile.c_str());
@@ -269,28 +271,33 @@ void tee_logger::dump() {
 	if (logger_old != nullptr) {
 		logger_old->dump();
 	}
-	write_fp(stderr, "| tee_logger : %d logs captured\n",
+	write_fp(STDERR, "| tee_logger : %d logs captured\n",
 			(int)captured_logs.size());
 }
 
 void indent_logger::dump() {
+	auto output = clean_ansi_escapes_if_not_tty(STDERR, 
+			string_format("%s: %s\n",
+				location.str(true /* vim_mode */, true /* make_relative */).c_str(),
+				msg.c_str()));
+
+	write_fp(STDERR, "%s", output.c_str());
+
 	if (logger_old != nullptr) {
 		logger_old->dump();
 	}
-	write_fp(stderr, "| indent_logger : level %d %s\n",
-			level, clean_ansi_escapes_if_not_tty(stderr, msg).c_str());
 }
 
 void note_logger::dump() {
 	if (logger_old != nullptr) {
 		logger_old->dump();
 	}
-	write_fp(stderr, "| note_logger : %s\n",
-			clean_ansi_escapes_if_not_tty(stderr, msg).c_str());
+	write_fp(STDERR, "| note_logger : %s\n",
+			clean_ansi_escapes_if_not_tty(STDERR, msg).c_str());
 }
 
 void log_dump() {
-	write_fp(stderr, "| LOG Context\n");
+	write_fp(STDERR, "| LOG Context\n");
 	if (_logger != nullptr) {
 		_logger->dump();
 	}
@@ -298,7 +305,7 @@ void log_dump() {
 
 void panic_(const char *filename, int line, std::string msg) {
 	log_dump();
-	write_fp(stderr, "%s:%d: PANIC %s\n", filename, line, msg.c_str());
+	write_fp(STDERR, "%s:%d: PANIC %s\n", filename, line, msg.c_str());
 	dbg();
 	raise(SIGKILL);
 }

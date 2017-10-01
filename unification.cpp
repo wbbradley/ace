@@ -78,7 +78,7 @@ unification_t unify(
 	assert(lhs != nullptr);
 	assert(rhs != nullptr);
 
-	indent_logger indent(7,
+	INDENT(7,
 			string_format("unify(%s, %s, ..., %s)",
 				lhs->str().c_str(),
 				rhs->str().c_str(),

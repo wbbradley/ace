@@ -1,4 +1,5 @@
 module _
+link module runtime
 link module posix
 link module math
 link module map
@@ -9,10 +10,12 @@ link module main
 # link def __init_modules() void
 
 # Vector routines
-link def __getitem__(vec __vector_ref, index __int__) *__var
-link def __setitem__(vec __vector_ref, index __int__) void
+link def __vectorgetitem__(vec *__var, index __int__) *__var
+link def __vectorsetitem__(vec __vector_ref, index __int__) void
 link def __resize__(vec __vector_ref, size __int__) *__var
 link def __vectorfree__(v *__var)
+link def __vectormark__(v *__var)
+link def __vectorappend__(vec *__var, item *__var)
 
 tag false
 tag true
@@ -370,17 +373,17 @@ def __init__() vector{any T}
 def __finalize__(v vector{any T})
 	__vectorfree__(v as *__var)
 
-def __getitem__(vec [any T], index int) T
-	return __getitem__(&vec.buffer, index.raw) as T
+def __getitem__(vec [any T], index int) any T
+	return __vectorgetitem__(vec as *__var, index.raw) as any T
 
-def __setitem__(vec [any T], index int, t T) void
-	return __setvectoritem__(&vec.buffer, index.raw, t)
+def __setitem__(vec [any T], index int, t any T) void
+	return __setvectoritem__(vec as *__var, index.raw, t as *__var)
 
-def append(vec [any T], t T) void
-	return __append__(&vec.buffer, t)
+def append(vec [any T], t any T) void
+	__vectorappend__(vec as *__var, t as *__var)
 
 def resize(vec [any T], size int, default any T) void
-	return __resize__(vec as __vector_ref, size.raw, default) as! [any T]
+	return __vectorresize__(vec as *__var, size.raw, default) as! [any T]
 
 # link def vec(TYPE, capacity int) TYPE[]
 

@@ -20,7 +20,16 @@ extern int __dbg_level;
 
 #define debug_level() __dbg_level
 
-#define dbg(x) do { log_dump(); ::fprintf(stderr, C_LINE_REF "%s(%d) " C_RESET ": " c_warn("BREAKPOINT HIT") " in " c_internal("%s") " : %s\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, #x); /*::log_stack(log_warning); */ DEBUG_BREAK(); } while (0)
+#define dbg(x) do { \
+	log_dump(); \
+	std::string dbg_msg = clean_ansi_escapes_if_not_tty( \
+			stderr, \
+			string_format(C_LINE_REF "%s:%d:1" C_RESET ": " c_warn("BREAKPOINT HIT") " in " c_internal("%s") " : %s\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, #x)); \
+	::fprintf(stderr, "%s", dbg_msg.c_str()); \
+   	/*::log_stack(log_warning); */ \
+	DEBUG_BREAK(); \
+} while (0)
+
 #define wat() panic("wat is this branch doing?")
 
 #ifdef ZION_DEBUG

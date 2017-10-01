@@ -58,17 +58,21 @@ struct tee_logger : public logger {
 };
 
 struct indent_logger : logger {
-	indent_logger(int level, std::string message);
+	indent_logger(location_t location, int level, std::string message);
 	virtual ~indent_logger() throw();
 
 	virtual void logv(log_level_t level, const location_t *location, const char *format, va_list args);
 	virtual void log(log_level_t level, const location_t *location, const char *format, ...);
 	virtual void dump();
 
+	location_t location;
 	std::string msg;
 	int level;
 	logger *logger_old;
 };
+
+#define INDENT(level, message) \
+	indent_logger _indent(INTERNAL_LOC(), level, message)
 
 struct note_logger : logger {
 	note_logger(std::string message);

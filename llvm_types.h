@@ -61,6 +61,8 @@ bound_var_t::ref call_const_subscript_operator(
 #endif
 
 bound_type_t::ref get_function_return_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::ref function_type);
 

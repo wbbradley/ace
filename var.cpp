@@ -42,7 +42,7 @@ unification_t var_t::accepts_callsite(
 	types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(type);
 	auto env = scope->get_typename_env();
 
-	indent_logger indent(6, string_format(
+	INDENT(6, string_format(
 				"checking whether %s accepts %s", str().c_str(),
 				args->str().c_str()));
 

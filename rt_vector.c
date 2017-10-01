@@ -1,7 +1,5 @@
 #include "zion_rt.h"
 
-struct var_t *create_var(struct type_info_t *type_info);
-
 struct __vector_t {
 	/* the managed portion of the heap allocated object */
 	VAR_CONTENTS;
@@ -62,7 +60,8 @@ void __setvectoritem__(struct __vector_t *vector, zion_int_t index, struct var_t
 	}
 }
 
-void __vectorappend__(struct __vector_t *vector, struct var_t *item) {
+void __vectorappend__(struct var_t *vector_, struct var_t *item) {
+	struct __vector_t *vector = (struct __vector_t *)vector_;
 	if (vector->reserved > vector->size) {
 		vector->items[vector->size] = item;
 		vector->size += 1;
