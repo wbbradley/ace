@@ -760,6 +760,17 @@ void ast::link_module_statement_t::resolve_statement(
 	return;
 }
 
+bound_var_t::ref ast::link_var_statement_t::resolve_expression(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref block_scope,
+		life_t::ref life,
+		bool as_ref) const
+{
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -2300,13 +2311,13 @@ void type_check_module_links(
 		/* get module level scope variable */
 		module_scope_t::ref scope = compiler.get_module_scope(obj.module_key);
 
-		for (auto &link : obj.linked_modules) {
+		for (ptr<ast::link_module_statement_t> &link : obj.linked_modules) {
 			link->resolve_statement(status, builder, scope, nullptr, nullptr,
 					nullptr);
 		}
 
 		if (!!status) {
-			for (auto &link : obj.linked_functions) {
+			for (ptr<ast::link_function_statement_t> &link : obj.linked_functions) {
 				bound_var_t::ref link_value = link->resolve_expression(
 						status, builder, scope, nullptr, false /*as_ref*/);
 

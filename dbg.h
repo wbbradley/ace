@@ -1,4 +1,5 @@
 #pragma once
+#include "utils.h"
 
 #ifdef _MSC_VER
 	#ifdef _X86_
@@ -23,8 +24,8 @@ extern int __dbg_level;
 #define dbg(x) do { \
 	log_dump(); \
 	std::string dbg_msg = clean_ansi_escapes_if_not_tty( \
-			stderr, \
-			string_format(C_LINE_REF "%s:%d:1" C_RESET ": " c_warn("BREAKPOINT HIT") " in " c_internal("%s") " : %s\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, #x)); \
+		stderr, \
+		string_format(C_LINE_REF "%s:%d:1" C_RESET ": " c_warn("BREAKPOINT HIT") " in " c_internal("%s") " : %s\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, #x)); \
 	::fprintf(stderr, "%s", dbg_msg.c_str()); \
    	/*::log_stack(log_warning); */ \
 	DEBUG_BREAK(); \

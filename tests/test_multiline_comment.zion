@@ -1,0 +1,15 @@
+module _
+# test: pass
+
+/* this is a test
+   of multiline comments */
+/*
+this is a test
+   of multiline comments */
+
+/**/
+/***/
+/*/* c */*/
+
+def main()
+	pass

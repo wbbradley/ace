@@ -160,6 +160,9 @@ bool zion_lexer_t::_get_tokens() {
 		gts_divide_by,
 		gts_mod,
 		gts_comment,
+		gts_multiline_comment,
+		gts_multiline_comment_star,
+		gts_multiline_comment_slash,
 		gts_version,
 	};
 
@@ -172,6 +175,7 @@ bool zion_lexer_t::_get_tokens() {
 	token_kind tk = tk_none;
 	int line = m_line;
 	int col = m_col;
+	int multiline_comment_depth = 0;
 	while (gts != gts_end && gts != gts_error) {
 		ch = m_is.peek();
 
@@ -255,7 +259,11 @@ bool zion_lexer_t::_get_tokens() {
 			}
 			break;
 		case gts_divide_by:
-			if (ch == '=') {
+			if (ch == '*') {
+				gts = gts_multiline_comment;
+				assert(multiline_comment_depth == 0);
+				++multiline_comment_depth;
+			} else if (ch == '=') {
 				gts = gts_end;
 				tk = tk_divide_by_eq;
 			} else {
@@ -290,6 +298,44 @@ bool zion_lexer_t::_get_tokens() {
 			if (ch == EOF || ch == '\r' || ch == '\n') {
 				gts = gts_end;
 				scan_ahead = false;
+			}
+			break;
+		case gts_multiline_comment:
+			assert(multiline_comment_depth > 0);
+			if (ch == EOF) {
+				gts = gts_error;
+			} else if (ch == '*') {
+				gts = gts_multiline_comment_star;
+			} else if (ch == '/') {
+				gts = gts_multiline_comment_slash;
+			}
+			break;
+		case gts_multiline_comment_slash:
+			assert(multiline_comment_depth >= 1);
+			if (ch != '/') {
+				if (ch == '*') {
+					++multiline_comment_depth;
+				}
+				gts = gts_multiline_comment;
+			}
+			break;
+		case gts_multiline_comment_star:
+			if (ch != '/') {
+				if (ch != '*') {
+					gts = gts_multiline_comment;
+				} else {
+					// stay in this mode
+				}
+			} else {
+				/* this was an end comment token */
+				assert(multiline_comment_depth > 0);
+				if (multiline_comment_depth > 1) {
+					gts = gts_multiline_comment;
+				} else {
+					gts = gts_end;
+					tk = tk_comment;
+				}
+				--multiline_comment_depth;
 			}
 			break;
 		case gts_version:

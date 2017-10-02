@@ -366,6 +366,12 @@ namespace ast {
 		rs.ss << " " << type->str();
 	}
 
+	void link_var_statement_t::render(render_state_t &rs) const {
+		rs.ss << C_SCOPE_SEP << tkstr(tk_link) << C_RESET;
+		rs.ss << " ";
+		var_decl->render(rs);
+	}
+
 	void var_decl_t::render(render_state_t &rs) const {
 		if (rs.param_list_decl_depth == 0) {
 			rs.ss << C_TYPE << tkstr(tk_var) << C_RESET << " ";

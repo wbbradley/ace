@@ -2,9 +2,17 @@ module runtime
 
 # the zion runtime and garbage collector
 
+/*  The head of the singly-linked list of llvm_stack_entry_t's.  Functions push
+ *  and pop onto this in their prologue and epilogue.
+ * 
+ *  Since there is only a global list, this technique is not threadsafe. */
+link var llvm_gc_root_chain *llvm_stack_entry_t
+
 var TYPE_ID_VECTOR __int32__ = -2r
 var __debug_zion_runtime __int__ = 0r
 var nil *var_t = 0r as *var_t
+var _zion_rt __str__ = "zion-rt: "r
+
 
 #define GET_CHILD_REF(var, index) \
 #           (*(struct var_t **)(((char *)var) + \
@@ -54,39 +62,31 @@ var _all_bytes_allocated __int__ = 0r
 def mem_alloc(cb __int__) *void
 	_bytes_allocated += cb
 	_all_bytes_allocated += cb
-	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated));
+	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
 
 	return posix.calloc(cb, 1r)
 
 def mem_free(p *void, cb __int__) void
 	_bytes_allocated -= cb
 	posix.free(p)
-	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated));
+	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
 
 def get_total_allocated() __int__
 	return _bytes_allocated
 
-var _zion_rt __str__ = "zion-rt: "r
-
-"
+/*
 #define MEM_PANIC(msg, str, error_code) \
 	do { \
-		write(2, _zion_rt, strlen(_zion_rt)); \
-		write(2, msg, strlen(msg)); \
-		write(2, str, strlen(str)); \
-		write(2, "\n", 1); \
-		exit(error_code); \
+		write(2, _zion_rt, strlen(_zion_rt)) \
+		write(2, msg, strlen(msg)) \
+		write(2, str, strlen(str)) \
+		write(2, "\n", 1) \
+		exit(error_code) \
 	} while (0)
-"
+*/
 
 
-var head_var var_t = {
-	type_info: nil
-	mark: 0r
-	allocation: 0r
-	next: nil
-	prev: nil
-}
+var head_var *var_t = create_var(nil)
 
 def check_node_existence(node *var_t, should_exist __bool__) void
 	p := &head_var
@@ -95,14 +95,14 @@ def check_node_existence(node *var_t, should_exist __bool__) void
 	if should_exist
 		assert(p.next != nil)
 		assert(node != nil)
-		assert(node.prev != 0xdeadbeefr as *var_t)
-		assert(node.next != 0xdeadbeefr as *var_t)
+		assert(node.prev != 3735928559r as *var_t)
+		assert(node.next != 3735928559r as *var_t)
 		assert(node.prev != nil)
 
 	while p != nil
 		if p == node
 			if not should_exist
-				# dbg_zrt(printf("node 0x%08lx of type %s already exists!\n", (intptr_t)node, node.type_info.name));
+				# dbg_zrt(printf("node 0x%08lx of type %s already exists!\n", (intptr_t)node, node.type_info.name))
 				assert(should_exist)
 			else
 				# found it, and that's expected.
@@ -110,7 +110,7 @@ def check_node_existence(node *var_t, should_exist __bool__) void
 		p = p.next
 
 	if should_exist
-		# dbg_zrt(printf("node 0x%08lx #%lld of type %s does not exist in memory tracking list!\n", (intptr_t)node, (long long)node.allocation, node.type_info.name));
+		# dbg_zrt(printf("node 0x%08lx #%lld of type %s does not exist in memory tracking list!\n", (intptr_t)node, (long long)node.allocation, node.type_info.name))
 		assert(not should_exist)
 
 
@@ -118,96 +118,87 @@ def add_node(node *var_t) void
 	check_node_existence(node, 0)
 
 	if node.prev != nil or node.next != nil
-		# dbg_zrt(printf("node 0x%08lx #%lld of type %s already has prev and next ptrs?!\n", (intptr_t)node, (long long)node.allocation, node.type_info.name));
+		# dbg_zrt(printf("node 0x%08lx #%lld of type %s already has prev and next ptrs?!\n", (intptr_t)node, (long long)node.allocation, node.type_info.name))
 		posix.exit(-1r)
 
-	assert(not head_var.next or head_var.next.prev == &head_var
+	/* assert(not head_var.next or head_var.next.prev == &head_var) */
 
-	node.prev = &head_var;
-	node.next = head_var.next;
+	node.prev = &head_var
+	node.next = head_var.next
 	if node.next != nil
-		node.next.prev = node;
+		node.next.prev = node
 
-	head_var.next = node;
+	head_var.next = node
 
-	assert(head_var.prev == nil);
-	assert(head_var.next.prev == &head_var);
-	assert(node.prev.next == node);
-	assert(!node.next || node.next.prev == node);
+	assert(head_var.prev == nil)
+	assert(head_var.next.prev == &head_var)
+	assert(node.prev.next == node)
+	assert(not node.next or node.next.prev == node)
 
 	check_node_existence(node, 1)
 
-def remove_node(struct var_t *node) void
-	dbg_zrt(printf("removing node 0x%08llx %s\n",
-				(long long)node, node.type_info.name));
-	assert(node.mark == 0r);
+def remove_node(node *var_t) void
+	/* dbg_zrt(printf("removing node 0x%08llx %s\n",
+				(long long)node, node.type_info.name)) */
+	assert(node.mark == 0r)
 
-	check_node_existence(node, 1 /* should_exist */);
+	check_node_existence(node, 1 /* should_exist */)
 
-	assert(node.prev.next == node);
-	assert(!node.next || node.next.prev == node);
+	assert(node.prev.next == node)
+	assert(not node.next or node.next.prev == node)
 
-	node.prev.next = node.next;
+	node.prev.next = node.next
 	if node.next != nil
-		node.next.prev = node.prev;
-	node.next = 0xdeadbeefr as *var_t
-	node.prev = 0xdeadbeefr as *var_t
+		node.next.prev = node.prev
+	node.next = 3735928559r as *var_t
+	node.prev = 3735928559r as *var_t
 
 	check_node_existence(node, 0r)
 
-def isnil(struct var_t *p) __bool__
+def isnil(p *var_t) __bool__
 	return p == nil
 
-def get_var_type_id(var *var_t) __int32__
-	if var != nil
-		return var.type_info.type_id
+def get_var_type_id(v *var_t) __int32__
+	if v != nil
+		return v.type_info.type_id
 	else
-		# MEM_PANIC("attempt to get_var_type_id of a null value ", "", 116);
+		# MEM_PANIC("attempt to get_var_type_id of a null value ", "", 116)
 		return 0r
 
-int64_t _allocation = 1;
+var _allocation __int__ = 1r
 
-struct var_t *create_var(struct type_info_t *type_info) {
+def create_var(type_info *type_info_t) *var_t
 	/* allocate the variable tracking object */
-	struct var_t *var = (struct var_t *)mem_alloc(type_info.size);
-	var.type_info = type_info;
-	var.ref_count = 1;
+	var obj *var_t = mem_alloc(type_info.size) as *var_t
+	obj.type_info = type_info
+	obj.ref_count = 1
 
 	/* track this allocation */
-	var.allocation = _allocation;
-	_allocation += 1;
+	obj.allocation = _allocation
+	_allocation += 1r
 
-	add_node(var);
+	add_node(obj)
 
-	dbg_zrt(printf("creating %s #%lld 0x%08lx\n", type_info.name, var.allocation, (intptr_t)var));
+	/* dbg_zrt(printf("creating %s #%lld 0x%08lx\n", type_info.name, obj.allocation, (intptr_t)obj)) */
 
-	return var;
-}
+	return obj
 
 /*  The map for a single function's stack frame.  One of these is
  *  compiled as constant data into the executable for each function.
  * 
  *  Storage of metadata values is elided if the %metadata parameter to
  *  @llvm.gcroot is null. */
-struct stack_frame_map_t {
-	int32_t num_roots;    //< Number of roots in stack frame.
-	int32_t num_meta;     //< Number of metadata entries.  May be < num_roots.
-	const void *meta[0];  //< Metadata for each root.
-};
+type stack_frame_map_t struct
+	var num_roots __int32__  # Number of roots in stack frame.
+	var num_meta  __int32__  # Number of metadata entries.  May be < num_roots.
+	var meta      **void     # Metadata for each root.
 
 /*  A link in the dynamic shadow stack.  One of these is embedded in
  *  the stack frame of each function on the call stack. */
-struct llvm_stack_entry_t {
-	struct llvm_stack_entry_t *next;     //< Link to next stack entry (the caller's).
-	const struct stack_frame_map_t *map; //< Pointer to constant stack_frame_map_t.
-	struct var_t *stack_roots[0];        //< Stack roots (in-place array).
-};
-
-/*  The head of the singly-linked list of llvm_stack_entry_t's.  Functions push and pop onto this in
- *  their prologue and epilogue.
- * 
- *  Since there is only a global list, this technique is not threadsafe. */
-struct llvm_stack_entry_t *llvm_gc_root_chain;
+type llvm_stack_entry_t struct
+	var next *llvm_stack_entry_t  # Link to next stack entry (the caller's).
+	var map  *stack_frame_map_t   # Pointer to constant stack_frame_map_t.
+	var stack_roots **var_t       # Stack roots (in-place array).
 
 /* Calls heap_visit(root, meta) for each GC root on the stack.
  *        root and meta are exactly the values passed to
@@ -217,98 +208,100 @@ struct llvm_stack_entry_t *llvm_gc_root_chain;
  * might copy them to another heap or generation.
  *
  * @param heap_visit A function to invoke for every GC root on the stack. */
-void visit_heap_roots(void (*heap_visit)(void *var)) {
-	for (struct llvm_stack_entry_t *R = llvm_gc_root_chain; R; R = R.next) {
-		if (R.map.num_meta != 0) {
-			raise(SIGTRAP);
-		}
+def visit_heap_roots(heap_visit def (obj *void) void)
+	R := llvm_gc_root_chain
+	while R != nil
+		assert(R.map.num_meta == 0r)
 
-		// For roots [num_meta, num_roots), the metadata pointer is null.
-		for (unsigned i = 0, e = R.map.num_roots; i != e; ++i) {
+		# For roots [num_meta, num_roots), the metadata pointer is null.
+		i := 0r
+		e := R.map.num_roots
+		while i != e
 			/* we have a heap variable */
-			heap_visit((void *)R.stack_roots[i]);
-		}
-	}
-}
+			heap_visit(R.stack_roots[i])
+			i += 1r
 
-void visit_allocations(void (*visit)(void *var)) {
-	struct var_t *node = head_var.next;
-	while (node != 0) {
-		/* cache the next node in case our current node gets deleted as part of the fn */
-		struct var_t *next = node.next;
+		R = R.next
 
-		/* visit the node */
-		visit((void *)node);
 
-		/* move along */
-		node = next;
-	}
-}
+def visit_allocations(visit def (obj *var_t) void)
+	node := head_var.next
+	while node != nil
+		# cache the next node in case our current node gets deleted as part of the fn
+		next := node.next
 
-void mark_allocation(struct var_t *var) {
-	if (var != 0) {
-		dbg_zrt(printf("heap variable is referenced on the stack at 0x%08llx and is a '%s'\n", (long long)var, var.type_info.name));
-		if (var.mark == 0) {
-			/* mark this node in the heap so that we break any potential cycles */
-			var.mark = 1;
+		# visit the node
+		visit(node)
 
-			dbg_zrt(printf("marking heap variable at 0x%08llx '%s'\n", (long long)var,
-					var.type_info.name));
+		# move along
+		node = next
 
-			assert(var.type_info);
 
-			type_kind_t type_kind = var.type_info.type_kind;
-			if (type_kind == type_kind_tag) {
-				/* tags don't have dependencies */
-				return;
-			} else if (var.type_info.type_kind == type_kind_use_offsets) {
-				struct type_info_offsets_t *type_info_offsets = (struct type_info_offsets_t *)var.type_info;
+def mark_allocation(obj *var_t)
+	if obj == nil
+		return
 
-				/* we may be holding on to child nodes, let's recurse. */
-				int16_t refs_count = type_info_offsets.refs_count;
+	# dbg_zrt(printf("heap variable is referenced on the stack at 0x%08llx and is a '%s'\n", (long long)obj, obj.type_info.name))
+	if obj.mark != 0r
+		return
 
-				for (int16_t j = 0; j < refs_count; ++j) {
-					/* compute the offset to this referenced dimension */
-					struct var_t *child = GET_CHILD_REF(var, j);
-					mark_allocation(child);
-				}
-			} else if (var.type_info.type_kind == type_kind_use_mark_fn) {
-				/* call the type's mark function to recurse */
-				((struct type_info_mark_fn_t *)var.type_info).mark_fn(var);
-			} else {
-				 assert(0 && "found a heap variable with an invalid type_kind");
-			}
-		}
-	}
-}
+	# mark this node in the heap so that we break any potential cycles
+	obj.mark = 1
 
-void clear_mark_bit(struct var_t *var) {
-	/* this is highly inefficient due to cache non-locality, revisit later */
-	var.mark = 0;
-}
+	# dbg_zrt(printf("marking heap variable at 0x%08llx '%s'\n", (long long)obj, obj.type_info.name))
 
-void free_unmarked(struct var_t *var) {
-	assert(var != &head_var);
-	if (var.mark == 0) {
-		remove_node(var);
-		mem_free(var, var.type_info.size);
-	}
-}
+	assert(obj.type_info)
 
-void gc() {
-	__debug_zion_runtime = getenv("DBG_ZRT") != 0;
-	// HACK: because type unification does not seem to work well when linking IR from C . llir . in-memory Zion, we
-	// are just using the void * type to allow for a "universal" translation layer between modules.
-	visit_allocations((void (*)(void *))clear_mark_bit);
-	visit_heap_roots((void (*)(void *))mark_allocation);
-	visit_allocations((void (*)(void *))free_unmarked);
-}
+	type_kind := obj.type_info.type_kind
 
-void print_var(struct var_t *node) {
-	printf("heap variable is still allocated at 0x%08llx and is a '%s'\n", (long long)node,
-			node.type_info.name);
-}
+	if type_kind == type_kind_tag
+		# tags don't have dependencies
+		return
+	elif obj.type_info.type_kind == type_kind_use_offsets
+		var type_info_offsets *type_info_offsets_t = obj.type_info as *type_info_offsets_t
 
-extern void heap_dump() {
-	visit_allocations((void (*)(void *))print_var);
-}
+		# we may be holding on to child nodes, let's recurse.
+		var refs_count __int16__ = type_info_offsets.refs_count
+
+		var j __int16__ = 0r
+		while j < refs_count
+			/* compute the offset to this referenced dimension */
+			var child *var_t = GET_CHILD_REF(obj, j)
+			mark_allocation(child)
+			j += 1r
+	elif obj.type_info.type_kind == type_kind_use_mark_fn
+		# call the type's mark function to recurse
+		(obj.type_info as *type_info_mark_fn_t).mark_fn(obj)
+	else
+		 assert(0 and "found a heap variable with an invalid type_kind"r)
+
+
+def clear_mark_bit(obj *var_t)
+	# this is highly inefficient due to cache non-locality, revisit later
+	obj.mark = 0
+
+
+def free_unmarked(obj *var_t)
+	assert(obj != head_var)
+	if obj.mark == 0r
+		remove_node(obj)
+		mem_free(obj, obj.type_info.size)
+
+
+def gc()
+	__debug_zion_runtime = posix.getenv("DBG_ZRT"r) != nil
+	# HACK: because type unification does not seem to work well when linking IR
+	# from C . llir . in-memory Zion, we are just using the void * type to allow
+	# for a "universal" translation layer between modules.
+	visit_allocations(clear_mark_bit)
+	visit_heap_roots(mark_allocation)
+	visit_allocations(free_unmarked)
+
+
+def print_var(node *var_t)
+	# printf("heap variable is still allocated at 0x%08llx and is a '%s'\n", (long long)node, node.type_info.name)
+	pass
+
+
+def heap_dump()
+	visit_allocations(print_var)

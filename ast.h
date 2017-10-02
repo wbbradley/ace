@@ -802,6 +802,22 @@ namespace ast {
 		ptr<function_decl_t> extern_function;
 	};
 
+	struct link_var_statement_t : public expression_t {
+		typedef ptr<const link_var_statement_t> ref;
+
+		static const syntax_kind_t SK = sk_link_var_statement;
+
+		virtual bound_var_t::ref resolve_expression(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				bool as_ref) const;
+		virtual void render(render_state_t &rs) const;
+
+		ptr<var_decl_t> var_decl;
+	};
+
 	struct module_t : public std::enable_shared_from_this<module_t>, public item_t {
 		typedef ptr<const module_t> ref;
 
@@ -823,6 +839,7 @@ namespace ast {
 		std::vector<ptr<function_defn_t>> functions;
 		std::vector<ptr<link_module_statement_t>> linked_modules;
 		std::vector<ptr<link_function_statement_t>> linked_functions;
+		std::vector<ptr<link_var_statement_t>> linked_vars;
 		std::vector<ptr<const link_name_t>> linked_names;
 	};
 

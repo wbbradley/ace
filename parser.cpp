@@ -125,7 +125,15 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 		}
 		return link_function_statement;
 	} else {
-		if (ps.token.tk == tk_module) {
+		if (ps.token.tk == tk_var) {
+			ps.advance();
+			auto var_decl = var_decl_t::parse(ps);
+			if (!!ps.status) {
+				auto link_var = create<link_var_statement_t>(link_token);
+				link_var->var_decl = var_decl;
+				return link_var;
+			}
+		} else if (ps.token.tk == tk_module) {
 			auto module_decl = module_decl_t::parse(ps);
 			if (!!ps.status) {
 				auto link_statement = create<link_module_statement_t>(link_token);
@@ -177,6 +185,7 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 		} else {
 			ps.error("link must be followed by function declaration or module import");
 		}
+
 		assert(!ps.status);
 		return nullptr;
 	}
@@ -1779,6 +1788,8 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 				module->linked_modules.push_back(linked_module);
 			} else if (auto linked_function = dyncast<link_function_statement_t>(link_statement)) {
 				module->linked_functions.push_back(linked_function);
+			} else if (auto linked_var = dyncast<link_var_statement_t>(link_statement)) {
+				module->linked_vars.push_back(linked_var);
 			} else if (auto linked_name = dyncast<link_name_t>(link_statement)) {
 				module->linked_names.push_back(linked_name);
 			}
