@@ -2311,13 +2311,13 @@ void type_check_module_links(
 		/* get module level scope variable */
 		module_scope_t::ref scope = compiler.get_module_scope(obj.module_key);
 
-		for (ptr<ast::link_module_statement_t> &link : obj.linked_modules) {
+		for (const ptr<ast::link_module_statement_t> &link : obj.linked_modules) {
 			link->resolve_statement(status, builder, scope, nullptr, nullptr,
 					nullptr);
 		}
 
 		if (!!status) {
-			for (ptr<ast::link_function_statement_t> &link : obj.linked_functions) {
+			for (const ptr<ast::link_function_statement_t> &link : obj.linked_functions) {
 				bound_var_t::ref link_value = link->resolve_expression(
 						status, builder, scope, nullptr, false /*as_ref*/);
 
@@ -2327,6 +2327,17 @@ void type_check_module_links(
 					} else {
 						user_error(status, *link, "module level link definitions need names");
 					}
+				}
+			}
+		}
+
+		if (!!status) {
+			for (const ptr<ast::link_var_statement_t> &link : obj.linked_vars) {
+				bound_var_t::ref link_value = link->resolve_expression(
+						status, builder, scope, nullptr, false /*as_ref*/);
+
+				if (!!status) {
+					scope->put_bound_variable(status, link->var_decl->get_symbol(), link_value);
 				}
 			}
 		}
