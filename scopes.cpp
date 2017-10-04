@@ -14,6 +14,12 @@ const token_kind SCOPE_TK = tk_divide_by;
 const char SCOPE_SEP_CHAR = '.';
 const char *SCOPE_SEP = ".";
 
+void resolve_unchecked_type(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	module_scope_t::ref module_scope,
+	   	unchecked_type_t::ref unchecked_type);
+
 types::type_t::ref module_scope_impl_t::get_inbound_context() {
 	return inbound_context;
 }

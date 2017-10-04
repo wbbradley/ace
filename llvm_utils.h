@@ -106,6 +106,7 @@ bound_var_t::ref llvm_start_function(
 		atom name);
 
 bound_var_t::ref llvm_create_global_tag(
+		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::ref tag_type,

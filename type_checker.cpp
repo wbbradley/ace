@@ -1027,7 +1027,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 			std::string type_info_var_name = std::string("__type_info_") + extern_type->repr();
 			bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, "var_t");
 			if (!!status) {
-				bound_type_t::ref var_ref_type = var_type->get_pointer();
+				bound_type_t::ref var_ptr_type = var_type->get_pointer();
 
 				/* before we go create this type info, let's see if it already exists */
 				auto bound_type_info = program_scope->get_bound_variable(status, full_type->get_location(),
@@ -2621,16 +2621,17 @@ void ast::tag_t::resolve_statement(
 			scope->get_program_scope()->put_bound_type(status, bound_tag_type);
 			if (!!status) {
 				bound_var_t::ref tag = llvm_create_global_tag(
-						builder, scope, bound_tag_type, fqn_tag_name,
+						status, builder, scope, bound_tag_type, fqn_tag_name,
 						make_code_id(token));
-
-				/* record this tag variable for use later */
-				scope->put_bound_variable(status, tag_name, tag);
-
 				if (!!status) {
-					debug_above(7, log(log_info, "instantiated nullary data ctor %s",
-								tag->str().c_str()));
-					return;
+					/* record this tag variable for use later */
+					scope->put_bound_variable(status, tag_name, tag);
+
+					if (!!status) {
+						debug_above(7, log(log_info, "instantiated nullary data ctor %s",
+									tag->str().c_str()));
+						return;
+					}
 				}
 			}
 		}
