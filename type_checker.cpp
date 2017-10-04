@@ -1020,6 +1020,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 			/* we need this in order to be able to get runtime type information */
 			auto program_scope = scope->get_program_scope();
 			std::string type_info_var_name = std::string("__type_info_") + extern_type->repr();
+			bound_type_t::ref var_ptr_type = program_scope->get_runtime_type("var_t")->get_pointer();
 
 			/* before we go create this type info, let's see if it already exists */
 			auto bound_type_info = program_scope->get_bound_variable(status, full_type->get_location(),
@@ -1039,25 +1040,38 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 				if (!!status) {
 					llvm::Module *llvm_module = llvm_get_module(builder);
 
-					// module_scope_t::ref module_scope = scope->get_module_scope();
-
-					bound_type_t::ref finalize_fn_type = program_scope->get_bound_type({"__finalize_fn"});
-					assert(finalize_fn_type != nullptr);
-
-					bound_type_t::ref mark_fn_type = program_scope->get_bound_type({"__mark_fn"});
-					assert(mark_fn_type != nullptr);
-
-					// llvm::Module *llvm_module = module_scope->get_llvm_module();
+#if 0
+					llvm::FunctionType *llvm_var_fn_type = llvm::FunctionType::get(
+						builder.getVoidTy(),
+						llvm::ArrayRef<llvm::Type*>(
+							std::vector<llvm::Type*>{var_ptr_type->get_llvm_type()}),
+						false /*isVarArg*/);
+#endif
 
 					/* get references to the functions named by the user */
-					llvm::Constant *llvm_finalize_fn = llvm_module->getOrInsertFunction(
-							extern_type->link_finalize_fn->get_name().str(),
-						   	llvm::dyn_cast<llvm::FunctionType>(finalize_fn_type->get_llvm_type()));
-					llvm::Constant *llvm_mark_fn = llvm_module->getOrInsertFunction(
-							extern_type->link_mark_fn->get_name().str(),
-						   	llvm::dyn_cast<llvm::FunctionType>(mark_fn_type->get_llvm_type()));
+					bound_var_t::ref finalize_fn = get_callable(
+							status,
+							builder,
+							scope,
+							extern_type->link_finalize_fn->get_name(),
+							get_location(),
+							type_variable(INTERNAL_LOC()),
+							type_args({var_ptr_type->get_type()}, {}),
+							type_void());
+					llvm::Constant *llvm_finalize_fn = llvm::dyn_cast<llvm::Constant>(finalize_fn->get_llvm_value());
 
-					bound_type_t::ref type_info = program_scope->get_bound_type({"__type_info_mark_fn"});
+					bound_var_t::ref mark_fn = get_callable(
+							status,
+							builder,
+							scope,
+							extern_type->link_mark_fn->get_name(),
+							get_location(),
+							type_variable(INTERNAL_LOC()),
+							type_args({var_ptr_type->get_type()}, {}),
+							type_void());
+					llvm::Constant *llvm_mark_fn = llvm::dyn_cast<llvm::Constant>(mark_fn->get_llvm_value());
+
+					bound_type_t::ref type_info = program_scope->get_runtime_type("type_info_mark_fn_t");
 
 					llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
 							type_info->get_llvm_type());
@@ -1093,7 +1107,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 
 					debug_above(5, log(log_info, "llvm_type_info = %s",
 								llvm_print(llvm_type_info).c_str()));
-					bound_type_t::ref type_info_ref = program_scope->get_bound_type({"__type_info_ref"});
+					bound_type_t::ref type_info_ref = program_scope->get_runtime_type("type_info_t")->get_pointer();
 					auto bound_type_info_var = bound_var_t::create(
 							INTERNAL_LOC(),
 							type_info_var_name,
@@ -2570,6 +2584,9 @@ void ast::tag_t::resolve_statement(
         local_scope_t::ref *new_scope,
 		bool * /*returns*/) const
 {
+	indent_logger indent(get_location(), 5, string_format("resolving tag %s",
+			str().c_str()));
+
 	if (type_variables.size() != 0) {
 		return;
 	}
@@ -2584,12 +2601,15 @@ void ast::tag_t::resolve_statement(
 	 * represent this tag. */
 
 	if (!!status) {
+		bound_type_t::ref var_type = scope->get_program_scope()->get_runtime_type("var_t")->get_pointer();
+		assert(var_type != nullptr);
+
 		/* start by making a type for the tag */
 		bound_type_t::ref bound_tag_type = bound_type_t::create(
 				tag_type,
 				token.location,
 				/* all tags use the var_t* type */
-				scope->get_program_scope()->get_bound_type({"__var_ref"})->get_llvm_type());
+				var_type->get_llvm_type());
 
 		scope->put_typename(status, fqn_tag_name, type_ptr(type_managed(type_struct({}, {}))));
 		if (!!status) {

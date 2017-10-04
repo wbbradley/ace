@@ -273,6 +273,7 @@ struct program_scope_t : public module_scope_impl_t {
 	unchecked_var_t::map unchecked_vars;
 
 	virtual unchecked_var_t::refs &get_unchecked_vars_ordered();
+	bound_type_t::ref get_runtime_type(std::string name);
 
 private:
 	compiler_t &compiler;

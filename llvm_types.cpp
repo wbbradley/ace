@@ -113,7 +113,7 @@ bound_type_t::ref create_bound_extern_type(
 
 	if (!!status) {
 		auto link_type_name = type_extern->link_type_name;
-		auto var_ref_type = program_scope->get_bound_type({"__var_ref"});
+		auto var_ref_type = program_scope->get_runtime_type("var_t")->get_pointer();
 		if (!!status) {
 			auto bound_type = bound_type_t::create(type_extern,
 					type_extern->get_location(),
@@ -191,7 +191,7 @@ std::vector<llvm::Type *> build_struct_elements(
 		std::vector<llvm::Type *> elements;
 
 		/* let's prefix the data in this structure with the managed runtime */
-		bound_type_t::ref var_type = program_scope->get_bound_type({"__var"});
+		bound_type_t::ref var_type = program_scope->get_runtime_type("var_t");
 		llvm::Type *llvm_var_type = var_type->get_llvm_type();
 
 		/* place the var_t struct into the structure */
@@ -269,7 +269,7 @@ bound_type_t::ref create_bound_managed_type(
 		/* ensure that since this type is managed we refer to it generally by
 		 * its managed structure definition (upwards pointer bitcasts happen
 		 * automatically at reference locations) */
-		llvm::Type *llvm_least_specific_type = program_scope->get_bound_type({"__var"})->get_llvm_type();
+		llvm::Type *llvm_least_specific_type = program_scope->get_runtime_type("var_t")->get_llvm_type();
 
 		/* resolve all of the contained dimensions. NB: cycles should be broken
 		 * by the existence of the pointer to this type */
@@ -347,7 +347,7 @@ bound_type_t::ref create_bound_struct_type(
 		/* ensure that if this type is managed we refer to it generally by its
 		 * managed structure definition (upwards pointer bitcasts happen
 		 * automatically at reference locations) */
-		llvm::Type *llvm_least_specific_type = program_scope->get_bound_type({"__var"})->get_llvm_type();
+		llvm::Type *llvm_least_specific_type = program_scope->get_runtime_type("var_t")->get_llvm_type();
 
 		/* resolve all of the contained dimensions. NB: cycles should be broken
 		 * by the existence of the pointer to this type */
@@ -538,7 +538,10 @@ bound_type_t::ref create_bound_sum_type(
 
 	auto bound_type = bound_type_t::create(sum,
 			sum->get_location(),
-			scope->get_bound_type({"__var_ref"})->get_llvm_type());
+			scope
+				->get_program_scope()
+				->get_runtime_type("var_t")
+				->get_pointer()->get_llvm_type());
 
 	ptr<program_scope_t> program_scope = scope->get_program_scope();
 	program_scope->put_bound_type(status, bound_type);
@@ -863,7 +866,7 @@ bound_var_t::ref upsert_type_info_offsets(
 {
 	llvm::Value *llvm_dtor_fn = nullptr;
 	auto program_scope = scope->get_program_scope();
-	bound_type_t::ref type_info = program_scope->get_bound_type({"__type_info_offsets"});
+	bound_type_t::ref type_info = program_scope->get_runtime_type({"type_info_offsets_t"});
 
 	llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
 			type_info->get_llvm_type());
@@ -968,7 +971,7 @@ bound_var_t::ref upsert_type_info_offsets(
 
 	debug_above(5, log(log_info, "llvm_type_info = %s",
 				llvm_print(llvm_type_info).c_str()));
-	bound_type_t::ref type_info_ref = program_scope->get_bound_type({"__type_info_ref"});
+	bound_type_t::ref type_info_ref = program_scope->get_runtime_type("type_info_t")->get_pointer();
 	auto bound_type_info_var = bound_var_t::create(
 			INTERNAL_LOC(),
 			type_info_name,

@@ -50,6 +50,14 @@ llvm::Type *bound_type_t::get_llvm_specific_type() const {
 	return llvm_specific_type ? llvm_specific_type : llvm_type;
 }
 
+bound_type_t::ref bound_type_t::get_pointer() const {
+	return create(
+			type_ptr(type),
+			location,
+			llvm_type->getPointerTo(),
+			llvm_specific_type ? llvm_specific_type->getPointerTo() : nullptr);
+}
+
 bound_type_t::ref bound_type_t::create(
 		types::type_t::ref type,
 		location_t location,
@@ -208,7 +216,7 @@ bool bound_type_t::is_managed_ptr(scope_t::ref scope) const {
 				res ? c_good("it is") : c_error("it isn't")));
 
 	/* get the memory management structure type */
-	auto var = scope->get_bound_type("__var");
+	auto var = scope->get_program_scope()->get_runtime_type("var_t");
 	assert(var != nullptr);
 
 	if (res) {

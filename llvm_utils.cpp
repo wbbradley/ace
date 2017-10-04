@@ -578,7 +578,7 @@ llvm::Type *llvm_wrap_type(
 	 *
 	 * This is to allow this type to be managed by the GC.
 	 */
-	bound_type_t::ref var_type = program_scope->get_bound_type({"__var"});
+	bound_type_t::ref var_type = program_scope->get_runtime_type("var_t");
 	llvm::Type *llvm_var_type = var_type->get_llvm_type();
 
 	llvm::ArrayRef<llvm::Type*> llvm_dims{llvm_var_type, llvm_data_type};
@@ -745,8 +745,8 @@ bound_var_t::ref llvm_create_global_tag(
 	 * @__tag_Example = global %struct.tag_t { %struct.type_info_t* @__tag_type_info_Example }, align 8
 	 * @Example = global %struct.var_t* bitcast (%struct.tag_t* @__tag_Example to %struct.var_t*), align 8 */
 
-	bound_type_t::ref var_ref_type = program_scope->get_bound_type({"__var_ref"});
-	bound_type_t::ref tag_struct_type = program_scope->get_bound_type({"__tag_var"});
+	bound_type_t::ref var_ref_type = program_scope->get_runtime_type({"var_t"});
+	bound_type_t::ref tag_struct_type = program_scope->get_runtime_type({"tag_t"});
 
 	llvm::Type *llvm_var_ref_type = var_ref_type->get_llvm_type();
 	llvm::StructType *llvm_tag_type = llvm::dyn_cast<llvm::StructType>(tag_struct_type->get_llvm_type());
@@ -761,7 +761,7 @@ bound_var_t::ref llvm_create_global_tag(
 	debug_above(10, log(log_info, "llvm_name is %s", llvm_print(*llvm_name).c_str()));
 
 	llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
-			program_scope->get_bound_type({"__type_info"})->get_llvm_type());
+			program_scope->get_runtime_type("type_info_t")->get_llvm_type());
 
 	std::vector<llvm::Constant *> llvm_tag_data({
 		/* type_id - the actual type "tag" */

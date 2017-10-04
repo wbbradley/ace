@@ -430,8 +430,6 @@ void add_globals(
 	bound_type_t::ref nil_type = program_scope->get_bound_type({"nil"});
 	bound_type_t::ref void_ptr_type = program_scope->get_bound_type({"__bytes"});
 	bound_type_t::ref bool_type = program_scope->get_bound_type({BOOL_TYPE});
-	bound_type_t::ref next_var_type = program_scope->get_bound_type({"__next_var"});
-
 
 	program_scope->put_bound_variable(status, "__true__", bound_var_t::create(INTERNAL_LOC(), "__true__", bool_type, builder.getInt64(1/*true*/), make_iid("__true__")));
 	assert(!!status);

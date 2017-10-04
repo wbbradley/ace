@@ -51,6 +51,7 @@ public:
 
 	static refs refs_from_vars(const std::vector<ptr<const bound_var_t>> &vars);
 
+	ref get_pointer() const;
 	static ref create(
 			types::type_t::ref type,
 			location_t location,

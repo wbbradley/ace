@@ -191,6 +191,16 @@ void get_callables_from_unchecked_vars(
 	}
 }
 
+bound_type_t::ref program_scope_t::get_runtime_type(std::string name) {
+	module_scope_t::ref runtime_module = lookup_module("runtime");
+	if (runtime_module != nullptr) {
+		dbg();
+	} else {
+		assert(false && "runtime module is not yet installed.");
+	}
+	return nullptr;
+}
+
 void program_scope_t::get_callables(atom symbol, var_t::refs &fns) {
 	get_callables_from_bound_vars(symbol, bound_vars, fns);
 	get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
@@ -666,6 +676,11 @@ std::string str(const module_scope_t::map &modules) {
 }
 
 module_scope_t::ref program_scope_t::lookup_module(atom symbol) {
+	debug_above(6, log("looking for module %s in [%s]",
+				symbol.c_str(),
+				join_with(modules, ", ", [] (module_scope_t::map::value_type module) -> std::string {
+					return module.first.c_str();
+				}).c_str()));
 	auto iter = modules.find(symbol);
 	if (iter != modules.end()) {
 		return iter->second;
