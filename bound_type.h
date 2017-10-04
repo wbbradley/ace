@@ -35,7 +35,7 @@ protected:
 public:
 	bool is_function() const;
 	bool is_void() const;
-	bool is_managed_ptr(ptr<scope_t> scope) const;
+	void is_managed_ptr(status_t &status, llvm::IRBuilder<> &builder, ptr<scope_t> scope, bool &is_managed) const;
 	bool is_ptr(ptr<scope_t> scope) const;
 	bool is_ref() const;
 	bool is_maybe() const;

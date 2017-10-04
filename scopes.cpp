@@ -191,13 +191,34 @@ void get_callables_from_unchecked_vars(
 	}
 }
 
-bound_type_t::ref program_scope_t::get_runtime_type(std::string name) {
+bound_type_t::ref program_scope_t::get_runtime_type(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	std::string name)
+{
 	module_scope_t::ref runtime_module = lookup_module("runtime");
 	if (runtime_module != nullptr) {
-		dbg();
+		auto type = eval(type_id(make_iid_impl(name, INTERNAL_LOC())), runtime_module->get_typename_env());
+		if (type == nullptr) {
+			unchecked_type_t::ref unchecked_type = runtime_module->get_unchecked_type(name);
+			if (unchecked_type != nullptr) {
+				resolve_unchecked_type(status, builder, runtime_module, unchecked_type);
+				type = eval(type_id(make_iid_impl(name, INTERNAL_LOC())), runtime_module->get_typename_env());
+			} else {
+				user_error(status, INTERNAL_LOC(), "could not find unchecked type " c_type("%s"), name.c_str());
+			}
+		}
+
+		if (type != nullptr) {
+			return upsert_bound_type(status, builder, runtime_module, type);
+		} else {
+			user_error(status, INTERNAL_LOC(), "could not find type " c_type("%s"), name.c_str());
+		}
 	} else {
-		assert(false && "runtime module is not yet installed.");
+		user_error(status, INTERNAL_LOC(), "runtime module is not yet installed.");
 	}
+
+	assert(!status);
 	return nullptr;
 }
 

@@ -428,7 +428,14 @@ bound_var_t::ref llvm_stack_map_value(
         scope_t::ref scope,
         bound_var_t::ref value)
 {
-	assert(value->type->is_managed_ptr(scope));
+#ifdef ZION_DEBUG
+	{
+		bool is_managed;
+		value->type->is_managed_ptr(status, builder, scope, is_managed);
+		assert(!!status);
+		assert(is_managed);
+	}
+#endif
 
     if (value->type->is_ref()) {
         return value;
@@ -547,19 +554,8 @@ llvm::StructType *llvm_create_struct_type(
 	return llvm_tuple_type;
 }
 
-llvm::Type *llvm_create_sum_type(
-		llvm::IRBuilder<> &builder,
-		program_scope_t::ref program_scope,
-		atom name)
-{
-	llvm::StructType *llvm_sum_type = llvm_create_struct_type(builder, name,
-			std::vector<llvm::Type*>{});
-
-	/* the actual llvm return type is a managed variable */
-	return llvm_wrap_type(builder, program_scope, name, llvm_sum_type);
-}
-
 llvm::Type *llvm_wrap_type(
+		status_t &status,
 		llvm::IRBuilder<> &builder,
 		program_scope_t::ref program_scope,
 		atom data_name,
@@ -578,17 +574,22 @@ llvm::Type *llvm_wrap_type(
 	 *
 	 * This is to allow this type to be managed by the GC.
 	 */
-	bound_type_t::ref var_type = program_scope->get_runtime_type("var_t");
-	llvm::Type *llvm_var_type = var_type->get_llvm_type();
+	bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, "var_t");
+	if (!!status) {
+		llvm::Type *llvm_var_type = var_type->get_llvm_type();
 
-	llvm::ArrayRef<llvm::Type*> llvm_dims{llvm_var_type, llvm_data_type};
-	auto llvm_struct_type = llvm::StructType::create(builder.getContext(), llvm_dims);
+		llvm::ArrayRef<llvm::Type*> llvm_dims{llvm_var_type, llvm_data_type};
+		auto llvm_struct_type = llvm::StructType::create(builder.getContext(), llvm_dims);
 
-	/* give the struct a helpful name internally */
-	llvm_struct_type->setName(data_name.str());
+		/* give the struct a helpful name internally */
+		llvm_struct_type->setName(data_name.str());
 
-	/* we'll be referring to pointers to these variable structures */
-	return llvm_struct_type;
+		/* we'll be referring to pointers to these variable structures */
+		return llvm_struct_type;
+	}
+
+	assert(!status);
+	return nullptr;
 }
 
 void llvm_verify_function(status_t &status, llvm::Function *llvm_function) {

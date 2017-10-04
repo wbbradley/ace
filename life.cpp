@@ -83,28 +83,33 @@ void life_t::track_var(
 		life_form_t track_in_life_form)
 {
 	assert(life_form != lf_loop);
-	if (!value->type->is_managed_ptr(scope)) {
-		/* we only track managed variables */
-		debug_above(8, log("not tracking %s because it's not managed : %s",
-					value->str().c_str(),
-					value->type->str().c_str()));
-		return;
-	}
-
-	// TODO: just track allocas for cleanup. avoid refcounting for now
-
-	/* ensure there is a slot in the stack map for this heap pointer */
-	value = llvm_stack_map_value(status, builder, scope, value);
+	bool is_managed;
+	value->type->is_managed_ptr(status, builder, scope, is_managed);
 
 	if (!!status) {
-		if (this->life_form == track_in_life_form) {
-			/* we track both LHS's and RHS's */
-			values.push_back(value);
-		} else {
-			assert(this->former_life != nullptr && "We found a track_in_life_form for a life_form that is not on the stack.");
-			this->former_life->track_var(status, builder, scope, value, track_in_life_form);
+		if (!is_managed) {
+			/* we only track managed variables */
+			debug_above(8, log("not tracking %s because it's not managed : %s",
+						value->str().c_str(),
+						value->type->str().c_str()));
+			return;
 		}
-		return;
+
+		// TODO: just track allocas for cleanup. avoid refcounting for now
+
+		/* ensure there is a slot in the stack map for this heap pointer */
+		value = llvm_stack_map_value(status, builder, scope, value);
+
+		if (!!status) {
+			if (this->life_form == track_in_life_form) {
+				/* we track both LHS's and RHS's */
+				values.push_back(value);
+			} else {
+				assert(this->former_life != nullptr && "We found a track_in_life_form for a life_form that is not on the stack.");
+				this->former_life->track_var(status, builder, scope, value, track_in_life_form);
+			}
+			return;
+		}
 	}
 
 	assert(!status);
@@ -130,36 +135,40 @@ void call_refcount_func(
 	return;
 	if (!!status) {
 		assert(var != nullptr);
+		bool is_managed;
+		var->type->is_managed_ptr(status, builder, scope, is_managed);
 
-		if (var->type->is_managed_ptr(scope)) {
-			auto program_scope = scope->get_program_scope();
-			auto refcount_function = program_scope->get_singleton(function);
+		if (!!status) {
+			if (is_managed) {
+				auto program_scope = scope->get_program_scope();
+				auto refcount_function = program_scope->get_singleton(function);
 
-			debug_above(8, log("calling refcounting function %s on var %s", function.c_str(),
-						var->str().c_str()));
+				debug_above(8, log("calling refcounting function %s on var %s", function.c_str(),
+							var->str().c_str()));
 #ifdef MEMORY_DEBUGGING
-			bound_var_t::ref reason_var = bound_var_t::create(
-					INTERNAL_LOC(), "reason",
-					program_scope->get_bound_type({"__str__"}),
-					llvm_create_global_string(builder, reason),
-					make_iid("refcount_reason"));
+				bound_var_t::ref reason_var = bound_var_t::create(
+						INTERNAL_LOC(), "reason",
+						program_scope->get_bound_type({"__str__"}),
+						llvm_create_global_string(builder, reason),
+						make_iid("refcount_reason"));
 #endif
 
-			auto life = make_ptr<life_t>(status, lf_statement, nullptr);
-			make_call_value(
-					status,
-					builder,
-					INTERNAL_LOC(),
-					scope,
-					life,
-					refcount_function,
-					{var
+				auto life = make_ptr<life_t>(status, lf_statement, nullptr);
+				make_call_value(
+						status,
+						builder,
+						INTERNAL_LOC(),
+						scope,
+						life,
+						refcount_function,
+						{var
 #ifdef MEMORY_DEBUGGING
-					, reason_var
+						, reason_var
 #endif
-					});
-			/* since the refcount functions return a void, we can discard this
-			 * life as it won't have anything to clean up. */
+						});
+				/* since the refcount functions return a void, we can discard this
+				 * life as it won't have anything to clean up. */
+			}
 		}
 	}
 }

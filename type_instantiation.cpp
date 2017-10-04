@@ -251,6 +251,7 @@ void ast::type_product_t::register_type(
 		scope_t::ref scope) const
 {
 	debug_above(5, log(log_info, "creating product type for %s", str().c_str()));
+	dbg();
 	assert(!native);
 
 	atom name = id_->get_name();

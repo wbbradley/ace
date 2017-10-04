@@ -113,8 +113,9 @@ bound_type_t::ref create_bound_extern_type(
 
 	if (!!status) {
 		auto link_type_name = type_extern->link_type_name;
-		auto var_ref_type = program_scope->get_runtime_type("var_t")->get_pointer();
+		bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, "var_t");
 		if (!!status) {
+			auto var_ref_type = var_type->get_pointer();
 			auto bound_type = bound_type_t::create(type_extern,
 					type_extern->get_location(),
 					var_ref_type->get_llvm_type());
@@ -182,16 +183,18 @@ bound_type_t::ref create_bound_ptr_type(
 }
 
 std::vector<llvm::Type *> build_struct_elements(
+		status_t &status,
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
-	   	types::type_struct_t::ref struct_type,
+		types::type_struct_t::ref struct_type,
 		bound_type_t::refs bound_dimensions)
 {
-		/* create the structure in place in this struct type */
-		std::vector<llvm::Type *> elements;
+	/* create the structure in place in this struct type */
+	std::vector<llvm::Type *> elements;
 
-		/* let's prefix the data in this structure with the managed runtime */
-		bound_type_t::ref var_type = program_scope->get_runtime_type("var_t");
+	/* let's prefix the data in this structure with the managed runtime */
+	bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, "var_t");
+	if (!!status) {
 		llvm::Type *llvm_var_type = var_type->get_llvm_type();
 
 		/* place the var_t struct into the structure */
@@ -215,6 +218,10 @@ std::vector<llvm::Type *> build_struct_elements(
 		assert(elements.size() == 2);
 
 		return elements;
+	}
+
+	assert(!status);
+	return {};
 }
 
 bound_type_t::ref create_bound_managed_type(
@@ -279,20 +286,21 @@ bound_type_t::ref create_bound_managed_type(
 		if (!!status) {
 			/* fill out the internals of this structure INCLUDING the MANAGED var_t */
 			std::vector<llvm::Type *> elements = build_struct_elements(
-					builder, program_scope, struct_type, bound_dimensions);
-
-			/* finally set the elements into the structure */
-			llvm_struct_type->setBody(elements);
-
-			auto bound_type = bound_type_t::create(managed_type,
-					struct_type->get_location(), llvm_least_specific_type,
-					llvm_struct_type);
-
-			/* register this type */
-			program_scope->put_bound_type(status, bound_type);
-
+					status, builder, program_scope, struct_type, bound_dimensions);
 			if (!!status) {
-				return bound_type;
+				/* finally set the elements into the structure */
+				llvm_struct_type->setBody(elements);
+
+				auto bound_type = bound_type_t::create(managed_type,
+						struct_type->get_location(), llvm_least_specific_type,
+						llvm_struct_type);
+
+				/* register this type */
+				program_scope->put_bound_type(status, bound_type);
+
+				if (!!status) {
+					return bound_type;
+				}
 			}
 		}
 	} else {
@@ -357,20 +365,21 @@ bound_type_t::ref create_bound_struct_type(
 		if (!!status) {
 			/* fill out the internals of this structure */
 			std::vector<llvm::Type *> elements = build_struct_elements(
-					builder, program_scope, struct_type, bound_dimensions);
-
-			/* finally set the elements into the structure */
-			llvm_struct_type->setBody(elements);
-
-			auto bound_type = bound_type_t::create(struct_type,
-					struct_type->get_location(), llvm_least_specific_type,
-					llvm_struct_type);
-
-			/* register this type */
-			program_scope->put_bound_type(status, bound_type);
-
+					status, builder, program_scope, struct_type, bound_dimensions);
 			if (!!status) {
-				return bound_type;
+				/* finally set the elements into the structure */
+				llvm_struct_type->setBody(elements);
+
+				auto bound_type = bound_type_t::create(struct_type,
+						struct_type->get_location(), llvm_least_specific_type,
+						llvm_struct_type);
+
+				/* register this type */
+				program_scope->put_bound_type(status, bound_type);
+
+				if (!!status) {
+					return bound_type;
+				}
 			}
 		}
 	} else {
@@ -549,7 +558,7 @@ bound_type_t::ref create_bound_sum_type(
 	/* check for disallowed types */
 	auto typename_env = scope->get_typename_env();
 	for (auto subtype : sum->options) {
-		if (!types::is_managed_ptr(subtype, typename_env)) {
+		if (!types::is_managed_ptr(status, builder, subtype, typename_env)) {
 			user_error(status, subtype->get_location(),
 					"subtype %s does not have run-time type information, or is just too weird",
 					subtype->str().c_str());
@@ -898,7 +907,7 @@ bound_var_t::ref upsert_type_info_offsets(
 	for (size_t i=0; i<args.size(); ++i) {
 		debug_above(5, log(log_info, "args[%d] is %s",
 					i, args[i]->str().c_str()));
-		if (args[i]->is_managed_ptr(program_scope)) {
+		if (args[i]->is_managed_ptr(status, builder, program_scope)) {
 			/* this element is managed, so let's store its memory offset in
 			 * our array */
 			debug_above(5, log(log_info, "getting offset of %d in %s",

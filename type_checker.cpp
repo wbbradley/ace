@@ -159,56 +159,61 @@ bound_var_t::ref generate_stack_variable(
 
 		// NOTE: we don't make this a gcroot until a little later on
 		llvm::AllocaInst *llvm_alloca;
-		if (value_type->is_managed_ptr(scope)) {
-			llvm_alloca = llvm_call_gcroot(llvm_function, value_type, symbol);
-		} else {
-			llvm_alloca = llvm_create_entry_block_alloca(llvm_function, value_type, symbol);
-		}
+		bool is_managed;
+		value_type->is_managed_ptr(status, builder, scope, is_managed);
 
-		if (init_var == nullptr) {
-			/* the user didn't supply an initializer, let's see if this type has one */
-			auto init_fn = get_callable(
-					status,
-					builder,
-					scope->get_module_scope(),
-					"__init__",
-					obj.get_location(),
-					type_variable(obj.get_location()),
-					type_args({}, {}),
-					value_type->get_type());
-
-			if (!!status) {
-				init_var = make_call_value(status, builder, obj.get_location(), scope,
-						life, init_fn, {} /*arguments*/);
-			}
-		}
-
-		if (init_var) {
-			if (!init_var->type->get_type()->is_nil()) {
-				debug_above(6, log(log_info, "creating a store instruction %s := %s",
-							llvm_print(llvm_alloca).c_str(),
-							llvm_print(init_var->get_llvm_value()).c_str()));
-
-				// Should resolve_value be allowed?
-				llvm::Value *llvm_init_value = init_var->get_llvm_value(); // ->resolve_value(builder);
-				if (llvm_init_value->getName().size() == 0) {
-					llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
-				}
-
-				builder.CreateStore(
-						llvm_maybe_pointer_cast(builder, llvm_init_value,
-							value_type->get_llvm_specific_type()),
-						llvm_alloca);
+		if (!!status) {
+			if (is_managed) {
+				llvm_alloca = llvm_call_gcroot(llvm_function, value_type, symbol);
 			} else {
+				llvm_alloca = llvm_create_entry_block_alloca(llvm_function, value_type, symbol);
+			}
+
+			if (init_var == nullptr) {
+				/* the user didn't supply an initializer, let's see if this type has one */
+				auto init_fn = get_callable(
+						status,
+						builder,
+						scope->get_module_scope(),
+						"__init__",
+						obj.get_location(),
+						type_variable(obj.get_location()),
+						type_args({}, {}),
+						value_type->get_type());
+
+				if (!!status) {
+					init_var = make_call_value(status, builder, obj.get_location(), scope,
+							life, init_fn, {} /*arguments*/);
+				}
+			}
+
+			if (init_var) {
+				if (!init_var->type->get_type()->is_nil()) {
+					debug_above(6, log(log_info, "creating a store instruction %s := %s",
+								llvm_print(llvm_alloca).c_str(),
+								llvm_print(init_var->get_llvm_value()).c_str()));
+
+					// Should resolve_value be allowed?
+					llvm::Value *llvm_init_value = init_var->get_llvm_value(); // ->resolve_value(builder);
+					if (llvm_init_value->getName().size() == 0) {
+						llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+					}
+
+					builder.CreateStore(
+							llvm_maybe_pointer_cast(builder, llvm_init_value,
+								value_type->get_llvm_specific_type()),
+							llvm_alloca);
+				} else {
+					llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
+					builder.CreateStore(llvm_null_value, llvm_alloca);
+				}
+			} else if (dyncast<const types::type_maybe_t>(lhs_type)) {
+				/* this can be null, let's initialize it as such */
 				llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
 				builder.CreateStore(llvm_null_value, llvm_alloca);
+			} else {
+				user_error(status, obj.get_location(), "missing initializer");
 			}
-		} else if (dyncast<const types::type_maybe_t>(lhs_type)) {
-			/* this can be null, let's initialize it as such */
-			llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
-			builder.CreateStore(llvm_null_value, llvm_alloca);
-		} else {
-			user_error(status, obj.get_location(), "missing initializer");
 		}
 
 		if (!!status) {
@@ -1020,105 +1025,108 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 			/* we need this in order to be able to get runtime type information */
 			auto program_scope = scope->get_program_scope();
 			std::string type_info_var_name = std::string("__type_info_") + extern_type->repr();
-			bound_type_t::ref var_ptr_type = program_scope->get_runtime_type("var_t")->get_pointer();
-
-			/* before we go create this type info, let's see if it already exists */
-			auto bound_type_info = program_scope->get_bound_variable(status, full_type->get_location(),
-					type_info_var_name);
-
+			bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, "var_t");
 			if (!!status) {
-				if (bound_type_info != nullptr) {
-					/* we've already created this bound type info, so let's just return it */
-					return bound_type_info;
-				}
+				bound_type_t::ref var_ref_type = var_type->get_pointer();
 
-				/* we have to create it */
-				auto llvm_linked_type = program_scope->get_llvm_type(
-						status,
-						token.location,
-						std::string("struct.") + extern_type->link_type_name->get_name().str());
+				/* before we go create this type info, let's see if it already exists */
+				auto bound_type_info = program_scope->get_bound_variable(status, full_type->get_location(),
+						type_info_var_name);
+
 				if (!!status) {
-					llvm::Module *llvm_module = llvm_get_module(builder);
+					if (bound_type_info != nullptr) {
+						/* we've already created this bound type info, so let's just return it */
+						return bound_type_info;
+					}
+
+					/* we have to create it */
+					auto llvm_linked_type = program_scope->get_llvm_type(
+							status,
+							token.location,
+							std::string("struct.") + extern_type->link_type_name->get_name().str());
+					if (!!status) {
+						llvm::Module *llvm_module = llvm_get_module(builder);
 
 #if 0
-					llvm::FunctionType *llvm_var_fn_type = llvm::FunctionType::get(
-						builder.getVoidTy(),
-						llvm::ArrayRef<llvm::Type*>(
-							std::vector<llvm::Type*>{var_ptr_type->get_llvm_type()}),
-						false /*isVarArg*/);
+						llvm::FunctionType *llvm_var_fn_type = llvm::FunctionType::get(
+								builder.getVoidTy(),
+								llvm::ArrayRef<llvm::Type*>(
+									std::vector<llvm::Type*>{var_ptr_type->get_llvm_type()}),
+								false /*isVarArg*/);
 #endif
 
-					/* get references to the functions named by the user */
-					bound_var_t::ref finalize_fn = get_callable(
-							status,
-							builder,
-							scope,
-							extern_type->link_finalize_fn->get_name(),
-							get_location(),
-							type_variable(INTERNAL_LOC()),
-							type_args({var_ptr_type->get_type()}, {}),
-							type_void());
-					llvm::Constant *llvm_finalize_fn = llvm::dyn_cast<llvm::Constant>(finalize_fn->get_llvm_value());
+						/* get references to the functions named by the user */
+						bound_var_t::ref finalize_fn = get_callable(
+								status,
+								builder,
+								scope,
+								extern_type->link_finalize_fn->get_name(),
+								get_location(),
+								type_variable(INTERNAL_LOC()),
+								type_args({var_ptr_type->get_type()}, {}),
+								type_void());
+						llvm::Constant *llvm_finalize_fn = llvm::dyn_cast<llvm::Constant>(finalize_fn->get_llvm_value());
 
-					bound_var_t::ref mark_fn = get_callable(
-							status,
-							builder,
-							scope,
-							extern_type->link_mark_fn->get_name(),
-							get_location(),
-							type_variable(INTERNAL_LOC()),
-							type_args({var_ptr_type->get_type()}, {}),
-							type_void());
-					llvm::Constant *llvm_mark_fn = llvm::dyn_cast<llvm::Constant>(mark_fn->get_llvm_value());
+						bound_var_t::ref mark_fn = get_callable(
+								status,
+								builder,
+								scope,
+								extern_type->link_mark_fn->get_name(),
+								get_location(),
+								type_variable(INTERNAL_LOC()),
+								type_args({var_ptr_type->get_type()}, {}),
+								type_void());
+						llvm::Constant *llvm_mark_fn = llvm::dyn_cast<llvm::Constant>(mark_fn->get_llvm_value());
 
-					bound_type_t::ref type_info = program_scope->get_runtime_type("type_info_mark_fn_t");
+						bound_type_t::ref type_info = program_scope->get_runtime_type("type_info_mark_fn_t");
 
-					llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
-							type_info->get_llvm_type());
+						llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
+								type_info->get_llvm_type());
 
-					llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
-					auto signature = extern_type->get_signature();
-					std::vector<llvm::Constant *> llvm_type_info_data({
-							/* the type_id */
-							builder.getInt32(signature.iatom),
+						llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
+						auto signature = extern_type->get_signature();
+						std::vector<llvm::Constant *> llvm_type_info_data({
+								/* the type_id */
+								builder.getInt32(signature.iatom),
 
-							/* allocation size */
-							llvm_sizeof_tuple,
+								/* allocation size */
+								llvm_sizeof_tuple,
 
-							/* the kind of this type_info */
-							builder.getInt32(type_kind_use_mark_fn),
+								/* the kind of this type_info */
+								builder.getInt32(type_kind_use_mark_fn),
 
-							/* name this variable */
-							(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
+								/* name this variable */
+								(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
 
-							/* finalize_fn */
-							llvm_finalize_fn,
+								/* finalize_fn */
+								llvm_finalize_fn,
 
-							/* mark_fn */
-							llvm_mark_fn,
-							});
-					llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
-					check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
-					llvm::Constant *llvm_type_info = llvm_get_global(
-							llvm_module, string_format("__type_info_%s", signature.c_str()),
-							llvm::ConstantStruct::get(llvm_type_info_type,
-								llvm_type_info_data),
-							true /*is_constant*/);
+								/* mark_fn */
+								llvm_mark_fn,
+								});
+						llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
+						check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
+						llvm::Constant *llvm_type_info = llvm_get_global(
+								llvm_module, string_format("__type_info_%s", signature.c_str()),
+								llvm::ConstantStruct::get(llvm_type_info_type,
+									llvm_type_info_data),
+								true /*is_constant*/);
 
-					debug_above(5, log(log_info, "llvm_type_info = %s",
-								llvm_print(llvm_type_info).c_str()));
-					bound_type_t::ref type_info_ref = program_scope->get_runtime_type("type_info_t")->get_pointer();
-					auto bound_type_info_var = bound_var_t::create(
-							INTERNAL_LOC(),
-							type_info_var_name,
-							type_info_ref,
-							llvm::ConstantExpr::getPointerCast(
-								llvm_type_info,
-								type_info_ref->get_llvm_type()),
-							make_iid("type info value"));
+						debug_above(5, log(log_info, "llvm_type_info = %s",
+									llvm_print(llvm_type_info).c_str()));
+						bound_type_t::ref type_info_ref = program_scope->get_runtime_type("type_info_t")->get_pointer();
+						auto bound_type_info_var = bound_var_t::create(
+								INTERNAL_LOC(),
+								type_info_var_name,
+								type_info_ref,
+								llvm::ConstantExpr::getPointerCast(
+									llvm_type_info,
+									type_info_ref->get_llvm_type()),
+								make_iid("type info value"));
 
-					program_scope->put_bound_variable(status, type_info_var_name, bound_type_info_var);
-					return bound_type_info_var;
+						program_scope->put_bound_variable(status, type_info_var_name, bound_type_info_var);
+						return bound_type_info_var;
+					}
 				}
 			}
 		} else {
@@ -2392,6 +2400,33 @@ void type_check_module_vars(
 	}
 }
 
+void resolve_unchecked_type(status_t &status, llvm::IRBuilder<> &builder, module_scope_t::ref module_scope, unchecked_type_t::ref unchecked_type) {
+	auto node = unchecked_type->node;
+	/* prevent recurring checks */
+	if (!module_scope->has_checked(node)) {
+		assert(!dyncast<const ast::function_defn_t>(node));
+
+		debug_above(5, log(log_info, "checking module level type %s", node->token.str().c_str()));
+
+		/* these next lines create type definitions, regardless of
+		 * their genericity.  type expressions will be added as
+		 * environment variables in the type system.  this step is
+		 * MUTATING the type environment of the module, and the
+		 * program. */
+		if (auto type_def = dyncast<const ast::type_def_t>(node)) {
+			type_def->resolve_statement(status, builder,
+					module_scope, nullptr, nullptr, nullptr);
+		} else if (auto tag = dyncast<const ast::tag_t>(node)) {
+			tag->resolve_statement(status, builder, module_scope,
+					nullptr, nullptr, nullptr);
+		} else {
+			panic("unhandled unchecked type node at module scope");
+		}
+	} else {
+		debug_above(3, log(log_info, "skipping %s because it's already been checked", node->token.str().c_str()));
+	}
+}
+
 void type_check_module_types(
 		status_t &status,
         compiler_t &compiler,
@@ -2407,42 +2442,12 @@ void type_check_module_types(
 		module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
 
 		auto unchecked_types_ordered = module_scope->get_unchecked_types_ordered();
-		for (auto unchecked_type : unchecked_types_ordered) {
-			auto node = unchecked_type->node;
-			if (!module_scope->has_checked(node)) {
-				assert(!dyncast<const ast::function_defn_t>(node));
-
-				/* prevent recurring checks */
-				debug_above(5, log(log_info, "checking module level type %s", node->token.str().c_str()));
-
-				/* these next lines create type definitions, regardless of
-				 * their genericity.  type expressions will be added as
-				 * environment variables in the type system.  this step is
-				 * MUTATING the type environment of the module, and the
-				 * program. */
-				if (auto type_def = dyncast<const ast::type_def_t>(node)) {
-					status_t local_status;
-					type_def->resolve_statement(local_status, builder,
-							module_scope, nullptr, nullptr, nullptr);
-
-					/* take note of whether this failed or not */
-					status |= local_status;
-				} else if (auto tag = dyncast<const ast::tag_t>(node)) {
-					status_t local_status;
-					tag->resolve_statement(local_status, builder, module_scope,
-							nullptr, nullptr, nullptr);
-
-					/* take note of whether this failed or not */
-					status |= local_status;
-				} else {
-					panic("unhandled unchecked type node at module scope");
-				}
-			} else {
-				debug_above(3, log(log_info, "skipping %s because it's already been checked", node->token.str().c_str()));
-			}
+		for (unchecked_type_t::ref unchecked_type : unchecked_types_ordered) {
+			resolve_unchecked_type(status, builder, module_scope, unchecked_type);
 		}
 	}
 }
+
 
 void type_check_program_variables(
 		status_t &status,
