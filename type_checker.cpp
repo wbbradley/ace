@@ -1078,54 +1078,60 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 								type_void());
 						llvm::Constant *llvm_mark_fn = llvm::dyn_cast<llvm::Constant>(mark_fn->get_llvm_value());
 
-						bound_type_t::ref type_info = program_scope->get_runtime_type("type_info_mark_fn_t");
+						bound_type_t::ref type_info = program_scope->get_runtime_type(status, builder, "type_info_mark_fn_t");
+						if (!!status) {
+							llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
+									type_info->get_llvm_type());
 
-						llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
-								type_info->get_llvm_type());
+							llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
+							auto signature = extern_type->get_signature();
+							std::vector<llvm::Constant *> llvm_type_info_data({
+									/* the type_id */
+									builder.getInt32(signature.iatom),
 
-						llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
-						auto signature = extern_type->get_signature();
-						std::vector<llvm::Constant *> llvm_type_info_data({
-								/* the type_id */
-								builder.getInt32(signature.iatom),
+									/* allocation size */
+									llvm_sizeof_tuple,
 
-								/* allocation size */
-								llvm_sizeof_tuple,
+									/* the kind of this type_info */
+									builder.getInt32(type_kind_use_mark_fn),
 
-								/* the kind of this type_info */
-								builder.getInt32(type_kind_use_mark_fn),
+									/* name this variable */
+									(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
 
-								/* name this variable */
-								(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
+									/* finalize_fn */
+									llvm_finalize_fn,
 
-								/* finalize_fn */
-								llvm_finalize_fn,
+									/* mark_fn */
+									llvm_mark_fn,
+									});
+							llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
+							check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
+							llvm::Constant *llvm_type_info = llvm_get_global(
+									llvm_module, string_format("__type_info_%s", signature.c_str()),
+									llvm::ConstantStruct::get(llvm_type_info_type,
+										llvm_type_info_data),
+									true /*is_constant*/);
 
-								/* mark_fn */
-								llvm_mark_fn,
-								});
-						llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
-						check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
-						llvm::Constant *llvm_type_info = llvm_get_global(
-								llvm_module, string_format("__type_info_%s", signature.c_str()),
-								llvm::ConstantStruct::get(llvm_type_info_type,
-									llvm_type_info_data),
-								true /*is_constant*/);
+							debug_above(5, log(log_info, "llvm_type_info = %s",
+										llvm_print(llvm_type_info).c_str()));
+							bound_type_t::ref type_info_type = program_scope->get_runtime_type(status, builder, "type_info_t");
+							if (!!status) {
+								auto type_info_ref = type_info_type->get_pointer();
+								auto bound_type_info_var = bound_var_t::create(
+										INTERNAL_LOC(),
+										type_info_var_name,
+										type_info_ref,
+										llvm::ConstantExpr::getPointerCast(
+											llvm_type_info,
+											type_info_ref->get_llvm_type()),
+										make_iid("type info value"));
 
-						debug_above(5, log(log_info, "llvm_type_info = %s",
-									llvm_print(llvm_type_info).c_str()));
-						bound_type_t::ref type_info_ref = program_scope->get_runtime_type("type_info_t")->get_pointer();
-						auto bound_type_info_var = bound_var_t::create(
-								INTERNAL_LOC(),
-								type_info_var_name,
-								type_info_ref,
-								llvm::ConstantExpr::getPointerCast(
-									llvm_type_info,
-									type_info_ref->get_llvm_type()),
-								make_iid("type info value"));
-
-						program_scope->put_bound_variable(status, type_info_var_name, bound_type_info_var);
-						return bound_type_info_var;
+								program_scope->put_bound_variable(status,
+										type_info_var_name,
+										bound_type_info_var);
+								return bound_type_info_var;
+							}
+						}
 					}
 				}
 			}
@@ -1375,29 +1381,40 @@ bound_var_t::ref type_check_binary_equality(
 						return nullptr;
 					}
 				}
+				bool is_managed;
+				lhs_var->type->is_managed_ptr(status, builder, scope, is_managed);
 
-				if (lhs_var->type->is_managed_ptr(scope)) {
-					assert(rhs_var->type->get_type()->is_nil() || rhs_var->type->is_managed_ptr(scope));
-					auto program_scope = scope->get_program_scope();
-					auto llvm_var_ref_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
-					llvm::Value *llvm_value = negated
-						? builder.CreateICmpNE(
-							llvm_maybe_pointer_cast(builder, lhs_var->resolve_bound_var_value(builder), llvm_var_ref_type),
-							llvm_maybe_pointer_cast(builder, rhs_var->resolve_bound_var_value(builder), llvm_var_ref_type))
-						: builder.CreateICmpEQ(
-							llvm_maybe_pointer_cast(builder, lhs_var->resolve_bound_var_value(builder), llvm_var_ref_type),
-							llvm_maybe_pointer_cast(builder, rhs_var->resolve_bound_var_value(builder), llvm_var_ref_type));
+				if (!!status) {
+					if (is_managed) {
+#ifdef ZION_DEBUG
+						{
+							bool is_nil = rhs_var->type->get_type()->is_nil();
+							bool is_managed;
+							rhs_var->type->is_managed_ptr(status, builder, scope, is_managed);
+							assert(!!status && (is_nil || is_managed));
+						}
+#endif
+						auto program_scope = scope->get_program_scope();
+						auto llvm_var_ref_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
+						llvm::Value *llvm_value = negated
+							? builder.CreateICmpNE(
+									llvm_maybe_pointer_cast(builder, lhs_var->resolve_bound_var_value(builder), llvm_var_ref_type),
+									llvm_maybe_pointer_cast(builder, rhs_var->resolve_bound_var_value(builder), llvm_var_ref_type))
+							: builder.CreateICmpEQ(
+									llvm_maybe_pointer_cast(builder, lhs_var->resolve_bound_var_value(builder), llvm_var_ref_type),
+									llvm_maybe_pointer_cast(builder, rhs_var->resolve_bound_var_value(builder), llvm_var_ref_type));
 
-					return bound_var_t::create(
-						INTERNAL_LOC(),
-						{"equality.cond"},
-						program_scope->get_bound_type(BOOL_TYPE),
-						llvm_value,
-						make_code_id(obj->token));
-				} else {
-					// TODO: consider enabling comparison of raw pointers?
-					user_error(status, obj->get_location(),
-							   "comparing identities of native values is not yet implemented");
+						return bound_var_t::create(
+								INTERNAL_LOC(),
+								{"equality.cond"},
+								program_scope->get_bound_type(BOOL_TYPE),
+								llvm_value,
+								make_code_id(obj->token));
+					} else {
+						// TODO: consider enabling comparison of raw pointers?
+						user_error(status, obj->get_location(),
+								"comparing identities of native values is not yet implemented");
+					}
 				}
 			}
 		}
@@ -2606,31 +2623,34 @@ void ast::tag_t::resolve_statement(
 	 * represent this tag. */
 
 	if (!!status) {
-		bound_type_t::ref var_type = scope->get_program_scope()->get_runtime_type("var_t")->get_pointer();
-		assert(var_type != nullptr);
-
-		/* start by making a type for the tag */
-		bound_type_t::ref bound_tag_type = bound_type_t::create(
-				tag_type,
-				token.location,
-				/* all tags use the var_t* type */
-				var_type->get_llvm_type());
-
-		scope->put_typename(status, fqn_tag_name, type_ptr(type_managed(type_struct({}, {}))));
+		auto var_type = scope->get_program_scope()->get_runtime_type(status, builder, "var_t");
 		if (!!status) {
-			scope->get_program_scope()->put_bound_type(status, bound_tag_type);
-			if (!!status) {
-				bound_var_t::ref tag = llvm_create_global_tag(
-						status, builder, scope, bound_tag_type, fqn_tag_name,
-						make_code_id(token));
-				if (!!status) {
-					/* record this tag variable for use later */
-					scope->put_bound_variable(status, tag_name, tag);
+			bound_type_t::ref var_ref_type = var_type->get_pointer();
+			assert(var_ref_type != nullptr);
 
+			/* start by making a type for the tag */
+			bound_type_t::ref bound_tag_type = bound_type_t::create(
+					tag_type,
+					token.location,
+					/* all tags use the var_t* type */
+					var_ref_type->get_llvm_type());
+
+			scope->put_typename(status, fqn_tag_name, type_ptr(type_managed(type_struct({}, {}))));
+			if (!!status) {
+				scope->get_program_scope()->put_bound_type(status, bound_tag_type);
+				if (!!status) {
+					bound_var_t::ref tag = llvm_create_global_tag(
+							status, builder, scope, bound_tag_type, fqn_tag_name,
+							make_code_id(token));
 					if (!!status) {
-						debug_above(7, log(log_info, "instantiated nullary data ctor %s",
-									tag->str().c_str()));
-						return;
+						/* record this tag variable for use later */
+						scope->put_bound_variable(status, tag_name, tag);
+
+						if (!!status) {
+							debug_above(7, log(log_info, "instantiated nullary data ctor %s",
+										tag->str().c_str()));
+							return;
+						}
 					}
 				}
 			}

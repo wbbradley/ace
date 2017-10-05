@@ -992,18 +992,20 @@ bound_var_t::ref upsert_type_info_offsets(
 
 			debug_above(5, log(log_info, "llvm_type_info = %s",
 						llvm_print(llvm_type_info).c_str()));
-			bound_type_t::ref type_info_ref = program_scope->get_runtime_type("type_info_t")->get_pointer();
-			auto bound_type_info_var = bound_var_t::create(
-					INTERNAL_LOC(),
-					type_info_name,
-					type_info_ref,
-					llvm::ConstantExpr::getPointerCast(
-						llvm_type_info,
-						type_info_ref->get_llvm_type()),
-					make_iid("type info value"));
+			bound_type_t::ref type_info_ref = program_scope->get_runtime_type(status, builder, "type_info_t")->get_pointer();
+			if (!!status) {
+				auto bound_type_info_var = bound_var_t::create(
+						INTERNAL_LOC(),
+						type_info_name,
+						type_info_ref,
+						llvm::ConstantExpr::getPointerCast(
+							llvm_type_info,
+							type_info_ref->get_llvm_type()),
+						make_iid("type info value"));
 
-			program_scope->put_bound_variable(status, type_info_name, bound_type_info_var);
-			return bound_type_info_var;
+				program_scope->put_bound_variable(status, type_info_name, bound_type_info_var);
+				return bound_type_info_var;
+			}
 		}
 	}
 
