@@ -221,7 +221,7 @@ bound_type_t::ref program_scope_t::get_runtime_type(
 			user_error(status, INTERNAL_LOC(), "could not find type " c_type("%s"), name.c_str());
 		}
 	} else {
-		user_error(status, INTERNAL_LOC(), "runtime module is not yet installed.");
+		user_error(status, INTERNAL_LOC(), c_id("runtime") " module is not yet installed.");
 	}
 
 	assert(!status);
@@ -543,9 +543,11 @@ void module_scope_impl_t::put_unchecked_type(
 		status_t &status,
 		unchecked_type_t::ref unchecked_type)
 {
-	assert(unchecked_type->name.str().find(SCOPE_SEP) != std::string::npos);
-	debug_above(6, log(log_info, "registering an unchecked type %s",
-				unchecked_type->str().c_str()));
+	// assert(unchecked_type->name.str().find(SCOPE_SEP) != std::string::npos);
+	debug_above(6, log(log_info, "registering an unchecked type " c_type("%s") " %s in scope " c_id("%s"),
+				unchecked_type->name.c_str(),
+				unchecked_type->str().c_str(),
+				get_name().c_str()));
 
 	auto unchecked_type_iter = unchecked_types.find(unchecked_type->name);
 

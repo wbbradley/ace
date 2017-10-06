@@ -92,6 +92,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 					node->token.str().c_str()));
 		auto unchecked_data_ctor = dyncast<const unchecked_data_ctor_t>(unchecked_fn);
 		assert(unchecked_data_ctor != nullptr);
+		assert(!unchecked_data_ctor->native);
 
 		/* create a generic substitution scope with the unification */
 		scope_t::ref subst_scope = generic_substitution_scope_t::create(

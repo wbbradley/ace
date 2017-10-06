@@ -52,17 +52,21 @@ struct unchecked_data_ctor_t : public unchecked_var_t {
 			identifier::ref id,
 			ptr<const ast::item_t> node,
 			ptr<module_scope_t> module_scope,
-			types::type_function_t::ref sig) :
+			types::type_function_t::ref sig,
+			bool native) :
 	   	unchecked_var_t(id, node, module_scope),
-	   	sig(sig) {}
+	   	sig(sig),
+		native(native)
+	{}
 
 	static ref create(
 			identifier::ref id,
 		   	ptr<const ast::item_t> node,
 		   	ptr<module_scope_t> module_scope,
-		   	types::type_function_t::ref sig)
+		   	types::type_function_t::ref sig,
+			bool native)
    	{
-		return ref(new unchecked_data_ctor_t(id, node, module_scope, sig));
+		return ref(new unchecked_data_ctor_t(id, node, module_scope, sig, native));
 	}
 
     virtual types::type_t::ref get_type(ptr<scope_t> scope) const;
@@ -70,4 +74,5 @@ struct unchecked_data_ctor_t : public unchecked_var_t {
 	virtual std::string str() const;
 
 	types::type_function_t::ref sig;
+	bool native;
 };

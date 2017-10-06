@@ -162,7 +162,8 @@ void instantiate_data_ctor_type(
 		scope_t::ref scope,
 		ptr<const ast::item_t> node,
 		identifier::ref id,
-		identifier::ref supertype_id)
+		identifier::ref supertype_id,
+		bool native)
 {
 	/* get the name of the ctor */
 	atom tag_name = id->get_name();
@@ -218,18 +219,18 @@ void instantiate_data_ctor_type(
 
 			module_scope->get_program_scope()->put_unchecked_variable(tag_name,
 					unchecked_data_ctor_t::create(id, node,
-						module_scope, data_ctor_sig));
+						module_scope, data_ctor_sig, native));
 
 			/* now build the actual typename expansion we'll put in the typename env */
 			/* 1. create the actual expanded type signature of this type */
-			types::type_t::ref type = type_ptr(type_managed(struct_));
+			types::type_t::ref type = native ? type_ptr(struct_) : type_ptr(type_managed(struct_));
 
 			/* 2. make sure we allow for parameterized expansion */
 			for (auto lambda_var : lambda_vars) {
 				type = type_lambda(lambda_var, type);
 			}
 
-			scope->put_typename(status, fqn_tag_name, type);
+			scope->put_typename(status, tag_name, type);
 
 			return;
 		} else {
@@ -251,8 +252,6 @@ void ast::type_product_t::register_type(
 		scope_t::ref scope) const
 {
 	debug_above(5, log(log_info, "creating product type for %s", str().c_str()));
-	dbg();
-	assert(!native);
 
 	atom name = id_->get_name();
 	auto location = id_->get_location();
@@ -265,13 +264,15 @@ void ast::type_product_t::register_type(
 				"previous version of %s defined here",
 				found_type->str().c_str());
 	} else {
+		/* instantiate a lazily bound data ctor, and inject the typename for this type into the
+		 * type environment */
 		auto env = scope->get_typename_env();
 		auto env_iter = env.find(name);
 		if (env_iter == env.end()) {
 			/* instantiate_data_ctor_type has the side-effect of creating an
 			 * unchecked data ctor for the type */
 			instantiate_data_ctor_type(status, builder, type,
-					type_variables, scope, shared_from_this(), id_, nullptr);
+					type_variables, scope, shared_from_this(), id_, nullptr, native);
 			return;
 		} else {
 			/* simple check for an already bound typename env variable */

@@ -360,28 +360,18 @@ ptr<program_scope_t> scope_impl_t<T>::get_program_scope() {
 
 template <typename T>
 void scope_impl_t<T>::put_typename(status_t &status, atom type_name, types::type_t::ref expansion) {
-#ifdef DEBUG
-	/* make sure that all type_names come in fully qualified */
-	int slash_count = 0;
-	for (auto ch : type_name.str()) {
-		if (ch == SCOPE_SEP_CHAR) {
-			++slash_count;
-		}
-	}
-	assert(slash_count == 1);
-#endif
-
 	if (typename_env.find(type_name) == typename_env.end()) {
+		debug_above(2, log(log_info, "registering typename " c_type("%s") " as %s in scope " c_id("%s"),
+					type_name.c_str(), expansion->str().c_str(),
+					this->scope_name.c_str()));
+		typename_env[type_name] = expansion;
 		if (auto parent_scope = get_parent_scope()) {
-			parent_scope->put_typename(status, type_name.str(), expansion);
+			parent_scope->put_typename(status,
+				   	get_leaf_name().str() + SCOPE_SEP + type_name.str(), expansion);
 		} else {
 			/* we are at the outermost scope, let's go ahead and register this
 			 * typename */
 			assert(dynamic_cast<program_scope_t *>(this));
-			debug_above(2, log(log_info, "registering typename " c_type("%s") " as %s in scope " c_id("%s"),
-						type_name.c_str(), expansion->str().c_str(),
-						this->scope_name.c_str()));
-			typename_env[type_name] = expansion;
 		}
 	} else {
 		user_error(status, expansion->get_location(),
