@@ -2568,11 +2568,27 @@ void type_check_program(
 	ptr<program_scope_t> program_scope = compiler.get_program_scope();
 	debug_above(11, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
 
-	/* pass to resolve all module-level types */
-	for (auto &module : obj.modules) {
-		type_check_module_types(status, compiler, builder, *module, program_scope);
-		if (!status) {
-			break;
+	bool checked_runtime = false;
+	for (const ast::module_t::ref &module : obj.modules) {
+		if (module->module_key == "runtime") {
+			checked_runtime = true;
+			type_check_module_types(status, compiler, builder, *module, program_scope);
+		}
+	}
+
+	if (!!status && !checked_runtime) {
+		user_error(status, INTERNAL_LOC(), "could not find " c_id("runtime") " module");
+	}
+
+	if (!!status) {
+		/* pass to resolve all module-level types */
+		for (const ast::module_t::ref &module : obj.modules) {
+			if (module->module_key != "runtime") {
+				type_check_module_types(status, compiler, builder, *module, program_scope);
+				if (!status) {
+					break;
+				}
+			}
 		}
 	}
 

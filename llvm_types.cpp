@@ -338,8 +338,8 @@ bound_type_t::ref create_bound_struct_type(
 	/* get the pointer type to this, if it exists, get the opaque struct
 	 * pointer that it had created. fill it out. if it doesn't exist,
 	 * create it, then extract this tuple type from that. */
-	types::type_t::ref managed_ptr_type = type_ptr(struct_type);
-	bound_type_t::ref bound_ref_type = upsert_bound_type(status, builder, scope, managed_ptr_type);
+	types::type_t::ref ptr_type = type_ptr(struct_type);
+	bound_type_t::ref bound_ref_type = upsert_bound_type(status, builder, scope, ptr_type);
 
 	if (auto bound_type = scope->get_bound_type(struct_type->get_signature())) {
 		/* while instantiating our pointer type, we also instantiated this */
@@ -354,37 +354,28 @@ bound_type_t::ref create_bound_struct_type(
 		assert(!llvm_struct_type->isSized());
 		assert(llvm_struct_type->isOpaque());
 
-		auto var_type = program_scope->get_runtime_type(status, builder, "var_t");
+		/* resolve all of the contained dimensions. NB: cycles should be broken
+		 * by the existence of the pointer to this type */
+		bound_type_t::refs bound_dimensions = upsert_bound_types(status,
+				builder, scope, struct_type->dimensions);
 
 		if (!!status) {
-			/* ensure that if this type is managed we refer to it generally by its
-			 * managed structure definition (upwards pointer bitcasts happen
-			 * automatically at reference locations) */
-			llvm::Type *llvm_least_specific_type = var_type->get_llvm_type();
-
-			/* resolve all of the contained dimensions. NB: cycles should be broken
-			 * by the existence of the pointer to this type */
-			bound_type_t::refs bound_dimensions = upsert_bound_types(status,
-					builder, scope, struct_type->dimensions);
-
+			/* fill out the internals of this structure */
+			std::vector<llvm::Type *> elements = build_struct_elements(
+					status, builder, program_scope, struct_type, bound_dimensions);
 			if (!!status) {
-				/* fill out the internals of this structure */
-				std::vector<llvm::Type *> elements = build_struct_elements(
-						status, builder, program_scope, struct_type, bound_dimensions);
+				/* finally set the elements into the structure */
+				llvm_struct_type->setBody(elements);
+
+				auto bound_type = bound_type_t::create(struct_type,
+						struct_type->get_location(), llvm_struct_type,
+						llvm_struct_type);
+
+				/* register this type */
+				program_scope->put_bound_type(status, bound_type);
+
 				if (!!status) {
-					/* finally set the elements into the structure */
-					llvm_struct_type->setBody(elements);
-
-					auto bound_type = bound_type_t::create(struct_type,
-							struct_type->get_location(), llvm_least_specific_type,
-							llvm_struct_type);
-
-					/* register this type */
-					program_scope->put_bound_type(status, bound_type);
-
-					if (!!status) {
-						return bound_type;
-					}
+					return bound_type;
 				}
 			}
 		}
@@ -392,12 +383,6 @@ bound_type_t::ref create_bound_struct_type(
 		user_error(status, struct_type->get_location(),
 				"cyclical type definition? %s",
 				struct_type->str().c_str());
-#if 0
-		/* we created this type through recursion */
-		auto bound_type = scope->get_bound_type(struct_type->get_signature());
-		assert(bound_type != nullptr);
-		return bound_type;
-#endif
 	}
 
 	assert(!status);
@@ -441,8 +426,9 @@ bound_type_t::ref create_bound_id_type(
 			}
 		}
 	} else {
-		user_error(status, id->get_location(), "no type definition found for %s",
-				id->str().c_str());
+		user_error(status, id->get_location(), "no type definition found for %s in %s",
+				id->str().c_str(),
+				str(env).c_str());
 	}
 	assert(!status);
 	return nullptr;
