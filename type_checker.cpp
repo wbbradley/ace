@@ -768,10 +768,20 @@ void ast::link_module_statement_t::resolve_statement(
 bound_var_t::ref ast::link_var_statement_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
-		scope_t::ref block_scope,
+		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref) const
 {
+	module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
+	if (module_scope == nullptr) {
+		user_error(status, get_location(), "link var cannot be used outside of module scope");
+	}
+
+	if (!!status) {
+		var_decl->resolve_as_link(status, builder, module_scope);
+		return nullptr;
+	}
+
 	assert(!status);
 	return nullptr;
 }
@@ -3489,6 +3499,15 @@ bound_var_t::ref ast::bang_expr_t::resolve_expression(
 
 	assert(!status);
 	return nullptr;
+}
+
+void ast::var_decl_t::resolve_as_link(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		module_scope_t::ref module_scope)
+{
+	assert(!status);
+	return;
 }
 
 bound_var_t::ref ast::var_decl_t::resolve_as_condition(

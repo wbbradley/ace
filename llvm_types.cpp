@@ -167,12 +167,14 @@ bound_type_t::ref create_bound_ptr_type(
 	auto bound_pointer_type = create_ptr_type<T>(builder, type_ptr);
 	program_scope->put_bound_type(status, bound_pointer_type);
 
-	debug_above(6, log("create_bound_ptr_type(..., %s)",
-				type_ptr->str().c_str()));
-	
-	/* before we return the pointer type, let's go ahead and instantiate
-	 * the actual structural type */
-	auto element = upsert_bound_type(status, builder, scope, type_ptr->element_type);
+	if (!!status) {
+		debug_above(6, log("create_bound_ptr_type(..., %s)",
+					type_ptr->str().c_str()));
+
+		/* before we return the pointer type, let's go ahead and instantiate
+		 * the actual structural type */
+		upsert_bound_type(status, builder, scope, type_ptr->element_type);
+	}
 
 	if (!!status) {
 		return bound_pointer_type;
@@ -187,37 +189,44 @@ std::vector<llvm::Type *> build_struct_elements(
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
 		types::type_struct_t::ref struct_type,
-		bound_type_t::refs bound_dimensions)
+		bound_type_t::refs bound_dimensions,
+		bool native)
 {
-	/* create the structure in place in this struct type */
 	std::vector<llvm::Type *> elements;
 
-	/* let's prefix the data in this structure with the managed runtime */
-	bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, "var_t");
-	if (!!status) {
-		llvm::Type *llvm_var_type = var_type->get_llvm_type();
-
-		/* place the var_t struct into the structure */
-		elements.push_back(llvm_var_type);
-		llvm::StructType *inner_struct = llvm_create_struct_type(
-				builder, struct_type->get_signature(), bound_dimensions);
-
-		/* make a name for this inner native struct */
-		std::stringstream ss;
-		ss << "struct[";
-		join_dimensions(ss, 
-				struct_type->dimensions,
-				struct_type->name_index, {});
-		ss << "]";
-
-		inner_struct->setName(ss.str());
-
-		/* now place the logical data into the structure */
-		elements.push_back(inner_struct);
-
-		assert(elements.size() == 2);
+	if (native) {
+		/* just add all the dimensions of the native struct */
+		for (auto &dimension : bound_dimensions) {
+			elements.push_back(dimension->get_llvm_specific_type());
+		}
 
 		return elements;
+	} else {
+		/* let's prefix the data in this structure with the managed runtime */
+		bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, "var_t");
+		if (!!status) {
+			/* place the var_t struct into the structure */
+			elements.push_back(var_type->get_llvm_type());
+			llvm::StructType *inner_struct = llvm_create_struct_type(
+					builder, struct_type->get_signature(), bound_dimensions);
+
+			/* make a name for this inner managed struct */
+			std::stringstream ss;
+			ss << "managed[";
+			join_dimensions(ss, 
+					struct_type->dimensions,
+					struct_type->name_index, {});
+			ss << "]";
+
+			inner_struct->setName(ss.str());
+
+			/* now place the logical data into the structure */
+			elements.push_back(inner_struct);
+
+			assert(elements.size() == 2);
+
+			return elements;
+		}
 	}
 
 	assert(!status);
@@ -287,7 +296,7 @@ bound_type_t::ref create_bound_managed_type(
 			if (!!status) {
 				/* fill out the internals of this structure INCLUDING the MANAGED var_t */
 				std::vector<llvm::Type *> elements = build_struct_elements(
-						status, builder, program_scope, struct_type, bound_dimensions);
+						status, builder, program_scope, struct_type, bound_dimensions, false /*native*/);
 				if (!!status) {
 					/* finally set the elements into the structure */
 					llvm_struct_type->setBody(elements);
@@ -341,48 +350,63 @@ bound_type_t::ref create_bound_struct_type(
 	types::type_t::ref ptr_type = type_ptr(struct_type);
 	bound_type_t::ref bound_ref_type = upsert_bound_type(status, builder, scope, ptr_type);
 
-	if (auto bound_type = scope->get_bound_type(struct_type->get_signature())) {
-		/* while instantiating our pointer type, we also instantiated this */
-		return bound_type;
-	}
+	if (!!status) {
+		if (auto bound_type = scope->get_bound_type(struct_type->get_signature())) {
+			/* while instantiating our pointer type, we also instantiated this */
+			return bound_type;
+		}
 
-	if (bound_ref_type != nullptr) {
-		/* fetch the previously created pointer to this type */
-		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm::cast<llvm::PointerType>(
-					bound_ref_type->get_llvm_specific_type())->getElementType());
-		assert(llvm_struct_type != nullptr);
-		assert(!llvm_struct_type->isSized());
-		assert(llvm_struct_type->isOpaque());
+		if (bound_ref_type != nullptr) {
+			/* fetch the previously created pointer to this type */
+			llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm::cast<llvm::PointerType>(
+						bound_ref_type->get_llvm_specific_type())->getElementType());
+			assert(llvm_struct_type != nullptr);
+			assert(!llvm_struct_type->isSized());
+			assert(llvm_struct_type->isOpaque());
 
-		/* resolve all of the contained dimensions. NB: cycles should be broken
-		 * by the existence of the pointer to this type */
-		bound_type_t::refs bound_dimensions = upsert_bound_types(status,
-				builder, scope, struct_type->dimensions);
+			debug_above(6, log("found pointer type %s with opaque element type, now we will instantiate the concrete struct",
+						bound_ref_type->str().c_str()));
 
-		if (!!status) {
-			/* fill out the internals of this structure */
-			std::vector<llvm::Type *> elements = build_struct_elements(
-					status, builder, program_scope, struct_type, bound_dimensions);
+			assert(!scope->get_bound_type(struct_type->get_signature()));
+
+			/* resolve all of the contained dimensions. NB: cycles should be broken
+			 * by the existence of the pointer to this type */
+			bound_type_t::refs bound_dimensions = upsert_bound_types(status,
+					builder, scope, struct_type->dimensions);
+
+			if (auto bound_type = scope->get_bound_type(struct_type->get_signature())) {
+				return bound_type; 
+			}
+
 			if (!!status) {
-				/* finally set the elements into the structure */
-				llvm_struct_type->setBody(elements);
+				assert(!scope->get_bound_type(struct_type->get_signature()));
 
-				auto bound_type = bound_type_t::create(struct_type,
-						struct_type->get_location(), llvm_struct_type,
-						llvm_struct_type);
-
-				/* register this type */
-				program_scope->put_bound_type(status, bound_type);
-
+				/* fill out the internals of this structure */
+				std::vector<llvm::Type *> elements = build_struct_elements(
+						status, builder, program_scope, struct_type, bound_dimensions, true /*native*/);
 				if (!!status) {
-					return bound_type;
+					/* finally set the elements into the structure */
+					llvm_struct_type->setBody(elements);
+
+					auto bound_type = bound_type_t::create(struct_type,
+							struct_type->get_location(), llvm_struct_type,
+							llvm_struct_type);
+
+					assert(!scope->get_bound_type(struct_type->get_signature()));
+
+					/* register this type */
+					program_scope->put_bound_type(status, bound_type);
+
+					if (!!status) {
+						return bound_type;
+					}
 				}
 			}
+		} else {
+			user_error(status, struct_type->get_location(),
+					"cyclical type definition? %s",
+					struct_type->str().c_str());
 		}
-	} else {
-		user_error(status, struct_type->get_location(),
-				"cyclical type definition? %s",
-				struct_type->str().c_str());
 	}
 
 	assert(!status);
@@ -660,6 +684,10 @@ bound_type_t::ref upsert_bound_type(
 		ptr<scope_t> scope,
 	   	types::type_t::ref type)
 {
+	static int depth = 0;
+
+	depth_guard_t depth_guard(depth, 10);
+
 	if (!!status) {
 		type = type->rebind(scope->get_type_variable_bindings());
 

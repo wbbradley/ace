@@ -121,7 +121,8 @@ bound_module_t::bound_module_t(
 	bound_var_t(internal_location,
 			name, 
 			module_scope->get_bound_type({"module"}),
-			module_scope->get_program_scope()->get_singleton("nil")->get_llvm_value(),
+			llvm::Constant::getNullValue(
+				module_scope->get_program_scope()->get_bound_type("void")->get_llvm_type()->getPointerTo()),
 			id),
 	module_scope(module_scope)
 {

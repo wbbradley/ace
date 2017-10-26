@@ -45,7 +45,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual void dump(std::ostream &os) const = 0;
 	virtual bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints) = 0;
 
-	virtual bound_var_t::ref get_bound_variable(status_t &status, location_t location, atom symbol) = 0;
+	virtual bound_var_t::ref get_bound_variable(status_t &status, location_t location, atom symbol, bool search_parents=true) = 0;
 	virtual void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable) = 0;
 	virtual bound_type_t::ref get_bound_type(types::signature signature) = 0;
 	virtual std::string get_name() const;
@@ -97,7 +97,7 @@ struct scope_impl_t : public BASE {
 	void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable);
 	bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints);
 	bound_var_t::ref get_singleton(atom name);
-	bound_var_t::ref get_bound_variable(status_t &status, location_t location, atom symbol);
+	bound_var_t::ref get_bound_variable(status_t &status, location_t location, atom symbol, bool search_parents=true);
 	std::string make_fqn(std::string leaf_name) const;
 	bound_type_t::ref get_bound_type(types::signature signature);
 	void get_callables(atom symbol, var_t::refs &fns);
@@ -534,13 +534,18 @@ bound_var_t::ref scope_impl_t<T>::get_singleton(atom name) {
 	auto &coll = bound_vars;
 	assert(coll.begin() != coll.end());
 	auto iter = coll.find(name);
-	assert(iter != coll.end());
-	auto &resolve_map = iter->second;
-	assert(resolve_map.begin() != resolve_map.end());
-	auto resolve_iter = resolve_map.begin();
-	auto item = resolve_iter->second;
-	assert(++resolve_iter == resolve_map.end());
-	return item;
+	if (iter != coll.end()) {
+		auto &resolve_map = iter->second;
+		assert(resolve_map.begin() != resolve_map.end());
+		auto resolve_iter = resolve_map.begin();
+		auto item = resolve_iter->second;
+		assert(++resolve_iter == resolve_map.end());
+		return item;
+	} else {
+		panic(string_format("could not find singleton " c_id("%s"),
+					name.c_str()));
+		return nullptr;
+	}
 }
 
 bound_var_t::ref get_bound_variable_from_scope(
@@ -555,10 +560,11 @@ template <typename T>
 bound_var_t::ref scope_impl_t<T>::get_bound_variable(
 		status_t &status,
 		location_t location,
-	   	atom symbol)
+		atom symbol,
+		bool search_parents)
 {
 	return ::get_bound_variable_from_scope(status, location, this->get_name(),
-			symbol, bound_vars, this->get_parent_scope());
+			symbol, bound_vars, search_parents ? this->get_parent_scope() : nullptr);
 }
 
 bound_type_t::ref get_bound_type_from_scope(

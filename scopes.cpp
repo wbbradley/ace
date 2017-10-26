@@ -131,11 +131,11 @@ llvm::Module *scope_t::get_llvm_module() {
 }
 
 bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
-	INDENT(9, string_format("checking program scope whether %s is bound...",
+	INDENT(6, string_format("checking program scope whether %s is bound...",
 				signature.str().c_str()));
 	auto iter = bound_types.find(signature);
 	if (iter != bound_types.end()) {
-		debug_above(9, log(log_info, "yep. %s is bound to %s",
+		debug_above(6, log(log_info, "yep. %s is bound to %s",
 					signature.str().c_str(),
 					iter->second->str().c_str()));
 		return iter->second;
@@ -146,7 +146,7 @@ bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
 		}
 	}
 
-	debug_above(9, log(log_info, "nope. %s is not yet bound",
+	debug_above(6, log(log_info, "nope. %s is not yet bound",
 				signature.str().c_str()));
 	return nullptr;
 }

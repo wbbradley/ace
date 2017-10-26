@@ -696,8 +696,10 @@ void check_struct_initialization(
 		llvm::StructType *llvm_struct_type)
 {
 	if (llvm_struct_type->elements().size() != llvm_struct_initialization.size()) {
-		debug_above(7, log(log_error, "mismatch in number of elements for %s",
-					llvm_print(llvm_struct_type).c_str()));
+		debug_above(7, log(log_error, "mismatch in number of elements for %s (%d != %d)",
+					llvm_print(llvm_struct_type).c_str(),
+					(int)llvm_struct_type->elements().size(),
+					(int)llvm_struct_initialization.size()));
 		assert(false);
 	}
 
@@ -763,26 +765,26 @@ bound_var_t::ref llvm_create_global_tag(
 			llvm::Constant *llvm_name = llvm_create_global_string_constant(builder, *llvm_module, tag.str());
 			debug_above(10, log(log_info, "llvm_name is %s", llvm_print(*llvm_name).c_str()));
 
-			auto type_info_type = program_scope->get_runtime_type(status, builder, "type_info_t");
+			bound_type_t::ref type_info_type = program_scope->get_runtime_type(status, builder, "type_info_t");
 			if (!!status) {
-				auto type_info_ptr_type = type_info_type->get_pointer();
-				llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
-						type_info_ptr_type->get_llvm_type());
+				llvm::StructType *llvm_type_info_type = llvm::dyn_cast<llvm::StructType>(
+						type_info_type->get_llvm_type());
+				assert(llvm_type_info_type != nullptr);
 
 				std::vector<llvm::Constant *> llvm_tag_data({
-						/* type_id - the actual type "tag" */
-						(llvm::Constant *)llvm_create_int32(builder, tag.iatom),
+					/* type_id - the actual type "tag" */
+					(llvm::Constant *)llvm_create_int32(builder, tag.iatom),
 
-						/* size - should always be zero since the type_id is part of this var_t
-						 * as builtin type info. */
-						builder.getInt64(0),
+					/* the type kind */
+					builder.getInt32(type_kind_tag),
 
-						/* the type kind */
-						builder.getInt32(type_kind_tag),
+					/* size - should always be zero since the type_id is part of this var_t
+					 * as builtin type info. */
+					builder.getInt64(0),
 
-						/* name - for debugging */
-						llvm_name,
-						});
+					/* name - for debugging */
+					llvm_name,
+				});
 
 				llvm::ArrayRef<llvm::Constant*> llvm_tag_initializer{llvm_tag_data};
 

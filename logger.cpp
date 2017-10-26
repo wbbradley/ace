@@ -305,7 +305,7 @@ void log_dump() {
 
 void panic_(const char *filename, int line, std::string msg) {
 	log_dump();
-	write_fp(STDERR, "%s:%d: PANIC %s\n", filename, line, msg.c_str());
+	write_fp(STDERR, "%s:%d: " C_PANIC "PANIC" C_RESET " %s\n", filename, line, msg.c_str());
 	dbg();
 	raise(SIGKILL);
 }
