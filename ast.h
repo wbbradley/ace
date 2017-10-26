@@ -424,7 +424,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_var_decl;
 		static ptr<var_decl_t> parse(parse_state_t &ps);
 		static ptr<var_decl_t> parse_param(parse_state_t &ps);
-		void resolve_as_link(
+		bound_var_t::ref resolve_as_link(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				module_scope_t::ref module_scope);

@@ -29,7 +29,6 @@ struct bound_var_t : public std::enable_shared_from_this<bound_var_t>, public va
 		assert(llvm_value != nullptr);
 		assert(id != nullptr);
 		assert(type != nullptr);
-		assert_implies(llvm::dyn_cast<llvm::GlobalVariable>(llvm_value) != nullptr, type->is_ref());
 	}
 
 	virtual ~bound_var_t() throw() {}

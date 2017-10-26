@@ -195,6 +195,8 @@ ast::module_t::ref compiler_t::build_parse(
                                     type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
 						}
 					}
+					global_type_macros.insert({"var_t",
+							type_id(make_iid_impl("runtime.var_t", INTERNAL_LOC()))});
 
 					parse_state_t ps(status, module_filename, lexer, global_type_macros, &comments);
 					auto module = ast::module_t::parse(ps, global);

@@ -778,8 +778,7 @@ bound_var_t::ref ast::link_var_statement_t::resolve_expression(
 	}
 
 	if (!!status) {
-		var_decl->resolve_as_link(status, builder, module_scope);
-		return nullptr;
+		return var_decl->resolve_as_link(status, builder, module_scope);
 	}
 
 	assert(!status);
@@ -3501,13 +3500,33 @@ bound_var_t::ref ast::bang_expr_t::resolve_expression(
 	return nullptr;
 }
 
-void ast::var_decl_t::resolve_as_link(
+bound_var_t::ref ast::var_decl_t::resolve_as_link(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		module_scope_t::ref module_scope)
 {
+	if (initializer != nullptr) {
+		user_error(status, get_location(), "linked variables cannot have initializers");
+	}
+
+	if (!!status) {
+		types::type_t::ref declared_type = get_type()->rebind(module_scope->get_type_variable_bindings());
+		bound_type_t::ref var_type = upsert_bound_type(status, builder, module_scope, declared_type);
+		llvm::Module *llvm_module = module_scope->get_llvm_module();
+		auto llvm_global_variable = new llvm::GlobalVariable(*llvm_module,
+				var_type->get_llvm_specific_type(),
+				false /*is_constant*/, llvm::GlobalValue::ExternalLinkage,
+				nullptr, token.text, nullptr,
+				llvm::GlobalVariable::NotThreadLocal);
+		return bound_var_t::create(
+				INTERNAL_LOC(),
+				token.text,
+				var_type,
+				llvm_global_variable,
+				make_code_id(token));
+	}
 	assert(!status);
-	return;
+	return nullptr;
 }
 
 bound_var_t::ref ast::var_decl_t::resolve_as_condition(
