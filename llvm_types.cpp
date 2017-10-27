@@ -112,7 +112,6 @@ bound_type_t::ref create_bound_extern_type(
 	}
 
 	if (!!status) {
-		auto link_type_name = type_extern->link_type_name;
 		bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, "var_t");
 		if (!!status) {
 			auto var_ref_type = var_type->get_pointer();

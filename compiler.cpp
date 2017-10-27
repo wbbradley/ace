@@ -305,8 +305,7 @@ void add_global_types(
 		status_t &status,
 		compiler_t &compiler,
 		llvm::IRBuilder<> &builder,
-	   	program_scope_t::ref program_scope,
-		llvm::Module *llvm_module_vector)
+	   	program_scope_t::ref program_scope)
 {
 	/* let's add the builtin types to the program scope */
 	std::vector<std::pair<atom, bound_type_t::ref>> globals = {
@@ -381,16 +380,6 @@ void add_global_types(
 					type_id(make_iid("__byte_count")),
 					INTERNAL_LOC(),
 					builder.getInt64Ty())},
-		{{"__vector"},
-			bound_type_t::create(
-					type_id(make_iid("__vector")),
-					INTERNAL_LOC(),
-					llvm_module_vector->getTypeByName("struct.__vector_t"))},
-		{{"__vector_ref"},
-			bound_type_t::create(
-					type_id(make_iid("__vector_ref")),
-					INTERNAL_LOC(),
-					llvm_module_vector->getTypeByName("struct.__vector_t")->getPointerTo())},
 		{{"__bytes"},
 			bound_type_t::create(
 					type_id(make_iid("__bytes")),
@@ -419,13 +408,11 @@ void add_globals(
 	auto llvm_module_int = compiler.llvm_load_ir(status, "rt_int.llir");
 	auto llvm_module_float = compiler.llvm_load_ir(status, "rt_float.llir");
 	auto llvm_module_str = compiler.llvm_load_ir(status, "rt_str.llir");
-	auto llvm_module_vector = compiler.llvm_load_ir(status, "rt_vector.llir");
 	auto llvm_module_typeid = compiler.llvm_load_ir(status, "rt_typeid.llir");
 
 	/* set up the global scalar types, as well as memory reference and garbage
 	 * collection types */
-	add_global_types(status, compiler, builder, program_scope,
-			llvm_module_vector);
+	add_global_types(status, compiler, builder, program_scope);
 	assert(!!status);
 
 	/* lookup the types of bool and void pointer for use below */

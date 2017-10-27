@@ -1,35 +1,86 @@
 module _
+link module posix
+link module runtime
 
-type SetItemCache{T} has
-	var value T
-	var hash int
+type vector_t struct
+	var reserved __int__
+	var size     __int__
+	var items    **var_t
 
-type Set{T} has
-	var buffer [list{SetItemCache{T}}?]
-	var count int
+type vector{T} link vector_t __vector_free__ __vector_mark__
 
-def hash(v str) int
-	return int(hash(v.raw))
-
-def add(s Set{any T}, t any T)
-	index := hash(t)
-	index = index % len(s.buffer)
-	p := s.buffer[index]
-	if p
-		while p.val != t
+def __init__() vector{any T}
+	return __create_var(typeinfo(vector{any T}, vector_t, __vector_free__, __vector_mark__)) as vector{any T}
 		
-		prepend(list_at_slot, key)
+def __finalize__(v vector{any T})
+	__vectorfree__(v as *var_t)
+
+def __getitem__(vec [any T], index int) any T
+	return __vectorgetitem__(vec as *var_t, index.raw) as any T
+
+def __setitem__(vec [any T], index int, t any T) void
+	return __setvectoritem__(vec as *var_t, index.raw, t as *var_t)
+
+def append(vec [any T], t any T) void
+	__vectorappend__(vec as *var_t, t as *var_t)
+
+def resize(vec [any T], size int, default any T) void
+	return __vectorresize__(vec as *var_t, size.raw, default) as! [any T]
+
+# link def vec(TYPE, capacity int) TYPE[]
+
+def __vector_mark__(var *var_t)
+	v := var as *vector_t
+	var i __int__ = 0
+	while i < v.size
+		runtime.mark_allocation(v.items[i])
+		i += 1r
+
+def __vectorfree__(var *var_t)
+	# assert(var != 0)
+	vector := var as *vector_t
+
+	/* the gc will handle cleaning up everything that we pointed to, but we need to free up our
+	 * extra allocated heap space. */
+	posix.free(vector->items)
+
+	/* zion will handle deleting the actual vector_t, since it will be attached to the managed
+	 * object */
+
+
+def __getvectoritem__(vector *vector_t, index __int__) *var_t
+	if index >= 0 && index < vector.size
+		return vector->items[index]
 	else
-		s.buffer[index] = list(key, nil)
+		print("zion: array index out of bounds (" + (vector as __int__) + index + ")")
+		posix.exit(-1)
+		return 0r
 
-def remove(s Set{any T}, t any T) bool
-	index := hash(t)
-	index = index % len(s.buffer)
-	list_at_slot := s.buffer[index]
+def __setvectoritem__(vector *vector_t, index __int__, item *var_t)
+	if index < 0r
+	   return
 
+	if index < vector.size
+		vector.items[index] = item
+	else
+		print("zion: array index out of bounds (" + (vector as __int__) + str(index) + ")")
+		posix.exit(-1)
 
+def __vectorappend__(vector *vector_t, item *var_t)
+	if vector.reserved > vector.size
+		vector.items[vector.size] = item
+		vector.size += 1r
+	elif vector.items != nil
+		# assert(vector->reserved == vector->size)
+		new_reserved := vector.reserved * 2r
+		if new_reserved < 16
+			/* start at a level that we avoid a lot of extra calls to malloc */
+			new_reserved = 16
 
+		new_items := posix.calloc(sizeof(*var_t), new_reserved) as **var_t
+		posix.memcpy(new_items, vector.items, sizeof(*var_t) * vector->size)
+		new_items[vector->size] = item
+		vector->size += 1r
 
-def main()
-	s := Set(mkbuffer(int?[], 4))
-
+		posix.free(vector.items)
+		vector.items = new_items

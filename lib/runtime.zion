@@ -30,16 +30,16 @@ type var_t struct
 	#
 
 type type_info_t struct
-	var type_id __int32__
+	var type_id   __int32__
 	var type_kind __int32__
-	var size __int__
-	var name __str__
+	var size      __int__
+	var name      __str__
 
 type type_info_offsets_t struct
 	var type_info_head type_info_t
-	var finalize_fn def (v *var_t) void
-	var refs_count __int16__
-	var ref_offsets *__int16__
+	var finalize_fn    def (v *var_t) void
+	var refs_count     __int16__
+	var ref_offsets    *__int16__
 
 type type_info_mark_fn_t struct
 	var type_info_head type_info_t
