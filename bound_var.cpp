@@ -11,6 +11,7 @@ bound_var_t::ref bound_var_t::create(
 		llvm::Value *llvm_value,
 		identifier::ref id)
 {
+	assert(type != nullptr);
 	if (auto llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(llvm_value)) {
 		assert(type->is_ref());
 	}

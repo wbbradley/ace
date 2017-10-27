@@ -1,4 +1,4 @@
-module _
+module vector
 link module posix
 link module runtime
 
@@ -31,18 +31,18 @@ def resize(vec [any T], size int, default any T) void
 
 def __vector_mark__(var_ *var_t)
 	v := var_ as *vector_t
-	var i __int__ = 0
+	i := 0r
 	while i < v.size
 		runtime.mark_allocation(v.items[i])
 		i += 1r
 
-def __vectorfree__(var_ *var_t)
+def __vector_free__(var_ *var_t)
 	# assert(var_ != 0)
 	vector := var_ as *vector_t
 
 	/* the gc will handle cleaning up everything that we pointed to, but we need to free up our
 	 * extra allocated heap space. */
-	posix.free(vector.items)
+	posix.free(vector.items as __bytes)
 
 	/* zion will handle deleting the actual vector_t, since it will be attached to the managed
 	 * object */
