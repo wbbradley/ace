@@ -292,7 +292,7 @@ void zion_token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_l
 		printf("tag");
 		break;
 	case tk_sizeof:
-		printf("__sizeof__");
+		printf("sizeof");
 		break;
 	case tk_get_typeid:
 		printf("__get_typeid__");

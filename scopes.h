@@ -360,6 +360,11 @@ ptr<program_scope_t> scope_impl_t<T>::get_program_scope() {
 
 template <typename T>
 void scope_impl_t<T>::put_typename(status_t &status, atom type_name, types::type_t::ref expansion) {
+#if 0
+	if (type_name.str().find("map.map") != std::string::npos) {
+		dbg();
+	}
+#endif
 	if (typename_env.find(type_name) == typename_env.end()) {
 		debug_above(2, log(log_info, "registering typename " c_type("%s") " as %s in scope " c_id("%s"),
 					type_name.c_str(), expansion->str().c_str(),

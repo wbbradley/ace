@@ -297,7 +297,7 @@ void ast::type_sum_t::register_type(
 				token.text.c_str(),
 				join(type_variables, ", ").c_str()));
 
-	scope->put_typename(status, scope->make_fqn(id->get_name().str()), type);
+	scope->put_typename(status, id->get_name(), type);
 }
 
 void ast::type_link_t::register_type(
@@ -307,10 +307,10 @@ void ast::type_link_t::register_type(
 		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
-	debug_above(3, log("registering type link for " c_type("%s") " link " c_type("%s")
+	debug_above(3, log("registering type link for %s link " c_type("%s")
 			   	", " c_id("%s") ", " c_id("%s"),
 				id->get_name().str().c_str(),
-				type_name.text.c_str(),
+				underlying_type->str().c_str(),
 				finalize_fn.text.c_str(),
 				mark_fn.text.c_str()));
 
@@ -323,7 +323,7 @@ void ast::type_link_t::register_type(
 	}
 		
 	/* now construct the lambda that points back to the type */
-	auto type = type_extern(inner, make_code_id(type_name), make_code_id(finalize_fn), make_code_id(mark_fn));
+	auto type = type_extern(inner, underlying_type, make_code_id(finalize_fn), make_code_id(mark_fn));
 	for (auto iter = type_variables.rbegin();
 			iter != type_variables.rend();
 			++iter)
@@ -331,7 +331,7 @@ void ast::type_link_t::register_type(
 		type = ::type_lambda(*iter, type);
 	}
 
-	scope->put_typename(status, scope->make_fqn(id->get_name().str()), type);
+	scope->put_typename(status, id->get_name(), type);
 
 	if (!!status) {
 		return;

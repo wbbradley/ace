@@ -2,20 +2,13 @@ module _
 link module runtime
 link module posix
 link module math
+link module vector
 link module map
 link module iter as iter_module
 link module main
 
 # initialization of modules is automatically generated.
 # link def __init_modules() void
-
-# Vector routines
-link def __vectorgetitem__(vec *var_t, index __int__) *var_t
-link def __vectorsetitem__(vec __vector_ref, index __int__) void
-link def __resize__(vec __vector_ref, size __int__) *var_t
-link def __vectorfree__(v *var_t)
-link def __vectormark__(v *var_t)
-link def __vectorappend__(vec *var_t, item *var_t)
 
 tag false
 tag true

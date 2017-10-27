@@ -139,9 +139,9 @@ namespace ast {
 
 	void type_link_t::render(render_state_t &rs) const {
 		rs.ss << tkstr(tk_link) << " ";
-		rs.ss << C_ID << type_name.text << " ";
+		rs.ss << underlying_type->str() << " ";
 		rs.ss << finalize_fn.text << " ";
-		rs.ss << mark_fn.text << C_RESET;
+		rs.ss << mark_fn.text;
 		newline(rs);
 	}
 

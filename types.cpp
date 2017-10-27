@@ -9,7 +9,7 @@
 
 const char *BUILTIN_NIL_TYPE = "nil";
 const char *STD_LIST_TYPE = "std.list";
-const char *STD_VECTOR_TYPE = "std.vector";
+const char *STD_VECTOR_TYPE = "vector.vector";
 const char *BUILTIN_VOID_TYPE = "void";
 const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";
 
@@ -703,11 +703,11 @@ namespace types {
 
 	type_extern_t::type_extern_t(
 			types::type_t::ref inner,
-		   	identifier::ref link_type_name,
+		   	types::type_t::ref underlying_type,
 		   	identifier::ref link_finalize_fn,
 		   	identifier::ref link_mark_fn) :
 		inner(inner),
-	   	link_type_name(link_type_name),
+	   	underlying_type(underlying_type),
 	   	link_finalize_fn(link_finalize_fn),
 	   	link_mark_fn(link_mark_fn)
 	{
@@ -716,7 +716,8 @@ namespace types {
 	std::ostream &type_extern_t::emit(std::ostream &os, const map &bindings_) const {
 		os << "(extern ";
 	   	inner->emit(os, bindings_);
-		os << " " << link_type_name->get_name();
+		os << " ";
+		underlying_type->emit(os, bindings_);
 		os << " " << link_finalize_fn->get_name();
 		os << " " << link_mark_fn->get_name();
 		return os << ")";
@@ -736,7 +737,7 @@ namespace types {
 			return shared_from_this();
 		}
 
-		return ::type_extern(inner->rebind(bindings_), link_type_name, link_finalize_fn, link_mark_fn);
+		return ::type_extern(inner->rebind(bindings_), underlying_type, link_finalize_fn, link_mark_fn);
 	}
 
 	location_t type_extern_t::get_location() const {
@@ -920,8 +921,13 @@ types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body)
 	return make_ptr<types::type_lambda_t>(binding, body);
 }
 
-types::type_t::ref type_extern(types::type_t::ref inner, identifier::ref link_type_name, identifier::ref link_finalize_fn, identifier::ref link_mark_fn) {
-	return make_ptr<types::type_extern_t>(inner, link_type_name, link_finalize_fn, link_mark_fn);
+types::type_t::ref type_extern(
+		types::type_t::ref inner,
+	   	types::type_t::ref underlying_type,
+	   	identifier::ref link_finalize_fn,
+	   	identifier::ref link_mark_fn)
+{
+	return make_ptr<types::type_extern_t>(inner, underlying_type, link_finalize_fn, link_mark_fn);
 }
 
 types::type_t::ref type_list_type(types::type_t::ref element) {

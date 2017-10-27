@@ -185,7 +185,6 @@ ast::module_t::ref compiler_t::build_parse(
 							"float",
 							"TypeID",
 							"list",
-							"vector",
 						};
 
 						for (auto std_type : std_types) {

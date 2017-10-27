@@ -379,7 +379,8 @@ namespace ast {
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
-		zion_token_t type_name, finalize_fn, mark_fn;
+		types::type_t::ref underlying_type;
+		zion_token_t finalize_fn, mark_fn;
 	};
 
 	struct type_def_t : public statement_t {

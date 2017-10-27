@@ -278,10 +278,10 @@ namespace types {
 
 	struct type_extern_t : public type_t {
 		typedef ptr<const type_extern_t> ref;
-		type_extern_t(type_t::ref inner, identifier::ref link_type_name, identifier::ref dtor_fn,
+		type_extern_t(type_t::ref inner, type_t::ref underlying_type, identifier::ref dtor_fn,
 				identifier::ref finalizer);
 		type_t::ref inner;
-		identifier::ref link_type_name;
+		type_t::ref underlying_type;
 		identifier::ref link_finalize_fn;
 		identifier::ref link_mark_fn;
 
@@ -316,7 +316,11 @@ types::type_t::ref type_maybe(types::type_t::ref just);
 types::type_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_ref(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body);
-types::type_t::ref type_extern(types::type_t::ref inner, identifier::ref link_type_name, identifier::ref link_finalize_fn, identifier::ref link_mark_fn);
+types::type_t::ref type_extern(
+		types::type_t::ref inner,
+		types::type_t::ref underlying_type,
+		identifier::ref link_finalize_fn,
+		identifier::ref link_mark_fn);
 
 types::type_t::ref type_list_type(types::type_t::ref element);
 types::type_t::ref type_vector_type(types::type_t::ref element);

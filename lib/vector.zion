@@ -10,7 +10,7 @@ type vector_t struct
 type vector{T} link vector_t __vector_free__ __vector_mark__
 
 def __init__() vector{any T}
-	return __create_var(typeinfo(vector{any T}, vector_t, __vector_free__, __vector_mark__)) as vector{any T}
+	return __create_var(typeinfo(vector{any T})) as vector{any T}
 		
 def __finalize__(v vector{any T})
 	__vectorfree__(v as *var_t)
@@ -29,36 +29,37 @@ def resize(vec [any T], size int, default any T) void
 
 # link def vec(TYPE, capacity int) TYPE[]
 
-def __vector_mark__(var *var_t)
-	v := var as *vector_t
+def __vector_mark__(var_ *var_t)
+	v := var_ as *vector_t
 	var i __int__ = 0
 	while i < v.size
 		runtime.mark_allocation(v.items[i])
 		i += 1r
 
-def __vectorfree__(var *var_t)
-	# assert(var != 0)
-	vector := var as *vector_t
+def __vectorfree__(var_ *var_t)
+	# assert(var_ != 0)
+	vector := var_ as *vector_t
 
 	/* the gc will handle cleaning up everything that we pointed to, but we need to free up our
 	 * extra allocated heap space. */
-	posix.free(vector->items)
+	posix.free(vector.items)
 
 	/* zion will handle deleting the actual vector_t, since it will be attached to the managed
 	 * object */
 
 
 def __getvectoritem__(vector *vector_t, index __int__) *var_t
-	if index >= 0 && index < vector.size
-		return vector->items[index]
-	else
-		print("zion: array index out of bounds (" + (vector as __int__) + index + ")")
-		posix.exit(-1)
-		return 0r
+	if index >= 0
+		if index < vector.size
+			return vector.items[index]
+
+	print("zion: array index out of bounds (" + (vector as __int__) + index + ")")
+	posix.exit(-1)
+	return 0r
 
 def __setvectoritem__(vector *vector_t, index __int__, item *var_t)
 	if index < 0r
-	   return
+		return
 
 	if index < vector.size
 		vector.items[index] = item
@@ -78,9 +79,9 @@ def __vectorappend__(vector *vector_t, item *var_t)
 			new_reserved = 16
 
 		new_items := posix.calloc(sizeof(*var_t), new_reserved) as **var_t
-		posix.memcpy(new_items, vector.items, sizeof(*var_t) * vector->size)
-		new_items[vector->size] = item
-		vector->size += 1r
+		posix.memcpy(new_items, vector.items, sizeof(*var_t) * vector.size)
+		new_items[vector.size] = item
+		vector.size += 1r
 
 		posix.free(vector.items)
 		vector.items = new_items

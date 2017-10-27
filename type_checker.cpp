@@ -1049,96 +1049,96 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 					}
 
 					/* we have to create it */
-					auto llvm_linked_type = program_scope->get_llvm_type(
-							status,
-							token.location,
-							std::string("struct.") + extern_type->link_type_name->get_name().str());
+					auto bound_underlying_type = upsert_bound_type(status, builder, scope, extern_type->underlying_type);
 					if (!!status) {
-						llvm::Module *llvm_module = llvm_get_module(builder);
+						auto llvm_linked_type = bound_underlying_type->get_llvm_type();
+						if (!!status) {
+							llvm::Module *llvm_module = llvm_get_module(builder);
 
 #if 0
-						llvm::FunctionType *llvm_var_fn_type = llvm::FunctionType::get(
-								builder.getVoidTy(),
-								llvm::ArrayRef<llvm::Type*>(
-									std::vector<llvm::Type*>{var_ptr_type->get_llvm_type()}),
-								false /*isVarArg*/);
+							llvm::FunctionType *llvm_var_fn_type = llvm::FunctionType::get(
+									builder.getVoidTy(),
+									llvm::ArrayRef<llvm::Type*>(
+										std::vector<llvm::Type*>{var_ptr_type->get_llvm_type()}),
+									false /*isVarArg*/);
 #endif
 
-						/* get references to the functions named by the user */
-						bound_var_t::ref finalize_fn = get_callable(
-								status,
-								builder,
-								scope,
-								extern_type->link_finalize_fn->get_name(),
-								get_location(),
-								type_variable(INTERNAL_LOC()),
-								type_args({var_ptr_type->get_type()}, {}),
-								type_void());
-						llvm::Constant *llvm_finalize_fn = llvm::dyn_cast<llvm::Constant>(finalize_fn->get_llvm_value());
+							/* get references to the functions named by the user */
+							bound_var_t::ref finalize_fn = get_callable(
+									status,
+									builder,
+									scope,
+									extern_type->link_finalize_fn->get_name(),
+									get_location(),
+									type_variable(INTERNAL_LOC()),
+									type_args({var_ptr_type->get_type()}, {}),
+									type_void());
+							llvm::Constant *llvm_finalize_fn = llvm::dyn_cast<llvm::Constant>(finalize_fn->get_llvm_value());
 
-						bound_var_t::ref mark_fn = get_callable(
-								status,
-								builder,
-								scope,
-								extern_type->link_mark_fn->get_name(),
-								get_location(),
-								type_variable(INTERNAL_LOC()),
-								type_args({var_ptr_type->get_type()}, {}),
-								type_void());
-						llvm::Constant *llvm_mark_fn = llvm::dyn_cast<llvm::Constant>(mark_fn->get_llvm_value());
+							bound_var_t::ref mark_fn = get_callable(
+									status,
+									builder,
+									scope,
+									extern_type->link_mark_fn->get_name(),
+									get_location(),
+									type_variable(INTERNAL_LOC()),
+									type_args({var_ptr_type->get_type()}, {}),
+									type_void());
+							llvm::Constant *llvm_mark_fn = llvm::dyn_cast<llvm::Constant>(mark_fn->get_llvm_value());
 
-						bound_type_t::ref type_info = program_scope->get_runtime_type(status, builder, "type_info_mark_fn_t");
-						if (!!status) {
-							llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
-									type_info->get_llvm_type());
-
-							llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
-							auto signature = extern_type->get_signature();
-							std::vector<llvm::Constant *> llvm_type_info_data({
-									/* the type_id */
-									builder.getInt32(signature.iatom),
-
-									/* allocation size */
-									llvm_sizeof_tuple,
-
-									/* the kind of this type_info */
-									builder.getInt32(type_kind_use_mark_fn),
-
-									/* name this variable */
-									(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
-
-									/* finalize_fn */
-									llvm_finalize_fn,
-
-									/* mark_fn */
-									llvm_mark_fn,
-									});
-							llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
-							check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
-							llvm::Constant *llvm_type_info = llvm_get_global(
-									llvm_module, string_format("__type_info_%s", signature.c_str()),
-									llvm::ConstantStruct::get(llvm_type_info_type,
-										llvm_type_info_data),
-									true /*is_constant*/);
-
-							debug_above(5, log(log_info, "llvm_type_info = %s",
-										llvm_print(llvm_type_info).c_str()));
-							bound_type_t::ref type_info_type = program_scope->get_runtime_type(status, builder, "type_info_t");
+							bound_type_t::ref type_info = program_scope->get_runtime_type(status, builder, "type_info_mark_fn_t");
 							if (!!status) {
-								auto type_info_ref = type_info_type->get_pointer();
-								auto bound_type_info_var = bound_var_t::create(
-										INTERNAL_LOC(),
-										type_info_var_name,
-										type_info_ref,
-										llvm::ConstantExpr::getPointerCast(
-											llvm_type_info,
-											type_info_ref->get_llvm_type()),
-										make_iid("type info value"));
+								llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
+										type_info->get_llvm_type());
 
-								program_scope->put_bound_variable(status,
-										type_info_var_name,
-										bound_type_info_var);
-								return bound_type_info_var;
+								llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
+								auto signature = extern_type->get_signature();
+								std::vector<llvm::Constant *> llvm_type_info_data({
+										/* the type_id */
+										builder.getInt32(signature.iatom),
+
+										/* allocation size */
+										llvm_sizeof_tuple,
+
+										/* the kind of this type_info */
+										builder.getInt32(type_kind_use_mark_fn),
+
+										/* name this variable */
+										(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
+
+										/* finalize_fn */
+										llvm_finalize_fn,
+
+										/* mark_fn */
+										llvm_mark_fn,
+										});
+								llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
+								check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
+								llvm::Constant *llvm_type_info = llvm_get_global(
+										llvm_module, string_format("__type_info_%s", signature.c_str()),
+										llvm::ConstantStruct::get(llvm_type_info_type,
+											llvm_type_info_data),
+										true /*is_constant*/);
+
+								debug_above(5, log(log_info, "llvm_type_info = %s",
+											llvm_print(llvm_type_info).c_str()));
+								bound_type_t::ref type_info_type = program_scope->get_runtime_type(status, builder, "type_info_t");
+								if (!!status) {
+									auto type_info_ref = type_info_type->get_pointer();
+									auto bound_type_info_var = bound_var_t::create(
+											INTERNAL_LOC(),
+											type_info_var_name,
+											type_info_ref,
+											llvm::ConstantExpr::getPointerCast(
+												llvm_type_info,
+												type_info_ref->get_llvm_type()),
+											make_iid("type info value"));
+
+									program_scope->put_bound_variable(status,
+											type_info_var_name,
+											bound_type_info_var);
+									return bound_type_info_var;
+								}
 							}
 						}
 					}
@@ -2660,7 +2660,7 @@ void ast::tag_t::resolve_statement(
 					/* all tags use the var_t* type */
 					var_ref_type->get_llvm_type());
 
-			scope->put_typename(status, fqn_tag_name, type_ptr(type_managed(type_struct({}, {}))));
+			scope->put_typename(status, tag_name, type_ptr(type_managed(type_struct({}, {}))));
 			if (!!status) {
 				scope->get_program_scope()->put_bound_type(status, bound_tag_type);
 				if (!!status) {

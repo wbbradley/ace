@@ -48,6 +48,7 @@ bool token_begins_type(token_kind tk) {
 			tk == tk_def ||
 			tk == tk_any ||
 			tk == tk_identifier ||
+			tk == tk_times ||
 			tk == tk_lsquare ||
 			tk == tk_lcurly);
 }
@@ -1667,32 +1668,36 @@ type_product_t::ref type_product_t::parse(
 type_link_t::ref type_link_t::parse(
 		parse_state_t &ps,
 		ast::type_decl_t::ref type_decl,
-	   	identifier::refs type_variables)
+		identifier::refs type_variables)
 {
 	identifier::set generics = to_identifier_set(type_variables);
 	chomp_token(tk_link);
 
-	zion_token_t type_name, finalize_fn, mark_fn;
+	zion_token_t finalize_fn, mark_fn;
 
-	/* read the type name of the finalize function */
-	expect_token(tk_identifier);
-	type_name = ps.token;
-	ps.advance();
+	/* read the underlying type */
+	types::type_t::ref underlying_type = _parse_type(ps, nullptr, type_variables, generics);
 
-	/* read the name of the finalize function */
-	expect_token(tk_identifier);
-	finalize_fn = ps.token;
-	ps.advance();
+	if (!!ps.status) {
+		/* read the name of the finalize function */
+		expect_token(tk_identifier);
+		finalize_fn = ps.token;
+		ps.advance();
 
-	/* read the name of the mark function */
-	expect_token(tk_identifier);
-	mark_fn = ps.token;
-	ps.advance();
-	auto type_link = create<type_link_t>(type_decl->token);
-	type_link->type_name = type_name;
-	type_link->finalize_fn = finalize_fn;
-	type_link->mark_fn = mark_fn;
-	return type_link;
+		/* read the name of the mark function */
+		expect_token(tk_identifier);
+		mark_fn = ps.token;
+		ps.advance();
+
+		auto type_link = create<type_link_t>(type_decl->token);
+		type_link->underlying_type = underlying_type;
+		type_link->finalize_fn = finalize_fn;
+		type_link->mark_fn = mark_fn;
+		return type_link;
+	}
+
+	assert(!ps.status);
+	return nullptr;
 }
 
 type_alias_t::ref type_alias_t::parse(

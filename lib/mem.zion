@@ -13,7 +13,7 @@ type TypeInfo has native
 
 [module any]
 def allocate_value(size __int__, name __str__, type_info TypeInfo) Value
-	buf := posix.calloc(__sizeof__(Value) + size, (1).raw) as! Value
+	buf := posix.calloc(sizeof(Value) + size, (1).raw) as! Value
 	buf.size = size
 	buf.name = posix.strdup(name)
 	buf.type_info = type_info
