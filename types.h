@@ -66,6 +66,19 @@ namespace types {
 	bool is_managed_ptr(types::type_t::ref type, types::type_t::map env);
 	bool is_ptr(types::type_t::ref type, types::type_t::map env);
 
+	struct type_nil_t : public type_t {
+		type_nil_t();
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual atom::set get_ftvs() const;
+		virtual ref rebind(const map &bindings) const;
+		virtual location_t get_location() const;
+		virtual identifier::ref get_id() const;
+		virtual bool is_void() const;
+		virtual bool is_nil() const;
+	};
+
 	struct type_id_t : public type_t {
 		type_id_t(identifier::ref id);
 		identifier::ref id;

@@ -308,6 +308,11 @@ void add_global_types(
 {
 	/* let's add the builtin types to the program scope */
 	std::vector<std::pair<atom, bound_type_t::ref>> globals = {
+		{{"nil"},
+			bound_type_t::create(
+					type_id(make_iid("nil")),
+					INTERNAL_LOC(),
+					builder.getVoidTy()->getPointerTo())},
 		{{"void"},
 			bound_type_t::create(
 					type_id(make_iid("void")),
@@ -416,14 +421,28 @@ void add_globals(
 
 	/* lookup the types of bool and void pointer for use below */
 	bound_type_t::ref nil_type = program_scope->get_bound_type({"nil"});
+	assert(nil_type != nullptr);
+
 	bound_type_t::ref void_ptr_type = program_scope->get_bound_type({"__bytes"});
+	assert(void_ptr_type != nullptr);
+
 	bound_type_t::ref bool_type = program_scope->get_bound_type({BOOL_TYPE});
+	assert(bool_type != nullptr);
 
 	program_scope->put_bound_variable(status, "__true__", bound_var_t::create(INTERNAL_LOC(), "__true__", bool_type, builder.getInt64(1/*true*/), make_iid("__true__")));
 	assert(!!status);
 
 	program_scope->put_bound_variable(status, "__false__", bound_var_t::create(INTERNAL_LOC(), "__false__", bool_type, builder.getInt64(0/*false*/), make_iid("__false__")));
 	assert(!!status);
+
+	program_scope->put_bound_variable(status, 
+			{"nil"},
+			bound_var_t::create(
+				INTERNAL_LOC(),
+				{"nil"},
+				nil_type,
+				llvm::Constant::getNullValue(nil_type->get_llvm_specific_type()),
+				make_iid("nil")));
 
 	if (!!status) {
 		struct binding_t {

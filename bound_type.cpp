@@ -111,9 +111,9 @@ std::ostream &operator <<(std::ostream &os, const bound_type_t &type) {
 std::string bound_type_t::str() const {
 	std::stringstream ss;
 	ss << get_type();
-#ifdef DEBUG_LLVM_TYPES
+// #ifdef DEBUG_LLVM_TYPES
 	ss << " " << llvm_print(get_llvm_specific_type());
-#endif
+// #endif
 	return ss.str();
 }
 

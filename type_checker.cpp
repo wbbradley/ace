@@ -1294,55 +1294,57 @@ bound_var_t::ref ast::array_index_expr_t::resolve_expression(
 			
 			if (unification.result) {
 				types::type_t::ref element_type = unification.bindings[element_type_var->get_name()];
-				debug_above(5, log("__getitem__ found that we are looking for items of type %s",
-							element_type->str().c_str()));
-				types::type_t::ref int_type = scope->get_bound_type({INT_TYPE})->get_type();
+				if (!dyncast<const types::type_managed_t>(element_type)) {
+					debug_above(5, log("__getitem__ found that we are looking for items of type %s",
+								element_type->str().c_str()));
+					types::type_t::ref int_type = scope->get_bound_type({INT_TYPE})->get_type();
 
-				// REVIEW: consider just checking the LLVM type for whether it's an integer type
-				unification_t index_unification = unify(
-						index_val->type->get_type(),
-						int_type,
-						scope->get_typename_env());
+					// REVIEW: consider just checking the LLVM type for whether it's an integer type
+					unification_t index_unification = unify(
+							index_val->type->get_type(),
+							int_type,
+							scope->get_typename_env());
 
-				if (index_unification.result) {
-					debug_above(5, log(log_info,
-								"dereferencing %s[%s] with a GEP",
-								lhs->str().c_str(), 
-								index_val->str().c_str()));
-
-					/* get the element type (taking as_ref into consideration) */
-					bound_type_t::ref bound_element_type = upsert_bound_type(
-							status, builder, scope,
-						   	as_ref ? type_ref(element_type) : element_type);
-
-					if (!!status) {
-						/* create the GEP instruction */
-						std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{index_val->get_llvm_value()};
-
-						llvm::Value *llvm_gep = builder.CreateGEP(lhs_val->get_llvm_value(), gep_path);
-
+					if (index_unification.result) {
 						debug_above(5, log(log_info,
-									"created dereferencing GEP %s",
-									llvm_print(*llvm_gep).c_str()));
+									"dereferencing %s[%s] with a GEP",
+									lhs->str().c_str(), 
+									index_val->str().c_str()));
 
-						/* maybe we don't want this as a ref, so let's maybe read the value out of its memory location
-						 * location */
-						llvm::Value *llvm_value = as_ref
-							? llvm_gep
-							: builder.CreateLoad(llvm_gep);
+						/* get the element type (taking as_ref into consideration) */
+						bound_type_t::ref bound_element_type = upsert_bound_type(
+								status, builder, scope,
+								as_ref ? type_ref(element_type) : element_type);
 
-						return bound_var_t::create(
-								INTERNAL_LOC(),
-								{"dereferenced.pointer"},
-								bound_element_type,
-								llvm_value,
-								make_iid_impl("dereferenced.pointer", lhs_val->get_location()));
+						if (!!status) {
+							/* create the GEP instruction */
+							std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{index_val->get_llvm_value()};
+
+							llvm::Value *llvm_gep = builder.CreateGEP(lhs_val->get_llvm_value(), gep_path);
+
+							debug_above(5, log(log_info,
+										"created dereferencing GEP %s",
+										llvm_print(*llvm_gep).c_str()));
+
+							/* maybe we don't want this as a ref, so let's maybe read the value out of its memory location
+							 * location */
+							llvm::Value *llvm_value = as_ref
+								? llvm_gep
+								: builder.CreateLoad(llvm_gep);
+
+							return bound_var_t::create(
+									INTERNAL_LOC(),
+									{"dereferenced.pointer"},
+									bound_element_type,
+									llvm_value,
+									make_iid_impl("dereferenced.pointer", lhs_val->get_location()));
+						}
+					} else {
+						user_error(status, index->get_location(),
+								"pointer index must be of type %s. your index is of type %s",
+								int_type->str().c_str(),
+								index_val->type->get_type()->str().c_str());
 					}
-				} else {
-					user_error(status, index->get_location(),
-							"pointer index must be of type %s. your index is of type %s",
-							int_type->str().c_str(),
-							index_val->type->get_type()->str().c_str());
 				}
 			}
 
