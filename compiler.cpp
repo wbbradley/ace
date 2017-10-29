@@ -168,12 +168,12 @@ ast::module_t::ref compiler_t::build_parse(
 				ifs.open(module_filename.c_str());
 
 				if (ifs.good()) {
-					debug_above(4, log(log_info, "parsing module \"%s\"", module_filename.c_str()));
+					debug_above(4, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
 					zion_lexer_t lexer({module_filename}, ifs);
 
 					assert_implies(global, global_type_macros.size() == base_type_macros.size());
 
-					if (global) {
+					if (false && global) {
 						/* add std types to type_macros to ensure they are not
 						 * rewritten by modules */
 						std::string std_types[] = {
@@ -194,8 +194,7 @@ ast::module_t::ref compiler_t::build_parse(
                                     type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
 						}
 					}
-					global_type_macros.insert({"var_t",
-							type_id(make_iid_impl("runtime.var_t", INTERNAL_LOC()))});
+					// global_type_macros.insert({"var_t", type_id(make_iid_impl("runtime.var_t", INTERNAL_LOC()))});
 
 					parse_state_t ps(status, module_filename, lexer, global_type_macros, &comments);
 					auto module = ast::module_t::parse(ps, global);

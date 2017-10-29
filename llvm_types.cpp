@@ -441,6 +441,7 @@ bound_type_t::ref create_bound_id_type(
 						bound_expansion->get_llvm_specific_type());
 				auto program_scope = scope->get_program_scope();
 				program_scope->put_bound_type(status, bound_type);
+
 				if (!!status) {
 					return bound_type;
 				}

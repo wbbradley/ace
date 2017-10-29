@@ -820,6 +820,10 @@ llvm::Value *llvm_maybe_pointer_cast(
 	   	llvm::Value *llvm_value,
 	   	llvm::Type *llvm_type)
 {
+	if (llvm_value->getType() == llvm_type) {
+		return llvm_value;
+	}
+
 	if (llvm_type->isPointerTy()) {
 		debug_above(6, log("attempting to cast %s to a %s",
 					llvm_print(llvm_value).c_str(),
@@ -835,6 +839,14 @@ llvm::Value *llvm_maybe_pointer_cast(
 	}
 
 	return llvm_value;
+}
+
+llvm::Value *llvm_int_cast(
+		llvm::IRBuilder<> &builder,
+		llvm::Value *llvm_value,
+		llvm::Type *llvm_type)
+{
+	return builder.CreateIntCast(llvm_value, llvm_type, false /*isSigned*/);
 }
 
 llvm::Value *llvm_maybe_pointer_cast(

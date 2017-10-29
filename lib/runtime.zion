@@ -8,7 +8,7 @@ module runtime
  *  Since there is only a global list, this technique is not threadsafe. */
 link var llvm_gc_root_chain *llvm_stack_entry_t
 
-var TYPE_ID_VECTOR __int32__ = -2r
+var TYPE_ID_VECTOR __int32__ = __int32__(-2r)
 var __debug_zion_runtime __int__ = 0r
 var nil *var_t = 0r as *var_t
 var _zion_rt __str__ = "zion-rt: "r
@@ -246,18 +246,18 @@ def mark_allocation(obj *var_t)
 		return
 
 	# mark this node in the heap so that we break any potential cycles
-	obj.mark = 1
+	obj.mark = 1r
 
 	# dbg_zrt(printf("marking heap variable at 0x%08llx '%s'\n", (long long)obj, obj.type_info.name))
 
 	assert(obj.type_info)
 
-	type_kind := obj.type_info.type_kind
+	type_kind := __int__(obj.type_info.type_kind)
 
-	if type_kind == type_kind_tag
+	if type_kind == 0r /* type_kind_tag */
 		# tags don't have dependencies
 		return
-	elif obj.type_info.type_kind == type_kind_use_offsets
+	elif type_kind == 1r /* type_kind_use_offsets */
 		var type_info_offsets *type_info_offsets_t = obj.type_info as *type_info_offsets_t
 
 		# we may be holding on to child nodes, let's recurse.
@@ -269,11 +269,12 @@ def mark_allocation(obj *var_t)
 			var child *var_t = GET_CHILD_REF(obj, j)
 			mark_allocation(child)
 			j += 1r
-	elif obj.type_info.type_kind == type_kind_use_mark_fn
+	elif type_kind == 2r /* type_kind_use_mark_fn */
 		# call the type's mark function to recurse
 		(obj.type_info as *type_info_mark_fn_t).mark_fn(obj)
 	else
-		 assert(0 and "found a heap variable with an invalid type_kind"r)
+		posix.perror("found a heap variable with an invalid type_kind"r)
+		posix.exit(1r)
 
 
 def clear_mark_bit(obj *var_t)

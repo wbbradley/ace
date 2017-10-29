@@ -12,6 +12,7 @@ namespace ast {
 	struct function_decl_t;
 	struct expression_t;
 	struct return_statement_t;
+	struct param_list_t;
 	struct param_list_decl_t;
 	struct type_product_t;
 }

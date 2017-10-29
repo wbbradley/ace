@@ -488,7 +488,7 @@ namespace types {
 	   	return true;
    	}
 
-	type_sum_t::type_sum_t(type_t::refs options) : options(options) {
+	type_sum_t::type_sum_t(type_t::refs options, location_t location) : options(options), location(location) {
 		for (auto option : options) {
             assert(!dyncast<const type_maybe_t>(option));
             assert(!option->is_nil());
@@ -531,15 +531,11 @@ namespace types {
 		for (auto option : options) {
 			type_options.push_back(option->rebind(bindings));
 		}
-		return ::type_sum(type_options);
+		return ::type_sum(type_options, location);
 	}
 
 	location_t type_sum_t::get_location() const {
-		if (options.size() != 0) {
-			return options[0]->get_location();
-		} else {
-			return INTERNAL_LOC();
-		}
+		return location;
 	}
 
 	identifier::ref type_sum_t::get_id() const {
@@ -874,7 +870,7 @@ types::type_function_t::ref type_function(
 	return make_ptr<types::type_function_t>(inbound_context, args, return_type);
 }
 
-types::type_t::ref type_sum_safe(status_t &status, types::type_t::refs options) {
+types::type_t::ref type_sum_safe(status_t &status, types::type_t::refs options, location_t location) {
 	/* sum types must take care to avoid creating sums over maybe types and over
 	 * builtin types */
 	bool make_maybe = false;
@@ -888,7 +884,7 @@ types::type_t::ref type_sum_safe(status_t &status, types::type_t::refs options) 
 		safe_options.push_back(option);
 	}
 
-	auto ret = type_sum(safe_options);
+	auto ret = type_sum(safe_options, location);
 	if (make_maybe) {
 		/* lift the maybe-ness of one of the inner types up to the whole
 		 * type */
@@ -898,8 +894,8 @@ types::type_t::ref type_sum_safe(status_t &status, types::type_t::refs options) 
 	}
 }
 
-types::type_t::ref type_sum(types::type_t::refs options) {
-	return make_ptr<types::type_sum_t>(options);
+types::type_t::ref type_sum(types::type_t::refs options, location_t location) {
+	return make_ptr<types::type_sum_t>(options, location);
 }
 
 types::type_t::ref type_maybe(types::type_t::ref just) {

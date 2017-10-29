@@ -15,6 +15,7 @@
 #include "patterns.h"
 #include <iostream>
 #include "type_kind.h"
+#include "nil_check.h"
 
 /*
  * The basic idea here is that type checking is a graph operation which can be
@@ -319,8 +320,10 @@ bound_var_t::ref generate_module_variable(
 			llvm::Constant *llvm_constant = nullptr;
 			if (bound_type->get_llvm_specific_type()->isPointerTy()) {
 				llvm_constant = llvm::Constant::getNullValue(bound_type->get_llvm_specific_type());
+			} else if (bound_type->get_llvm_specific_type()->isIntegerTy()) {
+				llvm_constant = llvm::ConstantInt::get(bound_type->get_llvm_specific_type(), 0, false);
 			} else {
-				user_error(status, obj, "unsupported type for module variable %s. currently only managed types are supported",
+				user_error(status, obj, "unsupported type for module variable %s",
 						bound_type->str().c_str());
 			}
 
@@ -930,6 +933,10 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 				assert(!status);
 				return nullptr;
 			}
+		} else if (symbol->token.text == "__is_non_nil__") {
+			return resolve_nil_check(status, builder, scope, life, get_location(), params, nck_is_non_nil);
+		} else if (symbol->token.text == "__is_nil__") {
+			return resolve_nil_check(status, builder, scope, life, get_location(), params, nck_is_nil);
 		}
 	}
 
@@ -1073,71 +1080,75 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 									type_variable(INTERNAL_LOC()),
 									type_args({var_ptr_type->get_type()}, {}),
 									type_void());
-							llvm::Constant *llvm_finalize_fn = llvm::dyn_cast<llvm::Constant>(finalize_fn->get_llvm_value());
-
-							bound_var_t::ref mark_fn = get_callable(
-									status,
-									builder,
-									scope,
-									extern_type->link_mark_fn->get_name(),
-									get_location(),
-									type_variable(INTERNAL_LOC()),
-									type_args({var_ptr_type->get_type()}, {}),
-									type_void());
-							llvm::Constant *llvm_mark_fn = llvm::dyn_cast<llvm::Constant>(mark_fn->get_llvm_value());
-
-							bound_type_t::ref type_info = program_scope->get_runtime_type(status, builder, "type_info_mark_fn_t");
 							if (!!status) {
-								llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
-										type_info->get_llvm_type());
+								llvm::Constant *llvm_finalize_fn = llvm::dyn_cast<llvm::Constant>(finalize_fn->get_llvm_value());
 
-								llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
-								auto signature = extern_type->get_signature();
-								std::vector<llvm::Constant *> llvm_type_info_data({
-										/* the type_id */
-										builder.getInt32(signature.iatom),
-
-										/* allocation size */
-										llvm_sizeof_tuple,
-
-										/* the kind of this type_info */
-										builder.getInt32(type_kind_use_mark_fn),
-
-										/* name this variable */
-										(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
-
-										/* finalize_fn */
-										llvm_finalize_fn,
-
-										/* mark_fn */
-										llvm_mark_fn,
-										});
-								llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
-								check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
-								llvm::Constant *llvm_type_info = llvm_get_global(
-										llvm_module, string_format("__type_info_%s", signature.c_str()),
-										llvm::ConstantStruct::get(llvm_type_info_type,
-											llvm_type_info_data),
-										true /*is_constant*/);
-
-								debug_above(5, log(log_info, "llvm_type_info = %s",
-											llvm_print(llvm_type_info).c_str()));
-								bound_type_t::ref type_info_type = program_scope->get_runtime_type(status, builder, "type_info_t");
+								bound_var_t::ref mark_fn = get_callable(
+										status,
+										builder,
+										scope,
+										extern_type->link_mark_fn->get_name(),
+										get_location(),
+										type_variable(INTERNAL_LOC()),
+										type_args({var_ptr_type->get_type()}, {}),
+										type_void());
 								if (!!status) {
-									auto type_info_ref = type_info_type->get_pointer();
-									auto bound_type_info_var = bound_var_t::create(
-											INTERNAL_LOC(),
-											type_info_var_name,
-											type_info_ref,
-											llvm::ConstantExpr::getPointerCast(
-												llvm_type_info,
-												type_info_ref->get_llvm_type()),
-											make_iid("type info value"));
+									llvm::Constant *llvm_mark_fn = llvm::dyn_cast<llvm::Constant>(mark_fn->get_llvm_value());
 
-									program_scope->put_bound_variable(status,
-											type_info_var_name,
-											bound_type_info_var);
-									return bound_type_info_var;
+									bound_type_t::ref type_info = program_scope->get_runtime_type(status, builder, "type_info_mark_fn_t");
+									if (!!status) {
+										llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
+												type_info->get_llvm_type());
+
+										llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
+										auto signature = extern_type->get_signature();
+										std::vector<llvm::Constant *> llvm_type_info_data({
+												/* the type_id */
+												builder.getInt32(signature.iatom),
+
+												/* allocation size */
+												llvm_sizeof_tuple,
+
+												/* the kind of this type_info */
+												builder.getInt32(type_kind_use_mark_fn),
+
+												/* name this variable */
+												(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
+
+												/* finalize_fn */
+												llvm_finalize_fn,
+
+												/* mark_fn */
+												llvm_mark_fn,
+												});
+										llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
+										check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
+										llvm::Constant *llvm_type_info = llvm_get_global(
+												llvm_module, string_format("__type_info_%s", signature.c_str()),
+												llvm::ConstantStruct::get(llvm_type_info_type,
+													llvm_type_info_data),
+												true /*is_constant*/);
+
+										debug_above(5, log(log_info, "llvm_type_info = %s",
+													llvm_print(llvm_type_info).c_str()));
+										bound_type_t::ref type_info_type = program_scope->get_runtime_type(status, builder, "type_info_t");
+										if (!!status) {
+											auto type_info_ref = type_info_type->get_pointer();
+											auto bound_type_info_var = bound_var_t::create(
+													INTERNAL_LOC(),
+													type_info_var_name,
+													type_info_ref,
+													llvm::ConstantExpr::getPointerCast(
+														llvm_type_info,
+														type_info_ref->get_llvm_type()),
+													make_iid("type info value"));
+
+											program_scope->put_bound_variable(status,
+													type_info_var_name,
+													bound_type_info_var);
+											return bound_type_info_var;
+										}
+									}
 								}
 							}
 						}
@@ -1398,9 +1409,10 @@ bound_var_t::ref type_check_binary_operator(
 			if (!!status) {
 				rhs_var = rhs->resolve_expression(status, builder, scope, life,
 						false /*as_ref*/);
-				assert(!rhs_var->type->is_ref());
 
 				if (!!status) {
+					assert(!rhs_var->type->is_ref());
+
 					/* get or instantiate a function we can call on these arguments */
 					return call_program_function(
 							status, builder, scope, life, function_name,
@@ -1663,12 +1675,16 @@ llvm::Value *maybe_get_bool_overload_value(
 	return nullptr;
 }
 
-bound_var_t::ref ast::ternary_expr_t::resolve_expression(
+bound_var_t::ref resolve_cond_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		ast::expression_t::ref condition,
+		ast::expression_t::ref when_true,
+		ast::expression_t::ref when_false,
+		identifier::ref value_name)
 {
 	assert(!as_ref);
 
@@ -1727,8 +1743,13 @@ bound_var_t::ref ast::ternary_expr_t::resolve_expression(
 			if (!!status) {
 				/* calculate the false path's value in the else block */
 				builder.SetInsertPoint(else_bb);
-				bound_var_t::ref false_path_value = when_false->resolve_expression(
-						status, builder, scope, life, false /*as_ref*/);
+				bound_var_t::ref false_path_value = (
+						(condition == when_false)
+						/* don't recompute the false value */
+						? condition_value
+						/* need to compute the false value */
+						: when_false->resolve_expression(
+							status, builder, scope, life, false /*as_ref*/));
 
 				/* after calculation, the code should jump to the phi node's basic block */
 				builder.CreateBr(merge_bb);
@@ -1760,8 +1781,13 @@ bound_var_t::ref ast::ternary_expr_t::resolve_expression(
 
 						if (!!status) {
 							/* get the bound_var for the truthy path */
-							bound_var_t::ref true_path_value = when_true->resolve_expression(
-									status, builder, if_scope ? if_scope : scope, life, false /*as_ref*/);
+							bound_var_t::ref true_path_value = (
+									(condition == when_true)
+									/* don't recompute the "true" value */
+									? condition_value
+									/* we need to compute the "true" value */
+									: when_true->resolve_expression(status, builder, if_scope ?
+										if_scope : scope, life, false /*as_ref*/));
 
 							if (!!status) {
 								bound_type_t::ref ternary_type;
@@ -1770,7 +1796,8 @@ bound_var_t::ref ast::ternary_expr_t::resolve_expression(
 									 * types, let's create a sum type to represent this */
 									auto ternary_sum_type = type_sum_safe(status, {
 											true_path_value->type->get_type(),
-											false_path_value->type->get_type()});
+											false_path_value->type->get_type()},
+											condition->get_location());
 
 									if (!!status) {
 										ternary_type = upsert_bound_type(status,
@@ -1801,7 +1828,7 @@ bound_var_t::ref ast::ternary_expr_t::resolve_expression(
 											{"ternary.value"},
 											ternary_type,
 											llvm_phi_node,
-											make_code_id(this->token));
+											value_name);
 								}
 							}
 						}
@@ -1815,6 +1842,18 @@ bound_var_t::ref ast::ternary_expr_t::resolve_expression(
     return nullptr;
 }
 
+bound_var_t::ref ast::ternary_expr_t::resolve_expression(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bool as_ref) const
+{
+	return resolve_cond_expression(status, builder, scope, life, as_ref,
+			condition, when_true, when_false,
+			make_code_id(this->token));
+}
+
 bound_var_t::ref ast::or_expr_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -1822,9 +1861,8 @@ bound_var_t::ref ast::or_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	assert(!as_ref);
-	// TODO: implement short-circuiting
-	return null_impl();
+	return resolve_cond_expression(status, builder, scope, life, as_ref,
+			lhs, lhs, rhs, make_iid("or.value"));
 }
 
 bound_var_t::ref ast::and_expr_t::resolve_expression(
@@ -1834,9 +1872,8 @@ bound_var_t::ref ast::and_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	assert(!as_ref);
-	// TODO: implement short-circuiting
-	return null_impl();
+	return resolve_cond_expression(status, builder, scope, life, as_ref,
+			lhs, rhs, lhs, make_iid("and.value"));
 }
 
 types::type_struct_t::ref get_struct_type_from_ptr(
@@ -3459,20 +3496,23 @@ void ast::if_block_t::resolve_statement(
 				if (else_ != nullptr) {
 					else_->resolve_statement(status, builder, scope, life,
 							nullptr, &else_block_returns);
-				}
-
-				if (!else_block_returns) {
-					/* keep track of the fact that we have to have a
-					 * merged block to land in after the else block */
-					insert_merge_bb = true;
-
-					/* go ahead and jump there */
-					if (!builder.GetInsertBlock()->getTerminator()) {
-						builder.CreateBr(merge_bb);
+					if (!status) {
+						user_error(status, else_->get_location(), "while checking else statement");
 					}
 				}
 
 				if (!!status) {
+					if (!else_block_returns) {
+						/* keep track of the fact that we have to have a
+						 * merged block to land in after the else block */
+						insert_merge_bb = true;
+
+						/* go ahead and jump there */
+						if (!builder.GetInsertBlock()->getTerminator()) {
+							builder.CreateBr(merge_bb);
+						}
+					}
+
 					/* let's generate code for the "then" block */
 					builder.SetInsertPoint(then_bb);
 					llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
@@ -3767,7 +3807,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 					status,
 					builder,
 					scope,
-					type_id(make_iid(std::string("std") + SCOPE_SEP + "int")));
+					type_id(make_iid("int")));
 			if (!!status) {
 				assert(boxed_type != nullptr);
 				bound_var_t::ref box_int = get_callable(
@@ -3816,7 +3856,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 					status,
 					builder,
 					scope,
-					type_id(make_iid(std::string("std") + SCOPE_SEP + "str")));
+					type_id(make_iid("str")));
 
 			if (!!status) {
 				assert(boxed_type != nullptr);
@@ -3865,7 +3905,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 					status,
 					builder,
 					scope,
-					type_id(make_iid(std::string("std") + SCOPE_SEP + "float")));
+					type_id(make_iid("float")));
 			if (!!status) {
 				assert(boxed_type != nullptr);
 				bound_var_t::ref box_float = get_callable(

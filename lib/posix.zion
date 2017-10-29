@@ -2,6 +2,7 @@ module posix
 
 link def getenv(x __str__) __str__
 link def puts(x __str__) __int__
+link def perror(x __str__) __int__
 link def open(path __str__, oflag __int__) __int__
 link def close(fd __int__) __int__
 link def read(fileds __int__, buf __bytes, nbytes __int__) __int__

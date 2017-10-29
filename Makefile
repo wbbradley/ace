@@ -123,6 +123,7 @@ ZION_LLVM_SOURCES = \
 				location.cpp \
 				logger.cpp \
 				mmap_file.cpp \
+				nil_check.cpp \
 				parse_state.cpp \
 				parser.cpp \
 				phase_scope_setup.cpp \

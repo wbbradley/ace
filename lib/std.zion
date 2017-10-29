@@ -25,7 +25,12 @@ def str(t TypeID) str
 
 def assert(condition bool)
 	if not condition
-		print("assertion failed!")
+		posix.puts("assertion failed!")
+		posix.exit(-1r)
+
+def assert(condition *any)
+	if condition == nil
+		posix.puts("assertion failed!"r)
 		posix.exit(-1r)
 
 def typeid(t any) TypeID
@@ -182,14 +187,11 @@ def __times__(x int, y float) float
 def __times__(x float, y float) float
 	return float(x.raw * y.raw)
 
-def __eq__(x any, y nil) __bool__
-	return __isnil(x as *var_t)
+def __eq__(x *any, y nil) __bool__
+	return __is_nil__(x)
 
-def __eq__(y nil, x any) __bool__
-	return __isnil(x as *var_t)
-
-def __isnil(x *any) __bool__
-	return not x
+def __eq__(y nil, x *any) __bool__
+	return __is_nil__(x)
 
 def __eq__(x int, y int) bool
 	return bool(x.raw == y.raw)
@@ -209,13 +211,13 @@ def __eq__(x str, y str) bool
 def __ineq__(x str, y str) bool
 	return bool(x.raw == y.raw)
 
-def __ineq__(x any, y nil) bool
+def __ineq__(x *any, y nil) bool
 	# TODO: optimize
-	return not bool(__isnil(x as __var_ref))
+	return __is_non_nil__(x)
 
-def __ineq__(y nil, x any) bool
+def __ineq__(y nil, x *any) bool
 	# TODO: optimize
-	return not bool(__isnil(x as __var_ref))
+	return __is_non_nil__(x)
 
 def __ineq__(x int, y int) bool
 	return bool(x.raw != y.raw)

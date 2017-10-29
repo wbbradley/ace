@@ -1504,7 +1504,7 @@ types::type_t::ref _parse_type(
 		if (options.size() == 1) {
 			return options[0];
 		} else {
-			types::type_t::ref sum_fn = type_sum_safe(ps.status, options);
+			types::type_t::ref sum_fn = type_sum_safe(ps.status, options, supertype_id->get_location());
 			if (!!ps.status) {
 				for (auto iter = type_variables.rbegin();
 						iter != type_variables.rend();

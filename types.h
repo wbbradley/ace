@@ -226,7 +226,9 @@ namespace types {
 
 	struct type_sum_t : public type_t {
 		type_sum_t(type_t::refs options);
+		type_sum_t(type_t::refs options, location_t location);
 		type_t::refs options;
+		location_t location;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -323,8 +325,8 @@ types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
 types::type_args_t::ref type_args(types::type_t::refs args, types::name_index_t name_index={});
 types::type_function_t::ref type_function(types::type_t::ref inbound_context, types::type_args_t::ref args, types::type_t::ref return_type);
-types::type_t::ref type_sum(types::type_t::refs options);
-types::type_t::ref type_sum_safe(status_t &status, types::type_t::refs options);
+types::type_t::ref type_sum(types::type_t::refs options, location_t location);
+types::type_t::ref type_sum_safe(status_t &status, types::type_t::refs options, location_t location);
 types::type_t::ref type_maybe(types::type_t::ref just);
 types::type_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_ref(types::type_t::ref raw);
