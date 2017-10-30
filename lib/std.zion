@@ -338,11 +338,11 @@ type ListIter{V} has
 def iter(l [any V]) ListIter{any V}
 	return ListIter(l)
 
-def next(list_iter ListIter{any V}) iter/Step{any V, ListIter{any V}}?
+def next(list_iter ListIter{any V}) iter.Step{any V, ListIter{any V}}?
 	if item := list_iter.list
 		return iter_module.Step(item.value, ListIter(item.next))
 	else
-		return nil as iter/Step{any V, ListIter{any V}}?
+		return nil as iter.Step{any V, ListIter{any V}}?
 
 type bytes has
 	var data __bytes

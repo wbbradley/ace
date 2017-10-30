@@ -570,7 +570,6 @@ void compiler_t::build_parse_modules(status_t &status) {
         if (getenv("NO_STD_LIB") == nullptr) {
             build_parse(status, location_t{"std lib", 0, 0}, "lib/std",
 				   	true /*global*/, global_type_macros);
-
         }
 
 		if (!!status) {
@@ -603,6 +602,8 @@ void compiler_t::build_type_check_and_code_gen(status_t &status) {
 		status = scope_setup_program(*program, *this);
 
 		if (!!status) {
+			/* final and most complex pass to resolve all needed symbols in order to guarantee type constraints, and
+			 * generate LLVM IR */
 			type_check_program(status, builder, *program, *this);
 
 			if (!!status) {

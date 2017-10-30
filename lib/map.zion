@@ -95,11 +95,11 @@ def iter(map Map{any K, any V}?) Iter{any K, any V}
 		return Iter(nil as [Map{any K, any V}], Stop)
 
 [module any]
-def next(map_iter Iter{any K, any V}) iter/Step{KeyValue{any K, any V}, Iter{any K, any V}}?
+def next(map_iter Iter{any K, any V}) iter.Step{KeyValue{any K, any V}, Iter{any K, any V}}?
 	# store the map node that this call will return
 	status := map_iter.status
 	if status is Stop
-		return nil as iter/Step{KeyValue{any K, any V}, Iter{any K, any V}}?
+		return nil as iter.Step{KeyValue{any K, any V}, Iter{any K, any V}}?
 	elif status is InOrder
 		if stack := map_iter.stack
 			if map_node := stack.value
@@ -141,7 +141,7 @@ def next(map_iter Iter{any K, any V}) iter/Step{KeyValue{any K, any V}, Iter{any
 			assert(false)
 
 	assert(false)
-	return nil as iter/Step{KeyValue{any K, any V}, Iter{any K, any V}}?
+	return nil as iter.Step{KeyValue{any K, any V}, Iter{any K, any V}}?
 
 [module any]
 def str(status MapNextMove) str

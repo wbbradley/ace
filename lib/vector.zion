@@ -5,7 +5,7 @@ link module runtime
 type vector_t struct
 	var reserved __int__
 	var size     __int__
-	var items    **var_t
+	var items    **runtime.var_t
 
 type vector{T} link vector_t __vector_free__ __vector_mark__
 
@@ -29,14 +29,16 @@ def resize(vec [any T], size int, default any T) void
 
 # link def vec(TYPE, capacity int) TYPE[]
 
-def __vector_mark__(var_ *var_t)
+[module any]
+def __vector_mark__(var_ *runtime.var_t)
 	v := var_ as *vector_t
 	i := 0r
 	while i < v.size
 		runtime.mark_allocation(v.items[i])
 		i += 1r
 
-def __vector_free__(var_ *var_t)
+[module any]
+def __vector_free__(var_ *runtime.var_t)
 	# assert(var_ != 0)
 	vector := var_ as *vector_t
 

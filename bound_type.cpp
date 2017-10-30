@@ -209,6 +209,14 @@ bool bound_type_t::is_ptr(scope_t::ref scope) const {
 	return res;
 }
 
+bool bound_type_t::is_opaque() const {
+	if (auto llvm_struct_type = llvm::dyn_cast<llvm::StructType>(get_llvm_specific_type())) {
+		return llvm_struct_type->isOpaque();
+	} else {
+		return false;
+	}
+}
+
 void bound_type_t::is_managed_ptr(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,

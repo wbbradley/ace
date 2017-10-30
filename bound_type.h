@@ -40,6 +40,7 @@ public:
 	bool is_ref() const;
 	bool is_maybe() const;
     bool is_module() const;
+	bool is_opaque() const;
 	types::signature get_signature() const;
 
 	std::string str() const;

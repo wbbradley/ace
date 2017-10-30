@@ -2681,8 +2681,29 @@ void type_check_program(
 	bool checked_runtime = false;
 	for (const ast::module_t::ref &module : obj.modules) {
 		if (module->module_key == "runtime") {
+			assert(!checked_runtime);
 			checked_runtime = true;
 			type_check_module_types(status, compiler, builder, *module, program_scope);
+		}
+	}
+
+	if (!!status) {
+		/* make sure we can look up the bound runtime types */
+		std::vector<std::string> runtime_types = {
+			"type_info_t",
+			"type_info_t",
+			"type_info_offsets_t",
+			"type_info_mark_fn_t",
+			"tag_t",
+			"var_t",
+		};
+
+		for (auto runtime_type : runtime_types) {
+			if (!!status) {
+				program_scope->get_runtime_type(status, builder, runtime_type);
+			} else {
+				break;
+			}
 		}
 	}
 

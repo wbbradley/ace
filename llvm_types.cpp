@@ -167,12 +167,15 @@ bound_type_t::ref create_bound_ptr_type(
 	program_scope->put_bound_type(status, bound_pointer_type);
 
 	if (!!status) {
-		debug_above(6, log("create_bound_ptr_type(..., %s)",
-					type_ptr->str().c_str()));
+		debug_above(6, log("create_bound_ptr_type(..., %s)", type_ptr->str().c_str()));
 
 		/* before we return the pointer type, let's go ahead and instantiate
 		 * the actual structural type */
-		upsert_bound_type(status, builder, scope, type_ptr->element_type);
+		bound_type_t::ref bound_element_type = upsert_bound_type(status, builder, scope, type_ptr->element_type);
+		if (!!status) {
+			// XXX
+
+		}
 	}
 
 	if (!!status) {
@@ -299,6 +302,9 @@ bound_type_t::ref create_bound_managed_type(
 				if (!!status) {
 					/* finally set the elements into the structure */
 					llvm_struct_type->setBody(elements);
+					debug_above(6, log("setting the body of the managed %s structure to %s",
+								var_type->get_signature().str().c_str(),
+								llvm_print(llvm_struct_type).c_str()));
 
 					auto bound_type = bound_type_t::create(managed_type,
 							struct_type->get_location(), llvm_least_specific_type,
@@ -350,11 +356,6 @@ bound_type_t::ref create_bound_struct_type(
 	bound_type_t::ref bound_ref_type = upsert_bound_type(status, builder, scope, ptr_type);
 
 	if (!!status) {
-		if (auto bound_type = scope->get_bound_type(struct_type->get_signature())) {
-			/* while instantiating our pointer type, we also instantiated this */
-			return bound_type;
-		}
-
 		if (bound_ref_type != nullptr) {
 			/* fetch the previously created pointer to this type */
 			llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm::cast<llvm::PointerType>(
@@ -366,32 +367,27 @@ bound_type_t::ref create_bound_struct_type(
 			debug_above(6, log("found pointer type %s with opaque element type, now we will instantiate the concrete struct",
 						bound_ref_type->str().c_str()));
 
-			assert(!scope->get_bound_type(struct_type->get_signature()));
-
 			/* resolve all of the contained dimensions. NB: cycles should be broken
 			 * by the existence of the pointer to this type */
 			bound_type_t::refs bound_dimensions = upsert_bound_types(status,
 					builder, scope, struct_type->dimensions);
 
-			if (auto bound_type = scope->get_bound_type(struct_type->get_signature())) {
-				return bound_type; 
-			}
-
 			if (!!status) {
-				assert(!scope->get_bound_type(struct_type->get_signature()));
-
 				/* fill out the internals of this structure */
 				std::vector<llvm::Type *> elements = build_struct_elements(
 						status, builder, program_scope, struct_type, bound_dimensions, true /*native*/);
 				if (!!status) {
 					/* finally set the elements into the structure */
+					assert(llvm_struct_type->isOpaque());
+
 					llvm_struct_type->setBody(elements);
+					debug_above(6, log("setting the body of the %s structure to %s",
+								struct_type->get_signature().str().c_str(),
+								llvm_print(llvm_struct_type).c_str()));
 
 					auto bound_type = bound_type_t::create(struct_type,
 							struct_type->get_location(), llvm_struct_type,
 							llvm_struct_type);
-
-					assert(!scope->get_bound_type(struct_type->get_signature()));
 
 					/* register this type */
 					program_scope->put_bound_type(status, bound_type);
@@ -698,6 +694,9 @@ bound_type_t::ref upsert_bound_type(
 			 * instantiation */
 			return bound_type;
 		} else {
+			debug_above(6, log("upsert_bound_type calling create_bound_type with %s",
+						type->str().c_str()));
+
 			/* we believe that this type does not exist. let's build it */
 			bound_type = create_bound_type(status, builder, scope, type);
 

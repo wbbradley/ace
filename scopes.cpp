@@ -10,7 +10,7 @@
 #include "compiler.h"
 
 const char *GLOBAL_ID = "_";
-const token_kind SCOPE_TK = tk_divide_by;
+const token_kind SCOPE_TK = tk_dot;
 const char SCOPE_SEP_CHAR = '.';
 const char *SCOPE_SEP = ".";
 
@@ -131,11 +131,11 @@ llvm::Module *scope_t::get_llvm_module() {
 }
 
 bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
-	INDENT(6, string_format("checking program scope whether %s is bound...",
+	INDENT(7, string_format("checking program scope whether %s is bound...",
 				signature.str().c_str()));
 	auto iter = bound_types.find(signature);
 	if (iter != bound_types.end()) {
-		debug_above(6, log(log_info, "yep. %s is bound to %s",
+		debug_above(7, log(log_info, "yep. %s is bound to %s",
 					signature.str().c_str(),
 					iter->second->str().c_str()));
 		return iter->second;
@@ -146,7 +146,7 @@ bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
 		}
 	}
 
-	debug_above(6, log(log_info, "nope. %s is not yet bound",
+	debug_above(7, log(log_info, "nope. %s is not yet bound",
 				signature.str().c_str()));
 	return nullptr;
 }
@@ -204,22 +204,8 @@ bound_type_t::ref program_scope_t::get_runtime_type(
 {
 	module_scope_t::ref runtime_module = lookup_module("runtime");
 	if (runtime_module != nullptr) {
-		auto type = eval(type_id(make_iid_impl(name, INTERNAL_LOC())), runtime_module->get_typename_env());
-		if (type == nullptr) {
-			unchecked_type_t::ref unchecked_type = runtime_module->get_unchecked_type(name);
-			if (unchecked_type != nullptr) {
-				resolve_unchecked_type(status, builder, runtime_module, unchecked_type);
-				type = eval(type_id(make_iid_impl(name, INTERNAL_LOC())), runtime_module->get_typename_env());
-			} else {
-				user_error(status, INTERNAL_LOC(), "could not find unchecked type " c_type("%s"), name.c_str());
-			}
-		}
-
-		if (type != nullptr) {
-			return upsert_bound_type(status, builder, runtime_module, type);
-		} else {
-			user_error(status, INTERNAL_LOC(), "could not find type " c_type("%s"), name.c_str());
-		}
+		auto type = type_id(make_iid_impl(name, INTERNAL_LOC()));
+		return upsert_bound_type(status, builder, runtime_module, type);
 	} else {
 		user_error(status, INTERNAL_LOC(), c_id("runtime") " module is not yet installed.");
 	}
