@@ -905,7 +905,7 @@ types::type_t::ref type_maybe(types::type_t::ref just) {
 	return make_ptr<types::type_maybe_t>(just);
 }
 
-types::type_t::ref type_ptr(types::type_t::ref raw) {
+types::type_ptr_t::ref type_ptr(types::type_t::ref raw) {
 	return make_ptr<types::type_ptr_t>(raw);
 }
 

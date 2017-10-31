@@ -643,9 +643,11 @@ void program_scope_t::put_bound_type(status_t &status, bound_type_t::ref type) {
 	debug_above(5, log(log_info, "binding type %s as " c_id("%s"),
 				type->str().c_str(),
 				type->get_signature().repr().c_str()));
+	/*
 	if (type->str().find("type_info_mark_fn_t") != std::string::npos) {
 		dbg();
 	}
+	*/
 	atom signature = type->get_signature().repr();
 	auto iter = bound_types.find(signature);
 	if (iter == bound_types.end()) {

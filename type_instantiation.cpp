@@ -223,7 +223,12 @@ void instantiate_data_ctor_type(
 
 			/* now build the actual typename expansion we'll put in the typename env */
 			/* 1. create the actual expanded type signature of this type */
-			types::type_t::ref type = native ? struct_ : type_ptr(type_managed(struct_));
+			types::type_t::ref type;
+			if (native) {
+				type = struct_;
+			} else {
+				type = type_ptr(type_managed(struct_));
+			}
 
 			/* 2. make sure we allow for parameterized expansion */
 			for (auto lambda_var : lambda_vars) {

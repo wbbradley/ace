@@ -150,36 +150,24 @@ bound_type_t::ref create_bound_ptr_type(
 		return nullptr;
 	}
 
-	/* get the element type's bound type, if it exists */
-	bound_type_t::ref bound_type = scope->get_bound_type(type_ptr->element_type->get_signature());
+	/* get or create the element type's bound type, if it exists */
+	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_ptr->element_type);
 
-	if (bound_type != nullptr) {
-		return bound_type_t::create(type_ptr,
+	if (!!status) {
+		assert(bound_type != nullptr);
+		bound_type_t::ref bound_ptr_type = scope->get_bound_type(type_ptr->get_signature());
+		if (bound_ptr_type != nullptr) {
+			return bound_ptr_type;
+		}
+
+		bound_ptr_type = bound_type_t::create(type_ptr,
 				type_ptr->get_location(),
 				bound_type->get_llvm_specific_type()->getPointerTo());
-	}
-				
-	/* we've never seen the internal type, so start by registering an
-	 * opaque placeholder for the struct's concrete type */
-	
-	/* first create the opaque pointer type */
-	auto bound_pointer_type = create_ptr_type<T>(builder, type_ptr);
-	program_scope->put_bound_type(status, bound_pointer_type);
+		program_scope->put_bound_type(status, bound_ptr_type);
 
-	if (!!status) {
-		debug_above(6, log("create_bound_ptr_type(..., %s)", type_ptr->str().c_str()));
-
-		/* before we return the pointer type, let's go ahead and instantiate
-		 * the actual structural type */
-		bound_type_t::ref bound_element_type = upsert_bound_type(status, builder, scope, type_ptr->element_type);
 		if (!!status) {
-			// XXX
-
+			return bound_ptr_type;
 		}
-	}
-
-	if (!!status) {
-		return bound_pointer_type;
 	}
 
 	assert(!status);
@@ -352,49 +340,56 @@ bound_type_t::ref create_bound_struct_type(
 	/* get the pointer type to this, if it exists, get the opaque struct
 	 * pointer that it had created. fill it out. if it doesn't exist,
 	 * create it, then extract this tuple type from that. */
-	types::type_t::ref ptr_type = type_ptr(struct_type);
-	bound_type_t::ref bound_ref_type = upsert_bound_type(status, builder, scope, ptr_type);
+	types::type_ptr_t::ref ptr_type = type_ptr(struct_type);
+	bound_type_t::ref bound_ptr_type = scope->get_bound_type(ptr_type->get_signature());
+
+	if (bound_ptr_type == nullptr) {
+		bound_ptr_type = create_ptr_type(builder, ptr_type);
+		program_scope->put_bound_type(status, bound_ptr_type);
+	}
 
 	if (!!status) {
-		if (bound_ref_type != nullptr) {
-			/* fetch the previously created pointer to this type */
-			llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm::cast<llvm::PointerType>(
-						bound_ref_type->get_llvm_specific_type())->getElementType());
-			assert(llvm_struct_type != nullptr);
-			assert(!llvm_struct_type->isSized());
-			assert(llvm_struct_type->isOpaque());
+		assert(bound_ptr_type != nullptr);
+		llvm::PointerType *llvm_ptr_type = llvm::dyn_cast<llvm::PointerType>(bound_ptr_type->get_llvm_specific_type());
+		assert(llvm_ptr_type != nullptr);
 
-			debug_above(6, log("found pointer type %s with opaque element type, now we will instantiate the concrete struct",
-						bound_ref_type->str().c_str()));
+		/* fetch the previously created pointer to this type */
+		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_ptr_type->getElementType());
+		assert(llvm_struct_type != nullptr);
 
-			/* resolve all of the contained dimensions. NB: cycles should be broken
-			 * by the existence of the pointer to this type */
-			bound_type_t::refs bound_dimensions = upsert_bound_types(status,
-					builder, scope, struct_type->dimensions);
+		assert(!llvm_struct_type->isSized());
+		assert(llvm_struct_type->isOpaque());
 
+		debug_above(6, log("found pointer type %s with opaque element type, now we will instantiate the concrete struct",
+					bound_ptr_type->str().c_str()));
+
+		/* resolve all of the contained dimensions. NB: cycles should be broken
+		 * by the existence of the pointer to this type */
+		bound_type_t::refs bound_dimensions = upsert_bound_types(status,
+				builder, scope, struct_type->dimensions);
+
+		if (!!status) {
+			/* fill out the internals of this structure */
+			std::vector<llvm::Type *> elements = build_struct_elements(
+					status, builder, program_scope, struct_type, bound_dimensions, true /*native*/);
 			if (!!status) {
-				/* fill out the internals of this structure */
-				std::vector<llvm::Type *> elements = build_struct_elements(
-						status, builder, program_scope, struct_type, bound_dimensions, true /*native*/);
+				/* finally set the elements into the structure */
+				assert(llvm_struct_type->isOpaque());
+
+				llvm_struct_type->setBody(elements);
+				debug_above(6, log("setting the body of the %s structure to %s",
+							struct_type->get_signature().str().c_str(),
+							llvm_print(llvm_struct_type).c_str()));
+
+				auto bound_type = bound_type_t::create(struct_type,
+						struct_type->get_location(), llvm_struct_type,
+						llvm_struct_type);
+
+				/* register this type */
+				program_scope->put_bound_type(status, bound_type);
+
 				if (!!status) {
-					/* finally set the elements into the structure */
-					assert(llvm_struct_type->isOpaque());
-
-					llvm_struct_type->setBody(elements);
-					debug_above(6, log("setting the body of the %s structure to %s",
-								struct_type->get_signature().str().c_str(),
-								llvm_print(llvm_struct_type).c_str()));
-
-					auto bound_type = bound_type_t::create(struct_type,
-							struct_type->get_location(), llvm_struct_type,
-							llvm_struct_type);
-
-					/* register this type */
-					program_scope->put_bound_type(status, bound_type);
-
-					if (!!status) {
-						return bound_type;
-					}
+					return bound_type;
 				}
 			}
 		} else {
@@ -404,6 +399,54 @@ bound_type_t::ref create_bound_struct_type(
 		}
 	}
 
+	assert(!status);
+	return nullptr;
+}
+
+bound_type_t::ref bind_expansion(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	scope_t::ref scope,
+	   	types::type_t::ref unexpanded,
+	   	types::type_t::ref expansion)
+{
+	/* make sure this isn't already bound */
+	auto signature = unexpanded->get_signature();
+	assert(scope->get_bound_type(signature) == nullptr);
+
+	auto program_scope = scope->get_program_scope();
+
+	/* set up a mapping at the program level for these bound types */
+	program_scope->put_bound_type_mapping(status, signature,
+			expansion->get_signature());
+	program_scope->put_bound_type_mapping(status, type_ptr(unexpanded)->get_signature(),
+			type_ptr(expansion)->get_signature());
+
+	/* make sure we have a bound type for the expansion type. NB: this will
+	 * rely on the bound type mapping to ensure that when the instantiation
+	 * process looks for our unexpanded type (via self-referencing type
+	 * definitions) it translates into whatever cycle breaking we already
+	 * have. */
+	auto expansion_bound_type = upsert_bound_type(status, builder, scope, expansion);
+
+	if (!!status) {
+		/* let's finally create the official bound type for this operator */
+		auto bound_type = bound_type_t::create(
+				unexpanded,
+				unexpanded->get_location(),
+				expansion_bound_type->get_llvm_type(),
+				expansion_bound_type->get_llvm_specific_type());
+
+		program_scope->put_bound_type(status, bound_type);
+
+
+		if (!!status) {
+			upsert_bound_type(status, builder, scope, type_ptr(expansion));
+			if (!!status) {
+				return bound_type;
+			}
+		}
+	}
 	assert(!status);
 	return nullptr;
 }
@@ -421,30 +464,7 @@ bound_type_t::ref create_bound_id_type(
 
 	/* however, what it expands to might already have a bound type */
 	if (expansion != nullptr) {
-		/* we do have an expansion, so let's bind that, then come back and bind
-		 * ourselves directly to the llvm version of that */
-		auto bound_expansion = upsert_bound_type(status, builder, scope, expansion);
-
-		if (!!status) {
-			auto bound_type = scope->get_bound_type(id->get_signature());
-			if (bound_type == nullptr) {
-				/* it looks like our type was not bound via recursion, let's
-				 * bind it now */
-				bound_type_t::ref bound_type = bound_type_t::create(
-						id,
-						bound_expansion->get_location(),
-						bound_expansion->get_llvm_type(),
-						bound_expansion->get_llvm_specific_type());
-				auto program_scope = scope->get_program_scope();
-				program_scope->put_bound_type(status, bound_type);
-
-				if (!!status) {
-					return bound_type;
-				}
-			} else {
-				return bound_type;
-			}
-		}
+		return bind_expansion(status, builder, scope, id, expansion);
 	} else {
 		user_error(status, id->get_location(), "no type definition found for %s in %s",
 				id->str().c_str(),
@@ -469,37 +489,7 @@ bound_type_t::ref create_bound_operator_type(
 			typename_env);
 
 	if (expansion != nullptr) {
-		/* make sure this isn't already bound */
-		auto signature = operator_->get_signature();
-		assert(scope->get_bound_type(signature) == nullptr);
-
-		auto program_scope = scope->get_program_scope();
-
-		/* set up a mapping at the program level for these bound types */
-		program_scope->put_bound_type_mapping(status, signature,
-				expansion->get_signature());
-
-		/* make sure we have a bound type for the expansion type. NB: this will
-		 * rely on the bound type mapping to ensure that when the instantiation
-		 * process looks for our operator_ type (via self-referencing type
-		 * definitions) it translates into whatever cycle breaking we already
-		 * have. */
-		auto expansion_bound_type = upsert_bound_type(status, builder, scope,
-				expansion);
-
-		if (!!status) {
-			/* let's finally create the official bound type for this operator */
-			auto bound_type = bound_type_t::create(
-					operator_,
-					operator_->get_location(),
-					expansion_bound_type->get_llvm_type(),
-					expansion_bound_type->get_llvm_specific_type());
-
-			program_scope->put_bound_type(status, bound_type);
-			if (!!status) {
-				return bound_type;
-			}
-		}
+		return bind_expansion(status, builder, scope, operator_, expansion);
 	} else {
 		user_error(status, operator_->get_location(),
 				"unable to expand type operation %s in env %s",
