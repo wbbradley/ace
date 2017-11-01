@@ -887,9 +887,21 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 					get_args_type(args),
 					nullptr);
 		} else {
-			// TODO: this looks like it needs to handle member functions
-			user_error(status, *lhs, "left of a dot (\".\") must be a struct or module. this is not a struct or module. %s",
-					lhs_var->str().c_str());
+			bound_var_t::ref bound_fn = this->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+
+			unification_t unification = unify(
+					get_function_type(type_variable(INTERNAL_LOC()), args, type_variable(INTERNAL_LOC())),
+					bound_fn->type->get_type(),
+					scope->get_typename_env());
+
+			if (unification.result) {
+				return bound_fn;
+			} else {
+				user_error(status, *lhs,
+					   	"function %s is not compatible with arguments %s",
+						lhs_var->str().c_str(),
+						::str(args).c_str());
+			}
 		}
 	}
 

@@ -307,3 +307,20 @@ types::type_function_t::ref get_function_type(
 			::type_args(type_args),
 			return_type->get_type());
 }
+
+types::type_function_t::ref get_function_type(
+		types::type_t::ref type_fn_context,
+		bound_type_t::refs args,
+		types::type_t::ref return_type)
+{
+	types::type_t::refs type_args;
+
+	for (auto arg : args) {
+		type_args.push_back(arg->get_type());
+	}
+
+	return ::type_function(
+			type_fn_context,
+			::type_args(type_args),
+			return_type);
+}

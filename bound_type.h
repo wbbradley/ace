@@ -70,6 +70,7 @@ types::type_t::refs get_types(const bound_type_t::refs &bound_types);
 types::type_t::ref get_tuple_type(const bound_type_t::refs &items_types);
 types::type_args_t::ref get_args_type(bound_type_t::refs args);
 types::type_function_t::ref get_function_type(types::type_t::ref context, bound_type_t::named_pairs named_args, bound_type_t::ref ret);
+types::type_function_t::ref get_function_type(types::type_t::ref type_fn_context, bound_type_t::refs args, types::type_t::ref return_type);
 
 std::string str(const bound_type_t::refs &args);
 std::string str(const bound_type_t::named_pairs &named_pairs);
