@@ -173,7 +173,7 @@ ast::module_t::ref compiler_t::build_parse(
 
 					assert_implies(global, global_type_macros.size() == base_type_macros.size());
 
-					if (false && global) {
+					if (global) {
 						/* add std types to type_macros to ensure they are not
 						 * rewritten by modules */
 						std::string std_types[] = {

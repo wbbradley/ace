@@ -204,7 +204,7 @@ bound_type_t::ref program_scope_t::get_runtime_type(
 {
 	module_scope_t::ref runtime_module = lookup_module("runtime");
 	if (runtime_module != nullptr) {
-		auto type = type_id(make_iid_impl(name, INTERNAL_LOC()));
+		auto type = type_id(make_iid_impl(std::string("runtime.") + name, INTERNAL_LOC()));
 		return upsert_bound_type(status, builder, runtime_module, type);
 	} else {
 		user_error(status, INTERNAL_LOC(), c_id("runtime") " module is not yet installed.");
