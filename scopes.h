@@ -264,6 +264,7 @@ struct program_scope_t : public module_scope_impl_t {
 	module_scope_t::ref lookup_module(atom symbol);
 	std::string dump_llvm_modules();
 
+	unchecked_var_t::ref get_unchecked_variable(atom symbol);
 	unchecked_var_t::ref put_unchecked_variable(atom symbol, unchecked_var_t::ref unchecked_variable);
 
 	virtual bound_type_t::ref get_bound_type(types::signature signature);

@@ -672,7 +672,7 @@ bound_type_t::ref upsert_bound_type(
 {
 	static int depth = 0;
 
-	depth_guard_t depth_guard(depth, 20);
+	depth_guard_t depth_guard(depth, 30);
 
 	if (!!status) {
 		type = type->rebind(scope->get_type_variable_bindings());

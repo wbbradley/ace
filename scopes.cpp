@@ -67,16 +67,16 @@ bound_type_t::ref get_bound_type_from_scope(
 		types::signature signature,
 		program_scope_t::ref program_scope)
 {
-	INDENT(8, string_format("checking whether %s is bound...",
+	INDENT(9, string_format("checking whether %s is bound...",
 				signature.str().c_str()));
 	auto bound_type = program_scope->get_bound_type(signature);
 	if (bound_type != nullptr) {
-		debug_above(8, log(log_info, c_good("yep") ". %s is bound to %s",
+		debug_above(9, log(log_info, c_good("yep") ". %s is bound to %s",
 					signature.str().c_str(),
 					bound_type->str().c_str()));
 		return bound_type;
 	} else {
-		debug_above(8, log(log_info, c_warn("nope") ". %s is not yet bound",
+		debug_above(9, log(log_info, c_warn("nope") ". %s is not yet bound",
 					signature.str().c_str()));
 		return nullptr;
 	}
@@ -131,11 +131,11 @@ llvm::Module *scope_t::get_llvm_module() {
 }
 
 bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
-	INDENT(7, string_format("checking program scope whether %s is bound...",
+	INDENT(9, string_format("checking program scope whether %s is bound...",
 				signature.str().c_str()));
 	auto iter = bound_types.find(signature);
 	if (iter != bound_types.end()) {
-		debug_above(7, log(log_info, "yep. %s is bound to %s",
+		debug_above(9, log(log_info, "yep. %s is bound to %s",
 					signature.str().c_str(),
 					iter->second->str().c_str()));
 		return iter->second;
@@ -146,7 +146,7 @@ bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
 		}
 	}
 
-	debug_above(7, log(log_info, "nope. %s is not yet bound",
+	debug_above(9, log(log_info, "nope. %s is not yet bound",
 				signature.str().c_str()));
 	return nullptr;
 }
@@ -591,6 +591,8 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 			iter->second.push_back(unchecked_variable);
 		} else if (dyncast<const unchecked_data_ctor_t>(unchecked_variable)) {
 			iter->second.push_back(unchecked_variable);
+		} else if (dyncast<const var_decl_t>(unchecked_variable)) {
+			iter->second.push_back(unchecked_variable);
 		} else {
 			dbg();
 			panic("why are we putting this here?");
@@ -623,6 +625,11 @@ unchecked_var_t::ref program_scope_t::put_unchecked_variable(
 {
 	return put_unchecked_variable_impl(symbol, unchecked_variable,
 			unchecked_vars, unchecked_vars_ordered, get_name(), nullptr);
+}
+
+unchecked_var_t::ref program_scope_t::get_unchecked_variable(atom symbol) {
+	assert(false);
+	return nullptr;
 }
 
 void program_scope_t::put_bound_type_mapping(

@@ -1109,42 +1109,49 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 								if (!!status) {
 									llvm::Constant *llvm_mark_fn = llvm::dyn_cast<llvm::Constant>(mark_fn->get_llvm_value());
 
-									bound_type_t::ref type_info = program_scope->get_runtime_type(status, builder, "type_info_mark_fn_t");
+									bound_type_t::ref type_info = program_scope->get_runtime_type(status, builder, "type_info_t");
+									bound_type_t::ref type_info_mark_fn = program_scope->get_runtime_type(status, builder, "type_info_mark_fn_t");
 									if (!!status) {
 										llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
 												type_info->get_llvm_type());
 
 										llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
 										auto signature = extern_type->get_signature();
-										std::vector<llvm::Constant *> llvm_type_info_data({
+
+										llvm::Constant *llvm_type_info = llvm_create_constant_struct_instance(
+											llvm_type_info_type,
+											{
 												/* the type_id */
 												builder.getInt32(signature.iatom),
-
-												/* allocation size */
-												llvm_sizeof_tuple,
 
 												/* the kind of this type_info */
 												builder.getInt32(type_kind_use_mark_fn),
 
+												/* allocation size */
+												llvm_sizeof_tuple,
+
 												/* name this variable */
 												(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
+											});
+
+										llvm::Constant *llvm_type_info_mark_fn = llvm_create_struct_instance(
+											string_format("__type_info_mark_fn_%s", signature.c_str()),
+											llvm_module,
+											llvm::dyn_cast<llvm::StructType>(type_info_mark_fn->get_llvm_type()),
+											{
+												/* the type info header */
+												llvm_type_info,
 
 												/* finalize_fn */
 												llvm_finalize_fn,
 
 												/* mark_fn */
 												llvm_mark_fn,
-												});
-										llvm::ArrayRef<llvm::Constant*> llvm_type_info_initializer{llvm_type_info_data};
-										check_struct_initialization(llvm_type_info_initializer, llvm_type_info_type);
-										llvm::Constant *llvm_type_info = llvm_get_global(
-												llvm_module, string_format("__type_info_%s", signature.c_str()),
-												llvm::ConstantStruct::get(llvm_type_info_type,
-													llvm_type_info_data),
-												true /*is_constant*/);
+											});
 
-										debug_above(5, log(log_info, "llvm_type_info = %s",
-													llvm_print(llvm_type_info).c_str()));
+										debug_above(5, log(log_info, "llvm_type_info_mark_fn = %s",
+													llvm_print(llvm_type_info_mark_fn).c_str()));
+
 										bound_type_t::ref type_info_type = program_scope->get_runtime_type(status, builder, "type_info_t");
 										if (!!status) {
 											auto type_info_ref = type_info_type->get_pointer();
@@ -2061,9 +2068,15 @@ bound_var_t::ref ast::dot_expr_t::resolve_expression(
 							return var;
 						}
 					} else {
-						user_error(status, get_location(),
-								"could not find symbol %s",
-								qualified_id.c_str());
+						program_scope_t::ref program_scope = scope->get_program_scope();
+						if (unchecked_var_t::ref unchecked_var = program_scope->get_unchecked_variable(qualified_id)) {
+							assert(false);
+						} else {
+							/* check for unbound module variable */
+							user_error(status, get_location(),
+									"could not find symbol " c_id("%s"),
+									qualified_id.c_str());
+						}
 					}
 				}
 			} else {
@@ -2521,7 +2534,7 @@ void type_check_module_vars(
 
 		/* get module level scope variable */
 		module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
-		auto scope = module_scope->new_function_scope("__init_module_vars");
+		auto function_scope = module_scope->new_function_scope("__init_module_vars");
 		assert(llvm_get_function(builder) != nullptr);
 
 		for (auto &var_decl : obj.var_decls) {
@@ -2533,10 +2546,10 @@ void type_check_module_vars(
 			/* the idea here is to put this variable into module scope,
 			 * available globally, but to initialize it in the
 			 * __init_module_vars function */
-			type_check_module_var_decl(status, builder, scope, *var_decl, life);
+			type_check_module_var_decl(status, builder, function_scope, *var_decl, life);
 
 			/* clean up any memory consumed during global construction */
-			life->release_vars(status, builder, scope, lf_statement);
+			life->release_vars(status, builder, function_scope, lf_statement);
 		}
 	}
 }
@@ -2656,7 +2669,7 @@ void type_check_all_module_var_slots(
 	/* build the global __init_module_vars function */
 	if (!!status) {
 		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-		bound_var_t::ref init_module_vars = llvm_start_function(status,
+		bound_var_t::ref bound_fn_init_module_vars = llvm_start_function(status,
 				builder, 
 				program_scope,
 				static_cast<const ast::item_t&>(obj).shared_from_this(),
@@ -2666,7 +2679,7 @@ void type_check_all_module_var_slots(
 				"__init_module_vars");
 
 		if (!!status) {
-			program_scope->put_bound_variable(status, "__init_module_vars", init_module_vars);
+			program_scope->put_bound_variable(status, "__init_module_vars", bound_fn_init_module_vars);
 
 			if (!!status) {
 				for (auto &module : obj.modules) {

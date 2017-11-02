@@ -37,6 +37,16 @@ llvm::CallInst *llvm_create_call_inst(
 		ptr<const bound_var_t> callee,
 		std::vector<llvm::Value *> llvm_values);
 
+llvm::Constant *llvm_create_struct_instance(
+		std::string var_name,
+		llvm::Module *llvm_module,
+		llvm::StructType *llvm_struct_type, 
+		std::vector<llvm::Constant *> llvm_struct_data);
+
+llvm::Constant *llvm_create_constant_struct_instance(
+		llvm::StructType *llvm_struct_type, 
+		std::vector<llvm::Constant *> llvm_struct_data);
+
 llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value);
 llvm::Value *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value);
 llvm::Value *llvm_create_int32(llvm::IRBuilder<> &builder, int32_t value);

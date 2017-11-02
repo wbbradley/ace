@@ -526,6 +526,29 @@ void llvm_create_if_branch(
 	builder.CreateCondBr(llvm_value, then_bb, else_bb);
 }
 
+llvm::Constant *llvm_create_struct_instance(
+		std::string var_name,
+		llvm::Module *llvm_module,
+		llvm::StructType *llvm_struct_type, 
+		std::vector<llvm::Constant *> llvm_struct_data)
+{
+	return llvm_get_global(
+			llvm_module, var_name,
+			llvm_create_constant_struct_instance(llvm_struct_type, llvm_struct_data),
+			true /*is_constant*/);
+}
+
+llvm::Constant *llvm_create_constant_struct_instance(
+		llvm::StructType *llvm_struct_type, 
+		std::vector<llvm::Constant *> llvm_struct_data)
+{
+	assert(llvm_struct_type != nullptr);
+	llvm::ArrayRef<llvm::Constant*> llvm_struct_initializer{llvm_struct_data};
+	check_struct_initialization(llvm_struct_initializer, llvm_struct_type);
+
+	return llvm::ConstantStruct::get(llvm_struct_type, llvm_struct_data);
+}
+
 llvm::StructType *llvm_create_struct_type(
 		llvm::IRBuilder<> &builder,
 		atom name,

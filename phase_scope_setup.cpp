@@ -37,6 +37,21 @@ unchecked_var_t::ref scope_setup_function_defn(
 	}
 }
 
+unchecked_var_t::ref scope_setup_var_decl(
+		status_t &status,
+		const ast::item_t &obj,
+		identifier::ref id,
+		module_scope_t::ref module_scope)
+{
+	if (id && !!id->get_name()) {
+		return module_scope->get_program_scope()->put_unchecked_variable(
+				id->get_name(), unchecked_var_t::create(id, obj.shared_from_this(), module_scope));
+	} else {
+		scope_setup_error(status, obj, "module-level variable declaration does not have a name");
+		return nullptr;
+	}
+}
+
 void scope_setup_type_def(
 		status_t &status,
 	   	const ast::type_def_t &obj,
@@ -91,6 +106,11 @@ status_t scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 	for (auto &function : obj.functions) {
 		scope_setup_function_defn(status, *function,
 				make_code_id(function->decl->token), module_scope);
+	}
+
+	for (auto &var_decl : obj.var_decls) {
+		scope_setup_var_decl(status, *var_decl,
+				make_code_id(var_decl->token), module_scope);
 	}
 
 	return status;

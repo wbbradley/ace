@@ -13,9 +13,22 @@ var __debug_zion_runtime __int__ = 0r
 var _zion_rt __str__ = "zion-rt: "r
 
 
-#define GET_CHILD_REF(var, index) \
-#           (*(struct var_t **)(((char *)var) + \
-#                               ((struct type_info_offsets_t *)var.type_info).ref_offsets[index]))
+def get_member_by_index(v *var_t, index __int__) *var_t
+	# Get the var's type_info
+	type_info_offsets := v.type_info as *type_info_offsets_t
+
+	# Get the base of the object in order to compute the offset of the member
+	base_ptr := v as *__int8__
+
+	# Member offset computation
+	offset := type_info_offsets.ref_offsets[index]
+
+	# Compute the address of the child member slot
+	var_ptr := base_ptr[__int__(offset)] as **var_t
+
+	# Return the address of the child member
+	return var_ptr[0r]
+
 
 type var_t struct
 	var type_info *type_info_t
@@ -59,8 +72,8 @@ var _bytes_allocated __int__ = 0r
 var _all_bytes_allocated __int__ = 0r
 
 def mem_alloc(cb __int__) *void
-	_bytes_allocated += cb
-	_all_bytes_allocated += cb
+	runtime._bytes_allocated += cb
+	runtime._all_bytes_allocated += cb
 	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
 
 	return posix.calloc(cb, 1r)
@@ -265,7 +278,7 @@ def mark_allocation(obj *var_t)
 		j := 0r
 		while j < refs_count
 			/* compute the offset to this referenced dimension */
-			var child *var_t = GET_CHILD_REF(obj, j)
+			var child *var_t = get_member_by_index(obj, j)
 			mark_allocation(child)
 			j += 1r
 	elif type_kind == 2r /* type_kind_use_mark_fn */
