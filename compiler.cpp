@@ -458,6 +458,8 @@ void add_globals(
 			{INT_TYPE, llvm_module_int, "__int_int", {INT_TYPE}, INT_TYPE},
 			{INT_TYPE, llvm_module_int, "__int_int32", {INT32_TYPE}, INT_TYPE},
 			{INT32_TYPE, llvm_module_int, "__int32_int", {INT_TYPE}, INT32_TYPE},
+			{INT_TYPE, llvm_module_int, "__int_int16", {INT16_TYPE}, INT_TYPE},
+			{INT16_TYPE, llvm_module_int, "__int16_int", {INT_TYPE}, INT16_TYPE},
 			{INT_TYPE, llvm_module_int, "__int_float", {FLOAT_TYPE}, INT_TYPE},
 			{INT_TYPE, llvm_module_int, "__int_str", {STR_TYPE}, INT_TYPE},
 

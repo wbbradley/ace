@@ -11,6 +11,14 @@ int32_t __int32_int(zion_int_t x) {
     return x;
 }
 
+zion_int_t __int_int16(int16_t x) {
+    return x;
+}
+
+int16_t __int16_int(zion_int_t x) {
+    return x;
+}
+
 zion_int_t __int_not(zion_int_t x) {
 	return !x;
 }

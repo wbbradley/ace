@@ -601,7 +601,7 @@ bound_type_t::ref create_bound_function_type(
 				if (!!status) {
 					// TODO: support dynamic function creation
 					bound_type = bound_type_t::create(function,
-							function->get_location(), llvm_fn_type);
+							function->get_location(), llvm_fn_type->getPointerTo());
 					ptr<program_scope_t> program_scope = scope->get_program_scope();
 					program_scope->put_bound_type(status, bound_type);
 
@@ -1250,9 +1250,22 @@ llvm::Value *llvm_make_gep(
 		bool managed)
 {
 	debug_above(5, log(log_info,
-				"creating GEP+load for %s%s[%d]",
+				"creating GEP for %s%s[%d]",
 				managed ? "managed " : "",
 				llvm_print(*llvm_value).c_str(), index));
+
+	llvm::PointerType *llvm_ptr_type = llvm::dyn_cast<llvm::PointerType>(llvm_value->getType());
+	assert(llvm_ptr_type != nullptr);
+
+	llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_ptr_type->getElementType());
+	assert(llvm_struct_type != nullptr);
+
+	if (!managed) {
+		llvm::Type *llvm_element_type = llvm_struct_type->elements()[index];
+		assert(llvm_element_type != nullptr);
+		debug_above(5, log("trying to load value for element of type %s",
+					llvm_print(llvm_element_type).c_str()));
+	}
 
 	std::vector<llvm::Value *> gep_path = (
 			managed
@@ -1261,14 +1274,14 @@ llvm::Value *llvm_make_gep(
 			 * type, so, if this is a managed type, let's unbox the
 			 * managed wrapper to get to the inner cell data */
 			? std::vector<llvm::Value *>{
-			builder.getInt32(0),
-			builder.getInt32(1),
-			builder.getInt32(index)}
+				builder.getInt32(0),
+				builder.getInt32(1),
+				builder.getInt32(index)}
 
 			/* native types can be accessed directly */
 			: std::vector<llvm::Value *>{
-			builder.getInt32(0),
-			builder.getInt32(index)});
+				builder.getInt32(0),
+				builder.getInt32(index)});
 
 	return builder.CreateInBoundsGEP(llvm_value, gep_path);
 }

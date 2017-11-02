@@ -239,32 +239,41 @@ llvm::CallInst *llvm_create_call_inst(
 				llvm_print(llvm_callee_value).c_str(),
 				llvm_print(llvm_callee_value->getType()).c_str()));
 
-	llvm::Function *llvm_callee_fn = llvm::dyn_cast<llvm::Function>(
-			llvm_callee_value);
+	llvm::Value *llvm_function = nullptr;
+	llvm::FunctionType *llvm_function_type = nullptr;
+	llvm::Function *llvm_func_decl = nullptr;
 
-	/* get the function we want to call */
-	if (!llvm_callee_fn) {
-		user_error(status, location, "could not find function %s",
-				callee->str().c_str());
-		return nullptr;
+	if (llvm::Function *llvm_callee_fn = llvm::dyn_cast<llvm::Function>(llvm_callee_value)) {
+		/* see if we have an exact function we want to call */
+
+		/* get the current module we're inserting code into */
+		llvm::Module *llvm_module = llvm_get_module(builder);
+
+		debug_above(3, log(log_info, "looking for function in LLVM " c_id("%s") " with type %s",
+					llvm_callee_fn->getName().str().c_str(),
+					llvm_print(llvm_callee_fn->getFunctionType()).c_str()));
+
+		/* before we can call a function, we must make sure it either exists in
+		 * this module, or a declaration exists */
+		llvm_func_decl = llvm::cast<llvm::Function>(
+				llvm_module->getOrInsertFunction(
+					llvm_callee_fn->getName(),
+					llvm_callee_fn->getFunctionType(),
+					llvm_callee_fn->getAttributes()));
+
+		llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(llvm_func_decl->getType()->getElementType());
+		llvm_function  = llvm_func_decl;
+	} else {
+		llvm_function = llvm_callee_value;
+
+		llvm::PointerType *llvm_ptr_type = llvm::dyn_cast<llvm::PointerType>(llvm_callee_value->getType());
+		assert(llvm_ptr_type != nullptr);
+
+		llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(llvm_ptr_type->getElementType());
+		assert(llvm_function_type != nullptr);
 	}
 
-	/* get the current module we're inserting code into */
-	llvm::Module *llvm_module = llvm_get_module(builder);
-
-	debug_above(3, log(log_info, "looking for function in LLVM " c_id("%s") " with type %s",
-				llvm_callee_fn->getName().str().c_str(),
-				llvm_print(llvm_callee_fn->getFunctionType()).c_str()));
-
-	/* before we can call a function, we must make sure it either exists in
-	 * this module, or a declaration exists */
-	auto llvm_func_decl = llvm::cast<llvm::Function>(
-			llvm_module->getOrInsertFunction(
-				llvm_callee_fn->getName(),
-				llvm_callee_fn->getFunctionType(),
-				llvm_callee_fn->getAttributes()));
-
-	auto llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(llvm_func_decl->getType()->getElementType());
+	assert(llvm_function != nullptr);
 	assert(llvm_function_type != nullptr);
 	debug_above(3, log(log_info, "creating call to %s",
 				llvm_print(llvm_function_type).c_str()));
@@ -293,11 +302,11 @@ llvm::CallInst *llvm_create_call_inst(
 	llvm::ArrayRef<llvm::Value *> llvm_args_array(llvm_args);
 
 	debug_above(3, log(log_info, "creating call to " c_id("%s") " %s with [%s]",
-				llvm_func_decl->getName().str().c_str(),
+				llvm_func_decl ? llvm_func_decl->getName().str().c_str() : "a function",
 				llvm_print(llvm_function_type).c_str(),
 				join_with(llvm_args, ", ", llvm_print_value).c_str()));
 
-	return builder.CreateCall(llvm_func_decl, llvm_args_array);
+	return builder.CreateCall(llvm_function, llvm_args_array);
 }
 
 llvm::Module *llvm_get_module(llvm::IRBuilder<> &builder) {
@@ -828,7 +837,7 @@ llvm::Value *llvm_maybe_pointer_cast(
 		debug_above(6, log("attempting to cast %s to a %s",
 					llvm_print(llvm_value).c_str(),
 					llvm_print(llvm_type).c_str()));
-		assert(llvm_value->getType()->isPointerTy());
+		assert(llvm_value->getType()->isPointerTy() || llvm_value->getType()->isIntegerTy());
 		assert(llvm_value->getType() != llvm_type->getPointerTo());
 
 		if (llvm_type != llvm_value->getType()) {

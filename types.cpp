@@ -1044,7 +1044,7 @@ const char *pkstr(product_kind_t pk) {
 
 types::type_t::ref eval(types::type_t::ref type, types::type_t::map env) {
 	/* if there is no expansion of the type passed in, we will return nullptr */
-	debug_above(7, log("eval'ing %s in %s",
+	debug_above(8, log("eval'ing %s in %s",
 				type->str().c_str(),
 				str(env).c_str()));
 	if (auto id = dyncast<const types::type_id_t>(type)) {

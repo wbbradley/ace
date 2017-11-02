@@ -889,9 +889,11 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 		} else {
 			bound_var_t::ref bound_fn = this->resolve_expression(status, builder, scope, life, false /*as_ref*/);
 
+			debug_above(5, log("env is %s",
+						::str(scope->get_typename_env()).c_str()));
 			unification_t unification = unify(
-					get_function_type(type_variable(INTERNAL_LOC()), args, type_variable(INTERNAL_LOC())),
 					bound_fn->type->get_type(),
+					get_function_type(type_variable(INTERNAL_LOC()), args, type_variable(INTERNAL_LOC())),
 					scope->get_typename_env());
 
 			if (unification.result) {
@@ -899,7 +901,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 			} else {
 				user_error(status, *lhs,
 					   	"function %s is not compatible with arguments %s",
-						lhs_var->str().c_str(),
+						bound_fn->str().c_str(),
 						::str(args).c_str());
 			}
 		}

@@ -10,7 +10,6 @@ link var llvm_gc_root_chain *llvm_stack_entry_t
 
 var TYPE_ID_VECTOR __int32__ = __int32__(-2r)
 var __debug_zion_runtime __int__ = 0r
-var nil *var_t = 0r as *var_t
 var _zion_rt __str__ = "zion-rt: "r
 
 
@@ -261,9 +260,9 @@ def mark_allocation(obj *var_t)
 		var type_info_offsets *type_info_offsets_t = obj.type_info as *type_info_offsets_t
 
 		# we may be holding on to child nodes, let's recurse.
-		var refs_count __int16__ = type_info_offsets.refs_count
+		var refs_count __int__ = __int__(type_info_offsets.refs_count)
 
-		var j __int16__ = 0r
+		j := 0r
 		while j < refs_count
 			/* compute the offset to this referenced dimension */
 			var child *var_t = GET_CHILD_REF(obj, j)
