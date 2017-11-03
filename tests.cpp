@@ -22,9 +22,9 @@
    	return false; \
 } else {}
 
-std::vector<token_kind> get_tks(zion_lexer_t &lexer, bool include_newlines, std::vector<zion_token_t> &comments) {
+std::vector<token_kind> get_tks(zion_lexer_t &lexer, bool include_newlines, std::vector<token_t> &comments) {
 	std::vector<token_kind> tks;
-	zion_token_t token;
+	token_t token;
 	bool newline = false;
 	while (lexer.get_token(token, newline, &comments)) {
 		if (include_newlines && newline && token.tk != tk_outdent) {
@@ -79,7 +79,7 @@ void log_list(log_level_t level, const char *prefix, T &xs) {
 	log(level, "%s [%s]", prefix, ss.str().c_str());
 }
 
-bool check_lexer(std::string text, std::vector<token_kind> expect_tks, bool include_newlines, std::vector<zion_token_t> &comments) {
+bool check_lexer(std::string text, std::vector<token_kind> expect_tks, bool include_newlines, std::vector<token_t> &comments) {
 	std::istringstream iss(text);
 	zion_lexer_t lexer("check_lexer", iss);
 	std::vector<token_kind> result_tks = get_tks(lexer, include_newlines, comments);
@@ -99,7 +99,7 @@ struct lexer_test_t {
 
 typedef std::vector<lexer_test_t> lexer_tests;
 
-bool lexer_test_comments(const lexer_tests &tests, std::vector<zion_token_t> &comments, bool include_newlines=false) {
+bool lexer_test_comments(const lexer_tests &tests, std::vector<token_t> &comments, bool include_newlines=false) {
 	for (auto &test : tests) {
 		if (!check_lexer(test.text, test.tks, include_newlines, comments)) {
 			return false;
@@ -109,7 +109,7 @@ bool lexer_test_comments(const lexer_tests &tests, std::vector<zion_token_t> &co
 }
 
 bool lexer_test(const lexer_tests &tests, bool include_newlines=false) {
-	std::vector<zion_token_t> comments;
+	std::vector<token_t> comments;
 	for (auto &test : tests) {
 		if (!check_lexer(test.text, test.tks, include_newlines, comments)) {
 			return false;
@@ -168,7 +168,7 @@ bool test_lex_comments() {
 		{"a # hey", {tk_identifier}},
 		{"( # hey )", {tk_lparen}},
 	};
-	std::vector<zion_token_t> comments;
+	std::vector<token_t> comments;
 	if (lexer_test_comments(tests, comments)) {
 		if (comments.size() != tests.size()) {
 			log(log_error, "failed to find the comments");
@@ -183,38 +183,38 @@ bool test_lex_comments() {
 
 bool test_lex_functions() {
 	lexer_tests tests = {
-		{"def", {tk_def}},
-		{" def", {tk_def}},
-		{"def ", {tk_def}},
+		{"def", {tk_identifier}},
+		{" def", {tk_identifier}},
+		{"def ", {tk_identifier}},
 		{"_def", {tk_identifier}},
 		{"definitely", {tk_identifier}},
-		{"def A", {tk_def, tk_identifier}},
-		{"def A\n", {tk_def, tk_identifier}},
-		{"def A\n\tstatement", {tk_def, tk_identifier, tk_indent, tk_identifier, tk_outdent}},
-		{"def A\n\tstatement\n\tstatement", {tk_def, tk_identifier, tk_indent, tk_identifier, tk_identifier, tk_outdent}},
-		{"def A\n\tpass", {tk_def, tk_identifier, tk_indent, tk_pass, tk_outdent}},
+		{"def A", {tk_identifier, tk_identifier}},
+		{"def A\n", {tk_identifier, tk_identifier}},
+		{"def A\n\tstatement", {tk_identifier, tk_identifier, tk_indent, tk_identifier, tk_outdent}},
+		{"def A\n\tstatement\n\tstatement", {tk_identifier, tk_identifier, tk_indent, tk_identifier, tk_identifier, tk_outdent}},
+		{"def A\n\tpass", {tk_identifier, tk_identifier, tk_indent, tk_identifier, tk_outdent}},
 	};
 	return lexer_test(tests);
 }
 
 bool test_lex_module_stuff() {
 	lexer_tests tests = {
-		{"module modules", {tk_module, tk_identifier}},
-		{"module modules @1.0.2", {tk_module, tk_identifier, tk_version}},
-		{"link module foo", {tk_link, tk_module, tk_identifier}},
+		{"module modules", {tk_identifier, tk_identifier}},
+		{"module modules @1.0.2", {tk_identifier, tk_identifier, tk_version}},
+		{"link module foo", {tk_identifier, tk_identifier, tk_identifier}},
 	};
 	return lexer_test(tests);
 }
 
 bool test_lex_operators() {
 	lexer_tests tests = {
-		{"and", {tk_and}},
+		{"and", {tk_identifier}},
 		{"( ),{};[]:", {tk_lparen, tk_rparen, tk_comma, tk_lcurly, tk_rcurly, tk_semicolon, tk_lsquare, tk_rsquare, tk_colon}},
-		{"or", {tk_or}},
-		{"not", {tk_not}},
-		{"in", {tk_in}},
-		{"has", {tk_has}},
-		{"not in", {tk_not, tk_in}},
+		{"or", {tk_identifier}},
+		{"not", {tk_identifier}},
+		{"in", {tk_identifier}},
+		{"has", {tk_identifier}},
+		{"not in", {tk_identifier, tk_identifier}},
 		{">", {tk_gt}},
 		{"<", {tk_lt}},
 		{">=", {tk_gte}},
@@ -229,9 +229,9 @@ bool test_lex_operators() {
 
 bool test_lex_dependency_keywords() {
 	lexer_tests tests = {
-		{"to tote", {tk_to, tk_identifier}},
-		{"link linker", {tk_link, tk_identifier}},
-		{"module modules # ignore this", {tk_module, tk_identifier}},
+		{"to tote", {tk_identifier, tk_identifier}},
+		{"link linker", {tk_identifier, tk_identifier}},
+		{"module modules # ignore this", {tk_identifier, tk_identifier}},
 	};
 	return lexer_test(tests);
 }
@@ -250,28 +250,28 @@ bool test_lex_literals() {
 
 bool test_lex_syntax() {
 	lexer_tests tests = {
-		{"retur not note", {tk_identifier, tk_not, tk_identifier}},
-		{"return note not", {tk_return, tk_identifier, tk_not}},
-		{"return var = == pass.pass..", {tk_return, tk_var, tk_assign, tk_equal, tk_pass, tk_dot, tk_pass, tk_double_dot}},
-		{"not", {tk_not}},
+		{"retur not note", {tk_identifier, tk_identifier, tk_identifier}},
+		{"return note not", {tk_identifier, tk_identifier, tk_identifier}},
+		{"return var = == pass.pass..", {tk_identifier, tk_identifier, tk_assign, tk_equal, tk_identifier, tk_dot, tk_identifier, tk_double_dot}},
+		{"not", {tk_identifier}},
 		{"nil", {tk_identifier}},
-		{"while", {tk_while}},
-		{"if", {tk_if}},
-		{"when", {tk_when}},
-		{"with", {tk_with}},
-		{"__get_typeid__", {tk_get_typeid}},
-		{"else", {tk_else}},
-		{"elif", {tk_elif}},
-		{"break", {tk_break}},
+		{"while", {tk_identifier}},
+		{"if", {tk_identifier}},
+		{"when", {tk_identifier}},
+		{"with", {tk_identifier}},
+		{"__get_typeid__", {tk_identifier}},
+		{"else", {tk_identifier}},
+		{"elif", {tk_identifier}},
+		{"break", {tk_identifier}},
 		{"breakfast", {tk_identifier}},
-		{"continue", {tk_continue}},
+		{"continue", {tk_identifier}},
 		{"continually", {tk_identifier}},
-		{"while true\n\tfoo()", {tk_while, tk_identifier, tk_indent, tk_identifier, tk_lparen, tk_rparen, tk_outdent}},
-		{"not in", {tk_not, tk_in}},
+		{"while true\n\tfoo()", {tk_identifier, tk_identifier, tk_indent, tk_identifier, tk_lparen, tk_rparen, tk_outdent}},
+		{"not in", {tk_identifier, tk_identifier}},
 		{"true false", {tk_identifier, tk_identifier}},
-		{" not", {tk_not}},
+		{" not", {tk_identifier}},
 		{" nothing", {tk_identifier}},
-		{" not\n\tnot", {tk_not, tk_indent, tk_not, tk_outdent}},
+		{" not\n\tnot", {tk_identifier, tk_indent, tk_identifier, tk_outdent}},
 		{"? + - * / %", {tk_maybe, tk_plus, tk_minus, tk_times, tk_divide_by, tk_mod}},
 		{"+=-=*=/=%=:=?=", {tk_plus_eq, tk_minus_eq, tk_times_eq, tk_divide_by_eq, tk_mod_eq, tk_becomes, tk_maybe_eq}},
 	};
@@ -296,7 +296,7 @@ bool test_lex_floats() {
 
 bool test_lex_types() {
 	lexer_tests tests = {
-		{"type x int", {tk_type, tk_identifier, tk_identifier}},
+		{"type x int", {tk_identifier, tk_identifier, tk_identifier}},
 	};
 	return lexer_test(tests);
 }
@@ -590,7 +590,7 @@ bool expect_output_lacks(test_output_source_t tos,
 }
 
 bool get_testable_comments(
-		const std::vector<zion_token_t> &comments,
+		const std::vector<token_t> &comments,
 		std::vector<std::string> &error_terms,
 	   	std::vector<std::string> &unseen_terms,
 		bool &skip_test,
@@ -761,21 +761,6 @@ bool test_utf8() {
 	}
 }
 
-bool test_tk_char_to_char() {
-	struct {
-		std::string test;
-		char expect;
-	} tests[] = {
-		{"'n'", 'n'},
-	};
-	for (auto &test : tests) {
-		if (tk_char_to_char(test.test) != test.expect) {
-			return false;
-		}
-	}
-	return true;
-}
-
 using test_func = std::function<bool ()>;
 
 struct test_desc {
@@ -830,7 +815,7 @@ auto test_descs = std::vector<test_desc>{
 		"test_compiler_build_state",
 		[] () -> bool {
 			auto filename = "xyz.zion";
-			zion_token_t token({filename, 1, 1}, tk_module, "xyz");
+			token_t token({filename, 1, 1}, tk_identifier, "module");
 			auto module = ast::create<ast::module_t>(token, filename);
 			return !!module;
 		}
@@ -877,7 +862,6 @@ auto test_descs = std::vector<test_desc>{
 
 	T(test_string_stuff),
 	T(test_utf8),
-	T(test_tk_char_to_char),
 
 	T(test_lex_comments),
 	T(test_lex_dependency_keywords),

@@ -54,7 +54,7 @@ program_scope_t::ref compiler_t::get_program_scope() const {
 	return program_scope;
 }
 
-std::vector<zion_token_t> compiler_t::get_comments() const {
+std::vector<token_t> compiler_t::get_comments() const {
 	return comments;
 }
 

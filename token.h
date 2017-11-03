@@ -34,21 +34,6 @@ enum token_kind
 	tk_rsquare, /* ] */
 	tk_colon, /* : */
 	tk_semicolon, /* ; */
-	tk_def, /* def */
-	tk_var, /* var */
-	tk_return, /* return */
-
-	// Types
-	tk_any, /* any */
-	tk_type, /* type */
-	tk_tag, /* tag */
-	tk_get_typeid, /* __get_typeid__ */
-	tk_sizeof, /* sizeof */
-	tk_is, /* is */
-	tk_as, /* as */
-	tk_has, /* has */
-	tk_struct, /* struct */
-	tk_matches, /* matches */
 
 	// Literals
 	tk_atom, /* atom literal */
@@ -61,18 +46,6 @@ enum token_kind
 	tk_raw_integer, /* [0-9]+r */
 	tk_raw_string, /* "string literal"r */
 	tk_version, /* #blah */
-
-	// Flow control
-	tk_pass, /* pass */
-	tk_if, /* if */
-	tk_elif, /* else */
-	tk_else, /* else */
-	tk_for, /* for */
-	tk_while, /* while */
-	tk_continue, /* continue */
-	tk_break, /* break */
-	tk_when, /* when */
-	tk_with, /* with */
 
 	// Operators
 	tk_equal, /* == */
@@ -92,10 +65,6 @@ enum token_kind
 	tk_mod, /* % */
 	tk_dot, /* . */
 	tk_double_dot, /* .. */
-	tk_not, /* not */
-	tk_in, /* in */
-	tk_or, /* or */
-	tk_and, /* and */
 	tk_ampersand, /* & */
 
 	// Mutating binary ops
@@ -106,22 +75,52 @@ enum token_kind
 	tk_divide_by_eq, /* /= */
 	tk_mod_eq, /* %= */
 
-	// Dependency tokens
-	tk_module, /* module */
-	tk_link, /* link */
-	tk_to, /* to */
 };
 
 
-struct zion_token_t {
-	zion_token_t(const location_t &location={{""},-1,-1}, token_kind tk=tk_none, std::string text="") : location(location), tk(tk), text(text) {}
+#define K(x) const char * const K_##x = #x
+K(and);
+K(any);
+K(as);
+K(break);
+K(continue);
+K(def);
+K(elif);
+K(else);
+K(for);
+K(__get_typeid__);
+K(has);
+K(if);
+K(in);
+K(is);
+K(link);
+K(matches);
+K(module);
+K(not);
+K(or);
+K(pass);
+K(return);
+K(sizeof);
+K(struct);
+K(tag);
+K(to);
+K(type);
+K(var);
+K(when);
+K(while);
+K(with);
+#undef K
+#define K(x) K_##x
+
+struct token_t {
+	token_t(const location_t &location={{""},-1,-1}, token_kind tk=tk_none, std::string text="") : location(location), tk(tk), text(text) {}
 	location_t location;
 	token_kind tk = tk_none;
 	std::string text;
 	std::string str() const;
 	void emit(int &indent_level, token_kind &last_tk, bool &indented_line);
+	bool is_ident(const char *x) const;
 };
 
 const char *tkstr(token_kind tk);
-void emit_tokens(const std::vector<zion_token_t> &tokens);
-char tk_char_to_char(const std::string &token_text);
+void emit_tokens(const std::vector<token_t> &tokens);

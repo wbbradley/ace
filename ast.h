@@ -53,13 +53,13 @@ namespace ast {
 		location_t get_location() const { return token.location; }
 
 		syntax_kind_t sk;
-		zion_token_t token;
+		token_t token;
 	};
 
 	void log_named_item_create(const char *type, const std::string &name);
 
 	template <typename T>
-	ptr<T> create(const zion_token_t &token) {
+	ptr<T> create(const token_t &token) {
 		auto item = ptr<T>(new T());
 		item->sk = T::SK;
 		item->token = token;
@@ -68,7 +68,7 @@ namespace ast {
 	}
 
 	template <typename T, typename... Args>
-	ptr<T> create(const zion_token_t &token, Args... args) {
+	ptr<T> create(const token_t &token, Args... args) {
 		auto item = ptr<T>(new T(args...));
 		item->sk = T::SK;
 		item->token = token;
@@ -255,7 +255,7 @@ namespace ast {
 		type_decl_t(identifier::refs type_variables);
 		static const syntax_kind_t SK = sk_type_decl;
 
-		static ref parse(parse_state_t &ps, zion_token_t name_token);
+		static ref parse(parse_state_t &ps, token_t name_token);
 		virtual void render(render_state_t &rs) const;
 
 		identifier::refs type_variables;
@@ -380,7 +380,7 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 
 		types::type_t::ref underlying_type;
-		zion_token_t finalize_fn, mark_fn;
+		token_t finalize_fn, mark_fn;
 	};
 
 	struct type_def_t : public statement_t {
@@ -680,7 +680,7 @@ namespace ast {
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
-		zion_token_t var_token;
+		token_t var_token;
 		ptr<expression_t> collection;
 		ptr<block_t> block;
 	};
@@ -747,10 +747,10 @@ namespace ast {
 
 		ptr<semver_t> semver;
 		std::string get_canonical_name() const;
-		zion_token_t get_name() const;
+		token_t get_name() const;
 
 	private:
-		zion_token_t name;
+		token_t name;
 	};
 
 	struct link_module_statement_t : public statement_t {
@@ -767,7 +767,7 @@ namespace ast {
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
-		zion_token_t link_as_name;
+		token_t link_as_name;
 		ptr<module_decl_t> extern_module;
 	};
 
@@ -785,9 +785,9 @@ namespace ast {
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
-		zion_token_t local_name;
+		token_t local_name;
 		ptr<module_decl_t> extern_module;
-		zion_token_t remote_name;
+		token_t remote_name;
 	};
 
 	struct link_function_statement_t : public expression_t {
@@ -803,7 +803,7 @@ namespace ast {
 				bool as_ref) const;
 		virtual void render(render_state_t &rs) const;
 
-		zion_token_t function_name;
+		token_t function_name;
 		ptr<function_decl_t> extern_function;
 	};
 
@@ -878,7 +878,7 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression_t> lhs;
-		zion_token_t rhs;
+		token_t rhs;
 	};
 
 	struct tuple_expr_t : public expression_t {

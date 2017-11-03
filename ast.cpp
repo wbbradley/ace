@@ -40,7 +40,7 @@ namespace ast {
 		return decl->get_canonical_name();
 	}
 
-	zion_token_t module_decl_t::get_name() const {
+	token_t module_decl_t::get_name() const {
 		return name;
 	}
 

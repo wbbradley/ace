@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string>
+#include <iostream>
 #include "logger.h"
 #include "ast.h"
 #include "token.h"
@@ -33,24 +34,42 @@ using namespace ast;
 
 #define expect_token(_tk) expect_token_or_return(_tk, nullptr)
 
+#define expect_ident_or_return(text_, fail_code) \
+	do { \
+		const char * const token_text = (text_); \
+		expect_token_or_return(tk_identifier, fail_code); \
+		if (ps.token.text != token_text) { \
+			ps.error("expected '%s', got '%s'", \
+					token_text, ps.token.text.c_str()); \
+			return fail_code; \
+		} \
+	} while (0)
+
+#define expect_ident(text_) expect_ident_or_return(text_, nullptr)
+
 #define chomp_token_or_return(_tk, fail_code) \
 	do { \
 		expect_token_or_return(_tk, fail_code); \
 		eat_token_or_return(fail_code); \
 	} while (0)
 #define chomp_token(_tk) chomp_token_or_return(_tk, nullptr)
+#define chomp_ident_or_return(text_, fail_code) \
+	do { \
+		expect_ident_or_return(text_, fail_code); \
+		eat_token_or_return(fail_code); \
+	} while (0)
+#define chomp_ident(text_) chomp_ident_or_return(text_, nullptr)
 
-bool token_begins_type(token_kind tk) {
-	return (
-			tk == tk_times ||
-			tk == tk_has ||
-			tk == tk_struct ||
-			tk == tk_def ||
-			tk == tk_any ||
-			tk == tk_identifier ||
-			tk == tk_times ||
-			tk == tk_lsquare ||
-			tk == tk_lcurly);
+bool token_begins_type(const token_t &token) {
+	switch (token.tk) {
+	case tk_times:
+	case tk_lsquare:
+	case tk_lcurly:
+	case tk_identifier:
+		return true;
+	default:
+		return false;
+	};
 }
 
 ptr<var_decl_t> var_decl_t::parse(parse_state_t &ps) {
@@ -99,7 +118,7 @@ ptr<var_decl_t> var_decl_t::parse_param(parse_state_t &ps) {
 
 ptr<return_statement_t> return_statement_t::parse(parse_state_t &ps) {
 	auto return_statement = create<ast::return_statement_t>(ps.token);
-	chomp_token(tk_return);
+	chomp_ident(K(return));
 	if (!ps.line_broke() && ps.token.tk != tk_outdent) {
 		return_statement->expr = expression_t::parse(ps);
 		if (!return_statement->expr) {
@@ -111,11 +130,11 @@ ptr<return_statement_t> return_statement_t::parse(parse_state_t &ps) {
 }
 
 ptr<statement_t> link_statement_parse(parse_state_t &ps) {
-	expect_token(tk_link);
+	expect_ident(K(link));
 	auto link_token = ps.token;
 	ps.advance();
 
-	if (ps.token.tk == tk_lsquare || ps.token.tk == tk_def) {
+	if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(def))) {
 		auto link_function_statement = create<ast::link_function_statement_t>(link_token);
 		auto function_decl = function_decl_t::parse(ps);
 		if (function_decl) {
@@ -125,102 +144,100 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 			assert(!ps.status);
 		}
 		return link_function_statement;
-	} else {
-		if (ps.token.tk == tk_var) {
-			ps.advance();
-			auto var_decl = var_decl_t::parse(ps);
-			if (!!ps.status) {
-				auto link_var = create<link_var_statement_t>(link_token);
-				link_var->var_decl = var_decl;
-				return link_var;
-			}
-		} else if (ps.token.tk == tk_module) {
-			auto module_decl = module_decl_t::parse(ps);
-			if (!!ps.status) {
-				auto link_statement = create<link_module_statement_t>(link_token);
-				link_statement->extern_module = module_decl;
-
-				if (ps.token.tk == tk_as) {
-					/* get the local name for this module */
-					ps.advance();
-					expect_token(tk_identifier);
-					link_statement->link_as_name = ps.token;
-					ps.advance();
-				}
-
-				if (link_statement->link_as_name.tk == tk_none) {
-					link_statement->link_as_name = module_decl->get_name();
-				}
-
-				if (link_statement->link_as_name.tk != tk_identifier) {
-					ps.error("expected an identifier for link module name (either implicit or explicit)");
-				}
-
-				if (!!ps.status) {
-					return link_statement;
-				}
-			}
-		} else if (ps.token.tk == tk_identifier) {
-			auto link_name = create<ast::link_name_t>(link_token);
-			/*
-			 * link name to some_module.something
-			 *
-			 * 1. Sets up a type parser macro "name" => "some_module/something"
-			 * 2. Sets up a "scope link" from this module to the "some_module" for the
-			 * "something" name so that if there is a call to "something" from
-			 * within this module, we also search "some_module" when enumerating
-			 * callables.
-			 * 3. Start tracking whether the link is in use in the module
-			 */
-			link_name->local_name = ps.token;
-			ps.advance();
-			chomp_token(tk_to);
-			link_name->extern_module = module_decl_t::parse(ps, true /* skip_module_token */);
-			if (!!ps.status) {
-				chomp_token(tk_dot);
-				expect_token(tk_identifier);
-				link_name->remote_name = ps.token;
-				ps.advance();
-				return link_name;
-			}
-		} else {
-			ps.error("link must be followed by function declaration or module import");
+	} else if (ps.token.is_ident(K(var))) {
+		ps.advance();
+		auto var_decl = var_decl_t::parse(ps);
+		if (!!ps.status) {
+			auto link_var = create<link_var_statement_t>(link_token);
+			link_var->var_decl = var_decl;
+			return link_var;
 		}
+	} else if (ps.token.is_ident(K(module))) {
+		auto module_decl = module_decl_t::parse(ps);
+		if (!!ps.status) {
+			auto link_statement = create<link_module_statement_t>(link_token);
+			link_statement->extern_module = module_decl;
 
-		assert(!ps.status);
-		return nullptr;
+			if (ps.token.is_ident(K(as))) {
+				/* get the local name for this module */
+				ps.advance();
+				expect_token(tk_identifier);
+				link_statement->link_as_name = ps.token;
+				ps.advance();
+			}
+
+			if (link_statement->link_as_name.tk == tk_none) {
+				link_statement->link_as_name = module_decl->get_name();
+			}
+
+			if (link_statement->link_as_name.tk != tk_identifier) {
+				ps.error("expected an identifier for link module name (either implicit or explicit)");
+			}
+
+			if (!!ps.status) {
+				return link_statement;
+			}
+		}
+	} else if (ps.token.tk == tk_identifier) {
+		auto link_name = create<ast::link_name_t>(link_token);
+		/*
+		 * link name to some_module.something
+		 *
+		 * 1. Sets up a type parser macro "name" => "some_module/something"
+		 * 2. Sets up a "scope link" from this module to the "some_module" for the
+		 * "something" name so that if there is a call to "something" from
+		 * within this module, we also search "some_module" when enumerating
+		 * callables.
+		 * 3. Start tracking whether the link is in use in the module
+		 */
+		link_name->local_name = ps.token;
+		ps.advance();
+		chomp_ident(K(to));
+		link_name->extern_module = module_decl_t::parse(ps, true /* skip_module_token */);
+		if (!!ps.status) {
+			chomp_token(tk_dot);
+			expect_token(tk_identifier);
+			link_name->remote_name = ps.token;
+			ps.advance();
+			return link_name;
+		}
+	} else {
+		ps.error("link must be followed by function declaration or module import");
 	}
+
+	assert(!ps.status);
+	return nullptr;
 }
 
 ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 	assert(ps.token.tk != tk_outdent);
 
-	if (ps.token.tk == tk_var) {
+	if (ps.token.is_ident(K(var))) {
 		eat_token();
 		return var_decl_t::parse(ps);
-	} else if (ps.token.tk == tk_if) {
+	} else if (ps.token.is_ident(K(if))) {
 		return if_block_t::parse(ps);
-	} else if (ps.token.tk == tk_while) {
+	} else if (ps.token.is_ident(K(while))) {
 		return while_block_t::parse(ps);
-	} else if (ps.token.tk == tk_for) {
+	} else if (ps.token.is_ident(K(for))) {
 		return for_block_t::parse(ps);
-	} else if (ps.token.tk == tk_when) {
+	} else if (ps.token.is_ident(K(when))) {
 		return when_block_t::parse(ps);
-	} else if (ps.token.tk == tk_return) {
+	} else if (ps.token.is_ident(K(return))) {
 		return return_statement_t::parse(ps);
-	} else if (ps.token.tk == tk_type) {
+	} else if (ps.token.is_ident(K(type))) {
 		return type_def_t::parse(ps);
-	} else if (ps.token.tk == tk_pass) {
+	} else if (ps.token.is_ident(K(pass))) {
 		auto pass_flow = create<ast::pass_flow_t>(ps.token);
 		eat_token();
 		return std::move(pass_flow);
-	} else if (ps.token.tk == tk_continue) {
+	} else if (ps.token.is_ident(K(continue))) {
 		auto continue_flow = create<ast::continue_flow_t>(ps.token);
 		eat_token();
 		return std::move(continue_flow);
-	} else if (ps.token.tk == tk_def) {
+	} else if (ps.token.is_ident(K(def))) {
 		return function_defn_t::parse(ps);
-	} else if (ps.token.tk == tk_break) {
+	} else if (ps.token.is_ident(K(break))) {
 		auto break_flow = create<ast::break_flow_t>(ps.token);
 		eat_token();
 		return std::move(break_flow);
@@ -242,7 +259,7 @@ ptr<expression_t> reference_expr_t::parse(parse_state_t &ps) {
 
 ptr<typeid_expr_t> typeid_expr_t::parse(parse_state_t &ps) {
 	auto token = ps.token;
-	chomp_token(tk_get_typeid);
+	chomp_ident(K(__get_typeid__));
 	chomp_token(tk_lparen);
 
 	auto value = expression_t::parse(ps);
@@ -259,7 +276,7 @@ ptr<typeid_expr_t> typeid_expr_t::parse(parse_state_t &ps) {
 
 ptr<sizeof_expr_t> sizeof_expr_t::parse(parse_state_t &ps) {
 	auto token = ps.token;
-	chomp_token(tk_sizeof);
+	chomp_ident(K(sizeof));
 	chomp_token(tk_lparen);
 
 	auto type = parse_maybe_type(ps, {}, {}, {});
@@ -286,7 +303,7 @@ ptr<expression_t> parse_bang_wrap(parse_state_t &ps, ptr<expression_t> expr) {
 }
 
 ptr<expression_t> parse_cast_wrap(parse_state_t &ps, ptr<expression_t> expr) {
-    if (ps.token.tk == tk_as) {
+    if (ps.token.is_ident(K(as))) {
 		auto token = ps.token;
 		ps.advance();
 		auto cast = ast::create<ast::cast_expr_t>(token);
@@ -306,12 +323,13 @@ ptr<expression_t> parse_cast_wrap(parse_state_t &ps, ptr<expression_t> expr) {
 ptr<expression_t> base_expr::parse(parse_state_t &ps) {
 	if (ps.token.tk == tk_lparen) {
 		return tuple_expr_t::parse(ps);
-	} else if (ps.token.tk == tk_identifier) {
-		return reference_expr_t::parse(ps);
-	} else if (ps.token.tk == tk_get_typeid) {
+	} else if (ps.token.is_ident(K(__get_typeid__))) {
 		return typeid_expr_t::parse(ps);
-	} else if (ps.token.tk == tk_sizeof) {
+	} else if (ps.token.is_ident(K(sizeof))) {
 		return sizeof_expr_t::parse(ps);
+	} else if (ps.token.tk == tk_identifier) {
+		// NB: this is last to ensure "special" builtins are in play above
+		return reference_expr_t::parse(ps);
 	} else {
 		return literal_expr_t::parse(ps);
 	}
@@ -358,15 +376,21 @@ ptr<expression_t> literal_expr_t::parse(parse_state_t &ps) {
 		}
 	case tk_lsquare:
 		return array_literal_expr_t::parse(ps);
-	case tk_def:
-		return function_defn_t::parse(ps);
 	case tk_indent:
 		ps.error("unexpected indent");
 		return nullptr;
 
+	case tk_identifier:
+		if (ps.token.is_ident(K(def))) {
+			return function_defn_t::parse(ps);
+		}
+		ps.error("unexpected token found when parsing literal expression. '" c_error("%s") "'", ps.token.text.c_str());
+		return nullptr;
+
 	default:
-		ps.error("out of place token '" c_id("%s") "' (%s)",
-			   	ps.token.text.c_str(), tkstr(ps.token.tk));
+		ps.error("out of place token found when parsing literal expression. '" c_error("%s") "' (%s)",
+			   	ps.token.text.c_str(),
+				tkstr(ps.token.tk));
 		return nullptr;
 	}
 }
@@ -399,6 +423,9 @@ namespace ast {
 			while (!ps.line_broke() && (ps.token.tk == tk_lsquare || ps.token.tk == tk_lparen || ps.token.tk == tk_dot)) {
 				if (ps.token.tk == tk_lparen) {
 					auto ref_expr = dyncast<reference_expr_t>(expr);
+
+					std::cerr << expr->str() << std::endl;
+
 					if (ref_expr != nullptr && ref_expr->token.text == "typeinfo") {
 						/* override the typeinfo keyword */
 						expr = typeinfo_expr_t::parse(ps);
@@ -463,16 +490,16 @@ namespace ast {
 ptr<expression_t> prefix_expr_t::parse(parse_state_t &ps) {
 	ptr<prefix_expr_t> prefix_expr;
 	if (ps.token.tk == tk_ampersand
-			|| ps.token.tk == tk_not
 			|| ps.token.tk == tk_minus
-			|| ps.token.tk == tk_plus)
+			|| ps.token.tk == tk_plus
+			|| ps.token.is_ident(K(not)))
 	{
 		prefix_expr = create<ast::prefix_expr_t>(ps.token);
 		eat_token();
 	}
 
 	ptr<expression_t> rhs;
-	if (ps.token.tk == tk_not
+	if (ps.token.is_ident(K(not))
 			|| ps.token.tk == tk_minus
 			|| ps.token.tk == tk_plus) {
 		/* recurse to find more prefix expressions */
@@ -584,18 +611,18 @@ ptr<expression_t> eq_expr_t::parse(parse_state_t &ps) {
 	auto lhs = ineq_expr_t::parse(ps);
 	if (lhs) {
 		bool not_in = false;
-		if (ps.token.tk == tk_not) {
+		if (ps.token.is_ident(K(not))) {
 			eat_token();
-			expect_token(tk_in);
+			expect_ident(K(in));
 			not_in = true;
 		}
 
 		// TODO: consider breaking in and is out to a higher priority level
 		if (ps.line_broke() ||
-				!(ps.token.tk == tk_in
+				!(ps.token.is_ident(K(in))
 					|| ps.token.tk == tk_equal
 					|| ps.token.tk == tk_inequal
-					|| ps.token.tk == tk_is)) {
+					|| ps.token.is_ident(K(is)))) {
 			/* there is no rhs */
 			return lhs;
 		}
@@ -603,7 +630,7 @@ ptr<expression_t> eq_expr_t::parse(parse_state_t &ps) {
 		auto eq_expr = create<ast::eq_expr_t>(ps.token);
 		eat_token();
 
-		if (ps.token.tk == tk_not && eq_expr->token.tk == tk_is) {
+		if (ps.token.is_ident(K(not)) && eq_expr->token.is_ident(K(is))) {
 			eq_expr->negated = true;
 			ps.advance();
 		}
@@ -634,7 +661,7 @@ ptr<expression_t> and_expr_t::parse(parse_state_t &ps) {
 		return nullptr;
 	}
 
-	while (!ps.line_broke() && (ps.token.tk == tk_and)) {
+	while (!ps.line_broke() && (ps.token.is_ident(K(and)))) {
 		auto and_expr = create<ast::and_expr_t>(ps.token);
 
 		eat_token();
@@ -700,7 +727,7 @@ ptr<expression_t> or_expr_t::parse(parse_state_t &ps) {
 		return nullptr;
 	}
 
-	while (!ps.line_broke() && (ps.token.tk == tk_or)) {
+	while (!ps.line_broke() && (ps.token.is_ident(K(or)))) {
 		auto or_expr = create<ast::or_expr_t>(ps.token);
 
 		eat_token();
@@ -884,14 +911,14 @@ ptr<block_t> block_t::parse(parse_state_t &ps) {
 
 ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 	auto if_block = create<ast::if_block_t>(ps.token);
-	if (ps.token.tk == tk_if || ps.token.tk == tk_elif) {
+	if (ps.token.is_ident(K(if)) || ps.token.is_ident(K(elif))) {
 		ps.advance();
 	} else {
 		ps.error("expected if or elif");
 		return nullptr;
 	}
 
-	zion_token_t condition_token = ps.token;
+	token_t condition_token = ps.token;
 	auto assignment = assignment_t::parse(ps);
 	if (!!ps.status) {
 		if (auto condition = dyncast<const expression_t>(assignment)) {
@@ -910,9 +937,9 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 
 				if (ps.prior_token.tk == tk_outdent) {
 					/* check the successive instructions for elif or else */
-					if (ps.token.tk == tk_elif) {
+					if (ps.token.is_ident(K(elif))) {
 						if_block->else_ = if_block_t::parse(ps);
-					} else if (ps.token.tk == tk_else) {
+					} else if (ps.token.is_ident(K(else))) {
 						ps.advance();
 						if_block->else_ = block_t::parse(ps);
 					}
@@ -932,7 +959,7 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 
 ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {
 	auto while_block = create<ast::while_block_t>(ps.token);
-	chomp_token(tk_while);
+	chomp_ident(K(while));
 	auto condition = expression_t::parse(ps);
 	if (condition != nullptr) {
 		while_block->condition.swap(condition);
@@ -952,11 +979,11 @@ ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {
 
 ptr<for_block_t> for_block_t::parse(parse_state_t &ps) {
 	auto for_block = create<ast::for_block_t>(ps.token);
-	chomp_token(tk_for);
+	chomp_ident(K(for));
 	expect_token(tk_identifier);
 	for_block->var_token = ps.token;
 	ps.advance();
-	chomp_token(tk_in);
+	chomp_ident(K(in));
 	auto collection = expression_t::parse(ps);
 	if (collection != nullptr) {
 		for_block->collection.swap(collection);
@@ -976,7 +1003,7 @@ ptr<for_block_t> for_block_t::parse(parse_state_t &ps) {
 
 ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 	auto is_token = ps.token;
-	chomp_token(tk_is);
+	chomp_ident(K(is));
 
 	auto pattern_block = ast::create<ast::pattern_block_t>(is_token);
 	pattern_block->type = parse_maybe_type(ps, {}, {}, {});
@@ -998,14 +1025,14 @@ ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 
 ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 	auto when_block = create<ast::when_block_t>(ps.token);
-	chomp_token(tk_when);
+	chomp_ident(K(when));
 	auto value = expression_t::parse(ps);
 	if (!!ps.status) {
 		when_block->value.swap(value);
 
 		/* this is a multi_pattern_block */
 		chomp_token(tk_indent);
-		while (ps.token.tk == tk_is) {
+		while (ps.token.is_ident(K(is))) {
 			auto pattern_block = pattern_block_t::parse(ps);
 			if (!!ps.status) {
 				when_block->pattern_blocks.push_back(pattern_block);
@@ -1013,7 +1040,7 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 		}
 
 		chomp_token(tk_outdent);
-		if (ps.token.tk == tk_else) {
+		if (ps.token.is_ident(K(else))) {
 			ps.advance();
 			when_block->else_block = block_t::parse(ps);
 		}
@@ -1037,7 +1064,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 		has_inbound_context = true;
 		inbound_context_location = ps.token.location;
 		ps.advance();
-		if (ps.token.tk == tk_module) {
+		if (ps.token.is_ident(K(module))) {
 			ps.advance();
 			inbound_context = _parse_type(ps, {}, {}, {});
 			if (!!ps.status) {
@@ -1062,7 +1089,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 	}
 
 	if (!!ps.status) {
-		chomp_token(tk_def);
+		chomp_ident(K(def));
 
 		if (!!ps.status) {
 			auto function_decl = create<ast::function_decl_t>(ps.token);
@@ -1084,7 +1111,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 
 			chomp_token(tk_rparen);
 			if (!ps.line_broke()) {
-				if (token_begins_type(ps.token.tk)) {
+				if (token_begins_type(ps.token)) {
 					function_decl->return_type = parse_maybe_type(ps, {}, {}, {});
 					debug_above(6, log("parsed function return type %s at %s",
 									   function_decl->return_type->str().c_str(),
@@ -1132,7 +1159,7 @@ ptr<function_defn_t> function_defn_t::parse(parse_state_t &ps) {
 
 ptr<module_decl_t> module_decl_t::parse(parse_state_t &ps, bool skip_module_token) {
 	if (!skip_module_token) {
-		chomp_token(tk_module);
+		chomp_ident(K(module));
 	}
 
 	/* we've skipped the check for the 'module' token */
@@ -1188,7 +1215,7 @@ void parse_maybe_type_decl(parse_state_t &ps, identifier::refs &type_variables) 
 	}
 }
 
-identifier::ref make_code_id(const zion_token_t &token) {
+identifier::ref make_code_id(const token_t &token) {
 	return make_ptr<code_id>(token);
 }
 
@@ -1205,7 +1232,7 @@ types::type_t::refs parse_type_operands(
 	types::type_t::refs arguments;
 
 	/* loop over the type arguments */
-	while (!!ps.status && (ps.token.tk == tk_identifier || ps.token.tk == tk_any)) {
+	while (!!ps.status && (ps.token.tk == tk_identifier || ps.token.is_ident(K(any)))) {
 		/* we got an argument, recursively parse */
 		auto next_type = parse_maybe_type(ps, supertype_id, type_variables, generics);
 		if (!!ps.status) {
@@ -1233,7 +1260,7 @@ types::type_t::refs parse_type_operands(
 }
 
 types::type_t::ref _parse_function_type(parse_state_t &ps, identifier::set generics) {
-	chomp_token(tk_def);
+	chomp_ident(K(def));
 	chomp_token(tk_lparen);
 	types::type_t::refs param_types;
 	types::type_t::ref return_type;
@@ -1270,7 +1297,7 @@ types::type_t::ref _parse_function_type(parse_state_t &ps, identifier::set gener
 
 	if (!!ps.status) {
 		/* now let's parse the return type */
-		if (!ps.line_broke() && token_begins_type(ps.token.tk)) {
+		if (!ps.line_broke() && token_begins_type(ps.token)) {
 			return_type = parse_maybe_type(ps, {}, {}, generics);
 		} else {
 			return_type = type_void();
@@ -1306,7 +1333,7 @@ types::type_t::ref _parse_single_type(
 	   	identifier::refs type_variables,
 	   	identifier::set generics)
 {
-	if (!token_begins_type(ps.token.tk)) {
+	if (!token_begins_type(ps.token)) {
 		ps.error("type references cannot begin with %s", ps.token.str().c_str());
 		return nullptr;
 	}
@@ -1321,9 +1348,9 @@ types::type_t::ref _parse_single_type(
 			}
 		}
 		break;
-	case tk_has:
-	case tk_struct:
-		{
+	case tk_identifier:
+		if (ps.token.is_ident(K(has))
+				|| ps.token.is_ident(K(struct))) {
 			ps.advance();
 
 			chomp_token(tk_indent);
@@ -1335,8 +1362,8 @@ types::type_t::ref _parse_single_type(
 					ps.error("product type dimensions must be separated by a newline");
 				}
 
-				zion_token_t var_token;
-				if (ps.token.tk == tk_var) {
+				token_t var_token;
+				if (ps.token.is_ident(K(var))) {
 					ps.advance();
 					expect_token(tk_identifier);
 					var_token = ps.token;
@@ -1363,28 +1390,22 @@ types::type_t::ref _parse_single_type(
 			} else {
 				return nullptr;
 			}
-		}
-		break;
-	case tk_def:
-		return _parse_function_type(ps, generics);
-	case tk_any:
-		{
+		} else if (ps.token.is_ident(K(def))) {
+			return _parse_function_type(ps, generics);
+		} else if (ps.token.is_ident(K(any))) {
 			/* parse generic refs */
 			ps.advance();
-            types::type_t::ref type;
+			types::type_t::ref type;
 			if (ps.token.tk == tk_identifier) {
 				/* named generic */
 				type = type_variable(make_code_id(ps.token));
 				ps.advance();
-            } else {
+			} else {
 				/* no named generic */
 				type = type_variable(ps.token.location);
 			}
-            return type;
-		}
-		break;
-	case tk_identifier:
-		{
+			return type;
+		} else {
 			/* build the type-path that is referenced here */
 			types::type_t::ref cur_type;
 			std::list<identifier::ref> ids;
@@ -1491,7 +1512,7 @@ types::type_t::ref _parse_type(
 
 		if (!!ps.status) {
 			options.push_back(type);
-			if (ps.token.tk == tk_or) {
+			if (ps.token.is_ident(K(or))) {
 				ps.advance();
 				continue;
 			} else {
@@ -1542,7 +1563,7 @@ types::type_t::ref parse_maybe_type(parse_state_t &ps,
 	return nullptr;
 }
 
-type_decl_t::ref type_decl_t::parse(parse_state_t &ps, zion_token_t name_token) {
+type_decl_t::ref type_decl_t::parse(parse_state_t &ps, token_t name_token) {
 	identifier::refs type_variables;
 	parse_maybe_type_decl(ps, type_variables);
 
@@ -1554,7 +1575,7 @@ type_decl_t::ref type_decl_t::parse(parse_state_t &ps, zion_token_t name_token) 
 }
 
 ptr<type_def_t> type_def_t::parse(parse_state_t &ps) {
-	chomp_token(tk_type);
+	chomp_ident(K(type));
 	expect_token(tk_identifier);
 	auto type_name_token = ps.token;
 	ps.advance();
@@ -1573,7 +1594,7 @@ ptr<type_def_t> type_def_t::parse(parse_state_t &ps) {
 }
 
 ptr<tag_t> tag_t::parse(parse_state_t &ps) {
-	chomp_token(tk_tag);
+	chomp_ident(K(tag));
 	expect_token(tk_identifier);
 	auto tag = create<ast::tag_t>(ps.token);
 	ps.advance();
@@ -1595,18 +1616,17 @@ type_algebra_t::ref type_algebra_t::parse(
 	INDENT(8, string_format("parsing type algebra for %s",
 				type_decl->token.text.c_str()));
 
-	switch (ps.token.tk) {
-	case tk_is:
+	if (ps.token.is_ident(K(is))) {
 		return type_sum_t::parse(ps, type_decl, type_decl->type_variables);
-	case tk_has:
+	} else if (ps.token.is_ident(K(has))) {
 		return type_product_t::parse(ps, type_decl, type_decl->type_variables, false /*native*/);
-	case tk_link:
+	} else if (ps.token.is_ident(K(link))) {
 		return type_link_t::parse(ps, type_decl, type_decl->type_variables);
-	case tk_matches:
+	} else if (ps.token.is_ident(K(matches))) {
 		return type_alias_t::parse(ps, type_decl, type_decl->type_variables);
-	case tk_struct:
+	} else if (ps.token.is_ident(K(struct))) {
 		return type_product_t::parse(ps, type_decl, type_decl->type_variables, true /*native*/);
-	default:
+	} else {
 		ps.error(
 				"type descriptions must begin with "
 			   	c_id("is") ", " c_id("has") ", or " c_id("matches") ". (Found %s)",
@@ -1622,7 +1642,7 @@ type_sum_t::ref type_sum_t::parse(
 {
 	identifier::set type_variables = to_set(type_variables_list);
 	auto is_token = ps.token;
-	chomp_token(tk_is);
+	chomp_ident(K(is));
 	bool expect_outdent = false;
 	if (ps.token.tk == tk_indent) {
 		/* take note of whether the user has indented or not */
@@ -1657,9 +1677,9 @@ type_product_t::ref type_product_t::parse(
 {
 	identifier::set generics = to_identifier_set(type_variables);
 	if (native) {
-		expect_token(tk_struct);
+		expect_ident(K(struct));
 	} else {
-		expect_token(tk_has);
+		expect_ident(K(has));
 	}
 	auto type = _parse_single_type(ps, {}, {}, generics);
 	return create<type_product_t>(type_decl->token, native, type, generics);
@@ -1671,9 +1691,9 @@ type_link_t::ref type_link_t::parse(
 		identifier::refs type_variables)
 {
 	identifier::set generics = to_identifier_set(type_variables);
-	chomp_token(tk_link);
+	chomp_ident(K(link));
 
-	zion_token_t finalize_fn, mark_fn;
+	token_t finalize_fn, mark_fn;
 
 	/* read the underlying type */
 	types::type_t::ref underlying_type = _parse_type(ps, nullptr, type_variables, generics);
@@ -1705,7 +1725,7 @@ type_alias_t::ref type_alias_t::parse(
 		ast::type_decl_t::ref type_decl,
 	   	identifier::refs type_variables)
 {
-	chomp_token(tk_matches);
+	chomp_ident(K(matches));
 
 	identifier::set generics = to_identifier_set(type_variables);
 	types::type_t::ref type = parse_maybe_type(ps, make_code_id(type_decl->token), type_variables, generics);
@@ -1721,9 +1741,9 @@ type_alias_t::ref type_alias_t::parse(
 }
 
 dimension_t::ref dimension_t::parse(parse_state_t &ps, identifier::set generics) {
-	zion_token_t primary_token;
+	token_t primary_token;
 	atom name;
-	if (ps.token.tk == tk_var) {
+	if (ps.token.is_ident(K(var))) {
 		ps.advance();
 		expect_token(tk_identifier);
 		primary_token = ps.token;
@@ -1787,7 +1807,7 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 		module->decl.swap(module_decl);
 
 		// Get links
-		while (ps.token.tk == tk_link) {
+		while (ps.token.is_ident(K(link))) {
 			auto link_statement = link_statement_parse(ps);
 			if (auto linked_module = dyncast<link_module_statement_t>(link_statement)) {
 				module->linked_modules.push_back(linked_module);
@@ -1805,7 +1825,7 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 
 		// Get vars, functions or type defs
 		while (!!ps.status) {
-			if (ps.token.tk == tk_var) {
+			if (ps.token.is_ident(K(var))) {
 				ps.advance();
 				auto var = var_decl_t::parse(ps);
 				if (var) {
@@ -1813,7 +1833,7 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 				} else {
 					assert(!ps.status);
 				}
-			} else if (ps.token.tk == tk_lsquare || ps.token.tk == tk_def) {
+			} else if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(def))) {
 				/* function definitions */
 				auto function = function_defn_t::parse(ps);
 				if (function) {
@@ -1821,7 +1841,7 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 				} else {
 					assert(!ps.status);
 				}
-			} else if (ps.token.tk == tk_tag) {
+			} else if (ps.token.is_ident(K(tag))) {
 				/* tags */
 				auto tag = tag_t::parse(ps);
 				if (tag) {
@@ -1829,7 +1849,7 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 				} else {
 					assert(!ps.status);
 				}
-			} else if (ps.token.tk == tk_type) {
+			} else if (ps.token.is_ident(K(type))) {
 				/* type definitions */
 				auto type_def = type_def_t::parse(ps);
 				if (type_def != nullptr) {

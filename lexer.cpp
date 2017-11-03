@@ -51,9 +51,9 @@ bool istchar(char ch) {
 }
 
 bool zion_lexer_t::get_token(
-		zion_token_t &token,
+		token_t &token,
 		bool &newline,
-		std::vector<zion_token_t> *comments)
+		std::vector<token_t> *comments)
 {
 	newline = false;
 	do {
@@ -80,7 +80,8 @@ bool zion_lexer_t::get_token(
 			token.tk == tk_space ||
 			token.tk == tk_comment);
 
-	debug_lexer(log(log_info, "lexed (%s) \"%s\"@%s", tkstr(token.tk), token.text.c_str(),
+	debug_lexer(log(log_info, "lexed (%s) \"%s\"@%s",
+			   	tkstr(token.tk), token.text.c_str(),
 				token.location().c_str()));
 	return token.tk != tk_none;
 }
@@ -740,7 +741,8 @@ void zion_lexer_t::pop_nested(token_kind tk) {
 	if (back_tk == tk) {
 		m_nested_tks.pop_back();
 	} else if (back_tk != tk) {
-		debug_lexer(log(log_error, "detected unbalanced %s%s", tkstr(back_tk), tkstr(tk)));
+		debug_lexer(log(log_error, "detected unbalanced %s%s",
+				   	tkstr(back_tk), tkstr(tk)));
 	}
 }
 

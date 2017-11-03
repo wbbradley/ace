@@ -36,7 +36,7 @@ struct compiler_t {
 	module_scope_t::ref get_module_scope(atom module_key);
 	void set_module_scope(atom module_key, module_scope_t::ref module_scope);
 
-	std::vector<zion_token_t> get_comments() const;
+	std::vector<token_t> get_comments() const;
 	ptr<const ast::module_t> get_module(status_t &status, atom key_alias);
 	void set_module(status_t &status, std::string filename, ptr<ast::module_t> module);
 	llvm::Module *llvm_load_ir(status_t &status, std::string filename);
@@ -79,7 +79,7 @@ private:
 
 	std::string program_name;
 	ptr<std::vector<std::string>> zion_paths;
-	std::vector<zion_token_t> comments;
+	std::vector<token_t> comments;
 	program_scope_t::ref program_scope;
 	std::map<atom, ptr<const ast::module_t>> modules;
 	llvm::LLVMContext llvm_context;

@@ -3,9 +3,9 @@
 #include "identifier.h"
 
 struct code_id : public identifier {
-	zion_token_t token;
+	token_t token;
 
-	code_id(const zion_token_t token) : token(token) {
+	code_id(const token_t token) : token(token) {
 	}
 
 	code_id() = delete;
@@ -48,5 +48,5 @@ struct type_id_code_id : public identifier {
 	const atom name;
 };
 
-identifier::ref make_code_id(const zion_token_t &token);
+identifier::ref make_code_id(const token_t &token);
 identifier::ref make_type_id_code_id(const location_t location, atom var_name);

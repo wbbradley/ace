@@ -20,7 +20,7 @@ public:
 	zion_lexer_t(atom filename, std::istream &sock_is);
 	~zion_lexer_t();
 
-	bool get_token(zion_token_t &token, bool &newline, std::vector<zion_token_t> *comments);
+	bool get_token(token_t &token, bool &newline, std::vector<token_t> *comments);
 	bool _get_tokens();
 
 private:

@@ -44,7 +44,7 @@ namespace ast {
 	}
 
 	void break_flow_t::render(render_state_t &rs) const {
-		rs.ss << C_CONTROL << tkstr(tk_break) << C_RESET << " ";
+		rs.ss << C_CONTROL << K(break) << C_RESET << " ";
 	}
 
 	void times_expr_t::render(render_state_t &rs) const {
@@ -58,7 +58,7 @@ namespace ast {
 	}
 
 	void type_alias_t::render(render_state_t &rs) const {
-		rs.ss << tkstr(tk_matches) << " " << type->str();
+		rs.ss << K(matches) << " " << type->str();
 	}
 
 	void prefix_expr_t::render(render_state_t &rs) const {
@@ -71,7 +71,7 @@ namespace ast {
 	}
 
 	void while_block_t::render(render_state_t &rs) const {
-		rs.ss << C_CONTROL << tkstr(tk_while) << C_RESET << " ";
+		rs.ss << C_CONTROL << K(while) << C_RESET << " ";
 		condition->render(rs);
 		newline(rs);
 
@@ -80,7 +80,7 @@ namespace ast {
 	}
 
 	void for_block_t::render(render_state_t &rs) const {
-		rs.ss << C_CONTROL << tkstr(tk_for) << C_RESET << " " << var_token.str() << C_CONTROL << tkstr(tk_in) << C_RESET << " ";
+		rs.ss << C_CONTROL << K(for) << C_RESET << " " << var_token.str() << C_CONTROL << K(in) << C_RESET << " ";
 		collection->render(rs);
 		newline(rs);
 
@@ -89,7 +89,7 @@ namespace ast {
 	}
 
 	void when_block_t::render(render_state_t &rs) const {
-		rs.ss << C_CONTROL << tkstr(tk_when) << C_RESET << " ";
+		rs.ss << C_CONTROL << K(when) << C_RESET << " ";
 		value->render(rs);
 		/* BLOCK */ {
 			indented(rs);
@@ -101,7 +101,7 @@ namespace ast {
 		if (else_block != nullptr) {
 			newline(rs);
 			indent(rs);
-			rs.ss << C_CONTROL << tkstr(tk_else) << C_RESET;
+			rs.ss << C_CONTROL << K(else) << C_RESET;
 			newline(rs);
 			indented(rs);
 			else_block->render(rs);
@@ -111,7 +111,7 @@ namespace ast {
 	void pattern_block_t::render(render_state_t &rs) const {
 		newline(rs);
 		indent(rs);
-		rs.ss << C_TYPE << tkstr(tk_is) << C_RESET << " ";
+		rs.ss << C_TYPE << K(is) << C_RESET << " ";
 		rs.ss << type->str();
 		newline(rs);
 		indented(rs);
@@ -138,7 +138,7 @@ namespace ast {
 	}
 
 	void type_link_t::render(render_state_t &rs) const {
-		rs.ss << tkstr(tk_link) << " ";
+		rs.ss << K(link) << " ";
 		rs.ss << underlying_type->str() << " ";
 		rs.ss << finalize_fn.text << " ";
 		rs.ss << mark_fn.text;
@@ -146,13 +146,13 @@ namespace ast {
 	}
 
 	void typeid_expr_t::render(render_state_t &rs) const {
-		rs.ss << C_TYPE << tkstr(tk_get_typeid) << C_RESET << "(";
+		rs.ss << C_TYPE << K(__get_typeid__) << C_RESET << "(";
 		expr->render(rs);
 		rs.ss << ")";
 	}
 
 	void sizeof_expr_t::render(render_state_t &rs) const {
-		rs.ss << C_TYPE << tkstr(tk_sizeof) << C_RESET << "(";
+		rs.ss << C_TYPE << K(sizeof) << C_RESET << "(";
 		rs.ss << type->str();
 		rs.ss << ")";
 	}
@@ -168,7 +168,7 @@ namespace ast {
 	}
 
 	void continue_flow_t::render(render_state_t &rs) const {
-		rs.ss << C_CONTROL << tkstr(tk_continue) << C_RESET;
+		rs.ss << C_CONTROL << K(continue) << C_RESET;
 	}
 
 	void function_defn_t::render(render_state_t &rs) const {
@@ -190,7 +190,7 @@ namespace ast {
 
 	void dimension_t::render(render_state_t &rs) const {
 		if (!!name) {
-			rs.ss << C_TYPE << tkstr(tk_var) << C_RESET << " ";
+			rs.ss << C_TYPE << K(var) << C_RESET << " ";
 			rs.ss << C_VAR << name << C_RESET << " ";
 		}
 		rs.ss << type->str();
@@ -240,28 +240,28 @@ namespace ast {
 	}
 
 	void link_module_statement_t::render(render_state_t &rs) const {
-		rs.ss << C_SCOPE_SEP << tkstr(tk_link) << C_RESET;
+		rs.ss << C_SCOPE_SEP << K(link) << C_RESET;
 		rs.ss << " ";
 		extern_module->render(rs);
 		if (link_as_name.text != extern_module->token.text) {
-			rs.ss << " " << C_SCOPE_SEP << tkstr(tk_as) << C_RESET;
+			rs.ss << " " << C_SCOPE_SEP << K(as) << C_RESET;
 			rs.ss << " " << link_as_name.text;
 		}
 	}
 
 	void link_name_t::render(render_state_t &rs) const {
-		rs.ss << C_SCOPE_SEP << tkstr(tk_link) << C_RESET;
-		rs.ss << " " << local_name.text << " " << tkstr(tk_to) << " ";
+		rs.ss << C_SCOPE_SEP << K(link) << C_RESET;
+		rs.ss << " " << local_name.text << " " << K(to) << " ";
 		extern_module->render(rs);
 		rs.ss << "." << remote_name.text;
 	}
 
 	void link_function_statement_t::render(render_state_t &rs) const {
-		rs.ss << C_SCOPE_SEP << tkstr(tk_link) << C_RESET;
+		rs.ss << C_SCOPE_SEP << K(link) << C_RESET;
 		rs.ss << " ";
 		extern_function->render(rs);
 		if (function_name.text != extern_function->token.text) {
-			rs.ss << " " << C_SCOPE_SEP << tkstr(tk_to) << C_RESET;
+			rs.ss << " " << C_SCOPE_SEP << K(to) << C_RESET;
 			rs.ss << " " << function_name.text;
 		}
 	}
@@ -336,7 +336,7 @@ namespace ast {
 	}
 
 	void if_block_t::render(render_state_t &rs) const {
-		rs.ss << C_CONTROL << tkstr(tk_if) << C_RESET << " ";
+		rs.ss << C_CONTROL << K(if) << C_RESET << " ";
 		condition->render(rs);
 
 		newline(rs);
@@ -346,7 +346,7 @@ namespace ast {
 	}
 
 	void tag_t::render(render_state_t &rs) const {
-		rs.ss << C_TYPE << tkstr(tk_tag) << C_RESET << " ";
+		rs.ss << C_TYPE << K(tag) << C_RESET << " ";
 		rs.ss << C_ID << token.text << C_RESET;
 		if (type_variables.size() != 0) {
 			rs.ss << '{' << join(type_variables, ", ") << '}';
@@ -355,26 +355,26 @@ namespace ast {
 	}
 
 	void type_def_t::render(render_state_t &rs) const {
-		rs.ss << tkstr(tk_type) << " ";
+		rs.ss << K(type) << " ";
 		type_decl->render(rs);
 		rs.ss << " ";
 		type_algebra->render(rs);
 	}
 
 	void type_sum_t::render(render_state_t &rs) const {
-		rs.ss << tkstr(tk_is);
+		rs.ss << K(is);
 		rs.ss << " " << type->str();
 	}
 
 	void link_var_statement_t::render(render_state_t &rs) const {
-		rs.ss << C_SCOPE_SEP << tkstr(tk_link) << C_RESET;
+		rs.ss << C_SCOPE_SEP << K(link) << C_RESET;
 		rs.ss << " ";
 		var_decl->render(rs);
 	}
 
 	void var_decl_t::render(render_state_t &rs) const {
 		if (rs.param_list_decl_depth == 0) {
-			rs.ss << C_TYPE << tkstr(tk_var) << C_RESET << " ";
+			rs.ss << C_TYPE << K(var) << C_RESET << " ";
 		}
 
 		rs.ss << C_VAR << token.text << C_RESET;
@@ -400,7 +400,7 @@ namespace ast {
 	}
 
 	void pass_flow_t::render(render_state_t &rs) const {
-		rs.ss << C_CONTROL << tkstr(tk_pass) << C_RESET;
+		rs.ss << C_CONTROL << K(pass) << C_RESET;
 	}
 
 	void plus_expr_t::render(render_state_t &rs) const {
@@ -441,7 +441,7 @@ namespace ast {
 	}
 
 	void module_decl_t::render(render_state_t &rs) const {
-		rs.ss << C_MODULE << tkstr(tk_module) << C_RESET << " " << get_canonical_name();
+		rs.ss << C_MODULE << K(module) << C_RESET << " " << get_canonical_name();
 		if (semver != nullptr) {
 			rs.ss << " ";
 			semver->render(rs);
@@ -454,7 +454,7 @@ namespace ast {
 			newline(rs);
 			indent(rs);
 		}
-		rs.ss << C_TYPE << tkstr(tk_def) << C_RESET << " " << token.text;
+		rs.ss << C_TYPE << K(def) << C_RESET << " " << token.text;
 		param_list_decl->render(rs);
 		if (return_type != nullptr) {
 			rs.ss << " " << return_type->str();
@@ -478,7 +478,7 @@ namespace ast {
 	}
 
 	void return_statement_t::render(render_state_t &rs) const {
-		rs.ss << C_CONTROL << tkstr(tk_return) << C_RESET << " ";
+		rs.ss << C_CONTROL << K(return) << C_RESET << " ";
 		if (expr != nullptr) {
 			expr->render(rs);
 		}

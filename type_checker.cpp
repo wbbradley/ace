@@ -1546,9 +1546,11 @@ bound_var_t::ref ast::eq_expr_t::resolve_expression(
 	case tk_inequal:
 		function_name = "__ineq__";
 		break;
-	case tk_is:
-		return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
-										  shared_from_this(), negated);
+	case tk_identifier:
+		if (token.is_ident(K(is))) {
+			return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
+					shared_from_this(), negated);
+		}
 	default:
 		return null_impl();
 	}
@@ -3803,12 +3805,14 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
 	case tk_plus:
 		function_name = "__positive__";
 		break;
-	case tk_not:
-		function_name = "__not__";
-		break;
 	case tk_ampersand:
 		assert(!as_ref);
 		return take_address(status, builder, scope, life);
+	case tk_identifier:
+		if (token.is_ident(K(not))) {
+			function_name = "__not__";
+			break;
+		}
 	default:
 		return null_impl();
 	}

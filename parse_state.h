@@ -23,21 +23,21 @@ struct parse_state_t {
 			std::string filename,
 			zion_lexer_t &lexer,
 			type_macros_t type_macros,
-			std::vector<zion_token_t> *comments=nullptr);
+			std::vector<token_t> *comments=nullptr);
 
 	bool advance();
 	void warning(const char *format, ...);
 	void error(const char *format, ...);
 
 	bool line_broke() const { return newline || prior_token.tk == tk_semicolon; }
-	zion_token_t token;
-	zion_token_t prior_token;
+	token_t token;
+	token_t prior_token;
 	atom filename;
 	identifier::ref module_id;
 	zion_lexer_t &lexer;
 	status_t &status;
 	type_macros_t type_macros;
-	std::vector<zion_token_t> *comments;
+	std::vector<token_t> *comments;
 
 	/* keep track of the current function declaration parameter position */
 	int argument_index;
