@@ -8,3 +8,5 @@
 #include "assert.h"
 
 #define ZION 1
+#define GLOBAL_SCOPE_NAME "std"
+

@@ -22,34 +22,57 @@ void scope_setup_error(status_t &status, const ast::item_t &item, const char *fo
 }
 
 
-unchecked_var_t::ref scope_setup_function_defn(
+void scope_setup_error(status_t &status, location_t location, const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	auto str = string_formatv(format, args);
+	va_end(args);
+
+	user_error(status, location, "scope-error: %s", str.c_str());
+}
+
+
+unchecked_var_t::ref scope_setup_module_symbol(
 		status_t &status,
 		const ast::item_t &obj,
 		identifier::ref id,
+		identifier::ref extends_module,
 		module_scope_t::ref module_scope)
 {
+	program_scope_t::ref program_scope = module_scope->get_program_scope();
+	auto unchecked_var = unchecked_var_t::create(id, obj.shared_from_this(), module_scope);
 	if (id && !!id->get_name()) {
-		return module_scope->get_program_scope()->put_unchecked_variable(
-				id->get_name(), unchecked_var_t::create(id, obj.shared_from_this(), module_scope));
+		if (extends_module) {
+			if (!!extend_module) {
+				auto name = extend_module->get_name();
+				if (name == GLOBAL_SCOPE_NAME) {
+					return program_scope->put_unchecked_variable(id->get_name(), unchecked_var);
+				} else {
+					module_scope = program_scope->get_module_scope(name);
+					if (module_scope != nullptr) {
+						return module_scope->put_unchecked_variable(id->get_name(), unchecked_var);
+					} else {
+						scope_setup_error(status, obj, "could not find module " c_module("%s") " to extend with " c_id("%s"),
+								name.c_str(),
+								id->get_name().c_str());
+					}
+				}
+			} else {
+				scope_setup_error(status, extend_module->get_location(), "found an unnamed module extension");
+				return nullptr;
+			}
+		} else {
+			return module_scope->put_unchecked_variable(
+					id->get_name(),
+					unchecked_var_t::create(id, obj.shared_from_this(), module_scope));
+		}
 	} else {
 		scope_setup_error(status, obj, "module-level function definition does not have a name");
 		return nullptr;
 	}
-}
 
-unchecked_var_t::ref scope_setup_var_decl(
-		status_t &status,
-		const ast::item_t &obj,
-		identifier::ref id,
-		module_scope_t::ref module_scope)
-{
-	if (id && !!id->get_name()) {
-		return module_scope->get_program_scope()->put_unchecked_variable(
-				id->get_name(), unchecked_var_t::create(id, obj.shared_from_this(), module_scope));
-	} else {
-		scope_setup_error(status, obj, "module-level variable declaration does not have a name");
-		return nullptr;
-	}
+	assert(!status);
+	return nullptr;
 }
 
 void scope_setup_type_def(
@@ -104,13 +127,21 @@ status_t scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 	}
 
 	for (auto &function : obj.functions) {
-		scope_setup_function_defn(status, *function,
-				make_code_id(function->decl->token), module_scope);
+		scope_setup_module_symbol(
+				status,
+			   	*function,
+				make_code_id(function->decl->token),
+			   	function->decl->extends_module,
+				module_scope);
 	}
 
 	for (auto &var_decl : obj.var_decls) {
-		scope_setup_var_decl(status, *var_decl,
-				make_code_id(var_decl->token), module_scope);
+		scope_setup_module_symbol(
+				status,
+				*var_decl,
+				make_code_id(var_decl->token),
+				make_code_id(var_decl->extends_module),
+				module_scope);
 	}
 
 	return status;

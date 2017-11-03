@@ -165,6 +165,7 @@ struct module_scope_t : scope_t {
 
 	virtual ~module_scope_t() throw() {}
 
+	unchecked_var_t::ref put_unchecked_variable(atom symbol, unchecked_var_t::ref unchecked_variable);
 	virtual void put_unchecked_type(status_t &status, unchecked_type_t::ref unchecked_type) = 0;
 	virtual unchecked_type_t::ref get_unchecked_type(atom symbol) = 0;
 

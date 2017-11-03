@@ -613,6 +613,13 @@ unchecked_var_t::ref program_scope_t::put_unchecked_variable(
 			unchecked_vars, unchecked_vars_ordered);
 }
 
+unchecked_var_t::ref module_scope_t::put_unchecked_variable(
+		atom symbol,
+	   	unchecked_var_t::ref unchecked_variable)
+{
+	return get_program_scope()->put_unchecked_variable(make_fqn(symbol), unchecked_variable);
+}
+
 unchecked_var_t::ref program_scope_t::get_unchecked_variable(atom symbol) {
 	debug_above(7, log("looking for unchecked variable " c_id("%s"), symbol.c_str()));
 	var_t::refs vars;

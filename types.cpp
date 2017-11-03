@@ -8,7 +8,7 @@
 #include <iostream>
 
 const char *BUILTIN_NIL_TYPE = "nil";
-const char *STD_LIST_TYPE = "std.list";
+const char *STD_LIST_TYPE = GLOBAL_SCOPE_NAME ".list";
 const char *STD_VECTOR_TYPE = "vector.vector";
 const char *BUILTIN_VOID_TYPE = "void";
 const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";

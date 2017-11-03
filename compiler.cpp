@@ -36,7 +36,7 @@ compiler_t::compiler_t(std::string program_name_, const libs &zion_paths) :
 		}
 	}
 
-	program_scope = program_scope_t::create("std", *this, llvm_create_module(program_name_ + ".global"));
+	program_scope = program_scope_t::create(GLOBAL_SCOPE_NAME, *this, llvm_create_module(program_name_ + ".global"));
 }
 
 compiler_t::~compiler_t() {
@@ -189,7 +189,7 @@ ast::module_t::ref compiler_t::build_parse(
 
 						for (auto std_type : std_types) {
 							assert(global_type_macros.find(std_type) == global_type_macros.end());
-							atom new_name = std::string("std") + SCOPE_SEP + std_type;
+							atom new_name = std::string(GLOBAL_SCOPE_NAME) + SCOPE_SEP + std_type;
 							global_type_macros.insert({std_type,
                                     type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
 						}
@@ -570,8 +570,10 @@ void compiler_t::build_parse_modules(status_t &status) {
 
 		/* always include the standard library */
         if (getenv("NO_STD_LIB") == nullptr) {
-            build_parse(status, location_t{"std lib", 0, 0}, "lib/std",
-				   	true /*global*/, global_type_macros);
+            build_parse(status, location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0},
+				   	"lib/std",
+				   	true /*global*/,
+				   	global_type_macros);
         }
 
 		if (!!status) {

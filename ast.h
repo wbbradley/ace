@@ -455,6 +455,7 @@ namespace ast {
 		 * name */
 		types::type_t::ref type;
 		ptr<expression_t> initializer;
+		identifier::ref extends_module;
 	};
 
 	struct assignment_t : public statement_t {
@@ -582,7 +583,7 @@ namespace ast {
 
 		types::type_t::ref return_type;
 		ptr<param_list_decl_t> param_list_decl;
-		types::type_t::ref inbound_context;
+		identifier::ref extends_module;
 	};
 
 	struct function_defn_t : public expression_t {
