@@ -2,10 +2,10 @@ module runtime
 
 # the zion runtime and garbage collector
 
-/*  The head of the singly-linked list of llvm_stack_entry_t's.  Functions push
- *  and pop onto this in their prologue and epilogue.
- * 
- *  Since there is only a global list, this technique is not threadsafe. */
+#   The head of the singly-linked list of llvm_stack_entry_t's.  Functions push
+#   and pop onto this in their prologue and epilogue.
+#  
+#   Since there is only a global list, this technique is not threadsafe.
 link var llvm_gc_root_chain *llvm_stack_entry_t
 
 var TYPE_ID_VECTOR __int32__ = __int32__(-2r)
@@ -76,7 +76,7 @@ def mem_alloc(cb __int__) *void
 	runtime._all_bytes_allocated += cb
 	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
 
-	return posix.calloc(cb, 1r)
+	return posix.calloc(cb, 1r) as *void
 
 def mem_free(p *void, cb __int__) void
 	_bytes_allocated -= cb
@@ -86,19 +86,7 @@ def mem_free(p *void, cb __int__) void
 def get_total_allocated() __int__
 	return _bytes_allocated
 
-/*
-#define MEM_PANIC(msg, str, error_code) \
-	do { \
-		write(2, _zion_rt, strlen(_zion_rt)) \
-		write(2, msg, strlen(msg)) \
-		write(2, str, strlen(str)) \
-		write(2, "\n", 1) \
-		exit(error_code) \
-	} while (0)
-*/
-
-
-var head_var *var_t = create_var(nil)
+var head_var *var_t = create_var(nil as *runtime.type_info_t)
 
 def check_node_existence(node *var_t, should_exist __bool__) void
 	p := &head_var
@@ -127,13 +115,13 @@ def check_node_existence(node *var_t, should_exist __bool__) void
 
 
 def add_node(node *var_t) void
-	check_node_existence(node, 0)
+	check_node_existence(node, __false__)
 
 	if node.prev != nil or node.next != nil
 		# dbg_zrt(printf("node 0x%08lx #%lld of type %s already has prev and next ptrs?!\n", (intptr_t)node, (long long)node.allocation, node.type_info.name))
 		posix.exit(-1r)
 
-	/* assert(not head_var.next or head_var.next.prev == &head_var) */
+	# assert(not head_var.next or head_var.next.prev == &head_var)
 
 	node.prev = &head_var
 	node.next = head_var.next
@@ -147,14 +135,13 @@ def add_node(node *var_t) void
 	assert(node.prev.next == node)
 	assert(not node.next or node.next.prev == node)
 
-	check_node_existence(node, 1)
+	check_node_existence(node, 1r)
 
 def remove_node(node *var_t) void
-	/* dbg_zrt(printf("removing node 0x%08llx %s\n",
-				(long long)node, node.type_info.name)) */
+	# dbg_zrt(printf("removing node 0x%08llx %s\n", (long long)node, node.type_info.name))
 	assert(node.mark == 0r)
 
-	check_node_existence(node, 1 /* should_exist */)
+	check_node_existence(node, 1r)
 
 	assert(node.prev.next == node)
 	assert(not node.next or node.next.prev == node)
@@ -177,49 +164,42 @@ def get_var_type_id(v *var_t) __int32__
 		# MEM_PANIC("attempt to get_var_type_id of a null value ", "", 116)
 		return 0r
 
-var _allocation __int__ = 1r
-
 def create_var(type_info *type_info_t) *var_t
-	/* allocate the variable tracking object */
+	# allocate the variable tracking object
 	var obj *var_t = mem_alloc(type_info.size) as *var_t
 	obj.type_info = type_info
-	obj.ref_count = 1
-
-	/* track this allocation */
-	obj.allocation = _allocation
-	_allocation += 1r
 
 	add_node(obj)
 
-	/* dbg_zrt(printf("creating %s #%lld 0x%08lx\n", type_info.name, obj.allocation, (intptr_t)obj)) */
+	# dbg_zrt(printf("creating %s #%lld 0x%08lx\n", type_info.name, obj.allocation, (intptr_t)obj))
 
 	return obj
 
-/*  The map for a single function's stack frame.  One of these is
- *  compiled as constant data into the executable for each function.
- * 
- *  Storage of metadata values is elided if the %metadata parameter to
- *  @llvm.gcroot is null. */
+#   The map for a single function's stack frame.  One of these is
+#   compiled as constant data into the executable for each function.
+#  
+#   Storage of metadata values is elided if the %metadata parameter to
+#   @llvm.gcroot is null.
 type stack_frame_map_t struct
 	var num_roots __int32__  # Number of roots in stack frame.
 	var num_meta  __int32__  # Number of metadata entries.  May be < num_roots.
 	var meta      **void     # Metadata for each root.
 
-/*  A link in the dynamic shadow stack.  One of these is embedded in
- *  the stack frame of each function on the call stack. */
+#   A link in the dynamic shadow stack.  One of these is embedded in
+#   the stack frame of each function on the call stack.
 type llvm_stack_entry_t struct
 	var next *llvm_stack_entry_t  # Link to next stack entry (the caller's).
 	var map  *stack_frame_map_t   # Pointer to constant stack_frame_map_t.
 	var stack_roots **var_t       # Stack roots (in-place array).
 
-/* Calls heap_visit(root, meta) for each GC root on the stack.
- *        root and meta are exactly the values passed to
- *        @llvm.gcroot.
- *
- * heap_visit could be a function to recursively mark live objects.  Or it
- * might copy them to another heap or generation.
- *
- * @param heap_visit A function to invoke for every GC root on the stack. */
+#  Calls heap_visit(root, meta) for each GC root on the stack.
+#         root and meta are exactly the values passed to
+#         @llvm.gcroot.
+# 
+#  heap_visit could be a function to recursively mark live objects.  Or it
+#  might copy them to another heap or generation.
+# 
+#  @param heap_visit A function to invoke for every GC root on the stack.
 def visit_heap_roots(heap_visit def (obj *void) void)
 	R := llvm_gc_root_chain
 	while R != nil
@@ -229,7 +209,7 @@ def visit_heap_roots(heap_visit def (obj *void) void)
 		i := 0r
 		e := R.map.num_roots
 		while i != e
-			/* we have a heap variable */
+			# we have a heap variable
 			heap_visit(R.stack_roots[i])
 			i += 1r
 
@@ -266,10 +246,10 @@ def mark_allocation(obj *var_t)
 
 	type_kind := __int__(obj.type_info.type_kind)
 
-	if type_kind == 0r /* type_kind_tag */
+	if type_kind == 0r # type_kind_tag
 		# tags don't have dependencies
 		return
-	elif type_kind == 1r /* type_kind_use_offsets */
+	elif type_kind == 1r # type_kind_use_offsets
 		var type_info_offsets *type_info_offsets_t = obj.type_info as *type_info_offsets_t
 
 		# we may be holding on to child nodes, let's recurse.
@@ -277,11 +257,11 @@ def mark_allocation(obj *var_t)
 
 		j := 0r
 		while j < refs_count
-			/* compute the offset to this referenced dimension */
+			# compute the offset to this referenced dimension
 			var child *var_t = get_member_by_index(obj, j)
 			mark_allocation(child)
 			j += 1r
-	elif type_kind == 2r /* type_kind_use_mark_fn */
+	elif type_kind == 2r # type_kind_use_mark_fn
 		# call the type's mark function to recurse
 		type_info_mark_fn := obj.type_info as *type_info_mark_fn_t
 		type_info_mark_fn.mark_fn(obj)

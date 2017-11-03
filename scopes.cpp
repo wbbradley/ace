@@ -190,6 +190,7 @@ void get_callables_from_unchecked_vars(
 		const unchecked_var_t::overload_vector &overloads = iter->second;
 		for (auto &var : overloads) {
 			assert(dyncast<const ast::function_defn_t>(var->node) ||
+					dyncast<const ast::var_decl_t>(var->node) ||
 					dyncast<const ast::type_product_t>(var->node) ||
 					dyncast<const ast::link_function_statement_t>(var->node));
 			fns.push_back(var);
@@ -574,15 +575,12 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 		atom symbol,
 		unchecked_var_t::ref unchecked_variable,
 		unchecked_var_t::map &unchecked_vars,
-		unchecked_var_t::refs &unchecked_vars_ordered,
-		std::string current_scope_name,
-		program_scope_t::ref program_scope)
+		unchecked_var_t::refs &unchecked_vars_ordered)
 {
 	debug_above(6, log(log_info,
-			   	"registering an unchecked variable " c_id("%s") " as %s in " c_id("%s"),
+			   	"registering an unchecked variable " c_id("%s") " as %s",
 				symbol.c_str(),
-				unchecked_variable->str().c_str(),
-                current_scope_name.c_str()));
+				unchecked_variable->str().c_str()));
 
 	auto iter = unchecked_vars.find(symbol);
 	if (iter != unchecked_vars.end()) {
@@ -591,7 +589,7 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 			iter->second.push_back(unchecked_variable);
 		} else if (dyncast<const unchecked_data_ctor_t>(unchecked_variable)) {
 			iter->second.push_back(unchecked_variable);
-		} else if (dyncast<const var_decl_t>(unchecked_variable)) {
+		} else if (dyncast<const ast::var_decl_t>(unchecked_variable)) {
 			iter->second.push_back(unchecked_variable);
 		} else {
 			dbg();
@@ -604,18 +602,6 @@ unchecked_var_t::ref put_unchecked_variable_impl(
 	/* also keep a list of the order in which we encountered these */
 	unchecked_vars_ordered.push_back(unchecked_variable);
 
-	if (program_scope != nullptr) {
-		/* register this variable so that it can be found by other modules */
-
-		// TODO: if variable was created with the injection property (whether
-		// "global" or otherwise) then don't prefix the current_scope_name, but
-		// try to just inject it into the associated namespace
-
-		program_scope->put_unchecked_variable(
-				current_scope_name + SCOPE_SEP + symbol.str(),
-				unchecked_variable);	
-	}
-
 	return unchecked_variable;
 }
 
@@ -624,12 +610,20 @@ unchecked_var_t::ref program_scope_t::put_unchecked_variable(
 	   	unchecked_var_t::ref unchecked_variable)
 {
 	return put_unchecked_variable_impl(symbol, unchecked_variable,
-			unchecked_vars, unchecked_vars_ordered, get_name(), nullptr);
+			unchecked_vars, unchecked_vars_ordered);
 }
 
 unchecked_var_t::ref program_scope_t::get_unchecked_variable(atom symbol) {
-	assert(false);
-	return nullptr;
+	debug_above(7, log("looking for unchecked variable " c_id("%s"), symbol.c_str()));
+	var_t::refs vars;
+	get_callables_from_unchecked_vars(
+			symbol,
+			unchecked_vars,
+			vars);
+	if (vars.size() != 1) {
+		return nullptr;
+	}
+	return dyncast<const unchecked_var_t>(vars.front());
 }
 
 void program_scope_t::put_bound_type_mapping(

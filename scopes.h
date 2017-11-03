@@ -231,6 +231,8 @@ protected:
 
 std::string str(const module_scope_t::map &modules);
 
+
+
 /* scope keeps tabs on the bindings of variables, noting their declared
  * type as it goes */
 struct program_scope_t : public module_scope_impl_t {

@@ -2056,7 +2056,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_expression(
 						SCOPE_SEP,
 						rhs.text.c_str());
 				debug_above(5,
-						log("attempt to find global id %s",
+						log("attempt to find global id " c_id("%s"),
 							qualified_id.c_str()));
 				auto var = scope->get_bound_variable(status, get_location(), qualified_id);
 				if (!!status) {
