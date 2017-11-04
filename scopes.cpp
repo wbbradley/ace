@@ -76,7 +76,7 @@ bound_type_t::ref get_bound_type_from_scope(
 
 std::string scope_t::get_name() const {
 	auto parent_scope = this->get_parent_scope();
-	if (parent_scope) {
+	if (parent_scope && !dyncast<const program_scope_t>(parent_scope)) {
 		return parent_scope->get_name() + SCOPE_SEP + get_leaf_name().str();
 	} else {
 		return get_leaf_name().str();
@@ -514,6 +514,11 @@ void module_scope_impl_t::mark_checked(
 	visited.insert(node);
 }
 
+std::string module_scope_impl_t::make_fqn(std::string leaf_name) const {
+	assert(leaf_name.find(SCOPE_SEP) == std::string::npos);
+	return get_leaf_name().str() + SCOPE_SEP + leaf_name;
+}
+
 void module_scope_impl_t::put_unchecked_type(
 		status_t &status,
 		unchecked_type_t::ref unchecked_type)
@@ -553,6 +558,10 @@ unchecked_type_t::ref module_scope_impl_t::get_unchecked_type(atom symbol) {
 
 unchecked_type_t::refs &module_scope_impl_t::get_unchecked_types_ordered() {
 	return unchecked_types_ordered;
+}
+
+std::string program_scope_t::make_fqn(std::string name) const {
+	return name;
 }
 
 unchecked_var_t::refs &program_scope_t::get_unchecked_vars_ordered() {
@@ -605,7 +614,9 @@ unchecked_var_t::ref module_scope_t::put_unchecked_variable(
 		atom symbol,
 	   	unchecked_var_t::ref unchecked_variable)
 {
-	return get_program_scope()->put_unchecked_variable(make_fqn(symbol.str()), unchecked_variable);
+	return get_program_scope()->put_unchecked_variable(
+			make_fqn(symbol.str()),
+		   	unchecked_variable);
 }
 
 unchecked_var_t::ref program_scope_t::get_unchecked_variable(atom symbol) {

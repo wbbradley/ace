@@ -184,6 +184,7 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	virtual ~module_scope_impl_t() throw() {}
 
 	llvm::Module * const llvm_module;
+	virtual std::string make_fqn(std::string leaf_name) const;
 
 	void put_unchecked_type(status_t &status, unchecked_type_t::ref unchecked_type);
 	unchecked_type_t::ref get_unchecked_type(atom symbol);
@@ -235,6 +236,7 @@ struct program_scope_t : public module_scope_impl_t {
 	program_scope_t() = delete;
 	virtual ~program_scope_t() throw() {}
 
+	virtual std::string make_fqn(std::string name) const;
 	virtual ptr<program_scope_t> get_program_scope();
 	virtual void dump(std::ostream &os) const;
 
@@ -420,13 +422,7 @@ std::string scope_impl_t<T>::str() {
 
 template <typename T>
 std::string scope_impl_t<T>::make_fqn(std::string leaf_name) const {
-	assert(leaf_name.find(SCOPE_SEP) == std::string::npos);
-	if (auto module_scope = this->get_module_scope()) {
-		return module_scope->get_leaf_name().str() + SCOPE_SEP + leaf_name;
-	} else {
-		assert(false);
-		return leaf_name;
-	}
+	return get_parent_scope()->make_fqn(leaf_name);
 }
 
 template <typename T>
@@ -435,9 +431,10 @@ void scope_impl_t<T>::put_bound_variable(
 	   	atom symbol,
 	   	bound_var_t::ref bound_variable)
 {
-	debug_above(4, log(log_info, "binding %s in scope " c_id("%s"),
-			   	bound_variable->str().c_str(),
-				this->get_name().c_str()));
+	debug_above(4, log(log_info, "binding " c_id("%s") " in " c_id("%s") " to %s",
+				symbol.c_str(),
+				this->get_name().c_str(),
+			   	bound_variable->str().c_str()));
 
 	auto &resolve_map = bound_vars[symbol];
 	types::signature signature = bound_variable->get_signature();
@@ -554,12 +551,25 @@ void get_callables_from_bound_vars(
 
 template <typename T>
 void scope_impl_t<T>::get_callables(atom symbol, var_t::refs &fns) {
-	/* default scope behavior is to look at bound variables */
-	get_callables_from_bound_vars(symbol, bound_vars, fns);
+	// TODO: clean up this horrible mess
+	auto module_scope = dynamic_cast<module_scope_t*>(this);
 
-	if (parent_scope != nullptr) {
-		/* let's see if our parent scope has any of this symbol */
-		parent_scope->get_callables(symbol, fns);
+	if (module_scope != nullptr) {
+		/* default scope behavior is to look at bound variables */
+		get_callables_from_bound_vars(symbol, bound_vars, fns);
+
+		if (parent_scope != nullptr) {
+			/* let's see if our parent scope has any of this symbol from our scope */
+			parent_scope->get_callables(make_fqn(symbol.str()), fns);
+
+			/* let's see if our parent scope has any of this symbol just generally */
+			parent_scope->get_callables(symbol, fns);
+		}
+	} else if (parent_scope != nullptr) {
+		return parent_scope->get_callables(symbol, fns);
+	} else {
+		assert(false);
+		return;
 	}
 }
 

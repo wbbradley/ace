@@ -424,8 +424,6 @@ namespace ast {
 				if (ps.token.tk == tk_lparen) {
 					auto ref_expr = dyncast<reference_expr_t>(expr);
 
-					std::cerr << expr->str() << std::endl;
-
 					if (ref_expr != nullptr && ref_expr->token.text == "typeinfo") {
 						/* override the typeinfo keyword */
 						expr = typeinfo_expr_t::parse(ps);

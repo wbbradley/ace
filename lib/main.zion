@@ -3,7 +3,7 @@ module main
 link module sys
 
 # this is the actual default entry point to every program
-[module any]
+[module std]
 def __main__(argc __int32__, argv *__str__) __int32__
 	# Allocate global space for each module's top-level variables, and
 	# initialize them. NB: Order of initialization is currently undefined.

@@ -2324,6 +2324,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		bound_type_t::named_pairs args,
 		bound_type_t::ref return_type) const
 {
+	program_scope_t::ref program_scope = scope->get_program_scope();
 	std::string function_name = switch_std_main(token.text);
 	INDENT(5, string_format(
 				"instantiating function " c_id("%s"),
@@ -2395,9 +2396,23 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 				}
 
 				if (module_scope != nullptr) {
-					/* before recursing directly or indirectly, let's just add
-					 * this function to the module scope we're in */
-					scope->get_program_scope()->put_bound_variable(status, function_var->name, function_var);
+					auto extends_module = decl->extends_module;
+					if (extends_module) {
+						auto name = extends_module->get_name();
+						if (name == GLOBAL_SCOPE_NAME) {
+							program_scope->put_bound_variable(status, function_var->name, function_var);
+						} else if (auto injection_module_scope = program_scope->lookup_module(name)) {
+							/* we're injecting this function into some other scope */
+							injection_module_scope->put_bound_variable(status, function_var->name, function_var);
+						} else {
+							assert(false);
+						}
+					} else {
+						/* before recursing directly or indirectly, let's just add
+						 * this function to the module scope we're in */
+						module_scope->put_bound_variable(status, function_var->name, function_var);
+					}
+
 					if (!!status) {
 						module_scope->mark_checked(status, builder,
 								shared_from_this());

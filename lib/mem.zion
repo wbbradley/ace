@@ -11,7 +11,7 @@ type TypeInfo has native
 	var addref def (v Value) void
 	var release def (v Value) void
 
-[module any]
+[module std]
 def allocate_value(size __int__, name __str__, type_info TypeInfo) Value
 	buf := posix.calloc(sizeof(Value) + size, (1).raw) as! Value
 	buf.size = size
@@ -19,11 +19,11 @@ def allocate_value(size __int__, name __str__, type_info TypeInfo) Value
 	buf.type_info = type_info
 	return buf
 
-[module any]
+[module std]
 def addref_value(v Value) void
 	v.typeinfo.addref(v)
 	
-[module any]
+[module std]
 def release_value(v Value) void
 	if v.typeinfo.release(v) == 0
 		posix.free(v.name as __bytes)

@@ -209,6 +209,12 @@ bound_var_t::ref maybe_get_callable(
     llvm::IRBuilderBase::InsertPointGuard ipg(builder);
     std::list<bound_var_t::ref> callables;
 	if (!!status) {
+#if 0
+		if (alias == "mark_allocation") {
+			dbg();
+		}
+#endif
+
 		/* look through the current scope stack and get a callable that is able
 		 * to be invoked with the given args */
 		scope->get_callables(alias, fns);

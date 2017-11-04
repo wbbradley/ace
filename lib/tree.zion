@@ -27,7 +27,7 @@ def insert(tree Tree{any T}?, value any T) Tree{any T}
 	else
 		return Tree(nil, value, nil)
 
-[module any]
+[module std]
 def str(tree Tree{any T}?) str
 	s := "["
 	sep := ""

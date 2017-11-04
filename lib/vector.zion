@@ -9,6 +9,7 @@ type vector_t struct
 
 type vector{T} link vector_t __vector_free__ __vector_mark__
 
+[module std]
 def __init__() vector{any T}
 	return runtime.create_var(typeinfo(vector{any T})) as vector{any T}
 		
@@ -29,7 +30,7 @@ def resize(vec [any T], size int, default any T) void
 
 # link def vec(TYPE, capacity int) TYPE[]
 
-[module any]
+[module std]
 def __vector_mark__(var_ *runtime.var_t)
 	v := var_ as *vector_t
 	i := 0r
@@ -37,7 +38,7 @@ def __vector_mark__(var_ *runtime.var_t)
 		runtime.mark_allocation(v.items[i])
 		i += 1r
 
-[module any]
+[module std]
 def __vector_free__(var_ *runtime.var_t)
 	# assert(var_ != 0)
 	vector := var_ as *vector_t

@@ -37,7 +37,7 @@ def upsert(map Map{any K, any V}?, key any K, value any V) Map{any K, any V}
 	else
 		return Map(nil, key, value, nil)
 
-[module any]
+[module std]
 def str(map Map{any K, any V}) str
 	return "{" + _str(map) + "}"
 
@@ -72,7 +72,7 @@ type KeyValue{K, V} has
 	var key K
 	var value V
 
-[module any]
+[module std]
 def iter(map Map{any K, any V}?) Iter{any K, any V}
 	if map
 		if map.left
@@ -94,7 +94,7 @@ def iter(map Map{any K, any V}?) Iter{any K, any V}
 	else
 		return Iter(nil as [Map{any K, any V}], Stop)
 
-[module any]
+[module std]
 def next(map_iter Iter{any K, any V}) iter.Step{KeyValue{any K, any V}, Iter{any K, any V}}?
 	# store the map node that this call will return
 	status := map_iter.status
@@ -143,7 +143,7 @@ def next(map_iter Iter{any K, any V}) iter.Step{KeyValue{any K, any V}, Iter{any
 	assert(false)
 	return nil as iter.Step{KeyValue{any K, any V}, Iter{any K, any V}}?
 
-[module any]
+[module std]
 def str(status MapNextMove) str
 	if status is Stop
 		return "Stop"
@@ -154,11 +154,11 @@ def str(status MapNextMove) str
 		posix.exit((-1).raw)
 		return "Fail"
 
-[module any]
+[module std]
 def str(map_iter Iter{any K, any V}) str
 	return "map/Iter(" + str(map_iter.stack) + ", " + str(map_iter.status) + ")"
 
-[module any]
+[module std]
 def str(map_step MapStep{any K, any V}?) str
 	if map_step
 		return "MapStep(" + str(map_step.key) + ", " + str(map_step.value) + ", " + str(map_step.next_state) + ")"
