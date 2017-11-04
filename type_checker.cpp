@@ -178,7 +178,6 @@ bound_var_t::ref generate_stack_variable(
 						scope->get_module_scope(),
 						"__init__",
 						obj.get_location(),
-						type_variable(obj.get_location()),
 						type_args({}, {}),
 						value_type->get_type());
 
@@ -342,7 +341,6 @@ bound_var_t::ref generate_module_variable(
 							scope->get_module_scope(),
 							"__init__",
 							obj.get_location(),
-							type_variable(obj.get_location()),
 							type_args({}, {}),
 							declared_type);
 
@@ -535,25 +533,11 @@ void type_check_fully_bound_function_decl(
 		llvm::IRBuilder<> &builder,
 		const ast::function_decl_t &obj,
 		scope_t::ref scope,
-		types::type_t::ref &inbound_context,
 		bound_type_t::named_pairs &params,
 		bound_type_t::ref &return_value)
 {
 	/* returns the parameters and the return value types fully resolved */
 	debug_above(4, log(log_info, "type checking function decl %s", obj.token.str().c_str()));
-
-	if (obj.inbound_context != nullptr) {
-		inbound_context = obj.inbound_context;
-
-		if (!status) {
-			user_message(log_info, status, obj, "while instantiating %s", obj.token.str().c_str());
-			return;
-		}
-	} else {
-		/* this function does not have a context declaration, use the current
-		 * module's type (which basically defaults to private scope */
-		inbound_context = scope->get_inbound_context();
-	}
 
 	if (obj.param_list_decl) {
 		/* the parameter types as per the decl */
@@ -801,12 +785,10 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 	module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
 	assert(module_scope);
 
-	types::type_t::ref inbound_context;
 	bound_type_t::named_pairs named_args;
 	bound_type_t::ref return_value;
 
-	type_check_fully_bound_function_decl(status, builder, *extern_function,
-			scope, inbound_context, named_args, return_value);
+	type_check_fully_bound_function_decl(status, builder, *extern_function, scope, named_args, return_value);
 	assert(return_value != nullptr);
 
 	if (!!status) {
@@ -828,7 +810,7 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 
 		/* get the full function type */
 		types::type_function_t::ref function_sig = get_function_type(
-				inbound_context, args, return_value);
+				args, return_value);
 		debug_above(3, log(log_info, "%s has type %s",
 					function_name.str().c_str(),
 					function_sig->str().c_str()));
@@ -883,7 +865,6 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 			/* let's see if the associated module has a method that can handle this callsite */
 			return get_callable(status, builder, bound_module->module_scope,
 					rhs.text, callsite->get_location(),
-					bound_module->module_scope->get_outbound_context(),
 					get_args_type(args),
 					nullptr);
 		} else {
@@ -893,7 +874,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 						::str(scope->get_typename_env()).c_str()));
 			unification_t unification = unify(
 					bound_fn->type->get_type(),
-					get_function_type(type_variable(INTERNAL_LOC()), args, type_variable(INTERNAL_LOC())),
+					get_function_type(args, type_variable(INTERNAL_LOC())),
 					scope->get_typename_env());
 
 			if (unification.result) {
@@ -1091,7 +1072,6 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 									scope,
 									extern_type->link_finalize_fn->get_name(),
 									get_location(),
-									type_variable(INTERNAL_LOC()),
 									type_args({var_ptr_type->get_type()}, {}),
 									type_void());
 							if (!!status) {
@@ -1103,7 +1083,6 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 										scope,
 										extern_type->link_mark_fn->get_name(),
 										get_location(),
-										type_variable(INTERNAL_LOC()),
 										type_args({var_ptr_type->get_type()}, {}),
 										type_void());
 								if (!!status) {
@@ -1592,8 +1571,7 @@ bound_var_t::ref ast::tuple_expr_t::resolve_expression(
 
 		std::pair<bound_var_t::ref, bound_type_t::ref> tuple = instantiate_tuple_ctor(
 				status, builder, scope,
-				scope->get_inbound_context(), args,
-				make_iid(tuple_type->repr()), shared_from_this());
+				args, make_iid(tuple_type->repr()), shared_from_this());
 
 		if (!!status) {
 			/* now, let's call our unnamed tuple ctor and return that value */
@@ -1658,8 +1636,7 @@ llvm::Value *maybe_get_bool_overload_value(
 
 		var_t::refs fns;
 		auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE,
-				condition->get_location(), scope->get_outbound_context(),
-				type_args({condition_type}), nullptr, fns);
+				condition->get_location(), type_args({condition_type}), nullptr, fns);
 
 		if (!!status) {
 			if (bool_fn != nullptr) {
@@ -2307,14 +2284,13 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 				scope->get_name().c_str()));
 
 	/* see if we can get a monotype from the function declaration */
-	types::type_t::ref inbound_context;
 	bound_type_t::named_pairs args;
 	bound_type_t::ref return_type;
-	type_check_fully_bound_function_decl(status, builder, *decl, scope, inbound_context, args, return_type);
+	type_check_fully_bound_function_decl(status, builder, *decl, scope, args, return_type);
 
 	if (!!status) {
 		return instantiate_with_args_and_return_type(status, builder, scope, life,
-				new_scope, inbound_context, args, return_type);
+				new_scope, args, return_type);
 	} else {
 		user_error(status, *this, "unable to declare function %s due to related errors",
 				token.str().c_str());
@@ -2345,7 +2321,6 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
         scope_t::ref scope,
 		life_t::ref life,
 		local_scope_t::ref *new_scope,
-		types::type_t::ref inbound_context,
 		bound_type_t::named_pairs args,
 		bound_type_t::ref return_type) const
 {
@@ -2361,7 +2336,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 
 	assert(scope->get_llvm_module() != nullptr);
 
-	auto function_type = get_function_type(inbound_context, args, return_type);
+	auto function_type = get_function_type(args, return_type);
 	bound_type_t::ref bound_function_type = upsert_bound_type(status,
 			builder, scope, function_type);
 
@@ -2671,11 +2646,11 @@ void type_check_all_module_var_slots(
 	/* build the global __init_module_vars function */
 	if (!!status) {
 		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-		bound_var_t::ref bound_fn_init_module_vars = llvm_start_function(status,
+		bound_var_t::ref bound_fn_init_module_vars = llvm_start_function(
+				status,
 				builder, 
 				program_scope,
 				static_cast<const ast::item_t&>(obj).shared_from_this(),
-				type_module(type_variable(INTERNAL_LOC())),
 				{},
 				program_scope->get_bound_type({"void"}),
 				"__init_module_vars");
@@ -3868,7 +3843,6 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 						scope,
 						{"int"},
 						get_location(),
-						scope->get_outbound_context(),
 						get_args_type({native_type}),
 						nullptr);
 
@@ -3918,7 +3892,6 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 						scope,
 						{"__box__"},
 						get_location(),
-						scope->get_outbound_context(),
 						get_args_type({native_type}),
 						nullptr);
 
@@ -3966,7 +3939,6 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 						scope,
 						{"float"},
 						get_location(),
-						scope->get_outbound_context(),
 						get_args_type({native_type}),
 						nullptr);
 
@@ -4005,8 +3977,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_overrides(
 {
 	/* ok, we know we've got some variable here */
 	auto bound_var = get_callable(status, builder, scope, token.text,
-			get_location(), scope->get_outbound_context(),
-			get_args_type(args), nullptr);
+			get_location(), get_args_type(args), nullptr);
 	if (!!status) {
 		return bound_var;
 	} else {

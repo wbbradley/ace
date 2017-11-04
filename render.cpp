@@ -449,8 +449,8 @@ namespace ast {
 	}
 
 	void function_decl_t::render(render_state_t &rs) const {
-		if (inbound_context != nullptr) {
-			rs.ss << '[' << inbound_context->str() << ']';
+		if (extends_module != nullptr) {
+			rs.ss << '[' << K(module) << " " << C_MODULE << extends_module->get_name() << C_RESET << ']';
 			newline(rs);
 			indent(rs);
 		}

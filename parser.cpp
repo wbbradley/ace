@@ -1057,32 +1057,17 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 }
 
 ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
-	types::type_t::ref inbound_context;
-	bool has_inbound_context = false;
-	location_t inbound_context_location;
+	location_t attributes_location;
+	identifier::ref extends_module;
 	if (ps.token.tk == tk_lsquare) {
-		has_inbound_context = true;
-		inbound_context_location = ps.token.location;
+		attributes_location = ps.token.location;
 		ps.advance();
 		if (ps.token.is_ident(K(module))) {
 			ps.advance();
-			inbound_context = _parse_type(ps, {}, {}, {});
-			if (!!ps.status) {
-				chomp_token(tk_rsquare);
-
-				/* in an inbound context declaration, we transform all type
-				 * variables to global scope */
-				auto ftvs = inbound_context->get_ftvs();
-				types::type_t::ref global = type_id(make_iid(GLOBAL_ID));
-				types::type_t::map bindings;
-				for (auto ftv : ftvs) {
-					bindings[ftv] = global;
-				}
-				inbound_context = ::type_module(inbound_context->rebind(bindings));
-				debug_above(5, log(log_info,
-							"parsed module inbound context declaration %s",
-							inbound_context->str().c_str()));
-			}
+			expect_token(tk_identifier);
+			extends_module = make_code_id(ps.token);
+			ps.advance();
+			chomp_token(tk_rsquare);
 		} else {
 			ps.error("expected inbound module declaration");
 		}
@@ -1095,10 +1080,10 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 			auto function_decl = create<ast::function_decl_t>(ps.token);
 
 			if (ps.token.text == "main") {
-				if (!has_inbound_context) {
-					inbound_context = type_module(type_variable(ps.token.location));
+				if (extends_module == nullptr) {
+					extends_module = make_iid_impl(GLOBAL_SCOPE_NAME, ps.token.location);
 				} else {
-					user_error(ps.status, inbound_context_location,
+					user_error(ps.status, attributes_location,
 							"the main function may not specify an inbound context");
 				}
 			}
@@ -1106,7 +1091,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 			chomp_token(tk_identifier);
 			chomp_token(tk_lparen);
 
-			function_decl->inbound_context = inbound_context;
+			function_decl->extends_module = extends_module;
 			function_decl->param_list_decl = param_list_decl_t::parse(ps);
 
 			chomp_token(tk_rparen);
@@ -1304,10 +1289,7 @@ types::type_t::ref _parse_function_type(parse_state_t &ps, identifier::set gener
 		}
 
 		if (!!ps.status) {
-			return type_function(
-					type_variable(INTERNAL_LOC()),
-					type_args(param_types),
-					return_type);
+			return type_function(type_args(param_types), return_type);
 		}
 	}
 

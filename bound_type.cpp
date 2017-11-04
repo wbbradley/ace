@@ -280,7 +280,6 @@ types::signature bound_type_t::get_signature() const {
 }
 
 types::type_function_t::ref get_function_type(
-		types::type_t::ref type_fn_context,
 		bound_type_t::named_pairs named_args,
 		bound_type_t::ref ret)
 {
@@ -288,11 +287,10 @@ types::type_function_t::ref get_function_type(
 	for (auto named_arg : named_args) {
 		args.push_back(named_arg.second);
 	}
-	return get_function_type(type_fn_context, args, ret);
+	return get_function_type(args, ret);
 }
 
 types::type_function_t::ref get_function_type(
-		types::type_t::ref type_fn_context,
 		bound_type_t::refs args,
 		bound_type_t::ref return_type)
 {
@@ -303,13 +301,11 @@ types::type_function_t::ref get_function_type(
 	}
 
 	return ::type_function(
-			type_fn_context,
 			::type_args(type_args),
 			return_type->get_type());
 }
 
 types::type_function_t::ref get_function_type(
-		types::type_t::ref type_fn_context,
 		bound_type_t::refs args,
 		types::type_t::ref return_type)
 {
@@ -320,7 +316,6 @@ types::type_function_t::ref get_function_type(
 	}
 
 	return ::type_function(
-			type_fn_context,
 			::type_args(type_args),
 			return_type);
 }

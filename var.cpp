@@ -33,7 +33,6 @@ void add_bindings_to_make_type_concrete(
 unification_t var_t::accepts_callsite(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		types::type_t::ref type_fn_context,
 	   	types::type_args_t::ref args,
 		types::type_t::ref return_type) const
 {
@@ -48,12 +47,7 @@ unification_t var_t::accepts_callsite(
 
 	auto bindings = scope->get_type_variable_bindings();
 
-	/* consider allowing the caller to invoke from a different context
-	 * deliberately in order to claim access to a separate module's context */
-	auto u = unify(
-			fn_type,
-		   	type_function(type_fn_context, args, return_type),
-		   	env);
+	auto u = unify(fn_type, type_function(args, return_type), env);
 
 	add_bindings_to_make_type_concrete(fn_type->args, u.bindings);
 	add_bindings_to_make_type_concrete(fn_type->return_type, u.bindings);

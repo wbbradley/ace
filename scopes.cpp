@@ -20,14 +20,6 @@ void resolve_unchecked_type(
 	   	module_scope_t::ref module_scope,
 	   	unchecked_type_t::ref unchecked_type);
 
-types::type_t::ref module_scope_impl_t::get_inbound_context() {
-	return inbound_context;
-}
-
-types::type_t::ref module_scope_impl_t::get_outbound_context() {
-	return outbound_context;
-}
-
 bound_var_t::ref get_bound_variable_from_scope(
 		status_t &status,
 		location_t location,
@@ -495,13 +487,9 @@ void generic_substitution_scope_t::dump(std::ostream &os) const {
 module_scope_impl_t::module_scope_impl_t(
 		atom name,
 	   	program_scope_t::ref parent_scope,
-		llvm::Module *llvm_module,
-		types::type_t::ref inbound_context,
-		types::type_t::ref outbound_context) :
+		llvm::Module *llvm_module) :
 	scope_impl_t<module_scope_t>(name, parent_scope),
-   	llvm_module(llvm_module),
-	inbound_context(inbound_context),
-	outbound_context(outbound_context)
+   	llvm_module(llvm_module)
 {
 }
 
@@ -617,7 +605,7 @@ unchecked_var_t::ref module_scope_t::put_unchecked_variable(
 		atom symbol,
 	   	unchecked_var_t::ref unchecked_variable)
 {
-	return get_program_scope()->put_unchecked_variable(make_fqn(symbol), unchecked_variable);
+	return get_program_scope()->put_unchecked_variable(make_fqn(symbol.str()), unchecked_variable);
 }
 
 unchecked_var_t::ref program_scope_t::get_unchecked_variable(atom symbol) {
@@ -675,18 +663,7 @@ ptr<module_scope_t> program_scope_t::new_module_scope(
 {
 	assert(!lookup_module(name));
 
-	/* inbound context says that anyone that purports to be calling this module
-	 * may call this function */
-	auto inbound_context = ::type_module(type_id(make_iid(name)));
-
-	/* outbound context says that callsites within this module by default are
-	 * aiming for either program context, or this module's context */
-	auto outbound_context = type_sum({get_program_scope()->get_inbound_context(),
-			inbound_context}, INTERNAL_LOC());
-
-	auto module_scope = module_scope_impl_t::create(name, get_program_scope(), llvm_module,
-			inbound_context, outbound_context);
-
+	auto module_scope = module_scope_impl_t::create(name, get_program_scope(), llvm_module);
 	modules.insert({name, module_scope});
 	return module_scope;
 }
@@ -732,11 +709,9 @@ std::string program_scope_t::dump_llvm_modules() {
 module_scope_t::ref module_scope_impl_t::create(
 		atom name,
 		program_scope_t::ref parent_scope,
-		llvm::Module *llvm_module,
-		types::type_t::ref inbound_context,
-		types::type_t::ref outbound_context)
+		llvm::Module *llvm_module)
 {
-	return make_ptr<module_scope_impl_t>(name, parent_scope, llvm_module, inbound_context, outbound_context);
+	return make_ptr<module_scope_impl_t>(name, parent_scope, llvm_module);
 }
 
 llvm::Module *module_scope_impl_t::get_llvm_module() {
@@ -748,10 +723,7 @@ llvm::Module *generic_substitution_scope_t::get_llvm_module() {
 }
 
 program_scope_t::ref program_scope_t::create(atom name, compiler_t &compiler, llvm::Module *llvm_module) {
-	auto inbound_context = ::type_module(type_id(make_iid(GLOBAL_ID)));
-	auto outbound_context = inbound_context;
-
-	return make_ptr<program_scope_t>(name, compiler, llvm_module, inbound_context, outbound_context);
+	return make_ptr<program_scope_t>(name, compiler, llvm_module);
 }
 
 generic_substitution_scope_t::ref generic_substitution_scope_t::create(

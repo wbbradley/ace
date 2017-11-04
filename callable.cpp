@@ -74,7 +74,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 					/* instantiate the function we want */
 					return function_defn->instantiate_with_args_and_return_type(status,
 							builder, subst_scope, life, nullptr /*new_scope*/,
-							function->inbound_context, named_args, return_type);
+							named_args, return_type);
 				} else {
 					user_message(log_info, status, unchecked_fn->get_location(),
 							"while instantiating function %s",
@@ -134,7 +134,6 @@ bound_var_t::ref check_func_vs_callsite(
 		scope_t::ref scope,
 		location_t location,
 		var_t::ref fn,
-		types::type_t::ref type_fn_context,
 		types::type_args_t::ref args,
 		types::type_t::ref return_type)
 {
@@ -144,7 +143,7 @@ bound_var_t::ref check_func_vs_callsite(
 		return_type = type_variable(location);
 	}
 
-	unification_t unification = fn->accepts_callsite(builder, scope, type_fn_context, args, return_type);
+	unification_t unification = fn->accepts_callsite(builder, scope, args, return_type);
 	if (unification.result) {
 		if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
 			/* this function has already been bound */
@@ -198,15 +197,13 @@ bound_var_t::ref maybe_get_callable(
 		scope_t::ref scope,
 		atom alias,
 		location_t location,
-		types::type_t::ref type_fn_context,
 		types::type_args_t::ref args,
 		types::type_t::ref return_type,
 		var_t::refs &fns)
 {
-	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, type_fn_context=%s, args=%s, ...)",
+	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, args=%s, ...)",
 				scope->get_name().c_str(),
 				alias.c_str(),
-				type_fn_context->str().c_str(),
 				args->str().c_str()));
 
     llvm::IRBuilderBase::InsertPointGuard ipg(builder);
@@ -225,7 +222,7 @@ bound_var_t::ref maybe_get_callable(
 				continue;
             }
 			bound_var_t::ref callable = check_func_vs_callsite(status, builder,
-					scope, location, fn, type_fn_context, args, return_type);
+					scope, location, fn, args, return_type);
 
 			if (!status) {
 				assert(callable == nullptr);
@@ -261,7 +258,6 @@ bound_var_t::ref get_callable(
 		scope_t::ref scope,
 		atom alias,
 		location_t callsite_location,
-		types::type_t::ref outbound_context,
 		types::type_args_t::ref args,
 		types::type_t::ref return_type)
 {
@@ -269,7 +265,7 @@ bound_var_t::ref get_callable(
 	// TODO: potentially allow fake calling contexts by adding syntax to the
 	// callsite
 	auto callable = maybe_get_callable(status, builder, scope, alias,
-			callsite_location, outbound_context, args, return_type, fns);
+			callsite_location, args, return_type, fns);
 
 	if (!!status) {
 		if (callable != nullptr) {
@@ -285,7 +281,6 @@ bound_var_t::ref get_callable(
 			} else {
 				std::stringstream ss;
 				ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << " " << args->str();
-				ss << " from context " << outbound_context->str();
 				user_error(status, callsite_location, "%s", ss.str().c_str());
 
 				if (debug_level() >= 0) {
@@ -325,7 +320,7 @@ bound_var_t::ref call_program_function(
     /* get or instantiate a function we can call on these arguments */
     bound_var_t::ref function = get_callable(
 			status, builder, program_scope, function_name, callsite->get_location(),
-			program_scope->get_inbound_context(), args, type_variable(callsite->token.location));
+			args, type_variable(callsite->token.location));
 
     if (!!status) {
 		return make_call_value(status, builder, callsite->get_location(), scope,

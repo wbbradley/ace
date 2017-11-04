@@ -431,20 +431,16 @@ namespace types {
 	}
 
 	type_function_t::type_function_t(
-			type_t::ref inbound_context,
 		   	type_args_t::ref args,
 			type_t::ref return_type) :
-		inbound_context(inbound_context), args(args), return_type(return_type)
+		args(args), return_type(return_type)
 	{
-		assert(inbound_context != nullptr);
 		assert(args != nullptr);
 		assert(return_type != nullptr);
 	}
 
 	std::ostream &type_function_t::emit(std::ostream &os, const map &bindings) const {
-		os << "[";
-		inbound_context->emit(os, bindings);
-		os << "] def ";
+		os << K(def) << " ";
 		args->emit(os, bindings);
 		os << " ";
 		return return_type->emit(os, bindings);
@@ -472,8 +468,7 @@ namespace types {
 		types::type_args_t::ref rebound_args = dyncast<const types::type_args_t>(
 			   	args->rebind(bindings));
 		assert(args != nullptr);
-		return ::type_function(inbound_context,
-				rebound_args, return_type->rebind(bindings));
+		return ::type_function(rebound_args, return_type->rebind(bindings));
 	}
 
 	location_t type_function_t::get_location() const {
@@ -863,14 +858,17 @@ types::type_managed_t::ref type_managed(types::type_t::ref element_type) {
 }
 
 types::type_function_t::ref type_function(
-		types::type_t::ref inbound_context,
 		types::type_args_t::ref args,
 		types::type_t::ref return_type)
 {
-	return make_ptr<types::type_function_t>(inbound_context, args, return_type);
+	return make_ptr<types::type_function_t>(args, return_type);
 }
 
-types::type_t::ref type_sum_safe(status_t &status, types::type_t::refs options, location_t location) {
+types::type_t::ref type_sum_safe(
+		status_t &status,
+	   	types::type_t::refs options,
+	   	location_t location)
+{
 	/* sum types must take care to avoid creating sums over maybe types and over
 	 * builtin types */
 	bool make_maybe = false;

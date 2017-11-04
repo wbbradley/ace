@@ -678,7 +678,6 @@ bound_var_t::ref llvm_start_function(status_t &status,
 		llvm::IRBuilder<> &builder, 
 		scope_t::ref scope,
 		const ast::item_t::ref &node,
-		types::type_t::ref type_fn_context,
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
 		atom name)
@@ -691,7 +690,7 @@ bound_var_t::ref llvm_start_function(status_t &status,
 		if (!!status) {
 			/* create the bound type for the ctor function */
 			auto function_type = bound_type_t::create(
-						get_function_type(type_fn_context, args, data_type),
+						get_function_type(args, data_type),
 						node->token.location,
 						llvm_fn_type);
 

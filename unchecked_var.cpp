@@ -43,19 +43,10 @@ types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 			}
 
 			if (!!status) {
-				/* figure out the context of this declaration */
-				types::type_t::ref inbound_context = decl->inbound_context;
-
-				if (inbound_context == nullptr) {
-					/* the function didn't specify an inbound context */
-					inbound_context = module_scope->get_inbound_context();
-				}
-
 				/* figure out the return type */
 				if (decl->return_type != nullptr) {
 					/* get the return type */
 					types::type_function_t::ref sig = type_function(
-							inbound_context,
 							type_args(args),
 							decl->return_type);
 
@@ -65,7 +56,6 @@ types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 					return sig;
 				} else {
 					types::type_function_t::ref sig = type_function(
-							inbound_context,
 							type_args(args),
 							/* default to void, which is fully bound */
 							type_void());

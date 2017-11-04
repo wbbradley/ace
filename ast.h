@@ -618,7 +618,6 @@ namespace ast {
 			   	scope_t::ref block_scope,
 				life_t::ref life,
 				local_scope_t::ref *new_scope,
-				types::type_t::ref inbound_context,
 				bound_type_t::named_pairs args,
 				bound_type_t::ref return_type) const;
 		virtual void render(render_state_t &rs) const;

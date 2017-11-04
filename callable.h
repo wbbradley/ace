@@ -35,7 +35,6 @@ bound_var_t::ref get_callable(
 		scope_t::ref scope,
 		atom alias,
 		location_t callsite_location,
-		types::type_t::ref outbound_context,
 		types::type_args_t::ref sig_args,
 		types::type_t::ref return_type);
 
@@ -48,7 +47,6 @@ bound_var_t::ref maybe_get_callable(
 		scope_t::ref scope,
 		atom alias,
 		location_t location,
-		types::type_t::ref type_fn_context,
 		types::type_args_t::ref sig_args,
 		types::type_t::ref return_type,
 		var_t::refs &fns);

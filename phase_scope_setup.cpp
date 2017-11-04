@@ -43,12 +43,12 @@ unchecked_var_t::ref scope_setup_module_symbol(
 	auto unchecked_var = unchecked_var_t::create(id, obj.shared_from_this(), module_scope);
 	if (id && !!id->get_name()) {
 		if (extends_module) {
-			if (!!extend_module) {
-				auto name = extend_module->get_name();
+			if (!!extends_module) {
+				auto name = extends_module->get_name();
 				if (name == GLOBAL_SCOPE_NAME) {
 					return program_scope->put_unchecked_variable(id->get_name(), unchecked_var);
 				} else {
-					module_scope = program_scope->get_module_scope(name);
+					module_scope = program_scope->lookup_module(name);
 					if (module_scope != nullptr) {
 						return module_scope->put_unchecked_variable(id->get_name(), unchecked_var);
 					} else {
@@ -58,7 +58,8 @@ unchecked_var_t::ref scope_setup_module_symbol(
 					}
 				}
 			} else {
-				scope_setup_error(status, extend_module->get_location(), "found an unnamed module extension");
+				scope_setup_error(status, extends_module->get_location(),
+					   	"found an unspecified module extension");
 				return nullptr;
 			}
 		} else {
@@ -140,7 +141,7 @@ status_t scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 				status,
 				*var_decl,
 				make_code_id(var_decl->token),
-				make_code_id(var_decl->extends_module),
+				var_decl->extends_module,
 				module_scope);
 	}
 

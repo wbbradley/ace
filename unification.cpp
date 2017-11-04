@@ -216,15 +216,6 @@ unification_t unify(
 		}
 	} else if (ptf_a != nullptr) {
 		if (auto ptf_b = dyncast<const types::type_function_t>(b)) {
-			debug_above(7, log("matching function contexts (contravariant)"));
-			/* note that the context unification is contravariant to the rest */
-			auto context_unification = unify(ptf_b->inbound_context, ptf_a->inbound_context,
-					env, bindings, depth + 1);
-			if (!context_unification.result) {
-				return {false, context_unification.reasons, {}};
-			}
-			bindings = context_unification.bindings;
-
 			debug_above(7, log("matching function arguments"));
 			/* now make sure the arguments unify */
 			auto args_unification = unify(ptf_a->args, ptf_b->args,

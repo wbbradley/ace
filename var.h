@@ -20,7 +20,6 @@ struct var_t {
 	unification_t accepts_callsite(
 			llvm::IRBuilder<> &builder,
 		   	ptr<scope_t> scope,
-		   	types::type_t::ref type_fn_context,
 		   	types::type_args_t::ref args,
 			types::type_t::ref return_type) const;
 };
