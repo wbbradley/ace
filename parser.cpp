@@ -475,7 +475,7 @@ namespace ast {
 				expr = parse_bang_wrap(ps, expr);
 
 				if (!!ps.status) {
-					return parse_cast_wrap(ps, expr);
+					return expr;
 				}
 			}
 
@@ -510,9 +510,9 @@ ptr<expression_t> prefix_expr_t::parse(parse_state_t &ps) {
 	if (rhs) {
 		if (prefix_expr) {
 			prefix_expr->rhs = std::move(rhs);
-			return std::move(prefix_expr);
+			return parse_cast_wrap(ps, prefix_expr);
 		} else {
-			return rhs;
+			return parse_cast_wrap(ps, rhs);
 		}
 	} else {
 		assert(!ps.status);
@@ -1427,7 +1427,12 @@ types::type_t::ref _parse_single_type(
 				} else {
 					/* we don't have a macro/type_name link for this type, so
 					 * let's assume it's in this module */
-					cur_type = type_id(reduce_ids({ps.module_id, id}, location));
+					if (ps.module_id->get_name() == "std") {
+						/* the std module is the only "global" module */
+						cur_type = type_id(id);
+					} else {
+						cur_type = type_id(reduce_ids({ps.module_id, id}, location));
+					}
 					debug_above(9, log("transformed " c_id("%s") " to " c_id("%s"),
 								id->get_name().c_str(),
 								cur_type->str().c_str()));

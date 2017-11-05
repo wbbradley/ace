@@ -797,6 +797,9 @@ namespace types {
 }
 
 types::type_t::ref type_id(identifier::ref id) {
+	if (id->get_name().str().find("std.") == 0) {
+		dbg();
+	}
 	return make_ptr<types::type_id_t>(id);
 }
 

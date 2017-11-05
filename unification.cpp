@@ -334,9 +334,21 @@ unification_t unify(
 						str(bindings).c_str()),
 				{}};
 		}
-	} else if (ptr_a != nullptr && ptr_b != nullptr) {
-		debug_above(7, log("matching type refs"));
-		return unify(ptr_a->element_type, ptr_b->element_type, env, bindings, depth + 1);
+	} else if (ptr_a != nullptr) {
+		if (ptr_b != nullptr) {
+			debug_above(7, log("matching ptr types"));
+			return unify(ptr_a->element_type, ptr_b->element_type, env, bindings, depth + 1);
+		} else if (b->is_nil()) {
+			return {true, "", bindings};
+		} else {
+			return {
+				false,
+					string_format("%s <> %s with attempted bindings %s",
+							a->str().c_str(),
+							b->str().c_str(),
+							str(bindings).c_str()),
+					{}};
+		}
 	} else {
 		/* types don't match */
 		return {

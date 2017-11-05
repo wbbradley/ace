@@ -1169,7 +1169,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 					/* create a return statement for the final object. */
 					builder.CreateRet(llvm_final_obj);
 
-					llvm_verify_function(status, llvm_function);
+					llvm_verify_function(status, id->get_location(), llvm_function);
 
 					if (!!status) {
 						/* bind the ctor to the program scope */

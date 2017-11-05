@@ -624,13 +624,13 @@ llvm::Type *llvm_wrap_type(
 	return nullptr;
 }
 
-void llvm_verify_function(status_t &status, llvm::Function *llvm_function) {
+void llvm_verify_function(status_t &status, location_t location, llvm::Function *llvm_function) {
 	std::stringstream ss;
 	llvm::raw_os_ostream os(ss);
 	if (llvm::verifyFunction(*llvm_function, &os)) {
 		os.flush();
 		ss << llvm_print_function(llvm_function);
-		user_error(status, location_t{}, "LLVM function verification failed: %s", ss.str().c_str());
+		user_error(status, location, "LLVM function verification failed: %s", ss.str().c_str());
 	}
 }
 

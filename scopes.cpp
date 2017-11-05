@@ -570,7 +570,9 @@ bound_var_t::ref program_scope_t::upsert_init_module_vars_function(
 
 	/* build the global __init_module_vars function */
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-	bound_var_t::ref bound_fn_init_module_vars = llvm_start_function(
+
+	/* we are creating this function, but we'll be adding to it elsewhere */
+	init_module_vars_function = llvm_start_function(
 			status,
 			builder, 
 			shared_from_this(),
@@ -582,10 +584,10 @@ bound_var_t::ref program_scope_t::upsert_init_module_vars_function(
 	if (!!status) {
 		builder.CreateRetVoid();
 
-		put_bound_variable(status, "__init_module_vars", bound_fn_init_module_vars);
+		put_bound_variable(status, "__init_module_vars", init_module_vars_function);
 
 		if (!!status) {
-			return bound_fn_init_module_vars;
+			return init_module_vars_function;
 		}
 	}
 

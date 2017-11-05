@@ -24,7 +24,7 @@ def get_member_by_index(v *var_t, index __int__) *var_t
 	offset := type_info_offsets.ref_offsets[index]
 
 	# Compute the address of the child member slot
-	var_ptr := base_ptr[__int__(offset)] as **var_t
+	var_ptr := &base_ptr[__int__(offset)] as **var_t
 
 	# Return the address of the child member
 	return var_ptr[0r]
@@ -89,7 +89,7 @@ def get_total_allocated() __int__
 var head_var *var_t = create_var(nil as *runtime.type_info_t)
 
 def check_node_existence(node *var_t, should_exist __bool__) void
-	p := &head_var
+	p := runtime.head_var
 	assert(p.prev == nil)
 
 	if should_exist

@@ -133,7 +133,11 @@ void compiler_t::resolve_module_filename(
 	}
 }
 
-void compiler_t::build_parse_linked(status_t &status, ptr<const ast::module_t> module, type_macros_t &global_type_macros) {
+void compiler_t::build_parse_linked(
+		status_t &status,
+		ptr<const ast::module_t> module,
+		type_macros_t &global_type_macros)
+{
 	/* now, recursively make sure that all of the linked modules are parsed */
 	for (auto &link : module->linked_modules) {
 		auto linked_module_name = link->extern_module->get_canonical_name();
@@ -190,8 +194,8 @@ ast::module_t::ref compiler_t::build_parse(
 						for (auto std_type : std_types) {
 							assert(global_type_macros.find(std_type) == global_type_macros.end());
 							atom new_name = std::string(GLOBAL_SCOPE_NAME) + SCOPE_SEP + std_type;
-							global_type_macros.insert({std_type,
-                                    type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
+						//	global_type_macros.insert({std_type,
+                         //           type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
 						}
 					}
 					// global_type_macros.insert({"var_t", type_id(make_iid_impl("runtime.var_t", INTERNAL_LOC()))});

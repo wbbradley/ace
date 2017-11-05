@@ -23,13 +23,8 @@ type TypeID has
 def str(t TypeID) str
 	return str(__int__(t.id))
 
-def assert(condition bool)
-	if not condition
-		posix.puts("assertion failed!")
-		posix.exit(-1r)
-
-def assert(condition *any)
-	if condition == nil
+def assert(condition any)
+	if (condition as __int__) == 0r
 		posix.puts("assertion failed!"r)
 		posix.exit(-1r)
 
@@ -211,11 +206,11 @@ def __eq__(x str, y str) bool
 def __ineq__(x str, y str) bool
 	return bool(x.raw == y.raw)
 
-def __ineq__(x *any, y nil) bool
+def __ineq__(x *any, y nil) __bool__
 	# TODO: optimize
 	return __is_non_nil__(x)
 
-def __ineq__(y nil, x *any) bool
+def __ineq__(y nil, x *any) __bool__
 	# TODO: optimize
 	return __is_non_nil__(x)
 

@@ -33,7 +33,9 @@ bound_var_t::ref resolve_nil_check(
 
 				switch (nck) {
 				case nck_is_non_nil:
-					llvm_bool_value = llvm_maybe_pointer_cast(builder, llvm_value, builder.getInt64Ty());
+					llvm_bool_value = builder.CreateICmpNE(llvm_value,
+							llvm::Constant::getNullValue(llvm_value->getType()));
+					llvm_bool_value = builder.CreateIntCast(llvm_bool_value, llvm_bool_type, false /*isSigned*/);
 					break;
 				case nck_is_nil:
 					llvm_bool_value = builder.CreateICmpEQ(llvm_value,

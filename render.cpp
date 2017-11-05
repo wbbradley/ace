@@ -530,13 +530,14 @@ namespace ast {
     }
 
 	void cast_expr_t::render(render_state_t &rs) const {
+		rs.ss << "((";
 		lhs->render(rs);
-		rs.ss << " as";
+		rs.ss << ") as";
 		if (force_cast) {
 			rs.ss << "! ";
 		} else {
 			rs.ss << " ";
 		}
-		rs.ss << type_cast->str();
+		rs.ss << type_cast->str() << ")";
 	}
 }
