@@ -268,17 +268,25 @@ bound_var_t::ref generate_module_variable(
 		llvm::IRBuilder<> &builder,
 		function_scope_t::ref scope,
 		life_t::ref life,
-		const ast::var_decl_t &obj,
+		const ast::var_decl_t &var_decl,
 		atom symbol,
 		types::type_t::ref declared_type)
 {
+	auto program_scope = scope->get_program_scope();
+
 	/* 'init_var' is keeping track of the value we are assigning to our new
 	 * variable (if any exists.) */
 	bound_var_t::ref init_var;
 
-	if (obj.initializer) {
+	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+	program_scope->set_insert_point_to_init_module_vars_function(
+			status,
+			builder,
+			var_decl.token.text);
+
+	if (var_decl.initializer) {
 		/* we have an initializer */
-		init_var = obj.initializer->resolve_expression(status, builder,
+		init_var = var_decl.initializer->resolve_expression(status, builder,
 				scope, life, false /*as_ref*/);
 	}
 
@@ -297,8 +305,8 @@ bound_var_t::ref generate_module_variable(
 				lhs_type = declared_type->rebind(unification.bindings);
 			} else {
 				/* report that the variable type does not match the initializer type */
-				user_error(status, obj, "declared type of `" c_var("%s") "` does not match type of initializer",
-						obj.token.text.c_str());
+				user_error(status, var_decl, "declared type of `" c_var("%s") "` does not match type of initializer",
+						var_decl.token.text.c_str());
 				user_message(log_info, status, init_var->get_location(), c_type("%s") " != " c_type("%s"),
 						declared_type->str().c_str(),
 						init_var->type->str().c_str());
@@ -322,7 +330,7 @@ bound_var_t::ref generate_module_variable(
 			} else if (bound_type->get_llvm_specific_type()->isIntegerTy()) {
 				llvm_constant = llvm::ConstantInt::get(bound_type->get_llvm_specific_type(), 0, false);
 			} else {
-				user_error(status, obj, "unsupported type for module variable %s",
+				user_error(status, var_decl, "unsupported type for module variable %s",
 						bound_type->str().c_str());
 			}
 
@@ -340,12 +348,12 @@ bound_var_t::ref generate_module_variable(
 							builder,
 							scope->get_module_scope(),
 							"__init__",
-							obj.get_location(),
+							var_decl.get_location(),
 							type_args({}, {}),
 							declared_type);
 
 					if (!!status) {
-						init_var = make_call_value(status, builder, obj.get_location(), scope,
+						init_var = make_call_value(status, builder, var_decl.get_location(), scope,
 								life, init_fn, {} /*arguments*/);
 					}
 				}
@@ -367,7 +375,7 @@ bound_var_t::ref generate_module_variable(
 									bound_type->get_llvm_specific_type()),
 								llvm_global_variable);
 					} else {
-						user_error(status, obj, "module var " c_id("%s") " missing initializer",
+						user_error(status, var_decl, "module var " c_id("%s") " missing initializer",
 								symbol.c_str());
 					}
 				}
@@ -379,7 +387,7 @@ bound_var_t::ref generate_module_variable(
 					auto bound_global_type = upsert_bound_type(status, builder, scope, type_ref(bound_type->get_type()));
 					if (!!status) {
 						bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
-								bound_global_type, llvm_global_variable, make_code_id(obj.token));
+								bound_global_type, llvm_global_variable, make_code_id(var_decl.token));
 
 						/* on our way out, stash the variable in the current scope */
 						scope->get_module_scope()->put_bound_variable(status, var_decl_variable->name,
@@ -2519,13 +2527,12 @@ void type_check_module_vars(
 		const ast::module_t &obj,
 		scope_t::ref program_scope)
 {
+	/* get module level scope variable */
+	module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
 	if (!!status) {
 		INDENT(3, string_format("resolving module vars in " c_module("%s"),
 					obj.module_key.c_str()));
 
-
-		/* get module level scope variable */
-		module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
 		auto function_scope = module_scope->new_function_scope("__init_module_vars");
 		assert(llvm_get_function(builder) != nullptr);
 
@@ -2594,61 +2601,70 @@ void type_check_module_types(
 	}
 }
 
+void type_check_program_variable(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		program_scope_t::ref program_scope,
+		unchecked_var_t::ref unchecked_var)
+{
+	debug_above(5, log(log_info, "checking whether to check %s",
+				unchecked_var->str().c_str()));
+
+	auto node = unchecked_var->node;
+	if (!unchecked_var->module_scope->has_checked(node)) {
+		/* prevent recurring checks */
+		debug_above(4, log(log_info, "checking module level variable %s",
+					node->token.str().c_str()));
+		if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
+			// TODO: decide whether we need treatment here
+			status_t local_status;
+			if (is_function_defn_generic(local_status, builder,
+						unchecked_var->module_scope, *function_defn))
+			{
+				/* this is a generic function, or we've already checked
+				 * it so let's skip checking it */
+				status |= local_status;
+				return;
+			}
+		}
+
+		if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
+			if (getenv("MAIN_ONLY") != nullptr && node->token.text != "__main__") {
+				debug_above(8, log(log_info, "skipping %s because it's not '__main__'",
+							node->str().c_str()));
+				return;
+			}
+		}
+
+		if (auto stmt = dyncast<const ast::statement_t>(node)) {
+			status_t local_status;
+			stmt->resolve_statement(
+					local_status, builder, unchecked_var->module_scope,
+					nullptr, nullptr, nullptr);
+			status |= local_status;
+		} else if (auto data_ctor = dyncast<const ast::type_product_t>(node)) {
+			/* ignore until instantiation at a callsite */
+		} else {
+			panic("unhandled unchecked node at module scope");
+		}
+	} else {
+		debug_above(3, log(log_info, "skipping %s because it's already been checked", node->token.str().c_str()));
+	}
+}
 
 void type_check_program_variables(
 		status_t &status,
-        compiler_t &compiler,
         llvm::IRBuilder<> &builder,
         program_scope_t::ref program_scope)
 {
 	INDENT(2, string_format("resolving variables in program"));
 
 	auto unchecked_vars_ordered = program_scope->get_unchecked_vars_ordered();
-    for (auto unchecked_var : unchecked_vars_ordered) {
-		debug_above(5, log(log_info, "checking whether to check %s",
-					unchecked_var->str().c_str()));
-
-		auto node = unchecked_var->node;
-		if (!unchecked_var->module_scope->has_checked(node)) {
-			/* prevent recurring checks */
-			debug_above(4, log(log_info, "checking module level variable %s",
-					   	node->token.str().c_str()));
-			if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
-				// TODO: decide whether we need treatment here
-				status_t local_status;
-				if (is_function_defn_generic(local_status, builder,
-							unchecked_var->module_scope, *function_defn))
-			   	{
-					/* this is a generic function, or we've already checked
-					 * it so let's skip checking it */
-					status |= local_status;
-					continue;
-				}
-			}
-
-			if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
-				if (getenv("MAIN_ONLY") != nullptr && node->token.text != "__main__") {
-					debug_above(8, log(log_info, "skipping %s because it's not '__main__'",
-								node->str().c_str()));
-					continue;
-				}
-			}
-
-			status_t local_status;
-			if (auto stmt = dyncast<const ast::statement_t>(node)) {
-				stmt->resolve_statement(
-						local_status, builder, unchecked_var->module_scope,
-						nullptr, nullptr, nullptr);
-				status |= local_status;
-			} else if (auto data_ctor = dyncast<const ast::type_product_t>(node)) {
-				/* ignore until instantiation at a callsite */
-			} else {
-				panic("unhandled unchecked node at module scope");
-			}
-		} else {
-			debug_above(3, log(log_info, "skipping %s because it's already been checked", node->token.str().c_str()));
-		}
-    }
+	for (auto unchecked_var : unchecked_vars_ordered) {
+		status_t local_status;
+		type_check_program_variable(status, builder, program_scope, unchecked_var);
+		status |= local_status;
+	}
 }
 
 void type_check_all_module_var_slots(
@@ -2658,29 +2674,8 @@ void type_check_all_module_var_slots(
 		const ast::program_t &obj,
 		program_scope_t::ref program_scope)
 {
-	/* build the global __init_module_vars function */
-	if (!!status) {
-		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-		bound_var_t::ref bound_fn_init_module_vars = llvm_start_function(
-				status,
-				builder, 
-				program_scope,
-				static_cast<const ast::item_t&>(obj).shared_from_this(),
-				{},
-				program_scope->get_bound_type({"void"}),
-				"__init_module_vars");
-
-		if (!!status) {
-			program_scope->put_bound_variable(status, "__init_module_vars", bound_fn_init_module_vars);
-
-			if (!!status) {
-				for (auto &module : obj.modules) {
-					type_check_module_vars(status, compiler, builder, *module, program_scope);
-				}
-
-				builder.CreateRetVoid();
-			}
-		}
+	for (auto &module : obj.modules) {
+		type_check_module_vars(status, compiler, builder, *module, program_scope);
 	}
 }
 
@@ -2747,20 +2742,20 @@ void type_check_program(
 		for (auto &module : obj.modules) {
 			type_check_module_links(status, compiler, builder, *module, program_scope);
 		}
+	}
 
-		if (!!status) {
-			/* pass to resolve all module-level vars */
-			type_check_all_module_var_slots(status, compiler, builder, obj, program_scope);
+	if (!!status) {
+		/* pass to resolve all module-level vars */
+		type_check_all_module_var_slots(status, compiler, builder, obj, program_scope);
+	}
 
-			if (!!status) {
-				assert(compiler.main_module != nullptr);
+	if (!!status) {
+		assert(compiler.main_module != nullptr);
 
-				/* pass to resolve all main module-level variables.  technically we only
-				 * need to check the primary module, since that is the one that is expected
-				 * to have the entry point ... at least for now... */
-				type_check_program_variables(status, compiler, builder, program_scope);
-			}
-		}
+		/* pass to resolve all main module-level variables.  technically we only
+		 * need to check the primary module, since that is the one that is expected
+		 * to have the entry point ... at least for now... */
+		type_check_program_variables(status, builder, program_scope);
 	}
 }
 

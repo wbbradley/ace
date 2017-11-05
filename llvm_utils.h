@@ -109,7 +109,7 @@ bound_var_t::ref llvm_start_function(
 		status_t &status,
 		llvm::IRBuilder<> &builder, 
 		scope_t::ref scope,
-		const ptr<const ast::item_t> &node,
+		location_t location,
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
 		atom name);

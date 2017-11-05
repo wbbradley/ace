@@ -560,8 +560,54 @@ unchecked_type_t::refs &module_scope_impl_t::get_unchecked_types_ordered() {
 	return unchecked_types_ordered;
 }
 
+bound_var_t::ref program_scope_t::upsert_init_module_vars_function(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder)
+{
+	if (init_module_vars_function != nullptr) {
+		return init_module_vars_function;
+	}
+
+	/* build the global __init_module_vars function */
+	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+	bound_var_t::ref bound_fn_init_module_vars = llvm_start_function(
+			status,
+			builder, 
+			shared_from_this(),
+			INTERNAL_LOC(),
+			{},
+			get_bound_type({"void"}),
+			"__init_module_vars");
+
+	if (!!status) {
+		builder.CreateRetVoid();
+
+		put_bound_variable(status, "__init_module_vars", bound_fn_init_module_vars);
+
+		if (!!status) {
+			return bound_fn_init_module_vars;
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 std::string program_scope_t::make_fqn(std::string name) const {
 	return name;
+}
+
+void program_scope_t::set_insert_point_to_init_module_vars_function(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	std::string for_var_decl_name)
+{
+	auto fn = upsert_init_module_vars_function(status, builder);
+	llvm::Function *llvm_function = llvm::dyn_cast<llvm::Function>(fn->get_llvm_value());
+	assert(llvm_function != nullptr);
+
+	builder.SetInsertPoint(&llvm_function->getEntryBlock(),
+			llvm_function->getEntryBlock().getFirstInsertionPt());
 }
 
 unchecked_var_t::refs &program_scope_t::get_unchecked_vars_ordered() {

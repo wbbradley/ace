@@ -677,7 +677,7 @@ llvm::Type *llvm_deref_type(llvm::Type *llvm_type) {
 bound_var_t::ref llvm_start_function(status_t &status,
 		llvm::IRBuilder<> &builder, 
 		scope_t::ref scope,
-		const ast::item_t::ref &node,
+		location_t location,
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
 		atom name)
@@ -691,7 +691,7 @@ bound_var_t::ref llvm_start_function(status_t &status,
 			/* create the bound type for the ctor function */
 			auto function_type = bound_type_t::create(
 						get_function_type(args, data_type),
-						node->token.location,
+						location,
 						llvm_fn_type);
 
 			/* now let's generate our actual data ctor fn */
@@ -706,7 +706,7 @@ bound_var_t::ref llvm_start_function(status_t &status,
 			/* create the actual bound variable for the fn */
 			bound_var_t::ref function = bound_var_t::create(
 					INTERNAL_LOC(), name,
-					function_type, llvm_function, make_code_id(node->token));
+					function_type, llvm_function, make_iid_impl(name, location));
 
 			/* start emitting code into the new function. caller should have an
 			 * insert point guard */

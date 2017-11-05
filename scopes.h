@@ -244,6 +244,9 @@ struct program_scope_t : public module_scope_impl_t {
 
 	static program_scope_t::ref create(atom name, compiler_t &compiler, llvm::Module *llvm_module);
 
+	bound_var_t::ref upsert_init_module_vars_function(status_t &status, llvm::IRBuilder<> &builder);
+	void set_insert_point_to_init_module_vars_function(status_t &status, llvm::IRBuilder<> &builder, std::string for_var_decl_name);
+
 	virtual void get_callables(atom symbol, var_t::refs &fns);
 	llvm::Type *get_llvm_type(status_t &status, location_t location, std::string type_name);
 	llvm::Function *get_llvm_function(status_t &status, location_t location, std::string function_name);
@@ -270,6 +273,10 @@ private:
 	module_scope_t::map modules;
 	bound_type_t::map bound_types;
 	std::map<types::signature, types::signature> bound_type_mappings;
+
+	/* track the module var initialization function */
+	bound_var_t::ref init_module_vars_function;
+	unchecked_var_t::refs initialized_module_vars;
 
 	/* let code look at the ordered list for iteration purposes */
 	unchecked_var_t::refs unchecked_vars_ordered;

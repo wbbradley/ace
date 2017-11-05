@@ -1128,7 +1128,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 			/* save and later restore the current branch insertion point */
 			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
-			auto function = llvm_start_function(status, builder, scope, node,
+			auto function = llvm_start_function(status, builder, scope, node->get_location(),
 					args, data_type, name);
 
 			life_t::ref life = make_ptr<life_t>(status, lf_function);

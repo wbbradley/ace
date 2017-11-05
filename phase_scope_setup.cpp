@@ -43,24 +43,18 @@ unchecked_var_t::ref scope_setup_module_symbol(
 	auto unchecked_var = unchecked_var_t::create(id, obj.shared_from_this(), module_scope);
 	if (id && !!id->get_name()) {
 		if (extends_module) {
-			if (!!extends_module) {
-				auto name = extends_module->get_name();
-				if (name == GLOBAL_SCOPE_NAME) {
-					return program_scope->put_unchecked_variable(id->get_name(), unchecked_var);
-				} else {
-					module_scope = program_scope->lookup_module(name);
-					if (module_scope != nullptr) {
-						return module_scope->put_unchecked_variable(id->get_name(), unchecked_var);
-					} else {
-						scope_setup_error(status, obj, "could not find module " c_module("%s") " to extend with " c_id("%s"),
-								name.c_str(),
-								id->get_name().c_str());
-					}
-				}
+			auto name = extends_module->get_name();
+			if (name == GLOBAL_SCOPE_NAME) {
+				return program_scope->put_unchecked_variable(id->get_name(), unchecked_var);
 			} else {
-				scope_setup_error(status, extends_module->get_location(),
-					   	"found an unspecified module extension");
-				return nullptr;
+				module_scope = program_scope->lookup_module(name);
+				if (module_scope != nullptr) {
+					return module_scope->put_unchecked_variable(id->get_name(), unchecked_var);
+				} else {
+					scope_setup_error(status, obj, "could not find module " c_module("%s") " to extend with " c_id("%s"),
+							name.c_str(),
+							id->get_name().c_str());
+				}
 			}
 		} else {
 			return module_scope->put_unchecked_variable(
