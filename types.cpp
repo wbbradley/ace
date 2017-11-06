@@ -911,6 +911,7 @@ types::type_ptr_t::ref type_ptr(types::type_t::ref raw) {
 }
 
 types::type_t::ref type_ref(types::type_t::ref raw) {
+	assert(!dyncast<const types::type_ref_t>(raw));
 	return make_ptr<types::type_ref_t>(raw);
 }
 

@@ -17,8 +17,6 @@ extern const char *GLOBAL_ID;
 struct scope_t;
 
 enum resolution_constraints_t {
-	rc_all_scopes,
-	rc_just_current_scope,
 	rc_capture_level,
 };
 
@@ -43,7 +41,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual ptr<scope_t> get_parent_scope() = 0;
 	virtual ptr<const scope_t> get_parent_scope() const = 0;
 	virtual void dump(std::ostream &os) const = 0;
-	virtual bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints) = 0;
+	virtual bool symbol_exists_in_running_scope(atom symbol, bound_var_t::ref &bound_var) = 0;
 
 	virtual bound_var_t::ref get_bound_variable(status_t &status, location_t location, atom symbol, bool search_parents=true) = 0;
 	virtual void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable) = 0;
@@ -92,7 +90,7 @@ struct scope_impl_t : public BASE {
 	types::type_t::map get_type_variable_bindings() const;
 	std::string str();
 	void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable);
-	bool has_bound_variable(atom symbol, resolution_constraints_t resolution_constraints);
+	virtual bool symbol_exists_in_running_scope(atom symbol, bound_var_t::ref &bound_var);
 	bound_var_t::ref get_singleton(atom name);
 	bound_var_t::ref get_bound_variable(status_t &status, location_t location, atom symbol, bool search_parents=true);
 	std::string make_fqn(std::string leaf_name) const;
@@ -472,30 +470,22 @@ void scope_impl_t<T>::put_bound_variable(
 }
 
 template <typename T>
-bool scope_impl_t<T>::has_bound_variable(
+bool scope_impl_t<T>::symbol_exists_in_running_scope(
 		atom symbol,
-		resolution_constraints_t resolution_constraints)
+		bound_var_t::ref &bound_var)
 {
 	auto iter = bound_vars.find(symbol);
 	if (iter != bound_vars.end()) {
 		/* we found this symbol */
+		bound_var = iter->second.begin()->second;
 		return true;
 	} else if (auto parent_scope = this->get_parent_scope()) {
 		/* we did not find the symbol, let's consider looking higher up the
 		 * scopes */
-		switch (resolution_constraints) {
-		case rc_all_scopes:
-			return parent_scope->has_bound_variable(symbol,
-					resolution_constraints);
-		case rc_just_current_scope:
+		if (dynamic_cast<const function_scope_t *>(this)) {
 			return false;
-		case rc_capture_level:
-			if (dynamic_cast<const function_scope_t *>(this)) {
-				return false;
-			} else {
-				return parent_scope->has_bound_variable(symbol,
-						resolution_constraints);
-			}
+		} else {
+			return parent_scope->symbol_exists_in_running_scope(symbol, bound_var);
 		}
 	} else {
 		/* we're at the top and we still didn't find it, quit. */

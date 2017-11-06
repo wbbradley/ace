@@ -246,21 +246,23 @@ bound_type_t::ref create_bound_managed_type(
 	/* get the pointer type to this, if it exists, get the opaque struct
 	 * pointer that it had created. fill it out. if it doesn't exist,
 	 * create it, then extract this tuple type from that. */
-	types::type_t::ref managed_ptr_type = type_ptr(managed_type);
-	bound_type_t::ref bound_ref_type = upsert_bound_type(status, builder, scope, managed_ptr_type);
+	types::type_ptr_t::ref managed_ptr_type = type_ptr(managed_type);
+	bound_type_t::ref bound_ptr_type = scope->get_bound_type(managed_ptr_type->get_signature());
+
+	if (bound_ptr_type == nullptr) {
+		bound_ptr_type = create_ptr_type(builder, managed_ptr_type);
+		program_scope->put_bound_type(status, bound_ptr_type);
+	}
 
 	debug_above(5, log(log_info,
 			"checking whether %s is bound",
 		managed_type->str().c_str()));	
 
-	if (auto bound_type = scope->get_bound_type(managed_type->get_signature())) {
-		/* while instantiating our pointer type, we also instantiated this */
-		return bound_type;
-	}
+	assert(!scope->get_bound_type(managed_type->get_signature()));
 
-	if (bound_ref_type != nullptr) {
+	if (bound_ptr_type != nullptr) {
 		/* fetch the previously created pointer to this type */
-		llvm::PointerType *llvm_pointer_type = llvm::cast<llvm::PointerType>(bound_ref_type->get_llvm_specific_type());
+		llvm::PointerType *llvm_pointer_type = llvm::cast<llvm::PointerType>(bound_ptr_type->get_llvm_specific_type());
 		assert(llvm_pointer_type != nullptr);
 
 		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_pointer_type->getElementType());
@@ -430,6 +432,19 @@ bound_type_t::ref bind_expansion(
 	auto expansion_bound_type = upsert_bound_type(status, builder, scope, expansion);
 
 	if (!!status) {
+		llvm::StructType *llvm_struct_type = llvm_find_struct(
+				expansion_bound_type->get_llvm_specific_type());
+		if (llvm_struct_type != nullptr) {
+			std::string old_name = llvm_struct_type->getName().str();
+			if (old_name.substr(0, 2) != "z.") {
+				std::string new_name = std::string("z.") + unexpanded->repr(scope->get_typename_env()).str();
+				debug_above(6, log("changing name of LLVM struct from %s to %s",
+							old_name.c_str(),
+							new_name.c_str()));
+				llvm_struct_type->setName(new_name);
+			}
+		}
+
 		/* let's finally create the official bound type for this operator */
 		auto bound_type = bound_type_t::create(
 				unexpanded,

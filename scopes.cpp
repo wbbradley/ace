@@ -48,7 +48,7 @@ bound_var_t::ref get_bound_variable_from_scope(
 		return parent_scope->get_bound_variable(status, location, symbol);
 	}
 
-	debug_above(3, log(log_info,
+	debug_above(6, log(log_info,
 			   	"no bound variable found when looking for " c_id("%s") " in " c_id("%s"), 
 				symbol.c_str(),
 				scope_name.c_str()));

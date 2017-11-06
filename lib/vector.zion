@@ -11,7 +11,10 @@ type vector{T} link vector_t __vector_free__ __vector_mark__
 
 [module std]
 def __init__() vector{any T}
-	return runtime.create_var(typeinfo(vector{any T})) as vector{any T}
+	typeinfo := typeinfo(vector{any T})
+	v := runtime.create_var(typeinfo)
+	vec := v as vector{any T}
+	return vec
 		
 def __finalize__(v vector{any T})
 	__vectorfree__(v as *var_t)

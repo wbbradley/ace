@@ -417,7 +417,7 @@ llvm::AllocaInst *llvm_call_gcroot(
 
 	module->getOrInsertFunction("llvm.gcroot", func_type);
 
-    llvm::Value *v = builder.CreatePointerCast(
+    llvm::Value *v = builder.CreateBitCast(
             llvm_alloca, llvm::PointerType::get(
                 llvm::PointerType::get(
                     llvm::Type::getInt8Ty(context), 0),
@@ -863,9 +863,7 @@ llvm::Value *llvm_maybe_pointer_cast(
 		assert(llvm_value->getType() != llvm_type->getPointerTo());
 
 		if (llvm_type != llvm_value->getType()) {
-			return builder.CreatePointerBitCastOrAddrSpaceCast(
-					llvm_value, 
-					llvm_type);
+			return builder.CreateBitCast(llvm_value, llvm_type);
 		}
 	}
 
@@ -938,3 +936,12 @@ bound_var_t::ref get_nil_constant(
 	return nullptr;
 }
 
+llvm::StructType *llvm_find_struct(llvm::Type *llvm_type) {
+	if (auto llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_type)) {
+		return llvm_struct_type;
+	} else if (auto llvm_ptr_type = llvm::dyn_cast<llvm::PointerType>(llvm_type)) {
+		return llvm_find_struct(llvm_ptr_type->getElementType());
+	} else {
+		return nullptr;
+	}
+}

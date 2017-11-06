@@ -60,8 +60,7 @@ type type_info_mark_fn_t struct
 	# of this dimension, update DTOR_INDEX
 	var finalize_fn def (v *var_t) void
 
-	# the mark function for this type, if one exists. NB: if you change the index
-	# of this dimension, update MARK_FN_INDEX
+	# the mark function for this type.
 	var mark_fn def (v *var_t) void
 
 type tag_t struct
@@ -89,7 +88,7 @@ def get_total_allocated() __int__
 var head_var *var_t = create_var(nil as *runtime.type_info_t)
 
 def check_node_existence(node *var_t, should_exist __bool__) void
-	p := runtime.head_var
+	var p *var_t = runtime.head_var
 	assert(p.prev == nil)
 
 	if should_exist
@@ -123,7 +122,7 @@ def add_node(node *var_t) void
 
 	# assert(not head_var.next or head_var.next.prev == &head_var)
 
-	node.prev = &head_var
+	node.prev = head_var
 	node.next = head_var.next
 	if node.next != nil
 		node.next.prev = node
@@ -131,17 +130,18 @@ def add_node(node *var_t) void
 	head_var.next = node
 
 	assert(head_var.prev == nil)
-	assert(head_var.next.prev == &head_var)
+	assert(head_var.next.prev == head_var)
 	assert(node.prev.next == node)
-	assert(not node.next or node.next.prev == node)
+	if node.next == nil
+		assert(node.next.prev == node)
 
-	check_node_existence(node, 1r)
+	check_node_existence(node, __true__)
 
 def remove_node(node *var_t) void
 	# dbg_zrt(printf("removing node 0x%08llx %s\n", (long long)node, node.type_info.name))
 	assert(node.mark == 0r)
 
-	check_node_existence(node, 1r)
+	check_node_existence(node, __true__)
 
 	assert(node.prev.next == node)
 	assert(not node.next or node.next.prev == node)
@@ -152,7 +152,7 @@ def remove_node(node *var_t) void
 	node.next = 3735928559r as *var_t
 	node.prev = 3735928559r as *var_t
 
-	check_node_existence(node, 0r)
+	check_node_existence(node, __false__)
 
 def isnil(p *var_t) __bool__
 	return p == nil
