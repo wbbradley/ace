@@ -4,31 +4,24 @@
 
 Zion is a programming language. Zion prefers correctness and readability over
 performance. Zion targets scenarios where scalability is intended to happen
-horizontally, not vertically. Zion is a strict imperative exploration of immutable
-deterministically destructable strong static algebraic - optionally recursive -
-data types. Zion defaults all[0] heap data to an immutable state, where variable
-names can be repointed to other values. This is similar to how Python treats its
-basic types, `int`, `str`, `float`, `bool`, but Zion extends this treatment to
-all types.
-
-[0] Access to a C-based FFI is available, so it is possible to mutate data
-through linked in libraries.
+horizontally, not vertically. That being said, Zion tries to be fast, using static compilation to
+native host architecture as its execution model. Zion is built on LLVM.
 
 ## Tenets
 
- - Keep it simple, when possible
- - Keep it readable, when possible
+ - Keep it simple, when possible.
+ - Keep it readable, when possible.
  - Keep it stateless, when possible. Avoid mutability. Gently nudge the
    developer towards product and sum types when they are modeling stateful things.
  - The ability to express complex domain relationships with static types is
-   critical
- - Deterministic destruction is good
+   critical.
+ - Provide a mechanism for deterministic destruction.
  - Serialization and marshalling in general must be foremost in both the syntax
-   and the runtime
- - Compile down to a copyable binary
- - No preprocessor
+   and the runtime.
+ - Compile down to a copyable binary.
+ - No preprocessor.
  - In-proc parallelism is a non-goal, scaling is intended to happen at a higher
-   level
+   level. (Maybe, TBD.)
  - Heavy compute problems are a non-goal, solve those problems at a lower level,
    and use the FFI, or RPC to access those libraries/components. Generally
    performance optimization is treated as an unwelcome afterthought. Favor
@@ -54,15 +47,12 @@ def fib(n int) int
 	return fib(n-1) + fib(n-2)
 ```
 
-Zion contains elements from ML's type system. Zion is strict, not lazy. It is
-compiled down to machine code using LLVM. Memory is managed using an extremely
-simplistic reference counting scheme. Because all data is immutable, cycles
-are impossible. This eliminates the need for generational mark and sweep or
-"stop the world" garbage collection. Reference counting is deterministic.
+Zion contains elements from ML's type system. Zion is strict, not lazy.  Memory is managed using
+garbage collection.
 
 ### TODO
 - [ ] discuss function overrides.
-- [ ] discuss callsite context types.
+- [ ] discuss namespaces.
 - [ ] discuss future plans for safe dynamic dispatch.
 - [ ] discuss the std library layout.
 
@@ -133,8 +123,8 @@ etc...
 Some examples of standard types are:
 ```
 type bool is
-	true or
-	false
+	True or
+	False
 
 # The squiggly braces are "type variables", they are not bound to the type until
 # an instance of the type is created by calling its implicit constructor. If the
@@ -159,20 +149,17 @@ non-unified type terms, they will be substituted with the "unreachable" type
 ### TODO
 
 - [ ] 'for' syntax - based on `tests/test_list_iter.zion` pattern
-- [ ] vectors
+- [x] vectors
 - [ ] 'with' syntax - deterministic destruction
 - [ ] C style explicit allocation/free - this requires some explicit memory management affordances, such as `with` syntax to get deterministic destruction.
 - [ ] consider overloading += operator semantics for lists (or contemplate other syntax for making stack variable mutation more seamless)
 - [x] Ternary operator
-- [ ] Logical and/or (build with ternary operator)
+- [x] Logical and/or (build with ternary operator)
 - [ ] fully implement binary as! -> T, as -> maybe{T}
 - [ ] Builtin persistent data structures
-  - [ ] vectors
+  - [x] vectors
   - [ ] hash map - looking into hash array map tries
   - [ ] binary tree
   - [ ] avl tree
 - [ ] Use DIBuilder to add line-level debugging information
-- [ ] make tuples' runtime types typecheck consistently against rtti for other
-		structurally equivalent data ctor types. probably have to put up some
-		guardrails somehow
 - [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
