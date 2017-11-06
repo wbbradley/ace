@@ -175,9 +175,11 @@ unification_t unify(
 			if (ptp_a->get_pk() != ptp_b->get_pk()) {
 				return {
 					false,
-					string_format("product kinds are different %s <> %s",
+					string_format("product kinds are different %s <> %s (%s != %s)",
 							pkstr(ptp_a->get_pk()),
-							pkstr(ptp_b->get_pk())),
+							pkstr(ptp_b->get_pk()),
+							ptp_a->str().c_str(),
+							ptp_b->str().c_str()),
 					bindings};
 			}
 			auto a_dimensions = ptp_a->get_dimensions();
@@ -338,7 +340,7 @@ unification_t unify(
 		if (ptr_b != nullptr) {
 			debug_above(7, log("matching ptr types"));
 			return unify(ptr_a->element_type, ptr_b->element_type, env, bindings, depth + 1);
-		} else if (b->is_nil()) {
+		} else if (false && b->is_nil()) {
 			return {true, "", bindings};
 		} else {
 			return {

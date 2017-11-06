@@ -3888,6 +3888,20 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
     scope_t::ref program_scope = scope->get_program_scope();
 
     switch (token.tk) {
+	case tk_identifier:
+		{
+			auto nil_type = program_scope->get_bound_type({"nil"});
+			auto bound_type = bound_type_t::create(
+					type_nil(),
+					token.location,
+					nil_type->get_llvm_type(),
+					nil_type->get_llvm_specific_type());
+			return bound_var_t::create(
+					INTERNAL_LOC(), "nil", bound_type,
+					llvm_create_int(builder, 0),
+					make_code_id(token));
+		}
+		break;
 	case tk_raw_integer:
         {
 			/* create a native integer */

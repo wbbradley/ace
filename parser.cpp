@@ -27,7 +27,7 @@ using namespace ast;
 		if (ps.token.tk != _tk) { \
 			ps.error("expected '%s', got '%s'", \
 				   	tkstr(_tk), tkstr(ps.token.tk)); \
-			/* dbg(); */ \
+			dbg(); \
 			return fail_code; \
 		} \
 	} while (0)
@@ -41,6 +41,7 @@ using namespace ast;
 		if (ps.token.text != token_text) { \
 			ps.error("expected '%s', got '%s'", \
 					token_text, ps.token.text.c_str()); \
+			dbg(); \
 			return fail_code; \
 		} \
 	} while (0)
@@ -248,6 +249,11 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 
 ptr<expression_t> reference_expr_t::parse(parse_state_t &ps) {
 	if (ps.token.tk == tk_identifier) {
+		if (ps.token.text == "nil") {
+			auto token = ps.token;
+			ps.advance();
+			return create<ast::literal_expr_t>(token);
+		}
 		auto reference_expr = create<ast::reference_expr_t>(ps.token);
 		ps.advance();
 		return std::move(reference_expr);

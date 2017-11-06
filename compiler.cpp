@@ -311,9 +311,9 @@ void add_global_types(
 	std::vector<std::pair<atom, bound_type_t::ref>> globals = {
 		{{"nil"},
 			bound_type_t::create(
-					type_id(make_iid("nil")),
+					type_nil(),
 					INTERNAL_LOC(),
-					builder.getVoidTy()->getPointerTo())},
+					builder.getInt64Ty())},
 		{{"void"},
 			bound_type_t::create(
 					type_id(make_iid("void")),
@@ -435,15 +435,6 @@ void add_globals(
 
 	program_scope->put_bound_variable(status, "__false__", bound_var_t::create(INTERNAL_LOC(), "__false__", bool_type, builder.getInt64(0/*false*/), make_iid("__false__")));
 	assert(!!status);
-
-	program_scope->put_bound_variable(status, 
-			{"nil"},
-			bound_var_t::create(
-				INTERNAL_LOC(),
-				{"nil"},
-				nil_type,
-				llvm::Constant::getNullValue(nil_type->get_llvm_specific_type()),
-				make_iid("nil")));
 
 	if (!!status) {
 		struct binding_t {

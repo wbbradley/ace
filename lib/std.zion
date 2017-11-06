@@ -10,12 +10,15 @@ link module main
 # initialization of modules is automatically generated.
 # link def __init_modules() void
 
-tag false
-tag true
+tag False
+tag True
 
 type bool is
-	true or
-	false
+	True or
+	False
+
+var true = 1r as __bool__
+var false = 0r as __bool__
 
 type TypeID has
 	var id __typeid__
@@ -31,16 +34,22 @@ def assert(condition any)
 def typeid(t any) TypeID
 	return TypeID(__get_typeid__(t))
 
-def __ineq__(x TypeID, y TypeID) bool
-	return bool(x.id != y.id)
+def __ineq__(x TypeID, y TypeID) __bool__
+	return x.id != y.id
+
+def __bool__(t True) __bool__
+	return 1r as __bool__
+
+def __bool__(f False) __bool__
+	return 0r as __bool__
 
 def __bool__(b bool) __bool__
-	return __get_typeid__(b) == __get_typeid__(true)
+	return __get_typeid__(b) == __get_typeid__(True)
 
 def __bool__(x int) __bool__
 	return __bool__(x != 0)
 
-def __not__(b bool) bool
+def __not__(b bool) __bool__
 	return bool(__get_typeid__(b) != __get_typeid__(true))
 
 def __not__(x int) bool
@@ -188,6 +197,9 @@ def __eq__(x *any, y nil) __bool__
 def __eq__(y nil, x *any) __bool__
 	return __is_nil__(x)
 
+def __eq__(x *any T, y *any T) __bool__
+	return x as __int__ == y as __int__
+
 def __eq__(x int, y int) bool
 	return bool(x.raw == y.raw)
 
@@ -203,8 +215,8 @@ def __eq__(x float, y float) bool
 def __eq__(x str, y str) bool
 	return bool(x.raw == y.raw)
 
-def __ineq__(x str, y str) bool
-	return bool(x.raw == y.raw)
+def __ineq__(x str, y str) __bool__
+	return x.raw == y.raw
 
 def __ineq__(x *any, y nil) __bool__
 	# TODO: optimize
@@ -214,65 +226,68 @@ def __ineq__(y nil, x *any) __bool__
 	# TODO: optimize
 	return __is_non_nil__(x)
 
-def __ineq__(x int, y int) bool
-	return bool(x.raw != y.raw)
+def __ineq__(x *any T, y *any T) __bool__
+	return x as __int__ != y as __int__
 
-def __ineq__(x int, y float) bool
-	return bool(__float__(x.raw) != y.raw)
+def __ineq__(x int, y int) __bool__
+	return x.raw != y.raw
 
-def __ineq__(x float, y int) bool
-	return bool(x.raw != __float__(y.raw))
+def __ineq__(x int, y float) __bool__
+	return __float__(x.raw) != y.raw
 
-def __ineq__(x float, y float) bool
-	return bool(x.raw != y.raw)
+def __ineq__(x float, y int) __bool__
+	return x.raw != __float__(y.raw)
 
-def __lt__(x int, y int) bool
-	return bool(x.raw < y.raw)
+def __ineq__(x float, y float) __bool__
+	return x.raw != y.raw
 
-def __lte__(x int, y int) bool
-	return bool(x.raw <= y.raw)
+def __lt__(x int, y int) __bool__
+	return x.raw < y.raw
 
-def __gt__(x int, y int) bool
-	return bool(x.raw > y.raw)
+def __lte__(x int, y int) __bool__
+	return x.raw <= y.raw
 
-def __gte__(x int, y int) bool
-	return bool(x.raw >= y.raw)
+def __gt__(x int, y int) __bool__
+	return x.raw > y.raw
 
-def __lt__(x int, y float) bool
-	return bool(__float__(x.raw) < y.raw)
+def __gte__(x int, y int) __bool__
+	return x.raw >= y.raw
 
-def __lte__(x int, y float) bool
-	return bool(__float__(x.raw) <= y.raw)
+def __lt__(x int, y float) __bool__
+	return __float__(x.raw) < y.raw
 
-def __gt__(x int, y float) bool
-	return bool(__float__(x.raw) > y.raw)
+def __lte__(x int, y float) __bool__
+	return __float__(x.raw) <= y.raw
 
-def __gte__(x int, y float) bool
-	return bool(__float__(x.raw) >= y.raw)
+def __gt__(x int, y float) __bool__
+	return __float__(x.raw) > y.raw
 
-def __lt__(x float, y int) bool
-	return bool(x.raw < __float__(y.raw))
+def __gte__(x int, y float) __bool__
+	return __float__(x.raw) >= y.raw
 
-def __lte__(x float, y int) bool
-	return bool(x.raw < __float__(y.raw))
+def __lt__(x float, y int) __bool__
+	return x.raw < __float__(y.raw)
 
-def __gt__(x float, y int) bool
-	return bool(x.raw > __float__(y.raw))
+def __lte__(x float, y int) __bool__
+	return x.raw < __float__(y.raw)
 
-def __lt__(x float, y float) bool
-	return bool(x.raw < y.raw)
+def __gt__(x float, y int) __bool__
+	return x.raw > __float__(y.raw)
 
-def __gt__(x float, y float) bool
-	return bool(x.raw > y.raw)
+def __lt__(x float, y float) __bool__
+	return x.raw < y.raw
 
-def __lte__(x float, y float) bool
-	return bool(x.raw <= y.raw)
+def __gt__(x float, y float) __bool__
+	return x.raw > y.raw
 
-def __gte__(x float, y float) bool
-	return bool(x.raw >= y.raw)
+def __lte__(x float, y float) __bool__
+	return x.raw <= y.raw
 
-def __gte__(x float, y int) bool
-	return bool(x.raw >= __float__(y.raw))
+def __gte__(x float, y float) __bool__
+	return x.raw >= y.raw
+
+def __gte__(x float, y int) __bool__
+	return x.raw >= __float__(y.raw)
 
 def print(x any) void
 	posix.puts(str(x).raw)

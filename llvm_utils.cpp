@@ -919,6 +919,7 @@ bound_var_t::ref get_nil_constant(
 		location_t location,
 		types::type_t::ref type)
 {
+	assert(false && "probably we should delete this, since nil requires special treatment... or fix it...");
 	if (!types::is_ptr(type, scope->get_typename_env())) {
 		user_error(status, location, c_id("nil") " is not defined for non-pointer types");
 	}
