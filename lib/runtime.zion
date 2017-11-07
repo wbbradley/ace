@@ -79,7 +79,7 @@ def mem_alloc(cb __int__) *void
 
 def mem_free(p *void, cb __int__) void
 	_bytes_allocated -= cb
-	posix.free(p)
+	posix.free(p as __bytes)
 	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
 
 def get_total_allocated() __int__

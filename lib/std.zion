@@ -203,19 +203,19 @@ def __eq__(y nil, x *any) __bool__
 def __eq__(x *any T, y *any T) __bool__
 	return x as __int__ == y as __int__
 
-def __eq__(x int, y int) bool
-	return bool(x.raw == y.raw)
+def __eq__(x int, y int) __bool__
+	return x.raw == y.raw
 
-def __eq__(x int, y float) bool
-	return bool(__float__(x.raw) == y.raw)
+def __eq__(x int, y float) __bool__
+	return __float__(x.raw) == y.raw
 
-def __eq__(x float, y int) bool
-	return bool(x.raw == __float__(y.raw))
+def __eq__(x float, y int) __bool__
+	return x.raw == __float__(y.raw)
 
-def __eq__(x float, y float) bool
-	return bool(x.raw == y.raw)
+def __eq__(x float, y float) __bool__
+	return x.raw == y.raw
 
-def __eq__(x str, y str) bool
+def __eq__(x str, y str) __bool__
 	return bool(x.raw == y.raw)
 
 def __ineq__(x str, y str) __bool__
