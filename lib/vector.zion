@@ -17,19 +17,21 @@ def __init__() vector{any T}
 	return vec
 		
 def __finalize__(v vector{any T})
-	__vectorfree__(v as *var_t)
+	__vectorfree__(v as *runtime.var_t)
 
+[module std]
 def __getitem__(vec [any T], index int) any T
-	return __vectorgetitem__(vec as *var_t, index.raw) as any T
+	return __vectorgetitem__(vec as *runtime.var_t, index.raw) as any T
 
+[module std]
 def __setitem__(vec [any T], index int, t any T) void
-	return __setvectoritem__(vec as *var_t, index.raw, t as *var_t)
+	return __setvectoritem__(vec as *runtime.var_t, index.raw, t as *runtime.var_t)
 
 def append(vec [any T], t any T) void
-	__vectorappend__(vec as *var_t, t as *var_t)
+	__vectorappend__(vec as *vector_t, t as *runtime.var_t)
 
 def resize(vec [any T], size int, default any T) void
-	return __vectorresize__(vec as *var_t, size.raw, default) as! [any T]
+	return __vectorresize__(vec as *runtime.var_t, size.raw, default) as! [any T]
 
 # link def vec(TYPE, capacity int) TYPE[]
 
@@ -54,7 +56,7 @@ def __vector_free__(var_ *runtime.var_t)
 	 * object */
 
 
-def __getvectoritem__(vector *vector_t, index __int__) *var_t
+def __getvectoritem__(vector *vector_t, index __int__) *runtime.var_t
 	if index >= 0
 		if index < vector.size
 			return vector.items[index]
@@ -63,7 +65,7 @@ def __getvectoritem__(vector *vector_t, index __int__) *var_t
 	posix.exit(-1)
 	return 0r
 
-def __setvectoritem__(vector *vector_t, index __int__, item *var_t)
+def __setvectoritem__(vector *vector_t, index __int__, item *runtime.var_t)
 	if index < 0r
 		return
 
@@ -73,21 +75,21 @@ def __setvectoritem__(vector *vector_t, index __int__, item *var_t)
 		print("zion: array index out of bounds (" + (vector as __int__) + str(index) + ")")
 		posix.exit(-1)
 
-def __vectorappend__(vector *vector_t, item *var_t)
+def __vectorappend__(vector *vector_t, item *runtime.var_t)
 	if vector.reserved > vector.size
 		vector.items[vector.size] = item
 		vector.size += 1r
 	elif vector.items != nil
 		# assert(vector->reserved == vector->size)
 		new_reserved := vector.reserved * 2r
-		if new_reserved < 16
+		if new_reserved < 16r
 			/* start at a level that we avoid a lot of extra calls to malloc */
-			new_reserved = 16
+			new_reserved = 16r
 
-		new_items := posix.calloc(sizeof(*var_t), new_reserved) as **var_t
-		posix.memcpy(new_items, vector.items, sizeof(*var_t) * vector.size)
+		new_items := posix.calloc(sizeof(*runtime.var_t), new_reserved) as **runtime.var_t
+		posix.memcpy(new_items as __bytes, vector.items as __bytes, sizeof(*runtime.var_t) * vector.size)
 		new_items[vector.size] = item
 		vector.size += 1r
 
-		posix.free(vector.items)
+		posix.free(vector.items as __bytes)
 		vector.items = new_items

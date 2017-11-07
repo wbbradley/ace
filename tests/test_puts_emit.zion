@@ -6,5 +6,5 @@ link module sys
 link def gc() void
 
 def main()
-	posix.puts(sys.args[0].raw)
+	posix.puts(sys.args[0r].raw)
 	gc()

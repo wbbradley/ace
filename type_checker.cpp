@@ -1492,6 +1492,9 @@ bound_var_t::ref type_check_binary_equality(
 					false /*as_ref*/);
 
 			if (!!status) {
+				assert(!lhs_var->is_ref());
+				assert(!rhs_var->is_ref());
+
 				unification_t unification_rtl = unify(
 					lhs_var->type->get_type(),
 					rhs_var->type->get_type(),
@@ -1514,40 +1517,26 @@ bound_var_t::ref type_check_binary_equality(
 						return nullptr;
 					}
 				}
-				bool is_managed;
-				lhs_var->type->is_managed_ptr(status, builder, scope, is_managed);
 
-				if (!!status) {
-					if (is_managed) {
-#ifdef ZION_DEBUG
-						{
-							bool is_nil = rhs_var->type->get_type()->is_nil();
-							bool is_managed;
-							rhs_var->type->is_managed_ptr(status, builder, scope, is_managed);
-							assert(!!status && (is_nil || is_managed));
-						}
-#endif
-						auto program_scope = scope->get_program_scope();
-						auto llvm_var_ref_type = program_scope->get_bound_type({"__var_ref"})->get_llvm_type();
-						llvm::Value *llvm_value = negated
+				if (lhs_var->is_pointer()) {
+					auto program_scope = scope->get_program_scope();
+					// auto char_type = program_scope->get_bound_type(INT8_TYPE);
+					llvm::Type *llvm_char_ptr_type = builder.getInt8Ty()->getPointerTo(); // char_type->get_llvm_specific_type()->getPointerTo();
+					llvm::Value *llvm_value = (
+							negated
 							? builder.CreateICmpNE(
-									llvm_maybe_pointer_cast(builder, lhs_var->resolve_bound_var_value(builder), llvm_var_ref_type),
-									llvm_maybe_pointer_cast(builder, rhs_var->resolve_bound_var_value(builder), llvm_var_ref_type))
+								builder.CreateBitCast(lhs_var->get_llvm_value(), llvm_char_ptr_type),
+								builder.CreateBitCast(rhs_var->get_llvm_value(), llvm_char_ptr_type))
 							: builder.CreateICmpEQ(
-									llvm_maybe_pointer_cast(builder, lhs_var->resolve_bound_var_value(builder), llvm_var_ref_type),
-									llvm_maybe_pointer_cast(builder, rhs_var->resolve_bound_var_value(builder), llvm_var_ref_type));
+								builder.CreateBitCast(lhs_var->get_llvm_value(), llvm_char_ptr_type),
+								builder.CreateBitCast(rhs_var->get_llvm_value(), llvm_char_ptr_type)));
 
-						return bound_var_t::create(
-								INTERNAL_LOC(),
-								{"equality.cond"},
-								program_scope->get_bound_type(BOOL_TYPE),
-								llvm_value,
-								make_code_id(obj->token));
-					} else {
-						// TODO: consider enabling comparison of raw pointers?
-						user_error(status, obj->get_location(),
-								"comparing identities of native values is not yet implemented");
-					}
+					return bound_var_t::create(
+							INTERNAL_LOC(),
+							{"equality.cond"},
+							program_scope->get_bound_type(BOOL_TYPE),
+							llvm_value,
+							make_code_id(obj->token));
 				}
 			}
 		}
@@ -2629,22 +2618,15 @@ void type_check_module_vars(
 	/* get module level scope variable */
 	module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
 	if (!!status) {
-		INDENT(3, string_format("resolving module vars in " c_module("%s"),
-					obj.module_key.c_str()));
-
 		for (auto &var_decl : obj.var_decls) {
-			debug_above(6, log("instantiating module var " c_id("%s"),
-						module_scope->make_fqn(var_decl->token.text).c_str()));
-			/* track memory consumed during global construction */
-			auto life = make_ptr<life_t>(status, lf_statement);
+			INDENT(3, string_format("resolving module var " c_id("%s") " in " c_module("%s"),
+						module_scope->make_fqn(var_decl->token.text).c_str(),
+						obj.module_key.c_str()));
 
 			/* the idea here is to put this variable into module scope,
 			 * available globally, but to initialize it in the
 			 * __init_module_vars function */
 			type_check_module_var_decl(status, builder, module_scope, *var_decl);
-
-			/* clean up any memory consumed during global construction */
-			life->release_vars(status, builder, module_scope, lf_statement);
 		}
 	}
 }

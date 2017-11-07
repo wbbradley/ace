@@ -9,5 +9,5 @@ def exit(code int)
 def set_args(argc __int__, argv *__str__)
 	i := argc - 1r
 	while i >= 0r
-		append(args, __box__(argv[i]))
+		vector.append(args, __box__(argv[i]))
 		i = i - 1r

@@ -193,9 +193,9 @@ ast::module_t::ref compiler_t::build_parse(
 
 						for (auto std_type : std_types) {
 							assert(global_type_macros.find(std_type) == global_type_macros.end());
-							atom new_name = std::string(GLOBAL_SCOPE_NAME) + SCOPE_SEP + std_type;
-						//	global_type_macros.insert({std_type,
-                         //           type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
+							atom new_name = std_type;
+							global_type_macros.insert({std_type,
+									type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
 						}
 					}
 					// global_type_macros.insert({"var_t", type_id(make_iid_impl("runtime.var_t", INTERNAL_LOC()))});
