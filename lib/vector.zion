@@ -21,11 +21,11 @@ def __finalize__(v vector{any T})
 
 [module std]
 def __getitem__(vec [any T], index int) any T
-	return __getvectoritem__(vec as *runtime.var_t, index.raw) as any T
+	return __getvectoritem__(vec as *vector.vector_t, index.raw) as any T
 
 [module std]
 def __getitem__(vec [any T], index __int__) any T
-	return __getvectoritem__(vec as *runtime.var_t, index) as any T
+	return __getvectoritem__(vec as *vector.vector_t, index) as any T
 
 [module std]
 def __setitem__(vec [any T], index int, t any T) void
@@ -65,9 +65,9 @@ def __getvectoritem__(vector *vector_t, index __int__) *runtime.var_t
 		if index < vector.size
 			return vector.items[index]
 
-	print("zion: array index out of bounds (" + int(vector as __int__) + index + ")")
-	posix.exit(-1)
-	return 0r
+	print("zion: array index out of bounds (" + int(vector as __int__) + int(index) + ")")
+	posix.exit(-1r)
+	return nil as *runtime.var_t
 
 def __setvectoritem__(vector *vector_t, index __int__, item *runtime.var_t)
 	if index < 0r
@@ -76,8 +76,8 @@ def __setvectoritem__(vector *vector_t, index __int__, item *runtime.var_t)
 	if index < vector.size
 		vector.items[index] = item
 	else
-		print("zion: array index out of bounds (" + (vector as __int__) + str(index) + ")")
-		posix.exit(-1)
+		print("zion: array index out of bounds (" + int(vector as __int__) + str(index) + ")")
+		posix.exit(-1r)
 
 def __vectorappend__(vector *vector_t, item *runtime.var_t)
 	if vector.reserved > vector.size

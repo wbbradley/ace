@@ -17,8 +17,8 @@ type bool is
 	True or
 	False
 
-var true = 1r as __bool__
-var false = 0r as __bool__
+var true __bool__ = 1r as __bool__
+var false __bool__ = 0r as __bool__
 
 type TypeID has
 	var id __typeid__

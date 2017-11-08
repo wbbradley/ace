@@ -144,7 +144,7 @@ def remove_node(node *var_t) void
 	check_node_existence(node, __true__)
 
 	assert(node.prev.next == node)
-	assert(not node.next or node.next.prev == node)
+	assert(node.next == nil or node.next.prev == node)
 
 	node.prev.next = node.next
 	if node.next != nil
@@ -162,7 +162,7 @@ def get_var_type_id(v *var_t) __int32__
 		return v.type_info.type_id
 	else
 		# MEM_PANIC("attempt to get_var_type_id of a null value ", "", 116)
-		return 0r
+		return 0r as __int32__
 
 def create_var(type_info *type_info_t) *var_t
 	# allocate the variable tracking object

@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include <exception>
 #include "status.h"
 #include "logger_decls.h"
 #include "ast.h"
@@ -54,5 +55,6 @@ void user_message(log_level_t level, status_t &status, location_t location, cons
     va_end(args);
 
     status.emit_message(level, location, "%s", str.c_str());
+	// throw std::logic_error(str);
 }
 
