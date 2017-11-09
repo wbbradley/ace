@@ -116,6 +116,8 @@ namespace ast {
             scope_t::ref scope,
             life_t::ref life) const
     {
-        return initializer->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+        auto bound_var = initializer->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+		assert(!bound_var->is_ref());
+		return bound_var;
     }
 }

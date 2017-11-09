@@ -206,6 +206,15 @@ def __eq__(x *any T, y *any T) __bool__
 def __eq__(x int, y int) __bool__
 	return x.raw == y.raw
 
+def __eq__(x __int32__, y __int32__) __bool__
+	return x as __int__ == y as __int__
+
+def __eq__(x __int16__, y __int16__) __bool__
+	return x as __int__ == y as __int__
+
+def __eq__(x __int8__, y __int8__) __bool__
+	return x as __int__ == y as __int__
+
 def __eq__(x int, y float) __bool__
 	return __float__(x.raw) == y.raw
 
@@ -234,6 +243,15 @@ def __ineq__(x *any T, y *any T) __bool__
 
 def __ineq__(x int, y int) __bool__
 	return x.raw != y.raw
+
+def __ineq__(x __int32__, y __int32__) __bool__
+	return x as __int__ != y as __int__
+
+def __ineq__(x __int16__, y __int16__) __bool__
+	return x as __int__ != y as __int__
+
+def __ineq__(x __int8__, y __int8__) __bool__
+	return x as __int__ != y as __int__
 
 def __ineq__(x int, y float) __bool__
 	return __float__(x.raw) != y.raw

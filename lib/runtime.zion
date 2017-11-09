@@ -8,7 +8,7 @@ module runtime
 #   Since there is only a global list, this technique is not threadsafe.
 link var llvm_gc_root_chain *llvm_stack_entry_t
 
-var TYPE_ID_VECTOR __int32__ = __int32__(-2r)
+var TYPE_ID_VECTOR __int32__ = -2r as __int32__
 var __debug_zion_runtime __int__ = 0r
 var _zion_rt __str__ = "zion-rt: "r
 
@@ -203,11 +203,11 @@ type llvm_stack_entry_t struct
 def visit_heap_roots(heap_visit def (obj *void) void)
 	R := llvm_gc_root_chain
 	while R != nil
-		assert(R.map.num_meta == 0r)
+		assert(R.map.num_meta == 0r as __int32__)
 
 		# For roots [num_meta, num_roots), the metadata pointer is null.
 		i := 0r
-		e := R.map.num_roots
+		e := R.map.num_roots as __int__
 		while i != e
 			# we have a heap variable
 			heap_visit(R.stack_roots[i])

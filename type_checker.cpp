@@ -940,7 +940,7 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 			if (params->expressions.size() == 1) {
 				auto param = params->expressions[0];
 				bound_var_t::ref param_var = param->resolve_expression(
-						status, builder, scope, life, false /*as_ref*/);
+						status, builder, scope, life, true /*as_ref*/);
 
 				if (!!status) {
 					user_message(log_info, status, param->get_location(),
@@ -3715,6 +3715,7 @@ bound_var_t::ref ast::var_decl_t::resolve_as_link(
 	if (!!status) {
 		types::type_t::ref declared_type = get_type()->rebind(module_scope->get_type_variable_bindings());
 		bound_type_t::ref var_type = upsert_bound_type(status, builder, module_scope, declared_type);
+		bound_type_t::ref ref_var_type = upsert_bound_type(status, builder, module_scope, type_ref(declared_type));
 		llvm::Module *llvm_module = module_scope->get_llvm_module();
 		auto llvm_global_variable = new llvm::GlobalVariable(*llvm_module,
 				var_type->get_llvm_specific_type(),
@@ -3724,7 +3725,7 @@ bound_var_t::ref ast::var_decl_t::resolve_as_link(
 		return bound_var_t::create(
 				INTERNAL_LOC(),
 				token.text,
-				var_type,
+				ref_var_type,
 				llvm_global_variable,
 				make_code_id(token));
 	}

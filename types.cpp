@@ -1076,6 +1076,9 @@ types::type_t::ref eval(types::type_t::ref type, types::type_t::map env) {
 	} else if (auto sum_type = dyncast<const types::type_sum_t>(type)) {
 		/* there is no expansion of sum types */
 		return nullptr;
+	} else if (auto fn_type = dyncast<const types::type_function_t>(type)) {
+		/* there is no expansion of function types */
+		return nullptr;
 	} else if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 		/* there is no expansion of sum types */
 		auto evaled = eval(maybe_type->just, env);
