@@ -881,8 +881,9 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 		const bound_type_t::refs &args) const
 {
 	INDENT(5, string_format(
-				"dot_expr_t::resolve_overrides for %s",
-				callsite->str().c_str()));
+				"dot_expr_t::resolve_overrides for %s with %s",
+				callsite->str().c_str(),
+				::str(args).c_str()));
 
 	/* check the left-hand side first, it should be a type_namespace */
 	bound_var_t::ref lhs_var = lhs->resolve_expression(
@@ -977,6 +978,7 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 			if (!status) {
 				break;
 			}
+			debug_above(6, log("argument %s -> %s", param->str().c_str(), param_var->type->str().c_str()));
 
 			assert(!param_var->get_type()->is_ref());
 
@@ -990,6 +992,8 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 	if (!!status) {
 		if (auto can_reference_overloads = dyncast<can_reference_overloads_t>(function_expr)) {
 			/* we need to figure out which overload to call, if there are any */
+			debug_above(6, log("arguments to resolve in callsite are %s",
+						::str(arguments).c_str()));
 			bound_var_t::ref function = can_reference_overloads->resolve_overrides(
 					status, builder, scope, life, shared_from_this(),
 					bound_type_t::refs_from_vars(arguments));
@@ -1362,8 +1366,9 @@ bound_var_t::ref ast::array_index_expr_t::resolve_expression(
 							llvm::Value *llvm_gep = builder.CreateGEP(lhs_val->get_llvm_value(), gep_path);
 
 							debug_above(5, log(log_info,
-										"created dereferencing GEP %s",
-										llvm_print(*llvm_gep).c_str()));
+										"created dereferencing GEP %s (element type is %s)",
+										llvm_print(*llvm_gep).c_str(),
+										element_type->str().c_str()));
 
 							/* maybe we don't want this as a ref, so let's maybe read the value out of its memory location
 							 * location */
@@ -2216,40 +2221,44 @@ bound_var_t::ref call_typeid(
 		auto program_scope = scope->get_program_scope();
 
 		auto llvm_type = resolved_value->type->get_llvm_specific_type();
-		auto llvm_obj_type = program_scope->get_bound_type({"__var"})->get_llvm_type();
-		bool is_obj = false;
+		auto bound_var_type = scope->get_program_scope()->get_runtime_type(status, builder, "var_t");
+		llvm::Type *llvm_obj_type = nullptr;
+		if (!!status) {
+			llvm_obj_type = bound_var_type->get_llvm_type();
+			bool is_obj = false;
 
-		if (llvm_type->isPointerTy()) {
-			if (auto llvm_struct = llvm::dyn_cast<llvm::StructType>(llvm_type->getPointerElementType())) {
-				is_obj = (
-						llvm_struct == llvm_obj_type ||
-						llvm_struct->getStructElementType(0) == llvm_obj_type);
+			if (llvm_type->isPointerTy()) {
+				if (auto llvm_struct = llvm::dyn_cast<llvm::StructType>(llvm_type->getPointerElementType())) {
+					is_obj = (
+							llvm_struct == llvm_obj_type ||
+							llvm_struct->getStructElementType(0) == llvm_obj_type);
+				}
 			}
-		}
 
-		auto name = string_format("typeid(%s)", resolved_value->str().c_str());
+			auto name = string_format("typeid(%s)", resolved_value->str().c_str());
 
-		if (is_obj) {
-			auto get_typeid_function = program_scope->get_bound_variable(status,
-					callsite->get_location(), "__get_var_type_id");
-			if (!!status) {
-				return create_callsite(
-						status,
-						builder,
-						scope,
-						life,
-						get_typeid_function,
-						name,
-						id->get_location(),
-						{resolved_value});
+			if (is_obj) {
+				auto get_typeid_function = program_scope->get_bound_variable(status,
+						callsite->get_location(), "__get_var_type_id");
+				if (!!status) {
+					return create_callsite(
+							status,
+							builder,
+							scope,
+							life,
+							get_typeid_function,
+							name,
+							id->get_location(),
+							{resolved_value});
+				}
+			} else {
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						string_format("typeid(%s)", resolved_value->str().c_str()),
+						program_scope->get_bound_type({TYPEID_TYPE}),
+						llvm_create_int32(builder, resolved_value->type->get_type()->get_signature().iatom),
+						id);
 			}
-		} else {
-			return bound_var_t::create(
-					INTERNAL_LOC(),
-					string_format("typeid(%s)", resolved_value->str().c_str()),
-					program_scope->get_bound_type({TYPEID_TYPE}),
-					llvm_create_int32(builder, resolved_value->type->get_type()->get_signature().iatom),
-					id);
 		}
 	}
 

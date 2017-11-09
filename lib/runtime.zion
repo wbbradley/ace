@@ -200,7 +200,7 @@ type llvm_stack_entry_t struct
 #  might copy them to another heap or generation.
 # 
 #  @param heap_visit A function to invoke for every GC root on the stack.
-def visit_heap_roots(heap_visit def (obj *void) void)
+def visit_heap_roots(heap_visit def (obj *var_t) void)
 	R := llvm_gc_root_chain
 	while R != nil
 		assert(R.map.num_meta == 0r as __int32__)
@@ -272,7 +272,7 @@ def mark_allocation(obj *var_t)
 
 def clear_mark_bit(obj *var_t)
 	# this is highly inefficient due to cache non-locality, revisit later
-	obj.mark = 0
+	obj.mark = 0r
 
 
 def free_unmarked(obj *var_t)

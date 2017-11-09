@@ -693,26 +693,43 @@ bound_type_t::ref upsert_bound_type(
 		type = type->rebind(scope->get_type_variable_bindings());
 
 		auto signature = type->get_signature();
-		auto bound_type = scope->get_bound_type(signature);
+		auto bound_type = scope->get_bound_type(signature, false /*use_mappings*/);
 		if (bound_type != nullptr) {
 			/* this case is critical for breaking cycles during structure
 			 * instantiation */
 			return bound_type;
 		} else {
-			debug_above(6, log("upsert_bound_type calling create_bound_type with %s",
-						type->str().c_str()));
+			bound_type = scope->get_bound_type(signature, true /*use_mappings*/);
 
-			/* we believe that this type does not exist. let's build it */
-			bound_type = create_bound_type(status, builder, scope, type);
+			if (bound_type != nullptr) {
+				/* create this type's final binding */
+				auto new_bound_type = bound_type_t::create(
+						type,
+						type->get_location(),
+						bound_type->get_llvm_type(),
+						bound_type->get_llvm_specific_type());
 
-			if (!!status) {
-				return bound_type;
+				/* this type has been mapped */
+				scope->get_program_scope()->put_bound_type(status, new_bound_type);
+
+				// TODO: consider removing the mapping?
+				return new_bound_type;
+			} else {
+				debug_above(6, log("upsert_bound_type calling create_bound_type with %s",
+							type->str().c_str()));
+
+				/* we believe that this type does not exist. let's build it */
+				bound_type = create_bound_type(status, builder, scope, type);
+
+				if (!!status) {
+					return bound_type;
+				}
+
+				user_error(status, type->get_location(),
+						"unable to find a definition for %s in scope " c_id("%s"),
+						type->str().c_str(),
+						scope->get_name().c_str());
 			}
-
-			user_error(status, type->get_location(),
-					"unable to find a definition for %s in scope " c_id("%s"),
-					type->str().c_str(),
-					scope->get_name().c_str());
 		}
 	}
 	assert(!status);

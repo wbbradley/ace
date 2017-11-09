@@ -57,11 +57,11 @@ bound_var_t::ref get_bound_variable_from_scope(
 
 bound_type_t::ref get_bound_type_from_scope(
 		types::signature signature,
-		program_scope_t::ref program_scope)
+		program_scope_t::ref program_scope, bool use_mappings)
 {
 	INDENT(9, string_format("checking whether %s is bound...",
 				signature.str().c_str()));
-	auto bound_type = program_scope->get_bound_type(signature);
+	auto bound_type = program_scope->get_bound_type(signature, use_mappings);
 	if (bound_type != nullptr) {
 		debug_above(9, log(log_info, c_good("yep") ". %s is bound to %s",
 					signature.str().c_str(),
@@ -122,7 +122,7 @@ llvm::Module *scope_t::get_llvm_module() {
 	}
 }
 
-bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
+bound_type_t::ref program_scope_t::get_bound_type(types::signature signature, bool use_mappings) {
 	INDENT(9, string_format("checking program scope whether %s is bound...",
 				signature.str().c_str()));
 	auto iter = bound_types.find(signature);
@@ -131,7 +131,7 @@ bound_type_t::ref program_scope_t::get_bound_type(types::signature signature) {
 					signature.str().c_str(),
 					iter->second->str().c_str()));
 		return iter->second;
-	} else {
+	} else if (use_mappings) {
 		auto dest_iter = bound_type_mappings.find(signature);
 		if (dest_iter != bound_type_mappings.end()) {
 			return get_bound_type(dest_iter->second);
@@ -495,6 +495,10 @@ module_scope_impl_t::module_scope_impl_t(
 
 bool module_scope_impl_t::has_checked(const ptr<const ast::item_t> &node) const {
 	return visited.find(node) != visited.end();
+}
+
+bool module_scope_impl_t::symbol_exists_in_running_scope(atom symbol, bound_var_t::ref &bound_var) {
+	return false;
 }
 
 void module_scope_impl_t::mark_checked(

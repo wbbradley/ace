@@ -173,6 +173,7 @@ bound_var_t::ref create_callsite(
 		const location_t &location,
 		bound_var_t::refs arguments)
 {
+	assert(function != nullptr);
 	if (!!status) {
 		llvm::Value *llvm_function = function->get_llvm_value();
 		debug_above(5, log(log_info, "create_callsite is assuming %s is compatible with %s",

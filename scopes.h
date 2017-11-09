@@ -45,7 +45,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 
 	virtual bound_var_t::ref get_bound_variable(status_t &status, location_t location, atom symbol, bool search_parents=true) = 0;
 	virtual void put_bound_variable(status_t &status, atom symbol, bound_var_t::ref bound_variable) = 0;
-	virtual bound_type_t::ref get_bound_type(types::signature signature) = 0;
+	virtual bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true) = 0;
 	virtual std::string get_name() const;
 	virtual std::string make_fqn(std::string leaf_name) const = 0;
 	virtual llvm::Module *get_llvm_module();
@@ -94,7 +94,7 @@ struct scope_impl_t : public BASE {
 	bound_var_t::ref get_singleton(atom name);
 	bound_var_t::ref get_bound_variable(status_t &status, location_t location, atom symbol, bool search_parents=true);
 	std::string make_fqn(std::string leaf_name) const;
-	bound_type_t::ref get_bound_type(types::signature signature);
+	bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true);
 	void get_callables(atom symbol, var_t::refs &fns);
     virtual void put_typename(status_t &status, atom name, types::type_t::ref expansion);
     virtual void put_type_variable_binding(status_t &status, atom binding, types::type_t::ref type);
@@ -204,6 +204,7 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	std::set<ptr<const ast::item_t>> visited;
 
 	static module_scope_t::ref create(atom module_name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module);
+	virtual bool symbol_exists_in_running_scope(atom symbol, bound_var_t::ref &bound_var);
 
 	// void add_linked_module(status_t &status, ptr<const ast::item_t> obj, atom symbol, module_scope_impl_t::ref module_scope);
 
@@ -257,7 +258,7 @@ struct program_scope_t : public module_scope_impl_t {
 	unchecked_var_t::ref get_unchecked_variable(atom symbol);
 	unchecked_var_t::ref put_unchecked_variable(atom symbol, unchecked_var_t::ref unchecked_variable);
 
-	virtual bound_type_t::ref get_bound_type(types::signature signature);
+	virtual bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true);
 	void put_bound_type(status_t &status, bound_type_t::ref type);
 	void put_bound_type_mapping(status_t &status, types::signature source, types::signature dest);
 
@@ -476,6 +477,7 @@ bool scope_impl_t<T>::symbol_exists_in_running_scope(
 {
 	auto iter = bound_vars.find(symbol);
 	if (iter != bound_vars.end()) {
+		assert(iter->second.size() == 1);
 		/* we found this symbol */
 		bound_var = iter->second.begin()->second;
 		return true;
@@ -534,11 +536,11 @@ bound_var_t::ref scope_impl_t<T>::get_bound_variable(
 
 bound_type_t::ref get_bound_type_from_scope(
 		types::signature signature,
-		program_scope_t::ref program_scope);
+		program_scope_t::ref program_scope, bool use_mappings);
 
 template <typename T>
-bound_type_t::ref scope_impl_t<T>::get_bound_type(types::signature signature) {
-	return get_bound_type_from_scope(signature, this->get_program_scope());
+bound_type_t::ref scope_impl_t<T>::get_bound_type(types::signature signature, bool use_mappings) {
+	return get_bound_type_from_scope(signature, this->get_program_scope(), use_mappings);
 }
 
 void get_callables_from_bound_vars(

@@ -258,6 +258,39 @@ bound_var_t::ref maybe_get_callable(
 	return nullptr;
 }
 
+bound_var_t::ref get_callable_from_local_var(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		atom alias,
+		bound_var_t::ref bound_var,
+		location_t callsite_location,
+		types::type_args_t::ref args,
+		types::type_t::ref return_type)
+{
+	/* make sure the function is just a function, not a reference to a function */
+	auto resolved_bound_var = bound_var->resolve_bound_value(status, builder, scope);
+
+	if (!!status) {
+		bound_var_t::ref callable = check_func_vs_callsite(status, builder,
+				scope, callsite_location, resolved_bound_var, args, return_type);
+		if (!!status) {
+			if (callable != nullptr) {
+				return callable;
+			} else {
+				user_error(status, callsite_location, "variable " c_id("%s") " is not callable with these arguments or just isn't a function",
+						alias.c_str());
+				user_info(status, callsite_location, "type of %s is %s",
+						alias.c_str(),
+						bound_var->type->str().c_str());
+			}
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref get_callable(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -267,9 +300,13 @@ bound_var_t::ref get_callable(
 		types::type_args_t::ref args,
 		types::type_t::ref return_type)
 {
+	bound_var_t::ref bound_var;
+	if (scope->symbol_exists_in_running_scope(alias, bound_var)) {
+		return get_callable_from_local_var(status, builder, scope, alias, bound_var,
+				callsite_location, args, return_type);
+	}
+
 	var_t::refs fns;
-	// TODO: potentially allow fake calling contexts by adding syntax to the
-	// callsite
 	auto callable = maybe_get_callable(status, builder, scope, alias,
 			callsite_location, args, return_type, fns);
 
