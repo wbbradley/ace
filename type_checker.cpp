@@ -2209,11 +2209,13 @@ bound_var_t::ref cast_bound_var(
 		bound_var_t::ref bound_var,
 		types::type_t::ref type_cast)
 {
-	indent_logger indent(location, 5, string_format("casting %s to a %s (from %s)",
-				bound_var->str().c_str(),
-				type_cast->str().c_str(),
-				llvm_print(bound_var->get_llvm_value()->getType()).c_str()));
 	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_cast);
+	indent_logger indent(location, 5, string_format("casting %s: %s (%s) to a %s (%s)",
+				bound_var->name.c_str(),
+				bound_var->type->get_type()->str().c_str(),
+				llvm_print(bound_var->get_llvm_value()->getType()).c_str(),
+				type_cast->str().c_str(),
+				llvm_print(bound_type->get_llvm_specific_type()).c_str()));
 	if (!!status) {
 		llvm::Value *llvm_source_val = bound_var->resolve_bound_var_value(builder);
 		llvm::Type *llvm_source_type = llvm_source_val->getType();

@@ -39,6 +39,7 @@ def str(node Node{any T}?) str
 	return sum
 
 def main()
-	x := Node(Node(3, nil), nil)
+	x := Node(3, Node(3, nil))
+	static_print(x)
 	y := nth(x, 0)
 	print(str(y))

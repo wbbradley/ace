@@ -182,8 +182,6 @@ bound_var_t::ref create_callsite(
 		debug_above(5, log(log_info, "calling function " c_id("%s") " with type %s",
 					function->name.c_str(),
 					llvm_print(llvm_function->getType()).c_str()));
-		debug_above(9, log(log_info, "function looks like this %s\n",
-					llvm_print_function(static_cast<llvm::Function *>(llvm_function)).c_str()));
 
 		/* downcast the arguments as necessary to var_t * */
 		types::type_function_t::ref function_type = dyncast<const types::type_function_t>(

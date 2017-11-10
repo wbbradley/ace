@@ -319,6 +319,11 @@ void add_global_types(
 					type_id(make_iid("void")),
 					INTERNAL_LOC(),
 				   	builder.getVoidTy())},
+		{{"*void"},
+			bound_type_t::create(
+					type_ptr(type_id(make_iid("void"))),
+					INTERNAL_LOC(),
+				   	builder.getInt8Ty()->getPointerTo())},
 		{{"module"},
 		   	bound_type_t::create(
 					type_id(make_iid("module")),
@@ -746,9 +751,9 @@ int compiler_t::run_program(int argc, char *argv_input[]) {
 		std::swap(llvm_module, llvm_modules.back().second);
 
 		/* make sure that the engine can find functions from this module */
-		// llvm_engine->addModule(std::move(llvm_module));
+		llvm_engine->addModule(std::move(llvm_module));
 		// REVIEW: alternatively... 
-		llvm::Linker::linkModules(*llvm_program_module, std::move(llvm_module));
+		// llvm::Linker::linkModules(*llvm_program_module, std::move(llvm_module));
 
 		/* remove this module from the list, now that we've transitioned it over to the engine */
 		llvm_modules.pop_back();

@@ -117,7 +117,12 @@ namespace ast {
             life_t::ref life) const
     {
         auto bound_var = initializer->resolve_expression(status, builder, scope, life, false /*as_ref*/);
-		assert(!bound_var->is_ref());
-		return bound_var;
+		if (!!status) {
+			assert(!bound_var->is_ref());
+			return bound_var;
+		}
+
+		assert(!status);
+		return nullptr;
     }
 }
