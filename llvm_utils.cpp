@@ -743,13 +743,14 @@ bound_var_t::ref llvm_create_global_tag(
 	 * @__tag_Example = global %struct.tag_t { %struct.type_info_t* @__tag_type_info_Example }, align 8
 	 * @Example = global %struct.var_t* bitcast (%struct.tag_t* @__tag_Example to %struct.var_t*), align 8 */
 
-	bound_type_t::ref var_ref_type = program_scope->get_runtime_type(status, builder, "var_t");
+	bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
 	if (!!status) {
+		llvm::Type *llvm_var_ptr_type = var_ptr_type->get_llvm_type();
+
 		bound_type_t::ref tag_struct_type = program_scope->get_runtime_type(status, builder, "tag_t");
 		if (!!status) {
-			llvm::Type *llvm_var_ref_type = var_ref_type->get_llvm_type();
 			llvm::StructType *llvm_tag_type = llvm::dyn_cast<llvm::StructType>(tag_struct_type->get_llvm_type());
-			debug_above(10, log(log_info, "var_ref_type is %s", llvm_print(var_ref_type->get_llvm_type()).c_str()));
+			debug_above(10, log(log_info, "var_ptr_type is %s", llvm_print(var_ptr_type->get_llvm_type()).c_str()));
 			debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print(tag_struct_type->get_llvm_type()).c_str()));
 			assert(llvm_tag_type != nullptr);
 
@@ -765,40 +766,36 @@ bound_var_t::ref llvm_create_global_tag(
 						type_info_type->get_llvm_type());
 				assert(llvm_type_info_type != nullptr);
 
-				std::vector<llvm::Constant *> llvm_tag_data({
-					/* type_id - the actual type "tag" */
-					(llvm::Constant *)llvm_create_int32(builder, tag.iatom),
+				/* create the type information inside the tag singleton */
+				llvm::Constant *llvm_type_info = llvm_create_struct_instance(
+						std::string("__tag_type_info_") + tag.str(),
+						llvm_module,
+						llvm_type_info_type,
+						{
+							/* type_id - the actual type "tag" */
+							(llvm::Constant *)llvm_create_int32(builder, tag.iatom),
 
-					/* the type kind */
-					builder.getInt32(type_kind_tag),
+							/* the type kind */
+							builder.getInt32(type_kind_tag),
 
-					/* size - should always be zero since the type_id is part of this var_t
-					 * as builtin type info. */
-					builder.getInt64(0),
+							/* size - should always be zero since the type_id is part of this var_t
+							 * as builtin type info. */
+							builder.getInt64(0),
 
-					/* name - for debugging */
-					llvm_name,
-				});
+							/* name - for debugging */
+							llvm_name,
+						});
 
-				llvm::ArrayRef<llvm::Constant*> llvm_tag_initializer{llvm_tag_data};
-
-				check_struct_initialization(llvm_tag_initializer, llvm_type_info_type);
-
-				llvm::GlobalVariable *llvm_type_info = llvm_get_global(
-						llvm_module, std::string("__tag_type_info_") + tag.str(),
-						llvm::ConstantStruct::get(llvm_type_info_type,
-							llvm_tag_initializer), true /*is_constant*/);
-
-				llvm::GlobalVariable *llvm_tag_constant = llvm_get_global(llvm_module,
+				/* create the actual tag singleton */
+				llvm::Constant *llvm_tag_constant = llvm_create_struct_instance(
 						std::string("__tag_") + tag.str(),
-						llvm::ConstantStruct::get(llvm_tag_type,
-							llvm_type_info, nullptr), true /*is_constant*/);
+						llvm_module, llvm_tag_type, {llvm_type_info});
 
 				debug_above(10, log(log_info, "getBitCast(%s, %s)",
 							llvm_print(*llvm_tag_constant).c_str(),
-							llvm_print(llvm_var_ref_type).c_str()));
+							llvm_print(llvm_var_ptr_type).c_str()));
 				llvm::Constant *llvm_tag_value = llvm::ConstantExpr::getPointerCast(
-						llvm_tag_constant, llvm_var_ref_type);
+						llvm_tag_constant, llvm_var_ptr_type);
 
 				return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_value, id);
 			}
