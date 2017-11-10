@@ -192,12 +192,16 @@ void get_callables_from_unchecked_vars(
 
 bound_type_t::ref program_scope_t::get_runtime_type(
 		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-	   	std::string name)
+		llvm::IRBuilder<> &builder,
+		std::string name,
+		bool get_ptr)
 {
 	module_scope_t::ref runtime_module = lookup_module("runtime");
 	if (runtime_module != nullptr) {
 		auto type = type_id(make_iid_impl(std::string("runtime.") + name, INTERNAL_LOC()));
+		if (get_ptr) {
+			type = type_ptr(type);
+		}
 		return upsert_bound_type(status, builder, runtime_module, type);
 	} else {
 		user_error(status, INTERNAL_LOC(), c_id("runtime") " module is not yet installed.");

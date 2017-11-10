@@ -200,6 +200,9 @@ def __eq__(x *any, y nil) __bool__
 def __eq__(y nil, x *any) __bool__
 	return __is_nil__(x)
 
+def __eq__(x __str__, y nil) __bool__
+	return __is_nil__(x)
+
 def __eq__(x *any T, y *any T) __bool__
 	return x as __int__ == y as __int__
 
@@ -232,6 +235,9 @@ def __ineq__(x str, y str) __bool__
 
 def __ineq__(x *any, y nil) __bool__
 	# TODO: optimize
+	return __is_non_nil__(x)
+
+def __ineq__(x __str__, y nil) __bool__
 	return __is_non_nil__(x)
 
 def __ineq__(y nil, x *any) __bool__

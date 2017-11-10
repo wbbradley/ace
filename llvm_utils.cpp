@@ -587,44 +587,6 @@ llvm::StructType *llvm_create_struct_type(
 	return llvm_tuple_type;
 }
 
-llvm::Type *llvm_wrap_type(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		program_scope_t::ref program_scope,
-		atom data_name,
-		llvm::Type *llvm_data_type)
-{
-	/* take something like this:
-	 *
-	 * typedef WHATEVER data_type_t;
-	 *
-	 * and wrap it like this:
-	 *
-	 * struct wrapped_data_type_t {
-	 *   var_t mgmt;
-	 *   data_type_t data;
-	 * };
-	 *
-	 * This is to allow this type to be managed by the GC.
-	 */
-	bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, "var_t");
-	if (!!status) {
-		llvm::Type *llvm_var_type = var_type->get_llvm_type();
-
-		llvm::ArrayRef<llvm::Type*> llvm_dims{llvm_var_type, llvm_data_type};
-		auto llvm_struct_type = llvm::StructType::create(builder.getContext(), llvm_dims);
-
-		/* give the struct a helpful name internally */
-		llvm_struct_type->setName(data_name.str());
-
-		/* we'll be referring to pointers to these variable structures */
-		return llvm_struct_type;
-	}
-
-	assert(!status);
-	return nullptr;
-}
-
 void llvm_verify_function(status_t &status, location_t location, llvm::Function *llvm_function) {
 	std::stringstream ss;
 	llvm::raw_os_ostream os(ss);

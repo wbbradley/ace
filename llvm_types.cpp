@@ -112,9 +112,8 @@ bound_type_t::ref create_bound_extern_type(
 	}
 
 	if (!!status) {
-		bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, "var_t");
+		bound_type_t::ref var_ref_type = program_scope->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
 		if (!!status) {
-			auto var_ref_type = var_type->get_pointer();
 			auto bound_type = bound_type_t::create(type_extern,
 					type_extern->get_location(),
 					var_ref_type->get_llvm_type());
@@ -561,11 +560,11 @@ bound_type_t::ref create_bound_sum_type(
 		const ptr<const types::type_sum_t> &sum)
 {
 	assert(!scope->get_bound_type(sum->get_signature()));
-	auto var_type = scope->get_program_scope()->get_runtime_type(status, builder, "var_t");
+	auto var_ptr_type = scope->get_program_scope()->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
 	if (!!status) {
 		auto bound_type = bound_type_t::create(sum,
 				sum->get_location(),
-				var_type->get_pointer()->get_llvm_type());
+				var_ptr_type->get_llvm_type());
 
 		ptr<program_scope_t> program_scope = scope->get_program_scope();
 		program_scope->put_bound_type(status, bound_type);

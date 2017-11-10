@@ -82,9 +82,6 @@ void check_struct_initialization(
 void llvm_verify_function(status_t &status, location_t location, llvm::Function *llvm_function);
 void llvm_verify_module(status_t &status, llvm::Module &llvm_module);
 
-/* llvm_wrap_type - wrap a normal data type in a managed var_t from the GC */
-llvm::Type *llvm_wrap_type(status_t &status, llvm::IRBuilder<> &builder, program_scope_t::ref program_scope, atom data_name, llvm::Type *llvm_data_type);
-
 /* flags for llvm_create_if_branch that tell it whether to invoke release_vars
  * for either branch */
 

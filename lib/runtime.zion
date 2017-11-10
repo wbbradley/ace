@@ -9,7 +9,7 @@ module runtime
 link var llvm_gc_root_chain *llvm_stack_entry_t
 
 var TYPE_ID_VECTOR __int32__ = -2r as __int32__
-var __debug_zion_runtime __int__ = 0r
+var __debug_zion_runtime __bool__ = __false__
 var _zion_rt __str__ = "zion-rt: "r
 
 
@@ -279,14 +279,11 @@ def free_unmarked(obj *var_t)
 	assert(obj != head_var)
 	if obj.mark == 0r
 		remove_node(obj)
-		mem_free(obj, obj.type_info.size)
+		mem_free(obj as *void, obj.type_info.size)
 
 
 def gc()
 	__debug_zion_runtime = posix.getenv("DBG_ZRT"r) != nil
-	# HACK: because type unification does not seem to work well when linking IR
-	# from C . llir . in-memory Zion, we are just using the void * type to allow
-	# for a "universal" translation layer between modules.
 	visit_allocations(clear_mark_bit)
 	visit_heap_roots(mark_allocation)
 	visit_allocations(free_unmarked)

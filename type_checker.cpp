@@ -1070,10 +1070,8 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 			/* we need this in order to be able to get runtime type information */
 			auto program_scope = scope->get_program_scope();
 			std::string type_info_var_name = std::string("__type_info_") + extern_type->repr();
-			bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, "var_t");
+			bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
 			if (!!status) {
-				bound_type_t::ref var_ptr_type = var_type->get_pointer();
-
 				/* before we go create this type info, let's see if it already exists */
 				auto bound_type_info = program_scope->get_bound_variable(status, full_type->get_location(),
 						type_info_var_name);
@@ -1164,16 +1162,15 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 									debug_above(5, log(log_info, "llvm_type_info_mark_fn = %s",
 												llvm_print(llvm_type_info_mark_fn).c_str()));
 
-									bound_type_t::ref type_info_type = program_scope->get_runtime_type(status, builder, "type_info_t");
+									bound_type_t::ref type_info_ptr_type = program_scope->get_runtime_type(status, builder, "type_info_t", true /*get_ptr*/);
 									if (!!status) {
-										auto type_info_ref = type_info_type->get_pointer();
 										auto bound_type_info_var = bound_var_t::create(
 												INTERNAL_LOC(),
 												type_info_var_name,
-												type_info_ref,
+												type_info_ptr_type,
 												llvm::ConstantExpr::getPointerCast(
 													llvm_type_info_mark_fn,
-													type_info_ref->get_llvm_type()),
+													type_info_ptr_type->get_llvm_type()),
 												make_iid("type info value"));
 
 										program_scope->put_bound_variable(status,
@@ -2205,59 +2202,128 @@ bound_var_t::ref ast::plus_expr_t::resolve_expression(
 			shared_from_this(), function_name);
 }
 
+bound_var_t::ref cast_bound_var(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	scope_t::ref scope,
+		life_t::ref life,
+		location_t location,
+		bound_var_t::ref bound_var,
+		types::type_t::ref type_cast)
+{
+	indent_logger indent(location, 5, string_format("casting %s to a %s",
+				bound_var->str().c_str(),
+				type_cast->str().c_str()));
+	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_cast);
+	if (!!status) {
+		llvm::Value *llvm_source_val = bound_var->resolve_bound_var_value(builder);
+		llvm::Type *llvm_source_type = llvm_source_val->getType();
+
+		llvm::Value *llvm_dest_val = nullptr;
+		llvm::Type *llvm_dest_type = bound_type->get_llvm_specific_type();
+
+		// TODO: put some more constraints on this...
+		if (llvm_dest_type->isIntegerTy()) {
+			/* we want an integer at the end... */
+			if (llvm_source_type->isPointerTy()) {
+				llvm_dest_val = builder.CreatePtrToInt(llvm_source_val, llvm_dest_type);
+			} else {
+				assert(llvm_source_type->isIntegerTy());
+				llvm_dest_val = builder.CreateSExtOrTrunc(llvm_source_val, llvm_dest_type);
+			}
+		} else if (llvm_dest_type->isPointerTy()) {
+			/* we want a pointer at the end... */
+			if (llvm_source_type->isPointerTy()) {
+				llvm_dest_val = builder.CreateBitCast(llvm_source_val, llvm_dest_type);
+			} else {
+				if (!llvm_source_type->isIntegerTy()) {
+					log("source type for cast is %s (while casting to %s)",
+							llvm_print(llvm_source_type).c_str(),
+							type_cast->str().c_str());
+					dbg();
+				}
+				llvm_dest_val = builder.CreateIntToPtr(llvm_source_val, llvm_dest_type);
+			}
+		} else {
+			assert(false);
+			return nullptr;
+		}
+
+		return bound_var_t::create(INTERNAL_LOC(), "cast",
+				bound_type, llvm_dest_val, make_iid("cast"));
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref call_typeid(
 		status_t &status,
 		scope_t::ref scope,
 		life_t::ref life,
 		ast::item_t::ref callsite,
 		identifier::ref id,
-	   	llvm::IRBuilder<> &builder,
+		llvm::IRBuilder<> &builder,
 		bound_var_t::ref resolved_value)
 {
 	resolved_value = resolved_value->resolve_bound_value(status, builder, scope);
 	if (!!status) {
-		debug_above(4, log(log_info, "getting typeid of %s",
+		indent_logger indent(callsite->get_location(), 4, string_format("getting typeid of %s",
 					resolved_value->type->str().c_str()));
 		auto program_scope = scope->get_program_scope();
 
-		auto llvm_type = resolved_value->type->get_llvm_specific_type();
-		auto bound_var_type = scope->get_program_scope()->get_runtime_type(status, builder, "var_t");
-		llvm::Type *llvm_obj_type = nullptr;
 		if (!!status) {
-			llvm_obj_type = bound_var_type->get_llvm_type();
-			bool is_obj = false;
-
-			if (llvm_type->isPointerTy()) {
-				if (auto llvm_struct = llvm::dyn_cast<llvm::StructType>(llvm_type->getPointerElementType())) {
-					is_obj = (
-							llvm_struct == llvm_obj_type ||
-							llvm_struct->getStructElementType(0) == llvm_obj_type);
-				}
-			}
-
-			auto name = string_format("typeid(%s)", resolved_value->str().c_str());
-
-			if (is_obj) {
-				auto get_typeid_function = program_scope->get_bound_variable(status,
-						callsite->get_location(), "__get_var_type_id");
+			bool is_managed = false;
+			resolved_value->type->is_managed_ptr(
+					status,
+					builder,
+					scope,
+					is_managed);
+			log("resolved_value %s / %s", resolved_value->type->str().c_str(),
+					llvm_print(resolved_value->get_llvm_value()).c_str());
+			if (!!status) {
+				bound_var_t::ref bound_managed_var = cast_bound_var(
+						status,
+						builder,
+						scope,
+						life,
+						callsite->get_location(),
+						resolved_value,
+						type_ptr(type_id(make_iid("runtime.var_t"))));
 				if (!!status) {
-					return create_callsite(
-							status,
-							builder,
-							scope,
-							life,
-							get_typeid_function,
-							name,
-							id->get_location(),
-							{resolved_value});
+					auto name = string_format("typeid(%s)", resolved_value->str().c_str());
+
+					if (is_managed) {
+						bound_var_t::ref get_typeid_function = get_callable(
+								status,
+								builder,
+								scope,
+								"runtime.get_var_type_id",
+								callsite->get_location(),
+								type_args({bound_managed_var->type->get_type()}),
+								type_variable(INTERNAL_LOC()));
+
+						if (!!status) {
+							assert(get_typeid_function != nullptr);
+							return create_callsite(
+									status,
+									builder,
+									scope,
+									life,
+									get_typeid_function,
+									name,
+									id->get_location(),
+									{bound_managed_var});
+						}
+					} else {
+						return bound_var_t::create(
+								INTERNAL_LOC(),
+								string_format("typeid(%s)", resolved_value->str().c_str()),
+								program_scope->get_bound_type({TYPEID_TYPE}),
+								llvm_create_int32(builder, resolved_value->type->get_type()->get_signature().iatom),
+								id);
+					}
 				}
-			} else {
-				return bound_var_t::create(
-						INTERNAL_LOC(),
-						string_format("typeid(%s)", resolved_value->str().c_str()),
-						program_scope->get_bound_type({TYPEID_TYPE}),
-						llvm_create_int32(builder, resolved_value->type->get_type()->get_signature().iatom),
-						id);
 			}
 		}
 	}
@@ -2410,7 +2476,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 {
 	program_scope_t::ref program_scope = scope->get_program_scope();
 	std::string function_name = switch_std_main(token.text);
-	INDENT(5, string_format(
+	indent_logger indent(get_location(), 5, string_format(
 				"instantiating function " c_id("%s"),
 				function_name.c_str()));
 
@@ -2785,9 +2851,8 @@ void type_check_program(
 		};
 
 		for (auto runtime_type : runtime_types) {
-			if (!!status) {
-				program_scope->get_runtime_type(status, builder, runtime_type);
-			} else {
+			program_scope->get_runtime_type(status, builder, runtime_type);
+			if (!status) {
 				break;
 			}
 		}
@@ -2856,17 +2921,16 @@ void ast::tag_t::resolve_statement(
 	 * represent this tag. */
 
 	if (!!status) {
-		auto var_type = scope->get_program_scope()->get_runtime_type(status, builder, "var_t");
+		auto var_ptr_type = scope->get_program_scope()->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
 		if (!!status) {
-			bound_type_t::ref var_ref_type = var_type->get_pointer();
-			assert(var_ref_type != nullptr);
+			assert(var_ptr_type != nullptr);
 
 			/* start by making a type for the tag */
 			bound_type_t::ref bound_tag_type = bound_type_t::create(
 					tag_type,
 					token.location,
 					/* all tags use the var_t* type */
-					var_ref_type->get_llvm_type());
+					var_ptr_type->get_llvm_type());
 
 			scope->put_typename(status, tag_name, type_ptr(type_managed(type_struct({}, {}))));
 			if (!!status) {
@@ -4112,40 +4176,10 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 {
 	assert(!as_ref);
 
-	bound_var_t::ref bound_var = lhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+	bound_var_t::ref bound_var = lhs->resolve_expression(status, builder, scope, life,
+		   	false /*as_ref*/);
 	if (!!status) {
-		bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_cast);
-		if (!!status) {
-			llvm::Value *llvm_source_val = bound_var->resolve_bound_var_value(builder);
-			llvm::Type *llvm_source_type = llvm_source_val->getType();
-
-			llvm::Value *llvm_dest_val = nullptr;
-			llvm::Type *llvm_dest_type = bound_type->get_llvm_specific_type();
-			// TODO: put some more constraints on this...
-			if (llvm_dest_type->isIntegerTy()) {
-				/* we want an integer at the end... */
-				if (llvm_source_type->isPointerTy()) {
-					llvm_dest_val = builder.CreatePtrToInt(llvm_source_val, llvm_dest_type);
-				} else {
-					assert(llvm_source_type->isIntegerTy());
-					llvm_dest_val = builder.CreateSExtOrTrunc(llvm_source_val, llvm_dest_type);
-				}
-			} else if (llvm_dest_type->isPointerTy()) {
-				/* we want a pointer at the end... */
-				if (llvm_source_type->isPointerTy()) {
-					llvm_dest_val = builder.CreateBitCast(llvm_source_val, llvm_dest_type);
-				} else {
-					assert(llvm_source_type->isIntegerTy());
-					llvm_dest_val = builder.CreateIntToPtr(llvm_source_val, llvm_dest_type);
-				}
-			} else {
-				assert(false);
-				return nullptr;
-			}
-
-			return bound_var_t::create(INTERNAL_LOC(), "cast",
-					bound_type, llvm_dest_val, make_iid("cast"));
-		}
+		return cast_bound_var(status, builder, scope, life, get_location(), bound_var, type_cast);
 	}
 
 	assert(!status);
