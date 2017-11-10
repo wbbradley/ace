@@ -2278,8 +2278,6 @@ bound_var_t::ref call_typeid(
 					builder,
 					scope,
 					is_managed);
-			log("resolved_value %s / %s", resolved_value->type->str().c_str(),
-					llvm_print(resolved_value->get_llvm_value()).c_str());
 			if (!!status) {
 				bound_var_t::ref bound_managed_var = cast_bound_var(
 						status,

@@ -47,15 +47,15 @@ def __bool__(b bool) __bool__
 	return __get_typeid__(b) == __get_typeid__(True)
 
 def __bool__(x int) __bool__
-	return __bool__(x != 0)
+	return x.raw != 0r
 
 def __not__(b bool) __bool__
-	return bool(__get_typeid__(b) != __get_typeid__(true))
+	return __get_typeid__(b) != __get_typeid__(true)
 
 def __not__(b __bool__) __bool__
 	return b as __int__ == 0r
 
-def __not__(x int) bool
+def __not__(x int) __bool__
 	return x == 0
 
 def bool(x __bool__) bool
@@ -228,10 +228,10 @@ def __eq__(x float, y float) __bool__
 	return x.raw == y.raw
 
 def __eq__(x str, y str) __bool__
-	return bool(x.raw == y.raw)
+	return posix.strcmp(x.raw, y.raw) == 0r
 
 def __ineq__(x str, y str) __bool__
-	return x.raw == y.raw
+	return posix.strcmp(x.raw, y.raw) != 0r
 
 def __ineq__(x *any, y nil) __bool__
 	# TODO: optimize

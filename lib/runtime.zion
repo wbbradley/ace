@@ -157,12 +157,12 @@ def remove_node(node *var_t) void
 def isnil(p *var_t) __bool__
 	return p == nil
 
-def get_var_type_id(v *var_t) __int32__
+def get_var_type_id(v *var_t) __typeid__
 	if v != nil
-		return v.type_info.type_id
+		return v.type_info.type_id as __typeid__
 	else
 		# MEM_PANIC("attempt to get_var_type_id of a null value ", "", 116)
-		return 0r as __int32__
+		return 0r as __typeid__
 
 def create_var(type_info *type_info_t) *var_t
 	# allocate the variable tracking object
