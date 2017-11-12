@@ -142,6 +142,7 @@ ZION_LLVM_SOURCES = \
 				json.cpp \
 				json_lexer.cpp \
 				json_parser.cpp \
+				zion_gc_lowering.cpp
 
 ZION_LLVM_OBJECTS = $(addprefix $(BUILD_DIR)/,$(ZION_LLVM_SOURCES:.cpp=.llvm.o))
 ZION_TARGET = zionc

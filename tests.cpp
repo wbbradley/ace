@@ -487,11 +487,6 @@ bool test_parse_n_minus_one() {
 		   	"n-1");
 }
 
-bool test_parse_param_list() {
-	return check_parse<ast::param_list_t>(
-		   	"(n-1)");
-}
-
 bool test_parse_prefix_expression_not() {
 	return check_parse<ast::expression_t>(
 		   	"d != not (b >c and a > b)");
@@ -904,7 +899,6 @@ auto test_descs = std::vector<test_desc>{
 	T(test_parse_multiple_pluses),
 	T(test_parse_multiple_times),
 	T(test_parse_n_minus_one),
-	T(test_parse_param_list),
 	T(test_parse_prefix_expression_not),
 	T(test_parse_recursive_function_call),
 	T(test_parse_single_function_call),

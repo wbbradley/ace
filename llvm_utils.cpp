@@ -9,7 +9,7 @@
 #include "life.h"
 #include "type_kind.h"
 
-const char *GC_STRATEGY = "shadow-stack";
+const char *GC_STRATEGY = "zion";
 
 
 llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder, std::string value) {

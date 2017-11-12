@@ -417,6 +417,32 @@ ptr<typeinfo_expr_t> typeinfo_expr_t::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
+std::vector<ptr<expression_t>> parse_param_list(parse_state_t &ps) {
+	std::vector<ptr<expression_t>> params;
+	chomp_token_or_return(tk_lparen, {});
+	int i = 0;
+	while (ps.token.tk != tk_rparen) {
+		++i;
+		auto expr = expression_t::parse(ps);
+		if (expr) {
+			params.push_back(std::move(expr));
+			if (ps.token.tk == tk_comma) {
+				eat_token();
+			} else if (ps.token.tk != tk_rparen) {
+				ps.error("unexpected token " c_id("%s") " in parameter list", ps.token.text.c_str());
+				return {};
+			}
+			// continue and read the next parameter
+		} else {
+			assert(!ps.status);
+			return {};
+		}
+	}
+	chomp_token_or_return(tk_rparen, {});
+
+	return params;
+}
+
 namespace ast {
 	namespace postfix_expr {
 		ptr<expression_t> parse(parse_state_t &ps) {
@@ -426,7 +452,12 @@ namespace ast {
 				return nullptr;
 			}
 
-			while (!ps.line_broke() && (ps.token.tk == tk_lsquare || ps.token.tk == tk_lparen || ps.token.tk == tk_dot)) {
+			while (!!ps.status &&
+					!ps.line_broke() &&
+					(ps.token.tk == tk_lsquare ||
+					 ps.token.tk == tk_lparen ||
+					 ps.token.tk == tk_dot))
+			{
 				if (ps.token.tk == tk_lparen) {
 					auto ref_expr = dyncast<reference_expr_t>(expr);
 
@@ -436,44 +467,43 @@ namespace ast {
 					} else {
 						/* function call */
 						auto callsite = create<callsite_expr_t>(ps.token);
-						auto params = param_list_t::parse(ps);
-						if (params) {
-							callsite->params.swap(params);
+						callsite->params = parse_param_list(ps);
+						if (!!ps.status) {
 							callsite->function_expr.swap(expr);
 							assert(expr == nullptr);
 							expr = callsite;
-						} else {
-							assert(!ps.status);
 						}
 					}
 				}
 
-				if (ps.token.tk == tk_dot) {
-					auto dot_expr = create<ast::dot_expr_t>(ps.token);
-					eat_token();
-					expect_token(tk_identifier);
-					dot_expr->rhs = ps.token;
-					ps.advance();
-					dot_expr->lhs.swap(expr);
-					assert(expr == nullptr);
-                    expr = dot_expr;
-				}
-
-				if (ps.token.tk == tk_lsquare) {
-					eat_token();
-					auto array_index_expr = create<ast::array_index_expr_t>(ps.token);
-
-					auto index = expression_t::parse(ps);
-					if (index) {
-						array_index_expr->index.swap(index);
-						array_index_expr->lhs.swap(expr);
+				if (!!ps.status) {
+					if (ps.token.tk == tk_dot) {
+						auto dot_expr = create<ast::dot_expr_t>(ps.token);
+						eat_token();
+						expect_token(tk_identifier);
+						dot_expr->rhs = ps.token;
+						ps.advance();
+						dot_expr->lhs.swap(expr);
 						assert(expr == nullptr);
-						expr = array_index_expr;
-					} else {
-						assert(!ps.status);
-						return nullptr;
+						expr = dot_expr;
 					}
-					chomp_token(tk_rsquare);
+
+					if (ps.token.tk == tk_lsquare) {
+						eat_token();
+						auto array_index_expr = create<ast::array_index_expr_t>(ps.token);
+
+						auto index = expression_t::parse(ps);
+						if (index) {
+							array_index_expr->index.swap(index);
+							array_index_expr->lhs.swap(expr);
+							assert(expr == nullptr);
+							expr = array_index_expr;
+						} else {
+							assert(!ps.status);
+							return nullptr;
+						}
+						chomp_token(tk_rsquare);
+					}
 				}
 			}
 
@@ -853,32 +883,6 @@ ptr<param_list_decl_t> param_list_decl_t::parse(parse_state_t &ps) {
 		}
 	}
 	return param_list_decl;
-}
-
-ptr<param_list_t> param_list_t::parse(parse_state_t &ps) {
-	auto param_list = create<ast::param_list_t>(ps.token);
-	chomp_token(tk_lparen);
-	int i = 0;
-	while (ps.token.tk != tk_rparen) {
-		++i;
-		auto expr = expression_t::parse(ps);
-		if (expr) {
-			param_list->expressions.push_back(std::move(expr));
-			if (ps.token.tk == tk_comma) {
-				eat_token();
-			} else if (ps.token.tk != tk_rparen) {
-				ps.error("unexpected token " c_id("%s") " in parameter list", ps.token.text.c_str());
-				return nullptr;
-			}
-			// continue and read the next parameter
-		} else {
-			assert(!ps.status);
-			return nullptr;
-		}
-	}
-	chomp_token(tk_rparen);
-
-	return param_list;
 }
 
 ptr<block_t> block_t::parse(parse_state_t &ps) {

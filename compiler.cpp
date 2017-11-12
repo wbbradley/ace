@@ -15,6 +15,10 @@
 #include <sys/stat.h>
 #include <iostream>
 
+namespace llvm {
+	FunctionPass *createZionGCLoweringPass(StructType *StackEntryTy, StructType *FrameMapTy);
+}
+
 std::string strip_zion_extension(std::string module_name) {
 	if (ends_with(module_name, ".zion")) {
 		/* as a courtesy, strip the extension from the filename here */
@@ -729,11 +733,65 @@ int compiler_t::emit_built_program(status_t &status, std::string executable_file
 	return -1;
 }
 
+void run_gc_lowering(
+		llvm::Module *llvm_module,
+		llvm::StructType *llvm_stack_frame_map_type,
+		llvm::StructType *llvm_stack_entry_type)
+{
+	assert(llvm_module != nullptr);
+	assert(llvm_stack_frame_map_type != nullptr);
+	assert(llvm_stack_entry_type != nullptr);
+
+	FILE *fp = fopen("jit.llir", "wt");
+	fprintf(fp, "%s\n", llvm_print_module(*llvm_module).c_str());
+	fclose(fp);
+
+	// Create a function pass manager.
+	auto FPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(llvm_module);
+
+	// Add some optimizations.
+	FPM->add(llvm::createZionGCLoweringPass(
+				llvm_stack_entry_type,
+				llvm_stack_frame_map_type));
+	/*FPM->add(llvm::createInstructionCombiningPass());
+	  FPM->add(llvm::createReassociatePass());
+	  FPM->add(llvm::createGVNPass());
+	  FPM->add(llvm::createCFGSimplificationPass());
+	  */
+	FPM->doInitialization();
+
+	// Run the optimizations over all functions in the module being added to
+	// the JIT.
+	for (auto &F : *llvm_module) {
+		FPM->run(F);
+		F.setGC("");
+	}
+}
+
 int compiler_t::run_program(int argc, char *argv_input[]) {
 	using namespace llvm;
 	// Create the JIT.  This takes ownership of the module.
 	std::string error_str;
 	llvm::Module *llvm_program_module = llvm_get_program_module();
+
+	auto program_scope = get_program_scope();
+
+	status_t status;
+	llvm::LLVMContext &llvm_context = llvm_program_module->getContext();
+	llvm::IRBuilder<> builder(llvm_context);
+	auto bound_stack_frame_map_type = program_scope->get_runtime_type(
+			status, builder, "stack_frame_map_t");
+	assert(!!status);
+
+	auto bound_stack_entry_type = program_scope->get_runtime_type(
+			status, builder, "stack_entry_t");
+	assert(!!status);
+
+	run_gc_lowering(
+			llvm_program_module,
+			llvm::dyn_cast<llvm::StructType>(bound_stack_frame_map_type->get_llvm_specific_type()),
+			llvm::dyn_cast<llvm::StructType>(bound_stack_entry_type->get_llvm_specific_type()));
+
 	auto llvm_engine = EngineBuilder(std::unique_ptr<llvm::Module>(llvm_program_module))
 		.setErrorStr(&error_str)
 		.setVerifyModules(true)
@@ -768,6 +826,7 @@ int compiler_t::run_program(int argc, char *argv_input[]) {
 
 	/* find the standard library's main entry point. */
 	auto llvm_fn_main = llvm_engine->FindFunctionNamed("__main__");
+	assert(llvm_fn_main != nullptr);
 	char **envp = (char**)malloc(sizeof(char**) * 1);
 	envp[0] = nullptr;
 

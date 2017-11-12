@@ -16,6 +16,7 @@
 #include <iostream>
 #include "type_kind.h"
 #include "nil_check.h"
+#include "json_parser.h"
 
 /*
  * The basic idea here is that type checking is a graph operation which can be
@@ -378,24 +379,28 @@ bound_var_t::ref generate_module_variable(
 								if (!!status) {
 									if (init_var == nullptr) {
 										/* the user didn't supply an initializer, let's see if this type has one */
-										auto init_fn = get_callable(
+										var_t::refs fns;
+										auto init_fn = maybe_get_callable(
 												status,
 												builder,
 												module_scope,
 												"__init__",
 												var_decl.get_location(),
 												type_args({}, {}),
-												declared_type);
+												declared_type,
+												fns);
 
 										if (!!status) {
-											init_var = make_call_value(status, builder, var_decl.get_location(),
-													function_scope, life, init_fn, {} /*arguments*/);
-											if (!!status) {
-												life->release_vars(
-														status,
-														builder,
-														function_scope,
-														lf_function);
+											if (init_fn != nullptr) {
+												init_var = make_call_value(status, builder, var_decl.get_location(),
+														function_scope, life, init_fn, {} /*arguments*/);
+												if (!!status) {
+													life->release_vars(
+															status,
+															builder,
+															function_scope,
+															lf_function);
+												}
 											}
 										}
 									}
@@ -416,10 +421,26 @@ bound_var_t::ref generate_module_variable(
 													llvm_maybe_pointer_cast(builder, llvm_init_value,
 														bound_type->get_llvm_specific_type()),
 													llvm_global_variable);
-											return var_decl_variable;
 										} else {
-											user_error(status, var_decl, "module var " c_id("%s") " missing initializer",
-													symbol.c_str());
+											bool is_managed = false;
+											var_decl_variable->type->is_managed_ptr(
+													status,
+													builder,
+													module_scope,
+													is_managed);
+
+											if (!!status) {
+												if (is_managed) {
+													if (!var_decl_variable->type->is_maybe()) {
+														user_error(status, var_decl, "module var " c_id("%s") " missing initializer",
+																symbol.c_str());
+													}
+												}
+											}
+										}
+
+										if (!!status) {
+											return var_decl_variable;
 										}
 									}
 								}
@@ -923,6 +944,62 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 	return nullptr;
 }
 
+bound_var_t::ref resolve_assert_macro(
+		status_t &status,
+		llvm::IRBuilder<> &builder, 
+		scope_t::ref scope, 
+		life_t::ref life,
+		token_t token,
+		ptr<ast::expression_t> condition)
+{
+	auto if_block = ast::create<ast::if_block_t>(token);
+	auto not_expr = ast::create<ast::prefix_expr_t>(
+			token_t{token.location, tk_identifier, "not"});
+	not_expr->rhs = condition;
+	if_block->condition = not_expr;
+
+	auto callsite = ast::create<ast::callsite_expr_t>(token);
+	auto dot_expr = ast::create<ast::dot_expr_t>(token);
+	dot_expr->lhs = ast::create<ast::reference_expr_t>(
+			token_t{token.location, tk_identifier, "runtime"});
+
+	dot_expr->rhs = token_t{token.location, tk_identifier, "on_assert_failure"};
+	callsite->function_expr = dot_expr;
+
+	std::stringstream ss;
+	escape_json_quotes(ss,
+			clean_ansi_escapes(
+				string_format("%s: assertion %s failed",
+					token.location.str(true, true).c_str(),
+					condition->str().c_str())));
+	auto text_literal = ast::create<ast::literal_expr_t>(
+			token_t{
+			token.location,
+			tk_raw_string,
+			ss.str() + "r"});
+	callsite->params = std::vector<ptr<ast::expression_t>>{text_literal};
+
+	auto block = ast::create<ast::block_t>(token);
+	block->statements.push_back(callsite);
+	if_block->block = block;
+
+	bool if_block_returns = false;
+	if_block->resolve_statement(
+			status,
+			builder,
+			scope,
+			life,
+			nullptr,
+			&if_block_returns);
+
+	if (!!status) {
+		return nullptr;
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -938,8 +1015,8 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 
 	if (auto symbol = dyncast<ast::reference_expr_t>(function_expr)) {
 		if (symbol->token.text == "static_print") {
-			if (params->expressions.size() == 1) {
-				auto param = params->expressions[0];
+			if (params.size() == 1) {
+				auto param = params[0];
 				bound_var_t::ref param_var = param->resolve_expression(
 						status, builder, scope, life, true /*as_ref*/);
 
@@ -959,6 +1036,18 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 				assert(!status);
 				return nullptr;
 			}
+		} else if (symbol->token.text == "assert") {
+			/* do a crude macro expansion here and evaluate that */
+			if (params.size() == 1) {
+				auto param = params[0];
+				return resolve_assert_macro(status, builder, scope, life, symbol->token, param);
+
+			} else {
+				user_error(status, *shared_from_this(), "assert accepts and requires one parameter");
+
+				assert(!status);
+				return nullptr;
+			}
 		} else if (symbol->token.text == "__is_non_nil__") {
 			return resolve_nil_check(status, builder, scope, life, get_location(), params, nck_is_non_nil);
 		} else if (symbol->token.text == "__is_nil__") {
@@ -966,27 +1055,23 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		}
 	}
 
-	if (params && params->expressions.size() != 0) {
-		/* iterate through the parameters and add their types to a vector */
-		for (auto &param : params->expressions) {
-			// TODO: consider changing the semantics of as_ref to be "allow_ref"
-			// which would disallow the parameter from being a ref type, even if
-			// it is naturally.
-			bound_var_t::ref param_var = param->resolve_expression(
-					status, builder, scope, life, false /*as_ref*/);
+	/* iterate through the parameters and add their types to a vector */
+	for (auto &param : params) {
+		// TODO: consider changing the semantics of as_ref to be "allow_ref"
+		// which would disallow the parameter from being a ref type, even if
+		// it is naturally.
+		bound_var_t::ref param_var = param->resolve_expression(
+				status, builder, scope, life, false /*as_ref*/);
 
-			if (!status) {
-				break;
-			}
-			debug_above(6, log("argument %s -> %s", param->str().c_str(), param_var->type->str().c_str()));
-
-			assert(!param_var->get_type()->is_ref());
-
-			arguments.push_back(param_var);
-			param_types.push_back(param_var->type);
+		if (!status) {
+			break;
 		}
-	} else {
-		/* the callsite has no parameters */
+		debug_above(6, log("argument %s -> %s", param->str().c_str(), param_var->type->str().c_str()));
+
+		assert(!param_var->get_type()->is_ref());
+
+		arguments.push_back(param_var);
+		param_types.push_back(param_var->type);
 	}
 
 	if (!!status) {
@@ -2842,11 +2927,12 @@ void type_check_program(
 		/* make sure we can look up the bound runtime types */
 		std::vector<std::string> runtime_types = {
 			"type_info_t",
-			"type_info_t",
 			"type_info_offsets_t",
 			"type_info_mark_fn_t",
 			"tag_t",
 			"var_t",
+			"stack_frame_map_t",
+			"stack_entry_t",
 		};
 
 		for (auto runtime_type : runtime_types) {
@@ -3586,7 +3672,7 @@ void ast::if_block_t::resolve_statement(
 
 	bool if_block_returns = false, else_block_returns = false;
 
-	assert(token.text == "if" || token.text == "elif");
+	assert(token.text == "if" || token.text == "elif" || token.text == "assert");
 	bound_var_t::ref condition_value;
 
 	auto cond_life = life->new_life(status, lf_statement);
@@ -3945,7 +4031,6 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
 		function_name = "__positive__";
 		break;
 	case tk_ampersand:
-		assert(!as_ref);
 		return take_address(status, builder, scope, life, rhs);
 	case tk_identifier:
 		if (token.is_ident(K(not))) {
@@ -3961,8 +4046,23 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
 			scope, life, false /*as_ref*/);
 
     if (!!status) {
+		if (function_name == "__not__") {
+			bool is_managed;
+			rhs_var->type->is_managed_ptr(status, builder, scope, is_managed);
+			if (!!status) {
+				if (!is_managed) {
+					/* TODO: revisit whether managed types must/can override __not__? */
+					if (rhs_var->is_pointer()) {
+						return resolve_nil_check(status, builder, scope, life,
+							   	get_location(), rhs_var, nck_is_nil);
+					}
+				}
+			}
+		}
+		if (!!status) {
 		return call_program_function(status, builder, scope, life,
 				function_name, shared_from_this(), {rhs_var});
+		}
     }
     assert(!status);
     return nullptr;

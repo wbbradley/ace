@@ -323,7 +323,7 @@ bound_var_t::ref get_callable(
 				debug_above(11, log(log_info, "%s", scope->str().c_str()));
 			} else {
 				std::stringstream ss;
-				ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << " " << args->str();
+				ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
 				user_error(status, callsite_location, "%s", ss.str().c_str());
 
 				if (debug_level() >= 0) {

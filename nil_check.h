@@ -13,9 +13,18 @@ enum nil_check_kind_t {
 
 bound_var_t::ref resolve_nil_check(
 		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-	   	scope_t::ref scope,
-	   	life_t::ref life,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
 		location_t location,
-	   	ptr<const ast::param_list_t> params,
-	   	nil_check_kind_t nck);
+		const std::vector<ptr<ast::expression_t>> &params,
+		nil_check_kind_t nck);
+
+bound_var_t::ref resolve_nil_check(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		location_t location,
+		bound_var_t::ref value,
+		nil_check_kind_t nck);

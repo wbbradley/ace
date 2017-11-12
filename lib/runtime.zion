@@ -1,17 +1,23 @@
 module runtime
 
+link module posix
+
 # the zion runtime and garbage collector
 
-#   The head of the singly-linked list of llvm_stack_entry_t's.  Functions push
+#   The head of the singly-linked list of stack_entry_t's.  Functions push
 #   and pop onto this in their prologue and epilogue.
 #  
 #   Since there is only a global list, this technique is not threadsafe.
-link var llvm_gc_root_chain *llvm_stack_entry_t
+link var llvm_gc_root_chain *stack_entry_t
 
 var TYPE_ID_VECTOR __int32__ = -2r as __int32__
 var __debug_zion_runtime __bool__ = __false__
 var _zion_rt __str__ = "zion-rt: "r
 
+def on_assert_failure(msg __str__) void
+	# called when assertions fail
+	posix.puts(msg)
+	posix.exit(1r)
 
 def get_member_by_index(v *var_t, index __int__) *var_t
 	# Get the var's type_info
@@ -85,11 +91,11 @@ def mem_free(p *void, cb __int__) void
 def get_total_allocated() __int__
 	return _bytes_allocated
 
-var head_var *var_t = create_var(nil as *runtime.type_info_t)
+var __head_var *var_t # = nil as *var_t
 
 def check_node_existence(node *var_t, should_exist __bool__) void
-	var p *var_t = runtime.head_var
-	assert(p.prev == nil)
+	var p *var_t = runtime.__head_var
+	assert(p == nil or p.prev == nil)
 
 	if should_exist
 		assert(p.next != nil)
@@ -112,25 +118,25 @@ def check_node_existence(node *var_t, should_exist __bool__) void
 		# dbg_zrt(printf("node 0x%08lx #%lld of type %s does not exist in memory tracking list!\n", (intptr_t)node, (long long)node.allocation, node.type_info.name))
 		assert(not should_exist)
 
-
 def add_node(node *var_t) void
+	assert(runtime.__head_var)
 	check_node_existence(node, __false__)
 
 	if node.prev != nil or node.next != nil
 		# dbg_zrt(printf("node 0x%08lx #%lld of type %s already has prev and next ptrs?!\n", (intptr_t)node, (long long)node.allocation, node.type_info.name))
 		posix.exit(-1r)
 
-	# assert(not head_var.next or head_var.next.prev == &head_var)
+	# assert(not __head_var.next or __head_var.next.prev == &__head_var)
 
-	node.prev = head_var
-	node.next = head_var.next
+	node.prev = __head_var
+	node.next = __head_var.next
 	if node.next != nil
 		node.next.prev = node
 
-	head_var.next = node
+	__head_var.next = node
 
-	assert(head_var.prev == nil)
-	assert(head_var.next.prev == head_var)
+	assert(__head_var.prev == nil)
+	assert(__head_var.next.prev == __head_var)
 	assert(node.prev.next == node)
 	if node.next == nil
 		assert(node.next.prev == node)
@@ -183,14 +189,12 @@ def create_var(type_info *type_info_t) *var_t
 type stack_frame_map_t struct
 	var num_roots __int32__  # Number of roots in stack frame.
 	var num_meta  __int32__  # Number of metadata entries.  May be < num_roots.
-	var meta      **void     # Metadata for each root.
 
 #   A link in the dynamic shadow stack.  One of these is embedded in
 #   the stack frame of each function on the call stack.
-type llvm_stack_entry_t struct
-	var next *llvm_stack_entry_t  # Link to next stack entry (the caller's).
+type stack_entry_t struct
+	var next *stack_entry_t       # Link to next stack entry (the caller's).
 	var map  *stack_frame_map_t   # Pointer to constant stack_frame_map_t.
-	var stack_roots **var_t       # Stack roots (in-place array).
 
 #  Calls heap_visit(root, meta) for each GC root on the stack.
 #         root and meta are exactly the values passed to
@@ -210,14 +214,14 @@ def visit_heap_roots(heap_visit def (obj *var_t) void)
 		e := R.map.num_roots as __int__
 		while i != e
 			# we have a heap variable
-			heap_visit(R.stack_roots[i])
+			heap_visit((&R[1r] as **var_t)[i])
 			i += 1r
 
 		R = R.next
 
 
 def visit_allocations(visit def (obj *var_t) void)
-	node := head_var.next
+	node := __head_var.next
 	while node != nil
 		# cache the next node in case our current node gets deleted as part of the fn
 		next := node.next
@@ -276,7 +280,7 @@ def clear_mark_bit(obj *var_t)
 
 
 def free_unmarked(obj *var_t)
-	assert(obj != head_var)
+	assert(obj != __head_var)
 	if obj.mark == 0r
 		remove_node(obj)
 		mem_free(obj as *void, obj.type_info.size)

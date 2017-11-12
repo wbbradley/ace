@@ -26,11 +26,6 @@ type TypeID has
 def str(t TypeID) str
 	return str(__int__(t.id))
 
-def assert(condition any)
-	if (condition as __int__) == 0r
-		posix.puts("assertion failed!"r)
-		posix.exit(-1r)
-
 def typeid(t any) TypeID
 	return TypeID(__get_typeid__(t))
 

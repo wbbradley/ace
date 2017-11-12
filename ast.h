@@ -105,16 +105,6 @@ namespace ast {
 		std::vector<ptr<var_decl_t>> params;
 	};
 
-	struct param_list_t : public item_t {
-		typedef ptr<const param_list_t> ref;
-
-		static const syntax_kind_t SK = sk_param_list;
-		static ptr<param_list_t> parse(parse_state_t &ps);
-		virtual void render(render_state_t &rs) const;
-
-		std::vector<ptr<expression_t>> expressions;
-	};
-
 	struct expression_t : public statement_t {
 		typedef ptr<const expression_t> ref;
 
@@ -229,7 +219,7 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression_t> function_expr;
-		ptr<param_list_t> params;
+		std::vector<ptr<expression_t>> params;
 	};
 
 	struct return_statement_t : public statement_t {

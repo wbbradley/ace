@@ -748,7 +748,7 @@ std::string str(const module_scope_t::map &modules) {
 }
 
 module_scope_t::ref program_scope_t::lookup_module(atom symbol) {
-	debug_above(6, log("looking for module %s in [%s]",
+	debug_above(8, log("looking for module %s in [%s]",
 				symbol.c_str(),
 				join_with(modules, ", ", [] (module_scope_t::map::value_type module) -> std::string {
 					return module.first.c_str();

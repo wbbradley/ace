@@ -1027,16 +1027,17 @@ bound_var_t::ref upsert_type_info_offsets(
 						llvm_dim_offsets,
 					});
 
-				debug_above(5, log(log_info, "llvm_type_info = %s",
-							llvm_print(llvm_type_info).c_str()));
+				auto bound_type_info_type = type_info_head->get_pointer();
+				debug_above(5, log(log_info, "llvm_type_info = %s", llvm_print(llvm_type_info).c_str()));
+				debug_above(5, log(log_info, "bound_type_info_type = %s", llvm_print(bound_type_info_type->get_llvm_specific_type()).c_str()));
 				if (!!status) {
 					auto bound_type_info_var = bound_var_t::create(
 							INTERNAL_LOC(),
 							type_info_name,
-							type_info_head,
+							bound_type_info_type,
 							llvm::ConstantExpr::getPointerCast(
 								llvm_type_info,
-								llvm_type_info_head_type->getPointerTo()),
+								bound_type_info_type->get_llvm_specific_type()),
 							make_iid("type info value"));
 
 					program_scope->put_bound_variable(status, type_info_name, bound_type_info_var);
@@ -1094,26 +1095,23 @@ llvm::Value *llvm_call_allocator(
 {
 	debug_above(5, log(log_info, "calling allocator for %s",
 				data_type->str().c_str()));
-	bound_var_t::ref mem_alloc_var = program_scope->get_bound_variable(status, node->get_location(), "runtime.create_var");
-	assert(mem_alloc_var != nullptr);
+	bound_var_t::ref dtor_fn = maybe_get_dtor(status, builder,
+			program_scope, data_type, struct_type);
 
 	if (!!status) {
-		bound_var_t::ref dtor_fn = maybe_get_dtor(status, builder,
-				program_scope, data_type, struct_type);
+		auto bound_type_info = upsert_type_info(status, builder, program_scope,
+				name, node->get_location(), data_type, args, dtor_fn, nullptr);
 
+		bound_var_t::ref allocation = call_program_function(
+				status,
+				builder,
+				program_scope,
+				life,
+				"runtime.create_var",
+				node,
+				{bound_type_info});
 		if (!!status) {
-			auto bound_type_info = upsert_type_info(status, builder, program_scope,
-					name, node->get_location(), data_type, args, dtor_fn, nullptr);
-
-			if (!!status) {
-				return llvm_create_call_inst(
-						status, builder, node->get_location(),
-						mem_alloc_var,
-						{
-						/* the type info for this value */
-						bound_type_info->get_llvm_value(),
-						});
-			}
+			return allocation->get_llvm_value();
 		}
 	}
 
@@ -1159,7 +1157,9 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	}
 
 	/* at this point we should have a struct type in expanded_type */
-	if (auto struct_type = dyncast<const types::type_struct_t>(expanded_type)) {
+	if (auto struct_type = dyncast<const types::type_struct_t>(
+				expanded_type))
+   	{
 		bound_type_t::refs args = upsert_bound_types(status,
 				builder, scope, struct_type->dimensions);
 

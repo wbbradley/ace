@@ -159,7 +159,17 @@ namespace ast {
 
 	void callsite_expr_t::render(render_state_t &rs) const {
 		function_expr->render(rs);
-		params->render(rs);
+		rs.ss << "(";
+
+		for (size_t i = 0; i < params.size(); ++i) {
+			if (i > 0) {
+				rs.ss << ", ";
+			}
+
+			params[i]->render(rs);
+		}
+
+		rs.ss << ")";
 	}
 
 	void typeinfo_expr_t::render(render_state_t &rs) const {
@@ -424,20 +434,6 @@ namespace ast {
 			}
 			rs.ss << "}";
 		}
-	}
-
-	void param_list_t::render(render_state_t &rs) const {
-		rs.ss << "(";
-
-		for (size_t i = 0; i < expressions.size(); ++i) {
-			if (i > 0) {
-				rs.ss << ", ";
-			}
-
-			expressions[i]->render(rs);
-		}
-
-		rs.ss << ")";
 	}
 
 	void module_decl_t::render(render_state_t &rs) const {
