@@ -10,16 +10,23 @@ link module posix
 #   Since there is only a global list, this technique is not threadsafe.
 link var llvm_gc_root_chain *stack_entry_t
 
-var TYPE_ID_VECTOR __int32__ = -2r as __int32__
+var __head_var *var_t = __create_head_var()
+
 var __debug_zion_runtime __bool__ = __false__
 var _zion_rt __str__ = "zion-rt: "r
+
+var TYPE_KIND_TAG __int32__ = 0r as __int32__
+var TYPE_KIND_USE_OFFSETS __int32__ = 1r as __int32__
+var TYPE_KIND_USE_MARK_FN __int32__ = 2r as __int32__
 
 def on_assert_failure(msg __str__) void
 	# called when assertions fail
 	posix.puts(msg)
-	posix.exit(1r)
+	posix.raise(posix.SIGTRAP)
 
 def get_member_by_index(v *var_t, index __int__) *var_t
+	assert(v.type_info.type_kind == TYPE_KIND_USE_OFFSETS)
+
 	# Get the var's type_info
 	type_info_offsets := v.type_info as *type_info_offsets_t
 
@@ -91,8 +98,6 @@ def mem_free(p *void, cb __int__) void
 def get_total_allocated() __int__
 	return _bytes_allocated
 
-var __head_var *var_t # = nil as *var_t
-
 def check_node_existence(node *var_t, should_exist __bool__) void
 	var p *var_t = runtime.__head_var
 	assert(p == nil or p.prev == nil)
@@ -138,7 +143,7 @@ def add_node(node *var_t) void
 	assert(__head_var.prev == nil)
 	assert(__head_var.next.prev == __head_var)
 	assert(node.prev.next == node)
-	if node.next == nil
+	if node.next
 		assert(node.next.prev == node)
 
 	check_node_existence(node, __true__)
@@ -170,9 +175,28 @@ def get_var_type_id(v *var_t) __typeid__
 		# MEM_PANIC("attempt to get_var_type_id of a null value ", "", 116)
 		return 0r as __typeid__
 
+def __create_head_var() *var_t
+	return mem_alloc(sizeof(var_t)) as *var_t
+
 def create_var(type_info *type_info_t) *var_t
+	posix.puts("create_var called on "r)
+	if type_info
+		posix.puts("type_id"r)
+		posix.puts(__str__(type_info.type_id as __int__))
+		posix.puts("type_kind"r)
+		posix.puts(__str__(type_info.type_kind as __int__))
+		posix.puts("size"r)
+		posix.puts(__str__(type_info.size as __int__))
+		posix.puts("name"r)
+		posix.puts(type_info.name)
+	else
+		posix.puts("null type info"r)
+		posix.puts("size"r)
+		posix.puts(__str__(sizeof(var_t)))
+
 	# allocate the variable tracking object
-	var obj *var_t = mem_alloc(type_info.size) as *var_t
+	alloc_size := type_info ? type_info.size : sizeof(var_t)
+	var obj *var_t = mem_alloc(alloc_size) as *var_t
 	obj.type_info = type_info
 
 	add_node(obj)
@@ -248,12 +272,12 @@ def mark_allocation(obj *var_t)
 
 	assert(obj.type_info)
 
-	type_kind := __int__(obj.type_info.type_kind)
+	type_kind := obj.type_info.type_kind
 
-	if type_kind == 0r # type_kind_tag
+	if type_kind == runtime.TYPE_KIND_TAG
 		# tags don't have dependencies
 		return
-	elif type_kind == 1r # type_kind_use_offsets
+	elif type_kind == runtime.TYPE_KIND_USE_OFFSETS
 		var type_info_offsets *type_info_offsets_t = obj.type_info as *type_info_offsets_t
 
 		# we may be holding on to child nodes, let's recurse.
@@ -265,7 +289,7 @@ def mark_allocation(obj *var_t)
 			var child *var_t = get_member_by_index(obj, j)
 			mark_allocation(child)
 			j += 1r
-	elif type_kind == 2r # type_kind_use_mark_fn
+	elif type_kind == runtime.TYPE_KIND_USE_MARK_FN
 		# call the type's mark function to recurse
 		type_info_mark_fn := obj.type_info as *type_info_mark_fn_t
 		type_info_mark_fn.mark_fn(obj)

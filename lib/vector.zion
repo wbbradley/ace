@@ -9,23 +9,39 @@ type vector_t struct
 
 type vector{T} link vector_t __vector_free__ __vector_mark__
 
+def __get_raw_vector(v vector{any T}) *vector_t
+	return __get_raw_vector(v as *var_t)
+
+def __get_raw_vector(v *runtime.var_t) *vector_t
+	return &v[1r] as *vector_t
+
+[module std]
+def reserved(v vector{any}) __int__
+	return __get_raw_vector(v as *runtime.var_t).reserved
+
+[module std]
+def len(v vector{any}) __int__
+	return __get_raw_vector(v as *runtime.var_t).size
+
 [module std]
 def __init__() vector{any T}
 	typeinfo := typeinfo(vector{any T})
-	v := runtime.create_var(typeinfo)
-	vec := v as vector{any T}
-	return vec
+	v := runtime.create_var(typeinfo) as vector{any T}
+	print("new vector")
+	print(reserved(v))
+	print(len(v))
+	return v
 		
 def __finalize__(v vector{any T})
 	__vectorfree__(v as *runtime.var_t)
 
 [module std]
 def __getitem__(vec [any T], index int) any T
-	return __getvectoritem__(vec as *vector.vector_t, index.raw) as any T
+	return __getvectoritem__(__get_raw_vector(vec), index.raw) as any T
 
 [module std]
 def __getitem__(vec [any T], index __int__) any T
-	return __getvectoritem__(vec as *vector.vector_t, index) as any T
+	return __getvectoritem__(__get_raw_vector(vec), index) as any T
 
 [module std]
 def __setitem__(vec [any T], index int, t any T) void
@@ -40,8 +56,8 @@ def resize(vec [any T], size int, default any T) void
 # link def vec(TYPE, capacity int) TYPE[]
 
 [module std]
-def __vector_mark__(var_ *runtime.var_t)
-	v := var_ as *vector_t
+def __vector_mark__(vec *runtime.var_t)
+	v := __get_raw_vector(vec)
 	i := 0r
 	while i < v.size
 		runtime.mark_allocation(v.items[i])
@@ -80,7 +96,13 @@ def __setvectoritem__(vector *vector_t, index __int__, item *runtime.var_t)
 		posix.exit(-1r)
 
 def __vectorappend__(vector *vector_t, item *runtime.var_t)
+	print("appending to a vector")
+	print("vector.reserved = " + int(vector.reserved))
+	print("vector.size = " + int(vector.size))
+	print(str(vector.items as __int__))
+	assert(vector)
 	if vector.reserved > vector.size
+		assert(vector.items)
 		vector.items[vector.size] = item
 		vector.size += 1r
 	elif vector.items != nil

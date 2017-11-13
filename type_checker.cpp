@@ -17,6 +17,7 @@
 #include "type_kind.h"
 #include "nil_check.h"
 #include "json_parser.h"
+#include <time.h>
 
 /*
  * The basic idea here is that type checking is a graph operation which can be
@@ -944,6 +945,28 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 	return nullptr;
 }
 
+ptr<ast::callsite_expr_t> expand_callsite_string_literal(
+		token_t token,
+		std::string module,
+		std::string function_name,
+		std::string param)
+{
+	param = clean_ansi_escapes(param);
+	/* create the function name, which is a fully qualified module.function expression */
+	auto dot_expr = ast::create<ast::dot_expr_t>(token);
+	dot_expr->lhs = ast::create<ast::reference_expr_t>(token_t{token.location, tk_identifier, module});
+	dot_expr->rhs = token_t{token.location, tk_identifier, function_name};
+
+	/* have the dot expr call with the `param` value as its one parameter */
+	auto callsite = ast::create<ast::callsite_expr_t>(token);
+	callsite->function_expr = dot_expr;
+	callsite->params = std::vector<ptr<ast::expression_t>>{
+		ast::create<ast::literal_expr_t>(token_t{token.location, tk_raw_string, escape_json_quotes(param) + "r"})
+	};
+
+	return callsite;
+}
+
 bound_var_t::ref resolve_assert_macro(
 		status_t &status,
 		llvm::IRBuilder<> &builder, 
@@ -958,26 +981,10 @@ bound_var_t::ref resolve_assert_macro(
 	not_expr->rhs = condition;
 	if_block->condition = not_expr;
 
-	auto callsite = ast::create<ast::callsite_expr_t>(token);
-	auto dot_expr = ast::create<ast::dot_expr_t>(token);
-	dot_expr->lhs = ast::create<ast::reference_expr_t>(
-			token_t{token.location, tk_identifier, "runtime"});
-
-	dot_expr->rhs = token_t{token.location, tk_identifier, "on_assert_failure"};
-	callsite->function_expr = dot_expr;
-
-	std::stringstream ss;
-	escape_json_quotes(ss,
-			clean_ansi_escapes(
+	auto callsite = expand_callsite_string_literal(token, "runtime", "on_assert_failure", 
 				string_format("%s: assertion %s failed",
 					token.location.str(true, true).c_str(),
-					condition->str().c_str())));
-	auto text_literal = ast::create<ast::literal_expr_t>(
-			token_t{
-			token.location,
-			tk_raw_string,
-			ss.str() + "r"});
-	callsite->params = std::vector<ptr<ast::expression_t>>{text_literal};
+					condition->str().c_str()));
 
 	auto block = ast::create<ast::block_t>(token);
 	block->statements.push_back(callsite);
@@ -1007,8 +1014,6 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	assert(!as_ref);
-
 	/* get the value of calling a function */
 	bound_type_t::refs param_types;
 	bound_var_t::refs arguments;
@@ -1793,8 +1798,6 @@ bound_var_t::ref resolve_cond_expression(
 		ast::expression_t::ref when_false,
 		identifier::ref value_name)
 {
-	assert(!as_ref);
-
 	/* if scope allows us to set up new variables inside if conditions */
 	local_scope_t::ref if_scope;
 
@@ -1820,6 +1823,8 @@ bound_var_t::ref resolve_cond_expression(
 	}
 
 	if (!!status) {
+		assert(!condition_value->type->is_ref());
+
 		/* if the condition value is a maybe type, then we'll need multiple
 		 * anded conditions to be true in order to actually fall into the then
 		 * block, let's figure out those conditions */
@@ -2599,6 +2604,17 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 				builder.getContext(), "entry", llvm_function);
 		builder.SetInsertPoint(llvm_block);
 
+		if (getenv("TRACE_FNS") != nullptr) {
+			std::stringstream ss;
+			ss << decl->token.location.str(true, true) << ": " << decl->str() << " : " << bound_function_type->str();
+			auto callsite_debug_function_name_print = expand_callsite_string_literal(
+					token,
+					"posix",
+					"puts",
+					ss.str());
+			callsite_debug_function_name_print->resolve_statement(status, builder, scope, life, nullptr, nullptr);
+		}
+
 		/* set up the mapping to this function for use in recursion */
 		bound_var_t::ref function_var = bound_var_t::create(
 				INTERNAL_LOC(), token.text, bound_function_type, llvm_function,
@@ -2759,6 +2775,9 @@ void type_check_module_vars(
 		const ast::module_t &obj,
 		scope_t::ref program_scope)
 {
+	indent_logger indent(obj.get_location(), 2, string_format("resolving module variables in " c_module("%s"),
+				obj.module_key.c_str()));
+
 	/* get module level scope variable */
 	module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
 	if (!!status) {
@@ -2896,8 +2915,23 @@ void type_check_all_module_var_slots(
 		const ast::program_t &obj,
 		program_scope_t::ref program_scope)
 {
+	/* initialized the module-level variable declarations. make sure that we initialize the
+	 * runtime variables last. this will add them to the top of the __init_module_vars function. */
+	if (!!status) {
+		for (auto &module : obj.modules) {
+			if (module->module_key != "runtime") {
+				if (!!status) {
+					type_check_module_vars(status, compiler, builder, *module, program_scope);
+				}
+			}
+		}
+	}
+
 	for (auto &module : obj.modules) {
-		type_check_module_vars(status, compiler, builder, *module, program_scope);
+		if (module->module_key == "runtime") {
+			type_check_module_vars(status, compiler, builder, *module, program_scope);
+			break;
+		}
 	}
 }
 
@@ -3441,6 +3475,16 @@ void ast::block_t::resolve_statement(
 			indent_logger indent(statement->get_location(), 5, string_format("while checking statement %s",
 						statement->str().c_str()));
 
+			if (getenv("TRACE_STATEMENTS") != nullptr) {
+				std::stringstream ss;
+				ss << statement->token.location.str(true, true) << ": " << statement->str();
+				auto callsite_debug_function_name_print = expand_callsite_string_literal(
+						token,
+						"posix",
+						"puts",
+						ss.str());
+				callsite_debug_function_name_print->resolve_statement(status, builder, scope, life, nullptr, nullptr);
+			}
 			/* resolve the statement */
 			statement->resolve_statement(status, builder, current_scope, stmt_life,
 					&next_scope, returns);
@@ -4051,21 +4095,20 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
 			rhs_var->type->is_managed_ptr(status, builder, scope, is_managed);
 			if (!!status) {
 				if (!is_managed) {
+					return resolve_nil_check(status, builder, scope, life,
+							get_location(), rhs_var, nck_is_nil);
+				} else {
 					/* TODO: revisit whether managed types must/can override __not__? */
-					if (rhs_var->is_pointer()) {
-						return resolve_nil_check(status, builder, scope, life,
-							   	get_location(), rhs_var, nck_is_nil);
-					}
 				}
 			}
 		}
 		if (!!status) {
-		return call_program_function(status, builder, scope, life,
-				function_name, shared_from_this(), {rhs_var});
+			return call_program_function(status, builder, scope, life,
+					function_name, shared_from_this(), {rhs_var});
 		}
-    }
-    assert(!status);
-    return nullptr;
+	}
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref ast::literal_expr_t::resolve_expression(
@@ -4273,10 +4316,7 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	assert(!as_ref);
-
-	bound_var_t::ref bound_var = lhs->resolve_expression(status, builder, scope, life,
-		   	false /*as_ref*/);
+	bound_var_t::ref bound_var = lhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
 	if (!!status) {
 		return cast_bound_var(status, builder, scope, life, get_location(), bound_var, type_cast);
 	}

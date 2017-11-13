@@ -1,2 +1,0 @@
-(defmacro std.IntList (__or__ std.Done (__tuple__ int (ref std.IntList))))
-(unify std.IntList (__tuple__ int std.Done))

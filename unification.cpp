@@ -340,7 +340,7 @@ unification_t unify(
 		if (ptr_b != nullptr) {
 			debug_above(7, log("matching ptr types"));
 			return unify(ptr_a->element_type, ptr_b->element_type, env, bindings, depth + 1);
-		} else if (false && b->is_nil()) {
+		} else if (b->is_nil()) {
 			return {true, "", bindings};
 		} else {
 			return {

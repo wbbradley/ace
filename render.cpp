@@ -62,12 +62,13 @@ namespace ast {
 	}
 
 	void prefix_expr_t::render(render_state_t &rs) const {
+		rs.ss << "(";
 		rs.ss << token.text;
 		if (isalpha(token.text[0])) {
 			rs.ss << " ";
 		}
-
 		rhs->render(rs);
+		rs.ss << ")";
 	}
 
 	void while_block_t::render(render_state_t &rs) const {
@@ -213,10 +214,11 @@ namespace ast {
 	}
 
 	void array_index_expr_t::render(render_state_t &rs) const {
+		rs.ss << "(";
 		lhs->render(rs);
 		rs.ss << "[";
 		index->render(rs);
-		rs.ss << "]";
+		rs.ss << "])";
 	}
 
 	void minus_assignment_t::render(render_state_t &rs) const {

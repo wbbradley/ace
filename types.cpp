@@ -8,7 +8,6 @@
 #include <iostream>
 
 const char *BUILTIN_NIL_TYPE = "nil";
-const char *STD_LIST_TYPE = GLOBAL_SCOPE_NAME ".list";
 const char *STD_VECTOR_TYPE = "vector.vector";
 const char *BUILTIN_VOID_TYPE = "void";
 const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";
@@ -930,7 +929,7 @@ types::type_t::ref type_extern(
 
 types::type_t::ref type_list_type(types::type_t::ref element) {
 	return type_maybe(type_operator(type_id(make_iid_impl(
-						STD_LIST_TYPE, element->get_location())), element));
+						STD_VECTOR_TYPE, element->get_location())), element));
 }
 
 types::type_t::ref type_vector_type(types::type_t::ref element) {

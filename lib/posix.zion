@@ -18,3 +18,7 @@ link def rand() __int__
 link def exit(code __int__) __int__
 link def getch() __int__
 link def getcwd(space __str__) __str__
+link def raise(signal __int__) __int__
+
+var SIGTRAP __int__ = 5r
+var SIGKILL __int__ = 9r

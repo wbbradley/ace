@@ -189,11 +189,11 @@ def __times__(x int, y float) float
 def __times__(x float, y float) float
 	return float(x.raw * y.raw)
 
-def __eq__(x *any, y nil) __bool__
-	return __is_nil__(x)
+# def __eq__(x *any, y nil) __bool__
+# return __is_nil__(x)
 
-def __eq__(y nil, x *any) __bool__
-	return __is_nil__(x)
+# def __eq__(y nil, x *any) __bool__
+# return __is_nil__(x)
 
 def __eq__(x __str__, y nil) __bool__
 	return __is_nil__(x)
@@ -228,9 +228,9 @@ def __eq__(x str, y str) __bool__
 def __ineq__(x str, y str) __bool__
 	return posix.strcmp(x.raw, y.raw) != 0r
 
-def __ineq__(x *any, y nil) __bool__
-	# TODO: optimize
-	return __is_non_nil__(x)
+# def __ineq__(x *any, y nil) __bool__
+# TODO: optimize
+# return __is_non_nil__(x)
 
 def __ineq__(x __str__, y nil) __bool__
 	return __is_non_nil__(x)
