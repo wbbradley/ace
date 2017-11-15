@@ -148,28 +148,21 @@ int main(int argc, char *argv[]) {
 			if (!!status) {
 				compiler.build_type_check_and_code_gen(status);
 				if (!!status) {
-					int ret = compiler.emit_object_file(status);
-					if (!!status && !ret) {
-						return EXIT_SUCCESS;
-					} else {
-						return ret;
-					}
+					std::vector<std::string> obj_files;
+					compiler.emit_object_files(status, obj_files);
+					return !!status ? EXIT_SUCCESS : EXIT_FAILURE;
 				}
 			}
 			return EXIT_FAILURE;
-        } else if (cmd == "bc") {
+        } else if (cmd == "bin") {
 			compiler.build_parse_modules(status);
 
 			if (!!status) {
 				compiler.build_type_check_and_code_gen(status);
 				if (!!status) {
 					auto executable_filename = compiler.get_executable_filename();
-					int ret = compiler.emit_built_program(status, executable_filename);
-					if (!!status && !ret) {
-						return EXIT_SUCCESS;
-					} else {
-						return ret;
-					}
+					compiler.emit_built_program(status, executable_filename);
+					return !!status ? EXIT_SUCCESS : EXIT_FAILURE;
 				}
 			}
 			return EXIT_FAILURE;

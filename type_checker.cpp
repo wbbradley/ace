@@ -2336,12 +2336,15 @@ bound_var_t::ref cast_bound_var(
 				llvm_dest_val = builder.CreateIntToPtr(llvm_source_val, llvm_dest_type);
 			}
 		} else {
-			assert(false);
-			return nullptr;
+			user_error(status, location, "invalid cast: cannot cast %s to %s",
+					bound_var->type->str().c_str(),
+					type_cast->str().c_str());
 		}
 
-		return bound_var_t::create(INTERNAL_LOC(), "cast",
-				bound_type, llvm_dest_val, make_iid("cast"));
+		if (!!status) {
+			return bound_var_t::create(INTERNAL_LOC(), "cast",
+					bound_type, llvm_dest_val, make_iid("cast"));
+		}
 	}
 
 	assert(!status);
@@ -2546,9 +2549,7 @@ std::string switch_std_main(std::string name) {
         if (name == "main") {
             return USER_MAIN_FN;
         } else if (name == "__main__") {
-			// TODO: for JIT purposes, leave this as is, but for building .o or executable files,
-			// change it to just "main"
-            return "__main__";
+            return "main";
         }
     }
     return name;

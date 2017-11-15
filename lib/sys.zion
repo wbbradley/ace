@@ -8,10 +8,6 @@ def exit(code int)
 	posix.exit(code.raw)
 
 def set_args(argc __int__, argv *__str__)
-	print("set_args sees " + str(argc))
-	print(reserved(args))
-	print(len(args))
-	print(argv[0r])
 	i := argc - 1r
 	while i >= 0r
 		vector.append(args, __box__(argv[i]))

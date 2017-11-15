@@ -673,64 +673,39 @@ std::unordered_set<std::string> compiler_t::compile_modules(status_t &status) {
 	return {};
 }
 
-int compiler_t::emit_built_program(status_t &status, std::string executable_filename) {
-	std::string clang_bin = getenv("LLVM_CLANG_BIN") ? getenv("LLVM_CLANG_BIN") : "/usr/bin/clang";
-	if (clang_bin.size() == 0) {
-		user_error(status, INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called LLVM_CLANG_BIN");
-		return -1;
-	}
-
-	std::string llvm_link_bin = getenv("LLVM_LINK_BIN") ? getenv("LLVM_LINK_BIN") : "/usr/bin/llvm-link";
-	if (llvm_link_bin.size() == 0) {
-		user_error(status, INTERNAL_LOC(), "cannot find llvm-link! please specify it in an ENV var called LLVM_LINK_BIN");
-		return -1;
-	}
-
-	std::unordered_set<std::string> filenames;
+void compiler_t::emit_built_program(status_t &status, std::string executable_filename) {
+	std::vector<std::string> obj_files;
+	emit_object_files(status, obj_files);
 	if (!!status) {
-		filenames = compile_modules(status);
-	}
-
-	if (!!status) {
-		std::string bitcode_filename = executable_filename + ".bc";
+		std::string clang_bin = getenv("LLVM_CLANG_BIN") ? getenv("LLVM_CLANG_BIN") : "/usr/bin/clang";
+		if (clang_bin.size() == 0) {
+			user_error(status, INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called LLVM_CLANG_BIN");
+			return;
+		}
 
 		std::stringstream ss;
-		ss << llvm_link_bin << " -suppress-warnings";
-		for (auto filename : filenames) {
-			ss << " " << filename;
+		ss << clang_bin << " -lc -lm -Wno-override-module -Wall -O0 -mcx16";
+		for (auto obj_file : obj_files) {
+			ss << " " << obj_file;
 		}
-		ss << " -o " << bitcode_filename;
-		debug_above(1, log(log_info, "running %s...", ss.str().c_str()));
+		ss << " -o " << executable_filename;
 
-		/* link the .llir files together into a bitcode file */
+		/* compile the bitcode into a local machine executable */
 		errno = 0;
 		int ret = system(ss.str().c_str());
-		if (ret == 0) {
-			ss.str("");
-			ss << clang_bin << " -lc -lm -Wno-override-module -Wall -O0 -mcx16 -pthread ";
-			ss << bitcode_filename << " -o " << executable_filename;
-
-			/* compile the bitcode into a local machine executable */
-			errno = 0;
-			int ret = system(ss.str().c_str());
-			if (ret != 0) {
-				user_error(status, location_t{}, "failure (%d) when running: %s",
-						ret, ss.str().c_str());
-			}
-
-			struct stat s;
-			assert(stat(executable_filename.c_str(), &s) == 0);
-
-			return ret;
-		} else {
+		if (ret != 0) {
 			user_error(status, location_t{}, "failure (%d) when running: %s",
 					ret, ss.str().c_str());
-			return ret;
 		}
+
+		struct stat s;
+		assert(stat(executable_filename.c_str(), &s) == 0);
+
+		return;
 	}
 
 	assert(!status);
-	return -1;
+	return;
 }
 
 void run_gc_lowering(
@@ -768,10 +743,8 @@ void run_gc_lowering(
 	}
 }
 
-int compiler_t::run_program(int argc, char *argv_input[]) {
-	using namespace llvm;
+void compiler_t::lower_program_module() {
 	// Create the JIT.  This takes ownership of the module.
-	std::string error_str;
 	llvm::Module *llvm_program_module = llvm_get_program_module();
 
 	auto program_scope = get_program_scope();
@@ -791,7 +764,16 @@ int compiler_t::run_program(int argc, char *argv_input[]) {
 			llvm_program_module,
 			llvm::dyn_cast<llvm::StructType>(bound_stack_frame_map_type->get_llvm_specific_type()),
 			llvm::dyn_cast<llvm::StructType>(bound_stack_entry_type->get_llvm_specific_type()));
+}
 
+int compiler_t::run_program(int argc, char *argv_input[]) {
+	using namespace llvm;
+
+	lower_program_module();
+
+	llvm::Module *llvm_program_module = this->llvm_get_program_module();
+
+	std::string error_str;
 	auto llvm_engine = EngineBuilder(std::unique_ptr<llvm::Module>(llvm_program_module))
 		.setErrorStr(&error_str)
 		.setVerifyModules(true)
@@ -847,11 +829,10 @@ std::unique_ptr<llvm::MemoryBuffer> codegen(llvm::Module &module) {
 	return nullptr;
 }
 
-int compiler_t::emit_object_file(status_t &status) {
+void emit_object_file_from_module(status_t &status, llvm::Module *llvm_module, std::string Filename) {
+	debug_above(2, log("Creating %s...", Filename.c_str()));
 	using namespace llvm;
 	auto TargetTriple = llvm::sys::getProcessTriple();
-	log(log_info, "target triple is %s", TargetTriple.c_str());
-	auto llvm_module = llvm_get_program_module();
 	llvm_module->setTargetTriple(TargetTriple);
 
 	// Create the llvm_target
@@ -862,8 +843,8 @@ int compiler_t::emit_object_file(status_t &status) {
 	// This generally occurs if we've forgotten to initialise the
 	// TargetRegistry or we have a bogus target triple.
 	if (!llvm_target) {
-		errs() << Error;
-		return 1;
+		user_error(status, INTERNAL_LOC(), "%s", Error.c_str());
+		return;
 	}
 
 	auto CPU = "generic";
@@ -874,13 +855,12 @@ int compiler_t::emit_object_file(status_t &status) {
 
 	llvm_module->setDataLayout(llvm_target_machine->createDataLayout());
 
-	auto Filename = get_program_name() + ".o";
 	std::error_code EC;
 	raw_fd_ostream dest(Filename, EC, sys::fs::F_None);
 
 	if (EC) {
-		errs() << "Could not open file: " << EC.message();
-		return 1;
+		user_error(status, INTERNAL_LOC(), "Could not open file: %s", EC.message().c_str());
+		return;
 	}
 
 
@@ -888,16 +868,35 @@ int compiler_t::emit_object_file(status_t &status) {
 	auto FileType = TargetMachine::CGFT_ObjectFile;
 
 	if (llvm_target_machine->addPassesToEmitFile(pass, dest, FileType)) {
-		llvm::errs() << "TargetMachine can't emit a file of this type";
-		return 1;
+		user_error(status, INTERNAL_LOC(), "TargetMachine can't emit a file of this type");
+		return;
 	}
 
 	pass.run(*llvm_module);
 	dest.flush();
+}
 
-	log(log_info, "%s was created sucessfully. the end", Filename.c_str());
+void compiler_t::emit_object_files(status_t &status, std::vector<std::string> &obj_files) {
+	lower_program_module();
 
-	return 0;
+	while (llvm_modules.size() != 0) {
+		std::unique_ptr<llvm::Module> llvm_module;
+
+		/* grab the module from the list of included modules */
+		std::swap(llvm_module, llvm_modules.back().second);
+
+		std::string obj_file = (llvm_module->getName() + ".o").str();
+		emit_object_file_from_module(status, llvm_module.operator->(), obj_file);
+		if (!status) {
+			return;
+		}
+		obj_files.push_back(obj_file);
+		llvm_modules.pop_back();
+	}
+	auto program_obj_file = get_program_name() + ".o";
+	emit_object_file_from_module(status, llvm_get_program_module(), program_obj_file);
+	obj_files.push_back(program_obj_file);
+	return;
 }
 
 std::unique_ptr<llvm::Module> &compiler_t::get_llvm_module(atom name) {

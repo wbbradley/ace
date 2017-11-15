@@ -62,9 +62,9 @@ struct compiler_t {
 
 	void build_parse_linked(status_t &status, ptr<const ast::module_t> module, type_macros_t &global_type_macros);
 	std::unordered_set<std::string> compile_modules(status_t &status);
-	int emit_built_program(status_t &status, std::string bitcode_filename);
+	void emit_built_program(status_t &status, std::string bitcode_filename);
 	int run_program(int argc, char *argv[]);
-	int emit_object_file(status_t &status);
+	void emit_object_files(status_t &status, std::vector<std::string> &obj_files);
 
 	program_scope_t::ref get_program_scope() const;
 	std::string get_program_name() const;
@@ -75,6 +75,8 @@ struct compiler_t {
 
 	/* member variables */
 private:
+	void lower_program_module();
+
 	std::unique_ptr<llvm::Module> &get_llvm_module(atom name);
 
 	std::string program_name;

@@ -3,25 +3,20 @@ link module posix
 link module runtime
 
 type vector_t struct
+	var _var     runtime.var_t
 	var reserved __int__
 	var size     __int__
 	var items    **runtime.var_t
 
 type vector{T} link vector_t __vector_free__ __vector_mark__
 
-def __get_raw_vector(v vector{any T}) *vector_t
-	return __get_raw_vector(v as *var_t)
-
-def __get_raw_vector(v *runtime.var_t) *vector_t
-	return &v[1r] as *vector_t
-
 [module std]
 def reserved(v vector{any}) __int__
-	return __get_raw_vector(v as *runtime.var_t).reserved
+	return (v as *vector_t).reserved
 
 [module std]
 def len(v vector{any}) __int__
-	return __get_raw_vector(v as *runtime.var_t).size
+	return (v as *vector_t).size
 
 [module std]
 def __init__() vector{any T}
@@ -37,11 +32,12 @@ def __finalize__(v vector{any T})
 
 [module std]
 def __getitem__(vec [any T], index int) any T
-	return __getvectoritem__(__get_raw_vector(vec), index.raw) as any T
+	posix.puts(__str__(vec as __int__))
+	return __getvectoritem__((vec as *vector_t), index.raw) as any T
 
 [module std]
 def __getitem__(vec [any T], index __int__) any T
-	return __getvectoritem__(__get_raw_vector(vec), index) as any T
+	return __getvectoritem__(vec as *vector_t, index) as any T
 
 [module std]
 def __setitem__(vec [any T], index int, t any T) void
@@ -57,7 +53,7 @@ def resize(vec [any T], size int, default any T) void
 
 [module std]
 def __vector_mark__(vec *runtime.var_t)
-	v := __get_raw_vector(vec)
+	v := vec as *vector_t
 	i := 0r
 	while i < v.size
 		runtime.mark_allocation(v.items[i])
@@ -79,6 +75,9 @@ def __vector_free__(var_ *runtime.var_t)
 def __getvectoritem__(vector *vector_t, index __int__) *runtime.var_t
 	if index >= 0r
 		if index < vector.size
+			posix.puts(__str__(vector as __int__))
+			posix.puts(__str__(vector.items as __int__))
+			posix.puts(__str__(index))
 			return vector.items[index]
 
 	print("zion: array index out of bounds (" + int(vector as __int__) + int(index) + ")")

@@ -88,6 +88,8 @@ def mem_alloc(cb __int__) *void
 	runtime._all_bytes_allocated += cb
 	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
 
+	# posix.puts("allocating "r)
+	# posix.puts(__str__(cb))
 	return posix.calloc(cb, 1r) as *void
 
 def mem_free(p *void, cb __int__) void
@@ -178,8 +180,7 @@ def get_var_type_id(v *var_t) __typeid__
 def __create_head_var() *var_t
 	return mem_alloc(sizeof(var_t)) as *var_t
 
-def create_var(type_info *type_info_t) *var_t
-	posix.puts("create_var called on "r)
+def dbg_type_info(type_info *type_info_t)
 	if type_info
 		posix.puts("type_id"r)
 		posix.puts(__str__(type_info.type_id as __int__))
@@ -193,6 +194,9 @@ def create_var(type_info *type_info_t) *var_t
 		posix.puts("null type info"r)
 		posix.puts("size"r)
 		posix.puts(__str__(sizeof(var_t)))
+
+def create_var(type_info *type_info_t) *var_t
+	# dbg_type_info(type_info)
 
 	# allocate the variable tracking object
 	alloc_size := type_info ? type_info.size : sizeof(var_t)
