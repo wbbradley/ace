@@ -33,7 +33,7 @@ void add_bindings_to_make_type_concrete(
 unification_t var_t::accepts_callsite(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-	   	types::type_args_t::ref args,
+	   	types::type_t::ref args,
 		types::type_t::ref return_type) const
 {
 	/* get the args out of the sig */
@@ -42,8 +42,9 @@ unification_t var_t::accepts_callsite(
 	auto env = scope->get_typename_env();
 
 	INDENT(6, string_format(
-				"checking whether %s accepts %s", str().c_str(),
-				args->str().c_str()));
+				"checking whether %s accepts %s and returns %s", str().c_str(),
+				args->str().c_str(),
+				return_type->str().c_str()));
 
 	auto bindings = scope->get_type_variable_bindings();
 

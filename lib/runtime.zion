@@ -320,6 +320,19 @@ def gc()
 	visit_heap_roots(mark_allocation)
 	visit_allocations(free_unmarked)
 
+def report(use_case __str__)
+	bytes_allocated := __str__(runtime._bytes_allocated)
+	all_bytes_allocated := __str__(runtime._all_bytes_allocated)
+
+	message := "bytes_allocated = "r + bytes_allocated
+	posix.puts(message)
+	posix.free(message as __bytes)
+
+	message = "all_bytes_allocated = "r + all_bytes_allocated
+	posix.puts(message)
+	posix.free(message as __bytes)
+	posix.free(all_bytes_allocated as __bytes)
+	posix.free(bytes_allocated as __bytes)
 
 def print_var(node *var_t)
 	# printf("heap variable is still allocated at 0x%08llx and is a '%s'\n", (long long)node, node.type_info.name)

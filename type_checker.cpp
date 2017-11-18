@@ -1308,6 +1308,20 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 		} else {
 			return var;
 		}
+	} else {
+		indent_logger indent(get_location(), 5, string_format("looking for reference_expr " c_id("%s"),
+					token.text.c_str()));
+		var_t::refs fns;
+		auto function = maybe_get_callable(status, builder, scope, token.text,
+				get_location(), type_variable(get_location()), type_variable(get_location()), fns);
+		if (!!status && function != nullptr) {
+			debug_above(5, log("reference expression for " c_id("%s") " resolved to %s",
+						token.text.c_str(), function->str().c_str()));
+			return function;
+		} else {
+			debug_above(5, log("could not find reference expression for " c_id("%s") " (found %d fns, though)",
+						token.text.c_str(), fns.size()));
+		}
 	}
 
 	user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
@@ -1507,6 +1521,19 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 	return nullptr;
 }
 
+bound_var_t::ref resolve_pointer_operation(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		location_t location,
+		bound_var_t::ref lhs,
+		bound_var_t::ref rhs,
+		std::string function_name)
+{
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref type_check_binary_operator(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -1524,12 +1551,7 @@ bound_var_t::ref type_check_binary_operator(
 		lhs_var = lhs->resolve_expression(status, builder, scope, life,
 				false /*as_ref*/);
 		if (!!status) {
-
-			if (lhs_var->type->is_ref()) {
-				dbg();
-				lhs_var = lhs->resolve_expression(status, builder, scope, life,
-						false /*as_ref*/);
-			}
+			assert(!lhs_var->type->is_ref());
 
 			if (!!status) {
 				rhs_var = rhs->resolve_expression(status, builder, scope, life,
@@ -1538,10 +1560,41 @@ bound_var_t::ref type_check_binary_operator(
 				if (!!status) {
 					assert(!rhs_var->type->is_ref());
 
-					/* get or instantiate a function we can call on these arguments */
-					return call_program_function(
-							status, builder, scope, life, function_name,
-							obj, {lhs_var, rhs_var});
+					if (lhs_var->type->is_ptr(scope) && rhs_var->type->is_ptr(scope)) {
+						/* maybe we should just do a pointer operation */
+						bool lhs_is_managed;
+						lhs_var->type->is_managed_ptr(
+								status,
+								builder,
+								scope,
+								lhs_is_managed);
+						if (!!status) {
+							if (!lhs_is_managed) {
+								bool rhs_is_managed;
+								rhs_var->type->is_managed_ptr(
+										status,
+										builder,
+										scope,
+										rhs_is_managed);
+								if (!!status) {
+									if (!rhs_is_managed) {
+										/* yeah, it looks like we are operating on two native pointers */
+										// TODO: just insert a pointer instruction, based on function_name
+										return resolve_pointer_operation(status, builder, scope,
+												obj->get_location(), lhs_var, rhs_var,
+												function_name.str());
+									}
+								}
+							}
+						}
+					}
+
+					if (!!status) {
+						/* get or instantiate a function we can call on these arguments */
+						return call_program_function(
+								status, builder, scope, life, function_name,
+								obj, {lhs_var, rhs_var});
+					}
 				}
 			}
 		}

@@ -430,7 +430,7 @@ namespace types {
 	}
 
 	type_function_t::type_function_t(
-		   	type_args_t::ref args,
+		   	type_t::ref args,
 			type_t::ref return_type) :
 		args(args), return_type(return_type)
 	{
@@ -860,7 +860,7 @@ types::type_managed_t::ref type_managed(types::type_t::ref element_type) {
 }
 
 types::type_function_t::ref type_function(
-		types::type_args_t::ref args,
+		types::type_t::ref args,
 		types::type_t::ref return_type)
 {
 	return make_ptr<types::type_function_t>(args, return_type);

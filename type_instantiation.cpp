@@ -63,31 +63,34 @@ bound_var_t::ref bind_ctor_to_scope(
 				function->return_type->str().c_str(),
 				eval(function->return_type, scope->get_typename_env())->str().c_str()));
 
-	bound_type_t::refs args = upsert_bound_types(status, builder, scope,
-			function->args->args);
+	if (auto args = dyncast<const types::type_args_t>(function->args)) {
+		bound_type_t::refs bound_args = upsert_bound_types(status, builder, scope, args->args);
 
-	if (!!status) {
-		/* now that we know the parameter types, let's see what the term looks
-		 * like */
-		debug_above(5, log(log_info, "ctor type should be %s",
-					function->str().c_str()));
+		if (!!status) {
+			/* now that we know the parameter types, let's see what the term looks
+			 * like */
+			debug_above(5, log(log_info, "ctor type should be %s",
+						function->str().c_str()));
 
-		if (function->return_type != nullptr) {
-			/* now we know the type of the ctor we want to create. let's check
-			 * whether this ctor already exists. if so, we'll just return it. if
-			 * not, we'll generate it. */
-			auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope, id, node,
-					function->return_type);
+			if (function->return_type != nullptr) {
+				/* now we know the type of the ctor we want to create. let's check
+				 * whether this ctor already exists. if so, we'll just return it. if
+				 * not, we'll generate it. */
+				auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope, id, node,
+						function->return_type);
 
-			if (!!status) {
-				debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
-				return tuple_pair.first;
+				if (!!status) {
+					debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
+					return tuple_pair.first;
+				}
+			} else {
+				user_error(status, node->get_location(),
+						"constructor is not returning a product type: %s",
+						function->str().c_str());
 			}
-		} else {
-			user_error(status, node->get_location(),
-				   	"constructor is not returning a product type: %s",
-					function->str().c_str());
 		}
+	} else {
+		user_error(status, node->get_location(), "arguments do not appear to be ... erm... arguments...");
 	}
 
 	assert(!status);

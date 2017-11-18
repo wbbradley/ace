@@ -58,28 +58,32 @@ bound_var_t::ref instantiate_unchecked_fn(
 				unchecked_fn->module_scope, unification, fn_type);
 
 		if (auto function = dyncast<const types::type_function_t>(fn_type)) {
-			bound_type_t::refs args = upsert_bound_types(status,
-					builder, subst_scope, function->args->args);
-
-			if (!!status) {
-				bound_type_t::named_pairs named_args = zip_named_pairs(
-						get_param_list_decl_variable_names(
-							function_defn->decl->param_list_decl),
-						args);
-
-				bound_type_t::ref return_type = upsert_bound_type(status,
-						builder, subst_scope, function->return_type);
+			if (auto args = dyncast<const types::type_args_t>(function->args)) {
+				bound_type_t::refs bound_args = upsert_bound_types(status,
+						builder, subst_scope, args->args);
 
 				if (!!status) {
-					/* instantiate the function we want */
-					return function_defn->instantiate_with_args_and_return_type(status,
-							builder, subst_scope, life, nullptr /*new_scope*/,
-							named_args, return_type);
-				} else {
-					user_message(log_info, status, unchecked_fn->get_location(),
-							"while instantiating function %s",
-							unchecked_fn->str().c_str());
+					bound_type_t::named_pairs named_args = zip_named_pairs(
+							get_param_list_decl_variable_names(
+								function_defn->decl->param_list_decl),
+							bound_args);
+
+					bound_type_t::ref return_type = upsert_bound_type(status,
+							builder, subst_scope, function->return_type);
+
+					if (!!status) {
+						/* instantiate the function we want */
+						return function_defn->instantiate_with_args_and_return_type(status,
+								builder, subst_scope, life, nullptr /*new_scope*/,
+								named_args, return_type);
+					} else {
+						user_message(log_info, status, unchecked_fn->get_location(),
+								"while instantiating function %s",
+								unchecked_fn->str().c_str());
+					}
 				}
+			} else {
+				panic("the arguments are not actually type_args_t");
 			}
 		} else {
 			panic("we should have a product type for our fn_type");
@@ -134,11 +138,10 @@ bound_var_t::ref check_func_vs_callsite(
 		scope_t::ref scope,
 		location_t location,
 		var_t::ref fn,
-		types::type_args_t::ref args,
+		types::type_t::ref args,
 		types::type_t::ref return_type)
 {
 	assert(!!status);
-	assert(args->ftv_count() == 0 && "how did you get abstract arguments? are you a wizard?");
 	if (return_type == nullptr) {
 		return_type = type_variable(location);
 	}
@@ -197,7 +200,7 @@ bound_var_t::ref maybe_get_callable(
 		scope_t::ref scope,
 		atom alias,
 		location_t location,
-		types::type_args_t::ref args,
+		types::type_t::ref args,
 		types::type_t::ref return_type,
 		var_t::refs &fns)
 {
@@ -265,7 +268,7 @@ bound_var_t::ref get_callable_from_local_var(
 		atom alias,
 		bound_var_t::ref bound_var,
 		location_t callsite_location,
-		types::type_args_t::ref args,
+		types::type_t::ref args,
 		types::type_t::ref return_type)
 {
 	/* make sure the function is just a function, not a reference to a function */
@@ -297,7 +300,7 @@ bound_var_t::ref get_callable(
 		scope_t::ref scope,
 		atom alias,
 		location_t callsite_location,
-		types::type_args_t::ref args,
+		types::type_t::ref args,
 		types::type_t::ref return_type)
 {
 	bound_var_t::ref bound_var;

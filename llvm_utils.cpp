@@ -190,28 +190,32 @@ bound_var_t::ref create_callsite(
 		if (function_type != nullptr) {
 			auto return_type = upsert_bound_type(status, builder, scope, function_type->return_type);
 			assert(!!status);
-			auto coerced_parameter_values = get_llvm_values(status, builder,
-					scope, location, function_type->args, arguments);
-			if (!!status) {
-				llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
-						status, builder, location, function, coerced_parameter_values);
-
+			if (auto args = dyncast<const types::type_args_t>(function_type->args)) {
+				auto coerced_parameter_values = get_llvm_values(status, builder,
+						scope, location, args, arguments);
 				if (!!status) {
-					bound_type_t::ref return_type = get_function_return_type(status, builder, scope, function->type);
+					llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
+							status, builder, location, function, coerced_parameter_values);
 
 					if (!!status) {
-						bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
-								return_type, llvm_call_inst,
-								make_type_id_code_id(INTERNAL_LOC(), name));
+						bound_type_t::ref return_type = get_function_return_type(status, builder, scope, function->type);
 
-						/* all return values must be tracked since the callee is
-						 * expected to return a ref-counted value */
-						life->track_var(status, builder, scope, ret, lf_statement);
 						if (!!status) {
-							return ret;
+							bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
+									return_type, llvm_call_inst,
+									make_type_id_code_id(INTERNAL_LOC(), name));
+
+							/* all return values must be tracked since the callee is
+							 * expected to return a ref-counted value */
+							life->track_var(status, builder, scope, ret, lf_statement);
+							if (!!status) {
+								return ret;
+							}
 						}
 					}
 				}
+			} else {
+				panic("type args are not type_args_t");
 			}
 		} else {
 			user_error(status, location,

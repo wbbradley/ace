@@ -597,36 +597,40 @@ bound_type_t::ref create_bound_function_type(
 		ptr<scope_t> scope,
 		const ptr<const types::type_function_t> &function)
 {
-	bound_type_t::refs args = upsert_bound_types(status,
-			builder, scope, function->args->args);
-
-	if (!!status) {
-		bound_type_t::ref return_type = upsert_bound_type(
-				status, builder, scope, function->return_type);
+	if (auto args = dyncast<const types::type_args_t>(function->args)) {
+		bound_type_t::refs bound_args = upsert_bound_types(status,
+				builder, scope, args->args);
 
 		if (!!status) {
-			auto signature = function->get_signature();
-			auto bound_type = scope->get_bound_type(signature);
-			if (bound_type) {
-				return bound_type;
-			} else {
-				auto *llvm_fn_type = llvm_create_function_type(status,
-						builder, args, return_type);
-				if (!!status) {
-					// TODO: support dynamic function creation
-					bound_type = bound_type_t::create(function,
-							function->get_location(), llvm_fn_type->getPointerTo());
-					ptr<program_scope_t> program_scope = scope->get_program_scope();
-					program_scope->put_bound_type(status, bound_type);
+			bound_type_t::ref return_type = upsert_bound_type(
+					status, builder, scope, function->return_type);
 
+			if (!!status) {
+				auto signature = function->get_signature();
+				auto bound_type = scope->get_bound_type(signature);
+				if (bound_type) {
+					return bound_type;
+				} else {
+					auto *llvm_fn_type = llvm_create_function_type(status,
+							builder, bound_args, return_type);
 					if (!!status) {
-						return bound_type;
-					} else {
-						return nullptr;
+						// TODO: support dynamic function creation
+						bound_type = bound_type_t::create(function,
+								function->get_location(), llvm_fn_type->getPointerTo());
+						ptr<program_scope_t> program_scope = scope->get_program_scope();
+						program_scope->put_bound_type(status, bound_type);
+
+						if (!!status) {
+							return bound_type;
+						} else {
+							return nullptr;
+						}
 					}
 				}
 			}
-		}
+		} 
+	} else {
+		panic("type_args of the wrong type...");
 	}
 
 	assert(!status);

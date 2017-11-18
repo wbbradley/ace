@@ -1,4 +1,9 @@
 module _
+link module sys
 
 def main()
-	pass
+	runtime.report("start of main"r)
+	print("hello world from " + sys.args[0r])
+	runtime.report("after hello world"r)
+	runtime.gc()
+	runtime.report("after gc"r)

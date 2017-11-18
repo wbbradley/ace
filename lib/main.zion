@@ -1,6 +1,7 @@
 module main
 
 link module sys
+link module posix
 
 # this is the actual default entry point to every program
 [module std]
@@ -9,6 +10,6 @@ def __main__(argc __int32__, argv *__str__) __int32__
 	# initialize them. NB: Order of initialization is currently undefined.
 	__init_module_vars()
 
-	sys.set_args(__int__(argc), argv)
+	sys.set_args(argc as __int__, argv)
 	main()
-	return __int32__(0r)
+	return 0r as __int32__
