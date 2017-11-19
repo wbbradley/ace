@@ -1,6 +1,14 @@
 #!/bin/sh
 set -e
 
+function require() {
+	$@ || echo "You must have $1 installed." && exit 1
+}
+
+require cmake --version
+require make --version
+require git --version
+
 # Specify which version of LLVM you'd like to use (corresponds to branch names in
 # https://github.com/llvm-mirror/... repos.)
 RELEASE=release_40
