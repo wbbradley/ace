@@ -148,7 +148,7 @@ void call_refcount_func(
 #ifdef MEMORY_DEBUGGING
 				bound_var_t::ref reason_var = bound_var_t::create(
 						INTERNAL_LOC(), "reason",
-						program_scope->get_bound_type({"__str__"}),
+						program_scope->get_bound_type({STR_TYPE}),
 						llvm_create_global_string(builder, reason),
 						make_iid("refcount_reason"));
 #endif

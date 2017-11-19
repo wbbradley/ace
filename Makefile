@@ -220,7 +220,7 @@ $(BUILD_DIR)/%.o: %.c
 
 %.llir: %.c zion_rt.h
 	@echo Emitting LLIR from $<
-	@$(CLANG) -S -emit-llvm $< -o $@
+	@$(CLANG) -S -emit-llvm -g $< -o $@
 
 clean:
 	rm -rf *.llir.ir $(BUILD_DIR)/* $(TARGETS)

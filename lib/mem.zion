@@ -26,7 +26,7 @@ def addref_value(v Value) void
 [module std]
 def release_value(v Value) void
 	if v.typeinfo.release(v) == 0
-		posix.free(v.name as __bytes)
+		posix.free(v.name)
 
 type Vector has
 	var x float

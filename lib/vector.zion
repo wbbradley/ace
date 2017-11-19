@@ -23,8 +23,6 @@ def __init__() vector{any T}
 	typeinfo := typeinfo(vector{any T})
 	v := runtime.create_var(typeinfo) as vector{any T}
 	print("new vector")
-	print(reserved(v))
-	print(len(v))
 	return v
 		
 def __finalize__(v vector{any T})
@@ -66,7 +64,7 @@ def __vector_free__(var_ *runtime.var_t)
 
 	/* the gc will handle cleaning up everything that we pointed to, but we need to free up our
 	 * extra allocated heap space. */
-	posix.free(vector.items as __bytes)
+	posix.free(vector.items)
 
 	/* zion will handle deleting the actual vector_t, since it will be attached to the managed
 	 * object */
@@ -75,9 +73,6 @@ def __vector_free__(var_ *runtime.var_t)
 def __getvectoritem__(vector *vector_t, index __int__) *runtime.var_t
 	if index >= 0r
 		if index < vector.size
-			print("accessing vector at " + int(index))
-			print(vector as __int__)
-			print(vector.items as __int__)
 			return vector.items[index]
 
 	print("zion: array index out of bounds (" + int(vector as __int__) + int(index) + ")")
@@ -95,10 +90,6 @@ def __setvectoritem__(vector *vector_t, index __int__, item *runtime.var_t)
 		posix.exit(-1r)
 
 def __vectorappend__(vector *vector_t, item *runtime.var_t)
-	print("appending to a vector")
-	print("vector.reserved = " + int(vector.reserved))
-	print("vector.size = " + int(vector.size))
-	print(str(vector.items as __int__))
 	assert(vector)
 	if vector.reserved > vector.size
 		print("we have space")
@@ -114,18 +105,16 @@ def __vectorappend__(vector *vector_t, item *runtime.var_t)
 			new_reserved = 16r
 
 		new_items := posix.calloc(sizeof(*runtime.var_t), new_reserved) as **runtime.var_t
-		posix.memcpy(new_items as __bytes, vector.items as __bytes, sizeof(*runtime.var_t) * vector.size)
+		posix.memcpy(new_items as *__int8__, vector.items as *__int8__, sizeof(*runtime.var_t) * vector.size)
 		new_items[vector.size] = item
 		vector.size += 1r
 
-		posix.free(vector.items as __bytes)
+		posix.free(vector.items)
 		vector.items = new_items
 	else
-		print(int(vector.reserved))
 		print("we need to go from zero space to newly allocated space")
 		assert(vector.reserved == 0r)
 		vector.items = posix.calloc(sizeof(*runtime.var_t), 4r) as **runtime.var_t
 		vector.reserved = 4r
 		vector.size = 1r
 		vector.items[0r] = item
-		print(vector.items[0r] as __int__)

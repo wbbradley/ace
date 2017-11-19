@@ -108,8 +108,18 @@ unification_t unify(
 
 	if (pti_a != nullptr) {
 		/* check for basic type_id matching */
-		if (pti_b != nullptr && pti_a->id->get_name() == pti_b->id->get_name()) {
+		if (pti_b != nullptr &&
+				pti_a->id->get_name() == pti_b->id->get_name())
+		{
 			/* simple type_id match */
+			return {true, "", bindings};
+		} else if (pti_a->id->get_name() == "void") {
+			/* everything is covariant with void because void encompasses anything (since it cannot be accessed and does
+			 * not have a known size) */
+			if (auto ptv_b = dyncast<const types::type_variable_t>(b)) {
+				// TODO: probably we need to map all ftvs in b to void, not just the outer b
+				bindings[ptv_b->id->get_name()] = a;
+			}
 			return {true, "", bindings};
 		}
 	}

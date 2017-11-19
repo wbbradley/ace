@@ -4,6 +4,7 @@
 #include <sstream>
 #include <vector>
 #include <memory>
+#include <map>
 
 struct shared_comparator {
     template <typename T>
@@ -70,6 +71,15 @@ std::ostream &operator <<(std::ostream &os, const maybe<T> &m) {
 	} else {
 		return os;
 	}
+}
+
+template <typename U, typename V>
+std::vector<U> keys(const std::map<U, V> &map) {
+	std::vector<U> k;
+	for (auto it=map.begin(); it != map.end(); ++it) {
+		k.push_back(it->first);
+	}
+	return k;
 }
 
 bool starts_with(const std::string &str, const std::string &search);

@@ -13,13 +13,13 @@ link var llvm_gc_root_chain *stack_entry_t
 var __head_var *var_t = __create_head_var()
 
 var __debug_zion_runtime __bool__ = __false__
-var _zion_rt __str__ = "zion-rt: "r
+var _zion_rt *__char__ = "zion-rt: "r
 
 var TYPE_KIND_TAG __int32__ = 0r as __int32__
 var TYPE_KIND_USE_OFFSETS __int32__ = 1r as __int32__
 var TYPE_KIND_USE_MARK_FN __int32__ = 2r as __int32__
 
-def on_assert_failure(msg __str__) void
+def on_assert_failure(msg *__char__) void
 	# called when assertions fail
 	posix.puts(msg)
 	posix.raise(posix.SIGTRAP)
@@ -58,7 +58,7 @@ type type_info_t struct
 	var type_id   __int32__
 	var type_kind __int32__
 	var size      __int__
-	var name      __str__
+	var name      *__char__
 
 type type_info_offsets_t struct
 	var type_info_head type_info_t
@@ -90,11 +90,11 @@ def mem_alloc(cb __int__) *void
 
 	# posix.puts("allocating "r)
 	# posix.puts(__str__(cb))
-	return posix.calloc(cb, 1r) as *void
+	return posix.calloc(cb, 1r)
 
 def mem_free(p *void, cb __int__) void
 	_bytes_allocated -= cb
-	posix.free(p as __bytes)
+	posix.free(p)
 	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
 
 def get_total_allocated() __int__
@@ -151,6 +151,8 @@ def add_node(node *var_t) void
 	check_node_existence(node, __true__)
 
 def remove_node(node *var_t) void
+	assert(node != runtime.__head_var)
+
 	# dbg_zrt(printf("removing node 0x%08llx %s\n", (long long)node, node.type_info.name))
 	assert(node.mark == 0r)
 
@@ -320,23 +322,34 @@ def gc()
 	visit_heap_roots(mark_allocation)
 	visit_allocations(free_unmarked)
 
-def report(use_case __str__)
+def report(use_case *__char__)
+	title := "Memory Report: "r + use_case
+	posix.puts(title)
+	posix.free(title)
+
 	bytes_allocated := __str__(runtime._bytes_allocated)
 	all_bytes_allocated := __str__(runtime._all_bytes_allocated)
 
 	message := "bytes_allocated = "r + bytes_allocated
 	posix.puts(message)
-	posix.free(message as __bytes)
+	posix.free(message)
 
 	message = "all_bytes_allocated = "r + all_bytes_allocated
 	posix.puts(message)
-	posix.free(message as __bytes)
-	posix.free(all_bytes_allocated as __bytes)
-	posix.free(bytes_allocated as __bytes)
+	posix.free(message)
+	posix.free(all_bytes_allocated)
+	posix.free(bytes_allocated)
 
 def print_var(node *var_t)
-	# printf("heap variable is still allocated at 0x%08llx and is a '%s'\n", (long long)node, node.type_info.name)
-	pass
+	z := __str__(node as __int__, 16r)
+	a := "heap variable is still allocated at "r + z
+	b := a + " and is a "r
+	c := b + node.type_info.name
+	posix.puts(c)
+	posix.free(z)
+	posix.free(a)
+	posix.free(b)
+	posix.free(c)
 
 
 def heap_dump()

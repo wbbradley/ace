@@ -480,9 +480,9 @@ bound_type_t::ref create_bound_id_type(
 	if (expansion != nullptr) {
 		return bind_expansion(status, builder, scope, id, expansion);
 	} else {
-		user_error(status, id->get_location(), "no type definition found for %s in %s",
+		user_error(status, id->get_location(), "no type definition found for %s in [%s]",
 				id->str().c_str(),
-				str(env).c_str());
+				join(keys(env), ", ").c_str());
 	}
 	assert(!status);
 	return nullptr;

@@ -296,11 +296,12 @@ const char *INT64_TYPE = "__int64__";
 const char *INT32_TYPE = "__int32__";
 const char *INT16_TYPE = "__int16__";
 const char *INT8_TYPE = "__int8__";
+const char *CHAR_TYPE = "__char__";
 const char *BOOL_TYPE = "__bool__";
 const char *FLOAT_TYPE = "__float__";
-const char *STR_TYPE = "__str__";
+const char *STR_TYPE = "*__char__";
 const char *UTF8_TYPE = "__utf8__";
-const char *PTR_TO_STR_TYPE = "*__str__";
+const char *PTR_TO_STR_TYPE = "**__char__";
 const char *TRUE_TYPE = "__true__";
 const char *FALSE_TYPE = "__false__";
 const char *TYPEID_TYPE = "__typeid__";
@@ -358,6 +359,11 @@ void add_global_types(
 					type_id(make_iid(INT8_TYPE)),
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty())},
+		{{CHAR_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(CHAR_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getInt8Ty())},
 		{{UTF8_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(UTF8_TYPE)),
@@ -375,30 +381,19 @@ void add_global_types(
 				   	builder.getInt64Ty())},
 		{{STR_TYPE},
 		   	bound_type_t::create(
-					type_id(make_iid(STR_TYPE)),
+					type_ptr(type_id(make_iid(CHAR_TYPE))),
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty()->getPointerTo())},
 		{{PTR_TO_STR_TYPE},
 		   	bound_type_t::create(
-					type_ptr(type_id(make_iid(STR_TYPE))),
+					type_ptr(type_ptr(type_id(make_iid(CHAR_TYPE)))),
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty()->getPointerTo()->getPointerTo())},
-
 		{{TYPEID_TYPE},
 			bound_type_t::create(
 					type_id(make_iid(TYPEID_TYPE)),
 					INTERNAL_LOC(),
 					builder.getInt32Ty())},
-		{{"__byte_count"},
-			bound_type_t::create(
-					type_id(make_iid("__byte_count")),
-					INTERNAL_LOC(),
-					builder.getInt64Ty())},
-		{{"__bytes"},
-			bound_type_t::create(
-					type_id(make_iid("__bytes")),
-					INTERNAL_LOC(),
-					builder.getInt8Ty()->getPointerTo())},
 	};
 
 	for (auto type_pair : globals) {
@@ -433,13 +428,16 @@ void add_globals(
 	bound_type_t::ref nil_type = program_scope->get_bound_type({"nil"});
 	assert(nil_type != nullptr);
 
-	bound_type_t::ref void_ptr_type = program_scope->get_bound_type({"__bytes"});
-	assert(void_ptr_type != nullptr);
-
 	bound_type_t::ref bool_type = program_scope->get_bound_type({BOOL_TYPE});
 	assert(bool_type != nullptr);
 
-	program_scope->put_bound_variable(status, "__true__", bound_var_t::create(INTERNAL_LOC(), "__true__", bool_type, builder.getInt64(1/*true*/), make_iid("__true__")));
+	program_scope->put_bound_variable(
+			status,
+			"__true__",
+			bound_var_t::create(INTERNAL_LOC(),
+				"__true__",
+				bool_type,
+				builder.getInt64(1/*true*/), make_iid("__true__")));
 	assert(!!status);
 
 	program_scope->put_bound_variable(status, "__false__", bound_var_t::create(INTERNAL_LOC(), "__false__", bool_type, builder.getInt64(0/*false*/), make_iid("__false__")));
@@ -469,10 +467,11 @@ void add_globals(
 			{FLOAT_TYPE, llvm_module_float, "__float_float", {FLOAT_TYPE}, FLOAT_TYPE},
 			{FLOAT_TYPE, llvm_module_float, "__float_str", {STR_TYPE}, FLOAT_TYPE},
 
-			{STR_TYPE, llvm_module_str, "__str_int", {INT_TYPE}, STR_TYPE},
-			{STR_TYPE, llvm_module_str, "__str_float", {FLOAT_TYPE}, STR_TYPE},
-			{STR_TYPE, llvm_module_str, "__str_type_id", {TYPEID_TYPE}, STR_TYPE},
-			{STR_TYPE, llvm_module_str, "__str_str", {STR_TYPE}, STR_TYPE},
+			{"__str__", llvm_module_str, "__str_int", {INT_TYPE}, STR_TYPE},
+			{"__str__", llvm_module_str, "__str_int_radix", {INT_TYPE, INT_TYPE}, STR_TYPE},
+			{"__str__", llvm_module_str, "__str_float", {FLOAT_TYPE}, STR_TYPE},
+			{"__str__", llvm_module_str, "__str_type_id", {TYPEID_TYPE}, STR_TYPE},
+			{"__str__", llvm_module_str, "__str_str", {STR_TYPE}, STR_TYPE},
 			{"__getitem__", llvm_module_str, "__ptr_to_str_get_item", {PTR_TO_STR_TYPE, INT_TYPE}, STR_TYPE},
 
 			{"__ineq__", llvm_module_typeid, "__type_id_ineq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
@@ -684,7 +683,7 @@ void compiler_t::emit_built_program(status_t &status, std::string executable_fil
 		}
 
 		std::stringstream ss;
-		ss << clang_bin << " -lc -lm -Wno-override-module -Wall -O0 -mcx16";
+		ss << clang_bin << " -lc -lm -Wno-override-module -Wall -g -O0 -mcx16";
 		for (auto obj_file : obj_files) {
 			ss << " " << obj_file;
 		}

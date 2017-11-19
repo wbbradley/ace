@@ -64,12 +64,12 @@ def bool(x __bool__) bool
 
 type str has
 	# TODO: override str ctor to strdup strings
-	var raw __str__
+	var raw *__char__
 
 def __finalize__(s str)
-	posix.free(s.raw as __bytes)
+	posix.free(s.raw)
 
-def __box__(s __str__) str
+def __box__(s *__char__) str
 	return str(posix.strdup(s))
 
 def str(s str) str
@@ -195,11 +195,11 @@ def __times__(x float, y float) float
 # def __eq__(y nil, x *any) __bool__
 # return __is_nil__(x)
 
-def __eq__(x __str__, y nil) __bool__
-	return __is_nil__(x)
+# def __eq__(x __str__, y nil) __bool__
+# return __is_nil__(x)
 
-def __eq__(x *any T, y *any T) __bool__
-	return x as __int__ == y as __int__
+# def __eq__(x *any T, y *any T) __bool__
+# 	return x as __int__ == y as __int__
 
 def __eq__(x int, y int) __bool__
 	return x.raw == y.raw
@@ -232,15 +232,15 @@ def __ineq__(x str, y str) __bool__
 # TODO: optimize
 # return __is_non_nil__(x)
 
-def __ineq__(x __str__, y nil) __bool__
-	return __is_non_nil__(x)
+# def __ineq__(x __str__, y nil) __bool__
+# return __is_non_nil__(x)
 
-def __ineq__(y nil, x *any) __bool__
-	# TODO: optimize
-	return __is_non_nil__(x)
+# def __ineq__(y nil, x *any) __bool__
+# TODO: optimize
+# 	return __is_non_nil__(x)
 
-def __ineq__(x *any T, y *any T) __bool__
-	return x as __int__ != y as __int__
+# def __ineq__(x *any T, y *any T) __bool__
+# 	return x as __int__ != y as __int__
 
 def __ineq__(x int, y int) __bool__
 	return x.raw != y.raw
@@ -377,21 +377,21 @@ def next(list_iter ListIter{any V}) iter.Step{any V, ListIter{any V}}?
 		return nil as iter.Step{any V, ListIter{any V}}?
 
 type bytes has
-	var data __bytes
+	var data *__int8__
 	var cb __int__
 
 def len(b bytes) int
 	return int(b.cb)
 
 def alloc(cb int) bytes
-	return bytes(posix.calloc(1r, cb.raw), cb.raw)
+	return bytes(posix.calloc(1r, cb.raw) as *__int8__, cb.raw)
 
 def __finalize__(b bytes)
 	posix.free(b.data)
 
-def str(b __bytes, length __int__, encoding str) str
+def str(b *__int8__, length __int__, encoding str) str
 	dest_len := length + 1r
 	dest := posix.calloc(1r, dest_len)
-	posix.memcpy(dest, b, length)
-	return str(dest as __str__)
+	posix.memcpy(dest as *__int8__, b as *__int8__, length)
+	return str(dest as *__char__)
 

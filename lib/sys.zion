@@ -7,7 +7,7 @@ var args [str]
 def exit(code int)
 	posix.exit(code.raw)
 
-def set_args(argc __int__, argv *__str__)
+def set_args(argc __int__, argv **__char__)
 	i := argc - 1r
 	while i >= 0r
 		vector.append(args, __box__(argv[i]))
