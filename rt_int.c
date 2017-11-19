@@ -90,3 +90,60 @@ zion_bool_t __int_ineq_int(zion_int_t x, zion_int_t y) {
 zion_bool_t __int_eq_int(zion_int_t x, zion_int_t y) {
 	return x == y;
 }
+
+struct TI {
+	int32_t type_id;
+	int32_t type_kind;
+	int64_t size;
+	char *name;
+};
+
+struct VT {
+	struct TI * type_info;
+	int64_t mark;
+	struct VT *next;
+	struct VT *prev;
+	int64_t allocation;
+	int64_t data;
+};
+
+struct SFM {
+	int32_t num_roots;
+	int32_t num_meta;
+};
+
+struct SE {
+	struct SE * next;
+	struct SFM * map;
+	struct VT *root[0];
+};
+
+void dbg_ti(struct TI *ti) {
+	printf("type_id:\t%lld\ntype_kind:\t%lld\nsize:\t%lld\nname:\t%s\n",
+			(int64_t)ti->type_id,
+			(int64_t)ti->type_kind,
+			(int64_t)ti->size,
+			ti->name);
+}
+
+void dbg_vt(struct VT *vt) {
+	dbg_ti(vt->type_info);
+	printf("mark:\t%lld\n", vt->mark);
+	printf("next:\t0x%08llx\n", (int64_t)vt->next);
+	printf("prev:\t0x%08llx\n", (int64_t)vt->prev);
+	printf("allocation:\t%lld\n", (int64_t)vt->allocation);
+}
+
+void dbg_se(void *p) {
+	struct SE *se = p;
+	assert(se->map->num_meta == 0);
+	printf("stack entry: (next: 0x%08llx, map: 0x%08llx {%lld roots})\n",
+		   	(int64_t)se->next, (int64_t)se->map, (int64_t)se->map->num_roots);
+	for (int64_t i=0; i < se->map->num_roots; ++i) {
+		printf("root[%lld]: 0x%08llx\n", (int64_t)i, (int64_t)se->root[i]);
+		if (se->root[i]) {
+			dbg_vt(se->root[i]);
+		}
+	}
+}
+

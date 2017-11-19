@@ -134,6 +134,9 @@ bound_type_t::ref program_scope_t::get_bound_type(types::signature signature, bo
 	} else if (use_mappings) {
 		auto dest_iter = bound_type_mappings.find(signature);
 		if (dest_iter != bound_type_mappings.end()) {
+			debug_above(4, log("falling back to bound type mappings to find %s (resolved to %s)",
+					signature.str().c_str(),
+					dest_iter->second.str().c_str()));
 			return get_bound_type(dest_iter->second);
 		}
 	}

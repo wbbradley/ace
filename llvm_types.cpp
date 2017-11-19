@@ -149,13 +149,19 @@ bound_type_t::ref create_bound_ptr_type(
 		return nullptr;
 	}
 
+	debug_above(8, log("recursing in to create element type %s", type_ptr->element_type->str().c_str()));
 	/* get or create the element type's bound type, if it exists */
 	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_ptr->element_type);
+	debug_above(8, log("recursion yielded bound type %s", bound_type->str().c_str()));
 
 	if (!!status) {
 		assert(bound_type != nullptr);
-		bound_type_t::ref bound_ptr_type = scope->get_bound_type(type_ptr->get_signature());
+		bound_type_t::ref bound_ptr_type = scope->get_bound_type(type_ptr->get_signature(), false /*use_mapping*/);
 		if (bound_ptr_type != nullptr) {
+			debug_above(8, log("create_bound_ptr_type(%s) returning bound type %s",
+				   type_ptr->str().c_str(),
+			   	   bound_ptr_type->str().c_str()));
+			assert(type_ptr->repr() == bound_ptr_type->get_type()->repr());
 			return bound_ptr_type;
 		}
 
@@ -411,6 +417,9 @@ bound_type_t::ref bind_expansion(
 	   	types::type_t::ref unexpanded,
 	   	types::type_t::ref expansion)
 {
+	debug_above(7, log("binding expansion with unexpanded: %s / expansion: %s",
+				unexpanded->str().c_str(),
+				expansion->str().c_str()));
 	/* make sure this isn't already bound */
 	auto signature = unexpanded->get_signature();
 	assert(scope->get_bound_type(signature) == nullptr);
@@ -522,30 +531,31 @@ bound_type_t::ref create_bound_maybe_type(
 		const ptr<const types::type_maybe_t> &maybe)
 {
 	auto program_scope = scope->get_program_scope();
-	bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
-	if (!!status) {
-		auto llvm_type = bound_just_type->get_llvm_specific_type();
-		if (llvm_type->isPointerTy()) {
-			debug_above(5, log(log_info,
-						"creating maybe type for %s",
-						maybe->just->str().c_str()));
-			auto bound_type = scope->get_bound_type(maybe->get_signature());
-			if (bound_type == nullptr) {
-				bound_type = bound_type_t::create(
-						maybe,
-						bound_just_type->get_location(),
-						llvm_type);
-				program_scope->put_bound_type(status, bound_type);
-			}
+		bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
+		if (!!status) {
+			auto llvm_type = bound_just_type->get_llvm_specific_type();
+			if (llvm_type->isPointerTy()) {
+				debug_above(5, log(log_info,
+							"creating maybe type for %s",
+							maybe->just->str().c_str()));
+				auto bound_type = scope->get_bound_type(maybe->get_signature());
+				if (bound_type == nullptr) {
+					bound_type = bound_type_t::create(
+							maybe,
+							bound_just_type->get_location(),
+							llvm_type);
+					program_scope->put_bound_type(status, bound_type);
+				}
 
-			if (!!status) {
-				return bound_type;
+				if (!!status) {
+					return bound_type;
+				}
+			} else {
+				user_error(status, maybe->get_location(),
+						"type %s cannot be a " c_type("maybe") " type because the underlying storage is not a pointer (it is %s)",
+						maybe->str().c_str(),
+						llvm_print(llvm_type).c_str());
 			}
-		} else {
-			user_error(status, maybe->get_location(),
-					"type %s cannot be a " c_type("maybe") " type because the underlying storage is not a pointer (it is %s)",
-					maybe->str().c_str(),
-					llvm_print(llvm_type).c_str());
 		}
 	}
 

@@ -3,6 +3,16 @@
  * */
 #include "zion_rt.h"
 
+void mem_dump(void *addr, zion_int_t cb) {
+	printf("dumping memory at:\n");
+	char *pb = addr;
+	zion_int_t left = cb;
+	for (zion_int_t i=0; i < cb / sizeof(long long); ++i) {
+		printf("0x%08llx 0x%08llx\n", (long long)pb, *(long long*)pb);
+		pb += sizeof(long long);
+	}
+}
+
 char *__str_int_radix(zion_int_t x, zion_int_t radix) {
 	char onstack[65];
 	if (radix == 10) {

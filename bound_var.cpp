@@ -123,7 +123,7 @@ bound_module_t::bound_module_t(
 			name, 
 			module_scope->get_bound_type({"module"}),
 			llvm::Constant::getNullValue(
-				module_scope->get_program_scope()->get_bound_type("void")->get_llvm_type()->getPointerTo()),
+				module_scope->get_program_scope()->get_bound_type("__int8__")->get_llvm_type()->getPointerTo()),
 			id),
 	module_scope(module_scope)
 {

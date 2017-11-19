@@ -14,14 +14,19 @@ CFLAGS = \
 	-fms-extensions \
 
 ifeq ($(UNAME),Darwin)
-	CLANG_BIN = $(LLVM_CLANG_BIN)
-	CLANG = $(LLVM_CLANG_BIN)
-	CLANG_CPP = clang++
-	LLVM_CONFIG = llvm-config
-	LLVM_CFLAGS = $(CFLAGS) -nostdinc++ $(shell $(LLVM_CONFIG) --cxxflags) -g $(OPT_LEVEL)
-
-	CPP = $(CLANG_CPP) -g $(OPT_LEVEL) -std=c++11 -I$(shell $(LLVM_CONFIG) --includedir)/c++/v1
+	CPP = /opt/MinSizeRel/bin/clang++
+	CLANG = /opt/MinSizeRel/bin/clang
 	CC = $(CLANG)
+
+	LLVM_CONFIG = /opt/Debug/bin/llvm-config
+	LLVM_CFLAGS = $(CFLAGS) \
+				  -nostdinc++ \
+				  $(shell $(LLVM_CONFIG) --cxxflags) \
+				  -g \
+				  $(OPT_LEVEL) \
+				  -std=c++11 \
+				  -I$(shell $(LLVM_CONFIG) --includedir)/c++/v1
+
 	LINKER = $(CLANG)
 	LINKER_OPTS := \
 		$(DEBUG_FLAGS) \
@@ -37,7 +42,7 @@ else
 ifeq ($(UNAME),Linux)
 	CLANG_BIN = clang-3.9
 	CLANG := $(CLANG_BIN)
-	CLANG_CPP := clang++-3.9
+	CPP := clang++-3.9
 	LLVM_LINK_BIN = llvm-link-3.9
 	LLVM_CONFIG = llvm-config-3.9
 	LLVM_CFLAGS = $(CFLAGS) \
@@ -75,7 +80,8 @@ ifeq ($(UNAME),Linux)
 				  -DLINUX
 
 	# -I$(shell $(LLVM_CONFIG) --includedir)/llvm
-	CPP = $(CLANG_CPP) \
+	CPP = $(CPP)
+	CPP_FLAGS = \
 		  -I/usr/include/c++/v1 \
 		  -g \
 		  $(OPT_LEVEL) \
@@ -206,16 +212,16 @@ $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_LLIR
 
 $(BUILD_DIR)/%.e: %.cpp
 	@echo Precompiling $<
-	@$(CPP) $(LLVM_CFLAGS) -E $< -o $@
+	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) -E $< -o $@
 
 $(BUILD_DIR)/%.llvm.o: %.cpp
 	@echo Compiling $<
-	@$(CPP) $(LLVM_CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	@$(CPP) $(LLVM_CFLAGS) $< -o $@
+	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
+	$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -o $@
 
 $(BUILD_DIR)/%.o: %.c
 	@echo Compiling $<
-	@$(CPP) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
+	@$(CPP) $(CPP_FLAGS) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
 	@$(CC) $(CFLAGS) $< -o $@
 
 %.llir: %.c zion_rt.h

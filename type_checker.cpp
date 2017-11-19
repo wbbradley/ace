@@ -1159,7 +1159,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 		} else if (auto extern_type = dyncast<const types::type_extern_t>(expanded_type)) {
 			/* we need this in order to be able to get runtime type information */
 			auto program_scope = scope->get_program_scope();
-			std::string type_info_var_name = std::string("__type_info_") + extern_type->repr();
+			std::string type_info_var_name = extern_type->inner->repr().str();
 			bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
 			if (!!status) {
 				/* before we go create this type info, let's see if it already exists */
@@ -1296,8 +1296,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 	/* we wouldn't be referencing a variable name here unless it was unique
 	 * override resolution only happens on callsites, and we don't allow
 	 * passing around unresolved overload references */
-	bound_var_t::ref var = scope->get_bound_variable(status, get_location(),
-			token.text);
+	bound_var_t::ref var = scope->get_bound_variable(status, get_location(), token.text);
 
 	/* get_bound_variable can return nullptr without an user_error */
 	if (var != nullptr) {
@@ -2409,7 +2408,9 @@ bound_var_t::ref cast_bound_var(
 		bound_var_t::ref bound_var,
 		types::type_t::ref type_cast)
 {
+	assert(!bound_var->is_ref());
 	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_cast);
+	debug_above(7, log("upserted bound type in cast expr is %s", bound_type->str().c_str()));
 	indent_logger indent(location, 5, string_format("casting %s: %s (%s) to a %s (%s)",
 				bound_var->name.c_str(),
 				bound_var->type->get_type()->str().c_str(),
@@ -4429,6 +4430,8 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 {
 	bound_var_t::ref bound_var = lhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
 	if (!!status) {
+		debug_above(6, log("cast expression is casting to %s", type_cast->str().c_str()));
+
 		return cast_bound_var(status, builder, scope, life, get_location(), bound_var, type_cast);
 	}
 

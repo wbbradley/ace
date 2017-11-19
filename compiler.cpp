@@ -467,6 +467,7 @@ void add_globals(
 			{FLOAT_TYPE, llvm_module_float, "__float_float", {FLOAT_TYPE}, FLOAT_TYPE},
 			{FLOAT_TYPE, llvm_module_float, "__float_str", {STR_TYPE}, FLOAT_TYPE},
 
+			{"mem_dump", llvm_module_str, "mem_dump", {"*void", INT_TYPE}, "void"},
 			{"__str__", llvm_module_str, "__str_int", {INT_TYPE}, STR_TYPE},
 			{"__str__", llvm_module_str, "__str_int_radix", {INT_TYPE, INT_TYPE}, STR_TYPE},
 			{"__str__", llvm_module_str, "__str_float", {FLOAT_TYPE}, STR_TYPE},
@@ -716,6 +717,7 @@ void run_gc_lowering(
 	assert(llvm_stack_frame_map_type != nullptr);
 	assert(llvm_stack_entry_type != nullptr);
 
+	log("writing to jit.llir...");
 	FILE *fp = fopen("jit.llir", "wt");
 	fprintf(fp, "%s\n", llvm_print_module(*llvm_module).c_str());
 	fclose(fp);
@@ -727,18 +729,22 @@ void run_gc_lowering(
 	FPM->add(llvm::createZionGCLoweringPass(
 				llvm_stack_entry_type,
 				llvm_stack_frame_map_type));
-	/*FPM->add(llvm::createInstructionCombiningPass());
-	  FPM->add(llvm::createReassociatePass());
-	  FPM->add(llvm::createGVNPass());
-	  FPM->add(llvm::createCFGSimplificationPass());
-	  */
+
+	bool optimize = false;
+	if (optimize) {
+		FPM->add(llvm::createInstructionCombiningPass());
+		FPM->add(llvm::createReassociatePass());
+		FPM->add(llvm::createGVNPass());
+		FPM->add(llvm::createCFGSimplificationPass());
+	}
+
 	FPM->doInitialization();
 
 	// Run the optimizations over all functions in the module being added to
 	// the JIT.
 	for (auto &F : *llvm_module) {
 		FPM->run(F);
-		F.setGC("");
+		F.setGC("shadow-stack");
 	}
 }
 
@@ -816,6 +822,7 @@ int compiler_t::run_program(int argc, char *argv_input[]) {
 		argv.push_back(argv_input[i]);
 	}
 
+	log("writing to jit.llir...");
 	FILE *fp = fopen("jit.llir", "wt");
 	fprintf(fp, "%s\n", llvm_print_module(*llvm_program_module).c_str());
 	fclose(fp);

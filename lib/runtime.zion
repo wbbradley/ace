@@ -153,7 +153,10 @@ def add_node(node *var_t) void
 def remove_node(node *var_t) void
 	assert(node != runtime.__head_var)
 
-	# dbg_zrt(printf("removing node 0x%08llx %s\n", (long long)node, node.type_info.name))
+	a := "removing node 0x"r + __str__(node as __int__, 16r)
+	posix.puts(a)
+	posix.free(a)
+
 	assert(node.mark == 0r)
 
 	check_node_existence(node, __true__)
@@ -169,8 +172,23 @@ def remove_node(node *var_t) void
 
 	check_node_existence(node, __false__)
 
-def isnil(p *var_t) __bool__
-	return p == nil
+def protect_node(node *var_t) void
+	check_node_existence(node, __true__)
+
+	# remove this node from the heap list
+	remove_node(node)
+
+	assert(node.next == nil)
+	assert(node.prev == nil)
+
+	# insert it before the head node in the list, so that it is not
+	# found during heap walks.
+	node.prev = runtime.__head_var.prev
+	node.next = runtime.__head_var
+	runtime.__head_var.prev = node
+
+	check_node_existence(node, __false__)
+
 
 def get_var_type_id(v *var_t) __typeid__
 	if v != nil
@@ -180,7 +198,12 @@ def get_var_type_id(v *var_t) __typeid__
 		return 0r as __typeid__
 
 def __create_head_var() *var_t
-	return mem_alloc(sizeof(var_t)) as *var_t
+	p := mem_alloc(sizeof(var_t)) as *var_t
+	s := __str__(p as __int__, 16r)
+	t := "creating head var at 0x"r + s
+	posix.puts(t)
+	posix.free(s)
+	return p
 
 def dbg_type_info(type_info *type_info_t)
 	if type_info
@@ -226,6 +249,11 @@ type stack_entry_t struct
 	var next *stack_entry_t       # Link to next stack entry (the caller's).
 	var map  *stack_frame_map_t   # Pointer to constant stack_frame_map_t.
 
+type stack_entry_plus_root_t struct
+	var next  *stack_entry_t       # Link to next stack entry (the caller's).
+	var map   *stack_frame_map_t   # Pointer to constant stack_frame_map_t.
+	var root0 *var_t
+
 #  Calls heap_visit(root, meta) for each GC root on the stack.
 #         root and meta are exactly the values passed to
 #         @llvm.gcroot.
@@ -235,19 +263,30 @@ type stack_entry_t struct
 # 
 #  @param heap_visit A function to invoke for every GC root on the stack.
 def visit_heap_roots(heap_visit def (obj *var_t) void)
-	R := llvm_gc_root_chain
+	R := llvm_gc_root_chain as *stack_entry_plus_root_t
 	while R != nil
 		assert(R.map.num_meta == 0r as __int32__)
+		posix.puts("R is 0x"r + __str__(&R.root0 as __int__, 16r))
+		posix.puts("sizeof(R[0]) is 0x"r + __str__(sizeof(stack_entry_t)))
+		mem_dump(&R.root0, sizeof(*stack_entry_t))
+		mem_dump(&llvm_gc_root_chain[1r], sizeof(*stack_entry_t))
+		mem_dump(&R[0r], sizeof(stack_entry_t))
+		mem_dump(&R[1r], sizeof(stack_entry_t))
+		mem_dump(R.map, sizeof(stack_frame_map_t))
 
 		# For roots [num_meta, num_roots), the metadata pointer is null.
 		i := 0r
 		e := R.map.num_roots as __int__
+		xxx := "found R.map.num_roots of "r + __str__(e)
+		posix.puts(xxx)
 		while i != e
+			node := (&R[1r] as **var_t)[i]
+			posix.puts("visiting heap node 0x"r + __str__(node as __int__, 16r))
 			# we have a heap variable
-			heap_visit((&R[1r] as **var_t)[i])
+			heap_visit(node)
 			i += 1r
 
-		R = R.next
+		R = (R.next as *stack_entry_plus_root_t)
 
 
 def visit_allocations(visit def (obj *var_t) void)
@@ -270,6 +309,16 @@ def mark_allocation(obj *var_t)
 	# dbg_zrt(printf("heap variable is referenced on the stack at 0x%08llx and is a '%s'\n", (long long)obj, obj.type_info.name))
 	if obj.mark != 0r
 		return
+
+	a := "marking allocation at 0x"r + __str__(obj as __int__, 16r)
+	b := a + " of type "r
+	c := b + obj.type_info.name
+
+	posix.puts(c)
+
+	posix.free(a)
+	posix.free(b)
+	posix.free(c)
 
 	# mark this node in the heap so that we break any potential cycles
 	obj.mark = 1r
@@ -317,6 +366,7 @@ def free_unmarked(obj *var_t)
 
 
 def gc()
+	posix.puts("running gc..."r)
 	__debug_zion_runtime = posix.getenv("DBG_ZRT"r) != nil
 	visit_allocations(clear_mark_bit)
 	visit_heap_roots(mark_allocation)
@@ -342,7 +392,7 @@ def report(use_case *__char__)
 
 def print_var(node *var_t)
 	z := __str__(node as __int__, 16r)
-	a := "heap variable is still allocated at "r + z
+	a := "heap variable exists at 0x"r + z
 	b := a + " and is a "r
 	c := b + node.type_info.name
 	posix.puts(c)
@@ -351,6 +401,6 @@ def print_var(node *var_t)
 	posix.free(b)
 	posix.free(c)
 
-
 def heap_dump()
+	posix.puts("dumping the heap..."r)
 	visit_allocations(print_var)
