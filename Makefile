@@ -18,7 +18,7 @@ ifeq ($(UNAME),Darwin)
 	CLANG = /opt/MinSizeRel/bin/clang
 	CC = $(CLANG)
 
-	LLVM_CONFIG = /opt/Debug/bin/llvm-config
+	LLVM_CONFIG = /opt/debug/bin/llvm-config
 	LLVM_CFLAGS = $(CFLAGS) \
 				  -nostdinc++ \
 				  $(shell $(LLVM_CONFIG) --cxxflags) \
@@ -217,7 +217,7 @@ $(BUILD_DIR)/%.e: %.cpp
 $(BUILD_DIR)/%.llvm.o: %.cpp
 	@echo Compiling $<
 	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -o $@
+	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -o $@
 
 $(BUILD_DIR)/%.o: %.c
 	@echo Compiling $<

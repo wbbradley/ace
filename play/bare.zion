@@ -1,14 +1,13 @@
 module _
 link module sys
 
-def main()
-	runtime.report("start of main"r)
-	print("hello world from " + sys.args[0r])
-	runtime.report("after hello world"r)
-	runtime.report("after memory report"r)
-	runtime.heap_dump()
+def foo()
+	z := "true"
+	runtime.dbg_se(runtime.llvm_gc_root_chain)
+	posix.raise(posix.SIGTRAP)
 	runtime.gc()
-	runtime.heap_dump()
-	runtime.report("after gc"r)
+
+def main()
+	y := "foobar"
 	x := 234
-	runtime.report("after allocating again"r)
+	foo()

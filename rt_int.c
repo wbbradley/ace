@@ -110,6 +110,7 @@ struct VT {
 struct SFM {
 	int32_t num_roots;
 	int32_t num_meta;
+	void *metadata;
 };
 
 struct SE {
@@ -136,13 +137,18 @@ void dbg_vt(struct VT *vt) {
 
 void dbg_se(void *p) {
 	struct SE *se = p;
-	assert(se->map->num_meta == 0);
-	printf("stack entry: (next: 0x%08llx, map: 0x%08llx {%lld roots})\n",
-		   	(int64_t)se->next, (int64_t)se->map, (int64_t)se->map->num_roots);
-	for (int64_t i=0; i < se->map->num_roots; ++i) {
-		printf("root[%lld]: 0x%08llx\n", (int64_t)i, (int64_t)se->root[i]);
-		if (se->root[i]) {
-			dbg_vt(se->root[i]);
+	if (se) {
+		assert(se->map);
+		printf("stack entry: (next: 0x%08llx, map: 0x%08llx {%lld roots})\n",
+				(int64_t)se->next, (int64_t)se->map, (int64_t)se->map->num_roots);
+		for (int64_t i=0; i < se->map->num_roots; ++i) {
+			printf("root[%lld]: 0x%08llx\n", (int64_t)i, (int64_t)se->root[i]);
+			if (se->root[i]) {
+				dbg_vt(se->root[i]);
+			}
+		}
+		if (se->next) {
+			dbg_se(se->next);
 		}
 	}
 }

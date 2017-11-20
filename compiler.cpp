@@ -717,11 +717,6 @@ void run_gc_lowering(
 	assert(llvm_stack_frame_map_type != nullptr);
 	assert(llvm_stack_entry_type != nullptr);
 
-	log("writing to jit.llir...");
-	FILE *fp = fopen("jit.llir", "wt");
-	fprintf(fp, "%s\n", llvm_print_module(*llvm_module).c_str());
-	fclose(fp);
-
 	// Create a function pass manager.
 	auto FPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(llvm_module);
 
@@ -732,10 +727,11 @@ void run_gc_lowering(
 
 	bool optimize = false;
 	if (optimize) {
-		FPM->add(llvm::createInstructionCombiningPass());
-		FPM->add(llvm::createReassociatePass());
-		FPM->add(llvm::createGVNPass());
-		FPM->add(llvm::createCFGSimplificationPass());
+		// FPM->add(llvm::createInstructionCombiningPass());
+		FPM->add(llvm::createFunctionInliningPass());
+		// FPM->add(llvm::createReassociatePass());
+		// FPM->add(llvm::createGVNPass());
+		// FPM->add(llvm::createCFGSimplificationPass());
 	}
 
 	FPM->doInitialization();
@@ -746,6 +742,10 @@ void run_gc_lowering(
 		FPM->run(F);
 		F.setGC("shadow-stack");
 	}
+	log("writing to jit.llir...");
+	FILE *fp = fopen("jit.llir", "wt");
+	fprintf(fp, "%s\n", llvm_print_module(*llvm_module).c_str());
+	fclose(fp);
 }
 
 void compiler_t::lower_program_module() {

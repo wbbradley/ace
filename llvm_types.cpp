@@ -531,6 +531,25 @@ bound_type_t::ref create_bound_maybe_type(
 		const ptr<const types::type_maybe_t> &maybe)
 {
 	auto program_scope = scope->get_program_scope();
+
+	assert(program_scope->get_bound_type(maybe->get_signature(), false /*use_mappings*/) == nullptr);
+
+	if (auto bound_just_type = program_scope->get_bound_type(maybe->just->get_signature(), false /*use_mappings*/)) {
+		/* try breaking a cycle of maybes */
+		dbg();
+		auto bound_type = bound_type_t::create(
+				maybe,
+				bound_just_type->get_location(),
+				bound_just_type->get_llvm_type(),
+				bound_just_type->get_llvm_specific_type());
+		program_scope->put_bound_type(status, bound_type);
+		return bound_type;
+	}
+
+	program_scope->put_bound_type_mapping(status, maybe->get_signature(),
+			maybe->just->get_signature());
+
+	if (!!status) {
 		bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
 		if (!!status) {
 			auto llvm_type = bound_just_type->get_llvm_specific_type();

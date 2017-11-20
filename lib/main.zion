@@ -6,9 +6,11 @@ link module posix
 # this is the actual default entry point to every program
 [module std]
 def __main__(argc __int32__, argv **__char__) __int32__
+	runtime.report("__main__ start"r)
 	# Allocate global space for each module's top-level variables, and
 	# initialize them. NB: Order of initialization is currently undefined.
 	__init_module_vars()
+	runtime.report("__main__ after __init_module_vars"r)
 
 	sys.set_args(argc as __int__, argv)
 	main()

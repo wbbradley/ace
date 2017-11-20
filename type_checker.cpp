@@ -2885,7 +2885,8 @@ void type_check_module_vars(
         compiler_t &compiler,
 		llvm::IRBuilder<> &builder,
 		const ast::module_t &obj,
-		scope_t::ref program_scope)
+		scope_t::ref program_scope,
+		std::vector<bound_var_t::ref> &global_vars)
 {
 	indent_logger indent(obj.get_location(), 2, string_format("resolving module variables in " c_module("%s"),
 				obj.module_key.c_str()));
@@ -2901,7 +2902,8 @@ void type_check_module_vars(
 			/* the idea here is to put this variable into module scope,
 			 * available globally, but to initialize it in the
 			 * __init_module_vars function */
-			type_check_module_var_decl(status, builder, module_scope, *var_decl);
+			global_vars.push_back(
+					type_check_module_var_decl(status, builder, module_scope, *var_decl));
 		}
 	}
 }
@@ -3020,6 +3022,16 @@ void type_check_program_variables(
 	}
 }
 
+bound_var_t::ref create_visit_module_vars_function(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+	   	program_scope_t::ref program_scope,
+		std::vector<bound_var_t::ref> global_vars)
+{
+	assert(!status);
+	return nullptr;
+}
+
 void type_check_all_module_var_slots(
 		status_t &status,
 		compiler_t &compiler,
@@ -3027,13 +3039,16 @@ void type_check_all_module_var_slots(
 		const ast::program_t &obj,
 		program_scope_t::ref program_scope)
 {
+	std::vector<bound_var_t::ref> global_vars;
+
 	/* initialized the module-level variable declarations. make sure that we initialize the
 	 * runtime variables last. this will add them to the top of the __init_module_vars function. */
 	if (!!status) {
 		for (auto &module : obj.modules) {
 			if (module->module_key != "runtime") {
 				if (!!status) {
-					type_check_module_vars(status, compiler, builder, *module, program_scope);
+					type_check_module_vars(status, compiler, builder, *module, program_scope,
+							global_vars);
 				}
 			}
 		}
@@ -3041,9 +3056,16 @@ void type_check_all_module_var_slots(
 
 	for (auto &module : obj.modules) {
 		if (module->module_key == "runtime") {
-			type_check_module_vars(status, compiler, builder, *module, program_scope);
+			type_check_module_vars(status, compiler, builder, *module, program_scope,
+					global_vars);
 			break;
 		}
+	}
+
+	if (!!status) {
+		bound_var_t::ref visit_module_vars_fn = create_visit_module_vars_function(
+				status, builder, program_scope, global_vars);
+		program_scope->put_bound_variable(status, "visit_module_vars", visit_module_vars_fn);
 	}
 }
 
