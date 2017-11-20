@@ -43,7 +43,7 @@ mkdir -p $INSTALL_DIR
 
 function build() {
 	# Run the LLVM build and install
-	BUILD_DIR = $HOME/var/tmp/llvm/$1
+	BUILD_DIR=$HOME/var/tmp/llvm/$1
 	mkdir -p $BUILD_DIR
 	cd $BUILD_DIR
 

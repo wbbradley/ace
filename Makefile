@@ -4,6 +4,10 @@ INSTALL_DIR=/usr/local/zion
 OPT_LEVEL=-O0
 UNAME := $(shell uname)
 DEBUG_FLAGS := -DZION_DEBUG -g $(OPT_LEVEL)
+LLVM_VERSION = release_40
+LLVM_DEBUG_ROOT = $(HOME)/opt/llvm/$(LLVM_VERSION)/Debug
+LLVM_RELEASE_ROOT = $(HOME)/opt/llvm/$(LLVM_VERSION)/MinSizeRel
+
 CFLAGS = \
 	-c \
 	-Wall \
@@ -14,11 +18,11 @@ CFLAGS = \
 	-fms-extensions \
 
 ifeq ($(UNAME),Darwin)
-	CPP = /opt/MinSizeRel/bin/clang++
-	CLANG = /opt/MinSizeRel/bin/clang
+	CLANG = $(LLVM_RELEASE_ROOT)/bin/clang
+	CPP = $(LLVM_RELEASE_ROOT)/bin/clang++
 	CC = $(CLANG)
 
-	LLVM_CONFIG = /opt/debug/bin/llvm-config
+	LLVM_CONFIG = $(LLVM_DEBUG_ROOT)/bin/llvm-config
 	LLVM_CFLAGS = $(CFLAGS) \
 				  -nostdinc++ \
 				  $(shell $(LLVM_CONFIG) --cxxflags) \
