@@ -2,7 +2,7 @@
 set -e
 
 function require() {
-	$@ || echo "You must have $1 installed." && exit 1
+	$@ || (echo "You must have $1 installed." && exit 1)
 }
 
 require cmake --version
