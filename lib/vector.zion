@@ -21,9 +21,9 @@ def len(v vector{any}) int
 [module std]
 def __init__() vector{any T}
 	typeinfo := typeinfo(vector{any T})
-	v := runtime.create_var(typeinfo) as vector{any T}
+	v := runtime.create_var(typeinfo)
 	print("new vector")
-	return v
+	return v as vector{any T}
 		
 def __finalize__(v vector{any T})
 	__vectorfree__(v as *runtime.var_t)

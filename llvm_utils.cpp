@@ -1,3 +1,4 @@
+#include <iostream>
 #include "logger.h"
 #include "utils.h"
 #include "location.h"
@@ -431,6 +432,18 @@ llvm::AllocaInst *llvm_call_gcroot(
     arg_vec.push_back(llvm::Constant::getNullValue(llvm::PointerType::get(
                     llvm::Type::getInt8Ty(context), 0)));
     builder.CreateCall(module->getFunction("llvm.gcroot"), arg_vec);
+
+	/* set insertion point to the end of the entry block */
+	auto llvm_terminator_inst = builder.GetInsertBlock()->getTerminator();
+	assert(llvm_terminator_inst != nullptr);
+
+	/* initialize this alloca as nil, so that if we want to call runtime.gc somewhere in the middle
+	 * of the function we don't read uninitialized data */
+
+	builder.SetInsertPoint(llvm_terminator_inst);
+	builder.CreateStore(llvm::Constant::getNullValue(type->get_llvm_specific_type()), llvm_alloca);
+
+	// std::cerr << llvm_print(builder.GetInsertBlock()->getParent()) << std::endl;
     return llvm_alloca;
 }
 
@@ -676,10 +689,18 @@ bound_var_t::ref llvm_start_function(
 
 			/* start emitting code into the new function. caller should have an
 			 * insert point guard */
-			llvm::BasicBlock *llvm_block = llvm::BasicBlock::Create(builder.getContext(),
+			llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
 					"entry", llvm_function);
-			builder.SetInsertPoint(llvm_block);
+			llvm::BasicBlock *llvm_body_block = llvm::BasicBlock::Create(builder.getContext(),
+					"body", llvm_function);
 
+			builder.SetInsertPoint(llvm_entry_block);
+			/* leave an empty entry block so that we can insert GC stuff in there, but be able to
+			 * seek to the end of it and not get into business logic */
+			builder.CreateBr(llvm_body_block);
+
+			builder.SetInsertPoint(llvm_body_block);
+		
 			return function;
 		}
 	}

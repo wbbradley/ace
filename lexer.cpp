@@ -50,6 +50,10 @@ bool istchar(char ch) {
 	return false;
 }
 
+bool zion_lexer_t::eof() {
+   	return m_is.eof();
+}
+
 bool zion_lexer_t::get_token(
 		token_t &token,
 		bool &newline,

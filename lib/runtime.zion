@@ -99,7 +99,13 @@ def mem_alloc(cb __int__, comment *__char__) *void
 
 def mem_free(p *void, cb __int__) void
 	_bytes_allocated -= cb
-	posix.free(p)
+	pch := p as *__int8__
+	pch_lim := &((p as *__int8__)[cb])
+	while pch as __int__ < pch_lim as __int__
+		pch[0r] = 221r as __int8__ # 0xDD
+		pch = &pch[1r]
+
+	# posix.free(p)
 	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
 
 def get_total_allocated() __int__
@@ -277,7 +283,6 @@ def visit_heap_roots(heap_visit def (obj *var_t) void)
 		assert(R as __int__ != 0r)
 		assert(R.map.num_meta == 0r as __int32__)
 		posix.puts("R is 0x"r + __str__(&R.root0 as __int__, 16r))
-		# mem_dump(&R.root0, R.map.num_roots as __int__ * sizeof(*var_t))
 
 		# For roots [num_meta, num_roots), the metadata pointer is null.
 		i := 0r
@@ -285,6 +290,7 @@ def visit_heap_roots(heap_visit def (obj *var_t) void)
 		posix.puts("found R.map.num_roots of "r + __str__(e))
 		posix.puts("R.next = 0x"r + __str__(R.next as __int__, 16r))
 
+		mem_dump(&R.root0 as *__int__, R.map.num_roots as __int__ * sizeof(*var_t))
 		assert(i <= e)
 		while i != e
 			node := (&R.root0 as **var_t)[i]
@@ -346,7 +352,6 @@ def mark_allocation(obj *var_t)
 		# tags don't have dependencies
 		return
 	elif type_kind == runtime.TYPE_KIND_USE_OFFSETS
-		assert(0r)
 		var type_info_offsets *type_info_offsets_t = obj.type_info as *type_info_offsets_t
 
 		# we may be holding on to child nodes, let's recurse.
@@ -368,7 +373,7 @@ def mark_allocation(obj *var_t)
 
 
 def clear_mark_bit(obj *var_t)
-	# this is highly inefficient due to cache non-locality, revisit later
+	posix.puts("clearing marked bit on 0x"r + __str__(obj as __int__, 16r))
 	obj.mark = 0r
 
 
@@ -386,6 +391,7 @@ def hex(v *void) *__char__
 var _gc_generation __int__ = 0r
 
 def gc()
+	dbg_se(llvm_gc_root_chain)
 	last_generation := _gc_generation
 	_gc_generation = runtime._var_allocation
 

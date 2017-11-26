@@ -429,7 +429,7 @@ std::vector<ptr<expression_t>> parse_param_list(parse_state_t &ps) {
 			if (ps.token.tk == tk_comma) {
 				eat_token();
 			} else if (ps.token.tk != tk_rparen) {
-				ps.error("unexpected token " c_id("%s") " in parameter list", ps.token.text.c_str());
+				ps.error("unexpected %s in parameter list (" c_id("%s") ")", tkstr(ps.token.tk), ps.token.text.c_str());
 				return {};
 			}
 			// continue and read the next parameter

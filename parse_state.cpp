@@ -26,6 +26,9 @@ bool parse_state_t::advance() {
 }
 
 void parse_state_t::warning(const char *format, ...) {
+	if (lexer.eof()) {
+		status.emit_message(log_info, token.location, "encountered end-of-file");
+	}
 	va_list args;
 	va_start(args, format);
 	status.emit_messagev(log_error, token.location, format, args);
@@ -33,6 +36,9 @@ void parse_state_t::warning(const char *format, ...) {
 }
 
 void parse_state_t::error(const char *format, ...) {
+	if (lexer.eof()) {
+		status.emit_message(log_info, token.location, "encountered end-of-file");
+	}
 	va_list args;
 	va_start(args, format);
 	status.emit_messagev(log_error, token.location, format, args);

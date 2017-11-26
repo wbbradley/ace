@@ -22,6 +22,7 @@ public:
 
 	bool get_token(token_t &token, bool &newline, std::vector<token_t> *comments);
 	bool _get_tokens();
+	bool eof();
 
 private:
 	void reset_token();

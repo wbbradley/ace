@@ -148,26 +148,12 @@ bound_var_t::ref generate_stack_variable(
 			}
 		}
 
-#if 1
 		if (stack_var_type == nullptr) {
 			stack_var_type = upsert_bound_type(status, builder, scope, type_ref(declared_type));
 			if (!!status) {
 				value_type = upsert_bound_type(status, builder, scope, declared_type);
 			}
 		}
-#else
-		if (stack_var_type == nullptr) {
-			if (auto ref_type = dyncast<const types::type_ref_t>(declared_type)) {
-				stack_var_type = upsert_bound_type(status, builder, scope, type_ref(declared_type));
-				value_type = stack_upsert_bound_type(status, builder, scope, ref_type->element_type);
-			} else {
-				stack_var_type = upsert_bound_type(status, builder, scope, type_ref(declared_type));
-				if (!!status) {
-					value_type = upsert_bound_type(status, builder, scope, declared_type);
-				}
-			}
-		}
-#endif
 	}
 
 	if (!!status) {
@@ -469,7 +455,7 @@ bound_var_t::ref type_check_bound_var_decl(
 {
 	const atom symbol = obj.get_symbol();
 
-	debug_above(4, log(log_info, "type_check_var_decl is looking for a type for variable " c_var("%s") " : %s",
+	debug_above(4, log(log_info, "type_check_bound_var_decl is looking for a type for variable " c_var("%s") " : %s",
 				symbol.c_str(), obj.get_symbol().c_str()));
 
 	assert(dyncast<module_scope_t>(scope) == nullptr);
@@ -2714,9 +2700,20 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		llvm_function->setGC(GC_STRATEGY);
 		llvm_function->setDoesNotThrow();
 
-		llvm::BasicBlock *llvm_block = llvm::BasicBlock::Create(
-				builder.getContext(), "entry", llvm_function);
-		builder.SetInsertPoint(llvm_block);
+		/* start emitting code into the new function. caller should have an
+		 * insert point guard */
+		llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
+				"entry", llvm_function);
+		llvm::BasicBlock *llvm_body_block = llvm::BasicBlock::Create(builder.getContext(),
+				"body", llvm_function);
+
+		builder.SetInsertPoint(llvm_entry_block);
+		/* leave an empty entry block so that we can insert GC stuff in there, but be able to
+		 * seek to the end of it and not get into business logic */
+		builder.CreateBr(llvm_body_block);
+
+		builder.SetInsertPoint(llvm_body_block);
+
 
 		if (getenv("TRACE_FNS") != nullptr) {
 			std::stringstream ss;
