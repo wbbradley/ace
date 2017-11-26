@@ -747,7 +747,6 @@ namespace types {
 	}
 
 	bool is_managed_ptr(types::type_t::ref type, types::type_t::map env) {
-		// TODO: handle refs here...
 		debug_above(6, log(log_info, "checking if %s is a managed ptr", type->str().c_str()));
 		if (auto ref_type = dyncast<const types::type_ref_t>(type)) {
 			type = ref_type->element_type;
@@ -765,6 +764,10 @@ namespace types {
 			if (dyncast<const types::type_managed_t>(ptr_type->element_type)) {
 				return true;
 			}
+		}
+
+		if (auto extern_type = dyncast<const types::type_extern_t>(type)) {
+			return true;
 		}
 
 		if (auto ptr_type = dyncast<const types::type_sum_t>(type)) {

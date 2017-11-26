@@ -5,7 +5,6 @@ link module math
 link module vector
 link module map
 link module iter as iter_module
-link module main
 
 # initialization of modules is automatically generated.
 # link def __init_modules() void
@@ -313,6 +312,9 @@ def __gte__(x float, y int) __bool__
 
 def print(x any) void
 	posix.puts(str(x).raw)
+
+def breakpoint() void
+	posix.raise(posix.SIGTRAP)
 
 type list{T} has
 	var value T

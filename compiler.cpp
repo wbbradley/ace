@@ -403,6 +403,7 @@ void add_global_types(
 		}
 		compiler.base_type_macros[type_pair.first] = type_id(make_iid(type_pair.first));
 	}
+	compiler.base_type_macros[atom{"vector"}] = type_id(make_iid("vector.vector"));
 
 	debug_above(10, log(log_info, "%s", program_scope->str().c_str()));
 }

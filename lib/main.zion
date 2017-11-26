@@ -3,6 +3,7 @@ module main
 link module sys
 link module posix
 
+
 # this is the actual default entry point to every program
 [module std]
 def __main__(argc __int32__, argv **__char__) __int32__

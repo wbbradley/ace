@@ -1,6 +1,7 @@
 module map
 link module posix
 link module iter
+link module sys
 
 type Map{K, V} has
 	var left Map{K, V}?
@@ -151,7 +152,7 @@ def str(status MapNextMove) str
 		return "InOrder"
 	else
 		print("wat is this MapNextMove?")
-		posix.exit((-1).raw)
+		sys.exit(-1)
 		return "Fail"
 
 [module std]

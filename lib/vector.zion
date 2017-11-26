@@ -15,8 +15,8 @@ def reserved(v vector{any}) __int__
 	return (v as *vector_t).reserved
 
 [module std]
-def len(v vector{any}) __int__
-	return (v as *vector_t).size
+def len(v vector{any}) int
+	return int((v as *vector_t).size)
 
 [module std]
 def __init__() vector{any T}
@@ -41,9 +41,12 @@ def __getitem__(vec [any T], index __int__) any T
 def __setitem__(vec [any T], index int, t any T) void
 	return __setvectoritem__(vec as *runtime.var_t, index.raw, t as *runtime.var_t)
 
+[module std]
 def append(vec [any T], t any T) void
+	posix.puts("appending "r + __str__(t.raw) + " to vector"r)
 	__vectorappend__(vec as *vector_t, t as *runtime.var_t)
 
+[module std]
 def resize(vec [any T], size int, default any T) void
 	return __vectorresize__(vec as *runtime.var_t, size.raw, default) as! [any T]
 
@@ -51,6 +54,7 @@ def resize(vec [any T], size int, default any T) void
 
 [module std]
 def __vector_mark__(vec *runtime.var_t)
+	posix.puts("marking vector at 0x"r + __str__(vec as __int__, 16r))
 	v := vec as *vector_t
 	i := 0r
 	while i < v.size
@@ -71,12 +75,11 @@ def __vector_free__(var_ *runtime.var_t)
 
 
 def __getvectoritem__(vector *vector_t, index __int__) *runtime.var_t
-	if index >= 0r
-		if index < vector.size
-			return vector.items[index]
+	if index >= 0r and index < vector.size
+		return vector.items[index]
 
-	print("zion: array index out of bounds (" + int(vector as __int__) + int(index) + ")")
-	posix.exit(-1r)
+	print("zion: array index out of bounds (0x" + __box__(__str__(vector as __int__, 16r)) + "[" + int(index) + "])")
+	assert(false)
 	return nil as *runtime.var_t
 
 def __setvectoritem__(vector *vector_t, index __int__, item *runtime.var_t)
@@ -86,8 +89,8 @@ def __setvectoritem__(vector *vector_t, index __int__, item *runtime.var_t)
 	if index < vector.size
 		vector.items[index] = item
 	else
-		print("zion: array index out of bounds (" + int(vector as __int__) + str(index) + ")")
-		posix.exit(-1r)
+		print("zion: array index out of bounds (0x" + __box__(__str__(vector as __int__, 16r)) + "[" + int(index) + "])")
+		assert(false)
 
 def __vectorappend__(vector *vector_t, item *runtime.var_t)
 	assert(vector)

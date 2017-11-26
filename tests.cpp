@@ -963,16 +963,21 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("Container{T, T}", "map{int, int}", generics),
 				make_type_pair("Container{T}?", "[int]", generics),
 				make_type_pair("Container{T}", "[int]", generics),
+				{type_maybe(type_ptr(type_managed(type_struct({}, {})))), type_nil()},
+				{type_ptr(type_id(make_iid("void"))), type_ptr(type_id(make_iid("X")))},
 			}};
 
-			auto fails = std::vector<types::type_t::pair>{{
+			auto fails = std::vector<types::type_t::pair>({
+				{type_ptr(type_id(make_iid("X"))),type_ptr(type_id(make_iid("void")))},
+				{type_ptr(type_managed(type_struct({}, {}))), type_nil()},
+				{type_nil(), type_maybe(type_ptr(type_managed(type_struct({}, {}))))},
 				make_type_pair("int", "void", {}),
 				make_type_pair("int", "void", generics),
 				make_type_pair("{T, T}", "{void, int}", generics),
 				make_type_pair("int", "map{int, int}", generics),
 				make_type_pair("map{any a, any a}", "map{int, str}", generics),
 				make_type_pair("Container{float}", "[int]", generics),
-			}};
+			});
 
 			status_t status;
 			for (auto &pair : unifies) {

@@ -1,13 +1,10 @@
 module _
 link module sys
-
-def foo()
-	z := "true"
-	runtime.dbg_se(runtime.llvm_gc_root_chain)
-	posix.raise(posix.SIGTRAP)
-	runtime.gc()
+link module main as m
 
 def main()
-	y := "foobar"
-	x := 234
-	foo()
+	var y [int]
+	append(y, 3)
+	runtime.heap_dump()
+	runtime.gc()
+	# print(sys.args[0])

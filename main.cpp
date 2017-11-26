@@ -139,9 +139,21 @@ int main(int argc, char *argv[]) {
 			if (!!status) {
 				compiler.build_type_check_and_code_gen(status);
 				if (!!status) {
-					return compiler.run_program(argc-2, &argv[2]);
+					auto executable_filename = compiler.get_executable_filename();
+					compiler.emit_built_program(status, executable_filename);
+					if (!!status) {
+						std::vector<char*> args;
+						args.reserve(argc-2+1);
+						for (int i=argc-1; i>=2; --i) {
+							args.push_back(argv[i]);
+						}
+						args.push_back(nullptr);
+					   return execv(executable_filename.c_str(), &args[0]);
+					}
+					return EXIT_FAILURE;
 				}
 			}
+			return EXIT_FAILURE;
 		} else if (cmd == "obj") {
 			compiler.build_parse_modules(status);
 

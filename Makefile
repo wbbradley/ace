@@ -209,8 +209,8 @@ dbg: $(ZION_TARGET)
 	ALL_TESTS=1 gdb --args ./$(ZION_TARGET) test
 
 $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_LLIR)
-	@echo Linking $@
-	$(LINKER) $(LINKER_OPTS) $(ZION_LLVM_OBJECTS) -o $@
+	@echo Linking $@...
+	@$(LINKER) $(LINKER_OPTS) $(ZION_LLVM_OBJECTS) -o $@
 	@echo $@ successfully built
 	@du -hs $@ | cut -f1 | xargs echo Target \`$@\` is
 

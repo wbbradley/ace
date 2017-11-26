@@ -1859,10 +1859,11 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 
 		if (ps.token.tk != tk_none) {
 			if (!!ps.status) {
-				ps.error("unexpected '" c_error("%s") "' at top-level module scope",
-						tkstr(ps.token.tk));
+				ps.error("unexpected '" c_id("%s") "' at top-level module scope (%s)",
+						ps.token.text.c_str(), tkstr(ps.token.tk));
 			}
 		}
+
 		return module;
 	} else {
 		assert(!ps.status);

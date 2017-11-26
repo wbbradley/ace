@@ -639,7 +639,8 @@ llvm::Type *llvm_deref_type(llvm::Type *llvm_type) {
 	}
 }
 
-bound_var_t::ref llvm_start_function(status_t &status,
+bound_var_t::ref llvm_start_function(
+		status_t &status,
 		llvm::IRBuilder<> &builder, 
 		scope_t::ref scope,
 		location_t location,

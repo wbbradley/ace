@@ -110,9 +110,10 @@ bound_var_t::ref generate_stack_variable(
 					user_error(status, obj.get_location(),
 							"declared type of `" c_var("%s") "` does not match type of initializer",
 							obj.get_symbol().c_str());
-					user_message(log_info, status, init_var->get_location(), c_type("%s") " != " c_type("%s"),
+					user_message(log_info, status, init_var->get_location(), c_type("%s") " != " c_type("%s") " because %s",
 							declared_type->str().c_str(),
-							init_var->type->str().c_str());
+							init_var->type->str().c_str(),
+							unification.reasons.c_str());
 				}
 			} else {
 				/* we must get the type from the initializer */
@@ -371,9 +372,10 @@ bound_var_t::ref generate_module_variable(
 										/* report that the variable type does not match the initializer type */
 										user_error(status, var_decl, "declared type of `" c_var("%s") "` does not match type of initializer",
 												var_decl.token.text.c_str());
-										user_message(log_info, status, init_var->get_location(), c_type("%s") " != " c_type("%s"),
+										user_message(log_info, status, init_var->get_location(), c_type("%s") " != " c_type("%s") " because %s",
 												declared_type->str().c_str(),
-												init_var->type->str().c_str());
+												init_var->type->str().c_str(),
+												unification.reasons.c_str());
 									}
 								}
 
@@ -395,13 +397,6 @@ bound_var_t::ref generate_module_variable(
 											if (init_fn != nullptr) {
 												init_var = make_call_value(status, builder, var_decl.get_location(),
 														function_scope, life, init_fn, {} /*arguments*/);
-												if (!!status) {
-													life->release_vars(
-															status,
-															builder,
-															function_scope,
-															lf_function);
-												}
 											}
 										}
 									}
@@ -441,7 +436,14 @@ bound_var_t::ref generate_module_variable(
 										}
 
 										if (!!status) {
-											return var_decl_variable;
+											life->release_vars(
+													status,
+													builder,
+													function_scope,
+													lf_function);
+											if (!!status) {
+												return var_decl_variable;
+											}
 										}
 									}
 								}
@@ -789,9 +791,9 @@ void ast::link_module_statement_t::resolve_statement(
 		 * future version they can be used as run-time variables, so that we
 		 * can pass modules around for another level of polymorphism. */
 		bound_module_t::ref module_variable = bound_module_t::create(INTERNAL_LOC(),
-				link_as_name.text, make_code_id(token), linked_module_scope);
+				linked_module_name, make_code_id(token), linked_module_scope);
 
-		module_scope->put_bound_variable(status, module_variable->name, module_variable);
+		module_scope->put_bound_variable(status, link_as_name.text, module_variable);
 
 		if (!!status) {
 			return;
@@ -3022,14 +3024,80 @@ void type_check_program_variables(
 	}
 }
 
-bound_var_t::ref create_visit_module_vars_function(
+void create_visit_module_vars_function(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
 		std::vector<bound_var_t::ref> global_vars)
 {
+	/* build the global __init_module_vars function */
+	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+	bound_type_t::ref bound_callback_fn_type = upsert_bound_type(
+			status, builder, program_scope, 
+			type_function(
+				type_args({type_ptr(type_id(make_iid("runtime.var_t")))}, {}),
+			   	type_id(make_iid("void"))));
+
+	/* we are creating this function, but we'll be adding to it elsewhere */
+	auto visit_module_vars_fn = llvm_start_function(
+			status,
+			builder, 
+			program_scope,
+			INTERNAL_LOC(),
+			{bound_callback_fn_type},
+			program_scope->get_bound_type({"void"}),
+			"__visit_module_vars");
+
+	if (!!status) {
+		llvm::Function *llvm_function = llvm::dyn_cast<llvm::Function>(visit_module_vars_fn->get_llvm_value());
+		assert(llvm_function != nullptr);
+		assert(llvm_function->arg_size() == 1);
+
+		if (!!status) {
+			llvm::Value *llvm_visitor_fn = &(*llvm_function->arg_begin());
+			auto user_visitor_fn = bound_var_t::create(
+					INTERNAL_LOC(),
+					"user_visitor_fn",
+					bound_callback_fn_type,
+					llvm_visitor_fn,
+					make_iid("user_visitor_fn"));
+
+			for (auto global_var : global_vars) {
+				/* for each managed global_var, call the visitor function on it */
+				bool is_managed;
+				global_var->type->is_managed_ptr(status, builder, program_scope, is_managed);
+
+				if (!!status) {
+					if (is_managed) {
+						llvm_create_call_inst(
+								status,
+								builder,
+								INTERNAL_LOC(),
+								user_visitor_fn,
+								std::vector<llvm::Value *>{global_var->resolve_bound_var_value(builder)});
+					}
+				}
+
+				if (!status) {
+					break;
+				}
+			}
+
+			/* we're done with __visit_module_vars, let's make sure to return */
+			builder.CreateRetVoid();
+
+			if (!!status) {
+				program_scope->put_bound_variable(status, "__visit_module_vars", visit_module_vars_fn);
+
+				if (!!status) {
+					return;
+				}
+			}
+		}
+	}
 	assert(!status);
-	return nullptr;
+	return;
 }
 
 void type_check_all_module_var_slots(
@@ -3063,9 +3131,7 @@ void type_check_all_module_var_slots(
 	}
 
 	if (!!status) {
-		bound_var_t::ref visit_module_vars_fn = create_visit_module_vars_function(
-				status, builder, program_scope, global_vars);
-		program_scope->put_bound_variable(status, "visit_module_vars", visit_module_vars_fn);
+		create_visit_module_vars_function(status, builder, program_scope, global_vars);
 	}
 }
 

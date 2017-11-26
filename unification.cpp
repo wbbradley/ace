@@ -351,7 +351,18 @@ unification_t unify(
 			debug_above(7, log("matching ptr types"));
 			return unify(ptr_a->element_type, ptr_b->element_type, env, bindings, depth + 1);
 		} else if (b->is_nil()) {
-			return {true, "", bindings};
+			if (dyncast<const types::type_managed_t>(ptr_a->element_type) == nullptr) {
+				/* managed types cannot take nil, because they are guarded by the maybe type */
+				return {true, "", bindings};
+			} else {
+				return {
+					false,
+						string_format("%s <> %s with attempted bindings %s because managed types cannot receive nil, unless they are guarded by a maybe (in other words, use a ? after the left-hand-side type name)",
+								a->str().c_str(),
+								b->str().c_str(),
+								str(bindings).c_str()),
+						{}};
+			}
 		} else {
 			return {
 				false,
