@@ -12,9 +12,6 @@ bound_var_t::ref bound_var_t::create(
 		identifier::ref id)
 {
 	assert(type != nullptr);
-	if (auto llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(llvm_value)) {
-		assert(type->is_ref());
-	}
 	if (type->is_ref()) {
 		assert(llvm::dyn_cast<llvm::AllocaInst>(llvm_value) || llvm_value->getType()->isPointerTy());
 	}
@@ -68,7 +65,9 @@ llvm::Value *bound_var_t::resolve_bound_var_value(llvm::IRBuilder<> &builder) co
 	if (type->is_ref()) {
 		return builder.CreateLoad(llvm_value);
 	} else {
-		assert(!llvm::dyn_cast<llvm::AllocaInst>(llvm_value));
+		// NOTE: commented this out because we need to be able to pass stack variable locations as
+		// pointers (var x __int__; y := &x)... maybe.
+		// assert(!llvm::dyn_cast<llvm::AllocaInst>(llvm_value));
 		assert(!llvm::dyn_cast<llvm::GlobalVariable>(llvm_value));
 	}
 

@@ -288,7 +288,7 @@ llvm::CallInst *llvm_create_call_inst(
 	/* make one last pass over the parameters before we make this call */
 	int index = 0;
 	for (auto &llvm_value : llvm_values) {
-		assert(!llvm::dyn_cast<llvm::AllocaInst>(llvm_value));
+		// assert(!llvm::dyn_cast<llvm::AllocaInst>(llvm_value));
 
 		llvm::Value *llvm_arg = llvm_maybe_pointer_cast(
 				builder,
