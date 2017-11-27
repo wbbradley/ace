@@ -380,3 +380,9 @@ def str(b *__int8__, length __int__, encoding str) str
 	posix.memcpy(dest as *__int8__, b as *__int8__, length)
 	return str(dest as *__char__)
 
+def rand(max int) int
+	var r __int__ = 0r
+	posix.arc4random_buf(&r, sizeof(__int__))
+	if r < 0r
+		r = -r
+	return int(r % max.raw)

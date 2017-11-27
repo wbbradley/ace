@@ -36,7 +36,7 @@ def main():
 
     print("Searching for %s in output from %s..." % (expect, args.program))
     try:
-        actual = subprocess.check_output("./zionc run %s" % args.program, shell=True)
+        actual = subprocess.check_output("./zion run %s" % args.program, shell=True)
     except subprocess.CalledProcessError as e:
         print(e)
         sys.exit(-1)

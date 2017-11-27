@@ -379,7 +379,7 @@ def hex(v *void) *__char__
 var _gc_generation __int__ = 0r
 
 def gc()
-	dbg_se(llvm_gc_root_chain)
+	# dbg_se(llvm_gc_root_chain)
 	last_generation := _gc_generation
 	_gc_generation = runtime._var_allocation
 

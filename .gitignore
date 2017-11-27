@@ -3,7 +3,7 @@ build-*
 env
 value_semantics
 python_main
-zionc
+zion
 logs
 *.llir
 *.log

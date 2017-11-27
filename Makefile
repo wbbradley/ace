@@ -155,7 +155,7 @@ ZION_LLVM_SOURCES = \
 				zion_gc_lowering.cpp
 
 ZION_LLVM_OBJECTS = $(addprefix $(BUILD_DIR)/,$(ZION_LLVM_SOURCES:.cpp=.llvm.o))
-ZION_TARGET = zionc
+ZION_TARGET = zion
 ZION_RUNTIME = \
 				rt_int.c \
 				rt_fn.c \

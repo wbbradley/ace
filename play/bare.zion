@@ -1,14 +1,12 @@
 module _
 link module sys
-link module main as m
-
-def foo()
-	var y [int]
-	append(y, 3)
-	runtime.gc()
-	print(join(sys.args, ", "))
+link module main
+link module posix
 
 def main()
-	runtime.gc()
-	foo()
-	runtime.gc()
+	posix.arc4random_stir()
+	num := rand(10)
+	i := 0
+	while i < num
+		print(i)
+		i += 1
