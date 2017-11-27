@@ -94,7 +94,7 @@ def mem_alloc(cb __int__, comment *__char__) *void
 	# posix.puts("allocating "r)
 	# posix.puts(__str__(cb))
 	pb := posix.calloc(cb, 1r)
-	posix.puts("allocated 0x"r + __str__(pb as __int__, 16r) + " ("r + __str__(cb) + " bytes) for "r + comment)
+	# posix.puts("allocated 0x"r + __str__(pb as __int__, 16r) + " ("r + __str__(cb) + " bytes) for "r + comment)
 	return pb
 
 def mem_free(p *void, cb __int__) void
@@ -164,9 +164,7 @@ def add_node(node *var_t) void
 def remove_node(node *var_t) void
 	assert(node != runtime.__head_var)
 
-	a := "removing node 0x"r + __str__(node as __int__, 16r)
-	posix.puts(a)
-	posix.free(a)
+	# posix.puts("removing node 0x"r + __str__(node as __int__, 16r))
 
 	assert(node.mark == 0r)
 
@@ -212,10 +210,7 @@ def __create_head_var() *var_t
 	p := mem_alloc(sizeof(var_t), "__create_head_var"r) as *var_t
 	runtime._var_allocation += 1r
 	p.allocation = runtime._var_allocation
-	s := __str__(p as __int__, 16r)
-	t := "creating head var at 0x"r + s
-	posix.puts(t)
-	posix.free(s)
+	# posix.puts("creating head var at 0x"r + __str__(p as __int__, 16r))
 	return p
 
 def dbg_type_info(type_info *type_info_t)
@@ -282,15 +277,15 @@ def visit_heap_roots(heap_visit def (obj *var_t) void)
 	while R != nil
 		assert(R as __int__ != 0r)
 		assert(R.map.num_meta == 0r as __int32__)
-		posix.puts("R is 0x"r + __str__(&R.root0 as __int__, 16r))
+		# posix.puts("R is 0x"r + __str__(&R.root0 as __int__, 16r))
 
 		# For roots [num_meta, num_roots), the metadata pointer is null.
 		i := 0r
 		e := R.map.num_roots as __int__
-		posix.puts("found R.map.num_roots of "r + __str__(e))
-		posix.puts("R.next = 0x"r + __str__(R.next as __int__, 16r))
+		# posix.puts("found R.map.num_roots of "r + __str__(e))
+		# posix.puts("R.next = 0x"r + __str__(R.next as __int__, 16r))
 
-		mem_dump(&R.root0 as *__int__, R.map.num_roots as __int__ * sizeof(*var_t))
+		# mem_dump(&R.root0 as *__int__, R.map.num_roots as __int__ * sizeof(*var_t))
 		assert(i <= e)
 		while i != e
 			node := (&R.root0 as **var_t)[i]
@@ -298,8 +293,8 @@ def visit_heap_roots(heap_visit def (obj *var_t) void)
 				i += 1r
 				continue
 
-			posix.puts(__str__(node as __int__, 16r))
-			posix.puts(__str__(node.type_info as __int__))
+			# posix.puts(__str__(node as __int__, 16r))
+			# posix.puts(__str__(node.type_info as __int__))
 			assert(node.type_info != nil and node.type_info.name != nil)
 			# posix.puts("visiting heap node 0x"r + __str__(node as __int__, 16r) + " of type "r + node.type_info.name)
 			# we have a heap variable
@@ -328,18 +323,10 @@ def mark_allocation(obj *var_t)
 
 	# dbg_zrt(printf("heap variable is referenced on the stack at 0x%08llx and is a '%s'\n", (long long)obj, obj.type_info.name))
 	if obj.mark != 0r
-		posix.puts("skipping mark of 0x"r + __str__(obj as __int__, 16r))
+		# posix.puts("skipping mark of 0x"r + __str__(obj as __int__, 16r))
 		return
 
-	a := "marking allocation at 0x"r + __str__(obj as __int__, 16r)
-	b := a + " of type "r
-	c := b + obj.type_info.name
-
-	posix.puts(c)
-
-	posix.free(a)
-	posix.free(b)
-	posix.free(c)
+	# posix.puts("marking allocation at 0x"r + __str__(obj as __int__, 16r) + " of type "r + obj.type_info.name)
 
 	# mark this node in the heap so that we break any potential cycles
 	obj.mark = 1r
@@ -373,7 +360,7 @@ def mark_allocation(obj *var_t)
 
 
 def clear_mark_bit(obj *var_t)
-	posix.puts("clearing marked bit on 0x"r + __str__(obj as __int__, 16r))
+	# posix.puts("clearing marked bit on 0x"r + __str__(obj as __int__, 16r))
 	obj.mark = 0r
 
 
@@ -383,7 +370,8 @@ def free_unmarked(obj *var_t)
 		remove_node(obj)
 		mem_free(obj as *void, obj.type_info.size)
 	else
-		posix.puts("not freeing "r + hex(obj))
+		# posix.puts("not freeing "r + hex(obj))
+		pass
 
 def hex(v *void) *__char__
 	return "0x"r + __str__(v as __int__, 16r)
@@ -395,13 +383,13 @@ def gc()
 	last_generation := _gc_generation
 	_gc_generation = runtime._var_allocation
 
-	posix.puts("running gc..."r)
+	# posix.puts("running gc..."r)
 	__debug_zion_runtime = posix.getenv("DBG_ZRT"r) != nil
 	visit_allocations(clear_mark_bit)
 	__visit_module_vars(mark_allocation)
 	visit_heap_roots(mark_allocation)
 	visit_allocations(free_unmarked)
-	report("after gc..."r)
+	# report("after gc..."r)
 	assert(runtime._var_allocation == _gc_generation)
 
 def report(use_case *__char__)

@@ -1734,11 +1734,6 @@ bound_var_t::ref ast::eq_expr_t::resolve_expression(
 	case tk_inequal:
 		function_name = "__ineq__";
 		break;
-	case tk_identifier:
-		if (token.is_ident(K(is))) {
-			return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
-					shared_from_this(), negated);
-		}
 	default:
 		return null_impl();
 	}

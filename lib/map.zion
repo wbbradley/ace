@@ -13,7 +13,7 @@ def upsert(map Map{any K, any V}?, key any K, value any V) Map{any K, any V}
 	if map
 		if key > map.key
 			inserted_right := upsert(map.right, key, value)
-			if inserted_right is map.right
+			if inserted_right == map.right
 				# this key already exists, just return the existing map
 				return map
 			else
@@ -21,7 +21,7 @@ def upsert(map Map{any K, any V}?, key any K, value any V) Map{any K, any V}
 
 		elif map.key > key
 			inserted_left := upsert(map.left, key, value)
-			if inserted_left is map.left
+			if inserted_left == map.left
 				# this key already exists, just return the existing map
 				return map
 			else
@@ -29,8 +29,8 @@ def upsert(map Map{any K, any V}?, key any K, value any V) Map{any K, any V}
 
 		else
 			# this key already exists, just return the existing map
-			if value is value
-				if key is key
+			if value == value
+				if key == key
 					# we have this exact 
 					return map
 			return Map(map.left, key, value, map.right)
@@ -99,9 +99,9 @@ def iter(map Map{any K, any V}?) Iter{any K, any V}
 def next(map_iter Iter{any K, any V}) iter.Step{KeyValue{any K, any V}, Iter{any K, any V}}?
 	# store the map node that this call will return
 	status := map_iter.status
-	if status is Stop
-		return nil as iter.Step{KeyValue{any K, any V}, Iter{any K, any V}}?
-	elif status is InOrder
+	if status == Stop
+		return nil
+	elif status == InOrder
 		if stack := map_iter.stack
 			if map_node := stack.value
 				# traverse down to the right
@@ -122,7 +122,7 @@ def next(map_iter Iter{any K, any V}) iter.Step{KeyValue{any K, any V}, Iter{any
 						if next := stack.next
 							stack = next
 							if parent := stack.value
-								if parent.right is map_node
+								if parent.right == map_node
 									# we have already visited this node
 									map_node = parent
 									continue
@@ -146,10 +146,11 @@ def next(map_iter Iter{any K, any V}) iter.Step{KeyValue{any K, any V}, Iter{any
 
 [module std]
 def str(status MapNextMove) str
-	if status is Stop
-		return "Stop"
-	elif status is InOrder
-		return "InOrder"
+	when status
+		is Stop
+			return "Stop"
+		is InOrder
+			return "InOrder"
 	else
 		print("wat is this MapNextMove?")
 		sys.exit(-1)

@@ -25,9 +25,8 @@ using namespace ast;
 #define expect_token_or_return(_tk, fail_code) \
 	do { \
 		if (ps.token.tk != _tk) { \
-			ps.error("expected '%s', got '%s'", \
-				   	tkstr(_tk), tkstr(ps.token.tk)); \
-			dbg(); \
+			ps.error("expected '%s', got '%s' " c_id("%s"), \
+				   	tkstr(_tk), tkstr(ps.token.tk), ps.token.tk == tk_identifier ? ps.token.text.c_str() : ""); \
 			return fail_code; \
 		} \
 	} while (0)
@@ -41,7 +40,6 @@ using namespace ast;
 		if (ps.token.text != token_text) { \
 			ps.error("expected '%s', got '%s'", \
 					token_text, ps.token.text.c_str()); \
-			dbg(); \
 			return fail_code; \
 		} \
 	} while (0)
@@ -655,19 +653,13 @@ ptr<expression_t> eq_expr_t::parse(parse_state_t &ps) {
 		if (ps.line_broke() ||
 				!(ps.token.is_ident(K(in))
 					|| ps.token.tk == tk_equal
-					|| ps.token.tk == tk_inequal
-					|| ps.token.is_ident(K(is)))) {
+					|| ps.token.tk == tk_inequal)) {
 			/* there is no rhs */
 			return lhs;
 		}
 
 		auto eq_expr = create<ast::eq_expr_t>(ps.token);
 		eat_token();
-
-		if (ps.token.is_ident(K(not)) && eq_expr->token.is_ident(K(is))) {
-			eq_expr->negated = true;
-			ps.advance();
-		}
 
 		if (not_in) {
 			eq_expr->negated = true;
@@ -889,7 +881,7 @@ ptr<block_t> block_t::parse(parse_state_t &ps) {
 	auto block = create<ast::block_t>(ps.token);
 	chomp_token(tk_indent);
 	if (ps.token.tk == tk_outdent) {
-		ps.error("empty blocks are not allowed, sorry. use pass.");
+		user_error(ps.status, block->token.location, "empty blocks are not allowed, sorry. use pass.");
 		return nullptr;
 	}
 

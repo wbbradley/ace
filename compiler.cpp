@@ -743,7 +743,7 @@ void run_gc_lowering(
 		FPM->run(F);
 		F.setGC("shadow-stack");
 	}
-	log("writing to jit.llir...");
+	debug_above(5, log("writing to jit.llir..."));
 	FILE *fp = fopen("jit.llir", "wt");
 	fprintf(fp, "%s\n", llvm_print_module(*llvm_module).c_str());
 	fclose(fp);
@@ -823,7 +823,7 @@ int compiler_t::run_program(int argc, char *argv_input[]) {
 		argv.push_back(argv_input[i]);
 	}
 
-	log("writing to jit.llir...");
+	debug_above(5, log("writing to jit.llir..."));
 	FILE *fp = fopen("jit.llir", "wt");
 	fprintf(fp, "%s\n", llvm_print_module(*llvm_program_module).c_str());
 	fclose(fp);

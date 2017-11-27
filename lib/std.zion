@@ -125,6 +125,12 @@ def __plus__(x str, y str) str
 def __plus__(x str, y int) str
 	return str(x.raw + str(y).raw)
 
+def __plus__(x str, y __int__) str
+	y_expanded := __str__(y)
+	result := str(x.raw + y_expanded)
+	posix.free(y_expanded)
+	return result
+
 def __plus__(x str, y float) str
 	return str(x.raw + str(y).raw)
 
@@ -320,12 +326,6 @@ type list{T} has
 	var value T
 	var next list{T}?
 
-def __bool__(l [any]) __bool__
-	if l is nil
-		return __false__
-	else
-		return __true__
-
 def nth(l list{any T}?, index int) any T?
 	if l
 		if index == 0
@@ -348,23 +348,6 @@ def conj(maybe_list list{any T}?, item any T) list{any T}
 
 def str(l list{any T}?) str
 	return "[" + join(l, ", ") + "]"
-
-def join(l [any T], delim str) str
-	iter_l := l
-	s := ""
-	var seen_one __bool__ = __false__
-	while __true__
-		if node := iter_l
-			if seen_one
-				s += delim
-			else
-				seen_one = __true__
-
-			s += str(node.value)
-			iter_l = node.next
-		else
-			break
-	return s
 
 type ListIter{V} has
 	var list [V]

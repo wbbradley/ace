@@ -2,10 +2,13 @@ module _
 link module sys
 link module main as m
 
-def main()
+def foo()
 	var y [int]
 	append(y, 3)
-	runtime.heap_dump()
 	runtime.gc()
-	append(sys.args, "funky")
 	print(join(sys.args, ", "))
+
+def main()
+	runtime.gc()
+	foo()
+	runtime.gc()

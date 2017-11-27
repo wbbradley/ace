@@ -559,7 +559,11 @@ void scope_impl_t<T>::get_callables(atom symbol, var_t::refs &fns) {
 
 		if (parent_scope != nullptr) {
 			/* let's see if our parent scope has any of this symbol from our scope */
-			parent_scope->get_callables(make_fqn(symbol.str()), fns);
+			parent_scope->get_callables(
+				symbol.str().find(SCOPE_SEP) == std::string::npos
+					? make_fqn(symbol.str())
+					: symbol.str(),
+			   	fns);
 
 			/* let's see if our parent scope has any of this symbol just generally */
 			parent_scope->get_callables(symbol, fns);

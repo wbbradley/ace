@@ -526,7 +526,10 @@ void module_scope_impl_t::mark_checked(
 }
 
 std::string module_scope_impl_t::make_fqn(std::string leaf_name) const {
-	assert(leaf_name.find(SCOPE_SEP) == std::string::npos);
+	if (leaf_name.find(SCOPE_SEP) != std::string::npos) {
+	   	log("found a . in %s", leaf_name.c_str());
+	   	dbg();
+   	}
 	return get_leaf_name().str() + SCOPE_SEP + leaf_name;
 }
 
