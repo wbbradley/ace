@@ -2,9 +2,7 @@ module _
 # test: pass
 link module posix
 link module sys
-
-link def gc() void
+link module main
 
 def main()
 	posix.puts(sys.args[0r].raw)
-	gc()

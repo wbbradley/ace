@@ -1493,6 +1493,7 @@ types::type_t::ref _parse_type(
 	   	identifier::refs type_variables,
 	   	identifier::set generics)
 {
+    location_t location = ps.token.location;
 	types::type_t::refs options;
 	while (!!ps.status) {
 		auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
@@ -1512,7 +1513,7 @@ types::type_t::ref _parse_type(
 		if (options.size() == 1) {
 			return options[0];
 		} else {
-			types::type_t::ref sum_fn = type_sum_safe(ps.status, options, supertype_id->get_location());
+			types::type_t::ref sum_fn = type_sum_safe(ps.status, options, supertype_id != nullptr ? supertype_id->get_location() : location);
 			if (!!ps.status) {
 				for (auto iter = type_variables.rbegin();
 						iter != type_variables.rend();
@@ -1530,24 +1531,25 @@ types::type_t::ref _parse_type(
 }
 
 
-types::type_t::ref parse_maybe_type(parse_state_t &ps,
-	   	identifier::ref supertype_id,
-	   	identifier::refs type_variables,
-	   	identifier::set generics)
+types::type_t::ref parse_maybe_type(
+        parse_state_t &ps,
+        identifier::ref supertype_id,
+        identifier::refs type_variables,
+        identifier::set generics)
 {
-	types::type_t::ref type = _parse_type(ps, supertype_id, type_variables, generics);
-	if (!!ps.status) {
-		if (ps.token.tk == tk_maybe) {
-			/* no named maybe generic */
-			type = type_maybe(type);
-			ps.advance();
-			return type;
-		} else {
-			return type;
-		}
-	}
-	assert(!ps.status);
-	return nullptr;
+    types::type_t::ref type = _parse_type(ps, supertype_id, type_variables, generics);
+    if (!!ps.status) {
+        if (ps.token.tk == tk_maybe) {
+            /* no named maybe generic */
+            type = type_maybe(type);
+            ps.advance();
+            return type;
+        } else {
+            return type;
+        }
+    }
+    assert(!ps.status);
+    return nullptr;
 }
 
 type_decl_t::ref type_decl_t::parse(parse_state_t &ps, token_t name_token) {

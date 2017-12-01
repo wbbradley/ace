@@ -9,15 +9,12 @@ link module iter as iter_module
 # initialization of modules is automatically generated.
 # link def __init_modules() void
 
-tag False
-tag True
+tag false
+tag true
 
 type bool is
-	True or
-	False
-
-var true __bool__ = 1r as __bool__
-var false __bool__ = 0r as __bool__
+	true or
+	false
 
 type TypeID has
 	var id __typeid__
@@ -31,14 +28,8 @@ def typeid(t any) TypeID
 def __ineq__(x TypeID, y TypeID) __bool__
 	return x.id != y.id
 
-def __bool__(t True) __bool__
-	return 1r as __bool__
-
-def __bool__(f False) __bool__
-	return 0r as __bool__
-
 def __bool__(b bool) __bool__
-	return __get_typeid__(b) == __get_typeid__(True)
+	return b as *runtime.var_t == true as *runtime.var_t
 
 def __bool__(x int) __bool__
 	return x.raw != 0r
@@ -57,9 +48,9 @@ def bool(x __bool__) bool
 	# but since it also represents this obvious binary type, we should
 	# have a default "boxing" function.
 	if x
-		return True
+		return true
 	else
-		return False
+		return false
 
 type str has
 	# TODO: override str ctor to strdup strings

@@ -1,5 +1,5 @@
 module _
-# test: skip
+# test: pass
 
 def main()
 	1.0 and 0

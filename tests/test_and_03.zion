@@ -1,5 +1,13 @@
 module _
-# test: skip
+link module main
+# test: pass
+
+def hey(x int or float)
+	when x
+		is int
+			print(x)
+		is float
+			print(x)
 
 def main()
-	0 and 1.0
+	hey(0 and 1.0)

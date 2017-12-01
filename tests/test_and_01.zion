@@ -1,5 +1,5 @@
 module _
-# test: skip
+# test: pass
 
 def main()
 	false and true

@@ -1956,7 +1956,7 @@ bound_var_t::ref resolve_cond_expression(
 							status, builder, scope, life, false /*as_ref*/));
 
 				/* after calculation, the code should jump to the phi node's basic block */
-				builder.CreateBr(merge_bb);
+				llvm::Instruction *false_merge_branch = builder.CreateBr(merge_bb);
 
 				if (!!status) {
 					/* let's generate code for the "true-path" block */
@@ -2012,20 +2012,35 @@ bound_var_t::ref resolve_cond_expression(
 								}
 
 								if (!!status) {
-									builder.CreateBr(merge_bb);
+									llvm::Instruction *truthy_merge_branch = builder.CreateBr(merge_bb);
 									builder.SetInsertPoint(merge_bb);
 
 									llvm::PHINode *llvm_phi_node = llvm::PHINode::Create(
 											ternary_type->get_llvm_specific_type(),
 											2, "ternary.phi.node", merge_bb);
 
-									llvm_phi_node->addIncoming(llvm_maybe_pointer_cast(
-												builder, true_path_value->resolve_bound_var_value(builder), ternary_type),
-											truth_path_bb);
+									llvm::Value *llvm_truthy_path_value = nullptr;
+									/* BLOCK */ {
+										/* make sure that we cast the incoming phi value to the
+										 * final type in the incoming BB, not in the merge BB */
+										llvm::IRBuilder<> builder(truthy_merge_branch);
+										llvm_truthy_path_value = llvm_maybe_pointer_cast(builder,
+												true_path_value->resolve_bound_var_value(builder),
+												ternary_type);
+									}
+									llvm_phi_node->addIncoming(llvm_truthy_path_value, truth_path_bb);
 
-									llvm_phi_node->addIncoming(llvm_maybe_pointer_cast(
-												builder, false_path_value->resolve_bound_var_value(builder), ternary_type),
-											else_bb);
+									llvm::Value *llvm_false_path_value = nullptr;
+									/* BLOCK */ {
+										/* make sure that we cast the incoming phi value to the
+										 * final type in the incoming BB, not in the merge BB */
+										llvm::IRBuilder<> builder(false_merge_branch);
+										llvm_false_path_value = llvm_maybe_pointer_cast(builder,
+												false_path_value->resolve_bound_var_value(builder),
+												ternary_type);
+									}
+
+									llvm_phi_node->addIncoming(llvm_false_path_value, else_bb);
 
 									return bound_var_t::create(
 											INTERNAL_LOC(),

@@ -534,9 +534,10 @@ bound_type_t::ref create_bound_maybe_type(
 
 	assert(program_scope->get_bound_type(maybe->get_signature(), false /*use_mappings*/) == nullptr);
 
-	if (auto bound_just_type = program_scope->get_bound_type(maybe->just->get_signature(), false /*use_mappings*/)) {
+	if (auto bound_just_type = program_scope->get_bound_type(
+				maybe->just->get_signature(), false /*use_mappings*/))
+   	{
 		/* try breaking a cycle of maybes */
-		dbg();
 		auto bound_type = bound_type_t::create(
 				maybe,
 				bound_just_type->get_location(),
