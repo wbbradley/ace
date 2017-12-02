@@ -846,7 +846,7 @@ ptr<statement_t> assignment_t::parse(parse_state_t &ps) {
 					return nullptr;
 				}
 			} else {
-				ps.error(":= may only come after a reference_expr");
+				ps.error(":= may only come after a new symbol name");
 				return nullptr;
 			}
 		} else {

@@ -2643,7 +2643,7 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 		return instantiate_with_args_and_return_type(status, builder, scope, life,
 				new_scope, args, return_type);
 	} else {
-		user_error(status, *this, "unable to declare function %s due to related errors",
+		user_error(status, *this, "unable to instantiate function %s due to earlier errors",
 				token.str().c_str());
 	}
 

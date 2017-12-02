@@ -76,6 +76,13 @@ int main(int argc, char *argv[]) {
 	if (cmd == "test") {
 		std::string filter = (argc == 3 ? argv[2] : "");
 		std::vector<std::string> excludes;
+		if (filter == "-c") {
+			excludes = read_test_excludes();
+			filter = "";
+		} else {
+			truncate_excludes();
+		}
+
 		if (getenv("T")) {
 			filter = getenv("T");
 		}

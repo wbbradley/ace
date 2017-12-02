@@ -1,11 +1,12 @@
 module _ @1.0
 
 def duplicate_vars() void
+	# error: 5:.* see earlier symbol declaration x
 	x := 0
 	if true
-		# error: 7:3.* variables cannot be redeclared
+		# error: 8:.* symbol 'x' cannot be redeclared
 		x := 1
 
-def param_list_override(x int) void
-	# error: 7:3.* variables cannot be redeclared
-	x := 0
+def param_list_override(y int) void
+	# error: 12:.* symbol 'y' cannot be redeclared
+	y := 0

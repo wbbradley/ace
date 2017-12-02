@@ -16,11 +16,16 @@
 #include "llvm_test.h"
 #include "llvm_utils.h"
 #include "unification.h"
+#include <fcntl.h>
+#include <unistd.h>
 
 #define test_assert(x) if (!(x)) { \
 	log(log_error, "test_assert " c_error(#x) " failed at " c_line_ref("%s:%d"), __FILE__, __LINE__); \
    	return false; \
 } else {}
+
+const char *PASSED_TESTS_FILENAME = "tests-passed";
+
 
 std::vector<token_kind> get_tks(zion_lexer_t &lexer, bool include_newlines, std::vector<token_t> &comments) {
 	std::vector<token_kind> tks;
@@ -1075,6 +1080,26 @@ bool check_filters(std::string name, std::string filter, std::vector<std::string
 	return true;
 }
 
+void append_excludes(std::string name) {
+    int fd = open(PASSED_TESTS_FILENAME, O_WRONLY|O_CREAT|O_APPEND, 0666);
+    if (fd > 0) {
+        lseek(fd, SEEK_END, 0);
+        write(fd, name.c_str(), name.size());
+        write(fd, "\n", 1);
+        close(fd);
+    } else {
+        assert(false);
+    }
+}
+
+std::vector<std::string> read_test_excludes() {
+    return readlines(PASSED_TESTS_FILENAME);
+}
+
+void truncate_excludes() {
+    unlink(PASSED_TESTS_FILENAME);
+}
+
 bool run_tests(std::string filter, std::vector<std::string> excludes) {
 	int pass=0, total=0, skipped=0;
 
@@ -1135,6 +1160,7 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 				}
 			} else {
 				debug_above(2, log(log_info, "------ " c_good("✓ ") c_test_msg("%s") c_good(" PASS ") "------", test_desc.name.c_str()));
+                append_excludes(test_desc.name);
 				++pass;
 			}
 		} else {

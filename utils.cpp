@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <limits.h>
 #include <cstdarg>
+#include <iostream>
+#include <fstream>
 
 #define SWP(x,y) (x^=y, y^=x, x^=y)
 
@@ -318,4 +320,13 @@ std::string get_cwd() {
 		panic("can't get current working directory");
 		return "";
 	}
+}
+
+std::vector<std::string> readlines(std::string filename) {
+    std::vector<std::string> lines;
+    std::ifstream ifs(filename);
+    std::copy(std::istream_iterator<std::string>(ifs),
+            std::istream_iterator<std::string>(),
+            std::back_inserter(lines));
+    return lines;
 }

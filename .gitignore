@@ -29,3 +29,4 @@ Makefile
 Makefile.bak
 CTestTestfile.cmake
 Testing/
+tests-passed

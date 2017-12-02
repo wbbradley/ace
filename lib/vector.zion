@@ -32,6 +32,10 @@ def __bool__(l [any]) __bool__
 	return (l as *vector_t).size != 0r
 
 [module std]
+def str(v [any T]) str
+	return "[" + join(v, ", ") + "]"
+
+[module std]
 def join(v [any T], delim str) str
 	vec := v as *vector_t
 	s := ""
@@ -46,7 +50,6 @@ def join(v [any T], delim str) str
 
 [module std]
 def __getitem__(vec [any T], index int) any T
-	posix.puts(__str__(vec as __int__))
 	return __getvectoritem__((vec as *vector_t), index.raw) as any T
 
 [module std]
@@ -138,3 +141,43 @@ def __vectorappend__(vector *vector_t, item *runtime.var_t)
 		vector.reserved = 4r
 		vector.size = 1r
 		vector.items[0r] = item
+
+[module std]
+def reserve(vec [any T], n int)
+	# Call the unmanaged version
+	reserve(vec as *vector_t, n.raw)
+
+def reserve(vec *vector_t, n __int__)
+	# Make sure we've got n spaces available in our vector's allocated memory
+	if vec.reserved < n
+		if vec.items
+			new_items := posix.calloc(sizeof(*runtime.var_t), n) as **runtime.var_t
+			posix.memcpy(new_items as *__int8__, vec.items as *__int8__, sizeof(*runtime.var_t) * vec.size)
+			posix.free(vec.items)
+			vec.items = new_items
+			vec.reserved = n
+		else
+			vec.items = posix.calloc(sizeof(*runtime.var_t), n) as **runtime.var_t
+			vec.reserved = n
+		
+
+[module std]
+def copy(orig [any T]) [any T]
+	var new [any T]
+	reserve(new, len(orig))
+	i := 0
+	while i != len(orig)
+		append(new, orig[i])
+		i += 1
+	return new
+
+[module std]
+def copy(orig [any T], t any T) [any T]
+	var new [any T]
+	reserve(new, len(orig) + 1)
+	i := 0
+	while i != len(orig)
+		append(new, orig[i])
+		i += 1
+	append(new, t)
+	return new

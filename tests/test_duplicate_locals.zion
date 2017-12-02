@@ -1,6 +1,7 @@
 module _
 
+# error: 4:5: error: while checking duplicate_locals
 def duplicate_locals() void
 	x := 0
-	# error: 6:2: error: variables cannot be redeclared
+	# error: 7:2: error: symbol 'x' cannot be redeclared
 	x := 1
