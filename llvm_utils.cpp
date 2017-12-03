@@ -239,7 +239,7 @@ llvm::CallInst *llvm_create_call_inst(
 	assert(!!status);
 	assert(callee != nullptr);
 	llvm::Value *llvm_callee_value = callee->resolve_bound_var_value(builder);
-	debug_above(6, log("found llvm_callee_value %s of type %s",
+	debug_above(9, log("found llvm_callee_value %s of type %s",
 				llvm_print(llvm_callee_value).c_str(),
 				llvm_print(llvm_callee_value->getType()).c_str()));
 

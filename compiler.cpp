@@ -318,7 +318,7 @@ void add_global_types(
 			bound_type_t::create(
 					type_nil(),
 					INTERNAL_LOC(),
-					builder.getInt64Ty())},
+					builder.getInt8Ty()->getPointerTo())},
 		{{"void"},
 			bound_type_t::create(
 					type_id(make_iid("void")),

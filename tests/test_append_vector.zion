@@ -1,0 +1,9 @@
+module _
+link module main
+# test: pass
+# expect: 42
+
+def main()
+	var x [int]
+	append(x, 42)
+	print(x[0])

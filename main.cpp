@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
 					if (!!status) {
 						std::vector<char*> args;
 						args.reserve(argc-2+1);
-						for (int i=argc-1; i>=2; --i) {
+						for (int i=2; i<argc; ++i) {
 							args.push_back(argv[i]);
 						}
 						args.push_back(nullptr);

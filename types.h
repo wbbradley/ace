@@ -56,6 +56,7 @@ namespace types {
 
 		virtual ref rebind(const map &bindings) const = 0;
 
+        virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 		virtual bool is_ref() const { return false; }
 		virtual bool is_function() const { return false; }
 		virtual bool is_void() const { return false; }
@@ -77,6 +78,7 @@ namespace types {
 		virtual identifier::ref get_id() const;
 		virtual bool is_void() const;
 		virtual bool is_nil() const;
+        virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
 	struct type_id_t : public type_t {
@@ -91,6 +93,7 @@ namespace types {
 		virtual identifier::ref get_id() const;
 		virtual bool is_void() const;
 		virtual bool is_nil() const;
+        virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
 	struct type_variable_t : public type_t {
@@ -118,6 +121,7 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
+        virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
 	struct type_product_t : public type_t {
@@ -235,6 +239,7 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
+        virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
 	struct type_maybe_t : public type_t {
@@ -247,6 +252,7 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
+        virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
 	struct type_ptr_t : public type_t {
@@ -260,6 +266,7 @@ namespace types {
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
+        virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
 	struct type_ref_t : public type_t {

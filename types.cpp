@@ -869,32 +869,58 @@ types::type_function_t::ref type_function(
 	return make_ptr<types::type_function_t>(args, return_type);
 }
 
+bool types_contains(const types::type_t::refs &options, atom signature) {
+    for (auto &option : options) {
+        if (option->get_signature() == signature) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void add_options(types::type_t::refs &options, const types::type_t::refs &new_options, bool &make_maybe) {
+    for (auto option : new_options) {
+        if (auto nil = dyncast<const types::type_nil_t>(option)) {
+            assert(false && "interesting...");
+            make_maybe = true;
+            continue;
+        }
+        if (auto maybe = dyncast<const types::type_maybe_t>(option)) {
+            make_maybe = true;
+            option = maybe->just;
+        }
+
+        if (auto sum_type = dyncast<const types::type_sum_t>(option)) {
+            add_options(options, sum_type->options, make_maybe);
+        } else {
+            if (!types_contains(options, option->get_signature())) {
+                options.push_back(option);
+            }
+        }
+    }
+}
+
 types::type_t::ref type_sum_safe(
 		status_t &status,
 	   	types::type_t::refs options,
 	   	location_t location)
 {
-	/* sum types must take care to avoid creating sums over maybe types and over
-	 * builtin types */
+    /* sum types must take care to avoid creating sums over maybe types and over builtin types. this
+     * function will also handle combining nested sum types, since OR is fully associative */
 	bool make_maybe = false;
 	types::type_t::refs safe_options;
-	for (auto option : options) {
-		if (auto maybe = dyncast<const types::type_maybe_t>(option)) {
-			make_maybe = true;
-			option = maybe->just;
-		}
-		
-		safe_options.push_back(option);
-	}
+    add_options(safe_options, options, make_maybe);
 
-	auto ret = type_sum(safe_options, location);
-	if (make_maybe) {
-		/* lift the maybe-ness of one of the inner types up to the whole
-		 * type */
-		return type_maybe(ret);
-	} else {
-		return ret;
-	}
+    types::type_t::ref result;
+    if (safe_options.size() == 1) {
+        result = safe_options[0];
+    } else {
+        result = type_sum(safe_options, location);
+    }
+
+    /* lift the maybe-ness of one of the inner types up to the whole
+     * type */
+	return make_maybe ? type_maybe(result) : result;
 }
 
 types::type_t::ref type_sum(types::type_t::refs options, location_t location) {

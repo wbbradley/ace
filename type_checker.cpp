@@ -172,49 +172,53 @@ bound_var_t::ref generate_stack_variable(
 				llvm_alloca = llvm_create_entry_block_alloca(llvm_function, value_type, symbol);
 			}
 
-			if (init_var == nullptr) {
-				/* the user didn't supply an initializer, let's see if this type has one */
-				auto init_fn = get_callable(
-						status,
-						builder,
-						scope->get_module_scope(),
-						"__init__",
-						obj.get_location(),
-						type_args({}, {}),
-						value_type->get_type());
-
-				if (!!status) {
-					init_var = make_call_value(status, builder, obj.get_location(), scope,
-							life, init_fn, {} /*arguments*/);
-				}
-			}
-
-			if (init_var) {
-				if (!init_var->type->get_type()->is_nil()) {
-					debug_above(6, log(log_info, "creating a store instruction %s := %s",
-								llvm_print(llvm_alloca).c_str(),
-								llvm_print(init_var->get_llvm_value()).c_str()));
-
-					// Should resolve_value be allowed?
-					llvm::Value *llvm_init_value = init_var->get_llvm_value(); // ->resolve_value(builder);
-					if (llvm_init_value->getName().size() == 0) {
-						llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
-					}
-
-					builder.CreateStore(
-							llvm_maybe_pointer_cast(builder, llvm_init_value,
-								value_type->get_llvm_specific_type()),
-							llvm_alloca);
-				} else {
-					llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
-					builder.CreateStore(llvm_null_value, llvm_alloca);
-				}
-			} else if (dyncast<const types::type_maybe_t>(declared_type)) {
-				/* this can be null, let's initialize it as such */
+			if (!init_var && dyncast<const types::type_maybe_t>(declared_type)) {
+				/* this can be null, and we do not allow user-defined __init__ for maybe types, so let's initialize it as nil */
 				llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
 				builder.CreateStore(llvm_null_value, llvm_alloca);
 			} else {
-				user_error(status, obj.get_location(), "missing initializer");
+				/* this is not a maybe type, or we have an initializer */
+				if (init_var == nullptr) {
+					/* the user didn't supply an initializer, let's see if this type has one */
+					auto init_fn = get_callable(
+							status,
+							builder,
+							scope->get_module_scope(),
+							"__init__",
+							obj.get_location(),
+							type_args({}, {}),
+							value_type->get_type());
+
+					if (!!status) {
+						init_var = make_call_value(status, builder, obj.get_location(), scope,
+								life, init_fn, {} /*arguments*/);
+					} else {
+						user_error(status, obj.get_location(), "missing initializer");
+					}
+				}
+
+				if (!!status) {
+					if (init_var) {
+						if (!init_var->type->get_type()->is_nil()) {
+							debug_above(6, log(log_info, "creating a store instruction %s := %s",
+										llvm_print(llvm_alloca).c_str(),
+										llvm_print(init_var->get_llvm_value()).c_str()));
+
+							llvm::Value *llvm_init_value = init_var->get_llvm_value();
+							if (llvm_init_value->getName().size() == 0) {
+								llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+							}
+
+							builder.CreateStore(
+									llvm_maybe_pointer_cast(builder, llvm_init_value,
+										value_type->get_llvm_specific_type()),
+									llvm_alloca);
+						} else {
+							llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
+							builder.CreateStore(llvm_null_value, llvm_alloca);
+						}
+					}
+				}
 			}
 		}
 
@@ -1643,28 +1647,31 @@ bound_var_t::ref type_check_binary_operator(
 
 				if (!!status) {
 					assert(!rhs_var->type->is_ref());
+					bool lhs_is_nil = lhs_var->type->get_type()->is_nil();
+					bool rhs_is_nil = rhs_var->type->get_type()->is_nil();
 
-					if ((lhs_var->type->is_ptr(scope) || lhs_var->type->get_type()->is_nil())
-							 && (rhs_var->type->is_ptr(scope) || rhs_var->type->get_type()->is_nil()))
-					{
-						/* maybe we should just do a pointer operation */
-						bool lhs_is_managed;
-						lhs_var->type->is_managed_ptr(
-								status,
-								builder,
-								scope,
-								lhs_is_managed);
-						if (!!status) {
-							if (!lhs_is_managed) {
-								bool rhs_is_managed;
-								rhs_var->type->is_managed_ptr(
-										status,
-										builder,
-										scope,
-										rhs_is_managed);
-								if (!!status) {
-									if (!rhs_is_managed) {
-										if (function_name == "__eq__" || function_name == "__ineq__") {
+					if (function_name == "__eq__" || function_name == "__ineq__") {
+						/* see whether we should just do a binary value comparison */
+						if (
+								(lhs_var->type->is_ptr(scope) || lhs_is_nil) &&
+								(rhs_var->type->is_ptr(scope) || rhs_is_nil))
+						{
+							bool lhs_is_managed;
+							lhs_var->type->is_managed_ptr(
+									status,
+									builder,
+									scope,
+									lhs_is_managed);
+							if (!!status) {
+								if (!lhs_is_managed || rhs_is_nil) {
+									bool rhs_is_managed;
+									rhs_var->type->is_managed_ptr(
+											status,
+											builder,
+											scope,
+											rhs_is_managed);
+									if (!!status) {
+										if (!rhs_is_managed || lhs_is_nil) {
 											/* yeah, it looks like we are operating on two native pointers */
 											return resolve_pointer_operation(status, builder, scope,
 													life, obj->get_location(), lhs_var, rhs_var, function_name.str());
@@ -1879,7 +1886,7 @@ llvm::Value *maybe_get_bool_overload_value(
 	return nullptr;
 }
 
-bound_var_t::ref resolve_cond_expression(
+bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -1990,25 +1997,55 @@ bound_var_t::ref resolve_cond_expression(
 									/* don't recompute the "true" value */
 									? condition_value
 									/* we need to compute the "true" value */
-									: when_true->resolve_expression(status, builder, if_scope ?
-										if_scope : scope, life, false /*as_ref*/));
+									: when_true->resolve_expression(status, builder,
+									   	if_scope ? if_scope : scope, life, false /*as_ref*/));
 
 							if (!!status) {
 								bound_type_t::ref ternary_type;
-								if (true_path_value->type->get_llvm_specific_type() != false_path_value->type->get_llvm_specific_type()) {
-									/* the when_true and when_false values have different
-									 * types, let's create a sum type to represent this */
-									auto ternary_sum_type = type_sum_safe(status, {
-											true_path_value->type->get_type(),
-											false_path_value->type->get_type()},
-											condition->get_location());
+								// If the when-true is same as condition, we can eliminate any
+								// falsey types from the ma
 
-									if (!!status) {
-										ternary_type = upsert_bound_type(status,
-												builder, scope, ternary_sum_type);
-									}
-								} else {
-									ternary_type = true_path_value->type;
+								types::type_t::ref truthy_path_type = true_path_value->type->get_type();
+								types::type_t::ref falsey_path_type = false_path_value->type->get_type();
+
+								auto env = scope->get_typename_env();
+								if (condition == when_true) {
+									/* we can remove falsey types from the truthy path type */
+									truthy_path_type = truthy_path_type->boolean_refinement(false, env);
+								} else if (condition == when_false) {
+									/* we can remove truthy types from the truthy path type */
+									truthy_path_type = truthy_path_type->boolean_refinement(true, env);
+								}
+
+								auto condition_type = condition_value->type->get_type();
+								if (condition_type->boolean_refinement(false, env) == nullptr) {
+									/* the condition value was definitely falsey */
+									/* factor out the truthy path type entirely */
+									truthy_path_type = nullptr;
+								} else if (condition_type->boolean_refinement(true, env) == nullptr) {
+									/* the condition value was definitely truthy */
+									/* factor out the falsey path type entirely */
+									falsey_path_type = nullptr;
+								}
+
+								assert((truthy_path_type != nullptr) || (falsey_path_type != nullptr));
+
+								types::type_t::refs options;
+								if (truthy_path_type != nullptr) {
+									options.push_back(truthy_path_type);
+								}
+								if (falsey_path_type != nullptr) {
+									options.push_back(falsey_path_type);
+								}
+
+								/* the when_true and when_false values have different
+								 * types, let's create a sum type to represent this */
+								auto ternary_sum_type = type_sum_safe(status, options,
+										condition->get_location());
+
+								if (!!status) {
+									ternary_type = upsert_bound_type(status,
+											builder, scope, ternary_sum_type);
 								}
 
 								if (!!status) {
@@ -2971,13 +3008,13 @@ void type_check_program_variable(
 		program_scope_t::ref program_scope,
 		unchecked_var_t::ref unchecked_var)
 {
-	debug_above(5, log(log_info, "checking whether to check %s",
+	debug_above(8, log(log_info, "checking whether to check %s",
 				unchecked_var->str().c_str()));
 
 	auto node = unchecked_var->node;
 	if (!unchecked_var->module_scope->has_checked(node)) {
 		/* prevent recurring checks */
-		debug_above(4, log(log_info, "checking module level variable %s",
+		debug_above(7, log(log_info, "checking module level variable %s",
 					node->token.str().c_str()));
 		if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
 			// TODO: decide whether we need treatment here
@@ -4330,6 +4367,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
     switch (token.tk) {
 	case tk_identifier:
 		{
+			assert(token.text == "nil");
 			auto nil_type = program_scope->get_bound_type({"nil"});
 			auto bound_type = bound_type_t::create(
 					type_nil(),
@@ -4338,7 +4376,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 					nil_type->get_llvm_specific_type());
 			return bound_var_t::create(
 					INTERNAL_LOC(), "nil", bound_type,
-					llvm_create_int(builder, 0),
+					llvm::Constant::getNullValue(nil_type->get_llvm_specific_type()),
 					make_code_id(token));
 		}
 		break;
