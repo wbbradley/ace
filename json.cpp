@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include "utf8/utf8.h"
+#include "utils.h"
 
 const char *jvkstr(json_value_kind jvk) {
 	switch (jvk) {
@@ -124,8 +125,4 @@ void json_object::set_child(const std::string &name, jsonp value, bool avoid_dup
 	prop->name = name;
 	prop->value = value;
 	jprops.push_back(prop);
-}
-
-const char *boolstr(bool x) {
-	return x ? "true" : "false";
 }

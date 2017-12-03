@@ -2040,8 +2040,9 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 
 								/* the when_true and when_false values have different
 								 * types, let's create a sum type to represent this */
-								auto ternary_sum_type = type_sum_safe(status, options,
+								auto ternary_sum_type = type_sum_safe(options,
 										condition->get_location());
+								assert(ternary_sum_type != nullptr);
 
 								if (!!status) {
 									ternary_type = upsert_bound_type(status,

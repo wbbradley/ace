@@ -171,6 +171,10 @@ std::string join_with(const X &xs, std::string delim, F f) {
 	return ss.str();
 }
 
+inline const char *boolstr(bool x) {
+	return x ? "true" : "false";
+}
+
 std::vector<std::string> readlines(std::string filename);
 bool real_path(std::string filename, std::string &real_path);
 std::string get_cwd();

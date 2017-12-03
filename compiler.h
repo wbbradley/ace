@@ -8,18 +8,6 @@
 #include "scopes.h"
 #include "parse_state.h"
 
-extern const char *INT_TYPE;
-extern const char *BOOL_TYPE;
-extern const char *FLOAT_TYPE;
-extern const char *STR_TYPE;
-extern const char *INT_TYPE;
-extern const char *BOOL_TYPE;
-extern const char *FLOAT_TYPE;
-extern const char *STR_TYPE;
-extern const char *TRUE_TYPE;
-extern const char *FALSE_TYPE;
-extern const char *TYPEID_TYPE;
-
 struct compiler_t {
 	typedef std::vector<std::string> libs;
 	typedef std::pair<atom, std::unique_ptr<llvm::Module>> llvm_module_t;

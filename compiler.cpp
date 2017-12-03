@@ -7,7 +7,6 @@
 #include <vector>
 #include "disk.h"
 #include <fstream>
-#include "json.h"
 #include <unordered_set>
 #include "phase_scope_setup.h"
 #include "utils.h"
@@ -290,21 +289,6 @@ void rt_bind_var_from_llir(
 		}
 	}
 }
-
-const char *INT_TYPE = "__int__";
-const char *INT64_TYPE = "__int64__";
-const char *INT32_TYPE = "__int32__";
-const char *INT16_TYPE = "__int16__";
-const char *INT8_TYPE = "__int8__";
-const char *CHAR_TYPE = "__char__";
-const char *BOOL_TYPE = "__bool__";
-const char *FLOAT_TYPE = "__float__";
-const char *STR_TYPE = "*__char__";
-const char *UTF8_TYPE = "__utf8__";
-const char *PTR_TO_STR_TYPE = "**__char__";
-const char *TRUE_TYPE = "__true__";
-const char *FALSE_TYPE = "__false__";
-const char *TYPEID_TYPE = "__typeid__";
 
 void add_global_types(
 		status_t &status,

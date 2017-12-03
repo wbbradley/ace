@@ -49,6 +49,10 @@ namespace types {
 		return ss.str();
 	}
 
+    type_t::ref type_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
+        return shared_from_this();
+    }
+
 	type_id_t::type_id_t(identifier::ref id) : id(id) {
 	}
 
@@ -84,6 +88,46 @@ namespace types {
 	bool type_id_t::is_nil() const {
 	   	return id->get_name() == BUILTIN_NIL_TYPE;
    	}
+
+    type_t::ref type_id_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
+        debug_above(6, log("refining %s. eliminating %s", str().c_str(), boolstr(elimination_value)));
+        if (is_nil()) {
+            if (elimination_value) {
+                return shared_from_this();
+            } else {
+                return nullptr;
+            }
+        }
+
+        auto expansion = eval(shared_from_this(), env);
+        if (expansion != nullptr) {
+            /* refine the expanded version of this type */
+            auto refined_expansion = expansion->boolean_refinement(elimination_value, env);
+            if (refined_expansion == nullptr) {
+                /* if the refinement results in elimination, so be it */
+                return nullptr;
+            } else if (refined_expansion->get_signature() == expansion->get_signature()) {
+                /* if the refinement does nothing, return the original type */
+                return shared_from_this();
+            } else {
+                /* the refinement changed something, so return that */
+                return refined_expansion;
+            }
+        } else {
+            /* there is no expansion, so just return this type because we don't know how to refine
+             * it */
+#if 0
+            // TODO: see about adding some smarts here
+            if (id->get_name() == BOOL_TYPE) {
+                return type_id(elimination_value
+                        ? make_iid_impl(FALSE_TYPE, get_location())
+                        : make_iid_impl(TRUE_TYPE, get_location()));
+            }
+            assert(false && "?");
+#endif
+            return shared_from_this();
+        }
+    }
 
 	type_variable_t::type_variable_t(identifier::ref id) : id(id), location(id->get_location()) {
 	}
@@ -174,6 +218,29 @@ namespace types {
 	identifier::ref type_operator_t::get_id() const {
 		return oper->get_id();
 	}
+
+    type_t::ref type_operator_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
+        auto expansion = eval(shared_from_this(), env);
+        if (expansion != nullptr) {
+            /* refine the expanded version of this type */
+            auto refined_expansion = expansion->boolean_refinement(elimination_value, env);
+            if (refined_expansion == nullptr) {
+                /* if the refinement results in elimination, so be it */
+                return nullptr;
+            } else if (refined_expansion->get_signature() == expansion->get_signature()) {
+                /* if the refinement does nothing, return the original type */
+                return shared_from_this();
+            } else {
+                /* the refinement changed something, so return that */
+                return refined_expansion;
+            }
+        } else {
+            /* there is no expansion, so just return this type because we don't know how to refine
+             * it */
+            assert(false && "?");
+            return shared_from_this();
+        }
+    }
 
 	type_struct_t::type_struct_t(type_t::refs dimensions, types::name_index_t name_index) :
 		dimensions(dimensions), name_index(name_index)
@@ -536,6 +603,18 @@ namespace types {
 		return nullptr;
 	}
 
+    type_t::ref type_sum_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
+        types::type_t::refs new_options;
+        for (auto option : options) {
+            option = option->boolean_refinement(elimination_value, env);
+            if (option != nullptr) {
+                new_options.push_back(option);
+            }
+        }
+
+        return type_sum_safe(new_options, get_location());
+    }
+
 	type_maybe_t::type_maybe_t(type_t::ref just) : just(just) {
         assert(!dyncast<const type_maybe_t>(just));
         assert(!dyncast<const type_ref_t>(just));
@@ -571,6 +650,16 @@ namespace types {
 		return nullptr;
 	}
 
+    type_t::ref type_maybe_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
+        if (!elimination_value) {
+            return just;
+        } else {
+            /* FUTURE: to actually return type_nil here, we'd need to know that the just type here
+             * has not overloaded __bool__ */
+            return shared_from_this();
+        }
+    }
+
 	type_ptr_t::type_ptr_t(type_t::ref element_type) : element_type(element_type) {
 		assert(!element_type->is_nil());
 	}
@@ -604,6 +693,14 @@ namespace types {
 	identifier::ref type_ptr_t::get_id() const {
 		return nullptr;
 	}
+
+    type_t::ref type_ptr_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
+        if (elimination_value) {
+            /* we can eliminate truthy types, so this pointer must be just nil */
+            return type_nil();
+        }
+        return shared_from_this();
+    }
 
 	type_ref_t::type_ref_t(type_t::ref element_type) : element_type(element_type) {
 		assert(!element_type->is_nil());
@@ -880,7 +977,7 @@ bool types_contains(const types::type_t::refs &options, atom signature) {
 
 void add_options(types::type_t::refs &options, const types::type_t::refs &new_options, bool &make_maybe) {
     for (auto option : new_options) {
-        if (auto nil = dyncast<const types::type_nil_t>(option)) {
+        if (option->is_nil()) {
             assert(false && "interesting...");
             make_maybe = true;
             continue;
@@ -901,7 +998,6 @@ void add_options(types::type_t::refs &options, const types::type_t::refs &new_op
 }
 
 types::type_t::ref type_sum_safe(
-		status_t &status,
 	   	types::type_t::refs options,
 	   	location_t location)
 {
@@ -912,7 +1008,9 @@ types::type_t::ref type_sum_safe(
     add_options(safe_options, options, make_maybe);
 
     types::type_t::ref result;
-    if (safe_options.size() == 1) {
+    if (safe_options.size() == 0) {
+        return nullptr;
+    } else if (safe_options.size() == 1) {
         result = safe_options[0];
     } else {
         result = type_sum(safe_options, location);

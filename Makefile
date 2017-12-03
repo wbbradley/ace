@@ -118,6 +118,7 @@ ZION_LLVM_SOURCES = \
 				type_instantiation.cpp \
 				var.cpp \
 				ast.cpp \
+				builtins.cpp \
 				compiler.cpp \
 				bound_type.cpp \
 				bound_var.cpp \
