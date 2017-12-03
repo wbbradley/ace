@@ -1,6 +1,9 @@
 module _
+link module main
+link module sys
 # test: pass
+# expect: 30
 
 def main()
-	x := nil ? 12 : 2
-	print(x)
+	target := len(sys.args) == 2 and int(sys.args[1]) or 30
+	print(target)

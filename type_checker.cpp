@@ -1897,6 +1897,9 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		ast::expression_t::ref when_false,
 		identifier::ref value_name)
 {
+	indent_logger indent(condition->get_location(), 6, string_format("resolving ternary expression (%s) ? (%s) : (%s)",
+				condition->str().c_str(), when_true->str().c_str(), when_false->str().c_str()));
+
 	/* if scope allows us to set up new variables inside if conditions */
 	local_scope_t::ref if_scope;
 
@@ -2014,7 +2017,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 									truthy_path_type = truthy_path_type->boolean_refinement(false, env);
 								} else if (condition == when_false) {
 									/* we can remove truthy types from the truthy path type */
-									truthy_path_type = truthy_path_type->boolean_refinement(true, env);
+									falsey_path_type = falsey_path_type->boolean_refinement(true, env);
 								}
 
 								auto condition_type = condition_value->type->get_type();
@@ -2080,6 +2083,8 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 
 									llvm_phi_node->addIncoming(llvm_false_path_value, else_bb);
 
+									debug_above(6, log("ternary expression resolved to type %s",
+												ternary_type->str().c_str()));
 									return bound_var_t::create(
 											INTERNAL_LOC(),
 											{"ternary.value"},

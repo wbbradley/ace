@@ -90,33 +90,51 @@ namespace types {
    	}
 
     type_t::ref type_id_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
-        debug_above(6, log("refining %s. eliminating %s", str().c_str(), boolstr(elimination_value)));
+        debug_above(6, log("refining %s. looking to eliminate %s values from the type", str().c_str(), boolstr(elimination_value)));
         if (is_nil()) {
             if (elimination_value) {
+                debug_above(6, log("keeping %s", str().c_str()));
                 return shared_from_this();
             } else {
+                debug_above(6, log("eliding the whole type of %s", str().c_str()));
                 return nullptr;
             }
         }
 
+        /* handle builtin type ids */
+        if (id->get_name() == boolstr(elimination_value)) {
+            debug_above(6, log("eliding the whole type of %s", str().c_str()));
+            return nullptr;
+        } else if (id->get_name() == "bool") {
+            auto refinement = type_id(make_iid_impl(boolstr(!elimination_value), get_location()));
+            debug_above(6, log("refining %s to %s", str().c_str(), refinement->str().c_str()));
+            return refinement;
+        }
+
+        return shared_from_this();
+    }
+#if 0
         auto expansion = eval(shared_from_this(), env);
         if (expansion != nullptr) {
             /* refine the expanded version of this type */
             auto refined_expansion = expansion->boolean_refinement(elimination_value, env);
             if (refined_expansion == nullptr) {
                 /* if the refinement results in elimination, so be it */
+                debug_above(6, log("eliding the whole type of %s", str().c_str()));
                 return nullptr;
             } else if (refined_expansion->get_signature() == expansion->get_signature()) {
                 /* if the refinement does nothing, return the original type */
+                debug_above(6, log("keeping %s", str().c_str()));
                 return shared_from_this();
             } else {
                 /* the refinement changed something, so return that */
+                debug_above(6, log("refining %s to %s", str().c_str(), refined_expansion->str().c_str()));
                 return refined_expansion;
             }
         } else {
             /* there is no expansion, so just return this type because we don't know how to refine
              * it */
-#if 0
+if 0
             // TODO: see about adding some smarts here
             if (id->get_name() == BOOL_TYPE) {
                 return type_id(elimination_value
@@ -124,10 +142,12 @@ namespace types {
                         : make_iid_impl(TRUE_TYPE, get_location()));
             }
             assert(false && "?");
-#endif
+endif
+            debug_above(6, log("keeping %s", str().c_str()));
             return shared_from_this();
         }
     }
+#endif
 
 	type_variable_t::type_variable_t(identifier::ref id) : id(id), location(id->get_location()) {
 	}

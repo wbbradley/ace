@@ -3,7 +3,7 @@ module _
 
 type Node{T} has
 	var value T
-	var next [T]
+	var next Node{T}?
 
 def main()
 	n1 := Node(6, nil)
