@@ -7,3 +7,7 @@ def goo(x any)
 
 def main()
 	goo("hello")
+
+type Vector has
+	var x float
+	var y float

@@ -150,6 +150,9 @@ bool zion_lexer_t::_get_tokens() {
 		gts_colon,
 		gts_bang,
 		gts_integer,
+		gts_hexadecimal,
+		gts_zero,
+		gts_zerox,
 		gts_float,
 		gts_float_symbol,
 		gts_expon,
@@ -493,6 +496,10 @@ bool zion_lexer_t::_get_tokens() {
 				tk = tk_gt;
 				gts = gts_gt;
 				break;
+            case '0':
+                tk = tk_integer;
+                gts = gts_zero;
+                break;
 			};
 
 			if (gts == gts_start) {
@@ -567,6 +574,41 @@ bool zion_lexer_t::_get_tokens() {
 				scan_ahead = false;
 			}
 			break;
+        case gts_hexadecimal:
+            if (isdigit(ch) || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
+                gts = gts_hexadecimal;
+            } else if (ch == 'r') {
+                gts = gts_end;
+                tk = tk_raw_integer;
+            } else {
+                gts = gts_end;
+                tk = tk_integer;
+            }
+            break;
+        case gts_zerox:
+            if (isdigit(ch) || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
+                gts = gts_hexadecimal;
+            } else {
+                gts = gts_error;
+            }
+            break;
+        case gts_zero:
+            if (ch == 'x') {
+                gts = gts_zerox;
+            } else if (ch == 'r') {
+                tk = tk_raw_integer;
+                gts = gts_end;
+            } else if (ch == 'e') {
+                gts = gts_expon_symbol;
+            } else if (ch == '.') {
+                gts = gts_float_symbol;
+            } else if (!isdigit(ch)) {
+                gts = gts_end;
+                scan_ahead = false;
+            } else {
+                gts = gts_error;
+            }
+            break;
 		case gts_integer:
 			if (ch == 'e') {
 				gts = gts_expon_symbol;

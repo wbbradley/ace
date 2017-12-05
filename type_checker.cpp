@@ -1530,7 +1530,6 @@ bound_var_t::ref resolve_binary_equality(
 					negated ? "__false__" : "__true__",
 					false /*search_parents*/);
 		} else {
-			assert(rhs_var->is_pointer() && rhs_var->type->is_ptr(scope));
 			return resolve_nil_check(
 					status,
 					builder,
@@ -1541,7 +1540,6 @@ bound_var_t::ref resolve_binary_equality(
 					negated ? nck_is_non_nil : nck_is_nil);
 		}
 	} else if (rhs_var->type->get_type()->is_nil()) {
-		assert(lhs_var->is_pointer() && lhs_var->type->is_ptr(scope));
 		return resolve_nil_check(
 				status,
 				builder,
@@ -1554,9 +1552,6 @@ bound_var_t::ref resolve_binary_equality(
 		/* neither side is nil */
 		if (!lhs_var->is_pointer()) { std::cerr << lhs_var->str() << " " << llvm_print(lhs_var->get_llvm_value()) << std::endl; dbg(); }
 		if (!rhs_var->is_pointer()) { std::cerr << rhs_var->str() << " " << llvm_print(rhs_var->get_llvm_value()) << std::endl; dbg(); }
-
-		assert(lhs_var->type->is_ptr(scope));
-		assert(rhs_var->type->is_ptr(scope));
 
 		unification_t unification_rtl = unify(
 				lhs_var->type->get_type(),
@@ -1653,8 +1648,12 @@ bound_var_t::ref type_check_binary_operator(
 					if (function_name == "__eq__" || function_name == "__ineq__") {
 						/* see whether we should just do a binary value comparison */
 						if (
-								(lhs_var->type->is_ptr(scope) || lhs_is_nil) &&
-								(rhs_var->type->is_ptr(scope) || rhs_is_nil))
+								(lhs_var->type->is_function()
+								 || lhs_var->type->is_ptr(scope)
+								 || lhs_is_nil) &&
+								(rhs_var->type->is_function()
+								 || rhs_var->type->is_ptr(scope)
+								 || rhs_is_nil))
 						{
 							bool lhs_is_managed;
 							lhs_var->type->is_managed_ptr(
@@ -2841,6 +2840,8 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		if (!!status) {
 			/* keep track of whether this function returns */
 			bool all_paths_return = false;
+			debug_above(7, log("setting return_type_constraint in %s to %s", function_var->name.c_str(),
+						return_type->str().c_str()));
 			params_scope->return_type_constraint = return_type;
 
 			block->resolve_statement(status, builder, params_scope, life,
@@ -4390,6 +4391,12 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
         {
 			/* create a native integer */
 			int64_t value = atoll(token.text.substr(0, token.text.size() - 1).c_str());
+			if (token.text.size() > 3 && token.text.substr(0, 2) == "0x") {
+				value = strtoll(token.text.substr(0, token.text.size() - 1).c_str(),
+						nullptr, 16);
+			} else {
+				value = atoll(token.text.substr(0, token.text.size() - 1).c_str());
+			}
 			bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
 			return bound_var_t::create(
 					INTERNAL_LOC(), "raw_int_literal", native_type,
@@ -4400,7 +4407,12 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
     case tk_integer:
         {
 			/* create a boxed integer */
-            int64_t value = atoll(token.text.c_str());
+            int64_t value;
+			if (token.text.size() > 2 && token.text.substr(0, 2) == "0x") {
+				value = strtoll(token.text.substr(2).c_str(), nullptr, 16);
+			} else {
+				value = atoll(token.text.c_str());
+			}
             bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
 			bound_type_t::ref boxed_type = upsert_bound_type(
 					status,

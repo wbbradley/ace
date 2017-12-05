@@ -1,6 +1,9 @@
 module _ @1.0
 # test: pass
 
+def get_maybe() int?
+	return nil
+
 def get() void
 	return
 

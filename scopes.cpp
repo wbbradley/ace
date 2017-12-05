@@ -283,6 +283,9 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 		return_type_constraint = return_type;
 		debug_above(5, log(log_info, "set return type to %s", return_type_constraint->str().c_str()));
 	} else {
+		debug_above(5, log(log_info, "checking return type %s against %s",
+					return_type->str().c_str(),
+				   	return_type_constraint->str().c_str()));
 		unification_t unification = unify(
 				return_type_constraint->get_type(),
 				return_type->get_type(),
@@ -293,6 +296,7 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 			if (!unification.result) {
 				// TODO: consider directional unification here
 				// TODO: consider storing more useful info in return_type_constraint
+				dbg();
 				user_error(status, *return_statement,
 						"return expression type %s does not match %s",
 						return_type->get_type()->str().c_str(),

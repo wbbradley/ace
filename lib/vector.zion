@@ -10,32 +10,34 @@ type vector_t struct
 
 type vector{T} link vector_t __vector_free__ __vector_mark__
 
-[module std]
+[global]
 def reserved(v vector{any}) __int__
 	return (v as *vector_t).reserved
 
-[module std]
+[global]
 def len(v vector{any}) int
 	return int((v as *vector_t).size)
 
-[module std]
+[global]
 def __init__() vector{any T}
 	typeinfo := typeinfo(vector{any T})
 	v := runtime.create_var(typeinfo)
 	return v as vector{any T}
 		
+[global]
 def __finalize__(v vector{any T})
+	print("finalizing " + str(v))
 	__vectorfree__(v as *runtime.var_t)
 
-[module std]
+[global]
 def __bool__(l [any]) __bool__
 	return (l as *vector_t).size != 0r
 
-[module std]
+[global]
 def str(v [any T]) str
 	return "[" + join(v, ", ") + "]"
 
-[module std]
+[global]
 def join(v [any T], delim str) str
 	vec := v as *vector_t
 	s := ""
@@ -48,30 +50,30 @@ def join(v [any T], delim str) str
 		i += 1r
 	return s
 
-[module std]
+[global]
 def __getitem__(vec [any T], index int) any T
 	return __getvectoritem__((vec as *vector_t), index.raw) as any T
 
-[module std]
+[global]
 def __getitem__(vec [any T], index __int__) any T
 	return __getvectoritem__(vec as *vector_t, index) as any T
 
-[module std]
+[global]
 def __setitem__(vec [any T], index int, t any T) void
 	return __setvectoritem__(vec as *runtime.var_t, index.raw, t as *runtime.var_t)
 
-[module std]
+[global]
 def append(vec [any T], t any T) void
 	# posix.puts("appending "r + __str__(t.raw) + " to vector"r)
 	__vectorappend__(vec as *vector_t, t as *runtime.var_t)
 
-[module std]
+[global]
 def resize(vec [any T], size int, default any T) void
 	return __vectorresize__(vec as *runtime.var_t, size.raw, default) as! [any T]
 
 # link def vec(TYPE, capacity int) TYPE[]
 
-[module std]
+[global]
 def __vector_mark__(vec *runtime.var_t)
 	# posix.puts("marking vector at 0x"r + __str__(vec as __int__, 16r))
 	v := vec as *vector_t
@@ -80,7 +82,7 @@ def __vector_mark__(vec *runtime.var_t)
 		runtime.mark_allocation(v.items[i])
 		i += 1r
 
-[module std]
+[global]
 def __vector_free__(var_ *runtime.var_t)
 	# assert(var_ != 0)
 	vector := var_ as *vector_t
@@ -142,7 +144,7 @@ def __vectorappend__(vector *vector_t, item *runtime.var_t)
 		vector.size = 1r
 		vector.items[0r] = item
 
-[module std]
+[global]
 def reserve(vec [any T], n int)
 	# Call the unmanaged version
 	reserve(vec as *vector_t, n.raw)
@@ -161,7 +163,7 @@ def reserve(vec *vector_t, n __int__)
 			vec.reserved = n
 		
 
-[module std]
+[global]
 def copy(orig [any T]) [any T]
 	var new [any T]
 	reserve(new, len(orig))
@@ -171,7 +173,7 @@ def copy(orig [any T]) [any T]
 		i += 1
 	return new
 
-[module std]
+[global]
 def copy(orig [any T], t any T) [any T]
 	var new [any T]
 	reserve(new, len(orig) + 1)

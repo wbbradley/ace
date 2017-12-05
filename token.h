@@ -88,6 +88,7 @@ K(def);
 K(elif);
 K(else);
 K(for);
+K(global);
 K(__get_typeid__);
 K(has);
 K(if);

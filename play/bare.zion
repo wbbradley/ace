@@ -1,12 +1,15 @@
 module _
 link module sys
 link module main
-link module posix
+link module file
+
+def foo()
+	var x [int]
+	append(x, 2)
+
 
 def main()
-	posix.arc4random_stir()
-	num := rand(10)
-	i := 0
-	while i < num
-		print(i)
-		i += 1
+	f := file.open("play/bare.zion", ReadWrite)
+	lines := readlines(f)
+	print(lines)
+	runtime.gc()

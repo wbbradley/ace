@@ -1,26 +1,23 @@
 module _
 link module posix
 
-def __declare()
-	"
-	O_RDONLY := 0x0000
-	O_WRONLY := 0x0001
-	O_RDWR := 0x0002
-	O_NONBLOCK := 0x0004
-	O_APPEND := 0x0008
-	O_CREAT := 0x0200
-	O_TRUNC := 0x0400
-	O_EXCL := 0x0800
-	O_SHLOCK := 0x0010
-	O_EXLOCK := 0x0020
-	O_ASYNC := 0x0040
-	O_SYNC := 0x0080
-	O_FSYNC := O_SYNC
-	O_NOFOLLOW := 0x0100
-	O_DIRECTORY := 0x100000
-	O_SYMLINK := 0x200000
-	O_NOCTTY := 0x20000
-	"
+var O_RDONLY int = 0x0000
+var O_WRONLY int = 0x0001
+var O_RDWR int = 0x0002
+var O_NONBLOCK int = 0x0004
+var O_APPEND int = 0x0008
+var O_CREAT int = 0x0200
+var O_TRUNC int = 0x0400
+var O_EXCL int = 0x0800
+var O_SHLOCK int = 0x0010
+var O_EXLOCK int = 0x0020
+var O_ASYNC int = 0x0040
+var O_SYNC int = 0x0080
+var O_FSYNC int = O_SYNC
+var O_NOFOLLOW int = 0x0100
+var O_DIRECTORY int = 0x100000
+var O_SYMLINK int = 0x200000
+var O_NOCTTY int = 0x20000
 
 
 type File has
@@ -38,12 +35,13 @@ type FileOpenMode is
 def open(name str, mode FileOpenMode) File?
 	var flags __int__ = 0r
 
-	if mode is ReadOnly
-		flags = 0r
-	elif mode is WriteOnly
-		flags = 1r
-	elif mode is ReadWrite
-		flags = 2r
+	when mode
+		is ReadOnly
+			flags = 0r
+		is WriteOnly
+			flags = 1r
+		is ReadWrite
+			flags = 2r
 
 	fd := posix.open(name.raw, flags)
 	if fd != -1r
@@ -51,13 +49,13 @@ def open(name str, mode FileOpenMode) File?
 	else
 		return nil
 
-# def _close(f *File) int
-# return int(posix.close(f.fd.raw))
+def close(f *File) int
+	return int(posix.close(f.fd.raw))
 
 tag ReadError
 tag EOF
 
-def read(f File, cb int) std/bytes or ReadError or EOF
+def read(f File, cb int) bytes or ReadError or EOF
 	buffer := posix.calloc(1r, cb.raw)
 	bytes_read := posix.read(f.fd.raw, buffer, cb.raw)
 
@@ -70,7 +68,8 @@ def read(f File, cb int) std/bytes or ReadError or EOF
 	return bytes(buffer, bytes_read)
 
 
-# [module std]
-# def __dtor__(f File)
-# if _close(f)
-# print("Failed to close file descriptor: " + str(f.fd))
+[module std]
+def __finalize__(f File)
+	print("finalizing file")
+	if close(f)
+		print("Failed to close file descriptor: " + str(f.fd))

@@ -236,6 +236,12 @@ def create_var(type_info *type_info_t) *var_t
 	var obj *var_t = mem_alloc(alloc_size, type_info ? type_info.name : "<unknown>"r) as *var_t
 	obj.type_info = type_info
 	runtime._var_allocation += 1r
+
+	# Mark any newly created objects so that just in case we happen to be in the middle of a GC run
+	# we don't accidentally delete this object before its had a chance to get marked fairly.
+	obj.mark = 1r
+
+	# TODO: we could also check the allocation...
 	obj.allocation = runtime._var_allocation
 
 	add_node(obj)
@@ -364,9 +370,34 @@ def clear_mark_bit(obj *var_t)
 	obj.mark = 0r
 
 
+def finalize(obj *var_t)
+	type_kind := obj.type_info.type_kind
+
+	if type_kind == runtime.TYPE_KIND_TAG
+		# tags can't have finalizers
+		return
+	elif type_kind == runtime.TYPE_KIND_USE_OFFSETS
+		var type_info_offsets *type_info_offsets_t = obj.type_info as *type_info_offsets_t
+
+		finalizer := type_info_offsets.finalize_fn
+		if finalizer != nil
+			finalizer(obj)
+
+	elif type_kind == runtime.TYPE_KIND_USE_MARK_FN
+		# call the type's mark function to recurse
+		type_info_mark_fn := obj.type_info as *type_info_mark_fn_t
+		finalizer := type_info_mark_fn.finalize_fn
+		if finalizer != nil
+			finalizer(obj)
+			
+	else
+		posix.perror("found a heap variable with an invalid type_kind"r)
+		posix.exit(1r)
+
 def free_unmarked(obj *var_t)
 	assert(obj != __head_var)
 	if obj.mark == 0r
+		finalize(obj)
 		remove_node(obj)
 		mem_free(obj as *void, obj.type_info.size)
 	else

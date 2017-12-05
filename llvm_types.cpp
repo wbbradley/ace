@@ -874,8 +874,6 @@ bound_var_t::ref maybe_get_dtor(
 		bound_type_t::ref data_type,
 		types::type_struct_t::ref struct_type)
 {
-	return nullptr;
-#if 0
 	auto evaled_type = eval(data_type->get_type(), program_scope->get_typename_env());
 	if (evaled_type == nullptr) {
 		evaled_type = data_type->get_type();
@@ -886,23 +884,23 @@ bound_var_t::ref maybe_get_dtor(
 
 	// TODO: look at what data_type is, and whether it can be passed as a raw
 	// pointer.
-	dbg();
 	auto location = data_type->get_location();
 	var_t::refs fn_dtors;
 	bound_var_t::ref dtor = maybe_get_callable(
 			status,
 			builder,
 			program_scope,
-			{"__dtor__"},
+			{"__finalize__"},
 			location,
-			type_args({type_ptr(data_type->get_type())}, {}),
+			type_args({data_type->get_type()}, {}),
+			type_void(),
 			fn_dtors);
 
 	if (!!status) {
 		if (dtor != nullptr) {
 			return dtor;
 		} else {
-			debug_above(2, user_info(status, location, "no __dtor__ found for type %s",
+			debug_above(2, user_info(status, location, "no __finalize__ found for type %s",
 					data_type->str().c_str()));
 			return nullptr;
 		}
@@ -910,7 +908,6 @@ bound_var_t::ref maybe_get_dtor(
 
 	assert(!status);
 	return nullptr;
-#endif
 }
 
 bound_var_t::ref upsert_type_info_mark_fn(

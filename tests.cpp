@@ -247,6 +247,11 @@ bool test_lex_literals() {
 		{"\"\"", {tk_string}},
 		{"0", {tk_integer}},
 		{"0r", {tk_raw_integer}},
+		{"0.0", {tk_float}},
+		{"0.0r", {tk_raw_float}},
+		{"0x0r", {tk_raw_integer}},
+		{"0x3892af0r", {tk_raw_integer}},
+		{"0x3892af0", {tk_integer}},
 		{"10", {tk_integer}},
 		{"10r", {tk_raw_integer}},
 	};

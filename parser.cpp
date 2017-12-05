@@ -1062,7 +1062,11 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 	if (ps.token.tk == tk_lsquare) {
 		attributes_location = ps.token.location;
 		ps.advance();
-		if (ps.token.is_ident(K(module))) {
+		if (ps.token.is_ident(K(global))) {
+			extends_module = make_iid_impl("std", ps.token.location);
+			ps.advance();
+			chomp_token(tk_rsquare);
+        } else if (ps.token.is_ident(K(module))) {
 			ps.advance();
 			expect_token(tk_identifier);
 			extends_module = make_code_id(ps.token);
