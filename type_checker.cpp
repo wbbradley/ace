@@ -2041,7 +2041,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 								/* the when_true and when_false values have different
 								 * types, let's create a sum type to represent this */
 								auto ternary_sum_type = type_sum_safe(options,
-										condition->get_location());
+										condition->get_location(), env);
 								assert(ternary_sum_type != nullptr);
 
 								if (!!status) {

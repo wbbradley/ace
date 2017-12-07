@@ -6,6 +6,7 @@
 #include "types.h"
 #include "parser.h"
 #include <iostream>
+#include "unification.h"
 
 const char *BUILTIN_NIL_TYPE = "nil";
 const char *STD_VECTOR_TYPE = "vector.vector";
@@ -632,7 +633,7 @@ endif
             }
         }
 
-        return type_sum_safe(new_options, get_location());
+        return type_sum_safe(new_options, get_location(), env);
     }
 
 	type_maybe_t::type_maybe_t(type_t::ref just) : just(just) {
@@ -1017,15 +1018,40 @@ void add_options(types::type_t::refs &options, const types::type_t::refs &new_op
     }
 }
 
+void eliminate_redundant_types(types::type_t::refs &options, const types::type_t::map &env) {
+    for (int i=options.size() - 1; i >= 0 && options.size() > 1; --i) {
+        types::type_t::refs partial = options;
+        std::swap(partial[i], partial[partial.size() - 1]);
+        partial.resize(partial.size() - 1);
+
+        assert(partial.size() == options.size() - 1);
+        assert(partial.size() > 0);
+
+        auto type_partial = type_sum(partial, INTERNAL_LOC());
+        if (unifies(type_partial, options[i], env)) {
+            /* options[i] is not needed */
+            debug_above(6, log("removing one instance of type %s from %s", options[i]->str().c_str(),
+                        type_sum(options, INTERNAL_LOC())->str().c_str()));
+            std::swap(options, partial);
+        } else {
+            debug_above(6, log("could not remove %s from %s", options[i]->str().c_str(),
+                        type_sum(options, INTERNAL_LOC())->str().c_str()));
+        }
+    }
+}
+
 types::type_t::ref type_sum_safe(
-	   	types::type_t::refs options,
-	   	location_t location)
+        types::type_t::refs options,
+        location_t location,
+        const types::type_t::map &env)
 {
     /* sum types must take care to avoid creating sums over maybe types and over builtin types. this
      * function will also handle combining nested sum types, since OR is fully associative */
-	bool make_maybe = false;
-	types::type_t::refs safe_options;
+    bool make_maybe = false;
+    types::type_t::refs safe_options;
     add_options(safe_options, options, make_maybe);
+
+    eliminate_redundant_types(safe_options, env);
 
     types::type_t::ref result;
     if (safe_options.size() == 0) {
@@ -1038,40 +1064,40 @@ types::type_t::ref type_sum_safe(
 
     /* lift the maybe-ness of one of the inner types up to the whole
      * type */
-	return make_maybe ? type_maybe(result) : result;
+    return make_maybe ? type_maybe(result) : result;
 }
 
 types::type_t::ref type_sum(types::type_t::refs options, location_t location) {
-	return make_ptr<types::type_sum_t>(options, location);
+    return make_ptr<types::type_sum_t>(options, location);
 }
 
 types::type_t::ref type_maybe(types::type_t::ref just) {
     if (auto maybe = dyncast<const types::type_maybe_t>(just)) {
-		return just;
-	}
-	return make_ptr<types::type_maybe_t>(just);
+        return just;
+    }
+    return make_ptr<types::type_maybe_t>(just);
 }
 
 types::type_ptr_t::ref type_ptr(types::type_t::ref raw) {
-	return make_ptr<types::type_ptr_t>(raw);
+    return make_ptr<types::type_ptr_t>(raw);
 }
 
 types::type_t::ref type_ref(types::type_t::ref raw) {
-	assert(!dyncast<const types::type_ref_t>(raw));
-	return make_ptr<types::type_ref_t>(raw);
+    assert(!dyncast<const types::type_ref_t>(raw));
+    return make_ptr<types::type_ref_t>(raw);
 }
 
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body) {
-	return make_ptr<types::type_lambda_t>(binding, body);
+    return make_ptr<types::type_lambda_t>(binding, body);
 }
 
 types::type_t::ref type_extern(
-		types::type_t::ref inner,
-	   	types::type_t::ref underlying_type,
-	   	identifier::ref link_finalize_fn,
-	   	identifier::ref link_mark_fn)
+        types::type_t::ref inner,
+        types::type_t::ref underlying_type,
+        identifier::ref link_finalize_fn,
+        identifier::ref link_mark_fn)
 {
-	return make_ptr<types::type_extern_t>(inner, underlying_type, link_finalize_fn, link_mark_fn);
+    return make_ptr<types::type_extern_t>(inner, underlying_type, link_finalize_fn, link_mark_fn);
 }
 
 types::type_t::ref type_list_type(types::type_t::ref element) {

@@ -32,3 +32,8 @@ unification_t unify(
 		types::type_t::map env = {},
         types::type_t::map bindings = {},
         int depth=0);
+
+bool unifies(
+		types::type_t::ref a,
+		types::type_t::ref b,
+		const types::type_t::map &env);

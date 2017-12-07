@@ -383,3 +383,12 @@ unification_t unify(
 			{}};
 	}
 }
+
+bool unifies(
+		types::type_t::ref a,
+		types::type_t::ref b,
+		const types::type_t::map &env)
+{
+    unification_t unification = unify(a, b, env);
+    return unification.result;
+}

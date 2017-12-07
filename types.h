@@ -318,7 +318,7 @@ types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::nam
 types::type_args_t::ref type_args(types::type_t::refs args, types::name_index_t name_index={});
 types::type_function_t::ref type_function(types::type_t::ref args, types::type_t::ref return_type);
 types::type_t::ref type_sum(types::type_t::refs options, location_t location);
-types::type_t::ref type_sum_safe(types::type_t::refs options, location_t location);
+types::type_t::ref type_sum_safe(types::type_t::refs options, location_t location, const types::type_t::map &env);
 types::type_t::ref type_maybe(types::type_t::ref just);
 types::type_ptr_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_ref(types::type_t::ref raw);

@@ -1,6 +1,0 @@
-module a
-
-tag A
-
-def f(x any) str
-	return g(x)

@@ -1517,7 +1517,9 @@ types::type_t::ref _parse_type(
 		if (options.size() == 1) {
 			return options[0];
 		} else {
-			types::type_t::ref sum_fn = type_sum_safe(options, supertype_id != nullptr ? supertype_id->get_location() : location);
+			types::type_t::ref sum_fn = type_sum_safe(options,
+                    supertype_id != nullptr ? supertype_id->get_location() : location,
+                    {});
             assert(sum_fn != nullptr);
 			if (!!ps.status) {
 				for (auto iter = type_variables.rbegin();
