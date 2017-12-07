@@ -296,7 +296,6 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 			if (!unification.result) {
 				// TODO: consider directional unification here
 				// TODO: consider storing more useful info in return_type_constraint
-				dbg();
 				user_error(status, *return_statement,
 						"return expression type %s does not match %s",
 						return_type->get_type()->str().c_str(),

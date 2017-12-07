@@ -49,7 +49,7 @@ struct compiler_t {
 	ptr<const ast::module_t> build_parse(status_t &status, location_t location, std::string module_name, bool global, type_macros_t &global_type_macros);
 
 	void build_parse_linked(status_t &status, ptr<const ast::module_t> module, type_macros_t &global_type_macros);
-	std::unordered_set<std::string> compile_modules(status_t &status);
+	std::set<std::string> compile_modules(status_t &status);
 	void emit_built_program(status_t &status, std::string bitcode_filename);
 	int run_program(int argc, char *argv[]);
 	void emit_object_files(status_t &status, std::vector<std::string> &obj_files);

@@ -6,11 +6,9 @@
 #include <vector>
 #include "lexer.h"
 #include "parser.h"
-#include "json_lexer.h"
 #include <regex>
 #include <fstream>
 #include "compiler.h"
-#include "json.h"
 #include "disk.h"
 #include "utils.h"
 #include "llvm_test.h"
@@ -523,11 +521,6 @@ bool test_parse_link_extern_function() {
 		   	"module www @1.3.2\n"
 			"link def open(filename str, mode str) int\n");
 }
-
-struct expression_check {
-	std::string expr_text;
-	runtime::variant expected;
-};
 
 enum test_output_source_t {
 	tos_program,

@@ -3,10 +3,10 @@
 #include "atom.h"
 #include <iostream>
 #include <vector>
-#include <unordered_map>
+#include <map>
 #include "utils.h"
 
-static std::unordered_map<std::string, int> atom_str_index = {{"", 0}};
+static std::map<std::string, int> atom_str_index = {{"", 0}};
 static std::vector<std::string> atoms = {""};
 
 int memoize_atom(std::string &&str) {

@@ -6,7 +6,6 @@
 #include <string>
 #include <map>
 #include "ast_decls.h"
-#include <unordered_map>
 #include "bound_type.h"
 #include "var.h"
 #include "signature.h"

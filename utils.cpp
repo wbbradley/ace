@@ -10,8 +10,25 @@
 #include <cstdarg>
 #include <iostream>
 #include <fstream>
+#include "utf8/utf8.h"
 
 #define SWP(x,y) (x^=y, y^=x, x^=y)
+
+size_t utf8_sequence_length(char ch_) {
+	unsigned char ch = (unsigned char&)ch_;
+	uint8_t lead = mask(0xff, ch);
+	if (lead < 0x80) {
+		return 1;
+	} else if ((lead >> 5) == 0x6) {
+		return 2;
+	} else if ((lead >> 4) == 0xe) {
+		return 3;
+	} else if ((lead >> 3) == 0x1e) {
+		return 4;
+	} else {
+		return 0;
+	}
+}
 
 void strrev(char *p) {
 	char *q = p;
@@ -323,10 +340,127 @@ std::string get_cwd() {
 }
 
 std::vector<std::string> readlines(std::string filename) {
-    std::vector<std::string> lines;
-    std::ifstream ifs(filename);
-    std::copy(std::istream_iterator<std::string>(ifs),
-            std::istream_iterator<std::string>(),
-            std::back_inserter(lines));
-    return lines;
+	std::vector<std::string> lines;
+	std::ifstream ifs(filename);
+	std::copy(std::istream_iterator<std::string>(ifs),
+			std::istream_iterator<std::string>(),
+			std::back_inserter(lines));
+	return lines;
+}
+
+std::string escape_json_quotes(const std::string &str) {
+	std::stringstream ss;
+
+	escape_json_quotes(ss, str);
+
+	assert(ss.str().size() >= str.size() + 2);
+	return ss.str();
+}
+
+void escape_json_quotes(std::ostream &ss, const std::string &str) {
+	ss << '"';
+	const char *pch = str.c_str();
+	const char *pch_end = pch + str.size();
+	for (;pch != pch_end;++pch) {
+		switch (*pch) {
+		case '\b':
+			ss << "\\b";
+			continue;
+		case '\f':
+			ss << "\\f";
+			continue;
+		case '\n':
+			ss << "\\n";
+			continue;
+		case '\r':
+			ss << "\\r";
+			continue;
+		case '\t':
+			ss << "\\t";
+			continue;
+		case '\"':
+			ss << "\\\"";
+			continue;
+		}
+
+		if (*pch == '\\')
+			ss << '\\';
+
+		ss << *pch;
+	}
+	ss << '"';
+}
+
+uint32_t hexval(char ch) {
+	if (ch >= 'a' && ch <= 'f')
+		return 10 + ch - 'a';
+	if (ch >= 'A' && ch <= 'F')
+		return 10 + ch - 'A';
+	if (ch >= '0' && ch <= '9')
+		return ch - '0';
+	assert(false);
+	return 0;
+}
+
+std::string unescape_json_quotes(const char *str, size_t len) {
+	assert(len >= 2);
+	assert(str[0] == '\"');
+	assert(str[len - 1] == '\"');
+
+	std::string res;
+	res.reserve(len);
+	bool escaped = false;
+	const char *str_end = str + len;
+	for (const auto *i = str + 1;
+			i != str_end - 1;
+			i++) {
+		if (escaped) {
+			escaped = false;
+			switch (*i) {
+			case 'b':
+				res.push_back((char)'\b');
+				continue;
+			case 'f':
+				res.push_back((char)'\f');
+				continue;
+			case 'n':
+				res.push_back((char)'\n');
+				continue;
+			case 'r':
+				res.push_back((char)'\r');
+				continue;
+			case 't':
+				res.push_back((char)'\t');
+				continue;
+			case 'u':
+				assert(std::distance(i, str_end) >= 5);
+				uint16_t ch = 0;
+				i++;
+				ch += hexval(*i);
+				ch <<= 4;
+				i++;
+				ch += hexval(*i);
+				ch <<= 4;
+				i++;
+				ch += hexval(*i);
+				ch <<= 4;
+				i++;
+				ch += hexval(*i);
+				std::string utf8_encoding;
+				utf8::utf16to8(&ch, &ch + 1, back_inserter(utf8_encoding));
+				res += utf8_encoding;
+				continue;
+			}
+		} else if (*i == '\\') {
+			escaped = true;
+			continue;
+		}
+
+		res.push_back(*i);
+	}
+	return res;
+}
+
+std::string unescape_json_quotes(const std::string &str) {
+	return unescape_json_quotes(str.c_str(), str.size());
 }

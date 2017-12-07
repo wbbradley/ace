@@ -6,7 +6,6 @@
 #include "compiler.h"
 #include "llvm_zion.h"
 #include "llvm_utils.h"
-#include "json.h"
 #include "ast.h"
 #include "llvm_types.h"
 #include "parser.h"
@@ -16,7 +15,6 @@
 #include <iostream>
 #include "type_kind.h"
 #include "nil_check.h"
-#include "json_parser.h"
 #include <time.h>
 
 /*

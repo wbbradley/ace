@@ -178,3 +178,7 @@ inline const char *boolstr(bool x) {
 std::vector<std::string> readlines(std::string filename);
 bool real_path(std::string filename, std::string &real_path);
 std::string get_cwd();
+std::string escape_json_quotes(const std::string &s);
+void escape_json_quotes(std::ostream &ss, const std::string &str);
+std::string unescape_json_quotes(const std::string &s);
+size_t utf8_sequence_length(char ch_);

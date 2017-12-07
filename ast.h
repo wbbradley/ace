@@ -3,7 +3,7 @@
 #include "ast_decls.h"
 #include "token.h"
 #include <vector>
-#include <unordered_set>
+#include <set>
 #include <string>
 #include "dbg.h"
 #include <memory>
@@ -845,7 +845,7 @@ namespace ast {
 		virtual ~program_t() {}
 		virtual void render(render_state_t &rs) const;
 
-		std::unordered_set<ptr<const module_t>> modules;
+		std::set<ptr<const module_t>> modules;
 	};
 
 	struct dot_expr_t : public expression_t, public can_reference_overloads_t {

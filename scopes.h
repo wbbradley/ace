@@ -3,7 +3,6 @@
 #include <string>
 #include "token.h"
 #include "ast_decls.h"
-#include <unordered_map>
 #include <set>
 #include "unchecked_type.h"
 #include "unchecked_var.h"

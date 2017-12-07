@@ -148,11 +148,7 @@ ZION_LLVM_SOURCES = \
 				utils.cpp \
 				unchecked_var.cpp \
 				unchecked_type.cpp \
-				variant.cpp \
 				atom.cpp \
-				json.cpp \
-				json_lexer.cpp \
-				json_parser.cpp \
 				zion_gc_lowering.cpp
 
 ZION_LLVM_OBJECTS = $(addprefix $(BUILD_DIR)/,$(ZION_LLVM_SOURCES:.cpp=.llvm.o))

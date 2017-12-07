@@ -7,7 +7,7 @@
 #include <vector>
 #include "disk.h"
 #include <fstream>
-#include <unordered_set>
+#include <set>
 #include "phase_scope_setup.h"
 #include "utils.h"
 #include "llvm_utils.h"
@@ -638,9 +638,9 @@ std::string collect_filename_from_module_pair(
 	return filename;
 }
 
-std::unordered_set<std::string> compiler_t::compile_modules(status_t &status) {
+std::set<std::string> compiler_t::compile_modules(status_t &status) {
 	if (!!status) {
-		std::unordered_set<std::string> filenames;
+		std::set<std::string> filenames;
 		filenames.insert(collect_filename_from_module_pair(status, llvm_program_module));
 
 		for (auto &llvm_module_pair : llvm_modules) {
