@@ -21,7 +21,7 @@ var O_NOCTTY int = 0x20000
 
 
 type File has
-	var fd int
+	var fd __int__
 
 tag ReadOnly
 tag WriteOnly
@@ -45,25 +45,27 @@ def open(name str, mode FileOpenMode) File?
 
 	fd := posix.open(name.raw, flags)
 	if fd != -1r
-		return File(int(fd))
+		return File(fd)
 	else
 		return nil
 
-def close(f *File) int
-	return int(posix.close(f.fd.raw))
+def close(f File) int
+	fd := f.fd
+	if fd != -1r
+		f.fd = -1r
+		return int(posix.close(f.fd))
+	return 0
 
 tag ReadError
 tag EOF
 
 def read(f File, cb int) bytes or ReadError or EOF
-	buffer := posix.calloc(1r, cb.raw)
-	bytes_read := posix.read(f.fd.raw, buffer, cb.raw)
+	buffer := posix.calloc(1r, cb.raw) as *__int8__
+	bytes_read := posix.read(f.fd, buffer, cb.raw)
 
-	if bytes_read < 0r
-		return ReadError
-
-	if bytes_read == 0r
-		return EOF
+	if bytes_read <= 0r
+		posix.free(buffer)
+		return bytes_read == 0r ? EOF : ReadError
 
 	return bytes(buffer, bytes_read)
 

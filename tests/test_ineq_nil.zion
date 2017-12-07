@@ -3,8 +3,9 @@ module _
 # expect: pass
 
 def main()
-	var x [int] = (4, nil)
-	if x != nil
+	var x [int]
+	append(x, 3)
+	if x
 		print("pass")
 	else
 		print("fail")

@@ -558,7 +558,7 @@ bound_type_t::ref create_bound_maybe_type(
 				debug_above(5, log(log_info,
 							"creating maybe type for %s",
 							maybe->just->str().c_str()));
-				auto bound_type = scope->get_bound_type(maybe->get_signature());
+				auto bound_type = scope->get_bound_type(maybe->get_signature(), false /*use_mappings*/);
 				if (bound_type == nullptr) {
 					bound_type = bound_type_t::create(
 							maybe,

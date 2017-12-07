@@ -30,10 +30,6 @@ def __finalize__(v vector{any T})
 	__vectorfree__(v as *runtime.var_t)
 
 [global]
-def __bool__(l [any]) __bool__
-	return (l as *vector_t).size != 0r
-
-[global]
 def str(v [any T]) str
 	return "[" + join(v, ", ") + "]"
 

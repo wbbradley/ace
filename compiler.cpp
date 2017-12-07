@@ -185,6 +185,7 @@ ast::module_t::ref compiler_t::build_parse(
 						 * rewritten by modules */
 						std::string std_types[] = {
 							"bool",
+							"bytes",
 							"true",
 							"false",
 							"int",
