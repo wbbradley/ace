@@ -1,0 +1,25 @@
+module _
+link module posix
+link module main
+# test: pass
+# expect: 9
+
+def main()
+	var l [str]
+	append(l, "there")
+	append(l, "is")
+	append(l, "a")
+	append(l, "house")
+
+	# TODO: implement 'for' syntax for iter behavior
+	# for item in l
+	#     print(item)
+	print_each(l)
+	print_each(range(10))
+
+def print_each(l any Iterator)
+	iter := __iter_begin__(l)
+	end := __iter_end__(l)
+	while __iter_valid__(iter, end)
+		print(__iter_item__(iter))
+		iter = __iter_next__(iter)

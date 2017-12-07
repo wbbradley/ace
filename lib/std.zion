@@ -340,18 +340,6 @@ def conj(maybe_list list{any T}?, item any T) list{any T}
 def str(l list{any T}?) str
 	return "[" + join(l, ", ") + "]"
 
-type ListIter{V} has
-	var list [V]
-
-def iter(l [any V]) ListIter{any V}
-	return ListIter(l)
-
-def next(list_iter ListIter{any V}) iter.Step{any V, ListIter{any V}}?
-	if item := list_iter.list
-		return iter_module.Step(item.value, ListIter(item.next))
-	else
-		return nil as iter.Step{any V, ListIter{any V}}?
-
 type bytes has
 	var data *__int8__
 	var cb __int__
@@ -393,3 +381,38 @@ def __bool__(x [any T] or str or int or bool) __bool__
 
 	assert(__false__)
 	return __false__
+
+type IntRange has
+	var first __int__
+	var lim __int__
+	var step __int__
+
+def range(lim int) IntRange
+	return IntRange(0r, lim.raw, 1r)
+
+def range(first int, lim int) IntRange
+	return IntRange(first.raw, lim.raw, 1r)
+
+def range(first int, lim int, step int) IntRange
+	return IntRange(first.raw, lim.raw, step.raw)
+
+type IntRangeIter has
+	var range IntRange
+	var pos __int__
+
+def __iter_begin__(range IntRange) IntRangeIter
+	return IntRangeIter(range, range.first)
+	
+def __iter_end__(range IntRange) IntRangeIter
+	return IntRangeIter(range, range.lim)
+
+def __iter_valid__(i IntRangeIter, end IntRangeIter) __bool__
+	assert(i.range as *void == end.range as *void)
+	return i.pos < end.range.lim
+
+def __iter_next__(i IntRangeIter) IntRangeIter
+	i.pos += i.range.step
+	return i
+
+def __iter_item__(i IntRangeIter) int
+	return int(i.pos)

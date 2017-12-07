@@ -179,3 +179,32 @@ def copy(orig [any T], t any T) [any T]
 		i += 1
 	append(new, t)
 	return new
+
+type vector_iter{C} has
+	var vec [C]
+	var pos __int__
+
+[global]
+def __iter_begin__(c [any C]) vector_iter{any C}
+	return vector_iter(c, 0r)
+	
+[global]
+def __iter_end__(c [any C]) vector_iter{any C}
+	return vector_iter(c, (c as *vector.vector_t).size)
+
+[global]
+def __iter_valid__(i vector_iter{any C}, end vector_iter{any C}) __bool__
+	assert(i.vec as *vector_t == end.vec as *vector_t)
+	return i.pos < end.pos
+
+[global]
+def __iter_next__(i vector_iter{any C}) vector_iter{any C}
+	i.pos += 1r
+	return i
+
+[global]
+def __iter_item__(i vector_iter{any C}) any C
+	v := i.vec as *vector_t
+	assert(i.pos < v.size)
+	return v.items[i.pos] as any C
+
