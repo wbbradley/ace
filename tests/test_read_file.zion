@@ -1,4 +1,5 @@
 module _
+link module main
 link module file
 link module os
 link module sys
@@ -11,10 +12,10 @@ def main()
 		while true
 			buffer := file.read(f, 4 * 1024)
 			when buffer
-				is std/bytes
+				is bytes
 					posix.write(1r, buffer.data, buffer.cb)
-				is file/EOF
+				is file.EOF
 					break
-				is file/ReadError
+				is file.ReadError
 					print("Read Error")
 					sys.exit(-1)

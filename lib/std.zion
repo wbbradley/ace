@@ -56,6 +56,9 @@ type str has
 	# TODO: override str ctor to strdup strings
 	var raw *__char__
 
+def __init__() str
+	return ""
+
 def __finalize__(s str)
 	posix.free(s.raw)
 
@@ -77,8 +80,11 @@ def int(s str) int
 type int has
 	var raw __int__
 
+def __init__() int
+	return 0
+
 def int(x int) int
-	return x
+	return int(x.raw)
 
 def int(x float) int
 	return int(__int__(x.raw))

@@ -1,5 +1,7 @@
 module _
+link module main
 # test: pass
+# expect: 11
 
 type Plus{T} has
 	var lhs Expr{T}

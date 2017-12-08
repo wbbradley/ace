@@ -2,5 +2,5 @@ module _ @1.0
 
 def param_type_to_var_decl(banana int) void
 	# error: type of `x` does not match type of initializer
-	# error: std/str != std/int
+	# error: str != int
 	var x str = banana

@@ -625,8 +625,7 @@ void program_scope_t::set_insert_point_to_init_module_vars_function(
 	llvm::Function *llvm_function = llvm::dyn_cast<llvm::Function>(fn->get_llvm_value());
 	assert(llvm_function != nullptr);
 
-	builder.SetInsertPoint(&llvm_function->getEntryBlock(),
-			llvm_function->getEntryBlock().getFirstInsertionPt());
+	builder.SetInsertPoint(llvm_function->getEntryBlock().getTerminator());
 }
 
 unchecked_var_t::refs &program_scope_t::get_unchecked_vars_ordered() {

@@ -1,4 +1,6 @@
 module test_mandel
+link module main
+link module runtime
 # test: pass
 
 link Complex to math.Complex
@@ -29,7 +31,8 @@ def main()
 
 	y := display_grid.y
 	while y < display_grid.height
-		var span [int] = nil
+		var span [int]
+		reserve(span, int(display_grid.width))
 		var b = lerp(alpha(y, display_grid.y, display_grid.y + display_grid.height),
 			r.x, r.x + r.width)
 
@@ -48,10 +51,10 @@ def main()
 						i += 1
 						continue
 				break
-			span = list(i, span)
+			append(span, i)
 			x += 1
 
 		print(join(span, " "))
 
 		y += 1.0
-
+		runtime.gc()

@@ -167,7 +167,7 @@ endif
 			assert(instance_iter->second != shared_from_this());
 			return instance_iter->second->emit(os, bindings);
 		} else {
-			return os << string_format("(any %s)", id->get_name().c_str());
+			return os << string_format("any %s", id->get_name().c_str());
 		}
 	}
 
@@ -1019,6 +1019,13 @@ void add_options(types::type_t::refs &options, const types::type_t::refs &new_op
 }
 
 void eliminate_redundant_types(types::type_t::refs &options, const types::type_t::map &env) {
+    for (int i=options.size() - 1; i >= 0 && options.size() > 1; --i) {
+		if (dyncast<const types::type_variable_t>(options[i])) {
+			/* if we have a free type variable, let's not eliminate anything... this needs more thought. */
+			return;
+		}
+	}
+
     for (int i=options.size() - 1; i >= 0 && options.size() > 1; --i) {
         types::type_t::refs partial = options;
         std::swap(partial[i], partial[partial.size() - 1]);

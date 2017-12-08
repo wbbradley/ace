@@ -1,10 +1,12 @@
 module _
+link module main
 # test: pass
+# expect: print a Foo: 3
 
 type Foo has
 	var x int
 
-[module any]
+[global]
 def str(f Foo) str
 	return "print a Foo: " + str(f.x)
 

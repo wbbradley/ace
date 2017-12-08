@@ -1551,23 +1551,15 @@ bound_var_t::ref resolve_binary_equality(
 		if (!lhs_var->is_pointer()) { std::cerr << lhs_var->str() << " " << llvm_print(lhs_var->get_llvm_value()) << std::endl; dbg(); }
 		if (!rhs_var->is_pointer()) { std::cerr << rhs_var->str() << " " << llvm_print(rhs_var->get_llvm_value()) << std::endl; dbg(); }
 
-		unification_t unification_rtl = unify(
-				lhs_var->type->get_type(),
-				rhs_var->type->get_type(),
-				scope->get_typename_env());
-
-		if (!unification_rtl.result) {
-			unification_t unification_ltr = unify(
-					rhs_var->type->get_type(),
-					lhs_var->type->get_type(),
-					scope->get_typename_env());
-
-			if (!unification_ltr.result) {
-				user_error(status, location, "values of types (%s and %s) cannot be compared",
-						lhs_var->type->get_type()->str().c_str(),
-						rhs_var->type->get_type()->str().c_str());
-				return nullptr;
-			}
+		auto env = scope->get_typename_env();
+		if (
+				!unifies(lhs_var->type->get_type(), rhs_var->type->get_type(), env) &&
+				!unifies(rhs_var->type->get_type(), lhs_var->type->get_type(), env))
+	   	{
+			user_error(status, location, "values of types (%s and %s) cannot be compared",
+					lhs_var->type->get_type()->str().c_str(),
+					rhs_var->type->get_type()->str().c_str());
+			return nullptr;
 		}
 
 		auto program_scope = scope->get_program_scope();
@@ -1737,6 +1729,12 @@ bound_var_t::ref ast::eq_expr_t::resolve_expression(
 		break;
 	case tk_inequal:
 		function_name = "__ineq__";
+		break;
+	case tk_identifier:
+		if (token.is_ident(K(is))) {
+			return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
+					shared_from_this(), negated);
+		}
 		break;
 	default:
 		return null_impl();
@@ -3158,6 +3156,14 @@ void type_check_all_module_var_slots(
 {
 	std::vector<bound_var_t::ref> global_vars;
 
+	for (auto &module : obj.modules) {
+		if (module->module_key == "runtime") {
+			type_check_module_vars(status, compiler, builder, *module, program_scope,
+					global_vars);
+			break;
+		}
+	}
+
 	/* initialized the module-level variable declarations. make sure that we initialize the
 	 * runtime variables last. this will add them to the top of the __init_module_vars function. */
 	if (!!status) {
@@ -3168,14 +3174,6 @@ void type_check_all_module_var_slots(
 							global_vars);
 				}
 			}
-		}
-	}
-
-	for (auto &module : obj.modules) {
-		if (module->module_key == "runtime") {
-			type_check_module_vars(status, compiler, builder, *module, program_scope,
-					global_vars);
-			break;
 		}
 	}
 

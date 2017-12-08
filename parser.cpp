@@ -649,17 +649,22 @@ ptr<expression_t> eq_expr_t::parse(parse_state_t &ps) {
 			not_in = true;
 		}
 
-		// TODO: consider breaking in and is out to a higher priority level
 		if (ps.line_broke() ||
 				!(ps.token.is_ident(K(in))
 					|| ps.token.tk == tk_equal
-					|| ps.token.tk == tk_inequal)) {
+					|| ps.token.tk == tk_inequal
+                    || ps.token.is_ident(K(is)))) {
 			/* there is no rhs */
 			return lhs;
 		}
 
 		auto eq_expr = create<ast::eq_expr_t>(ps.token);
 		eat_token();
+
+        if (ps.token.is_ident(K(not)) && eq_expr->token.is_ident(K(is))) {
+            eq_expr->negated = true;
+            ps.advance();
+        }
 
 		if (not_in) {
 			eq_expr->negated = true;
