@@ -44,7 +44,7 @@ char *__str_float(zion_float_t x) {
 
 char *__str_type_id(type_id_t x) {
 	char onstack[65];
-	snprintf(onstack, sizeof(onstack), "%d", (int)x);
+	snprintf(onstack, sizeof(onstack), "%d", x);
 	onstack[sizeof(onstack) - 1] = 0;
 	return strdup(onstack);
 }

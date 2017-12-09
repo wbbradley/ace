@@ -11,6 +11,7 @@ RUN apt-get update -y && apt-get install -y \
 	gdb \
 	cmake \
 	libedit-dev \
+	libbsd-dev \
 	build-essential
 
 RUN \

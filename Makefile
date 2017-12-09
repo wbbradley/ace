@@ -174,7 +174,7 @@ value_semantics: $(BUILD_DIR)/value_semantics.o
 	$(LINKER) $(LINKER_OPTS) $< -o value_semantics
 
 .PHONY: test
-test: unit-tests hello-world-test expect-tests
+test: expect-tests
 
 .PHONY: unit-tests
 unit-tests: $(ZION_TARGET)
@@ -182,13 +182,13 @@ unit-tests: $(ZION_TARGET)
 	./$(ZION_TARGET) test
 
 .PHONY: hello-world-test
-hello-world-test: $(ZION_TARGET)
+hello-world-test: $(ZION_TARGET) unit-tests
 	@echo "Executing runtime test (test_hello_world)..."
 	./$(ZION_TARGET) run test_hello_world
 
 
 .PHONY: expect-tests
-expect-tests: $(ZION_TARGET)
+expect-tests: $(ZION_TARGET) hello-world-test
 	@echo "Executing expect tests..."
 	./expect-tests.sh
 

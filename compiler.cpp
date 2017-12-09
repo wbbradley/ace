@@ -667,7 +667,7 @@ void compiler_t::emit_built_program(status_t &status, std::string executable_fil
 		}
 
 		std::stringstream ss;
-		ss << clang_bin << " -lc -lm -Wno-override-module -Wall -g -O0 -mcx16";
+		ss << clang_bin << " -lc -lm -lbsd -Wno-override-module -Wall -g -O0 -mcx16";
 		for (auto obj_file : obj_files) {
 			ss << " " << obj_file;
 		}
