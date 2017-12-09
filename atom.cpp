@@ -6,10 +6,71 @@
 #include <map>
 #include "utils.h"
 
+struct atom {
+	typedef std::set<atom> set;
+	typedef std::vector<atom> many;
+
+	template <typename T>
+	using map = std::map<atom, T>;
+
+	atom() : iatom(0) {}
+	atom(std::string &&str);
+	atom(const std::string &str);
+	atom(const char *str);
+
+	atom &operator =(std::string &&rhs);
+	atom &operator =(const std::string &rhs);
+	atom &operator =(const char *rhs);
+	atom &operator =(const atom &);
+
+	bool operator ==(int) const = delete;
+	bool operator ==(const atom rhs) const { return iatom == rhs.iatom; }
+	bool operator !=(const atom rhs) const { return iatom != rhs.iatom; }
+	bool operator  <(const atom rhs) const { return iatom  < rhs.iatom; }
+	bool operator ! () const               { return iatom == 0; }
+	atom operator + (const atom rhs) const;
+
+	const char *c_str() const;
+	const std::string str() const;
+	size_t size() const;
+	bool is_generic_type_alias() const;
+
+	int iatom;
+
+private:
+	std::string value;
+};
+
+namespace std {
+	template <>
+	struct hash<atom> {
+		int operator ()(atom s) const {
+			return 1301081 * s.iatom;
+		}
+	};
+}
+
+inline std::ostream &operator <<(std::ostream &os, atom value) {
+	return os << value.str();
+}
+
+inline std::string operator +(const std::string &lhs, const atom rhs) {
+	return lhs + rhs.str();
+}
+
+bool starts_with(atom atom_str, const std::string &search);
+
+template <typename U, typename COLL>
+bool in(U item, const COLL &set) {
+	return set.find(item) != set.end();
+}
+
+atom::set to_set(atom::many atoms);
+
 static std::map<std::string, int> atom_str_index = {{"", 0}};
 static std::vector<std::string> atoms = {""};
 
-int memoize_atom(std::string &&str) {
+int atomize(std::string &&str) {
 	auto iter = atom_str_index.find(str);
 	if (iter != atom_str_index.end()) {
 		return iter->second;
@@ -21,7 +82,7 @@ int memoize_atom(std::string &&str) {
 	}
 }
 
-int memoize_atom(const std::string &str) {
+int atomize(const std::string &str) {
 	auto iter = atom_str_index.find(str);
 	if (iter != atom_str_index.end()) {
 		return iter->second;
@@ -33,7 +94,7 @@ int memoize_atom(const std::string &str) {
 	}
 }
 
-int memoize_atom(const char *str) {
+int atomize(const char *str) {
 	auto iter = atom_str_index.find(str);
 	if (iter != atom_str_index.end()) {
 		return iter->second;
@@ -45,15 +106,15 @@ int memoize_atom(const char *str) {
 	}
 }
 
-atom::atom(std::string &&str) : iatom(memoize_atom(str)) {
+atom::atom(std::string &&str) : iatom(atomize(str)) {
 	value = str;
 }
 
-atom::atom(const std::string &str) : iatom(memoize_atom(str)) {
+atom::atom(const std::string &str) : iatom(atomize(str)) {
 	value = str;
 }
 
-atom::atom(const char *str) : iatom(memoize_atom(str)) {
+atom::atom(const char *str) : iatom(atomize(str)) {
 	value = str;
 }
 
@@ -65,19 +126,19 @@ atom &atom::operator =(const atom &rhs) {
 }
 
 atom &atom::operator =(std::string &&rhs) {
-	iatom = memoize_atom(rhs);
+	iatom = atomize(rhs);
 	value = str();
 	return *this;
 }
 
 atom &atom::operator =(const std::string &rhs) {
-	iatom = memoize_atom(rhs);
+	iatom = atomize(rhs);
 	value = str();
 	return *this;
 }
 
 atom &atom::operator =(const char *rhs) {
-	iatom = memoize_atom(rhs);
+	iatom = atomize(rhs);
 	value = str();
 	return *this;
 }
