@@ -103,7 +103,7 @@ void get_generics_and_lambda_vars(
 		identifier::refs type_variables,
 	   	scope_t::ref scope,
 		std::list<identifier::ref> &lambda_vars,
-		atom::set &generics)
+		std::set<std::string> &generics)
 {
 	assert(generics.size() == 0);
 	assert(lambda_vars.size() == 0);
@@ -120,9 +120,9 @@ void get_generics_and_lambda_vars(
 	if (generics.size() != type_variables.size()) {
 		/* this is a fail because there are some reused type variables, find
 		 * them and report on them */
-		atom::set seen;
+		std::set<std::string> seen;
 		for (auto type_variable : type_variables) {
-			atom name = type_variable->get_name();
+			std::string name = type_variable->get_name();
 			if (seen.find(name) == seen.end()) {
 				seen.insert(name);
 			} else {
@@ -143,7 +143,7 @@ void get_generics_and_lambda_vars(
 		 * types are parametrically bound to this subtype, and which are still
 		 * quantified */
 
-		atom::set unbound_vars = subtype->get_ftvs();
+		std::set<std::string> unbound_vars = subtype->get_ftvs();
 		for (auto type_var : type_variables) {
 			if (true || in(type_var->get_name(), unbound_vars)) {
 				/* this variable is referenced by the current data ctor (the
@@ -168,8 +168,8 @@ void instantiate_data_ctor_type(
 		bool native)
 {
 	/* get the name of the ctor */
-	atom tag_name = id->get_name();
-	atom fqn_tag_name = scope->make_fqn(tag_name.str());
+	std::string tag_name = id->get_name();
+	std::string fqn_tag_name = scope->make_fqn(tag_name.str());
 	auto qualified_id = make_iid_impl(fqn_tag_name, id->get_location());
 
 	/* create the tag type */
@@ -182,7 +182,7 @@ void instantiate_data_ctor_type(
 	/* lambda_vars tracks the order of the lambda variables we'll accept as we abstract our
 	 * supertype expansion */
 	std::list<identifier::ref> lambda_vars;
-	atom::set generics;
+	std::set<std::string> generics;
 
 	get_generics_and_lambda_vars(status, struct_, type_variables, scope,
 			lambda_vars, generics);
@@ -259,7 +259,7 @@ void ast::type_product_t::register_type(
 {
 	debug_above(5, log(log_info, "creating product type for %s", str().c_str()));
 
-	atom name = id_->get_name();
+	std::string name = id_->get_name();
 	auto location = id_->get_location();
 
 	if (auto found_type = scope->get_bound_type(id_->get_name())) {

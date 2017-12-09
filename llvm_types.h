@@ -67,7 +67,7 @@ bound_var_t::ref upsert_type_info(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
-		atom name,
+		std::string name,
 		location_t location,
 		bound_type_t::ref data_type,
 		bound_type_t::refs args,

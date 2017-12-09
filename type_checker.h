@@ -15,8 +15,8 @@ void type_check_program(
 		compiler_t &compiler);
 
 bool is_function_defn_generic(status_t &status, llvm::IRBuilder<> &builder, scope_t::ref scope, const ast::function_defn_t &obj);
-atom::many get_param_list_decl_variable_names(ptr<const ast::param_list_decl_t> obj);
-bound_type_t::named_pairs zip_named_pairs(atom::many names, bound_type_t::refs args);
+std::string::many get_param_list_decl_variable_names(ptr<const ast::param_list_decl_t> obj);
+bound_type_t::named_pairs zip_named_pairs(std::string::many names, bound_type_t::refs args);
 bound_var_t::ref call_typeid(
 		status_t &status,
 		scope_t::ref scope,

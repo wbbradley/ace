@@ -31,7 +31,7 @@ const char *tkstr(token_kind tk) {
 	switch (tk) {
 	tk_case(ampersand);
 	tk_case(assign);
-	tk_case(atom);
+	tk_case(std::string);
 	tk_case(becomes);
 	tk_case(char);
 	tk_case(colon);

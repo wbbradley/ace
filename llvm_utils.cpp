@@ -170,7 +170,7 @@ bound_var_t::ref create_callsite(
         scope_t::ref scope,
 		life_t::ref life,
 		const bound_var_t::ref function,
-		atom name,
+		std::string name,
 		const location_t &location,
 		bound_var_t::refs arguments)
 {
@@ -385,7 +385,7 @@ std::string llvm_print(llvm::Type *llvm_type) {
 llvm::AllocaInst *llvm_create_entry_block_alloca(
 		llvm::Function *llvm_function,
 	   	bound_type_t::ref type,
-	   	atom var_name)
+	   	std::string var_name)
 {
 	/* we'll need to place the alloca instance in the entry block, so let's
 	 * make a builder that points there */
@@ -400,7 +400,7 @@ llvm::AllocaInst *llvm_create_entry_block_alloca(
 llvm::AllocaInst *llvm_call_gcroot(
         llvm::Function *llvm_function,
         bound_type_t::ref type,
-        atom var_name)
+        std::string var_name)
 {
     llvm::IRBuilder<> builder(
             &llvm_function->getEntryBlock(),
@@ -567,7 +567,7 @@ llvm::Constant *llvm_create_constant_struct_instance(
 
 llvm::StructType *llvm_create_struct_type(
 		llvm::IRBuilder<> &builder,
-		atom name,
+		std::string name,
 		const std::vector<llvm::Type*> &llvm_types)
 {
 	llvm::ArrayRef<llvm::Type*> llvm_dims{llvm_types};
@@ -586,7 +586,7 @@ llvm::StructType *llvm_create_struct_type(
 
 llvm::StructType *llvm_create_struct_type(
 		llvm::IRBuilder<> &builder,
-		atom name,
+		std::string name,
 		const bound_type_t::refs &dimensions) 
 {
 	std::vector<llvm::Type*> llvm_types;
@@ -659,7 +659,7 @@ bound_var_t::ref llvm_start_function(
 		location_t location,
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
-		atom name)
+		std::string name)
 {
 	if (!!status) {
 		/* get the llvm function type for the data ctor */
@@ -755,7 +755,7 @@ bound_var_t::ref llvm_create_global_tag(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::ref tag_type,
-		atom tag,
+		std::string tag,
 		identifier::ref id)
 {
 	auto program_scope = scope->get_program_scope();

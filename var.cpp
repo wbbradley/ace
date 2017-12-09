@@ -20,9 +20,9 @@ void add_bindings_to_make_type_concrete(
 {
 	/* make sure that if there are any free type variables, we mark
 	 * them as unreachable */
-	atom::set ftvs = type->get_ftvs();
+	std::set<std::string> ftvs = type->get_ftvs();
 	if (ftvs.size() != 0) {
-		for (atom ftv : ftvs) {
+		for (std::string ftv : ftvs) {
 			if (!in(ftv, bindings)) {
 				bindings[ftv] = type_unreachable();
 			}

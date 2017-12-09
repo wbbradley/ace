@@ -33,7 +33,7 @@ namespace ast {
 		}
 	}
 
-	module_t::module_t(const atom filename, bool global) : global(global), filename(filename) {
+	module_t::module_t(const std::string filename, bool global) : global(global), filename(filename) {
 	}
 
 	std::string module_t::get_canonical_name() const {
@@ -79,7 +79,7 @@ namespace ast {
 	{
 	}
 
-	dimension_t::dimension_t(atom name, types::type_t::ref type) :
+	dimension_t::dimension_t(std::string name, types::type_t::ref type) :
 		name(name), type(type)
 	{
 	}
@@ -94,7 +94,7 @@ namespace ast {
 	{
 	}
 
-    atom var_decl_t::get_symbol() const {
+    std::string var_decl_t::get_symbol() const {
         return {token.text};
     }
 

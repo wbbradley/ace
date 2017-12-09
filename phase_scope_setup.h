@@ -12,5 +12,5 @@ status_t scope_setup_program(const ast::program_t &obj, compiler_t &compiler);
 unchecked_var_t::ref scope_setup_function_defn(
 		status_t &status,
 		const ast::item_t &obj,
-		atom symbol,
+		std::string symbol,
 		module_scope_t::ref module_scope);

@@ -14,10 +14,10 @@ struct bound_var_t;
 struct bound_type_t {
 	typedef ptr<const bound_type_t> ref;
 	typedef std::weak_ptr<const bound_type_t> weak_ref;
-	typedef std::vector<std::pair<atom, ref>> named_pairs;
+	typedef std::vector<std::pair<std::string, ref>> named_pairs;
 	typedef std::vector<ref> refs;
 	typedef std::map<types::signature, ref> map;
-	typedef atom::map<int> name_index;
+	typedef std::map<std::string, int> name_index;
 
 	bound_type_t(
 			types::type_t::ref type,

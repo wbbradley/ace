@@ -241,7 +241,7 @@ bool test_lex_dependency_keywords() {
 
 bool test_lex_literals() {
 	lexer_tests tests = {
-		{":atom \"hello world\\n\" 13493839", {tk_atom, tk_string, tk_integer}},
+		{":std::string \"hello world\\n\" 13493839", {tk_atom, tk_string, tk_integer}},
 		{"\"\"", {tk_string}},
 		{"0", {tk_integer}},
 		{"0r", {tk_raw_integer}},
@@ -821,9 +821,9 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_atoms",
 		[] () -> bool {
-			test_assert(atom{"a"} == atom{"a"});
-			test_assert(atom{"bog"} == atom{"bog"});
-			test_assert(!(atom{"a"} == atom{"A"}));
+			test_assert(std::string{"a"} == std::string{"a"});
+			test_assert(std::string{"bog"} == std::string{"bog"});
+			test_assert(!(std::string{"a"} == std::string{"A"}));
 
 			return true;
 		}

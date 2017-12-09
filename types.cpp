@@ -19,8 +19,8 @@ void reset_generics() {
 	next_generic = 1;
 }
 
-atom get_name_from_index(const types::name_index_t &name_index, int i) {
-	atom name;
+std::string get_name_from_index(const types::name_index_t &name_index, int i) {
+	std::string name;
 	for (auto name_pair : name_index) {
 		if (name_pair.second == i) {
 			assert(!name);
@@ -44,7 +44,7 @@ namespace types {
 	   	return string_format(c_type("%s"), this->repr(bindings).c_str());
    	}
 
-	atom type_t::repr(const map &bindings) const {
+	std::string type_t::repr(const map &bindings) const {
 		std::stringstream ss;
 		emit(ss, bindings);
 		return ss.str();
@@ -66,7 +66,7 @@ namespace types {
 		return 0;
 	}
 
-    atom::set type_id_t::get_ftvs() const {
+    std::set<std::string> type_id_t::get_ftvs() const {
         return {};
     }
 
@@ -176,7 +176,7 @@ endif
 		return 1;
 	}
 
-    atom::set type_variable_t::get_ftvs() const {
+    std::set<std::string> type_variable_t::get_ftvs() const {
         return {id->get_name()};
     }
 
@@ -217,9 +217,9 @@ endif
 		return oper->ftv_count() + operand->ftv_count();
 	}
 
-    atom::set type_operator_t::get_ftvs() const {
-        atom::set oper_set = oper->get_ftvs();
-        atom::set operand_set = operand->get_ftvs();
+    std::set<std::string> type_operator_t::get_ftvs() const {
+        std::set<std::string> oper_set = oper->get_ftvs();
+        std::set<std::string> operand_set = operand->get_ftvs();
         oper_set.insert(operand_set.begin(), operand_set.end());
         return oper_set;
     }
@@ -300,10 +300,10 @@ endif
 		return ftv_sum;
 	}
 
-	atom::set type_struct_t::get_ftvs() const {
-		atom::set set;
+	std::set<std::string> type_struct_t::get_ftvs() const {
+		std::set<std::string> set;
 		for (auto dimension : dimensions) {
-			atom::set dim_set = dimension->get_ftvs();
+			std::set<std::string> dim_set = dimension->get_ftvs();
 			set.insert(dim_set.begin(), dim_set.end());
 		}
 		return set;
@@ -381,10 +381,10 @@ endif
 		return ftv_sum;
 	}
 
-	atom::set type_args_t::get_ftvs() const {
-		atom::set set;
+	std::set<std::string> type_args_t::get_ftvs() const {
+		std::set<std::string> set;
 		for (auto arg : args) {
-			atom::set dim_set = arg->get_ftvs();
+			std::set<std::string> dim_set = arg->get_ftvs();
 			set.insert(dim_set.begin(), dim_set.end());
 		}
 		return set;
@@ -446,7 +446,7 @@ endif
 		return element_type->ftv_count();
 	}
 
-	atom::set type_managed_t::get_ftvs() const {
+	std::set<std::string> type_managed_t::get_ftvs() const {
 		return element_type->get_ftvs();
     }
 
@@ -496,7 +496,7 @@ endif
 		return module_type->ftv_count();
 	}
 
-	atom::set type_module_t::get_ftvs() const {
+	std::set<std::string> type_module_t::get_ftvs() const {
 		return module_type->get_ftvs();
     }
 
@@ -537,11 +537,11 @@ endif
 		return args->ftv_count() + return_type->ftv_count();
 	}
 
-	atom::set type_function_t::get_ftvs() const {
-		atom::set set;
-		atom::set args_ftvs = args->get_ftvs();
+	std::set<std::string> type_function_t::get_ftvs() const {
+		std::set<std::string> set;
+		std::set<std::string> args_ftvs = args->get_ftvs();
 		set.insert(args_ftvs.begin(), args_ftvs.end());
-		atom::set return_type_ftvs = return_type->get_ftvs();
+		std::set<std::string> return_type_ftvs = return_type->get_ftvs();
 		set.insert(return_type_ftvs.begin(), return_type_ftvs.end());
 		return set;
     }
@@ -595,10 +595,10 @@ endif
 		return ftv_sum;
 	}
 
-    atom::set type_sum_t::get_ftvs() const {
-        atom::set set;
+    std::set<std::string> type_sum_t::get_ftvs() const {
+        std::set<std::string> set;
 		for (auto option : options) {
-            atom::set option_set = option->get_ftvs();
+            std::set<std::string> option_set = option->get_ftvs();
             set.insert(option_set.begin(), option_set.end());
 		}
 		return set;
@@ -651,7 +651,7 @@ endif
         return just->ftv_count();
 	}
 
-    atom::set type_maybe_t::get_ftvs() const {
+    std::set<std::string> type_maybe_t::get_ftvs() const {
         return just->get_ftvs();
 	}
 
@@ -695,7 +695,7 @@ endif
 		return element_type->ftv_count();
 	}
 
-	atom::set type_ptr_t::get_ftvs() const {
+	std::set<std::string> type_ptr_t::get_ftvs() const {
 		return element_type->get_ftvs();
 	}
 
@@ -737,7 +737,7 @@ endif
 		return element_type->ftv_count();
 	}
 
-	atom::set type_ref_t::get_ftvs() const {
+	std::set<std::string> type_ref_t::get_ftvs() const {
 		return element_type->get_ftvs();
 	}
 
@@ -781,7 +781,7 @@ endif
 		return body->rebind(bindings)->ftv_count();
 	}
 
-    atom::set type_lambda_t::get_ftvs() const {
+    std::set<std::string> type_lambda_t::get_ftvs() const {
 		panic("This should not really get called ....");
 		map bindings;
 		bindings[binding->get_name()] = type_unreachable();
@@ -836,7 +836,7 @@ endif
 		return inner->ftv_count();
 	}
 
-    atom::set type_extern_t::get_ftvs() const {
+    std::set<std::string> type_extern_t::get_ftvs() const {
 		return inner->get_ftvs();
 	}
 
@@ -857,7 +857,7 @@ endif
 		return inner->get_id();
 	}
 
-	bool is_type_id(type_t::ref type, atom type_name) {
+	bool is_type_id(type_t::ref type, std::string type_name) {
 		if (auto pti = dyncast<const types::type_id_t>(type)) {
 			return pti->id->get_name() == type_name;
 		}
@@ -987,7 +987,7 @@ types::type_function_t::ref type_function(
 	return make_ptr<types::type_function_t>(args, return_type);
 }
 
-bool types_contains(const types::type_t::refs &options, atom signature) {
+bool types_contains(const types::type_t::refs &options, std::string signature) {
     for (auto &option : options) {
         if (option->get_signature() == signature) {
             return true;
@@ -1173,7 +1173,7 @@ types::type_t::ref parse_type_expr(std::string input, identifier::set generics, 
 	}
 }
 
-bool get_type_variable_name(types::type_t::ref type, atom &name) {
+bool get_type_variable_name(types::type_t::ref type, std::string &name) {
     if (auto ptv = dyncast<const types::type_variable_t>(type)) {
 		name = ptv->id->get_name();
 		return true;

@@ -6,7 +6,7 @@
 
 bound_var_t::ref bound_var_t::create(
 		location_t internal_location,
-		atom name,
+		std::string name,
 		bound_type_t::ref type,
 		llvm::Value *llvm_value,
 		identifier::ref id)
@@ -115,7 +115,7 @@ std::string str(const bound_var_t::refs &args) {
 
 bound_module_t::bound_module_t(
 		location_t internal_location,
-		atom name,
+		std::string name,
 		identifier::ref id,
 		module_scope_t::ref module_scope) :
 	bound_var_t(internal_location,

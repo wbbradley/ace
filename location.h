@@ -1,5 +1,4 @@
 #pragma once
-#include "atom.h"
 #include <ostream>
 
 #define INTERNAL_LOC() ::location_t{__FILE__, __LINE__, 1}
@@ -9,13 +8,13 @@ struct location_t {
 	location_t(T t) = delete;
 
 	location_t() : line(-1), col(-1) {}
-	location_t(atom filename, int line, int col) : filename(filename), line(line), col(col) {}
+	location_t(std::string filename, int line, int col) : filename(filename), line(line), col(col) {}
 
 	std::string str(bool vim_mode=false, bool make_dir_relative=true) const;
 	std::string repr() const;
 	std::string operator()() const;
 
-	atom filename;
+	std::string filename;
 	int line;
 	int col;
 	bool has_file_location() const;

@@ -14,7 +14,7 @@ struct bound_var_t : public std::enable_shared_from_this<bound_var_t>, public va
 	bound_var_t() = delete;
 	bound_var_t(
 			location_t internal_location,
-			atom name,
+			std::string name,
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
 			identifier::ref id) :
@@ -33,7 +33,7 @@ struct bound_var_t : public std::enable_shared_from_this<bound_var_t>, public va
 	virtual ~bound_var_t() throw() {}
 
 	location_t internal_location;
-	atom const name;
+	std::string const name;
 	bound_type_t::ref const type;
 	identifier::ref const id;
 
@@ -53,7 +53,7 @@ public:
 	typedef std::vector<ref> refs;
 	typedef std::map<types::signature, ref> overloads;
 	typedef std::weak_ptr<bound_var_t> weak_ref;
-	typedef std::map<atom, overloads> map;
+	typedef std::map<std::string, overloads> map;
 
 	types::type_t::ref get_type() const;
 	virtual location_t get_location() const;
@@ -64,7 +64,7 @@ public:
 
 	static ref create(
 			location_t internal_location,
-			atom name,
+			std::string name,
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
 			identifier::ref id);
@@ -93,13 +93,13 @@ struct bound_module_t : public bound_var_t {
 
 	bound_module_t(
 			location_t internal_location,
-			atom name,
+			std::string name,
 			identifier::ref id,
 			ptr<module_scope_t> module_scope);
 
 	static ref create(
 			location_t internal_location,
-			atom name,
+			std::string name,
 			identifier::ref id,
 			ptr<module_scope_t> module_scope)
 	{

@@ -198,7 +198,7 @@ bound_var_t::ref maybe_get_callable(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		atom alias,
+		std::string alias,
 		location_t location,
 		types::type_t::ref args,
 		types::type_t::ref return_type,
@@ -265,7 +265,7 @@ bound_var_t::ref get_callable_from_local_var(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		atom alias,
+		std::string alias,
 		bound_var_t::ref bound_var,
 		location_t callsite_location,
 		types::type_t::ref args,
@@ -298,7 +298,7 @@ bound_var_t::ref get_callable(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		atom alias,
+		std::string alias,
 		location_t callsite_location,
 		types::type_t::ref args,
 		types::type_t::ref return_type)
@@ -357,7 +357,7 @@ bound_var_t::ref call_program_function(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        atom function_name,
+        std::string function_name,
         const ptr<const ast::item_t> &callsite,
         const bound_var_t::refs var_args)
 {

@@ -1,5 +1,4 @@
 #pragma once
-#include "atom.h"
 #include <vector>
 #include <string>
 #include <ostream>
@@ -8,11 +7,11 @@
 namespace types {
 	/* a signature is a name for a type. */
 	struct signature {
-		const atom name;
+		const std::string name;
 
 		signature(const signature &sig);
 		signature(const char *name);
-		signature(const atom name);
+		signature(const std::string name);
 		signature &operator =(const signature &rhs);
 
 		bool operator ==(const signature &rhs) const;
@@ -21,7 +20,7 @@ namespace types {
 		bool operator !() const;
 
 		std::string str() const;
-		atom repr() const;
+		std::string repr() const;
 	};
 }
 
@@ -29,7 +28,7 @@ namespace std {
 	template <>
 		struct hash<types::signature> {
 		int operator ()(const types::signature &s) const {
-			return std::hash<atom>()(s.repr());
+			return std::hash<std::string>()(s.repr());
 		}
 	};
 }

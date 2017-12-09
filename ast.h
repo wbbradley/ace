@@ -35,7 +35,7 @@ namespace ast {
 
 	struct like_var_decl_t {
 		virtual ~like_var_decl_t() {}
-		virtual atom get_symbol() const = 0;
+		virtual std::string get_symbol() const = 0;
 		virtual location_t get_location() const = 0;
 		virtual types::type_t::ref get_type() const = 0;
 		virtual bool has_initializer() const = 0;
@@ -271,13 +271,13 @@ namespace ast {
 	struct dimension_t : public item_t {
 		typedef ptr<const dimension_t> ref;
 		static const syntax_kind_t SK = sk_dimension;
-		dimension_t(atom name, types::type_t::ref type);
+		dimension_t(std::string name, types::type_t::ref type);
 		virtual ~dimension_t() throw() {}
 		virtual void render(render_state_t &rs) const;
 
 		static ref parse(parse_state_t &ps, identifier::set generics);
 
-		atom name;
+		std::string name;
 		types::type_t::ref type;
 	};
 
@@ -434,7 +434,7 @@ namespace ast {
 				local_scope_t::ref *new_scope) const;
 		virtual void render(render_state_t &rs) const;
 
-		virtual atom get_symbol() const;
+		virtual std::string get_symbol() const;
 		virtual types::type_t::ref get_type() const;
 		location_t get_location() const;
 		virtual bool has_initializer() const;
@@ -817,14 +817,14 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_module;
 
-		module_t(const atom filename, bool global=false);
+		module_t(const std::string filename, bool global=false);
 		static ptr<module_t> parse(parse_state_t &ps, bool global=false);
 		std::string get_canonical_name() const;
 		virtual void render(render_state_t &rs) const;
 
 		bool global;
-		atom filename;
-		atom module_key;
+		std::string filename;
+		std::string module_key;
 
 		ptr<module_decl_t> decl;
 		std::vector<ptr<var_decl_t>> var_decls;

@@ -13,7 +13,7 @@ struct code_id : public identifier {
 	code_id(const code_id &&) = delete;
 	code_id &operator =(const code_id &) = delete;
 
-	virtual atom get_name() const {
+	virtual std::string get_name() const {
 		return {token.text};
 	}
 
@@ -27,12 +27,12 @@ struct code_id : public identifier {
 };
 
 struct type_id_code_id : public identifier {
-	type_id_code_id(const location_t location, atom var_name) :
+	type_id_code_id(const location_t location, std::string var_name) :
 		location(location), name(string_format("typeid(%s)", var_name.c_str()))
 	{
 	}
 
-	virtual atom get_name() const {
+	virtual std::string get_name() const {
 		return name;
 	}
 
@@ -45,8 +45,8 @@ struct type_id_code_id : public identifier {
 	}
 
 	const location_t location;
-	const atom name;
+	const std::string name;
 };
 
 identifier::ref make_code_id(const token_t &token);
-identifier::ref make_type_id_code_id(const location_t location, atom var_name);
+identifier::ref make_type_id_code_id(const location_t location, std::string var_name);

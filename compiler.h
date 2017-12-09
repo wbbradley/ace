@@ -10,7 +10,7 @@
 
 struct compiler_t {
 	typedef std::vector<std::string> libs;
-	typedef std::pair<atom, std::unique_ptr<llvm::Module>> llvm_module_t;
+	typedef std::pair<std::string, std::unique_ptr<llvm::Module>> llvm_module_t;
 	typedef std::list<llvm_module_t> llvm_modules_t;
 
 	compiler_t() = delete;
@@ -21,19 +21,19 @@ struct compiler_t {
 	void resolve_module_filename(status_t &status, location_t location, std::string name, std::string &resolved);
 	void info(const char *format, ...);
 
-	module_scope_t::ref get_module_scope(atom module_key);
-	void set_module_scope(atom module_key, module_scope_t::ref module_scope);
+	module_scope_t::ref get_module_scope(std::string module_key);
+	void set_module_scope(std::string module_key, module_scope_t::ref module_scope);
 
 	std::vector<token_t> get_comments() const;
-	ptr<const ast::module_t> get_module(status_t &status, atom key_alias);
+	ptr<const ast::module_t> get_module(status_t &status, std::string key_alias);
 	void set_module(status_t &status, std::string filename, ptr<ast::module_t> module);
 	llvm::Module *llvm_load_ir(status_t &status, std::string filename);
-	llvm::Module *llvm_create_module(atom module_name);
+	llvm::Module *llvm_create_module(std::string module_name);
 	llvm::Module *llvm_get_program_module();
 
 	/* testing */
 	std::string dump_llvm_modules();
-	std::string dump_program_text(atom module_name);
+	std::string dump_program_text(std::string module_name);
 
 	void write_obj_file(status_t &status, std::unique_ptr<llvm::Module> &llvm_module);
 
@@ -65,18 +65,18 @@ struct compiler_t {
 private:
 	void lower_program_module();
 
-	std::unique_ptr<llvm::Module> &get_llvm_module(atom name);
+	std::unique_ptr<llvm::Module> &get_llvm_module(std::string name);
 
 	std::string program_name;
 	ptr<std::vector<std::string>> zion_paths;
 	std::vector<token_t> comments;
 	program_scope_t::ref program_scope;
-	std::map<atom, ptr<const ast::module_t>> modules;
+	std::map<std::string, ptr<const ast::module_t>> modules;
 	llvm::LLVMContext llvm_context;
 	llvm::IRBuilder<> builder;
 	llvm_module_t llvm_program_module;
 	llvm_modules_t llvm_modules;
-	std::map<atom, ptr<module_scope_t>> module_scopes;
+	std::map<std::string, ptr<module_scope_t>> module_scopes;
 	ptr<ast::program_t> program;
 
 	friend bool _check_compiler_error(compiler_t &compiler, int &skipped);

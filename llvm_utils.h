@@ -25,7 +25,7 @@ bound_var_t::ref create_callsite(
 		scope_t::ref scope,
 		ptr<life_t> life,
 		ptr<const bound_var_t> callee,
-		atom name,
+		std::string name,
 		const location_t &location,
 		bound_var_t::refs values);
 
@@ -63,13 +63,13 @@ std::string llvm_print(llvm::Type *llvm_type);
 std::string llvm_print_function(llvm::Function *llvm_function);
 
 // TODO: consider consolidating mem management into just one of these...
-llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function, bound_type_t::ref type, atom var_name);
-llvm::AllocaInst *llvm_call_gcroot(llvm::Function *llvm_function, bound_type_t::ref type, atom var_name);
+llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function, bound_type_t::ref type, std::string var_name);
+llvm::AllocaInst *llvm_call_gcroot(llvm::Function *llvm_function, bound_type_t::ref type, std::string var_name);
 
 llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_value);
 llvm::Type *llvm_resolve_type(llvm::Value *llvm_value);
-llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder, atom name, const bound_type_t::refs &dimensions);
-llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder, atom name, const std::vector<llvm::Type*> &llvm_types);
+llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder, std::string name, const bound_type_t::refs &dimensions);
+llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder, std::string name, const std::vector<llvm::Type*> &llvm_types);
 llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type);
 llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder, llvm::Value *llvm_value, llvm::Type *llvm_type);
 llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder, llvm::Value *llvm_value, const bound_type_t::ref &bound_type);
@@ -109,14 +109,14 @@ bound_var_t::ref llvm_start_function(
 		location_t location,
 		bound_type_t::refs args,
 		bound_type_t::ref data_type,
-		atom name);
+		std::string name);
 
 bound_var_t::ref llvm_create_global_tag(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::ref tag_type,
-		atom tag,
+		std::string tag,
 		identifier::ref id);
 
 // NOTE: the explain function is a tool to learn about LLVM types, it does not

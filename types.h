@@ -24,14 +24,14 @@ void reset_generics();
 
 namespace types {
 
-	typedef atom::map<int> name_index_t;
+	typedef std::map<std::string, int> name_index_t;
 
 	struct signature;
 
 	struct type_t : public std::enable_shared_from_this<type_t> {
 		typedef ptr<const type_t> ref;
 		typedef std::vector<ref> refs;
-		typedef std::map<atom, ref> map;
+		typedef std::map<std::string, ref> map;
         typedef std::pair<ref, ref> pair;
 
 		virtual ~type_t() {}
@@ -42,17 +42,17 @@ namespace types {
 		virtual int ftv_count() const = 0;
 
         /* NB: Also assumes you have rebound the bindings at the callsite. */
-		virtual atom::set get_ftvs() const = 0;
+		virtual std::set<std::string> get_ftvs() const = 0;
 
-		atom repr(const map &bindings) const;
-		atom repr() const { return this->repr({}); }
+		std::string repr(const map &bindings) const;
+		std::string repr() const { return this->repr({}); }
 
 		virtual location_t get_location() const = 0;
 		virtual identifier::ref get_id() const = 0;
 
 		std::string str() const;
 		std::string str(const map &bindings) const;
-		atom get_signature() const { return repr(); }
+		std::string get_signature() const { return repr(); }
 
 		virtual ref rebind(const map &bindings) const = 0;
 
@@ -63,7 +63,7 @@ namespace types {
 		virtual bool is_nil() const { return false; }
 	};
 
-	bool is_type_id(type_t::ref type, atom type_name);
+	bool is_type_id(type_t::ref type, std::string type_name);
 	bool is_managed_ptr(types::type_t::ref type, types::type_t::map env);
 	bool is_ptr(types::type_t::ref type, types::type_t::map env);
 
@@ -73,7 +73,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -90,7 +90,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -103,7 +103,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -129,7 +129,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -148,7 +148,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -167,7 +167,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -187,7 +187,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -205,7 +205,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -221,7 +221,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -234,7 +234,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -248,7 +248,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -262,7 +262,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -277,7 +277,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -294,7 +294,7 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
-		virtual atom::set get_ftvs() const;
+		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
@@ -348,5 +348,5 @@ types::type_t::ref get_function_return_type(types::type_t::ref function_type);
 types::type_t::pair make_type_pair(std::string fst, std::string snd, identifier::set generics);
 
 types::type_t::ref parse_type_expr(std::string input, identifier::set generics, identifier::ref module_id);
-bool get_type_variable_name(types::type_t::ref type, atom &name);
+bool get_type_variable_name(types::type_t::ref type, std::string &name);
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings);

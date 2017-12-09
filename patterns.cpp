@@ -110,7 +110,7 @@ bound_var_t::ref gen_type_check(
 		assert(life->life_form == lf_statement);
 
 		auto program_scope = scope->get_program_scope();
-		atom signature = bound_type->get_type()->get_signature();
+		std::string signature = bound_type->get_type()->get_signature();
 		auto type_id_wanted = bound_var_t::create(
 				INTERNAL_LOC(),
 				string_format("typeid(%s)", value_name->str().c_str()),

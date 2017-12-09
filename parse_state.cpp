@@ -8,7 +8,7 @@ parse_state_t::parse_state_t(
 		status_t &status,
 		std::string filename,
 		zion_lexer_t &lexer,
-		std::map<atom, ptr<const types::type_t>> type_macros,
+		std::map<std::string, ptr<const types::type_t>> type_macros,
 		std::vector<token_t> *comments) :
 	filename(filename),
 	lexer(lexer),

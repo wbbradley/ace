@@ -32,8 +32,8 @@ bound_type_t::ref get_fully_bound_param_info(
 		llvm::IRBuilder<> &builder,
 		const ast::var_decl_t &obj,
 		scope_t::ref scope,
-		atom &var_name,
-		atom::set &generics,
+		std::string &var_name,
+		std::set<std::string> &generics,
 		int &generic_index)
 {
 	if (!!status) {
@@ -61,7 +61,7 @@ bound_var_t::ref generate_stack_variable(
 		scope_t::ref scope,
 		life_t::ref life,
 		const ast::like_var_decl_t &obj,
-		atom symbol,
+		std::string symbol,
 		types::type_t::ref declared_type,
 		bool maybe_unbox)
 {
@@ -272,7 +272,7 @@ bound_var_t::ref generate_module_variable(
 		llvm::IRBuilder<> &builder,
 		module_scope_t::ref module_scope,
 		const ast::var_decl_t &var_decl,
-		atom symbol)
+		std::string symbol)
 {
 	auto program_scope = module_scope->get_program_scope();
 
@@ -455,7 +455,7 @@ bound_var_t::ref type_check_bound_var_decl(
 		life_t::ref life,
 		bool maybe_unbox)
 {
-	const atom symbol = obj.get_symbol();
+	const std::string symbol = obj.get_symbol();
 
 	debug_above(4, log(log_info, "type_check_bound_var_decl is looking for a type for variable " c_var("%s") " : %s",
 				symbol.c_str(), obj.get_symbol().c_str()));
@@ -494,7 +494,7 @@ bound_var_t::ref type_check_module_var_decl(
 		module_scope_t::ref module_scope,
 		const ast::var_decl_t &var_decl)
 {
-	const atom symbol = var_decl.token.text;
+	const std::string symbol = var_decl.token.text;
 
 	debug_above(4, log(log_info, "type_check_module_var_decl is looking for a type for variable " c_var("%s") " : %s",
 				symbol.c_str(), var_decl.str().c_str()));
@@ -508,8 +508,8 @@ bound_var_t::ref type_check_module_var_decl(
 	}
 }
 
-atom::many get_param_list_decl_variable_names(ast::param_list_decl_t::ref obj) {
-	atom::many names;
+std::string::many get_param_list_decl_variable_names(ast::param_list_decl_t::ref obj) {
+	std::string::many names;
 	for (auto param : obj->params) {
 		names.push_back({param->token.text});
 	}
@@ -517,7 +517,7 @@ atom::many get_param_list_decl_variable_names(ast::param_list_decl_t::ref obj) {
 }
 
 bound_type_t::named_pairs zip_named_pairs(
-		atom::many names,
+		std::string::many names,
 		bound_type_t::refs args)
 {
 	bound_type_t::named_pairs named_args;
@@ -537,11 +537,11 @@ status_t get_fully_bound_param_list_decl_variables(
 	status_t status;
 
 	/* we keep track of the generic parameters to ensure equivalence */
-	atom::set generics;
+	std::set<std::string> generics;
 	int generic_index = 1;
 
 	for (auto param : obj.params) {
-		atom var_name;
+		std::string var_name;
 		bound_type_t::ref param_type = get_fully_bound_param_info(status,
 				builder, *param, scope, var_name, generics, generic_index);
 
@@ -1582,7 +1582,7 @@ bound_var_t::ref resolve_binary_equality(
 				{"equality.cond"},
 				bool_type,
 				builder.CreateSExtOrTrunc(llvm_value, bool_type->get_llvm_specific_type()),
-				make_iid_impl(atom{"equality.cond"}, location));
+				make_iid_impl(std::string{"equality.cond"}, location));
 
 		assert(!status);
 		return nullptr;
@@ -1618,7 +1618,7 @@ bound_var_t::ref type_check_binary_operator(
 		ptr<const ast::expression_t> lhs,
 		ptr<const ast::expression_t> rhs,
 		ast::item_t::ref obj,
-		atom function_name)
+		std::string function_name)
 {
 	if (!!status) {
 		assert(function_name.size() != 0);
@@ -1725,7 +1725,7 @@ bound_var_t::ref ast::eq_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	atom function_name;
+	std::string function_name;
 	switch (token.tk) {
 	case tk_equal:
 		function_name = "__eq__";
@@ -2187,7 +2187,7 @@ bound_var_t::ref extract_member_variable(
 		life_t::ref life,
 		ast::item_t::ref node,
 		bound_var_t::ref bound_var,
-		atom member_name,
+		std::string member_name,
 		bool as_ref)
 {
 	bound_var = bound_var->resolve_bound_value(status, builder, scope);
@@ -2288,7 +2288,7 @@ bound_var_t::ref extract_member_variable(
 						member_name.c_str());
 				user_message(log_info, status, bound_var->type->get_location(), "%s has dimension(s) [%s]",
 						full_type->str().c_str(),
-						join_with(member_index, ", ", [] (std::pair<atom, int> index) -> std::string {
+						join_with(member_index, ", ", [] (std::pair<std::string, int> index) -> std::string {
 							return std::string(C_ID) + index.first.str() + C_RESET;
 							}).c_str());
 			}
@@ -2391,7 +2391,7 @@ bound_var_t::ref ast::ineq_expr_t::resolve_expression(
 {
 	assert(!as_ref);
 
-	atom function_name;
+	std::string function_name;
 	switch (token.tk) {
 	case tk_lt:
 		function_name = "__lt__";
@@ -2422,7 +2422,7 @@ bound_var_t::ref ast::plus_expr_t::resolve_expression(
 {
 	assert(!as_ref);
 
-	atom function_name;
+	std::string function_name;
 	switch (token.tk) {
 	case tk_plus:
 		function_name = "__plus__";
@@ -3280,8 +3280,8 @@ void ast::tag_t::resolve_statement(
 		return;
 	}
 
-	atom tag_name = token.text;
-	atom fqn_tag_name = scope->make_fqn(tag_name.str());
+	std::string tag_name = token.text;
+	std::string fqn_tag_name = scope->make_fqn(tag_name.str());
 	auto qualified_id = make_iid_impl(fqn_tag_name, token.location);
 
 	auto tag_type = type_id(qualified_id);
@@ -3345,7 +3345,7 @@ void ast::type_def_t::resolve_statement(
 	 * definitions can be generic in declaration, but concrete in resolution.
 	 * this function is the declaration step. */
 
-	atom type_name = type_decl->token.text;
+	std::string type_name = type_decl->token.text;
 	auto already_bound_type = scope->get_bound_type(type_name);
 	if (already_bound_type != nullptr) {
 		debug_above(1, log(log_warning, "found predefined bound type for %s -> %s",
@@ -3526,7 +3526,7 @@ bound_var_t::ref type_check_binary_op_assignment(
 		ast::expression_t::ref lhs,
 		ast::expression_t::ref rhs,
 		location_t location,
-		atom function_name)
+		std::string function_name)
 {
 	auto lhs_var = lhs->resolve_expression(status, builder, scope, life, true /*as_ref*/);
 	if (!!status) {
@@ -3773,17 +3773,17 @@ void ast::block_t::resolve_statement(
 }
 
 struct for_like_var_decl_t : public ast::like_var_decl_t {
-	atom symbol;
+	std::string symbol;
 	location_t location;
 	const ast::expression_t &collection;
 	types::type_t::ref type;
 
-	for_like_var_decl_t(atom symbol, location_t location, const ast::expression_t &collection) :
+	for_like_var_decl_t(std::string symbol, location_t location, const ast::expression_t &collection) :
 		symbol(symbol), location(location), collection(collection), type(::type_variable(location))
 	{
 	}
 
-	virtual atom get_symbol() const {
+	virtual std::string get_symbol() const {
 		return symbol;
 	}
 
@@ -4263,7 +4263,7 @@ bound_var_t::ref ast::times_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	atom function_name;
+	std::string function_name;
 	switch (token.tk) {
 	case tk_times:
 		function_name = "__times__";
@@ -4316,7 +4316,7 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	atom function_name;
+	std::string function_name;
 	switch (token.tk) {
 	case tk_minus:
 		function_name = "__negative__";

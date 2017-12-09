@@ -17,7 +17,7 @@ struct token_pair
 class zion_lexer_t
 {
 public:
-	zion_lexer_t(atom filename, std::istream &sock_is);
+	zion_lexer_t(std::string filename, std::istream &sock_is);
 	~zion_lexer_t();
 
 	bool get_token(token_t &token, bool &newline, std::vector<token_t> *comments);
@@ -30,7 +30,7 @@ private:
 	bool handle_nests(token_kind tk);
 	void pop_nested(token_kind tk);
 
-	atom                      m_filename;
+	std::string                      m_filename;
 	std::istream             &m_is;
 	int                       m_line=1, m_col=1;
 	int                       m_last_indent_depth;

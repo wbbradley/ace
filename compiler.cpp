@@ -197,7 +197,7 @@ ast::module_t::ref compiler_t::build_parse(
 
 						for (auto std_type : std_types) {
 							assert(global_type_macros.find(std_type) == global_type_macros.end());
-							atom new_name = std_type;
+							std::string new_name = std_type;
 							global_type_macros.insert({std_type,
 									type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
 						}
@@ -295,7 +295,7 @@ void add_global_types(
 	   	program_scope_t::ref program_scope)
 {
 	/* let's add the builtin types to the program scope */
-	std::vector<std::pair<atom, bound_type_t::ref>> globals = {
+	std::vector<std::pair<std::string, bound_type_t::ref>> globals = {
 		{{"nil"},
 			bound_type_t::create(
 					type_nil(),
@@ -385,7 +385,7 @@ void add_global_types(
 		}
 		compiler.base_type_macros[type_pair.first] = type_id(make_iid(type_pair.first));
 	}
-	compiler.base_type_macros[atom{"vector"}] = type_id(make_iid("vector.vector"));
+	compiler.base_type_macros[std::string{"vector"}] = type_id(make_iid("vector.vector"));
 
 	debug_above(10, log(log_info, "%s", program_scope->str().c_str()));
 }
@@ -888,7 +888,7 @@ void compiler_t::emit_object_files(status_t &status, std::vector<std::string> &o
 	return;
 }
 
-std::unique_ptr<llvm::Module> &compiler_t::get_llvm_module(atom name) {
+std::unique_ptr<llvm::Module> &compiler_t::get_llvm_module(std::string name) {
 	std::stringstream ss;
 	ss << "did not find module " << name << " in [";
 	const char *sep = "";
@@ -952,7 +952,7 @@ void compiler_t::set_module(
 	}
 }
 
-ptr<const ast::module_t> compiler_t::get_module(status_t &status, atom key_alias) {
+ptr<const ast::module_t> compiler_t::get_module(status_t &status, std::string key_alias) {
 	auto module_iter = modules.find(key_alias);
 	if (module_iter != modules.end()) {
 		auto module = module_iter->second;
@@ -981,7 +981,7 @@ ptr<const ast::module_t> compiler_t::get_module(status_t &status, atom key_alias
 	return nullptr;
 }
 
-module_scope_t::ref compiler_t::get_module_scope(atom module_key) {
+module_scope_t::ref compiler_t::get_module_scope(std::string module_key) {
     auto iter = module_scopes.find(module_key);
     if (iter != module_scopes.end()) {
         return iter->second;
@@ -990,7 +990,7 @@ module_scope_t::ref compiler_t::get_module_scope(atom module_key) {
     }
 }
 
-void compiler_t::set_module_scope(atom module_key, module_scope_t::ref module_scope) {
+void compiler_t::set_module_scope(std::string module_key, module_scope_t::ref module_scope) {
     assert(get_module_scope(module_key) == nullptr);
 	assert(module_scope != nullptr);
     module_scopes[module_key] = module_scope;
@@ -1000,7 +1000,7 @@ std::string compiler_t::dump_llvm_modules() {
 	return program_scope->dump_llvm_modules();
 }
 
-std::string compiler_t::dump_program_text(atom module_name) {
+std::string compiler_t::dump_program_text(std::string module_name) {
 	status_t status;
 	auto module = get_module(status, module_name);
 	if (!!status) {
@@ -1042,7 +1042,7 @@ llvm::Module *compiler_t::llvm_load_ir(status_t &status, std::string filename) {
 	}
 }
 
-llvm::Module *compiler_t::llvm_create_module(atom module_name) {
+llvm::Module *compiler_t::llvm_create_module(std::string module_name) {
 	llvm::LLVMContext &llvm_context = builder.getContext();
 	if (llvm_program_module.second == nullptr) {
 		/* only allow creating one program module */

@@ -36,7 +36,7 @@ enum token_kind
 	tk_semicolon, /* ; */
 
 	// Literals
-	tk_atom, /* atom literal */
+	tk_atom, /* std::string literal */
 	tk_char, /* char literal */
 	tk_error, /* error literal */
 	tk_float, /* 3.1415e20 */

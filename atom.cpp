@@ -10,9 +10,6 @@ struct atom {
 	typedef std::set<atom> set;
 	typedef std::vector<atom> many;
 
-	template <typename T>
-	using map = std::map<atom, T>;
-
 	atom() : iatom(0) {}
 	atom(std::string &&str);
 	atom(const std::string &str);

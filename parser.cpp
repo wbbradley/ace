@@ -1216,7 +1216,7 @@ identifier::ref make_code_id(const token_t &token) {
 	return make_ptr<code_id>(token);
 }
 
-identifier::ref make_type_id_code_id(const location_t location, atom var_name) {
+identifier::ref make_type_id_code_id(const location_t location, std::string var_name) {
 	return make_ptr<type_id_code_id>(location, var_name);
 }
 
@@ -1261,7 +1261,7 @@ types::type_t::ref _parse_function_type(parse_state_t &ps, identifier::set gener
 	chomp_token(tk_lparen);
 	types::type_t::refs param_types;
 	types::type_t::ref return_type;
-	atom::map<int> name_index;
+	std::map<std::string, int> name_index;
 	int index = 0;
 
 	while (!!ps.status) {
@@ -1746,7 +1746,7 @@ type_alias_t::ref type_alias_t::parse(
 
 dimension_t::ref dimension_t::parse(parse_state_t &ps, identifier::set generics) {
 	token_t primary_token;
-	atom name;
+	std::string name;
 	if (ps.token.is_ident(K(var))) {
 		ps.advance();
 		expect_token(tk_identifier);
@@ -1772,9 +1772,9 @@ void add_type_macros_to_parser(
 		parse_state_t &ps,
 		std::vector<ptr<const ast::link_name_t>> linked_names)
 {
-	atom::set names_seen;
+	std::set<std::string> names_seen;
 	for (auto link_name : linked_names) {
-		atom local_name = {link_name->local_name.text};
+		std::string local_name = {link_name->local_name.text};
 		if (in(local_name, ps.type_macros)) {
 			user_error(ps.status, link_name->local_name.location,
 					"you may not import multiple instances of the same name: " c_id("%s"),
@@ -1803,7 +1803,7 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 	auto module_decl = module_decl_t::parse(ps);
 
 	if (module_decl != nullptr) {
-		atom module_name = strip_zion_extension(ps.filename.str());
+		std::string module_name = strip_zion_extension(ps.filename.str());
 		ps.module_id = make_iid(module_decl->get_canonical_name());
 		assert(ps.module_id != nullptr);
 

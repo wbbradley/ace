@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include "lexer.h"
-#include "atom.h"
 #include "logger_decls.h"
 #include "status.h"
 #include "ptr.h"
@@ -11,7 +10,7 @@ namespace types {
 	struct type_t;
 }
 
-typedef std::map<atom, ptr<const types::type_t>> type_macros_t;
+typedef std::map<std::string, ptr<const types::type_t>> type_macros_t;
 
 struct parse_state_t {
 	typedef log_level_t parse_error_level_t;
@@ -32,7 +31,7 @@ struct parse_state_t {
 	bool line_broke() const { return newline || prior_token.tk == tk_semicolon; }
 	token_t token;
 	token_t prior_token;
-	atom filename;
+	std::string filename;
 	identifier::ref module_id;
 	zion_lexer_t &lexer;
 	status_t &status;

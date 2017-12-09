@@ -11,7 +11,7 @@ namespace types {
 		assert(!!name);
 	}
 
-	signature::signature(const atom name) :
+	signature::signature(const std::string name) :
 		name(name)
 	{
 		assert(!!name);
@@ -32,7 +32,7 @@ namespace types {
 	}
 
 
-	atom signature::repr() const {
+	std::string signature::repr() const {
 		assert(!!name);
 		return name;
 	}

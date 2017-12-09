@@ -7,7 +7,7 @@ std::string unchecked_type_t::str() const {
 }
 
 unchecked_type_t::unchecked_type_t(
-		atom name,
+		std::string name,
 		ptr<const ast::item_t> node,
 		ptr<scope_t> const module_scope) :
 	name(name), node(node)
@@ -19,7 +19,7 @@ unchecked_type_t::unchecked_type_t(
 }
 
 unchecked_type_t::ref unchecked_type_t::create(
-		atom name,
+		std::string name,
 		ptr<const ast::item_t> node,
 		ptr<scope_t> const module_scope)
 {

@@ -21,7 +21,7 @@ unification_t::unification_t(
 
 types::type_t::ref prune(types::type_t::ref t, types::type_t::map bindings) {
 	/* Follow the links across the bindings to reach the final binding. */
-	atom type_variable_name;
+	std::string type_variable_name;
 	if (get_type_variable_name(t, type_variable_name)) {
         if (bindings.find(type_variable_name) != bindings.end()) {
             return prune(bindings[type_variable_name], bindings);

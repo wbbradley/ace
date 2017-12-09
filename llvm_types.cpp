@@ -65,7 +65,7 @@ bound_type_t::ref create_bound_ref_type(
 		user_error(status, type_ref->get_location(),
 				"unable to instantiate type %s because free variables [%s] still exist",
 				type_ref->str().c_str(),
-				join_with(ftvs, ", ", [] (atom a) -> std::string {
+				join_with(ftvs, ", ", [] (std::string a) -> std::string {
 					return string_format(c_id("%s"), a.c_str());
 				}).c_str());
 	}
@@ -106,7 +106,7 @@ bound_type_t::ref create_bound_extern_type(
 		user_error(status, type_extern->get_location(),
 				"unable to instantiate type %s because free variables [%s] still exist",
 				type_extern->str().c_str(),
-				join_with(ftvs, ", ", [] (atom a) -> std::string {
+				join_with(ftvs, ", ", [] (std::string a) -> std::string {
 					return string_format(c_id("%s"), a.c_str());
 				}).c_str());
 	}
@@ -143,7 +143,7 @@ bound_type_t::ref create_bound_ptr_type(
 		user_error(status, type_ptr->get_location(),
 				"unable to instantiate type %s because free variables [%s] still exist",
 				type_ptr->str().c_str(),
-				join_with(ftvs, ", ", [] (atom a) -> std::string {
+				join_with(ftvs, ", ", [] (std::string a) -> std::string {
 					return string_format(c_id("%s"), a.c_str());
 					}).c_str());
 		return nullptr;
@@ -914,7 +914,7 @@ bound_var_t::ref upsert_type_info_mark_fn(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
-		atom name,
+		std::string name,
 		location_t location,
 		bound_type_t::ref data_type,
 		bound_var_t::ref dtor_fn,
@@ -931,7 +931,7 @@ bound_var_t::ref upsert_type_info_offsets(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
-		atom name,
+		std::string name,
 		location_t location,
 		bound_type_t::ref data_type,
 		bound_var_t::ref dtor_fn,
@@ -1086,7 +1086,7 @@ bound_var_t::ref upsert_type_info(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
-		atom name,
+		std::string name,
 		location_t location,
 		bound_type_t::ref data_type,
 		bound_type_t::refs args,
@@ -1121,7 +1121,7 @@ llvm::Value *llvm_call_allocator(
 	   	const ast::item_t::ref &node,
 		bound_type_t::ref data_type,
 		types::type_struct_t::ref struct_type,
-		atom name,
+		std::string name,
 		bound_type_t::refs args)
 {
 	debug_above(5, log(log_info, "calling allocator for %s",
@@ -1158,7 +1158,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		identifier::ref id,
 		const ast::item_t::ref &node)
 {
-	atom name = id->get_name();
+	std::string name = id->get_name();
 
 	auto program_scope = scope->get_program_scope();
 
