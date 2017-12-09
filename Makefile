@@ -84,7 +84,6 @@ ifeq ($(UNAME),Linux)
 				  -DLINUX
 
 	# -I$(shell $(LLVM_CONFIG) --includedir)/llvm
-	CPP = $(CPP)
 	CPP_FLAGS = \
 		  -I/usr/include/c++/v1 \
 		  -g \
