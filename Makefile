@@ -109,45 +109,45 @@ VPATH = .:$(BUILD_DIR)
 BUILD_DIR = build-$(UNAME)
 
 ZION_LLVM_SOURCES = \
-				main.cpp \
-				signature.cpp \
-				patterns.cpp \
-				types.cpp \
-				type_checker.cpp \
-				type_instantiation.cpp \
-				var.cpp \
 				ast.cpp \
-				builtins.cpp \
-				compiler.cpp \
+				atom.cpp \
 				bound_type.cpp \
 				bound_var.cpp \
+				builtins.cpp \
 				callable.cpp \
+				compiler.cpp \
 				dbg.cpp \
 				disk.cpp \
 				identifier.cpp \
 				lexer.cpp \
 				life.cpp \
-				llvm_utils.cpp \
 				llvm_test.cpp \
 				llvm_types.cpp \
+				llvm_utils.cpp \
 				location.cpp \
 				logger.cpp \
+				main.cpp \
 				mmap_file.cpp \
 				nil_check.cpp \
 				parse_state.cpp \
 				parser.cpp \
+				patterns.cpp \
 				phase_scope_setup.cpp \
 				render.cpp \
 				scopes.cpp \
+				signature.cpp \
 				status.cpp \
 				tests.cpp \
 				token.cpp \
 				token_queue.cpp \
+				type_checker.cpp \
+				type_instantiation.cpp \
+				types.cpp \
+				unchecked_type.cpp \
+				unchecked_var.cpp \
 				unification.cpp \
 				utils.cpp \
-				unchecked_var.cpp \
-				unchecked_type.cpp \
-				atom.cpp \
+				var.cpp \
 				zion_gc_lowering.cpp
 
 ZION_LLVM_OBJECTS = $(addprefix $(BUILD_DIR)/,$(ZION_LLVM_SOURCES:.cpp=.llvm.o))
