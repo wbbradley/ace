@@ -1,9 +1,10 @@
 module _
 
+# error: 4:6.* see type Box declaration
 type Box{T} has
 	var t T
 
-# error: type .*/Box already exists
+# error: type Box already exists
 type Box{X} is Box{X}
 
 def main()

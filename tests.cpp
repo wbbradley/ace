@@ -913,16 +913,16 @@ auto test_descs = std::vector<test_desc>{
 			auto module_id = make_iid("M");
 
 			auto parses = std::vector<std::pair<std::string, std::string>>{{
-				{"any a", "(any a)"},
-				{"any", "(any __1)"},
+				{"any a", "any a"},
+				{"any", "any __1"},
 				/* parsing type variables has monotonically increasing side effects */
-				{"any", "(any __1)"},
+				{"any", "any __1"},
 				{"void", "M.void"},
 				{"map{int, int}", "M.map{M.int}{M.int}"},
-				{"map{any b, any c}", "M.map{(any b)}{(any c)}"},
-				{"T", "(any T)"},
-				{"T{char, Q}", "(any T){M.char}{(any Q)}"},
-				{"map{T{int}, Q}", "M.map{(any T){M.int}}{(any Q)}"},
+				{"map{any b, any c}", "M.map{any b}{any c}"},
+				{"T", "any T"},
+				{"T{char, Q}", "any T{M.char}{any Q}"},
+				{"map{T{int}, Q}", "M.map{any T{M.int}}{any Q}"},
 			}};
 
 			for (auto p : parses) {
@@ -934,7 +934,6 @@ auto test_descs = std::vector<test_desc>{
 							p.first.c_str(),
 							repr.c_str(),
 							p.second.c_str());
-					dbg();
 					return false;
 				}
 			}
@@ -1068,10 +1067,12 @@ auto test_descs = std::vector<test_desc>{
 
 bool check_filters(std::string name, std::string filter, std::vector<std::string> excludes) {
 	if (filter.size() != 0 && name.find(filter.c_str()) == std::string::npos) {
+        /* filters are matching any part */
 		return false;
 	}
 	for (auto exclude : excludes) {
-		if (name.find(exclude.c_str()) != std::string::npos) {
+        /* excludes are whole-match */
+		if (name == exclude) {
 			return false;
 		}
 	}

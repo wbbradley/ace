@@ -1,5 +1,16 @@
 module _
+link module main
 # test: pass
+# expect: 7 : int
+# expect: "hello" : str
+# expect: gimme_bool() : bool
+# expect: gimme_bool() ? "foo" : 4.5 : (or str float)
+# expect: (gimme_bool() and int("9")) : (or int false)
+# expect: ((gimme_bool() and int("9")) or 200) : int
+# expect: (true and 100) : int
+# expect: (false and 100) : false
+# expect: (true or 100) : true
+# expect: (false or 100) : int
 
 def gimme_bool() bool
 	return true

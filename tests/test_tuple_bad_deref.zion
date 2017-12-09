@@ -4,5 +4,5 @@ module _
 
 def main()
 	x := (1,)
-	# error: unable to resolve overloads for __getitem__ at x
+	# error: unable to resolve overloads for __getitem__
 	y := x["blah"]

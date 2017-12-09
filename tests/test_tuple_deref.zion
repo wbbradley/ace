@@ -1,5 +1,7 @@
 module _
+link module main
 # test: pass
+# expect: hello
 
 # test dereferencing into a tuple
 

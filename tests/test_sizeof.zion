@@ -1,12 +1,16 @@
 module _
+link module main
 # test: pass
+# expect: 56
+# expect: 16
+# expect: 24
 
-type __Value__ has
+type __Value__ struct
 	var size __int64__
-	var name __str__
+	var name *__char__
 	var typeinfo *__TypeInfo__
 
-type __TypeInfo__ has
+type __TypeInfo__ struct
 	var typeid __typeid__
 	var addref *def (v *__Value__) void
 	var release *def (v *__Value__) void
@@ -17,7 +21,7 @@ def addref(v *__Value__) void
 def release(v *__Value__) void
 	pass
 
-type __TwoInts__ has
+type __TwoInts__ struct
 	var x __int__
 	var y __int__
 
@@ -28,7 +32,7 @@ type TwoInts has
 def main()
 	# With standard aligned sizeof we get some extra padding for the managed
 	# types
-	print(__sizeof__(__TwoInts__))  # 16
-	print(__sizeof__(TwoInts))      # 72
-	print(__sizeof__(__TypeInfo__)) # 24
+	print(sizeof(__TwoInts__))  # 16
+	print(sizeof(TwoInts))      # 56
+	print(sizeof(__TypeInfo__)) # 24
 

@@ -831,42 +831,44 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 	bound_type_t::ref return_value;
 
 	type_check_fully_bound_function_decl(status, builder, *extern_function, scope, named_args, return_value);
-	assert(return_value != nullptr);
-
 	if (!!status) {
-		bound_type_t::refs args;
-		for (auto &named_arg_pair : named_args) {
-			args.push_back(named_arg_pair.second);
+		assert(return_value != nullptr);
+
+		if (!!status) {
+			bound_type_t::refs args;
+			for (auto &named_arg_pair : named_args) {
+				args.push_back(named_arg_pair.second);
+			}
+
+			// TODO: rearrange this, and get the pointer type
+			llvm::FunctionType *llvm_func_type = llvm_create_function_type(
+					status, builder, args, return_value);
+
+			/* try to find this function, if it already exists... */
+			llvm::Module *llvm_module = module_scope->get_llvm_module();
+			llvm::Value *llvm_value = llvm_module->getOrInsertFunction(function_name.text,
+					llvm_func_type);
+
+			assert(llvm_print(llvm_value->getType()) != llvm_print(llvm_func_type));
+
+			/* get the full function type */
+			types::type_function_t::ref function_sig = get_function_type(
+					args, return_value);
+			debug_above(3, log(log_info, "%s has type %s",
+						function_name.str().c_str(),
+						function_sig->str().c_str()));
+
+			/* actually create or find the finalized bound type for this function */
+			bound_type_t::ref bound_function_type = upsert_bound_type(
+					status, builder, scope, function_sig);
+
+			return bound_var_t::create(
+					INTERNAL_LOC(),
+					scope->make_fqn(function_name.text),
+					bound_function_type,
+					llvm_value,
+					make_code_id(extern_function->token));
 		}
-
-		// TODO: rearrange this, and get the pointer type
-		llvm::FunctionType *llvm_func_type = llvm_create_function_type(
-				status, builder, args, return_value);
-
-		/* try to find this function, if it already exists... */
-		llvm::Module *llvm_module = module_scope->get_llvm_module();
-		llvm::Value *llvm_value = llvm_module->getOrInsertFunction(function_name.text,
-				llvm_func_type);
-
-		assert(llvm_print(llvm_value->getType()) != llvm_print(llvm_func_type));
-
-		/* get the full function type */
-		types::type_function_t::ref function_sig = get_function_type(
-				args, return_value);
-		debug_above(3, log(log_info, "%s has type %s",
-					function_name.str().c_str(),
-					function_sig->str().c_str()));
-
-		/* actually create or find the finalized bound type for this function */
-		bound_type_t::ref bound_function_type = upsert_bound_type(
-				status, builder, scope, function_sig);
-
-		return bound_var_t::create(
-				INTERNAL_LOC(),
-				scope->make_fqn(function_name.text),
-				bound_function_type,
-				llvm_value,
-				make_code_id(extern_function->token));
 	}
 
 	assert(!status);
@@ -1135,6 +1137,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 			bound_type_t::refs args = upsert_bound_types(status,
 					builder, scope, struct_type->dimensions);
 
+			dbg();
 			// TODO: find the dtor
 			return upsert_type_info(
 					status,
@@ -1206,7 +1209,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 											type_info->get_llvm_type());
 
 									llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
-									auto signature = extern_type->get_signature();
+									auto signature = full_type->get_signature();
 
 									llvm::Constant *llvm_type_info = llvm_create_constant_struct_instance(
 											llvm_type_info_type,

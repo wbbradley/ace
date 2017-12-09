@@ -192,7 +192,7 @@ hello-world-test: $(ZION_TARGET)
 .PHONY: expect-tests
 expect-tests: $(ZION_TARGET)
 	@echo "Executing expect tests..."
-	for f in tests/test_*.zion; do python expect.py -p $$f; done
+	./expect-tests.sh
 
 .PHONY: test-html
 test-html: $(ZION_TARGET)

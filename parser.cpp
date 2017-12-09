@@ -1182,7 +1182,6 @@ ptr<semver_t> semver_t::parse(parse_state_t &ps) {
 	} else {
 		return nullptr;
 	}
-
 }
 
 void parse_maybe_type_decl(parse_state_t &ps, identifier::refs &type_variables) {
@@ -1191,6 +1190,10 @@ void parse_maybe_type_decl(parse_state_t &ps, identifier::refs &type_variables) 
 		while (true) {
 			if (ps.token.tk == tk_identifier) {
 				/* we found a type variable, let's stash it */
+				if (ps.token.is_ident(K(any))) {
+					ps.error("`any` is unnecessary within type parameters of type declarations");
+					break;
+				}
 				type_variables.push_back(make_code_id(ps.token));
 				ps.advance();
 				if (ps.token.tk == tk_comma) {
@@ -1219,9 +1222,9 @@ identifier::ref make_type_id_code_id(const location_t location, atom var_name) {
 
 types::type_t::refs parse_type_operands(
 		parse_state_t &ps,
-	   	identifier::ref supertype_id,
-	   	identifier::refs type_variables,
-	   	identifier::set generics)
+		identifier::ref supertype_id,
+		identifier::refs type_variables,
+		identifier::set generics)
 {
 	types::type_t::refs arguments;
 
@@ -1837,10 +1840,30 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 			} else if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(def))) {
 				/* function definitions */
 				auto function = function_defn_t::parse(ps);
-				if (function) {
+				if (!!ps.status) {
+					if (function->token.text == "main") {
+						bool have_linked_main = false;
+						for (auto linked_module : module->linked_modules) {
+							if (linked_module->token.text == "main") {
+								have_linked_main = true;
+								break;
+							}
+						}
+						if (!have_linked_main) {
+							ptr<link_module_statement_t> linked_module = create<link_module_statement_t>(ps.token);
+							linked_module->link_as_name = token_t(
+									function->decl->token.location,
+									tk_identifier,
+									types::gensym()->get_name().str());
+							linked_module->extern_module = create<ast::module_decl_t>(token_t(
+										function->decl->token.location,
+										tk_identifier,
+										"main"));
+							linked_module->extern_module->name = linked_module->extern_module->token;
+							module->linked_modules.push_back(linked_module);
+						}
+					}
 					module->functions.push_back(std::move(function));
-				} else {
-					assert(!ps.status);
 				}
 			} else if (ps.token.is_ident(K(tag))) {
 				/* tags */
@@ -1863,16 +1886,18 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 			}
 		}
 
-		if (ps.token.tk != tk_none) {
-			if (!!ps.status) {
+		if (!!ps.status) {
+			if (ps.token.tk != tk_none) {
 				ps.error("unexpected '" c_id("%s") "' at top-level module scope (%s)",
 						ps.token.text.c_str(), tkstr(ps.token.tk));
 			}
 		}
 
-		return module;
-	} else {
-		assert(!ps.status);
+        if (!!ps.status) {
+            return module;
+        }
 	}
+
+    assert(!ps.status);
 	return nullptr;
 }

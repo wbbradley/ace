@@ -235,7 +235,7 @@ void ast::pattern_block_t::resolve_pattern_block(
 					llvm::Function *llvm_function_current = llvm_get_function(builder);
 
 					/* generate some new blocks */
-					llvm::BasicBlock *then_bb = llvm::BasicBlock::Create(builder.getContext(), "pattern.is", llvm_function_current);
+					llvm::BasicBlock *then_bb = llvm::BasicBlock::Create(builder.getContext(), string_format("pattern.is.%s", bound_type->get_type()->repr().c_str()), llvm_function_current);
 					llvm::BasicBlock *merge_bb = nullptr;
 
 					/* we have to keep track of whether we need a merge block

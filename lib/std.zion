@@ -373,6 +373,7 @@ def rand(max int) int
 	return int(r % max.raw)
 
 def __bool__(x [any T] or str or int or bool) __bool__
+	assert(x as *void != nil)
 	when x
 		is true
 			return __true__
@@ -385,6 +386,11 @@ def __bool__(x [any T] or str or int or bool) __bool__
 		is [any T]
 			return (x as *vector.vector_t).size != 0r
 
+	node := x as *runtime.var_t
+	print("failed to match type of object at 0x"
+		+ str(runtime.hex(node))
+		+ " and is a " + str(node.type_info.name)
+		+ " with type ID " + str(node.type_info.type_id as __int__))
 	assert(__false__)
 	return __false__
 

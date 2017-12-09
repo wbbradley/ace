@@ -1,17 +1,7 @@
 module _
+link module main
 # test: pass
-# expect: 4
-
-def max(mml [any T], mlast any T?) any T?
-	if ml := mml
-		if last := mlast
-			if ml.value > last
-				return max(ml.next, ml.value)
-			else
-				return max(ml.next, last)
-
-		return max(ml.next, ml.value)
-	return mlast
+# expect: 144
 
 def fib(n) int
 	if n < 2
@@ -19,8 +9,4 @@ def fib(n) int
 	return fib(n - 1) + fib(n - 2)
 
 def main()
-	m := max((3, (2, (4, (1, nil)))), nil)
-	if m
-		print(m)
-	else
-		print("No max")
+	print(fib(11))

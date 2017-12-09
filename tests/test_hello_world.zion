@@ -1,10 +1,11 @@
 module hello @1.0
+link module main
+link module runtime
+
 # test: pass
 # expect: Hello, world.
-
-link def gc()
 
 def main()
 	x := "Hello, world."
 	print(x)
-	gc()
+	runtime.gc()

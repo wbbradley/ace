@@ -447,14 +447,8 @@ void scope_impl_t<T>::put_bound_variable(
 	if (existing_bound_var_iter != resolve_map.end()) {
 		auto existing_bound_var = existing_bound_var_iter->second;
 
-		user_error(status, bound_variable->get_location(),
-			   "failed to bind %s as its name and signature are already taken",
-			   bound_variable->str().c_str());
-
-		user_error(status, bound_variable->get_location(),
-			   "see existing bound variable %s",
-			   existing_bound_var->str().c_str());
-
+		user_error(status, bound_variable->get_location(), "symbol " c_id("%s") " is already bound", symbol.c_str());
+		user_info(status, bound_variable->get_location(), "see existing bound variable");
 	} else {
 		resolve_map[signature] = bound_variable;
 		if (!dynamic_cast<program_scope_t *>(this)

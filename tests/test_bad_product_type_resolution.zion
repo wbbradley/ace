@@ -8,6 +8,6 @@ type Derived2{Y} has
 
 type Base{X, Y} is Derived{X} or Derived2{Y}
 
-# error: unable to find a definition for .*C\{int\}
+# error: unable to bind type .*C\{int\}
 def do(b C{int})
 	print(b.x)

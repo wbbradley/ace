@@ -739,7 +739,6 @@ namespace ast {
 		std::string get_canonical_name() const;
 		token_t get_name() const;
 
-	private:
 		token_t name;
 	};
 

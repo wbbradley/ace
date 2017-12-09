@@ -698,7 +698,7 @@ bound_type_t::ref create_bound_type(
 	} else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
 		return create_bound_operator_type(status, builder, scope, operator_);
 	} else if (auto variable = dyncast<const types::type_variable_t>(type)) {
-		user_error(status, variable->get_location(), "unable to resolve type for %s", variable->str().c_str());
+		user_error(status, variable->get_location(), "found a free type variable where a bound type was expected: %s", variable->str().c_str());
 	} else if (auto lambda = dyncast<const types::type_lambda_t>(type)) {
 		user_error(status, lambda->get_location(), "unable to instantiate generic type %s without the necessary type application",
 				lambda->str().c_str());
@@ -759,7 +759,7 @@ bound_type_t::ref upsert_bound_type(
 				}
 
 				user_error(status, type->get_location(),
-						"unable to find a definition for %s in scope " c_id("%s"),
+						"unable to bind type %s in scope " c_id("%s"),
 						type->str().c_str(),
 						scope->get_name().c_str());
 			}

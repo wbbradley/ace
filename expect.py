@@ -24,29 +24,40 @@ def main():
     args = _parse_args(parser)
 
     try:
-        expect = (subprocess.check_output(
-            'grep "^# expect: " < %s' % args.program, shell=True) or "").strip()
+        expects = (
+            subprocess.check_output('grep "^# expect: " < %s' % args.program, shell=True)
+            or ""
+        ).strip().split('\n')
     except subprocess.CalledProcessError as e:
-        expect = None
+        expects = []
 
-    if not expect:
+    if not expects:
         sys.exit(0)
 
-    expect = expect[len("# expect: "):]
-
-    print("Searching for %s in output from %s..." % (expect, args.program))
     try:
-        actual = subprocess.check_output("./zion run %s" % args.program, shell=True)
+        print("-" * 10 + " " + args.program + " " + "-" * 20)
+        cmd = "./zion run %s" % args.program
+        print("running " + cmd)
+        actual = subprocess.check_output(cmd, shell=True)
     except subprocess.CalledProcessError as e:
         print(e)
+        print(e.output)
         sys.exit(-1)
 
-    print("-" * 10 + " " + args.program + " " + "-" * 20)
-    print(actual)
-    if actual.find(expect) == -1:
-        sys.exit(-1)
-    else:
-        sys.exit(0)
+    for expect in expects:
+        expect = expect[len("# expect: "):]
+
+        msg = "Searching for %s in output from %s..." % (expect, args.program)
+
+        if actual.find(expect) == -1:
+            print(msg + " error.")
+            print(actual)
+            sys.exit(-1)
+        else:
+            print(msg + " success.")
+            continue
+
+    sys.exit(0)
 
 if __name__ == '__main__':
     main()
