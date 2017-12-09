@@ -121,18 +121,18 @@ struct SE {
 
 void dbg_ti(struct TI *ti) {
 	printf("type_id:\t%lld\ntype_kind:\t%lld\nsize:\t%lld\nname:\t%s\n",
-			(int64_t)ti->type_id,
-			(int64_t)ti->type_kind,
-			(int64_t)ti->size,
+			(long long)ti->type_id,
+			(long long)ti->type_kind,
+			(long long)ti->size,
 			ti->name);
 }
 
 void dbg_vt(struct VT *vt) {
 	dbg_ti(vt->type_info);
-	printf("mark:\t%lld\n", vt->mark);
-	printf("next:\t0x%08llx\n", (int64_t)vt->next);
-	printf("prev:\t0x%08llx\n", (int64_t)vt->prev);
-	printf("allocation:\t%lld\n", (int64_t)vt->allocation);
+	printf("mark:\t%lld\n", (long long)vt->mark);
+	printf("next:\t0x%08llx\n", (long long)vt->next);
+	printf("prev:\t0x%08llx\n", (long long)vt->prev);
+	printf("allocation:\t%lld\n", (long long)vt->allocation);
 }
 
 void dbg_se(void *p) {
@@ -140,9 +140,9 @@ void dbg_se(void *p) {
 	if (se) {
 		assert(se->map);
 		printf("stack entry: (next: 0x%08llx, map: 0x%08llx {%lld roots})\n",
-				(int64_t)se->next, (int64_t)se->map, (int64_t)se->map->num_roots);
+				(long long)se->next, (long long)se->map, (long long)se->map->num_roots);
 		for (int64_t i=0; i < se->map->num_roots; ++i) {
-			printf("root[%lld]: 0x%08llx\n", (int64_t)i, (int64_t)se->root[i]);
+			printf("root[%lld]: 0x%08llx\n", (long long)i, (long long)se->root[i]);
 			if (se->root[i]) {
 				dbg_vt(se->root[i]);
 			}

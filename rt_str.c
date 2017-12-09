@@ -16,13 +16,13 @@ void mem_dump(void *addr, zion_int_t cb) {
 char *__str_int_radix(zion_int_t x, zion_int_t radix) {
 	char onstack[65];
 	if (radix == 10) {
-		snprintf(onstack, sizeof(onstack), "%lld", x);
+		snprintf(onstack, sizeof(onstack), "%lld", (long long)x);
 	} else if (radix == 8) {
-		snprintf(onstack, sizeof(onstack), "%llo", x);
+		snprintf(onstack, sizeof(onstack), "%llo", (long long)x);
 	} else if (radix == 16) {
-		snprintf(onstack, sizeof(onstack), "%llx", x);
+		snprintf(onstack, sizeof(onstack), "%llx", (long long)x);
 	} else {
-		printf("unsupported radix requested in __str_int_radix for value %lld", x);
+		printf("unsupported radix requested in __str_int_radix for value %lld", (long long)x);
 		exit(1);
 	}
 	return strdup(onstack);
@@ -44,7 +44,7 @@ char *__str_float(zion_float_t x) {
 
 char *__str_type_id(type_id_t x) {
 	char onstack[65];
-	snprintf(onstack, sizeof(onstack), "%d", x);
+	snprintf(onstack, sizeof(onstack), "%d", (int)x);
 	onstack[sizeof(onstack) - 1] = 0;
 	return strdup(onstack);
 }

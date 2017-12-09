@@ -44,14 +44,14 @@ ifeq ($(UNAME),Darwin)
 else
 
 ifeq ($(UNAME),Linux)
-	CLANG_BIN = clang-3.9
+	CLANG_BIN = clang-4.0
 	CLANG := $(CLANG_BIN)
-	CPP := clang++-3.9
-	LLVM_LINK_BIN = llvm-link-3.9
-	LLVM_CONFIG = llvm-config-3.9
+	CPP := clang++-4.0
+	LLVM_LINK_BIN = llvm-link-4.0
+	LLVM_CONFIG = llvm-config-4.0
 	LLVM_CFLAGS = $(CFLAGS) \
 				  -nostdinc++ \
-				  -I/usr/lib/llvm-3.9/include \
+				  -I/usr/lib/llvm-4.0/include \
 				  -I/usr/include/c++/5 \
 				  -I/usr/include/x86_64-linux-gnu \
 				  -I/usr/include/x86_64-linux-gnu/c++/5 \
@@ -100,7 +100,7 @@ ifeq ($(UNAME),Linux)
 		$(shell $(LLVM_CONFIG) --cxxflags --ldflags --system-libs --libs)
 
 	LINKER_DEBUG_OPTS := $(DEBUG_FLAGS)
-	LLDB = lldb-3.9
+	LLDB = lldb-4.0
 endif
 
 endif
@@ -154,7 +154,6 @@ ZION_LLVM_OBJECTS = $(addprefix $(BUILD_DIR)/,$(ZION_LLVM_SOURCES:.cpp=.llvm.o))
 ZION_TARGET = zion
 ZION_RUNTIME = \
 				rt_int.c \
-				rt_fn.c \
 				rt_float.c \
 				rt_str.c \
 				rt_typeid.c
