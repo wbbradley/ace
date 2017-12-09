@@ -10,8 +10,11 @@ def do(y int) bool
 def do(y bool) bool
 	return false
 
+def something() bool
+	return true
+
 def main()
-	x := true ? 12 : "hey"
+	x := something() ? 12 : "hey"
 
 	# this call to `do` should invoke auto-code-generation of runtime
 	# polymorphism switching constructs to ensure that a sum type can be
