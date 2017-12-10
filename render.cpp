@@ -200,7 +200,7 @@ namespace ast {
 	}
 
 	void dimension_t::render(render_state_t &rs) const {
-		if (!!name) {
+		if (name.size() != 0) {
 			rs.ss << C_TYPE << K(var) << C_RESET << " ";
 			rs.ss << C_VAR << name << C_RESET << " ";
 		}

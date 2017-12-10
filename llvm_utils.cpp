@@ -1,4 +1,5 @@
 #include <iostream>
+#include "atom.h"
 #include "logger.h"
 #include "utils.h"
 #include "location.h"
@@ -575,7 +576,7 @@ llvm::StructType *llvm_create_struct_type(
 	auto llvm_struct_type = llvm::StructType::create(builder.getContext(), llvm_dims);
 
 	/* give the struct a helpful name internally */
-	llvm_struct_type->setName(name.str());
+	llvm_struct_type->setName(name);
 
 	debug_above(3, log(log_info, "created struct type " c_id("%s") " %s",
 				name.c_str(),
@@ -676,7 +677,7 @@ bound_var_t::ref llvm_start_function(
 			/* now let's generate our actual data ctor fn */
 			auto llvm_function = llvm::Function::Create(
 					(llvm::FunctionType *)llvm_fn_type,
-					llvm::Function::ExternalLinkage, name.str(),
+					llvm::Function::ExternalLinkage, name,
 					scope->get_llvm_module());
 
 			llvm_function->setGC(GC_STRATEGY);
@@ -781,7 +782,7 @@ bound_var_t::ref llvm_create_global_tag(
 			llvm::Module *llvm_module = scope->get_llvm_module();
 			assert(llvm_module != nullptr);
 
-			llvm::Constant *llvm_name = llvm_create_global_string_constant(builder, *llvm_module, tag.str());
+			llvm::Constant *llvm_name = llvm_create_global_string_constant(builder, *llvm_module, tag);
 			debug_above(10, log(log_info, "llvm_name is %s", llvm_print(*llvm_name).c_str()));
 
 			bound_type_t::ref type_info_type = program_scope->get_runtime_type(status, builder, "type_info_t");
@@ -792,12 +793,12 @@ bound_var_t::ref llvm_create_global_tag(
 
 				/* create the type information inside the tag singleton */
 				llvm::Constant *llvm_type_info = llvm_create_struct_instance(
-						std::string("__tag_type_info_") + tag.str(),
+						std::string("__tag_type_info_") + tag,
 						llvm_module,
 						llvm_type_info_type,
 						{
 							/* type_id - the actual type "tag" */
-							(llvm::Constant *)llvm_create_int32(builder, tag.iatom),
+							(llvm::Constant *)llvm_create_int32(builder, atomize(tag)),
 
 							/* the type kind */
 							builder.getInt32(type_kind_tag),
@@ -812,7 +813,7 @@ bound_var_t::ref llvm_create_global_tag(
 
 				/* create the actual tag singleton */
 				llvm::Constant *llvm_tag_constant = llvm_create_struct_instance(
-						std::string("__tag_") + tag.str(),
+						std::string("__tag_") + tag,
 						llvm_module, llvm_tag_type, {llvm_type_info});
 
 				debug_above(10, log(log_info, "getBitCast(%s, %s)",

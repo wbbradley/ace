@@ -22,19 +22,6 @@ zion_lexer_t::zion_lexer_t(std::string filename, std::istream &sock_is)
 {
 }
 
-bool isatomchar(char ch) {
-	if (((ch >= 'a') && (ch <= 'z')) || ((ch >= 'A') && (ch <= 'Z')))
-		return true;
-	if (isdigit(ch))
-		return true;
-
-	const char *tchars = "-_";
-	if (strchr(tchars, ch) != NULL)
-		return true;
-
-	return false;
-}
-
 bool istchar_start(char ch) {
 	return isalpha(ch) || ch == '_';
 }
@@ -145,7 +132,6 @@ bool zion_lexer_t::_get_tokens() {
 		gts_indenting,
 		gts_token,
 		gts_error,
-		gts_atom,
 		gts_colon,
 		gts_bang,
 		gts_integer,
@@ -187,12 +173,6 @@ bool zion_lexer_t::_get_tokens() {
 		ch = m_is.peek();
 
 		switch (gts) {
-		case gts_atom:
-			if (!isatomchar(ch)) {
-				gts = gts_end;
-				scan_ahead = false;
-			}
-			break;
 		case gts_whitespace:
 			if (ch != ' ') {
 				gts = gts_end;
@@ -293,9 +273,6 @@ bool zion_lexer_t::_get_tokens() {
 			if (ch == '=') {
 				gts = gts_end;
 				tk = tk_becomes;
-			} else if (isatomchar(ch)) {
-				gts = gts_atom;
-				tk = tk_atom;
 			} else {
 				scan_ahead = false;
 				gts = gts_end;

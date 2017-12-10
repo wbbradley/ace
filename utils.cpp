@@ -286,10 +286,6 @@ bool starts_with(const std::string &str, const std::string &search) {
 	return str.find(search) == 0;
 }
 
-bool starts_with(std::string atom_str, const std::string &search) {
-	return atom_str.str().find(search) == 0;
-}
-
 bool starts_with(const char *str, const std::string &search) {
 	return strstr(str, search.c_str()) == str;
 }

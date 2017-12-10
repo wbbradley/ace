@@ -1,4 +1,5 @@
 #include "zion.h"
+#include "atom.h"
 #include "ast.h"
 #include "compiler.h"
 #include "llvm_utils.h"
@@ -39,7 +40,7 @@ bound_type_t::ref create_ptr_type(
 				ptr_type->element_type->str().c_str()));
 	llvm::StructType *llvm_type = llvm::StructType::create(
 			builder.getContext(),
-			ptr_type->element_type->get_signature().str());
+			ptr_type->element_type->get_signature());
 	assert(!llvm_type->isSized());
 	assert(llvm_type->isOpaque());
 
@@ -385,7 +386,7 @@ bound_type_t::ref create_bound_struct_type(
 
 				llvm_struct_type->setBody(elements);
 				debug_above(6, log("setting the body of the %s structure to %s",
-							struct_type->get_signature().str().c_str(),
+							struct_type->get_signature().c_str(),
 							llvm_print(llvm_struct_type).c_str()));
 
 				auto bound_type = bound_type_t::create(struct_type,
@@ -445,7 +446,7 @@ bound_type_t::ref bind_expansion(
 		if (llvm_struct_type != nullptr) {
 			std::string old_name = llvm_struct_type->getName().str();
 			if (old_name.substr(0, 2) != "z.") {
-				std::string new_name = std::string("z.") + unexpanded->repr(scope->get_typename_env()).str();
+				std::string new_name = std::string("z.") + unexpanded->repr(scope->get_typename_env());
 				debug_above(6, log("changing name of LLVM struct from %s to %s",
 							old_name.c_str(),
 							new_name.c_str()));
@@ -1005,7 +1006,7 @@ bound_var_t::ref upsert_type_info_offsets(
 				if (llvm_offsets.size() != 0) {
 					/* create the actual list of offsets */
 					llvm::Constant *llvm_dim_offsets_raw = llvm_get_global(llvm_module,
-							std::string("__dim_offsets_raw_") + name.str(),
+							std::string("__dim_offsets_raw_") + name,
 							llvm::ConstantArray::get(llvm_dim_offsets_type, llvm_offsets),
 							true /*is_constant*/);
 					debug_above(5, log(log_info, "llvm_dim_offsets_raw = %s",
@@ -1022,13 +1023,13 @@ bound_var_t::ref upsert_type_info_offsets(
 							llvm_print(llvm_dim_offsets).c_str()));
 
 				debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
-							signature.str().c_str(), signature.repr().iatom));
+							signature.str().c_str(), atomize(signature.repr())));
 
 				llvm::Constant *llvm_type_info_head = llvm_create_constant_struct_instance(
 						llvm_type_info_head_type,
 						{
 						/* the type_id */
-						builder.getInt32(signature.repr().iatom),
+						builder.getInt32(atomize(signature.repr())),
 
 						/* the kind of this type_info */
 						builder.getInt32(type_kind_use_offsets),
@@ -1037,7 +1038,7 @@ bound_var_t::ref upsert_type_info_offsets(
 						llvm_sizeof_tuple,
 
 						/* name this variable */
-						(llvm::Constant *)builder.CreateGlobalStringPtr(name.str()),
+						(llvm::Constant *)builder.CreateGlobalStringPtr(name),
 					});
 
 				llvm::Constant *llvm_type_info = llvm_create_struct_instance(

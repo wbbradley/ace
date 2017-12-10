@@ -367,7 +367,7 @@ void scope_impl_t<T>::put_typename(status_t &status, std::string type_name, type
 		typename_env[type_name] = expansion;
 		if (auto parent_scope = get_parent_scope()) {
 			parent_scope->put_typename(status,
-				   	get_leaf_name().str() + SCOPE_SEP + type_name.str(), expansion);
+				   	get_leaf_name() + SCOPE_SEP + type_name, expansion);
 		} else {
 			/* we are at the outermost scope, let's go ahead and register this
 			 * typename */
@@ -457,7 +457,7 @@ void scope_impl_t<T>::put_bound_variable(
 			auto program_scope = get_program_scope();
 			program_scope->put_bound_variable(
 					status,
-					this->make_fqn(symbol.str()),
+					this->make_fqn(symbol),
 					bound_variable);
 		}
 	}
@@ -553,9 +553,9 @@ void scope_impl_t<T>::get_callables(std::string symbol, var_t::refs &fns) {
 		if (parent_scope != nullptr) {
 			/* let's see if our parent scope has any of this symbol from our scope */
 			parent_scope->get_callables(
-				symbol.str().find(SCOPE_SEP) == std::string::npos
-					? make_fqn(symbol.str())
-					: symbol.str(),
+				symbol.find(SCOPE_SEP) == std::string::npos
+					? make_fqn(symbol)
+					: symbol,
 			   	fns);
 
 			/* let's see if our parent scope has any of this symbol just generally */

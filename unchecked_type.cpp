@@ -14,7 +14,7 @@ unchecked_type_t::unchecked_type_t(
 {
 	debug_above(5, log(log_info, "creating unchecked type " c_type("%s"), this->name.c_str()));
 
-	assert(!!this->name);
+	assert(this->name.size() != 0);
 	assert(this->node != nullptr);
 }
 

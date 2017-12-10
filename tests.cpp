@@ -241,7 +241,7 @@ bool test_lex_dependency_keywords() {
 
 bool test_lex_literals() {
 	lexer_tests tests = {
-		{":std::string \"hello world\\n\" 13493839", {tk_atom, tk_string, tk_integer}},
+		{"\"hello world\\n\" 13493839", {tk_string, tk_integer}},
 		{"\"\"", {tk_string}},
 		{"0", {tk_integer}},
 		{"0r", {tk_raw_integer}},
@@ -927,7 +927,7 @@ auto test_descs = std::vector<test_desc>{
 
 			for (auto p : parses) {
 				reset_generics();
-				auto repr = parse_type_expr(p.first, generics, module_id)->repr().str();
+				auto repr = parse_type_expr(p.first, generics, module_id)->repr();
 				if (repr != p.second) {
 					log(log_error, c_type("%s") " parsed to " c_type("%s")
 							" - should have been " c_type("%s"),

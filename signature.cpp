@@ -14,12 +14,12 @@ namespace types {
 	signature::signature(const std::string name) :
 		name(name)
 	{
-		assert(!!name);
+		assert(name.size());
 	}
 
 	bool signature::operator !() const {
 		/* signatures must have a name */
-		return !name;
+		return name.size() == 0;
 	}
 
 	signature &signature::operator =(const signature &rhs) {
@@ -33,13 +33,13 @@ namespace types {
 
 
 	std::string signature::repr() const {
-		assert(!!name);
+		assert(name.size());
 		return name;
 	}
 
 	std::string signature::str() const {
 		std::stringstream ss;
-		ss << C_SIG << repr().str() << C_RESET;
+		ss << C_SIG << repr() << C_RESET;
 		return ss.str();
 	}
 }

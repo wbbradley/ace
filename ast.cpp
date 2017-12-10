@@ -48,7 +48,7 @@ namespace ast {
 		static std::string ext = ".zion";
 		if (name.text == "_") {
 			/* this name is too generic, let's use the leaf filename */
-			std::string filename = name.location.filename.str();
+			std::string filename = name.location.filename;
 			auto leaf = leaf_from_file_path(filename);
 			if (ends_with(leaf, ext)) {
 				return leaf.substr(0, leaf.size() - ext.size());

@@ -17,7 +17,7 @@ struct unchecked_var_t : public var_t {
 			ptr<module_scope_t> module_scope)
 		: id(id), node(node), module_scope(module_scope)
 	{
-		assert(id && !!id->get_name());
+		assert(id && id->get_name().size());
 		assert(node != nullptr);
 	}
 	virtual ~unchecked_var_t() throw() {}

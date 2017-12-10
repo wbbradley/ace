@@ -77,9 +77,9 @@ bound_type_t::ref get_bound_type_from_scope(
 std::string scope_t::get_name() const {
 	auto parent_scope = this->get_parent_scope();
 	if (parent_scope && !dyncast<const program_scope_t>(parent_scope)) {
-		return parent_scope->get_name() + SCOPE_SEP + get_leaf_name().str();
+		return parent_scope->get_name() + SCOPE_SEP + get_leaf_name();
 	} else {
-		return get_leaf_name().str();
+		return get_leaf_name();
 	}
 }
 
@@ -533,7 +533,7 @@ std::string module_scope_impl_t::make_fqn(std::string leaf_name) const {
 	   	log("found a . in %s", leaf_name.c_str());
 	   	dbg();
    	}
-	return get_leaf_name().str() + SCOPE_SEP + leaf_name;
+	return get_leaf_name() + SCOPE_SEP + leaf_name;
 }
 
 void module_scope_impl_t::put_unchecked_type(
@@ -679,7 +679,7 @@ unchecked_var_t::ref module_scope_t::put_unchecked_variable(
 	   	unchecked_var_t::ref unchecked_variable)
 {
 	return get_program_scope()->put_unchecked_variable(
-			make_fqn(symbol.str()),
+			make_fqn(symbol),
 		   	unchecked_variable);
 }
 
@@ -816,7 +816,7 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 	/* iterate over the bindings found during unifications and make
 	 * substitutions in the type environment */
 	for (auto &pair : unification.bindings) {
-		if (pair.first.str().find("_") != 0) {
+		if (pair.first.find("_") != 0) {
 			subst_scope->put_type_variable_binding(status, pair.first, pair.second);
 			if (!status) {
 				break;

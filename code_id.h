@@ -41,7 +41,7 @@ struct type_id_code_id : public identifier {
 	}
 
 	virtual std::string str() const {
-		return name.str();
+		return name;
 	}
 
 	const location_t location;

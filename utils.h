@@ -182,3 +182,9 @@ std::string escape_json_quotes(const std::string &s);
 void escape_json_quotes(std::ostream &ss, const std::string &str);
 std::string unescape_json_quotes(const std::string &s);
 size_t utf8_sequence_length(char ch_);
+
+template <typename U, typename COLL>
+bool in(U item, const COLL &set) {
+	return set.find(item) != set.end();
+}
+

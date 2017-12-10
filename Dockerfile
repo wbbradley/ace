@@ -40,6 +40,7 @@ RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-lin
 	&& update-alternatives --install /usr/bin/clang clang /usr/bin/clang-4.0 100 \
 	&& update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-4.0 100
 
+ENV ARC4RANDOM_LIB bsd
 ADD . /opt/zion
 WORKDIR /opt/zion
 CMD bash

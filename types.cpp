@@ -23,7 +23,7 @@ std::string get_name_from_index(const types::name_index_t &name_index, int i) {
 	std::string name;
 	for (auto name_pair : name_index) {
 		if (name_pair.second == i) {
-			assert(!name);
+			assert(name.size() == 0);
 			name = name_pair.first;
 		}
 	}
@@ -364,7 +364,7 @@ endif
 		for (auto arg : args) {
 			os << sep;
 			auto name = get_name_from_index(name_index, i++);
-			if (!!name) {
+			if (name.size() != 0) {
 				os << name << " ";
 			}
 			arg->emit(os, bindings);
@@ -917,7 +917,7 @@ endif
 }
 
 types::type_t::ref type_id(identifier::ref id) {
-	if (id->get_name().str().find("std.") == 0) {
+	if (id->get_name().find("std.") == 0) {
 		dbg();
 	}
 	return make_ptr<types::type_id_t>(id);
@@ -1342,7 +1342,7 @@ std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimen
 	for (auto dimension : dimensions) {
 		os << sep;
 		auto name = get_name_from_index(name_index, i++);
-		if (!!name) {
+		if (name.size() != 0) {
 			os << name << " ";
 		}
 		dimension->emit(os, bindings);

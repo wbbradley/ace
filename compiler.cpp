@@ -207,7 +207,7 @@ ast::module_t::ref compiler_t::build_parse(
 					auto module = ast::module_t::parse(ps, global);
 
                     if (!!status) {
-                        set_module(status, module->filename.str(), module);
+                        set_module(status, module->filename, module);
 						build_parse_linked(status, module, global_type_macros);
 
 						if (!!status) {
@@ -612,7 +612,7 @@ std::string collect_filename_from_module_pair(
 	   	const compiler_t::llvm_module_t &llvm_module_pair)
 {
 	std::ofstream ofs;
-	std::string filename = llvm_module_pair.first.str() + ".ir";
+	std::string filename = llvm_module_pair.first + ".ir";
 
 	debug_above(1, log(log_info, "opening %s...", filename.c_str()));
 	ofs.open(filename.c_str());
@@ -667,7 +667,11 @@ void compiler_t::emit_built_program(status_t &status, std::string executable_fil
 		}
 
 		std::stringstream ss;
-		ss << clang_bin << " -lc -lm -lbsd -Wno-override-module -Wall -g -O0 -mcx16";
+		ss << clang_bin << " -lc -lm";
+	   	if (getenv("ARC4RANDOM_LIB") != nullptr) {
+			ss << " -l" << getenv("ARC4RANDOM_LIB");
+		}
+		ss << " -Wno-override-module -Wall -g -O0 -mcx16";
 		for (auto obj_file : obj_files) {
 			ss << " " << obj_file;
 		}
@@ -940,7 +944,7 @@ void compiler_t::set_module(
 
 	debug_above(4, log(log_info, "setting syntax and scope for module (`%s`, `%s`) valid=%s",
 				module->module_key.c_str(),
-				module->filename.str().c_str(),
+				module->filename.c_str(),
 				boolstr(!!module)));
 
 	if (!get_module(status, filename))  {
@@ -963,7 +967,7 @@ ptr<const ast::module_t> compiler_t::get_module(status_t &status, std::string ke
 				   	key_alias.c_str()));
 
 		std::string module_filename;
-		resolve_module_filename(status, INTERNAL_LOC(), key_alias.str(), module_filename);
+		resolve_module_filename(status, INTERNAL_LOC(), key_alias, module_filename);
 
 		if (!!status) {
 			auto module_iter = modules.find(module_filename);
@@ -1048,7 +1052,7 @@ llvm::Module *compiler_t::llvm_create_module(std::string module_name) {
 		/* only allow creating one program module */
 		llvm_program_module = {
 			module_name,
-			std::unique_ptr<llvm::Module>(new llvm::Module(module_name.str(), llvm_context))
+			std::unique_ptr<llvm::Module>(new llvm::Module(module_name, llvm_context))
 		};
 		return llvm_program_module.second.operator ->();
 	} else {

@@ -145,12 +145,10 @@ void get_generics_and_lambda_vars(
 
 		std::set<std::string> unbound_vars = subtype->get_ftvs();
 		for (auto type_var : type_variables) {
-			if (true || in(type_var->get_name(), unbound_vars)) {
-				/* this variable is referenced by the current data ctor (the
-				 * subtype), therefore it has opinions about its role in the
-				 * supertype */
-				lambda_vars.push_front(type_var);
-			}
+			/* this variable is referenced by the current data ctor (the
+			 * subtype), therefore it has opinions about its role in the
+			 * supertype */
+			lambda_vars.push_front(type_var);
 		}
 		assert(lambda_vars.size() == type_variables.size());
 	}
@@ -169,7 +167,7 @@ void instantiate_data_ctor_type(
 {
 	/* get the name of the ctor */
 	std::string tag_name = id->get_name();
-	std::string fqn_tag_name = scope->make_fqn(tag_name.str());
+	std::string fqn_tag_name = scope->make_fqn(tag_name);
 	auto qualified_id = make_iid_impl(fqn_tag_name, id->get_location());
 
 	/* create the tag type */
@@ -315,7 +313,7 @@ void ast::type_link_t::register_type(
 {
 	debug_above(3, log("registering type link for %s link " c_type("%s")
 			   	", " c_id("%s") ", " c_id("%s"),
-				id->get_name().str().c_str(),
+				id->get_name().c_str(),
 				underlying_type->str().c_str(),
 				finalize_fn.text.c_str(),
 				mark_fn.text.c_str()));

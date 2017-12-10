@@ -58,5 +58,5 @@ identifier::set to_identifier_set(const identifier::refs &refs) {
 }
 
 bool identifier::operator <(const identifier &rhs) const {
-	return get_name().str() < rhs.get_name().str();
+	return get_name() < rhs.get_name();
 }

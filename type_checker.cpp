@@ -1,4 +1,5 @@
 #include "zion.h"
+#include "atom.h"
 #include "logger.h"
 #include "type_checker.h"
 #include "utils.h"
@@ -308,7 +309,7 @@ bound_var_t::ref generate_module_variable(
 					llvm::Module *llvm_module = module_scope->get_llvm_module();
 					llvm::GlobalVariable *llvm_global_variable = llvm_get_global(
 							llvm_module,
-							symbol.str(),
+							symbol,
 							llvm_constant,
 							false /*is_constant*/);
 
@@ -321,7 +322,7 @@ bound_var_t::ref generate_module_variable(
 
 					if (!!status) {
 						function_scope_t::ref function_scope = module_scope->new_function_scope(
-								std::string("__init_module_vars_") + symbol.str());
+								std::string("__init_module_vars_") + symbol);
 
 						/* 'init_var' is keeping track of the value we are assigning to our new
 						 * variable (if any exists.) */
@@ -508,8 +509,8 @@ bound_var_t::ref type_check_module_var_decl(
 	}
 }
 
-std::string::many get_param_list_decl_variable_names(ast::param_list_decl_t::ref obj) {
-	std::string::many names;
+std::vector<std::string> get_param_list_decl_variable_names(ast::param_list_decl_t::ref obj) {
+	std::vector<std::string> names;
 	for (auto param : obj->params) {
 		names.push_back({param->token.text});
 	}
@@ -517,7 +518,7 @@ std::string::many get_param_list_decl_variable_names(ast::param_list_decl_t::ref
 }
 
 bound_type_t::named_pairs zip_named_pairs(
-		std::string::many names,
+		std::vector<std::string> names,
 		bound_type_t::refs args)
 {
 	bound_type_t::named_pairs named_args;
@@ -678,7 +679,7 @@ function_scope_t::ref make_param_list_scope(
 		for (auto &param : params) {
 			llvm::Value *llvm_param = &(*args++);
 			if (llvm_param->getName().str().size() == 0) {
-				llvm_param->setName(param.first.str());
+				llvm_param->setName(param.first);
 			}
 
 			assert(!param.second->is_ref());
@@ -698,7 +699,7 @@ function_scope_t::ref make_param_list_scope(
 				 * parameter to a new value. this does not mean that the parameter
 				 * is an out param, we are simply enabling reuse of the name */
 				llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(
-						llvm_function, param.second, param.first.str());
+						llvm_function, param.second, param.first);
 
 				// REVIEW: how to manage memory for named parameters? if we allow
 				// changing their value then we have to enforce addref/release
@@ -1152,7 +1153,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 		} else if (auto extern_type = dyncast<const types::type_extern_t>(expanded_type)) {
 			/* we need this in order to be able to get runtime type information */
 			auto program_scope = scope->get_program_scope();
-			std::string type_info_var_name = extern_type->inner->repr().str();
+			std::string type_info_var_name = extern_type->inner->repr();
 			bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
 			if (!!status) {
 				/* before we go create this type info, let's see if it already exists */
@@ -1215,7 +1216,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 											llvm_type_info_type,
 											{
 											/* the type_id */
-											builder.getInt32(signature.iatom),
+											builder.getInt32(atomize(signature)),
 
 											/* the kind of this type_info */
 											builder.getInt32(type_kind_use_mark_fn),
@@ -1666,7 +1667,7 @@ bound_var_t::ref type_check_binary_operator(
 										if (!rhs_is_managed || lhs_is_nil) {
 											/* yeah, it looks like we are operating on two native pointers */
 											return resolve_pointer_operation(status, builder, scope,
-													life, obj->get_location(), lhs_var, rhs_var, function_name.str());
+													life, obj->get_location(), lhs_var, rhs_var, function_name);
 										}
 									}
 								}
@@ -2289,7 +2290,7 @@ bound_var_t::ref extract_member_variable(
 				user_message(log_info, status, bound_var->type->get_location(), "%s has dimension(s) [%s]",
 						full_type->str().c_str(),
 						join_with(member_index, ", ", [] (std::pair<std::string, int> index) -> std::string {
-							return std::string(C_ID) + index.first.str() + C_RESET;
+							return std::string(C_ID) + index.first + C_RESET;
 							}).c_str());
 			}
 		}
@@ -2371,7 +2372,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_expression(
 
 		if (lhs_val->type->is_module()) {
 			return resolve_module_variable_reference(status, builder, scope, get_location(),
-					lhs_val->name.str(), rhs.text, as_ref);
+					lhs_val->name, rhs.text, as_ref);
 		} else {
 			return extract_member_variable(status, builder, scope, life, shared_from_this(),
 					lhs_val, rhs.text, as_ref);
@@ -2562,7 +2563,7 @@ bound_var_t::ref call_typeid(
 								INTERNAL_LOC(),
 								string_format("typeid(%s)", resolved_value->str().c_str()),
 								program_scope->get_bound_type({TYPEID_TYPE}),
-								llvm_create_int32(builder, resolved_value->type->get_type()->get_signature().iatom),
+								llvm_create_int32(builder, atomize(resolved_value->type->get_type()->get_signature())),
 								id);
 					}
 				}
@@ -2996,7 +2997,7 @@ void type_check_module_types(
 {
 	if (!!status) {
 		INDENT(2, string_format("type-checking types in module " c_module("%s"),
-					obj.module_key.str().c_str()));
+					obj.module_key.c_str()));
 
 		/* get module level scope types */
 		module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
@@ -3281,7 +3282,7 @@ void ast::tag_t::resolve_statement(
 	}
 
 	std::string tag_name = token.text;
-	std::string fqn_tag_name = scope->make_fqn(tag_name.str());
+	std::string fqn_tag_name = scope->make_fqn(tag_name);
 	auto qualified_id = make_iid_impl(fqn_tag_name, token.location);
 
 	auto tag_type = type_id(qualified_id);

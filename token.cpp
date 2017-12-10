@@ -31,7 +31,6 @@ const char *tkstr(token_kind tk) {
 	switch (tk) {
 	tk_case(ampersand);
 	tk_case(assign);
-	tk_case(std::string);
 	tk_case(becomes);
 	tk_case(char);
 	tk_case(colon);
@@ -107,7 +106,6 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_bang:
 		break;
 	case tk_assign:
-	case tk_atom:
 	case tk_becomes:
 	case tk_comma:
 	case tk_divide_by:
@@ -236,7 +234,6 @@ void token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_line) 
 	case tk_comment:
 		assert(false);
 		break;
-	case tk_atom:
 	case tk_char:
 	case tk_string:
 	case tk_raw_string:

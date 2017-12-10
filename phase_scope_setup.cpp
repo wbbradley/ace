@@ -41,7 +41,7 @@ unchecked_var_t::ref scope_setup_module_symbol(
 {
 	program_scope_t::ref program_scope = module_scope->get_program_scope();
 	auto unchecked_var = unchecked_var_t::create(id, obj.shared_from_this(), module_scope);
-	if (id && !!id->get_name()) {
+	if (id && id->get_name().size() != 0) {
 		if (extends_module) {
 			auto name = extends_module->get_name();
 			if (name == GLOBAL_SCOPE_NAME) {

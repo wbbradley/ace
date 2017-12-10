@@ -1,4 +1,5 @@
 #include "zion.h"
+#include "atom.h"
 #include "ast.h"
 #include "code_id.h"
 #include "llvm_utils.h"
@@ -115,13 +116,13 @@ bound_var_t::ref gen_type_check(
 				INTERNAL_LOC(),
 				string_format("typeid(%s)", value_name->str().c_str()),
 				program_scope->get_bound_type({TYPEID_TYPE}),
-				llvm_create_int32(builder, (int32_t)signature.iatom),
+				llvm_create_int32(builder, atomize(signature)),
 				value_name);
 
 		debug_above(2, log(log_info, "generating a runtime type check "
 					"of variable %s for type %s with signature value %d (for '%s') (type is %s)",
 					value->str().c_str(),
-					bound_type->str().c_str(), (int)signature.iatom,
+					bound_type->str().c_str(), atomize(signature),
 					signature.c_str(), bound_type->get_type()->str().c_str()));
 		bound_var_t::ref type_id = call_typeid(status, scope, life, node,
 				value_name, builder, value);

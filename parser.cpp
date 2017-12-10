@@ -1434,7 +1434,7 @@ types::type_t::ref _parse_single_type(
 
 					/* macro type expansion */
 					cur_type = ps.type_macros[id->get_name()];
-				} else if (id->get_name().str().find(SCOPE_SEP_CHAR) != std::string::npos) {
+				} else if (id->get_name().find(SCOPE_SEP_CHAR) != std::string::npos) {
 					/* if we're explicit about the type path, then let's just
 					 * use that as the id */
 					cur_type = type_id(id);
@@ -1795,15 +1795,15 @@ void add_type_macros_to_parser(
 
 ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 	debug_above(6, log("about to parse %s with type_macros: [%s]",
-				ps.filename.str().c_str(),
+				ps.filename.c_str(),
 				join_with(ps.type_macros, ", ", [] (type_macros_t::value_type v) -> std::string {
-					return v.first.str() + ": " + v.second->str();
+					return v.first + ": " + v.second->str();
 				}).c_str()));
 
 	auto module_decl = module_decl_t::parse(ps);
 
 	if (module_decl != nullptr) {
-		std::string module_name = strip_zion_extension(ps.filename.str());
+		std::string module_name = strip_zion_extension(ps.filename);
 		ps.module_id = make_iid(module_decl->get_canonical_name());
 		assert(ps.module_id != nullptr);
 
@@ -1854,7 +1854,7 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 							linked_module->link_as_name = token_t(
 									function->decl->token.location,
 									tk_identifier,
-									types::gensym()->get_name().str());
+									types::gensym()->get_name());
 							linked_module->extern_module = create<ast::module_decl_t>(token_t(
 										function->decl->token.location,
 										tk_identifier,
