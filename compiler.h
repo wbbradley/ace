@@ -69,6 +69,7 @@ private:
 
 	std::string program_name;
 	ptr<std::vector<std::string>> zion_paths;
+	std::set<token_t> link_ins;
 	std::vector<token_t> comments;
 	program_scope_t::ref program_scope;
 	std::map<std::string, ptr<const ast::module_t>> modules;

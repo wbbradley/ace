@@ -120,6 +120,7 @@ struct token_t {
 	std::string str() const;
 	void emit(int &indent_level, token_kind &last_tk, bool &indented_line);
 	bool is_ident(const char *x) const;
+	bool operator <(const token_t &rhs) const { return text < rhs.text; }
 };
 
 const char *tkstr(token_kind tk);

@@ -56,7 +56,6 @@ ifeq ($(UNAME),Linux)
 				  -I/usr/include/x86_64-linux-gnu \
 				  -I/usr/include/x86_64-linux-gnu/c++/5 \
 				  -std=gnu++11 \
-				  -gsplit-dwarf \
 				  -fPIC \
 				  -fvisibility-inlines-hidden \
 				  -Wall \
@@ -188,7 +187,7 @@ hello-world-test: $(ZION_TARGET) unit-tests
 
 
 .PHONY: expect-tests
-expect-tests: $(ZION_TARGET) hello-world-test
+expect-tests: $(ZION_TARGET) hello-world-test $(BUILD_DIR)/tests/test_link_extern_entry.o
 	@echo "Executing expect tests..."
 	./expect-tests.sh
 
@@ -218,6 +217,11 @@ $(BUILD_DIR)/%.llvm.o: %.cpp
 	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
 	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -o $@
 
+$(BUILD_DIR)/tests/%.o: tests/%.c
+	@-mkdir -p $(@D)
+	@echo Compiling $<
+	@$(CC) $(CFLAGS) $< -o $@
+
 $(BUILD_DIR)/%.o: %.c
 	@echo Compiling $<
 	@$(CPP) $(CPP_FLAGS) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
@@ -228,7 +232,7 @@ $(BUILD_DIR)/%.o: %.c
 	@$(CLANG) -S -emit-llvm -g $< -o $@
 
 clean:
-	rm -rf *.llir.ir $(BUILD_DIR)/* $(TARGETS)
+	rm -rf *.llir.ir $(BUILD_DIR)/* tests/*.o *.o *.zx tests/*.zx *.a $(TARGETS)
 
 image: Dockerfile
 	docker build -t $(IMAGE):$(VERSION) .

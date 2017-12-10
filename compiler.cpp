@@ -203,7 +203,7 @@ ast::module_t::ref compiler_t::build_parse(
 						}
 					}
 
-					parse_state_t ps(status, module_filename, lexer, global_type_macros, &comments);
+					parse_state_t ps(status, module_filename, lexer, global_type_macros, &comments, &link_ins);
 					auto module = ast::module_t::parse(ps, global);
 
                     if (!!status) {
@@ -668,12 +668,19 @@ void compiler_t::emit_built_program(status_t &status, std::string executable_fil
 
 		std::stringstream ss;
 		ss << clang_bin << " -lc -lm";
+		if (getenv("ZION_LINK") != nullptr) {
+			ss << " " << getenv("ZION_LINK");
+		}
 	   	if (getenv("ARC4RANDOM_LIB") != nullptr) {
 			ss << " -l" << getenv("ARC4RANDOM_LIB");
 		}
+
 		ss << " -Wno-override-module -Wall -g -O0 -mcx16";
 		for (auto obj_file : obj_files) {
 			ss << " " << obj_file;
+		}
+		for (auto link_in : link_ins) {
+			ss << " " << unescape_json_quotes(link_in.text);
 		}
 		ss << " -o " << executable_filename;
 
