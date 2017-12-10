@@ -51,7 +51,7 @@ garbage collection.
 
 ### TODO
 - [ ] discuss namespaces.
-- [ ] discuss future plans for safe dynamic dispatch.
+- [ ] discuss future plans for safe dynamic dispatch. ([some thoughts exist here](https://gist.github.com/wbbradley/86cd672651cf129a91d14586523e979f))
 - [ ] discuss the std library layout.
 
 ## Syntax
