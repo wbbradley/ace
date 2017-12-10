@@ -160,3 +160,4 @@ function instantiation.
   - [ ] avl tree
 - [ ] Use DIBuilder to add line-level debugging information
 - [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
+- [ ] enable linking to variadic functions (like printf)
