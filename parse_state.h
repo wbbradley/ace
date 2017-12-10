@@ -22,7 +22,8 @@ struct parse_state_t {
 			std::string filename,
 			zion_lexer_t &lexer,
 			type_macros_t type_macros,
-			std::vector<token_t> *comments=nullptr);
+			std::vector<token_t> *comments=nullptr,
+			std::set<token_t> *link_ins=nullptr);
 
 	bool advance();
 	void warning(const char *format, ...);
@@ -37,6 +38,7 @@ struct parse_state_t {
 	status_t &status;
 	type_macros_t type_macros;
 	std::vector<token_t> *comments;
+	std::set<token_t> *link_ins;
 
 	/* keep track of the current function declaration parameter position */
 	int argument_index;

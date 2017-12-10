@@ -1,0 +1,28 @@
+module _
+# test: pass
+# expect: allocating entry for Will: 123
+# expect: freeing entry Will: 123
+
+link in "tests/test_link_extern_entry.o"
+
+link def make_entry(name *__char__, number __int__) *void
+link def free_entry(entry *void) void
+link def get_name(entry *void) *__char__
+link def get_number(entry *void) __int__
+
+type Entry has
+	var entry *void
+
+[global]
+def __finalize__(entry Entry)
+	free_entry(entry.entry)
+
+def get_name(entry Entry) str
+	return __box__(get_name(entry.entry))
+
+def main()
+	var entry Entry? = Entry(make_entry("Will"r, 123r))
+	if entry
+		print(get_name(entry))
+	entry = nil
+	runtime.gc()

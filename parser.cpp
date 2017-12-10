@@ -177,6 +177,14 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 				return link_statement;
 			}
 		}
+	} else if (ps.token.is_ident(K(in))) {
+		ps.advance();
+		expect_token(tk_string);
+		if (ps.link_ins != nullptr) {
+			ps.link_ins->insert(ps.token);
+		}
+		ps.advance();
+		return nullptr;
 	} else if (ps.token.tk == tk_identifier) {
 		auto link_name = create<ast::link_name_t>(link_token);
 		/*
