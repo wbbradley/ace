@@ -1,5 +1,4 @@
 module hello @1.0
-link module main
 link module runtime
 
 # test: pass

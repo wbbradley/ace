@@ -2,7 +2,6 @@ module _
 link module sys
 link module math
 link module posix
-link module main
 # test: pass
 # expect: 29
 

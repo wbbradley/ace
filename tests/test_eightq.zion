@@ -1,5 +1,4 @@
 module eightq @1.0
-link module main
 # test: pass
 
 def queens(rows int, columns int) [[int]]

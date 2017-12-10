@@ -1,5 +1,4 @@
 module _
-link module main
 # test: pass
 # expect: print a Foo: 3
 

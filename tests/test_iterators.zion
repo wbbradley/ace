@@ -1,6 +1,5 @@
 module _
 link module posix
-link module main
 # test: pass
 # expect: 9
 

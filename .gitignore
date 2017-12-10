@@ -19,7 +19,6 @@ rt_gc
 *.ll
 *.html
 *.pyc
-tests/*
 !**/*.zion
 *.zx
 CMakeCache.txt

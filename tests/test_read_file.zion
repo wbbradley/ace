@@ -1,5 +1,4 @@
 module _
-link module main
 link module file
 link module os
 link module sys

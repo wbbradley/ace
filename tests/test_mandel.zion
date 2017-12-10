@@ -1,5 +1,4 @@
 module test_mandel
-link module main
 link module runtime
 # test: pass
 
