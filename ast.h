@@ -671,7 +671,8 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 
 		token_t var_token;
-		ptr<expression_t> collection;
+		token_t in_token;
+		ptr<expression_t> iterable;
 		ptr<block_t> block;
 	};
 

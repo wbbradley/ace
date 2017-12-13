@@ -397,9 +397,11 @@ def finalize(obj *var_t)
 def free_unmarked(obj *var_t)
 	assert(obj != __head_var)
 	if obj.mark == 0r
-		finalize(obj)
-		remove_node(obj)
-		mem_free(obj as *void, obj.type_info.size)
+		# Protect newly allocated things (during GC) from being prematurely deleted
+		if obj.allocation < _gc_generation
+			finalize(obj)
+			remove_node(obj)
+			mem_free(obj as *void, obj.type_info.size)
 	else
 		# posix.puts("not freeing "r + hex(obj))
 		pass
@@ -421,7 +423,6 @@ def gc()
 	visit_heap_roots(mark_allocation)
 	visit_allocations(free_unmarked)
 	# report("after gc..."r)
-	assert(runtime._var_allocation == _gc_generation)
 
 def report(use_case *__char__)
 	title := "Memory Report: "r + use_case

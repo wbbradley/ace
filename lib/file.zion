@@ -1,77 +1,103 @@
 module _
 link module posix
 
-var O_RDONLY int = 0x0000
-var O_WRONLY int = 0x0001
-var O_RDWR int = 0x0002
-var O_NONBLOCK int = 0x0004
-var O_APPEND int = 0x0008
-var O_CREAT int = 0x0200
-var O_TRUNC int = 0x0400
-var O_EXCL int = 0x0800
-var O_SHLOCK int = 0x0010
-var O_EXLOCK int = 0x0020
-var O_ASYNC int = 0x0040
-var O_SYNC int = 0x0080
-var O_FSYNC int = O_SYNC
-var O_NOFOLLOW int = 0x0100
-var O_DIRECTORY int = 0x100000
-var O_SYMLINK int = 0x200000
-var O_NOCTTY int = 0x20000
+link var errno __int__
 
+type Open has
+	var fp *posix.FILE
+tag Closed
+type Error has
+	var errno int
 
 type File has
-	var fd __int__
+	var filename str
+	var state Open or Closed or Error
 
-tag ReadOnly
-tag WriteOnly
-tag ReadWrite
-
-type FileOpenMode is
-	ReadOnly or
-	WriteOnly or
-	ReadWrite
-
-def open(name str, mode FileOpenMode) File?
-	var flags __int__ = 0r
-
-	when mode
-		is ReadOnly
-			flags = 0r
-		is WriteOnly
-			flags = 1r
-		is ReadWrite
-			flags = 2r
-
-	fd := posix.open(name.raw, flags)
-	if fd != -1r
-		return File(fd)
-	else
-		return nil
-
-def close(f File) int
-	fd := f.fd
-	if fd != -1r
-		f.fd = -1r
-		return int(posix.close(f.fd))
-	return 0
-
-tag ReadError
 tag EOF
 
-def read(f File, cb int) bytes or ReadError or EOF
-	buffer := posix.calloc(1r, cb.raw) as *__int8__
-	bytes_read := posix.read(f.fd, buffer, cb.raw)
+def open(name str, mode str) File
+	fp := posix.fopen(name.raw, mode.raw)
+	if fp != nil
+		return File(name, Open(fp))
+	else
+		return File(name, Error(int(errno)))
 
-	if bytes_read <= 0r
-		posix.free(buffer)
-		return bytes_read == 0r ? EOF : ReadError
+def close(f File)
+	state := f.state
+	when state
+		is Open
+			ret := posix.fclose(state.fp)
+			state.fp = nil
+			f.state = Closed
+		is Closed
+			print("Error: attempt to close a file that is already closed.")
+		is Error
+			print("Error: attempt to close a file " + f.filename + " that has already seen error " + state.errno)
 
-	return bytes(buffer, bytes_read)
+[global]
+def __finalize__(of Open)
+	print("closing file")
+	if of.fp
+		ret := posix.fclose(of.fp)
+		if ret != 0r
+			print("Error: failed to close file")
+		of.fp = nil
 
+type FileLines has
+	var file File
+	var cur_line str?
 
-[module std]
-def __finalize__(f File)
-	print("finalizing file")
-	if close(f)
-		print("Failed to close file descriptor: " + str(f.fd))
+def readlines(f File) FileLines
+	return FileLines(f, nil)
+
+[global]
+def __iter_begin__(fl FileLines) FileLines
+	__iterate__(fl)
+	return fl
+
+[global]
+def __iter_end__(fl FileLines) nil
+	return nil
+
+[global]
+def __iter_valid__(fl FileLines, _ nil) __bool__
+	return fl.cur_line != nil
+
+[global]
+def __iter_item__(fl FileLines) str
+	return fl.cur_line or ""
+
+[global]
+def __iterate__(fl FileLines)
+	s := readline(fl.file)
+	when s
+		is str
+			fl.cur_line = s
+			return
+		is Error
+			print("Error: encountered error " + s.errno + " while reading " + fl.file.filename)
+			fl.cur_line = nil
+		is EOF
+			fl.cur_line = nil
+
+def readline(f File) str or Error or EOF
+	state := f.state
+	when state
+		is Open
+			linecap := 0r
+			line := nil as *__char__
+			linelen := posix.getline(&line, &linecap, state.fp)
+			if linelen == -1r
+				return EOF
+
+			# make sure we strip the LF char
+			if linelen > 0r
+				if line[linelen - 1r] as __int__ == 10r
+					line[linelen - 1r] = 0r as __char__
+			return str(line)
+		is Closed
+			return Error(-1)
+		is Error
+			return state
+	assert(false and "strange state for file!")
+	return Error(-1)

@@ -27,6 +27,7 @@ using namespace ast;
 		if (ps.token.tk != _tk) { \
 			ps.error("expected '%s', got '%s' " c_id("%s"), \
 				   	tkstr(_tk), tkstr(ps.token.tk), ps.token.tk == tk_identifier ? ps.token.text.c_str() : ""); \
+			dbg(); \
 			return fail_code; \
 		} \
 	} while (0)
@@ -40,6 +41,7 @@ using namespace ast;
 		if (ps.token.text != token_text) { \
 			ps.error("expected '%s', got '%s'", \
 					token_text, ps.token.text.c_str()); \
+			dbg(); \
 			return fail_code; \
 		} \
 	} while (0)
@@ -996,10 +998,12 @@ ptr<for_block_t> for_block_t::parse(parse_state_t &ps) {
 	expect_token(tk_identifier);
 	for_block->var_token = ps.token;
 	ps.advance();
-	chomp_ident(K(in));
-	auto collection = expression_t::parse(ps);
-	if (collection != nullptr) {
-		for_block->collection.swap(collection);
+	expect_ident(K(in));
+	for_block->in_token = ps.token;
+	ps.advance();
+	auto iterable = expression_t::parse(ps);
+	if (!!ps.status) {
+		for_block->iterable.swap(iterable);
 		auto block = block_t::parse(ps);
 		if (block != nullptr) {
 			for_block->block.swap(block);
@@ -1008,10 +1012,10 @@ ptr<for_block_t> for_block_t::parse(parse_state_t &ps) {
 			assert(!ps.status);
 			return nullptr;
 		}
-	} else {
-		assert(!ps.status);
-		return nullptr;
 	}
+
+	assert(!ps.status);
+	return nullptr;
 }
 
 ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
@@ -1353,7 +1357,13 @@ types::type_t::ref _parse_single_type(
 	case tk_identifier:
 		if (ps.token.is_ident(K(has))
 				|| ps.token.is_ident(K(struct))) {
+			bool native_struct = ps.token.is_ident(K(struct));
 			ps.advance();
+
+			if (ps.token.tk != tk_indent && native_struct) {
+				/* special case of empty structure */
+				return ::type_struct({}, {});
+			}
 
 			chomp_token(tk_indent);
 			types::type_t::refs dimensions;
@@ -1895,7 +1905,9 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 		}
 
 		if (!!ps.status) {
-			if (ps.token.tk != tk_none) {
+			if (ps.token.is_ident(K(link))) {
+				ps.error(C_MODULE "link" C_RESET " directives must come before types, variables, and functions");
+			} else if (ps.token.tk != tk_none) {
 				ps.error("unexpected '" c_id("%s") "' at top-level module scope (%s)",
 						ps.token.text.c_str(), tkstr(ps.token.tk));
 			}

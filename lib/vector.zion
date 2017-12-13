@@ -198,9 +198,8 @@ def __iter_valid__(i vector_iter{any C}, end vector_iter{any C}) __bool__
 	return i.pos < end.pos
 
 [global]
-def __iter_next__(i vector_iter{any C}) vector_iter{any C}
+def __iterate__(i vector_iter{any C})
 	i.pos += 1r
-	return i
 
 [global]
 def __iter_item__(i vector_iter{any C}) any C

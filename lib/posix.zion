@@ -2,6 +2,7 @@ module posix
 
 link def getenv(x *__char__) *__char__
 link def puts(x *__char__) __int__
+link def putchar(x __int__) __int__
 link def perror(x *__char__) __int__
 link def open(path *__char__, oflag __int__) __int__
 link def close(fd __int__) __int__
@@ -21,6 +22,11 @@ link def exit(code __int__) __int__
 link def getch() __int__
 link def getcwd(space *__char__) *__char__
 link def raise(signal __int__) __int__
+link def fopen(fn *__char__, mode *__char__) *FILE
+link def fclose(fp *FILE) __int__
+link def getline(linep **__char__, linecapp *__int__, fp *FILE) __int__
+
+type FILE struct
 
 var SIGTRAP __int__ = 5r
 var SIGKILL __int__ = 9r
