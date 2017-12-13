@@ -145,7 +145,7 @@ function instantiation.
 
 ### TODO
 
-- [ ] 'for' syntax - based on `tests/test_list_iter.zion` pattern
+- [x] 'for' syntax - based on `tests/test_list_iter.zion` pattern
 - [x] vectors
 - [ ] decide on `with` (Python) / `using` (C#) / 'defer' (Golang) style syntax for deterministic destruction
 - [ ] consider overloading += operator semantics for vectors (instead of relying on `append`)
