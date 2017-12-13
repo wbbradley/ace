@@ -422,9 +422,15 @@ def __iter_valid__(i IntRangeIter, end IntRangeIter) __bool__
 	assert(i.range as *void == end.range as *void)
 	return i.pos < end.range.lim
 
-def __iter_next__(i IntRangeIter) IntRangeIter
+def __iterate__(i IntRangeIter)
 	i.pos += i.range.step
-	return i
 
 def __iter_item__(i IntRangeIter) int
 	return int(i.pos)
+
+def str(buffer *__char__, length __int__) str
+	# Create a managed string from a direct memory access
+	retstr := posix.malloc(length + 1r) as *__char__
+	posix.memcpy(retstr as *__int8__, buffer as *__int8__, length)
+	retstr[length] = 0r as __char__
+	return str(retstr)

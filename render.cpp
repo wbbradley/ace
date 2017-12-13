@@ -81,8 +81,10 @@ namespace ast {
 	}
 
 	void for_block_t::render(render_state_t &rs) const {
-		rs.ss << C_CONTROL << K(for) << C_RESET << " " << var_token.str() << C_CONTROL << K(in) << C_RESET << " ";
-		collection->render(rs);
+		rs.ss << C_CONTROL << K(for) << C_RESET;
+		rs.ss << " " << C_ID << var_token.text << C_RESET;
+		rs.ss << " " << C_CONTROL << K(in) << C_RESET << " ";
+		iterable->render(rs);
 		newline(rs);
 
 		indented(rs);

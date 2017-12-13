@@ -724,7 +724,6 @@ endif
     }
 
 	type_ref_t::type_ref_t(type_t::ref element_type) : element_type(element_type) {
-		assert(!element_type->is_nil());
 	}
 
 	std::ostream &type_ref_t::emit(std::ostream &os, const map &bindings) const {
@@ -999,7 +998,6 @@ bool types_contains(const types::type_t::refs &options, std::string signature) {
 void add_options(types::type_t::refs &options, const types::type_t::refs &new_options, bool &make_maybe) {
     for (auto option : new_options) {
         if (option->is_nil()) {
-            assert(false && "interesting...");
             make_maybe = true;
             continue;
         }

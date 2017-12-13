@@ -1807,8 +1807,9 @@ llvm::Value *get_raw_condition_value(
 	} else if (condition_value->is_pointer()) {
 		return condition_value->resolve_bound_var_value(builder);
 	} else {
-		user_error(status, condition->get_location(), "unknown basic type: %s",
-				condition_value->str().c_str());
+		user_error(status, condition->get_location(),
+			   	"staring at the %s will bring you no closer to the truth",
+				condition_value->type->str().c_str());
 	}
 
 	assert(!status);
@@ -3818,23 +3819,87 @@ void ast::for_block_t::resolve_statement(
 		local_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	auto maybe_step_symbol = types::gensym();
+	/* this next bit is some code-gen to rewrite the for loop as a while loop */
 
-	bound_var_t::ref maybe_step = type_check_bound_var_decl(
-			status,
-			builder,
-			scope,
-			for_like_var_decl_t(
-				maybe_step_symbol->get_name(),
-				maybe_step_symbol->get_location(),
-				*collection),
-			life,
-			false /*maybe_unbox*/);
+	token_t iterable_token = token_t(var_token.location, tk_identifier, types::gensym()->get_name());
+	token_t iterator_token = token_t(var_token.location, tk_identifier, types::gensym()->get_name());
+	token_t iterator_end_token = token_t(var_token.location, tk_identifier, types::gensym()->get_name());
+	token_t iteration_value_token = var_token;
 
-	not_impl();
+	/* create the iteratable object by referencing the user-supplied iterable */
+	auto iterable_var_decl = create<var_decl_t>(iterable_token);
+	iterable_var_decl->type = type_variable(var_token.location);
+	iterable_var_decl->initializer = iterable;
 
-	assert(!status);
-	return;
+	/* create the iterator from the iterable */
+	auto iterator_var_decl = create<var_decl_t>(iterator_token);
+	iterator_var_decl->type = type_variable(iterator_token.location);
+
+	/* create the call to begin iteration */
+	auto iter_begin_call = create<callsite_expr_t>(in_token);
+	iter_begin_call->function_expr = create<reference_expr_t>(token_t(in_token.location, tk_identifier, "__iter_begin__"));
+	iter_begin_call->params.push_back(create<reference_expr_t>(iterable_token));
+
+	/* finish creating the iterator_var_decl */
+	iterator_var_decl->initializer = iter_begin_call;
+
+	/* create the end iterator from the iterable */
+	auto iterator_end_var_decl = create<var_decl_t>(iterator_end_token);
+	iterator_end_var_decl->type = type_variable(iterator_end_token.location);
+
+	/* create the call to end iteration */
+	auto iter_end_call = create<callsite_expr_t>(in_token);
+	iter_end_call->function_expr = create<reference_expr_t>(token_t(in_token.location, tk_identifier, "__iter_end__"));
+	iter_end_call->params.push_back(create<reference_expr_t>(iterable_token));
+
+	/* finish creating the iterator_end_var_decl */
+	iterator_end_var_decl->initializer = iter_end_call;
+
+	/* create the while condition */
+	auto iter_valid_call = create<callsite_expr_t>(in_token);
+	iter_valid_call->function_expr = create<reference_expr_t>(token_t(in_token.location, tk_identifier, "__iter_valid__"));
+	iter_valid_call->params.push_back(create<reference_expr_t>(iterator_token));
+	iter_valid_call->params.push_back(create<reference_expr_t>(iterator_end_token));
+
+	/* create the iterate call to advance iteration */
+	auto iterate_call = create<callsite_expr_t>(in_token);
+	iterate_call->function_expr = create<reference_expr_t>(token_t(in_token.location, tk_identifier, "__iterate__"));
+	iterate_call->params.push_back(create<reference_expr_t>(iterator_token));
+
+	/* create the end iterator from the iterable */
+	auto value_var_decl = create<var_decl_t>(var_token);
+	value_var_decl->type = type_variable(var_token.location);
+
+	/* create the call to get the item from the iterator */
+	auto iter_item_call = create<callsite_expr_t>(var_token);
+	iter_item_call->function_expr = create<reference_expr_t>(token_t(var_token.location, tk_identifier, "__iter_item__"));
+	iter_item_call->params.push_back(create<reference_expr_t>(iterator_token));
+
+	/* finish creating the iterator_end_var_decl */
+	value_var_decl->initializer = iter_item_call;
+
+	/* create the while loop */
+	auto while_block = create<while_block_t>(token);
+	while_block->condition = iter_valid_call;
+	while_block->block = create<block_t>(block->token);
+	while_block->block->statements.push_back(value_var_decl);
+	for (auto statement : block->statements) {
+		while_block->block->statements.push_back(statement);
+	}
+	while_block->block->statements.push_back(iterate_call);
+
+	/* finally, type_check all of the generated code */
+	auto block = create<block_t>(token);
+	block->statements.push_back(iterable_var_decl);
+	block->statements.push_back(iterator_var_decl);
+	block->statements.push_back(iterator_end_var_decl);
+	block->statements.push_back(while_block);
+	debug_above(7, log("for loop %s generated new code\n%s",
+				str().c_str(), block->str().c_str()));
+
+	/* dispatch type checking and code gen to this newly generated ast */
+	return block->resolve_statement(status, builder, scope,
+			life, new_scope, returns);
 }
 
 void ast::while_block_t::resolve_statement(
@@ -3849,7 +3914,7 @@ void ast::while_block_t::resolve_statement(
 	local_scope_t::ref while_scope;
 
 	if (condition != nullptr) {
-		assert(token.text == "while");
+		assert(token.text == "while" || token.text == "for");
 
 		llvm::Function *llvm_function_current = llvm_get_function(builder);
 

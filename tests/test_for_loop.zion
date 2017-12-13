@@ -1,7 +1,8 @@
 module _
-# test: skip
+# test: pass
+# expect: 0
+# expect: 9
 
 def main()
-	# for x in list(2, nil)
-	# 	print(x)
-	pass
+	for x in range(10)
+		print(x)

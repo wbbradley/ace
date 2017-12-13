@@ -192,57 +192,52 @@ void instantiate_data_ctor_type(
 	/**********************************************/
 	/* Register a data ctor for this struct_ type */
 	/**********************************************/
-	if (struct_->dimensions.size() != 0) {
-		assert(id->get_name() == tag_name);
+	assert(id->get_name() == tag_name);
 
-		/* we're declaring a ctor at module scope */
-		if (auto module_scope = dyncast<module_scope_t>(scope)) {
+	/* we're declaring a ctor at module scope */
+	if (auto module_scope = dyncast<module_scope_t>(scope)) {
 
-			/* let's create the return type (an unexpanded operator) that will be the codomain of the ctor fn. */
-			auto ctor_return_type = tag_type;
-			for (auto lambda_var_iter = lambda_vars.rbegin(); lambda_var_iter != lambda_vars.rend(); ++lambda_var_iter) {
-				ctor_return_type = type_operator(ctor_return_type, type_variable(*lambda_var_iter));
-			}
-
-			/* for now assume all ctors return refs */
-			debug_above(4, log(log_info, "return type for %s will be %s",
-						id->str().c_str(), ctor_return_type->str().c_str()));
-
-			/* we need to register this constructor as an override for the name `tag_name` */
-			debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
-						id->str().c_str()));
-
-			types::type_function_t::ref data_ctor_sig = type_function(
-					type_args(struct_->dimensions),
-					ctor_return_type);
-
-			module_scope->get_program_scope()->put_unchecked_variable(tag_name,
-					unchecked_data_ctor_t::create(id, node,
-						module_scope, data_ctor_sig, native));
-
-			/* now build the actual typename expansion we'll put in the typename env */
-			/* 1. create the actual expanded type signature of this type */
-			types::type_t::ref type;
-			if (native) {
-				type = struct_;
-			} else {
-				type = type_ptr(type_managed(struct_));
-			}
-
-			/* 2. make sure we allow for parameterized expansion */
-			for (auto lambda_var : lambda_vars) {
-				type = type_lambda(lambda_var, type);
-			}
-
-			scope->put_typename(status, tag_name, type);
-
-			return;
-		} else {
-			user_error(status, node->token.location, "local type definitions are not yet impl");
+		/* let's create the return type (an unexpanded operator) that will be the codomain of the ctor fn. */
+		auto ctor_return_type = tag_type;
+		for (auto lambda_var_iter = lambda_vars.rbegin(); lambda_var_iter != lambda_vars.rend(); ++lambda_var_iter) {
+			ctor_return_type = type_operator(ctor_return_type, type_variable(*lambda_var_iter));
 		}
+
+		/* for now assume all ctors return refs */
+		debug_above(4, log(log_info, "return type for %s will be %s",
+					id->str().c_str(), ctor_return_type->str().c_str()));
+
+		/* we need to register this constructor as an override for the name `tag_name` */
+		debug_above(2, log(log_info, "adding %s as an unchecked generic data_ctor",
+					id->str().c_str()));
+
+		types::type_function_t::ref data_ctor_sig = type_function(
+				type_args(struct_->dimensions),
+				ctor_return_type);
+
+		module_scope->get_program_scope()->put_unchecked_variable(tag_name,
+				unchecked_data_ctor_t::create(id, node,
+					module_scope, data_ctor_sig, native));
+
+		/* now build the actual typename expansion we'll put in the typename env */
+		/* 1. create the actual expanded type signature of this type */
+		types::type_t::ref type;
+		if (native) {
+			type = struct_;
+		} else {
+			type = type_ptr(type_managed(struct_));
+		}
+
+		/* 2. make sure we allow for parameterized expansion */
+		for (auto lambda_var : lambda_vars) {
+			type = type_lambda(lambda_var, type);
+		}
+
+		scope->put_typename(status, tag_name, type);
+
+		return;
 	} else {
-		// This should not happen...
-		not_impl();
+		user_error(status, node->token.location, "local type definitions are not yet impl");
 	}
 
 	assert(!status);

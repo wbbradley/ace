@@ -1,11 +1,14 @@
 module _
 link module file
 # test: pass
-# expect: opened tests/test_if_finalizer.zion as fd
+# expect: opened tests/test_if_finalizer.zion as fp
 
 def main()
 	filename := "tests/test_if_finalizer.zion"
-	if f := file.open(filename, file.ReadOnly)
-		print("opened " + filename + " as fd " + str(f.fd))
+	f := file.open(filename, "r")
+	state := f.state
+	when state
+		is file.Open
+			print("opened " + filename + " as fp " + str(state.fp as __int__))
 	else
 		print("unable to open " + filename)

@@ -3,7 +3,8 @@ module _
 # expect: allocating entry for Will: 123
 # expect: freeing entry Will: 123
 
-link in "tests/test_link_extern_entry.o"
+# TODO: clean this up
+link in "build-Darwin/tests/test_link_extern_entry.o"
 
 link def make_entry(name *__char__, number __int__) *void
 link def free_entry(entry *void) void
