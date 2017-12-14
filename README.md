@@ -7,6 +7,14 @@ performance. Zion targets scenarios where scalability is intended to happen
 horizontally, not vertically. That being said, Zion tries to be fast, using static compilation to
 native host architecture as its execution model. Zion is built on LLVM.
 
+## Beliefs
+ - There are two classic archetypes of language users, Workers and Librarians. Any developer can wear either of these hats, but will switch back and forth in a modal fashion. This happens as new dependencies and integrations are initiated and completed.
+   - Workers want to quickly build trustworthy applications that solve problems. Workers need a pleasant and ergonomic experience in order to remain focused on reaching their objectives.
+   - Librarians want to extend the runtime capabilities of the language by
+     - Creating bindings through Zion to pre-existing or external libraries.
+     - Seamlessly integrating external libraries so that their usage appears as idiomatic Zion.
+     - Exposing extrinsic data via a gentle (de)serialization layer that maintains type-safety and ergonomics to the Workers.
+
 ## Goals
 
  - Keep it simple, when possible.
@@ -19,12 +27,14 @@ native host architecture as its execution model. Zion is built on LLVM.
    opinionated on how to make serialization as comfortable as possible while
    retaining static type safety.
  - Compile down to a copyable binary.
+ - Be smart about types.
 
 ## Non-goals
  - Heavy compute problems are a non-goal, solve those problems at a lower level,
    and use the FFI, or RPC to access those components/services. Generally
    performance optimization is treated as an unwelcome afterthought. Favor
    algorithms and horizontal scaling over bit twiddling.
+ - Solving scenarios where slight pauses due to garbage collection are a show-stopper is a non-goal. (ie: Game loops, high-speed trading platforms, life support monitoring, embedded systems, etc...)
 
 ## Notes
 

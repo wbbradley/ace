@@ -403,11 +403,12 @@ def free_unmarked(obj *var_t)
 			remove_node(obj)
 			mem_free(obj as *void, obj.type_info.size)
 	else
-		# posix.puts("not freeing "r + hex(obj))
+		# posix.puts("not freeing "r + dbghex(obj))
 		pass
 
-def hex(v *void) *__char__
-	return "0x"r + __str__(v as __int__, 16r)
+def dbghex(v *void) *__char__
+	# LEAKLEAKLEAK
+	return concat("0x"r, __str__(v as __int__, 16r))
 
 var _gc_generation __int__ = 0r
 
@@ -425,25 +426,32 @@ def gc()
 	# report("after gc..."r)
 
 def report(use_case *__char__)
-	title := "Memory Report: "r + use_case
+	title := concat("Memory Report: "r, use_case)
 	posix.puts(title)
 	posix.free(title)
 
 	bytes_allocated := __str__(runtime._bytes_allocated)
 	all_bytes_allocated := __str__(runtime._all_bytes_allocated)
 
-	message := "bytes_allocated = "r + bytes_allocated
+	message := concat("bytes_allocated = "r, bytes_allocated)
 	posix.puts(message)
 	posix.free(message)
 
-	message = "all_bytes_allocated = "r + all_bytes_allocated
+	message = concat("all_bytes_allocated = "r, all_bytes_allocated)
 	posix.puts(message)
 	posix.free(message)
 	posix.free(all_bytes_allocated)
 	posix.free(bytes_allocated)
 
 def print_var(node *var_t)
-	posix.puts("heap variable exists at 0x"r + hex(node) + " and is a "r +  node.type_info.name)
+	# LEAKLEAKLEAK
+	posix.puts(
+		concat(
+			concat(
+				concat("heap variable exists at 0x"r,
+					dbghex(node)),
+				" and is a "r),
+			node.type_info.name))
 
 def heap_dump()
 	posix.puts("dumping the heap..."r)

@@ -75,15 +75,21 @@ bound_type_t::ref create_bound_ref_type(
 		/* get the element type's bound type, if it exists */
 		bound_type_t::ref bound_type = scope->get_bound_type(type_ref->element_type->get_signature());
 
-		/* make sure we create the pointed to type first */
-		bound_type_t::ref bound_element_type = upsert_bound_type(status, builder, scope, type_ref->element_type);
-
+		if (bound_type != nullptr && bound_type->get_llvm_specific_type()->isVoidTy()) {
+			user_error(status, type_ref->get_location(),
+					"cannot create references to " c_type("void"));
+		}
 		if (!!status) {
-			auto bound_type = bound_type_t::create(type_ref,
-					type_ref->get_location(),
-					bound_element_type->get_llvm_specific_type()->getPointerTo());
-			program_scope->put_bound_type(status, bound_type);
-			return bound_type;
+			/* make sure we create the pointed to type first */
+			bound_type_t::ref bound_element_type = upsert_bound_type(status, builder, scope, type_ref->element_type);
+
+			if (!!status) {
+				auto bound_type = bound_type_t::create(type_ref,
+						type_ref->get_location(),
+						bound_element_type->get_llvm_specific_type()->getPointerTo());
+				program_scope->put_bound_type(status, bound_type);
+				return bound_type;
+			}
 		}
 	}
 

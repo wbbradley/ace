@@ -1,0 +1,7 @@
+module _
+
+link module crypto
+
+def main()
+	hash := crypto.hash("blah")
+	print(hexdigest(hash))

@@ -6,6 +6,8 @@ link module vector
 link module map
 link module iter as iter_module
 
+link def hexdigit(val __int__) __int__
+
 # initialization of modules is automatically generated.
 # link def __init_modules() void
 
@@ -117,19 +119,22 @@ def __mod__(x int, y int) int
 	return int(x.raw % y.raw)
 
 def __plus__(x str, y str) str
-	return str(x.raw + y.raw)
+	return str(concat(x.raw, y.raw))
 
 def __plus__(x str, y int) str
-	return str(x.raw + str(y).raw)
+	return str(concat(x.raw, str(y).raw))
 
 def __plus__(x str, y __int__) str
 	y_expanded := __str__(y)
-	result := str(x.raw + y_expanded)
+	result := str(concat(x.raw, y_expanded))
 	posix.free(y_expanded)
 	return result
 
 def __plus__(x str, y float) str
-	return str(x.raw + str(y).raw)
+	sy := __str__(y.raw)
+	ret := str(concat(x.raw, sy))
+	posix.free(sy)
+	return ret
 
 def __plus__(x float, y float) float
 	return float(x.raw + y.raw)
@@ -354,7 +359,10 @@ def len(b bytes) int
 	return int(b.cb)
 
 def alloc(cb int) bytes
-	return bytes(posix.calloc(1r, cb.raw) as *__int8__, cb.raw)
+	return alloc(cb.raw)
+
+def alloc(cb __int__) bytes
+	return bytes(posix.calloc(1r, cb) as *__int8__, cb)
 
 def __finalize__(b bytes)
 	posix.free(b.data)
@@ -388,7 +396,7 @@ def __bool__(x [any T] or str or int or bool) __bool__
 
 	node := x as *runtime.var_t
 	print("failed to match type of object at 0x"
-		+ str(runtime.hex(node))
+		+ hexdigest(&node, sizeof(*runtime.var_t))
 		+ " and is a " + str(node.type_info.name)
 		+ " with type ID " + str(node.type_info.type_id as __int__))
 	assert(__false__)
@@ -434,3 +442,23 @@ def str(buffer *__char__, length __int__) str
 	posix.memcpy(retstr as *__int8__, buffer as *__int8__, length)
 	retstr[length] = 0r as __char__
 	return str(retstr)
+
+def hexdigest(b bytes) str
+	return hexdigest(b.data, b.cb)
+
+def hexdigest(data *void, cb __int__) str
+	s := posix.malloc(cb * 2r + 1r) as *__int16__
+	iter := data as *__int8__
+	end := &iter[cb]
+	i := 0r
+	while iter < end
+		# append to our hexdigest
+		s[i] = hexdigit(iter[0r] as __int__ / 16r) as __char__
+		s[i + 1r] = hexdigit(__mask__(iter[0r] as __int__, 15r)) as __char__
+
+		# advance iteration
+		i += 2r
+		iter = &iter[1r]
+
+	s[i] = 0r as __char__
+	return str(s as *__char__)

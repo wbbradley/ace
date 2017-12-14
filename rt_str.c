@@ -53,7 +53,7 @@ char *__str_str(char *x) {
 	return x;
 }
 
-char *__str_plus_str(char *x, char *y) {
+char *concat(char *x, char *y) {
 	zion_int_t x_len = strlen(x);
 	zion_int_t y_len = strlen(y) + 1;
 	char *res = malloc(x_len + y_len);
@@ -69,3 +69,15 @@ zion_bool_t __str_eq_str(char *x, char *y) {
 char *__ptr_to_str_get_item(char **x, zion_int_t index) {
 	return x[index];
 }
+
+zion_int_t hexdigit(zion_int_t val) {
+	if (val < 0 || val >= 16) {
+		printf("call to hexdigit with value %lld. aborting.\n",
+				(long long)val);
+		exit(1);
+	}
+	if (val >= 10)
+		return 'a' + val - 10;
+	return '0' + val;
+}
+
