@@ -4,15 +4,12 @@ module eightq @1.0
 def queens(rows int, columns int) [[int]]
 	var solutions [[int]]
 	var solution [int]
-	reserve(solutions, 92)
 
 	# Introduce an empty solution upon which the dynamic programming algorithm can build
 	append(solutions, solution)
 
-	row := 0
-	while row < rows
+	for row in range(rows)
 		solutions = add_one_queen(row, columns, solutions)
-		row += 1
 
 	return solutions
 
@@ -20,20 +17,15 @@ def add_one_queen(new_row int, columns int, prev_solutions [[int]]) [[int]]
 	var solutions [[int]]
 	reserve(solutions, 92)
 
-	i := 0
-	while i < len(prev_solutions)
-		solution := prev_solutions[i]
-		new_column := 0
-		while new_column < columns
+	for solution in prev_solutions
+		for new_column in range(columns)
 			if no_conflict(new_row, new_column, solution)
 				append(solutions, copy(solution, new_column))
-			new_column += 1
-		i += 1
+
 	return solutions
 
 def no_conflict(new_row int, new_column int, solution [int]) bool
-	row := 0
-	while row < new_row
+	for row in range(new_row)
 		condition := (
 			solution[row]       != new_column           and
 			solution[row] + row != new_column + new_row and
@@ -41,13 +33,11 @@ def no_conflict(new_row int, new_column int, solution [int]) bool
 						
 		if not condition
 			return false
-		row += 1
+
 	return true
 
 def main()
 	solutions := queens(8, 8)
 
-	i := 0
-	while i < len(solutions)
-		print(solutions[i])
-		i += 1
+	for solution in solutions
+		print(solution)
