@@ -59,7 +59,7 @@ def fib(n int) int
 Zion uses contains elements from ML's type system. Zion is strict, not lazy.  Memory is managed using
 garbage collection.
 
-### TODO
+### README TODO
 - [ ] discuss namespaces.
 - [ ] discuss future plans for safe dynamic dispatch. ([some thoughts exist here](https://gist.github.com/wbbradley/86cd672651cf129a91d14586523e979f))
 - [ ] discuss the std library layout.
@@ -155,9 +155,19 @@ function instantiation.
 
 ### TODO
 
+- [ ] (un)signed integers
+  - [ ] integers as a type with parameterized number of bits and whether to use
+    sign-extend or zero-extend
+  - [ ] promotions upon binary operators
+  - [ ] prevent overloading integer operations unless one side is not an integer
+  - [ ] deal with casting integers
+- [ ] change `str` to use `wchar_t` as its underlying physical character type
+  - [ ] use C99's `mbstowcs` and `wcstombs` to convert back and forth
+  - [ ] propagate usage of __utf8__ for `char`
+  - [ ] add a wchar literal - maybe `"x"c` to match the raw literal style of `"foo"r` - or `'x'` to match common syntax
 - [x] 'for' syntax - based on `tests/test_list_iter.zion` pattern
 - [x] vectors
-- [ ] decide on `with` (Python) / `using` (C#) / 'defer' (Golang) style syntax for deterministic destruction
+- [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction
 - [ ] consider overloading += operator semantics for vectors (instead of relying on `append`)
 - [x] Ternary operator
 - [x] Logical and/or (build with ternary operator)
