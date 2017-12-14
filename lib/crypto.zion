@@ -1,0 +1,34 @@
+module crypto
+
+link in "-lsodium"
+
+link def sodium_init() __int__
+link def crypto_generichash_bytes_min() __int__
+link def crypto_generichash_bytes_max() __int__
+link def crypto_generichash_statebytes() __int__
+link def crypto_generichash(out *__int8__, outlen __int__, input *__int8__, inlen __int__, key *__int8__, keylen __int__) __int__
+link def crypto_generichash_init(state *crypto_generichash_state, key *__int8__, keylen __int__, outlen __int__) __int__
+link def crypto_generichash_update(state *crypto_generichash_state, input *__int8__, inputlen __int__) __int__
+link def crypto_generichash_final(state *crypto_generichash_state, out *__int8__, outlen __int__) __int__
+link def crypto_generichash_keygen(k *__int8__) void
+
+type crypto_generichash_state struct
+
+def init()
+	if sodium_init() < 0r
+		posix.puts("failed to initialize libsodium"r)
+		posix.exit(1r)
+
+def hash(input bytes, key bytes) bytes
+	outlen := crypto_generichash_bytes_max()
+	out := alloc(outlen)
+	crypto_generichash(out.data, out.cb, input.data, input.cb, key.data, key.cb)
+	return out
+
+def hash(input str) bytes
+	outlen := crypto_generichash_bytes_max()
+	out := alloc(outlen)
+	crypto_generichash(out.data, out.cb, input.raw as *__int8__, posix.strlen(input.raw), nil, 0r)
+	return out
+	
+	

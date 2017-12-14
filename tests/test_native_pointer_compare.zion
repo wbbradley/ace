@@ -1,0 +1,62 @@
+module _
+link module main
+# test: pass
+# expect: pass
+
+def main()
+	var x *__int8__ = 0r as *__int8__
+	assert(not (nil != x))
+	assert(nil == x)
+	assert(not (x != nil))
+	assert(x == nil)
+	x = 100r as *__int8__
+	y := 200r as *__int8__
+	assert(not (nil == x))
+	assert(nil != x)
+	assert(not (x == nil))
+	assert(x != nil)
+	assert(x != y)
+
+	assert(nil >= nil)
+	assert(not (nil >= x))
+	assert(x >= nil)
+	assert(x >= x)
+	assert(y >= x)
+	assert(not (x >= y))
+
+	assert(not (nil > nil))
+	assert(not (nil > x))
+	assert(x > nil)
+	assert(not (x > x))
+	assert(y > x)
+	assert(not (x > y))
+
+	assert(not (nil < nil))
+	assert(nil < x)
+	assert(not (x < nil))
+	assert(not (x < x))
+	assert(not (y < x))
+	assert(x < y)
+
+	assert(nil <= nil)
+	assert(nil <= x)
+	assert(not (x <= nil))
+	assert(x <= x)
+	assert(not (y <= x))
+	assert(x <= y)
+
+	y = x
+
+	assert(x == y)
+	assert(not (x != y))
+	assert(x <= y)
+	assert(y <= x)
+	assert(x >= y)
+	assert(y >= x)
+	assert(not (y < x))
+	assert(not (x < y))
+	assert(not (x > y))
+	assert(not (y > x))
+
+	print("pass")
+		

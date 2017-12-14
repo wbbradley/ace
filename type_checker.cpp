@@ -1514,7 +1514,67 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 	return nullptr;
 }
 
-bound_var_t::ref resolve_binary_equality(
+enum rnpbc_t {
+	rnpbc_eq,
+	rnpbc_ineq,
+	rnpbc_lt,
+	rnpbc_lte,
+	rnpbc_gt,
+	rnpbc_gte,
+};
+
+bool rnpbc_equality_is_truth(rnpbc_t rnpbc) {
+	switch (rnpbc) {
+	case rnpbc_eq:
+		return true;
+	case rnpbc_ineq:
+		return true;
+	case rnpbc_lt:
+		return false;
+	case rnpbc_lte:
+		return true;
+	case rnpbc_gt:
+		return false;
+	case rnpbc_gte:
+		return true;
+	}
+}
+
+bool rnpbc_rhs_non_nil_is_truth(rnpbc_t rnpbc) {
+	switch (rnpbc) {
+	case rnpbc_eq:
+		return false;
+	case rnpbc_ineq:
+		return true;
+	case rnpbc_lt:
+		return true;
+	case rnpbc_lte:
+		return true;
+	case rnpbc_gt:
+		return false;
+	case rnpbc_gte:
+		return false;
+	}
+}
+
+bool rnpbc_lhs_non_nil_is_truth(rnpbc_t rnpbc) {
+	switch (rnpbc) {
+	case rnpbc_eq:
+		return false;
+	case rnpbc_ineq:
+		return true;
+	case rnpbc_lt:
+		return false;
+	case rnpbc_lte:
+		return false;
+	case rnpbc_gt:
+		return true;
+	case rnpbc_gte:
+		return true;
+	}
+}
+
+bound_var_t::ref resolve_native_pointer_binary_compare(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -1522,14 +1582,14 @@ bound_var_t::ref resolve_binary_equality(
 		location_t location,
 		bound_var_t::ref lhs_var,
 		bound_var_t::ref rhs_var,
-		bool negated)
+		rnpbc_t rnpbc)
 {
 	if (lhs_var->type->get_type()->is_nil()) {
 		if (rhs_var->type->get_type()->is_nil()) {
 			return scope->get_program_scope()->get_bound_variable(
 					status,
 					location,
-					negated ? "__false__" : "__true__",
+					rnpbc_equality_is_truth(rnpbc) ? "__true__" : "__false__",
 					false /*search_parents*/);
 		} else {
 			return resolve_nil_check(
@@ -1539,7 +1599,7 @@ bound_var_t::ref resolve_binary_equality(
 					life,
 					location,
 					rhs_var,
-					negated ? nck_is_non_nil : nck_is_nil);
+					rnpbc_rhs_non_nil_is_truth(rnpbc) ? nck_is_non_nil : nck_is_nil);
 		}
 	} else if (rhs_var->type->get_type()->is_nil()) {
 		return resolve_nil_check(
@@ -1549,7 +1609,7 @@ bound_var_t::ref resolve_binary_equality(
 				life,
 				location,
 				lhs_var,
-				negated ? nck_is_non_nil : nck_is_nil);
+				rnpbc_lhs_non_nil_is_truth(rnpbc) ? nck_is_non_nil : nck_is_nil);
 	} else {
 		/* neither side is nil */
 		if (!lhs_var->is_pointer()) { std::cerr << lhs_var->str() << " " << llvm_print(lhs_var->get_llvm_value()) << std::endl; dbg(); }
@@ -1568,14 +1628,40 @@ bound_var_t::ref resolve_binary_equality(
 
 		auto program_scope = scope->get_program_scope();
 		llvm::Type *llvm_char_ptr_type = builder.getInt8Ty()->getPointerTo();
-		llvm::Value *llvm_value = (
-				negated
-				? builder.CreateICmpNE(
+		
+		llvm::Value *llvm_value;
+		switch (rnpbc) {
+		case rnpbc_eq:
+			llvm_value = builder.CreateICmpEQ(
 					builder.CreateBitCast(lhs_var->get_llvm_value(), llvm_char_ptr_type),
-					builder.CreateBitCast(rhs_var->get_llvm_value(), llvm_char_ptr_type))
-				: builder.CreateICmpEQ(
+					builder.CreateBitCast(rhs_var->get_llvm_value(), llvm_char_ptr_type));
+			break;
+		case rnpbc_ineq:
+			llvm_value = builder.CreateICmpNE(
 					builder.CreateBitCast(lhs_var->get_llvm_value(), llvm_char_ptr_type),
-					builder.CreateBitCast(rhs_var->get_llvm_value(), llvm_char_ptr_type)));
+					builder.CreateBitCast(rhs_var->get_llvm_value(), llvm_char_ptr_type));
+			break;
+		case rnpbc_lt:
+			llvm_value = builder.CreateICmpULT(
+					builder.CreateBitCast(lhs_var->get_llvm_value(), llvm_char_ptr_type),
+					builder.CreateBitCast(rhs_var->get_llvm_value(), llvm_char_ptr_type));
+			break;
+		case rnpbc_lte:
+			llvm_value = builder.CreateICmpULE(
+					builder.CreateBitCast(lhs_var->get_llvm_value(), llvm_char_ptr_type),
+					builder.CreateBitCast(rhs_var->get_llvm_value(), llvm_char_ptr_type));
+			break;
+		case rnpbc_gt:
+			llvm_value = builder.CreateICmpUGT(
+					builder.CreateBitCast(lhs_var->get_llvm_value(), llvm_char_ptr_type),
+					builder.CreateBitCast(rhs_var->get_llvm_value(), llvm_char_ptr_type));
+			break;
+		case rnpbc_gte:
+			llvm_value = builder.CreateICmpUGE(
+					builder.CreateBitCast(lhs_var->get_llvm_value(), llvm_char_ptr_type),
+					builder.CreateBitCast(rhs_var->get_llvm_value(), llvm_char_ptr_type));
+			break;
+		}
 
 		auto bool_type = program_scope->get_bound_type(BOOL_TYPE);
 		return bound_var_t::create(
@@ -1590,7 +1676,7 @@ bound_var_t::ref resolve_binary_equality(
 	}
 }
 
-bound_var_t::ref resolve_pointer_operation(
+bound_var_t::ref resolve_native_pointer_binary_operation(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -1601,11 +1687,19 @@ bound_var_t::ref resolve_pointer_operation(
 		std::string function_name)
 {
 	if (function_name == "__eq__") {
-		return resolve_binary_equality(status, builder, scope, life, location, lhs_var, rhs_var, false /*negated*/);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_var, rhs_var, rnpbc_eq);
 	} else if (function_name == "__ineq__") {
-		return resolve_binary_equality(status, builder, scope, life, location, lhs_var, rhs_var, true /*negated*/);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_var, rhs_var, rnpbc_ineq);
+	} else if (function_name == "__lt__") {
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_var, rhs_var, rnpbc_lt);
+	} else if (function_name == "__lte__") {
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_var, rhs_var, rnpbc_lte);
+	} else if (function_name == "__gt__") {
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_var, rhs_var, rnpbc_gt);
+	} else if (function_name == "__gte__") {
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_var, rhs_var, rnpbc_gte);
 	} else {
-		user_error(status, location, "native pointers cannot be compared using " c_id("%s"), function_name.c_str());
+		user_error(status, location, "native pointers cannot be combined using the " c_id("%s") " function", function_name.c_str());
 	}
 	assert(!status);
 	return nullptr;
@@ -1639,36 +1733,34 @@ bound_var_t::ref type_check_binary_operator(
 					bool lhs_is_nil = lhs_var->type->get_type()->is_nil();
 					bool rhs_is_nil = rhs_var->type->get_type()->is_nil();
 
-					if (function_name == "__eq__" || function_name == "__ineq__") {
-						/* see whether we should just do a binary value comparison */
-						if (
-								(lhs_var->type->is_function()
-								 || lhs_var->type->is_ptr(scope)
-								 || lhs_is_nil) &&
-								(rhs_var->type->is_function()
-								 || rhs_var->type->is_ptr(scope)
-								 || rhs_is_nil))
-						{
-							bool lhs_is_managed;
-							lhs_var->type->is_managed_ptr(
-									status,
-									builder,
-									scope,
-									lhs_is_managed);
-							if (!!status) {
-								if (!lhs_is_managed || rhs_is_nil) {
-									bool rhs_is_managed;
-									rhs_var->type->is_managed_ptr(
-											status,
-											builder,
-											scope,
-											rhs_is_managed);
-									if (!!status) {
-										if (!rhs_is_managed || lhs_is_nil) {
-											/* yeah, it looks like we are operating on two native pointers */
-											return resolve_pointer_operation(status, builder, scope,
-													life, obj->get_location(), lhs_var, rhs_var, function_name);
-										}
+					/* see whether we should just do a binary value comparison */
+					if (
+							(lhs_var->type->is_function()
+							 || lhs_var->type->is_ptr(scope)
+							 || lhs_is_nil) &&
+							(rhs_var->type->is_function()
+							 || rhs_var->type->is_ptr(scope)
+							 || rhs_is_nil))
+					{
+						bool lhs_is_managed;
+						lhs_var->type->is_managed_ptr(
+								status,
+								builder,
+								scope,
+								lhs_is_managed);
+						if (!!status) {
+							if (!lhs_is_managed || rhs_is_nil) {
+								bool rhs_is_managed;
+								rhs_var->type->is_managed_ptr(
+										status,
+										builder,
+										scope,
+										rhs_is_managed);
+								if (!!status) {
+									if (!rhs_is_managed || lhs_is_nil) {
+										/* yeah, it looks like we are operating on two native pointers */
+										return resolve_native_pointer_binary_operation(status, builder, scope,
+												life, obj->get_location(), lhs_var, rhs_var, function_name);
 									}
 								}
 							}
@@ -1711,7 +1803,8 @@ bound_var_t::ref type_check_binary_equality(
 				assert(!lhs_var->is_ref());
 				assert(!rhs_var->is_ref());
 
-				return resolve_binary_equality(status, builder, scope, life, obj->get_location(), lhs_var, rhs_var, negated);
+				return resolve_native_pointer_binary_compare(status, builder, scope, life, obj->get_location(), lhs_var, rhs_var,
+					   	negated ? rnpbc_ineq : rnpbc_eq);
 			}
 		}
 	}
@@ -4359,16 +4452,18 @@ bound_var_t::ref take_address(
 	bound_var_t::ref rhs_var = expr->resolve_expression(status, builder,
 			scope, life, true /*as_ref*/);
 
-	if (auto ref_type = dyncast<const types::type_ref_t>(rhs_var->type->get_type())) {
-		bound_type_t::ref bound_ptr_type = upsert_bound_type(status, builder, scope, type_ptr(ref_type->element_type));
-		if (!!status) {
-			return bound_var_t::create(
-					expr->get_location(), string_format("address_of.%s", rhs_var->name.c_str()),
-					bound_ptr_type, rhs_var->get_llvm_value(),
-					make_code_id(expr->token));
+	if (!!status) {
+		if (auto ref_type = dyncast<const types::type_ref_t>(rhs_var->type->get_type())) {
+			bound_type_t::ref bound_ptr_type = upsert_bound_type(status, builder, scope, type_ptr(ref_type->element_type));
+			if (!!status) {
+				return bound_var_t::create(
+						expr->get_location(), string_format("address_of.%s", rhs_var->name.c_str()),
+						bound_ptr_type, rhs_var->get_llvm_value(),
+						make_code_id(expr->token));
+			}
+		} else {
+			user_error(status, expr->get_location(), "can't take address of %s", expr->str().c_str());
 		}
-	} else {
-		user_error(status, expr->get_location(), "can't take address of %s", expr->str().c_str());
 	}
 
 	assert(!status);

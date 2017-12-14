@@ -25,6 +25,7 @@ link def raise(signal __int__) __int__
 link def fopen(fn *__char__, mode *__char__) *FILE
 link def fclose(fp *FILE) __int__
 link def getline(linep **__char__, linecapp *__int__, fp *FILE) __int__
+link def strlen(s *__char__) __int__
 
 type FILE struct
 
