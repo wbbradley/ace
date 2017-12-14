@@ -447,7 +447,7 @@ def hexdigest(b bytes) str
 	return hexdigest(b.data, b.cb)
 
 def hexdigest(data *void, cb __int__) str
-	s := posix.malloc(cb * 2r + 1r) as *__int16__
+	s := posix.malloc(cb * 2r + 1r) as *__char__
 	iter := data as *__int8__
 	end := &iter[cb]
 	i := 0r
