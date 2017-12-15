@@ -9,6 +9,6 @@ def main()
 	state := f.state
 	when state
 		is file.Open
-			print("opened " + filename + " as fp " + str(state.fp as __int__))
+			print("opened " + filename + " as fp " + str(state.fp as int_t))
 	else
 		print("unable to open " + filename)

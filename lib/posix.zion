@@ -3,33 +3,33 @@ module posix
 link in "c"
 
 link def getenv(x *__char__) *__char__
-link def puts(x *__char__) __int__
-link def putchar(x __int__) __int__
-link def perror(x *__char__) __int__
-link def open(path *__char__, oflag __int__) __int__
-link def close(fd __int__) __int__
-link def read(fileds __int__, buf *int8_t, nbytes __int__) __int__
-link def write(fileds __int__, buf *int8_t, nbytes __int__) __int__
-link def malloc(cb __int__) *void
-link def memcpy(dst *int8_t, src *int8_t, n __int__) *int8_t
+link def puts(x *__char__) int_t
+link def putchar(x int_t) int_t
+link def perror(x *__char__) int_t
+link def open(path *__char__, oflag int_t) int_t
+link def close(fd int_t) int_t
+link def read(fileds int_t, buf *int8_t, nbytes __int__) int_t
+link def write(fileds int_t, buf *int8_t, nbytes __int__) int_t
+link def malloc(cb int_t) *void
+link def memcpy(dst *int8_t, src *int8_t, n int_t) *int8_t
 link def free(pb *void) *int8_t
-link def calloc(cb __int__, size __int__) *void
+link def calloc(cb int_t, size __int__) *void
 link def strdup(s *__char__) *__char__
-link def strcmp(x *__char__, y *__char__) __int__
+link def strcmp(x *__char__, y *__char__) int_t
 link def sqrt(x __float__) __float__
 link def arc4random_stir() void
-link def arc4random_buf(dst *void, cb __int__) __int__
-link def rand() __int__
-link def exit(code __int__) __int__
-link def getch() __int__
+link def arc4random_buf(dst *void, cb int_t) int_t
+link def rand() int_t
+link def exit(code int_t) int_t
+link def getch() int_t
 link def getcwd(space *__char__) *__char__
-link def raise(signal __int__) __int__
+link def raise(signal int_t) int_t
 link def fopen(fn *__char__, mode *__char__) *FILE
-link def fclose(fp *FILE) __int__
-link def getline(linep **__char__, linecapp *__int__, fp *FILE) __int__
-link def strlen(s *__char__) __int__
+link def fclose(fp *FILE) int_t
+link def getline(linep **__char__, linecapp *__int__, fp *FILE) int_t
+link def strlen(s *__char__) int_t
 
 type FILE struct
 
-var SIGTRAP __int__ = 5r
-var SIGKILL __int__ = 9r
+var SIGTRAP int_t = 5r
+var SIGKILL int_t = 9r

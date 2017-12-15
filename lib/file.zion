@@ -60,7 +60,7 @@ def __iter_end__(fl FileLines) nil
 	return nil
 
 [global]
-def __iter_valid__(fl FileLines, _ nil) __bool__
+def __iter_valid__(fl FileLines, _ nil) bool_t
 	return fl.cur_line != nil
 
 [global]
