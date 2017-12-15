@@ -4,14 +4,14 @@ link module runtime
 
 type vector_t struct
 	var _var     runtime.var_t
-	var reserved __int__
-	var size     __int__
+	var reserved int_t
+	var size     int_t
 	var items    **runtime.var_t
 
 type vector{T} link vector_t __vector_free__ __vector_mark__
 
 [global]
-def reserved(v vector{any}) __int__
+def reserved(v vector{any}) int_t
 	return (v as *vector_t).reserved
 
 [global]
@@ -51,7 +51,7 @@ def __getitem__(vec [any T], index int) any T
 	return __getvectoritem__((vec as *vector_t), index.raw) as any T
 
 [global]
-def __getitem__(vec [any T], index __int__) any T
+def __getitem__(vec [any T], index int_t) any T
 	return __getvectoritem__(vec as *vector_t, index) as any T
 
 [global]
@@ -71,7 +71,7 @@ def resize(vec [any T], size int, default any T) void
 
 [global]
 def __vector_mark__(vec *runtime.var_t)
-	# posix.puts("marking vector at 0x"r + __str__(vec as __int__, 16r))
+	# posix.puts("marking vector at 0x"r + __str__(vec as int_t, 16r))
 	v := vec as *vector_t
 	i := 0r
 	while i < v.size
@@ -91,22 +91,22 @@ def __vector_free__(var_ *runtime.var_t)
 	 * object */
 
 
-def __getvectoritem__(vector *vector_t, index __int__) *runtime.var_t
+def __getvectoritem__(vector *vector_t, index int_t) *runtime.var_t
 	if index >= 0r and index < vector.size
 		return vector.items[index]
 
-	print("zion: array index out of bounds (0x" + __box__(__str__(vector as __int__, 16r)) + "[" + int(index) + "])")
+	print("zion: array index out of bounds (0x" + __box__(__str__(vector as int_t, 16r)) + "[" + int(index) + "])")
 	assert(false)
 	return nil as *runtime.var_t
 
-def __setvectoritem__(vector *vector_t, index __int__, item *runtime.var_t)
+def __setvectoritem__(vector *vector_t, index int_t, item *runtime.var_t)
 	if index < 0r
 		return
 
 	if index < vector.size
 		vector.items[index] = item
 	else
-		print("zion: array index out of bounds (0x" + __box__(__str__(vector as __int__, 16r)) + "[" + int(index) + "])")
+		print("zion: array index out of bounds (0x" + __box__(__str__(vector as int_t, 16r)) + "[" + int(index) + "])")
 		assert(false)
 
 def __vectorappend__(vector *vector_t, item *runtime.var_t)
@@ -145,7 +145,7 @@ def reserve(vec [any T], n int)
 	# Call the unmanaged version
 	reserve(vec as *vector_t, n.raw)
 
-def reserve(vec *vector_t, n __int__)
+def reserve(vec *vector_t, n int_t)
 	# Make sure we've got n spaces available in our vector's allocated memory
 	if vec.reserved < n
 		if vec.items
@@ -182,7 +182,7 @@ def copy(orig [any T], t any T) [any T]
 
 type vector_iter{C} has
 	var vec [C]
-	var pos __int__
+	var pos int_t
 
 [global]
 def __iter_begin__(c [any C]) vector_iter{any C}
@@ -193,7 +193,7 @@ def __iter_end__(c [any C]) vector_iter{any C}
 	return vector_iter(c, (c as *vector.vector_t).size)
 
 [global]
-def __iter_valid__(i vector_iter{any C}, end vector_iter{any C}) __bool__
+def __iter_valid__(i vector_iter{any C}, end vector_iter{any C}) bool_t
 	assert(i.vec as *vector_t == end.vec as *vector_t)
 	return i.pos < end.pos
 

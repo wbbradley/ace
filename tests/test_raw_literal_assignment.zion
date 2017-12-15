@@ -1,5 +1,5 @@
 module _
 # test: pass
 
-def main() __int__
+def main() int_t
 	return 4r

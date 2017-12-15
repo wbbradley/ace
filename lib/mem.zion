@@ -12,7 +12,7 @@ type TypeInfo has native
 	var release def (v Value) void
 
 [module std]
-def allocate_value(size __int__, name __str__, type_info TypeInfo) Value
+def allocate_value(size int_t, name __str__, type_info TypeInfo) Value
 	buf := posix.calloc(sizeof(Value) + size, (1).raw) as! Value
 	buf.size = size
 	buf.name = posix.strdup(name)

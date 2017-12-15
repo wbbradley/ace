@@ -21,8 +21,8 @@ def release(v *__Value__) void
 	pass
 
 type __TwoInts__ struct
-	var x __int__
-	var y __int__
+	var x int_t
+	var y int_t
 
 type TwoInts has
 	var x int

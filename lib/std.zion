@@ -37,13 +37,13 @@ type bool is
 def __not__(b bool) bool
 	return bool(__get_typeid__(b) != __get_typeid__(true))
 
-def __not__(b __bool__) __bool__
+def __not__(b bool_t) bool_t
 	return b == 0r
 
 def __not__(x int) bool
 	return bool(x.raw == 0r)
 
-def bool(x __bool__) bool
+def bool(x bool_t) bool
 	# Since bool is a sum type, there is no default constructor
 	# but since it also represents this obvious binary type, we should
 	# have a default "boxing" function.
@@ -56,7 +56,7 @@ def bool(x int) bool
 	return (x.raw == 0r) ? false : true
 
 def bool(x str) bool
-	return (x.raw[0r] as __int__ != 0r) ? true : false
+	return (x.raw[0r] as int_t != 0r) ? true : false
 
 type str has
 	# TODO: override str ctor to strdup strings
@@ -101,7 +101,7 @@ def int(s str) int
 	return int(__int__(s.raw))
 
 type int has
-	var raw __int__
+	var raw int_t
 
 def __init__() int
 	return 0
@@ -115,7 +115,7 @@ def int(x float) int
 def str(x int) str
 	return str(__str__(x.raw))
 
-def str(i __int__) str
+def str(i int_t) str
 	return str(__str__(i))
 
 type float has
@@ -145,7 +145,7 @@ def __plus__(x str, y str) str
 def __plus__(x str, y int) str
 	return str(concat(x.raw, str(y).raw))
 
-def __plus__(x str, y __int__) str
+def __plus__(x str, y int_t) str
 	y_expanded := __str__(y)
 	result := str(concat(x.raw, y_expanded))
 	posix.free(y_expanded)
@@ -217,29 +217,29 @@ def __times__(x int, y float) float
 def __times__(x float, y float) float
 	return float(x.raw * y.raw)
 
-# def __eq__(x *any, y nil) __bool__
+# def __eq__(x *any, y nil) bool_t
 # return __is_nil__(x)
 
-# def __eq__(y nil, x *any) __bool__
+# def __eq__(y nil, x *any) bool_t
 # return __is_nil__(x)
 
-# def __eq__(x __str__, y nil) __bool__
+# def __eq__(x __str__, y nil) bool_t
 # return __is_nil__(x)
 
-# def __eq__(x *any T, y *any T) __bool__
-# 	return x as __int__ == y as __int__
+# def __eq__(x *any T, y *any T) bool_t
+# 	return x as int_t == y as int_t
 
 def __eq__(x int, y int) bool
 	return x.raw == y.raw ? true : false
 
-def __eq__(x int32_t, y int32_t) __bool__
-	return x as __int__ == y as __int__
+def __eq__(x int32_t, y int32_t) bool_t
+	return x as int_t == y as int_t
 
-def __eq__(x int16_t, y int16_t) __bool__
-	return x as __int__ == y as __int__
+def __eq__(x int16_t, y int16_t) bool_t
+	return x as int_t == y as int_t
 
-def __eq__(x int8_t, y int8_t) __bool__
-	return x as __int__ == y as __int__
+def __eq__(x int8_t, y int8_t) bool_t
+	return x as int_t == y as int_t
 
 def __eq__(x int, y float) bool
 	return __float__(x.raw) == y.raw ? true : false
@@ -256,31 +256,31 @@ def __eq__(x str, y str) bool
 def __ineq__(x str, y str) bool
 	return posix.strcmp(x.raw, y.raw) != 0r ? true : false
 
-# def __ineq__(x *any, y nil) __bool__
+# def __ineq__(x *any, y nil) bool_t
 # TODO: optimize
 # return __is_non_nil__(x)
 
-# def __ineq__(x __str__, y nil) __bool__
+# def __ineq__(x __str__, y nil) bool_t
 # return __is_non_nil__(x)
 
-# def __ineq__(y nil, x *any) __bool__
+# def __ineq__(y nil, x *any) bool_t
 # TODO: optimize
 # 	return __is_non_nil__(x)
 
-# def __ineq__(x *any T, y *any T) __bool__
-# 	return x as __int__ != y as __int__
+# def __ineq__(x *any T, y *any T) bool_t
+# 	return x as int_t != y as int_t
 
 def __ineq__(x int, y int) bool
 	return x.raw != y.raw ? true : false
 
-def __ineq__(x int32_t, y int32_t) __bool__
-	return x as __int__ != y as __int__
+def __ineq__(x int32_t, y int32_t) bool_t
+	return x as int_t != y as int_t
 
-def __ineq__(x int16_t, y int16_t) __bool__
-	return x as __int__ != y as __int__
+def __ineq__(x int16_t, y int16_t) bool_t
+	return x as int_t != y as int_t
 
-def __ineq__(x int8_t, y int8_t) __bool__
-	return x as __int__ != y as __int__
+def __ineq__(x int8_t, y int8_t) bool_t
+	return x as int_t != y as int_t
 
 def __ineq__(x int, y float) bool
 	return __float__(x.raw) != y.raw ? true : false
@@ -374,7 +374,7 @@ def str(l list{any T}?) str
 
 type bytes has
 	var data *int8_t
-	var cb __int__
+	var cb int_t
 
 def len(b bytes) int
 	return int(b.cb)
@@ -382,26 +382,26 @@ def len(b bytes) int
 def alloc(cb int) bytes
 	return alloc(cb.raw)
 
-def alloc(cb __int__) bytes
+def alloc(cb int_t) bytes
 	return bytes(posix.calloc(1r, cb) as *int8_t, cb)
 
 def __finalize__(b bytes)
 	posix.free(b.data)
 
-def str(b *int8_t, length __int__, encoding str) str
+def str(b *int8_t, length int_t, encoding str) str
 	dest_len := length + 1r
 	dest := posix.calloc(1r, dest_len)
 	posix.memcpy(dest as *int8_t, b as *int8_t, length)
 	return str(dest as *__char__)
 
 def rand(max int) int
-	var r __int__ = 0r
+	var r int_t = 0r
 	posix.arc4random_buf(&r, sizeof(__int__))
 	if r < 0r
 		r = -r
 	return int(r % max.raw)
 
-def __bool__(x [any T] or str or int or bool) __bool__
+def __bool__(x [any T] or str or int or bool) bool_t
 	assert(x as *void != nil)
 	when x
 		is true
@@ -411,7 +411,7 @@ def __bool__(x [any T] or str or int or bool) __bool__
 		is int
 			return x.raw != 0r
 		is str
-			return x.raw[0r] as __int__ != 0r
+			return x.raw[0r] as int_t != 0r
 		is [any T]
 			return (x as *vector.vector_t).size != 0r
 
@@ -419,14 +419,14 @@ def __bool__(x [any T] or str or int or bool) __bool__
 	print("failed to match type of object at 0x"
 		+ hexdigest(&node, sizeof(*runtime.var_t))
 		+ " and is a " + str(node.type_info.name)
-		+ " with type ID " + str(node.type_info.type_id as __int__))
+		+ " with type ID " + str(node.type_info.type_id as int_t))
 	assert(__false__)
 	return __false__
 
 type IntRange has
-	var first __int__
-	var lim __int__
-	var step __int__
+	var first int_t
+	var lim int_t
+	var step int_t
 
 def range(lim int) IntRange
 	return IntRange(0r, lim.raw, 1r)
@@ -439,7 +439,7 @@ def range(first int, lim int, step int) IntRange
 
 type IntRangeIter has
 	var range IntRange
-	var pos __int__
+	var pos int_t
 
 def __iter_begin__(range IntRange) IntRangeIter
 	return IntRangeIter(range, range.first)
@@ -447,7 +447,7 @@ def __iter_begin__(range IntRange) IntRangeIter
 def __iter_end__(range IntRange) IntRangeIter
 	return IntRangeIter(range, range.lim)
 
-def __iter_valid__(i IntRangeIter, end IntRangeIter) __bool__
+def __iter_valid__(i IntRangeIter, end IntRangeIter) bool_t
 	assert(i.range as *void == end.range as *void)
 	return i.pos < end.range.lim
 
@@ -457,7 +457,7 @@ def __iterate__(i IntRangeIter)
 def __iter_item__(i IntRangeIter) int
 	return int(i.pos)
 
-def str(buffer *__char__, length __int__) str
+def str(buffer *__char__, length int_t) str
 	# Create a managed string from a direct memory access
 	retstr := posix.malloc(length + 1r) as *__char__
 	posix.memcpy(retstr as *int8_t, buffer as *int8_t, length)
@@ -467,15 +467,15 @@ def str(buffer *__char__, length __int__) str
 def hexdigest(b bytes) str
 	return hexdigest(b.data, b.cb)
 
-def hexdigest(data *void, cb __int__) str
+def hexdigest(data *void, cb int_t) str
 	s := posix.malloc(cb * 2r + 1r) as *__char__
 	iter := data as *int8_t
 	end := &iter[cb]
 	i := 0r
 	while iter < end
 		# append to our hexdigest
-		s[i] = hexdigit(iter[0r] as __int__ / 16r) as __char__
-		s[i + 1r] = hexdigit(__mask__(iter[0r] as __int__, 15r)) as __char__
+		s[i] = hexdigit(iter[0r] as int_t / 16r) as __char__
+		s[i + 1r] = hexdigit(__mask__(iter[0r] as int_t, 15r)) as __char__
 
 		# advance iteration
 		i += 2r
