@@ -17,9 +17,9 @@ var __head_var *var_t = __create_head_var()
 var __debug_zion_runtime __bool__ = __false__
 var _zion_rt *__char__ = "zion-rt: "r
 
-var TYPE_KIND_TAG __int32__ = 0r as __int32__
-var TYPE_KIND_USE_OFFSETS __int32__ = 1r as __int32__
-var TYPE_KIND_USE_MARK_FN __int32__ = 2r as __int32__
+var TYPE_KIND_TAG int32_t = 0r as int32_t
+var TYPE_KIND_USE_OFFSETS int32_t = 1r as int32_t
+var TYPE_KIND_USE_MARK_FN int32_t = 2r as int32_t
 
 def on_assert_failure(msg *__char__) void
 	# called when assertions fail
@@ -33,7 +33,7 @@ def get_member_by_index(v *var_t, index __int__) *var_t
 	type_info_offsets := v.type_info as *type_info_offsets_t
 
 	# Get the base of the object in order to compute the offset of the member
-	base_ptr := v as *__int8__
+	base_ptr := v as *int8_t
 
 	# Member offset computation
 	offset := type_info_offsets.ref_offsets[index]
@@ -57,16 +57,16 @@ type var_t struct
 	#
 
 type type_info_t struct
-	var type_id   __int32__
-	var type_kind __int32__
+	var type_id   int32_t
+	var type_kind int32_t
 	var size      __int__
 	var name      *__char__
 
 type type_info_offsets_t struct
 	var type_info_head type_info_t
 	var finalize_fn    def (v *var_t) void
-	var refs_count     __int16__
-	var ref_offsets    *__int16__
+	var refs_count     int16_t
+	var ref_offsets    *int16_t
 
 type type_info_mark_fn_t struct
 	var type_info_head type_info_t
@@ -99,10 +99,10 @@ def mem_alloc(cb __int__, comment *__char__) *void
 
 def mem_free(p *void, cb __int__) void
 	_bytes_allocated -= cb
-	pch := p as *__int8__
-	pch_lim := &((p as *__int8__)[cb])
+	pch := p as *int8_t
+	pch_lim := &((p as *int8_t)[cb])
 	while pch as __int__ < pch_lim as __int__
-		pch[0r] = 221r as __int8__ # 0xDD
+		pch[0r] = 221r as int8_t # 0xDD
 		pch = &pch[1r]
 
 	# posix.free(p)
@@ -256,8 +256,8 @@ def create_var(type_info *type_info_t) *var_t
 #   Storage of metadata values is elided if the %metadata parameter to
 #   @llvm.gcroot is null.
 type stack_frame_map_t struct
-	var num_roots __int32__  # Number of roots in stack frame.
-	var num_meta  __int32__  # Number of metadata entries.  May be < num_roots.
+	var num_roots int32_t  # Number of roots in stack frame.
+	var num_meta  int32_t  # Number of metadata entries.  May be < num_roots.
 
 #   A link in the dynamic shadow stack.  One of these is embedded in
 #   the stack frame of each function on the call stack.
@@ -282,7 +282,7 @@ def visit_heap_roots(heap_visit def (obj *var_t) void)
 	R := llvm_gc_root_chain as *stack_entry_plus_root_t
 	while R != nil
 		assert(R as __int__ != 0r)
-		assert(R.map.num_meta == 0r as __int32__)
+		assert(R.map.num_meta == 0r as int32_t)
 		# posix.puts("R is 0x"r + __str__(&R.root0 as __int__, 16r))
 
 		# For roots [num_meta, num_roots), the metadata pointer is null.

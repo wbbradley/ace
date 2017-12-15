@@ -232,13 +232,13 @@ def __times__(x float, y float) float
 def __eq__(x int, y int) bool
 	return x.raw == y.raw ? true : false
 
-def __eq__(x __int32__, y __int32__) __bool__
+def __eq__(x int32_t, y int32_t) __bool__
 	return x as __int__ == y as __int__
 
-def __eq__(x __int16__, y __int16__) __bool__
+def __eq__(x int16_t, y int16_t) __bool__
 	return x as __int__ == y as __int__
 
-def __eq__(x __int8__, y __int8__) __bool__
+def __eq__(x int8_t, y int8_t) __bool__
 	return x as __int__ == y as __int__
 
 def __eq__(x int, y float) bool
@@ -273,13 +273,13 @@ def __ineq__(x str, y str) bool
 def __ineq__(x int, y int) bool
 	return x.raw != y.raw ? true : false
 
-def __ineq__(x __int32__, y __int32__) __bool__
+def __ineq__(x int32_t, y int32_t) __bool__
 	return x as __int__ != y as __int__
 
-def __ineq__(x __int16__, y __int16__) __bool__
+def __ineq__(x int16_t, y int16_t) __bool__
 	return x as __int__ != y as __int__
 
-def __ineq__(x __int8__, y __int8__) __bool__
+def __ineq__(x int8_t, y int8_t) __bool__
 	return x as __int__ != y as __int__
 
 def __ineq__(x int, y float) bool
@@ -373,7 +373,7 @@ def str(l list{any T}?) str
 	return "[" + join(l, ", ") + "]"
 
 type bytes has
-	var data *__int8__
+	var data *int8_t
 	var cb __int__
 
 def len(b bytes) int
@@ -383,15 +383,15 @@ def alloc(cb int) bytes
 	return alloc(cb.raw)
 
 def alloc(cb __int__) bytes
-	return bytes(posix.calloc(1r, cb) as *__int8__, cb)
+	return bytes(posix.calloc(1r, cb) as *int8_t, cb)
 
 def __finalize__(b bytes)
 	posix.free(b.data)
 
-def str(b *__int8__, length __int__, encoding str) str
+def str(b *int8_t, length __int__, encoding str) str
 	dest_len := length + 1r
 	dest := posix.calloc(1r, dest_len)
-	posix.memcpy(dest as *__int8__, b as *__int8__, length)
+	posix.memcpy(dest as *int8_t, b as *int8_t, length)
 	return str(dest as *__char__)
 
 def rand(max int) int
@@ -460,7 +460,7 @@ def __iter_item__(i IntRangeIter) int
 def str(buffer *__char__, length __int__) str
 	# Create a managed string from a direct memory access
 	retstr := posix.malloc(length + 1r) as *__char__
-	posix.memcpy(retstr as *__int8__, buffer as *__int8__, length)
+	posix.memcpy(retstr as *int8_t, buffer as *int8_t, length)
 	retstr[length] = 0r as __char__
 	return str(retstr)
 
@@ -469,7 +469,7 @@ def hexdigest(b bytes) str
 
 def hexdigest(data *void, cb __int__) str
 	s := posix.malloc(cb * 2r + 1r) as *__char__
-	iter := data as *__int8__
+	iter := data as *int8_t
 	end := &iter[cb]
 	i := 0r
 	while iter < end

@@ -656,7 +656,7 @@ void compiler_t::emit_built_program(status_t &status, std::string executable_fil
 		}
 
 		std::stringstream ss;
-		ss << clang_bin << " -lc -lm";
+		ss << clang_bin;
 		if (getenv("ZION_LINK") != nullptr) {
 			ss << " " << getenv("ZION_LINK");
 		}
@@ -669,7 +669,13 @@ void compiler_t::emit_built_program(status_t &status, std::string executable_fil
 			ss << " " << obj_file;
 		}
 		for (auto link_in : link_ins) {
-			ss << " " << unescape_json_quotes(link_in.text);
+			auto text = unescape_json_quotes(link_in.text);
+			if (ends_with(text, ".o") || ends_with(text, ".a") || starts_with(text, "-")) {
+				ss << " " << text;
+			} else {
+				/* shorthand for linking */
+				ss << " -l" << text;
+			}
 		}
 		ss << " -o " << executable_filename;
 

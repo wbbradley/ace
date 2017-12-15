@@ -125,7 +125,7 @@ def __vectorappend__(vector *vector_t, item *runtime.var_t)
 			new_reserved = 16r
 
 		new_items := posix.calloc(sizeof(*runtime.var_t), new_reserved) as **runtime.var_t
-		posix.memcpy(new_items as *__int8__, vector.items as *__int8__, sizeof(*runtime.var_t) * vector.size)
+		posix.memcpy(new_items as *int8_t, vector.items as *int8_t, sizeof(*runtime.var_t) * vector.size)
 		new_items[vector.size] = item
 		vector.size += 1r
 
@@ -150,7 +150,7 @@ def reserve(vec *vector_t, n __int__)
 	if vec.reserved < n
 		if vec.items
 			new_items := posix.calloc(sizeof(*runtime.var_t), n) as **runtime.var_t
-			posix.memcpy(new_items as *__int8__, vec.items as *__int8__, sizeof(*runtime.var_t) * vec.size)
+			posix.memcpy(new_items as *int8_t, vec.items as *int8_t, sizeof(*runtime.var_t) * vec.size)
 			posix.free(vec.items)
 			vec.items = new_items
 			vec.reserved = n

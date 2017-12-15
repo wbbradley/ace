@@ -1,7 +1,7 @@
 module _
 link module posix
 
-link var errno __int__
+link var errno int_t
 
 type Open has
 	var fp *posix.FILE
@@ -92,8 +92,8 @@ def readline(f File) str or Error or EOF
 
 			# make sure we strip the LF char
 			if linelen > 0r
-				if line[linelen - 1r] as __int__ == 10r
-					line[linelen - 1r] = 0r as __char__
+				if line[linelen - 1r] as int_t == 10r
+					line[linelen - 1r] = 0r
 			return str(line)
 		is Closed
 			return Error(-1)

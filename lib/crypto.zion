@@ -1,16 +1,16 @@
 module crypto
 
-link in "-lsodium"
+link in "sodium"
 
-link def sodium_init() __int__
-link def crypto_generichash_bytes_min() __int__
-link def crypto_generichash_bytes_max() __int__
-link def crypto_generichash_statebytes() __int__
-link def crypto_generichash(out *__int8__, outlen __int__, input *__int8__, inlen __int__, key *__int8__, keylen __int__) __int__
-link def crypto_generichash_init(state *crypto_generichash_state, key *__int8__, keylen __int__, outlen __int__) __int__
-link def crypto_generichash_update(state *crypto_generichash_state, input *__int8__, inputlen __int__) __int__
-link def crypto_generichash_final(state *crypto_generichash_state, out *__int8__, outlen __int__) __int__
-link def crypto_generichash_keygen(k *__int8__) void
+link def sodium_init() int_t
+link def crypto_generichash_bytes_min() size_t
+link def crypto_generichash_bytes_max() size_t
+link def crypto_generichash_statebytes() size_t
+link def crypto_generichash(out *int8_t, outlen size_t, input *int8_t, inlen size_t, key *int8_t, keylen size_t) int_t
+link def crypto_generichash_init(state *crypto_generichash_state, key *int8_t, keylen size_t, outlen size_t) int_t
+link def crypto_generichash_update(state *crypto_generichash_state, input *int8_t, inputlen size_t) int_t
+link def crypto_generichash_final(state *crypto_generichash_state, out *int8_t, outlen size_t) int_t
+link def crypto_generichash_keygen(k *int8_t) void
 
 type crypto_generichash_state struct
 
@@ -28,7 +28,7 @@ def hash(input bytes, key bytes) bytes
 def hash(input str) bytes
 	outlen := crypto_generichash_bytes_max()
 	out := alloc(outlen)
-	crypto_generichash(out.data, out.cb, input.raw as *__int8__, posix.strlen(input.raw), nil, 0r)
+	crypto_generichash(out.data, out.cb, input.raw as *int8_t, posix.strlen(input.raw), nil, 0r)
 	return out
 	
 	

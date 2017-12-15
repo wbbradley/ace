@@ -66,7 +66,7 @@ llvm::Value *bound_var_t::resolve_bound_var_value(llvm::IRBuilder<> &builder) co
 		return builder.CreateLoad(llvm_value);
 	} else {
 		// NOTE: commented this out because we need to be able to pass stack variable locations as
-		// pointers (var x __int__; y := &x)... maybe.
+		// pointers (var x int_t; y := &x)... maybe.
 		// assert(!llvm::dyn_cast<llvm::AllocaInst>(llvm_value));
 		assert(!llvm::dyn_cast<llvm::GlobalVariable>(llvm_value));
 	}
@@ -122,7 +122,7 @@ bound_module_t::bound_module_t(
 			name, 
 			module_scope->get_bound_type({"module"}),
 			llvm::Constant::getNullValue(
-				module_scope->get_program_scope()->get_bound_type("__int8__")->get_llvm_type()->getPointerTo()),
+				module_scope->get_program_scope()->get_bound_type("int8_t")->get_llvm_type()->getPointerTo()),
 			id),
 	module_scope(module_scope)
 {

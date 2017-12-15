@@ -2,7 +2,7 @@ module mem
 link module posix
 
 type Value has native
-	var size __int64__
+	var size int64_t
 	var name __str__
 	var typeinfo TypeInfo
 
