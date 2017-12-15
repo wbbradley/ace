@@ -28,11 +28,11 @@ char *__str_int_radix(zion_int_t x, zion_int_t radix) {
 	return strdup(onstack);
 }
 
-char *__str_int(zion_int_t x) {
-	char onstack[65];
-	snprintf(onstack, sizeof(onstack), "%lld", (long long)x);
+wchar_t *__str_int(zion_int_t x) {
+	wchar_t onstack[65];
+	swprintf(onstack, sizeof(onstack), "%lld", (long long)x);
 	onstack[sizeof(onstack) - 1] = 0;
-	return strdup(onstack);
+	return wcsdup(onstack);
 }
 
 char *__str_float(zion_float_t x) {

@@ -6,10 +6,26 @@ link module vector
 link module map
 link module iter as iter_module
 
-link def hexdigit(val __int__) __int__
+link def hexdigit(val int_t) wchar_t
 
 # initialization of modules is automatically generated.
 # link def __init_modules() void
+
+type int_t = integer_t{64, signed}
+type uint_t = integer_t{64, unsigned}
+type size_t = integer_t{64 /* TODO: inject correct size for platform from reader macro */, unsigned}
+
+type int64_t = integer_t{64, signed}
+type uint64_t = integer_t{64, unsigned}
+
+type int32_t = integer_t{32, signed}
+type uint32_t = integer_t{32, unsigned}
+
+type int16_t = integer_t{16, signed}
+type uint16_t = integer_t{16, unsigned}
+
+type int8_t = integer_t{8, signed}
+type uint8_t = integer_t{8, unsigned}
 
 tag false
 tag true
@@ -18,23 +34,11 @@ type bool is
 	true or
 	false
 
-type TypeID has
-	var id __typeid__
-
-def str(t TypeID) str
-	return str(__int__(t.id))
-
-def typeid(t any) TypeID
-	return TypeID(__get_typeid__(t))
-
-def __ineq__(x TypeID, y TypeID) bool
-	return bool(x.id != y.id)
-
 def __not__(b bool) bool
 	return bool(__get_typeid__(b) != __get_typeid__(true))
 
 def __not__(b __bool__) __bool__
-	return b as __int__ == 0r
+	return b == 0r
 
 def __not__(x int) bool
 	return bool(x.raw == 0r)
@@ -65,7 +69,24 @@ def __finalize__(s str)
 	posix.free(s.raw)
 
 def __box__(s *__char__) str
-	return str(posix.strdup(s))
+	return str(mbstowcs(s))
+
+def mbstowcs(mbs *__char__) *__wchar__
+	# Converts from current locale's encoding to wide-char encoding. Allocates memory that
+	# must be freed later.
+	mbslen := posix.strlen(s)
+	wcs_cb := C99.mbstowcs(nil, s, slen)
+	if wcs_cb == -1r
+		print("Failed to convert string!")
+		sys.exit(1r)
+
+	wcs := posix.malloc(wcs_cb + sizeof(__wchar__)) as *__wchar__
+	if wcs == nil
+		posix.puts("out of memory")
+		sys.exit(-1r)
+
+	C99.mbstowcs(wcs, s, strlen(str));
+	return wcs
 
 def str(s str) str
 	return s

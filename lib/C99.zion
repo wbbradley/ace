@@ -1,0 +1,3 @@
+module C99
+
+link def mbstowcs(wcs *__wchar__, mbs *__char__, mbslen size_t) size_t

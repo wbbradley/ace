@@ -39,8 +39,12 @@ zion_int_t __int_float(zion_float_t x) {
 	return (zion_int_t)x;
 }
 
-zion_int_t __int_str(char *x) {
-	return atoi(x);
+zion_int_t __int_from_utf8(char *x) {
+	return strtol(x, NULL, 10);
+}
+
+zion_int_t __int_from_utf32(wchar_t *x) {
+	return wcstoll(x, NULL, 10);
 }
 
 zion_int_t __int_mask_int(zion_int_t x, zion_int_t y) {

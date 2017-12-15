@@ -1,4 +1,6 @@
 .*.swo
+test.c
+test
 build-*
 env
 value_semantics
