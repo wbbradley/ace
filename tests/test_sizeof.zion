@@ -5,7 +5,7 @@ module _
 # expect: 24
 
 type __Value__ struct
-	var size __int64__
+	var size int64_t
 	var name *__char__
 	var typeinfo *__TypeInfo__
 

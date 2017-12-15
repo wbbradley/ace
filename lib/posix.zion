@@ -1,16 +1,18 @@
 module posix
 
+link in "c"
+
 link def getenv(x *__char__) *__char__
 link def puts(x *__char__) __int__
 link def putchar(x __int__) __int__
 link def perror(x *__char__) __int__
 link def open(path *__char__, oflag __int__) __int__
 link def close(fd __int__) __int__
-link def read(fileds __int__, buf *__int8__, nbytes __int__) __int__
-link def write(fileds __int__, buf *__int8__, nbytes __int__) __int__
+link def read(fileds __int__, buf *int8_t, nbytes __int__) __int__
+link def write(fileds __int__, buf *int8_t, nbytes __int__) __int__
 link def malloc(cb __int__) *void
-link def memcpy(dst *__int8__, src *__int8__, n __int__) *__int8__
-link def free(pb *void) *__int8__
+link def memcpy(dst *int8_t, src *int8_t, n __int__) *int8_t
+link def free(pb *void) *int8_t
 link def calloc(cb __int__, size __int__) *void
 link def strdup(s *__char__) *__char__
 link def strcmp(x *__char__, y *__char__) __int__

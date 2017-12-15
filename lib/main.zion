@@ -4,9 +4,12 @@ link module sys
 link module posix
 link module crypto
 
-# this is the actual default entry point to every program
-[module std]
-def __main__(argc __int32__, argv **__char__) __int32__
+link def __set_locale__(locale *char_t) void
+
+[global]
+def __main__(argc int32_t, argv **char_t) int32_t
+	# This is the actual default entry point to every program.
+	__set_locale__("utf8")
 	crypto.init()
 	# runtime.report("__main__ start"r)
 	# Allocate global space for each module's top-level variables, and
@@ -14,6 +17,47 @@ def __main__(argc __int32__, argv **__char__) __int32__
 	__init_module_vars()
 	# runtime.report("__main__ after __init_module_vars"r)
 
-	sys.set_args(argc as __int__, argv)
+	sys.set_args(argc, argv)
 	main()
-	return 0r as __int32__
+	return 0r as int32_t
+
+#include <locale.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <wchar.h>
+#include <string.h>
+
+int main(int argc, char *argv[]) {
+	setlocale(LC_ALL, "utf8");
+	char *str = NULL;
+	size_t len = 0;
+	printf("%d\n", sizeof(wchar_t));
+	printf("> ");
+	if (getline(&str, &len, stdin) != -1) {
+		str[strlen(str) - 1] = 0;
+		size_t size = mbstowcs(NULL, str, strlen(str));
+		wchar_t *wcs = malloc(size + sizeof(wchar_t));
+		mbstowcs(wcs, str, strlen(str));
+		fwprintf(stdout, L"strlen(..) = %d\nlen = %d\nmblen = %d\nmbstowcs = %d\nwide char version = %S\n",
+				strlen(str),
+				len,
+				mblen(str, len),
+				mbstowcs(NULL, str, strlen(str)),
+				wcs);
+
+		/* convert back */
+		size_t round_trip_size = wcstombs(NULL, wcs, wcslen(wcs));
+		char *round_trip = malloc(round_trip_size + sizeof(char));
+		wcstombs(round_trip, wcs, wcslen(wcs));
+		fwprintf(stdout, L"round-tripped as %s with %d chars\n",
+				round_trip, round_trip_size);
+	}
+	free(str);
+	return 0;
+}
+
+/*
+ * wide char string to multi-byte string
+ * wide char string to len of needed multi-byte string buffer
+ * reverse above
+ * */

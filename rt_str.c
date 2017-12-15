@@ -3,6 +3,13 @@
  * */
 #include "zion_rt.h"
 
+void __set_locale__(char *locale) {
+	if (setlocale(LC_ALL, locale) == NULL) {
+		printf("failed to set locale to %s\n", locale);
+		exit(1);
+	}
+}
+
 void mem_dump(void *addr, zion_int_t cb) {
 	printf("dumping memory at:\n");
 	char *pb = addr;

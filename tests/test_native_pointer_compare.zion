@@ -4,13 +4,13 @@ link module main
 # expect: pass
 
 def main()
-	var x *__int8__ = 0r as *__int8__
+	var x *int8_t = 0r as *int8_t
 	assert(not (nil != x))
 	assert(nil == x)
 	assert(not (x != nil))
 	assert(x == nil)
-	x = 100r as *__int8__
-	y := 200r as *__int8__
+	x = 100r as *int8_t
+	y := 200r as *int8_t
 	assert(not (nil == x))
 	assert(nil != x)
 	assert(not (x == nil))
