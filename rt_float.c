@@ -19,9 +19,12 @@ zion_float_t __float_float(zion_float_t x) {
 	return x;
 }
 
-zion_float_t __float_str(char *x) {
-	// TODO: use string runtime
-	return atof(x);
+zion_float_t __float_from_utf8(char *x) {
+	return strtod(x, NULL);
+}
+
+zion_float_t __float_from_utf32(wchar_t *x) {
+	return wcstod(x, NULL);
 }
 
 zion_float_t __float_plus_float(zion_float_t x, zion_float_t y) {

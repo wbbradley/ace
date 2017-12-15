@@ -89,6 +89,7 @@ K(else);
 K(for);
 K(global);
 K(__get_typeid__);
+K(__integer__);
 K(has);
 K(if);
 K(in);

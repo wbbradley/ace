@@ -191,7 +191,6 @@ ast::module_t::ref compiler_t::build_parse(
 							"int",
 							"str",
 							"float",
-							"TypeID",
 							"list",
 						};
 
@@ -316,36 +315,11 @@ void add_global_types(
 					type_id(make_iid("module")),
 				   	INTERNAL_LOC(),
 				   	builder.getVoidTy())},
-		{{INT_TYPE},
+		{{WCHAR_TYPE},
 		   	bound_type_t::create(
-					type_id(make_iid(INT_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getInt64Ty())},
-		{{INT64_TYPE},
-		   	bound_type_t::create(
-					type_id(make_iid(INT64_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getInt64Ty())},
-		{{INT32_TYPE},
-		   	bound_type_t::create(
-					type_id(make_iid(INT32_TYPE)),
+					type_id(make_iid(WCHAR_TYPE)),
 				   	INTERNAL_LOC(),
 				   	builder.getInt32Ty())},
-		{{INT16_TYPE},
-		   	bound_type_t::create(
-					type_id(make_iid(INT16_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getInt16Ty())},
-		{{INT8_TYPE},
-		   	bound_type_t::create(
-					type_id(make_iid(INT8_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getInt8Ty())},
-		{{CHAR_TYPE},
-		   	bound_type_t::create(
-					type_id(make_iid(CHAR_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getInt8Ty())},
 		{{UTF8_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(UTF8_TYPE)),
@@ -361,16 +335,26 @@ void add_global_types(
 					type_id(make_iid(BOOL_TYPE)),
 				   	INTERNAL_LOC(),
 				   	builder.getInt64Ty())},
-		{{STR_TYPE},
+		{{MBS_TYPE},
 		   	bound_type_t::create(
-					type_ptr(type_id(make_iid(CHAR_TYPE))),
+					type_ptr(type_id(make_iid(UTF8_TYPE))),
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty()->getPointerTo())},
-		{{PTR_TO_STR_TYPE},
+		{{PTR_TO_MBS_TYPE},
 		   	bound_type_t::create(
-					type_ptr(type_ptr(type_id(make_iid(CHAR_TYPE)))),
+					type_ptr(type_ptr(type_id(make_iid(UTF8_TYPE)))),
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty()->getPointerTo()->getPointerTo())},
+		{{WCS_TYPE},
+		   	bound_type_t::create(
+					type_ptr(type_id(make_iid(WCHAR_TYPE))),
+				   	INTERNAL_LOC(),
+				   	builder.getInt32Ty()->getPointerTo())},
+		{{PTR_TO_WCS_TYPE},
+		   	bound_type_t::create(
+					type_ptr(type_ptr(type_id(make_iid(WCHAR_TYPE)))),
+				   	INTERNAL_LOC(),
+				   	builder.getInt32Ty()->getPointerTo()->getPointerTo())},
 		{{TYPEID_TYPE},
 			bound_type_t::create(
 					type_id(make_iid(TYPEID_TYPE)),
@@ -446,23 +430,25 @@ void add_globals(
 			{INT_TYPE, llvm_module_int, "__int_int16", {INT16_TYPE}, INT_TYPE},
 			{INT16_TYPE, llvm_module_int, "__int16_int", {INT_TYPE}, INT16_TYPE},
 			{INT_TYPE, llvm_module_int, "__int_float", {FLOAT_TYPE}, INT_TYPE},
-			{INT_TYPE, llvm_module_int, "__int_str", {STR_TYPE}, INT_TYPE},
+			{INT_TYPE, llvm_module_int, "__int_from_wcs", {WCS_TYPE}, INT_TYPE},
+			{INT_TYPE, llvm_module_int, "__int_from_mbs", {MBS_TYPE}, INT_TYPE},
 
 			{FLOAT_TYPE, llvm_module_float, "__float_int", {INT_TYPE}, FLOAT_TYPE},
 			{FLOAT_TYPE, llvm_module_float, "__float_float", {FLOAT_TYPE}, FLOAT_TYPE},
-			{FLOAT_TYPE, llvm_module_float, "__float_str", {STR_TYPE}, FLOAT_TYPE},
+			{FLOAT_TYPE, llvm_module_float, "__float_from_utf8", {MBS_TYPE}, FLOAT_TYPE},
+			{FLOAT_TYPE, llvm_module_float, "__float_from_utf32", {WCS_TYPE}, FLOAT_TYPE},
 
 			{"mem_dump", llvm_module_str, "mem_dump", {"*void", INT_TYPE}, "void"},
-			{"__str__", llvm_module_str, "__str_int", {INT_TYPE}, STR_TYPE},
-			{"__str__", llvm_module_str, "__str_int_radix", {INT_TYPE, INT_TYPE}, STR_TYPE},
-			{"__str__", llvm_module_str, "__str_float", {FLOAT_TYPE}, STR_TYPE},
-			{"__str__", llvm_module_str, "__str_type_id", {TYPEID_TYPE}, STR_TYPE},
-			{"__str__", llvm_module_str, "__str_str", {STR_TYPE}, STR_TYPE},
-			{"__getitem__", llvm_module_str, "__ptr_to_str_get_item", {PTR_TO_STR_TYPE, INT_TYPE}, STR_TYPE},
+			{"__wcs__", llvm_module_str, "__wcs_int", {INT_TYPE}, WCS_TYPE},
+			{"__wcs__", llvm_module_str, "__wcs_int_radix", {INT_TYPE, INT_TYPE}, WCS_TYPE},
+			{"__wcs__", llvm_module_str, "__wcs_float", {FLOAT_TYPE}, WCS_TYPE},
+			{"__wcs__", llvm_module_str, "__wcs_type_id", {TYPEID_TYPE}, WCS_TYPE},
+			{"__wcs__", llvm_module_str, "__wcs_str", {MBS_TYPE}, WCS_TYPE},
 
 			{"__ineq__", llvm_module_typeid, "__type_id_ineq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 
-			{"concat",   llvm_module_str, "concat", {STR_TYPE, STR_TYPE}, STR_TYPE},
+			{"concat",   llvm_module_str, "__mbs_concat", {MBS_TYPE, MBS_TYPE}, MBS_TYPE},
+			{"concat",   llvm_module_str, "__wcs_concat", {WCS_TYPE, WCS_TYPE}, WCS_TYPE},
 			{"__not__",   llvm_module_int, "__int_not", {INT_TYPE}, BOOL_TYPE},
 
 			{"__plus__", llvm_module_int, "__int_plus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
@@ -508,7 +494,8 @@ void add_globals(
 			{"__eq__", llvm_module_int, "__int_eq_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
 			{"__eq__", llvm_module_float, "__float_eq_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
 			{"__eq__", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
-			{"__eq__", llvm_module_str, "__str_eq_str", {STR_TYPE, STR_TYPE}, BOOL_TYPE},
+			{"__eq__", llvm_module_str, "__mbs_eq_mbs", {MBS_TYPE, MBS_TYPE}, BOOL_TYPE},
+			{"__eq__", llvm_module_str, "__wcs_eq_wcs", {WCS_TYPE, WCS_TYPE}, BOOL_TYPE},
 
 			{"__type_id_eq_type_id", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
 			{"__int__", llvm_module_typeid, "__type_id_int", {TYPEID_TYPE}, INT_TYPE},

@@ -3074,6 +3074,9 @@ void resolve_unchecked_type(status_t &status, llvm::IRBuilder<> &builder, module
 		} else if (auto tag = dyncast<const ast::tag_t>(node)) {
 			tag->resolve_statement(status, builder, module_scope,
 					nullptr, nullptr, nullptr);
+		} else if (auto alias = dyncast<const ast::type_alias_t>(node)) {
+			alias->resolve_statement(status, builder, module_scope,
+					nullptr, nullptr, nullptr);
 		} else {
 			panic("unhandled unchecked type node at module scope");
 		}
@@ -4611,7 +4614,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
     case tk_raw_string:
 		{
 			std::string value = unescape_json_quotes(token.text.substr(0, token.text.size() - 1));
-			bound_type_t::ref native_type = program_scope->get_bound_type({STR_TYPE});
+			bound_type_t::ref native_type = program_scope->get_bound_type({MBS_TYPE});
 			return bound_var_t::create(
 					INTERNAL_LOC(), "raw_str_literal", native_type,
 					llvm_create_global_string(builder, value),

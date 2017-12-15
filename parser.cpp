@@ -1345,6 +1345,14 @@ types::type_t::ref _parse_single_type(
 	}
 
 	switch (ps.token.tk) {
+	case tk_integer:
+	case tk_string:
+		{
+			auto type = types::type_literal(ps.token);
+			ps.advance();
+			return type;
+		}
+
 	case tk_times:
 		{
 			ps.advance();
@@ -1355,8 +1363,23 @@ types::type_t::ref _parse_single_type(
 		}
 		break;
 	case tk_identifier:
-		if (ps.token.is_ident(K(has))
-				|| ps.token.is_ident(K(struct))) {
+		if (ps.token.is_ident(K(__integer__))) {
+			auto token = ps.token;
+			chomp_token(tk_lcurly);
+			auto bit_size = _parse_single_type(ps, nullptr, type_variables, generics);
+			if (!!ps.status) {
+				chomp_token(tk_comma);
+				auto signed_ = _parse_single_type(ps.nullptr, type_variables, generics);
+				if (!!ps.status) {
+					return type_integral(bit_size, signed_);
+				}
+			}
+
+			assert(!ps.status);
+			return nullptr;
+		} else if (ps.token.is_ident(K(has))
+				|| ps.token.is_ident(K(struct)))
+	   	{
 			bool native_struct = ps.token.is_ident(K(struct));
 			ps.advance();
 
@@ -1644,7 +1667,7 @@ type_algebra_t::ref type_algebra_t::parse(
 		return type_product_t::parse(ps, type_decl, type_decl->type_variables, false /*native*/);
 	} else if (ps.token.is_ident(K(link))) {
 		return type_link_t::parse(ps, type_decl, type_decl->type_variables);
-	} else if (ps.token.is_ident(K(matches))) {
+	} else if (ps.token.tk == tk_assign) {
 		return type_alias_t::parse(ps, type_decl, type_decl->type_variables);
 	} else if (ps.token.is_ident(K(struct))) {
 		return type_product_t::parse(ps, type_decl, type_decl->type_variables, true /*native*/);
@@ -1747,7 +1770,7 @@ type_alias_t::ref type_alias_t::parse(
 		ast::type_decl_t::ref type_decl,
 	   	identifier::refs type_variables)
 {
-	chomp_ident(K(matches));
+	chomp_token(tk_assign);
 
 	identifier::set generics = to_identifier_set(type_variables);
 	types::type_t::ref type = parse_maybe_type(ps, make_code_id(type_decl->token), type_variables, generics);

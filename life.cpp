@@ -124,55 +124,6 @@ std::string life_t::str() const {
 	return ss.str();
 }
 
-void call_refcount_func(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		bound_var_t::ref var,
-		std::string reason,
-		std::string function)
-{
-	return;
-	if (!!status) {
-		assert(var != nullptr);
-		bool is_managed;
-		var->type->is_managed_ptr(status, builder, scope, is_managed);
-
-		if (!!status) {
-			if (is_managed) {
-				auto program_scope = scope->get_program_scope();
-				auto refcount_function = program_scope->get_singleton(function);
-
-				debug_above(9, log("calling refcounting function %s on var %s", function.c_str(),
-							var->str().c_str()));
-#ifdef MEMORY_DEBUGGING
-				bound_var_t::ref reason_var = bound_var_t::create(
-						INTERNAL_LOC(), "reason",
-						program_scope->get_bound_type({STR_TYPE}),
-						llvm_create_global_string(builder, reason),
-						make_iid("refcount_reason"));
-#endif
-
-				auto life = make_ptr<life_t>(status, lf_statement, nullptr);
-				make_call_value(
-						status,
-						builder,
-						INTERNAL_LOC(),
-						scope,
-						life,
-						refcount_function,
-						{var
-#ifdef MEMORY_DEBUGGING
-						, reason_var
-#endif
-						});
-				/* since the refcount functions return a void, we can discard this
-				 * life as it won't have anything to clean up. */
-			}
-		}
-	}
-}
-
 void life_dump(ptr<const life_t> life) {
 	std::stringstream ss;
 	ss << C_CONTROL << "Life Dump:" << C_RESET << std::endl;
