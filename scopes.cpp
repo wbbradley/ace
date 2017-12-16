@@ -199,19 +199,11 @@ bound_type_t::ref program_scope_t::get_runtime_type(
 		std::string name,
 		bool get_ptr)
 {
-	module_scope_t::ref runtime_module = lookup_module("runtime");
-	if (runtime_module != nullptr) {
-		auto type = type_id(make_iid_impl(std::string("runtime.") + name, INTERNAL_LOC()));
-		if (get_ptr) {
-			type = type_ptr(type);
-		}
-		return upsert_bound_type(status, builder, runtime_module, type);
-	} else {
-		user_error(status, INTERNAL_LOC(), c_id("runtime") " module is not yet installed.");
+	auto type = type_id(make_iid_impl(name, INTERNAL_LOC()));
+	if (get_ptr) {
+		type = type_ptr(type);
 	}
-
-	assert(!status);
-	return nullptr;
+	return upsert_bound_type(status, builder, shared_from_this(), type);
 }
 
 void program_scope_t::get_callables(std::string symbol, var_t::refs &fns) {
@@ -533,7 +525,9 @@ std::string module_scope_impl_t::make_fqn(std::string leaf_name) const {
 	   	log("found a . in %s", leaf_name.c_str());
 	   	dbg();
    	}
-	return get_leaf_name() + SCOPE_SEP + leaf_name;
+	auto scope_name = get_leaf_name();
+	assert(scope_name.size() != 0);
+	return scope_name + SCOPE_SEP + leaf_name;
 }
 
 void module_scope_impl_t::put_unchecked_type(

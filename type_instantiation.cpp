@@ -341,3 +341,26 @@ void ast::type_link_t::register_type(
 	assert(!status);
 	return;
 }
+
+void ast::type_alias_t::register_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		identifier::ref supertype_id,
+		identifier::refs type_variables,
+	   	scope_t::ref scope) const
+{
+	debug_above(5, log(log_info, "creating type alias for %s", str().c_str()));
+
+	std::list<identifier::ref> lambda_vars;
+	std::set<std::string> generics;
+
+	get_generics_and_lambda_vars(status, type, type_variables, scope, lambda_vars, generics);
+
+	types::type_t::ref final_type = type;
+	for (auto lambda_var : lambda_vars) {
+		final_type = type_lambda(lambda_var, type);
+	}
+
+	scope->put_typename(status, token.text, final_type);
+}
+

@@ -1271,22 +1271,6 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	return nullptr;
 }
 
-void ast::type_alias_t::register_type(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		identifier::ref supertype_id,
-		identifier::refs type_variables,
-	   	scope_t::ref scope) const
-{
-	debug_above(5, log(log_info, "creating type alias for %s", str().c_str()));
-
-	if (type_variables.size() != 0) {
-		user_error(status, token.location, "found type variables in type alias - not yet impl");
-	} else {
-		user_error(status, token.location, "type aliasing is not yet impl");
-	}
-}
-
 bound_var_t::ref type_check_get_item_with_int_literal(
 		status_t &status,
 		llvm::IRBuilder<> &builder,

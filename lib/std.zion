@@ -460,9 +460,9 @@ def __bool__(x [any T] or str or int or bool) bool_t
 		is [any T]
 			return (x as *vector.vector_t).size != 0r
 
-	node := x as *runtime.var_t
+	node := x as *var_t
 	print("failed to match type of object at 0x"
-		+ hexdigest(&node, sizeof(*runtime.var_t))
+		+ hexdigest(&node, sizeof(*var_t))
 		+ " and is a " + str(node.type_info.name)
 		+ " with type ID " + str(node.type_info.type_id as int_t))
 	assert(__false__)

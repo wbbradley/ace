@@ -204,7 +204,7 @@ bool test_lex_module_stuff() {
 	lexer_tests tests = {
 		{"module modules", {tk_identifier, tk_identifier}},
 		{"module modules @1.0.2", {tk_identifier, tk_identifier, tk_version}},
-		{"get foo", {tk_identifier, tk_identifier, tk_identifier}},
+		{"get foo", {tk_identifier, tk_identifier}},
 	};
 	return lexer_test(tests);
 }
