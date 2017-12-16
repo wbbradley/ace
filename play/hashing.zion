@@ -1,6 +1,6 @@
 module _
 
-link module crypto
+get crypto
 
 def main()
 	hash := crypto.hash("blah")

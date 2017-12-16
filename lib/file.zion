@@ -1,5 +1,5 @@
 module _
-link module posix
+get posix
 
 link var errno int_t
 

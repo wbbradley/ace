@@ -1,5 +1,5 @@
 module syntax @0.1
-link module assert
+get assert
 
 
 def test() int

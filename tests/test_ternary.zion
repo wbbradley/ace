@@ -1,5 +1,5 @@
 module _
-link module sys
+get sys
 # test: pass
 # expect: 30
 

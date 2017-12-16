@@ -1,5 +1,5 @@
 module mem
-link module posix
+get posix
 
 type Value has native
 	var size int64_t

@@ -1,5 +1,5 @@
 module capture @0.1.0
-link module assert
+get assert
 
 # test: skip
 

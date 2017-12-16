@@ -1,8 +1,8 @@
 module main
 
-link module sys
-link module posix
-link module crypto
+get sys
+get posix
+get crypto
 
 link def __set_locale__(locale *char_t) void
 

@@ -1,5 +1,5 @@
 module sys @0.1
-link module posix
+get posix
 
 # TODO: make module variable initialization deterministic
 var args [str]

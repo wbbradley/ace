@@ -1,5 +1,5 @@
 module _
-link module main
+get main
 # test: pass
 # expect: pass
 

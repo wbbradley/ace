@@ -1,5 +1,5 @@
 module literals
-link module assert
+get assert
 
 def test() void
 	var x any = [0, 1, 2]

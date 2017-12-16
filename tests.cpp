@@ -204,7 +204,7 @@ bool test_lex_module_stuff() {
 	lexer_tests tests = {
 		{"module modules", {tk_identifier, tk_identifier}},
 		{"module modules @1.0.2", {tk_identifier, tk_identifier, tk_version}},
-		{"link module foo", {tk_identifier, tk_identifier, tk_identifier}},
+		{"get foo", {tk_identifier, tk_identifier, tk_identifier}},
 	};
 	return lexer_test(tests);
 }
@@ -507,7 +507,7 @@ bool test_parse_empty_quote() {
 bool test_parse_link_extern_module_with_link_as() {
 	return check_parse<ast::module_t>(
 		   	"module www @1.0.0\n"
-			"link module http @1.0.0 as http1\n");
+			"get http @1.0.0 as http1\n");
 }
 
 bool test_parse_link_extern_module() {

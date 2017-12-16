@@ -1,7 +1,7 @@
 module _
-link module sys
-link module math
-link module posix
+get sys
+get math
+get posix
 # test: pass
 # expect: 29
 

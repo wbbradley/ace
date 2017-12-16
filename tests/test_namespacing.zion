@@ -1,5 +1,5 @@
 module _
-link module math
+get math
 # test: pass
 
 def main()
