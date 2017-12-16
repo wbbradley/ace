@@ -513,7 +513,7 @@ bool test_parse_link_extern_module_with_link_as() {
 bool test_parse_link_extern_module() {
 	return check_parse<ast::module_t>(
 		   	"module www @1.0.0\n"
-			"link module http @7.0.0\n");
+			"get http @7.0.0\n");
 }
 
 bool test_parse_link_extern_function() {

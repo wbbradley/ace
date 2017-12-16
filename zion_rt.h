@@ -5,6 +5,7 @@ typedef double zion_float_t;
 
 #include <unistd.h>
 #include <stdio.h>
+#include <wchar.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -12,6 +13,7 @@ typedef double zion_float_t;
 #include <pthread.h>
 #include <assert.h>
 #include <signal.h>
+#include <locale.h>
 #include "colors.h"
 #include "type_kind.h"
 

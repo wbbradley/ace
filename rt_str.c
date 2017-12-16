@@ -13,7 +13,6 @@ void __set_locale__(char *locale) {
 void mem_dump(void *addr, zion_int_t cb) {
 	printf("dumping memory at:\n");
 	char *pb = addr;
-	zion_int_t left = cb;
 	for (zion_int_t i=0; i < cb / sizeof(long long); ++i) {
 		printf("0x%08llx 0x%08llx\n", (long long)pb, *(long long*)pb);
 		pb += sizeof(long long);
@@ -23,11 +22,11 @@ void mem_dump(void *addr, zion_int_t cb) {
 char *__str_int_radix(zion_int_t x, zion_int_t radix) {
 	char onstack[65];
 	if (radix == 10) {
-		snprintf(onstack, sizeof(onstack), "%lld", (long long)x);
+		snprintf(onstack, sizeof(onstack) / sizeof(onstack[0]), "%lld", (long long)x);
 	} else if (radix == 8) {
-		snprintf(onstack, sizeof(onstack), "%llo", (long long)x);
+		snprintf(onstack, sizeof(onstack) / sizeof(onstack[0]), "%llo", (long long)x);
 	} else if (radix == 16) {
-		snprintf(onstack, sizeof(onstack), "%llx", (long long)x);
+		snprintf(onstack, sizeof(onstack) / sizeof(onstack[0]), "%llx", (long long)x);
 	} else {
 		printf("unsupported radix requested in __str_int_radix for value %lld", (long long)x);
 		exit(1);
@@ -37,22 +36,19 @@ char *__str_int_radix(zion_int_t x, zion_int_t radix) {
 
 wchar_t *__str_int(zion_int_t x) {
 	wchar_t onstack[65];
-	swprintf(onstack, sizeof(onstack), "%lld", (long long)x);
-	onstack[sizeof(onstack) - 1] = 0;
+	swprintf(onstack, sizeof(onstack) / sizeof(onstack[0]), L"%lld", (long long)x);
 	return wcsdup(onstack);
 }
 
 char *__str_float(zion_float_t x) {
 	char onstack[65];
-	snprintf(onstack, sizeof(onstack), "%f", x);
-	onstack[sizeof(onstack) - 1] = 0;
+	snprintf(onstack, sizeof(onstack) / sizeof(onstack[0]), "%f", x);
 	return strdup(onstack);
 }
 
 char *__str_type_id(type_id_t x) {
 	char onstack[65];
-	snprintf(onstack, sizeof(onstack), "%d", x);
-	onstack[sizeof(onstack) - 1] = 0;
+	snprintf(onstack, sizeof(onstack) / sizeof(onstack[0]), "%d", x);
 	return strdup(onstack);
 }
 

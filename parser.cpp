@@ -63,6 +63,8 @@ using namespace ast;
 
 bool token_begins_type(const token_t &token) {
 	switch (token.tk) {
+	case tk_integer:
+	case tk_string:
 	case tk_times:
 	case tk_lsquare:
 	case tk_lcurly:
@@ -130,6 +132,40 @@ ptr<return_statement_t> return_statement_t::parse(parse_state_t &ps) {
 	return return_statement;
 }
 
+ptr<statement_t> get_statement_parse(parse_state_t &ps) {
+	expect_ident(K(get));
+	auto get_token = ps.token;
+	ps.advance();
+
+	auto module_decl = module_decl_t::parse(ps);
+	if (!!ps.status) {
+		auto link_statement = create<link_module_statement_t>(get_token);
+		link_statement->extern_module = module_decl;
+
+		if (ps.token.is_ident(K(as))) {
+			/* get the local name for this module */
+			ps.advance();
+			expect_token(tk_identifier);
+			link_statement->link_as_name = ps.token;
+			ps.advance();
+		}
+
+		if (link_statement->link_as_name.tk == tk_none) {
+			link_statement->link_as_name = module_decl->get_name();
+		}
+
+		if (link_statement->link_as_name.tk != tk_identifier) {
+			ps.error("expected an identifier for link module name (either implicit or explicit)");
+		}
+
+		if (!!ps.status) {
+			return link_statement;
+		}
+	}
+	assert(!ps.status);
+	return nullptr;
+}
+
 ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 	expect_ident(K(link));
 	auto link_token = ps.token;
@@ -139,12 +175,26 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 		auto link_function_statement = create<ast::link_function_statement_t>(link_token);
 		auto function_decl = function_decl_t::parse(ps);
 		if (function_decl) {
-			link_function_statement->function_name = function_decl->token;
+			if (ps.token.is_ident(K(to))) {
+				ps.advance();
+				if (ps.token.tk != tk_identifier && ps.token.tk != tk_string) {
+					ps.error("expected an identifier (or string) for the external name of the linked function (not %s)",
+							ps.token.str().c_str());
+				}
+				if (!!ps.status) {
+					expect_token(tk_identifier);
+					function_decl->link_to_name = ps.token;
+					ps.advance();
+				}
+			}
 			link_function_statement->extern_function = function_decl;
 		} else {
 			assert(!ps.status);
 		}
-		return link_function_statement;
+
+		if (!!ps.status) {
+			return link_function_statement;
+		}
 	} else if (ps.token.is_ident(K(var))) {
 		ps.advance();
 		auto var_decl = var_decl_t::parse(ps);
@@ -152,32 +202,6 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 			auto link_var = create<link_var_statement_t>(link_token);
 			link_var->var_decl = var_decl;
 			return link_var;
-		}
-	} else if (ps.token.is_ident(K(module))) {
-		auto module_decl = module_decl_t::parse(ps);
-		if (!!ps.status) {
-			auto link_statement = create<link_module_statement_t>(link_token);
-			link_statement->extern_module = module_decl;
-
-			if (ps.token.is_ident(K(as))) {
-				/* get the local name for this module */
-				ps.advance();
-				expect_token(tk_identifier);
-				link_statement->link_as_name = ps.token;
-				ps.advance();
-			}
-
-			if (link_statement->link_as_name.tk == tk_none) {
-				link_statement->link_as_name = module_decl->get_name();
-			}
-
-			if (link_statement->link_as_name.tk != tk_identifier) {
-				ps.error("expected an identifier for link module name (either implicit or explicit)");
-			}
-
-			if (!!ps.status) {
-				return link_statement;
-			}
 		}
 	} else if (ps.token.is_ident(K(in))) {
 		ps.advance();
@@ -188,21 +212,24 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 		ps.advance();
 		return nullptr;
 	} else if (ps.token.tk == tk_identifier) {
-		auto link_name = create<ast::link_name_t>(link_token);
 		/*
 		 * link name to some_module.something
 		 *
-		 * 1. Sets up a type parser macro "name" => "some_module/something"
+		 * 1. Sets up a type parser macro "name" => "some_module.something"
 		 * 2. Sets up a "scope link" from this module to the "some_module" for the
 		 * "something" name so that if there is a call to "something" from
 		 * within this module, we also search "some_module" when enumerating
 		 * callables.
 		 * 3. Start tracking whether the link is in use in the module
 		 */
-		link_name->local_name = ps.token;
+		auto name_token = ps.token;
 		ps.advance();
 		chomp_ident(K(to));
+
+		auto link_name = create<ast::link_name_t>(link_token);
+		link_name->local_name = name_token;
 		link_name->extern_module = module_decl_t::parse(ps, true /* skip_module_token */);
+
 		if (!!ps.status) {
 			chomp_token(tk_dot);
 			expect_token(tk_identifier);
@@ -211,7 +238,7 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 			return link_name;
 		}
 	} else {
-		ps.error("link must be followed by function declaration or module import");
+		ps.error("invalid link syntax (TODO: make this error better)");
 	}
 
 	assert(!ps.status);
@@ -1080,7 +1107,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 		attributes_location = ps.token.location;
 		ps.advance();
 		if (ps.token.is_ident(K(global))) {
-			extends_module = make_iid_impl("std", ps.token.location);
+			extends_module = make_iid_impl(GLOBAL_SCOPE_NAME, ps.token.location);
 			ps.advance();
 			chomp_token(tk_rsquare);
         } else if (ps.token.is_ident(K(module))) {
@@ -1099,6 +1126,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 
 		if (!!ps.status) {
 			auto function_decl = create<ast::function_decl_t>(ps.token);
+			function_decl->link_to_name = ps.token;
 
 			if (ps.token.text == "main") {
 				if (extends_module == nullptr) {
@@ -1164,16 +1192,25 @@ ptr<function_defn_t> function_defn_t::parse(parse_state_t &ps) {
 }
 
 ptr<module_decl_t> module_decl_t::parse(parse_state_t &ps, bool skip_module_token) {
+	bool global = false;
 	if (!skip_module_token) {
-		chomp_ident(K(module));
+		if (ps.token.is_ident(K(global))) {
+			global = true;
+			ps.advance();
+		} else {
+			chomp_ident(K(module));
+		}
 	}
 
 	/* we've skipped the check for the 'module' token */
 	auto module_decl = create<ast::module_decl_t>(ps.token);
+	module_decl->global = global;
 
-	expect_token(tk_identifier);
-	module_decl->name = ps.token;
-	eat_token();
+	if (!global) {
+		expect_token(tk_identifier);
+		module_decl->name = ps.token;
+		eat_token();
+	}
 
 	if (ps.token.tk == tk_version) {
 		auto semver = semver_t::parse(ps);
@@ -1348,7 +1385,7 @@ types::type_t::ref _parse_single_type(
 	case tk_integer:
 	case tk_string:
 		{
-			auto type = types::type_literal(ps.token);
+			auto type = type_literal(ps.token);
 			ps.advance();
 			return type;
 		}
@@ -1363,15 +1400,17 @@ types::type_t::ref _parse_single_type(
 		}
 		break;
 	case tk_identifier:
-		if (ps.token.is_ident(K(__integer__))) {
+		if (ps.token.is_ident(K(integer_t))) {
 			auto token = ps.token;
+			ps.advance();
 			chomp_token(tk_lcurly);
 			auto bit_size = _parse_single_type(ps, nullptr, type_variables, generics);
 			if (!!ps.status) {
 				chomp_token(tk_comma);
-				auto signed_ = _parse_single_type(ps.nullptr, type_variables, generics);
+				auto signed_ = _parse_single_type(ps, nullptr, type_variables, generics);
 				if (!!ps.status) {
-					return type_integral(bit_size, signed_);
+					chomp_token(tk_rcurly);
+					return type_integer(bit_size, signed_);
 				}
 			}
 
@@ -1482,7 +1521,7 @@ types::type_t::ref _parse_single_type(
 				} else {
 					/* we don't have a macro/type_name link for this type, so
 					 * let's assume it's in this module */
-					if (ps.module_id->get_name() == "std") {
+					if (ps.module_id->get_name() == GLOBAL_SCOPE_NAME) {
 						/* the std module is the only "global" module */
 						cur_type = type_id(id);
 					} else {
@@ -1834,7 +1873,7 @@ void add_type_macros_to_parser(
 	}
 }
 
-ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
+ptr<module_t> module_t::parse(parse_state_t &ps) {
 	debug_above(6, log("about to parse %s with type_macros: [%s]",
 				ps.filename.c_str(),
 				join_with(ps.type_macros, ", ", [] (type_macros_t::value_type v) -> std::string {
@@ -1848,15 +1887,19 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 		ps.module_id = make_iid(module_decl->get_canonical_name());
 		assert(ps.module_id != nullptr);
 
-		auto module = create<ast::module_t>(ps.token, ps.filename, global);
+		auto module = create<ast::module_t>(ps.token, ps.filename, module_decl->global);
 		module->decl.swap(module_decl);
 
+		while (ps.token.is_ident(K(get))) {
+			auto get_statement = get_statement_parse(ps);
+			if (auto linked_module = dyncast<link_module_statement_t>(get_statement)) {
+				module->linked_modules.push_back(linked_module);
+			}
+		}
 		// Get links
 		while (ps.token.is_ident(K(link))) {
 			auto link_statement = link_statement_parse(ps);
-			if (auto linked_module = dyncast<link_module_statement_t>(link_statement)) {
-				module->linked_modules.push_back(linked_module);
-			} else if (auto linked_function = dyncast<link_function_statement_t>(link_statement)) {
+			if (auto linked_function = dyncast<link_function_statement_t>(link_statement)) {
 				module->linked_functions.push_back(linked_function);
 			} else if (auto linked_var = dyncast<link_var_statement_t>(link_statement)) {
 				module->linked_vars.push_back(linked_var);
@@ -1918,7 +1961,11 @@ ptr<module_t> module_t::parse(parse_state_t &ps, bool global) {
 				/* type definitions */
 				auto type_def = type_def_t::parse(ps);
 				if (type_def != nullptr) {
-					module->type_defs.push_back(std::move(type_def));
+					module->type_defs.push_back(type_def);
+					if (module->global) {
+						ps.type_macros.insert({type_def->token.text, type_id(make_code_id(type_def->token))});
+						ps.global_type_macros.insert({type_def->token.text, type_id(make_code_id(type_def->token))});
+					}
 				} else {
 					/* it's ok, this may have just been a type macro */
 				}

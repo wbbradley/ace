@@ -1,0 +1,17 @@
+global
+
+type int_t = integer_t{64, signed}
+type uint_t = integer_t{64, unsigned}
+type size_t = integer_t{64 /* TODO: inject correct size for platform from reader macro */, unsigned}
+
+type int64_t = integer_t{64, signed}
+type uint64_t = integer_t{64, unsigned}
+
+type int32_t = integer_t{32, signed}
+type uint32_t = integer_t{32, unsigned}
+
+type int16_t = integer_t{16, signed}
+type uint16_t = integer_t{16, unsigned}
+
+type int8_t = integer_t{8, signed}
+type uint8_t = integer_t{8, unsigned}

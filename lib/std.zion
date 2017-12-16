@@ -1,31 +1,76 @@
-module _
-link module runtime
-link module posix
-link module math
-link module vector
-link module map
-link module iter as iter_module
+global
+
+get runtime
+get posix
+get math
+get vector
+get map
+
+link in "rt_str.o"
+link in "rt_int.o"
+link in "rt_float.o"
+link in "rt_typeid.o"
 
 link def hexdigit(val int_t) wchar_t
+link def __int__(x float_t) int_t to __int_float
+link def __int__(x *wchar_t) int_t to __int_from_wcs
+link def __int__(x *char_t) int_t to __int_from_mbs
+link def __float__(x int_t) float_t to __float_int
+link def __float__(x float_t) float_t to __float_float
+link def __float__(x *char_t) float_t to __float_from_utf8
+link def __float__(x *wchar_t) float_t to __float_from_utf32
+link def mem_dump(x *void, y int_t) void to mem_dump
+link def __wcs__(x int_t) *wchar_t to __wcs_int
+link def __wcs__(x int_t, y int_t) *wchar_t to __wcs_int_radix
+link def __wcs__(x float_t) *wchar_t to __wcs_float
+link def __wcs__(x typeid_t) *wchar_t to __wcs_type_id
+link def __wcs__(x *char_t) *wchar_t to __wcs_str
+link def __ineq__(x typeid_t, y typeid_t) bool_t to __type_id_ineq_type_id
+link def concat(x *char_t, y *char_t) *char_t to __mbs_concat
+link def concat(x *wchar_t, y *wchar_t) *wchar_t to __wcs_concat
+link def __not__(x int_t) bool_t to __int_not
+link def __plus__(x int_t, y int_t) int_t to __int_plus_int
+link def __minus__(x int_t, y int_t) int_t to __int_minus_int
+link def __times__(x int_t, y int_t) int_t to __int_times_int
+link def __divide__(x int_t, y int_t) int_t to __int_divide_int
+link def __mod__(x int_t, y int_t) int_t to __int_modulus_int
+link def __mask__(x int_t, y int_t) int_t to __int_mask_int
+link def __negative__(x int_t) int_t to __int_neg
+link def __positive__(x int_t) int_t to __int_pos
+link def __negative__(x float_t) float_t to __float_neg
+link def __positive__(x float_t) float_t to __float_pos
+link def __plus__(x int_t, y float_t) float_t to __int_plus_float
+link def __minus__(x int_t, y float_t) float_t to __int_minus_float
+link def __times__(x int_t, y float_t) float_t to __int_times_float
+link def __divide__(x int_t, y float_t) float_t to __int_divide_float
+link def __plus__(x float_t, y int_t) float_t to __float_plus_int
+link def __minus__(x float_t, y int_t) float_t to __float_minus_int
+link def __times__(x float_t, y int_t) float_t to __float_times_int
+link def __divide__(x float_t, y int_t) float_t to __float_divide_int
+link def __plus__(x float_t, y float_t) float_t to __float_plus_float
+link def __minus__(x float_t, y float_t) float_t to __float_minus_float
+link def __times__(x float_t, y float_t) float_t to __float_times_float
+link def __divide__(x float_t, y float_t) float_t to __float_divide_float
+link def __gt__(x float_t, y float_t) bool_t to __float_gt_float
+link def __lt__(x float_t, y float_t) bool_t to __float_lt_float
+link def __gte__(x float_t, y float_t) bool_t to __float_gte_float
+link def __lte__(x float_t, y float_t) bool_t to __float_lte_float
+link def __gt__(x int_t, y int_t) bool_t to __int_gt_int
+link def __lt__(x int_t, y int_t) bool_t to __int_lt_int
+link def __gte__(x int_t, y int_t) bool_t to __int_gte_int
+link def __lte__(x int_t, y int_t) bool_t to __int_lte_int
+link def __ineq__(x int_t, y int_t) bool_t to __int_ineq_int
+link def __ineq__(x float_t, y float_t) bool_t to __float_ineq_float
+link def __eq__(x int_t, y int_t) bool_t to __int_eq_int
+link def __eq__(x float_t, y float_t) bool_t to __float_eq_float
+link def __eq__(x typeid_t, y typeid_t) bool_t to __type_id_eq_type_id
+link def __eq__(x *char_t, y *char_t) bool_t to __mbs_eq_mbs
+link def __eq__(x *wchar_t, y *wchar_t) bool_t to __wcs_eq_wcs
+link def __type_id_eq_type_id(x typeid_t, y typeid_t) bool_t to __type_id_eq_type_id
+link def __int__(x typeid_t) int_t to __type_id_int
 
 # initialization of modules is automatically generated.
 # link def __init_modules() void
-
-type int_t = integer_t{64, signed}
-type uint_t = integer_t{64, unsigned}
-type size_t = integer_t{64 /* TODO: inject correct size for platform from reader macro */, unsigned}
-
-type int64_t = integer_t{64, signed}
-type uint64_t = integer_t{64, unsigned}
-
-type int32_t = integer_t{32, signed}
-type uint32_t = integer_t{32, unsigned}
-
-type int16_t = integer_t{16, signed}
-type uint16_t = integer_t{16, unsigned}
-
-type int8_t = integer_t{8, signed}
-type uint8_t = integer_t{8, unsigned}
 
 tag false
 tag true
@@ -396,7 +441,7 @@ def str(b *int8_t, length int_t, encoding str) str
 
 def rand(max int) int
 	var r int_t = 0r
-	posix.arc4random_buf(&r, sizeof(__int__))
+	posix.arc4random_buf(&r, sizeof(int_t))
 	if r < 0r
 		r = -r
 	return int(r % max.raw)

@@ -46,7 +46,7 @@ struct compiler_t {
 	void build_type_check_and_code_gen(status_t &status);
 
 	/* parse a single module */
-	ptr<const ast::module_t> build_parse(status_t &status, location_t location, std::string module_name, bool global, type_macros_t &global_type_macros);
+	ptr<const ast::module_t> build_parse(status_t &status, location_t location, std::string module_name, type_macros_t &global_type_macros);
 
 	void build_parse_linked(status_t &status, ptr<const ast::module_t> module, type_macros_t &global_type_macros);
 	std::set<std::string> compile_modules(status_t &status);

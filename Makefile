@@ -157,7 +157,7 @@ ZION_RUNTIME = \
 				rt_str.c \
 				rt_typeid.c
 
-ZION_RUNTIME_LLIR = $(ZION_RUNTIME:.c=.llir)
+ZION_RUNTIME_OBJECTS = $(ZION_RUNTIME:.c=.o)
 
 TARGETS = $(ZION_TARGET)
 
@@ -202,7 +202,7 @@ dbg: $(ZION_TARGET)
 	# ALL_TESTS=1 $(LLDB) -s .lldb-script -- ./$(ZION_TARGET) test
 	ALL_TESTS=1 gdb --args ./$(ZION_TARGET) test
 
-$(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_LLIR)
+$(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_OBJECTS)
 	@echo Linking $@...
 	@$(LINKER) $(LINKER_OPTS) $(ZION_LLVM_OBJECTS) -o $@
 	@echo $@ successfully built

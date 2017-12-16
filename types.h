@@ -120,7 +120,7 @@ namespace types {
 	};
 
 	struct type_literal_t : public type_t {
-		type_literal_t();
+		type_literal_t(token_t token);
 		token_t token;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
@@ -129,7 +129,6 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
-        virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
 	struct type_integer_t : public type_t {
@@ -143,7 +142,6 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
-        virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
 	struct type_module_t : public type_product_t {
@@ -337,7 +335,7 @@ types::type_t::ref type_nil();
 types::type_t::ref type_void();
 types::type_t::ref type_unreachable();
 types::type_t::ref type_literal(token_t token);
-types::type_t::ref type_integral(types::type_t::ref size, types::type_t::ref is_signed);
+types::type_t::ref type_integer(types::type_t::ref size, types::type_t::ref is_signed);
 types::type_t::ref type_id(identifier::ref var);
 types::type_t::ref type_variable(identifier::ref name);
 types::type_t::ref type_variable(location_t location);

@@ -144,8 +144,7 @@ void compiler_t::build_parse_linked(
 	/* now, recursively make sure that all of the linked modules are parsed */
 	for (auto &link : module->linked_modules) {
 		auto linked_module_name = link->extern_module->get_canonical_name();
-		build_parse(status, link->extern_module->token.location, linked_module_name,
-			   	false /*global*/, global_type_macros);
+		build_parse(status, link->extern_module->token.location, linked_module_name, global_type_macros);
 
 		if (!status) {
 			break;
@@ -157,7 +156,6 @@ ast::module_t::ref compiler_t::build_parse(
 		status_t &status,
 		location_t location,
 		std::string module_name,
-		bool global,
 		type_macros_t &global_type_macros)
 {
 	std::string module_filename;
@@ -178,32 +176,8 @@ ast::module_t::ref compiler_t::build_parse(
 					debug_above(4, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
 					zion_lexer_t lexer({module_filename}, ifs);
 
-					assert_implies(global, global_type_macros.size() == base_type_macros.size());
-
-					if (global) {
-						/* add std types to type_macros to ensure they are not
-						 * rewritten by modules */
-						std::string std_types[] = {
-							"bool",
-							"bytes",
-							"true",
-							"false",
-							"int",
-							"str",
-							"float",
-							"list",
-						};
-
-						for (auto std_type : std_types) {
-							assert(global_type_macros.find(std_type) == global_type_macros.end());
-							std::string new_name = std_type;
-							global_type_macros.insert({std_type,
-									type_id(make_iid_impl(new_name, INTERNAL_LOC()))});
-						}
-					}
-
-					parse_state_t ps(status, module_filename, lexer, global_type_macros, &comments, &link_ins);
-					auto module = ast::module_t::parse(ps, global);
+					parse_state_t ps(status, module_filename, lexer, global_type_macros, global_type_macros, &comments, &link_ins);
+					auto module = ast::module_t::parse(ps);
 
                     if (!!status) {
                         set_module(status, module->filename, module);
@@ -320,9 +294,9 @@ void add_global_types(
 					type_id(make_iid(WCHAR_TYPE)),
 				   	INTERNAL_LOC(),
 				   	builder.getInt32Ty())},
-		{{UTF8_TYPE},
+		{{CHAR_TYPE},
 		   	bound_type_t::create(
-					type_id(make_iid(UTF8_TYPE)),
+					type_id(make_iid(CHAR_TYPE)),
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty())},
 		{{FLOAT_TYPE},
@@ -337,12 +311,12 @@ void add_global_types(
 				   	builder.getInt64Ty())},
 		{{MBS_TYPE},
 		   	bound_type_t::create(
-					type_ptr(type_id(make_iid(UTF8_TYPE))),
+					type_ptr(type_id(make_iid(CHAR_TYPE))),
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty()->getPointerTo())},
 		{{PTR_TO_MBS_TYPE},
 		   	bound_type_t::create(
-					type_ptr(type_ptr(type_id(make_iid(UTF8_TYPE)))),
+					type_ptr(type_ptr(type_id(make_iid(CHAR_TYPE)))),
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty()->getPointerTo()->getPointerTo())},
 		{{WCS_TYPE},
@@ -381,10 +355,12 @@ void add_globals(
 		program_scope_t::ref program_scope, 
 		ast::item_t::ref program)
 {
-	auto llvm_module_int = compiler.llvm_load_ir(status, "rt_int.llir");
-	auto llvm_module_float = compiler.llvm_load_ir(status, "rt_float.llir");
-	auto llvm_module_str = compiler.llvm_load_ir(status, "rt_str.llir");
-	auto llvm_module_typeid = compiler.llvm_load_ir(status, "rt_typeid.llir");
+	/*
+	compiler.llvm_load_ir(status, "rt_int.llir");
+	compiler.llvm_load_ir(status, "rt_float.llir");
+	compiler.llvm_load_ir(status, "rt_str.llir");
+	compiler.llvm_load_ir(status, "rt_typeid.llir");
+	*/
 
 	/* set up the global scalar types, as well as memory reference and garbage
 	 * collection types */
@@ -409,121 +385,6 @@ void add_globals(
 
 	program_scope->put_bound_variable(status, "__false__", bound_var_t::create(INTERNAL_LOC(), "__false__", bool_type, builder.getInt64(0/*false*/), make_iid("__false__")));
 	assert(!!status);
-
-	if (!!status) {
-		struct binding_t {
-			std::string name;
-			llvm::Module *llvm_module;
-			std::string name_in_llir;
-			std::vector<std::string> args;
-			std::string return_type;
-		};
-
-		// TODO: move all of these to std.zion as link defs
-
-		/* add builtin functions to the program namespace. these functions are
-		 * all defined in the rt_*.c files */
-		auto bindings = std::vector<binding_t>{
-			{INT_TYPE, llvm_module_int, "__int_int", {INT_TYPE}, INT_TYPE},
-			{INT_TYPE, llvm_module_int, "__int_int32", {INT32_TYPE}, INT_TYPE},
-			{INT32_TYPE, llvm_module_int, "__int32_int", {INT_TYPE}, INT32_TYPE},
-			{INT_TYPE, llvm_module_int, "__int_int16", {INT16_TYPE}, INT_TYPE},
-			{INT16_TYPE, llvm_module_int, "__int16_int", {INT_TYPE}, INT16_TYPE},
-			{INT_TYPE, llvm_module_int, "__int_float", {FLOAT_TYPE}, INT_TYPE},
-			{INT_TYPE, llvm_module_int, "__int_from_wcs", {WCS_TYPE}, INT_TYPE},
-			{INT_TYPE, llvm_module_int, "__int_from_mbs", {MBS_TYPE}, INT_TYPE},
-
-			{FLOAT_TYPE, llvm_module_float, "__float_int", {INT_TYPE}, FLOAT_TYPE},
-			{FLOAT_TYPE, llvm_module_float, "__float_float", {FLOAT_TYPE}, FLOAT_TYPE},
-			{FLOAT_TYPE, llvm_module_float, "__float_from_utf8", {MBS_TYPE}, FLOAT_TYPE},
-			{FLOAT_TYPE, llvm_module_float, "__float_from_utf32", {WCS_TYPE}, FLOAT_TYPE},
-
-			{"mem_dump", llvm_module_str, "mem_dump", {"*void", INT_TYPE}, "void"},
-			{"__wcs__", llvm_module_str, "__wcs_int", {INT_TYPE}, WCS_TYPE},
-			{"__wcs__", llvm_module_str, "__wcs_int_radix", {INT_TYPE, INT_TYPE}, WCS_TYPE},
-			{"__wcs__", llvm_module_str, "__wcs_float", {FLOAT_TYPE}, WCS_TYPE},
-			{"__wcs__", llvm_module_str, "__wcs_type_id", {TYPEID_TYPE}, WCS_TYPE},
-			{"__wcs__", llvm_module_str, "__wcs_str", {MBS_TYPE}, WCS_TYPE},
-
-			{"__ineq__", llvm_module_typeid, "__type_id_ineq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
-
-			{"concat",   llvm_module_str, "__mbs_concat", {MBS_TYPE, MBS_TYPE}, MBS_TYPE},
-			{"concat",   llvm_module_str, "__wcs_concat", {WCS_TYPE, WCS_TYPE}, WCS_TYPE},
-			{"__not__",   llvm_module_int, "__int_not", {INT_TYPE}, BOOL_TYPE},
-
-			{"__plus__", llvm_module_int, "__int_plus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
-			{"__minus__", llvm_module_int, "__int_minus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
-			{"__times__", llvm_module_int, "__int_times_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
-			{"__divide__", llvm_module_int, "__int_divide_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
-			{"__mod__", llvm_module_int, "__int_modulus_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
-
-			/* bitmasking */
-			{"__mask__", llvm_module_int, "__int_mask_int", {INT_TYPE, INT_TYPE}, INT_TYPE},
-
-			{"__negative__", llvm_module_int, "__int_neg", {INT_TYPE}, INT_TYPE},
-			{"__positive__", llvm_module_int, "__int_pos", {INT_TYPE}, INT_TYPE},
-
-			{"__negative__", llvm_module_float, "__float_neg", {FLOAT_TYPE}, FLOAT_TYPE},
-			{"__positive__", llvm_module_float, "__float_pos", {FLOAT_TYPE}, FLOAT_TYPE},
-
-			{"__plus__", llvm_module_float, "__int_plus_float", {INT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
-			{"__minus__", llvm_module_float, "__int_minus_float", {INT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
-			{"__times__", llvm_module_float, "__int_times_float", {INT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
-			{"__divide__", llvm_module_float, "__int_divide_float", {INT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
-
-			{"__plus__", llvm_module_float, "__float_plus_int", {FLOAT_TYPE, INT_TYPE}, FLOAT_TYPE},
-			{"__minus__", llvm_module_float, "__float_minus_int", {FLOAT_TYPE, INT_TYPE}, FLOAT_TYPE},
-			{"__times__", llvm_module_float, "__float_times_int", {FLOAT_TYPE, INT_TYPE}, FLOAT_TYPE},
-			{"__divide__", llvm_module_float, "__float_divide_int", {FLOAT_TYPE, INT_TYPE}, FLOAT_TYPE},
-
-			{"__plus__", llvm_module_float, "__float_plus_float", {FLOAT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
-			{"__minus__", llvm_module_float, "__float_minus_float", {FLOAT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
-			{"__times__", llvm_module_float, "__float_times_float", {FLOAT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
-			{"__divide__", llvm_module_float, "__float_divide_float", {FLOAT_TYPE, FLOAT_TYPE}, FLOAT_TYPE},
-			{"__gt__", llvm_module_float, "__float_gt_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
-			{"__lt__", llvm_module_float, "__float_lt_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
-			{"__gte__", llvm_module_float, "__float_gte_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
-			{"__lte__", llvm_module_float, "__float_lte_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
-
-			{"__gt__", llvm_module_int, "__int_gt_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
-			{"__lt__", llvm_module_int, "__int_lt_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
-			{"__gte__", llvm_module_int, "__int_gte_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
-			{"__lte__", llvm_module_int, "__int_lte_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
-			{"__ineq__", llvm_module_int, "__int_ineq_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
-			{"__ineq__", llvm_module_float, "__float_ineq_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
-			{"__eq__", llvm_module_int, "__int_eq_int", {INT_TYPE, INT_TYPE}, BOOL_TYPE},
-			{"__eq__", llvm_module_float, "__float_eq_float", {FLOAT_TYPE, FLOAT_TYPE}, BOOL_TYPE},
-			{"__eq__", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
-			{"__eq__", llvm_module_str, "__mbs_eq_mbs", {MBS_TYPE, MBS_TYPE}, BOOL_TYPE},
-			{"__eq__", llvm_module_str, "__wcs_eq_wcs", {WCS_TYPE, WCS_TYPE}, BOOL_TYPE},
-
-			{"__type_id_eq_type_id", llvm_module_typeid, "__type_id_eq_type_id", {TYPEID_TYPE, TYPEID_TYPE}, BOOL_TYPE},
-			{"__int__", llvm_module_typeid, "__type_id_int", {TYPEID_TYPE}, INT_TYPE},
-		};
-
-		for (auto &binding : bindings) {
-			/* lookup the types for the function type */
-			bound_type_t::refs args;
-			bound_type_t::ref return_type;
-			for (auto arg : binding.args) {
-				auto bound_type = program_scope->get_bound_type({arg});
-				if (bound_type == nullptr) {
-					debug_above(2, log("can't find bound type for %s",
-								arg.c_str()));
-					assert(false);
-				}
-				args.push_back(bound_type);
-			}
-			return_type = program_scope->get_bound_type({binding.return_type});
-
-			/* go ahead and bind this function to global scope overrides */
-			rt_bind_var_from_llir(status, builder, program_scope, program, binding.name,
-				*binding.llvm_module, binding.name_in_llir, args, return_type);
-			if (!status) {
-				break;
-			}
-		}
-	}
 }
 
 void compiler_t::build_parse_modules(status_t &status) {
@@ -542,18 +403,26 @@ void compiler_t::build_parse_modules(status_t &status) {
 	if (!!status) {
 		type_macros_t global_type_macros = base_type_macros;
 
-		/* always include the standard library */
-        if (getenv("NO_STD_LIB") == nullptr) {
-            build_parse(status, location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0},
-				   	"lib/std",
-				   	true /*global*/,
+		/* always include the builtins library */
+        if (getenv("NO_BUILTINS") == nullptr) {
+            build_parse(status, location_t{"builtins", 0, 0},
+				   	"lib/builtins",
 				   	global_type_macros);
         }
 
 		if (!!status) {
+			/* always include the standard library */
+			if (getenv("NO_STD_LIB") == nullptr) {
+				build_parse(status, location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0},
+						"lib/std",
+						global_type_macros);
+			}
+		}
+
+		if (!!status) {
 			/* now parse the main program module */
 			main_module = build_parse(status, location_t{"command line build parameters", 0, 0},
-					module_name, false /*global*/, global_type_macros);
+					module_name, global_type_macros);
 
 			if (!!status) {
 				debug_above(4, log(log_info, "build_parse of %s succeeded", module_name.c_str(),

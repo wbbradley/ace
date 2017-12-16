@@ -574,6 +574,13 @@ namespace ast {
 		types::type_t::ref return_type;
 		ptr<param_list_decl_t> param_list_decl;
 		identifier::ref extends_module;
+
+		std::string get_function_name() const;
+		void set_function_name(token_t token);
+
+		/* the item_t::token holds the name within zion scope, and the link_to_name holds the name
+		 * that will be given externally */
+		token_t link_to_name;
 	};
 
 	struct function_defn_t : public expression_t {
@@ -741,6 +748,7 @@ namespace ast {
 		token_t get_name() const;
 
 		token_t name;
+		bool global = false;
 	};
 
 	struct link_module_statement_t : public statement_t {
@@ -793,7 +801,6 @@ namespace ast {
 				bool as_ref) const;
 		virtual void render(render_state_t &rs) const;
 
-		token_t function_name;
 		ptr<function_decl_t> extern_function;
 	};
 
@@ -819,7 +826,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_module;
 
 		module_t(const std::string filename, bool global=false);
-		static ptr<module_t> parse(parse_state_t &ps, bool global=false);
+		static ptr<module_t> parse(parse_state_t &ps);
 		std::string get_canonical_name() const;
 		virtual void render(render_state_t &rs) const;
 

@@ -274,9 +274,9 @@ namespace ast {
 		rs.ss << C_SCOPE_SEP << K(link) << C_RESET;
 		rs.ss << " ";
 		extern_function->render(rs);
-		if (function_name.text != extern_function->token.text) {
+		if (extern_function->link_to_name.text != extern_function->token.text) {
 			rs.ss << " " << C_SCOPE_SEP << K(to) << C_RESET;
-			rs.ss << " " << function_name.text;
+			rs.ss << " " << extern_function->link_to_name.text;
 		}
 	}
 
