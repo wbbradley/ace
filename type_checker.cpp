@@ -2624,7 +2624,7 @@ bound_var_t::ref call_typeid(
 						life,
 						callsite->get_location(),
 						resolved_value,
-						type_ptr(type_id(make_iid("runtime.var_t"))));
+						type_ptr(type_id(make_iid("var_t"))));
 				if (!!status) {
 					auto name = string_format("typeid(%s)", resolved_value->str().c_str());
 
@@ -3179,7 +3179,7 @@ void create_visit_module_vars_function(
 	bound_type_t::ref bound_callback_fn_type = upsert_bound_type(
 			status, builder, program_scope, 
 			type_function(
-				type_args({type_ptr(type_id(make_iid("runtime.var_t")))}, {}),
+				type_args({type_ptr(type_id(make_iid("var_t")))}, {}),
 			   	type_id(make_iid("void"))));
 
 	/* we are creating this function, but we'll be adding to it elsewhere */

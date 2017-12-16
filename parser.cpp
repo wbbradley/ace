@@ -137,7 +137,7 @@ ptr<statement_t> get_statement_parse(parse_state_t &ps) {
 	auto get_token = ps.token;
 	ps.advance();
 
-	auto module_decl = module_decl_t::parse(ps);
+	auto module_decl = module_decl_t::parse(ps, true /*skip_module_token*/);
 	if (!!ps.status) {
 		auto link_statement = create<link_module_statement_t>(get_token);
 		link_statement->extern_module = module_decl;
@@ -1278,7 +1278,7 @@ types::type_t::refs parse_type_operands(
 	types::type_t::refs arguments;
 
 	/* loop over the type arguments */
-	while (!!ps.status && (ps.token.tk == tk_identifier || ps.token.is_ident(K(any)))) {
+	while (!!ps.status && ps.token.tk != tk_rcurly) {
 		/* we got an argument, recursively parse */
 		auto next_type = parse_maybe_type(ps, supertype_id, type_variables, generics);
 		if (!!ps.status) {
@@ -1360,14 +1360,7 @@ types::type_t::ref _parse_function_type(parse_state_t &ps, identifier::set gener
 
 identifier::ref reduce_ids(std::list<identifier::ref> ids, location_t location) {
 	assert(ids.size() != 0);
-	std::stringstream ss;
-	const char *inner_sep = SCOPE_SEP;
-	const char *sep = "";
-	for (auto id : ids) {
-		ss << sep << id->get_name();
-		sep = inner_sep;
-	}
-	return make_iid_impl(ss.str(), location);
+	return make_iid_impl(join(ids, SCOPE_SEP), location);
 }
 
 types::type_t::ref _parse_single_type(
@@ -1525,6 +1518,7 @@ types::type_t::ref _parse_single_type(
 						/* the std module is the only "global" module */
 						cur_type = type_id(id);
 					} else {
+						assert(ps.module_id->get_name().size() != 0);
 						cur_type = type_id(reduce_ids({ps.module_id, id}, location));
 					}
 					debug_above(9, log("transformed " c_id("%s") " to " c_id("%s"),
@@ -1887,7 +1881,7 @@ ptr<module_t> module_t::parse(parse_state_t &ps) {
 		ps.module_id = make_iid(module_decl->get_canonical_name());
 		assert(ps.module_id != nullptr);
 
-		auto module = create<ast::module_t>(ps.token, ps.filename, module_decl->global);
+		auto module = create<ast::module_t>(module_decl->token, ps.filename, module_decl->global);
 		module->decl.swap(module_decl);
 
 		while (ps.token.is_ident(K(get))) {
