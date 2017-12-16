@@ -147,7 +147,6 @@ endif
             debug_above(6, log("keeping %s", str().c_str()));
             return shared_from_this();
         }
-    }
 #endif
 
 	type_variable_t::type_variable_t(identifier::ref id) : id(id), location(id->get_location()) {
@@ -880,6 +879,22 @@ endif
 		return nullptr;
 	}
 
+	int type_literal_t::coerce_to_int(status_t &status) const {
+		std::string text = token.text;
+		if (token.tk == tk_string) {
+			text = unescape_json_quotes(text);
+		}
+		std::istringstream iss(text);
+		int value;
+		iss >> value;
+		if (iss.fail() || !iss.eof()) {
+			user_error(status, get_location(), "could not parse number from %s",
+					text.c_str());
+			return 0;
+		}
+		return value;
+	}
+
 	type_extern_t::type_extern_t(
 			types::type_t::ref inner,
 		   	types::type_t::ref underlying_type,
@@ -984,6 +999,28 @@ endif
 			return true;
 		}
 		return false;
+	}
+
+	int coerce_to_integer(
+			status_t &status,
+		   	const types::type_t::map &env,
+			type_t::ref type,
+			type_t::ref &expansion)
+	{
+		expansion = eval(type, env);
+		if (expansion == nullptr) {
+			expansion = type;
+		}
+
+		if (auto literal = dyncast<const type_literal_t>(expansion)) {
+			return literal->coerce_to_int(status);
+		} else {
+			user_error(status, type->get_location(),
+					"unable to deduce an integer value from type %s",
+					expansion->str().c_str());
+		}
+		assert(!status);
+		return 0;
 	}
 }
 
@@ -1346,6 +1383,10 @@ types::type_t::ref eval(types::type_t::ref type, types::type_t::map env) {
 		} else {
 			return nullptr;
 		}
+	} else if (auto integer_type = dyncast<const types::type_integer_t>(type)) {
+		return nullptr;
+	} else if (auto literal_type = dyncast<const types::type_literal_t>(type)) {
+		return nullptr;
 	} else {
 		log("unhandled type evaluation for type %s in env %s",
 				type->str().c_str(),

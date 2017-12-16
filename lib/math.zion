@@ -5,7 +5,7 @@ type Complex has
 	var real float
 	var imag float
 
-[module std]
+[global]
 def str(c Complex) str
 	s := "" + str(c.real);
 	if c.imag < 0
@@ -16,23 +16,23 @@ def str(c Complex) str
 		s = s + " + "
 	return s + str(math.abs(c.real)) + "i"
 
-[module std]
+[global]
 def __times__(a Complex, b Complex) Complex
 	return Complex(a.real * b.real - a.imag * b.imag,
 		a.imag * b.real + a.real * b.imag)
 
-[module std]
+[global]
 def __plus__(a Complex, b Complex) Complex
 	return Complex(a.real + b.real, a.imag + b.imag)
 
-[module std]
+[global]
 def sqrt(f float) float
 	return float(posix.sqrt(f.raw))
 
 def rounded_tenth(x int) int
 	return (x + 5) / 10
 
-[module std]
+[global]
 def abs(x any T) any T
 	if x < 0
 		return -x

@@ -1,17 +1,78 @@
 global
 
-type int_t = integer_t{64, signed}
-type uint_t = integer_t{64, unsigned}
-type size_t = integer_t{64 /* TODO: inject correct size for platform from reader macro */, unsigned}
+type signed_t{BitSize} = integer_t{BitSize, signed}
+type unsigned_t{BitSize} = integer_t{BitSize, unsigned}
 
-type int64_t = integer_t{64, signed}
-type uint64_t = integer_t{64, unsigned}
+# TODO: inject correct size for platform from reader macro
+type int_t = signed_t{64}
+type uint_t = unsigned_t{64}
+type size_t = unsigned_t{64}
 
-type int32_t = integer_t{32, signed}
-type uint32_t = integer_t{32, unsigned}
+type int64_t = signed_t{64}
+type uint64_t = unsigned_t{64}
 
-type int16_t = integer_t{16, signed}
-type uint16_t = integer_t{16, unsigned}
+type int32_t = signed_t{32}
+type uint32_t = unsigned_t{32}
 
-type int8_t = integer_t{8, signed}
-type uint8_t = integer_t{8, unsigned}
+type int16_t = signed_t{16}
+type uint16_t = unsigned_t{16}
+
+type int8_t = signed_t{8}
+type uint8_t = unsigned_t{8}
+
+type var_t struct
+	var type_info *type_info_t
+	# and a ref-count of its own
+	var mark int_t
+	var next *var_t
+	var prev *var_t
+	var allocation int_t
+	#
+	# THE ACTUAL DATA IS APPENDED HERE
+	#
+
+type type_info_t struct
+	var type_id   int32_t
+	var type_kind int32_t
+	var size      int_t
+	var name      *char_t
+
+type type_info_offsets_t struct
+	var type_info_head type_info_t
+	var finalize_fn    def (v *var_t) void
+	var refs_count     int16_t
+	var ref_offsets    *int16_t
+
+type type_info_mark_fn_t struct
+	var type_info_head type_info_t
+
+	# the destructor for this type, if one exists. NB: if you change the index
+	# of this dimension, update DTOR_INDEX
+	var finalize_fn def (v *var_t) void
+
+	# the mark function for this type.
+	var mark_fn def (v *var_t) void
+
+type tag_t struct
+	var type_info *type_info_t
+
+#   The map for a single function's stack frame.  One of these is
+#   compiled as constant data into the executable for each function.
+#  
+#   Storage of metadata values is elided if the %metadata parameter to
+#   @llvm.gcroot is null.
+type stack_frame_map_t struct
+	var num_roots int32_t  # Number of roots in stack frame.
+	var num_meta  int32_t  # Number of metadata entries.  May be < num_roots.
+
+#   A link in the dynamic shadow stack.  One of these is embedded in
+#   the stack frame of each function on the call stack.
+type stack_entry_t struct
+	var next *stack_entry_t       # Link to next stack entry (the caller's).
+	var map  *stack_frame_map_t   # Pointer to constant stack_frame_map_t.
+
+type stack_entry_plus_root_t struct
+	var next  *stack_entry_t       # Link to next stack entry (the caller's).
+	var map   *stack_frame_map_t   # Pointer to constant stack_frame_map_t.
+	var root0 *void
+
