@@ -531,6 +531,53 @@ bound_type_t::ref create_bound_operator_type(
 	return nullptr;
 }
 
+bound_type_t::ref create_bound_integer_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		ptr<scope_t> scope,
+		const ptr<const types::type_integer_t> &integer)
+{
+	auto typename_env = scope->get_typename_env();
+
+	/* apply the operator */
+	auto signed_ = eval(integer->signed_, typename_env);
+	if (signed_ == nullptr) {
+		signed_ = integer->signed_;
+	}
+
+	types::type_t::ref bit_size_expansion;
+	int bit_size = types::coerce_to_integer(status, typename_env, integer->bit_size, bit_size_expansion);
+	if (!!status) {
+		if (!types::is_type_id(signed_, "signed") && 
+				!types::is_type_id(signed_, "unsigned"))
+		{
+			user_error(status, integer->get_location(), "could not determine signedness for type from %s",
+					signed_->str().c_str());
+		} else {
+			if (bit_size != 1 &&
+					bit_size != 8 &&
+					bit_size != 16 &&
+					bit_size != 32 &&
+					bit_size != 64 &&
+					bit_size != 128)
+			{
+				user_error(status, integer->get_location(), "illegal bit-size for %s",
+						integer->str().c_str());
+			} else {
+				auto bound_type = bound_type_t::create(
+						type_integer(bit_size_expansion, signed_),
+						integer->get_location(),
+						builder.getIntNTy(bit_size),
+						builder.getIntNTy(bit_size));
+				scope->get_program_scope()->put_bound_type(status, bound_type);
+				return bound_type;
+			}
+		}
+	}
+	assert(!status);
+	return nullptr;
+}
+
 bound_type_t::ref create_bound_maybe_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -692,6 +739,8 @@ bound_type_t::ref create_bound_type(
 		return create_bound_id_type(status, builder, scope, id);
     } else if (auto maybe = dyncast<const types::type_maybe_t>(type)) {
 		return create_bound_maybe_type(status, builder, scope, maybe);
+	} else if (auto integer = dyncast<const types::type_integer_t>(type)) {
+		return create_bound_integer_type(status, builder, scope, integer);
 	} else if (auto pointer = dyncast<const types::type_ptr_t>(type)) {
 		return create_bound_ptr_type(status, builder, scope, pointer);
 	} else if (auto managed_type = dyncast<const types::type_managed_t>(type)) {

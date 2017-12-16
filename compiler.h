@@ -72,7 +72,8 @@ private:
 	std::set<token_t> link_ins;
 	std::vector<token_t> comments;
 	program_scope_t::ref program_scope;
-	std::map<std::string, ptr<const ast::module_t>> modules;
+	std::map<std::string, ptr<const ast::module_t>> modules_map;
+	std::vector<ptr<const ast::module_t>> ordered_modules;
 	llvm::LLVMContext llvm_context;
 	llvm::IRBuilder<> builder;
 	llvm_module_t llvm_program_module;

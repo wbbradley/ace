@@ -45,43 +45,6 @@ def get_member_by_index(v *var_t, index int_t) *var_t
 	return var_ptr[0r]
 
 
-type var_t struct
-	var type_info *type_info_t
-	# and a ref-count of its own
-	var mark int_t
-	var next *var_t
-	var prev *var_t
-	var allocation int_t
-	#
-	# THE ACTUAL DATA IS APPENDED HERE
-	#
-
-type type_info_t struct
-	var type_id   int32_t
-	var type_kind int32_t
-	var size      int_t
-	var name      *__char__
-
-type type_info_offsets_t struct
-	var type_info_head type_info_t
-	var finalize_fn    def (v *var_t) void
-	var refs_count     int16_t
-	var ref_offsets    *int16_t
-
-type type_info_mark_fn_t struct
-	var type_info_head type_info_t
-
-	# the destructor for this type, if one exists. NB: if you change the index
-	# of this dimension, update DTOR_INDEX
-	var finalize_fn def (v *var_t) void
-
-	# the mark function for this type.
-	var mark_fn def (v *var_t) void
-
-type tag_t struct
-	var type_info *type_info_t
-
-
 var _bytes_allocated int_t = 0r
 var _all_bytes_allocated int_t = 0r
 var _var_allocation int_t = 0r
@@ -249,26 +212,6 @@ def create_var(type_info *type_info_t) *var_t
 	# dbg_zrt(printf("creating %s #%lld 0x%08lx\n", type_info.name, obj.allocation, (intptr_t)obj))
 
 	return obj
-
-#   The map for a single function's stack frame.  One of these is
-#   compiled as constant data into the executable for each function.
-#  
-#   Storage of metadata values is elided if the %metadata parameter to
-#   @llvm.gcroot is null.
-type stack_frame_map_t struct
-	var num_roots int32_t  # Number of roots in stack frame.
-	var num_meta  int32_t  # Number of metadata entries.  May be < num_roots.
-
-#   A link in the dynamic shadow stack.  One of these is embedded in
-#   the stack frame of each function on the call stack.
-type stack_entry_t struct
-	var next *stack_entry_t       # Link to next stack entry (the caller's).
-	var map  *stack_frame_map_t   # Pointer to constant stack_frame_map_t.
-
-type stack_entry_plus_root_t struct
-	var next  *stack_entry_t       # Link to next stack entry (the caller's).
-	var map   *stack_frame_map_t   # Pointer to constant stack_frame_map_t.
-	var root0 *void
 
 #  Calls heap_visit(root, meta) for each GC root on the stack.
 #         root and meta are exactly the values passed to

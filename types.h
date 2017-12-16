@@ -129,6 +129,7 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
+		int coerce_to_int(status_t &status) const;
 	};
 
 	struct type_integer_t : public type_t {
@@ -327,7 +328,12 @@ namespace types {
 	};
 
 
-    identifier::ref gensym();
+	identifier::ref gensym();
+	int coerce_to_integer(
+			status_t &status,
+			const types::type_t::map &env,
+			type_t::ref type,
+			type_t::ref &expansion);
 };
 
 /* type data ctors */

@@ -852,7 +852,7 @@ namespace ast {
 		virtual ~program_t() {}
 		virtual void render(render_state_t &rs) const;
 
-		std::set<ptr<const module_t>> modules;
+		std::vector<ptr<const module_t>> modules;
 	};
 
 	struct dot_expr_t : public expression_t, public can_reference_overloads_t {

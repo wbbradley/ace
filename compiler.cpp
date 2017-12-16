@@ -429,12 +429,13 @@ void compiler_t::build_parse_modules(status_t &status) {
 							false /*global*/));
 
 				/* next, merge the entire set of modules into one program */
-				for (const auto &module_data_pair : modules) {
-					/* note the use of the set here to ensure that each module is only
+				for (const auto &module : ordered_modules) {
+					/* note the use of the find here to ensure that each module is only
 					 * included once */
-					auto module = module_data_pair.second;
 					assert(module != nullptr);
-					program->modules.insert(module);
+					assert(std::find(program->modules.begin(), program->modules.end(), module) == program->modules.end());
+
+					program->modules.push_back(module);
 				}
 			}
 		}
@@ -820,7 +821,8 @@ void compiler_t::set_module(
 
 	if (!get_module(status, filename))  {
 		/* add the module to the compiler's modules map */
-		modules[filename] = module;
+		modules_map[filename] = module;
+		ordered_modules.push_back(module);
 	} else {
 		panic(string_format("module " C_FILENAME "%s" C_RESET " already exists!",
 					filename.c_str()));
@@ -828,8 +830,8 @@ void compiler_t::set_module(
 }
 
 ptr<const ast::module_t> compiler_t::get_module(status_t &status, std::string key_alias) {
-	auto module_iter = modules.find(key_alias);
-	if (module_iter != modules.end()) {
+	auto module_iter = modules_map.find(key_alias);
+	if (module_iter != modules_map.end()) {
 		auto module = module_iter->second;
 		assert(module != nullptr);
 		return module;
@@ -841,8 +843,8 @@ ptr<const ast::module_t> compiler_t::get_module(status_t &status, std::string ke
 		resolve_module_filename(status, INTERNAL_LOC(), key_alias, module_filename);
 
 		if (!!status) {
-			auto module_iter = modules.find(module_filename);
-			if (module_iter != modules.end()) {
+			auto module_iter = modules_map.find(module_filename);
+			if (module_iter != modules_map.end()) {
 				auto module = module_iter->second;
 				assert(module != nullptr);
 				return module;
