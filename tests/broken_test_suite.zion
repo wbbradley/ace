@@ -1,8 +1,8 @@
 module suite
-link module assert
-link module eightq
-link module sys
-link module capture
+get assert
+get eightq
+get sys
+get capture
 
 def main() any
 	"Run tests in Zion."

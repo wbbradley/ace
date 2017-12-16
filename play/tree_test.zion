@@ -1,5 +1,5 @@
 module _
-link module tree
+get tree
 
 def main()
 	t := tree.insert(nil, 5)

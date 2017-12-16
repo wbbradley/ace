@@ -1,7 +1,7 @@
 module map
-link module posix
-link module iter
-link module sys
+get posix
+get iter
+get sys
 
 type Map{K, V} has
 	var left Map{K, V}?

@@ -1,7 +1,7 @@
 module _
 # test: pass
-link module posix
-link module sys
+get posix
+get sys
 
 def main()
 	posix.puts(sys.args[0r].raw)

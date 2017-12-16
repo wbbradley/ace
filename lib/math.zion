@@ -1,5 +1,5 @@
 module math @1.0
-link module posix
+get posix
 
 type Complex has
 	var real float

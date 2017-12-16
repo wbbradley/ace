@@ -1,5 +1,5 @@
 module _
-link module test_external as external
+get test_external as external
 # test: pass
 
 

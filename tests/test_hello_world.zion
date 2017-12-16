@@ -1,5 +1,5 @@
 module hello @1.0
-link module runtime
+get runtime
 
 # test: pass
 # expect: Hello, world.

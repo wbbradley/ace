@@ -1,5 +1,5 @@
 module _
-link module file
+get file
 # test: pass
 # expect: opened tests/test_if_finalizer.zion as fp
 

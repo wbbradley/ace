@@ -1,7 +1,7 @@
 module _
-link module sys
-link module main
-link module file
+get sys
+get main
+get file
 
 def foo()
 	var x [int]

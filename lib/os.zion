@@ -1,5 +1,5 @@
 module os
-link module posix
+get posix
 
 def getcwd() str
 	return str(posix.getcwd(nil))

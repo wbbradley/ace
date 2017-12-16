@@ -1,5 +1,5 @@
 module logic @1.0
-link module assert
+get assert
 # test: pass
 
 def test_failure() void

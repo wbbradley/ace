@@ -1,6 +1,6 @@
 module runtime
 
-link module posix
+get posix
 
 link def dbg_se(v *void) void
 

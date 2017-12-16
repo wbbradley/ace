@@ -1,6 +1,6 @@
 module vector
-link module posix
-link module runtime
+get posix
+get runtime
 
 type vector_t struct
 	var _var     runtime.var_t

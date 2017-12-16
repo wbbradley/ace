@@ -1,5 +1,5 @@
 module _
-link module posix
+get posix
 
 def main()
 	var bufsize int_t = (1024).raw

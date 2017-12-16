@@ -1,6 +1,6 @@
 module _
-link module posix
-link module file
+get posix
+get file
 # test: pass
 # expect: house
 # expect: 9
