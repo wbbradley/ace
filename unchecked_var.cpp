@@ -50,8 +50,8 @@ types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 							type_args(args),
 							decl->return_type);
 
-					debug_above(9, log(log_info, "found unchecked type for %s : %s",
-								decl->token.str().c_str(),
+					debug_above(9, log(log_info, "found unchecked type for " c_id("%s") " : %s",
+								decl->get_function_name().c_str(),
 								sig->str().c_str()));
 					return sig;
 				} else {
@@ -60,8 +60,8 @@ types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 							/* default to void, which is fully bound */
 							type_void());
 
-					debug_above(4, log(log_info, "defaulting return type of %s to void : %s",
-								decl->token.str().c_str(),
+					debug_above(4, log(log_info, "defaulting return type of " c_id("%s") " to void : %s",
+								decl->get_function_name().c_str(),
 								sig->str().c_str()));
 					return sig;
 				}

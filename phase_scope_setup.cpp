@@ -125,7 +125,7 @@ status_t scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 		scope_setup_module_symbol(
 				status,
 			   	*function,
-				make_code_id(function->decl->token),
+				make_iid(function->decl->get_function_name()),
 			   	function->decl->extends_module,
 				module_scope);
 	}

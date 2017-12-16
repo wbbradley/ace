@@ -808,6 +808,78 @@ endif
 		return nullptr;
 	}
 
+
+	type_integer_t::type_integer_t(type_t::ref bit_size, type_t::ref signed_) :
+		bit_size(bit_size), signed_(signed_)
+	{
+	}
+
+	std::ostream &type_integer_t::emit(std::ostream &os, const map &bindings_) const {
+		os << "integer_t{";
+		bit_size->emit(os, bindings_);
+		os << ", ";
+		signed_->emit(os, bindings_);
+		return os << "}";
+	}
+
+	int type_integer_t::ftv_count() const {
+		/* pretend this is getting applied */
+		return bit_size->ftv_count() + signed_->ftv_count();
+	}
+
+    std::set<std::string> type_integer_t::get_ftvs() const {
+		std::set<std::string> ftvs = bit_size->get_ftvs();
+		std::set<std::string> ftvs_signed = signed_->get_ftvs();
+	   	ftvs.insert(ftvs_signed.begin(), ftvs_signed.end());
+		return ftvs;
+	}
+
+	type_t::ref type_integer_t::rebind(const map &bindings) const {
+		auto bit_size_rebound = bit_size->rebind(bindings);
+		auto signed_rebound = signed_->rebind(bindings);
+		if (bit_size_rebound != bit_size || signed_rebound != signed_) {
+			return ::type_integer(bit_size_rebound, signed_rebound);
+		} else {
+			return shared_from_this();
+		}
+	}
+
+	location_t type_integer_t::get_location() const {
+		return bit_size->get_location();
+	}
+
+	identifier::ref type_integer_t::get_id() const {
+		return nullptr;
+	}
+
+	type_literal_t::type_literal_t(token_t token) : token(token)
+	{
+	}
+
+	std::ostream &type_literal_t::emit(std::ostream &os, const map &bindings_) const {
+		return os << token.text;
+	}
+
+	int type_literal_t::ftv_count() const {
+		return 0;
+	}
+
+    std::set<std::string> type_literal_t::get_ftvs() const {
+		return {};
+	}
+
+	type_t::ref type_literal_t::rebind(const map &bindings_) const {
+		return shared_from_this();
+	}
+
+	location_t type_literal_t::get_location() const {
+		return token.location;
+	}
+
+	identifier::ref type_literal_t::get_id() const {
+		return nullptr;
+	}
+
 	type_extern_t::type_extern_t(
 			types::type_t::ref inner,
 		   	types::type_t::ref underlying_type,
@@ -1076,6 +1148,15 @@ types::type_t::ref type_sum(types::type_t::refs options, location_t location) {
     return make_ptr<types::type_sum_t>(options, location);
 }
 
+types::type_t::ref type_literal(token_t token) {
+	assert(token.tk == tk_integer || token.tk == tk_string || token.tk == tk_identifier);
+	return make_ptr<types::type_literal_t>(token);
+}
+
+types::type_t::ref type_integer(types::type_t::ref bit_size, types::type_t::ref signed_) {
+	return make_ptr<types::type_integer_t>(bit_size, signed_);
+}
+
 types::type_t::ref type_maybe(types::type_t::ref just) {
     if (auto maybe = dyncast<const types::type_maybe_t>(just)) {
         return just;
@@ -1156,7 +1237,8 @@ types::type_t::ref parse_type_expr(std::string input, identifier::set generics, 
 	status_t status;
 	std::istringstream iss(input);
 	zion_lexer_t lexer("", iss);
-	parse_state_t ps(status, "", lexer, {}, nullptr);
+	type_macros_t global_type_macros;
+	parse_state_t ps(status, "", lexer, {}, global_type_macros, nullptr);
 	if (module_id != nullptr) {
 		ps.module_id = module_id;
 	} else {

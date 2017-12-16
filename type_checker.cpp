@@ -845,18 +845,16 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 			llvm::FunctionType *llvm_func_type = llvm_create_function_type(
 					status, builder, args, return_value);
 
-			/* try to find this function, if it already exists... */
+			/* try to find this function, if it already exists... and make sure we use the "link to" name, if specified. */
 			llvm::Module *llvm_module = module_scope->get_llvm_module();
-			llvm::Value *llvm_value = llvm_module->getOrInsertFunction(function_name.text,
-					llvm_func_type);
+			llvm::Value *llvm_value = llvm_module->getOrInsertFunction(extern_function->link_to_name.text, llvm_func_type);
 
 			assert(llvm_print(llvm_value->getType()) != llvm_print(llvm_func_type));
 
 			/* get the full function type */
-			types::type_function_t::ref function_sig = get_function_type(
-					args, return_value);
+			types::type_function_t::ref function_sig = get_function_type(args, return_value);
 			debug_above(3, log(log_info, "%s has type %s",
-						function_name.str().c_str(),
+						extern_function->get_function_name().c_str(),
 						function_sig->str().c_str()));
 
 			/* actually create or find the finalized bound type for this function */
@@ -865,7 +863,7 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 
 			return bound_var_t::create(
 					INTERNAL_LOC(),
-					scope->make_fqn(function_name.text),
+					scope->make_fqn(extern_function->token.text),
 					bound_function_type,
 					llvm_value,
 					make_code_id(extern_function->token));
@@ -3005,8 +3003,8 @@ void type_check_module_links(
 						status, builder, scope, nullptr, false /*as_ref*/);
 
 				if (!!status) {
-					if (link->function_name.text.size() != 0) {
-						scope->put_bound_variable(status, link->function_name.text, link_value);
+					if (link->extern_function->token.text.size() != 0) {
+						scope->put_bound_variable(status, link->extern_function->token.text, link_value);
 					} else {
 						user_error(status, *link, "module level link definitions need names");
 					}
@@ -3073,9 +3071,6 @@ void resolve_unchecked_type(status_t &status, llvm::IRBuilder<> &builder, module
 					module_scope, nullptr, nullptr, nullptr);
 		} else if (auto tag = dyncast<const ast::tag_t>(node)) {
 			tag->resolve_statement(status, builder, module_scope,
-					nullptr, nullptr, nullptr);
-		} else if (auto alias = dyncast<const ast::type_alias_t>(node)) {
-			alias->resolve_statement(status, builder, module_scope,
 					nullptr, nullptr, nullptr);
 		} else {
 			panic("unhandled unchecked type node at module scope");
@@ -3295,6 +3290,15 @@ void type_check_program(
 
 	ptr<program_scope_t> program_scope = compiler.get_program_scope();
 	debug_above(11, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
+
+	bool checked_builtins = false;
+	for (const ast::module_t::ref &module : obj.modules) {
+		if (module->module_key == "builtins") {
+			assert(!checked_builtins);
+			checked_builtins = true;
+			type_check_module_types(status, compiler, builder, *module, program_scope);
+		}
+	}
 
 	bool checked_runtime = false;
 	for (const ast::module_t::ref &module : obj.modules) {
@@ -4624,7 +4628,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
     case tk_string:
 		{
 			std::string value = unescape_json_quotes(token.text);
-			bound_type_t::ref native_type = program_scope->get_bound_type({STR_TYPE});
+			bound_type_t::ref native_type = program_scope->get_bound_type({MBS_TYPE});
 			bound_type_t::ref boxed_type = upsert_bound_type(
 					status,
 					builder,

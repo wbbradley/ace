@@ -79,6 +79,7 @@ enum token_kind
 
 #define K(x) const char * const K_##x = #x
 K(and);
+K(get);
 K(any);
 K(as);
 K(break);
@@ -89,7 +90,7 @@ K(else);
 K(for);
 K(global);
 K(__get_typeid__);
-K(__integer__);
+K(integer_t);
 K(has);
 K(if);
 K(in);

@@ -22,6 +22,7 @@ struct parse_state_t {
 			std::string filename,
 			zion_lexer_t &lexer,
 			type_macros_t type_macros,
+			type_macros_t &global_type_macros,
 			std::vector<token_t> *comments=nullptr,
 			std::set<token_t> *link_ins=nullptr);
 
@@ -37,6 +38,7 @@ struct parse_state_t {
 	zion_lexer_t &lexer;
 	status_t &status;
 	type_macros_t type_macros;
+	type_macros_t &global_type_macros;
 	std::vector<token_t> *comments;
 	std::set<token_t> *link_ins;
 

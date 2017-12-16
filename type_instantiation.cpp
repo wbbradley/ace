@@ -251,6 +251,8 @@ void ast::type_product_t::register_type(
 		scope_t::ref scope) const
 {
 	debug_above(5, log(log_info, "creating product type for %s", str().c_str()));
+	debug_above(7, log(log_info, "%s has type %s", id_->get_name().c_str(),
+				type->str().c_str()));
 
 	std::string name = id_->get_name();
 	auto location = id_->get_location();

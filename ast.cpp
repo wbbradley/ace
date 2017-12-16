@@ -125,4 +125,18 @@ namespace ast {
 		assert(!status);
 		return nullptr;
     }
+
+	std::string function_decl_t::get_function_name() const {
+		if (token.tk == tk_string) {
+			return unescape_json_quotes(token.text);
+		} else {
+			assert(token.tk == tk_identifier);
+			return token.text;
+		}
+	}
+
+	void function_decl_t::set_function_name(token_t new_token) {
+		assert(token.tk == tk_string || token.tk == tk_identifier);
+		token = new_token;
+	}
 }
