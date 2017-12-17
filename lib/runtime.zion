@@ -15,13 +15,13 @@ link var llvm_gc_root_chain *stack_entry_t
 var __head_var *var_t = __create_head_var()
 
 var __debug_zion_runtime bool_t = __false__
-var _zion_rt *__char__ = "zion-rt: "r
+var _zion_rt *char_t = "zion-rt: "r
 
 var TYPE_KIND_TAG int32_t = 0r as int32_t
 var TYPE_KIND_USE_OFFSETS int32_t = 1r as int32_t
 var TYPE_KIND_USE_MARK_FN int32_t = 2r as int32_t
 
-def on_assert_failure(msg *__char__) void
+def on_assert_failure(msg *char_t) void
 	# called when assertions fail
 	posix.puts(msg)
 	posix.raise(posix.SIGTRAP)
@@ -45,11 +45,11 @@ def get_member_by_index(v *var_t, index int_t) *var_t
 	return var_ptr[0r]
 
 
-var _bytes_allocated int_t = 0r
-var _all_bytes_allocated int_t = 0r
-var _var_allocation int_t = 0r
+var _bytes_allocated size_t = 0r
+var _all_bytes_allocated size_t = 0r
+var _var_allocation uint_t = 0r
 
-def mem_alloc(cb int_t, comment *__char__) *void
+def mem_alloc(cb size_t, comment *char_t) *void
 	runtime._bytes_allocated += cb
 	runtime._all_bytes_allocated += cb
 	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
@@ -162,12 +162,12 @@ def protect_node(node *var_t) void
 	# check_node_existence(node, __false__)
 
 
-def get_var_type_id(v *var_t) __typeid__
+def get_var_type_id(v *var_t) typeid_t
 	if v != nil
-		return v.type_info.type_id as __typeid__
+		return v.type_info.type_id as typeid_t
 	else
 		# MEM_PANIC("attempt to get_var_type_id of a null value ", "", 116)
-		return 0r as __typeid__
+		return 0r as typeid_t
 
 def __create_head_var() *var_t
 	p := mem_alloc(sizeof(var_t), "__create_head_var"r) as *var_t
@@ -234,7 +234,7 @@ def visit_heap_roots(heap_visit def (obj *var_t) void)
 		# posix.puts("found R.map.num_roots of "r + __str__(e))
 		# posix.puts("R.next = 0x"r + __str__(R.next as int_t, 16r))
 
-		# mem_dump(&R.root0 as *__int__, R.map.num_roots as int_t * sizeof(*var_t))
+		# mem_dump(&R.root0 as *int_t, R.map.num_roots as int_t * sizeof(*var_t))
 		assert(i <= e)
 		while i != e
 			node := (&R.root0 as **var_t)[i]
@@ -349,7 +349,7 @@ def free_unmarked(obj *var_t)
 		# posix.puts("not freeing "r + dbghex(obj))
 		pass
 
-def dbghex(v *void) *__char__
+def dbghex(v *void) *char_t
 	# LEAKLEAKLEAK
 	return concat("0x"r, __str__(v as int_t, 16r))
 
@@ -368,7 +368,7 @@ def gc()
 	visit_allocations(free_unmarked)
 	# report("after gc..."r)
 
-def report(use_case *__char__)
+def report(use_case *char_t)
 	title := concat("Memory Report: "r, use_case)
 	posix.puts(title)
 	posix.free(title)

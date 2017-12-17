@@ -277,8 +277,8 @@ bound_var_t::ref generate_module_variable(
 {
 	auto program_scope = module_scope->get_program_scope();
 
-	assert(!module_scope->has_checked(var_decl.shared_from_this()));
-	module_scope->mark_checked(status, builder, var_decl.shared_from_this());
+	assert(!program_scope->has_checked(var_decl.shared_from_this()));
+	program_scope->mark_checked(status, builder, var_decl.shared_from_this());
 
 	if (!!status) {
 		/* 'declared_type' tells us the user-declared type on the left-hand side of
@@ -495,12 +495,13 @@ bound_var_t::ref type_check_module_var_decl(
 		module_scope_t::ref module_scope,
 		const ast::var_decl_t &var_decl)
 {
+	auto program_scope = module_scope->get_program_scope();
 	const std::string symbol = var_decl.token.text;
 
 	debug_above(4, log(log_info, "type_check_module_var_decl is looking for a type for variable " c_var("%s") " : %s",
 				symbol.c_str(), var_decl.str().c_str()));
 
-	if (!module_scope->has_checked(var_decl.shared_from_this())) {
+	if (!program_scope->has_checked(var_decl.shared_from_this())) {
 		return generate_module_variable(status, builder, module_scope, var_decl, symbol);
 	} else {
 		auto bound_var = module_scope->get_bound_variable(status, var_decl.get_location(), symbol, false /*search_parents*/);
@@ -2703,14 +2704,16 @@ bound_var_t::ref ast::sizeof_expr_t::resolve_expression(
 
 	/* calculate the size of the object being referenced assume native types */
 	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type);
-	bound_type_t::ref size_type = scope->get_program_scope()->get_bound_type({INT_TYPE});
 	if (!!status) {
-		llvm::Value *llvm_size = llvm_sizeof_type(builder,
-				llvm_deref_type(bound_type->get_llvm_specific_type()));
+		bound_type_t::ref size_type = upsert_bound_type(status, builder, scope->get_program_scope(), type_id(make_iid("size_t")));
+		if (!!status) {
+			llvm::Value *llvm_size = llvm_sizeof_type(builder,
+					llvm_deref_type(bound_type->get_llvm_specific_type()));
 
-		return bound_var_t::create(
-				INTERNAL_LOC(), type->str(), size_type, llvm_size,
-				make_iid("sizeof"));
+			return bound_var_t::create(
+					INTERNAL_LOC(), type->str(), size_type, llvm_size,
+					make_iid("sizeof"));
+		}
 	}
 
 	assert(!status);
@@ -2919,8 +2922,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 					}
 
 					if (!!status) {
-						module_scope->mark_checked(status, builder,
-								shared_from_this());
+						program_scope->mark_checked(status, builder, shared_from_this());
 						assert(!!status);
 					}
 				}
@@ -3053,10 +3055,18 @@ void type_check_module_vars(
 	}
 }
 
-void resolve_unchecked_type(status_t &status, llvm::IRBuilder<> &builder, module_scope_t::ref module_scope, unchecked_type_t::ref unchecked_type) {
+void resolve_unchecked_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		module_scope_t::ref module_scope,
+		unchecked_type_t::ref unchecked_type)
+{
+	auto program_scope = module_scope->get_program_scope();
 	auto node = unchecked_type->node;
+
 	/* prevent recurring checks */
-	if (!module_scope->has_checked(node)) {
+	if (!program_scope->has_checked(node)) {
+		program_scope->mark_checked(status, builder, node);
 		assert(!dyncast<const ast::function_defn_t>(node));
 
 		debug_above(5, log(log_info, "checking module level type %s", node->token.str().c_str()));
@@ -3082,10 +3092,10 @@ void resolve_unchecked_type(status_t &status, llvm::IRBuilder<> &builder, module
 
 void type_check_module_types(
 		status_t &status,
-        compiler_t &compiler,
-        llvm::IRBuilder<> &builder,
-        const ast::module_t &obj,
-        scope_t::ref program_scope)
+		compiler_t &compiler,
+		llvm::IRBuilder<> &builder,
+		const ast::module_t &obj,
+		scope_t::ref program_scope)
 {
 	if (!!status) {
 		INDENT(2, string_format("type-checking types in module " c_module("%s"),
@@ -3111,7 +3121,7 @@ void type_check_program_variable(
 				unchecked_var->str().c_str()));
 
 	auto node = unchecked_var->node;
-	if (!unchecked_var->module_scope->has_checked(node)) {
+	if (!program_scope->has_checked(node)) {
 		/* prevent recurring checks */
 		debug_above(7, log(log_info, "checking module level variable %s",
 					node->token.str().c_str()));
@@ -3291,57 +3301,11 @@ void type_check_program(
 	ptr<program_scope_t> program_scope = compiler.get_program_scope();
 	debug_above(11, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
 
-	bool checked_builtins = false;
+	/* pass to resolve all module-level types */
 	for (const ast::module_t::ref &module : obj.modules) {
-		if (module->module_key == "builtins") {
-			assert(!checked_builtins);
-			checked_builtins = true;
-			type_check_module_types(status, compiler, builder, *module, program_scope);
-		}
-	}
-
-	bool checked_runtime = false;
-	for (const ast::module_t::ref &module : obj.modules) {
-		if (module->module_key == "runtime") {
-			assert(!checked_runtime);
-			checked_runtime = true;
-			type_check_module_types(status, compiler, builder, *module, program_scope);
-		}
-	}
-
-	if (!!status) {
-		/* make sure we can look up the bound runtime types */
-		std::vector<std::string> runtime_types = {
-			"type_info_t",
-			"type_info_offsets_t",
-			"type_info_mark_fn_t",
-			"tag_t",
-			"var_t",
-			"stack_frame_map_t",
-			"stack_entry_t",
-		};
-
-		for (auto runtime_type : runtime_types) {
-			program_scope->get_runtime_type(status, builder, runtime_type);
-			if (!status) {
-				break;
-			}
-		}
-	}
-
-	if (!!status && !checked_runtime) {
-		user_error(status, INTERNAL_LOC(), "could not find " c_id("runtime") " module");
-	}
-
-	if (!!status) {
-		/* pass to resolve all module-level types */
-		for (const ast::module_t::ref &module : obj.modules) {
-			if (module->module_key != "runtime") {
-				type_check_module_types(status, compiler, builder, *module, program_scope);
-				if (!status) {
-					break;
-				}
-			}
+		type_check_module_types(status, compiler, builder, *module, program_scope);
+		if (!status) {
+			break;
 		}
 	}
 
@@ -3473,7 +3437,6 @@ void ast::type_def_t::resolve_statement(
 		*new_scope = fresh_scope;
 	}
 
-	// TODO: consider type namespacing here, or 
 	type_algebra->register_type(status, builder,
 			make_code_id(token), type_decl->type_variables, scope);
 

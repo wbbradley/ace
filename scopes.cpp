@@ -495,7 +495,7 @@ module_scope_impl_t::module_scope_impl_t(
 {
 }
 
-bool module_scope_impl_t::has_checked(const ptr<const ast::item_t> &node) const {
+bool program_scope_t::has_checked(const ptr<const ast::item_t> &node) const {
 	return visited.find(node) != visited.end();
 }
 
@@ -503,13 +503,15 @@ bool module_scope_impl_t::symbol_exists_in_running_scope(std::string symbol, bou
 	return false;
 }
 
-void module_scope_impl_t::mark_checked(
+void program_scope_t::mark_checked(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
-	   	const ptr<const ast::item_t> &node) {
+	   	const ptr<const ast::item_t> &node)
+{
 	if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
 		if (is_function_defn_generic(status, builder, shared_from_this(),
-					*function_defn)) {
+					*function_defn))
+	   	{
 			/* for now let's never mark generic functions as checked, until we
 			 * have a mechanism to join the type to the checked-mark.  */
 			return;
@@ -552,7 +554,7 @@ void module_scope_impl_t::put_unchecked_type(
 		user_error(status, *unchecked_type->node, "type " c_type("%s") " already exists",
 				unchecked_type->name.c_str());
 
-		user_error(status, *unchecked_type_iter->second->node,
+		user_info(status, *unchecked_type_iter->second->node,
 				"see type " c_type("%s") " declaration",
 				unchecked_type_iter->second->name.c_str());
 	}

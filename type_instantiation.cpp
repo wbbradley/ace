@@ -107,9 +107,9 @@ void get_generics_and_lambda_vars(
 {
 	assert(generics.size() == 0);
 	assert(lambda_vars.size() == 0);
-	debug_above(5, log(log_info, "get_generics_and_lambda_vars(%s, %s)",
+	debug_above(5, log(log_info, "get_generics_and_lambda_vars(%s, [%s])",
 				subtype->str().c_str(),
-				::str(type_variables).c_str()));
+				join_str(type_variables, ", ").c_str()));
 
 	/* create a type that takes the used type variables in the data ctor and
 	 * returns placement in given type variable order */
@@ -355,7 +355,6 @@ void ast::type_alias_t::register_type(
 	std::set<std::string> generics;
 
 	get_generics_and_lambda_vars(status, type, type_variables, scope, lambda_vars, generics);
-
 	types::type_t::ref final_type = type;
 	for (auto lambda_var : lambda_vars) {
 		final_type = type_lambda(lambda_var, type);

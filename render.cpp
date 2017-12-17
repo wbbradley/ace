@@ -58,7 +58,7 @@ namespace ast {
 	}
 
 	void type_alias_t::render(render_state_t &rs) const {
-		rs.ss << K(matches) << " " << type->str();
+		rs.ss << "= " << type->str();
 	}
 
 	void prefix_expr_t::render(render_state_t &rs) const {
