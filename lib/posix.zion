@@ -1,33 +1,41 @@
 module posix
 
 link in "c"
+link in "m"
 
-link def getenv(x *__char__) *__char__
-link def puts(x *__char__) int_t
+link def getenv(x *char_t) *char_t
+link def puts(x *char_t) int_t
 link def putchar(x int_t) int_t
-link def perror(x *__char__) int_t
-link def open(path *__char__, oflag int_t) int_t
+link def perror(x *char_t) int_t
+link def open(path *char_t, oflag int_t) int_t
 link def close(fd int_t) int_t
-link def read(fileds int_t, buf *int8_t, nbytes __int__) int_t
-link def write(fileds int_t, buf *int8_t, nbytes __int__) int_t
-link def malloc(cb int_t) *void
-link def memcpy(dst *int8_t, src *int8_t, n int_t) *int8_t
-link def free(pb *void) *int8_t
-link def calloc(cb int_t, size __int__) *void
-link def strdup(s *__char__) *__char__
-link def strcmp(x *__char__, y *__char__) int_t
-link def sqrt(x __float__) __float__
+link def read(fileds int_t, buf *void, nbytes size_t) ssize_t
+link def write(fileds int_t, buf *void, nbytes size_t) ssize_t
+link def calloc(cb size_t, size size_t) *void
+link def malloc(cb size_t) *void
+link def realloc(ptr *void, cb size_t) *void
+link def memcpy(dst *void, src *void, n size_t) *void
+link def free(pb *void) void
+link def strdup(s *char_t) *char_t
+link def strndup(s *char_t, n size_t) *char_t
+link def strcmp(x *char_t, y *char_t) int_t
+link def strncmp(x *char_t, y *char_t, n size_t) int_t
+link def sqrt(x float_t) float_t
 link def arc4random_stir() void
 link def arc4random_buf(dst *void, cb int_t) int_t
-link def rand() int_t
-link def exit(code int_t) int_t
+link def exit(code int_t) void
 link def getch() int_t
-link def getcwd(space *__char__) *__char__
+link def getcwd(space *char_t) *char_t
+link def fchdir(filedes int_t) int_t
 link def raise(signal int_t) int_t
-link def fopen(fn *__char__, mode *__char__) *FILE
+link def fopen(fn *char_t, mode *char_t) *FILE
 link def fclose(fp *FILE) int_t
-link def getline(linep **__char__, linecapp *__int__, fp *FILE) int_t
-link def strlen(s *__char__) int_t
+link def getline(linep **char_t, linecapp *int_t, fp *FILE) int_t
+link def strlen(s *char_t) size_t
+link def wcslen(wcs *wchar_t) size_t
+link def putw(wch wchar_t, fp *FILE) int_t
+link def mbstowcs(wcs *wchar_t, mbs *char_t, mbslen size_t) size_t
+link def wcstombs(mbs *char_t, wcs *wchar_t, wcslen size_t) size_t
 
 type FILE struct
 

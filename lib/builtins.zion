@@ -1,12 +1,14 @@
 global
 
-type signed_t{BitSize} = integer_t{BitSize, signed}
-type unsigned_t{BitSize} = integer_t{BitSize, unsigned}
+type signed_t{bits} = integer_t{bits, signed}
+type unsigned_t{bits} = integer_t{bits, unsigned}
 
 # TODO: inject correct size for platform from reader macro
 type int_t = signed_t{64}
 type uint_t = unsigned_t{64}
+
 type size_t = unsigned_t{64}
+type ssize_t = signed_t{64}
 
 type int64_t = signed_t{64}
 type uint64_t = unsigned_t{64}

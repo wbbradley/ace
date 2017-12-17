@@ -166,8 +166,6 @@ struct module_scope_t : scope_t {
 	 * then it won't make sense to check it again at the top level since it's not being
 	 * instantiated. if it is not generic, then there's no need to check it because
 	 * it's already instantiated. */
-	virtual bool has_checked(const ptr<const ast::item_t> &node) const = 0;
-	virtual void mark_checked(status_t &status, llvm::IRBuilder<> &builder, const ptr<const ast::item_t> &node) = 0;
 	virtual llvm::Module *get_llvm_module() = 0;
 	virtual unchecked_type_t::refs &get_unchecked_types_ordered() = 0;
 };
@@ -199,8 +197,6 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	virtual llvm::Module *get_llvm_module();
 
 	virtual void dump(std::ostream &os) const;
-
-	std::set<ptr<const ast::item_t>> visited;
 
 	static module_scope_t::ref create(std::string module_name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module);
 	virtual bool symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var);
@@ -238,6 +234,8 @@ struct program_scope_t : public module_scope_impl_t {
 	virtual ptr<program_scope_t> get_program_scope();
 	virtual void dump(std::ostream &os) const;
 
+	bool has_checked(const ptr<const ast::item_t> &node) const;
+	void mark_checked(status_t &status, llvm::IRBuilder<> &builder, const ptr<const ast::item_t> &node);
 	ptr<module_scope_t> new_module_scope(std::string name, llvm::Module *llvm_module);
 
 	static program_scope_t::ref create(std::string name, compiler_t &compiler, llvm::Module *llvm_module);
@@ -271,6 +269,9 @@ private:
 	module_scope_t::map modules;
 	bound_type_t::map bound_types;
 	std::map<types::signature, types::signature> bound_type_mappings;
+
+	/* track nodes we've already visited */
+	std::set<ptr<const ast::item_t>> visited;
 
 	/* track the module var initialization function */
 	bound_var_t::ref init_module_vars_function;
@@ -360,7 +361,8 @@ void scope_impl_t<T>::put_typename(status_t &status, std::string type_name, type
 		dbg();
 	}
 #endif
-	if (typename_env.find(type_name) == typename_env.end()) {
+	auto iter_type = typename_env.find(type_name);
+	if (iter_type == typename_env.end()) {
 		debug_above(2, log(log_info, "registering typename " c_type("%s") " as %s in scope " c_id("%s"),
 					type_name.c_str(), expansion->str().c_str(),
 					this->scope_name.c_str()));
@@ -377,6 +379,12 @@ void scope_impl_t<T>::put_typename(status_t &status, std::string type_name, type
 		user_error(status, expansion->get_location(),
 				"multiple supertypes are not yet implemented (" c_type("%s") " <: " c_type("%s") ")",
 				type_name.c_str(), expansion->str().c_str());
+		auto existing_expansion = iter_type->second;
+		user_info(status,
+				existing_expansion->get_location(),
+				"prior type definition for " c_type("%s") " is %s",
+				type_name.c_str(),
+				existing_expansion->str().c_str());
 	}
 }
 

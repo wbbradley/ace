@@ -1707,7 +1707,7 @@ type_algebra_t::ref type_algebra_t::parse(
 	} else {
 		ps.error(
 				"type descriptions must begin with "
-			   	c_id("is") ", " c_id("has") ", or " c_id("matches") ". (Found %s)",
+			   	c_id("is") ", " c_id("has") ", or " c_id("=") ". (Found %s)",
 				ps.token.str().c_str());
 		return nullptr;
 	}
