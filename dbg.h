@@ -31,6 +31,8 @@ extern int __dbg_level;
 	DEBUG_BREAK(); \
 } while (0)
 
+#define dbg_when(x) if (x) { dbg(); } else { }
+
 #define wat() panic("wat is this branch doing?")
 
 #ifdef ZION_DEBUG

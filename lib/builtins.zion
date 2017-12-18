@@ -28,7 +28,7 @@ type var_t struct
 	var mark int_t
 	var next *var_t
 	var prev *var_t
-	var allocation int_t
+	var allocation uint_t
 	#
 	# THE ACTUAL DATA IS APPENDED HERE
 	#
@@ -36,7 +36,7 @@ type var_t struct
 type type_info_t struct
 	var type_id   int32_t
 	var type_kind int32_t
-	var size      int_t
+	var size      size_t
 	var name      *char_t
 
 type type_info_offsets_t struct

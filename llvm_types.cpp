@@ -538,12 +538,7 @@ bound_type_t::ref create_bound_integer_type(
 		const ptr<const types::type_integer_t> &integer)
 {
 	auto typename_env = scope->get_typename_env();
-
-	/* apply the operator */
-	auto signed_ = eval(integer->signed_, typename_env);
-	if (signed_ == nullptr) {
-		signed_ = integer->signed_;
-	}
+	auto signed_ = full_eval(integer->signed_, typename_env);
 
 	types::type_t::ref bit_size_expansion;
 	int bit_size = types::coerce_to_integer(status, typename_env, integer->bit_size, bit_size_expansion);

@@ -1007,10 +1007,7 @@ endif
 			type_t::ref type,
 			type_t::ref &expansion)
 	{
-		expansion = eval(type, env);
-		if (expansion == nullptr) {
-			expansion = type;
-		}
+		expansion = full_eval(type, env);
 
 		if (auto literal = dyncast<const type_literal_t>(expansion)) {
 			return literal->coerce_to_int(status);
@@ -1021,6 +1018,43 @@ endif
 		}
 		assert(!status);
 		return 0;
+	}
+
+	bool is_integer(type_t::ref type, const type_t::map &env) {
+		return dyncast<const type_integer_t>(full_eval(type, env)) != nullptr;
+	}
+
+	void get_integer_attributes(
+			status_t &status,
+		   	type_t::ref type,
+		   	const type_t::map &env,
+		   	int &bit_size,
+		   	bool &signed_)
+   	{
+		type = full_eval(type, env);
+		if (auto integer = dyncast<const type_integer_t>(type)) {
+			type_t::ref bit_size_expansion;
+			bit_size = coerce_to_integer(status, env, integer->bit_size, bit_size_expansion);
+			if (!!status) {
+				auto signed_type = full_eval(integer->signed_, env);
+				if (types::is_type_id(signed_type, "signed")) {
+					signed_ = true;
+					return;
+				} else if (types::is_type_id(signed_type, "unsigned")) {
+					signed_ = false;
+					return;
+				} else {
+					user_error(status, integer->get_location(), "unable to determine signedness for type from %s",
+							signed_type->str().c_str());
+				}
+			}
+		} else {
+			user_error(status, type->get_location(), "expected an integer type, found %s",
+				   	type->str().c_str());
+		}
+
+		assert(!status);
+		return;
 	}
 }
 
@@ -1340,7 +1374,17 @@ const char *pkstr(product_kind_t pk) {
 	return nullptr;
 }
 
-types::type_t::ref eval(types::type_t::ref type, types::type_t::map env) {
+types::type_t::ref full_eval(types::type_t::ref type, const types::type_t::map &env) {
+	if (type == nullptr) {
+		return nullptr;
+	} else if (auto expansion = eval(type, env)) {
+		return full_eval(expansion, env);
+	} else {
+		return type;
+	}
+}
+
+types::type_t::ref eval(types::type_t::ref type, const types::type_t::map &env) {
 	/* if there is no expansion of the type passed in, we will return nullptr */
 	debug_above(9, log("eval'ing %s in %s",
 				type->str().c_str(),
@@ -1397,7 +1441,7 @@ types::type_t::ref eval(types::type_t::ref type, types::type_t::map env) {
 
 types::type_t::ref eval_id(
 		ptr<const types::type_id_t> ptid,
-		types::type_t::map env)
+		const types::type_t::map &env)
 {
 	/* if there is no expansion of the type passed in, we will return nullptr */
 
@@ -1415,7 +1459,7 @@ types::type_t::ref eval_id(
 types::type_t::ref eval_apply(
 		types::type_t::ref oper,
 	   	types::type_t::ref operand, 
-		types::type_t::map env)
+		const types::type_t::map &env)
 {
 	/* if there is no expansion of the type passed in, we will return nullptr */
 

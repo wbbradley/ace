@@ -45,9 +45,9 @@ def get_member_by_index(v *var_t, index int_t) *var_t
 	return var_ptr[0r]
 
 
-var _bytes_allocated size_t = 0r
-var _all_bytes_allocated size_t = 0r
-var _var_allocation uint_t = 0r
+var _bytes_allocated size_t = 0r as size_t
+var _all_bytes_allocated size_t = 0r as size_t
+var _var_allocation uint_t = 0r as uint_t
 
 def mem_alloc(cb size_t, comment *char_t) *void
 	runtime._bytes_allocated += cb

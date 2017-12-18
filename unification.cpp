@@ -19,12 +19,13 @@ unification_t::unification_t(
 				::str(bindings).c_str()));
 }
 
-types::type_t::ref prune(types::type_t::ref t, types::type_t::map bindings) {
+types::type_t::ref prune(types::type_t::ref t, const types::type_t::map &bindings) {
 	/* Follow the links across the bindings to reach the final binding. */
 	std::string type_variable_name;
 	if (get_type_variable_name(t, type_variable_name)) {
-        if (bindings.find(type_variable_name) != bindings.end()) {
-            return prune(bindings[type_variable_name], bindings);
+		auto binding_iter = bindings.find(type_variable_name);
+        if (binding_iter != bindings.end()) {
+            return prune(binding_iter->second, bindings);
 		}
 	}
 
@@ -102,6 +103,9 @@ unification_t unify(
 	auto ptr_a = dyncast<const types::type_ptr_t>(a);
 	auto ptr_b = dyncast<const types::type_ptr_t>(b);
 
+	auto ptI_a = dyncast<const types::type_integer_t>(a);
+	auto ptI_b = dyncast<const types::type_integer_t>(b);
+
 	auto ptp_a = dyncast<const types::type_product_t>(a);
 
 	auto ptf_a = dyncast<const types::type_function_t>(a);
@@ -121,6 +125,35 @@ unification_t unify(
 				bindings[ptv_b->id->get_name()] = a;
 			}
 			return {true, "", bindings};
+		}
+	}
+
+	if (ptI_a != nullptr && ptI_b != nullptr) {
+		auto bit_size_unification = unify(ptI_a->bit_size, ptI_b->bit_size, env, bindings, depth + 1);
+		if (bit_size_unification.result) {
+			auto signedness_unification = unify(ptI_a->signed_, ptI_b->signed_, env, bit_size_unification.bindings, depth + 1);
+			if (signedness_unification.result) {
+				return {true, "", signedness_unification.bindings};
+			} else {
+				return {
+					false,
+					string_format("signedness did not match on %s and %s", a->str().c_str(), b->str().c_str()),
+					bindings};
+			}
+		} else {
+			return {
+				false,
+				string_format("bit-sizes did not match on %s and %s", a->str().c_str(), b->str().c_str()),
+				bindings};
+		}
+	}
+
+	if (auto ptl_a = dyncast<const types::type_literal_t>(a)) {
+		if (auto ptl_b = dyncast<const types::type_literal_t>(b)) {
+			return {
+				(ptl_a->token.text == ptl_b->token.text
+				 && ptl_a->token.tk == ptl_b->token.tk),
+				"", bindings};
 		}
 	}
 

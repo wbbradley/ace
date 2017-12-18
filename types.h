@@ -334,6 +334,8 @@ namespace types {
 			const types::type_t::map &env,
 			type_t::ref type,
 			type_t::ref &expansion);
+	bool is_integer(type_t::ref type, const type_t::map &env);
+	void get_integer_attributes(status_t &status, type_t::ref type, const type_t::map &env, int &bit_size, bool &signed_);
 };
 
 /* type data ctors */
@@ -367,10 +369,11 @@ types::type_t::ref type_list_type(types::type_t::ref element);
 types::type_t::ref type_vector_type(types::type_t::ref element);
 types::type_t::ref type_strip_maybe(types::type_t::ref maybe_maybe);
 
-types::type_t::ref eval(types::type_t::ref type, types::type_t::map env);
-types::type_t::ref eval_id(ptr<const types::type_id_t> ptid, types::type_t::map env);
-types::type_t::ref eval_apply(types::type_t::ref oper, types::type_t::ref operand, types::type_t::map env);
-bool type_is_unbound(types::type_t::ref type, types::type_t::map bindings);
+types::type_t::ref full_eval(types::type_t::ref type, const types::type_t::map &env);
+types::type_t::ref eval(types::type_t::ref type, const types::type_t::map &env);
+types::type_t::ref eval_id(ptr<const types::type_id_t> ptid, const types::type_t::map &env);
+types::type_t::ref eval_apply(types::type_t::ref oper, types::type_t::ref operand, const types::type_t::map &env);
+bool type_is_unbound(types::type_t::ref type, const types::type_t::map &bindings);
 std::ostream &operator <<(std::ostream &os, identifier::ref id);
 std::string str(types::type_t::refs refs);
 std::string str(types::type_t::map coll);

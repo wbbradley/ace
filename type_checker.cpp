@@ -109,7 +109,7 @@ bound_var_t::ref generate_stack_variable(
 					user_error(status, obj.get_location(),
 							"declared type of `" c_var("%s") "` does not match type of initializer",
 							obj.get_symbol().c_str());
-					user_message(log_info, status, init_var->get_location(), c_type("%s") " != " c_type("%s") " because %s",
+					user_info(status, init_var->get_location(), c_type("%s") " != " c_type("%s") " because %s",
 							declared_type->str().c_str(),
 							init_var->type->str().c_str(),
 							unification.reasons.c_str());
@@ -602,7 +602,7 @@ void type_check_fully_bound_function_decl(
 	assert(!status);
 }
 
-bool type_is_unbound(types::type_t::ref type, types::type_t::map bindings) {
+bool type_is_unbound(types::type_t::ref type, const types::type_t::map &bindings) {
 	return type->rebind(bindings)->ftv_count() > 0;
 }
 
@@ -1704,6 +1704,120 @@ bound_var_t::ref resolve_native_pointer_binary_operation(
 	return nullptr;
 }
 
+bound_var_t::ref type_check_binary_integer_op(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		location_t location,
+		bound_var_t::ref lhs,
+		bound_var_t::ref rhs,
+		std::string function_name)
+{
+	auto typename_env = scope->get_typename_env();
+
+	static int int_bit_size = 64;
+	static bool int_signed = true;
+	static bool initialized = false;
+	if (!initialized) {
+		types::get_integer_attributes(status, type_id(make_iid("int_t")), typename_env, int_bit_size, int_signed);
+		if (!status) {
+			panic("could not figure out the bit size and signedness of int_t!");
+		}
+		initialized = true;
+	}
+
+	int lhs_bit_size, rhs_bit_size;
+	bool lhs_signed = false, rhs_signed = false;
+	types::get_integer_attributes(status, lhs->type->get_type(), typename_env, lhs_bit_size, lhs_signed);
+	if (!!status) {
+		types::get_integer_attributes(status, rhs->type->get_type(), typename_env, rhs_bit_size, rhs_signed);
+		assert(false);
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
+bound_var_t::ref type_check_binary_operator(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bound_var_t::ref lhs,
+		bound_var_t::ref rhs,
+		ast::item_t::ref obj,
+		std::string function_name)
+{
+	indent_logger indent(obj->get_location(), 6, string_format("checking binary operator " c_id("%s") " with operands %s and %s",
+				function_name.c_str(),
+				lhs->str().c_str(),
+				rhs->str().c_str()));
+	auto typename_env = scope->get_typename_env();
+	if (
+			types::is_integer(lhs->type->get_type(), typename_env) &&
+			types::is_integer(rhs->type->get_type(), typename_env))
+	{
+		/* we are dealing with two integers, standard function resolution rules do not apply */
+		return type_check_binary_integer_op(
+				status,
+				builder,
+				scope,
+				life,
+				obj->get_location(),
+				lhs,
+				rhs,
+				function_name);
+	} else {
+		bool lhs_is_nil = lhs->type->get_type()->is_nil();
+		bool rhs_is_nil = rhs->type->get_type()->is_nil();
+
+		/* see whether we should just do a binary value comparison */
+		if (
+				(lhs->type->is_function()
+				 || lhs->type->is_ptr(scope)
+				 || lhs_is_nil) &&
+				(rhs->type->is_function()
+				 || rhs->type->is_ptr(scope)
+				 || rhs_is_nil))
+		{
+			bool lhs_is_managed;
+			lhs->type->is_managed_ptr(
+					status,
+					builder,
+					scope,
+					lhs_is_managed);
+			if (!!status) {
+				if (!lhs_is_managed || rhs_is_nil) {
+					bool rhs_is_managed;
+					rhs->type->is_managed_ptr(
+							status,
+							builder,
+							scope,
+							rhs_is_managed);
+					if (!!status) {
+						if (!rhs_is_managed || lhs_is_nil) {
+							/* yeah, it looks like we are operating on two native pointers */
+							return resolve_native_pointer_binary_operation(status, builder, scope,
+									life, obj->get_location(), lhs, rhs, function_name);
+						}
+					}
+				}
+			}
+		}
+
+		if (!!status) {
+			/* get or instantiate a function we can call on these arguments */
+			return call_program_function(
+					status, builder, scope, life, function_name,
+					obj, {lhs, rhs});
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref type_check_binary_operator(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -1729,49 +1843,8 @@ bound_var_t::ref type_check_binary_operator(
 
 				if (!!status) {
 					assert(!rhs_var->type->is_ref());
-					bool lhs_is_nil = lhs_var->type->get_type()->is_nil();
-					bool rhs_is_nil = rhs_var->type->get_type()->is_nil();
 
-					/* see whether we should just do a binary value comparison */
-					if (
-							(lhs_var->type->is_function()
-							 || lhs_var->type->is_ptr(scope)
-							 || lhs_is_nil) &&
-							(rhs_var->type->is_function()
-							 || rhs_var->type->is_ptr(scope)
-							 || rhs_is_nil))
-					{
-						bool lhs_is_managed;
-						lhs_var->type->is_managed_ptr(
-								status,
-								builder,
-								scope,
-								lhs_is_managed);
-						if (!!status) {
-							if (!lhs_is_managed || rhs_is_nil) {
-								bool rhs_is_managed;
-								rhs_var->type->is_managed_ptr(
-										status,
-										builder,
-										scope,
-										rhs_is_managed);
-								if (!!status) {
-									if (!rhs_is_managed || lhs_is_nil) {
-										/* yeah, it looks like we are operating on two native pointers */
-										return resolve_native_pointer_binary_operation(status, builder, scope,
-												life, obj->get_location(), lhs_var, rhs_var, function_name);
-									}
-								}
-							}
-						}
-					}
-
-					if (!!status) {
-						/* get or instantiate a function we can call on these arguments */
-						return call_program_function(
-								status, builder, scope, life, function_name,
-								obj, {lhs_var, rhs_var});
-					}
+					return type_check_binary_operator(status, builder, scope, life, lhs_var, rhs_var, obj, function_name);
 				}
 			}
 		}
@@ -1779,6 +1852,7 @@ bound_var_t::ref type_check_binary_operator(
 	assert(!status);
 	return nullptr;
 }
+
 
 bound_var_t::ref type_check_binary_equality(
 		status_t &status,
@@ -2839,11 +2913,14 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 				llvm_print(llvm_type).c_str()));
 		assert(llvm_type->isFunctionTy());
 
+		/* Create a user-defined function */
 		llvm::Function *llvm_function = llvm::Function::Create(
 				(llvm::FunctionType *)llvm_type,
 				llvm::Function::ExternalLinkage, function_name,
 				scope->get_llvm_module());
 
+		// TODO: enable inlining for various functions
+		// llvm_function->addFnAttr(llvm::Attribute::AlwaysInline);
 		llvm_function->setGC(GC_STRATEGY);
 		llvm_function->setDoesNotThrow();
 
@@ -3598,14 +3675,20 @@ bound_var_t::ref type_check_binary_op_assignment(
 		bound_var_t::ref lhs_val = lhs_var->resolve_bound_value(status, builder, scope);
 
 		if (!!status) {
-			auto rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+			bound_var_t::ref rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
 
 			if (!!status) {
-				auto computed_var = call_program_function(status, builder, scope,
-						life, function_name, op_node, {lhs_val, rhs_var});
+				assert(!rhs_var->is_ref());
+				auto lhs = lhs_var->resolve_bound_value(status, builder, scope);
+				if (!!status) {
+					auto computed_var = type_check_binary_operator(status, builder, scope, life, lhs, rhs_var, op_node,
+							function_name);
 
-				return type_check_assignment(status, builder, scope, life, lhs_var,
-						computed_var, location);
+					if (!!status) {
+						return type_check_assignment(status, builder, scope, life, lhs_var,
+								computed_var, location);
+					}
+				}
 			}
 		}
 	}
