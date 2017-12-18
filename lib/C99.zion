@@ -1,7 +1,0 @@
-module C
-
-link in "c"
-link in "m"
-
-link def mbstowcs(wcs *wchar_t, mbs *char_t, mbslen size_t) size_t
-link def wcstombs(mbs *char_t, wcs *wchar_t, wcslen size_t) size_t

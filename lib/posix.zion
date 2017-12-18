@@ -19,10 +19,11 @@ link def free(pb *void) void
 link def strdup(s *char_t) *char_t
 link def strndup(s *char_t, n size_t) *char_t
 link def strcmp(x *char_t, y *char_t) int_t
+link def wcscmp(x *wchar_t, y *wchar_t) int_t
 link def strncmp(x *char_t, y *char_t, n size_t) int_t
 link def sqrt(x float_t) float_t
 link def arc4random_stir() void
-link def arc4random_buf(dst *void, cb int_t) int_t
+link def arc4random_buf(dst *void, cb size_t) int_t
 link def exit(code int_t) void
 link def getch() int_t
 link def getcwd(space *char_t) *char_t
