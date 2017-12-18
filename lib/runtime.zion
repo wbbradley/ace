@@ -71,7 +71,7 @@ def mem_free(p *void, cb size_t) void
 	# posix.free(p)
 	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
 
-def get_total_allocated() int_t
+def get_total_allocated() size_t
 	return _bytes_allocated
 
 def check_node_existence(node *var_t, should_exist bool_t) void
@@ -188,8 +188,8 @@ def dbg_type_info(type_info *type_info_t)
 		posix.puts(type_info.name)
 	else
 		posix.puts("null type info"r)
-		posix.puts("size"r)
-		posix.puts(__str__(sizeof(var_t)))
+		posix.puts("size <TODO>"r)
+		# posix.puts(__str__(sizeof(var_t)))
 
 def create_var(type_info *type_info_t) *var_t
 	# dbg_type_info(type_info)
@@ -353,7 +353,7 @@ def dbghex(v *void) *char_t
 	# LEAKLEAKLEAK
 	return concat("0x"r, __str__(v as int_t, 16r))
 
-var _gc_generation int_t = 0r
+var _gc_generation uint_t = 0r
 
 def gc()
 	# dbg_se(llvm_gc_root_chain)

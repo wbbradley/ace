@@ -9,7 +9,7 @@ link def __set_locale__(locale *char_t) void
 [global]
 def __main__(argc int32_t, argv **char_t) int32_t
 	# This is the actual default entry point to every program.
-	__set_locale__("utf8")
+	__set_locale__("utf8"r)
 	crypto.init()
 	# runtime.report("__main__ start"r)
 	# Allocate global space for each module's top-level variables, and
