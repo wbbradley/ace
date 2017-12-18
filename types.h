@@ -335,7 +335,7 @@ namespace types {
 			type_t::ref type,
 			type_t::ref &expansion);
 	bool is_integer(type_t::ref type, const type_t::map &env);
-	void get_integer_attributes(status_t &status, type_t::ref type, const type_t::map &env, int &bit_size, bool &signed_);
+	void get_integer_attributes(status_t &status, type_t::ref type, const type_t::map &env, unsigned &bit_size, bool &signed_);
 };
 
 /* type data ctors */

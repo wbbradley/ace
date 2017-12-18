@@ -1433,12 +1433,11 @@ bound_var_t::ref ast::array_index_expr_t::resolve_expression(
 				if (!dyncast<const types::type_managed_t>(element_type)) {
 					debug_above(5, log("__getitem__ found that we are looking for items of type %s",
 								element_type->str().c_str()));
-					types::type_t::ref int_type = scope->get_bound_type({INT_TYPE})->get_type();
 
 					// REVIEW: consider just checking the LLVM type for whether it's an integer type
 					unification_t index_unification = unify(
 							index_val->type->get_type(),
-							int_type,
+							type_integer(type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC())),
 							scope->get_typename_env());
 
 					if (index_unification.result) {
@@ -1478,8 +1477,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_expression(
 						}
 					} else {
 						user_error(status, index->get_location(),
-								"pointer index must be of type %s. your index is of type %s",
-								int_type->str().c_str(),
+								"pointer index must be of an integer type. your index is of type %s",
 								index_val->type->get_type()->str().c_str());
 					}
 				}
@@ -1716,23 +1714,183 @@ bound_var_t::ref type_check_binary_integer_op(
 {
 	auto typename_env = scope->get_typename_env();
 
-	static int int_bit_size = 64;
+	static unsigned int_bit_size = 64;
 	static bool int_signed = true;
 	static bool initialized = false;
+
+	bound_type_t::ref bound_int_type = upsert_bound_type(status, builder, scope, type_id(make_iid("int_t")));
+	if (!status) { return nullptr; }
+
 	if (!initialized) {
-		types::get_integer_attributes(status, type_id(make_iid("int_t")), typename_env, int_bit_size, int_signed);
+
+		types::get_integer_attributes(status, bound_int_type->get_type(), typename_env, int_bit_size, int_signed);
 		if (!status) {
 			panic("could not figure out the bit size and signedness of int_t!");
 		}
 		initialized = true;
 	}
 
-	int lhs_bit_size, rhs_bit_size;
+	unsigned lhs_bit_size, rhs_bit_size;
 	bool lhs_signed = false, rhs_signed = false;
 	types::get_integer_attributes(status, lhs->type->get_type(), typename_env, lhs_bit_size, lhs_signed);
 	if (!!status) {
 		types::get_integer_attributes(status, rhs->type->get_type(), typename_env, rhs_bit_size, rhs_signed);
-		assert(false);
+
+		bound_type_t::ref final_integer_type;
+		bool final_integer_signed = false;
+		if (lhs_bit_size == rhs_bit_size) {
+			if (!lhs_signed == !rhs_signed) {
+				final_integer_signed = lhs_signed;
+				final_integer_type = upsert_bound_type(status, builder, scope,
+					   	type_integer(
+							type_id(make_iid(string_format("%d", lhs_bit_size))),
+							type_id(make_iid(string_format("%s", lhs_signed ? "signed" : "unsigned")))));
+			} else {
+				final_integer_signed = true;
+				final_integer_type = upsert_bound_type(status, builder, scope,
+					   	type_integer(
+							type_id(make_iid(string_format("%d", lhs_bit_size))),
+							type_id(make_iid("signed"))));
+			}
+		} else {
+			final_integer_signed = true;
+			final_integer_type = upsert_bound_type(status, builder, scope,
+					type_integer(
+						type_id(make_iid(string_format("%d", lhs_bit_size))),
+						type_id(make_iid("signed"))));
+			assert(false);
+		}
+
+		if (!!status) {
+			llvm::Value *llvm_lhs = lhs->get_llvm_value();
+			llvm::Value *llvm_rhs = rhs->get_llvm_value();
+			assert(llvm_lhs->getType()->isIntegerTy());
+			assert(llvm_rhs->getType()->isIntegerTy());
+			auto llvm_lhs_type = llvm::dyn_cast<llvm::IntegerType>(llvm_lhs->getType());
+			auto llvm_rhs_type = llvm::dyn_cast<llvm::IntegerType>(llvm_rhs->getType());
+			assert(llvm_lhs_type != nullptr);
+			assert(llvm_rhs_type != nullptr);
+			assert(llvm_lhs_type->getBitWidth() == lhs_bit_size);
+			assert(llvm_rhs_type->getBitWidth() == rhs_bit_size);
+
+			unsigned computation_bit_size = std::max(std::max(lhs_bit_size, rhs_bit_size), int_bit_size);
+			if (lhs_bit_size < computation_bit_size) {
+				if (lhs_signed) {
+					llvm_lhs = builder.CreateSExtOrTrunc(llvm_lhs, builder.getIntNTy(computation_bit_size));
+				} else {
+					llvm_lhs = builder.CreateZExtOrTrunc(llvm_lhs, builder.getIntNTy(computation_bit_size));
+				}
+			}
+			if (lhs_bit_size < computation_bit_size) {
+				if (lhs_signed) {
+					llvm_lhs = builder.CreateSExtOrTrunc(llvm_lhs, builder.getIntNTy(computation_bit_size));
+				} else {
+					llvm_lhs = builder.CreateZExtOrTrunc(llvm_lhs, builder.getIntNTy(computation_bit_size));
+				}
+			}
+			if (rhs_bit_size < computation_bit_size) {
+				if (rhs_signed) {
+					llvm_rhs = builder.CreateSExtOrTrunc(llvm_rhs, builder.getIntNTy(computation_bit_size));
+				} else {
+					llvm_rhs = builder.CreateZExtOrTrunc(llvm_rhs, builder.getIntNTy(computation_bit_size));
+				}
+			}
+			llvm::Value *llvm_value = nullptr;
+			if (function_name == "__plus__") {
+				llvm_value = builder.CreateAdd(llvm_lhs, llvm_rhs);
+			} else if (function_name == "__minus__") {
+				llvm_value = builder.CreateSub(llvm_lhs, llvm_rhs);
+			} else if (function_name == "__times__") {
+				llvm_value = builder.CreateMul(llvm_lhs, llvm_rhs);
+			} else if (function_name == "__mod__") {
+				if (final_integer_signed) {
+					llvm_value = builder.CreateSRem(llvm_lhs, llvm_rhs);
+				} else {
+					llvm_value = builder.CreateURem(llvm_lhs, llvm_rhs);
+				}
+			} else if (function_name == "__divide__") {
+				if (final_integer_signed) {
+					llvm_value = builder.CreateSDiv(llvm_lhs, llvm_rhs);
+				} else {
+					llvm_value = builder.CreateUDiv(llvm_lhs, llvm_rhs);
+				}
+			} else if (function_name == "__lt__") {
+				auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						function_name + ".value",
+						bound_bool_type,
+						builder.CreateZExtOrTrunc(
+							final_integer_signed
+								? builder.CreateICmpSLT(llvm_lhs, llvm_rhs)
+								: builder.CreateICmpULT(llvm_lhs, llvm_rhs),
+							bound_bool_type->get_llvm_type()),
+						make_iid(function_name + ".value"));
+			} else if (function_name == "__lte__") {
+				auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						function_name + ".value",
+						bound_bool_type,
+						builder.CreateZExtOrTrunc(
+							final_integer_signed
+								? builder.CreateICmpSLE(llvm_lhs, llvm_rhs)
+								: builder.CreateICmpULE(llvm_lhs, llvm_rhs),
+							bound_bool_type->get_llvm_type()),
+						make_iid(function_name + ".value"));
+			} else if (function_name == "__gt__") {
+				auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						function_name + ".value",
+						bound_bool_type,
+						builder.CreateZExtOrTrunc(
+							final_integer_signed
+								? builder.CreateICmpSGT(llvm_lhs, llvm_rhs)
+								: builder.CreateICmpUGT(llvm_lhs, llvm_rhs),
+							bound_bool_type->get_llvm_type()),
+						make_iid(function_name + ".value"));
+			} else if (function_name == "__gte__") {
+				auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						function_name + ".value",
+						bound_bool_type,
+						builder.CreateZExtOrTrunc(
+							final_integer_signed
+								? builder.CreateICmpSGE(llvm_lhs, llvm_rhs)
+								: builder.CreateICmpUGE(llvm_lhs, llvm_rhs),
+							bound_bool_type->get_llvm_type()),
+						make_iid(function_name + ".value"));
+			} else if (function_name == "__ineq__") {
+				auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						function_name + ".value",
+						bound_bool_type,
+						builder.CreateZExtOrTrunc(builder.CreateICmpNE(llvm_lhs, llvm_rhs), bound_bool_type->get_llvm_type()),
+						make_iid(function_name + ".value"));
+			} else if (function_name == "__eq__") {
+				auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						function_name + ".value",
+						bound_bool_type,
+						builder.CreateZExtOrTrunc(builder.CreateICmpEQ(llvm_lhs, llvm_rhs), bound_bool_type->get_llvm_type()),
+						make_iid(function_name + ".value"));
+			} else {
+				assert(false);
+			}
+
+			return bound_var_t::create(
+					INTERNAL_LOC(),
+					function_name + ".value",
+					final_integer_type,
+					final_integer_signed
+						? builder.CreateSExtOrTrunc(llvm_value, final_integer_type->get_llvm_type())
+						: builder.CreateZExtOrTrunc(llvm_value, final_integer_type->get_llvm_type()),
+					make_iid(function_name + ".value"));
+		}
 	}
 
 	assert(!status);
@@ -2557,8 +2715,6 @@ bound_var_t::ref ast::ineq_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	assert(!as_ref);
-
 	std::string function_name;
 	switch (token.tk) {
 	case tk_lt:
@@ -2588,8 +2744,6 @@ bound_var_t::ref ast::plus_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	assert(!as_ref);
-
 	std::string function_name;
 	switch (token.tk) {
 	case tk_plus:

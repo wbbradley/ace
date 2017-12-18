@@ -131,15 +131,7 @@ unification_t unify(
 	if (ptI_a != nullptr && ptI_b != nullptr) {
 		auto bit_size_unification = unify(ptI_a->bit_size, ptI_b->bit_size, env, bindings, depth + 1);
 		if (bit_size_unification.result) {
-			auto signedness_unification = unify(ptI_a->signed_, ptI_b->signed_, env, bit_size_unification.bindings, depth + 1);
-			if (signedness_unification.result) {
-				return {true, "", signedness_unification.bindings};
-			} else {
-				return {
-					false,
-					string_format("signedness did not match on %s and %s", a->str().c_str(), b->str().c_str()),
-					bindings};
-			}
+			return {true, "", bit_size_unification.bindings};
 		} else {
 			return {
 				false,
