@@ -1028,7 +1028,7 @@ endif
 			status_t &status,
 		   	type_t::ref type,
 		   	const type_t::map &env,
-		   	int &bit_size,
+		   	unsigned &bit_size,
 		   	bool &signed_)
    	{
 		type = full_eval(type, env);

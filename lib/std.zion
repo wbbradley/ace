@@ -29,11 +29,6 @@ link def __ineq__(x typeid_t, y typeid_t) bool_t to __type_id_ineq_type_id
 link def concat(x *char_t, y *char_t) *char_t to __mbs_concat
 link def concat(x *wchar_t, y *wchar_t) *wchar_t to __wcs_concat
 link def __not__(x int_t) bool_t to __int_not
-link def __plus__(x int_t, y int_t) int_t to __int_plus_int
-link def __minus__(x int_t, y int_t) int_t to __int_minus_int
-link def __times__(x int_t, y int_t) int_t to __int_times_int
-link def __divide__(x int_t, y int_t) int_t to __int_divide_int
-link def __mod__(x int_t, y int_t) int_t to __int_modulus_int
 link def __mask__(x int_t, y int_t) int_t to __int_mask_int
 link def __negative__(x int_t) int_t to __int_neg
 link def __positive__(x int_t) int_t to __int_pos
@@ -82,8 +77,10 @@ type bool is
 def __not__(b bool) bool
 	return bool(__get_typeid__(b) != __get_typeid__(true))
 
+/*
 def __not__(b bool_t) bool_t
-	return b == 0r
+	return (b as int_t == 0r) as bool_t
+*/
 
 def __not__(x int) bool
 	return bool(x.raw == 0r)
@@ -104,34 +101,52 @@ def bool(x str) bool
 	return (x.raw[0r] as int_t != 0r) ? true : false
 
 type str has
-	# TODO: override str ctor to strdup strings
-	var raw *__char__
+	var raw *wchar_t
+
+var __empty_str str = str(mbstowcs(""r))
 
 def __init__() str
-	return ""
+	return __empty_str
 
 def __finalize__(s str)
 	posix.free(s.raw)
 
-def __box__(s *__char__) str
+def __box__(s *char_t) str
 	return str(mbstowcs(s))
 
-def mbstowcs(mbs *__char__) *__wchar__
+def mbstowcs(mbs *char_t) *wchar_t
 	# Converts from current locale's encoding to wide-char encoding. Allocates memory that
 	# must be freed later.
-	mbslen := posix.strlen(s)
-	wcs_cb := C99.mbstowcs(nil, s, slen)
+	mbslen := posix.strlen(mbs)
+	wcs_cb := posix.mbstowcs(nil, mbs, mbslen)
 	if wcs_cb == -1r
 		print("Failed to convert string!")
-		sys.exit(1r)
+		posix.exit(1r)
 
-	wcs := posix.malloc(wcs_cb + sizeof(__wchar__)) as *__wchar__
+	wcs := posix.malloc(wcs_cb + sizeof(wchar_t)) as *wchar_t
 	if wcs == nil
-		posix.puts("out of memory")
-		sys.exit(-1r)
+		posix.puts("out of memory"r)
+		posix.exit(-1r)
 
-	C99.mbstowcs(wcs, s, strlen(str));
+	posix.mbstowcs(wcs, mbs, mbslen)
 	return wcs
+
+def wcstombs(wcs *wchar_t) *char_t
+	# Converts from wide char encoding to current locale's encoding
+	# must be freed later.
+	wcslen := posix.wcslen(wcs)
+	mbs_cb := posix.wcstombs(nil, wcs, wcslen)
+	if mbs_cb == -1r
+		print("Failed to convert string!")
+		posix.exit(1r)
+
+	mbs := posix.malloc(mbs_cb + sizeof(char_t)) as *char_t
+	if mbs == nil
+		posix.puts("out of memory"r)
+		posix.exit(-1r)
+
+	posix.wcstombs(mbs, wcs, wcslen)
+	return mbs
 
 def str(s str) str
 	return s
@@ -158,13 +173,13 @@ def int(x float) int
 	return int(__int__(x.raw))
 
 def str(x int) str
-	return str(__str__(x.raw))
+	return str(__wcs__(x.raw))
 
 def str(i int_t) str
-	return str(__str__(i))
+	return str(__wcs__(i))
 
 type float has
-	var raw __float__
+	var raw float_t
 
 def float(x float) float
 	return x
@@ -173,10 +188,10 @@ def float(x int) float
 	return float(__float__(x.raw))
 
 def str(x float) str
-	return str(__str__(x.raw))
+	return str(__wcs__(x.raw))
 
-def str(x __float__) str
-	return str(__str__(x))
+def str(x float_t) str
+	return str(__wcs__(x))
 
 def mask(x int, y int) int
 	return int(__mask__(x.raw, y.raw))
@@ -191,13 +206,13 @@ def __plus__(x str, y int) str
 	return str(concat(x.raw, str(y).raw))
 
 def __plus__(x str, y int_t) str
-	y_expanded := __str__(y)
+	y_expanded := __wcs__(y)
 	result := str(concat(x.raw, y_expanded))
 	posix.free(y_expanded)
 	return result
 
 def __plus__(x str, y float) str
-	sy := __str__(y.raw)
+	sy := __wcs__(y.raw)
 	ret := str(concat(x.raw, sy))
 	posix.free(sy)
 	return ret
@@ -296,10 +311,10 @@ def __eq__(x float, y float) bool
 	return x.raw == y.raw ? true : false
 
 def __eq__(x str, y str) bool
-	return posix.strcmp(x.raw, y.raw) == 0r ? true : false
+	return posix.wcscmp(x.raw, y.raw) == 0r ? true : false
 
 def __ineq__(x str, y str) bool
-	return posix.strcmp(x.raw, y.raw) != 0r ? true : false
+	return posix.wcscmp(x.raw, y.raw) != 0r ? true : false
 
 # def __ineq__(x *any, y nil) bool_t
 # TODO: optimize
@@ -385,7 +400,7 @@ def __gte__(x float, y int) bool
 	return bool(x.raw >= __float__(y.raw))
 
 def print(x any) void
-	posix.puts(str(x).raw)
+	posix.puts(wcstombs(str(x).raw))
 
 def breakpoint() void
 	posix.raise(posix.SIGTRAP)
@@ -419,25 +434,29 @@ def str(l list{any T}?) str
 
 type bytes has
 	var data *int8_t
-	var cb int_t
+	var cb size_t
 
 def len(b bytes) int
-	return int(b.cb)
+	return int(b.cb as int_t)
 
 def alloc(cb int) bytes
-	return alloc(cb.raw)
+	if cb.raw < 0r
+		assert(false and "attempt to allocate " + cb + " bytes")
+	return alloc(cb.raw as size_t)
 
-def alloc(cb int_t) bytes
-	return bytes(posix.calloc(1r, cb) as *int8_t, cb)
+def alloc(cb size_t) bytes
+	return bytes(posix.calloc(1r as size_t, cb) as *int8_t, cb)
 
 def __finalize__(b bytes)
 	posix.free(b.data)
 
-def str(b *int8_t, length int_t, encoding str) str
+/*
+def str(b *int8_t, length size_t, encoding str) str
 	dest_len := length + 1r
 	dest := posix.calloc(1r, dest_len)
 	posix.memcpy(dest as *int8_t, b as *int8_t, length)
 	return str(dest as *__char__)
+*/
 
 def rand(max int) int
 	var r int_t = 0r
@@ -502,29 +521,32 @@ def __iterate__(i IntRangeIter)
 def __iter_item__(i IntRangeIter) int
 	return int(i.pos)
 
-def str(buffer *__char__, length int_t) str
+def str(buffer *char_t, length size_t) str
 	# Create a managed string from a direct memory access
-	retstr := posix.malloc(length + 1r) as *__char__
+	# TODO: optimize this to avoid the malloc
+	retstr := posix.malloc(length + 1r as size_t) as *char_t
 	posix.memcpy(retstr as *int8_t, buffer as *int8_t, length)
-	retstr[length] = 0r as __char__
-	return str(retstr)
+	retstr[length] = 0r as char_t
+	s := str(mbstowcs(retstr))
+	posix.free(retstr);
+	return s
 
 def hexdigest(b bytes) str
 	return hexdigest(b.data, b.cb)
 
-def hexdigest(data *void, cb int_t) str
-	s := posix.malloc(cb * 2r + 1r) as *__char__
-	iter := data as *int8_t
+def hexdigest(data *void, cb size_t) str
+	s := posix.malloc(sizeof(wchar_t) * (cb * 2r + 1r)) as *wchar_t
+	iter := data as *wchar_t
 	end := &iter[cb]
 	i := 0r
 	while iter < end
 		# append to our hexdigest
-		s[i] = hexdigit(iter[0r] as int_t / 16r) as __char__
-		s[i + 1r] = hexdigit(__mask__(iter[0r] as int_t, 15r)) as __char__
+		s[i] = hexdigit(iter[0r] / 16r) as wchar_t
+		s[i + 1r] = hexdigit(__mask__(iter[0r] as int_t, 0xFr)) as wchar_t
 
 		# advance iteration
 		i += 2r
 		iter = &iter[1r]
 
-	s[i] = 0r as __char__
-	return str(s as *__char__)
+	s[i] = 0r as wchar_t
+	return str(s)
