@@ -4,4 +4,6 @@ get posix
 get sys
 
 def main()
-	posix.puts(sys.args[0r].raw)
+	mbs := wcstombs(sys.args[0r].raw)
+	posix.puts(mbs)
+	posix.free(mbs)

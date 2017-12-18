@@ -1758,7 +1758,6 @@ bound_var_t::ref type_check_binary_integer_op(
 					type_integer(
 						type_id(make_iid(string_format("%d", lhs_bit_size))),
 						type_id(make_iid("signed"))));
-			assert(false);
 		}
 
 		if (!!status) {

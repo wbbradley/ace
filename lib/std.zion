@@ -25,6 +25,11 @@ link def __wcs__(x int_t, y int_t) *wchar_t to __wcs_int_radix
 link def __wcs__(x float_t) *wchar_t to __wcs_float
 link def __wcs__(x typeid_t) *wchar_t to __wcs_type_id
 link def __wcs__(x *char_t) *wchar_t to __wcs_str
+link def __str__(x int_t) *char_t to __str_int
+link def __str__(x int_t, y int_t) *char_t to __str_int_radix
+link def __str__(x float_t) *char_t to __str_float
+link def __str__(x typeid_t) *char_t to __str_type_id
+link def __str__(x *char_t) *char_t to __str_str
 link def __ineq__(x typeid_t, y typeid_t) bool_t to __type_id_ineq_type_id
 link def concat(x *char_t, y *char_t) *char_t to __mbs_concat
 link def concat(x *wchar_t, y *wchar_t) *wchar_t to __wcs_concat
@@ -541,7 +546,7 @@ def hexdigest(data *void, cb size_t) str
 	i := 0r
 	while iter < end
 		# append to our hexdigest
-		s[i] = hexdigit(iter[0r] / 16r) as wchar_t
+		s[i] = hexdigit(iter[0r] as int_t / 16r) as wchar_t
 		s[i + 1r] = hexdigit(__mask__(iter[0r] as int_t, 0xFr)) as wchar_t
 
 		# advance iteration

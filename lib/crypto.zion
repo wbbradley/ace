@@ -28,7 +28,7 @@ def hash(input bytes, key bytes) bytes
 def hash(input str) bytes
 	outlen := crypto_generichash_bytes_max()
 	out := alloc(outlen)
-	crypto_generichash(out.data, out.cb, input.raw as *int8_t, posix.strlen(input.raw), nil, 0r)
+	crypto_generichash(out.data, out.cb, input.raw as *int8_t, sizeof(wchar_t) * posix.wcslen(input.raw), nil, 0r)
 	return out
 	
 	
