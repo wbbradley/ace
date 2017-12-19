@@ -4,8 +4,8 @@
 #include "zion_rt.h"
 
 void __set_locale__(char *locale) {
-	if (setlocale(LC_ALL, locale) == NULL) {
-		printf("failed to set locale to %s\n", locale);
+	if (setlocale(LC_CTYPE, locale) == NULL) {
+		printf("failed to set ctype locale to %s\n", locale);
 		exit(1);
 	}
 }
@@ -46,6 +46,18 @@ char *__str_float(zion_float_t x) {
 	return strdup(onstack);
 }
 
+wchar_t *__wcs_float(zion_float_t x) {
+	wchar_t onstack[65];
+	swprintf(onstack, sizeof(onstack) / sizeof(onstack[0]), L"%f", x);
+	return wcsdup(onstack);
+}
+
+wchar_t *__wcs_int(zion_int_t x) {
+	wchar_t onstack[65];
+	swprintf(onstack, sizeof(onstack) / sizeof(onstack[0]), L"%lld", x);
+	return wcsdup(onstack);
+}
+
 char *__str_type_id(type_id_t x) {
 	char onstack[65];
 	snprintf(onstack, sizeof(onstack) / sizeof(onstack[0]), "%d", x);
@@ -56,12 +68,22 @@ char *__str_str(char *x) {
 	return x;
 }
 
-char *concat(char *x, char *y) {
+char *__mbs_concat(char *x, char *y) {
 	zion_int_t x_len = strlen(x);
 	zion_int_t y_len = strlen(y) + 1;
 	char *res = malloc(x_len + y_len);
 	memcpy(res, x, x_len);
 	memcpy(res + x_len, y, y_len);
+	return res;
+}
+
+wchar_t *__wcs_concat(wchar_t *x, wchar_t *y) {
+	zion_int_t x_len = wcslen(x);
+	zion_int_t x_cb = sizeof(wchar_t) * x_len;
+	zion_int_t y_cb = sizeof(wchar_t) * (wcslen(y) + 1);
+	wchar_t *res = malloc(x_cb + y_cb);
+	memcpy(res, x, x_cb);
+	memcpy(res + x_len, y, y_cb);
 	return res;
 }
 
