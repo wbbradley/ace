@@ -1,0 +1,82 @@
+global
+
+link in "rt_str.o"
+
+link def __wcs__(x int_t) *wchar_t to __wcs_int
+link def __wcs__(x int_t, y int_t) *wchar_t to __wcs_int_radix
+link def __wcs__(x float_t) *wchar_t to __wcs_float
+link def __wcs__(x typeid_t) *wchar_t to __wcs_type_id
+link def __wcs__(x *char_t) *wchar_t to __wcs_str
+link def concat(x *wchar_t, y *wchar_t) *wchar_t to __wcs_concat
+
+#
+# str
+#
+# the str type represents unicode strings.
+#
+
+type str has
+	var raw *wchar_t
+
+var __empty_str str = str(mbstowcs(""r))
+
+def __init__() str
+	return __empty_str
+
+def __finalize__(s str)
+	posix.free(s.raw)
+
+def __box__(s *char_t) str
+	return str(mbstowcs(s))
+
+def str(s str) str
+	return s
+
+def str(s utf8) str
+	return str(mbstowcs(s.raw))
+
+def str(x int) str
+	return str(__wcs__(x.raw))
+
+def str(i int_t) str
+	return str(__wcs__(i))
+
+def str(x float) str
+	return str(__wcs__(x.raw))
+
+def str(x float_t) str
+	return str(__wcs__(x))
+
+def __plus__(x str, y str) str
+	return str(concat(x.raw, y.raw))
+
+def __plus__(x str, y int) str
+	return str(concat(x.raw, str(y).raw))
+
+def __plus__(x str, y int_t) str
+	y_expanded := __wcs__(y)
+	result := str(concat(x.raw, y_expanded))
+	posix.free(y_expanded)
+	return result
+
+def __plus__(x str, y float) str
+	sy := __wcs__(y.raw)
+	ret := str(concat(x.raw, sy))
+	posix.free(sy)
+	return ret
+
+def __eq__(x str, y str) bool
+	return posix.wcscmp(x.raw, y.raw) == 0r ? true : false
+
+def __ineq__(x str, y str) bool
+	return posix.wcscmp(x.raw, y.raw) != 0r ? true : false
+
+def str(buffer *char_t, length size_t) str
+	# Create a managed string from a direct memory access
+	# TODO: optimize this to avoid the malloc
+	retstr := posix.malloc(length + 1r as size_t) as *char_t
+	posix.memcpy(retstr as *int8_t, buffer as *int8_t, length)
+	retstr[length] = 0r as char_t
+	s := str(mbstowcs(retstr))
+	posix.free(retstr);
+	return s

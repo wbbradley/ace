@@ -1,0 +1,108 @@
+global
+
+link in "rt_int.o"
+
+link def __not__(x int_t) bool_t to __int_not
+link def __int__(x float_t) int_t to __int_float
+link def __int__(x *wchar_t) int_t to __int_from_wcs
+link def __int__(x *char_t) int_t to __int_from_mbs
+link def __negative__(x int_t) int_t to __int_neg
+link def __positive__(x int_t) int_t to __int_pos
+link def __plus__(x int_t, y float_t) float_t to __int_plus_float
+link def __minus__(x int_t, y float_t) float_t to __int_minus_float
+link def __times__(x int_t, y float_t) float_t to __int_times_float
+link def __divide__(x int_t, y float_t) float_t to __int_divide_float
+
+type int has
+	var raw int_t
+
+def __init__() int
+	return 0
+
+def int(x int) int
+	return int(x.raw)
+
+def int(x float) int
+	return int(__int__(x.raw))
+
+def int(s str) int
+	return int(__int__(s.raw))
+
+def __not__(x int) bool
+	return bool(x.raw == 0r)
+
+def __mod__(x int, y int) int
+	return int(x.raw % y.raw)
+
+def __plus__(x int, y float) float
+	return float(x.raw + y.raw)
+
+def __plus__(x int, y int) int
+	return int(x.raw + y.raw)
+
+def __minus__(x int, y int) int
+	return int(x.raw - y.raw)
+
+def __minus__(x int, y float) float
+	return float(__float__(x.raw) - y.raw)
+
+def __positive__(x int) int
+	return x
+
+def __divide__(x int, y int) int
+	return int(x.raw / y.raw)
+
+def __divide__(x int, y float) float
+	return float(__float__(x.raw) / y.raw)
+
+def __times__(x int, y int) int
+	return int(x.raw * y.raw)
+
+def __times__(x int, y float) float
+	return float(__float__(x.raw) * y.raw)
+
+def __negative__(x int) int
+	return int(-x.raw)
+
+def __bitwise_and__(x int, y int) int
+	return int(x.raw & y.raw)
+
+def __bitwise_or__(x int, y int) int
+	return int(x.raw | y.raw)
+
+def __eq__(x int, y int) bool
+	return x.raw == y.raw ? true : false
+
+def __eq__(x int, y float) bool
+	return __float__(x.raw) == y.raw ? true : false
+
+def __ineq__(x int, y int) bool
+	return x.raw != y.raw ? true : false
+
+def __ineq__(x int, y float) bool
+	return __float__(x.raw) != y.raw ? true : false
+
+def __lt__(x int, y int) bool
+	return bool(x.raw < y.raw)
+
+def __lte__(x int, y int) bool
+	return bool(x.raw <= y.raw)
+
+def __gt__(x int, y int) bool
+	return bool(x.raw > y.raw)
+
+def __gte__(x int, y int) bool
+	return bool(x.raw >= y.raw)
+
+def __lt__(x int, y float) bool
+	return bool(__float__(x.raw) < y.raw)
+
+def __lte__(x int, y float) bool
+	return bool(__float__(x.raw) <= y.raw)
+
+def __gt__(x int, y float) bool
+	return bool(__float__(x.raw) > y.raw)
+
+def __gte__(x int, y float) bool
+	return bool(__float__(x.raw) >= y.raw)
+

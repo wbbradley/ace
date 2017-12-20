@@ -1032,17 +1032,6 @@ auto test_descs = std::vector<test_desc>{
 	},
 
 	{
-		"test_read_llir",
-		[] () -> bool {
-			tee_logger tee_log;
-			status_t status;
-			compiler_t compiler("rt_str", compiler_t::libs{});
-			compiler.llvm_load_ir(status, "rt_str.llir");
-			return !!status;
-		}
-	},
-
-	{
 		"test_code_gen_renders",
 		[] () -> bool {
 			return check_code_gen_emitted("test_puts_emit", "test_puts_emit");

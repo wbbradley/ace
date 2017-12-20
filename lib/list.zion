@@ -1,0 +1,30 @@
+global
+
+type list{T} has
+	var value T
+	var next list{T}?
+
+def nth(l list{any T}?, index int) any T?
+	if l
+		if index == 0
+			return l.value
+		else
+			return nth(l.next, index - 1)
+
+	return nil
+
+def len(l list{any T}?) int
+	if l
+		return len(l.next) + 1
+	return 0
+
+def conj(maybe_list list{any T}?, item any T) list{any T}
+	if l := maybe_list
+		return list(item, l)
+	return list(item, nil)
+
+
+def str(l list{any T}?) str
+	return "[" + join(l, ", ") + "]"
+
+

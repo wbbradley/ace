@@ -1,0 +1,41 @@
+global
+
+link def hexdigit(val int_t) wchar_t
+
+type bytes has
+	var data *int8_t
+	var cb size_t
+
+def len(b bytes) int
+	return int(b.cb as int_t)
+
+def alloc(cb int) bytes
+	if cb.raw < 0r
+		assert(false and "attempt to allocate " + cb + " bytes")
+	return alloc(cb.raw as size_t)
+
+def alloc(cb size_t) bytes
+	return bytes(posix.calloc(1r as size_t, cb) as *int8_t, cb)
+
+def __finalize__(b bytes)
+	posix.free(b.data)
+
+def hexdigest(b bytes) str
+	return hexdigest(b.data, b.cb)
+
+def hexdigest(data *void, cb size_t) str
+	s := posix.malloc(sizeof(wchar_t) * (cb * 2r + 1r)) as *wchar_t
+	iter := data as *wchar_t
+	end := &iter[cb]
+	i := 0r
+	while iter < end
+		# append to our hexdigest
+		s[i] = hexdigit(iter[0r] as int_t / 16r) as wchar_t
+		s[i + 1r] = hexdigit(__mask__(iter[0r] as int_t, 0xFr)) as wchar_t
+
+		# advance iteration
+		i += 2r
+		iter = &iter[1r]
+
+	s[i] = 0r as wchar_t
+	return str(s)
