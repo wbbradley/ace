@@ -1,0 +1,38 @@
+global
+
+#
+# utf8
+#
+# the utf8 type represents utf8 strings.
+#
+
+link def __str__(x int_t) *char_t to __str_int
+link def __str__(x int_t, y int_t) *char_t to __str_int_radix
+link def __str__(x float_t) *char_t to __str_float
+link def __str__(x typeid_t) *char_t to __str_type_id
+link def __str__(x *char_t) *char_t to __str_str
+link def concat(x *char_t, y *char_t) *char_t to __mbs_concat
+
+type utf8 has
+	var raw char_t
+
+var __empty_utf8 utf8 = utf8(""r)
+
+def __init__() utf8
+	return __empty_utf8
+
+def __finalize__(s utf8)
+	posix.free(s.raw)
+
+def utf8(s utf8) utf8
+	return s
+
+def utf8(s str) utf8
+	return utf8(wcstombs(s.raw))
+
+def utf8(b *int8_t, length size_t, encoding str) utf8
+	assert(encoding == "utf8")
+	dest_len := length + 1r
+	dest := posix.calloc(1r, dest_len)
+	posix.memcpy(dest, b, length)
+	return utf8(dest as *char_t)
