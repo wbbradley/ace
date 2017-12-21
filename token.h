@@ -62,6 +62,10 @@ enum token_kind
 	tk_times, /* * */
 	tk_divide_by, /* / */
 	tk_mod, /* % */
+	tk_pipe, /* | */
+	tk_shift_left, /* << */
+	tk_shift_right, /* >> */
+	tk_hat, /* ^ */
 	tk_dot, /* . */
 	tk_double_dot, /* .. */
 	tk_ampersand, /* & */

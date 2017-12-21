@@ -14,7 +14,7 @@ link def __str__(x *char_t) *char_t to __str_str
 link def concat(x *char_t, y *char_t) *char_t to __mbs_concat
 
 type utf8 has
-	var raw char_t
+	var raw *char_t
 
 var __empty_utf8 utf8 = utf8(""r)
 

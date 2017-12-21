@@ -789,7 +789,8 @@ void ast::link_module_statement_t::resolve_statement(
 			return;
 		}
 	} else {
-		user_error(status, *this, "can't find module %s", linked_module_name.c_str());
+		/* some modules may not create a module scope if they are marked as global modules */
+		return;
 	}
 
 	assert(!status);
@@ -1794,6 +1795,8 @@ bound_var_t::ref type_check_binary_integer_op(
 					llvm_rhs = builder.CreateZExtOrTrunc(llvm_rhs, builder.getIntNTy(computation_bit_size));
 				}
 			}
+
+			auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
 			llvm::Value *llvm_value = nullptr;
 			if (function_name == "__plus__") {
 				llvm_value = builder.CreateAdd(llvm_lhs, llvm_rhs);
@@ -1814,55 +1817,50 @@ bound_var_t::ref type_check_binary_integer_op(
 					llvm_value = builder.CreateUDiv(llvm_lhs, llvm_rhs);
 				}
 			} else if (function_name == "__lt__") {
-				auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
 				return bound_var_t::create(
 						INTERNAL_LOC(),
 						function_name + ".value",
 						bound_bool_type,
 						builder.CreateZExtOrTrunc(
-							final_integer_signed
-								? builder.CreateICmpSLT(llvm_lhs, llvm_rhs)
-								: builder.CreateICmpULT(llvm_lhs, llvm_rhs),
+						final_integer_signed
+							? builder.CreateICmpSLT(llvm_lhs, llvm_rhs)
+							: builder.CreateICmpULT(llvm_lhs, llvm_rhs),
 							bound_bool_type->get_llvm_type()),
 						make_iid(function_name + ".value"));
 			} else if (function_name == "__lte__") {
-				auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
 				return bound_var_t::create(
 						INTERNAL_LOC(),
 						function_name + ".value",
 						bound_bool_type,
 						builder.CreateZExtOrTrunc(
-							final_integer_signed
-								? builder.CreateICmpSLE(llvm_lhs, llvm_rhs)
-								: builder.CreateICmpULE(llvm_lhs, llvm_rhs),
+						final_integer_signed
+							? builder.CreateICmpSLE(llvm_lhs, llvm_rhs)
+							: builder.CreateICmpULE(llvm_lhs, llvm_rhs),
 							bound_bool_type->get_llvm_type()),
 						make_iid(function_name + ".value"));
 			} else if (function_name == "__gt__") {
-				auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
 				return bound_var_t::create(
 						INTERNAL_LOC(),
 						function_name + ".value",
 						bound_bool_type,
 						builder.CreateZExtOrTrunc(
-							final_integer_signed
-								? builder.CreateICmpSGT(llvm_lhs, llvm_rhs)
-								: builder.CreateICmpUGT(llvm_lhs, llvm_rhs),
+						final_integer_signed
+							? builder.CreateICmpSGT(llvm_lhs, llvm_rhs)
+							: builder.CreateICmpUGT(llvm_lhs, llvm_rhs),
 							bound_bool_type->get_llvm_type()),
 						make_iid(function_name + ".value"));
 			} else if (function_name == "__gte__") {
-				auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
 				return bound_var_t::create(
 						INTERNAL_LOC(),
 						function_name + ".value",
 						bound_bool_type,
 						builder.CreateZExtOrTrunc(
-							final_integer_signed
-								? builder.CreateICmpSGE(llvm_lhs, llvm_rhs)
-								: builder.CreateICmpUGE(llvm_lhs, llvm_rhs),
+						final_integer_signed
+							? builder.CreateICmpSGE(llvm_lhs, llvm_rhs)
+							: builder.CreateICmpUGE(llvm_lhs, llvm_rhs),
 							bound_bool_type->get_llvm_type()),
 						make_iid(function_name + ".value"));
 			} else if (function_name == "__ineq__") {
-				auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
 				return bound_var_t::create(
 						INTERNAL_LOC(),
 						function_name + ".value",
@@ -1870,12 +1868,55 @@ bound_var_t::ref type_check_binary_integer_op(
 						builder.CreateZExtOrTrunc(builder.CreateICmpNE(llvm_lhs, llvm_rhs), bound_bool_type->get_llvm_type()),
 						make_iid(function_name + ".value"));
 			} else if (function_name == "__eq__") {
-				auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
 				return bound_var_t::create(
 						INTERNAL_LOC(),
 						function_name + ".value",
 						bound_bool_type,
 						builder.CreateZExtOrTrunc(builder.CreateICmpEQ(llvm_lhs, llvm_rhs), bound_bool_type->get_llvm_type()),
+						make_iid(function_name + ".value"));
+			} else if (function_name == "__shr__") {
+				if (lhs_signed) {
+					return bound_var_t::create(
+							INTERNAL_LOC(),
+							function_name + ".value",
+							lhs->type,
+							builder.CreateAShr(llvm_lhs, llvm_rhs),
+							make_iid(function_name + ".value"));
+				} else {
+					return bound_var_t::create(
+							INTERNAL_LOC(),
+							function_name + ".value",
+							lhs->type,
+							builder.CreateLShr(llvm_lhs, llvm_rhs),
+							make_iid(function_name + ".value"));
+				}
+			} else if (function_name == "__shl__") {
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						function_name + ".value",
+						lhs->type,
+						builder.CreateShl(llvm_lhs, llvm_rhs),
+						make_iid(function_name + ".value"));
+			} else if (function_name == "__bitwise_and__") {
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						function_name + ".value",
+						lhs->type,
+						builder.CreateAnd(llvm_lhs, llvm_rhs),
+						make_iid(function_name + ".value"));
+			} else if (function_name == "__bitwise_or__") {
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						function_name + ".value",
+						lhs->type,
+						builder.CreateOr(llvm_lhs, llvm_rhs),
+						make_iid(function_name + ".value"));
+			} else if (function_name == "__xor__") {
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						function_name + ".value",
+						lhs->type,
+						builder.CreateXor(llvm_lhs, llvm_rhs),
 						make_iid(function_name + ".value"));
 			} else {
 				assert(false);
@@ -2019,7 +2060,7 @@ bound_var_t::ref type_check_binary_equality(
 		ptr<const ast::expression_t> lhs,
 		ptr<const ast::expression_t> rhs,
 		ast::item_t::ref obj,
-		bool negated)
+		std::string function_name)
 {
 	if (!!status) {
 		bound_var_t::ref lhs_var, rhs_var;
@@ -2032,7 +2073,7 @@ bound_var_t::ref type_check_binary_equality(
 			if (!!status) {
 				assert(!lhs_var->is_ref());
 				assert(!rhs_var->is_ref());
-
+				bool negated = (function_name == "__ineq__" || function_name == "__isnot__");
 				return resolve_native_pointer_binary_compare(status, builder, scope, life, obj->get_location(), lhs_var, rhs_var,
 					   	negated ? rnpbc_ineq : rnpbc_eq);
 			}
@@ -2042,29 +2083,16 @@ bound_var_t::ref type_check_binary_equality(
 	return nullptr;
 }
 
-bound_var_t::ref ast::eq_expr_t::resolve_expression(
+bound_var_t::ref ast::binary_operator_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref) const
 {
-	std::string function_name;
-	switch (token.tk) {
-	case tk_equal:
-		function_name = "__eq__";
-		break;
-	case tk_inequal:
-		function_name = "__ineq__";
-		break;
-	case tk_identifier:
-		if (token.is_ident(K(is))) {
-			return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
-					shared_from_this(), negated);
-		}
-		break;
-	default:
-		return null_impl();
+	if (token.is_ident(K(is))) {
+		return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
+				shared_from_this(), function_name);
 	}
 
 	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
@@ -2705,58 +2733,6 @@ bound_var_t::ref ast::dot_expr_t::resolve_expression(
 
 	assert(!status);
 	return nullptr;
-}
-
-bound_var_t::ref ast::ineq_expr_t::resolve_expression(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		life_t::ref life,
-		bool as_ref) const
-{
-	std::string function_name;
-	switch (token.tk) {
-	case tk_lt:
-		function_name = "__lt__";
-		break;
-	case tk_lte:
-		function_name = "__lte__";
-		break;
-	case tk_gt:
-		function_name = "__gt__";
-		break;
-	case tk_gte:
-		function_name = "__gte__";
-		break;
-	default:
-		return null_impl();
-	}
-
-	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
-			shared_from_this(), function_name);
-}
-
-bound_var_t::ref ast::plus_expr_t::resolve_expression(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-		life_t::ref life,
-		bool as_ref) const
-{
-	std::string function_name;
-	switch (token.tk) {
-	case tk_plus:
-		function_name = "__plus__";
-		break;
-	case tk_minus:
-		function_name = "__minus__";
-		break;
-	default:
-		return null_impl();
-	}
-
-	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
-			shared_from_this(), function_name);
 }
 
 bound_var_t::ref cast_bound_var(
@@ -4619,32 +4595,6 @@ void ast::pass_flow_t::resolve_statement(
 		bool *returns) const
 {
     return;
-}
-
-bound_var_t::ref ast::times_expr_t::resolve_expression(
-        status_t &status,
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-		life_t::ref life,
-		bool as_ref) const
-{
-	std::string function_name;
-	switch (token.tk) {
-	case tk_times:
-		function_name = "__times__";
-		break;
-	case tk_divide_by:
-		function_name = "__divide__";
-		break;
-	case tk_mod:
-		function_name = "__mod__";
-		break;
-	default:
-		return null_impl();
-	}
-
-	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
-			shared_from_this(), function_name);
 }
 
 bound_var_t::ref take_address(

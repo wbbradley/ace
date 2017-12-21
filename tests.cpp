@@ -226,6 +226,10 @@ bool test_lex_operators() {
 		{">a", {tk_gt, tk_identifier}},
 		{"<=a", {tk_lte, tk_identifier}},
 		{">=a", {tk_gte, tk_identifier}},
+		{"a << b", {tk_identifier, tk_shift_left, tk_identifier}},
+		{"a >> b", {tk_identifier, tk_shift_right, tk_identifier}},
+		{"^", {tk_hat}},
+		{"a|b", {tk_identifier, tk_pipe, tk_identifier}},
 	};
 	return lexer_test(tests);
 }
@@ -378,9 +382,9 @@ bool test_parse_module_one_function() {
 	return check_parse<ast::module_t>("module foobar @0.1.0\n\ndef foo()\n\tpass");
 }
 
-ptr<ast::plus_expr_t> make_one_plus_two() {
-	auto expect = ast::create<ast::plus_expr_t>({{"", 1, 3}, tk_plus, "+"});
-
+ptr<ast::binary_operator_t> make_one_plus_two() {
+	auto expect = ast::create<ast::binary_operator_t>({{"", 1, 3}, tk_plus, "+"});
+	expect->function_name = "__plus__";
 	expect->lhs = ast::create<ast::literal_expr_t>({{"", 1, 1}, tk_integer, "1"});
 	expect->rhs = ast::create<ast::literal_expr_t>({{"", 1, 5}, tk_integer, "2"});
 	return expect;

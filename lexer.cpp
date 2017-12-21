@@ -342,6 +342,8 @@ bool zion_lexer_t::_get_tokens() {
 			gts = gts_end;
 			if (ch == '=') {
 				tk = tk_gte;
+			} else if (ch == '>') {
+				tk = tk_shift_right;
 			} else {
 				scan_ahead = false;
 			}
@@ -351,6 +353,8 @@ bool zion_lexer_t::_get_tokens() {
 			gts = gts_end;
 			if (ch == '=') {
 				tk = tk_lte;
+			} else if (ch == '<') {
+				tk = tk_shift_left;
 			} else {
 				scan_ahead = false;
 			}
@@ -381,6 +385,14 @@ bool zion_lexer_t::_get_tokens() {
 				break;
 			case '%':
 				gts = gts_mod;
+				break;
+			case '|':
+				gts = gts_end;
+				tk = tk_pipe;
+				break;
+			case '^':
+				gts = gts_end;
+				tk = tk_hat;
 				break;
 			case '-':
 				gts = gts_minus;

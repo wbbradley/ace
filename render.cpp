@@ -47,7 +47,7 @@ namespace ast {
 		rs.ss << C_CONTROL << K(break) << C_RESET << " ";
 	}
 
-	void times_expr_t::render(render_state_t &rs) const {
+	void binary_operator_t::render(render_state_t &rs) const {
 		rs.ss << "(";
 
 		lhs->render(rs);
@@ -291,16 +291,6 @@ namespace ast {
 		}
 	}
 
-	void eq_expr_t::render(render_state_t &rs) const {
-		rs.ss << "(";
-
-		lhs->render(rs);
-		rs.ss << " " << token.text << " ";
-		rhs->render(rs);
-
-		rs.ss << ")";
-	}
-
 	void tuple_expr_t::render(render_state_t &rs) const {
 		rs.ss << "(";
 
@@ -403,28 +393,8 @@ namespace ast {
 		}
 	}
 
-	void ineq_expr_t::render(render_state_t &rs) const {
-		rs.ss << "(";
-
-		lhs->render(rs);
-		rs.ss << " " << token.text << " ";
-		rhs->render(rs);
-
-		rs.ss << ")";
-	}
-
 	void pass_flow_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << K(pass) << C_RESET;
-	}
-
-	void plus_expr_t::render(render_state_t &rs) const {
-		rs.ss << "(";
-
-		lhs->render(rs);
-		rs.ss << " " << token.text << " ";
-		rhs->render(rs);
-
-		rs.ss << ")";
 	}
 
 	void type_decl_t::render(render_state_t &rs) const {

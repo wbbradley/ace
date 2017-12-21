@@ -591,7 +591,8 @@ ptr<expression_t> prefix_expr_t::parse(parse_state_t &ps) {
 	}
 }
 
-ptr<expression_t> times_expr_t::parse(parse_state_t &ps) {
+
+ptr<expression_t> times_expr_parse(parse_state_t &ps) {
 	auto expr = prefix_expr_t::parse(ps);
 	if (!expr) {
 		assert(!ps.status);
@@ -601,52 +602,119 @@ ptr<expression_t> times_expr_t::parse(parse_state_t &ps) {
 	while (!ps.line_broke() && (ps.token.tk == tk_times
 			   	|| ps.token.tk == tk_divide_by
 			   	|| ps.token.tk == tk_mod)) {
-		auto times_expr = create<ast::times_expr_t>(ps.token);
+		auto binary_operator = create<ast::binary_operator_t>(ps.token);
+		switch (ps.token.tk) {
+		case tk_times:
+			binary_operator->function_name = "__times__";
+			break;
+		case tk_divide_by:
+			binary_operator->function_name = "__divide__";
+			break;
+		case tk_mod:
+			binary_operator->function_name = "__mod__";
+			break;
+		default:
+			assert(false);
+			break;
+		}
 
 		eat_token();
 
 		auto rhs = prefix_expr_t::parse(ps);
-		if (rhs) {
-			times_expr->lhs = std::move(expr);
-			times_expr->rhs = std::move(rhs);
-			expr = std::move(times_expr);
-		} else {
-			ps.error("unable to parse right hand side of times_expr");
-			return nullptr;
+		if (!!ps.status) {
+			binary_operator->lhs = expr;
+			binary_operator->rhs = rhs;
+			expr = binary_operator;
 		}
 	}
 
 	return expr;
 }
 
-ptr<expression_t> plus_expr_t::parse(parse_state_t &ps) {
-	auto expr = times_expr_t::parse(ps);
+ptr<expression_t> plus_expr_parse(parse_state_t &ps) {
+	auto expr = times_expr_parse(ps);
 	if (!expr) {
 		assert(!ps.status);
 		return nullptr;
 	}
 
-	while (!ps.line_broke() && (ps.token.tk == tk_plus || ps.token.tk == tk_minus)) {
-		auto plus_expr = create<ast::plus_expr_t>(ps.token);
+	while (!ps.line_broke() &&
+		   	(ps.token.tk == tk_plus || ps.token.tk == tk_minus))
+   	{
+		auto binary_operator = create<ast::binary_operator_t>(ps.token);
+		switch (ps.token.tk) {
+		case tk_plus:
+			binary_operator->function_name = "__plus__";
+			break;
+		case tk_minus:
+			binary_operator->function_name = "__minus__";
+			break;
+		default:
+			assert(false);
+			break;
+		}
 
 		eat_token();
 
-		auto rhs = times_expr_t::parse(ps);
-		if (rhs) {
-			plus_expr->lhs = std::move(expr);
-			plus_expr->rhs = std::move(rhs);
-			expr = std::move(plus_expr);
-		} else {
-			ps.error("unable to parse right hand side of plus_expr");
-			return nullptr;
+		auto rhs = times_expr_parse(ps);
+		if (!!ps.status) {
+			binary_operator->lhs = expr;
+			binary_operator->rhs = rhs;
+			expr = binary_operator;
 		}
 	}
 
-	return expr;
+	if (!!ps.status) {
+		return expr;
+	}
+
+	assert(!ps.status);
+	return nullptr;
 }
 
-ptr<expression_t> ineq_expr_t::parse(parse_state_t &ps) {
-	auto lhs = plus_expr_t::parse(ps);
+ptr<expression_t> shift_expr_parse(parse_state_t &ps) {
+	auto expr = plus_expr_parse(ps);
+	if (!expr) {
+		assert(!ps.status);
+		return nullptr;
+	}
+
+	while (!ps.line_broke() &&
+		   	(ps.token.tk == tk_shift_left || ps.token.tk == tk_shift_right))
+   	{
+		auto binary_operator = create<ast::binary_operator_t>(ps.token);
+		switch (ps.token.tk) {
+		case tk_shift_left:
+			binary_operator->function_name = "__shl__";
+			break;
+		case tk_shift_right:
+			binary_operator->function_name = "__shr__";
+			break;
+		default:
+			assert(false);
+			break;
+		}
+
+		eat_token();
+
+		auto rhs = plus_expr_parse(ps);
+		if (!!ps.status) {
+			binary_operator->lhs = expr;
+			binary_operator->rhs = rhs;
+			expr = binary_operator;
+		}
+	}
+
+	if (!!ps.status) {
+		return expr;
+	}
+
+	assert(!ps.status);
+	return nullptr;
+}
+
+ptr<expression_t> ineq_expr_parse(parse_state_t &ps) {
+	auto lhs = shift_expr_parse(ps);
 	if (lhs) {
 		if (ps.line_broke()
 				|| !(ps.token.tk == tk_gt
@@ -657,28 +725,42 @@ ptr<expression_t> ineq_expr_t::parse(parse_state_t &ps) {
 			return lhs;
 		}
 
-		auto ineq_expr = create<ast::ineq_expr_t>(ps.token);
+		auto binary_operator = create<ast::binary_operator_t>(ps.token);
+		switch (ps.token.tk) {
+		case tk_gt:
+			binary_operator->function_name = "__gt__";
+			break;
+		case tk_gte:
+			binary_operator->function_name = "__gte__";
+			break;
+		case tk_lt:
+			binary_operator->function_name = "__lt__";
+			break;
+		case tk_lte:
+			binary_operator->function_name = "__lte__";
+			break;
+		default:
+			assert(false);
+			break;
+		}
 
 		eat_token();
 
-		auto rhs = plus_expr_t::parse(ps);
-		if (rhs) {
-			ineq_expr->lhs = std::move(lhs);
-			ineq_expr->rhs = std::move(rhs);
-			return std::move(ineq_expr);
-		} else {
-			ps.error("unable to parse right hand side of ineq_expr");
-			return nullptr;
+		auto rhs = shift_expr_parse(ps);
+		if (!!ps.status) {
+			binary_operator->lhs = std::move(lhs);
+			binary_operator->rhs = std::move(rhs);
+			return std::move(binary_operator);
 		}
-	} else {
-		assert(!ps.status);
-		return nullptr;
 	}
+
+	assert(!ps.status);
+	return nullptr;
 }
 
-ptr<expression_t> eq_expr_t::parse(parse_state_t &ps) {
-	auto lhs = ineq_expr_t::parse(ps);
-	if (lhs) {
+ptr<expression_t> eq_expr_parse(parse_state_t &ps) {
+	auto lhs = ineq_expr_parse(ps);
+	if (!!ps.status) {
 		bool not_in = false;
 		if (ps.token.is_ident(K(not))) {
 			eat_token();
@@ -695,35 +777,129 @@ ptr<expression_t> eq_expr_t::parse(parse_state_t &ps) {
 			return lhs;
 		}
 
-		auto eq_expr = create<ast::eq_expr_t>(ps.token);
+		auto binary_operator = create<ast::binary_operator_t>(ps.token);
+		if (ps.token.is_ident(K(in))) {
+			binary_operator->function_name = "__in__";
+		} else if (ps.token.tk == tk_equal) {
+			binary_operator->function_name = "__eq__";
+		} else if (ps.token.tk == tk_inequal) {
+			binary_operator->function_name = "__ineq__";
+		} else if (ps.token.is_ident(K(is))) {
+			binary_operator->function_name = "__is__";
+		} else {
+			assert(false);
+		}
+
 		eat_token();
 
-        if (ps.token.is_ident(K(not)) && eq_expr->token.is_ident(K(is))) {
-            eq_expr->negated = true;
+        if (ps.token.is_ident(K(not)) && binary_operator->token.is_ident(K(is))) {
+			binary_operator->function_name = "__isnot__";
             ps.advance();
-        }
-
-		if (not_in) {
-			eq_expr->negated = true;
+        } else if (not_in) {
+			binary_operator->function_name = "__notin__";
 		}
 
-		auto rhs = ineq_expr_t::parse(ps);
-		if (rhs) {
-			eq_expr->lhs = std::move(lhs);
-			eq_expr->rhs = std::move(rhs);
-			return std::move(eq_expr);
-		} else {
-			ps.error("unable to parse right hand side of eq_expr");
-			return nullptr;
+		auto rhs = ineq_expr_parse(ps);
+		if (!!ps.status) {
+			binary_operator->lhs = lhs;
+			binary_operator->rhs = rhs;
+			return binary_operator;
 		}
-	} else {
+	}
+
+	assert(!ps.status);
+	return nullptr;
+}
+
+ptr<expression_t> bitwise_and_parse(parse_state_t &ps) {
+	auto expr = eq_expr_parse(ps);
+	if (!expr) {
 		assert(!ps.status);
 		return nullptr;
 	}
+
+	while (!ps.line_broke() && ps.token.tk == tk_ampersand) {
+		auto binary_operator = create<ast::binary_operator_t>(ps.token);
+		binary_operator->function_name = "__bitwise_and__";
+
+		eat_token();
+
+		auto rhs = eq_expr_parse(ps);
+		if (!!ps.status) {
+			binary_operator->lhs = expr;
+			binary_operator->rhs = rhs;
+			expr = binary_operator;
+		}
+	}
+
+	if (!!ps.status) {
+		return expr;
+	}
+
+	assert(!ps.status);
+	return nullptr;
+}
+
+ptr<expression_t> bitwise_xor_parse(parse_state_t &ps) {
+	auto expr = bitwise_and_parse(ps);
+	if (!expr) {
+		assert(!ps.status);
+		return nullptr;
+	}
+
+	while (!ps.line_broke() && ps.token.tk == tk_hat) {
+		auto binary_operator = create<ast::binary_operator_t>(ps.token);
+		binary_operator->function_name = "__xor__";
+
+		eat_token();
+
+		auto rhs = bitwise_and_parse(ps);
+		if (!!ps.status) {
+			binary_operator->lhs = expr;
+			binary_operator->rhs = rhs;
+			expr = binary_operator;
+		}
+	}
+
+	if (!!ps.status) {
+		return expr;
+	}
+
+	assert(!ps.status);
+	return nullptr;
+}
+
+ptr<expression_t> bitwise_or_parse(parse_state_t &ps) {
+	auto expr = bitwise_xor_parse(ps);
+	if (!expr) {
+		assert(!ps.status);
+		return nullptr;
+	}
+
+	while (!ps.line_broke() && ps.token.tk == tk_pipe) {
+		auto binary_operator = create<ast::binary_operator_t>(ps.token);
+		binary_operator->function_name = "__bitwise_or__";
+
+		eat_token();
+
+		auto rhs = bitwise_xor_parse(ps);
+		if (!!ps.status) {
+			binary_operator->lhs = expr;
+			binary_operator->rhs = rhs;
+			expr = binary_operator;
+		}
+	}
+
+	if (!!ps.status) {
+		return expr;
+	}
+
+	assert(!ps.status);
+	return nullptr;
 }
 
 ptr<expression_t> and_expr_t::parse(parse_state_t &ps) {
-	auto expr = eq_expr_t::parse(ps);
+	auto expr = bitwise_or_parse(ps);
 	if (!expr) {
 		assert(!ps.status);
 		return nullptr;
@@ -734,11 +910,11 @@ ptr<expression_t> and_expr_t::parse(parse_state_t &ps) {
 
 		eat_token();
 
-		auto rhs = eq_expr_t::parse(ps);
-		if (rhs) {
-			and_expr->lhs = std::move(expr);
-			and_expr->rhs = std::move(rhs);
-			expr = std::move(and_expr);
+		auto rhs = bitwise_or_parse(ps);
+		if (!!ps.status) {
+			and_expr->lhs = expr;
+			and_expr->rhs = rhs;
+			return and_expr;
 		} else {
 			ps.error("unable to parse right hand side of and_expr");
 			return nullptr;

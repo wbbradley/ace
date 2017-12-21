@@ -66,6 +66,10 @@ const char *tkstr(token_kind tk) {
 	tk_case(none);
 	tk_case(outdent);
 	tk_case(plus);
+	tk_case(pipe);
+	tk_case(hat);
+	tk_case(shift_left);
+	tk_case(shift_right);
 	tk_case(plus_eq);
 	tk_case(maybe_eq);
 	tk_case(rcurly);
@@ -126,6 +130,10 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_mod:
 	case tk_mod_eq:
 	case tk_plus:
+	case tk_pipe:
+	case tk_hat:
+	case tk_shift_left:
+	case tk_shift_right:
 	case tk_plus_eq:
 	case tk_semicolon:
 	case tk_string:
@@ -200,6 +208,18 @@ void token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_line) 
 		break;
 	case tk_bang:
 		printf("!");
+		break;
+	case tk_pipe:
+		printf("|");
+		break;
+	case tk_hat:
+		printf("^");
+		break;
+	case tk_shift_left:
+		printf("<<");
+		break;
+	case tk_shift_right:
+		printf(">>");
 		break;
 	case tk_maybe_eq:
 		printf("?=");

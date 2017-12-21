@@ -22,6 +22,8 @@ type uint16_t = unsigned_t{16}
 type int8_t = signed_t{8}
 type uint8_t = unsigned_t{8}
 
+type typeid_t = unsigned_t{32}
+
 type var_t struct
 	var type_info *type_info_t
 	# and a ref-count of its own
