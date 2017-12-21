@@ -329,11 +329,6 @@ void add_global_types(
 					type_ptr(type_ptr(type_id(make_iid(WCHAR_TYPE)))),
 				   	INTERNAL_LOC(),
 				   	builder.getInt32Ty()->getPointerTo()->getPointerTo())},
-		{{TYPEID_TYPE},
-			bound_type_t::create(
-					type_id(make_iid(TYPEID_TYPE)),
-					INTERNAL_LOC(),
-					builder.getInt32Ty())},
 	};
 
 	for (auto type_pair : globals) {

@@ -25,13 +25,13 @@ def hexdigest(b bytes) str
 
 def hexdigest(data *void, cb size_t) str
 	s := posix.malloc(sizeof(wchar_t) * (cb * 2r + 1r)) as *wchar_t
-	iter := data as *wchar_t
+	iter := data as *uint8_t
 	end := &iter[cb]
 	i := 0r
 	while iter < end
 		# append to our hexdigest
-		s[i] = hexdigit(iter[0r] as int_t / 16r) as wchar_t
-		s[i + 1r] = hexdigit(__mask__(iter[0r] as int_t, 0xFr)) as wchar_t
+		s[i] = hexdigit((iter[0r] >> 4r) as int_t) as wchar_t
+		s[i + 1r] = hexdigit((iter[0r] & 15r) as int_t) as wchar_t
 
 		# advance iteration
 		i += 2r

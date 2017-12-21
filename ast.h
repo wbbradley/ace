@@ -942,10 +942,10 @@ namespace ast {
 		ptr<ast::expression_t> lhs, rhs;
 	};
 
-	struct eq_expr_t : public expression_t {
-		typedef ptr<const eq_expr_t> ref;
+	struct binary_operator_t : public expression_t {
+		typedef ptr<const binary_operator_t> ref;
 
-		static const syntax_kind_t SK = sk_eq_expr;
+		static const syntax_kind_t SK = sk_binary_operator;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
 				status_t &status,
@@ -955,55 +955,7 @@ namespace ast {
 				bool as_ref) const;
 		virtual void render(render_state_t &rs) const;
 
-		ptr<ast::expression_t> lhs, rhs;
-		bool negated = false;
-	};
-
-	struct ineq_expr_t : public expression_t {
-		typedef ptr<const ineq_expr_t> ref;
-
-		static const syntax_kind_t SK = sk_ineq_expr;
-		static ptr<ast::expression_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
-				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
-				life_t::ref life,
-				bool as_ref) const;
-		virtual void render(render_state_t &rs) const;
-
-		ptr<ast::expression_t> lhs, rhs;
-	};
-
-	struct plus_expr_t : public expression_t {
-		typedef ptr<const plus_expr_t> ref;
-
-		static const syntax_kind_t SK = sk_plus_expr;
-		static ptr<ast::expression_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
-				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
-				life_t::ref life,
-				bool as_ref) const;
-		virtual void render(render_state_t &rs) const;
-
-		ptr<ast::expression_t> lhs, rhs;
-	};
-
-	struct times_expr_t : public expression_t {
-		typedef ptr<const times_expr_t> ref;
-
-		static const syntax_kind_t SK = sk_times_expr;
-		static ptr<ast::expression_t> parse(parse_state_t &ps);
-		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
-				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
-				life_t::ref life,
-				bool as_ref) const;
-		virtual void render(render_state_t &rs) const;
-
+		std::string function_name;
 		ptr<ast::expression_t> lhs, rhs;
 	};
 
