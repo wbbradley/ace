@@ -3396,7 +3396,7 @@ void create_visit_module_vars_function(
 			status, builder, program_scope, 
 			type_function(
 				type_args({type_ptr(type_id(make_iid("var_t")))}, {}),
-			   	type_id(make_iid("void"))));
+				type_id(make_iid("void"))));
 
 	/* we are creating this function, but we'll be adding to it elsewhere */
 	auto visit_module_vars_fn = llvm_start_function(
@@ -3422,35 +3422,43 @@ void create_visit_module_vars_function(
 					llvm_visitor_fn,
 					make_iid("user_visitor_fn"));
 
-			for (auto global_var : global_vars) {
-				/* for each managed global_var, call the visitor function on it */
-				bool is_managed;
-				global_var->type->is_managed_ptr(status, builder, program_scope, is_managed);
+			auto bound_var_ptr_type = program_scope->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
 
-				if (!!status) {
-					if (is_managed) {
-						llvm_create_call_inst(
-								status,
-								builder,
-								INTERNAL_LOC(),
-								user_visitor_fn,
-								std::vector<llvm::Value *>{global_var->resolve_bound_var_value(builder)});
+			if (!!status) {
+				for (auto global_var : global_vars) {
+					/* for each managed global_var, call the visitor function on it */
+					bool is_managed;
+					global_var->type->is_managed_ptr(status, builder, program_scope, is_managed);
+
+					if (!!status) {
+						if (is_managed) {
+							llvm_create_call_inst(
+									status,
+									builder,
+									INTERNAL_LOC(),
+									user_visitor_fn,
+									std::vector<llvm::Value *>{
+										llvm_maybe_pointer_cast(
+												builder,
+												global_var->resolve_bound_var_value(builder),
+												bound_var_ptr_type->get_llvm_type())});
+						}
+					}
+
+					if (!status) {
+						break;
 					}
 				}
 
-				if (!status) {
-					break;
-				}
-			}
-
-			/* we're done with __visit_module_vars, let's make sure to return */
-			builder.CreateRetVoid();
-
-			if (!!status) {
-				program_scope->put_bound_variable(status, "__visit_module_vars", visit_module_vars_fn);
+				/* we're done with __visit_module_vars, let's make sure to return */
+				builder.CreateRetVoid();
 
 				if (!!status) {
-					return;
+					program_scope->put_bound_variable(status, "__visit_module_vars", visit_module_vars_fn);
+
+					if (!!status) {
+						return;
+					}
 				}
 			}
 		}

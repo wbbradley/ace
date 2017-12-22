@@ -914,7 +914,7 @@ ptr<expression_t> and_expr_t::parse(parse_state_t &ps) {
 		if (!!ps.status) {
 			and_expr->lhs = expr;
 			and_expr->rhs = rhs;
-			return and_expr;
+			expr = and_expr;
 		} else {
 			ps.error("unable to parse right hand side of and_expr");
 			return nullptr;

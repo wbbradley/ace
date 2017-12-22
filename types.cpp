@@ -1431,6 +1431,8 @@ types::type_t::ref eval(types::type_t::ref type, const types::type_t::map &env) 
 		return nullptr;
 	} else if (auto literal_type = dyncast<const types::type_literal_t>(type)) {
 		return nullptr;
+	} else if (auto extern_type = dyncast<const types::type_extern_t>(type)) {
+		return nullptr;
 	} else {
 		log("unhandled type evaluation for type %s in env %s",
 				type->str().c_str(),

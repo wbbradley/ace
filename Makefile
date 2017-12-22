@@ -114,6 +114,7 @@ ZION_LLVM_SOURCES = \
 				bound_var.cpp \
 				builtins.cpp \
 				callable.cpp \
+				coercions.cpp \
 				compiler.cpp \
 				dbg.cpp \
 				disk.cpp \

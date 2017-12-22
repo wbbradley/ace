@@ -239,7 +239,7 @@ llvm::CallInst *llvm_create_call_inst(
 {
 	assert(!!status);
 	assert(callee != nullptr);
-	llvm::Value *llvm_callee_value = callee->resolve_bound_var_value(builder);
+	llvm::Value *llvm_callee_value = callee->get_llvm_value();
 	debug_above(9, log("found llvm_callee_value %s of type %s",
 				llvm_print(llvm_callee_value).c_str(),
 				llvm_print(llvm_callee_value->getType()).c_str()));
@@ -283,6 +283,7 @@ llvm::CallInst *llvm_create_call_inst(
 	debug_above(3, log(log_info, "creating call to %s",
 				llvm_print(llvm_function_type).c_str()));
 
+#if 0
 	auto param_iter = llvm_function_type->param_begin();
 	std::vector<llvm::Value *> llvm_args;
 
@@ -304,12 +305,13 @@ llvm::CallInst *llvm_create_call_inst(
 		++param_iter;
 		++index;
 	}
-	llvm::ArrayRef<llvm::Value *> llvm_args_array(llvm_args);
+#endif
+	llvm::ArrayRef<llvm::Value *> llvm_args_array(llvm_values);
 
 	debug_above(3, log(log_info, "creating call to " c_id("%s") " %s with [%s]",
 				llvm_func_decl ? llvm_func_decl->getName().str().c_str() : "a function",
 				llvm_print(llvm_function_type).c_str(),
-				join_with(llvm_args, ", ", llvm_print_value).c_str()));
+				join_with(llvm_values, ", ", llvm_print_value).c_str()));
 
 	return builder.CreateCall(llvm_function, llvm_args_array);
 }

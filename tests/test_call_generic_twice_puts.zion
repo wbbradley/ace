@@ -1,10 +1,9 @@
 module _
 # test: pass
 
-def main() int
-	posix.puts(generic("hey"))
-	posix.puts(generic(10 + 3.4))
-	return 1
+link def wprintf(format *wchar_t, s1 *wchar_t) int_t
 
-def generic(value any) *__char__
-	return str(value).raw
+def main() int
+	wprintf(str("%S\n").raw, str("hey").raw)
+	wprintf(str("%S\n").raw, str(10 + 3.4).raw)
+	return 1
