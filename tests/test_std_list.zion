@@ -1,6 +1,8 @@
 module _
 # test: pass
 
+get list
+
 def main()
 	l := list(3, list(2, nil))
 	print(len(l))

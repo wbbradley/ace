@@ -2746,51 +2746,53 @@ bound_var_t::ref cast_bound_var(
 {
 	assert(!bound_var->is_ref());
 	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_cast);
-	debug_above(7, log("upserted bound type in cast expr is %s", bound_type->str().c_str()));
-	indent_logger indent(location, 5, string_format("casting %s: %s (%s) to a %s (%s)",
-				bound_var->name.c_str(),
-				bound_var->type->get_type()->str().c_str(),
-				llvm_print(bound_var->get_llvm_value()->getType()).c_str(),
-				type_cast->str().c_str(),
-				llvm_print(bound_type->get_llvm_specific_type()).c_str()));
 	if (!!status) {
-		llvm::Value *llvm_source_val = bound_var->resolve_bound_var_value(builder);
-		llvm::Type *llvm_source_type = llvm_source_val->getType();
-
-		llvm::Value *llvm_dest_val = nullptr;
-		llvm::Type *llvm_dest_type = bound_type->get_llvm_specific_type();
-
-		// TODO: put some more constraints on this...
-		if (llvm_dest_type->isIntegerTy()) {
-			/* we want an integer at the end... */
-			if (llvm_source_type->isPointerTy()) {
-				llvm_dest_val = builder.CreatePtrToInt(llvm_source_val, llvm_dest_type);
-			} else {
-				assert(llvm_source_type->isIntegerTy());
-				llvm_dest_val = builder.CreateSExtOrTrunc(llvm_source_val, llvm_dest_type);
-			}
-		} else if (llvm_dest_type->isPointerTy()) {
-			/* we want a pointer at the end... */
-			if (llvm_source_type->isPointerTy()) {
-				llvm_dest_val = builder.CreateBitCast(llvm_source_val, llvm_dest_type);
-			} else {
-				if (!llvm_source_type->isIntegerTy()) {
-					log("source type for cast is %s (while casting to %s)",
-							llvm_print(llvm_source_type).c_str(),
-							type_cast->str().c_str());
-					dbg();
-				}
-				llvm_dest_val = builder.CreateIntToPtr(llvm_source_val, llvm_dest_type);
-			}
-		} else {
-			user_error(status, location, "invalid cast: cannot cast %s to %s",
-					bound_var->type->str().c_str(),
-					type_cast->str().c_str());
-		}
-
+		debug_above(7, log("upserted bound type in cast expr is %s", bound_type->str().c_str()));
+		indent_logger indent(location, 5, string_format("casting %s: %s (%s) to a %s (%s)",
+					bound_var->name.c_str(),
+					bound_var->type->get_type()->str().c_str(),
+					llvm_print(bound_var->get_llvm_value()->getType()).c_str(),
+					type_cast->str().c_str(),
+					llvm_print(bound_type->get_llvm_specific_type()).c_str()));
 		if (!!status) {
-			return bound_var_t::create(INTERNAL_LOC(), "cast",
-					bound_type, llvm_dest_val, make_iid("cast"));
+			llvm::Value *llvm_source_val = bound_var->resolve_bound_var_value(builder);
+			llvm::Type *llvm_source_type = llvm_source_val->getType();
+
+			llvm::Value *llvm_dest_val = nullptr;
+			llvm::Type *llvm_dest_type = bound_type->get_llvm_specific_type();
+
+			// TODO: put some more constraints on this...
+			if (llvm_dest_type->isIntegerTy()) {
+				/* we want an integer at the end... */
+				if (llvm_source_type->isPointerTy()) {
+					llvm_dest_val = builder.CreatePtrToInt(llvm_source_val, llvm_dest_type);
+				} else {
+					assert(llvm_source_type->isIntegerTy());
+					llvm_dest_val = builder.CreateSExtOrTrunc(llvm_source_val, llvm_dest_type);
+				}
+			} else if (llvm_dest_type->isPointerTy()) {
+				/* we want a pointer at the end... */
+				if (llvm_source_type->isPointerTy()) {
+					llvm_dest_val = builder.CreateBitCast(llvm_source_val, llvm_dest_type);
+				} else {
+					if (!llvm_source_type->isIntegerTy()) {
+						log("source type for cast is %s (while casting to %s)",
+								llvm_print(llvm_source_type).c_str(),
+								type_cast->str().c_str());
+						dbg();
+					}
+					llvm_dest_val = builder.CreateIntToPtr(llvm_source_val, llvm_dest_type);
+				}
+			} else {
+				user_error(status, location, "invalid cast: cannot cast %s to %s",
+						bound_var->type->str().c_str(),
+						type_cast->str().c_str());
+			}
+
+			if (!!status) {
+				return bound_var_t::create(INTERNAL_LOC(), "cast",
+						bound_type, llvm_dest_val, make_iid("cast"));
+			}
 		}
 	}
 

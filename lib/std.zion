@@ -17,6 +17,9 @@ link in "rt_typeid.o"
 link def mem_dump(x *void, y int_t) void
 link def __type_id_eq_type_id(x typeid_t, y typeid_t) int_t
 
+def typeid(t any) typeid_t
+	return __get_typeid__(t)
+
 # initialization of modules is automatically generated.
 # link def __init_modules() void
 

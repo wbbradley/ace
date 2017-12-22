@@ -1,4 +1,5 @@
 module _
+get list
 
 def main()
 	# error: unable to resolve overloads for list

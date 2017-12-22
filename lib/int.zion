@@ -70,6 +70,15 @@ def __bitwise_and__(x int, y int) int
 def __bitwise_or__(x int, y int) int
 	return int(x.raw | y.raw)
 
+def __shl__(x int, y int) int
+	return int(x.raw << y.raw)
+
+def __shr__(x int, y int) int
+	return int(x.raw >> y.raw)
+
+def __xor__(x int, y int) int
+	return int(x.raw ^ y.raw)
+
 def __eq__(x int, y int) bool
 	return x.raw == y.raw ? true : false
 

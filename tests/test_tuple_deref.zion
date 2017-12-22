@@ -7,4 +7,4 @@ module _
 def main()
 	x := ((2,("hello",)),)
 	y := x._0._1._0
-	posix.puts(y.raw)
+	posix.puts(utf8(y).raw)

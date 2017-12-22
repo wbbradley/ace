@@ -6,13 +6,14 @@ module _
 # TODO: clean this up
 link in "build-Darwin/tests/test_link_extern_entry.o"
 
-link def make_entry(name *__char__, number int_t) *void
-link def free_entry(entry *void) void
-link def get_name(entry *void) *__char__
-link def get_number(entry *void) int_t
+link def make_entry(name *char_t, number int_t) *EntryImpl
+link def free_entry(entry *EntryImpl) void
+link def get_name(entry *EntryImpl) *char_t
+link def get_number(entry *EntryImpl) int_t
 
+type EntryImpl struct
 type Entry has
-	var entry *void
+	var entry *EntryImpl
 
 [global]
 def __finalize__(entry Entry)

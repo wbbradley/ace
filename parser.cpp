@@ -2122,22 +2122,24 @@ ptr<module_t> module_t::parse(parse_state_t &ps) {
 			} else if (ps.token.is_ident(K(tag))) {
 				/* tags */
 				auto tag = tag_t::parse(ps);
-				if (tag) {
-					module->tags.push_back(std::move(tag));
-				} else {
-					assert(!ps.status);
+				if (!!ps.status && tag != nullptr) {
+					module->tags.push_back(tag);
+					if (module->global) {
+						auto id = make_code_id(tag->token);
+						ps.type_macros.insert({tag->token.text, type_id(id)});
+						ps.global_type_macros.insert({tag->token.text, type_id(id)});
+					}
 				}
 			} else if (ps.token.is_ident(K(type))) {
 				/* type definitions */
 				auto type_def = type_def_t::parse(ps);
-				if (type_def != nullptr) {
+				if (!!ps.status && type_def != nullptr) {
 					module->type_defs.push_back(type_def);
 					if (module->global) {
-						ps.type_macros.insert({type_def->token.text, type_id(make_code_id(type_def->token))});
-						ps.global_type_macros.insert({type_def->token.text, type_id(make_code_id(type_def->token))});
+						auto id = make_code_id(type_def->token);
+						ps.type_macros.insert({type_def->token.text, type_id(id)});
+						ps.global_type_macros.insert({type_def->token.text, type_id(id)});
 					}
-				} else {
-					/* it's ok, this may have just been a type macro */
 				}
 			} else {
 				break;

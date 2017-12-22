@@ -16,7 +16,7 @@ type File has
 tag EOF
 
 def open(name str, mode str) File
-	fp := posix.fopen(name.raw, mode.raw)
+	fp := posix.fopen(utf8(name).raw, utf8(mode).raw)
 	if fp != nil
 		return File(name, Open(fp))
 	else
@@ -85,7 +85,7 @@ def readline(f File) str or Error or EOF
 	when state
 		is Open
 			linecap := 0r
-			line := nil as *__char__
+			line := nil as *char_t
 			linelen := posix.getline(&line, &linecap, state.fp)
 			if linelen == -1r
 				return EOF
@@ -93,8 +93,11 @@ def readline(f File) str or Error or EOF
 			# make sure we strip the LF char
 			if linelen > 0r
 				if line[linelen - 1r] as int_t == 10r
-					line[linelen - 1r] = 0r
-			return str(line)
+					line[linelen - 1r] = 0r as char_t
+			str_line := str(mbstowcs(line))
+			posix.free(line)
+			return str_line
+
 		is Closed
 			return Error(-1)
 		is Error

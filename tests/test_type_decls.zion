@@ -1,7 +1,8 @@
 module _ @1.0
+# test: skip
 
 def some_code()
-	# error: not yet impl
-	type Y matches int
+	type Y = int
+	# TODO: figure out what to do here
 	var y Y = 123
 	print(y)
