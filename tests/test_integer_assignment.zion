@@ -1,0 +1,12 @@
+module _
+# test: pass
+# expect: 253
+# expect: 252
+
+def main()
+	var x int8_t = -3r
+	var y uint8_t = x
+	print(y)
+
+	y = -4r
+	print(y)

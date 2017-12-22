@@ -9,7 +9,6 @@ global
 link def __str__(x int_t) *char_t to __str_int
 link def __str__(x int_t, y int_t) *char_t to __str_int_radix
 link def __str__(x float_t) *char_t to __str_float
-link def __str__(x typeid_t) *char_t to __str_type_id
 link def __str__(x *char_t) *char_t to __str_str
 link def concat(x *char_t, y *char_t) *char_t to __mbs_concat
 
@@ -36,7 +35,7 @@ def utf8(x int) utf8
 def utf8(x float) utf8
 	return utf8(__str__(x.raw))
 
-def utf8(x typeid_t) utf8
+def utf8(x int_t) utf8
 	return utf8(__str__(x))
 
 def utf8(b *int8_t, length size_t, encoding str) utf8

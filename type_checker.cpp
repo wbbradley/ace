@@ -17,6 +17,7 @@
 #include "type_kind.h"
 #include "nil_check.h"
 #include <time.h>
+#include "coercions.h"
 
 /*
  * The basic idea here is that type checking is a graph operation which can be
@@ -84,8 +85,10 @@ bound_var_t::ref generate_stack_variable(
 		}
 	}
 
-	/* 'type' is keeping track of what the variable's ending type will be */
+	/* 'stack_var_type' is keeping track of what the stack variable's type will be (hint: it should
+	 * just be a ref to the value_type) */
 	bound_type_t::ref stack_var_type;
+	/* 'value_type' is keeping track of what the variable's ending type will be */
 	bound_type_t::ref value_type;
 
 	/* 'unboxed' tracks whether we are doing maybe unboxing for this var_decl */
@@ -203,7 +206,9 @@ bound_var_t::ref generate_stack_variable(
 										llvm_print(llvm_alloca).c_str(),
 										llvm_print(init_var->get_llvm_value()).c_str()));
 
-							llvm::Value *llvm_init_value = init_var->get_llvm_value();
+							llvm::Value *llvm_init_value = coerce_value(status, builder, scope, 
+									obj.get_location(), value_type->get_type(), init_var);
+
 							if (llvm_init_value->getName().size() == 0) {
 								llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
 							}
@@ -396,7 +401,8 @@ bound_var_t::ref generate_module_variable(
 														llvm_print(llvm_global_variable).c_str(),
 														llvm_print(init_var->get_llvm_value()).c_str()));
 
-											llvm::Value *llvm_init_value = init_var->resolve_bound_var_value(builder);
+											llvm::Value *llvm_init_value = coerce_value(status, builder, module_scope, 
+													var_decl.get_location(), declared_type, init_var);
 
 											if (llvm_init_value->getName().str().size() == 0) {
 												llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
@@ -3689,21 +3695,14 @@ bound_var_t::ref type_check_assignment(
 					rhs_var->type->get_type(), scope->get_typename_env());
 
 			if (unification.result) {
-				/* ensure that whatever was being pointed to by this LHS
-				 * is released after this statement */
-				auto prior_lhs_value = lhs_var->resolve_bound_value(status, builder, scope);
-
+				llvm::Value *llvm_rhs_value = coerce_value(status, builder, scope, 
+									location, lhs_unreferenced_type, rhs_var);
 				if (!!status) {
-					// TODO: handle assignments to member variables
 					assert(llvm::dyn_cast<llvm::AllocaInst>(lhs_var->get_llvm_value())
 							|| llvm::dyn_cast<llvm::GlobalVariable>(lhs_var->get_llvm_value())
                             || llvm_value_is_pointer(lhs_var->get_llvm_value()));
 
-					builder.CreateStore(
-							llvm_maybe_pointer_cast(builder,
-								rhs_var->resolve_bound_var_value(builder),
-								lhs_unreferenced_bound_type->get_llvm_specific_type()),
-							lhs_var->get_llvm_value());
+					builder.CreateStore(llvm_rhs_value, lhs_var->get_llvm_value());
 
 					if (!!status) {
 						return lhs_var;

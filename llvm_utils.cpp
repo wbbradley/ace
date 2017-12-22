@@ -10,6 +10,7 @@
 #include "code_id.h"
 #include "life.h"
 #include "type_kind.h"
+#include "coercions.h"
 
 const char *GC_STRATEGY = "zion";
 
