@@ -113,11 +113,4 @@ std::string str(const bound_var_t::overloads &arguments);
 std::ostream &operator <<(std::ostream &os, const bound_var_t &var);
 types::type_args_t::ref get_args_type(bound_var_t::refs args);
 bound_type_t::refs get_bound_types(bound_var_t::refs values);
-std::vector<llvm::Value *> get_llvm_values(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-		location_t location,
-		ptr<const types::type_args_t> type_args,
-	   	const bound_var_t::refs &vars);
 bound_var_t::ref resolve_alloca(llvm::IRBuilder<> &builder, bound_var_t::ref var);

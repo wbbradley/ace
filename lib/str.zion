@@ -5,7 +5,6 @@ link in "rt_str.o"
 link def __wcs__(x int_t) *wchar_t to __wcs_int
 link def __wcs__(x int_t, y int_t) *wchar_t to __wcs_int_radix
 link def __wcs__(x float_t) *wchar_t to __wcs_float
-link def __wcs__(x typeid_t) *wchar_t to __wcs_type_id
 link def __wcs__(x *char_t) *wchar_t to __wcs_str
 link def concat(x *wchar_t, y *wchar_t) *wchar_t to __wcs_concat
 

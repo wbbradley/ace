@@ -34,10 +34,10 @@ char *__str_int_radix(zion_int_t x, zion_int_t radix) {
 	return strdup(onstack);
 }
 
-wchar_t *__str_int(zion_int_t x) {
-	wchar_t onstack[65];
-	swprintf(onstack, sizeof(onstack) / sizeof(onstack[0]), L"%lld", (long long)x);
-	return wcsdup(onstack);
+char *__str_int(zion_int_t x) {
+	char onstack[65];
+	snprintf(onstack, sizeof(onstack) / sizeof(onstack[0]), "%lld", (long long)x);
+	return strdup(onstack);
 }
 
 char *__str_float(zion_float_t x) {

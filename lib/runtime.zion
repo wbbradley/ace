@@ -179,7 +179,7 @@ def __create_head_var() *var_t
 def dbg_type_info(type_info *type_info_t)
 	if type_info
 		posix.puts("type_id"r)
-		posix.puts(__str__(type_info.type_id as int_t))
+		posix.puts(__str__(type_info.type_id))
 		posix.puts("type_kind"r)
 		posix.puts(__str__(type_info.type_kind as int_t))
 		posix.puts("size"r)
