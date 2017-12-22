@@ -2,4 +2,7 @@ module os
 get posix
 
 def getcwd() str
-	return str(posix.getcwd(nil))
+	cwd_utf8 := mbstowcs(posix.getcwd(nil))
+	cwd := str(cwd_utf8)
+	posix.free(cwd_utf8)
+	return cwd

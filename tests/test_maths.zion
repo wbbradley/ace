@@ -13,8 +13,10 @@ def main()
 	print(+3)
 	print(-+3)
 	print(+-3)
-	mask(7, 3)
-	mask(1232323, 12323)
+	7 & 3
+	1232323 & 12323
+	250 << 1
+	250 >> 2
 
 	# make sure pure float math compiles
 	print(3.0 + 10.0)

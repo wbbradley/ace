@@ -411,10 +411,14 @@ namespace ast {
 	}
 
 	void module_decl_t::render(render_state_t &rs) const {
-		rs.ss << C_MODULE << K(module) << C_RESET << " " << get_canonical_name();
-		if (semver != nullptr) {
-			rs.ss << " ";
-			semver->render(rs);
+		if (global) {
+			rs.ss << C_MODULE << K(global) << C_RESET;
+		} else {
+			rs.ss << C_MODULE << K(module) << C_RESET << " " << get_canonical_name();
+			if (semver != nullptr) {
+				rs.ss << " ";
+				semver->render(rs);
+			}
 		}
 	}
 

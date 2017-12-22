@@ -6,11 +6,11 @@ module _
 
 type __Value__ struct
 	var size int64_t
-	var name *__char__
+	var name *char_t
 	var typeinfo *__TypeInfo__
 
 type __TypeInfo__ struct
-	var typeid __typeid__
+	var typeid typeid_t
 	var addref *def (v *__Value__) void
 	var release *def (v *__Value__) void
 
