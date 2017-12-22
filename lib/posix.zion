@@ -17,6 +17,7 @@ link def realloc(ptr *void, cb size_t) *void
 link def memcpy(dst *void, src *void, n size_t) *void
 link def free(pb *void) void
 link def strdup(s *char_t) *char_t
+link def wcsdup(s *wchar_t) *wchar_t
 link def strndup(s *char_t, n size_t) *char_t
 link def strcmp(x *char_t, y *char_t) int_t
 link def wcscmp(x *wchar_t, y *wchar_t) int_t

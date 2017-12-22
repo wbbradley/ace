@@ -15,6 +15,7 @@ get math
 link in "rt_typeid.o"
 
 link def mem_dump(x *void, y int_t) void
+link def __type_id_eq_type_id(x typeid_t, y typeid_t) int_t
 
 # initialization of modules is automatically generated.
 # link def __init_modules() void
@@ -23,17 +24,18 @@ def mbstowcs(mbs *char_t) *wchar_t
 	# Converts from current locale's encoding to wide-char encoding. Allocates memory that
 	# must be freed later.
 	mbslen := posix.strlen(mbs)
-	wcs_cb := posix.mbstowcs(nil, mbs, mbslen)
+	wcs_cb := posix.mbstowcs(nil, mbs, 0r)
 	if wcs_cb == -1r
-		print("Failed to convert string!")
+		posix.puts("Failed to convert string from multi-byte to wide char!"r)
 		posix.exit(1r)
-
-	wcs := posix.malloc(wcs_cb + sizeof(wchar_t)) as *wchar_t
+	wcs_size := wcs_cb + 1r
+	cb := sizeof(wchar_t) * wcs_size
+	wcs := posix.malloc(cb) as *wchar_t
 	if wcs == nil
-		posix.puts("out of memory"r)
+		posix.puts("out of memory - set a breakpoint on `exit` in order to debug"r)
 		posix.exit(-1r)
 
-	posix.mbstowcs(wcs, mbs, mbslen)
+	posix.mbstowcs(wcs, mbs, wcs_size)
 	return wcs
 
 def wcstombs(wcs *wchar_t) *char_t
@@ -42,15 +44,18 @@ def wcstombs(wcs *wchar_t) *char_t
 	wcslen := posix.wcslen(wcs)
 	mbs_cb := posix.wcstombs(nil, wcs, wcslen)
 	if mbs_cb == -1r
-		print("Failed to convert string!")
+		posix.puts("Failed to convert string from wide char to multi-byte!"r)
+		breakpoint()
 		posix.exit(1r)
 
-	mbs := posix.malloc(mbs_cb + sizeof(char_t)) as *char_t
+	mbs_size := mbs_cb + 1r
+	cb := sizeof(char_t) * mbs_size
+	mbs := posix.malloc(cb) as *char_t
 	if mbs == nil
-		posix.puts("out of memory"r)
+		posix.puts("out of memory - set a breakpoint on `exit` in order to debug"r)
 		posix.exit(-1r)
 
-	posix.wcstombs(mbs, wcs, wcslen)
+	posix.wcstombs(mbs, wcs, mbs_size)
 	return mbs
 
 def print(x any) void

@@ -128,62 +128,6 @@ bound_module_t::bound_module_t(
 	assert(module_scope != nullptr);
 }
 
-std::vector<llvm::Value *> get_llvm_values(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		location_t location,
-		ptr<const types::type_args_t> type_args,
-	   	const bound_var_t::refs &vars)
-{
-	std::vector<llvm::Value *> llvm_values;
-	llvm_values.reserve(vars.size());
-
-	if (type_args->args.size() != vars.size()) {
-		user_error(status, location, "invalid parameter count to function call. expected %d parameters, got %d",
-				(int)type_args->args.size(),
-				(int)vars.size());
-		return {};
-	}
-
-	auto type_iter = type_args->args.begin();
-	for (auto var : vars) {
-		auto &lhs_arg_type = *type_iter;
-		auto rhs_arg_type = var->type->get_type();
-
-		if (rhs_arg_type->get_signature() != lhs_arg_type->get_signature()) {
-			// There is probably going to end up being some coupling here with
-			// unification, since we'll need to make these compatible. Perhaps
-			// unification could produce a list of instructions on how to do the
-			// conversion...
-			debug_above(5, log(log_info, "seeing about coercion from %s",
-						llvm_print(var->get_llvm_value()).c_str()));
-			debug_above(5, log(log_info, "seeing about coercion from %s to %s",
-						rhs_arg_type->get_signature().c_str(),
-						lhs_arg_type->get_signature().c_str()));
-			debug_above(5, log(log_info, "seeing about coercion from %s to %s",
-						rhs_arg_type->str().c_str(),
-						lhs_arg_type->str().c_str()));
-
-			/* check pragmatically for certain coercions that should take place */
-			if (false /* the param is a native type and the target is a managed type */) {
-				not_impl();
-			} else if (rhs_arg_type->is_ref() && !lhs_arg_type->is_ref()) {
-				llvm_values.push_back(var->resolve_bound_var_value(builder));
-			} else {
-				debug_above(2, log(log_info, "probably need to write some smarter coercion code"));
-				llvm_values.push_back(var->resolve_bound_var_value(builder));
-			}
-		} else {
-			llvm_values.push_back(var->get_llvm_value());
-		}
-
-		++type_iter;
-	}
-
-	return llvm_values;
-}
-
 bound_type_t::refs get_bound_types(bound_var_t::refs values) {
 	bound_type_t::refs types;
 	types.reserve(values.size());

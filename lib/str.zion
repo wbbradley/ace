@@ -29,8 +29,11 @@ def __finalize__(s str)
 def __box__(s *char_t) str
 	return str(mbstowcs(s))
 
+def len(s str) int
+	return int(posix.wcslen(s.raw))
+
 def str(s str) str
-	return s
+	return str(posix.wcsdup(s.raw))
 
 def str(s utf8) str
 	return str(mbstowcs(s.raw))
