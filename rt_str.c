@@ -1,11 +1,22 @@
 /* BUILTINS
  * str function overloads
  * */
+#include <errno.h>
 #include "zion_rt.h"
 
-void __set_locale__(char *locale) {
-	if (setlocale(LC_CTYPE, locale) == NULL) {
-		printf("failed to set ctype locale to %s\n", locale);
+zion_int_t __errno() {
+	return errno;
+}
+
+void __set_locale__() {
+#ifdef __linux__
+#define ZION_LOCALE "C.UTF-8"
+#else
+#define ZION_LOCALE "en_US.UTF-8"
+#endif
+
+	if (setlocale(LC_CTYPE, ZION_LOCALE) == NULL) {
+		printf("failed to set ctype locale to %s\n", ZION_LOCALE);
 		exit(1);
 	}
 }

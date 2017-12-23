@@ -8,7 +8,7 @@ def main()
 	print(x._1)
 
 	# Should print "5"
-	maybe_n := nth((3, (4, (5, nil))), 2)
+	maybe_n := nth((3, (4, (5, null))), 2)
 	if n := maybe_n
 		print(n)
 	else

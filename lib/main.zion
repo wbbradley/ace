@@ -4,12 +4,12 @@ get sys
 get posix
 get crypto
 
-link def __set_locale__(locale *char_t) void
+link def __set_locale__() void
 
 [global]
 def __main__(argc int32_t, argv **char_t) int32_t
 	# This is the actual default entry point to every program.
-	__set_locale__("en_US.UTF-8"r)
+	__set_locale__()
 	crypto.init()
 	# runtime.report("__main__ start"r)
 	# Allocate global space for each module's top-level variables, and

@@ -8,7 +8,7 @@
 #include <iostream>
 #include "unification.h"
 
-const char *BUILTIN_NIL_TYPE = "nil";
+const char *BUILTIN_NULL_TYPE = "null";
 const char *STD_VECTOR_TYPE = "vector.vector";
 const char *BUILTIN_VOID_TYPE = "void";
 const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";
@@ -86,13 +86,13 @@ namespace types {
 	   	return id->get_name() == BUILTIN_VOID_TYPE;
    	}
 
-	bool type_id_t::is_nil() const {
-	   	return id->get_name() == BUILTIN_NIL_TYPE;
+	bool type_id_t::is_null() const {
+	   	return id->get_name() == BUILTIN_NULL_TYPE;
    	}
 
     type_t::ref type_id_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
         debug_above(6, log("refining %s. looking to eliminate %s values from the type", str().c_str(), boolstr(elimination_value)));
-        if (is_nil()) {
+        if (is_null()) {
             if (elimination_value) {
                 debug_above(6, log("keeping %s", str().c_str()));
                 return shared_from_this();
@@ -572,7 +572,7 @@ endif
 	type_sum_t::type_sum_t(type_t::refs options, location_t location) : options(options), location(location) {
 		for (auto option : options) {
             assert(!dyncast<const type_maybe_t>(option));
-            assert(!option->is_nil());
+            assert(!option->is_null());
         }
 	}
 
@@ -638,7 +638,7 @@ endif
 	type_maybe_t::type_maybe_t(type_t::ref just) : just(just) {
         assert(!dyncast<const type_maybe_t>(just));
         assert(!dyncast<const type_ref_t>(just));
-        assert(!just->is_nil());
+        assert(!just->is_null());
 	}
 
 	std::ostream &type_maybe_t::emit(std::ostream &os, const map &bindings) const {
@@ -674,14 +674,14 @@ endif
         if (!elimination_value) {
             return just;
         } else {
-            /* FUTURE: to actually return type_nil here, we'd need to know that the just type here
+            /* FUTURE: to actually return type_null here, we'd need to know that the just type here
              * has not overloaded __bool__ */
             return shared_from_this();
         }
     }
 
 	type_ptr_t::type_ptr_t(type_t::ref element_type) : element_type(element_type) {
-		assert(!element_type->is_nil());
+		assert(!element_type->is_null());
 	}
 
 	std::ostream &type_ptr_t::emit(std::ostream &os, const map &bindings) const {
@@ -716,8 +716,8 @@ endif
 
     type_t::ref type_ptr_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
         if (elimination_value) {
-            /* we can eliminate truthy types, so this pointer must be just nil */
-            return type_nil();
+            /* we can eliminate truthy types, so this pointer must be just null */
+            return type_null();
         }
         return shared_from_this();
     }
@@ -1074,12 +1074,13 @@ types::type_t::ref type_variable(location_t location) {
 }
 
 types::type_t::ref type_unreachable() {
-	return make_ptr<types::type_id_t>(make_iid(BUILTIN_UNREACHABLE_TYPE));
+	static auto unreachable_type =  make_ptr<types::type_id_t>(make_iid(BUILTIN_UNREACHABLE_TYPE));
+	return unreachable_type;
 }
 
-types::type_t::ref type_nil() {
-	static auto nil_type = make_ptr<types::type_id_t>(make_iid(BUILTIN_NIL_TYPE));
-    return nil_type;
+types::type_t::ref type_null() {
+	static auto null_type = make_ptr<types::type_id_t>(make_iid(BUILTIN_NULL_TYPE));
+	return null_type;
 }
 
 types::type_t::ref type_void() {
@@ -1140,7 +1141,7 @@ bool types_contains(const types::type_t::refs &options, std::string signature) {
 
 void add_options(types::type_t::refs &options, const types::type_t::refs &new_options, bool &make_maybe) {
     for (auto option : new_options) {
-        if (option->is_nil()) {
+        if (option->is_null()) {
             make_maybe = true;
             continue;
         }

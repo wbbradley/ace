@@ -248,6 +248,7 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 	assert(ps.token.tk != tk_outdent);
 
+	// TODO: handle K(let)
 	if (ps.token.is_ident(K(var))) {
 		eat_token();
 		return var_decl_t::parse(ps);
@@ -284,7 +285,7 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 
 ptr<expression_t> reference_expr_t::parse(parse_state_t &ps) {
 	if (ps.token.tk == tk_identifier) {
-		if (ps.token.text == "nil") {
+		if (ps.token.text == "null") {
 			auto token = ps.token;
 			ps.advance();
 			return create<ast::literal_expr_t>(token);
@@ -2083,6 +2084,7 @@ ptr<module_t> module_t::parse(parse_state_t &ps) {
 
 		// Get vars, functions or type defs
 		while (!!ps.status) {
+			// TODO: handle K(let)
 			if (ps.token.is_ident(K(var))) {
 				ps.advance();
 				auto var = var_decl_t::parse(ps);

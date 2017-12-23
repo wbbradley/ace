@@ -12,7 +12,8 @@ RUN apt-get update -y && apt-get install -y \
 	cmake \
 	libedit-dev \
 	libbsd-dev \
-	build-essential
+	build-essential \
+	libsodium-dev
 
 RUN \
 	wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | apt-key add -
@@ -38,6 +39,7 @@ RUN apt-get update -y && apt-get install -y \
 # Make sure llvm-link and clang are linked to be available without version numbers
 RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-link-4.0 100 \
 	&& update-alternatives --install /usr/bin/clang clang /usr/bin/clang-4.0 100 \
+	&& update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-4.0 100 \
 	&& update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-4.0 100
 
 ENV ARC4RANDOM_LIB bsd

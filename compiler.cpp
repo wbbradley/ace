@@ -269,9 +269,9 @@ void add_global_types(
 {
 	/* let's add the builtin types to the program scope */
 	std::vector<std::pair<std::string, bound_type_t::ref>> globals = {
-		{{"nil"},
+		{{"null"},
 			bound_type_t::create(
-					type_nil(),
+					type_null(),
 					INTERNAL_LOC(),
 					builder.getInt8Ty()->getPointerTo())},
 		{{"void"},
@@ -363,8 +363,8 @@ void add_globals(
 	assert(!!status);
 
 	/* lookup the types of bool and void pointer for use below */
-	bound_type_t::ref nil_type = program_scope->get_bound_type({"nil"});
-	assert(nil_type != nullptr);
+	bound_type_t::ref null_type = program_scope->get_bound_type({"null"});
+	assert(null_type != nullptr);
 
 	bound_type_t::ref bool_type = program_scope->get_bound_type({BOOL_TYPE});
 	assert(bool_type != nullptr);

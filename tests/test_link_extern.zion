@@ -26,5 +26,5 @@ def main()
 	var entry Entry? = Entry(make_entry("Will"r, 123r))
 	if entry
 		print(get_name(entry))
-	entry = nil
+	entry = null
 	runtime.gc()

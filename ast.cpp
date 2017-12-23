@@ -11,7 +11,7 @@ const char *skstr(syntax_kind_t sk) {
 
 #define sk_case(x) case sk_##x: return (":" #x);
 
-		sk_case(nil)
+		sk_case(null)
 
 #define OP sk_case
 #include "sk_ops.h"

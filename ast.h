@@ -15,7 +15,7 @@
 struct parse_state_t;
 
 enum syntax_kind_t {
-	sk_nil=0,
+	sk_null=0,
 
 #define declare_syntax_kind(x) \
 	sk_##x,

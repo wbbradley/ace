@@ -60,7 +60,7 @@ void ast::when_block_t::resolve_statement(
 	return;
 }
 
-bound_var_t::ref gen_nil_check(
+bound_var_t::ref gen_null_check(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ast::item_t::ref node,
@@ -74,7 +74,7 @@ bound_var_t::ref gen_nil_check(
 	if (!!status) {
 		if (!value->type->is_ptr(scope)) {
 			user_error(status, node->get_location(),
-					"type %s cannot be compared to nil", value->type->str().c_str());
+					"type %s cannot be compared to null", value->type->str().c_str());
 		}
 
 		if (!!status) {
@@ -100,10 +100,10 @@ bound_var_t::ref gen_type_check(
 		bound_type_t::ref bound_type,
 		local_scope_t::ref *new_scope)
 {
-	if (bound_type->get_type()->is_nil()) {
-		/* checking for the nil type means checking for a zero value from a
+	if (bound_type->get_type()->is_null()) {
+		/* checking for the null type means checking for a zero value from a
 		 * pointer. */
-		return gen_nil_check(status, builder, node, scope, life, value_name, value, new_scope);
+		return gen_null_check(status, builder, node, scope, life, value_name, value, new_scope);
 	}
 
 	value = value->resolve_bound_value(status, builder, scope);

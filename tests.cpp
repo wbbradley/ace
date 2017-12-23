@@ -266,7 +266,7 @@ bool test_lex_syntax() {
 		{"return note not", {tk_identifier, tk_identifier, tk_identifier}},
 		{"return var = == pass.pass..", {tk_identifier, tk_identifier, tk_assign, tk_equal, tk_identifier, tk_dot, tk_identifier, tk_double_dot}},
 		{"not", {tk_identifier}},
-		{"nil", {tk_identifier}},
+		{"null", {tk_identifier}},
 		{"while", {tk_identifier}},
 		{"if", {tk_identifier}},
 		{"when", {tk_identifier}},
@@ -969,14 +969,14 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("Container{T, T}", "map{int, int}", generics),
 				make_type_pair("Container{T}?", "[int]", generics),
 				make_type_pair("Container{T}", "[int]", generics),
-				{type_maybe(type_ptr(type_managed(type_struct({}, {})))), type_nil()},
+				{type_maybe(type_ptr(type_managed(type_struct({}, {})))), type_null()},
 				{type_ptr(type_id(make_iid("void"))), type_ptr(type_id(make_iid("X")))},
 			}};
 
 			auto fails = std::vector<types::type_t::pair>({
 				{type_ptr(type_id(make_iid("X"))),type_ptr(type_id(make_iid("void")))},
-				{type_ptr(type_managed(type_struct({}, {}))), type_nil()},
-				{type_nil(), type_maybe(type_ptr(type_managed(type_struct({}, {}))))},
+				{type_ptr(type_managed(type_struct({}, {}))), type_null()},
+				{type_null(), type_maybe(type_ptr(type_managed(type_struct({}, {}))))},
 				make_type_pair("int", "void", {}),
 				make_type_pair("int", "void", generics),
 				make_type_pair("{T, T}", "{void, int}", generics),

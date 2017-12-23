@@ -25,7 +25,7 @@ def insert(tree Tree{any T}?, value any T) Tree{any T}
 			# this value already exists, just return the existing tree
 			return tree
 	else
-		return Tree(nil, value, nil)
+		return Tree(null, value, null)
 
 [module std]
 def str(tree Tree{any T}?) str

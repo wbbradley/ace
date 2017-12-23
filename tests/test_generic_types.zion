@@ -6,5 +6,5 @@ type Node{T} has
 	var next Node{T}?
 
 def main()
-	n1 := Node(6, nil)
+	n1 := Node(6, null)
 	n2 := Node(4, n1.next)

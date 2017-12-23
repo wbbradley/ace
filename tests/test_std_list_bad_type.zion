@@ -3,5 +3,5 @@ get list
 
 def main()
 	# error: unable to resolve overloads for list
-	l := list(3, list("hello", nil))
+	l := list(3, list("hello", null))
 	print(len(l))

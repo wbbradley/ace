@@ -34,6 +34,9 @@ def __not__(x int) bool
 def __mod__(x int, y int) int
 	return int(x.raw % y.raw)
 
+def __plus__(x int, y str) str
+	return str(x) + y
+
 def __plus__(x int, y float) float
 	return float(x.raw + y.raw)
 

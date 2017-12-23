@@ -61,7 +61,7 @@ namespace types {
 		virtual bool is_ref() const { return false; }
 		virtual bool is_function() const { return false; }
 		virtual bool is_void() const { return false; }
-		virtual bool is_nil() const { return false; }
+		virtual bool is_null() const { return false; }
 	};
 
 	bool is_type_id(type_t::ref type, std::string type_name);
@@ -79,7 +79,7 @@ namespace types {
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
 		virtual bool is_void() const;
-		virtual bool is_nil() const;
+		virtual bool is_null() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
@@ -339,7 +339,7 @@ namespace types {
 };
 
 /* type data ctors */
-types::type_t::ref type_nil();
+types::type_t::ref type_null();
 types::type_t::ref type_void();
 types::type_t::ref type_unreachable();
 types::type_t::ref type_literal(token_t token);

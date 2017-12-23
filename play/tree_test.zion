@@ -2,7 +2,7 @@ module _
 get tree
 
 def main()
-	t := tree.insert(nil, 5)
+	t := tree.insert(null, 5)
 	t = tree.insert(t, 6)
 	t = tree.insert(t, 4)
 	t = tree.insert(t, 40)

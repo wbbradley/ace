@@ -1,21 +1,21 @@
 #include "zion.h"
-#include "nil_check.h"
+#include "null_check.h"
 #include "ast.h"
 #include "bound_var.h"
 #include "logger.h"
 #include "compiler.h"
 
-bound_var_t::ref resolve_nil_check(
+bound_var_t::ref resolve_null_check(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
 		const std::vector<ptr<ast::expression_t>> &params,
-		nil_check_kind_t nck)
+		null_check_kind_t nck)
 {
 	if (params.size() != 1) {
-		user_error(status, location, "nil checks may only have one parameter");
+		user_error(status, location, "null checks may only have one parameter");
 	}
 
 	if (!!status) {
@@ -24,7 +24,7 @@ bound_var_t::ref resolve_nil_check(
 				status, builder, scope, life, false /*as_ref*/);
 
 		if (!!status) {
-			return resolve_nil_check(status, builder, scope, life, location, param_var, nck);
+			return resolve_null_check(status, builder, scope, life, location, param_var, nck);
 		}
 	}
 
@@ -32,14 +32,14 @@ bound_var_t::ref resolve_nil_check(
 	return nullptr;
 }
 
-bound_var_t::ref resolve_nil_check(
+bound_var_t::ref resolve_null_check(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
 		bound_var_t::ref value,
-		nil_check_kind_t nck)
+		null_check_kind_t nck)
 {
 	llvm::Value *llvm_value = value->resolve_bound_var_value(builder);
 	bound_type_t::ref bound_bool_type = scope->get_bound_type(BOOL_TYPE);
@@ -56,12 +56,12 @@ bound_var_t::ref resolve_nil_check(
 
 	llvm::Value *llvm_bool_value;
 	switch (nck) {
-	case nck_is_non_nil:
+	case nck_is_non_null:
 		llvm_bool_value = builder.CreateIntCast(
 				builder.CreateICmpNE(llvm_value, zero),
 				llvm_bool_type, false /*isSigned*/);
 		break;
-	case nck_is_nil:
+	case nck_is_null:
 		llvm_bool_value = builder.CreateIntCast(
 				builder.CreateICmpEQ(llvm_value, zero),
 				llvm_bool_type, false /*isSigned*/);
@@ -69,6 +69,6 @@ bound_var_t::ref resolve_nil_check(
 	}
 	assert(llvm_bool_value != nullptr);
 	return bound_var_t::create(
-			INTERNAL_LOC(), "nilcheck",
-			bound_bool_type, llvm_bool_value, make_iid("nilcheck"));
+			INTERNAL_LOC(), "nullcheck",
+			bound_bool_type, llvm_bool_value, make_iid("nullcheck"));
 }
