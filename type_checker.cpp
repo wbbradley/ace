@@ -15,7 +15,7 @@
 #include "patterns.h"
 #include <iostream>
 #include "type_kind.h"
-#include "nil_check.h"
+#include "null_check.h"
 #include <time.h>
 #include "coercions.h"
 
@@ -136,7 +136,7 @@ bound_var_t::ref generate_stack_variable(
 				 * this is even a maybe type. */
 				if (auto maybe_type = dyncast<const types::type_maybe_t>(declared_type)) {
 					/* looks like the initialization variable is a supertype
-					 * of the nil type */
+					 * of the null type */
 					unboxed = true;
 
 					stack_var_type = upsert_bound_type(status, builder, scope,
@@ -175,7 +175,7 @@ bound_var_t::ref generate_stack_variable(
 			}
 
 			if (!init_var && dyncast<const types::type_maybe_t>(declared_type)) {
-				/* this can be null, and we do not allow user-defined __init__ for maybe types, so let's initialize it as nil */
+				/* this can be null, and we do not allow user-defined __init__ for maybe types, so let's initialize it as null */
 				llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
 				builder.CreateStore(llvm_null_value, llvm_alloca);
 			} else {
@@ -201,7 +201,7 @@ bound_var_t::ref generate_stack_variable(
 
 				if (!!status) {
 					if (init_var) {
-						if (!init_var->type->get_type()->is_nil()) {
+						if (!init_var->type->get_type()->is_null()) {
 							debug_above(6, log(log_info, "creating a store instruction %s := %s",
 										llvm_print(llvm_alloca).c_str(),
 										llvm_print(init_var->get_llvm_value()).c_str()));
@@ -693,7 +693,7 @@ function_scope_t::ref make_param_list_scope(
 
 			bool allow_reassignment = false;
 			auto param_type = param.second->get_type();
-			if (!param_type->is_ref() && !param_type->is_nil()) {
+			if (!param_type->is_ref() && !param_type->is_null()) {
 				allow_reassignment = true;
 			}
 
@@ -1052,10 +1052,10 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 				assert(!status);
 				return nullptr;
 			}
-		} else if (symbol->token.text == "__is_non_nil__") {
-			return resolve_nil_check(status, builder, scope, life, get_location(), params, nck_is_non_nil);
-		} else if (symbol->token.text == "__is_nil__") {
-			return resolve_nil_check(status, builder, scope, life, get_location(), params, nck_is_nil);
+		} else if (symbol->token.text == "__is_non_null__") {
+			return resolve_null_check(status, builder, scope, life, get_location(), params, nck_is_non_null);
+		} else if (symbol->token.text == "__is_null__") {
+			return resolve_null_check(status, builder, scope, life, get_location(), params, nck_is_null);
 		}
 	}
 
@@ -1360,7 +1360,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 			*new_scope = fresh_scope;
 
 			/* looks like the initialization variable is a supertype
-			 * of the nil type */
+			 * of the null type */
 			auto bound_type = upsert_bound_type(status, builder, scope,
 					was_ref ? type_ref(maybe_type->just) : maybe_type->just);
 
@@ -1371,7 +1371,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 				// value can never be assigned to this value. This could
 				// generally be considered good in the abstract, however in
 				// practice it's common for users to want to assign variables a
-				// nil value as a way of signaling loop exits and the like.
+				// null value as a way of signaling loop exits and the like.
 
 				/* because we're evaluating this maybe value in the context of a
 				 * condition (super simplified at this point), let's redeclare it
@@ -1544,7 +1544,7 @@ bool rnpbc_equality_is_truth(rnpbc_t rnpbc) {
 	}
 }
 
-bool rnpbc_rhs_non_nil_is_truth(rnpbc_t rnpbc) {
+bool rnpbc_rhs_non_null_is_truth(rnpbc_t rnpbc) {
 	switch (rnpbc) {
 	case rnpbc_eq:
 		return false;
@@ -1561,7 +1561,7 @@ bool rnpbc_rhs_non_nil_is_truth(rnpbc_t rnpbc) {
 	}
 }
 
-bool rnpbc_lhs_non_nil_is_truth(rnpbc_t rnpbc) {
+bool rnpbc_lhs_non_null_is_truth(rnpbc_t rnpbc) {
 	switch (rnpbc) {
 	case rnpbc_eq:
 		return false;
@@ -1588,34 +1588,34 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		bound_var_t::ref rhs_var,
 		rnpbc_t rnpbc)
 {
-	if (lhs_var->type->get_type()->is_nil()) {
-		if (rhs_var->type->get_type()->is_nil()) {
+	if (lhs_var->type->get_type()->is_null()) {
+		if (rhs_var->type->get_type()->is_null()) {
 			return scope->get_program_scope()->get_bound_variable(
 					status,
 					location,
 					rnpbc_equality_is_truth(rnpbc) ? "__true__" : "__false__",
 					false /*search_parents*/);
 		} else {
-			return resolve_nil_check(
+			return resolve_null_check(
 					status,
 					builder,
 					scope,
 					life,
 					location,
 					rhs_var,
-					rnpbc_rhs_non_nil_is_truth(rnpbc) ? nck_is_non_nil : nck_is_nil);
+					rnpbc_rhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null);
 		}
-	} else if (rhs_var->type->get_type()->is_nil()) {
-		return resolve_nil_check(
+	} else if (rhs_var->type->get_type()->is_null()) {
+		return resolve_null_check(
 				status,
 				builder,
 				scope,
 				life,
 				location,
 				lhs_var,
-				rnpbc_lhs_non_nil_is_truth(rnpbc) ? nck_is_non_nil : nck_is_nil);
+				rnpbc_lhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null);
 	} else {
-		/* neither side is nil */
+		/* neither side is null */
 		if (!lhs_var->is_pointer()) { std::cerr << lhs_var->str() << " " << llvm_print(lhs_var->get_llvm_value()) << std::endl; dbg(); }
 		if (!rhs_var->is_pointer()) { std::cerr << rhs_var->str() << " " << llvm_print(rhs_var->get_llvm_value()) << std::endl; dbg(); }
 
@@ -1973,17 +1973,17 @@ bound_var_t::ref type_check_binary_operator(
 				rhs,
 				function_name);
 	} else {
-		bool lhs_is_nil = lhs->type->get_type()->is_nil();
-		bool rhs_is_nil = rhs->type->get_type()->is_nil();
+		bool lhs_is_null = lhs->type->get_type()->is_null();
+		bool rhs_is_null = rhs->type->get_type()->is_null();
 
 		/* see whether we should just do a binary value comparison */
 		if (
 				(lhs->type->is_function()
 				 || lhs->type->is_ptr(scope)
-				 || lhs_is_nil) &&
+				 || lhs_is_null) &&
 				(rhs->type->is_function()
 				 || rhs->type->is_ptr(scope)
-				 || rhs_is_nil))
+				 || rhs_is_null))
 		{
 			bool lhs_is_managed;
 			lhs->type->is_managed_ptr(
@@ -1992,7 +1992,7 @@ bound_var_t::ref type_check_binary_operator(
 					scope,
 					lhs_is_managed);
 			if (!!status) {
-				if (!lhs_is_managed || rhs_is_nil) {
+				if (!lhs_is_managed || rhs_is_null) {
 					bool rhs_is_managed;
 					rhs->type->is_managed_ptr(
 							status,
@@ -2000,7 +2000,7 @@ bound_var_t::ref type_check_binary_operator(
 							scope,
 							rhs_is_managed);
 					if (!!status) {
-						if (!rhs_is_managed || lhs_is_nil) {
+						if (!rhs_is_managed || lhs_is_null) {
 							/* yeah, it looks like we are operating on two native pointers */
 							return resolve_native_pointer_binary_operation(status, builder, scope,
 									life, obj->get_location(), lhs, rhs, function_name);
@@ -2159,6 +2159,7 @@ llvm::Value *get_raw_condition_value(
 		ast::item_t::ref condition,
 		bound_var_t::ref condition_value)
 {
+	// REVIEW: this function seems suspect now
 	if (condition_value->is_int()) {
 		return condition_value->resolve_bound_var_value(builder);
 	} else if (condition_value->is_pointer()) {
@@ -2203,22 +2204,34 @@ llvm::Value *maybe_get_bool_overload_value(
 		}
 
 		var_t::refs fns;
-		auto bool_fn = maybe_get_callable(status, builder, scope, BOOL_TYPE,
-				condition->get_location(), type_args({condition_type}), nullptr, fns);
+		auto bool_fn = maybe_get_callable(status, builder, scope, "__bool__",
+				condition->get_location(), type_args({condition_type}), type_id(make_iid(BOOL_TYPE)), fns);
 
 		if (!!status) {
 			if (bool_fn != nullptr) {
 				/* we've found a bool function that will take our condition as input */
 				assert(bool_fn != nullptr);
+				types::type_function_t::ref bool_fn_type = dyncast<const types::type_function_t>(bool_fn->type->get_type());
+				assert(bool_fn_type != nullptr);
+				types::type_args_t::ref bool_fn_args_type = dyncast<const types::type_args_t>(bool_fn_type->args);
+				assert(bool_fn_args_type != nullptr);
+				assert(bool_fn_args_type->args.size() == 1);
 
-				if (get_function_return_type(bool_fn->type->get_type())->get_signature() == "__bool__") {
-					debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (type %s)",
-								condition->str().c_str(), bool_fn->type->str().c_str()));
+				debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (type %s)",
+							condition->str().c_str(), bool_fn->type->str().c_str()));
 
+				llvm::Value *llvm_value = coerce_value(
+						status, builder, scope,
+						condition_value->get_location(),
+						bool_fn_args_type->args[0],
+						condition_value);
+
+				if (!!status) {
 					/* let's call this bool function */
 					llvm_condition_value = llvm_create_call_inst(
-							status, builder, condition->get_location(), bool_fn,
-							{condition_value->resolve_bound_var_value(builder)});
+							status, builder, condition->get_location(),
+							bool_fn,
+							{llvm_value});
 
 					if (!!status) {
 						/* NB: no need to track this value in a life because it's
@@ -2226,11 +2239,6 @@ llvm::Value *maybe_get_bool_overload_value(
 						assert(llvm_condition_value->getType()->isIntegerTy());
 						return llvm_condition_value;
 					}
-				} else {
-					user_error(status, bool_fn->get_location(),
-							"__bool__ coercion function must return a " C_TYPE "__bool__" C_RESET);
-					user_error(status, bool_fn->get_location(),
-							"implicit __bool__ was defined function must return a " C_TYPE "__type__" C_RESET);
 				}
 			} else {
 				/* treat all values without overloaded bool functions as truthy */
@@ -2280,6 +2288,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		condition_value = condition->resolve_expression(
 				status, builder, scope, life, false /*as_ref*/);
 	}
+	debug_above(7, log("conditional expression has condition of type %s", condition_value->type->str().c_str()));
 
 	if (!!status) {
 		assert(!condition_value->type->is_ref());
@@ -4346,11 +4355,11 @@ void ast::if_block_t::resolve_statement(
 	 * else
 	 *   print("no x-value available")
 	 *
-	 * if nil is a subtype of maybe_vector, then the above code
+	 * if null is a subtype of maybe_vector, then the above code
 	 * effectively becomes:
 	 *
-	 * if __not_nil__(maybe_vector)
-	 *   v := __discard_nil__(maybe_vector)
+	 * if __not_null__(maybe_vector)
+	 *   v := __discard_null__(maybe_vector)
 	 *   // if there is a __bool__ function defined for type(v), add another
 	 *   // if statement:
 	 *   if not v
@@ -4360,7 +4369,7 @@ void ast::if_block_t::resolve_statement(
 	 * l_else:
 	 *   print("no x-value available")
 	 *
-	 * if nil is not a subtype of maybe_vector, for example, for a Vector
+	 * if null is not a subtype of maybe_vector, for example, for a Vector
 	 * class...
 	 */
 
@@ -4671,8 +4680,8 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
 			rhs_var->type->is_managed_ptr(status, builder, scope, is_managed);
 			if (!!status) {
 				if (!is_managed) {
-					return resolve_nil_check(status, builder, scope, life,
-							get_location(), rhs_var, nck_is_nil);
+					return resolve_null_check(status, builder, scope, life,
+							get_location(), rhs_var, nck_is_null);
 				} else {
 					/* TODO: revisit whether managed types must/can override __not__? */
 				}
@@ -4699,16 +4708,16 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
     switch (token.tk) {
 	case tk_identifier:
 		{
-			assert(token.text == "nil");
-			auto nil_type = program_scope->get_bound_type({"nil"});
+			assert(token.text == "null");
+			auto null_type = program_scope->get_bound_type({"null"});
 			auto bound_type = bound_type_t::create(
-					type_nil(),
+					type_null(),
 					token.location,
-					nil_type->get_llvm_type(),
-					nil_type->get_llvm_specific_type());
+					null_type->get_llvm_type(),
+					null_type->get_llvm_specific_type());
 			return bound_var_t::create(
-					INTERNAL_LOC(), "nil", bound_type,
-					llvm::Constant::getNullValue(nil_type->get_llvm_specific_type()),
+					INTERNAL_LOC(), "null", bound_type,
+					llvm::Constant::getNullValue(null_type->get_llvm_specific_type()),
 					make_code_id(token));
 		}
 		break;

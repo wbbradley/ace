@@ -10,4 +10,4 @@ type MutualB has
 	var friend MutualInt?
 
 def main()
-	m := MutualInt(3, MutualFloat(3.4, nil))
+	m := MutualInt(3, MutualFloat(3.4, null))

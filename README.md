@@ -72,7 +72,7 @@ The Backus–Naur form for the syntax is in `syntax.ebnf`.
 
 Zion uses unification to match substitutable types at function callsites.
 Type inference is built-in. The only automatic coercion that Zion performs is
-to look for `__bool__` values for conditional statements. (TODO: revisit this
+to look for `bool_t` values for conditional statements. (TODO: revisit this
 explanation...)
 
 Types are declared as follows:
@@ -140,8 +140,8 @@ type bool is
 # an instance of the type is created by calling its implicit constructor. If the
 # "has" type contains 2 dimensions, then the generated constructor takes 2
 # parameters. The question-mark indicates that the preceding type is a "maybe"
-# type. This means that it can sometimes be nil. Zion will try its best to not
-# let you dereference nil pointers.
+# type. This means that it can sometimes be `null`. Zion will try its best to not
+# let you dereference `null` pointers.
 
 ```
 

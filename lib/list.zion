@@ -11,7 +11,7 @@ def nth(l list{any T}?, index int) any T?
 		else
 			return nth(l.next, index - 1)
 
-	return nil
+	return null
 
 def len(l list{any T}?) int
 	if l
@@ -21,7 +21,7 @@ def len(l list{any T}?) int
 def conj(maybe_list list{any T}?, item any T) list{any T}
 	if l := maybe_list
 		return list(item, l)
-	return list(item, nil)
+	return list(item, null)
 
 
 def str(l list{any T}?) str

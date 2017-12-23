@@ -128,7 +128,7 @@ ZION_LLVM_SOURCES = \
 				logger.cpp \
 				main.cpp \
 				mmap_file.cpp \
-				nil_check.cpp \
+				null_check.cpp \
 				parse_state.cpp \
 				parser.cpp \
 				patterns.cpp \
@@ -163,6 +163,9 @@ ZION_RUNTIME_OBJECTS = $(ZION_RUNTIME:.c=.o)
 TARGETS = $(ZION_TARGET)
 
 all: $(TARGETS)
+
+install: zion
+	ln -s `pwd`/zion /usr/local/bin/zion
 
 -include $(ZION_LLVM_OBJECTS:.o=.d)
 

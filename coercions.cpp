@@ -62,7 +62,7 @@ llvm::Value *coerce_value(
 						return builder.CreateZExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
 					}
 				}
-			} else if (rhs->type->get_type()->is_nil()) {
+			} else if (rhs->type->get_type()->is_null()) {
 				/* we're passing in a null value */
 				assert(llvm_lhs_type->isPointerTy());
 				return llvm::Constant::getNullValue(llvm_lhs_type);

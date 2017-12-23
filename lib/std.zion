@@ -27,14 +27,14 @@ def mbstowcs(mbs *char_t) *wchar_t
 	# Converts from current locale's encoding to wide-char encoding. Allocates memory that
 	# must be freed later.
 	mbslen := posix.strlen(mbs)
-	wcs_cb := posix.mbstowcs(nil, mbs, 0r)
+	wcs_cb := posix.mbstowcs(null, mbs, 0r)
 	if wcs_cb == -1r
 		posix.puts("Failed to convert string from multi-byte to wide char!"r)
 		posix.exit(1r)
 	wcs_size := wcs_cb + 1r
 	cb := sizeof(wchar_t) * wcs_size
 	wcs := posix.malloc(cb) as *wchar_t
-	if wcs == nil
+	if wcs == null
 		posix.puts("out of memory - set a breakpoint on `exit` in order to debug"r)
 		posix.exit(-1r)
 
@@ -45,7 +45,7 @@ def wcstombs(wcs *wchar_t) *char_t
 	# Converts from wide char encoding to current locale's encoding
 	# must be freed later.
 	wcslen := posix.wcslen(wcs)
-	mbs_cb := posix.wcstombs(nil, wcs, wcslen)
+	mbs_cb := posix.wcstombs(null, wcs, wcslen)
 	if mbs_cb == -1r
 		posix.puts("Failed to convert string from wide char to multi-byte!"r)
 		breakpoint()
@@ -54,7 +54,7 @@ def wcstombs(wcs *wchar_t) *char_t
 	mbs_size := mbs_cb + 1r
 	cb := sizeof(char_t) * mbs_size
 	mbs := posix.malloc(cb) as *char_t
-	if mbs == nil
+	if mbs == null
 		posix.puts("out of memory - set a breakpoint on `exit` in order to debug"r)
 		posix.exit(-1r)
 
@@ -75,7 +75,7 @@ def rand(max int) int
 	return int(r % max.raw)
 
 def __bool__(x [any T] or str or int or bool) bool_t
-	assert(x as *void != nil)
+	assert(x as *void != null)
 	when x
 		is true
 			return __true__
@@ -91,8 +91,8 @@ def __bool__(x [any T] or str or int or bool) bool_t
 	node := x as *var_t
 	print("failed to match type of object at 0x"
 		+ hexdigest(&node, sizeof(*var_t))
-		+ " and is a " + str(node.type_info.name)
-		+ " with type ID " + str(node.type_info.type_id as int_t))
+		+ " and is a " + str(mbstowcs(node.type_info.name))
+		+ " with type ID " + str(node.type_info.type_id))
 	assert(__false__)
 	return __false__
 

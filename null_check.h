@@ -6,25 +6,25 @@
 
 struct status_t;
 
-enum nil_check_kind_t {
-	nck_is_non_nil,
-	nck_is_nil,
+enum null_check_kind_t {
+	nck_is_non_null,
+	nck_is_null,
 };
 
-bound_var_t::ref resolve_nil_check(
+bound_var_t::ref resolve_null_check(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
 		const std::vector<ptr<ast::expression_t>> &params,
-		nil_check_kind_t nck);
+		null_check_kind_t nck);
 
-bound_var_t::ref resolve_nil_check(
+bound_var_t::ref resolve_null_check(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
 		bound_var_t::ref value,
-		nil_check_kind_t nck);
+		null_check_kind_t nck);

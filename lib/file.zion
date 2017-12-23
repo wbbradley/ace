@@ -1,7 +1,6 @@
-module _
-get posix
+module file
 
-link var errno int_t
+get posix
 
 type Open has
 	var fp *posix.FILE
@@ -17,17 +16,17 @@ tag EOF
 
 def open(name str, mode str) File
 	fp := posix.fopen(utf8(name).raw, utf8(mode).raw)
-	if fp != nil
+	if fp != null
 		return File(name, Open(fp))
 	else
-		return File(name, Error(int(errno)))
+		return File(name, Error(int(posix.errno())))
 
 def close(f File)
 	state := f.state
 	when state
 		is Open
 			ret := posix.fclose(state.fp)
-			state.fp = nil
+			state.fp = null
 			f.state = Closed
 		is Closed
 			print("Error: attempt to close a file that is already closed.")
@@ -41,14 +40,14 @@ def __finalize__(of Open)
 		ret := posix.fclose(of.fp)
 		if ret != 0r
 			print("Error: failed to close file")
-		of.fp = nil
+		of.fp = null
 
 type FileLines has
 	var file File
 	var cur_line str?
 
 def readlines(f File) FileLines
-	return FileLines(f, nil)
+	return FileLines(f, null)
 
 [global]
 def __iter_begin__(fl FileLines) FileLines
@@ -56,12 +55,12 @@ def __iter_begin__(fl FileLines) FileLines
 	return fl
 
 [global]
-def __iter_end__(fl FileLines) nil
-	return nil
+def __iter_end__(fl FileLines) null
+	return null
 
 [global]
-def __iter_valid__(fl FileLines, _ nil) bool_t
-	return fl.cur_line != nil
+def __iter_valid__(fl FileLines, _ null) bool_t
+	return fl.cur_line != null
 
 [global]
 def __iter_item__(fl FileLines) str
@@ -76,16 +75,16 @@ def __iterate__(fl FileLines)
 			return
 		is Error
 			print("Error: encountered error " + s.errno + " while reading " + fl.file.filename)
-			fl.cur_line = nil
+			fl.cur_line = null
 		is EOF
-			fl.cur_line = nil
+			fl.cur_line = null
 
 def readline(f File) str or Error or EOF
 	state := f.state
 	when state
 		is Open
 			linecap := 0r
-			line := nil as *char_t
+			line := null as *char_t
 			linelen := posix.getline(&line, &linecap, state.fp)
 			if linelen == -1r
 				return EOF

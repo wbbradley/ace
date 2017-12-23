@@ -2,7 +2,7 @@ module _ @1.0
 # test: pass
 
 def get_maybe() int?
-	return nil
+	return null
 
 def get() void
 	return

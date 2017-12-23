@@ -9,5 +9,5 @@ def main()
 	if v
 		v = Vector(1.0, 2.0)
 		# error: left-hand side is incompatible
-		v = nil
+		v = null
 	print("pass")

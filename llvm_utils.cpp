@@ -441,7 +441,7 @@ llvm::AllocaInst *llvm_call_gcroot(
 	auto llvm_terminator_inst = builder.GetInsertBlock()->getTerminator();
 	assert(llvm_terminator_inst != nullptr);
 
-	/* initialize this alloca as nil, so that if we want to call runtime.gc somewhere in the middle
+	/* initialize this alloca as null, so that if we want to call runtime.gc somewhere in the middle
 	 * of the function we don't read uninitialized data */
 
 	builder.SetInsertPoint(llvm_terminator_inst);
@@ -898,26 +898,26 @@ bool llvm_value_is_pointer(llvm::Value *llvm_value) {
     return llvm_type->isPointerTy();
 }
 
-bound_var_t::ref get_nil_constant(
+bound_var_t::ref get_null_constant(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,
 		types::type_t::ref type)
 {
-	assert(false && "probably we should delete this, since nil requires special treatment... or fix it...");
+	assert(false && "probably we should delete this, since null requires special treatment... or fix it...");
 	if (!types::is_ptr(type, scope->get_typename_env())) {
-		user_error(status, location, c_id("nil") " is not defined for non-pointer types");
+		user_error(status, location, c_id("null") " is not defined for non-pointer types");
 	}
 
 	if (!!status) {
 		bound_type_t::ref var_type = upsert_bound_type(status, builder, scope, type);
 		if (!!status) {
-			llvm::Type *llvm_nil_type = var_type->get_llvm_type();
-			llvm::Constant *llvm_nil_value = llvm::Constant::getNullValue(llvm_nil_type);
+			llvm::Type *llvm_null_type = var_type->get_llvm_type();
+			llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(llvm_null_type);
 			program_scope_t::ref program_scope = scope->get_program_scope();
-			return bound_var_t::create(INTERNAL_LOC(), "nil",
-					var_type, llvm_nil_value, make_iid("nil"));
+			return bound_var_t::create(INTERNAL_LOC(), "null",
+					var_type, llvm_null_value, make_iid("null"));
 		}
 	}
 	assert(!status);

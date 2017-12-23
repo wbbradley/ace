@@ -76,16 +76,16 @@ def get_total_allocated() size_t
 
 def check_node_existence(node *var_t, should_exist bool_t) void
 	var p *var_t = runtime.__head_var
-	assert(p == nil or p.prev == nil)
+	assert(p == null or p.prev == null)
 
 	if should_exist
-		assert(p.next != nil)
-		assert(node != nil)
+		assert(p.next != null)
+		assert(node != null)
 		assert(node.prev != 3735928559r as *var_t)
 		assert(node.next != 3735928559r as *var_t)
-		assert(node.prev != nil)
+		assert(node.prev != null)
 
-	while p != nil
+	while p != null
 		if p == node
 			if not should_exist
 				# dbg_zrt(printf("node 0x%08lx of type %s already exists!\n", (intptr_t)node, node.type_info.name))
@@ -103,7 +103,7 @@ def add_node(node *var_t) void
 	assert(runtime.__head_var)
 	# check_node_existence(node, __false__)
 
-	if node.prev != nil or node.next != nil
+	if node.prev != null or node.next != null
 		# dbg_zrt(printf("node 0x%08lx #%lld of type %s already has prev and next ptrs?!\n", (intptr_t)node, (long long)node.allocation, node.type_info.name))
 		posix.exit(-1r)
 
@@ -111,12 +111,12 @@ def add_node(node *var_t) void
 
 	node.prev = __head_var
 	node.next = __head_var.next
-	if node.next != nil
+	if node.next != null
 		node.next.prev = node
 
 	__head_var.next = node
 
-	assert(__head_var.prev == nil)
+	assert(__head_var.prev == null)
 	assert(__head_var.next.prev == __head_var)
 	assert(node.prev.next == node)
 	if node.next
@@ -134,10 +134,10 @@ def remove_node(node *var_t) void
 	# check_node_existence(node, __true__)
 
 	assert(node.prev.next == node)
-	assert(node.next == nil or node.next.prev == node)
+	assert(node.next == null or node.next.prev == node)
 
 	node.prev.next = node.next
-	if node.next != nil
+	if node.next != null
 		node.next.prev = node.prev
 	node.next = 3735928559r as *var_t
 	node.prev = 3735928559r as *var_t
@@ -150,8 +150,8 @@ def protect_node(node *var_t) void
 	# remove this node from the heap list
 	remove_node(node)
 
-	assert(node.next == nil)
-	assert(node.prev == nil)
+	assert(node.next == null)
+	assert(node.prev == null)
 
 	# insert it before the head node in the list, so that it is not
 	# found during heap walks.
@@ -163,7 +163,7 @@ def protect_node(node *var_t) void
 
 
 def get_var_type_id(v *var_t) typeid_t
-	if v != nil
+	if v != null
 		return v.type_info.type_id as typeid_t
 	else
 		# MEM_PANIC("attempt to get_var_type_id of a null value ", "", 116)
@@ -223,7 +223,7 @@ def create_var(type_info *type_info_t) *var_t
 #  @param heap_visit A function to invoke for every GC root on the stack.
 def visit_heap_roots(heap_visit def (obj *var_t) void)
 	R := llvm_gc_root_chain as *stack_entry_plus_root_t
-	while R != nil
+	while R != null
 		assert(R as int_t != 0r)
 		assert(R.map.num_meta == 0r as int32_t)
 		# posix.puts("R is 0x"r + __str__(&R.root0 as int_t, 16r))
@@ -238,13 +238,13 @@ def visit_heap_roots(heap_visit def (obj *var_t) void)
 		assert(i <= e)
 		while i != e
 			node := (&R.root0 as **var_t)[i]
-			if node == nil
+			if node == null
 				i += 1r
 				continue
 
 			# posix.puts(__str__(node as int_t, 16r))
 			# posix.puts(__str__(node.type_info as int_t))
-			assert(node.type_info != nil and node.type_info.name != nil)
+			assert(node.type_info != null and node.type_info.name != null)
 			# posix.puts("visiting heap node 0x"r + __str__(node as int_t, 16r) + " of type "r + node.type_info.name)
 			# we have a heap variable
 			heap_visit(node)
@@ -255,7 +255,7 @@ def visit_heap_roots(heap_visit def (obj *var_t) void)
 
 def visit_allocations(visit def (obj *var_t) void)
 	node := __head_var.next
-	while node != nil
+	while node != null
 		# cache the next node in case our current node gets deleted as part of the fn
 		next := node.next
 
@@ -267,7 +267,7 @@ def visit_allocations(visit def (obj *var_t) void)
 
 
 def mark_allocation(obj *var_t)
-	if obj == nil
+	if obj == null
 		return
 
 	# dbg_zrt(printf("heap variable is referenced on the stack at 0x%08llx and is a '%s'\n", (long long)obj, obj.type_info.name))
@@ -323,14 +323,14 @@ def finalize(obj *var_t)
 		var type_info_offsets *type_info_offsets_t = obj.type_info as *type_info_offsets_t
 
 		finalizer := type_info_offsets.finalize_fn
-		if finalizer != nil
+		if finalizer != null
 			finalizer(obj)
 
 	elif type_kind == runtime.TYPE_KIND_USE_MARK_FN
 		# call the type's mark function to recurse
 		type_info_mark_fn := obj.type_info as *type_info_mark_fn_t
 		finalizer := type_info_mark_fn.finalize_fn
-		if finalizer != nil
+		if finalizer != null
 			finalizer(obj)
 			
 	else
@@ -361,7 +361,7 @@ def gc()
 	_gc_generation = runtime._var_allocation
 
 	# posix.puts("running gc..."r)
-	__debug_zion_runtime = posix.getenv("DBG_ZRT"r) != nil
+	__debug_zion_runtime = posix.getenv("DBG_ZRT"r) != null
 	visit_allocations(clear_mark_bit)
 	__visit_module_vars(mark_allocation)
 	visit_heap_roots(mark_allocation)

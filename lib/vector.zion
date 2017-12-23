@@ -95,9 +95,9 @@ def __getvectoritem__(vector *vector_t, index int_t) *var_t
 	if index >= 0r and index < vector.size
 		return vector.items[index]
 
-	print("zion: array index out of bounds (0x" + __box__(__str__(vector as int_t, 16r)) + "[" + int(index) + "])")
+	print("zion: array index out of bounds (0x" + __box__(__str__(vector as int_t, 16r)) + "[" + int(index) + "]) where array has length " + int(vector.size))
 	assert(false)
-	return nil as *var_t
+	return null as *var_t
 
 def __setvectoritem__(vector *vector_t, index int_t, item *var_t)
 	if index < 0r

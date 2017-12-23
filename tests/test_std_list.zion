@@ -4,5 +4,5 @@ module _
 get list
 
 def main()
-	l := list(3, list(2, nil))
+	l := list(3, list(2, null))
 	print(len(l))

@@ -38,6 +38,7 @@ link def wcslen(wcs *wchar_t) size_t
 link def putw(wch wchar_t, fp *FILE) int_t
 link def mbstowcs(wcs *wchar_t, mbs *char_t, mbslen size_t) size_t
 link def wcstombs(mbs *char_t, wcs *wchar_t, wcslen size_t) size_t
+link def errno() int_t to __errno
 
 type FILE struct
 

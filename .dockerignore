@@ -1,7 +1,9 @@
-build-*
-build
-docs
-*.llir
-*.ir
-zionc
-*.o
+**/build-*
+**/build
+**/docs
+**/*.llir
+**/*.ir
+**/zion
+**/*.o
+**/logs
+.git
