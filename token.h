@@ -99,6 +99,7 @@ K(has);
 K(if);
 K(in);
 K(is);
+K(let);
 K(link);
 K(matches);
 K(module);

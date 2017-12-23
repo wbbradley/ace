@@ -75,10 +75,11 @@ bool token_begins_type(const token_t &token) {
 	};
 }
 
-ptr<var_decl_t> var_decl_t::parse(parse_state_t &ps) {
+ptr<var_decl_t> var_decl_t::parse(parse_state_t &ps, bool is_let) {
 	expect_token(tk_identifier);
 
 	auto var_decl = create<ast::var_decl_t>(ps.token);
+	var_decl->is_let = is_let;
 	eat_token();
 
 	if (ps.token.tk != tk_assign) {
@@ -197,7 +198,8 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 		}
 	} else if (ps.token.is_ident(K(var))) {
 		ps.advance();
-		auto var_decl = var_decl_t::parse(ps);
+		// REVIEW: does it make sense to handle 'let' in this context?
+		auto var_decl = var_decl_t::parse(ps, false /* is_let */);
 		if (!!ps.status) {
 			auto link_var = create<link_var_statement_t>(link_token);
 			link_var->var_decl = var_decl;
@@ -248,10 +250,12 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 	assert(ps.token.tk != tk_outdent);
 
-	// TODO: handle K(let)
 	if (ps.token.is_ident(K(var))) {
-		eat_token();
-		return var_decl_t::parse(ps);
+		ps.advance();
+		return var_decl_t::parse(ps, false /*is_let*/);
+	} else if (ps.token.is_ident(K(let))) {
+		ps.advance();
+		return var_decl_t::parse(ps, true /*is_let*/);
 	} else if (ps.token.is_ident(K(if))) {
 		return if_block_t::parse(ps);
 	} else if (ps.token.is_ident(K(while))) {
@@ -2082,16 +2086,13 @@ ptr<module_t> module_t::parse(parse_state_t &ps) {
 		/* TODO: update the parser to contain the type maps from the link_names */
 		add_type_macros_to_parser(ps, module->linked_names);
 
-		// Get vars, functions or type defs
+		/* Get vars, functions or type defs */
 		while (!!ps.status) {
-			// TODO: handle K(let)
-			if (ps.token.is_ident(K(var))) {
+			if (ps.token.is_ident(K(var)) || ps.token.is_ident(K(let))) {
 				ps.advance();
-				auto var = var_decl_t::parse(ps);
-				if (var) {
+				auto var = var_decl_t::parse(ps, ps.token.is_ident(K(let)) /* is_let */);
+				if (!!ps.status) {
 					module->var_decls.push_back(var);
-				} else {
-					assert(!ps.status);
 				}
 			} else if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(def))) {
 				/* function definitions */

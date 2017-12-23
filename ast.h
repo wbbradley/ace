@@ -413,7 +413,7 @@ namespace ast {
 		typedef ptr<const var_decl_t> ref;
 
 		static const syntax_kind_t SK = sk_var_decl;
-		static ptr<var_decl_t> parse(parse_state_t &ps);
+		static ptr<var_decl_t> parse(parse_state_t &ps, bool is_let);
 		static ptr<var_decl_t> parse_param(parse_state_t &ps);
 		bound_var_t::ref resolve_as_link(
 				status_t &status,
@@ -440,11 +440,22 @@ namespace ast {
 		virtual bool has_initializer() const;
 		virtual bound_var_t::ref resolve_initializer(
 				status_t &status,
-				llvm::IRBuilder<> &builder, scope_t::ref scope, life_t::ref life) const;
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				life_t::ref life) const;
 		/* the inherited ast::item::token member contains the actual identifier
 		 * name */
+
+		/* is_let defines whether the name of this variable can be repointed at some other value */
+		bool is_let = false;
+
+		/* type describes the type of the value this name refers to */
 		types::type_t::ref type;
+
+		/* how should this variable be initialized? */
 		ptr<expression_t> initializer;
+
+		/* for module variables, extends_module describes the module that this variable should be injected into */
 		identifier::ref extends_module;
 	};
 
