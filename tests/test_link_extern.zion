@@ -3,8 +3,9 @@ module _
 # expect: allocating entry for Will: 123
 # expect: freeing entry Will: 123
 
-# TODO: clean this up
-link in "build-Darwin/tests/test_link_extern_entry.o"
+# TODO: clean this up - add in some sort of ability to autoexpand env vars, or compilation params
+# link in "build-Darwin/tests/test_link_extern_entry.o"
+link in "/tmp/test_link_extern_entry.o"
 
 link def make_entry(name *char_t, number int_t) *EntryImpl
 link def free_entry(entry *EntryImpl) void

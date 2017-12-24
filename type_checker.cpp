@@ -57,13 +57,118 @@ bound_type_t::ref get_fully_bound_param_info(
 	return nullptr;
 }
 
+
+llvm::Value *resolve_init_var(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		const ast::like_var_decl_t &obj,
+		const std::string &symbol,
+		types::type_t::ref declared_type,
+		llvm::Function *llvm_function,
+		bound_var_t::ref init_var,
+		bound_type_t::ref value_type,
+		bool is_managed)
+{
+	/* assumption here is that init_var has already been unified against the declared type.
+	 * if this function returns an AllocaInst then that will imply that the variable should be
+	 * treated as a ref that can be changed. */
+	if (!!status) {
+		llvm::AllocaInst *llvm_alloca;
+		if (is_managed) {
+			/* we need stack space, and we have to track it for garbage collection */
+			llvm_alloca = llvm_call_gcroot(llvm_function, value_type, symbol);
+		} else if (obj.is_let()) {
+			/* we don't need a stack var */
+			llvm_alloca = nullptr;
+		} else {
+			/* we need some stack space because this name is mutable */
+			llvm_alloca = llvm_create_entry_block_alloca(llvm_function, value_type, symbol);
+		}
+
+		if (init_var == nullptr) {
+			if (dyncast<const types::type_maybe_t>(declared_type)) {
+				/* this can be null, and we do not allow user-defined __init__ for maybe types, so let's initialize it as null */
+				llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
+				if (llvm_alloca == nullptr) {
+					return llvm_null_value;
+				} else {
+					assert(!obj.is_let());
+					assert(llvm_alloca != nullptr);
+					builder.CreateStore(llvm_null_value, llvm_alloca);
+					return llvm_alloca;
+				}
+			} else {
+				/* this is not a maybe type */
+				/* the user didn't supply an initializer, let's see if this type has one */
+				auto init_fn = get_callable(
+						status,
+						builder,
+						scope->get_module_scope(),
+						"__init__",
+						obj.get_location(),
+						type_args({}, {}),
+						value_type->get_type());
+
+				if (!!status) {
+					init_var = make_call_value(status, builder, obj.get_location(), scope,
+							life, init_fn, {} /*arguments*/);
+				} else {
+					user_error(status, obj.get_location(), "missing initializer");
+				}
+			}
+		}
+
+		if (!!status) {
+			if (init_var != nullptr) {
+				llvm::Value *llvm_init_value;
+				if (!init_var->type->get_type()->is_null()) {
+					debug_above(6, log(log_info, "creating a store instruction %s := %s",
+								llvm_print(llvm_alloca).c_str(),
+								llvm_print(init_var->get_llvm_value()).c_str()));
+
+					llvm_init_value = coerce_value(status, builder, scope, 
+							obj.get_location(), value_type->get_type(), init_var);
+				} else {
+					llvm_init_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
+				}
+
+				if (llvm_init_value->getName().size() == 0) {
+					llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+				}
+
+				if (llvm_alloca == nullptr) {
+					/* this is a native 'let' */
+					assert(obj.is_let());
+					assert(!is_managed);
+					return llvm_init_value;
+				} else {
+					builder.CreateStore(llvm_init_value, llvm_alloca);
+					if (obj.is_let()) {
+						/* this is a managed 'let' */
+						assert(is_managed);
+						return builder.CreateLoad(llvm_alloca);
+					} else {
+						/* this is a native or managed 'var' */
+						return llvm_alloca;
+					}
+				}
+			}
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref generate_stack_variable(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
 		const ast::like_var_decl_t &obj,
-		std::string symbol,
+		const std::string &symbol,
 		types::type_t::ref declared_type,
 		bool maybe_unbox)
 {
@@ -88,6 +193,7 @@ bound_var_t::ref generate_stack_variable(
 	/* 'stack_var_type' is keeping track of what the stack variable's type will be (hint: it should
 	 * just be a ref to the value_type) */
 	bound_type_t::ref stack_var_type;
+
 	/* 'value_type' is keeping track of what the variable's ending type will be */
 	bound_type_t::ref value_type;
 
@@ -163,74 +269,23 @@ bound_var_t::ref generate_stack_variable(
 		llvm::Function *llvm_function = llvm_get_function(builder);
 
 		// NOTE: we don't make this a gcroot until a little later on
-		llvm::AllocaInst *llvm_alloca;
 		bool is_managed;
 		value_type->is_managed_ptr(status, builder, scope, is_managed);
-
+		llvm::Value *llvm_value = nullptr;
 		if (!!status) {
-			if (is_managed) {
-				llvm_alloca = llvm_call_gcroot(llvm_function, value_type, symbol);
-			} else {
-				llvm_alloca = llvm_create_entry_block_alloca(llvm_function, value_type, symbol);
-			}
-
-			if (!init_var && dyncast<const types::type_maybe_t>(declared_type)) {
-				/* this can be null, and we do not allow user-defined __init__ for maybe types, so let's initialize it as null */
-				llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
-				builder.CreateStore(llvm_null_value, llvm_alloca);
-			} else {
-				/* this is not a maybe type, or we have an initializer */
-				if (init_var == nullptr) {
-					/* the user didn't supply an initializer, let's see if this type has one */
-					auto init_fn = get_callable(
-							status,
-							builder,
-							scope->get_module_scope(),
-							"__init__",
-							obj.get_location(),
-							type_args({}, {}),
-							value_type->get_type());
-
-					if (!!status) {
-						init_var = make_call_value(status, builder, obj.get_location(), scope,
-								life, init_fn, {} /*arguments*/);
-					} else {
-						user_error(status, obj.get_location(), "missing initializer");
-					}
-				}
-
-				if (!!status) {
-					if (init_var) {
-						if (!init_var->type->get_type()->is_null()) {
-							debug_above(6, log(log_info, "creating a store instruction %s := %s",
-										llvm_print(llvm_alloca).c_str(),
-										llvm_print(init_var->get_llvm_value()).c_str()));
-
-							llvm::Value *llvm_init_value = coerce_value(status, builder, scope, 
-									obj.get_location(), value_type->get_type(), init_var);
-
-							if (llvm_init_value->getName().size() == 0) {
-								llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
-							}
-
-							builder.CreateStore(
-									llvm_maybe_pointer_cast(builder, llvm_init_value,
-										value_type->get_llvm_specific_type()),
-									llvm_alloca);
-						} else {
-							llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
-							builder.CreateStore(llvm_null_value, llvm_alloca);
-						}
-					}
-				}
-			}
+			llvm_value = resolve_init_var(status, builder, scope, life, obj, symbol, declared_type,
+					llvm_function, init_var, value_type, is_managed);
 		}
 
 		if (!!status) {
 			/* the reference_expr that looks at this llvm_value will need to
 			 * know to use store/load semantics, not just pass-by-value */
-			bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
-					stack_var_type, llvm_alloca, make_type_id_code_id(obj.get_location(), obj.get_symbol()));
+			bound_var_t::ref var_decl_variable = bound_var_t::create(
+					INTERNAL_LOC(),
+					symbol,
+					llvm::dyn_cast<llvm::AllocaInst>(llvm_value) ? stack_var_type : value_type,
+					llvm_value,
+					make_type_id_code_id(obj.get_location(), obj.get_symbol()));
 
 			/* memory management */
 			if (!!status) {
@@ -238,8 +293,7 @@ bound_var_t::ref generate_stack_variable(
 
 				if (!!status) {
 					/* on our way out, stash the variable in the current scope */
-					scope->put_bound_variable(status, var_decl_variable->name,
-							var_decl_variable);
+					scope->put_bound_variable(status, var_decl_variable->name, var_decl_variable);
 
 					if (!!status) {
 						if (unboxed) {
@@ -290,7 +344,7 @@ bound_var_t::ref generate_module_variable(
 		 * the assignment. */
 		types::type_t::ref declared_type = var_decl.type->rebind(module_scope->get_type_variable_bindings());
 		if (declared_type == nullptr || declared_type->ftv_count() != 0) {
-			user_error(status, var_decl.get_location(), "module variables must have concrete type declarations");
+			user_error(status, var_decl.get_location(), "module variables must have explicitly declared types");
 			return nullptr;
 		}
 
@@ -3685,8 +3739,12 @@ bound_var_t::ref type_check_assignment(
 {
 	if (!lhs_var->is_ref()) {
 		user_error(status, location,
-				"you cannot assign to a variable that is immutable. "
-				" %s is not a ref", lhs_var->str().c_str());
+				"you cannot re-assign the name " c_id("%s") " to anything else here. it is not assignable.",
+				lhs_var->name.c_str());
+		user_info(status, lhs_var->get_location(),
+				"see declaration of " c_id("%s") " with type %s",
+				lhs_var->name.c_str(),
+				lhs_var->type->get_type()->str().c_str());
 	}
 
 	if (!!status) {

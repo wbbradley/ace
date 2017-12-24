@@ -39,9 +39,12 @@ namespace ast {
 		virtual location_t get_location() const = 0;
 		virtual types::type_t::ref get_type() const = 0;
 		virtual bool has_initializer() const = 0;
+		virtual bool is_let() const = 0;
 		virtual bound_var_t::ref resolve_initializer(
 				status_t &status,
-				llvm::IRBuilder<> &builder, scope_t::ref scope, life_t::ref life) const = 0;
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				life_t::ref life) const = 0;
 	};
 
 	struct item_t : std::enable_shared_from_this<item_t> {
@@ -438,6 +441,7 @@ namespace ast {
 		virtual types::type_t::ref get_type() const;
 		location_t get_location() const;
 		virtual bool has_initializer() const;
+		virtual bool is_let() const { return is_let_var; }
 		virtual bound_var_t::ref resolve_initializer(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -447,7 +451,7 @@ namespace ast {
 		 * name */
 
 		/* is_let defines whether the name of this variable can be repointed at some other value */
-		bool is_let = false;
+		bool is_let_var = false;
 
 		/* type describes the type of the value this name refers to */
 		types::type_t::ref type;

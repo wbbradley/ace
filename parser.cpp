@@ -79,7 +79,7 @@ ptr<var_decl_t> var_decl_t::parse(parse_state_t &ps, bool is_let) {
 	expect_token(tk_identifier);
 
 	auto var_decl = create<ast::var_decl_t>(ps.token);
-	var_decl->is_let = is_let;
+	var_decl->is_let_var = is_let;
 	eat_token();
 
 	if (ps.token.tk != tk_assign) {
@@ -2089,10 +2089,15 @@ ptr<module_t> module_t::parse(parse_state_t &ps) {
 		/* Get vars, functions or type defs */
 		while (!!ps.status) {
 			if (ps.token.is_ident(K(var)) || ps.token.is_ident(K(let))) {
-				ps.advance();
-				auto var = var_decl_t::parse(ps, ps.token.is_ident(K(let)) /* is_let */);
-				if (!!ps.status) {
-					module->var_decls.push_back(var);
+				bool is_let = ps.token.is_ident(K(let));
+				if (is_let) {
+					ps.error("let variables are not yet supported at the module level");
+				} else {
+					ps.advance();
+					auto var = var_decl_t::parse(ps, is_let);
+					if (!!ps.status) {
+						module->var_decls.push_back(var);
+					}
 				}
 			} else if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(def))) {
 				/* function definitions */
