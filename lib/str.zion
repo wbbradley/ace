@@ -56,14 +56,14 @@ def __plus__(x str, y int) str
 	return str(concat(x.raw, str(y).raw))
 
 def __plus__(x str, y int_t) str
-	y_expanded := __wcs__(y)
-	result := str(concat(x.raw, y_expanded))
+	let y_expanded = __wcs__(y)
+	let result = str(concat(x.raw, y_expanded))
 	posix.free(y_expanded)
 	return result
 
 def __plus__(x str, y float) str
-	sy := __wcs__(y.raw)
-	ret := str(concat(x.raw, sy))
+	let sy = __wcs__(y.raw)
+	let ret = str(concat(x.raw, sy))
 	posix.free(sy)
 	return ret
 
@@ -76,9 +76,9 @@ def __ineq__(x str, y str) bool
 def str(buffer *char_t, length size_t) str
 	# Create a managed string from a direct memory access
 	# TODO: optimize this to avoid the malloc
-	retstr := posix.malloc(length + 1r as size_t) as *char_t
+	let retstr = posix.malloc(length + 1r as size_t) as *char_t
 	posix.memcpy(retstr as *int8_t, buffer as *int8_t, length)
 	retstr[length] = 0r as char_t
-	s := str(mbstowcs(retstr))
+	let s = str(mbstowcs(retstr))
 	posix.free(retstr);
 	return s

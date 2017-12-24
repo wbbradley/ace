@@ -1,5 +1,5 @@
 module _
 
 def main()
-	# error: you cannot assign to a variable that is immutable
+	# error: you cannot re-assign the name
 	5 = 3

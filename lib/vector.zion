@@ -21,7 +21,7 @@ def len(v vector{any}) int
 [global]
 def __init__() vector{any T}
 	typeinfo := typeinfo(vector{any T})
-	v := runtime.create_var(typeinfo)
+	let v = runtime.create_var(typeinfo)
 	return v as vector{any T}
 		
 [global]
@@ -35,7 +35,7 @@ def str(v [any T]) str
 
 [global]
 def join(v [any T], delim str) str
-	vec := v as *vector_t
+	let vec = v as *vector_t
 	s := ""
 	sep := ""
 	i := 0r
@@ -72,7 +72,7 @@ def resize(vec [any T], size int, default any T) void
 [global]
 def __vector_mark__(vec *var_t)
 	# posix.puts("marking vector at 0x"r + __str__(vec as int_t, 16r))
-	v := vec as *vector_t
+	let v = vec as *vector_t
 	i := 0r
 	while i < v.size
 		runtime.mark_allocation(v.items[i])
@@ -81,7 +81,7 @@ def __vector_mark__(vec *var_t)
 [global]
 def __vector_free__(var_ *var_t)
 	# assert(var_ != 0)
-	vector := var_ as *vector_t
+	let vector = var_ as *vector_t
 
 	/* the gc will handle cleaning up everything that we pointed to, but we need to free up our
 	 * extra allocated heap space. */

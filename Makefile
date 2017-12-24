@@ -189,9 +189,11 @@ hello-world-test: $(ZION_TARGET) unit-tests
 	@echo "Executing runtime test (test_hello_world)..."
 	./$(ZION_TARGET) run test_hello_world
 
+/tmp/test_link_extern_entry.o: $(BUILD_DIR)/tests/test_link_extern_entry.o
+	cp $< $@
 
 .PHONY: expect-tests
-expect-tests: $(ZION_TARGET) hello-world-test $(BUILD_DIR)/tests/test_link_extern_entry.o
+expect-tests: $(ZION_TARGET) hello-world-test /tmp/test_link_extern_entry.o
 	@echo "Executing expect tests..."
 	./expect-tests.sh
 

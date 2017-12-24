@@ -26,14 +26,14 @@ def typeid(t any) typeid_t
 def mbstowcs(mbs *char_t) *wchar_t
 	# Converts from current locale's encoding to wide-char encoding. Allocates memory that
 	# must be freed later.
-	mbslen := posix.strlen(mbs)
-	wcs_cb := posix.mbstowcs(null, mbs, 0r)
+	let mbslen = posix.strlen(mbs)
+	let wcs_cb = posix.mbstowcs(null, mbs, 0r)
 	if wcs_cb == -1r
 		posix.puts("Failed to convert string from multi-byte to wide char!"r)
 		posix.exit(1r)
-	wcs_size := wcs_cb + 1r
-	cb := sizeof(wchar_t) * wcs_size
-	wcs := posix.malloc(cb) as *wchar_t
+	let wcs_size = wcs_cb + 1r
+	let cb = sizeof(wchar_t) * wcs_size
+	let wcs = posix.malloc(cb) as *wchar_t
 	if wcs == null
 		posix.puts("out of memory - set a breakpoint on `exit` in order to debug"r)
 		posix.exit(-1r)
@@ -44,16 +44,16 @@ def mbstowcs(mbs *char_t) *wchar_t
 def wcstombs(wcs *wchar_t) *char_t
 	# Converts from wide char encoding to current locale's encoding
 	# must be freed later.
-	wcslen := posix.wcslen(wcs)
-	mbs_cb := posix.wcstombs(null, wcs, wcslen)
+	let wcslen = posix.wcslen(wcs)
+	let mbs_cb = posix.wcstombs(null, wcs, wcslen)
 	if mbs_cb == -1r
 		posix.puts("Failed to convert string from wide char to multi-byte!"r)
 		breakpoint()
 		posix.exit(1r)
 
-	mbs_size := mbs_cb + 1r
-	cb := sizeof(char_t) * mbs_size
-	mbs := posix.malloc(cb) as *char_t
+	let mbs_size = mbs_cb + 1r
+	let cb = sizeof(char_t) * mbs_size
+	let mbs = posix.malloc(cb) as *char_t
 	if mbs == null
 		posix.puts("out of memory - set a breakpoint on `exit` in order to debug"r)
 		posix.exit(-1r)

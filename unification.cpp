@@ -192,7 +192,12 @@ unification_t unify(
 			debug_above(6, log(log_info, "eval_id(%s, env) -> %s",
 						pti_a->str().c_str(),
 						new_a->str().c_str()));
-			return unify(new_a, b, env, bindings, depth + 1);
+			unification_t unification = unify(new_a, b, env, bindings, depth + 1);
+			if (!unification.result) {
+				return {false, string_format("%s <> %s", a->str().c_str(), b->str().c_str()), bindings};
+			} else {
+				return unification;
+			}
 		} else {
 			/* types don't match */
 			return {
@@ -358,7 +363,12 @@ unification_t unify(
 						operator_a->str().c_str(), operand_a->str().c_str(),
 						new_a->str(bindings).c_str()));
 
-			return unify(new_a, b, env, bindings, depth + 1);
+			unification_t unification = unify(new_a, b, env, bindings, depth + 1);
+			if (!unification.result) {
+				return {false, string_format("%s <> %s", a->str().c_str(), b->str().c_str()), bindings};
+			} else {
+				return unification;
+			}
 		} else {
 			/* types don't match */
 			return {

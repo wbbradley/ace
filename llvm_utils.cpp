@@ -206,7 +206,7 @@ bound_var_t::ref create_callsite(
 						if (!!status) {
 							bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
 									return_type, llvm_call_inst,
-									make_type_id_code_id(INTERNAL_LOC(), name));
+									make_type_id_code_id(location, name));
 
 							/* all return values must be tracked since the callee is
 							 * expected to return a ref-counted value */
@@ -466,9 +466,9 @@ bound_var_t::ref llvm_stack_map_value(
 	}
 #endif
 
-    if (value->type->is_ref()) {
-        return value;
-    }
+	if (value->type->is_ref()) {
+		return value;
+	}
 
     llvm::Function *llvm_function = llvm_get_function(builder);
     auto name = string_format("stack_map.%s", value->name.c_str());

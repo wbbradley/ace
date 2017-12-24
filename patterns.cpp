@@ -198,15 +198,14 @@ void ast::pattern_block_t::resolve_pattern_block(
 
 	if (!!status) {
 		/* get the bound type for this type pattern */
-		bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope,
+		bound_type_t::ref bound_type_to_match = upsert_bound_type(status, builder, scope,
 				type_to_match);
 
 		if (!!status) {
 			/* check whether this type is __unreachable */
-			if (!bound_type->is_concrete()) {
-				/* it looks like this type is too abstract to understand. that means
-				 * our code cannot possibly expect to need to pattern match against
-				 * it. let's skip it */
+			if (!bound_type_to_match->is_concrete()) {
+				/* it looks like this is the Bottom type. that means our code cannot possibly expect
+				 * to need to pattern match against it. let's skip it */
 				if (next_iter != end_iter) {
 					auto pattern_block_next = *next_iter;
 					return pattern_block_next->resolve_pattern_block(status, builder,
@@ -225,7 +224,7 @@ void ast::pattern_block_t::resolve_pattern_block(
 			/* evaluate the condition for branching */
 			bound_var_t::ref condition_value = gen_type_check(status, builder,
 					shared_from_this(), scope, life, value_name, value,
-					bound_type, &if_scope);
+					bound_type_to_match, &if_scope);
 
 			if (!!status) {
 				llvm::Value *llvm_condition_value = condition_value->get_llvm_value();
@@ -236,7 +235,7 @@ void ast::pattern_block_t::resolve_pattern_block(
 					llvm::Function *llvm_function_current = llvm_get_function(builder);
 
 					/* generate some new blocks */
-					llvm::BasicBlock *then_bb = llvm::BasicBlock::Create(builder.getContext(), string_format("pattern.is.%s", bound_type->get_type()->repr().c_str()), llvm_function_current);
+					llvm::BasicBlock *then_bb = llvm::BasicBlock::Create(builder.getContext(), string_format("pattern.is.%s", bound_type_to_match->get_type()->repr().c_str()), llvm_function_current);
 					llvm::BasicBlock *merge_bb = nullptr;
 
 					/* we have to keep track of whether we need a merge block

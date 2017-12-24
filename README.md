@@ -2,10 +2,10 @@
 
 [![Build Status](https://travis-ci.org/zionlang/zion.svg?branch=master)](https://travis-ci.org/zionlang/zion)
 
-Zion is a programming language. Zion prefers correctness and readability over
-performance. Zion targets scenarios where scalability is intended to happen
-horizontally, not vertically. That being said, Zion tries to be fast, using static compilation to
-native host architecture as its execution model. Zion is built on LLVM.
+Zion is a programming language. Zion prefers correctness and readability over performance. Zion
+targets scenarios where scalability is intended to happen horizontally, not vertically. That being
+said, Zion tries to be fast, using static compilation to native host architecture as its execution
+model. Zion is built on [LLVM](https://llvm.org/).
 
 ## Beliefs
  - There are two classic archetypes of language users, Workers and Librarians. Any developer can wear either of these hats, but will switch back and forth in a modal fashion. This happens as new dependencies and integrations are initiated and completed.
@@ -38,7 +38,7 @@ native host architecture as its execution model. Zion is built on LLVM.
 
 ## Notes
 
-Zion looks a bit like Python:
+Zion looks a bit like Python, minus the colons.
 
 ```
 module hello_world
@@ -155,16 +155,17 @@ function instantiation.
 
 ### TODO
 
-- [ ] (un)signed integers
-  - [ ] integers as a type with parameterized number of bits and whether to use
+- [x] (un)signed integers
+  - [x] integers as a type with parameterized number of bits and whether to use
     sign-extend or zero-extend
-  - [ ] promotions upon binary operators
-  - [ ] prevent overloading integer operations unless one side is not an integer
-  - [ ] deal with casting integers
-- [ ] change `str` to use `wchar_t` as its underlying physical character type
-  - [ ] use C99's `mbstowcs` and `wcstombs` to convert back and forth
-  - [ ] propagate usage of __utf8__ for `char`
-  - [ ] add a wchar literal - maybe `"x"c` to match the raw literal style of `"foo"r` - or `'x'` to match common syntax
+  - [x] promotions upon binary operators
+  - [x] prevent overloading integer operations unless one side is not an integer
+  - [x] deal with casting integers
+- [x] implement `let` declarations
+  - [ ] optimization: automatically convert parameters or `var`s that are never assigned to to `let`
+- [x] change `str` to use `wchar_t` as its underlying physical character type
+  - [x] use C99's `mbstowcs` and `wcstombs` to convert back and forth
+  - [x] propagate usage of utf8 for `char`
 - [x] 'for' syntax - based on `tests/test_list_iter.zion` pattern
 - [x] vectors
 - [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction
