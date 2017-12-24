@@ -1,3 +1,4 @@
+profiler.trace
 .*.swo
 test.c
 test
