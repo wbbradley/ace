@@ -320,12 +320,12 @@ endif
 			auto new_dim = dimension->rebind(bindings);
 			if (new_dim != dimension) {
 				anything_was_rebound = true;
-		}
+			}
 			type_dimensions.push_back(new_dim);
 		}
 
 		if (anything_was_rebound) {
-		return ::type_struct(type_dimensions, name_index);
+			return ::type_struct(type_dimensions, name_index);
 		} else {
 			return shared_from_this();
 		}
@@ -340,6 +340,86 @@ endif
 	}
 
 	identifier::ref type_struct_t::get_id() const {
+		return nullptr;
+	}
+
+	type_tuple_t::type_tuple_t(type_t::refs dimensions) :
+		dimensions(dimensions)
+	{
+#ifdef ZION_DEBUG
+		for (auto dimension: dimensions) {
+			assert(dimension != nullptr);
+		}
+#endif
+	}
+
+	product_kind_t type_tuple_t::get_pk() const {
+		return pk_tuple;
+	}
+
+	type_t::refs type_tuple_t::get_dimensions() const {
+		return dimensions;
+	}
+
+	name_index_t type_tuple_t::get_name_index() const {
+		return {};
+	}
+
+	std::ostream &type_tuple_t::emit(std::ostream &os, const map &bindings) const {
+		os << "tuple{";
+		join_dimensions(os, dimensions, {}, bindings);
+		return os << "}";
+	}
+
+	int type_tuple_t::ftv_count() const {
+		int ftv_sum = 0;
+		for (auto dimension : dimensions) {
+			ftv_sum += dimension->ftv_count();
+		}
+		return ftv_sum;
+	}
+
+	std::set<std::string> type_tuple_t::get_ftvs() const {
+		std::set<std::string> set;
+		for (auto dimension : dimensions) {
+			std::set<std::string> dim_set = dimension->get_ftvs();
+			set.insert(dim_set.begin(), dim_set.end());
+		}
+		return set;
+    }
+
+
+	type_t::ref type_tuple_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
+		bool anything_was_rebound = false;
+		refs type_dimensions;
+		for (auto dimension : dimensions) {
+			auto new_dim = dimension->rebind(bindings);
+			if (new_dim != dimension) {
+				anything_was_rebound = true;
+			}
+			type_dimensions.push_back(new_dim);
+		}
+
+		if (anything_was_rebound) {
+			return ::type_tuple(type_dimensions);
+		} else {
+			return shared_from_this();
+		}
+	}
+
+	location_t type_tuple_t::get_location() const {
+		if (dimensions.size() != 0) {
+			return dimensions[0]->get_location();
+		} else {
+			return INTERNAL_LOC();
+		}
+	}
+
+	identifier::ref type_tuple_t::get_id() const {
 		return nullptr;
 	}
 
@@ -1115,6 +1195,10 @@ types::type_struct_t::ref type_struct(
 	return make_ptr<types::type_struct_t>(dimensions, name_index);
 }
 
+types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions) {
+	return make_ptr<types::type_tuple_t>(dimensions);
+}
+
 types::type_args_t::ref type_args(
 	   	types::type_t::refs args,
 	   	types::name_index_t name_index)
@@ -1376,6 +1460,8 @@ const char *pkstr(product_kind_t pk) {
 		return "module";
 	case pk_struct:
 		return "struct";
+	case pk_tuple:
+		return "tuple";
 	case pk_managed:
 		return "managed";
 	case pk_args:
