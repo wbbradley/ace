@@ -14,6 +14,7 @@ extern const char *BUILTIN_UNREACHABLE_TYPE;
 enum product_kind_t {
 	pk_module = 0,
 	pk_args,
+	pk_tuple,
 	pk_struct,
 	pk_managed,
 };
@@ -223,6 +224,25 @@ namespace types {
 		name_index_t name_index;
 	};
 
+	struct type_tuple_t : public type_product_t {
+		typedef ptr<const type_tuple_t> ref;
+
+		type_tuple_t(type_t::refs dimensions);
+
+		virtual product_kind_t get_pk() const;
+		virtual type_t::refs get_dimensions() const;
+		virtual name_index_t get_name_index() const;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual std::set<std::string> get_ftvs() const;
+		virtual type_t::ref rebind(const map &bindings) const;
+		virtual location_t get_location() const;
+		virtual identifier::ref get_id() const;
+
+		type_t::refs dimensions;
+	};
+
 	struct type_function_t : public type_t {
 		typedef ptr<const type_function_t> ref;
 		type_function_t(types::type_t::ref args, type_t::ref return_type);
@@ -351,6 +371,7 @@ types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::re
 types::type_module_t::ref type_module(types::type_t::ref module);
 types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
+types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_args_t::ref type_args(types::type_t::refs args, types::name_index_t name_index={});
 types::type_function_t::ref type_function(types::type_t::ref args, types::type_t::ref return_type);
 types::type_t::ref type_sum(types::type_t::refs options, location_t location);

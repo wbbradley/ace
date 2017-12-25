@@ -1194,7 +1194,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 		} else if (auto ref = dyncast<const types::type_ref_t>(expanded_type)) {
 			// bug in not handling this above?
 			assert(false);
-		} 
+		}
 
 		/* at this point we should have a struct type in expanded_type */
 		if (auto struct_type = dyncast<const types::type_struct_t>(expanded_type)) {
@@ -2187,15 +2187,14 @@ bound_var_t::ref ast::tuple_expr_t::resolve_expression(
 		bound_type_t::refs args = get_bound_types(vars);
 
 		/* let's get the type for this tuple wrapped as an object */
-		types::type_t::ref tuple_type = get_tuple_type(args);
+		types::type_tuple_t::ref tuple_type = get_tuple_type(args);
 
 		/* now, let's see if we already have a ctor for this tuple type, if not
 		 * we'll need to create a data ctor for this unnamed tuple type */
 		auto program_scope = scope->get_program_scope();
 
-		std::pair<bound_var_t::ref, bound_type_t::ref> tuple = instantiate_tuple_ctor(
-				status, builder, scope,
-				args, make_iid(tuple_type->repr()), shared_from_this());
+		std::pair<bound_var_t::ref, bound_type_t::ref> tuple = upsert_tuple_ctor(
+				status, builder, scope, tuple_type, shared_from_this());
 
 		if (!!status) {
 			/* now, let's call our unnamed tuple ctor and return that value */

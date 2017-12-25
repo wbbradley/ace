@@ -152,17 +152,13 @@ types::type_t::refs get_types(const bound_type_t::refs &bound_types) {
 	return types;
 }
 
-types::type_t::ref get_tuple_type(const bound_type_t::refs &items_types) {
+types::type_tuple_t::ref get_tuple_type(const bound_type_t::refs &items_types) {
 	types::type_t::refs dimensions;
-	types::name_index_t name_index;
-	int i = 0;
 	for (auto &arg : items_types) {
 		assert(arg != nullptr);
 		dimensions.push_back(arg->get_type());
-		name_index[string_format("_%d", i)] = i;
-		++i;
 	}
-	return type_struct(dimensions, name_index);
+	return type_tuple(dimensions);
 }
 
 bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {

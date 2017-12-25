@@ -21,12 +21,11 @@ bound_type_t::ref upsert_bound_type(
 		ptr<scope_t> scope,
 		types::type_t::ref type);
 
-std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tuple_ctor(
+std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
 		status_t &status, 
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		bound_type_t::refs args,
-		identifier::ref id,
+		types::type_tuple_t::ref tuple_type,
 		const ptr<const ast::item_t> &node);
 
 std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
