@@ -124,10 +124,6 @@ llvm::Value *resolve_init_var(
 			if (init_var != nullptr) {
 				llvm::Value *llvm_init_value;
 				if (!init_var->type->get_type()->is_null()) {
-					debug_above(6, log(log_info, "creating a store instruction %s := %s",
-								llvm_print(llvm_alloca).c_str(),
-								llvm_print(init_var->get_llvm_value()).c_str()));
-
 					llvm_init_value = coerce_value(status, builder, scope, 
 							obj.get_location(), value_type->get_type(), init_var);
 				} else {
@@ -144,6 +140,10 @@ llvm::Value *resolve_init_var(
 					assert(!is_managed);
 					return llvm_init_value;
 				} else {
+					debug_above(6, log(log_info, "creating a store instruction %s := %s",
+								llvm_print(llvm_alloca).c_str(),
+								llvm_print(llvm_init_value).c_str()));
+
 					builder.CreateStore(llvm_init_value, llvm_alloca);
 					if (obj.is_let()) {
 						/* this is a managed 'let' */
@@ -1176,7 +1176,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 	if (!!status) {
 		types::type_t::ref expanded_type;
 
-		expanded_type = eval(full_type, scope->get_typename_env());
+		expanded_type = eval(full_type, scope->get_typename_env(), false /* TODO */);
 		if (expanded_type == nullptr) {
 			expanded_type = full_type;
 		}
@@ -1191,6 +1191,9 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 				assert(false);
 				return null_impl();
 			}
+		} else if (auto ref = dyncast<const types::type_ref_t>(expanded_type)) {
+			// bug in not handling this above?
+			assert(false);
 		} 
 
 		/* at this point we should have a struct type in expanded_type */
@@ -2565,7 +2568,7 @@ types::type_struct_t::ref get_struct_type_from_ptr(
 		types::type_t::ref type)
 {
 	auto original_type = type;
-	auto expanded_type = eval(type, scope->get_typename_env());
+	auto expanded_type = eval(type, scope->get_typename_env(), false /* stop_before_managed_ptr */);
 	if (expanded_type != nullptr) {
 		type = expanded_type;
 	}
@@ -2634,7 +2637,7 @@ bound_var_t::ref extract_member_variable(
 
 		bound_type_t::ref bound_obj_type = bound_var->type;
 
-		auto expanded_type = eval(bound_var->type->get_type(), scope->get_typename_env());
+		auto expanded_type = eval(bound_var->type->get_type(), scope->get_typename_env(), false /* stop_before_managed_ptr */);
 		if (expanded_type != nullptr) {
 			bound_obj_type = upsert_bound_type(status, builder, scope, expanded_type);
 		} else {

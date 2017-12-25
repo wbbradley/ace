@@ -71,7 +71,7 @@ unification_t unify(
 		types::type_t::map bindings,
 		int depth)
 {
-	if (depth > 120) {
+	if (depth > 20) {
 		log(log_error, "unification depth is getting big...");
 		dbg();
 	}
@@ -85,8 +85,32 @@ unification_t unify(
 				rhs->str().c_str(),
 				str(bindings).c_str()));
 
-	auto a = prune(lhs, bindings);
-	auto b = prune(rhs, bindings);
+	auto ptref_lhs = dyncast<const types::type_ref_t>(lhs);
+
+	if (ptref_lhs != nullptr) {
+		auto ptref_rhs = dyncast<const types::type_ref_t>(rhs);
+		if (ptref_rhs != nullptr) {
+			return unify(ptref_lhs->element_type, ptref_rhs->element_type, env, bindings);
+		} else {
+			return {false, "lhs was expecting a reference type", bindings};
+		}
+	} else if (auto ptref_rhs = dyncast<const types::type_ref_t>(rhs)) {
+		// if depth isn't 0, then all bets are off, but for now I think it's impossible to not be
+		assert(depth == 0);
+
+		/* we can safely ignore if the rhs is a reference because the coercions will auto-deref it */
+		return unify(lhs, ptref_rhs->element_type, env, bindings);
+	}
+
+	auto pruned_a = prune(lhs, bindings);
+	auto pruned_b = prune(rhs, bindings);
+
+	if (pruned_a->repr() == pruned_b->repr()) {
+		return {true, "", bindings};
+	}
+
+	auto a = full_eval(pruned_a, env, true /* stop_before_managed_ptr */);
+	auto b = full_eval(pruned_b, env, true /* stop_before_managed_ptr */);
 
 	auto ptm_a = dyncast<const types::type_maybe_t>(a);
 	auto ptm_b = dyncast<const types::type_maybe_t>(b);
@@ -117,7 +141,9 @@ unification_t unify(
 		{
 			/* simple type_id match */
 			return {true, "", bindings};
-		} else if (pti_a->id->get_name() == "void") {
+		} 
+#if 0
+		else if (pti_a->id->get_name() == "void") {
 			/* everything is covariant with void because void encompasses anything (since it cannot be accessed and does
 			 * not have a known size) */
 			if (auto ptv_b = dyncast<const types::type_variable_t>(b)) {
@@ -126,11 +152,12 @@ unification_t unify(
 			}
 			return {true, "", bindings};
 		}
+#endif
 	}
 
 	if (ptI_a != nullptr) {
 	   	if (ptI_b == nullptr) {
-			ptI_b = dyncast<const types::type_integer_t>(full_eval(b, env));
+			ptI_b = dyncast<const types::type_integer_t>(full_eval(b, env, true /* stop_before_managed_ptr */));
 		}
 
 		if (ptI_b != nullptr) {
@@ -187,7 +214,8 @@ unification_t unify(
 		/* ok, we've got a mismatch, but we know we have an id on the left-hand
 		 * side, let's try expanding the type_id to see whether it will unify
 		 * after evaluation. */
-		auto new_a = eval_id(pti_a, env);
+		auto new_a = eval_id(pti_a, env, true /* stop_before_managed_ptr */);
+
 		if (new_a != nullptr) {
 			debug_above(6, log(log_info, "eval_id(%s, env) -> %s",
 						pti_a->str().c_str(),
@@ -356,7 +384,11 @@ unification_t unify(
 					operator_a->str().c_str(), operand_a->str().c_str()));
 
 		/* apply the bindings first, so as to simplify the application */
-		auto new_a = eval_apply(operator_a, operand_a, env);
+		auto new_a = eval_apply(operator_a, operand_a, env, true /* stop_before_managed_ptr */);
+		if (new_a != nullptr && types::is_managed_ptr(new_a, {})) {
+			/* managed pointers are opaque and should have unified nominally */
+			new_a = nullptr;
+		}
 
 		if (new_a != nullptr) {
 			debug_above(7, log(log_info, "eval_apply(%s, %s, ...) -> %s",
@@ -381,6 +413,15 @@ unification_t unify(
 		}
 	} else if (ptr_a != nullptr) {
 		if (ptr_b != nullptr) {
+			/* handle pointer to void here, rather than making void the top type */
+			if (types::is_type_id(full_eval(ptr_a->element_type, env, true /* stop_before_managed_ptr */), "void")) {
+				/* managed pointers cannot be passed to *void because that seems dangerous.
+				 * if you really want to do that, cast it to *void yourself first. */
+				if (dyncast<const types::type_managed_t>(ptr_b->element_type) == nullptr) {
+					return {true, "", bindings};
+				}
+			}
+
 			debug_above(7, log("matching ptr types"));
 			return unify(ptr_a->element_type, ptr_b->element_type, env, bindings, depth + 1);
 		} else if (b->is_null()) {

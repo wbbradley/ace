@@ -22,6 +22,7 @@ extern int __dbg_level;
 #define debug_level() __dbg_level
 
 #define dbg(x) do { \
+	fprintf(stderr, "---------------- BREAKPOINT ----------------\n"); \
 	log_dump(); \
 	std::string dbg_msg = clean_ansi_escapes_if_not_tty( \
 		stderr, \
