@@ -945,11 +945,104 @@ auto test_descs = std::vector<test_desc>{
 		}
 	},
 	{
+		"test_sum_unification_simple",
+		[] () -> bool {
+			types::type_t::map env;
+			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
+			env.insert({std::string("bool"), bool_sum});
+			auto types = make_type_pair("bool", "true", {});
+			return unifies(types.first, types.second, env);
+		}
+	},
+	{
+		"test_sum_unification_sum_with_sum",
+		[] () -> bool {
+			types::type_t::map env;
+			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
+			env.insert({std::string("bool"), bool_sum});
+			return unifies(bool_sum, bool_sum, env);
+		}
+	},
+	{
+		"test_sum_unification_sum_with_named_sum",
+		[] () -> bool {
+			types::type_t::map env;
+			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
+			env.insert({std::string("bool"), bool_sum});
+			return unifies(bool_sum, type_id(make_iid("bool")), env);
+		}
+	},
+	{
+		"test_sum_unification_named_sum_with_sum",
+		[] () -> bool {
+			types::type_t::map env;
+			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
+			env.insert({std::string("bool"), bool_sum});
+			return unifies(type_id(make_iid("bool")), bool_sum, env);
+		}
+	},
+	{
+		"test_sum_unification_nested",
+		[] () -> bool {
+			types::type_t::map env;
+			auto bool_sum = type_sum(
+					{
+						type_id(make_iid("true")),
+						type_id(make_iid("false"))
+					},
+					INTERNAL_LOC());
+			auto expanded_sum_lhs = type_sum(
+					{
+						type_id(make_iid("true")),
+						type_id(make_iid("false")),
+						type_id(make_iid("int")),
+					},
+					INTERNAL_LOC());
+			auto nested_sum_rhs = type_sum(
+					{
+						type_id(make_iid("bool")),
+						type_id(make_iid("int")),
+					},
+					INTERNAL_LOC());
+			env.insert({std::string("bool"), bool_sum});
+			return unifies(expanded_sum_lhs, nested_sum_rhs, env);
+		}
+	},
+	{
+		"test_sum_unification_nested_with_ref_rhs",
+		[] () -> bool {
+			types::type_t::map env;
+			auto bool_sum = type_sum(
+					{
+						type_id(make_iid("true")),
+						type_id(make_iid("false"))
+					},
+					INTERNAL_LOC());
+			auto expanded_sum_lhs = type_sum(
+					{
+						type_id(make_iid("true")),
+						type_id(make_iid("false")),
+						type_id(make_iid("int")),
+					},
+					INTERNAL_LOC());
+			auto nested_sum_rhs = type_sum(
+					{
+						type_id(make_iid("bool")),
+						type_id(make_iid("int")),
+					},
+					INTERNAL_LOC());
+			env.insert({std::string("bool"), bool_sum});
+			return unifies(expanded_sum_lhs, type_ref(nested_sum_rhs), env);
+		}
+	},
+	{
 		"test_unification",
 		[] () -> bool {
 			type_struct({type_variable(INTERNAL_LOC()), type_id(make_iid("float"))}, {} /* name_index */);
 			identifier::set generics = {make_iid("Container"), make_iid("T")};
-			auto unifies = std::vector<types::type_t::pair>{{
+			types::type_t::map env;
+			env.insert({"int", type_ptr(type_managed(type_struct({type_id(make_iid("int_t"))}, {})))});
+			auto unifies = std::vector<types::type_t::pair>{
 				types::type_t::pair{
 					parse_type_expr("void", generics, make_iid("foobar")),
 					   	type_id(make_iid("foobar.void"))},
@@ -969,9 +1062,12 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("Container{T, T}", "map{int, int}", generics),
 				make_type_pair("Container{T}?", "[int]", generics),
 				make_type_pair("Container{T}", "[int]", generics),
+				   make_type_pair("T", "def (x int) float", generics),
+				   make_type_pair("def (p T) float", "def (x int) float", generics),
+				   make_type_pair("*void", "*int_t", generics),
 				{type_maybe(type_ptr(type_managed(type_struct({}, {})))), type_null()},
 				{type_ptr(type_id(make_iid("void"))), type_ptr(type_id(make_iid("X")))},
-			}};
+			};
 
 			auto fails = std::vector<types::type_t::pair>({
 				{type_ptr(type_id(make_iid("X"))),type_ptr(type_id(make_iid("void")))},
@@ -980,9 +1076,12 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("int", "void", {}),
 				make_type_pair("int", "void", generics),
 				make_type_pair("{T, T}", "{void, int}", generics),
+					{type_ptr(type_id(make_iid("void"))), type_id(make_iid("X"))},
 				make_type_pair("int", "map{int, int}", generics),
 				make_type_pair("map{any a, any a}", "map{int, str}", generics),
 				make_type_pair("Container{float}", "[int]", generics),
+					make_type_pair("def (p T) T", "def (x int) float", generics),
+					{type_ptr(type_id(make_iid("void"))), type_ptr(type_managed(type_struct({}, {})))},
 			});
 
 			status_t status;

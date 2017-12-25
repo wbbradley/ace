@@ -7,6 +7,7 @@
 #include "compiler.h"
 #include "llvm_types.h"
 #include <iostream>
+#include "unification.h"
 
 void ast::when_block_t::resolve_statement(
 		status_t &status,
@@ -37,6 +38,7 @@ void ast::when_block_t::resolve_statement(
         if (!!status) {
             /* recursively handle nested "else" conditions of the pattern match */
             auto iter = pattern_blocks.begin();
+			types::type_t::refs types_matched;
             pattern_blocks[0]->resolve_pattern_block(
                     status,
                     builder,
@@ -45,13 +47,33 @@ void ast::when_block_t::resolve_statement(
                     runnable_scope,
 					life,
                     returns,
+					types_matched,
                     ++iter,
                     pattern_blocks.end(),
                     else_block);
 
             if (!!status) {
-                // TODO: check whether all cases of the pattern_value's type are handled
-                return;
+                /* check whether all cases of the pattern_value's type are handled */
+				if (else_block == nullptr) {
+					auto env = current_scope->get_typename_env();
+					types::type_sum_t::ref type_sum_matched = type_sum_safe(
+							types_matched,
+							get_location(),
+							env);
+
+					unification_t unification = unify(type_sum_matched, pattern_value->type->get_type(), env);
+					if (unification.result) {
+						/* good */
+						return;
+					} else {
+						user_error(status, get_location(), "the 'when' block does not handle all inbound types %s",
+								unification.str().c_str());
+						user_info(status, get_location(), "the when block takes %s",
+								type_sum_matched->str().c_str());
+					}
+				} else {
+					return;
+				}
             }
         }
 	}
@@ -182,6 +204,7 @@ void ast::pattern_block_t::resolve_pattern_block(
 		runnable_scope_t::ref scope,
 		life_t::ref life,
 		bool *returns,
+		types::type_t::refs &types_matched,
 		refs::const_iterator next_iter,
 		refs::const_iterator end_iter,
 		ptr<const ast::block_t> else_block) const
@@ -195,6 +218,7 @@ void ast::pattern_block_t::resolve_pattern_block(
 	assert(token.text == "is");
 	auto type_to_match = this->type->rebind(
 				scope->get_type_variable_bindings());
+	types_matched.push_back(type_to_match);
 
 	if (!!status) {
 		/* get the bound type for this type pattern */
@@ -210,7 +234,7 @@ void ast::pattern_block_t::resolve_pattern_block(
 					auto pattern_block_next = *next_iter;
 					return pattern_block_next->resolve_pattern_block(status, builder,
 							value, value_name, scope, life,
-							returns, ++next_iter, end_iter,
+							returns, types_matched, ++next_iter, end_iter,
 							else_block);
 				} else if (else_block != nullptr) {
 					return else_block->resolve_statement(status, builder,
@@ -260,7 +284,7 @@ void ast::pattern_block_t::resolve_pattern_block(
 								auto pattern_block_next = *next_iter;
 								pattern_block_next->resolve_pattern_block(status, builder,
 										value, value_name, scope, life,
-										&else_block_returns, ++next_iter, end_iter,
+										&else_block_returns, types_matched, ++next_iter, end_iter,
 										else_block);
 							} else {
 								else_block->resolve_statement(status, builder,

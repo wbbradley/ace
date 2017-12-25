@@ -490,7 +490,7 @@ bound_type_t::ref create_bound_id_type(
 	/* this id type does not yet have a bound type. */
 	assert(!scope->get_bound_type(id->get_signature()));
 	auto env = scope->get_typename_env();
-	auto expansion = eval_id(id, env);
+	auto expansion = eval_id(id, env, false /* stop_before_managed_ptr */);
 
 	/* however, what it expands to might already have a bound type */
 	if (expansion != nullptr) {
@@ -515,8 +515,7 @@ bound_type_t::ref create_bound_operator_type(
 	auto typename_env = scope->get_typename_env();
 
 	/* apply the operator */
-	auto expansion = eval_apply(operator_->oper, operator_->operand,
-			typename_env);
+	auto expansion = eval_apply(operator_->oper, operator_->operand, typename_env, false /* stop_before_managed_ptr */);
 
 	if (expansion != nullptr) {
 		return bind_expansion(status, builder, scope, operator_, expansion);
@@ -538,7 +537,7 @@ bound_type_t::ref create_bound_integer_type(
 		const ptr<const types::type_integer_t> &integer)
 {
 	auto typename_env = scope->get_typename_env();
-	auto signed_ = full_eval(integer->signed_, typename_env);
+	auto signed_ = full_eval(integer->signed_, typename_env, false /* stop_before_managed_ptr */);
 
 	types::type_t::ref bit_size_expansion;
 	int bit_size = types::coerce_to_integer(status, typename_env, integer->bit_size, bit_size_expansion);
@@ -925,7 +924,7 @@ bound_var_t::ref maybe_get_dtor(
 		bound_type_t::ref data_type,
 		types::type_struct_t::ref struct_type)
 {
-	auto evaled_type = eval(data_type->get_type(), program_scope->get_typename_env());
+	auto evaled_type = eval(data_type->get_type(), program_scope->get_typename_env(), false /* stop_before_managed_ptr */);
 	if (evaled_type == nullptr) {
 		evaled_type = data_type->get_type();
 	}
@@ -1220,7 +1219,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 				llvm_print(data_type->get_llvm_specific_type()).c_str()));
 	types::type_t::ref expanded_type;
 
-	expanded_type = eval(type, scope->get_typename_env());
+	expanded_type = eval(type, scope->get_typename_env(), false /* stop_before_managed_ptr */);
 	if (expanded_type == nullptr) {
 		expanded_type = type;
 	}
