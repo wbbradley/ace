@@ -206,10 +206,17 @@ endif
 	}
 
 	std::ostream &type_operator_t::emit(std::ostream &os, const map &bindings) const {
-		oper->emit(os, bindings);
-		os << "{";
-		operand->emit(os, bindings);
-		return os << "}";
+		if (is_type_id(oper, "vector.vector")) {
+			os << "[";
+			operand->emit(os, bindings);
+			return os << "]";
+		} else {
+			dbg_when(oper->repr() == "vector.vector");
+			oper->emit(os, bindings);
+			os << "{";
+			operand->emit(os, bindings);
+			return os << "}";
+		}
 	}
 
 	int type_operator_t::ftv_count() const {
@@ -286,9 +293,9 @@ endif
 	}
 
 	std::ostream &type_struct_t::emit(std::ostream &os, const map &bindings) const {
-		os << "struct[";
+		os << "struct{";
 		join_dimensions(os, dimensions, name_index, bindings);
-		return os << "]";
+		return os << "}";
 	}
 
 	int type_struct_t::ftv_count() const {
@@ -851,7 +858,7 @@ endif
 	}
 
 	std::ostream &type_lambda_t::emit(std::ostream &os, const map &bindings_) const {
-		os << "(lambda [" << binding->get_name() << "] ";
+		os << "(lambda {" << binding->get_name() << "} ";
 		map bindings = bindings_;
 		auto binding_iter = bindings.find(binding->get_name());
 		if (binding_iter != bindings.end()) {
