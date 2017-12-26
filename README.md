@@ -168,17 +168,19 @@ function instantiation.
   - [x] propagate usage of utf8 for `char`
 - [x] 'for' syntax - based on `tests/test_list_iter.zion` pattern
 - [x] vectors
-- [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction
-- [ ] consider overloading += operator semantics for vectors (instead of relying on `append`)
 - [x] Ternary operator
 - [x] Logical and/or (build with ternary operator)
 - [x] Type refinements for ternary / conditional expressions (it works. see [this gist](https://gist.github.com/wbbradley/6dc1ab1e12ce4312c83cd33012eb721b))
+- [ ] Implement vector literal checking and code gen
+- [ ] Implement vector slicing
 - [ ] fully implement binary as! -> T, as -> maybe{T}
 - [ ] Builtin data structures
   - [x] vectors
   - [ ] hash map - looking into hash array map tries
   - [ ] binary tree
   - [ ] avl tree
+- [ ] Design/Implement tags functionality (for integration with ctags and LSP)
+- [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction
 - [ ] Use DIBuilder to add line-level debugging information
 - [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
 - [ ] enable linking to variadic functions (like printf)
