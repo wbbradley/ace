@@ -1,0 +1,12 @@
+module _
+# test: pass
+# expect: ok
+
+get crypto
+
+def main()
+	let hash_blah = crypto.hash("blah")
+	print(hexdigest(hash_blah))
+	let hash_foobar = crypto.hash("foobar")
+	print(hexdigest(hash_foobar))
+	print("ok")
