@@ -18,8 +18,8 @@ CFLAGS = \
 	-fms-extensions \
 
 ifeq ($(UNAME),Darwin)
-	CLANG = $(LLVM_RELEASE_ROOT)/bin/clang
-	CPP = $(LLVM_RELEASE_ROOT)/bin/clang++
+	CLANG = ccache $(LLVM_RELEASE_ROOT)/bin/clang
+	CPP = $(CLANG)++
 	CC = $(CLANG)
 
 	LLVM_CONFIG = $(LLVM_DEBUG_ROOT)/bin/llvm-config
@@ -212,6 +212,7 @@ $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_OBJE
 	@echo Linking $@...
 	@$(LINKER) $(LINKER_OPTS) $(ZION_LLVM_OBJECTS) -o $@
 	@echo $@ successfully built
+	@ccache -s
 	@du -hs $@ | cut -f1 | xargs echo Target \`$@\` is
 
 $(BUILD_DIR)/%.e: %.cpp

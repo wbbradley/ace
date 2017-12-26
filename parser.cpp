@@ -1742,9 +1742,7 @@ types::type_t::ref _parse_single_type(
 		{
 			ps.advance();
 			types::type_t::refs arguments = parse_type_operands(ps, supertype_id, type_variables, generics);
-			// TODO: allow named members
-			// return type_managed_tuple(arguments);
-			return type_ptr(type_managed(type_struct(arguments, {})));
+			return type_tuple(arguments);
 		}
 		break;
 	default:
