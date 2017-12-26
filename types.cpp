@@ -1481,7 +1481,11 @@ types::type_t::ref full_eval(types::type_t::ref type, const types::type_t::map &
 	}
 }
 
-types::type_t::ref eval(types::type_t::ref type, const types::type_t::map &env, bool stop_before_managed_ptr) {
+types::type_t::ref eval(
+		types::type_t::ref type,
+		const types::type_t::map &env,
+		bool stop_before_managed_ptr)
+{
 	/* if there is no expansion of the type passed in, we will return nullptr */
 	debug_above(9, log("eval'ing %s in %s",
 				type->str().c_str(),
@@ -1507,6 +1511,12 @@ types::type_t::ref eval(types::type_t::ref type, const types::type_t::map &env, 
 	} else if (auto struct_type = dyncast<const types::type_struct_t>(type)) {
 		/* there is no expansion of struct types */
 		return nullptr;
+	} else if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
+		if (stop_before_managed_ptr) {
+			return nullptr;
+		} else {
+			return type_ptr(type_managed(type_struct(tuple_type->dimensions, {})));
+		}
 	} else if (auto managed_type = dyncast<const types::type_managed_t>(type)) {
 		/* there is no expansion of managed types, since they are fully concrete */
 		return nullptr;

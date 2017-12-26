@@ -337,6 +337,20 @@ bound_type_t::ref create_bound_tuple_type(
 		ptr<scope_t> scope,
 		const ptr<const types::type_tuple_t> &tuple_type)
 {
+	auto program_scope = scope->get_program_scope();
+	auto expansion = eval(tuple_type, scope->get_typename_env(), false /* stop_before_managed_ptr */);
+
+	auto bound_structural_type = upsert_bound_type(status, builder, scope, expansion);
+	if (!!status) {
+		auto bound_type = bound_type_t::create(tuple_type,
+				tuple_type->get_location(), bound_structural_type->get_llvm_type(),
+				bound_structural_type->get_llvm_specific_type());
+		program_scope->put_bound_type(status, bound_type);
+		if (!!status) {
+			return bound_type;
+		}
+	}
+	
 	assert(!status);
 	return nullptr;
 }
@@ -934,8 +948,7 @@ bound_var_t::ref maybe_get_dtor(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		program_scope_t::ref program_scope,
-		bound_type_t::ref data_type,
-		types::type_struct_t::ref struct_type)
+		bound_type_t::ref data_type)
 {
 	auto evaled_type = eval(data_type->get_type(), program_scope->get_typename_env(), false /* stop_before_managed_ptr */);
 	if (evaled_type == nullptr) {
@@ -1193,18 +1206,19 @@ llvm::Value *llvm_call_allocator(
 	auto bound_type_info = upsert_type_info(status, builder, program_scope,
 			name, node->get_location(), data_type, args, dtor_fn, nullptr);
 
-	bound_var_t::ref allocation = call_program_function(
-			status,
-			builder,
-			program_scope,
-			life,
-			"runtime.create_var",
-			node,
-			{bound_type_info});
 	if (!!status) {
-		return allocation->get_llvm_value();
+		bound_var_t::ref allocation = call_program_function(
+				status,
+				builder,
+				program_scope,
+				life,
+				"runtime.create_var",
+				node,
+				{bound_type_info});
+		if (!!status) {
+			return allocation->get_llvm_value();
+		}
 	}
-
 	assert(!status);
 	return nullptr;
 }
@@ -1221,7 +1235,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	auto program_scope = scope->get_program_scope();
 
-	types::type_tuple_t::ref type = dyncast<const types::type_tuple_t>(data_type->get_type());
+	types::type_t::ref type = data_type->get_type();
 
 	debug_above(4, log(log_info, "get_or_create_tuple_ctor evaluating %s with llvm type %s",
 				type->str().c_str(),
@@ -1230,27 +1244,27 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	expanded_type = full_eval(type, scope->get_typename_env(), false /* stop_before_managed_ptr */);
 
-	// TODO: use type_product_t instead of type_struct_t in order to handle type_tuple_t
-	//
-	/* destructure the structure that this should have */
-	if (auto pointer = dyncast<const types::type_ptr_t>(expanded_type)) {
-		if (auto managed = dyncast<const types::type_managed_t>(pointer->element_type)) {
-			expanded_type = managed->element_type;
+	types::type_product_t::ref product_type = dyncast<const types::type_product_t>(expanded_type);
+
+	if (product_type == nullptr) {
+		/* destructure the structure that this should have */
+		if (auto pointer = dyncast<const types::type_ptr_t>(expanded_type)) {
+			if (auto managed = dyncast<const types::type_managed_t>(pointer->element_type)) {
+				product_type = dyncast<const types::type_product_t>(managed->element_type);
+			} else {
+				assert(false);
+				return null_impl();
+			}
 		} else {
 			assert(false);
 			return null_impl();
 		}
-	} else {
-		assert(false);
-		return null_impl();
 	}
 
 	/* at this point we should have a struct type in expanded_type */
-	if (auto struct_type = dyncast<const types::type_struct_t>(
-				expanded_type))
-   	{
+	if (product_type != nullptr) {
 		bound_type_t::refs args = upsert_bound_types(status,
-				builder, scope, struct_type->dimensions);
+				builder, scope, product_type->get_dimensions());
 
 		if (!!status) {
 			/* save and later restore the current branch insertion point */
@@ -1263,7 +1277,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 			if (!!status) {
 				bound_var_t::ref dtor_fn = maybe_get_dtor(status, builder,
-						program_scope, data_type, struct_type);
+						program_scope, data_type);
 
 				if (!!status) {
 					llvm::Value *llvm_alloced = llvm_call_allocator(

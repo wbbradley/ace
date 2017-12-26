@@ -220,12 +220,11 @@ bool regex_match(std::string input, std::string regex_) {
 
 std::string string_formatv(const std::string fmt_str, va_list args_) {
     int final_n, n = ((int)fmt_str.size()) * 2; /* Reserve two times as much as the length of the fmt_str */
-    std::string str;
     std::unique_ptr<char[]> formatted;
 	va_list args;
-    while(1) {
+    while (1) {
         formatted.reset(new char[n]); /* Wrap the plain char array into the unique_ptr */
-        strcpy(&formatted[0], fmt_str.c_str());
+        // strcpy(&formatted[0], fmt_str.c_str());
 		va_copy(args, args_);
         final_n = vsnprintf(&formatted[0], n, fmt_str.c_str(), args);
         if (final_n < 0 || final_n >= n)
