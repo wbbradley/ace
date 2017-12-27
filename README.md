@@ -7,10 +7,10 @@ targets scenarios where scalability is intended to happen horizontally, not vert
 said, Zion tries to be fast, using static compilation to native host architecture as its execution
 model. Zion is built on [LLVM](https://llvm.org/).
 
-## Beliefs
- - There are two classic archetypes of language users, Workers and Librarians. Any developer can wear either of these hats, but will switch back and forth in a modal fashion. This happens as new dependencies and integrations are initiated and completed.
+## User Roles
+ - In industry, there are two classic archetypes of programming language users, Workers and Librarians. Experienced developers wear either of these hats, switching back and forth as necessary. This switching can happen as new dependencies and integrations are initiated and completed within the scope of feature or new product work.
    - Workers want to quickly build trustworthy applications that solve problems. Workers need a pleasant and ergonomic experience in order to remain focused on reaching their objectives.
-   - Librarians want to extend the runtime capabilities of the language by
+   - Librarians want to extend the capabilities of the language by
      - Creating bindings through Zion to pre-existing or external libraries.
      - Seamlessly integrating external libraries so that their usage appears as idiomatic Zion.
      - Exposing extrinsic data via a gentle (de)serialization layer that maintains type-safety and ergonomics to the Workers.
@@ -21,22 +21,22 @@ model. Zion is built on [LLVM](https://llvm.org/).
  - Keep it readable, when possible.
  - Keep it stateless, when possible. Avoid mutability. Gently nudge the
    developer towards product and sum types when they are modeling stateful things.
- - The ability to express complex domain relationships with static types is
-   critical.
+ - The ability to express complex domain relationships with a strong but gentle type system is critical.
  - Most pain in software development is felt near process boundaries. Be
    opinionated on how to make serialization as comfortable as possible while
    retaining static type safety.
- - Compile down to a copyable binary.
- - Be smart about types.
 
 ## Non-goals
- - Heavy compute problems are a non-goal, solve those problems at a lower level,
-   and use the FFI, or RPC to access those components/services. Generally
-   performance optimization is treated as an unwelcome afterthought. Favor
-   algorithms and horizontal scaling over bit twiddling.
- - Solving scenarios where slight pauses due to garbage collection are a show-stopper is a non-goal. (ie: Game loops, high-speed trading platforms, life support monitoring, embedded systems, etc...)
+ - Solving heavy compute problems is a non-goal. Solve those problems at a lower level,
+   and use the FFI to access those components. Generally performance optimization is treated as an unwelcome
+afterthought. Favor algorithmic scaling over bit twiddling and fretting over L1 cache hits.
 
-## Notes
+## Future Goals
+ - Pause-free execution remains a back-burner goal. (ie: Enabling Game loops, high-speed trading platforms, life support monitoring, embedded systems, etc...) However, in a future version, once language development settles down a bit, this will get more attention.
+ - In-language concurrency and asynchronicity will get treatment in the future. These can currently be solved at other levels of
+   the stack (hint: use OS processes.) This is not because it's not important. But, basic ergonomics of the language come first.
+
+## Syntax
 
 Zion looks a bit like Python, minus the colons.
 
@@ -47,13 +47,11 @@ def main()
 	print("Hello, world!")
 ```
 
-Here's an old friend:
+Comments use `#`.
 ```
-def fib(n int) int
-	if n <= 2
-		return 1
-
-	return fib(n-1) + fib(n-2)
+def favorite_number(x int) bool
+	# This is a comment
+	return x == 12
 ```
 
 Zion uses contains elements from ML's type system. Zion is strict, not lazy.  Memory is managed using

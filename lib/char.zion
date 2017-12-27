@@ -1,0 +1,7 @@
+global
+
+def __getitem__(x str, i int) char
+	return char(x.raw[i.raw])
+
+type char has
+	var raw wchar_t

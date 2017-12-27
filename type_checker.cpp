@@ -976,20 +976,22 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 		} else {
 			bound_var_t::ref bound_fn = this->resolve_expression(status, builder, scope, life, false /*as_ref*/);
 
-			debug_above(5, log("env is %s",
-						::str(scope->get_typename_env()).c_str()));
-			unification_t unification = unify(
-					bound_fn->type->get_type(),
-					get_function_type(args, type_variable(INTERNAL_LOC())),
-					scope->get_typename_env());
+			if (!!status) {
+				debug_above(5, log("env is %s",
+							::str(scope->get_typename_env()).c_str()));
+				unification_t unification = unify(
+						bound_fn->type->get_type(),
+						get_function_type(args, type_variable(INTERNAL_LOC())),
+						scope->get_typename_env());
 
-			if (unification.result) {
-				return bound_fn;
-			} else {
-				user_error(status, *lhs,
-					   	"function %s is not compatible with arguments %s",
-						bound_fn->str().c_str(),
-						::str(args).c_str());
+				if (unification.result) {
+					return bound_fn;
+				} else {
+					user_error(status, *lhs,
+							"function %s is not compatible with arguments %s",
+							bound_fn->str().c_str(),
+							::str(args).c_str());
+				}
 			}
 		}
 	}
@@ -1470,11 +1472,112 @@ bound_var_t::ref ast::array_index_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	/* this expression looks like this
+	return resolve_assignment(status, builder, scope, life, as_ref, nullptr);
+}
+
+bound_var_t::ref resolve_pointer_array_index(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		types::type_t::ref element_type,
+		ast::expression_t::ref index,
+		bound_var_t::ref index_val,
+		ast::expression_t::ref lhs,
+		bound_var_t::ref lhs_val,
+		bool as_ref,
+		ast::expression_t::ref rhs)
+{
+	/* this is a native pointer - aka an array in memory */
+	if (!dyncast<const types::type_managed_t>(element_type)) {
+		debug_above(5, log("__getitem__ found that we are looking for items of type %s",
+					element_type->str().c_str()));
+
+		// REVIEW: consider just checking the LLVM type for whether it's an integer type
+		unification_t index_unification = unify(
+				index_val->type->get_type(),
+				type_integer(type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC())),
+				scope->get_typename_env());
+
+		if (index_unification.result) {
+			debug_above(5, log(log_info,
+						"dereferencing %s[%s] with a GEP",
+						lhs->str().c_str(), 
+						index_val->str().c_str()));
+
+			/* create the GEP instruction */
+			std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{index_val->get_llvm_value()};
+
+			llvm::Value *llvm_gep = builder.CreateGEP(lhs_val->get_llvm_value(), gep_path);
+
+			debug_above(5, log(log_info,
+						"created dereferencing GEP %s : %s (element type is %s)",
+						llvm_print(*llvm_gep).c_str(),
+						llvm_print(llvm_gep->getType()).c_str(),
+						element_type->str().c_str()));
+
+			if (rhs == nullptr) {
+				/* get the element type (taking as_ref into consideration) */
+				bound_type_t::ref bound_element_type = upsert_bound_type(
+						status, builder, scope,
+						as_ref ? type_ref(element_type) : element_type);
+
+				if (!!status) {
+					return bound_var_t::create(
+							INTERNAL_LOC(),
+							{"dereferenced.pointer"},
+							bound_element_type,
+							as_ref ? llvm_gep : builder.CreateLoad(llvm_gep),
+							make_iid_impl("dereferenced.pointer", lhs_val->get_location()));
+				}
+			} else {
+				/* we are assigning to a native pointer dereference */
+				auto value = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+				llvm::Value *llvm_value = coerce_value(status, builder, scope, lhs->get_location(),
+						element_type, value);
+				if (!!status) {
+					builder.CreateStore(llvm_value, llvm_gep);
+					return nullptr;
+				}
+			}
+		} else {
+			user_error(status, index->get_location(),
+					"pointer index must be of an integer type. your index is of type %s",
+					index_val->type->get_type()->str().c_str());
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
+types::type_args_t::ref get_function_args_types(bound_type_t::ref function_type) {
+	if (auto type_function = dyncast<const types::type_function_t>(function_type->get_type())) {
+		return dyncast<const types::type_args_t>(type_function->args);
+	}
+
+	assert(false);
+	return nullptr;
+}
+
+bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bool as_ref,
+		const ast::expression_t::ref &rhs) const
+{
+	/* this expression looks like this (the rhs is optional)
 	 *
-	 *   lhs[index]
+	 *   lhs[index] = rhs
 	 *
 	 */
+
+	if (rhs != nullptr) {
+		/* make sure to treat the array dereference as a reference if we are doing an assignment */
+		as_ref = true;
+	}
 
 	if (!!status) {
 		bound_var_t::ref lhs_val = lhs->resolve_expression(status, builder,
@@ -1484,77 +1587,74 @@ bound_var_t::ref ast::array_index_expr_t::resolve_expression(
 			bound_var_t::ref index_val = index->resolve_expression(status, builder,
 					scope, life, false /*as_ref*/);
 
-			identifier::ref element_type_var = types::gensym();
+			if (!!status) {
+				identifier::ref element_type_var = types::gensym();
 
-			/* check to see if we are employing pointer arithmetic here */
-			unification_t unification = unify(
-					lhs_val->type->get_type(),
-					type_ptr(type_variable(element_type_var)),
-					scope->get_typename_env());
-			
-			if (unification.result) {
-				types::type_t::ref element_type = unification.bindings[element_type_var->get_name()];
-				if (!dyncast<const types::type_managed_t>(element_type)) {
-					debug_above(5, log("__getitem__ found that we are looking for items of type %s",
-								element_type->str().c_str()));
+				/* check to see if we are employing pointer arithmetic here */
+				unification_t unification = unify(
+						lhs_val->type->get_type(),
+						type_ptr(type_variable(element_type_var)),
+						scope->get_typename_env());
 
-					// REVIEW: consider just checking the LLVM type for whether it's an integer type
-					unification_t index_unification = unify(
-							index_val->type->get_type(),
-							type_integer(type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC())),
-							scope->get_typename_env());
+				if (unification.result) {
+					/* this is a native pointer, let's generate code to write or read, or reference it */
+					types::type_t::ref element_type = unification.bindings[element_type_var->get_name()];
+					return resolve_pointer_array_index(status, builder, scope, life, element_type, index, index_val,
+							lhs, lhs_val, as_ref, rhs);
+				} else if (rhs == nullptr) {
+					/* this is not a native pointer we are dereferencing */
+					debug_above(5, log("attempting to call " c_id("__getitem__")
+								" on %s and %s", lhs_val->str().c_str(), index_val->str().c_str()));
 
-					if (index_unification.result) {
-						debug_above(5, log(log_info,
-									"dereferencing %s[%s] with a GEP",
-									lhs->str().c_str(), 
-									index_val->str().c_str()));
+					// TODO: consider whether to allow as_ref
+					// assert(!as_ref);
 
-						/* get the element type (taking as_ref into consideration) */
-						bound_type_t::ref bound_element_type = upsert_bound_type(
-								status, builder, scope,
-								as_ref ? type_ref(element_type) : element_type);
+					/* get or instantiate a function we can call on these arguments */
+					return call_program_function(status, builder, scope, life,
+							"__getitem__", shared_from_this(), {lhs_val, index_val});
+				} else {
+					/* we're assigning to a managed array index expression */
 
+					/* let's solve for the rhs */
+					bound_var_t::ref rhs_val = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+
+					if (!!status) {
+						/* we have a rhs to assign into this lhs, let's find the function we should be calling to do
+						 * the update. */
+						bound_var_t::ref setitem_function = get_callable(
+								status,
+								builder,
+								scope,
+								"__setitem__",
+								get_location(),
+								type_args({lhs_val->type->get_type(), index_val->type->get_type(), rhs_val->type->get_type()}),
+								type_variable(INTERNAL_LOC()));
 						if (!!status) {
-							/* create the GEP instruction */
-							std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{index_val->get_llvm_value()};
+							std::vector<llvm::Value *> llvm_args = get_llvm_values(
+									status,
+									builder,
+									scope,
+									get_location(),
+									get_function_args_types(setitem_function->type),
+									{lhs_val, index_val, rhs_val});
 
-							llvm::Value *llvm_gep = builder.CreateGEP(lhs_val->get_llvm_value(), gep_path);
-
-							debug_above(5, log(log_info,
-										"created dereferencing GEP %s (element type is %s)",
-										llvm_print(*llvm_gep).c_str(),
-										element_type->str().c_str()));
-
-							/* maybe we don't want this as a ref, so let's maybe read the value out of its memory location
-							 * location */
-							llvm::Value *llvm_value = as_ref
-								? llvm_gep
-								: builder.CreateLoad(llvm_gep);
-
+							bound_type_t::ref return_type = get_function_return_type(
+									status,
+									builder,
+									scope,
+									setitem_function->type);
 							return bound_var_t::create(
 									INTERNAL_LOC(),
-									{"dereferenced.pointer"},
-									bound_element_type,
-									llvm_value,
-									make_iid_impl("dereferenced.pointer", lhs_val->get_location()));
+									"array.index.assignment",
+									return_type,
+									llvm_create_call_inst(
+										status, builder, lhs->get_location(),
+										setitem_function,
+										llvm_args),
+									make_iid("array.index.assignment"));
 						}
-					} else {
-						user_error(status, index->get_location(),
-								"pointer index must be of an integer type. your index is of type %s",
-								index_val->type->get_type()->str().c_str());
 					}
 				}
-			}
-
-			if (!!status) {
-				assert(!as_ref);
-
-				debug_above(5, log("attempting to call " c_id("__getitem__")
-							" on %s and %s", lhs_val->str().c_str(), index_val->str().c_str()));
-				/* get or instantiate a function we can call on these arguments */
-				return call_program_function(status, builder, scope, life,
-						"__getitem__", shared_from_this(), {lhs_val, index_val});
 			}
 		}
 	}
@@ -3798,12 +3898,18 @@ void ast::assignment_t::resolve_statement(
 {
 	assert(token.text == "=");
 
-	auto lhs_var = lhs->resolve_expression(status, builder, scope, life, true /*as_ref*/);
-	if (!!status) {
-		auto rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
-		type_check_assignment(status, builder, scope, life, lhs_var,
-				rhs_var, token.location);
+	if (auto array_index = dyncast<const ast::array_index_expr_t>(lhs)) {
+		/* handle assignments into arrays */
+		array_index->resolve_assignment(status, builder, scope, life, false /*as_ref*/, rhs);
 		return;
+	} else {
+		auto lhs_var = lhs->resolve_expression(status, builder, scope, life, true /*as_ref*/);
+		if (!!status) {
+			auto rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+			type_check_assignment(status, builder, scope, life, lhs_var,
+					rhs_var, token.location);
+			return;
+		}
 	}
 
 	assert(!status);

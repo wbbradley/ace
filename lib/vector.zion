@@ -56,7 +56,7 @@ def __getitem__(vec [any T], index int_t) any T
 
 [global]
 def __setitem__(vec [any T], index int, t any T) void
-	return __setvectoritem__(vec as *var_t, index.raw, t as *var_t)
+	__setvectoritem__(vec as *vector_t, index.raw, t as *var_t)
 
 [global]
 def append(vec [any T], t any T) void
@@ -99,7 +99,7 @@ def __getvectoritem__(vector *vector_t, index int_t) *var_t
 	assert(false)
 	return null as *var_t
 
-def __setvectoritem__(vector *vector_t, index int_t, item *var_t)
+def __setvectoritem__(vector *vector_t, index uint_t, item *var_t)
 	if index < 0r
 		return
 
