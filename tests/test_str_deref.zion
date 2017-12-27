@@ -1,0 +1,6 @@
+module _
+# test: pass
+
+def main()
+	let x = "hey, you"
+	static_print(x[0])

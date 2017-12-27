@@ -359,14 +359,20 @@ bound_var_t::ref call_program_function(
 		life_t::ref life,
         std::string function_name,
         const ptr<const ast::item_t> &callsite,
-        const bound_var_t::refs var_args)
+        const bound_var_t::refs var_args,
+		types::type_t::ref return_type)
 {
     types::type_args_t::ref args = get_args_type(var_args);
 	auto program_scope = scope->get_program_scope();
+
+	if (return_type == nullptr) {
+		return_type = type_variable(callsite->token.location);
+	}
+
     /* get or instantiate a function we can call on these arguments */
     bound_var_t::ref function = get_callable(
 			status, builder, program_scope, function_name, callsite->get_location(),
-			args, type_variable(callsite->token.location));
+			args, return_type);
 
     if (!!status) {
 		return make_call_value(status, builder, callsite->get_location(), scope,

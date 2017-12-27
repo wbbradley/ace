@@ -1090,6 +1090,13 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref) const;
+		bound_var_t::ref resolve_assignment(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				bool as_ref,
+				const ast::expression_t::ref &rhs) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression_t> lhs;

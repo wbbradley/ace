@@ -9,7 +9,10 @@ def foo()
 
 
 def main()
-	f := file.open("play/bare.zion", ReadWrite)
-	lines := readlines(f)
-	print(lines)
-	runtime.gc()
+	f := file.open("play/bare.zion", "r")
+	var lines [str]
+	for line in file.readlines(f)
+		append(lines, line)
+	lines[0] = lines[0] + " # this must be the place"
+	for line in lines
+		print(line)

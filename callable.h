@@ -58,4 +58,5 @@ bound_var_t::ref call_program_function(
 		life_t::ref life,
         std::string function_name,
         const ptr<const ast::item_t> &callsite,
-        const bound_var_t::refs args);
+        const bound_var_t::refs args,
+		types::type_t::ref return_type=nullptr);

@@ -2,8 +2,6 @@ module _
 # test: pass
 # expect: w : [int]
 # expect: x : &[int]
-# expect: y : [int]
-# expect: z : &[int]
 
 def main()
 	let w [int]
