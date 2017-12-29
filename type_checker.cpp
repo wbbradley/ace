@@ -2810,7 +2810,9 @@ types::type_struct_t::ref get_struct_type_from_ptr(
 	}
 
 	user_error(status, node->get_location(),
-		   	"could not find structured type within %s", original_type->str().c_str());
+			"could not find any dimensions within %s (type is %s)",
+			node->str().c_str(),
+			original_type->str().c_str());
 
 	assert(!status);
 	return nullptr;

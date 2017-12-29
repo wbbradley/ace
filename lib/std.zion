@@ -18,6 +18,10 @@ link in "rt_typeid.o"
 link def mem_dump(x *void, y int_t) void
 link def __type_id_eq_type_id(x typeid_t, y typeid_t) int_t
 
+var stdin *posix.FILE = posix.fdopen(0r, "r"r)
+var stdout *posix.FILE = posix.fdopen(1r, "a"r)
+var stderr *posix.FILE = posix.fdopen(2r, "a"r)
+
 def typeid(t any) typeid_t
 	return __get_typeid__(t)
 
@@ -63,7 +67,13 @@ def wcstombs(wcs *wchar_t) *char_t
 	return mbs
 
 def print(x any) void
-	posix.puts(wcstombs(str(x).raw))
+	posix.fputs(utf8(str(x)).raw, stdout)
+	posix.fputs("\n"r, stdout)
+
+tag NoLF
+
+def print(x any, _ NoLF) void
+	posix.fputs(utf8(str(x)).raw, stdout)
 
 def breakpoint() void
 	posix.raise(posix.SIGTRAP)
@@ -130,3 +140,19 @@ def __iterate__(i IntRangeIter)
 
 def __iter_item__(i IntRangeIter) int
 	return int(i.pos)
+
+def input() str?
+	var buf *char_t = null
+	var linecap int_t = 0r
+
+	if posix.getline(&buf, &linecap, stdin) <= 0r
+		return null
+	var lim = posix.strlen(buf) - 1r
+	while lim >= 0r and posix.isspace(buf[lim])
+		lim -= 1r
+	buf[lim] = 0r
+
+	assert(buf != null)
+	ret := str(mbstowcs(buf))
+	posix.free(buf)
+	return ret

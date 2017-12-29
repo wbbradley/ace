@@ -38,6 +38,9 @@ def utf8(x float) utf8
 def utf8(x int_t) utf8
 	return utf8(__str__(x))
 
+def len(u utf8) int
+	return int(posix.strlen(u.raw))
+
 def utf8(b *int8_t, length size_t, encoding str) utf8
 	assert(encoding == "utf8")
 	dest_len := length + 1r
