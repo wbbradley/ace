@@ -3,8 +3,8 @@ module _
 # expect: 7 : int
 # expect: "hello" : str
 # expect: gimme_bool() : bool
-# expect: gimme_bool() ? "foo" : 4.5 : (or str float)
-# expect: (gimme_bool() and int("9")) : (or int false)
+# expect: gimme_bool() ? "foo" : 4.5 : str or float
+# expect: (gimme_bool() and int("9")) : int or false
 # expect: ((gimme_bool() and int("9")) or 200) : int
 # expect: (true and 100) : int
 # expect: (false and 100) : false

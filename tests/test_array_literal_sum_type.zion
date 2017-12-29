@@ -1,0 +1,7 @@
+module _
+# test: pass
+# expect: y : [int or str or false or true or float]
+
+def main()
+	let y = [1, 2, 3, "skype", false, true, 0 or 3.4]
+	static_print(y)

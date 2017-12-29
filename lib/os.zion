@@ -6,3 +6,13 @@ def getcwd() str
 	cwd := str(cwd_utf8)
 	posix.free(cwd_utf8)
 	return cwd
+
+def getenv(name str) str?
+	let s = wcstombs(name.raw)
+	let value = posix.getenv(s)
+	posix.free(s)
+
+	if value != null
+		return str(mbstowcs(value))
+	else
+		return null
