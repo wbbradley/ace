@@ -1663,15 +1663,140 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 	return nullptr;
 }
 
+bound_var_t::ref create_bound_vector_literal(
+		status_t &status, 
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		location_t location,
+		types::type_t::ref element_type,
+		bound_var_t::refs bound_items)
+{
+	if (!!status) {
+		auto program_scope = scope->get_program_scope();
+
+		auto bound_var_ptr_type = program_scope->get_runtime_type(
+				status, builder, "var_t", true /*get_ptr*/);
+
+		if (!!status) {
+			auto bound_var_ptr_ptr_type = upsert_bound_type(
+					status, builder, scope,
+					type_ptr(bound_var_ptr_type->get_type()));
+
+			if (!!status) {
+				/* create the type for this vector */
+				types::type_t::ref vector_type = type_operator(
+						type_id(make_iid_impl("vector.vector", location)),
+						element_type);
+				bound_type_t::ref bound_vector_type = upsert_bound_type(
+						status, builder, scope, vector_type);
+
+				/* get the function to allocate a vector and reserve enough space */
+				bound_var_t::ref get_vector_init_function = get_callable(
+						status,
+						builder,
+						scope,
+						"vector.__init_vector__",
+						location,
+						type_args({type_id(make_iid("size_t"))}),
+						vector_type);
+
+				/* get the raw pointer type to vectors */
+				bound_type_t::ref bound_base_vector_type = upsert_bound_type(status, builder, scope,
+						type_ptr(type_id(make_iid_impl("vector.vector_t", location))));
+
+				if (!!status) {
+					/* get the append function for vectors */
+					bound_var_t::ref get_vector_append_function = get_callable(
+							status,
+							builder,
+							scope,
+							"vector.__vector_unsafe_append__",
+							location,
+							type_args({type_ptr(type_id(make_iid("vector.vector_t"))),
+								bound_var_ptr_type->get_type()}),
+							type_id(make_iid("void")));
+
+					if (!!status) {
+						/* get a new vector of the given size */
+						llvm::CallInst *llvm_vector = llvm_create_call_inst(
+								status, builder, location, get_vector_init_function,
+								{builder.getInt64(bound_items.size())});
+
+						llvm::Value *llvm_raw_vector = llvm_maybe_pointer_cast(builder, llvm_vector, bound_base_vector_type->get_llvm_type());
+
+						/* append all of the items */
+						for (auto bound_item : bound_items) {
+							/* call the append function */
+							llvm_create_call_inst(status, builder, bound_item->get_location(), get_vector_append_function,
+									{llvm_raw_vector, llvm_maybe_pointer_cast(builder, bound_item->get_llvm_value(), bound_var_ptr_type->get_llvm_type())});
+							if (!status) {
+								break;
+							}
+						}
+						/* the type of the resultant vector */
+						if (!!status) {
+							return bound_var_t::create(
+									INTERNAL_LOC(),
+									"vector.literal",
+									bound_vector_type,
+									llvm_vector,
+									make_iid_impl("vector.literal", location));
+						}
+					}
+				}
+			}
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool /*as_ref*/) const
 {
-	assert(!as_ref);
-	user_error(status, *this, "not impl");
+	bound_var_t::refs bound_items;
+	types::type_t::refs element_types;
+	for (auto item : items) {
+		auto bound_item = item->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+		if (!!status) {
+			bound_items.push_back(bound_item);
+			element_types.push_back(bound_item->type->get_type());
+			bool is_managed;
+			bound_item->type->is_managed_ptr(
+					status,
+					builder,
+					scope,
+					is_managed);
+			if (!!status) {
+				if (!is_managed) {
+					user_error(status, bound_item->get_location(), "items in a vector literal must be managed objects. this one is a %s, which is not managed",
+							bound_item->type->get_type()->str().c_str());
+					break;
+				}
+			}
+		}
+		if (!status) {
+			break;
+		}
+	}
+
+	if (!!status) {
+		types::type_t::ref element_type = type_sum_safe(
+				element_types, get_location(), scope->get_typename_env());
+		debug_above(6, log("creating vector literal of %s",
+					element_type->str().c_str()));
+		return create_bound_vector_literal(
+				status, builder, scope, life,
+				get_location(), element_type, bound_items);
+	}
+
+	assert(!status);
 	return nullptr;
 }
 

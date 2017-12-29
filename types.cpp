@@ -206,12 +206,11 @@ endif
 	}
 
 	std::ostream &type_operator_t::emit(std::ostream &os, const map &bindings) const {
-		if (is_type_id(oper, "vector.vector")) {
+		if (is_type_id(oper, STD_VECTOR_TYPE)) {
 			os << "[";
 			operand->emit(os, bindings);
 			return os << "]";
 		} else {
-			dbg_when(oper->repr() == "vector.vector");
 			oper->emit(os, bindings);
 			os << "{";
 			operand->emit(os, bindings);
@@ -674,13 +673,14 @@ endif
 	}
 
 	std::ostream &type_sum_t::emit(std::ostream &os, const map &bindings) const {
-		os << "(or";
+		const char *delim = "";
 		assert(options.size() != 0);
 		for (auto option : options) {
-			os << " ";
+			os << delim;
 			option->emit(os, bindings);
+			delim = " or ";
 		}
-		return os << ")";
+		return os;
 	}
 
 	int type_sum_t::ftv_count() const {

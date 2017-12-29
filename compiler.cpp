@@ -338,7 +338,7 @@ void add_global_types(
 		}
 		compiler.base_type_macros[type_pair.first] = type_id(make_iid(type_pair.first));
 	}
-	compiler.base_type_macros[std::string{"vector"}] = type_id(make_iid("vector.vector"));
+	compiler.base_type_macros[std::string{"vector"}] = type_id(make_iid(STD_VECTOR_TYPE));
 
 	debug_above(10, log(log_info, "%s", program_scope->str().c_str()));
 }
@@ -722,7 +722,6 @@ void emit_object_file_from_module(status_t &status, llvm::Module *llvm_module, s
 		user_error(status, INTERNAL_LOC(), "Could not open file: %s", EC.message().c_str());
 		return;
 	}
-
 
 	legacy::PassManager pass;
 	auto FileType = TargetMachine::CGFT_ObjectFile;

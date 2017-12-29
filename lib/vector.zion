@@ -4,8 +4,8 @@ get runtime
 
 type vector_t struct
 	var _var     var_t
-	var reserved int_t
-	var size     int_t
+	var reserved size_t
+	var size     size_t
 	var items    **var_t
 
 type vector{T} link vector_t __vector_free__ __vector_mark__
@@ -22,6 +22,11 @@ def len(v vector{any}) int
 def __init__() vector{any T}
 	typeinfo := typeinfo(vector{any T})
 	let v = runtime.create_var(typeinfo)
+	return v as vector{any T}
+		
+def __init_vector__(size size_t) vector{any T}
+	let v vector{any T}
+	reserve(v as *vector_t, size)
 	return v as vector{any T}
 		
 [global]
@@ -109,7 +114,13 @@ def __setvectoritem__(vector *vector_t, index uint_t, item *var_t)
 		print("zion: array index out of bounds (0x" + __box__(__str__(vector as int_t, 16r)) + "[" + int(index) + "])")
 		assert(false)
 
-def __vectorappend__(vector *vector_t, item *var_t)
+def __vector_unsafe_append__(vector *vector_t, item *var_t) void
+	# To be called by compiler for vector literals
+	assert(vector.reserved > vector.size)
+	vector.items[vector.size] = item
+	vector.size += 1r
+
+def __vectorappend__(vector *vector_t, item *var_t) void
 	assert(vector)
 	if vector.reserved > vector.size
 		# print("we have space")
@@ -145,7 +156,7 @@ def reserve(vec [any T], n int)
 	# Call the unmanaged version
 	reserve(vec as *vector_t, n.raw)
 
-def reserve(vec *vector_t, n int_t)
+def reserve(vec *vector_t, n size_t)
 	# Make sure we've got n spaces available in our vector's allocated memory
 	if vec.reserved < n
 		if vec.items
