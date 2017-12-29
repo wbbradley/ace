@@ -82,3 +82,31 @@ def str(buffer *char_t, length size_t) str
 	let s = str(mbstowcs(retstr))
 	posix.free(retstr);
 	return s
+
+def str(src *wchar_t, char_count int_t) str
+	assert(char_count >= 0r)
+	if char_count <= 0r
+		return __empty_str
+	let cb = sizeof(wchar_t) * (char_count + 1r)
+	let dst = posix.malloc(cb) as *wchar_t
+	posix.memcpy(dst, src, cb - sizeof(wchar_t))
+	dst[char_count] = 0r
+	return str(dst)
+
+def strip(s str) str
+	var start int_t = 0r
+	let max int_t = posix.wcslen(s.raw)
+	var lim int_t = max - 1r
+	while start <= lim
+		if not posix.iswspace(s.raw[start])
+			break
+		start += 1r
+	
+	while lim > start and posix.iswspace(s.raw[lim])
+		lim -= 1r
+	
+	if start == 0r and lim == max - 1r
+		return s
+	
+	# TODO: PERF: maybe allow slicing strings
+	return str(&s.raw[start], lim - start + 1r)

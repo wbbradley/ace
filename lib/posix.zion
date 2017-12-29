@@ -5,6 +5,8 @@ link in "m"
 
 link def getenv(x *char_t) *char_t
 link def puts(x *char_t) int_t
+link def fputs(x *char_t, fp *FILE) int_t
+link def fprintf(fp *FILE, fmt *char_t, s *char_t) int_t to fprintf
 link def putchar(x int_t) int_t
 link def perror(x *char_t) int_t
 link def open(path *char_t, oflag int_t) int_t
@@ -31,6 +33,8 @@ link def getcwd(space *char_t) *char_t
 link def fchdir(filedes int_t) int_t
 link def raise(signal int_t) int_t
 link def fopen(fn *char_t, mode *char_t) *FILE
+link def fdopen(fd int_t, mode *char_t) *FILE
+link def fwrite(p *void, size size_t, nitems size_t, stream *FILE) size_t
 link def fclose(fp *FILE) int_t
 link def getline(linep **char_t, linecapp *int_t, fp *FILE) int_t
 link def strlen(s *char_t) size_t
@@ -39,6 +43,8 @@ link def putw(wch wchar_t, fp *FILE) int_t
 link def mbstowcs(wcs *wchar_t, mbs *char_t, mbslen size_t) size_t
 link def wcstombs(mbs *char_t, wcs *wchar_t, wcslen size_t) size_t
 link def errno() int_t to __errno
+link def iswspace(wch wchar_t) bool_t
+link def isspace(ch char_t) bool_t
 
 type FILE struct
 

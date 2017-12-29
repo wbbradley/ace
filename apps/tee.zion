@@ -1,0 +1,6 @@
+module tee
+
+def main()
+	# TODO: use if statement semantics for assignment inside while conditionals
+	while line := input()
+		print(line)

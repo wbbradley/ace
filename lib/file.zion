@@ -103,3 +103,17 @@ def readline(f File) str or Error or EOF
 			return state
 	assert(false and "strange state for file!")
 	return Error(-1)
+
+def write(f File, s str)
+	state := f.state
+	when state
+		is Open
+			utf8_val := utf8(s)
+			posix.fwrite(utf8_val.raw, posix.strlen(utf8_val.raw), 1r, state.fp)
+
+		is Closed
+			posix.fprintf(stderr, "writing to closed file %s"r, utf8(f.filename).raw)
+			return
+		is Error
+			posix.fprintf(stderr, "writing to errored file %s"r, utf8(f.filename).raw)
+			return

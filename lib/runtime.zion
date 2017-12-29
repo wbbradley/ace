@@ -369,9 +369,7 @@ def gc()
 	# report("after gc..."r)
 
 def report(use_case *char_t)
-	title := concat("Memory Report: "r, use_case)
-	posix.puts(title)
-	posix.free(title)
+	posix.fprintf(stdout, "Memory Report: "r, use_case)
 
 	bytes_allocated := __str__(runtime._bytes_allocated)
 	all_bytes_allocated := __str__(runtime._all_bytes_allocated)
