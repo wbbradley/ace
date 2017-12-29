@@ -216,11 +216,10 @@ namespace ast {
 	}
 
 	void array_index_expr_t::render(render_state_t &rs) const {
-		rs.ss << "(";
 		lhs->render(rs);
 		rs.ss << "[";
 		index->render(rs);
-		rs.ss << "])";
+		rs.ss << "]";
 	}
 
 	void minus_assignment_t::render(render_state_t &rs) const {

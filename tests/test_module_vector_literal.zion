@@ -1,0 +1,13 @@
+module _
+# test: pass
+# expect: w : [int]
+# expect: w[4] : int
+# expect: [1, 2, 0, 4, 5, 6, 7, 8]
+
+var w [int] = [1, 2, 3, 4, 5, 6, 7, 8]
+
+def main()
+	static_print(w)
+	static_print(w[4])
+	w[2] = 0
+	print(w)
