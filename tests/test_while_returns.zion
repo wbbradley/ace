@@ -1,0 +1,9 @@
+module _
+
+def foo() int
+	while false
+		# error: 3:5.* not all control paths return a value
+		return 0
+
+def main()
+	print(foo())

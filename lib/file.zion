@@ -42,61 +42,76 @@ def __finalize__(of Open)
 			print("Error: failed to close file")
 		of.fp = null
 
-type FileLines has
-	var file File
+type Lines{LineReader} has
+	var file LineReader
 	var cur_line str?
 
-def readlines(f File) FileLines
-	return FileLines(f, null)
+[global]
+def readlines() Lines{*posix.FILE}
+	return readlines(stdin)
+
+def readlines(f any LineReader) Lines{any LineReader}
+	assert(f != null)
+	return Lines(f, null)
 
 [global]
-def __iter_begin__(fl FileLines) FileLines
+def __iter_begin__(fl Lines{any LineReader}) Lines{any LineReader}
+	assert(fl != null)
 	__iterate__(fl)
 	return fl
 
 [global]
-def __iter_end__(fl FileLines) null
+def __iter_end__(fl Lines{any LineReader}) null
+	assert(fl != null)
 	return null
 
 [global]
-def __iter_valid__(fl FileLines, _ null) bool_t
+def __iter_valid__(fl Lines{any LineReader}, _ null) bool_t
+	assert(fl != null)
 	return fl.cur_line != null
 
 [global]
-def __iter_item__(fl FileLines) str
-	return fl.cur_line or ""
+def __iter_item__(fl Lines{any LineReader}) str
+	assert(fl != null)
+	r := fl.cur_line or ""
+	return r
 
 [global]
-def __iterate__(fl FileLines)
+def __iterate__(fl Lines{any LineReader})
 	s := readline(fl.file)
 	when s
 		is str
 			fl.cur_line = s
-			return
 		is Error
-			print("Error: encountered error " + s.errno + " while reading " + fl.file.filename)
+			print("Error: encountered error " + s.errno + " while reading file")
 			fl.cur_line = null
 		is EOF
 			fl.cur_line = null
+
+def readline(fp *posix.FILE) str or EOF or Error
+	if fp == null
+		print("encountered null FILE pointer")
+		return Error(-1)
+
+	linecap := 0r
+	line := null as *char_t
+	linelen := posix.getline(&line, &linecap, fp)
+	if linelen == -1r
+		return EOF
+
+	# make sure we strip the LF char
+	if linelen > 0r
+		if line[linelen - 1r] as int_t == 10r
+			line[linelen - 1r] = 0r as char_t
+	str_line := str(mbstowcs(line))
+	posix.free(line)
+	return str_line
 
 def readline(f File) str or Error or EOF
 	state := f.state
 	when state
 		is Open
-			linecap := 0r
-			line := null as *char_t
-			linelen := posix.getline(&line, &linecap, state.fp)
-			if linelen == -1r
-				return EOF
-
-			# make sure we strip the LF char
-			if linelen > 0r
-				if line[linelen - 1r] as int_t == 10r
-					line[linelen - 1r] = 0r as char_t
-			str_line := str(mbstowcs(line))
-			posix.free(line)
-			return str_line
-
+			return readline(state.fp)
 		is Closed
 			return Error(-1)
 		is Error
@@ -110,7 +125,6 @@ def write(f File, s str)
 		is Open
 			utf8_val := utf8(s)
 			posix.fwrite(utf8_val.raw, posix.strlen(utf8_val.raw), 1r, state.fp)
-
 		is Closed
 			posix.fprintf(stderr, "writing to closed file %s"r, utf8(f.filename).raw)
 			return

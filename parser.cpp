@@ -1150,7 +1150,7 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 			if_block->condition = var_decl;
 		} else {
 			user_error(ps.status, condition_token.location,
-					"if conditions may be expressions or := statements");
+					"if conditions are limited to expressions or variable definitions");
 		}
 
 		if (!!ps.status) {
@@ -1183,21 +1183,27 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {
 	auto while_block = create<ast::while_block_t>(ps.token);
 	chomp_ident(K(while));
-	auto condition = expression_t::parse(ps);
-	if (condition != nullptr) {
-		while_block->condition.swap(condition);
-		auto block = block_t::parse(ps);
-		if (block) {
-			while_block->block.swap(block);
-			return while_block;
+	token_t condition_token = ps.token;
+	auto assignment = assignment_t::parse(ps);
+	if (!!ps.status) {
+		if (auto condition = dyncast<const expression_t>(assignment)) {
+			while_block->condition = condition;
+		} else if (auto var_decl = dyncast<const var_decl_t>(assignment)) {
+			while_block->condition = var_decl;
 		} else {
-			assert(!ps.status);
-			return nullptr;
+			user_error(ps.status, condition_token.location,
+					"while conditions are limited to expressions or variable definitions");
 		}
-	} else {
-		assert(!ps.status);
-		return nullptr;
+
+		auto block = block_t::parse(ps);
+		if (!!ps.status) {
+			while_block->block = block;
+			return while_block;
+		}
 	}
+
+	assert(!ps.status);
+	return nullptr;
 }
 
 ptr<for_block_t> for_block_t::parse(parse_state_t &ps) {

@@ -145,14 +145,15 @@ def input() str?
 	var buf *char_t = null
 	var linecap int_t = 0r
 
-	if posix.getline(&buf, &linecap, stdin) <= 0r
+	if posix.getline(&buf, &linecap, stdin) == -1r
 		return null
 	var lim = posix.strlen(buf) - 1r
 	while lim >= 0r and posix.isspace(buf[lim])
 		lim -= 1r
-	buf[lim] = 0r
+	buf[lim + 1r] = 0r
 
 	assert(buf != null)
 	ret := str(mbstowcs(buf))
 	posix.free(buf)
+	# runtime.gc()
 	return ret

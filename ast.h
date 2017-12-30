@@ -673,7 +673,7 @@ namespace ast {
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
-		ptr<expression_t> condition;
+		ptr<const item_t> condition;
 		ptr<block_t> block;
 	};
 
