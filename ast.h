@@ -705,18 +705,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_pattern_block;
 
 		static ref parse(parse_state_t &ps);
-		virtual void resolve_pattern_block(
-				status_t &status,
-				llvm::IRBuilder<> &builder,
-				bound_var_t::ref value,
-				identifier::ref value_name,
-				runnable_scope_t::ref scope,
-				life_t::ref life,
-				bool *returns,
-				types::type_t::refs &types_matched,
-				refs::const_iterator next_iter,
-				refs::const_iterator end_iter,
-				ptr<const block_t> else_block) const;
 		virtual void render(render_state_t &rs) const;
 		
 		types::type_t::ref type;

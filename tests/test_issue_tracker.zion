@@ -57,4 +57,3 @@ def str(s TaskState) str
 			return "ExternalReview"
 		is Complete
 			return "Complete"
-	return ""

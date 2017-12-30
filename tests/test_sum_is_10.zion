@@ -37,11 +37,8 @@ def compute(expr Expr{any X}) any X
 			return compute(expr.e1) - compute(expr.e2)
 		is Times{any X}
 			return compute(expr.e1) * compute(expr.e2)
-		is Times{any X}
-			return compute(expr.e1) * compute(expr.e2)
 		is Divide{any X}
 			return compute(expr.e1) / compute(expr.e2)
-	return 0
 
 def main()
 	expr := Divide(Plus(Literal(5), Literal(5)), Literal(2))

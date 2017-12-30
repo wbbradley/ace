@@ -7,6 +7,7 @@
 #include "parser.h"
 #include <iostream>
 #include "unification.h"
+#include "atom.h"
 
 const char *BUILTIN_NULL_TYPE = "null";
 const char *STD_VECTOR_TYPE = "vector.vector";
@@ -1152,6 +1153,30 @@ endif
 
 		assert(!status);
 		return;
+	}
+
+	void get_runtime_typeids(status_t &status, type_t::ref type, const type_t::map &env, std::set<int> &typeids) {
+		auto expansion = full_eval(type, env, true /*stop_before_managed_ptr*/);
+		if (auto type_ref = dyncast<const type_ref_t>(expansion)) {
+			user_error(status, type->get_location(), "reference types are not allowed here. %s does not have runtime type information",
+					type->str().c_str());
+		} else if (auto type_ptr = dyncast<const type_ptr_t>(expansion)) {
+			user_error(status, type->get_location(), "pointer types are not allowed here. %s does not have runtime type information",
+					type->str().c_str());
+		} else if (auto type_id = dyncast<const type_id_t>(expansion)) {
+			typeids.insert(atomize(type_id->repr()));
+		} else if (auto type_sum = dyncast<const type_sum_t>(expansion)) {
+			for (auto option : type_sum->options) {
+				get_runtime_typeids(status, option, env, typeids);
+				if (!status) {
+					break;
+				}
+			}
+		} else if (auto type_operator = dyncast<const type_operator_t>(expansion)) {
+			typeids.insert(atomize(type_operator->repr()));
+		} else {
+			assert(false);
+		}
 	}
 }
 

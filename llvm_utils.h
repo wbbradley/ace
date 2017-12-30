@@ -142,3 +142,4 @@ bound_var_t::ref get_null_constant(
 		location_t location,
 		types::type_t::ref type);
 llvm::StructType *llvm_find_struct(llvm::Type *llvm_type);
+void llvm_generate_dead_return(llvm::IRBuilder<> &builder, scope_t::ref scope);

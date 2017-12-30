@@ -1,0 +1,21 @@
+module _
+# test: pass
+# expect: 2
+
+tag A
+tag B
+tag C
+
+def poly(a A or B or C) int
+	when a
+		is A
+			return 0
+		is B
+			return 1
+		is C
+			return 2
+
+def main()
+	y := poly(C)
+	print(y)
+

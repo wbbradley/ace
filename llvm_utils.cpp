@@ -933,3 +933,17 @@ llvm::StructType *llvm_find_struct(llvm::Type *llvm_type) {
 		return nullptr;
 	}
 }
+
+void llvm_generate_dead_return(llvm::IRBuilder<> &builder, scope_t::ref scope) {
+	llvm::Function *llvm_function_current = llvm_get_function(builder);
+	llvm::Type *llvm_return_type = llvm_function_current->getReturnType();
+	if (llvm_return_type->isPointerTy()) {
+		builder.CreateRet(llvm::Constant::getNullValue(llvm_return_type));
+	} else if (llvm_return_type->isIntegerTy()) {
+		builder.CreateRet(llvm::ConstantInt::get(llvm_return_type, 0));
+	} else if (llvm_return_type->isVoidTy()) {
+		builder.CreateRetVoid();
+	} else {
+		assert(false && "Unhandled return type.");
+	}
+}

@@ -1,0 +1,20 @@
+module _
+
+tag A
+tag B
+tag C
+
+def poly(a A or B or C) int
+	# error: not all control paths return a value
+	when a
+		is A
+			return 0
+		is B
+			return 1
+		is C
+			pass
+
+def main()
+	y := poly(C)
+	print(y)
+

@@ -1,5 +1,8 @@
 module _
 # test: pass
+# expect: int found
+# expect: float found
+# expect: bool found
 
 def truthy(x any) bool
 	when x
@@ -12,8 +15,9 @@ def truthy(x any) bool
 		is bool
 			print("bool found")
 			return x
-	return false
 
 def main()
 	y := 3.33
 	truthy(y)
+	truthy(false)
+	truthy(23)

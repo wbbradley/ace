@@ -10,7 +10,6 @@ def nth(l Node{any T}?, i int) any T?
 				return l.value
 			else
 				return nth(l.next, i - 1)
-	return null
 
 
 type Node{T} has
