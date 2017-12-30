@@ -35,7 +35,6 @@ def close(f File)
 
 [global]
 def __finalize__(of Open)
-	print("closing file")
 	if of.fp
 		ret := posix.fclose(of.fp)
 		if ret != 0r
@@ -116,8 +115,6 @@ def readline(f File) str or Error or EOF
 			return Error(-1)
 		is Error
 			return state
-	assert(false and "strange state for file!")
-	return Error(-1)
 
 def write(f File, s str)
 	state := f.state

@@ -15,7 +15,6 @@ def len(l ListInt) int
 			return 0
 		is NodeInt
 			return 1 + len(l.next)
-	return 0
 
 def sum(l ListInt) int
 	when l
@@ -23,7 +22,6 @@ def sum(l ListInt) int
 			return 0
 		is NodeInt
 			return l.value + sum(l.next)
-	return 0
 
 def main()
 	l := NodeInt(1, NodeInt(2, NodeInt(3, Done)))

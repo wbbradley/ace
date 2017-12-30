@@ -23,7 +23,6 @@ def eval(expr Expr{any T}) int
 			return eval(expr.lhs) * eval(expr.rhs)
 		is any T
 			return expr
-	return 0
 
 def main()
 	print(eval(Plus(Times(4, 2), 3)))

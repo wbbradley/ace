@@ -1,0 +1,23 @@
+module _
+# test: pass
+# expect: hooray 1.2
+
+type A{T} has
+	var t T
+
+tag B
+tag C
+
+def poly(a A{any T} or B or C) str
+	when a
+		is A{any T}
+			return "hooray " + a.t
+		is B
+			return "nope"
+		is C
+			return "sad panda"
+
+def main()
+	y := poly(A(1.2))
+	print(y)
+
