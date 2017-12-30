@@ -4,15 +4,30 @@
 #include "status.h"
 #include "llvm_utils.h"
 
+#define lf_function  0x01
+#define lf_block     0x02
+#define lf_loop      0x04
+#define lf_statement 0x08
+
 /* life_form_t is another word for scope or extent. In Zion, scope and extent
  * should be equivalent although there are unnamed values that need treatment at
  * the statement level. these may not have names and thusly are not mentioned in
  * scopes. */
-enum life_form_t {
-	lf_function=0,
-	lf_block,
-	lf_loop,
-	lf_statement,
+class life_form_t {
+public:
+	life_form_t(int val);
+
+	bool is_function() const { return val & lf_function; }
+	bool is_loop() const { return val & lf_loop; }
+	bool is_statement() const { return val & lf_statement; }
+	bool is_block() const { return val & lf_block; }
+	bool operator ==(const life_form_t rhs) const {
+	   	return (val & rhs.val);
+   	}
+	bool operator !=(const life_form_t rhs) const { return !(*this == rhs); }
+
+private:
+	int val;
 };
 
 struct life_t : std::enable_shared_from_this<life_t> {

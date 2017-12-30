@@ -1413,7 +1413,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
 
 			/* variable declarations begin new scopes */
 			local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
-					string_format("if-assignment-%s", token.text.c_str()));
+					string_format("condition-assignment-%s", token.text.c_str()));
 
 			scope = fresh_scope;
 			*new_scope = fresh_scope;
@@ -4440,6 +4440,7 @@ void ast::for_block_t::resolve_statement(
 
 	/* finish creating the iterator_end_var_decl */
 	iterator_end_var_decl->initializer = iter_end_call;
+	iterator_end_var_decl->is_let_var = true;
 
 	/* create the while condition */
 	auto iter_valid_call = create<callsite_expr_t>(in_token);
@@ -4499,104 +4500,113 @@ void ast::while_block_t::resolve_statement(
 	/* while scope allows us to set up new variables inside while conditions */
 	local_scope_t::ref while_scope;
 
-	if (condition != nullptr) {
-		assert(token.text == "while" || token.text == "for");
+	assert(token.text == "while" || token.text == "for");
 
-		llvm::Function *llvm_function_current = llvm_get_function(builder);
+	llvm::Function *llvm_function_current = llvm_get_function(builder);
 
-		llvm::BasicBlock *while_cond_bb = llvm::BasicBlock::Create(builder.getContext(), "while.cond", llvm_function_current);
+	llvm::BasicBlock *while_cond_bb = llvm::BasicBlock::Create(builder.getContext(), "while.cond", llvm_function_current);
 
-		assert(!builder.GetInsertBlock()->getTerminator());
-		builder.CreateBr(while_cond_bb);
-		builder.SetInsertPoint(while_cond_bb);
+	assert(!builder.GetInsertBlock()->getTerminator());
+	builder.CreateBr(while_cond_bb);
+	builder.SetInsertPoint(while_cond_bb);
 
-		/* demarcate a loop boundary here */
-		life = life->new_life(status, lf_loop);
+	/* demarcate a loop boundary here */
+	life = life->new_life(status, lf_loop);
 
-		auto cond_life = life->new_life(status, lf_statement);
+	life_t::ref cond_life = life->new_life(status, lf_statement);
+	bound_var_t::ref condition_value;
 
-		/* evaluate the condition for branching */
-		bound_var_t::ref condition_value = condition->resolve_expression(
+	/* evaluate the condition for branching */
+	if (auto var_decl = dyncast<const ast::var_decl_t>(condition)) {
+		/* our user is attempting an assignment inside of an if statement, let's
+		 * grant them a favor, and automatically unbox the Maybe type if it
+		 * exists. */
+		condition_value = var_decl->resolve_as_condition(
+				status, builder, scope, cond_life, &while_scope);
+	} else if (auto ref_expr = dyncast<const ast::reference_expr_t>(condition)) {
+		condition_value = ref_expr->resolve_as_condition(
+				status, builder, scope, cond_life, &while_scope);
+	} else if (auto expr = dyncast<const ast::expression_t>(condition)) {
+		condition_value = expr->resolve_expression(
 				status, builder, scope, cond_life, false /*as_ref*/);
+	} else {
+		panic("how did this get here?");
+	}
+
+	if (!!status) {
+		debug_above(5, log(log_info,
+					"getting raw condition for value %s",
+					condition_value->str().c_str()));
+		llvm::Value *llvm_raw_condition_value = get_raw_condition_value(status,
+				builder, scope, condition, condition_value);
 
 		if (!!status) {
-			debug_above(5, log(log_info,
-						"getting raw condition for value %s",
-						condition_value->str().c_str()));
-			llvm::Value *llvm_raw_condition_value = get_raw_condition_value(status,
-					builder, scope, condition, condition_value);
+			assert(llvm_raw_condition_value != nullptr);
+
+			/* generate some new blocks */
+			llvm::BasicBlock *while_block_bb = llvm::BasicBlock::Create(builder.getContext(), "while.block", llvm_function_current);
+			llvm::BasicBlock *while_end_bb = llvm::BasicBlock::Create(builder.getContext(), "while.end");
+
+			/* keep track of the "break" and "continue" jump locations */
+			loop_tracker_t loop_tracker(dyncast<runnable_scope_t>(scope), while_cond_bb, while_end_bb);
+
+			/* we don't have an else block, so we can just continue on */
+			llvm_create_if_branch(status, builder, scope,
+					IFF_ELSE, cond_life, llvm_raw_condition_value,
+					while_block_bb, while_end_bb);
 
 			if (!!status) {
-				assert(llvm_raw_condition_value != nullptr);
+				assert(builder.GetInsertBlock()->getTerminator());
 
-				/* generate some new blocks */
-				llvm::BasicBlock *while_block_bb = llvm::BasicBlock::Create(builder.getContext(), "while.block", llvm_function_current);
-				llvm::BasicBlock *while_end_bb = llvm::BasicBlock::Create(builder.getContext(), "while.end");
+				/* let's generate code for the "then" block */
+				builder.SetInsertPoint(while_block_bb);
+				assert(!builder.GetInsertBlock()->getTerminator());
 
-				/* keep track of the "break" and "continue" jump locations */
-				loop_tracker_t loop_tracker(dyncast<runnable_scope_t>(scope), while_cond_bb, while_end_bb);
-
-				/* we don't have an else block, so we can just continue on */
-				llvm_create_if_branch(status, builder, scope,
-						IFF_ELSE, cond_life, llvm_raw_condition_value,
-						while_block_bb, while_end_bb);
+				llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
+						builder, scope, cond_life, condition, condition_value);
 
 				if (!!status) {
-					assert(builder.GetInsertBlock()->getTerminator());
+					if (llvm_bool_overload_value != nullptr) {
+						/* we've got a second condition to check, let's do it */
+						auto deep_while_bb = llvm::BasicBlock::Create(builder.getContext(),
+								"deep-while", llvm_function_current);
 
-					/* let's generate code for the "then" block */
-					builder.SetInsertPoint(while_block_bb);
-					assert(!builder.GetInsertBlock()->getTerminator());
-
-					llvm::Value *llvm_bool_overload_value = maybe_get_bool_overload_value(status,
-							builder, scope, cond_life, condition, condition_value);
+						llvm_create_if_branch(status, builder, scope,
+								IFF_BOTH, cond_life,
+								llvm_bool_overload_value, deep_while_bb,
+								while_end_bb);
+						builder.SetInsertPoint(deep_while_bb);
+					} else {
+						cond_life->release_vars(status, builder, scope, lf_statement);
+					}
 
 					if (!!status) {
-						if (llvm_bool_overload_value != nullptr) {
-							/* we've got a second condition to check, let's do it */
-							auto deep_while_bb = llvm::BasicBlock::Create(builder.getContext(),
-									"deep-while", llvm_function_current);
+						block->resolve_statement(status, builder,
+								while_scope ? while_scope : scope, life, nullptr,
+								nullptr);
 
-							llvm_create_if_branch(status, builder, scope,
-									IFF_BOTH, cond_life,
-									llvm_bool_overload_value, deep_while_bb,
-									while_end_bb);
-							builder.SetInsertPoint(deep_while_bb);
-						} else {
-							cond_life->release_vars(status, builder, scope, lf_statement);
-						}
+						/* the loop can't store values */
+						assert(life->values.size() == 0 && life->life_form == lf_loop);
 
 						if (!!status) {
-							block->resolve_statement(status, builder,
-									while_scope ? while_scope : scope, life, nullptr,
-									nullptr);
-
-							/* the loop can't store values */
-							assert(life->values.size() == 0 && life->life_form == lf_loop);
-
-							if (!!status) {
-								if (!builder.GetInsertBlock()->getTerminator()) {
-									builder.CreateBr(while_cond_bb);
-								}
-								builder.SetInsertPoint(while_end_bb);
-
-								/* we know we'll need to fall through to the merge
-								 * block, let's add it to the end of the function
-								 * and let's set it as the next insert point. */
-								llvm_function_current->getBasicBlockList().push_back(while_end_bb);
-								builder.SetInsertPoint(while_end_bb);
-
-								assert(!!status);
-								return;
+							if (!builder.GetInsertBlock()->getTerminator()) {
+								builder.CreateBr(while_cond_bb);
 							}
+							builder.SetInsertPoint(while_end_bb);
+
+							/* we know we'll need to fall through to the merge
+							 * block, let's add it to the end of the function
+							 * and let's set it as the next insert point. */
+							llvm_function_current->getBasicBlockList().push_back(while_end_bb);
+							builder.SetInsertPoint(while_end_bb);
+
+							assert(!!status);
+							return;
 						}
 					}
 				}
 			}
 		}
-	} else {
-		/* this should never happen */
-		not_impl();
 	}
 
     assert(!status);
@@ -4668,7 +4678,7 @@ void ast::if_block_t::resolve_statement(
 
 	if (!!status) {
 		/* if the condition value is a maybe type, then we'll need multiple
-		 * anded conditions to be true in order to actuall fall into the then
+		 * anded conditions to be true in order to actually fall into the then
 		 * block, let's figure out those conditions */
 		llvm::Value *llvm_raw_condition_value = get_raw_condition_value(status,
 				builder, scope, condition, condition_value);
@@ -4849,7 +4859,7 @@ bound_var_t::ref ast::var_decl_t::resolve_as_condition(
 
     /* variable declarations begin new scopes */
     local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
-            string_format("if-assignment-%s", token.text.c_str()));
+            string_format("condition-assignment-%s", token.text.c_str()));
 
     scope = fresh_scope;
 

@@ -3,16 +3,25 @@
 #include "callable.h"
 #include <iostream>
 
+life_form_t::life_form_t(int val) : val(val) {
+}
+
 const char *lfstr(life_form_t lf) {
-	switch (lf) {
-	case lf_function:
-		return "function";
-	case lf_block:
-		return "block";
-	case lf_statement:
+	if (lf.is_statement()) {
+		assert(!lf.is_loop());
 		return "statement";
-	case lf_loop:
-		return "loop";
+	} else if (lf.is_block()) {
+		if (lf.is_loop()) {
+			return "loop block";
+		} else {
+			return "block";
+		}
+	} else if (lf.is_function()) {
+		assert(!lf.is_loop());
+		return "function";
+	} else {
+		assert(false);
+		return "";
 	}
 }
 
@@ -82,7 +91,6 @@ void life_t::track_var(
 		bound_var_t::ref value,
 		life_form_t track_in_life_form)
 {
-	assert(life_form != lf_loop);
 	bool is_managed;
 	value->type->is_managed_ptr(status, builder, scope, is_managed);
 

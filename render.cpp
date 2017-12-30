@@ -377,7 +377,7 @@ namespace ast {
 
 	void var_decl_t::render(render_state_t &rs) const {
 		if (rs.param_list_decl_depth == 0) {
-			rs.ss << C_TYPE << K(var) << C_RESET << " ";
+			rs.ss << C_TYPE << (is_let() ? K(let) : K(var)) << C_RESET << " ";
 		}
 
 		rs.ss << C_VAR << token.text << C_RESET;
