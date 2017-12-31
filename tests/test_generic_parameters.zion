@@ -29,11 +29,10 @@ def str(node Node{any T}?) str
 				sum = sum + delim + cur_node.value
 				print(sum)
 				node = cur_node.next
-			# TODO: handle correctly covering all enum possibilities
-		else
-			print("Fail")
-			assert(false)
-			break
+			else
+				print("Fail")
+				assert(false)
+				break
 	
 	return sum
 

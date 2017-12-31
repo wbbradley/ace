@@ -99,15 +99,15 @@ namespace ast {
 			for (auto pattern_block : pattern_blocks) {
 				pattern_block->render(rs);
 			}
-		}
 
-		if (else_block != nullptr) {
-			newline(rs);
-			indent(rs);
-			rs.ss << C_CONTROL << K(else) << C_RESET;
-			newline(rs);
-			indented(rs);
-			else_block->render(rs);
+			if (else_block != nullptr) {
+				newline(rs);
+				indent(rs);
+				rs.ss << C_CONTROL << K(else) << C_RESET;
+				newline(rs);
+				indented(rs);
+				else_block->render(rs);
+			}
 		}
 	}
 

@@ -14,6 +14,7 @@ type File has
 
 tag EOF
 
+[global]
 def open(name str, mode str) File
 	fp := posix.fopen(utf8(name).raw, utf8(mode).raw)
 	if fp != null
@@ -21,6 +22,7 @@ def open(name str, mode str) File
 	else
 		return File(name, Error(int(posix.errno())))
 
+[global]
 def close(f File)
 	state := f.state
 	when state
@@ -116,12 +118,17 @@ def readline(f File) str or Error or EOF
 		is Error
 			return state
 
+[global]
+def write(fp *posix.FILE, s str)
+	utf8_val := utf8(s)
+	posix.fwrite(utf8_val.raw, posix.strlen(utf8_val.raw), 1r, fp)
+	
+[global]
 def write(f File, s str)
 	state := f.state
 	when state
 		is Open
-			utf8_val := utf8(s)
-			posix.fwrite(utf8_val.raw, posix.strlen(utf8_val.raw), 1r, state.fp)
+			write(state.fp, s)
 		is Closed
 			posix.fprintf(stderr, "writing to closed file %s"r, utf8(f.filename).raw)
 			return

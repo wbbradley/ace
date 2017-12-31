@@ -1270,11 +1270,12 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 			}
 		}
 
-		chomp_token(tk_outdent);
 		if (ps.token.is_ident(K(else))) {
 			ps.advance();
 			when_block->else_block = block_t::parse(ps);
 		}
+
+		chomp_token(tk_outdent);
 
 		if (when_block->pattern_blocks.size() == 0) {
 			ps.error("when block did not have subsequent patterns to match");

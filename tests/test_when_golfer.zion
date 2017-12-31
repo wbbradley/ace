@@ -19,8 +19,8 @@ def recognize(athlete Athlete)
 					print("You are alive")
 			else
 				print("You are alive")
-	else
-		print("who are you?")
+		else
+			print("who are you?")
 
 def main()
 	recognize(Golfer("Arnold", "Palmer"))
