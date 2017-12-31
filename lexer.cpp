@@ -686,7 +686,9 @@ bool zion_lexer_t::_get_tokens() {
 		}
 
 		if (scan_ahead && gts != gts_error) {
+#ifdef ZION_DEBUG
 			char ch_old = ch;
+#endif
 			m_is.get(ch);
 			if (ch == '\n') {
 				++m_line;

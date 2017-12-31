@@ -52,8 +52,8 @@ bound_var_t::ref bind_ctor_to_scope(
 	assert(!!status);
 	assert(id != nullptr);
 	assert(function != nullptr);
-	bool is_instantiation = bool(dyncast<generic_substitution_scope_t>(scope));
-	assert(is_instantiation);
+	assert(dyncast<generic_substitution_scope_t>(scope) != nullptr);
+
 	/* create or find an existing ctor function that satisfies the term of
 	 * this node */
 	debug_above(5, log(log_info, "finding/creating data ctor for " c_type("%s") " with return type %s",

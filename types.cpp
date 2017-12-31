@@ -1599,7 +1599,6 @@ types::type_t::ref eval_id(
 	/* look in the environment for a declaration of this term */
 	auto fn_iter = env.find(ptid->id->get_name());
 	if (fn_iter != env.end()) {
-
 		if (stop_before_managed_ptr) {
 			if (auto ptr_type = dyncast<const types::type_ptr_t>(fn_iter->second)) {
 				if (dyncast<const types::type_managed_t>(ptr_type->element_type)) {
