@@ -12,8 +12,8 @@ def poly(a A or B or C) int
 			return 0
 		is B
 			return 1
-	else
-		return 44
+		else
+			return 44
 
 def main()
 	y := poly(C)

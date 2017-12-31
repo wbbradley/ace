@@ -6,7 +6,9 @@ get file
 def main()
 	print("note: ", NoLF)
 	note := input()
-	f := file.open(os.getenv("HOME") + "/zlogit.txt", "a")
-	file.write(f, note)
-	file.write(f, "\n")
-	file.close(f)
+	if note != null
+		# TODO: note should be unmaybe'd here
+		f := open((os.getenv("HOME") or ".") + "/zlogit.txt", "a")
+		write(f, note)
+		write(f, "\n")
+		close(f)

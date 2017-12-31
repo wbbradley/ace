@@ -12,35 +12,6 @@
 #include "types.h"
 #include "code_id.h"
 
-/* When we encounter the Empty declaration, we have to instantiate something.
- * When we create Empty() with term __obj__{__tuple__}. We don't bother
- * associating anything with the base type. We also create a bound type with
- * term 'Empty' that just maps to the raw __obj__{__tuple__} one.
- *
- * When we encounter Just, we create an unchecked data ctor, which would look
- * like:
- *
- *     def Just(any X) Just{any X}
- *
- * if it needed to have an AST. And, importantly, we do not create a type for
- * Just yet because it's not fully bound.
- * 
- * When we encounter a bound instance of the base type, like:
- * 
- *     var m Maybe{int} = ...
- *
- * we instantiate all the data ctors that are not yet instantiated.
- *
- * In the case of self-references like:
- *
- * type IntList is Node(int, IntList) or Done
- *
- * We notice that the base type is not parameterized. So, we immediately create
- * the base sum type IntList that maps to term __or__{Node{int, IntList},
- * Done} where the LLVM representation of this is just a raw var_t pointer that
- * can later be upcast, based on pattern matching on the type_id.
- */
-
 bound_var_t::ref bind_ctor_to_scope(
 		status_t &status,
 		llvm::IRBuilder<> &builder,

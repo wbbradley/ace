@@ -6,19 +6,16 @@ get file
 def main()
 	if len(sys.args) == 2
 		newline := "\n"
-		f := file.open(sys.args[1], "w")
+		f := open(sys.args[1], "w")
 		state := f.state
 		when state
 			is file.Open
 				for line in readlines()
 					print(line)
-					file.write(f, line)
-					file.write(f, newline)
-				file.close(f)
-			is file.Error
-				print("Failed to open file " + sys.args[1] + ": error " + state.errno)
-				sys.exit(-1)
-			is file.Closed
+					write(f, line)
+					write(f, newline)
+				close(f)
+			else
 				print("Failed to open file " + sys.args[1])
 				sys.exit(-1)
 	else
