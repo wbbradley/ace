@@ -15,6 +15,7 @@ tags
 *.ir
 *.bc
 *.o
+*.d
 *.s
 *.err
 rt_gc

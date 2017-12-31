@@ -3,7 +3,7 @@ VERSION=0.1
 INSTALL_DIR=/usr/local/zion
 OPT_LEVEL=-O3
 UNAME := $(shell uname)
-DEBUG_FLAGS := -DZION_DEBUG -g $(OPT_LEVEL)
+DEBUG_FLAGS := -DZION_NO_DEBUG -g $(OPT_LEVEL)
 LLVM_VERSION = release_40
 LLVM_DEBUG_ROOT = $(HOME)/opt/llvm/$(LLVM_VERSION)/Debug
 LLVM_RELEASE_ROOT = $(HOME)/opt/llvm/$(LLVM_VERSION)/MinSizeRel
@@ -215,11 +215,11 @@ $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_OBJE
 	@ccache -s
 	@du -hs $@ | cut -f1 | xargs echo Target \`$@\` is
 
-$(BUILD_DIR)/%.e: %.cpp
+$(BUILD_DIR)/%.e: src/%.cpp
 	@echo Precompiling $<
 	$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) -E $< -o $@
 
-$(BUILD_DIR)/%.llvm.o: %.cpp
+$(BUILD_DIR)/%.llvm.o: src/%.cpp
 	@echo Compiling $<
 	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
 	$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -o $@
@@ -229,9 +229,14 @@ $(BUILD_DIR)/tests/%.o: tests/%.c
 	@echo Compiling $<
 	$(CC) $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/%.o: %.c
+$(BUILD_DIR)/%.o: src/%.c
 	@echo Compiling $<
 	@$(CPP) $(CPP_FLAGS) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
+	$(CC) $(CFLAGS) $< -o $@
+
+%.o: src/%.c
+	@echo Compiling $<
+	@$(CC) $(CPP_FLAGS) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
 	$(CC) $(CFLAGS) $< -o $@
 
 %.llir: %.c zion_rt.h
@@ -239,7 +244,7 @@ $(BUILD_DIR)/%.o: %.c
 	$(CLANG) -S -emit-llvm -g $< -o $@
 
 clean:
-	rm -rf *.llir.ir $(BUILD_DIR)/* tests/*.o *.o *.zx tests/*.zx *.a $(TARGETS)
+	rm -rf *.llir.ir $(BUILD_DIR) tests/*.o *.o *.zx tests/*.zx *.a $(TARGETS)
 
 image: Dockerfile
 	docker build -t $(IMAGE):$(VERSION) .
