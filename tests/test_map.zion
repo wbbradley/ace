@@ -1,0 +1,7 @@
+module _
+
+def main()
+	var m map{str, int}
+
+	m["hello"] = 12
+	print(m["hello"])

@@ -41,6 +41,21 @@ T merge(const T &a, const T &b) {
 }
 
 template <typename T>
+T merge(const T &a, const T &b, const T &c) {
+	T new_t;
+	for (auto i : a) {
+		new_t[i.first] = i.second;
+	}
+	for (auto i : b) {
+		new_t[i.first] = i.second;
+	}
+	for (auto i : c) {
+		new_t[i.first] = i.second;
+	}
+	return new_t;
+}
+
+template <typename T>
 struct maybe {
 	T t;
 	bool valid;
