@@ -56,14 +56,16 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 
 	virtual bound_var_t::ref get_singleton(std::string name) = 0;
 
-    /* There are mappings based on type declarations stored in the env */
-	virtual types::type_t::map get_typename_env() const = 0;
+    /* There are mappings based on type declarations stored in the env(s) */
+	virtual types::type_t::map get_nominal_env() const = 0;
+	virtual types::type_t::map get_total_env() const = 0;
 
     /* Then, there are mappings from type_variable names to type_t::refs */
 	virtual types::type_t::map get_type_variable_bindings() const = 0;
 
-    virtual void put_typename(status_t &status, std::string name, types::type_t::ref expansion) = 0;
-    virtual void put_type_variable_binding(status_t &status, std::string binding, types::type_t::ref type) = 0;
+    virtual void put_nominal_typename(status_t &status, const std::string &name, types::type_t::ref expansion) = 0;
+    virtual void put_structural_typename(status_t &status, const std::string &name, types::type_t::ref expansion) = 0;
+    virtual void put_type_variable_binding(status_t &status, const std::string &binding, types::type_t::ref type) = 0;
 };
 
 template <typename BASE>
@@ -85,7 +87,8 @@ struct scope_impl_t : public BASE {
 
 	ptr<function_scope_t> new_function_scope(std::string name);
 	ptr<program_scope_t> get_program_scope();
-	types::type_t::map get_typename_env() const;
+	types::type_t::map get_nominal_env() const;
+	types::type_t::map get_total_env() const;
 	types::type_t::map get_type_variable_bindings() const;
 	std::string str();
 	void put_bound_variable(status_t &status, std::string symbol, bound_var_t::ref bound_variable);
@@ -95,8 +98,9 @@ struct scope_impl_t : public BASE {
 	std::string make_fqn(std::string leaf_name) const;
 	bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true);
 	void get_callables(std::string symbol, var_t::refs &fns);
-    virtual void put_typename(status_t &status, std::string name, types::type_t::ref expansion);
-    virtual void put_type_variable_binding(status_t &status, std::string binding, types::type_t::ref type);
+    virtual void put_nominal_typename(status_t &status, const std::string &name, types::type_t::ref expansion);
+    virtual void put_structural_typename(status_t &status, const std::string &name, types::type_t::ref expansion);
+    virtual void put_type_variable_binding(status_t &status, const std::string &binding, types::type_t::ref type);
 	virtual ptr<scope_t> get_parent_scope();
 	virtual ptr<const scope_t> get_parent_scope() const;
 
@@ -105,7 +109,8 @@ protected:
 
 	ref parent_scope;
 	bound_var_t::map bound_vars;
-	types::type_t::map typename_env;
+	types::type_t::map nominal_env;
+	types::type_t::map structural_env;
 	types::type_t::map type_variable_bindings;
 };
 
@@ -354,26 +359,27 @@ ptr<program_scope_t> scope_impl_t<T>::get_program_scope() {
 	return this->get_parent_scope()->get_program_scope();
 }
 
-template <typename T>
-void scope_impl_t<T>::put_typename(status_t &status, std::string type_name, types::type_t::ref expansion) {
+void put_typename_impl(status_t &status, scope_t::ref parent_scope, const std::string &scope_name, types::type_t::map &typename_env, const std::string &type_name, types::type_t::ref expansion, bool is_structural) {
 #if 0
-	if (type_name.str().find("map.map") != std::string::npos) {
-		dbg();
-	}
+	// A good place for a breakpoint when debugging type issues
+	dbg_when(type_name.str().find("map.map") != std::string::npos);
 #endif
+
 	auto iter_type = typename_env.find(type_name);
 	if (iter_type == typename_env.end()) {
 		debug_above(2, log(log_info, "registering typename " c_type("%s") " as %s in scope " c_id("%s"),
 					type_name.c_str(), expansion->str().c_str(),
-					this->scope_name.c_str()));
+					scope_name.c_str()));
 		typename_env[type_name] = expansion;
-		if (auto parent_scope = get_parent_scope()) {
-			parent_scope->put_typename(status,
-				   	get_leaf_name() + SCOPE_SEP + type_name, expansion);
+		if (parent_scope != nullptr) {
+			/* register this type with our parent */
+			if (is_structural) {
+				parent_scope->put_structural_typename(status, scope_name + SCOPE_SEP + type_name, expansion);
+			} else {
+				parent_scope->put_nominal_typename(status, scope_name + SCOPE_SEP + type_name, expansion);
+			}
 		} else {
-			/* we are at the outermost scope, let's go ahead and register this
-			 * typename */
-			assert(dynamic_cast<program_scope_t *>(this));
+			/* we are at the outermost scope, we're done. */
 		}
 	} else {
 		user_error(status, expansion->get_location(),
@@ -389,7 +395,17 @@ void scope_impl_t<T>::put_typename(status_t &status, std::string type_name, type
 }
 
 template <typename T>
-void scope_impl_t<T>::put_type_variable_binding(status_t &status, std::string name, types::type_t::ref type) {
+void scope_impl_t<T>::put_structural_typename(status_t &status, const std::string &type_name, types::type_t::ref expansion) {
+	put_typename_impl(status, get_parent_scope(), scope_name, structural_env, type_name, expansion);
+}
+
+template <typename T>
+void scope_impl_t<T>::put_nominal_typename(status_t &status, const std::string &type_name, types::type_t::ref expansion) {
+	put_typename_impl(status, get_parent_scope(), scope_name, nominal_env, type_name, expansion);
+}
+
+template <typename T>
+void scope_impl_t<T>::put_type_variable_binding(status_t &status, const std::string &name, types::type_t::ref type) {
 	auto iter = type_variable_bindings.find(name);
 	if (iter == type_variable_bindings.end()) {
 		debug_above(2, log(log_info, "binding type variable " c_type("%s") " as %s",
@@ -404,12 +420,25 @@ void scope_impl_t<T>::put_type_variable_binding(status_t &status, std::string na
 }
 
 template <typename T>
-types::type_t::map scope_impl_t<T>::get_typename_env() const {
+types::type_t::map scope_impl_t<T>::get_nominal_env() const {
 	auto parent_scope = this->get_parent_scope();
 	if (parent_scope != nullptr) {
-		return merge(parent_scope->get_typename_env(), typename_env);
+		return merge(parent_scope->get_nominal_env(), nominal_env);
 	} else {
-		return typename_env;
+		return nominal_env;
+	}
+}
+
+template <typename T>
+types::type_t::map scope_impl_t<T>::get_total_env() const {
+	auto parent_scope = this->get_parent_scope();
+	if (parent_scope != nullptr) {
+		return merge(
+				parent_scope->get_total_env(),
+				nominal_env,
+				structural_env);
+	} else {
+		return merge(nominal_env, structural_env);
 	}
 }
 
