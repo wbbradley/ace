@@ -1380,10 +1380,10 @@ llvm::Value *llvm_make_gep(
 				managed ? "managed " : "",
 				llvm_print(*llvm_value).c_str(), index));
 
-	llvm::PointerType *llvm_ptr_type = llvm::dyn_cast<llvm::PointerType>(llvm_value->getType());
+#ifdef ZION_DEBUG
+	auto llvm_ptr_type = llvm::dyn_cast<llvm::PointerType>(llvm_value->getType());
 	assert(llvm_ptr_type != nullptr);
-
-	llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_ptr_type->getElementType());
+	auto llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_ptr_type->getElementType());
 	assert(llvm_struct_type != nullptr);
 
 	if (!managed) {
@@ -1392,6 +1392,7 @@ llvm::Value *llvm_make_gep(
 		debug_above(5, log("trying to load value for element of type %s",
 					llvm_print(llvm_element_type).c_str()));
 	}
+#endif
 
 	std::vector<llvm::Value *> gep_path = (
 			managed

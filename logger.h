@@ -71,8 +71,12 @@ struct indent_logger : logger {
 	logger *logger_old;
 };
 
+#ifdef ZION_DEBUG
 #define INDENT(level, message) \
 	indent_logger _indent(INTERNAL_LOC(), level, message)
+#else
+#define INDENT(level, message)
+#endif
 
 struct note_logger : logger {
 	note_logger(std::string message);

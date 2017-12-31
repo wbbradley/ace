@@ -1,7 +1,7 @@
 IMAGE=zionlang/zion
 VERSION=0.1
 INSTALL_DIR=/usr/local/zion
-OPT_LEVEL=-O0
+OPT_LEVEL=-O3
 UNAME := $(shell uname)
 DEBUG_FLAGS := -DZION_DEBUG -g $(OPT_LEVEL)
 LLVM_VERSION = release_40
@@ -210,33 +210,33 @@ dbg: $(ZION_TARGET)
 
 $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_OBJECTS)
 	@echo Linking $@...
-	@$(LINKER) $(LINKER_OPTS) $(ZION_LLVM_OBJECTS) -o $@
+	$(LINKER) $(LINKER_OPTS) $(ZION_LLVM_OBJECTS) -o $@
 	@echo $@ successfully built
 	@ccache -s
 	@du -hs $@ | cut -f1 | xargs echo Target \`$@\` is
 
 $(BUILD_DIR)/%.e: %.cpp
 	@echo Precompiling $<
-	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) -E $< -o $@
+	$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) -E $< -o $@
 
 $(BUILD_DIR)/%.llvm.o: %.cpp
 	@echo Compiling $<
 	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -o $@
+	$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -o $@
 
 $(BUILD_DIR)/tests/%.o: tests/%.c
 	@-mkdir -p $(@D)
 	@echo Compiling $<
-	@$(CC) $(CFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/%.o: %.c
 	@echo Compiling $<
 	@$(CPP) $(CPP_FLAGS) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	@$(CC) $(CFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $< -o $@
 
 %.llir: %.c zion_rt.h
 	@echo Emitting LLIR from $<
-	@$(CLANG) -S -emit-llvm -g $< -o $@
+	$(CLANG) -S -emit-llvm -g $< -o $@
 
 clean:
 	rm -rf *.llir.ir $(BUILD_DIR)/* tests/*.o *.o *.zx tests/*.zx *.a $(TARGETS)

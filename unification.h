@@ -29,7 +29,7 @@ struct unification_t {
 unification_t unify(
 		types::type_t::ref a,
 		types::type_t::ref b,
-		types::type_t::map env = {},
+		const types::type_t::map &env,
         types::type_t::map bindings = {},
         int depth=0);
 

@@ -23,8 +23,7 @@ llvm::Constant *llvm_get_pointer_to_constant(
 		llvm::IRBuilder<> &builder,
 		llvm::Constant *llvm_constant)
 {
-	auto llvm_ptr_type = llvm::dyn_cast<llvm::PointerType>(llvm_constant->getType());
-	assert(llvm_ptr_type != nullptr);
+	assert(llvm::dyn_cast<llvm::PointerType>(llvm_constant->getType()) != nullptr);
 
 	debug_above(9, log(log_info, "getting pointer to constant %s",
 				llvm_print(llvm_constant).c_str()));
@@ -178,6 +177,7 @@ bound_var_t::ref create_callsite(
 {
 	assert(function != nullptr);
 	if (!!status) {
+#ifdef ZION_DEBUG
 		llvm::Value *llvm_function = function->get_llvm_value();
 		debug_above(5, log(log_info, "create_callsite is assuming %s is compatible with %s",
 					function->get_type()->str().c_str(),
@@ -185,6 +185,7 @@ bound_var_t::ref create_callsite(
 		debug_above(5, log(log_info, "calling function " c_id("%s") " with type %s",
 					function->name.c_str(),
 					llvm_print(llvm_function->getType()).c_str()));
+#endif
 
 		/* downcast the arguments as necessary to var_t * */
 		types::type_function_t::ref function_type = dyncast<const types::type_function_t>(

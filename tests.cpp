@@ -1086,12 +1086,12 @@ auto test_descs = std::vector<test_desc>{
 
 			status_t status;
 			for (auto &pair : unifies) {
-				test_assert(unify(pair.first, pair.second).result);
+				test_assert(unify(pair.first, pair.second, {}).result);
 				assert(!!status);
 			}
 
 			for (auto &pair : fails) {
-				auto unification = unify(pair.first, pair.second);
+				auto unification = unify(pair.first, pair.second, {});
 				assert(!!status);
 				if (unification.result) {
 					log(log_error, "should have failed unifying %s and %s [%s]",
@@ -1251,7 +1251,7 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 				}
 			} else {
 				debug_above(2, log(log_info, "------ " c_good("✓ ") c_test_msg("%s") c_good(" PASS ") "------", test_desc.name.c_str()));
-                append_excludes(test_desc.name);
+				append_excludes(test_desc.name);
 				++pass;
 			}
 		} else {
@@ -1270,7 +1270,7 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 		}
 	} else {
 		log(log_error, "====== %d/%d TESTS PASSED (" c_error("%d failures") ", " c_warn("%d skipped") ") ======",
-			   	pass, total, total - pass, skipped);
+				pass, total, total - pass, skipped);
 		for (auto fail : failures) {
 			log(log_error, "%s failed", fail.c_str());
 		}

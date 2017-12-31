@@ -2054,12 +2054,15 @@ bound_var_t::ref type_check_binary_integer_op(
 			llvm::Value *llvm_rhs = rhs->get_llvm_value();
 			assert(llvm_lhs->getType()->isIntegerTy());
 			assert(llvm_rhs->getType()->isIntegerTy());
+
+#ifdef ZION_DEBUG
 			auto llvm_lhs_type = llvm::dyn_cast<llvm::IntegerType>(llvm_lhs->getType());
-			auto llvm_rhs_type = llvm::dyn_cast<llvm::IntegerType>(llvm_rhs->getType());
 			assert(llvm_lhs_type != nullptr);
-			assert(llvm_rhs_type != nullptr);
 			assert(llvm_lhs_type->getBitWidth() == lhs_bit_size);
+			auto llvm_rhs_type = llvm::dyn_cast<llvm::IntegerType>(llvm_rhs->getType());
+			assert(llvm_rhs_type != nullptr);
 			assert(llvm_rhs_type->getBitWidth() == rhs_bit_size);
+#endif
 
 			unsigned computation_bit_size = std::max(std::max(lhs_bit_size, rhs_bit_size), int_bit_size);
 			if (lhs_bit_size < computation_bit_size) {

@@ -52,7 +52,7 @@ int run_program(std::string executable, std::vector<const char *> args)  {
 
 int main(int argc, char *argv[]) {
 	init_dbg();
-	ptr<logger> logger(make_ptr<standard_logger>(debug_else("", "zion.log"), "."));
+	ptr<logger> logger(make_ptr<standard_logger>("", "."));
     std::string cmd;
 	if (argc >= 2) {
 		cmd = argv[1];

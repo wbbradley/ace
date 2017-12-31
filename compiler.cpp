@@ -552,8 +552,10 @@ void compiler_t::emit_built_program(status_t &status, std::string executable_fil
 					ret, ss.str().c_str());
 		}
 
+#ifdef ZION_DEBUG
 		struct stat s;
 		assert(stat(executable_filename.c_str(), &s) == 0);
+#endif
 
 		return;
 	}

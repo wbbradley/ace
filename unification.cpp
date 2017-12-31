@@ -67,7 +67,7 @@ bool occurs_in_type(
 unification_t unify(
 		types::type_t::ref lhs,
 		types::type_t::ref rhs,
-		types::type_t::map env,
+		const types::type_t::map &env,
 		types::type_t::map bindings,
 		int depth)
 {
