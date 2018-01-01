@@ -104,8 +104,8 @@ endif
 
 endif
 
-VPATH = .:$(BUILD_DIR)
 BUILD_DIR = build-$(UNAME)
+VPATH = .:$(BUILD_DIR)
 
 ZION_LLVM_SOURCES = \
 				ast.cpp \
@@ -231,13 +231,13 @@ $(BUILD_DIR)/tests/%.o: tests/%.c
 
 $(BUILD_DIR)/%.o: src/%.c
 	@echo Compiling $<
-	@$(CPP) $(CPP_FLAGS) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	$(CC) $(CFLAGS) $< -o $@
+	@$(CLANG) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
+	$(CLANG) $(CFLAGS) $< -o $@
 
 %.o: src/%.c
 	@echo Compiling $<
-	@$(CC) $(CPP_FLAGS) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	$(CC) $(CFLAGS) $< -o $@
+	@$(CLANG) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
+	$(CLANG) $(CFLAGS) $< -o $@
 
 %.llir: %.c zion_rt.h
 	@echo Emitting LLIR from $<

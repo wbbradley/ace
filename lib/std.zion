@@ -12,6 +12,7 @@ get char
 get vector
 get map
 get math
+get file
 
 link in "rt_typeid.o"
 
@@ -69,6 +70,10 @@ def wcstombs(wcs *wchar_t) *char_t
 def print(x any) void
 	posix.fputs(utf8(str(x)).raw, stdout)
 	posix.fputs("\n"r, stdout)
+
+def panic(x str) void
+	write(stderr, x)
+	posix.exit(-1r)
 
 tag NoLF
 

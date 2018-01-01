@@ -191,6 +191,19 @@ def copy(orig [any T], t any T) [any T]
 	append(new, t)
 	return new
 
+[global]
+def splice(vec [any T], index int, count int) void
+	let v = vec as *vector_t
+	let orig_count = v.size
+	let i = index.raw
+	let c = count.raw
+	let skip_to = i + c
+	if c < 0r or skip_to < 0r or skip_to > orig_count
+		panic("invalid index (" + index + ") and count (" + count + ") passed to vector.splice\n")
+
+	posix.memmove(&v.items[i], &v.items[skip_to], (orig_count - skip_to) * sizeof(*var_t))
+	v.size = orig_count - c
+
 type vector_iter{C} has
 	var vec [C]
 	var pos int_t

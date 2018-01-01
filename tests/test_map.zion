@@ -1,9 +1,20 @@
 module _
 # test: pass
 # expect: 12
+# expect: 13
+# expect: deleted hello
+# expect: 15
+# expect: could not find hello
 
 def main()
 	var m map.map{str, int}
 
 	m["hello"] = 12
 	print(get(m, "hello", 0))
+	m["hello"] = 13
+	print(m["hello"] or 14)
+	if del(m, "hello")
+		print("deleted hello")
+	print(m["hello"] or 15)
+	if not del(m, "hello")
+		print("could not find hello")
