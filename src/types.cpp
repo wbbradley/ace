@@ -115,40 +115,6 @@ namespace types {
 
         return shared_from_this();
     }
-#if 0
-        auto expansion = eval(shared_from_this(), env);
-        if (expansion != nullptr) {
-            /* refine the expanded version of this type */
-            auto refined_expansion = expansion->boolean_refinement(elimination_value, env);
-            if (refined_expansion == nullptr) {
-                /* if the refinement results in elimination, so be it */
-                debug_above(6, log("eliding the whole type of %s", str().c_str()));
-                return nullptr;
-            } else if (refined_expansion->get_signature() == expansion->get_signature()) {
-                /* if the refinement does nothing, return the original type */
-                debug_above(6, log("keeping %s", str().c_str()));
-                return shared_from_this();
-            } else {
-                /* the refinement changed something, so return that */
-                debug_above(6, log("refining %s to %s", str().c_str(), refined_expansion->str().c_str()));
-                return refined_expansion;
-            }
-        } else {
-            /* there is no expansion, so just return this type because we don't know how to refine
-             * it */
-if 0
-            // TODO: see about adding some smarts here
-            if (id->get_name() == BOOL_TYPE) {
-                return type_id(elimination_value
-                        ? make_iid_impl(FALSE_TYPE, get_location())
-                        : make_iid_impl(TRUE_TYPE, get_location()));
-            }
-            assert(false && "?");
-endif
-            debug_above(6, log("keeping %s", str().c_str()));
-            return shared_from_this();
-        }
-#endif
 
 	type_variable_t::type_variable_t(identifier::ref id) : id(id), location(id->get_location()) {
 	}
@@ -247,7 +213,7 @@ endif
 	}
 
     type_t::ref type_operator_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
-        auto expansion = eval(shared_from_this(), env, true /*stop_before_managed_ptr*/);
+        auto expansion = eval(shared_from_this(), env);
         if (expansion != nullptr) {
             /* refine the expanded version of this type */
             auto refined_expansion = expansion->boolean_refinement(elimination_value, env);
@@ -1058,8 +1024,12 @@ endif
 			type = maybe_type->just;
 		}
 
-		if (auto expanded_type = eval(type, env, false /* stop_before_managed_ptr */)) {
+		if (auto expanded_type = eval(type, env)) {
 			type = expanded_type;
+		}
+
+		if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
+			return true;
 		}
 
 		if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
@@ -1084,7 +1054,7 @@ endif
 			type = maybe_type->just;
 		}
 
-		if (auto expanded_type = eval(type, env, false /* stop_before_managed_ptr */)) {
+		if (auto expanded_type = eval(type, env)) {
 			type = expanded_type;
 		}
 
@@ -1105,7 +1075,7 @@ endif
 			type_t::ref type,
 			type_t::ref &expansion)
 	{
-		expansion = full_eval(type, env, true /* stop_before_managed_ptr */);
+		expansion = full_eval(type, env);
 
 		if (auto literal = dyncast<const type_literal_t>(expansion)) {
 			return literal->coerce_to_int(status);
@@ -1119,7 +1089,7 @@ endif
 	}
 
 	bool is_integer(type_t::ref type, const type_t::map &env) {
-		return dyncast<const type_integer_t>(full_eval(type, env, true /* stop_before_managed_ptr */)) != nullptr;
+		return dyncast<const type_integer_t>(full_eval(type, env)) != nullptr;
 	}
 
 	void get_integer_attributes(
@@ -1129,12 +1099,12 @@ endif
 		   	unsigned &bit_size,
 		   	bool &signed_)
    	{
-		type = full_eval(type, env, true /* stop_before_managed_ptr */);
+		type = full_eval(type, env);
 		if (auto integer = dyncast<const type_integer_t>(type)) {
 			type_t::ref bit_size_expansion;
 			bit_size = coerce_to_integer(status, env, integer->bit_size, bit_size_expansion);
 			if (!!status) {
-				auto signed_type = full_eval(integer->signed_, env, true /* stop_before_managed_ptr */);
+				auto signed_type = full_eval(integer->signed_, env);
 				if (types::is_type_id(signed_type, "signed")) {
 					signed_ = true;
 					return;
@@ -1156,7 +1126,7 @@ endif
 	}
 
 	void get_runtime_typeids(status_t &status, type_t::ref type, const type_t::map &env, std::set<int> &typeids) {
-		auto expansion = full_eval(type, env, true /*stop_before_managed_ptr*/);
+		auto expansion = full_eval(type, env);
 		if (auto type_ref = dyncast<const type_ref_t>(expansion)) {
 			user_error(status, type->get_location(), "reference types are not allowed here. %s does not have runtime type information",
 					type->str().c_str());
@@ -1503,11 +1473,11 @@ const char *pkstr(product_kind_t pk) {
 	return nullptr;
 }
 
-types::type_t::ref full_eval(types::type_t::ref type, const types::type_t::map &env, bool stop_before_managed_ptr) {
+types::type_t::ref full_eval(types::type_t::ref type, const types::type_t::map &env) {
 	if (type == nullptr) {
 		return nullptr;
-	} else if (auto expansion = eval(type, env, stop_before_managed_ptr)) {
-		return full_eval(expansion, env, stop_before_managed_ptr);
+	} else if (auto expansion = eval(type, env)) {
+		return full_eval(expansion, env);
 	} else {
 		return type;
 	}
@@ -1515,26 +1485,25 @@ types::type_t::ref full_eval(types::type_t::ref type, const types::type_t::map &
 
 types::type_t::ref eval(
 		types::type_t::ref type,
-		const types::type_t::map &env,
-		bool stop_before_managed_ptr)
+		const types::type_t::map &env)
 {
 	/* if there is no expansion of the type passed in, we will return nullptr */
 	debug_above(9, log("eval'ing %s in %s",
 				type->str().c_str(),
 				str(env).c_str()));
 	if (auto id = dyncast<const types::type_id_t>(type)) {
-		return eval_id(id, env, stop_before_managed_ptr);
+		return eval_id(id, env);
 	} else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
-		return eval_apply(operator_->oper, operator_->operand, env, stop_before_managed_ptr);
+		return eval_apply(operator_->oper, operator_->operand, env);
 	} else if (auto pointer = dyncast<const types::type_ptr_t>(type)) {
-		auto evaled = eval(pointer->element_type, env, stop_before_managed_ptr);
+		auto evaled = eval(pointer->element_type, env);
 		if (evaled != nullptr) {
 			return type_ptr(evaled);
 		} else {
 			return nullptr;
 		}
 	} else if (auto ref = dyncast<const types::type_ref_t>(type)) {
-		auto evaled = eval(ref->element_type, env, stop_before_managed_ptr);
+		auto evaled = eval(ref->element_type, env);
 		if (evaled != nullptr) {
 			return type_ref(evaled);
 		} else {
@@ -1544,11 +1513,8 @@ types::type_t::ref eval(
 		/* there is no expansion of struct types */
 		return nullptr;
 	} else if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
-		if (stop_before_managed_ptr) {
-			return nullptr;
-		} else {
-			return type_ptr(type_managed(type_struct(tuple_type->dimensions, {})));
-		}
+		/* Tuples are interesting because they don't have names, so they are not nominal, per se */
+		return nullptr;
 	} else if (auto managed_type = dyncast<const types::type_managed_t>(type)) {
 		/* there is no expansion of managed types, since they are fully concrete */
 		return nullptr;
@@ -1563,7 +1529,8 @@ types::type_t::ref eval(
 		return nullptr;
 	} else if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 		/* there is no expansion of sum types */
-		auto evaled = eval(maybe_type->just, env, stop_before_managed_ptr);
+		// TODO: revisit whether/why this is necessary
+		auto evaled = eval(maybe_type->just, env);
 		if (evaled != nullptr) {
 			return type_maybe(evaled);
 		} else {
@@ -1587,11 +1554,7 @@ types::type_t::ref eval(
 	}
 }
 
-types::type_t::ref eval_id(
-		ptr<const types::type_id_t> ptid,
-		const types::type_t::map &env, 
-		bool stop_before_managed_ptr)
-{
+types::type_t::ref eval_id(ptr<const types::type_id_t> ptid, const types::type_t::map &env) {
 	/* if there is no expansion of the type passed in, we will return nullptr */
 
 	assert(ptid != nullptr);
@@ -1599,16 +1562,6 @@ types::type_t::ref eval_id(
 	/* look in the environment for a declaration of this term */
 	auto fn_iter = env.find(ptid->id->get_name());
 	if (fn_iter != env.end()) {
-		if (stop_before_managed_ptr) {
-			if (auto ptr_type = dyncast<const types::type_ptr_t>(fn_iter->second)) {
-				if (dyncast<const types::type_managed_t>(ptr_type->element_type)) {
-					return nullptr;
-				}
-			} else if (auto extern_type = dyncast<const types::type_extern_t>(fn_iter->second)) {
-				return nullptr;
-			}
-		}
-
 		return fn_iter->second;
 	} else {
 		return nullptr;
@@ -1617,9 +1570,8 @@ types::type_t::ref eval_id(
 
 types::type_t::ref eval_apply(
 		types::type_t::ref oper,
-	   	types::type_t::ref operand, 
-		const types::type_t::map &env,
-		bool stop_before_managed_ptr)
+		types::type_t::ref operand, 
+		const types::type_t::map &env)
 {
 	/* if there is no expansion of the type passed in, we will return nullptr */
 
@@ -1627,7 +1579,7 @@ types::type_t::ref eval_apply(
 	assert(operand != nullptr);
 	if (auto ptid = dyncast<const types::type_id_t>(oper)) {
 		/* look in the environment for a declaration of this operator */
-		types::type_t::ref expansion = eval_id(ptid, env, stop_before_managed_ptr);
+		types::type_t::ref expansion = eval_id(ptid, env);
 
 		debug_above(7, log(log_info, "eval_apply : %s expanded to %s in %s",
 					ptid->str().c_str(),
@@ -1635,27 +1587,17 @@ types::type_t::ref eval_apply(
                     str(env).c_str()));
 
 		if (expansion != nullptr) {
-			return eval_apply(expansion, operand, env, stop_before_managed_ptr);
+			return eval_apply(expansion, operand, env);
 		} else {
 			return nullptr;
 		}
 	} else if (auto lambda = dyncast<const types::type_lambda_t>(oper)) {
 		auto var_name = lambda->binding->get_name();
-		auto expansion = lambda->body->rebind({{var_name, operand}});
-		if (stop_before_managed_ptr) {
-			if (auto ptr_type = dyncast<const types::type_ptr_t>(expansion)) {
-				if (dyncast<const types::type_managed_t>(ptr_type->element_type)) {
-					return nullptr;
-				}
-			} else if (auto extern_type = dyncast<const types::type_extern_t>(expansion)) {
-				return nullptr;
-			}
-		}
-		return expansion;
+		return lambda->body->rebind({{var_name, operand}});
 	} else if (auto pto = dyncast<const types::type_operator_t>(oper)) {
-		auto new_operator = eval_apply(pto->oper, pto->operand, env, stop_before_managed_ptr);
+		auto new_operator = eval_apply(pto->oper, pto->operand, env);
 		if (new_operator != nullptr) {
-			return eval_apply(new_operator, operand, env, stop_before_managed_ptr);
+			return eval_apply(new_operator, operand, env);
 		} else {
 			return nullptr;
 		}

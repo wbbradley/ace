@@ -338,7 +338,7 @@ bound_type_t::ref create_bound_tuple_type(
 		const ptr<const types::type_tuple_t> &tuple_type)
 {
 	auto program_scope = scope->get_program_scope();
-	auto expansion = eval(tuple_type, scope->get_typename_env(), false /* stop_before_managed_ptr */);
+	auto expansion = type_ptr(type_managed(type_struct(tuple_type->dimensions, {})));
 
 	auto bound_structural_type = upsert_bound_type(status, builder, scope, expansion);
 	if (!!status) {
@@ -476,7 +476,7 @@ bound_type_t::ref bind_expansion(
 		if (llvm_struct_type != nullptr) {
 			std::string old_name = llvm_struct_type->getName().str();
 			if (old_name.substr(0, 2) != "z.") {
-				std::string new_name = std::string("z.") + unexpanded->repr(scope->get_typename_env());
+				std::string new_name = std::string("z.") + unexpanded->repr(scope->get_type_variable_bindings());
 				debug_above(6, log("changing name of LLVM struct from %s to %s",
 							old_name.c_str(),
 							new_name.c_str()));
@@ -513,8 +513,8 @@ bound_type_t::ref create_bound_id_type(
 {
 	/* this id type does not yet have a bound type. */
 	assert(!scope->get_bound_type(id->get_signature()));
-	auto env = scope->get_typename_env();
-	auto expansion = eval_id(id, env, false /* stop_before_managed_ptr */);
+	auto env = scope->get_total_env();
+	auto expansion = eval_id(id, env);
 
 	/* however, what it expands to might already have a bound type */
 	if (expansion != nullptr) {
@@ -536,10 +536,10 @@ bound_type_t::ref create_bound_operator_type(
 {
 	debug_above(4, log(log_info, "create_bound_operator_type(..., %s)", operator_->str().c_str()));
 
-	auto typename_env = scope->get_typename_env();
+	auto typename_env = scope->get_total_env();
 
 	/* apply the operator */
-	auto expansion = eval_apply(operator_->oper, operator_->operand, typename_env, false /* stop_before_managed_ptr */);
+	auto expansion = eval_apply(operator_->oper, operator_->operand, typename_env);
 
 	if (expansion != nullptr) {
 		return bind_expansion(status, builder, scope, operator_, expansion);
@@ -560,8 +560,8 @@ bound_type_t::ref create_bound_integer_type(
 		ptr<scope_t> scope,
 		const ptr<const types::type_integer_t> &integer)
 {
-	auto typename_env = scope->get_typename_env();
-	auto signed_ = full_eval(integer->signed_, typename_env, false /* stop_before_managed_ptr */);
+	auto typename_env = scope->get_total_env();
+	auto signed_ = full_eval(integer->signed_, typename_env);
 
 	types::type_t::ref bit_size_expansion;
 	int bit_size = types::coerce_to_integer(status, typename_env, integer->bit_size, bit_size_expansion);
@@ -672,7 +672,7 @@ bound_type_t::ref create_bound_sum_type(
 		program_scope->put_bound_type(status, bound_type);
 
 		/* check for disallowed types */
-		auto typename_env = scope->get_typename_env();
+		auto typename_env = scope->get_total_env();
 		for (auto subtype : sum->options) {
 			if (!types::is_managed_ptr(subtype, typename_env)) {
 				user_error(status, subtype->get_location(),
@@ -950,13 +950,7 @@ bound_var_t::ref maybe_get_dtor(
 		program_scope_t::ref program_scope,
 		bound_type_t::ref data_type)
 {
-	auto evaled_type = eval(data_type->get_type(), program_scope->get_typename_env(), false /* stop_before_managed_ptr */);
-	if (evaled_type == nullptr) {
-		evaled_type = data_type->get_type();
-	}
-
-	INDENT(3, string_format("attempting to get a dtor for %s",
-				evaled_type->str().c_str()));
+	INDENT(3, string_format("attempting to get a dtor for %s", full_eval(data_type->get_type(), program_scope->get_nominal_env())->str().c_str()));
 
 	// TODO: look at what data_type is, and whether it can be passed as a raw
 	// pointer.
@@ -976,6 +970,8 @@ bound_var_t::ref maybe_get_dtor(
 		if (dtor != nullptr) {
 			return dtor;
 		} else {
+			// TODO: create an option to report on missing finalizers, instead of coupling it to
+			// ZION_DEBUG
 			debug_above(2, user_info(status, location, "no __finalize__ found for type %s",
 					data_type->str().c_str()));
 			return nullptr;
@@ -1240,9 +1236,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	debug_above(4, log(log_info, "get_or_create_tuple_ctor evaluating %s with llvm type %s",
 				type->str().c_str(),
 				llvm_print(data_type->get_llvm_specific_type()).c_str()));
-	types::type_t::ref expanded_type;
-
-	expanded_type = full_eval(type, scope->get_typename_env(), false /* stop_before_managed_ptr */);
+	types::type_t::ref expanded_type = full_eval(type, scope->get_total_env());
 
 	types::type_product_t::ref product_type = dyncast<const types::type_product_t>(expanded_type);
 

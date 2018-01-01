@@ -359,49 +359,23 @@ ptr<program_scope_t> scope_impl_t<T>::get_program_scope() {
 	return this->get_parent_scope()->get_program_scope();
 }
 
-void put_typename_impl(status_t &status, scope_t::ref parent_scope, const std::string &scope_name, types::type_t::map &typename_env, const std::string &type_name, types::type_t::ref expansion, bool is_structural) {
-#if 0
-	// A good place for a breakpoint when debugging type issues
-	dbg_when(type_name.str().find("map.map") != std::string::npos);
-#endif
-
-	auto iter_type = typename_env.find(type_name);
-	if (iter_type == typename_env.end()) {
-		debug_above(2, log(log_info, "registering typename " c_type("%s") " as %s in scope " c_id("%s"),
-					type_name.c_str(), expansion->str().c_str(),
-					scope_name.c_str()));
-		typename_env[type_name] = expansion;
-		if (parent_scope != nullptr) {
-			/* register this type with our parent */
-			if (is_structural) {
-				parent_scope->put_structural_typename(status, scope_name + SCOPE_SEP + type_name, expansion);
-			} else {
-				parent_scope->put_nominal_typename(status, scope_name + SCOPE_SEP + type_name, expansion);
-			}
-		} else {
-			/* we are at the outermost scope, we're done. */
-		}
-	} else {
-		user_error(status, expansion->get_location(),
-				"multiple supertypes are not yet implemented (" c_type("%s") " <: " c_type("%s") ")",
-				type_name.c_str(), expansion->str().c_str());
-		auto existing_expansion = iter_type->second;
-		user_info(status,
-				existing_expansion->get_location(),
-				"prior type definition for " c_type("%s") " is %s",
-				type_name.c_str(),
-				existing_expansion->str().c_str());
-	}
-}
+void put_typename_impl(
+		status_t &status,
+		scope_t::ref parent_scope,
+		const std::string &scope_name,
+		types::type_t::map &typename_env,
+		const std::string &type_name,
+		types::type_t::ref expansion,
+		bool is_structural);
 
 template <typename T>
 void scope_impl_t<T>::put_structural_typename(status_t &status, const std::string &type_name, types::type_t::ref expansion) {
-	put_typename_impl(status, get_parent_scope(), scope_name, structural_env, type_name, expansion);
+	put_typename_impl(status, get_parent_scope(), scope_name, structural_env, type_name, expansion, true /*is_structural*/);
 }
 
 template <typename T>
 void scope_impl_t<T>::put_nominal_typename(status_t &status, const std::string &type_name, types::type_t::ref expansion) {
-	put_typename_impl(status, get_parent_scope(), scope_name, nominal_env, type_name, expansion);
+	put_typename_impl(status, get_parent_scope(), scope_name, nominal_env, type_name, expansion, false /*is_structural*/);
 }
 
 template <typename T>

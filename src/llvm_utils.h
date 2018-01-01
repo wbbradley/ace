@@ -135,11 +135,5 @@ bound_var_t::ref llvm_stack_map_value(
         bound_var_t::ref value);
 bool llvm_value_is_handle(llvm::Value *llvm_value);
 bool llvm_value_is_pointer(llvm::Value *llvm_value);
-bound_var_t::ref get_null_constant(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		location_t location,
-		types::type_t::ref type);
 llvm::StructType *llvm_find_struct(llvm::Type *llvm_type);
 void llvm_generate_dead_return(llvm::IRBuilder<> &builder, scope_t::ref scope);

@@ -74,7 +74,8 @@ void ast::when_block_t::resolve_statement(
 			types::type_t::refs types_matched;
 			if (!!status) {
 				llvm::SwitchInst *llvm_switch = builder.CreateSwitch(type_id->get_llvm_value(), default_block, pattern_blocks.size());
-				auto typename_env = scope->get_typename_env();
+				/* RTTI lives on the nominal type plane */
+				auto typename_env = scope->get_nominal_env();
 				auto bindings = scope->get_type_variable_bindings();
 				for (auto pattern_block : pattern_blocks) {
 					auto type_to_match = pattern_block->type->rebind(scope->get_type_variable_bindings());
@@ -168,7 +169,7 @@ void ast::when_block_t::resolve_statement(
 				}
 
 				/* check whether all cases of the pattern_value's type are handled */
-				auto env = scope->get_typename_env();
+				auto env = scope->get_nominal_env();
 				types::type_sum_t::ref type_sum_matched = type_sum_safe(
 						types_matched,
 						get_location(),

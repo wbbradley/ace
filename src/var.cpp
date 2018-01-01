@@ -39,7 +39,6 @@ unification_t var_t::accepts_callsite(
 	/* get the args out of the sig */
 	types::type_t::ref type = get_type(scope);
 	types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(type);
-	auto env = scope->get_typename_env();
 
 	INDENT(6, string_format(
 				"checking whether %s at %s accepts %s and returns %s", str().c_str(),
@@ -49,7 +48,7 @@ unification_t var_t::accepts_callsite(
 
 	auto bindings = scope->get_type_variable_bindings();
 
-	auto u = unify(fn_type, type_function(args, return_type), env);
+	auto u = unify(fn_type, type_function(args, return_type), scope->get_nominal_env());
 
 	add_bindings_to_make_type_concrete(fn_type->args, u.bindings);
 	add_bindings_to_make_type_concrete(fn_type->return_type, u.bindings);

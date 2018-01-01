@@ -899,32 +899,6 @@ bool llvm_value_is_pointer(llvm::Value *llvm_value) {
     return llvm_type->isPointerTy();
 }
 
-bound_var_t::ref get_null_constant(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		location_t location,
-		types::type_t::ref type)
-{
-	assert(false && "probably we should delete this, since null requires special treatment... or fix it...");
-	if (!types::is_ptr(type, scope->get_typename_env())) {
-		user_error(status, location, c_id("null") " is not defined for non-pointer types");
-	}
-
-	if (!!status) {
-		bound_type_t::ref var_type = upsert_bound_type(status, builder, scope, type);
-		if (!!status) {
-			llvm::Type *llvm_null_type = var_type->get_llvm_type();
-			llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(llvm_null_type);
-			program_scope_t::ref program_scope = scope->get_program_scope();
-			return bound_var_t::create(INTERNAL_LOC(), "null",
-					var_type, llvm_null_value, make_iid("null"));
-		}
-	}
-	assert(!status);
-	return nullptr;
-}
-
 llvm::StructType *llvm_find_struct(llvm::Type *llvm_type) {
 	if (auto llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_type)) {
 		return llvm_struct_type;

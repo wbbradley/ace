@@ -422,6 +422,8 @@ ptr<expression_t> literal_expr_t::parse(parse_state_t &ps) {
 		}
 	case tk_lsquare:
 		return array_literal_expr_t::parse(ps);
+	// case tk_lcurly:
+	//	return assoc_array_expr_t::parse(ps);
 	case tk_indent:
 		ps.error("unexpected indent");
 		return nullptr;
