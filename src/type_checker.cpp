@@ -208,7 +208,7 @@ bound_var_t::ref generate_stack_variable(
 				unification_t unification = unify(
 						declared_type,
 						init_var->get_type(),
-						scope->get_typename_env());
+						scope->get_nominal_env());
 
 				if (unification.result) {
 					/* the lhs is a supertype of the rhs */
@@ -414,7 +414,7 @@ bound_var_t::ref generate_module_variable(
 									unification_t unification = unify(
 											declared_type,
 											init_var->get_type(),
-											module_scope->get_typename_env());
+											module_scope->get_nominal_env());
 
 									if (!unification.result) {
 										/* report that the variable type does not match the initializer type */
@@ -977,12 +977,10 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 			bound_var_t::ref bound_fn = this->resolve_expression(status, builder, scope, life, false /*as_ref*/);
 
 			if (!!status) {
-				debug_above(5, log("env is %s",
-							::str(scope->get_typename_env()).c_str()));
 				unification_t unification = unify(
 						bound_fn->type->get_type(),
 						get_function_type(args, type_variable(INTERNAL_LOC())),
-						scope->get_typename_env());
+						scope->get_nominal_env());
 
 				if (unification.result) {
 					return bound_fn;
@@ -1176,13 +1174,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 				full_type->str().c_str()));
 	auto bound_type = upsert_bound_type(status, builder, scope, full_type);
 	if (!!status) {
-		types::type_t::ref expanded_type;
-
-		expanded_type = eval(full_type, scope->get_typename_env(), false /* TODO */);
-		if (expanded_type == nullptr) {
-			expanded_type = full_type;
-		}
-
+		types::type_t::ref expanded_type = full_eval(full_type, scope->get_total_env());
 		debug_above(3, log("type evaluated to %s", expanded_type->str().c_str()));
 		
 		/* destructure the structure that this should have */
@@ -1497,7 +1489,7 @@ bound_var_t::ref resolve_pointer_array_index(
 		unification_t index_unification = unify(
 				index_val->type->get_type(),
 				type_integer(type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC())),
-				scope->get_typename_env());
+				scope->get_nominal_env());
 
 		if (index_unification.result) {
 			debug_above(5, log(log_info,
@@ -1560,6 +1552,198 @@ types::type_args_t::ref get_function_args_types(bound_type_t::ref function_type)
 	return nullptr;
 }
 
+types::type_struct_t::ref get_struct_type_from_bound_type(
+		status_t &status,
+		scope_t::ref scope,
+		location_t location,
+		bound_type_t::ref bound_type)
+{
+	auto type = full_eval(bound_type->get_type(), scope->get_total_env());
+
+	if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
+		return type_struct(tuple_type->dimensions, {});
+	}
+
+	if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
+		if (auto managed_type = dyncast<const types::type_managed_t>(ptr_type->element_type)) {
+			if (auto struct_type = dyncast<const types::type_struct_t>(managed_type->element_type)) {
+				return struct_type;
+			}
+		} else {
+			if (auto struct_type = dyncast<const types::type_struct_t>(ptr_type->element_type)) {
+				return struct_type;
+			}
+		}
+	}
+
+	user_error(status, location,
+			"could not find any dimensions within %s",
+			bound_type->str().c_str());
+
+	assert(!status);
+	return nullptr;
+}
+
+bound_var_t::ref extract_member_by_index(
+		status_t &status, 
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		location_t location,
+		bound_var_t::ref bound_var,
+		bound_type_t::ref bound_obj_type,
+		int index,
+		std::string member_name,
+		bool as_ref)
+{
+	types::type_struct_t::ref struct_type = get_struct_type_from_bound_type(
+			status, scope, location, bound_obj_type);
+
+	if (!!status) {
+		if (index < 0 || index >= (int)struct_type->dimensions.size()) {
+			user_error(status, location, "tuple index is out of bounds. tuple %s has %d elements",
+					struct_type->str().c_str(), (int)struct_type->dimensions.size());
+		}
+
+		if (!!status) {
+			/* get an GEP-able version of the object */
+			llvm::Value *llvm_var_value = llvm_maybe_pointer_cast(builder,
+				   	bound_var->resolve_bound_var_value(builder),
+					bound_obj_type->get_llvm_specific_type());
+
+			/* the following code is heavily coupled to the physical layout of
+			 * managed vs. native structures */
+
+			/* GEP and load the member value from the structure */
+			llvm::Value *llvm_gep = llvm_make_gep(builder,
+					llvm_var_value, index,
+					types::is_managed_ptr(bound_var->get_type(),
+						scope->get_total_env()) /* managed */);
+			if (llvm_gep->getName().str().size() == 0) {
+				llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
+			}
+
+			llvm::Value *llvm_item = as_ref ? llvm_gep : builder.CreateLoad(llvm_gep);
+
+			if (llvm_item->getName().str().size() == 0) {
+				/* add a helpful descriptive name to this local value */
+				auto value_name = string_format(".%s", member_name.c_str());
+				llvm_item->setName(value_name);
+			}
+
+			/* get the type of the dimension being referenced */
+			bound_type_t::ref member_type = upsert_bound_type(status, builder, scope, 
+					as_ref
+					? type_ref(struct_type->dimensions[index])
+					: struct_type->dimensions[index]);
+
+			if (!!status) {
+				return bound_var_t::create(
+						INTERNAL_LOC(), "tuple.element",
+						member_type, llvm_item, make_iid("tuple.element"));
+			}
+		}
+	}
+	assert(!status);
+	return nullptr;
+}
+
+int64_t parse_int_value(status_t &status, token_t token) {
+	switch (token.tk) {
+	case tk_integer:
+		{
+			int64_t value;
+			if (token.text.size() > 2 && token.text.substr(0, 2) == "0x") {
+				value = strtoll(token.text.substr(2).c_str(), nullptr, 16);
+			} else {
+				value = atoll(token.text.c_str());
+			}
+			return value;
+		}
+	case tk_raw_integer:
+		{
+			/* create a native integer */
+			int64_t value = atoll(token.text.substr(0, token.text.size() - 1).c_str());
+			if (token.text.size() > 3 && token.text.substr(0, 2) == "0x") {
+				value = strtoll(token.text.substr(0, token.text.size() - 1).c_str(),
+						nullptr, 16);
+			} else {
+				value = atoll(token.text.substr(0, token.text.size() - 1).c_str());
+			}
+			return value;
+		}
+	default:
+		user_error(status, token.location, "unable to read an integer value from %s", token.str().c_str());
+		break;
+	}
+
+	assert(!status);
+	return 0;
+}
+
+int get_constant_int(status_t &status, ast::item_t::ref item) {
+	return parse_int_value(status, item->token);
+}
+
+bound_var_t::ref type_check_assignment(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bound_var_t::ref lhs_var,
+		bound_var_t::ref rhs_var,
+		location_t location)
+{
+	if (!lhs_var->is_ref()) {
+		user_error(status, location,
+				"you cannot re-assign the name " c_id("%s") " to anything else here. it is not assignable.",
+				lhs_var->name.c_str());
+		user_info(status, lhs_var->get_location(),
+				"see declaration of " c_id("%s") " with type %s",
+				lhs_var->name.c_str(),
+				lhs_var->type->get_type()->str().c_str());
+	}
+
+	if (!!status) {
+		INDENT(5, string_format(
+					"type checking assignment %s = %s",
+					lhs_var->str().c_str(),
+					rhs_var->str().c_str()));
+
+		auto lhs_unreferenced_type = dyncast<const types::type_ref_t>(lhs_var->type->get_type())->element_type;
+		bound_type_t::ref lhs_unreferenced_bound_type = upsert_bound_type(status, builder, scope, lhs_unreferenced_type);
+
+		if (!!status) {
+			unification_t unification = unify(
+					lhs_unreferenced_type,
+					rhs_var->type->get_type(),
+				   	scope->get_nominal_env());
+
+			if (unification.result) {
+				llvm::Value *llvm_rhs_value = coerce_value(status, builder, scope, 
+									location, lhs_unreferenced_type, rhs_var);
+				if (!!status) {
+					assert(llvm::dyn_cast<llvm::AllocaInst>(lhs_var->get_llvm_value())
+							|| llvm::dyn_cast<llvm::GlobalVariable>(lhs_var->get_llvm_value())
+                            || llvm_value_is_pointer(lhs_var->get_llvm_value()));
+
+					builder.CreateStore(llvm_rhs_value, lhs_var->get_llvm_value());
+
+					if (!!status) {
+						return lhs_var;
+					}
+				}
+			} else {
+				user_error(status, location, "left-hand side is incompatible with the right-hand side (%s)",
+						unification.str().c_str());
+			}
+		}
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -1584,74 +1768,96 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 				scope, life, false /*as_ref*/);
 
 		if (!!status) {
-			bound_var_t::ref index_val = index->resolve_expression(status, builder,
-					scope, life, false /*as_ref*/);
-
-			if (!!status) {
-				identifier::ref element_type_var = types::gensym();
-
-				/* check to see if we are employing pointer arithmetic here */
-				unification_t unification = unify(
-						lhs_val->type->get_type(),
-						type_ptr(type_variable(element_type_var)),
-						scope->get_typename_env());
-
-				if (unification.result) {
-					/* this is a native pointer, let's generate code to write or read, or reference it */
-					types::type_t::ref element_type = unification.bindings[element_type_var->get_name()];
-					return resolve_pointer_array_index(status, builder, scope, life, element_type, index, index_val,
-							lhs, lhs_val, as_ref, rhs);
-				} else if (rhs == nullptr) {
-					/* this is not a native pointer we are dereferencing */
-					debug_above(5, log("attempting to call " c_id("__getitem__")
-								" on %s and %s", lhs_val->str().c_str(), index_val->str().c_str()));
-
-					// TODO: consider whether to allow as_ref
-					// assert(!as_ref);
-
-					/* get or instantiate a function we can call on these arguments */
-					return call_program_function(status, builder, scope, life,
-							"__getitem__", shared_from_this(), {lhs_val, index_val});
-				} else {
-					/* we're assigning to a managed array index expression */
-
-					/* let's solve for the rhs */
-					bound_var_t::ref rhs_val = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
-
+			if (auto tuple_type = dyncast<const types::type_tuple_t>(lhs_val->type->get_type())) {
+				int member_index = get_constant_int(status, index);
+				if (!!status) {
+					bound_var_t::ref value = extract_member_by_index(status, builder, scope, life,
+							get_location(), lhs_val, lhs_val->type, member_index, string_format("%d", member_index), as_ref);
 					if (!!status) {
-						/* we have a rhs to assign into this lhs, let's find the function we should be calling to do
-						 * the update. */
-						bound_var_t::ref setitem_function = get_callable(
-								status,
-								builder,
-								scope,
-								"__setitem__",
-								get_location(),
-								type_args({lhs_val->type->get_type(), index_val->type->get_type(), rhs_val->type->get_type()}),
-								type_variable(INTERNAL_LOC()));
-						if (!!status) {
-							std::vector<llvm::Value *> llvm_args = get_llvm_values(
-									status,
-									builder,
-									scope,
-									get_location(),
-									get_function_args_types(setitem_function->type),
-									{lhs_val, index_val, rhs_val});
+						if (rhs != nullptr) {
+							/* let's assign into this tuple slot */
+							bound_var_t::ref rhs_val = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
 
-							bound_type_t::ref return_type = get_function_return_type(
+							if (!!status) {
+								type_check_assignment(status, builder, scope, life, value,
+										rhs_val, token.location);
+								return nullptr;
+							}
+						} else {
+							return value;
+						}
+					}
+				}
+			} else {
+				bound_var_t::ref index_val = index->resolve_expression(status, builder,
+						scope, life, false /*as_ref*/);
+
+				if (!!status) {
+					identifier::ref element_type_var = types::gensym();
+
+					/* check to see if we are employing pointer arithmetic here */
+					unification_t unification = unify(
+							lhs_val->type->get_type(),
+							type_ptr(type_variable(element_type_var)),
+							scope->get_nominal_env());
+
+					if (unification.result) {
+						/* this is a native pointer, let's generate code to write or read, or reference it */
+						types::type_t::ref element_type = unification.bindings[element_type_var->get_name()];
+						return resolve_pointer_array_index(status, builder, scope, life, element_type, index, index_val,
+								lhs, lhs_val, as_ref, rhs);
+					} else if (rhs == nullptr) {
+						/* this is not a native pointer we are dereferencing */
+						debug_above(5, log("attempting to call " c_id("__getitem__")
+									" on %s and %s", lhs_val->str().c_str(), index_val->str().c_str()));
+
+						// TODO: consider whether to allow as_ref
+						// assert(!as_ref);
+
+						/* get or instantiate a function we can call on these arguments */
+						return call_program_function(status, builder, scope, life,
+								"__getitem__", shared_from_this(), {lhs_val, index_val});
+					} else {
+						/* we're assigning to a managed array index expression */
+
+						/* let's solve for the rhs */
+						bound_var_t::ref rhs_val = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+
+						if (!!status) {
+							/* we have a rhs to assign into this lhs, let's find the function we should be calling to do
+							 * the update. */
+							bound_var_t::ref setitem_function = get_callable(
 									status,
 									builder,
 									scope,
-									setitem_function->type);
-							return bound_var_t::create(
-									INTERNAL_LOC(),
-									"array.index.assignment",
-									return_type,
-									llvm_create_call_inst(
-										status, builder, lhs->get_location(),
-										setitem_function,
-										llvm_args),
-									make_iid("array.index.assignment"));
+									"__setitem__",
+									get_location(),
+									type_args({lhs_val->type->get_type(), index_val->type->get_type(), rhs_val->type->get_type()}),
+									type_variable(INTERNAL_LOC()));
+							if (!!status) {
+								std::vector<llvm::Value *> llvm_args = get_llvm_values(
+										status,
+										builder,
+										scope,
+										get_location(),
+										get_function_args_types(setitem_function->type),
+										{lhs_val, index_val, rhs_val});
+
+								bound_type_t::ref return_type = get_function_return_type(
+										status,
+										builder,
+										scope,
+										setitem_function->type);
+								return bound_var_t::create(
+										INTERNAL_LOC(),
+										"array.index.assignment",
+										return_type,
+										llvm_create_call_inst(
+											status, builder, lhs->get_location(),
+											setitem_function,
+											llvm_args),
+										make_iid("array.index.assignment"));
+							}
 						}
 					}
 				}
@@ -1788,7 +1994,7 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 
 	if (!!status) {
 		types::type_t::ref element_type = type_sum_safe(
-				element_types, get_location(), scope->get_typename_env());
+				element_types, get_location(), scope->get_nominal_env());
 		debug_above(6, log("creating vector literal of %s",
 					element_type->str().c_str()));
 		return create_bound_vector_literal(
@@ -1901,7 +2107,7 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		if (!lhs_var->is_pointer()) { std::cerr << lhs_var->str() << " " << llvm_print(lhs_var->get_llvm_value()) << std::endl; dbg(); }
 		if (!rhs_var->is_pointer()) { std::cerr << rhs_var->str() << " " << llvm_print(rhs_var->get_llvm_value()) << std::endl; dbg(); }
 
-		auto env = scope->get_typename_env();
+		auto env = scope->get_nominal_env();
 		if (
 				!unifies(lhs_var->type->get_type(), rhs_var->type->get_type(), env) &&
 				!unifies(rhs_var->type->get_type(), lhs_var->type->get_type(), env))
@@ -2001,7 +2207,7 @@ bound_var_t::ref type_check_binary_integer_op(
 		bound_var_t::ref rhs,
 		std::string function_name)
 {
-	auto typename_env = scope->get_typename_env();
+	auto typename_env = scope->get_nominal_env();
 
 	static unsigned int_bit_size = 64;
 	static bool int_signed = true;
@@ -2242,7 +2448,7 @@ bound_var_t::ref type_check_binary_operator(
 				function_name.c_str(),
 				lhs->str().c_str(),
 				rhs->str().c_str()));
-	auto typename_env = scope->get_typename_env();
+	auto typename_env = scope->get_nominal_env();
 	if (
 			types::is_integer(lhs->type->get_type(), typename_env) &&
 			types::is_integer(rhs->type->get_type(), typename_env))
@@ -2661,7 +2867,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 								types::type_t::ref truthy_path_type = true_path_value->type->get_type();
 								types::type_t::ref falsey_path_type = false_path_value->type->get_type();
 
-								auto env = scope->get_typename_env();
+								auto env = scope->get_nominal_env();
 								if (condition == when_true) {
 									/* we can remove falsey types from the truthy path type */
 									truthy_path_type = truthy_path_type->boolean_refinement(false, env);
@@ -2788,39 +2994,6 @@ bound_var_t::ref ast::and_expr_t::resolve_expression(
 			lhs, rhs, lhs, make_iid("and.value"));
 }
 
-types::type_struct_t::ref get_struct_type_from_ptr(
-		status_t &status,
-		scope_t::ref scope,
-		ast::item_t::ref node,
-		types::type_t::ref type)
-{
-	auto original_type = type;
-	auto expanded_type = eval(type, scope->get_typename_env(), false /* stop_before_managed_ptr */);
-	if (expanded_type != nullptr) {
-		type = expanded_type;
-	}
-
-	if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
-		if (auto managed_type = dyncast<const types::type_managed_t>(ptr_type->element_type)) {
-			if (auto struct_type = dyncast<const types::type_struct_t>(managed_type->element_type)) {
-				return struct_type;
-			}
-		} else {
-			if (auto struct_type = dyncast<const types::type_struct_t>(ptr_type->element_type)) {
-				return struct_type;
-			}
-		}
-	}
-
-	user_error(status, node->get_location(),
-			"could not find any dimensions within %s (type is %s)",
-			node->str().c_str(),
-			original_type->str().c_str());
-
-	assert(!status);
-	return nullptr;
-}
-
 types::type_t::ref extract_matching_type(
 		identifier::ref type_var_name,
 	   	types::type_t::ref actual_type,
@@ -2857,25 +3030,12 @@ bound_var_t::ref extract_member_variable(
 #endif
 
 	if (!!status) {
-		types::type_struct_t::ref struct_type = get_struct_type_from_ptr(
-				status, scope, node, bound_var->get_type());
-
-		if (!status) {
-			return nullptr;
-		}
-
-		bound_type_t::ref bound_obj_type = bound_var->type;
-
-		auto expanded_type = eval(bound_var->type->get_type(), scope->get_typename_env(), false /* stop_before_managed_ptr */);
-		if (expanded_type != nullptr) {
-			bound_obj_type = upsert_bound_type(status, builder, scope, expanded_type);
-		} else {
-			/* this may be an unnamed tuple, so in that case it doesn't need
-			 * expanding */
-		}
+		auto expanded_type = full_eval(bound_var->type->get_type(), scope->get_total_env());
+		bound_type_t::ref bound_obj_type = upsert_bound_type(status, builder, scope, expanded_type);
 
 		if (!!status) {
-
+			types::type_struct_t::ref struct_type = get_struct_type_from_bound_type(
+					status, scope, node->get_location(), bound_obj_type);
 			debug_above(5, log(log_info, "looking for member " c_id("%s") " in %s", member_name.c_str(),
 						bound_obj_type->str().c_str()));
 
@@ -2898,41 +3058,9 @@ bound_var_t::ref extract_member_variable(
 							bound_var->str().c_str(),
 							llvm_print(bound_var->type->get_llvm_type()).c_str()));
 
-				/* get an GEP-able version of the object */
-				llvm::Value *llvm_var_value = bound_var->resolve_bound_var_value(builder);
+				return extract_member_by_index(status, builder, scope, 
+						life, node->get_location(), bound_var, bound_obj_type, index, member_name, as_ref);
 
-				llvm_var_value = llvm_maybe_pointer_cast(builder, llvm_var_value,
-						bound_obj_type->get_llvm_specific_type());
-
-				/* the following code is heavily coupled to the physical layout of
-				 * managed vs. native structures */
-
-				/* GEP and load the member value from the structure */
-				llvm::Value *llvm_gep = llvm_make_gep(builder,
-						llvm_var_value, index,
-						types::is_managed_ptr(bound_var->get_type(),
-							scope->get_typename_env()) /* managed */);
-				if (llvm_gep->getName().str().size() == 0) {
-					llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
-				}
-
-				llvm::Value *llvm_item = as_ref ? llvm_gep : builder.CreateLoad(llvm_gep);
-
-				/* add a helpful descriptive name to this local value */
-				auto value_name = string_format(".%s", member_name.c_str());
-				llvm_item->setName(value_name);
-
-				/* get the type of the dimension being referenced */
-				bound_type_t::ref member_type = upsert_bound_type(status, builder, scope, 
-						as_ref
-							? type_ref(struct_type->dimensions[index])
-							: struct_type->dimensions[index]);
-
-				if (!!status) {
-					return bound_var_t::create(
-							INTERNAL_LOC(), value_name,
-							member_type, llvm_item, make_iid(member_name));
-				}
 			} else {
 				auto bindings = scope->get_type_variable_bindings();
 				auto full_type = bound_var->type->get_type()->rebind(bindings);
@@ -3884,7 +4012,7 @@ void ast::tag_t::resolve_statement(
 					/* all tags use the var_t* type */
 					var_ptr_type->get_llvm_type());
 
-			scope->put_typename(status, tag_name, type_ptr(type_managed(type_struct({}, {}))));
+			scope->put_structural_typename(status, tag_name, type_ptr(type_managed(type_struct({}, {}))));
 			if (!!status) {
 				scope->get_program_scope()->put_bound_type(status, bound_tag_type);
 				if (!!status) {
@@ -3958,64 +4086,6 @@ void ast::type_def_t::resolve_statement(
 			make_code_id(token), type_decl->type_variables, scope);
 
 	return;
-}
-
-bound_var_t::ref type_check_assignment(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		life_t::ref life,
-		bound_var_t::ref lhs_var,
-		bound_var_t::ref rhs_var,
-		location_t location)
-{
-	if (!lhs_var->is_ref()) {
-		user_error(status, location,
-				"you cannot re-assign the name " c_id("%s") " to anything else here. it is not assignable.",
-				lhs_var->name.c_str());
-		user_info(status, lhs_var->get_location(),
-				"see declaration of " c_id("%s") " with type %s",
-				lhs_var->name.c_str(),
-				lhs_var->type->get_type()->str().c_str());
-	}
-
-	if (!!status) {
-		INDENT(5, string_format(
-					"type checking assignment %s = %s",
-					lhs_var->str().c_str(),
-					rhs_var->str().c_str()));
-
-		auto lhs_unreferenced_type = dyncast<const types::type_ref_t>(lhs_var->type->get_type())->element_type;
-		bound_type_t::ref lhs_unreferenced_bound_type = upsert_bound_type(status, builder, scope, lhs_unreferenced_type);
-
-		if (!!status) {
-			unification_t unification = unify(
-					lhs_unreferenced_type,
-					rhs_var->type->get_type(), scope->get_typename_env());
-
-			if (unification.result) {
-				llvm::Value *llvm_rhs_value = coerce_value(status, builder, scope, 
-									location, lhs_unreferenced_type, rhs_var);
-				if (!!status) {
-					assert(llvm::dyn_cast<llvm::AllocaInst>(lhs_var->get_llvm_value())
-							|| llvm::dyn_cast<llvm::GlobalVariable>(lhs_var->get_llvm_value())
-                            || llvm_value_is_pointer(lhs_var->get_llvm_value()));
-
-					builder.CreateStore(llvm_rhs_value, lhs_var->get_llvm_value());
-
-					if (!!status) {
-						return lhs_var;
-					}
-				}
-			} else {
-				user_error(status, location, "left-hand side is incompatible with the right-hand side (%s)",
-						unification.str().c_str());
-			}
-		}
-	}
-
-	assert(!status);
-	return nullptr;
 }
 
 void ast::assignment_t::resolve_statement(
@@ -5030,60 +5100,53 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 	case tk_raw_integer:
         {
 			/* create a native integer */
-			int64_t value = atoll(token.text.substr(0, token.text.size() - 1).c_str());
-			if (token.text.size() > 3 && token.text.substr(0, 2) == "0x") {
-				value = strtoll(token.text.substr(0, token.text.size() - 1).c_str(),
-						nullptr, 16);
-			} else {
-				value = atoll(token.text.substr(0, token.text.size() - 1).c_str());
+            int64_t value = parse_int_value(status, token);
+			if (!!status) {
+				bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
+				return bound_var_t::create(
+						INTERNAL_LOC(), "raw_int_literal", native_type,
+						llvm_create_int(builder, value),
+						make_code_id(token));
 			}
-			bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
-			return bound_var_t::create(
-					INTERNAL_LOC(), "raw_int_literal", native_type,
-					llvm_create_int(builder, value),
-					make_code_id(token));
         }
 		break;
     case tk_integer:
         {
 			/* create a boxed integer */
-            int64_t value;
-			if (token.text.size() > 2 && token.text.substr(0, 2) == "0x") {
-				value = strtoll(token.text.substr(2).c_str(), nullptr, 16);
-			} else {
-				value = atoll(token.text.c_str());
-			}
-            bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
-			bound_type_t::ref boxed_type = upsert_bound_type(
-					status,
-					builder,
-					scope,
-					type_id(make_iid("int")));
+            int64_t value = parse_int_value(status, token);
 			if (!!status) {
-				assert(boxed_type != nullptr);
-				bound_var_t::ref box_int = get_callable(
+				bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
+				bound_type_t::ref boxed_type = upsert_bound_type(
 						status,
 						builder,
 						scope,
-						{"int"},
-						get_location(),
-						get_args_type({native_type}),
-						nullptr);
-
+						type_id(make_iid("int")));
 				if (!!status) {
-					assert(box_int != nullptr);
-					return create_callsite(
+					assert(boxed_type != nullptr);
+					bound_var_t::ref box_int = get_callable(
 							status,
 							builder,
 							scope,
-							life,
-							box_int,
-							{string_format("literal int (%d)", value)},
+							{"int"},
 							get_location(),
-							{bound_var_t::create(
-									INTERNAL_LOC(), "temp_int_literal", boxed_type,
-									llvm_create_int(builder, value),
-									make_code_id(token))});
+							get_args_type({native_type}),
+							nullptr);
+
+					if (!!status) {
+						assert(box_int != nullptr);
+						return create_callsite(
+								status,
+								builder,
+								scope,
+								life,
+								box_int,
+								{string_format("literal int (%d)", value)},
+								get_location(),
+								{bound_var_t::create(
+										INTERNAL_LOC(), "temp_int_literal", boxed_type,
+										llvm_create_int(builder, value),
+										make_code_id(token))});
+					}
 				}
 			}
         }

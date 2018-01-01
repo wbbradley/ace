@@ -109,8 +109,8 @@ unification_t unify(
 		return {true, "", bindings};
 	}
 
-	auto a = full_eval(pruned_a, env, true /* stop_before_managed_ptr */);
-	auto b = full_eval(pruned_b, env, true /* stop_before_managed_ptr */);
+	auto a = full_eval(pruned_a, env);
+	auto b = full_eval(pruned_b, env);
 
 	auto ptm_a = dyncast<const types::type_maybe_t>(a);
 	auto ptm_b = dyncast<const types::type_maybe_t>(b);
@@ -157,7 +157,7 @@ unification_t unify(
 
 	if (ptI_a != nullptr) {
 	   	if (ptI_b == nullptr) {
-			ptI_b = dyncast<const types::type_integer_t>(full_eval(b, env, true /* stop_before_managed_ptr */));
+			ptI_b = dyncast<const types::type_integer_t>(full_eval(b, env));
 		}
 
 		if (ptI_b != nullptr) {
@@ -214,7 +214,7 @@ unification_t unify(
 		/* ok, we've got a mismatch, but we know we have an id on the left-hand
 		 * side, let's try expanding the type_id to see whether it will unify
 		 * after evaluation. */
-		auto new_a = eval_id(pti_a, env, true /* stop_before_managed_ptr */);
+		auto new_a = eval_id(pti_a, env);
 
 		if (new_a != nullptr) {
 			debug_above(6, log(log_info, "eval_id(%s, env) -> %s",
@@ -384,7 +384,7 @@ unification_t unify(
 					operator_a->str().c_str(), operand_a->str().c_str()));
 
 		/* apply the bindings first, so as to simplify the application */
-		auto new_a = eval_apply(operator_a, operand_a, env, true /* stop_before_managed_ptr */);
+		auto new_a = eval_apply(operator_a, operand_a, env);
 		if (new_a != nullptr && types::is_managed_ptr(new_a, {})) {
 			/* managed pointers are opaque and should have unified nominally */
 			new_a = nullptr;
@@ -414,7 +414,7 @@ unification_t unify(
 	} else if (ptr_a != nullptr) {
 		if (ptr_b != nullptr) {
 			/* handle pointer to void here, rather than making void the top type */
-			if (types::is_type_id(full_eval(ptr_a->element_type, env, true /* stop_before_managed_ptr */), "void")) {
+			if (types::is_type_id(full_eval(ptr_a->element_type, env), "void")) {
 				/* managed pointers cannot be passed to *void because that seems dangerous.
 				 * if you really want to do that, cast it to *void yourself first. */
 				if (dyncast<const types::type_managed_t>(ptr_b->element_type) == nullptr) {

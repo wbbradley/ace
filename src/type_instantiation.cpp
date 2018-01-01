@@ -32,7 +32,7 @@ bound_var_t::ref bind_ctor_to_scope(
 
 	debug_above(5, log(log_info, "function return_type %s expands to %s",
 				function->return_type->str().c_str(),
-				full_eval(function->return_type, scope->get_typename_env(), true /* stop_before_managed_ptr */)->str().c_str()));
+				full_eval(function->return_type, scope->get_nominal_env())->str().c_str()));
 
 	if (auto args = dyncast<const types::type_args_t>(function->args)) {
 		bound_type_t::refs bound_args = upsert_bound_types(status, builder, scope, args->args);
@@ -204,7 +204,7 @@ void instantiate_data_ctor_type(
 			type = type_lambda(lambda_var, type);
 		}
 
-		scope->put_typename(status, tag_name, type);
+		scope->put_structural_typename(status, tag_name, type);
 
 		return;
 	} else {
@@ -238,7 +238,7 @@ void ast::type_product_t::register_type(
 	} else {
 		/* instantiate a lazily bound data ctor, and inject the typename for this type into the
 		 * type environment */
-		auto env = scope->get_typename_env();
+		auto env = scope->get_total_env();
 		auto env_iter = env.find(name);
 		if (env_iter == env.end()) {
 			/* instantiate_data_ctor_type has the side-effect of creating an
@@ -269,7 +269,7 @@ void ast::type_sum_t::register_type(
 				token.text.c_str(),
 				join(type_variables, ", ").c_str()));
 
-	scope->put_typename(status, id->get_name(), type);
+	scope->put_nominal_typename(status, id->get_name(), type);
 }
 
 void ast::type_link_t::register_type(
@@ -303,7 +303,7 @@ void ast::type_link_t::register_type(
 		type = ::type_lambda(*iter, type);
 	}
 
-	scope->put_typename(status, id->get_name(), type);
+	scope->put_structural_typename(status, id->get_name(), type);
 
 	if (!!status) {
 		return;
@@ -331,6 +331,6 @@ void ast::type_alias_t::register_type(
 		final_type = type_lambda(lambda_var, type);
 	}
 
-	scope->put_typename(status, token.text, final_type);
+	scope->put_nominal_typename(status, token.text, final_type);
 }
 

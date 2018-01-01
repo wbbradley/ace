@@ -1,17 +1,15 @@
-global
-
-get iter
-get sys
-
+module map
 
 type map{K, V} has
 	# HACKHACK: O(n) BAD BAD
 	var storage [{K, V}]
 
+[global]
 def __init__() map{any K, any V}
 	let storage [{any K, any V}]
 	return map(storage)
 
+[global]
 def get(m map{any K, any V}, key any K, default any V) any V
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
@@ -19,6 +17,7 @@ def get(m map{any K, any V}, key any K, default any V) any V
 			return kv[1]
 	return default
 
+[global]
 def __getitem__(m map{any K, any V}, key any K) any V?
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
@@ -26,6 +25,7 @@ def __getitem__(m map{any K, any V}, key any K) any V?
 			return kv[1]
 	return null
 
+[global]
 def __setitem__(m map{any K, any V}, key any K, val any V)
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
