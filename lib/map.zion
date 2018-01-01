@@ -31,4 +31,19 @@ def __setitem__(m map{any K, any V}, key any K, val any V)
 	for kv in m.storage
 		if kv[0] == key
 			kv[1] = val
+			return
 	append(m.storage, (key, val))
+
+[global]
+def del(m map{any K, any V}, key any K) bool
+	# HACKHACK: O(n) BAD BAD - also vector.vector_t coupling BAD BAD
+	i := 0r
+	let storage = m.storage
+	let size = (storage as *vector.vector_t).size
+	while i < size
+		let item = storage[i]
+		if item[0] == key
+			splice(storage, int(i), 1)
+			return true
+		i += 1r
+	return false

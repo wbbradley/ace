@@ -17,6 +17,7 @@ link def calloc(cb size_t, size size_t) *void
 link def malloc(cb size_t) *void
 link def realloc(ptr *void, cb size_t) *void
 link def memcpy(dst *void, src *void, n size_t) *void
+link def memmove(dst *void, src *void, n size_t) *void
 link def free(pb *void) void
 link def strdup(s *char_t) *char_t
 link def wcsdup(s *wchar_t) *wchar_t
