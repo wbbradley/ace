@@ -26,5 +26,7 @@ bound_var_t::ref resolve_null_check(
 		scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
+		ptr<const ast::expression_t> node,
 		bound_var_t::ref value,
-		null_check_kind_t nck);
+		null_check_kind_t nck,
+		local_scope_t::ref *new_scope);

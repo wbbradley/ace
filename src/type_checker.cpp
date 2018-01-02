@@ -1378,7 +1378,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 	return nullptr;
 }
 
-bound_var_t::ref ast::reference_expr_t::resolve_as_condition(
+bound_var_t::ref ast::reference_expr_t::resolve_condition(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -1560,11 +1560,12 @@ types::type_struct_t::ref get_struct_type_from_bound_type(
 {
 	auto type = full_eval(bound_type->get_type(), scope->get_total_env());
 
-	if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
+	if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
+		user_error(status, location, "maybe types cannot be dereferenced. try checking whether it's not equal to null first");
+		return nullptr;
+	} else if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
 		return type_struct(tuple_type->dimensions, {});
-	}
-
-	if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
+	} else if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
 		if (auto managed_type = dyncast<const types::type_managed_t>(ptr_type->element_type)) {
 			if (auto struct_type = dyncast<const types::type_struct_t>(managed_type->element_type)) {
 				return struct_type;
@@ -1577,7 +1578,7 @@ types::type_struct_t::ref get_struct_type_from_bound_type(
 	}
 
 	user_error(status, location,
-			"could not find any dimensions within %s",
+			"could not find any member variables within %s",
 			bound_type->str().c_str());
 
 	assert(!status);
@@ -2072,9 +2073,12 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
+		ast::expression_t::ref lhs_node,
 		bound_var_t::ref lhs_var,
+		ast::expression_t::ref rhs_node,
 		bound_var_t::ref rhs_var,
-		rnpbc_t rnpbc)
+		rnpbc_t rnpbc,
+		local_scope_t::ref *new_scope)
 {
 	if (lhs_var->type->get_type()->is_null()) {
 		if (rhs_var->type->get_type()->is_null()) {
@@ -2084,24 +2088,12 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 					rnpbc_equality_is_truth(rnpbc) ? "__true__" : "__false__",
 					false /*search_parents*/);
 		} else {
-			return resolve_null_check(
-					status,
-					builder,
-					scope,
-					life,
-					location,
-					rhs_var,
-					rnpbc_rhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null);
+			auto null_check = rnpbc_rhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null;
+			return resolve_null_check(status, builder, scope, life, location, rhs_node, rhs_var, null_check, new_scope);
 		}
 	} else if (rhs_var->type->get_type()->is_null()) {
-		return resolve_null_check(
-				status,
-				builder,
-				scope,
-				life,
-				location,
-				lhs_var,
-				rnpbc_lhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null);
+		auto null_check = rnpbc_lhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null;
+		return resolve_null_check(status, builder, scope, life, location, lhs_node, lhs_var, null_check, new_scope);
 	} else {
 		/* neither side is null */
 		if (!lhs_var->is_pointer()) { std::cerr << lhs_var->str() << " " << llvm_print(lhs_var->get_llvm_value()) << std::endl; dbg(); }
@@ -2111,7 +2103,7 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		if (
 				!unifies(lhs_var->type->get_type(), rhs_var->type->get_type(), env) &&
 				!unifies(rhs_var->type->get_type(), lhs_var->type->get_type(), env))
-	   	{
+		{
 			user_error(status, location, "values of types (%s and %s) cannot be compared",
 					lhs_var->type->get_type()->str().c_str(),
 					rhs_var->type->get_type()->str().c_str());
@@ -2120,7 +2112,7 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 
 		auto program_scope = scope->get_program_scope();
 		llvm::Type *llvm_char_ptr_type = builder.getInt8Ty()->getPointerTo();
-		
+
 		llvm::Value *llvm_value;
 		switch (rnpbc) {
 		case rnpbc_eq:
@@ -2162,10 +2154,10 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 				bool_type,
 				builder.CreateSExtOrTrunc(llvm_value, bool_type->get_llvm_specific_type()),
 				make_iid_impl(std::string{"equality.cond"}, location));
-
-		assert(!status);
-		return nullptr;
 	}
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref resolve_native_pointer_binary_operation(
@@ -2174,22 +2166,25 @@ bound_var_t::ref resolve_native_pointer_binary_operation(
 		scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
+		ast::expression_t::ref lhs_node,
 		bound_var_t::ref lhs_var,
+		ast::expression_t::ref rhs_node,
 		bound_var_t::ref rhs_var,
-		std::string function_name)
+		std::string function_name,
+		local_scope_t::ref *new_scope)
 {
 	if (function_name == "__eq__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_var, rhs_var, rnpbc_eq);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_eq, new_scope);
 	} else if (function_name == "__ineq__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_var, rhs_var, rnpbc_ineq);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_ineq, new_scope);
 	} else if (function_name == "__lt__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_var, rhs_var, rnpbc_lt);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_lt, new_scope);
 	} else if (function_name == "__lte__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_var, rhs_var, rnpbc_lte);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_lte, new_scope);
 	} else if (function_name == "__gt__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_var, rhs_var, rnpbc_gt);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_gt, new_scope);
 	} else if (function_name == "__gte__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_var, rhs_var, rnpbc_gte);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_gte, new_scope);
 	} else {
 		user_error(status, location, "native pointers cannot be combined using the " c_id("%s") " function", function_name.c_str());
 	}
@@ -2439,10 +2434,13 @@ bound_var_t::ref type_check_binary_operator(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
+		ast::expression_t::ref lhs_node,
 		bound_var_t::ref lhs,
+		ast::expression_t::ref rhs_node,
 		bound_var_t::ref rhs,
 		ast::item_t::ref obj,
-		std::string function_name)
+		std::string function_name,
+		local_scope_t::ref *new_scope)
 {
 	indent_logger indent(obj->get_location(), 6, string_format("checking binary operator " c_id("%s") " with operands %s and %s",
 				function_name.c_str(),
@@ -2494,7 +2492,7 @@ bound_var_t::ref type_check_binary_operator(
 						if (!rhs_is_managed || lhs_is_null) {
 							/* yeah, it looks like we are operating on two native pointers */
 							return resolve_native_pointer_binary_operation(status, builder, scope,
-									life, obj->get_location(), lhs, rhs, function_name);
+									life, obj->get_location(), lhs_node, lhs, rhs_node, rhs, function_name, new_scope);
 						}
 					}
 				}
@@ -2521,25 +2519,24 @@ bound_var_t::ref type_check_binary_operator(
 		ptr<const ast::expression_t> lhs,
 		ptr<const ast::expression_t> rhs,
 		ast::item_t::ref obj,
-		std::string function_name)
+		std::string function_name,
+		local_scope_t::ref *new_scope)
 {
 	if (!!status) {
 		assert(function_name.size() != 0);
 
 		bound_var_t::ref lhs_var, rhs_var;
-		lhs_var = lhs->resolve_expression(status, builder, scope, life,
-				false /*as_ref*/);
+		lhs_var = lhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
 		if (!!status) {
 			assert(!lhs_var->type->is_ref());
 
 			if (!!status) {
-				rhs_var = rhs->resolve_expression(status, builder, scope, life,
-						false /*as_ref*/);
+				rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
 
 				if (!!status) {
 					assert(!rhs_var->type->is_ref());
 
-					return type_check_binary_operator(status, builder, scope, life, lhs_var, rhs_var, obj, function_name);
+					return type_check_binary_operator(status, builder, scope, life, lhs, lhs_var, rhs, rhs_var, obj, function_name, new_scope);
 				}
 			}
 		}
@@ -2557,7 +2554,8 @@ bound_var_t::ref type_check_binary_equality(
 		ptr<const ast::expression_t> lhs,
 		ptr<const ast::expression_t> rhs,
 		ast::item_t::ref obj,
-		std::string function_name)
+		std::string function_name,
+		local_scope_t::ref *new_scope)
 {
 	if (!!status) {
 		bound_var_t::ref lhs_var, rhs_var;
@@ -2571,8 +2569,8 @@ bound_var_t::ref type_check_binary_equality(
 				assert(!lhs_var->is_ref());
 				assert(!rhs_var->is_ref());
 				bool negated = (function_name == "__ineq__" || function_name == "__isnot__");
-				return resolve_native_pointer_binary_compare(status, builder, scope, life, obj->get_location(), lhs_var, rhs_var,
-					   	negated ? rnpbc_ineq : rnpbc_eq);
+				return resolve_native_pointer_binary_compare(status, builder, scope, life, obj->get_location(), lhs, lhs_var, rhs, rhs_var,
+					   	negated ? rnpbc_ineq : rnpbc_eq, new_scope);
 			}
 		}
 	}
@@ -2589,12 +2587,30 @@ bound_var_t::ref ast::binary_operator_t::resolve_expression(
 {
 	if (token.is_ident(K(is))) {
 		return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
-				shared_from_this(), function_name);
+				shared_from_this(), function_name, nullptr);
 	}
 
 	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
-			shared_from_this(), function_name);
+			shared_from_this(), function_name, nullptr);
 }
+
+bound_var_t::ref ast::binary_operator_t::resolve_condition(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		local_scope_t::ref *new_scope) const
+{
+	if (token.is_ident(K(is))) {
+		return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
+				shared_from_this(), function_name, new_scope);
+	}
+
+	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
+			shared_from_this(), function_name, new_scope);
+}
+
+
 
 bound_var_t::ref ast::tuple_expr_t::resolve_expression(
 		status_t &status,
@@ -2646,7 +2662,7 @@ llvm::Value *get_raw_condition_value(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		ast::item_t::ref condition,
+		location_t location,
 		bound_var_t::ref condition_value)
 {
 	// REVIEW: this function seems suspect now
@@ -2655,7 +2671,7 @@ llvm::Value *get_raw_condition_value(
 	} else if (condition_value->is_pointer()) {
 		return condition_value->resolve_bound_var_value(builder);
 	} else {
-		user_error(status, condition->get_location(),
+		user_error(status, location,
 			   	"staring at the %s will bring you no closer to the truth",
 				condition_value->type->str().c_str());
 	}
@@ -2747,7 +2763,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		ast::expression_t::ref condition,
+		ast::condition_t::ref condition,
 		ast::expression_t::ref when_true,
 		ast::expression_t::ref when_false,
 		identifier::ref value_name)
@@ -2765,19 +2781,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 	bound_var_t::ref condition_value;
 
 	/* evaluate the condition for branching */
-	if (auto var_decl = dyncast<const ast::var_decl_t>(condition)) {
-		/* our user is attempting an assignment inside of an if statement, let's
-		 * grant them a favor, and automatically unbox the Maybe type if it
-		 * exists. */
-		condition_value = var_decl->resolve_as_condition(
-				status, builder, scope, life, &if_scope);
-	} else if (auto ref_expr = dyncast<const ast::reference_expr_t>(condition)) {
-		condition_value = ref_expr->resolve_as_condition(
-				status, builder, scope, life, &if_scope);
-	} else {
-		condition_value = condition->resolve_expression(
-				status, builder, scope, life, false /*as_ref*/);
-	}
+	condition_value = condition->resolve_condition(status, builder, scope, life, &if_scope);
 	debug_above(7, log("conditional expression has condition of type %s", condition_value->type->str().c_str()));
 
 	if (!!status) {
@@ -2787,7 +2791,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		 * anded conditions to be true in order to actually fall into the then
 		 * block, let's figure out those conditions */
 		llvm::Value *llvm_raw_condition_value = get_raw_condition_value(status,
-				builder, scope, condition, condition_value);
+				builder, scope, condition->get_location(), condition_value);
 
 		if (!!status) {
 			assert(llvm_raw_condition_value != nullptr);
@@ -3036,43 +3040,45 @@ bound_var_t::ref extract_member_variable(
 		if (!!status) {
 			types::type_struct_t::ref struct_type = get_struct_type_from_bound_type(
 					status, scope, node->get_location(), bound_obj_type);
-			debug_above(5, log(log_info, "looking for member " c_id("%s") " in %s", member_name.c_str(),
-						bound_obj_type->str().c_str()));
+			if (!!status) {
+				debug_above(5, log(log_info, "looking for member " c_id("%s") " in %s", member_name.c_str(),
+							bound_obj_type->str().c_str()));
 
-			auto member_index = struct_type->name_index;
-			auto member_index_iter = member_index.find(member_name);
+				auto member_index = struct_type->name_index;
+				auto member_index_iter = member_index.find(member_name);
 
-			for (auto member_index_pair : member_index) {
-				debug_above(5, log(log_info, "%s: %d", member_index_pair.first.c_str(),
-							member_index_pair.second));
-			}
+				for (auto member_index_pair : member_index) {
+					debug_above(5, log(log_info, "%s: %d", member_index_pair.first.c_str(),
+								member_index_pair.second));
+				}
 
-			if (member_index_iter != member_index.end()) {
-				auto index = member_index_iter->second;
-				debug_above(5, log(log_info, "found member " c_id("%s") " of type %s at index %d",
-							member_name.c_str(),
-							struct_type->str().c_str(),
-							index));
+				if (member_index_iter != member_index.end()) {
+					auto index = member_index_iter->second;
+					debug_above(5, log(log_info, "found member " c_id("%s") " of type %s at index %d",
+								member_name.c_str(),
+								struct_type->str().c_str(),
+								index));
 
-				debug_above(5, log(log_info, "looking at bound_var %s : %s",
-							bound_var->str().c_str(),
-							llvm_print(bound_var->type->get_llvm_type()).c_str()));
+					debug_above(5, log(log_info, "looking at bound_var %s : %s",
+								bound_var->str().c_str(),
+								llvm_print(bound_var->type->get_llvm_type()).c_str()));
 
-				return extract_member_by_index(status, builder, scope, 
-						life, node->get_location(), bound_var, bound_obj_type, index, member_name, as_ref);
+					return extract_member_by_index(status, builder, scope, 
+							life, node->get_location(), bound_var, bound_obj_type, index, member_name, as_ref);
 
-			} else {
-				auto bindings = scope->get_type_variable_bindings();
-				auto full_type = bound_var->type->get_type()->rebind(bindings);
-				user_error(status, node->get_location(),
-						"%s has no dimension called " c_id("%s"),
-						full_type->str().c_str(),
-						member_name.c_str());
-				user_message(log_info, status, bound_var->type->get_location(), "%s has dimension(s) [%s]",
-						full_type->str().c_str(),
-						join_with(member_index, ", ", [] (std::pair<std::string, int> index) -> std::string {
-							return std::string(C_ID) + index.first + C_RESET;
-							}).c_str());
+				} else {
+					auto bindings = scope->get_type_variable_bindings();
+					auto full_type = bound_var->type->get_type()->rebind(bindings);
+					user_error(status, node->get_location(),
+							"%s has no dimension called " c_id("%s"),
+							full_type->str().c_str(),
+							member_name.c_str());
+					user_message(log_info, status, bound_var->type->get_location(), "%s has dimension(s) [%s]",
+							full_type->str().c_str(),
+							join_with(member_index, ", ", [] (std::pair<std::string, int> index) -> std::string {
+								return std::string(C_ID) + index.first + C_RESET;
+								}).c_str());
+				}
 			}
 		}
 	}
@@ -4192,15 +4198,12 @@ bound_var_t::ref type_check_binary_op_assignment(
 
 			if (!!status) {
 				assert(!rhs_var->is_ref());
-				auto lhs = lhs_var->resolve_bound_value(status, builder, scope);
-				if (!!status) {
-					auto computed_var = type_check_binary_operator(status, builder, scope, life, lhs, rhs_var, op_node,
-							function_name);
+				auto computed_var = type_check_binary_operator(status, builder, scope, life, lhs, lhs_val, rhs, rhs_var, op_node,
+						function_name, nullptr);
 
-					if (!!status) {
-						return type_check_assignment(status, builder, scope, life, lhs_var,
-								computed_var, location);
-					}
+				if (!!status) {
+					return type_check_assignment(status, builder, scope, life, lhs_var,
+							computed_var, location);
 				}
 			}
 		}
@@ -4562,6 +4565,16 @@ void ast::for_block_t::resolve_statement(
 			life, new_scope, returns);
 }
 
+bound_var_t::ref ast::expression_t::resolve_condition(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref block_scope,
+		life_t::ref life,
+		local_scope_t::ref *) const
+{
+	return resolve_expression(status, builder, block_scope, life, false /*as_ref*/);
+}
+
 void ast::while_block_t::resolve_statement(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -4590,28 +4603,18 @@ void ast::while_block_t::resolve_statement(
 	bound_var_t::ref condition_value;
 
 	/* evaluate the condition for branching */
-	if (auto var_decl = dyncast<const ast::var_decl_t>(condition)) {
-		/* our user is attempting an assignment inside of an if statement, let's
-		 * grant them a favor, and automatically unbox the Maybe type if it
-		 * exists. */
-		condition_value = var_decl->resolve_as_condition(
-				status, builder, scope, cond_life, &while_scope);
-	} else if (auto ref_expr = dyncast<const ast::reference_expr_t>(condition)) {
-		condition_value = ref_expr->resolve_as_condition(
-				status, builder, scope, cond_life, &while_scope);
-	} else if (auto expr = dyncast<const ast::expression_t>(condition)) {
-		condition_value = expr->resolve_expression(
-				status, builder, scope, cond_life, false /*as_ref*/);
-	} else {
-		panic("how did this get here?");
-	}
+	/* our user is attempting any assorted collection of ergonomic improvements to their life by
+	 * asserting possible type modifications to their variables, or by injecting new variables
+	 * into the nested scope. */
+	condition_value = condition->resolve_condition(
+			status, builder, scope, cond_life, &while_scope);
 
 	if (!!status) {
 		debug_above(5, log(log_info,
 					"getting raw condition for value %s",
 					condition_value->str().c_str()));
 		llvm::Value *llvm_raw_condition_value = get_raw_condition_value(status,
-				builder, scope, condition, condition_value);
+				builder, scope, condition->get_location(), condition_value);
 
 		if (!!status) {
 			assert(llvm_raw_condition_value != nullptr);
@@ -4682,8 +4685,8 @@ void ast::while_block_t::resolve_statement(
 		}
 	}
 
-    assert(!status);
-    return;
+	assert(!status);
+	return;
 }
 
 void ast::if_block_t::resolve_statement(
@@ -4707,21 +4710,8 @@ void ast::if_block_t::resolve_statement(
 	auto cond_life = life->new_life(status, lf_statement);
 
 	/* evaluate the condition for branching */
-	if (auto var_decl = dyncast<const ast::var_decl_t>(condition)) {
-		/* our user is attempting an assignment inside of an if statement, let's
-		 * grant them a favor, and automatically unbox the Maybe type if it
-		 * exists. */
-		condition_value = var_decl->resolve_as_condition(
-				status, builder, scope, cond_life, &if_scope);
-	} else if (auto ref_expr = dyncast<const ast::reference_expr_t>(condition)) {
-		condition_value = ref_expr->resolve_as_condition(
-				status, builder, scope, cond_life, &if_scope);
-	} else if (auto expr = dyncast<const ast::expression_t>(condition)) {
-		condition_value = expr->resolve_expression(
-				status, builder, scope, cond_life, false /*as_ref*/);
-	} else {
-		panic("how did this get here?");
-	}
+	condition_value = condition->resolve_condition(
+			status, builder, scope, cond_life, &if_scope);
 
 	/*
 	 * var maybe_vector Vector? = maybe_a_vector()
@@ -4754,7 +4744,7 @@ void ast::if_block_t::resolve_statement(
 		 * anded conditions to be true in order to actually fall into the then
 		 * block, let's figure out those conditions */
 		llvm::Value *llvm_raw_condition_value = get_raw_condition_value(status,
-				builder, scope, condition, condition_value);
+				builder, scope, condition->get_location(), condition_value);
 
 		if (!!status && llvm_raw_condition_value != nullptr) {
 			/* test that the if statement doesn't return */
@@ -4854,7 +4844,7 @@ void ast::if_block_t::resolve_statement(
 	}
 
 	assert(!status);
-    return;
+	return;
 }
 
 bound_var_t::ref ast::bang_expr_t::resolve_expression(
@@ -4920,7 +4910,7 @@ bound_var_t::ref ast::var_decl_t::resolve_as_link(
 	return nullptr;
 }
 
-bound_var_t::ref ast::var_decl_t::resolve_as_condition(
+bound_var_t::ref ast::var_decl_t::resolve_condition(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -5057,7 +5047,7 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
 			if (!!status) {
 				if (!is_managed) {
 					return resolve_null_check(status, builder, scope, life,
-							get_location(), rhs_var, nck_is_null);
+							get_location(), rhs, rhs_var, nck_is_null, nullptr);
 				} else {
 					/* TODO: revisit whether managed types must/can override __not__? */
 				}

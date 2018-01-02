@@ -67,14 +67,8 @@ def __plus__(x str, y float) str
 	posix.free(sy)
 	return ret
 
-def __eq__(x str?, y str?) bool
-	if x != null 
-		if y != null
-			return posix.wcscmp(x.raw, y.raw) == 0r ? true : false
-		else
-			return false
-	else
-		return y == null
+def __eq__(x str, y str) bool
+	return posix.wcscmp(x.raw, y.raw) == 0r ? true : false
 
 def __ineq__(x str, y str) bool
 	return posix.wcscmp(x.raw, y.raw) != 0r ? true : false

@@ -96,29 +96,29 @@ namespace ast {
 	{
 	}
 
-    std::string var_decl_t::get_symbol() const {
-        return {token.text};
-    }
+	std::string var_decl_t::get_symbol() const {
+		return {token.text};
+	}
 
-    location_t var_decl_t::get_location() const  {
-        return token.location;
-    }
+	location_t var_decl_t::get_location() const  {
+		return token.location;
+	}
 
-    types::type_t::ref var_decl_t::get_type() const {
-        return type;
-    }
+	types::type_t::ref var_decl_t::get_type() const {
+		return type;
+	}
 
-    bool var_decl_t::has_initializer() const {
-        return initializer != nullptr;
-    }
+	bool var_decl_t::has_initializer() const {
+		return initializer != nullptr;
+	}
 
-    bound_var_t::ref var_decl_t::resolve_initializer(
-            status_t &status,
-            llvm::IRBuilder<> &builder,
-            scope_t::ref scope,
-            life_t::ref life) const
-    {
-        auto bound_var = initializer->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+	bound_var_t::ref var_decl_t::resolve_initializer(
+			status_t &status,
+			llvm::IRBuilder<> &builder,
+			scope_t::ref scope,
+			life_t::ref life) const
+	{
+		auto bound_var = initializer->resolve_expression(status, builder, scope, life, false /*as_ref*/);
 		if (!!status) {
 			assert(!bound_var->is_ref());
 			return bound_var;
@@ -126,7 +126,7 @@ namespace ast {
 
 		assert(!status);
 		return nullptr;
-    }
+	}
 
 	std::string function_decl_t::get_function_name() const {
 		if (token.tk == tk_string) {
