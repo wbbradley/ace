@@ -79,7 +79,7 @@ namespace ast {
 		return item;
 	}
 
-	struct statement_t : public item_t {
+	struct statement_t : public virtual item_t {
 		typedef ptr<const statement_t> ref;
 
 		static const syntax_kind_t SK = sk_statement;
@@ -108,7 +108,18 @@ namespace ast {
 		std::vector<ptr<var_decl_t>> params;
 	};
 
-	struct expression_t : public statement_t {
+	struct condition_t : public virtual item_t {
+		typedef ptr<const condition_t> ref;
+		virtual ~condition_t() {}
+		virtual bound_var_t::ref resolve_condition(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				local_scope_t::ref *new_scope) const = 0;
+	};
+
+	struct expression_t : public statement_t, public condition_t {
 		typedef ptr<const expression_t> ref;
 
 		static const syntax_kind_t SK = sk_expression;
@@ -127,6 +138,14 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref) const = 0;
+
+		/* when resolve_condition is not overriden, it just proxies through to resolve_expression */
+		virtual bound_var_t::ref resolve_condition(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				local_scope_t::ref *new_scope) const;
 	};
 
 	namespace postfix_expr {
@@ -412,7 +431,7 @@ namespace ast {
 		identifier::refs type_variables;
 	};
 
-	struct var_decl_t : public statement_t, like_var_decl_t {
+	struct var_decl_t : public virtual statement_t, like_var_decl_t, public condition_t {
 		typedef ptr<const var_decl_t> ref;
 
 		static const syntax_kind_t SK = sk_var_decl;
@@ -429,7 +448,7 @@ namespace ast {
 				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
-		bound_var_t::ref resolve_as_condition(
+		virtual bound_var_t::ref resolve_condition(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -653,7 +672,7 @@ namespace ast {
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
-		ptr<const item_t> condition;
+		ptr<const condition_t> condition;
 		ptr<const block_t> block;
 		ptr<const statement_t> else_;
 	};
@@ -673,7 +692,7 @@ namespace ast {
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
-		ptr<const item_t> condition;
+		ptr<const condition_t> condition;
 		ptr<block_t> block;
 	};
 
@@ -957,6 +976,12 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref) const;
+		virtual bound_var_t::ref resolve_condition(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				life_t::ref life,
+				local_scope_t::ref *new_scope) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::string function_name;
@@ -1013,7 +1038,7 @@ namespace ast {
 				life_t::ref,
 				const ptr<const ast::item_t> &obj,
 				const bound_type_t::refs &args) const;
-		bound_var_t::ref resolve_as_condition(
+		virtual bound_var_t::ref resolve_condition(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
