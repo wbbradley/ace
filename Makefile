@@ -1,9 +1,9 @@
 IMAGE=zionlang/zion
 VERSION=0.1
 INSTALL_DIR=/usr/local/zion
-OPT_LEVEL=-O3
+OPT_LEVEL=-O0
 UNAME := $(shell uname)
-DEBUG_FLAGS := -DZION_NO_DEBUG -g $(OPT_LEVEL)
+DEBUG_FLAGS := -DZION_DEBUG -g $(OPT_LEVEL)
 LLVM_VERSION = release_40
 LLVM_DEBUG_ROOT = $(HOME)/opt/llvm/$(LLVM_VERSION)/Debug
 LLVM_RELEASE_ROOT = $(HOME)/opt/llvm/$(LLVM_VERSION)/MinSizeRel
