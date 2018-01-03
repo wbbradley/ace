@@ -28,7 +28,9 @@ bound_var_t::ref resolve_null_check(
 				status, builder, scope, life, false /*as_ref*/);
 
 		if (!!status) {
-			return resolve_null_check(status, builder, scope, life, location, nullptr, param_var, nck, nullptr);
+			return resolve_null_check(
+					status, builder, scope, life, location, nullptr, param_var,
+					nck, nullptr, nullptr);
 		}
 	}
 
@@ -114,8 +116,16 @@ bound_var_t::ref resolve_null_check(
 		ast::expression_t::ref node,
 		bound_var_t::ref value,
 		null_check_kind_t nck,
-		local_scope_t::ref *new_scope)
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false)
 {
+	bool value_is_managed;
+	value->type->is_managed_ptr(
+			status,
+			builder,
+			scope,
+			value_is_managed);
+
 	llvm::Value *llvm_value = value->resolve_bound_var_value(builder);
 	bound_type_t::ref bound_bool_type = scope->get_bound_type(BOOL_TYPE);
 	llvm::Type *llvm_bool_type = bound_bool_type->get_llvm_specific_type();
@@ -135,9 +145,10 @@ bound_var_t::ref resolve_null_check(
 		llvm_bool_value = builder.CreateIntCast(
 				builder.CreateICmpNE(llvm_value, zero),
 				llvm_bool_type, false /*isSigned*/);
-		if (new_scope != nullptr) {
+
+		if (scope_if_true != nullptr) {
 			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
-				unmaybe_variable(status, builder, scope, life, ref_expr, new_scope);
+				unmaybe_variable(status, builder, scope, life, ref_expr, scope_if_true);
 			}
 		}
 		break;
@@ -145,14 +156,47 @@ bound_var_t::ref resolve_null_check(
 		llvm_bool_value = builder.CreateIntCast(
 				builder.CreateICmpEQ(llvm_value, zero),
 				llvm_bool_type, false /*isSigned*/);
+
+		if (scope_if_false != nullptr) {
+			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+				unmaybe_variable(status, builder, scope, life, ref_expr, scope_if_false);
+			}
+		}
 		break;
 	}
 
 	if (!!status) {
 		assert(llvm_bool_value != nullptr);
-		return bound_var_t::create(
+		bound_var_t::ref bound_bool_value = bound_var_t::create(
 				INTERNAL_LOC(), "nullcheck",
 				bound_bool_type, llvm_bool_value, make_iid("nullcheck"));
+
+		if (value_is_managed) {
+			/* we're comparing a managed pointer to null, so we'll need a managed bool result */
+			bound_var_t::ref bool_ctor = get_callable(
+					status,
+					builder,
+					scope,
+					"bool",
+					INTERNAL_LOC(),
+					type_args({bound_bool_type->get_type()}),
+					type_id(make_iid("bool")));
+			if (!!status) {
+				return create_callsite(
+						status,
+						builder,
+						scope,
+						life,
+						bool_ctor,
+						"null.check.bool",
+						location,
+						{bound_bool_value});
+			}
+		} else {
+			return bound_var_t::create(
+					INTERNAL_LOC(), "nullcheck",
+					bound_bool_type, llvm_bool_value, make_iid("nullcheck"));
+		}
 	}
 
 	assert(!status);

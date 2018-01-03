@@ -116,7 +116,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope) const = 0;
+				local_scope_t::ref *scope_if_true,
+				local_scope_t::ref *scope_if_false) const = 0;
 	};
 
 	struct expression_t : public statement_t, public condition_t {
@@ -145,7 +146,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope) const;
+				local_scope_t::ref *scope_if_true,
+				local_scope_t::ref *scope_if_false) const;
 	};
 
 	namespace postfix_expr {
@@ -453,7 +455,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope) const;
+				local_scope_t::ref *scope_if_true,
+				local_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
 
 		virtual std::string get_symbol() const;
@@ -979,9 +982,10 @@ namespace ast {
 		virtual bound_var_t::ref resolve_condition(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
-				scope_t::ref scope,
+				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope) const;
+				local_scope_t::ref *scope_if_true,
+				local_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::string function_name;
@@ -1038,12 +1042,6 @@ namespace ast {
 				life_t::ref,
 				const ptr<const ast::item_t> &obj,
 				const bound_type_t::refs &args) const;
-		virtual bound_var_t::ref resolve_condition(
-				status_t &status,
-				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
-				life_t::ref life,
-				local_scope_t::ref *new_scope) const;
 		virtual void render(render_state_t &rs) const;
 	};
 

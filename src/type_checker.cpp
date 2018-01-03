@@ -1378,85 +1378,6 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 	return nullptr;
 }
 
-bound_var_t::ref ast::reference_expr_t::resolve_condition(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		life_t::ref life,
-		local_scope_t::ref *new_scope) const
-{
-	bound_var_t::ref var = scope->get_bound_variable(status, get_location(), token.text);
-
-	if (!var) {
-		user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
-	}
-
-	bound_var_t::ref test_var = var;
-	bool was_ref = var->type->is_ref();
-	if (was_ref) {
-		test_var = var->resolve_bound_value(status, builder, scope);
-		assert(!test_var->type->is_ref());
-	}
-
-	if (!!status) {
-		if (auto maybe_type = dyncast<const types::type_maybe_t>(test_var->type->get_type())) {
-			runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
-			assert(runnable_scope);
-
-			/* variable declarations begin new scopes */
-			local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
-					string_format("condition-assignment-%s", token.text.c_str()));
-
-			scope = fresh_scope;
-			*new_scope = fresh_scope;
-
-			/* looks like the initialization variable is a supertype
-			 * of the null type */
-			auto bound_type = upsert_bound_type(status, builder, scope,
-					was_ref ? type_ref(maybe_type->just) : maybe_type->just);
-
-			if (!!status) {
-				// TODO: decide whether this variable can be made into a ref
-				// type if "was_ref" is true, to enable reassignment. The
-				// downfall of this is that even if this is allowed, then a null
-				// value can never be assigned to this value. This could
-				// generally be considered good in the abstract, however in
-				// practice it's common for users to want to assign variables a
-				// null value as a way of signaling loop exits and the like.
-
-				/* because we're evaluating this maybe value in the context of a
-				 * condition (super simplified at this point), let's redeclare it
-				 * without its maybe, since we know it will be valid if the
-				 * condition passes */
-				bound_var_t::ref var_decl_variable =
-					bound_var_t::create(INTERNAL_LOC(), token.text, bound_type,
-							var->get_llvm_value(), make_code_id(token));
-
-				/* on our way out, stash the variable in the current scope */
-				scope->put_bound_variable(status, var_decl_variable->name,
-						var_decl_variable);
-
-				/* get the maybe type so that we can use it as a conditional */
-				bound_type_t::ref condition_type = upsert_bound_type(status, builder, scope, maybe_type);
-				if (!!status) {
-					return bound_var_t::create(INTERNAL_LOC(), token.text,
-							condition_type, test_var->get_llvm_value(),
-						   	make_code_id(token));
-				}
-			}
-
-			assert(!status);
-			return nullptr;
-		} else {
-			/* this is not a maybe, so let's just move along */
-			return test_var;
-		}
-	}
-
-	assert(!status);
-	return nullptr;
-}
-
 bound_var_t::ref ast::array_index_expr_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -2078,7 +1999,8 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		ast::expression_t::ref rhs_node,
 		bound_var_t::ref rhs_var,
 		rnpbc_t rnpbc,
-		local_scope_t::ref *new_scope)
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false)
 {
 	if (lhs_var->type->get_type()->is_null()) {
 		if (rhs_var->type->get_type()->is_null()) {
@@ -2089,11 +2011,11 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 					false /*search_parents*/);
 		} else {
 			auto null_check = rnpbc_rhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null;
-			return resolve_null_check(status, builder, scope, life, location, rhs_node, rhs_var, null_check, new_scope);
+			return resolve_null_check(status, builder, scope, life, location, rhs_node, rhs_var, null_check, scope_if_true, scope_if_false);
 		}
 	} else if (rhs_var->type->get_type()->is_null()) {
 		auto null_check = rnpbc_lhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null;
-		return resolve_null_check(status, builder, scope, life, location, lhs_node, lhs_var, null_check, new_scope);
+		return resolve_null_check(status, builder, scope, life, location, lhs_node, lhs_var, null_check, scope_if_true, scope_if_false);
 	} else {
 		/* neither side is null */
 		if (!lhs_var->is_pointer()) { std::cerr << lhs_var->str() << " " << llvm_print(lhs_var->get_llvm_value()) << std::endl; dbg(); }
@@ -2171,20 +2093,21 @@ bound_var_t::ref resolve_native_pointer_binary_operation(
 		ast::expression_t::ref rhs_node,
 		bound_var_t::ref rhs_var,
 		std::string function_name,
-		local_scope_t::ref *new_scope)
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false)
 {
 	if (function_name == "__eq__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_eq, new_scope);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_eq, scope_if_true, scope_if_false);
 	} else if (function_name == "__ineq__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_ineq, new_scope);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_ineq, scope_if_true, scope_if_false);
 	} else if (function_name == "__lt__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_lt, new_scope);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_lt, scope_if_true, scope_if_false);
 	} else if (function_name == "__lte__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_lte, new_scope);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_lte, scope_if_true, scope_if_false);
 	} else if (function_name == "__gt__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_gt, new_scope);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_gt, scope_if_true, scope_if_false);
 	} else if (function_name == "__gte__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_gte, new_scope);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_gte, scope_if_true, scope_if_false);
 	} else {
 		user_error(status, location, "native pointers cannot be combined using the " c_id("%s") " function", function_name.c_str());
 	}
@@ -2440,7 +2363,8 @@ bound_var_t::ref type_check_binary_operator(
 		bound_var_t::ref rhs,
 		ast::item_t::ref obj,
 		std::string function_name,
-		local_scope_t::ref *new_scope)
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false)
 {
 	indent_logger indent(obj->get_location(), 6, string_format("checking binary operator " c_id("%s") " with operands %s and %s",
 				function_name.c_str(),
@@ -2492,7 +2416,7 @@ bound_var_t::ref type_check_binary_operator(
 						if (!rhs_is_managed || lhs_is_null) {
 							/* yeah, it looks like we are operating on two native pointers */
 							return resolve_native_pointer_binary_operation(status, builder, scope,
-									life, obj->get_location(), lhs_node, lhs, rhs_node, rhs, function_name, new_scope);
+									life, obj->get_location(), lhs_node, lhs, rhs_node, rhs, function_name, scope_if_true, scope_if_false);
 						}
 					}
 				}
@@ -2520,7 +2444,8 @@ bound_var_t::ref type_check_binary_operator(
 		ptr<const ast::expression_t> rhs,
 		ast::item_t::ref obj,
 		std::string function_name,
-		local_scope_t::ref *new_scope)
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false)
 {
 	if (!!status) {
 		assert(function_name.size() != 0);
@@ -2536,7 +2461,9 @@ bound_var_t::ref type_check_binary_operator(
 				if (!!status) {
 					assert(!rhs_var->type->is_ref());
 
-					return type_check_binary_operator(status, builder, scope, life, lhs, lhs_var, rhs, rhs_var, obj, function_name, new_scope);
+					return type_check_binary_operator(
+							status, builder, scope, life, lhs, lhs_var, rhs, rhs_var, obj,
+							function_name, scope_if_true, scope_if_false);
 				}
 			}
 		}
@@ -2555,7 +2482,8 @@ bound_var_t::ref type_check_binary_equality(
 		ptr<const ast::expression_t> rhs,
 		ast::item_t::ref obj,
 		std::string function_name,
-		local_scope_t::ref *new_scope)
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false)
 {
 	if (!!status) {
 		bound_var_t::ref lhs_var, rhs_var;
@@ -2570,7 +2498,7 @@ bound_var_t::ref type_check_binary_equality(
 				assert(!rhs_var->is_ref());
 				bool negated = (function_name == "__ineq__" || function_name == "__isnot__");
 				return resolve_native_pointer_binary_compare(status, builder, scope, life, obj->get_location(), lhs, lhs_var, rhs, rhs_var,
-					   	negated ? rnpbc_ineq : rnpbc_eq, new_scope);
+					   	negated ? rnpbc_ineq : rnpbc_eq, scope_if_true, scope_if_false);
 			}
 		}
 	}
@@ -2587,11 +2515,11 @@ bound_var_t::ref ast::binary_operator_t::resolve_expression(
 {
 	if (token.is_ident(K(is))) {
 		return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
-				shared_from_this(), function_name, nullptr);
+				shared_from_this(), function_name, nullptr, nullptr);
 	}
 
 	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
-			shared_from_this(), function_name, nullptr);
+			shared_from_this(), function_name, nullptr, nullptr);
 }
 
 bound_var_t::ref ast::binary_operator_t::resolve_condition(
@@ -2599,15 +2527,16 @@ bound_var_t::ref ast::binary_operator_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope) const
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false) const
 {
 	if (token.is_ident(K(is))) {
 		return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
-				shared_from_this(), function_name, new_scope);
+				shared_from_this(), function_name, scope_if_true, scope_if_false);
 	}
 
 	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
-			shared_from_this(), function_name, new_scope);
+			shared_from_this(), function_name, scope_if_true, scope_if_false);
 }
 
 
