@@ -127,7 +127,7 @@ def __vectorappend__(vector *vector_t, item *var_t) void
 		assert(vector.items)
 		vector.items[vector.size] = item
 		vector.size += 1r
-	elif vector.items
+	elif vector.items != null
 		# print("we need to re-allocate space because " + vector.reserved + " <= " + vector.size)
 		assert(vector.reserved == vector.size)
 		new_reserved := vector.reserved * 2r
@@ -159,7 +159,7 @@ def reserve(vec [any T], n int)
 def reserve(vec *vector_t, n size_t)
 	# Make sure we've got n spaces available in our vector's allocated memory
 	if vec.reserved < n
-		if vec.items
+		if vec.items != null
 			new_items := posix.calloc(sizeof(*var_t), n) as **var_t
 			posix.memcpy(new_items as *int8_t, vec.items as *int8_t, sizeof(*var_t) * vec.size)
 			posix.free(vec.items)

@@ -37,7 +37,7 @@ def close(f File)
 
 [global]
 def __finalize__(of Open)
-	if of.fp
+	if of.fp != null
 		ret := posix.fclose(of.fp)
 		if ret != 0r
 			print("Error: failed to close file")
