@@ -32,4 +32,5 @@ def main()
 	var x int? = 3
 	static_print(x)
 	static_print(x or 10)
+	static_print(x != null and x)
 

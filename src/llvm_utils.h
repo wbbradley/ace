@@ -97,7 +97,8 @@ void llvm_create_if_branch(
 		scope_t::ref scope,
 		int iff,
 		ptr<life_t> life,
-		llvm::Value *llvm_value,
+		location_t location,
+		bound_var_t::ref value,
 		llvm::BasicBlock *then_bb,
 		llvm::BasicBlock *else_bb);
 

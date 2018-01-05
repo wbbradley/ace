@@ -119,7 +119,7 @@ def add_node(node *var_t) void
 	assert(__head_var.prev == null)
 	assert(__head_var.next.prev == __head_var)
 	assert(node.prev.next == node)
-	if node.next
+	if node.next != null
 		assert(node.next.prev == node)
 
 	# check_node_existence(node, __true__)
@@ -177,7 +177,7 @@ def __create_head_var() *var_t
 	return p
 
 def dbg_type_info(type_info *type_info_t)
-	if type_info
+	if type_info != null
 		posix.puts("type_id"r)
 		posix.puts(__str__(type_info.type_id))
 		posix.puts("type_kind"r)
@@ -195,8 +195,8 @@ def create_var(type_info *type_info_t) *var_t
 	# dbg_type_info(type_info)
 
 	# allocate the variable tracking object
-	alloc_size := type_info ? type_info.size : sizeof(var_t)
-	var obj *var_t = mem_alloc(alloc_size, type_info ? type_info.name : "<unknown>"r) as *var_t
+	alloc_size := type_info != null ? type_info.size : sizeof(var_t)
+	var obj *var_t = mem_alloc(alloc_size, type_info != null ? type_info.name : "<unknown>"r) as *var_t
 	obj.type_info = type_info
 	runtime._var_allocation += 1r as uint_t
 

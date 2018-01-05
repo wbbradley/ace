@@ -11,6 +11,7 @@
 #include "life.h"
 #include "type_kind.h"
 #include "coercions.h"
+#include "unification.h"
 
 const char *GC_STRATEGY = "zion";
 
@@ -492,59 +493,100 @@ void llvm_create_if_branch(
 		scope_t::ref scope,
 		int iff,
 		life_t::ref life,
-	   	llvm::Value *llvm_value,
+		location_t location,
+		bound_var_t::ref value,
 	   	llvm::BasicBlock *then_bb,
 	   	llvm::BasicBlock *else_bb)
 {
-	llvm::Type *llvm_type = llvm_value->getType();
+	/* the job of this function is to derive a value from the input value that is a valid input to a branch */
+	auto program_scope = scope->get_program_scope();
 
-	if (llvm_type->isPointerTy()) {
-		/* automatically check pointers against null */
-		llvm::Constant *null_value = llvm::Constant::getNullValue(llvm_type);
-		llvm_value = builder.CreateICmpNE(llvm_value, null_value);
-		llvm_type = llvm_value->getType();
+	/* we don't care about references, load past them if need be */
+	llvm::Value *llvm_value = nullptr;
+
+	if (!!status) {
+		bool is_managed;
+		value->type->is_managed_ptr(status, builder, scope, is_managed);
+
+		if (is_managed) {
+			types::type_t::ref type = value->type->get_type();
+			if (types::is_type_id(type, "true")) {
+				llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 1);
+			} else if (types::is_type_id(type, "false")) {
+				llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 0);
+			} else if (unifies(
+						type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, location),
+						value->type->get_type(),
+						scope->get_nominal_env()))
+			{
+				/* create a runtime check for the true value */
+				auto bound_true = program_scope->get_bound_variable(status, location, "true", false);
+				assert(!!status);
+				auto bound_var_ptr_type = program_scope->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
+				llvm_value = builder.CreateICmpEQ(
+						llvm_maybe_pointer_cast(builder, bound_true->get_llvm_value(), bound_var_ptr_type->get_llvm_type()),
+						llvm_maybe_pointer_cast(builder, value->get_llvm_value(), bound_var_ptr_type->get_llvm_type()));
+			} else {
+				user_error(status, location, "managed value in conditional context needs to resolve to a true or false value");
+				user_info(status, location, "this expression resolves to type %s", type->str().c_str());
+			}
+		} else {
+			value = value->resolve_bound_value(status, builder, scope);
+			llvm_value = value->get_llvm_value();
+			llvm::Type *llvm_type = llvm_value->getType();
+
+			if (llvm_type->isPointerTy()) {
+				user_error(status, location,
+					   	"zion does not perform implicit pointer comparison to null. you must explicitly make that comparison");
+			}
+
+			if (!!status) {
+				assert(llvm_type->isIntegerTy());
+				if (!llvm_type->isIntegerTy(1)) {
+					llvm::Constant *zero = llvm::ConstantInt::get(llvm_type, 0);
+					llvm_value = builder.CreateICmpNE(llvm_value, zero);
+				}
+			}
+		}
+
+		if (!!status) {
+			assert(llvm_value->getType()->isIntegerTy(1));
+
+			llvm::Function *llvm_function_current = llvm_get_function(builder);
+
+			if (iff & IFF_ELSE) {
+				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+				llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
+						builder.getContext(), "else.release", llvm_function_current);
+				builder.SetInsertPoint(release_block_bb);
+				life->release_vars(status, builder, scope, lf_statement);
+
+				assert(!builder.GetInsertBlock()->getTerminator());
+				builder.CreateBr(else_bb);
+
+				/* trick the code below to jumping to this release guard block */
+				else_bb = release_block_bb;
+			}
+
+			if (iff & IFF_THEN) {
+				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+				llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
+						builder.getContext(), "then.release", llvm_function_current);
+				builder.SetInsertPoint(release_block_bb);
+				life->release_vars(status, builder, scope, lf_statement);
+
+				assert(!builder.GetInsertBlock()->getTerminator());
+				builder.CreateBr(then_bb);
+
+				/* trick the code below to jumping to this release guard block */
+				then_bb = release_block_bb;
+			}
+
+			builder.CreateCondBr(llvm_value, then_bb, else_bb);
+		}
 	}
-
-	if (!llvm_type->isIntegerTy(1)) {
-		llvm::Constant *zero = llvm::ConstantInt::get(llvm_type, 0);
-		llvm_value = builder.CreateICmpNE(llvm_value, zero);
-	}
-
-	assert(llvm_value->getType()->isIntegerTy(1));
-
-	llvm::Function *llvm_function_current = llvm_get_function(builder);
-
-	if (iff & IFF_ELSE) {
-		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-
-		llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
-				builder.getContext(), "else.release", llvm_function_current);
-		builder.SetInsertPoint(release_block_bb);
-		life->release_vars(status, builder, scope, lf_statement);
-
-		assert(!builder.GetInsertBlock()->getTerminator());
-		builder.CreateBr(else_bb);
-
-		/* trick the code below to jumping to this release guard block */
-		else_bb = release_block_bb;
-	}
-
-	if (iff & IFF_THEN) {
-		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-
-		llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
-				builder.getContext(), "then.release", llvm_function_current);
-		builder.SetInsertPoint(release_block_bb);
-		life->release_vars(status, builder, scope, lf_statement);
-
-		assert(!builder.GetInsertBlock()->getTerminator());
-		builder.CreateBr(then_bb);
-
-		/* trick the code below to jumping to this release guard block */
-		then_bb = release_block_bb;
-	}
-
-	builder.CreateCondBr(llvm_value, then_bb, else_bb);
 }
 
 llvm::Constant *llvm_create_struct_instance(
