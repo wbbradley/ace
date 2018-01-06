@@ -2696,21 +2696,33 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		ast::condition_t::ref condition,
 		ast::expression_t::ref when_true,
 		ast::expression_t::ref when_false,
-		identifier::ref value_name)
+		identifier::ref value_name,
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false)
 {
+	/* these scopes are calculated for the interior conditional branching in order to provide refined types for the
+	 * when_true or when_false branches */
+	local_scope_t::ref inner_scope_if_true;
+	local_scope_t::ref inner_scope_if_false;
+
 	indent_logger indent(condition->get_location(), 6, string_format("resolving ternary expression (%s) ? (%s) : (%s)",
 				condition->str().c_str(), when_true->str().c_str(), when_false->str().c_str()));
 
 	/* if scope allows us to set up new variables inside if conditions */
-	local_scope_t::ref scope_if_true, scope_if_false;
-	bound_var_t::ref condition_value = condition->resolve_condition(status, builder, scope, life, &scope_if_true, &scope_if_false);
+	bound_var_t::ref condition_value = condition->resolve_condition(status, builder, scope, life, &inner_scope_if_true, &inner_scope_if_false);
+
+	if ((condition != when_false) && (condition != when_true)) {
+		/* this is a regular ternary expression. for now, there are 4 paths through in terms of truthiness and
+		 * falsiness, and there is no way to propagate out the learned truths from the inner conditional branch because
+		 * the when_true and when_false branches may yield differing notions of t/f which cannot be distilled into 2
+		 * matching truths. */
+	}
 
 	/* evaluate the condition for branching */
 	debug_above(7, log("conditional expression has condition of type %s", condition_value->type->str().c_str()));
 
 	if (!!status) {
 		assert(!condition_value->type->is_ref());
-
 
 		llvm::Function *llvm_function_current = llvm_get_function(builder);
 
@@ -2726,20 +2738,35 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		llvm::BasicBlock *merge_bb = llvm::BasicBlock::Create(
 				builder.getContext(), "ternary.phi", llvm_function_current);
 
-		/* create the actual branch instruction */
+		/* create the inner branch instruction */
 		llvm_create_if_branch(status, builder, scope, 0,
 				nullptr, condition->get_location(), condition_value, then_bb, else_bb);
 
 		if (!!status) {
 			/* calculate the false path's value in the else block */
 			builder.SetInsertPoint(else_bb);
-			bound_var_t::ref false_path_value = (
-					(condition == when_false)
-					/* don't recompute the false value */
-					? condition_value
-					/* need to compute the false value */
-					: when_false->resolve_expression(
-						status, builder, scope_if_false ? scope_if_false : scope, life, false /*as_ref*/));
+			bound_var_t::ref false_path_value;
+			if (condition == when_false) {
+				/* this is an AND expression, so don't recompute the false value */
+				false_path_value = condition_value;
+			} else if (condition == when_true) {
+				/* this is an OR expression, so compute the second term, and build upon any type
+				 * refinements we've acquired so far. */
+				if (inner_scope_if_false != nullptr) {
+					*scope_if_false = inner_scope_if_false;
+				}
+				false_path_value = when_false->resolve_condition(
+						status, builder, inner_scope_if_false ? inner_scope_if_false : scope, life,
+						nullptr, scope_if_false);
+			} else {
+				/* this is a TERNARY expression, so compute the third term, and do not return any
+				 * type refinements, because there is no way to discern where the truthy or
+				 * falseyness of this entire expression came from (in the context of our parent
+				 * conditional form. */
+				false_path_value = when_false->resolve_condition(
+						status, builder, inner_scope_if_false ? inner_scope_if_false : scope, life,
+						nullptr, nullptr);
+			}
 
 			/* after calculation, the code should jump to the phi node's basic block */
 			llvm::Instruction *false_merge_branch = builder.CreateBr(merge_bb);
@@ -2749,18 +2776,33 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 				builder.SetInsertPoint(then_bb);
 
 				/* get the bound_var for the truthy path */
-				bound_var_t::ref true_path_value = (
-						(condition == when_true)
-						/* don't recompute the "true" value */
-						? condition_value
-						/* we need to compute the "true" value */
-						: when_true->resolve_expression(status, builder,
-							scope_if_true ? scope_if_true : scope, life, false /*as_ref*/));
+				bound_var_t::ref true_path_value;
+				if (condition == when_true) {
+					/* this is an OR expression, so don't recompute the true value */
+					true_path_value = condition_value;
+				} else if (condition == when_false) {
+					/* this is an AND expression, so compute the second term, and build upon any
+					 * type refinements we've acquired so far. */
+					if (inner_scope_if_true != nullptr) {
+						*scope_if_true = inner_scope_if_true;
+					}
+					true_path_value = when_true->resolve_condition(
+							status, builder, inner_scope_if_true ? inner_scope_if_true : scope, life,
+							scope_if_true, nullptr);
+				} else {
+					/* this is a TERNARY expression, so compute the third term, and do not return
+					 * any type refinements, because there is no way to discern where the truthy or
+					 * falseyness of this entire expression came from (in the context of our parent
+					 * conditional form. */
+					true_path_value = when_true->resolve_condition(
+							status, builder, inner_scope_if_true ? inner_scope_if_true : scope, life,
+							nullptr, nullptr);
+				}
 
 				if (!!status) {
 					bound_type_t::ref ternary_type;
 					// If the when-true is same as condition, we can eliminate any
-					// falsey types from the ma
+					// falsey types.
 
 					types::type_t::ref truthy_path_type = true_path_value->type->get_type();
 					types::type_t::ref falsey_path_type = false_path_value->type->get_type();
@@ -2797,8 +2839,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 
 					/* the when_true and when_false values have different
 					 * types, let's create a sum type to represent this */
-					auto ternary_sum_type = type_sum_safe(options,
-							condition->get_location(), env);
+					auto ternary_sum_type = type_sum_safe(options, condition->get_location(), env);
 					assert(ternary_sum_type != nullptr);
 
 					if (!!status) {
@@ -2852,7 +2893,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 	}
 
 	assert(!status);
-    return nullptr;
+	return nullptr;
 }
 
 bound_var_t::ref ast::ternary_expr_t::resolve_expression(
@@ -2864,7 +2905,20 @@ bound_var_t::ref ast::ternary_expr_t::resolve_expression(
 {
 	return resolve_cond_expression(status, builder, scope, life, as_ref,
 			condition, when_true, when_false,
-			make_code_id(this->token));
+			make_code_id(this->token), nullptr, nullptr);
+}
+
+bound_var_t::ref ast::ternary_expr_t::resolve_condition(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false) const
+{
+	return resolve_cond_expression(status, builder, scope, life, false /*as_ref*/,
+			condition, when_true, when_false,
+			make_code_id(this->token), scope_if_true, scope_if_false);
 }
 
 bound_var_t::ref ast::or_expr_t::resolve_expression(
@@ -2875,7 +2929,19 @@ bound_var_t::ref ast::or_expr_t::resolve_expression(
 		bool as_ref) const
 {
 	return resolve_cond_expression(status, builder, scope, life, as_ref,
-			lhs, lhs, rhs, make_iid("or.value"));
+			lhs, lhs, rhs, make_iid("or.value"), nullptr, nullptr);
+}
+
+bound_var_t::ref ast::or_expr_t::resolve_condition(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false) const
+{
+	return resolve_cond_expression(status, builder, scope, life, false /*as_ref*/,
+			lhs, lhs, rhs, make_iid("or.value"), scope_if_true, scope_if_false);
 }
 
 bound_var_t::ref ast::and_expr_t::resolve_expression(
@@ -2886,7 +2952,19 @@ bound_var_t::ref ast::and_expr_t::resolve_expression(
 		bool as_ref) const
 {
 	return resolve_cond_expression(status, builder, scope, life, as_ref,
-			lhs, rhs, lhs, make_iid("and.value"));
+			lhs, rhs, lhs, make_iid("and.value"), nullptr, nullptr);
+}
+
+bound_var_t::ref ast::and_expr_t::resolve_condition(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false) const
+{
+	return resolve_cond_expression(status, builder, scope, life, false /*as_ref*/,
+			lhs, rhs, lhs, make_iid("and.value"), scope_if_true, scope_if_false);
 }
 
 types::type_t::ref extract_matching_type(
