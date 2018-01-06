@@ -1,0 +1,18 @@
+module _
+# test: pass
+# expect: uuid : &str?
+# expect: d1266614-14e9-4558-9adf-d3b56fafd88e
+# reject: bad stuff
+
+def maybe_a_uuid() str?
+	return "d1266614-14e9-4558-9adf-d3b56fafd88e"
+
+def test(uuid)
+	if uuid != null and len(uuid) == 36
+		print(uuid)
+
+def main()
+	uuid := maybe_a_uuid()
+	static_print(uuid)
+	test(uuid)
+	test("bad stuff")

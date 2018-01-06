@@ -1,0 +1,15 @@
+module _
+# test: pass
+# expect: cur_line : str?
+# expect: foobar : str
+
+def maybe_a_line() str?
+	return null
+
+def main()
+	let cur_line = maybe_a_line()
+	static_print(cur_line)
+	if cur_line != null and cur_line == "something"
+		let foobar = cur_line
+		static_print(foobar)
+

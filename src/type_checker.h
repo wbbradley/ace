@@ -25,3 +25,10 @@ bound_var_t::ref call_typeid(
 		identifier::ref id,
 		llvm::IRBuilder<> &builder,
 		bound_var_t::ref resolved_value);
+llvm::Value *get_bool_from_managed_obj(
+		status_t &status,
+	   	llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		location_t location,
+		bound_var_t::ref condition_value);

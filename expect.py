@@ -1,6 +1,14 @@
 import sys
 import argparse
 import subprocess
+from termcolor import colored
+
+
+def color(text, col):
+    if not sys.stdout.isatty():
+        return text
+    else:
+        return colored(text, col)
 
 
 def _get_argparser():
@@ -19,19 +27,34 @@ def _parse_args(parser):
     return parser.parse_args(sys.argv[1:])
 
 
+def gather_expects(progname):
+    try:
+        return (
+            subprocess.check_output('grep "^# expect: " < %s' % progname, shell=True)
+            or ""
+        ).strip().split('\n')
+    except subprocess.CalledProcessError as e:
+        return []
+
+
+def gather_rejects(progname):
+    try:
+        return (
+            subprocess.check_output('grep "^# reject: " < %s' % progname, shell=True)
+            or ""
+        ).strip().split('\n')
+    except subprocess.CalledProcessError as e:
+        return []
+
+
 def main():
     parser = _get_argparser()
     args = _parse_args(parser)
 
-    try:
-        expects = (
-            subprocess.check_output('grep "^# expect: " < %s' % args.program, shell=True)
-            or ""
-        ).strip().split('\n')
-    except subprocess.CalledProcessError as e:
-        expects = []
+    expects = gather_expects(args.program)
+    rejects = gather_rejects(args.program)
 
-    if not expects:
+    if not expects and not rejects:
         sys.exit(0)
 
     try:
@@ -47,14 +70,27 @@ def main():
     for expect in expects:
         expect = expect[len("# expect: "):]
 
-        msg = "Searching for %s in output from %s..." % (expect, args.program)
+        msg = "Searching for %s in output from %s..." % (color(expect, "grey"), args.program)
 
         if actual.find(expect) == -1:
-            print(msg + " error.")
+            print(msg + color(" error", "red") + ".")
             print(actual)
             sys.exit(-1)
         else:
-            print(msg + " success.")
+            print(msg + color(" success", "green") + ".")
+            continue
+
+    for reject in rejects:
+        reject = reject[len("# reject: "):]
+
+        msg = "Hoping to not see %s in output from %s..." % (color(reject, "grey"), args.program)
+
+        if actual.find(reject) != -1:
+            print(msg + color(" error", "red") + ".")
+            print(actual)
+            sys.exit(-1)
+        else:
+            print(msg + color(" success", "green") + ".")
             continue
 
     sys.exit(0)

@@ -1,0 +1,8 @@
+module _
+# test: pass
+# expect: (0 or "foo") : int or str
+
+def main()
+	static_print(0 or "foo")
+	if 0 or "foo"
+		print("AAA")
