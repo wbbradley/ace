@@ -1,5 +1,5 @@
 module _
-# test: pass
 
 def main()
+	# error: there is no implicit truthyness test for float
 	1.0 and 0

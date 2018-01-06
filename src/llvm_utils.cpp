@@ -487,6 +487,36 @@ bound_var_t::ref llvm_stack_map_value(
 			make_iid(name));
 }
 
+bound_var_t::ref unmaybe_variable(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		location_t location,
+		std::string name,
+		bound_var_t::ref var)
+{
+	bool was_ref = false;
+	types::type_t::ref type = var->type->get_type();
+	if (auto ref_type = dyncast<const types::type_ref_t>(type)) {
+		was_ref = true;
+		type = ref_type->element_type;
+	}
+
+	if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
+		auto bound_type = upsert_bound_type(status, builder, scope,
+				was_ref ? type_ref(maybe_type->just) : maybe_type->just);
+		if (!!status) {
+			return bound_var_t::create(INTERNAL_LOC(), name, bound_type,
+					var->get_llvm_value(), make_iid_impl(name, location));
+		}
+	} else {
+		return var;
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
 void llvm_create_if_branch(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
@@ -503,88 +533,92 @@ void llvm_create_if_branch(
 
 	/* we don't care about references, load past them if need be */
 	llvm::Value *llvm_value = nullptr;
+	llvm::Function *llvm_function_current = llvm_get_function(builder);
 
 	if (!!status) {
-		bool is_managed;
-		value->type->is_managed_ptr(status, builder, scope, is_managed);
-
-		if (is_managed) {
-			types::type_t::ref type = value->type->get_type();
-			if (types::is_type_id(type, "true")) {
-				llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 1);
-			} else if (types::is_type_id(type, "false")) {
-				llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 0);
-			} else if (unifies(
-						type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, location),
-						value->type->get_type(),
-						scope->get_nominal_env()))
-			{
-				/* create a runtime check for the true value */
-				auto bound_true = program_scope->get_bound_variable(status, location, "true", false);
-				assert(!!status);
-				auto bound_var_ptr_type = program_scope->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
-				llvm_value = builder.CreateICmpEQ(
-						llvm_maybe_pointer_cast(builder, bound_true->get_llvm_value(), bound_var_ptr_type->get_llvm_type()),
-						llvm_maybe_pointer_cast(builder, value->get_llvm_value(), bound_var_ptr_type->get_llvm_type()));
-			} else {
-				user_error(status, location, "managed value in conditional context needs to resolve to a true or false value");
-				user_info(status, location, "this expression resolves to type %s", type->str().c_str());
-			}
-		} else {
+		if (value->type->is_maybe()) {
 			value = value->resolve_bound_value(status, builder, scope);
-			llvm_value = value->get_llvm_value();
-			llvm::Type *llvm_type = llvm_value->getType();
 
-			if (llvm_type->isPointerTy()) {
-				user_error(status, location,
-					   	"zion does not perform implicit pointer comparison to null. you must explicitly make that comparison");
+			/* generate an extra check for null */
+			llvm::Type *llvm_type = value->get_llvm_value()->getType();
+			assert(llvm_type->isPointerTy());
+			llvm::BasicBlock *maybe_then_bb = llvm::BasicBlock::Create(
+					builder.getContext(), "maybe.is.non.null", llvm_function_current);
+			llvm::Constant *null = llvm::Constant::getNullValue(llvm_type);
+			llvm::Value *llvm_cond_value = builder.CreateICmpNE(value->get_llvm_value(), null);
+			builder.CreateCondBr(llvm_cond_value, maybe_then_bb, else_bb);
+			builder.SetInsertPoint(maybe_then_bb);
+			value = unmaybe_variable(status, builder, scope, location, value->name, value);
+		}
+
+		if (!!status) {
+			bool is_managed;
+			value->type->is_managed_ptr(status, builder, scope, is_managed);
+
+			if (is_managed) {
+				types::type_t::ref type = value->type->get_type();
+				if (types::is_type_id(type, "true")) {
+					llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 1);
+				} else if (types::is_type_id(type, "false")) {
+					llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 0);
+				} else {
+					llvm_value = get_bool_from_managed_obj(
+							status, builder, scope, life, location, value);
+				}
+			} else {
+				value = value->resolve_bound_value(status, builder, scope);
+				llvm_value = value->get_llvm_value();
+				llvm::Type *llvm_type = llvm_value->getType();
+
+				if (llvm_type->isPointerTy()) {
+					user_error(status, location,
+							"zion does not perform implicit pointer comparison to null. you must explicitly make that comparison");
+				}
 			}
 
 			if (!!status) {
+				llvm::Type *llvm_type = llvm_value->getType();
 				assert(llvm_type->isIntegerTy());
 				if (!llvm_type->isIntegerTy(1)) {
 					llvm::Constant *zero = llvm::ConstantInt::get(llvm_type, 0);
 					llvm_value = builder.CreateICmpNE(llvm_value, zero);
 				}
+				assert(llvm_value->getType()->isIntegerTy(1));
+
+				llvm::Function *llvm_function_current = llvm_get_function(builder);
+
+				if (iff & IFF_ELSE) {
+					llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+					llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
+							builder.getContext(), "else.release", llvm_function_current);
+					builder.SetInsertPoint(release_block_bb);
+					life->release_vars(status, builder, scope, lf_statement);
+
+					assert(!builder.GetInsertBlock()->getTerminator());
+					builder.CreateBr(else_bb);
+
+					/* trick the code below to jumping to this release guard block */
+					else_bb = release_block_bb;
+				}
+
+				if (iff & IFF_THEN) {
+					llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+					llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
+							builder.getContext(), "then.release", llvm_function_current);
+					builder.SetInsertPoint(release_block_bb);
+					life->release_vars(status, builder, scope, lf_statement);
+
+					assert(!builder.GetInsertBlock()->getTerminator());
+					builder.CreateBr(then_bb);
+
+					/* trick the code below to jumping to this release guard block */
+					then_bb = release_block_bb;
+				}
+
+				builder.CreateCondBr(llvm_value, then_bb, else_bb);
 			}
-		}
-
-		if (!!status) {
-			assert(llvm_value->getType()->isIntegerTy(1));
-
-			llvm::Function *llvm_function_current = llvm_get_function(builder);
-
-			if (iff & IFF_ELSE) {
-				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-
-				llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
-						builder.getContext(), "else.release", llvm_function_current);
-				builder.SetInsertPoint(release_block_bb);
-				life->release_vars(status, builder, scope, lf_statement);
-
-				assert(!builder.GetInsertBlock()->getTerminator());
-				builder.CreateBr(else_bb);
-
-				/* trick the code below to jumping to this release guard block */
-				else_bb = release_block_bb;
-			}
-
-			if (iff & IFF_THEN) {
-				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-
-				llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
-						builder.getContext(), "then.release", llvm_function_current);
-				builder.SetInsertPoint(release_block_bb);
-				life->release_vars(status, builder, scope, lf_statement);
-
-				assert(!builder.GetInsertBlock()->getTerminator());
-				builder.CreateBr(then_bb);
-
-				/* trick the code below to jumping to this release guard block */
-				then_bb = release_block_bb;
-			}
-
-			builder.CreateCondBr(llvm_value, then_bb, else_bb);
 		}
 	}
 }

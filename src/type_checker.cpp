@@ -1026,11 +1026,11 @@ bound_var_t::ref resolve_assert_macro(
 		scope_t::ref scope, 
 		life_t::ref life,
 		token_t token,
-		ptr<ast::expression_t> condition)
+		ptr<ast::expression_t> condition,
+		local_scope_t::ref *)
 {
 	auto if_block = ast::create<ast::if_block_t>(token);
-	auto not_expr = ast::create<ast::prefix_expr_t>(
-			token_t{token.location, tk_identifier, "not"});
+	auto not_expr = ast::create<ast::prefix_expr_t>(token_t{token.location, tk_identifier, "not"});
 	not_expr->rhs = condition;
 	if_block->condition = not_expr;
 
@@ -1060,17 +1060,14 @@ bound_var_t::ref resolve_assert_macro(
 	return nullptr;
 }
 
-bound_var_t::ref ast::callsite_expr_t::resolve_expression(
+void ast::callsite_expr_t::resolve_statement(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		local_scope_t::ref *new_scope,
+		bool *returns) const
 {
-	/* get the value of calling a function */
-	bound_type_t::refs param_types;
-	bound_var_t::refs arguments;
-
 	if (auto symbol = dyncast<ast::reference_expr_t>(function_expr)) {
 		if (symbol->token.text == "static_print") {
 			if (params.size() == 1) {
@@ -1082,36 +1079,46 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 					user_message(log_info, status, param->get_location(),
 							"%s : %s", param->str().c_str(),
 							param_var->type->str().c_str());
-					return nullptr;
+					return;
 				}
 
 				assert(!status);
-				return nullptr;
+				return;
 			} else {
 				user_error(status, *shared_from_this(),
 						"static_print requires one and only one parameter");
 
 				assert(!status);
-				return nullptr;
+				return;
 			}
 		} else if (symbol->token.text == "assert") {
 			/* do a crude macro expansion here and evaluate that */
 			if (params.size() == 1) {
 				auto param = params[0];
-				return resolve_assert_macro(status, builder, scope, life, symbol->token, param);
-
+				resolve_assert_macro(status, builder, scope, life, symbol->token, param, new_scope /*not yet impl*/);
+				return;
 			} else {
 				user_error(status, *shared_from_this(), "assert accepts and requires one parameter");
 
 				assert(!status);
-				return nullptr;
+				return;
 			}
-		} else if (symbol->token.text == "__is_non_null__") {
-			return resolve_null_check(status, builder, scope, life, get_location(), params, nck_is_non_null);
-		} else if (symbol->token.text == "__is_null__") {
-			return resolve_null_check(status, builder, scope, life, get_location(), params, nck_is_null);
 		}
 	}
+
+	resolve_expression(status, builder, scope, life, false /*as_ref*/);
+}
+
+bound_var_t::ref ast::callsite_expr_t::resolve_expression(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bool as_ref) const
+{
+	/* get the value of calling a function */
+	bound_type_t::refs param_types;
+	bound_var_t::refs arguments;
 
 	/* iterate through the parameters and add their types to a vector */
 	for (auto &param : params) {
@@ -1337,12 +1344,77 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 	return nullptr;
 }
 
+bound_var_t::ref ast::reference_expr_t::resolve_condition(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false) const
+{
+	return resolve_reference(status, builder, scope, life, false /*as_ref*/, scope_if_true, scope_if_false);
+}
+
 bound_var_t::ref ast::reference_expr_t::resolve_expression(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref) const
+{
+	return resolve_reference(status, builder, scope, life, as_ref, nullptr, nullptr);
+}
+
+local_scope_t::ref new_refined_scope(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		location_t location,
+		std::string name,
+		bound_var_t::ref value,
+		bool refinement_path)
+{
+	/* create a new nested scope with a refined type for the given named value assuming it is truthy
+	 * or falsey, according to the value of `refinement_path`. */
+	auto local_scope = dyncast<runnable_scope_t>(scope);
+	assert(local_scope != nullptr);
+
+	types::type_t::ref value_type = value->type->get_type();
+	types::type_t::ref refined_type = value_type->boolean_refinement(!refinement_path, scope->get_nominal_env());
+
+	if (refined_type != value_type) {
+		bound_type_t::ref bound_refined_type = upsert_bound_type(status, builder, scope, refined_type);
+
+		if (!!status) {
+			auto new_scope = local_scope->new_local_scope(
+					string_format("%s.%s", boolstr(refinement_path), name.c_str()));
+			new_scope->put_bound_variable(status, name,
+					bound_var_t::create(
+						INTERNAL_LOC(),
+						name,
+						bound_refined_type,
+						value->get_llvm_value(),
+						make_iid_impl(name, location)));
+			return new_scope;
+		}
+	} else {
+		/* no new scope needed */
+		assert(!!status);
+		return nullptr;
+	}
+
+	assert(!status);
+	return nullptr;
+}
+
+bound_var_t::ref ast::reference_expr_t::resolve_reference(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bool as_ref,
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false) const
 {
 	/* we wouldn't be referencing a variable name here unless it was unique
 	 * override resolution only happens on callsites, and we don't allow
@@ -1354,8 +1426,22 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 		assert(!!status);
 
 		if (!as_ref) {
-			return var->resolve_bound_value(status, builder, scope);
+			bound_var_t::ref value = var->resolve_bound_value(status, builder, scope);
+			if (!!status) {
+				if (scope_if_true != nullptr && scope_if_false != nullptr && value->type->is_maybe()) {
+					assert(*scope_if_true == nullptr);
+					assert(*scope_if_false == nullptr);
+					*scope_if_true = new_refined_scope(status, builder, scope, token.location, token.text, value, true);
+					if (!!status) {
+						*scope_if_false = new_refined_scope(status, builder, scope, token.location, token.text, value, false);
+					}
+				}
+				if (!!status) {
+					return value;
+				}
+			}
 		} else {
+			assert(scope_if_true == nullptr && scope_if_false == nullptr);
 			return var;
 		}
 	} else {
@@ -2609,27 +2695,25 @@ llvm::Value *_get_raw_condition_value(
 	return nullptr;
 }
 
-llvm::Value *_maybe_get_bool_overload_value(
+llvm::Value *get_bool_from_managed_obj(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		ast::item_t::ref condition,
+		location_t location,
 		bound_var_t::ref condition_value)
 {
 	condition_value = condition_value->resolve_bound_value(status, builder, scope);
 	if (!!status) {
 		assert(life->life_form == lf_statement);
 
-		llvm::Value *llvm_condition_value = nullptr;
-		// TODO: check whether we are checking a raw value or not
-
 		debug_above(2, log(log_info,
 					"attempting to resolve a " c_var("%s") " override if condition %s, ",
 					BOOL_TYPE,
-					condition->str().c_str()));
+					condition_value->str().c_str()));
 
-		assert(false);
+#if 0
+		// REVIEW: this is not yet true... still considering...
 		/* we only ever get in here if we are definitely non-null, so we can discard
 		 * maybe type specifiers */
 		types::type_t::ref condition_type;
@@ -2638,13 +2722,20 @@ llvm::Value *_maybe_get_bool_overload_value(
 		} else {
 			condition_type = condition_value->type->get_type();
 		}
+#endif
 
 		var_t::refs fns;
 		auto bool_fn = maybe_get_callable(status, builder, scope, "__bool__",
-				condition->get_location(), type_args({condition_type}), type_id(make_iid(BOOL_TYPE)), fns);
+				location, type_args({condition_value->type->get_type()}), type_id(make_iid(BOOL_TYPE)), fns);
 
 		if (!!status) {
-			if (bool_fn != nullptr) {
+			if (bool_fn == nullptr) {
+				user_error(status, location, 
+						"there is no implicit truthyness test for %s. perhaps you need to compare this value to null?",
+						condition_value->type->get_type()->str().c_str());
+			}
+
+			if (!!status) {
 				/* we've found a bool function that will take our condition as input */
 				assert(bool_fn != nullptr);
 				types::type_function_t::ref bool_fn_type = dyncast<const types::type_function_t>(bool_fn->type->get_type());
@@ -2654,7 +2745,7 @@ llvm::Value *_maybe_get_bool_overload_value(
 				assert(bool_fn_args_type->args.size() == 1);
 
 				debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (type %s)",
-							condition->str().c_str(), bool_fn->type->str().c_str()));
+							condition_value->str().c_str(), bool_fn->type->str().c_str()));
 
 				llvm::Value *llvm_value = coerce_value(
 						status, builder, scope,
@@ -2663,9 +2754,9 @@ llvm::Value *_maybe_get_bool_overload_value(
 						condition_value);
 
 				if (!!status) {
-					/* let's call this bool function */
-					llvm_condition_value = llvm_create_call_inst(
-							status, builder, condition->get_location(),
+					/* let's call the bool function */
+					llvm::Value *llvm_condition_value = llvm_create_call_inst(
+							status, builder, location,
 							bool_fn,
 							{llvm_value});
 
@@ -2676,9 +2767,6 @@ llvm::Value *_maybe_get_bool_overload_value(
 						return llvm_condition_value;
 					}
 				}
-			} else {
-				/* treat all values without overloaded bool functions as truthy */
-				return nullptr;
 			}
 		}
 	}
@@ -2740,7 +2828,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 
 		/* create the inner branch instruction */
 		llvm_create_if_branch(status, builder, scope, 0,
-				nullptr, condition->get_location(), condition_value, then_bb, else_bb);
+				life, condition->get_location(), condition_value, then_bb, else_bb);
 
 		if (!!status) {
 			/* calculate the false path's value in the else block */
@@ -2752,7 +2840,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 			} else if (condition == when_true) {
 				/* this is an OR expression, so compute the second term, and build upon any type
 				 * refinements we've acquired so far. */
-				if (inner_scope_if_false != nullptr) {
+				if (scope_if_false != nullptr && inner_scope_if_false != nullptr) {
 					*scope_if_false = inner_scope_if_false;
 				}
 				false_path_value = when_false->resolve_condition(
@@ -2783,7 +2871,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 				} else if (condition == when_false) {
 					/* this is an AND expression, so compute the second term, and build upon any
 					 * type refinements we've acquired so far. */
-					if (inner_scope_if_true != nullptr) {
+					if (scope_if_true != nullptr && inner_scope_if_true != nullptr) {
 						*scope_if_true = inner_scope_if_true;
 					}
 					true_path_value = when_true->resolve_condition(
@@ -4557,7 +4645,7 @@ void ast::while_block_t::resolve_statement(
 	builder.SetInsertPoint(while_cond_bb);
 
 	/* demarcate a loop boundary here */
-	life = life->new_life(status, lf_loop);
+	life = life->new_life(status, lf_loop|lf_block);
 
 	life_t::ref cond_life = life->new_life(status, lf_statement);
 	bound_var_t::ref condition_value;
@@ -4645,32 +4733,6 @@ void ast::if_block_t::resolve_statement(
 	/* evaluate the condition for branching */
 	condition_value = condition->resolve_condition(
 			status, builder, scope, cond_life, &scope_if_true, &scope_if_false);
-
-	/*
-	 * var maybe_vector Vector? = maybe_a_vector()
-	 *
-	 * if v := maybe_vector
-	 *   print("x-value is " + v.x)
-	 * else
-	 *   print("no x-value available")
-	 *
-	 * if null is a subtype of maybe_vector, then the above code
-	 * effectively becomes:
-	 *
-	 * if __not_null__(maybe_vector)
-	 *   v := __discard_null__(maybe_vector)
-	 *   // if there is a __bool__ function defined for type(v), add another
-	 *   // if statement:
-	 *   if not v
-	 *     goto l_else
-	 *   print("x-axis is " + v.x)
-	 * else
-	 * l_else:
-	 *   print("no x-value available")
-	 *
-	 * if null is not a subtype of maybe_vector, for example, for a Vector
-	 * class...
-	 */
 
 	if (!!status) {
 		/* test that the if statement doesn't return */

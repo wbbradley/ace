@@ -25,7 +25,7 @@ def get_name(entry Entry) str
 
 def main()
 	var entry Entry? = Entry(make_entry("Will"r, 123r))
-	if entry
+	if entry != null
 		print(get_name(entry))
 	entry = null
 	runtime.gc()

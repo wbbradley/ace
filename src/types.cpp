@@ -230,7 +230,7 @@ namespace types {
         } else {
             /* there is no expansion, so just return this type because we don't know how to refine
              * it */
-            assert(false && "?");
+			debug_above(6, log("no boolean refinement available for %s", str().c_str()));
             return shared_from_this();
         }
     }
@@ -735,12 +735,19 @@ namespace types {
 	}
 
     type_t::ref type_maybe_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
+		auto just_refined = just->boolean_refinement(elimination_value, env);
         if (!elimination_value) {
-            return just;
+			/* we are eliminating falseyness, so we can eliminate the maybeness, too */
+            return just_refined;
         } else {
-            /* FUTURE: to actually return type_null here, we'd need to know that the just type here
-             * has not overloaded __bool__ */
-            return shared_from_this();
+			if (just_refined != just) {
+				/* eliminate truthyness. the just refinement returned a new object, so let's construct a maybe around
+				 * it, since we can not eliminate the maybe when we are eliminating truthyness */
+				return ::type_maybe(just_refined);
+			} else {
+				/* nothing learned from this refinement */
+				return shared_from_this();
+			}
         }
     }
 

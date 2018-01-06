@@ -67,14 +67,15 @@ def __iter_end__(fl Lines{any LineReader}) null
 	return null
 
 [global]
-def __iter_valid__(fl Lines{any LineReader}, _ null) bool_t
+def __iter_valid__(fl Lines{any LineReader}, _ null) bool
 	assert(fl != null)
 	return fl.cur_line != null
 
 [global]
 def __iter_item__(fl Lines{any LineReader}) str
 	assert(fl != null)
-	r := fl.cur_line or ""
+	let cur_line = fl.cur_line
+	r := cur_line != null ? cur_line : ""
 	return r
 
 [global]

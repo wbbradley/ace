@@ -1,0 +1,12 @@
+module _
+# test: pass
+# expect: 4
+# reject: 5
+
+def main()
+	var x int? = 4
+	if x != null and x == 4
+		print(x)
+		return
+	print(5)
+	

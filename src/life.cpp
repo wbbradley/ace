@@ -19,6 +19,8 @@ const char *lfstr(life_form_t lf) {
 	} else if (lf.is_function()) {
 		assert(!lf.is_loop());
 		return "function";
+	} else if (lf.is_loop()) {
+		return "loop";
 	} else {
 		assert(false);
 		return "";

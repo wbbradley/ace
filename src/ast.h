@@ -240,6 +240,13 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref) const;
+		virtual void resolve_statement(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression_t> function_expr;
@@ -1063,6 +1070,21 @@ namespace ast {
 				life_t::ref,
 				const ptr<const ast::item_t> &obj,
 				const bound_type_t::refs &args) const;
+		virtual bound_var_t::ref resolve_condition(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				local_scope_t::ref *scope_if_true,
+				local_scope_t::ref *scope_if_false) const;
+		bound_var_t::ref resolve_reference(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				bool as_ref,
+				local_scope_t::ref *scope_if_true,
+				local_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
 	};
 
