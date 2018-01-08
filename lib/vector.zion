@@ -6,7 +6,7 @@ type vector_t struct
 	var _var     var_t
 	var reserved size_t
 	var size     size_t
-	var items    **var_t
+	var items    *?*var_t
 
 type vector{T} link vector_t __vector_free__ __vector_mark__
 
@@ -121,35 +121,38 @@ def __vector_unsafe_append__(vector *vector_t, item *var_t) void
 	vector.size += 1r
 
 def __vectorappend__(vector *vector_t, item *var_t) void
-	assert(vector)
 	if vector.reserved > vector.size
 		# print("we have space")
-		assert(vector.items)
-		vector.items[vector.size] = item
+		let items = vector.items
+		assert(items != null)
+		items[vector.size] = item
 		vector.size += 1r
-	elif vector.items != null
-		# print("we need to re-allocate space because " + vector.reserved + " <= " + vector.size)
-		assert(vector.reserved == vector.size)
-		new_reserved := vector.reserved * 2r
-		if new_reserved < 16r
-			/* start at a level that we avoid a lot of extra calls to malloc */
-			new_reserved = 16r
-
-		new_items := posix.calloc(sizeof(*var_t), new_reserved) as **var_t
-		posix.memcpy(new_items as *int8_t, vector.items as *int8_t, sizeof(*var_t) * vector.size)
-		new_items[vector.size] = item
-		vector.size += 1r
-
-		posix.free(vector.items)
-		vector.items = new_items
-		vector.reserved = new_reserved
 	else
-		# print("we need to go from zero space to newly allocated space")
-		assert(vector.reserved == 0r)
-		vector.items = posix.calloc(sizeof(*var_t), 4r) as **var_t
-		vector.reserved = 4r
-		vector.size = 1r
-		vector.items[0r] = item
+		let existing_items = vector.items
+		if existing_items != null
+			# print("we need to re-allocate space because " + vector.reserved + " <= " + vector.size)
+			assert(vector.reserved == vector.size)
+			new_reserved := vector.reserved * 2r
+			if new_reserved < 16r
+				/* start at a level that we avoid a lot of extra calls to malloc */
+				new_reserved = 16r
+
+			new_items := posix.calloc(sizeof(*var_t), new_reserved) as *?*var_t
+			assert(new_items != null)
+			posix.memcpy(new_items as *int8_t, existing_items as *int8_t, sizeof(*var_t) * vector.size)
+			new_items[vector.size] = item
+			vector.size += 1r
+
+			posix.free(vector.items)
+			vector.items = new_items
+			vector.reserved = new_reserved
+		else
+			# print("we need to go from zero space to newly allocated space")
+			assert(vector.reserved == 0r)
+			vector.items = posix.calloc(sizeof(*var_t), 4r)! as **var_t
+			vector.reserved = 4r
+			vector.size = 1r
+			vector.items[0r] = item
 
 [global]
 def reserve(vec [any T], n int)
@@ -159,14 +162,15 @@ def reserve(vec [any T], n int)
 def reserve(vec *vector_t, n size_t)
 	# Make sure we've got n spaces available in our vector's allocated memory
 	if vec.reserved < n
-		if vec.items != null
-			new_items := posix.calloc(sizeof(*var_t), n) as **var_t
-			posix.memcpy(new_items as *int8_t, vec.items as *int8_t, sizeof(*var_t) * vec.size)
-			posix.free(vec.items)
+		let items = vec.items
+		if items != null
+			new_items := posix.calloc(sizeof(*var_t), n)! as **var_t
+			posix.memcpy(new_items as *int8_t, items as *int8_t, sizeof(*var_t) * vec.size)
+			posix.free(items)
 			vec.items = new_items
 			vec.reserved = n
 		else
-			vec.items = posix.calloc(sizeof(*var_t), n) as **var_t
+			vec.items = posix.calloc(sizeof(*var_t), n)! as **var_t
 			vec.reserved = n
 		
 

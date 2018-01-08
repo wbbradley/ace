@@ -12,8 +12,9 @@ module _
 # expect: (false or 100) : int
 # expect: (9 or null) : int?
 # expect: x : &int?
-# expect: (((x != null) and x) or 10) : int
+# expect: (x or 10) : int
 # expect: ((x != null) and x) : int or false
+# expect: x or 10 = 3
 
 
 def gimme_bool() bool
@@ -33,6 +34,8 @@ def main()
 	static_print(9 or null)
 	var x int? = 3
 	static_print(x)
-	static_print(x != null and x or 10)
+	static_print(x or 10)
 	static_print(x != null and x)
+	if x != null
+		print("x or 10 = " + (x or 10))
 

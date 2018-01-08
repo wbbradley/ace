@@ -49,7 +49,7 @@ var _bytes_allocated size_t = 0r as size_t
 var _all_bytes_allocated size_t = 0r as size_t
 var _var_allocation uint_t = 0r as uint_t
 
-def mem_alloc(cb size_t, comment *char_t) *void
+def mem_alloc(cb size_t, comment *char_t) *?void
 	runtime._bytes_allocated += cb
 	runtime._all_bytes_allocated += cb
 	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
@@ -100,7 +100,6 @@ def check_node_existence(node *var_t, should_exist bool_t) void
 		assert(not should_exist)
 
 def add_node(node *var_t) void
-	assert(runtime.__head_var)
 	# check_node_existence(node, __false__)
 
 	if node.prev != null or node.next != null
@@ -163,18 +162,19 @@ def protect_node(node *var_t) void
 
 
 def get_var_type_id(v *var_t) typeid_t
-	if v != null
-		return v.type_info.type_id as typeid_t
-	else
-		# MEM_PANIC("attempt to get_var_type_id of a null value ", "", 116)
-		return 0r as typeid_t
+	return v.type_info.type_id as typeid_t
 
 def __create_head_var() *var_t
-	p := mem_alloc(sizeof(var_t), "__create_head_var"r) as *var_t
-	runtime._var_allocation += 1r as size_t
-	p.allocation = runtime._var_allocation
-	# posix.puts("creating head var at 0x"r + __str__(p as int_t, 16r))
-	return p
+	p := mem_alloc(sizeof(var_t), "__create_head_var"r) as *?var_t
+	if p != null
+		runtime._var_allocation += 1r as size_t
+		p.allocation = runtime._var_allocation
+		# posix.puts("creating head var at 0x"r + __str__(p as int_t, 16r))
+		return p
+	else
+		# We're doomed.
+		posix.puts("Unable to allocate memory for head var!"r)
+		return null as *var_t
 
 def dbg_type_info(type_info *type_info_t)
 	if type_info != null
@@ -196,7 +196,9 @@ def create_var(type_info *type_info_t) *var_t
 
 	# allocate the variable tracking object
 	alloc_size := type_info != null ? type_info.size : sizeof(var_t)
-	var obj *var_t = mem_alloc(alloc_size, type_info != null ? type_info.name : "<unknown>"r) as *var_t
+	let obj = mem_alloc(alloc_size, type_info != null ? type_info.name : "<unknown>"r) as *?var_t
+	assert(obj != null)
+
 	obj.type_info = type_info
 	runtime._var_allocation += 1r as uint_t
 
@@ -280,7 +282,7 @@ def mark_allocation(obj *var_t)
 	# mark this node in the heap so that we break any potential cycles
 	obj.mark = 1r
 
-	assert(obj.type_info)
+	assert(obj.type_info != null)
 
 	type_kind := obj.type_info.type_kind
 

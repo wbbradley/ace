@@ -572,7 +572,7 @@ void llvm_create_if_branch(
 
 				if (llvm_type->isPointerTy()) {
 					user_error(status, location,
-							"zion does not perform implicit pointer comparison to null. you must explicitly make that comparison");
+							"you must explicitly write out any null comparisons you wish to perform on native pointers");
 				}
 			}
 

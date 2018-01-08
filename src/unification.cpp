@@ -425,22 +425,17 @@ unification_t unify(
 			debug_above(7, log("matching ptr types"));
 			return unify(ptr_a->element_type, ptr_b->element_type, env, bindings, depth + 1);
 		} else if (b->is_null()) {
-			if (dyncast<const types::type_managed_t>(ptr_a->element_type) == nullptr) {
-				/* managed types cannot take null, because they are guarded by the maybe type */
-				return {true, "", bindings};
-			} else {
-				return {
-					false,
-						string_format("%s <> %s with attempted bindings %s because managed types cannot receive null, unless they are guarded by a maybe (in other words, use a ? after the left-hand-side type name)",
-								a->str().c_str(),
-								b->str().c_str(),
-								str(bindings).c_str()),
-						{}};
-			}
+			return {
+				false,
+					string_format("pointer types cannot accept null unless they are guarded by a maybe (in other words, use a ? after the left-hand-side type name)",
+							a->str().c_str(),
+							b->str().c_str(),
+							str(bindings).c_str()),
+					{}};
 		} else {
 			return {
 				false,
-					string_format("%s <> %s with attempted bindings %s",
+					string_format("pointer types only accept like pointer types",
 							a->str().c_str(),
 							b->str().c_str(),
 							str(bindings).c_str()),
@@ -450,11 +445,11 @@ unification_t unify(
 		/* types don't match */
 		return {
 			false,
-			string_format("%s <> %s with attempted bindings %s",
-					a->str().c_str(),
-					b->str().c_str(),
-					str(bindings).c_str()),
-			{}};
+				string_format("%s <> %s with attempted bindings %s",
+						a->str().c_str(),
+						b->str().c_str(),
+						str(bindings).c_str()),
+				{}};
 	}
 }
 

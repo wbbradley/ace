@@ -13,15 +13,15 @@ link def open(path *char_t, oflag int_t) int_t
 link def close(fd int_t) int_t
 link def read(fileds int_t, buf *void, nbytes size_t) ssize_t
 link def write(fileds int_t, buf *void, nbytes size_t) ssize_t
-link def calloc(cb size_t, size size_t) *void
-link def malloc(cb size_t) *void
-link def realloc(ptr *void, cb size_t) *void
+link def calloc(cb size_t, size size_t) *?void
+link def malloc(cb size_t) *?void
+link def realloc(ptr *void, cb size_t) *?void
 link def memcpy(dst *void, src *void, n size_t) *void
 link def memmove(dst *void, src *void, n size_t) *void
-link def free(pb *void) void
-link def strdup(s *char_t) *char_t
-link def wcsdup(s *wchar_t) *wchar_t
-link def strndup(s *char_t, n size_t) *char_t
+link def free(pb *?void) void
+link def strdup(s *char_t) *?char_t
+link def wcsdup(s *wchar_t) *?wchar_t
+link def strndup(s *char_t, n size_t) *?char_t
 link def strcmp(x *char_t, y *char_t) int_t
 link def wcscmp(x *wchar_t, y *wchar_t) int_t
 link def strncmp(x *char_t, y *char_t, n size_t) int_t
@@ -30,19 +30,19 @@ link def arc4random_stir() void
 link def arc4random_buf(dst *void, cb size_t) int_t
 link def exit(code int_t) void
 link def getch() int_t
-link def getcwd(space *char_t) *char_t
+link def getcwd(_ null) *?char_t
 link def fchdir(filedes int_t) int_t
 link def raise(signal int_t) int_t
-link def fopen(fn *char_t, mode *char_t) *FILE
-link def fdopen(fd int_t, mode *char_t) *FILE
+link def fopen(fn *char_t, mode *char_t) *?FILE
+link def fdopen(fd int_t, mode *char_t) *?FILE
 link def fwrite(p *void, size size_t, nitems size_t, stream *FILE) size_t
 link def fclose(fp *FILE) int_t
-link def getline(linep **char_t, linecapp *int_t, fp *FILE) int_t
+link def getline(linep **?char_t, linecapp *int_t, fp *FILE) int_t
 link def strlen(s *char_t) size_t
 link def wcslen(wcs *wchar_t) size_t
 link def putw(wch wchar_t, fp *FILE) int_t
-link def mbstowcs(wcs *wchar_t, mbs *char_t, mbslen size_t) size_t
-link def wcstombs(mbs *char_t, wcs *wchar_t, wcslen size_t) size_t
+link def mbstowcs(wcs *?wchar_t, mbs *char_t, mbslen size_t) size_t
+link def wcstombs(mbs *?char_t, wcs *wchar_t, wcslen size_t) size_t
 link def errno() int_t to __errno
 link def iswspace(wch wchar_t) bool_t
 link def isspace(ch char_t) bool_t

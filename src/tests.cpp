@@ -945,6 +945,20 @@ auto test_descs = std::vector<test_desc>{
 		}
 	},
 	{
+		"test_parse_pointer_types",
+        [] () -> bool {
+            auto module_id = make_iid("M");
+            auto type = parse_type_expr("*?void", {}, module_id);
+            log("type repr is %s", type->str().c_str());
+            if (auto maybe = dyncast<const types::type_maybe_t>(type)) {
+                if (auto pointer = dyncast<const types::type_ptr_t>(maybe->just)) {
+                    return dyncast<const types::type_id_t>(pointer->element_type) != nullptr;
+                }
+            }
+            return false;
+        }
+    },
+	{
 		"test_sum_unification_simple",
 		[] () -> bool {
 			types::type_t::map env;

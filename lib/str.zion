@@ -32,7 +32,7 @@ def len(s str) int
 	return int(posix.wcslen(s.raw))
 
 def str(s str) str
-	return str(posix.wcsdup(s.raw))
+	return str(posix.wcsdup(s.raw)!)
 
 def str(s utf8) str
 	return str(mbstowcs(s.raw))
@@ -76,7 +76,7 @@ def __ineq__(x str, y str) bool
 def str(buffer *char_t, length size_t) str
 	# Create a managed string from a direct memory access
 	# TODO: optimize this to avoid the malloc
-	let retstr = posix.malloc(length + 1r as size_t) as *char_t
+	let retstr = posix.malloc(length + 1r as size_t)! as *char_t
 	posix.memcpy(retstr as *int8_t, buffer as *int8_t, length)
 	retstr[length] = 0r as char_t
 	let s = str(mbstowcs(retstr))
@@ -88,7 +88,7 @@ def str(src *wchar_t, char_count int_t) str
 	if char_count <= 0r
 		return __empty_str
 	let cb = sizeof(wchar_t) * (char_count + 1r)
-	let dst = posix.malloc(cb) as *wchar_t
+	let dst = posix.malloc(cb)! as *wchar_t
 	posix.memcpy(dst, src, cb - sizeof(wchar_t))
 	dst[char_count] = 0r
 	return str(dst)

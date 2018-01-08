@@ -1,0 +1,10 @@
+module _
+
+def main()
+	let x bool? = null
+	# error: null pattern values are not allowed
+	when x
+		is false
+			print("False!")
+		is true
+			print("True!")

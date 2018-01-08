@@ -133,6 +133,12 @@ ptr<return_statement_t> return_statement_t::parse(parse_state_t &ps) {
 	return return_statement;
 }
 
+ptr<unreachable_t> unreachable_t::parse(parse_state_t &ps) {
+	auto unreachable = create<ast::unreachable_t>(ps.token);
+	chomp_ident(K(__unreachable__));
+	return unreachable;
+}
+
 ptr<statement_t> get_statement_parse(parse_state_t &ps) {
 	expect_ident(K(get));
 	auto get_token = ps.token;
@@ -266,6 +272,8 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 		return when_block_t::parse(ps);
 	} else if (ps.token.is_ident(K(return))) {
 		return return_statement_t::parse(ps);
+	} else if (ps.token.is_ident(K(__unreachable__))) {
+		return unreachable_t::parse(ps);
 	} else if (ps.token.is_ident(K(type))) {
 		return type_def_t::parse(ps);
 	} else if (ps.token.is_ident(K(pass))) {
@@ -1144,11 +1152,11 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 	}
 
 	token_t condition_token = ps.token;
-	auto assignment = assignment_t::parse(ps);
+	auto expression = expression_t::parse(ps);
 	if (!!ps.status) {
-		if (auto condition = dyncast<const expression_t>(assignment)) {
+		if (auto condition = dyncast<const expression_t>(expression)) {
 			if_block->condition = condition;
-		} else if (auto var_decl = dyncast<const var_decl_t>(assignment)) {
+		} else if (auto var_decl = dyncast<const var_decl_t>(expression)) {
 			if_block->condition = var_decl;
 		} else {
 			user_error(ps.status, condition_token.location,
@@ -1186,11 +1194,11 @@ ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {
 	auto while_block = create<ast::while_block_t>(ps.token);
 	chomp_ident(K(while));
 	token_t condition_token = ps.token;
-	auto assignment = assignment_t::parse(ps);
+	auto expr = expression_t::parse(ps);
 	if (!!ps.status) {
-		if (auto condition = dyncast<const expression_t>(assignment)) {
+		if (auto condition = dyncast<const expression_t>(expr)) {
 			while_block->condition = condition;
-		} else if (auto var_decl = dyncast<const var_decl_t>(assignment)) {
+		} else if (auto var_decl = dyncast<const var_decl_t>(expr)) {
 			while_block->condition = var_decl;
 		} else {
 			user_error(ps.status, condition_token.location,
@@ -1242,13 +1250,22 @@ ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 	pattern_block->type = parse_maybe_type(ps, {}, {}, {});
 
 	if (!!ps.status) {
-		auto block = block_t::parse(ps);
-		if (block) {
-			pattern_block->block.swap(block);
-			return pattern_block;
-		} else {
-			assert(!ps.status);
-			return nullptr;
+		if (pattern_block->type->is_null()) {
+			user_error(ps.status, is_token.location,
+					"it is impossible to match null as a type-pattern since it has no runtime type information");
+			user_info(ps.status, is_token.location,
+					"check for null ahead of pattern matching");
+		}
+
+		if (!!ps.status) {
+			auto block = block_t::parse(ps);
+			if (block) {
+				pattern_block->block.swap(block);
+				return pattern_block;
+			} else {
+				assert(!ps.status);
+				return nullptr;
+			}
 		}
 	}
 
@@ -1576,9 +1593,15 @@ types::type_t::ref _parse_single_type(
 	case tk_times:
 		{
 			ps.advance();
+            bool is_maybe = false;
+            if (ps.token.tk == tk_maybe) {
+                is_maybe = true;
+                ps.advance();
+            }
+
 			auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
 			if (!!ps.status) {
-				return ::type_ptr(type);
+				return is_maybe ? ::type_maybe(::type_ptr(type)) : ::type_ptr(type);
 			}
 		}
 		break;
@@ -1818,10 +1841,15 @@ types::type_t::ref parse_maybe_type(
     types::type_t::ref type = _parse_type(ps, supertype_id, type_variables, generics);
     if (!!ps.status) {
         if (ps.token.tk == tk_maybe) {
-            /* no named maybe generic */
-            type = type_maybe(type);
-            ps.advance();
-            return type;
+            if (dyncast<const types::type_ptr_t>(type)) {
+                ps.error("pointer types should be marked as maybe types immediately after the *");
+            }
+            if (!!ps.status) {
+                /* no named maybe generic */
+                type = type_maybe(type);
+                ps.advance();
+                return type;
+            }
         } else {
             return type;
         }

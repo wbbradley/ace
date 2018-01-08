@@ -3,7 +3,7 @@ module file
 get posix
 
 type Open has
-	var fp *posix.FILE
+	var fp *?posix.FILE
 tag Closed
 type Error has
 	var errno int
@@ -27,7 +27,9 @@ def close(f File)
 	state := f.state
 	when state
 		is Open
-			ret := posix.fclose(state.fp)
+			let fp = state.fp
+			if fp != null
+				posix.fclose(fp)
 			state.fp = null
 			f.state = Closed
 		is Closed
@@ -37,8 +39,9 @@ def close(f File)
 
 [global]
 def __finalize__(of Open)
-	if of.fp != null
-		ret := posix.fclose(of.fp)
+	let fp = of.fp
+	if fp != null
+		ret := posix.fclose(fp)
 		if ret != 0r
 			print("Error: failed to close file")
 		of.fp = null
@@ -113,7 +116,9 @@ def readline(f File) str or Error or EOF
 	state := f.state
 	when state
 		is Open
-			return readline(state.fp)
+			let fp = state.fp
+			assert(fp != null)
+			return readline(fp)
 		is Closed
 			return Error(-1)
 		is Error
@@ -129,7 +134,9 @@ def write(f File, s str)
 	state := f.state
 	when state
 		is Open
-			write(state.fp, s)
+			let fp = state.fp
+			assert(fp != null)
+			write(fp, s)
 		is Closed
 			posix.fprintf(stderr, "writing to closed file %s"r, utf8(f.filename).raw)
 			return

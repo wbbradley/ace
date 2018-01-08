@@ -35,167 +35,173 @@ void ast::when_block_t::resolve_statement(
 			var_name = make_iid(types::gensym()->get_name());
 		}
 
-		bool all_patterns_return = true;
-		bool else_returns = false;
-		bound_var_t::ref type_id = call_typeid(status, scope, life, shared_from_this(),
-				make_iid("value.to.match"), builder, pattern_value);
+		if (pattern_value->type->is_maybe()) {
+			user_error(status, value->get_location(), "null pattern values are not allowed. check for null beforehand");
+		}
 
 		if (!!status) {
-			llvm::Function *llvm_function_current = llvm_get_function(builder);
-			llvm::BasicBlock *merge_block = nullptr;
-			llvm::BasicBlock *default_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.default", llvm_function_current);
+			bool all_patterns_return = true;
+			bool else_returns = false;
+			bound_var_t::ref type_id = call_typeid(status, scope, life, shared_from_this(),
+					make_iid("value.to.match"), builder, pattern_value);
 
-			if (else_block != nullptr) {
-				/* let's start by emitting the default block */
-				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-				builder.SetInsertPoint(default_block);
-
-				else_block->resolve_statement(status, builder, scope, life, nullptr, &else_returns);
-				if (!!status) {
-					assert_implies(else_returns, builder.GetInsertBlock()->getTerminator() != nullptr);
-					if (!else_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
-						/* we must create a merge block because the default block doesn't return */
-						if (merge_block == nullptr) {
-							merge_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.merge", llvm_function_current);
-						}
-						assert(builder.GetInsertBlock()->getTerminator() == nullptr);
-						builder.CreateBr(merge_block);
-					}
-				}
-			} else {
-				/* we still need a stub implementation in the default block to make LLVM happy that
-				 * all paths return */
-				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-				builder.SetInsertPoint(default_block);
-				llvm_generate_dead_return(builder, scope);
-			}
-
-			std::map<int, location_t> typeids_tested;
-			types::type_t::refs types_matched;
 			if (!!status) {
-				llvm::SwitchInst *llvm_switch = builder.CreateSwitch(type_id->get_llvm_value(), default_block, pattern_blocks.size());
-				/* RTTI lives on the nominal type plane */
-				auto typename_env = scope->get_nominal_env();
-				auto bindings = scope->get_type_variable_bindings();
-				for (auto pattern_block : pattern_blocks) {
-					auto type_to_match = pattern_block->type->rebind(scope->get_type_variable_bindings());
-					std::set<int> typeids;
-					types::get_runtime_typeids(status, type_to_match, typename_env, typeids);
-					if (!status) {
-						break;
-					}
-					types_matched.push_back(type_to_match);
+				llvm::Function *llvm_function_current = llvm_get_function(builder);
+				llvm::BasicBlock *merge_block = nullptr;
+				llvm::BasicBlock *default_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.default", llvm_function_current);
 
-					/* check that these types have not already been tested for */
-					for (auto _typeid : typeids) {
-						if (in(_typeid, typeids_tested)) {
-							user_error(status, pattern_block->get_location(),
-									"runtime type matching for %s is already handled above. note that it may be a part of this type, and not the whole sum of the type",
-									type_to_match->str().c_str());
-							user_info(status, typeids_tested[_typeid], "see prior test for runtime type here");
-						}
-						typeids_tested[_typeid] = pattern_block->get_location();
-					}
-
-					if (!status) {
-						break;
-					}
-
-					/* remember where we were */
+				if (else_block != nullptr) {
+					/* let's start by emitting the default block */
 					llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+					builder.SetInsertPoint(default_block);
 
-					/* create a new block for catching the pattern jump */
-					llvm::BasicBlock *llvm_pattern_block = llvm::BasicBlock::Create(
-							builder.getContext(), "pattern." + pattern_block->type->repr(), llvm_function_current);
-
-					/* add the new blocks to the switch */
-					for (auto _typeid : typeids) {
-						llvm_switch->addCase(builder.getInt32(_typeid), llvm_pattern_block);
-					}
-
-					/* start emitting code in the block */
-					builder.SetInsertPoint(llvm_pattern_block);
-
-					/* set up the variable to be interpreted as the type we've matched */
-					scope_t::ref pattern_scope = runnable_scope->new_local_scope(string_format("pattern.%s", type_to_match->str().c_str()));
-
-					auto bound_matched_type = upsert_bound_type(status, builder, scope, type_to_match);
+					else_block->resolve_statement(status, builder, scope, life, nullptr, &else_returns);
 					if (!!status) {
-						llvm::Value *llvm_pattern_value = coerce_value(
-								status,
-								builder,
-								scope,
-								pattern_value->get_location(),
-								type_to_match,
-								pattern_value);
-
-						/* replace this bound variable with a version of itself with a new type */
-						pattern_scope->put_bound_variable(status, var_name->get_name(),
-								bound_var_t::create(
-									var_name->get_location(),
-									var_name->get_name(),
-									bound_matched_type,
-									llvm_pattern_value,
-									var_name));
-
-						if (!!status) {
-							bool pattern_returns = false;
-							pattern_block->block->resolve_statement(status, builder, pattern_scope, life, nullptr, &pattern_returns);
-							if (!status) {
-								break;
+						assert_implies(else_returns, builder.GetInsertBlock()->getTerminator() != nullptr);
+						if (!else_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
+							/* we must create a merge block because the default block doesn't return */
+							if (merge_block == nullptr) {
+								merge_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.merge", llvm_function_current);
 							}
-
-							assert_implies(pattern_returns, builder.GetInsertBlock()->getTerminator() != nullptr);
-							if (!pattern_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
-								/* if this block didn't return or break/continue, then we need to make sure we can merge
-								 * to the next block */
-								all_patterns_return = false;
-								if (merge_block == nullptr) {
-									merge_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.merge", llvm_function_current);
-								}
-								assert(builder.GetInsertBlock()->getTerminator() == nullptr);
-								builder.CreateBr(merge_block);
-							}
+							assert(builder.GetInsertBlock()->getTerminator() == nullptr);
+							builder.CreateBr(merge_block);
 						}
-					}
-				}
-			}
-
-			if (!!status) {
-				if (merge_block != nullptr) {
-					/* make sure that if we needed a merge block, that any downstream codegen knows
-					 * to pick up from here when emitting code */
-					builder.SetInsertPoint(merge_block);
-				}
-
-				/* check whether all cases of the pattern_value's type are handled */
-				auto env = scope->get_nominal_env();
-				types::type_sum_t::ref type_sum_matched = type_sum_safe(
-						types_matched,
-						get_location(),
-						env);
-
-				unification_t unification = unify(type_sum_matched, pattern_value->type->get_type(), env);
-				if (unification.result) {
-					if (else_block == nullptr) {
-						/* good, the user knew not to have an else block because they are handling
-						 * all paths */
-						*returns = all_patterns_return;
-						return;
-					} else {
-						user_error(status, else_block->get_location(), "this else block will never run because the patterns catch all cases. maybe you can delete it?");
 					}
 				} else {
-					/* the patterns don't cover all possible values */
-					if (else_block == nullptr) {
-						user_error(status, get_location(), "the 'when' block does not handle all inbound types %s",
-								unification.str().c_str());
-						user_info(status, get_location(), "the when block covers %s", type_sum_matched->str().c_str());
+					/* we still need a stub implementation in the default block to make LLVM happy that
+					 * all paths return */
+					llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+					builder.SetInsertPoint(default_block);
+					llvm_generate_dead_return(builder, scope);
+				}
+
+				std::map<int, location_t> typeids_tested;
+				types::type_t::refs types_matched;
+				if (!!status) {
+					llvm::SwitchInst *llvm_switch = builder.CreateSwitch(type_id->get_llvm_value(), default_block, pattern_blocks.size());
+					/* RTTI lives on the nominal type plane */
+					auto typename_env = scope->get_nominal_env();
+					auto bindings = scope->get_type_variable_bindings();
+					for (auto pattern_block : pattern_blocks) {
+						auto type_to_match = pattern_block->type->rebind(scope->get_type_variable_bindings());
+						std::set<int> typeids;
+						types::get_runtime_typeids(status, type_to_match, typename_env, typeids);
+						if (!status) {
+							break;
+						}
+						types_matched.push_back(type_to_match);
+
+						/* check that these types have not already been tested for */
+						for (auto _typeid : typeids) {
+							if (in(_typeid, typeids_tested)) {
+								user_error(status, pattern_block->get_location(),
+										"runtime type matching for %s is already handled above. note that it may be a part of this type, and not the whole sum of the type",
+										type_to_match->str().c_str());
+								user_info(status, typeids_tested[_typeid], "see prior test for runtime type here");
+							}
+							typeids_tested[_typeid] = pattern_block->get_location();
+						}
+
+						if (!status) {
+							break;
+						}
+
+						/* remember where we were */
+						llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+						/* create a new block for catching the pattern jump */
+						llvm::BasicBlock *llvm_pattern_block = llvm::BasicBlock::Create(
+								builder.getContext(), "pattern." + pattern_block->type->repr(), llvm_function_current);
+
+						/* add the new blocks to the switch */
+						for (auto _typeid : typeids) {
+							llvm_switch->addCase(builder.getInt32(_typeid), llvm_pattern_block);
+						}
+
+						/* start emitting code in the block */
+						builder.SetInsertPoint(llvm_pattern_block);
+
+						/* set up the variable to be interpreted as the type we've matched */
+						scope_t::ref pattern_scope = runnable_scope->new_local_scope(string_format("pattern.%s", type_to_match->str().c_str()));
+
+						auto bound_matched_type = upsert_bound_type(status, builder, scope, type_to_match);
+						if (!!status) {
+							llvm::Value *llvm_pattern_value = coerce_value(
+									status,
+									builder,
+									scope,
+									pattern_value->get_location(),
+									type_to_match,
+									pattern_value);
+
+							/* replace this bound variable with a version of itself with a new type */
+							pattern_scope->put_bound_variable(status, var_name->get_name(),
+									bound_var_t::create(
+										var_name->get_location(),
+										var_name->get_name(),
+										bound_matched_type,
+										llvm_pattern_value,
+										var_name));
+
+							if (!!status) {
+								bool pattern_returns = false;
+								pattern_block->block->resolve_statement(status, builder, pattern_scope, life, nullptr, &pattern_returns);
+								if (!status) {
+									break;
+								}
+
+								assert_implies(pattern_returns, builder.GetInsertBlock()->getTerminator() != nullptr);
+								if (!pattern_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
+									/* if this block didn't return or break/continue, then we need to make sure we can merge
+									 * to the next block */
+									all_patterns_return = false;
+									if (merge_block == nullptr) {
+										merge_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.merge", llvm_function_current);
+									}
+									assert(builder.GetInsertBlock()->getTerminator() == nullptr);
+									builder.CreateBr(merge_block);
+								}
+							}
+						}
+					}
+				}
+
+				if (!!status) {
+					if (merge_block != nullptr) {
+						/* make sure that if we needed a merge block, that any downstream codegen knows
+						 * to pick up from here when emitting code */
+						builder.SetInsertPoint(merge_block);
+					}
+
+					/* check whether all cases of the pattern_value's type are handled */
+					auto env = scope->get_nominal_env();
+					types::type_sum_t::ref type_sum_matched = type_sum_safe(
+							types_matched,
+							get_location(),
+							env);
+
+					unification_t unification = unify(type_sum_matched, pattern_value->type->get_type(), env);
+					if (unification.result) {
+						if (else_block == nullptr) {
+							/* good, the user knew not to have an else block because they are handling
+							 * all paths */
+							*returns = all_patterns_return;
+							return;
+						} else {
+							user_error(status, else_block->get_location(), "this else block will never run because the patterns catch all cases. maybe you can delete it?");
+						}
 					} else {
-						/* they didn't cover all the patterns, but they have an else block to
-						 * catch what they missed. fine. */
-						*returns = all_patterns_return && else_returns;
-						return;
+						/* the patterns don't cover all possible values */
+						if (else_block == nullptr) {
+							user_error(status, get_location(), "the 'when' block does not handle all inbound types %s",
+									unification.str().c_str());
+							user_info(status, get_location(), "the when block covers %s", type_sum_matched->str().c_str());
+						} else {
+							/* they didn't cover all the patterns, but they have an else block to
+							 * catch what they missed. fine. */
+							*returns = all_patterns_return && else_returns;
+							return;
+						}
 					}
 				}
 			}

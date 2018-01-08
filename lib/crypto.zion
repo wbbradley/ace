@@ -6,7 +6,7 @@ link def sodium_init() int_t
 link def crypto_generichash_bytes_min() size_t
 link def crypto_generichash_bytes_max() size_t
 link def crypto_generichash_statebytes() size_t
-link def crypto_generichash(out *int8_t, outlen size_t, input *int8_t, inlen size_t, key *int8_t, keylen size_t) int_t
+link def crypto_generichash(out *int8_t, outlen size_t, input *int8_t, inlen size_t, key *?int8_t, keylen size_t) int_t
 link def crypto_generichash_init(state *crypto_generichash_state, key *int8_t, keylen size_t, outlen size_t) int_t
 link def crypto_generichash_update(state *crypto_generichash_state, input *int8_t, inputlen size_t) int_t
 link def crypto_generichash_final(state *crypto_generichash_state, out *int8_t, outlen size_t) int_t
@@ -22,12 +22,15 @@ def init()
 def hash(input bytes, key bytes) bytes
 	outlen := crypto_generichash_bytes_max()
 	out := alloc(outlen)
+	assert(out != null)
 	crypto_generichash(out.data, out.cb, input.data, input.cb, key.data, key.cb)
 	return out
+		
 
 def hash(input str) bytes
 	outlen := crypto_generichash_bytes_max()
 	out := alloc(outlen)
+	assert(out != null)
 	crypto_generichash(out.data, out.cb, input.raw as *int8_t, sizeof(wchar_t) * posix.wcslen(input.raw), null, 0r)
 	return out
 	

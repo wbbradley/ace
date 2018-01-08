@@ -4,8 +4,10 @@ def get_maybe() int?
 	return 2
 
 def main()
-	if x := get_maybe()
+	let x = get_maybe()
+	if x != null
 		print(x)
+		return
 
-	# error: undefined symbol x
+	# error: unable to resolve overloads for str\(null\)
 	print(x)

@@ -270,6 +270,22 @@ namespace ast {
 				bool *returns) const;
 	};
 
+	struct unreachable_t : public statement_t {
+		typedef ptr<const unreachable_t> ref;
+
+		static const syntax_kind_t SK = sk_unreachable;
+		static ptr<unreachable_t> parse(parse_state_t &ps);
+		virtual void render(render_state_t &rs) const;
+
+		virtual void resolve_statement(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				local_scope_t::ref *new_scope,
+				bool *returns) const;
+	};
+
 	struct type_decl_t : public item_t {
 		typedef ptr<const type_decl_t> ref;
 

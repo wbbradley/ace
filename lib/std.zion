@@ -19,9 +19,9 @@ link in "rt_typeid.o"
 link def mem_dump(x *void, y int_t) void
 link def __type_id_eq_type_id(x typeid_t, y typeid_t) int_t
 
-var stdin *posix.FILE = posix.fdopen(0r, "r"r)
-var stdout *posix.FILE = posix.fdopen(1r, "a"r)
-var stderr *posix.FILE = posix.fdopen(2r, "a"r)
+var stdin *posix.FILE = posix.fdopen(0r, "r"r)!
+var stdout *posix.FILE = posix.fdopen(1r, "a"r)!
+var stderr *posix.FILE = posix.fdopen(2r, "a"r)!
 
 def typeid(t any) typeid_t
 	return __get_typeid__(t)
@@ -39,13 +39,15 @@ def mbstowcs(mbs *char_t) *wchar_t
 		posix.exit(1r)
 	let wcs_size = wcs_cb + 1r
 	let cb = sizeof(wchar_t) * wcs_size
-	let wcs = posix.malloc(cb) as *wchar_t
+	let wcs = posix.malloc(cb) as *?wchar_t
 	if wcs == null
 		posix.puts("out of memory - set a breakpoint on `exit` in order to debug"r)
 		posix.exit(-1r)
-
-	posix.mbstowcs(wcs, mbs, wcs_size)
-	return wcs
+		# TODO: create syntax for not reached
+		return null as *wchar_t
+	else
+		posix.mbstowcs(wcs, mbs, wcs_size)
+		return wcs
 
 def wcstombs(wcs *wchar_t) *char_t
 	# Converts from wide char encoding to current locale's encoding
@@ -59,13 +61,15 @@ def wcstombs(wcs *wchar_t) *char_t
 
 	let mbs_size = mbs_cb + 1r
 	let cb = sizeof(char_t) * mbs_size
-	let mbs = posix.malloc(cb) as *char_t
+	let mbs = posix.malloc(cb) as *?char_t
 	if mbs == null
 		posix.puts("out of memory - set a breakpoint on `exit` in order to debug"r)
 		posix.exit(-1r)
-
-	posix.wcstombs(mbs, wcs, mbs_size)
-	return mbs
+		# TODO: create syntax for not reached
+		return null as *char_t
+	else
+		posix.wcstombs(mbs, wcs, mbs_size)
+		return mbs
 
 def print(x any) void
 	posix.fputs(utf8(str(x)).raw, stdout)
@@ -139,11 +143,12 @@ def __iter_item__(i IntRangeIter) int
 	return int(i.pos)
 
 def input() str?
-	var buf *char_t = null
+	var buf *?char_t
 	var linecap int_t = 0r
 
-	if posix.getline(&buf, &linecap, stdin) == -1r
+	if posix.getline(&buf, &linecap, stdin) == -1r or buf == null
 		return null
+
 	var lim = posix.strlen(buf) - 1r
 	while lim >= 0r and posix.isspace(buf[lim])
 		lim -= 1r
