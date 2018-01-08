@@ -526,8 +526,8 @@ bound_var_t::ref type_check_bound_var_decl(
 	if (scope->symbol_exists_in_running_scope(symbol, bound_var)) {
 		user_error(status, obj.get_location(), "symbol '" c_id("%s") "' cannot be redeclared",
 				symbol.c_str());
-		user_info(status, bound_var->get_location(), "see earlier symbol declaration %s",
-				bound_var->str().c_str());
+		user_info(status, bound_var->get_location(), "see earlier declaration of " c_id("%s"),
+				bound_var->name.c_str());
 		return nullptr;
 	}
 
@@ -1027,21 +1027,24 @@ bound_var_t::ref resolve_assert_macro(
 		life_t::ref life,
 		token_t token,
 		ptr<ast::expression_t> condition,
-		local_scope_t::ref *)
+		local_scope_t::ref *new_scope)
 {
 	auto if_block = ast::create<ast::if_block_t>(token);
-	auto not_expr = ast::create<ast::prefix_expr_t>(token_t{token.location, tk_identifier, "not"});
-	not_expr->rhs = condition;
-	if_block->condition = not_expr;
+	if_block->condition = condition;
 
 	auto callsite = expand_callsite_string_literal(token, "runtime", "on_assert_failure", 
 				string_format("%s: assertion %s failed",
 					token.location.str(true, true).c_str(),
 					condition->str().c_str()));
 
-	auto block = ast::create<ast::block_t>(token);
-	block->statements.push_back(callsite);
-	if_block->block = block;
+	auto then_block = ast::create<ast::block_t>(token);
+	then_block->statements.push_back(ast::create<ast::pass_flow_t>(token));
+
+	auto else_block = ast::create<ast::block_t>(token);
+	else_block->statements.push_back(callsite);
+	else_block->statements.push_back(ast::create<ast::unreachable_t>(token));
+	if_block->block = then_block;
+	if_block->else_ = else_block;
 
 	bool if_block_returns = false;
 	if_block->resolve_statement(
@@ -1049,7 +1052,7 @@ bound_var_t::ref resolve_assert_macro(
 			builder,
 			scope,
 			life,
-			nullptr,
+			new_scope,
 			&if_block_returns);
 
 	if (!!status) {
@@ -1095,7 +1098,7 @@ void ast::callsite_expr_t::resolve_statement(
 			/* do a crude macro expansion here and evaluate that */
 			if (params.size() == 1) {
 				auto param = params[0];
-				resolve_assert_macro(status, builder, scope, life, symbol->token, param, new_scope /*not yet impl*/);
+				resolve_assert_macro(status, builder, scope, life, symbol->token, param, new_scope);
 				return;
 			} else {
 				user_error(status, *shared_from_this(), "assert accepts and requires one parameter");
@@ -3227,53 +3230,60 @@ bound_var_t::ref cast_bound_var(
 		types::type_t::ref type_cast)
 {
 	assert(!bound_var->is_ref());
-	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_cast);
+	if (bound_var->type->is_maybe() && !type_cast->is_maybe()) {
+		user_error(status, location, "you cannot cast away maybe. use the ! operator instead");
+		user_info(status, location, "better yet, use an if statement to check the return value so you don't accidentally dereference a null pointer");
+	}
+
 	if (!!status) {
-		debug_above(7, log("upserted bound type in cast expr is %s", bound_type->str().c_str()));
-		indent_logger indent(location, 5, string_format("casting %s: %s (%s) to a %s (%s)",
-					bound_var->name.c_str(),
-					bound_var->type->get_type()->str().c_str(),
-					llvm_print(bound_var->get_llvm_value()->getType()).c_str(),
-					type_cast->str().c_str(),
-					llvm_print(bound_type->get_llvm_specific_type()).c_str()));
+		bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_cast);
 		if (!!status) {
-			llvm::Value *llvm_source_val = bound_var->resolve_bound_var_value(builder);
-			llvm::Type *llvm_source_type = llvm_source_val->getType();
-
-			llvm::Value *llvm_dest_val = nullptr;
-			llvm::Type *llvm_dest_type = bound_type->get_llvm_specific_type();
-
-			// TODO: put some more constraints on this...
-			if (llvm_dest_type->isIntegerTy()) {
-				/* we want an integer at the end... */
-				if (llvm_source_type->isPointerTy()) {
-					llvm_dest_val = builder.CreatePtrToInt(llvm_source_val, llvm_dest_type);
-				} else {
-					assert(llvm_source_type->isIntegerTy());
-					llvm_dest_val = builder.CreateSExtOrTrunc(llvm_source_val, llvm_dest_type);
-				}
-			} else if (llvm_dest_type->isPointerTy()) {
-				/* we want a pointer at the end... */
-				if (llvm_source_type->isPointerTy()) {
-					llvm_dest_val = builder.CreateBitCast(llvm_source_val, llvm_dest_type);
-				} else {
-					if (!llvm_source_type->isIntegerTy()) {
-						log("source type for cast is %s (while casting to %s)",
-								llvm_print(llvm_source_type).c_str(),
-								type_cast->str().c_str());
-						dbg();
-					}
-					llvm_dest_val = builder.CreateIntToPtr(llvm_source_val, llvm_dest_type);
-				}
-			} else {
-				user_error(status, location, "invalid cast: cannot cast %s to %s",
-						bound_var->type->str().c_str(),
-						type_cast->str().c_str());
-			}
-
+			debug_above(7, log("upserted bound type in cast expr is %s", bound_type->str().c_str()));
+			indent_logger indent(location, 5, string_format("casting %s: %s (%s) to a %s (%s)",
+						bound_var->name.c_str(),
+						bound_var->type->get_type()->str().c_str(),
+						llvm_print(bound_var->get_llvm_value()->getType()).c_str(),
+						type_cast->str().c_str(),
+						llvm_print(bound_type->get_llvm_specific_type()).c_str()));
 			if (!!status) {
-				return bound_var_t::create(INTERNAL_LOC(), "cast",
-						bound_type, llvm_dest_val, make_iid("cast"));
+				llvm::Value *llvm_source_val = bound_var->resolve_bound_var_value(builder);
+				llvm::Type *llvm_source_type = llvm_source_val->getType();
+
+				llvm::Value *llvm_dest_val = nullptr;
+				llvm::Type *llvm_dest_type = bound_type->get_llvm_specific_type();
+
+				// TODO: put some more constraints on this...
+				if (llvm_dest_type->isIntegerTy()) {
+					/* we want an integer at the end... */
+					if (llvm_source_type->isPointerTy()) {
+						llvm_dest_val = builder.CreatePtrToInt(llvm_source_val, llvm_dest_type);
+					} else {
+						assert(llvm_source_type->isIntegerTy());
+						llvm_dest_val = builder.CreateSExtOrTrunc(llvm_source_val, llvm_dest_type);
+					}
+				} else if (llvm_dest_type->isPointerTy()) {
+					/* we want a pointer at the end... */
+					if (llvm_source_type->isPointerTy()) {
+						llvm_dest_val = builder.CreateBitCast(llvm_source_val, llvm_dest_type);
+					} else {
+						if (!llvm_source_type->isIntegerTy()) {
+							log("source type for cast is %s (while casting to %s)",
+									llvm_print(llvm_source_type).c_str(),
+									type_cast->str().c_str());
+							dbg();
+						}
+						llvm_dest_val = builder.CreateIntToPtr(llvm_source_val, llvm_dest_type);
+					}
+				} else {
+					user_error(status, location, "invalid cast: cannot cast %s to %s",
+							bound_var->type->str().c_str(),
+							type_cast->str().c_str());
+				}
+
+				if (!!status) {
+					return bound_var_t::create(INTERNAL_LOC(), "cast",
+							bound_type, llvm_dest_val, make_iid("cast"));
+				}
 			}
 		}
 	}
@@ -3661,7 +3671,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 					}
 				}
 			} else {
-				user_error(status, get_location(), "while checking %s", function_var->str().c_str());
+				user_info(status, get_location(), "while checking %s", function_var->str().c_str());
 			}
 		}
 	}
@@ -4296,6 +4306,19 @@ void ast::minus_assignment_t::resolve_statement(
 			shared_from_this(), lhs, rhs, token.location, "__minus__");
 }
 
+void ast::unreachable_t::resolve_statement(
+        status_t &status,
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		life_t::ref life,
+        local_scope_t::ref *,
+		bool *returns) const
+{
+	*returns = true;
+	builder.CreateUnreachable();
+	return;
+}
+
 void ast::return_statement_t::resolve_statement(
         status_t &status,
         llvm::IRBuilder<> &builder,
@@ -4468,7 +4491,7 @@ void ast::block_t::resolve_statement(
 
 		if (!status) {
 			if (!status.reported_on_error_at(statement->get_location())) {
-				user_error(status, statement->get_location(), "while checking statement");
+				user_info(status, statement->get_location(), "while checking statement");
 			}
 			break;
 		}
@@ -4715,7 +4738,7 @@ void ast::if_block_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *,
+        local_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	assert(life->life_form == lf_statement);
@@ -4758,12 +4781,25 @@ void ast::if_block_t::resolve_statement(
 			builder.SetInsertPoint(else_bb);
 
 			if (else_ != nullptr) {
+				local_scope_t::ref scope_if_else_false;
 				else_->resolve_statement(status, builder,
 						scope_if_false ? scope_if_false : scope,
-						life, nullptr, &else_block_returns);
-				if (!status) {
-					user_error(status, else_->get_location(), "while checking else statement");
+						life, &scope_if_else_false, &else_block_returns);
+
+				if (!!status) {
+					if (scope_if_else_false != nullptr) {
+						assert(!else_block_returns);
+						/* if the false path is pushing new symbol refinements, then let's accept
+						 * them because theoretically we don't care what that path is doing, if it
+						 * knows more about our outer environment, then let's take that knowledge */
+						scope_if_false = scope_if_else_false;
+					}
 				}
+#if 0
+				if (!status) {
+					user_info(status, else_->get_location(), "while checking else statement");
+				}
+#endif
 			}
 
 			if (!!status) {
@@ -4807,6 +4843,12 @@ void ast::if_block_t::resolve_statement(
 						/* track whether the branches return */
 						*returns |= (if_block_returns && else_block_returns);
 
+						if (!if_block_returns && else_block_returns) {
+							*new_scope = scope_if_true;
+						} else if (if_block_returns && !else_block_returns) {
+							*new_scope = scope_if_false;
+						}
+
 						assert(!!status);
 						return;
 					}
@@ -4826,8 +4868,6 @@ bound_var_t::ref ast::bang_expr_t::resolve_expression(
 		life_t::ref life,
 		bool as_ref) const
 {
-	assert(!as_ref);
-
 	auto lhs_value = lhs->resolve_expression(status, builder, scope, life,
 			false /*as_ref*/);
 
@@ -5048,16 +5088,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 	case tk_identifier:
 		{
 			assert(token.text == "null");
-			auto null_type = program_scope->get_bound_type({"null"});
-			auto bound_type = bound_type_t::create(
-					type_null(),
-					token.location,
-					null_type->get_llvm_type(),
-					null_type->get_llvm_specific_type());
-			return bound_var_t::create(
-					INTERNAL_LOC(), "null", bound_type,
-					llvm::Constant::getNullValue(null_type->get_llvm_specific_type()),
-					make_code_id(token));
+			return get_null(status, builder, scope, token.location);
 		}
 		break;
 	case tk_raw_integer:
@@ -5231,7 +5262,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_overrides(
 	if (!!status) {
 		return bound_var;
 	} else {
-		user_error(status, callsite->get_location(), "while checking %s with %s",
+		user_info(status, callsite->get_location(), "while checking %s with %s",
 				callsite->str().c_str(),
 				::str(args).c_str());
 		return nullptr;

@@ -1,8 +1,9 @@
 module _
 
 def main()
-	if x := 3
+	if true
+		x := 4
 		print(x)
 	if true
-		# error: 8:9.* undefined symbol x
+		# error: 9:9.* undefined symbol x
 		print(x)

@@ -7,6 +7,26 @@
 #include "llvm_types.h"
 #include "code_id.h"
 
+bound_var_t::ref get_null(
+        status_t &status,
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		location_t location)
+{
+	auto program_scope = scope->get_program_scope();
+	auto null_type = program_scope->get_bound_type("null");
+	auto bound_type = bound_type_t::create(
+			type_null(),
+			location,
+			null_type->get_llvm_type(),
+			null_type->get_llvm_specific_type());
+	return bound_var_t::create(
+			INTERNAL_LOC(), "null", bound_type,
+			llvm::Constant::getNullValue(null_type->get_llvm_specific_type()),
+			make_iid_impl("null", location));
+}
+
+#if 0
 bound_var_t::ref resolve_null_check(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -37,6 +57,7 @@ bound_var_t::ref resolve_null_check(
 	assert(!status);
 	return nullptr;
 }
+#endif
 
 void unmaybe_variable(
 		status_t &status,
@@ -107,6 +128,54 @@ void unmaybe_variable(
 	return;
 }
 
+void nullify_let_var(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		ast::reference_expr_t::ref ref_expr,
+		local_scope_t::ref *new_scope)
+{
+	/* this is immutable so we can safely just refine it to null */
+	token_t token = ref_expr->token;
+	bound_var_t::ref var = scope->get_bound_variable(status, ref_expr->get_location(), token.text);
+	types::type_t::ref type = var->type->get_type();
+
+	if (!!status) {
+		if (var == nullptr) {
+			user_error(status, ref_expr->get_location(), "undefined symbol " c_id("%s"), token.text.c_str());
+		}
+
+		if (var->type->is_ref()) {
+			/* we can't change the type of a mutable name in the scope because the user is allowed
+			 * to assign a non-null value, and we don't want to take that away from them */
+			return;
+		}
+
+		if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
+			runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+			assert(runnable_scope != nullptr);
+
+			/* variable declarations begin new scopes */
+			local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
+					string_format("nullify-%s", token.text.c_str()));
+
+			scope = fresh_scope;
+			*new_scope = fresh_scope;
+
+			scope->put_bound_variable(status, token.text,
+					get_null(status, builder, scope, ref_expr->get_location()));
+			return;
+		} else {
+			/* this is not a maybe, so let's just move along */
+			return;
+		}
+	}
+
+	assert(!status);
+	return;
+}
+
 bound_var_t::ref resolve_null_check(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -146,9 +215,12 @@ bound_var_t::ref resolve_null_check(
 				builder.CreateICmpNE(llvm_value, zero),
 				llvm_bool_type, false /*isSigned*/);
 
-		if (scope_if_true != nullptr) {
-			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+		if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+			if (scope_if_true != nullptr) {
 				unmaybe_variable(status, builder, scope, life, ref_expr, scope_if_true);
+			}
+			if (scope_if_false != nullptr) {
+				nullify_let_var(status, builder, scope, life, ref_expr, scope_if_false);
 			}
 		}
 		break;
@@ -157,9 +229,12 @@ bound_var_t::ref resolve_null_check(
 				builder.CreateICmpEQ(llvm_value, zero),
 				llvm_bool_type, false /*isSigned*/);
 
-		if (scope_if_false != nullptr) {
-			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+		if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+			if (scope_if_false != nullptr) {
 				unmaybe_variable(status, builder, scope, life, ref_expr, scope_if_false);
+			}
+			if (scope_if_true != nullptr) {
+				nullify_let_var(status, builder, scope, life, ref_expr, scope_if_true);
 			}
 		}
 		break;

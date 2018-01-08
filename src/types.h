@@ -63,6 +63,7 @@ namespace types {
 		virtual bool is_function() const { return false; }
 		virtual bool is_void() const { return false; }
 		virtual bool is_null() const { return false; }
+		virtual bool is_maybe() const { return false; }
 	};
 
 	bool is_type_id(type_t::ref type, std::string type_name);
@@ -286,6 +287,7 @@ namespace types {
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
+		virtual bool is_maybe() const { return true; }
 	};
 
 	struct type_ptr_t : public type_t {

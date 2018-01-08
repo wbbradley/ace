@@ -2,10 +2,16 @@ module os
 get posix
 
 def getcwd() str
-	cwd_utf8 := mbstowcs(posix.getcwd(null))
-	cwd := str(cwd_utf8)
-	posix.free(cwd_utf8)
-	return cwd
+	cwd_utf8 := posix.getcwd(null)
+	if cwd_utf8 != null
+		cwd := str(mbstowcs(cwd_utf8))
+		posix.free(cwd_utf8)
+		return cwd
+	else
+		posix.puts("could not allocate enough memory to store the working directory!"r)
+		posix.exit(-1r)
+		return null as str
+
 
 def getenv(name str) str?
 	let s = wcstombs(name.raw)

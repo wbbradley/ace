@@ -2,43 +2,20 @@ module _
 # test: pass
 
 def nth(l Node{any T}?, i int) any T?
-	when l
-		is null
-			return null
-		is Node{any T}
-			if i == 0
-				return l.value
-			else
-				return nth(l.next, i - 1)
+	if l == null
+		return null
 
+	if i == 0
+		return l.value
+	else
+		return nth(l.next, i - 1)
 
 type Node{T} has
 	var value T
 	var next Node{T}?
 
-def str(node Node{any T}?) str
-	sum := "["
-	delim := ""
-	while true
-		cur_node := node
-		when cur_node
-			is null
-				sum = sum + "]"
-				break
-			is Node{any T}
-				sum = sum + delim + cur_node.value
-				print(sum)
-				node = cur_node.next
-			else
-				print("Fail")
-				assert(false)
-				break
-	
-	return sum
-
 def main()
 	x := Node(3, Node(3, null))
-	static_print(x)
 	y := nth(x, 0)
 	if y != null
 		print(y)

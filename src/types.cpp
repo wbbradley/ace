@@ -706,8 +706,16 @@ namespace types {
 	}
 
 	std::ostream &type_maybe_t::emit(std::ostream &os, const map &bindings) const {
-        just->emit(os, bindings);
-		return os << "?";
+		if (auto pointer = dyncast<const type_ptr_t>(just)) {
+			/* this is a native pointer that might be null */
+			os << "*?";
+			return pointer->element_type->emit(os, bindings);
+		} else {
+			/* this is a managed pointer that might be null. we subsume the maybeness onto the whole typename in order
+			 * to look nicer. */
+			just->emit(os, bindings);
+			return os << "?";
+		}
 	}
 
 	int type_maybe_t::ftv_count() const {
@@ -1057,13 +1065,12 @@ namespace types {
 	}
 
 	bool is_ptr(types::type_t::ref type, types::type_t::map env) {
+		// REVIEW: this is nebulous, it really depends on what env is passed in
 		if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 			type = maybe_type->just;
 		}
 
-		if (auto expanded_type = eval(type, env)) {
-			type = expanded_type;
-		}
+		type = full_eval(type, env);
 
 		if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
 			return true;
@@ -1073,6 +1080,11 @@ namespace types {
 			/* sum types are always managed pointers for now */
 			return true;
 		}
+		if (auto extern_type = dyncast<const types::type_extern_t>(type)) {
+			/* extern types are always managed pointers for now */
+			return true;
+		}
+
 		return false;
 	}
 
@@ -1336,6 +1348,12 @@ types::type_t::ref type_maybe(types::type_t::ref just) {
     if (auto maybe = dyncast<const types::type_maybe_t>(just)) {
         return just;
     }
+
+	if (just->is_null()) {
+		/* maybe of null is just null */
+		return just;
+	}
+
     return make_ptr<types::type_maybe_t>(just);
 }
 

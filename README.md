@@ -32,6 +32,8 @@ model. Zion is built on [LLVM](https://llvm.org/).
 afterthought. Favor algorithmic scaling over bit twiddling and fretting over L1 cache hits.
 
 ## Future Goals
+ - Incentivize assertions. Gently penalize the lack of assertions. This becomes more interesting as dependent types are
+   rolled in beyond what's available today (maybe types and conditional refinement.)
  - Pause-free execution remains a back-burner goal. (ie: Enabling Game loops, high-speed trading platforms, life support monitoring, embedded systems, etc...) However, in a future version, once language development settles down a bit, this will get more attention.
  - In-language concurrency and asynchronicity will get treatment in the future. These can currently be solved at other levels of
    the stack (hint: use OS processes.) This is not because it's not important. But, basic ergonomics of the language come first.

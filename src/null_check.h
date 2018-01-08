@@ -11,6 +11,7 @@ enum null_check_kind_t {
 	nck_is_null,
 };
 
+#if 0
 bound_var_t::ref resolve_null_check(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -19,6 +20,13 @@ bound_var_t::ref resolve_null_check(
 		location_t location,
 		const std::vector<ptr<ast::expression_t>> &params,
 		null_check_kind_t nck);
+#endif
+
+bound_var_t::ref get_null(
+        status_t &status,
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		location_t location);
 
 bound_var_t::ref resolve_null_check(
 		status_t &status,

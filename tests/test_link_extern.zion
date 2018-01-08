@@ -2,14 +2,15 @@ module _
 # test: pass
 # expect: allocating entry for Will: 123
 # expect: freeing entry Will: 123
+# reject: No name found!
 
 # TODO: clean this up - add in some sort of ability to autoexpand env vars, or compilation params
 # link in "build-Darwin/tests/test_link_extern_entry.o"
 link in "/tmp/test_link_extern_entry.o"
 
-link def make_entry(name *char_t, number int_t) *EntryImpl
+link def make_entry(name *char_t, number int_t) *?EntryImpl
 link def free_entry(entry *EntryImpl) void
-link def get_name(entry *EntryImpl) *char_t
+link def get_name(entry *EntryImpl) *?char_t
 link def get_number(entry *EntryImpl) int_t
 
 type EntryImpl struct
@@ -20,12 +21,21 @@ type Entry has
 def __finalize__(entry Entry)
 	free_entry(entry.entry)
 
-def get_name(entry Entry) str
-	return __box__(get_name(entry.entry))
+def get_name(entry Entry) str?
+	let name = get_name(entry.entry)
+	if name != null
+		return __box__(name)
+	else
+		return null
 
 def main()
-	var entry Entry? = Entry(make_entry("Will"r, 123r))
+	var entry Entry? = Entry(make_entry("Will"r, 123r)!)
 	if entry != null
-		print(get_name(entry))
+		print(get_name(entry) or "")
+		static_print(entry)
+	else
+		print("No name found!")
+		static_print(entry)
+	static_print(entry)
 	entry = null
 	runtime.gc()

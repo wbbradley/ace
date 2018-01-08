@@ -9,13 +9,18 @@ type bytes has
 def len(b bytes) int
 	return int(b.cb as int_t)
 
-def alloc(cb int) bytes
+def alloc(cb int) bytes?
 	if cb.raw < 0r
 		assert(false and "attempt to allocate " + cb + " bytes")
+		return null
 	return alloc(cb.raw as size_t)
 
-def alloc(cb size_t) bytes
-	return bytes(posix.calloc(1r as size_t, cb) as *int8_t, cb)
+def alloc(cb size_t) bytes?
+	let pb = posix.calloc(1r as size_t, cb)
+	if pb != null
+		return bytes(pb as *int8_t, cb)
+	else
+		return null
 
 def __finalize__(b bytes)
 	posix.free(b.data)
@@ -24,9 +29,10 @@ def hexdigest(b bytes) str
 	return hexdigest(b.data, b.cb)
 
 def hexdigest(data *void, cb size_t) str
-	s := posix.malloc(sizeof(wchar_t) * (cb * 2r + 1r)) as *wchar_t
+	let s = posix.malloc(sizeof(wchar_t) * (cb * 2r + 1r))! as *wchar_t
 	iter := data as *uint8_t
-	end := &iter[cb]
+	let end = &iter[cb]
+
 	i := 0r
 	while iter < end
 		# append to our hexdigest

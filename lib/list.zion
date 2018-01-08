@@ -19,7 +19,7 @@ def len(l list{any T}?) int
 	return 0
 
 def conj(maybe_list list{any T}?, item any T) list{any T}
-	if l := maybe_list
+	if maybe_list != null
 		return list(item, l)
 	return list(item, null)
 

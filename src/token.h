@@ -83,6 +83,7 @@ enum token_kind
 
 #define K(x) const char * const K_##x = #x
 K(and);
+K(__unreachable__);
 K(get);
 K(any);
 K(as);

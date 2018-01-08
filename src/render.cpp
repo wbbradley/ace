@@ -457,6 +457,10 @@ namespace ast {
 		}
 	}
 
+	void unreachable_t::render(render_state_t &rs) const {
+		rs.ss << C_CONTROL << K(__unreachable__) << C_RESET;
+	}
+
 	void module_t::render(render_state_t &rs) const {
 		decl->render(rs);
 		newline(rs, 2);
