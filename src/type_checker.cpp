@@ -5023,12 +5023,38 @@ bound_var_t::ref take_address(
 	return nullptr;
 }
 
+bound_var_t::ref ast::prefix_expr_t::resolve_condition(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false) const
+{
+	return resolve_prefix_expr(status, builder, scope, 
+			life, false /*as_ref*/,
+			scope_if_true,
+			scope_if_false);
+}
+
 bound_var_t::ref ast::prefix_expr_t::resolve_expression(
         status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref) const
+{
+	return resolve_prefix_expr(status, builder, scope, life, as_ref, nullptr, nullptr);
+}
+
+bound_var_t::ref ast::prefix_expr_t::resolve_prefix_expr(
+        status_t &status,
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		life_t::ref life,
+		bool as_ref,
+		local_scope_t::ref *scope_if_true,
+		local_scope_t::ref *scope_if_false) const
 {
 	std::string function_name;
 	switch (token.tk) {
@@ -5050,8 +5076,8 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
 	}
 
     /* first solve the right hand side */
-	bound_var_t::ref rhs_var = rhs->resolve_expression(status, builder,
-			scope, life, false /*as_ref*/);
+	bound_var_t::ref rhs_var = rhs->resolve_condition(status, builder,
+			scope, life, scope_if_true, scope_if_false);
 
     if (!!status) {
 		if (function_name == "__not__") {
@@ -5060,7 +5086,8 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
 			if (!!status) {
 				if (!is_managed) {
 					return resolve_null_check(status, builder, scope, life,
-							get_location(), rhs, rhs_var, nck_is_null, nullptr, nullptr);
+							get_location(), rhs, rhs_var, nck_is_null,
+						   	scope_if_true, scope_if_false);
 				} else {
 					/* TODO: revisit whether managed types must/can override __not__? */
 				}

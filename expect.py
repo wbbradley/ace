@@ -1,7 +1,10 @@
 import sys
 import argparse
 import subprocess
-from termcolor import colored
+try:
+    from termcolor import colored
+except:
+    colored = lambda t, c: t
 
 
 def color(text, col):

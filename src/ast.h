@@ -1047,9 +1047,26 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref) const;
+		virtual bound_var_t::ref resolve_condition(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				local_scope_t::ref *scope_if_true,
+				local_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression_t> rhs;
+
+	private:
+		virtual bound_var_t::ref resolve_prefix_expr(
+				status_t &status,
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				bool as_ref,
+				local_scope_t::ref *scope_if_true,
+				local_scope_t::ref *scope_if_false) const;
 	};
 
 	struct typeinfo_expr_t : public expression_t {
