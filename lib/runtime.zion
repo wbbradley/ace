@@ -166,15 +166,10 @@ def get_var_type_id(v *var_t) typeid_t
 
 def __create_head_var() *var_t
 	p := mem_alloc(sizeof(var_t), "__create_head_var"r) as *?var_t
-	if p != null
-		runtime._var_allocation += 1r as size_t
-		p.allocation = runtime._var_allocation
-		# posix.puts("creating head var at 0x"r + __str__(p as int_t, 16r))
-		return p
-	else
-		# We're doomed.
-		posix.puts("Unable to allocate memory for head var!"r)
-		return null as *var_t
+	assert(p != null)
+	runtime._var_allocation += 1r as size_t
+	p.allocation = runtime._var_allocation
+	return p
 
 def dbg_type_info(type_info *type_info_t)
 	if type_info != null
