@@ -33,20 +33,6 @@ const char *skstr(syntax_kind_t sk);
 namespace ast {
 	struct render_state_t;
 
-	struct like_var_decl_t {
-		virtual ~like_var_decl_t() {}
-		virtual std::string get_symbol() const = 0;
-		virtual location_t get_location() const = 0;
-		virtual types::type_t::ref get_type() const = 0;
-		virtual bool has_initializer() const = 0;
-		virtual bool is_let() const = 0;
-		virtual bound_var_t::ref resolve_initializer(
-				status_t &status,
-				llvm::IRBuilder<> &builder,
-				scope_t::ref scope,
-				life_t::ref life) const = 0;
-	};
-
 	struct item_t : std::enable_shared_from_this<item_t> {
 		typedef ptr<const item_t> ref;
 
@@ -138,7 +124,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const = 0;
+				bool as_ref,
+				types::type_t::ref expected_type) const = 0;
 
 		/* when resolve_condition is not overriden, it just proxies through to resolve_expression */
 		virtual bound_var_t::ref resolve_condition(
@@ -206,7 +193,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 		static ptr<typeid_expr_t> parse(parse_state_t &ps);
 
@@ -223,7 +211,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 		static ptr<sizeof_expr_t> parse(parse_state_t &ps);
 
@@ -239,7 +228,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -307,7 +297,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression_t> lhs;
@@ -456,7 +447,7 @@ namespace ast {
 		identifier::refs type_variables;
 	};
 
-	struct var_decl_t : public virtual statement_t, like_var_decl_t, public condition_t {
+	struct var_decl_t : public virtual statement_t, public condition_t {
 		typedef ptr<const var_decl_t> ref;
 
 		static const syntax_kind_t SK = sk_var_decl;
@@ -485,13 +476,8 @@ namespace ast {
 		virtual std::string get_symbol() const;
 		virtual types::type_t::ref get_type() const;
 		location_t get_location() const;
-		virtual bool has_initializer() const;
 		virtual bool is_let() const { return is_let_var; }
-		virtual bound_var_t::ref resolve_initializer(
-				status_t &status,
-				llvm::IRBuilder<> &builder,
-				scope_t::ref scope,
-				life_t::ref life) const;
+
 		/* the inherited ast::item::token member contains the actual identifier
 		 * name */
 
@@ -654,7 +640,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual void resolve_statement(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -847,7 +834,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<function_decl_t> extern_function;
@@ -863,7 +851,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<var_decl_t> var_decl;
@@ -913,7 +902,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
         virtual bound_var_t::ref resolve_overrides(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -937,7 +927,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<ptr<ast::expression_t>> values;
@@ -953,7 +944,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -976,7 +968,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -999,7 +992,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -1022,7 +1016,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -1046,7 +1041,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -1077,9 +1073,10 @@ namespace ast {
 		virtual bound_var_t::ref resolve_expression(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
-				scope_t::ref scope,
+				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		types::type_t::ref type;
@@ -1095,7 +1092,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_overrides(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
@@ -1131,7 +1129,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 	};
 
@@ -1145,7 +1144,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<ptr<expression_t>> items;
@@ -1160,7 +1160,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression_t> lhs;
@@ -1176,14 +1177,16 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				bool as_ref) const;
+				bool as_ref,
+				types::type_t::ref expected_type) const;
 		bound_var_t::ref resolve_assignment(
 				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				const ast::expression_t::ref &rhs) const;
+				const ast::expression_t::ref &rhs,
+				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression_t> lhs;

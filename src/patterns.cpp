@@ -21,7 +21,7 @@ void ast::when_block_t::resolve_statement(
 	assert(life->life_form == lf_statement);
 
 	auto pattern_value = value->resolve_expression(status, builder,
-			scope, life, true /*as_ref*/);
+			scope, life, true /*as_ref*/, nullptr);
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 	if (!!status) {
 		identifier::ref var_name;

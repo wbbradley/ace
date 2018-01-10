@@ -98,3 +98,11 @@ zion_bool_t __float_lt_float(zion_float_t x, zion_float_t y) {
 zion_bool_t __float_lte_float(zion_float_t x, zion_float_t y) {
 	return x <= y;
 }
+
+zion_bool_t __float_lt_int(zion_float_t x, zion_int_t y) {
+	return x < y;
+}
+
+zion_bool_t __float_lte_int(zion_float_t x, zion_int_t y) {
+	return x <= y;
+}

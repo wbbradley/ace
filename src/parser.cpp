@@ -1643,7 +1643,12 @@ types::type_t::ref _parse_single_type(
 				}
 
 				token_t var_token;
-				if (ps.token.is_ident(K(var))) {
+				bool _mutable = false;
+				if (ps.token.is_ident(K(var)) ||
+						ps.token.is_ident(K(let)))
+				{
+					_mutable = ps.token.is_ident(K(var));
+
 					ps.advance();
 					expect_token(tk_identifier);
 					var_token = ps.token;
@@ -1660,6 +1665,10 @@ types::type_t::ref _parse_single_type(
 				}
 
 				types::type_t::ref dim_type = parse_maybe_type(ps, {}, {}, generics);
+				if (_mutable) {
+					dim_type = type_ref(dim_type);
+				}
+
 				if (!!ps.status) {
 					dimensions.push_back(dim_type);
 				}

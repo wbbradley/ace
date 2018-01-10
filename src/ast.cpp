@@ -108,26 +108,6 @@ namespace ast {
 		return type;
 	}
 
-	bool var_decl_t::has_initializer() const {
-		return initializer != nullptr;
-	}
-
-	bound_var_t::ref var_decl_t::resolve_initializer(
-			status_t &status,
-			llvm::IRBuilder<> &builder,
-			scope_t::ref scope,
-			life_t::ref life) const
-	{
-		auto bound_var = initializer->resolve_expression(status, builder, scope, life, false /*as_ref*/);
-		if (!!status) {
-			assert(!bound_var->is_ref());
-			return bound_var;
-		}
-
-		assert(!status);
-		return nullptr;
-	}
-
 	std::string function_decl_t::get_function_name() const {
 		if (token.tk == tk_string) {
 			return unescape_json_quotes(token.text);

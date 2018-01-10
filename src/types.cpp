@@ -1167,6 +1167,23 @@ namespace types {
 			assert(false);
 		}
 	}
+
+	type_t::ref without_ref(type_t::ref type) {
+		if (auto ref = dyncast<const type_ref_t>(type)) {
+			return ref->element_type;
+		} else {
+			return type;
+		}
+	}
+
+	type_t::refs without_refs(type_t::refs types) {
+		type_t::refs dims;
+		dims.reserve(types.size());
+		for (auto type : types) {
+			dims.push_back(without_ref(type));
+		}
+		return dims;
+	}
 }
 
 types::type_t::ref type_id(identifier::ref id) {

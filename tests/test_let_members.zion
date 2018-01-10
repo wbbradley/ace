@@ -1,0 +1,11 @@
+module _
+
+type Vector has
+	let x float
+	let y float
+	let z float
+
+def main()
+	let v = Vector(1.2, 4.3, 4.3)
+	# error: you cannot re-assign the name v.x to anything else here
+	v.x = 3.4

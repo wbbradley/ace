@@ -1,38 +1,42 @@
 module map
 
+type KeyValue{K, V} has
+	let key K
+	var value V
+
 type map{K, V} has
 	# HACKHACK: O(n) BAD BAD
-	var storage [{K, V}]
+	var storage [KeyValue{K, V}]
 
 [global]
 def __init__() map{any K, any V}
-	let storage [{any K, any V}]
+	let storage [KeyValue{any K, any V}]
 	return map(storage)
 
 [global]
 def get(m map{any K, any V}, key any K, default any V) any V
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
-		if kv[0] == key
-			return kv[1]
+		if kv.key == key
+			return kv.value
 	return default
 
 [global]
 def __getitem__(m map{any K, any V}, key any K) any V?
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
-		if kv[0] == key
-			return kv[1]
+		if kv.key == key
+			return kv.value
 	return null
 
 [global]
 def __setitem__(m map{any K, any V}, key any K, val any V)
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
-		if kv[0] == key
-			kv[1] = val
+		if kv.key == key
+			kv.value = val
 			return
-	append(m.storage, (key, val))
+	append(m.storage, KeyValue(key, val))
 
 [global]
 def del(m map{any K, any V}, key any K) bool
@@ -42,7 +46,7 @@ def del(m map{any K, any V}, key any K) bool
 	let size = (storage as *vector.vector_t).size
 	while i < size
 		let item = storage[i]
-		if item[0] == key
+		if item.key == key
 			splice(storage, int(i), 1)
 			return true
 		i += 1r

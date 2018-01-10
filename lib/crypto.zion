@@ -16,7 +16,7 @@ type crypto_generichash_state struct
 
 def init()
 	if sodium_init() < 0r
-		posix.puts("failed to initialize libsodium"r)
+		posix.puts("failed to initialize libsodium")
 		posix.exit(1r)
 
 def hash(input bytes, key bytes) bytes

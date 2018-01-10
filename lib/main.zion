@@ -12,11 +12,11 @@ def __main__(argc int32_t, argv **char_t) int32_t
 	__set_locale__()
 	crypto.init()
 
-	# runtime.report("__main__ start"r)
+	# runtime.report("__main__ start")
 	# Allocate global space for each module's top-level variables, and
 	# initialize them. NB: Order of initialization is currently undefined.
 	__init_module_vars()
-	# runtime.report("__main__ after __init_module_vars"r)
+	# runtime.report("__main__ after __init_module_vars")
 
 	sys.set_args(argc, argv)
 	main()

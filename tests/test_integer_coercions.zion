@@ -21,25 +21,25 @@ link def printf(fmt *char_t, a int64_t) int_t
 def main()
 	var y int32_t = 32808r
 	var x1 int8_t = -y
-	printf("-40: %s\n"r, utf8(x1).raw)
+	printf("-40: %s\n", utf8(x1).raw)
 
 	var x2 int16_t = -y
-	printf("-32728: %s\n"r, utf8(x2).raw)
+	printf("-32728: %s\n", utf8(x2).raw)
 
 	var max_signed_int int64_t = 0x7FFFFFFFFFFFFFFFr
-	printf("max_int: %lld\n"r, max_signed_int)
+	printf("max_int: %lld\n", max_signed_int)
 
 	var max_signed_int_plus_one int64_t = 0x7FFFFFFFFFFFFFFFr + 1r
-	printf("max_int_plus_one: %lld\n"r, max_signed_int_plus_one)
+	printf("max_int_plus_one: %lld\n", max_signed_int_plus_one)
 
-	printf("255 ^ 255 == %lld\n"r, 255r ^ 255r)
-	printf("255 ^ 254 == %lld\n"r, 255r ^ 254r)
-	printf("255 | 254 == %lld\n"r, 255r | 254r)
-	printf("255 << 2 == %lld\n"r, 255r << 2r)
-	printf("(255 << 2) as int8_t == %lld\n"r, (255r << 2r) as int8_t)
-	printf("(255 as int8_t) << 2 == %lld\n"r, 255r as int8_t << 2r)
-	printf("(127 as int8_t) << 2 == %lld\n"r, 127r as int8_t << 2r)
-	printf("(127 as int8_t) >> 2 == %lld\n"r, 127r as int8_t >> 2r)
-	printf("-1 & 0 == %lld\n"r, -1r & 0r)
-	printf("-1 & 4 == %lld\n"r, -1r & 4r)
+	printf("255 ^ 255 == %lld\n", 255r ^ 255r)
+	printf("255 ^ 254 == %lld\n", 255r ^ 254r)
+	printf("255 | 254 == %lld\n", 255r | 254r)
+	printf("255 << 2 == %lld\n", 255r << 2r)
+	printf("(255 << 2) as int8_t == %lld\n", (255r << 2r) as int8_t)
+	printf("(255 as int8_t) << 2 == %lld\n", 255r as int8_t << 2r)
+	printf("(127 as int8_t) << 2 == %lld\n", 127r as int8_t << 2r)
+	printf("(127 as int8_t) >> 2 == %lld\n", 127r as int8_t >> 2r)
+	printf("-1 & 0 == %lld\n", -1r & 0r)
+	printf("-1 & 4 == %lld\n", -1r & 4r)
 	# assert(MAX_INT32 + MAX_INT32 != 2147483648r)

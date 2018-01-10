@@ -15,9 +15,9 @@ link def concat(x *wchar_t, y *wchar_t) *wchar_t to __wcs_concat
 #
 
 type str has
-	var raw *wchar_t
+	let raw *wchar_t
 
-var __empty_str str = str(mbstowcs(""r))
+var __empty_str str = str(mbstowcs(""))
 
 def __init__() str
 	return __empty_str

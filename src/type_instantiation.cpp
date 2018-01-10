@@ -183,7 +183,7 @@ void instantiate_data_ctor_type(
 					id->str().c_str()));
 
 		types::type_function_t::ref data_ctor_sig = type_function(
-				type_args(struct_->dimensions),
+				type_args(types::without_refs(struct_->dimensions)),
 				ctor_return_type);
 
 		module_scope->get_program_scope()->put_unchecked_variable(tag_name,

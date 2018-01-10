@@ -63,7 +63,7 @@ llvm::Value *resolve_init_var(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		const ast::like_var_decl_t &obj,
+		const ast::var_decl_t &obj,
 		const std::string &symbol,
 		types::type_t::ref declared_type,
 		llvm::Function *llvm_function,
@@ -94,10 +94,14 @@ llvm::Value *resolve_init_var(
 				if (llvm_alloca == nullptr) {
 					return llvm_null_value;
 				} else {
-					assert(!obj.is_let());
-					assert(llvm_alloca != nullptr);
-					builder.CreateStore(llvm_null_value, llvm_alloca);
-					return llvm_alloca;
+					if (obj.is_let()) {
+						user_error(status, obj.get_location(), "you might as well just use " c_id("null") " rather than declaring this uninitialized maybe");
+					}
+					if (!!status) {
+						assert(llvm_alloca != nullptr);
+						builder.CreateStore(llvm_null_value, llvm_alloca);
+						return llvm_alloca;
+					}
 				}
 			} else {
 				/* this is not a maybe type */
@@ -167,7 +171,7 @@ bound_var_t::ref generate_stack_variable(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		const ast::like_var_decl_t &obj,
+		const ast::var_decl_t &var_decl,
 		const std::string &symbol,
 		types::type_t::ref declared_type,
 		bool maybe_unbox)
@@ -179,12 +183,12 @@ bound_var_t::ref generate_stack_variable(
 	/* only check initializers inside a runnable scope */
 	assert(dyncast<runnable_scope_t>(scope) != nullptr);
 
-	if (obj.has_initializer()) {
+	if (var_decl.initializer != nullptr) {
 		/* we have an initializer */
-		init_var = obj.resolve_initializer(status, builder, scope, life);
+		init_var = var_decl.initializer->resolve_expression(status, builder, scope, life, false /*as_ref*/, declared_type);
 		if (!!status) {
 			if (init_var->type->is_void()) {
-				user_error(status, obj.get_location(),
+				user_error(status, var_decl.get_location(),
 						"cannot initialize a variable with void, since it has no value");
 			}
 		}
@@ -215,9 +219,9 @@ bound_var_t::ref generate_stack_variable(
 					declared_type = declared_type->rebind(unification.bindings);
 				} else {
 					/* report that the variable type does not match the initializer type */
-					user_error(status, obj.get_location(),
+					user_error(status, var_decl.get_location(),
 							"declared type of `" c_var("%s") "` does not match type of initializer",
-							obj.get_symbol().c_str());
+							var_decl.get_symbol().c_str());
 					user_info(status, init_var->get_location(), c_type("%s") " != " c_type("%s") " because %s",
 							declared_type->str().c_str(),
 							init_var->type->str().c_str(),
@@ -232,11 +236,11 @@ bound_var_t::ref generate_stack_variable(
 		assert(declared_type != nullptr);
 
 		if (maybe_unbox) {
-			debug_above(3, log(log_info, "attempting to unbox %s", obj.get_symbol().c_str()));
+			debug_above(3, log(log_info, "attempting to unbox %s", var_decl.get_symbol().c_str()));
 
 			/* try to see if we can unbox this if it's a Maybe */
 			if (init_var == nullptr) {
-				user_error(status, obj.get_location(), "missing initialization value");
+				user_error(status, var_decl.get_location(), "missing initialization value");
 			} else {
 				/* since we are maybe unboxing, then let's first off see if
 				 * this is even a maybe type. */
@@ -273,7 +277,7 @@ bound_var_t::ref generate_stack_variable(
 		value_type->is_managed_ptr(status, builder, scope, is_managed);
 		llvm::Value *llvm_value = nullptr;
 		if (!!status) {
-			llvm_value = resolve_init_var(status, builder, scope, life, obj, symbol, declared_type,
+			llvm_value = resolve_init_var(status, builder, scope, life, var_decl, symbol, declared_type,
 					llvm_function, init_var, value_type, is_managed);
 		}
 
@@ -285,7 +289,7 @@ bound_var_t::ref generate_stack_variable(
 					symbol,
 					llvm::dyn_cast<llvm::AllocaInst>(llvm_value) ? stack_var_type : value_type,
 					llvm_value,
-					make_type_id_code_id(obj.get_location(), obj.get_symbol()));
+					make_type_id_code_id(var_decl.get_location(), var_decl.get_symbol()));
 
 			/* memory management */
 			if (!!status) {
@@ -312,7 +316,7 @@ bound_var_t::ref generate_stack_variable(
 								 * whether this was Empty or not... */
 								return bound_var_t::create(INTERNAL_LOC(), symbol,
 										condition_type, llvm_resolved_value,
-										make_type_id_code_id(obj.get_location(), obj.get_symbol()));
+										make_type_id_code_id(var_decl.get_location(), var_decl.get_symbol()));
 							}
 						} else {
 							return var_decl_variable;
@@ -404,7 +408,7 @@ bound_var_t::ref generate_module_variable(
 							if (var_decl.initializer) {
 								/* we have an initializer */
 								init_var = var_decl.initializer->resolve_expression(status, builder,
-										function_scope, life, false /*as_ref*/);
+										function_scope, life, false /*as_ref*/, declared_type);
 							}
 
 							if (!!status) {
@@ -512,7 +516,7 @@ bound_var_t::ref type_check_bound_var_decl(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		const ast::like_var_decl_t &obj,
+		const ast::var_decl_t &obj,
 		life_t::ref life,
 		bool maybe_unbox)
 {
@@ -813,7 +817,7 @@ void ast::expression_t::resolve_statement(
 		bool *returns) const
 {
 	/* expressions as statements just pass through to evaluating the expr */
-	resolve_expression(status, builder, scope, life, false /*as_ref*/);
+	resolve_expression(status, builder, scope, life, false /*as_ref*/, nullptr);
 }
 
 void ast::link_module_statement_t::resolve_statement(
@@ -862,8 +866,12 @@ bound_var_t::ref ast::link_var_statement_t::resolve_expression(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
+	assert(!as_ref);
+	assert(expected_type == nullptr);
+
 	module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
 	if (module_scope == nullptr) {
 		user_error(status, get_location(), "link var cannot be used outside of module scope");
@@ -882,8 +890,10 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
+	assert(expected_type == nullptr);
 	assert(!as_ref);
 
 	/* FFI */
@@ -962,7 +972,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 
 	/* check the left-hand side first, it should be a type_namespace */
 	bound_var_t::ref lhs_var = lhs->resolve_expression(
-			status, builder, scope, life, false /*as_ref*/);
+			status, builder, scope, life, false /*as_ref*/, nullptr);
 
 	if (!!status) {
 		if (auto bound_module = dyncast<const bound_module_t>(lhs_var)) {
@@ -974,7 +984,10 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 					get_args_type(args),
 					nullptr);
 		} else {
-			bound_var_t::ref bound_fn = this->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+			bound_var_t::ref bound_fn = this->resolve_expression(status, builder, scope, life, false /*as_ref*/,
+					get_function_type(args,
+						// TODO: plumb expected_type in for return value type here
+					   	type_variable(INTERNAL_LOC())));
 
 			if (!!status) {
 				unification_t unification = unify(
@@ -1076,7 +1089,7 @@ void ast::callsite_expr_t::resolve_statement(
 			if (params.size() == 1) {
 				auto param = params[0];
 				bound_var_t::ref param_var = param->resolve_expression(
-						status, builder, scope, life, true /*as_ref*/);
+						status, builder, scope, life, true /*as_ref*/, nullptr);
 
 				if (!!status) {
 					user_message(log_info, status, param->get_location(),
@@ -1109,7 +1122,8 @@ void ast::callsite_expr_t::resolve_statement(
 		}
 	}
 
-	resolve_expression(status, builder, scope, life, false /*as_ref*/);
+	assert(!!status);
+	resolve_expression(status, builder, scope, life, false /*as_ref*/, nullptr);
 }
 
 bound_var_t::ref ast::callsite_expr_t::resolve_expression(
@@ -1117,7 +1131,8 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	/* get the value of calling a function */
 	bound_type_t::refs param_types;
@@ -1125,11 +1140,11 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 
 	/* iterate through the parameters and add their types to a vector */
 	for (auto &param : params) {
-		// TODO: consider changing the semantics of as_ref to be "allow_ref"
-		// which would disallow the parameter from being a ref type, even if
-		// it is naturally.
 		bound_var_t::ref param_var = param->resolve_expression(
-				status, builder, scope, life, false /*as_ref*/);
+				status, builder, scope, life, false /*as_ref*/,
+				// TODO: rework this whole apparatus to support solving for the right function
+				// overload more lazily... need to defer codegen, perhaps...
+				nullptr);
 
 		if (!status) {
 			break;
@@ -1176,7 +1191,8 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	auto bindings = scope->get_type_variable_bindings();
 	auto full_type = type->rebind(bindings);
@@ -1363,7 +1379,8 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	return resolve_reference(status, builder, scope, life, as_ref, nullptr, nullptr);
 }
@@ -1472,9 +1489,10 @@ bound_var_t::ref ast::array_index_expr_t::resolve_expression(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
-	return resolve_assignment(status, builder, scope, life, as_ref, nullptr);
+	return resolve_assignment(status, builder, scope, life, as_ref, nullptr, expected_type);
 }
 
 bound_var_t::ref resolve_pointer_array_index(
@@ -1534,12 +1552,13 @@ bound_var_t::ref resolve_pointer_array_index(
 				}
 			} else {
 				/* we are assigning to a native pointer dereference */
-				auto value = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
-				llvm::Value *llvm_value = coerce_value(status, builder, scope, lhs->get_location(),
-						element_type, value);
+				auto value = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/, element_type);
 				if (!!status) {
-					builder.CreateStore(llvm_value, llvm_gep);
-					return nullptr;
+					llvm::Value *llvm_value = coerce_value(status, builder, scope, lhs->get_location(), element_type, value);
+					if (!!status) {
+						builder.CreateStore(llvm_value, llvm_gep);
+						return nullptr;
+					}
 				}
 			}
 		} else {
@@ -1605,8 +1624,12 @@ bound_var_t::ref extract_member_by_index(
 		bound_type_t::ref bound_obj_type,
 		int index,
 		std::string member_name,
-		bool as_ref)
+		bool as_ref,
+		types::type_t::ref expected_type)
 {
+	if (expected_type != nullptr) {
+		debug_above(8, log("binary integer op is expecting a %s", expected_type->str().c_str()));
+	}
 	types::type_struct_t::ref struct_type = get_struct_type_from_bound_type(
 			status, scope, location, bound_obj_type);
 
@@ -1619,7 +1642,7 @@ bound_var_t::ref extract_member_by_index(
 		if (!!status) {
 			/* get an GEP-able version of the object */
 			llvm::Value *llvm_var_value = llvm_maybe_pointer_cast(builder,
-				   	bound_var->resolve_bound_var_value(builder),
+					bound_var->resolve_bound_var_value(builder),
 					bound_obj_type->get_llvm_specific_type());
 
 			/* the following code is heavily coupled to the physical layout of
@@ -1634,7 +1657,12 @@ bound_var_t::ref extract_member_by_index(
 				llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
 			}
 
-			llvm::Value *llvm_item = as_ref ? llvm_gep : builder.CreateLoad(llvm_gep);
+			/* check whether this member_type is allowed to be returned as a ref or not */
+			auto member_type = struct_type->dimensions[index];
+			llvm::Value *llvm_item = (
+					(as_ref && member_type->is_ref())
+					? llvm_gep
+					: builder.CreateLoad(llvm_gep));
 
 			if (llvm_item->getName().str().size() == 0) {
 				/* add a helpful descriptive name to this local value */
@@ -1643,15 +1671,14 @@ bound_var_t::ref extract_member_by_index(
 			}
 
 			/* get the type of the dimension being referenced */
-			bound_type_t::ref member_type = upsert_bound_type(status, builder, scope, 
-					as_ref
-					? type_ref(struct_type->dimensions[index])
-					: struct_type->dimensions[index]);
+			bound_type_t::ref bound_member_type = upsert_bound_type(status, builder, scope, 
+					as_ref ? member_type : types::without_ref(member_type));
 
 			if (!!status) {
+				auto dot_name = string_format("%s.%s", bound_var->name.c_str(), member_name.c_str());
 				return bound_var_t::create(
-						INTERNAL_LOC(), "tuple.element",
-						member_type, llvm_item, make_iid("tuple.element"));
+						INTERNAL_LOC(), dot_name,
+						bound_member_type, llvm_item, make_iid(dot_name));
 			}
 		}
 	}
@@ -1761,7 +1788,8 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		const ast::expression_t::ref &rhs) const
+		const ast::expression_t::ref &rhs,
+		types::type_t::ref expected_type) const
 {
 	/* this expression looks like this (the rhs is optional)
 	 *
@@ -1776,20 +1804,25 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 
 	if (!!status) {
 		bound_var_t::ref lhs_val = lhs->resolve_expression(status, builder,
-				scope, life, false /*as_ref*/);
+				scope, life, false /*as_ref*/, nullptr);
 
 		if (!!status) {
 			if (auto tuple_type = dyncast<const types::type_tuple_t>(lhs_val->type->get_type())) {
 				int member_index = get_constant_int(status, index);
 				if (!!status) {
 					bound_var_t::ref value = extract_member_by_index(status, builder, scope, life,
-							get_location(), lhs_val, lhs_val->type, member_index, string_format("%d", member_index), as_ref);
+							get_location(), lhs_val, lhs_val->type, member_index,
+							string_format("%d", member_index), as_ref, expected_type);
+
 					if (!!status) {
 						if (rhs != nullptr) {
 							/* let's assign into this tuple slot */
-							bound_var_t::ref rhs_val = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+							bound_var_t::ref rhs_val = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/, value->type->get_type());
 
 							if (!!status) {
+								/* we shouldn't have known what type to expect, because this is a
+								 * statement */
+								assert(expected_type == nullptr);
 								type_check_assignment(status, builder, scope, life, value,
 										rhs_val, token.location);
 								return nullptr;
@@ -1801,7 +1834,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 				}
 			} else {
 				bound_var_t::ref index_val = index->resolve_expression(status, builder,
-						scope, life, false /*as_ref*/);
+						scope, life, false /*as_ref*/, nullptr);
 
 				if (!!status) {
 					identifier::ref element_type_var = types::gensym();
@@ -1831,43 +1864,66 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 					} else {
 						/* we're assigning to a managed array index expression */
 
-						/* let's solve for the rhs */
-						bound_var_t::ref rhs_val = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+						/* let's first try to find the setitem function while using a free-type
+						 * variable for the rhs parameter. */
+						auto type_var_name = types::gensym();
+						var_t::refs fns;
+						bound_var_t::ref setitem_function = maybe_get_callable(
+								status,
+								builder,
+								scope,
+								"__setitem__",
+								get_location(),
+								type_args({lhs_val->type->get_type(), index_val->type->get_type(), type_variable(type_var_name)}),
+								type_variable(INTERNAL_LOC()), fns);
 
 						if (!!status) {
-							/* we have a rhs to assign into this lhs, let's find the function we should be calling to do
-							 * the update. */
-							bound_var_t::ref setitem_function = get_callable(
-									status,
-									builder,
-									scope,
-									"__setitem__",
-									get_location(),
-									type_args({lhs_val->type->get_type(), index_val->type->get_type(), rhs_val->type->get_type()}),
-									type_variable(INTERNAL_LOC()));
-							if (!!status) {
-								std::vector<llvm::Value *> llvm_args = get_llvm_values(
-										status,
-										builder,
-										scope,
-										get_location(),
-										get_function_args_types(setitem_function->type),
-										{lhs_val, index_val, rhs_val});
+							types::type_t::ref expected_rhs_type;
+							if (setitem_function != nullptr) {
+								if (auto function = dyncast<const types::type_function_t>(setitem_function->type->get_type())) {
+									if (auto args = dyncast<const types::type_args_t>(function->args)) {
+										assert(args->args.size() == 3);
+										/* we found the expected rhs type */
+										expected_rhs_type = args->args[2];
+									}
+								}
+							}
 
-								bound_type_t::ref return_type = get_function_return_type(
-										status,
-										builder,
-										scope,
-										setitem_function->type);
-								return bound_var_t::create(
-										INTERNAL_LOC(),
-										"array.index.assignment",
-										return_type,
-										llvm_create_call_inst(
-											status, builder, lhs->get_location(),
-											setitem_function,
-											llvm_args),
-										make_iid("array.index.assignment"));
+							if (expected_rhs_type == nullptr) {
+								user_error(status, get_location(), "unable to figure out the expected type of the right-hand side");
+							}
+
+							if (!!status) {
+								/* let's solve for the rhs */
+								bound_var_t::ref rhs_val = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/,
+										expected_rhs_type);
+
+								/* we have a rhs to assign into this lhs, let's find the function we should be calling to do
+								 * the update. */
+								if (!!status) {
+									std::vector<llvm::Value *> llvm_args = get_llvm_values(
+											status,
+											builder,
+											scope,
+											get_location(),
+											get_function_args_types(setitem_function->type),
+											{lhs_val, index_val, rhs_val});
+
+									bound_type_t::ref return_type = get_function_return_type(
+											status,
+											builder,
+											scope,
+											setitem_function->type);
+									return bound_var_t::create(
+											INTERNAL_LOC(),
+											"array.index.assignment",
+											return_type,
+											llvm_create_call_inst(
+												status, builder, lhs->get_location(),
+												setitem_function,
+												llvm_args),
+											make_iid("array.index.assignment"));
+								}
 							}
 						}
 					}
@@ -1975,12 +2031,32 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool /*as_ref*/) const
+		bool /*as_ref*/,
+		types::type_t::ref expected_type) const
 {
-	bound_var_t::refs bound_items;
+	types::type_t::ref expected_element_type;
 	types::type_t::refs element_types;
+
+	if (expected_type != nullptr) {
+		auto type_var_name = types::gensym();
+		unification_t unification = unify(
+				type_operator(type_id(make_iid(STD_VECTOR_TYPE)), type_variable(type_var_name)),
+				expected_type,
+			   	scope->get_nominal_env());
+
+		if (unification.result) {
+			expected_element_type = unification.bindings[type_var_name->get_name()];
+			if (expected_element_type != nullptr && expected_element_type->ftv_count() == 0) {
+				element_types.push_back(expected_element_type);
+			}
+		}
+	}
+
+	bound_var_t::refs bound_items;
 	for (auto item : items) {
-		auto bound_item = item->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+		auto bound_item = item->resolve_expression(status, builder, scope, life, false /*as_ref*/,
+				expected_element_type);
+
 		if (!!status) {
 			bound_items.push_back(bound_item);
 			element_types.push_back(bound_item->type->get_type());
@@ -2004,13 +2080,19 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 	}
 
 	if (!!status) {
-		types::type_t::ref element_type = type_sum_safe(
-				element_types, get_location(), scope->get_nominal_env());
-		debug_above(6, log("creating vector literal of %s",
-					element_type->str().c_str()));
-		return create_bound_vector_literal(
-				status, builder, scope, life,
-				get_location(), element_type, bound_items);
+		if (element_types.size() == 0) {
+			user_error(status, get_location(), "not enough information to infer the element type for the vector literal");
+		}
+
+		if (!!status) {
+			types::type_t::ref element_type = type_sum_safe(
+					element_types, get_location(), scope->get_nominal_env());
+			debug_above(6, log("creating vector literal of %s",
+						element_type->str().c_str()));
+			return create_bound_vector_literal(
+					status, builder, scope, life,
+					get_location(), element_type, bound_items);
+		}
 	}
 
 	assert(!status);
@@ -2089,7 +2171,8 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		bound_var_t::ref rhs_var,
 		rnpbc_t rnpbc,
 		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false)
+		local_scope_t::ref *scope_if_false,
+		types::type_t::ref expected_type)
 {
 	if (lhs_var->type->get_type()->is_null()) {
 		if (rhs_var->type->get_type()->is_null()) {
@@ -2159,6 +2242,8 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		}
 
 		auto bool_type = program_scope->get_bound_type(BOOL_TYPE);
+		assert_implies(expected_type != nullptr, unifies(expected_type, bool_type->get_type(), scope->get_total_env()));
+
 		return bound_var_t::create(
 				INTERNAL_LOC(),
 				{"equality.cond"},
@@ -2183,20 +2268,21 @@ bound_var_t::ref resolve_native_pointer_binary_operation(
 		bound_var_t::ref rhs_var,
 		std::string function_name,
 		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false)
+		local_scope_t::ref *scope_if_false,
+		types::type_t::ref expected_type)
 {
 	if (function_name == "__eq__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_eq, scope_if_true, scope_if_false);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_eq, scope_if_true, scope_if_false, expected_type);
 	} else if (function_name == "__ineq__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_ineq, scope_if_true, scope_if_false);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_ineq, scope_if_true, scope_if_false, expected_type);
 	} else if (function_name == "__lt__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_lt, scope_if_true, scope_if_false);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_lt, scope_if_true, scope_if_false, expected_type);
 	} else if (function_name == "__lte__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_lte, scope_if_true, scope_if_false);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_lte, scope_if_true, scope_if_false, expected_type);
 	} else if (function_name == "__gt__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_gt, scope_if_true, scope_if_false);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_gt, scope_if_true, scope_if_false, expected_type);
 	} else if (function_name == "__gte__") {
-		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_gte, scope_if_true, scope_if_false);
+		return resolve_native_pointer_binary_compare(status, builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_gte, scope_if_true, scope_if_false, expected_type);
 	} else {
 		user_error(status, location, "native pointers cannot be combined using the " c_id("%s") " function", function_name.c_str());
 	}
@@ -2212,8 +2298,12 @@ bound_var_t::ref type_check_binary_integer_op(
 		location_t location,
 		bound_var_t::ref lhs,
 		bound_var_t::ref rhs,
-		std::string function_name)
+		std::string function_name,
+		types::type_t::ref expected_type)
 {
+	if (expected_type != nullptr) {
+		debug_above(8, log("binary integer op is expecting a %s", expected_type->str().c_str()));
+	}
 	auto typename_env = scope->get_nominal_env();
 
 	static unsigned int_bit_size = 64;
@@ -2453,7 +2543,8 @@ bound_var_t::ref type_check_binary_operator(
 		ast::item_t::ref obj,
 		std::string function_name,
 		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false)
+		local_scope_t::ref *scope_if_false,
+		types::type_t::ref expected_type)
 {
 	indent_logger indent(obj->get_location(), 6, string_format("checking binary operator " c_id("%s") " with operands %s and %s",
 				function_name.c_str(),
@@ -2473,7 +2564,8 @@ bound_var_t::ref type_check_binary_operator(
 				obj->get_location(),
 				lhs,
 				rhs,
-				function_name);
+				function_name,
+				expected_type);
 	} else {
 		bool lhs_is_null = lhs->type->get_type()->is_null();
 		bool rhs_is_null = rhs->type->get_type()->is_null();
@@ -2505,7 +2597,8 @@ bound_var_t::ref type_check_binary_operator(
 						if (!rhs_is_managed || lhs_is_null) {
 							/* yeah, it looks like we are operating on two native pointers */
 							return resolve_native_pointer_binary_operation(status, builder, scope,
-									life, obj->get_location(), lhs_node, lhs, rhs_node, rhs, function_name, scope_if_true, scope_if_false);
+									life, obj->get_location(), lhs_node, lhs, rhs_node, rhs, function_name, scope_if_true, scope_if_false,
+									expected_type);
 						}
 					}
 				}
@@ -2514,9 +2607,13 @@ bound_var_t::ref type_check_binary_operator(
 
 		if (!!status) {
 			/* get or instantiate a function we can call on these arguments */
-			return call_program_function(
+			auto value = call_program_function(
 					status, builder, scope, life, function_name,
 					obj, {lhs, rhs});
+			if (!!status) {
+				assert_implies(expected_type != nullptr, unifies(expected_type, value->type->get_type(), scope->get_total_env()));
+				return value;
+			}
 		}
 	}
 
@@ -2534,25 +2631,26 @@ bound_var_t::ref type_check_binary_operator(
 		ast::item_t::ref obj,
 		std::string function_name,
 		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false)
+		local_scope_t::ref *scope_if_false,
+		types::type_t::ref expected_type)
 {
 	if (!!status) {
 		assert(function_name.size() != 0);
 
 		bound_var_t::ref lhs_var, rhs_var;
-		lhs_var = lhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+		lhs_var = lhs->resolve_expression(status, builder, scope, life, false /*as_ref*/, nullptr);
 		if (!!status) {
 			assert(!lhs_var->type->is_ref());
 
 			if (!!status) {
-				rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+				rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/, nullptr);
 
 				if (!!status) {
 					assert(!rhs_var->type->is_ref());
 
 					return type_check_binary_operator(
 							status, builder, scope, life, lhs, lhs_var, rhs, rhs_var, obj,
-							function_name, scope_if_true, scope_if_false);
+							function_name, scope_if_true, scope_if_false, expected_type);
 				}
 			}
 		}
@@ -2572,22 +2670,23 @@ bound_var_t::ref type_check_binary_equality(
 		ast::item_t::ref obj,
 		std::string function_name,
 		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false)
+		local_scope_t::ref *scope_if_false,
+		types::type_t::ref expected_type)
 {
 	if (!!status) {
 		bound_var_t::ref lhs_var, rhs_var;
 		lhs_var = lhs->resolve_expression(status, builder, scope, life,
-				false /*as_ref*/);
+				false /*as_ref*/, nullptr);
 		if (!!status) {
 			rhs_var = rhs->resolve_expression(status, builder, scope, life,
-					false /*as_ref*/);
+					false /*as_ref*/, nullptr);
 
 			if (!!status) {
 				assert(!lhs_var->is_ref());
 				assert(!rhs_var->is_ref());
 				bool negated = (function_name == "__ineq__" || function_name == "__isnot__");
 				return resolve_native_pointer_binary_compare(status, builder, scope, life, obj->get_location(), lhs, lhs_var, rhs, rhs_var,
-					   	negated ? rnpbc_ineq : rnpbc_eq, scope_if_true, scope_if_false);
+					   	negated ? rnpbc_ineq : rnpbc_eq, scope_if_true, scope_if_false, expected_type);
 			}
 		}
 	}
@@ -2600,15 +2699,16 @@ bound_var_t::ref ast::binary_operator_t::resolve_expression(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	if (token.is_ident(K(is))) {
 		return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
-				shared_from_this(), function_name, nullptr, nullptr);
+				shared_from_this(), function_name, nullptr, nullptr, expected_type);
 	}
 
 	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
-			shared_from_this(), function_name, nullptr, nullptr);
+			shared_from_this(), function_name, nullptr, nullptr, expected_type);
 }
 
 bound_var_t::ref ast::binary_operator_t::resolve_condition(
@@ -2621,11 +2721,13 @@ bound_var_t::ref ast::binary_operator_t::resolve_condition(
 {
 	if (token.is_ident(K(is))) {
 		return type_check_binary_equality(status, builder, scope, life, lhs, rhs,
-				shared_from_this(), function_name, scope_if_true, scope_if_false);
+				shared_from_this(), function_name, scope_if_true, scope_if_false,
+				type_id(make_iid("bool_t")));
 	}
 
 	return type_check_binary_operator(status, builder, scope, life, lhs, rhs,
-			shared_from_this(), function_name, scope_if_true, scope_if_false);
+			shared_from_this(), function_name, scope_if_true, scope_if_false,
+			nullptr);
 }
 
 
@@ -2635,19 +2737,40 @@ bound_var_t::ref ast::tuple_expr_t::resolve_expression(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
+	if (expected_type != nullptr) {
+		debug_above(7, log("tuple literal is expected to return a %s", expected_type->str().c_str()));
+	}
+	types::type_product_t::ref expected_product = dyncast<const types::type_product_t>(expected_type);
 	assert(!as_ref);
 
 	/* let's get the actual values in our tuple. */
 	bound_var_t::refs vars;
 	vars.reserve(values.size());
+	types::type_t::refs expected_dimensions;
 
-	for (auto &value: values) {
-		bound_var_t::ref var = value->resolve_expression(status, builder,
-				scope, life, false /*as_ref*/);
-		if (!!status) {
-			vars.push_back(var);
+	if (expected_product != nullptr) {
+		expected_dimensions = expected_product->get_dimensions();
+		if (expected_dimensions.size() != values.size()) {
+			user_error(status, get_location(), "need %d items in tuple literal to match the expected type %s",
+					(int)values.size(), expected_product->str().c_str());
+		}
+	}
+
+	if (!!status) {
+		int i = 0;
+		for (auto &value: values) {
+			bound_var_t::ref var = value->resolve_expression(status, builder,
+					scope, life, false /*as_ref*/,
+				   	expected_product != nullptr ? expected_dimensions[i] : nullptr);
+			if (!!status) {
+				vars.push_back(var);
+			} else {
+				break;
+			}
+			++i;
 		}
 	}
 
@@ -2992,7 +3115,8 @@ bound_var_t::ref ast::ternary_expr_t::resolve_expression(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	return resolve_cond_expression(status, builder, scope, life, as_ref,
 			condition, when_true, when_false,
@@ -3017,7 +3141,8 @@ bound_var_t::ref ast::or_expr_t::resolve_expression(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	return resolve_cond_expression(status, builder, scope, life, as_ref,
 			lhs, lhs, rhs, make_iid("or.value"), nullptr, nullptr);
@@ -3040,7 +3165,8 @@ bound_var_t::ref ast::and_expr_t::resolve_expression(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	return resolve_cond_expression(status, builder, scope, life, as_ref,
 			lhs, rhs, lhs, make_iid("and.value"), nullptr, nullptr);
@@ -3079,7 +3205,8 @@ bound_var_t::ref extract_member_variable(
 		ast::item_t::ref node,
 		bound_var_t::ref bound_var,
 		std::string member_name,
-		bool as_ref)
+		bool as_ref,
+		types::type_t::ref expected_type)
 {
 	bound_var = bound_var->resolve_bound_value(status, builder, scope);
 
@@ -3114,7 +3241,8 @@ bound_var_t::ref extract_member_variable(
 								llvm_print(bound_var->type->get_llvm_type()).c_str()));
 
 					return extract_member_by_index(status, builder, scope, 
-							life, node->get_location(), bound_var, bound_obj_type, index, member_name, as_ref);
+							life, node->get_location(), bound_var, bound_obj_type, index,
+							member_name, as_ref, expected_type);
 
 				} else {
 					auto bindings = scope->get_type_variable_bindings();
@@ -3198,11 +3326,12 @@ bound_var_t::ref ast::dot_expr_t::resolve_expression(
         llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	debug_above(6, log("resolving dot_expr %s", str().c_str()));
 	bound_var_t::ref lhs_val = lhs->resolve_expression(status,
-			builder, scope, life, false /*as_ref*/);
+			builder, scope, life, false /*as_ref*/, nullptr);
 
 	if (!!status) {
 		types::type_t::ref member_type;
@@ -3212,7 +3341,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_expression(
 					lhs_val->name, rhs.text, as_ref);
 		} else {
 			return extract_member_variable(status, builder, scope, life, shared_from_this(),
-					lhs_val, rhs.text, as_ref);
+					lhs_val, rhs.text, as_ref, expected_type);
 		}
 	}
 
@@ -3371,7 +3500,8 @@ bound_var_t::ref ast::typeid_expr_t::resolve_expression(
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	assert(!as_ref);
 
@@ -3379,7 +3509,8 @@ bound_var_t::ref ast::typeid_expr_t::resolve_expression(
 			builder,
 			scope,
 			life,
-			false /*as_ref*/);
+			false /*as_ref*/,
+			nullptr);
 
 	if (!!status) {
 		return call_typeid(status, scope, life, shared_from_this(),
@@ -3395,7 +3526,8 @@ bound_var_t::ref ast::sizeof_expr_t::resolve_expression(
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	assert(!as_ref);
 
@@ -3422,7 +3554,8 @@ bound_var_t::ref ast::function_defn_t::resolve_expression(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	assert(!as_ref);
 
@@ -3702,7 +3835,7 @@ void type_check_module_links(
 		if (!!status) {
 			for (const ptr<ast::link_function_statement_t> &link : obj.linked_functions) {
 				bound_var_t::ref link_value = link->resolve_expression(
-						status, builder, scope, nullptr, false /*as_ref*/);
+						status, builder, scope, nullptr, false /*as_ref*/, nullptr);
 
 				if (!!status) {
 					if (link->extern_function->token.text.size() != 0) {
@@ -3717,7 +3850,7 @@ void type_check_module_links(
 		if (!!status) {
 			for (const ptr<ast::link_var_statement_t> &link : obj.linked_vars) {
 				bound_var_t::ref link_value = link->resolve_expression(
-						status, builder, scope, nullptr, false /*as_ref*/);
+						status, builder, scope, nullptr, false /*as_ref*/, nullptr);
 
 				if (!!status) {
 					scope->put_bound_variable(status, link->var_decl->get_symbol(), link_value);
@@ -4163,14 +4296,13 @@ void ast::assignment_t::resolve_statement(
 
 	if (auto array_index = dyncast<const ast::array_index_expr_t>(lhs)) {
 		/* handle assignments into arrays */
-		array_index->resolve_assignment(status, builder, scope, life, false /*as_ref*/, rhs);
+		array_index->resolve_assignment(status, builder, scope, life, false /*as_ref*/, rhs, nullptr);
 		return;
 	} else {
-		auto lhs_var = lhs->resolve_expression(status, builder, scope, life, true /*as_ref*/);
+		auto lhs_var = lhs->resolve_expression(status, builder, scope, life, true /*as_ref*/, nullptr);
 		if (!!status) {
-			auto rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
-			type_check_assignment(status, builder, scope, life, lhs_var,
-					rhs_var, token.location);
+			auto rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/, types::without_ref(lhs_var->type->get_type()));
+			type_check_assignment(status, builder, scope, life, lhs_var, rhs_var, token.location);
 			return;
 		}
 	}
@@ -4246,17 +4378,18 @@ bound_var_t::ref type_check_binary_op_assignment(
 		location_t location,
 		std::string function_name)
 {
-	auto lhs_var = lhs->resolve_expression(status, builder, scope, life, true /*as_ref*/);
+	auto lhs_var = lhs->resolve_expression(status, builder, scope, life, true /*as_ref*/, nullptr);
 	if (!!status) {
 		bound_var_t::ref lhs_val = lhs_var->resolve_bound_value(status, builder, scope);
 
 		if (!!status) {
-			bound_var_t::ref rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+			bound_var_t::ref rhs_var = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/, nullptr);
 
 			if (!!status) {
 				assert(!rhs_var->is_ref());
-				auto computed_var = type_check_binary_operator(status, builder, scope, life, lhs, lhs_val, rhs, rhs_var, op_node,
-						function_name, nullptr, nullptr);
+				auto computed_var = type_check_binary_operator(status, builder, scope, life, lhs,
+						lhs_val, rhs, rhs_var, op_node, function_name, nullptr, nullptr,
+						lhs_val->type->get_type());
 
 				if (!!status) {
 					return type_check_assignment(status, builder, scope, life, lhs_var,
@@ -4345,7 +4478,8 @@ void ast::return_statement_t::resolve_statement(
         /* if there is a return expression resolve it into a value. also, be
 		 * sure to retain whether the function signature necessitates a ref type */
 		return_value = expr->resolve_expression(status, builder, scope, life,
-				return_type_constraint ? return_type_constraint->is_ref() : false /*as_ref*/);
+				return_type_constraint ? return_type_constraint->is_ref() : false /*as_ref*/,
+				return_type_constraint->get_type());
 
         if (!!status) {
             /* get the type suggested by this return value */
@@ -4506,43 +4640,6 @@ void ast::block_t::resolve_statement(
     return;
 }
 
-struct for_like_var_decl_t : public ast::like_var_decl_t {
-	std::string symbol;
-	location_t location;
-	const ast::expression_t &collection;
-	types::type_t::ref type;
-
-	for_like_var_decl_t(std::string symbol, location_t location, const ast::expression_t &collection) :
-		symbol(symbol), location(location), collection(collection), type(::type_variable(location))
-	{
-	}
-
-	virtual std::string get_symbol() const {
-		return symbol;
-	}
-
-	virtual location_t get_location() const {
-		return location;
-	}
-
-	virtual types::type_t::ref get_type() const {
-		return type;
-	}
-
-	virtual bool has_initializer() const {
-		return true;
-	}
-
-	virtual bound_var_t::ref resolve_initializer(
-			status_t &status,
-			llvm::IRBuilder<> &builder,
-			scope_t::ref scope,
-			life_t::ref life) const
-	{
-		return null_impl();
-	}
-};
-
 void ast::for_block_t::resolve_statement(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -4643,7 +4740,8 @@ bound_var_t::ref ast::expression_t::resolve_condition(
 		local_scope_t::ref *,
 		local_scope_t::ref *) const
 {
-	return resolve_expression(status, builder, block_scope, life, false /*as_ref*/);
+	return resolve_expression(status, builder, block_scope, life, false /*as_ref*/,
+		   	type_id(make_iid("bool_t")));
 }
 
 void ast::while_block_t::resolve_statement(
@@ -4866,10 +4964,11 @@ bound_var_t::ref ast::bang_expr_t::resolve_expression(
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	auto lhs_value = lhs->resolve_expression(status, builder, scope, life,
-			false /*as_ref*/);
+			false /*as_ref*/, nullptr);
 
 	if (!!status) {
 		auto type = lhs_value->type->get_type();
@@ -4877,7 +4976,7 @@ bound_var_t::ref ast::bang_expr_t::resolve_expression(
 		if (maybe_type != nullptr) {
 			bound_type_t::ref just_bound_type = upsert_bound_type(status,
 					builder, scope, maybe_type->just);
-
+			assert_implies(expected_type != nullptr, unifies(expected_type, just_bound_type->get_type(), scope->get_total_env()));
 			return bound_var_t::create(INTERNAL_LOC(), lhs_value->name,
 					just_bound_type,
 					lhs_value->get_llvm_value(),
@@ -5003,7 +5102,7 @@ bound_var_t::ref take_address(
 {
     /* first solve the right hand side */
 	bound_var_t::ref rhs_var = expr->resolve_expression(status, builder,
-			scope, life, true /*as_ref*/);
+			scope, life, true /*as_ref*/, type_ref(type_variable(INTERNAL_LOC())));
 
 	if (!!status) {
 		if (auto ref_type = dyncast<const types::type_ref_t>(rhs_var->type->get_type())) {
@@ -5042,7 +5141,8 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
 	return resolve_prefix_expr(status, builder, scope, life, as_ref, nullptr, nullptr);
 }
@@ -5107,10 +5207,11 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
     scope_t::ref program_scope = scope->get_program_scope();
-
+	auto total_env = scope->get_total_env();
     switch (token.tk) {
 	case tk_identifier:
 		{
@@ -5119,7 +5220,8 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		}
 		break;
 	case tk_raw_integer:
-        {
+    case tk_integer:
+		{
 			/* create a native integer */
             int64_t value = parse_int_value(status, token);
 			if (!!status) {
@@ -5131,8 +5233,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 			}
         }
 		break;
-    case tk_integer:
-        {
+		if (0) {
 			/* create a boxed integer */
             int64_t value = parse_int_value(status, token);
 			if (!!status) {
@@ -5173,6 +5274,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
         }
 		break;
     case tk_raw_string:
+    case tk_string:
 		{
 			std::string value = unescape_json_quotes(token.text.substr(0, token.text.size() - 1));
 			bound_type_t::ref native_type = program_scope->get_bound_type({MBS_TYPE});
@@ -5182,8 +5284,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 					make_code_id(token));
 		}
 		break;
-    case tk_string:
-		{
+		if (0) {
 			std::string value = unescape_json_quotes(token.text);
 			bound_type_t::ref native_type = program_scope->get_bound_type({MBS_TYPE});
 			bound_type_t::ref boxed_type = upsert_bound_type(
@@ -5221,6 +5322,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		}
 		break;
 	case tk_raw_float:
+	case tk_float:
 		{
 			double value = atof(token.text.substr(0, token.text.size() - 1).c_str());
 			bound_type_t::ref native_type = program_scope->get_bound_type({FLOAT_TYPE});
@@ -5230,8 +5332,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 					make_code_id(token));
 		}
 		break;
-	case tk_float:
-		{
+		if (0) {
 			double value = atof(token.text.c_str());
 			bound_type_t::ref native_type = program_scope->get_bound_type({FLOAT_TYPE});
 			bound_type_t::ref boxed_type = upsert_bound_type(
@@ -5301,9 +5402,10 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 		life_t::ref life,
-		bool as_ref) const
+		bool as_ref,
+		types::type_t::ref expected_type) const
 {
-	bound_var_t::ref bound_var = lhs->resolve_expression(status, builder, scope, life, false /*as_ref*/);
+	bound_var_t::ref bound_var = lhs->resolve_expression(status, builder, scope, life, false /*as_ref*/, nullptr);
 	if (!!status) {
 		debug_above(6, log("cast expression is casting to %s", type_cast->str().c_str()));
 
