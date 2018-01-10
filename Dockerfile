@@ -5,8 +5,12 @@ RUN apt-get update -y && apt-get install -y \
 	wget \
 	vim \
 	time \
+	git \
+	autogen \
+	libtool \
 	ccache \
 	exuberant-ctags \
+	autoconf \
 	make \
 	gdb \
 	cmake \
@@ -14,6 +18,15 @@ RUN apt-get update -y && apt-get install -y \
 	libbsd-dev \
 	build-essential \
 	libsodium-dev
+
+RUN \
+	mkdir -p /tmp/jansson && \
+	cd /tmp/jansson && \
+	git clone https://github.com/akheron/jansson /tmp/jansson && \
+	autoreconf -i && \
+	./configure && \
+	make && \
+	make install
 
 RUN \
 	wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | apt-key add -

@@ -2,11 +2,11 @@ module _
 # test: pass
 # expect: 2
 
-type Funky struct
+type funky_t struct
 	var t int_t
 
 def main()
-	let p *?bool_t = posix.calloc(sizeof(bool_t), 1r) as *?bool_t
+	let p *?funky_t = posix.calloc(sizeof(funky_t), 1r) as *?funky_t
 	if not p
 		return
 	p.t = 2r

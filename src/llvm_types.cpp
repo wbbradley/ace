@@ -196,6 +196,10 @@ std::vector<llvm::Type *> build_struct_elements(
 {
 	std::vector<llvm::Type *> elements;
 
+	for (auto &dimension : bound_dimensions) {
+		assert(!dimension->get_type()->is_ref());
+	}
+
 	if (native) {
 		/* just add all the dimensions of the native struct */
 		for (auto &dimension : bound_dimensions) {
@@ -214,11 +218,11 @@ std::vector<llvm::Type *> build_struct_elements(
 
 			/* make a name for this inner managed struct */
 			std::stringstream ss;
-			ss << "managed[";
+			ss << "managed{";
 			join_dimensions(ss, 
 					struct_type->dimensions,
 					struct_type->name_index, {});
-			ss << "]";
+			ss << "}";
 
 			inner_struct->setName(ss.str());
 
@@ -295,7 +299,7 @@ bound_type_t::ref create_bound_managed_type(
 			/* resolve all of the contained dimensions. NB: cycles should be broken
 			 * by the existence of the pointer to this type */
 			bound_type_t::refs bound_dimensions = upsert_bound_types(status,
-					builder, scope, struct_type->dimensions);
+					builder, scope, types::without_refs(struct_type->dimensions));
 
 			if (!!status) {
 				/* fill out the internals of this structure INCLUDING the MANAGED var_t */
@@ -404,7 +408,7 @@ bound_type_t::ref create_bound_struct_type(
 		/* resolve all of the contained dimensions. NB: cycles should be broken
 		 * by the existence of the pointer to this type */
 		bound_type_t::refs bound_dimensions = upsert_bound_types(status,
-				builder, scope, struct_type->dimensions);
+				builder, scope, types::without_refs(struct_type->dimensions));
 
 		if (!!status) {
 			/* fill out the internals of this structure */
@@ -1258,7 +1262,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	/* at this point we should have a struct type in expanded_type */
 	if (product_type != nullptr) {
 		bound_type_t::refs args = upsert_bound_types(status,
-				builder, scope, product_type->get_dimensions());
+				builder, scope, types::without_refs(product_type->get_dimensions()));
 
 		if (!!status) {
 			/* save and later restore the current branch insertion point */
@@ -1406,55 +1410,3 @@ llvm::Value *llvm_make_gep(
 
 	return builder.CreateInBoundsGEP(llvm_value, gep_path);
 }
-
-#if 0
-bound_var_t::ref call_const_subscript_operator(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		life_t::ref life,
-		const ast::item_t::ref &node,
-		bound_var_t::ref lhs,
-		identifier::ref index_id,
-		uint64_t subscript_index)
-{
-	debug_above(6, log(log_info, "generating dereference %s[%d]", lhs->str().c_str(), subscript_index));
-
-	/* do some checks on the lhs */
-	if (auto struct_type = dyncast<const types::type_struct_t>(lhs->type->get_type())) {
-		if (struct_type->dimensions.size() > subscript_index) {
-			/* ok, we're in range */
-			debug_above(6, log(log_info, "generating dereference %s[%d]",
-						lhs->str().c_str(), (int)subscript_index));
-
-			bound_type_t::ref data_type = upsert_bound_type(status, builder,
-					scope, struct_type->dimensions[subscript_index]);
-
-			if (!!status) {
-				/* get the tuple */
-				llvm::Value *llvm_lhs_subtype = llvm_maybe_pointer_cast(builder,
-						lhs->resolve_value(builder), lhs->type);
-
-				llvm::Value *llvm_value = builder.CreateLoad(llvm_make_gep(builder,
-							llvm_lhs_subtype, subscript_index,
-							true /* managed */));
-
-				return bound_var_t::create(
-						INTERNAL_LOC(),
-						"temp_deref_subscript",
-						data_type,
-						llvm_value,
-						make_code_id(node->token));
-			}
-		} else {
-			user_error(status, *node, "index out of range");
-		}
-	} else {
-		return type_check_get_item_with_int_literal(status, builder, scope, life,
-				node, lhs, index_id, subscript_index);
-	}
-
-	assert(!status);
-	return nullptr;
-}
-#endif

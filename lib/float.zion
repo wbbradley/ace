@@ -18,13 +18,15 @@ link def __times__(x float_t, y float_t) float_t to __float_times_float
 link def __divide__(x float_t, y float_t) float_t to __float_divide_float
 link def __gt__(x float_t, y float_t) bool_t to __float_gt_float
 link def __lt__(x float_t, y float_t) bool_t to __float_lt_float
+link def __lt__(x float_t, y int_t) bool_t to __float_lt_int
 link def __gte__(x float_t, y float_t) bool_t to __float_gte_float
 link def __lte__(x float_t, y float_t) bool_t to __float_lte_float
+link def __lte__(x float_t, y int_t) bool_t to __float_lte_int
 link def __eq__(x float_t, y float_t) bool_t to __float_eq_float
 link def __ineq__(x float_t, y float_t) bool_t to __float_ineq_float
 
 type float has
-	var raw float_t
+	let raw float_t
 
 def float(x float) float
 	return x

@@ -359,6 +359,8 @@ namespace types {
 	bool is_integer(type_t::ref type, const type_t::map &env);
 	void get_integer_attributes(status_t &status, type_t::ref type, const type_t::map &env, unsigned &bit_size, bool &signed_);
 	void get_runtime_typeids(status_t &status, type_t::ref type, const type_t::map &env, std::set<int> &typeids);
+	type_t::ref without_ref(type_t::ref type);
+	type_t::refs without_refs(type_t::refs types);
 };
 
 /* type data ctors */

@@ -1,5 +1,7 @@
 module test_mandel
 get runtime
+get sys
+
 # test: pass
 
 link Complex to math.Complex
@@ -20,6 +22,10 @@ def lerp(alpha float, min float, max float) float
 def main()
 	width := 240
 	height := 240
+	if len(sys.args) == 3
+		width = int(sys.args[1]) or width
+		height = int(sys.args[2]) or height
+		
 	maxDepth := 20
 
 	print("P2")
@@ -28,24 +34,24 @@ def main()
 	r := Rectangle(-3.14159, -2.5, 5.0, 5.0)
 	display_grid := Rectangle(0.0, 0.0, float(width), float(height))
 
+	var span [int]
+	reserve(span, int(display_grid.width))
+
 	y := display_grid.y
 	while y < display_grid.height
-		var span [int]
-		reserve(span, int(display_grid.width))
-		var b = lerp(alpha(y, display_grid.y, display_grid.y + display_grid.height),
-			r.x, r.x + r.width)
+		resize(span, 0, 0)
 
-		x := display_grid.x
+		let b = lerp(alpha(y, display_grid.y, display_grid.y + display_grid.height), r.x, r.x + r.width)
+		let x = display_grid.x
 		while x < display_grid.width
-			var a = lerp(alpha(x, display_grid.x, display_grid.x + display_grid.width),
-				r.y, r.y + r.height)
+			let a = lerp(alpha(x, display_grid.x, display_grid.x + display_grid.width), r.y, r.y + r.height)
 			var z = math.Complex(b, a)
-			var c = z
+			let c = z
 			var i = 0
 
 			while true
 				if i < maxDepth
-					if (z.imag * z.imag + z.real * z.real < 16)
+					if z.imag * z.imag + z.real * z.real < 16.0
 						z = z * z + c
 						i += 1
 						continue

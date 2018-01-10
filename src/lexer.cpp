@@ -536,9 +536,6 @@ bool zion_lexer_t::_get_tokens() {
 		case gts_float:
 			if (ch == 'e' || ch == 'E') {
 				gts = gts_expon_symbol;
-			} else if (ch == 'r') {
-				tk = tk_raw_float;
-				gts = gts_end;
 			} else if (!isdigit(ch)) {
 				tk = tk_float;
 				gts = gts_end;
@@ -553,10 +550,7 @@ bool zion_lexer_t::_get_tokens() {
 			}
 			break;
 		case gts_expon:
-			if (ch == 'r') {
-				tk = tk_raw_float;
-				gts = gts_end;
-			} else if (!isdigit(ch)) {
+			if (!isdigit(ch)) {
 				gts = gts_end;
 				tk = tk_float;
 				scan_ahead = false;
@@ -565,9 +559,6 @@ bool zion_lexer_t::_get_tokens() {
         case gts_hexadecimal:
             if (isdigit(ch) || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
                 gts = gts_hexadecimal;
-            } else if (ch == 'r') {
-                gts = gts_end;
-                tk = tk_raw_integer;
             } else {
                 gts = gts_end;
                 tk = tk_integer;
@@ -583,9 +574,6 @@ bool zion_lexer_t::_get_tokens() {
         case gts_zero:
             if (ch == 'x') {
                 gts = gts_zerox;
-            } else if (ch == 'r') {
-                tk = tk_raw_integer;
-                gts = gts_end;
             } else if (ch == 'e') {
                 gts = gts_expon_symbol;
             } else if (ch == '.') {
@@ -602,9 +590,6 @@ bool zion_lexer_t::_get_tokens() {
 				gts = gts_expon_symbol;
 			} else if (ch == '.') {
 				gts = gts_float_symbol;
-			} else if (ch == 'r') {
-				tk = tk_raw_integer;
-				gts = gts_end;
 			} else if (!isdigit(ch)) {
 				gts = gts_end;
 				scan_ahead = false;
@@ -647,11 +632,7 @@ bool zion_lexer_t::_get_tokens() {
 			break;
 		case gts_end_quoted:
 			gts = gts_end;
-			if (ch == 'r') {
-				tk = tk_raw_string;
-			} else {
-				scan_ahead = false;
-			}
+			scan_ahead = false;
 			break;
 		case gts_quoted_escape:
 			gts = gts_quoted;

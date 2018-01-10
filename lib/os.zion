@@ -8,7 +8,7 @@ def getcwd() str
 		posix.free(cwd_utf8)
 		return cwd
 	else
-		posix.puts("could not allocate enough memory to store the working directory!"r)
+		posix.puts("could not allocate enough memory to store the working directory!")
 		posix.exit(-1r)
 		return null as str
 

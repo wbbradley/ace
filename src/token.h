@@ -41,9 +41,6 @@ enum token_kind
 	tk_float, /* 3.1415e20 */
 	tk_integer, /* [0-9]+ */
 	tk_string, /* "string literal" */
-	tk_raw_float, /* 3.1415e20r */
-	tk_raw_integer, /* [0-9]+r */
-	tk_raw_string, /* "string literal"r */
 	tk_version, /* #blah */
 
 	// Operators

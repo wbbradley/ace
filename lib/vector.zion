@@ -41,15 +41,42 @@ def str(v [any T]) str
 [global]
 def join(v [any T], delim str) str
 	let vec = v as *vector_t
-	s := ""
-	sep := ""
+
+	# allocate a vector in which we can store the converted strings
+	let strs [str]
+	reserve(strs as *vector_t, vec.size)
+
+	let delim_len = posix.wcslen(delim.raw)
+	let delims_len = delim_len * (vec.size - 1r)
+	total_len := delims_len
 	i := 0r
 	while i < vec.size
-		s += sep
-		s += str(vec.items[i] as any T)
-		sep = delim
+		let s = str(vec.items[i] as any T)
+		append(strs, s)
+		total_len += len(s).raw
 		i += 1r
-	return s
+
+	# allocate our resultant string
+	let buf *wchar_t = posix.malloc(sizeof(wchar_t) * (total_len + 1r))! as *wchar_t
+
+	# iterate over the elements and append them to our resultant string
+	pos := 0r
+	i = 0r
+	while i < vec.size
+		if i > 0r
+			# insert a delim if necessary
+			posix.memcpy(&buf[pos], delim.raw, sizeof(wchar_t) * delim_len)
+			pos += delim_len
+
+		# insert a string
+		let s_len = posix.wcslen(strs[i].raw)
+		posix.memcpy(&buf[pos], strs[i].raw, sizeof(wchar_t) * s_len)
+
+		pos += s_len
+		i += 1r
+
+	buf[pos] = 0r as wchar_t
+	return str(buf)
 
 [global]
 def __getitem__(vec [any T], index int) any T
@@ -65,18 +92,32 @@ def __setitem__(vec [any T], index int, t any T) void
 
 [global]
 def append(vec [any T], t any T) void
-	# posix.puts("appending "r + __str__(t.raw) + " to vector"r)
+	# posix.puts("appending " + __str__(t.raw) + " to vector")
 	__vectorappend__(vec as *vector_t, t as *var_t)
 
 [global]
 def resize(vec [any T], size int, default any T) void
-	return __vectorresize__(vec as *var_t, size.raw, default) as! [any T]
+	resize(vec as *vector_t, size.raw, default as *var_t)
 
-# link def vec(TYPE, capacity int) TYPE[]
+def resize(vec *vector_t, size int_t, default *var_t) void
+	if size < 0r
+		return
+
+	if vec.size == size
+		return
+	elif vec.size < size
+		# grow the vector
+		reserve(vec, size)
+		while vec.size < size
+			__vector_unsafe_append__(vec, default)
+	else
+		# just shorten the vector in place
+		vec.size = size
+
 
 [global]
 def __vector_mark__(vec *var_t)
-	# posix.puts("marking vector at 0x"r + __str__(vec as int_t, 16r))
+	# posix.puts("marking vector at 0x" + __str__(vec as int_t, 16r))
 	let v = vec as *vector_t
 	i := 0r
 	while i < v.size

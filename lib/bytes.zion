@@ -3,8 +3,8 @@ global
 link def hexdigit(val int_t) wchar_t
 
 type bytes has
-	var data *int8_t
-	var cb size_t
+	let data *int8_t
+	let cb size_t
 
 def len(b bytes) int
 	return int(b.cb as int_t)
