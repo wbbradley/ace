@@ -4,7 +4,7 @@ link in "rt_str.o"
 
 link def __wcs__(x int) *wchar to __wcs_int
 link def __wcs__(x int, y int) *wchar to __wcs_int_radix
-link def __wcs__(x float_t) *wchar to __wcs_float
+link def __wcs__(x float) *wchar to __wcs_float
 link def __wcs__(x *char) *wchar to __wcs_str
 link def concat(x *wchar, y *wchar) *wchar to __wcs_concat
 
@@ -46,7 +46,7 @@ def str(i int) str
 def str(x float) str
 	return str(__wcs__(x.raw))
 
-def str(x float_t) str
+def str(x float) str
 	return str(__wcs__(x))
 
 def __plus__(x str, y str) str

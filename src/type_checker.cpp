@@ -2311,14 +2311,14 @@ bound_var_t::ref type_check_binary_integer_op(
 	static bool int_signed = true;
 	static bool initialized = false;
 
-	bound_type_t::ref bound_int_type = upsert_bound_type(status, builder, scope, type_id(make_iid("int_t")));
+	bound_type_t::ref bound_int_type = upsert_bound_type(status, builder, scope, type_id(make_iid(INT_TYPE)));
 	if (!status) { return nullptr; }
 
 	if (!initialized) {
 
 		types::get_integer_attributes(status, bound_int_type->get_type(), typename_env, int_bit_size, int_signed);
 		if (!status) {
-			panic("could not figure out the bit size and signedness of int_t!");
+			panic("could not figure out the bit size and signedness of int!");
 		}
 		initialized = true;
 	}
@@ -2391,7 +2391,10 @@ bound_var_t::ref type_check_binary_integer_op(
 				}
 			}
 
-			auto bound_bool_type = scope->get_program_scope()->get_bound_type("bool_t");
+			bound_type_t::ref bound_bool_type = upsert_bound_type(status, builder, scope, type_id(make_iid(BOOL_TYPE)));
+			assert(!!status);
+			assert(bound_bool_type != nullptr);
+
 			llvm::Value *llvm_value = nullptr;
 			if (function_name == "__plus__") {
 				llvm_value = builder.CreateAdd(llvm_lhs, llvm_rhs);
@@ -2417,7 +2420,7 @@ bound_var_t::ref type_check_binary_integer_op(
 						function_name + ".value",
 						bound_bool_type,
 						builder.CreateZExtOrTrunc(
-						final_integer_signed
+							final_integer_signed
 							? builder.CreateICmpSLT(llvm_lhs, llvm_rhs)
 							: builder.CreateICmpULT(llvm_lhs, llvm_rhs),
 							bound_bool_type->get_llvm_type()),
@@ -2428,7 +2431,7 @@ bound_var_t::ref type_check_binary_integer_op(
 						function_name + ".value",
 						bound_bool_type,
 						builder.CreateZExtOrTrunc(
-						final_integer_signed
+							final_integer_signed
 							? builder.CreateICmpSLE(llvm_lhs, llvm_rhs)
 							: builder.CreateICmpULE(llvm_lhs, llvm_rhs),
 							bound_bool_type->get_llvm_type()),
@@ -2439,7 +2442,7 @@ bound_var_t::ref type_check_binary_integer_op(
 						function_name + ".value",
 						bound_bool_type,
 						builder.CreateZExtOrTrunc(
-						final_integer_signed
+							final_integer_signed
 							? builder.CreateICmpSGT(llvm_lhs, llvm_rhs)
 							: builder.CreateICmpUGT(llvm_lhs, llvm_rhs),
 							bound_bool_type->get_llvm_type()),
@@ -2450,7 +2453,7 @@ bound_var_t::ref type_check_binary_integer_op(
 						function_name + ".value",
 						bound_bool_type,
 						builder.CreateZExtOrTrunc(
-						final_integer_signed
+							final_integer_signed
 							? builder.CreateICmpSGE(llvm_lhs, llvm_rhs)
 							: builder.CreateICmpUGE(llvm_lhs, llvm_rhs),
 							bound_bool_type->get_llvm_type()),
@@ -2522,8 +2525,8 @@ bound_var_t::ref type_check_binary_integer_op(
 					function_name + ".value",
 					final_integer_type,
 					final_integer_signed
-						? builder.CreateSExtOrTrunc(llvm_value, final_integer_type->get_llvm_type())
-						: builder.CreateZExtOrTrunc(llvm_value, final_integer_type->get_llvm_type()),
+					? builder.CreateSExtOrTrunc(llvm_value, final_integer_type->get_llvm_type())
+					: builder.CreateZExtOrTrunc(llvm_value, final_integer_type->get_llvm_type()),
 					make_iid(function_name + ".value"));
 		}
 	}
@@ -5189,7 +5192,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		}
 		break;
     case tk_integer:
-		if (!types::is_type_id(expected_type, "int")) {
+		if (!types::is_type_id(expected_type, MANAGED_INT)) {
 			/* create a native integer */
             int64_t value = parse_int_value(status, token);
 			if (!!status) {
@@ -5208,14 +5211,14 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 						status,
 						builder,
 						scope,
-						type_id(make_iid("int")));
+						type_id(make_iid(MANAGED_INT)));
 				if (!!status) {
 					assert(boxed_type != nullptr);
 					bound_var_t::ref box_int = get_callable(
 							status,
 							builder,
 							scope,
-							{"int"},
+							MANAGED_INT,
 							get_location(),
 							get_args_type({native_type}),
 							nullptr);
@@ -5228,7 +5231,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 								scope,
 								life,
 								box_int,
-								{string_format("literal int (%d)", value)},
+								string_format("literal int (%d)", value),
 								get_location(),
 								{bound_var_t::create(
 										INTERNAL_LOC(), "temp_int_literal", boxed_type,
@@ -5263,7 +5266,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 						status,
 						builder,
 						scope,
-						{"__box__"},
+						"__box__",
 						get_location(),
 						get_args_type({native_type}),
 						nullptr);
@@ -5286,7 +5289,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		}
 		break;
 	case tk_float:
-		if (!types::is_type_id(expected_type, "float")) {
+		if (!types::is_type_id(expected_type, MANAGED_FLOAT)) {
 			double value = atof(token.text.c_str());
 			bound_type_t::ref native_type = program_scope->get_bound_type({FLOAT_TYPE});
 			return bound_var_t::create(
@@ -5300,14 +5303,14 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 					status,
 					builder,
 					scope,
-					type_id(make_iid("float")));
+					type_id(make_iid(MANAGED_FLOAT)));
 			if (!!status) {
 				assert(boxed_type != nullptr);
 				bound_var_t::ref box_float = get_callable(
 						status,
 						builder,
 						scope,
-						{"float"},
+						MANAGED_FLOAT,
 						get_location(),
 						get_args_type({native_type}),
 						nullptr);

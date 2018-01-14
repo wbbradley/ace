@@ -17,13 +17,13 @@ get file
 link in "rt_typeid.o"
 
 link def mem_dump(x *void, y int) void
-link def __type_id_eq_type_id(x typeid_t, y typeid_t) int
+link def __type_id_eq_type_id(x typeid, y typeid) int
 
 var stdin *posix.FILE = posix.fdopen(0, "r")!
 var stdout *posix.FILE = posix.fdopen(1, "a")!
 var stderr *posix.FILE = posix.fdopen(2, "a")!
 
-def typeid(t any) typeid_t
+def typeid(t any) typeid
 	return __get_typeid__(t)
 
 # initialization of modules is automatically generated.

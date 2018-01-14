@@ -8,7 +8,7 @@ global
 
 link def __str__(x int) *char to __str_int
 link def __str__(x int, y int) *char to __str_int_radix
-link def __str__(x float_t) *char to __str_float
+link def __str__(x float) *char to __str_float
 link def __str__(x *char) *char to __str_str
 link def concat(x *char, y *char) *char to __mbs_concat
 

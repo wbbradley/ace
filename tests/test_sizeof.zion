@@ -10,7 +10,7 @@ type __Value__ struct
 	var typeinfo *__TypeInfo__
 
 type __TypeInfo__ struct
-	var typeid typeid_t
+	var typeid typeid
 	var addref *def (v *__Value__) void
 	var release *def (v *__Value__) void
 
