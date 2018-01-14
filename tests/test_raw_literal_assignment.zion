@@ -2,4 +2,4 @@ module _
 # test: pass
 
 def main() int_t
-	return 4r
+	return 4

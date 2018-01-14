@@ -894,7 +894,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
 	return {nullptr, nullptr};
 }
 
-std::pair<bound_var_t::ref, bound_type_t::ref> instantiate_tagged_tuple_ctor(
+std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tagged_tuple_ctor(
 		status_t &status, 
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -959,7 +959,7 @@ bound_var_t::ref maybe_get_dtor(
 	// TODO: look at what data_type is, and whether it can be passed as a raw
 	// pointer.
 	auto location = data_type->get_location();
-	var_t::refs fn_dtors;
+	fittings_t fn_dtors;
 	bound_var_t::ref dtor = maybe_get_callable(
 			status,
 			builder,
@@ -1265,6 +1265,13 @@ bound_var_t::ref get_or_create_tuple_ctor(
 				builder, scope, types::without_refs(product_type->get_dimensions()));
 
 		if (!!status) {
+			types::type_t::ref function_type = get_function_type(args, data_type);
+			bound_var_t::ref already_bound_function;
+			if (program_scope->has_bound(id->get_name(), function_type, &already_bound_function)) {
+				/* fulfill the "get_or_" part of this function name */
+				return already_bound_function;
+			}
+
 			/* save and later restore the current branch insertion point */
 			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 

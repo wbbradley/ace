@@ -7,6 +7,7 @@
 #include "llvm_types.h"
 #include "types.h"
 #include "type_instantiation.h"
+#include "fitting.h"
 
 bound_var_t::ref make_call_value(
 		status_t &status,
@@ -32,8 +33,9 @@ bound_var_t::ref instantiate_unchecked_fn(
 {
 	assert(fn_type->ftv_count() == 0 && "we cannot instantiate an abstract function");
 	debug_above(5, log(log_info, "we are in scope " c_id("%s"), scope->get_name().c_str()));
-	debug_above(5, log(log_info, "it's time to instantiate %s with unified signature %s from %s",
+	debug_above(5, log(log_info, "it's time to instantiate %s at %s with unified signature %s from %s",
 				unchecked_fn->str().c_str(),
+				unchecked_fn->get_location().str().c_str(),
 				fn_type->str().c_str(),
 				unification.str().c_str()));
 
@@ -139,7 +141,8 @@ bound_var_t::ref check_func_vs_callsite(
 		location_t location,
 		var_t::ref fn,
 		types::type_t::ref args,
-		types::type_t::ref return_type)
+		types::type_t::ref return_type,
+		int &coercions)
 {
 	assert(!!status);
 	if (return_type == nullptr) {
@@ -147,6 +150,7 @@ bound_var_t::ref check_func_vs_callsite(
 	}
 
 	unification_t unification = fn->accepts_callsite(builder, scope, args, return_type);
+	coercions = unification.coercions;
 	if (unification.result) {
 		if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
 			/* this function has already been bound */
@@ -185,15 +189,6 @@ bound_var_t::ref check_func_vs_callsite(
 	return nullptr;
 }
 
-bool function_exists_in(var_t::ref fn, std::list<bound_var_t::ref> callables) {
-    for (auto callable : callables) {
-        if (callable->get_location() == fn->get_location()) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bound_var_t::ref maybe_get_callable(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -202,7 +197,7 @@ bound_var_t::ref maybe_get_callable(
 		location_t location,
 		types::type_t::ref args,
 		types::type_t::ref return_type,
-		var_t::refs &fns)
+		fittings_t &fittings)
 {
 	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, args=%s, ...)",
 				scope->get_name().c_str(),
@@ -210,7 +205,6 @@ bound_var_t::ref maybe_get_callable(
 				args->str().c_str()));
 
     llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-    std::list<bound_var_t::ref> callables;
 	if (!!status) {
 #if 0
 		if (alias == "mark_allocation") {
@@ -220,44 +214,12 @@ bound_var_t::ref maybe_get_callable(
 
 		/* look through the current scope stack and get a callable that is able
 		 * to be invoked with the given args */
+		var_t::refs fns;
 		scope->get_callables(alias, fns);
-		for (auto &fn : fns) {
-            if (function_exists_in(fn, callables)) {
-                /* we've already found a matching version of this function,
-                 * let's not bind it again */
-				debug_above(7, log(log_info,
-							"skipping checking %s because we've already got a matched version of that function",
-							fn->str().c_str()));
-				continue;
-            }
-			bound_var_t::ref callable = check_func_vs_callsite(status, builder,
-					scope, location, fn, args, return_type);
-
-			if (!status) {
-				assert(callable == nullptr);
-				return nullptr;
-			} else if (callable != nullptr) {
-				callables.push_front(callable);
-			}
-		}
-
-        if (!!status) {
-            if (callables.size() == 1) {
-                return callables.front();
-            } else if (callables.size() == 0) {
-                return nullptr;
-            } else {
-				user_error(status, location,
-						"multiple matching overloads found for %s",
-						alias.c_str());
-                for (auto callable : callables) {
-                    user_message(log_info, status, callable->get_location(),
-						   	"matching overload : %s",
-                            callable->type->get_type()->str().c_str());
-                }
-            }
-        }
+		return get_best_fit(status, builder, scope, location, alias, args, return_type, fns);
 	}
+
+	assert(!status);
 	return nullptr;
 }
 
@@ -275,8 +237,9 @@ bound_var_t::ref get_callable_from_local_var(
 	auto resolved_bound_var = bound_var->resolve_bound_value(status, builder, scope);
 
 	if (!!status) {
+		int coercions = 0;
 		bound_var_t::ref callable = check_func_vs_callsite(status, builder,
-				scope, callsite_location, resolved_bound_var, args, return_type);
+				scope, callsite_location, resolved_bound_var, args, return_type, coercions);
 		if (!!status) {
 			if (callable != nullptr) {
 				return callable;
@@ -309,15 +272,15 @@ bound_var_t::ref get_callable(
 				callsite_location, args, return_type);
 	}
 
-	var_t::refs fns;
+	fittings_t fittings;
 	auto callable = maybe_get_callable(status, builder, scope, alias,
-			callsite_location, args, return_type, fns);
+			callsite_location, args, return_type, fittings);
 
 	if (!!status) {
 		if (callable != nullptr) {
 			return callable;
 		} else {
-			if (fns.size() == 0) {
+			if (fittings.size() == 0) {
 				user_error(status, callsite_location,
 					   	"no function found named " c_id("%s") " for callsite with %s in " c_id("%s"),
 						alias.c_str(),
@@ -331,15 +294,15 @@ bound_var_t::ref get_callable(
 
 				if (debug_level() >= 0) {
 					/* report on the places we tried to look for a match */
-					if (fns.size() > 10) {
+					if (fittings.size() > 10) {
 						user_message(log_info, status, callsite_location,
 								"%d non-matching functions called " c_id("%s")
-							   	" found (skipping listing them all)", fns.size(), alias.c_str());
+							   	" found (skipping listing them all)", fittings.size(), alias.c_str());
 					} else {
-						for (auto &fn : fns) {
+						for (auto &fitting : fittings) {
 							ss.str("");
-							ss << fn->get_type(scope)->str() << " did not match";
-							user_message(log_info, status, fn->get_location(), "%s", ss.str().c_str());
+							ss << fitting.fn->type->str() << " did not match";
+							user_message(log_info, status, fitting.fn->get_location(), "%s", ss.str().c_str());
 						}
 					}
 				}

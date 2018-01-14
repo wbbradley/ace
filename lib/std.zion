@@ -19,9 +19,9 @@ link in "rt_typeid.o"
 link def mem_dump(x *void, y int_t) void
 link def __type_id_eq_type_id(x typeid_t, y typeid_t) int_t
 
-var stdin *posix.FILE = posix.fdopen(0r, "r")!
-var stdout *posix.FILE = posix.fdopen(1r, "a")!
-var stderr *posix.FILE = posix.fdopen(2r, "a")!
+var stdin *posix.FILE = posix.fdopen(0, "r")!
+var stdout *posix.FILE = posix.fdopen(1, "a")!
+var stderr *posix.FILE = posix.fdopen(2, "a")!
 
 def typeid(t any) typeid_t
 	return __get_typeid__(t)
@@ -33,16 +33,16 @@ def mbstowcs(mbs *char_t) *wchar_t
 	# Converts from current locale's encoding to wide-char encoding. Allocates memory that
 	# must be freed later.
 	let mbslen = posix.strlen(mbs)
-	let wcs_cb = posix.mbstowcs(null, mbs, 0r)
-	if wcs_cb == -1r
+	let wcs_cb = posix.mbstowcs(null, mbs, 0)
+	if wcs_cb == -1
 		posix.puts("Failed to convert string from multi-byte to wide char!")
-		posix.exit(1r)
-	let wcs_size = wcs_cb + 1r
+		posix.exit(1)
+	let wcs_size = wcs_cb + 1
 	let cb = sizeof(wchar_t) * wcs_size
 	let wcs = posix.malloc(cb) as *?wchar_t
 	if wcs == null
 		posix.puts("out of memory - set a breakpoint on `exit` in order to debug")
-		posix.exit(-1r)
+		posix.exit(-1)
 		# TODO: create syntax for not reached
 		return null as *wchar_t
 	else
@@ -54,17 +54,17 @@ def wcstombs(wcs *wchar_t) *char_t
 	# must be freed later.
 	let wcslen = posix.wcslen(wcs)
 	let mbs_cb = posix.wcstombs(null, wcs, wcslen)
-	if mbs_cb == -1r
+	if mbs_cb == -1
 		posix.puts("Failed to convert string from wide char to multi-byte!")
 		breakpoint()
-		posix.exit(1r)
+		posix.exit(1)
 
-	let mbs_size = mbs_cb + 1r
+	let mbs_size = mbs_cb + 1
 	let cb = sizeof(char_t) * mbs_size
 	let mbs = posix.malloc(cb) as *?char_t
 	if mbs == null
 		posix.puts("out of memory - set a breakpoint on `exit` in order to debug")
-		posix.exit(-1r)
+		posix.exit(-1)
 		# TODO: create syntax for not reached
 		return null as *char_t
 	else
@@ -77,7 +77,7 @@ def print(x any) void
 
 def panic(x str) void
 	write(stderr, x)
-	posix.exit(-1r)
+	posix.exit(-1)
 
 tag NoLF
 
@@ -88,9 +88,9 @@ def breakpoint() void
 	posix.raise(posix.SIGTRAP)
 
 def rand(max int) int
-	var r int_t = 0r
+	var r int_t = 0
 	posix.arc4random_buf(&r, sizeof(int_t))
-	if r < 0r
+	if r < 0
 		r = -r
 	return int(r % max.raw)
 
@@ -102,11 +102,11 @@ def __bool__(x [any T] or str or int or bool) bool_t
 		is false
 			return __false__
 		is int
-			return x.raw != 0r
+			return x.raw != 0
 		is str
-			return x.raw[0r] as int_t != 0r
+			return x.raw[0] as int_t != 0
 		is [any T]
-			return (x as *vector.vector_t).size != 0r
+			return (x as *vector.vector_t).size != 0
 
 type IntRange has
 	var first int_t
@@ -114,10 +114,10 @@ type IntRange has
 	var step int_t
 
 def range(lim int) IntRange
-	return IntRange(0r, lim.raw, 1r)
+	return IntRange(0, lim.raw, 1)
 
 def range(first int, lim int) IntRange
-	return IntRange(first.raw, lim.raw, 1r)
+	return IntRange(first.raw, lim.raw, 1)
 
 def range(first int, lim int, step int) IntRange
 	return IntRange(first.raw, lim.raw, step.raw)
@@ -144,15 +144,15 @@ def __iter_item__(i IntRangeIter) int
 
 def input() str?
 	var buf *?char_t
-	var linecap int_t = 0r
+	var linecap int_t = 0
 
-	if posix.getline(&buf, &linecap, stdin) == -1r or buf == null
+	if posix.getline(&buf, &linecap, stdin) == -1 or buf == null
 		return null
 
-	var lim = posix.strlen(buf) - 1r
-	while lim >= 0r and posix.isspace(buf[lim])
-		lim -= 1r
-	buf[lim + 1r] = 0r
+	var lim = posix.strlen(buf) - 1
+	while lim >= 0 and posix.isspace(buf[lim])
+		lim -= 1
+	buf[lim + 1] = 0
 
 	assert(buf != null)
 	ret := str(mbstowcs(buf))

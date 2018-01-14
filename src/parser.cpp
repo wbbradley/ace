@@ -416,9 +416,6 @@ ptr<expression_t> array_literal_expr_t::parse(parse_state_t &ps) {
 
 ptr<expression_t> literal_expr_t::parse(parse_state_t &ps) {
 	switch (ps.token.tk) {
-	case tk_raw_float:
-	case tk_raw_integer:
-	case tk_raw_string:
 	case tk_integer:
 	case tk_string:
 	case tk_char:

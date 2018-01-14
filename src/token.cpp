@@ -43,14 +43,12 @@ const char *tkstr(token_kind tk) {
 	tk_case(equal);
 	tk_case(error);
 	tk_case(float);
-	tk_case(raw_float);
 	tk_case(gt);
 	tk_case(gte);
 	tk_case(identifier);
 	tk_case(indent);
 	tk_case(inequal);
 	tk_case(integer);
-	tk_case(raw_integer);
 	tk_case(lcurly);
 	tk_case(lparen);
 	tk_case(lsquare);
@@ -78,7 +76,6 @@ const char *tkstr(token_kind tk) {
 	tk_case(semicolon);
 	tk_case(space);
 	tk_case(string);
-	tk_case(raw_string);
 	tk_case(times);
 	tk_case(times_eq);
 	tk_case(version);
@@ -102,7 +99,6 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_outdent:
 	case tk_rcurly:
 	case tk_float:
-	case tk_raw_float:
 	case tk_rparen:
 	case tk_rsquare:
 	case tk_space:
@@ -121,7 +117,6 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_identifier:
 	case tk_inequal:
 	case tk_integer:
-	case tk_raw_integer:
 	case tk_lt:
 	case tk_lte:
 	case tk_maybe_eq:
@@ -137,7 +132,6 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_plus_eq:
 	case tk_semicolon:
 	case tk_string:
-	case tk_raw_string:
 	case tk_times:
 	case tk_ampersand:
 	case tk_times_eq:
@@ -256,11 +250,8 @@ void token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_line) 
 		break;
 	case tk_char:
 	case tk_string:
-	case tk_raw_string:
 	case tk_integer:
-	case tk_raw_integer:
 	case tk_float:
-	case tk_raw_float:
 	case tk_version:
 		ensure_space_before(last_tk);
 		printf("%s", text.c_str());

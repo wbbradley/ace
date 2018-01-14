@@ -42,7 +42,7 @@ def __finalize__(of Open)
 	let fp = of.fp
 	if fp != null
 		ret := posix.fclose(fp)
-		if ret != 0r
+		if ret != 0
 			print("Error: failed to close file")
 		of.fp = null
 
@@ -98,16 +98,16 @@ def readline(fp *posix.FILE) str or EOF or Error
 		print("encountered null FILE pointer")
 		return Error(-1)
 
-	linecap := 0r
+	linecap := 0
 	line := null as *char_t
 	linelen := posix.getline(&line, &linecap, fp)
-	if linelen == -1r
+	if linelen == -1
 		return EOF
 
 	# make sure we strip the LF char
-	if linelen > 0r
-		if line[linelen - 1r] as int_t == 10r
-			line[linelen - 1r] = 0r as char_t
+	if linelen > 0
+		if line[linelen - 1] as int_t == 10
+			line[linelen - 1] = 0 as char_t
 	str_line := str(mbstowcs(line))
 	posix.free(line)
 	return str_line
@@ -127,7 +127,7 @@ def readline(f File) str or Error or EOF
 [global]
 def write(fp *posix.FILE, s str)
 	utf8_val := utf8(s)
-	posix.fwrite(utf8_val.raw, posix.strlen(utf8_val.raw), 1r, fp)
+	posix.fwrite(utf8_val.raw, posix.strlen(utf8_val.raw), 1, fp)
 	
 [global]
 def write(f File, s str)

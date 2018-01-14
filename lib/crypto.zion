@@ -15,9 +15,9 @@ link def crypto_generichash_keygen(k *int8_t) void
 type crypto_generichash_state struct
 
 def init()
-	if sodium_init() < 0r
+	if sodium_init() < 0
 		posix.puts("failed to initialize libsodium")
-		posix.exit(1r)
+		posix.exit(1)
 
 def hash(input bytes, key bytes) bytes
 	outlen := crypto_generichash_bytes_max()
@@ -31,7 +31,7 @@ def hash(input str) bytes
 	outlen := crypto_generichash_bytes_max()
 	out := alloc(outlen)
 	assert(out != null)
-	crypto_generichash(out.data, out.cb, input.raw as *int8_t, sizeof(wchar_t) * posix.wcslen(input.raw), null, 0r)
+	crypto_generichash(out.data, out.cb, input.raw as *int8_t, sizeof(wchar_t) * posix.wcslen(input.raw), null, 0)
 	return out
 	
 	

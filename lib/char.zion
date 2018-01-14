@@ -3,5 +3,5 @@ global
 def __getitem__(x str, i int) char
 	return char(x.raw[i.raw])
 
-type char has
-	let raw wchar_t
+type Char has
+	let raw wchar

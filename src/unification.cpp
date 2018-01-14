@@ -6,17 +6,20 @@
 #include "types.h"
 #include "unification.h"
 
+
 unification_t::unification_t(
 		bool result,
 		std::string reasons,
-		types::type_t::map bindings) :
+		types::type_t::map bindings,
+		int coercions) :
 	result(result),
 	reasons(reasons),
-	bindings(bindings)
+	bindings(bindings),
+	coercions(coercions)
 {
-	debug_above(10, log(log_info, "unification result {%s, %s, %s}",
+	debug_above(10, log(log_info, "unification result {%s, %s, %s, %d}",
 				result ? "success" : "failure", reasons.c_str(),
-				::str(bindings).c_str()));
+				::str(bindings).c_str(), coercions));
 }
 
 types::type_t::ref prune(types::type_t::ref t, const types::type_t::map &bindings) {
@@ -69,6 +72,7 @@ unification_t unify(
 		types::type_t::ref rhs,
 		const types::type_t::map &env,
 		types::type_t::map bindings,
+		int coercions,
 		int depth)
 {
 	if (depth > 20) {
@@ -92,21 +96,21 @@ unification_t unify(
 		if (ptref_rhs != nullptr) {
 			return unify(ptref_lhs->element_type, ptref_rhs->element_type, env, bindings);
 		} else {
-			return {false, "lhs was expecting a reference type", bindings};
+			return {false, "lhs was expecting a reference type", bindings, coercions};
 		}
 	} else if (auto ptref_rhs = dyncast<const types::type_ref_t>(rhs)) {
 		// if depth isn't 0, then all bets are off, but for now I think it's impossible to not be
 		assert(depth == 0);
 
 		/* we can safely ignore if the rhs is a reference because the coercions will auto-deref it */
-		return unify(lhs, ptref_rhs->element_type, env, bindings);
+		return unify(lhs, ptref_rhs->element_type, env, bindings, coercions + 1);
 	}
 
 	auto pruned_a = prune(lhs, bindings);
 	auto pruned_b = prune(rhs, bindings);
 
 	if (pruned_a->repr() == pruned_b->repr()) {
-		return {true, "", bindings};
+		return {true, "", bindings, coercions};
 	}
 
 	auto a = full_eval(pruned_a, env);
@@ -135,33 +139,56 @@ unification_t unify(
 	auto ptf_a = dyncast<const types::type_function_t>(a);
 
 	if (pti_a != nullptr) {
-		/* check for basic type_id matching */
-		if (pti_b != nullptr &&
-				pti_a->id->get_name() == pti_b->id->get_name())
-		{
-			/* simple type_id match */
-			return {true, "", bindings};
-		} 
-#if 0
-		else if (pti_a->id->get_name() == "void") {
-			/* everything is covariant with void because void encompasses anything (since it cannot be accessed and does
-			 * not have a known size) */
-			if (auto ptv_b = dyncast<const types::type_variable_t>(b)) {
-				// TODO: probably we need to map all ftvs in b to void, not just the outer b
-				bindings[ptv_b->id->get_name()] = a;
+		/* we have reduced down to a type id for a */
+		auto a_name = pti_a->id->get_name();
+
+		if (pti_b != nullptr) {
+			/* we have reduced down to a type id for b */
+			auto b_name = pti_b->id->get_name();
+
+			if (a_name == b_name) {
+				/* simple type_id match */
+				return {true, "", bindings, coercions};
+			} else if (depth == 0) {
+				if (
+						(a_name == MANAGED_FLOAT && b_name == FLOAT_TYPE) ||
+						(a_name == FLOAT_TYPE && b_name == MANAGED_FLOAT) ||
+						(a_name == BOOL_TYPE && b_name == MANAGED_BOOL) ||
+						(a_name == MANAGED_BOOL && b_name == BOOL_TYPE))
+				{
+					/* check for a coercion of floats */
+					return {true, "", bindings, coercions + 1};
+				}
+			} else {
+				return {false, "type ids do not match", bindings, coercions};
 			}
-			return {true, "", bindings};
+		} else if (depth == 0) {
+			if (ptI_b != nullptr && a_name == MANAGED_INT) {
+				return {true, "", bindings, coercions + 1};
+			} else if (ptI_b != nullptr && a_name == MANAGED_CHAR) {
+				return {true, "", bindings, coercions + 1};
+			} else if (a_name == MANAGED_STR && (ptr_b != nullptr && types::is_type_id(full_eval(ptr_b->element_type, env), CHAR_TYPE))) {
+				/* we should be able to convert a *char_t to a str */
+				return {true, "", bindings, coercions + 1};
+			}
 		}
-#endif
 	}
 
 	if (ptI_a != nullptr) {
-	   	if (ptI_b == nullptr) {
+		if (ptI_b == nullptr) {
+			// sanity check: a second full-eval should not do anything...
 			ptI_b = dyncast<const types::type_integer_t>(full_eval(b, env));
+			assert(ptI_b == nullptr);
 		}
 
 		if (ptI_b != nullptr) {
-			return {true, "", bindings};
+			return {true, "", bindings, coercions};
+		} else if (depth == 0 && types::is_type_id(b, MANAGED_INT)) {
+			/* we can cast this int to whatever */
+			return {true, "", bindings, coercions + 1};
+		} else if (depth == 0 && types::is_type_id(b, MANAGED_CHAR)) {
+			/* we can cast this int to whatever */
+			return {true, "", bindings, coercions + 1};
 		}
 	}
 
@@ -170,7 +197,7 @@ unification_t unify(
 			return {
 				(ptl_a->token.text == ptl_b->token.text
 				 && ptl_a->token.tk == ptl_b->token.tk),
-				"", bindings};
+					"", bindings, coercions};
 		}
 	}
 
@@ -179,9 +206,10 @@ unification_t unify(
 			if (occurs_in_type(ptv_a, b, bindings)) {
 				return {
 					false,
-					string_format("recursive unification on %s and %s",
-							a->str().c_str(), b->str().c_str()),
-					bindings};
+						string_format("recursive unification on %s and %s",
+								a->str().c_str(), b->str().c_str()),
+						bindings,
+						coercions};
 			}
 			debug_above(4, log(log_info,
 						"binding type_variable " c_id("%s") " to " c_type("%s"),
@@ -195,46 +223,40 @@ unification_t unify(
 			bindings[ptv_a->id->get_name()] = b;
 		}
 
-		return {true, "", bindings};
+		return {true, "", bindings, coercions};
 	} else if (auto ptv_b = dyncast<const types::type_variable_t>(b)) {
-		debug_above(7, log("flipping type variable from rhs to lhs"));
-		return unify(ptv_b, a, env, bindings, depth + 1);
+		if (a != b) {
+			if (occurs_in_type(ptv_b, a, bindings)) {
+				return {
+					false,
+						string_format("recursive unification on %s and %s",
+								a->str().c_str(), b->str().c_str()),
+						bindings,
+						coercions};
+			}
+			debug_above(4, log(log_info,
+						"binding type_variable " c_id("%s") " to " c_type("%s"),
+						ptv_b->id->get_name().c_str(),
+						a->str(bindings).c_str()));
+			assert(bindings.find(ptv_b->id->get_name()) == bindings.end());
+			if (a->rebind(bindings)->ftv_count() != 0) {
+				debug_above(4, log(log_info,
+							"note that %s is itself not fully bound", a->str().c_str()));
+			}
+			bindings[ptv_b->id->get_name()] = a;
+		}
+
+		return {true, "", bindings, coercions};
 	} else if (ptm_a != nullptr) {
 		if (ptm_b != nullptr) {
 			debug_above(7, log("matching maybe types"));
-			return unify(ptm_a->just, ptm_b->just, env, bindings, depth + 1);
+			return unify(ptm_a->just, ptm_b->just, env, bindings, coercions, depth + 1);
 		} else if (b->is_null()) {
 			debug_above(7, log("matching null"));
-			return {true, "", bindings};
+			return {true, "", bindings, coercions};
 		} else {
 			debug_above(7, log("matching maybe on the lhs"));
-			return unify(ptm_a->just, b, env, bindings, depth + 1);
-		}
-	} else if (pti_a != nullptr) {
-		/* ok, we've got a mismatch, but we know we have an id on the left-hand
-		 * side, let's try expanding the type_id to see whether it will unify
-		 * after evaluation. */
-		auto new_a = eval_id(pti_a, env);
-
-		if (new_a != nullptr) {
-			debug_above(6, log(log_info, "eval_id(%s, env) -> %s",
-						pti_a->str().c_str(),
-						new_a->str().c_str()));
-			unification_t unification = unify(new_a, b, env, bindings, depth + 1);
-			if (!unification.result) {
-				return {false, string_format("%s <> %s", a->str().c_str(), b->str().c_str()), bindings};
-			} else {
-				return unification;
-			}
-		} else {
-			/* types don't match */
-			return {
-				false,
-				string_format("(%s != %s) and (%s could not be expanded further)",
-						a->str().c_str(),
-						b->str().c_str(),
-						a->str().c_str()),
-				{}};
+			return unify(ptm_a->just, b, env, bindings, coercions, depth + 1);
 		}
 	} else if (ptp_a != nullptr) {
 		if (auto ptp_b = dyncast<const types::type_product_t>(b)) {
@@ -246,7 +268,8 @@ unification_t unify(
 							pkstr(ptp_b->get_pk()),
 							ptp_a->str().c_str(),
 							ptp_b->str().c_str()),
-					bindings};
+					bindings,
+					coercions};
 			}
 			auto a_dimensions = ptp_a->get_dimensions();
 			auto b_dimensions = ptp_b->get_dimensions();
@@ -256,7 +279,8 @@ unification_t unify(
 					string_format("product type lengths do not match "
 							"(a = %s, b = %s)", ptp_a->str().c_str(),
 							ptp_b->str().c_str()),
-					bindings};
+					bindings,
+					coercions};
 			} else {
 				auto a_dims_end = a_dimensions.end();
 				auto b_dims_iter = b_dimensions.begin();
@@ -264,15 +288,15 @@ unification_t unify(
 						a_dims_iter != a_dims_end;
 						++a_dims_iter, ++b_dims_iter) {
 					debug_above(7, log("matching subitem in product type"));
-					auto unification = unify(*a_dims_iter, *b_dims_iter,
-							env, bindings, depth + 1);
+					auto unification = unify(*a_dims_iter, *b_dims_iter, env, bindings, 0, depth);
 					if (!unification.result) {
-						return {false, unification.reasons, {}};
+						return {false, unification.reasons, {}, coercions};
 					}
 					bindings = unification.bindings;
+					coercions += unification.coercions;
 				}
 
-				return {true, "products match", bindings};
+				return {true, "products match", bindings, coercions};
 			}
 		} else {
 			return {
@@ -280,42 +304,44 @@ unification_t unify(
 				string_format("%s <> %s",
 						a->str().c_str(),
 						b->str().c_str()),
-				bindings};
+				bindings,
+				coercions};
 		}
 	} else if (ptf_a != nullptr) {
 		if (auto ptf_b = dyncast<const types::type_function_t>(b)) {
 			debug_above(7, log("matching function arguments"));
 			/* now make sure the arguments unify */
-			auto args_unification = unify(ptf_a->args, ptf_b->args,
-					env, bindings, depth + 1);
+			auto args_unification = unify(ptf_a->args, ptf_b->args, env, bindings, 0, depth);
 			if (!args_unification.result) {
-				return {false, args_unification.reasons, {}};
+				return {false, args_unification.reasons, {}, coercions + args_unification.coercions};
 			}
 			bindings = args_unification.bindings;
+			coercions += args_unification.coercions;
 
 			debug_above(7, log("matching function return types"));
 			/* finally, make sure the return types unify */
-			auto return_type_unification = unify(ptf_a->return_type, ptf_b->return_type,
-					env, bindings, depth + 1);
+			auto return_type_unification = unify(ptf_a->return_type, ptf_b->return_type, env, bindings, 0, depth);
 			if (!return_type_unification.result) {
-				return {false, return_type_unification.reasons, {}};
+				return {false, return_type_unification.reasons, {}, coercions};
 			}
 			bindings = return_type_unification.bindings;
-			return {true, "functions match", bindings};
+			coercions += return_type_unification.coercions;
+			return {true, "functions match", bindings, coercions};
 		} else {
 			return {
 				false,
 				string_format("%s <> %s",
 						a->str().c_str(),
 						b->str().c_str()),
-				bindings};
+				bindings,
+				coercions};
 		}
 	} else if (pts_a != nullptr) {
 		if (pts_b == nullptr) {
 			std::vector<std::string> reasons;
 			for (auto option : pts_a->options) {
 				debug_above(7, log("matching option of sum type against rhs"));
-				auto unification = unify(option, b, env, bindings, depth + 1);
+				auto unification = unify(option, b, env, bindings, 0, depth + 1);
 				if (unification.result) {
 					if (unification.bindings.size() > bindings.size()) {
 						debug_above(2, log(log_info, "replacing bindings %s with %s",
@@ -323,20 +349,22 @@ unification_t unify(
 									str(unification.bindings).c_str()));
 					}
 					bindings = unification.bindings;
-					return {true, option->str(bindings), bindings};
+					coercions += unification.coercions;
+					return {true, option->str(bindings), bindings, coercions};
 				} else {
 					reasons.push_back(unification.reasons);
 				}
 			}
-			return {false, join(reasons, "\n\t"), {}};
+			return {false, join(reasons, "\n\t"), {}, coercions};
 		} else {
 			assert(pts_b != nullptr);
 			for (auto inbound_option : pts_b->options) {
 				debug_above(7, log("checking inbound %s against lhs %s",
 							inbound_option->repr().c_str(), a->repr().c_str()));
-				auto unification = unify(a, inbound_option, env, bindings, depth + 1);
+				auto unification = unify(a, inbound_option, env, bindings, 0, depth + 1);
 				if (unification.result) {
 					bindings = unification.bindings;
+					coercions += unification.coercions;
 				} else {
 					return {
 						false,
@@ -345,10 +373,11 @@ unification_t unify(
 								"\n\tin\n\t\t%s",
 								inbound_option->str(bindings).c_str(),
 								a->str(bindings).c_str()),
-						bindings};
+						bindings,
+						coercions};
 				}
 			}
-			return {true, "inbound type is a subset of outbound type", bindings};
+			return {true, "inbound type is a subset of outbound type", bindings, coercions};
 		}
 	} else if (pto_a != nullptr) {
 		debug_above(7, log(log_info, "checking inbound type_operator %s",
@@ -363,15 +392,15 @@ unification_t unify(
 				if ((pto_a->operand == nullptr) != (pto_b->operand == nullptr)) {
 					return {
 						false,
-						string_format("type mismatch: %s != %s",
-								a->str(bindings).c_str(), b->str(bindings).c_str()),
-						{}};
+						string_format("type mismatch: %s != %s", a->str(bindings).c_str(), b->str(bindings).c_str()),
+						{},
+						coercions};
 				}
 
 				assert(pto_a->operand != nullptr && pto_b->operand != nullptr);
 
 				debug_above(7, log("matching type operands"));
-				return unify(pto_a->operand, pto_b->operand, env, bindings, depth + 1);
+				return unify(pto_a->operand, pto_b->operand, env, bindings, coercions, depth + 1);
 			}
 		} else {
 			/* fallthrough, and try expanding the left-hand side */
@@ -397,7 +426,7 @@ unification_t unify(
 
 			unification_t unification = unify(new_a, b, env, bindings, depth + 1);
 			if (!unification.result) {
-				return {false, string_format("%s <> %s", a->str().c_str(), b->str().c_str()), bindings};
+				return {false, string_format("%s <> %s", a->str().c_str(), b->str().c_str()), bindings, coercions};
 			} else {
 				return unification;
 			}
@@ -405,51 +434,52 @@ unification_t unify(
 			/* types don't match */
 			return {
 				false,
-				string_format("%s <> %s with attempted bindings %s",
-						a->str().c_str(),
-						b->str().c_str(),
-						str(bindings).c_str()),
-				{}};
+				string_format("%s <> %s", a->str(bindings).c_str(), b->str(bindings).c_str()),
+				{},
+				coercions};
 		}
 	} else if (ptr_a != nullptr) {
+		auto a_element_type = full_eval(ptr_a->element_type, env);
 		if (ptr_b != nullptr) {
 			/* handle pointer to void here, rather than making void the top type */
-			if (types::is_type_id(full_eval(ptr_a->element_type, env), "void")) {
+			if (types::is_type_id(a_element_type, "void")) {
 				/* managed pointers cannot be passed to *void because that seems dangerous.
 				 * if you really want to do that, cast it to *void yourself first. */
-				if (dyncast<const types::type_managed_t>(ptr_b->element_type) == nullptr) {
-					return {true, "", bindings};
-				}
+				assert(dyncast<const types::type_managed_t>(ptr_b->element_type) == nullptr);
+				return {true, "", bindings, coercions};
 			}
 
 			debug_above(7, log("matching ptr types"));
-			return unify(ptr_a->element_type, ptr_b->element_type, env, bindings, depth + 1);
+			return unify(ptr_a->element_type, ptr_b->element_type, env, bindings, coercions, depth + 1);
 		} else if (b->is_null()) {
 			return {
 				false,
-					string_format("pointer types cannot accept null unless they are guarded by a maybe (in other words, use a ? after the left-hand-side type name)",
-							a->str().c_str(),
-							b->str().c_str(),
-							str(bindings).c_str()),
-					{}};
+				string_format("pointer types cannot accept null unless they are guarded by a maybe (in other words, use a ? after the left-hand-side type name)",
+						a->str().c_str(),
+						b->str().c_str(),
+						str(bindings).c_str()),
+				{},
+				coercions};
 		} else {
 			return {
 				false,
-					string_format("pointer types only accept like pointer types",
-							a->str().c_str(),
-							b->str().c_str(),
-							str(bindings).c_str()),
-					{}};
+				string_format("pointer types only accept like pointer types",
+						a->str().c_str(),
+						b->str().c_str(),
+						str(bindings).c_str()),
+				{},
+				coercions};
 		}
 	} else {
 		/* types don't match */
 		return {
 			false,
-				string_format("%s <> %s with attempted bindings %s",
-						a->str().c_str(),
-						b->str().c_str(),
-						str(bindings).c_str()),
-				{}};
+			string_format("%s <> %s with attempted bindings %s",
+					a->str().c_str(),
+					b->str().c_str(),
+					str(bindings).c_str()),
+			{},
+			coercions};
 	}
 }
 

@@ -41,9 +41,10 @@ unification_t var_t::accepts_callsite(
 	types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(type);
 
 	INDENT(6, string_format(
-				"checking whether %s at %s accepts %s and returns %s", str().c_str(),
+				"checking whether %s at %s accepts %s and returns %s",
+				str().c_str(),
+				get_location().str().c_str(),
 				args->str().c_str(),
-				args->get_location().str().c_str(),
 				return_type->str().c_str()));
 
 	auto bindings = scope->get_type_variable_bindings();

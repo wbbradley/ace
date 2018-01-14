@@ -10,13 +10,13 @@ def len(b bytes) int
 	return int(b.cb as int_t)
 
 def alloc(cb int) bytes?
-	if cb.raw < 0r
+	if cb.raw < 0
 		assert(false and "attempt to allocate " + cb + " bytes")
 		return null
 	return alloc(cb.raw as size_t)
 
 def alloc(cb size_t) bytes?
-	let pb = posix.calloc(1r as size_t, cb)
+	let pb = posix.calloc(1 as size_t, cb)
 	if pb != null
 		return bytes(pb as *int8_t, cb)
 	else
@@ -29,19 +29,19 @@ def hexdigest(b bytes) str
 	return hexdigest(b.data, b.cb)
 
 def hexdigest(data *void, cb size_t) str
-	let s = posix.malloc(sizeof(wchar_t) * (cb * 2r + 1r))! as *wchar_t
+	let s = posix.malloc(sizeof(wchar_t) * (cb * 2 + 1))! as *wchar_t
 	iter := data as *uint8_t
 	let end = &iter[cb]
 
-	i := 0r
+	i := 0
 	while iter < end
 		# append to our hexdigest
-		s[i] = hexdigit((iter[0r] >> 4r) as int_t) as wchar_t
-		s[i + 1r] = hexdigit((iter[0r] & 15r) as int_t) as wchar_t
+		s[i] = hexdigit((iter[0] >> 4) as int_t) as wchar_t
+		s[i + 1] = hexdigit((iter[0] & 15) as int_t) as wchar_t
 
 		# advance iteration
-		i += 2r
-		iter = &iter[1r]
+		i += 2
+		iter = &iter[1]
 
-	s[i] = 0r as wchar_t
+	s[i] = 0 as wchar_t
 	return str(s)

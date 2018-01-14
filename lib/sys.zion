@@ -9,7 +9,7 @@ def exit(code int)
 	posix.exit(code.raw)
 
 def set_args(argc int32_t, argv **char_t)
-	i := 0r
+	i := 0
 	while i < argc
 		vector.append(args, __box__(argv[i]))
-		i += 1r
+		i += 1

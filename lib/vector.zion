@@ -47,23 +47,23 @@ def join(v [any T], delim str) str
 	reserve(strs as *vector_t, vec.size)
 
 	let delim_len = posix.wcslen(delim.raw)
-	let delims_len = delim_len * (vec.size - 1r)
+	let delims_len = delim_len * (vec.size - 1)
 	total_len := delims_len
-	i := 0r
+	i := 0
 	while i < vec.size
 		let s = str(vec.items[i] as any T)
 		append(strs, s)
 		total_len += len(s).raw
-		i += 1r
+		i += 1
 
 	# allocate our resultant string
-	let buf *wchar_t = posix.malloc(sizeof(wchar_t) * (total_len + 1r))! as *wchar_t
+	let buf *wchar_t = posix.malloc(sizeof(wchar_t) * (total_len + 1))! as *wchar_t
 
 	# iterate over the elements and append them to our resultant string
-	pos := 0r
-	i = 0r
+	pos := 0
+	i = 0
 	while i < vec.size
-		if i > 0r
+		if i > 0
 			# insert a delim if necessary
 			posix.memcpy(&buf[pos], delim.raw, sizeof(wchar_t) * delim_len)
 			pos += delim_len
@@ -73,9 +73,9 @@ def join(v [any T], delim str) str
 		posix.memcpy(&buf[pos], strs[i].raw, sizeof(wchar_t) * s_len)
 
 		pos += s_len
-		i += 1r
+		i += 1
 
-	buf[pos] = 0r as wchar_t
+	buf[pos] = 0 as wchar_t
 	return str(buf)
 
 [global]
@@ -100,7 +100,7 @@ def resize(vec [any T], size int, default any T) void
 	resize(vec as *vector_t, size.raw, default as *var_t)
 
 def resize(vec *vector_t, size int_t, default *var_t) void
-	if size < 0r
+	if size < 0
 		return
 
 	if vec.size == size
@@ -117,12 +117,12 @@ def resize(vec *vector_t, size int_t, default *var_t) void
 
 [global]
 def __vector_mark__(vec *var_t)
-	# posix.puts("marking vector at 0x" + __str__(vec as int_t, 16r))
+	# posix.puts("marking vector at 0x" + __str__(vec as int_t, 16))
 	let v = vec as *vector_t
-	i := 0r
+	i := 0
 	while i < v.size
 		runtime.mark_allocation(v.items[i])
-		i += 1r
+		i += 1
 
 [global]
 def __vector_free__(var_ *var_t)
@@ -138,28 +138,28 @@ def __vector_free__(var_ *var_t)
 
 
 def __getvectoritem__(vector *vector_t, index int_t) *var_t
-	if index >= 0r and index < vector.size
+	if index >= 0 and index < vector.size
 		return vector.items[index]
 
-	print("zion: array index out of bounds (0x" + __box__(__str__(vector as int_t, 16r)) + "[" + int(index) + "]) where array has length " + int(vector.size))
+	print("zion: array index out of bounds (0x" + __box__(__str__(vector as int_t, 16)) + "[" + int(index) + "]) where array has length " + int(vector.size))
 	assert(false)
 	return null as *var_t
 
 def __setvectoritem__(vector *vector_t, index uint_t, item *var_t)
-	if index < 0r
+	if index < 0
 		return
 
 	if index < vector.size
 		vector.items[index] = item
 	else
-		print("zion: array index out of bounds (0x" + __box__(__str__(vector as int_t, 16r)) + "[" + int(index) + "])")
+		print("zion: array index out of bounds (0x" + __box__(__str__(vector as int_t, 16)) + "[" + int(index) + "])")
 		assert(false)
 
 def __vector_unsafe_append__(vector *vector_t, item *var_t) void
 	# To be called by compiler for vector literals
 	assert(vector.reserved > vector.size)
 	vector.items[vector.size] = item
-	vector.size += 1r
+	vector.size += 1
 
 def __vectorappend__(vector *vector_t, item *var_t) void
 	if vector.reserved > vector.size
@@ -167,33 +167,33 @@ def __vectorappend__(vector *vector_t, item *var_t) void
 		let items = vector.items
 		assert(items != null)
 		items[vector.size] = item
-		vector.size += 1r
+		vector.size += 1
 	else
 		let existing_items = vector.items
 		if existing_items != null
 			# print("we need to re-allocate space because " + vector.reserved + " <= " + vector.size)
 			assert(vector.reserved == vector.size)
-			new_reserved := vector.reserved * 2r
-			if new_reserved < 16r
+			new_reserved := vector.reserved * 2
+			if new_reserved < 16
 				/* start at a level that we avoid a lot of extra calls to malloc */
-				new_reserved = 16r
+				new_reserved = 16
 
 			new_items := posix.calloc(sizeof(*var_t), new_reserved) as *?*var_t
 			assert(new_items != null)
 			posix.memcpy(new_items as *int8_t, existing_items as *int8_t, sizeof(*var_t) * vector.size)
 			new_items[vector.size] = item
-			vector.size += 1r
+			vector.size += 1
 
 			posix.free(vector.items)
 			vector.items = new_items
 			vector.reserved = new_reserved
 		else
 			# print("we need to go from zero space to newly allocated space")
-			assert(vector.reserved == 0r)
-			vector.items = posix.calloc(sizeof(*var_t), 4r)! as **var_t
-			vector.reserved = 4r
-			vector.size = 1r
-			vector.items[0r] = item
+			assert(vector.reserved == 0)
+			vector.items = posix.calloc(sizeof(*var_t), 4)! as **var_t
+			vector.reserved = 4
+			vector.size = 1
+			vector.items[0] = item
 
 [global]
 def reserve(vec [any T], n int)
@@ -243,7 +243,7 @@ def splice(vec [any T], index int, count int) void
 	let i = index.raw
 	let c = count.raw
 	let skip_to = i + c
-	if c < 0r or skip_to < 0r or skip_to > orig_count
+	if c < 0 or skip_to < 0 or skip_to > orig_count
 		panic("invalid index (" + index + ") and count (" + count + ") passed to vector.splice\n")
 
 	posix.memmove(&v.items[i], &v.items[skip_to], (orig_count - skip_to) * sizeof(*var_t))
@@ -255,7 +255,7 @@ type vector_iter{C} has
 
 [global]
 def __iter_begin__(c [any C]) vector_iter{any C}
-	return vector_iter(c, 0r)
+	return vector_iter(c, 0)
 	
 [global]
 def __iter_end__(c [any C]) vector_iter{any C}
@@ -268,7 +268,7 @@ def __iter_valid__(i vector_iter{any C}, end vector_iter{any C}) bool_t
 
 [global]
 def __iterate__(i vector_iter{any C})
-	i.pos += 1r
+	i.pos += 1
 
 [global]
 def __iter_item__(i vector_iter{any C}) any C

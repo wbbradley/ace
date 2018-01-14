@@ -20,4 +20,4 @@ def __main__(argc int32_t, argv **char_t) int32_t
 
 	sys.set_args(argc, argv)
 	main()
-	return 0r as int32_t
+	return 0 as int32_t

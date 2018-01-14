@@ -49,5 +49,5 @@ link def isspace(ch char_t) bool_t
 
 type FILE struct
 
-var SIGTRAP int_t = 5r
-var SIGKILL int_t = 9r
+var SIGTRAP int_t = 5
+var SIGKILL int_t = 9
