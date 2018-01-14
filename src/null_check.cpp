@@ -196,7 +196,9 @@ bound_var_t::ref resolve_null_check(
 			value_is_managed);
 
 	llvm::Value *llvm_value = value->resolve_bound_var_value(builder);
-	bound_type_t::ref bound_bool_type = scope->get_bound_type(BOOL_TYPE);
+	bound_type_t::ref bound_bool_type = upsert_bound_type(status, builder, scope, type_id(make_iid(BOOL_TYPE)));
+	assert(!!status);
+	assert(bound_bool_type != nullptr);
 	llvm::Type *llvm_bool_type = bound_bool_type->get_llvm_specific_type();
 
 	llvm::Constant *zero;

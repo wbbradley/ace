@@ -145,7 +145,7 @@ def __getvectoritem__(vector *vector_t, index int) *var_t
 	assert(false)
 	return null as *var_t
 
-def __setvectoritem__(vector *vector_t, index uint_t, item *var_t)
+def __setvectoritem__(vector *vector_t, index uint, item *var_t)
 	if index < 0
 		return
 

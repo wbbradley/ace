@@ -5,8 +5,7 @@ type unsigned_t{bits} = integer_t{bits, unsigned}
 
 # TODO: inject correct size for platform from reader macro
 type int = signed_t{64}
-type int = signed_t{64}
-type uint_t = unsigned_t{64}
+type uint = unsigned_t{64}
 
 type size_t = unsigned_t{64}
 type ssize_t = signed_t{64}
@@ -23,7 +22,7 @@ type uint16 = unsigned_t{16}
 type int8 = signed_t{8}
 type uint8 = unsigned_t{8}
 
-type typeid_t = unsigned_t{32}
+type typeid = unsigned_t{32}
 
 type var_t struct
 	var type_info *type_info_t
@@ -31,7 +30,7 @@ type var_t struct
 	var mark int
 	var next *var_t
 	var prev *var_t
-	var allocation uint_t
+	var allocation uint
 	#
 	# THE ACTUAL DATA IS APPENDED HERE
 	#

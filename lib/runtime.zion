@@ -45,9 +45,9 @@ def get_member_by_index(v *var_t, index int) *var_t
 	return var_ptr[0]
 
 
-var _bytes_allocated size_t = 0 as size_t
-var _all_bytes_allocated size_t = 0 as size_t
-var _var_allocation uint_t = 0 as uint_t
+var _bytes_allocated size_t = 0
+var _all_bytes_allocated size_t = 0
+var _var_allocation uint = 0
 
 def mem_alloc(cb size_t, comment *char) *?void
 	runtime._bytes_allocated += cb
@@ -161,8 +161,8 @@ def protect_node(node *var_t) void
 	# check_node_existence(node, __false__)
 
 
-def get_var_type_id(v *var_t) typeid_t
-	return v.type_info.type_id as typeid_t
+def get_var_type_id(v *var_t) typeid
+	return v.type_info.type_id as typeid
 
 def __create_head_var() *var_t
 	p := mem_alloc(sizeof(var_t), "__create_head_var") as *?var_t
@@ -195,7 +195,7 @@ def create_var(type_info *type_info_t) *var_t
 	assert(obj != null)
 
 	obj.type_info = type_info
-	runtime._var_allocation += 1 as uint_t
+	runtime._var_allocation += 1 as uint
 
 	# Mark any newly created objects so that just in case we happen to be in the middle of a GC run
 	# we don't accidentally delete this object before its had a chance to get marked fairly.
@@ -350,7 +350,7 @@ def dbghex(v *void) *char
 	# LEAKLEAKLEAK
 	return concat("0x", __str__(v as int, 16))
 
-var _gc_generation uint_t = 0
+var _gc_generation uint = 0
 
 def gc()
 	# dbg_se(llvm_gc_root_chain)

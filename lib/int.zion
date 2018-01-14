@@ -3,15 +3,15 @@ global
 link in "rt_int.o"
 
 link def __not__(x int) bool to __int_not
-link def __int__(x float_t) int to __int_float
+link def __int__(x float) int to __int_float
 link def __int__(x *wchar) int to __int_from_wcs
 link def __int__(x *char) int to __int_from_mbs
 link def __negative__(x int) int to __int_neg
 link def __positive__(x int) int to __int_pos
-link def __plus__(x int, y float_t) float_t to __int_plus_float
-link def __minus__(x int, y float_t) float_t to __int_minus_float
-link def __times__(x int, y float_t) float_t to __int_times_float
-link def __divide__(x int, y float_t) float_t to __int_divide_float
+link def __plus__(x int, y float) float to __int_plus_float
+link def __minus__(x int, y float) float to __int_minus_float
+link def __times__(x int, y float) float to __int_times_float
+link def __divide__(x int, y float) float to __int_divide_float
 
 type Int has
 	var raw int
@@ -21,67 +21,3 @@ def __init__() Int
 
 def int(s str) int
 	return __int__(s.raw)
-
-def __not__(x int) bool
-	return bool(x.raw == 0)
-
-def __mod__(x int, y int) int
-	return int(x.raw % y.raw)
-
-def __plus__(x int, y str) str
-	return str(x) + y
-
-def __positive__(x int) int
-	return x
-
-def __bitwise_and__(x int, y int) int
-	return int(x.raw & y.raw)
-
-def __bitwise_or__(x int, y int) int
-	return int(x.raw | y.raw)
-
-def __shl__(x int, y int) int
-	return int(x.raw << y.raw)
-
-def __shr__(x int, y int) int
-	return int(x.raw >> y.raw)
-
-def __xor__(x int, y int) int
-	return int(x.raw ^ y.raw)
-
-def __eq__(x int, y int) bool
-	return x.raw == y.raw ? true : false
-
-def __eq__(x int, y float) bool
-	return __float__(x.raw) == y.raw ? true : false
-
-def __ineq__(x int, y int) bool
-	return x.raw != y.raw ? true : false
-
-def __ineq__(x int, y float) bool
-	return __float__(x.raw) != y.raw ? true : false
-
-def __lt__(x int, y int) bool
-	return bool(x.raw < y.raw)
-
-def __lte__(x int, y int) bool
-	return bool(x.raw <= y.raw)
-
-def __gt__(x int, y int) bool
-	return bool(x.raw > y.raw)
-
-def __gte__(x int, y int) bool
-	return bool(x.raw >= y.raw)
-
-def __lt__(x int, y float) bool
-	return bool(__float__(x.raw) < y.raw)
-
-def __lte__(x int, y float) bool
-	return bool(__float__(x.raw) <= y.raw)
-
-def __gt__(x int, y float) bool
-	return bool(__float__(x.raw) > y.raw)
-
-def __gte__(x int, y float) bool
-	return bool(__float__(x.raw) >= y.raw)
-
