@@ -248,14 +248,9 @@ bool test_lex_literals() {
 		{"\"hello world\\n\" 13493839", {tk_string, tk_integer}},
 		{"\"\"", {tk_string}},
 		{"0", {tk_integer}},
-		{"0r", {tk_raw_integer}},
 		{"0.0", {tk_float}},
-		{"0.0r", {tk_raw_float}},
-		{"0x0r", {tk_raw_integer}},
-		{"0x3892af0r", {tk_raw_integer}},
 		{"0x3892af0", {tk_integer}},
 		{"10", {tk_integer}},
-		{"10r", {tk_raw_integer}},
 	};
 	return lexer_test(tests);
 }
@@ -293,15 +288,10 @@ bool test_lex_syntax() {
 bool test_lex_floats() {
 	lexer_tests tests = {
 		{"1.0", {tk_float}},
-		{"1.0r", {tk_raw_float}},
 		{"1.0e1", {tk_float}},
-		{"1.0e1r", {tk_raw_float}},
 		{"123e12 # whatever this is not here\n", {tk_float}},
-		{"123e12r # whatever this is not here\n", {tk_raw_float}},
 		{"-123.29382974284e12", {tk_minus, tk_float}},
-		{"-123.29382974284e12r", {tk_minus, tk_raw_float}},
 		{"h(3.14159265)", {tk_identifier, tk_lparen, tk_float, tk_rparen}},
-		{"h(3.14159265r)", {tk_identifier, tk_lparen, tk_raw_float, tk_rparen}},
 	};
 	return lexer_test(tests);
 }
@@ -1052,16 +1042,17 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_unification",
 		[] () -> bool {
-			type_struct({type_variable(INTERNAL_LOC()), type_id(make_iid("float"))}, {} /* name_index */);
 			identifier::set generics = {make_iid("Container"), make_iid("T")};
-			types::type_t::map env;
-			env.insert({"int", type_ptr(type_managed(type_struct({type_id(make_iid("int_t"))}, {})))});
 			auto unifies = std::vector<types::type_t::pair>{
 				types::type_t::pair{
 					parse_type_expr("void", generics, make_iid("foobar")),
 					type_id(make_iid("foobar.void"))},
 				   make_type_pair("any", "float", generics),
 				   make_type_pair("void", "void", generics),
+				   make_type_pair("float", "Float", generics),
+				   make_type_pair("Float", "float", generics),
+				   make_type_pair("bool", "Bool", generics),
+				   make_type_pair("Bool", "bool", generics),
 				   make_type_pair("any a", "int", generics),
 				   make_type_pair("any", "map{int, int}", generics),
 				   make_type_pair("any a", "map{int, str}", generics),
@@ -1078,16 +1069,20 @@ auto test_descs = std::vector<test_desc>{
 				   make_type_pair("Container{T}", "[int]", generics),
 				   make_type_pair("T", "def (x int) float", generics),
 				   make_type_pair("def (p T) float", "def (x int) float", generics),
-				   make_type_pair("*void", "*int_t", generics),
+				   make_type_pair("*void", "*int", generics),
 				   {type_maybe(type_ptr(type_managed(type_struct({}, {})))), type_null()},
 				   {type_ptr(type_id(make_iid("void"))), type_ptr(type_id(make_iid("X")))},
 			};
 
 			auto fails = std::vector<types::type_t::pair>({
 					{type_ptr(type_id(make_iid("X"))),type_ptr(type_id(make_iid("void")))},
-					{type_ptr(type_managed(type_struct({}, {}))), type_null()},
-					{type_null(), type_maybe(type_ptr(type_managed(type_struct({}, {}))))},
+					// {type_ptr(type_managed(type_struct({}, {}))), type_null()},
+					// {type_null(), type_maybe(type_ptr(type_managed(type_struct({}, {}))))},
 					make_type_pair("int", "void", {}),
+					make_type_pair("map{Float}", "map{float}", generics),
+					make_type_pair("map{float}", "map{Float}", generics),
+					make_type_pair("map{Bool}", "map{bool}", generics),
+					make_type_pair("map{bool}", "map{Bool}", generics),
 					make_type_pair("int", "void", generics),
 					make_type_pair("{T, T}", "{void, int}", generics),
 					{type_ptr(type_id(make_iid("void"))), type_id(make_iid("X"))},
@@ -1095,12 +1090,15 @@ auto test_descs = std::vector<test_desc>{
 					make_type_pair("map{any a, any a}", "map{int, str}", generics),
 					make_type_pair("Container{float}", "[int]", generics),
 					make_type_pair("def (p T) T", "def (x int) float", generics),
-					{type_ptr(type_id(make_iid("void"))), type_ptr(type_managed(type_struct({}, {})))},
-				});
+					// {type_ptr(type_id(make_iid("void"))), type_ptr(type_managed(type_struct({}, {})))},
+					});
 
 			status_t status;
 			for (auto &pair : unifies) {
-				test_assert(unify(pair.first, pair.second, {}).result);
+				if (!unify(pair.first, pair.second, {}).result) {
+					log(log_error, "unable to unify %s with %s", pair.first->str().c_str(), pair.second->str().c_str());
+					return false;
+				}
 				assert(!!status);
 			}
 

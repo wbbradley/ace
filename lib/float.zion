@@ -49,9 +49,6 @@ def __minus__(x float, y float) float
 def __positive__(x float) float
 	return x
 
-def __negative__(x float) float
-	return float(-x.raw)
-
 def __divide__(x float, y int) float
 	return float(x.raw / __float__(y.raw))
 

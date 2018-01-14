@@ -24,7 +24,7 @@ def __finalize__(s utf8)
 	posix.free(s.raw)
 
 def utf8(s utf8) utf8
-	return s
+ 	return s
 
 def utf8(s str) utf8
 	return utf8(wcstombs(s.raw))
@@ -43,8 +43,8 @@ def len(u utf8) int
 
 def utf8(b *int8_t, length size_t, encoding str) utf8
 	assert(encoding == "utf8")
-	dest_len := length + 1r
-	dest := posix.calloc(1r, dest_len)!
+	dest_len := length + 1
+	dest := posix.calloc(1, dest_len)!
 	posix.memcpy(dest, b, length)
 	return utf8(dest as *char_t)
 		

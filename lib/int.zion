@@ -13,59 +13,26 @@ link def __minus__(x int_t, y float_t) float_t to __int_minus_float
 link def __times__(x int_t, y float_t) float_t to __int_times_float
 link def __divide__(x int_t, y float_t) float_t to __int_divide_float
 
-type int has
-	var raw int_t
+type Int has
+	var raw int
 
-def __init__() int
+def __init__() Int
 	return 0
 
-def int(x int) int
-	return int(x.raw)
-
-def int(x float) int
-	return int(__int__(x.raw))
-
 def int(s str) int
-	return int(__int__(s.raw))
+	return __int__(s.raw)
 
 def __not__(x int) bool
-	return bool(x.raw == 0r)
+	return bool(x.raw == 0)
 
 def __mod__(x int, y int) int
 	return int(x.raw % y.raw)
 
-def __plus__(x int, y str) str
+def __plus__(x int_t, y str) str
 	return str(x) + y
-
-def __plus__(x int, y float) float
-	return float(x.raw + y.raw)
-
-def __plus__(x int, y int) int
-	return int(x.raw + y.raw)
-
-def __minus__(x int, y int) int
-	return int(x.raw - y.raw)
-
-def __minus__(x int, y float) float
-	return float(__float__(x.raw) - y.raw)
 
 def __positive__(x int) int
 	return x
-
-def __divide__(x int, y int) int
-	return int(x.raw / y.raw)
-
-def __divide__(x int, y float) float
-	return float(__float__(x.raw) / y.raw)
-
-def __times__(x int, y int) int
-	return int(x.raw * y.raw)
-
-def __times__(x int, y float) float
-	return float(__float__(x.raw) * y.raw)
-
-def __negative__(x int) int
-	return int(-x.raw)
 
 def __bitwise_and__(x int, y int) int
 	return int(x.raw & y.raw)

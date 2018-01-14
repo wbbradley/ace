@@ -47,7 +47,7 @@ bound_var_t::ref bind_ctor_to_scope(
 				/* now we know the type of the ctor we want to create. let's check
 				 * whether this ctor already exists. if so, we'll just return it. if
 				 * not, we'll generate it. */
-				auto tuple_pair = instantiate_tagged_tuple_ctor(status, builder, scope, id, node,
+				auto tuple_pair = upsert_tagged_tuple_ctor(status, builder, scope, id, node,
 						function->return_type);
 
 				if (!!status) {
@@ -228,31 +228,25 @@ void ast::type_product_t::register_type(
 	std::string name = id_->get_name();
 	auto location = id_->get_location();
 
-	if (auto found_type = scope->get_bound_type(id_->get_name())) {
-		/* simple check for an already bound monotype */
-		user_error(status, location, "symbol " c_id("%s") " was already defined",
-				name.c_str());
-		user_message(log_warning, status, found_type->get_location(),
-				"previous version of %s defined here",
-				found_type->str().c_str());
+	/* instantiate a lazily bound data ctor, and inject the typename for this type into the
+	 * type environment */
+	auto env = scope->get_total_env();
+	auto env_iter = env.find(name);
+	if (env_iter == env.end()) {
+		/* instantiate_data_ctor_type has the side-effect of creating an
+		 * unchecked data ctor for the type */
+		instantiate_data_ctor_type(status, builder, type,
+				type_variables, scope, shared_from_this(), id_, nullptr, native);
+		return;
 	} else {
-		/* instantiate a lazily bound data ctor, and inject the typename for this type into the
-		 * type environment */
-		auto env = scope->get_total_env();
-		auto env_iter = env.find(name);
-		if (env_iter == env.end()) {
-			/* instantiate_data_ctor_type has the side-effect of creating an
-			 * unchecked data ctor for the type */
-			instantiate_data_ctor_type(status, builder, type,
-					type_variables, scope, shared_from_this(), id_, nullptr, native);
-			return;
-		} else {
-			/* simple check for an already bound typename env variable */
-			user_error(status, location,
-					"symbol " c_id("%s") " is already taken in typename env by %s",
-					name.c_str(),
-					env_iter->second->str().c_str());
-		}
+		/* simple check for an already bound typename env variable */
+		user_error(status, location,
+				"symbol " c_id("%s") " is already taken in typename env by %s",
+				name.c_str(),
+				env_iter->second->str().c_str());
+		user_info(status, env_iter->second->get_location(),
+				"previous version of %s defined here",
+				env_iter->second->str().c_str());
 	}
 
 	assert(!status);
@@ -269,7 +263,14 @@ void ast::type_sum_t::register_type(
 				token.text.c_str(),
 				join(type_variables, ", ").c_str()));
 
-	scope->put_nominal_typename(status, id->get_name(), type);
+	auto env = scope->get_nominal_env();
+	auto iter = env.find(id->get_name());
+	if (iter == env.end()) {
+		scope->put_nominal_typename(status, id->get_name(), type);
+	} else {
+		user_error(status, id->get_location(), "sum types cannot be registered twice");
+		user_info(status, iter->second->get_location(), "see prior type registered here");
+	}
 }
 
 void ast::type_link_t::register_type(
@@ -279,34 +280,41 @@ void ast::type_link_t::register_type(
 		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
-	debug_above(3, log("registering type link for %s link " c_type("%s")
-			   	", " c_id("%s") ", " c_id("%s"),
-				id->get_name().c_str(),
-				underlying_type->str().c_str(),
-				finalize_fn.text.c_str(),
-				mark_fn.text.c_str()));
+	auto env = scope->get_total_env();
+	auto iter = env.find(id->get_name());
+	if (iter == env.end()) {
+		debug_above(3, log("registering type link for %s link " c_type("%s")
+					", " c_id("%s") ", " c_id("%s"),
+					id->get_name().c_str(),
+					underlying_type->str().c_str(),
+					finalize_fn.text.c_str(),
+					mark_fn.text.c_str()));
 
-	/* first construct the inner type which will basically be a call back to the outer type.
-	 * type_links are constructed recursively - being defined by themselves - since they are not
-	 * defined inside the language. */
-	types::type_t::ref inner = type_id(id);
-	for (auto type_variable : type_variables) {
-		inner = type_operator(inner, ::type_variable(type_variable));
-	}
-		
-	/* now construct the lambda that points back to the type */
-	auto type = type_extern(inner, underlying_type, make_code_id(finalize_fn), make_code_id(mark_fn));
-	for (auto iter = type_variables.rbegin();
-			iter != type_variables.rend();
-			++iter)
-	{
-		type = ::type_lambda(*iter, type);
-	}
+		/* first construct the inner type which will basically be a call back to the outer type.
+		 * type_links are constructed recursively - being defined by themselves - since they are not
+		 * defined inside the language. */
+		types::type_t::ref inner = type_id(id);
+		for (auto type_variable : type_variables) {
+			inner = type_operator(inner, ::type_variable(type_variable));
+		}
 
-	scope->put_structural_typename(status, id->get_name(), type);
+		/* now construct the lambda that points back to the type */
+		auto type = type_extern(inner, underlying_type, make_code_id(finalize_fn), make_code_id(mark_fn));
+		for (auto iter = type_variables.rbegin();
+				iter != type_variables.rend();
+				++iter)
+		{
+			type = ::type_lambda(*iter, type);
+		}
 
-	if (!!status) {
-		return;
+		scope->put_structural_typename(status, id->get_name(), type);
+
+		if (!!status) {
+			return;
+		}
+	} else {
+		user_error(status, id->get_location(), "type links cannot be registered twice");
+		user_info(status, iter->second->get_location(), "see prior type registered here");
 	}
 
 	assert(!status);
@@ -330,7 +338,16 @@ void ast::type_alias_t::register_type(
 	for (auto lambda_var : lambda_vars) {
 		final_type = type_lambda(lambda_var, type);
 	}
-
-	scope->put_nominal_typename(status, token.text, final_type);
+	auto env = scope->get_nominal_env();
+	auto iter = env.find(token.text);
+	if (iter == env.end()) {
+		scope->put_nominal_typename(status, token.text, final_type);
+	} else {
+		// debug_above(5, log(log_info, "skipping type alias creation of %s", str().c_str()));
+		// assert(iter->second->get_signature() == final_type->get_signature());
+		user_error(status, type->get_location(), "type aliases cannot be registered twice (regarding " c_id("%s") ")",
+				str().c_str());
+		user_info(status, iter->second->get_location(), "see prior type registered here");
+	}
 }
 

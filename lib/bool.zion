@@ -1,28 +1,22 @@
 global
 
-tag false
-tag true
+tag False
+tag True
 
-type bool is
-	true or
-	false
+type Bool is
+	True or
+	False
 
 def __not__(b bool) bool
 	return bool(__get_typeid__(b) != __get_typeid__(true))
 
 /*
 def __not__(b bool_t) bool_t
-	return (b as int_t == 0r) as bool_t
+	return (b as int_t == 0) as bool_t
 */
 
-def bool(x bool) bool
-	return x
-
 def bool(x int) bool
-	return (x.raw == 0r) ? false : true
-
-def bool(x str) bool
-	return (x.raw[0r] as int_t != 0r) ? true : false
+	return x != 0
 
 def str(x bool) str
 	if x
@@ -30,9 +24,9 @@ def str(x bool) str
 	else
 		return "false"
 
-def bool(x bool_t) bool
+def Bool(x bool) Bool
 	# Since bool is a sum type, there is no default constructor
 	# but since it also represents this obvious binary type, we should
 	# have a default "boxing" function.
-	return x ? true : false
+	return x ? True : False
 

@@ -87,6 +87,10 @@ ptr<program_scope_t> program_scope_t::get_program_scope() {
 	return std::static_pointer_cast<program_scope_t>(shared_from_this());
 }
 
+ptr<const program_scope_t> program_scope_t::get_program_scope() const {
+	return std::static_pointer_cast<const program_scope_t>(shared_from_this());
+}
+
 ptr<module_scope_t> scope_t::get_module_scope() {
 	if (auto module_scope = dyncast<module_scope_t>(shared_from_this())) {
 		return module_scope;
@@ -501,31 +505,8 @@ module_scope_impl_t::module_scope_impl_t(
 {
 }
 
-bool program_scope_t::has_checked(const ptr<const ast::item_t> &node) const {
-	return visited.find(node) != visited.end();
-}
-
 bool module_scope_impl_t::symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var) {
 	return false;
-}
-
-void program_scope_t::mark_checked(
-		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-	   	const ptr<const ast::item_t> &node)
-{
-	if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
-		if (is_function_defn_generic(status, builder, shared_from_this(),
-					*function_defn))
-	   	{
-			/* for now let's never mark generic functions as checked, until we
-			 * have a mechanism to join the type to the checked-mark.  */
-			return;
-		}
-	}
-
-	assert(!has_checked(node));
-	visited.insert(node);
 }
 
 std::string module_scope_impl_t::make_fqn(std::string leaf_name) const {
@@ -876,6 +857,89 @@ void put_typename_impl(
 				"prior type definition for " c_type("%s") " is %s",
 				type_name.c_str(),
 				existing_expansion->str().c_str());
+		dbg();
 	}
 }
 
+bool module_scope_impl_t::has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var) const {
+	// NOTE: for now this only really works for module and global variables
+	assert(type->ftv_count() == 0);
+	auto overloads_iter = bound_vars.find(name);
+	if (overloads_iter != bound_vars.end()) {
+		auto &overloads = overloads_iter->second;
+		types::signature signature = type->get_signature();
+		auto existing_bound_var_iter = overloads.find(signature);
+		if (existing_bound_var_iter != overloads.end()) {
+			if (var != nullptr) {
+				*var = existing_bound_var_iter->second;
+			}
+			return true;
+		}
+	}
+
+	if (dynamic_cast<const program_scope_t*>(this) != nullptr) {
+		/* we are already at program scope, and we didn't find it */
+		return false;
+	} else {
+		/* we didn't find that name in our bound vars, let's check if it's registered at global scope */
+		bool found_at_global_scope = get_program_scope()->has_bound(make_fqn(name), type, var);
+
+		// REVIEW: this really shouldn't happen, since if we are asking if something is bound, it
+		// should be right before we would be instantiating it, which would be in the context of its
+		// owning module...right?
+		assert(!found_at_global_scope);
+
+		return found_at_global_scope;
+	}
+}
+
+void put_bound_function(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		location_t location,
+		identifier::ref extends_module,
+		bound_var_t::ref bound_function,
+		local_scope_t::ref *new_scope)
+{
+	auto function_name = bound_function->name;
+	if (function_name.size() != 0) {
+		auto program_scope = scope->get_program_scope();
+		/* inline function definitions are scoped to the virtual block in which
+		 * they appear */
+		if (auto local_scope = dyncast<local_scope_t>(scope)) {
+			*new_scope = local_scope->new_local_scope(
+					string_format("function-%s", function_name.c_str()));
+
+			(*new_scope)->put_bound_variable(status, function_name, bound_function);
+		} else {
+			module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
+
+			if (module_scope == nullptr) {
+				if (auto subst_scope = dyncast<generic_substitution_scope_t>(scope)) {
+					module_scope = dyncast<module_scope_t>(subst_scope->get_parent_scope());
+				}
+			}
+
+			if (module_scope != nullptr) {
+				if (extends_module != nullptr) {
+					std::string module_name = extends_module->get_name();
+					if (module_name == GLOBAL_SCOPE_NAME) {
+						program_scope->put_bound_variable(status, bound_function->name, bound_function);
+					} else if (auto injection_module_scope = program_scope->lookup_module(module_name)) {
+						/* we're injecting this function into some other scope */
+						injection_module_scope->put_bound_variable(status, bound_function->name, bound_function);
+					} else {
+						assert(false);
+					}
+				} else {
+					/* before recursing directly or indirectly, let's just add
+					 * this function to the module scope we're in */
+					module_scope->put_bound_variable(status, bound_function->name, bound_function);
+				}
+			}
+		}
+	} else {
+		user_error(status, bound_function->get_location(), "visible function definitions need names");
+	}
+}

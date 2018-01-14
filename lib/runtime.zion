@@ -17,9 +17,9 @@ var __head_var *var_t = __create_head_var()
 var __debug_zion_runtime bool_t = __false__
 var _zion_rt *char_t = "zion-rt: "
 
-var TYPE_KIND_TAG int32_t = 0r as int32_t
-var TYPE_KIND_USE_OFFSETS int32_t = 1r as int32_t
-var TYPE_KIND_USE_MARK_FN int32_t = 2r as int32_t
+var TYPE_KIND_TAG int32_t = 0 as int32_t
+var TYPE_KIND_USE_OFFSETS int32_t = 1 as int32_t
+var TYPE_KIND_USE_MARK_FN int32_t = 2 as int32_t
 
 def on_assert_failure(msg *char_t) void
 	# called when assertions fail
@@ -42,12 +42,12 @@ def get_member_by_index(v *var_t, index int_t) *var_t
 	var_ptr := &base_ptr[offset as int_t] as **var_t
 
 	# Return the address of the child member
-	return var_ptr[0r]
+	return var_ptr[0]
 
 
-var _bytes_allocated size_t = 0r as size_t
-var _all_bytes_allocated size_t = 0r as size_t
-var _var_allocation uint_t = 0r as uint_t
+var _bytes_allocated size_t = 0 as size_t
+var _all_bytes_allocated size_t = 0 as size_t
+var _var_allocation uint_t = 0 as uint_t
 
 def mem_alloc(cb size_t, comment *char_t) *?void
 	runtime._bytes_allocated += cb
@@ -56,8 +56,8 @@ def mem_alloc(cb size_t, comment *char_t) *?void
 
 	# posix.puts("allocating ")
 	# posix.puts(__str__(cb))
-	pb := posix.calloc(cb, 1r as size_t)
-	# posix.puts("allocated 0x" + __str__(pb as int_t, 16r) + " (" + __str__(cb) + " bytes) for " + comment)
+	pb := posix.calloc(cb, 1 as size_t)
+	# posix.puts("allocated 0x" + __str__(pb as int_t, 16) + " (" + __str__(cb) + " bytes) for " + comment)
 	return pb
 
 def mem_free(p *void, cb size_t) void
@@ -65,8 +65,8 @@ def mem_free(p *void, cb size_t) void
 	pch := p as *int8_t
 	pch_lim := &((p as *int8_t)[cb])
 	while pch as int_t < pch_lim as int_t
-		pch[0r] = 221r as int8_t # 0xDD
-		pch = &pch[1r]
+		pch[0] = 221 as int8_t # 0xDD
+		pch = &pch[1]
 
 	# posix.free(p)
 	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
@@ -81,8 +81,8 @@ def check_node_existence(node *var_t, should_exist bool_t) void
 	if should_exist
 		assert(p.next != null)
 		assert(node != null)
-		assert(node.prev != 3735928559r as *var_t)
-		assert(node.next != 3735928559r as *var_t)
+		assert(node.prev != 3735928559 as *var_t)
+		assert(node.next != 3735928559 as *var_t)
 		assert(node.prev != null)
 
 	while p != null
@@ -104,7 +104,7 @@ def add_node(node *var_t) void
 
 	if node.prev != null or node.next != null
 		# dbg_zrt(printf("node 0x%08lx #%lld of type %s already has prev and next ptrs?!\n", (intptr_t)node, (long long)node.allocation, node.type_info.name))
-		posix.exit(-1r)
+		posix.exit(-1)
 
 	# assert(not __head_var.next or __head_var.next.prev == &__head_var)
 
@@ -126,9 +126,9 @@ def add_node(node *var_t) void
 def remove_node(node *var_t) void
 	assert(node != runtime.__head_var)
 
-	# posix.puts("removing node 0x" + __str__(node as int_t, 16r))
+	# posix.puts("removing node 0x" + __str__(node as int_t, 16))
 
-	assert(node.mark == 0r)
+	assert(node.mark == 0)
 
 	# check_node_existence(node, __true__)
 
@@ -138,8 +138,8 @@ def remove_node(node *var_t) void
 	node.prev.next = node.next
 	if node.next != null
 		node.next.prev = node.prev
-	node.next = 3735928559r as *var_t
-	node.prev = 3735928559r as *var_t
+	node.next = 3735928559 as *var_t
+	node.prev = 3735928559 as *var_t
 
 	# check_node_existence(node, __false__)
 
@@ -167,7 +167,7 @@ def get_var_type_id(v *var_t) typeid_t
 def __create_head_var() *var_t
 	p := mem_alloc(sizeof(var_t), "__create_head_var") as *?var_t
 	assert(p != null)
-	runtime._var_allocation += 1r as size_t
+	runtime._var_allocation += 1 as size_t
 	p.allocation = runtime._var_allocation
 	return p
 
@@ -195,11 +195,11 @@ def create_var(type_info *type_info_t) *var_t
 	assert(obj != null)
 
 	obj.type_info = type_info
-	runtime._var_allocation += 1r as uint_t
+	runtime._var_allocation += 1 as uint_t
 
 	# Mark any newly created objects so that just in case we happen to be in the middle of a GC run
 	# we don't accidentally delete this object before its had a chance to get marked fairly.
-	obj.mark = 1r
+	obj.mark = 1
 
 	# TODO: we could also check the allocation...
 	obj.allocation = runtime._var_allocation
@@ -221,31 +221,31 @@ def create_var(type_info *type_info_t) *var_t
 def visit_heap_roots(heap_visit def (obj *var_t) void)
 	R := llvm_gc_root_chain as *stack_entry_plus_root_t
 	while R != null
-		assert(R as int_t != 0r)
-		assert(R.map.num_meta == 0r as int32_t)
-		# posix.puts("R is 0x" + __str__(&R.root0 as int_t, 16r))
+		assert(R as int_t != 0)
+		assert(R.map.num_meta == 0 as int32_t)
+		# posix.puts("R is 0x" + __str__(&R.root0 as int_t, 16))
 
 		# For roots [num_meta, num_roots), the metadata pointer is null.
-		i := 0r
+		i := 0
 		e := R.map.num_roots as int_t
 		# posix.puts("found R.map.num_roots of " + __str__(e))
-		# posix.puts("R.next = 0x" + __str__(R.next as int_t, 16r))
+		# posix.puts("R.next = 0x" + __str__(R.next as int_t, 16))
 
 		# mem_dump(&R.root0 as *int_t, R.map.num_roots as int_t * sizeof(*var_t))
 		assert(i <= e)
 		while i != e
 			node := (&R.root0 as **var_t)[i]
 			if node == null
-				i += 1r
+				i += 1
 				continue
 
-			# posix.puts(__str__(node as int_t, 16r))
+			# posix.puts(__str__(node as int_t, 16))
 			# posix.puts(__str__(node.type_info as int_t))
 			assert(node.type_info != null and node.type_info.name != null)
-			# posix.puts("visiting heap node 0x" + __str__(node as int_t, 16r) + " of type " + node.type_info.name)
+			# posix.puts("visiting heap node 0x" + __str__(node as int_t, 16) + " of type " + node.type_info.name)
 			# we have a heap variable
 			heap_visit(node)
-			i += 1r
+			i += 1
 
 		R = (R.next as *stack_entry_plus_root_t)
 
@@ -268,14 +268,14 @@ def mark_allocation(obj *var_t)
 		return
 
 	# dbg_zrt(printf("heap variable is referenced on the stack at 0x%08llx and is a '%s'\n", (long long)obj, obj.type_info.name))
-	if obj.mark != 0r
-		# posix.puts("skipping mark of 0x" + __str__(obj as int_t, 16r))
+	if obj.mark != 0
+		# posix.puts("skipping mark of 0x" + __str__(obj as int_t, 16))
 		return
 
-	# posix.puts("marking allocation at 0x" + __str__(obj as int_t, 16r) + " of type " + obj.type_info.name)
+	# posix.puts("marking allocation at 0x" + __str__(obj as int_t, 16) + " of type " + obj.type_info.name)
 
 	# mark this node in the heap so that we break any potential cycles
-	obj.mark = 1r
+	obj.mark = 1
 
 	assert(obj.type_info != null)
 
@@ -290,24 +290,24 @@ def mark_allocation(obj *var_t)
 		# we may be holding on to child nodes, let's recurse.
 		var refs_count int_t = type_info_offsets.refs_count as int_t
 
-		j := 0r
+		j := 0
 		while j < refs_count
 			# compute the offset to this referenced dimension
 			var child *var_t = get_member_by_index(obj, j)
 			mark_allocation(child)
-			j += 1r
+			j += 1
 	elif type_kind == runtime.TYPE_KIND_USE_MARK_FN
 		# call the type's mark function to recurse
 		type_info_mark_fn := obj.type_info as *type_info_mark_fn_t
 		type_info_mark_fn.mark_fn(obj)
 	else
 		posix.perror("found a heap variable with an invalid type_kind")
-		posix.exit(1r)
+		posix.exit(1)
 
 
 def clear_mark_bit(obj *var_t)
-	# posix.puts("clearing marked bit on 0x" + __str__(obj as int_t, 16r))
-	obj.mark = 0r
+	# posix.puts("clearing marked bit on 0x" + __str__(obj as int_t, 16))
+	obj.mark = 0
 
 
 def finalize(obj *var_t)
@@ -332,11 +332,11 @@ def finalize(obj *var_t)
 			
 	else
 		posix.perror("found a heap variable with an invalid type_kind")
-		posix.exit(1r)
+		posix.exit(1)
 
 def free_unmarked(obj *var_t)
 	assert(obj != __head_var)
-	if obj.mark == 0r
+	if obj.mark == 0
 		# Protect newly allocated things (during GC) from being prematurely deleted
 		if obj.allocation < _gc_generation
 			finalize(obj)
@@ -348,9 +348,9 @@ def free_unmarked(obj *var_t)
 
 def dbghex(v *void) *char_t
 	# LEAKLEAKLEAK
-	return concat("0x", __str__(v as int_t, 16r))
+	return concat("0x", __str__(v as int_t, 16))
 
-var _gc_generation uint_t = 0r
+var _gc_generation uint_t = 0
 
 def gc()
 	# dbg_se(llvm_gc_root_chain)

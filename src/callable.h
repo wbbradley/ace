@@ -4,6 +4,7 @@
 #include "bound_var.h"
 #include "scopes.h"
 #include "life.h"
+#include "fitting.h"
 
 namespace ast {
     struct item_t;
@@ -49,7 +50,7 @@ bound_var_t::ref maybe_get_callable(
 		location_t location,
 		types::type_t::ref sig_args,
 		types::type_t::ref return_type,
-		var_t::refs &fns);
+		fittings_t &fittings);
 
 bound_var_t::ref call_program_function(
         status_t &status,
@@ -60,3 +61,13 @@ bound_var_t::ref call_program_function(
         const ptr<const ast::item_t> &callsite,
         const bound_var_t::refs args,
 		types::type_t::ref return_type=nullptr);
+
+bound_var_t::ref check_func_vs_callsite(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		location_t location,
+		var_t::ref fn,
+		types::type_t::ref args,
+		types::type_t::ref return_type,
+		int &coercions);

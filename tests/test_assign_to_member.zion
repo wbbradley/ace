@@ -5,6 +5,6 @@ type Value has
 	var x float_t
 
 def main()
-	v := Value(2.0r)
-	v.x = 5.0r
+	v := Value(2.0)
+	v.x = 5.0
 	print(v.x)

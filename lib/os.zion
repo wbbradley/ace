@@ -9,7 +9,7 @@ def getcwd() str
 		return cwd
 	else
 		posix.puts("could not allocate enough memory to store the working directory!")
-		posix.exit(-1r)
+		posix.exit(-1)
 		return null as str
 
 

@@ -37,6 +37,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual std::string str() = 0;
 	virtual ptr<function_scope_t> new_function_scope(std::string name) = 0;
 	virtual ptr<program_scope_t> get_program_scope() = 0;
+	virtual ptr<const program_scope_t> get_program_scope() const = 0;
 	virtual ptr<scope_t> get_parent_scope() = 0;
 	virtual ptr<const scope_t> get_parent_scope() const = 0;
 	virtual void dump(std::ostream &os) const = 0;
@@ -55,6 +56,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	ptr<const module_scope_t> get_module_scope() const;
 
 	virtual bound_var_t::ref get_singleton(std::string name) = 0;
+	virtual bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const = 0;
 
     /* There are mappings based on type declarations stored in the env(s) */
 	virtual types::type_t::map get_nominal_env() const = 0;
@@ -87,6 +89,7 @@ struct scope_impl_t : public BASE {
 
 	ptr<function_scope_t> new_function_scope(std::string name);
 	ptr<program_scope_t> get_program_scope();
+	ptr<const program_scope_t> get_program_scope() const;
 	types::type_t::map get_nominal_env() const;
 	types::type_t::map get_total_env() const;
 	types::type_t::map get_type_variable_bindings() const;
@@ -103,6 +106,7 @@ struct scope_impl_t : public BASE {
     virtual void put_type_variable_binding(status_t &status, const std::string &binding, types::type_t::ref type);
 	virtual ptr<scope_t> get_parent_scope();
 	virtual ptr<const scope_t> get_parent_scope() const;
+	virtual bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const;
 
 protected:
 	std::string scope_name;
@@ -197,14 +201,13 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	 * then it won't make sense to check it again at the top level since it's not being
 	 * instantiated. if it is not generic, then there's no need to check it because
 	 * it's already instantiated. */
-	bool has_checked(const ptr<const ast::item_t> &node) const;
-	void mark_checked(status_t &status, llvm::IRBuilder<> &builder, const ptr<const ast::item_t> &node);
 	virtual llvm::Module *get_llvm_module();
 
 	virtual void dump(std::ostream &os) const;
 
 	static module_scope_t::ref create(std::string module_name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module);
 	virtual bool symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var);
+	virtual bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const;
 
 	// void add_linked_module(status_t &status, ptr<const ast::item_t> obj, std::string symbol, module_scope_impl_t::ref module_scope);
 
@@ -237,10 +240,9 @@ struct program_scope_t : public module_scope_impl_t {
 
 	virtual std::string make_fqn(std::string name) const;
 	virtual ptr<program_scope_t> get_program_scope();
+	virtual ptr<const program_scope_t> get_program_scope() const;
 	virtual void dump(std::ostream &os) const;
 
-	bool has_checked(const ptr<const ast::item_t> &node) const;
-	void mark_checked(status_t &status, llvm::IRBuilder<> &builder, const ptr<const ast::item_t> &node);
 	ptr<module_scope_t> new_module_scope(std::string name, llvm::Module *llvm_module);
 
 	static program_scope_t::ref create(std::string name, compiler_t &compiler, llvm::Module *llvm_module);
@@ -274,9 +276,6 @@ private:
 	module_scope_t::map modules;
 	bound_type_t::map bound_types;
 	std::map<types::signature, types::signature> bound_type_mappings;
-
-	/* track nodes we've already visited */
-	std::set<ptr<const ast::item_t>> visited;
 
 	/* track the module var initialization function */
 	bound_var_t::ref init_module_vars_function;
@@ -356,6 +355,12 @@ ptr<function_scope_t> scope_impl_t<T>::new_function_scope(std::string name) {
 template <typename T>
 ptr<program_scope_t> scope_impl_t<T>::get_program_scope() {
 	assert(!dynamic_cast<program_scope_t* const>(this));
+	return this->get_parent_scope()->get_program_scope();
+}
+
+template <typename T>
+ptr<const program_scope_t> scope_impl_t<T>::get_program_scope() const {
+	assert(!dynamic_cast<const program_scope_t* const>(this));
 	return this->get_parent_scope()->get_program_scope();
 }
 
@@ -447,10 +452,11 @@ void scope_impl_t<T>::put_bound_variable(
 	   	std::string symbol,
 	   	bound_var_t::ref bound_variable)
 {
-	debug_above(4, log(log_info, "binding " c_id("%s") " in " c_id("%s") " to %s",
+	debug_above(4, log(log_info, "binding variable " c_id("%s") " in " c_id("%s") " to %s at %s",
 				symbol.c_str(),
 				this->get_name().c_str(),
-			   	bound_variable->str().c_str()));
+			   	bound_variable->str().c_str(),
+				bound_variable->get_location().str().c_str()));
 
 	auto &resolve_map = bound_vars[symbol];
 	types::signature signature = bound_variable->get_signature();
@@ -547,6 +553,13 @@ bound_type_t::ref scope_impl_t<T>::get_bound_type(types::signature signature, bo
 	return get_bound_type_from_scope(signature, this->get_program_scope(), use_mappings);
 }
 
+template <typename T>
+bool scope_impl_t<T>::has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var) const {
+	return get_parent_scope()->has_bound(name, type, var);
+}
+
+
+
 void get_callables_from_bound_vars(
 		std::string symbol,
 		const bound_var_t::map &bound_vars,
@@ -589,3 +602,12 @@ template <typename T>
 ptr<const scope_t> scope_impl_t<T>::get_parent_scope() const {
 	return parent_scope;
 }
+
+void put_bound_function(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		location_t location,
+		identifier::ref extends_module,
+		bound_var_t::ref bound_function,
+		local_scope_t::ref *new_scope);

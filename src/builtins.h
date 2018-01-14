@@ -16,6 +16,10 @@ extern const char *MBS_TYPE;
 extern const char *PTR_TO_MBS_TYPE;
 extern const char *WCS_TYPE;
 extern const char *PTR_TO_WCS_TYPE;
-extern const char *TRUE_TYPE;
-extern const char *FALSE_TYPE;
 extern const char *TYPEID_TYPE;
+extern const char *MANAGED_STR;
+extern const char *MANAGED_INT;
+extern const char *MANAGED_CHAR;
+extern const char *MANAGED_FLOAT;
+extern const char *MANAGED_BOOL;
+

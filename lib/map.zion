@@ -41,7 +41,7 @@ def __setitem__(m map{any K, any V}, key any K, val any V)
 [global]
 def del(m map{any K, any V}, key any K) bool
 	# HACKHACK: O(n) BAD BAD - also vector.vector_t coupling BAD BAD
-	i := 0r
+	i := 0
 	let storage = m.storage
 	let size = (storage as *vector.vector_t).size
 	while i < size
@@ -49,5 +49,5 @@ def del(m map{any K, any V}, key any K) bool
 		if item.key == key
 			splice(storage, int(i), 1)
 			return true
-		i += 1r
+		i += 1
 	return false

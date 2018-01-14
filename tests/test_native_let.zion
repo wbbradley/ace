@@ -2,9 +2,9 @@ module _
 # test: pass
 
 def main()
-	let xyz = 100r
-	let abc = 23r
+	let xyz = 100
+	let abc = 23
 	let q = xyz / abc
 	print(q)
-	let u = (100r + 23r) / 23r
+	let u = (100 + 23) / 23
 	print(u)

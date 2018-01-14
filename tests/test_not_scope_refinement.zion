@@ -6,9 +6,9 @@ type funky_t struct
 	var t int_t
 
 def main()
-	let p *?funky_t = posix.calloc(sizeof(funky_t), 1r) as *?funky_t
+	let p *?funky_t = posix.calloc(sizeof(funky_t), 1) as *?funky_t
 	if not p
 		return
-	p.t = 2r
+	p.t = 2
 	print(p.t)
 	
