@@ -2,16 +2,16 @@ global
 
 link in "rt_int.o"
 
-link def __not__(x int_t) bool_t to __int_not
-link def __int__(x float_t) int_t to __int_float
-link def __int__(x *wchar_t) int_t to __int_from_wcs
-link def __int__(x *char_t) int_t to __int_from_mbs
-link def __negative__(x int_t) int_t to __int_neg
-link def __positive__(x int_t) int_t to __int_pos
-link def __plus__(x int_t, y float_t) float_t to __int_plus_float
-link def __minus__(x int_t, y float_t) float_t to __int_minus_float
-link def __times__(x int_t, y float_t) float_t to __int_times_float
-link def __divide__(x int_t, y float_t) float_t to __int_divide_float
+link def __not__(x int) bool to __int_not
+link def __int__(x float_t) int to __int_float
+link def __int__(x *wchar) int to __int_from_wcs
+link def __int__(x *char) int to __int_from_mbs
+link def __negative__(x int) int to __int_neg
+link def __positive__(x int) int to __int_pos
+link def __plus__(x int, y float_t) float_t to __int_plus_float
+link def __minus__(x int, y float_t) float_t to __int_minus_float
+link def __times__(x int, y float_t) float_t to __int_times_float
+link def __divide__(x int, y float_t) float_t to __int_divide_float
 
 type Int has
 	var raw int
@@ -28,7 +28,7 @@ def __not__(x int) bool
 def __mod__(x int, y int) int
 	return int(x.raw % y.raw)
 
-def __plus__(x int_t, y str) str
+def __plus__(x int, y str) str
 	return str(x) + y
 
 def __positive__(x int) int

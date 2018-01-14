@@ -8,10 +8,10 @@ module _
 # link in "build-Darwin/tests/test_link_extern_entry.o"
 link in "/tmp/test_link_extern_entry.o"
 
-link def make_entry(name *char_t, number int_t) *?EntryImpl
+link def make_entry(name *char, number int) *?EntryImpl
 link def free_entry(entry *EntryImpl) void
-link def get_name(entry *EntryImpl) *?char_t
-link def get_number(entry *EntryImpl) int_t
+link def get_name(entry *EntryImpl) *?char
+link def get_number(entry *EntryImpl) int
 
 type EntryImpl struct
 type Entry has

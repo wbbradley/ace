@@ -5,30 +5,30 @@ type unsigned_t{bits} = integer_t{bits, unsigned}
 
 # TODO: inject correct size for platform from reader macro
 type int = signed_t{64}
-type int_t = signed_t{64}
+type int = signed_t{64}
 type uint_t = unsigned_t{64}
 
 type size_t = unsigned_t{64}
 type ssize_t = signed_t{64}
 
-type int64_t = signed_t{64}
-type uint64_t = unsigned_t{64}
+type int64 = signed_t{64}
+type uint64 = unsigned_t{64}
 
-type int32_t = signed_t{32}
-type uint32_t = unsigned_t{32}
+type int32 = signed_t{32}
+type uint32 = unsigned_t{32}
 
-type int16_t = signed_t{16}
-type uint16_t = unsigned_t{16}
+type int16 = signed_t{16}
+type uint16 = unsigned_t{16}
 
-type int8_t = signed_t{8}
-type uint8_t = unsigned_t{8}
+type int8 = signed_t{8}
+type uint8 = unsigned_t{8}
 
 type typeid_t = unsigned_t{32}
 
 type var_t struct
 	var type_info *type_info_t
 	# and a ref-count of its own
-	var mark int_t
+	var mark int
 	var next *var_t
 	var prev *var_t
 	var allocation uint_t
@@ -37,16 +37,16 @@ type var_t struct
 	#
 
 type type_info_t struct
-	var type_id   int32_t
-	var type_kind int32_t
+	var type_id   int32
+	var type_kind int32
 	var size      size_t
-	var name      *char_t
+	var name      *char
 
 type type_info_offsets_t struct
 	var type_info_head type_info_t
 	var finalize_fn    def (v *var_t) void
-	var refs_count     int16_t
-	var ref_offsets    *int16_t
+	var refs_count     int16
+	var ref_offsets    *int16
 
 type type_info_mark_fn_t struct
 	var type_info_head type_info_t
@@ -67,8 +67,8 @@ type tag_t struct
 #   Storage of metadata values is elided if the %metadata parameter to
 #   @llvm.gcroot is null.
 type stack_frame_map_t struct
-	var num_roots int32_t  # Number of roots in stack frame.
-	var num_meta  int32_t  # Number of metadata entries.  May be < num_roots.
+	var num_roots int32  # Number of roots in stack frame.
+	var num_meta  int32  # Number of metadata entries.  May be < num_roots.
 
 #   A link in the dynamic shadow stack.  One of these is embedded in
 #   the stack frame of each function on the call stack.

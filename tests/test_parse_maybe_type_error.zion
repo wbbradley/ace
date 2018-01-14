@@ -2,5 +2,5 @@ module _
 
 def main()
 	# error: pointer types should be marked as maybe types immediately after the *
-	let x *int_t? = null
+	let x *int? = null
 	pass

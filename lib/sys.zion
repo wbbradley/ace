@@ -8,7 +8,7 @@ def exit(code int)
 	print("Quitting with code " + code)
 	posix.exit(code.raw)
 
-def set_args(argc int32_t, argv **char_t)
+def set_args(argc int32, argv **char)
 	i := 0
 	while i < argc
 		vector.append(args, __box__(argv[i]))

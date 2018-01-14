@@ -1,13 +1,13 @@
 global
 
-link def hexdigit(val int_t) wchar_t
+link def hexdigit(val int) wchar
 
 type bytes has
-	let data *int8_t
+	let data *int8
 	let cb size_t
 
 def len(b bytes) int
-	return int(b.cb as int_t)
+	return int(b.cb as int)
 
 def alloc(cb int) bytes?
 	if cb.raw < 0
@@ -18,7 +18,7 @@ def alloc(cb int) bytes?
 def alloc(cb size_t) bytes?
 	let pb = posix.calloc(1 as size_t, cb)
 	if pb != null
-		return bytes(pb as *int8_t, cb)
+		return bytes(pb as *int8, cb)
 	else
 		return null
 
@@ -29,19 +29,19 @@ def hexdigest(b bytes) str
 	return hexdigest(b.data, b.cb)
 
 def hexdigest(data *void, cb size_t) str
-	let s = posix.malloc(sizeof(wchar_t) * (cb * 2 + 1))! as *wchar_t
-	iter := data as *uint8_t
+	let s = posix.malloc(sizeof(wchar) * (cb * 2 + 1))! as *wchar
+	iter := data as *uint8
 	let end = &iter[cb]
 
 	i := 0
 	while iter < end
 		# append to our hexdigest
-		s[i] = hexdigit((iter[0] >> 4) as int_t) as wchar_t
-		s[i + 1] = hexdigit((iter[0] & 15) as int_t) as wchar_t
+		s[i] = hexdigit((iter[0] >> 4) as int) as wchar
+		s[i + 1] = hexdigit((iter[0] & 15) as int) as wchar
 
 		# advance iteration
 		i += 2
 		iter = &iter[1]
 
-	s[i] = 0 as wchar_t
+	s[i] = 0 as wchar
 	return str(s)

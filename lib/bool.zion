@@ -11,8 +11,8 @@ def __not__(b bool) bool
 	return bool(__get_typeid__(b) != __get_typeid__(true))
 
 /*
-def __not__(b bool_t) bool_t
-	return (b as int_t == 0) as bool_t
+def __not__(b bool) bool
+	return (b as int == 0) as bool
 */
 
 def bool(x int) bool

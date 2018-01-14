@@ -2,11 +2,11 @@ global
 
 link in "rt_str.o"
 
-link def __wcs__(x int_t) *wchar_t to __wcs_int
-link def __wcs__(x int_t, y int_t) *wchar_t to __wcs_int_radix
-link def __wcs__(x float_t) *wchar_t to __wcs_float
-link def __wcs__(x *char_t) *wchar_t to __wcs_str
-link def concat(x *wchar_t, y *wchar_t) *wchar_t to __wcs_concat
+link def __wcs__(x int) *wchar to __wcs_int
+link def __wcs__(x int, y int) *wchar to __wcs_int_radix
+link def __wcs__(x float_t) *wchar to __wcs_float
+link def __wcs__(x *char) *wchar to __wcs_str
+link def concat(x *wchar, y *wchar) *wchar to __wcs_concat
 
 #
 # str
@@ -15,7 +15,7 @@ link def concat(x *wchar_t, y *wchar_t) *wchar_t to __wcs_concat
 #
 
 type str has
-	let raw *wchar_t
+	let raw *wchar
 
 var __empty_str str = str(mbstowcs(""))
 
@@ -25,7 +25,7 @@ def __init__() str
 def __finalize__(s str)
 	posix.free(s.raw)
 
-def __box__(s *char_t) str
+def __box__(s *char) str
 	return str(mbstowcs(s))
 
 def len(s str) int
@@ -40,7 +40,7 @@ def str(s utf8) str
 def str(x int) str
 	return str(__wcs__(x.raw))
 
-def str(i int_t) str
+def str(i int) str
 	return str(__wcs__(i))
 
 def str(x float) str
@@ -55,7 +55,7 @@ def __plus__(x str, y str) str
 def __plus__(x str, y int) str
 	return str(concat(x.raw, str(y).raw))
 
-def __plus__(x str, y int_t) str
+def __plus__(x str, y int) str
 	let y_expanded = __wcs__(y)
 	let result = str(concat(x.raw, y_expanded))
 	posix.free(y_expanded)
@@ -73,30 +73,30 @@ def __eq__(x str, y str) bool
 def __ineq__(x str, y str) bool
 	return posix.wcscmp(x.raw, y.raw) != 0 ? true : false
 
-def str(buffer *char_t, length size_t) str
+def str(buffer *char, length size_t) str
 	# Create a managed string from a direct memory access
 	# TODO: optimize this to avoid the malloc
-	let retstr = posix.malloc(length + 1 as size_t)! as *char_t
-	posix.memcpy(retstr as *int8_t, buffer as *int8_t, length)
-	retstr[length] = 0 as char_t
+	let retstr = posix.malloc(length + 1 as size_t)! as *char
+	posix.memcpy(retstr as *int8, buffer as *int8, length)
+	retstr[length] = 0 as char
 	let s = str(mbstowcs(retstr))
 	posix.free(retstr);
 	return s
 
-def str(src *wchar_t, char_count int_t) str
+def str(src *wchar, char_count int) str
 	assert(char_count >= 0)
 	if char_count <= 0
 		return __empty_str
-	let cb = sizeof(wchar_t) * (char_count + 1)
-	let dst = posix.malloc(cb)! as *wchar_t
-	posix.memcpy(dst, src, cb - sizeof(wchar_t))
+	let cb = sizeof(wchar) * (char_count + 1)
+	let dst = posix.malloc(cb)! as *wchar
+	posix.memcpy(dst, src, cb - sizeof(wchar))
 	dst[char_count] = 0
 	return str(dst)
 
 def strip(s str) str
-	var start int_t = 0
-	let max int_t = posix.wcslen(s.raw)
-	var lim int_t = max - 1
+	var start int = 0
+	let max int = posix.wcslen(s.raw)
+	var lim int = max - 1
 	while start <= lim
 		if not posix.iswspace(s.raw[start])
 			break

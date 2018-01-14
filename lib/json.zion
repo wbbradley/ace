@@ -5,10 +5,10 @@ link in "-ljansson"
 link def json_object() *json_t
 link def json_array() *json_t
 link def json_string(value *char) *json_t
-link def json_stringn(value *char_t, len size_t) *json_t
-link def json_string_nocheck(value *char_t) *json_t
-link def json_stringn_nocheck(value *char_t, len size_t) *json_t
-link def json_integer(value int_t) *json_t
+link def json_stringn(value *char, len size_t) *json_t
+link def json_string_nocheck(value *char) *json_t
+link def json_stringn_nocheck(value *char, len size_t) *json_t
+link def json_integer(value int) *json_t
 link def json_real(value float_t) *json_t
 link def json_true() *json_t
 link def json_false() *json_t

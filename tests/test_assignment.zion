@@ -1,7 +1,7 @@
 module _
 # test: pass
 
-def main() int_t
+def main() int
 	x := 0
 	while x < 10
 		print(x)

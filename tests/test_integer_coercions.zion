@@ -8,38 +8,38 @@ module _
 # expect: 255 ^ 254 == 1
 # expect: 255 | 254 == 255
 # expect: 255 << 2 == 1020
-# expect: (255 << 2) as int8_t == -4
-# expect: (255 as int8_t) << 2 == -4
-# expect: (127 as int8_t) << 2 == 508
-# expect: (127 as int8_t) >> 2 == 31
+# expect: (255 << 2) as int8 == -4
+# expect: (255 as int8) << 2 == -4
+# expect: (127 as int8) << 2 == 508
+# expect: (127 as int8) >> 2 == 31
 # expect: -1 & 0 == 0
 # expect: -1 & 4 == 4
 
-link def printf(fmt *char_t, a *char_t) int_t
-link def printf(fmt *char_t, a int64_t) int_t
+link def printf(fmt *char, a *char) int
+link def printf(fmt *char, a int64) int
 
 def main()
-	var y int32_t = 32808
-	var x1 int8_t = -y
+	var y int32 = 32808
+	var x1 int8 = -y
 	printf("-40: %s\n", utf8(x1).raw)
 
-	var x2 int16_t = -y
+	var x2 int16 = -y
 	printf("-32728: %s\n", utf8(x2).raw)
 
-	var max_signed_int int64_t = 0x7FFFFFFFFFFFFFFFr
+	var max_signed_int int64 = 0x7FFFFFFFFFFFFFFFr
 	printf("max_int: %lld\n", max_signed_int)
 
-	var max_signed_int_plus_one int64_t = 0x7FFFFFFFFFFFFFFFr + 1
+	var max_signed_int_plus_one int64 = 0x7FFFFFFFFFFFFFFFr + 1
 	printf("max_int_plus_one: %lld\n", max_signed_int_plus_one)
 
 	printf("255 ^ 255 == %lld\n", 255 ^ 255)
 	printf("255 ^ 254 == %lld\n", 255 ^ 254)
 	printf("255 | 254 == %lld\n", 255 | 254)
 	printf("255 << 2 == %lld\n", 255 << 2)
-	printf("(255 << 2) as int8_t == %lld\n", (255 << 2) as int8_t)
-	printf("(255 as int8_t) << 2 == %lld\n", 255 as int8_t << 2)
-	printf("(127 as int8_t) << 2 == %lld\n", 127 as int8_t << 2)
-	printf("(127 as int8_t) >> 2 == %lld\n", 127 as int8_t >> 2)
+	printf("(255 << 2) as int8 == %lld\n", (255 << 2) as int8)
+	printf("(255 as int8) << 2 == %lld\n", 255 as int8 << 2)
+	printf("(127 as int8) << 2 == %lld\n", 127 as int8 << 2)
+	printf("(127 as int8) >> 2 == %lld\n", 127 as int8 >> 2)
 	printf("-1 & 0 == %lld\n", -1 & 0)
 	printf("-1 & 4 == %lld\n", -1 & 4)
 	# assert(MAX_INT32 + MAX_INT32 != 2147483648)

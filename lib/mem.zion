@@ -2,7 +2,7 @@ module mem
 get posix
 
 type Value has native
-	var size int64_t
+	var size int64
 	var name __str__
 	var typeinfo TypeInfo
 
@@ -12,7 +12,7 @@ type TypeInfo has native
 	var release def (v Value) void
 
 [module std]
-def allocate_value(size int_t, name __str__, type_info TypeInfo) Value
+def allocate_value(size int, name __str__, type_info TypeInfo) Value
 	buf := posix.calloc(sizeof(Value) + size, (1).raw) as! Value
 	buf.size = size
 	buf.name = posix.strdup(name)
