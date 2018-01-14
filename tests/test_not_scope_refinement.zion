@@ -3,7 +3,7 @@ module _
 # expect: 2
 
 type funky_t struct
-	var t int_t
+	var t int
 
 def main()
 	let p *?funky_t = posix.calloc(sizeof(funky_t), 1) as *?funky_t

@@ -2,28 +2,28 @@ global
 
 link in "rt_float.o"
 
-link def __float__(x int_t) float_t to __float_int
+link def __float__(x int) float_t to __float_int
 link def __float__(x float_t) float_t to __float_float
-link def __float__(x *char_t) float_t to __float_from_utf8
-link def __float__(x *wchar_t) float_t to __float_from_utf32
+link def __float__(x *char) float_t to __float_from_utf8
+link def __float__(x *wchar) float_t to __float_from_utf32
 link def __negative__(x float_t) float_t to __float_neg
 link def __positive__(x float_t) float_t to __float_pos
-link def __plus__(x float_t, y int_t) float_t to __float_plus_int
-link def __minus__(x float_t, y int_t) float_t to __float_minus_int
-link def __times__(x float_t, y int_t) float_t to __float_times_int
-link def __divide__(x float_t, y int_t) float_t to __float_divide_int
+link def __plus__(x float_t, y int) float_t to __float_plus_int
+link def __minus__(x float_t, y int) float_t to __float_minus_int
+link def __times__(x float_t, y int) float_t to __float_times_int
+link def __divide__(x float_t, y int) float_t to __float_divide_int
 link def __plus__(x float_t, y float_t) float_t to __float_plus_float
 link def __minus__(x float_t, y float_t) float_t to __float_minus_float
 link def __times__(x float_t, y float_t) float_t to __float_times_float
 link def __divide__(x float_t, y float_t) float_t to __float_divide_float
-link def __gt__(x float_t, y float_t) bool_t to __float_gt_float
-link def __lt__(x float_t, y float_t) bool_t to __float_lt_float
-link def __lt__(x float_t, y int_t) bool_t to __float_lt_int
-link def __gte__(x float_t, y float_t) bool_t to __float_gte_float
-link def __lte__(x float_t, y float_t) bool_t to __float_lte_float
-link def __lte__(x float_t, y int_t) bool_t to __float_lte_int
-link def __eq__(x float_t, y float_t) bool_t to __float_eq_float
-link def __ineq__(x float_t, y float_t) bool_t to __float_ineq_float
+link def __gt__(x float_t, y float_t) bool to __float_gt_float
+link def __lt__(x float_t, y float_t) bool to __float_lt_float
+link def __lt__(x float_t, y int) bool to __float_lt_int
+link def __gte__(x float_t, y float_t) bool to __float_gte_float
+link def __lte__(x float_t, y float_t) bool to __float_lte_float
+link def __lte__(x float_t, y int) bool to __float_lte_int
+link def __eq__(x float_t, y float_t) bool to __float_eq_float
+link def __ineq__(x float_t, y float_t) bool to __float_ineq_float
 
 type float has
 	let raw float_t

@@ -11,7 +11,7 @@ type Point is
 	Relative or Absolute
 
 # override the bool operator for Point
-def __bool__(p Point) bool_t
+def __bool__(p Point) bool
 	return __true__
 
 def main()

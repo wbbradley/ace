@@ -99,15 +99,15 @@ def readline(fp *posix.FILE) str or EOF or Error
 		return Error(-1)
 
 	linecap := 0
-	line := null as *char_t
+	line := null as *char
 	linelen := posix.getline(&line, &linecap, fp)
 	if linelen == -1
 		return EOF
 
 	# make sure we strip the LF char
 	if linelen > 0
-		if line[linelen - 1] as int_t == 10
-			line[linelen - 1] = 0 as char_t
+		if line[linelen - 1] as int == 10
+			line[linelen - 1] = 0 as char
 	str_line := str(mbstowcs(line))
 	posix.free(line)
 	return str_line

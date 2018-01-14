@@ -1,17 +1,17 @@
 module _
 # test: pass
-# expect: x : *int_t
-# reject: x : *?int_t
+# expect: x : *int
+# reject: x : *?int
 # expect: y : null
-# reject: y : *?int_t
+# reject: y : *?int
 
 def main()
-	let x *?int_t = null
+	let x *?int = null
 	if x == null
 		return
 	static_print(x)
 
 def bingo()
-	let y *?int_t = null
+	let y *?int = null
 	assert(y == null)
 	static_print(y)

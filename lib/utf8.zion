@@ -6,14 +6,14 @@ global
 # the utf8 type represents utf8 strings.
 #
 
-link def __str__(x int_t) *char_t to __str_int
-link def __str__(x int_t, y int_t) *char_t to __str_int_radix
-link def __str__(x float_t) *char_t to __str_float
-link def __str__(x *char_t) *char_t to __str_str
-link def concat(x *char_t, y *char_t) *char_t to __mbs_concat
+link def __str__(x int) *char to __str_int
+link def __str__(x int, y int) *char to __str_int_radix
+link def __str__(x float_t) *char to __str_float
+link def __str__(x *char) *char to __str_str
+link def concat(x *char, y *char) *char to __mbs_concat
 
 type utf8 has
-	let raw *char_t
+	let raw *char
 
 var __empty_utf8 utf8 = utf8("")
 
@@ -35,16 +35,16 @@ def utf8(x int) utf8
 def utf8(x float) utf8
 	return utf8(__str__(x.raw))
 
-def utf8(x int_t) utf8
+def utf8(x int) utf8
 	return utf8(__str__(x))
 
 def len(u utf8) int
 	return int(posix.strlen(u.raw))
 
-def utf8(b *int8_t, length size_t, encoding str) utf8
+def utf8(b *int8, length size_t, encoding str) utf8
 	assert(encoding == "utf8")
 	dest_len := length + 1
 	dest := posix.calloc(1, dest_len)!
 	posix.memcpy(dest, b, length)
-	return utf8(dest as *char_t)
+	return utf8(dest as *char)
 		

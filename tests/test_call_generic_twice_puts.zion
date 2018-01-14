@@ -1,7 +1,7 @@
 module _
 # test: pass
 
-link def wprintf(format *wchar_t, s1 *wchar_t) int_t
+link def wprintf(format *wchar, s1 *wchar) int
 
 def main() int
 	wprintf(str("%S\n").raw, str("hey").raw)
