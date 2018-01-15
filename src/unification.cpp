@@ -115,7 +115,11 @@ unification_t unify(
 
 	auto a = full_eval(pruned_a, env);
 	auto b = full_eval(pruned_b, env);
-
+	if (dyncast<const types::type_sum_t>(a) && types::is_type_id(b, "bool")) {
+		/* make sure we enable checking bool against type sums */
+		static auto bool_type = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
+		b = bool_type;
+	}
 	auto ptm_a = dyncast<const types::type_maybe_t>(a);
 	auto ptm_b = dyncast<const types::type_maybe_t>(b);
 
@@ -150,16 +154,32 @@ unification_t unify(
 				/* simple type_id match */
 				return {true, "", bindings, coercions};
 			} else if (depth == 0) {
-				if (
-						(a_name == MANAGED_FLOAT && b_name == FLOAT_TYPE) ||
-						(a_name == FLOAT_TYPE && b_name == MANAGED_FLOAT) ||
-						(a_name == BOOL_TYPE && b_name == MANAGED_BOOL) ||
-						(a_name == MANAGED_BOOL && b_name == BOOL_TYPE))
-				{
-					/* check for a coercion of floats */
-					return {true, "", bindings, coercions + 1};
+				static struct {
+					const char *to;
+					const char *from;
+				} coercions_table[] = {
+					{MANAGED_BOOL, BOOL_TYPE},
+					{MANAGED_BOOL, FALSE_TYPE},
+					{MANAGED_BOOL, TRUE_TYPE},
+					{MANAGED_FALSE, FALSE_TYPE},
+					{MANAGED_TRUE, TRUE_TYPE},
+					{FALSE_TYPE, MANAGED_FALSE},
+					{TRUE_TYPE, MANAGED_TRUE},
+					{BOOL_TYPE, MANAGED_BOOL},
+					{BOOL_TYPE, MANAGED_TRUE},
+					{BOOL_TYPE, MANAGED_FALSE},
+					{BOOL_TYPE, FALSE_TYPE},
+					{BOOL_TYPE, TRUE_TYPE},
+					{MANAGED_FLOAT, FLOAT_TYPE},
+					{FLOAT_TYPE, MANAGED_FLOAT},
+				};
+
+				static constexpr auto len_coercions = sizeof(coercions_table)/sizeof(coercions_table[0]);
+				for (unsigned i = 0; i < len_coercions; ++i) {
+					if (a_name == coercions_table[i].to && b_name == coercions_table[i].from) {
+						return {true, "", bindings, coercions + 1};
+					}
 				}
-			} else {
 				return {false, "type ids do not match", bindings, coercions};
 			}
 		} else if (depth == 0) {
@@ -341,7 +361,7 @@ unification_t unify(
 			std::vector<std::string> reasons;
 			for (auto option : pts_a->options) {
 				debug_above(7, log("matching option of sum type against rhs"));
-				auto unification = unify(option, b, env, bindings, 0, depth + 1);
+				auto unification = unify(option, b, env, bindings, 0, depth);
 				if (unification.result) {
 					if (unification.bindings.size() > bindings.size()) {
 						debug_above(2, log(log_info, "replacing bindings %s with %s",
@@ -359,9 +379,8 @@ unification_t unify(
 		} else {
 			assert(pts_b != nullptr);
 			for (auto inbound_option : pts_b->options) {
-				debug_above(7, log("checking inbound %s against lhs %s",
-							inbound_option->repr().c_str(), a->repr().c_str()));
-				auto unification = unify(a, inbound_option, env, bindings, 0, depth + 1);
+				debug_above(7, log("checking inbound %s against lhs %s", inbound_option->repr().c_str(), a->repr().c_str()));
+				auto unification = unify(a, inbound_option, env, bindings, 0, depth);
 				if (unification.result) {
 					bindings = unification.bindings;
 					coercions += unification.coercions;
@@ -379,6 +398,26 @@ unification_t unify(
 			}
 			return {true, "inbound type is a subset of outbound type", bindings, coercions};
 		}
+	} else if (pts_b != nullptr) {
+		for (auto inbound_option : pts_b->options) {
+			debug_above(7, log("checking inbound %s against lhs %s", inbound_option->repr().c_str(), a->repr().c_str()));
+			auto unification = unify(a, inbound_option, env, bindings, 0, depth);
+			if (unification.result) {
+				bindings = unification.bindings;
+				coercions += unification.coercions;
+			} else {
+				return {
+					false,
+					string_format(
+							"\n\tcould not find a match for \n\t\t%s"
+							"\n\tin\n\t\t%s",
+							inbound_option->str(bindings).c_str(),
+							a->str(bindings).c_str()),
+					bindings,
+					coercions};
+			}
+		}
+		return {true, "inbound type is a subset of outbound type", bindings, coercions};
 	} else if (pto_a != nullptr) {
 		debug_above(7, log(log_info, "checking inbound type_operator %s",
 					pto_a->str().c_str()));

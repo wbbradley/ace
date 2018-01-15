@@ -66,16 +66,34 @@ llvm::Value *coerce_value(
 				/* we're passing in a null value */
 				assert(llvm_lhs_type->isPointerTy());
 				return llvm::Constant::getNullValue(llvm_lhs_type);
-			} else if (llvm_lhs_type->isPointerTy() && llvm_rhs_type->isPointerTy()) {
-				return builder.CreateBitCast(llvm_rhs_value, llvm_lhs_type);
 			} else {
-				debug_above(2, log(log_info, "probably need to write some smarter coercion code"));
-				assert(false);
-				dbg();
-				return rhs->get_llvm_value();
+				bool lhs_is_managed = false;
+				bound_lhs_type->is_managed_ptr(
+						status,
+						builder,
+						scope,
+						lhs_is_managed);
+				if (!!status) {
+					if (lhs_is_managed) {
+						log(log_info, "missing coercion of %s to %s", rhs_type->str().c_str(),
+								lhs_type->str().c_str());
+						assert(false);
+					} else {
+						if (llvm_lhs_type->isPointerTy() && llvm_rhs_type->isPointerTy()) {
+							return builder.CreateBitCast(llvm_rhs_value, llvm_lhs_type);
+						}
+					}
+
+					log(log_info, "missing coercion of %s to %s", rhs_type->str().c_str(),
+							lhs_type->str().c_str());
+					assert(false);
+					dbg();
+					return rhs->get_llvm_value();
+				}
 			}
 		}
 	}
+
 	assert(!status);
 	return nullptr;
 }

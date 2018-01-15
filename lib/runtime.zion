@@ -14,7 +14,7 @@ link var llvm_gc_root_chain *stack_entry_t
 
 var __head_var *var_t = __create_head_var()
 
-var __debug_zion_runtime bool = __false__
+var __debug_zion_runtime bool = false
 var _zion_rt *char = "zion-rt: "
 
 var TYPE_KIND_TAG int32 = 0 as int32
@@ -100,7 +100,7 @@ def check_node_existence(node *var_t, should_exist bool) void
 		assert(not should_exist)
 
 def add_node(node *var_t) void
-	# check_node_existence(node, __false__)
+	# check_node_existence(node, false)
 
 	if node.prev != null or node.next != null
 		# dbg_zrt(printf("node 0x%08lx #%lld of type %s already has prev and next ptrs?!\n", (intptr_t)node, (long long)node.allocation, node.type_info.name))
@@ -121,7 +121,7 @@ def add_node(node *var_t) void
 	if node.next != null
 		assert(node.next.prev == node)
 
-	# check_node_existence(node, __true__)
+	# check_node_existence(node, true)
 
 def remove_node(node *var_t) void
 	assert(node != runtime.__head_var)
@@ -130,7 +130,7 @@ def remove_node(node *var_t) void
 
 	assert(node.mark == 0)
 
-	# check_node_existence(node, __true__)
+	# check_node_existence(node, true)
 
 	assert(node.prev.next == node)
 	assert(node.next == null or node.next.prev == node)
@@ -141,10 +141,10 @@ def remove_node(node *var_t) void
 	node.next = 3735928559 as *var_t
 	node.prev = 3735928559 as *var_t
 
-	# check_node_existence(node, __false__)
+	# check_node_existence(node, false)
 
 def protect_node(node *var_t) void
-	# check_node_existence(node, __true__)
+	# check_node_existence(node, true)
 
 	# remove this node from the heap list
 	remove_node(node)
@@ -158,7 +158,7 @@ def protect_node(node *var_t) void
 	node.next = runtime.__head_var
 	runtime.__head_var.prev = node
 
-	# check_node_existence(node, __false__)
+	# check_node_existence(node, false)
 
 
 def get_var_type_id(v *var_t) typeid

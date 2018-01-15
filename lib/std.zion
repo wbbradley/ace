@@ -88,20 +88,21 @@ def breakpoint() void
 	posix.raise(posix.SIGTRAP)
 
 def rand(max int) int
+	# Note that this is not a great way to do this
 	var r int = 0
 	posix.arc4random_buf(&r, sizeof(int))
 	if r < 0
 		r = -r
-	return int(r % max.raw)
+	return r % max
 
-def __bool__(x [any T] or str or int or bool) bool
+def __bool__(x [any T] or str or Int) bool
 	assert(x as *void != null)
 	when x
-		is true
-			return __true__
-		is false
-			return __false__
-		is int
+		is True
+			return true
+		is False
+			return false
+		is Int
 			return x.raw != 0
 		is str
 			return x.raw[0] as int != 0
@@ -114,13 +115,13 @@ type IntRange has
 	var step int
 
 def range(lim int) IntRange
-	return IntRange(0, lim.raw, 1)
+	return IntRange(0, lim, 1)
 
 def range(first int, lim int) IntRange
-	return IntRange(first.raw, lim.raw, 1)
+	return IntRange(first, lim, 1)
 
 def range(first int, lim int, step int) IntRange
-	return IntRange(first.raw, lim.raw, step.raw)
+	return IntRange(first, lim, step)
 
 type IntRangeIter has
 	var range IntRange
@@ -140,7 +141,7 @@ def __iterate__(i IntRangeIter)
 	i.pos += i.range.step
 
 def __iter_item__(i IntRangeIter) int
-	return int(i.pos)
+	return i.pos
 
 def input() str?
 	var buf *?char
