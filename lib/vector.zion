@@ -80,24 +80,20 @@ def join(v [any T], delim str) str
 
 [global]
 def __getitem__(vec [any T], index int) any T
-	return __getvectoritem__((vec as *vector_t), index.raw) as any T
-
-[global]
-def __getitem__(vec [any T], index int) any T
-	return __getvectoritem__(vec as *vector_t, index) as any T
+	return __getvectoritem__((vec as *vector_t), index) as any T
 
 [global]
 def __setitem__(vec [any T], index int, t any T) void
-	__setvectoritem__(vec as *vector_t, index.raw, t as *var_t)
+	__setvectoritem__(vec as *vector_t, index, t as *var_t)
 
 [global]
 def append(vec [any T], t any T) void
-	# posix.puts("appending " + __str__(t.raw) + " to vector")
+	# posix.puts("appending " + __str__(t) + " to vector")
 	__vectorappend__(vec as *vector_t, t as *var_t)
 
 [global]
 def resize(vec [any T], size int, default any T) void
-	resize(vec as *vector_t, size.raw, default as *var_t)
+	resize(vec as *vector_t, size, default as *var_t)
 
 def resize(vec *vector_t, size int, default *var_t) void
 	if size < 0
@@ -141,7 +137,7 @@ def __getvectoritem__(vector *vector_t, index int) *var_t
 	if index >= 0 and index < vector.size
 		return vector.items[index]
 
-	print("zion: array index out of bounds (0x" + __box__(__str__(vector as int, 16)) + "[" + int(index) + "]) where array has length " + int(vector.size))
+	print("zion: array index out of bounds (0x" + __box__(__str__(vector as int, 16)) + "[" + index + "]) where array has length " + vector.size)
 	assert(false)
 	return null as *var_t
 
@@ -152,7 +148,7 @@ def __setvectoritem__(vector *vector_t, index uint, item *var_t)
 	if index < vector.size
 		vector.items[index] = item
 	else
-		print("zion: array index out of bounds (0x" + __box__(__str__(vector as int, 16)) + "[" + int(index) + "])")
+		print("zion: array index out of bounds (0x" + __box__(__str__(vector as int, 16)) + "[" + index + "])")
 		assert(false)
 
 def __vector_unsafe_append__(vector *vector_t, item *var_t) void
@@ -198,7 +194,8 @@ def __vectorappend__(vector *vector_t, item *var_t) void
 [global]
 def reserve(vec [any T], n int)
 	# Call the unmanaged version
-	reserve(vec as *vector_t, n.raw)
+	assert(n >= 0)
+	reserve(vec as *vector_t, n)
 
 def reserve(vec *vector_t, n size_t)
 	# Make sure we've got n spaces available in our vector's allocated memory

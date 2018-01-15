@@ -128,34 +128,37 @@ llvm::Value *resolve_init_var(
 			if (init_var != nullptr) {
 				llvm::Value *llvm_init_value;
 				if (!init_var->type->get_type()->is_null()) {
-					llvm_init_value = coerce_value(status, builder, scope, 
+					llvm_init_value = coerce_value(status, builder, scope, life,
 							obj.get_location(), value_type->get_type(), init_var);
 				} else {
 					llvm_init_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
 				}
 
-				if (llvm_init_value->getName().size() == 0) {
-					llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
-				}
+				if (!!status) {
+					assert(llvm_init_value != nullptr);
+					if (llvm_init_value->getName().size() == 0) {
+						llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+					}
 
-				if (llvm_alloca == nullptr) {
-					/* this is a native 'let' */
-					assert(obj.is_let());
-					assert(!is_managed);
-					return llvm_init_value;
-				} else {
-					debug_above(6, log(log_info, "creating a store instruction %s := %s",
-								llvm_print(llvm_alloca).c_str(),
-								llvm_print(llvm_init_value).c_str()));
-
-					builder.CreateStore(llvm_init_value, llvm_alloca);
-					if (obj.is_let()) {
-						/* this is a managed 'let' */
-						assert(is_managed);
-						return builder.CreateLoad(llvm_alloca);
+					if (llvm_alloca == nullptr) {
+						/* this is a native 'let' */
+						assert(obj.is_let());
+						assert(!is_managed);
+						return llvm_init_value;
 					} else {
-						/* this is a native or managed 'var' */
-						return llvm_alloca;
+						debug_above(6, log(log_info, "creating a store instruction %s := %s",
+									llvm_print(llvm_alloca).c_str(),
+									llvm_print(llvm_init_value).c_str()));
+
+						builder.CreateStore(llvm_init_value, llvm_alloca);
+						if (obj.is_let()) {
+							/* this is a managed 'let' */
+							assert(is_managed);
+							return builder.CreateLoad(llvm_alloca);
+						} else {
+							/* this is a native or managed 'var' */
+							return llvm_alloca;
+						}
 					}
 				}
 			}
@@ -463,7 +466,7 @@ bound_var_t::ref upsert_module_variable(
 														llvm_print(init_var->get_llvm_value()).c_str()));
 
 											llvm::Value *llvm_init_value = coerce_value(status, builder, module_scope, 
-													var_decl.get_location(), declared_type, init_var);
+													life, var_decl.get_location(), declared_type, init_var);
 
 											if (llvm_init_value->getName().str().size() == 0) {
 												llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
@@ -1554,7 +1557,7 @@ bound_var_t::ref resolve_pointer_array_index(
 				/* we are assigning to a native pointer dereference */
 				auto value = rhs->resolve_expression(status, builder, scope, life, false /*as_ref*/, element_type);
 				if (!!status) {
-					llvm::Value *llvm_value = coerce_value(status, builder, scope, lhs->get_location(), element_type, value);
+					llvm::Value *llvm_value = coerce_value(status, builder, scope, life, lhs->get_location(), element_type, value);
 					if (!!status) {
 						builder.CreateStore(llvm_value, llvm_gep);
 						return nullptr;
@@ -1758,7 +1761,7 @@ bound_var_t::ref type_check_assignment(
 				   	scope->get_nominal_env());
 
 			if (unification.result) {
-				llvm::Value *llvm_rhs_value = coerce_value(status, builder, scope, 
+				llvm::Value *llvm_rhs_value = coerce_value(status, builder, scope, life,
 									location, lhs_unreferenced_type, rhs_var);
 				if (!!status) {
 					assert(llvm::dyn_cast<llvm::AllocaInst>(lhs_var->get_llvm_value())
@@ -1860,7 +1863,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 
 						/* get or instantiate a function we can call on these arguments */
 						return call_program_function(status, builder, scope, life,
-								"__getitem__", shared_from_this(), {lhs_val, index_val});
+								"__getitem__", get_location(), {lhs_val, index_val});
 					} else {
 						/* we're assigning to a managed array index expression */
 
@@ -1903,9 +1906,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 								 * the update. */
 								if (!!status) {
 									std::vector<llvm::Value *> llvm_args = get_llvm_values(
-											status,
-											builder,
-											scope,
+											status, builder, scope, life,
 											get_location(),
 											get_function_args_types(setitem_function->type),
 											{lhs_val, index_val, rhs_val});
@@ -2613,7 +2614,7 @@ bound_var_t::ref type_check_binary_operator(
 			/* get or instantiate a function we can call on these arguments */
 			auto value = call_program_function(
 					status, builder, scope, life, function_name,
-					obj, {lhs, rhs});
+					obj->get_location(), {lhs, rhs});
 			if (!!status) {
 				assert_implies(expected_type != nullptr, unifies(expected_type, value->type->get_type(), scope->get_total_env()));
 				return value;
@@ -2878,7 +2879,7 @@ llvm::Value *get_bool_from_managed_obj(
 							condition_value->str().c_str(), bool_fn->type->str().c_str()));
 
 				llvm::Value *llvm_value = coerce_value(
-						status, builder, scope,
+						status, builder, scope, life,
 						condition_value->get_location(),
 						bool_fn_args_type->args[0],
 						condition_value);
@@ -3129,7 +3130,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 							 * final type in the incoming BB, not in the merge BB */
 							llvm::IRBuilder<> builder(truthy_merge_branch);
 							llvm_truthy_path_value = coerce_value(
-									status, builder, scope,
+									status, builder, scope, life,
 								   	condition->get_location(),
 									ternary_type->get_type(),
 									true_path_value);
@@ -3141,7 +3142,8 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 							/* make sure that we cast the incoming phi value to the
 							 * final type in the incoming BB, not in the merge BB */
 							llvm::IRBuilder<> builder(false_merge_branch);
-							llvm_false_path_value = coerce_value(status, builder, scope,
+							llvm_false_path_value = coerce_value(
+									status, builder, scope, life,
 								   	condition->get_location(),
 									ternary_type->get_type(),
 									false_path_value);
@@ -3965,19 +3967,16 @@ void type_check_program_variable(
 		program_scope_t::ref program_scope,
 		unchecked_var_t::ref unchecked_var)
 {
-	debug_above(8, log(log_info, "checking whether to check %s",
-				unchecked_var->str().c_str()));
+	debug_above(8, log(log_info, "checking whether to check %s", unchecked_var->str().c_str()));
 
 	auto node = unchecked_var->node;
 
 	/* prevent recurring checks */
-	debug_above(7, log(log_info, "checking module level variable %s",
-				node->token.str().c_str()));
+	debug_above(7, log(log_info, "checking module level variable %s", node->token.str().c_str()));
 	if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
 		// TODO: decide whether we need treatment here
 		status_t local_status;
-		if (is_function_defn_generic(local_status, builder,
-					unchecked_var->module_scope, *function_defn))
+		if (is_function_defn_generic(local_status, builder, unchecked_var->module_scope, *function_defn))
 		{
 			/* this is a generic function, or we've already checked
 			 * it so let's skip checking it */
@@ -3992,21 +3991,55 @@ void type_check_program_variable(
 						node->str().c_str()));
 			return;
 		}
+		bound_type_t::named_pairs named_params;
+		bound_type_t::ref return_value;
+
+		type_check_fully_bound_function_decl(
+				status,
+				builder,
+				*function_defn->decl,
+				program_scope,
+				named_params,
+				return_value);
+
+		if (!!status) {
+			types::type_function_t::ref function_type = get_function_type(
+					named_params, return_value);
+
+			fittings_t fittings;
+			auto callable = maybe_get_callable(
+					status, builder, program_scope,
+					function_defn->decl->token.text,
+					node->get_location(),
+					function_type->args,
+					function_type->return_type,
+					fittings,
+					false /*check_unchecked*/);
+			if (!!status) {
+				if (callable != nullptr) {
+					/* we've already checked this function */
+					assert(callable->get_location() == function_defn->get_location());
+					return;
+				}
+			}
+		}
 	}
 
-	if (dyncast<const ast::var_decl_t>(node)) {
-		/* ignore here */
-	} else if (auto stmt = dyncast<const ast::statement_t>(node)) {
+	if (!!status) {
+		if (dyncast<const ast::var_decl_t>(node)) {
+			/* ignore here */
+		} else if (auto stmt = dyncast<const ast::statement_t>(node)) {
 
-		status_t local_status;
-		stmt->resolve_statement(
-				local_status, builder, unchecked_var->module_scope,
-				nullptr, nullptr, nullptr);
-		status |= local_status;
-	} else if (auto data_ctor = dyncast<const ast::type_product_t>(node)) {
-		/* ignore until instantiation at a callsite */
-	} else {
-		panic("unhandled unchecked node at module scope");
+			status_t local_status;
+			stmt->resolve_statement(
+					local_status, builder, unchecked_var->module_scope,
+					nullptr, nullptr, nullptr);
+			status |= local_status;
+		} else if (auto data_ctor = dyncast<const ast::type_product_t>(node)) {
+			/* ignore until instantiation at a callsite */
+		} else {
+			panic("unhandled unchecked node at module scope");
+		}
 	}
 }
 
@@ -5220,7 +5253,7 @@ bound_var_t::ref ast::prefix_expr_t::resolve_prefix_expr(
 		}
 		if (!!status) {
 			return call_program_function(status, builder, scope, life,
-					function_name, shared_from_this(), {rhs_var});
+					function_name, get_location(), {rhs_var});
 		}
 	}
 	assert(!status);

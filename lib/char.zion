@@ -1,7 +1,0 @@
-global
-
-def __getitem__(x str, i int) char
-	return char(x.raw[i.raw])
-
-type Char has
-	let raw wchar

@@ -17,7 +17,7 @@ def main()
 
 def is_prime(i int) bool
 	# get the max we need to search
-	j := math.min(i, int(math.sqrt(float(i)) + 1))
+	j := math.min(i, int(sqrt(float(i)) + 1))
 	k := 2
 	while k < j
 		if i % k == 0

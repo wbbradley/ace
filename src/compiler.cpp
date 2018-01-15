@@ -309,6 +309,16 @@ void add_global_types(
 					type_id(make_iid(BOOL_TYPE)),
 				   	INTERNAL_LOC(),
 				   	builder.getInt64Ty())},
+		{{TRUE_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(TRUE_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getInt64Ty())},
+		{{FALSE_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(FALSE_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getInt64Ty())},
 		{{MBS_TYPE},
 		   	bound_type_t::create(
 					type_ptr(type_id(make_iid(CHAR_TYPE))),
@@ -369,12 +379,18 @@ void add_globals(
 	bound_type_t::ref bool_type = program_scope->get_bound_type({BOOL_TYPE});
 	assert(bool_type != nullptr);
 
+	bound_type_t::ref true_type = program_scope->get_bound_type({TRUE_TYPE});
+	assert(true_type != nullptr);
+
+	bound_type_t::ref false_type = program_scope->get_bound_type({FALSE_TYPE});
+	assert(false_type != nullptr);
+
 	program_scope->put_bound_variable(
 			status,
 			"true",
 			bound_var_t::create(INTERNAL_LOC(),
 				"true",
-				bool_type,
+				true_type,
 				builder.getInt64(1/*true*/), make_iid("true")));
 	assert(!!status);
 
@@ -383,7 +399,7 @@ void add_globals(
 		   	"false",
 		   	bound_var_t::create(INTERNAL_LOC(),
 			   	"false",
-			   	bool_type,
+			   	false_type,
 			   	builder.getInt64(0/*false*/),
 			   	make_iid("false")));
 	assert(!!status);

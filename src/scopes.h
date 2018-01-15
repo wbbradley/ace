@@ -51,7 +51,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual llvm::Module *get_llvm_module();
 	/* find all checked and unchecked functions that have the name given by the
 	 * symbol parameter */
-	virtual void get_callables(std::string symbol, var_t::refs &fns) = 0;
+	virtual void get_callables(std::string symbol, var_t::refs &fns, bool check_unchecked=true) = 0;
 	ptr<module_scope_t> get_module_scope();
 	ptr<const module_scope_t> get_module_scope() const;
 
@@ -100,7 +100,7 @@ struct scope_impl_t : public BASE {
 	bound_var_t::ref get_bound_variable(status_t &status, location_t location, std::string symbol, bool search_parents=true);
 	std::string make_fqn(std::string leaf_name) const;
 	bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true);
-	void get_callables(std::string symbol, var_t::refs &fns);
+	void get_callables(std::string symbol, var_t::refs &fns, bool check_unchecked=true);
     virtual void put_nominal_typename(status_t &status, const std::string &name, types::type_t::ref expansion);
     virtual void put_structural_typename(status_t &status, const std::string &name, types::type_t::ref expansion);
     virtual void put_type_variable_binding(status_t &status, const std::string &binding, types::type_t::ref type);
@@ -250,7 +250,7 @@ struct program_scope_t : public module_scope_impl_t {
 	bound_var_t::ref upsert_init_module_vars_function(status_t &status, llvm::IRBuilder<> &builder);
 	void set_insert_point_to_init_module_vars_function(status_t &status, llvm::IRBuilder<> &builder, std::string for_var_decl_name);
 
-	virtual void get_callables(std::string symbol, var_t::refs &fns);
+	virtual void get_callables(std::string symbol, var_t::refs &fns, bool check_unchecked=true);
 	llvm::Type *get_llvm_type(status_t &status, location_t location, std::string type_name);
 	llvm::Function *get_llvm_function(status_t &status, location_t location, std::string function_name);
 
@@ -566,7 +566,7 @@ void get_callables_from_bound_vars(
 		var_t::refs &fns);
 
 template <typename T>
-void scope_impl_t<T>::get_callables(std::string symbol, var_t::refs &fns) {
+void scope_impl_t<T>::get_callables(std::string symbol, var_t::refs &fns, bool check_unchecked) {
 	// TODO: clean up this horrible mess
 	auto module_scope = dynamic_cast<module_scope_t*>(this);
 
@@ -580,13 +580,14 @@ void scope_impl_t<T>::get_callables(std::string symbol, var_t::refs &fns) {
 				symbol.find(SCOPE_SEP) == std::string::npos
 					? make_fqn(symbol)
 					: symbol,
-			   	fns);
+			   	fns,
+				check_unchecked);
 
 			/* let's see if our parent scope has any of this symbol just generally */
-			parent_scope->get_callables(symbol, fns);
+			parent_scope->get_callables(symbol, fns, check_unchecked);
 		}
 	} else if (parent_scope != nullptr) {
-		return parent_scope->get_callables(symbol, fns);
+		return parent_scope->get_callables(symbol, fns, check_unchecked);
 	} else {
 		assert(false);
 		return;

@@ -25,7 +25,7 @@ link def strndup(s *char, n size_t) *?char
 link def strcmp(x *char, y *char) int
 link def wcscmp(x *wchar, y *wchar) int
 link def strncmp(x *char, y *char, n size_t) int
-link def sqrt(x float) float
+link [global] def sqrt(x float) float
 link def arc4random_stir() void
 link def arc4random_buf(dst *void, cb size_t) int
 link def exit(code int) void

@@ -25,10 +25,6 @@ def __times__(a Complex, b Complex) Complex
 def __plus__(a Complex, b Complex) Complex
 	return Complex(a.real + b.real, a.imag + b.imag)
 
-[global]
-def sqrt(f float) float
-	return float(posix.sqrt(f.raw))
-
 def rounded_tenth(x int) int
 	return (x + 5) / 10
 
