@@ -197,7 +197,8 @@ bound_var_t::ref maybe_get_callable(
 		location_t location,
 		types::type_t::ref args,
 		types::type_t::ref return_type,
-		fittings_t &fittings)
+		fittings_t &fittings,
+		bool check_unchecked)
 {
 	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, args=%s, ...)",
 				scope->get_name().c_str(),
@@ -215,7 +216,7 @@ bound_var_t::ref maybe_get_callable(
 		/* look through the current scope stack and get a callable that is able
 		 * to be invoked with the given args */
 		var_t::refs fns;
-		scope->get_callables(alias, fns);
+		scope->get_callables(alias, fns, check_unchecked);
 		return get_best_fit(status, builder, scope, location, alias, args, return_type, fns);
 	}
 
@@ -282,10 +283,10 @@ bound_var_t::ref get_callable(
 		} else {
 			if (fittings.size() == 0) {
 				user_error(status, callsite_location,
-					   	"no function found named " c_id("%s") " for callsite with %s in " c_id("%s"),
+					   	"no function found with signature " C_TYPE "def" C_RESET " " c_id("%s") "%s %s",
 						alias.c_str(),
 						args->str().c_str(),
-						scope->get_name().c_str());
+						(return_type != nullptr) ? return_type->str().c_str() : "");
 				debug_above(11, log(log_info, "%s", scope->str().c_str()));
 			} else {
 				std::stringstream ss;
@@ -321,7 +322,7 @@ bound_var_t::ref call_program_function(
         scope_t::ref scope,
 		life_t::ref life,
         std::string function_name,
-        const ptr<const ast::item_t> &callsite,
+		location_t callsite_location,
         const bound_var_t::refs var_args,
 		types::type_t::ref return_type)
 {
@@ -329,19 +330,19 @@ bound_var_t::ref call_program_function(
 	auto program_scope = scope->get_program_scope();
 
 	if (return_type == nullptr) {
-		return_type = type_variable(callsite->token.location);
+		return_type = type_variable(callsite_location);
 	}
 
     /* get or instantiate a function we can call on these arguments */
     bound_var_t::ref function = get_callable(
-			status, builder, program_scope, function_name, callsite->get_location(),
+			status, builder, program_scope, function_name, callsite_location,
 			args, return_type);
 
     if (!!status) {
-		return make_call_value(status, builder, callsite->get_location(), scope,
+		return make_call_value(status, builder, callsite_location, scope,
 				life, function, var_args);
     } else {
-		user_error(status, callsite->get_location(), "failed to resolve function with args: %s",
+		user_error(status, callsite_location, "failed to resolve function with args: %s",
 				::str(var_args).c_str());
 
 		assert(!status);

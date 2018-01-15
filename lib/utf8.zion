@@ -30,16 +30,13 @@ def utf8(s str) utf8
 	return utf8(wcstombs(s.raw))
 
 def utf8(x int) utf8
-	return utf8(__str__(x.raw))
+	return utf8(__str__(x))
 
 def utf8(x float) utf8
-	return utf8(__str__(x.raw))
-
-def utf8(x int) utf8
 	return utf8(__str__(x))
 
 def len(u utf8) int
-	return int(posix.strlen(u.raw))
+	return posix.strlen(u.raw)
 
 def utf8(b *int8, length size_t, encoding str) utf8
 	assert(encoding == "utf8")

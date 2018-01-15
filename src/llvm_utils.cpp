@@ -197,7 +197,7 @@ bound_var_t::ref create_callsite(
 			assert(!!status);
 			if (auto args = dyncast<const types::type_args_t>(function_type->args)) {
 				auto coerced_parameter_values = get_llvm_values(status, builder,
-						scope, location, args, arguments);
+						scope, life, location, args, arguments);
 				if (!!status) {
 					llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
 							status, builder, location, function, coerced_parameter_values);

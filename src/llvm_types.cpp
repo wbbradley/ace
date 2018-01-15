@@ -1213,7 +1213,7 @@ llvm::Value *llvm_call_allocator(
 				program_scope,
 				life,
 				"runtime.create_var",
-				node,
+				node->get_location(),
 				{bound_type_info});
 		if (!!status) {
 			return allocation->get_llvm_value();
@@ -1366,7 +1366,7 @@ bound_var_t::ref type_check_get_item_with_int_literal(
 
 		/* get or instantiate a function we can call on these arguments */
 		return call_program_function(status, builder, scope, life, "__getitem__",
-				node, {lhs, index});
+				node->get_location(), {lhs, index});
 	}
 
 	assert(!status);

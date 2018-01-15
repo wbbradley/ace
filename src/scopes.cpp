@@ -210,9 +210,11 @@ bound_type_t::ref program_scope_t::get_runtime_type(
 	return upsert_bound_type(status, builder, shared_from_this(), type);
 }
 
-void program_scope_t::get_callables(std::string symbol, var_t::refs &fns) {
+void program_scope_t::get_callables(std::string symbol, var_t::refs &fns, bool check_unchecked) {
 	get_callables_from_bound_vars(symbol, bound_vars, fns);
-	get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
+	if (check_unchecked) {
+		get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
+	}
 }
 
 llvm::Type *program_scope_t::get_llvm_type(status_t &status, location_t location, std::string type_name) {

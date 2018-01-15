@@ -50,7 +50,8 @@ bound_var_t::ref maybe_get_callable(
 		location_t location,
 		types::type_t::ref sig_args,
 		types::type_t::ref return_type,
-		fittings_t &fittings);
+		fittings_t &fittings,
+		bool check_unchecked=true);
 
 bound_var_t::ref call_program_function(
         status_t &status,
@@ -58,7 +59,7 @@ bound_var_t::ref call_program_function(
         scope_t::ref scope,
 		life_t::ref life,
         std::string function_name,
-        const ptr<const ast::item_t> &callsite,
+		location_t location,
         const bound_var_t::refs args,
 		types::type_t::ref return_type=nullptr);
 

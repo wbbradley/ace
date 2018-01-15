@@ -188,13 +188,6 @@ bound_var_t::ref resolve_null_check(
 		local_scope_t::ref *scope_if_true,
 		local_scope_t::ref *scope_if_false)
 {
-	bool value_is_managed;
-	value->type->is_managed_ptr(
-			status,
-			builder,
-			scope,
-			value_is_managed);
-
 	llvm::Value *llvm_value = value->resolve_bound_var_value(builder);
 	bound_type_t::ref bound_bool_type = upsert_bound_type(status, builder, scope, type_id(make_iid(BOOL_TYPE)));
 	assert(!!status);
@@ -244,36 +237,9 @@ bound_var_t::ref resolve_null_check(
 
 	if (!!status) {
 		assert(llvm_bool_value != nullptr);
-		bound_var_t::ref bound_bool_value = bound_var_t::create(
+		return bound_var_t::create(
 				INTERNAL_LOC(), "nullcheck",
 				bound_bool_type, llvm_bool_value, make_iid("nullcheck"));
-
-		if (value_is_managed) {
-			/* we're comparing a managed pointer to null, so we'll need a managed bool result */
-			bound_var_t::ref bool_ctor = get_callable(
-					status,
-					builder,
-					scope,
-					"bool",
-					INTERNAL_LOC(),
-					type_args({bound_bool_type->get_type()}),
-					type_id(make_iid("bool")));
-			if (!!status) {
-				return create_callsite(
-						status,
-						builder,
-						scope,
-						life,
-						bool_ctor,
-						"null.check.bool",
-						location,
-						{bound_bool_value});
-			}
-		} else {
-			return bound_var_t::create(
-					INTERNAL_LOC(), "nullcheck",
-					bound_bool_type, llvm_bool_value, make_iid("nullcheck"));
-		}
 	}
 
 	assert(!status);

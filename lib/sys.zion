@@ -6,7 +6,7 @@ var args [str]
 
 def exit(code int)
 	print("Quitting with code " + code)
-	posix.exit(code.raw)
+	posix.exit(code)
 
 def set_args(argc int32, argv **char)
 	i := 0

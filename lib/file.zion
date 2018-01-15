@@ -20,7 +20,7 @@ def open(name str, mode str) File
 	if fp != null
 		return File(name, Open(fp))
 	else
-		return File(name, Error(int(posix.errno())))
+		return File(name, Error(posix.errno()))
 
 [global]
 def close(f File)

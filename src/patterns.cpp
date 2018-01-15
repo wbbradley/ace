@@ -130,6 +130,7 @@ void ast::when_block_t::resolve_statement(
 									status,
 									builder,
 									scope,
+									life,
 									pattern_value->get_location(),
 									type_to_match,
 									pattern_value);

@@ -17,6 +17,9 @@ link def concat(x *wchar, y *wchar) *wchar to __wcs_concat
 type str has
 	let raw *wchar
 
+def __getitem__(x str, i int) wchar
+	return x.raw[i]
+
 var __empty_str str = str(mbstowcs(""))
 
 def __init__() str
@@ -28,8 +31,8 @@ def __finalize__(s str)
 def __box__(s *char) str
 	return str(mbstowcs(s))
 
-def len(s str) int
-	return int(posix.wcslen(s.raw))
+def len(s str) size_t
+	return posix.wcslen(s.raw)
 
 def str(s str) str
 	return str(posix.wcsdup(s.raw)!)

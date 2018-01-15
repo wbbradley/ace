@@ -4,8 +4,8 @@ link in "rt_int.o"
 
 link def __not__(x int) bool to __int_not
 link def __int__(x float) int to __int_float
-link def __int__(x *wchar) int to __int_from_wcs
-link def __int__(x *char) int to __int_from_mbs
+link def int(x *wchar) int to __int_from_wcs
+link def int(x *char) int to __int_from_mbs
 link def __negative__(x int) int to __int_neg
 link def __positive__(x int) int to __int_pos
 link def __plus__(x int, y float) float to __int_plus_float
@@ -20,4 +20,4 @@ def __init__() Int
 	return 0
 
 def int(s str) int
-	return __int__(s.raw)
+	return int(s.raw)

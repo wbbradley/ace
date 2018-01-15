@@ -13,10 +13,7 @@ def alloc(cb int) bytes?
 	if cb < 0
 		assert(false and "attempt to allocate " + cb + " bytes")
 		return null
-	return alloc(cb.raw as size_t)
-
-def alloc(cb size_t) bytes?
-	let pb = posix.calloc(1 as size_t, cb)
+	let pb = posix.calloc(1, cb)
 	if pb != null
 		return bytes(pb as *int8, cb)
 	else
