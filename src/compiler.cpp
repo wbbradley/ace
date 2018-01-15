@@ -371,14 +371,21 @@ void add_globals(
 
 	program_scope->put_bound_variable(
 			status,
-			"__true__",
+			"true",
 			bound_var_t::create(INTERNAL_LOC(),
-				"__true__",
+				"true",
 				bool_type,
-				builder.getInt64(1/*true*/), make_iid("__true__")));
+				builder.getInt64(1/*true*/), make_iid("true")));
 	assert(!!status);
 
-	program_scope->put_bound_variable(status, "__false__", bound_var_t::create(INTERNAL_LOC(), "__false__", bool_type, builder.getInt64(0/*false*/), make_iid("__false__")));
+	program_scope->put_bound_variable(
+			status,
+		   	"false",
+		   	bound_var_t::create(INTERNAL_LOC(),
+			   	"false",
+			   	bool_type,
+			   	builder.getInt64(0/*false*/),
+			   	make_iid("false")));
 	assert(!!status);
 }
 

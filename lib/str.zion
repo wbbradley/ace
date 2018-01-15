@@ -38,13 +38,7 @@ def str(s utf8) str
 	return str(mbstowcs(s.raw))
 
 def str(x int) str
-	return str(__wcs__(x.raw))
-
-def str(i int) str
-	return str(__wcs__(i))
-
-def str(x float) str
-	return str(__wcs__(x.raw))
+	return str(__wcs__(x))
 
 def str(x float) str
 	return str(__wcs__(x))
@@ -53,25 +47,22 @@ def __plus__(x str, y str) str
 	return str(concat(x.raw, y.raw))
 
 def __plus__(x str, y int) str
-	return str(concat(x.raw, str(y).raw))
-
-def __plus__(x str, y int) str
 	let y_expanded = __wcs__(y)
 	let result = str(concat(x.raw, y_expanded))
 	posix.free(y_expanded)
 	return result
 
 def __plus__(x str, y float) str
-	let sy = __wcs__(y.raw)
+	let sy = __wcs__(y)
 	let ret = str(concat(x.raw, sy))
 	posix.free(sy)
 	return ret
 
 def __eq__(x str, y str) bool
-	return posix.wcscmp(x.raw, y.raw) == 0 ? true : false
+	return posix.wcscmp(x.raw, y.raw) == 0
 
 def __ineq__(x str, y str) bool
-	return posix.wcscmp(x.raw, y.raw) != 0 ? true : false
+	return posix.wcscmp(x.raw, y.raw) != 0
 
 def str(buffer *char, length size_t) str
 	# Create a managed string from a direct memory access

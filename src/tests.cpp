@@ -1043,35 +1043,51 @@ auto test_descs = std::vector<test_desc>{
 		"test_unification",
 		[] () -> bool {
 			identifier::set generics = {make_iid("Container"), make_iid("T")};
+
+			types::type_t::map env;
+			env.insert({
+					"int",
+					type_integer(
+							type_literal({INTERNAL_LOC(), tk_integer, "64"}),
+							type_id(make_iid("signed")))});
+			env.insert({
+					"Bool",
+					type_sum({type_id(make_iid("True")), type_id(make_iid("False"))}, INTERNAL_LOC())});
+
 			auto unifies = std::vector<types::type_t::pair>{
 				types::type_t::pair{
 					parse_type_expr("void", generics, make_iid("foobar")),
-					type_id(make_iid("foobar.void"))},
-				   make_type_pair("any", "float", generics),
-				   make_type_pair("void", "void", generics),
-				   make_type_pair("float", "Float", generics),
-				   make_type_pair("Float", "float", generics),
-				   make_type_pair("bool", "Bool", generics),
-				   make_type_pair("Bool", "bool", generics),
-				   make_type_pair("any a", "int", generics),
-				   make_type_pair("any", "map{int, int}", generics),
-				   make_type_pair("any a", "map{int, str}", generics),
-				   make_type_pair("{int, char}", "{int, char}", generics),
-				   make_type_pair("map{any a, any b}", "map{int, str}", generics),
-				   make_type_pair("map{any a, any}", "map{int, str}", generics),
-				   make_type_pair("map{any, any b}", "map{int, str}", generics),
-				   make_type_pair("map{any, any}", "map{int, str}", generics),
-				   make_type_pair("Container{any, any}", "map{int, str}", generics),
-				   make_type_pair("map{any, T}", "map{int, str}", generics),
-				   make_type_pair("Container{int, T}", "map{int, str}", generics),
-				   make_type_pair("Container{T, T}", "map{int, int}", generics),
-				   make_type_pair("Container{T}?", "[int]", generics),
-				   make_type_pair("Container{T}", "[int]", generics),
-				   make_type_pair("T", "def (x int) float", generics),
-				   make_type_pair("def (p T) float", "def (x int) float", generics),
-				   make_type_pair("*void", "*int", generics),
-				   {type_maybe(type_ptr(type_managed(type_struct({}, {})))), type_null()},
-				   {type_ptr(type_id(make_iid("void"))), type_ptr(type_id(make_iid("X")))},
+						type_id(make_iid("foobar.void"))},
+					make_type_pair("any", "float", generics),
+					make_type_pair("void", "void", generics),
+					make_type_pair("float", "Float", generics),
+					make_type_pair("Float", "float", generics),
+					make_type_pair("bool", "Bool", generics),
+					make_type_pair("Bool", "Bool or True", generics),
+					make_type_pair("Bool", "Bool or True or False", generics),
+					make_type_pair("Bool", "True or False", generics),
+					make_type_pair("Bool", "true or false", generics),
+					make_type_pair("bool", "true or bool or false", generics),
+					make_type_pair("Bool", "bool", generics),
+					make_type_pair("any a", "int", generics),
+					make_type_pair("any", "map{int, int}", generics),
+					make_type_pair("any a", "map{int, str}", generics),
+					make_type_pair("{int, char}", "{int, char}", generics),
+					make_type_pair("map{any a, any b}", "map{int, str}", generics),
+					make_type_pair("map{any a, any}", "map{int, str}", generics),
+					make_type_pair("map{any, any b}", "map{int, str}", generics),
+					make_type_pair("map{any, any}", "map{int, str}", generics),
+					make_type_pair("Container{any, any}", "map{int, str}", generics),
+					make_type_pair("map{any, T}", "map{int, str}", generics),
+					make_type_pair("Container{int, T}", "map{int, str}", generics),
+					make_type_pair("Container{T, T}", "map{int, int}", generics),
+					make_type_pair("Container{T}?", "[int]", generics),
+					make_type_pair("Container{T}", "[int]", generics),
+					make_type_pair("T", "def (x int) float", generics),
+					make_type_pair("def (p T) float", "def (x int) float", generics),
+					make_type_pair("*void", "*int", generics),
+					{type_maybe(type_ptr(type_managed(type_struct({}, {})))), type_null()},
+					{type_ptr(type_id(make_iid("void"))), type_ptr(type_id(make_iid("X")))},
 			};
 
 			auto fails = std::vector<types::type_t::pair>({
@@ -1095,7 +1111,7 @@ auto test_descs = std::vector<test_desc>{
 
 			status_t status;
 			for (auto &pair : unifies) {
-				if (!unify(pair.first, pair.second, {}).result) {
+				if (!unify(pair.first, pair.second, env).result) {
 					log(log_error, "unable to unify %s with %s", pair.first->str().c_str(), pair.second->str().c_str());
 					return false;
 				}
@@ -1103,7 +1119,7 @@ auto test_descs = std::vector<test_desc>{
 			}
 
 			for (auto &pair : fails) {
-				auto unification = unify(pair.first, pair.second, {});
+				auto unification = unify(pair.first, pair.second, env);
 				assert(!!status);
 				if (unification.result) {
 					log(log_error, "should have failed unifying %s and %s [%s]",

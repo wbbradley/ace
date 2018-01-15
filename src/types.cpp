@@ -91,9 +91,21 @@ namespace types {
 	   	return id->get_name() == BUILTIN_NULL_TYPE;
    	}
 
+	bool type_id_t::is_zero() const {
+	   	return id->get_name() == ZERO_TYPE;
+   	}
+
+	bool type_id_t::is_true() const {
+	   	return id->get_name() == TRUE_TYPE;
+   	}
+
+	bool type_id_t::is_false() const {
+	   	return id->get_name() == FALSE_TYPE;
+   	}
+
     type_t::ref type_id_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
         debug_above(6, log("refining %s. looking to eliminate %s values from the type", str().c_str(), boolstr(elimination_value)));
-        if (is_null()) {
+        if (is_null() || is_zero() || is_false()) {
             if (elimination_value) {
                 debug_above(6, log("keeping %s", str().c_str()));
                 return shared_from_this();
@@ -103,15 +115,20 @@ namespace types {
             }
         }
 
+		auto name = id->get_name();
         /* handle builtin type ids */
-        if (id->get_name() == boolstr(elimination_value)) {
+        if (name == boolstr(elimination_value) || name == Boolstr(elimination_value)) {
             debug_above(6, log("eliding the whole type of %s", str().c_str()));
             return nullptr;
-        } else if (id->get_name() == "bool") {
+        } else if (name == BOOL_TYPE) {
             auto refinement = type_id(make_iid_impl(boolstr(!elimination_value), get_location()));
             debug_above(6, log("refining %s to %s", str().c_str(), refinement->str().c_str()));
             return refinement;
-        }
+        } else if (name == MANAGED_BOOL) {
+            auto refinement = type_id(make_iid_impl(Boolstr(!elimination_value), get_location()));
+            debug_above(6, log("refining %s to %s", str().c_str(), refinement->str().c_str()));
+            return refinement;
+		}
 
         return shared_from_this();
     }
@@ -713,7 +730,14 @@ namespace types {
 		} else {
 			/* this is a managed pointer that might be null. we subsume the maybeness onto the whole typename in order
 			 * to look nicer. */
-			just->emit(os, bindings);
+			auto element = just->rebind(bindings);
+			if (dyncast<const type_sum_t>(just)) {
+				os << "(";
+				just->emit(os, bindings);
+				os << ")";
+			} else {
+				just->emit(os, bindings);
+			}
 			return os << "?";
 		}
 	}
@@ -765,7 +789,14 @@ namespace types {
 
 	std::ostream &type_ptr_t::emit(std::ostream &os, const map &bindings) const {
 		os << "*";
-		element_type->emit(os, bindings);
+		auto element = element_type->rebind(bindings);
+		if (dyncast<const type_sum_t>(element)) {
+			os << "(";
+			element_type->emit(os, bindings);
+			os << ")";
+		} else {
+			element_type->emit(os, bindings);
+		}
 		return os;
 	}
 
@@ -806,7 +837,14 @@ namespace types {
 
 	std::ostream &type_ref_t::emit(std::ostream &os, const map &bindings) const {
 		os << "&";
-		element_type->emit(os, bindings);
+		auto element = element_type->rebind(bindings);
+		if (dyncast<const type_sum_t>(element)) {
+			os << "(";
+			element_type->emit(os, bindings);
+			os << ")";
+		} else {
+			element_type->emit(os, bindings);
+		}
 		return os;
 	}
 
@@ -1277,6 +1315,7 @@ void add_options(types::type_t::refs &options, const types::type_t::refs &new_op
             make_maybe = true;
             continue;
         }
+
         if (auto maybe = dyncast<const types::type_maybe_t>(option)) {
             make_maybe = true;
             option = maybe->just;
@@ -1284,11 +1323,31 @@ void add_options(types::type_t::refs &options, const types::type_t::refs &new_op
 
         if (auto sum_type = dyncast<const types::type_sum_t>(option)) {
             add_options(options, sum_type->options, make_maybe);
-        } else {
-            if (!types_contains(options, option->get_signature())) {
-                options.push_back(option);
-            }
-        }
+		} else {
+			static struct {
+				const char * const native_type;
+				const char * const managed_type;
+			} coercions[] = {
+				{INT_TYPE, MANAGED_INT},
+				{FLOAT_TYPE, MANAGED_FLOAT},
+				{BOOL_TYPE, MANAGED_BOOL},
+				{TRUE_TYPE, MANAGED_TRUE},
+				{FALSE_TYPE, MANAGED_FALSE},
+			};
+
+			for (unsigned i = 0; i < sizeof(coercions)/sizeof(coercions[0]); ++i) {
+				/* coerce native types to managed types for the sake of maintaining polymorphism during (de)serialization */
+				if (types::is_type_id(option, coercions[i].native_type)) {
+					debug_above(6, log("coercing %s to %s for sum type", coercions[i].native_type, coercions[i].managed_type));
+					option = type_id(make_iid_impl(coercions[i].managed_type, option->get_location()));
+					break;
+				}
+			}
+
+			if (!types_contains(options, option->get_signature())) {
+				options.push_back(option);
+			}
+		}
     }
 }
 
@@ -1326,7 +1385,40 @@ types::type_t::ref type_sum_safe(
         location_t location,
         const types::type_t::map &env)
 {
-    /* sum types must take care to avoid creating sums over maybe types and over builtin types. this
+	if (options.size() == 1) {
+		auto &option = options[0];
+
+		assert_implies(types::is_type_id(option, MANAGED_BOOL), types::is_managed_ptr(option, env));
+		assert_implies(types::is_type_id(option, MANAGED_INT), types::is_managed_ptr(option, env));
+		assert_implies(types::is_type_id(option, MANAGED_FLOAT), types::is_managed_ptr(option, env));
+		assert_implies(types::is_type_id(option, MANAGED_STR), types::is_managed_ptr(option, env));
+
+		if (!types::is_managed_ptr(option, env)) {
+			return option;
+		}
+
+		if (types::is_type_id(option, MANAGED_BOOL)) {
+			return type_id(make_iid(BOOL_TYPE));
+		} else if (types::is_type_id(option, MANAGED_TRUE)) {
+			return type_id(make_iid(TRUE_TYPE));
+		} else if (types::is_type_id(option, MANAGED_FALSE)) {
+			return type_id(make_iid(FALSE_TYPE));
+		}
+	} else if (options.size() == 2) {
+		auto &option0 = options[0];
+		auto &option1 = options[1];
+		if (
+				(types::is_type_id(option0, MANAGED_TRUE)  && types::is_type_id(option1, MANAGED_FALSE)) ||
+				(types::is_type_id(option0, MANAGED_FALSE) && types::is_type_id(option1, MANAGED_TRUE)) ||
+				(types::is_type_id(option0, TRUE_TYPE)     && types::is_type_id(option1, FALSE_TYPE)) ||
+				(types::is_type_id(option0, FALSE_TYPE)    && types::is_type_id(option1, TRUE_TYPE)))
+		{
+			/* any of the above combinations can be coerced to a simple native bool type */
+			return type_id(make_iid(BOOL_TYPE));
+		}
+	}
+
+    /* sum types must take care to avoid creating sums over maybe types and over native types. this
      * function will also handle combining nested sum types, since OR is fully associative */
     bool make_maybe = false;
     types::type_t::refs safe_options;
@@ -1349,7 +1441,13 @@ types::type_t::ref type_sum_safe(
 }
 
 types::type_t::ref type_sum(types::type_t::refs options, location_t location) {
-    return make_ptr<types::type_sum_t>(options, location);
+	std::sort(
+		options.begin(),
+		options.end(),
+		[] (const types::type_t::ref &lhs, const types::type_t::ref &rhs) -> bool {
+			return lhs->repr() < rhs->repr();
+		});
+	return make_ptr<types::type_sum_t>(options, location);
 }
 
 types::type_t::ref type_literal(token_t token) {

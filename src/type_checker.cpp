@@ -2180,7 +2180,7 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 			return scope->get_program_scope()->get_bound_variable(
 					status,
 					location,
-					rnpbc_equality_is_truth(rnpbc) ? "__true__" : "__false__",
+					rnpbc_equality_is_truth(rnpbc) ? "true" : "false",
 					false /*search_parents*/);
 		} else {
 			auto null_check = rnpbc_rhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null;
@@ -2905,6 +2905,95 @@ llvm::Value *get_bool_from_managed_obj(
 	return nullptr;
 }
 
+enum rct_t {
+	rct_and,
+	rct_or,
+	rct_ternary,
+};
+
+const char *rctstr(rct_t rct) {
+	switch (rct) {
+	case rct_and:
+		return "and";
+	case rct_or:
+		return "or";
+	case rct_ternary:
+		return "ternary";
+	}
+}
+
+
+bound_type_t::ref refine_conditional_type(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		location_t location,
+		types::type_t::ref condition_type,
+		types::type_t::ref truthy_path_type,
+		types::type_t::ref falsey_path_type,
+		rct_t rct)
+{
+	debug_above(7, log("refining " c_ast("%s") " expression type %s with truthy path %s and falsey path %s",
+				rctstr(rct),
+				condition_type->str().c_str(),
+				truthy_path_type->str().c_str(),
+				falsey_path_type->str().c_str()));
+	auto env = scope->get_nominal_env();
+	switch (rct) {
+	case rct_or:
+		/* we can remove falsey types from the truthy path type */
+		truthy_path_type = truthy_path_type->boolean_refinement(false, env);
+		break;
+	case rct_and:
+		/* we can remove truthy types from the truthy path type */
+		falsey_path_type = falsey_path_type->boolean_refinement(true, env);
+		break;
+	case rct_ternary:
+		/* we can't remove anything */
+		break;
+	}
+
+	if (condition_type->boolean_refinement(false, env) == nullptr) {
+		/* the condition value was definitely falsey */
+		/* factor out the truthy path type entirely */
+		truthy_path_type = nullptr;
+	} else if (condition_type->boolean_refinement(true, env) == nullptr) {
+		/* the condition value was definitely truthy */
+		/* factor out the falsey path type entirely */
+		falsey_path_type = nullptr;
+	}
+
+	assert((truthy_path_type != nullptr) || (falsey_path_type != nullptr));
+
+	types::type_t::refs options;
+	if (truthy_path_type != nullptr) {
+		options.push_back(truthy_path_type);
+	}
+	if (falsey_path_type != nullptr) {
+		options.push_back(falsey_path_type);
+	}
+
+	/* the when_true and when_false values have different
+	 * types, let's create a sum type to represent this */
+	auto ternary_sum_type = type_sum_safe(options, location, env);
+	assert(ternary_sum_type != nullptr);
+
+	// TODO: lift this logic into type_sum_safe so that all callers downshift into native types
+
+	/* if we just ended up with a Bool, let's simplify it to bool */
+	auto Bool = full_eval(type_id(make_iid(MANAGED_BOOL)), env);
+
+	if (full_eval(ternary_sum_type, env)->repr() == Bool->repr()) {
+		return upsert_bound_type(status, builder, scope, type_id(make_iid(BOOL_TYPE)));
+	} else {
+		if (!!status) {
+			return upsert_bound_type(status, builder, scope, ternary_sum_type);
+		}
+		assert(!status);
+		return nullptr;
+	}
+}
+
 bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -3018,52 +3107,13 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 				}
 
 				if (!!status) {
-					bound_type_t::ref ternary_type;
-					// If the when-true is same as condition, we can eliminate any
-					// falsey types.
-
-					types::type_t::ref truthy_path_type = true_path_value->type->get_type();
-					types::type_t::ref falsey_path_type = false_path_value->type->get_type();
-
-					auto env = scope->get_nominal_env();
-					if (condition == when_true) {
-						/* we can remove falsey types from the truthy path type */
-						truthy_path_type = truthy_path_type->boolean_refinement(false, env);
-					} else if (condition == when_false) {
-						/* we can remove truthy types from the truthy path type */
-						falsey_path_type = falsey_path_type->boolean_refinement(true, env);
-					}
-
-					auto condition_type = condition_value->type->get_type();
-					if (condition_type->boolean_refinement(false, env) == nullptr) {
-						/* the condition value was definitely falsey */
-						/* factor out the truthy path type entirely */
-						truthy_path_type = nullptr;
-					} else if (condition_type->boolean_refinement(true, env) == nullptr) {
-						/* the condition value was definitely truthy */
-						/* factor out the falsey path type entirely */
-						falsey_path_type = nullptr;
-					}
-
-					assert((truthy_path_type != nullptr) || (falsey_path_type != nullptr));
-
-					types::type_t::refs options;
-					if (truthy_path_type != nullptr) {
-						options.push_back(truthy_path_type);
-					}
-					if (falsey_path_type != nullptr) {
-						options.push_back(falsey_path_type);
-					}
-
-					/* the when_true and when_false values have different
-					 * types, let's create a sum type to represent this */
-					auto ternary_sum_type = type_sum_safe(options, condition->get_location(), env);
-					assert(ternary_sum_type != nullptr);
-
-					if (!!status) {
-						ternary_type = upsert_bound_type(status,
-								builder, scope, ternary_sum_type);
-					}
+					bound_type_t::ref ternary_type = refine_conditional_type(
+							status, builder, scope,
+							condition->get_location(),
+							condition_value->type->get_type(),
+							true_path_value->type->get_type(),
+							false_path_value->type->get_type(),
+							(condition == when_true) ? rct_or : (condition == when_false ? rct_and : rct_ternary));
 
 					if (!!status) {
 						llvm::Instruction *truthy_merge_branch = builder.CreateBr(merge_bb);
@@ -3078,9 +3128,11 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 							/* make sure that we cast the incoming phi value to the
 							 * final type in the incoming BB, not in the merge BB */
 							llvm::IRBuilder<> builder(truthy_merge_branch);
-							llvm_truthy_path_value = llvm_maybe_pointer_cast(builder,
-									true_path_value->resolve_bound_var_value(builder),
-									ternary_type);
+							llvm_truthy_path_value = coerce_value(
+									status, builder, scope,
+								   	condition->get_location(),
+									ternary_type->get_type(),
+									true_path_value);
 						}
 						llvm_phi_node->addIncoming(llvm_truthy_path_value, then_bb);
 
@@ -3089,9 +3141,10 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 							/* make sure that we cast the incoming phi value to the
 							 * final type in the incoming BB, not in the merge BB */
 							llvm::IRBuilder<> builder(false_merge_branch);
-							llvm_false_path_value = llvm_maybe_pointer_cast(builder,
-									false_path_value->resolve_bound_var_value(builder),
-									ternary_type);
+							llvm_false_path_value = coerce_value(status, builder, scope,
+								   	condition->get_location(),
+									ternary_type->get_type(),
+									false_path_value);
 						}
 
 						llvm_phi_node->addIncoming(llvm_false_path_value, else_bb);

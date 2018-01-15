@@ -63,6 +63,9 @@ namespace types {
 		virtual bool is_function() const { return false; }
 		virtual bool is_void() const { return false; }
 		virtual bool is_null() const { return false; }
+		virtual bool is_true() const { return false; }
+		virtual bool is_false() const { return false; }
+		virtual bool is_zero() const { return false; }
 		virtual bool is_maybe() const { return false; }
 	};
 
@@ -82,6 +85,9 @@ namespace types {
 		virtual identifier::ref get_id() const;
 		virtual bool is_void() const;
 		virtual bool is_null() const;
+		virtual bool is_zero() const;
+		virtual bool is_true() const;
+		virtual bool is_false() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
