@@ -938,6 +938,15 @@ namespace types {
 		return os << "}";
 	}
 
+    type_t::ref type_integer_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
+		if (elimination_value) {
+			/* falsey integers are zero, let's treat them that way */
+			return type_id(make_iid_impl(ZERO_TYPE, get_location()));
+		} else {
+			return shared_from_this();
+		}
+    }
+
 	int type_integer_t::ftv_count() const {
 		/* pretend this is getting applied */
 		return bit_size->ftv_count() + signed_->ftv_count();
@@ -1146,7 +1155,8 @@ namespace types {
 	}
 
 	bool is_integer(type_t::ref type, const type_t::map &env) {
-		return dyncast<const type_integer_t>(full_eval(type, env)) != nullptr;
+		auto expansion = full_eval(type, env);
+		return (dyncast<const type_integer_t>(expansion) != nullptr) || expansion->is_zero();
 	}
 
 	void get_integer_attributes(
@@ -1173,6 +1183,10 @@ namespace types {
 							signed_type->str().c_str());
 				}
 			}
+		} else if (type->is_zero()) {
+			bit_size = DEFAULT_INT_BITSIZE;
+			signed_ = true;
+			return;
 		} else {
 			user_error(status, type->get_location(), "expected an integer type, found %s",
 				   	type->str().c_str());
@@ -1668,7 +1682,6 @@ types::type_t::ref eval(
 		/* there is no expansion of function types */
 		return nullptr;
 	} else if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
-		/* there is no expansion of sum types */
 		// TODO: revisit whether/why this is necessary
 		auto evaled = eval(maybe_type->just, env);
 		if (evaled != nullptr) {

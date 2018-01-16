@@ -43,11 +43,12 @@ link def wcslen(wcs *wchar) size_t
 link def putw(wch wchar, fp *FILE) int
 link def mbstowcs(wcs *?wchar, mbs *char, mbslen size_t) size_t
 link def wcstombs(mbs *?char, wcs *wchar, wcslen size_t) size_t
-link def errno() int to __errno
+link def errno() int to __error
 link def iswspace(wch wchar) bool
 link def isspace(ch char) bool
 
 type FILE struct
 
+# TODO: implement let-refs for module variables
 var SIGTRAP int = 5
 var SIGKILL int = 9

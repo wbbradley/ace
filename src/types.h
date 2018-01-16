@@ -151,6 +151,7 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
+		type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
 	struct type_module_t : public type_product_t {

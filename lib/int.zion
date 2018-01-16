@@ -19,5 +19,8 @@ type Int has
 def __init__() Int
 	return 0
 
+def __box__(i int) Int
+	return Int(i)
+
 def int(s str) int
 	return int(s.raw)

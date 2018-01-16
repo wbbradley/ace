@@ -58,7 +58,7 @@ llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value) {
 }
 
 llvm::Value *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value) {
-	return builder.getInt64(value);
+	return builder.getZionInt(value);
 }
 
 llvm::Value *llvm_create_int16(llvm::IRBuilder<> &builder, int16_t value) {
