@@ -16,11 +16,16 @@ link def __divide__(x int, y float) float to __int_divide_float
 type Int has
 	var raw int
 
+var Zero Int = Int(0)
+
 def __init__() Int
 	return 0
 
 def __box__(i int) Int
 	return Int(i)
+
+def __unbox__(i Int) int
+	return i.raw
 
 def int(s str) int
 	return int(s.raw)

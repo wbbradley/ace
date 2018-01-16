@@ -3129,30 +3129,34 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 									ternary_type->get_type(),
 									true_path_value);
 						}
-						llvm_phi_node->addIncoming(llvm_truthy_path_value, then_bb);
+						if (!!status) {
+							llvm_phi_node->addIncoming(llvm_truthy_path_value, then_bb);
 
-						llvm::Value *llvm_false_path_value = nullptr;
-						/* BLOCK */ {
-							/* make sure that we cast the incoming phi value to the
-							 * final type in the incoming BB, not in the merge BB */
-							llvm::IRBuilder<> builder(false_merge_branch);
-							llvm_false_path_value = coerce_value(
-									status, builder, scope, life,
-								   	condition->get_location(),
-									ternary_type->get_type(),
-									false_path_value);
+							llvm::Value *llvm_false_path_value = nullptr;
+							/* BLOCK */ {
+								/* make sure that we cast the incoming phi value to the
+								 * final type in the incoming BB, not in the merge BB */
+								llvm::IRBuilder<> builder(false_merge_branch);
+								llvm_false_path_value = coerce_value(
+										status, builder, scope, life,
+										condition->get_location(),
+										ternary_type->get_type(),
+										false_path_value);
+							}
+
+							if (!!status) {
+								llvm_phi_node->addIncoming(llvm_false_path_value, else_bb);
+
+								debug_above(6, log("ternary expression resolved to type %s",
+											ternary_type->str().c_str()));
+								return bound_var_t::create(
+										INTERNAL_LOC(),
+										{"ternary.value"},
+										ternary_type,
+										llvm_phi_node,
+										value_name);
+							}
 						}
-
-						llvm_phi_node->addIncoming(llvm_false_path_value, else_bb);
-
-						debug_above(6, log("ternary expression resolved to type %s",
-									ternary_type->str().c_str()));
-						return bound_var_t::create(
-								INTERNAL_LOC(),
-								{"ternary.value"},
-								ternary_type,
-								llvm_phi_node,
-								value_name);
 					}
 				}
 			}
@@ -3784,8 +3788,9 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		if (!!status) {
 			/* keep track of whether this function returns */
 			bool all_paths_return = false;
-			debug_above(7, log("setting return_type_constraint in %s to %s", function_var->name.c_str(),
-						return_type->str().c_str()));
+			debug_above(7, log("setting return_type_constraint in %s to %s %s", function_var->name.c_str(),
+						return_type->str().c_str(),
+						llvm_print(return_type->get_llvm_type()).c_str()));
 			params_scope->return_type_constraint = return_type;
 
 			block->resolve_statement(status, builder, params_scope, life,
@@ -4012,8 +4017,14 @@ void type_check_program_variable(
 			if (!!local_status) {
 				if (callable != nullptr) {
 					/* we've already checked this function */
-					assert(callable->get_location() == function_defn->get_location());
-					return;
+					if (callable->get_location() != function_defn->get_location()) {
+						user_error(local_status, function_defn->get_location(), "duplicate function %s found",
+								function_defn->decl->str().c_str());
+						user_info(local_status, callable->get_location(), "see prior definition here");
+					}
+					if (!!local_status) {
+						return;
+					}
 				}
 			}
 		}
@@ -4543,9 +4554,6 @@ void ast::return_statement_t::resolve_statement(
     }
 
     if (!!status) {
-		/* release all variables from all lives */
-		life->release_vars(status, builder, scope, lf_function);
-
 		/* make sure this return type makes sense, or keep track of it if we
 		 * didn't yet know the return type for this function */
 		runnable_scope->check_or_update_return_type_constraint(status,
@@ -4556,21 +4564,31 @@ void ast::return_statement_t::resolve_statement(
 				user_error(status, get_location(),
 						"return expressions cannot be " c_type("void") ". use an empty return statement to return from this function");
 			} else {
-				auto llvm_return_value = llvm_maybe_pointer_cast(builder,
-						return_value->resolve_bound_var_value(builder),
-						runnable_scope->get_return_type_constraint());
+				auto llvm_return_value = coerce_value(
+						status, builder, scope, life,
+						return_value->get_location(),
+						runnable_scope->get_return_type_constraint()->get_type(),
+						return_value);
 
 				if (llvm_return_value->getName().str().size() == 0) {
 					llvm_return_value->setName("return.value");
 				}
+
 				debug_above(8, log("emitting a return of %s", llvm_print(llvm_return_value).c_str()));
 
-				// TODO: release live variables in scope, except the one being
-				// returned
+				// BUGBUG: if this were actually releasing variables, this could introduce a period
+				// of execution wherein if the garbage collector were to run, the return value could
+				// be freed.
+				/* release all variables from all lives */
+				life->release_vars(status, builder, scope, lf_function);
+
 				builder.CreateRet(llvm_return_value);
 			}
 		} else {
 			assert(types::is_type_id(return_type->get_type(), "void"));
+
+			/* release all variables from all lives */
+			life->release_vars(status, builder, scope, lf_function);
 
 			// TODO: release live variables in scope
 			builder.CreateRetVoid();

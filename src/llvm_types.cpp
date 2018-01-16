@@ -680,14 +680,16 @@ bound_type_t::ref create_bound_sum_type(
 		for (auto subtype : sum->options) {
 			if (!types::is_managed_ptr(subtype, typename_env)) {
 				user_error(status, subtype->get_location(),
-						"subtype %s does not have run-time type information, or is just too weird",
+						"unable to create a sum type with %s in it. %s lacks run-time type information",
+						subtype->str().c_str(),
 						subtype->str().c_str());
-				user_error(status, sum->get_location(),
+				user_info(status, sum->get_location(),
 						"while attempting to instantiate sum type %s",
 						sum->str().c_str());
 				break;
 			}
 		}
+
 		if (!!status) {
 			return bound_type;
 		}

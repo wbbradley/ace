@@ -5,6 +5,7 @@
 #include "types.h"
 #include "bound_var.h"
 #include "dbg.h"
+#include "unification.h"
 
 llvm::Value *coerce_value(
 		status_t &status,
@@ -82,19 +83,34 @@ llvm::Value *coerce_value(
 					debug_above(6, log("casting a %s to be a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
 					return builder.CreateBitCast(llvm_rhs_value, llvm_lhs_type);
 				} else if (lhs_is_managed) {
-					debug_above(6, log(log_info, "calling " c_id("__box__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
+					if (rhs_type->is_zero()) {
+						/* let's elevate zero to the managed version of itself */
+						bound_var_t::ref bound_Zero = scope->get_program_scope()->get_bound_variable(status, location, "Zero", false);
+						if (!!status) {
+							/* trust the type system */
+							return builder.CreateBitCast(
+									bound_Zero->resolve_bound_var_value(builder), llvm_lhs_type);
+						}
+					} else {
+						debug_above(6, log(log_info, "calling " c_id("__box__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
+						bound_var_t::ref coercion = call_program_function(
+								status, builder, scope, life,
+								"__box__", location, {rhs});
+
+						if (!!status) {
+							/* trust the type system. */
+							return builder.CreateBitCast(coercion->get_llvm_value(), llvm_lhs_type);
+						}
+					}
+				} else if (rhs_is_managed) {
+					debug_above(6, log(log_info, "calling " c_id("__unbox__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
 					bound_var_t::ref coercion = call_program_function(
 							status, builder, scope, life,
-							"__box__", location, {rhs}, lhs_type);
+							"__unbox__", location, {rhs}, lhs_type);
 
 					if (!!status) {
 						return coercion->get_llvm_value();
 					}
-				} else if (rhs_is_managed) {
-					log(log_info, "missing managed rhs coercion of %s to %s", rhs_type->str().c_str(),
-							lhs_type->str().c_str());
-					assert(false);
-					dbg();
 				} else {
 					if (llvm_lhs_type->isPointerTy() && llvm_rhs_type->isPointerTy()) {
 						return builder.CreateBitCast(llvm_rhs_value, llvm_lhs_type);

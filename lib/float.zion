@@ -26,3 +26,10 @@ link def __ineq__(x float, y float) bool to __float_ineq_float
 
 type Float has
 	let raw float
+
+def __box__(i float) Float
+	return Float(i)
+
+def __unbox__(f Float) float
+	return f.raw
+

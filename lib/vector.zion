@@ -53,7 +53,7 @@ def join(v [any T], delim str) str
 	while i < vec.size
 		let s = str(vec.items[i] as any T)
 		append(strs, s)
-		total_len += len(s).raw
+		total_len += len(s)
 		i += 1
 
 	# allocate our resultant string
