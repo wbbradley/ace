@@ -1518,8 +1518,8 @@ bound_var_t::ref resolve_pointer_array_index(
 
 		// REVIEW: consider just checking the LLVM type for whether it's an integer type
 		unification_t index_unification = unify(
-				index_val->type->get_type(),
 				type_integer(type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC())),
+				index_val->type->get_type(),
 				scope->get_nominal_env());
 
 		if (index_unification.result) {
@@ -1996,7 +1996,7 @@ bound_var_t::ref create_bound_vector_literal(
 						/* get a new vector of the given size */
 						llvm::CallInst *llvm_vector = llvm_create_call_inst(
 								status, builder, location, get_vector_init_function,
-								{builder.getInt64(bound_items.size())});
+								{builder.getZionInt(bound_items.size())});
 
 						llvm::Value *llvm_raw_vector = llvm_maybe_pointer_cast(builder, llvm_vector, bound_base_vector_type->get_llvm_type());
 
@@ -2308,7 +2308,7 @@ bound_var_t::ref type_check_binary_integer_op(
 	}
 	auto typename_env = scope->get_nominal_env();
 
-	static unsigned int_bit_size = 64;
+	static unsigned int_bit_size = DEFAULT_INT_BITSIZE;
 	static bool int_signed = true;
 	static bool initialized = false;
 
@@ -2316,7 +2316,6 @@ bound_var_t::ref type_check_binary_integer_op(
 	if (!status) { return nullptr; }
 
 	if (!initialized) {
-
 		types::get_integer_attributes(status, bound_int_type->get_type(), typename_env, int_bit_size, int_signed);
 		if (!status) {
 			panic("could not figure out the bit size and signedness of int!");
@@ -2562,10 +2561,7 @@ bound_var_t::ref type_check_binary_operator(
 	{
 		/* we are dealing with two integers, standard function resolution rules do not apply */
 		return type_check_binary_integer_op(
-				status,
-				builder,
-				scope,
-				life,
+				status, builder, scope, life,
 				obj->get_location(),
 				lhs,
 				rhs,
@@ -2594,15 +2590,13 @@ bound_var_t::ref type_check_binary_operator(
 				if (!lhs_is_managed || rhs_is_null) {
 					bool rhs_is_managed;
 					rhs->type->is_managed_ptr(
-							status,
-							builder,
-							scope,
+							status, builder, scope,
 							rhs_is_managed);
 					if (!!status) {
 						if (!rhs_is_managed || lhs_is_null) {
 							/* yeah, it looks like we are operating on two native pointers */
-							return resolve_native_pointer_binary_operation(status, builder, scope,
-									life, obj->get_location(), lhs_node, lhs, rhs_node, rhs, function_name, scope_if_true, scope_if_false,
+							return resolve_native_pointer_binary_operation(status, builder, scope, life,
+									obj->get_location(), lhs_node, lhs, rhs_node, rhs, function_name, scope_if_true, scope_if_false,
 									expected_type);
 						}
 					}
@@ -3967,6 +3961,7 @@ void type_check_program_variable(
 		program_scope_t::ref program_scope,
 		unchecked_var_t::ref unchecked_var)
 {
+	status_t local_status;
 	debug_above(8, log(log_info, "checking whether to check %s", unchecked_var->str().c_str()));
 
 	auto node = unchecked_var->node;
@@ -3975,7 +3970,6 @@ void type_check_program_variable(
 	debug_above(7, log(log_info, "checking module level variable %s", node->token.str().c_str()));
 	if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
 		// TODO: decide whether we need treatment here
-		status_t local_status;
 		if (is_function_defn_generic(local_status, builder, unchecked_var->module_scope, *function_defn))
 		{
 			/* this is a generic function, or we've already checked
@@ -3995,27 +3989,27 @@ void type_check_program_variable(
 		bound_type_t::ref return_value;
 
 		type_check_fully_bound_function_decl(
-				status,
+				local_status,
 				builder,
 				*function_defn->decl,
 				program_scope,
 				named_params,
 				return_value);
 
-		if (!!status) {
+		if (!!local_status) {
 			types::type_function_t::ref function_type = get_function_type(
 					named_params, return_value);
 
 			fittings_t fittings;
 			auto callable = maybe_get_callable(
-					status, builder, program_scope,
+					local_status, builder, program_scope,
 					function_defn->decl->token.text,
 					node->get_location(),
 					function_type->args,
 					function_type->return_type,
 					fittings,
 					false /*check_unchecked*/);
-			if (!!status) {
+			if (!!local_status) {
 				if (callable != nullptr) {
 					/* we've already checked this function */
 					assert(callable->get_location() == function_defn->get_location());
@@ -4025,22 +4019,22 @@ void type_check_program_variable(
 		}
 	}
 
-	if (!!status) {
+	if (!!local_status) {
 		if (dyncast<const ast::var_decl_t>(node)) {
 			/* ignore here */
 		} else if (auto stmt = dyncast<const ast::statement_t>(node)) {
 
-			status_t local_status;
 			stmt->resolve_statement(
 					local_status, builder, unchecked_var->module_scope,
 					nullptr, nullptr, nullptr);
-			status |= local_status;
 		} else if (auto data_ctor = dyncast<const ast::type_product_t>(node)) {
 			/* ignore until instantiation at a callsite */
 		} else {
 			panic("unhandled unchecked node at module scope");
 		}
 	}
+
+	status |= local_status;
 }
 
 void type_check_program_variables(
@@ -5282,11 +5276,19 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 			/* create a native integer */
             int64_t value = parse_int_value(status, token);
 			if (!!status) {
-				bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
-				return bound_var_t::create(
-						INTERNAL_LOC(), "raw_int_literal", native_type,
-						llvm_create_int(builder, value),
-						make_code_id(token));
+				if (value == 0) {
+					bound_type_t::ref native_type = program_scope->get_bound_type({ZERO_TYPE});
+					return bound_var_t::create(
+							INTERNAL_LOC(), "zero", native_type,
+							llvm::ConstantInt::get(native_type->get_llvm_type(), 0, true),
+							make_code_id(token));
+				} else {
+					bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
+					return bound_var_t::create(
+							INTERNAL_LOC(), "int_literal", native_type,
+							llvm_create_int(builder, value),
+							make_code_id(token));
+				}
 			}
         } else {
 			/* create a boxed integer */
@@ -5333,7 +5335,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 			std::string value = unescape_json_quotes(token.text);
 			bound_type_t::ref native_type = program_scope->get_bound_type({MBS_TYPE});
 			return bound_var_t::create(
-					INTERNAL_LOC(), "raw_str_literal", native_type,
+					INTERNAL_LOC(), "str_literal", native_type,
 					llvm_create_global_string(builder, value),
 					make_code_id(token));
 
@@ -5379,7 +5381,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 			double value = atof(token.text.c_str());
 			bound_type_t::ref native_type = program_scope->get_bound_type({FLOAT_TYPE});
 			return bound_var_t::create(
-					INTERNAL_LOC(), "raw_float_literal", native_type,
+					INTERNAL_LOC(), "float_literal", native_type,
 					llvm_create_double(builder, value),
 					make_code_id(token));
 		} else {

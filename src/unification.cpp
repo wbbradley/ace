@@ -119,7 +119,14 @@ unification_t unify(
 		/* make sure we enable checking bool against type sums */
 		static auto bool_type = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 		b = bool_type;
+	} else if (b->is_zero()) {
+		/* for the purposes of unification, we can treat zero as a regular integer */
+		static auto zero_type = type_integer(
+				type_literal({INTERNAL_LOC(), tk_integer, ZION_BITSIZE_STR}),
+				type_id(make_iid("signed")));
+		b = zero_type;
 	}
+
 	auto ptm_a = dyncast<const types::type_maybe_t>(a);
 	auto ptm_b = dyncast<const types::type_maybe_t>(b);
 

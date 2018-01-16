@@ -294,6 +294,11 @@ void add_global_types(
 					type_id(make_iid(WCHAR_TYPE)),
 				   	INTERNAL_LOC(),
 				   	builder.getInt32Ty())},
+		{{ZERO_TYPE},
+		   	bound_type_t::create(
+					type_id(make_iid(ZERO_TYPE)),
+				   	INTERNAL_LOC(),
+				   	builder.getZionIntTy())},
 		{{CHAR_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(CHAR_TYPE)),
@@ -308,17 +313,17 @@ void add_global_types(
 		   	bound_type_t::create(
 					type_id(make_iid(BOOL_TYPE)),
 				   	INTERNAL_LOC(),
-				   	builder.getInt64Ty())},
+				   	builder.getZionIntTy())},
 		{{TRUE_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(TRUE_TYPE)),
 				   	INTERNAL_LOC(),
-				   	builder.getInt64Ty())},
+				   	builder.getZionIntTy())},
 		{{FALSE_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(FALSE_TYPE)),
 				   	INTERNAL_LOC(),
-				   	builder.getInt64Ty())},
+				   	builder.getZionIntTy())},
 		{{MBS_TYPE},
 		   	bound_type_t::create(
 					type_ptr(type_id(make_iid(CHAR_TYPE))),
@@ -391,7 +396,7 @@ void add_globals(
 			bound_var_t::create(INTERNAL_LOC(),
 				"true",
 				true_type,
-				builder.getInt64(1/*true*/), make_iid("true")));
+				builder.getZionInt(1/*true*/), make_iid("true")));
 	assert(!!status);
 
 	program_scope->put_bound_variable(
@@ -400,7 +405,7 @@ void add_globals(
 		   	bound_var_t::create(INTERNAL_LOC(),
 			   	"false",
 			   	false_type,
-			   	builder.getInt64(0/*false*/),
+			   	builder.getZionInt(0/*false*/),
 			   	make_iid("false")));
 	assert(!!status);
 }

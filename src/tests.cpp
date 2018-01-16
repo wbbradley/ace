@@ -1048,7 +1048,7 @@ auto test_descs = std::vector<test_desc>{
 			env.insert({
 					"int",
 					type_integer(
-							type_literal({INTERNAL_LOC(), tk_integer, "64"}),
+							type_literal({INTERNAL_LOC(), tk_integer, ZION_BITSIZE_STR}),
 							type_id(make_iid("signed")))});
 			env.insert({
 					"Bool",
