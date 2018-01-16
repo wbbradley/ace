@@ -573,6 +573,8 @@ void llvm_create_if_branch(
 				if (llvm_type->isPointerTy()) {
 					user_error(status, location,
 							"you must explicitly write out any null comparisons you wish to perform on native pointers");
+				} else if (llvm_type->isDoubleTy()) {
+					user_error(status, location, "floats are not implicitly true or false. compare it to something");
 				}
 			}
 

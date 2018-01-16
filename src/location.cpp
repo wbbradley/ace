@@ -55,6 +55,10 @@ bool location_t::operator ==(const location_t &rhs) const {
     return filename == rhs.filename && line == rhs.line && col == rhs.col;
 }
 
+bool location_t::operator !=(const location_t &rhs) const {
+    return filename != rhs.filename || line != rhs.line || col != rhs.col;
+}
+
 bool location_t::has_file_location() const {
 	return filename.size() != 0 && line != -1 && col != -1;
 }

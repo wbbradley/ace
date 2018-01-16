@@ -19,6 +19,7 @@ struct location_t {
 	int col;
 	bool has_file_location() const;
     bool operator ==(const location_t &rhs) const;
+    bool operator !=(const location_t &rhs) const;
 };
 
 std::ostream &operator <<(std::ostream &os, const location_t &location);

@@ -1343,6 +1343,7 @@ void add_options(types::type_t::refs &options, const types::type_t::refs &new_op
 				const char * const managed_type;
 			} coercions[] = {
 				{INT_TYPE, MANAGED_INT},
+				{ZERO_TYPE, MANAGED_INT},
 				{FLOAT_TYPE, MANAGED_FLOAT},
 				{BOOL_TYPE, MANAGED_BOOL},
 				{TRUE_TYPE, MANAGED_TRUE},

@@ -1841,10 +1841,16 @@ types::type_t::ref _parse_type(
 		if (options.size() == 1) {
 			return options[0];
 		} else {
+			if (supertype_id != nullptr && supertype_id->get_name() == "Bool") {
+				/* hack because it's not actually possible to define Bool in the language with
+				 * automatically reducing types */
+				return type_sum(options, supertype_id != nullptr ? supertype_id->get_location() : location);
+			}
+
 			types::type_t::ref sum_fn = type_sum_safe(options,
-                    supertype_id != nullptr ? supertype_id->get_location() : location,
-                    {});
-            assert(sum_fn != nullptr);
+					supertype_id != nullptr ? supertype_id->get_location() : location,
+					{});
+			assert(sum_fn != nullptr);
 			if (!!ps.status) {
 				for (auto iter = type_variables.rbegin();
 						iter != type_variables.rend();

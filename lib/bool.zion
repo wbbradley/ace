@@ -14,6 +14,12 @@ def str(x bool) str
 	else
 		return "false"
 
+def __box__(b bool) Bool
+	if b
+		return True
+	else
+		return False
+
 def Bool(x bool) Bool
 	return x
 
