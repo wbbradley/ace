@@ -112,6 +112,7 @@ K(to);
 K(type);
 K(var);
 K(when);
+K(where);
 K(while);
 K(with);
 #undef K

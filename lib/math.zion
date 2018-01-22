@@ -29,13 +29,13 @@ def rounded_tenth(x int) int
 	return (x + 5) / 10
 
 [global]
-def abs(x any T) any T
+def abs{T}(x T) T
 	if x < 0
 		return -x
 	else
 		return x
 
-def min(x any T, y any T) any T
+def min{T}(x T, y T) T
 	if x < y
 		return x
 	else

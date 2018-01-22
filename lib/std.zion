@@ -22,7 +22,7 @@ var stdin *posix.FILE = posix.fdopen(0, "r")!
 var stdout *posix.FILE = posix.fdopen(1, "a")!
 var stderr *posix.FILE = posix.fdopen(2, "a")!
 
-def typeid(t any) typeid
+def typeid(t) typeid
 	return __get_typeid__(t)
 
 # initialization of modules is automatically generated.
@@ -70,7 +70,7 @@ def wcstombs(wcs *wchar) *char
 		posix.wcstombs(mbs, wcs, mbs_size)
 		return mbs
 
-def print(x any) void
+def print(x) void
 	posix.fputs(utf8(str(x)).raw, stdout)
 	posix.fputs("\n", stdout)
 
@@ -80,7 +80,7 @@ def panic(x str) void
 
 tag NoLF
 
-def print(x any, _ NoLF) void
+def print(x, _ NoLF) void
 	posix.fputs(utf8(str(x)).raw, stdout)
 
 def breakpoint() void
@@ -94,13 +94,10 @@ def rand(max int) int
 		r = -r
 	return r % max
 
-def __bool__(x [any T] or str or Int) bool
+
+def __bool__(x Int or str or [any T]) bool
 	assert(x as *void != null)
 	when x
-		is True
-			return true
-		is False
-			return false
 		is Int
 			return x.raw != 0
 		is str

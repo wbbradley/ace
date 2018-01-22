@@ -1021,25 +1021,13 @@ namespace types {
 		return value;
 	}
 
-	type_extern_t::type_extern_t(
-			types::type_t::ref inner,
-		   	types::type_t::ref underlying_type,
-		   	identifier::ref link_finalize_fn,
-		   	identifier::ref link_mark_fn) :
-		inner(inner),
-	   	underlying_type(underlying_type),
-	   	link_finalize_fn(link_finalize_fn),
-	   	link_mark_fn(link_mark_fn)
+	type_extern_t::type_extern_t(types::type_t::ref inner) : inner(inner)
 	{
 	}
 
 	std::ostream &type_extern_t::emit(std::ostream &os, const map &bindings_) const {
 		os << "(extern ";
 	   	inner->emit(os, bindings_);
-		os << " ";
-		underlying_type->emit(os, bindings_);
-		os << " " << link_finalize_fn->get_name();
-		os << " " << link_mark_fn->get_name();
 		return os << ")";
 	}
 
@@ -1057,7 +1045,7 @@ namespace types {
 			return shared_from_this();
 		}
 
-		return ::type_extern(inner->rebind(bindings_), underlying_type, link_finalize_fn, link_mark_fn);
+		return ::type_extern(inner->rebind(bindings_));
 	}
 
 	location_t type_extern_t::get_location() const {
@@ -1500,13 +1488,9 @@ types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body)
     return make_ptr<types::type_lambda_t>(binding, body);
 }
 
-types::type_t::ref type_extern(
-        types::type_t::ref inner,
-        types::type_t::ref underlying_type,
-        identifier::ref link_finalize_fn,
-        identifier::ref link_mark_fn)
+types::type_t::ref type_extern(types::type_t::ref inner)
 {
-    return make_ptr<types::type_extern_t>(inner, underlying_type, link_finalize_fn, link_mark_fn);
+    return make_ptr<types::type_extern_t>(inner);
 }
 
 types::type_t::ref type_list_type(types::type_t::ref element) {

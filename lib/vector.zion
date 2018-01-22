@@ -2,40 +2,57 @@ module vector
 get posix
 get runtime
 
-type vector_t struct
+type ManagedVector struct
 	var _var     var_t
 	var reserved size_t
 	var size     size_t
 	var items    *?*var_t
 
-type vector{T} link vector_t __vector_free__ __vector_mark__
+type NativeVector T struct
+	var _var     var_t
+	var reserved size_t
+	var size     size_t
+	var items    *?T
+
+type vector{T} link
 
 [global]
-def reserved(v vector{any}) int
-	return (v as *vector_t).reserved
+def reserved(v [any]) int
+	# NB: native and managed vectors share memory layout up to the `items`
+	return (v as *ManagedVector).reserved
 
 [global]
-def len(v vector{any}) int
-	return int((v as *vector_t).size)
+def len(v [any]) int
+	# NB: native and managed vectors share memory layout up to the `items`
+	return (v as *ManagedVector).size
 
 [global]
-def __init__() vector{any T}
-	typeinfo := typeinfo(vector{any T})
-	let v = runtime.create_var(typeinfo)
-	return v as vector{any T}
+def __init__{T where gc T}() [T]
+	let ti = typeinfo(
+		[T],
+		ManagedVector,
+		__managed_vector_free__,
+		__managed_vector_mark__)
+
+	return runtime.create_var(ti) as [T]
 		
-def __init_vector__(size size_t) vector{any T}
-	let v vector{any T}
+[global]
+def __init__{T where not gc T}() [T}
+	let ti = typeinfo(
+		[T],
+		native_vector T,
+		__native_vector_free__,
+		__native_vector_mark__)
+
+	return runtime.create_var(ti) as [T]
+		
+def __init_vector__{T}(size size_t) [T]
+	let v [T]
 	reserve(v as *vector_t, size)
-	return v as vector{any T}
+	return v as [T]
 		
 [global]
-def __finalize__(v vector{any T})
-	print("finalizing " + str(v))
-	__vectorfree__(v as *var_t)
-
-[global]
-def str(v [any T]) str
+def str(v [any]) str
 	return "[" + join(v, ", ") + "]"
 
 [global]
@@ -79,23 +96,36 @@ def join(v [any T], delim str) str
 	return str(buf)
 
 [global]
-def __getitem__(vec [any T], index int) any T
-	return __getvectoritem__((vec as *vector_t), index) as any T
+def __getitem__{T where gc T}(vec [T], index int) T
+	return __get_managed_vector_item__((vec as *ManagedVector), index) as T
 
 [global]
-def __setitem__(vec [any T], index int, t any T) void
-	__setvectoritem__(vec as *vector_t, index, t as *var_t)
+def __getitem__{T where not(gc T)}(vec [T], index int) T
+	return __get_native_vector_item__(vec as *NativeVector T, index) as T
 
 [global]
-def append(vec [any T], t any T) void
+def __setitem__{T where gc T}(vec [T], index int, t T) void
+	__set_vector_item__(vec as *ManagedVector, index, t as *var_t)
+
+[global]
+def __setitem__{T where not(gc T)}(vec [T], index int, t T) void
+	__set_vector_item__(vec as *NativeVector T, index, t)
+
+[global]
+def append{T where gc T}(vec [T], t T) void
 	# posix.puts("appending " + __str__(t) + " to vector")
-	__vectorappend__(vec as *vector_t, t as *var_t)
+	__vectorappend__(vec as *ManagedVector, t as *var_t)
 
 [global]
-def resize(vec [any T], size int, default any T) void
-	resize(vec as *vector_t, size, default as *var_t)
+def append{T where not(gc T)}(vec [T], t T) void
+	# posix.puts("appending " + __str__(t) + " to vector")
+	__vectorappend__(vec as *NativeVector T, t)
 
-def resize(vec *vector_t, size int, default *var_t) void
+[global]
+def resize{T where gc T}(vec [T], size int, default T) void
+	resize(vec as *ManagedVector, size, default as *var_t)
+
+def resize(vec *ManagedVector, size int, default *var_t) void
 	if size < 0
 		return
 
@@ -121,9 +151,8 @@ def __vector_mark__(vec *var_t)
 		i += 1
 
 [global]
-def __vector_free__(var_ *var_t)
-	# assert(var_ != 0)
-	let vector = var_ as *vector_t
+def __vector_free__(var *var_t)
+	let vector = var as *vector_t
 
 	/* the gc will handle cleaning up everything that we pointed to, but we need to free up our
 	 * extra allocated heap space. */
@@ -133,23 +162,31 @@ def __vector_free__(var_ *var_t)
 	 * object */
 
 
-def __getvectoritem__(vector *vector_t, index int) *var_t
-	if index >= 0 and index < vector.size
-		return vector.items[index]
+def __get_managed_vector_item__(vector *ManagedVector, index int) *var_t
+	assert(index >= 0 and index < vector.size)
+	return vector.items[index]
 
-	print("zion: array index out of bounds (0x" + __box__(__str__(vector as int, 16)) + "[" + index + "]) where array has length " + vector.size)
-	assert(false)
-	return null as *var_t
 
-def __setvectoritem__(vector *vector_t, index uint, item *var_t)
+def __get_native_vector_item__[T](vector *NativeVector{T}, index int) T
+	assert(index >= 0 and index < vector.size)
+	return vector.items[index]
+
+
+def __set_vector_item__(vector *ManagedVector, index uint, item *var_t)
 	if index < 0
 		return
 
-	if index < vector.size
-		vector.items[index] = item
-	else
-		print("zion: array index out of bounds (0x" + __box__(__str__(vector as int, 16)) + "[" + index + "])")
-		assert(false)
+	assert(index < vector.size)
+	vector.items[index] = item
+
+
+def __set_vector_item__{T}(vector *NativeVector{T}, index uint, item T)
+	if index < 0
+		return
+
+	assert(index < vector.size)
+	vector.items[index] = item
+
 
 def __vector_unsafe_append__(vector *vector_t, item *var_t) void
 	# To be called by compiler for vector literals
@@ -157,9 +194,10 @@ def __vector_unsafe_append__(vector *vector_t, item *var_t) void
 	vector.items[vector.size] = item
 	vector.size += 1
 
-def __vectorappend__(vector *vector_t, item *var_t) void
+# This is mildly unsafe against future changes...
+def __vectorappend__{V, I}(vector *V, item I) void
 	if vector.reserved > vector.size
-		# print("we have space")
+		# we have space
 		let items = vector.items
 		assert(items != null)
 		items[vector.size] = item
@@ -167,16 +205,16 @@ def __vectorappend__(vector *vector_t, item *var_t) void
 	else
 		let existing_items = vector.items
 		if existing_items != null
-			# print("we need to re-allocate space because " + vector.reserved + " <= " + vector.size)
+			# we need to re-allocate space because vector.reserved <= vector.size
 			assert(vector.reserved == vector.size)
 			new_reserved := vector.reserved * 2
 			if new_reserved < 16
 				/* start at a level that we avoid a lot of extra calls to malloc */
 				new_reserved = 16
 
-			new_items := posix.calloc(sizeof(*var_t), new_reserved) as *?*var_t
+			new_items := posix.calloc(sizeof(I), new_reserved) as *?I
 			assert(new_items != null)
-			posix.memcpy(new_items as *int8, existing_items as *int8, sizeof(*var_t) * vector.size)
+			posix.memcpy(new_items as *int8, existing_items as *int8, sizeof(I) * vector.size)
 			new_items[vector.size] = item
 			vector.size += 1
 
@@ -184,9 +222,9 @@ def __vectorappend__(vector *vector_t, item *var_t) void
 			vector.items = new_items
 			vector.reserved = new_reserved
 		else
-			# print("we need to go from zero space to newly allocated space")
+			# we need to go from zero space to newly allocated space
 			assert(vector.reserved == 0)
-			vector.items = posix.calloc(sizeof(*var_t), 4)! as **var_t
+			vector.items = posix.calloc(sizeof(I), 4)! as *I
 			vector.reserved = 4
 			vector.size = 1
 			vector.items[0] = item

@@ -283,12 +283,7 @@ void ast::type_link_t::register_type(
 	auto env = scope->get_total_env();
 	auto iter = env.find(id->get_name());
 	if (iter == env.end()) {
-		debug_above(3, log("registering type link for %s link " c_type("%s")
-					", " c_id("%s") ", " c_id("%s"),
-					id->get_name().c_str(),
-					underlying_type->str().c_str(),
-					finalize_fn.text.c_str(),
-					mark_fn.text.c_str()));
+		debug_above(3, log("registering type link for %s link", id->get_name().c_str()));
 
 		/* first construct the inner type which will basically be a call back to the outer type.
 		 * type_links are constructed recursively - being defined by themselves - since they are not
@@ -299,7 +294,7 @@ void ast::type_link_t::register_type(
 		}
 
 		/* now construct the lambda that points back to the type */
-		auto type = type_extern(inner, underlying_type, make_code_id(finalize_fn), make_code_id(mark_fn));
+		auto type = type_extern(inner);
 		for (auto iter = type_variables.rbegin();
 				iter != type_variables.rend();
 				++iter)

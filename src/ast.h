@@ -406,9 +406,6 @@ namespace ast {
 				identifier::refs type_variables,
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
-
-		types::type_t::ref underlying_type;
-		token_t finalize_fn, mark_fn;
 	};
 
 	struct type_def_t : public statement_t {
@@ -617,6 +614,7 @@ namespace ast {
 
 		virtual void render(render_state_t &rs) const;
 
+		types::type_t::ref type_constraints;
 		types::type_t::ref return_type;
 		ptr<param_list_decl_t> param_list_decl;
 		identifier::ref extends_module;
@@ -1080,6 +1078,9 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 
 		types::type_t::ref type;
+		types::type_t::ref underlying_type;
+		token_t finalize_function;
+		token_t mark_function;
 	};
 
 	struct reference_expr_t : public expression_t, public can_reference_overloads_t {
