@@ -1,20 +1,26 @@
 module map
 
-type KeyValue{K, V} has
+# map is an associative array. it is currently implemented using O(n) searches for all operations.
+# this is obviously not good, but it's just a placeholder to work with the language syntax and
+# grammar as it evolves.
+
+# FUTURE: we'll get ourselves a shiny fast implementation of an (un)ordered map.
+
+type KeyValue K V has
 	let key K
 	var value V
 
-type map{K, V} has
+type map K V has
 	# HACKHACK: O(n) BAD BAD
-	var storage [KeyValue{K, V}]
+	var storage [KeyValue K V]
 
 [global]
-def __init__() map{any K, any V}
-	let storage [KeyValue{any K, any V}]
+def __init__{K, V}() map K V
+	let storage [KeyValue K V]
 	return map(storage)
 
 [global]
-def get(m map{any K, any V}, key any K, default any V) any V
+def get{K, V}(m map K V, key K, default V) V
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
 		if kv.key == key
@@ -22,7 +28,7 @@ def get(m map{any K, any V}, key any K, default any V) any V
 	return default
 
 [global]
-def __getitem__(m map{any K, any V}, key any K) any V?
+def __getitem__{K, V}(m map K V, key K) V?
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
 		if kv.key == key
@@ -30,7 +36,7 @@ def __getitem__(m map{any K, any V}, key any K) any V?
 	return null
 
 [global]
-def __setitem__(m map{any K, any V}, key any K, val any V)
+def __setitem__{K, V}(m map K V, key K, val V)
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
 		if kv.key == key
@@ -39,7 +45,7 @@ def __setitem__(m map{any K, any V}, key any K, val any V)
 	append(m.storage, KeyValue(key, val))
 
 [global]
-def del(m map{any K, any V}, key any K) bool
+def del{K, V}(m map K V, key K) bool
 	# HACKHACK: O(n) BAD BAD - also vector.vector_t coupling BAD BAD
 	i := 0
 	let storage = m.storage

@@ -1,0 +1,13 @@
+module _
+# test: pass
+# expect: x : F{int} or float
+
+type F{T} has
+	var p T
+
+type X = F int or float
+
+def main()
+	let x X = F(3)
+
+	static_print(x)

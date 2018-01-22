@@ -37,3 +37,5 @@ types::type_t::ref _parse_type(
 	   	identifier::ref supertype_id,
 	   	identifier::refs type_variables,
 	   	identifier::set generics);
+
+types::type_t::ref parse_type_constraints(parse_state_t &ps, const identifier::set &generics);

@@ -127,6 +127,7 @@ namespace types {
 		virtual name_index_t get_name_index() const = 0;
 	};
 
+
 	struct type_literal_t : public type_t {
 		type_literal_t(token_t token);
 		token_t token;
@@ -253,8 +254,14 @@ namespace types {
 
 	struct type_function_t : public type_t {
 		typedef ptr<const type_function_t> ref;
-		type_function_t(types::type_t::ref args, type_t::ref return_type);
+		type_function_t(
+				identifier::ref name,
+			   	types::type_t::ref type_constraints,
+				types::type_t::ref args,
+			   	type_t::ref return_type);
 
+		identifier::ref name;
+		type_t::ref type_constraints;
 		type_t::ref args;
 		type_t::ref return_type;
 
@@ -266,6 +273,19 @@ namespace types {
 		virtual identifier::ref get_id() const;
 
 		virtual bool is_function() const;
+	};
+
+	struct type_and_t : public type_t {
+		type_and_t(type_t::refs terms);
+		type_t::refs terms;
+		location_t location;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual std::set<std::string> get_ftvs() const;
+		virtual ref rebind(const map &bindings) const;
+		virtual location_t get_location() const;
+		virtual identifier::ref get_id() const;
 	};
 
 	struct type_sum_t : public type_t {
@@ -341,12 +361,8 @@ namespace types {
 
 	struct type_extern_t : public type_t {
 		typedef ptr<const type_extern_t> ref;
-		type_extern_t(type_t::ref inner, type_t::ref underlying_type, identifier::ref dtor_fn,
-				identifier::ref finalizer);
+		type_extern_t(type_t::ref inner);
 		type_t::ref inner;
-		type_t::ref underlying_type;
-		identifier::ref link_finalize_fn;
-		identifier::ref link_mark_fn;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -385,18 +401,15 @@ types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_args_t::ref type_args(types::type_t::refs args, types::name_index_t name_index={});
-types::type_function_t::ref type_function(types::type_t::ref args, types::type_t::ref return_type);
+types::type_function_t::ref type_function(identifier::ref name, types::type_t::ref type_constraints, types::type_t::ref args, type_t::ref return_type);
+types::type_t::ref type_and(types::type_t::refs terms);
 types::type_t::ref type_sum(types::type_t::refs options, location_t location);
 types::type_t::ref type_sum_safe(types::type_t::refs options, location_t location, const types::type_t::map &env);
 types::type_t::ref type_maybe(types::type_t::ref just);
 types::type_ptr_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_ref(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body);
-types::type_t::ref type_extern(
-		types::type_t::ref inner,
-		types::type_t::ref underlying_type,
-		identifier::ref link_finalize_fn,
-		identifier::ref link_mark_fn);
+types::type_t::ref type_extern(types::type_t::ref inner);
 
 types::type_t::ref type_list_type(types::type_t::ref element);
 types::type_t::ref type_vector_type(types::type_t::ref element);

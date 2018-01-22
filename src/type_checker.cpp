@@ -1253,7 +1253,8 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 					}
 
 					/* we have to create it */
-					auto bound_underlying_type = upsert_bound_type(status, builder, scope, extern_type->underlying_type);
+					auto bound_underlying_type = upsert_bound_type(status, builder, scope, underlying_type);
+
 					if (!!status) {
 						auto llvm_linked_type = bound_underlying_type->get_llvm_type();
 						llvm::Module *llvm_module = llvm_get_module(builder);
@@ -1271,10 +1272,11 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 								status,
 								builder,
 								scope,
-								extern_type->link_finalize_fn->get_name(),
-								get_location(),
+								finalize_function.text,
+								finalize_function.location,
 								type_args({var_ptr_type->get_type()}, {}),
 								type_void());
+
 						if (!!status) {
 							llvm::Constant *llvm_finalize_fn = llvm::dyn_cast<llvm::Constant>(finalize_fn->get_llvm_value());
 
@@ -1282,8 +1284,8 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 									status,
 									builder,
 									scope,
-									extern_type->link_mark_fn->get_name(),
-									get_location(),
+									mark_function.text,
+									mark_function.location,
 									type_args({var_ptr_type->get_type()}, {}),
 									type_void());
 							if (!!status) {
