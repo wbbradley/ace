@@ -597,8 +597,11 @@ namespace types {
 	}
 
 	type_function_t::type_function_t(
-		   	type_t::ref args,
+			identifier::ref name,
+			types::type_t::ref type_constraints,
+			types::type_args_t::ref args,
 			type_t::ref return_type) :
+		name(name), type_constraints(type_constraints),
 		args(args), return_type(return_type)
 	{
 		assert(args != nullptr);
@@ -607,6 +610,12 @@ namespace types {
 
 	std::ostream &type_function_t::emit(std::ostream &os, const map &bindings) const {
 		os << K(def) << " ";
+		if (name != nullptr) {
+			os << C_ID << name->get_name() << C_RESET;
+		}
+		if (type_constraints != nullptr) {
+			type_constraints->emit(os, bindings);
+		}
 		args->emit(os, bindings);
 		os << " ";
 		return return_type->emit(os, bindings);
@@ -1296,10 +1305,19 @@ types::type_managed_t::ref type_managed(types::type_t::ref element_type) {
 }
 
 types::type_function_t::ref type_function(
-		types::type_t::ref args,
+		types::type_args_t::ref args,
 		types::type_t::ref return_type)
 {
-	return make_ptr<types::type_function_t>(args, return_type);
+	return type_function(nullptr, nullptr, args, return_type);
+}
+
+types::type_function_t::ref type_function(
+		identifier::ref name,
+		types::type_t::ref type_constraints,
+		types::type_args_t::ref args,
+		types::type_t::ref return_type)
+{
+	return make_ptr<types::type_function_t>(name, type_constraints, args, return_type);
 }
 
 bool types_contains(const types::type_t::refs &options, std::string signature) {

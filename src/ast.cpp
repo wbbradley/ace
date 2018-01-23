@@ -116,9 +116,4 @@ namespace ast {
 			return token.text;
 		}
 	}
-
-	void function_decl_t::set_function_name(token_t new_token) {
-		assert(token.tk == tk_string || token.tk == tk_identifier);
-		token = new_token;
-	}
 }

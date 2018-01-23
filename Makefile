@@ -143,6 +143,7 @@ ZION_LLVM_SOURCES = \
 				token_queue.cpp \
 				type_checker.cpp \
 				type_instantiation.cpp \
+				type_parser.cpp \
 				types.cpp \
 				unchecked_type.cpp \
 				unchecked_var.cpp \

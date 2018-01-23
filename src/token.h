@@ -97,6 +97,7 @@ K(has);
 K(if);
 K(in);
 K(is);
+K(lambda);
 K(let);
 K(link);
 K(matches);

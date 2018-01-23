@@ -257,12 +257,12 @@ namespace types {
 		type_function_t(
 				identifier::ref name,
 			   	types::type_t::ref type_constraints,
-				types::type_t::ref args,
+				types::type_args_t::ref args,
 			   	type_t::ref return_type);
 
 		identifier::ref name;
 		type_t::ref type_constraints;
-		type_t::ref args;
+		type_args_t::ref args;
 		type_t::ref return_type;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
@@ -401,7 +401,8 @@ types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_args_t::ref type_args(types::type_t::refs args, types::name_index_t name_index={});
-types::type_function_t::ref type_function(identifier::ref name, types::type_t::ref type_constraints, types::type_t::ref args, type_t::ref return_type);
+types::type_function_t::ref type_function(types::type_args_t::ref args, types::type_t::ref return_type);
+types::type_function_t::ref type_function(identifier::ref name, types::type_t::ref type_constraints, types::type_args_t::ref args, types::type_t::ref return_type);
 types::type_t::ref type_and(types::type_t::refs terms);
 types::type_t::ref type_sum(types::type_t::refs options, location_t location);
 types::type_t::ref type_sum_safe(types::type_t::refs options, location_t location, const types::type_t::map &env);
@@ -433,3 +434,4 @@ types::type_t::pair make_type_pair(std::string fst, std::string snd, identifier:
 types::type_t::ref parse_type_expr(std::string input, identifier::set generics, identifier::ref module_id);
 bool get_type_variable_name(types::type_t::ref type, std::string &name);
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings);
+std::string get_name_from_index(const types::name_index_t &name_index, int i);

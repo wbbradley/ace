@@ -65,10 +65,13 @@ bound_var_t::ref instantiate_unchecked_fn(
 						builder, subst_scope, args->args);
 
 				if (!!status) {
-					bound_type_t::named_pairs named_args = zip_named_pairs(
-							get_param_list_decl_variable_names(
-								function_defn->decl->param_list_decl),
-							bound_args);
+					std::vector<std::string> names;
+					const auto &name_index = function_defn->decl->function_type->args->name_index;
+					for (unsigned i=0; i < bound_args.size(); i++) {
+						names.push_back(get_name_from_index(name_index, i));
+					}
+
+					bound_type_t::named_pairs named_args = zip_named_pairs(names, bound_args);
 
 					bound_type_t::ref return_type = upsert_bound_type(status,
 							builder, subst_scope, function->return_type);

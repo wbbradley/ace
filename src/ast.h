@@ -614,17 +614,11 @@ namespace ast {
 
 		virtual void render(render_state_t &rs) const;
 
-		types::type_t::ref type_constraints;
-		types::type_t::ref return_type;
-		ptr<param_list_decl_t> param_list_decl;
+		types::type_function_t::ref function_type;
 		identifier::ref extends_module;
+		token_t link_to_name;
 
 		std::string get_function_name() const;
-		void set_function_name(token_t token);
-
-		/* the item_t::token holds the name within zion scope, and the link_to_name holds the name
-		 * that will be given externally */
-		token_t link_to_name;
 	};
 
 	struct function_defn_t : public expression_t {
