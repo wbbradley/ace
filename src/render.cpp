@@ -424,10 +424,9 @@ namespace ast {
 			newline(rs);
 			indent(rs);
 		}
-		rs.ss << C_TYPE << K(def) << C_RESET << " " << token.text;
-		param_list_decl->render(rs);
-		if (return_type != nullptr) {
-			rs.ss << " " << return_type->str();
+		rs.ss << function_type->str();
+		if (link_to_name.tk != tk_none) {
+			rs.ss << C_MODULE << " to " << C_RESET << " " << C_ID << link_to_name.text << C_RESET;
 		}
 	}
 

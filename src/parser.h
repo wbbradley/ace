@@ -27,15 +27,53 @@ ptr<T> parse_text(const std::string &text, std::string filename = "repl.zion") {
 	return parse_text<T>(iss, filename);
 }
 
-types::type_t::ref parse_maybe_type(parse_state_t &ps,
-	   	identifier::ref supertype_id,
-	   	identifier::refs type_variables,
-	   	identifier::set generics);
+identifier::ref make_code_id(const token_t &token);
 
-types::type_t::ref _parse_type(
-		parse_state_t &ps,
-	   	identifier::ref supertype_id,
-	   	identifier::refs type_variables,
-	   	identifier::set generics);
 
-types::type_t::ref parse_type_constraints(parse_state_t &ps, const identifier::set &generics);
+#define eat_token_or_return(fail_code) \
+	do { \
+		debug_lexer(log(log_info, "eating a %s", tkstr(ps.token.tk))); \
+		ps.advance(); \
+	} while (0)
+
+#define eat_token() eat_token_or_return(nullptr)
+
+#define expect_token_or_return(_tk, fail_code) \
+	do { \
+		if (ps.token.tk != _tk) { \
+			ps.error("expected '%s', got '%s' " c_id("%s"), \
+				   	tkstr(_tk), tkstr(ps.token.tk), ps.token.tk == tk_identifier ? ps.token.text.c_str() : ""); \
+			dbg(); \
+			return fail_code; \
+		} \
+	} while (0)
+
+#define expect_token(_tk) expect_token_or_return(_tk, nullptr)
+
+#define expect_ident_or_return(text_, fail_code) \
+	do { \
+		const char * const token_text = (text_); \
+		expect_token_or_return(tk_identifier, fail_code); \
+		if (ps.token.text != token_text) { \
+			ps.error("expected '%s', got '%s'", \
+					token_text, ps.token.text.c_str()); \
+			dbg(); \
+			return fail_code; \
+		} \
+	} while (0)
+
+#define expect_ident(text_) expect_ident_or_return(text_, nullptr)
+
+#define chomp_token_or_return(_tk, fail_code) \
+	do { \
+		expect_token_or_return(_tk, fail_code); \
+		eat_token_or_return(fail_code); \
+	} while (0)
+#define chomp_token(_tk) chomp_token_or_return(_tk, nullptr)
+#define chomp_ident_or_return(text_, fail_code) \
+	do { \
+		expect_ident_or_return(text_, fail_code); \
+		eat_token_or_return(fail_code); \
+	} while (0)
+#define chomp_ident(text_) chomp_ident_or_return(text_, nullptr)
+

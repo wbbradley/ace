@@ -15,53 +15,6 @@
 using namespace ast;
 
 
-#define eat_token_or_return(fail_code) \
-	do { \
-		debug_lexer(log(log_info, "eating a %s", tkstr(ps.token.tk))); \
-		ps.advance(); \
-	} while (0)
-
-#define eat_token() eat_token_or_return(nullptr)
-
-#define expect_token_or_return(_tk, fail_code) \
-	do { \
-		if (ps.token.tk != _tk) { \
-			ps.error("expected '%s', got '%s' " c_id("%s"), \
-				   	tkstr(_tk), tkstr(ps.token.tk), ps.token.tk == tk_identifier ? ps.token.text.c_str() : ""); \
-			dbg(); \
-			return fail_code; \
-		} \
-	} while (0)
-
-#define expect_token(_tk) expect_token_or_return(_tk, nullptr)
-
-#define expect_ident_or_return(text_, fail_code) \
-	do { \
-		const char * const token_text = (text_); \
-		expect_token_or_return(tk_identifier, fail_code); \
-		if (ps.token.text != token_text) { \
-			ps.error("expected '%s', got '%s'", \
-					token_text, ps.token.text.c_str()); \
-			dbg(); \
-			return fail_code; \
-		} \
-	} while (0)
-
-#define expect_ident(text_) expect_ident_or_return(text_, nullptr)
-
-#define chomp_token_or_return(_tk, fail_code) \
-	do { \
-		expect_token_or_return(_tk, fail_code); \
-		eat_token_or_return(fail_code); \
-	} while (0)
-#define chomp_token(_tk) chomp_token_or_return(_tk, nullptr)
-#define chomp_ident_or_return(text_, fail_code) \
-	do { \
-		expect_ident_or_return(text_, fail_code); \
-		eat_token_or_return(fail_code); \
-	} while (0)
-#define chomp_ident(text_) chomp_ident_or_return(text_, nullptr)
-
 bool token_begins_type(const token_t &token) {
 	switch (token.tk) {
 	case tk_integer:
@@ -1343,6 +1296,11 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 	}
 }
 
+type_t::ref parse_type_constraints(parse_state_t &ps, identifier::set generics) {
+	assert(!ps.status);
+	return nullptr;
+}
+
 ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 	location_t attributes_location;
 	identifier::ref extends_module;
@@ -1365,88 +1323,44 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 	}
 
 	if (!!ps.status) {
-		chomp_ident(K(def));
-
+		types::type_function_t::ref function_type = parse_function_type(ps, {});
 		if (!!ps.status) {
-			auto function_decl = create<ast::function_decl_t>(ps.token);
-			function_decl->link_to_name = ps.token;
-
-			if (ps.token.text == "main") {
-				if (extends_module == nullptr) {
-					extends_module = make_iid_impl(GLOBAL_SCOPE_NAME, ps.token.location);
-				} else {
-					user_error(ps.status, attributes_location,
-							"the main function may not specify an inbound context");
-				}
+			std::string name;
+			if (function_type->name == nullptr) {
+				user_error(ps.status, function_type->get_location(), "function is missing a name");
+			} else {
+				name = function_type->name->get_name();
 			}
 
-			chomp_token(tk_identifier);
-
-			identifier::set generics;
-			types::type_t::ref type_constraints;
-			if (ps.token.tk == tk_lcurly) {
-				/* we have a type variable / type constraints declaration.
-				 * let's parse the type variable list */
-				ps.advance();
-
-				while (ps.token.tk == tk_identifier) {
-					identifier::ref type_var = make_code_id(ps.token);
-					if (in(type_var, generics)) {
-						ps.error("duplicate type variable name found");
-						break;
-					}
-					generics.insert(type_var);
-					ps.advance();
-					if (ps.token.tk == tk_comma) {
-						ps.advance();
-						continue;
-					} else if (ps.token.tk == tk_rcurly) {
-						ps.advance();
-						break;
-					} else if (ps.token.is_ident(K(where))) {
-						break;
-					} else {
-						assert(false);
-					}
-				}
-
-				if (!!ps.status) {
-					if (ps.token.is_ident(K(where))) {
-						type_constraints = parse_type_constraints(ps, generics);
-					}
-					if (!!ps.status) {
-						chomp_token(tk_rcurly);
-					}
-				}
-			}
+			assert(name.size() != 0);
 
 			if (!!ps.status) {
-				chomp_token(tk_lparen);
-
-				function_decl->extends_module = extends_module;
-				function_decl->param_list_decl = param_list_decl_t::parse(ps);
-
-				chomp_token(tk_rparen);
-				if (!ps.line_broke()) {
-					if (token_begins_type(ps.token)) {
-						function_decl->return_type = parse_type(ps, {});
-						debug_above(6, log("parsed function return type %s at %s",
-									function_decl->return_type->str().c_str(),
-									ps.token.str().c_str()));
-					}
-
-					if (function_decl->token.text == "__finalize__") {
-						if (function_decl->param_list_decl->params.size() != 1) {
-							user_error(ps.status, function_decl->token.location,
-									"finalizers must only take one parameter");
-						}
-						if (function_decl->return_type != nullptr) {
-							user_error(ps.status, function_decl->return_type->get_location(),
-									"finalizers cannot return anything");
-						}
+				if (name == "main") {
+					if (extends_module == nullptr) {
+						extends_module = make_iid_impl(GLOBAL_SCOPE_NAME, ps.token.location);
+					} else {
+						user_error(ps.status, attributes_location,
+								"the main function may not specify an inbound context");
 					}
 				}
 
+				if (name == "__finalize__") {
+					if (function_type->args->size() != 1) {
+						user_error(ps.status, function_type->name->get_location(),
+								"finalizers must only take one parameter");
+					}
+					if (!function_type->return_type->is_type_id("void")) {
+						user_error(ps.status, function_type->name->get_location(),
+								"finalizers must return " c_type("void"));
+					}
+				}
+
+				auto name_token = token_t(function_type->name->get_location(), tk_identifier, function_type->name->get_name());
+
+				auto function_decl = create<ast::function_decl_t>(name_token);
+				function_decl->function_type = function_type;
+				function_decl->extends_module = extends_module;
+				function_decl->link_to_name = name_token;
 				return function_decl;
 			}
 		}

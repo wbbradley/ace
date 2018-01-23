@@ -1,3 +1,8 @@
+#include "zion.h"
+#include "parser.h"
+#include "parse_state.h"
+#include "type_parser.h"
+
 namespace types {
 	type_t::ref parse_product_type(parse_state_t &ps, const identifier::set &generics) {
 		assert(ps.token.is_ident(K(has)) || ps.token.is_ident(K(struct)));
@@ -40,7 +45,7 @@ namespace types {
 				var_token = ps.token;
 			}
 
-			type_t::ref dim_type = parse_maybe_type(ps, {}, {}, generics);
+			type_t::ref dim_type = parse_type(ps, generics);
 			if (_mutable) {
 				dim_type = type_ref(dim_type);
 			}
@@ -135,7 +140,7 @@ namespace types {
 
 				if (!!ps.status) {
 					chomp_token(tk_rparen);
-					return type_tuple(terms, lhs->get_location());
+					return type_tuple(terms);
 				}
 			} else {
 				/* we've got a single expression */
@@ -185,7 +190,7 @@ namespace types {
 
 		if (!!ps.status) {
 			/* now let's parse the return type */
-			if (!ps.line_broke() && token_begins_type(ps.token)) {
+			if (!ps.line_broke()) {
 				return_type = parse_type(ps, generics);
 			} else {
 				return_type = type_void();
@@ -280,7 +285,12 @@ namespace types {
 			ps.advance();
 			return type;
 		} else if (ps.token.tk == tk_identifier) {
-			return parse_identifier_type(ps, generics);
+			if (ps.token.is_ident(K(to))) {
+				/* `to` can't be in a type */
+				return nullptr;
+			} else {
+				return parse_identifier_type(ps, generics);
+			}
 		}
 	}
 
@@ -311,8 +321,13 @@ namespace types {
 			} else {
 				std::vector<type_t::ref> terms;
 				terms.push_back(lhs);
-				while (auto next_term = parse_optional_type(ps, generics)) {
-					terms.push_back(next_term);
+				if (!ps.token.is_ident(K(to))) {
+					while (auto next_term = parse_optional_type(ps, generics)) {
+						terms.push_back(next_term);
+						if (ps.token.is_ident(K(to))) {
+							break;
+						}
+					}
 				}
 
 				if (!!ps.status) {
@@ -448,33 +463,6 @@ namespace types {
 	}
 
 
-	type_t::ref parse_maybe_type(
-			parse_state_t &ps,
-			identifier::ref supertype_id,
-			identifier::refs type_variables,
-			identifier::set generics)
-	{
-		type_t::ref type = _parse_type(ps, supertype_id, type_variables, generics);
-		if (!!ps.status) {
-			if (ps.token.tk == tk_maybe) {
-				if (dyncast<const type_ptr_t>(type)) {
-					ps.error("pointer types should be marked as maybe types immediately after the *");
-				}
-				if (!!ps.status) {
-					/* no named maybe generic */
-					type = type_maybe(type);
-					ps.advance();
-					return type;
-				}
-			} else {
-				return type;
-			}
-		}
-		assert(!ps.status);
-		return nullptr;
-	}
-
-
 	identifier::ref reduce_ids(std::list<identifier::ref> ids, location_t location) {
 		assert(ids.size() != 0);
 		return make_iid_impl(join(ids, SCOPE_SEP), location);
@@ -502,230 +490,6 @@ namespace types {
 		}
 
 		assert(!ps.status);
-		return nullptr;
-	}
-
-	type_t::ref _parse_single_type(
-			parse_state_t &ps,
-			identifier::ref supertype_id,
-			identifier::refs type_variables,
-			identifier::set generics)
-	{
-		if (!token_begins_type(ps.token)) {
-			ps.error("type references cannot begin with %s", ps.token.str().c_str());
-			return nullptr;
-		}
-
-		switch (ps.token.tk) {
-		case tk_integer:
-		case tk_string:
-			{
-				auto type = type_literal(ps.token);
-				ps.advance();
-				return type;
-			}
-
-		case tk_times:
-			{
-				ps.advance();
-				bool is_maybe = false;
-				if (ps.token.tk == tk_maybe) {
-					is_maybe = true;
-					ps.advance();
-				}
-
-				auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
-				if (!!ps.status) {
-					return is_maybe ? ::type_maybe(::type_ptr(type)) : ::type_ptr(type);
-				}
-			}
-			break;
-		case tk_identifier:
-			if (ps.token.is_ident(K(integer_t))) {
-				auto token = ps.token;
-				ps.advance();
-				chomp_token(tk_lcurly);
-				auto bit_size = _parse_single_type(ps, nullptr, type_variables, generics);
-				if (!!ps.status) {
-					chomp_token(tk_comma);
-					auto signed_ = _parse_single_type(ps, nullptr, type_variables, generics);
-					if (!!ps.status) {
-						chomp_token(tk_rcurly);
-						return type_integer(bit_size, signed_);
-					}
-				}
-
-				assert(!ps.status);
-				return nullptr;
-			} else if (ps.token.is_ident(K(has))
-					|| ps.token.is_ident(K(struct)))
-			{
-				bool native_struct = ps.token.is_ident(K(struct));
-				ps.advance();
-
-				if (ps.token.tk != tk_indent && native_struct) {
-					/* special case of empty structure */
-					return ::type_struct({}, {});
-				}
-
-				chomp_token(tk_indent);
-				type_t::refs dimensions;
-				name_index_t name_index;
-				int index = 0;
-				while (!!ps.status && ps.token.tk != tk_outdent) {
-					if (!ps.line_broke() && ps.prior_token.tk != tk_indent) {
-						ps.error("product type dimensions must be separated by a newline");
-					}
-
-					token_t var_token;
-					bool _mutable = false;
-					if (ps.token.is_ident(K(var)) ||
-							ps.token.is_ident(K(let)))
-					{
-						_mutable = ps.token.is_ident(K(var));
-
-						ps.advance();
-						expect_token(tk_identifier);
-						var_token = ps.token;
-						if (name_index.find(var_token.text) != name_index.end()) {
-							ps.error("name " c_id("%s") " already exists in type", var_token.text.c_str());
-						}
-						name_index[var_token.text] = index++;
-						ps.advance();
-					} else {
-						ps.error("not sure what's going on here");
-						wat();
-						expect_token(tk_identifier);
-						var_token = ps.token;
-					}
-
-					type_t::ref dim_type = parse_maybe_type(ps, {}, {}, generics);
-					if (_mutable) {
-						dim_type = type_ref(dim_type);
-					}
-
-					if (!!ps.status) {
-						dimensions.push_back(dim_type);
-					}
-				}
-				chomp_token(tk_outdent);
-				if (!!ps.status) {
-					return ::type_struct(dimensions, name_index);
-				} else {
-					return nullptr;
-				}
-			} else if (ps.token.is_ident(K(def))) {
-				return _parse_function_type(ps, generics);
-			} else if (ps.token.is_ident(K(any))) {
-				/* parse generic refs */
-				ps.advance();
-				type_t::ref type;
-				if (ps.token.tk == tk_identifier) {
-					/* named generic */
-					type = type_variable(make_code_id(ps.token));
-					ps.advance();
-				} else {
-					/* no named generic */
-					type = type_variable(ps.token.location);
-				}
-				return type;
-			} else {
-				/* build the type-path that is referenced here */
-				type_t::ref cur_type;
-				std::list<identifier::ref> ids;
-				location_t location = ps.token.location;
-				while (ps.token.tk == tk_identifier) {
-					ids.push_back(make_code_id(ps.token));
-					ps.advance();
-					if (ps.token.tk == SCOPE_TK) {
-						ps.advance();
-						expect_token(tk_identifier);
-					} else {
-						break;
-					}
-				}
-
-				/* reduce the type-path to a single simplified id */
-				identifier::ref id = reduce_ids(ids, location);
-
-				debug_above(9, log("checking what " c_id("%s") " is",
-							id->str().c_str()));
-
-				/* stash the identifier */
-				if (generics.find(id) != generics.end()) {
-					/* this type is marked as definitely unbound - aka generic. let's
-					 * create a generic for it */
-					cur_type = type_variable(id);
-				} else {
-					/* this is not a generic */
-					if (in(id->get_name(), ps.type_macros)) {
-						debug_above(9, log("checking whether type " c_id("%s") " expands...",
-									id->get_name().c_str()));
-
-						/* macro type expansion */
-						cur_type = ps.type_macros[id->get_name()];
-					} else if (id->get_name().find(SCOPE_SEP_CHAR) != std::string::npos) {
-						/* if we're explicit about the type path, then let's just
-						 * use that as the id */
-						cur_type = type_id(id);
-					} else {
-						/* we don't have a macro/type_name link for this type, so
-						 * let's assume it's in this module */
-						if (ps.module_id->get_name() == GLOBAL_SCOPE_NAME) {
-							/* the std module is the only "global" module */
-							cur_type = type_id(id);
-						} else {
-							assert(ps.module_id->get_name().size() != 0);
-							cur_type = type_id(reduce_ids({ps.module_id, id}, location));
-						}
-						debug_above(9, log("transformed " c_id("%s") " to " c_id("%s"),
-									id->get_name().c_str(),
-									cur_type->str().c_str()));
-					}
-				}
-
-				type_t::refs arguments;
-				if (ps.token.tk == tk_lcurly) {
-					ps.advance();
-					arguments = parse_type_operands(ps, supertype_id,
-							type_variables, generics);
-				}
-
-				for (auto type_arg : arguments) {
-					cur_type = type_operator(cur_type, type_arg);
-				}
-
-				return cur_type;
-			}
-			break;
-		case tk_lsquare:
-			{
-				ps.advance();
-				auto element_type = parse_maybe_type(ps, supertype_id,
-						type_variables, generics);
-
-				if (ps.token.tk != tk_rsquare) {
-					ps.error("vector type reference must end with a ']', found %s",
-							ps.token.str().c_str());
-					return nullptr;
-				} else {
-					ps.advance();
-					return type_vector_type(element_type);
-				}
-			}
-			break;
-		case tk_lcurly:
-			{
-				ps.advance();
-				type_t::refs arguments = parse_type_operands(ps, supertype_id, type_variables, generics);
-				return type_tuple(arguments);
-			}
-			break;
-		default:
-			panic("should have been caught above.");
-		}
-
-		not_impl();
 		return nullptr;
 	}
 }
