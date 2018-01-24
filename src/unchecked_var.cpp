@@ -27,49 +27,7 @@ types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 	if (auto fn = dyncast<const ast::function_defn_t>(node)) {
 		auto decl = fn->decl;
 		assert(decl != nullptr);
-
-		if (decl->param_list_decl != nullptr) {
-			/* this is a function declaration, so let's set up our output parameters */
-			types::type_t::refs args;
-
-			/* get the parameters */
-			auto &params = decl->param_list_decl->params;
-			for (auto &param : params) {
-				if (param->type == nullptr) {
-					args.push_back(type_variable(param->get_location()));
-				} else {
-					args.push_back(param->type);
-				}
-			}
-
-			if (!!status) {
-				/* figure out the return type */
-				if (decl->return_type != nullptr) {
-					/* get the return type */
-					types::type_function_t::ref sig = type_function(
-							type_args(args),
-							decl->return_type);
-
-					debug_above(9, log(log_info, "found unchecked type for " c_id("%s") " : %s",
-								decl->get_function_name().c_str(),
-								sig->str().c_str()));
-					return sig;
-				} else {
-					types::type_function_t::ref sig = type_function(
-							type_args(args),
-							/* default to void, which is fully bound */
-							type_void());
-
-					debug_above(4, log(log_info, "defaulting return type of " c_id("%s") " to void : %s",
-								decl->get_function_name().c_str(),
-								sig->str().c_str()));
-					return sig;
-				}
-			}
-		} else {
-			panic("function declaration has no parameter list");
-			return type_unreachable();
-		}
+		return decl->function_type->rebind(scope->get_type_variable_bindings());
 	} else {
 		log(log_warning, "not-impl: get a type from unchecked_var %s", node->str().c_str());
 		not_impl();

@@ -69,6 +69,6 @@ bound_var_t::ref check_func_vs_callsite(
 		scope_t::ref scope,
 		location_t location,
 		var_t::ref fn,
-		types::type_t::ref args,
+		types::type_args_t::ref args,
 		types::type_t::ref return_type,
 		int &coercions);

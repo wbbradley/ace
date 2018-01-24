@@ -124,7 +124,6 @@ namespace types {
 
 		virtual product_kind_t get_pk() const = 0;
 		virtual type_t::refs get_dimensions() const = 0;
-		virtual name_index_t get_name_index() const = 0;
 	};
 
 
@@ -162,7 +161,6 @@ namespace types {
 
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
-		virtual name_index_t get_name_index() const;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -181,7 +179,6 @@ namespace types {
 
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
-		virtual name_index_t get_name_index() const;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -196,11 +193,10 @@ namespace types {
 	struct type_args_t : public type_product_t {
 		typedef ptr<const type_args_t> ref;
 
-		type_args_t(type_t::refs args, name_index_t name_index);
+		type_args_t(type_t::refs args, identifier::refs arg_names);
 
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
-		virtual name_index_t get_name_index() const;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -210,7 +206,7 @@ namespace types {
 		virtual identifier::ref get_id() const;
 
 		type_t::refs args;
-		name_index_t name_index;
+		identifier::refs arg_names;
 	};
 
 	struct type_struct_t : public type_product_t {
@@ -220,7 +216,6 @@ namespace types {
 
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
-		virtual name_index_t get_name_index() const;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -240,7 +235,6 @@ namespace types {
 
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
-		virtual name_index_t get_name_index() const;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -400,7 +394,7 @@ types::type_module_t::ref type_module(types::type_t::ref module);
 types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
-types::type_args_t::ref type_args(types::type_t::refs args, types::name_index_t name_index={});
+types::type_args_t::ref type_args(types::type_t::refs args, identifier::refs arg_names={});
 types::type_function_t::ref type_function(types::type_args_t::ref args, types::type_t::ref return_type);
 types::type_function_t::ref type_function(identifier::ref name, types::type_t::ref type_constraints, types::type_args_t::ref args, types::type_t::ref return_type);
 types::type_t::ref type_and(types::type_t::refs terms);
@@ -431,7 +425,6 @@ types::type_t::ref get_function_type_context(types::type_t::ref function_type);
 types::type_t::ref get_function_return_type(types::type_t::ref function_type);
 types::type_t::pair make_type_pair(std::string fst, std::string snd, identifier::set generics);
 
-types::type_t::ref parse_type_expr(std::string input, identifier::set generics, identifier::ref module_id);
 bool get_type_variable_name(types::type_t::ref type, std::string &name);
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings);
 std::string get_name_from_index(const types::name_index_t &name_index, int i);

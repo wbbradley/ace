@@ -28,7 +28,7 @@ bound_var_t::ref get_best_fit(
 		scope_t::ref scope,
 		location_t location,
 		std::string alias,
-		types::type_t::ref args,
+		types::type_args_t::ref args,
 		types::type_t::ref return_type,
 		var_t::refs &fns)
 {

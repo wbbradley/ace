@@ -143,7 +143,7 @@ bound_var_t::ref check_func_vs_callsite(
 		scope_t::ref scope,
 		location_t location,
 		var_t::ref fn,
-		types::type_t::ref args,
+		types::type_args_t::ref args,
 		types::type_t::ref return_type,
 		int &coercions)
 {
@@ -234,7 +234,7 @@ bound_var_t::ref get_callable_from_local_var(
 		std::string alias,
 		bound_var_t::ref bound_var,
 		location_t callsite_location,
-		types::type_t::ref args,
+		types::type_args_t::ref args,
 		types::type_t::ref return_type)
 {
 	/* make sure the function is just a function, not a reference to a function */
@@ -267,7 +267,7 @@ bound_var_t::ref get_callable(
 		scope_t::ref scope,
 		std::string alias,
 		location_t callsite_location,
-		types::type_t::ref args,
+		types::type_args_t::ref args,
 		types::type_t::ref return_type)
 {
 	bound_var_t::ref bound_var;
