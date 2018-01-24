@@ -594,73 +594,33 @@ bound_type_t::named_pairs zip_named_pairs(
 	return named_args;
 }
 
-status_t get_fully_bound_param_list_decl_variables(
-		llvm::IRBuilder<> &builder,
-		ast::param_list_decl_t &obj,
-		scope_t::ref scope,
-		bound_type_t::named_pairs &params)
-{
-	status_t status;
-
-	/* we keep track of the generic parameters to ensure equivalence */
-	std::set<std::string> generics;
-	int generic_index = 1;
-
-	for (auto param : obj.params) {
-		std::string var_name;
-		bound_type_t::ref param_type = get_fully_bound_param_info(status,
-				builder, *param, scope, var_name, generics, generic_index);
-
-		if (!!status) {
-			params.push_back({var_name, param_type});
-		}
-	}
-	return status;
-}
-
-bound_type_t::ref get_return_type_from_return_type_expr(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		types::type_t::ref type,
-		scope_t::ref scope)
-{
-	/* lookup the alias, default to void */
-	if (type != nullptr) {
-		return upsert_bound_type(status, builder, scope, type);
-	} else {
-		/* user specified no return type, default to void */
-		return scope->get_program_scope()->get_bound_type({"void"});
-	}
-
-	assert(!status);
-	return nullptr;
-}
-
 void type_check_fully_bound_function_decl(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		const ast::function_decl_t &obj,
 		scope_t::ref scope,
 		bound_type_t::named_pairs &params,
-		bound_type_t::ref &return_value)
+		bound_type_t::ref &return_type)
 {
 	/* returns the parameters and the return value types fully resolved */
 	debug_above(4, log(log_info, "type checking function decl %s", obj.token.str().c_str()));
 
-	if (obj.param_list_decl) {
-		/* the parameter types as per the decl */
-		status |= get_fully_bound_param_list_decl_variables(builder,
-				*obj.param_list_decl, scope, params);
+	/* the parameter types as per the decl */
+	const auto &args = obj.function_type->args;
+	bound_type_t::refs bound_args = upsert_bound_types(status, builder, scope, args->args);
+
+	if (!!status) {
+		for (unsigned i = 0; i < bound_args.size(); ++i) {
+			std::string param_name = get_name_from_index(args->name_index, i);
+			params.push_back({param_name, bound_args[i]});
+		}
 
 		if (!!status) {
-			return_value = get_return_type_from_return_type_expr(status,
-					builder, obj.return_type, scope);
+			return_type = upsert_bound_type(status, builder, scope, obj.function_type->return_type);
 
 			/* we got the params, and the return value */
 			return;
 		}
-	} else {
-		user_error(status, obj, "no param_list_decl was present");
 	}
 
 	assert(!status);
@@ -670,52 +630,9 @@ bool type_is_unbound(types::type_t::ref type, const types::type_t::map &bindings
 	return type->rebind(bindings)->ftv_count() > 0;
 }
 
-bool is_function_defn_generic(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		const ast::function_defn_t &obj)
-{
-	if (!!status) {
-		if (obj.decl->param_list_decl) {
-			/* check the parameters' genericity */
-			auto &params = obj.decl->param_list_decl->params;
-			for (auto &param : params) {
-				if (!param->type) {
-					debug_above(6, log(log_info, "found a missing parameter type on %s, defaulting it to an unnamed generic",
-								param->str().c_str()));
-					return true;
-				}
-
-				if (!!status) {
-					if (type_is_unbound(param->type, scope->get_type_variable_bindings())) {
-						debug_above(6, log(log_info, "found a generic parameter type on %s",
-									param->str().c_str()));
-						return true;
-					}
-				} else {
-					/* failed to check type genericity */
-					panic("what now hey?");
-					return true;
-				}
-			}
-		} else {
-			panic("function declaration has no parameter list");
-		}
-
-		if (!!status) {
-			if (obj.decl->return_type != nullptr) {
-				/* check the return type's genericity */
-				return obj.decl->return_type->ftv_count() > 0;
-			} else {
-				/* default to void, which is fully bound */
-				return false;
-			}
-		}
-	}
-
-	assert(!status);
-	return false;
+bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn_t &obj) {
+	return obj.decl->function_type->rebind(
+			scope->get_type_variable_bindings())->ftv_count() > 0;
 }
 
 function_scope_t::ref make_param_list_scope(
@@ -734,7 +651,7 @@ function_scope_t::ref make_param_list_scope(
 		auto new_scope = scope->new_function_scope(
 				string_format("function-%s", function_var->name.c_str()));
 
-		assert(obj.param_list_decl->params.size() == params.size());
+		assert(obj.function_type->args->args.size() == params.size());
 
 		llvm::Function *llvm_function = llvm::cast<llvm::Function>(function_var->get_llvm_value());
 		llvm::Function::arg_iterator args = llvm_function->arg_begin();
@@ -780,7 +697,8 @@ function_scope_t::ref make_param_list_scope(
 					scope, param_type);
 			if (!!status) {
 				auto param_var = bound_var_t::create(INTERNAL_LOC(), param.first, bound_stack_var_type,
-						llvm_param_final, make_code_id(obj.param_list_decl->params[i++]->token));
+						llvm_param_final, get_name_from_index(
+							obj.function_type->args->name_index, i++));
 
 				bound_type_t::ref return_type = get_function_return_type(status, builder, scope, function_var->type);
 
@@ -3976,17 +3894,11 @@ void type_check_program_variable(
 	/* prevent recurring checks */
 	debug_above(7, log(log_info, "checking module level variable %s", node->token.str().c_str()));
 	if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
-		// TODO: decide whether we need treatment here
-		if (is_function_defn_generic(local_status, builder, unchecked_var->module_scope, *function_defn))
-		{
-			/* this is a generic function, or we've already checked
-			 * it so let's skip checking it */
-			status |= local_status;
+		if (!is_function_defn_generic(unchecked_var->module_scope, *function_defn)) {
+			/* this is a generic function so we need not check it now */
 			return;
 		}
-	}
 
-	if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
 		if (getenv("MAIN_ONLY") != nullptr && node->token.text != "__main__") {
 			debug_above(8, log(log_info, "skipping %s because it's not '__main__'",
 						node->str().c_str()));
@@ -4036,7 +3948,6 @@ void type_check_program_variable(
 		if (dyncast<const ast::var_decl_t>(node)) {
 			/* ignore here */
 		} else if (auto stmt = dyncast<const ast::statement_t>(node)) {
-
 			stmt->resolve_statement(
 					local_status, builder, unchecked_var->module_scope,
 					nullptr, nullptr, nullptr);

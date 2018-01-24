@@ -33,7 +33,7 @@ void add_bindings_to_make_type_concrete(
 unification_t var_t::accepts_callsite(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-	   	types::type_t::ref args,
+	   	types::type_args_t::ref args,
 		types::type_t::ref return_type) const
 {
 	/* get the args out of the sig */

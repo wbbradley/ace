@@ -14,6 +14,7 @@
 #include "llvm_test.h"
 #include "llvm_utils.h"
 #include "unification.h"
+#include "type_parser.h"
 #include <fcntl.h>
 #include <unistd.h>
 

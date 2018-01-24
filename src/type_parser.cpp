@@ -4,6 +4,8 @@
 #include "type_parser.h"
 
 namespace types {
+	type_t::ref parse_and_type(parse_state_t &ps, const identifier::set &generics);
+
 	type_t::ref parse_product_type(parse_state_t &ps, const identifier::set &generics) {
 		assert(ps.token.is_ident(K(has)) || ps.token.is_ident(K(struct)));
 		bool native_struct = ps.token.is_ident(K(struct));
@@ -250,26 +252,27 @@ namespace types {
 			if (!!ps.status) {
 				return type_lambda(make_code_id(param_token), body);
 			}
+
+			assert(!ps.status);
+			return nullptr;
 		} else if (ps.token.is_ident(K(def))) {
 			return parse_function_type(ps, generics);
 		} else if (ps.token.is_ident(K(any))) {
 			auto token = ps.token;
 			ps.advance();
 
+			auto var = ps.token;
+			ps.advance();
+			type_t::ref type;
 			if (ps.token.tk == tk_identifier) {
-				auto var = ps.token;
+				/* named generic */
+				type = type_variable(make_code_id(ps.token));
 				ps.advance();
-				type_t::ref type;
-				if (ps.token.tk == tk_identifier) {
-					/* named generic */
-					type = type_variable(make_code_id(ps.token));
-					ps.advance();
-				} else {
-					/* no named generic */
-					type = type_variable(var.location);
-				}
-				return type;
+			} else {
+				/* no named generic */
+				type = type_variable(var.location);
 			}
+			return type;
 		} else if (ps.token.is_ident(K(struct))) {
 			return parse_product_type(ps, generics);
 		} else if (ps.token.is_ident(K(has))) {
@@ -291,6 +294,9 @@ namespace types {
 			} else {
 				return parse_identifier_type(ps, generics);
 			}
+		} else {
+			assert(false);
+			return nullptr;
 		}
 	}
 
@@ -331,7 +337,7 @@ namespace types {
 				}
 
 				if (!!ps.status) {
-					for (int i=0; i<terms.size(); ++i) {
+					for (unsigned i = 0; i < terms.size(); ++i) {
 						lhs = type_operator(lhs, terms[i]);
 					}
 					return lhs;
@@ -399,7 +405,7 @@ namespace types {
 				}
 
 				if (!!ps.status) {
-					return type_and(terms, lhs->get_location());
+					return type_and(terms);
 				}
 			} else {
 				/* we've got a single expression */
@@ -412,9 +418,10 @@ namespace types {
 	}
 
 	type_t::ref parse_type(parse_state_t &ps, const identifier::set &generics) {
-		return parse_and_type(ps, supertype_id, type_variables, generics);
+		return parse_and_type(ps, generics);
 	}
 
+#if 0
 	{
 		location_t location = ps.token.location;
 		type_t::refs options;
@@ -461,6 +468,7 @@ namespace types {
 		assert(!ps.status);
 		return nullptr;
 	}
+#endif
 
 
 	identifier::ref reduce_ids(std::list<identifier::ref> ids, location_t location) {
@@ -473,23 +481,31 @@ namespace types {
 		location_t where_location = ps.token.location;
 		ps.advance();
 
-		return parse_type_constraints_expr(ps, generics);
-	}
-
-
-	type_t::ref parse_type_constraints_expr(
-			parse_state_t &ps,
-			const identifier::set &generics)
-	{
-		type_t::ref type = _parse_type(ps, nullptr, {}, generics);
-
-		if (ps.token.is_ident(K(not))) {
-			auto token = ps.token;
-
-			assert(false);
-		}
-
-		assert(!ps.status);
-		return nullptr;
+		return parse_type(ps, generics);
 	}
 }
+
+types::type_t::ref parse_type_expr(
+		std::string input,
+	   	identifier::set generics,
+	   	identifier::ref module_id)
+{
+	status_t status;
+	std::istringstream iss(input);
+	zion_lexer_t lexer("", iss);
+	type_macros_t global_type_macros;
+	parse_state_t ps(status, "", lexer, {}, global_type_macros, nullptr);
+	if (module_id != nullptr) {
+		ps.module_id = module_id;
+	} else {
+		ps.module_id = make_iid("__parse_type_expr__");
+	}
+	types::type_t::ref type = types::parse_type(ps, generics);
+	if (!!ps.status) {
+		return type;
+	} else {
+		panic("bad type");
+		return null_impl();
+	}
+}
+

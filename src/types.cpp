@@ -4,7 +4,7 @@
 #include <sstream>
 #include "utils.h"
 #include "types.h"
-#include "parser.h"
+#include "type_parser.h"
 #include <iostream>
 #include "unification.h"
 #include "atom.h"
@@ -271,10 +271,6 @@ namespace types {
 		return dimensions;
 	}
 
-	name_index_t type_struct_t::get_name_index() const {
-		return name_index;
-	}
-
 	std::ostream &type_struct_t::emit(std::ostream &os, const map &bindings) const {
 		os << "struct{";
 		join_dimensions(os, dimensions, name_index, bindings);
@@ -351,10 +347,6 @@ namespace types {
 		return dimensions;
 	}
 
-	name_index_t type_tuple_t::get_name_index() const {
-		return {};
-	}
-
 	std::ostream &type_tuple_t::emit(std::ostream &os, const map &bindings) const {
 		os << "tuple{";
 		join_dimensions(os, dimensions, {}, bindings);
@@ -413,14 +405,14 @@ namespace types {
 		return nullptr;
 	}
 
-	type_args_t::type_args_t(type_t::refs args, types::name_index_t name_index) :
-		args(args), name_index(name_index)
+	type_args_t::type_args_t(type_t::refs args, identifier::refs arg_names) :
+		args(args), arg_names(arg_names)
 	{
 #ifdef ZION_DEBUG
 		for (auto arg: args) {
 			assert(arg != nullptr);
 		}
-		assert(name_index.size() == args.size() || name_index.size() == 0);
+		assert(arg_names.size() == args.size() || arg_names.size() == 0);
 #endif
 	}
 
@@ -432,19 +424,17 @@ namespace types {
 		return args;
 	}
 
-	name_index_t type_args_t::get_name_index() const {
-		return name_index;
-	}
-
 	std::ostream &type_args_t::emit(std::ostream &os, const map &bindings) const {
 		os << "(";
 		const char *sep = "";
 		int i = 0;
 		for (auto arg : args) {
 			os << sep;
-			auto name = get_name_from_index(name_index, i++);
-			if (name.size() != 0) {
-				os << name << " ";
+			if (arg_names.size() != 0) {
+				auto name = arg_names[i++]->get_name();
+				if (name.size() != 0) {
+					os << name << " ";
+				}
 			}
 			arg->emit(os, bindings);
 			sep = ", ";
@@ -510,9 +500,6 @@ namespace types {
 		return {element_type};
 	}
 
-	name_index_t type_managed_t::get_name_index() const {
-		return {};
-	}
 
 	std::ostream &type_managed_t::emit(std::ostream &os, const map &bindings) const {
 		os << "managed{";
@@ -559,10 +546,6 @@ namespace types {
 
 	type_t::refs type_module_t::get_dimensions() const {
 		return {module_type};
-	}
-
-	name_index_t type_module_t::get_name_index() const {
-		return {};
 	}
 
 	std::ostream &type_module_t::emit(std::ostream &os, const map &bindings) const {
@@ -1556,26 +1539,6 @@ types::type_t::pair make_type_pair(std::string fst, std::string snd, identifier:
 	return types::type_t::pair{
 		parse_type_expr(fst, generics, module_id),
 	   	parse_type_expr(snd, generics, module_id)};
-}
-
-types::type_t::ref parse_type_expr(std::string input, identifier::set generics, identifier::ref module_id) {
-	status_t status;
-	std::istringstream iss(input);
-	zion_lexer_t lexer("", iss);
-	type_macros_t global_type_macros;
-	parse_state_t ps(status, "", lexer, {}, global_type_macros, nullptr);
-	if (module_id != nullptr) {
-		ps.module_id = module_id;
-	} else {
-		ps.module_id = make_iid("__parse_type_expr__");
-	}
-	types::type_t::ref type = parse_maybe_type(ps, {}, {}, generics);
-	if (!!status) {
-		return type;
-	} else {
-		panic("bad type");
-		return null_impl();
-	}
 }
 
 bool get_type_variable_name(types::type_t::ref type, std::string &name) {
