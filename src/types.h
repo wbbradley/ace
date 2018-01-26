@@ -193,7 +193,7 @@ namespace types {
 	struct type_args_t : public type_product_t {
 		typedef ptr<const type_args_t> ref;
 
-		type_args_t(type_t::refs args, identifier::refs arg_names);
+		type_args_t(type_t::refs args, identifier::refs names);
 
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
@@ -206,7 +206,7 @@ namespace types {
 		virtual identifier::ref get_id() const;
 
 		type_t::refs args;
-		identifier::refs arg_names;
+		identifier::refs names;
 	};
 
 	struct type_struct_t : public type_product_t {
@@ -394,7 +394,7 @@ types::type_module_t::ref type_module(types::type_t::ref module);
 types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
-types::type_args_t::ref type_args(types::type_t::refs args, identifier::refs arg_names={});
+types::type_args_t::ref type_args(types::type_t::refs args, const identifier::refs &names={});
 types::type_function_t::ref type_function(types::type_args_t::ref args, types::type_t::ref return_type);
 types::type_function_t::ref type_function(identifier::ref name, types::type_t::ref type_constraints, types::type_args_t::ref args, types::type_t::ref return_type);
 types::type_t::ref type_and(types::type_t::refs terms);

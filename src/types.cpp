@@ -405,14 +405,14 @@ namespace types {
 		return nullptr;
 	}
 
-	type_args_t::type_args_t(type_t::refs args, identifier::refs arg_names) :
-		args(args), arg_names(arg_names)
+	type_args_t::type_args_t(type_t::refs args, identifier::refs names) :
+		args(args), names(names)
 	{
 #ifdef ZION_DEBUG
 		for (auto arg: args) {
 			assert(arg != nullptr);
 		}
-		assert(arg_names.size() == args.size() || arg_names.size() == 0);
+		assert(names.size() == args.size() || names.size() == 0);
 #endif
 	}
 
@@ -430,8 +430,8 @@ namespace types {
 		int i = 0;
 		for (auto arg : args) {
 			os << sep;
-			if (arg_names.size() != 0) {
-				auto name = arg_names[i++]->get_name();
+			if (names.size() != 0) {
+				auto name = names[i++]->get_name();
 				if (name.size() != 0) {
 					os << name << " ";
 				}
@@ -469,7 +469,7 @@ namespace types {
 		for (auto arg : args) {
 			type_args.push_back(arg->rebind(bindings));
 		}
-		return ::type_args(type_args, name_index);
+		return ::type_args(type_args, names);
 	}
 
 	location_t type_args_t::get_location() const {
@@ -707,6 +707,61 @@ namespace types {
 
         return type_sum_safe(new_options, get_location(), env);
     }
+
+	type_and_t::type_and_t(type_t::refs terms) : terms(terms) {
+		for (auto term : terms) {
+            assert(!dyncast<const type_maybe_t>(term));
+            assert(!term->is_null());
+        }
+	}
+
+	std::ostream &type_and_t::emit(std::ostream &os, const map &bindings) const {
+		const char *delim = "";
+		assert(terms.size() != 0);
+		for (auto term : terms) {
+			os << delim;
+			term->emit(os, bindings);
+			delim = " or ";
+		}
+		return os;
+	}
+
+	int type_and_t::ftv_count() const {
+		int ftv_sum = 0;
+		for (auto term : terms) {
+			ftv_sum += term->ftv_count();
+		}
+		return ftv_sum;
+	}
+
+    std::set<std::string> type_and_t::get_ftvs() const {
+        std::set<std::string> set;
+		for (auto term : terms) {
+            std::set<std::string> option_set = term->get_ftvs();
+            set.insert(option_set.begin(), option_set.end());
+		}
+		return set;
+	}
+
+	type_t::ref type_and_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
+		refs type_options;
+		for (auto term : terms) {
+			type_options.push_back(term->rebind(bindings));
+		}
+		return ::type_sum(type_options, location);
+	}
+
+	location_t type_and_t::get_location() const {
+		return location;
+	}
+
+	identifier::ref type_and_t::get_id() const {
+		return nullptr;
+	}
 
 	type_maybe_t::type_maybe_t(type_t::ref just) : just(just) {
         assert(!dyncast<const type_maybe_t>(just));
@@ -1271,12 +1326,13 @@ types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions) {
 
 types::type_args_t::ref type_args(
 	   	types::type_t::refs args,
-	   	types::name_index_t name_index)
+		const identifier::refs &names)
 {
+	assert(names.size() == args.size());
 	for (auto arg : args) {
 		assert(!arg->is_ref());
 	}
-	return make_ptr<types::type_args_t>(args, name_index);
+	return make_ptr<types::type_args_t>(args, names);
 }
 
 types::type_module_t::ref type_module(types::type_t::ref module_type) {
@@ -1452,6 +1508,10 @@ types::type_t::ref type_sum(types::type_t::refs options, location_t location) {
 			return lhs->repr() < rhs->repr();
 		});
 	return make_ptr<types::type_sum_t>(options, location);
+}
+
+types::type_t::ref type_and(types::type_t::refs terms) {
+	return make_ptr<types::type_and_t>(terms);
 }
 
 types::type_t::ref type_literal(token_t token) {

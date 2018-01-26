@@ -66,9 +66,8 @@ bound_var_t::ref instantiate_unchecked_fn(
 
 				if (!!status) {
 					std::vector<std::string> names;
-					const auto &name_index = function_defn->decl->function_type->args->name_index;
-					for (unsigned i=0; i < bound_args.size(); i++) {
-						names.push_back(get_name_from_index(name_index, i));
+					for (auto id : function_defn->decl->function_type->args->names) {
+						names.push_back(id->get_name());
 					}
 
 					bound_type_t::named_pairs named_args = zip_named_pairs(names, bound_args);
@@ -198,7 +197,7 @@ bound_var_t::ref maybe_get_callable(
 		scope_t::ref scope,
 		std::string alias,
 		location_t location,
-		types::type_t::ref args,
+		types::type_args_t::ref args,
 		types::type_t::ref return_type,
 		fittings_t &fittings,
 		bool check_unchecked)

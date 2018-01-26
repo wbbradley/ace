@@ -610,8 +610,10 @@ void type_check_fully_bound_function_decl(
 	bound_type_t::refs bound_args = upsert_bound_types(status, builder, scope, args->args);
 
 	if (!!status) {
+		const auto &arg_names = args->names;
+		assert(arg_names.size() == bound_args.size());
 		for (unsigned i = 0; i < bound_args.size(); ++i) {
-			std::string param_name = get_name_from_index(args->name_index, i);
+			std::string param_name = arg_names[i]->get_name();
 			params.push_back({param_name, bound_args[i]});
 		}
 
@@ -697,8 +699,7 @@ function_scope_t::ref make_param_list_scope(
 					scope, param_type);
 			if (!!status) {
 				auto param_var = bound_var_t::create(INTERNAL_LOC(), param.first, bound_stack_var_type,
-						llvm_param_final, get_name_from_index(
-							obj.function_type->args->name_index, i++));
+						llvm_param_final, obj.function_type->args->names[i++]);
 
 				bound_type_t::ref return_type = get_function_return_type(status, builder, scope, function_var->type);
 
@@ -1294,7 +1295,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_condition(
 		local_scope_t::ref *scope_if_true,
 		local_scope_t::ref *scope_if_false) const
 {
-	return resolve_reference(status, builder, scope, life, false /*as_ref*/, scope_if_true, scope_if_false);
+	return resolve_reference(status, builder, scope, life, false /*as_ref*/, nullptr, scope_if_true, scope_if_false);
 }
 
 bound_var_t::ref ast::reference_expr_t::resolve_expression(
@@ -1305,7 +1306,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 		bool as_ref,
 		types::type_t::ref expected_type) const
 {
-	return resolve_reference(status, builder, scope, life, as_ref, nullptr, nullptr);
+	return resolve_reference(status, builder, scope, life, as_ref, expected_type, nullptr, nullptr);
 }
 
 local_scope_t::ref new_refined_scope(
@@ -1356,6 +1357,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
+		types::type_t::ref expected_type,
 		local_scope_t::ref *scope_if_true,
 		local_scope_t::ref *scope_if_false) const
 {
@@ -1387,12 +1389,12 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 			assert(scope_if_true == nullptr && scope_if_false == nullptr);
 			return var;
 		}
-	} else {
+	} else if (auto function_type = dyncast<const types::type_function_t>(expected_type)) {
 		indent_logger indent(get_location(), 5, string_format("looking for reference_expr " c_id("%s"),
 					token.text.c_str()));
 		fittings_t fittings;
 		auto function = maybe_get_callable(status, builder, scope, token.text,
-				get_location(), type_variable(get_location()), type_variable(get_location()), fittings);
+				get_location(), function_type->args, function_type->return_type, fittings);
 		if (!!status && function != nullptr) {
 			debug_above(5, log("reference expression for " c_id("%s") " resolved to %s",
 						token.text.c_str(), function->str().c_str()));
@@ -1401,6 +1403,9 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 			debug_above(5, log("could not find reference expression for " c_id("%s") " (found %d fns, though)",
 						token.text.c_str(), fittings.size()));
 		}
+	} else {
+		/* go back and make type_function_t::args a regular type_t again... :( */
+		assert(false);
 	}
 
 	user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());

@@ -1109,6 +1109,7 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
+				types::type_t::ref expected_type,
 				local_scope_t::ref *scope_if_true,
 				local_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;

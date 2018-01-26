@@ -1319,7 +1319,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 
 	if (!!ps.status) {
 		expect_ident(K(def));
-		types::type_function_t::ref function_type = dyncast<const type_function_t>(parse_type(ps, {}));
+		types::type_function_t::ref function_type = dyncast<const types::type_function_t>(types::parse_type(ps, {}));
 		if (!!ps.status) {
 			std::string name;
 			if (function_type->name == nullptr) {
@@ -1341,11 +1341,11 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 				}
 
 				if (name == "__finalize__") {
-					if (function_type->args->size() != 1) {
+					if (function_type->args->args.size() != 1) {
 						user_error(ps.status, function_type->name->get_location(),
 								"finalizers must only take one parameter");
 					}
-					if (!function_type->return_type->is_type_id("void")) {
+					if (!types::is_type_id(function_type->return_type, "void")) {
 						user_error(ps.status, function_type->name->get_location(),
 								"finalizers must return " c_type("void"));
 					}
@@ -1651,7 +1651,7 @@ void add_type_macros_to_parser(
 		std::list<identifier::ref> ids;
 		ids.push_back(make_code_id(link_name->extern_module->get_name()));
 		ids.push_back(make_code_id(link_name->remote_name));
-		auto type_macro_expansion = type_id(reduce_ids(ids, link_name->remote_name.location));
+		auto type_macro_expansion = type_id(types::reduce_ids(ids, link_name->remote_name.location));
 
 		debug_above(4, log("creating type macro " c_id("%s") " => %s",
 					local_name.c_str(),

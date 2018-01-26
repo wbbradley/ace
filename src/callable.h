@@ -36,7 +36,7 @@ bound_var_t::ref get_callable(
 		scope_t::ref scope,
 		std::string alias,
 		location_t callsite_location,
-		types::type_t::ref sig_args,
+		types::type_args_t::ref sig_args,
 		types::type_t::ref return_type);
 
 /* maybe_get_callable is supposed to be more lenient and not cause errors,
@@ -48,7 +48,7 @@ bound_var_t::ref maybe_get_callable(
 		scope_t::ref scope,
 		std::string alias,
 		location_t location,
-		types::type_t::ref sig_args,
+		types::type_args_t::ref type_args,
 		types::type_t::ref return_type,
 		fittings_t &fittings,
 		bool check_unchecked=true);
