@@ -156,6 +156,12 @@ namespace types {
 
 	types::type_t::ref parse_function_type(parse_state_t &ps, const identifier::set &generics) {
 		chomp_ident(K(def));
+		identifier::ref name;
+		if (ps.token.tk == tk_identifier) {
+			name = make_code_id(ps.token);
+			ps.advance();
+		}
+
 		chomp_token(tk_lparen);
 		types::type_t::refs param_types;
 		types::type_t::ref return_type;
@@ -199,7 +205,7 @@ namespace types {
 			}
 
 			if (!!ps.status) {
-				return type_function(type_args(param_types), return_type);
+				return type_function(name, nullptr, type_args(param_types), return_type);
 			}
 		}
 
@@ -295,7 +301,6 @@ namespace types {
 				return parse_identifier_type(ps, generics);
 			}
 		} else {
-			assert(false);
 			return nullptr;
 		}
 	}
@@ -471,7 +476,7 @@ namespace types {
 #endif
 
 
-	identifier::ref reduce_ids(std::list<identifier::ref> ids, location_t location) {
+	identifier::ref reduce_ids(const std::list<identifier::ref> &ids, location_t location) {
 		assert(ids.size() != 0);
 		return make_iid_impl(join(ids, SCOPE_SEP), location);
 	}

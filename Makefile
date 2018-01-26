@@ -224,26 +224,26 @@ $(BUILD_DIR)/%.e: src/%.cpp
 $(BUILD_DIR)/%.llvm.o: src/%.cpp
 	@echo Compiling $<
 	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -o $@
+	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) $< -o $@
 
 $(BUILD_DIR)/tests/%.o: tests/%.c
 	@-mkdir -p $(@D)
 	@echo Compiling $<
-	$(CC) $(CFLAGS) $< -o $@
+	@$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/%.o: src/%.c
 	@echo Compiling $<
 	@$(CLANG) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	$(CLANG) $(CFLAGS) $< -o $@
+	@$(CLANG) $(CFLAGS) $< -o $@
 
 %.o: src/%.c
 	@echo Compiling $<
 	@$(CLANG) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	$(CLANG) $(CFLAGS) $< -o $@
+	@$(CLANG) $(CFLAGS) $< -o $@
 
 %.llir: %.c zion_rt.h
 	@echo Emitting LLIR from $<
-	$(CLANG) -S -emit-llvm -g $< -o $@
+	@$(CLANG) -S -emit-llvm -g $< -o $@
 
 clean:
 	rm -rf *.llir.ir $(BUILD_DIR) tests/*.o *.o *.zx tests/*.zx *.a $(TARGETS)
