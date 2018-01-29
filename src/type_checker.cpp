@@ -606,7 +606,8 @@ void type_check_fully_bound_function_decl(
 	debug_above(4, log(log_info, "type checking function decl %s", obj.token.str().c_str()));
 
 	/* the parameter types as per the decl */
-	const auto &args = obj.function_type->args;
+	const auto &args = dyncast<const types::type_args_t>(obj.function_type->args);
+	assert(args != nullptr);
 	bound_type_t::refs bound_args = upsert_bound_types(status, builder, scope, args->args);
 
 	if (!!status) {
@@ -653,7 +654,8 @@ function_scope_t::ref make_param_list_scope(
 		auto new_scope = scope->new_function_scope(
 				string_format("function-%s", function_var->name.c_str()));
 
-		assert(obj.function_type->args->args.size() == params.size());
+		auto type_args = dyncast<const types::type_args_t>(obj.function_type->args);
+		assert(type_args != nullptr && type_args->args.size() == params.size());
 
 		llvm::Function *llvm_function = llvm::cast<llvm::Function>(function_var->get_llvm_value());
 		llvm::Function::arg_iterator args = llvm_function->arg_begin();
@@ -699,7 +701,7 @@ function_scope_t::ref make_param_list_scope(
 					scope, param_type);
 			if (!!status) {
 				auto param_var = bound_var_t::create(INTERNAL_LOC(), param.first, bound_stack_var_type,
-						llvm_param_final, obj.function_type->args->names[i++]);
+						llvm_param_final, type_args->names[i++]);
 
 				bound_type_t::ref return_type = get_function_return_type(status, builder, scope, function_var->type);
 

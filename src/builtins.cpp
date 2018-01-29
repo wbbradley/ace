@@ -27,4 +27,3 @@ const char *MANAGED_FLOAT = "Float";
 const char *MANAGED_BOOL = "Bool";
 const char *MANAGED_TRUE = "True";
 const char *MANAGED_FALSE = "False";
-

@@ -14,7 +14,7 @@ type NativeVector T struct
 	var size     size_t
 	var items    *?T
 
-type vector{T} link
+type Vector{T} link
 
 [global]
 def reserved(v [any]) int
@@ -37,7 +37,7 @@ def __init__{T where gc T}() [T]
 	return runtime.create_var(ti) as [T]
 		
 [global]
-def __init__{T where not gc T}() [T}
+def __init__{T where not gc T}() [T]
 	let ti = typeinfo(
 		[T],
 		native_vector T,
@@ -45,11 +45,6 @@ def __init__{T where not gc T}() [T}
 		__native_vector_mark__)
 
 	return runtime.create_var(ti) as [T]
-		
-def __init_vector__{T}(size size_t) [T]
-	let v [T]
-	reserve(v as *vector_t, size)
-	return v as [T]
 		
 [global]
 def str(v [any]) str

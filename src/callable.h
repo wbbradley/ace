@@ -48,7 +48,7 @@ bound_var_t::ref maybe_get_callable(
 		scope_t::ref scope,
 		std::string alias,
 		location_t location,
-		types::type_args_t::ref type_args,
+		types::type_t::ref type_args,
 		types::type_t::ref return_type,
 		fittings_t &fittings,
 		bool check_unchecked=true);
@@ -69,6 +69,6 @@ bound_var_t::ref check_func_vs_callsite(
 		scope_t::ref scope,
 		location_t location,
 		var_t::ref fn,
-		types::type_args_t::ref args,
+		types::type_t::ref args,
 		types::type_t::ref return_type,
 		int &coercions);

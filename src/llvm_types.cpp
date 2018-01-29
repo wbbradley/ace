@@ -613,44 +613,52 @@ bound_type_t::ref create_bound_maybe_type(
 	if (auto bound_just_type = program_scope->get_bound_type(
 				maybe->just->get_signature(), false /*use_mappings*/))
    	{
-		/* try breaking a cycle of maybes */
-		auto bound_type = bound_type_t::create(
-				maybe,
-				bound_just_type->get_location(),
-				bound_just_type->get_llvm_type(),
-				bound_just_type->get_llvm_specific_type());
-		program_scope->put_bound_type(status, bound_type);
-		return bound_type;
+		if (bound_just_type->get_llvm_type()->isPointerTy()) {
+			/* try breaking a cycle of maybes */
+			auto bound_type = bound_type_t::create(
+					maybe,
+					bound_just_type->get_location(),
+					bound_just_type->get_llvm_type(),
+					bound_just_type->get_llvm_specific_type());
+			program_scope->put_bound_type(status, bound_type);
+			return bound_type;
+		} else {
+			user_error(status, bound_just_type->get_location(),
+					"maybe types must wrap pointers. %s is not a pointer",
+					maybe->just->str().c_str());
+		}
 	}
 
-	program_scope->put_bound_type_mapping(status, maybe->get_signature(),
-			maybe->just->get_signature());
-
 	if (!!status) {
-		bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
-		if (!!status) {
-			auto llvm_type = bound_just_type->get_llvm_specific_type();
-			if (llvm_type->isPointerTy()) {
-				debug_above(5, log(log_info,
-							"creating maybe type for %s",
-							maybe->just->str().c_str()));
-				auto bound_type = scope->get_bound_type(maybe->get_signature(), false /*use_mappings*/);
-				if (bound_type == nullptr) {
-					bound_type = bound_type_t::create(
-							maybe,
-							bound_just_type->get_location(),
-							llvm_type);
-					program_scope->put_bound_type(status, bound_type);
-				}
+		program_scope->put_bound_type_mapping(status, maybe->get_signature(),
+				maybe->just->get_signature());
 
-				if (!!status) {
-					return bound_type;
+		if (!!status) {
+			bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
+			if (!!status) {
+				auto llvm_type = bound_just_type->get_llvm_specific_type();
+				if (llvm_type->isPointerTy()) {
+					debug_above(5, log(log_info,
+								"creating maybe type for %s",
+								maybe->just->str().c_str()));
+					auto bound_type = scope->get_bound_type(maybe->get_signature(), false /*use_mappings*/);
+					if (bound_type == nullptr) {
+						bound_type = bound_type_t::create(
+								maybe,
+								bound_just_type->get_location(),
+								llvm_type);
+						program_scope->put_bound_type(status, bound_type);
+					}
+
+					if (!!status) {
+						return bound_type;
+					}
+				} else {
+					user_error(status, maybe->get_location(),
+							"type %s cannot be a " c_type("maybe") " type because the underlying storage is not a pointer (it is %s)",
+							maybe->str().c_str(),
+							llvm_print(llvm_type).c_str());
 				}
-			} else {
-				user_error(status, maybe->get_location(),
-						"type %s cannot be a " c_type("maybe") " type because the underlying storage is not a pointer (it is %s)",
-						maybe->str().c_str(),
-						llvm_print(llvm_type).c_str());
 			}
 		}
 	}

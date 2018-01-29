@@ -119,7 +119,7 @@ namespace types {
 	}
 
 	type_t::ref parse_parens_type(parse_state_t &ps, const identifier::set &generics) {
-		ps.advance();
+		chomp_token(tk_lparen);
 		auto lhs = parse_type(ps, generics);
 		if (!!ps.status) {
 			if (ps.token.tk == tk_comma) {
@@ -146,6 +146,7 @@ namespace types {
 				}
 			} else {
 				/* we've got a single expression */
+				chomp_token(tk_rparen);
 				return lhs;
 			}
 		}
@@ -220,12 +221,11 @@ namespace types {
 		auto lhs = parse_type(ps, generics);
 		if (!!ps.status) {
 			chomp_token(tk_colon);
-			ps.advance();
 			auto rhs = parse_type(ps, generics);
 			if (!!ps.status) {
 				chomp_token(tk_rcurly);
 				return type_operator(
-						type_operator(type_id(make_iid_impl("map.map", curly_token.location)), lhs),
+						type_operator(type_id(make_iid_impl(STD_MAP_TYPE, curly_token.location)), lhs),
 						rhs);
 			}
 		}
@@ -249,7 +249,10 @@ namespace types {
 	}
 
 	type_t::ref parse_lambda_type(parse_state_t &ps, const identifier::set &generics) {
-		if (ps.token.is_ident(K(lambda))) {
+		if (ps.line_broke()) {
+			/* types can't span multiple lines */
+			return nullptr;
+		} else if (ps.token.is_ident(K(lambda))) {
 			ps.advance();
 			expect_token(tk_identifier);
 			auto param_token = ps.token;
@@ -267,8 +270,6 @@ namespace types {
 			auto token = ps.token;
 			ps.advance();
 
-			auto var = ps.token;
-			ps.advance();
 			type_t::ref type;
 			if (ps.token.tk == tk_identifier) {
 				/* named generic */
@@ -276,7 +277,7 @@ namespace types {
 				ps.advance();
 			} else {
 				/* no named generic */
-				type = type_variable(var.location);
+				type = type_variable(token.location);
 			}
 			return type;
 		} else if (ps.token.is_ident(K(struct))) {
@@ -294,8 +295,13 @@ namespace types {
 			ps.advance();
 			return type;
 		} else if (ps.token.tk == tk_identifier) {
-			if (ps.token.is_ident(K(to))) {
-				/* `to` can't be in a type */
+			if (ps.token.tk == tk_identifier && (
+						ps.token.text == K(to) ||
+					   	ps.token.text == K(or) ||
+					   	ps.token.text == K(and) ||
+					   	ps.token.text == K(any)))
+		   	{
+				/* this type is done */
 				return nullptr;
 			} else {
 				return parse_identifier_type(ps, generics);
@@ -314,6 +320,7 @@ namespace types {
 				return nullptr;
 			} else {
 				if (ps.token.tk == tk_maybe) {
+					ps.advance();
 					return type_maybe(lhs);
 				} else {
 					return lhs;
@@ -331,11 +338,12 @@ namespace types {
 				ps.error("unable to parse type");
 			} else {
 				std::vector<type_t::ref> terms;
-				terms.push_back(lhs);
-				if (!ps.token.is_ident(K(to))) {
-					while (auto next_term = parse_optional_type(ps, generics)) {
-						terms.push_back(next_term);
-						if (ps.token.is_ident(K(to))) {
+				while (!!ps.status) {
+					auto next_term = parse_optional_type(ps, generics);
+					if (!!ps.status) {
+						if (next_term != nullptr) {
+							terms.push_back(next_term);
+						} else {
 							break;
 						}
 					}
@@ -422,16 +430,11 @@ namespace types {
 		return nullptr;
 	}
 
-	type_t::ref parse_type(parse_state_t &ps, const identifier::set &generics) {
-		return parse_and_type(ps, generics);
-	}
-
-#if 0
-	{
+	type_t::ref parse_or_type(parse_state_t &ps, const identifier::set &generics) {
 		location_t location = ps.token.location;
 		type_t::refs options;
 		while (!!ps.status) {
-			auto type = _parse_single_type(ps, supertype_id, type_variables, generics);
+			auto type = parse_and_type(ps, generics);
 
 			if (!!ps.status) {
 				options.push_back(type);
@@ -448,33 +451,30 @@ namespace types {
 			if (options.size() == 1) {
 				return options[0];
 			} else {
+#if 0
 				if (supertype_id != nullptr && supertype_id->get_name() == "Bool") {
 					/* hack because it's not actually possible to define Bool in the language with
 					 * automatically reducing types */
 					return type_sum(options, supertype_id != nullptr ? supertype_id->get_location() : location);
 				}
+#endif
 
-				type_t::ref sum_fn = type_sum_safe(options,
-						supertype_id != nullptr ? supertype_id->get_location() : location,
-						{});
-				assert(sum_fn != nullptr);
-				if (!!ps.status) {
-					for (auto iter = type_variables.rbegin();
-							iter != type_variables.rend();
-							++iter)
-					{
-						sum_fn = ::type_lambda(*iter, sum_fn);
-					}
-
-					return sum_fn;
-				}
+				return type_sum_safe(options, location, {});
 			}
 		}
 		assert(!ps.status);
 		return nullptr;
 	}
-#endif
 
+	type_t::ref parse_type(parse_state_t &ps, const identifier::set &generics) {
+		auto type = parse_or_type(ps, generics);
+		if (!!ps.status) {
+			debug_above(9, log("parsed type %s", type->str().c_str()));
+		} else {
+			debug_above(3, log("failed to parse type"));
+		}
+		return type;
+	}
 
 	identifier::ref reduce_ids(const std::list<identifier::ref> &ids, location_t location) {
 		assert(ids.size() != 0);
@@ -505,6 +505,7 @@ types::type_t::ref parse_type_expr(
 	} else {
 		ps.module_id = make_iid("__parse_type_expr__");
 	}
+	debug_above(8, log("parsing %s", input.c_str()));
 	types::type_t::ref type = types::parse_type(ps, generics);
 	if (!!ps.status) {
 		return type;
