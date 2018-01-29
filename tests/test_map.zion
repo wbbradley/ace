@@ -7,7 +7,7 @@ module _
 # expect: could not find hello
 
 def main()
-	var m map.map{str, int}
+	var m {str: int}
 
 	m["hello"] = 12
 	print(get(m, "hello", 0))

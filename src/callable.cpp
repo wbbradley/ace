@@ -66,7 +66,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 
 				if (!!status) {
 					std::vector<std::string> names;
-					for (auto id : function_defn->decl->function_type->args->names) {
+					for (auto id : args->names) {
 						names.push_back(id->get_name());
 					}
 
@@ -142,7 +142,7 @@ bound_var_t::ref check_func_vs_callsite(
 		scope_t::ref scope,
 		location_t location,
 		var_t::ref fn,
-		types::type_args_t::ref args,
+		types::type_t::ref args,
 		types::type_t::ref return_type,
 		int &coercions)
 {
@@ -197,7 +197,7 @@ bound_var_t::ref maybe_get_callable(
 		scope_t::ref scope,
 		std::string alias,
 		location_t location,
-		types::type_args_t::ref args,
+		types::type_t::ref args,
 		types::type_t::ref return_type,
 		fittings_t &fittings,
 		bool check_unchecked)
@@ -233,7 +233,7 @@ bound_var_t::ref get_callable_from_local_var(
 		std::string alias,
 		bound_var_t::ref bound_var,
 		location_t callsite_location,
-		types::type_args_t::ref args,
+		types::type_t::ref args,
 		types::type_t::ref return_type)
 {
 	/* make sure the function is just a function, not a reference to a function */

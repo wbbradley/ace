@@ -1319,8 +1319,11 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 
 	if (!!ps.status) {
 		expect_ident(K(def));
-		types::type_function_t::ref function_type = dyncast<const types::type_function_t>(types::parse_type(ps, {}));
+		auto parsed_type = types::parse_type(ps, {});
 		if (!!ps.status) {
+			debug_above(9, log("parsed type %s", parsed_type->str().c_str()));
+			types::type_function_t::ref function_type = dyncast<const types::type_function_t>(parsed_type);
+			assert(function_type != nullptr);
 			std::string name;
 			if (function_type->name == nullptr) {
 				user_error(ps.status, function_type->get_location(), "function is missing a name");
@@ -1341,10 +1344,15 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 				}
 
 				if (name == "__finalize__") {
-					if (function_type->args->args.size() != 1) {
-						user_error(ps.status, function_type->name->get_location(),
-								"finalizers must only take one parameter");
+					if (auto args = dyncast<const types::type_args_t>(function_type->args)) {
+						if (args->args.size() != 1) {
+							user_error(ps.status, function_type->name->get_location(),
+									"finalizers must only take one parameter");
+						}
+					} else {
+						panic("we should have a type_args_t here");
 					}
+
 					if (!types::is_type_id(function_type->return_type, "void")) {
 						user_error(ps.status, function_type->name->get_location(),
 								"finalizers must return " c_type("void"));

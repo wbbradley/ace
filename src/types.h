@@ -7,6 +7,7 @@
 #include "token.h"
 
 extern const char *STD_VECTOR_TYPE;
+extern const char *STD_MAP_TYPE;
 extern const char *BUILTIN_VOID_TYPE;
 extern const char *BUILTIN_UNREACHABLE_TYPE;
 
@@ -67,6 +68,7 @@ namespace types {
 		virtual bool is_false() const { return false; }
 		virtual bool is_zero() const { return false; }
 		virtual bool is_maybe() const { return false; }
+		virtual int get_precedence() const { return 10; }
 	};
 
 	bool is_type_id(type_t::ref type, std::string type_name);
@@ -110,6 +112,8 @@ namespace types {
 		type_t::ref oper;
 		type_t::ref operand;
 
+		virtual int get_precedence() const { return 7; }
+
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
@@ -145,6 +149,8 @@ namespace types {
 		type_t::ref bit_size;
 		type_t::ref signed_;
 
+		virtual int get_precedence() const { return 9; }
+
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
@@ -156,6 +162,8 @@ namespace types {
 
 	struct type_module_t : public type_product_t {
 		typedef ptr<const type_module_t> ref;
+
+		virtual int get_precedence() const { return 0; }
 
 		type_module_t(type_t::ref module_type);
 
@@ -251,12 +259,12 @@ namespace types {
 		type_function_t(
 				identifier::ref name,
 			   	types::type_t::ref type_constraints,
-				types::type_args_t::ref args,
+				types::type_t::ref args,
 			   	type_t::ref return_type);
 
 		identifier::ref name;
 		type_t::ref type_constraints;
-		type_args_t::ref args;
+		type_t::ref args;
 		type_t::ref return_type;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
@@ -274,6 +282,8 @@ namespace types {
 		type_t::refs terms;
 		location_t location;
 
+		virtual int get_precedence() const { return 5; }
+
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
@@ -288,6 +298,8 @@ namespace types {
 		type_t::refs options;
 		location_t location;
 
+		virtual int get_precedence() const { return 4; }
+
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
@@ -300,6 +312,8 @@ namespace types {
 	struct type_maybe_t : public type_t {
 		type_maybe_t(type_t::ref just);
 		type_t::ref just;
+
+		virtual int get_precedence() const { return 8; }
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -316,6 +330,8 @@ namespace types {
 		type_ptr_t(type_t::ref raw);
 		type_t::ref element_type;
 
+		virtual int get_precedence() const { return 3; }
+
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
@@ -329,6 +345,8 @@ namespace types {
 		typedef ptr<const type_ref_t> ref;
 		type_ref_t(type_t::ref raw);
 		type_t::ref element_type;
+
+		virtual int get_precedence() const { return 2; }
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
@@ -345,6 +363,7 @@ namespace types {
 		identifier::ref binding;
 		type_t::ref body;
 
+		virtual int get_precedence() const { return 6; }
 		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
@@ -395,8 +414,8 @@ types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_args_t::ref type_args(types::type_t::refs args, const identifier::refs &names={});
-types::type_function_t::ref type_function(types::type_args_t::ref args, types::type_t::ref return_type);
-types::type_function_t::ref type_function(identifier::ref name, types::type_t::ref type_constraints, types::type_args_t::ref args, types::type_t::ref return_type);
+types::type_function_t::ref type_function(types::type_t::ref args, types::type_t::ref return_type);
+types::type_function_t::ref type_function(identifier::ref name, types::type_t::ref type_constraints, types::type_t::ref args, types::type_t::ref return_type);
 types::type_t::ref type_and(types::type_t::refs terms);
 types::type_t::ref type_sum(types::type_t::refs options, location_t location);
 types::type_t::ref type_sum_safe(types::type_t::refs options, location_t location, const types::type_t::map &env);

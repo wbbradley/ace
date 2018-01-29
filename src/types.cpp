@@ -10,7 +10,8 @@
 #include "atom.h"
 
 const char *BUILTIN_NULL_TYPE = "null";
-const char *STD_VECTOR_TYPE = "vector.vector";
+const char *STD_VECTOR_TYPE = "vector.Vector";
+const char *STD_MAP_TYPE = "map.Map";
 const char *BUILTIN_VOID_TYPE = "void";
 const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";
 
@@ -195,10 +196,28 @@ namespace types {
 			operand->emit(os, bindings);
 			return os << "]";
 		} else {
+			// TODO: detect map.Map X Y which is (oper (oper map.Map X) Y)
+			bool operator_needs_parens = oper->get_precedence() < get_precedence();
+
+			if (operator_needs_parens) {
+				os << "(";
+			}
 			oper->emit(os, bindings);
-			os << "{";
+			if (operator_needs_parens) {
+				os << ")";
+			}
+
+			os << " ";
+
+			bool operand_needs_parens = operand->get_precedence() <= get_precedence();
+			if (operand_needs_parens) {
+				os << "(";
+			}
 			operand->emit(os, bindings);
-			return os << "}";
+			if (operand_needs_parens) {
+				os << ")";
+			}
+			return os;
 		}
 	}
 
@@ -348,9 +367,9 @@ namespace types {
 	}
 
 	std::ostream &type_tuple_t::emit(std::ostream &os, const map &bindings) const {
-		os << "tuple{";
+		os << "(";
 		join_dimensions(os, dimensions, {}, bindings);
-		return os << "}";
+		return os << ")";
 	}
 
 	int type_tuple_t::ftv_count() const {
@@ -582,12 +601,12 @@ namespace types {
 	type_function_t::type_function_t(
 			identifier::ref name,
 			types::type_t::ref type_constraints,
-			types::type_args_t::ref args,
+			types::type_t::ref args,
 			type_t::ref return_type) :
 		name(name), type_constraints(type_constraints),
 		args(args), return_type(return_type)
 	{
-		assert(args != nullptr);
+		assert(dyncast<const type_args_t>(args) != nullptr || dyncast<const type_variable_t>(args) != nullptr);
 		assert(return_type != nullptr);
 	}
 
@@ -778,12 +797,13 @@ namespace types {
 			/* this is a managed pointer that might be null. we subsume the maybeness onto the whole typename in order
 			 * to look nicer. */
 			auto element = just->rebind(bindings);
-			if (dyncast<const type_sum_t>(just)) {
+			bool needs_parens = element->get_precedence() < get_precedence();
+			if (needs_parens) {
 				os << "(";
-				just->emit(os, bindings);
+				element->emit(os, {});
 				os << ")";
 			} else {
-				just->emit(os, bindings);
+				element->emit(os, {});
 			}
 			return os << "?";
 		}
@@ -1328,7 +1348,7 @@ types::type_args_t::ref type_args(
 	   	types::type_t::refs args,
 		const identifier::refs &names)
 {
-	assert(names.size() == args.size());
+	assert((names.size() == args.size()) ^ (names.size() == 0 && args.size() != 0));
 	for (auto arg : args) {
 		assert(!arg->is_ref());
 	}
@@ -1344,7 +1364,7 @@ types::type_managed_t::ref type_managed(types::type_t::ref element_type) {
 }
 
 types::type_function_t::ref type_function(
-		types::type_args_t::ref args,
+		types::type_t::ref args,
 		types::type_t::ref return_type)
 {
 	return type_function(nullptr, nullptr, args, return_type);
@@ -1353,7 +1373,7 @@ types::type_function_t::ref type_function(
 types::type_function_t::ref type_function(
 		identifier::ref name,
 		types::type_t::ref type_constraints,
-		types::type_args_t::ref args,
+		types::type_t::ref args,
 		types::type_t::ref return_type)
 {
 	return make_ptr<types::type_function_t>(name, type_constraints, args, return_type);
