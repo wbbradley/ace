@@ -1582,7 +1582,7 @@ type_product_t::ref type_product_t::parse(
 	} else {
 		expect_ident(K(has));
 	}
-	auto type = types::parse_type(ps, generics);
+	auto type = types::parse_product_type(ps, generics);
 	return create<type_product_t>(type_decl->token, native, type, generics);
 }
 
