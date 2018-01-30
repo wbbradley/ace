@@ -3,6 +3,17 @@
 #include "parse_state.h"
 #include "type_parser.h"
 
+bool token_is_illegal_in_type(const token_t &token) {
+	return token.tk == tk_identifier && (
+			token.text == K(to) ||
+			token.text == K(struct) ||
+			token.text == K(has) ||
+			token.text == K(is) ||
+			token.text == K(or) ||
+			token.text == K(and) ||
+			token.text == K(any));
+}
+
 namespace types {
 	type_t::ref parse_and_type(parse_state_t &ps, const identifier::set &generics);
 
@@ -173,15 +184,30 @@ namespace types {
 			if (ps.token.tk == tk_identifier) {
 				auto var_name = ps.token;
 				ps.advance();
-				types::type_t::ref type = parse_type(ps, generics);
+
+				/* parse the type */
+				if (ps.token.tk == tk_comma || ps.token.tk == tk_rparen) {
+					/* if there is no type then assume `any` */
+					param_types.push_back(type_variable(var_name.location));
+				} else {
+					types::type_t::ref type = parse_type(ps, generics);
+					if (!!ps.status) {
+						param_types.push_back(type);
+					}
+				}
+
 				if (!!ps.status) {
-					param_types.push_back(type);
 					if (name_index.find(var_name.text) != name_index.end()) {
 						ps.error("duplicated parameter name: %s",
 								var_name.text.c_str());
 					} else {
 						name_index[var_name.text] = index;
 						++index;
+					}
+
+					if (ps.token.tk == tk_rparen) {
+						ps.advance();
+						break;
 					}
 					if (ps.token.tk == tk_comma) {
 						/* advance past a comma */
@@ -248,11 +274,26 @@ namespace types {
 		return nullptr;
 	}
 
+	type_t::ref parse_integer_type(parse_state_t &ps, const identifier::set &generics) {
+		auto token = ps.token;
+		chomp_ident(K(integer));
+		chomp_token(tk_lparen);
+		auto bit_size = parse_type(ps, generics);
+		if (!!ps.status) {
+			chomp_token(tk_comma);
+			auto signed_ = parse_type(ps, generics);
+			if (!!ps.status) {
+				chomp_token(tk_rparen);
+				return type_integer(bit_size, signed_);
+			}
+		}
+
+		assert(!ps.status);
+		return nullptr;
+	}
+
 	type_t::ref parse_lambda_type(parse_state_t &ps, const identifier::set &generics) {
-		if (ps.line_broke()) {
-			/* types can't span multiple lines */
-			return nullptr;
-		} else if (ps.token.is_ident(K(lambda))) {
+		if (ps.token.is_ident(K(lambda))) {
 			ps.advance();
 			expect_token(tk_identifier);
 			auto param_token = ps.token;
@@ -284,6 +325,8 @@ namespace types {
 			return parse_product_type(ps, generics);
 		} else if (ps.token.is_ident(K(has))) {
 			return parse_product_type(ps, generics);
+		} else if (ps.token.is_ident(K(integer))) {
+			return parse_integer_type(ps, generics);
 		} else if (ps.token.tk == tk_lparen) {
 			return parse_parens_type(ps, generics);
 		} else if (ps.token.tk == tk_lcurly) {
@@ -295,12 +338,7 @@ namespace types {
 			ps.advance();
 			return type;
 		} else if (ps.token.tk == tk_identifier) {
-			if (ps.token.tk == tk_identifier && (
-						ps.token.text == K(to) ||
-					   	ps.token.text == K(or) ||
-					   	ps.token.text == K(and) ||
-					   	ps.token.text == K(any)))
-		   	{
+			if (token_is_illegal_in_type(ps.token)) {
 				/* this type is done */
 				return nullptr;
 			} else {
@@ -339,6 +377,9 @@ namespace types {
 			} else {
 				std::vector<type_t::ref> terms;
 				while (!!ps.status) {
+					if (ps.line_broke()) {
+						break;
+					}
 					auto next_term = parse_optional_type(ps, generics);
 					if (!!ps.status) {
 						if (next_term != nullptr) {

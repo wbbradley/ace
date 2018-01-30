@@ -92,7 +92,7 @@ K(else);
 K(for);
 K(global);
 K(__get_typeid__);
-K(integer_t);
+K(integer);
 K(has);
 K(if);
 K(in);
