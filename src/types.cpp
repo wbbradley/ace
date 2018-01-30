@@ -998,11 +998,11 @@ namespace types {
 	}
 
 	std::ostream &type_integer_t::emit(std::ostream &os, const map &bindings_) const {
-		os << "integer_t{";
+		os << K(integer) << "(";
 		bit_size->emit(os, bindings_);
 		os << ", ";
 		signed_->emit(os, bindings_);
-		return os << "}";
+		return os << ")";
 	}
 
     type_t::ref type_integer_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {

@@ -1437,8 +1437,7 @@ ptr<semver_t> semver_t::parse(parse_state_t &ps) {
 
 void parse_maybe_type_decl(parse_state_t &ps, identifier::refs &type_variables) {
 	if (!ps.line_broke() && ps.token.tk == tk_identifier) {
-		ps.advance();
-		while (true) {
+		while (!token_is_illegal_in_type(ps.token)) {
 			if (ps.token.tk == tk_identifier) {
 				/* we found a type variable, let's stash it */
 				if (ps.token.is_ident(K(any))) {
