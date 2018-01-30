@@ -4,8 +4,15 @@
 #include "type_parser.h"
 
 bool token_is_illegal_in_type(const token_t &token) {
+	if (token.tk == tk_outdent) {
+		return false;
+	}
 	return token.tk == tk_identifier && (
 			token.text == K(to) ||
+			token.text == K(def) ||
+			token.text == K(any) ||
+			token.text == K(link) ||
+			token.text == K(link) ||
 			token.text == K(struct) ||
 			token.text == K(has) ||
 			token.text == K(is) ||
@@ -321,10 +328,6 @@ namespace types {
 				type = type_variable(token.location);
 			}
 			return type;
-		} else if (ps.token.is_ident(K(struct))) {
-			return parse_product_type(ps, generics);
-		} else if (ps.token.is_ident(K(has))) {
-			return parse_product_type(ps, generics);
 		} else if (ps.token.is_ident(K(integer))) {
 			return parse_integer_type(ps, generics);
 		} else if (ps.token.tk == tk_lparen) {
@@ -413,7 +416,8 @@ namespace types {
 				ps.advance();
 			}
 		}
-		auto element = parse_application_type(ps, generics);
+		/* if we had one pointer, we may have another. if we had no pointer, then we are done checking for pointers */
+		auto element = is_ptr ? parse_ptr_type(ps, generics) : parse_application_type(ps, generics);
 		if (!!ps.status) {
 			if (is_maybe) {
 				return type_maybe(type_ptr(element));

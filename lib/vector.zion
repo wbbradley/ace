@@ -14,7 +14,7 @@ type NativeVector T struct
 	var size     size_t
 	var items    *?T
 
-type Vector{T} link
+type Vector T link
 
 [global]
 def reserved(v [any]) int
