@@ -27,7 +27,7 @@ def len(v [any]) int
 	return (v as *ManagedVector).size
 
 [global]
-def __init__{T where gc T}() [T]
+def __init__[T where gc T]() [T]
 	let ti = typeinfo(
 		[T],
 		ManagedVector,
@@ -37,7 +37,7 @@ def __init__{T where gc T}() [T]
 	return runtime.create_var(ti) as [T]
 		
 [global]
-def __init__{T where not gc T}() [T]
+def __init__[T where not gc T]() [T]
 	let ti = typeinfo(
 		[T],
 		native_vector T,
@@ -51,12 +51,12 @@ def str(v [any]) str
 	return "[" + join(v, ", ") + "]"
 
 [global]
-def join(v [any T], delim str) str
-	let vec = v as *vector_t
+def join[T where gc T](v [any T], delim str) str
+	let vec = v as *managed_vector_t
 
 	# allocate a vector in which we can store the converted strings
 	let strs [str]
-	reserve(strs as *vector_t, vec.size)
+	reserve(strs as *managed_vector_t, vec.size)
 
 	let delim_len = posix.wcslen(delim.raw)
 	let delims_len = delim_len * (vec.size - 1)
@@ -91,33 +91,33 @@ def join(v [any T], delim str) str
 	return str(buf)
 
 [global]
-def __getitem__{T where gc T}(vec [T], index int) T
+def __getitem__[T where gc T](vec [T], index int) T
 	return __get_managed_vector_item__((vec as *ManagedVector), index) as T
 
 [global]
-def __getitem__{T where not(gc T)}(vec [T], index int) T
-	return __get_native_vector_item__(vec as *NativeVector T, index) as T
+def __getitem__[T where not(gc T)](vec [T], index int) T
+	return __get_native_vector_item__(vec as *(NativeVector T), index) as T
 
 [global]
-def __setitem__{T where gc T}(vec [T], index int, t T) void
+def __setitem__[T where gc T](vec [T], index int, t T) void
 	__set_vector_item__(vec as *ManagedVector, index, t as *var_t)
 
 [global]
-def __setitem__{T where not(gc T)}(vec [T], index int, t T) void
-	__set_vector_item__(vec as *NativeVector T, index, t)
+def __setitem__[T where not(gc T)](vec [T], index int, t T) void
+	__set_vector_item__(vec as *(NativeVector T), index, t)
 
 [global]
-def append{T where gc T}(vec [T], t T) void
+def append[T where gc T](vec [T], t T) void
 	# posix.puts("appending " + __str__(t) + " to vector")
 	__vectorappend__(vec as *ManagedVector, t as *var_t)
 
 [global]
-def append{T where not(gc T)}(vec [T], t T) void
+def append[T where not(gc T)](vec [T], t T) void
 	# posix.puts("appending " + __str__(t) + " to vector")
-	__vectorappend__(vec as *NativeVector T, t)
+	__vectorappend__(vec as *(NativeVector T), t)
 
 [global]
-def resize{T where gc T}(vec [T], size int, default T) void
+def resize[T where gc T](vec [T], size int, default T) void
 	resize(vec as *ManagedVector, size, default as *var_t)
 
 def resize(vec *ManagedVector, size int, default *var_t) void
@@ -162,7 +162,7 @@ def __get_managed_vector_item__(vector *ManagedVector, index int) *var_t
 	return vector.items[index]
 
 
-def __get_native_vector_item__[T](vector *NativeVector{T}, index int) T
+def __get_native_vector_item__[T](vector *(NativeVector T), index int) T
 	assert(index >= 0 and index < vector.size)
 	return vector.items[index]
 
@@ -175,7 +175,7 @@ def __set_vector_item__(vector *ManagedVector, index uint, item *var_t)
 	vector.items[index] = item
 
 
-def __set_vector_item__{T}(vector *NativeVector{T}, index uint, item T)
+def __set_vector_item__[T](vector *(NativeVector T), index uint, item T)
 	if index < 0
 		return
 
@@ -190,7 +190,7 @@ def __vector_unsafe_append__(vector *vector_t, item *var_t) void
 	vector.size += 1
 
 # This is mildly unsafe against future changes...
-def __vectorappend__{V, I}(vector *V, item I) void
+def __vectorappend__[V, I](vector *V, item I) void
 	if vector.reserved > vector.size
 		# we have space
 		let items = vector.items
@@ -279,29 +279,29 @@ def splice(vec [any T], index int, count int) void
 	posix.memmove(&v.items[i], &v.items[skip_to], (orig_count - skip_to) * sizeof(*var_t))
 	v.size = orig_count - c
 
-type vector_iter{C} has
+type VectorIter C has
 	var vec [C]
 	var pos int
 
 [global]
-def __iter_begin__(c [any C]) vector_iter{any C}
-	return vector_iter(c, 0)
+def __iter_begin__(c [any C]) VectorIter any C
+	return VectorIter(c, 0)
 	
 [global]
-def __iter_end__(c [any C]) vector_iter{any C}
-	return vector_iter(c, (c as *vector.vector_t).size)
+def __iter_end__(c [any C]) VectorIter any C
+	return VectorIter(c, (c as *vector.vector_t).size)
 
 [global]
-def __iter_valid__(i vector_iter{any C}, end vector_iter{any C}) bool
+def __iter_valid__(i VectorIter any C, end VectorIter any C) bool
 	assert(i.vec as *vector_t == end.vec as *vector_t)
 	return i.pos < end.pos
 
 [global]
-def __iterate__(i vector_iter{any C})
+def __iterate__(i VectorIter any C)
 	i.pos += 1
 
 [global]
-def __iter_item__(i vector_iter{any C}) any C
+def __iter_item__(i VectorIter any C) any C
 	v := i.vec as *vector_t
 	assert(i.pos < v.size)
 	return v.items[i.pos] as any C

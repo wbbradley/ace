@@ -1227,10 +1227,10 @@ namespace types {
 			bit_size = coerce_to_integer(status, env, integer->bit_size, bit_size_expansion);
 			if (!!status) {
 				auto signed_type = full_eval(integer->signed_, env);
-				if (types::is_type_id(signed_type, "signed")) {
+				if (types::is_type_id(signed_type, "true")) {
 					signed_ = true;
 					return;
-				} else if (types::is_type_id(signed_type, "unsigned")) {
+				} else if (types::is_type_id(signed_type, "false")) {
 					signed_ = false;
 					return;
 				} else {

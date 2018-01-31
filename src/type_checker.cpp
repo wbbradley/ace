@@ -2264,20 +2264,20 @@ bound_var_t::ref type_check_binary_integer_op(
 				final_integer_type = upsert_bound_type(status, builder, scope,
 					   	type_integer(
 							type_id(make_iid(string_format("%d", lhs_bit_size))),
-							type_id(make_iid(string_format("%s", lhs_signed ? "signed" : "unsigned")))));
+							type_id(make_iid(string_format("%s", boolstr(lhs_signed))))));
 			} else {
 				final_integer_signed = true;
 				final_integer_type = upsert_bound_type(status, builder, scope,
 					   	type_integer(
 							type_id(make_iid(string_format("%d", lhs_bit_size))),
-							type_id(make_iid("signed"))));
+							type_id(make_iid("true"))));
 			}
 		} else {
 			final_integer_signed = true;
 			final_integer_type = upsert_bound_type(status, builder, scope,
 					type_integer(
 						type_id(make_iid(string_format("%d", lhs_bit_size))),
-						type_id(make_iid("signed"))));
+						type_id(make_iid("false"))));
 		}
 
 		if (!!status) {

@@ -123,7 +123,7 @@ unification_t unify(
 		/* for the purposes of unification, we can treat zero as a regular integer */
 		static auto zero_type = type_integer(
 				type_literal({INTERNAL_LOC(), tk_integer, ZION_BITSIZE_STR}),
-				type_id(make_iid("signed")));
+				type_id(make_iid("true" /*signed*/)));
 		b = zero_type;
 	}
 

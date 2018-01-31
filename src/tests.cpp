@@ -1050,7 +1050,7 @@ auto test_descs = std::vector<test_desc>{
 					"int",
 					type_integer(
 							type_literal({INTERNAL_LOC(), tk_integer, ZION_BITSIZE_STR}),
-							type_id(make_iid("signed")))});
+							type_id(make_iid("true" /*signed*/)))});
 			env.insert({
 					"Bool",
 					type_sum({type_id(make_iid("True")), type_id(make_iid("False"))}, INTERNAL_LOC())});

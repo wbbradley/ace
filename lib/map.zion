@@ -16,12 +16,12 @@ type Map KeyType ValueType has
 	var storage [KeyValue KeyType ValueType]
 
 [global]
-def __init__{K, V}() {K: V}
+def __init__[K, V]() {K: V}
 	let storage [KeyValue K V]
 	return map(storage)
 
 [global]
-def get{K, V}(m {K: V}, key K, default V) V
+def get[K, V](m {K: V}, key K, default V) V
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
 		if kv.key == key
@@ -29,7 +29,7 @@ def get{K, V}(m {K: V}, key K, default V) V
 	return default
 
 [global]
-def __getitem__{K, V}(m {K: V}, key K) V?
+def __getitem__[K, V](m {K: V}, key K) V?
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
 		if kv.key == key
@@ -37,7 +37,7 @@ def __getitem__{K, V}(m {K: V}, key K) V?
 	return null
 
 [global]
-def __setitem__{K, V}(m {K: V}, key K, val V)
+def __setitem__[K, V](m {K: V}, key K, val V)
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
 		if kv.key == key
@@ -46,7 +46,7 @@ def __setitem__{K, V}(m {K: V}, key K, val V)
 	append(m.storage, KeyValue(key, val))
 
 [global]
-def del{K, V}(m {K: V}, key K) bool
+def del[K, V](m {K: V}, key K) bool
 	# HACKHACK: O(n) BAD BAD - also vector.vector_t coupling BAD BAD
 	i := 0
 	let storage = m.storage
