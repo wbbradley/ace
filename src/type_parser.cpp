@@ -10,6 +10,7 @@ bool token_is_illegal_in_type(const token_t &token) {
 	return token.tk == tk_identifier && (
 			token.text == K(to) ||
 			token.text == K(def) ||
+			token.text == K(where) ||
 			token.text == K(any) ||
 			token.text == K(link) ||
 			token.text == K(link) ||
@@ -173,7 +174,15 @@ namespace types {
 		return nullptr;
 	}
 
-	types::type_t::ref parse_function_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_type_constraints(parse_state_t &ps, const identifier::set &generics) {
+		expect_ident(K(where));
+		location_t where_location = ps.token.location;
+		ps.advance();
+
+		return parse_type(ps, generics);
+	}
+
+	types::type_t::ref parse_function_type(parse_state_t &ps, identifier::set generics) {
 		chomp_ident(K(def));
 		identifier::ref name;
 		if (ps.token.tk == tk_identifier) {
@@ -181,65 +190,109 @@ namespace types {
 			ps.advance();
 		}
 
-		chomp_token(tk_lparen);
-		types::type_t::refs param_types;
-		types::type_t::ref return_type;
-		std::map<std::string, int> name_index;
-		int index = 0;
+		types::type_t::ref type_constraints;
+		if (ps.token.tk == tk_lsquare) {
+			auto constraints_token = ps.token;
+			ps.advance();
+			while (ps.token.tk == tk_identifier) {
+				auto ftv = make_code_id(ps.token);
 
-		while (!!ps.status) {
-			if (ps.token.tk == tk_identifier) {
-				auto var_name = ps.token;
-				ps.advance();
-
-				/* parse the type */
-				if (ps.token.tk == tk_comma || ps.token.tk == tk_rparen) {
-					/* if there is no type then assume `any` */
-					param_types.push_back(type_variable(var_name.location));
-				} else {
-					types::type_t::ref type = parse_type(ps, generics);
-					if (!!ps.status) {
-						param_types.push_back(type);
-					}
+				if (in(ftv, generics)) {
+					user_error(ps.status, ftv->get_location(),
+							"illegal redeclaration of type variable %s", 
+							ftv->str().c_str());
+					auto iter = generics.find(ftv);
+					user_info(ps.status, (*iter)->get_location(), "see original declaration of type variable %s",
+							(*iter)->str().c_str());
+					break;
 				}
 
-				if (!!ps.status) {
-					if (name_index.find(var_name.text) != name_index.end()) {
-						ps.error("duplicated parameter name: %s",
-								var_name.text.c_str());
-					} else {
-						name_index[var_name.text] = index;
-						++index;
-					}
+				generics.insert(ftv);
+				ps.advance();
 
-					if (ps.token.tk == tk_rparen) {
-						ps.advance();
+				if (ps.token.tk == tk_comma) {
+					ps.advance();
+					expect_token(tk_identifier);
+					if (token_is_illegal_in_type(ps.token)) {
+						user_error(ps.status, ps.token.location, "invalid type variable name %s", ps.token.str().c_str());
 						break;
 					}
-					if (ps.token.tk == tk_comma) {
-						/* advance past a comma */
-						ps.advance();
-					}
+					continue;
+				} else if (ps.token.is_ident(K(where))) {
+					type_constraints = parse_type_constraints(ps, generics);
+					chomp_token(tk_rsquare);
+					break;
+				} else if (ps.token.tk == tk_rsquare) {
+					ps.advance();
+					break;
+				} else {
+					user_error(ps.status, ps.token.location, "expected ',', 'where', or '}'");
+					break;
 				}
-			} else if (ps.token.tk == tk_rparen) {
-				ps.advance();
-				break;
-			} else {
-				ps.error("expected a parameter name");
-				return nullptr;
 			}
 		}
-
+			
 		if (!!ps.status) {
-			/* now let's parse the return type */
-			if (!ps.line_broke()) {
-				return_type = parse_type(ps, generics);
-			} else {
-				return_type = type_void();
+			chomp_token(tk_lparen);
+			types::type_t::refs param_types;
+			types::type_t::ref return_type;
+			std::map<std::string, int> name_index;
+			int index = 0;
+
+			while (!!ps.status) {
+				if (ps.token.tk == tk_identifier) {
+					auto var_name = ps.token;
+					ps.advance();
+
+					/* parse the type */
+					if (ps.token.tk == tk_comma || ps.token.tk == tk_rparen) {
+						/* if there is no type then assume `any` */
+						param_types.push_back(type_variable(var_name.location));
+					} else {
+						types::type_t::ref type = parse_type(ps, generics);
+						if (!!ps.status) {
+							param_types.push_back(type);
+						}
+					}
+
+					if (!!ps.status) {
+						if (name_index.find(var_name.text) != name_index.end()) {
+							ps.error("duplicated parameter name: %s",
+									var_name.text.c_str());
+						} else {
+							name_index[var_name.text] = index;
+							++index;
+						}
+
+						if (ps.token.tk == tk_rparen) {
+							ps.advance();
+							break;
+						}
+						if (ps.token.tk == tk_comma) {
+							/* advance past a comma */
+							ps.advance();
+						}
+					}
+				} else if (ps.token.tk == tk_rparen) {
+					ps.advance();
+					break;
+				} else {
+					ps.error("expected a parameter name");
+					return nullptr;
+				}
 			}
 
 			if (!!ps.status) {
-				return type_function(name, nullptr, type_args(param_types), return_type);
+				/* now let's parse the return type */
+				if (!ps.line_broke()) {
+					return_type = parse_type(ps, generics);
+				} else {
+					return_type = type_void();
+				}
+
+				if (!!ps.status) {
+					return type_function(name, type_constraints, type_args(param_types), return_type);
+				}
 			}
 		}
 
@@ -352,19 +405,47 @@ namespace types {
 		}
 	}
 
-	type_t::ref parse_optional_type(parse_state_t &ps, const identifier::set &generics) {
-		auto lhs = parse_lambda_type(ps, generics);
+	type_t::ref parse_ptr_type(parse_state_t &ps, const identifier::set &generics, bool disallow_maybe=false) {
+		bool is_ptr = false;
+		bool is_maybe = false;
+		if (ps.token.tk == tk_times) {
+			is_ptr = true;
+			ps.advance();
+			if (ps.token.tk == tk_maybe) {
+				is_maybe = true;
+				ps.advance();
+			}
+		}
+		/* if we had one pointer, we may have another. if we had no pointer, then we are done checking for pointers */
+		auto element = is_ptr ? parse_ptr_type(ps, generics, is_ptr) : parse_lambda_type(ps, generics);
 		if (!!ps.status) {
-			if (lhs == nullptr) {
-				/* this is valid. it is telling the parser that there is not another higher
-				 * precedence type. */
+			if (element == nullptr) {
+				/* there is nothing left for us to parse */
 				return nullptr;
+			}
+
+			if (is_maybe) {
+				if (ps.token.tk == tk_maybe) {
+					user_error(ps.status, ps.token.location, "redundant usage of ?. you may need parentheses");
+				} else {
+					return type_maybe(type_ptr(element));
+				}
+			} else if (is_ptr) {
+				if (ps.token.tk == tk_maybe) {
+					user_error(ps.status, ps.token.location, "use *? for native pointers. or, you may need parentheses");
+				} else {
+					return type_ptr(element);
+				}
 			} else {
 				if (ps.token.tk == tk_maybe) {
-					ps.advance();
-					return type_maybe(lhs);
+					if (disallow_maybe) {
+						user_error(ps.status, ps.token.location, "ambiguous ?. try using `*?`, or parentheses");
+					} else {
+						ps.advance();
+						return type_maybe(element);
+					}
 				} else {
-					return lhs;
+					return element;
 				}
 			}
 		}
@@ -372,8 +453,22 @@ namespace types {
 		return nullptr;
 	}
 
+	type_t::ref parse_ref_type(parse_state_t &ps, const identifier::set &generics) {
+		bool is_ref = false;
+		if (ps.token.tk == tk_ampersand) {
+			ps.advance();
+			is_ref = true;
+		}
+		auto element = parse_ptr_type(ps, generics);
+		if (!!ps.status) {
+			return is_ref ? type_ref(element) : element;
+		}
+		assert(!ps.status);
+		return nullptr;
+	}
+
 	type_t::ref parse_application_type(parse_state_t &ps, const identifier::set &generics) {
-		auto lhs = parse_optional_type(ps, generics);
+		auto lhs = parse_ref_type(ps, generics);
 		if (!!ps.status) {
 			if (lhs == nullptr) {
 				ps.error("unable to parse type");
@@ -383,7 +478,7 @@ namespace types {
 					if (ps.line_broke()) {
 						break;
 					}
-					auto next_term = parse_optional_type(ps, generics);
+					auto next_term = parse_ref_type(ps, generics);
 					if (!!ps.status) {
 						if (next_term != nullptr) {
 							terms.push_back(next_term);
@@ -405,48 +500,8 @@ namespace types {
 		return nullptr;
 	}
 
-	type_t::ref parse_ptr_type(parse_state_t &ps, const identifier::set &generics) {
-		bool is_ptr = false;
-		bool is_maybe = false;
-		if (ps.token.tk == tk_times) {
-			is_ptr = true;
-			ps.advance();
-			if (ps.token.tk == tk_maybe) {
-				is_maybe = true;
-				ps.advance();
-			}
-		}
-		/* if we had one pointer, we may have another. if we had no pointer, then we are done checking for pointers */
-		auto element = is_ptr ? parse_ptr_type(ps, generics) : parse_application_type(ps, generics);
-		if (!!ps.status) {
-			if (is_maybe) {
-				return type_maybe(type_ptr(element));
-			} else if (is_ptr) {
-				return type_ptr(element);
-			} else {
-				return element;
-			}
-		}
-		assert(!ps.status);
-		return nullptr;
-	}
-
-	type_t::ref parse_ref_type(parse_state_t &ps, const identifier::set &generics) {
-		bool is_ref = false;
-		if (ps.token.tk == tk_ampersand) {
-			ps.advance();
-			is_ref = true;
-		}
-		auto element = parse_ptr_type(ps, generics);
-		if (!!ps.status) {
-			return is_ref ? type_ref(element) : element;
-		}
-		assert(!ps.status);
-		return nullptr;
-	}
-
 	type_t::ref parse_and_type(parse_state_t &ps, const identifier::set &generics) {
-		auto lhs = parse_ref_type(ps, generics);
+		auto lhs = parse_application_type(ps, generics);
 		if (!!ps.status) {
 			if (ps.token.is_ident(K(and))) {
 				/* we've got a Logical AND expression */
@@ -454,7 +509,7 @@ namespace types {
 				terms.push_back(lhs);
 				while (ps.token.is_ident(K(and))) {
 					chomp_ident(K(and));
-					auto next_term = parse_ref_type(ps, generics);
+					auto next_term = parse_application_type(ps, generics);
 					if (!!ps.status) {
 						terms.push_back(next_term);
 					} else {
@@ -524,14 +579,6 @@ namespace types {
 	identifier::ref reduce_ids(const std::list<identifier::ref> &ids, location_t location) {
 		assert(ids.size() != 0);
 		return make_iid_impl(join(ids, SCOPE_SEP), location);
-	}
-
-	type_t::ref parse_type_constraints(parse_state_t &ps, const identifier::set &generics) {
-		expect_ident(K(where));
-		location_t where_location = ps.token.location;
-		ps.advance();
-
-		return parse_type(ps, generics);
 	}
 }
 

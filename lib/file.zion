@@ -46,7 +46,7 @@ def __finalize__(of Open)
 			print("Error: failed to close file")
 		of.fp = null
 
-type Lines{LineReader} has
+type Lines LineReader has
 	var file LineReader
 	var cur_line str?
 
@@ -54,12 +54,12 @@ type Lines{LineReader} has
 def readlines() Lines *posix.FILE
 	return readlines(stdin)
 
-def readlines{LineReader}(f LineReader) Lines LineReader
+def readlines[LineReader](f LineReader) Lines LineReader
 	assert(f != null)
 	return Lines(f, null)
 
 [global]
-def __iter_begin__{LineReader}(fl Lines LineReader) Lines LineReader
+def __iter_begin__[LineReader](fl Lines LineReader) Lines LineReader
 	assert(fl != null)
 	__iterate__(fl)
 	return fl

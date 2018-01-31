@@ -570,9 +570,7 @@ bound_type_t::ref create_bound_integer_type(
 	types::type_t::ref bit_size_expansion;
 	int bit_size = types::coerce_to_integer(status, typename_env, integer->bit_size, bit_size_expansion);
 	if (!!status) {
-		if (!types::is_type_id(signed_, "signed") && 
-				!types::is_type_id(signed_, "unsigned"))
-		{
+		if (!types::is_type_id(signed_, "true") && !types::is_type_id(signed_, "false")) {
 			user_error(status, integer->get_location(), "could not determine signedness for type from %s",
 					signed_->str().c_str());
 		} else {

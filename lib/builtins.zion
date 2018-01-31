@@ -1,7 +1,7 @@
 global
 
-type signed bits = integer(bits, signed)
-type unsigned bits = integer(bits, unsigned)
+type signed bits = integer(bits, true)
+type unsigned bits = integer(bits, false)
 
 # TODO: inject correct size for platform from reader macro
 type int = signed 64
