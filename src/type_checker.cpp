@@ -612,7 +612,7 @@ void type_check_fully_bound_function_decl(
 
 	if (!!status) {
 		const auto &arg_names = args->names;
-		assert(arg_names.size() == bound_args.size());
+		dbg_when(arg_names.size() != bound_args.size());
 		for (unsigned i = 0; i < bound_args.size(); ++i) {
 			std::string param_name = arg_names[i]->get_name();
 			params.push_back({param_name, bound_args[i]});
@@ -1874,6 +1874,9 @@ bound_var_t::ref create_bound_vector_literal(
 		types::type_t::ref element_type,
 		bound_var_t::refs bound_items)
 {
+	user_error(status, location, "re-implement to support native vectors");
+	return nullptr;
+#if 0
 	if (!!status) {
 		auto program_scope = scope->get_program_scope();
 
@@ -1888,7 +1891,7 @@ bound_var_t::ref create_bound_vector_literal(
 			if (!!status) {
 				/* create the type for this vector */
 				types::type_t::ref vector_type = type_operator(
-						type_id(make_iid_impl("vector.vector", location)),
+						type_id(make_iid_impl(STD_VECTOR_TYPE, location)),
 						element_type);
 				bound_type_t::ref bound_vector_type = upsert_bound_type(
 						status, builder, scope, vector_type);
@@ -1905,7 +1908,7 @@ bound_var_t::ref create_bound_vector_literal(
 
 				/* get the raw pointer type to vectors */
 				bound_type_t::ref bound_base_vector_type = upsert_bound_type(status, builder, scope,
-						type_ptr(type_id(make_iid_impl("vector.vector_t", location))));
+						type_ptr(type_operator(type_id(make_iid_impl("vector.VectorImpl", location)), element_type)));
 
 				if (!!status) {
 					/* get the append function for vectors */
@@ -1953,6 +1956,7 @@ bound_var_t::ref create_bound_vector_literal(
 
 	assert(!status);
 	return nullptr;
+#endif
 }
 
 bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
@@ -3995,6 +3999,8 @@ void create_visit_module_vars_function(
 	bound_type_t::ref bound_callback_fn_type = upsert_bound_type(
 			status, builder, program_scope, 
 			type_function(
+				make_iid("__visit_module_vars"),
+				nullptr,
 				type_args({type_ptr(type_id(make_iid("var_t")))}, {}),
 				type_id(make_iid("void"))));
 
@@ -4490,19 +4496,22 @@ void ast::return_statement_t::resolve_statement(
 						runnable_scope->get_return_type_constraint()->get_type(),
 						return_value);
 
-				if (llvm_return_value->getName().str().size() == 0) {
-					llvm_return_value->setName("return.value");
+				if (!!status) {
+					if (llvm_return_value->getName().str().size() == 0) {
+						llvm_return_value->setName("return.value");
+					}
+
+					debug_above(8, log("emitting a return of %s", llvm_print(llvm_return_value).c_str()));
+
+					// BUGBUG: if this were actually releasing variables, this could introduce a period
+					// of execution wherein if the garbage collector were to run, the return value could
+					// be freed.
+					/* release all variables from all lives */
+					life->release_vars(status, builder, scope, lf_function);
+
+					builder.CreateRet(llvm_return_value);
+					return;
 				}
-
-				debug_above(8, log("emitting a return of %s", llvm_print(llvm_return_value).c_str()));
-
-				// BUGBUG: if this were actually releasing variables, this could introduce a period
-				// of execution wherein if the garbage collector were to run, the return value could
-				// be freed.
-				/* release all variables from all lives */
-				life->release_vars(status, builder, scope, lf_function);
-
-				builder.CreateRet(llvm_return_value);
 			}
 		} else {
 			assert(types::is_type_id(return_type->get_type(), "void"));
@@ -4512,10 +4521,10 @@ void ast::return_statement_t::resolve_statement(
 
 			// TODO: release live variables in scope
 			builder.CreateRetVoid();
+			return;
 		}
-
-        return;
     }
+
     assert(!status);
     return;
 }

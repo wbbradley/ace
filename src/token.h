@@ -91,7 +91,7 @@ K(elif);
 K(else);
 K(for);
 K(global);
-K(__get_typeid__);
+K(typeid);
 K(integer);
 K(has);
 K(if);

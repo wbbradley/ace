@@ -6,7 +6,11 @@ tag True
 type Bool is True or False
 
 def __not__(b Bool) bool
-	return __get_typeid__(b) != __get_typeid__(true)
+	when b
+		is True
+			return false
+		is False
+			return true
 
 def str(x bool) str
 	if x

@@ -645,7 +645,11 @@ namespace types {
 		types::type_args_t::ref rebound_args = dyncast<const types::type_args_t>(
 			   	args->rebind(bindings));
 		assert(args != nullptr);
-		return ::type_function(rebound_args, return_type->rebind(bindings));
+		return ::type_function(
+				name,
+				type_constraints != nullptr ? type_constraints->rebind(bindings) : type_constraints,
+				rebound_args,
+				return_type->rebind(bindings));
 	}
 
 	location_t type_function_t::get_location() const {
@@ -1361,13 +1365,6 @@ types::type_module_t::ref type_module(types::type_t::ref module_type) {
 
 types::type_managed_t::ref type_managed(types::type_t::ref element_type) {
 	return make_ptr<types::type_managed_t>(element_type);
-}
-
-types::type_function_t::ref type_function(
-		types::type_t::ref args,
-		types::type_t::ref return_type)
-{
-	return type_function(nullptr, nullptr, args, return_type);
 }
 
 types::type_function_t::ref type_function(
