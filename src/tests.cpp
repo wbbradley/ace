@@ -267,7 +267,7 @@ bool test_lex_syntax() {
 		{"if", {tk_identifier}},
 		{"when", {tk_identifier}},
 		{"with", {tk_identifier}},
-		{"__get_typeid__", {tk_identifier}},
+		{"typeid", {tk_identifier}},
 		{"else", {tk_identifier}},
 		{"elif", {tk_identifier}},
 		{"break", {tk_identifier}},

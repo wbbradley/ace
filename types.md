@@ -4,7 +4,7 @@ Operator                                            | Description               
 -------------                                       | ---------------------------- | -------------
 `a`, `42`, `"Hello world."`                         | Type literals. Symbols, integers, and strings. | Smallest units of type system. Form the basis of the nominal type system. Highest precedence.
 `f` **`(`** `g` `x` **`)`**<br/>`f` **`$`** `g` `x` | Precedence operator (parentheses or `$`) | Resets precedence rules
-**`[`** `a` **`]`**                                 | `vector.vector{a}` reader macro | 
+**`[`** `a` **`]`**                                 | `vector.Vector{a}` reader macro | 
 **`{`** `a` **`:`** `b` **`}`**<br/>**`{`** `a` **`,`** `b` **`}`**                     | `map.Map{a, b}` or `tuple{a, b}` reader macros, respectively | Precedence rules are reset between braces and colon.
 **`any`** `T`                                       | Type variable reference | Names a free type variable in the context of the entire type expression. Ensures that the symbol does not reference anything in the environment (until some substitution occurs perhaps). Can be coupled to other instances of itself by name.
 **`def`** **`(`** *param-list* **`)`** *return-type*<br/>**`def`** *name* **`{`** *type-constraints* **`}`** **`(`** *param-list* **`)`** *return-type* | Function type | *name* is only valid in function declarations or in `exists` invocations 

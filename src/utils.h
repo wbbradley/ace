@@ -207,3 +207,8 @@ bool in(U item, const COLL &set) {
 	return set.find(item) != set.end();
 }
 
+template <typename U, typename COLL>
+bool in_vector(U item, const COLL &set) {
+	return std::find(set.begin(), set.end(), item) != set.end();
+}
+

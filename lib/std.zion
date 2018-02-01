@@ -22,9 +22,6 @@ var stdin *posix.FILE = posix.fdopen(0, "r")!
 var stdout *posix.FILE = posix.fdopen(1, "a")!
 var stderr *posix.FILE = posix.fdopen(2, "a")!
 
-def typeid(t) typeid
-	return __get_typeid__(t)
-
 # initialization of modules is automatically generated.
 # link def __init_modules() void
 
@@ -103,7 +100,7 @@ def __bool__(x Int or str or [any T]) bool
 		is str
 			return x.raw[0] as int != 0
 		is [any T]
-			return (x as *vector.vector_t).size != 0
+			return (x as *vector.ManagedVector).size != 0
 
 type IntRange has
 	var first int

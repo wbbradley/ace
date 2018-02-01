@@ -267,7 +267,7 @@ ptr<expression_t> reference_expr_t::parse(parse_state_t &ps) {
 
 ptr<typeid_expr_t> typeid_expr_t::parse(parse_state_t &ps) {
 	auto token = ps.token;
-	chomp_ident(K(__get_typeid__));
+	chomp_ident(K(typeid));
 	chomp_token(tk_lparen);
 
 	auto value = expression_t::parse(ps);
@@ -331,7 +331,7 @@ ptr<expression_t> parse_cast_wrap(parse_state_t &ps, ptr<expression_t> expr) {
 ptr<expression_t> base_expr::parse(parse_state_t &ps) {
 	if (ps.token.tk == tk_lparen) {
 		return tuple_expr_t::parse(ps);
-	} else if (ps.token.is_ident(K(__get_typeid__))) {
+	} else if (ps.token.is_ident(K(typeid))) {
 		return typeid_expr_t::parse(ps);
 	} else if (ps.token.is_ident(K(sizeof))) {
 		return sizeof_expr_t::parse(ps);
@@ -1313,7 +1313,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 			ps.advance();
 			chomp_token(tk_rsquare);
 		} else {
-			ps.error("expected inbound module declaration");
+			ps.error("expected module injection");
 		}
 	}
 
@@ -1321,7 +1321,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 		expect_ident(K(def));
 		auto parsed_type = types::parse_type(ps, {});
 		if (!!ps.status) {
-			debug_above(9, log("parsed type %s", parsed_type->str().c_str()));
+			log("parsed function type %s", parsed_type->str().c_str());
 			types::type_function_t::ref function_type = dyncast<const types::type_function_t>(parsed_type);
 			assert(function_type != nullptr);
 			std::string name;

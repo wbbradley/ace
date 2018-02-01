@@ -29,7 +29,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 		scope_t::ref scope,
 		unchecked_var_t::ref unchecked_fn,
 		types::type_t::ref fn_type,
-		unification_t unification)
+		const unification_t &unification)
 {
 	assert(fn_type->ftv_count() == 0 && "we cannot instantiate an abstract function");
 	debug_above(5, log(log_info, "we are in scope " c_id("%s"), scope->get_name().c_str()));

@@ -235,9 +235,8 @@ namespace types {
 		if (!!ps.status) {
 			chomp_token(tk_lparen);
 			types::type_t::refs param_types;
+			identifier::refs param_names;
 			types::type_t::ref return_type;
-			std::map<std::string, int> name_index;
-			int index = 0;
 
 			while (!!ps.status) {
 				if (ps.token.tk == tk_identifier) {
@@ -256,12 +255,11 @@ namespace types {
 					}
 
 					if (!!ps.status) {
-						if (name_index.find(var_name.text) != name_index.end()) {
-							ps.error("duplicated parameter name: %s",
-									var_name.text.c_str());
+						auto param_name = make_code_id(var_name);
+						if (in_vector(param_name, param_names)) {
+							ps.error("duplicated parameter name: %s", var_name.text.c_str());
 						} else {
-							name_index[var_name.text] = index;
-							++index;
+							param_names.push_back(param_name);
 						}
 
 						if (ps.token.tk == tk_rparen) {
@@ -291,7 +289,7 @@ namespace types {
 				}
 
 				if (!!ps.status) {
-					return type_function(name, type_constraints, type_args(param_types), return_type);
+					return type_function(name, type_constraints, type_args(param_types, param_names), return_type);
 				}
 			}
 		}
@@ -327,7 +325,7 @@ namespace types {
 		auto lhs = parse_type(ps, generics);
 		if (!!ps.status) {
 			chomp_token(tk_rsquare);
-			return type_operator(type_id(make_iid_impl("vector.vector", square_token.location)), lhs);
+			return type_operator(type_id(make_iid_impl(STD_VECTOR_TYPE, square_token.location)), lhs);
 		}
 
 		assert(!ps.status);

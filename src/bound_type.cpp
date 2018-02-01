@@ -119,10 +119,12 @@ std::string bound_type_t::str() const {
 
 types::type_args_t::ref get_args_type(bound_type_t::named_pairs args) {
 	types::type_t::refs sig_args;
+	identifier::refs names;
 	for (auto &named_pair : args) {
+		names.push_back(make_iid(named_pair.first));
 		sig_args.push_back(named_pair.second->get_type());
 	}
-	return type_args(sig_args);
+	return type_args(sig_args, names);
 }
 
 types::type_args_t::ref get_args_type(bound_type_t::refs args) {
@@ -297,6 +299,8 @@ types::type_function_t::ref get_function_type(
 	}
 
 	return ::type_function(
+			nullptr,
+			nullptr,
 			::type_args(type_args),
 			return_type->get_type());
 }
@@ -312,6 +316,8 @@ types::type_function_t::ref get_function_type(
 	}
 
 	return ::type_function(
+			nullptr,
+			nullptr,
 			::type_args(type_args),
 			return_type);
 }

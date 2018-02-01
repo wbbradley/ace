@@ -146,7 +146,7 @@ namespace ast {
 	}
 
 	void typeid_expr_t::render(render_state_t &rs) const {
-		rs.ss << C_TYPE << K(__get_typeid__) << C_RESET << "(";
+		rs.ss << C_TYPE << K(typeid) << C_RESET << "(";
 		expr->render(rs);
 		rs.ss << ")";
 	}
@@ -174,7 +174,9 @@ namespace ast {
 
 	void typeinfo_expr_t::render(render_state_t &rs) const {
 		rs.ss << C_TYPE << "typeinfo" << C_RESET;
-		rs.ss << "(" << type->str() << ")";
+		rs.ss << "(" << type->str() << ", " << underlying_type->str();
+		rs.ss << ", " << C_ID << finalize_function.text << C_RESET;
+		rs.ss << ", " << C_ID << mark_function.text << C_RESET << ")";
 	}
 
 	void continue_flow_t::render(render_state_t &rs) const {

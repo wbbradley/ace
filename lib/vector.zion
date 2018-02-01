@@ -14,17 +14,18 @@ type NativeVector T struct
 	var size     size_t
 	var items    *?T
 
+type VectorImpl T = if (gc T, ManagedVector, NativeVector T)
+
 type Vector T link
 
 [global]
-def reserved(v [any]) int
+def reserved[T](v [T]) int
 	# NB: native and managed vectors share memory layout up to the `items`
-	return (v as *ManagedVector).reserved
+	return (v as *(VectorImpl T)).reserved
 
 [global]
 def len(v [any]) int
-	# NB: native and managed vectors share memory layout up to the `items`
-	return (v as *ManagedVector).size
+	return (v as *(VectorImpl T)).size
 
 [global]
 def __init__[T where gc T]() [T]
@@ -46,17 +47,24 @@ def __init__[T where not gc T]() [T]
 
 	return runtime.create_var(ti) as [T]
 		
+def __init_vector__[T](size size_t) [T]
+	# Used by the compiler to instantiate vector literals
+	# see src/type_checker.cpp `create_bound_vector_literal`
+	let v [T]
+	reserve(v as *(VectorImpl T), size)
+	return v
+
 [global]
 def str(v [any]) str
 	return "[" + join(v, ", ") + "]"
 
 [global]
-def join[T where gc T](v [any T], delim str) str
-	let vec = v as *managed_vector_t
+def join[T](v [T], delim str) str
+	let vec = v as *(VectorImpl T)
 
 	# allocate a vector in which we can store the converted strings
 	let strs [str]
-	reserve(strs as *managed_vector_t, vec.size)
+	reserve(strs as *(VectorImpl T), vec.size)
 
 	let delim_len = posix.wcslen(delim.raw)
 	let delims_len = delim_len * (vec.size - 1)
@@ -91,12 +99,8 @@ def join[T where gc T](v [any T], delim str) str
 	return str(buf)
 
 [global]
-def __getitem__[T where gc T](vec [T], index int) T
-	return __get_managed_vector_item__((vec as *ManagedVector), index) as T
-
-[global]
-def __getitem__[T where not(gc T)](vec [T], index int) T
-	return __get_native_vector_item__(vec as *(NativeVector T), index) as T
+def __getitem__[T](vec [T], index int) T
+	return __get_managed_vector_item__((vec as *(VectorImpl T)), index) as T
 
 [global]
 def __setitem__[T where gc T](vec [T], index int, t T) void
@@ -137,17 +141,28 @@ def resize(vec *ManagedVector, size int, default *var_t) void
 
 
 [global]
-def __vector_mark__(vec *var_t)
+def __managed_vector_mark__(vec *var_t)
 	# posix.puts("marking vector at 0x" + __str__(vec as int, 16))
-	let v = vec as *vector_t
+	let v = vec as *ManagedVector
 	i := 0
 	while i < v.size
 		runtime.mark_allocation(v.items[i])
 		i += 1
 
 [global]
-def __vector_free__(var *var_t)
-	let vector = var as *vector_t
+def __managed_vector_free__(var *var_t)
+	let vector = var as *ManagedVector
+
+	/* the gc will handle cleaning up everything that we pointed to, but we need to free up our
+	 * extra allocated heap space. */
+	posix.free(vector.items)
+
+	/* zion will handle deleting the actual vector_t, since it will be attached to the managed
+	 * object */
+
+[global]
+def __native_vector_free__(var *var_t)
+	let vector = var as *(NativeVector *void)
 
 	/* the gc will handle cleaning up everything that we pointed to, but we need to free up our
 	 * extra allocated heap space. */
@@ -289,11 +304,10 @@ def __iter_begin__(c [any C]) VectorIter any C
 	
 [global]
 def __iter_end__(c [any C]) VectorIter any C
-	return VectorIter(c, (c as *vector.vector_t).size)
+	return VectorIter(c, len(c))
 
 [global]
 def __iter_valid__(i VectorIter any C, end VectorIter any C) bool
-	assert(i.vec as *vector_t == end.vec as *vector_t)
 	return i.pos < end.pos
 
 [global]
@@ -302,7 +316,5 @@ def __iterate__(i VectorIter any C)
 
 [global]
 def __iter_item__(i VectorIter any C) any C
-	v := i.vec as *vector_t
-	assert(i.pos < v.size)
-	return v.items[i.pos] as any C
-
+	assert(i.pos < len(v))
+	return v[i.pos]
