@@ -1379,6 +1379,14 @@ ptr<function_defn_t> function_defn_t::parse(parse_state_t &ps) {
 
 	if (!!ps.status) {
 		assert(function_decl != nullptr);
+		type_macros_restorer_t type_macros_restorer(ps.type_macros);
+
+		/* temporarily inject free type variables from function declaration into the function parsing context.
+		 * T -> any T parser macros. */
+		for (auto ftv : function_decl->function_type->get_ftvs()) {
+			ps.type_macros.insert({ftv, type_variable(make_iid(ftv))});
+		}
+
 		auto block = block_t::parse(ps);
 		if (!!ps.status) {
 			assert(block != nullptr);
