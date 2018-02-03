@@ -48,3 +48,15 @@ struct parse_state_t {
 private:
 	bool newline = false;
 };
+
+struct type_macros_restorer_t {
+	type_macros_restorer_t(type_macros_t &old_macros) : old_macros(old_macros), new_macros(old_macros) {
+	   	old_macros.swap(new_macros);
+   	}
+	~type_macros_restorer_t() {
+	   	new_macros.swap(old_macros);
+   	}
+private:
+	type_macros_t &old_macros;
+	type_macros_t new_macros;
+};
