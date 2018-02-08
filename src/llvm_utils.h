@@ -108,8 +108,7 @@ bound_var_t::ref llvm_start_function(
 		llvm::IRBuilder<> &builder, 
 		scope_t::ref scope,
 		location_t location,
-		bound_type_t::refs args,
-		bound_type_t::ref data_type,
+		const types::type_function_t::ref &function_type,
 		std::string name);
 
 bound_var_t::ref llvm_create_global_tag(

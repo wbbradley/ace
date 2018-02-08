@@ -144,6 +144,7 @@ ZION_LLVM_SOURCES = \
 				type_checker.cpp \
 				type_instantiation.cpp \
 				type_parser.cpp \
+				type_eval.cpp \
 				types.cpp \
 				unchecked_type.cpp \
 				unchecked_var.cpp \

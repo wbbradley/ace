@@ -15,6 +15,9 @@ const char *STD_MAP_TYPE = "map.Map";
 const char *BUILTIN_VOID_TYPE = "void";
 const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";
 
+const char *TYPE_OP_NOT = "not";
+const char *TYPE_OP_GC = "gc";
+
 int next_generic = 1;
 
 void reset_generics() {
@@ -616,7 +619,9 @@ namespace types {
 			os << C_ID << name->get_name() << C_RESET;
 		}
 		if (type_constraints != nullptr) {
+			os << "[" << C_CONTROL << "where " << C_RESET;
 			type_constraints->emit(os, bindings);
+			os << "]";
 		}
 		args->emit(os, bindings);
 		os << " ";

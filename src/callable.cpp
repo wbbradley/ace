@@ -61,6 +61,11 @@ bound_var_t::ref instantiate_unchecked_fn(
 
 		if (auto function = dyncast<const types::type_function_t>(fn_type)) {
 			if (auto args = dyncast<const types::type_args_t>(function->args)) {
+				types::type_t::ref type_constraints = (
+						function->type_constraints
+					   	? function->type_constraints->rebind(subst_scope->get_type_variable_bindings())
+					   	: type_id(make_iid(TRUE_TYPE)));
+
 				bound_type_t::refs bound_args = upsert_bound_types(status,
 						builder, subst_scope, args->args);
 
@@ -79,7 +84,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 						/* instantiate the function we want */
 						return function_defn->instantiate_with_args_and_return_type(status,
 								builder, subst_scope, life, nullptr /*new_scope*/,
-								named_args, return_type);
+								type_constraints, named_args, return_type);
 					} else {
 						user_message(log_info, status, unchecked_fn->get_location(),
 								"while instantiating function %s",

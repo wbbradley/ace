@@ -579,8 +579,11 @@ bound_var_t::ref program_scope_t::upsert_init_module_vars_function(
 			builder, 
 			shared_from_this(),
 			INTERNAL_LOC(),
-			{},
-			get_bound_type({"void"}),
+			type_function(
+				make_iid("__init_module_vars"),
+			   	type_id(make_iid("true")),
+				type_args({}),
+			   	type_id(make_iid("void"))),
 			"__init_module_vars");
 
 	if (!!status) {

@@ -1321,7 +1321,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 		expect_ident(K(def));
 		auto parsed_type = types::parse_type(ps, {});
 		if (!!ps.status) {
-			log("parsed function type %s", parsed_type->str().c_str());
+			debug_above(6, log("parsed function type %s", parsed_type->str().c_str()));
 			types::type_function_t::ref function_type = dyncast<const types::type_function_t>(parsed_type);
 			assert(function_type != nullptr);
 			std::string name;

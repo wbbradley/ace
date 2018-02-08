@@ -208,59 +208,6 @@ ast::module_t::ref compiler_t::build_parse(
 	return nullptr;
 }
 
-void rt_bind_var_from_llir(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		program_scope_t::ref program_scope,
-		ast::item_t::ref &program,
-		std::string name,
-		llvm::Module &llvm_module,
-		std::string name_in_llir,
-		bound_type_t::refs args,
-		bound_type_t::ref return_type)
-{
-	assert(return_type != nullptr);
-	for (auto arg : args) {
-		assert(arg);
-	}
-
-	/* bind this LLVM ir function to a particular variable name in this
-	 * resolve_map */
-	auto llvm_function = llvm_module.getFunction(name_in_llir);
-	if (!llvm_function) {
-		user_error(status, location_t{llvm_module.getName().str(), 0, 0},
-				"unable to find function " c_var("%s"), name_in_llir.c_str());
-	} else {
-		types::type_function_t::ref type = get_function_type(args, return_type);
-
-		if (!!status) {
-			/* see if this bound type already exists */
-			auto bound_type = program_scope->get_bound_type(
-					type->get_signature());
-
-			if (bound_type == nullptr) {
-				/* we haven't seen this bound type before, let's
-				 * create it, and register it */
-				bound_type = bound_type_t::create(
-						type,
-						location_t{llvm_module.getName().str(), 0, 0},
-						llvm_function->getType());
-				program_scope->put_bound_type(status, bound_type);
-			}
-
-			program_scope->put_bound_variable(
-					status,
-					name,
-					bound_var_t::create(
-						INTERNAL_LOC(),
-						name,
-						bound_type,
-						llvm_function,
-						make_iid(name)));
-		}
-	}
-}
-
 void add_global_types(
 		status_t &status,
 		compiler_t &compiler,
@@ -354,6 +301,8 @@ void add_global_types(
 		compiler.base_type_macros[type_pair.first] = type_id(make_iid(type_pair.first));
 	}
 	compiler.base_type_macros[std::string{"vector"}] = type_id(make_iid(STD_VECTOR_TYPE));
+	compiler.base_type_macros[std::string{TYPE_OP_NOT}] = type_id(make_iid(TYPE_OP_NOT));
+	compiler.base_type_macros[std::string{TYPE_OP_GC}] = type_id(make_iid(TYPE_OP_GC));
 
 	debug_above(10, log(log_info, "%s", program_scope->str().c_str()));
 }
