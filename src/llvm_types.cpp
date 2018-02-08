@@ -1269,11 +1269,9 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	/* at this point we should have a struct type in expanded_type */
 	if (product_type != nullptr) {
-		bound_type_t::refs args = upsert_bound_types(status,
-				builder, scope, types::without_refs(product_type->get_dimensions()));
-
+		types::type_args_t::ref type_args = ::type_args(types::without_refs(product_type->get_dimensions()));
 		if (!!status) {
-			types::type_t::ref function_type = get_function_type(args, data_type);
+			types::type_function_t::ref function_type = ::type_function(nullptr, type_id(make_iid("true")), type_args, type);
 			bound_var_t::ref already_bound_function;
 			if (program_scope->has_bound(id->get_name(), function_type, &already_bound_function)) {
 				/* fulfill the "get_or_" part of this function name */
@@ -1283,61 +1281,66 @@ bound_var_t::ref get_or_create_tuple_ctor(
 			/* save and later restore the current branch insertion point */
 			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
-			auto function = llvm_start_function(status, builder, scope, node->get_location(),
-					args, data_type, name);
-
-			life_t::ref life = make_ptr<life_t>(status, lf_function);
-
+			auto function = llvm_start_function(status, builder, scope, node->get_location(), function_type, name);
 			if (!!status) {
-				bound_var_t::ref dtor_fn = maybe_get_dtor(status, builder,
-						program_scope, data_type);
+				life_t::ref life = make_ptr<life_t>(status, lf_function);
 
 				if (!!status) {
-					llvm::Value *llvm_alloced = llvm_call_allocator(
-							status, builder, program_scope, life, node, data_type,
-							dtor_fn, name, args);
+					bound_var_t::ref dtor_fn = maybe_get_dtor(status, builder,
+							program_scope, data_type);
 
 					if (!!status) {
-						assert(data_type->get_llvm_type() != nullptr);
-
-						/* we've allocated enough space for the object type,
-						 * let's get our allocation as such */
-						llvm::Value *llvm_final_obj = llvm_maybe_pointer_cast(builder,
-								llvm_alloced, data_type);
-
-						int index = 0;
-
-						llvm::Function *llvm_function = llvm::cast<llvm::Function>(function->get_llvm_value());
-						llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
-						while (args_iter != llvm_function->arg_end()) {
-							llvm::Value *llvm_param = &*args_iter++;
-							/* get the location we should store this datapoint in */
-							llvm::Value *llvm_gep = llvm_make_gep(builder, llvm_final_obj,
-									index, true /* managed */);
-							if (llvm_gep->getName().str().size() == 0) {
-								llvm_gep->setName(string_format("address_of.member.%d", index));
-							}
-
-							debug_above(5, log(log_info, "store %s at %s", llvm_print(*llvm_param).c_str(),
-										llvm_print(*llvm_gep).c_str()));
-							builder.CreateStore(llvm_param, llvm_gep);
-
-							++index;
-						}
-
-						/* create a return statement for the final object. */
-						builder.CreateRet(llvm_final_obj);
-
-						llvm_verify_function(status, id->get_location(), llvm_function);
-
+						types::type_args_t::ref type_args = dyncast<const types::type_args_t>(function_type->args);
+						assert(type_args != nullptr);
+						bound_type_t::refs args = upsert_bound_types(status, builder, scope, type_args->args);
 						if (!!status) {
-							/* bind the ctor to the program scope */
-							scope->get_program_scope()->put_bound_variable(status, name, function);
+							llvm::Value *llvm_alloced = llvm_call_allocator(
+									status, builder, program_scope, life, node, data_type,
+									dtor_fn, name, args);
 
 							if (!!status) {
-								debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
-												*llvm_get_module(builder)).c_str()));
-								return function;
+								assert(data_type->get_llvm_type() != nullptr);
+
+								/* we've allocated enough space for the object type,
+								 * let's get our allocation as such */
+								llvm::Value *llvm_final_obj = llvm_maybe_pointer_cast(builder,
+										llvm_alloced, data_type);
+
+								int index = 0;
+
+								llvm::Function *llvm_function = llvm::cast<llvm::Function>(function->get_llvm_value());
+								llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
+								while (args_iter != llvm_function->arg_end()) {
+									llvm::Value *llvm_param = &*args_iter++;
+									/* get the location we should store this datapoint in */
+									llvm::Value *llvm_gep = llvm_make_gep(builder, llvm_final_obj,
+											index, true /* managed */);
+									if (llvm_gep->getName().str().size() == 0) {
+										llvm_gep->setName(string_format("address_of.member.%d", index));
+									}
+
+									debug_above(5, log(log_info, "store %s at %s", llvm_print(*llvm_param).c_str(),
+												llvm_print(*llvm_gep).c_str()));
+									builder.CreateStore(llvm_param, llvm_gep);
+
+									++index;
+								}
+
+								/* create a return statement for the final object. */
+								builder.CreateRet(llvm_final_obj);
+
+								llvm_verify_function(status, id->get_location(), llvm_function);
+
+								if (!!status) {
+									/* bind the ctor to the program scope */
+									scope->get_program_scope()->put_bound_variable(status, name, function);
+
+									if (!!status) {
+										debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
+														*llvm_get_module(builder)).c_str()));
+										return function;
+									}
+								}
 							}
 						}
 					}

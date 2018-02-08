@@ -594,16 +594,22 @@ bound_type_t::named_pairs zip_named_pairs(
 	return named_args;
 }
 
-void type_check_fully_bound_function_decl(
+void destructure_function_decl(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		const ast::function_decl_t &obj,
 		scope_t::ref scope,
+		types::type_t::ref &type_constraints,
 		bound_type_t::named_pairs &params,
 		bound_type_t::ref &return_type)
 {
 	/* returns the parameters and the return value types fully resolved */
 	debug_above(4, log(log_info, "type checking function decl %s", obj.token.str().c_str()));
+
+	type_constraints = (
+			obj.function_type->type_constraints
+		   	? obj.function_type->type_constraints->rebind(scope->get_type_variable_bindings())
+		   	: type_id(make_iid(TRUE_TYPE)));
 
 	/* the parameter types as per the decl */
 	const auto &args = dyncast<const types::type_args_t>(obj.function_type->args);
@@ -821,10 +827,11 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 	module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
 	assert(module_scope);
 
+	types::type_t::ref type_constraints;
 	bound_type_t::named_pairs named_args;
 	bound_type_t::ref return_value;
 
-	type_check_fully_bound_function_decl(status, builder, *extern_function, scope, named_args, return_value);
+	destructure_function_decl(status, builder, *extern_function, scope, type_constraints, named_args, return_value);
 	if (!!status) {
 		assert(return_value != nullptr);
 
@@ -834,7 +841,6 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 				args.push_back(named_arg_pair.second);
 			}
 
-			// TODO: rearrange this, and get the pointer type
 			llvm::FunctionType *llvm_func_type = llvm_create_function_type(
 					status, builder, args, return_value);
 
@@ -845,7 +851,7 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 			assert(llvm_print(llvm_value->getType()) != llvm_print(llvm_func_type));
 
 			/* get the full function type */
-			types::type_function_t::ref function_sig = get_function_type(args, return_value);
+			types::type_function_t::ref function_sig = get_function_type(type_constraints, args, return_value);
 			debug_above(3, log(log_info, "%s has type %s",
 						extern_function->get_function_name().c_str(),
 						function_sig->str().c_str()));
@@ -905,15 +911,17 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 					get_args_type(args),
 					nullptr);
 		} else {
+			types::type_function_t::ref target_function_type = get_function_type(
+					   	type_variable(INTERNAL_LOC()),
+						args,
+					   	type_variable(INTERNAL_LOC()));
 			bound_var_t::ref bound_fn = this->resolve_expression(status, builder, scope, life, false /*as_ref*/,
-					get_function_type(args,
-						// TODO: plumb expected_type in for return value type here
-					   	type_variable(INTERNAL_LOC())));
+					target_function_type);
 
 			if (!!status) {
 				unification_t unification = unify(
 						bound_fn->type->get_type(),
-						get_function_type(args, type_variable(INTERNAL_LOC())),
+						target_function_type,
 						scope->get_nominal_env());
 
 				if (unification.result) {
@@ -3590,13 +3598,14 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 				scope->get_name().c_str()));
 
 	/* see if we can get a monotype from the function declaration */
+	types::type_t::ref type_constraints;
 	bound_type_t::named_pairs args;
 	bound_type_t::ref return_type;
-	type_check_fully_bound_function_decl(status, builder, *decl, scope, args, return_type);
+	destructure_function_decl(status, builder, *decl, scope, type_constraints, args, return_type);
 
 	if (!!status) {
 		return instantiate_with_args_and_return_type(status, builder, scope, life,
-				new_scope, args, return_type);
+				new_scope, type_constraints, args, return_type);
 	} else {
 		user_error(status, *this, "unable to instantiate function %s due to earlier errors",
 				token.str().c_str());
@@ -3625,6 +3634,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
         scope_t::ref scope,
 		life_t::ref life,
 		local_scope_t::ref *new_scope,
+		types::type_t::ref type_constraints,
 		bound_type_t::named_pairs args,
 		bound_type_t::ref return_type) const
 {
@@ -3638,7 +3648,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 
 	assert(scope->get_llvm_module() != nullptr);
 
-	auto function_type = get_function_type(args, return_type);
+	auto function_type = get_function_type(type_constraints, args, return_type);
 	bound_type_t::ref bound_function_type = upsert_bound_type(status, builder, scope, function_type);
 
 	bound_var_t::ref already_bound_function;
@@ -3915,20 +3925,22 @@ void type_check_program_variable(
 						node->str().c_str()));
 			return;
 		}
+		types::type_t::ref type_constraints;
 		bound_type_t::named_pairs named_params;
 		bound_type_t::ref return_value;
 
-		type_check_fully_bound_function_decl(
+		destructure_function_decl(
 				local_status,
 				builder,
 				*function_defn->decl,
 				program_scope,
+				type_constraints,
 				named_params,
 				return_value);
 
 		if (!!local_status) {
 			types::type_function_t::ref function_type = get_function_type(
-					named_params, return_value);
+					type_constraints, named_params, return_value);
 
 			fittings_t fittings;
 			auto callable = maybe_get_callable(
@@ -4010,8 +4022,8 @@ void create_visit_module_vars_function(
 			builder, 
 			program_scope,
 			INTERNAL_LOC(),
-			{bound_callback_fn_type},
-			program_scope->get_bound_type({"void"}),
+			type_function(nullptr, type_id(make_iid("true")), type_args({bound_callback_fn_type->get_type()}),
+				program_scope->get_bound_type({"void"})->get_type()),
 			"__visit_module_vars");
 
 	if (!!status) {
@@ -4044,10 +4056,10 @@ void create_visit_module_vars_function(
 									INTERNAL_LOC(),
 									user_visitor_fn,
 									std::vector<llvm::Value *>{
-										llvm_maybe_pointer_cast(
-												builder,
-												global_var->resolve_bound_var_value(builder),
-												bound_var_ptr_type->get_llvm_type())});
+									llvm_maybe_pointer_cast(
+											builder,
+											global_var->resolve_bound_var_value(builder),
+											bound_var_ptr_type->get_llvm_type())});
 						}
 					}
 

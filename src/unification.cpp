@@ -336,6 +336,8 @@ unification_t unify(
 		}
 	} else if (ptf_a != nullptr) {
 		if (auto ptf_b = dyncast<const types::type_function_t>(b)) {
+			// NB: it does not yet make sense to unify over type constraints...
+
 			debug_above(7, log("matching function arguments"));
 			/* now make sure the arguments unify */
 			auto args_unification = unify(ptf_a->args, ptf_b->args, env, bindings, 0, depth);
@@ -353,6 +355,9 @@ unification_t unify(
 			}
 			bindings = return_type_unification.bindings;
 			coercions += return_type_unification.coercions;
+			if (ptf_a->type_constraints != nullptr) {
+				dbg();
+			}
 			return {true, "functions match", bindings, coercions};
 		} else {
 			return {

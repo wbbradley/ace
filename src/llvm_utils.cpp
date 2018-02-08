@@ -740,51 +740,56 @@ bound_var_t::ref llvm_start_function(
 		llvm::IRBuilder<> &builder, 
 		scope_t::ref scope,
 		location_t location,
-		bound_type_t::refs args,
-		bound_type_t::ref data_type,
+		const types::type_function_t::ref &function_type,
 		std::string name)
 {
 	if (!!status) {
-		/* get the llvm function type for the data ctor */
-		llvm::FunctionType *llvm_fn_type = llvm_create_function_type(
-				status, builder, args, data_type);
+		types::type_args_t::ref type_args = dyncast<const types::type_args_t>(function_type->args);
+		assert(type_args != nullptr);
 
+		bound_type_t::refs args = upsert_bound_types(status, builder, scope, type_args->args);
 		if (!!status) {
-			/* create the bound type for the ctor function */
-			auto function_type = bound_type_t::create(
-						get_function_type(args, data_type),
-						location,
-						llvm_fn_type);
+			bound_type_t::ref data_type = upsert_bound_type(status, builder, scope, function_type->return_type);
+			if (!!status) {
+				/* get the llvm function type for the data ctor */
+				llvm::FunctionType *llvm_fn_type = llvm_create_function_type(
+						status, builder, args, data_type);
 
-			/* now let's generate our actual data ctor fn */
-			auto llvm_function = llvm::Function::Create(
-					(llvm::FunctionType *)llvm_fn_type,
-					llvm::Function::ExternalLinkage, name,
-					scope->get_llvm_module());
+				if (!!status) {
+					/* create the bound type for the ctor function */
+					auto bound_function_type = bound_type_t::create(function_type, location, llvm_fn_type);
 
-			llvm_function->setGC(GC_STRATEGY);
-			llvm_function->setDoesNotThrow();
+					/* now let's generate our actual data ctor fn */
+					auto llvm_function = llvm::Function::Create(
+							(llvm::FunctionType *)llvm_fn_type,
+							llvm::Function::ExternalLinkage, name,
+							scope->get_llvm_module());
 
-			/* create the actual bound variable for the fn */
-			bound_var_t::ref function = bound_var_t::create(
-					INTERNAL_LOC(), name,
-					function_type, llvm_function, make_iid_impl(name, location));
+					llvm_function->setGC(GC_STRATEGY);
+					llvm_function->setDoesNotThrow();
 
-			/* start emitting code into the new function. caller should have an
-			 * insert point guard */
-			llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
-					"entry", llvm_function);
-			llvm::BasicBlock *llvm_body_block = llvm::BasicBlock::Create(builder.getContext(),
-					"body", llvm_function);
+					/* create the actual bound variable for the fn */
+					bound_var_t::ref function = bound_var_t::create(
+							INTERNAL_LOC(), name,
+							bound_function_type, llvm_function, make_iid_impl(name, location));
 
-			builder.SetInsertPoint(llvm_entry_block);
-			/* leave an empty entry block so that we can insert GC stuff in there, but be able to
-			 * seek to the end of it and not get into business logic */
-			builder.CreateBr(llvm_body_block);
+					/* start emitting code into the new function. caller should have an
+					 * insert point guard */
+					llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
+							"entry", llvm_function);
+					llvm::BasicBlock *llvm_body_block = llvm::BasicBlock::Create(builder.getContext(),
+							"body", llvm_function);
 
-			builder.SetInsertPoint(llvm_body_block);
-		
-			return function;
+					builder.SetInsertPoint(llvm_entry_block);
+					/* leave an empty entry block so that we can insert GC stuff in there, but be able to
+					 * seek to the end of it and not get into business logic */
+					builder.CreateBr(llvm_body_block);
+
+					builder.SetInsertPoint(llvm_body_block);
+
+					return function;
+				}
+			}
 		}
 	}
 

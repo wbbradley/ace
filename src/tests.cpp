@@ -439,7 +439,6 @@ bool test_parse_mixed_precedences() {
 			"true and -a.b(false, -1 or 2 + 3 and 3 * 4).zion_rules.sour");
 }
 
-
 bool test_parse_recursive_function_call() {
 	return check_parse<ast::module_t>(
 		   	"module math @1.0\n"

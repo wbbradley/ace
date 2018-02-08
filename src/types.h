@@ -58,6 +58,7 @@ namespace types {
 		std::string get_signature() const { return repr(); }
 
 		virtual ref rebind(const map &bindings) const = 0;
+		virtual ref eval_expr(const map &nominal_env, const map &structural_env, bool allow_structural_env) const;
 
         virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 		virtual bool is_ref() const { return false; }
@@ -85,6 +86,7 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
+		virtual type_t::ref eval_expr(const map &nominal_env, const map &structural_env, bool allow_structural_env) const;
 		virtual bool is_void() const;
 		virtual bool is_null() const;
 		virtual bool is_zero() const;
@@ -120,6 +122,7 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
+		virtual type_t::ref eval_expr(const map &nominal_env, const map &structural_env, bool allow_structural_env) const;
         virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
@@ -290,6 +293,7 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
+		virtual ref eval_expr(const map &nominal_env, const map &structural_env, bool allow_structural_env) const;
 	};
 
 	struct type_sum_t : public type_t {
@@ -306,6 +310,7 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
+		virtual ref eval_expr(const map &nominal_env, const map &structural_env, bool allow_structural_env) const;
         virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 
@@ -446,3 +451,6 @@ types::type_t::pair make_type_pair(std::string fst, std::string snd, identifier:
 bool get_type_variable_name(types::type_t::ref type, std::string &name);
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings);
 std::string get_name_from_index(const types::name_index_t &name_index, int i);
+
+extern const char *TYPE_OP_NOT;
+extern const char *TYPE_OP_GC;
