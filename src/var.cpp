@@ -49,7 +49,7 @@ unification_t var_t::accepts_callsite(
 
 	auto bindings = scope->get_type_variable_bindings();
 
-	auto u = unify(fn_type, type_function(nullptr, nullptr, args, return_type), scope->get_nominal_env());
+	auto u = unify(fn_type, type_function(nullptr, nullptr, args, return_type), scope);
 
 	add_bindings_to_make_type_concrete(fn_type->args, u.bindings);
 	add_bindings_to_make_type_concrete(fn_type->return_type, u.bindings);

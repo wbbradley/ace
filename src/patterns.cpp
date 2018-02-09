@@ -175,13 +175,13 @@ void ast::when_block_t::resolve_statement(
 					}
 
 					/* check whether all cases of the pattern_value's type are handled */
-					auto env = scope->get_nominal_env();
+                    auto env = scope->get_nominal_env();
 					types::type_sum_t::ref type_sum_matched = type_sum_safe(
 							types_matched,
 							get_location(),
 							env);
 
-					unification_t unification = unify(type_sum_matched, pattern_value->type->get_type(), env);
+					unification_t unification = unify(type_sum_matched, pattern_value->type->get_type(), scope);
 					if (unification.result) {
 						if (else_block == nullptr) {
 							/* good, the user knew not to have an else block because they are handling

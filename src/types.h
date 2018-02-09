@@ -58,7 +58,7 @@ namespace types {
 		std::string get_signature() const { return repr(); }
 
 		virtual ref rebind(const map &bindings) const = 0;
-		virtual ref eval_expr(const map &nominal_env, const map &structural_env, bool allow_structural_env) const;
+		virtual ref eval_expr(const map &nominal_env, const map &structural_env, bool allow_structural_env=false) const;
 
         virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 		virtual bool is_ref() const { return false; }
@@ -437,7 +437,6 @@ types::type_t::ref full_eval(types::type_t::ref type, const types::type_t::map &
 types::type_t::ref eval(types::type_t::ref type, const types::type_t::map &env);
 types::type_t::ref eval_id(ptr<const types::type_id_t> ptid, const types::type_t::map &env);
 types::type_t::ref eval_apply(types::type_t::ref oper, types::type_t::ref operand, const types::type_t::map &env);
-bool type_is_unbound(types::type_t::ref type, const types::type_t::map &bindings);
 std::ostream &operator <<(std::ostream &os, identifier::ref id);
 std::string str(types::type_t::refs refs);
 std::string str(types::type_t::map coll);

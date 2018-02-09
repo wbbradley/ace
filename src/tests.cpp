@@ -955,7 +955,7 @@ auto test_descs = std::vector<test_desc>{
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
 			auto types = make_type_pair("bool", "true", {});
-			return unifies(types.first, types.second, env);
+			return unifies(types.first, types.second, env, {});
 		}
 	},
 	{
@@ -964,7 +964,7 @@ auto test_descs = std::vector<test_desc>{
 			types::type_t::map env;
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
-			return unifies(bool_sum, bool_sum, env);
+			return unifies(bool_sum, bool_sum, env, {});
 		}
 	},
 	{
@@ -973,7 +973,7 @@ auto test_descs = std::vector<test_desc>{
 			types::type_t::map env;
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
-			return unifies(bool_sum, type_id(make_iid("bool")), env);
+			return unifies(bool_sum, type_id(make_iid("bool")), env, {});
 		}
 	},
 	{
@@ -982,7 +982,7 @@ auto test_descs = std::vector<test_desc>{
 			types::type_t::map env;
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
-			return unifies(type_id(make_iid("bool")), bool_sum, env);
+			return unifies(type_id(make_iid("bool")), bool_sum, env, {});
 		}
 	},
 	{
@@ -1009,7 +1009,7 @@ auto test_descs = std::vector<test_desc>{
 					},
 					INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
-			return unifies(expanded_sum_lhs, nested_sum_rhs, env);
+			return unifies(expanded_sum_lhs, nested_sum_rhs, env, {});
 		}
 	},
 	{
@@ -1036,7 +1036,7 @@ auto test_descs = std::vector<test_desc>{
 					},
 					INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
-			return unifies(expanded_sum_lhs, type_ref(nested_sum_rhs), env);
+			return unifies(expanded_sum_lhs, type_ref(nested_sum_rhs), env, {});
 		}
 	},
 	{
@@ -1116,7 +1116,7 @@ auto test_descs = std::vector<test_desc>{
 
 			status_t status;
 			for (auto &pair : unifies) {
-				if (!unify(pair.first, pair.second, env).result) {
+				if (!unify(pair.first, pair.second, env, {}).result) {
 					log(log_error, "unable to unify %s with %s", pair.first->str().c_str(), pair.second->str().c_str());
 					return false;
 				}
@@ -1124,7 +1124,7 @@ auto test_descs = std::vector<test_desc>{
 			}
 
 			for (auto &pair : fails) {
-				auto unification = unify(pair.first, pair.second, env);
+				auto unification = unify(pair.first, pair.second, env, {});
 				assert(!!status);
 				if (unification.result) {
 					log(log_error, "should have failed unifying %s and %s [%s]",
