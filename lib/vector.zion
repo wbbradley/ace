@@ -14,7 +14,7 @@ type NativeVector T struct
 	var size     size_t
 	var items    *?T
 
-type VectorImpl T = if (gc T, ManagedVector, NativeVector T)
+type VectorImpl T = if (gc T) ManagedVector (NativeVector T)
 
 type Vector T link
 
@@ -245,7 +245,7 @@ def reserve(vec [any T], n int)
 	assert(n >= 0)
 	reserve(vec as *vector_t, n)
 
-def reserve(vec *vector_t, n size_t)
+def reserve(vec *ManagedVector, n size_t)
 	# Make sure we've got n spaces available in our vector's allocated memory
 	if vec.reserved < n
 		let items = vec.items

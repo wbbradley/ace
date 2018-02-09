@@ -1,12 +1,12 @@
 module _
 
-type Just{T} has
+type Just T has
 	var value T
+
 tag None
 
 # error: `any` is unnecessary within .*
-type Optional{any Data} is
-	Just{Data} or None
+type Optional any Data is (Just Data) or None
 
 def main()
-	var o Optional{any} = Just(3)
+	var o Optional any = Just(3)

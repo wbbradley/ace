@@ -293,6 +293,12 @@ void add_global_types(
 				   	builder.getInt32Ty()->getPointerTo()->getPointerTo())},
 	};
 
+	program_scope->put_nominal_typename(status, MANAGED_BOOL,
+			::type_sum({
+				type_id(make_iid(MANAGED_TRUE)),
+				type_id(make_iid(MANAGED_FALSE))
+			}, INTERNAL_LOC()));
+
 	for (auto type_pair : globals) {
 		program_scope->put_bound_type(status, type_pair.second);
 		if (!status) {
@@ -301,6 +307,7 @@ void add_global_types(
 		compiler.base_type_macros[type_pair.first] = type_id(make_iid(type_pair.first));
 	}
 	compiler.base_type_macros[std::string{"vector"}] = type_id(make_iid(STD_VECTOR_TYPE));
+	compiler.base_type_macros[std::string{TYPE_OP_IF}] = type_id(make_iid(TYPE_OP_IF));
 	compiler.base_type_macros[std::string{TYPE_OP_NOT}] = type_id(make_iid(TYPE_OP_NOT));
 	compiler.base_type_macros[std::string{TYPE_OP_GC}] = type_id(make_iid(TYPE_OP_GC));
 

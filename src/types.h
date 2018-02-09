@@ -439,7 +439,7 @@ types::type_t::ref eval_id(ptr<const types::type_id_t> ptid, const types::type_t
 types::type_t::ref eval_apply(types::type_t::ref oper, types::type_t::ref operand, const types::type_t::map &env);
 std::ostream &operator <<(std::ostream &os, identifier::ref id);
 std::string str(types::type_t::refs refs);
-std::string str(types::type_t::map coll);
+std::string str(const types::type_t::map &coll);
 std::ostream& operator <<(std::ostream &out, const types::type_t::ref &type);
 
 /* helper functions */
@@ -452,4 +452,5 @@ std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimen
 std::string get_name_from_index(const types::name_index_t &name_index, int i);
 
 extern const char *TYPE_OP_NOT;
+extern const char *TYPE_OP_IF;
 extern const char *TYPE_OP_GC;
