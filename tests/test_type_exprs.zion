@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: x : F{int} or float
 
-type F{T} has
+type F T has
 	var p T
 
 type X = F int or float

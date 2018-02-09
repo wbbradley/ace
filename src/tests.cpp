@@ -1141,6 +1141,47 @@ auto test_descs = std::vector<test_desc>{
 	},
 
 	{
+		"test_type_evaluation",
+		[] () -> bool {
+			auto module_id = make_iid(GLOBAL_SCOPE_NAME);
+			types::type_t::map nominal_env, total_env;
+			nominal_env.insert({
+					"int",
+					type_integer(
+							type_literal({INTERNAL_LOC(), tk_integer, ZION_BITSIZE_STR}),
+							type_id(make_iid("true" /*signed*/)))});
+			total_env = nominal_env;
+			total_env.insert({"Managed", type_ptr(type_managed(type_struct({}, {})))});
+			total_env.insert({"Native", type_ptr(type_struct({}, {}))});
+
+			std::string tests[] = {
+				"OK",
+				"if true OK BAD",
+				"if false BAD OK",
+				"if (not true) BAD OK",
+				"if (not false) OK BAD",
+				"if (gc Managed) OK BAD",
+				"if (gc Native) BAD OK",
+				"if (not (gc Managed)) BAD OK",
+				"if (not (gc Native)) OK BAD",
+			};
+			for (auto test : tests) {
+				auto should_be_x = parse_type_expr(test, {}, module_id);
+				auto evaled = should_be_x->eval_expr(nominal_env, total_env);
+				log(log_info, "%s evaled to %s",
+						should_be_x->str().c_str(),
+						evaled->str().c_str());
+				if (!types::is_type_id(evaled, "OK")) {
+					log(log_error, "failed to get OK from \"%s\" = %s",
+							test.c_str(),
+							should_be_x->str().c_str());
+					return false;
+				}
+			}
+			return true;
+		}
+	},
+	{
 		"test_code_gen_module_exists",
 		[] () -> bool {
 			tee_logger tee_log;

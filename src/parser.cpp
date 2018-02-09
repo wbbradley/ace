@@ -1444,24 +1444,18 @@ ptr<semver_t> semver_t::parse(parse_state_t &ps) {
 }
 
 void parse_maybe_type_decl(parse_state_t &ps, identifier::refs &type_variables) {
-	if (!ps.line_broke() && ps.token.tk == tk_identifier) {
-		while (!token_is_illegal_in_type(ps.token)) {
-			if (ps.token.tk == tk_identifier) {
-				/* we found a type variable, let's stash it */
-				if (ps.token.is_ident(K(any))) {
-					ps.error("`any` is unnecessary within type parameters of type declarations");
-					break;
-				}
-				type_variables.push_back(make_code_id(ps.token));
-				ps.advance();
-				if (ps.line_broke()) {
-					break;
-				}
-				continue;
-			} else {
-				break;
+	while (!ps.line_broke() && ps.token.tk == tk_identifier) {
+		if (token_is_illegal_in_type(ps.token)) {
+			if (ps.token.is_ident(K(any))) {
+				ps.error("`any` is unnecessary within type parameters of type declarations");
 			}
+
+			break;
 		}
+
+		/* we found a type variable, let's stash it */
+		type_variables.push_back(make_code_id(ps.token));
+		ps.advance();
 	}
 }
 

@@ -16,6 +16,7 @@ const char *BUILTIN_VOID_TYPE = "void";
 const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";
 
 const char *TYPE_OP_NOT = "not";
+const char *TYPE_OP_IF = "if";
 const char *TYPE_OP_GC = "gc";
 
 int next_generic = 1;
@@ -953,12 +954,11 @@ namespace types {
 	}
 
 	std::ostream &type_lambda_t::emit(std::ostream &os, const map &bindings_) const {
-		os << "(lambda {" << binding->get_name() << "} ";
+		auto var_name = binding->get_name();
+		auto new_name = gensym();
+		os << "(lambda " << new_name->get_name() << " ";
 		map bindings = bindings_;
-		auto binding_iter = bindings.find(binding->get_name());
-		if (binding_iter != bindings.end()) {
-			bindings.erase(binding_iter);
-		}
+		bindings[var_name] = type_id(new_name);
 		body->emit(os, bindings);
 		return os << ")";
 	}
@@ -1644,7 +1644,7 @@ std::string str(types::type_t::refs refs) {
 	return ss.str();
 }
 
-std::string str(types::type_t::map coll) {
+std::string str(const types::type_t::map &coll) {
 	std::stringstream ss;
 	ss << "{";
 	const char *sep = "";

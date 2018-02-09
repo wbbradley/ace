@@ -612,11 +612,9 @@ void destructure_function_decl(
 			function_type->type_constraints
 		   	? function_type->type_constraints
 		   	: type_id(make_iid(TRUE_TYPE)));
-	log("type_constraints are %s", type_constraints->str().c_str());
 
 	/* the parameter types as per the decl */
 	const auto &args = dyncast<const types::type_args_t>(function_type->args);
-	log("function args are %s", join_str(args->args, ", ").c_str());
 	assert(args != nullptr);
 	bound_type_t::refs bound_args = upsert_bound_types(status, builder, scope, args->args);
 
