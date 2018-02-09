@@ -641,7 +641,6 @@ namespace types {
 		return set;
     }
 
-
 	type_t::ref type_function_t::rebind(const map &bindings) const {
 		if (bindings.size() == 0) {
 			return shared_from_this();
@@ -1450,7 +1449,7 @@ void eliminate_redundant_types(types::type_t::refs &options, const types::type_t
         assert(partial.size() > 0);
 
         auto type_partial = type_sum(partial, INTERNAL_LOC());
-        if (unifies(type_partial, options[i], env)) {
+        if (unifies(type_partial, options[i], env, {})) {
             /* options[i] is not needed */
             debug_above(6, log("removing one instance of type %s from %s", options[i]->str().c_str(),
                         type_sum(options, INTERNAL_LOC())->str().c_str()));

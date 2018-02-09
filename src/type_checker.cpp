@@ -215,7 +215,7 @@ bound_var_t::ref generate_stack_variable(
 				unification_t unification = unify(
 						declared_type,
 						init_var->get_type(),
-						scope->get_nominal_env());
+						scope);
 
 				if (unification.result) {
 					/* the lhs is a supertype of the rhs */
@@ -421,10 +421,7 @@ bound_var_t::ref upsert_module_variable(
 								if (init_var != nullptr) {
 									/* we have an initializer */
 									/* ensure 'init_var' <: 'declared_type' */
-									unification_t unification = unify(
-											declared_type,
-											init_var->get_type(),
-											module_scope->get_nominal_env());
+									unification_t unification = unify(declared_type, init_var->get_type(), module_scope);
 
 									if (!unification.result) {
 										/* report that the variable type does not match the initializer type */
@@ -604,15 +601,22 @@ void destructure_function_decl(
 		bound_type_t::ref &return_type)
 {
 	/* returns the parameters and the return value types fully resolved */
-	debug_above(4, log(log_info, "type checking function decl %s", obj.token.str().c_str()));
+	debug_above(4, log(log_info, "type checking function decl %s with type %s",
+			   	obj.token.str().c_str(),
+				obj.function_type->str().c_str()));
+
+	auto function_type = dyncast<const types::type_function_t>(obj.function_type->rebind(scope->get_type_variable_bindings()));
+	assert(function_type != nullptr);
 
 	type_constraints = (
-			obj.function_type->type_constraints
-		   	? obj.function_type->type_constraints->rebind(scope->get_type_variable_bindings())
+			function_type->type_constraints
+		   	? function_type->type_constraints
 		   	: type_id(make_iid(TRUE_TYPE)));
+	log("type_constraints are %s", type_constraints->str().c_str());
 
 	/* the parameter types as per the decl */
-	const auto &args = dyncast<const types::type_args_t>(obj.function_type->args);
+	const auto &args = dyncast<const types::type_args_t>(function_type->args);
+	log("function args are %s", join_str(args->args, ", ").c_str());
 	assert(args != nullptr);
 	bound_type_t::refs bound_args = upsert_bound_types(status, builder, scope, args->args);
 
@@ -625,7 +629,7 @@ void destructure_function_decl(
 		}
 
 		if (!!status) {
-			return_type = upsert_bound_type(status, builder, scope, obj.function_type->return_type);
+			return_type = upsert_bound_type(status, builder, scope, function_type->return_type);
 
 			/* we got the params, and the return value */
 			return;
@@ -635,13 +639,11 @@ void destructure_function_decl(
 	assert(!status);
 }
 
-bool type_is_unbound(types::type_t::ref type, const types::type_t::map &bindings) {
-	return type->rebind(bindings)->ftv_count() > 0;
-}
-
-bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn_t &obj) {
-	return obj.decl->function_type->rebind(
-			scope->get_type_variable_bindings())->ftv_count() > 0;
+bool is_function_decl_generic(scope_t::ref scope, const ast::function_defn_t &obj) {
+	return obj.decl
+			->function_type
+			->rebind(scope->get_type_variable_bindings())
+			->ftv_count() != 0;
 }
 
 function_scope_t::ref make_param_list_scope(
@@ -922,7 +924,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 				unification_t unification = unify(
 						bound_fn->type->get_type(),
 						target_function_type,
-						scope->get_nominal_env());
+						scope);
 
 				if (unification.result) {
 					return bound_fn;
@@ -1455,7 +1457,7 @@ bound_var_t::ref resolve_pointer_array_index(
 		unification_t index_unification = unify(
 				type_integer(type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC())),
 				index_val->type->get_type(),
-				scope->get_nominal_env());
+				scope);
 
 		if (index_unification.result) {
 			debug_above(5, log(log_info,
@@ -1693,7 +1695,7 @@ bound_var_t::ref type_check_assignment(
 			unification_t unification = unify(
 					lhs_unreferenced_type,
 					rhs_var->type->get_type(),
-				   	scope->get_nominal_env());
+				   	scope);
 
 			if (unification.result) {
 				llvm::Value *llvm_rhs_value = coerce_value(status, builder, scope, life,
@@ -1781,7 +1783,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 					unification_t unification = unify(
 							lhs_val->type->get_type(),
 							type_ptr(type_variable(element_type_var)),
-							scope->get_nominal_env());
+							scope);
 
 					if (unification.result) {
 						/* this is a native pointer, let's generate code to write or read, or reference it */
@@ -1983,7 +1985,7 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 		unification_t unification = unify(
 				type_operator(type_id(make_iid(STD_VECTOR_TYPE)), type_variable(type_var_name)),
 				expected_type,
-			   	scope->get_nominal_env());
+			   	scope);
 
 		if (unification.result) {
 			expected_element_type = unification.bindings[type_var_name->get_name()];
@@ -2134,10 +2136,9 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		if (!lhs_var->is_pointer()) { std::cerr << lhs_var->str() << " " << llvm_print(lhs_var->get_llvm_value()) << std::endl; dbg(); }
 		if (!rhs_var->is_pointer()) { std::cerr << rhs_var->str() << " " << llvm_print(rhs_var->get_llvm_value()) << std::endl; dbg(); }
 
-		auto env = scope->get_nominal_env();
 		if (
-				!unifies(lhs_var->type->get_type(), rhs_var->type->get_type(), env) &&
-				!unifies(rhs_var->type->get_type(), lhs_var->type->get_type(), env))
+				!unifies(lhs_var->type->get_type(), rhs_var->type->get_type(), scope) &&
+				!unifies(rhs_var->type->get_type(), lhs_var->type->get_type(), scope))
 		{
 			user_error(status, location, "values of types (%s and %s) cannot be compared",
 					lhs_var->type->get_type()->str().c_str(),
@@ -2183,7 +2184,7 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		}
 
 		auto bool_type = program_scope->get_bound_type(BOOL_TYPE);
-		assert_implies(expected_type != nullptr, unifies(expected_type, bool_type->get_type(), scope->get_total_env()));
+		assert_implies(expected_type != nullptr, unifies(expected_type, bool_type->get_type(), scope));
 
 		return bound_var_t::create(
 				INTERNAL_LOC(),
@@ -2549,7 +2550,7 @@ bound_var_t::ref type_check_binary_operator(
 					status, builder, scope, life, function_name,
 					obj->get_location(), {lhs, rhs});
 			if (!!status) {
-				assert_implies(expected_type != nullptr, unifies(expected_type, value->type->get_type(), scope->get_total_env()));
+				assert_implies(expected_type != nullptr, unifies(expected_type, value->type->get_type(), scope));
 				return value;
 			}
 		}
@@ -3915,7 +3916,7 @@ void type_check_program_variable(
 	/* prevent recurring checks */
 	debug_above(7, log(log_info, "checking module level variable %s", node->token.str().c_str()));
 	if (auto function_defn = dyncast<const ast::function_defn_t>(node)) {
-		if (!is_function_defn_generic(unchecked_var->module_scope, *function_defn)) {
+		if (is_function_decl_generic(unchecked_var->module_scope, *function_defn)) {
 			/* this is a generic function so we need not check it now */
 			return;
 		}
@@ -3933,7 +3934,7 @@ void type_check_program_variable(
 				local_status,
 				builder,
 				*function_defn->decl,
-				program_scope,
+				unchecked_var->module_scope,
 				type_constraints,
 				named_params,
 				return_value);
@@ -3944,7 +3945,8 @@ void type_check_program_variable(
 
 			fittings_t fittings;
 			auto callable = maybe_get_callable(
-					local_status, builder, program_scope,
+					local_status, builder,
+				   	unchecked_var->module_scope,
 					function_defn->decl->token.text,
 					node->get_location(),
 					function_type->args,
@@ -4987,7 +4989,7 @@ bound_var_t::ref ast::bang_expr_t::resolve_expression(
 		if (maybe_type != nullptr) {
 			bound_type_t::ref just_bound_type = upsert_bound_type(status,
 					builder, scope, maybe_type->just);
-			assert_implies(expected_type != nullptr, unifies(expected_type, just_bound_type->get_type(), scope->get_total_env()));
+			assert_implies(expected_type != nullptr, unifies(expected_type, just_bound_type->get_type(), scope));
 			return bound_var_t::create(INTERNAL_LOC(), lhs_value->name,
 					just_bound_type,
 					lhs_value->get_llvm_value(),
