@@ -32,7 +32,7 @@ bound_var_t::ref bind_ctor_to_scope(
 
 	debug_above(5, log(log_info, "function return_type %s expands to %s",
 				function->return_type->str().c_str(),
-				full_eval(function->return_type, scope->get_nominal_env())->str().c_str()));
+				full_eval(function->return_type, scope, false)->str().c_str()));
 
 	if (auto args = dyncast<const types::type_args_t>(function->args)) {
 		bound_type_t::refs bound_args = upsert_bound_types(status, builder, scope, args->args);
