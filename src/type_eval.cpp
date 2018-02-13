@@ -65,10 +65,4 @@ namespace types {
         not_impl();
         return false_type;
     }
-
-    type_t::ref type_sum_t::eval_expr(const map &nominal_env, const map &structural_env, bool allow_structural_env) const {
-        static auto false_type = type_id(make_iid("false"));
-        not_impl();
-        return false_type;
-    }
 }

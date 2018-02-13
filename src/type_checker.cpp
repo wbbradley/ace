@@ -1413,9 +1413,6 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 			debug_above(5, log("could not find reference expression for " c_id("%s") " (found %d fns, though)",
 						token.text.c_str(), fittings.size()));
 		}
-	} else {
-		/* go back and make type_function_t::args a regular type_t again... :( */
-		assert(false);
 	}
 
 	user_error(status, *this, "undefined symbol " c_id("%s"), token.text.c_str());
