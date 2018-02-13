@@ -310,7 +310,6 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
-		virtual ref eval_expr(const map &nominal_env, const map &structural_env, bool allow_structural_env) const;
         virtual type_t::ref boolean_refinement(bool elimination_value, types::type_t::map env) const;
 	};
 

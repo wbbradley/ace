@@ -1,8 +1,13 @@
 module _ @1.0
+get sys
+
 # test: skip
 
-def some_code()
-	type Y = int
+type Y = int
+
+def main()
 	# TODO: figure out what to do here
 	var y Y = 123
+	if len(sys.args) == 2
+		print(sys.args[1])
 	print(y)

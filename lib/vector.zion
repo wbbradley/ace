@@ -198,7 +198,7 @@ def __set_vector_item__[T](vector *(NativeVector T), index uint, item T)
 	vector.items[index] = item
 
 
-def __vector_unsafe_append__(vector *vector_t, item *var_t) void
+def __vector_unsafe_append__(vector *ManagedVector, item *var_t) void
 	# To be called by compiler for vector literals
 	assert(vector.reserved > vector.size)
 	vector.items[vector.size] = item
