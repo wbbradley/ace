@@ -8,6 +8,7 @@
 #include <iostream>
 #include "unification.h"
 #include "atom.h"
+#include "scopes.h"
 
 const char *BUILTIN_NULL_TYPE = "null";
 const char *STD_VECTOR_TYPE = "vector.Vector";
@@ -253,7 +254,7 @@ namespace types {
 	}
 
     type_t::ref type_operator_t::boolean_refinement(bool elimination_value, types::type_t::map env) const {
-        auto expansion = eval(shared_from_this(), env);
+        auto expansion = eval_expr(env);
         if (expansion != nullptr) {
             /* refine the expanded version of this type */
             auto refined_expansion = expansion->boolean_refinement(elimination_value, env);
@@ -1149,7 +1150,7 @@ namespace types {
 			type = maybe_type->just;
 		}
 
-		if (auto expanded_type = eval(type, env)) {
+		if (auto expanded_type = type->eval_expr(env)) {
 			type = expanded_type;
 		}
 
@@ -1180,7 +1181,7 @@ namespace types {
 			type = maybe_type->just;
 		}
 
-		type = full_eval(type, env);
+		type = type->eval_expr(env);
 
 		if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
 			return true;
@@ -1204,7 +1205,7 @@ namespace types {
 			type_t::ref type,
 			type_t::ref &expansion)
 	{
-		expansion = full_eval(type, env);
+		expansion = type->eval_expr(env);
 
 		if (auto literal = dyncast<const type_literal_t>(expansion)) {
 			return literal->coerce_to_int(status);
@@ -1218,7 +1219,7 @@ namespace types {
 	}
 
 	bool is_integer(type_t::ref type, const type_t::map &env) {
-		auto expansion = full_eval(type, env);
+		auto expansion = type->eval_expr(env);
 		return (dyncast<const type_integer_t>(expansion) != nullptr) || expansion->is_zero();
 	}
 
@@ -1229,12 +1230,12 @@ namespace types {
 		   	unsigned &bit_size,
 		   	bool &signed_)
    	{
-		type = full_eval(type, env);
+		type = type->eval_expr(env);
 		if (auto integer = dyncast<const type_integer_t>(type)) {
 			type_t::ref bit_size_expansion;
 			bit_size = coerce_to_integer(status, env, integer->bit_size, bit_size_expansion);
 			if (!!status) {
-				auto signed_type = full_eval(integer->signed_, env);
+				auto signed_type = integer->signed_->eval_expr(env);
 				if (types::is_type_id(signed_type, "true")) {
 					signed_ = true;
 					return;
@@ -1260,7 +1261,7 @@ namespace types {
 	}
 
 	void get_runtime_typeids(status_t &status, type_t::ref type, const type_t::map &env, std::set<int> &typeids) {
-		auto expansion = full_eval(type, env);
+		auto expansion = type->eval_expr(env);
 		if (auto type_ref = dyncast<const type_ref_t>(expansion)) {
 			user_error(status, type->get_location(), "reference types are not allowed here. %s does not have runtime type information",
 					type->str().c_str());
@@ -1674,16 +1675,15 @@ const char *pkstr(product_kind_t pk) {
 	return nullptr;
 }
 
-types::type_t::ref full_eval(types::type_t::ref type, const types::type_t::map &env) {
-	if (type == nullptr) {
-		return nullptr;
-	} else if (auto expansion = eval(type, env)) {
-		return full_eval(expansion, env);
+types::type_t::ref full_eval(types::type_t::ref type, const scope_t::ref &scope, bool use_structural_env) {
+	if (use_structural_env) {
+		return type->eval_expr(scope->get_total_env(), scope->get_total_env());
 	} else {
-		return type;
+		return type->eval_expr(scope->get_nominal_env(), scope->get_total_env());
 	}
 }
 
+#if 0
 types::type_t::ref eval(
 		types::type_t::ref type,
 		const types::type_t::map &env)
@@ -1812,6 +1812,7 @@ types::type_t::ref eval_apply(
 		return nullptr;
 	}
 }
+#endif
 
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings) {
 	const char *sep = "";

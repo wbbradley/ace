@@ -225,7 +225,7 @@ void bound_type_t::is_managed_ptr(
 
 	is_managed = types::is_managed_ptr(type, scope->get_total_env());
 
-	debug_above(7, log("%s expands to %s", type->str().c_str(), full_eval(type, scope->get_total_env())->str().c_str()));
+	debug_above(7, log("%s expands to %s", type->str().c_str(), full_eval(type, scope, true/*allow_structural_env*/)->str().c_str()));
 	debug_above(7, log("%s", ::str(scope->get_total_env()).c_str()));
 	debug_above(7, log("checking whether %s is a managed ptr: %s",
 				type->str().c_str(),

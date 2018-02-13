@@ -375,11 +375,13 @@ void put_typename_impl(
 
 template <typename T>
 void scope_impl_t<T>::put_structural_typename(status_t &status, const std::string &type_name, types::type_t::ref expansion) {
+	assert(nominal_env.find(type_name) == nominal_env.end());
 	put_typename_impl(status, get_parent_scope(), scope_name, structural_env, type_name, expansion, true /*is_structural*/);
 }
 
 template <typename T>
 void scope_impl_t<T>::put_nominal_typename(status_t &status, const std::string &type_name, types::type_t::ref expansion) {
+	assert(structural_env.find(type_name) == structural_env.end());
 	put_typename_impl(status, get_parent_scope(), scope_name, nominal_env, type_name, expansion, false /*is_structural*/);
 }
 

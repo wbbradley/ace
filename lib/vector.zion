@@ -24,7 +24,7 @@ def reserved[T](v [T]) int
 	return (v as *(VectorImpl T)).reserved
 
 [global]
-def len(v [any]) int
+def len(v [any T]) int
 	return (v as *(VectorImpl T)).size
 
 [global]

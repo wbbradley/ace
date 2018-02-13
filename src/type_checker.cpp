@@ -1132,7 +1132,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 				full_type->str().c_str()));
 	auto bound_type = upsert_bound_type(status, builder, scope, full_type);
 	if (!!status) {
-		types::type_t::ref expanded_type = full_eval(full_type, scope->get_total_env());
+		types::type_t::ref expanded_type = full_eval(full_type, scope, true);
 		debug_above(3, log("type evaluated to %s", expanded_type->str().c_str()));
 		
 		/* destructure the structure that this should have */
@@ -1522,7 +1522,9 @@ types::type_struct_t::ref get_struct_type_from_bound_type(
 		location_t location,
 		bound_type_t::ref bound_type)
 {
-	auto type = full_eval(bound_type->get_type(), scope->get_total_env());
+	auto nominal_env = scope->get_nominal_env();
+	auto total_env = scope->get_total_env();
+	auto type = full_eval(bound_type->get_type(), scope, true);
 
 	if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 		user_error(status, location, "maybe types cannot be dereferenced. try checking whether it's not equal to null first");
@@ -1542,8 +1544,9 @@ types::type_struct_t::ref get_struct_type_from_bound_type(
 	}
 
 	user_error(status, location,
-			"could not find any member variables within %s",
-			bound_type->str().c_str());
+			"could not find any member variables within %s (%s)",
+			bound_type->str().c_str(),
+			type->str().c_str());
 
 	assert(!status);
 	return nullptr;
@@ -2911,9 +2914,9 @@ bound_type_t::ref refine_conditional_type(
 	// TODO: lift this logic into type_sum_safe so that all callers downshift into native types
 
 	/* if we just ended up with a Bool, let's simplify it to bool */
-	auto Bool = full_eval(type_id(make_iid(MANAGED_BOOL)), env);
+	auto Bool = type_id(make_iid(MANAGED_BOOL))->eval_expr(env);
 
-	if (full_eval(ternary_sum_type, env)->repr() == Bool->repr()) {
+	if (ternary_sum_type->eval_expr(env)->repr() == Bool->repr()) {
 		return upsert_bound_type(status, builder, scope, type_id(make_iid(BOOL_TYPE)));
 	} else {
 		if (!!status) {
@@ -3203,7 +3206,7 @@ bound_var_t::ref extract_member_variable(
 	bound_var = bound_var->resolve_bound_value(status, builder, scope);
 
 	if (!!status) {
-		auto expanded_type = full_eval(bound_var->type->get_type(), scope->get_total_env());
+		auto expanded_type = full_eval(bound_var->type->get_type(), scope, true);
 		bound_type_t::ref bound_obj_type = upsert_bound_type(status, builder, scope, expanded_type);
 
 		if (!!status) {
