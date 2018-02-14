@@ -5247,6 +5247,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 							make_code_id(token));
 				} else {
 					bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
+					assert(native_type != nullptr);
 					return bound_var_t::create(
 							INTERNAL_LOC(), "int_literal", native_type,
 							llvm_create_int(builder, value),

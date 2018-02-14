@@ -16,6 +16,11 @@ llvm::Value *coerce_value(
 		types::type_t::ref lhs_type,
 		bound_var_t::ref rhs)
 {
+	if (auto maybe_type = dyncast<const types::type_maybe_t>(lhs_type)) {
+		/* forget about maybe checking, since we've done that prior to this */
+		lhs_type = maybe_type->just;
+	}
+
 	if (!lhs_type->is_ref()) {
 		/* make sure that if the lhs is not a ref, we don't pass a ref */
 		rhs = rhs->resolve_bound_value(status, builder, scope);
@@ -112,6 +117,7 @@ llvm::Value *coerce_value(
 						return coercion->get_llvm_value();
 					}
 				} else {
+					debug_above(7, log("trying to coerce native value %s to %s", llvm_print(llvm_rhs_value).c_str(), llvm_print(llvm_lhs_type).c_str()));
 					if (llvm_lhs_type->isPointerTy() && llvm_rhs_type->isPointerTy()) {
 						return builder.CreateBitCast(llvm_rhs_value, llvm_lhs_type);
 					}
