@@ -31,7 +31,6 @@ namespace types {
 		return (name == rhs.name);
 	}
 
-
 	std::string signature::repr() const {
 		assert(name.size());
 		return name;
@@ -42,14 +41,14 @@ namespace types {
 		ss << C_SIG << repr() << C_RESET;
 		return ss.str();
 	}
-}
 
-bool types::signature::operator <(const types::signature &rhs) const {
-	return repr() < rhs.repr();
-}
+	bool signature::operator <(const types::signature &rhs) const {
+		return repr() < rhs.repr();
+	}
 
-bool types::signature::operator !=(const types::signature &rhs) const {
-	return !(*this == rhs);
+	bool signature::operator !=(const types::signature &rhs) const {
+		return !(*this == rhs);
+	}
 }
 
 std::ostream &operator <<(std::ostream &os, const types::signature &signature) {

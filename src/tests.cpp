@@ -1167,7 +1167,7 @@ auto test_descs = std::vector<test_desc>{
 			};
 			for (auto test : tests) {
 				auto should_be_x = parse_type_expr(test, {}, module_id);
-				auto evaled = should_be_x->eval_expr(nominal_env, total_env);
+				auto evaled = should_be_x->eval(nominal_env, total_env);
 				log(log_info, "%s evaled to %s",
 						should_be_x->str().c_str(),
 						evaled->str().c_str());

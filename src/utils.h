@@ -211,4 +211,3 @@ template <typename U, typename COLL>
 bool in_vector(U item, const COLL &set) {
 	return std::find(set.begin(), set.end(), item) != set.end();
 }
-

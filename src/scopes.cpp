@@ -689,6 +689,11 @@ void program_scope_t::put_bound_type_mapping(
 	   	types::signature source,
 	   	types::signature dest)
 {
+	if (source == dest) {
+		log("bound type mapping is self-referential on %s", source.str().c_str());
+		assert(false);
+	}
+
 	auto dest_iter = bound_type_mappings.find(source);
 	if (dest_iter == bound_type_mappings.end()) {
 		bound_type_mappings.insert({source, dest});

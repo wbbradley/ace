@@ -1132,7 +1132,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 				full_type->str().c_str()));
 	auto bound_type = upsert_bound_type(status, builder, scope, full_type);
 	if (!!status) {
-		types::type_t::ref expanded_type = full_eval(full_type, scope, true);
+		types::type_t::ref expanded_type = full_type->eval(scope, true);
 		debug_above(3, log("type evaluated to %s", expanded_type->str().c_str()));
 		
 		/* destructure the structure that this should have */
@@ -1334,7 +1334,7 @@ local_scope_t::ref new_refined_scope(
 	assert(local_scope != nullptr);
 
 	types::type_t::ref value_type = value->type->get_type();
-	types::type_t::ref refined_type = value_type->boolean_refinement(!refinement_path, scope->get_nominal_env());
+	types::type_t::ref refined_type = value_type->boolean_refinement(!refinement_path, scope->get_nominal_env(), scope->get_total_env());
 
 	if (refined_type != value_type) {
 		bound_type_t::ref bound_refined_type = upsert_bound_type(status, builder, scope, refined_type);
@@ -1524,7 +1524,7 @@ types::type_struct_t::ref get_struct_type_from_bound_type(
 {
 	auto nominal_env = scope->get_nominal_env();
 	auto total_env = scope->get_total_env();
-	auto type = full_eval(bound_type->get_type(), scope, true);
+	auto type = bound_type->get_type()->eval(scope, true);
 
 	if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 		user_error(status, location, "maybe types cannot be dereferenced. try checking whether it's not equal to null first");
@@ -1590,7 +1590,8 @@ bound_var_t::ref extract_member_by_index(
 			llvm::Value *llvm_gep = llvm_make_gep(builder,
 					llvm_var_value, index,
 					types::is_managed_ptr(bound_var->get_type(),
-						scope->get_total_env()) /* managed */);
+						scope->get_nominal_env(),
+						scope->get_total_env()));
 			if (llvm_gep->getName().str().size() == 0) {
 				llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
 			}
@@ -2027,7 +2028,7 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 
 		if (!!status) {
 			types::type_t::ref element_type = type_sum_safe(
-					element_types, get_location(), scope->get_nominal_env());
+					element_types, get_location(), scope->get_nominal_env(), scope->get_total_env());
 			debug_above(6, log("creating vector literal of %s",
 						element_type->str().c_str()));
 			return create_bound_vector_literal(
@@ -2244,7 +2245,8 @@ bound_var_t::ref type_check_binary_integer_op(
 	if (expected_type != nullptr) {
 		debug_above(8, log("binary integer op is expecting a %s", expected_type->str().c_str()));
 	}
-	auto typename_env = scope->get_nominal_env();
+	auto nominal_env = scope->get_nominal_env();
+	auto total_env = scope->get_total_env();
 
 	static unsigned int_bit_size = DEFAULT_INT_BITSIZE;
 	static bool int_signed = true;
@@ -2254,7 +2256,7 @@ bound_var_t::ref type_check_binary_integer_op(
 	if (!status) { return nullptr; }
 
 	if (!initialized) {
-		types::get_integer_attributes(status, bound_int_type->get_type(), typename_env, int_bit_size, int_signed);
+		types::get_integer_attributes(status, bound_int_type->get_type(), nominal_env, total_env, int_bit_size, int_signed);
 		if (!status) {
 			panic("could not figure out the bit size and signedness of int!");
 		}
@@ -2263,9 +2265,9 @@ bound_var_t::ref type_check_binary_integer_op(
 
 	unsigned lhs_bit_size, rhs_bit_size;
 	bool lhs_signed = false, rhs_signed = false;
-	types::get_integer_attributes(status, lhs->type->get_type(), typename_env, lhs_bit_size, lhs_signed);
+	types::get_integer_attributes(status, lhs->type->get_type(), nominal_env, total_env, lhs_bit_size, lhs_signed);
 	if (!!status) {
-		types::get_integer_attributes(status, rhs->type->get_type(), typename_env, rhs_bit_size, rhs_signed);
+		types::get_integer_attributes(status, rhs->type->get_type(), nominal_env, total_env, rhs_bit_size, rhs_signed);
 
 		bound_type_t::ref final_integer_type;
 		bool final_integer_signed = false;
@@ -2492,10 +2494,11 @@ bound_var_t::ref type_check_binary_operator(
 				function_name.c_str(),
 				lhs->str().c_str(),
 				rhs->str().c_str()));
-	auto typename_env = scope->get_nominal_env();
+	auto nominal_env = scope->get_nominal_env();
+	auto total_env = scope->get_total_env();
 	if (
-			types::is_integer(lhs->type->get_type(), typename_env) &&
-			types::is_integer(rhs->type->get_type(), typename_env))
+			types::is_integer(lhs->type->get_type(), nominal_env, total_env) &&
+			types::is_integer(rhs->type->get_type(), nominal_env, total_env))
 	{
 		/* we are dealing with two integers, standard function resolution rules do not apply */
 		return type_check_binary_integer_op(
@@ -2871,26 +2874,27 @@ bound_type_t::ref refine_conditional_type(
 				condition_type->str().c_str(),
 				truthy_path_type->str().c_str(),
 				falsey_path_type->str().c_str()));
-	auto env = scope->get_nominal_env();
+	auto nominal_env = scope->get_nominal_env();
+	auto total_env = scope->get_total_env();
 	switch (rct) {
 	case rct_or:
 		/* we can remove falsey types from the truthy path type */
-		truthy_path_type = truthy_path_type->boolean_refinement(false, env);
+		truthy_path_type = truthy_path_type->boolean_refinement(false, nominal_env, total_env);
 		break;
 	case rct_and:
 		/* we can remove truthy types from the truthy path type */
-		falsey_path_type = falsey_path_type->boolean_refinement(true, env);
+		falsey_path_type = falsey_path_type->boolean_refinement(true, nominal_env, total_env);
 		break;
 	case rct_ternary:
 		/* we can't remove anything */
 		break;
 	}
 
-	if (condition_type->boolean_refinement(false, env) == nullptr) {
+	if (condition_type->boolean_refinement(false, nominal_env, total_env) == nullptr) {
 		/* the condition value was definitely falsey */
 		/* factor out the truthy path type entirely */
 		truthy_path_type = nullptr;
-	} else if (condition_type->boolean_refinement(true, env) == nullptr) {
+	} else if (condition_type->boolean_refinement(true, nominal_env, total_env) == nullptr) {
 		/* the condition value was definitely truthy */
 		/* factor out the falsey path type entirely */
 		falsey_path_type = nullptr;
@@ -2908,15 +2912,15 @@ bound_type_t::ref refine_conditional_type(
 
 	/* the when_true and when_false values have different
 	 * types, let's create a sum type to represent this */
-	auto ternary_sum_type = type_sum_safe(options, location, env);
+	auto ternary_sum_type = type_sum_safe(options, location, nominal_env, total_env);
 	assert(ternary_sum_type != nullptr);
 
 	// TODO: lift this logic into type_sum_safe so that all callers downshift into native types
 
 	/* if we just ended up with a Bool, let's simplify it to bool */
-	auto Bool = type_id(make_iid(MANAGED_BOOL))->eval_expr(env);
+	auto Bool = type_id(make_iid(MANAGED_BOOL))->eval(nominal_env, total_env);
 
-	if (ternary_sum_type->eval_expr(env)->repr() == Bool->repr()) {
+	if (ternary_sum_type->eval(nominal_env, total_env)->repr() == Bool->repr()) {
 		return upsert_bound_type(status, builder, scope, type_id(make_iid(BOOL_TYPE)));
 	} else {
 		if (!!status) {
@@ -3206,7 +3210,7 @@ bound_var_t::ref extract_member_variable(
 	bound_var = bound_var->resolve_bound_value(status, builder, scope);
 
 	if (!!status) {
-		auto expanded_type = full_eval(bound_var->type->get_type(), scope, true);
+		auto expanded_type = bound_var->type->get_type()->eval(scope, true);
 		bound_type_t::ref bound_obj_type = upsert_bound_type(status, builder, scope, expanded_type);
 
 		if (!!status) {
@@ -5420,7 +5424,15 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 	if (!!status) {
 		debug_above(6, log("cast expression is casting to %s", type_cast->str().c_str()));
 
-		return cast_bound_var(status, builder, scope, life, get_location(), bound_var, type_cast);
+		return cast_bound_var(
+				status,
+				builder,
+				scope,
+				life,
+				get_location(),
+				bound_var,
+				type_cast->rebind(scope->get_type_variable_bindings())->eval(
+					scope->get_nominal_env(), scope->get_total_env()));
 	}
 
 	assert(!status);

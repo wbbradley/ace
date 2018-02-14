@@ -95,7 +95,7 @@ unification_t unify(
 				dbg();
 			}
 
-			types::type_t::ref value = type_constraint->eval_expr(nominal_env, total_env);
+			types::type_t::ref value = type_constraint->eval(nominal_env, total_env);
 
 			if (!types::is_type_id(value, "true")) {
 				unification.result = false;
@@ -182,13 +182,13 @@ unification_t unify_core(
 
 	if (pruned_a->repr() == pruned_b->repr()) {
 		// May need to scrape any type constraints out of the function...
-		assert(!dyncast<const types::type_function_t>(pruned_a->eval_expr(env)));
+		assert(!dyncast<const types::type_function_t>(pruned_a->eval(env, {})));
 
 		return {true, "", bindings, coercions, {}};
 	}
 
-	auto a = pruned_a->eval_expr(env);
-	auto b = pruned_b->eval_expr(env);
+	auto a = pruned_a->eval(env, {});
+	auto b = pruned_b->eval(env, {});
 	if (dyncast<const types::type_sum_t>(a) && types::is_type_id(b, "bool")) {
 		/* make sure we enable checking bool against type sums */
 		static auto bool_type = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
@@ -268,7 +268,7 @@ unification_t unify_core(
 				return {true, "", bindings, coercions + 1, {}};
 			} else if (ptI_b != nullptr && a_name == MANAGED_CHAR) {
 				return {true, "", bindings, coercions + 1, {}};
-			} else if (a_name == MANAGED_STR && (ptr_b != nullptr && types::is_type_id(ptr_b->element_type->eval_expr(env), CHAR_TYPE))) {
+			} else if (a_name == MANAGED_STR && (ptr_b != nullptr && types::is_type_id(ptr_b->element_type->eval(env, {}), CHAR_TYPE))) {
 				/* we should be able to convert a *char_t to a str */
 				return {true, "", bindings, coercions + 1, {}};
 			}
@@ -279,7 +279,7 @@ unification_t unify_core(
 		if (ptI_b == nullptr) {
 			// sanity check: a second full-eval should not do anything...
 #if ZION_DEBUG
-			ptI_b = dyncast<const types::type_integer_t>(b->eval_expr(env));
+			ptI_b = dyncast<const types::type_integer_t>(b->eval(env, {}));
 #endif
 			assert(ptI_b == nullptr);
 		}
@@ -547,10 +547,10 @@ unification_t unify_core(
 			/* fallthrough, and try expanding the left-hand side */
 			debug_above(7, log(log_info, "falling through"));
 		}
-		auto new_a = pto_a->rebind(bindings)->eval_expr(env);
+		auto new_a = pto_a->rebind(bindings)->eval(env, {});
 
 		/* apply the bindings first, so as to simplify the application */
-		if (new_a != nullptr && types::is_managed_ptr(new_a, {})) {
+		if (new_a != nullptr && types::is_managed_ptr(new_a, {}, {})) {
 			/* managed pointers are opaque and should have unified nominally */
 			new_a = nullptr;
 		}
@@ -576,7 +576,7 @@ unification_t unify_core(
 				{}};
 		}
 	} else if (ptr_a != nullptr) {
-		auto a_element_type = ptr_a->element_type->eval_expr(env);
+		auto a_element_type = ptr_a->element_type->eval(env, {});
 		if (ptr_b != nullptr) {
 			/* handle pointer to void here, rather than making void the top type */
 			if (types::is_type_id(a_element_type, "void")) {
