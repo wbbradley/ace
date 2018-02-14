@@ -53,7 +53,7 @@ llvm::Value *coerce_value(
 		} else if (lhs_type->is_true()) {
 			return llvm::ConstantInt::get(
 					bound_lhs_type->get_llvm_specific_type(), 1, false);
-		} else if (lhs_type->is_null() || (lhs_type->is_maybe() && rhs_type->is_null())) {
+		} else if (lhs_type->is_null() || rhs_type->is_null()) {
 			return llvm::Constant::getNullValue(llvm_lhs_type);
 		}
 
