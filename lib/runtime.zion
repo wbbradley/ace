@@ -299,7 +299,8 @@ def mark_allocation(obj *var_t)
 	elif type_kind == runtime.TYPE_KIND_USE_MARK_FN
 		# call the type's mark function to recurse
 		type_info_mark_fn := obj.type_info as *type_info_mark_fn_t
-		type_info_mark_fn.mark_fn(obj)
+		if type_info_mark_fn != null
+			type_info_mark_fn.mark_fn(obj)
 	else
 		posix.perror("found a heap variable with an invalid type_kind")
 		posix.exit(1)

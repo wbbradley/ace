@@ -38,10 +38,10 @@ def __init__[T where gc T]() [T]
 	return runtime.create_var(ti) as [T]
 		
 [global]
-def __init__[T where not gc T]() [T]
+def __init__[T where not(gc T)]() [T]
 	let ti = typeinfo(
 		[T],
-		native_vector T,
+		NativeVector T,
 		__native_vector_free__,
 		__native_vector_mark__)
 
@@ -100,7 +100,9 @@ def join[T](v [T], delim str) str
 
 [global]
 def __getitem__[T](vec [T], index int) T
-	return __get_managed_vector_item__(vec as *(VectorImpl T), index) as T
+	let vector = vec as *(VectorImpl T)
+	assert(index >= 0 and index < vector.size)
+	return vector.items[index] as T
 
 [global]
 def __setitem__[T where gc T](vec [T], index int, t T) void
@@ -171,15 +173,10 @@ def __native_vector_free__(var *var_t)
 	/* zion will handle deleting the actual vector_t, since it will be attached to the managed
 	 * object */
 
-
-def __get_managed_vector_item__(vector *ManagedVector, index int) *var_t
-	assert(index >= 0 and index < vector.size)
-	return vector.items[index]
-
-
-def __get_native_vector_item__[T](vector *(NativeVector T), index int) T
-	assert(index >= 0 and index < vector.size)
-	return vector.items[index]
+[global]
+def __native_vector_mark__(vec *var_t)
+	# TODO: make it possible to omit this function from typeinfo above
+	pass
 
 
 def __set_vector_item__(vector *ManagedVector, index uint, item *var_t)
@@ -257,6 +254,22 @@ def reserve(vec *ManagedVector, n size_t)
 			vec.reserved = n
 		else
 			vec.items = posix.calloc(sizeof(*var_t), n)! as **var_t
+			vec.reserved = n
+		
+def reserve[T](vec *(NativeVector T), n size_t)
+	static_print(T)
+	let item_size = sizeof(T)
+	# Make sure we've got n spaces available in our vector's allocated memory
+	if vec.reserved < n
+		let items = vec.items
+		if items != null
+			new_items := posix.calloc(sizeof(*var_t), n)! as *T
+			posix.memcpy(new_items as *int8, items as *int8, sizeof(T) * vec.size)
+			posix.free(items)
+			vec.items = new_items
+			vec.reserved = n
+		else
+			vec.items = posix.calloc(item_size, n)! as *T
 			vec.reserved = n
 		
 
