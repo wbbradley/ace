@@ -1384,7 +1384,9 @@ ptr<function_defn_t> function_defn_t::parse(parse_state_t &ps) {
 		/* temporarily inject free type variables from function declaration into the function parsing context.
 		 * T -> any T parser macros. */
 		for (auto ftv : function_decl->function_type->get_ftvs()) {
-			ps.type_macros.insert({ftv, type_variable(make_iid(ftv))});
+			ps.type_macros[ftv] = type_variable(
+					make_iid_impl(ftv,
+					   	function_decl->function_type->get_location()));
 		}
 
 		auto block = block_t::parse(ps);
