@@ -517,16 +517,22 @@ bound_type_t::ref create_bound_id_type(
 {
 	/* this id type does not yet have a bound type. */
 	assert(!scope->get_bound_type(id->get_signature()));
-	auto total_env = scope->get_total_env();
-	auto expansion = id->eval_expr(scope->get_nominal_env(), total_env);
+	auto nominal_expansion = id->eval(scope, false);
+	auto total_expansion = id->eval(scope, true);
+
+	debug_above(6, log("create_bound_type(..., %s) [nominal = %s, total = %s] in env %s",
+			   	id->str().c_str(),
+			   nominal_expansion->str().c_str(),
+			   total_expansion->str().c_str(),
+			   str(scope->get_nominal_env()).c_str()));
 
 	/* however, what it expands to might already have a bound type */
-	if (expansion != id) {
-		return bind_expansion(status, builder, scope, id, expansion);
+	if (total_expansion != id) {
+		return bind_expansion(status, builder, scope, nominal_expansion, total_expansion);
 	} else {
 		user_error(status, id->get_location(), "no type definition found for %s in [%s]",
 				id->str().c_str(),
-				join(keys(total_env), ", ").c_str());
+				join(keys(scope->get_total_env()), ", ").c_str());
 	}
 	assert(!status);
 	return nullptr;
@@ -543,10 +549,15 @@ bound_type_t::ref create_bound_operator_type(
 	auto total_env = scope->get_total_env();
 
 	/* apply the operator */
-	auto expansion = operator_->eval_expr(total_env, total_env);
+	auto expansion = operator_->eval(scope);
 
 	if (expansion != operator_) {
-		return bind_expansion(status, builder, scope, operator_, expansion);
+		return bind_expansion(
+				status,
+			   	builder,
+			   	scope,
+			   	expansion,
+				expansion);
 	} else {
 		user_error(status, operator_->get_location(),
 				"unable to expand type operation %s in env %s",
@@ -565,11 +576,10 @@ bound_type_t::ref create_bound_integer_type(
 		const ptr<const types::type_integer_t> &integer)
 {
 	auto nominal_env = scope->get_nominal_env();
-	auto total_env = scope->get_total_env();
-	auto signed_ = integer->signed_->eval_expr(total_env, total_env);
+	auto signed_ = integer->signed_->eval(scope, true);
 
 	types::type_t::ref bit_size_expansion;
-	int bit_size = types::coerce_to_integer(status, nominal_env, integer->bit_size, bit_size_expansion);
+	int bit_size = types::coerce_to_integer(status, nominal_env, scope->get_total_env(), integer->bit_size, bit_size_expansion);
 	if (!!status) {
 		if (!types::is_type_id(signed_, "true") && !types::is_type_id(signed_, "false")) {
 			user_error(status, integer->get_location(), "could not determine signedness for type from %s",
@@ -683,9 +693,8 @@ bound_type_t::ref create_bound_sum_type(
 		program_scope->put_bound_type(status, bound_type);
 
 		/* check for disallowed types */
-		auto typename_env = scope->get_total_env();
 		for (auto subtype : sum->options) {
-			if (!types::is_managed_ptr(subtype, typename_env)) {
+			if (!types::is_managed_ptr(subtype, scope->get_nominal_env(), scope->get_total_env())) {
 				user_error(status, subtype->get_location(),
 						"unable to create a sum type with %s in it. %s lacks run-time type information",
 						subtype->str().c_str(),
@@ -809,7 +818,7 @@ bound_type_t::ref upsert_bound_type(
 {
 	static int depth = 0;
 
-	depth_guard_t depth_guard(depth, 30);
+	depth_guard_t depth_guard(depth, 10);
 
 	if (!!status) {
 		type = type->rebind(scope->get_type_variable_bindings());
@@ -963,7 +972,8 @@ bound_var_t::ref maybe_get_dtor(
 		program_scope_t::ref program_scope,
 		bound_type_t::ref data_type)
 {
-	INDENT(3, string_format("attempting to get a dtor for %s", full_eval(data_type->get_type(), program_scope, false)->str().c_str()));
+	INDENT(3, string_format("attempting to get a dtor for %s",
+			   	data_type->get_type()->eval(program_scope, false)->str().c_str()));
 
 	// TODO: look at what data_type is, and whether it can be passed as a raw
 	// pointer.
@@ -1249,7 +1259,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	debug_above(4, log(log_info, "get_or_create_tuple_ctor evaluating %s with llvm type %s",
 				type->str().c_str(),
 				llvm_print(data_type->get_llvm_specific_type()).c_str()));
-	types::type_t::ref expanded_type = full_eval(type, scope, true);
+	types::type_t::ref expanded_type = type->eval(scope, true);
 
 	types::type_product_t::ref product_type = dyncast<const types::type_product_t>(expanded_type);
 

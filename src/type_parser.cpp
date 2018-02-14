@@ -557,7 +557,7 @@ namespace types {
 				}
 #endif
 
-				return type_sum_safe(options, location, {});
+				return type_sum_safe(options, location, {}, {});
 			}
 		}
 		assert(!ps.status);

@@ -1,6 +1,17 @@
 #pragma once
 #include "utils.h"
 
+#ifdef __APPLE_API_UNSTABLE
+bool AmIBeingDebugged();
+#else
+// TODO: find ways of detecting this on other platforms
+#ifdef ZION_DEBUG
+#define AmIBeingDebugged() true
+#else
+#define AmIBeingDebugged() false
+#endif
+#endif
+
 #ifdef _MSC_VER
 	#ifdef _X86_
 		#define DEBUG_BREAK() { __asm { int 3 } }
@@ -11,7 +22,14 @@
 	#if __clang__ && 0
 		#define DEBUG_BREAK() do { __debugbreak(); __noop; } while (0)
 	#else
-		#define DEBUG_BREAK() do { raise(SIGTRAP); } while (0)
+		#define DEBUG_BREAK() do { \
+		   	if (AmIBeingDebugged()) { \
+				raise(SIGTRAP); \
+			} else { \
+				fprintf(stderr, "exiting due to dbg() statement while not under the debugger\n"); \
+				exit(-1); \
+			} \
+		} while (0)
 	#endif
 #endif
 

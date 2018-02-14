@@ -80,12 +80,13 @@ void ast::when_block_t::resolve_statement(
 				if (!!status) {
 					llvm::SwitchInst *llvm_switch = builder.CreateSwitch(type_id->get_llvm_value(), default_block, pattern_blocks.size());
 					/* RTTI lives on the nominal type plane */
-					auto typename_env = scope->get_nominal_env();
+					auto nominal_env = scope->get_nominal_env();
+					auto total_env = scope->get_total_env();
 					auto bindings = scope->get_type_variable_bindings();
 					for (auto pattern_block : pattern_blocks) {
 						auto type_to_match = pattern_block->type->rebind(scope->get_type_variable_bindings());
 						std::set<int> typeids;
-						types::get_runtime_typeids(status, type_to_match, typename_env, typeids);
+						types::get_runtime_typeids(status, type_to_match, nominal_env, total_env, typeids);
 						if (!status) {
 							break;
 						}
@@ -175,11 +176,11 @@ void ast::when_block_t::resolve_statement(
 					}
 
 					/* check whether all cases of the pattern_value's type are handled */
-                    auto env = scope->get_nominal_env();
 					types::type_sum_t::ref type_sum_matched = type_sum_safe(
 							types_matched,
 							get_location(),
-							env);
+                            scope->get_nominal_env(),
+                            scope->get_total_env());
 
 					unification_t unification = unify(type_sum_matched, pattern_value->type->get_type(), scope);
 					if (unification.result) {

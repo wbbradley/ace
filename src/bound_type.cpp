@@ -198,7 +198,7 @@ bool bound_type_t::is_module() const {
 }
 
 bool bound_type_t::is_ptr(scope_t::ref scope) const {
-	bool res = types::is_ptr(type, scope->get_total_env());
+	bool res = types::is_ptr(type, scope->get_nominal_env(), scope->get_total_env());
 	debug_above(7, log("checking whether %s is a ptr of some kind: %s",
 				type->str().c_str(),
 				res ? c_good("it is") : c_error("it isn't")));
@@ -223,9 +223,9 @@ void bound_type_t::is_managed_ptr(
 {
 	assert(!!status);
 
-	is_managed = types::is_managed_ptr(type, scope->get_total_env());
+	is_managed = types::is_managed_ptr(type, scope->get_nominal_env(), scope->get_total_env());
 
-	debug_above(7, log("%s expands to %s", type->str().c_str(), full_eval(type, scope, true/*allow_structural_env*/)->str().c_str()));
+	debug_above(7, log("%s expands to %s", type->str().c_str(), type->eval(scope, true/*get_structural_env*/)->str().c_str()));
 	debug_above(7, log("%s", ::str(scope->get_total_env()).c_str()));
 	debug_above(7, log("checking whether %s is a managed ptr: %s",
 				type->str().c_str(),
