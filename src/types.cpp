@@ -1172,16 +1172,16 @@ namespace types {
 
 	bool is_managed_ptr(types::type_t::ref type, const types::type_t::map &nominal_env, const types::type_t::map &total_env) {
 		debug_above(6, log(log_info, "checking if %s is a managed ptr", type->str().c_str()));
+		if (auto expanded_type = type->eval(nominal_env, total_env, true /*get_structural_type*/)) {
+			type = expanded_type;
+		}
+
 		if (auto ref_type = dyncast<const types::type_ref_t>(type)) {
 			type = ref_type->element_type;
 		}
 
 		if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 			type = maybe_type->just;
-		}
-
-		if (auto expanded_type = type->eval(nominal_env, total_env)) {
-			type = expanded_type;
 		}
 
 		if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
@@ -1207,7 +1207,7 @@ namespace types {
 
 	bool is_ptr(types::type_t::ref type, const types::type_t::map &nominal_env, const types::type_t::map &total_env) {
 		// REVIEW: this is nebulous, it really depends on what env is passed in
-		type = type->eval(nominal_env, total_env);
+		type = type->eval(nominal_env, total_env, true /*get_structural_type*/);
 
 		if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 			type = maybe_type->just;

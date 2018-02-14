@@ -218,7 +218,7 @@ std::vector<llvm::Type *> build_struct_elements(
 
 			/* make a name for this inner managed struct */
 			std::stringstream ss;
-			ss << "managed{";
+			ss << "struct{";
 			join_dimensions(ss, 
 					struct_type->dimensions,
 					struct_type->name_index, {});
@@ -456,16 +456,19 @@ bound_type_t::ref bind_expansion(
 				unexpanded->str().c_str(),
 				expansion->str().c_str()));
 	/* make sure this isn't already bound */
-	auto signature = unexpanded->get_signature();
-	assert(scope->get_bound_type(signature) == nullptr);
+	auto unexpanded_signature = unexpanded->get_signature();
+	auto expanded_signature = expansion->get_signature();
+	assert(scope->get_bound_type(unexpanded_signature) == nullptr);
 
 	auto program_scope = scope->get_program_scope();
 
 	/* set up a mapping at the program level for these bound types */
-	program_scope->put_bound_type_mapping(status, signature,
-			expansion->get_signature());
-	program_scope->put_bound_type_mapping(status, type_ptr(unexpanded)->get_signature(),
-			type_ptr(expansion)->get_signature());
+	if (unexpanded_signature != expanded_signature) {
+		program_scope->put_bound_type_mapping(status, unexpanded_signature,
+				expansion->get_signature());
+		program_scope->put_bound_type_mapping(status, type_ptr(unexpanded)->get_signature(),
+				type_ptr(expansion)->get_signature());
+	}
 
 	/* make sure we have a bound type for the expansion type. NB: this will
 	 * rely on the bound type mapping to ensure that when the instantiation
@@ -488,15 +491,19 @@ bound_type_t::ref bind_expansion(
 			}
 		}
 
-		/* let's finally create the official bound type for this operator */
-		auto bound_type = bound_type_t::create(
-				unexpanded,
-				unexpanded->get_location(),
-				expansion_bound_type->get_llvm_type(),
-				expansion_bound_type->get_llvm_specific_type());
+		bound_type_t::ref bound_type = program_scope->get_bound_type(unexpanded_signature, false /*use_mappings*/);
 
-		program_scope->put_bound_type(status, bound_type);
+		if (bound_type == nullptr) {
+			/* let's finally create the official bound type for this operator, assuming it didn't
+			 * happen already. */
+			bound_type = bound_type_t::create(
+					unexpanded,
+					unexpanded->get_location(),
+					expansion_bound_type->get_llvm_type(),
+					expansion_bound_type->get_llvm_specific_type());
 
+			program_scope->put_bound_type(status, bound_type);
+		}
 
 		if (!!status) {
 			upsert_bound_type(status, builder, scope, type_ptr(expansion));
@@ -509,60 +516,46 @@ bound_type_t::ref bind_expansion(
 	return nullptr;
 }
 
-bound_type_t::ref create_bound_id_type(
+bound_type_t::ref create_bound_expr_type(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
-		const ptr<const types::type_id_t> &id)
+		const ptr<const types::type_t> &id)
 {
 	/* this id type does not yet have a bound type. */
 	assert(!scope->get_bound_type(id->get_signature()));
 	auto nominal_expansion = id->eval(scope, false);
-	auto total_expansion = id->eval(scope, true);
+	if (auto bound_type = scope->get_bound_type(nominal_expansion->get_signature(), false)) {
+		if (id->get_signature() != nominal_expansion->get_signature()) {
+			/* make it so we can quickly find this type even though the fully normalized nominal
+			 * name is different. */
+			scope->get_program_scope()->put_bound_type_mapping(status, id->get_signature(), nominal_expansion->get_signature());
+		}
 
-	debug_above(6, log("create_bound_type(..., %s) [nominal = %s, total = %s] in env %s",
-			   	id->str().c_str(),
-			   nominal_expansion->str().c_str(),
-			   total_expansion->str().c_str(),
-			   str(scope->get_nominal_env()).c_str()));
-
-	/* however, what it expands to might already have a bound type */
-	if (total_expansion != id) {
-		return bind_expansion(status, builder, scope, nominal_expansion, total_expansion);
-	} else {
-		user_error(status, id->get_location(), "no type definition found for %s in [%s]",
-				id->str().c_str(),
-				join(keys(scope->get_total_env()), ", ").c_str());
+		if (!!status) {
+			/* once nominally expanded, this id is already bound. use the nominal expansion as the
+			 * source of truth */
+			return bound_type;
+		}
 	}
-	assert(!status);
-	return nullptr;
-}
 
-bound_type_t::ref create_bound_operator_type(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-		const ptr<const types::type_operator_t> &operator_)
-{
-	debug_above(4, log(log_info, "create_bound_operator_type(..., %s)", operator_->str().c_str()));
+	if (!!status) {
+		auto total_expansion = id->eval(scope, true);
 
-	auto total_env = scope->get_total_env();
+		debug_above(6, log("create_bound_type(..., %s) [nominal = %s, total = %s] in env %s",
+					id->str().c_str(),
+					nominal_expansion->str().c_str(),
+					total_expansion->str().c_str(),
+					str(scope->get_nominal_env()).c_str()));
 
-	/* apply the operator */
-	auto expansion = operator_->eval(scope);
-
-	if (expansion != operator_) {
-		return bind_expansion(
-				status,
-			   	builder,
-			   	scope,
-			   	expansion,
-				expansion);
-	} else {
-		user_error(status, operator_->get_location(),
-				"unable to expand type operation %s in env %s",
-				operator_->str().c_str(),
-				str(total_env).c_str());
+		/* however, what it expands to might already have a bound type */
+		if (total_expansion != id) {
+			return bind_expansion(status, builder, scope, nominal_expansion, total_expansion);
+		} else {
+			user_error(status, id->get_location(), "no type definition found for %s in [%s]",
+					id->str().c_str(),
+					join(keys(scope->get_total_env()), ", ").c_str());
+		}
 	}
 
 	assert(!status);
@@ -776,7 +769,7 @@ bound_type_t::ref create_bound_type(
     auto program_scope = scope->get_program_scope();
 
 	if (auto id = dyncast<const types::type_id_t>(type)) {
-		return create_bound_id_type(status, builder, scope, id);
+		return create_bound_expr_type(status, builder, scope, id);
     } else if (auto maybe = dyncast<const types::type_maybe_t>(type)) {
 		return create_bound_maybe_type(status, builder, scope, maybe);
 	} else if (auto integer = dyncast<const types::type_integer_t>(type)) {
@@ -794,7 +787,7 @@ bound_type_t::ref create_bound_type(
 	} else if (auto sum = dyncast<const types::type_sum_t>(type)) {
 		return create_bound_sum_type(status, builder, scope, sum);
 	} else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
-		return create_bound_operator_type(status, builder, scope, operator_);
+		return create_bound_expr_type(status, builder, scope, operator_);
 	} else if (auto variable = dyncast<const types::type_variable_t>(type)) {
 		user_error(status, variable->get_location(), "found a free type variable where a bound type was expected: %s", variable->str().c_str());
 	} else if (auto lambda = dyncast<const types::type_lambda_t>(type)) {
@@ -1404,7 +1397,7 @@ llvm::Value *llvm_make_gep(
 {
 	debug_above(5, log(log_info,
 				"creating GEP for %s%s[%d]",
-				managed ? "managed " : "",
+				managed ? "managed " : "native ",
 				llvm_print(*llvm_value).c_str(), index));
 
 #ifdef ZION_DEBUG
