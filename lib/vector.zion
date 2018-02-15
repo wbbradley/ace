@@ -257,13 +257,12 @@ def reserve(vec *ManagedVector, n size_t)
 			vec.reserved = n
 		
 def reserve[T](vec *(NativeVector T), n size_t)
-	static_print(T)
 	let item_size = sizeof(T)
 	# Make sure we've got n spaces available in our vector's allocated memory
 	if vec.reserved < n
 		let items = vec.items
 		if items != null
-			new_items := posix.calloc(sizeof(*var_t), n)! as *T
+			new_items := posix.calloc(sizeof(T), n)! as *T
 			posix.memcpy(new_items as *int8, items as *int8, sizeof(T) * vec.size)
 			posix.free(items)
 			vec.items = new_items

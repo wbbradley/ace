@@ -1,5 +1,6 @@
 module _
 # test: pass
+# expect: [1, 44, 3]
 
 def main()
 	let w [int]

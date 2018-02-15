@@ -1688,9 +1688,11 @@ std::string str(const types::type_t::map &coll) {
 	std::stringstream ss;
 	ss << "{";
 	const char *sep = "";
-	for (auto p : coll) {
-		ss << sep << C_ID << p.first.c_str() << C_RESET ": ";
-		ss << p.second->str().c_str();
+	std::vector<std::string> symbols = keys(coll);
+	std::sort(symbols.begin(), symbols.end());
+	for (auto symbol : symbols) {
+		ss << sep << C_ID << symbol << C_RESET ": ";
+		ss << coll.find(symbol)->second->str().c_str();
 		sep = ", ";
 	}
 	ss << "}";

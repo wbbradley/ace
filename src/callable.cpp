@@ -224,7 +224,18 @@ bound_var_t::ref maybe_get_callable(
 		 * to be invoked with the given args */
 		var_t::refs fns;
 		scope->get_callables(alias, fns, check_unchecked);
-		return get_best_fit(status, builder, scope, location, alias, args, return_type, fns);
+		debug_above(7, log("looking for a " c_id("%s") " going to check:", alias.c_str()));
+		for (auto fn : fns) {
+			debug_above(7, log("callable %s : %s", fn->str().c_str(),
+						fn->get_type(nullptr)->str().c_str()));
+		}
+		return get_best_fit(status, builder,
+			   	scope->get_program_scope(),
+			   	location,
+			   	alias,
+			   	args,
+			   	return_type,
+			   	fns);
 	}
 
 	assert(!status);
