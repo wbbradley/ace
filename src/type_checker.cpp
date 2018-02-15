@@ -3531,7 +3531,7 @@ bound_var_t::ref ast::sizeof_expr_t::resolve_expression(
 	assert(!as_ref);
 
 	/* calculate the size of the object being referenced assume native types */
-	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type);
+	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type->rebind(scope->get_type_variable_bindings()));
 	if (!!status) {
 		bound_type_t::ref size_type = upsert_bound_type(status, builder, scope->get_program_scope(), type_id(make_iid("size_t")));
 		if (!!status) {
@@ -3643,7 +3643,10 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 {
 	program_scope_t::ref program_scope = scope->get_program_scope();
 	std::string function_name = switch_std_main(token.text);
-	indent_logger indent(get_location(), 5, string_format("instantiating function " c_id("%s"), function_name.c_str()));
+	indent_logger indent(get_location(), 5, string_format("instantiating function " c_id("%s") " at %s", function_name.c_str(),
+				token.location.str().c_str()));
+	debug_above(9, log("function has env %s", ::str(scope->get_total_env()).c_str()));
+	debug_above(9, log("function has bindings %s", ::str(scope->get_type_variable_bindings()).c_str()));
 
 	assert(!!status);
 	assert(life->life_form == lf_function);

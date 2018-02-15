@@ -6,13 +6,13 @@
 
 std::string unchecked_var_t::str() const {
     std::stringstream ss;
-    ss << id->str() << " : unchecked var";
+    ss << "unchecked var : " << id->str() << " " << node->get_location();
     return ss.str();
 }
 
 std::string unchecked_data_ctor_t::str() const {
     std::stringstream ss;
-    ss << C_ID << id->str() << C_RESET << " : unchecked data ctor : ";
+    ss << "unchecked data ctor : " << C_ID << id->str() << C_RESET << " : ";
 	ss << sig->str();
     return ss.str();
 }
@@ -27,7 +27,11 @@ types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 	if (auto fn = dyncast<const ast::function_defn_t>(node)) {
 		auto decl = fn->decl;
 		assert(decl != nullptr);
-		return decl->function_type->rebind(scope->get_type_variable_bindings());
+		if (scope != nullptr) {
+			return decl->function_type->rebind(scope->get_type_variable_bindings());
+		} else {
+			return decl->function_type;
+		}
 	} else {
 		log(log_warning, "not-impl: get a type from unchecked_var %s", node->str().c_str());
 		not_impl();
