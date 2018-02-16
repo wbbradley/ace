@@ -20,7 +20,7 @@ namespace types {
 		bool operator !() const;
 
 		std::string str() const;
-		std::string repr() const;
+		const std::string &repr() const;
 	};
 }
 

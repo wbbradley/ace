@@ -62,6 +62,9 @@ def str(v [any]) str
 def join[T](v [T], delim str) str
 	let vec = v as *(VectorImpl T)
 
+	if vec.size == 0
+		return ""
+
 	# allocate a vector in which we can store the converted strings
 	let strs [str]
 	reserve(strs as *(VectorImpl T), vec.size)
@@ -71,7 +74,7 @@ def join[T](v [T], delim str) str
 	total_len := delims_len
 	i := 0
 	while i < vec.size
-		let s = str(vec.items[i] as any T)
+		let s = str(vec.items[i] as T)
 		append(strs, s)
 		total_len += len(s)
 		i += 1
@@ -95,7 +98,7 @@ def join[T](v [T], delim str) str
 		pos += s_len
 		i += 1
 
-	buf[pos] = 0 as wchar
+	buf[pos] = 0
 	return str(buf)
 
 [global]
@@ -196,6 +199,12 @@ def __set_vector_item__[T](vector *(NativeVector T), index uint, item T)
 
 
 def __vector_unsafe_append__(vector *ManagedVector, item *var_t) void
+	# To be called by compiler for vector literals
+	assert(vector.reserved > vector.size)
+	vector.items[vector.size] = item
+	vector.size += 1
+
+def __vector_unsafe_append__[T where not(gc T)](vector *(NativeVector T), item T) void
 	# To be called by compiler for vector literals
 	assert(vector.reserved > vector.size)
 	vector.items[vector.size] = item

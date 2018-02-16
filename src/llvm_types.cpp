@@ -119,7 +119,7 @@ bound_type_t::ref create_bound_extern_type(
 	}
 
 	if (!!status) {
-		bound_type_t::ref var_ref_type = program_scope->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
+		bound_type_t::ref var_ref_type = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 		if (!!status) {
 			auto bound_type = bound_type_t::create(type_extern,
 					type_extern->get_location(),
@@ -209,7 +209,7 @@ std::vector<llvm::Type *> build_struct_elements(
 		return elements;
 	} else {
 		/* let's prefix the data in this structure with the managed runtime */
-		bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, "var_t");
+		bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE);
 		if (!!status) {
 			/* place the var_t struct into the structure */
 			elements.push_back(var_type->get_llvm_type());
@@ -289,7 +289,7 @@ bound_type_t::ref create_bound_managed_type(
 
 		auto struct_type = dyncast<const types::type_struct_t>(managed_type->element_type);
 		assert(struct_type != nullptr);
-		auto var_type = program_scope->get_runtime_type(status, builder, "var_t");
+		auto var_type = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE);
 		if (!!status) {
 			/* ensure that since this type is managed we refer to it generally by
 			 * its managed structure definition (upwards pointer bitcasts happen
@@ -676,7 +676,7 @@ bound_type_t::ref create_bound_sum_type(
 		const ptr<const types::type_sum_t> &sum)
 {
 	assert(!scope->get_bound_type(sum->get_signature()));
-	auto var_ptr_type = scope->get_program_scope()->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
+	auto var_ptr_type = scope->get_program_scope()->get_runtime_type(status, builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 	if (!!status) {
 		auto bound_type = bound_type_t::create(sum,
 				sum->get_location(),

@@ -1169,7 +1169,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 			/* we need this in order to be able to get runtime type information */
 			auto program_scope = scope->get_program_scope();
 			std::string type_info_var_name = extern_type->inner->repr();
-			bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
+			bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 			if (!!status) {
 				/* before we go create this type info, let's see if it already exists */
 				auto bound_type_info = program_scope->get_bound_variable(status, full_type->get_location(),
@@ -1883,80 +1883,100 @@ bound_var_t::ref create_bound_vector_literal(
 		types::type_t::ref element_type,
 		bound_var_t::refs bound_items)
 {
-	user_error(status, location, "re-implement to support native vectors");
-	return nullptr;
-#if 0
-	if (!!status) {
-		auto program_scope = scope->get_program_scope();
+	debug_above(5, log("creating a vector literal with element type %s and items %s",
+				element_type->str().c_str(),
+				::str(bound_items).c_str()));
 
-		auto bound_var_ptr_type = program_scope->get_runtime_type(
-				status, builder, "var_t", true /*get_ptr*/);
+	auto program_scope = scope->get_program_scope();
+
+	auto bound_var_ptr_type = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE, true /*get_ptr*/);
+
+	if (!!status) {
+		auto bound_var_ptr_ptr_type = upsert_bound_type(
+				status, builder, scope,
+				type_ptr(bound_var_ptr_type->get_type()));
 
 		if (!!status) {
-			auto bound_var_ptr_ptr_type = upsert_bound_type(
-					status, builder, scope,
-					type_ptr(bound_var_ptr_type->get_type()));
+			/* create the type for this vector */
+			types::type_t::ref vector_type = type_operator(
+					type_id(make_iid_impl(STD_VECTOR_TYPE, location)),
+					element_type);
+			bound_type_t::ref bound_vector_type = upsert_bound_type(
+					status, builder, scope, vector_type);
+
+			/* get the function to allocate a vector and reserve enough space */
+			bound_var_t::ref get_vector_init_function = get_callable(
+					status,
+					builder,
+					scope,
+					"vector.__init_vector__",
+					location,
+					type_args({type_id(make_iid("size_t"))}),
+					vector_type);
+
+			types::type_t::ref vector_impl_type = type_ptr(type_operator(type_id(make_iid_impl("vector.VectorImpl", location)), element_type));
+
+			/* get the raw pointer type to vectors */
+			bound_type_t::ref bound_base_vector_type = upsert_bound_type(status, builder, scope, vector_impl_type);
+			debug_above(8, log("bound base vector type for element %s is %s",
+						element_type->str().c_str(),
+						bound_base_vector_type->str().c_str()));
 
 			if (!!status) {
-				/* create the type for this vector */
-				types::type_t::ref vector_type = type_operator(
-						type_id(make_iid_impl(STD_VECTOR_TYPE, location)),
-						element_type);
-				bound_type_t::ref bound_vector_type = upsert_bound_type(
-						status, builder, scope, vector_type);
-
-				/* get the function to allocate a vector and reserve enough space */
-				bound_var_t::ref get_vector_init_function = get_callable(
+				/* get the append function for vectors */
+				bound_var_t::ref get_vector_append_function = get_callable(
 						status,
 						builder,
 						scope,
-						"vector.__init_vector__",
+						"vector.__vector_unsafe_append__",
 						location,
-						type_args({type_id(make_iid("size_t"))}),
-						vector_type);
-
-				/* get the raw pointer type to vectors */
-				bound_type_t::ref bound_base_vector_type = upsert_bound_type(status, builder, scope,
-						type_ptr(type_operator(type_id(make_iid_impl("vector.VectorImpl", location)), element_type)));
+						type_args({vector_impl_type, element_type}),
+						type_id(make_iid("void")));
 
 				if (!!status) {
-					/* get the append function for vectors */
-					bound_var_t::ref get_vector_append_function = get_callable(
-							status,
-							builder,
-							scope,
-							"vector.__vector_unsafe_append__",
-							location,
-							type_args({type_ptr(type_id(make_iid("vector.vector_t"))),
-								bound_var_ptr_type->get_type()}),
-							type_id(make_iid("void")));
+					/* get a new vector of the given size */
+					llvm::CallInst *llvm_vector = llvm_create_call_inst(
+							status, builder, location, get_vector_init_function,
+							{builder.getZionInt(bound_items.size())});
 
 					if (!!status) {
-						/* get a new vector of the given size */
-						llvm::CallInst *llvm_vector = llvm_create_call_inst(
-								status, builder, location, get_vector_init_function,
-								{builder.getZionInt(bound_items.size())});
+						auto append_fn_type = dyncast<const types::type_function_t>(get_vector_append_function->type->get_type());
+						auto element_args_type = dyncast<const types::type_args_t>(append_fn_type->args);
+						auto arg0_type = element_args_type->args[0];
+						auto arg1_type = element_args_type->args[1];
+						auto bound_vector_type = upsert_bound_type(status, builder, scope, arg0_type);
 
-						llvm::Value *llvm_raw_vector = llvm_maybe_pointer_cast(builder, llvm_vector, bound_base_vector_type->get_llvm_type());
+						if (!!status) {
 
-						/* append all of the items */
-						for (auto bound_item : bound_items) {
-							/* call the append function */
-							llvm_create_call_inst(status, builder, bound_item->get_location(), get_vector_append_function,
-									{llvm_raw_vector, llvm_maybe_pointer_cast(builder, bound_item->get_llvm_value(), bound_var_ptr_type->get_llvm_type())});
-							if (!status) {
-								break;
+							llvm::Value *llvm_raw_vector = llvm_maybe_pointer_cast(builder, llvm_vector,
+									bound_vector_type->get_llvm_type());
+
+							/* append all of the items */
+							for (auto bound_item : bound_items) {
+								llvm::Value *llvm_value = coerce_value(
+										status, builder, scope, life,
+										bound_item->get_location(),
+										arg1_type,
+										bound_item);
+
+								/* call the append function */
+								llvm_create_call_inst(status, builder, bound_item->get_location(),
+										get_vector_append_function, {llvm_raw_vector, llvm_value});
+
+								if (!status) {
+									break;
+								}
 							}
 						}
-						/* the type of the resultant vector */
-						if (!!status) {
-							return bound_var_t::create(
-									INTERNAL_LOC(),
-									"vector.literal",
-									bound_vector_type,
-									llvm_vector,
-									make_iid_impl("vector.literal", location));
-						}
+					}
+					/* the type of the resultant vector */
+					if (!!status) {
+						return bound_var_t::create(
+								INTERNAL_LOC(),
+								"vector.literal",
+								bound_vector_type,
+								llvm_vector,
+								make_iid_impl("vector.literal", location));
 					}
 				}
 			}
@@ -1965,7 +1985,6 @@ bound_var_t::ref create_bound_vector_literal(
 
 	assert(!status);
 	return nullptr;
-#endif
 }
 
 bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
@@ -2002,6 +2021,7 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 		if (!!status) {
 			bound_items.push_back(bound_item);
 			element_types.push_back(bound_item->type->get_type());
+#if 0
 			bool is_managed;
 			bound_item->type->is_managed_ptr(
 					status,
@@ -2015,6 +2035,7 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 					break;
 				}
 			}
+#endif
 		}
 		if (!status) {
 			break;
@@ -3450,7 +3471,7 @@ bound_var_t::ref call_typeid(
 						life,
 						callsite->get_location(),
 						resolved_value,
-						type_ptr(type_id(make_iid("var_t"))));
+						type_ptr(type_id(make_iid(STD_MANAGED_TYPE))));
 				if (!!status) {
 					auto name = string_format("typeid(%s)", resolved_value->str().c_str());
 
@@ -4020,7 +4041,7 @@ void create_visit_module_vars_function(
 			type_function(
 				make_iid("__visit_module_vars"),
 				nullptr,
-				type_args({type_ptr(type_id(make_iid("var_t")))}, {}),
+				type_args({type_ptr(type_id(make_iid(STD_MANAGED_TYPE)))}, {}),
 				type_id(make_iid("void"))));
 
 	/* we are creating this function, but we'll be adding to it elsewhere */
@@ -4047,7 +4068,7 @@ void create_visit_module_vars_function(
 					llvm_visitor_fn,
 					make_iid("user_visitor_fn"));
 
-			auto bound_var_ptr_type = program_scope->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
+			auto bound_var_ptr_type = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 
 			if (!!status) {
 				for (auto global_var : global_vars) {
@@ -4212,7 +4233,7 @@ void ast::tag_t::resolve_statement(
 	 * represent this tag. */
 
 	if (!!status) {
-		auto var_ptr_type = scope->get_program_scope()->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
+		auto var_ptr_type = scope->get_program_scope()->get_runtime_type(status, builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 		if (!!status) {
 			assert(var_ptr_type != nullptr);
 

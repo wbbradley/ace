@@ -233,7 +233,7 @@ void bound_type_t::is_managed_ptr(
 	auto program_scope = scope->get_program_scope();
 
 	/* get the memory management structure type */
-	auto var = program_scope->get_runtime_type(status, builder, "var_t");
+	auto var = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE);
 	assert(!!status);
 	assert(var != nullptr);
 

@@ -44,13 +44,14 @@ unification_t unify(
 unification_t unify(
 		types::type_t::ref a,
 		types::type_t::ref b,
-		const types::type_t::map &env,
+		const types::type_t::map &nominal_env,
 		const types::type_t::map &structural_env);
 
 unification_t unify_core(
 		const types::type_t::ref &a,
 		const types::type_t::ref &b,
 		const types::type_t::map &nominal_env,
+		const types::type_t::map &total_env,
         types::type_t::map bindings,
 		int coercions,
         int depth);
@@ -63,5 +64,5 @@ bool unifies(
 bool unifies(
 		types::type_t::ref a,
 		types::type_t::ref b,
-		const types::type_t::map &env,
+		const types::type_t::map &nominal_env,
 		const types::type_t::map &structural_env);
