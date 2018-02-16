@@ -6,6 +6,7 @@
 #include "identifier.h"
 #include "token.h"
 
+extern const char *STD_MANAGED_TYPE;
 extern const char *STD_VECTOR_TYPE;
 extern const char *STD_MAP_TYPE;
 extern const char *BUILTIN_VOID_TYPE;
@@ -58,9 +59,7 @@ namespace types {
 		std::string get_signature() const { return repr(); }
 
 		virtual ref rebind(const map &bindings) const = 0;
-		ref eval(const map &nominal_env, const map &structural_env, bool get_structural_type=false) const {
-		   	return eval_core(nominal_env, structural_env, get_structural_type);
-	   	}
+		ref eval(const map &nominal_env, const map &structural_env, bool get_structural_type=false) const;
 		ref eval(const ptr<scope_t> &scope, bool get_structural_type=false) const;
 
 		virtual ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;

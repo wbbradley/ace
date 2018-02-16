@@ -11,6 +11,7 @@
 #include "scopes.h"
 
 const char *BUILTIN_NULL_TYPE = "null";
+const char *STD_MANAGED_TYPE = "var_t";
 const char *STD_VECTOR_TYPE = "vector.Vector";
 const char *STD_MAP_TYPE = "map.Map";
 const char *BUILTIN_VOID_TYPE = "void";
@@ -1420,28 +1421,28 @@ types::type_function_t::ref type_function(
 }
 
 bool types_contains(const types::type_t::refs &options, std::string signature) {
-    for (auto &option : options) {
-        if (option->get_signature() == signature) {
-            return true;
-        }
-    }
-    return false;
+	for (auto &option : options) {
+		if (option->get_signature() == signature) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void add_options(types::type_t::refs &options, const types::type_t::refs &new_options, bool &make_maybe) {
-    for (auto option : new_options) {
-        if (option->is_null()) {
-            make_maybe = true;
-            continue;
-        }
+	for (auto option : new_options) {
+		if (option->is_null()) {
+			make_maybe = true;
+			continue;
+		}
 
-        if (auto maybe = dyncast<const types::type_maybe_t>(option)) {
-            make_maybe = true;
-            option = maybe->just;
-        }
+		if (auto maybe = dyncast<const types::type_maybe_t>(option)) {
+			make_maybe = true;
+			option = maybe->just;
+		}
 
-        if (auto sum_type = dyncast<const types::type_sum_t>(option)) {
-            add_options(options, sum_type->options, make_maybe);
+		if (auto sum_type = dyncast<const types::type_sum_t>(option)) {
+			add_options(options, sum_type->options, make_maybe);
 		} else {
 			static struct {
 				const char * const native_type;
@@ -1468,10 +1469,10 @@ void add_options(types::type_t::refs &options, const types::type_t::refs &new_op
 				options.push_back(option);
 			}
 		}
-    }
+	}
 }
 
-void eliminate_redundant_types(types::type_t::refs &options, const types::type_t::map &env) {
+void eliminate_redundant_types(types::type_t::refs &options, const types::type_t::map &env, const types::type_t::map &total_env) {
     for (int i=options.size() - 1; i >= 0 && options.size() > 1; --i) {
 		if (dyncast<const types::type_variable_t>(options[i])) {
 			/* if we have a free type variable, let's not eliminate anything... this needs more thought. */
@@ -1488,7 +1489,7 @@ void eliminate_redundant_types(types::type_t::refs &options, const types::type_t
         assert(partial.size() > 0);
 
         auto type_partial = type_sum(partial, INTERNAL_LOC());
-        if (unifies(type_partial, options[i], env, {})) {
+        if (unifies(type_partial, options[i], env, total_env)) {
             /* options[i] is not needed */
             debug_above(6, log("removing one instance of type %s from %s", options[i]->str().c_str(),
                         type_sum(options, INTERNAL_LOC())->str().c_str()));
@@ -1500,31 +1501,42 @@ void eliminate_redundant_types(types::type_t::refs &options, const types::type_t
     }
 }
 
+types::type_t::ref singular_type(
+		const types::type_t::ref &option,
+	   	const types::type_t::map &nominal_env,
+	   	const types::type_t::map &total_env)
+{
+	assert_implies(types::is_type_id(option, MANAGED_BOOL), types::is_managed_ptr(option, nominal_env, total_env));
+	assert_implies(types::is_type_id(option, MANAGED_INT), types::is_managed_ptr(option, nominal_env, total_env));
+	assert_implies(types::is_type_id(option, MANAGED_FLOAT), types::is_managed_ptr(option, nominal_env, total_env));
+	assert_implies(types::is_type_id(option, MANAGED_STR), types::is_managed_ptr(option, nominal_env, total_env));
+
+	if (!types::is_managed_ptr(option, nominal_env, total_env)) {
+		return option;
+	}
+
+	if (types::is_type_id(option, MANAGED_BOOL)) {
+		return type_id(make_iid(BOOL_TYPE));
+	} else if (types::is_type_id(option, MANAGED_TRUE)) {
+		return type_id(make_iid(TRUE_TYPE));
+	} else if (types::is_type_id(option, MANAGED_FALSE)) {
+		return type_id(make_iid(FALSE_TYPE));
+	} else {
+		return option;
+	}
+}
+
 types::type_t::ref type_sum_safe(
         types::type_t::refs options,
         location_t location,
         const types::type_t::map &nominal_env,
 		const types::type_t::map &total_env)
 {
+	debug_above(9, log("type_sum_safe(%s, %s, ..., ...)", ::str(options).c_str(), location.str().c_str()));
+	eliminate_redundant_types(options, nominal_env, total_env);
+
 	if (options.size() == 1) {
-		auto &option = options[0];
-
-		assert_implies(types::is_type_id(option, MANAGED_BOOL), types::is_managed_ptr(option, nominal_env, total_env));
-		assert_implies(types::is_type_id(option, MANAGED_INT), types::is_managed_ptr(option, nominal_env, total_env));
-		assert_implies(types::is_type_id(option, MANAGED_FLOAT), types::is_managed_ptr(option, nominal_env, total_env));
-		assert_implies(types::is_type_id(option, MANAGED_STR), types::is_managed_ptr(option, nominal_env, total_env));
-
-		if (!types::is_managed_ptr(option, nominal_env, total_env)) {
-			return option;
-		}
-
-		if (types::is_type_id(option, MANAGED_BOOL)) {
-			return type_id(make_iid(BOOL_TYPE));
-		} else if (types::is_type_id(option, MANAGED_TRUE)) {
-			return type_id(make_iid(TRUE_TYPE));
-		} else if (types::is_type_id(option, MANAGED_FALSE)) {
-			return type_id(make_iid(FALSE_TYPE));
-		}
+		return singular_type(options[0], nominal_env, total_env);
 	} else if (options.size() == 2) {
 		auto &option0 = options[0];
 		auto &option1 = options[1];
@@ -1545,13 +1557,18 @@ types::type_t::ref type_sum_safe(
     types::type_t::refs safe_options;
     add_options(safe_options, options, make_maybe);
 
-    eliminate_redundant_types(safe_options, nominal_env);
+	debug_above(9, log("safe_options = %s", ::str(safe_options).c_str()));
+
+    eliminate_redundant_types(safe_options, nominal_env, total_env);
 
     types::type_t::ref result;
     if (safe_options.size() == 0) {
         return nullptr;
     } else if (safe_options.size() == 1) {
         result = safe_options[0];
+		if (!make_maybe) {
+			return singular_type(result, nominal_env, total_env);
+		}
     } else {
         result = type_sum(safe_options, location);
     }

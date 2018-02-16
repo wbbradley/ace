@@ -47,6 +47,9 @@ unification_t var_t::accepts_callsite(
 				args->str().c_str(),
 				return_type->str().c_str()));
 
+	auto total_env = scope->get_total_env();
+	assert(total_env.find("T") == total_env.end());
+
 	auto bindings = scope->get_type_variable_bindings();
 
 	auto u = unify(fn_type, type_function(nullptr, nullptr, args, return_type), scope);

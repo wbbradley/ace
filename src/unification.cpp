@@ -81,6 +81,7 @@ unification_t unify(
 	unification_t unification = unify_core(
 			lhs, rhs,
 			nominal_env,
+			total_env,
 			{},
 			0,
 			0);
@@ -141,7 +142,8 @@ bool unifies(
 unification_t unify_core(
 		const types::type_t::ref &lhs,
 		const types::type_t::ref &rhs,
-		const types::type_t::map &env,
+		const types::type_t::map &nominal_env,
+		const types::type_t::map &total_env,
 		types::type_t::map bindings,
 		int coercions,
 		int depth)
@@ -165,7 +167,7 @@ unification_t unify_core(
 	if (ptref_lhs != nullptr) {
 		auto ptref_rhs = dyncast<const types::type_ref_t>(rhs);
 		if (ptref_rhs != nullptr) {
-			return unify_core(ptref_lhs->element_type, ptref_rhs->element_type, env, bindings, 0, 0);
+			return unify_core(ptref_lhs->element_type, ptref_rhs->element_type, nominal_env, total_env, bindings, 0, 0);
 		} else {
 			return {false, "lhs was expecting a reference type", bindings, coercions, {}};
 		}
@@ -174,7 +176,7 @@ unification_t unify_core(
 		assert(depth == 0);
 
 		/* we can safely ignore if the rhs is a reference because the coercions will auto-deref it */
-		return unify_core(lhs, ptref_rhs->element_type, env, bindings, coercions + 1, 0);
+		return unify_core(lhs, ptref_rhs->element_type, nominal_env, total_env, bindings, coercions + 1, 0);
 	}
 
 	auto pruned_a = prune(lhs, bindings);
@@ -182,13 +184,13 @@ unification_t unify_core(
 
 	if (pruned_a->repr() == pruned_b->repr()) {
 		// May need to scrape any type constraints out of the function...
-		assert(!dyncast<const types::type_function_t>(pruned_a->eval(env, {})));
+		assert(!dyncast<const types::type_function_t>(pruned_a->eval(nominal_env, total_env)));
 
 		return {true, "", bindings, coercions, {}};
 	}
 
-	auto a = pruned_a->eval(env, {});
-	auto b = pruned_b->eval(env, {});
+	auto a = pruned_a->eval(nominal_env, total_env);
+	auto b = pruned_b->eval(nominal_env, total_env);
 	if (dyncast<const types::type_sum_t>(a) && types::is_type_id(b, "bool")) {
 		/* make sure we enable checking bool against type sums */
 		static auto bool_type = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
@@ -268,7 +270,7 @@ unification_t unify_core(
 				return {true, "", bindings, coercions + 1, {}};
 			} else if (ptI_b != nullptr && a_name == MANAGED_CHAR) {
 				return {true, "", bindings, coercions + 1, {}};
-			} else if (a_name == MANAGED_STR && (ptr_b != nullptr && types::is_type_id(ptr_b->element_type->eval(env, {}), CHAR_TYPE))) {
+			} else if (a_name == MANAGED_STR && (ptr_b != nullptr && types::is_type_id(ptr_b->element_type->eval(nominal_env, total_env), CHAR_TYPE))) {
 				/* we should be able to convert a *char_t to a str */
 				return {true, "", bindings, coercions + 1, {}};
 			}
@@ -279,7 +281,7 @@ unification_t unify_core(
 		if (ptI_b == nullptr) {
 			// sanity check: a second full-eval should not do anything...
 #if ZION_DEBUG
-			ptI_b = dyncast<const types::type_integer_t>(b->eval(env, {}));
+			ptI_b = dyncast<const types::type_integer_t>(b->eval(nominal_env, total_env));
 #endif
 			assert(ptI_b == nullptr);
 		}
@@ -353,13 +355,13 @@ unification_t unify_core(
 	} else if (ptm_a != nullptr) {
 		if (ptm_b != nullptr) {
 			debug_above(7, log("matching maybe types"));
-			return unify_core(ptm_a->just, ptm_b->just, env, bindings, coercions, depth + 1);
+			return unify_core(ptm_a->just, ptm_b->just, nominal_env, total_env, bindings, coercions, depth + 1);
 		} else if (b->is_null()) {
 			debug_above(7, log("matching null"));
 			return {true, "", bindings, coercions, {}};
 		} else {
 			debug_above(7, log("matching maybe on the lhs"));
-			return unify_core(ptm_a->just, b, env, bindings, coercions, depth + 1);
+			return unify_core(ptm_a->just, b, nominal_env, total_env, bindings, coercions, depth + 1);
 		}
 	} else if (ptp_a != nullptr) {
 		if (auto ptp_b = dyncast<const types::type_product_t>(b)) {
@@ -393,7 +395,7 @@ unification_t unify_core(
 						a_dims_iter != a_dims_end;
 						++a_dims_iter, ++b_dims_iter) {
 					debug_above(7, log("matching subitem in product type"));
-					auto unification = unify_core(*a_dims_iter, *b_dims_iter, env, bindings, 0, depth);
+					auto unification = unify_core(*a_dims_iter, *b_dims_iter, nominal_env, total_env, bindings, 0, depth);
 					if (!unification.result) {
 						return {false, unification.reasons, {}, coercions, {}};
 					}
@@ -419,7 +421,7 @@ unification_t unify_core(
 
 			debug_above(7, log("matching function arguments"));
 			/* now make sure the arguments unify_core */
-			auto args_unification = unify_core(ptf_a->args, ptf_b->args, env, bindings, 0, depth);
+			auto args_unification = unify_core(ptf_a->args, ptf_b->args, nominal_env, total_env, bindings, 0, depth);
 			if (!args_unification.result) {
 				return {false, args_unification.reasons, {}, coercions + args_unification.coercions, {}};
 			}
@@ -430,7 +432,7 @@ unification_t unify_core(
 
 			debug_above(7, log("matching function return types"));
 			/* finally, make sure the return types unify_core */
-			auto return_type_unification = unify_core(ptf_a->return_type, ptf_b->return_type, env, bindings, 0, depth);
+			auto return_type_unification = unify_core(ptf_a->return_type, ptf_b->return_type, nominal_env, total_env, bindings, 0, depth);
 			if (!return_type_unification.result) {
 				return {false, return_type_unification.reasons, {}, coercions, {}};
 			}
@@ -459,7 +461,7 @@ unification_t unify_core(
 			std::vector<std::string> reasons;
 			for (auto option : pts_a->options) {
 				debug_above(7, log("matching option of sum type against rhs"));
-				auto unification = unify_core(option, b, env, bindings, 0, depth);
+				auto unification = unify_core(option, b, nominal_env, total_env, bindings, 0, depth);
 				if (unification.result) {
 					if (unification.bindings.size() > bindings.size()) {
 						debug_above(2, log(log_info, "replacing bindings %s with %s",
@@ -478,7 +480,7 @@ unification_t unify_core(
 			assert(pts_b != nullptr);
 			for (auto inbound_option : pts_b->options) {
 				debug_above(7, log("checking inbound %s against lhs %s", inbound_option->repr().c_str(), a->repr().c_str()));
-				auto unification = unify_core(a, inbound_option, env, bindings, 0, depth);
+				auto unification = unify_core(a, inbound_option, nominal_env, total_env, bindings, 0, depth);
 				if (unification.result) {
 					bindings = unification.bindings;
 					coercions += unification.coercions;
@@ -500,7 +502,7 @@ unification_t unify_core(
 	} else if (pts_b != nullptr) {
 		for (auto inbound_option : pts_b->options) {
 			debug_above(7, log("checking inbound %s against lhs %s", inbound_option->repr().c_str(), a->repr().c_str()));
-			auto unification = unify_core(a, inbound_option, env, bindings, 0, depth);
+			auto unification = unify_core(a, inbound_option, nominal_env, total_env, bindings, 0, depth);
 			if (unification.result) {
 				bindings = unification.bindings;
 				coercions += unification.coercions;
@@ -524,7 +526,7 @@ unification_t unify_core(
 		if (pto_b != nullptr) {
 			debug_above(7, log(log_info, "checking outbound type_operator %s",
 						pto_b->str().c_str()));
-			auto unification = unify_core(pto_a->oper, pto_b->oper, env, bindings, 0, depth + 1);
+			auto unification = unify_core(pto_a->oper, pto_b->oper, nominal_env, total_env, bindings, 0, depth + 1);
 			if (unification.result) {
 				bindings = unification.bindings;
 				coercions += unification.coercions;
@@ -541,13 +543,13 @@ unification_t unify_core(
 				assert(pto_a->operand != nullptr && pto_b->operand != nullptr);
 
 				debug_above(7, log("matching type operands"));
-				return unify_core(pto_a->operand, pto_b->operand, env, bindings, coercions, depth + 1);
+				return unify_core(pto_a->operand, pto_b->operand, nominal_env, total_env, bindings, coercions, depth + 1);
 			}
 		} else {
 			/* fallthrough, and try expanding the left-hand side */
 			debug_above(7, log(log_info, "falling through"));
 		}
-		auto new_a = pto_a->rebind(bindings)->eval(env, {});
+		auto new_a = pto_a->rebind(bindings)->eval(nominal_env, total_env);
 
 		/* apply the bindings first, so as to simplify the application */
 		if (new_a != nullptr && types::is_managed_ptr(new_a, {}, {})) {
@@ -560,7 +562,7 @@ unification_t unify_core(
 						pto_a->str().c_str(),
 						new_a->str().c_str()));
 
-			unification_t unification = unify_core(new_a, b, env, bindings, coercions, depth + 1);
+			unification_t unification = unify_core(new_a, b, nominal_env, total_env, bindings, coercions, depth + 1);
 			if (!unification.result) {
 				return {false, string_format("%s <> %s", a->str().c_str(), b->str().c_str()), bindings, coercions, {}};
 			} else {
@@ -576,7 +578,14 @@ unification_t unify_core(
 				{}};
 		}
 	} else if (ptr_a != nullptr) {
-		auto a_element_type = ptr_a->element_type->eval(env, {});
+		auto a_element_type = ptr_a->element_type->eval(nominal_env, total_env);
+		if (types::is_type_id(a_element_type, STD_MANAGED_TYPE)) {
+			if (types::is_managed_ptr(b, nominal_env, total_env)) {
+				/* any managed pointer can be coerced to *var_t */
+				return {true, "", bindings, coercions + 1, {}};
+			}
+		}
+
 		if (ptr_b != nullptr) {
 			/* handle pointer to void here, rather than making void the top type */
 			if (types::is_type_id(a_element_type, "void")) {
@@ -587,7 +596,7 @@ unification_t unify_core(
 			}
 
 			debug_above(7, log("matching ptr types"));
-			return unify_core(ptr_a->element_type, ptr_b->element_type, env, bindings, coercions, depth + 1);
+			return unify_core(ptr_a->element_type, ptr_b->element_type, nominal_env, total_env, bindings, coercions, depth + 1);
 		} else if (b->is_null()) {
 			return {
 				false,

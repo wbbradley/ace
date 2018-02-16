@@ -31,7 +31,7 @@ namespace types {
 		return (name == rhs.name);
 	}
 
-	std::string signature::repr() const {
+	const std::string &signature::repr() const {
 		assert(name.size());
 		return name;
 	}

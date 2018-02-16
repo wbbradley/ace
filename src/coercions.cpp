@@ -108,6 +108,18 @@ llvm::Value *coerce_value(
 						}
 					}
 				} else if (rhs_is_managed) {
+					if (auto lhs_ptr = dyncast<const types::type_ptr_t>(lhs_type)) {
+						// Consider allowing this conversion for all pointers, since coercion is
+						// fierce in what it will do, why even check? We'll wait a bit on that. It
+						// may become apparent that unboxing managed objects into a native pointer
+						// type makes sense somehow...
+
+						if (types::is_type_id(lhs_ptr->element_type, STD_MANAGED_TYPE)) {
+							/* the *var_t object accepts all managed objects */
+							return builder.CreateBitCast(llvm_rhs_value, llvm_lhs_type);
+						}
+					}
+
 					debug_above(6, log(log_info, "calling " c_id("__unbox__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
 					bound_var_t::ref coercion = call_program_function(
 							status, builder, scope, life,

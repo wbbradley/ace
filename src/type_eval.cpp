@@ -15,28 +15,29 @@ namespace types {
         return shared_from_this();
     }
 
+	type_t::ref type_t::eval(const map &nominal_env, const map &structural_env, bool get_structural_type) const {
+		auto res = eval_core(nominal_env, structural_env, get_structural_type);
+		debug_above(8, log("eval(%s, %s) -> %s",
+					str().c_str(), boolstr(get_structural_type),
+					res->str().c_str()));
+		return res;
+	}
+
     type_t::ref type_t::eval(const scope_t::ref &scope, bool get_structural_type) const {
-		debug_above(8, log("eval(..., %s) of %s", boolstr(get_structural_type), str().c_str()));
-		return this->eval_core(scope->get_nominal_env(), scope->get_total_env(), get_structural_type);
+		return eval(scope->get_nominal_env(), scope->get_total_env(), get_structural_type);
     }
 
     type_t::ref type_id_t::eval_core(const map &nominal_env, const map &total_env, bool get_structural_type) const {
-		debug_above(8, log("type_id_t::eval_core(%s, %s)", str().c_str(), boolstr(get_structural_type)));
         auto nominal_mapping = nominal_env.find(id->get_name());
 		if (nominal_mapping != nominal_env.end()) {
-			auto res = nominal_mapping->second->eval_core(nominal_env, total_env, get_structural_type);
-		debug_above(8, log("type_id_t::eval_core(%s, %s) -> %s", str().c_str(), boolstr(get_structural_type), res->str().c_str()));
-			return res;
+			return nominal_mapping->second->eval_core(nominal_env, total_env, get_structural_type);
 		} else if (get_structural_type) {
             auto structural_mapping = total_env.find(id->get_name());
 			if (structural_mapping != total_env.end()) {
-				auto res = structural_mapping->second->eval_core(nominal_env, total_env, get_structural_type);
-				debug_above(8, log("type_id_t::eval_core(%s, %s) -> %s", str().c_str(), boolstr(get_structural_type), res->str().c_str()));
-				return res;
+				return structural_mapping->second->eval_core(nominal_env, total_env, get_structural_type);
 			}
         }
 
-		debug_above(8, log("type_id_t::eval_core(%s, %s) -> %s", str().c_str(), boolstr(get_structural_type), str().c_str()));
         return shared_from_this();
     }
 

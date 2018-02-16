@@ -855,7 +855,7 @@ bound_var_t::ref llvm_create_global_tag(
 	 * @__tag_Example = global %struct.tag_t { %struct.type_info_t* @__tag_type_info_Example }, align 8
 	 * @Example = global %struct.var_t* bitcast (%struct.tag_t* @__tag_Example to %struct.var_t*), align 8 */
 
-	bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(status, builder, "var_t", true /*get_ptr*/);
+	bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 	if (!!status) {
 		llvm::Type *llvm_var_ptr_type = var_ptr_type->get_llvm_type();
 

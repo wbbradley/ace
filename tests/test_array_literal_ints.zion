@@ -4,6 +4,7 @@ module _
 # expect: x : &[int]
 # expect: y : [int]
 # expect: [4, 5, 6] : [int]
+# expect: [1, 2, 3]
 # expect: [4, 5, 6]
 
 def main()
