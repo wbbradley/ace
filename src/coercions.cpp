@@ -146,11 +146,21 @@ llvm::Value *coerce_value(
 								return builder.CreateZExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
 							}
 						}
-					} else if (rhs->type->get_type()->is_null()) {
+					} else if (rhs->type->get_type()->is_zero()) {
+						if (llvm_lhs_type->isIntegerTy()) {
+							return llvm::ConstantInt::get(
+									bound_lhs_type->get_llvm_specific_type(), 0, false);
+						} else if (llvm_lhs_type->isFloatTy() || llvm_lhs_type->isDoubleTy()) {
+							return llvm::ConstantFP::get(
+									bound_lhs_type->get_llvm_specific_type(), 0.0);
+						}
+					}
+					if (rhs->type->get_type()->is_null()) {
 						/* we're passing in a null value */
 						assert(llvm_lhs_type->isPointerTy());
 						return llvm::Constant::getNullValue(llvm_lhs_type);
 					}
+
 					log(log_info, "missing coercion of %s to %s", rhs_type->str().c_str(),
 							lhs_type->str().c_str());
 					assert(false);
