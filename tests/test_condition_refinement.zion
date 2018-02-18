@@ -20,6 +20,13 @@ module _
 def gimme_bool() bool
 	return true
 
+def __bool__(x False or Int) bool
+	when x
+		is False
+			return false
+		is Int
+			return x.raw != 0
+
 def main()
 	static_print(7)
 	static_print("hello")

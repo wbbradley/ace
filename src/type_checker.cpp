@@ -1334,27 +1334,30 @@ local_scope_t::ref new_refined_scope(
 	assert(local_scope != nullptr);
 
 	types::type_t::ref value_type = value->type->get_type();
-	types::type_t::ref refined_type = value_type->boolean_refinement(!refinement_path, scope->get_nominal_env(), scope->get_total_env());
+	types::type_t::ref refined_type = value_type->boolean_refinement(status, !refinement_path,
+			scope->get_nominal_env(), scope->get_total_env());
 
-	if (refined_type != value_type) {
-		bound_type_t::ref bound_refined_type = upsert_bound_type(status, builder, scope, refined_type);
+	if (!!status) {
+		if (refined_type != value_type) {
+			bound_type_t::ref bound_refined_type = upsert_bound_type(status, builder, scope, refined_type);
 
-		if (!!status) {
-			auto new_scope = local_scope->new_local_scope(
-					string_format("%s.%s", boolstr(refinement_path), name.c_str()));
-			new_scope->put_bound_variable(status, name,
-					bound_var_t::create(
-						INTERNAL_LOC(),
-						name,
-						bound_refined_type,
-						value->get_llvm_value(),
-						make_iid_impl(name, location)));
-			return new_scope;
+			if (!!status) {
+				auto new_scope = local_scope->new_local_scope(
+						string_format("%s.%s", boolstr(refinement_path), name.c_str()));
+				new_scope->put_bound_variable(status, name,
+						bound_var_t::create(
+							INTERNAL_LOC(),
+							name,
+							bound_refined_type,
+							value->get_llvm_value(),
+							make_iid_impl(name, location)));
+				return new_scope;
+			}
+		} else {
+			/* no new scope needed */
+			assert(!!status);
+			return nullptr;
 		}
-	} else {
-		/* no new scope needed */
-		assert(!!status);
-		return nullptr;
 	}
 
 	assert(!status);
@@ -2049,12 +2052,15 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 
 		if (!!status) {
 			types::type_t::ref element_type = type_sum_safe(
-					element_types, get_location(), scope->get_nominal_env(), scope->get_total_env());
-			debug_above(6, log("creating vector literal of %s",
-						element_type->str().c_str()));
-			return create_bound_vector_literal(
-					status, builder, scope, life,
-					get_location(), element_type, bound_items);
+					status, element_types, get_location(), scope->get_nominal_env(),
+					scope->get_total_env());
+			if (!!status) {
+				debug_above(6, log("creating vector literal of %s",
+							element_type->str().c_str()));
+				return create_bound_vector_literal(
+						status, builder, scope, life,
+						get_location(), element_type, bound_items);
+			}
 		}
 	}
 
@@ -2900,56 +2906,64 @@ bound_type_t::ref refine_conditional_type(
 	switch (rct) {
 	case rct_or:
 		/* we can remove falsey types from the truthy path type */
-		truthy_path_type = truthy_path_type->boolean_refinement(false, nominal_env, total_env);
+		truthy_path_type = truthy_path_type->boolean_refinement(status, false, nominal_env, total_env);
 		break;
 	case rct_and:
 		/* we can remove truthy types from the truthy path type */
-		falsey_path_type = falsey_path_type->boolean_refinement(true, nominal_env, total_env);
+		falsey_path_type = falsey_path_type->boolean_refinement(status, true, nominal_env, total_env);
 		break;
 	case rct_ternary:
 		/* we can't remove anything */
 		break;
 	}
 
-	if (condition_type->boolean_refinement(false, nominal_env, total_env) == nullptr) {
-		/* the condition value was definitely falsey */
-		/* factor out the truthy path type entirely */
-		truthy_path_type = nullptr;
-	} else if (condition_type->boolean_refinement(true, nominal_env, total_env) == nullptr) {
-		/* the condition value was definitely truthy */
-		/* factor out the falsey path type entirely */
-		falsey_path_type = nullptr;
-	}
-
-	assert((truthy_path_type != nullptr) || (falsey_path_type != nullptr));
-
-	types::type_t::refs options;
-	if (truthy_path_type != nullptr) {
-		options.push_back(truthy_path_type);
-	}
-	if (falsey_path_type != nullptr) {
-		options.push_back(falsey_path_type);
-	}
-
-	/* the when_true and when_false values have different
-	 * types, let's create a sum type to represent this */
-	auto ternary_sum_type = type_sum_safe(options, location, nominal_env, total_env);
-	assert(ternary_sum_type != nullptr);
-
-	// TODO: lift this logic into type_sum_safe so that all callers downshift into native types
-
-	/* if we just ended up with a Bool, let's simplify it to bool */
-	auto Bool = type_id(make_iid(MANAGED_BOOL))->eval(nominal_env, total_env);
-
-	if (ternary_sum_type->eval(nominal_env, total_env)->repr() == Bool->repr()) {
-		return upsert_bound_type(status, builder, scope, type_id(make_iid(BOOL_TYPE)));
-	} else {
-		if (!!status) {
-			return upsert_bound_type(status, builder, scope, ternary_sum_type);
+	if (!!status) {
+		if (condition_type->boolean_refinement(status, false, nominal_env, total_env) == nullptr) {
+			/* the condition value was definitely falsey */
+			/* factor out the truthy path type entirely */
+			truthy_path_type = nullptr;
+		} else if (condition_type->boolean_refinement(status, true, nominal_env, total_env) == nullptr) {
+			/* the condition value was definitely truthy */
+			/* factor out the falsey path type entirely */
+			falsey_path_type = nullptr;
 		}
-		assert(!status);
-		return nullptr;
+
+		if (!!status) {
+			assert((truthy_path_type != nullptr) || (falsey_path_type != nullptr));
+
+			types::type_t::refs options;
+			if (truthy_path_type != nullptr) {
+				options.push_back(truthy_path_type);
+			}
+			if (falsey_path_type != nullptr) {
+				options.push_back(falsey_path_type);
+			}
+
+			/* the when_true and when_false values have different
+			 * types, let's create a sum type to represent this */
+			auto ternary_sum_type = type_sum_safe(status, options, location, nominal_env, total_env);
+
+			if (!!status) {
+				assert(ternary_sum_type != nullptr);
+
+				// TODO: lift this logic into type_sum_safe so that all callers downshift into native types
+
+				/* if we just ended up with a Bool, let's simplify it to bool */
+				auto Bool = type_id(make_iid(MANAGED_BOOL))->eval(nominal_env, total_env);
+
+				if (ternary_sum_type->eval(nominal_env, total_env)->repr() == Bool->repr()) {
+					return upsert_bound_type(status, builder, scope, type_id(make_iid(BOOL_TYPE)));
+				} else {
+					if (!!status) {
+						return upsert_bound_type(status, builder, scope, ternary_sum_type);
+					}
+				}
+			}
+		}
 	}
+
+	assert(!status);
+	return nullptr;
 }
 
 bound_var_t::ref resolve_cond_expression( /* ternary expression */
@@ -5319,7 +5333,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
         }
 		break;
     case tk_string:
-		if (!types::is_type_id(expected_type, "str")) {
+		if (types::is_ptr_type_id(expected_type, CHAR_TYPE)) {
 			std::string value = unescape_json_quotes(token.text);
 			bound_type_t::ref native_type = program_scope->get_bound_type({MBS_TYPE});
 			return bound_var_t::create(

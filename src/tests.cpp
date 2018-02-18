@@ -901,32 +901,70 @@ auto test_descs = std::vector<test_desc>{
 	T(test_parse_single_function_call),
 	T(test_parse_semicolon_line_break),
 	{
-		"test_parse_types",
+		"test_parse_and_eval_types",
 		[] () -> bool {
 			identifier::set generics = {make_iid("T"), make_iid("Q")};
 			auto module_id = make_iid("M");
 
-			auto parses = std::vector<std::pair<std::string, std::string>>{{
-				{"any a", "any a"},
-				{"any", "any __1"},
+			struct spec {
+				std::string first;
+				std::string parsed;
+				std::string second;
+			};
+
+			auto parses = std::vector<spec>{{
+				{"int", "int", "int"},
+				{"(int)", "int", "int"},
+				{"char", "char", "char"},
+				{"*char", "*char", "*char"},
+				{"*?char", "*?char", "str?"},
+				{"int?", "int?", "Int?"},
+				{"integer(8, true)?", "integer(8, true)?", "Int?"},
+				{"integer(8, true) or integer(32, true)", "integer(8, true) or integer(32, true)", "int"},
+				{"integer(16, false)", "integer(16, false)", "integer(16, false)"},
+				{"integer(16, false) or int", "int or integer(16, false)", "int"},
+				{"integer(16, false) or str", "integer(16, false) or str", "Int or str"},
+				{"int or null", "int or null", "Int?"},
+				{"int or int or null", "int or int or null", "Int?"},
+				{"int or Int", "int or Int", "int"},
+				{"int or Int?", "int or Int?", "Int?"},
+				{"int or *char or null", "int or *char or null", "(Int or str)?"},
+				{"Int or *char", "Int or *char", "Int or str"},
+				{"any a", "any a", "any a"},
+				{"any", "any __1", "any __1"},
 				/* parsing type variables has monotonically increasing side effects */
-				{"any", "any __1"},
-				{"void", "M.void"},
-				{"map int int", "M.map M.int M.int"},
-				{"map any b any c", "M.map any b any c"},
-				{"T", "any T"},
-				{"T char Q", "any T M.char any Q"},
-				{"map (T int) Q", "M.map (any T M.int) any Q"},
+				{"any", "any __2", "any __1"},
+				{"void", "M.void", "M.void"},
+				{"map int int", "M.map int int", "M.map int int"},
+				{"map any b any c", "M.map any b any c", "M.map any b any c"},
+				{"T", "any T", "any T"},
+				{"T char Q", "any T char any Q", "any T char any Q"},
+				{"map (T int) Q", "M.map (any T int) any Q", "M.map (any T int) any Q"},
 			}};
 
 			for (auto p : parses) {
 				reset_generics();
-				auto repr = parse_type_expr(p.first, generics, module_id)->repr();
-				if (repr != p.second) {
+				log("parsing type expression " c_type("%s"), p.first.c_str());
+				auto parsed_type = parse_type_expr(p.first, generics, module_id);
+				auto repr = parsed_type->repr();
+				if (repr != p.parsed) {
 					log(log_error, c_type("%s") " parsed to " c_type("%s")
 							" - should have been " c_type("%s"),
 							p.first.c_str(),
-							repr.c_str(),
+							parsed_type->str().c_str(),
+							p.parsed.c_str());
+					return false;
+				}
+
+				auto evaled = parsed_type->eval(
+						types::type_t::map{},
+						types::type_t::map{});
+
+				if (evaled->repr() != p.second) {
+					log(log_error, c_type("%s") " evaled to " c_type("%s")
+							" - should have been " c_type("%s"),
+							parsed_type->str().c_str(),
+							evaled->str().c_str(),
 							p.second.c_str());
 					return false;
 				}
@@ -1167,6 +1205,8 @@ auto test_descs = std::vector<test_desc>{
 			};
 			for (auto test : tests) {
 				auto should_be_x = parse_type_expr(test, {}, module_id);
+				log("parsing type expression %s => %s",
+						test.c_str(), should_be_x->str().c_str());
 				auto evaled = should_be_x->eval(nominal_env, total_env);
 				log(log_info, "%s evaled to %s",
 						should_be_x->str().c_str(),

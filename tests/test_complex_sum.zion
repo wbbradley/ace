@@ -1,25 +1,26 @@
 module _
 # test: pass
+# expect: hello
 
-type Ax{G} has
+type Ax G has
 	var t G
 	var x int
 	var y float
 
-type Bx{G} has
+type Bx G has
 	var x int
 	var t G
 	var y float
 
-type Cx{P} has
+type Cx P has
 	var i int
 	var f float
 	var t P
 
-type C{T} is
-    Ax{T} or
-    Bx{T} or
-    Cx{T}
+type C T is
+    Ax T or
+    Bx T or
+    Cx T
 
 def main()
 	a_int := Ax(4, 5, 2.1)

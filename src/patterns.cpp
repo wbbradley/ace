@@ -177,32 +177,35 @@ void ast::when_block_t::resolve_statement(
 
 					/* check whether all cases of the pattern_value's type are handled */
 					types::type_sum_t::ref type_sum_matched = type_sum_safe(
+							status,
 							types_matched,
 							get_location(),
                             scope->get_nominal_env(),
                             scope->get_total_env());
 
-					unification_t unification = unify(type_sum_matched, pattern_value->type->get_type(), scope);
-					if (unification.result) {
-						if (else_block == nullptr) {
-							/* good, the user knew not to have an else block because they are handling
-							 * all paths */
-							*returns = all_patterns_return;
-							return;
+					if (!!status) {
+						unification_t unification = unify(type_sum_matched, pattern_value->type->get_type(), scope);
+						if (unification.result) {
+							if (else_block == nullptr) {
+								/* good, the user knew not to have an else block because they are handling
+								 * all paths */
+								*returns = all_patterns_return;
+								return;
+							} else {
+								user_error(status, else_block->get_location(), "this else block will never run because the patterns catch all cases. maybe you can delete it?");
+							}
 						} else {
-							user_error(status, else_block->get_location(), "this else block will never run because the patterns catch all cases. maybe you can delete it?");
-						}
-					} else {
-						/* the patterns don't cover all possible values */
-						if (else_block == nullptr) {
-							user_error(status, get_location(), "the 'when' block does not handle all inbound types %s",
-									unification.str().c_str());
-							user_info(status, get_location(), "the when block covers %s", type_sum_matched->str().c_str());
-						} else {
-							/* they didn't cover all the patterns, but they have an else block to
-							 * catch what they missed. fine. */
-							*returns = all_patterns_return && else_returns;
-							return;
+							/* the patterns don't cover all possible values */
+							if (else_block == nullptr) {
+								user_error(status, get_location(), "the 'when' block does not handle all inbound types %s",
+										unification.str().c_str());
+								user_info(status, get_location(), "the when block covers %s", type_sum_matched->str().c_str());
+							} else {
+								/* they didn't cover all the patterns, but they have an else block to
+								 * catch what they missed. fine. */
+								*returns = all_patterns_return && else_returns;
+								return;
+							}
 						}
 					}
 				}

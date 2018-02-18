@@ -1,13 +1,13 @@
 module _ @1.0
 
-type Derived{Y} has
+type Derived Y has
 	var y Y
 
-type Derived2{Y} has
+type Derived2 Y has
 	var y Y
 
-type Base{X, Y} is Derived{X} or Derived2{Y}
+type Base X Y is Derived X or Derived2 Y
 
-# error: unable to bind type .*C\{int\}
-def do(b C{int})
+# error: unable to bind type .*C int
+def do(b C int)
 	print(b.x)

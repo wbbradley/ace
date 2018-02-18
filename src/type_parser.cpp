@@ -335,14 +335,21 @@ namespace types {
 	type_t::ref parse_integer_type(parse_state_t &ps, const identifier::set &generics) {
 		auto token = ps.token;
 		chomp_ident(K(integer));
-		chomp_token(tk_lparen);
-		auto bit_size = parse_type(ps, generics);
+		if (ps.token.tk != tk_lparen) {
+			ps.error("native integer types use the form " c_type("integer(bit_size, signed) ")
+					"where bit_size must evaluate (as a type literal) to a valid word size, and signed "
+					"must evaluate (as a type literal) to true or false. for example: " c_type("integer(8, false)") " is an unsigned octet (aka: a byte)");
+		}
 		if (!!ps.status) {
-			chomp_token(tk_comma);
-			auto signed_ = parse_type(ps, generics);
+			chomp_token(tk_lparen);
+			auto bit_size = parse_type(ps, generics);
 			if (!!ps.status) {
-				chomp_token(tk_rparen);
-				return type_integer(bit_size, signed_);
+				chomp_token(tk_comma);
+				auto signed_ = parse_type(ps, generics);
+				if (!!ps.status) {
+					chomp_token(tk_rparen);
+					return type_integer(bit_size, signed_);
+				}
 			}
 		}
 
@@ -549,17 +556,11 @@ namespace types {
 			if (options.size() == 1) {
 				return options[0];
 			} else {
-#if 0
-				if (supertype_id != nullptr && supertype_id->get_name() == "Bool") {
-					/* hack because it's not actually possible to define Bool in the language with
-					 * automatically reducing types */
-					return type_sum(options, supertype_id != nullptr ? supertype_id->get_location() : location);
-				}
-#endif
-
-				return type_sum_safe(options, location, {}, {});
+				assert(options.size() > 1);
+				return type_sum(options, location);
 			}
 		}
+
 		assert(!ps.status);
 		return nullptr;
 	}
@@ -589,7 +590,18 @@ types::type_t::ref parse_type_expr(
 	std::istringstream iss(input);
 	zion_lexer_t lexer("", iss);
 	type_macros_t global_type_macros;
-	parse_state_t ps(status, "", lexer, {}, global_type_macros, nullptr);
+
+	// TODO: DRY this up with compiler.cpp's version. at this time it's some work to decouple the
+	// IRBuilder from that codepath, so this is just hacked in here for now.
+	global_type_macros[INT_TYPE] = type_id(make_iid(INT_TYPE));
+	global_type_macros[MANAGED_INT] = type_id(make_iid(MANAGED_INT));
+	global_type_macros[MANAGED_STR] = type_id(make_iid(MANAGED_STR));
+	global_type_macros[TRUE_TYPE] = type_id(make_iid(TRUE_TYPE));
+	global_type_macros[FALSE_TYPE] = type_id(make_iid(FALSE_TYPE));
+	global_type_macros[BUILTIN_NULL_TYPE] = type_id(make_iid(BUILTIN_NULL_TYPE));
+	global_type_macros[CHAR_TYPE] = type_id(make_iid(CHAR_TYPE));
+
+	parse_state_t ps(status, "", lexer, global_type_macros, global_type_macros, nullptr);
 	if (module_id != nullptr) {
 		ps.module_id = module_id;
 	} else {
