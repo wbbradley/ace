@@ -183,9 +183,6 @@ unification_t unify_core(
 	auto pruned_b = prune(rhs, bindings);
 
 	if (pruned_a->repr() == pruned_b->repr()) {
-		// May need to scrape any type constraints out of the function...
-		assert(!dyncast<const types::type_function_t>(pruned_a->eval(nominal_env, total_env)));
-
 		return {true, "", bindings, coercions, {}};
 	}
 

@@ -6,6 +6,7 @@
 #include "identifier.h"
 #include "token.h"
 
+extern const char *BUILTIN_NULL_TYPE;
 extern const char *STD_MANAGED_TYPE;
 extern const char *STD_VECTOR_TYPE;
 extern const char *STD_MAP_TYPE;
@@ -68,6 +69,7 @@ namespace types {
 		/* helper */
 
         virtual type_t::ref boolean_refinement(
+				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -82,7 +84,8 @@ namespace types {
 		virtual int get_precedence() const { return 10; }
 	};
 
-	bool is_type_id(type_t::ref type, std::string type_name);
+	bool is_type_id(type_t::ref type, const std::string &type_name);
+	bool is_ptr_type_id(type_t::ref type, const std::string &type_name);
 	bool is_managed_ptr(types::type_t::ref type, const types::type_t::map &nominal_env, const types::type_t::map &total_env);
 	bool is_ptr(types::type_t::ref type, const types::type_t::map &nominal_env, const types::type_t::map &total_env);
 
@@ -102,6 +105,7 @@ namespace types {
 		virtual bool is_true() const;
 		virtual bool is_false() const;
         virtual type_t::ref boolean_refinement(
+				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -136,6 +140,7 @@ namespace types {
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
         virtual type_t::ref boolean_refinement(
+				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -177,6 +182,7 @@ namespace types {
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
         virtual type_t::ref boolean_refinement(
+				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -330,6 +336,7 @@ namespace types {
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
         virtual type_t::ref boolean_refinement(
+				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -348,6 +355,7 @@ namespace types {
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
         virtual type_t::ref boolean_refinement(
+				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -369,6 +377,7 @@ namespace types {
 		virtual location_t get_location() const;
 		virtual identifier::ref get_id() const;
         virtual type_t::ref boolean_refinement(
+				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -454,6 +463,7 @@ types::type_function_t::ref type_function(identifier::ref name, types::type_t::r
 types::type_t::ref type_and(types::type_t::refs terms);
 types::type_t::ref type_sum(types::type_t::refs options, location_t location);
 types::type_t::ref type_sum_safe(
+		status_t &status,
         types::type_t::refs options,
         location_t location,
         const types::type_t::map &nominal_env,

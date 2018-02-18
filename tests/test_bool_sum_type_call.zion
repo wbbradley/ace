@@ -1,12 +1,8 @@
 module _ @1.0
 # test: pass
 
-tag True
-tag False
 
-type Boolean is True or False
-
-def do_recursive_boolean(b Boolean)
+def do_recursive_boolean(b Bool)
 	do_recursive_boolean(b)
 	
 def main()
