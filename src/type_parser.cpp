@@ -554,11 +554,11 @@ namespace types {
 
 		if (!!ps.status) {
 			if (options.size() == 1) {
-				return options[0];
-			} else {
-				assert(options.size() > 1);
-				return type_sum(options, location);
+				if (auto function_type = dyncast<const type_function_t>(options[0])) {
+					return function_type;
+				} 
 			}
+			return type_lazy(options, location);
 		}
 
 		assert(!ps.status);

@@ -197,7 +197,7 @@ std::vector<llvm::Type *> build_struct_elements(
 	std::vector<llvm::Type *> elements;
 
 	for (auto &dimension : bound_dimensions) {
-		assert(!dimension->get_type()->is_ref());
+		assert(dyncast<const types::type_ref_t>(dimension->get_type()) == nullptr);
 	}
 
 	if (native) {
@@ -574,7 +574,7 @@ bound_type_t::ref create_bound_integer_type(
 	types::type_t::ref bit_size_expansion;
 	int bit_size = types::coerce_to_integer(status, nominal_env, scope->get_total_env(), integer->bit_size, bit_size_expansion);
 	if (!!status) {
-		if (!types::is_type_id(signed_, "true") && !types::is_type_id(signed_, "false")) {
+		if (!types::is_type_id(signed_, TRUE_TYPE, {}, {}) && !types::is_type_id(signed_, FALSE_TYPE, {}, {})) {
 			user_error(status, integer->get_location(), "could not determine signedness for type from %s",
 					signed_->str().c_str());
 		} else {
@@ -588,8 +588,13 @@ bound_type_t::ref create_bound_integer_type(
 				user_error(status, integer->get_location(), "illegal bit-size for %s",
 						integer->str().c_str());
 			} else {
+				auto final_type = type_integer(bit_size_expansion, signed_);
+				if (auto bound_type = scope->get_bound_type(final_type->get_signature(), false)) {
+					return bound_type;
+				}
+
 				auto bound_type = bound_type_t::create(
-						type_integer(bit_size_expansion, signed_),
+						final_type,
 						integer->get_location(),
 						builder.getIntNTy(bit_size),
 						builder.getIntNTy(bit_size));
@@ -814,6 +819,10 @@ bound_type_t::ref upsert_bound_type(
 	depth_guard_t depth_guard(depth, 10);
 
 	if (!!status) {
+		if (auto lazy = dyncast<const types::type_lazy_t>(type)) {
+			type = type->eval(scope);
+		}
+
 		type = type->rebind(scope->get_type_variable_bindings());
 
 		auto signature = type->get_signature();

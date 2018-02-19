@@ -45,7 +45,6 @@ public:
 
 	std::string str() const;
 	types::type_t::ref get_type() const;
-	bool is_concrete() const;
 	location_t const get_location() const;
 	llvm::Type *get_llvm_type() const;
 	llvm::Type *get_llvm_specific_type() const;

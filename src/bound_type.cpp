@@ -33,11 +33,6 @@ types::type_t::ref bound_type_t::get_type() const {
 	return type;
 }
 
-bool bound_type_t::is_concrete() const {
-	assert(type->ftv_count() == 0);
-	return !is_type_id(type, {BUILTIN_UNREACHABLE_TYPE});
-}
-
 location_t const bound_type_t::get_location() const {
 	return location;
 }
@@ -174,15 +169,15 @@ bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {
 }
 
 bool bound_type_t::is_ref() const {
-	return get_type()->is_ref();
+	return dyncast<const types::type_ref_t>(get_type()) != nullptr;
 }
 
 bool bound_type_t::is_function() const {
-	return get_type()->is_function();
+	return dyncast<const types::type_function_t>(get_type()) != nullptr;
 }
 
 bool bound_type_t::is_void() const {
-	return get_type()->is_void();
+	return types::is_type_id(get_type(), BUILTIN_VOID_TYPE, {}, {});
 }
 
 bool bound_type_t::is_maybe() const {
@@ -194,7 +189,7 @@ bool bound_type_t::is_maybe() const {
 }
 
 bool bound_type_t::is_module() const {
-	return types::is_type_id(get_type(), "module");
+	return types::is_type_id(get_type(), "module", {}, {});
 }
 
 bool bound_type_t::is_ptr(scope_t::ref scope) const {

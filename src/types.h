@@ -27,6 +27,19 @@ const char *pkstr(product_kind_t pk);
 /* used to reset the generic type id counter */
 void reset_generics();
 
+enum type_builtins_t {
+	tb_gc,
+	tb_ref,
+	tb_true,
+	tb_false,
+	tb_pointer,
+	tb_function,
+	tb_void,
+	tb_null,
+	tb_zero,
+	tb_maybe,
+};
+
 namespace types {
 
 	typedef std::map<std::string, int> name_index_t;
@@ -53,7 +66,6 @@ namespace types {
 		std::string repr() const { return this->repr({}); }
 
 		virtual location_t get_location() const = 0;
-		virtual identifier::ref get_id() const = 0;
 
 		std::string str() const;
 		std::string str(const map &bindings) const;
@@ -65,27 +77,39 @@ namespace types {
 
 		virtual ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;
 
-	public:
-		/* helper */
-
         virtual type_t::ref boolean_refinement(
 				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
-		virtual bool is_ref() const { return false; }
-		virtual bool is_function() const { return false; }
-		virtual bool is_void() const { return false; }
-		virtual bool is_null() const { return false; }
-		virtual bool is_true() const { return false; }
-		virtual bool is_false() const { return false; }
-		virtual bool is_zero() const { return false; }
-		virtual bool is_maybe() const { return false; }
+
+		/* helpers */
+		bool eval_predicate(type_builtins_t tb, const ptr<scope_t> &scope) const;
+		bool eval_predicate(type_builtins_t tb, const map &nominal_env, const map &total_env) const;
+
 		virtual int get_precedence() const { return 10; }
 	};
 
-	bool is_type_id(type_t::ref type, const std::string &type_name);
-	bool is_ptr_type_id(type_t::ref type, const std::string &type_name);
+	struct type_lazy_t : public type_t {
+		type_lazy_t(const type_t::refs &options, location_t location);
+		const type_t::refs options;
+		const location_t location;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual std::set<std::string> get_ftvs() const;
+		virtual ref rebind(const map &bindings) const;
+		virtual location_t get_location() const;
+        virtual type_t::ref boolean_refinement(
+				status_t &status,
+				bool elimination_value,
+			   	const types::type_t::map &nominal_env,
+			   	const types::type_t::map &total_env) const;
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_env) const;
+	};
+
+	bool is_type_id(type_t::ref type, const std::string &type_name, const types::type_t::map &nominal_env, const types::type_t::map &total_env);
+	bool is_ptr_type_id(type_t::ref type, const std::string &type_name, const types::type_t::map &nominal_env, const types::type_t::map &total_env, bool allow_maybe=false);
 	bool is_managed_ptr(types::type_t::ref type, const types::type_t::map &nominal_env, const types::type_t::map &total_env);
 	bool is_ptr(types::type_t::ref type, const types::type_t::map &nominal_env, const types::type_t::map &total_env);
 
@@ -98,12 +122,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
-		virtual bool is_void() const;
-		virtual bool is_null() const;
-		virtual bool is_zero() const;
-		virtual bool is_true() const;
-		virtual bool is_false() const;
         virtual type_t::ref boolean_refinement(
 				status_t &status,
 				bool elimination_value,
@@ -123,7 +141,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
 	};
 
 	struct type_operator_t : public type_t {
@@ -138,7 +155,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
         virtual type_t::ref boolean_refinement(
 				status_t &status,
 				bool elimination_value,
@@ -164,7 +180,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
 		int coerce_to_int(status_t &status) const;
 	};
 
@@ -180,7 +195,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
         virtual type_t::ref boolean_refinement(
 				status_t &status,
 				bool elimination_value,
@@ -203,7 +217,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
 
 		type_t::ref module_type;
 	};
@@ -221,7 +234,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
 
 		type_t::ref element_type;
 	};
@@ -239,7 +251,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
 
 		type_t::refs args;
 		identifier::refs names;
@@ -258,7 +269,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
 
 		type_t::refs dimensions;
 		name_index_t name_index;
@@ -277,7 +287,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
 
 		type_t::refs dimensions;
 	};
@@ -300,9 +309,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
-
-		virtual bool is_function() const;
 	};
 
 	struct type_and_t : public type_t {
@@ -317,7 +323,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
 		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_env) const;
 	};
 
@@ -334,7 +339,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
         virtual type_t::ref boolean_refinement(
 				status_t &status,
 				bool elimination_value,
@@ -353,13 +357,11 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
         virtual type_t::ref boolean_refinement(
 				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
-		virtual bool is_maybe() const { return true; }
 		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_env) const;
 	};
 
@@ -375,7 +377,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
         virtual type_t::ref boolean_refinement(
 				status_t &status,
 				bool elimination_value,
@@ -396,8 +397,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
-		virtual bool is_ref() const { return true; }
 
 		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_env) const;
 	};
@@ -413,7 +412,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
 	};
 
 	struct type_extern_t : public type_t {
@@ -426,7 +424,6 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		virtual identifier::ref get_id() const;
 	};
 
 
@@ -461,6 +458,7 @@ types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_args_t::ref type_args(types::type_t::refs args, const identifier::refs &names={});
 types::type_function_t::ref type_function(identifier::ref name, types::type_t::ref type_constraints, types::type_t::ref args, types::type_t::ref return_type);
 types::type_t::ref type_and(types::type_t::refs terms);
+types::type_t::ref type_lazy(types::type_t::refs options, location_t location);
 types::type_t::ref type_sum(types::type_t::refs options, location_t location);
 types::type_t::ref type_sum_safe(
 		status_t &status,
