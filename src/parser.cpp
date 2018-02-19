@@ -1207,27 +1207,6 @@ ptr<for_block_t> for_block_t::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-types::type_t::ref autoconvert_native_types(status_t &status, types::type_t::ref type) {
-	if (type->is_zero()) {
-		user_error(status, type->get_location(), "matching on zero is not possible");
-	} else if (types::is_type_id(type, INT_TYPE)) {
-		return type_id(make_iid_impl(MANAGED_INT, type->get_location()));
-	} else if (types::is_type_id(type, FLOAT_TYPE)) {
-		return type_id(make_iid_impl(MANAGED_FLOAT, type->get_location()));
-	} else if (types::is_type_id(type, BOOL_TYPE)) {
-		return type_id(make_iid_impl(MANAGED_BOOL, type->get_location()));
-	} else if (types::is_type_id(type, TRUE_TYPE)) {
-		return type_id(make_iid_impl(MANAGED_TRUE, type->get_location()));
-	} else if (types::is_type_id(type, FALSE_TYPE)) {
-		return type_id(make_iid_impl(MANAGED_FALSE, type->get_location()));
-	} else {
-		return type;
-	}
-
-	assert(!status);
-	return nullptr;
-}
-
 ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 	auto is_token = ps.token;
 	chomp_ident(K(is));
@@ -1236,25 +1215,14 @@ ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 	auto pattern_type = types::parse_type(ps, {});
 
 	if (!!ps.status) {
-		pattern_block->type = autoconvert_native_types(ps.status, pattern_type);
-		if (!!ps.status) {
-			if (pattern_block->type->is_null()) {
-				user_error(ps.status, is_token.location,
-						"it is impossible to match null as a type-pattern since it has no runtime type information");
-				user_info(ps.status, is_token.location,
-						"check for null ahead of pattern matching");
-			}
-
-			if (!!ps.status) {
-				auto block = block_t::parse(ps);
-				if (block) {
-					pattern_block->block.swap(block);
-					return pattern_block;
-				} else {
-					assert(!ps.status);
-					return nullptr;
-				}
-			}
+		pattern_block->type = pattern_type;
+		auto block = block_t::parse(ps);
+		if (block) {
+			pattern_block->block.swap(block);
+			return pattern_block;
+		} else {
+			assert(!ps.status);
+			return nullptr;
 		}
 	}
 
@@ -1353,7 +1321,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 						panic("we should have a type_args_t here");
 					}
 
-					if (!types::is_type_id(function_type->return_type, "void")) {
+					if (!types::is_type_id(function_type->return_type, BUILTIN_VOID_TYPE, {}, {})) {
 						user_error(ps.status, function_type->name->get_location(),
 								"finalizers must return " c_type("void"));
 					}

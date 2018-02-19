@@ -257,7 +257,7 @@ bound_var_t::ref gen_type_check(
 		bound_type_t::ref bound_type,
 		local_scope_t::ref *new_scope)
 {
-	if (bound_type->get_type()->is_null()) {
+	if (bound_type->get_type()->eval_predicate(tb_null, scope)) {
 		/* checking for the null type means checking for a zero value from a
 		 * pointer. */
 		return gen_null_check(status, builder, node, scope, life, value_name, value, new_scope);

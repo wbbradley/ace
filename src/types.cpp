@@ -91,30 +91,6 @@ namespace types {
 		return id->get_location();
 	}
 
-	identifier::ref type_id_t::get_id() const {
-		return id;
-	}
-
-	bool type_id_t::is_void() const {
-		return id->get_name() == BUILTIN_VOID_TYPE;
-	}
-
-	bool type_id_t::is_null() const {
-		return id->get_name() == BUILTIN_NULL_TYPE;
-	}
-
-	bool type_id_t::is_zero() const {
-		return id->get_name() == ZERO_TYPE;
-	}
-
-	bool type_id_t::is_true() const {
-		return id->get_name() == TRUE_TYPE;
-	}
-
-	bool type_id_t::is_false() const {
-		return id->get_name() == FALSE_TYPE;
-	}
-
 	type_t::ref type_id_t::boolean_refinement(
 			status_t &status,
 			bool elimination_value,
@@ -122,29 +98,32 @@ namespace types {
 			const types::type_t::map &total_env) const
 	{
 		debug_above(6, log("refining %s. looking to eliminate %s values from the type", str().c_str(), boolstr(elimination_value)));
-		if (is_null() || is_zero() || is_false()) {
-			if (elimination_value) {
-				debug_above(6, log("keeping %s", str().c_str()));
-				return shared_from_this();
-			} else {
+		auto evaled = eval_core(nominal_env, total_env, false /*get_structural_type*/);
+		if (auto id_type = dyncast<const type_id_t>(evaled)) {
+			auto name = id_type->id->get_name();
+			if (name == BUILTIN_NULL_TYPE || name == ZERO_TYPE) {
+				if (elimination_value) {
+					debug_above(6, log("keeping %s", str().c_str()));
+					return shared_from_this();
+				} else {
+					debug_above(6, log("eliding the whole type of %s", str().c_str()));
+					return nullptr;
+				}
+			}
+
+			/* handle builtin type ids */
+			if (name == boolstr(elimination_value) || name == Boolstr(elimination_value)) {
 				debug_above(6, log("eliding the whole type of %s", str().c_str()));
 				return nullptr;
+			} else if (name == BOOL_TYPE) {
+				auto refinement = type_id(make_iid_impl(boolstr(!elimination_value), get_location()));
+				debug_above(6, log("refining %s to %s", str().c_str(), refinement->str().c_str()));
+				return refinement;
+			} else if (name == MANAGED_BOOL) {
+				auto refinement = type_id(make_iid_impl(Boolstr(!elimination_value), get_location()));
+				debug_above(6, log("refining %s to %s", str().c_str(), refinement->str().c_str()));
+				return refinement;
 			}
-		}
-
-		auto name = id->get_name();
-		/* handle builtin type ids */
-		if (name == boolstr(elimination_value) || name == Boolstr(elimination_value)) {
-			debug_above(6, log("eliding the whole type of %s", str().c_str()));
-			return nullptr;
-		} else if (name == BOOL_TYPE) {
-			auto refinement = type_id(make_iid_impl(boolstr(!elimination_value), get_location()));
-			debug_above(6, log("refining %s to %s", str().c_str(), refinement->str().c_str()));
-			return refinement;
-		} else if (name == MANAGED_BOOL) {
-			auto refinement = type_id(make_iid_impl(Boolstr(!elimination_value), get_location()));
-			debug_above(6, log("refining %s to %s", str().c_str(), refinement->str().c_str()));
-			return refinement;
 		}
 
 		return shared_from_this();
@@ -197,17 +176,13 @@ namespace types {
 		return location;
 	}
 
-	identifier::ref type_variable_t::get_id() const {
-		return id;
-	}
-
 	type_operator_t::type_operator_t(type_t::ref oper, type_t::ref operand) :
 		oper(oper), operand(operand)
 	{
 	}
 
 	std::ostream &type_operator_t::emit(std::ostream &os, const map &bindings) const {
-		if (is_type_id(oper, STD_VECTOR_TYPE)) {
+		if (is_type_id(oper->rebind(bindings), STD_VECTOR_TYPE, {}, {})) {
 			os << "[";
 			operand->emit(os, bindings);
 			return os << "]";
@@ -258,10 +233,6 @@ namespace types {
 
 	location_t type_operator_t::get_location() const {
 		return oper->get_location();
-	}
-
-	identifier::ref type_operator_t::get_id() const {
-		return oper->get_id();
 	}
 
 	type_t::ref type_operator_t::boolean_refinement(
@@ -365,10 +336,6 @@ namespace types {
 		}
 	}
 
-	identifier::ref type_struct_t::get_id() const {
-		return nullptr;
-	}
-
 	type_tuple_t::type_tuple_t(type_t::refs dimensions) :
 		dimensions(dimensions)
 	{
@@ -439,10 +406,6 @@ namespace types {
 		} else {
 			return INTERNAL_LOC();
 		}
-	}
-
-	identifier::ref type_tuple_t::get_id() const {
-		return nullptr;
 	}
 
 	type_args_t::type_args_t(type_t::refs args, identifier::refs names) :
@@ -520,10 +483,6 @@ namespace types {
 		}
 	}
 
-	identifier::ref type_args_t::get_id() const {
-		return nullptr;
-	}
-
 	type_managed_t::type_managed_t(type_t::ref element_type) :
 		element_type(element_type)
 	{
@@ -566,10 +525,6 @@ namespace types {
 
 	location_t type_managed_t::get_location() const {
 		return element_type->get_location();
-	}
-
-	identifier::ref type_managed_t::get_id() const {
-		return element_type->get_id();
 	}
 
 	type_module_t::type_module_t(type_t::ref module_type) :
@@ -615,10 +570,6 @@ namespace types {
 		return module_type->get_location();
 	}
 
-	identifier::ref type_module_t::get_id() const {
-		return module_type->get_id();
-	}
-
 	type_function_t::type_function_t(
 			identifier::ref name,
 			types::type_t::ref type_constraints,
@@ -636,7 +587,7 @@ namespace types {
 		if (name != nullptr) {
 			os << C_ID << name->get_name() << C_RESET;
 		}
-		if (type_constraints != nullptr && !is_type_id(type_constraints, "true")) {
+		if (type_constraints != nullptr && !is_type_id(type_constraints->rebind(bindings), TRUE_TYPE, {}, {})) {
 			os << "[" << C_CONTROL << "where " << C_RESET;
 			type_constraints->emit(os, bindings);
 			os << "]";
@@ -678,18 +629,84 @@ namespace types {
 		return args->get_location();
 	}
 
-	identifier::ref type_function_t::get_id() const {
-		return nullptr;
+	type_lazy_t::type_lazy_t(const type_t::refs &options, location_t location) : options(options), location(location) {
 	}
 
-	bool type_function_t::is_function() const {
-		return true;
+	std::ostream &type_lazy_t::emit(std::ostream &os, const map &bindings) const {
+		const char *delim = "";
+		assert(options.size() != 0);
+		os << "(lazy ";
+		for (auto option : options) {
+			os << delim;
+			option->emit(os, bindings);
+			delim = " or ";
+		}
+		return os << ")";
+	}
+
+	int type_lazy_t::ftv_count() const {
+		int ftv_sum = 0;
+		for (auto option : options) {
+			ftv_sum += option->ftv_count();
+		}
+		return ftv_sum;
+	}
+
+	std::set<std::string> type_lazy_t::get_ftvs() const {
+		std::set<std::string> set;
+		for (auto option : options) {
+			std::set<std::string> option_set = option->get_ftvs();
+			set.insert(option_set.begin(), option_set.end());
+		}
+		return set;
+	}
+
+	type_t::ref type_lazy_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
+		refs type_options;
+		for (auto option : options) {
+			type_options.push_back(option->rebind(bindings));
+		}
+		return ::type_lazy(type_options, location);
+	}
+
+	location_t type_lazy_t::get_location() const {
+		return location;
+	}
+
+	type_t::ref type_lazy_t::boolean_refinement(
+			status_t &status,
+			bool elimination_value,
+			const types::type_t::map &nominal_env,
+			const types::type_t::map &total_env) const
+	{
+		auto type = type_sum_safe(
+				status,
+				options,
+				location,
+				nominal_env,
+				total_env);
+		if (!!status) {
+			return type->boolean_refinement(status, elimination_value,
+					nominal_env, total_env);
+		}
+		assert(!status);
+		return nullptr;
 	}
 
 	type_sum_t::type_sum_t(type_t::refs options, location_t location) : options(options), location(location) {
 		for (auto option : options) {
-			assert(!dyncast<const type_maybe_t>(option));
-			assert(!option->is_null());
+			if (dyncast<const type_maybe_t>(option) != nullptr) {
+				log(log_error, "found maybe type %s within type_sum %s", option->str().c_str(), ::str(options).c_str());
+				dbg();
+			}
+			if (is_type_id(option, BUILTIN_NULL_TYPE, {}, {})) {
+				log(log_error, "found null type within type_sum %s", ::str(options).c_str());
+				dbg();
+			}
 		}
 	}
 
@@ -737,10 +754,6 @@ namespace types {
 		return location;
 	}
 
-	identifier::ref type_sum_t::get_id() const {
-		return nullptr;
-	}
-
 	type_t::ref type_sum_t::boolean_refinement(
 			status_t &status,
 			bool elimination_value,
@@ -768,7 +781,6 @@ namespace types {
 	type_and_t::type_and_t(type_t::refs terms) : terms(terms) {
 		for (auto term : terms) {
 			assert(!dyncast<const type_maybe_t>(term));
-			assert(!term->is_null());
 		}
 	}
 
@@ -816,14 +828,11 @@ namespace types {
 		return location;
 	}
 
-	identifier::ref type_and_t::get_id() const {
-		return nullptr;
-	}
-
 	type_maybe_t::type_maybe_t(type_t::ref just) : just(just) {
 		assert(!dyncast<const type_maybe_t>(just));
 		assert(!dyncast<const type_ref_t>(just));
-		assert(!just->is_null());
+		// TODO: revisit this... lazy types...
+		// assert(!just->is_null());
 	}
 
 	std::ostream &type_maybe_t::emit(std::ostream &os, const map &bindings) const {
@@ -867,10 +876,6 @@ namespace types {
 		return just->get_location();
 	}
 
-	identifier::ref type_maybe_t::get_id() const {
-		return nullptr;
-	}
-
 	type_t::ref type_maybe_t::boolean_refinement(
 			status_t &status,
 			bool elimination_value,
@@ -894,7 +899,7 @@ namespace types {
 	}
 
 	type_ptr_t::type_ptr_t(type_t::ref element_type) : element_type(element_type) {
-		assert(!element_type->is_null());
+		// assert(!element_type->is_null());
 	}
 
 	std::ostream &type_ptr_t::emit(std::ostream &os, const map &bindings) const {
@@ -929,10 +934,6 @@ namespace types {
 
 	location_t type_ptr_t::get_location() const {
 		return element_type->get_location();
-	}
-
-	identifier::ref type_ptr_t::get_id() const {
-		return nullptr;
 	}
 
 	type_t::ref type_ptr_t::boolean_refinement(
@@ -985,10 +986,6 @@ namespace types {
 		return element_type->get_location();
 	}
 
-	identifier::ref type_ref_t::get_id() const {
-		return nullptr;
-	}
-
 	type_lambda_t::type_lambda_t(identifier::ref binding, type_t::ref body) :
 		binding(binding), body(body)
 	{
@@ -1035,11 +1032,6 @@ namespace types {
 	location_t type_lambda_t::get_location() const {
 		return binding->get_location();
 	}
-
-	identifier::ref type_lambda_t::get_id() const {
-		return nullptr;
-	}
-
 
 	type_integer_t::type_integer_t(type_t::ref bit_size, type_t::ref signed_) :
 		bit_size(bit_size), signed_(signed_)
@@ -1094,10 +1086,6 @@ namespace types {
 		return bit_size->get_location();
 	}
 
-	identifier::ref type_integer_t::get_id() const {
-		return nullptr;
-	}
-
 	type_literal_t::type_literal_t(token_t token) : token(token)
 	{
 	}
@@ -1120,10 +1108,6 @@ namespace types {
 
 	location_t type_literal_t::get_location() const {
 		return token.location;
-	}
-
-	identifier::ref type_literal_t::get_id() const {
-		return nullptr;
 	}
 
 	int type_literal_t::coerce_to_int(status_t &status) const {
@@ -1173,22 +1157,34 @@ namespace types {
 		return inner->get_location();
 	}
 
-	identifier::ref type_extern_t::get_id() const {
-		assert(false && "what is this for?");
-		return inner->get_id();
-	}
+	bool is_ptr_type_id(
+			type_t::ref type,
+		   	const std::string &type_name,
+		   	const types::type_t::map &nominal_env,
+		   	const types::type_t::map &total_env,
+		   	bool allow_maybe)
+   	{
+		type = type->eval(nominal_env, total_env, true /*get_structural_type*/);
 
-	bool is_ptr_type_id(type_t::ref type, const std::string &type_name) {
+		if (allow_maybe) {
+			if (auto maybe = dyncast<const types::type_maybe_t>(type)) {
+				type = maybe->just;
+			}
+		}
+		assert(!dyncast<const type_lazy_t>(type));
 		if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
-			return is_type_id(ptr_type->element_type, type_name);
+			return is_type_id(ptr_type->element_type, type_name, nominal_env, total_env);
 		}
 		return false;
 	}
 
-	bool is_type_id(type_t::ref type, const std::string &type_name) {
+	bool is_type_id(type_t::ref type, const std::string &type_name, const types::type_t::map &nominal_env, const types::type_t::map &total_env) {
+		type = type->eval(nominal_env, total_env);
+
 		if (auto pti = dyncast<const types::type_id_t>(type)) {
 			return pti->id->get_name() == type_name;
 		}
+
 		return false;
 	}
 
@@ -1273,7 +1269,7 @@ namespace types {
 
 	bool is_integer(type_t::ref type, const type_t::map &nominal_env, const type_t::map &total_env) {
 		auto expansion = type->eval(nominal_env, total_env);
-		return (dyncast<const type_integer_t>(expansion) != nullptr) || expansion->is_zero();
+		return (dyncast<const type_integer_t>(expansion) != nullptr) || expansion->eval_predicate(tb_zero, nominal_env, total_env);
 	}
 
 	void get_integer_attributes(
@@ -1290,18 +1286,18 @@ namespace types {
 			bit_size = coerce_to_integer(status, nominal_env, total_env, integer->bit_size, bit_size_expansion);
 			if (!!status) {
 				auto signed_type = integer->signed_->eval(nominal_env, total_env);
-				if (types::is_type_id(signed_type, "true")) {
+				if (types::is_type_id(signed_type, TRUE_TYPE, {}, {})) {
 					signed_ = true;
 					return;
-				} else if (types::is_type_id(signed_type, "false")) {
+				} else if (types::is_type_id(signed_type, FALSE_TYPE, {}, {})) {
 					signed_ = false;
 					return;
 				} else {
-					user_error(status, integer->get_location(), "unable to determine signedness for type from %s",
+					user_error(status, integer->signed_->get_location(), "unable to determine signedness for type from %s",
 							signed_type->str().c_str());
 				}
 			}
-		} else if (type->is_zero()) {
+		} else if (type->eval_predicate(tb_zero, nominal_env, total_env)) {
 			bit_size = DEFAULT_INT_BITSIZE;
 			signed_ = true;
 			return;
@@ -1419,7 +1415,7 @@ types::type_args_t::ref type_args(
 {
 	assert((names.size() == args.size()) ^ (names.size() == 0 && args.size() != 0));
 	for (auto arg : args) {
-		assert(!arg->is_ref());
+		assert(dyncast<const types::type_ref_t>(arg) == nullptr);
 	}
 	return make_ptr<types::type_args_t>(args, names);
 }
@@ -1484,8 +1480,8 @@ void eliminate_redundant_types(types::type_t::refs &options, const types::type_t
 		auto &option0 = options[0];
 		auto &option1 = options[1];
 		if (
-				(types::is_type_id(option0, MANAGED_TRUE)  && types::is_type_id(option1, MANAGED_FALSE)) ||
-				(types::is_type_id(option0, MANAGED_FALSE) && types::is_type_id(option1, MANAGED_TRUE)))
+				(types::is_type_id(option0, MANAGED_TRUE, env, total_env)  && types::is_type_id(option1, MANAGED_FALSE, env, total_env)) ||
+				(types::is_type_id(option0, MANAGED_FALSE, env, total_env) && types::is_type_id(option1, MANAGED_TRUE, env, total_env)))
 		{
 			/* any of the above combinations can be simplified */
 			options = {type_id(make_iid(MANAGED_BOOL))};
@@ -1519,18 +1515,17 @@ types::type_t::ref demote_to_native_type(
 	   	const types::type_t::map &nominal_env,
 	   	const types::type_t::map &total_env)
 {
-	if (types::is_type_id(option, MANAGED_BOOL)) {
+	auto evaled = option->eval(nominal_env, total_env);
+	if (types::is_type_id(evaled, MANAGED_BOOL, {}, {})) {
 		return type_id(make_iid(BOOL_TYPE));
-	} else if (types::is_type_id(option, MANAGED_INT)) {
+	} else if (types::is_type_id(evaled, MANAGED_INT, {}, {})) {
 		return type_id(make_iid(INT_TYPE));
-	} else if (types::is_type_id(option, MANAGED_FLOAT)) {
+	} else if (types::is_type_id(evaled, MANAGED_FLOAT, {}, {})) {
 		return type_id(make_iid(FLOAT_TYPE));
-	} else if (types::is_type_id(option, MANAGED_TRUE)) {
+	} else if (types::is_type_id(evaled, MANAGED_TRUE, {}, {})) {
 		return type_id(make_iid(TRUE_TYPE));
-	} else if (types::is_type_id(option, MANAGED_FALSE)) {
+	} else if (types::is_type_id(evaled, MANAGED_FALSE, {}, {})) {
 		return type_id(make_iid(FALSE_TYPE));
-	} else if (types::is_type_id(option, MANAGED_STR)) {
-		return type_ptr(type_id(make_iid_impl(CHAR_TYPE, option->get_location())));
 	} else {
 		return option;
 	}
@@ -1545,7 +1540,7 @@ types::type_t::ref promote_to_managed_type(
 		return option;
 	}
 
-	if (types::is_ptr_type_id(option, CHAR_TYPE)) {
+	if (types::is_ptr_type_id(option, CHAR_TYPE, nominal_env, total_env)) {
 		return type_id(make_iid_impl(MANAGED_STR, option->get_location()));
 	}
 
@@ -1567,7 +1562,7 @@ types::type_t::ref promote_to_managed_type(
 
 	for (unsigned i = 0; i < sizeof(coercions)/sizeof(coercions[0]); ++i) {
 		/* coerce native types to managed types for the sake of maintaining polymorphism during (de)serialization */
-		if (types::is_type_id(option, coercions[i].native_type)) {
+		if (types::is_type_id(option, coercions[i].native_type, nominal_env, total_env)) {
 			debug_above(9, log("coercing %s to %s for sum type", coercions[i].native_type, coercions[i].managed_type));
 			return type_id(make_iid_impl(coercions[i].managed_type, option->get_location()));
 		}
@@ -1591,8 +1586,8 @@ types::type_t::ref type_sum_safe_3(
 	/* check preconditions */
 	for (auto option : options) {
 		auto evaled = option->eval(nominal_env, total_env);
-		assert(!types::is_type_id(evaled, "null"));
-		assert(!evaled->is_maybe());
+		assert(!types::is_type_id(evaled, BUILTIN_NULL_TYPE, nominal_env, total_env));
+		assert(dyncast<const types::type_maybe_t>(evaled) == nullptr);
 	}
 	
 	types::type_t::refs expanded_options;
@@ -1639,7 +1634,7 @@ types::type_t::ref type_sum_safe_2(
 	new_options.reserve(options.size());
 	for (auto option : options) {
 		auto evaled = option->eval(nominal_env, total_env);
-		if (types::is_type_id(evaled, "null")) {
+		if (types::is_type_id(evaled, BUILTIN_NULL_TYPE, {}, {})) {
 			make_maybe = true;
 			continue;
 		} else if (auto maybe = dyncast<const types::type_maybe_t>(evaled)) {
@@ -1666,8 +1661,9 @@ types::type_t::ref type_sum_safe(
 	if (options.size() == 1) {
 		auto evaled = options[0]->eval(nominal_env, total_env);
 		if (
-				types::is_type_id(evaled, "null") ||
-				types::is_type_id(evaled, "int") ||
+				types::is_type_id(evaled, BUILTIN_NULL_TYPE, {}, {}) ||
+				// types::is_type_id(evaled, "int") ||
+				types::is_ptr_type_id(evaled, CHAR_TYPE, nominal_env, total_env, true) ||
 				types::is_integer(evaled, nominal_env, total_env))
 		{
 			return options[0];
@@ -1690,6 +1686,16 @@ types::type_t::ref type_sum_safe(
 	}
 }
 
+
+types::type_t::ref type_lazy(types::type_t::refs options, location_t location) {
+	std::sort(
+		options.begin(),
+		options.end(),
+		[] (const types::type_t::ref &lhs, const types::type_t::ref &rhs) -> bool {
+			return lhs->repr() < rhs->repr();
+		});
+	return make_ptr<types::type_lazy_t>(options, location);
+}
 
 types::type_t::ref type_sum(types::type_t::refs options, location_t location) {
 	std::sort(
@@ -1719,10 +1725,12 @@ types::type_t::ref type_maybe(types::type_t::ref just) {
         return just;
     }
 
+#if 0
 	if (just->is_null()) {
 		/* maybe of null is just null */
 		return just;
 	}
+#endif
 
     return make_ptr<types::type_maybe_t>(just);
 }

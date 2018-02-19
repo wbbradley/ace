@@ -27,6 +27,10 @@ unification_t::unification_t(
 
 types::type_t::ref prune(types::type_t::ref t, const types::type_t::map &bindings) {
 	/* Follow the links across the bindings to reach the final binding. */
+	debug_above(6, log("attempting to prune %s from %s",
+				::str(bindings).c_str(),
+				t->str().c_str()));
+
 	std::string type_variable_name;
 	if (get_type_variable_name(t, type_variable_name)) {
 		auto binding_iter = bindings.find(type_variable_name);
@@ -98,7 +102,7 @@ unification_t unify(
 
 			types::type_t::ref value = type_constraint->eval(nominal_env, total_env);
 
-			if (!types::is_type_id(value, "true")) {
+			if (!types::is_type_id(value, TRUE_TYPE, {}, {})) {
 				unification.result = false;
 				unification.reasons = string_format(
 						"type constraints evaluated to %s",
@@ -140,8 +144,8 @@ bool unifies(
 }
 
 unification_t unify_core(
-		const types::type_t::ref &lhs,
-		const types::type_t::ref &rhs,
+		const types::type_t::ref &lhs_,
+		const types::type_t::ref &rhs_,
 		const types::type_t::map &nominal_env,
 		const types::type_t::map &total_env,
 		types::type_t::map bindings,
@@ -153,14 +157,17 @@ unification_t unify_core(
 		dbg();
 	}
 
-	assert(lhs != nullptr);
-	assert(rhs != nullptr);
+	assert(lhs_ != nullptr);
+	assert(rhs_ != nullptr);
 
 	INDENT(7,
 			string_format("unify_core(%s, %s, ..., %s)",
-				lhs->str().c_str(),
-				rhs->str().c_str(),
+				lhs_->str().c_str(),
+				rhs_->str().c_str(),
 				str(bindings).c_str()));
+
+	const auto lhs = lhs_->eval(nominal_env, total_env);
+	const auto rhs = rhs_->eval(nominal_env, total_env);
 
 	auto ptref_lhs = dyncast<const types::type_ref_t>(lhs);
 
@@ -188,11 +195,11 @@ unification_t unify_core(
 
 	auto a = pruned_a->eval(nominal_env, total_env);
 	auto b = pruned_b->eval(nominal_env, total_env);
-	if (dyncast<const types::type_sum_t>(a) && types::is_type_id(b, "bool")) {
+	if (dyncast<const types::type_sum_t>(a) && types::is_type_id(b, BOOL_TYPE, {}, {})) {
 		/* make sure we enable checking bool against type sums */
 		static auto bool_type = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 		b = bool_type;
-	} else if (b->is_zero()) {
+	} else if (types::is_type_id(b, ZERO_TYPE, {}, {})) {
 		/* for the purposes of unification, we can treat zero as a regular integer */
 		static auto zero_type = type_integer(
 				type_literal({INTERNAL_LOC(), tk_integer, ZION_BITSIZE_STR}),
@@ -267,7 +274,7 @@ unification_t unify_core(
 				return {true, "", bindings, coercions + 1, {}};
 			} else if (ptI_b != nullptr && a_name == MANAGED_CHAR) {
 				return {true, "", bindings, coercions + 1, {}};
-			} else if (a_name == MANAGED_STR && (ptr_b != nullptr && types::is_type_id(ptr_b->element_type->eval(nominal_env, total_env), CHAR_TYPE))) {
+			} else if (a_name == MANAGED_STR && types::is_ptr_type_id(b, CHAR_TYPE, {}, {})) {
 				/* we should be able to convert a *char_t to a str */
 				return {true, "", bindings, coercions + 1, {}};
 			}
@@ -285,11 +292,11 @@ unification_t unify_core(
 
 		if (ptI_b != nullptr) {
 			return {true, "", bindings, coercions, {}};
-		} else if (depth == 0 && types::is_type_id(b, MANAGED_INT)) {
+		} else if (depth == 0 && types::is_type_id(b, MANAGED_INT, {}, {})) {
 			/* we can cast this int to whatever */
 			return {true, "", bindings, coercions + 1, {}};
-		} else if (depth == 0 && types::is_type_id(b, MANAGED_CHAR)) {
-			/* we can cast this int to whatever */
+		} else if (depth == 0 && types::is_type_id(b, MANAGED_CHAR, {}, {})) {
+			/* we can cast this char to whatever */
 			return {true, "", bindings, coercions + 1, {}};
 		}
 	}
@@ -353,7 +360,7 @@ unification_t unify_core(
 		if (ptm_b != nullptr) {
 			debug_above(7, log("matching maybe types"));
 			return unify_core(ptm_a->just, ptm_b->just, nominal_env, total_env, bindings, coercions, depth + 1);
-		} else if (b->is_null()) {
+		} else if (types::is_type_id(b, BUILTIN_NULL_TYPE, {}, {})) {
 			debug_above(7, log("matching null"));
 			return {true, "", bindings, coercions, {}};
 		} else {
@@ -576,7 +583,7 @@ unification_t unify_core(
 		}
 	} else if (ptr_a != nullptr) {
 		auto a_element_type = ptr_a->element_type->eval(nominal_env, total_env);
-		if (types::is_type_id(a_element_type, STD_MANAGED_TYPE)) {
+		if (types::is_type_id(a_element_type, STD_MANAGED_TYPE, {}, {})) {
 			if (types::is_managed_ptr(b, nominal_env, total_env)) {
 				/* any managed pointer can be coerced to *var_t */
 				return {true, "", bindings, coercions + 1, {}};
@@ -585,7 +592,7 @@ unification_t unify_core(
 
 		if (ptr_b != nullptr) {
 			/* handle pointer to void here, rather than making void the top type */
-			if (types::is_type_id(a_element_type, "void")) {
+			if (types::is_type_id(a_element_type, BUILTIN_VOID_TYPE, {}, {})) {
 				/* managed pointers cannot be passed to *void because that seems dangerous.
 				 * if you really want to do that, cast it to *void yourself first. */
 				assert(dyncast<const types::type_managed_t>(ptr_b->element_type) == nullptr);
@@ -594,7 +601,7 @@ unification_t unify_core(
 
 			debug_above(7, log("matching ptr types"));
 			return unify_core(ptr_a->element_type, ptr_b->element_type, nominal_env, total_env, bindings, coercions, depth + 1);
-		} else if (b->is_null()) {
+		} else if (types::is_type_id(b, BUILTIN_NULL_TYPE, {}, {})) {
 			return {
 				false,
 				string_format("pointer types cannot accept null unless they are guarded by a maybe (in other words, use a ? after the left-hand-side type name)",

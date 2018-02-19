@@ -127,7 +127,7 @@ llvm::Value *resolve_init_var(
 		if (!!status) {
 			if (init_var != nullptr) {
 				llvm::Value *llvm_init_value;
-				if (!init_var->type->get_type()->is_null()) {
+				if (!init_var->type->get_type()->eval_predicate(tb_null, scope)) {
 					llvm_init_value = coerce_value(status, builder, scope, life,
 							obj.get_location(), value_type->get_type(), init_var);
 				} else {
@@ -678,7 +678,7 @@ function_scope_t::ref make_param_list_scope(
 
 			bool allow_reassignment = false;
 			auto param_type = param.second->get_type();
-			if (!param_type->is_ref() && !param_type->is_null()) {
+			if (!param_type->eval_predicate(tb_ref, scope) && !param_type->eval_predicate(tb_null, scope)) {
 				allow_reassignment = true;
 			}
 
@@ -1083,7 +1083,7 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		}
 		debug_above(6, log("argument %s -> %s", param->str().c_str(), param_var->type->str().c_str()));
 
-		assert(!param_var->get_type()->is_ref());
+		assert(!param_var->get_type()->eval_predicate(tb_ref, scope));
 
 		arguments.push_back(param_var);
 		param_types.push_back(param_var->type);
@@ -1602,7 +1602,7 @@ bound_var_t::ref extract_member_by_index(
 			/* check whether this member_type is allowed to be returned as a ref or not */
 			auto member_type = struct_type->dimensions[index];
 			llvm::Value *llvm_item = (
-					(as_ref && member_type->is_ref())
+					(as_ref && member_type->eval_predicate(tb_ref, scope))
 					? llvm_gep
 					: builder.CreateLoad(llvm_gep));
 
@@ -2143,8 +2143,8 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		local_scope_t::ref *scope_if_false,
 		types::type_t::ref expected_type)
 {
-	if (lhs_var->type->get_type()->is_null()) {
-		if (rhs_var->type->get_type()->is_null()) {
+	if (lhs_var->type->get_type()->eval_predicate(tb_null, scope)) {
+		if (rhs_var->type->get_type()->eval_predicate(tb_null, scope)) {
 			return scope->get_program_scope()->get_bound_variable(
 					status,
 					location,
@@ -2154,7 +2154,7 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 			auto null_check = rnpbc_rhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null;
 			return resolve_null_check(status, builder, scope, life, location, rhs_node, rhs_var, null_check, scope_if_true, scope_if_false);
 		}
-	} else if (rhs_var->type->get_type()->is_null()) {
+	} else if (rhs_var->type->get_type()->eval_predicate(tb_null, scope)) {
 		auto null_check = rnpbc_lhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null;
 		return resolve_null_check(status, builder, scope, life, location, lhs_node, lhs_var, null_check, scope_if_true, scope_if_false);
 	} else {
@@ -2536,8 +2536,8 @@ bound_var_t::ref type_check_binary_operator(
 				function_name,
 				expected_type);
 	} else {
-		bool lhs_is_null = lhs->type->get_type()->is_null();
-		bool rhs_is_null = rhs->type->get_type()->is_null();
+		bool lhs_is_null = lhs->type->get_type()->eval_predicate(tb_null, nominal_env, total_env);
+		bool rhs_is_null = rhs->type->get_type()->eval_predicate(tb_null, nominal_env, total_env);
 
 		/* see whether we should just do a binary value comparison */
 		if (
@@ -3393,7 +3393,7 @@ bound_var_t::ref cast_bound_var(
 		types::type_t::ref type_cast)
 {
 	assert(!bound_var->is_ref());
-	if (bound_var->type->is_maybe() && !type_cast->is_maybe()) {
+	if (bound_var->type->is_maybe() && !type_cast->eval_predicate(tb_maybe, scope)) {
 		user_error(status, location, "you cannot cast away maybe. use the ! operator instead");
 		user_info(status, location, "better yet, use an if statement to check the return value so you don't accidentally dereference a null pointer");
 	}
@@ -4568,7 +4568,7 @@ void ast::return_statement_t::resolve_statement(
 				}
 			}
 		} else {
-			assert(types::is_type_id(return_type->get_type(), "void"));
+			assert(types::is_type_id(return_type->get_type(), BUILTIN_VOID_TYPE, scope->get_nominal_env(), scope->get_total_env()));
 
 			/* release all variables from all lives */
 			life->release_vars(status, builder, scope, lf_function);
@@ -5264,6 +5264,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		types::type_t::ref expected_type) const
 {
     scope_t::ref program_scope = scope->get_program_scope();
+	auto nominal_env = scope->get_nominal_env();
 	auto total_env = scope->get_total_env();
     switch (token.tk) {
 	case tk_identifier:
@@ -5273,19 +5274,20 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		}
 		break;
     case tk_integer:
-		if (!types::is_type_id(expected_type, MANAGED_INT)) {
+		if (!types::is_type_id(expected_type, MANAGED_INT, nominal_env, total_env)) {
 			/* create a native integer */
             int64_t value = parse_int_value(status, token);
 			if (!!status) {
 				if (value == 0) {
-					bound_type_t::ref native_type = program_scope->get_bound_type({ZERO_TYPE});
+					bound_type_t::ref native_type = upsert_bound_type(status, builder, program_scope, type_id(make_iid(ZERO_TYPE)));
+					assert(!!status);
 					return bound_var_t::create(
 							INTERNAL_LOC(), "zero", native_type,
 							llvm::ConstantInt::get(native_type->get_llvm_type(), 0, true),
 							make_code_id(token));
 				} else {
-					bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
-					assert(native_type != nullptr);
+					bound_type_t::ref native_type = upsert_bound_type(status, builder, program_scope, type_id(make_iid(INT_TYPE)));
+					assert(!!status);
 					return bound_var_t::create(
 							INTERNAL_LOC(), "int_literal", native_type,
 							llvm_create_int(builder, value),
@@ -5296,7 +5298,8 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 			/* create a boxed integer */
             int64_t value = parse_int_value(status, token);
 			if (!!status) {
-				bound_type_t::ref native_type = program_scope->get_bound_type({INT_TYPE});
+				bound_type_t::ref native_type = upsert_bound_type(status, builder, program_scope, type_id(make_iid(INT_TYPE)));
+				assert(!!status);
 				bound_type_t::ref boxed_type = upsert_bound_type(
 						status,
 						builder,
@@ -5333,95 +5336,99 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
         }
 		break;
     case tk_string:
-		if (types::is_ptr_type_id(expected_type, CHAR_TYPE)) {
-			std::string value = unescape_json_quotes(token.text);
-			bound_type_t::ref native_type = program_scope->get_bound_type({MBS_TYPE});
-			return bound_var_t::create(
-					INTERNAL_LOC(), "str_literal", native_type,
-					llvm_create_global_string(builder, value),
-					make_code_id(token));
+		{
+			bound_type_t::ref native_type = upsert_bound_type(status, builder, program_scope, type_ptr(type_id(make_iid(CHAR_TYPE))));
+			assert(!!status);
+			if (expected_type != nullptr && types::is_ptr_type_id(expected_type, CHAR_TYPE, nominal_env, total_env)) {
+				std::string value = unescape_json_quotes(token.text);
+				return bound_var_t::create(
+						INTERNAL_LOC(), "str_literal", native_type,
+						llvm_create_global_string(builder, value),
+						make_code_id(token));
 
-		} else {
-			std::string value = unescape_json_quotes(token.text);
-			bound_type_t::ref native_type = program_scope->get_bound_type({MBS_TYPE});
-			bound_type_t::ref boxed_type = upsert_bound_type(
-					status,
-					builder,
-					scope,
-					type_id(make_iid("str")));
-
-			if (!!status) {
-				assert(boxed_type != nullptr);
-				bound_var_t::ref box_str = get_callable(
+			} else {
+				std::string value = unescape_json_quotes(token.text);
+				bound_type_t::ref boxed_type = upsert_bound_type(
 						status,
 						builder,
 						scope,
-						"__box__",
-						get_location(),
-						get_args_type({native_type}),
-						nullptr);
+						type_id(make_iid("str")));
 
 				if (!!status) {
-					return create_callsite(
+					assert(boxed_type != nullptr);
+					bound_var_t::ref box_str = get_callable(
 							status,
 							builder,
 							scope,
-							life,
-							box_str,
-							{string_format("literal str (%s)", value.c_str())},
+							"__box__",
 							get_location(),
-							{bound_var_t::create(
-									INTERNAL_LOC(), "temp_str_literal", boxed_type,
-									llvm_create_global_string(builder, value),
-									make_code_id(token))});
+							get_args_type({native_type}),
+							nullptr);
+
+					if (!!status) {
+						return create_callsite(
+								status,
+								builder,
+								scope,
+								life,
+								box_str,
+								{string_format("literal str (%s)", value.c_str())},
+								get_location(),
+								{bound_var_t::create(
+										INTERNAL_LOC(), "temp_str_literal", boxed_type,
+										llvm_create_global_string(builder, value),
+										make_code_id(token))});
+					}
 				}
 			}
+			break;
 		}
-		break;
 	case tk_float:
-		if (!types::is_type_id(expected_type, MANAGED_FLOAT)) {
-			double value = atof(token.text.c_str());
-			bound_type_t::ref native_type = program_scope->get_bound_type({FLOAT_TYPE});
-			return bound_var_t::create(
-					INTERNAL_LOC(), "float_literal", native_type,
-					llvm_create_double(builder, value),
-					make_code_id(token));
-		} else {
-			double value = atof(token.text.c_str());
-			bound_type_t::ref native_type = program_scope->get_bound_type({FLOAT_TYPE});
-			bound_type_t::ref boxed_type = upsert_bound_type(
-					status,
-					builder,
-					scope,
-					type_id(make_iid(MANAGED_FLOAT)));
-			if (!!status) {
-				assert(boxed_type != nullptr);
-				bound_var_t::ref box_float = get_callable(
+		{
+			bound_type_t::ref native_type = upsert_bound_type(status, builder, program_scope, type_id(make_iid(FLOAT_TYPE)));
+			assert(!!status);
+			if (expected_type != nullptr && !types::is_type_id(expected_type, MANAGED_FLOAT, nominal_env, total_env)) {
+				double value = atof(token.text.c_str());
+				return bound_var_t::create(
+						INTERNAL_LOC(), "float_literal", native_type,
+						llvm_create_double(builder, value),
+						make_code_id(token));
+			} else {
+				double value = atof(token.text.c_str());
+				bound_type_t::ref boxed_type = upsert_bound_type(
 						status,
 						builder,
 						scope,
-						MANAGED_FLOAT,
-						get_location(),
-						get_args_type({native_type}),
-						nullptr);
-
+						type_id(make_iid(MANAGED_FLOAT)));
 				if (!!status) {
-					return create_callsite(
+					assert(boxed_type != nullptr);
+					bound_var_t::ref box_float = get_callable(
 							status,
 							builder,
 							scope,
-							life,
-							box_float,
-							{string_format("literal float (%f)", value)},
+							MANAGED_FLOAT,
 							get_location(),
-							{bound_var_t::create(
-									INTERNAL_LOC(), "temp_float_literal", boxed_type,
-									llvm_create_double(builder, value),
-									make_code_id(token))});
+							get_args_type({native_type}),
+							nullptr);
+
+					if (!!status) {
+						return create_callsite(
+								status,
+								builder,
+								scope,
+								life,
+								box_float,
+								{string_format("literal float (%f)", value)},
+								get_location(),
+								{bound_var_t::create(
+										INTERNAL_LOC(), "temp_float_literal", boxed_type,
+										llvm_create_double(builder, value),
+										make_code_id(token))});
+					}
 				}
 			}
+			break;
 		}
-		break;
     default:
         assert(false);
     };

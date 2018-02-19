@@ -556,10 +556,10 @@ void llvm_create_if_branch(
 			value->type->is_managed_ptr(status, builder, scope, is_managed);
 
 			if (is_managed) {
-				types::type_t::ref type = value->type->get_type();
-				if (types::is_type_id(type, "true")) {
+				types::type_t::ref type = value->type->get_type()->eval(scope, true);
+				if (types::is_type_id(type, TRUE_TYPE, {}, {})) {
 					llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 1);
-				} else if (types::is_type_id(type, "false")) {
+				} else if (types::is_type_id(type, FALSE_TYPE, {}, {})) {
 					llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 0);
 				} else {
 					llvm_value = get_bool_from_managed_obj(

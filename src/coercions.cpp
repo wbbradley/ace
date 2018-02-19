@@ -16,12 +16,17 @@ llvm::Value *coerce_value(
 		types::type_t::ref lhs_type,
 		bound_var_t::ref rhs)
 {
+	auto nominal_env = scope->get_nominal_env();
+	auto total_env = scope->get_total_env();
+
+	lhs_type = lhs_type->eval(scope);
+
 	if (auto maybe_type = dyncast<const types::type_maybe_t>(lhs_type)) {
 		/* forget about maybe checking, since we've done that prior to this */
 		lhs_type = maybe_type->just;
 	}
 
-	if (!lhs_type->is_ref()) {
+	if (!lhs_type->eval_predicate(tb_ref, scope)) {
 		/* make sure that if the lhs is not a ref, we don't pass a ref */
 		rhs = rhs->resolve_bound_value(status, builder, scope);
 	} else {
@@ -47,17 +52,17 @@ llvm::Value *coerce_value(
 					llvm_print(llvm_lhs_type).c_str()));
 
 		/* handle some cases where we can just pass constants back */
-		if (lhs_type->is_false() || lhs_type->is_zero()) {
+		if (lhs_type->eval_predicate(tb_false, scope) || lhs_type->eval_predicate(tb_zero, scope)) {
 			return llvm::ConstantInt::get(
 					bound_lhs_type->get_llvm_specific_type(), 0, false);
-		} else if (lhs_type->is_true()) {
+		} else if (lhs_type->eval_predicate(tb_true, scope)) {
 			return llvm::ConstantInt::get(
 					bound_lhs_type->get_llvm_specific_type(), 1, false);
-		} else if (lhs_type->is_null() || rhs_type->is_null()) {
+		} else if (lhs_type->eval_predicate(tb_null, scope) || rhs_type->eval_predicate(tb_null, scope)) {
 			return llvm::Constant::getNullValue(llvm_lhs_type);
 		}
 
-		assert(!rhs_type->is_ref());
+		assert(!rhs_type->eval_predicate(tb_ref, scope));
 
 		/* get the incoming value and its current type */
 		llvm::Type *llvm_rhs_type = llvm_rhs_value->getType();
@@ -88,7 +93,7 @@ llvm::Value *coerce_value(
 					debug_above(6, log("casting a %s to be a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
 					return builder.CreateBitCast(llvm_rhs_value, llvm_lhs_type);
 				} else if (lhs_is_managed) {
-					if (rhs_type->is_zero()) {
+					if (rhs_type->eval_predicate(tb_zero, scope)) {
 						/* let's elevate zero to the managed version of itself */
 						bound_var_t::ref bound_Zero = scope->get_program_scope()->get_bound_variable(status, location, "Zero", false);
 						if (!!status) {
@@ -108,7 +113,7 @@ llvm::Value *coerce_value(
 						}
 					}
 				} else if (rhs_is_managed) {
-					if (types::is_ptr_type_id(lhs_type, STD_MANAGED_TYPE)) {
+					if (types::is_ptr_type_id(lhs_type, STD_MANAGED_TYPE, nominal_env, total_env)) {
 						// Consider allowing this conversion for all pointers, since coercion is
 						// fierce in what it will do, why even check? We'll wait a bit on that. It
 						// may become apparent that unboxing managed objects into a native pointer
@@ -136,7 +141,7 @@ llvm::Value *coerce_value(
 						/* automatically resize integers to match the lhs */
 						unsigned bit_size = 0;
 						bool signed_ = false;
-						types::get_integer_attributes(status, rhs->type->get_type(), scope->get_nominal_env(), scope->get_total_env(), bit_size, signed_);
+						types::get_integer_attributes(status, rhs->type->get_type(), nominal_env, total_env, bit_size, signed_);
 						if (!!status) {
 							if (signed_) {
 								return builder.CreateSExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
@@ -144,7 +149,7 @@ llvm::Value *coerce_value(
 								return builder.CreateZExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
 							}
 						}
-					} else if (rhs->type->get_type()->is_zero()) {
+					} else if (rhs->type->get_type()->eval_predicate(tb_zero, nominal_env, total_env)) {
 						if (llvm_lhs_type->isIntegerTy()) {
 							return llvm::ConstantInt::get(
 									bound_lhs_type->get_llvm_specific_type(), 0, false);
@@ -153,7 +158,7 @@ llvm::Value *coerce_value(
 									bound_lhs_type->get_llvm_specific_type(), 0.0);
 						}
 					}
-					if (rhs->type->get_type()->is_null()) {
+					if (rhs->type->get_type()->eval_predicate(tb_null, nominal_env, total_env)) {
 						/* we're passing in a null value */
 						assert(llvm_lhs_type->isPointerTy());
 						return llvm::Constant::getNullValue(llvm_lhs_type);
