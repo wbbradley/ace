@@ -901,7 +901,7 @@ auto test_descs = std::vector<test_desc>{
 	T(test_parse_single_function_call),
 	T(test_parse_semicolon_line_break),
 	{
-		"test_parse_and_eval_types",
+		"test_parse_types",
 		[] () -> bool {
 			identifier::set generics = {make_iid("T"), make_iid("Q")};
 			auto module_id = make_iid("M");
@@ -913,10 +913,16 @@ auto test_descs = std::vector<test_desc>{
 
 			auto parses = std::vector<spec>{{
 				{"int?", "Int?"},
+				{"bool", "bool"},
 				{"int", "int"},
 				{"(int)", "int"},
+				{"int or int", "int"},
+				{"int or int or int", "int"},
 				{"char", "char"},
 				{"*char", "*char"},
+				{"*char or *char", "*char"},
+				{"*char or *char or *char", "*char"},
+				{"*wchar", "*wchar"},
 				{"*?char", "*?char"},
 				{"*?char or int", "(Int or str)?"},
 				{"integer(8, true)?", "Int?"},
@@ -929,12 +935,13 @@ auto test_descs = std::vector<test_desc>{
 				{"int or Int", "int"},
 				{"int or Int?", "Int?"},
 				{"int or *char or null", "(Int or str)?"},
+				{"int? or *char or int", "(Int or str)?"},
 				{"Int or *char", "Int or str"},
 				{"any a", "any a"},
 				{"any", "any __1"},
 				/* parsing type variables has monotonically increasing side effects */
 				{"any", "any __1"},
-				{"void", "M.void"},
+				{"void", "void"},
 				{"map int int", "M.map int int"},
 				{"map any b any c", "M.map any b any c"},
 				{"T", "any T"},
@@ -946,14 +953,23 @@ auto test_descs = std::vector<test_desc>{
 				reset_generics();
 				log("parsing type expression " c_type("%s"), p.first.c_str());
 				auto parsed_type = parse_type_expr(p.first, generics, module_id);
-				auto repr = parsed_type->eval(types::type_t::map{}, types::type_t::map{})->repr();
+				types::type_t::map nominal_env;
+				nominal_env[MANAGED_BOOL] = ::type_sum({
+						type_id(make_iid(MANAGED_TRUE)),
+						type_id(make_iid(MANAGED_FALSE))
+						}, INTERNAL_LOC());
+
+				auto repr = parsed_type->eval(nominal_env, nominal_env)->repr();
 				if (repr != p.second) {
+					log(log_error, c_error(" => ") c_type("%s"), repr.c_str());
 					log(log_error, c_type("%s") " parsed to " c_type("%s")
 							" - should have been " c_type("%s"),
 							p.first.c_str(),
 							repr.c_str(),
 							p.second.c_str());
 					return false;
+				} else {
+					log(" => " c_type("%s"), repr.c_str());
 				}
 
 #if 0
@@ -976,22 +992,33 @@ auto test_descs = std::vector<test_desc>{
 	},
 	{
 		"test_parse_pointer_types",
-        [] () -> bool {
-            auto module_id = make_iid("M");
-            auto type = parse_type_expr("*?void", {}, module_id)->eval(types::type_t::map{}, {});
-            log("type repr is %s", type->str().c_str());
-            if (auto maybe = dyncast<const types::type_maybe_t>(type)) {
-                if (auto pointer = dyncast<const types::type_ptr_t>(maybe->just)) {
-                    return dyncast<const types::type_id_t>(pointer->element_type) != nullptr;
-                }
-            }
-            return false;
-        }
+		[] () -> bool {
+			auto module_id = make_iid("M");
+			types::type_t::map nominal_env;
+			nominal_env[MANAGED_BOOL] = ::type_sum({
+					type_id(make_iid(MANAGED_TRUE)),
+					type_id(make_iid(MANAGED_FALSE))
+					}, INTERNAL_LOC());
+
+			auto type = parse_type_expr("*?void", {}, module_id)->eval(nominal_env, nominal_env);
+			log("type repr is %s", type->str().c_str());
+			if (auto maybe = dyncast<const types::type_maybe_t>(type)) {
+				if (auto pointer = dyncast<const types::type_ptr_t>(maybe->just)) {
+					return dyncast<const types::type_id_t>(pointer->element_type) != nullptr;
+				}
+			}
+			return false;
+		}
     },
 	{
 		"test_sum_unification_simple",
 		[] () -> bool {
 			types::type_t::map env;
+			env[MANAGED_BOOL] = ::type_sum({
+					type_id(make_iid(MANAGED_TRUE)),
+					type_id(make_iid(MANAGED_FALSE))
+					}, INTERNAL_LOC());
+
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
 			auto types = make_type_pair("bool", "true", {});
@@ -1002,6 +1029,11 @@ auto test_descs = std::vector<test_desc>{
 		"test_sum_unification_sum_with_sum",
 		[] () -> bool {
 			types::type_t::map env;
+			env[MANAGED_BOOL] = ::type_sum({
+					type_id(make_iid(MANAGED_TRUE)),
+					type_id(make_iid(MANAGED_FALSE))
+					}, INTERNAL_LOC());
+
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
 			return unifies(bool_sum, bool_sum, env, {});
@@ -1011,6 +1043,10 @@ auto test_descs = std::vector<test_desc>{
 		"test_sum_unification_sum_with_named_sum",
 		[] () -> bool {
 			types::type_t::map env;
+			env[MANAGED_BOOL] = ::type_sum({
+					type_id(make_iid(MANAGED_TRUE)),
+					type_id(make_iid(MANAGED_FALSE))
+					}, INTERNAL_LOC());
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
 			return unifies(bool_sum, type_id(make_iid("bool")), env, {});
@@ -1020,6 +1056,10 @@ auto test_descs = std::vector<test_desc>{
 		"test_sum_unification_named_sum_with_sum",
 		[] () -> bool {
 			types::type_t::map env;
+			env[MANAGED_BOOL] = ::type_sum({
+					type_id(make_iid(MANAGED_TRUE)),
+					type_id(make_iid(MANAGED_FALSE))
+					}, INTERNAL_LOC());
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
 			return unifies(type_id(make_iid("bool")), bool_sum, env, {});
@@ -1029,6 +1069,10 @@ auto test_descs = std::vector<test_desc>{
 		"test_sum_unification_nested",
 		[] () -> bool {
 			types::type_t::map env;
+			env[MANAGED_BOOL] = ::type_sum({
+					type_id(make_iid(MANAGED_TRUE)),
+					type_id(make_iid(MANAGED_FALSE))
+					}, INTERNAL_LOC());
 			auto bool_sum = type_sum(
 					{
 						type_id(make_iid("true")),
@@ -1056,6 +1100,10 @@ auto test_descs = std::vector<test_desc>{
 		"test_sum_unification_nested_with_ref_rhs",
 		[] () -> bool {
 			types::type_t::map env;
+			env[MANAGED_BOOL] = ::type_sum({
+					type_id(make_iid(MANAGED_TRUE)),
+					type_id(make_iid(MANAGED_FALSE))
+					}, INTERNAL_LOC());
 			auto bool_sum = type_sum(
 					{
 						type_id(make_iid("true")),
@@ -1085,19 +1133,17 @@ auto test_descs = std::vector<test_desc>{
 			identifier::set generics = {make_iid("Container"), make_iid("T")};
 
 			types::type_t::map env;
+			env[MANAGED_BOOL] = ::type_sum({
+					type_id(make_iid(MANAGED_TRUE)),
+					type_id(make_iid(MANAGED_FALSE))
+					}, INTERNAL_LOC());
 			env.insert({
 					"int",
 					type_integer(
 							type_literal({INTERNAL_LOC(), tk_integer, ZION_BITSIZE_STR}),
 							type_id(make_iid("true" /*signed*/)))});
-			env.insert({
-					"Bool",
-					type_sum({type_id(make_iid("True")), type_id(make_iid("False"))}, INTERNAL_LOC())});
 
 			auto unifies = std::vector<types::type_t::pair>{
-				types::type_t::pair{
-					parse_type_expr("void", generics, make_iid("foobar")),
-						type_id(make_iid("foobar.void"))},
 				make_type_pair("any", "float", generics),
 				make_type_pair("void", "void", generics),
 				make_type_pair("float", "Float", generics),

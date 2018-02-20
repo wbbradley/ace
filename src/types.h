@@ -6,12 +6,12 @@
 #include "identifier.h"
 #include "token.h"
 
-extern const char *BUILTIN_NULL_TYPE;
+extern const char *NULL_TYPE;
 extern const char *STD_MANAGED_TYPE;
 extern const char *STD_VECTOR_TYPE;
 extern const char *STD_MAP_TYPE;
-extern const char *BUILTIN_VOID_TYPE;
-extern const char *BUILTIN_UNREACHABLE_TYPE;
+extern const char *VOID_TYPE;
+extern const char *UNREACHABLE_TYPE;
 
 /* Product Kinds */
 enum product_kind_t {
@@ -185,6 +185,18 @@ namespace types {
 		virtual type_t::refs get_dimensions() const = 0;
 	};
 
+	struct type_any_of_t : public type_t {
+		typedef ptr<const type_any_of_t> ref;
+		
+		type_any_of_t(const map &shapes);
+		refs shapes;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual int ftv_count() const;
+		virtual std::set<std::string> get_ftvs() const;
+		virtual type_t::ref rebind(const map &bindings) const;
+		virtual location_t get_location() const;
+	};
 
 	struct type_literal_t : public type_t {
 		type_literal_t(token_t token);

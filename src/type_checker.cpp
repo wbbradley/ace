@@ -4568,7 +4568,7 @@ void ast::return_statement_t::resolve_statement(
 				}
 			}
 		} else {
-			assert(types::is_type_id(return_type->get_type(), BUILTIN_VOID_TYPE, scope->get_nominal_env(), scope->get_total_env()));
+			assert(types::is_type_id(return_type->get_type(), VOID_TYPE, scope->get_nominal_env(), scope->get_total_env()));
 
 			/* release all variables from all lives */
 			life->release_vars(status, builder, scope, lf_function);
@@ -5339,13 +5339,14 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		{
 			bound_type_t::ref native_type = upsert_bound_type(status, builder, program_scope, type_ptr(type_id(make_iid(CHAR_TYPE))));
 			assert(!!status);
-			if (expected_type != nullptr && types::is_ptr_type_id(expected_type, CHAR_TYPE, nominal_env, total_env)) {
+			// if (expected_type != nullptr && types::is_ptr_type_id(expected_type, CHAR_TYPE, nominal_env, total_env)) {
 				std::string value = unescape_json_quotes(token.text);
 				return bound_var_t::create(
 						INTERNAL_LOC(), "str_literal", native_type,
 						llvm_create_global_string(builder, value),
 						make_code_id(token));
 
+				/*
 			} else {
 				std::string value = unescape_json_quotes(token.text);
 				bound_type_t::ref boxed_type = upsert_bound_type(
@@ -5381,6 +5382,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 					}
 				}
 			}
+				*/
 			break;
 		}
 	case tk_float:

@@ -45,9 +45,9 @@ const char *id_from_tb(type_builtins_t tb) {
 	case tb_function:
 		return nullptr;
 	case tb_void:
-		return BUILTIN_VOID_TYPE;
+		return VOID_TYPE;
 	case tb_null:
-		return BUILTIN_NULL_TYPE;
+		return NULL_TYPE;
 	case tb_zero:
 		return ZERO_TYPE;
 	case tb_maybe:
@@ -171,8 +171,8 @@ namespace types {
 	type_eval_is_(zero, ZERO_TYPE)
 	type_eval_is_(false, FALSE_TYPE)
 	type_eval_is_(true, TRUE_TYPE)
-	type_eval_is_(void, BUILTIN_VOID_TYPE)
-	type_eval_is_(null, BUILTIN_NULL_TYPE)
+	type_eval_is_(void, VOID_TYPE)
+	type_eval_is_(null, NULL_TYPE)
 
 	type_t::ref type_eval_if(types::type_t::ref operand, const type_t::map &nominal_env, const type_t::map &total_env) {
 		auto operand_ = operand->eval_core(nominal_env, total_env, false);

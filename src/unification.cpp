@@ -360,7 +360,7 @@ unification_t unify_core(
 		if (ptm_b != nullptr) {
 			debug_above(7, log("matching maybe types"));
 			return unify_core(ptm_a->just, ptm_b->just, nominal_env, total_env, bindings, coercions, depth + 1);
-		} else if (types::is_type_id(b, BUILTIN_NULL_TYPE, {}, {})) {
+		} else if (types::is_type_id(b, NULL_TYPE, {}, {})) {
 			debug_above(7, log("matching null"));
 			return {true, "", bindings, coercions, {}};
 		} else {
@@ -592,7 +592,7 @@ unification_t unify_core(
 
 		if (ptr_b != nullptr) {
 			/* handle pointer to void here, rather than making void the top type */
-			if (types::is_type_id(a_element_type, BUILTIN_VOID_TYPE, {}, {})) {
+			if (types::is_type_id(a_element_type, VOID_TYPE, {}, {})) {
 				/* managed pointers cannot be passed to *void because that seems dangerous.
 				 * if you really want to do that, cast it to *void yourself first. */
 				assert(dyncast<const types::type_managed_t>(ptr_b->element_type) == nullptr);
@@ -601,7 +601,7 @@ unification_t unify_core(
 
 			debug_above(7, log("matching ptr types"));
 			return unify_core(ptr_a->element_type, ptr_b->element_type, nominal_env, total_env, bindings, coercions, depth + 1);
-		} else if (types::is_type_id(b, BUILTIN_NULL_TYPE, {}, {})) {
+		} else if (types::is_type_id(b, NULL_TYPE, {}, {})) {
 			return {
 				false,
 				string_format("pointer types cannot accept null unless they are guarded by a maybe (in other words, use a ? after the left-hand-side type name)",

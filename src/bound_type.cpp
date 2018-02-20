@@ -177,7 +177,7 @@ bool bound_type_t::is_function() const {
 }
 
 bool bound_type_t::is_void() const {
-	return types::is_type_id(get_type(), BUILTIN_VOID_TYPE, {}, {});
+	return types::is_type_id(get_type(), VOID_TYPE, {}, {});
 }
 
 bool bound_type_t::is_maybe() const {

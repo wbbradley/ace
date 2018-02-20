@@ -306,11 +306,7 @@ void add_global_types(
 		}
 		compiler.base_type_macros[type_pair.first] = type_id(make_iid(type_pair.first));
 	}
-	compiler.base_type_macros[std::string{MANAGED_BOOL}] = type_id(make_iid(MANAGED_BOOL));
-	compiler.base_type_macros[std::string{"vector"}] = type_id(make_iid(STD_VECTOR_TYPE));
-	compiler.base_type_macros[std::string{TYPE_OP_IF}] = type_id(make_iid(TYPE_OP_IF));
-	compiler.base_type_macros[std::string{TYPE_OP_NOT}] = type_id(make_iid(TYPE_OP_NOT));
-	compiler.base_type_macros[std::string{TYPE_OP_GC}] = type_id(make_iid(TYPE_OP_GC));
+	add_default_type_macros(compiler.base_type_macros);
 
 	debug_above(10, log(log_info, "%s", program_scope->str().c_str()));
 }

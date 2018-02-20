@@ -591,15 +591,12 @@ types::type_t::ref parse_type_expr(
 	zion_lexer_t lexer("", iss);
 	type_macros_t global_type_macros;
 
-	// TODO: DRY this up with compiler.cpp's version. at this time it's some work to decouple the
-	// IRBuilder from that codepath, so this is just hacked in here for now.
-	global_type_macros[INT_TYPE] = type_id(make_iid(INT_TYPE));
-	global_type_macros[MANAGED_INT] = type_id(make_iid(MANAGED_INT));
+	add_default_type_macros(global_type_macros);
 	global_type_macros[MANAGED_STR] = type_id(make_iid(MANAGED_STR));
-	global_type_macros[TRUE_TYPE] = type_id(make_iid(TRUE_TYPE));
-	global_type_macros[FALSE_TYPE] = type_id(make_iid(FALSE_TYPE));
-	global_type_macros[BUILTIN_NULL_TYPE] = type_id(make_iid(BUILTIN_NULL_TYPE));
-	global_type_macros[CHAR_TYPE] = type_id(make_iid(CHAR_TYPE));
+	global_type_macros[MANAGED_INT] = type_id(make_iid(MANAGED_INT));
+	global_type_macros[MANAGED_FLOAT] = type_id(make_iid(MANAGED_FLOAT));
+	global_type_macros[MANAGED_TRUE] = type_id(make_iid(MANAGED_TRUE));
+	global_type_macros[MANAGED_FALSE] = type_id(make_iid(MANAGED_FALSE));
 
 	parse_state_t ps(status, "", lexer, global_type_macros, global_type_macros, nullptr);
 	if (module_id != nullptr) {
