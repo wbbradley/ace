@@ -20,6 +20,15 @@ const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";
 const char *TYPE_OP_NOT = "not";
 const char *TYPE_OP_IF = "if";
 const char *TYPE_OP_GC = "gc";
+const char *TYPE_OP_IS_ZERO = "is_zero";
+const char *TYPE_OP_IS_REF = "is_ref";
+const char *TYPE_OP_IS_TRUE = "is_true";
+const char *TYPE_OP_IS_FALSE = "is_false";
+const char *TYPE_OP_IS_POINTER = "is_pointer";
+const char *TYPE_OP_IS_FUNCTION = "is_function";
+const char *TYPE_OP_IS_VOID = "is_void";
+const char *TYPE_OP_IS_NULL = "is_null";
+const char *TYPE_OP_IS_MAYBE = "is_maybe";
 
 int next_generic = 1;
 

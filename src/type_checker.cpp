@@ -5274,7 +5274,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		}
 		break;
     case tk_integer:
-		if (!types::is_type_id(expected_type, MANAGED_INT, nominal_env, total_env)) {
+		if (expected_type == nullptr || !types::is_type_id(expected_type, MANAGED_INT, nominal_env, total_env)) {
 			/* create a native integer */
             int64_t value = parse_int_value(status, token);
 			if (!!status) {
