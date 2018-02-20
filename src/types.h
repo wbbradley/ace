@@ -27,6 +27,21 @@ const char *pkstr(product_kind_t pk);
 /* used to reset the generic type id counter */
 void reset_generics();
 
+
+extern const char *TYPE_OP_NOT;
+extern const char *TYPE_OP_IF;
+extern const char *TYPE_OP_IS_ZERO;
+extern const char *TYPE_OP_GC;
+extern const char *TYPE_OP_IS_ZERO;
+extern const char *TYPE_OP_IS_REF;
+extern const char *TYPE_OP_IS_TRUE;
+extern const char *TYPE_OP_IS_FALSE;
+extern const char *TYPE_OP_IS_POINTER;
+extern const char *TYPE_OP_IS_FUNCTION;
+extern const char *TYPE_OP_IS_VOID;
+extern const char *TYPE_OP_IS_NULL;
+extern const char *TYPE_OP_IS_MAYBE;
+
 enum type_builtins_t {
 	tb_gc,
 	tb_ref,
@@ -489,7 +504,3 @@ types::type_t::pair make_type_pair(std::string fst, std::string snd, identifier:
 bool get_type_variable_name(types::type_t::ref type, std::string &name);
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings);
 std::string get_name_from_index(const types::name_index_t &name_index, int i);
-
-extern const char *TYPE_OP_NOT;
-extern const char *TYPE_OP_IF;
-extern const char *TYPE_OP_GC;
