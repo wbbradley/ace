@@ -10,12 +10,12 @@
 #include "atom.h"
 #include "scopes.h"
 
-const char *BUILTIN_NULL_TYPE = "null";
+const char *NULL_TYPE = "null";
 const char *STD_MANAGED_TYPE = "var_t";
 const char *STD_VECTOR_TYPE = "vector.Vector";
 const char *STD_MAP_TYPE = "map.Map";
-const char *BUILTIN_VOID_TYPE = "void";
-const char *BUILTIN_UNREACHABLE_TYPE = "__unreachable";
+const char *VOID_TYPE = "void";
+const char *UNREACHABLE_TYPE = "__unreachable";
 
 const char *TYPE_OP_NOT = "not";
 const char *TYPE_OP_IF = "if";
@@ -110,7 +110,7 @@ namespace types {
 		auto evaled = eval_core(nominal_env, total_env, false /*get_structural_type*/);
 		if (auto id_type = dyncast<const type_id_t>(evaled)) {
 			auto name = id_type->id->get_name();
-			if (name == BUILTIN_NULL_TYPE || name == ZERO_TYPE) {
+			if (name == NULL_TYPE || name == ZERO_TYPE) {
 				if (elimination_value) {
 					debug_above(6, log("keeping %s", str().c_str()));
 					return shared_from_this();
@@ -712,7 +712,7 @@ namespace types {
 				log(log_error, "found maybe type %s within type_sum %s", option->str().c_str(), ::str(options).c_str());
 				dbg();
 			}
-			if (is_type_id(option, BUILTIN_NULL_TYPE, {}, {})) {
+			if (is_type_id(option, NULL_TYPE, {}, {})) {
 				log(log_error, "found null type within type_sum %s", ::str(options).c_str());
 				dbg();
 			}
@@ -1383,17 +1383,17 @@ types::type_t::ref type_variable(location_t location) {
 }
 
 types::type_t::ref type_unreachable() {
-	static auto unreachable_type =  make_ptr<types::type_id_t>(make_iid(BUILTIN_UNREACHABLE_TYPE));
+	static auto unreachable_type =  make_ptr<types::type_id_t>(make_iid(UNREACHABLE_TYPE));
 	return unreachable_type;
 }
 
 types::type_t::ref type_null() {
-	static auto null_type = make_ptr<types::type_id_t>(make_iid(BUILTIN_NULL_TYPE));
+	static auto null_type = make_ptr<types::type_id_t>(make_iid(NULL_TYPE));
 	return null_type;
 }
 
 types::type_t::ref type_void() {
-	return make_ptr<types::type_id_t>(make_iid(BUILTIN_VOID_TYPE));
+	return make_ptr<types::type_id_t>(make_iid(VOID_TYPE));
 }
 
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand) {
@@ -1459,13 +1459,21 @@ void expand_options(
 		types::type_t::refs &options,
 	   	const types::type_t::refs &new_options,
 		const types::type_t::map &nominal_env,
-		const types::type_t::map &total_env)
+		const types::type_t::map &total_env,
+		std::set<std::string> &visited)
 {
 	options.resize(0);
 	for (auto option : new_options) {
 		auto evaled = option->eval(nominal_env, total_env);
+		auto repr = evaled->repr();
+		if (in(repr, visited)) {
+			continue;
+		} else {
+			visited.insert(repr);
+		}
+
 		if (auto sum_type = dyncast<const types::type_sum_t>(evaled)) {
-			expand_options(options, sum_type->options, nominal_env, total_env);
+			expand_options(options, sum_type->options, nominal_env, total_env, visited);
 		} else {
 			options.push_back(option);
 		}
@@ -1525,7 +1533,22 @@ types::type_t::ref demote_to_native_type(
 	   	const types::type_t::map &total_env)
 {
 	auto evaled = option->eval(nominal_env, total_env);
+
+	/* detect that we just have a bool */
+	if (auto sum = dyncast<const types::type_sum_t>(evaled)) {
+		const auto &options = sum->options;
+		if (options.size() == 2) {
+			/* NB: rely on alphabetical sort order of options */
+			if (types::is_type_id(options[0], MANAGED_FALSE, {}, {}) &&
+					types::is_type_id(options[1], MANAGED_TRUE, {}, {}))
+			{
+				return type_id(make_iid(BOOL_TYPE));
+			}
+		}
+	}
+
 	if (types::is_type_id(evaled, MANAGED_BOOL, {}, {})) {
+		assert(false);
 		return type_id(make_iid(BOOL_TYPE));
 	} else if (types::is_type_id(evaled, MANAGED_INT, {}, {})) {
 		return type_id(make_iid(INT_TYPE));
@@ -1595,12 +1618,13 @@ types::type_t::ref type_sum_safe_3(
 	/* check preconditions */
 	for (auto option : options) {
 		auto evaled = option->eval(nominal_env, total_env);
-		assert(!types::is_type_id(evaled, BUILTIN_NULL_TYPE, nominal_env, total_env));
+		assert(!types::is_type_id(evaled, NULL_TYPE, nominal_env, total_env));
 		assert(dyncast<const types::type_maybe_t>(evaled) == nullptr);
 	}
 	
 	types::type_t::refs expanded_options;
-	expand_options(expanded_options, options, nominal_env, total_env);
+	std::set<std::string> visited;
+	expand_options(expanded_options, options, nominal_env, total_env, visited);
 	for (auto &option : expanded_options) {
 		option = promote_to_managed_type(option, nominal_env, total_env);
 	}
@@ -1643,7 +1667,7 @@ types::type_t::ref type_sum_safe_2(
 	new_options.reserve(options.size());
 	for (auto option : options) {
 		auto evaled = option->eval(nominal_env, total_env);
-		if (types::is_type_id(evaled, BUILTIN_NULL_TYPE, {}, {})) {
+		if (types::is_type_id(evaled, NULL_TYPE, {}, {})) {
 			make_maybe = true;
 			continue;
 		} else if (auto maybe = dyncast<const types::type_maybe_t>(evaled)) {
@@ -1665,12 +1689,13 @@ types::type_t::ref type_sum_safe(
 {
 	debug_above(9, log("type_sum_safe(%s, %s, ..., ...)", ::str(orig_options).c_str(), location.str().c_str()));
 	types::type_t::refs options;
-	expand_options(options, orig_options, nominal_env, total_env);
+	std::set<std::string> visited;
+	expand_options(options, orig_options, nominal_env, total_env, visited);
 
 	if (options.size() == 1) {
 		auto evaled = options[0]->eval(nominal_env, total_env);
 		if (
-				types::is_type_id(evaled, BUILTIN_NULL_TYPE, {}, {}) ||
+				types::is_type_id(evaled, NULL_TYPE, {}, {}) ||
 				// types::is_type_id(evaled, "int") ||
 				types::is_ptr_type_id(evaled, CHAR_TYPE, nominal_env, total_env, true) ||
 				types::is_integer(evaled, nominal_env, total_env))

@@ -191,6 +191,7 @@ def create_var(type_info *type_info_t) *var_t
 
 	# allocate the variable tracking object
 	let alloc_size = type_info != null ? type_info.size : sizeof(var_t)
+	static_print(type_info != null ? type_info.name : "<unknown>")
 	let obj = mem_alloc(alloc_size, type_info != null ? type_info.name : "<unknown>") as *?var_t
 	assert(obj != null)
 

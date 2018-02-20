@@ -60,3 +60,5 @@ private:
 	type_macros_t &old_macros;
 	type_macros_t new_macros;
 };
+
+void add_default_type_macros(type_macros_t &type_macros);
