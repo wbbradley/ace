@@ -261,14 +261,19 @@ void ast::type_sum_t::register_type(
 		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
-	debug_above(3, log(log_info, "creating subtypes to %s with type variables [%s]",
+	debug_above(3, log(log_info, "creating subtypes to %s with type variables [%s] for type %s",
 				token.text.c_str(),
-				join(type_variables, ", ").c_str()));
+				join_str(type_variables, ", ").c_str(),
+				type->str().c_str()));
 
 	auto env = scope->get_nominal_env();
 	auto iter = env.find(id->get_name());
 	if (iter == env.end()) {
-		scope->put_nominal_typename(status, id->get_name(), type);
+		auto expansion = type;
+		for (auto type_variable : type_variables) {
+			expansion = type_lambda(type_variable, expansion);
+		}
+		scope->put_nominal_typename(status, id->get_name(), expansion);
 	} else {
 		user_error(status, id->get_location(), "sum types cannot be registered twice");
 		user_info(status, iter->second->get_location(), "see prior type registered here");

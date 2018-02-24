@@ -1,6 +1,5 @@
 module _ @1.0
 
 def param_type_to_var_decl(banana int) void
-	# error: type of `x` does not match type of initializer
-	# error: str != int
+	# error: declared type of `x` does not match type of initializer
 	var x str = banana

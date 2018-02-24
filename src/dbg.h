@@ -1,6 +1,5 @@
 #pragma once
 #include "utils.h"
-#include "debugbreak.h"
 
 #ifdef __APPLE_API_UNSTABLE
 bool AmIBeingDebugged();
@@ -11,6 +10,27 @@ bool AmIBeingDebugged();
 #else
 #define AmIBeingDebugged() false
 #endif
+#endif
+
+#ifdef _MSC_VER
+       #ifdef _X86_
+               #define DEBUG_BREAK() { __asm { int 3 } }
+       #else
+               #define DEBUG_BREAK()  { __debugbreak(); }
+       #endif
+#else
+       #if __clang__ && 0
+               #define DEBUG_BREAK() do { __debugbreak(); __noop; } while (0)
+       #else
+               #define DEBUG_BREAK() do { \
+                       if (AmIBeingDebugged()) { \
+                               raise(SIGTRAP); \
+                       } else { \
+                               fprintf(stderr, "exiting due to dbg() statement while not under the debugger\n"); \
+                               exit(-1); \
+                       } \
+               } while (0)
+       #endif
 #endif
 
 /* DEBUG preprocessor directives */
@@ -27,7 +47,7 @@ extern int __dbg_level;
 		string_format(C_LINE_REF "%s:%d:1" C_RESET ": " c_id("dbg()") " hit in " c_internal("%s") " : %s\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, #x)); \
 	::fprintf(stderr, "%s", dbg_msg.c_str()); \
    	/*::log_stack(log_warning); */ \
-	debug_break(); \
+	DEBUG_BREAK(); \
 } while (0)
 
 #define dbg_when(x) if (x) { dbg(); } else { }

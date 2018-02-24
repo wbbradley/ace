@@ -1,10 +1,11 @@
 module _ @1.0
 # test: pass
+# expect: 3
 
-type B{X} has
+type B X has
 	var x X
 
-def do(b B{int})
+def do(b B int)
 	print(b.x)
 
 def main()

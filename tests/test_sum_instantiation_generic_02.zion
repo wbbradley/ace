@@ -1,17 +1,18 @@
 module _
 
 # test: pass
+# expect: yay this works
 
-type BigBox{T} has
+type BigBox T has
 	var t T
 
-type Crate{P, Q} has
+type Crate P Q has
 	var p P
 	var q Q
 
-type Box{X, Y} is
-	BigBox{X} or
-	Crate{X, Y}
+type Box X Y is
+	BigBox X or
+	Crate X Y
 
 def main()
 	x := BigBox("yay this works")

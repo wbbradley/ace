@@ -88,7 +88,7 @@ llvm::Value *resolve_init_var(
 		}
 
 		if (init_var == nullptr) {
-			if (dyncast<const types::type_maybe_t>(declared_type)) {
+			if (declared_type->eval_predicate(tb_maybe, scope)) {
 				/* this can be null, and we do not allow user-defined __init__ for maybe types, so let's initialize it as null */
 				llvm::Constant *llvm_null_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
 				if (llvm_alloca == nullptr) {
@@ -237,6 +237,7 @@ bound_var_t::ref generate_stack_variable(
 		}
 
 		assert(declared_type != nullptr);
+		declared_type = declared_type->eval(scope);
 
 		if (maybe_unbox) {
 			debug_above(3, log(log_info, "attempting to unbox %s", var_decl.get_symbol().c_str()));
@@ -2523,9 +2524,19 @@ bound_var_t::ref type_check_binary_operator(
 				rhs->str().c_str()));
 	auto nominal_env = scope->get_nominal_env();
 	auto total_env = scope->get_total_env();
+	auto lhs_type = lhs->type->get_type()->eval(nominal_env, total_env);
+	auto rhs_type = rhs->type->get_type()->eval(nominal_env, total_env);
+	if (lhs_type->repr() == MBS_TYPE && rhs_type->repr() == MBS_TYPE) {
+		if (function_name == "__plus__") {
+			return call_program_function(
+					status, builder, scope, life, function_name,
+					obj->get_location(), {lhs, rhs});
+		}
+	}
+
 	if (
-			types::is_integer(lhs->type->get_type(), nominal_env, total_env) &&
-			types::is_integer(rhs->type->get_type(), nominal_env, total_env))
+			types::is_integer(lhs_type, {}, {}) &&
+			types::is_integer(rhs_type, {}, {}))
 	{
 		/* we are dealing with two integers, standard function resolution rules do not apply */
 		return type_check_binary_integer_op(
@@ -2536,8 +2547,8 @@ bound_var_t::ref type_check_binary_operator(
 				function_name,
 				expected_type);
 	} else {
-		bool lhs_is_null = lhs->type->get_type()->eval_predicate(tb_null, nominal_env, total_env);
-		bool rhs_is_null = rhs->type->get_type()->eval_predicate(tb_null, nominal_env, total_env);
+		bool lhs_is_null = lhs_type->eval_predicate(tb_null, nominal_env, total_env);
+		bool rhs_is_null = rhs_type->eval_predicate(tb_null, nominal_env, total_env);
 
 		/* see whether we should just do a binary value comparison */
 		if (
@@ -3085,7 +3096,12 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 							condition_value->type->get_type(),
 							true_path_value->type->get_type(),
 							false_path_value->type->get_type(),
-							(condition == when_true) ? rct_or : (condition == when_false ? rct_and : rct_ternary));
+							(condition == when_true) ? rct_or
+							: (condition == when_false ? rct_and
+								: rct_ternary));
+
+					auto nominal_env = scope->get_nominal_env();
+					auto total_env = scope->get_total_env();
 
 					if (!!status) {
 						llvm::Instruction *truthy_merge_branch = builder.CreateBr(merge_bb);
@@ -3100,11 +3116,25 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 							/* make sure that we cast the incoming phi value to the
 							 * final type in the incoming BB, not in the merge BB */
 							llvm::IRBuilder<> builder(truthy_merge_branch);
-							llvm_truthy_path_value = coerce_value(
-									status, builder, scope, life,
-								   	condition->get_location(),
-									ternary_type->get_type(),
-									true_path_value);
+							if (ternary_type->get_type()->eval_predicate(tb_gc, nominal_env, total_env)) {
+								if (!true_path_value->type->get_type()->eval_predicate(tb_gc, nominal_env, total_env)) {
+									auto managed_true_path_type = promote_to_managed_type(
+											true_path_value->type->get_type(), nominal_env, total_env);
+									true_path_value = coerce_bound_value(
+											status, builder, scope, life,
+											condition->get_location(),
+											managed_true_path_type,
+											true_path_value);
+								}
+							}
+
+							if (!!status) {
+								llvm_truthy_path_value = coerce_value(
+										status, builder, scope, life,
+										condition->get_location(),
+										ternary_type->get_type(),
+										true_path_value);
+							}
 						}
 						if (!!status) {
 							llvm_phi_node->addIncoming(llvm_truthy_path_value, then_bb);
@@ -3114,6 +3144,18 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 								/* make sure that we cast the incoming phi value to the
 								 * final type in the incoming BB, not in the merge BB */
 								llvm::IRBuilder<> builder(false_merge_branch);
+								if (ternary_type->get_type()->eval_predicate(tb_gc, nominal_env, total_env)) {
+									if (!false_path_value->type->get_type()->eval_predicate(tb_gc, nominal_env, total_env)) {
+										auto managed_false_path_type = promote_to_managed_type(
+												false_path_value->type->get_type(),
+												nominal_env, total_env);
+										false_path_value = coerce_bound_value(
+												status, builder, scope, life,
+												condition->get_location(),
+												managed_false_path_type,
+												false_path_value);
+									}
+								}
 								llvm_false_path_value = coerce_value(
 										status, builder, scope, life,
 										condition->get_location(),
@@ -3512,12 +3554,15 @@ bound_var_t::ref call_typeid(
 									{bound_managed_var});
 						}
 					} else {
-						return bound_var_t::create(
-								INTERNAL_LOC(),
-								string_format("typeid(%s)", resolved_value->str().c_str()),
-								program_scope->get_bound_type({TYPEID_TYPE}),
-								llvm_create_int32(builder, atomize(resolved_value->type->get_type()->get_signature())),
-								id);
+						auto typeid_type = upsert_bound_type(status, builder, program_scope, type_id(make_iid(TYPEID_TYPE)));
+						if (!!status) {
+							return bound_var_t::create(
+									INTERNAL_LOC(),
+									string_format("typeid(%s)", resolved_value->str().c_str()),
+									typeid_type,
+									llvm_create_int32(builder, atomize(resolved_value->type->get_type()->get_signature())),
+									id);
+						}
 					}
 				}
 			}
@@ -3762,7 +3807,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		/* now put this function declaration into the containing scope in case
 		 * of recursion */
 		if (function_var->name.size() != 0) {
-			put_bound_function(status, builder, scope, get_location(), decl->extends_module, function_var, new_scope);
+			put_bound_function(status, builder, scope, get_location(), function_var->name, decl->extends_module, function_var, new_scope);
 		} else {
 			user_error(status, *this, "function definitions need names");
 		}
@@ -3843,10 +3888,21 @@ void type_check_module_links(
 
 				if (!!status) {
 					if (link->extern_function->token.text.size() != 0) {
-						scope->put_bound_variable(status, link->extern_function->token.text, link_value);
+						put_bound_function(
+								status,
+								builder,
+								scope,
+								link->extern_function->get_location(),
+								link->extern_function->token.text,
+								link->extern_function->extends_module,
+								link_value,
+								nullptr);
 					} else {
 						user_error(status, *link, "module level link definitions need names");
 					}
+				}
+				if (!status) {
+					break;
 				}
 			}
 		}
@@ -4065,7 +4121,7 @@ void create_visit_module_vars_function(
 			program_scope,
 			INTERNAL_LOC(),
 			type_function(nullptr, type_id(make_iid("true")), type_args({bound_callback_fn_type->get_type()}),
-				program_scope->get_bound_type({"void"})->get_type()),
+				program_scope->get_bound_type(VOID_TYPE)->get_type()),
 			"__visit_module_vars");
 
 	if (!!status) {
@@ -5389,7 +5445,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		{
 			bound_type_t::ref native_type = upsert_bound_type(status, builder, program_scope, type_id(make_iid(FLOAT_TYPE)));
 			assert(!!status);
-			if (expected_type != nullptr && !types::is_type_id(expected_type, MANAGED_FLOAT, nominal_env, total_env)) {
+			if (expected_type == nullptr || !types::is_type_id(expected_type, MANAGED_FLOAT, nominal_env, total_env)) {
 				double value = atof(token.text.c_str());
 				return bound_var_t::create(
 						INTERNAL_LOC(), "float_literal", native_type,

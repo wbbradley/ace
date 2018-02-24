@@ -79,8 +79,10 @@ bound_var_t::ref get_best_fit(
 					winner = fitting.fn;
 				} else {
 					user_error(status, location,
-							"multiple (noncoercing) overloads found for %s",
-							alias.c_str());
+							"multiple (noncoercing) overloads found for %s%s %s",
+							alias.c_str(),
+							args->str().c_str(),
+							return_type->str().c_str());
 				}
 			}
 		}

@@ -1,9 +1,9 @@
 IMAGE=zionlang/zion
 VERSION=0.1
 INSTALL_DIR=/usr/local/zion
-OPT_LEVEL=-O0
+OPT_LEVEL=-O3
 UNAME := $(shell uname)
-DEBUG_FLAGS := -DZION_DEBUG -g $(OPT_LEVEL)
+DEBUG_FLAGS := -DZION_DEBUG -g
 LLVM_VERSION = release_40
 LLVM_DEBUG_ROOT = $(HOME)/opt/llvm/$(LLVM_VERSION)/Debug
 LLVM_RELEASE_ROOT = $(HOME)/opt/llvm/$(LLVM_VERSION)/MinSizeRel
@@ -14,6 +14,7 @@ CFLAGS = \
 	-Werror \
 	-Wno-narrowing \
 	-pthread \
+	$(OPT_LEVEL) \
 	$(DEBUG_FLAGS) \
 	-fms-extensions \
 
@@ -33,13 +34,13 @@ ifeq ($(UNAME),Darwin)
 
 	LINKER = $(CLANG)
 	LINKER_OPTS := \
+		$(OPT_LEVEL) \
 		$(DEBUG_FLAGS) \
 		$(shell $(LLVM_CONFIG) --ldflags) \
 		-stdlib=libc++ \
 		-lstdc++ \
 		$(shell $(LLVM_CONFIG) --cxxflags --ldflags --system-libs --libs)
 
-	LINKER_DEBUG_OPTS := $(DEBUG_FLAGS)
 	LLDB = /usr/local/opt/llvm/bin/lldb
 else
 
@@ -98,7 +99,6 @@ ifeq ($(UNAME),Linux)
 		-lstdc++ \
 		$(shell $(LLVM_CONFIG) --cxxflags --ldflags --system-libs --libs)
 
-	LINKER_DEBUG_OPTS := $(DEBUG_FLAGS)
 	LLDB = lldb-4.0
 endif
 

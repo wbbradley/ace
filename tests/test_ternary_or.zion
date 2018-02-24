@@ -9,6 +9,6 @@ def takes(x)
 			print(x)
 
 def main()
-	x := true ? 12 : "hey"
+	x := 12 or "hey"
 	static_print(x)
 	takes(x)

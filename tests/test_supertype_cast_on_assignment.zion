@@ -1,18 +1,18 @@
 module _
 
-type Cartesian{T} has
+type Cartesian T has
 	var x T
 	var y T
 
-type Radial{T} has
+type Radial T has
 	var radius T
 	var theta T
 
-type Point{T} is
-	Cartesian{T} or
-	Radial{T}
+type Point T is
+	Cartesian T or
+	Radial T
 
 def main()
-	var p Point{float} = Cartesian(2.4, 1.0)
+	var p Point float = Cartesian(2.4, 1.0)
 	# error: unable to resolve overloads for __getitem__.*
 	print(p[0])

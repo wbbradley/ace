@@ -299,30 +299,21 @@ bound_var_t::ref get_callable(
 		if (callable != nullptr) {
 			return callable;
 		} else {
-			if (fittings.size() == 0) {
-				user_error(status, callsite_location,
-					   	"no function found with signature " C_TYPE "def" C_RESET " " c_id("%s") "%s %s",
-						alias.c_str(),
-						args->str().c_str(),
-						(return_type != nullptr) ? return_type->str().c_str() : "");
-				debug_above(11, log(log_info, "%s", scope->str().c_str()));
-			} else {
-				std::stringstream ss;
-				ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
-				user_error(status, callsite_location, "%s", ss.str().c_str());
+			std::stringstream ss;
+			ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
+			user_error(status, callsite_location, "%s", ss.str().c_str());
 
-				if (debug_level() >= 0) {
-					/* report on the places we tried to look for a match */
-					if (fittings.size() > 10) {
-						user_message(log_info, status, callsite_location,
-								"%d non-matching functions called " c_id("%s")
-							   	" found (skipping listing them all)", fittings.size(), alias.c_str());
-					} else {
-						for (auto &fitting : fittings) {
-							ss.str("");
-							ss << fitting.fn->type->str() << " did not match";
-							user_message(log_info, status, fitting.fn->get_location(), "%s", ss.str().c_str());
-						}
+			if (debug_level() >= 0) {
+				/* report on the places we tried to look for a match */
+				if (fittings.size() > 10) {
+					user_message(log_info, status, callsite_location,
+							"%d non-matching functions called " c_id("%s")
+							" found (skipping listing them all)", fittings.size(), alias.c_str());
+				} else {
+					for (auto &fitting : fittings) {
+						ss.str("");
+						ss << fitting.fn->type->str() << " did not match";
+						user_message(log_info, status, fitting.fn->get_location(), "%s", ss.str().c_str());
 					}
 				}
 			}

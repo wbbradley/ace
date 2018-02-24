@@ -92,9 +92,13 @@ def rand(max int) int
 	return r % max
 
 
-def __bool__(x Int or str or [any T]) bool
+def __bool__[T, K, V](x Int or str or [T] or Bool) bool
 	assert(x as *void != null)
 	when x
+		is True
+			return true
+		is False
+			return false
 		is Int
 			return x.raw != 0
 		is str

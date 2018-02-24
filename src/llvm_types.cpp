@@ -196,9 +196,11 @@ std::vector<llvm::Type *> build_struct_elements(
 {
 	std::vector<llvm::Type *> elements;
 
+#ifdef ZION_DEBUG
 	for (auto &dimension : bound_dimensions) {
 		assert(dyncast<const types::type_ref_t>(dimension->get_type()) == nullptr);
 	}
+#endif
 
 	if (native) {
 		/* just add all the dimensions of the native struct */
@@ -542,7 +544,7 @@ bound_type_t::ref create_bound_expr_type(
 	if (!!status) {
 		auto total_expansion = id->eval(scope, true);
 
-		debug_above(6, log("create_bound_type(..., %s) [nominal = %s, total = %s] in env %s",
+		debug_above(5, log("create_bound_type(..., %s) [nominal = %s, total = %s] in env %s",
 					id->str().c_str(),
 					nominal_expansion->str().c_str(),
 					total_expansion->str().c_str(),

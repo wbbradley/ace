@@ -1,5 +1,6 @@
 module _
 # test: pass
+# expect: different types
 
 tag Cow
 tag Hiss
@@ -8,7 +9,7 @@ type Boo is Hiss or Cow
 # Note that this function returns an int, because we don't yet
 # support creating bools
 def test(a any, b any) bool
-	return bool(typeid(a) != typeid(b))
+	return typeid(a) != typeid(b)
 
 def main()
 	i := Cow

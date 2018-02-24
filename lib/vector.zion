@@ -126,9 +126,8 @@ def append[T where not(gc T)](vec [T], t T) void
 	__unsafe_vector_append__(vec as *(NativeVector T), t)
 
 [global]
-def resize[T where gc T](vector [T], size int, default T) void
+def resize[T](vector [T], size int, default T) void
 	let vec = vector as *(VectorImpl T)
-	static_print(vec)
 	if size < 0
 		return
 
@@ -245,10 +244,9 @@ def __unsafe_vector_append__[V, I](vector *V, item I) void
 			vector.items[0] = item
 
 [global]
-def reserve(vec [any T], n int)
+def reserve(vec [any T], n size_t)
 	# Call the unmanaged version
-	assert(n >= 0)
-	reserve(vec as *vector_t, n)
+	reserve(vec as *(VectorImpl T), n)
 
 def reserve(vec *ManagedVector, n size_t)
 	# Make sure we've got n spaces available in our vector's allocated memory
@@ -302,16 +300,16 @@ def copy(orig [any T], t any T) [any T]
 	return new
 
 [global]
-def splice(vec [any T], index int, count int) void
-	let v = vec as *vector_t
+def splice[T](vec [T], index int, count int) void
+	let v = vec as *(VectorImpl T)
 	let orig_count = v.size
-	let i = index.raw
-	let c = count.raw
+	let i = index
+	let c = count
 	let skip_to = i + c
 	if c < 0 or skip_to < 0 or skip_to > orig_count
 		panic("invalid index (" + index + ") and count (" + count + ") passed to vector.splice\n")
 
-	posix.memmove(&v.items[i], &v.items[skip_to], (orig_count - skip_to) * sizeof(*var_t))
+	posix.memmove(&v.items[i], &v.items[skip_to], (orig_count - skip_to) * sizeof(T))
 	v.size = orig_count - c
 
 type VectorIter C has
@@ -336,5 +334,4 @@ def __iterate__(i VectorIter any C)
 
 [global]
 def __iter_item__(i VectorIter any C) any C
-	assert(i.pos < len(v))
-	return v[i.pos]
+	return i.vec[i.pos]

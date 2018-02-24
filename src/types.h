@@ -516,3 +516,4 @@ types::type_t::pair make_type_pair(std::string fst, std::string snd, identifier:
 bool get_type_variable_name(types::type_t::ref type, std::string &name);
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings);
 std::string get_name_from_index(const types::name_index_t &name_index, int i);
+types::type_t::ref promote_to_managed_type(const types::type_t::ref &option, const types::type_t::map &nominal_env, const types::type_t::map &total_env);

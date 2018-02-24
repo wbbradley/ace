@@ -1,12 +1,12 @@
 module _
 
 # test: pass
-type Just{T} has
+type Just T has
 	var value T
 
-type Maybe{X} is
+type Maybe X is
 	Empty or
-	Just{X}
+	Just X
 
 def main()
 	pass

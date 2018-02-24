@@ -1,43 +1,44 @@
 module _
 # test: pass
+# expect: 5
 
-type Literal{T} has
+type Literal T has
 	var value T
 
-type Plus{S} has
-	var e1 Expr{S}
-	var e2 Expr{S}
+type Plus S has
+	var e1 Expr S
+	var e2 Expr S
 
-type Minus{T} has
-	var e1 Expr{T}
-	var e2 Expr{T}
+type Minus T has
+	var e1 Expr T
+	var e2 Expr T
 
-type Times{T} has
-	var e1 Expr{T}
-	var e2 Expr{T}
+type Times T has
+	var e1 Expr T
+	var e2 Expr T
 
-type Divide{T} has
-	var e1 Expr{T}
-	var e2 Expr{T}
+type Divide T has
+	var e1 Expr T
+	var e2 Expr T
 
-type Expr{T} is
-	Plus{T} or
-	Minus{T} or
-	Times{T} or
-	Divide{T} or
-	Literal{T}
+type Expr T is
+	Plus T or
+	Minus T or
+	Times T or
+	Divide T or
+	Literal T
 
-def compute(expr Expr{any X}) any X 
+def compute(expr Expr any X) any X 
 	when expr
-		is Literal{any X}
+		is Literal any X
 			return expr.value
-		is Plus{any X}
+		is Plus any X
 			return compute(expr.e1) + compute(expr.e2)
-		is Minus{any X}
+		is Minus any X
 			return compute(expr.e1) - compute(expr.e2)
-		is Times{any X}
+		is Times any X
 			return compute(expr.e1) * compute(expr.e2)
-		is Divide{any X}
+		is Divide any X
 			return compute(expr.e1) / compute(expr.e2)
 
 def main()

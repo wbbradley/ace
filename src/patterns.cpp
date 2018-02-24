@@ -84,84 +84,96 @@ void ast::when_block_t::resolve_statement(
 					auto total_env = scope->get_total_env();
 					auto bindings = scope->get_type_variable_bindings();
 					for (auto pattern_block : pattern_blocks) {
-						auto type_to_match = pattern_block->type->rebind(scope->get_type_variable_bindings());
-						std::set<int> typeids;
-						types::get_runtime_typeids(status, type_to_match, nominal_env, total_env, typeids);
-						if (!status) {
-							break;
-						}
-						types_matched.push_back(type_to_match);
+						auto type_to_match_raw = pattern_block->type->rebind(scope->get_type_variable_bindings());
+						auto type_to_match = promote_to_managed_type(
+								type_to_match_raw,
+								nominal_env, total_env);
 
-						/* check that these types have not already been tested for */
-						for (auto _typeid : typeids) {
-							if (in(_typeid, typeids_tested)) {
-								user_error(status, pattern_block->get_location(),
-										"runtime type matching for %s is already handled above. note that it may be a part of this type, and not the whole sum of the type",
-										type_to_match->str().c_str());
-								user_info(status, typeids_tested[_typeid], "see prior test for runtime type here");
-							}
-							typeids_tested[_typeid] = pattern_block->get_location();
+						if (!types::is_managed_ptr(type_to_match, nominal_env, total_env)) {
+							user_error(status, pattern_block->type->get_location(),
+									"unable to find runtime type identity for %s. runtime type identity is needed in order to perform type matching",
+									pattern_block->type->str().c_str());
 						}
 
-						if (!status) {
-							break;
-						}
-
-						/* remember where we were */
-						llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-
-						/* create a new block for catching the pattern jump */
-						llvm::BasicBlock *llvm_pattern_block = llvm::BasicBlock::Create(
-								builder.getContext(), "pattern." + pattern_block->type->repr(), llvm_function_current);
-
-						/* add the new blocks to the switch */
-						for (auto _typeid : typeids) {
-							llvm_switch->addCase(builder.getInt32(_typeid), llvm_pattern_block);
-						}
-
-						/* start emitting code in the block */
-						builder.SetInsertPoint(llvm_pattern_block);
-
-						/* set up the variable to be interpreted as the type we've matched */
-						scope_t::ref pattern_scope = runnable_scope->new_local_scope(string_format("pattern.%s", type_to_match->str().c_str()));
-
-						auto bound_matched_type = upsert_bound_type(status, builder, scope, type_to_match);
 						if (!!status) {
-							llvm::Value *llvm_pattern_value = coerce_value(
-									status,
-									builder,
-									scope,
-									life,
-									pattern_value->get_location(),
-									type_to_match,
-									pattern_value);
+							std::set<int> typeids;
+							types::get_runtime_typeids(status, type_to_match, nominal_env, total_env, typeids);
+							if (!status) {
+								break;
+							}
+							types_matched.push_back(type_to_match);
 
-							/* replace this bound variable with a version of itself with a new type */
-							pattern_scope->put_bound_variable(status, var_name->get_name(),
-									bound_var_t::create(
-										var_name->get_location(),
-										var_name->get_name(),
-										bound_matched_type,
-										llvm_pattern_value,
-										var_name));
-
-							if (!!status) {
-								bool pattern_returns = false;
-								pattern_block->block->resolve_statement(status, builder, pattern_scope, life, nullptr, &pattern_returns);
-								if (!status) {
-									break;
+							/* check that these types have not already been tested for */
+							for (auto _typeid : typeids) {
+								if (in(_typeid, typeids_tested)) {
+									user_error(status, pattern_block->get_location(),
+											"runtime type matching for %s is already handled above. note that it may be a part of this type, and not the whole sum of the type",
+											type_to_match->str().c_str());
+									user_info(status, typeids_tested[_typeid], "see prior test for runtime type here");
 								}
+								typeids_tested[_typeid] = pattern_block->get_location();
+							}
 
-								assert_implies(pattern_returns, builder.GetInsertBlock()->getTerminator() != nullptr);
-								if (!pattern_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
-									/* if this block didn't return or break/continue, then we need to make sure we can merge
-									 * to the next block */
-									all_patterns_return = false;
-									if (merge_block == nullptr) {
-										merge_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.merge", llvm_function_current);
+							if (!status) {
+								break;
+							}
+
+							/* remember where we were */
+							llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+							/* create a new block for catching the pattern jump */
+							llvm::BasicBlock *llvm_pattern_block = llvm::BasicBlock::Create(
+									builder.getContext(), "pattern." + pattern_block->type->repr(), llvm_function_current);
+
+							/* add the new blocks to the switch */
+							for (auto _typeid : typeids) {
+								llvm_switch->addCase(builder.getInt32(_typeid), llvm_pattern_block);
+							}
+
+							/* start emitting code in the block */
+							builder.SetInsertPoint(llvm_pattern_block);
+
+							/* set up the variable to be interpreted as the type we've matched */
+							scope_t::ref pattern_scope = runnable_scope->new_local_scope(string_format("pattern.%s", type_to_match->str().c_str()));
+
+							auto bound_matched_type = upsert_bound_type(status, builder, scope, type_to_match);
+							if (!!status) {
+								llvm::Value *llvm_pattern_value = coerce_value(
+										status,
+										builder,
+										scope,
+										life,
+										pattern_value->get_location(),
+										type_to_match,
+										pattern_value);
+
+								/* replace this bound variable with a version of itself with a new type */
+								pattern_scope->put_bound_variable(status, var_name->get_name(),
+										bound_var_t::create(
+											var_name->get_location(),
+											var_name->get_name(),
+											bound_matched_type,
+											llvm_pattern_value,
+											var_name));
+
+								if (!!status) {
+									bool pattern_returns = false;
+									pattern_block->block->resolve_statement(status, builder, pattern_scope, life, nullptr, &pattern_returns);
+									if (!status) {
+										break;
 									}
-									assert(builder.GetInsertBlock()->getTerminator() == nullptr);
-									builder.CreateBr(merge_block);
+
+									assert_implies(pattern_returns, builder.GetInsertBlock()->getTerminator() != nullptr);
+									if (!pattern_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
+										/* if this block didn't return or break/continue, then we need to make sure we can merge
+										 * to the next block */
+										all_patterns_return = false;
+										if (merge_block == nullptr) {
+											merge_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.merge", llvm_function_current);
+										}
+										assert(builder.GetInsertBlock()->getTerminator() == nullptr);
+										builder.CreateBr(merge_block);
+									}
 								}
 							}
 						}

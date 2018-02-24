@@ -1,25 +1,26 @@
 module _
-# test: pass
+# test: skip
 # expect: 11
 
-type Plus{T} has
-	var lhs Expr{T}
-	var rhs Expr{T}
+# This might require backtracking in the unification in order to handle the tricky resolution of T
+type Plus T has
+	var lhs Expr T
+	var rhs Expr T
 
-type Times{T} has
-	var lhs Expr{T}
-	var rhs Expr{T}
+type Times T has
+	var lhs Expr T
+	var rhs Expr T
 
-type Expr{T} is
-	Plus{T} or
-	Times{T} or
+type Expr T is
+	Plus T or
+	Times T or
 	T
 
-def eval(expr Expr{any T}) int
+def eval(expr Expr any T) int
 	when expr
-		is Plus{any T}
+		is Plus any T
 			return eval(expr.lhs) + eval(expr.rhs)
-		is Times{any T}
+		is Times any T
 			return eval(expr.lhs) * eval(expr.rhs)
 		is any T
 			return expr

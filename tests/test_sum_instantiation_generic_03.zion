@@ -6,14 +6,14 @@ type Y has
 
 type TY is Y
 
-type foo{T} has
+type foo T has
 	var t T
 
 type bar has
 	var y Y
 
-type baz{X} is
-	foo{X} or
+type baz X is
+	foo X or
 	bar
 
 def main()

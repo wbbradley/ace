@@ -612,6 +612,7 @@ void put_bound_function(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,
+		std::string function_name,
 		identifier::ref extends_module,
 		bound_var_t::ref bound_function,
 		local_scope_t::ref *new_scope);

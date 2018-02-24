@@ -32,14 +32,14 @@ void _emit_assert(
 	user_message(log_panic, status, location, ss.str().c_str());
 	log_dump();
 	// ::log_stack(log_warning);
-    debug_break();
+    DEBUG_BREAK();
 }
 
 depth_guard_t::depth_guard_t(int &depth, int max_depth) : depth(depth) {
 	++depth;
 	if (depth > max_depth) {
 		std::cerr << c_error("maximum depth reached") << std::endl;
-        debug_break();
+        DEBUG_BREAK();
 	}
 }
 

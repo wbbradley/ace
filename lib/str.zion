@@ -6,7 +6,6 @@ link def __wcs__(x int) *wchar to __wcs_int
 link def __wcs__(x int, y int) *wchar to __wcs_int_radix
 link def __wcs__(x float) *wchar to __wcs_float
 link def __wcs__(x *char) *wchar to __wcs_str
-link def concat(x *wchar, y *wchar) *wchar to __wcs_concat
 
 #
 # str
@@ -104,3 +103,12 @@ def strip(s str) str
 	
 	# TODO: PERF: maybe allow slicing strings
 	return str(&s.raw[start], lim - start + 1)
+
+def concat(x *wchar, y *wchar) str
+	let x_len = posix.wcslen(x)
+	let x_cb = sizeof(wchar) * x_len
+	let y_cb = sizeof(wchar) * (posix.wcslen(y) + 1)
+	let res = posix.malloc(x_cb + y_cb)! as *wchar
+	posix.memcpy(res, x, x_cb)
+	posix.memcpy(&res[x_len], y, y_cb)
+	return str(res)
