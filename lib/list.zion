@@ -1,10 +1,10 @@
 global
 
-type list{T} has
+type list T has
 	var value T
-	var next list{T}?
+	var next (list T)?
 
-def nth{T}(l list{T}?, index int) T?
+def nth[T](l (list T)?, index int) T?
 	if l
 		if index == 0
 			return l.value
@@ -13,18 +13,18 @@ def nth{T}(l list{T}?, index int) T?
 
 	return null
 
-def len(l list{any}?) int
+def len(l (list any)?) int
 	if l != null
 		return len(l.next) + 1
 	return 0
 
-def conj{T}(maybe_list list{T}?, item T) list{T}
+def conj[T](maybe_list (list T)?, item T) list T
 	if maybe_list != null
 		return list(item, l)
 	return list(item, null)
 
 
-def str(l list{any}?) str
+def str(l (list any)?) str
 	return "[" + join(l, ", ") + "]"
 
 

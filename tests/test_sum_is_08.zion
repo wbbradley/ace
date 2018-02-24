@@ -3,19 +3,19 @@ module _
 
 tag Done
 
-type Node{T} has
+type Node T has
 	var t T
 
-type Divide{T} has
-	var l Expr{T}
+type Divide T has
+	var l Expr T
 
-type Expr{T} is
-	Node{T} or
-	Divide{T} or
+type Expr T is
+	Node T or
+	Divide T or
 	Done
 
-def compute(expr Expr{any X}) any X
-	# TODO: implement pattern matching...
+def compute(expr Expr any X) any X
+	# This test is probably ready to be deleted
 	return 0
 
 def main()

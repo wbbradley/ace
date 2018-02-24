@@ -18,7 +18,7 @@ type Map KeyType ValueType has
 [global]
 def __init__[K, V]() {K: V}
 	let storage [KeyValue K V]
-	return map(storage)
+	return Map(storage)
 
 [global]
 def get[K, V](m {K: V}, key K, default V) V

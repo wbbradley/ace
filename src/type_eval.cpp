@@ -69,7 +69,7 @@ namespace types {
 	}
 
 	bool type_t::eval_predicate(type_builtins_t tb, const map &nominal_env, const map &total_env) const {
-		debug_above(8, log("%s receiving eval_predicate(%s, ..., ...)",
+		debug_above(9, log("%s receiving eval_predicate(%s, ..., ...)",
 					str().c_str(), tbstr(tb)));
 
 		if (const char *id = id_from_tb(tb)) {

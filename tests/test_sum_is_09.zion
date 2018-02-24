@@ -2,12 +2,12 @@ module _
 # test: pass
 
 tag Done
-type Node{T} has
+type Node T has
 	var value T
-	var next List{T}
+	var next List T
 
-type List{V} is
-	Node{V} or
+type List V is
+	Node V or
 	Done
 
 def main()

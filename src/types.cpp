@@ -644,13 +644,12 @@ namespace types {
 	std::ostream &type_lazy_t::emit(std::ostream &os, const map &bindings) const {
 		const char *delim = "";
 		assert(options.size() != 0);
-		os << "(lazy ";
 		for (auto option : options) {
 			os << delim;
 			option->emit(os, bindings);
 			delim = " or ";
 		}
-		return os << ")";
+		return os;
 	}
 
 	int type_lazy_t::ftv_count() const {
@@ -1198,7 +1197,7 @@ namespace types {
 	}
 
 	bool is_managed_ptr(types::type_t::ref type, const types::type_t::map &nominal_env, const types::type_t::map &total_env) {
-		debug_above(6, log(log_info, "checking if %s is a managed ptr", type->str().c_str()));
+		debug_above(9, log(log_info, "checking if %s is a managed ptr", type->str().c_str()));
 		if (auto expanded_type = type->eval(nominal_env, total_env, true /*get_structural_type*/)) {
 			type = expanded_type;
 		}
@@ -1327,6 +1326,7 @@ namespace types {
 			std::set<int> &typeids)
 	{
 		auto expansion = type->eval(nominal_env, total_env);
+		debug_above(7, log("get_runtime_typeids expanded to %s", expansion->str().c_str()));
 		if (auto type_ref = dyncast<const type_ref_t>(expansion)) {
 			user_error(status, type->get_location(), "reference types are not allowed here. %s does not have runtime type information",
 					type->str().c_str());
@@ -1462,7 +1462,6 @@ void expand_options(
 		const types::type_t::map &total_env,
 		std::set<std::string> &visited)
 {
-	options.resize(0);
 	for (auto option : new_options) {
 		auto evaled = option->eval(nominal_env, total_env);
 		auto repr = evaled->repr();
@@ -1517,11 +1516,11 @@ void eliminate_redundant_types(types::type_t::refs &options, const types::type_t
 		auto type_partial = type_sum(partial, INTERNAL_LOC());
 		if (unifies(type_partial, options[i], env, total_env)) {
 			/* options[i] is not needed */
-			debug_above(8, log("removing one instance of type %s from %s", options[i]->str().c_str(),
+			debug_above(9, log("removing one instance of type %s from %s", options[i]->str().c_str(),
 						type_sum(options, INTERNAL_LOC())->str().c_str()));
 			std::swap(options, partial);
 		} else {
-			debug_above(8, log("could not remove %s from %s", options[i]->str().c_str(),
+			debug_above(9, log("could not remove %s from %s", options[i]->str().c_str(),
 						type_sum(options, INTERNAL_LOC())->str().c_str()));
 		}
 	}
@@ -1563,11 +1562,12 @@ types::type_t::ref demote_to_native_type(
 	}
 }
 
-types::type_t::ref promote_to_managed_type(
+types::type_t::ref promote_to_managed_type_(
 		const types::type_t::ref &option,
 	   	const types::type_t::map &nominal_env,
 	   	const types::type_t::map &total_env)
 {
+
 	if (types::is_managed_ptr(option, nominal_env, total_env)) {
 		return option;
 	}
@@ -1602,6 +1602,19 @@ types::type_t::ref promote_to_managed_type(
 
 	return option;
 }
+
+types::type_t::ref promote_to_managed_type(
+		const types::type_t::ref &option,
+	   	const types::type_t::map &nominal_env,
+	   	const types::type_t::map &total_env)
+{
+	auto res = promote_to_managed_type_(option, nominal_env, total_env);
+	debug_above(9, log("promotion of %s to a managed type => %s",
+				option->str().c_str(),
+				res->str().c_str()));
+	return res;
+}
+
 
 types::type_t::ref type_sum_safe_3(
 		status_t &status,
@@ -1695,6 +1708,8 @@ types::type_t::ref type_sum_safe(
 	if (options.size() == 1) {
 		auto evaled = options[0]->eval(nominal_env, total_env);
 		if (
+				// types::is_type_id(evaled, MANAGED_INT, {}, {}) ||
+				types::is_type_id(evaled, FLOAT_TYPE, {}, {}) ||
 				types::is_type_id(evaled, NULL_TYPE, {}, {}) ||
 				// types::is_type_id(evaled, "int") ||
 				types::is_ptr_type_id(evaled, CHAR_TYPE, nominal_env, total_env, true) ||
@@ -1709,13 +1724,21 @@ types::type_t::ref type_sum_safe(
 			}
 
 			if (!make_maybe) {
-				if (types::is_integer(evaled, nominal_env, total_env)) {
+				//if (types::is_integer(evaled, nominal_env, total_env)) {
 					return options[0];
-				}
+				//}
 			}
 			return type_sum_safe_3(status, {evaled}, location, nominal_env, total_env, make_maybe);
 		}
 	} else {
+		if (options.size() == 2) {
+			/* NB: rely on alphabetical sort order of options */
+			if (types::is_type_id(options[0], MANAGED_FALSE, {}, {}) &&
+					types::is_type_id(options[1], MANAGED_TRUE, {}, {}))
+			{
+				return type_id(make_iid(MANAGED_BOOL));
+			}
+		}
 		return type_sum_safe_2(status, options, location, nominal_env, total_env);
 	}
 }

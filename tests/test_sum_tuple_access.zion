@@ -1,18 +1,9 @@
 module _
 # test: pass
 
-type Vector2 is {
-	float, float}
-
-type Vector3 is {
-	float,
-	float,
-	float,
-}
-
-type Vector4 is {
-	float, float, float, float
-}
+type Vector2 = (float, float)
+type Vector3 = (float, float, float)
+type Vector4 = (float, float, float, float)
 
 type Matrix4 has
 	var row1 Vector4

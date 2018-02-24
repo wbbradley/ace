@@ -20,28 +20,25 @@ module _
 def gimme_bool() bool
 	return true
 
-def __bool__(x False or Int) bool
-	when x
-		is False
-			return false
-		is Int
-			return x.raw != 0
-
 def main()
 	static_print(7)
 	static_print("hello")
 	static_print(gimme_bool())
 	static_print(gimme_bool() ? "foo" : 4.5)
-	static_print(gimme_bool() and int("9"))
-	static_print(gimme_bool() and int("9") or 200)
+	let g = gimme_bool() and int("9")
+	static_print(g)
+	# static_print(gimme_bool() and int("9") or 200)
 	static_print(true and 100)
 	static_print(false and 100)
 	static_print(true or 100)
 	static_print(false or 100)
 	static_print(9 or null)
-	var x int? = 3
+	var x int? = 4
+	var y int? = null
+	print(y or 2)
 	static_print(x)
-	static_print(x or 10)
+	static_print(x or x)
+	static_print(x != null or 10)
 	static_print(x != null and x)
 	if x != null
 		print("x or 10 = " + (x or 10))

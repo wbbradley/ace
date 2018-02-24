@@ -1,14 +1,14 @@
 module _ @1.0
 # test: pass
 
-type Bx{T} has
+type Bx T has
 	var x T
 
 tag C
 
-type B{X} is Bx{X} or C
+type B X is Bx X or C
 
-def do(b B{int})
+def do(b B int)
 	pass
 
 def main()

@@ -908,11 +908,11 @@ void put_bound_function(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,
+		std::string function_name,
 		identifier::ref extends_module,
 		bound_var_t::ref bound_function,
 		local_scope_t::ref *new_scope)
 {
-	auto function_name = bound_function->name;
 	if (function_name.size() != 0) {
 		auto program_scope = scope->get_program_scope();
 		/* inline function definitions are scoped to the virtual block in which
@@ -935,17 +935,17 @@ void put_bound_function(
 				if (extends_module != nullptr) {
 					std::string module_name = extends_module->get_name();
 					if (module_name == GLOBAL_SCOPE_NAME) {
-						program_scope->put_bound_variable(status, bound_function->name, bound_function);
+						program_scope->put_bound_variable(status, function_name, bound_function);
 					} else if (auto injection_module_scope = program_scope->lookup_module(module_name)) {
 						/* we're injecting this function into some other scope */
-						injection_module_scope->put_bound_variable(status, bound_function->name, bound_function);
+						injection_module_scope->put_bound_variable(status, function_name, bound_function);
 					} else {
 						assert(false);
 					}
 				} else {
 					/* before recursing directly or indirectly, let's just add
 					 * this function to the module scope we're in */
-					module_scope->put_bound_variable(status, bound_function->name, bound_function);
+					module_scope->put_bound_variable(status, function_name, bound_function);
 				}
 			}
 		}

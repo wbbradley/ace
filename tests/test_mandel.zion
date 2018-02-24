@@ -42,7 +42,7 @@ def main()
 		resize(span, 0, 0)
 
 		let b = lerp(alpha(y, display_grid.y, display_grid.y + display_grid.height), r.x, r.x + r.width)
-		let x = display_grid.x
+		var x = display_grid.x
 		while x < display_grid.width
 			let a = lerp(alpha(x, display_grid.x, display_grid.x + display_grid.width), r.y, r.y + r.height)
 			var z = math.Complex(b, a)

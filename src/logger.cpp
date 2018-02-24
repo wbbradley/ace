@@ -43,7 +43,7 @@ const char *logstr(log_level_t ll) {
 	switch (ll)
 	{
 	case log_info:
-		return "info:";
+		return "";
 	case log_warning:
 		return "warn:";
 	case log_error:

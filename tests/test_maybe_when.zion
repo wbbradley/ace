@@ -1,15 +1,18 @@
 module _
 # test: pass
+# expect: Just
+# expect: 3
+# expect: Empty
 
-type Just{T} has
+type Just T has
 	var val T
 
 tag Empty
-type Maybe{T} is Empty or Just{T}
+type Maybe T is Empty or Just T
 
-def do(t Maybe{any T}) void
+def do(t Maybe any T) void
 	when t
-		is Just{any T}
+		is Just any T
 			print("Just")
 			print(t.val)
 		is Empty

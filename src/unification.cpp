@@ -27,7 +27,7 @@ unification_t::unification_t(
 
 types::type_t::ref prune(types::type_t::ref t, const types::type_t::map &bindings) {
 	/* Follow the links across the bindings to reach the final binding. */
-	debug_above(6, log("attempting to prune %s from %s",
+	debug_above(9, log("attempting to prune %s from %s",
 				::str(bindings).c_str(),
 				t->str().c_str()));
 
@@ -166,8 +166,8 @@ unification_t unify_core(
 				rhs_->str().c_str(),
 				str(bindings).c_str()));
 
-	const auto lhs = lhs_->eval(nominal_env, total_env);
-	const auto rhs = rhs_->eval(nominal_env, total_env);
+	const auto lhs = lhs_->rebind(bindings)->eval(nominal_env, total_env);
+	const auto rhs = rhs_->rebind(bindings)->eval(nominal_env, total_env);
 
 	auto ptref_lhs = dyncast<const types::type_ref_t>(lhs);
 
@@ -365,7 +365,7 @@ unification_t unify_core(
 			return {true, "", bindings, coercions, {}};
 		} else {
 			debug_above(7, log("matching maybe on the lhs"));
-			return unify_core(ptm_a->just, b, nominal_env, total_env, bindings, coercions, depth + 1);
+			return unify_core(ptm_a->just, b, nominal_env, total_env, bindings, coercions, depth);
 		}
 	} else if (ptp_a != nullptr) {
 		if (auto ptp_b = dyncast<const types::type_product_t>(b)) {
@@ -549,38 +549,8 @@ unification_t unify_core(
 				debug_above(7, log("matching type operands"));
 				return unify_core(pto_a->operand, pto_b->operand, nominal_env, total_env, bindings, coercions, depth + 1);
 			}
-		} else {
-			/* fallthrough, and try expanding the left-hand side */
-			debug_above(7, log(log_info, "falling through"));
 		}
-		auto new_a = pto_a->rebind(bindings)->eval(nominal_env, total_env);
-
-		/* apply the bindings first, so as to simplify the application */
-		if (new_a != nullptr && types::is_managed_ptr(new_a, {}, {})) {
-			/* managed pointers are opaque and should have unified nominally */
-			new_a = nullptr;
-		}
-
-		if (new_a != pto_a) {
-			debug_above(7, log(log_info, "operator %s -> %s",
-						pto_a->str().c_str(),
-						new_a->str().c_str()));
-
-			unification_t unification = unify_core(new_a, b, nominal_env, total_env, bindings, coercions, depth + 1);
-			if (!unification.result) {
-				return {false, string_format("%s <> %s", a->str().c_str(), b->str().c_str()), bindings, coercions, {}};
-			} else {
-				return unification;
-			}
-		} else {
-			/* types don't match */
-			return {
-				false,
-				string_format("%s <> %s", a->str(bindings).c_str(), b->str(bindings).c_str()),
-				{},
-				coercions,
-				{}};
-		}
+		return {false, string_format("%s <> %s", a->str().c_str(), b->str().c_str()), bindings, coercions, {}};
 	} else if (ptr_a != nullptr) {
 		auto a_element_type = ptr_a->element_type->eval(nominal_env, total_env);
 		if (types::is_type_id(a_element_type, STD_MANAGED_TYPE, {}, {})) {

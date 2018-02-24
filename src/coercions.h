@@ -1,3 +1,11 @@
+bound_var_t::ref coerce_bound_value(
+		status_t &status,
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		location_t location,
+		types::type_t::ref lhs_type,
+		bound_var_t::ref rhs);
 llvm::Value *coerce_value(
 		status_t &status,
 		llvm::IRBuilder<> &builder,

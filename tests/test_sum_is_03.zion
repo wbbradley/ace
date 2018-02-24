@@ -1,5 +1,6 @@
 module _
 # test: pass
+# expect: pass
 
 type Relative has
 	var value float
@@ -12,9 +13,9 @@ type Point is
 
 # override the bool operator for Point
 def __bool__(p Point) bool
-	return __true__
+	return true
 
 def main()
 	point := Relative(1.0)
 	if point
-		pass
+		print("pass")

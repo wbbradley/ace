@@ -1,7 +1,8 @@
 module _
 # test: pass
+# expect: 28231
 
-def nth(l Node{any T}?, i int) any T?
+def nth(l (Node any T)?, i int) any T?
 	if l == null
 		return null
 
@@ -10,12 +11,12 @@ def nth(l Node{any T}?, i int) any T?
 	else
 		return nth(l.next, i - 1)
 
-type Node{T} has
+type Node T has
 	var value T
-	var next Node{T}?
+	var next (Node T)?
 
 def main()
-	x := Node(3, Node(3, null))
-	y := nth(x, 0)
+	x := Node(3, Node(28231, null))
+	y := nth(x, 1)
 	if y != null
 		print(y)

@@ -4,6 +4,7 @@ link in "rt_int.o"
 
 link def __not__(x int) bool to __int_not
 link def __int__(x float) int to __int_float
+link def int(x float) int to __int_float
 link def int(x *wchar) int to __int_from_wcs
 link def int(x *char) int to __int_from_mbs
 link def __negative__(x int) int to __int_neg
@@ -24,8 +25,11 @@ def __init__() Int
 def __box__(i int) Int
 	return Int(i)
 
-def __unbox__(i Int) int
-	return i.raw
+def __unbox__(i (False or Int)?) int
+	return (i! as Int).raw
+
+def int(s int) int
+	return s
 
 def int(s str) int
 	return int(s.raw)

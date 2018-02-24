@@ -2,19 +2,19 @@ module _
 
 # test: pass
 
-type Val{T} has
+type Val T has
 	var i T
 
-type One{T} has
+type One T has
 	var c T
 
-type Two{T} has
+type Two T has
 	var c T
 
 type Cross is
-	Val{int} or
-	One{Cross} or
-	Two{float}
+	Val int or
+	One Cross or
+	Two float
 
 # Val <: Cross 
 # One <: Cross

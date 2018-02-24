@@ -1,10 +1,14 @@
 module _
 # test: pass
+# expect: 6
 
-type Node{T} has
+type Node T has
 	var value T
-	var next Node{T}?
+	var next (Node T)?
 
 def main()
 	n1 := Node(6, null)
-	n2 := Node(4, n1.next)
+	n2 := Node(4, n1)
+	let next = n2.next
+	if next != null
+		print(next.value)
