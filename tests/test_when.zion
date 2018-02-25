@@ -1,10 +1,7 @@
 module _
-# test: pass
-# expect: int found
-# expect: float found
-# expect: bool found
 
 def truthy(x any) bool
+	# error: when statements only work with managed types
 	when x
 		is int 
 			print("int found")

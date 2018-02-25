@@ -4048,7 +4048,8 @@ void type_check_program_variable(
 					function_type->args,
 					function_type->return_type,
 					fittings,
-					false /*check_unchecked*/);
+					false /*check_unchecked*/,
+					false /*allow_coercions*/);
 			if (!!local_status) {
 				if (callable != nullptr) {
 					/* we've already checked this function */

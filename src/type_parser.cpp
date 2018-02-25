@@ -377,7 +377,7 @@ namespace types {
 			ps.advance();
 
 			type_t::ref type;
-			if (ps.token.tk == tk_identifier) {
+			if (ps.token.tk == tk_identifier && !token_is_illegal_in_type(ps.token)) {
 				/* named generic */
 				type = type_variable(make_code_id(ps.token));
 				ps.advance();

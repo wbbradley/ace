@@ -68,7 +68,7 @@ namespace types {
         typedef std::pair<ref, ref> pair;
 
 		virtual ~type_t() {}
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const = 0;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const = 0;
 
 		/* how many free type variables exist in this type? NB: Assumes you have
          * already bound existing bindings at the callsite prior to this check. */
@@ -110,9 +110,10 @@ namespace types {
 		const type_t::refs options;
 		const location_t location;
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
+		virtual int get_precedence() const { return 4; }
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(
@@ -132,7 +133,7 @@ namespace types {
 		type_id_t(identifier::ref id);
 		identifier::ref id;
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
@@ -151,7 +152,7 @@ namespace types {
 		identifier::ref id;
 		location_t location;
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
@@ -165,7 +166,7 @@ namespace types {
 
 		virtual int get_precedence() const { return 7; }
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
@@ -191,7 +192,7 @@ namespace types {
 		type_any_of_t(const map &shapes);
 		refs shapes;
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
@@ -202,7 +203,7 @@ namespace types {
 		type_literal_t(token_t token);
 		token_t token;
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
@@ -217,7 +218,7 @@ namespace types {
 
 		virtual int get_precedence() const { return 9; }
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
@@ -239,7 +240,7 @@ namespace types {
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
@@ -256,7 +257,7 @@ namespace types {
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
@@ -273,7 +274,7 @@ namespace types {
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
@@ -291,7 +292,7 @@ namespace types {
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
@@ -309,7 +310,7 @@ namespace types {
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
@@ -331,7 +332,7 @@ namespace types {
 		type_t::ref args;
 		type_t::ref return_type;
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
@@ -345,7 +346,7 @@ namespace types {
 
 		virtual int get_precedence() const { return 5; }
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
@@ -361,7 +362,7 @@ namespace types {
 
 		virtual int get_precedence() const { return 4; }
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
@@ -379,7 +380,7 @@ namespace types {
 
 		virtual int get_precedence() const { return 8; }
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
@@ -399,7 +400,7 @@ namespace types {
 
 		virtual int get_precedence() const { return 10; }
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
@@ -419,7 +420,7 @@ namespace types {
 
 		virtual int get_precedence() const { return 10; }
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
@@ -434,7 +435,7 @@ namespace types {
 		type_t::ref body;
 
 		virtual int get_precedence() const { return 6; }
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
@@ -446,7 +447,7 @@ namespace types {
 		type_extern_t(type_t::ref inner);
 		type_t::ref inner;
 
-		virtual std::ostream &emit(std::ostream &os, const map &bindings) const;
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;

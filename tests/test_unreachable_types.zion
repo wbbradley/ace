@@ -1,17 +1,17 @@
 module _
 
-type Part{T} has
+type Part T has
 	var i T
 
-type Crate{T, U} has
+type Crate T U has
 	var t T
 	var u U
 
-type Box{X, Y} is
-	Part{X} or
-	Crate{X, Y}
+type Box X Y is
+	Part X or
+	Crate X Y
 
-def show(b Box{any, any})
+def show(b Box any any)
 	# error: unable to resolve overloads for __getitem__
 	print(b[0])
 

@@ -30,7 +30,8 @@ bound_var_t::ref get_best_fit(
 		std::string alias,
 		types::type_t::ref args,
 		types::type_t::ref return_type,
-		var_t::refs &fns)
+		var_t::refs &fns,
+		bool allow_coercions)
 {
 	fittings_t fittings;
 	fittings.reserve(fns.size());
@@ -59,7 +60,7 @@ bound_var_t::ref get_best_fit(
 		if (!status) {
 			assert(callable == nullptr);
 			return nullptr;
-		} else if (callable != nullptr) {
+		} else if (callable != nullptr && (coercions == 0 || allow_coercions)) {
 			fittings.push_back({callable, coercions});
 		}
 	}

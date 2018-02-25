@@ -33,3 +33,22 @@ def int(s int) int
 
 def int(s str) int
 	return int(s.raw)
+
+
+def __eq__(x Int, y int) bool
+	return x.raw == y
+
+def __eq__(x int, y Int) bool
+	return x == y.raw
+
+def __ineq__(x Int, y int) bool
+	return x.raw != y
+
+def __ineq__(x int, y Int) bool
+	return x != y.raw
+
+def __plus__(x Int, y int) int
+	return x.raw + y
+
+def __plus__(x int, y Int) int
+	return x + y.raw

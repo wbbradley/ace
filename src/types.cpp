@@ -63,7 +63,7 @@ namespace types {
 
 	std::string type_t::repr(const map &bindings) const {
 		std::stringstream ss;
-		emit(ss, bindings);
+		emit(ss, bindings, 0);
 		return ss.str();
 	}
 
@@ -79,7 +79,7 @@ namespace types {
 	type_id_t::type_id_t(identifier::ref id) : id(id) {
 	}
 
-	std::ostream &type_id_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_id_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		return os << id->get_name();
 	}
 
@@ -149,11 +149,11 @@ namespace types {
 	type_variable_t::type_variable_t(location_t location) : id(gensym()), location(location) {
 	}
 
-	std::ostream &type_variable_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_variable_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		auto instance_iter = bindings.find(id->get_name());
 		if (instance_iter != bindings.end()) {
 			assert(instance_iter->second != shared_from_this());
-			return instance_iter->second->emit(os, bindings);
+			return instance_iter->second->emit(os, bindings, parent_precedence);
 		} else {
 			return os << string_format("any %s", id->get_name().c_str());
 		}
@@ -190,31 +190,22 @@ namespace types {
 	{
 	}
 
-	std::ostream &type_operator_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_operator_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		if (is_type_id(oper->rebind(bindings), STD_VECTOR_TYPE, {}, {})) {
 			os << "[";
-			operand->emit(os, bindings);
+			operand->emit(os, bindings, 0);
 			return os << "]";
 		} else {
-			// TODO: detect map.Map X Y which is (oper (oper map.Map X) Y)
-			bool operator_needs_parens = oper->get_precedence() < get_precedence();
-
-			if (operator_needs_parens) {
+			if (parent_precedence > get_precedence()) {
 				os << "(";
 			}
-			oper->emit(os, bindings);
-			if (operator_needs_parens) {
-				os << ")";
-			}
+
+			oper->emit(os, bindings, get_precedence());
 
 			os << " ";
 
-			bool operand_needs_parens = operand->get_precedence() <= get_precedence();
-			if (operand_needs_parens) {
-				os << "(";
-			}
-			operand->emit(os, bindings);
-			if (operand_needs_parens) {
+			operand->emit(os, bindings, get_precedence() + 1);
+			if (parent_precedence > get_precedence()) {
 				os << ")";
 			}
 			return os;
@@ -291,7 +282,7 @@ namespace types {
 		return dimensions;
 	}
 
-	std::ostream &type_struct_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_struct_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		os << "struct{";
 		join_dimensions(os, dimensions, name_index, bindings);
 		return os << "}";
@@ -363,7 +354,7 @@ namespace types {
 		return dimensions;
 	}
 
-	std::ostream &type_tuple_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_tuple_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		os << "(";
 		join_dimensions(os, dimensions, {}, bindings);
 		return os << ")";
@@ -436,7 +427,7 @@ namespace types {
 		return args;
 	}
 
-	std::ostream &type_args_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_args_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		os << "(";
 		const char *sep = "";
 		int i = 0;
@@ -448,7 +439,7 @@ namespace types {
 					os << name << " ";
 				}
 			}
-			arg->emit(os, bindings);
+			arg->emit(os, bindings, 0);
 			sep = ", ";
 		}
 		return os << ")";
@@ -509,9 +500,9 @@ namespace types {
 	}
 
 
-	std::ostream &type_managed_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_managed_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		os << "managed{";
-		element_type->emit(os, bindings);
+		element_type->emit(os, bindings, 0);
 		os << "}";
 		return os;
 	}
@@ -552,9 +543,9 @@ namespace types {
 		return {module_type};
 	}
 
-	std::ostream &type_module_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_module_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		os << "module ";
-		module_type->emit(os, bindings);
+		module_type->emit(os, bindings, get_precedence());
 		return os;
 	}
 
@@ -591,19 +582,19 @@ namespace types {
 		assert(return_type != nullptr);
 	}
 
-	std::ostream &type_function_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_function_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		os << K(def) << " ";
 		if (name != nullptr) {
 			os << C_ID << name->get_name() << C_RESET;
 		}
 		if (type_constraints != nullptr && !is_type_id(type_constraints->rebind(bindings), TRUE_TYPE, {}, {})) {
 			os << "[" << C_CONTROL << "where " << C_RESET;
-			type_constraints->emit(os, bindings);
+			type_constraints->emit(os, bindings, 0);
 			os << "]";
 		}
-		args->emit(os, bindings);
+		args->emit(os, bindings, 0);
 		os << " ";
-		return return_type->emit(os, bindings);
+		return return_type->emit(os, bindings, 0);
 	}
 
 	int type_function_t::ftv_count() const {
@@ -641,13 +632,22 @@ namespace types {
 	type_lazy_t::type_lazy_t(const type_t::refs &options, location_t location) : options(options), location(location) {
 	}
 
-	std::ostream &type_lazy_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_lazy_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
+		if (options.size() == 1) {
+			return options[0]->emit(os, bindings, parent_precedence);
+		}
+		if (parent_precedence > get_precedence()) {
+			os << "(";
+		}
 		const char *delim = "";
 		assert(options.size() != 0);
 		for (auto option : options) {
 			os << delim;
-			option->emit(os, bindings);
+			option->emit(os, bindings, get_precedence());
 			delim = " or ";
+		}
+		if (parent_precedence > get_precedence()) {
+			os << ")";
 		}
 		return os;
 	}
@@ -718,13 +718,23 @@ namespace types {
 		}
 	}
 
-	std::ostream &type_sum_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_sum_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
+		if (options.size() < 2) {
+			log("found type_sum with fewer than 2 options. %s", ::str(options).c_str());
+			dbg();
+		}
+		if (parent_precedence > get_precedence()) {
+			os << "(";
+		}
 		const char *delim = "";
 		assert(options.size() != 0);
 		for (auto option : options) {
 			os << delim;
-			option->emit(os, bindings);
+			option->emit(os, bindings, get_precedence());
 			delim = " or ";
+		}
+		if (parent_precedence > get_precedence()) {
+			os << ")";
 		}
 		return os;
 	}
@@ -792,13 +802,19 @@ namespace types {
 		}
 	}
 
-	std::ostream &type_and_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_and_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
+		if (parent_precedence > get_precedence()) {
+			os << "(";
+		}
 		const char *delim = "";
 		assert(terms.size() != 0);
 		for (auto term : terms) {
 			os << delim;
-			term->emit(os, bindings);
+			term->emit(os, bindings, get_precedence());
 			delim = " or ";
+		}
+		if (parent_precedence > get_precedence()) {
+			os << ")";
 		}
 		return os;
 	}
@@ -843,23 +859,15 @@ namespace types {
 		// assert(!just->is_null());
 	}
 
-	std::ostream &type_maybe_t::emit(std::ostream &os, const map &bindings) const {
+	std::ostream &type_maybe_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		if (auto pointer = dyncast<const type_ptr_t>(just)) {
 			/* this is a native pointer that might be null */
 			os << "*?";
-			return pointer->element_type->emit(os, bindings);
+			return pointer->element_type->emit(os, bindings, get_precedence());
 		} else {
 			/* this is a managed pointer that might be null. we subsume the maybeness onto the whole typename in order
 			 * to look nicer. */
-			auto element = just->rebind(bindings);
-			bool needs_parens = element->get_precedence() < get_precedence();
-			if (needs_parens) {
-				os << "(";
-				element->emit(os, {});
-				os << ")";
-			} else {
-				element->emit(os, {});
-			}
+			just->emit(os, bindings, get_precedence());
 			return os << "?";
 		}
 	}
@@ -910,16 +918,14 @@ namespace types {
 		// assert(!element_type->is_null());
 	}
 
-	std::ostream &type_ptr_t::emit(std::ostream &os, const map &bindings) const {
-		os << "*";
-		auto element = element_type->rebind(bindings);
-		bool element_needs_parens = element->get_precedence() < get_precedence();
-		if (element_needs_parens) {
+	std::ostream &type_ptr_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
+		if (parent_precedence > get_precedence()) {
 			os << "(";
-			element->emit(os, {});
+		}
+		os << "*";
+		element_type->emit(os, bindings, get_precedence());
+		if (parent_precedence > get_precedence()) {
 			os << ")";
-		} else {
-			element->emit(os, {});
 		}
 		return os;
 	}
@@ -960,16 +966,14 @@ namespace types {
 	type_ref_t::type_ref_t(type_t::ref element_type) : element_type(element_type) {
 	}
 
-	std::ostream &type_ref_t::emit(std::ostream &os, const map &bindings) const {
-		os << "&";
-		auto element = element_type->rebind(bindings);
-		bool element_needs_parens = element->get_precedence() < get_precedence();
-		if (element_needs_parens) {
+	std::ostream &type_ref_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
+		if (parent_precedence > get_precedence()) {
 			os << "(";
-			element->emit(os, {});
+		}
+		os << "&";
+		element_type->emit(os, bindings, get_precedence());
+		if (parent_precedence > get_precedence()) {
 			os << ")";
-		} else {
-			element->emit(os, {});
 		}
 		return os;
 	}
@@ -999,14 +1003,20 @@ namespace types {
 	{
 	}
 
-	std::ostream &type_lambda_t::emit(std::ostream &os, const map &bindings_) const {
+	std::ostream &type_lambda_t::emit(std::ostream &os, const map &bindings_, int parent_precedence) const {
+		if (parent_precedence > get_precedence()) {
+			os << "(";
+		}
 		auto var_name = binding->get_name();
 		auto new_name = gensym();
-		os << "(lambda " << new_name->get_name() << " ";
+		os << "lambda " << new_name->get_name() << " ";
 		map bindings = bindings_;
 		bindings[var_name] = type_id(new_name);
-		body->emit(os, bindings);
-		return os << ")";
+		body->emit(os, bindings, get_precedence());
+		if (parent_precedence > get_precedence()) {
+			os << ")";
+		}
+		return os;
 	}
 
 	int type_lambda_t::ftv_count() const {
@@ -1046,11 +1056,11 @@ namespace types {
 	{
 	}
 
-	std::ostream &type_integer_t::emit(std::ostream &os, const map &bindings_) const {
+	std::ostream &type_integer_t::emit(std::ostream &os, const map &bindings_, int parent_precedence) const {
 		os << K(integer) << "(";
-		bit_size->emit(os, bindings_);
+		bit_size->emit(os, bindings_, 0);
 		os << ", ";
-		signed_->emit(os, bindings_);
+		signed_->emit(os, bindings_, 0);
 		return os << ")";
 	}
 
@@ -1098,7 +1108,7 @@ namespace types {
 	{
 	}
 
-	std::ostream &type_literal_t::emit(std::ostream &os, const map &bindings_) const {
+	std::ostream &type_literal_t::emit(std::ostream &os, const map &bindings_, int parent_precedence) const {
 		return os << token.text;
 	}
 
@@ -1138,10 +1148,16 @@ namespace types {
 	{
 	}
 
-	std::ostream &type_extern_t::emit(std::ostream &os, const map &bindings_) const {
-		os << "(extern ";
-		inner->emit(os, bindings_);
-		return os << ")";
+	std::ostream &type_extern_t::emit(std::ostream &os, const map &bindings_, int parent_precedence) const {
+		if (parent_precedence > get_precedence()) {
+			os << "(";
+		}
+		os << "extern ";
+		inner->emit(os, bindings_, get_precedence());
+		if (parent_precedence > get_precedence()) {
+			os << ")";
+		}
+		return os;
 	}
 
 	int type_extern_t::ftv_count() const {
@@ -1513,7 +1529,12 @@ void eliminate_redundant_types(types::type_t::refs &options, const types::type_t
 		assert(partial.size() == options.size() - 1);
 		assert(partial.size() > 0);
 
-		auto type_partial = type_sum(partial, INTERNAL_LOC());
+		types::type_t::ref type_partial;
+		if (partial.size() == 1) {
+			type_partial = partial[0];
+		} else {
+			type_partial = type_sum(partial, INTERNAL_LOC());
+		}
 		if (unifies(type_partial, options[i], env, total_env)) {
 			/* options[i] is not needed */
 			debug_above(9, log("removing one instance of type %s from %s", options[i]->str().c_str(),
@@ -1920,7 +1941,7 @@ std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimen
 		if (name.size() != 0) {
 			os << name << " ";
 		}
-		dimension->emit(os, bindings);
+		dimension->emit(os, bindings, 0);
 		sep = ", ";
 	}
 	return os;
