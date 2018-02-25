@@ -2,6 +2,7 @@ module posix
 
 link in "c"
 link in "m"
+link in "rt_posix.o"
 
 link def getenv(x *char) *char
 link def puts(x *char) int
@@ -43,7 +44,7 @@ link def wcslen(wcs *wchar) size_t
 link def putw(wch wchar, fp *FILE) int
 link def mbstowcs(wcs *?wchar, mbs *char, mbslen size_t) size_t
 link def wcstombs(mbs *?char, wcs *wchar, wcslen size_t) size_t
-link def errno() int to __error
+link def errno() int to __posix_errno
 link def iswspace(wch wchar) bool
 link def isspace(ch char) bool
 
