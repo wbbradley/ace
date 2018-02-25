@@ -205,12 +205,14 @@ bound_var_t::ref maybe_get_callable(
 		types::type_t::ref args,
 		types::type_t::ref return_type,
 		fittings_t &fittings,
-		bool check_unchecked)
+		bool check_unchecked,
+		bool allow_coercions)
 {
-	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, args=%s, ...)",
+	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, args=%s, ..., allow_coercions=%s)",
 				scope->get_name().c_str(),
 				alias.c_str(),
-				args->str().c_str()));
+				args->str().c_str(),
+				boolstr(allow_coercions)));
 
     llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 	if (!!status) {
@@ -235,7 +237,8 @@ bound_var_t::ref maybe_get_callable(
 			   	alias,
 			   	args,
 			   	return_type,
-			   	fns);
+			   	fns,
+				allow_coercions);
 	}
 
 	assert(!status);

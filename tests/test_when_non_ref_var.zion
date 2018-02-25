@@ -1,13 +1,14 @@
 module _
 # test: pass
+# expect: yep
 
 type Vector has
 	var x float
 	var y float
 
 def do(t Vector) void
-	when t.x
-		is float
+	when t
+		is Vector
 			print("yep")
 
 def main()

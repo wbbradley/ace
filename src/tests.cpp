@@ -934,7 +934,7 @@ auto test_descs = std::vector<test_desc>{
 				{"*?char or int", "(Int or str)?"},
 				{"integer(8, true)?", "Int?"},
 				{"integer(8, true) or integer(32, true)", "int"},
-				{"integer(16, false)", "integer((lazy 16), (lazy false))"},
+				{"integer(16, false)", "integer(16, false)"},
 				{"integer(16, false) or int", "int"},
 				{"integer(16, false) or str", "Int or str"},
 				{"int or null", "Int?"},
@@ -953,7 +953,7 @@ auto test_descs = std::vector<test_desc>{
 				{"map any b any c", "M.map any b any c"},
 				{"T", "any T"},
 				{"T char Q", "any T char any Q"},
-				{"map (T int) Q", "M.map (lazy any T int) any Q"},
+				{"map (T int) Q", "M.map (any T int) any Q"},
 			}};
 
 			for (auto p : parses) {

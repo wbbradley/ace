@@ -1,0 +1,8 @@
+module _
+
+def foo(x int, y int) bool
+	return x > y
+
+# error: duplicate function def foo
+def foo(x int, y int) bool
+	return x < y

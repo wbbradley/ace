@@ -51,7 +51,8 @@ bound_var_t::ref maybe_get_callable(
 		types::type_t::ref type_args,
 		types::type_t::ref return_type,
 		fittings_t &fittings,
-		bool check_unchecked=true);
+		bool check_unchecked=true,
+		bool allow_coercions=true);
 
 bound_var_t::ref call_program_function(
         status_t &status,

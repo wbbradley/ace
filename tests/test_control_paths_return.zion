@@ -2,7 +2,7 @@ module _
 # test: pass
 
 def fib()
-	when true
+	when True
 		is true
 			print("true")
 

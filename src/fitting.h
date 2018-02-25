@@ -15,4 +15,5 @@ bound_var_t::ref get_best_fit(
 		std::string alias,
 		types::type_t::ref args,
 		types::type_t::ref return_type,
-		var_t::refs &fns);
+		var_t::refs &fns,
+		bool allow_coercions);
