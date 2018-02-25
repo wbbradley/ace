@@ -1,6 +1,6 @@
 module _
 # test: pass
-# expect: x : F{int} or float
+# expect: x : Float or test_type_exprs.F int
 
 type F T has
 	var p T

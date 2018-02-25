@@ -1,6 +1,5 @@
 module _
 # test: skip
-# expect: 11
 
 # This might require backtracking in the unification in order to handle the tricky resolution of T
 type Plus T has
