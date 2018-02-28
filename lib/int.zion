@@ -5,8 +5,8 @@ link in "rt_int.o"
 link def __not__(x int) bool to __int_not
 link def __int__(x float) int to __int_float
 link def int(x float) int to __int_float
-link def int(x *wchar) int to __int_from_wcs
-link def int(x *char) int to __int_from_mbs
+link def int(x *wchar, length uint) int to __int_from_wcs
+link def int(x *char, length uint) int to __int_from_mbs
 link def __negative__(x int) int to __int_neg
 link def __positive__(x int) int to __int_pos
 link def __plus__(x int, y float) float to __int_plus_float
@@ -32,7 +32,13 @@ def int(s int) int
 	return s
 
 def int(s str) int
-	return int(s.raw)
+	var total int = 0
+	var delim int = 1
+	for ch in s
+		total *= delim
+		total = total + (ch as int) - 3 * 16
+		delim = 10
+	return total
 
 
 def __eq__(x Int, y int) bool

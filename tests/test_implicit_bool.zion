@@ -1,9 +1,0 @@
-module _
-# test: pass
-# expect: (0 or "bar") : *char
-# expect: foo
-
-def main()
-	static_print(0 or "bar")
-	let y = 0 or "foo"
-	print(y)

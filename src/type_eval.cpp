@@ -20,8 +20,6 @@ const char *tbstr(type_builtins_t tb) {
 		return "is_void";
 	case tb_null:
 		return "is_null";
-	case tb_zero:
-		return "is_zero";
 	case tb_maybe:
 		return "is_maybe";
 	}
@@ -48,8 +46,6 @@ const char *id_from_tb(type_builtins_t tb) {
 		return VOID_TYPE;
 	case tb_null:
 		return NULL_TYPE;
-	case tb_zero:
-		return ZERO_TYPE;
 	case tb_maybe:
 		return nullptr;
 	}
@@ -168,7 +164,6 @@ namespace types {
 		} \
 		return type_false; \
 	}
-	type_eval_is_(zero, ZERO_TYPE)
 	type_eval_is_(false, FALSE_TYPE)
 	type_eval_is_(true, TRUE_TYPE)
 	type_eval_is_(void, VOID_TYPE)
@@ -213,7 +208,6 @@ namespace types {
 			{TYPE_OP_NOT, type_eval_not},
 			{TYPE_OP_GC, type_eval_is_gc},
 			{TYPE_OP_IF, type_eval_if},
-			{TYPE_OP_IS_ZERO, type_eval_is_zero},
 			{TYPE_OP_IS_REF, type_eval_is_type<type_ref_t>},
 			{TYPE_OP_IS_TRUE, type_eval_is_true},
 			{TYPE_OP_IS_FALSE, type_eval_is_false},

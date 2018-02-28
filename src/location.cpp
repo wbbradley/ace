@@ -6,7 +6,7 @@
 #include <sstream>
 #include <unistd.h>
 
-std::string location_t::str(bool vim_mode, bool make_dir_relative) const {
+std::string location_t::filename_repr() const {
 	static char *cwd = (char *)calloc(4096, 1);
 	static unsigned cwdlen = 0;
 	if (cwd[0] == 0) {
@@ -16,7 +16,6 @@ std::string location_t::str(bool vim_mode, bool make_dir_relative) const {
 
 	std::stringstream ss;
 	if (has_file_location()) {
-		ss << C_LINE_REF;
 		if (starts_with(filename, "./")) {
 			auto str = filename.c_str();
 			ss << (str + 2);
@@ -27,20 +26,22 @@ std::string location_t::str(bool vim_mode, bool make_dir_relative) const {
 				ss << filename;
 			}
 		}
-		if (vim_mode) {
-			ss << ':' << line << ':' << col;
-		} else {
-			ss << '(' << line << ')';
-		}
-		ss << C_RESET;
 	} else {
-		ss << C_LINE_REF << "builtin" << C_RESET;
+		ss << "builtin";
 	}
 	return ss.str();
 }
 
+std::string location_t::str() const {
+	std::stringstream ss;
+	ss << C_LINE_REF << repr() << C_RESET;
+	return ss.str();
+}
+
 std::string location_t::repr() const {
-	return clean_ansi_escapes(str());
+	std::stringstream ss;
+	ss << filename_repr() << ':' << line << ':' << col;
+	return ss.str();
 }
 
 std::string location_t::operator()() const {

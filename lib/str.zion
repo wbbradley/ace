@@ -10,34 +10,65 @@ link def __wcs__(x *char) *wchar to __wcs_str
 #
 # str
 #
-# the str type represents unicode strings.
+# the str type represents unicode strings, and is implemented as a shared slice.
 #
 
+def str(x wchar) str
+	let length = 1
+	let pch = posix.malloc((length + 1) * sizeof(wchar))! as *wchar
+	let buffer = OwningBuffer(pch, length)
+	pch[0] = x
+	pch[1] = 0 as wchar
+	return str(buffer, 0, 1)
+
+def str(s *wchar) str
+	let s_len = posix.wcslen(s)
+	let buffer = OwningBuffer(s, s_len)
+	return str(buffer, 0, s_len)
+	
 type str has
-	let raw *wchar
+	let buffer OwningBuffer wchar
+	let start uint
+	let length uint
 
-def __getitem__(x str, i int) wchar
-	return x.raw[i]
+var _empty_owning_buffer OwningBuffer wchar = mbstowcs("")
+var _empty_string str = str(_empty_owning_buffer, 0, 0)
 
-var __empty_str str = str(mbstowcs(""))
+def unsafe_access(u str) *wchar
+	return &u.buffer.raw[u.start]
+
+def str(buffer OwningBuffer wchar) str
+	return str(buffer, 0, buffer.length)
+
+def str(s str, start uint, length uint) str
+	let s_len = len(s)
+
+	if start >= s_len or start + length >= s_len
+		return _empty_string
+
+	if start != 0 or length < s_len
+		return str(s.buffer, s.start + start, length)
+	else
+		return _empty_string
+
+def __getitem__(s str, i uint) wchar
+	assert(s.length >= i)
+	return s.buffer.raw[s.start + i]
 
 def __init__() str
-	return __empty_str
-
-def __finalize__(s str)
-	posix.free(s.raw)
+	return str("")
 
 def __box__(s *char) str
 	return str(mbstowcs(s))
 
 def len(s str) size_t
-	return posix.wcslen(s.raw)
+	return s.length
 
 def str(s str) str
-	return str(posix.wcsdup(s.raw)!)
+	return s
 
 def str(s utf8) str
-	return str(mbstowcs(s.raw))
+	return str(mbstowcs(unsafe_access(s), s.length))
 
 def str(x int) str
 	return str(__wcs__(x))
@@ -46,69 +77,95 @@ def str(x float) str
 	return str(__wcs__(x))
 
 def __plus__(x str, y str) str
-	return str(concat(x.raw, y.raw))
+	return concat(
+		unsafe_access(x),
+		x.length,
+		unsafe_access(y),
+		y.length)
 
 def __plus__(x str, y int) str
 	let y_expanded = __wcs__(y)
-	let result = str(concat(x.raw, y_expanded))
+	let result = concat(
+		unsafe_access(x),
+		x.length,
+		y_expanded,
+		posix.wcslen(y_expanded))
 	posix.free(y_expanded)
 	return result
 
 def __plus__(x str, y float) str
 	let sy = __wcs__(y)
-	let ret = str(concat(x.raw, sy))
+	let ret = concat(unsafe_access(x), x.length, sy, posix.wcslen(sy))
 	posix.free(sy)
 	return ret
 
 def __eq__(x str, y str) bool
-	return posix.wcscmp(x.raw, y.raw) == 0
+	if x.length != y.length
+		return false
+	return posix.wmemcmp(
+		unsafe_access(x),
+		unsafe_access(y),
+		x.length) == 0
 
 def __ineq__(x str, y str) bool
-	return posix.wcscmp(x.raw, y.raw) != 0
-
-def str(buffer *char, length size_t) str
-	# Create a managed string from a direct memory access
-	# TODO: optimize this to avoid the malloc
-	let retstr = posix.malloc(length + 1 as size_t)! as *char
-	posix.memcpy(retstr as *int8, buffer as *int8, length)
-	retstr[length] = 0 as char
-	let s = str(mbstowcs(retstr))
-	posix.free(retstr);
-	return s
-
-def str(src *wchar, char_count int) str
-	assert(char_count >= 0)
-	if char_count <= 0
-		return __empty_str
-	let cb = sizeof(wchar) * (char_count + 1)
-	let dst = posix.malloc(cb)! as *wchar
-	posix.memcpy(dst, src, cb - sizeof(wchar))
-	dst[char_count] = 0
-	return str(dst)
+	if x.length != y.length
+		return true
+	return posix.wmemcmp(
+		unsafe_access(x),
+		unsafe_access(y),
+		x.length) != 0
 
 def strip(s str) str
 	var start int = 0
-	let max int = posix.wcslen(s.raw)
+	let max int = s.length
 	var lim int = max - 1
+
 	while start <= lim
-		if not posix.iswspace(s.raw[start])
+		if not posix.iswspace(s[start])
 			break
 		start += 1
 	
-	while lim > start and posix.iswspace(s.raw[lim])
+	while lim > start and posix.iswspace(s[lim])
 		lim -= 1
 	
 	if start == 0 and lim == max - 1
 		return s
 	
-	# TODO: PERF: maybe allow slicing strings
-	return str(&s.raw[start], lim - start + 1)
+	return str(s, start, lim - start + 1)
 
-def concat(x *wchar, y *wchar) str
-	let x_len = posix.wcslen(x)
+def concat(x *wchar, x_len uint, y *wchar, y_len uint) str
 	let x_cb = sizeof(wchar) * x_len
-	let y_cb = sizeof(wchar) * (posix.wcslen(y) + 1)
+	let y_cb = sizeof(wchar) * (y_len + 1)
 	let res = posix.malloc(x_cb + y_cb)! as *wchar
 	posix.memcpy(res, x, x_cb)
 	posix.memcpy(&res[x_len], y, y_cb)
 	return str(res)
+
+type StringIter has
+	var pch *?wchar
+
+def __iter_begin__(s str) StringIter
+	return StringIter(&s.buffer.raw[s.start])
+
+def __iter_end__(s str) StringIter
+	return StringIter(&s.buffer.raw[s.start + s.length])
+
+def __iter_valid__(si_cur StringIter, si_end StringIter) bool
+	return si_cur.pch < si_end.pch
+
+def __iter_item__(si StringIter) wchar
+	return si.pch[0]
+
+def __iterate__(si StringIter)
+	si.pch = &si.pch[1]
+
+def c_str(u str) OwningBuffer wchar
+	# ensures a null-terminated string 
+	if u.start != 0 or u.length != u.buffer.length
+		let pch = posix.malloc(sizeof(wchar) * (u.length + 1))! as *wchar
+		posix.memcpy(pch, unsafe_access(u), sizeof(wchar) * u.length)
+		pch[u.length] = 0 as wchar
+		return OwningBuffer(pch, u.length)
+	else
+		return u.buffer
+

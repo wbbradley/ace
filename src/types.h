@@ -30,9 +30,7 @@ void reset_generics();
 
 extern const char *TYPE_OP_NOT;
 extern const char *TYPE_OP_IF;
-extern const char *TYPE_OP_IS_ZERO;
 extern const char *TYPE_OP_GC;
-extern const char *TYPE_OP_IS_ZERO;
 extern const char *TYPE_OP_IS_REF;
 extern const char *TYPE_OP_IS_TRUE;
 extern const char *TYPE_OP_IS_FALSE;
@@ -51,7 +49,6 @@ enum type_builtins_t {
 	tb_function,
 	tb_void,
 	tb_null,
-	tb_zero,
 	tb_maybe,
 };
 

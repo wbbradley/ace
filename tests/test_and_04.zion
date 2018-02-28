@@ -1,5 +1,5 @@
 module _
 
 def main()
-	# error: floats are not implicitly true or false
+	# error: condition is not a boolean value
 	1.0 and 0

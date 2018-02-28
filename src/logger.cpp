@@ -55,7 +55,7 @@ const char *logstr(log_level_t ll) {
 
 void write_log_streamv(std::ostream &os, log_level_t level, const location_t *location, const char *format, va_list args) {
 	if (location) {
-		os << location->str(true/*vim_mode*/) << ": ";
+		os << location->str() << ": ";
 	}
 	os << level_color(level) << logstr(level) << C_RESET << " ";
 	os << string_formatv(format, args) << std::endl;
@@ -278,7 +278,7 @@ void tee_logger::dump() {
 void indent_logger::dump() {
 	auto output = clean_ansi_escapes_if_not_tty(STDERR, 
 			string_format("%s: %s\n",
-				location.str(true /* vim_mode */, true /* make_relative */).c_str(),
+				location.str().c_str(),
 				msg.c_str()));
 
 	write_fp(STDERR, "%s", output.c_str());

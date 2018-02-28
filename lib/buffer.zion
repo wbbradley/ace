@@ -1,0 +1,10 @@
+global
+
+
+type OwningBuffer C has
+	let raw *C
+	let length uint
+
+def __finalize__(owning_buffer OwningBuffer any)
+	posix.free(owning_buffer.raw)
+

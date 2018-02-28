@@ -6,9 +6,9 @@ link def sodium_init() int
 link def crypto_generichash_bytes_min() size_t
 link def crypto_generichash_bytes_max() size_t
 link def crypto_generichash_statebytes() size_t
-link def crypto_generichash(out *int8, outlen size_t, input *int8, inlen size_t, key *?int8, keylen size_t) int
+link def crypto_generichash(out *int8, outlen size_t, input_ *int8, inlen size_t, key *?int8, keylen size_t) int
 link def crypto_generichash_init(state *crypto_generichash_state, key *int8, keylen size_t, outlen size_t) int
-link def crypto_generichash_update(state *crypto_generichash_state, input *int8, inputlen size_t) int
+link def crypto_generichash_update(state *crypto_generichash_state, input_ *int8, inputlen size_t) int
 link def crypto_generichash_final(state *crypto_generichash_state, out *int8, outlen size_t) int
 link def crypto_generichash_keygen(k *int8) void
 
@@ -19,19 +19,21 @@ def init()
 		posix.puts("failed to initialize libsodium")
 		posix.exit(1)
 
-def hash(input bytes, key bytes) bytes
+def hash(input_ bytes, key bytes) bytes
 	outlen := crypto_generichash_bytes_max()
 	out := alloc(outlen)
 	assert(out != null)
-	crypto_generichash(out.data, out.cb, input.data, input.cb, key.data, key.cb)
+	crypto_generichash(out.data, out.cb, input_.data, input_.cb, key.data, key.cb)
 	return out
 		
 
-def hash(input str) bytes
+def hash(input_ str) bytes
 	outlen := crypto_generichash_bytes_max()
 	out := alloc(outlen)
 	assert(out != null)
-	crypto_generichash(out.data, out.cb, input.raw as *int8, sizeof(wchar) * posix.wcslen(input.raw), null, 0)
+	let pch = __iter_begin__(input_).pch!
+	assert(pch != null)
+	crypto_generichash(out.data, out.cb, pch as *int8, sizeof(wchar) * posix.wcslen(pch), null, 0)
 	return out
 	
 	

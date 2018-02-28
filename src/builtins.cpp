@@ -1,5 +1,4 @@
 const char *INT_TYPE = "int";
-const char *ZERO_TYPE = "zero";
 const char *UINT_TYPE = "uint";
 const char *INT64_TYPE = "int64";
 const char *UINT64_TYPE = "uint64";

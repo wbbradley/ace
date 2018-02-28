@@ -4,6 +4,5 @@ get posix
 get sys
 
 def main()
-	mbs := wcstombs(sys.args[1].raw)
-	posix.puts(mbs)
-	posix.free(mbs)
+	buffer := c_str(utf8(sys.args[1]))
+	posix.puts(buffer.raw)

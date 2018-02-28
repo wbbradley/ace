@@ -23,8 +23,8 @@ def main()
 	width := 240
 	height := 240
 	if len(sys.args) == 3
-		width = int(sys.args[1]) or width
-		height = int(sys.args[2]) or height
+		width = int(sys.args[1])
+		height = int(sys.args[2])
 		
 	maxDepth := 20
 

@@ -71,7 +71,6 @@ void add_default_type_macros(type_macros_t &type_macros) {
 		TYPE_OP_NOT,
 		TYPE_OP_IF,
 		TYPE_OP_GC,
-		TYPE_OP_IS_ZERO,
 		TYPE_OP_IS_REF,
 		TYPE_OP_IS_TRUE,
 		TYPE_OP_IS_FALSE,
