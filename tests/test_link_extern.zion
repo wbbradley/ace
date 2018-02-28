@@ -21,17 +21,17 @@ type Entry has
 def __finalize__(entry Entry)
 	free_entry(entry.entry)
 
-def get_name(entry Entry) str?
+def get_name(entry Entry, default str) str
 	let name = get_name(entry.entry)
 	if name != null
 		return __box__(name)
 	else
-		return null
+		return default
 
 def main()
 	var entry Entry? = Entry(make_entry("Will", 123)!)
 	if entry != null
-		print(get_name(entry) or "")
+		print(get_name(entry, ""))
 		static_print(entry)
 	else
 		print("No name found!")

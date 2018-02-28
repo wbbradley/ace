@@ -2,6 +2,7 @@ global
 
 get runtime
 get posix
+get buffer
 get bool
 get bytes
 get str
@@ -25,50 +26,48 @@ var stderr *posix.FILE = posix.fdopen(2, "a")!
 # initialization of modules is automatically generated.
 # link def __init_modules() void
 
-def mbstowcs(mbs *char) *wchar
+def mbstowcs(mbs *char) OwningBuffer wchar
 	# Converts from current locale's encoding to wide-char encoding. Allocates memory that
 	# must be freed later.
 	let mbslen = posix.strlen(mbs)
-	let wcs_cb = posix.mbstowcs(null, mbs, 0)
-	if wcs_cb == -1
+	return mbstowcs(mbs, mbslen)
+
+def mbstowcs(mbs *char, mbslen uint) OwningBuffer wchar
+	let characters = posix.mbstowcs(null, mbs, 0)
+	if characters == -1
 		posix.puts("Failed to convert string from multi-byte to wide char!")
 		posix.exit(1)
-	let wcs_size = wcs_cb + 1
-	let cb = sizeof(wchar) * wcs_size
+	let buffer_size = characters + 1
+	let cb = sizeof(wchar) * buffer_size
 	let wcs = posix.malloc(cb) as *?wchar
-	if wcs == null
-		posix.puts("out of memory - set a breakpoint on `exit` in order to debug")
-		posix.exit(-1)
-		# TODO: create syntax for not reached
-		return null as *wchar
-	else
-		posix.mbstowcs(wcs, mbs, wcs_size)
-		return wcs
+	assert(wcs != null)
 
-def wcstombs(wcs *wchar) *char
+	posix.mbstowcs(wcs, mbs, buffer_size)
+	return OwningBuffer(wcs, characters)
+
+def wcstombs(wcs *wchar) OwningBuffer char
 	# Converts from wide char encoding to current locale's encoding
 	# must be freed later.
 	let wcslen = posix.wcslen(wcs)
-	let mbs_cb = posix.wcstombs(null, wcs, wcslen)
-	if mbs_cb == -1
+	return wcstombs(wcs, wcslen)
+
+def wcstombs(wcs *wchar, wcslen uint) OwningBuffer char
+	let characters = posix.wcstombs(null, wcs, wcslen)
+	if characters == -1
 		posix.puts("Failed to convert string from wide char to multi-byte!")
 		breakpoint()
 		posix.exit(1)
 
-	let mbs_size = mbs_cb + 1
-	let cb = sizeof(char) * mbs_size
+	let buffer_size = characters + 1
+	let cb = sizeof(char) * buffer_size
 	let mbs = posix.malloc(cb) as *?char
-	if mbs == null
-		posix.puts("out of memory - set a breakpoint on `exit` in order to debug")
-		posix.exit(-1)
-		# TODO: create syntax for not reached
-		return null as *char
-	else
-		posix.wcstombs(mbs, wcs, mbs_size)
-		return mbs
+	assert(mbs != null)
+
+	posix.wcstombs(mbs, wcs, buffer_size)
+	return OwningBuffer(mbs, characters)
 
 def print(x) void
-	posix.fputs(utf8(str(x)).raw, stdout)
+	posix.fputs(unsafe_access(utf8(str(x))), stdout)
 	posix.fputs("\n", stdout)
 
 def panic(x str) void
@@ -90,21 +89,6 @@ def rand(max int) int
 	if r < 0
 		r = -r
 	return r % max
-
-
-def __bool__[T, K, V](x Int or str or [T] or Bool) bool
-	assert(x as *void != null)
-	when x
-		is True
-			return true
-		is False
-			return false
-		is Int
-			return x.raw != 0
-		is str
-			return x.raw[0] as int != 0
-		is [any T]
-			return (x as *vector.ManagedVector).size != 0
 
 type IntRange has
 	var first int
@@ -153,7 +137,7 @@ def input() str?
 	buf[lim + 1] = 0
 
 	assert(buf != null)
-	ret := str(mbstowcs(buf))
+	ret := str(mbstowcs(buf, lim + 1))
 	posix.free(buf)
 	# runtime.gc()
 	return ret

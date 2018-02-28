@@ -241,11 +241,6 @@ void add_global_types(
 					type_id(make_iid(WCHAR_TYPE)),
 				   	INTERNAL_LOC(),
 				   	builder.getInt32Ty())},
-		{{ZERO_TYPE},
-		   	bound_type_t::create(
-					type_id(make_iid(ZERO_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getZionIntTy())},
 		{{CHAR_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(CHAR_TYPE)),
@@ -913,4 +908,15 @@ llvm::Module *compiler_t::llvm_create_module(std::string module_name) {
 
 llvm::Module *compiler_t::llvm_get_program_module() {
 	return llvm_program_module.second.operator ->();
+}
+
+void compiler_t::dump_ctags() {
+	/* set up the names that point back into the AST resolved to the right
+		 * module scopes */
+	status_t status = scope_setup_program(*program, *this);
+	if (!!status) {
+		for (auto name_scope_pair : module_scopes) {
+			name_scope_pair.second->dump_tags(std::cout);
+		}
+	}
 }

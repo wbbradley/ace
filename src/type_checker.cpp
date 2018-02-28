@@ -977,7 +977,7 @@ bound_var_t::ref resolve_assert_macro(
 
 	auto callsite = expand_callsite_string_literal(token, "runtime", "on_assert_failure", 
 				string_format("%s: assertion %s failed",
-					token.location.str(true, true).c_str(),
+					token.location.str().c_str(),
 					condition->str().c_str()));
 
 	auto then_block = ast::create<ast::block_t>(token);
@@ -1023,7 +1023,8 @@ void ast::callsite_expr_t::resolve_statement(
 
 				if (!!status) {
 					user_message(log_info, status, param->get_location(),
-							"%s : %s", param->str().c_str(),
+							"%s : %s",
+						   	param->str().c_str(),
 							param_var->type->str().c_str());
 					return;
 				}
@@ -1169,7 +1170,8 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 		} else if (auto extern_type = dyncast<const types::type_extern_t>(expanded_type)) {
 			/* we need this in order to be able to get runtime type information */
 			auto program_scope = scope->get_program_scope();
-			std::string type_info_var_name = extern_type->inner->repr();
+			std::string type_info_var_name = string_format("__type_info_%s",
+				   	extern_type->inner->repr().c_str());
 			bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 			if (!!status) {
 				/* before we go create this type info, let's see if it already exists */
@@ -2777,108 +2779,6 @@ bound_var_t::ref ast::tuple_expr_t::resolve_expression(
 	return nullptr;
 }
 
-llvm::Value *_get_raw_condition_value(
-		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		location_t location,
-		bound_var_t::ref condition_value)
-{
-	// REVIEW: this function seems suspect now
-	if (condition_value->is_int()) {
-		return condition_value->resolve_bound_var_value(builder);
-	} else if (condition_value->is_pointer()) {
-		return condition_value->resolve_bound_var_value(builder);
-	} else {
-		user_error(status, location,
-				"staring at the %s will bring you no closer to the truth",
-				condition_value->type->str().c_str());
-	}
-
-	assert(!status);
-	return nullptr;
-}
-
-llvm::Value *get_bool_from_managed_obj(
-		status_t &status,
-	   	llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		life_t::ref life,
-		location_t location,
-		bound_var_t::ref condition_value)
-{
-	condition_value = condition_value->resolve_bound_value(status, builder, scope);
-	if (!!status) {
-		assert(life->life_form == lf_statement);
-
-		debug_above(2, log(log_info,
-					"attempting to resolve a " c_var("%s") " override if condition %s, ",
-					BOOL_TYPE,
-					condition_value->str().c_str()));
-
-#if 0
-		// REVIEW: this is not yet true... still considering...
-		/* we only ever get in here if we are definitely non-null, so we can discard
-		 * maybe type specifiers */
-		types::type_t::ref condition_type;
-		if (auto maybe = dyncast<const types::type_maybe_t>(condition_value->type->get_type())) {
-			condition_type = maybe->just;
-		} else {
-			condition_type = condition_value->type->get_type();
-		}
-#endif
-
-		fittings_t fittings;
-		auto bool_fn = maybe_get_callable(status, builder, scope, "__bool__",
-				location, type_args({condition_value->type->get_type()}), type_id(make_iid(BOOL_TYPE)), fittings);
-
-		if (!!status) {
-			if (bool_fn == nullptr) {
-				user_error(status, location, 
-						"there is no implicit truthyness test for %s. perhaps you need to compare this value to null?",
-						condition_value->type->get_type()->str().c_str());
-			}
-
-			if (!!status) {
-				/* we've found a bool function that will take our condition as input */
-				assert(bool_fn != nullptr);
-				types::type_function_t::ref bool_fn_type = dyncast<const types::type_function_t>(bool_fn->type->get_type());
-				assert(bool_fn_type != nullptr);
-				types::type_args_t::ref bool_fn_args_type = dyncast<const types::type_args_t>(bool_fn_type->args);
-				assert(bool_fn_args_type != nullptr);
-				assert(bool_fn_args_type->args.size() == 1);
-
-				debug_above(7, log(log_info, "generating a call to " c_var("bool") "(%s) for if condition evaluation (type %s)",
-							condition_value->str().c_str(), bool_fn->type->str().c_str()));
-
-				llvm::Value *llvm_value = coerce_value(
-						status, builder, scope, life,
-						condition_value->get_location(),
-						bool_fn_args_type->args[0],
-						condition_value);
-
-				if (!!status) {
-					/* let's call the bool function */
-					llvm::Value *llvm_condition_value = llvm_create_call_inst(
-							status, builder, location,
-							bool_fn,
-							{llvm_value});
-
-					if (!!status) {
-						/* NB: no need to track this value in a life because it's
-						 * returning an integer type */
-						assert(llvm_condition_value->getType()->isIntegerTy());
-						return llvm_condition_value;
-					}
-				}
-			}
-		}
-	}
-
-	assert(!status);
-	return nullptr;
-}
-
 enum rct_t {
 	rct_and,
 	rct_or,
@@ -3784,7 +3684,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 
 		if (getenv("TRACE_FNS") != nullptr) {
 			std::stringstream ss;
-			ss << decl->token.location.str(true, true) << ": " << decl->str() << " : " << bound_function_type->str();
+			ss << decl->token.location.str() << ": " << decl->str() << " : " << bound_function_type->str();
 			auto callsite_debug_function_name_print = expand_callsite_string_literal(
 					token,
 					"posix",
@@ -3942,8 +3842,17 @@ void type_check_module_vars(
 			/* the idea here is to put this variable into module scope,
 			 * available globally, but to initialize it in the
 			 * __init_module_vars function */
-			global_vars.push_back(
-					type_check_module_var_decl(status, builder, module_scope, *var_decl));
+			auto module_var = type_check_module_var_decl(status, builder, module_scope, *var_decl);
+			if (!!status) {
+				global_vars.push_back(module_var);
+			}
+			if (!status) {
+				if (!status.reported_on_error_at(var_decl->get_location())) {
+					user_info(status, var_decl->get_location(), "while checking module variable %s",
+							var_decl->token.text.c_str());
+				}
+				break;
+			}
 		}
 	}
 }
@@ -4705,7 +4614,7 @@ void ast::block_t::resolve_statement(
 
 			if (getenv("TRACE_STATEMENTS") != nullptr) {
 				std::stringstream ss;
-				ss << statement->token.location.str(true, true) << ": " << statement->str();
+				ss << statement->token.location.str() << ": " << statement->str();
 				auto callsite_debug_function_name_print = expand_callsite_string_literal(
 						token,
 						"posix",
@@ -5335,21 +5244,12 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 			/* create a native integer */
             int64_t value = parse_int_value(status, token);
 			if (!!status) {
-				if (value == 0) {
-					bound_type_t::ref native_type = upsert_bound_type(status, builder, program_scope, type_id(make_iid(ZERO_TYPE)));
-					assert(!!status);
-					return bound_var_t::create(
-							INTERNAL_LOC(), "zero", native_type,
-							llvm::ConstantInt::get(native_type->get_llvm_type(), 0, true),
-							make_code_id(token));
-				} else {
-					bound_type_t::ref native_type = upsert_bound_type(status, builder, program_scope, type_id(make_iid(INT_TYPE)));
-					assert(!!status);
-					return bound_var_t::create(
-							INTERNAL_LOC(), "int_literal", native_type,
-							llvm_create_int(builder, value),
-							make_code_id(token));
-				}
+				bound_type_t::ref native_type = upsert_bound_type(status, builder, program_scope, type_id(make_iid(INT_TYPE)));
+				assert(!!status);
+				return bound_var_t::create(
+						INTERNAL_LOC(), "int_literal", native_type,
+						llvm_create_int(builder, value),
+						make_code_id(token));
 			}
         } else {
 			/* create a boxed integer */

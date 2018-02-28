@@ -8,6 +8,9 @@
 #include "llvm_types.h"
 #include "unification.h"
 #include "compiler.h"
+#include "disk.h"
+#include <unistd.h>
+
 
 const char *GLOBAL_ID = "_";
 const token_kind SCOPE_TK = tk_dot;
@@ -376,7 +379,8 @@ local_scope_t::local_scope_t(
 void dump_bindings(
 		std::ostream &os,
 		const bound_var_t::map &bound_vars,
-		const bound_type_t::map &bound_types)
+		const bound_type_t::map &bound_types,
+		bool tags_fmt=false)
 {
 	if (bound_vars.size() != 0) {
 		os << "bound vars:\n";
@@ -396,9 +400,10 @@ void dump_bindings(
 	}
 }
 
-void dump_bindings(
+void dump_unchecked_vars(
 		std::ostream &os,
-		const unchecked_var_t::map &unchecked_vars)
+		const unchecked_var_t::map &unchecked_vars,
+		bool tags_fmt=false)
 {
 	if (unchecked_vars.size() != 0) {
 		os << "unchecked vars:\n";
@@ -415,15 +420,28 @@ void dump_bindings(
 	}
 }
 
-void dump_bindings(
-		std::ostream &os,
-		const unchecked_type_t::map &unchecked_types)
-{
+void dump_unchecked_types(std::ostream &os, const unchecked_type_t::map &unchecked_types) {
 	if (unchecked_types.size() != 0) {
 		os << "unchecked types:\n";
 		for (auto &type_pair : unchecked_types) {
 			os << C_TYPE << type_pair.first << C_RESET << ": ";
 			os << type_pair.second->node->token.str() << std::endl;
+		}
+	}
+}
+
+void dump_unchecked_type_tags(std::ostream &os, const unchecked_type_t::map &unchecked_types) {
+	for (auto &type_pair : unchecked_types) {
+		auto loc = type_pair.second->node->get_location();
+		os << type_pair.first << "\t" << loc.filename_repr() << "\t" << loc.line << ";/^type " << type_pair.first << "/;\"\tkind:t" << std::endl;
+	}
+}
+
+void dump_unchecked_var_tags(std::ostream &os, const unchecked_var_t::map &unchecked_vars) {
+	for (auto &var_pair : unchecked_vars) {
+		for (auto unchecked_var : var_pair.second) {
+			auto loc = unchecked_var->node->get_location();
+			os << var_pair.first << "\t" << loc.filename_repr() << "\t" << loc.line << ";/^\\(var\\|let\\|def\\) " << var_pair.first << "/;\"\tkind:f" << std::endl;
 		}
 	}
 }
@@ -442,11 +460,19 @@ void dump_type_map(std::ostream &os, types::type_t::map env, std::string desc) {
 	}
 }
 
+void module_scope_impl_t::dump_tags(std::ostream &os) const {
+	// dump_unchecked_var_tags(os, unchecked_vars);
+}
+void program_scope_t::dump_tags(std::ostream &os) const {
+	dump_unchecked_var_tags(os, unchecked_vars);
+	dump_unchecked_type_tags(os, unchecked_types);
+}
+
 void program_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "PROGRAM SCOPE: " << scope_name << std::endl;
 	dump_bindings(os, bound_vars, bound_types);
-	dump_bindings(os, unchecked_vars);
-	dump_bindings(os, unchecked_types);
+	dump_unchecked_vars(os, unchecked_vars);
+	dump_unchecked_types(os, unchecked_types);
 	dump_type_map(os, nominal_env, "PROGRAM NOMINAL ENV");
 	dump_type_map(os, structural_env, "PROGRAM STRUCTURAL ENV");
 	dump_type_map(os, type_variable_bindings, "PROGRAM TYPE VARIABLE BINDINGS");
@@ -455,7 +481,7 @@ void program_scope_t::dump(std::ostream &os) const {
 void module_scope_impl_t::dump(std::ostream &os) const {
 	os << std::endl << "MODULE SCOPE: " << scope_name << std::endl;
 	dump_bindings(os, bound_vars, {});
-	dump_bindings(os, unchecked_types);
+	dump_unchecked_types(os, unchecked_types);
 	dump_type_map(os, nominal_env, "MODULE NOMINAL ENV");
 	dump_type_map(os, structural_env, "MODULE STRUCTURAL ENV");
 	dump_type_map(os, type_variable_bindings, "MODULE TYPE VARIABLE BINDINGS");

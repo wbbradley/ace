@@ -3,5 +3,5 @@ module _
 # expect: y : [False or Float or Int or True]
 
 def main()
-	let y = [1, 2, 3, false, true, 0 or 3.4]
+	let y = [1, 2, 3, false, true, 3.4]
 	static_print(y)

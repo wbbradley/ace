@@ -532,11 +532,11 @@ void llvm_create_if_branch(
 	auto program_scope = scope->get_program_scope();
 
 	/* we don't care about references, load past them if need be */
-	llvm::Value *llvm_value = nullptr;
+	llvm::Value *llvm_value = value->resolve_bound_var_value(builder);
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
 
 	if (!!status) {
-		if (value->type->is_maybe()) {
+		if (false && value->type->is_maybe()) {
 			value = value->resolve_bound_value(status, builder, scope);
 
 			/* generate an extra check for null */
@@ -552,33 +552,13 @@ void llvm_create_if_branch(
 		}
 
 		if (!!status) {
-			bool is_managed;
-			value->type->is_managed_ptr(status, builder, scope, is_managed);
+			types::type_t::ref type = value->type->get_type()->eval(scope, true);
 
-			if (is_managed) {
-				types::type_t::ref type = value->type->get_type()->eval(scope, true);
-				if (types::is_type_id(type, TRUE_TYPE, {}, {})) {
-					llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 1);
-				} else if (types::is_type_id(type, FALSE_TYPE, {}, {})) {
-					llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 0);
-				} else {
-					llvm_value = get_bool_from_managed_obj(
-							status, builder, scope, life, location, value);
-				}
-			} else {
-				value = value->resolve_bound_value(status, builder, scope);
-				llvm_value = value->get_llvm_value();
-				llvm::Type *llvm_type = llvm_value->getType();
-
-				if (llvm_type->isPointerTy()) {
-					user_error(status, location,
-							"you must explicitly write out any null comparisons you wish to perform on native pointers");
-				} else if (llvm_type->isDoubleTy()) {
-					user_error(status, location, "floats are not implicitly true or false. compare it to something");
-				}
-			}
-
-			if (!!status) {
+			if (types::is_type_id(type, TRUE_TYPE, {}, {})) {
+				llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 1);
+			} else if (types::is_type_id(type, FALSE_TYPE, {}, {})) {
+				llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 0);
+			} else if (types::is_type_id(type, BOOL_TYPE, {}, {})) {
 				llvm::Type *llvm_type = llvm_value->getType();
 				assert(llvm_type->isIntegerTy());
 				if (!llvm_type->isIntegerTy(1)) {
@@ -586,9 +566,16 @@ void llvm_create_if_branch(
 					llvm_value = builder.CreateICmpNE(llvm_value, zero);
 				}
 				assert(llvm_value->getType()->isIntegerTy(1));
+			} else {
+				user_error(status, location, "condition is not a boolean value");
+			}
+
+			if (!!status) {
+				assert(llvm_value->getType()->isIntegerTy(1));
 
 				llvm::Function *llvm_function_current = llvm_get_function(builder);
 
+				// REVIEW: do we need these extra blocks now?
 				if (iff & IFF_ELSE) {
 					llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 

@@ -21,10 +21,8 @@ link def memcpy(dst *void, src *void, n size_t) *void
 link def memmove(dst *void, src *void, n size_t) *void
 link def free(pb *?void) void
 link def strdup(s *char) *?char
-link def wcsdup(s *wchar) *?wchar
 link def strndup(s *char, n size_t) *?char
 link def strcmp(x *char, y *char) int
-link def wcscmp(x *wchar, y *wchar) int
 link def strncmp(x *char, y *char, n size_t) int
 link [global] def sqrt(x float) float
 link def arc4random_stir() void
@@ -40,10 +38,13 @@ link def fwrite(p *void, size size_t, nitems size_t, stream *FILE) size_t
 link def fclose(fp *FILE) int
 link def getline(linep **?char, linecapp *int, fp *FILE) int
 link def strlen(s *char) size_t
-link def wcslen(wcs *wchar) size_t
 link def putw(wch wchar, fp *FILE) int
 link def mbstowcs(wcs *?wchar, mbs *char, mbslen size_t) size_t
+link def wcscmp(x *wchar, y *wchar) int
+link def wcsdup(s *wchar) *?wchar
+link def wcslen(wcs *wchar) size_t
 link def wcstombs(mbs *?char, wcs *wchar, wcslen size_t) size_t
+link def wmemcmp(x1 *wchar, x2 *wchar, n uint) int
 link def errno() int to __posix_errno
 link def iswspace(wch wchar) bool
 link def isspace(ch char) bool

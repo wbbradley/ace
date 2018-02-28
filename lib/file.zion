@@ -16,7 +16,9 @@ tag EOF
 
 [global]
 def open(name str, mode str) File
-	fp := posix.fopen(utf8(name).raw, utf8(mode).raw)
+	fp := posix.fopen(
+		c_str(utf8(name)).raw,
+		c_str(utf8(mode)).raw)
 	if fp != null
 		return File(name, Open(fp))
 	else
@@ -127,7 +129,7 @@ def readline(f File) str or Error or EOF
 [global]
 def write(fp *posix.FILE, s str)
 	utf8_val := utf8(s)
-	posix.fwrite(utf8_val.raw, posix.strlen(utf8_val.raw), 1, fp)
+	posix.fwrite(unsafe_access(utf8_val), utf8_val.length, 1, fp)
 	
 [global]
 def write(f File, s str)
@@ -138,8 +140,8 @@ def write(f File, s str)
 			assert(fp != null)
 			write(fp, s)
 		is Closed
-			posix.fprintf(stderr, "writing to closed file %s", utf8(f.filename).raw)
+			posix.fprintf(stderr, "writing to closed file %s", c_str(utf8(f.filename)).raw)
 			return
 		is Error
-			posix.fprintf(stderr, "writing to errored file %s", utf8(f.filename).raw)
+			posix.fprintf(stderr, "writing to errored file %s", c_str(utf8(f.filename)).raw)
 			return

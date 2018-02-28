@@ -140,6 +140,18 @@ int main(int argc, char *argv[]) {
 			} else {
 				return EXIT_FAILURE;
 			}
+        } else if (cmd == "ctags") {
+			compiler.build_parse_modules(status);
+
+			if (!!status) {
+				compiler.dump_ctags();
+			}
+
+			if (!!status) {
+				return EXIT_SUCCESS;
+			} else {
+				return EXIT_FAILURE;
+			}
         } else if (cmd == "run") {
 			compiler.build_parse_modules(status);
 

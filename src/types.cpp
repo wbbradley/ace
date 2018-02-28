@@ -110,7 +110,7 @@ namespace types {
 		auto evaled = eval_core(nominal_env, total_env, false /*get_structural_type*/);
 		if (auto id_type = dyncast<const type_id_t>(evaled)) {
 			auto name = id_type->id->get_name();
-			if (name == NULL_TYPE || name == ZERO_TYPE) {
+			if (name == NULL_TYPE) {
 				if (elimination_value) {
 					debug_above(6, log("keeping %s", str().c_str()));
 					return shared_from_this();
@@ -1057,11 +1057,39 @@ namespace types {
 	}
 
 	std::ostream &type_integer_t::emit(std::ostream &os, const map &bindings_, int parent_precedence) const {
-		os << K(integer) << "(";
-		bit_size->emit(os, bindings_, 0);
-		os << ", ";
-		signed_->emit(os, bindings_, 0);
-		return os << ")";
+		std::stringstream ss;
+		bit_size->emit(ss, bindings_, 0);
+		auto bit_size_str = ss.str();
+		ss.str("");
+		signed_->emit(ss, bindings_, 0);
+		auto signed_str = ss.str();
+
+		bool _signed = (signed_str == "true");
+		bool _unsigned = !_signed && (signed_str == "false");
+
+		if (_signed) {
+		   	if (bit_size_str == "64") {
+				return os << "int";
+			} else if (bit_size_str == "32") {
+				return os << "int32";
+			} else if (bit_size_str == "16") {
+				return os << "int16";
+			} else if (bit_size_str == "8") {
+				return os << "int8";
+			}
+		} else if (_unsigned) {
+		   	if (bit_size_str == "64") {
+				return os << "uint";
+			} else if (bit_size_str == "32") {
+				return os << "uint32";
+			} else if (bit_size_str == "16") {
+				return os << "uint16";
+			} else if (bit_size_str == "8") {
+				return os << "uint8";
+			}
+		}
+
+		return os << K(integer) << "(" << bit_size_str << ", " << signed_str << ")";
 	}
 
 	type_t::ref type_integer_t::boolean_refinement(
@@ -1070,12 +1098,7 @@ namespace types {
 			const types::type_t::map &nominal_env,
 			const types::type_t::map &total_env) const
 	{
-		if (elimination_value) {
-			/* falsey integers are zero, let's treat them that way */
-			return type_id(make_iid_impl(ZERO_TYPE, get_location()));
-		} else {
-			return shared_from_this();
-		}
+		return shared_from_this();
 	}
 
 	int type_integer_t::ftv_count() const {
@@ -1293,7 +1316,7 @@ namespace types {
 
 	bool is_integer(type_t::ref type, const type_t::map &nominal_env, const type_t::map &total_env) {
 		auto expansion = type->eval(nominal_env, total_env);
-		return (dyncast<const type_integer_t>(expansion) != nullptr) || expansion->eval_predicate(tb_zero, nominal_env, total_env);
+		return dyncast<const type_integer_t>(expansion) != nullptr;
 	}
 
 	void get_integer_attributes(
@@ -1321,10 +1344,6 @@ namespace types {
 							signed_type->str().c_str());
 				}
 			}
-		} else if (type->eval_predicate(tb_zero, nominal_env, total_env)) {
-			bit_size = DEFAULT_INT_BITSIZE;
-			signed_ = true;
-			return;
 		} else {
 			user_error(status, type->get_location(), "expected an integer type, found %s",
 					type->str().c_str());
@@ -1606,7 +1625,6 @@ types::type_t::ref promote_to_managed_type_(
 		const char * const managed_type;
 	} coercions[] = {
 		{INT_TYPE, MANAGED_INT},
-		{ZERO_TYPE, MANAGED_INT},
 		{FLOAT_TYPE, MANAGED_FLOAT},
 		{BOOL_TYPE, MANAGED_BOOL},
 		{TRUE_TYPE, MANAGED_TRUE},

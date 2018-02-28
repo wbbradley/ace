@@ -934,7 +934,7 @@ auto test_descs = std::vector<test_desc>{
 				{"*?char or int", "(Int or str)?"},
 				{"integer(8, true)?", "Int?"},
 				{"integer(8, true) or integer(32, true)", "int"},
-				{"integer(16, false)", "integer(16, false)"},
+				{"integer(16, false)", "uint16"},
 				{"integer(16, false) or int", "int"},
 				{"integer(16, false) or str", "Int or str"},
 				{"int or null", "Int?"},

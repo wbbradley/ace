@@ -5,7 +5,7 @@ module _
 def main()
 	var x [int]
 	append(x, 3)
-	if x
+	if len(x) != 0
 		print("pass")
 	else
 		print("fail")

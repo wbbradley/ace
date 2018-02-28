@@ -9,6 +9,9 @@ def foo()
 
 
 def main()
+	for ch in "hello world"
+		print(ch)
+
 	f := file.open("play/bare.zion", "r")
 	var lines [str]
 	for line in file.readlines(f)

@@ -79,7 +79,7 @@ llvm::Value *coerce_value(
 					llvm_print(llvm_lhs_type).c_str()));
 
 		/* handle some cases where we can just pass constants back */
-		if (lhs_type->eval_predicate(tb_false, scope) || lhs_type->eval_predicate(tb_zero, scope)) {
+		if (lhs_type->eval_predicate(tb_false, scope)) {
 			return llvm::ConstantInt::get(
 					bound_lhs_type->get_llvm_specific_type(), 0, false);
 		} else if (lhs_type->eval_predicate(tb_true, scope)) {
@@ -107,24 +107,14 @@ llvm::Value *coerce_value(
 			debug_above(6, log("casting a %s to be a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
 			return builder.CreateBitCast(llvm_rhs_value, llvm_lhs_type);
 		} else if (lhs_is_managed) {
-			if (rhs_type->eval_predicate(tb_zero, scope)) {
-				/* let's elevate zero to the managed version of itself */
-				bound_var_t::ref bound_Zero = scope->get_program_scope()->get_bound_variable(status, location, "Zero", false);
-				if (!!status) {
-					/* trust the type system */
-					return builder.CreateBitCast(
-							bound_Zero->resolve_bound_var_value(builder), llvm_lhs_type);
-				}
-			} else {
-				debug_above(6, log(log_info, "calling " c_id("__box__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
-				bound_var_t::ref coercion = call_program_function(
-						status, builder, scope, life,
-						"__box__", location, {rhs});
+			debug_above(6, log(log_info, "calling " c_id("__box__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
+			bound_var_t::ref coercion = call_program_function(
+					status, builder, scope, life,
+					"__box__", location, {rhs});
 
-				if (!!status) {
-					/* trust the type system. */
-					return builder.CreateBitCast(coercion->get_llvm_value(), llvm_lhs_type);
-				}
+			if (!!status) {
+				/* trust the type system. */
+				return builder.CreateBitCast(coercion->get_llvm_value(), llvm_lhs_type);
 			}
 		} else if (rhs_is_managed) {
 			if (types::is_ptr_type_id(lhs_type, STD_MANAGED_TYPE, nominal_env, total_env)) {
@@ -163,17 +153,8 @@ llvm::Value *coerce_value(
 						return builder.CreateZExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
 					}
 				}
-			} else if (rhs->type->get_type()->eval_predicate(tb_zero, nominal_env, total_env)) {
-				if (llvm_lhs_type->isIntegerTy()) {
-					return llvm::ConstantInt::get(
-							bound_lhs_type->get_llvm_specific_type(), 0, false);
-				} else if (llvm_lhs_type->isFloatTy() || llvm_lhs_type->isDoubleTy()) {
-					return llvm::ConstantFP::get(
-							bound_lhs_type->get_llvm_specific_type(), 0.0);
-				} else if (llvm_lhs_type->isPointerTy()) {
-					return llvm::Constant::getNullValue(llvm_lhs_type);
-				}
 			}
+
 			if (rhs->type->get_type()->eval_predicate(tb_null, nominal_env, total_env)) {
 				/* we're passing in a null value */
 				assert(llvm_lhs_type->isPointerTy());

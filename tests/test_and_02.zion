@@ -1,6 +1,7 @@
 module _
 # test: pass
+# expect: true and 1
 
 def main()
-	static_print(0 and 1)
-	print(0 and 1)
+	static_print(true and 1)
+	print(true and 1)

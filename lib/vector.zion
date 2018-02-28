@@ -69,7 +69,7 @@ def join[T](v [T], delim str) str
 	let strs [str]
 	reserve(strs as *(VectorImpl T), vec.size)
 
-	let delim_len = posix.wcslen(delim.raw)
+	let delim_len = delim.length
 	let delims_len = delim_len * (vec.size - 1)
 	total_len := delims_len
 	i := 0
@@ -88,12 +88,12 @@ def join[T](v [T], delim str) str
 	while i < vec.size
 		if i > 0
 			# insert a delim if necessary
-			posix.memcpy(&buf[pos], delim.raw, sizeof(wchar) * delim_len)
+			posix.memcpy(&buf[pos], unsafe_access(delim), sizeof(wchar) * delim_len)
 			pos += delim_len
 
 		# insert a string
-		let s_len = posix.wcslen(strs[i].raw)
-		posix.memcpy(&buf[pos], strs[i].raw, sizeof(wchar) * s_len)
+		let s_len = strs[i].length
+		posix.memcpy(&buf[pos], unsafe_access(strs[i]), sizeof(wchar) * s_len)
 
 		pos += s_len
 		i += 1

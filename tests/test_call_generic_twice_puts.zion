@@ -4,6 +4,6 @@ module _
 link def wprintf(format *wchar, s1 *wchar) int
 
 def main() int
-	wprintf(str("%S\n").raw, str("hey").raw)
-	wprintf(str("%S\n").raw, str(10 + 3.4).raw)
+	wprintf(c_str(str("%S\n")).raw, c_str(str("hey")).raw)
+	wprintf(c_str(str("%S\n")).raw, c_str(str(10 + 3.4)).raw)
 	return 1

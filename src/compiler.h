@@ -54,6 +54,8 @@ struct compiler_t {
 	int run_program(int argc, char *argv[]);
 	void emit_object_files(status_t &status, std::vector<std::string> &obj_files);
 
+	void dump_ctags();
+
 	program_scope_t::ref get_program_scope() const;
 	std::string get_program_name() const;
 	std::string get_executable_filename() const;

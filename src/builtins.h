@@ -1,5 +1,4 @@
 extern const char *INT_TYPE;
-extern const char *ZERO_TYPE;
 extern const char *UINT_TYPE;
 extern const char *INT64_TYPE;
 extern const char *UINT64_TYPE;

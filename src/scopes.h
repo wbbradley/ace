@@ -177,6 +177,7 @@ struct module_scope_t : scope_t {
 	 * it's already instantiated. */
 	virtual llvm::Module *get_llvm_module() = 0;
 	virtual unchecked_type_t::refs &get_unchecked_types_ordered() = 0;
+	virtual void dump_tags(std::ostream &os) const = 0;
 };
 
 struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
@@ -204,6 +205,7 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	virtual llvm::Module *get_llvm_module();
 
 	virtual void dump(std::ostream &os) const;
+	virtual void dump_tags(std::ostream &os) const;
 
 	static module_scope_t::ref create(std::string module_name, ptr<program_scope_t> parent_scope, llvm::Module *llvm_module);
 	virtual bool symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var);
@@ -270,6 +272,7 @@ struct program_scope_t : public module_scope_impl_t {
 
 	virtual unchecked_var_t::refs &get_unchecked_vars_ordered();
 	bound_type_t::ref get_runtime_type(status_t &status, llvm::IRBuilder<> &builder, std::string name, bool get_ptr=false);
+	virtual void dump_tags(std::ostream &os) const;
 
 private:
 	compiler_t &compiler;

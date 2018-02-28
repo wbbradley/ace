@@ -21,10 +21,10 @@ link def printf(fmt *char, a int64) int
 def main()
 	var y int32 = 32808
 	var x1 int8 = -y
-	printf("-40: %s\n", utf8(x1).raw)
+	printf("-40: %s\n", c_str(utf8(x1)).raw)
 
 	var x2 int16 = -y
-	printf("-32728: %s\n", utf8(x2).raw)
+	printf("-32728: %s\n", c_str(utf8(x2)).raw)
 
 	var max_signed_int int64 = 0x7FFFFFFFFFFFFFFFr
 	printf("max_int: %lld\n", max_signed_int)
