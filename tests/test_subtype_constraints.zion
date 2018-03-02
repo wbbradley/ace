@@ -9,7 +9,6 @@ type Plus has
 type Expr is Plus or int
 
 def eval[T where T <: Expr](e T) int
-	static_print(e)
 	when e
 		is Plus
 			return eval(e.lhs) + eval(e.rhs)
