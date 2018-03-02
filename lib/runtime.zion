@@ -26,7 +26,7 @@ def on_assert_failure(msg *char) void
 	posix.puts(msg)
 	posix.raise(posix.SIGTRAP)
 
-def get_member_by_index(v *var_t, index int) *var_t
+def get_member_by_index(v *var_t, index int) *?var_t
 	assert(v.type_info.type_kind == TYPE_KIND_USE_OFFSETS)
 
 	# Get the var's type_info
@@ -39,7 +39,7 @@ def get_member_by_index(v *var_t, index int) *var_t
 	offset := type_info_offsets.ref_offsets[index]
 
 	# Compute the address of the child member slot
-	var_ptr := &base_ptr[offset as int] as **var_t
+	var_ptr := &base_ptr[offset as int] as **?var_t
 
 	# Return the address of the child member
 	return var_ptr[0]
@@ -75,12 +75,11 @@ def get_total_allocated() size_t
 	return _bytes_allocated
 
 def check_node_existence(node *var_t, should_exist bool) void
-	var p *var_t = runtime.__head_var
+	var p *?var_t = runtime.__head_var
 	assert(p == null or p.prev == null)
 
 	if should_exist
-		assert(p.next != null)
-		assert(node != null)
+		assert(p!.next != null)
 		assert(node.prev != 3735928559 as *var_t)
 		assert(node.next != 3735928559 as *var_t)
 		assert(node.prev != null)
@@ -93,7 +92,7 @@ def check_node_existence(node *var_t, should_exist bool) void
 			else
 				# found it, and that's expected.
 				return
-		p = p.next
+		p = p.next!
 
 	if should_exist
 		# dbg_zrt(printf("node 0x%08lx #%lld of type %s does not exist in memory tracking list!\n", (intptr_t)node, (long long)node.allocation, node.type_info.name))
@@ -111,15 +110,15 @@ def add_node(node *var_t) void
 	node.prev = __head_var
 	node.next = __head_var.next
 	if node.next != null
-		node.next.prev = node
+		node.next!.prev = node
 
 	__head_var.next = node
 
 	assert(__head_var.prev == null)
-	assert(__head_var.next.prev == __head_var)
-	assert(node.prev.next == node)
+	assert(__head_var.next!.prev === __head_var)
+	assert(node.prev!.next === node)
 	if node.next != null
-		assert(node.next.prev == node)
+		assert(node.next!.prev === node)
 
 	# check_node_existence(node, true)
 
@@ -132,14 +131,14 @@ def remove_node(node *var_t) void
 
 	# check_node_existence(node, true)
 
-	assert(node.prev.next == node)
-	assert(node.next == null or node.next.prev == node)
+	assert(node.prev != null and node.prev!.next == node)
+	assert(node.next == null or node.next!.prev == node)
 
-	node.prev.next = node.next
+	node.prev!.next = node.next
 	if node.next != null
-		node.next.prev = node.prev
-	node.next = 3735928559 as *var_t
-	node.prev = 3735928559 as *var_t
+		node.next!.prev = node.prev
+	node.next = 0xdeadbeef as *var_t
+	node.prev = 0xdeadbeef as *var_t
 
 	# check_node_existence(node, false)
 
@@ -166,12 +165,12 @@ def get_var_type_id(v *var_t) typeid
 
 def __create_head_var() *var_t
 	p := mem_alloc(sizeof(var_t), "__create_head_var") as *?var_t
-	assert(p != null)
+	assert(p)
 	runtime._var_allocation += 1 as size_t
 	p.allocation = runtime._var_allocation
 	return p
 
-def dbg_type_info(type_info *type_info_t)
+def dbg_type_info(type_info *?type_info_t)
 	if type_info != null
 		posix.puts("type_id")
 		posix.puts(__str__(type_info.type_id))
@@ -190,8 +189,8 @@ def create_var(type_info *type_info_t) *var_t
 	# dbg_type_info(type_info)
 
 	# allocate the variable tracking object
-	let alloc_size = type_info != null ? type_info.size : sizeof(var_t)
-	let obj = mem_alloc(alloc_size, type_info != null ? type_info.name : "<unknown>") as *?var_t
+	let alloc_size = type_info.size
+	let obj = mem_alloc(alloc_size, type_info.name) as *?var_t
 	assert(obj != null)
 
 	obj.type_info = type_info
@@ -218,8 +217,8 @@ def create_var(type_info *type_info_t) *var_t
 #  might copy them to another heap or generation.
 # 
 #  @param heap_visit A function to invoke for every GC root on the stack.
-def visit_heap_roots(heap_visit def (obj *var_t) void)
-	R := llvm_gc_root_chain as *stack_entry_plus_root_t
+def visit_heap_roots(heap_visit def (obj *?var_t) void)
+	R := llvm_gc_root_chain as *?stack_entry_plus_root_t
 	while R != null
 		assert(R as int != 0)
 		assert(R.map.num_meta == 0 as int32)
@@ -234,17 +233,10 @@ def visit_heap_roots(heap_visit def (obj *var_t) void)
 		# mem_dump(&R.root0 as *int, R.map.num_roots as int * sizeof(*var_t))
 		assert(i <= e)
 		while i != e
-			node := (&R.root0 as **var_t)[i]
-			if node == null
-				i += 1
-				continue
-
-			# posix.puts(__str__(node as int, 16))
-			# posix.puts(__str__(node.type_info as int))
-			assert(node.type_info != null and node.type_info.name != null)
-			# posix.puts("visiting heap node 0x" + __str__(node as int, 16) + " of type " + node.type_info.name)
-			# we have a heap variable
-			heap_visit(node)
+			node := (&R.root0 as **?var_t)[i]
+			if node != null
+				# we have a heap variable
+				heap_visit(node)
 			i += 1
 
 		R = (R.next as *stack_entry_plus_root_t)
@@ -260,10 +252,10 @@ def visit_allocations(visit def (obj *var_t) void)
 		visit(node)
 
 		# move along
-		node = next
+		node = next!
 
 
-def mark_allocation(obj *var_t)
+def mark_allocation(obj *?var_t)
 	if obj == null
 		return
 
@@ -276,8 +268,6 @@ def mark_allocation(obj *var_t)
 
 	# mark this node in the heap so that we break any potential cycles
 	obj.mark = 1
-
-	assert(obj.type_info != null)
 
 	type_kind := obj.type_info.type_kind
 
@@ -293,14 +283,13 @@ def mark_allocation(obj *var_t)
 		j := 0
 		while j < refs_count
 			# compute the offset to this referenced dimension
-			var child *var_t = get_member_by_index(obj, j)
+			var child *?var_t = get_member_by_index(obj, j)
 			mark_allocation(child)
 			j += 1
 	elif type_kind == runtime.TYPE_KIND_USE_MARK_FN
 		# call the type's mark function to recurse
 		type_info_mark_fn := obj.type_info as *type_info_mark_fn_t
-		if type_info_mark_fn != null
-			type_info_mark_fn.mark_fn(obj)
+		type_info_mark_fn.mark_fn(obj)
 	else
 		posix.perror("found a heap variable with an invalid type_kind")
 		posix.exit(1)

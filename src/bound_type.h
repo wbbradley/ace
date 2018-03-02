@@ -33,14 +33,14 @@ protected:
 	bound_type_t &operator =(const bound_type_t &) = delete;
 
 public:
-	bool is_function() const;
-	bool is_void() const;
+	bool is_function(ptr<scope_t> scope) const;
+	bool is_void(ptr<scope_t> scope) const;
 	void is_managed_ptr(status_t &status, llvm::IRBuilder<> &builder, ptr<scope_t> scope, bool &is_managed) const;
 	bool is_ptr(ptr<scope_t> scope) const;
-	bool is_ref() const;
-	bool is_maybe() const;
+	bool is_ref(ptr<scope_t> scope) const;
+	bool is_int(ptr<scope_t> scope) const;
+	bool is_maybe(ptr<scope_t> scope) const;
     bool is_module() const;
-	bool is_opaque() const;
 	types::signature get_signature() const;
 
 	std::string str() const;

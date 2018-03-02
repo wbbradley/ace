@@ -57,28 +57,23 @@ def readlines() Lines *posix.FILE
 	return readlines(stdin)
 
 def readlines[LineReader](f LineReader) Lines LineReader
-	assert(f != null)
 	return Lines(f, null)
 
 [global]
 def __iter_begin__[LineReader](fl Lines LineReader) Lines LineReader
-	assert(fl != null)
 	__iterate__(fl)
 	return fl
 
 [global]
 def __iter_end__(fl Lines any) null
-	assert(fl != null)
 	return null
 
 [global]
 def __iter_valid__(fl Lines any, _ null) bool
-	assert(fl != null)
 	return fl.cur_line != null
 
 [global]
 def __iter_item__(fl Lines any) str
-	assert(fl != null)
 	let cur_line = fl.cur_line
 	r := cur_line != null ? cur_line : ""
 	return r
@@ -96,10 +91,6 @@ def __iterate__(fl Lines any)
 			fl.cur_line = null
 
 def readline(fp *posix.FILE) str or EOF or Error
-	if fp == null
-		print("encountered null FILE pointer")
-		return Error(-1)
-
 	linecap := 0
 	line := null as *char
 	linelen := posix.getline(&line, &linecap, fp)

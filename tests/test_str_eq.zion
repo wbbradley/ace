@@ -1,0 +1,10 @@
+module _
+# test: pass
+# expect: pass
+# reject: fail
+
+def main()
+	if "hey" == "hey"
+		print("pass")
+	else
+		print("fail")

@@ -1,7 +1,4 @@
 module _
-get main
-# test: pass
-# expect: pass
 
 def main()
 	var x *?int8 = 0 as *?int8
@@ -9,7 +6,9 @@ def main()
 	x = 100 as *int8
 	y := 200 as *int8
 
-	y = x
+	# error: 10.* x cannot be null here
+	if x != null
+		y = x
 
 	print("pass")
 		

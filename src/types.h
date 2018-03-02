@@ -38,6 +38,7 @@ extern const char *TYPE_OP_IS_POINTER;
 extern const char *TYPE_OP_IS_FUNCTION;
 extern const char *TYPE_OP_IS_VOID;
 extern const char *TYPE_OP_IS_NULL;
+extern const char *TYPE_OP_IS_INT;
 extern const char *TYPE_OP_IS_MAYBE;
 
 enum type_builtins_t {
@@ -48,6 +49,7 @@ enum type_builtins_t {
 	tb_pointer,
 	tb_function,
 	tb_void,
+	tb_int,
 	tb_null,
 	tb_maybe,
 };
@@ -118,6 +120,20 @@ namespace types {
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_env) const;
+	};
+
+	struct type_subtype_t : public type_t {
+		type_subtype_t(const type_t::ref lhs, const type_t::ref rhs);
+		const type_t::ref lhs;
+		const type_t::ref rhs;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
+		virtual int ftv_count() const;
+		virtual std::set<std::string> get_ftvs() const;
+		virtual int get_precedence() const { return 6; }
+		virtual ref rebind(const map &bindings) const;
+		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_env) const;
 	};
 
@@ -476,6 +492,7 @@ types::type_t::ref type_id(identifier::ref var);
 types::type_t::ref type_variable(identifier::ref name);
 types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
+types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs);
 types::type_module_t::ref type_module(types::type_t::ref module);
 types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);

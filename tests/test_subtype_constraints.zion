@@ -1,0 +1,20 @@
+module _
+# test: pass
+# expect: pass
+
+type Plus has
+	let lhs Expr
+	let rhs Expr
+
+type Expr is Plus or int
+
+def eval[T where T <: Expr](e T) int
+	static_print(e)
+	when e
+		is Plus
+			return eval(e.lhs) + eval(e.rhs)
+		is int
+			return e
+
+def main()
+	print(eval(Plus(2, Plus(4, 5))))

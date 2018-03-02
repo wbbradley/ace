@@ -299,17 +299,6 @@ ptr<sizeof_expr_t> sizeof_expr_t::parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-ptr<expression_t> parse_bang_wrap(parse_state_t &ps, ptr<expression_t> expr) {
-    if (ps.token.tk == tk_bang) {
-        auto bang = ast::create<ast::bang_expr_t>(ps.token);
-        bang->lhs = expr;
-        ps.advance();
-        return bang;
-    } else {
-        return expr;
-    }
-}
-
 ptr<expression_t> parse_cast_wrap(parse_state_t &ps, ptr<expression_t> expr) {
     if (ps.token.is_ident(K(as))) {
 		auto token = ps.token;
@@ -471,28 +460,31 @@ namespace ast {
 					!ps.line_broke() &&
 					(ps.token.tk == tk_lsquare ||
 					 ps.token.tk == tk_lparen ||
-					 ps.token.tk == tk_dot))
+					 ps.token.tk == tk_dot ||
+					 ps.token.tk == tk_bang))
 			{
-				if (ps.token.tk == tk_lparen) {
-					auto ref_expr = dyncast<reference_expr_t>(expr);
+				switch (ps.token.tk) {
+				case tk_lparen:
+					{
+						auto ref_expr = dyncast<reference_expr_t>(expr);
 
-					if (ref_expr != nullptr && ref_expr->token.text == "typeinfo") {
-						/* override the typeinfo keyword */
-						expr = typeinfo_expr_t::parse(ps);
-					} else {
-						/* function call */
-						auto callsite = create<callsite_expr_t>(ps.token);
-						callsite->params = parse_param_list(ps);
-						if (!!ps.status) {
-							callsite->function_expr.swap(expr);
-							assert(expr == nullptr);
-							expr = callsite;
+						if (ref_expr != nullptr && ref_expr->token.text == "typeinfo") {
+							/* override the typeinfo keyword */
+							expr = typeinfo_expr_t::parse(ps);
+						} else {
+							/* function call */
+							auto callsite = create<callsite_expr_t>(ps.token);
+							callsite->params = parse_param_list(ps);
+							if (!!ps.status) {
+								callsite->function_expr.swap(expr);
+								assert(expr == nullptr);
+								expr = callsite;
+							}
 						}
+						break;
 					}
-				}
-
-				if (!!ps.status) {
-					if (ps.token.tk == tk_dot) {
+				case tk_dot:
+					{
 						auto dot_expr = create<ast::dot_expr_t>(ps.token);
 						eat_token();
 						expect_token(tk_identifier);
@@ -501,9 +493,10 @@ namespace ast {
 						dot_expr->lhs.swap(expr);
 						assert(expr == nullptr);
 						expr = dot_expr;
+						break;
 					}
-
-					if (ps.token.tk == tk_lsquare) {
+				case tk_lsquare:
+					{
 						eat_token();
 						auto array_index_expr = create<ast::array_index_expr_t>(ps.token);
 
@@ -518,16 +511,23 @@ namespace ast {
 							return nullptr;
 						}
 						chomp_token(tk_rsquare);
+						break;
 					}
+				case tk_bang:
+					{
+						auto bang = ast::create<ast::bang_expr_t>(ps.token);
+						bang->lhs = expr;
+						expr = bang;
+						ps.advance();
+						break;
+					}
+				default:
+					break;
 				}
 			}
 
 			if (!!ps.status) {
-				expr = parse_bang_wrap(ps, expr);
-
-				if (!!ps.status) {
-					return expr;
-				}
+				return expr;
 			}
 
 			assert(!ps.status);
@@ -693,8 +693,46 @@ ptr<expression_t> shift_expr_parse(parse_state_t &ps) {
 	return nullptr;
 }
 
-ptr<expression_t> ineq_expr_parse(parse_state_t &ps) {
+ptr<expression_t> binary_eq_expr_parse(parse_state_t &ps) {
 	auto lhs = shift_expr_parse(ps);
+	if (lhs) {
+		if (ps.line_broke()
+				|| !(ps.token.tk == tk_binary_equal
+					|| ps.token.tk == tk_binary_inequal))
+	   	{
+			/* there is no rhs */
+			return lhs;
+		}
+
+		auto binary_operator = create<ast::binary_operator_t>(ps.token);
+		switch (ps.token.tk) {
+		case tk_binary_equal:
+			binary_operator->function_name = "__binary_eq__";
+			break;
+		case tk_binary_inequal:
+			binary_operator->function_name = "__binary_ineq__";
+			break;
+		default:
+			assert(false);
+			break;
+		}
+
+		eat_token();
+
+		auto rhs = shift_expr_parse(ps);
+		if (!!ps.status) {
+			binary_operator->lhs = std::move(lhs);
+			binary_operator->rhs = std::move(rhs);
+			return std::move(binary_operator);
+		}
+	}
+
+	assert(!ps.status);
+	return nullptr;
+}
+
+ptr<expression_t> ineq_expr_parse(parse_state_t &ps) {
+	auto lhs = binary_eq_expr_parse(ps);
 	if (lhs) {
 		if (ps.line_broke()
 				|| !(ps.token.tk == tk_gt
@@ -726,7 +764,7 @@ ptr<expression_t> ineq_expr_parse(parse_state_t &ps) {
 
 		eat_token();
 
-		auto rhs = shift_expr_parse(ps);
+		auto rhs = binary_eq_expr_parse(ps);
 		if (!!ps.status) {
 			binary_operator->lhs = std::move(lhs);
 			binary_operator->rhs = std::move(rhs);

@@ -7,10 +7,10 @@ module _
 # expect: could not find hello
 
 def main()
-	var m {str: int}
+	var m {str: int?}
 
 	m["hello"] = 12
-	print(get(m, "hello", 0))
+	print(get(m, "hello", 0) or 0)
 	m["hello"] = 13
 	print(m["hello"] or 14)
 	if del(m, "hello")

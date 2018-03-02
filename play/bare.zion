@@ -1,21 +1,14 @@
 module _
-get sys
-get main
-get file
-
-def foo()
-	var x [int]
-	append(x, 2)
-
 
 def main()
-	for ch in "hello world"
+	var s_copy any = "hello world"
+	static_print(s_copy)
+	var cur any = __iter_begin__(s_copy)
+	static_print(cur)
+	let end any = __iter_end__(s_copy)
+	static_print(end)
+	while __iter_valid__(cur, end)
+		var ch any = __iter_item__(cur)
+		static_print(ch)
 		print(ch)
-
-	f := file.open("play/bare.zion", "r")
-	var lines [str]
-	for line in file.readlines(f)
-		append(lines, line)
-	lines[0] = lines[0] + " # this must be the place"
-	for line in lines
-		print(line)
+		__iterate__(cur)

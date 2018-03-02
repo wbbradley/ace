@@ -3,6 +3,7 @@
 #include "llvm_types.h"
 #include "ast.h"
 #include "parser.h"
+#include "scopes.h"
 
 bound_var_t::ref bound_var_t::create(
 		location_t internal_location,
@@ -12,16 +13,18 @@ bound_var_t::ref bound_var_t::create(
 		identifier::ref id)
 {
 	assert(type != nullptr);
-	if (type->is_ref()) {
+#ifdef ZION_DEBUG
+	if (type->get_type()->eval_predicate(tb_ref, {}, {})) {
 		assert(llvm::dyn_cast<llvm::AllocaInst>(llvm_value) || llvm_value->getType()->isPointerTy());
 	}
+#endif
 
 	return make_ptr<bound_var_t>(internal_location, name, type, llvm_value, id);
 }
 
 std::string bound_var_t::str() const {
 	std::stringstream ss;
-	ss << "bound var " << C_VAR << name << C_RESET;
+	ss << C_VAR << name << C_RESET;
 	ss << " : " << id->str();
 	ss << " : " << *type;
 
@@ -42,32 +45,15 @@ location_t bound_var_t::get_location() const {
 	return id->get_location();
 }
 
-bool bound_var_t::is_ref() const {
-	return type->is_ref();
-}
-
-bool bound_var_t::is_int() const {
-	/* anything that is an integer value is a bool under the covers */
-	return llvm_resolve_type(llvm_value)->isIntegerTy();
-}
-
-bool bound_var_t::is_pointer() const {
-	/* anything that is an pointer */
-	return llvm_resolve_type(llvm_value)->isPointerTy();
-}
-
 llvm::Value *bound_var_t::get_llvm_value() const {
 	return llvm_value;
 }
 
 
-llvm::Value *bound_var_t::resolve_bound_var_value(llvm::IRBuilder<> &builder) const {
-	if (type->is_ref()) {
+llvm::Value *bound_var_t::resolve_bound_var_value(scope_t::ref scope, llvm::IRBuilder<> &builder) const {
+	if (type->get_type()->eval_predicate(tb_ref, scope)) {
 		return builder.CreateLoad(llvm_value);
 	} else {
-		// NOTE: commented this out because we need to be able to pass stack variable locations as
-		// pointers (var x int_t; y := &x)... maybe.
-		// assert(!llvm::dyn_cast<llvm::AllocaInst>(llvm_value));
 		assert(!llvm::dyn_cast<llvm::GlobalVariable>(llvm_value));
 	}
 
@@ -85,7 +71,7 @@ bound_var_t::ref bound_var_t::resolve_bound_value(
 				INTERNAL_LOC(),
 				this->name,
 				bound_type,
-				resolve_bound_var_value(builder),
+				resolve_bound_var_value(scope, builder),
 				this->id);
 	}
 	return shared_from_this();

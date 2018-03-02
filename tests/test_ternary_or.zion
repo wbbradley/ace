@@ -1,14 +1,12 @@
 module _
-# test: pass
 
 def takes(x)
+	# error: 5:2.* the 'when' block does not handle all inbound types
 	when x
 		is int
 			print(x)
-		is str
-			print(x)
 
 def main()
-	x := 12 or "hey"
-	static_print(x)
+	let y int? = 12
+	x := y or "hey"
 	takes(x)

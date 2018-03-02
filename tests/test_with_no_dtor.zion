@@ -3,5 +3,5 @@ module _
 
 def main()
 	x := 3
-	if x
+	if x == 3
 		pass

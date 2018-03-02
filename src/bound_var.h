@@ -44,9 +44,6 @@ public:
 	llvm::Value *get_llvm_value() const;
 	std::string str() const;
 
-	bool is_ref() const;
-	bool is_int() const;
-	bool is_pointer() const;
 	types::signature get_signature() const;
 
 	typedef ptr<const bound_var_t> ref;
@@ -59,7 +56,7 @@ public:
 	virtual location_t get_location() const;
 
 public:
-	llvm::Value *resolve_bound_var_value(llvm::IRBuilder<> &builder) const;
+	llvm::Value *resolve_bound_var_value(ptr<scope_t> scope, llvm::IRBuilder<> &builder) const;
 	ref resolve_bound_value(status_t &status, llvm::IRBuilder<> &builder, ptr<scope_t> scope) const;
 
 	static ref create(

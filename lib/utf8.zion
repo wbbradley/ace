@@ -61,3 +61,20 @@ def c_str(u utf8) OwningBuffer char
 	else
 		return u.buffer
 
+type Utf8Iter has
+	var pch *char
+
+def __iter_begin__(pch *char) Utf8Iter
+	return Utf8Iter(pch)
+
+def __iter_end__(pch *char) null
+	return null
+
+def __iter_valid__(cur Utf8Iter, _ null) bool
+	return cur.pch[0] as int != 0
+
+def __iter_item__(cur Utf8Iter) char
+	return cur.pch[0]
+
+def __iterate__(cur Utf8Iter)
+	cur.pch = &cur.pch[1]
