@@ -1,6 +1,6 @@
 module _
 # test: pass
-# expect: pass
+# expect: 11
 
 type Plus has
 	let lhs Expr
