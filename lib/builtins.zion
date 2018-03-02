@@ -28,8 +28,8 @@ type var_t struct
 	var type_info *type_info_t
 	# and a ref-count of its own
 	var mark int
-	var next *var_t
-	var prev *var_t
+	var next *?var_t
+	var prev *?var_t
 	var allocation uint
 	#
 	# THE ACTUAL DATA IS APPENDED HERE
@@ -78,5 +78,5 @@ type stack_entry_t struct
 type stack_entry_plus_root_t struct
 	var next  *stack_entry_t       # Link to next stack entry (the caller's).
 	var map   *stack_frame_map_t   # Pointer to constant stack_frame_map_t.
-	var root0 *void
+	var root0 *?void
 

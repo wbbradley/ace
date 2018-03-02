@@ -65,7 +65,7 @@ void life_t::release_vars(
 
 	if (!!status) {
 		for (auto value: values) {
-			assert(value->type->is_ref());
+			assert(value->type->is_ref(scope));
 			llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(value->get_llvm_value());
 			/* be sure to null out any stack references as we pass out of scope so that the GC
 			 * can avoid marking this guy */

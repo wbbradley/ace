@@ -45,7 +45,9 @@ enum token_kind
 
 	// Operators
 	tk_equal, /* == */
+	tk_binary_equal, /* === */
 	tk_inequal, /* != */
+	tk_binary_inequal, /* !== */
 	tk_bang, /* ! */
 	tk_maybe, /* ? */
 	tk_lt, /* < */
@@ -54,6 +56,7 @@ enum token_kind
 	tk_gte, /* >= */
 	tk_assign, /* = */
 	tk_becomes, /* := */
+	tk_subtype, /* <: */
 	tk_plus, /* + */
 	tk_minus, /* - */
 	tk_times, /* * */

@@ -211,8 +211,6 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	virtual bool symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var);
 	virtual bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const;
 
-	// void add_linked_module(status_t &status, ptr<const ast::item_t> obj, std::string symbol, module_scope_impl_t::ref module_scope);
-
 protected:
 	/* modules can have unchecked types */
 	unchecked_type_t::map unchecked_types;
@@ -352,7 +350,7 @@ struct generic_substitution_scope_t : public scope_impl_t<scope_t> {
 
 template <typename T>
 ptr<function_scope_t> scope_impl_t<T>::new_function_scope(std::string name) {
-	return function_scope_t::create(name, this->shared_from_this());
+	return function_scope_t::create(name, this->scope_t::shared_from_this());
 }
 
 template <typename T>
@@ -439,7 +437,7 @@ types::type_t::map scope_impl_t<T>::get_type_variable_bindings() const {
 template <typename T>
 std::string scope_impl_t<T>::str() {
 	std::stringstream ss;
-	scope_t::ref p = this->shared_from_this();
+	scope_t::ref p = this->scope_t::shared_from_this();
 	do {
 		p->dump(ss);
 	} while ((p = p->get_parent_scope()) != nullptr);
@@ -567,6 +565,7 @@ bool scope_impl_t<T>::has_bound(const std::string &name, const types::type_t::re
 
 
 void get_callables_from_bound_vars(
+		ptr<scope_t> scope,
 		std::string symbol,
 		const bound_var_t::map &bound_vars,
 		var_t::refs &fns);
@@ -578,7 +577,7 @@ void scope_impl_t<T>::get_callables(std::string symbol, var_t::refs &fns, bool c
 
 	if (module_scope != nullptr) {
 		/* default scope behavior is to look at bound variables */
-		get_callables_from_bound_vars(symbol, bound_vars, fns);
+		get_callables_from_bound_vars(scope_t::shared_from_this(), symbol, bound_vars, fns);
 
 		if (parent_scope != nullptr) {
 			/* let's see if our parent scope has any of this symbol from our scope */

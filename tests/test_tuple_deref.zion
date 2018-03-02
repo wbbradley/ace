@@ -7,4 +7,4 @@ module _
 def main()
 	x := ((2,("hello",)),)
 	y := x[0][1][0]
-	posix.puts(utf8(y).raw)
+	posix.puts(c_str(utf8(y)).raw)

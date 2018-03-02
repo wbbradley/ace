@@ -11,11 +11,10 @@ type Absolute has
 type Point is
 	Relative or Absolute
 
-# override the bool operator for Point
-def __bool__(p Point) bool
-	return true
-
 def main()
 	point := Relative(1.0)
-	if point
-		print("pass")
+	when point
+		is Relative
+			print("pass")
+		is Absolute
+			print("what?")

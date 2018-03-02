@@ -21,6 +21,9 @@ def str(x wchar) str
 	pch[1] = 0 as wchar
 	return str(buffer, 0, 1)
 
+def str(x char) str
+	return str(x as wchar)
+
 def str(s *wchar) str
 	let s_len = posix.wcslen(s)
 	let buffer = OwningBuffer(s, s_len)
@@ -151,7 +154,7 @@ def __iter_end__(s str) StringIter
 	return StringIter(&s.buffer.raw[s.start + s.length])
 
 def __iter_valid__(si_cur StringIter, si_end StringIter) bool
-	return si_cur.pch < si_end.pch
+	return (si_cur.pch! as uint) < (si_end.pch! as uint64)
 
 def __iter_item__(si StringIter) wchar
 	return si.pch[0]
@@ -160,8 +163,8 @@ def __iterate__(si StringIter)
 	si.pch = &si.pch[1]
 
 def c_str(u str) OwningBuffer wchar
-	# ensures a null-terminated string 
 	if u.start != 0 or u.length != u.buffer.length
+		# ensures a null-terminated string 
 		let pch = posix.malloc(sizeof(wchar) * (u.length + 1))! as *wchar
 		posix.memcpy(pch, unsafe_access(u), sizeof(wchar) * u.length)
 		pch[u.length] = 0 as wchar

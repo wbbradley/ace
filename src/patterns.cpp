@@ -45,8 +45,10 @@ void ast::when_block_t::resolve_statement(
 					var_name = make_iid(types::gensym()->get_name());
 				}
 
-				if (pattern_value->type->is_maybe()) {
-					user_error(status, value->get_location(), "null pattern values are not allowed. check for null beforehand");
+				if (pattern_value->type->is_maybe(scope)) {
+					user_error(status, value->get_location(),
+						   	"null pattern values are not allowed. "
+							"check for null beforehand");
 				}
 
 				if (!!status) {

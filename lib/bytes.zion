@@ -28,17 +28,14 @@ def hexdigest(b bytes) str
 def hexdigest(data *void, cb size_t) str
 	let s = posix.malloc(sizeof(wchar) * (cb * 2 + 1))! as *wchar
 	iter := data as *uint8
-	let end = &iter[cb]
-
-	i := 0
-	while iter < end
+	j := 0
+	for i in range(cb)
 		# append to our hexdigest
-		s[i] = hexdigit((iter[0] >> 4) as int) as wchar
-		s[i + 1] = hexdigit((iter[0] & 15) as int) as wchar
+		s[j] = hexdigit((iter[i] >> 4) as int) as wchar
+		s[j + 1] = hexdigit((iter[i] & 15) as int) as wchar
 
 		# advance iteration
-		i += 2
-		iter = &iter[1]
+		j += 2
 
-	s[i] = 0 as wchar
+	s[j] = 0 as wchar
 	return str(s)

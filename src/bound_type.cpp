@@ -168,24 +168,24 @@ bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {
 	return arg_types;
 }
 
-bool bound_type_t::is_ref() const {
-	return dyncast<const types::type_ref_t>(get_type()) != nullptr;
+bool bound_type_t::is_ref(scope_t::ref scope) const {
+	return get_type()->eval_predicate(tb_ref, scope);
 }
 
-bool bound_type_t::is_function() const {
-	return dyncast<const types::type_function_t>(get_type()) != nullptr;
+bool bound_type_t::is_int(scope_t::ref scope) const {
+	return get_type()->eval_predicate(tb_int, scope);
 }
 
-bool bound_type_t::is_void() const {
-	return types::is_type_id(get_type(), VOID_TYPE, {}, {});
+bool bound_type_t::is_function(scope_t::ref scope) const {
+	return get_type()->eval_predicate(tb_function, scope);
 }
 
-bool bound_type_t::is_maybe() const {
-	if (auto maybe = dyncast<const types::type_maybe_t>(get_type())) {
-		return true;
-	} else {
-		return false;
-	}
+bool bound_type_t::is_void(scope_t::ref scope) const {
+	return get_type()->eval_predicate(tb_void, scope);
+}
+
+bool bound_type_t::is_maybe(scope_t::ref scope) const {
+	return get_type()->eval_predicate(tb_maybe, scope);
 }
 
 bool bound_type_t::is_module() const {
@@ -202,14 +202,6 @@ bool bound_type_t::is_ptr(scope_t::ref scope) const {
 	return res;
 }
 
-bool bound_type_t::is_opaque() const {
-	if (auto llvm_struct_type = llvm::dyn_cast<llvm::StructType>(get_llvm_specific_type())) {
-		return llvm_struct_type->isOpaque();
-	} else {
-		return false;
-	}
-}
-
 void bound_type_t::is_managed_ptr(
 		status_t &status,
 	   	llvm::IRBuilder<> &builder,
@@ -220,6 +212,7 @@ void bound_type_t::is_managed_ptr(
 
 	is_managed = types::is_managed_ptr(type, scope->get_nominal_env(), scope->get_total_env());
 
+#ifdef ZION_DEBUG
 	debug_above(7, log("%s expands to %s", type->str().c_str(), type->eval(scope, true /*get_structural_env*/)->str().c_str()));
 	debug_above(10, log("%s", ::str(scope->get_total_env()).c_str()));
 	debug_above(7, log("checking whether %s is a managed ptr: %s",
@@ -234,7 +227,7 @@ void bound_type_t::is_managed_ptr(
 
 	if (is_managed) {
 		auto llvm_type = get_llvm_specific_type();
-		if (is_ref()) {
+		if (is_ref(scope)) {
 			llvm::PointerType *llvm_pointer_type = llvm::dyn_cast<llvm::PointerType>(llvm_type);
 			if (llvm_pointer_type != nullptr) {
 				llvm_type = llvm_pointer_type->getElementType();
@@ -267,6 +260,7 @@ void bound_type_t::is_managed_ptr(
 			assert(false);
 		}
 	}
+#endif
 }
 
 

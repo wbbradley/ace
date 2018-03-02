@@ -41,6 +41,7 @@ const char *tkstr(token_kind tk) {
 	tk_case(dot);
 	tk_case(double_dot);
 	tk_case(equal);
+	tk_case(binary_equal);
 	tk_case(error);
 	tk_case(float);
 	tk_case(gt);
@@ -48,10 +49,12 @@ const char *tkstr(token_kind tk) {
 	tk_case(identifier);
 	tk_case(indent);
 	tk_case(inequal);
+	tk_case(binary_inequal);
 	tk_case(integer);
 	tk_case(lcurly);
 	tk_case(lparen);
 	tk_case(lsquare);
+	tk_case(subtype);
 	tk_case(lt);
 	tk_case(lte);
 	tk_case(maybe);
@@ -111,12 +114,15 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_divide_by:
 	case tk_divide_by_eq:
 	case tk_equal:
+	case tk_binary_equal:
 	case tk_error:
 	case tk_gt:
 	case tk_gte:
 	case tk_identifier:
 	case tk_inequal:
+	case tk_binary_inequal:
 	case tk_integer:
+	case tk_subtype:
 	case tk_lt:
 	case tk_lte:
 	case tk_maybe_eq:
@@ -266,13 +272,25 @@ void token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_line) 
 		ensure_space_before(last_tk);
 		printf("==");
 		break;
+	case tk_binary_equal:
+		ensure_space_before(last_tk);
+		printf("===");
+		break;
 	case tk_inequal:
 		ensure_space_before(last_tk);
 		printf("!=");
 		break;
+	case tk_binary_inequal:
+		ensure_space_before(last_tk);
+		printf("!==");
+		break;
 	case tk_lt:
 		ensure_space_before(last_tk);
 		printf("<");
+		break;
+	case tk_subtype:
+		ensure_space_before(last_tk);
+		printf("<:");
 		break;
 	case tk_gt:
 		ensure_space_before(last_tk);

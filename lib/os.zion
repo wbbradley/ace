@@ -14,11 +14,9 @@ def getcwd() str
 
 
 def getenv(name str) str?
-	let s = wcstombs(name.raw)
-	let value = posix.getenv(s)
-	posix.free(s)
+	let value = OwningBuffer(posix.getenv(wcstombs(name).raw))
 
 	if value != null
-		return str(mbstowcs(value))
+		return str(mbstowcs(value.raw, value.length))
 	else
 		return null

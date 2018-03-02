@@ -31,9 +31,9 @@ def hash(input_ str) bytes
 	outlen := crypto_generichash_bytes_max()
 	out := alloc(outlen)
 	assert(out != null)
-	let pch = __iter_begin__(input_).pch!
-	assert(pch != null)
-	crypto_generichash(out.data, out.cb, pch as *int8, sizeof(wchar) * posix.wcslen(pch), null, 0)
+	crypto_generichash(out.data, out.cb,
+		unsafe_access(input_) as *uint8,
+		sizeof(wchar) * input_.length, null, 0)
 	return out
 	
 	

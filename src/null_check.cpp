@@ -146,7 +146,7 @@ void nullify_let_var(
 			user_error(status, ref_expr->get_location(), "undefined symbol " c_id("%s"), token.text.c_str());
 		}
 
-		if (var->type->is_ref()) {
+		if (var->type->is_ref(scope)) {
 			/* we can't change the type of a mutable name in the scope because the user is allowed
 			 * to assign a non-null value, and we don't want to take that away from them */
 			return;
@@ -188,58 +188,65 @@ bound_var_t::ref resolve_null_check(
 		local_scope_t::ref *scope_if_true,
 		local_scope_t::ref *scope_if_false)
 {
-	llvm::Value *llvm_value = value->resolve_bound_var_value(builder);
-	bound_type_t::ref bound_bool_type = upsert_bound_type(status, builder, scope, type_id(make_iid(BOOL_TYPE)));
-	assert(!!status);
-	assert(bound_bool_type != nullptr);
-	llvm::Type *llvm_bool_type = bound_bool_type->get_llvm_specific_type();
-
-	llvm::Constant *zero;
-	if (llvm::dyn_cast<llvm::PointerType>(llvm_value->getType())) {
-		zero = llvm::Constant::getNullValue(llvm_value->getType());
-	} else if (llvm_value->getType()->isIntegerTy()) {
-		zero = llvm::ConstantInt::get(llvm_value->getType(), 0);
+	if (!value->type->is_maybe(scope) && value->type->is_ptr(scope)) {
+		user_error(status, location, "%s cannot be null here (unless something unsafe happened), so this comparison is unnecessary. "
+				"if you must compare this to null, try casting it to *?void first.",
+				node->str().c_str());
+		user_info(status, location, "the type of %s is %s", node->str().c_str(), value->type->str().c_str());
 	} else {
-		assert(false);
-	}
+		llvm::Value *llvm_value = value->resolve_bound_var_value(scope, builder);
+		bound_type_t::ref bound_bool_type = upsert_bound_type(status, builder, scope, type_id(make_iid(BOOL_TYPE)));
+		assert(!!status);
+		assert(bound_bool_type != nullptr);
+		llvm::Type *llvm_bool_type = bound_bool_type->get_llvm_specific_type();
 
-	llvm::Value *llvm_bool_value;
-	switch (nck) {
-	case nck_is_non_null:
-		llvm_bool_value = builder.CreateIntCast(
-				builder.CreateICmpNE(llvm_value, zero),
-				llvm_bool_type, false /*isSigned*/);
-
-		if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
-			if (scope_if_true != nullptr) {
-				unmaybe_variable(status, builder, scope, life, ref_expr, scope_if_true);
-			}
-			if (scope_if_false != nullptr) {
-				nullify_let_var(status, builder, scope, life, ref_expr, scope_if_false);
-			}
+		llvm::Constant *zero;
+		if (llvm::dyn_cast<llvm::PointerType>(llvm_value->getType())) {
+			zero = llvm::Constant::getNullValue(llvm_value->getType());
+		} else if (llvm_value->getType()->isIntegerTy()) {
+			zero = llvm::ConstantInt::get(llvm_value->getType(), 0);
+		} else {
+			assert(false);
 		}
-		break;
-	case nck_is_null:
-		llvm_bool_value = builder.CreateIntCast(
-				builder.CreateICmpEQ(llvm_value, zero),
-				llvm_bool_type, false /*isSigned*/);
 
-		if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
-			if (scope_if_false != nullptr) {
-				unmaybe_variable(status, builder, scope, life, ref_expr, scope_if_false);
+		llvm::Value *llvm_bool_value;
+		switch (nck) {
+		case nck_is_non_null:
+			llvm_bool_value = builder.CreateIntCast(
+					builder.CreateICmpNE(llvm_value, zero),
+					llvm_bool_type, false /*isSigned*/);
+
+			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+				if (scope_if_true != nullptr) {
+					unmaybe_variable(status, builder, scope, life, ref_expr, scope_if_true);
+				}
+				if (scope_if_false != nullptr) {
+					nullify_let_var(status, builder, scope, life, ref_expr, scope_if_false);
+				}
 			}
-			if (scope_if_true != nullptr) {
-				nullify_let_var(status, builder, scope, life, ref_expr, scope_if_true);
+			break;
+		case nck_is_null:
+			llvm_bool_value = builder.CreateIntCast(
+					builder.CreateICmpEQ(llvm_value, zero),
+					llvm_bool_type, false /*isSigned*/);
+
+			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+				if (scope_if_false != nullptr) {
+					unmaybe_variable(status, builder, scope, life, ref_expr, scope_if_false);
+				}
+				if (scope_if_true != nullptr) {
+					nullify_let_var(status, builder, scope, life, ref_expr, scope_if_true);
+				}
 			}
+			break;
 		}
-		break;
-	}
 
-	if (!!status) {
-		assert(llvm_bool_value != nullptr);
-		return bound_var_t::create(
-				INTERNAL_LOC(), "nullcheck",
-				bound_bool_type, llvm_bool_value, make_iid("nullcheck"));
+		if (!!status) {
+			assert(llvm_bool_value != nullptr);
+			return bound_var_t::create(
+					INTERNAL_LOC(), "nullcheck",
+					bound_bool_type, llvm_bool_value, make_iid("nullcheck"));
+		}
 	}
 
 	assert(!status);

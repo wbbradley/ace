@@ -26,6 +26,9 @@ var stderr *posix.FILE = posix.fdopen(2, "a")!
 # initialization of modules is automatically generated.
 # link def __init_modules() void
 
+def mbstowcs(s utf8) OwningBuffer wchar
+	return mbstowcs(unsafe_access(s), s.length)
+
 def mbstowcs(mbs *char) OwningBuffer wchar
 	# Converts from current locale's encoding to wide-char encoding. Allocates memory that
 	# must be freed later.
@@ -44,6 +47,9 @@ def mbstowcs(mbs *char, mbslen uint) OwningBuffer wchar
 
 	posix.mbstowcs(wcs, mbs, buffer_size)
 	return OwningBuffer(wcs, characters)
+
+def wcstombs(s str) OwningBuffer char
+	return wcstombs(unsafe_access(s), s.length)
 
 def wcstombs(wcs *wchar) OwningBuffer char
 	# Converts from wide char encoding to current locale's encoding
@@ -136,7 +142,6 @@ def input() str?
 		lim -= 1
 	buf[lim + 1] = 0
 
-	assert(buf != null)
 	ret := str(mbstowcs(buf, lim + 1))
 	posix.free(buf)
 	# runtime.gc()

@@ -4,7 +4,7 @@ link in "c"
 link in "m"
 link in "rt_posix.o"
 
-link def getenv(x *char) *char
+link def getenv(x *char) *?char
 link def puts(x *char) int
 link def fputs(x *char, fp *FILE) int
 link def fprintf(fp *FILE, fmt *char, s *char) int to fprintf

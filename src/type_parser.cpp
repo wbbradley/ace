@@ -505,8 +505,29 @@ namespace types {
 		return nullptr;
 	}
 
-	type_t::ref parse_and_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_infix_subtype(parse_state_t &ps, const identifier::set &generics) {
 		auto lhs = parse_application_type(ps, generics);
+		if (!!ps.status) {
+			if (ps.token.tk == tk_subtype) {
+				/* we've got a subtype expression */
+				ps.advance();
+				auto rhs = parse_application_type(ps, generics);
+
+				if (!!ps.status) {
+					return type_subtype(lhs, rhs);
+				}
+			} else {
+				/* we've got a single expression */
+				return lhs;
+			}
+		}
+
+		assert(!ps.status);
+		return nullptr;
+	}
+
+	type_t::ref parse_and_type(parse_state_t &ps, const identifier::set &generics) {
+		auto lhs = parse_infix_subtype(ps, generics);
 		if (!!ps.status) {
 			if (ps.token.is_ident(K(and))) {
 				/* we've got a Logical AND expression */
@@ -514,7 +535,7 @@ namespace types {
 				terms.push_back(lhs);
 				while (ps.token.is_ident(K(and))) {
 					chomp_ident(K(and));
-					auto next_term = parse_application_type(ps, generics);
+					auto next_term = parse_infix_subtype(ps, generics);
 					if (!!ps.status) {
 						terms.push_back(next_term);
 					} else {

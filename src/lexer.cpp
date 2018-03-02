@@ -134,6 +134,7 @@ bool zion_lexer_t::_get_tokens() {
 		gts_error,
 		gts_colon,
 		gts_bang,
+		gts_bangeq,
 		gts_integer,
 		gts_hexadecimal,
 		gts_zero,
@@ -143,6 +144,7 @@ bool zion_lexer_t::_get_tokens() {
 		gts_expon,
 		gts_expon_symbol,
 		gts_eq,
+		gts_eqeq,
 		gts_dot,
 		gts_lt,
 		gts_gt,
@@ -355,14 +357,25 @@ bool zion_lexer_t::_get_tokens() {
 				tk = tk_lte;
 			} else if (ch == '<') {
 				tk = tk_shift_left;
+			} else if (ch == ':') {
+				tk = tk_subtype;
 			} else {
 				scan_ahead = false;
 			}
 			break;
 		case gts_bang:
-            gts = gts_end;
 			if (ch == '=') {
+				gts = gts_bangeq;
                 tk = tk_inequal;
+			} else {
+				gts = gts_end;
+                scan_ahead = false;
+			}
+			break;
+		case gts_bangeq:
+			gts = gts_end;
+			if (ch == '=') {
+                tk = tk_binary_inequal;
 			} else {
                 scan_ahead = false;
 			}
@@ -519,9 +532,18 @@ bool zion_lexer_t::_get_tokens() {
 			}
 			break;
 		case gts_eq:
+			if (ch == '=') {
+				gts = gts_eqeq;
+				tk = tk_equal;
+			} else {
+				gts = gts_end;
+				scan_ahead = false;
+			}
+			break;
+		case gts_eqeq:
 			gts = gts_end;
 			if (ch == '=') {
-				tk = tk_equal;
+				tk = tk_binary_equal;
 			} else {
 				scan_ahead = false;
 			}

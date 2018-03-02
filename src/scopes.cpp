@@ -87,7 +87,7 @@ std::string scope_t::get_name() const {
 }
 
 ptr<program_scope_t> program_scope_t::get_program_scope() {
-	return std::static_pointer_cast<program_scope_t>(shared_from_this());
+	return std::static_pointer_cast<program_scope_t>(scope_t::shared_from_this());
 }
 
 ptr<const program_scope_t> program_scope_t::get_program_scope() const {
@@ -166,6 +166,7 @@ local_scope_t::ref local_scope_t::create(
 }
 
 void get_callables_from_bound_vars(
+		scope_t::ref scope,
 		std::string symbol,
 		const bound_var_t::map &bound_vars,
 		var_t::refs &fns)
@@ -175,7 +176,7 @@ void get_callables_from_bound_vars(
 		const auto &overloads = iter->second;
 		for (auto &pair : overloads) {
 			auto &var = pair.second;
-			if (var->type->is_function()) {
+			if (var->type->is_function(scope)) {
 				fns.push_back(var);
 			}
 		}
@@ -214,7 +215,7 @@ bound_type_t::ref program_scope_t::get_runtime_type(
 }
 
 void program_scope_t::get_callables(std::string symbol, var_t::refs &fns, bool check_unchecked) {
-	get_callables_from_bound_vars(symbol, bound_vars, fns);
+	get_callables_from_bound_vars(shared_from_this(), symbol, bound_vars, fns);
 	if (check_unchecked) {
 		get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
 	}

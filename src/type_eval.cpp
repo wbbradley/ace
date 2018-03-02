@@ -1,27 +1,30 @@
 #include "types.h"
 #include "scopes.h"
 #include "dbg.h"
+#include "unification.h"
 
 const char *tbstr(type_builtins_t tb) {
 	switch (tb) {
 	case tb_gc:
-		return "gc";
+		return TYPE_OP_GC;
 	case tb_ref:
-		return "is_ref";
+		return TYPE_OP_IS_REF;
 	case tb_true:
-		return "is_true";
+		return TYPE_OP_IS_TRUE;
 	case tb_false:
-		return "is_false";
+		return TYPE_OP_IS_FALSE;
 	case tb_pointer:
-		return "is_pointer";
+		return TYPE_OP_IS_POINTER;
 	case tb_function:
-		return "is_function";
+		return TYPE_OP_IS_FUNCTION;
 	case tb_void:
-		return "is_void";
+		return TYPE_OP_IS_VOID;
 	case tb_null:
-		return "is_null";
+		return TYPE_OP_IS_NULL;
+	case tb_int:
+		return TYPE_OP_IS_INT;
 	case tb_maybe:
-		return "is_maybe";
+		return TYPE_OP_IS_MAYBE;
 	}
 
 	assert(false);
@@ -46,6 +49,8 @@ const char *id_from_tb(type_builtins_t tb) {
 		return VOID_TYPE;
 	case tb_null:
 		return NULL_TYPE;
+	case tb_int:
+		return nullptr;
 	case tb_maybe:
 		return nullptr;
 	}
@@ -69,6 +74,7 @@ namespace types {
 					str().c_str(), tbstr(tb)));
 
 		if (const char *id = id_from_tb(tb)) {
+			/* if this predicate is just a simple id check... */
 			return is_type_id(shared_from_this(), id, nominal_env, total_env);
 		}
 
@@ -236,6 +242,14 @@ namespace types {
 		}
 
 		return shared_from_this();
+	}
+
+	type_t::ref type_subtype_t::eval_core(const map &nominal_env, const map &total_env, bool get_structural_type) const {
+		if (unifies(rhs, lhs, nominal_env, total_env)) {
+			return type_true;
+		} else {
+			return type_false;
+		}
 	}
 
 	type_t::ref type_and_t::eval_core(const map &nominal_env, const map &total_env, bool get_structural_type) const {
