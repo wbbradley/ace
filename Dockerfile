@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:xenial
 MAINTAINER William Bradley <williambbradley@gmail.com>
 
 RUN apt-get update -y && apt-get install -y \
@@ -17,33 +17,7 @@ RUN apt-get update -y && apt-get install -y \
 	libedit-dev \
 	libbsd-dev \
 	build-essential \
-	libsodium-dev
-
-RUN \
-	mkdir -p /tmp/jansson && \
-	cd /tmp/jansson && \
-	git clone https://github.com/akheron/jansson /tmp/jansson && \
-	autoreconf -i && \
-	./configure && \
-	make && \
-	make install
-
-RUN \
-	wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | apt-key add -
-
-RUN \
-	echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial main" > /etc/apt/sources.list.d/llvm.list
-
-RUN \
-	echo "deb-src http://apt.llvm.org/xenial/ llvm-toolchain-xenial main" >> /etc/apt/sources.list.d/llvm.list
-
-RUN \
-	echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-4.0 main" >> /etc/apt/sources.list.d/llvm.list
-
-RUN \
-	echo "deb-src http://apt.llvm.org/xenial/ llvm-toolchain-xenial-4.0 main" >> /etc/apt/sources.list.d/llvm.list
-		
-RUN apt-get update -y && apt-get install -y \
+	libsodium-dev \
 	clang-4.0 \
 	lldb-4.0 \
 	libstdc++6 \
@@ -54,6 +28,15 @@ RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-lin
 	&& update-alternatives --install /usr/bin/clang clang /usr/bin/clang-4.0 100 \
 	&& update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-4.0 100 \
 	&& update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-4.0 100
+
+RUN \
+	mkdir -p /tmp/jansson && \
+	cd /tmp/jansson && \
+	git clone https://github.com/akheron/jansson /tmp/jansson && \
+	autoreconf -i && \
+	./configure && \
+	make && \
+	make install
 
 ENV ARC4RANDOM_LIB bsd
 ADD . /opt/zion

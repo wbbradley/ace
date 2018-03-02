@@ -45,11 +45,11 @@ ifeq ($(UNAME),Darwin)
 else
 
 ifeq ($(UNAME),Linux)
-	CLANG_BIN = clang-4.0
+	CLANG_BIN = clang
 	CLANG := $(CLANG_BIN)
-	CPP := clang++-4.0
-	LLVM_LINK_BIN = llvm-link-4.0
-	LLVM_CONFIG = llvm-config-4.0
+	CPP := clang++
+	LLVM_LINK_BIN = llvm-link
+	LLVM_CONFIG = llvm-config
 	LLVM_CFLAGS = $(CFLAGS) \
 				  -nostdinc++ \
 				  -I/usr/lib/llvm-4.0/include \
@@ -99,7 +99,7 @@ ifeq ($(UNAME),Linux)
 		-lstdc++ \
 		$(shell $(LLVM_CONFIG) --cxxflags --ldflags --system-libs --libs)
 
-	LLDB = lldb-4.0
+	LLDB = lldb
 endif
 
 endif
