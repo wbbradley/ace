@@ -120,7 +120,10 @@ def readline(f File) str or Error or EOF
 
 [global]
 def write(fp *posix.FILE, s str)
-	let utf8_val = utf8(s)
+	write(fp, utf8(s))
+
+[global]
+def write(fp *posix.FILE, utf8_val utf8)
 	posix.fwrite(unsafe_access(utf8_val), utf8_val.length, 1, fp)
 	
 [global]
