@@ -27,7 +27,8 @@ RUN apt-get update -y && apt-get install -y \
 RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-link-4.0 100 \
 	&& update-alternatives --install /usr/bin/clang clang /usr/bin/clang-4.0 100 \
 	&& update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-4.0 100 \
-	&& update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-4.0 100
+	&& update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-4.0 100 \
+	&& update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-4.0 100
 
 RUN \
 	mkdir -p /tmp/jansson && \
