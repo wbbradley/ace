@@ -1,0 +1,6 @@
+module _
+
+def main()
+	let x int? = 3
+	# error: implicit maybe checks are not allowed
+	x and true

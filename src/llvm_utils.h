@@ -99,6 +99,7 @@ void llvm_create_if_branch(
 		ptr<life_t> life,
 		location_t location,
 		bound_var_t::ref value,
+        bool allow_maybe_check,
 		llvm::BasicBlock *then_bb,
 		llvm::BasicBlock *else_bb);
 

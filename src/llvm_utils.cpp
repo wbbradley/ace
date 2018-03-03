@@ -525,6 +525,7 @@ void llvm_create_if_branch(
 		life_t::ref life,
 		location_t location,
 		bound_var_t::ref value,
+		bool allow_maybe_check,
 	   	llvm::BasicBlock *then_bb,
 	   	llvm::BasicBlock *else_bb)
 {
@@ -538,69 +539,84 @@ void llvm_create_if_branch(
 	if (!!status) {
 		llvm::Value *llvm_value = value->get_llvm_value();
 		if (value->type->is_maybe(scope)) {
-			llvm::Type *llvm_type = value->get_llvm_value()->getType();
-			assert(llvm_type->isPointerTy());
-			llvm::Constant *null = llvm::Constant::getNullValue(llvm_type);
-			llvm_value = builder.CreateICmpNE(value->get_llvm_value(), null);
-		}
-
-		if (llvm_value->getType()->isIntegerTy(1)) {
-			/* pass */
-		} else {
-			types::type_t::ref type = value->type->get_type();
-
-			if (types::is_type_id(type, TRUE_TYPE, {}, {})) {
-				llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 1);
-			} else if (types::is_type_id(type, FALSE_TYPE, {}, {})) {
-				llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 0);
-			} else if (types::is_type_id(type, BOOL_TYPE, {}, {})) {
-				llvm::Type *llvm_type = llvm_value->getType();
-				assert(llvm_type->isIntegerTy());
-				if (!llvm_type->isIntegerTy(1)) {
-					llvm::Constant *zero = llvm::ConstantInt::get(llvm_type, 0);
-					llvm_value = builder.CreateICmpNE(llvm_value, zero);
-				}
-				assert(llvm_value->getType()->isIntegerTy(1));
+			if (allow_maybe_check) {
+				llvm::Type *llvm_type = value->get_llvm_value()->getType();
+				assert(llvm_type->isPointerTy());
+				llvm::Constant *null = llvm::Constant::getNullValue(llvm_type);
+				llvm_value = builder.CreateICmpNE(value->get_llvm_value(), null);
 			} else {
-				user_error(status, location, "condition is not a boolean value or a maybe type");
+				user_error(status, location, "implicit maybe checks are not allowed here");
+				user_info(status, location, "the condition of this branch instruction is of type %s",
+						value->type->str().c_str());
 			}
 		}
 
 		if (!!status) {
-			assert(llvm_value->getType()->isIntegerTy(1));
+			if (llvm_value->getType()->isIntegerTy(1)) {
+				/* pass */
+			} else {
+				types::type_t::ref type = value->type->get_type();
 
-			// REVIEW: do we need these extra blocks now?
-			if (iff & IFF_ELSE) {
-				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-
-				llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
-						builder.getContext(), "else.release", llvm_function_current);
-				builder.SetInsertPoint(release_block_bb);
-				life->release_vars(status, builder, scope, lf_statement);
-
-				assert(!builder.GetInsertBlock()->getTerminator());
-				builder.CreateBr(else_bb);
-
-				/* trick the code below to jumping to this release guard block */
-				else_bb = release_block_bb;
+				if (types::is_type_id(type, TRUE_TYPE, {}, {})) {
+					llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 1);
+				} else if (types::is_type_id(type, FALSE_TYPE, {}, {})) {
+					llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 0);
+				} else if (types::is_type_id(type, BOOL_TYPE, {}, {})) {
+					llvm::Type *llvm_type = llvm_value->getType();
+					assert(llvm_type->isIntegerTy());
+					if (!llvm_type->isIntegerTy(1)) {
+						llvm::Constant *zero = llvm::ConstantInt::get(llvm_type, 0);
+						llvm_value = builder.CreateICmpNE(llvm_value, zero);
+					}
+					assert(llvm_value->getType()->isIntegerTy(1));
+				} else {
+					if (allow_maybe_check) {
+						user_error(status, location, "condition is not a boolean value or a maybe type");
+					} else {
+						user_error(status, location, "condition is not a boolean value");
+					}
+					user_info(status, location, "the condition of this branch instruction is of type %s",
+							value->type->str().c_str());
+					user_info(status, value->get_location(), "the value was defined here");
+				}
 			}
 
-			if (iff & IFF_THEN) {
-				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+			if (!!status) {
+				assert(llvm_value->getType()->isIntegerTy(1));
 
-				llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
-						builder.getContext(), "then.release", llvm_function_current);
-				builder.SetInsertPoint(release_block_bb);
-				life->release_vars(status, builder, scope, lf_statement);
+				// REVIEW: do we need these extra blocks now?
+				if (iff & IFF_ELSE) {
+					llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
-				assert(!builder.GetInsertBlock()->getTerminator());
-				builder.CreateBr(then_bb);
+					llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
+							builder.getContext(), "else.release", llvm_function_current);
+					builder.SetInsertPoint(release_block_bb);
+					life->release_vars(status, builder, scope, lf_statement);
 
-				/* trick the code below to jumping to this release guard block */
-				then_bb = release_block_bb;
+					assert(!builder.GetInsertBlock()->getTerminator());
+					builder.CreateBr(else_bb);
+
+					/* trick the code below to jumping to this release guard block */
+					else_bb = release_block_bb;
+				}
+
+				if (iff & IFF_THEN) {
+					llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+					llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
+							builder.getContext(), "then.release", llvm_function_current);
+					builder.SetInsertPoint(release_block_bb);
+					life->release_vars(status, builder, scope, lf_statement);
+
+					assert(!builder.GetInsertBlock()->getTerminator());
+					builder.CreateBr(then_bb);
+
+					/* trick the code below to jumping to this release guard block */
+					then_bb = release_block_bb;
+				}
+
+				builder.CreateCondBr(llvm_value, then_bb, else_bb);
 			}
-
-			builder.CreateCondBr(llvm_value, then_bb, else_bb);
 		}
 	}
 }
