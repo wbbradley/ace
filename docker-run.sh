@@ -14,4 +14,4 @@ docker run \
 	--rm \
 	--name $NAME \
 	-it $IMAGE:$VERSION \
-	${1:-make -j8 test}
+	${1:-make -d -j8 test}
