@@ -2,18 +2,18 @@
 
 [![Build Status](https://travis-ci.org/zionlang/zion.svg?branch=master)](https://travis-ci.org/zionlang/zion)
 
-Zion is a programming language. Zion prefers correctness and readability over performance. Zion
+Zion is a programming language. Zion prefers correctness and refactorability over performance. Zion
 targets scenarios where scalability is intended to happen horizontally, not vertically. That being
 said, Zion tries to be fast, using static compilation to native host architecture as its execution
 model. Zion is built on [LLVM](https://llvm.org/).
 
 ## User Roles
- - In industry, there are two classic archetypes of programming language users, Workers and Librarians. Experienced developers wear either of these hats, switching back and forth as necessary. This switching can happen as new dependencies and integrations are initiated and completed within the scope of feature or new product work.
-   - Workers want to quickly build trustworthy applications that solve problems. Workers need a pleasant and ergonomic experience in order to remain focused on reaching their objectives.
-   - Librarians want to extend the capabilities of the language by
-     - Creating bindings through Zion to pre-existing or external libraries.
-     - Seamlessly integrating external libraries so that their usage appears as idiomatic Zion.
-     - Exposing extrinsic data via a gentle (de)serialization layer that maintains type-safety and ergonomics to the Workers.
+ - In industry there are two archetypes of programming language users, Workers and Librarians. Experienced developers wear either of these hats, switching back and forth as necessary. This switching can happen as new dependencies and integrations are initiated and completed within the scope of feature or new product work.
+   - *Workers* build trustworthy applications that solve problems. Workers demand a pleasant and ergonomic experience in order to remain focused on reaching their objectives.
+   - *Librarians* extend the capabilities of the language by
+     - Creating bindings to external libraries,
+     - Integrating external libraries so as to appear fluid and seamless to the Workers,
+     - Exposing extrinsic data via serialization that maintains type-safety and ergonomics to the Workers.
 
 ## Goals
 
