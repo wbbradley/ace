@@ -2890,7 +2890,9 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 
 		/* create the inner branch instruction */
 		llvm_create_if_branch(status, builder, scope, 0,
-				life, condition->get_location(), condition_value, then_bb, else_bb);
+				life, condition->get_location(), condition_value,
+			   	(condition == when_true) /* allow_maybe_check only in "or" expressions */,
+			   	then_bb, else_bb);
 
 		if (!!status) {
 			/* calculate the false path's value in the else block */
@@ -4768,6 +4770,7 @@ void ast::while_block_t::resolve_statement(
 		/* we don't have an else block, so we can just continue on */
 		llvm_create_if_branch(status, builder, scope,
 				IFF_ELSE, cond_life, condition->get_location(), condition_value,
+				false /*allow_maybe_check*/,
 				while_block_bb, while_end_bb);
 
 		if (!!status) {
@@ -4852,7 +4855,8 @@ void ast::if_block_t::resolve_statement(
 
 		/* create the actual branch instruction */
 		llvm_create_if_branch(status, builder, scope, IFF_ELSE, cond_life,
-				condition->get_location(), condition_value, then_bb, else_bb);
+				condition->get_location(), condition_value, false /*allow_maybe_check*/,
+			   	then_bb, else_bb);
 
 		if (!!status) {
 			builder.SetInsertPoint(else_bb);

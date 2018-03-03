@@ -1,8 +1,8 @@
 global
 
 
-type OwningBuffer C has
-	let raw *C
+type OwningBuffer CharType has
+	let raw *CharType
 	let length uint
 
 def __finalize__(owning_buffer OwningBuffer any)
@@ -13,13 +13,14 @@ def OwningBuffer[T where *?wchar <: T](s T) (OwningBuffer wchar)?
 		? OwningBuffer(s, posix.wcslen(s))
 		: null)
 
+def OwningBuffer(s *wchar) OwningBuffer wchar
+	return OwningBuffer(s, posix.wcslen(s))
+
+
 def OwningBuffer[T where *?char <: T](s T) (OwningBuffer char)?
 	return (s != null
 		? OwningBuffer(s, posix.strlen(s))
 		: null)
-
-def OwningBuffer(s *wchar) OwningBuffer wchar
-	return OwningBuffer(s, posix.wcslen(s))
 
 def OwningBuffer(s *char) OwningBuffer char
 	return OwningBuffer(s, posix.strlen(s))
