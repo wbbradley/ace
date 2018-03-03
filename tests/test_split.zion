@@ -1,0 +1,7 @@
+module _
+# test: pass
+# expect: hello world you funky people
+
+def main()
+	s := "\t hello\nworld   you   funky people "
+	print(join(split(s), " "))

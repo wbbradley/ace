@@ -40,12 +40,13 @@ def mbstowcs(mbs *char, mbslen uint) OwningBuffer wchar
 	if characters == -1
 		posix.puts("Failed to convert string from multi-byte to wide char!")
 		posix.exit(1)
-	let buffer_size = characters + 1
-	let cb = sizeof(wchar) * buffer_size
+	let cb = sizeof(wchar) * (characters + 1)
 	let wcs = posix.malloc(cb) as *?wchar
 	assert(wcs != null)
 
-	posix.mbstowcs(wcs, mbs, buffer_size)
+	posix.mbstowcs(wcs, mbs, characters)
+	wcs[characters] = 0
+
 	return OwningBuffer(wcs, characters)
 
 def wcstombs(s str) OwningBuffer char
@@ -64,16 +65,17 @@ def wcstombs(wcs *wchar, wcslen uint) OwningBuffer char
 		breakpoint()
 		posix.exit(1)
 
-	let buffer_size = characters + 1
-	let cb = sizeof(char) * buffer_size
+	let cb = sizeof(char) * (characters + 1)
 	let mbs = posix.malloc(cb) as *?char
 	assert(mbs != null)
 
-	posix.wcstombs(mbs, wcs, buffer_size)
+	posix.wcstombs(mbs, wcs, characters)
+	mbs[characters] = 0
+
 	return OwningBuffer(mbs, characters)
 
 def print(x) void
-	posix.fputs(unsafe_access(utf8(str(x))), stdout)
+	posix.fputs(c_str(utf8(str(x))).raw, stdout)
 	posix.fputs("\n", stdout)
 
 def panic(x str) void
