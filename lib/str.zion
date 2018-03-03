@@ -46,8 +46,10 @@ def str(buffer OwningBuffer wchar) str
 def str(s str, start uint, length uint) str
 	let s_len = len(s)
 
-	if start >= s_len or start + length >= s_len
+	if start >= s_len
 		return _empty_string
+	if start + length > s_len
+		length = s_len - start
 
 	if start != 0 or length < s_len
 		return str(s.buffer, s.start + start, length)
@@ -55,8 +57,7 @@ def str(s str, start uint, length uint) str
 		return _empty_string
 
 def __getitem__(s str, i uint) wchar
-	assert(s.length >= i)
-	return s.buffer.raw[s.start + i]
+	return s.buffer[s.start + i]
 
 def __init__() str
 	return str("")
@@ -135,6 +136,29 @@ def strip(s str) str
 		return s
 	
 	return str(s, start, lim - start + 1)
+
+def split(s str) [str]
+	# Split a string based on whitespace
+	let tokens [str]
+	i := 0
+	j := 0
+	let s_length = s.length
+	while true
+		while i < s_length and posix.iswspace(s[i])
+			i += 1
+		if i == s_length
+			break
+		j = i
+		i += 1
+		while i < s_length and not posix.iswspace(s[i])
+			i += 1
+		if j == 0 and i == s_length
+			append(tokens, s)
+			break
+		append(tokens, str(s, j, i - j))
+
+	return tokens
+
 
 def concat(x *wchar, x_len uint, y *wchar, y_len uint) str
 	let x_cb = sizeof(wchar) * x_len

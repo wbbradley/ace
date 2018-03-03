@@ -5,6 +5,10 @@ type OwningBuffer CharType has
 	let raw *CharType
 	let length uint
 
+def __getitem__[CharType](buffer OwningBuffer CharType, i uint) CharType
+	assert(buffer.length >= i)
+	return buffer.raw[i]
+
 def __finalize__(owning_buffer OwningBuffer any)
 	posix.free(owning_buffer.raw)
 
