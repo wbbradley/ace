@@ -75,10 +75,14 @@ def wcstombs(wcs *wchar, wcslen uint) OwningBuffer char
 	return OwningBuffer(mbs, characters)
 
 def print(x) void
-	posix.fputs(c_str(utf8(str(x))).raw, stdout)
-	posix.fputs("\n", stdout)
+	write(stdout, str(x))
+	write(stdout, "\n")
 
 def panic(x str) void
+	write(stderr, x)
+	posix.exit(-1)
+
+def panic(x utf8) void
 	write(stderr, x)
 	posix.exit(-1)
 
