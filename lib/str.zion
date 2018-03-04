@@ -159,6 +159,45 @@ def split(s str) [str]
 
 	return tokens
 
+def split(s str, delims str) [str]
+	# Split a string based on the given delims
+	let tokens [str]
+	i := 0
+	j := 0
+	let s_length = s.length
+	while true
+		while i < s_length and s[i] in delims
+			i += 1
+		if i == s_length
+			break
+		j = i
+		i += 1
+		while i < s_length and s[i] not in delims
+			i += 1
+		if j == 0 and i == s_length
+			append(tokens, s)
+			break
+		append(tokens, str(s, j, i - j))
+
+	return tokens
+
+def __in__(ch wchar, s str) bool
+	i := 0
+	e := s.length
+	while i < e
+		if s[i] == ch
+			return true
+		i += 1
+	return false
+
+def __notin__(ch wchar, s str) bool
+	i := 0
+	e := s.length
+	while i < e
+		if s[i] == ch
+			return false
+		i += 1
+	return true
 
 def concat(x *wchar, x_len uint, y *wchar, y_len uint) str
 	let x_cb = sizeof(wchar) * x_len

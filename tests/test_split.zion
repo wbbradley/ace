@@ -1,7 +1,14 @@
 module _
 # test: pass
-# expect: hello world you funky people
+# expect: hello,world,you,funky,people
+# expect: hello|world|you|funky|people
+# expect: ||||
 
 def main()
-	s := "\t hello\nworld   you   funky people "
-	print(join(split(s), " "))
+	s1 := "\t hello\nworld   you   funky people "
+	s2 := join(split(s1), ",")
+	print(s2)
+	s3 := join(split(s2, ","), "|")
+	print(s3)
+	s4 := join(split(s3, "abcdefghijklmnopqrstuvwxyz"), "")
+	print(s4)
