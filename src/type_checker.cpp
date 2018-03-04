@@ -2497,8 +2497,10 @@ bound_var_t::ref type_check_binary_operator(
 	}
 
 	if (
-			types::is_integer(lhs_type, {}, {}) &&
-			types::is_integer(rhs_type, {}, {}))
+			lhs->type->get_llvm_type()->isIntegerTy() &&
+			rhs->type->get_llvm_type()->isIntegerTy() &&
+			!lhs_type->eval_predicate(tb_bool, nominal_env, total_env) &&
+			!rhs_type->eval_predicate(tb_bool, nominal_env, total_env))
 	{
 		/* we are dealing with two integers, standard function resolution rules do not apply */
 		return type_check_binary_integer_op(

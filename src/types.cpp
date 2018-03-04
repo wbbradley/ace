@@ -24,6 +24,7 @@ const char *TYPE_OP_IS_ZERO = "is_zero";
 const char *TYPE_OP_IS_REF = "is_ref";
 const char *TYPE_OP_IS_TRUE = "is_true";
 const char *TYPE_OP_IS_FALSE = "is_false";
+const char *TYPE_OP_IS_BOOL = "is_bool";
 const char *TYPE_OP_IS_POINTER = "is_pointer";
 const char *TYPE_OP_IS_FUNCTION = "is_function";
 const char *TYPE_OP_IS_VOID = "is_void";
@@ -1355,6 +1356,14 @@ namespace types {
 							signed_type->str().c_str());
 				}
 			}
+		} else if (types::is_type_id(type, WCHAR_TYPE, {}, {})) {
+			bit_size = 32;
+			signed_ = false;
+			return;
+		} else if (types::is_type_id(type, CHAR_TYPE, {}, {})) {
+			bit_size = 8;
+			signed_ = false;
+			return;
 		} else {
 			user_error(status, type->get_location(), "expected an integer type, found %s",
 					type->str().c_str());

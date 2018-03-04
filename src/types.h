@@ -34,6 +34,7 @@ extern const char *TYPE_OP_GC;
 extern const char *TYPE_OP_IS_REF;
 extern const char *TYPE_OP_IS_TRUE;
 extern const char *TYPE_OP_IS_FALSE;
+extern const char *TYPE_OP_IS_BOOL;
 extern const char *TYPE_OP_IS_POINTER;
 extern const char *TYPE_OP_IS_FUNCTION;
 extern const char *TYPE_OP_IS_VOID;
@@ -46,6 +47,7 @@ enum type_builtins_t {
 	tb_ref,
 	tb_true,
 	tb_false,
+	tb_bool,
 	tb_pointer,
 	tb_function,
 	tb_void,

@@ -13,6 +13,8 @@ const char *tbstr(type_builtins_t tb) {
 		return TYPE_OP_IS_TRUE;
 	case tb_false:
 		return TYPE_OP_IS_FALSE;
+	case tb_bool:
+		return TYPE_OP_IS_BOOL;
 	case tb_pointer:
 		return TYPE_OP_IS_POINTER;
 	case tb_function:
@@ -39,6 +41,8 @@ const char *id_from_tb(type_builtins_t tb) {
 		return nullptr;
 	case tb_true:
 		return TRUE_TYPE;
+	case tb_bool:
+		return nullptr;
 	case tb_false:
 		return FALSE_TYPE;
 	case tb_pointer:
@@ -175,6 +179,16 @@ namespace types {
 	type_eval_is_(void, VOID_TYPE)
 	type_eval_is_(null, NULL_TYPE)
 
+	type_t::ref type_eval_is_bool(types::type_t::ref operand, const type_t::map &nominal_env, const type_t::map &total_env) {
+		if (auto id_type = dyncast<const types::type_id_t>(operand->eval(nominal_env, total_env))) {
+			std::string name = id_type->id->get_name();
+			if (name == BOOL_TYPE || name == TRUE_TYPE || name == FALSE_TYPE) {
+				return type_true;
+			}
+		}
+		return type_false;
+	}
+
 	type_t::ref type_eval_if(types::type_t::ref operand, const type_t::map &nominal_env, const type_t::map &total_env) {
 		auto operand_ = operand->eval_core(nominal_env, total_env, false);
 		if (is_type_id(operand_, TRUE_TYPE, {}, {})) {
@@ -217,6 +231,7 @@ namespace types {
 			{TYPE_OP_IS_REF, type_eval_is_type<type_ref_t>},
 			{TYPE_OP_IS_TRUE, type_eval_is_true},
 			{TYPE_OP_IS_FALSE, type_eval_is_false},
+			{TYPE_OP_IS_BOOL, type_eval_is_bool},
 			{TYPE_OP_IS_POINTER, type_eval_is_type<type_ptr_t>},
 			{TYPE_OP_IS_FUNCTION, type_eval_is_type<type_function_t>},
 			{TYPE_OP_IS_VOID, type_eval_is_void},
