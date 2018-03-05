@@ -54,6 +54,7 @@ public:
 
 	types::type_t::ref get_type() const;
 	virtual location_t get_location() const;
+    virtual std::string get_name() const;
 
 public:
 	llvm::Value *resolve_bound_var_value(ptr<scope_t> scope, llvm::IRBuilder<> &builder) const;

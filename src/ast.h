@@ -656,7 +656,8 @@ namespace ast {
 				local_scope_t::ref *new_scope,
 				types::type_t::ref type_constraints,
 				bound_type_t::named_pairs args,
-				bound_type_t::ref return_type) const;
+				bound_type_t::ref return_type,
+                types::type_t::ref fn_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<function_decl_t> decl;

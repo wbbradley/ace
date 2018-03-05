@@ -95,12 +95,19 @@ unification_t unify(
 			/* map the unification bindings onto the type constraints */
 			type_constraint = type_constraint->rebind(unification.bindings);
 
+#ifdef ZION_DEBUG
 			if (type_constraint->ftv_count() != 0) {
-				log("type_constraint=%s has free variables", type_constraint->str().c_str());
-				dbg();
+				debug_above(9, log("type_constraint=%s has free variables", type_constraint->str().c_str()));
 			}
+#endif
 
+			if (type_constraint->repr() != "true") {
+				log("evaluating type_constraint %s at %s", type_constraint->str().c_str(), lhs->get_location().str().c_str());
+			}
 			types::type_t::ref value = type_constraint->eval(nominal_env, total_env);
+			if (type_constraint->repr() != "true") {
+				log("value = %s", value->str().c_str());
+			}
 
 			if (!types::is_type_id(value, TRUE_TYPE, {}, {})) {
 				unification.result = false;

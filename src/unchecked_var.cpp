@@ -46,3 +46,7 @@ types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 location_t unchecked_var_t::get_location() const {
 	return node->token.location;
 }
+
+std::string unchecked_var_t::get_name() const {
+    return id->get_name();
+}

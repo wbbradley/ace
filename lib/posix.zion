@@ -35,6 +35,11 @@ link def raise(signal int) int
 link def fopen(fn *char, mode *char) *?FILE
 link def fdopen(fd int, mode *char) *?FILE
 link def fwrite(p *void, size size_t, nitems size_t, stream *FILE) size_t
+link def fread(p *void, size size_t, nitems size_t, stream *FILE) size_t
+link def ftell(stream *FILE) int
+link def feof(stream *FILE) bool
+link def ferror(stream *FILE) bool
+link def fseek(stream *FILE, offset int, whence int) int
 link def fclose(fp *FILE) int
 link def getline(linep **?char, linecapp *int, fp *FILE) int
 link def strlen(s *char) size_t
@@ -52,5 +57,7 @@ link def isspace(ch char) bool
 type FILE struct
 
 # TODO: implement let-refs for module variables
+var SEEK_SET int = 0
+var SEEK_END int = 2
 var SIGTRAP int = 5
 var SIGKILL int = 9

@@ -5,19 +5,12 @@
 #include "fitting.h"
 
 
-bool function_exists_in(var_t::ref fn, const fittings_t &fittings) {
-	location_t location = fn->get_location();
-
-    for (auto callable : fittings) {
-		if (callable.fn->get_location() == location) {
-			debug_above(7,
-					log("function %s at %s exists as %s at %s in fittings",
-						fn->str().c_str(),
-						fn->get_location().str().c_str(),
-						callable.fn->str().c_str(),
-						callable.fn->get_location().str().c_str()));
-			return true;
-		}
+bool function_exists_in(bound_var_t::ref fn, const fittings_t &fittings) {
+    for (auto fitting : fittings) {
+        assert(fitting.fn->name == fn->name);
+        if (fitting.fn->get_signature() == fn->get_signature()) {
+            return true;
+        }
     }
     return false;
 }
@@ -37,22 +30,6 @@ bound_var_t::ref get_best_fit(
 	fittings.reserve(fns.size());
 
 	for (auto &fn : fns) {
-
-		if (function_exists_in(fn, fittings)) {
-			/* we've already found a version of this function,
-			 * let's not bind it again */
-
-			// REVIEW: i think this is broken because if we bound if first with a managed type and
-			// then we want to rebind it with a native type, this will skip that rebinding, and
-			// choose the managed type version. need to make the function instantiation code more
-			// robust against re-instantiating the same signature, and then remove this check.
-
-			debug_above(7, log(log_info,
-						"skipping checking %s because we've already got a matched version of that function",
-						fn->str().c_str()));
-			continue;
-		}
-
 		int coercions = 0;
 		bound_var_t::ref callable = check_func_vs_callsite(status, builder,
 				scope, location, fn, args, return_type, coercions);
@@ -61,7 +38,9 @@ bound_var_t::ref get_best_fit(
 			assert(callable == nullptr);
 			return nullptr;
 		} else if (callable != nullptr && (coercions == 0 || allow_coercions)) {
-			fittings.push_back({callable, coercions});
+            if (!function_exists_in(callable, fittings)) {
+                fittings.push_back({callable, coercions});
+            }
 		}
 	}
 
@@ -83,7 +62,7 @@ bound_var_t::ref get_best_fit(
 							"multiple (noncoercing) overloads found for %s%s %s",
 							alias.c_str(),
 							args->str().c_str(),
-							return_type->str().c_str());
+							return_type != nullptr ? return_type->str().c_str() : "");
 				}
 			}
 		}

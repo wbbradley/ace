@@ -43,6 +43,7 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual void dump(std::ostream &os) const = 0;
 	virtual bool symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var) = 0;
 
+	virtual bound_var_t::ref get_bound_function(std::string name, std::string signature) = 0;
 	virtual bound_var_t::ref get_bound_variable(status_t &status, location_t location, std::string symbol, bool search_parents=true) = 0;
 	virtual void put_bound_variable(status_t &status, std::string symbol, bound_var_t::ref bound_variable) = 0;
 	virtual bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true) = 0;
@@ -97,6 +98,7 @@ struct scope_impl_t : public BASE {
 	void put_bound_variable(status_t &status, std::string symbol, bound_var_t::ref bound_variable);
 	virtual bool symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var);
 	bound_var_t::ref get_singleton(std::string name);
+	bound_var_t::ref get_bound_function(std::string name, std::string signature);
 	bound_var_t::ref get_bound_variable(status_t &status, location_t location, std::string symbol, bool search_parents=true);
 	std::string make_fqn(std::string leaf_name) const;
 	bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true);
@@ -536,6 +538,28 @@ bound_var_t::ref get_bound_variable_from_scope(
 		std::string symbol,
 		const bound_var_t::map &bound_vars,
 		scope_t::ref parent_scope);
+ 
+template <typename T>
+bound_var_t::ref scope_impl_t<T>::get_bound_function(
+        std::string name,
+        std::string signature)
+{
+   auto iter = bound_vars.find(name);
+   if (iter != bound_vars.end()) {
+       auto &resolve_map = iter->second;
+       auto overload_iter = resolve_map.find(signature);
+       if (overload_iter != resolve_map.end()) {
+           return overload_iter->second;
+       } else {
+           log("couldn't find %s : %s in %s",
+                   name.c_str(),
+                   signature.c_str(),
+                   ::str(resolve_map).c_str());
+       }
+   }
+
+   return nullptr;
+}
 
 template <typename T>
 bound_var_t::ref scope_impl_t<T>::get_bound_variable(

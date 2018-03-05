@@ -74,7 +74,13 @@ def wcstombs(wcs *wchar, wcslen uint) OwningBuffer char
 
 	return OwningBuffer(mbs, characters)
 
-def print(x) void
+def print[T where is_maybe T](x T) void
+	if x != null
+		print(x)
+	else
+		write(stdout, "<null>\n")
+
+def print[T where not(is_maybe T)](x T) void
 	write(stdout, str(x))
 	write(stdout, "\n")
 

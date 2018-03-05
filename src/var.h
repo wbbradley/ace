@@ -16,6 +16,7 @@ struct var_t {
 	virtual types::type_t::ref get_type(ptr<scope_t> scope) const = 0;
 	virtual location_t get_location() const = 0;
 	virtual std::string str() const = 0;
+    virtual std::string get_name() const = 0;
 
 	unification_t accepts_callsite(
 			llvm::IRBuilder<> &builder,

@@ -43,6 +43,7 @@ struct unchecked_var_t : public var_t {
 
     virtual types::type_t::ref get_type(ptr<scope_t> scope) const;
 	virtual location_t get_location() const;
+    virtual std::string get_name() const;
 };
 
 struct unchecked_data_ctor_t : public unchecked_var_t {

@@ -599,14 +599,15 @@ void destructure_function_decl(
 		scope_t::ref scope,
 		types::type_t::ref &type_constraints,
 		bound_type_t::named_pairs &params,
-		bound_type_t::ref &return_type)
+		bound_type_t::ref &return_type,
+		types::type_t::ref &function_type)
 {
 	/* returns the parameters and the return value types fully resolved */
 	debug_above(4, log(log_info, "type checking function decl %s with type %s",
 			   	obj.token.str().c_str(),
 				obj.function_type->str().c_str()));
 
-	auto function_type = dyncast<const types::type_function_t>(obj.function_type->rebind(scope->get_type_variable_bindings()));
+	function_type = dyncast<const types::type_function_t>(obj.function_type->rebind(scope->get_type_variable_bindings()));
 	assert(function_type != nullptr);
 
 	type_constraints = (
@@ -3545,14 +3546,15 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 				scope->get_name().c_str()));
 
 	/* see if we can get a monotype from the function declaration */
+	types::type_t::ref fn_type;
 	types::type_t::ref type_constraints;
 	bound_type_t::named_pairs args;
 	bound_type_t::ref return_type;
-	destructure_function_decl(status, builder, *decl, scope, type_constraints, args, return_type);
+	destructure_function_decl(status, builder, *decl, scope, type_constraints, args, return_type, fn_type);
 
 	if (!!status) {
 		return instantiate_with_args_and_return_type(status, builder, scope, life,
-				new_scope, type_constraints, args, return_type);
+				new_scope, type_constraints, args, return_type, fn_type);
 	} else {
 		user_error(status, *this, "unable to instantiate function %s due to earlier errors",
 				token.str().c_str());
@@ -3583,14 +3585,19 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		local_scope_t::ref *new_scope,
 		types::type_t::ref type_constraints,
 		bound_type_t::named_pairs args,
-		bound_type_t::ref return_type) const
+		bound_type_t::ref return_type,
+		types::type_t::ref fn_type) const
 {
 	program_scope_t::ref program_scope = scope->get_program_scope();
 	std::string function_name = switch_std_main(token.text);
+
 	indent_logger indent(get_location(), 5, string_format("instantiating function " c_id("%s") " at %s", function_name.c_str(),
 				token.location.str().c_str()));
 	debug_above(9, log("function has env %s", ::str(scope->get_total_env()).c_str()));
 	debug_above(9, log("function has bindings %s", ::str(scope->get_type_variable_bindings()).c_str()));
+
+	/* let's make sure we're not instantiating a function we've already instantiated */
+	assert(!scope->get_bound_function(function_name, fn_type));
 
 	assert(!!status);
 	assert(life->life_form == lf_function);
@@ -3671,7 +3678,9 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		/* now put this function declaration into the containing scope in case
 		 * of recursion */
 		if (function_var->name.size() != 0) {
-			put_bound_function(status, builder, scope, get_location(), function_var->name, decl->extends_module, function_var, new_scope);
+			assert(function_var->get_signature() == fn_type->repr());
+			put_bound_function(status, builder, scope, get_location(), function_var->name, decl->extends_module,
+					function_var, new_scope);
 		} else {
 			user_error(status, *this, "function definitions need names");
 		}
@@ -5014,6 +5023,7 @@ bound_var_t::ref ast::var_decl_t::resolve_condition(
 		local_scope_t::ref *scope_if_true,
 		local_scope_t::ref *scope_if_false) const
 {
+	assert(false);
     runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
     assert(runnable_scope);
 

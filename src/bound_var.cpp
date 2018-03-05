@@ -45,6 +45,10 @@ location_t bound_var_t::get_location() const {
 	return id->get_location();
 }
 
+std::string bound_var_t::get_name() const {
+	return name;
+}
+
 llvm::Value *bound_var_t::get_llvm_value() const {
 	return llvm_value;
 }
