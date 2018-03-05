@@ -1,0 +1,12 @@
+module _
+
+get sys
+
+def main()
+	result := readbytes(open("play/test.ml", "rt"))
+	when result
+		is bytes
+			let s str = decode(result, "utf8") or "FAIL"
+			print(s)
+		is file.Error
+			panic("Error!!")https://github.com/zionlang/zion/blob/master/lib/str.zion#L163

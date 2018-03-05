@@ -84,7 +84,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 						/* instantiate the function we want */
 						return function_defn->instantiate_with_args_and_return_type(status,
 								builder, subst_scope, life, nullptr /*new_scope*/,
-								type_constraints, named_args, return_type);
+								type_constraints, named_args, return_type, fn_type);
 					} else {
 						user_message(log_info, status, unchecked_fn->get_location(),
 								"while instantiating function %s",
@@ -175,6 +175,10 @@ bound_var_t::ref check_func_vs_callsite(
 
 			types::type_t::ref fn_type = fn->get_type(scope)->rebind(unification.bindings);
 
+            if (auto bound_fn = scope->get_bound_function(fn->get_name(), fn_type->repr())) {
+                /* function fn_type exists with name and signature we want, just use that */
+                return bound_fn;
+            }
 			return instantiate_unchecked_fn(status, builder, scope,
 					unchecked_fn, fn_type, unification);
 		} else {

@@ -19,21 +19,13 @@ model. Zion is built on [LLVM](https://llvm.org/).
 
  - Keep it simple, when possible.
  - Keep it readable, when possible.
- - Keep it stateless, when possible. Avoid mutability. Gently nudge the
-   developer towards product and sum types when they are modeling stateful things.
- - The ability to express complex domain relationships with a strong but gentle type system is critical.
- - Most pain in software development is felt near process boundaries. Be
-   opinionated on how to make serialization as comfortable as possible while
+ - Make algebraic data types compelling for state modeling.
+ - Reduce pain near process boundaries. Be opinionated on how to make serialization as comfortable as possible while
    retaining static type safety.
 
 ## Non-goals
  - Solving heavy compute problems is a non-goal. Solve those problems at a lower level,
-   and use the FFI to access those components. Generally performance optimization is treated as an unwelcome
-afterthought. Favor algorithmic scaling over bit twiddling and fretting over L1 cache hits.
-
-## Future Goals
- - Incentivize assertions. Gently penalize the lack of assertions. This becomes more interesting as dependent types are
-   rolled in beyond what's available today (maybe types and conditional refinement.)
+   and use the FFI to access those components. Favor algorithmic scaling over bit twiddling and fretting over L1 cache hits.
  - Pause-free execution remains a back-burner goal. (ie: Enabling Game loops, high-speed trading platforms, life support monitoring, embedded systems, etc...) However, in a future version, once language development settles down a bit, this will get more attention.
  - In-language concurrency and asynchronicity will get treatment in the future. These can currently be solved at other levels of
    the stack (hint: use OS processes.) This is not because it's not important. But, basic ergonomics of the language come first.
@@ -56,24 +48,13 @@ def favorite_number(x int) bool
 	return x == 12
 ```
 
-Zion uses contains elements from ML's type system. Zion is strict, not lazy.  Memory is managed using
-garbage collection.
+Zion is strict by default, not lazy.  Memory is managed using garbage collection.
 
 ### README TODO
 - [ ] discuss namespaces.
 - [ ] discuss future plans for safe dynamic dispatch. ([some thoughts exist here](https://gist.github.com/wbbradley/86cd672651cf129a91d14586523e979f))
 - [ ] discuss the std library layout.
 
-## Syntax
-
-The Backus–Naur form for the syntax is in `syntax.ebnf`.
-
-## Type system
-
-Zion uses unification to match substitutable types at function callsites.
-Type inference is built-in. The only automatic coercion that Zion performs is
-to look for `bool_t` values for conditional statements. (TODO: revisit this
-explanation...)
 
 Types are declared as follows:
 
@@ -155,6 +136,10 @@ function instantiation.
 
 ### TODO
 
+- [ ] Check for duplicate bound function instantiations deeper within function instantiation
+- [ ] Change := to be let by default
+- [ ] Consider .-chaining and how to acheieve Maybe monad behavior by looking at maybe-ness of first type parameter
+- [ ] Optimize `scope_t`'s `get_nominal_env` and `get_total_env` to be cached
 - [x] (un)signed integers
   - [x] integers as a type with parameterized number of bits and whether to use
     sign-extend or zero-extend

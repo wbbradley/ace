@@ -235,3 +235,9 @@ def c_str(u str) OwningBuffer wchar
 	else
 		return u.buffer
 
+def decode(b bytes, fmt str) str?
+	if fmt == "utf8"
+		return str(mbstowcs(b.data as *char, b.cb))
+	else
+		panic("unknown format to decode: " + fmt)
+		return null
