@@ -3426,13 +3426,16 @@ bound_var_t::ref call_typeid(
 									{bound_managed_var});
 						}
 					} else {
+						auto type_as_managed = promote_to_managed_type(resolved_value->type->get_type(),
+								scope->get_nominal_env(),
+								scope->get_total_env());
 						auto typeid_type = upsert_bound_type(status, builder, program_scope, type_id(make_iid(TYPEID_TYPE)));
 						if (!!status) {
 							return bound_var_t::create(
 									INTERNAL_LOC(),
 									string_format("typeid(%s)", resolved_value->str().c_str()),
 									typeid_type,
-									llvm_create_int32(builder, atomize(resolved_value->type->get_type()->get_signature())),
+									llvm_create_int32(builder, atomize(type_as_managed->get_signature())),
 									id);
 						}
 					}

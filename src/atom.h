@@ -8,3 +8,4 @@ void dump_atoms();
 int atomize(std::string &&str);
 int atomize(const std::string &str);
 int atomize(const char *str);
+extern std::vector<std::string> atoms;

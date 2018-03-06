@@ -60,7 +60,7 @@ bool starts_with(atom atom_str, const std::string &search);
 atom::set to_set(atom::many atoms);
 
 static std::map<std::string, int> atom_str_index = {{"", 0}};
-static std::vector<std::string> atoms = {""};
+std::vector<std::string> atoms = {""};
 
 int atomize(std::string &&str) {
 	auto iter = atom_str_index.find(str);
