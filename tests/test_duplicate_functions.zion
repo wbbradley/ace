@@ -3,6 +3,6 @@ module _
 def foo(x int, y int) bool
 	return x > y
 
-# error: duplicate function def foo
+# error: duplicate function def
 def foo(x int, y int) bool
 	return x < y

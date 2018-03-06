@@ -600,7 +600,7 @@ void destructure_function_decl(
 		types::type_t::ref &type_constraints,
 		bound_type_t::named_pairs &params,
 		bound_type_t::ref &return_type,
-		types::type_t::ref &function_type)
+		types::type_function_t::ref &function_type)
 {
 	/* returns the parameters and the return value types fully resolved */
 	debug_above(4, log(log_info, "type checking function decl %s with type %s",
@@ -610,10 +610,7 @@ void destructure_function_decl(
 	function_type = dyncast<const types::type_function_t>(obj.function_type->rebind(scope->get_type_variable_bindings()));
 	assert(function_type != nullptr);
 
-	type_constraints = (
-			function_type->type_constraints
-		   	? function_type->type_constraints
-		   	: type_id(make_iid(TRUE_TYPE)));
+	type_constraints = function_type->type_constraints;
 
 	/* the parameter types as per the decl */
 	const auto &args = dyncast<const types::type_args_t>(function_type->args);
@@ -630,6 +627,15 @@ void destructure_function_decl(
 
 		if (!!status) {
 			return_type = upsert_bound_type(status, builder, scope, function_type->return_type);
+
+			auto implied_fn_type = get_function_type(type_constraints, params, return_type)->eval(scope);
+			auto explicit_fn_type = function_type->eval(scope);
+
+			debug_above(7, log("%s should be %s",
+					implied_fn_type->repr().c_str(),
+					explicit_fn_type->repr().c_str()));
+
+			assert(implied_fn_type->repr() == explicit_fn_type->repr());
 
 			/* we got the params, and the return value */
 			return;
@@ -830,10 +836,11 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 	assert(module_scope);
 
 	types::type_t::ref type_constraints;
+	types::type_function_t::ref function_type;
 	bound_type_t::named_pairs named_args;
 	bound_type_t::ref return_value;
+	destructure_function_decl(status, builder, *extern_function, scope, type_constraints, named_args, return_value, function_type);
 
-	destructure_function_decl(status, builder, *extern_function, scope, type_constraints, named_args, return_value);
 	if (!!status) {
 		assert(return_value != nullptr);
 
@@ -3546,7 +3553,7 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 				scope->get_name().c_str()));
 
 	/* see if we can get a monotype from the function declaration */
-	types::type_t::ref fn_type;
+	types::type_function_t::ref fn_type;
 	types::type_t::ref type_constraints;
 	bound_type_t::named_pairs args;
 	bound_type_t::ref return_type;
@@ -3586,7 +3593,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		types::type_t::ref type_constraints,
 		bound_type_t::named_pairs args,
 		bound_type_t::ref return_type,
-		types::type_t::ref fn_type) const
+		types::type_function_t::ref fn_type) const
 {
 	program_scope_t::ref program_scope = scope->get_program_scope();
 	std::string function_name = switch_std_main(token.text);
@@ -3597,7 +3604,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 	debug_above(9, log("function has bindings %s", ::str(scope->get_type_variable_bindings()).c_str()));
 
 	/* let's make sure we're not instantiating a function we've already instantiated */
-	assert(!scope->get_bound_function(function_name, fn_type));
+	assert(!scope->get_bound_function(function_name, fn_type->repr()));
 
 	assert(!!status);
 	assert(life->life_form == lf_function);
@@ -3662,6 +3669,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 					"puts",
 					ss.str());
 			callsite_debug_function_name_print->resolve_statement(status, builder, scope, life, nullptr, nullptr);
+			assert(!!status);
 		}
 
 		/* set up the mapping to this function for use in recursion */
@@ -3678,7 +3686,11 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		/* now put this function declaration into the containing scope in case
 		 * of recursion */
 		if (function_var->name.size() != 0) {
-			assert(function_var->get_signature() == fn_type->repr());
+			debug_above(7, log("%s should be %s",
+					function_var->type->get_type()->repr().c_str(),
+					fn_type->eval(scope)->repr().c_str()));
+
+			assert(function_var->get_signature() == fn_type->eval(scope)->repr());
 			put_bound_function(status, builder, scope, get_location(), function_var->name, decl->extends_module,
 					function_var, new_scope);
 		} else {
@@ -3905,6 +3917,7 @@ void type_check_program_variable(
 			return;
 		}
 		types::type_t::ref type_constraints;
+		types::type_function_t::ref function_type;
 		bound_type_t::named_pairs named_params;
 		bound_type_t::ref return_value;
 
@@ -3915,12 +3928,10 @@ void type_check_program_variable(
 				unchecked_var->module_scope,
 				type_constraints,
 				named_params,
-				return_value);
+				return_value,
+				function_type);
 
 		if (!!local_status) {
-			types::type_function_t::ref function_type = get_function_type(
-					type_constraints, named_params, return_value);
-
 			fittings_t fittings;
 			auto callable = maybe_get_callable(
 					local_status, builder,
@@ -4003,7 +4014,8 @@ void create_visit_module_vars_function(
 			builder, 
 			program_scope,
 			INTERNAL_LOC(),
-			type_function(nullptr, type_id(make_iid("true")), type_args({bound_callback_fn_type->get_type()}),
+			type_function(nullptr, nullptr,
+			   	type_args({bound_callback_fn_type->get_type()}),
 				program_scope->get_bound_type(VOID_TYPE)->get_type()),
 			"__visit_module_vars");
 

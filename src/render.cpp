@@ -427,8 +427,8 @@ namespace ast {
 			indent(rs);
 		}
 		rs.ss << function_type->str();
-		if (link_to_name.tk != tk_none) {
-			rs.ss << C_MODULE << " to " << C_RESET << " " << C_ID << link_to_name.text << C_RESET;
+		if (link_to_name.tk != tk_none && link_to_name.text != token.text) {
+			rs.ss << C_MODULE << " to " << C_RESET << C_ID << link_to_name.text << C_RESET;
 		}
 	}
 

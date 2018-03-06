@@ -171,13 +171,24 @@ void get_callables_from_bound_vars(
 		const bound_var_t::map &bound_vars,
 		var_t::refs &fns)
 {
+	std::set<location_t> locations;
+	for (auto fn:fns) {
+		locations.insert(fn->get_location());
+	}
 	auto iter = bound_vars.find(symbol);
 	if (iter != bound_vars.end()) {
 		const auto &overloads = iter->second;
 		for (auto &pair : overloads) {
 			auto &var = pair.second;
 			if (var->type->is_function(scope)) {
-				fns.push_back(var);
+				if (in(var->get_location(), locations)) {
+					/* we must already have an unchecked version of this function, so let's hold off
+					 * on adding this bound version because we probably need to check the type
+					 * constraints again... */
+					continue;
+				} else {
+					fns.push_back(var);
+				}
 			}
 		}
 	}
@@ -214,11 +225,15 @@ bound_type_t::ref program_scope_t::get_runtime_type(
 	return upsert_bound_type(status, builder, shared_from_this(), type);
 }
 
-void program_scope_t::get_callables(std::string symbol, var_t::refs &fns, bool check_unchecked) {
-	get_callables_from_bound_vars(shared_from_this(), symbol, bound_vars, fns);
+void program_scope_t::get_callables(
+		std::string symbol,
+	   	var_t::refs &fns,
+	   	bool check_unchecked)
+{
 	if (check_unchecked) {
 		get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
 	}
+	get_callables_from_bound_vars(shared_from_this(), symbol, bound_vars, fns);
 }
 
 llvm::Type *program_scope_t::get_llvm_type(status_t &status, location_t location, std::string type_name) {
@@ -608,7 +623,7 @@ bound_var_t::ref program_scope_t::upsert_init_module_vars_function(
 			INTERNAL_LOC(),
 			type_function(
 				make_iid("__init_module_vars"),
-			   	type_id(make_iid("true")),
+				nullptr,
 				type_args({}),
 			   	type_id(make_iid("void"))),
 			"__init_module_vars");

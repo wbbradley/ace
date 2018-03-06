@@ -28,7 +28,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		unchecked_var_t::ref unchecked_fn,
-		types::type_t::ref fn_type,
+		types::type_function_t::ref fn_type,
 		const unification_t &unification)
 {
 	assert(fn_type->ftv_count() == 0 && "we cannot instantiate an abstract function");
@@ -64,7 +64,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 				types::type_t::ref type_constraints = (
 						function->type_constraints
 					   	? function->type_constraints->rebind(subst_scope->get_type_variable_bindings())
-					   	: type_id(make_iid(TRUE_TYPE)));
+					   	: nullptr);
 
 				bound_type_t::refs bound_args = upsert_bound_types(status,
 						builder, subst_scope, args->args);
@@ -173,7 +173,8 @@ bound_var_t::ref check_func_vs_callsite(
 						fn->str().c_str(),
 						::str(unification.bindings).c_str()));
 
-			types::type_t::ref fn_type = fn->get_type(scope)->rebind(unification.bindings);
+			types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(fn->get_type(scope)->rebind(unification.bindings));
+			assert(fn_type != nullptr);
 
             if (auto bound_fn = scope->get_bound_function(fn->get_name(), fn_type->repr())) {
                 /* function fn_type exists with name and signature we want, just use that */

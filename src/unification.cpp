@@ -101,13 +101,7 @@ unification_t unify(
 			}
 #endif
 
-			if (type_constraint->repr() != "true") {
-				log("evaluating type_constraint %s at %s", type_constraint->str().c_str(), lhs->get_location().str().c_str());
-			}
 			types::type_t::ref value = type_constraint->eval(nominal_env, total_env);
-			if (type_constraint->repr() != "true") {
-				log("value = %s", value->str().c_str());
-			}
 
 			if (!types::is_type_id(value, TRUE_TYPE, {}, {})) {
 				unification.result = false;

@@ -475,15 +475,17 @@ namespace types {
 	std::ostream &type_args_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		os << "(";
 		const char *sep = "";
-		int i = 0;
+		// int i = 0;
 		for (auto arg : args) {
 			os << sep;
+#if 0
 			if (names.size() != 0) {
 				auto name = names[i++]->get_name();
 				if (name.size() != 0) {
 					os << name << " ";
 				}
 			}
+#endif
 			arg->emit(os, bindings, 0);
 			sep = ", ";
 		}
@@ -629,10 +631,12 @@ namespace types {
 
 	std::ostream &type_function_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		os << K(def) << " ";
+#if 0
 		if (name != nullptr) {
 			os << C_ID << name->get_name() << C_RESET;
 		}
-		if (type_constraints != nullptr) { // && !is_type_id(type_constraints->rebind(bindings), TRUE_TYPE, {}, {})) {
+#endif
+		if (type_constraints != nullptr) {
 			os << "[" << C_CONTROL << "where " << C_RESET;
 			type_constraints->emit(os, bindings, 0);
 			os << "]";
@@ -1502,7 +1506,13 @@ types::type_function_t::ref type_function(
 		types::type_t::ref args,
 		types::type_t::ref return_type)
 {
-	return make_ptr<types::type_function_t>(name, type_constraints, args, return_type);
+	auto ret = make_ptr<types::type_function_t>(name, type_constraints, args, return_type);
+	if (type_constraints && type_constraints->repr() == TRUE_TYPE) {
+		debug_above(9, log("created type_function %s", ret->str().c_str()));
+		dbg();
+		types::is_type_id(type_constraints, TRUE_TYPE, {}, {});
+	}
+	return ret;
 }
 
 bool types_contains(const types::type_t::refs &options, std::string signature) {

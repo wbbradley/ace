@@ -218,6 +218,15 @@ namespace types {
 		}
 	}
 
+	type_t::ref type_function_t::eval_core(const map &nominal_env, const map &total_env, bool get_structural_type) const {
+		type_t::ref new_args = args->eval_core(nominal_env, total_env, get_structural_type);
+		type_t::ref new_return_type = return_type->eval_core(nominal_env, total_env, get_structural_type);
+		if (new_args != args || new_return_type != return_type) {
+			return ::type_function(name, type_constraints, new_args, new_return_type);
+		}
+		return shared_from_this();
+	}
+
 	type_t::ref type_operator_t::eval_core(const map &nominal_env, const map &total_env, bool get_structural_type) const {
 		auto oper_ = oper->eval_core(nominal_env, total_env, get_structural_type);
 
@@ -298,5 +307,69 @@ namespace types {
 		} else {
 			return shared_from_this();
 		}
+	}
+
+	type_t::ref type_managed_t::eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const {
+		return shared_from_this();
+	}
+
+	type_t::ref type_struct_t::eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const {
+		return shared_from_this();
+	}
+
+	type_t::ref type_lambda_t::eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const {
+		auto new_body = body->eval_core(nominal_env, structural_env, get_structural_type);
+		if (new_body != body) {
+			return ::type_lambda(binding, body);
+		}
+		return shared_from_this();
+	}
+
+	type_t::ref type_tuple_t::eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const {
+		return shared_from_this();
+	}
+
+	type_t::ref type_args_t::eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const {
+		type_t::refs new_args;
+		new_args.reserve(args.size());
+
+		bool new_found = false;
+		for (auto &arg : args) {
+			auto new_arg = arg->eval_core(nominal_env, structural_env, get_structural_type);
+			if (new_arg != arg) {
+				new_found = true;
+			}
+			new_args.push_back(new_arg);
+		}
+
+		if (new_found) {
+			return ::type_args(new_args, names);
+		}
+		return shared_from_this();
+	}
+
+	type_t::ref type_sum_t::eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const {
+		return shared_from_this();
+	}
+
+	type_t::ref type_integer_t::eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const {
+		auto new_bit_size = bit_size->eval_core(nominal_env, structural_env, get_structural_type);
+		auto new_signed = signed_->eval_core(nominal_env, structural_env, get_structural_type);
+		if (new_bit_size != bit_size || new_signed != signed_) {
+			return ::type_integer(new_bit_size, new_signed);
+		}
+		return shared_from_this();
+	}
+
+	type_t::ref type_module_t::eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const {
+		auto new_module_type = module_type->eval_core(nominal_env, structural_env, get_structural_type);
+		if (new_module_type != module_type) {
+			return ::type_module(new_module_type);
+		}
+		return shared_from_this();
+	}
+
+	type_t::ref type_extern_t::eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const {
+		return shared_from_this();
 	}
 }

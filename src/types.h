@@ -91,7 +91,7 @@ namespace types {
 		ref eval(const map &nominal_env, const map &structural_env, bool get_structural_type=false) const;
 		ref eval(const ptr<scope_t> &scope, bool get_structural_type=false) const;
 
-		virtual ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;
+		virtual ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const = 0;
 
         virtual type_t::ref boolean_refinement(
 				status_t &status,
@@ -167,6 +167,7 @@ namespace types {
 		identifier::ref id;
 		location_t location;
 
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const { return shared_from_this(); }
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
@@ -207,6 +208,7 @@ namespace types {
 		type_any_of_t(const map &shapes);
 		refs shapes;
 
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const { return shared_from_this(); }
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
@@ -218,6 +220,7 @@ namespace types {
 		type_literal_t(token_t token);
 		token_t token;
 
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const { return shared_from_this(); }
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
@@ -243,6 +246,7 @@ namespace types {
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;
 	};
 
 	struct type_module_t : public type_product_t {
@@ -260,6 +264,7 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;
 
 		type_t::ref module_type;
 	};
@@ -277,6 +282,7 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;
 
 		type_t::ref element_type;
 	};
@@ -294,6 +300,7 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;
 
 		type_t::refs args;
 		identifier::refs names;
@@ -312,6 +319,7 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;
 
 		type_t::refs dimensions;
 		name_index_t name_index;
@@ -330,6 +338,7 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;
 
 		type_t::refs dimensions;
 	};
@@ -352,6 +361,7 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;
 	};
 
 	struct type_and_t : public type_t {
@@ -387,6 +397,7 @@ namespace types {
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;
 	};
 
 	struct type_maybe_t : public type_t {
@@ -455,6 +466,7 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;
 	};
 
 	struct type_extern_t : public type_t {
@@ -467,6 +479,7 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
+		virtual type_t::ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const;
 	};
 
 
