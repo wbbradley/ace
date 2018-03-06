@@ -56,6 +56,9 @@ function build() {
 
 	time make -j8
 	time make install
+
+	# Just for good measure, let's mark this entire directory as unwriteable to avoid accidental-edit headaches later.
+	chmod -R a-w $INSTALL_DIR/$1
 }
 
 build Debug

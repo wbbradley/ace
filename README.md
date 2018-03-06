@@ -133,40 +133,55 @@ When a call to a function that takes a sum type and there still remain free type
 variables, they will be substituted with the "unreachable" type (void) during
 function instantiation.
 
+### Getting LLVM built on your Mac
+
+```
+./llvm-build.sh
+```
+Then add $HOME/opt/llvm/release_40/MinSizeRel/bin to your path. Be sure to add it before any existing versions of clang
+or llvm tools, etc...
 
 ### TODO
 
 - [ ] Check for duplicate bound function instantiations deeper within function instantiation
 - [ ] Change := to be let by default
-- [ ] Consider .-chaining and how to acheieve Maybe monad behavior by looking at maybe-ness of first type parameter
+- [ ] Consider uniform calling syntax for .-chaining and how to acheive customizable monadic behaviors by looking at the receiver
+- [ ] Consider allowing overloads for arbitrary `tk_operator`s to enable overloading random symbols.
+- [ ] Consider implementing a macro specifier for declaring macros which would expand inline and have hygenic names
+- [ ] Implement slice array indexing rg[s:end], etc...
+- [ ] Implement vector slicing for strings and arrays
+- [ ] Implement native structures as non-pointer values
+- [ ] Explore closures with capture by value
 - [ ] Optimize `scope_t`'s `get_nominal_env` and `get_total_env` to be cached
+- [ ] Add safety checks on casting (as)
+- [ ] Implement generic sort
+- [ ] Explore using a conservative collector
+- [ ] Consider marking null-terminated strings differently for FFI purposes
+- [ ] Builtin data structures
+  - [x] string (as slices)
+  - [x] vectors
+  - [ ] hash map
+  - [ ] binary tree
+  - [ ] avl tree
+  - [ ] link defs are not yet functional
+- [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction
+- [ ] Use DIBuilder to add line-level debugging information
+- [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
+- [ ] enable linking to variadic functions (like printf)
 - [x] (un)signed integers
+  - [x] write a C integer promotion compatibility test as part of test framework
   - [x] integers as a type with parameterized number of bits and whether to use
     sign-extend or zero-extend
   - [x] promotions upon binary operators
   - [x] prevent overloading integer operations unless one side is not an integer
   - [x] deal with casting integers
 - [x] implement `let` declarations
-  - [ ] optimization: automatically convert parameters or `var`s that are never assigned to to `let`
 - [x] change `str` to use `wchar_t` as its underlying physical character type
   - [x] use C99's `mbstowcs` and `wcstombs` to convert back and forth
   - [x] propagate usage of utf8 for `char`
 - [x] 'for' syntax - based on `tests/test_list_iter.zion` pattern
-- [x] vectors
 - [x] Ternary operator
 - [x] Logical and/or (build with ternary operator)
-- [x] Type refinements for ternary / conditional expressions (it works. see [this gist](https://gist.github.com/wbbradley/6dc1ab1e12ce4312c83cd33012eb721b))
-- [ ] Implement vector literal checking and code gen
-- [ ] Implement vector slicing
-- [ ] fully implement binary as! -> T, as -> maybe{T}
-- [ ] Builtin data structures
-  - [x] vectors
-  - [ ] hash map - looking into hash array map tries
-  - [ ] binary tree
-  - [ ] avl tree
-- [ ] Design/Implement tags functionality (for integration with ctags and LSP)
-- [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction
-- [ ] Use DIBuilder to add line-level debugging information
-- [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
-- [ ] enable linking to variadic functions (like printf)
-- [ ] write a C integer promotion compatibility test as part of test framework
+- [x] Type refinements for ternary / conditional expressions
+- [x] Implement vector literal checking and code gen
+- [x] Design/Implement tags functionality (for integration with ctags and LSP)

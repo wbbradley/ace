@@ -52,6 +52,20 @@ std::ostream &operator <<(std::ostream &os, const location_t &location) {
 	return os << location.str();
 }
 
+bool location_t::operator <(const location_t &rhs) const {
+	if (filename < rhs.filename) {
+		return true;
+	} else if (filename > rhs.filename) {
+		return false;
+	} else if (line < rhs.line) {
+		return true;
+	} else if (line > rhs.line) {
+		return false;
+	} else {
+		return col < rhs.col;
+	}
+}
+
 bool location_t::operator ==(const location_t &rhs) const {
     return filename == rhs.filename && line == rhs.line && col == rhs.col;
 }

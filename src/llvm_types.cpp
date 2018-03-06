@@ -554,9 +554,8 @@ bound_type_t::ref create_bound_expr_type(
 		if (total_expansion != id) {
 			return bind_expansion(status, builder, scope, nominal_expansion, total_expansion);
 		} else {
-			user_error(status, id->get_location(), "no type definition found for %s in [%s]",
-					id->str().c_str(),
-					join(keys(scope->get_total_env()), ", ").c_str());
+			user_error(status, id->get_location(), "no type definition found for %s",
+					id->str().c_str());
 		}
 	}
 
@@ -1286,7 +1285,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	if (product_type != nullptr) {
 		types::type_args_t::ref type_args = ::type_args(types::without_refs(product_type->get_dimensions()));
 		if (!!status) {
-			types::type_function_t::ref function_type = ::type_function(nullptr, type_id(make_iid("true")), type_args, type);
+			types::type_function_t::ref function_type = ::type_function(nullptr, nullptr, type_args, type);
 			bound_var_t::ref already_bound_function;
 			if (program_scope->has_bound(id->get_name(), function_type, &already_bound_function)) {
 				/* fulfill the "get_or_" part of this function name */

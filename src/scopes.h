@@ -551,10 +551,10 @@ bound_var_t::ref scope_impl_t<T>::get_bound_function(
        if (overload_iter != resolve_map.end()) {
            return overload_iter->second;
        } else {
-           log("couldn't find %s : %s in %s",
+           debug_above(7, log("couldn't find %s : %s in %s",
                    name.c_str(),
                    signature.c_str(),
-                   ::str(resolve_map).c_str());
+                   ::str(resolve_map).c_str()));
        }
    }
 
@@ -595,7 +595,11 @@ void get_callables_from_bound_vars(
 		var_t::refs &fns);
 
 template <typename T>
-void scope_impl_t<T>::get_callables(std::string symbol, var_t::refs &fns, bool check_unchecked) {
+void scope_impl_t<T>::get_callables(
+		std::string symbol,
+	   	var_t::refs &fns,
+	   	bool check_unchecked)
+{
 	// TODO: clean up this horrible mess
 	auto module_scope = dynamic_cast<module_scope_t*>(this);
 
