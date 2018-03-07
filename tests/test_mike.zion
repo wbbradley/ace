@@ -5,27 +5,28 @@ module _
 # This tests whether we can instantiate recursive abstract types when they are
 # not necessary.
 
-type Plus T has
-	var lhs Expr T
-	var rhs Expr T
+type Plus has
+	var lhs Expr
+	var rhs Expr
 
-type Times T has
-	var lhs Expr T
-	var rhs Expr T
+type Times has
+	var lhs Expr
+	var rhs Expr
 
-type Expr T is
-	Plus T or
-	Times T or
+type Expr is
+	Plus or
+	Times or
 	int
 
-def eval(expr Expr any T) int
+def eval(expr Expr) int
 	when expr
-		is Plus any T
+		is Plus
 			return eval(expr.lhs) + eval(expr.rhs)
-		is Times any T
+		is Times
 			return eval(expr.lhs) * eval(expr.rhs)
 		is int
 			return expr
 
 def main()
+	let e Expr = 3
 	print(eval(Plus(Times(4, 2), 3)))

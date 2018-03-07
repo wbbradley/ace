@@ -189,8 +189,8 @@ bound_var_t::ref resolve_null_check(
 		local_scope_t::ref *scope_if_false)
 {
 	if (!value->type->is_maybe(scope) && value->type->is_ptr(scope)) {
-		user_error(status, location, "%s cannot be null here (unless something unsafe happened), so this comparison is unnecessary. "
-				"if you must compare this to null, try casting it to *?void first.",
+		user_error(status, location, "%s cannot be null here. "
+				"if you must compare this to null, try casting it to a maybe pointer first.",
 				node->str().c_str());
 		user_info(status, location, "the type of %s is %s", node->str().c_str(), value->type->str().c_str());
 	} else {

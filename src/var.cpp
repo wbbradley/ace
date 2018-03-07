@@ -14,22 +14,6 @@ std::string str(const var_t::refs &vars) {
 	return ss.str();
 }
 
-void add_bindings_to_make_type_concrete(
-		types::type_t::ref type, 
-		types::type_t::map &bindings) 
-{
-	/* make sure that if there are any free type variables, we mark
-	 * them as unreachable */
-	std::set<std::string> ftvs = type->get_ftvs();
-	if (ftvs.size() != 0) {
-		for (std::string ftv : ftvs) {
-			if (!in(ftv, bindings)) {
-				bindings[ftv] = type_unreachable();
-			}
-		}
-	}
-}
-
 unification_t var_t::accepts_callsite(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
@@ -53,9 +37,6 @@ unification_t var_t::accepts_callsite(
 	auto bindings = scope->get_type_variable_bindings();
 
 	auto u = unify(fn_type, type_function(nullptr, nullptr, args, return_type), scope);
-
-	add_bindings_to_make_type_concrete(fn_type->args, u.bindings);
-	add_bindings_to_make_type_concrete(fn_type->return_type, u.bindings);
 
 	debug_above(6, log(log_info, "check of %s %s",
 				str().c_str(),

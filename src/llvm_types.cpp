@@ -61,35 +61,23 @@ bound_type_t::ref create_bound_ref_type(
 
 	assert(!scope->get_bound_type(type_ref->get_signature()));
 
-	auto ftvs = type_ref->get_ftvs();
-	if (ftvs.size() != 0) {
+	/* get the element type's bound type, if it exists */
+	bound_type_t::ref bound_type = scope->get_bound_type(type_ref->element_type->get_signature());
+
+	if (bound_type != nullptr && bound_type->get_llvm_specific_type()->isVoidTy()) {
 		user_error(status, type_ref->get_location(),
-				"unable to instantiate type %s because free variables [%s] still exist",
-				type_ref->str().c_str(),
-				join_with(ftvs, ", ", [] (std::string a) -> std::string {
-					return string_format(c_id("%s"), a.c_str());
-				}).c_str());
+				"cannot create references to " c_type("void"));
 	}
-
 	if (!!status) {
-		/* get the element type's bound type, if it exists */
-		bound_type_t::ref bound_type = scope->get_bound_type(type_ref->element_type->get_signature());
+		/* make sure we create the pointed to type first */
+		bound_type_t::ref bound_element_type = upsert_bound_type(status, builder, scope, type_ref->element_type);
 
-		if (bound_type != nullptr && bound_type->get_llvm_specific_type()->isVoidTy()) {
-			user_error(status, type_ref->get_location(),
-					"cannot create references to " c_type("void"));
-		}
 		if (!!status) {
-			/* make sure we create the pointed to type first */
-			bound_type_t::ref bound_element_type = upsert_bound_type(status, builder, scope, type_ref->element_type);
-
-			if (!!status) {
-				auto bound_type = bound_type_t::create(type_ref,
-						type_ref->get_location(),
-						bound_element_type->get_llvm_specific_type()->getPointerTo());
-				program_scope->put_bound_type(status, bound_type);
-				return bound_type;
-			}
+			auto bound_type = bound_type_t::create(type_ref,
+					type_ref->get_location(),
+					bound_element_type->get_llvm_specific_type()->getPointerTo());
+			program_scope->put_bound_type(status, bound_type);
+			return bound_type;
 		}
 	}
 
