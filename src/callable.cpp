@@ -31,7 +31,6 @@ bound_var_t::ref instantiate_unchecked_fn(
 		types::type_function_t::ref fn_type,
 		const unification_t &unification)
 {
-	assert(fn_type->ftv_count() == 0 && "we cannot instantiate an abstract function");
 	debug_above(5, log(log_info, "we are in scope " c_id("%s"), scope->get_name().c_str()));
 	debug_above(5, log(log_info, "it's time to instantiate %s at %s with unified signature %s from %s",
 				unchecked_fn->str().c_str(),
@@ -311,18 +310,16 @@ bound_var_t::ref get_callable(
 			ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
 			user_error(status, callsite_location, "%s", ss.str().c_str());
 
-			if (debug_level() >= 0) {
-				/* report on the places we tried to look for a match */
-				if (fittings.size() > 10) {
-					user_message(log_info, status, callsite_location,
-							"%d non-matching functions called " c_id("%s")
-							" found (skipping listing them all)", fittings.size(), alias.c_str());
-				} else {
-					for (auto &fitting : fittings) {
-						ss.str("");
-						ss << fitting.fn->type->str() << " did not match";
-						user_message(log_info, status, fitting.fn->get_location(), "%s", ss.str().c_str());
-					}
+			/* report on the places we tried to look for a match */
+			if (fittings.size() > 10) {
+				user_message(log_info, status, callsite_location,
+						"%d non-matching functions called " c_id("%s")
+						" found (skipping listing them all)", fittings.size(), alias.c_str());
+			} else {
+				for (auto &fitting : fittings) {
+					ss.str("");
+					ss << fitting.fn->type->str() << " did not match";
+					user_message(log_info, status, fitting.fn->get_location(), "%s", ss.str().c_str());
 				}
 			}
 			return nullptr;

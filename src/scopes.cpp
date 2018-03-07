@@ -915,7 +915,6 @@ void put_typename_impl(
 
 bool module_scope_impl_t::has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var) const {
 	// NOTE: for now this only really works for module and global variables
-	assert(type->ftv_count() == 0);
 	auto overloads_iter = bound_vars.find(name);
 	if (overloads_iter != bound_vars.end()) {
 		auto &overloads = overloads_iter->second;

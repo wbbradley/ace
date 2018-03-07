@@ -2487,11 +2487,16 @@ bound_var_t::ref type_check_binary_operator(
 	auto rhs_type = rhs->type->get_type()->eval(nominal_env, total_env);
 
 	debug_above(5, log("generating binary operator %s %s %s", 
-			lhs->type->str().c_str(),
-			function_name.c_str(),
-			rhs->type->str().c_str()));
+				lhs->type->str().c_str(),
+				function_name.c_str(),
+				rhs->type->str().c_str()));
 
-	if (lhs_type->repr() == MBS_TYPE || rhs_type->repr() == MBS_TYPE) {
+	bool lhs_is_null = lhs_type->eval_predicate(tb_null, nominal_env, total_env);
+	bool rhs_is_null = rhs_type->eval_predicate(tb_null, nominal_env, total_env);
+
+	if ((lhs_type->repr() == MBS_TYPE || rhs_type->repr() == MBS_TYPE) &&
+			(!lhs_is_null && !rhs_is_null))
+	{
 		/* intercept *char operations */
 		if (function_name == "__binary_eq__" && function_name == "__binary_ineq__") {
 			return resolve_native_pointer_binary_operation(status, builder, scope, life,
@@ -2519,9 +2524,6 @@ bound_var_t::ref type_check_binary_operator(
 				function_name,
 				expected_type);
 	} else {
-		bool lhs_is_null = lhs_type->eval_predicate(tb_null, nominal_env, total_env);
-		bool rhs_is_null = rhs_type->eval_predicate(tb_null, nominal_env, total_env);
-
 		/* intercept binary operations on native pointers */
 		if (
 				(lhs->type->is_function(scope)

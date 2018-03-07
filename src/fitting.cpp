@@ -53,16 +53,23 @@ bound_var_t::ref get_best_fit(
 		/* we have multiple matches. however, if one and only one has no coercions, then we'll
 		 * accept that as the winner */
 		bound_var_t::ref winner;
+		std::sort(fittings.begin(), fittings.end(), [] (const fitting_t &lhs, const fitting_t &rhs) -> bool {
+			/* use the most generic fn that matched, because it will be the most efficient */
+			return lhs.fn->type->get_type()->ftv_count() > rhs.fn->type->get_type()->ftv_count();
+		});
+
 		for (auto fitting : fittings) {
 			if (fitting.coercions == 0) {
 				if (winner == nullptr) {
 					winner = fitting.fn;
 				} else {
-					user_error(status, location,
-							"multiple (noncoercing) overloads found for %s%s %s",
-							alias.c_str(),
-							args->str().c_str(),
-							return_type != nullptr ? return_type->str().c_str() : "");
+					if (winner->get_location() != fitting.fn->get_location()) {
+						user_error(status, location,
+								"multiple (noncoercing) overloads found for %s%s %s",
+								alias.c_str(),
+								args->str().c_str(),
+								return_type != nullptr ? return_type->str().c_str() : "");
+					}
 				}
 			}
 		}

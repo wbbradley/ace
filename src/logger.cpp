@@ -45,11 +45,11 @@ const char *logstr(log_level_t ll) {
 	case log_info:
 		return "";
 	case log_warning:
-		return "warn:";
+		return "warn: ";
 	case log_error:
-		return "error:";
+		return "error: ";
 	case log_panic:
-		return "panic:";
+		return "panic: ";
 	}
 }
 
@@ -57,7 +57,7 @@ void write_log_streamv(std::ostream &os, log_level_t level, const location_t *lo
 	if (location) {
 		os << location->str() << ": ";
 	}
-	os << level_color(level) << logstr(level) << C_RESET << " ";
+	os << level_color(level) << logstr(level) << C_RESET;
 	os << string_formatv(format, args) << std::endl;
 }
 

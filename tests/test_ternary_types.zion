@@ -7,12 +7,11 @@ module _
 def maybe_a_uuid() str?
 	return "d1266614-14e9-4558-9adf-d3b56fafd88e"
 
-def test(uuid)
+def test(uuid str?)
 	if uuid != null and len(uuid) == 36
 		print(uuid)
 
 def main()
 	uuid := maybe_a_uuid()
-	static_print(uuid)
 	test(uuid)
 	test("bad stuff")
