@@ -20,8 +20,8 @@ def lerp(alpha float, min float, max float) float
 	return alpha * (max - min) + min
 
 def main()
-	width := 240
-	height := 240
+	var width = 240
+	var height = 240
 	if len(sys.args) == 3
 		width = int(sys.args[1])
 		height = int(sys.args[2])
@@ -37,7 +37,7 @@ def main()
 	var span [int]
 	reserve(span, int(display_grid.width))
 
-	y := display_grid.y
+	var y = display_grid.y
 	while y < display_grid.height
 		resize(span, 0, 0)
 

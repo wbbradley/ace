@@ -140,8 +140,8 @@ def strip(s str) str
 def split(s str) [str]
 	# Split a string based on whitespace
 	let tokens [str]
-	i := 0
-	j := 0
+	var i = 0
+	var j = 0
 	let s_length = s.length
 	while true
 		while i < s_length and posix.iswspace(s[i])
@@ -162,8 +162,8 @@ def split(s str) [str]
 def split(s str, delims str) [str]
 	# Split a string based on the given delims
 	let tokens [str]
-	i := 0
-	j := 0
+	var i = 0
+	var j = 0
 	let s_length = s.length
 	while true
 		while i < s_length and s[i] in delims
@@ -182,7 +182,7 @@ def split(s str, delims str) [str]
 	return tokens
 
 def __in__(ch wchar, s str) bool
-	i := 0
+	var i = 0
 	e := s.length
 	while i < e
 		if s[i] == ch
@@ -191,7 +191,7 @@ def __in__(ch wchar, s str) bool
 	return false
 
 def __notin__(ch wchar, s str) bool
-	i := 0
+	var i = 0
 	e := s.length
 	while i < e
 		if s[i] == ch

@@ -69,12 +69,12 @@ def join[T](v [T], delim str) str
 	let strs [str]
 	reserve(strs as *(VectorImpl T), vec.size)
 
-	let delim_len = delim.length
-	let delims_len = delim_len * (vec.size - 1)
-	total_len := delims_len
-	i := 0
+	delim_len := delim.length
+	delims_len := delim_len * (vec.size - 1)
+	var total_len = delims_len
+	var i = 0
 	while i < vec.size
-		let s = str(vec.items[i] as T)
+		s := str(vec.items[i] as T)
 		append(strs, s)
 		total_len += len(s)
 		i += 1
@@ -83,7 +83,7 @@ def join[T](v [T], delim str) str
 	let buf *wchar = posix.malloc(sizeof(wchar) * (total_len + 1))! as *wchar
 
 	# iterate over the elements and append them to our resultant string
-	pos := 0
+	var pos = 0
 	i = 0
 	while i < vec.size
 		if i > 0
@@ -146,8 +146,8 @@ def resize[T](vector [T], size int, default T) void
 [global]
 def __managed_vector_mark__(vec *var_t)
 	# posix.puts("marking vector at 0x" + __str__(vec as int, 16))
-	let v = vec as *ManagedVector
-	i := 0
+	v := vec as *ManagedVector
+	var i = 0
 	while i < v.size
 		runtime.mark_allocation(v.items[i])
 		i += 1
@@ -221,7 +221,7 @@ def __unsafe_vector_append__[V, I](vector *V, item I) void
 		if existing_items != null
 			# we need to re-allocate space because vector.reserved <= vector.size
 			assert(vector.reserved == vector.size)
-			new_reserved := vector.reserved * 2
+			var new_reserved = vector.reserved * 2
 			if new_reserved < 16
 				/* start at a level that we avoid a lot of extra calls to malloc */
 				new_reserved = 16
@@ -292,7 +292,7 @@ def copy(orig [any T]) [any T]
 def copy(orig [any T], t any T) [any T]
 	var new [any T]
 	reserve(new, len(orig) + 1)
-	i := 0
+	var i = 0
 	while i != len(orig)
 		append(new, orig[i])
 		i += 1

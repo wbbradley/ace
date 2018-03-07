@@ -62,7 +62,7 @@ def mem_alloc(cb size_t, comment *char) *?void
 
 def mem_free(p *void, cb size_t) void
 	_bytes_allocated -= cb
-	pch := p as *int8
+	var pch = p as *int8
 	pch_lim := &((p as *int8)[cb])
 	while pch as int < pch_lim as int
 		pch[0] = 221 as int8 # 0xDD
@@ -189,8 +189,8 @@ def create_var(type_info *type_info_t) *var_t
 	# dbg_type_info(type_info)
 
 	# allocate the variable tracking object
-	let alloc_size = type_info.size
-	let obj = mem_alloc(alloc_size, type_info.name) as *?var_t
+	alloc_size := type_info.size
+	obj := mem_alloc(alloc_size, type_info.name) as *?var_t
 	assert(obj != null)
 
 	obj.type_info = type_info
@@ -218,14 +218,14 @@ def create_var(type_info *type_info_t) *var_t
 # 
 #  @param heap_visit A function to invoke for every GC root on the stack.
 def visit_heap_roots(heap_visit def (obj *?var_t) void)
-	R := llvm_gc_root_chain as *?stack_entry_plus_root_t
+	var R = llvm_gc_root_chain as *?stack_entry_plus_root_t
 	while R != null
 		assert(R as int != 0)
 		assert(R.map.num_meta == 0 as int32)
 		# posix.puts("R is 0x" + __str__(&R.root0 as int, 16))
 
 		# For roots [num_meta, num_roots), the metadata pointer is null.
-		i := 0
+		var i = 0
 		e := R.map.num_roots as int
 		# posix.puts("found R.map.num_roots of " + __str__(e))
 		# posix.puts("R.next = 0x" + __str__(R.next as int, 16))
@@ -243,7 +243,7 @@ def visit_heap_roots(heap_visit def (obj *?var_t) void)
 
 
 def visit_allocations(visit def (obj *var_t) void)
-	node := __head_var.next
+	var node = __head_var.next
 	while node != null
 		# cache the next node in case our current node gets deleted as part of the fn
 		next := node.next
@@ -280,7 +280,7 @@ def mark_allocation(obj *?var_t)
 		# we may be holding on to child nodes, let's recurse.
 		var refs_count int = type_info_offsets.refs_count as int
 
-		j := 0
+		var j = 0
 		while j < refs_count
 			# compute the offset to this referenced dimension
 			var child *?var_t = get_member_by_index(obj, j)
@@ -361,7 +361,7 @@ def report(use_case *char)
 	bytes_allocated := __str__(runtime._bytes_allocated)
 	all_bytes_allocated := __str__(runtime._all_bytes_allocated)
 
-	message := concat("bytes_allocated = ", bytes_allocated)
+	var message = concat("bytes_allocated = ", bytes_allocated)
 	posix.puts(message)
 	posix.free(message)
 

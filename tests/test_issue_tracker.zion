@@ -1,5 +1,6 @@
 module _
 # test: pass
+# expect: Task(1, 1, "", Boss, Active(Minion C))
 
 type Task has
 	var id int
@@ -36,7 +37,7 @@ def reassign(q Task, new_owner str) Task
 
 def main()
 	# Action is: new question task
-	q := Task(1, 1, "", "Boss", Active("Boss"))
+	var q = Task(1, 1, "", "Boss", Active("Boss"))
 
 	q = reassign(q, "Minion A")
 	q = reassign(q, "Minion B")

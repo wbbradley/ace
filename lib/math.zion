@@ -7,7 +7,7 @@ type Complex has
 
 [global]
 def str(c Complex) str
-	s := "" + str(c.real);
+	var s = "" + str(c.real);
 	if c.imag < 0
 		s = s + " -"
 	else
@@ -42,9 +42,9 @@ def min[T](x T, y T) T
 		return y
 
 def sum_of_squares(N int) int
-	ret := 0
-	n := 0
-	n_squared := 0
+	var ret = 0
+	var n = 0
+	var n_squared = 0
 	while n <= N
 		n_squared = n * n
 		ret += n_squared

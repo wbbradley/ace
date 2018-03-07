@@ -48,7 +48,7 @@ def __setitem__[K, V](m {K: V}, key K, val V)
 [global]
 def del[K, V](m {K: V}, key K) bool
 	# HACKHACK: O(n) BAD BAD - also vector.ManagedVector coupling BAD BAD
-	i := 0
+	var i = 0
 	let storage = m.storage
 	let size = (storage as *vector.ManagedVector).size
 	while i < size

@@ -1071,6 +1071,7 @@ ptr<statement_t> assignment_t::parse(parse_state_t &ps) {
 		if (!ps.line_broke() && ps.token.tk == tk_becomes) {
 			if (lhs->sk == sk_reference_expr) {
 				auto var_decl = create<ast::var_decl_t>(lhs->token);
+				var_decl->is_let_var = true;
 				var_decl->type = type_variable(lhs->token.location);
 				chomp_token(tk_becomes);
 				auto initializer = expression_t::parse(ps);
