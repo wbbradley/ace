@@ -1,6 +1,6 @@
 module _
 # test: pass
-# expect: uuid : &str?
+# expect: uuid : str?
 # expect: d1266614-14e9-4558-9adf-d3b56fafd88e
 # reject: bad stuff
 
@@ -13,5 +13,6 @@ def test(uuid str?)
 
 def main()
 	uuid := maybe_a_uuid()
+	static_print(uuid)
 	test(uuid)
 	test("bad stuff")
