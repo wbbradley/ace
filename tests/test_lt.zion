@@ -2,7 +2,7 @@ module _
 # test: pass
 
 def main()
-	x := 1
+	var x = 1
 	while true
 		x += 1
 		if x < 20

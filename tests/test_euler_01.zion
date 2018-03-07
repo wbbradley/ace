@@ -2,8 +2,8 @@ module _
 # test: pass
 
 def main()
-	i := 1
-	sum := 0
+	var i = 1
+	var sum = 0
 	while i < 1000
 		if i % 3 == 0
 			sum += i

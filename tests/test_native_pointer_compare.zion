@@ -7,7 +7,7 @@ def main()
 	var x *?int8 = 0 as *?int8
 	assert(not (null != x))
 	x = 100 as *int8
-	y := 200 as *int8
+	var y = 200 as *int8
 
 	y = x
 

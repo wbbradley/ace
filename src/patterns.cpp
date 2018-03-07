@@ -128,10 +128,10 @@ void ast::when_block_t::resolve_statement(
 												types_matched.push_back(type_to_match);
 
 												if (type_to_match->ftv_count() != 0) {
-													log("skipping type %s within pattern case %s at %s because it has free type variables",
+													debug_above(6, log("skipping type %s within pattern case %s at %s because it has free type variables",
 															type_to_match->str().c_str(),
 															pattern_block->type->str().c_str(),
-															pattern_block->get_location().str().c_str());
+															pattern_block->get_location().str().c_str()));
 													continue;
 												}
 
