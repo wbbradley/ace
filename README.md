@@ -143,20 +143,25 @@ or llvm tools, etc...
 
 ### TODO
 
-- [ ] Check for duplicate bound function instantiations deeper within function instantiation
-- [ ] Change := to be let by default
-- [ ] Consider uniform calling syntax for .-chaining and how to acheive customizable monadic behaviors by looking at the receiver
-- [ ] Consider allowing overloads for arbitrary `tk_operator`s to enable overloading random symbols.
-- [ ] Consider implementing a macro specifier for declaring macros which would expand inline and have hygenic names
 - [ ] Implement slice array indexing rg[s:end], etc...
-- [ ] Implement vector slicing for strings and arrays
 - [ ] Implement native structures as non-pointer values
-- [ ] Explore closures with capture by value
+- [ ] Consider how to allow for-macro expansion to have a mutating iterator function. Does that mean pass-by-ref is
+  allowed?
+- [ ] Implement fast range(i)
+- [ ] Consider uniform calling syntax for .-chaining and how to acheive customizable monadic behaviors by looking at the receiver
+- [ ] Consider implementing a macro specifier for declaring macros which would expand inline and have hygenic names
+- [ ] Implement an inline directive to mark functions for inline expansion during optimization
+- [ ] Consider exceptions as a monadic construct that can be applied as a macro?
+- [ ] Integrate JSON parsing and mess around with manipulating some existing JSON files
+- [ ] Implement vector slicing for strings and arrays
+- [ ] Use DIBuilder to add line-level debugging information
 - [ ] Optimize `scope_t`'s `get_nominal_env` and `get_total_env` to be cached
+- [ ] Explore closures with capture by value
 - [ ] Add safety checks on casting (as)
 - [ ] Implement generic sort
 - [ ] Explore using a conservative collector
 - [ ] Consider marking null-terminated strings differently for FFI purposes
+- [ ] Consider allowing overloads for arbitrary `tk_operator`s to enable overloading random symbols.
 - [ ] Builtin data structures
   - [x] string (as slices)
   - [x] vectors
@@ -165,9 +170,10 @@ or llvm tools, etc...
   - [ ] avl tree
   - [ ] link defs are not yet functional
 - [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction
-- [ ] Use DIBuilder to add line-level debugging information
 - [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
-- [ ] enable linking to variadic functions (like printf)
+- [ ] Enable linking to variadic functions (like printf)
+- [x] Check for duplicate bound function instantiations deeper within function instantiation
+- [x] Change := to be let by default
 - [x] (un)signed integers
   - [x] write a C integer promotion compatibility test as part of test framework
   - [x] integers as a type with parameterized number of bits and whether to use
