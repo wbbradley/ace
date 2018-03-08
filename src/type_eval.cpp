@@ -103,10 +103,7 @@ namespace types {
 
 	type_t::ref type_lazy_t::eval_core(const map &nominal_env, const map &total_env, bool get_structural_type) const {
 		status_t status;
-		auto type = type_sum_safe(status, options, location, nominal_env, total_env);
-
-		// TODO: plumbing...
-		assert(!!status);
+		auto type = type_sum_safe(options, location, nominal_env, total_env);
 
 		return type->eval_core(nominal_env, total_env, get_structural_type);
 	}

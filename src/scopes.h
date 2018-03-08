@@ -44,8 +44,8 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 	virtual bool symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var) = 0;
 
 	virtual bound_var_t::ref get_bound_function(std::string name, std::string signature) = 0;
-	virtual bound_var_t::ref get_bound_variable(status_t &status, location_t location, std::string symbol, bool search_parents=true) = 0;
-	virtual void put_bound_variable(status_t &status, std::string symbol, bound_var_t::ref bound_variable) = 0;
+	virtual bound_var_t::ref get_bound_variable(location_t location, std::string symbol, bool search_parents=true) = 0;
+	virtual void put_bound_variable(std::string symbol, bound_var_t::ref bound_variable) = 0;
 	virtual bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true) = 0;
 	virtual std::string get_name() const;
 	virtual std::string make_fqn(std::string leaf_name) const = 0;
@@ -66,9 +66,9 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
     /* Then, there are mappings from type_variable names to type_t::refs */
 	virtual types::type_t::map get_type_variable_bindings() const = 0;
 
-    virtual void put_nominal_typename(status_t &status, const std::string &name, types::type_t::ref expansion) = 0;
-    virtual void put_structural_typename(status_t &status, const std::string &name, types::type_t::ref expansion) = 0;
-    virtual void put_type_variable_binding(status_t &status, const std::string &binding, types::type_t::ref type) = 0;
+    virtual void put_nominal_typename(const std::string &name, types::type_t::ref expansion) = 0;
+    virtual void put_structural_typename(const std::string &name, types::type_t::ref expansion) = 0;
+    virtual void put_type_variable_binding(const std::string &binding, types::type_t::ref type) = 0;
 };
 
 template <typename BASE>
@@ -95,17 +95,17 @@ struct scope_impl_t : public BASE {
 	types::type_t::map get_total_env() const;
 	types::type_t::map get_type_variable_bindings() const;
 	std::string str();
-	void put_bound_variable(status_t &status, std::string symbol, bound_var_t::ref bound_variable);
+	void put_bound_variable(std::string symbol, bound_var_t::ref bound_variable);
 	virtual bool symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var);
 	bound_var_t::ref get_singleton(std::string name);
 	bound_var_t::ref get_bound_function(std::string name, std::string signature);
-	bound_var_t::ref get_bound_variable(status_t &status, location_t location, std::string symbol, bool search_parents=true);
+	bound_var_t::ref get_bound_variable(location_t location, std::string symbol, bool search_parents=true);
 	std::string make_fqn(std::string leaf_name) const;
 	bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true);
 	void get_callables(std::string symbol, var_t::refs &fns, bool check_unchecked=true);
-    virtual void put_nominal_typename(status_t &status, const std::string &name, types::type_t::ref expansion);
-    virtual void put_structural_typename(status_t &status, const std::string &name, types::type_t::ref expansion);
-    virtual void put_type_variable_binding(status_t &status, const std::string &binding, types::type_t::ref type);
+    virtual void put_nominal_typename(const std::string &name, types::type_t::ref expansion);
+    virtual void put_structural_typename(const std::string &name, types::type_t::ref expansion);
+    virtual void put_type_variable_binding(const std::string &binding, types::type_t::ref type);
 	virtual ptr<scope_t> get_parent_scope();
 	virtual ptr<const scope_t> get_parent_scope() const;
 	virtual bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const;
@@ -136,7 +136,6 @@ struct runnable_scope_t : public scope_impl_t<scope_t> {
 	virtual return_type_constraint_t &get_return_type_constraint() = 0;
 
 	void check_or_update_return_type_constraint(
-			status_t &status,
 		   	const ptr<const ast::item_t> &return_statement,
 		   	return_type_constraint_t return_type);
 
@@ -168,7 +167,7 @@ struct module_scope_t : scope_t {
 	virtual ~module_scope_t() throw() {}
 
 	unchecked_var_t::ref put_unchecked_variable(std::string symbol, unchecked_var_t::ref unchecked_variable);
-	virtual void put_unchecked_type(status_t &status, unchecked_type_t::ref unchecked_type) = 0;
+	virtual void put_unchecked_type(unchecked_type_t::ref unchecked_type) = 0;
 	virtual unchecked_type_t::ref get_unchecked_type(std::string symbol) = 0;
 
 	/* module checking management
@@ -193,7 +192,7 @@ struct module_scope_impl_t : public scope_impl_t<module_scope_t> {
 	llvm::Module * const llvm_module;
 	virtual std::string make_fqn(std::string leaf_name) const;
 
-	void put_unchecked_type(status_t &status, unchecked_type_t::ref unchecked_type);
+	void put_unchecked_type(unchecked_type_t::ref unchecked_type);
 	unchecked_type_t::ref get_unchecked_type(std::string symbol);
 
 	virtual unchecked_type_t::refs &get_unchecked_types_ordered();
@@ -249,12 +248,12 @@ struct program_scope_t : public module_scope_impl_t {
 
 	static program_scope_t::ref create(std::string name, compiler_t &compiler, llvm::Module *llvm_module);
 
-	bound_var_t::ref upsert_init_module_vars_function(status_t &status, llvm::IRBuilder<> &builder);
-	void set_insert_point_to_init_module_vars_function(status_t &status, llvm::IRBuilder<> &builder, std::string for_var_decl_name);
+	bound_var_t::ref upsert_init_module_vars_function(llvm::IRBuilder<> &builder);
+	void set_insert_point_to_init_module_vars_function(llvm::IRBuilder<> &builder, std::string for_var_decl_name);
 
 	virtual void get_callables(std::string symbol, var_t::refs &fns, bool check_unchecked=true);
-	llvm::Type *get_llvm_type(status_t &status, location_t location, std::string type_name);
-	llvm::Function *get_llvm_function(status_t &status, location_t location, std::string function_name);
+	llvm::Type *get_llvm_type(location_t location, std::string type_name);
+	llvm::Function *get_llvm_function(location_t location, std::string function_name);
 
 	/* this is meant to be called when we know we're looking in program scope.
 	 * this is not an implementation of get_symbol.  */
@@ -265,13 +264,13 @@ struct program_scope_t : public module_scope_impl_t {
 	unchecked_var_t::ref put_unchecked_variable(std::string symbol, unchecked_var_t::ref unchecked_variable);
 
 	virtual bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true);
-	void put_bound_type(status_t &status, bound_type_t::ref type);
-	void put_bound_type_mapping(status_t &status, types::signature source, types::signature dest);
+	void put_bound_type(bound_type_t::ref type);
+	void put_bound_type_mapping(types::signature source, types::signature dest);
 
 	unchecked_var_t::map unchecked_vars;
 
 	virtual unchecked_var_t::refs &get_unchecked_vars_ordered();
-	bound_type_t::ref get_runtime_type(status_t &status, llvm::IRBuilder<> &builder, std::string name, bool get_ptr=false);
+	bound_type_t::ref get_runtime_type(llvm::IRBuilder<> &builder, std::string name, bool get_ptr=false);
 	virtual void dump_tags(std::ostream &os) const;
 
 private:
@@ -340,7 +339,6 @@ struct generic_substitution_scope_t : public scope_impl_t<scope_t> {
 	virtual void dump(std::ostream &os) const;
 
 	static ref create(
-			status_t &status,
 		   	llvm::IRBuilder<> &builder,
 		   	const ptr<const ast::item_t> &fn_decl,
 		   	scope_t::ref module_scope,
@@ -368,7 +366,6 @@ ptr<const program_scope_t> scope_impl_t<T>::get_program_scope() const {
 }
 
 void put_typename_impl(
-		status_t &status,
 		scope_t::ref parent_scope,
 		const std::string &scope_name,
 		types::type_t::map &typename_env,
@@ -377,19 +374,19 @@ void put_typename_impl(
 		bool is_structural);
 
 template <typename T>
-void scope_impl_t<T>::put_structural_typename(status_t &status, const std::string &type_name, types::type_t::ref expansion) {
+void scope_impl_t<T>::put_structural_typename(const std::string &type_name, types::type_t::ref expansion) {
 	assert(nominal_env.find(type_name) == nominal_env.end());
-	put_typename_impl(status, get_parent_scope(), scope_name, structural_env, type_name, expansion, true /*is_structural*/);
+	put_typename_impl(get_parent_scope(), scope_name, structural_env, type_name, expansion, true /*is_structural*/);
 }
 
 template <typename T>
-void scope_impl_t<T>::put_nominal_typename(status_t &status, const std::string &type_name, types::type_t::ref expansion) {
+void scope_impl_t<T>::put_nominal_typename(const std::string &type_name, types::type_t::ref expansion) {
 	assert(structural_env.find(type_name) == structural_env.end());
-	put_typename_impl(status, get_parent_scope(), scope_name, nominal_env, type_name, expansion, false /*is_structural*/);
+	put_typename_impl(get_parent_scope(), scope_name, nominal_env, type_name, expansion, false /*is_structural*/);
 }
 
 template <typename T>
-void scope_impl_t<T>::put_type_variable_binding(status_t &status, const std::string &name, types::type_t::ref type) {
+void scope_impl_t<T>::put_type_variable_binding(const std::string &name, types::type_t::ref type) {
 	auto iter = type_variable_bindings.find(name);
 	if (iter == type_variable_bindings.end()) {
 		debug_above(2, log(log_info, "binding type variable " c_type("%s") " as %s",
@@ -453,7 +450,6 @@ std::string scope_impl_t<T>::make_fqn(std::string leaf_name) const {
 
 template <typename T>
 void scope_impl_t<T>::put_bound_variable(
-		status_t &status,
 	   	std::string symbol,
 	   	bound_var_t::ref bound_variable)
 {
@@ -467,21 +463,17 @@ void scope_impl_t<T>::put_bound_variable(
 	types::signature signature = bound_variable->get_signature();
 	auto existing_bound_var_iter = resolve_map.find(signature);
 	if (existing_bound_var_iter != resolve_map.end()) {
-		auto existing_bound_var = existing_bound_var_iter->second;
-
-		user_error(status, bound_variable->get_location(), "symbol " c_id("%s") " is already bound (signature is %s)", symbol.c_str(),
+		auto error = user_error_t(bound_variable->get_location(), "symbol " c_id("%s") " is already bound (signature is %s)", symbol.c_str(),
 				signature.str().c_str());
-		user_info(status, existing_bound_var->get_location(), "see existing bound variable");
+		error.add_info(existing_bound_var_iter->second->get_location(), "see existing bound variable");
+		throw error;
 	} else {
 		resolve_map[signature] = bound_variable;
 		if (!dynamic_cast<program_scope_t *>(this)
 				&& dynamic_cast<module_scope_t *>(this))
 		{
 			auto program_scope = get_program_scope();
-			program_scope->put_bound_variable(
-					status,
-					this->make_fqn(symbol),
-					bound_variable);
+			program_scope->put_bound_variable(this->make_fqn(symbol), bound_variable);
 		}
 	}
 }
@@ -532,7 +524,6 @@ bound_var_t::ref scope_impl_t<T>::get_singleton(std::string name) {
 }
 
 bound_var_t::ref get_bound_variable_from_scope(
-		status_t &status,
 		location_t location,
 		std::string scope_name,
 		std::string symbol,
@@ -563,12 +554,11 @@ bound_var_t::ref scope_impl_t<T>::get_bound_function(
 
 template <typename T>
 bound_var_t::ref scope_impl_t<T>::get_bound_variable(
-		status_t &status,
 		location_t location,
 		std::string symbol,
 		bool search_parents)
 {
-	return ::get_bound_variable_from_scope(status, location, this->get_name(),
+	return ::get_bound_variable_from_scope(location, this->get_name(),
 			symbol, bound_vars, search_parents ? this->get_parent_scope() : nullptr);
 }
 
@@ -638,7 +628,6 @@ ptr<const scope_t> scope_impl_t<T>::get_parent_scope() const {
 }
 
 void put_bound_function(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,

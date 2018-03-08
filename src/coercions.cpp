@@ -9,7 +9,6 @@
 #include "coercions.h"
 
 bound_var_t::ref coerce_bound_value(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
@@ -17,8 +16,8 @@ bound_var_t::ref coerce_bound_value(
 		types::type_t::ref lhs_type,
 		bound_var_t::ref rhs)
 {
-	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, lhs_type);
-	auto llvm_value = coerce_value(status, builder, scope, life, location, lhs_type, rhs);
+	bound_type_t::ref bound_type = upsert_bound_type(builder, scope, lhs_type);
+	auto llvm_value = coerce_value(builder, scope, life, location, lhs_type, rhs);
 	return bound_var_t::create(
 			INTERNAL_LOC(),
 			"coerced.value",
@@ -28,7 +27,6 @@ bound_var_t::ref coerce_bound_value(
 }
 
 llvm::Value *coerce_value(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
@@ -48,14 +46,14 @@ llvm::Value *coerce_value(
 
 	if (!lhs_type->eval_predicate(tb_ref, scope)) {
 		/* make sure that if the lhs is not a ref, we don't pass a ref */
-		rhs = rhs->resolve_bound_value(status, builder, scope);
+		rhs = rhs->resolve_bound_value(builder, scope);
 	} else {
 		// I thought we weren't supporting this!?
 		assert(false);
 	}
 
 	auto rhs_type = rhs->type->get_type();
-	auto bound_lhs_type = upsert_bound_type(status, builder, scope, lhs_type);
+	auto bound_lhs_type = upsert_bound_type(builder, scope, lhs_type);
 	llvm::Value *llvm_rhs_value = rhs->get_llvm_value();
 
 	/* get the target type */
@@ -101,7 +99,7 @@ llvm::Value *coerce_value(
 	} else if (lhs_is_managed) {
 		debug_above(6, log(log_info, "calling " c_id("__box__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
 		bound_var_t::ref coercion = call_program_function(
-				status, builder, scope, life,
+				builder, scope, life,
 				"__box__", location, {rhs});
 
 		/* trust the type system. */
@@ -119,7 +117,7 @@ llvm::Value *coerce_value(
 
 		debug_above(6, log(log_info, "calling " c_id("__unbox__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
 		bound_var_t::ref coercion = call_program_function(
-				status, builder, scope, life,
+				builder, scope, life,
 				"__unbox__", location, {rhs}, lhs_type);
 
 		return coercion->get_llvm_value();
@@ -133,7 +131,7 @@ llvm::Value *coerce_value(
 			/* automatically resize integers to match the lhs */
 			unsigned bit_size = 0;
 			bool signed_ = false;
-			types::get_integer_attributes(status, rhs->type->get_type(), nominal_env, total_env, bit_size, signed_);
+			types::get_integer_attributes(rhs->type->get_type(), nominal_env, total_env, bit_size, signed_);
 			if (signed_) {
 				return builder.CreateSExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
 			} else {
@@ -156,7 +154,6 @@ llvm::Value *coerce_value(
 }
 
 std::vector<llvm::Value *> get_llvm_values(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
@@ -176,7 +173,7 @@ std::vector<llvm::Value *> get_llvm_values(
 	auto type_iter = type_args->args.begin();
 	for (size_t i = 0; i < vars.size(); ++i, ++type_iter) {
 		auto rhs = vars[i];
-		llvm::Value *llvm_value = coerce_value(status, builder, scope, life, location, *type_iter, rhs);
+		llvm::Value *llvm_value = coerce_value(builder, scope, life, location, *type_iter, rhs);
 		llvm_values.push_back(llvm_value);
 	}
 

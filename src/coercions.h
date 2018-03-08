@@ -1,5 +1,4 @@
 bound_var_t::ref coerce_bound_value(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
@@ -7,7 +6,6 @@ bound_var_t::ref coerce_bound_value(
 		types::type_t::ref lhs_type,
 		bound_var_t::ref rhs);
 llvm::Value *coerce_value(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
@@ -15,7 +13,6 @@ llvm::Value *coerce_value(
 		types::type_t::ref lhs_type,
 		bound_var_t::ref rhs);
 std::vector<llvm::Value *> get_llvm_values(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,

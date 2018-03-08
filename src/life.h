@@ -33,7 +33,7 @@ private:
 struct life_t : std::enable_shared_from_this<life_t> {
 	typedef ptr<life_t> ref;
 
-	life_t(status_t &status_tracker, life_form_t life_form, life_t::ref former_life=nullptr);
+	life_t(life_form_t life_form, life_t::ref former_life=nullptr);
 	~life_t();
 
 	life_t(const life_t &life) = delete;
@@ -43,7 +43,6 @@ struct life_t : std::enable_shared_from_this<life_t> {
 
 	/* track a value for later release at a given life_form level */
 	void track_var(
-			status_t &status,
 			llvm::IRBuilder<> &builder,
 			scope_t::ref scope,
 			bound_var_t::ref value,
@@ -51,7 +50,6 @@ struct life_t : std::enable_shared_from_this<life_t> {
 
 	/* release values down to and including a particular life_form level */
 	void release_vars(
-			status_t &status,
 			llvm::IRBuilder<> &builder,
 			scope_t::ref scope,
 			life_form_t life_form) const;
@@ -59,9 +57,8 @@ struct life_t : std::enable_shared_from_this<life_t> {
 	void exempt_life_release() const;
 
 	/* create a new life */
-	life_t::ref new_life(status_t &status, life_form_t life_form);
+	life_t::ref new_life(life_form_t life_form);
 
-	const status_t &status_tracker;
 	const life_t::ref former_life;
 	const life_form_t life_form;
 	std::vector<bound_var_t::ref> values;

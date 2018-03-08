@@ -41,14 +41,14 @@ bound_var_t::ref get_bound_variable_from_scope(
 			return overloads.begin()->second;
 		} else {
 			assert(overloads.size() > 1);
-			user_error(status, location,
+			throw user_error_t(location,
 				   	"a non-callsite reference to an overloaded variable " c_id("%s") " was found. overloads at this immediate location are:\n%s",
 					symbol.c_str(),
 					::str(overloads).c_str());
 			return nullptr;
 		}
 	} else if (parent_scope != nullptr) {
-		return parent_scope->get_bound_variable(status, location, symbol);
+		return parent_scope->get_bound_variable(location, symbol);
 	}
 
 	debug_above(6, log(log_info,
@@ -222,7 +222,7 @@ bound_type_t::ref program_scope_t::get_runtime_type(
 	if (get_ptr) {
 		type = type_ptr(type);
 	}
-	return upsert_bound_type(status, builder, shared_from_this(), type);
+	return upsert_bound_type(builder, shared_from_this(), type);
 }
 
 void program_scope_t::get_callables(
@@ -236,7 +236,7 @@ void program_scope_t::get_callables(
 	get_callables_from_bound_vars(shared_from_this(), symbol, bound_vars, fns);
 }
 
-llvm::Type *program_scope_t::get_llvm_type(status_t &status, location_t location, std::string type_name) {
+llvm::Type *program_scope_t::get_llvm_type(location_t location, std::string type_name) {
 	for (auto &module_pair : compiler.llvm_modules) {
 		debug_above(4, log("looking for type " c_type("%s") " in module " C_FILENAME "%s" C_RESET,
 					type_name.c_str(),
@@ -248,11 +248,11 @@ llvm::Type *program_scope_t::get_llvm_type(status_t &status, location_t location
 		}
 	}
 
-	user_error(status, location, "couldn't find type " c_type("%s"), type_name.c_str());
+	throw user_error_t(location, "couldn't find type " c_type("%s"), type_name.c_str());
 	return nullptr;
 }
 
-llvm::Function *program_scope_t::get_llvm_function(status_t &status, location_t location, std::string function_name) {
+llvm::Function *program_scope_t::get_llvm_function(location_t location, std::string function_name) {
 	for (auto &module_pair : compiler.llvm_modules) {
 		debug_above(4, log("looking for function " c_var("%s") " in module " C_FILENAME "%s" C_RESET,
 					function_name.c_str(),
@@ -264,7 +264,7 @@ llvm::Function *program_scope_t::get_llvm_function(status_t &status, location_t 
 		}
 	}
 
-	user_error(status, location, "couldn't find function " c_var("%s"), function_name.c_str());
+	throw user_error_t(location, "couldn't find function " c_var("%s"), function_name.c_str());
 	return nullptr;
 }
 
@@ -302,7 +302,7 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 	} else {
 		debug_above(5, log(log_info, "checking return type %s against %s",
 					return_type->str().c_str(),
-				   	return_type_constraint->str().c_str()));
+					return_type_constraint->str().c_str()));
 
 		unification_t unification = unify(
 				return_type_constraint->get_type(),
@@ -310,20 +310,18 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 				get_nominal_env(),
 				get_type_variable_bindings());
 
-		if (!!status) {
-			if (!unification.result) {
-				// TODO: consider directional unification here
-				// TODO: consider storing more useful info in return_type_constraint
-				user_error(status, *return_statement,
-						"return expression type %s does not match %s",
-						return_type->get_type()->str().c_str(),
-						return_type_constraint->get_type()->str().c_str());
-			} else {
-				/* this return type checks out */
-				debug_above(2, log(log_info, "unified %s :> %s",
-							return_type_constraint->str().c_str(),
-							return_type->str().c_str()));
-			}
+		if (!unification.result) {
+			// TODO: consider directional unification here
+			// TODO: consider storing more useful info in return_type_constraint
+			throw user_error_t(return_statement->get_location(),
+					"return expression type %s does not match %s",
+					return_type->get_type()->str().c_str(),
+					return_type_constraint->get_type()->str().c_str());
+		} else {
+			/* this return type checks out */
+			debug_above(2, log(log_info, "unified %s :> %s",
+						return_type_constraint->str().c_str(),
+						return_type->str().c_str()));
 		}
 	}
 }
@@ -625,21 +623,14 @@ bound_var_t::ref program_scope_t::upsert_init_module_vars_function(
 				make_iid("__init_module_vars"),
 				nullptr,
 				type_args({}),
-			   	type_id(make_iid("void"))),
+				type_id(make_iid("void"))),
 			"__init_module_vars");
 
-	if (!!status) {
-		builder.CreateRetVoid();
+	builder.CreateRetVoid();
 
-		put_bound_variable(status, "__init_module_vars", init_module_vars_function);
+	put_bound_variable("__init_module_vars", init_module_vars_function);
 
-		if (!!status) {
-			return init_module_vars_function;
-		}
-	}
-
-	assert(!status);
-	return nullptr;
+	return init_module_vars_function;
 }
 
 std::string program_scope_t::make_fqn(std::string name) const {
@@ -651,7 +642,7 @@ void program_scope_t::set_insert_point_to_init_module_vars_function(
 	   	llvm::IRBuilder<> &builder,
 	   	std::string for_var_decl_name)
 {
-	auto fn = upsert_init_module_vars_function(status, builder);
+	auto fn = upsert_init_module_vars_function(builder);
 	llvm::Function *llvm_function = llvm::dyn_cast<llvm::Function>(fn->get_llvm_value());
 	assert(llvm_function != nullptr);
 
@@ -740,12 +731,12 @@ void program_scope_t::put_bound_type_mapping(
 	if (dest_iter == bound_type_mappings.end()) {
 		bound_type_mappings.insert({source, dest});
 	} else {
-		user_error(status, INTERNAL_LOC(), "bound type mapping %s already exists!",
+		throw user_error_t(INTERNAL_LOC(), "bound type mapping %s already exists!",
 				source.str().c_str());
 	}
 }
 
-void program_scope_t::put_bound_type(status_t &status, bound_type_t::ref type) {
+void program_scope_t::put_bound_type(bound_type_t::ref type) {
 	debug_above(5, log(log_info, "binding type %s as " c_id("%s"),
 				type->str().c_str(),
 				type->get_signature().repr().c_str()));
@@ -760,9 +751,9 @@ void program_scope_t::put_bound_type(status_t &status, bound_type_t::ref type) {
 		bound_types[signature] = type;
 	} else {
 		/* this type symbol already exists */
-		user_error(status, type->get_location(), "type %s already exists",
+		throw user_error_t(type->get_location(), "type %s already exists",
 				type->str().c_str());
-		user_error(status, iter->second->get_location(), "type %s was declared here",
+		throw user_error_t(iter->second->get_location(), "type %s was declared here",
 				iter->second->str().c_str());
 	}
 }
@@ -852,7 +843,7 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 	 * substitutions in the type environment */
 	for (auto &pair : unification.bindings) {
 		if (pair.first.find("_") != 0) {
-			subst_scope->put_type_variable_binding(status, pair.first, pair.second);
+			subst_scope->put_type_variable_binding(pair.first, pair.second);
 			if (!status) {
 				break;
 			}
@@ -862,11 +853,7 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 		}
 	}
 
-	if (!!status) {
-		return subst_scope;
-	} else {
-		return nullptr;
-	}
+	return subst_scope;
 }
 
 void put_typename_impl(
@@ -892,24 +879,24 @@ void put_typename_impl(
 		if (parent_scope != nullptr) {
 			/* register this type with our parent */
 			if (is_structural) {
-				parent_scope->put_structural_typename(status, scope_name + SCOPE_SEP + type_name, expansion);
+				parent_scope->put_structural_typename(scope_name + SCOPE_SEP + type_name, expansion);
 			} else {
-				parent_scope->put_nominal_typename(status, scope_name + SCOPE_SEP + type_name, expansion);
+				parent_scope->put_nominal_typename(scope_name + SCOPE_SEP + type_name, expansion);
 			}
 		} else {
 			/* we are at the outermost scope, we're done. */
 		}
 	} else {
-		user_error(status, expansion->get_location(),
+		auto error = user_error_t(expansion->get_location(),
 				"multiple supertypes are not yet implemented (" c_type("%s") " <: " c_type("%s") ")",
 				type_name.c_str(), expansion->str().c_str());
 		auto existing_expansion = iter_type->second;
-		user_info(status,
-				existing_expansion->get_location(),
+		error.add_info(existing_expansion->get_location(),
 				"prior type definition for " c_type("%s") " is %s",
 				type_name.c_str(),
 				existing_expansion->str().c_str());
 		dbg();
+		throw error;
 	}
 }
 
@@ -962,7 +949,7 @@ void put_bound_function(
 			*new_scope = local_scope->new_local_scope(
 					string_format("function-%s", function_name.c_str()));
 
-			(*new_scope)->put_bound_variable(status, function_name, bound_function);
+			(*new_scope)->put_bound_variable(function_name, bound_function);
 		} else {
 			module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
 
@@ -976,21 +963,21 @@ void put_bound_function(
 				if (extends_module != nullptr) {
 					std::string module_name = extends_module->get_name();
 					if (module_name == GLOBAL_SCOPE_NAME) {
-						program_scope->put_bound_variable(status, function_name, bound_function);
+						program_scope->put_bound_variable(function_name, bound_function);
 					} else if (auto injection_module_scope = program_scope->lookup_module(module_name)) {
 						/* we're injecting this function into some other scope */
-						injection_module_scope->put_bound_variable(status, function_name, bound_function);
+						injection_module_scope->put_bound_variable(function_name, bound_function);
 					} else {
 						assert(false);
 					}
 				} else {
 					/* before recursing directly or indirectly, let's just add
 					 * this function to the module scope we're in */
-					module_scope->put_bound_variable(status, function_name, bound_function);
+					module_scope->put_bound_variable(function_name, bound_function);
 				}
 			}
 		}
 	} else {
-		user_error(status, bound_function->get_location(), "visible function definitions need names");
+		throw user_error_t(bound_function->get_location(), "visible function definitions need names");
 	}
 }

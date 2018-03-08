@@ -74,7 +74,6 @@ llvm::Value *llvm_create_double(llvm::IRBuilder<> &builder, double value) {
 }
 
 llvm::FunctionType *llvm_create_function_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		const bound_type_t::refs &args,
 		bound_type_t::ref return_value)
@@ -116,7 +115,6 @@ llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_
 }
 
 bound_var_t::ref create_callsite(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
@@ -141,14 +139,14 @@ bound_var_t::ref create_callsite(
 			function->get_type());
 
 	if (function_type != nullptr) {
-		auto return_type = upsert_bound_type(status, builder, scope, function_type->return_type);
+		auto return_type = upsert_bound_type(builder, scope, function_type->return_type);
 		if (auto args = dyncast<const types::type_args_t>(function_type->args)) {
-			auto coerced_parameter_values = get_llvm_values(status, builder,
+			auto coerced_parameter_values = get_llvm_values(builder,
 					scope, life, location, args, arguments);
 			llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
-					status, builder, location, function, coerced_parameter_values);
+					builder, location, function, coerced_parameter_values);
 
-			bound_type_t::ref return_type = get_function_return_type(status, builder, scope, function->type);
+			bound_type_t::ref return_type = get_function_return_type(builder, scope, function->type);
 
 			bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
 					return_type, llvm_call_inst,
@@ -156,7 +154,7 @@ bound_var_t::ref create_callsite(
 
 			/* all return values must be tracked since the callee is
 			 * expected to return a ref-counted value */
-			life->track_var(status, builder, scope, ret, lf_statement);
+			life->track_var(builder, scope, ret, lf_statement);
 			return ret;
 		} else {
 			panic("type args are not type_args_t");
@@ -170,7 +168,6 @@ bound_var_t::ref create_callsite(
 }
 
 llvm::CallInst *llvm_create_call_inst(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		location_t location,
 		ptr<const bound_var_t> callee,
@@ -389,7 +386,6 @@ llvm::AllocaInst *llvm_call_gcroot(
 }
 
 bound_var_t::ref llvm_stack_map_value(
-        status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
         bound_var_t::ref value)
@@ -397,7 +393,7 @@ bound_var_t::ref llvm_stack_map_value(
 #ifdef ZION_DEBUG
 	{
 		bool is_managed;
-		value->type->is_managed_ptr(status, builder, scope, is_managed);
+		value->type->is_managed_ptr(builder, scope, is_managed);
 		assert(is_managed);
 	}
 #endif
@@ -414,7 +410,7 @@ bound_var_t::ref llvm_stack_map_value(
 			value->resolve_bound_var_value(scope, builder),
 			llvm_alloca);
 
-	auto bound_type = upsert_bound_type(status, builder, scope, type_ref(value->type->get_type()));
+	auto bound_type = upsert_bound_type(builder, scope, type_ref(value->type->get_type()));
 	return bound_var_t::create(INTERNAL_LOC(),
 			name, bound_type,
 			llvm_alloca,
@@ -422,7 +418,6 @@ bound_var_t::ref llvm_stack_map_value(
 }
 
 bound_var_t::ref unmaybe_variable(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,
@@ -437,7 +432,7 @@ bound_var_t::ref unmaybe_variable(
 	}
 
 	if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
-		auto bound_type = upsert_bound_type(status, builder, scope,
+		auto bound_type = upsert_bound_type(builder, scope,
 				was_ref ? type_ref(maybe_type->just) : maybe_type->just);
 		return bound_var_t::create(INTERNAL_LOC(), name, bound_type,
 				var->get_llvm_value(), make_iid_impl(name, location));
@@ -447,7 +442,6 @@ bound_var_t::ref unmaybe_variable(
 }
 
 void llvm_create_if_branch(
-		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		int iff,
@@ -463,7 +457,7 @@ void llvm_create_if_branch(
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
 
 	/* we don't care about references, load past them if need be */
-	value = value->resolve_bound_value(status, builder, scope);
+	value = value->resolve_bound_value(builder, scope);
 
 	llvm::Value *llvm_value = value->get_llvm_value();
 	if (value->type->is_maybe(scope)) {
@@ -498,14 +492,12 @@ void llvm_create_if_branch(
 			}
 			assert(llvm_value->getType()->isIntegerTy(1));
 		} else {
-			if (allow_maybe_check) {
-				user_error(status, location, "condition is not a boolean value or a maybe type");
-			} else {
-				user_error(status, location, "condition is not a boolean value");
-			}
-			user_info(status, location, "the condition of this branch instruction is of type %s",
-					value->type->str().c_str());
-			user_info(status, value->get_location(), "the value was defined here");
+			user_error_t error = user_error_t(
+					location,
+				   	allow_maybe_check ? "condition is not a boolean value or a maybe type" : "condition is not a boolean value");
+			error.add_info(location, "the condition of this branch instruction is of type %s", value->type->str().c_str());
+			error.add_info(value->get_location(), "the value was defined here");
+			throw error;
 		}
 	}
 
@@ -518,7 +510,7 @@ void llvm_create_if_branch(
 		llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
 				builder.getContext(), "else.release", llvm_function_current);
 		builder.SetInsertPoint(release_block_bb);
-		life->release_vars(status, builder, scope, lf_statement);
+		life->release_vars(builder, scope, lf_statement);
 
 		assert(!builder.GetInsertBlock()->getTerminator());
 		builder.CreateBr(else_bb);
@@ -533,7 +525,7 @@ void llvm_create_if_branch(
 		llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
 				builder.getContext(), "then.release", llvm_function_current);
 		builder.SetInsertPoint(release_block_bb);
-		life->release_vars(status, builder, scope, lf_statement);
+		life->release_vars(builder, scope, lf_statement);
 
 		assert(!builder.GetInsertBlock()->getTerminator());
 		builder.CreateBr(then_bb);
@@ -605,13 +597,13 @@ llvm::StructType *llvm_create_struct_type(
 	return llvm_tuple_type;
 }
 
-void llvm_verify_function(status_t &status, location_t location, llvm::Function *llvm_function) {
+void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
 	std::stringstream ss;
 	llvm::raw_os_ostream os(ss);
 	if (llvm::verifyFunction(*llvm_function, &os)) {
 		os.flush();
 		ss << llvm_print_function(llvm_function);
-		user_error(status, location, "LLVM function verification failed: %s", ss.str().c_str());
+		throw user_error_t(location, "LLVM function verification failed: %s", ss.str().c_str());
 	}
 }
 
@@ -620,8 +612,7 @@ void llvm_verify_module(llvm::Module &llvm_module) {
 	llvm::raw_os_ostream os(ss);
 	if (llvm::verifyModule(llvm_module, &os)) {
 		os.flush();
-		status_t status;
-		user_error(status, location_t{}, "module %s: failed verification. %s\nModule listing:\n%s",
+		throw user_error_t(location_t{}, "module %s: failed verification. %s\nModule listing:\n%s",
 				llvm_module.getName().str().c_str(),
 				ss.str().c_str(),
 				llvm_print_module(llvm_module).c_str());
@@ -657,65 +648,53 @@ llvm::Type *llvm_deref_type(llvm::Type *llvm_type) {
 }
 
 bound_var_t::ref llvm_start_function(
-		status_t &status,
 		llvm::IRBuilder<> &builder, 
 		scope_t::ref scope,
 		location_t location,
 		const types::type_function_t::ref &function_type,
 		std::string name)
 {
-	if (!!status) {
-		types::type_args_t::ref type_args = dyncast<const types::type_args_t>(function_type->args);
-		assert(type_args != nullptr);
+	types::type_args_t::ref type_args = dyncast<const types::type_args_t>(function_type->args);
+	assert(type_args != nullptr);
 
-		bound_type_t::refs args = upsert_bound_types(status, builder, scope, type_args->args);
-		if (!!status) {
-			bound_type_t::ref data_type = upsert_bound_type(status, builder, scope, function_type->return_type);
-			if (!!status) {
-				/* get the llvm function type for the data ctor */
-				llvm::FunctionType *llvm_fn_type = llvm_create_function_type(
-						status, builder, args, data_type);
+	bound_type_t::refs args = upsert_bound_types(builder, scope, type_args->args);
+	bound_type_t::ref data_type = upsert_bound_type(builder, scope, function_type->return_type);
+	/* get the llvm function type for the data ctor */
+	llvm::FunctionType *llvm_fn_type = llvm_create_function_type(
+			builder, args, data_type);
 
-				if (!!status) {
-					/* create the bound type for the ctor function */
-					auto bound_function_type = bound_type_t::create(function_type, location, llvm_fn_type);
+	/* create the bound type for the ctor function */
+	auto bound_function_type = bound_type_t::create(function_type, location, llvm_fn_type);
 
-					/* now let's generate our actual data ctor fn */
-					auto llvm_function = llvm::Function::Create(
-							(llvm::FunctionType *)llvm_fn_type,
-							llvm::Function::ExternalLinkage, name,
-							scope->get_llvm_module());
+	/* now let's generate our actual data ctor fn */
+	auto llvm_function = llvm::Function::Create(
+			(llvm::FunctionType *)llvm_fn_type,
+			llvm::Function::ExternalLinkage, name,
+			scope->get_llvm_module());
 
-					llvm_function->setGC(GC_STRATEGY);
-					llvm_function->setDoesNotThrow();
+	llvm_function->setGC(GC_STRATEGY);
+	llvm_function->setDoesNotThrow();
 
-					/* create the actual bound variable for the fn */
-					bound_var_t::ref function = bound_var_t::create(
-							INTERNAL_LOC(), name,
-							bound_function_type, llvm_function, make_iid_impl(name, location));
+	/* create the actual bound variable for the fn */
+	bound_var_t::ref function = bound_var_t::create(
+			INTERNAL_LOC(), name,
+			bound_function_type, llvm_function, make_iid_impl(name, location));
 
-					/* start emitting code into the new function. caller should have an
-					 * insert point guard */
-					llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
-							"entry", llvm_function);
-					llvm::BasicBlock *llvm_body_block = llvm::BasicBlock::Create(builder.getContext(),
-							"body", llvm_function);
+	/* start emitting code into the new function. caller should have an
+	 * insert point guard */
+	llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
+			"entry", llvm_function);
+	llvm::BasicBlock *llvm_body_block = llvm::BasicBlock::Create(builder.getContext(),
+			"body", llvm_function);
 
-					builder.SetInsertPoint(llvm_entry_block);
-					/* leave an empty entry block so that we can insert GC stuff in there, but be able to
-					 * seek to the end of it and not get into business logic */
-					builder.CreateBr(llvm_body_block);
+	builder.SetInsertPoint(llvm_entry_block);
+	/* leave an empty entry block so that we can insert GC stuff in there, but be able to
+	 * seek to the end of it and not get into business logic */
+	builder.CreateBr(llvm_body_block);
 
-					builder.SetInsertPoint(llvm_body_block);
+	builder.SetInsertPoint(llvm_body_block);
 
-					return function;
-				}
-			}
-		}
-	}
-
-	assert(!status);
-	return nullptr;
+	return function;
 }
 
 void check_struct_initialization(
@@ -760,7 +739,6 @@ llvm::GlobalVariable *llvm_get_global(
 }
 
 bound_var_t::ref llvm_create_global_tag(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::ref tag_type,
@@ -776,67 +754,58 @@ bound_var_t::ref llvm_create_global_tag(
 	 * @__tag_Example = global %struct.tag_t { %struct.type_info_t* @__tag_type_info_Example }, align 8
 	 * @Example = global %struct.var_t* bitcast (%struct.tag_t* @__tag_Example to %struct.var_t*), align 8 */
 
-	bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE, true /*get_ptr*/);
-	if (!!status) {
-		llvm::Type *llvm_var_ptr_type = var_ptr_type->get_llvm_type();
+	bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
+	llvm::Type *llvm_var_ptr_type = var_ptr_type->get_llvm_type();
 
-		bound_type_t::ref tag_struct_type = program_scope->get_runtime_type(status, builder, "tag_t");
-		if (!!status) {
-			llvm::StructType *llvm_tag_type = llvm::dyn_cast<llvm::StructType>(tag_struct_type->get_llvm_type());
-			debug_above(10, log(log_info, "var_ptr_type is %s", llvm_print(var_ptr_type->get_llvm_type()).c_str()));
-			debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print(tag_struct_type->get_llvm_type()).c_str()));
-			assert(llvm_tag_type != nullptr);
+	bound_type_t::ref tag_struct_type = program_scope->get_runtime_type(builder, "tag_t");
+	llvm::StructType *llvm_tag_type = llvm::dyn_cast<llvm::StructType>(tag_struct_type->get_llvm_type());
+	debug_above(10, log(log_info, "var_ptr_type is %s", llvm_print(var_ptr_type->get_llvm_type()).c_str()));
+	debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print(tag_struct_type->get_llvm_type()).c_str()));
+	assert(llvm_tag_type != nullptr);
 
-			llvm::Module *llvm_module = scope->get_llvm_module();
-			assert(llvm_module != nullptr);
+	llvm::Module *llvm_module = scope->get_llvm_module();
+	assert(llvm_module != nullptr);
 
-			llvm::Constant *llvm_name = llvm_create_global_string_constant(builder, *llvm_module, tag);
-			debug_above(10, log(log_info, "llvm_name is %s", llvm_print(*llvm_name).c_str()));
+	llvm::Constant *llvm_name = llvm_create_global_string_constant(builder, *llvm_module, tag);
+	debug_above(10, log(log_info, "llvm_name is %s", llvm_print(*llvm_name).c_str()));
 
-			bound_type_t::ref type_info_type = program_scope->get_runtime_type(status, builder, "type_info_t");
-			if (!!status) {
-				llvm::StructType *llvm_type_info_type = llvm::dyn_cast<llvm::StructType>(
-						type_info_type->get_llvm_type());
-				assert(llvm_type_info_type != nullptr);
+	bound_type_t::ref type_info_type = program_scope->get_runtime_type(builder, "type_info_t");
+	llvm::StructType *llvm_type_info_type = llvm::dyn_cast<llvm::StructType>(
+			type_info_type->get_llvm_type());
+	assert(llvm_type_info_type != nullptr);
 
-				/* create the type information inside the tag singleton */
-				llvm::Constant *llvm_type_info = llvm_create_struct_instance(
-						std::string("__tag_type_info_") + tag,
-						llvm_module,
-						llvm_type_info_type,
-						{
-							/* type_id - the actual type "tag" */
-							(llvm::Constant *)llvm_create_int32(builder, atomize(tag)),
+	/* create the type information inside the tag singleton */
+	llvm::Constant *llvm_type_info = llvm_create_struct_instance(
+			std::string("__tag_type_info_") + tag,
+			llvm_module,
+			llvm_type_info_type,
+			{
+			/* type_id - the actual type "tag" */
+			(llvm::Constant *)llvm_create_int32(builder, atomize(tag)),
 
-							/* the type kind */
-							builder.getInt32(type_kind_tag),
+			/* the type kind */
+			builder.getInt32(type_kind_tag),
 
-							/* size - should always be zero since the type_id is part of this var_t
-							 * as builtin type info. */
-							builder.getInt64(0),
+			/* size - should always be zero since the type_id is part of this var_t
+			 * as builtin type info. */
+			builder.getInt64(0),
 
-							/* name - for debugging */
-							llvm_name,
-						});
+			/* name - for debugging */
+			llvm_name,
+			});
 
-				/* create the actual tag singleton */
-				llvm::Constant *llvm_tag_constant = llvm_create_struct_instance(
-						std::string("__tag_") + tag,
-						llvm_module, llvm_tag_type, {llvm_type_info});
+	/* create the actual tag singleton */
+	llvm::Constant *llvm_tag_constant = llvm_create_struct_instance(
+			std::string("__tag_") + tag,
+			llvm_module, llvm_tag_type, {llvm_type_info});
 
-				debug_above(10, log(log_info, "getBitCast(%s, %s)",
-							llvm_print(*llvm_tag_constant).c_str(),
-							llvm_print(llvm_var_ptr_type).c_str()));
-				llvm::Constant *llvm_tag_value = llvm::ConstantExpr::getPointerCast(
-						llvm_tag_constant, llvm_var_ptr_type);
+	debug_above(10, log(log_info, "getBitCast(%s, %s)",
+				llvm_print(*llvm_tag_constant).c_str(),
+				llvm_print(llvm_var_ptr_type).c_str()));
+	llvm::Constant *llvm_tag_value = llvm::ConstantExpr::getPointerCast(
+			llvm_tag_constant, llvm_var_ptr_type);
 
-				return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_value, id);
-			}
-		}
-	}
-
-	assert(!status);
-	return nullptr;
+	return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_value, id);
 }
 
 llvm::Value *llvm_maybe_pointer_cast(

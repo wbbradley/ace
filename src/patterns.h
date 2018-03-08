@@ -1,7 +1,6 @@
 #pragma once
 
 bound_var_t::ref gen_type_check(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ast::item_t::ref node,
 		scope_t::ref scope,

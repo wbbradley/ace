@@ -8,7 +8,6 @@
 
 
 parse_state_t::parse_state_t(
-		status_t &status,
 		std::string filename,
 		zion_lexer_t &lexer,
 		std::map<std::string, ptr<const types::type_t>> type_macros,
@@ -17,7 +16,6 @@ parse_state_t::parse_state_t(
 		std::set<token_t> *link_ins) :
 	filename(filename),
 	lexer(lexer),
-	status(status),
 	type_macros(type_macros),
 	global_type_macros(global_type_macros),
 	comments(comments),
@@ -32,24 +30,15 @@ bool parse_state_t::advance() {
 	return lexer.get_token(token, newline, comments);
 }
 
-void parse_state_t::warning(const char *format, ...) {
-	if (lexer.eof()) {
-		status.emit_message(log_info, token.location, "encountered end-of-file");
-	}
-	va_list args;
-	va_start(args, format);
-	status.emit_messagev(log_error, token.location, format, args);
-	va_end(args);
-}
-
 void parse_state_t::error(const char *format, ...) {
-	if (lexer.eof()) {
-		status.emit_message(log_info, token.location, "encountered end-of-file");
-	}
 	va_list args;
 	va_start(args, format);
-	status.emit_messagev(log_error, token.location, format, args);
+	auto error = user_error_t(token.location, format, args);
 	va_end(args);
+	if (lexer.eof()) {
+		error.add_info(token.location, "encountered end-of-file");
+	}
+	throw error;
 }
 
 void add_default_type_macros(type_macros_t &type_macros) {

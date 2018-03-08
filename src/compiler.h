@@ -18,16 +18,16 @@ struct compiler_t {
 	compiler_t(std::string program_name, const libs &zion_paths);
 	~compiler_t();
 
-	void resolve_module_filename(status_t &status, location_t location, std::string name, std::string &resolved);
+	void resolve_module_filename(location_t location, std::string name, std::string &resolved);
 	void info(const char *format, ...);
 
 	module_scope_t::ref get_module_scope(std::string module_key);
 	void set_module_scope(std::string module_key, module_scope_t::ref module_scope);
 
 	std::vector<token_t> get_comments() const;
-	ptr<const ast::module_t> get_module(status_t &status, std::string key_alias);
-	void set_module(status_t &status, std::string filename, ptr<ast::module_t> module);
-	llvm::Module *llvm_load_ir(status_t &status, std::string filename);
+	ptr<const ast::module_t> get_module(std::string key_alias);
+	void set_module(std::string filename, ptr<ast::module_t> module);
+	llvm::Module *llvm_load_ir(std::string filename);
 	llvm::Module *llvm_create_module(std::string module_name);
 	llvm::Module *llvm_get_program_module();
 
@@ -35,9 +35,9 @@ struct compiler_t {
 	std::string dump_llvm_modules();
 	std::string dump_program_text(std::string module_name);
 
-	void write_obj_file(status_t &status, std::unique_ptr<llvm::Module> &llvm_module);
+	void write_obj_file(std::unique_ptr<llvm::Module> &llvm_module);
 
-	void setup_disk_environment(status_t &status);
+	void setup_disk_environment();
 
 	/* first step is to parse all modules */
 	bool build_parse_modules();
@@ -46,13 +46,13 @@ struct compiler_t {
 	bool build_type_check_and_code_gen();
 
 	/* parse a single module */
-	ptr<const ast::module_t> build_parse(status_t &status, location_t location, std::string module_name, type_macros_t &global_type_macros);
+	ptr<const ast::module_t> build_parse(location_t location, std::string module_name, type_macros_t &global_type_macros);
 
-	void build_parse_linked(status_t &status, ptr<const ast::module_t> module, type_macros_t &global_type_macros);
-	std::set<std::string> compile_modules(status_t &status);
-	void emit_built_program(status_t &status, std::string bitcode_filename);
+	void build_parse_linked(ptr<const ast::module_t> module, type_macros_t &global_type_macros);
+	std::set<std::string> compile_modules();
+	void emit_built_program(std::string bitcode_filename);
 	int run_program(int argc, char *argv[]);
-	void emit_object_files(status_t &status, std::vector<std::string> &obj_files);
+	void emit_object_files(std::vector<std::string> &obj_files);
 
 	void dump_ctags();
 

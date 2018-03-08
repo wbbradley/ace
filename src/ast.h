@@ -72,7 +72,6 @@ namespace ast {
 		virtual ~statement_t() {}
 		static ptr<ast::statement_t> parse(parse_state_t &ps);
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -98,7 +97,6 @@ namespace ast {
 		typedef ptr<const condition_t> ref;
 		virtual ~condition_t() {}
 		virtual bound_var_t::ref resolve_condition(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -113,14 +111,12 @@ namespace ast {
 		virtual ~expression_t() {}
 		static ptr<expression_t> parse(parse_state_t &ps);
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -129,7 +125,6 @@ namespace ast {
 
 		/* when resolve_condition is not overriden, it just proxies through to resolve_expression */
 		virtual bound_var_t::ref resolve_condition(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -146,7 +141,6 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_continue_flow;
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -160,7 +154,6 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_break_flow;
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -174,7 +167,6 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_pass_flow;
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -189,7 +181,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_typeid_expr;
 		typeid_expr_t(ptr<expression_t> expr);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -207,7 +198,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_sizeof;
 		sizeof_expr_t(types::type_t::ref type);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -224,14 +214,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_callsite_expr;
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const;
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -252,7 +240,6 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -268,7 +255,6 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -293,7 +279,6 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_cast_expr;
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -328,7 +313,6 @@ namespace ast {
 		 * ctors should end up living. this function should create the
 		 * unchecked ctors with the type. */
 		virtual void register_type(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
 				identifier::refs type_variables,
@@ -345,7 +329,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_sum;
 		static ref parse(parse_state_t &ps, type_decl_t::ref type_decl, identifier::refs type_variables);
 		virtual void register_type(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
 				identifier::refs type_variables,
@@ -363,7 +346,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_product;
 		static ref parse(parse_state_t &ps, type_decl_t::ref type_decl, identifier::refs type_variables, bool native);
 		virtual void register_type(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
 				identifier::refs type_variables,
@@ -382,7 +364,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_alias;
 		static ref parse(parse_state_t &ps, type_decl_t::ref type_decl, identifier::refs type_variables);
 		virtual void register_type(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
 				identifier::refs type_variables,
@@ -400,7 +381,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_link;
 		static ref parse(parse_state_t &ps, type_decl_t::ref type_decl, identifier::refs type_variables);
 		virtual void register_type(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				identifier::ref supertype_id,
 				identifier::refs type_variables,
@@ -414,7 +394,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_type_def;
 		static ptr<type_def_t> parse(parse_state_t &ps);
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -432,7 +411,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_tag;
 		static ptr<tag_t> parse(parse_state_t &ps);
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -451,18 +429,15 @@ namespace ast {
 		static ptr<var_decl_t> parse(parse_state_t &ps, bool is_let);
 		static ptr<var_decl_t> parse_param(parse_state_t &ps);
 		bound_var_t::ref resolve_as_link(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				module_scope_t::ref module_scope);
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual bound_var_t::ref resolve_condition(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -497,7 +472,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_assignment;
 		static ptr<statement_t> parse(parse_state_t &ps);
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -513,7 +487,6 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_plus_assignment;
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -529,7 +502,6 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_times_assignment;
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -545,7 +517,6 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_divide_assignment;
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -561,7 +532,6 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_minus_assignment;
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -577,7 +547,6 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_mod_assignment;
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -595,7 +564,6 @@ namespace ast {
 
 		static ptr<block_t> parse(parse_state_t &ps);
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -628,28 +596,24 @@ namespace ast {
 
 		static ptr<function_defn_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const;
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual bound_var_t::ref resolve_function(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				local_scope_t::ref *new_scope,
 				bool *returns) const;
 		bound_var_t::ref instantiate_with_args_and_return_type(
-				status_t &status,
 			   	llvm::IRBuilder<> &builder,
 			   	scope_t::ref block_scope,
 				life_t::ref life,
@@ -671,7 +635,6 @@ namespace ast {
 
 		static ptr<if_block_t> parse(parse_state_t &ps);
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -691,7 +654,6 @@ namespace ast {
 
 		static ptr<while_block_t> parse(parse_state_t &ps);
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -710,7 +672,6 @@ namespace ast {
 
 		static ptr<for_block_t> parse(parse_state_t &ps);
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -744,7 +705,6 @@ namespace ast {
 
 		static ptr<when_block_t> parse(parse_state_t &ps);
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -787,7 +747,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_link_module_statement;
 
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -805,7 +764,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_link_name;
 
 		virtual void resolve_statement(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -824,7 +782,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_link_function_statement;
 
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -841,7 +798,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_link_var_statement;
 
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -892,14 +848,12 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_dot_expr;
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const;
         virtual bound_var_t::ref resolve_overrides(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref scope,
 				life_t::ref,
@@ -917,7 +871,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_tuple_expr;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -934,14 +887,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_ternary_expr;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -958,14 +909,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_or_expr;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -982,14 +931,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_and_expr;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -1006,14 +953,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_binary_operator;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -1031,14 +976,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_prefix_expr;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -1050,7 +993,6 @@ namespace ast {
 
 	private:
 		virtual bound_var_t::ref resolve_prefix_expr(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -1065,7 +1007,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_typeinfo_expr;
 		static ptr<typeinfo_expr_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -1085,28 +1026,24 @@ namespace ast {
 		static const syntax_kind_t SK = sk_reference_expr;
 		static ptr<expression_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_overrides(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref scope,
 				life_t::ref,
 				const ptr<const ast::item_t> &obj,
 				const bound_type_t::refs &args) const;
 		virtual bound_var_t::ref resolve_condition(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				local_scope_t::ref *scope_if_true,
 				local_scope_t::ref *scope_if_false) const;
 		bound_var_t::ref resolve_reference(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -1123,7 +1060,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_literal_expr;
 		static ptr<expression_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -1138,7 +1074,6 @@ namespace ast {
 		static const syntax_kind_t SK = sk_array_literal_expr;
 		static ptr<expression_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -1154,7 +1089,6 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_bang_expr;
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
@@ -1171,14 +1105,12 @@ namespace ast {
 		static const syntax_kind_t SK = sk_array_index_expr;
 		static ptr<expression_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const;
 		bound_var_t::ref resolve_assignment(
-				status_t &status,
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,

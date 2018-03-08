@@ -10,17 +10,14 @@
 extern const char *GC_STRATEGY;
 
 struct compiler_t;
-struct status_t;
 struct life_t;
 
 llvm::FunctionType *llvm_create_function_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		const bound_type_t::refs &args,
 		bound_type_t::ref return_value);
 
 bound_var_t::ref create_callsite(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		ptr<life_t> life,
@@ -30,7 +27,6 @@ bound_var_t::ref create_callsite(
 		bound_var_t::refs values);
 
 llvm::CallInst *llvm_create_call_inst(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		location_t location,
 		ptr<const bound_var_t> callee,
@@ -79,7 +75,7 @@ void check_struct_initialization(
 		llvm::ArrayRef<llvm::Constant*> llvm_struct_initialization,
 		llvm::StructType *llvm_struct_type);
 
-void llvm_verify_function(status_t &status, location_t location, llvm::Function *llvm_function);
+void llvm_verify_function(location_t location, llvm::Function *llvm_function);
 void llvm_verify_module(llvm::Module &llvm_module);
 
 /* flags for llvm_create_if_branch that tell it whether to invoke release_vars
@@ -92,7 +88,6 @@ struct life_t;
 #define IFF_BOTH (IFF_ELSE | IFF_THEN)
 
 void llvm_create_if_branch(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		int iff,
@@ -105,7 +100,6 @@ void llvm_create_if_branch(
 
 llvm::Type *llvm_deref_type(llvm::Type *llvm_pointer_type);
 bound_var_t::ref llvm_start_function(
-		status_t &status,
 		llvm::IRBuilder<> &builder, 
 		scope_t::ref scope,
 		location_t location,
@@ -113,7 +107,6 @@ bound_var_t::ref llvm_start_function(
 		std::string name);
 
 bound_var_t::ref llvm_create_global_tag(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::ref tag_type,
@@ -125,12 +118,10 @@ bound_var_t::ref llvm_create_global_tag(
 void explain(llvm::Type *llvm_type);
 
 bound_var_t::ref maybe_load_from_pointer(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		bound_var_t::ref var);
 bound_var_t::ref llvm_stack_map_value(
-        status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
         bound_var_t::ref value);

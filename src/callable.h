@@ -13,7 +13,6 @@ namespace ast {
 struct can_reference_overloads_t {
 	virtual ~can_reference_overloads_t() throw() {}
 	virtual bound_var_t::ref resolve_overrides(
-			status_t &status,
 			llvm::IRBuilder<> &builder,
 			scope_t::ref scope,
 			life_t::ref,
@@ -22,7 +21,6 @@ struct can_reference_overloads_t {
 };
 
 bound_var_t::ref make_call_value(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		location_t location,
 		scope_t::ref scope,
@@ -31,7 +29,6 @@ bound_var_t::ref make_call_value(
 		bound_var_t::refs arguments);
 
 bound_var_t::ref get_callable(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		std::string alias,
@@ -43,7 +40,6 @@ bound_var_t::ref get_callable(
  * however it may go off and type check potential unifications of other generic
  * functions and cause user errors */
 bound_var_t::ref maybe_get_callable(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		std::string alias,
@@ -55,7 +51,6 @@ bound_var_t::ref maybe_get_callable(
 		bool allow_coercions=true);
 
 bound_var_t::ref call_program_function(
-        status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
@@ -65,7 +60,6 @@ bound_var_t::ref call_program_function(
 		types::type_t::ref return_type=nullptr);
 
 bound_var_t::ref check_func_vs_callsite(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,
