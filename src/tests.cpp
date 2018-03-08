@@ -554,13 +554,14 @@ bool expect_output_contains(test_output_source_t tos,
 	if (check_output_contains(tos, output, expected, use_regex)) {
 		return true;
 	} else {
-		if (!verbose()) {
+		if (verbose()) {
 			log(log_error, "output from %s was \n" c_internal("vvvvvvvv") "\n%s" c_internal("^^^^^^^^"),
 					tosstr(tos),
 					output.c_str());
 		}
 		log(log_error, "The problem is that we couldn't find \"" c_error("%s") "\" in the output.",
 				expected.c_str());
+		dbg();
 		return false;
 	}
 }
@@ -619,14 +620,13 @@ bool get_testable_comments(
 
 bool _check_compiler_error(compiler_t &compiler, int &skipped) {
 	tee_logger tee_log;
-	status_t status;
-	compiler.build_parse_modules(status);
+	bool parsed = compiler.build_parse_modules();
 	std::vector<std::string> error_search_terms, unseen_search_terms;
 	bool skip_file = false;
 	bool pass_file = false;
 	if (!get_testable_comments(compiler.get_comments(), error_search_terms,
 				unseen_search_terms, skip_file, pass_file))
-   	{
+	{
 		return false;
 	}
 
@@ -637,15 +637,11 @@ bool _check_compiler_error(compiler_t &compiler, int &skipped) {
 				program_name.c_str());
 		return true;
 	} else {
-		if (!!status) {
-			compiler.build_type_check_and_code_gen(status);
-		}
-
-		if (!!status) {
+		if (parsed && compiler.build_type_check_and_code_gen()) {
 			/* if everything looks good so far, be sure to check all the modules in
 			 * the program using LLVM's built-in checker */
 			for (auto &llvm_module_pair : compiler.llvm_modules) {
-				llvm_verify_module(status, *llvm_module_pair.second);
+				llvm_verify_module(*llvm_module_pair.second);
 			}
 
 			if (!pass_file) {
@@ -711,25 +707,20 @@ bool check_code_gen_emitted(std::string test_module_name, std::string regex_stri
 	tee_logger tee_log;
 	compiler_t compiler(test_module_name, {".", "lib", "tests"});
 
-	status_t status;
-	compiler.build_parse_modules(status);
-	if (!!status) {
-		compiler.build_type_check_and_code_gen(status);
-	}
-
-	if (!!status) {
-		std::string code_gen = compiler.dump_llvm_modules();
-		debug_above(8, log(log_info, "code generated -\n%s", code_gen.c_str()));
-		std::smatch match;
-		if (std::regex_search(code_gen, match, std::regex(regex_string))) {
-			return true;
-		} else {
-			log(log_error, "could not find regex " c_internal("/%s/") " in code gen", regex_string.c_str());
-			return false;
+	if (compiler.build_parse_modules()) {
+		if (compiler.build_type_check_and_code_gen()) {
+			std::string code_gen = compiler.dump_llvm_modules();
+			debug_above(8, log(log_info, "code generated -\n%s", code_gen.c_str()));
+			std::smatch match;
+			if (std::regex_search(code_gen, match, std::regex(regex_string))) {
+				return true;
+			} else {
+				log(log_error, "could not find regex " c_internal("/%s/") " in code gen", regex_string.c_str());
+				return false;
+			}
 		}
-	} else {
-		return false;
 	}
+	return false;
 }
 
 bool test_string_stuff() {
@@ -1283,23 +1274,19 @@ auto test_descs = std::vector<test_desc>{
 			auto test_module_name = "test_puts_emit";
 			compiler_t compiler(test_module_name, {".", "lib", "tests"});
 
-			status_t status;
-			compiler.build_parse_modules(status);
-			if (!!status) {
-				compiler.build_type_check_and_code_gen(status);
+			if (compiler.build_parse_modules()) {
+				if (compiler.build_type_check_and_code_gen()) {
+					assert(compiler.get_program_scope() != nullptr);
+					if (!compiler.get_program_scope()->lookup_module(test_module_name)) {
+						log(log_error, "no module %s found", test_module_name);
+						return false;
+					} else {
+						return true;
+					}
+				}
 			}
 
-			if (!status) {
-				return false;
-			}
-
-			assert(compiler.get_program_scope() != nullptr);
-			if (!compiler.get_program_scope()->lookup_module(test_module_name)) {
-				log(log_error, "no module %s found", test_module_name);
-				return false;
-			} else {
-				return true;
-			}
+			return false;
 		}
 	},
 

@@ -89,3 +89,5 @@ struct note_logger : logger {
 	std::string msg;
 	logger *logger_old;
 };
+
+void write_log_streamv(std::ostream &os, log_level_t level, const location_t *location, const char *format, va_list args);

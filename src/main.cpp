@@ -118,46 +118,31 @@ int main(int argc, char *argv[]) {
 			}
 			return EXIT_FAILURE;
         } else if (cmd == "compile") {
-			compiler.build_parse_modules(status);
-
-			if (!!status) {
-				compiler.build_type_check_and_code_gen(status);
-				if (!!status) {
+			if (compiler.build_parse_modules()) {
+				if (compiler.build_type_check_and_code_gen()) {
 					return EXIT_SUCCESS;
 				}
 			}
 			return EXIT_FAILURE;
         } else if (cmd == "fmt") {
-			compiler.build_parse_modules(status);
-
-			if (!!status) {
+			if (compiler.build_parse_modules()) {
 				write_fp(stdout, "%s",
 						compiler.dump_program_text(strip_zion_extension(argv[2])).c_str());
-			}
 
-			if (!!status) {
 				return EXIT_SUCCESS;
 			} else {
 				return EXIT_FAILURE;
 			}
         } else if (cmd == "ctags") {
-			compiler.build_parse_modules(status);
-
-			if (!!status) {
+			if (compiler.build_parse_modules()) {
 				compiler.dump_ctags();
-			}
-
-			if (!!status) {
 				return EXIT_SUCCESS;
 			} else {
 				return EXIT_FAILURE;
 			}
         } else if (cmd == "run") {
-			compiler.build_parse_modules(status);
-
-			if (!!status) {
-				compiler.build_type_check_and_code_gen(status);
-				if (!!status) {
+			if (compiler.build_parse_modules()) {
+				if (compiler.build_type_check_and_code_gen()) {
 					auto executable_filename = compiler.get_executable_filename();
 					compiler.emit_built_program(status, executable_filename);
 					if (!!status) {
@@ -174,11 +159,8 @@ int main(int argc, char *argv[]) {
 			}
 			return EXIT_FAILURE;
 		} else if (cmd == "obj") {
-			compiler.build_parse_modules(status);
-
-			if (!!status) {
-				compiler.build_type_check_and_code_gen(status);
-				if (!!status) {
+			if (compiler.build_parse_modules()) {
+				if (compiler.build_type_check_and_code_gen()) {
 					std::vector<std::string> obj_files;
 					compiler.emit_object_files(status, obj_files);
 					return !!status ? EXIT_SUCCESS : EXIT_FAILURE;
@@ -186,12 +168,10 @@ int main(int argc, char *argv[]) {
 			}
 			return EXIT_FAILURE;
         } else if (cmd == "bin") {
-			compiler.build_parse_modules(status);
-
-			if (!!status) {
-				compiler.build_type_check_and_code_gen(status);
-				if (!!status) {
+			if (compiler.build_parse_modules()) {
+				if (compiler.build_type_check_and_code_gen()) {
 					auto executable_filename = compiler.get_executable_filename();
+					status_t status;
 					compiler.emit_built_program(status, executable_filename);
 					return !!status ? EXIT_SUCCESS : EXIT_FAILURE;
 				}

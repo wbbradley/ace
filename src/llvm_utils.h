@@ -80,7 +80,7 @@ void check_struct_initialization(
 		llvm::StructType *llvm_struct_type);
 
 void llvm_verify_function(status_t &status, location_t location, llvm::Function *llvm_function);
-void llvm_verify_module(status_t &status, llvm::Module &llvm_module);
+void llvm_verify_module(llvm::Module &llvm_module);
 
 /* flags for llvm_create_if_branch that tell it whether to invoke release_vars
  * for either branch */

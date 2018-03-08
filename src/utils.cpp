@@ -227,6 +227,7 @@ std::string string_formatv(const std::string fmt_str, va_list args_) {
         // strcpy(&formatted[0], fmt_str.c_str());
 		va_copy(args, args_);
         final_n = vsnprintf(&formatted[0], n, fmt_str.c_str(), args);
+		va_end(args_);
         if (final_n < 0 || final_n >= n)
             n += abs(final_n - n + 1);
         else

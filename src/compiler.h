@@ -40,10 +40,10 @@ struct compiler_t {
 	void setup_disk_environment(status_t &status);
 
 	/* first step is to parse all modules */
-	void build_parse_modules(status_t &status);
+	bool build_parse_modules();
 
 	/* type checking and code generation happen during the same pass */
-	void build_type_check_and_code_gen(status_t &status);
+	bool build_type_check_and_code_gen();
 
 	/* parse a single module */
 	ptr<const ast::module_t> build_parse(status_t &status, location_t location, std::string module_name, type_macros_t &global_type_macros);
