@@ -840,17 +840,20 @@ bound_type_t::ref upsert_bound_type(
 				debug_above(6, log("upsert_bound_type calling create_bound_type with %s",
 							type->str().c_str()));
 
-				/* we believe that this type does not exist. let's build it */
-				bound_type = create_bound_type(status, builder, scope, type);
+				try {
+					/* we believe that this type does not exist. let's build it */
+					bound_type = create_bound_type(status, builder, scope, type);
 
-				if (!!status) {
 					return bound_type;
+				} catch (user_error_t &e) {
+					std::throw_with_nested(user_error_t(
+								type->get_location(),
+								"unable to bind type %s in scope " c_id("%s"),
+								type->str().c_str(),
+								scope->get_name().c_str()));
+				} catch (...) {
+					panic("uncaught exception");
 				}
-
-				user_error(status, type->get_location(),
-						"unable to bind type %s in scope " c_id("%s"),
-						type->str().c_str(),
-						scope->get_name().c_str());
 			}
 		}
 	}

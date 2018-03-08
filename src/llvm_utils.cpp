@@ -691,11 +691,12 @@ void llvm_verify_function(status_t &status, location_t location, llvm::Function 
 	}
 }
 
-void llvm_verify_module(status_t &status, llvm::Module &llvm_module) {
+void llvm_verify_module(llvm::Module &llvm_module) {
 	std::stringstream ss;
 	llvm::raw_os_ostream os(ss);
 	if (llvm::verifyModule(llvm_module, &os)) {
 		os.flush();
+		status_t status;
 		user_error(status, location_t{}, "module %s: failed verification. %s\nModule listing:\n%s",
 				llvm_module.getName().str().c_str(),
 				ss.str().c_str(),

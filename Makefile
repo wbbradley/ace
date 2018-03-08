@@ -30,7 +30,8 @@ ifeq ($(UNAME),Darwin)
 				  -g \
 				  $(OPT_LEVEL) \
 				  -std=c++11 \
-				  -I$(shell $(LLVM_CONFIG) --includedir)/c++/v1
+				  -I$(shell $(LLVM_CONFIG) --includedir)/c++/v1 \
+				  -fexceptions
 
 	LINKER = $(CLANG)
 	LINKER_OPTS := \
@@ -76,7 +77,6 @@ ifeq ($(UNAME),Linux)
 				  $(OPT_LEVEL) \
 				  -g \
 				  -DNDEBUG \
-				  -fno-exceptions \
 				  -D_GNU_SOURCE \
 				  -D__STDC_CONSTANT_MACROS \
 				  -D__STDC_FORMAT_MACROS \
@@ -221,7 +221,7 @@ $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_OBJE
 
 $(BUILD_DIR)/%.e: src/%.cpp
 	@echo Precompiling $<
-	$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) -E $< -o $@
+	@$(CPP) $(CPP_FLAGS) $(LLVM_CFLAGS) -E $< -o $@
 
 $(BUILD_DIR)/%.llvm.o: src/%.cpp
 	@echo Compiling $<

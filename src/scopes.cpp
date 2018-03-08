@@ -582,12 +582,12 @@ void module_scope_impl_t::put_unchecked_type(
 		unchecked_types_ordered.push_back(unchecked_type);
 	} else {
 		/* this unchecked type already exists */
-		user_error(status, *unchecked_type->node, "type " c_type("%s") " already exists",
+		auto error = user_error_t(unchecked_type->node->get_location(), "type " c_type("%s") " already exists",
 				unchecked_type->name.c_str());
-
-		user_info(status, *unchecked_type_iter->second->node,
+		error.add_info(unchecked_type_iter->second->node->get_location(),
 				"see type " c_type("%s") " declaration",
 				unchecked_type_iter->second->name.c_str());
+		throw error;
 	}
 }
 

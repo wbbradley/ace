@@ -358,83 +358,79 @@ void add_globals(
 	assert(!!status);
 }
 
-void compiler_t::build_parse_modules(status_t &status) {
-	/* first just parse all the modules that are reachable from the initial module
-	 * and bring them into our whole ast */
-	auto module_name = program_name;
+bool compiler_t::build_parse_modules() {
+	try {
+		status_t status;
+		/* first just parse all the modules that are reachable from the initial module
+		 * and bring them into our whole ast */
+		auto module_name = program_name;
 
-	assert(program == nullptr);
+		assert(program == nullptr);
 
-	/* create the program ast to contain all of the modules */
-	program = ast::create<ast::program_t>({});
+		/* create the program ast to contain all of the modules */
+		program = ast::create<ast::program_t>({});
 
-	/* set up global types and variables */
-	add_globals(status, *this, builder, program_scope, program);
+		/* set up global types and variables */
+		add_globals(status, *this, builder, program_scope, program);
 
-	if (!!status) {
 		type_macros_t global_type_macros = base_type_macros;
 
 		/* always include the builtins library */
-        if (getenv("NO_BUILTINS") == nullptr) {
-            build_parse(status, location_t{"builtins", 0, 0},
-				   	"lib/builtins",
-				   	global_type_macros);
-        }
-
-		if (!!status) {
-			/* always include the standard library */
-			if (getenv("NO_STD_LIB") == nullptr) {
-				build_parse(status, location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0},
-						"lib/std",
-						global_type_macros);
-			}
+		if (getenv("NO_BUILTINS") == nullptr) {
+			build_parse(status, location_t{"builtins", 0, 0},
+					"lib/builtins",
+					global_type_macros);
 		}
 
-		if (!!status) {
-			/* now parse the main program module */
-			main_module = build_parse(status, location_t{"command line build parameters", 0, 0},
-					module_name, global_type_macros);
-
-			if (!!status) {
-				debug_above(4, log(log_info, "build_parse of %s succeeded", module_name.c_str(),
-							false /*global*/));
-
-				/* next, merge the entire set of modules into one program */
-				for (const auto &module : ordered_modules) {
-					/* note the use of the find here to ensure that each module is only
-					 * included once */
-					assert(module != nullptr);
-					assert(std::find(program->modules.begin(), program->modules.end(), module) == program->modules.end());
-
-					program->modules.push_back(module);
-				}
-			}
+		/* always include the standard library */
+		if (getenv("NO_STD_LIB") == nullptr) {
+			build_parse(status, location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0},
+					"lib/std",
+					global_type_macros);
 		}
+
+		/* now parse the main program module */
+		main_module = build_parse(status, location_t{"command line build parameters", 0, 0},
+				module_name, global_type_macros);
+
+		debug_above(4, log(log_info, "build_parse of %s succeeded", module_name.c_str(),
+					false /*global*/));
+
+		/* next, merge the entire set of modules into one program */
+		for (const auto &module : ordered_modules) {
+			/* note the use of the find here to ensure that each module is only
+			 * included once */
+			assert(module != nullptr);
+			assert(std::find(program->modules.begin(), program->modules.end(), module) == program->modules.end());
+
+			program->modules.push_back(module);
+		}
+		return true;
+	} catch (user_error_t &e) {
+		print_exception(e);
+		return false;
 	}
 }
 
 
-void compiler_t::build_type_check_and_code_gen(status_t &status) {
-	if (!!status) {
+bool compiler_t::build_type_check_and_code_gen() {
+	try {
+		status_t status;
 		/* set up the names that point back into the AST resolved to the right
 		 * module scopes */
 		status = scope_setup_program(*program, *this);
 
-		if (!!status) {
-			/* final and most complex pass to resolve all needed symbols in order to guarantee type constraints, and
-			 * generate LLVM IR */
-			type_check_program(status, builder, *program, *this);
+		/* final and most complex pass to resolve all needed symbols in order to guarantee type constraints, and
+		 * generate LLVM IR */
+		type_check_program(status, builder, *program, *this);
 
-			if (!!status) {
-				debug_above(2, log(log_info, "type checking found no errors"));
-				return;
-			} else {
-				debug_above(2, log(log_info, "type checking found errors"));
-			}
-		}
+		debug_above(2, log(log_info, "type checking found no errors"));
+		return true;
+
+	} catch (user_error_t &e) {
+		print_exception(e);
+		return false;
 	}
-
-	assert(!status);
 }
 
 std::string collect_filename_from_module_pair(
@@ -453,11 +449,12 @@ std::string collect_filename_from_module_pair(
 		// TODO: set the data layout string to whatever llvm-link wants
 		// llvm_module_pair.second->setDataLayout(...);
 
-		status_t status;
-		llvm_verify_module(status, *llvm_module_pair.second);
-		if (!!status) {
+		try {
+			llvm_verify_module(*llvm_module_pair.second);
+		} catch (...) {
 			llvm_module_pair.second->print(os, nullptr /*AssemblyAnnotationWriter*/);
 			os.flush();
+			throw;
 		}
 	} else {
 		user_error(status, INTERNAL_LOC(), "failed to open file named %s to write LLIR data",

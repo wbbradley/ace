@@ -532,11 +532,11 @@ bound_var_t::ref type_check_bound_var_decl(
 	assert(dyncast<module_scope_t>(scope) == nullptr);
 	bound_var_t::ref bound_var;
 	if (scope->symbol_exists_in_running_scope(symbol, bound_var)) {
-		user_error(status, obj.get_location(), "symbol '" c_id("%s") "' cannot be redeclared",
+		auto error = user_error_t(obj.get_location(), "symbol '" c_id("%s") "' cannot be redeclared",
 				symbol.c_str());
-		user_info(status, bound_var->get_location(), "see earlier declaration of " c_id("%s"),
+		error.add_info(bound_var->get_location(), "see earlier declaration of " c_id("%s"),
 				bound_var->name.c_str());
-		return nullptr;
+		throw error;
 	}
 
 	if (!!status) {
@@ -3703,47 +3703,52 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		}
 
 		if (!!status) {
-			/* keep track of whether this function returns */
 			bool all_paths_return = false;
-			debug_above(7, log("setting return_type_constraint in %s to %s %s", function_var->name.c_str(),
-						return_type->str().c_str(),
-						llvm_print(return_type->get_llvm_type()).c_str()));
-			params_scope->return_type_constraint = return_type;
 
-			block->resolve_statement(status, builder, params_scope, life,
-					nullptr, &all_paths_return);
+			try {
+				/* keep track of whether this function returns */
+				debug_above(7, log("setting return_type_constraint in %s to %s %s", function_var->name.c_str(),
+							return_type->str().c_str(),
+							llvm_print(return_type->get_llvm_type()).c_str()));
+				params_scope->return_type_constraint = return_type;
 
-			if (!!status) {
-				debug_above(10, log(log_info, "module dump from %s\n%s",
-							__PRETTY_FUNCTION__,
-							llvm_print_module(*llvm_get_module(builder)).c_str()));
+				block->resolve_statement(status, builder, params_scope, life,
+						nullptr, &all_paths_return);
 
-				if (all_paths_return) {
-					llvm_verify_function(status, token.location, llvm_function);
-					if (!!status) {
-						return function_var;
-					}
-				} else {
-					/* not all control paths return */
-					if (return_type->is_void(scope)) {
-						/* if this is a void let's give the user a break and insert
-						 * a default void return */
+			} catch (user_error_t &e) {
+				std::throw_with_nested(user_error_t(get_location(),
+							"while checking %s", function_var->str().c_str()));
+			} catch (...) {
+				panic("uncaught exception");
+			}
 
-						life->release_vars(status, builder, scope, lf_function);
-						if (!!status) {
-							builder.CreateRetVoid();
-							llvm_verify_function(status, token.location, llvm_function);
-							if (!!status) {
-								return function_var;
-							}
-						}
-					} else {
-						/* no breaks here, we don't know what to return */
-						user_error(status, *this, "not all control paths return a value");
-					}
+			debug_above(10, log(log_info, "module dump from %s\n%s",
+						__PRETTY_FUNCTION__,
+						llvm_print_module(*llvm_get_module(builder)).c_str()));
+
+			if (all_paths_return) {
+				llvm_verify_function(status, token.location, llvm_function);
+				if (!!status) {
+					return function_var;
 				}
 			} else {
-				user_info(status, get_location(), "while checking %s", function_var->str().c_str());
+				/* not all control paths return */
+				if (return_type->is_void(scope)) {
+					/* if this is a void let's give the user a break and insert
+					 * a default void return */
+
+					life->release_vars(status, builder, scope, lf_function);
+					if (!!status) {
+						builder.CreateRetVoid();
+						llvm_verify_function(status, token.location, llvm_function);
+						if (!!status) {
+							return function_var;
+						}
+					}
+				} else {
+					/* no breaks here, we don't know what to return */
+					user_error(status, *this, "not all control paths return a value");
+				}
 			}
 		}
 	}
@@ -3759,54 +3764,41 @@ void type_check_module_links(
 		const ast::module_t &obj,
 		scope_t::ref program_scope)
 {
-	if (!!status) {
-		INDENT(3, string_format("resolving links in " c_module("%s"),
-					obj.module_key.c_str()));
+	INDENT(3, string_format("resolving links in " c_module("%s"),
+				obj.module_key.c_str()));
 
-		/* get module level scope variable */
-		module_scope_t::ref scope = compiler.get_module_scope(obj.module_key);
+	/* get module level scope variable */
+	module_scope_t::ref scope = compiler.get_module_scope(obj.module_key);
 
-		for (const ptr<ast::link_module_statement_t> &link : obj.linked_modules) {
-			link->resolve_statement(status, builder, scope, nullptr, nullptr,
+	for (const ptr<ast::link_module_statement_t> &link : obj.linked_modules) {
+		link->resolve_statement(status, builder, scope, nullptr, nullptr,
+				nullptr);
+	}
+
+	for (const ptr<ast::link_function_statement_t> &link : obj.linked_functions) {
+		bound_var_t::ref link_value = link->resolve_expression(
+				status, builder, scope, nullptr, false /*as_ref*/, nullptr);
+
+		if (link->extern_function->token.text.size() != 0) {
+			put_bound_function(
+					status,
+					builder,
+					scope,
+					link->extern_function->get_location(),
+					link->extern_function->token.text,
+					link->extern_function->extends_module,
+					link_value,
 					nullptr);
+		} else {
+			user_error(status, *link, "module level link definitions need names");
 		}
+	}
 
-		if (!!status) {
-			for (const ptr<ast::link_function_statement_t> &link : obj.linked_functions) {
-				bound_var_t::ref link_value = link->resolve_expression(
-						status, builder, scope, nullptr, false /*as_ref*/, nullptr);
+	for (const ptr<ast::link_var_statement_t> &link : obj.linked_vars) {
+		bound_var_t::ref link_value = link->resolve_expression(
+				status, builder, scope, nullptr, false /*as_ref*/, nullptr);
 
-				if (!!status) {
-					if (link->extern_function->token.text.size() != 0) {
-						put_bound_function(
-								status,
-								builder,
-								scope,
-								link->extern_function->get_location(),
-								link->extern_function->token.text,
-								link->extern_function->extends_module,
-								link_value,
-								nullptr);
-					} else {
-						user_error(status, *link, "module level link definitions need names");
-					}
-				}
-				if (!status) {
-					break;
-				}
-			}
-		}
-
-		if (!!status) {
-			for (const ptr<ast::link_var_statement_t> &link : obj.linked_vars) {
-				bound_var_t::ref link_value = link->resolve_expression(
-						status, builder, scope, nullptr, false /*as_ref*/, nullptr);
-
-				if (!!status) {
-					scope->put_bound_variable(status, link->var_decl->get_symbol(), link_value);
-				}
-			}
-		}
+		scope->put_bound_variable(status, link->var_decl->get_symbol(), link_value);
 	}
 }
 
@@ -3825,23 +3817,22 @@ void type_check_module_vars(
 	module_scope_t::ref module_scope = compiler.get_module_scope(obj.module_key);
 	if (!!status) {
 		for (auto &var_decl : obj.var_decls) {
-			INDENT(3, string_format("resolving module var " c_id("%s") " in " c_module("%s"),
-						module_scope->make_fqn(var_decl->token.text).c_str(),
-						obj.module_key.c_str()));
+			try {
+				INDENT(3, string_format("resolving module var " c_id("%s") " in " c_module("%s"),
+							module_scope->make_fqn(var_decl->token.text).c_str(),
+							obj.module_key.c_str()));
 
-			/* the idea here is to put this variable into module scope,
-			 * available globally, but to initialize it in the
-			 * __init_module_vars function */
-			auto module_var = type_check_module_var_decl(status, builder, module_scope, *var_decl);
-			if (!!status) {
+				/* the idea here is to put this variable into module scope,
+				 * available globally, but to initialize it in the
+				 * __init_module_vars function */
+				auto module_var = type_check_module_var_decl(status, builder, module_scope, *var_decl);
 				global_vars.push_back(module_var);
-			}
-			if (!status) {
-				if (!status.reported_on_error_at(var_decl->get_location())) {
-					user_info(status, var_decl->get_location(), "while checking module variable %s",
-							var_decl->token.text.c_str());
-				}
-				break;
+			} catch (user_error_t &e) {
+				std::throw_with_nested(user_error_t(var_decl->get_location(),
+							"while checking module variable %s",
+							var_decl->token.text.c_str()));
+			} catch (...) {
+				panic("uncaught exception");
 			}
 		}
 	}
@@ -3989,10 +3980,22 @@ void type_check_program_variables(
 	INDENT(2, string_format("resolving variables in program"));
 
 	auto unchecked_vars_ordered = program_scope->get_unchecked_vars_ordered();
+	bool failures = false;
+	location_t failure_location;
 	for (auto unchecked_var : unchecked_vars_ordered) {
-		status_t local_status;
-		type_check_program_variable(status, builder, program_scope, unchecked_var);
-		status |= local_status;
+		try {
+			type_check_program_variable(status, builder, program_scope, unchecked_var);
+		} catch (user_error_t &e) {
+			/* try to let the compiler recover and keep type checking... */
+			if (!failures) {
+				failure_location = e.location;
+				failures = true;
+			}
+			print_exception(e);
+		}
+	}
+	if (failures) {
+		throw user_error_t(failure_location, "failures encountered");
 	}
 }
 
@@ -4578,7 +4581,7 @@ void ast::block_t::resolve_statement(
 		returns = &placeholder_returns;
 	}
 
-    scope_t::ref current_scope = scope;
+	scope_t::ref current_scope = scope;
 
 	assert(builder.GetInsertBlock() != nullptr);
 
@@ -4595,34 +4598,35 @@ void ast::block_t::resolve_statement(
 
 		debug_above(9, log(log_info, "type checking statement\n%s", statement->str().c_str()));
 
-		/* create a new life for tracking the rhs values (temp values) in this statement */
-		auto stmt_life = life->new_life(status, lf_statement);
+		try {
+			/* create a new life for tracking the rhs values (temp values) in this statement */
+			auto stmt_life = life->new_life(status, lf_statement);
 
-		{
-			indent_logger indent(statement->get_location(), 5, string_format("while checking statement %s",
-						statement->str().c_str()));
+			{
+				indent_logger indent(statement->get_location(), 5, string_format("while checking statement %s",
+							statement->str().c_str()));
 
-			if (getenv("TRACE_STATEMENTS") != nullptr) {
-				std::stringstream ss;
-				ss << statement->token.location.str() << ": " << statement->str();
-				auto callsite_debug_function_name_print = expand_callsite_string_literal(
-						token,
-						"posix",
-						"puts",
-						ss.str());
-				callsite_debug_function_name_print->resolve_statement(status, builder, scope, life, nullptr, nullptr);
+				if (getenv("TRACE_STATEMENTS") != nullptr) {
+					std::stringstream ss;
+					ss << statement->token.location.str() << ": " << statement->str();
+					auto callsite_debug_function_name_print = expand_callsite_string_literal(
+							token,
+							"posix",
+							"puts",
+							ss.str());
+					callsite_debug_function_name_print->resolve_statement(status, builder, scope, life, nullptr, nullptr);
+				}
+
+				/* resolve the statement */
+				statement->resolve_statement(status, builder, current_scope, stmt_life,
+						&next_scope, returns);
 			}
-			/* resolve the statement */
-			statement->resolve_statement(status, builder, current_scope, stmt_life,
-					&next_scope, returns);
-		}
 
-		if (!*returns) {
-			/* inject release operations for rhs values out of extent */
-			stmt_life->release_vars(status, builder, scope, lf_statement);
-		}
+			if (!*returns) {
+				/* inject release operations for rhs values out of extent */
+				stmt_life->release_vars(status, builder, scope, lf_statement);
+			}
 
-		if (!!status) {
 			if (next_scope != nullptr) {
 				/* the statement just executed wants to create a new nested scope.
 				 * let's allow this by just keeping track of the current scope. */
@@ -4630,15 +4634,12 @@ void ast::block_t::resolve_statement(
 				next_scope = nullptr;
 				debug_above(10, log(log_info, "got a new scope %s", current_scope->str().c_str()));
 			}
+		} catch (user_error_t &e) {
+			std::throw_with_nested(user_error_t(statement->get_location(), "while checking statement"));
+		} catch (...) {
+			panic("uncaught exception");
 		}
-
-		if (!status) {
-			if (!status.reported_on_error_at(statement->get_location())) {
-				user_info(status, statement->get_location(), "while checking statement");
-			}
-			break;
-		}
-    }
+	}
 
 	if (!*returns) {
 		/* if the block ensured that all code paths returned, then the lifetimes
@@ -4646,7 +4647,7 @@ void ast::block_t::resolve_statement(
 		life->release_vars(status, builder, scope, lf_block);
 	}
 
-    return;
+	return;
 }
 
 void ast::for_block_t::resolve_statement(
@@ -4904,11 +4905,6 @@ void ast::if_block_t::resolve_statement(
 						scope_if_false = scope_if_else_false;
 					}
 				}
-#if 0
-				if (!status) {
-					user_info(status, else_->get_location(), "while checking else statement");
-				}
-#endif
 			}
 
 			if (!!status) {
@@ -5398,16 +5394,18 @@ bound_var_t::ref ast::reference_expr_t::resolve_overrides(
 		const bound_type_t::refs &args) const
 {
 	/* ok, we know we've got some variable here */
-	auto bound_var = get_callable(status, builder, scope, token.text,
-			get_location(), get_args_type(args), nullptr);
-	if (!!status) {
-		return bound_var;
-	} else {
-		user_info(status, callsite->get_location(), "while checking %s with %s",
-				callsite->str().c_str(),
-				::str(args).c_str());
-		return nullptr;
+	try {
+		return get_callable(status, builder, scope, token.text,
+				get_location(), get_args_type(args), nullptr);
+	} catch (user_error_t &e) {
+		std::throw_with_nested(user_error_t(callsite->get_location(), "while checking %s with %s",
+					callsite->str().c_str(),
+					::str(args).c_str()));
+	} catch (...) {
+		panic("uncaught exception");
 	}
+
+	return nullptr;
 }
 
 bound_var_t::ref ast::cast_expr_t::resolve_expression(

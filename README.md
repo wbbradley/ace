@@ -143,6 +143,7 @@ or llvm tools, etc...
 
 ### TODO
 
+- [ ] Maintenance: Change all `status_t` parts of compiler to use exceptions
 - [ ] Implement slice array indexing rg[s:end], etc...
 - [ ] Implement native structures as non-pointer values
 - [ ] Consider how to allow for-macro expansion to have a mutating iterator function. Does that mean pass-by-ref is
