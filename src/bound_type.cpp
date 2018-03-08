@@ -207,8 +207,6 @@ void bound_type_t::is_managed_ptr(
 	   	ptr<scope_t> scope,
 		bool &is_managed) const
 {
-	assert(!!status);
-
 	is_managed = types::is_managed_ptr(type, scope->get_nominal_env(), scope->get_total_env());
 
 #ifdef ZION_DEBUG
@@ -221,7 +219,6 @@ void bound_type_t::is_managed_ptr(
 
 	/* get the memory management structure type */
 	auto var = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE);
-	assert(!!status);
 	assert(var != nullptr);
 
 	if (is_managed) {
