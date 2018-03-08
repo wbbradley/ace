@@ -202,7 +202,6 @@ bool bound_type_t::is_ptr(scope_t::ref scope) const {
 }
 
 void bound_type_t::is_managed_ptr(
-		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	ptr<scope_t> scope,
 		bool &is_managed) const
@@ -218,7 +217,7 @@ void bound_type_t::is_managed_ptr(
 	auto program_scope = scope->get_program_scope();
 
 	/* get the memory management structure type */
-	auto var = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE);
+	auto var = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE);
 	assert(var != nullptr);
 
 	if (is_managed) {

@@ -94,7 +94,6 @@ namespace types {
 		virtual ref eval_core(const map &nominal_env, const map &structural_env, bool get_structural_type) const = 0;
 
         virtual type_t::ref boolean_refinement(
-				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -118,7 +117,6 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(
-				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -154,7 +152,6 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(
-				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -188,7 +185,6 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(
-				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -226,7 +222,7 @@ namespace types {
 		virtual std::set<std::string> get_ftvs() const;
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
-		int coerce_to_int(status_t &status) const;
+		int coerce_to_int() const;
 	};
 
 	struct type_integer_t : public type_t {
@@ -242,7 +238,6 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(
-				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -393,7 +388,6 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(
-				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -412,7 +406,6 @@ namespace types {
 		virtual ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(
-				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -432,7 +425,6 @@ namespace types {
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(
-				status_t &status,
 				bool elimination_value,
 			   	const types::type_t::map &nominal_env,
 			   	const types::type_t::map &total_env) const;
@@ -485,14 +477,13 @@ namespace types {
 
 	identifier::ref gensym();
 	int coerce_to_integer(
-			status_t &status,
 			const types::type_t::map &nominal_env,
 			const types::type_t::map &total_env,
 			type_t::ref type,
 			type_t::ref &expansion);
 	bool is_integer(type_t::ref type, const type_t::map &nominal_env, const type_t::map &total_env);
-	void get_integer_attributes(status_t &status, type_t::ref type, const type_t::map &nominal_env, const type_t::map &total_env, unsigned &bit_size, bool &signed_);
-	void get_runtime_typeids(status_t &status, type_t::ref type, const type_t::map &nominal_env, const type_t::map &total_env, std::set<int> &typeids);
+	void get_integer_attributes(type_t::ref type, const type_t::map &nominal_env, const type_t::map &total_env, unsigned &bit_size, bool &signed_);
+	void get_runtime_typeids(type_t::ref type, const type_t::map &nominal_env, const type_t::map &total_env, std::set<int> &typeids);
 	type_t::ref without_ref(type_t::ref type);
 	type_t::refs without_refs(type_t::refs types);
 };
@@ -518,7 +509,6 @@ types::type_t::ref type_and(types::type_t::refs terms);
 types::type_t::ref type_lazy(types::type_t::refs options, location_t location);
 types::type_t::ref type_sum(types::type_t::refs options, location_t location);
 types::type_t::ref type_sum_safe(
-		status_t &status,
         types::type_t::refs options,
         location_t location,
         const types::type_t::map &nominal_env,

@@ -4,8 +4,6 @@
 #include "life.h"
 #include "llvm_zion.h"
 
-struct status_t;
-
 enum null_check_kind_t {
 	nck_is_non_null,
 	nck_is_null,
@@ -23,13 +21,11 @@ bound_var_t::ref resolve_null_check(
 #endif
 
 bound_var_t::ref get_null(
-        status_t &status,
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		location_t location);
 
 bound_var_t::ref resolve_null_check(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,

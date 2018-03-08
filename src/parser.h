@@ -8,14 +8,12 @@
 template <typename T, typename... Args>
 ptr<T> parse_text(std::istream &is, std::string filename = "repl.zion") {
 	zion_lexer_t lexer(filename, is);
-	status_t status;
 	type_macros_t global_type_macros;
-	parse_state_t ps(status, filename, lexer, {}, global_type_macros);
+	parse_state_t ps(filename, lexer, {}, global_type_macros);
 	ps.module_id = make_iid("__parse_text__");
 
 	auto item = T::parse(ps);
 	if (ps.token.tk != tk_none) {
-		assert(!status);
 		return nullptr;
 	}
 	return item;

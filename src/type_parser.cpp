@@ -39,9 +39,9 @@ namespace types {
 		type_t::refs dimensions;
 		name_index_t name_index;
 		int index = 0;
-		while (!!ps.status && ps.token.tk != tk_outdent) {
+		while (ps.token.tk != tk_outdent) {
 			if (!ps.line_broke() && ps.prior_token.tk != tk_indent) {
-				ps.error("product type dimensions must be separated by a newline");
+				throw user_error_t(ps.token.location, "product type dimensions must be separated by a newline");
 			}
 
 			token_t var_token;
@@ -55,12 +55,12 @@ namespace types {
 				expect_token(tk_identifier);
 				var_token = ps.token;
 				if (name_index.find(var_token.text) != name_index.end()) {
-					ps.error("name " c_id("%s") " already exists in type", var_token.text.c_str());
+					throw user_error_t(ps.token.location, "name " c_id("%s") " already exists in type", var_token.text.c_str());
 				}
 				name_index[var_token.text] = index++;
 				ps.advance();
 			} else {
-				ps.error("not sure what's going on here");
+				throw user_error_t(ps.token.location, "not sure what's going on here");
 				wat();
 				expect_token(tk_identifier);
 				var_token = ps.token;
@@ -71,17 +71,10 @@ namespace types {
 				dim_type = type_ref(dim_type);
 			}
 
-			if (!!ps.status) {
-				dimensions.push_back(dim_type);
-			}
+			dimensions.push_back(dim_type);
 		}
 		chomp_token(tk_outdent);
-		if (!!ps.status) {
-			return ::type_struct(dimensions, name_index);
-		}
-
-		assert(!ps.status);
-		return nullptr;
+		return ::type_struct(dimensions, name_index);
 	}
 
 	type_t::ref parse_identifier_type(parse_state_t &ps, const identifier::set &generics) {
@@ -140,38 +133,27 @@ namespace types {
 	type_t::ref parse_parens_type(parse_state_t &ps, const identifier::set &generics) {
 		chomp_token(tk_lparen);
 		auto lhs = parse_type(ps, generics);
-		if (!!ps.status) {
-			if (ps.token.tk == tk_comma) {
-				/* we've got a tuple expression */
-				std::vector<type_t::ref> terms;
-				terms.push_back(lhs);
-				while (ps.token.tk == tk_comma) {
-					ps.advance();
-					if (ps.token.tk == tk_rcurly) {
-						/* allow for ending with a comma */
-						break;
-					}
-					auto next_term = parse_type(ps, generics);
-					if (!!ps.status) {
-						terms.push_back(next_term);
-					} else {
-						break;
-					}
+		if (ps.token.tk == tk_comma) {
+			/* we've got a tuple expression */
+			std::vector<type_t::ref> terms;
+			terms.push_back(lhs);
+			while (ps.token.tk == tk_comma) {
+				ps.advance();
+				if (ps.token.tk == tk_rcurly) {
+					/* allow for ending with a comma */
+					break;
 				}
-
-				if (!!ps.status) {
-					chomp_token(tk_rparen);
-					return type_tuple(terms);
-				}
-			} else {
-				/* we've got a single expression */
-				chomp_token(tk_rparen);
-				return lhs;
+				auto next_term = parse_type(ps, generics);
+				terms.push_back(next_term);
 			}
-		}
 
-		assert(!ps.status);
-		return nullptr;
+			chomp_token(tk_rparen);
+			return type_tuple(terms);
+		} else {
+			/* we've got a single expression */
+			chomp_token(tk_rparen);
+			return lhs;
+		}
 	}
 
 	type_t::ref parse_type_constraints(parse_state_t &ps, const identifier::set &generics) {
@@ -198,13 +180,13 @@ namespace types {
 				auto ftv = make_code_id(ps.token);
 
 				if (in(ftv, generics)) {
-					user_error(ps.status, ftv->get_location(),
+					auto iter = generics.find(ftv);
+					auto error = user_error_t(ftv->get_location(),
 							"illegal redeclaration of type variable %s", 
 							ftv->str().c_str());
-					auto iter = generics.find(ftv);
-					user_info(ps.status, (*iter)->get_location(), "see original declaration of type variable %s",
+					error.add_info((*iter)->get_location(), "see original declaration of type variable %s",
 							(*iter)->str().c_str());
-					break;
+					throw error;
 				}
 
 				generics.insert(ftv);
@@ -214,7 +196,7 @@ namespace types {
 					ps.advance();
 					expect_token(tk_identifier);
 					if (token_is_illegal_in_type(ps.token)) {
-						user_error(ps.status, ps.token.location, "invalid type variable name %s", ps.token.str().c_str());
+						throw user_error_t(ps.token.location, "invalid type variable name %s", ps.token.str().c_str());
 						break;
 					}
 					continue;
@@ -226,76 +208,61 @@ namespace types {
 					ps.advance();
 					break;
 				} else {
-					user_error(ps.status, ps.token.location, "expected ',', 'where', or '}'");
+					throw user_error_t(ps.token.location, "expected ',', 'where', or '}'");
 					break;
 				}
 			}
 		}
-			
-		if (!!ps.status) {
-			chomp_token(tk_lparen);
-			types::type_t::refs param_types;
-			identifier::refs param_names;
-			types::type_t::ref return_type;
 
-			while (!!ps.status) {
-				if (ps.token.tk == tk_identifier) {
-					auto var_name = ps.token;
-					ps.advance();
+		chomp_token(tk_lparen);
+		types::type_t::refs param_types;
+		identifier::refs param_names;
+		types::type_t::ref return_type;
 
-					/* parse the type */
-					if (ps.token.tk == tk_comma || ps.token.tk == tk_rparen) {
-						/* if there is no type then assume `any` */
-						param_types.push_back(type_variable(var_name.location));
-					} else {
-						types::type_t::ref type = parse_type(ps, generics);
-						if (!!ps.status) {
-							param_types.push_back(type);
-						}
-					}
+		while (true) {
+			if (ps.token.tk == tk_identifier) {
+				auto var_name = ps.token;
+				ps.advance();
 
-					if (!!ps.status) {
-						auto param_name = make_code_id(var_name);
-						if (in_vector(param_name, param_names)) {
-							ps.error("duplicated parameter name: %s", var_name.text.c_str());
-						} else {
-							param_names.push_back(param_name);
-						}
+				/* parse the type */
+				if (ps.token.tk == tk_comma || ps.token.tk == tk_rparen) {
+					/* if there is no type then assume `any` */
+					param_types.push_back(type_variable(var_name.location));
+				} else {
+					param_types.push_back(parse_type(ps, generics));
+				}
 
-						if (ps.token.tk == tk_rparen) {
-							ps.advance();
-							break;
-						}
-						if (ps.token.tk == tk_comma) {
-							/* advance past a comma */
-							ps.advance();
-						}
-					}
-				} else if (ps.token.tk == tk_rparen) {
+				auto param_name = make_code_id(var_name);
+				if (in_vector(param_name, param_names)) {
+					throw user_error_t(ps.token.location, "duplicated parameter name: %s", var_name.text.c_str());
+				} else {
+					param_names.push_back(param_name);
+				}
+
+				if (ps.token.tk == tk_rparen) {
 					ps.advance();
 					break;
-				} else {
-					ps.error("expected a parameter name");
-					return nullptr;
 				}
-			}
-
-			if (!!ps.status) {
-				/* now let's parse the return type */
-				if (!ps.line_broke()) {
-					return_type = parse_type(ps, generics);
-				} else {
-					return_type = type_void();
+				if (ps.token.tk == tk_comma) {
+					/* advance past a comma */
+					ps.advance();
 				}
-
-				if (!!ps.status) {
-					return type_function(name, type_constraints, type_args(param_types, param_names), return_type);
-				}
+			} else if (ps.token.tk == tk_rparen) {
+				ps.advance();
+				break;
+			} else {
+				throw user_error_t(ps.token.location, "expected a parameter name");
 			}
 		}
 
-		assert(!ps.status);
-		return nullptr;
+		/* now let's parse the return type */
+		if (!ps.line_broke()) {
+			return_type = parse_type(ps, generics);
+		} else {
+			return_type = type_void();
+		}
+
+		return type_function(name, type_constraints, type_args(param_types, param_names), return_type);
 	}
 
 	type_t::ref parse_map_type(parse_state_t &ps, const identifier::set &generics) {
@@ -303,19 +270,12 @@ namespace types {
 		auto curly_token = ps.token;
 		ps.advance();
 		auto lhs = parse_type(ps, generics);
-		if (!!ps.status) {
-			chomp_token(tk_colon);
-			auto rhs = parse_type(ps, generics);
-			if (!!ps.status) {
-				chomp_token(tk_rcurly);
-				return type_operator(
-						type_operator(type_id(make_iid_impl(STD_MAP_TYPE, curly_token.location)), lhs),
-						rhs);
-			}
-		}
-
-		assert(!ps.status);
-		return nullptr;
+		chomp_token(tk_colon);
+		auto rhs = parse_type(ps, generics);
+		chomp_token(tk_rcurly);
+		return type_operator(
+				type_operator(type_id(make_iid_impl(STD_MAP_TYPE, curly_token.location)), lhs),
+				rhs);
 	}
 
 	type_t::ref parse_vector_type(parse_state_t &ps, const identifier::set &generics) {
@@ -323,38 +283,24 @@ namespace types {
 		auto square_token = ps.token;
 		ps.advance();
 		auto lhs = parse_type(ps, generics);
-		if (!!ps.status) {
-			chomp_token(tk_rsquare);
-			return type_operator(type_id(make_iid_impl(STD_VECTOR_TYPE, square_token.location)), lhs);
-		}
-
-		assert(!ps.status);
-		return nullptr;
+		chomp_token(tk_rsquare);
+		return type_operator(type_id(make_iid_impl(STD_VECTOR_TYPE, square_token.location)), lhs);
 	}
 
 	type_t::ref parse_integer_type(parse_state_t &ps, const identifier::set &generics) {
 		auto token = ps.token;
 		chomp_ident(K(integer));
 		if (ps.token.tk != tk_lparen) {
-			ps.error("native integer types use the form " c_type("integer(bit_size, signed) ")
+			throw user_error_t(ps.token.location, "native integer types use the form " c_type("integer(bit_size, signed) ")
 					"where bit_size must evaluate (as a type literal) to a valid word size, and signed "
 					"must evaluate (as a type literal) to true or false. for example: " c_type("integer(8, false)") " is an unsigned octet (aka: a byte)");
 		}
-		if (!!ps.status) {
-			chomp_token(tk_lparen);
-			auto bit_size = parse_type(ps, generics);
-			if (!!ps.status) {
-				chomp_token(tk_comma);
-				auto signed_ = parse_type(ps, generics);
-				if (!!ps.status) {
-					chomp_token(tk_rparen);
-					return type_integer(bit_size, signed_);
-				}
-			}
-		}
-
-		assert(!ps.status);
-		return nullptr;
+		chomp_token(tk_lparen);
+		auto bit_size = parse_type(ps, generics);
+		chomp_token(tk_comma);
+		auto signed_ = parse_type(ps, generics);
+		chomp_token(tk_rparen);
+		return type_integer(bit_size, signed_);
 	}
 
 	type_t::ref parse_lambda_type(parse_state_t &ps, const identifier::set &generics) {
@@ -364,12 +310,7 @@ namespace types {
 			auto param_token = ps.token;
 			ps.advance();
 			auto body = parse_and_type(ps, generics);
-			if (!!ps.status) {
 				return type_lambda(make_code_id(param_token), body);
-			}
-
-			assert(!ps.status);
-			return nullptr;
 		} else if (ps.token.is_ident(K(def))) {
 			return parse_function_type(ps, generics);
 		} else if (ps.token.is_ident(K(any))) {
@@ -423,39 +364,35 @@ namespace types {
 		}
 		/* if we had one pointer, we may have another. if we had no pointer, then we are done checking for pointers */
 		auto element = is_ptr ? parse_ptr_type(ps, generics, is_ptr) : parse_lambda_type(ps, generics);
-		if (!!ps.status) {
-			if (element == nullptr) {
-				/* there is nothing left for us to parse */
-				return nullptr;
-			}
+		if (element == nullptr) {
+			/* there is nothing left for us to parse */
+			return nullptr;
+		}
 
-			if (is_maybe) {
-				if (ps.token.tk == tk_maybe) {
-					user_error(ps.status, ps.token.location, "redundant usage of ?. you may need parentheses");
+		if (is_maybe) {
+			if (ps.token.tk == tk_maybe) {
+				throw user_error_t(ps.token.location, "redundant usage of ?. you may need parentheses");
+			} else {
+				return type_maybe(type_ptr(element));
+			}
+		} else if (is_ptr) {
+			if (ps.token.tk == tk_maybe) {
+				throw user_error_t(ps.token.location, "use *? for native pointers. or, you may need parentheses");
+			} else {
+				return type_ptr(element);
+			}
+		} else {
+			if (ps.token.tk == tk_maybe) {
+				if (disallow_maybe) {
+					throw user_error_t(ps.token.location, "ambiguous ?. try using `*?`, or parentheses");
 				} else {
-					return type_maybe(type_ptr(element));
-				}
-			} else if (is_ptr) {
-				if (ps.token.tk == tk_maybe) {
-					user_error(ps.status, ps.token.location, "use *? for native pointers. or, you may need parentheses");
-				} else {
-					return type_ptr(element);
+					ps.advance();
+					return type_maybe(element);
 				}
 			} else {
-				if (ps.token.tk == tk_maybe) {
-					if (disallow_maybe) {
-						user_error(ps.status, ps.token.location, "ambiguous ?. try using `*?`, or parentheses");
-					} else {
-						ps.advance();
-						return type_maybe(element);
-					}
-				} else {
-					return element;
-				}
+				return element;
 			}
 		}
-		assert(!ps.status);
-		return nullptr;
 	}
 
 	type_t::ref parse_ref_type(parse_state_t &ps, const identifier::set &generics) {
@@ -465,135 +402,89 @@ namespace types {
 			is_ref = true;
 		}
 		auto element = parse_ptr_type(ps, generics);
-		if (!!ps.status) {
-			return is_ref ? type_ref(element) : element;
-		}
-		assert(!ps.status);
-		return nullptr;
+		return is_ref ? type_ref(element) : element;
 	}
 
 	type_t::ref parse_application_type(parse_state_t &ps, const identifier::set &generics) {
 		auto lhs = parse_ref_type(ps, generics);
-		if (!!ps.status) {
-			if (lhs == nullptr) {
-				ps.error("unable to parse type");
-			} else {
-				std::vector<type_t::ref> terms;
-				while (!!ps.status) {
-					if (ps.line_broke()) {
-						break;
-					}
-					auto next_term = parse_ref_type(ps, generics);
-					if (!!ps.status) {
-						if (next_term != nullptr) {
-							terms.push_back(next_term);
-						} else {
-							break;
-						}
-					}
+		if (lhs == nullptr) {
+			throw user_error_t(ps.token.location, "unable to parse type");
+		} else {
+			std::vector<type_t::ref> terms;
+			while (true) {
+				if (ps.line_broke()) {
+					break;
 				}
-
-				if (!!ps.status) {
-					for (unsigned i = 0; i < terms.size(); ++i) {
-						lhs = type_operator(lhs, terms[i]);
-					}
-					return lhs;
+				auto next_term = parse_ref_type(ps, generics);
+				if (next_term != nullptr) {
+					terms.push_back(next_term);
+				} else {
+					break;
 				}
 			}
+
+			for (unsigned i = 0; i < terms.size(); ++i) {
+				lhs = type_operator(lhs, terms[i]);
+			}
+			return lhs;
 		}
-		assert(!ps.status);
-		return nullptr;
 	}
 
 	type_t::ref parse_infix_subtype(parse_state_t &ps, const identifier::set &generics) {
 		auto lhs = parse_application_type(ps, generics);
-		if (!!ps.status) {
-			if (ps.token.tk == tk_subtype) {
-				/* we've got a subtype expression */
-				ps.advance();
-				auto rhs = parse_application_type(ps, generics);
+		if (ps.token.tk == tk_subtype) {
+			/* we've got a subtype expression */
+			ps.advance();
+			auto rhs = parse_application_type(ps, generics);
 
-				if (!!ps.status) {
-					return type_subtype(lhs, rhs);
-				}
-			} else {
-				/* we've got a single expression */
-				return lhs;
-			}
+			return type_subtype(lhs, rhs);
+		} else {
+			/* we've got a single expression */
+			return lhs;
 		}
-
-		assert(!ps.status);
-		return nullptr;
 	}
 
 	type_t::ref parse_and_type(parse_state_t &ps, const identifier::set &generics) {
 		auto lhs = parse_infix_subtype(ps, generics);
-		if (!!ps.status) {
-			if (ps.token.is_ident(K(and))) {
-				/* we've got a Logical AND expression */
-				std::vector<type_t::ref> terms;
-				terms.push_back(lhs);
-				while (ps.token.is_ident(K(and))) {
-					chomp_ident(K(and));
-					auto next_term = parse_infix_subtype(ps, generics);
-					if (!!ps.status) {
-						terms.push_back(next_term);
-					} else {
-						break;
-					}
-				}
-
-				if (!!ps.status) {
-					return type_and(terms);
-				}
-			} else {
-				/* we've got a single expression */
-				return lhs;
+		if (ps.token.is_ident(K(and))) {
+			/* we've got a Logical AND expression */
+			std::vector<type_t::ref> terms;
+			terms.push_back(lhs);
+			while (ps.token.is_ident(K(and))) {
+				chomp_ident(K(and));
+				terms.push_back(parse_infix_subtype(ps, generics));
 			}
-		}
 
-		assert(!ps.status);
-		return nullptr;
+			return type_and(terms);
+		} else {
+			/* we've got a single expression */
+			return lhs;
+		}
 	}
 
 	type_t::ref parse_or_type(parse_state_t &ps, const identifier::set &generics) {
 		location_t location = ps.token.location;
 		type_t::refs options;
-		while (!!ps.status) {
-			auto type = parse_and_type(ps, generics);
-
-			if (!!ps.status) {
-				options.push_back(type);
-				if (ps.token.is_ident(K(or))) {
-					ps.advance();
-					continue;
-				} else {
-					break;
-				}
+		while (true) {
+			options.push_back(parse_and_type(ps, generics));
+			if (ps.token.is_ident(K(or))) {
+				ps.advance();
+				continue;
+			} else {
+				break;
 			}
 		}
 
-		if (!!ps.status) {
-			if (options.size() == 1) {
-				if (auto function_type = dyncast<const type_function_t>(options[0])) {
-					return function_type;
-				} 
-			}
-			return type_lazy(options, location);
+		if (options.size() == 1) {
+			if (auto function_type = dyncast<const type_function_t>(options[0])) {
+				return function_type;
+			} 
 		}
-
-		assert(!ps.status);
-		return nullptr;
+		return type_lazy(options, location);
 	}
 
 	type_t::ref parse_type(parse_state_t &ps, const identifier::set &generics) {
-		auto type = parse_or_type(ps, generics);
-		if (!!ps.status) {
-			debug_above(9, log("parsed type %s", type->str().c_str()));
-		} else {
-			debug_above(3, log("failed to parse type"));
-		}
-		return type;
+		return parse_or_type(ps, generics);
 	}
 
 	identifier::ref reduce_ids(const std::list<identifier::ref> &ids, location_t location) {
@@ -619,7 +510,7 @@ types::type_t::ref parse_type_expr(
 	global_type_macros[MANAGED_TRUE] = type_id(make_iid(MANAGED_TRUE));
 	global_type_macros[MANAGED_FALSE] = type_id(make_iid(MANAGED_FALSE));
 
-	parse_state_t ps(status, "", lexer, global_type_macros, global_type_macros, nullptr);
+	parse_state_t ps("", lexer, global_type_macros, global_type_macros, nullptr);
 	if (module_id != nullptr) {
 		ps.module_id = module_id;
 	} else {

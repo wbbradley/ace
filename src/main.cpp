@@ -97,27 +97,19 @@ int main(int argc, char *argv[]) {
 			return EXIT_FAILURE;
 		}
 	} else if (argc >= 3) {
-		status_t status;
 		compiler_t compiler(argv[2], {".", "lib", "tests"});
 
 		if (cmd == "read-ir") {
-				compiler.llvm_load_ir(status, argv[2]);
-            if (!!status) {
-                return EXIT_SUCCESS;
-            } else {
-                return EXIT_FAILURE;
-            }
-        } else if (cmd == "find") {
-            std::string filename;
-            compiler.resolve_module_filename(status, INTERNAL_LOC(),
-                    argv[2], filename);
+			compiler.llvm_load_ir(argv[2]);
+			return EXIT_SUCCESS;
+		} else if (cmd == "find") {
+			std::string filename;
+			compiler.resolve_module_filename(INTERNAL_LOC(),
+					argv[2], filename);
 
-			if (!!status) {
-                std::cout << filename << std::endl;
-                return EXIT_SUCCESS;
-			}
-			return EXIT_FAILURE;
-        } else if (cmd == "compile") {
+			std::cout << filename << std::endl;
+			return EXIT_SUCCESS;
+		} else if (cmd == "compile") {
 			if (compiler.build_parse_modules()) {
 				if (compiler.build_type_check_and_code_gen()) {
 					return EXIT_SUCCESS;
@@ -144,17 +136,14 @@ int main(int argc, char *argv[]) {
 			if (compiler.build_parse_modules()) {
 				if (compiler.build_type_check_and_code_gen()) {
 					auto executable_filename = compiler.get_executable_filename();
-					compiler.emit_built_program(status, executable_filename);
-					if (!!status) {
-						std::vector<char*> args;
-						args.reserve(argc-2+1);
-						for (int i=2; i<argc; ++i) {
-							args.push_back(argv[i]);
-						}
-						args.push_back(nullptr);
-					   return execv(executable_filename.c_str(), &args[0]);
+					compiler.emit_built_program(executable_filename);
+					std::vector<char*> args;
+					args.reserve(argc-2+1);
+					for (int i=2; i<argc; ++i) {
+						args.push_back(argv[i]);
 					}
-					return EXIT_FAILURE;
+					args.push_back(nullptr);
+					return execv(executable_filename.c_str(), &args[0]);
 				}
 			}
 			return EXIT_FAILURE;
@@ -162,8 +151,8 @@ int main(int argc, char *argv[]) {
 			if (compiler.build_parse_modules()) {
 				if (compiler.build_type_check_and_code_gen()) {
 					std::vector<std::string> obj_files;
-					compiler.emit_object_files(status, obj_files);
-					return !!status ? EXIT_SUCCESS : EXIT_FAILURE;
+					compiler.emit_object_files(obj_files);
+					return EXIT_SUCCESS;
 				}
 			}
 			return EXIT_FAILURE;
@@ -171,9 +160,8 @@ int main(int argc, char *argv[]) {
 			if (compiler.build_parse_modules()) {
 				if (compiler.build_type_check_and_code_gen()) {
 					auto executable_filename = compiler.get_executable_filename();
-					status_t status;
-					compiler.emit_built_program(status, executable_filename);
-					return !!status ? EXIT_SUCCESS : EXIT_FAILURE;
+					compiler.emit_built_program(executable_filename);
+					return EXIT_SUCCESS;
 				}
 			}
 			return EXIT_FAILURE;

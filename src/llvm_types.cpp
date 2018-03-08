@@ -11,7 +11,6 @@
 #include "type_kind.h"
 
 bound_type_t::refs upsert_bound_types(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		types::type_t::refs types)
@@ -20,8 +19,7 @@ bound_type_t::refs upsert_bound_types(
 	 * within */
 	bound_type_t::refs bound_args;
 	for (auto type : types) {
-		bound_type_t::ref bound_arg = upsert_bound_type(status, builder, scope,
-				type);
+		bound_type_t::ref bound_arg = upsert_bound_type(builder, scope, type);
 		bound_args.push_back(bound_arg);
 	}
 	return bound_args;
@@ -47,7 +45,6 @@ bound_type_t::ref create_ptr_type(
 }
 
 bound_type_t::ref create_bound_ref_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		types::type_ref_t::ref type_ref)
@@ -65,17 +62,16 @@ bound_type_t::ref create_bound_ref_type(
 	}
 
 	/* make sure we create the pointed to type first */
-	bound_type_t::ref bound_element_type = upsert_bound_type(status, builder, scope, type_ref->element_type);
+	bound_type_t::ref bound_element_type = upsert_bound_type(builder, scope, type_ref->element_type);
 
 	auto bound_type = bound_type_t::create(type_ref,
 			type_ref->get_location(),
 			bound_element_type->get_llvm_specific_type()->getPointerTo());
-	program_scope->put_bound_type(status, bound_type);
+	program_scope->put_bound_type(bound_type);
 	return bound_type;
 }
 
 bound_type_t::ref create_bound_extern_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		types::type_extern_t::ref type_extern)
@@ -87,7 +83,7 @@ bound_type_t::ref create_bound_extern_type(
 
 	auto ftvs = type_extern->get_ftvs();
 	if (ftvs.size() != 0) {
-		user_error(status, type_extern->get_location(),
+		throw user_error_t(type_extern->get_location(),
 				"unable to instantiate type %s because free variables [%s] still exist",
 				type_extern->str().c_str(),
 				join_with(ftvs, ", ", [] (std::string a) -> std::string {
@@ -95,17 +91,16 @@ bound_type_t::ref create_bound_extern_type(
 					}).c_str());
 	}
 
-	bound_type_t::ref var_ref_type = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE, true /*get_ptr*/);
+	bound_type_t::ref var_ref_type = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 	auto bound_type = bound_type_t::create(type_extern,
 			type_extern->get_location(),
 			var_ref_type->get_llvm_type());
-	program_scope->put_bound_type(status, bound_type);
+	program_scope->put_bound_type(bound_type);
 	return bound_type;
 }
 
 template <typename T>
 bound_type_t::ref create_bound_ptr_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		const T &type_ptr)
@@ -117,7 +112,7 @@ bound_type_t::ref create_bound_ptr_type(
 
 	auto ftvs = type_ptr->get_ftvs();
 	if (ftvs.size() != 0) {
-		user_error(status, type_ptr->get_location(),
+		throw user_error_t(type_ptr->get_location(),
 				"unable to instantiate type %s because free variables [%s] still exist",
 				type_ptr->str().c_str(),
 				join_with(ftvs, ", ", [] (std::string a) -> std::string {
@@ -128,7 +123,7 @@ bound_type_t::ref create_bound_ptr_type(
 
 	debug_above(8, log("recursing in to create element type %s", type_ptr->element_type->str().c_str()));
 	/* get or create the element type's bound type, if it exists */
-	bound_type_t::ref bound_type = upsert_bound_type(status, builder, scope, type_ptr->element_type);
+	bound_type_t::ref bound_type = upsert_bound_type(builder, scope, type_ptr->element_type);
 	debug_above(8, log("recursion yielded bound type %s", bound_type->str().c_str()));
 
 	assert(bound_type != nullptr);
@@ -144,13 +139,12 @@ bound_type_t::ref create_bound_ptr_type(
 	bound_ptr_type = bound_type_t::create(type_ptr,
 			type_ptr->get_location(),
 			bound_type->get_llvm_specific_type()->getPointerTo());
-	program_scope->put_bound_type(status, bound_ptr_type);
+	program_scope->put_bound_type(bound_ptr_type);
 
 	return bound_ptr_type;
 }
 
 std::vector<llvm::Type *> build_struct_elements(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
 		types::type_struct_t::ref struct_type,
@@ -174,7 +168,7 @@ std::vector<llvm::Type *> build_struct_elements(
 		return elements;
 	} else {
 		/* let's prefix the data in this structure with the managed runtime */
-		bound_type_t::ref var_type = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE);
+		bound_type_t::ref var_type = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE);
 		/* place the var_t struct into the structure */
 		elements.push_back(var_type->get_llvm_type());
 		llvm::StructType *inner_struct = llvm_create_struct_type(
@@ -200,7 +194,6 @@ std::vector<llvm::Type *> build_struct_elements(
 }
 
 bound_type_t::ref create_bound_managed_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		const ptr<const types::type_managed_t> &managed_type)
@@ -227,7 +220,7 @@ bound_type_t::ref create_bound_managed_type(
 
 	if (bound_ptr_type == nullptr) {
 		bound_ptr_type = create_ptr_type(builder, managed_ptr_type);
-		program_scope->put_bound_type(status, bound_ptr_type);
+		program_scope->put_bound_type(bound_ptr_type);
 	}
 
 	debug_above(5, log(log_info,
@@ -248,7 +241,7 @@ bound_type_t::ref create_bound_managed_type(
 
 	auto struct_type = dyncast<const types::type_struct_t>(managed_type->element_type);
 	assert(struct_type != nullptr);
-	auto var_type = program_scope->get_runtime_type(status, builder, STD_MANAGED_TYPE);
+	auto var_type = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE);
 
 	/* ensure that since this type is managed we refer to it generally by
 	 * its managed structure definition (upwards pointer bitcasts happen
@@ -257,12 +250,12 @@ bound_type_t::ref create_bound_managed_type(
 
 	/* resolve all of the contained dimensions. NB: cycles should be broken
 	 * by the existence of the pointer to this type */
-	bound_type_t::refs bound_dimensions = upsert_bound_types(status,
+	bound_type_t::refs bound_dimensions = upsert_bound_types(
 			builder, scope, types::without_refs(struct_type->dimensions));
 
 	/* fill out the internals of this structure INCLUDING the MANAGED var_t */
 	std::vector<llvm::Type *> elements = build_struct_elements(
-			status, builder, program_scope, struct_type, bound_dimensions, false /*native*/);
+			builder, program_scope, struct_type, bound_dimensions, false /*native*/);
 	/* finally set the elements into the structure */
 	llvm_struct_type->setBody(elements);
 	debug_above(6, log("setting the body of the managed %s structure to %s",
@@ -274,13 +267,12 @@ bound_type_t::ref create_bound_managed_type(
 			llvm_struct_type);
 
 	/* register this type */
-	program_scope->put_bound_type(status, bound_type);
+	program_scope->put_bound_type(bound_type);
 
 	return bound_type;
 }
 
 bound_type_t::ref create_bound_tuple_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		const ptr<const types::type_tuple_t> &tuple_type)
@@ -288,16 +280,15 @@ bound_type_t::ref create_bound_tuple_type(
 	auto program_scope = scope->get_program_scope();
 	auto expansion = type_ptr(type_managed(type_struct(tuple_type->dimensions, {})));
 
-	auto bound_structural_type = upsert_bound_type(status, builder, scope, expansion);
+	auto bound_structural_type = upsert_bound_type(builder, scope, expansion);
 	auto bound_type = bound_type_t::create(tuple_type,
 			tuple_type->get_location(), bound_structural_type->get_llvm_type(),
 			bound_structural_type->get_llvm_specific_type());
-	program_scope->put_bound_type(status, bound_type);
+	program_scope->put_bound_type(bound_type);
 	return bound_type;
 }
 
 bound_type_t::ref create_bound_struct_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		const ptr<const types::type_struct_t> &struct_type)
@@ -324,7 +315,7 @@ bound_type_t::ref create_bound_struct_type(
 
 	if (bound_ptr_type == nullptr) {
 		bound_ptr_type = create_ptr_type(builder, ptr_type);
-		program_scope->put_bound_type(status, bound_ptr_type);
+		program_scope->put_bound_type(bound_ptr_type);
 	}
 
 	assert(bound_ptr_type != nullptr);
@@ -345,7 +336,7 @@ bound_type_t::ref create_bound_struct_type(
 	try {
 		/* resolve all of the contained dimensions. NB: cycles should be broken
 		 * by the existence of the pointer to this type */
-		bound_dimensions = upsert_bound_types(status,
+		bound_dimensions = upsert_bound_types(
 				builder, scope, types::without_refs(struct_type->dimensions));
 	} catch (user_error_t &e) {
 		std::throw_with_nested(user_error_t(struct_type->get_location(),
@@ -355,7 +346,7 @@ bound_type_t::ref create_bound_struct_type(
 
 	/* fill out the internals of this structure */
 	std::vector<llvm::Type *> elements = build_struct_elements(
-			status, builder, program_scope, struct_type,
+			builder, program_scope, struct_type,
 			bound_dimensions, true /*native*/);
 	/* finally set the elements into the structure */
 	assert(llvm_struct_type->isOpaque());
@@ -370,13 +361,12 @@ bound_type_t::ref create_bound_struct_type(
 			llvm_struct_type);
 
 	/* register this type */
-	program_scope->put_bound_type(status, bound_type);
+	program_scope->put_bound_type(bound_type);
 
 	return bound_type;
 }
 
 bound_type_t::ref bind_expansion(
-		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 	   	types::type_t::ref unexpanded,
@@ -394,9 +384,9 @@ bound_type_t::ref bind_expansion(
 
 	/* set up a mapping at the program level for these bound types */
 	if (unexpanded_signature != expanded_signature) {
-		program_scope->put_bound_type_mapping(status, unexpanded_signature,
+		program_scope->put_bound_type_mapping(unexpanded_signature,
 				expansion->get_signature());
-		program_scope->put_bound_type_mapping(status, type_ptr(unexpanded)->get_signature(),
+		program_scope->put_bound_type_mapping(type_ptr(unexpanded)->get_signature(),
 				type_ptr(expansion)->get_signature());
 	}
 
@@ -405,7 +395,7 @@ bound_type_t::ref bind_expansion(
 	 * process looks for our unexpanded type (via self-referencing type
 	 * definitions) it translates into whatever cycle breaking we already
 	 * have. */
-	auto expansion_bound_type = upsert_bound_type(status, builder, scope, expansion);
+	auto expansion_bound_type = upsert_bound_type(builder, scope, expansion);
 
 	llvm::StructType *llvm_struct_type = llvm_find_struct(
 			expansion_bound_type->get_llvm_specific_type());
@@ -431,15 +421,14 @@ bound_type_t::ref bind_expansion(
 				expansion_bound_type->get_llvm_type(),
 				expansion_bound_type->get_llvm_specific_type());
 
-		program_scope->put_bound_type(status, bound_type);
+		program_scope->put_bound_type(bound_type);
 	}
 
-	upsert_bound_type(status, builder, scope, type_ptr(expansion));
+	upsert_bound_type(builder, scope, type_ptr(expansion));
 	return bound_type;
 }
 
 bound_type_t::ref create_bound_expr_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		const ptr<const types::type_t> &id)
@@ -451,7 +440,7 @@ bound_type_t::ref create_bound_expr_type(
 		if (id->get_signature() != nominal_expansion->get_signature()) {
 			/* make it so we can quickly find this type even though the fully normalized nominal
 			 * name is different. */
-			scope->get_program_scope()->put_bound_type_mapping(status, id->get_signature(), nominal_expansion->get_signature());
+			scope->get_program_scope()->put_bound_type_mapping(id->get_signature(), nominal_expansion->get_signature());
 		}
 
 		/* once nominally expanded, this id is already bound. use the nominal expansion as the
@@ -469,7 +458,7 @@ bound_type_t::ref create_bound_expr_type(
 
 	/* however, what it expands to might already have a bound type */
 	if (total_expansion != id) {
-		return bind_expansion(status, builder, scope, nominal_expansion, total_expansion);
+		return bind_expansion(builder, scope, nominal_expansion, total_expansion);
 	} else {
 		throw user_error_t(id->get_location(), "no type definition found for %s",
 				id->str().c_str());
@@ -477,7 +466,6 @@ bound_type_t::ref create_bound_expr_type(
 }
 
 bound_type_t::ref create_bound_integer_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		const ptr<const types::type_integer_t> &integer)
@@ -486,7 +474,7 @@ bound_type_t::ref create_bound_integer_type(
 	auto signed_ = integer->signed_->eval(scope, true);
 
 	types::type_t::ref bit_size_expansion;
-	int bit_size = types::coerce_to_integer(status, nominal_env, scope->get_total_env(), integer->bit_size, bit_size_expansion);
+	int bit_size = types::coerce_to_integer(nominal_env, scope->get_total_env(), integer->bit_size, bit_size_expansion);
 	if (!types::is_type_id(signed_, TRUE_TYPE, {}, {}) && !types::is_type_id(signed_, FALSE_TYPE, {}, {})) {
 		throw user_error_t(integer->get_location(), "could not determine signedness for type from %s",
 				signed_->str().c_str());
@@ -511,14 +499,13 @@ bound_type_t::ref create_bound_integer_type(
 					integer->get_location(),
 					builder.getIntNTy(bit_size),
 					builder.getIntNTy(bit_size));
-			scope->get_program_scope()->put_bound_type(status, bound_type);
+			scope->get_program_scope()->put_bound_type(bound_type);
 			return bound_type;
 		}
 	}
 }
 
 bound_type_t::ref create_bound_maybe_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		const ptr<const types::type_maybe_t> &maybe)
@@ -537,19 +524,19 @@ bound_type_t::ref create_bound_maybe_type(
 					bound_just_type->get_location(),
 					bound_just_type->get_llvm_type(),
 					bound_just_type->get_llvm_specific_type());
-			program_scope->put_bound_type(status, bound_type);
+			program_scope->put_bound_type(bound_type);
 			return bound_type;
 		} else {
-			user_error(status, bound_just_type->get_location(),
+			throw user_error_t(bound_just_type->get_location(),
 					"maybe types must wrap pointers. %s is not a pointer",
 					maybe->just->str().c_str());
 		}
 	}
 
-	program_scope->put_bound_type_mapping(status, maybe->get_signature(),
+	program_scope->put_bound_type_mapping(maybe->get_signature(),
 			maybe->just->get_signature());
 
-	bound_type_t::ref bound_just_type = upsert_bound_type(status, builder, scope, maybe->just);
+	bound_type_t::ref bound_just_type = upsert_bound_type(builder, scope, maybe->just);
 	auto llvm_type = bound_just_type->get_llvm_specific_type();
 	if (llvm_type->isPointerTy()) {
 		debug_above(5, log(log_info,
@@ -561,7 +548,7 @@ bound_type_t::ref create_bound_maybe_type(
 					maybe,
 					bound_just_type->get_location(),
 					llvm_type);
-			program_scope->put_bound_type(status, bound_type);
+			program_scope->put_bound_type(bound_type);
 		}
 
 		return bound_type;
@@ -574,31 +561,30 @@ bound_type_t::ref create_bound_maybe_type(
 }
 
 bound_type_t::ref create_bound_sum_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		const ptr<const types::type_sum_t> &sum)
 {
 	assert(!scope->get_bound_type(sum->get_signature()));
-	auto var_ptr_type = scope->get_program_scope()->get_runtime_type(status, builder, STD_MANAGED_TYPE, true /*get_ptr*/);
+	auto var_ptr_type = scope->get_program_scope()->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 	auto bound_type = bound_type_t::create(sum,
 			sum->get_location(),
 			var_ptr_type->get_llvm_type());
 
 	ptr<program_scope_t> program_scope = scope->get_program_scope();
-	program_scope->put_bound_type(status, bound_type);
+	program_scope->put_bound_type(bound_type);
 
 	/* check for disallowed types */
 	for (auto subtype : sum->options) {
 		if (!types::is_managed_ptr(subtype, scope->get_nominal_env(), scope->get_total_env())) {
-			user_error(status, subtype->get_location(),
+			auto error = user_error_t(subtype->get_location(),
 					"unable to create a sum type with %s in it. %s lacks run-time type information",
 					subtype->str().c_str(),
 					subtype->str().c_str());
-			user_info(status, sum->get_location(),
+			error.add_info(sum->get_location(),
 					"while attempting to instantiate sum type %s",
 					sum->str().c_str());
-			break;
+			throw error;
 		}
 	}
 
@@ -606,30 +592,29 @@ bound_type_t::ref create_bound_sum_type(
 }
 
 bound_type_t::ref create_bound_function_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		const ptr<const types::type_function_t> &function)
 {
 	if (auto args = dyncast<const types::type_args_t>(function->args)) {
-		bound_type_t::refs bound_args = upsert_bound_types(status,
+		bound_type_t::refs bound_args = upsert_bound_types(
 				builder, scope, args->args);
 
 		bound_type_t::ref return_type = upsert_bound_type(
-				status, builder, scope, function->return_type);
+				builder, scope, function->return_type);
 
 		auto signature = function->get_signature();
 		auto bound_type = scope->get_bound_type(signature);
 		if (bound_type) {
 			return bound_type;
 		} else {
-			auto *llvm_fn_type = llvm_create_function_type(status,
+			auto *llvm_fn_type = llvm_create_function_type(
 					builder, bound_args, return_type);
 			// TODO: support dynamic function creation
 			bound_type = bound_type_t::create(function,
 					function->get_location(), llvm_fn_type->getPointerTo());
 			ptr<program_scope_t> program_scope = scope->get_program_scope();
-			program_scope->put_bound_type(status, bound_type);
+			program_scope->put_bound_type(bound_type);
 
 			return bound_type;
 		} 
@@ -640,7 +625,6 @@ bound_type_t::ref create_bound_function_type(
 }
 
 bound_type_t::ref create_bound_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		types::type_t::ref type)
@@ -652,42 +636,41 @@ bound_type_t::ref create_bound_type(
     auto program_scope = scope->get_program_scope();
 
 	if (auto id = dyncast<const types::type_id_t>(type)) {
-		return create_bound_expr_type(status, builder, scope, id);
+		return create_bound_expr_type(builder, scope, id);
     } else if (auto maybe = dyncast<const types::type_maybe_t>(type)) {
-		return create_bound_maybe_type(status, builder, scope, maybe);
+		return create_bound_maybe_type(builder, scope, maybe);
 	} else if (auto integer = dyncast<const types::type_integer_t>(type)) {
-		return create_bound_integer_type(status, builder, scope, integer);
+		return create_bound_integer_type(builder, scope, integer);
 	} else if (auto pointer = dyncast<const types::type_ptr_t>(type)) {
-		return create_bound_ptr_type(status, builder, scope, pointer);
+		return create_bound_ptr_type(builder, scope, pointer);
 	} else if (auto managed_type = dyncast<const types::type_managed_t>(type)) {
-		return create_bound_managed_type(status, builder, scope, managed_type);
+		return create_bound_managed_type(builder, scope, managed_type);
 	} else if (auto struct_type = dyncast<const types::type_struct_t>(type)) {
-		return create_bound_struct_type(status, builder, scope, struct_type);
+		return create_bound_struct_type(builder, scope, struct_type);
 	} else if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
-		return create_bound_tuple_type(status, builder, scope, tuple_type);
+		return create_bound_tuple_type(builder, scope, tuple_type);
 	} else if (auto function = dyncast<const types::type_function_t>(type)) {
-		return create_bound_function_type(status, builder, scope, function);
+		return create_bound_function_type(builder, scope, function);
 	} else if (auto sum = dyncast<const types::type_sum_t>(type)) {
-		return create_bound_sum_type(status, builder, scope, sum);
+		return create_bound_sum_type(builder, scope, sum);
 	} else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
-		return create_bound_expr_type(status, builder, scope, operator_);
+		return create_bound_expr_type(builder, scope, operator_);
 	} else if (auto variable = dyncast<const types::type_variable_t>(type)) {
-		user_error(status, variable->get_location(), "found a free type variable where a bound type was expected: %s", variable->str().c_str());
+		throw user_error_t(variable->get_location(), "found a free type variable where a bound type was expected: %s", variable->str().c_str());
 	} else if (auto lambda = dyncast<const types::type_lambda_t>(type)) {
-		user_error(status, lambda->get_location(), "unable to instantiate generic type %s without the necessary type application",
+		throw user_error_t(lambda->get_location(), "unable to instantiate generic type %s without the necessary type application",
 				lambda->str().c_str());
 	} else if (auto ref = dyncast<const types::type_ref_t>(type)) {
-		return create_bound_ref_type(status, builder, scope, ref);
+		return create_bound_ref_type(builder, scope, ref);
 	} else  if (auto extern_type = dyncast<const types::type_extern_t>(type)) {
-		return create_bound_extern_type(status, builder, scope, extern_type);
+		return create_bound_extern_type(builder, scope, extern_type);
 	}
 
-	assert(!status);
+	assert(false);
 	return nullptr;
 }
 
 bound_type_t::ref upsert_bound_type(
-		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 	   	types::type_t::ref type)
@@ -720,7 +703,7 @@ bound_type_t::ref upsert_bound_type(
 					bound_type->get_llvm_specific_type());
 
 			/* this type has been mapped */
-			scope->get_program_scope()->put_bound_type(status, new_bound_type);
+			scope->get_program_scope()->put_bound_type(new_bound_type);
 
 			// TODO: consider removing the mapping?
 			return new_bound_type;
@@ -730,7 +713,7 @@ bound_type_t::ref upsert_bound_type(
 
 			try {
 				/* we believe that this type does not exist. let's build it */
-				bound_type = create_bound_type(status, builder, scope, type);
+				bound_type = create_bound_type(builder, scope, type);
 
 				return bound_type;
 			} catch (user_error_t &e) {
@@ -748,14 +731,13 @@ bound_type_t::ref upsert_bound_type(
 }
 
 bound_type_t::ref get_function_return_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::ref function_type)
 {
 	if (auto type_function = dyncast<const types::type_function_t>(function_type->get_type())) {
 		auto return_type_sig = type_function->return_type->get_signature();
-		return upsert_bound_type(status, builder, scope, type_function->return_type);
+		return upsert_bound_type(builder, scope, type_function->return_type);
 	}
 
 	assert(!status);
@@ -763,7 +745,7 @@ bound_type_t::ref get_function_return_type(
 }
 
 std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
-		status_t &status, 
+		
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		types::type_tuple_t::ref tuple_type,
@@ -772,9 +754,9 @@ std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
 	/* this is a tuple constructor function */
 	program_scope_t::ref program_scope = scope->get_program_scope();
 
-	bound_type_t::ref data_type = upsert_bound_type(status, builder, scope, tuple_type);
+	bound_type_t::ref data_type = upsert_bound_type(builder, scope, tuple_type);
 
-	bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(status, builder,
+	bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(builder,
 			scope, data_type,
 			make_iid_impl(tuple_type->repr(), tuple_type->get_location()),
 			node);
@@ -783,7 +765,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
 }
 
 std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tagged_tuple_ctor(
-		status_t &status, 
+		
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
@@ -795,10 +777,10 @@ std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tagged_tuple_ctor(
 
 	/* this is a tuple constructor function */
 	program_scope_t::ref program_scope = scope->get_program_scope();
-	bound_type_t::ref data_type = upsert_bound_type(status, builder, scope, type);
+	bound_type_t::ref data_type = upsert_bound_type(builder, scope, type);
 
 	debug_above(4, log(log_info, "found bound type %s", data_type->str().c_str()));
-	bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(status, builder,
+	bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(builder,
 			scope, data_type, id, node);
 
 	return {tagged_tuple_ctor, data_type};
@@ -855,7 +837,7 @@ bound_var_t::ref maybe_get_dtor(
 	} else {
 		// TODO: create an option to report on missing finalizers, instead of coupling it to
 		// ZION_DEBUG
-		debug_above(2, user_info(status, location, "no __finalize__ found for type %s",
+		debug_above(2, log_location(log_info, location, "no __finalize__ found for type %s",
 					data_type->str().c_str()));
 		return nullptr;
 	}
@@ -892,10 +874,10 @@ bound_var_t::ref upsert_type_info_offsets(
 {
 	llvm::Value *llvm_dtor_fn = nullptr;
 	auto program_scope = scope->get_program_scope();
-	bound_type_t::ref type_info_offsets = program_scope->get_runtime_type(status, builder, "type_info_offsets_t");
+	bound_type_t::ref type_info_offsets = program_scope->get_runtime_type(builder, "type_info_offsets_t");
 	llvm::StructType *llvm_type_info_offsets_type = llvm::cast<llvm::StructType>(
 			type_info_offsets->get_llvm_type());
-	bound_type_t::ref type_info_head = program_scope->get_runtime_type(status, builder, "type_info_t");
+	bound_type_t::ref type_info_head = program_scope->get_runtime_type(builder, "type_info_t");
 
 	llvm::StructType *llvm_type_info_head_type = llvm::cast<llvm::StructType>(
 			type_info_head->get_llvm_type());
@@ -928,7 +910,7 @@ bound_var_t::ref upsert_type_info_offsets(
 	for (size_t i=0; i<args.size(); ++i) {
 		debug_above(5, log(log_info, "args[%d] is %s", i, args[i]->str().c_str()));
 		bool is_managed;
-		args[i]->is_managed_ptr(status, builder, program_scope, is_managed);
+		args[i]->is_managed_ptr(builder, program_scope, is_managed);
 		if (is_managed) {
 			/* this element is managed, so let's store its memory offset in
 			 * our array */
@@ -1014,7 +996,7 @@ bound_var_t::ref upsert_type_info_offsets(
 				bound_type_info_type->get_llvm_specific_type()),
 			make_iid("type info value"));
 
-	program_scope->put_bound_variable(status, type_info_name, bound_type_info_var);
+	program_scope->put_bound_variable(type_info_name, bound_type_info_var);
 	return bound_type_info_var;
 }
 
@@ -1033,17 +1015,17 @@ bound_var_t::ref upsert_type_info(
 	auto program_scope = scope->get_program_scope();
 	auto signature = data_type->get_signature();
 	auto type_info_name = string_format("__type_info_%s", signature.repr().c_str());
-	auto bound_type_info_var = program_scope->get_bound_variable(status, location, type_info_name);
+	auto bound_type_info_var = program_scope->get_bound_variable(location, type_info_name);
 	if (bound_type_info_var != nullptr) {
 		/* we found it, let's bail */
 		return bound_type_info_var;
 	}
 
 	if (mark_fn != nullptr) {
-		return upsert_type_info_mark_fn(status, builder, scope, name, location, data_type, dtor_fn,
+		return upsert_type_info_mark_fn(builder, scope, name, location, data_type, dtor_fn,
 				mark_fn, signature, type_info_name);
 	} else {
-		return upsert_type_info_offsets(status, builder, scope, name, location, data_type, dtor_fn,
+		return upsert_type_info_offsets(builder, scope, name, location, data_type, dtor_fn,
 				args, signature, type_info_name);
 	}
 }
@@ -1063,7 +1045,7 @@ llvm::Value *llvm_call_allocator(
 	debug_above(5, log(log_info, "calling allocator for %s",
 				data_type->str().c_str()));
 
-	auto bound_type_info = upsert_type_info(status, builder, program_scope,
+	auto bound_type_info = upsert_type_info(builder, program_scope,
 			name, node->get_location(), data_type, args, dtor_fn, nullptr);
 
 	bound_var_t::ref allocation = call_program_function(
@@ -1131,15 +1113,15 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	/* save and later restore the current branch insertion point */
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
-	auto function = llvm_start_function(status, builder, scope, node->get_location(), function_type, name);
-	life_t::ref life = make_ptr<life_t>(status, lf_function);
+	auto function = llvm_start_function(builder, scope, node->get_location(), function_type, name);
+	life_t::ref life = make_ptr<life_t>(lf_function);
 
-	bound_var_t::ref dtor_fn = maybe_get_dtor(status, builder,
+	bound_var_t::ref dtor_fn = maybe_get_dtor(builder,
 			program_scope, data_type);
 
-	bound_type_t::refs args = upsert_bound_types(status, builder, scope, type_args->args);
+	bound_type_t::refs args = upsert_bound_types(builder, scope, type_args->args);
 	llvm::Value *llvm_alloced = llvm_call_allocator(
-			status, builder, program_scope, life, node, data_type,
+			builder, program_scope, life, node, data_type,
 			dtor_fn, name, args);
 
 	assert(data_type->get_llvm_type() != nullptr);
@@ -1172,10 +1154,10 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	/* create a return statement for the final object. */
 	builder.CreateRet(llvm_final_obj);
 
-	llvm_verify_function(status, id->get_location(), llvm_function);
+	llvm_verify_function(id->get_location(), llvm_function);
 
 	/* bind the ctor to the program scope */
-	scope->get_program_scope()->put_bound_variable(status, name, function);
+	scope->get_program_scope()->put_bound_variable(name, function);
 
 	debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
 					*llvm_get_module(builder)).c_str()));
@@ -1192,21 +1174,16 @@ bound_var_t::ref type_check_get_item_with_int_literal(
 		identifier::ref index_id,
 		int subscript_index)
 {
-	if (!!status) {
-		bound_var_t::ref index = bound_var_t::create(
-				INTERNAL_LOC(),
-				"temp_deref_index",
-				scope->get_program_scope()->get_bound_type({INT_TYPE}),
-				llvm_create_int(builder, subscript_index),
-				index_id);
+	bound_var_t::ref index = bound_var_t::create(
+			INTERNAL_LOC(),
+			"temp_deref_index",
+			scope->get_program_scope()->get_bound_type({INT_TYPE}),
+			llvm_create_int(builder, subscript_index),
+			index_id);
 
-		/* get or instantiate a function we can call on these arguments */
-		return call_program_function(status, builder, scope, life, "__getitem__",
-				node->get_location(), {lhs, index});
-	}
-
-	assert(!status);
-	return nullptr;
+	/* get or instantiate a function we can call on these arguments */
+	return call_program_function(builder, scope, life, "__getitem__",
+			node->get_location(), {lhs, index});
 }
 
 

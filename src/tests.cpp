@@ -1198,18 +1198,15 @@ auto test_descs = std::vector<test_desc>{
 					// {type_ptr(type_id(make_iid("void"))), type_ptr(type_managed(type_struct({}, {})))},
 					});
 
-			status_t status;
 			for (auto &pair : unifies) {
 				if (!unify(pair.first, pair.second, env, {}).result) {
 					log(log_error, "unable to unify %s with %s", pair.first->str().c_str(), pair.second->str().c_str());
 					return false;
 				}
-				assert(!!status);
 			}
 
 			for (auto &pair : fails) {
 				auto unification = unify(pair.first, pair.second, env, {});
-				assert(!!status);
 				if (unification.result) {
 					log(log_error, "should have failed unifying %s and %s [%s]",
 							pair.first->str().c_str(),

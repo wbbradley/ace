@@ -20,7 +20,6 @@ bound_var_t::ref bind_ctor_to_scope(
 		ast::item_t::ref node,
 		types::type_function_t::ref function)
 {
-	assert(!!status);
 	assert(id != nullptr);
 	assert(function != nullptr);
 	assert(dyncast<generic_substitution_scope_t>(scope) != nullptr);
@@ -35,37 +34,30 @@ bound_var_t::ref bind_ctor_to_scope(
 				function->return_type->eval(scope)->str().c_str()));
 
 	if (auto args = dyncast<const types::type_args_t>(function->args)) {
-		bound_type_t::refs bound_args = upsert_bound_types(status, builder, scope, args->args);
+		bound_type_t::refs bound_args = upsert_bound_types(builder, scope, args->args);
 
-		if (!!status) {
-			/* now that we know the parameter types, let's see what the term looks
-			 * like */
-			debug_above(5, log(log_info, "ctor type should be %s",
-						function->str().c_str()));
+		/* now that we know the parameter types, let's see what the term looks
+		 * like */
+		debug_above(5, log(log_info, "ctor type should be %s",
+					function->str().c_str()));
 
-			if (function->return_type != nullptr) {
-				/* now we know the type of the ctor we want to create. let's check
-				 * whether this ctor already exists. if so, we'll just return it. if
-				 * not, we'll generate it. */
-				auto tuple_pair = upsert_tagged_tuple_ctor(status, builder, scope, id, node,
-						function->return_type);
+		if (function->return_type != nullptr) {
+			/* now we know the type of the ctor we want to create. let's check
+			 * whether this ctor already exists. if so, we'll just return it. if
+			 * not, we'll generate it. */
+			auto tuple_pair = upsert_tagged_tuple_ctor(builder, scope, id, node,
+					function->return_type);
 
-				if (!!status) {
-					debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
-					return tuple_pair.first;
-				}
-			} else {
-				user_error(status, node->get_location(),
-						"constructor is not returning a product type: %s",
-						function->str().c_str());
-			}
+			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
+			return tuple_pair.first;
+		} else {
+			throw user_error_t(node->get_location(),
+					"constructor is not returning a product type: %s",
+					function->str().c_str());
 		}
 	} else {
-		user_error(status, node->get_location(), "arguments do not appear to be ... erm... arguments...");
+		throw user_error_t(node->get_location(), "arguments do not appear to be ... erm... arguments...");
 	}
-
-	assert(!status);
-	return nullptr;
 }
 
 void get_generics_and_lambda_vars(
@@ -97,7 +89,7 @@ void get_generics_and_lambda_vars(
 			if (seen.find(name) == seen.end()) {
 				seen.insert(name);
 			} else {
-				user_error(status, type_variable->get_location(),
+				throw user_error_t(type_variable->get_location(),
 						"found duplicate type variable " c_id("%s"),
 						name.c_str());
 			}
@@ -153,7 +145,7 @@ void instantiate_data_ctor_type(
 	std::list<identifier::ref> lambda_vars;
 	std::set<std::string> generics;
 
-	get_generics_and_lambda_vars(status, struct_, type_variables, scope,
+	get_generics_and_lambda_vars(struct_, type_variables, scope,
 			lambda_vars, generics);
 
 	if (!status) {
@@ -206,11 +198,11 @@ void instantiate_data_ctor_type(
 			type = type_lambda(lambda_var, type);
 		}
 
-		scope->put_structural_typename(status, tag_name, type);
+		scope->put_structural_typename(tag_name, type);
 
 		return;
 	} else {
-		user_error(status, node->token.location, "local type definitions are not yet impl");
+		throw user_error_t(node->token.location, "local type definitions are not yet impl");
 	}
 
 	assert(!status);
@@ -237,18 +229,19 @@ void ast::type_product_t::register_type(
 	if (env_iter == env.end()) {
 		/* instantiate_data_ctor_type has the side-effect of creating an
 		 * unchecked data ctor for the type */
-		instantiate_data_ctor_type(status, builder, type,
+		instantiate_data_ctor_type(builder, type,
 				type_variables, scope, shared_from_this(), id_, nullptr, native);
 		return;
 	} else {
 		/* simple check for an already bound typename env variable */
-		user_error(status, location,
+		auto error = user_error_t(location,
 				"symbol " c_id("%s") " is already taken in typename env by %s",
 				name.c_str(),
 				env_iter->second->str().c_str());
-		user_info(status, env_iter->second->get_location(),
+		error.add_info(env_iter->second->get_location(),
 				"previous version of %s defined here",
 				env_iter->second->str().c_str());
+		throw error;
 	}
 
 	assert(!status);
@@ -273,10 +266,11 @@ void ast::type_sum_t::register_type(
 		for (auto type_variable : type_variables) {
 			expansion = type_lambda(type_variable, expansion);
 		}
-		scope->put_nominal_typename(status, id->get_name(), expansion);
+		scope->put_nominal_typename(id->get_name(), expansion);
 	} else {
-		user_error(status, id->get_location(), "sum types cannot be registered twice");
-		user_info(status, iter->second->get_location(), "see prior type registered here");
+		auto error = user_error_t(id->get_location(), "sum types cannot be registered twice");
+		error.add_info(iter->second->get_location(), "see prior type registered here");
+		throw error;
 	}
 }
 
@@ -309,18 +303,12 @@ void ast::type_link_t::register_type(
 			type = ::type_lambda(*iter, type);
 		}
 
-		scope->put_structural_typename(status, id->get_name(), type);
-
-		if (!!status) {
-			return;
-		}
+		scope->put_structural_typename(id->get_name(), type);
 	} else {
-		user_error(status, id->get_location(), "type links cannot be registered twice");
-		user_info(status, iter->second->get_location(), "see prior type registered here");
+		auto error = user_error_t(id->get_location(), "type links cannot be registered twice");
+		error.add_info(iter->second->get_location(), "see prior type registered here");
+		throw error;
 	}
-
-	assert(!status);
-	return;
 }
 
 void ast::type_alias_t::register_type(
@@ -335,7 +323,7 @@ void ast::type_alias_t::register_type(
 	std::list<identifier::ref> lambda_vars;
 	std::set<std::string> generics;
 
-	get_generics_and_lambda_vars(status, type, type_variables, scope, lambda_vars, generics);
+	get_generics_and_lambda_vars(type, type_variables, scope, lambda_vars, generics);
 	types::type_t::ref final_type = type;
 	for (auto lambda_var : lambda_vars) {
 		final_type = type_lambda(lambda_var, type);
@@ -343,13 +331,14 @@ void ast::type_alias_t::register_type(
 	auto env = scope->get_nominal_env();
 	auto iter = env.find(token.text);
 	if (iter == env.end()) {
-		scope->put_nominal_typename(status, token.text, final_type);
+		scope->put_nominal_typename(token.text, final_type);
 	} else {
 		// debug_above(5, log(log_info, "skipping type alias creation of %s", str().c_str()));
 		// assert(iter->second->get_signature() == final_type->get_signature());
-		user_error(status, type->get_location(), "type aliases cannot be registered twice (regarding " c_id("%s") ")",
+		auto error = user_error_t(type->get_location(), "type aliases cannot be registered twice (regarding " c_id("%s") ")",
 				str().c_str());
-		user_info(status, iter->second->get_location(), "see prior type registered here");
+		error.add_info(iter->second->get_location(), "see prior type registered here");
+		throw error;
 	}
 }
 

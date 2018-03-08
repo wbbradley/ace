@@ -70,7 +70,6 @@ std::string compiler_t::get_executable_filename() const {
 }
 
 void compiler_t::resolve_module_filename(
-		status_t &status,
 		location_t location,
 		std::string name,
 		std::string &resolved)
@@ -100,7 +99,7 @@ void compiler_t::resolve_module_filename(
 			std::string test_resolution;
 			if (real_path(test_path, test_resolution)) {
 				if (working_resolution.size() && working_resolution != test_resolution) {
-					user_error(status, location, "multiple " C_FILENAME "%s"
+					throw user_error_t(location, "multiple " C_FILENAME "%s"
 							C_RESET " modules found with the same name in source "
 							"path [%s, %s]", name.c_str(),
 							working_resolution.c_str(),
@@ -130,40 +129,34 @@ void compiler_t::resolve_module_filename(
 		resolved = working_resolution;
 		return;
 	} else {
-		user_error(status, location, "module not found: " c_error("`%s`") " (Note that module names should not have .zion extensions.) Looked in ZION_PATH=[%s]",
+		throw user_error_t(location, "module not found: " c_error("`%s`") " (Note that module names should not have .zion extensions.) Looked in ZION_PATH=[%s]",
 				name.c_str(),
 				join(*zion_paths, ":").c_str());
 	}
 }
 
 void compiler_t::build_parse_linked(
-		status_t &status,
 		ptr<const ast::module_t> module,
 		type_macros_t &global_type_macros)
 {
 	/* now, recursively make sure that all of the linked modules are parsed */
 	for (auto &link : module->linked_modules) {
 		auto linked_module_name = link->extern_module->get_canonical_name();
-		build_parse(status, link->extern_module->token.location, linked_module_name, global_type_macros);
-
-		if (!status) {
-			break;
-		}
+		build_parse(link->extern_module->token.location, linked_module_name, global_type_macros);
 	}
 }
 
 ast::module_t::ref compiler_t::build_parse(
-		status_t &status,
 		location_t location,
 		std::string module_name,
 		type_macros_t &global_type_macros)
 {
 	std::string module_filename;
-	resolve_module_filename(status, location, module_name, module_filename);
+	resolve_module_filename(location, module_name, module_filename);
 
 	// TODO: include some notion of versions
 	assert(module_filename.size() != 0);
-	auto existing_module = get_module(status, module_filename);
+	auto existing_module = get_module(module_filename);
 	if (existing_module == nullptr) {
 		/* we found an unparsed file */
 		std::ifstream ifs;
@@ -174,11 +167,11 @@ ast::module_t::ref compiler_t::build_parse(
 			debug_above(4, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
 			zion_lexer_t lexer({module_filename}, ifs);
 
-			parse_state_t ps(status, module_filename, lexer, global_type_macros, global_type_macros, &comments, &link_ins);
+			parse_state_t ps(module_filename, lexer, global_type_macros, global_type_macros, &comments, &link_ins);
 			auto module = ast::module_t::parse(ps);
 
-			set_module(status, module->filename, module);
-			build_parse_linked(status, module, global_type_macros);
+			set_module(module->filename, module);
+			build_parse_linked(module, global_type_macros);
 
 			return module;
 		} else {
@@ -193,7 +186,6 @@ ast::module_t::ref compiler_t::build_parse(
 }
 
 void add_global_types(
-		status_t &status,
 		compiler_t &compiler,
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope)
@@ -272,17 +264,14 @@ void add_global_types(
 				   	builder.getInt32Ty()->getPointerTo()->getPointerTo())},
 	};
 
-	program_scope->put_nominal_typename(status, MANAGED_BOOL,
+	program_scope->put_nominal_typename(MANAGED_BOOL,
 			::type_sum({
 				type_id(make_iid(MANAGED_TRUE)),
 				type_id(make_iid(MANAGED_FALSE))
 			}, INTERNAL_LOC()));
 
 	for (auto type_pair : globals) {
-		program_scope->put_bound_type(status, type_pair.second);
-		if (!status) {
-			break;
-		}
+		program_scope->put_bound_type(type_pair.second);
 		compiler.base_type_macros[type_pair.first] = type_id(make_iid(type_pair.first));
 	}
 	add_default_type_macros(compiler.base_type_macros);
@@ -291,22 +280,21 @@ void add_global_types(
 }
 
 void add_globals(
-		status_t &status,
 		compiler_t &compiler,
 	   	llvm::IRBuilder<> &builder,
 		program_scope_t::ref program_scope, 
 		ast::item_t::ref program)
 {
 	/*
-	compiler.llvm_load_ir(status, "rt_int.llir");
-	compiler.llvm_load_ir(status, "rt_float.llir");
-	compiler.llvm_load_ir(status, "rt_str.llir");
-	compiler.llvm_load_ir(status, "rt_typeid.llir");
+	compiler.llvm_load_ir("rt_int.llir");
+	compiler.llvm_load_ir("rt_float.llir");
+	compiler.llvm_load_ir("rt_str.llir");
+	compiler.llvm_load_ir("rt_typeid.llir");
 	*/
 
 	/* set up the global scalar types, as well as memory reference and garbage
 	 * collection types */
-	add_global_types(status, compiler, builder, program_scope);
+	add_global_types(compiler, builder, program_scope);
 
 	/* lookup the types of bool and void pointer for use below */
 	bound_type_t::ref null_type = program_scope->get_bound_type({"null"});
@@ -322,7 +310,6 @@ void add_globals(
 	assert(false_type != nullptr);
 
 	program_scope->put_bound_variable(
-			status,
 			"true",
 			bound_var_t::create(INTERNAL_LOC(),
 				"true",
@@ -330,7 +317,6 @@ void add_globals(
 				builder.getZionInt(1/*true*/), make_iid("true")));
 
 	program_scope->put_bound_variable(
-			status,
 		   	"false",
 		   	bound_var_t::create(INTERNAL_LOC(),
 			   	"false",
@@ -341,7 +327,6 @@ void add_globals(
 
 bool compiler_t::build_parse_modules() {
 	try {
-		status_t status;
 		/* first just parse all the modules that are reachable from the initial module
 		 * and bring them into our whole ast */
 		auto module_name = program_name;
@@ -352,26 +337,26 @@ bool compiler_t::build_parse_modules() {
 		program = ast::create<ast::program_t>({});
 
 		/* set up global types and variables */
-		add_globals(status, *this, builder, program_scope, program);
+		add_globals(*this, builder, program_scope, program);
 
 		type_macros_t global_type_macros = base_type_macros;
 
 		/* always include the builtins library */
 		if (getenv("NO_BUILTINS") == nullptr) {
-			build_parse(status, location_t{"builtins", 0, 0},
+			build_parse(location_t{"builtins", 0, 0},
 					"lib/builtins",
 					global_type_macros);
 		}
 
 		/* always include the standard library */
 		if (getenv("NO_STD_LIB") == nullptr) {
-			build_parse(status, location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0},
+			build_parse(location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0},
 					"lib/std",
 					global_type_macros);
 		}
 
 		/* now parse the main program module */
-		main_module = build_parse(status, location_t{"command line build parameters", 0, 0},
+		main_module = build_parse(location_t{"command line build parameters", 0, 0},
 				module_name, global_type_macros);
 
 		debug_above(4, log(log_info, "build_parse of %s succeeded", module_name.c_str(),
@@ -396,14 +381,13 @@ bool compiler_t::build_parse_modules() {
 
 bool compiler_t::build_type_check_and_code_gen() {
 	try {
-		status_t status;
 		/* set up the names that point back into the AST resolved to the right
 		 * module scopes */
-		status = scope_setup_program(*program, *this);
+		scope_setup_program(*program, *this);
 
 		/* final and most complex pass to resolve all needed symbols in order to guarantee type constraints, and
 		 * generate LLVM IR */
-		type_check_program(status, builder, *program, *this);
+		type_check_program(builder, *program, *this);
 
 		debug_above(2, log(log_info, "type checking found no errors"));
 		return true;
@@ -415,7 +399,6 @@ bool compiler_t::build_type_check_and_code_gen() {
 }
 
 std::string collect_filename_from_module_pair(
-		status_t &status,
 	   	const compiler_t::llvm_module_t &llvm_module_pair)
 {
 	std::ofstream ofs;
@@ -438,18 +421,18 @@ std::string collect_filename_from_module_pair(
 			throw;
 		}
 	} else {
-		user_error(status, INTERNAL_LOC(), "failed to open file named %s to write LLIR data",
+		throw user_error_t(INTERNAL_LOC(), "failed to open file named %s to write LLIR data",
 				filename.c_str());
 	}
 	return filename;
 }
 
-std::set<std::string> compiler_t::compile_modules(status_t &status) {
+std::set<std::string> compiler_t::compile_modules() {
 	std::set<std::string> filenames;
-	filenames.insert(collect_filename_from_module_pair(status, llvm_program_module));
+	filenames.insert(collect_filename_from_module_pair(llvm_program_module));
 
 	for (auto &llvm_module_pair : llvm_modules) {
-		std::string filename = collect_filename_from_module_pair(status, llvm_module_pair);
+		std::string filename = collect_filename_from_module_pair(llvm_module_pair);
 
 		/* make sure we're not overwriting ourselves... probably need to fix this
 		 * later */
@@ -459,12 +442,12 @@ std::set<std::string> compiler_t::compile_modules(status_t &status) {
 	return filenames;
 }
 
-void compiler_t::emit_built_program(status_t &status, std::string executable_filename) {
+void compiler_t::emit_built_program(std::string executable_filename) {
 	std::vector<std::string> obj_files;
-	emit_object_files(status, obj_files);
+	emit_object_files(obj_files);
 	std::string clang_bin = getenv("LLVM_CLANG_BIN") ? getenv("LLVM_CLANG_BIN") : "/usr/bin/clang";
 	if (clang_bin.size() == 0) {
-		user_error(status, INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called LLVM_CLANG_BIN");
+		throw user_error_t(INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called LLVM_CLANG_BIN");
 		return;
 	}
 
@@ -496,7 +479,7 @@ void compiler_t::emit_built_program(status_t &status, std::string executable_fil
 	errno = 0;
 	int ret = system(ss.str().c_str());
 	if (ret != 0) {
-		user_error(status, location_t{}, "failure (%d) when running: %s",
+		throw user_error_t(location_t{}, "failure (%d) when running: %s",
 				ret, ss.str().c_str());
 	}
 
@@ -554,14 +537,13 @@ void compiler_t::lower_program_module() {
 
 	auto program_scope = get_program_scope();
 
-	status_t status;
 	llvm::LLVMContext &llvm_context = llvm_program_module->getContext();
 	llvm::IRBuilder<> builder(llvm_context);
 	auto bound_stack_frame_map_type = program_scope->get_runtime_type(
-			status, builder, "stack_frame_map_t");
+			builder, "stack_frame_map_t");
 
 	auto bound_stack_entry_type = program_scope->get_runtime_type(
-			status, builder, "stack_entry_t");
+			builder, "stack_entry_t");
 
 	run_gc_lowering(
 			llvm_program_module,
@@ -633,7 +615,7 @@ std::unique_ptr<llvm::MemoryBuffer> codegen(llvm::Module &module) {
 	return nullptr;
 }
 
-void emit_object_file_from_module(status_t &status, llvm::Module *llvm_module, std::string Filename) {
+void emit_object_file_from_module(llvm::Module *llvm_module, std::string Filename) {
 	debug_above(2, log("Creating %s...", Filename.c_str()));
 	using namespace llvm;
 	auto TargetTriple = llvm::sys::getProcessTriple();
@@ -647,7 +629,7 @@ void emit_object_file_from_module(status_t &status, llvm::Module *llvm_module, s
 	// This generally occurs if we've forgotten to initialise the
 	// TargetRegistry or we have a bogus target triple.
 	if (!llvm_target) {
-		user_error(status, INTERNAL_LOC(), "%s", Error.c_str());
+		throw user_error_t(INTERNAL_LOC(), "%s", Error.c_str());
 		return;
 	}
 
@@ -663,7 +645,7 @@ void emit_object_file_from_module(status_t &status, llvm::Module *llvm_module, s
 	raw_fd_ostream dest(Filename, EC, sys::fs::F_None);
 
 	if (EC) {
-		user_error(status, INTERNAL_LOC(), "Could not open file: %s", EC.message().c_str());
+		throw user_error_t(INTERNAL_LOC(), "Could not open file: %s", EC.message().c_str());
 		return;
 	}
 
@@ -671,7 +653,7 @@ void emit_object_file_from_module(status_t &status, llvm::Module *llvm_module, s
 	auto FileType = TargetMachine::CGFT_ObjectFile;
 
 	if (llvm_target_machine->addPassesToEmitFile(pass, dest, FileType)) {
-		user_error(status, INTERNAL_LOC(), "TargetMachine can't emit a file of this type");
+		throw user_error_t(INTERNAL_LOC(), "TargetMachine can't emit a file of this type");
 		return;
 	}
 
@@ -679,7 +661,7 @@ void emit_object_file_from_module(status_t &status, llvm::Module *llvm_module, s
 	dest.flush();
 }
 
-void compiler_t::emit_object_files(status_t &status, std::vector<std::string> &obj_files) {
+void compiler_t::emit_object_files(std::vector<std::string> &obj_files) {
 	lower_program_module();
 
 	while (llvm_modules.size() != 0) {
@@ -689,15 +671,12 @@ void compiler_t::emit_object_files(status_t &status, std::vector<std::string> &o
 		std::swap(llvm_module, llvm_modules.back().second);
 
 		std::string obj_file = (llvm_module->getName() + ".o").str();
-		emit_object_file_from_module(status, llvm_module.operator->(), obj_file);
-		if (!status) {
-			return;
-		}
+		emit_object_file_from_module(llvm_module.operator->(), obj_file);
 		obj_files.push_back(obj_file);
 		llvm_modules.pop_back();
 	}
 	auto program_obj_file = get_program_name() + ".o";
-	emit_object_file_from_module(status, llvm_get_program_module(), program_obj_file);
+	emit_object_file_from_module(llvm_get_program_module(), program_obj_file);
 	obj_files.push_back(program_obj_file);
 	return;
 }
@@ -743,7 +722,6 @@ std::string compute_module_key(std::vector<std::string> lib_paths, std::string f
 }
 
 void compiler_t::set_module(
-		status_t &status,
 		std::string filename,
 		ptr<ast::module_t> module)
 {
@@ -757,7 +735,7 @@ void compiler_t::set_module(
 				module->filename.c_str(),
 				boolstr(!!module)));
 
-	if (!get_module(status, filename))  {
+	if (!get_module(filename))  {
 		/* add the module to the compiler's modules map */
 		modules_map[filename] = module;
 		ordered_modules.push_back(module);
@@ -767,7 +745,7 @@ void compiler_t::set_module(
 	}
 }
 
-ptr<const ast::module_t> compiler_t::get_module(status_t &status, std::string key_alias) {
+ptr<const ast::module_t> compiler_t::get_module(std::string key_alias) {
 	auto module_iter = modules_map.find(key_alias);
 	if (module_iter != modules_map.end()) {
 		auto module = module_iter->second;
@@ -778,7 +756,7 @@ ptr<const ast::module_t> compiler_t::get_module(status_t &status, std::string ke
 					key_alias.c_str()));
 
 		std::string module_filename;
-		resolve_module_filename(status, INTERNAL_LOC(), key_alias, module_filename);
+		resolve_module_filename(INTERNAL_LOC(), key_alias, module_filename);
 
 		auto module_iter = modules_map.find(module_filename);
 		if (module_iter != modules_map.end()) {
@@ -811,8 +789,7 @@ std::string compiler_t::dump_llvm_modules() {
 }
 
 std::string compiler_t::dump_program_text(std::string module_name) {
-	status_t status;
-	auto module = get_module(status, module_name);
+	auto module = get_module(module_name);
 	if (module != nullptr) {
 		return module->str();
 	} else {
@@ -822,7 +799,7 @@ std::string compiler_t::dump_program_text(std::string module_name) {
 }
 
 
-llvm::Module *compiler_t::llvm_load_ir(status_t &status, std::string filename) {
+llvm::Module *compiler_t::llvm_load_ir(std::string filename) {
 	llvm::LLVMContext &llvm_context = builder.getContext();
 	llvm::SMDiagnostic err;
 	llvm_modules.push_back({filename, parseIRFile(filename, err, llvm_context)});
@@ -838,7 +815,7 @@ llvm::Module *compiler_t::llvm_load_ir(status_t &status, std::string filename) {
 		os.flush();
 
 		/* report the error */
-		user_error(status, location_t{filename, 0, 0}, "%s", ss.str().c_str());
+		throw user_error_t(location_t{filename, 0, 0}, "%s", ss.str().c_str());
 		return nullptr;
 	} else {
 		debug_above(9, log(log_info, "parsed module %s\n%s", filename.c_str(),

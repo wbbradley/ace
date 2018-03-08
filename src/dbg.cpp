@@ -24,12 +24,11 @@ void _emit_assert(
 	   	const char *function)
 {
 	location_t location(filename, line, 1);
-	status_t status;
 	std::stringstream ss;
 	ss << c_error("assert failed");
 	ss << " --> " << C_ERROR << assertion << C_RESET << " in ";
 	ss << C_INTERNAL << function << C_RESET;
-	user_message(log_panic, status, location, ss.str().c_str());
+	log_location(log_panic, location, "%s", ss.str().c_str());
 	log_dump();
 	// ::log_stack(log_warning);
     DEBUG_BREAK();

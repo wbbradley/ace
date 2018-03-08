@@ -253,7 +253,7 @@ namespace types {
 		auto expansion = eval(nominal_env, total_env);
 		if (expansion != nullptr) {
 			/* refine the expanded version of this type */
-			auto refined_expansion = expansion->boolean_refinement(status, elimination_value, nominal_env, total_env);
+			auto refined_expansion = expansion->boolean_refinement(elimination_value, nominal_env, total_env);
 			if (refined_expansion == nullptr) {
 				/* if the refinement results in elimination, so be it */
 				return nullptr;
@@ -741,12 +741,8 @@ namespace types {
 				location,
 				nominal_env,
 				total_env);
-		if (!!status) {
-			return type->boolean_refinement(status, elimination_value,
-					nominal_env, total_env);
-		}
-		assert(!status);
-		return nullptr;
+		return type->boolean_refinement(elimination_value,
+				nominal_env, total_env);
 	}
 
 	type_sum_t::type_sum_t(type_t::refs options, location_t location) : options(options), location(location) {
@@ -819,7 +815,7 @@ namespace types {
 	{
 		types::type_t::refs new_options;
 		for (auto option : options) {
-			option = option->boolean_refinement(status, elimination_value, nominal_env, total_env);
+			option = option->boolean_refinement(elimination_value, nominal_env, total_env);
 			if (!status) {
 				break;
 			}
@@ -828,11 +824,7 @@ namespace types {
 			}
 		}
 
-		if (!!status) {
-			return type_sum_safe(status, new_options, get_location(), nominal_env, total_env);
-		}
-		assert(!status);
-		return nullptr;
+		return type_sum_safe(new_options, get_location(), nominal_env, total_env);
 	}
 
 	type_and_t::type_and_t(type_t::refs terms) : terms(terms) {
@@ -932,7 +924,7 @@ namespace types {
 			const types::type_t::map &nominal_env,
 			const types::type_t::map &total_env) const
 	{
-		auto just_refined = just->boolean_refinement(status, elimination_value, nominal_env, total_env);
+		auto just_refined = just->boolean_refinement(elimination_value, nominal_env, total_env);
 		if (!elimination_value) {
 			/* we are eliminating falseyness, so we can eliminate the maybeness, too */
 			return just_refined;
@@ -1180,7 +1172,7 @@ namespace types {
 		int value;
 		iss >> value;
 		if (iss.fail() || !iss.eof()) {
-			user_error(status, get_location(), "could not parse number from %s",
+			throw user_error_t(get_location(), "could not parse number from %s",
 					text.c_str());
 			return 0;
 		}
@@ -1322,7 +1314,7 @@ namespace types {
 		if (auto literal = dyncast<const type_literal_t>(expansion)) {
 			return literal->coerce_to_int(status);
 		} else {
-			user_error(status, type->get_location(),
+			throw user_error_t(type->get_location(),
 					"unable to deduce an integer value from type %s",
 					expansion->str().c_str());
 		}
@@ -1346,19 +1338,17 @@ namespace types {
 		type = type->eval(nominal_env, total_env);
 		if (auto integer = dyncast<const type_integer_t>(type)) {
 			type_t::ref bit_size_expansion;
-			bit_size = coerce_to_integer(status, nominal_env, total_env, integer->bit_size, bit_size_expansion);
-			if (!!status) {
-				auto signed_type = integer->signed_->eval(nominal_env, total_env);
-				if (types::is_type_id(signed_type, TRUE_TYPE, {}, {})) {
-					signed_ = true;
-					return;
-				} else if (types::is_type_id(signed_type, FALSE_TYPE, {}, {})) {
-					signed_ = false;
-					return;
-				} else {
-					user_error(status, integer->signed_->get_location(), "unable to determine signedness for type from %s",
-							signed_type->str().c_str());
-				}
+			bit_size = coerce_to_integer(nominal_env, total_env, integer->bit_size, bit_size_expansion);
+			auto signed_type = integer->signed_->eval(nominal_env, total_env);
+			if (types::is_type_id(signed_type, TRUE_TYPE, {}, {})) {
+				signed_ = true;
+				return;
+			} else if (types::is_type_id(signed_type, FALSE_TYPE, {}, {})) {
+				signed_ = false;
+				return;
+			} else {
+				throw user_error_t(integer->signed_->get_location(), "unable to determine signedness for type from %s",
+						signed_type->str().c_str());
 			}
 		} else if (types::is_type_id(type, WCHAR_TYPE, {}, {})) {
 			bit_size = 32;
@@ -1369,7 +1359,7 @@ namespace types {
 			signed_ = false;
 			return;
 		} else {
-			user_error(status, type->get_location(), "expected an integer type, found %s",
+			throw user_error_t(type->get_location(), "expected an integer type, found %s",
 					type->str().c_str());
 		}
 
@@ -1387,16 +1377,16 @@ namespace types {
 		auto expansion = type->eval(nominal_env, total_env);
 		debug_above(7, log("get_runtime_typeids expanded to %s", expansion->str().c_str()));
 		if (auto type_ref = dyncast<const type_ref_t>(expansion)) {
-			user_error(status, type->get_location(), "reference types are not allowed here. %s does not have runtime type information",
+			throw user_error_t(type->get_location(), "reference types are not allowed here. %s does not have runtime type information",
 					type->str().c_str());
 		} else if (auto type_ptr = dyncast<const type_ptr_t>(expansion)) {
-			user_error(status, type->get_location(), "pointer types are not allowed here. %s does not have runtime type information",
+			throw user_error_t(type->get_location(), "pointer types are not allowed here. %s does not have runtime type information",
 					type->str().c_str());
 		} else if (auto type_id = dyncast<const type_id_t>(expansion)) {
 			typeids.insert(atomize(type_id->repr()));
 		} else if (auto type_sum = dyncast<const type_sum_t>(expansion)) {
 			for (auto option : type_sum->options) {
-				get_runtime_typeids(status, option, nominal_env, total_env, typeids);
+				get_runtime_typeids(option, nominal_env, total_env, typeids);
 				if (!status) {
 					break;
 				}
@@ -1720,7 +1710,7 @@ types::type_t::ref type_sum_safe_3(
 		if (make_maybe) {
 			return type_id(make_iid_impl("null", location));
 		} else {
-			user_error(status, location, "no type found");
+			throw user_error_t(location, "no type found");
 		}
 	} else if (expanded_options.size() == 1) {
 		if (make_maybe) {
@@ -1763,7 +1753,7 @@ types::type_t::ref type_sum_safe_2(
 			new_options.push_back(option);
 		}
 	}
-	return type_sum_safe_3(status, new_options, location, nominal_env, total_env, make_maybe);
+	return type_sum_safe_3(new_options, location, nominal_env, total_env, make_maybe);
 }
 
 types::type_t::ref type_sum_safe(
@@ -1801,7 +1791,7 @@ types::type_t::ref type_sum_safe(
 					return options[0];
 				//}
 			}
-			return type_sum_safe_3(status, {evaled}, location, nominal_env, total_env, make_maybe);
+			return type_sum_safe_3({evaled}, location, nominal_env, total_env, make_maybe);
 		}
 	} else {
 		if (options.size() == 2) {
@@ -1812,7 +1802,7 @@ types::type_t::ref type_sum_safe(
 				return type_id(make_iid(MANAGED_BOOL));
 			}
 		}
-		return type_sum_safe_2(status, options, location, nominal_env, total_env);
+		return type_sum_safe_2(options, location, nominal_env, total_env);
 	}
 }
 

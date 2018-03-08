@@ -4,32 +4,29 @@
 #include "ast.h"
 
 bound_type_t::refs upsert_bound_types(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		types::type_t::refs types);
 
 bound_type_t::ref upsert_bound_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		types::type_t::ref type);
 
 bound_type_t::ref upsert_bound_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		types::type_t::ref type);
 
 std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
-		status_t &status, 
+		
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		types::type_tuple_t::ref tuple_type,
 		const ptr<const ast::item_t> &node);
 
 std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tagged_tuple_ctor(
-		status_t &status, 
+		
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		identifier::ref id,
@@ -37,7 +34,6 @@ std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tagged_tuple_ctor(
 		types::type_t::ref type);
 
 bound_var_t::ref get_or_create_tuple_ctor(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::ref data_type,
@@ -46,7 +42,6 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 #if 0
 bound_var_t::ref call_const_subscript_operator(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
@@ -57,13 +52,11 @@ bound_var_t::ref call_const_subscript_operator(
 #endif
 
 bound_type_t::ref get_function_return_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::ref function_type);
 
 bound_var_t::ref upsert_type_info(
-		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 		std::string name,

@@ -58,7 +58,7 @@ public:
 
 public:
 	llvm::Value *resolve_bound_var_value(ptr<scope_t> scope, llvm::IRBuilder<> &builder) const;
-	ref resolve_bound_value(status_t &status, llvm::IRBuilder<> &builder, ptr<scope_t> scope) const;
+	ref resolve_bound_value(llvm::IRBuilder<> &builder, ptr<scope_t> scope) const;
 
 	static ref create(
 			location_t internal_location,

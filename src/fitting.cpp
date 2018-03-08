@@ -16,7 +16,6 @@ bool function_exists_in(bound_var_t::ref fn, const fittings_t &fittings) {
 }
 
 bound_var_t::ref get_best_fit(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,
@@ -31,13 +30,10 @@ bound_var_t::ref get_best_fit(
 
 	for (auto &fn : fns) {
 		int coercions = 0;
-		bound_var_t::ref callable = check_func_vs_callsite(status, builder,
+		bound_var_t::ref callable = check_func_vs_callsite(builder,
 				scope, location, fn, args, return_type, coercions);
 
-		if (!status) {
-			assert(callable == nullptr);
-			return nullptr;
-		} else if (callable != nullptr && (coercions == 0 || allow_coercions)) {
+		if (callable != nullptr && (coercions == 0 || allow_coercions)) {
             if (!function_exists_in(callable, fittings)) {
                 fittings.push_back({callable, coercions});
             }
@@ -65,7 +61,7 @@ bound_var_t::ref get_best_fit(
 						winner = fitting.fn;
 					} else {
 						if (winner->get_location() != fitting.fn->get_location()) {
-							user_error(status, location,
+							throw user_error_t(location,
 									"multiple (noncoercing) overloads found for %s%s %s",
 									alias.c_str(),
 									args->str().c_str(),
@@ -94,7 +90,4 @@ bound_var_t::ref get_best_fit(
 			throw;
 		}
 	}
-
-	assert(!status);
-	return nullptr;
 }

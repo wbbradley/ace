@@ -65,12 +65,11 @@ llvm::Value *bound_var_t::resolve_bound_var_value(scope_t::ref scope, llvm::IRBu
 }
 
 bound_var_t::ref bound_var_t::resolve_bound_value(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope) const
 {
 	if (auto ref_type = dyncast<const types::type_ref_t>(type->get_type())) {
-		auto bound_type = upsert_bound_type(status, builder, scope, ref_type->element_type);
+		auto bound_type = upsert_bound_type(builder, scope, ref_type->element_type);
 		return bound_var_t::create(
 				INTERNAL_LOC(),
 				this->name,

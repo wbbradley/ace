@@ -12,28 +12,27 @@
  * resolution and adds names to the appropriate scopes.
  */
 
-void scope_setup_error(status_t &status, const ast::item_t &item, const char *format, ...) {
+void scope_setup_error(const ast::item_t &item, const char *format, ...) {
 	va_list args;
 	va_start(args, format);
 	auto str = string_formatv(format, args);
 	va_end(args);
 
-	user_error(status, item.token.location, "scope-error: %s", str.c_str());
+	throw user_error_t(item.token.location, "scope-error: %s", str.c_str());
 }
 
 
-void scope_setup_error(status_t &status, location_t location, const char *format, ...) {
+void scope_setup_error(location_t location, const char *format, ...) {
 	va_list args;
 	va_start(args, format);
 	auto str = string_formatv(format, args);
 	va_end(args);
 
-	user_error(status, location, "scope-error: %s", str.c_str());
+	throw user_error_t(location, "scope-error: %s", str.c_str());
 }
 
 
 unchecked_var_t::ref scope_setup_module_symbol(
-		status_t &status,
 		const ast::item_t &obj,
 		identifier::ref id,
 		identifier::ref extends_module,
@@ -51,7 +50,7 @@ unchecked_var_t::ref scope_setup_module_symbol(
 				if (module_scope != nullptr) {
 					return module_scope->put_unchecked_variable(id->get_name(), unchecked_var);
 				} else {
-					scope_setup_error(status, obj, "could not find module " c_module("%s") " to extend with " c_id("%s"),
+					scope_setup_error(obj, "could not find module " c_module("%s") " to extend with " c_id("%s"),
 							name.c_str(),
 							id->get_name().c_str());
 				}
@@ -62,7 +61,7 @@ unchecked_var_t::ref scope_setup_module_symbol(
 					unchecked_var_t::create(id, obj.shared_from_this(), module_scope));
 		}
 	} else {
-		scope_setup_error(status, obj, "module-level function definition does not have a name");
+		scope_setup_error(obj, "module-level function definition does not have a name");
 		return nullptr;
 	}
 
@@ -71,7 +70,6 @@ unchecked_var_t::ref scope_setup_module_symbol(
 }
 
 void scope_setup_type_def(
-		status_t &status,
 	   	const ast::type_def_t &obj,
 	   	ptr<module_scope_t> module_scope)
 {
@@ -83,7 +81,6 @@ void scope_setup_type_def(
 }
 
 void scope_setup_tag(
-		status_t &status,
 	   	const ast::tag_t &obj,
 	   	ptr<module_scope_t> module_scope)
 {
@@ -95,7 +92,6 @@ void scope_setup_tag(
 }
 
 status_t scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
-	status_t status;
 	auto module_name = obj.decl->get_canonical_name();
 
 	/* create this module's LLVM IR representation */
@@ -114,11 +110,11 @@ status_t scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 
 	/* add any unchecked tags, types, links, or variables to this module */
 	for (auto &tag : obj.tags) {
-		scope_setup_tag(status, *tag, module_scope);
+		scope_setup_tag(*tag, module_scope);
 	}
 
 	for (auto &type_def : obj.type_defs) {
-		scope_setup_type_def(status, *type_def, module_scope);
+		scope_setup_type_def(*type_def, module_scope);
 	}
 
 	for (auto &function : obj.functions) {
@@ -142,13 +138,23 @@ status_t scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 	return status;
 }
 
-status_t scope_setup_program(const ast::program_t &obj, compiler_t &compiler) {
-	status_t status;
-
+void scope_setup_program(const ast::program_t &obj, compiler_t &compiler) {
 	/* create the outermost scope of the program */
+	bool failures = false;
+	location_t failure_location;
 	for (auto &module : obj.modules) {
 		assert(module != nullptr);
-		status |= scope_setup_module(compiler, *module);
+		try {
+			scope_setup_module(compiler, *module);
+		} catch (user_error_t &e) {
+			if (!failures) {
+				failures = true;
+				failure_location = e.location;
+			}
+			print_exception(e);
+		}
 	}
-	return status;
+	if (failures) {
+		throw user_error_t(failure_location, "failure during scope setup");
+	}
 }
