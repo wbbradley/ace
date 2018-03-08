@@ -115,57 +115,6 @@ llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_
 	}
 }
 
-#if 0
-bound_var_t::ref maybe_load_from_pointer(
-		status_t &status,
-		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-		bound_var_t::ref var,
-		bool as_ref)
-{
-	// TODO: check this codepath when used by globals
-	if (var->type->is_ptr(scope)) {
-		auto type = eval(var->type->get_type(), scope->get_typename_env());
-		if (auto pointer = dyncast<const types::type_ptr_t>(type)) {
-			if (as_ref) {
-				auto bound_type = upsert_bound_type(status, builder, scope, type_ref(pointer->element_type));
-				return bound_var_t::create(
-						INTERNAL_LOC(),
-						string_format("ref.%s", var->name.c_str()),
-						bound_type,
-						var->get_llvm_value(),
-						var->id);
-			} else {
-				auto bound_type = upsert_bound_type(status, builder, scope, pointer->element_type);
-				if (!!status) {
-					llvm::Value *llvm_value = var->resolve_value(builder);
-					assert(llvm_value->getType()->isPointerTy());
-					// assert(llvm::cast<llvm::PointerType>(llvm_value->getType())->getElementType()->isPointerTy());
-					llvm::Value *llvm_loaded_value = builder.CreateLoad(llvm_value);
-					debug_above(5, log(log_info,
-								"maybe_load_from_pointer loaded %s which has type %s",
-								llvm_print(llvm_loaded_value).c_str(),
-								llvm_print(llvm_loaded_value->getType()).c_str()));
-					return bound_var_t::create(
-							INTERNAL_LOC(),
-							string_format("load.%s", var->name.c_str()),
-							bound_type,
-							llvm_loaded_value,
-							var->id);
-				}
-			}
-		} else {
-			panic("Why is this not a pointer?");
-		}
-	} else {
-		return var;
-	}
-
-	assert(!status);
-	return nullptr;
-}
-#endif
-
 bound_var_t::ref create_callsite(
 		status_t &status,
 		llvm::IRBuilder<> &builder,
@@ -177,60 +126,47 @@ bound_var_t::ref create_callsite(
 		bound_var_t::refs arguments)
 {
 	assert(function != nullptr);
-	if (!!status) {
 #ifdef ZION_DEBUG
-		llvm::Value *llvm_function = function->get_llvm_value();
-		debug_above(5, log(log_info, "create_callsite is assuming %s is compatible with %s",
-					function->get_type()->str().c_str(),
-					str(arguments).c_str()));
-		debug_above(5, log(log_info, "calling function " c_id("%s") " with type %s",
-					function->name.c_str(),
-					llvm_print(llvm_function->getType()).c_str()));
+	llvm::Value *llvm_function = function->get_llvm_value();
+	debug_above(5, log(log_info, "create_callsite is assuming %s is compatible with %s",
+				function->get_type()->str().c_str(),
+				str(arguments).c_str()));
+	debug_above(5, log(log_info, "calling function " c_id("%s") " with type %s",
+				function->name.c_str(),
+				llvm_print(llvm_function->getType()).c_str()));
 #endif
 
-		/* downcast the arguments as necessary to var_t * */
-		types::type_function_t::ref function_type = dyncast<const types::type_function_t>(
-				function->get_type());
+	/* downcast the arguments as necessary to var_t * */
+	types::type_function_t::ref function_type = dyncast<const types::type_function_t>(
+			function->get_type());
 
-		if (function_type != nullptr) {
-			auto return_type = upsert_bound_type(status, builder, scope, function_type->return_type);
-			assert(!!status);
-			if (auto args = dyncast<const types::type_args_t>(function_type->args)) {
-				auto coerced_parameter_values = get_llvm_values(status, builder,
-						scope, life, location, args, arguments);
-				if (!!status) {
-					llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
-							status, builder, location, function, coerced_parameter_values);
+	if (function_type != nullptr) {
+		auto return_type = upsert_bound_type(status, builder, scope, function_type->return_type);
+		if (auto args = dyncast<const types::type_args_t>(function_type->args)) {
+			auto coerced_parameter_values = get_llvm_values(status, builder,
+					scope, life, location, args, arguments);
+			llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
+					status, builder, location, function, coerced_parameter_values);
 
-					if (!!status) {
-						bound_type_t::ref return_type = get_function_return_type(status, builder, scope, function->type);
+			bound_type_t::ref return_type = get_function_return_type(status, builder, scope, function->type);
 
-						if (!!status) {
-							bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
-									return_type, llvm_call_inst,
-									make_type_id_code_id(location, name));
+			bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
+					return_type, llvm_call_inst,
+					make_type_id_code_id(location, name));
 
-							/* all return values must be tracked since the callee is
-							 * expected to return a ref-counted value */
-							life->track_var(status, builder, scope, ret, lf_statement);
-							if (!!status) {
-								return ret;
-							}
-						}
-					}
-				}
-			} else {
-				panic("type args are not type_args_t");
-			}
+			/* all return values must be tracked since the callee is
+			 * expected to return a ref-counted value */
+			life->track_var(status, builder, scope, ret, lf_statement);
+			return ret;
 		} else {
-			user_error(status, location,
-					"tried to create_callsite for %s, but it's not a function?",
-					function->str().c_str());
+			panic("type args are not type_args_t");
+			return nullptr;
 		}
+	} else {
+		throw user_error_t(location,
+				"tried to create_callsite for %s, but it's not a function?",
+				function->str().c_str());
 	}
-
-	assert(!status);
-	return nullptr;
 }
 
 llvm::CallInst *llvm_create_call_inst(
@@ -240,7 +176,6 @@ llvm::CallInst *llvm_create_call_inst(
 		ptr<const bound_var_t> callee,
 		std::vector<llvm::Value *> llvm_values)
 {
-	assert(!!status);
 	assert(callee != nullptr);
 	llvm::Value *llvm_callee_value = callee->get_llvm_value();
 	debug_above(9, log("found llvm_callee_value %s of type %s",
@@ -463,7 +398,6 @@ bound_var_t::ref llvm_stack_map_value(
 	{
 		bool is_managed;
 		value->type->is_managed_ptr(status, builder, scope, is_managed);
-		assert(!!status);
 		assert(is_managed);
 	}
 #endif
@@ -505,16 +439,11 @@ bound_var_t::ref unmaybe_variable(
 	if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 		auto bound_type = upsert_bound_type(status, builder, scope,
 				was_ref ? type_ref(maybe_type->just) : maybe_type->just);
-		if (!!status) {
-			return bound_var_t::create(INTERNAL_LOC(), name, bound_type,
-					var->get_llvm_value(), make_iid_impl(name, location));
-		}
+		return bound_var_t::create(INTERNAL_LOC(), name, bound_type,
+				var->get_llvm_value(), make_iid_impl(name, location));
 	} else {
 		return var;
 	}
-
-	assert(!status);
-	return nullptr;
 }
 
 void llvm_create_if_branch(
@@ -536,89 +465,84 @@ void llvm_create_if_branch(
 	/* we don't care about references, load past them if need be */
 	value = value->resolve_bound_value(status, builder, scope);
 
-	if (!!status) {
-		llvm::Value *llvm_value = value->get_llvm_value();
-		if (value->type->is_maybe(scope)) {
-			if (allow_maybe_check) {
-				llvm::Type *llvm_type = value->get_llvm_value()->getType();
-				assert(llvm_type->isPointerTy());
-				llvm::Constant *null = llvm::Constant::getNullValue(llvm_type);
-				llvm_value = builder.CreateICmpNE(value->get_llvm_value(), null);
-			} else {
-				user_error(status, location, "implicit maybe checks are not allowed here");
-				user_info(status, location, "the condition of this branch instruction is of type %s",
-						value->type->str().c_str());
-			}
-		}
-
-		if (!!status) {
-			if (llvm_value->getType()->isIntegerTy(1)) {
-				/* pass */
-			} else {
-				types::type_t::ref type = value->type->get_type();
-
-				if (types::is_type_id(type, TRUE_TYPE, {}, {})) {
-					llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 1);
-				} else if (types::is_type_id(type, FALSE_TYPE, {}, {})) {
-					llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 0);
-				} else if (types::is_type_id(type, BOOL_TYPE, {}, {})) {
-					llvm::Type *llvm_type = llvm_value->getType();
-					assert(llvm_type->isIntegerTy());
-					if (!llvm_type->isIntegerTy(1)) {
-						llvm::Constant *zero = llvm::ConstantInt::get(llvm_type, 0);
-						llvm_value = builder.CreateICmpNE(llvm_value, zero);
-					}
-					assert(llvm_value->getType()->isIntegerTy(1));
-				} else {
-					if (allow_maybe_check) {
-						user_error(status, location, "condition is not a boolean value or a maybe type");
-					} else {
-						user_error(status, location, "condition is not a boolean value");
-					}
-					user_info(status, location, "the condition of this branch instruction is of type %s",
-							value->type->str().c_str());
-					user_info(status, value->get_location(), "the value was defined here");
-				}
-			}
-
-			if (!!status) {
-				assert(llvm_value->getType()->isIntegerTy(1));
-
-				// REVIEW: do we need these extra blocks now?
-				if (iff & IFF_ELSE) {
-					llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-
-					llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
-							builder.getContext(), "else.release", llvm_function_current);
-					builder.SetInsertPoint(release_block_bb);
-					life->release_vars(status, builder, scope, lf_statement);
-
-					assert(!builder.GetInsertBlock()->getTerminator());
-					builder.CreateBr(else_bb);
-
-					/* trick the code below to jumping to this release guard block */
-					else_bb = release_block_bb;
-				}
-
-				if (iff & IFF_THEN) {
-					llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-
-					llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
-							builder.getContext(), "then.release", llvm_function_current);
-					builder.SetInsertPoint(release_block_bb);
-					life->release_vars(status, builder, scope, lf_statement);
-
-					assert(!builder.GetInsertBlock()->getTerminator());
-					builder.CreateBr(then_bb);
-
-					/* trick the code below to jumping to this release guard block */
-					then_bb = release_block_bb;
-				}
-
-				builder.CreateCondBr(llvm_value, then_bb, else_bb);
-			}
+	llvm::Value *llvm_value = value->get_llvm_value();
+	if (value->type->is_maybe(scope)) {
+		if (allow_maybe_check) {
+			llvm::Type *llvm_type = value->get_llvm_value()->getType();
+			assert(llvm_type->isPointerTy());
+			llvm::Constant *null = llvm::Constant::getNullValue(llvm_type);
+			llvm_value = builder.CreateICmpNE(value->get_llvm_value(), null);
+		} else {
+			auto error = user_error_t(location, "implicit maybe checks are not allowed here");
+			error.add_info(location, "the condition of this branch instruction is of type %s",
+					value->type->str().c_str());
+			throw error;
 		}
 	}
+
+	if (llvm_value->getType()->isIntegerTy(1)) {
+		/* pass */
+	} else {
+		types::type_t::ref type = value->type->get_type();
+
+		if (types::is_type_id(type, TRUE_TYPE, {}, {})) {
+			llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 1);
+		} else if (types::is_type_id(type, FALSE_TYPE, {}, {})) {
+			llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 0);
+		} else if (types::is_type_id(type, BOOL_TYPE, {}, {})) {
+			llvm::Type *llvm_type = llvm_value->getType();
+			assert(llvm_type->isIntegerTy());
+			if (!llvm_type->isIntegerTy(1)) {
+				llvm::Constant *zero = llvm::ConstantInt::get(llvm_type, 0);
+				llvm_value = builder.CreateICmpNE(llvm_value, zero);
+			}
+			assert(llvm_value->getType()->isIntegerTy(1));
+		} else {
+			if (allow_maybe_check) {
+				user_error(status, location, "condition is not a boolean value or a maybe type");
+			} else {
+				user_error(status, location, "condition is not a boolean value");
+			}
+			user_info(status, location, "the condition of this branch instruction is of type %s",
+					value->type->str().c_str());
+			user_info(status, value->get_location(), "the value was defined here");
+		}
+	}
+
+	assert(llvm_value->getType()->isIntegerTy(1));
+
+	// REVIEW: do we need these extra blocks now?
+	if (iff & IFF_ELSE) {
+		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+		llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
+				builder.getContext(), "else.release", llvm_function_current);
+		builder.SetInsertPoint(release_block_bb);
+		life->release_vars(status, builder, scope, lf_statement);
+
+		assert(!builder.GetInsertBlock()->getTerminator());
+		builder.CreateBr(else_bb);
+
+		/* trick the code below to jumping to this release guard block */
+		else_bb = release_block_bb;
+	}
+
+	if (iff & IFF_THEN) {
+		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+		llvm::BasicBlock *release_block_bb = llvm::BasicBlock::Create(
+				builder.getContext(), "then.release", llvm_function_current);
+		builder.SetInsertPoint(release_block_bb);
+		life->release_vars(status, builder, scope, lf_statement);
+
+		assert(!builder.GetInsertBlock()->getTerminator());
+		builder.CreateBr(then_bb);
+
+		/* trick the code below to jumping to this release guard block */
+		then_bb = release_block_bb;
+	}
+
+	builder.CreateCondBr(llvm_value, then_bb, else_bb);
 }
 
 llvm::Constant *llvm_create_struct_instance(

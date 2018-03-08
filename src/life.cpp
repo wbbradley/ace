@@ -39,7 +39,8 @@ life_t::life_t(
 }
 
 life_t::~life_t() {
-	if (!!status_tracker) {
+	if (!std::uncaught_exception()) {
+		/* only do this check if something didn't go wrong, otherwise we'll get a noisy error */
 		assert(((values.size() == 0) ^ release_vars_called) && "We've cleaned up the bound vars");
 	}
 }
@@ -63,25 +64,23 @@ void life_t::release_vars(
 
 	exempt_life_release();
 
-	if (!!status) {
-		for (auto value: values) {
-			assert(value->type->is_ref(scope));
-			llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(value->get_llvm_value());
-			/* be sure to null out any stack references as we pass out of scope so that the GC
-			 * can avoid marking this guy */
-			builder.CreateStore(
-					llvm::Constant::getNullValue(llvm_deref_type(llvm_alloca->getType())),
-					llvm_alloca);
-		}
+	for (auto value: values) {
+		assert(value->type->is_ref(scope));
+		llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(value->get_llvm_value());
+		/* be sure to null out any stack references as we pass out of scope so that the GC
+		 * can avoid marking this guy */
+		builder.CreateStore(
+				llvm::Constant::getNullValue(llvm_deref_type(llvm_alloca->getType())),
+				llvm_alloca);
+	}
 
-		if (life_form_to_release_to != life_form) {
-			if (former_life != nullptr) {
-				/* recurse into former lives */
-				former_life->release_vars(status, builder, scope,
-						life_form_to_release_to);
-			} else {
-				assert(false && "We can't release to the requested life form because it doesn't exist!");
-			}
+	if (life_form_to_release_to != life_form) {
+		if (former_life != nullptr) {
+			/* recurse into former lives */
+			former_life->release_vars(status, builder, scope,
+					life_form_to_release_to);
+		} else {
+			assert(false && "We can't release to the requested life form because it doesn't exist!");
 		}
 	}
 }
@@ -96,33 +95,26 @@ void life_t::track_var(
 	bool is_managed;
 	value->type->is_managed_ptr(status, builder, scope, is_managed);
 
-	if (!!status) {
-		if (!is_managed) {
-			/* we only track managed variables */
-			debug_above(9, log("not tracking %s because it's not managed : %s",
-						value->str().c_str(),
-						value->type->str().c_str()));
-			return;
-		}
-
-		// TODO: just track allocas for cleanup. avoid refcounting for now
-
-		/* ensure there is a slot in the stack map for this heap pointer */
-		value = llvm_stack_map_value(status, builder, scope, value);
-
-		if (!!status) {
-			if (this->life_form == track_in_life_form) {
-				/* we track both LHS's and RHS's */
-				values.push_back(value);
-			} else {
-				assert(this->former_life != nullptr && "We found a track_in_life_form for a life_form that is not on the stack.");
-				this->former_life->track_var(status, builder, scope, value, track_in_life_form);
-			}
-			return;
-		}
+	if (!is_managed) {
+		/* we only track managed variables */
+		debug_above(9, log("not tracking %s because it's not managed : %s",
+					value->str().c_str(),
+					value->type->str().c_str()));
+		return;
 	}
 
-	assert(!status);
+	// TODO: just track allocas for cleanup. avoid refcounting for now
+
+	/* ensure there is a slot in the stack map for this heap pointer */
+	value = llvm_stack_map_value(status, builder, scope, value);
+
+	if (this->life_form == track_in_life_form) {
+		/* we track both LHS's and RHS's */
+		values.push_back(value);
+	} else {
+		assert(this->former_life != nullptr && "We found a track_in_life_form for a life_form that is not on the stack.");
+		this->former_life->track_var(status, builder, scope, value, track_in_life_form);
+	}
 }
 
 std::string life_t::str() const {

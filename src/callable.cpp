@@ -62,13 +62,13 @@ bound_var_t::ref instantiate_unchecked_fn(
 			if (auto args = dyncast<const types::type_args_t>(function->args)) {
 				types::type_t::ref type_constraints = (
 						function->type_constraints
-					   	? function->type_constraints->rebind(subst_scope->get_type_variable_bindings())
-					   	: nullptr);
+						? function->type_constraints->rebind(subst_scope->get_type_variable_bindings())
+						: nullptr);
 
-				bound_type_t::refs bound_args = upsert_bound_types(status,
-						builder, subst_scope, args->args);
+				try {
+					bound_type_t::refs bound_args = upsert_bound_types(status,
+							builder, subst_scope, args->args);
 
-				if (!!status) {
 					std::vector<std::string> names;
 					for (auto id : args->names) {
 						names.push_back(id->get_name());
@@ -79,16 +79,15 @@ bound_var_t::ref instantiate_unchecked_fn(
 					bound_type_t::ref return_type = upsert_bound_type(status,
 							builder, subst_scope, function->return_type);
 
-					if (!!status) {
-						/* instantiate the function we want */
-						return function_defn->instantiate_with_args_and_return_type(status,
-								builder, subst_scope, life, nullptr /*new_scope*/,
-								type_constraints, named_args, return_type, fn_type);
-					} else {
-						user_message(log_info, status, unchecked_fn->get_location(),
+					/* instantiate the function we want */
+					return function_defn->instantiate_with_args_and_return_type(status,
+							builder, subst_scope, life, nullptr /*new_scope*/,
+							type_constraints, named_args, return_type, fn_type);
+				} catch (user_error_t &e) {
+					std::throw_with_nested(user_error_t(
+								unchecked_fn->get_location(),
 								"while instantiating function %s",
-								unchecked_fn->str().c_str());
-					}
+								unchecked_fn->str().c_str()));
 				}
 			} else {
 				panic("the arguments are not actually type_args_t");
@@ -111,26 +110,22 @@ bound_var_t::ref instantiate_unchecked_fn(
 				status, builder, unchecked_fn->node,
 				unchecked_fn->module_scope, unification, fn_type);
 
-		if (!!status) {
-			types::type_function_t::ref data_ctor_type = dyncast<const types::type_function_t>(
-					unchecked_data_ctor->sig->rebind(unification.bindings));
-			assert(data_ctor_type != nullptr);
-			// if (data_ctor_type->ftv_count() == 0) {
-			debug_above(4, log(log_info, "going to bind ctor for %s",
-						data_ctor_type->str().c_str()));
+		types::type_function_t::ref data_ctor_type = dyncast<const types::type_function_t>(
+				unchecked_data_ctor->sig->rebind(unification.bindings));
+		assert(data_ctor_type != nullptr);
+		// if (data_ctor_type->ftv_count() == 0) {
+		debug_above(4, log(log_info, "going to bind ctor for %s",
+					data_ctor_type->str().c_str()));
 
-			/* instantiate the data ctor we want */
-			bound_var_t::ref ctor_fn = bind_ctor_to_scope(
-					status, builder, subst_scope,
-					unchecked_fn->id, node,
-					data_ctor_type);
+		/* instantiate the data ctor we want */
+		bound_var_t::ref ctor_fn = bind_ctor_to_scope(
+				status, builder, subst_scope,
+				unchecked_fn->id, node,
+				data_ctor_type);
 
-			if (!!status) {
-				/* the ctor should now exist */
-				assert(ctor_fn != nullptr);
-				return ctor_fn;
-			}
-		}
+		/* the ctor should now exist */
+		assert(ctor_fn != nullptr);
+		return ctor_fn;
 	} else {
 		panic("we should only have function defn's in unchecked var's, right?");
 		return nullptr;
@@ -150,7 +145,6 @@ bound_var_t::ref check_func_vs_callsite(
 		types::type_t::ref return_type,
 		int &coercions)
 {
-	assert(!!status);
 	if (return_type == nullptr) {
 		return_type = type_variable(location);
 	}
@@ -218,35 +212,26 @@ bound_var_t::ref maybe_get_callable(
 				args->str().c_str(),
 				boolstr(allow_coercions)));
 
-    llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-	if (!!status) {
-#if 0
-		if (alias == "mark_allocation") {
-			dbg();
-		}
-#endif
+	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
-		/* look through the current scope stack and get a callable that is able
-		 * to be invoked with the given args */
-		var_t::refs fns;
-		scope->get_callables(alias, fns, check_unchecked);
-		debug_above(7, log("looking for a " c_id("%s") " going to check:", alias.c_str()));
-		for (auto fn : fns) {
-			debug_above(7, log("callable %s : %s", fn->str().c_str(),
-						fn->get_type(nullptr)->str().c_str()));
-		}
-		return get_best_fit(status, builder,
-			   	scope->get_program_scope(),
-			   	location,
-			   	alias,
-			   	args,
-			   	return_type,
-			   	fns,
-				allow_coercions);
+	/* look through the current scope stack and get a callable that is able
+	 * to be invoked with the given args */
+	var_t::refs fns;
+	scope->get_callables(alias, fns, check_unchecked);
+	debug_above(7, log("looking for a " c_id("%s") " going to check:", alias.c_str()));
+	for (auto fn : fns) {
+		debug_above(7, log("callable %s : %s", fn->str().c_str(),
+					fn->get_type(nullptr)->str().c_str()));
 	}
 
-	assert(!status);
-	return nullptr;
+	return get_best_fit(status, builder,
+			scope->get_program_scope(),
+			location,
+			alias,
+			args,
+			return_type,
+			fns,
+			allow_coercions);
 }
 
 bound_var_t::ref get_callable_from_local_var(
@@ -262,24 +247,19 @@ bound_var_t::ref get_callable_from_local_var(
 	/* make sure the function is just a function, not a reference to a function */
 	auto resolved_bound_var = bound_var->resolve_bound_value(status, builder, scope);
 
-	if (!!status) {
-		int coercions = 0;
-		bound_var_t::ref callable = check_func_vs_callsite(status, builder,
-				scope, callsite_location, resolved_bound_var, args, return_type, coercions);
-		if (!!status) {
-			if (callable != nullptr) {
-				return callable;
-			} else {
-				user_error(status, callsite_location, "variable " c_id("%s") " is not callable with these arguments or just isn't a function",
-						alias.c_str());
-				user_info(status, callsite_location, "type of %s is %s",
-						alias.c_str(),
-						bound_var->type->str().c_str());
-			}
-		}
+	int coercions = 0;
+	bound_var_t::ref callable = check_func_vs_callsite(status, builder,
+			scope, callsite_location, resolved_bound_var, args, return_type, coercions);
+	if (callable != nullptr) {
+		return callable;
+	} else {
+		user_error(status, callsite_location, "variable " c_id("%s") " is not callable with these arguments or just isn't a function",
+				alias.c_str());
+		user_info(status, callsite_location, "type of %s is %s",
+				alias.c_str(),
+				bound_var->type->str().c_str());
 	}
 
-	assert(!status);
 	return nullptr;
 }
 
@@ -302,31 +282,28 @@ bound_var_t::ref get_callable(
 	auto callable = maybe_get_callable(status, builder, scope, alias,
 			callsite_location, args, return_type, fittings);
 
-	if (!!status) {
-		if (callable != nullptr) {
-			return callable;
-		} else {
-			std::stringstream ss;
-			ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
-			user_error(status, callsite_location, "%s", ss.str().c_str());
+	if (callable != nullptr) {
+		return callable;
+	} else {
+		std::stringstream ss;
+		ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
+		user_error(status, callsite_location, "%s", ss.str().c_str());
 
-			/* report on the places we tried to look for a match */
-			if (fittings.size() > 10) {
-				user_message(log_info, status, callsite_location,
-						"%d non-matching functions called " c_id("%s")
-						" found (skipping listing them all)", fittings.size(), alias.c_str());
-			} else {
-				for (auto &fitting : fittings) {
-					ss.str("");
-					ss << fitting.fn->type->str() << " did not match";
-					user_message(log_info, status, fitting.fn->get_location(), "%s", ss.str().c_str());
-				}
+		/* report on the places we tried to look for a match */
+		if (fittings.size() > 10) {
+			user_message(log_info, status, callsite_location,
+					"%d non-matching functions called " c_id("%s")
+					" found (skipping listing them all)", fittings.size(), alias.c_str());
+		} else {
+			for (auto &fitting : fittings) {
+				ss.str("");
+				ss << fitting.fn->type->str() << " did not match";
+				user_message(log_info, status, fitting.fn->get_location(), "%s", ss.str().c_str());
 			}
-			return nullptr;
 		}
+		return nullptr;
 	}
 
-	assert(!status);
 	return nullptr;
 }
 
@@ -340,27 +317,26 @@ bound_var_t::ref call_program_function(
         const bound_var_t::refs var_args,
 		types::type_t::ref return_type)
 {
-    types::type_args_t::ref args = get_args_type(var_args);
+	types::type_args_t::ref args = get_args_type(var_args);
 	auto program_scope = scope->get_program_scope();
 
 	if (return_type == nullptr) {
 		return_type = type_variable(callsite_location);
 	}
 
-    /* get or instantiate a function we can call on these arguments */
-    bound_var_t::ref function = get_callable(
-			status, builder, program_scope, function_name, callsite_location,
-			args, return_type);
+	try {
+		/* get or instantiate a function we can call on these arguments */
+		bound_var_t::ref function = get_callable(
+				status, builder, program_scope, function_name, callsite_location,
+				args, return_type);
 
-    if (!!status) {
 		return make_call_value(status, builder, callsite_location, scope,
 				life, function, var_args);
-    } else {
-		user_error(status, callsite_location, "failed to resolve function with args: %s",
-				::str(var_args).c_str());
-
-		assert(!status);
-		return nullptr;
+	} catch (user_error_t &e) {
+		std::throw_with_nested(user_error_t(callsite_location, "failed to resolve function " c_id("%s") " with args: %s",
+					function_name.c_str(),
+					::str(var_args).c_str()));
 	}
+	return nullptr;
 }
 

@@ -162,50 +162,34 @@ ast::module_t::ref compiler_t::build_parse(
 	resolve_module_filename(status, location, module_name, module_filename);
 
 	// TODO: include some notion of versions
-	if (!!status) {
-		assert(module_filename.size() != 0);
-		auto existing_module = get_module(status, module_filename);
-		if (!!status) {
-			if (existing_module == nullptr) {
-				/* we found an unparsed file */
-				std::ifstream ifs;
-				assert(ends_with(module_filename, ".zion"));
-				ifs.open(module_filename.c_str());
+	assert(module_filename.size() != 0);
+	auto existing_module = get_module(status, module_filename);
+	if (existing_module == nullptr) {
+		/* we found an unparsed file */
+		std::ifstream ifs;
+		assert(ends_with(module_filename, ".zion"));
+		ifs.open(module_filename.c_str());
 
-				if (ifs.good()) {
-					debug_above(4, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
-					zion_lexer_t lexer({module_filename}, ifs);
+		if (ifs.good()) {
+			debug_above(4, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
+			zion_lexer_t lexer({module_filename}, ifs);
 
-					parse_state_t ps(status, module_filename, lexer, global_type_macros, global_type_macros, &comments, &link_ins);
-					auto module = ast::module_t::parse(ps);
+			parse_state_t ps(status, module_filename, lexer, global_type_macros, global_type_macros, &comments, &link_ins);
+			auto module = ast::module_t::parse(ps);
 
-                    if (!!status) {
-                        set_module(status, module->filename, module);
-						build_parse_linked(status, module, global_type_macros);
+			set_module(status, module->filename, module);
+			build_parse_linked(status, module, global_type_macros);
 
-						if (!!status) {
-							return module;
-						}
-					}
-				} else {
-					user_error(status, location, "could not open \"%s\" when trying to link module",
-							module_filename.c_str());
-				}
-			} else {
-				debug_above(3, info("no need to build %s as it's already been linked in",
-							module_name.c_str()));
-				return existing_module;
-			}
+			return module;
 		} else {
-			/* a failure */
-			user_error(status, location, "failed to get module %s", module_name.c_str());
+			throw user_error_t(location, "could not open \"%s\" when trying to link module",
+					module_filename.c_str());
 		}
 	} else {
-		/* no file, i guess */
+		debug_above(3, info("no need to build %s as it's already been linked in",
+					module_name.c_str()));
+		return existing_module;
 	}
-
-	assert(!status);
-	return nullptr;
 }
 
 void add_global_types(
@@ -323,7 +307,6 @@ void add_globals(
 	/* set up the global scalar types, as well as memory reference and garbage
 	 * collection types */
 	add_global_types(status, compiler, builder, program_scope);
-	assert(!!status);
 
 	/* lookup the types of bool and void pointer for use below */
 	bound_type_t::ref null_type = program_scope->get_bound_type({"null"});
@@ -345,7 +328,6 @@ void add_globals(
 				"true",
 				true_type,
 				builder.getZionInt(1/*true*/), make_iid("true")));
-	assert(!!status);
 
 	program_scope->put_bound_variable(
 			status,
@@ -355,7 +337,6 @@ void add_globals(
 			   	false_type,
 			   	builder.getZionInt(0/*false*/),
 			   	make_iid("false")));
-	assert(!!status);
 }
 
 bool compiler_t::build_parse_modules() {
@@ -464,76 +445,66 @@ std::string collect_filename_from_module_pair(
 }
 
 std::set<std::string> compiler_t::compile_modules(status_t &status) {
-	if (!!status) {
-		std::set<std::string> filenames;
-		filenames.insert(collect_filename_from_module_pair(status, llvm_program_module));
+	std::set<std::string> filenames;
+	filenames.insert(collect_filename_from_module_pair(status, llvm_program_module));
 
-		for (auto &llvm_module_pair : llvm_modules) {
-			std::string filename = collect_filename_from_module_pair(status, llvm_module_pair);
+	for (auto &llvm_module_pair : llvm_modules) {
+		std::string filename = collect_filename_from_module_pair(status, llvm_module_pair);
 
-			/* make sure we're not overwriting ourselves... probably need to fix this
-			 * later */
-			assert(filenames.find(filename) == filenames.end());
-			filenames.insert(filename);
-		}
-		return filenames;
+		/* make sure we're not overwriting ourselves... probably need to fix this
+		 * later */
+		assert(filenames.find(filename) == filenames.end());
+		filenames.insert(filename);
 	}
-
-	assert(!status);
-	return {};
+	return filenames;
 }
 
 void compiler_t::emit_built_program(status_t &status, std::string executable_filename) {
 	std::vector<std::string> obj_files;
 	emit_object_files(status, obj_files);
-	if (!!status) {
-		std::string clang_bin = getenv("LLVM_CLANG_BIN") ? getenv("LLVM_CLANG_BIN") : "/usr/bin/clang";
-		if (clang_bin.size() == 0) {
-			user_error(status, INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called LLVM_CLANG_BIN");
-			return;
-		}
-
-		std::stringstream ss;
-		ss << clang_bin;
-		if (getenv("ZION_LINK") != nullptr) {
-			ss << " " << getenv("ZION_LINK");
-		}
-	   	if (getenv("ARC4RANDOM_LIB") != nullptr) {
-			ss << " -l" << getenv("ARC4RANDOM_LIB");
-		}
-
-		ss << " -Wno-override-module -Wall -g -O0 -mcx16";
-		for (auto obj_file : obj_files) {
-			ss << " " << obj_file;
-		}
-		for (auto link_in : link_ins) {
-			auto text = unescape_json_quotes(link_in.text);
-			if (ends_with(text, ".o") || ends_with(text, ".a") || starts_with(text, "-")) {
-				ss << " " << text;
-			} else {
-				/* shorthand for linking */
-				ss << " -l" << text;
-			}
-		}
-		ss << " -o " << executable_filename;
-
-		/* compile the bitcode into a local machine executable */
-		errno = 0;
-		int ret = system(ss.str().c_str());
-		if (ret != 0) {
-			user_error(status, location_t{}, "failure (%d) when running: %s",
-					ret, ss.str().c_str());
-		}
-
-#ifdef ZION_DEBUG
-		struct stat s;
-		assert(stat(executable_filename.c_str(), &s) == 0);
-#endif
-
+	std::string clang_bin = getenv("LLVM_CLANG_BIN") ? getenv("LLVM_CLANG_BIN") : "/usr/bin/clang";
+	if (clang_bin.size() == 0) {
+		user_error(status, INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called LLVM_CLANG_BIN");
 		return;
 	}
 
-	assert(!status);
+	std::stringstream ss;
+	ss << clang_bin;
+	if (getenv("ZION_LINK") != nullptr) {
+		ss << " " << getenv("ZION_LINK");
+	}
+	if (getenv("ARC4RANDOM_LIB") != nullptr) {
+		ss << " -l" << getenv("ARC4RANDOM_LIB");
+	}
+
+	ss << " -Wno-override-module -Wall -g -O0 -mcx16";
+	for (auto obj_file : obj_files) {
+		ss << " " << obj_file;
+	}
+	for (auto link_in : link_ins) {
+		auto text = unescape_json_quotes(link_in.text);
+		if (ends_with(text, ".o") || ends_with(text, ".a") || starts_with(text, "-")) {
+			ss << " " << text;
+		} else {
+			/* shorthand for linking */
+			ss << " -l" << text;
+		}
+	}
+	ss << " -o " << executable_filename;
+
+	/* compile the bitcode into a local machine executable */
+	errno = 0;
+	int ret = system(ss.str().c_str());
+	if (ret != 0) {
+		user_error(status, location_t{}, "failure (%d) when running: %s",
+				ret, ss.str().c_str());
+	}
+
+#ifdef ZION_DEBUG
+	struct stat s;
+	assert(stat(executable_filename.c_str(), &s) == 0);
+#endif
+
 	return;
 }
 
@@ -588,11 +559,9 @@ void compiler_t::lower_program_module() {
 	llvm::IRBuilder<> builder(llvm_context);
 	auto bound_stack_frame_map_type = program_scope->get_runtime_type(
 			status, builder, "stack_frame_map_t");
-	assert(!!status);
 
 	auto bound_stack_entry_type = program_scope->get_runtime_type(
 			status, builder, "stack_entry_t");
-	assert(!!status);
 
 	run_gc_lowering(
 			llvm_program_module,
@@ -806,25 +775,20 @@ ptr<const ast::module_t> compiler_t::get_module(status_t &status, std::string ke
 		return module;
 	} else {
 		debug_above(4, log(log_info, "could not find valid module for " c_module("%s"),
-				   	key_alias.c_str()));
+					key_alias.c_str()));
 
 		std::string module_filename;
 		resolve_module_filename(status, INTERNAL_LOC(), key_alias, module_filename);
 
-		if (!!status) {
-			auto module_iter = modules_map.find(module_filename);
-			if (module_iter != modules_map.end()) {
-				auto module = module_iter->second;
-				assert(module != nullptr);
-				return module;
-			} else {
-				return nullptr;
-			}
+		auto module_iter = modules_map.find(module_filename);
+		if (module_iter != modules_map.end()) {
+			auto module = module_iter->second;
+			assert(module != nullptr);
+			return module;
+		} else {
+			return nullptr;
 		}
 	}
-
-	assert(!status);
-	return nullptr;
 }
 
 module_scope_t::ref compiler_t::get_module_scope(std::string module_key) {
@@ -849,15 +813,10 @@ std::string compiler_t::dump_llvm_modules() {
 std::string compiler_t::dump_program_text(std::string module_name) {
 	status_t status;
 	auto module = get_module(status, module_name);
-	if (!!status) {
-		if (module != nullptr) {
-			return module->str();
-		} else {
-			panic("this module does not exist");
-			return "";
-		}
+	if (module != nullptr) {
+		return module->str();
 	} else {
-		not_impl();
+		panic("this module does not exist");
 		return "";
 	}
 }
@@ -910,10 +869,8 @@ llvm::Module *compiler_t::llvm_get_program_module() {
 void compiler_t::dump_ctags() {
 	/* set up the names that point back into the AST resolved to the right
 		 * module scopes */
-	status_t status = scope_setup_program(*program, *this);
-	if (!!status) {
-		for (auto name_scope_pair : module_scopes) {
-			name_scope_pair.second->dump_tags(std::cout);
-		}
+	scope_setup_program(*program, *this);
+	for (auto name_scope_pair : module_scopes) {
+		name_scope_pair.second->dump_tags(std::cout);
 	}
 }
