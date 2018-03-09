@@ -22,8 +22,6 @@ types::type_t::ref unchecked_data_ctor_t::get_type(scope_t::ref scope) const {
 }
 
 types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
-	/* TODO: plumb status down here */
-	status_t status;
 	if (auto fn = dyncast<const ast::function_defn_t>(node)) {
 		auto decl = fn->decl;
 		assert(decl != nullptr);
@@ -37,10 +35,6 @@ types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 		not_impl();
 		return type_unreachable();
 	}
-
-	panic("dead end codepath.");
-	assert(!status);
-	return nullptr;
 }
 
 location_t unchecked_var_t::get_location() const {

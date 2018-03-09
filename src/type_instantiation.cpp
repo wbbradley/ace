@@ -13,7 +13,6 @@
 #include "code_id.h"
 
 bound_var_t::ref bind_ctor_to_scope(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
@@ -61,7 +60,6 @@ bound_var_t::ref bind_ctor_to_scope(
 }
 
 void get_generics_and_lambda_vars(
-		status_t &status,
 	   	types::type_t::ref subtype,
 		identifier::refs type_variables,
 	   	scope_t::ref scope,
@@ -118,7 +116,6 @@ void get_generics_and_lambda_vars(
 }
 
 void instantiate_data_ctor_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		types::type_t::ref unbound_type,
 		identifier::refs type_variables,
@@ -147,10 +144,6 @@ void instantiate_data_ctor_type(
 
 	get_generics_and_lambda_vars(struct_, type_variables, scope,
 			lambda_vars, generics);
-
-	if (!status) {
-		return;
-	}
 
 	/**********************************************/
 	/* Register a data ctor for this struct_ type */
@@ -204,12 +197,9 @@ void instantiate_data_ctor_type(
 	} else {
 		throw user_error_t(node->token.location, "local type definitions are not yet impl");
 	}
-
-	assert(!status);
 }
 
 void ast::type_product_t::register_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref id_,
 		identifier::refs type_variables,
@@ -243,12 +233,9 @@ void ast::type_product_t::register_type(
 				env_iter->second->str().c_str());
 		throw error;
 	}
-
-	assert(!status);
 }
 
 void ast::type_sum_t::register_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref id,
 		identifier::refs type_variables,
@@ -275,7 +262,6 @@ void ast::type_sum_t::register_type(
 }
 
 void ast::type_link_t::register_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref id,
 		identifier::refs type_variables,
@@ -312,7 +298,6 @@ void ast::type_link_t::register_type(
 }
 
 void ast::type_alias_t::register_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		identifier::ref supertype_id,
 		identifier::refs type_variables,

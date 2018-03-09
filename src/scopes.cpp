@@ -18,13 +18,11 @@ const char SCOPE_SEP_CHAR = '.';
 const char *SCOPE_SEP = ".";
 
 void resolve_unchecked_type(
-		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	module_scope_t::ref module_scope,
 	   	unchecked_type_t::ref unchecked_type);
 
 bound_var_t::ref get_bound_variable_from_scope(
-		status_t &status,
 		location_t location,
 		std::string scope_name,
 		std::string symbol,
@@ -213,7 +211,6 @@ void get_callables_from_unchecked_vars(
 }
 
 bound_type_t::ref program_scope_t::get_runtime_type(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		std::string name,
 		bool get_ptr)
@@ -291,7 +288,6 @@ runnable_scope_t::runnable_scope_t(
 }
 
 void runnable_scope_t::check_or_update_return_type_constraint(
-		status_t &status,
 		const ast::item_t::ref &return_statement,
 		bound_type_t::ref return_type)
 {
@@ -562,7 +558,6 @@ std::string module_scope_impl_t::make_fqn(std::string leaf_name) const {
 }
 
 void module_scope_impl_t::put_unchecked_type(
-		status_t &status,
 		unchecked_type_t::ref unchecked_type)
 {
 	// assert(unchecked_type->name.str().find(SCOPE_SEP) != std::string::npos);
@@ -603,7 +598,6 @@ unchecked_type_t::refs &module_scope_impl_t::get_unchecked_types_ordered() {
 }
 
 bound_var_t::ref program_scope_t::upsert_init_module_vars_function(
-		status_t &status,
 	   	llvm::IRBuilder<> &builder)
 {
 	if (init_module_vars_function != nullptr) {
@@ -615,7 +609,6 @@ bound_var_t::ref program_scope_t::upsert_init_module_vars_function(
 
 	/* we are creating this function, but we'll be adding to it elsewhere */
 	init_module_vars_function = llvm_start_function(
-			status,
 			builder, 
 			shared_from_this(),
 			INTERNAL_LOC(),
@@ -638,7 +631,6 @@ std::string program_scope_t::make_fqn(std::string name) const {
 }
 
 void program_scope_t::set_insert_point_to_init_module_vars_function(
-		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	std::string for_var_decl_name)
 {
@@ -718,7 +710,6 @@ unchecked_var_t::ref program_scope_t::get_unchecked_variable(std::string symbol)
 }
 
 void program_scope_t::put_bound_type_mapping(
-		status_t &status,
 	   	types::signature source,
 	   	types::signature dest)
 {
@@ -828,7 +819,6 @@ program_scope_t::ref program_scope_t::create(std::string name, compiler_t &compi
 }
 
 generic_substitution_scope_t::ref generic_substitution_scope_t::create(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		const ptr<const ast::item_t> &fn_decl,
 		scope_t::ref parent_scope,
@@ -844,9 +834,6 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 	for (auto &pair : unification.bindings) {
 		if (pair.first.find("_") != 0) {
 			subst_scope->put_type_variable_binding(pair.first, pair.second);
-			if (!status) {
-				break;
-			}
 		} else {
 			debug_above(7, log(log_info, "skipping adding %s to generic substitution scope",
 						pair.first.c_str()));
@@ -857,7 +844,6 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 }
 
 void put_typename_impl(
-		status_t &status,
 		scope_t::ref parent_scope,
 		const std::string &scope_name,
 		types::type_t::map &typename_env,
@@ -932,7 +918,6 @@ bool module_scope_impl_t::has_bound(const std::string &name, const types::type_t
 }
 
 void put_bound_function(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,
