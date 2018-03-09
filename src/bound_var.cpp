@@ -14,7 +14,7 @@ bound_var_t::ref bound_var_t::create(
 {
 	assert(type != nullptr);
 #ifdef ZION_DEBUG
-	if (type->get_type()->eval_predicate(tb_ref, {}, {})) {
+	if (type->get_type()->eval_predicate(tb_ref, nullptr)) {
 		assert(llvm::dyn_cast<llvm::AllocaInst>(llvm_value) || llvm_value->getType()->isPointerTy());
 	}
 #endif

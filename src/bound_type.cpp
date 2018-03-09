@@ -188,11 +188,11 @@ bool bound_type_t::is_maybe(scope_t::ref scope) const {
 }
 
 bool bound_type_t::is_module() const {
-	return types::is_type_id(get_type(), "module", {}, {});
+	return types::is_type_id(get_type(), "module", nullptr);
 }
 
 bool bound_type_t::is_ptr(scope_t::ref scope) const {
-	bool res = types::is_ptr(type, scope->get_nominal_env(), scope->get_total_env());
+	bool res = types::is_ptr(type, scope);
 	debug_above(7, log("checking whether %s is a ptr of some kind: %s",
 				type->str().c_str(),
 				res ? c_good("it is") : c_error("it isn't")));
@@ -206,11 +206,10 @@ void bound_type_t::is_managed_ptr(
 	   	ptr<scope_t> scope,
 		bool &is_managed) const
 {
-	is_managed = types::is_managed_ptr(type, scope->get_nominal_env(), scope->get_total_env());
+	is_managed = types::is_managed_ptr(type, scope);
 
 #ifdef ZION_DEBUG
 	debug_above(7, log("%s expands to %s", type->str().c_str(), type->eval(scope, true /*get_structural_env*/)->str().c_str()));
-	debug_above(10, log("%s", ::str(scope->get_total_env()).c_str()));
 	debug_above(7, log("checking whether %s is a managed ptr: %s",
 				type->str().c_str(),
 				is_managed ? c_good("it is") : c_error("it isn't")));

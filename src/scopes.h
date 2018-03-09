@@ -1,5 +1,6 @@
 #pragma once
 #include "zion.h"
+#include "env.h"
 #include <string>
 #include "token.h"
 #include "ast_decls.h"
@@ -26,11 +27,11 @@ struct function_scope_t;
 struct local_scope_t;
 struct generic_substitution_scope_t;
 
-struct scope_t : public std::enable_shared_from_this<scope_t> {
+struct scope_t : public std::enable_shared_from_this<scope_t>, public env_t {
 	typedef ptr<scope_t> ref;
 	typedef ptr<const scope_t> cref;
 
-	virtual ~scope_t() throw() {}
+	virtual ~scope_t() {}
 	virtual std::string get_leaf_name() const = 0;
 
 	/* general methods */
@@ -58,10 +59,6 @@ struct scope_t : public std::enable_shared_from_this<scope_t> {
 
 	virtual bound_var_t::ref get_singleton(std::string name) = 0;
 	virtual bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const = 0;
-
-    /* There are mappings based on type declarations stored in the env(s) */
-	virtual types::type_t::map get_nominal_env() const = 0;
-	virtual types::type_t::map get_total_env() const = 0;
 
     /* Then, there are mappings from type_variable names to type_t::refs */
 	virtual types::type_t::map get_type_variable_bindings() const = 0;
@@ -91,8 +88,6 @@ struct scope_impl_t : public BASE {
 	ptr<function_scope_t> new_function_scope(std::string name);
 	ptr<program_scope_t> get_program_scope();
 	ptr<const program_scope_t> get_program_scope() const;
-	types::type_t::map get_nominal_env() const;
-	types::type_t::map get_total_env() const;
 	types::type_t::map get_type_variable_bindings() const;
 	std::string str();
 	void put_bound_variable(std::string symbol, bound_var_t::ref bound_variable);
@@ -109,6 +104,8 @@ struct scope_impl_t : public BASE {
 	virtual ptr<scope_t> get_parent_scope();
 	virtual ptr<const scope_t> get_parent_scope() const;
 	virtual bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const;
+	virtual types::type_t::ref get_nominal_type(const std::string &name) const;
+	virtual types::type_t::ref get_total_type(const std::string &name) const;
 
 protected:
 	std::string scope_name;
@@ -400,6 +397,7 @@ void scope_impl_t<T>::put_type_variable_binding(const std::string &name, types::
 	}
 }
 
+#if 0
 template <typename T>
 types::type_t::map scope_impl_t<T>::get_nominal_env() const {
 	auto parent_scope = this->get_parent_scope();
@@ -421,6 +419,19 @@ types::type_t::map scope_impl_t<T>::get_total_env() const {
 	} else {
 		return merge(nominal_env, structural_env);
 	}
+}
+#endif
+
+template <typename T>
+types::type_t::ref scope_impl_t<T>::get_nominal_type(const std::string &name) const {
+	assert(false);
+	return nullptr;
+}
+
+template <typename T>
+types::type_t::ref scope_impl_t<T>::get_total_type(const std::string &name) const {
+	assert(false);
+	return nullptr;
 }
 
 template <typename T>

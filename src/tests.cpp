@@ -744,6 +744,30 @@ bool test_utf8() {
 	}
 }
 
+struct test_env : public env_t {
+	test_env(types::type_t::map map) : nominal_map(map), total_map(map) {}
+	test_env(types::type_t::map map, types::type_t::map total_map) : nominal_map(map), total_map(total_map) {}
+	types::type_t::map nominal_map, total_map;
+
+	virtual ~test_env() {}
+	virtual types::type_t::ref get_nominal_type(const std::string &name) const {
+		auto iter = nominal_map.find(name);
+		if (iter != nominal_map.end()) {
+			return iter->second;
+		} else {
+			return nullptr;
+		}
+	}
+	virtual types::type_t::ref get_total_type(const std::string &name) const {
+		auto iter = total_map.find(name);
+		if (iter != total_map.end()) {
+			return iter->second;
+		} else {
+			return nullptr;
+		}
+	}
+};
+
 using test_func = std::function<bool ()>;
 
 struct test_desc {
@@ -957,7 +981,7 @@ auto test_descs = std::vector<test_desc>{
 						type_id(make_iid(MANAGED_FALSE))
 						}, INTERNAL_LOC());
 
-				auto repr = parsed_type->eval(nominal_env, nominal_env)->repr();
+				auto repr = parsed_type->eval(make_ptr<test_env>(nominal_env))->repr();
 				if (repr != p.second) {
 					log(log_error, c_error(" => ") c_type("%s"), repr.c_str());
 					log(log_error, c_type("%s") " parsed to " c_type("%s")
@@ -998,7 +1022,7 @@ auto test_descs = std::vector<test_desc>{
 					type_id(make_iid(MANAGED_FALSE))
 					}, INTERNAL_LOC());
 
-			auto type = parse_type_expr("*?void", {}, module_id)->eval(nominal_env, nominal_env);
+			auto type = parse_type_expr("*?void", {}, module_id)->eval(make_ptr<test_env>(nominal_env));
 			log("type repr is %s", type->str().c_str());
 			if (auto maybe = dyncast<const types::type_maybe_t>(type)) {
 				if (auto pointer = dyncast<const types::type_ptr_t>(maybe->just)) {
@@ -1020,7 +1044,7 @@ auto test_descs = std::vector<test_desc>{
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
 			auto types = make_type_pair("bool", "true", {});
-			return unifies(types.first, types.second, env, {});
+			return unifies(types.first, types.second, make_ptr<test_env>(env));
 		}
 	},
 	{
@@ -1034,7 +1058,7 @@ auto test_descs = std::vector<test_desc>{
 
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
-			return unifies(bool_sum, bool_sum, env, {});
+			return unifies(bool_sum, bool_sum, make_ptr<test_env>(env));
 		}
 	},
 	{
@@ -1047,7 +1071,7 @@ auto test_descs = std::vector<test_desc>{
 					}, INTERNAL_LOC());
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
-			return unifies(bool_sum, type_id(make_iid("bool")), env, {});
+			return unifies(bool_sum, type_id(make_iid("bool")), make_ptr<test_env>(env));
 		}
 	},
 	{
@@ -1060,7 +1084,7 @@ auto test_descs = std::vector<test_desc>{
 					}, INTERNAL_LOC());
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
-			return unifies(type_id(make_iid("bool")), bool_sum, env, {});
+			return unifies(type_id(make_iid("bool")), bool_sum, make_ptr<test_env>(env));
 		}
 	},
 	{
@@ -1091,7 +1115,7 @@ auto test_descs = std::vector<test_desc>{
 					},
 					INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
-			return unifies(expanded_sum_lhs, nested_sum_rhs, env, {});
+			return unifies(expanded_sum_lhs, nested_sum_rhs, make_ptr<test_env>(env));
 		}
 	},
 	{
@@ -1122,7 +1146,7 @@ auto test_descs = std::vector<test_desc>{
 					},
 					INTERNAL_LOC());
 			env.insert({std::string("bool"), bool_sum});
-			return unifies(expanded_sum_lhs, type_ref(nested_sum_rhs), env, {});
+			return unifies(expanded_sum_lhs, type_ref(nested_sum_rhs), make_ptr<test_env>(env));
 		}
 	},
 	{
@@ -1198,15 +1222,16 @@ auto test_descs = std::vector<test_desc>{
 					// {type_ptr(type_id(make_iid("void"))), type_ptr(type_managed(type_struct({}, {})))},
 					});
 
+			auto _env = make_ptr<test_env>(env);
 			for (auto &pair : unifies) {
-				if (!unify(pair.first, pair.second, env, {}).result) {
+				if (!unify(pair.first, pair.second, _env, {}).result) {
 					log(log_error, "unable to unify %s with %s", pair.first->str().c_str(), pair.second->str().c_str());
 					return false;
 				}
 			}
 
 			for (auto &pair : fails) {
-				auto unification = unify(pair.first, pair.second, env, {});
+				auto unification = unify(pair.first, pair.second, _env, {});
 				if (unification.result) {
 					log(log_error, "should have failed unifying %s and %s [%s]",
 							pair.first->str().c_str(),
@@ -1246,15 +1271,16 @@ auto test_descs = std::vector<test_desc>{
 				"if (not (gc Managed)) BAD OK",
 				"if (not (gc Native)) OK BAD",
 			};
+			auto _env = make_ptr<test_env>(nominal_env, total_env);
 			for (auto test : tests) {
 				auto should_be_x = parse_type_expr(test, {}, module_id);
 				log("parsing type expression %s => %s",
 						test.c_str(), should_be_x->str().c_str());
-				auto evaled = should_be_x->eval(nominal_env, total_env);
+				auto evaled = should_be_x->eval(_env);
 				log(log_info, "%s evaled to %s",
 						should_be_x->str().c_str(),
 						evaled->str().c_str());
-				if (!types::is_type_id(evaled, "OK", nominal_env, total_env)) {
+				if (!types::is_type_id(evaled, "OK", _env)) {
 					log(log_error, "failed to get OK from \"%s\" = %s",
 							test.c_str(),
 							should_be_x->str().c_str());

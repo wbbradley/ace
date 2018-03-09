@@ -143,36 +143,36 @@ or llvm tools, etc...
 
 ### TODO
 
-- [ ] Maintenance: Change all `status_t` parts of compiler to use exceptions
 - [ ] Implement slice array indexing rg[s:end], etc...
+- [ ] Implement vector slicing for strings and arrays
 - [ ] Implement native structures as non-pointer values
 - [ ] Consider how to allow for-macro expansion to have a mutating iterator function. Does that mean pass-by-ref is
   allowed?
 - [ ] Implement fast range(i)
 - [ ] Consider uniform calling syntax for .-chaining and how to acheive customizable monadic behaviors by looking at the receiver
+- [ ] Use DIBuilder to add line-level debugging information
 - [ ] Consider implementing a macro specifier for declaring macros which would expand inline and have hygenic names
 - [ ] Implement an inline directive to mark functions for inline expansion during optimization
 - [ ] Consider exceptions as a monadic construct that can be applied as a macro?
 - [ ] Integrate JSON parsing and mess around with manipulating some existing JSON files
-- [ ] Implement vector slicing for strings and arrays
-- [ ] Use DIBuilder to add line-level debugging information
 - [ ] Optimize `scope_t`'s `get_nominal_env` and `get_total_env` to be cached
 - [ ] Explore closures with capture by value
 - [ ] Add safety checks on casting (as)
 - [ ] Implement generic sort
 - [ ] Explore using a conservative collector
+- [ ] Exercise: implement parser combinators in Zion
 - [ ] Consider marking null-terminated strings differently for FFI purposes
 - [ ] Consider allowing overloads for arbitrary `tk_operator`s to enable overloading random symbols.
-- [ ] Builtin data structures
+- [ ] Data structures
   - [x] string (as slices)
   - [x] vectors
   - [ ] hash map
   - [ ] binary tree
   - [ ] avl tree
-  - [ ] link defs are not yet functional
 - [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction
 - [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
 - [ ] Enable linking to variadic functions (like printf)
+- [x] Maintenance: Change all `status_t` parts of compiler to use exceptions
 - [x] Check for duplicate bound function instantiations deeper within function instantiation
 - [x] Change := to be let by default
 - [x] (un)signed integers

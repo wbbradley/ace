@@ -214,9 +214,8 @@ void ast::type_product_t::register_type(
 
 	/* instantiate a lazily bound data ctor, and inject the typename for this type into the
 	 * type environment */
-	auto env = scope->get_total_env();
-	auto env_iter = env.find(name);
-	if (env_iter == env.end()) {
+	auto type = scope->get_total_type(name);
+	if (type == nullptr) {
 		/* instantiate_data_ctor_type has the side-effect of creating an
 		 * unchecked data ctor for the type */
 		instantiate_data_ctor_type(builder, type,
@@ -227,10 +226,10 @@ void ast::type_product_t::register_type(
 		auto error = user_error(location,
 				"symbol " c_id("%s") " is already taken in typename env by %s",
 				name.c_str(),
-				env_iter->second->str().c_str());
-		error.add_info(env_iter->second->get_location(),
+				type->str().c_str());
+		error.add_info(type->get_location(),
 				"previous version of %s defined here",
-				env_iter->second->str().c_str());
+				type->str().c_str());
 		throw error;
 	}
 }
@@ -246,9 +245,9 @@ void ast::type_sum_t::register_type(
 				join_str(type_variables, ", ").c_str(),
 				type->str().c_str()));
 
-	auto env = scope->get_nominal_env();
-	auto iter = env.find(id->get_name());
-	if (iter == env.end()) {
+	auto type = scope->get_nominal_type(id->get_name());
+	if (type == nullptr) {
+		/* good, we haven't seen this symbol before */
 		auto expansion = type;
 		for (auto type_variable : type_variables) {
 			expansion = type_lambda(type_variable, expansion);
@@ -256,7 +255,7 @@ void ast::type_sum_t::register_type(
 		scope->put_nominal_typename(id->get_name(), expansion);
 	} else {
 		auto error = user_error(id->get_location(), "sum types cannot be registered twice");
-		error.add_info(iter->second->get_location(), "see prior type registered here");
+		error.add_info(type->get_location(), "see prior type registered here");
 		throw error;
 	}
 }
@@ -267,9 +266,8 @@ void ast::type_link_t::register_type(
 		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
-	auto env = scope->get_total_env();
-	auto iter = env.find(id->get_name());
-	if (iter == env.end()) {
+	auto type = scope->get_total_type(id->get_name());
+	if (type == nullptr) {
 		debug_above(3, log("registering type link for %s link", id->get_name().c_str()));
 
 		/* first construct the inner type which will basically be a call back to the outer type.
@@ -292,7 +290,7 @@ void ast::type_link_t::register_type(
 		scope->put_structural_typename(id->get_name(), type);
 	} else {
 		auto error = user_error(id->get_location(), "type links cannot be registered twice");
-		error.add_info(iter->second->get_location(), "see prior type registered here");
+		error.add_info(type->get_location(), "see prior type registered here");
 		throw error;
 	}
 }
@@ -313,16 +311,15 @@ void ast::type_alias_t::register_type(
 	for (auto lambda_var : lambda_vars) {
 		final_type = type_lambda(lambda_var, type);
 	}
-	auto env = scope->get_nominal_env();
-	auto iter = env.find(token.text);
-	if (iter == env.end()) {
+	auto existing_type = scope->get_nominal_type(token.text);
+	if (existing_type == nullptr) {
 		scope->put_nominal_typename(token.text, final_type);
 	} else {
 		// debug_above(5, log(log_info, "skipping type alias creation of %s", str().c_str()));
 		// assert(iter->second->get_signature() == final_type->get_signature());
 		auto error = user_error(type->get_location(), "type aliases cannot be registered twice (regarding " c_id("%s") ")",
 				str().c_str());
-		error.add_info(iter->second->get_location(), "see prior type registered here");
+		error.add_info(existing_type->get_location(), "see prior type registered here");
 		throw error;
 	}
 }

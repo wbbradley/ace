@@ -303,7 +303,7 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 		unification_t unification = unify(
 				return_type_constraint->get_type(),
 				return_type->get_type(),
-				get_nominal_env(),
+				shared_from_this(),
 				get_type_variable_bindings());
 
 		if (!unification.result) {
