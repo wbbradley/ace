@@ -525,10 +525,12 @@ void run_gc_lowering(
 		FPM->run(F);
 		F.setGC("shadow-stack");
 	}
+#ifdef ZION_DEBUG
 	debug_above(5, log("writing to jit.llir..."));
 	FILE *fp = fopen("jit.llir", "wt");
 	fprintf(fp, "%s\n", llvm_print_module(*llvm_module).c_str());
 	fclose(fp);
+#endif
 }
 
 void compiler_t::lower_program_module() {
