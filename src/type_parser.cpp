@@ -498,7 +498,6 @@ types::type_t::ref parse_type_expr(
 	   	identifier::set generics,
 	   	identifier::ref module_id)
 {
-	status_t status;
 	std::istringstream iss(input);
 	zion_lexer_t lexer("", iss);
 	type_macros_t global_type_macros;
@@ -517,12 +516,6 @@ types::type_t::ref parse_type_expr(
 		ps.module_id = make_iid("__parse_type_expr__");
 	}
 	debug_above(8, log("parsing %s", input.c_str()));
-	types::type_t::ref type = types::parse_type(ps, generics);
-	if (!!ps.status) {
-		return type;
-	} else {
-		panic("bad type");
-		return null_impl();
-	}
+	return types::parse_type(ps, generics);
 }
 

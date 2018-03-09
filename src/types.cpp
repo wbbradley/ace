@@ -85,7 +85,6 @@ namespace types {
 	}
 
 	type_t::ref type_t::boolean_refinement(
-			status_t &status,
 			bool elimination_value,
 			const types::type_t::map &nominal_env,
 			const types::type_t::map &total_env) const
@@ -118,7 +117,6 @@ namespace types {
 	}
 
 	type_t::ref type_id_t::boolean_refinement(
-			status_t &status,
 			bool elimination_value,
 			const types::type_t::map &nominal_env,
 			const types::type_t::map &total_env) const
@@ -245,7 +243,6 @@ namespace types {
 	}
 
 	type_t::ref type_operator_t::boolean_refinement(
-			status_t &status,
 			bool elimination_value,
 			const types::type_t::map &nominal_env,
 			const types::type_t::map &total_env) const
@@ -730,13 +727,11 @@ namespace types {
 	}
 
 	type_t::ref type_lazy_t::boolean_refinement(
-			status_t &status,
 			bool elimination_value,
 			const types::type_t::map &nominal_env,
 			const types::type_t::map &total_env) const
 	{
 		auto type = type_sum_safe(
-				status,
 				options,
 				location,
 				nominal_env,
@@ -808,7 +803,6 @@ namespace types {
 	}
 
 	type_t::ref type_sum_t::boolean_refinement(
-			status_t &status,
 			bool elimination_value,
 			const types::type_t::map &nominal_env,
 			const types::type_t::map &total_env) const
@@ -816,9 +810,6 @@ namespace types {
 		types::type_t::refs new_options;
 		for (auto option : options) {
 			option = option->boolean_refinement(elimination_value, nominal_env, total_env);
-			if (!status) {
-				break;
-			}
 			if (option != nullptr) {
 				new_options.push_back(option);
 			}
@@ -919,7 +910,6 @@ namespace types {
 	}
 
 	type_t::ref type_maybe_t::boolean_refinement(
-			status_t &status,
 			bool elimination_value,
 			const types::type_t::map &nominal_env,
 			const types::type_t::map &total_env) const
@@ -972,7 +962,6 @@ namespace types {
 	}
 
 	type_t::ref type_ptr_t::boolean_refinement(
-			status_t &status,
 			bool elimination_value,
 			const types::type_t::map &nominal_env,
 			const types::type_t::map &total_env) const
@@ -1105,7 +1094,6 @@ namespace types {
 	}
 
 	type_t::ref type_integer_t::boolean_refinement(
-			status_t &status,
 			bool elimination_value,
 			const types::type_t::map &nominal_env,
 			const types::type_t::map &total_env) const
@@ -1163,7 +1151,7 @@ namespace types {
 		return token.location;
 	}
 
-	int type_literal_t::coerce_to_int(status_t &status) const {
+	int type_literal_t::coerce_to_int() const {
 		std::string text = token.text;
 		if (token.tk == tk_string) {
 			text = unescape_json_quotes(text);
@@ -1303,7 +1291,6 @@ namespace types {
 	}
 
 	int coerce_to_integer(
-			status_t &status,
 			const types::type_t::map &nominal_env,
 			const types::type_t::map &total_env,
 			type_t::ref type,
@@ -1312,14 +1299,12 @@ namespace types {
 		expansion = type->eval(nominal_env, total_env);
 
 		if (auto literal = dyncast<const type_literal_t>(expansion)) {
-			return literal->coerce_to_int(status);
+			return literal->coerce_to_int();
 		} else {
 			throw user_error_t(type->get_location(),
 					"unable to deduce an integer value from type %s",
 					expansion->str().c_str());
 		}
-		assert(!status);
-		return 0;
 	}
 
 	bool is_integer(type_t::ref type, const type_t::map &nominal_env, const type_t::map &total_env) {
@@ -1328,7 +1313,6 @@ namespace types {
 	}
 
 	void get_integer_attributes(
-			status_t &status,
 			type_t::ref type,
 			const type_t::map &nominal_env,
 			const type_t::map &total_env,
@@ -1362,13 +1346,9 @@ namespace types {
 			throw user_error_t(type->get_location(), "expected an integer type, found %s",
 					type->str().c_str());
 		}
-
-		assert(!status);
-		return;
 	}
 
 	void get_runtime_typeids(
-			status_t &status,
 			type_t::ref type,
 			const type_t::map &nominal_env,
 			const type_t::map &total_env,
@@ -1387,9 +1367,6 @@ namespace types {
 		} else if (auto type_sum = dyncast<const type_sum_t>(expansion)) {
 			for (auto option : type_sum->options) {
 				get_runtime_typeids(option, nominal_env, total_env, typeids);
-				if (!status) {
-					break;
-				}
 			}
 		} else if (auto type_operator = dyncast<const type_operator_t>(expansion)) {
 			typeids.insert(atomize(type_operator->repr()));
@@ -1680,7 +1657,6 @@ types::type_t::ref promote_to_managed_type(
 
 
 types::type_t::ref type_sum_safe_3(
-		status_t &status,
         types::type_t::refs options,
         location_t location,
         const types::type_t::map &nominal_env,
@@ -1725,12 +1701,11 @@ types::type_t::ref type_sum_safe_3(
 			return type_sum(expanded_options, location);
 		}
 	}
-	assert(!status);
+	assert(false);
 	return nullptr;
 }
 
 types::type_t::ref type_sum_safe_2(
-		status_t &status,
         types::type_t::refs options,
         location_t location,
         const types::type_t::map &nominal_env,
@@ -1757,7 +1732,6 @@ types::type_t::ref type_sum_safe_2(
 }
 
 types::type_t::ref type_sum_safe(
-		status_t &status,
         types::type_t::refs orig_options,
         location_t location,
         const types::type_t::map &nominal_env,

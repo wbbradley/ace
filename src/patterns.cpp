@@ -11,7 +11,6 @@
 #include "coercions.h"
 
 void ast::when_block_t::resolve_statement(
-		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 		life_t::ref life,
@@ -173,7 +172,6 @@ void ast::when_block_t::resolve_statement(
 		builder.SetInsertPoint(llvm_pattern_block);
 
 		auto matched_type = type_sum_safe(
-				status,
 				reified_types,
 				pattern_block->get_location(),
 				nominal_env,
@@ -184,7 +182,6 @@ void ast::when_block_t::resolve_statement(
 
 		auto bound_matched_type = upsert_bound_type(builder, scope, matched_type);
 		llvm::Value *llvm_pattern_value = coerce_value(
-				status,
 				builder,
 				scope,
 				life,
@@ -225,7 +222,6 @@ void ast::when_block_t::resolve_statement(
 
 	/* check whether all cases of the pattern_value's type are handled */
 	types::type_sum_t::ref type_sum_matched = type_sum_safe(
-			status,
 			types_matched,
 			get_location(),
 			scope->get_nominal_env(),
@@ -255,13 +251,9 @@ void ast::when_block_t::resolve_statement(
 			return;
 		}
 	}
-
-	assert(!status);
-	return;
 }
 
 bound_var_t::ref gen_null_check(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ast::item_t::ref node,
 		scope_t::ref scope,
@@ -282,7 +274,6 @@ bound_var_t::ref gen_null_check(
 }
 
 bound_var_t::ref gen_type_check(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		ast::item_t::ref node,
 		scope_t::ref scope,
@@ -345,7 +336,6 @@ bound_var_t::ref gen_type_check(
 
 	/* call the type_id comparator function */
 	return create_callsite(
-			status,
 			builder,
 			scope,
 			life,

@@ -12,26 +12,6 @@
  * resolution and adds names to the appropriate scopes.
  */
 
-void scope_setup_error(const ast::item_t &item, const char *format, ...) {
-	va_list args;
-	va_start(args, format);
-	auto str = string_formatv(format, args);
-	va_end(args);
-
-	throw user_error_t(item.token.location, "scope-error: %s", str.c_str());
-}
-
-
-void scope_setup_error(location_t location, const char *format, ...) {
-	va_list args;
-	va_start(args, format);
-	auto str = string_formatv(format, args);
-	va_end(args);
-
-	throw user_error_t(location, "scope-error: %s", str.c_str());
-}
-
-
 unchecked_var_t::ref scope_setup_module_symbol(
 		const ast::item_t &obj,
 		identifier::ref id,
@@ -50,7 +30,7 @@ unchecked_var_t::ref scope_setup_module_symbol(
 				if (module_scope != nullptr) {
 					return module_scope->put_unchecked_variable(id->get_name(), unchecked_var);
 				} else {
-					scope_setup_error(obj, "could not find module " c_module("%s") " to extend with " c_id("%s"),
+					throw user_error_t(obj.token.location, "could not find module " c_module("%s") " to extend with " c_id("%s"),
 							name.c_str(),
 							id->get_name().c_str());
 				}
@@ -61,12 +41,8 @@ unchecked_var_t::ref scope_setup_module_symbol(
 					unchecked_var_t::create(id, obj.shared_from_this(), module_scope));
 		}
 	} else {
-		scope_setup_error(obj, "module-level function definition does not have a name");
-		return nullptr;
+		throw user_error_t(obj.token.location, "module-level function definition does not have a name");
 	}
-
-	assert(!status);
-	return nullptr;
 }
 
 void scope_setup_type_def(
@@ -76,7 +52,6 @@ void scope_setup_type_def(
 	assert(obj.token.text.find(SCOPE_SEP) == std::string::npos);
 	assert(obj.token.text.size() != 0);
 	module_scope->put_unchecked_type(
-			status,
 			unchecked_type_t::create(obj.token.text, obj.shared_from_this(), module_scope));
 }
 
@@ -87,11 +62,10 @@ void scope_setup_tag(
 	assert(obj.token.text.find(SCOPE_SEP) == std::string::npos);
 	assert(obj.token.text.size() != 0);
 	module_scope->put_unchecked_type(
-			status,
 			unchecked_type_t::create(obj.token.text, obj.shared_from_this(), module_scope));
 }
 
-status_t scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
+void scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 	auto module_name = obj.decl->get_canonical_name();
 
 	/* create this module's LLVM IR representation */
@@ -119,7 +93,6 @@ status_t scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 
 	for (auto &function : obj.functions) {
 		scope_setup_module_symbol(
-				status,
 			   	*function,
 				make_iid(function->decl->get_function_name()),
 			   	function->decl->extends_module,
@@ -128,14 +101,11 @@ status_t scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 
 	for (auto &var_decl : obj.var_decls) {
 		scope_setup_module_symbol(
-				status,
 				*var_decl,
 				make_code_id(var_decl->token),
 				var_decl->extends_module,
 				module_scope);
 	}
-
-	return status;
 }
 
 void scope_setup_program(const ast::program_t &obj, compiler_t &compiler) {

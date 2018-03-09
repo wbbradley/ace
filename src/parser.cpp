@@ -1178,11 +1178,7 @@ type_decl_t::ref type_decl_t::parse(parse_state_t &ps, token_t name_token) {
 	identifier::refs type_variables;
 	parse_maybe_type_decl(ps, type_variables);
 
-	if (!!ps.status) {
-		return create<ast::type_decl_t>(name_token, type_variables);
-	} else {
-		return nullptr;
-	}
+	return create<ast::type_decl_t>(name_token, type_variables);
 }
 
 ptr<type_def_t> type_def_t::parse(parse_state_t &ps) {
@@ -1193,15 +1189,8 @@ ptr<type_def_t> type_def_t::parse(parse_state_t &ps) {
 
 	auto type_def = create<ast::type_def_t>(type_name_token);
 	type_def->type_decl = type_decl_t::parse(ps, type_name_token);
-	if (!!ps.status) {
-		type_def->type_algebra = ast::type_algebra_t::parse(ps, type_def->type_decl);
-		if (!!ps.status) {
-			return type_def;
-		}
-	}
-
-	assert(!ps.status);
-	return nullptr;
+	type_def->type_algebra = ast::type_algebra_t::parse(ps, type_def->type_decl);
+	return type_def;
 }
 
 ptr<tag_t> tag_t::parse(parse_state_t &ps) {
@@ -1212,12 +1201,7 @@ ptr<tag_t> tag_t::parse(parse_state_t &ps) {
 
 	parse_maybe_type_decl(ps, tag->type_variables);
 
-	if (!!ps.status) {
-		return tag;
-	}
-
-	assert(!ps.status);
-	return nullptr;
+	return tag;
 }
 
 type_algebra_t::ref type_algebra_t::parse(
@@ -1262,19 +1246,15 @@ type_sum_t::ref type_sum_t::parse(
 
 	auto type = types::parse_type(ps, type_variables);
 
-	if (!!ps.status) {
-		if (expect_outdent) {
-			if (ps.token.tk == tk_lparen) {
-				throw user_error_t(ps.token.location, "subtypes of a supertype must be separated by the '" c_type("or") "' keyword");
-			} else {
-				chomp_token(tk_outdent);
-			}
+	if (expect_outdent) {
+		if (ps.token.tk == tk_lparen) {
+			throw user_error_t(ps.token.location, "subtypes of a supertype must be separated by the '" c_type("or") "' keyword");
+		} else {
+			chomp_token(tk_outdent);
 		}
-
-		return create<type_sum_t>(type_decl->token, type);
-	} else {
-		return nullptr;
 	}
+
+	return create<type_sum_t>(type_decl->token, type);
 }
 
 type_product_t::ref type_product_t::parse(
@@ -1314,15 +1294,10 @@ type_alias_t::ref type_alias_t::parse(
 	identifier::set generics = to_identifier_set(type_variables);
 	types::type_t::ref type = types::parse_type(ps, generics);
 
-	if (!!ps.status) {
-		auto type_alias = ast::create<ast::type_alias_t>(type_decl->token);
-		type_alias->type = type;
-		type_alias->type_variables = generics;
-		return type_alias;
-	}
-
-	assert(!ps.status);
-	return nullptr;
+	auto type_alias = ast::create<ast::type_alias_t>(type_decl->token);
+	type_alias->type = type;
+	type_alias->type_variables = generics;
+	return type_alias;
 }
 
 dimension_t::ref dimension_t::parse(parse_state_t &ps, identifier::set generics) {
@@ -1339,11 +1314,7 @@ dimension_t::ref dimension_t::parse(parse_state_t &ps, identifier::set generics)
 	}
 
 	types::type_t::ref type = types::parse_type(ps, generics);
-	if (!!ps.status) {
-		return ast::create<ast::dimension_t>(primary_token, name, type);
-	}
-	assert(!ps.status);
-	return nullptr;
+	return ast::create<ast::dimension_t>(primary_token, name, type);
 }
 
 void add_type_macros_to_parser(
@@ -1376,121 +1347,105 @@ ptr<module_t> module_t::parse(parse_state_t &ps) {
 				ps.filename.c_str(),
 				join_with(ps.type_macros, ", ", [] (type_macros_t::value_type v) -> std::string {
 					return v.first + ": " + v.second->str();
-				}).c_str()));
+					}).c_str()));
 
 	auto module_decl = module_decl_t::parse(ps);
 
-	if (module_decl != nullptr) {
-		std::string module_name = strip_zion_extension(ps.filename);
-		ps.module_id = make_iid(module_decl->get_canonical_name());
-		assert(ps.module_id != nullptr);
+	assert(module_decl != nullptr);
+	std::string module_name = strip_zion_extension(ps.filename);
+	ps.module_id = make_iid(module_decl->get_canonical_name());
+	assert(ps.module_id != nullptr);
 
-		auto module = create<ast::module_t>(module_decl->token, ps.filename, module_decl->global);
-		module->decl.swap(module_decl);
+	auto module = create<ast::module_t>(module_decl->token, ps.filename, module_decl->global);
+	module->decl.swap(module_decl);
 
-		while (ps.token.is_ident(K(get))) {
-			auto get_statement = get_statement_parse(ps);
-			if (auto linked_module = dyncast<link_module_statement_t>(get_statement)) {
-				module->linked_modules.push_back(linked_module);
-			}
+	while (ps.token.is_ident(K(get))) {
+		auto get_statement = get_statement_parse(ps);
+		if (auto linked_module = dyncast<link_module_statement_t>(get_statement)) {
+			module->linked_modules.push_back(linked_module);
 		}
-		// Get links
-		while (ps.token.is_ident(K(link))) {
-			auto link_statement = link_statement_parse(ps);
-			if (auto linked_function = dyncast<link_function_statement_t>(link_statement)) {
-				module->linked_functions.push_back(linked_function);
-			} else if (auto linked_var = dyncast<link_var_statement_t>(link_statement)) {
-				module->linked_vars.push_back(linked_var);
-			} else if (auto linked_name = dyncast<link_name_t>(link_statement)) {
-				module->linked_names.push_back(linked_name);
-			}
+	}
+	// Get links
+	while (ps.token.is_ident(K(link))) {
+		auto link_statement = link_statement_parse(ps);
+		if (auto linked_function = dyncast<link_function_statement_t>(link_statement)) {
+			module->linked_functions.push_back(linked_function);
+		} else if (auto linked_var = dyncast<link_var_statement_t>(link_statement)) {
+			module->linked_vars.push_back(linked_var);
+		} else if (auto linked_name = dyncast<link_name_t>(link_statement)) {
+			module->linked_names.push_back(linked_name);
 		}
-		
-		/* TODO: update the parser to contain the type maps from the link_names */
-		add_type_macros_to_parser(ps, module->linked_names);
-
-		/* Get vars, functions or type defs */
-		while (!!ps.status) {
-			if (ps.token.is_ident(K(var)) || ps.token.is_ident(K(let))) {
-				bool is_let = ps.token.is_ident(K(let));
-				if (is_let) {
-					throw user_error_t(ps.token.location, "let variables are not yet supported at the module level");
-				} else {
-					ps.advance();
-					auto var = var_decl_t::parse(ps, is_let);
-					if (!!ps.status) {
-						module->var_decls.push_back(var);
-					}
-				}
-			} else if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(def))) {
-				/* function definitions */
-				auto function = function_defn_t::parse(ps);
-				if (!!ps.status) {
-					if (function->token.text == "main") {
-						bool have_linked_main = false;
-						for (auto linked_module : module->linked_modules) {
-							if (linked_module->token.text == "main") {
-								have_linked_main = true;
-								break;
-							}
-						}
-						if (!have_linked_main) {
-							ptr<link_module_statement_t> linked_module = create<link_module_statement_t>(ps.token);
-							linked_module->link_as_name = token_t(
-									function->decl->token.location,
-									tk_identifier,
-									types::gensym()->get_name());
-							linked_module->extern_module = create<ast::module_decl_t>(token_t(
-										function->decl->token.location,
-										tk_identifier,
-										"main"));
-							linked_module->extern_module->name = linked_module->extern_module->token;
-							module->linked_modules.push_back(linked_module);
-						}
-					}
-					module->functions.push_back(std::move(function));
-				}
-			} else if (ps.token.is_ident(K(tag))) {
-				/* tags */
-				auto tag = tag_t::parse(ps);
-				if (!!ps.status && tag != nullptr) {
-					module->tags.push_back(tag);
-					if (module->global) {
-						auto id = make_code_id(tag->token);
-						ps.type_macros.insert({tag->token.text, type_id(id)});
-						ps.global_type_macros.insert({tag->token.text, type_id(id)});
-					}
-				}
-			} else if (ps.token.is_ident(K(type))) {
-				/* type definitions */
-				auto type_def = type_def_t::parse(ps);
-				if (!!ps.status && type_def != nullptr) {
-					module->type_defs.push_back(type_def);
-					if (module->global) {
-						auto id = make_code_id(type_def->token);
-						ps.type_macros.insert({type_def->token.text, type_id(id)});
-						ps.global_type_macros.insert({type_def->token.text, type_id(id)});
-					}
-				}
-			} else {
-				break;
-			}
-		}
-
-		if (!!ps.status) {
-			if (ps.token.is_ident(K(link))) {
-				throw user_error_t(ps.token.location, C_MODULE "link" C_RESET " directives must come before types, variables, and functions");
-			} else if (ps.token.tk != tk_none) {
-				throw user_error_t(ps.token.location, "unexpected '" c_id("%s") "' at top-level module scope (%s)",
-						ps.token.text.c_str(), tkstr(ps.token.tk));
-			}
-		}
-
-        if (!!ps.status) {
-            return module;
-        }
 	}
 
-    assert(!ps.status);
-	return nullptr;
+	/* TODO: update the parser to contain the type maps from the link_names */
+	add_type_macros_to_parser(ps, module->linked_names);
+
+	/* Get vars, functions or type defs */
+	while (true) {
+		if (ps.token.is_ident(K(var)) || ps.token.is_ident(K(let))) {
+			bool is_let = ps.token.is_ident(K(let));
+			if (is_let) {
+				throw user_error_t(ps.token.location, "let variables are not yet supported at the module level");
+			} else {
+				ps.advance();
+				auto var = var_decl_t::parse(ps, is_let);
+				module->var_decls.push_back(var);
+			}
+		} else if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(def))) {
+			/* function definitions */
+			auto function = function_defn_t::parse(ps);
+			if (function->token.text == "main") {
+				bool have_linked_main = false;
+				for (auto linked_module : module->linked_modules) {
+					if (linked_module->token.text == "main") {
+						have_linked_main = true;
+						break;
+					}
+				}
+				if (!have_linked_main) {
+					ptr<link_module_statement_t> linked_module = create<link_module_statement_t>(ps.token);
+					linked_module->link_as_name = token_t(
+							function->decl->token.location,
+							tk_identifier,
+							types::gensym()->get_name());
+					linked_module->extern_module = create<ast::module_decl_t>(token_t(
+								function->decl->token.location,
+								tk_identifier,
+								"main"));
+					linked_module->extern_module->name = linked_module->extern_module->token;
+					module->linked_modules.push_back(linked_module);
+				}
+			}
+			module->functions.push_back(std::move(function));
+		} else if (ps.token.is_ident(K(tag))) {
+			/* tags */
+			auto tag = tag_t::parse(ps);
+			module->tags.push_back(tag);
+			if (module->global) {
+				auto id = make_code_id(tag->token);
+				ps.type_macros.insert({tag->token.text, type_id(id)});
+				ps.global_type_macros.insert({tag->token.text, type_id(id)});
+			}
+		} else if (ps.token.is_ident(K(type))) {
+			/* type definitions */
+			auto type_def = type_def_t::parse(ps);
+			module->type_defs.push_back(type_def);
+			if (module->global) {
+				auto id = make_code_id(type_def->token);
+				ps.type_macros.insert({type_def->token.text, type_id(id)});
+				ps.global_type_macros.insert({type_def->token.text, type_id(id)});
+			}
+		} else {
+			break;
+		}
+	}
+
+	if (ps.token.is_ident(K(link))) {
+		throw user_error_t(ps.token.location, C_MODULE "link" C_RESET " directives must come before types, variables, and functions");
+	} else if (ps.token.tk != tk_none) {
+		throw user_error_t(ps.token.location, "unexpected '" c_id("%s") "' at top-level module scope (%s)",
+				ps.token.text.c_str(), tkstr(ps.token.tk));
+	}
+
+	return module;
 }

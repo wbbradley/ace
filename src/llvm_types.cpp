@@ -735,13 +735,11 @@ bound_type_t::ref get_function_return_type(
 		scope_t::ref scope,
 		bound_type_t::ref function_type)
 {
-	if (auto type_function = dyncast<const types::type_function_t>(function_type->get_type())) {
-		auto return_type_sig = type_function->return_type->get_signature();
-		return upsert_bound_type(builder, scope, type_function->return_type);
-	}
+	auto type_function = dyncast<const types::type_function_t>(function_type->get_type());
+	assert(type_function != nullptr);
 
-	assert(!status);
-	return nullptr;
+	auto return_type_sig = type_function->return_type->get_signature();
+	return upsert_bound_type(builder, scope, type_function->return_type);
 }
 
 std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
@@ -810,7 +808,6 @@ llvm::Constant *llvm_dim_offset_gep(llvm::StructType *llvm_struct_type, int inde
 
 
 bound_var_t::ref maybe_get_dtor(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		program_scope_t::ref program_scope,
 		bound_type_t::ref data_type)
@@ -823,7 +820,6 @@ bound_var_t::ref maybe_get_dtor(
 	auto location = data_type->get_location();
 	fittings_t fn_dtors;
 	bound_var_t::ref dtor = maybe_get_callable(
-			status,
 			builder,
 			program_scope,
 			{"__finalize__"},
@@ -844,7 +840,6 @@ bound_var_t::ref maybe_get_dtor(
 }
 
 bound_var_t::ref upsert_type_info_mark_fn(
-		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 		std::string name,
@@ -861,7 +856,6 @@ bound_var_t::ref upsert_type_info_mark_fn(
 
 
 bound_var_t::ref upsert_type_info_offsets(
-		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 		std::string name,
@@ -1001,7 +995,6 @@ bound_var_t::ref upsert_type_info_offsets(
 }
 
 bound_var_t::ref upsert_type_info(
-		status_t &status,
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 		std::string name,
@@ -1032,7 +1025,6 @@ bound_var_t::ref upsert_type_info(
 
 
 llvm::Value *llvm_call_allocator(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
 		life_t::ref life,
@@ -1049,7 +1041,6 @@ llvm::Value *llvm_call_allocator(
 			name, node->get_location(), data_type, args, dtor_fn, nullptr);
 
 	bound_var_t::ref allocation = call_program_function(
-			status,
 			builder,
 			program_scope,
 			life,
@@ -1060,7 +1051,6 @@ llvm::Value *llvm_call_allocator(
 }
 
 bound_var_t::ref get_or_create_tuple_ctor(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		bound_type_t::ref data_type,
@@ -1165,7 +1155,6 @@ bound_var_t::ref get_or_create_tuple_ctor(
 }
 
 bound_var_t::ref type_check_get_item_with_int_literal(
-		status_t &status,
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
