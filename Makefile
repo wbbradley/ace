@@ -185,8 +185,8 @@ test: expect-tests
 
 .PHONY: unit-tests
 unit-tests: $(ZION_TARGET)
-	@echo "Executing tests..."
-	./$(ZION_TARGET) test
+	@echo "Executing unit tests..."
+	time ./$(ZION_TARGET) test
 
 .PHONY: hello-world-test
 hello-world-test: $(ZION_TARGET) unit-tests
