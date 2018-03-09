@@ -479,11 +479,11 @@ void llvm_create_if_branch(
 	} else {
 		types::type_t::ref type = value->type->get_type();
 
-		if (types::is_type_id(type, TRUE_TYPE, {}, {})) {
+		if (types::is_type_id(type, TRUE_TYPE, nullptr)) {
 			llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 1);
-		} else if (types::is_type_id(type, FALSE_TYPE, {}, {})) {
+		} else if (types::is_type_id(type, FALSE_TYPE, nullptr)) {
 			llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 0);
-		} else if (types::is_type_id(type, BOOL_TYPE, {}, {})) {
+		} else if (types::is_type_id(type, BOOL_TYPE, nullptr)) {
 			llvm::Type *llvm_type = llvm_value->getType();
 			assert(llvm_type->isIntegerTy());
 			if (!llvm_type->isIntegerTy(1)) {

@@ -39,19 +39,13 @@ struct scope_t;
 unification_t unify(
 		types::type_t::ref a,
 		types::type_t::ref b,
-        const ptr<scope_t> &scope);
-
-unification_t unify(
-		types::type_t::ref a,
-		types::type_t::ref b,
-		const types::type_t::map &nominal_env,
-		const types::type_t::map &structural_env);
+		env_t::ref env,
+        const types::type_t::map &bindings={});
 
 unification_t unify_core(
 		const types::type_t::ref &a,
 		const types::type_t::ref &b,
-		const types::type_t::map &nominal_env,
-		const types::type_t::map &total_env,
+		env_t::ref env,
         types::type_t::map bindings,
 		int coercions,
         int depth);
@@ -59,10 +53,4 @@ unification_t unify_core(
 bool unifies(
 		types::type_t::ref a,
 		types::type_t::ref b,
-        const ptr<scope_t> &scope);
-
-bool unifies(
-		types::type_t::ref a,
-		types::type_t::ref b,
-		const types::type_t::map &nominal_env,
-		const types::type_t::map &structural_env);
+		env_t::ref env);

@@ -450,11 +450,10 @@ bound_type_t::ref create_bound_expr_type(
 
 	auto total_expansion = id->eval(scope, true);
 
-	debug_above(5, log("create_bound_type(..., %s) [nominal = %s, total = %s] in env %s",
+	debug_above(5, log("create_bound_type(..., %s) [nominal = %s, total = %s]",
 				id->str().c_str(),
 				nominal_expansion->str().c_str(),
-				total_expansion->str().c_str(),
-				str(scope->get_nominal_env()).c_str()));
+				total_expansion->str().c_str()));
 
 	/* however, what it expands to might already have a bound type */
 	if (total_expansion != id) {
@@ -470,12 +469,11 @@ bound_type_t::ref create_bound_integer_type(
 		ptr<scope_t> scope,
 		const ptr<const types::type_integer_t> &integer)
 {
-	auto nominal_env = scope->get_nominal_env();
 	auto signed_ = integer->signed_->eval(scope, true);
 
 	types::type_t::ref bit_size_expansion;
-	int bit_size = types::coerce_to_integer(nominal_env, scope->get_total_env(), integer->bit_size, bit_size_expansion);
-	if (!types::is_type_id(signed_, TRUE_TYPE, {}, {}) && !types::is_type_id(signed_, FALSE_TYPE, {}, {})) {
+	int bit_size = types::coerce_to_integer(scope, integer->bit_size, bit_size_expansion);
+	if (!types::is_type_id(signed_, TRUE_TYPE, nullptr) && !types::is_type_id(signed_, FALSE_TYPE, nullptr)) {
 		throw user_error(integer->get_location(), "could not determine signedness for type from %s",
 				signed_->str().c_str());
 	} else {
@@ -576,7 +574,7 @@ bound_type_t::ref create_bound_sum_type(
 
 	/* check for disallowed types */
 	for (auto subtype : sum->options) {
-		if (!types::is_managed_ptr(subtype, scope->get_nominal_env(), scope->get_total_env())) {
+		if (!types::is_managed_ptr(subtype, scope)) {
 			auto error = user_error(subtype->get_location(),
 					"unable to create a sum type with %s in it. %s lacks run-time type information",
 					subtype->str().c_str(),

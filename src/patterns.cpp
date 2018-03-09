@@ -40,9 +40,7 @@ void ast::when_block_t::resolve_statement(
 	}
 
 	std::set<int> possible_incoming_typeids;
-	auto nominal_env = scope->get_nominal_env();
-	auto total_env = scope->get_total_env();
-	types::get_runtime_typeids(pattern_value->type->get_type(), nominal_env, total_env, possible_incoming_typeids);
+	types::get_runtime_typeids(pattern_value->type->get_type(), scope, possible_incoming_typeids);
 
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 	identifier::ref var_name;
@@ -94,11 +92,11 @@ void ast::when_block_t::resolve_statement(
 	/* RTTI lives on the nominal type plane */
 	auto bindings = scope->get_type_variable_bindings();
 	for (auto pattern_block : pattern_blocks) {
-		auto type_to_match_raw = pattern_block->type->rebind(scope->get_type_variable_bindings())->eval(nominal_env, total_env);
+		auto type_to_match_raw = pattern_block->type->rebind(scope->get_type_variable_bindings())->eval(scope);
 		types::type_t::refs types_to_match;
 		auto pattern_type_to_match = promote_to_managed_type(
 				type_to_match_raw,
-				nominal_env, total_env);
+				scope);
 
 		if (auto type_sum = dyncast<const types::type_sum_t>(pattern_type_to_match)) {
 			types_to_match = type_sum->options;
@@ -126,7 +124,7 @@ void ast::when_block_t::resolve_statement(
 
 			debug_above(6, log("attempting to match type %s", type_to_match->str().c_str()));
 
-			if (!types::is_managed_ptr(type_to_match, nominal_env, total_env)) {
+			if (!types::is_managed_ptr(type_to_match, scope)) {
 				throw user_error(pattern_block->type->get_location(),
 						"unable to find runtime type identity for %s. runtime type identity is needed in order to perform type matching",
 						pattern_block->type->str().c_str());
@@ -171,11 +169,7 @@ void ast::when_block_t::resolve_statement(
 		/* start emitting code in the block */
 		builder.SetInsertPoint(llvm_pattern_block);
 
-		auto matched_type = type_sum_safe(
-				reified_types,
-				pattern_block->get_location(),
-				nominal_env,
-				total_env);
+		auto matched_type = type_sum_safe(reified_types, pattern_block->get_location(), scope);
 
 		/* set up the variable to be interpreted as the type we've matched */
 		scope_t::ref pattern_scope = runnable_scope->new_local_scope(string_format("pattern.%s", matched_type->str().c_str()));
@@ -221,11 +215,7 @@ void ast::when_block_t::resolve_statement(
 	}
 
 	/* check whether all cases of the pattern_value's type are handled */
-	types::type_sum_t::ref type_sum_matched = type_sum_safe(
-			types_matched,
-			get_location(),
-			scope->get_nominal_env(),
-			scope->get_total_env());
+	types::type_sum_t::ref type_sum_matched = type_sum_safe(types_matched, get_location(), scope);
 
 	unification_t unification = unify(type_sum_matched, pattern_value->type->get_type(), scope);
 	if (unification.result) {

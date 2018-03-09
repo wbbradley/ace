@@ -34,9 +34,6 @@ llvm::Value *coerce_value(
 		types::type_t::ref lhs_type,
 		bound_var_t::ref rhs)
 {
-	auto nominal_env = scope->get_nominal_env();
-	auto total_env = scope->get_total_env();
-
 	lhs_type = lhs_type->eval(scope);
 
 	if (auto maybe_type = dyncast<const types::type_maybe_t>(lhs_type)) {
@@ -90,8 +87,8 @@ llvm::Value *coerce_value(
 	}
 
 	/* check pragmatically for certain coercions that should take place */
-	bool lhs_is_managed = types::is_managed_ptr(lhs_type, nominal_env, total_env);
-	bool rhs_is_managed = types::is_managed_ptr(rhs_type, nominal_env, total_env);
+	bool lhs_is_managed = types::is_managed_ptr(lhs_type, scope);
+	bool rhs_is_managed = types::is_managed_ptr(rhs_type, scope);
 	if (lhs_is_managed && rhs_is_managed) {
 		/* we must trust the type system! */
 		debug_above(6, log("casting a %s to be a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
@@ -105,7 +102,7 @@ llvm::Value *coerce_value(
 		/* trust the type system. */
 		return builder.CreateBitCast(coercion->get_llvm_value(), llvm_lhs_type);
 	} else if (rhs_is_managed) {
-		if (types::is_ptr_type_id(lhs_type, STD_MANAGED_TYPE, nominal_env, total_env)) {
+		if (types::is_ptr_type_id(lhs_type, STD_MANAGED_TYPE, scope)) {
 			// Consider allowing this conversion for all pointers, since coercion is
 			// fierce in what it will do, why even check? We'll wait a bit on that. It
 			// may become apparent that unboxing managed objects into a native pointer
@@ -131,7 +128,7 @@ llvm::Value *coerce_value(
 			/* automatically resize integers to match the lhs */
 			unsigned bit_size = 0;
 			bool signed_ = false;
-			types::get_integer_attributes(rhs->type->get_type(), nominal_env, total_env, bit_size, signed_);
+			types::get_integer_attributes(rhs->type->get_type(), scope, bit_size, signed_);
 			if (signed_) {
 				return builder.CreateSExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
 			} else {
@@ -139,7 +136,7 @@ llvm::Value *coerce_value(
 			}
 		}
 
-		if (rhs->type->get_type()->eval_predicate(tb_null, nominal_env, total_env)) {
+		if (rhs->type->get_type()->eval_predicate(tb_null, scope)) {
 			/* we're passing in a null value */
 			assert(llvm_lhs_type->isPointerTy());
 			return llvm::Constant::getNullValue(llvm_lhs_type);

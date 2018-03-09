@@ -1073,7 +1073,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 			panic("we should have a type_args_t here");
 		}
 
-		if (!types::is_type_id(function_type->return_type, VOID_TYPE, {}, {})) {
+		if (!types::is_type_id(function_type->return_type, VOID_TYPE, nullptr)) {
 			throw user_error(function_type->name->get_location(),
 					"finalizers must return " c_type("void"));
 		}
