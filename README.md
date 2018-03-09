@@ -155,7 +155,6 @@ or llvm tools, etc...
 - [ ] Implement an inline directive to mark functions for inline expansion during optimization
 - [ ] Consider exceptions as a monadic construct that can be applied as a macro?
 - [ ] Integrate JSON parsing and mess around with manipulating some existing JSON files
-- [ ] Optimize `scope_t`'s `get_nominal_env` and `get_total_env` to be cached
 - [ ] Explore closures with capture by value
 - [ ] Add safety checks on casting (as)
 - [ ] Implement generic sort
@@ -172,6 +171,7 @@ or llvm tools, etc...
 - [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction
 - [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
 - [ ] Enable linking to variadic functions (like printf)
+- [x] Optimize `scope_t`'s `get_nominal_env` and `get_total_env` to be cached
 - [x] Maintenance: Change all `status_t` parts of compiler to use exceptions
 - [x] Check for duplicate bound function instantiations deeper within function instantiation
 - [x] Change := to be let by default
