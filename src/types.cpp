@@ -1702,7 +1702,7 @@ types::type_t::ref type_sum_safe_2(
 }
 
 types::type_t::ref type_sum_safe(
-        types::type_t::refs orig_options,
+        const types::type_t::refs &orig_options,
         location_t location,
 		env_t::ref env)
 {
@@ -1714,10 +1714,8 @@ types::type_t::ref type_sum_safe(
 	if (options.size() == 1) {
 		auto evaled = options[0]->eval(env);
 		if (
-				// types::is_type_id(evaled, MANAGED_INT, nullptr) ||
 				types::is_type_id(evaled, FLOAT_TYPE, nullptr) ||
 				types::is_type_id(evaled, NULL_TYPE, nullptr) ||
-				// types::is_type_id(evaled, "int") ||
 				types::is_ptr_type_id(evaled, CHAR_TYPE, env, true) ||
 				types::is_integer(evaled, env))
 		{
@@ -1730,9 +1728,7 @@ types::type_t::ref type_sum_safe(
 			}
 
 			if (!make_maybe) {
-				//if (types::is_integer(evaled, env)) {
-					return options[0];
-				//}
+				return options[0];
 			}
 			return type_sum_safe_3({evaled}, location, env, make_maybe);
 		}

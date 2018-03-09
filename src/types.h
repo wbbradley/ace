@@ -479,7 +479,7 @@ types::type_t::ref type_and(types::type_t::refs terms);
 types::type_t::ref type_lazy(types::type_t::refs options, location_t location);
 types::type_t::ref type_sum(types::type_t::refs options, location_t location);
 types::type_t::ref type_sum_safe(
-        types::type_t::refs options,
+        const types::type_t::refs &options,
         location_t location,
 		env_t::ref env);
 types::type_t::ref type_maybe(types::type_t::ref just);
