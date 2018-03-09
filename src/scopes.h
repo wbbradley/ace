@@ -27,6 +27,8 @@ struct function_scope_t;
 struct local_scope_t;
 struct generic_substitution_scope_t;
 
+typedef std::map<std::string, std::pair<bool /*is_structural*/, ptr<const types::type_t> > > env_map_t;
+
 struct scope_t : public std::enable_shared_from_this<scope_t>, public env_t {
 	typedef ptr<scope_t> ref;
 	typedef ptr<const scope_t> cref;
@@ -104,16 +106,14 @@ struct scope_impl_t : public BASE {
 	virtual ptr<scope_t> get_parent_scope();
 	virtual ptr<const scope_t> get_parent_scope() const;
 	virtual bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const;
-	virtual types::type_t::ref get_nominal_type(const std::string &name) const;
-	virtual types::type_t::ref get_total_type(const std::string &name) const;
+	virtual types::type_t::ref get_type(const std::string &name, bool allow_structural_types) const;
 
 protected:
 	std::string scope_name;
 
 	ref parent_scope;
 	bound_var_t::map bound_vars;
-	types::type_t::map nominal_env;
-	types::type_t::map structural_env;
+	env_map_t env_map;
 	types::type_t::map type_variable_bindings;
 };
 
@@ -365,21 +365,21 @@ ptr<const program_scope_t> scope_impl_t<T>::get_program_scope() const {
 void put_typename_impl(
 		scope_t::ref parent_scope,
 		const std::string &scope_name,
-		types::type_t::map &typename_env,
+		env_map_t &env_map,
 		const std::string &type_name,
 		types::type_t::ref expansion,
 		bool is_structural);
 
 template <typename T>
 void scope_impl_t<T>::put_structural_typename(const std::string &type_name, types::type_t::ref expansion) {
-	assert(nominal_env.find(type_name) == nominal_env.end());
-	put_typename_impl(get_parent_scope(), scope_name, structural_env, type_name, expansion, true /*is_structural*/);
+	assert(env_map.find(type_name) == env_map.end());
+	put_typename_impl(get_parent_scope(), scope_name, env_map, type_name, expansion, true /*is_structural*/);
 }
 
 template <typename T>
 void scope_impl_t<T>::put_nominal_typename(const std::string &type_name, types::type_t::ref expansion) {
-	assert(structural_env.find(type_name) == structural_env.end());
-	put_typename_impl(get_parent_scope(), scope_name, nominal_env, type_name, expansion, false /*is_structural*/);
+	assert(env_map.find(type_name) == env_map.end());
+	put_typename_impl(get_parent_scope(), scope_name, env_map, type_name, expansion, false /*is_structural*/);
 }
 
 template <typename T>
@@ -397,41 +397,19 @@ void scope_impl_t<T>::put_type_variable_binding(const std::string &name, types::
 	}
 }
 
-#if 0
 template <typename T>
-types::type_t::map scope_impl_t<T>::get_nominal_env() const {
-	auto parent_scope = this->get_parent_scope();
-	if (parent_scope != nullptr) {
-		return merge(parent_scope->get_nominal_env(), nominal_env);
+types::type_t::ref scope_impl_t<T>::get_type(const std::string &name, bool allow_structural_types) const {
+	auto iter = env_map.find(name);
+	if (iter != env_map.end()) {
+		return ((!iter->second.first /*structural*/ || allow_structural_types)
+				? iter->second.second
+				: nullptr);
 	} else {
-		return nominal_env;
+		auto parent_env = get_parent_scope();
+		return ((parent_env != nullptr)
+				? parent_env->get_type(name, allow_structural_types)
+				: nullptr);
 	}
-}
-
-template <typename T>
-types::type_t::map scope_impl_t<T>::get_total_env() const {
-	auto parent_scope = this->get_parent_scope();
-	if (parent_scope != nullptr) {
-		return merge(
-				parent_scope->get_total_env(),
-				nominal_env,
-				structural_env);
-	} else {
-		return merge(nominal_env, structural_env);
-	}
-}
-#endif
-
-template <typename T>
-types::type_t::ref scope_impl_t<T>::get_nominal_type(const std::string &name) const {
-	assert(false);
-	return nullptr;
-}
-
-template <typename T>
-types::type_t::ref scope_impl_t<T>::get_total_type(const std::string &name) const {
-	assert(false);
-	return nullptr;
 }
 
 template <typename T>

@@ -470,6 +470,16 @@ void dump_type_map(std::ostream &os, types::type_t::map env, std::string desc) {
 	}
 }
 
+void dump_env_map(std::ostream &os, const env_map_t &env_map, std::string desc) {
+	if (env_map.size() != 0) {
+		os << std::endl << desc << std::endl;
+		os << join_with(env_map, "\n", [] (const env_map_t::value_type &value) -> std::string {
+			return string_format("[%s] %s: %s", value.second.first ? "S" : "N", value.first.c_str(), value.second.second->str().c_str());
+		});
+		os << std::endl;
+	}
+}
+
 void module_scope_impl_t::dump_tags(std::ostream &os) const {
 	// dump_unchecked_var_tags(os, unchecked_vars);
 }
@@ -483,8 +493,7 @@ void program_scope_t::dump(std::ostream &os) const {
 	dump_bindings(os, bound_vars, bound_types);
 	dump_unchecked_vars(os, unchecked_vars);
 	dump_unchecked_types(os, unchecked_types);
-	dump_type_map(os, nominal_env, "PROGRAM NOMINAL ENV");
-	dump_type_map(os, structural_env, "PROGRAM STRUCTURAL ENV");
+	dump_env_map(os, env_map, "PROGRAM ENV");
 	dump_type_map(os, type_variable_bindings, "PROGRAM TYPE VARIABLE BINDINGS");
 }
 
@@ -492,8 +501,7 @@ void module_scope_impl_t::dump(std::ostream &os) const {
 	os << std::endl << "MODULE SCOPE: " << scope_name << std::endl;
 	dump_bindings(os, bound_vars, {});
 	dump_unchecked_types(os, unchecked_types);
-	dump_type_map(os, nominal_env, "MODULE NOMINAL ENV");
-	dump_type_map(os, structural_env, "MODULE STRUCTURAL ENV");
+	dump_env_map(os, env_map, "MODULE ENV");
 	dump_type_map(os, type_variable_bindings, "MODULE TYPE VARIABLE BINDINGS");
 	get_parent_scope()->dump(os);
 }
@@ -501,8 +509,7 @@ void module_scope_impl_t::dump(std::ostream &os) const {
 void function_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "FUNCTION SCOPE: " << scope_name << std::endl;
 	dump_bindings(os, bound_vars, {});
-	dump_type_map(os, nominal_env, "FUNCTION NOMINAL ENV");
-	dump_type_map(os, structural_env, "FUNCTION STRUCTURAL ENV");
+	dump_env_map(os, env_map, "FUNCTION ENV");
 	dump_type_map(os, type_variable_bindings, "FUNCTION TYPE VARIABLE BINDINGS");
 	get_parent_scope()->dump(os);
 }
@@ -510,8 +517,7 @@ void function_scope_t::dump(std::ostream &os) const {
 void local_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "LOCAL SCOPE: " << scope_name << std::endl;
 	dump_bindings(os, bound_vars, {});
-	dump_type_map(os, nominal_env, "LOCAL NOMINAL ENV");
-	dump_type_map(os, structural_env, "LOCAL STRUCTURAL ENV");
+	dump_env_map(os, env_map, "LOCAL ENV");
 	dump_type_map(os, type_variable_bindings, "LOCAL TYPE VARIABLE BINDINGS");
 	get_parent_scope()->dump(os);
 }
@@ -528,8 +534,7 @@ void generic_substitution_scope_t::dump(std::ostream &os) const {
 	os << std::endl << "GENERIC SUBSTITUTION SCOPE: " << scope_name << std::endl;
 	os << "For Callee Signature: " << callee_signature->str() << std::endl;
 	dump_bindings(os, bound_vars, {});
-	dump_type_map(os, nominal_env, "GENERIC SUBSTITUTION NOMINAL ENV");
-	dump_type_map(os, structural_env, "GENERIC SUBSTITUTION STRUCTURAL ENV");
+	dump_env_map(os, env_map, "GENERIC SUBSTITUTION ENV");
 	dump_type_map(os, type_variable_bindings, "GENERIC SUBSTITUTION TYPE VARIABLE BINDINGS");
 	get_parent_scope()->dump(os);
 }
@@ -846,7 +851,7 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 void put_typename_impl(
 		scope_t::ref parent_scope,
 		const std::string &scope_name,
-		types::type_t::map &typename_env,
+		env_map_t &env_map,
 		const std::string &type_name,
 		types::type_t::ref expansion,
 		bool is_structural)
@@ -856,12 +861,13 @@ void put_typename_impl(
 	dbg_when(type_name.str().find("map.map") != std::string::npos);
 #endif
 
-	auto iter_type = typename_env.find(type_name);
-	if (iter_type == typename_env.end()) {
-		debug_above(2, log(log_info, "registering typename " c_type("%s") " as %s in scope " c_id("%s"),
+	auto iter_type = env_map.find(type_name);
+	if (iter_type == env_map.end()) {
+		debug_above(2, log(log_info, "registering " c_type("%s") " typename " c_type("%s") " as %s in scope " c_id("%s"),
+					is_structural ? "structural" : "nominal",
 					type_name.c_str(), expansion->str().c_str(),
 					scope_name.c_str()));
-		typename_env[type_name] = expansion;
+		env_map[type_name] = {is_structural, expansion};
 		if (parent_scope != nullptr) {
 			/* register this type with our parent */
 			if (is_structural) {
@@ -877,10 +883,10 @@ void put_typename_impl(
 				"multiple supertypes are not yet implemented (" c_type("%s") " <: " c_type("%s") ")",
 				type_name.c_str(), expansion->str().c_str());
 		auto existing_expansion = iter_type->second;
-		error.add_info(existing_expansion->get_location(),
+		error.add_info(existing_expansion.second->get_location(),
 				"prior type definition for " c_type("%s") " is %s",
 				type_name.c_str(),
-				existing_expansion->str().c_str());
+				existing_expansion.second->str().c_str());
 		dbg();
 		throw error;
 	}

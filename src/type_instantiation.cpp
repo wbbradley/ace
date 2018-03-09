@@ -214,8 +214,8 @@ void ast::type_product_t::register_type(
 
 	/* instantiate a lazily bound data ctor, and inject the typename for this type into the
 	 * type environment */
-	auto type = scope->get_total_type(name);
-	if (type == nullptr) {
+	auto existing_type = scope->get_type(name, true /*allow_structural_types*/);
+	if (existing_type == nullptr) {
 		/* instantiate_data_ctor_type has the side-effect of creating an
 		 * unchecked data ctor for the type */
 		instantiate_data_ctor_type(builder, type,
@@ -226,8 +226,8 @@ void ast::type_product_t::register_type(
 		auto error = user_error(location,
 				"symbol " c_id("%s") " is already taken in typename env by %s",
 				name.c_str(),
-				type->str().c_str());
-		error.add_info(type->get_location(),
+				existing_type->str().c_str());
+		error.add_info(existing_type->get_location(),
 				"previous version of %s defined here",
 				type->str().c_str());
 		throw error;
@@ -245,8 +245,8 @@ void ast::type_sum_t::register_type(
 				join_str(type_variables, ", ").c_str(),
 				type->str().c_str()));
 
-	auto type = scope->get_nominal_type(id->get_name());
-	if (type == nullptr) {
+	auto existing_type = scope->get_type(id->get_name());
+	if (existing_type == nullptr) {
 		/* good, we haven't seen this symbol before */
 		auto expansion = type;
 		for (auto type_variable : type_variables) {
@@ -255,7 +255,7 @@ void ast::type_sum_t::register_type(
 		scope->put_nominal_typename(id->get_name(), expansion);
 	} else {
 		auto error = user_error(id->get_location(), "sum types cannot be registered twice");
-		error.add_info(type->get_location(), "see prior type registered here");
+		error.add_info(existing_type->get_location(), "see prior type registered here");
 		throw error;
 	}
 }
@@ -266,7 +266,7 @@ void ast::type_link_t::register_type(
 		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
-	auto type = scope->get_total_type(id->get_name());
+	auto type = scope->get_type(id->get_name(), true /*allow_structural_types*/);
 	if (type == nullptr) {
 		debug_above(3, log("registering type link for %s link", id->get_name().c_str()));
 
@@ -311,7 +311,7 @@ void ast::type_alias_t::register_type(
 	for (auto lambda_var : lambda_vars) {
 		final_type = type_lambda(lambda_var, type);
 	}
-	auto existing_type = scope->get_nominal_type(token.text);
+	auto existing_type = scope->get_type(token.text, true /*allow_structural_types*/);
 	if (existing_type == nullptr) {
 		scope->put_nominal_typename(token.text, final_type);
 	} else {

@@ -745,26 +745,15 @@ bool test_utf8() {
 }
 
 struct test_env : public env_t {
-	test_env(types::type_t::map map) : nominal_map(map), total_map(map) {}
-	test_env(types::type_t::map map, types::type_t::map total_map) : nominal_map(map), total_map(total_map) {}
-	types::type_t::map nominal_map, total_map;
+	test_env(env_map_t env_map) : env_map(env_map) {}
+	env_map_t env_map;
 
 	virtual ~test_env() {}
-	virtual types::type_t::ref get_nominal_type(const std::string &name) const {
-		auto iter = nominal_map.find(name);
-		if (iter != nominal_map.end()) {
-			return iter->second;
-		} else {
-			return nullptr;
-		}
-	}
-	virtual types::type_t::ref get_total_type(const std::string &name) const {
-		auto iter = total_map.find(name);
-		if (iter != total_map.end()) {
-			return iter->second;
-		} else {
-			return nullptr;
-		}
+	virtual types::type_t::ref get_type(const std::string &name, bool allow_structural_types) const {
+		auto iter = env_map.find(name);
+		return ((iter != env_map.end() && (!iter->second.first /*structural*/ || allow_structural_types))
+				? iter->second.second
+				: nullptr);
 	}
 };
 
@@ -975,13 +964,13 @@ auto test_descs = std::vector<test_desc>{
 				reset_generics();
 				log("parsing type expression " c_type("%s"), p.first.c_str());
 				auto parsed_type = parse_type_expr(p.first, generics, module_id);
-				types::type_t::map nominal_env;
-				nominal_env[MANAGED_BOOL] = ::type_sum({
+				env_map_t env_map;
+				env_map[MANAGED_BOOL] = {false, ::type_sum({
 						type_id(make_iid(MANAGED_TRUE)),
 						type_id(make_iid(MANAGED_FALSE))
-						}, INTERNAL_LOC());
+						}, INTERNAL_LOC())};
 
-				auto repr = parsed_type->eval(make_ptr<test_env>(nominal_env))->repr();
+				auto repr = parsed_type->eval(make_ptr<test_env>(env_map))->repr();
 				if (repr != p.second) {
 					log(log_error, c_error(" => ") c_type("%s"), repr.c_str());
 					log(log_error, c_type("%s") " parsed to " c_type("%s")
@@ -1016,13 +1005,13 @@ auto test_descs = std::vector<test_desc>{
 		"test_parse_pointer_types",
 		[] () -> bool {
 			auto module_id = make_iid("M");
-			types::type_t::map nominal_env;
-			nominal_env[MANAGED_BOOL] = ::type_sum({
+			env_map_t env_map;
+			env_map[MANAGED_BOOL] = {false, ::type_sum({
 					type_id(make_iid(MANAGED_TRUE)),
 					type_id(make_iid(MANAGED_FALSE))
-					}, INTERNAL_LOC());
+					}, INTERNAL_LOC())};
 
-			auto type = parse_type_expr("*?void", {}, module_id)->eval(make_ptr<test_env>(nominal_env));
+			auto type = parse_type_expr("*?void", {}, module_id)->eval(make_ptr<test_env>(env_map));
 			log("type repr is %s", type->str().c_str());
 			if (auto maybe = dyncast<const types::type_maybe_t>(type)) {
 				if (auto pointer = dyncast<const types::type_ptr_t>(maybe->just)) {
@@ -1035,66 +1024,68 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_sum_unification_simple",
 		[] () -> bool {
-			types::type_t::map env;
-			env[MANAGED_BOOL] = ::type_sum({
+			env_map_t env_map;
+			env_map[MANAGED_BOOL] = {false, ::type_sum({
 					type_id(make_iid(MANAGED_TRUE)),
 					type_id(make_iid(MANAGED_FALSE))
-					}, INTERNAL_LOC());
+					}, INTERNAL_LOC())};
 
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
-			env.insert({std::string("bool"), bool_sum});
+			env_map["bool"] = {false, bool_sum};
 			auto types = make_type_pair("bool", "true", {});
-			return unifies(types.first, types.second, make_ptr<test_env>(env));
+			return unifies(types.first, types.second, make_ptr<test_env>(env_map));
 		}
 	},
 	{
 		"test_sum_unification_sum_with_sum",
 		[] () -> bool {
-			types::type_t::map env;
-			env[MANAGED_BOOL] = ::type_sum({
+			env_map_t env_map;
+			env_map[MANAGED_BOOL] = {false, ::type_sum({
 					type_id(make_iid(MANAGED_TRUE)),
 					type_id(make_iid(MANAGED_FALSE))
-					}, INTERNAL_LOC());
+					}, INTERNAL_LOC())};
 
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
-			env.insert({std::string("bool"), bool_sum});
-			return unifies(bool_sum, bool_sum, make_ptr<test_env>(env));
+			env_map["bool"] = {false, bool_sum};
+			return unifies(bool_sum, bool_sum, make_ptr<test_env>(env_map));
 		}
 	},
 	{
 		"test_sum_unification_sum_with_named_sum",
 		[] () -> bool {
-			types::type_t::map env;
-			env[MANAGED_BOOL] = ::type_sum({
+			env_map_t env_map;
+			env_map[MANAGED_BOOL] = {false, ::type_sum({
 					type_id(make_iid(MANAGED_TRUE)),
 					type_id(make_iid(MANAGED_FALSE))
-					}, INTERNAL_LOC());
+					}, INTERNAL_LOC())};
+
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
-			env.insert({std::string("bool"), bool_sum});
-			return unifies(bool_sum, type_id(make_iid("bool")), make_ptr<test_env>(env));
+			env_map["bool"] = {false, bool_sum};
+			return unifies(bool_sum, type_id(make_iid("bool")), make_ptr<test_env>(env_map));
 		}
 	},
 	{
 		"test_sum_unification_named_sum_with_sum",
 		[] () -> bool {
-			types::type_t::map env;
-			env[MANAGED_BOOL] = ::type_sum({
+			env_map_t env_map;
+			env_map[MANAGED_BOOL] = {false, ::type_sum({
 					type_id(make_iid(MANAGED_TRUE)),
 					type_id(make_iid(MANAGED_FALSE))
-					}, INTERNAL_LOC());
+					}, INTERNAL_LOC())};
+
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
-			env.insert({std::string("bool"), bool_sum});
-			return unifies(type_id(make_iid("bool")), bool_sum, make_ptr<test_env>(env));
+			env_map["bool"] = {false, bool_sum};
+			return unifies(type_id(make_iid("bool")), bool_sum, make_ptr<test_env>(env_map));
 		}
 	},
 	{
 		"test_sum_unification_nested",
 		[] () -> bool {
-			types::type_t::map env;
-			env[MANAGED_BOOL] = ::type_sum({
+			env_map_t env;
+			env[MANAGED_BOOL] = {false, ::type_sum({
 					type_id(make_iid(MANAGED_TRUE)),
 					type_id(make_iid(MANAGED_FALSE))
-					}, INTERNAL_LOC());
+					}, INTERNAL_LOC())};
 			auto bool_sum = type_sum(
 					{
 						type_id(make_iid("true")),
@@ -1114,18 +1105,18 @@ auto test_descs = std::vector<test_desc>{
 						type_id(make_iid("int")),
 					},
 					INTERNAL_LOC());
-			env.insert({std::string("bool"), bool_sum});
+			env["bool"] = {false, bool_sum};
 			return unifies(expanded_sum_lhs, nested_sum_rhs, make_ptr<test_env>(env));
 		}
 	},
 	{
 		"test_sum_unification_nested_with_ref_rhs",
 		[] () -> bool {
-			types::type_t::map env;
-			env[MANAGED_BOOL] = ::type_sum({
+			env_map_t env;
+			env[MANAGED_BOOL] = {false, ::type_sum({
 					type_id(make_iid(MANAGED_TRUE)),
 					type_id(make_iid(MANAGED_FALSE))
-					}, INTERNAL_LOC());
+					}, INTERNAL_LOC())};
 			auto bool_sum = type_sum(
 					{
 						type_id(make_iid("true")),
@@ -1145,7 +1136,7 @@ auto test_descs = std::vector<test_desc>{
 						type_id(make_iid("int")),
 					},
 					INTERNAL_LOC());
-			env.insert({std::string("bool"), bool_sum});
+			env["bool"] = {false, bool_sum};
 			return unifies(expanded_sum_lhs, type_ref(nested_sum_rhs), make_ptr<test_env>(env));
 		}
 	},
@@ -1154,16 +1145,14 @@ auto test_descs = std::vector<test_desc>{
 		[] () -> bool {
 			identifier::set generics = {make_iid("Container"), make_iid("T")};
 
-			types::type_t::map env;
-			env[MANAGED_BOOL] = ::type_sum({
+			env_map_t env;
+			env[MANAGED_BOOL] = {false, ::type_sum({
 					type_id(make_iid(MANAGED_TRUE)),
 					type_id(make_iid(MANAGED_FALSE))
-					}, INTERNAL_LOC());
-			env.insert({
-					"int",
-					type_integer(
+					}, INTERNAL_LOC())};
+			env["int"] = {false, type_integer(
 							type_literal({INTERNAL_LOC(), tk_integer, ZION_BITSIZE_STR}),
-							type_id(make_iid("true" /*signed*/)))});
+							type_id(make_iid("true" /*signed*/)))};
 
 			auto unifies = std::vector<types::type_t::pair>{
 				make_type_pair("any", "float", generics),
@@ -1250,15 +1239,12 @@ auto test_descs = std::vector<test_desc>{
 		"test_type_evaluation",
 		[] () -> bool {
 			auto module_id = make_iid(GLOBAL_SCOPE_NAME);
-			types::type_t::map nominal_env, total_env;
-			nominal_env.insert({
-					"int",
-					type_integer(
+			env_map_t env_map;
+			env_map["int"] = {false, type_integer(
 							type_literal({INTERNAL_LOC(), tk_integer, ZION_BITSIZE_STR}),
-							type_id(make_iid("true" /*signed*/)))});
-			total_env = nominal_env;
-			total_env.insert({"Managed", type_ptr(type_managed(type_struct({}, {})))});
-			total_env.insert({"Native", type_ptr(type_struct({}, {}))});
+							type_id(make_iid("true" /*signed*/)))};
+			env_map["Managed"] = {true, type_ptr(type_managed(type_struct({}, {})))};
+			env_map["Native"] = {true, type_ptr(type_struct({}, {}))};
 
 			std::string tests[] = {
 				"OK",
@@ -1271,7 +1257,7 @@ auto test_descs = std::vector<test_desc>{
 				"if (not (gc Managed)) BAD OK",
 				"if (not (gc Native)) OK BAD",
 			};
-			auto _env = make_ptr<test_env>(nominal_env, total_env);
+			auto _env = make_ptr<test_env>(env_map);
 			for (auto test : tests) {
 				auto should_be_x = parse_type_expr(test, {}, module_id);
 				log("parsing type expression %s => %s",
