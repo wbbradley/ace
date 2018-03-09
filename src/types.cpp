@@ -1175,9 +1175,11 @@ namespace types {
 	bool is_ptr_type_id(
 			type_t::ref type,
 			const std::string &type_name,
-			env_t::ref env,
+			env_t::ref _env,
 			bool allow_maybe)
 	{
+		auto env = (_env == nullptr) ? _empty_env : _env;
+
 		type = type->eval(env, true /*get_structural_type*/);
 
 		if (allow_maybe) {
@@ -1197,10 +1199,7 @@ namespace types {
 		empty_env() {}
 
 		virtual ~empty_env() {}
-		virtual types::type_t::ref get_nominal_type(const std::string &name) const {
-			return nullptr;
-		}
-		virtual types::type_t::ref get_total_type(const std::string &name) const {
+		virtual types::type_t::ref get_type(const std::string &name, bool allow_structural_types) const {
 			return nullptr;
 		}
 	};

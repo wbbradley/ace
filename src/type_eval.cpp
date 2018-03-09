@@ -112,14 +112,9 @@ namespace types {
 	}
 
 	type_t::ref type_id_t::eval_core(env_t::ref env, bool get_structural_type) const {
-		auto type = env->get_nominal_type(id->get_name());
+		auto type = env->get_type(id->get_name(), get_structural_type);
 		if (type != nullptr) {
 			return type->eval_core(env, get_structural_type);
-		} else if (get_structural_type) {
-			type = env->get_total_type(id->get_name());
-			if (type != nullptr) {
-				return type->eval_core(env, get_structural_type);
-			}
 		}
 
 		return shared_from_this();
