@@ -1192,7 +1192,23 @@ namespace types {
 		return false;
 	}
 
-	bool is_type_id(type_t::ref type, const std::string &type_name, env_t::ref env) {
+
+	struct empty_env : public env_t {
+		empty_env() {}
+
+		virtual ~empty_env() {}
+		virtual types::type_t::ref get_nominal_type(const std::string &name) const {
+			return nullptr;
+		}
+		virtual types::type_t::ref get_total_type(const std::string &name) const {
+			return nullptr;
+		}
+	};
+
+	env_t::ref _empty_env = make_ptr<empty_env>();
+
+	bool is_type_id(type_t::ref type, const std::string &type_name, env_t::ref _env) {
+		env_t::ref env = (_env == nullptr) ? _empty_env : _env;
 		type = type->eval(env);
 
 		if (auto pti = dyncast<const types::type_id_t>(type)) {
@@ -1202,7 +1218,8 @@ namespace types {
 		return false;
 	}
 
-	bool is_managed_ptr(types::type_t::ref type, env_t::ref env) {
+	bool is_managed_ptr(types::type_t::ref type, env_t::ref _env) {
+		env_t::ref env = (_env == nullptr) ? _empty_env : _env;
 		debug_above(9, log(log_info, "checking if %s is a managed ptr", type->str().c_str()));
 		if (auto expanded_type = type->eval(env, true /*get_structural_type*/)) {
 			type = expanded_type;
