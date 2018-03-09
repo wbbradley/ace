@@ -1,7 +1,7 @@
 #pragma once
 #include "ptr.h"
 #include "bound_var.h"
-#include "status.h"
+#include "user_error.h"
 #include "llvm_utils.h"
 
 #define lf_function  0x01

@@ -61,7 +61,7 @@ bound_var_t::ref get_best_fit(
 						winner = fitting.fn;
 					} else {
 						if (winner->get_location() != fitting.fn->get_location()) {
-							throw user_error_t(location,
+							throw user_error(location,
 									"multiple (noncoercing) overloads found for %s%s %s",
 									alias.c_str(),
 									args->str().c_str(),
@@ -72,7 +72,7 @@ bound_var_t::ref get_best_fit(
 			}
 
 			if (winner == nullptr) {
-				throw user_error_t(location,
+				throw user_error(location,
 						"multiple (coercion) overloads found for %s",
 						alias.c_str());
 			}
@@ -81,7 +81,7 @@ bound_var_t::ref get_best_fit(
 			debug_above(5, log("picked %s because it does not have coercions",
 						winner->str().c_str()));
 			return winner;
-		} catch (user_error_t &e) {
+		} catch (user_error &e) {
 			for (auto fitting : fittings) {
 				e.add_info(fitting.fn->get_location(),
 						"matching overload : %s",

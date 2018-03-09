@@ -50,12 +50,12 @@ bound_var_t::ref bind_ctor_to_scope(
 			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
 			return tuple_pair.first;
 		} else {
-			throw user_error_t(node->get_location(),
+			throw user_error(node->get_location(),
 					"constructor is not returning a product type: %s",
 					function->str().c_str());
 		}
 	} else {
-		throw user_error_t(node->get_location(), "arguments do not appear to be ... erm... arguments...");
+		throw user_error(node->get_location(), "arguments do not appear to be ... erm... arguments...");
 	}
 }
 
@@ -87,7 +87,7 @@ void get_generics_and_lambda_vars(
 			if (seen.find(name) == seen.end()) {
 				seen.insert(name);
 			} else {
-				throw user_error_t(type_variable->get_location(),
+				throw user_error(type_variable->get_location(),
 						"found duplicate type variable " c_id("%s"),
 						name.c_str());
 			}
@@ -195,7 +195,7 @@ void instantiate_data_ctor_type(
 
 		return;
 	} else {
-		throw user_error_t(node->token.location, "local type definitions are not yet impl");
+		throw user_error(node->token.location, "local type definitions are not yet impl");
 	}
 }
 
@@ -224,7 +224,7 @@ void ast::type_product_t::register_type(
 		return;
 	} else {
 		/* simple check for an already bound typename env variable */
-		auto error = user_error_t(location,
+		auto error = user_error(location,
 				"symbol " c_id("%s") " is already taken in typename env by %s",
 				name.c_str(),
 				env_iter->second->str().c_str());
@@ -255,7 +255,7 @@ void ast::type_sum_t::register_type(
 		}
 		scope->put_nominal_typename(id->get_name(), expansion);
 	} else {
-		auto error = user_error_t(id->get_location(), "sum types cannot be registered twice");
+		auto error = user_error(id->get_location(), "sum types cannot be registered twice");
 		error.add_info(iter->second->get_location(), "see prior type registered here");
 		throw error;
 	}
@@ -291,7 +291,7 @@ void ast::type_link_t::register_type(
 
 		scope->put_structural_typename(id->get_name(), type);
 	} else {
-		auto error = user_error_t(id->get_location(), "type links cannot be registered twice");
+		auto error = user_error(id->get_location(), "type links cannot be registered twice");
 		error.add_info(iter->second->get_location(), "see prior type registered here");
 		throw error;
 	}
@@ -320,7 +320,7 @@ void ast::type_alias_t::register_type(
 	} else {
 		// debug_above(5, log(log_info, "skipping type alias creation of %s", str().c_str()));
 		// assert(iter->second->get_signature() == final_type->get_signature());
-		auto error = user_error_t(type->get_location(), "type aliases cannot be registered twice (regarding " c_id("%s") ")",
+		auto error = user_error(type->get_location(), "type aliases cannot be registered twice (regarding " c_id("%s") ")",
 				str().c_str());
 		error.add_info(iter->second->get_location(), "see prior type registered here");
 		throw error;

@@ -463,7 +463,7 @@ void scope_impl_t<T>::put_bound_variable(
 	types::signature signature = bound_variable->get_signature();
 	auto existing_bound_var_iter = resolve_map.find(signature);
 	if (existing_bound_var_iter != resolve_map.end()) {
-		auto error = user_error_t(bound_variable->get_location(), "symbol " c_id("%s") " is already bound (signature is %s)", symbol.c_str(),
+		auto error = user_error(bound_variable->get_location(), "symbol " c_id("%s") " is already bound (signature is %s)", symbol.c_str(),
 				signature.str().c_str());
 		error.add_info(existing_bound_var_iter->second->get_location(), "see existing bound variable");
 		throw error;

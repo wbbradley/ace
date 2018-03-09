@@ -33,7 +33,7 @@ bool parse_state_t::advance() {
 void parse_state_t::error(const char *format, ...) {
 	va_list args;
 	va_start(args, format);
-	auto error = user_error_t(token.location, format, args);
+	auto error = user_error(token.location, format, args);
 	va_end(args);
 	if (lexer.eof()) {
 		error.add_info(token.location, "encountered end-of-file");

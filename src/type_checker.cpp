@@ -85,7 +85,7 @@ llvm::Value *resolve_init_var(
 				return llvm_null_value;
 			} else {
 				if (obj.is_let()) {
-					throw user_error_t(obj.get_location(), "you might as well just use " c_id("null") " rather than declaring this uninitialized maybe");
+					throw user_error(obj.get_location(), "you might as well just use " c_id("null") " rather than declaring this uninitialized maybe");
 				}
 
 				assert(llvm_alloca != nullptr);
@@ -106,8 +106,8 @@ llvm::Value *resolve_init_var(
 						value_type->get_type());
 				init_var = make_call_value(builder, obj.get_location(), scope,
 						life, init_fn, {} /*arguments*/);
-			} catch (user_error_t &e) {
-				std::throw_with_nested(user_error_t(obj.get_location(), "missing initializer"));
+			} catch (user_error &e) {
+				std::throw_with_nested(user_error(obj.get_location(), "missing initializer"));
 			}
 		}
 	}
@@ -168,7 +168,7 @@ bound_var_t::ref generate_stack_variable(
 		/* we have an initializer */
 		init_var = var_decl.initializer->resolve_expression(builder, scope, life, false /*as_ref*/, declared_type);
 		if (init_var->type->is_void(scope)) {
-			throw user_error_t(var_decl.get_location(),
+			throw user_error(var_decl.get_location(),
 					"cannot initialize a variable with void, since it has no value");
 		}
 	}
@@ -197,7 +197,7 @@ bound_var_t::ref generate_stack_variable(
 				declared_type = declared_type->rebind(unification.bindings);
 			} else {
 				/* report that the variable type does not match the initializer type */
-				auto error = user_error_t(var_decl.get_location(),
+				auto error = user_error(var_decl.get_location(),
 						"declared type of `" c_var("%s") "` does not match type of initializer",
 						var_decl.get_symbol().c_str());
 				error.add_info(init_var->get_location(), c_type("%s") " != " c_type("%s") " because %s",
@@ -220,7 +220,7 @@ bound_var_t::ref generate_stack_variable(
 
 		/* try to see if we can unbox this if it's a Maybe */
 		if (init_var == nullptr) {
-			throw user_error_t(var_decl.get_location(), "missing initialization value");
+			throw user_error(var_decl.get_location(), "missing initialization value");
 		} else {
 			/* since we are maybe unboxing, then let's first off see if
 			 * this is even a maybe type. */
@@ -301,7 +301,7 @@ bound_var_t::ref upsert_module_variable(
 	 * the assignment. */
 	types::type_t::ref declared_type = var_decl.type->rebind(module_scope->get_type_variable_bindings());
 	if (declared_type == nullptr || declared_type->ftv_count() != 0) {
-		throw user_error_t(var_decl.get_location(), "module variables must have explicitly declared types");
+		throw user_error(var_decl.get_location(), "module variables must have explicitly declared types");
 		return nullptr;
 	}
 
@@ -321,7 +321,7 @@ bound_var_t::ref upsert_module_variable(
 	} else if (bound_type->get_llvm_specific_type()->isIntegerTy()) {
 		llvm_constant = llvm::ConstantInt::get(bound_type->get_llvm_specific_type(), 0, false);
 	} else {
-		throw user_error_t(var_decl.get_location(), "unsupported type for module variable %s",
+		throw user_error(var_decl.get_location(), "unsupported type for module variable %s",
 				bound_type->str().c_str());
 	}
 
@@ -369,7 +369,7 @@ bound_var_t::ref upsert_module_variable(
 
 		if (!unification.result) {
 			/* report that the variable type does not match the initializer type */
-			auto error = user_error_t(var_decl.get_location(), "declared type of `" c_var("%s") "` does not match type of initializer",
+			auto error = user_error(var_decl.get_location(), "declared type of `" c_var("%s") "` does not match type of initializer",
 					var_decl.token.text.c_str());
 			error.add_info(init_var->get_location(), c_type("%s") " != " c_type("%s") " because %s",
 					declared_type->str().c_str(),
@@ -422,7 +422,7 @@ bound_var_t::ref upsert_module_variable(
 
 		if (is_managed) {
 			if (!var_decl_variable->type->is_maybe(module_scope)) {
-				throw user_error_t(var_decl.get_location(), "module var " c_id("%s") " missing initializer",
+				throw user_error(var_decl.get_location(), "module var " c_id("%s") " missing initializer",
 						symbol.c_str());
 			}
 		}
@@ -450,7 +450,7 @@ bound_var_t::ref type_check_bound_var_decl(
 	assert(dyncast<module_scope_t>(scope) == nullptr);
 	bound_var_t::ref bound_var;
 	if (scope->symbol_exists_in_running_scope(symbol, bound_var)) {
-		auto error = user_error_t(obj.get_location(), "symbol '" c_id("%s") "' cannot be redeclared",
+		auto error = user_error(obj.get_location(), "symbol '" c_id("%s") "' cannot be redeclared",
 				symbol.c_str());
 		error.add_info(bound_var->get_location(), "see earlier declaration of " c_id("%s"),
 				bound_var->name.c_str());
@@ -682,7 +682,7 @@ bound_var_t::ref ast::link_var_statement_t::resolve_expression(
 
 	module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
 	if (module_scope == nullptr) {
-		throw user_error_t(get_location(), "link var cannot be used outside of module scope");
+		throw user_error(get_location(), "link var cannot be used outside of module scope");
 	}
 
 	return var_decl->resolve_as_link(builder, module_scope);
@@ -792,7 +792,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 		if (unification.result) {
 			return bound_fn;
 		} else {
-			throw user_error_t(lhs->get_location(),
+			throw user_error(lhs->get_location(),
 					"function %s is not compatible with arguments %s",
 					bound_fn->str().c_str(),
 					::str(args).c_str());
@@ -874,7 +874,7 @@ void ast::callsite_expr_t::resolve_statement(
 						param_var->type->str().c_str());
 				return;
 			} else {
-				throw user_error_t(get_location(), "static_print requires one and only one parameter");
+				throw user_error(get_location(), "static_print requires one and only one parameter");
 			}
 		} else if (symbol->token.text == "assert") {
 			/* do a crude macro expansion here and evaluate that */
@@ -883,7 +883,7 @@ void ast::callsite_expr_t::resolve_statement(
 				resolve_assert_macro(builder, scope, life, symbol->token, param, new_scope);
 				return;
 			} else {
-				throw user_error_t(get_location(), "assert accepts and requires one parameter");
+				throw user_error(get_location(), "assert accepts and requires one parameter");
 			}
 		}
 	}
@@ -934,7 +934,7 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		return make_call_value(builder, get_location(), scope,
 				life, function, arguments);
 	} else {
-		throw user_error_t(function_expr->get_location(),
+		throw user_error(function_expr->get_location(),
 				"%s being called like a function. arguments are %s",
 				function_expr->str().c_str(),
 				::str(arguments).c_str());
@@ -1198,7 +1198,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 		}
 	}
 
-	throw user_error_t(get_location(), "undefined symbol " c_id("%s"), token.text.c_str());
+	throw user_error(get_location(), "undefined symbol " c_id("%s"), token.text.c_str());
 }
 
 bound_var_t::ref ast::array_index_expr_t::resolve_expression(
@@ -1271,7 +1271,7 @@ bound_var_t::ref resolve_pointer_array_index(
 			return nullptr;
 		}
 	} else {
-		throw user_error_t(index->get_location(),
+		throw user_error(index->get_location(),
 				"pointer index must be of an integer type. your index is of type %s",
 				index_val->type->get_type()->str().c_str());
 	}
@@ -1296,7 +1296,7 @@ types::type_struct_t::ref get_struct_type_from_bound_type(
 	auto type = bound_type->get_type()->eval(scope, true);
 
 	if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
-		throw user_error_t(location, "maybe types cannot be dereferenced. try checking whether it's not equal to null first");
+		throw user_error(location, "maybe types cannot be dereferenced. try checking whether it's not equal to null first");
 		return nullptr;
 	} else if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
 		return type_struct(tuple_type->dimensions, {});
@@ -1312,7 +1312,7 @@ types::type_struct_t::ref get_struct_type_from_bound_type(
 		}
 	}
 
-	throw user_error_t(location,
+	throw user_error(location,
 			"could not find any member variables within %s (%s)",
 			bound_type->str().c_str(),
 			type->str().c_str());
@@ -1338,7 +1338,7 @@ bound_var_t::ref extract_member_by_index(
 			scope, location, bound_obj_type);
 
 	if (index < 0 || index >= (int)struct_type->dimensions.size()) {
-		throw user_error_t(location, "tuple index is out of bounds. tuple %s has %d elements",
+		throw user_error(location, "tuple index is out of bounds. tuple %s has %d elements",
 				struct_type->str().c_str(), (int)struct_type->dimensions.size());
 	}
 
@@ -1397,7 +1397,7 @@ int64_t parse_int_value(token_t token) {
 		}
 		break;
 	default:
-		throw user_error_t(token.location, "unable to read an integer value from %s", token.str().c_str());
+		throw user_error(token.location, "unable to read an integer value from %s", token.str().c_str());
 	}
 }
 
@@ -1414,7 +1414,7 @@ bound_var_t::ref type_check_assignment(
 		location_t location)
 {
 	if (!lhs_var->type->is_ref(scope)) {
-		auto error = user_error_t(location,
+		auto error = user_error(location,
 				"you cannot re-assign the name " c_id("%s") " to anything else here. it is not assignable.",
 				lhs_var->name.c_str());
 		error.add_info(lhs_var->get_location(),
@@ -1448,7 +1448,7 @@ bound_var_t::ref type_check_assignment(
 
 		return lhs_var;
 	} else {
-		throw user_error_t(location, "left-hand side is incompatible with the right-hand side (%s)",
+		throw user_error(location, "left-hand side is incompatible with the right-hand side (%s)",
 				unification.str().c_str());
 	}
 }
@@ -1549,7 +1549,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 			}
 
 			if (expected_rhs_type == nullptr) {
-				throw user_error_t(get_location(), "unable to figure out the expected type of the right-hand side");
+				throw user_error(get_location(), "unable to figure out the expected type of the right-hand side");
 			}
 
 			/* let's solve for the rhs */
@@ -1705,7 +1705,7 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 	}
 
 	if (element_types.size() == 0) {
-		throw user_error_t(get_location(), "not enough information to infer the element type for the vector literal");
+		throw user_error(get_location(), "not enough information to infer the element type for the vector literal");
 	}
 
 	types::type_t::ref element_type = type_sum_safe(
@@ -1786,7 +1786,7 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 				!unifies(lhs_var->type->get_type(), rhs_var->type->get_type(), scope) &&
 				!unifies(rhs_var->type->get_type(), lhs_var->type->get_type(), scope))
 		{
-			throw user_error_t(location, "values of types (%s and %s) cannot be compared",
+			throw user_error(location, "values of types (%s and %s) cannot be compared",
 					lhs_var->type->get_type()->str().c_str(),
 					rhs_var->type->get_type()->str().c_str());
 			return nullptr;
@@ -1842,7 +1842,7 @@ bound_var_t::ref resolve_native_pointer_binary_operation(
 		return resolve_native_pointer_binary_compare(
 				builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_ineq, scope_if_true, scope_if_false, expected_type);
 	} else {
-		throw user_error_t(location,
+		throw user_error(location,
 			   	"native pointers cannot be combined using the " c_id("%s") " function. "
 				"if you must compare them, try casting to uint first?",
 			   	function_name.c_str());
@@ -2288,7 +2288,7 @@ bound_var_t::ref ast::tuple_expr_t::resolve_expression(
 	if (expected_product != nullptr) {
 		expected_dimensions = expected_product->get_dimensions();
 		if (expected_dimensions.size() != values.size()) {
-			throw user_error_t(get_location(), "need %d items in tuple literal to match the expected type %s",
+			throw user_error(get_location(), "need %d items in tuple literal to match the expected type %s",
 					(int)values.size(), expected_product->str().c_str());
 		}
 	}
@@ -2725,7 +2725,7 @@ bound_var_t::ref extract_member_variable(
 	} else {
 		auto bindings = scope->get_type_variable_bindings();
 		auto full_type = bound_var->type->get_type()->rebind(bindings);
-		auto error = user_error_t(node->get_location(),
+		auto error = user_error(node->get_location(),
 				"%s has no dimension called " c_id("%s"),
 				full_type->str().c_str(),
 				member_name.c_str());
@@ -2782,7 +2782,7 @@ bound_var_t::ref resolve_module_variable_reference(
 		}
 	} else {
 		/* check for unbound module variable */
-		throw user_error_t(location, "could not find symbol " c_id("%s"), qualified_id.c_str());
+		throw user_error(location, "could not find symbol " c_id("%s"), qualified_id.c_str());
 	}
 }
 
@@ -2818,7 +2818,7 @@ bound_var_t::ref cast_bound_var(
 {
 	assert(!bound_var->type->is_ref(scope));
 	if (bound_var->type->is_maybe(scope) && !type_cast->eval_predicate(tb_maybe, scope)) {
-		auto error = user_error_t(location, "you cannot cast away maybe. use the ! operator instead");
+		auto error = user_error(location, "you cannot cast away maybe. use the ! operator instead");
 		error.add_info(location, "better yet, use an if statement to check the return value so you don't accidentally dereference a null pointer");
 		throw error;
 	}
@@ -2860,7 +2860,7 @@ bound_var_t::ref cast_bound_var(
 			llvm_dest_val = builder.CreateIntToPtr(llvm_source_val, llvm_dest_type);
 		}
 	} else {
-		throw user_error_t(location, "invalid cast: cannot cast %s to %s",
+		throw user_error(location, "invalid cast: cannot cast %s to %s",
 				bound_var->type->str().c_str(),
 				type_cast->str().c_str());
 	}
@@ -3145,7 +3145,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		put_bound_function(builder, scope, get_location(), function_var->name, decl->extends_module,
 				function_var, new_scope);
 	} else {
-		throw user_error_t(get_location(), "function definitions need names");
+		throw user_error(get_location(), "function definitions need names");
 	}
 
 	bool all_paths_return = false;
@@ -3160,8 +3160,8 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		block->resolve_statement(builder, params_scope, life,
 				nullptr, &all_paths_return);
 
-	} catch (user_error_t &e) {
-		std::throw_with_nested(user_error_t(get_location(),
+	} catch (user_error &e) {
+		std::throw_with_nested(user_error(get_location(),
 					"while checking %s", function_var->str().c_str()));
 	} catch (...) {
 		panic("uncaught exception");
@@ -3186,7 +3186,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 			return function_var;
 		} else {
 			/* no breaks here, we don't know what to return */
-			throw user_error_t(get_location(), "not all control paths return a value");
+			throw user_error(get_location(), "not all control paths return a value");
 		}
 	}
 }
@@ -3222,7 +3222,7 @@ void type_check_module_links(
 					link_value,
 					nullptr);
 		} else {
-			throw user_error_t(link->get_location(), "module level link definitions need names");
+			throw user_error(link->get_location(), "module level link definitions need names");
 		}
 	}
 
@@ -3257,8 +3257,8 @@ void type_check_module_vars(
 			 * __init_module_vars function */
 			auto module_var = type_check_module_var_decl(builder, module_scope, *var_decl);
 			global_vars.push_back(module_var);
-		} catch (user_error_t &e) {
-			std::throw_with_nested(user_error_t(var_decl->get_location(),
+		} catch (user_error &e) {
+			std::throw_with_nested(user_error(var_decl->get_location(),
 						"while checking module variable %s",
 						var_decl->token.text.c_str()));
 		} catch (...) {
@@ -3363,7 +3363,7 @@ void type_check_program_variable(
 		if (callable != nullptr) {
 			/* we've already checked this function */
 			if (callable->get_location() != function_defn->get_location()) {
-				auto error = user_error_t(function_defn->get_location(), "duplicate function %s found",
+				auto error = user_error(function_defn->get_location(), "duplicate function %s found",
 						function_defn->decl->str().c_str());
 				error.add_info(callable->get_location(), "see prior definition here");
 				throw error;
@@ -3397,7 +3397,7 @@ void type_check_program_variables(
 	for (auto unchecked_var : unchecked_vars_ordered) {
 		try {
 			type_check_program_variable(builder, program_scope, unchecked_var);
-		} catch (user_error_t &e) {
+		} catch (user_error &e) {
 			/* try to let the compiler recover and keep type checking... */
 			if (!failures) {
 				failure_location = e.location;
@@ -3407,7 +3407,7 @@ void type_check_program_variables(
 		}
 	}
 	if (failures) {
-		throw user_error_t(failure_location, "failures encountered");
+		throw user_error(failure_location, "failures encountered");
 	}
 }
 
@@ -3680,7 +3680,7 @@ void ast::break_flow_t::resolve_statement(
 			builder.CreateBr(break_bb);
 			return;
 		} else {
-			throw user_error_t(get_location(), c_control("break") " outside of a loop");
+			throw user_error(get_location(), c_control("break") " outside of a loop");
 		}
 	} else {
 		panic("we should not be looking at a break statement here!");
@@ -3706,7 +3706,7 @@ void ast::continue_flow_t::resolve_statement(
 			builder.CreateBr(continue_bb);
 			return;
 		} else {
-			throw user_error_t(get_location(), c_control("continue") " outside of a loop");
+			throw user_error(get_location(), c_control("continue") " outside of a loop");
 		}
 	} else {
 		panic("we should not be looking at a continue statement here!");
@@ -3825,7 +3825,7 @@ void ast::return_statement_t::resolve_statement(
 
 	if (return_value != nullptr) {
 		if (return_value->type->is_void(scope)) {
-			throw user_error_t(get_location(),
+			throw user_error(get_location(),
 					"return expressions cannot be " c_type("void") ". use an empty return statement to return from this function");
 		} else {
 			auto llvm_return_value = coerce_value(
@@ -3906,7 +3906,7 @@ void ast::block_t::resolve_statement(
 
 	for (auto &statement : statements) {
 		if (*returns) {
-			throw user_error_t(statement->get_location(), "this statement will never run");
+			throw user_error(statement->get_location(), "this statement will never run");
 			break;
 		}
 
@@ -3950,8 +3950,8 @@ void ast::block_t::resolve_statement(
 				next_scope = nullptr;
 				debug_above(10, log(log_info, "got a new scope %s", current_scope->str().c_str()));
 			}
-		} catch (user_error_t &e) {
-			std::throw_with_nested(user_error_t(statement->get_location(), "while checking statement"));
+		} catch (user_error &e) {
+			std::throw_with_nested(user_error(statement->get_location(), "while checking statement"));
 		} catch (...) {
 			panic("uncaught exception");
 		}
@@ -4267,7 +4267,7 @@ bound_var_t::ref ast::bang_expr_t::resolve_expression(
 				lhs_value->get_llvm_value(),
 				lhs_value->id);
 	} else {
-		throw user_error_t(get_location(), "bang expression is unnecessary since this is not a 'maybe' type: %s",
+		throw user_error(get_location(), "bang expression is unnecessary since this is not a 'maybe' type: %s",
 				type->str().c_str());
 	}
 }
@@ -4277,7 +4277,7 @@ bound_var_t::ref ast::var_decl_t::resolve_as_link(
 		module_scope_t::ref module_scope)
 {
 	if (initializer != nullptr) {
-		throw user_error_t(get_location(), "linked variables cannot have initializers");
+		throw user_error(get_location(), "linked variables cannot have initializers");
 	}
 
 	types::type_t::ref declared_type = get_type()->rebind(module_scope->get_type_variable_bindings());
@@ -4375,7 +4375,7 @@ bound_var_t::ref take_address(
 				bound_ptr_type, rhs_var->get_llvm_value(),
 				make_code_id(expr->token));
 	} else {
-		throw user_error_t(expr->get_location(), "can't take address of %s", expr->str().c_str());
+		throw user_error(expr->get_location(), "can't take address of %s", expr->str().c_str());
 	}
 }
 
@@ -4569,8 +4569,8 @@ bound_var_t::ref ast::reference_expr_t::resolve_overrides(
 	try {
 		return get_callable(builder, scope, token.text,
 				get_location(), get_args_type(args), nullptr);
-	} catch (user_error_t &e) {
-		std::throw_with_nested(user_error_t(callsite->get_location(), "while checking %s with %s",
+	} catch (user_error &e) {
+		std::throw_with_nested(user_error(callsite->get_location(), "while checking %s with %s",
 					callsite->str().c_str(),
 					::str(args).c_str()));
 	} catch (...) {

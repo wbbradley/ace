@@ -1,6 +1,6 @@
 #pragma once
 #include "zion.h"
-#include "status.h"
+#include "user_error.h"
 #include "bound_var.h"
 #include "scopes.h"
 #include "life.h"

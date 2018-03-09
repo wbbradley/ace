@@ -1,7 +1,7 @@
 #pragma once
 #include "zion.h"
 #include "dbg.h"
-#include "status.h"
+#include "user_error.h"
 #include "utils.h"
 #include <string>
 #include <map>

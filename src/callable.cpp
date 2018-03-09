@@ -81,8 +81,8 @@ bound_var_t::ref instantiate_unchecked_fn(
 					return function_defn->instantiate_with_args_and_return_type(
 							builder, subst_scope, life, nullptr /*new_scope*/,
 							type_constraints, named_args, return_type, fn_type);
-				} catch (user_error_t &e) {
-					std::throw_with_nested(user_error_t(
+				} catch (user_error &e) {
+					std::throw_with_nested(user_error(
 								unchecked_fn->get_location(),
 								"while instantiating function %s",
 								unchecked_fn->str().c_str()));
@@ -245,7 +245,7 @@ bound_var_t::ref get_callable_from_local_var(
 	if (callable != nullptr) {
 		return callable;
 	} else {
-		auto error = user_error_t(callsite_location, "variable " c_id("%s") " is not callable with these arguments or just isn't a function",
+		auto error = user_error(callsite_location, "variable " c_id("%s") " is not callable with these arguments or just isn't a function",
 				alias.c_str());
 		error.add_info(callsite_location, "type of %s is %s",
 				alias.c_str(),
@@ -279,7 +279,7 @@ bound_var_t::ref get_callable(
 	} else {
 		std::stringstream ss;
 		ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
-		auto error = user_error_t(callsite_location, "%s", ss.str().c_str());
+		auto error = user_error(callsite_location, "%s", ss.str().c_str());
 
 		/* report on the places we tried to look for a match */
 		if (fittings.size() > 10) {
@@ -321,8 +321,8 @@ bound_var_t::ref call_program_function(
 
 		return make_call_value(builder, callsite_location, scope,
 				life, function, var_args);
-	} catch (user_error_t &e) {
-		std::throw_with_nested(user_error_t(callsite_location, "failed to resolve function " c_id("%s") " with args: %s",
+	} catch (user_error &e) {
+		std::throw_with_nested(user_error(callsite_location, "failed to resolve function " c_id("%s") " with args: %s",
 					function_name.c_str(),
 					::str(var_args).c_str()));
 	}

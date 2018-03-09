@@ -36,7 +36,7 @@ void unmaybe_variable(
 	bound_var_t::ref var = scope->get_bound_variable(ref_expr->get_location(), token.text);
 
 	if (var == nullptr) {
-		throw user_error_t(ref_expr->get_location(), "undefined symbol " c_id("%s"), token.text.c_str());
+		throw user_error(ref_expr->get_location(), "undefined symbol " c_id("%s"), token.text.c_str());
 	}
 
 	bool was_ref = false;
@@ -97,7 +97,7 @@ void nullify_let_var(
 	types::type_t::ref type = var->type->get_type();
 
 	if (var == nullptr) {
-		throw user_error_t(ref_expr->get_location(), "undefined symbol " c_id("%s"), token.text.c_str());
+		throw user_error(ref_expr->get_location(), "undefined symbol " c_id("%s"), token.text.c_str());
 	}
 
 	/* we can't change the type of a mutable name in the scope because the user is allowed
@@ -134,7 +134,7 @@ bound_var_t::ref resolve_null_check(
 		local_scope_t::ref *scope_if_false)
 {
 	if (!value->type->is_maybe(scope) && value->type->is_ptr(scope)) {
-		auto error = user_error_t(location, "%s cannot be null here. "
+		auto error = user_error(location, "%s cannot be null here. "
 				"if you must compare this to null, try casting it to a maybe pointer first.",
 				node->str().c_str());
 		error.add_info(location, "the type of %s is %s", node->str().c_str(), value->type->str().c_str());

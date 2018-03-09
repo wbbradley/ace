@@ -41,7 +41,7 @@ namespace types {
 		int index = 0;
 		while (ps.token.tk != tk_outdent) {
 			if (!ps.line_broke() && ps.prior_token.tk != tk_indent) {
-				throw user_error_t(ps.token.location, "product type dimensions must be separated by a newline");
+				throw user_error(ps.token.location, "product type dimensions must be separated by a newline");
 			}
 
 			token_t var_token;
@@ -55,12 +55,12 @@ namespace types {
 				expect_token(tk_identifier);
 				var_token = ps.token;
 				if (name_index.find(var_token.text) != name_index.end()) {
-					throw user_error_t(ps.token.location, "name " c_id("%s") " already exists in type", var_token.text.c_str());
+					throw user_error(ps.token.location, "name " c_id("%s") " already exists in type", var_token.text.c_str());
 				}
 				name_index[var_token.text] = index++;
 				ps.advance();
 			} else {
-				throw user_error_t(ps.token.location, "not sure what's going on here");
+				throw user_error(ps.token.location, "not sure what's going on here");
 				wat();
 				expect_token(tk_identifier);
 				var_token = ps.token;
@@ -181,7 +181,7 @@ namespace types {
 
 				if (in(ftv, generics)) {
 					auto iter = generics.find(ftv);
-					auto error = user_error_t(ftv->get_location(),
+					auto error = user_error(ftv->get_location(),
 							"illegal redeclaration of type variable %s", 
 							ftv->str().c_str());
 					error.add_info((*iter)->get_location(), "see original declaration of type variable %s",
@@ -196,7 +196,7 @@ namespace types {
 					ps.advance();
 					expect_token(tk_identifier);
 					if (token_is_illegal_in_type(ps.token)) {
-						throw user_error_t(ps.token.location, "invalid type variable name %s", ps.token.str().c_str());
+						throw user_error(ps.token.location, "invalid type variable name %s", ps.token.str().c_str());
 						break;
 					}
 					continue;
@@ -208,7 +208,7 @@ namespace types {
 					ps.advance();
 					break;
 				} else {
-					throw user_error_t(ps.token.location, "expected ',', 'where', or '}'");
+					throw user_error(ps.token.location, "expected ',', 'where', or '}'");
 					break;
 				}
 			}
@@ -234,7 +234,7 @@ namespace types {
 
 				auto param_name = make_code_id(var_name);
 				if (in_vector(param_name, param_names)) {
-					throw user_error_t(ps.token.location, "duplicated parameter name: %s", var_name.text.c_str());
+					throw user_error(ps.token.location, "duplicated parameter name: %s", var_name.text.c_str());
 				} else {
 					param_names.push_back(param_name);
 				}
@@ -251,7 +251,7 @@ namespace types {
 				ps.advance();
 				break;
 			} else {
-				throw user_error_t(ps.token.location, "expected a parameter name");
+				throw user_error(ps.token.location, "expected a parameter name");
 			}
 		}
 
@@ -291,7 +291,7 @@ namespace types {
 		auto token = ps.token;
 		chomp_ident(K(integer));
 		if (ps.token.tk != tk_lparen) {
-			throw user_error_t(ps.token.location, "native integer types use the form " c_type("integer(bit_size, signed) ")
+			throw user_error(ps.token.location, "native integer types use the form " c_type("integer(bit_size, signed) ")
 					"where bit_size must evaluate (as a type literal) to a valid word size, and signed "
 					"must evaluate (as a type literal) to true or false. for example: " c_type("integer(8, false)") " is an unsigned octet (aka: a byte)");
 		}
@@ -371,20 +371,20 @@ namespace types {
 
 		if (is_maybe) {
 			if (ps.token.tk == tk_maybe) {
-				throw user_error_t(ps.token.location, "redundant usage of ?. you may need parentheses");
+				throw user_error(ps.token.location, "redundant usage of ?. you may need parentheses");
 			} else {
 				return type_maybe(type_ptr(element));
 			}
 		} else if (is_ptr) {
 			if (ps.token.tk == tk_maybe) {
-				throw user_error_t(ps.token.location, "use *? for native pointers. or, you may need parentheses");
+				throw user_error(ps.token.location, "use *? for native pointers. or, you may need parentheses");
 			} else {
 				return type_ptr(element);
 			}
 		} else {
 			if (ps.token.tk == tk_maybe) {
 				if (disallow_maybe) {
-					throw user_error_t(ps.token.location, "ambiguous ?. try using `*?`, or parentheses");
+					throw user_error(ps.token.location, "ambiguous ?. try using `*?`, or parentheses");
 				} else {
 					ps.advance();
 					return type_maybe(element);
@@ -408,7 +408,7 @@ namespace types {
 	type_t::ref parse_application_type(parse_state_t &ps, const identifier::set &generics) {
 		auto lhs = parse_ref_type(ps, generics);
 		if (lhs == nullptr) {
-			throw user_error_t(ps.token.location, "unable to parse type");
+			throw user_error(ps.token.location, "unable to parse type");
 		} else {
 			std::vector<type_t::ref> terms;
 			while (true) {

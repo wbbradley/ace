@@ -58,7 +58,7 @@ bound_type_t::ref create_bound_ref_type(
 	bound_type_t::ref existing_bound_type = scope->get_bound_type(type_ref->element_type->get_signature());
 
 	if (existing_bound_type != nullptr && existing_bound_type->get_llvm_specific_type()->isVoidTy()) {
-		throw user_error_t(type_ref->get_location(), "cannot create references to " c_type("void"));
+		throw user_error(type_ref->get_location(), "cannot create references to " c_type("void"));
 	}
 
 	/* make sure we create the pointed to type first */
@@ -83,7 +83,7 @@ bound_type_t::ref create_bound_extern_type(
 
 	auto ftvs = type_extern->get_ftvs();
 	if (ftvs.size() != 0) {
-		throw user_error_t(type_extern->get_location(),
+		throw user_error(type_extern->get_location(),
 				"unable to instantiate type %s because free variables [%s] still exist",
 				type_extern->str().c_str(),
 				join_with(ftvs, ", ", [] (std::string a) -> std::string {
@@ -112,7 +112,7 @@ bound_type_t::ref create_bound_ptr_type(
 
 	auto ftvs = type_ptr->get_ftvs();
 	if (ftvs.size() != 0) {
-		throw user_error_t(type_ptr->get_location(),
+		throw user_error(type_ptr->get_location(),
 				"unable to instantiate type %s because free variables [%s] still exist",
 				type_ptr->str().c_str(),
 				join_with(ftvs, ", ", [] (std::string a) -> std::string {
@@ -338,8 +338,8 @@ bound_type_t::ref create_bound_struct_type(
 		 * by the existence of the pointer to this type */
 		bound_dimensions = upsert_bound_types(
 				builder, scope, types::without_refs(struct_type->dimensions));
-	} catch (user_error_t &e) {
-		std::throw_with_nested(user_error_t(struct_type->get_location(),
+	} catch (user_error &e) {
+		std::throw_with_nested(user_error(struct_type->get_location(),
 					"cyclical type definition? %s",
 					struct_type->str().c_str()));
 	}
@@ -460,7 +460,7 @@ bound_type_t::ref create_bound_expr_type(
 	if (total_expansion != id) {
 		return bind_expansion(builder, scope, nominal_expansion, total_expansion);
 	} else {
-		throw user_error_t(id->get_location(), "no type definition found for %s",
+		throw user_error(id->get_location(), "no type definition found for %s",
 				id->str().c_str());
 	}
 }
@@ -476,7 +476,7 @@ bound_type_t::ref create_bound_integer_type(
 	types::type_t::ref bit_size_expansion;
 	int bit_size = types::coerce_to_integer(nominal_env, scope->get_total_env(), integer->bit_size, bit_size_expansion);
 	if (!types::is_type_id(signed_, TRUE_TYPE, {}, {}) && !types::is_type_id(signed_, FALSE_TYPE, {}, {})) {
-		throw user_error_t(integer->get_location(), "could not determine signedness for type from %s",
+		throw user_error(integer->get_location(), "could not determine signedness for type from %s",
 				signed_->str().c_str());
 	} else {
 		if (bit_size != 1 &&
@@ -486,7 +486,7 @@ bound_type_t::ref create_bound_integer_type(
 				bit_size != 64 &&
 				bit_size != 128)
 		{
-			throw user_error_t(integer->get_location(), "illegal bit-size for %s",
+			throw user_error(integer->get_location(), "illegal bit-size for %s",
 					integer->str().c_str());
 		} else {
 			auto final_type = type_integer(bit_size_expansion, signed_);
@@ -527,7 +527,7 @@ bound_type_t::ref create_bound_maybe_type(
 			program_scope->put_bound_type(bound_type);
 			return bound_type;
 		} else {
-			throw user_error_t(bound_just_type->get_location(),
+			throw user_error(bound_just_type->get_location(),
 					"maybe types must wrap pointers. %s is not a pointer",
 					maybe->just->str().c_str());
 		}
@@ -553,7 +553,7 @@ bound_type_t::ref create_bound_maybe_type(
 
 		return bound_type;
 	} else {
-		throw user_error_t(maybe->get_location(),
+		throw user_error(maybe->get_location(),
 				"type %s cannot be a " c_type("maybe") " type because the underlying storage is not a pointer (it is %s)",
 				maybe->str().c_str(),
 				llvm_print(llvm_type).c_str());
@@ -577,7 +577,7 @@ bound_type_t::ref create_bound_sum_type(
 	/* check for disallowed types */
 	for (auto subtype : sum->options) {
 		if (!types::is_managed_ptr(subtype, scope->get_nominal_env(), scope->get_total_env())) {
-			auto error = user_error_t(subtype->get_location(),
+			auto error = user_error(subtype->get_location(),
 					"unable to create a sum type with %s in it. %s lacks run-time type information",
 					subtype->str().c_str(),
 					subtype->str().c_str());
@@ -656,9 +656,9 @@ bound_type_t::ref create_bound_type(
 	} else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
 		return create_bound_expr_type(builder, scope, operator_);
 	} else if (auto variable = dyncast<const types::type_variable_t>(type)) {
-		throw user_error_t(variable->get_location(), "found a free type variable where a bound type was expected: %s", variable->str().c_str());
+		throw user_error(variable->get_location(), "found a free type variable where a bound type was expected: %s", variable->str().c_str());
 	} else if (auto lambda = dyncast<const types::type_lambda_t>(type)) {
-		throw user_error_t(lambda->get_location(), "unable to instantiate generic type %s without the necessary type application",
+		throw user_error(lambda->get_location(), "unable to instantiate generic type %s without the necessary type application",
 				lambda->str().c_str());
 	} else if (auto ref = dyncast<const types::type_ref_t>(type)) {
 		return create_bound_ref_type(builder, scope, ref);
@@ -716,8 +716,8 @@ bound_type_t::ref upsert_bound_type(
 				bound_type = create_bound_type(builder, scope, type);
 
 				return bound_type;
-			} catch (user_error_t &e) {
-				std::throw_with_nested(user_error_t(
+			} catch (user_error &e) {
+				std::throw_with_nested(user_error(
 							type->get_location(),
 							"unable to bind type %s in scope " c_id("%s"),
 							type->str().c_str(),
@@ -1087,7 +1087,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	/* at this point we should have a struct type in expanded_type */
 	if (product_type == nullptr) {
-		throw user_error_t(node->get_location(),
+		throw user_error(node->get_location(),
 				"could not figure out what to do with %s",
 				type->str().c_str());
 	}

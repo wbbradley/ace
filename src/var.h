@@ -2,7 +2,7 @@
 #include "zion.h"
 #include "types.h"
 #include <list>
-#include "status.h"
+#include "user_error.h"
 
 struct scope_t;
 struct unification_t;

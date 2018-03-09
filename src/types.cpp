@@ -1160,7 +1160,7 @@ namespace types {
 		int value;
 		iss >> value;
 		if (iss.fail() || !iss.eof()) {
-			throw user_error_t(get_location(), "could not parse number from %s",
+			throw user_error(get_location(), "could not parse number from %s",
 					text.c_str());
 			return 0;
 		}
@@ -1301,7 +1301,7 @@ namespace types {
 		if (auto literal = dyncast<const type_literal_t>(expansion)) {
 			return literal->coerce_to_int();
 		} else {
-			throw user_error_t(type->get_location(),
+			throw user_error(type->get_location(),
 					"unable to deduce an integer value from type %s",
 					expansion->str().c_str());
 		}
@@ -1331,7 +1331,7 @@ namespace types {
 				signed_ = false;
 				return;
 			} else {
-				throw user_error_t(integer->signed_->get_location(), "unable to determine signedness for type from %s",
+				throw user_error(integer->signed_->get_location(), "unable to determine signedness for type from %s",
 						signed_type->str().c_str());
 			}
 		} else if (types::is_type_id(type, WCHAR_TYPE, {}, {})) {
@@ -1343,7 +1343,7 @@ namespace types {
 			signed_ = false;
 			return;
 		} else {
-			throw user_error_t(type->get_location(), "expected an integer type, found %s",
+			throw user_error(type->get_location(), "expected an integer type, found %s",
 					type->str().c_str());
 		}
 	}
@@ -1357,10 +1357,10 @@ namespace types {
 		auto expansion = type->eval(nominal_env, total_env);
 		debug_above(7, log("get_runtime_typeids expanded to %s", expansion->str().c_str()));
 		if (auto type_ref = dyncast<const type_ref_t>(expansion)) {
-			throw user_error_t(type->get_location(), "reference types are not allowed here. %s does not have runtime type information",
+			throw user_error(type->get_location(), "reference types are not allowed here. %s does not have runtime type information",
 					type->str().c_str());
 		} else if (auto type_ptr = dyncast<const type_ptr_t>(expansion)) {
-			throw user_error_t(type->get_location(), "pointer types are not allowed here. %s does not have runtime type information",
+			throw user_error(type->get_location(), "pointer types are not allowed here. %s does not have runtime type information",
 					type->str().c_str());
 		} else if (auto type_id = dyncast<const type_id_t>(expansion)) {
 			typeids.insert(atomize(type_id->repr()));
@@ -1686,7 +1686,7 @@ types::type_t::ref type_sum_safe_3(
 		if (make_maybe) {
 			return type_id(make_iid_impl("null", location));
 		} else {
-			throw user_error_t(location, "no type found");
+			throw user_error(location, "no type found");
 		}
 	} else if (expanded_options.size() == 1) {
 		if (make_maybe) {
