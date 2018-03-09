@@ -59,6 +59,7 @@ enum type_builtins_t {
 
 namespace types {
 
+	extern env_t::ref _empty_env;
 	typedef std::map<std::string, int> name_index_t;
 
 	struct signature;

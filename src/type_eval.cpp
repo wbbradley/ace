@@ -68,8 +68,8 @@ namespace types {
 	auto type_truthy_lambda = type_lambda(truthy_id, type_lambda(falsey_id, type_variable(truthy_id)));
 	auto type_falsey_lambda = type_lambda(truthy_id, type_lambda(falsey_id, type_variable(falsey_id)));
 
-
-	bool type_t::eval_predicate(type_builtins_t tb, env_t::ref env) const {
+	bool type_t::eval_predicate(type_builtins_t tb, env_t::ref _env) const {
+		env_t::ref env = (_env == nullptr) ? _empty_env : _env;
 		debug_above(9, log("%s receiving eval_predicate(%s, ..., ...)",
 					str().c_str(), tbstr(tb)));
 
