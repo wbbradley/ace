@@ -30,7 +30,7 @@ unchecked_var_t::ref scope_setup_module_symbol(
 				if (module_scope != nullptr) {
 					return module_scope->put_unchecked_variable(id->get_name(), unchecked_var);
 				} else {
-					throw user_error_t(obj.token.location, "could not find module " c_module("%s") " to extend with " c_id("%s"),
+					throw user_error(obj.token.location, "could not find module " c_module("%s") " to extend with " c_id("%s"),
 							name.c_str(),
 							id->get_name().c_str());
 				}
@@ -41,7 +41,7 @@ unchecked_var_t::ref scope_setup_module_symbol(
 					unchecked_var_t::create(id, obj.shared_from_this(), module_scope));
 		}
 	} else {
-		throw user_error_t(obj.token.location, "module-level function definition does not have a name");
+		throw user_error(obj.token.location, "module-level function definition does not have a name");
 	}
 }
 
@@ -116,7 +116,7 @@ void scope_setup_program(const ast::program_t &obj, compiler_t &compiler) {
 		assert(module != nullptr);
 		try {
 			scope_setup_module(compiler, *module);
-		} catch (user_error_t &e) {
+		} catch (user_error &e) {
 			if (!failures) {
 				failures = true;
 				failure_location = e.location;
@@ -125,6 +125,6 @@ void scope_setup_program(const ast::program_t &obj, compiler_t &compiler) {
 		}
 	}
 	if (failures) {
-		throw user_error_t(failure_location, "failure during scope setup");
+		throw user_error(failure_location, "failure during scope setup");
 	}
 }

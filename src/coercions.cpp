@@ -1,6 +1,6 @@
 #include "zion.h"
 #include "llvm_types.h"
-#include "status.h"
+#include "user_error.h"
 #include "scopes.h"
 #include "types.h"
 #include "bound_var.h"
@@ -165,7 +165,7 @@ std::vector<llvm::Value *> get_llvm_values(
 	llvm_values.reserve(vars.size());
 
 	if (type_args->args.size() != vars.size()) {
-		throw user_error_t(location, "invalid parameter count to function call. expected %d parameters, got %d",
+		throw user_error(location, "invalid parameter count to function call. expected %d parameters, got %d",
 				(int)type_args->args.size(),
 				(int)vars.size());
 	}

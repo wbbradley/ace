@@ -29,12 +29,12 @@ void ast::when_block_t::resolve_statement(
 	pattern_value->type->is_managed_ptr(builder, scope, is_managed);
 
 	if (!is_managed) {
-		throw user_error_t(value->get_location(),
+		throw user_error(value->get_location(),
 				"when statements only work with managed types. %s is a native type.",
 				pattern_value->type->str().c_str());
 	}
 	if (pattern_value->type->is_maybe(scope)) {
-		throw user_error_t(value->get_location(),
+		throw user_error(value->get_location(),
 				"null pattern values are not allowed. "
 				"check for null beforehand");
 	}
@@ -127,7 +127,7 @@ void ast::when_block_t::resolve_statement(
 			debug_above(6, log("attempting to match type %s", type_to_match->str().c_str()));
 
 			if (!types::is_managed_ptr(type_to_match, nominal_env, total_env)) {
-				throw user_error_t(pattern_block->type->get_location(),
+				throw user_error(pattern_block->type->get_location(),
 						"unable to find runtime type identity for %s. runtime type identity is needed in order to perform type matching",
 						pattern_block->type->str().c_str());
 			}
@@ -136,7 +136,7 @@ void ast::when_block_t::resolve_statement(
 
 			/* check that this type have not already been tested for */
 			if (in(_typeid, typeids_tested)) {
-				auto error = user_error_t(pattern_block->get_location(),
+				auto error = user_error(pattern_block->get_location(),
 						"runtime type matching for %s is already handled above. note that it may be a part of this type, and not the whole sum of the type",
 						type_to_match->str().c_str());
 				error.add_info(typeids_tested[_typeid], "see prior test for runtime type here");
@@ -235,12 +235,12 @@ void ast::when_block_t::resolve_statement(
 			*returns = all_patterns_return;
 			return;
 		} else {
-			throw user_error_t(else_block->get_location(), "this else block will never run because the patterns catch all cases. maybe you can delete it?");
+			throw user_error(else_block->get_location(), "this else block will never run because the patterns catch all cases. maybe you can delete it?");
 		}
 	} else {
 		/* the patterns don't cover all possible values */
 		if (else_block == nullptr) {
-			auto error = user_error_t(get_location(), "the 'when' block does not handle all inbound types %s",
+			auto error = user_error(get_location(), "the 'when' block does not handle all inbound types %s",
 					unification.str().c_str());
 			error.add_info(get_location(), "the when block covers %s", type_sum_matched->str().c_str());
 			throw error;
@@ -264,7 +264,7 @@ bound_var_t::ref gen_null_check(
 {
 	value = value->resolve_bound_value(builder, scope);
 	if (!value->type->is_ptr(scope)) {
-		throw user_error_t(node->get_location(),
+		throw user_error(node->get_location(),
 				"type %s cannot be compared to null", value->type->str().c_str());
 	}
 

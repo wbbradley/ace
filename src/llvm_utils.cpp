@@ -161,7 +161,7 @@ bound_var_t::ref create_callsite(
 			return nullptr;
 		}
 	} else {
-		throw user_error_t(location,
+		throw user_error(location,
 				"tried to create_callsite for %s, but it's not a function?",
 				function->str().c_str());
 	}
@@ -467,7 +467,7 @@ void llvm_create_if_branch(
 			llvm::Constant *null = llvm::Constant::getNullValue(llvm_type);
 			llvm_value = builder.CreateICmpNE(value->get_llvm_value(), null);
 		} else {
-			auto error = user_error_t(location, "implicit maybe checks are not allowed here");
+			auto error = user_error(location, "implicit maybe checks are not allowed here");
 			error.add_info(location, "the condition of this branch instruction is of type %s",
 					value->type->str().c_str());
 			throw error;
@@ -492,7 +492,7 @@ void llvm_create_if_branch(
 			}
 			assert(llvm_value->getType()->isIntegerTy(1));
 		} else {
-			user_error_t error = user_error_t(
+			user_error error = user_error(
 					location,
 				   	allow_maybe_check ? "condition is not a boolean value or a maybe type" : "condition is not a boolean value");
 			error.add_info(location, "the condition of this branch instruction is of type %s", value->type->str().c_str());
@@ -603,7 +603,7 @@ void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
 	if (llvm::verifyFunction(*llvm_function, &os)) {
 		os.flush();
 		ss << llvm_print_function(llvm_function);
-		throw user_error_t(location, "LLVM function verification failed: %s", ss.str().c_str());
+		throw user_error(location, "LLVM function verification failed: %s", ss.str().c_str());
 	}
 }
 
@@ -612,7 +612,7 @@ void llvm_verify_module(llvm::Module &llvm_module) {
 	llvm::raw_os_ostream os(ss);
 	if (llvm::verifyModule(llvm_module, &os)) {
 		os.flush();
-		throw user_error_t(location_t{}, "module %s: failed verification. %s\nModule listing:\n%s",
+		throw user_error(location_t{}, "module %s: failed verification. %s\nModule listing:\n%s",
 				llvm_module.getName().str().c_str(),
 				ss.str().c_str(),
 				llvm_print_module(llvm_module).c_str());

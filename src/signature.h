@@ -2,7 +2,7 @@
 #include <vector>
 #include <string>
 #include <ostream>
-#include "status.h"
+#include "user_error.h"
 
 namespace types {
 	/* a signature is a name for a type. */

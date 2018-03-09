@@ -137,7 +137,6 @@ ZION_LLVM_SOURCES = \
 				render.cpp \
 				scopes.cpp \
 				signature.cpp \
-				status.cpp \
 				tests.cpp \
 				token.cpp \
 				token_queue.cpp \
@@ -149,6 +148,7 @@ ZION_LLVM_SOURCES = \
 				unchecked_type.cpp \
 				unchecked_var.cpp \
 				unification.cpp \
+				user_error.cpp \
 				utils.cpp \
 				var.cpp \
 				zion_gc_lowering.cpp

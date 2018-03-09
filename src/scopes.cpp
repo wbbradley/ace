@@ -39,7 +39,7 @@ bound_var_t::ref get_bound_variable_from_scope(
 			return overloads.begin()->second;
 		} else {
 			assert(overloads.size() > 1);
-			throw user_error_t(location,
+			throw user_error(location,
 				   	"a non-callsite reference to an overloaded variable " c_id("%s") " was found. overloads at this immediate location are:\n%s",
 					symbol.c_str(),
 					::str(overloads).c_str());
@@ -245,7 +245,7 @@ llvm::Type *program_scope_t::get_llvm_type(location_t location, std::string type
 		}
 	}
 
-	throw user_error_t(location, "couldn't find type " c_type("%s"), type_name.c_str());
+	throw user_error(location, "couldn't find type " c_type("%s"), type_name.c_str());
 	return nullptr;
 }
 
@@ -261,7 +261,7 @@ llvm::Function *program_scope_t::get_llvm_function(location_t location, std::str
 		}
 	}
 
-	throw user_error_t(location, "couldn't find function " c_var("%s"), function_name.c_str());
+	throw user_error(location, "couldn't find function " c_var("%s"), function_name.c_str());
 	return nullptr;
 }
 
@@ -309,7 +309,7 @@ void runnable_scope_t::check_or_update_return_type_constraint(
 		if (!unification.result) {
 			// TODO: consider directional unification here
 			// TODO: consider storing more useful info in return_type_constraint
-			throw user_error_t(return_statement->get_location(),
+			throw user_error(return_statement->get_location(),
 					"return expression type %s does not match %s",
 					return_type->get_type()->str().c_str(),
 					return_type_constraint->get_type()->str().c_str());
@@ -575,7 +575,7 @@ void module_scope_impl_t::put_unchecked_type(
 		unchecked_types_ordered.push_back(unchecked_type);
 	} else {
 		/* this unchecked type already exists */
-		auto error = user_error_t(unchecked_type->node->get_location(), "type " c_type("%s") " already exists",
+		auto error = user_error(unchecked_type->node->get_location(), "type " c_type("%s") " already exists",
 				unchecked_type->name.c_str());
 		error.add_info(unchecked_type_iter->second->node->get_location(),
 				"see type " c_type("%s") " declaration",
@@ -722,7 +722,7 @@ void program_scope_t::put_bound_type_mapping(
 	if (dest_iter == bound_type_mappings.end()) {
 		bound_type_mappings.insert({source, dest});
 	} else {
-		throw user_error_t(INTERNAL_LOC(), "bound type mapping %s already exists!",
+		throw user_error(INTERNAL_LOC(), "bound type mapping %s already exists!",
 				source.str().c_str());
 	}
 }
@@ -742,9 +742,9 @@ void program_scope_t::put_bound_type(bound_type_t::ref type) {
 		bound_types[signature] = type;
 	} else {
 		/* this type symbol already exists */
-		throw user_error_t(type->get_location(), "type %s already exists",
+		throw user_error(type->get_location(), "type %s already exists",
 				type->str().c_str());
-		throw user_error_t(iter->second->get_location(), "type %s was declared here",
+		throw user_error(iter->second->get_location(), "type %s was declared here",
 				iter->second->str().c_str());
 	}
 }
@@ -873,7 +873,7 @@ void put_typename_impl(
 			/* we are at the outermost scope, we're done. */
 		}
 	} else {
-		auto error = user_error_t(expansion->get_location(),
+		auto error = user_error(expansion->get_location(),
 				"multiple supertypes are not yet implemented (" c_type("%s") " <: " c_type("%s") ")",
 				type_name.c_str(), expansion->str().c_str());
 		auto existing_expansion = iter_type->second;
@@ -963,6 +963,6 @@ void put_bound_function(
 			}
 		}
 	} else {
-		throw user_error_t(bound_function->get_location(), "visible function definitions need names");
+		throw user_error(bound_function->get_location(), "visible function definitions need names");
 	}
 }

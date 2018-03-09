@@ -1,7 +1,7 @@
 #include "dbg.h"
 #include <iostream>
 #include "location.h"
-#include "status.h"
+#include "user_error.h"
 #include <sstream>
 #include <signal.h>
 #include <assert.h>

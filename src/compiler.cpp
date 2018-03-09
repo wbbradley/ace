@@ -99,7 +99,7 @@ void compiler_t::resolve_module_filename(
 			std::string test_resolution;
 			if (real_path(test_path, test_resolution)) {
 				if (working_resolution.size() && working_resolution != test_resolution) {
-					throw user_error_t(location, "multiple " C_FILENAME "%s"
+					throw user_error(location, "multiple " C_FILENAME "%s"
 							C_RESET " modules found with the same name in source "
 							"path [%s, %s]", name.c_str(),
 							working_resolution.c_str(),
@@ -129,7 +129,7 @@ void compiler_t::resolve_module_filename(
 		resolved = working_resolution;
 		return;
 	} else {
-		throw user_error_t(location, "module not found: " c_error("`%s`") " (Note that module names should not have .zion extensions.) Looked in ZION_PATH=[%s]",
+		throw user_error(location, "module not found: " c_error("`%s`") " (Note that module names should not have .zion extensions.) Looked in ZION_PATH=[%s]",
 				name.c_str(),
 				join(*zion_paths, ":").c_str());
 	}
@@ -175,7 +175,7 @@ ast::module_t::ref compiler_t::build_parse(
 
 			return module;
 		} else {
-			throw user_error_t(location, "could not open \"%s\" when trying to link module",
+			throw user_error(location, "could not open \"%s\" when trying to link module",
 					module_filename.c_str());
 		}
 	} else {
@@ -372,7 +372,7 @@ bool compiler_t::build_parse_modules() {
 			program->modules.push_back(module);
 		}
 		return true;
-	} catch (user_error_t &e) {
+	} catch (user_error &e) {
 		print_exception(e);
 		return false;
 	}
@@ -392,7 +392,7 @@ bool compiler_t::build_type_check_and_code_gen() {
 		debug_above(2, log(log_info, "type checking found no errors"));
 		return true;
 
-	} catch (user_error_t &e) {
+	} catch (user_error &e) {
 		print_exception(e);
 		return false;
 	}
@@ -421,7 +421,7 @@ std::string collect_filename_from_module_pair(
 			throw;
 		}
 	} else {
-		throw user_error_t(INTERNAL_LOC(), "failed to open file named %s to write LLIR data",
+		throw user_error(INTERNAL_LOC(), "failed to open file named %s to write LLIR data",
 				filename.c_str());
 	}
 	return filename;
@@ -447,7 +447,7 @@ void compiler_t::emit_built_program(std::string executable_filename) {
 	emit_object_files(obj_files);
 	std::string clang_bin = getenv("LLVM_CLANG_BIN") ? getenv("LLVM_CLANG_BIN") : "/usr/bin/clang";
 	if (clang_bin.size() == 0) {
-		throw user_error_t(INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called LLVM_CLANG_BIN");
+		throw user_error(INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called LLVM_CLANG_BIN");
 		return;
 	}
 
@@ -479,7 +479,7 @@ void compiler_t::emit_built_program(std::string executable_filename) {
 	errno = 0;
 	int ret = system(ss.str().c_str());
 	if (ret != 0) {
-		throw user_error_t(location_t{}, "failure (%d) when running: %s",
+		throw user_error(location_t{}, "failure (%d) when running: %s",
 				ret, ss.str().c_str());
 	}
 
@@ -629,7 +629,7 @@ void emit_object_file_from_module(llvm::Module *llvm_module, std::string Filenam
 	// This generally occurs if we've forgotten to initialise the
 	// TargetRegistry or we have a bogus target triple.
 	if (!llvm_target) {
-		throw user_error_t(INTERNAL_LOC(), "%s", Error.c_str());
+		throw user_error(INTERNAL_LOC(), "%s", Error.c_str());
 		return;
 	}
 
@@ -645,7 +645,7 @@ void emit_object_file_from_module(llvm::Module *llvm_module, std::string Filenam
 	raw_fd_ostream dest(Filename, EC, sys::fs::F_None);
 
 	if (EC) {
-		throw user_error_t(INTERNAL_LOC(), "Could not open file: %s", EC.message().c_str());
+		throw user_error(INTERNAL_LOC(), "Could not open file: %s", EC.message().c_str());
 		return;
 	}
 
@@ -653,7 +653,7 @@ void emit_object_file_from_module(llvm::Module *llvm_module, std::string Filenam
 	auto FileType = TargetMachine::CGFT_ObjectFile;
 
 	if (llvm_target_machine->addPassesToEmitFile(pass, dest, FileType)) {
-		throw user_error_t(INTERNAL_LOC(), "TargetMachine can't emit a file of this type");
+		throw user_error(INTERNAL_LOC(), "TargetMachine can't emit a file of this type");
 		return;
 	}
 
@@ -815,7 +815,7 @@ llvm::Module *compiler_t::llvm_load_ir(std::string filename) {
 		os.flush();
 
 		/* report the error */
-		throw user_error_t(location_t{filename, 0, 0}, "%s", ss.str().c_str());
+		throw user_error(location_t{filename, 0, 0}, "%s", ss.str().c_str());
 		return nullptr;
 	} else {
 		debug_above(9, log(log_info, "parsed module %s\n%s", filename.c_str(),

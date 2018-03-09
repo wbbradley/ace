@@ -2,7 +2,7 @@
 #include <string>
 #include "lexer.h"
 #include "logger_decls.h"
-#include "status.h"
+#include "user_error.h"
 #include "ptr.h"
 #include "identifier.h"
 

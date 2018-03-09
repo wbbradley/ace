@@ -4,11 +4,11 @@
 #include "location.h"
 #include "logger_decls.h"
  
-struct user_error_t {
-	user_error_t(location_t location, const char *format...);
-	user_error_t(location_t location, const char *format, va_list args);
+struct user_error {
+	user_error(location_t location, const char *format...);
+	user_error(location_t location, const char *format, va_list args);
 
-	virtual ~user_error_t() {}
+	virtual ~user_error() {}
 	virtual const char *what() const noexcept;
 	void add_info(location_t location, const char *format...);
 
@@ -19,7 +19,7 @@ struct user_error_t {
 	// Use print_exception externally, not display...
 	void display() const;
 
-	friend void print_exception(const user_error_t &e, int level);
+	friend void print_exception(const user_error &e, int level);
 };
 
-void print_exception(const user_error_t &e, int level = 0);
+void print_exception(const user_error &e, int level = 0);
