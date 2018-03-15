@@ -5,11 +5,11 @@
 #include "ast.h"
 
 void print_exception(const user_error &e, int level) {
-    try {
-        std::rethrow_if_nested(e);
-    } catch(const user_error &e) {
-        print_exception(e, level+1);
-    } catch(...) {
+	try {
+		std::rethrow_if_nested(e);
+	} catch(const user_error &e) {
+		print_exception(e, level+1);
+	} catch(...) {
 	}
 	e.display();
 }
@@ -21,12 +21,20 @@ user_error::user_error(location_t location, const char *format...) :
 	va_start(args, format);
 	message = string_formatv(format, args);
 	va_end(args);
+
+	if (getenv("STATUS_BREAK") != nullptr) {
+		dbg();
+	}
 }
 
 user_error::user_error(location_t location, const char *format, va_list args) :
    	location(location), extra_info(make_ptr<std::vector<std::pair<location_t, std::string>>>())
 {
 	message = string_formatv(format, args);
+
+	if (getenv("STATUS_BREAK") != nullptr) {
+		dbg();
+	}
 }
 
 const char *user_error::what() const noexcept {

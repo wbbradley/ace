@@ -6,4 +6,4 @@ def main()
 	generic(1)
 
 def generic(value any)
-	posix.puts(c_str(utf8(str(value))).raw)
+	posix.puts(c_str(str(value)).raw)

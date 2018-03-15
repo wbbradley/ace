@@ -34,9 +34,11 @@ void ast::when_block_t::resolve_statement(
 				pattern_value->type->str().c_str());
 	}
 	if (pattern_value->type->is_maybe(scope)) {
-		throw user_error(value->get_location(),
+		auto error = user_error(value->get_location(),
 				"null pattern values are not allowed. "
 				"check for null beforehand");
+		error.add_info(pattern_value->get_location(), "pattern value has type %s", pattern_value->type->str().c_str());
+		throw error;
 	}
 
 	std::set<int> possible_incoming_typeids;

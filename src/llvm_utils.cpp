@@ -57,15 +57,15 @@ llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value) {
 	}
 }
 
-llvm::Value *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value) {
+llvm::ConstantInt *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value) {
 	return builder.getZionInt(value);
 }
 
-llvm::Value *llvm_create_int16(llvm::IRBuilder<> &builder, int16_t value) {
+llvm::ConstantInt *llvm_create_int16(llvm::IRBuilder<> &builder, int16_t value) {
 	return builder.getInt16(value);
 }
 
-llvm::Value *llvm_create_int32(llvm::IRBuilder<> &builder, int32_t value) {
+llvm::ConstantInt *llvm_create_int32(llvm::IRBuilder<> &builder, int32_t value) {
 	return builder.getInt32(value);
 }
 
@@ -537,6 +537,143 @@ void llvm_create_if_branch(
 	builder.CreateCondBr(llvm_value, then_bb, else_bb);
 }
 
+bound_var_t::ref create_global_str(
+		llvm::IRBuilder<> &builder,
+	   	scope_t::ref scope,
+	   	location_t location,
+	   	std::string value)
+{
+	auto program_scope = scope->get_program_scope();
+
+	bound_type_t::ref str_type = upsert_bound_type(builder, scope, type_id(make_iid_impl(MANAGED_STR, location)));
+	bound_type_t::ref str_literal_type = program_scope->get_runtime_type(builder, "str_literal_t", true /*get_ptr*/);
+	bound_type_t::ref owning_buffer_literal_type = program_scope->get_runtime_type(builder, "owning_buffer_literal_t", true /*get_ptr*/);
+	bound_type_t::ref type_info_type = program_scope->get_runtime_type(builder, "type_info_t", true /*get_ptr*/);
+
+	llvm::Module *llvm_module = scope->get_llvm_module();
+
+	std::string owning_buffer_type_info_name = "__internal.owning_buffer_literal_type_info";
+	bound_var_t::ref owning_buffer_literal_type_info = program_scope->get_bound_variable(location, owning_buffer_type_info_name);
+	llvm::Constant *llvm_owning_buffer_type_info;
+
+	if (owning_buffer_literal_type_info == nullptr) {
+		debug_above(8, log("creating owning buffer type info"));
+		llvm_owning_buffer_type_info = llvm_get_global(
+				llvm_module,
+				"owning_buffer_literal_type_info",
+				llvm_create_constant_struct_instance(
+					llvm::dyn_cast<llvm::StructType>(type_info_type->get_llvm_type()->getPointerElementType()),
+					{
+					llvm_create_int32(builder, atomize("owning_buffer_literal_t")),
+					llvm_create_int32(builder, type_kind_no_gc),
+					llvm_create_int(builder, 0/*size*/),
+					(llvm::Constant *)builder.CreateGlobalStringPtr("owning-buffer-literal"/*name*/),
+					}),
+				true /*isConstant*/);
+		program_scope->put_bound_variable(owning_buffer_type_info_name, bound_var_t::create(
+					INTERNAL_LOC(),
+					owning_buffer_type_info_name,
+					type_info_type,
+					llvm_owning_buffer_type_info,
+					make_iid_impl(owning_buffer_type_info_name, location)));
+	} else {
+		llvm_owning_buffer_type_info = (llvm::Constant *)owning_buffer_literal_type_info->get_llvm_value();
+	}
+
+	debug_above(8, log("creating owning buffer for string literal \"%s\"", value.c_str()));
+
+	std::string owning_buffer_literal_name = string_format("__internal.owning_buffer_literal_%d", atomize(value));
+	bound_var_t::ref owning_buffer_literal = program_scope->get_bound_variable(location, owning_buffer_literal_name);
+	llvm::Constant *llvm_owning_buffer_literal;
+
+	if (owning_buffer_literal == nullptr) {
+		llvm_owning_buffer_literal = llvm_get_global(
+				llvm_module,
+				owning_buffer_literal_name,
+				llvm_create_constant_struct_instance(
+					llvm::dyn_cast<llvm::StructType>(owning_buffer_literal_type->get_llvm_type()->getPointerElementType()),
+					{
+					llvm_owning_buffer_type_info,
+					llvm_create_int(builder, 0),
+					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
+					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
+					llvm_create_int(builder, 0),
+					(llvm::Constant *)builder.CreateGlobalStringPtr(value),
+					llvm_create_int(builder, value.size()),
+					}),
+				true /*isConstant*/);
+		program_scope->put_bound_variable(owning_buffer_literal_name, bound_var_t::create(
+					INTERNAL_LOC(),
+					owning_buffer_literal_name,
+					owning_buffer_literal_type,
+					llvm_owning_buffer_literal,
+					make_iid_impl(owning_buffer_literal_name, location)));
+	} else {
+		llvm_owning_buffer_literal = (llvm::Constant *)owning_buffer_literal->get_llvm_value();
+	}
+
+	debug_above(8, log("creating str type info for string literal \"%s\"", value.c_str()));
+
+	std::string str_literal_type_info_name = "__internal.str_literal_type_info";
+	bound_var_t::ref str_literal_type_info = program_scope->get_bound_variable(location, str_literal_type_info_name);
+	llvm::Constant *llvm_str_type_info;
+	if (str_literal_type_info == nullptr) {
+		llvm_str_type_info = llvm_get_global(
+				llvm_module,
+				str_literal_type_info_name,
+				llvm_create_constant_struct_instance(
+					llvm::dyn_cast<llvm::StructType>(type_info_type->get_llvm_type()->getPointerElementType()),
+					{
+					llvm_create_int32(builder, atomize(MANAGED_STR)),
+					llvm_create_int32(builder, type_kind_no_gc),
+					llvm_create_int(builder, 0/*size*/),
+					(llvm::Constant *)builder.CreateGlobalStringPtr("string-literal"/*name*/),
+					}),
+				true /*isConstant*/);
+		program_scope->put_bound_variable(str_literal_type_info_name, bound_var_t::create(
+					INTERNAL_LOC(),
+					str_literal_type_info_name,
+					type_info_type,
+					llvm_str_type_info,
+					make_iid_impl(str_literal_type_info_name, location)));
+	} else {
+		llvm_str_type_info = (llvm::Constant *)str_literal_type_info->get_llvm_value();
+	}
+
+	debug_above(8, log("creating str literal \"%s\"", value.c_str()));
+	std::string str_literal_name = string_format("__internal.str_literal_%d", atomize(value));
+	bound_var_t::ref str_literal = program_scope->get_bound_variable(location, str_literal_name);
+	llvm::Constant *llvm_str_literal;
+
+	if (str_literal == nullptr) {
+		llvm_str_literal = llvm_get_global(
+				llvm_module,
+				"str_literal",
+				llvm_create_constant_struct_instance(
+					llvm::dyn_cast<llvm::StructType>(str_literal_type->get_llvm_type()->getPointerElementType()),
+					{
+					llvm_str_type_info,
+					llvm_create_int(builder, 0),
+					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
+					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
+					llvm_create_int(builder, 0),
+					llvm_owning_buffer_literal,
+					llvm_create_int(builder, 0),
+					llvm_create_int(builder, value.size()),
+					}),
+				true /*isConstant*/);
+		str_literal = bound_var_t::create(
+				INTERNAL_LOC(),
+				str_literal_name,
+				str_type,
+				builder.CreateBitCast(llvm_str_literal, str_type->get_llvm_type()),
+				make_iid_impl(str_literal_name, location));
+		program_scope->put_bound_variable(str_literal_name, str_literal);
+	}
+
+	return str_literal;
+}
+
 llvm::Constant *llvm_create_struct_instance(
 		std::string var_name,
 		llvm::Module *llvm_module,
@@ -784,7 +921,7 @@ bound_var_t::ref llvm_create_global_tag(
 			(llvm::Constant *)llvm_create_int32(builder, atomize(tag)),
 
 			/* the type kind */
-			builder.getInt32(type_kind_tag),
+			builder.getInt32(type_kind_no_gc),
 
 			/* size - should always be zero since the type_id is part of this var_t
 			 * as builtin type info. */

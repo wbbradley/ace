@@ -1120,7 +1120,7 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression_t> lhs;
-		ptr<expression_t> index;
+		ptr<expression_t> start, stop;
 	};
 
 	namespace base_expr {

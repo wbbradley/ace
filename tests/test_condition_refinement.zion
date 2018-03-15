@@ -1,7 +1,7 @@
 module _
 # test: pass
 # expect: 7 : int
-# expect: "hello" : *char
+# expect: "hello" : str
 # expect: gimme_bool() : bool
 # expect: gimme_bool() ? "foo" : 4.5 : Float or str
 # expect: g : False or Int

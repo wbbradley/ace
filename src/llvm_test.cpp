@@ -29,7 +29,7 @@ bool test_llvm_builder() {
 
 	builder.CreateRetVoid();
 
-	module->dump();
+	// module->dump();
 
 	std::stringstream ss;
 	llvm::raw_os_ostream os(ss);

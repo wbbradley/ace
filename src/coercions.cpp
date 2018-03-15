@@ -7,6 +7,7 @@
 #include "dbg.h"
 #include "unification.h"
 #include "coercions.h"
+#include "type_checker.h"
 
 bound_var_t::ref coerce_bound_value(
 		llvm::IRBuilder<> &builder,
@@ -110,14 +111,30 @@ llvm::Value *coerce_value(
 
 			/* the *var_t object accepts all managed objects */
 			return builder.CreateBitCast(llvm_rhs_value, llvm_lhs_type);
-		}
+		} else if (types::is_ptr_type_id(lhs_type, CHAR_TYPE, scope) && types::is_type_id(rhs_type, MANAGED_STR, scope)) {
+			/* custom unboxing because we need to inject some life management to cleanup in the
+			 * event that we need to convert a slice to a heap-alloced null-terminated string. */
+			bound_var_t::ref c_str = call_program_function(
+					builder, scope, life,
+					"c_str", location, {rhs}, nullptr);
 
-		debug_above(6, log(log_info, "calling " c_id("__unbox__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
-		bound_var_t::ref coercion = call_program_function(
+			/* c_str is now an OwningBuffer */
+			auto raw_c_str = extract_member_variable(
 				builder, scope, life,
-				"__unbox__", location, {rhs}, lhs_type);
+				location,
+				c_str,
+				"raw", // OwningBuffer.raw
+				false /* as_ref */,
+				type_ptr(type_id(make_iid_impl(CHAR_TYPE, INTERNAL_LOC()))));
+			return raw_c_str->get_llvm_value();
+		} else {
+			debug_above(6, log(log_info, "calling " c_id("__unbox__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
+			bound_var_t::ref coercion = call_program_function(
+					builder, scope, life,
+					"__unbox__", location, {rhs}, lhs_type);
 
-		return coercion->get_llvm_value();
+			return coercion->get_llvm_value();
+		}
 	} else {
 		debug_above(7, log("trying to coerce native value %s to %s", llvm_print(llvm_rhs_value).c_str(), llvm_print(llvm_lhs_type).c_str()));
 		if (llvm_lhs_type->isPointerTy() && llvm_rhs_type->isPointerTy()) {

@@ -1316,7 +1316,6 @@ types::type_struct_t::ref get_struct_type_from_bound_type(
 }
 
 bound_var_t::ref extract_member_by_index(
-		
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
@@ -1470,7 +1469,11 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 	bound_var_t::ref lhs_val = lhs->resolve_expression(builder,
 			scope, life, false /*as_ref*/, nullptr);
 	if (auto tuple_type = dyncast<const types::type_tuple_t>(lhs_val->type->get_type())) {
-		int member_index = get_constant_int(index);
+		int member_index = get_constant_int(start);
+		if (stop != nullptr) {
+			throw user_error(stop->get_location(), "slicing tuples is not yet supported. accepting pull requests...");
+		}
+
 		bound_var_t::ref value = extract_member_by_index(builder, scope, life,
 				get_location(), lhs_val, lhs_val->type, member_index,
 				string_format("%d", member_index), as_ref, expected_type);
@@ -1489,8 +1492,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 			return value;
 		}
 	} else {
-		bound_var_t::ref index_val = index->resolve_expression(builder,
-				scope, life, false /*as_ref*/, nullptr);
+		bound_var_t::ref index_val = start->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr);
 
 		identifier::ref element_type_var = types::gensym();
 
@@ -1501,78 +1503,95 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 				scope);
 
 		if (unification.result) {
+			if (stop != nullptr) {
+				throw user_error(stop->get_location(), "native pointer arrays cannot be sliced");
+			}
+
 			/* this is a native pointer, let's generate code to write or read, or reference it */
 			types::type_t::ref element_type = unification.bindings[element_type_var->get_name()];
-			return resolve_pointer_array_index(builder, scope, life, element_type, index, index_val,
+			return resolve_pointer_array_index(builder, scope, life, element_type, start, index_val,
 					lhs, lhs_val, as_ref, rhs);
-		} else if (rhs == nullptr) {
-			/* this is not a native pointer we are dereferencing */
-			debug_above(5, log("attempting to call " c_id("__getitem__")
-						" on %s and %s", lhs_val->str().c_str(), index_val->str().c_str()));
+		} else
+			if (rhs == nullptr) {
+				bound_var_t::ref stop_val = (
+						(stop != nullptr)
+						? stop->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr)
+						: nullptr);
 
-			// TODO: consider whether to allow as_ref
-			// assert(!as_ref);
+				/* this is not a native pointer we are dereferencing */
+				debug_above(5, log("attempting to call " c_id("%s") " on %s and %s",
+							stop != nullptr ? "__getslice__" : "__getitem__",
+							lhs_val->str().c_str(), index_val->str().c_str()));
 
-			/* get or instantiate a function we can call on these arguments */
-			return call_program_function(builder, scope, life,
-					"__getitem__", get_location(), {lhs_val, index_val});
-		} else {
-			/* we're assigning to a managed array index expression */
+				if (stop_val != nullptr) {
+					/* get or instantiate a function we can call on these arguments */
+					return call_program_function(builder, scope, life,
+							"__getslice__", get_location(), {lhs_val, index_val, stop_val});
+				} else {
+					/* get or instantiate a function we can call on these arguments */
+					return call_program_function(builder, scope, life,
+							"__getitem__", get_location(), {lhs_val, index_val});
+				}
+			} else {
+				/* we're assigning to a managed array index expression */
+				if (stop != nullptr) {
+					throw user_error(stop->get_location(), "assigning to a slice is not yet supported. accepting pull requests...");
+				}
 
-			/* let's first try to find the setitem function while using a free-type
-			 * variable for the rhs parameter. */
-			auto type_var_name = types::gensym();
-			fittings_t fittings;
-			bound_var_t::ref setitem_function = maybe_get_callable(
-					builder,
-					scope,
-					"__setitem__",
-					get_location(),
-					type_args({lhs_val->type->get_type(), index_val->type->get_type(), type_variable(type_var_name)}),
-					type_variable(INTERNAL_LOC()),
-					fittings);
+				/* let's first try to find the setitem function while using a free-type
+				 * variable for the rhs parameter. */
+				auto type_var_name = types::gensym();
+				fittings_t fittings;
+				bound_var_t::ref setitem_function = maybe_get_callable(
+						builder,
+						scope,
+						"__setitem__",
+						get_location(),
+						type_args({lhs_val->type->get_type(), index_val->type->get_type(), type_variable(type_var_name)}),
+						type_variable(INTERNAL_LOC()),
+						fittings);
 
-			types::type_t::ref expected_rhs_type;
-			if (setitem_function != nullptr) {
-				if (auto function = dyncast<const types::type_function_t>(setitem_function->type->get_type())) {
-					if (auto args = dyncast<const types::type_args_t>(function->args)) {
-						assert(args->args.size() == 3);
-						/* we found the expected rhs type */
-						expected_rhs_type = args->args[2];
+				types::type_t::ref expected_rhs_type;
+				if (setitem_function != nullptr) {
+					if (auto function = dyncast<const types::type_function_t>(setitem_function->type->get_type())) {
+						if (auto args = dyncast<const types::type_args_t>(function->args)) {
+							assert(args->args.size() == 3);
+							/* we found the expected rhs type */
+							expected_rhs_type = args->args[2];
+						}
 					}
 				}
+
+				if (expected_rhs_type == nullptr) {
+					throw user_error(get_location(), "unable to figure out the expected type of the right-hand side");
+				}
+
+				/* let's solve for the rhs */
+				bound_var_t::ref rhs_val = rhs->resolve_expression(builder, scope, life, false /*as_ref*/,
+						expected_rhs_type);
+
+				/* we have a rhs to assign into this lhs, let's find the function we should be calling to do
+				 * the update. */
+				std::vector<llvm::Value *> llvm_args = get_llvm_values(
+						builder, scope, life,
+						get_location(),
+						get_function_args_types(setitem_function->type),
+						{lhs_val, index_val, rhs_val});
+
+				bound_type_t::ref return_type = get_function_return_type(
+						builder,
+						scope,
+						setitem_function->type);
+				return bound_var_t::create(
+						INTERNAL_LOC(),
+						"array.index.assignment",
+						return_type,
+						llvm_create_call_inst(
+							builder, lhs->get_location(),
+							setitem_function,
+							llvm_args),
+						make_iid("array.index.assignment"));
 			}
-
-			if (expected_rhs_type == nullptr) {
-				throw user_error(get_location(), "unable to figure out the expected type of the right-hand side");
-			}
-
-			/* let's solve for the rhs */
-			bound_var_t::ref rhs_val = rhs->resolve_expression(builder, scope, life, false /*as_ref*/,
-					expected_rhs_type);
-
-			/* we have a rhs to assign into this lhs, let's find the function we should be calling to do
-			 * the update. */
-			std::vector<llvm::Value *> llvm_args = get_llvm_values(
-					builder, scope, life,
-					get_location(),
-					get_function_args_types(setitem_function->type),
-					{lhs_val, index_val, rhs_val});
-
-			bound_type_t::ref return_type = get_function_return_type(
-					builder,
-					scope,
-					setitem_function->type);
-			return bound_var_t::create(
-					INTERNAL_LOC(),
-					"array.index.assignment",
-					return_type,
-					llvm_create_call_inst(
-						builder, lhs->get_location(),
-						setitem_function,
-						llvm_args),
-					make_iid("array.index.assignment"));
-		}
 	}
 }
 
@@ -1723,6 +1742,8 @@ bool rnpbc_equality_is_truth(rnpbc_t rnpbc) {
 	case rnpbc_ineq:
 		return true;
 	}
+	panic("unreachable rnpbc_equality_is_truth");
+	return false;
 }
 
 bool rnpbc_rhs_non_null_is_truth(rnpbc_t rnpbc) {
@@ -1732,6 +1753,8 @@ bool rnpbc_rhs_non_null_is_truth(rnpbc_t rnpbc) {
 	case rnpbc_ineq:
 		return true;
 	}
+	panic("unreachable rnpbc_rhs_non_null_is_truth");
+	return false;
 }
 
 bool rnpbc_lhs_non_null_is_truth(rnpbc_t rnpbc) {
@@ -1741,6 +1764,8 @@ bool rnpbc_lhs_non_null_is_truth(rnpbc_t rnpbc) {
 	case rnpbc_ineq:
 		return true;
 	}
+	panic("unreachable rnpbc_lhs_non_null_is_truth");
+	return false;
 }
 
 bound_var_t::ref resolve_native_pointer_binary_compare(
@@ -2323,6 +2348,8 @@ const char *rctstr(rct_t rct) {
 	case rct_ternary:
 		return "ternary";
 	}
+	panic("unreachable rctstr");
+	return "";
 }
 
 
@@ -2662,11 +2689,10 @@ types::type_t::ref extract_matching_type(
 }
 
 bound_var_t::ref extract_member_variable(
-		
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		ast::item_t::ref node,
+		location_t location,
 		bound_var_t::ref bound_var,
 		std::string member_name,
 		bool as_ref,
@@ -2678,7 +2704,7 @@ bound_var_t::ref extract_member_variable(
 	bound_type_t::ref bound_obj_type = upsert_bound_type(builder, scope, expanded_type);
 
 	types::type_struct_t::ref struct_type = get_struct_type_from_bound_type(
-			scope, node->get_location(), bound_obj_type);
+			scope, location, bound_obj_type);
 	debug_above(5, log(log_info, "looking for member " c_id("%s") " in %s", member_name.c_str(),
 				bound_obj_type->str().c_str()));
 
@@ -2702,13 +2728,13 @@ bound_var_t::ref extract_member_variable(
 					llvm_print(bound_var->type->get_llvm_type()).c_str()));
 
 		return extract_member_by_index(builder, scope, 
-				life, node->get_location(), bound_var, bound_obj_type, index,
+				life, location, bound_var, bound_obj_type, index,
 				member_name, as_ref, expected_type);
 
 	} else {
 		auto bindings = scope->get_type_variable_bindings();
 		auto full_type = bound_var->type->get_type()->rebind(bindings);
-		auto error = user_error(node->get_location(),
+		auto error = user_error(location,
 				"%s has no dimension called " c_id("%s"),
 				full_type->str().c_str(),
 				member_name.c_str());
@@ -2786,7 +2812,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_expression(
 		return resolve_module_variable_reference(builder, scope, get_location(),
 				lhs_val->name, rhs.text, as_ref);
 	} else {
-		return extract_member_variable(builder, scope, life, shared_from_this(),
+		return extract_member_variable(builder, scope, life, get_location(),
 				lhs_val, rhs.text, as_ref, expected_type);
 	}
 }
@@ -4165,6 +4191,21 @@ void ast::if_block_t::resolve_statement(
 			condition->get_location(), condition_value, false /*allow_maybe_check*/,
 			then_bb, else_bb);
 
+	/* let's generate code for the "then" block */
+	builder.SetInsertPoint(then_bb);
+	cond_life->release_vars(builder, scope, lf_statement);
+
+	block->resolve_statement(builder,
+			scope_if_true ? scope_if_true : scope, life, nullptr, &if_block_returns);
+
+	if (!if_block_returns) {
+		insert_merge_bb = true;
+		if (!builder.GetInsertBlock()->getTerminator()) {
+			builder.CreateBr(merge_bb);
+		}
+		builder.SetInsertPoint(merge_bb);
+	}
+
 	builder.SetInsertPoint(else_bb);
 
 	if (else_ != nullptr) {
@@ -4191,21 +4232,6 @@ void ast::if_block_t::resolve_statement(
 		if (!builder.GetInsertBlock()->getTerminator()) {
 			builder.CreateBr(merge_bb);
 		}
-	}
-
-	/* let's generate code for the "then" block */
-	builder.SetInsertPoint(then_bb);
-	cond_life->release_vars(builder, scope, lf_statement);
-
-	block->resolve_statement(builder,
-			scope_if_true ? scope_if_true : scope, life, nullptr, &if_block_returns);
-
-	if (!if_block_returns) {
-		insert_merge_bb = true;
-		if (!builder.GetInsertBlock()->getTerminator()) {
-			builder.CreateBr(merge_bb);
-		}
-		builder.SetInsertPoint(merge_bb);
 	}
 
 	if (insert_merge_bb) {
@@ -4484,15 +4510,11 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 							make_code_id(token))});
 		}
 		break;
+
     case tk_string:
-		{
-			bound_type_t::ref native_type = upsert_bound_type(builder, program_scope, type_ptr(type_id(make_iid(CHAR_TYPE))));
-			std::string value = unescape_json_quotes(token.text);
-			return bound_var_t::create(
-					INTERNAL_LOC(), "str_literal", native_type,
-					llvm_create_global_string(builder, value),
-					make_code_id(token));
-		}
+		debug_above(8, log_location(log_info, token.location, "creating string: %s", token.text.c_str()));
+		return create_global_str(builder, scope, token.location, unescape_json_quotes(token.text));
+
 	case tk_float:
 		{
 			bound_type_t::ref native_type = upsert_bound_type(builder, program_scope, type_id(make_iid(FLOAT_TYPE)));

@@ -1,5 +1,6 @@
 #pragma once
 #include "utils.h"
+#include "location.h"
 
 #ifdef __APPLE_API_UNSTABLE
 bool AmIBeingDebugged();
@@ -70,7 +71,7 @@ extern int __dbg_level;
 
 struct depth_guard_t {
 	int &depth;
-	depth_guard_t(int &depth, int max_depth);
+	depth_guard_t(location_t location, int &depth, int max_depth);
 	~depth_guard_t();
 };
 

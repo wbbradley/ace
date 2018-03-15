@@ -10,8 +10,11 @@ std::string location_t::filename_repr() const {
 	static char *cwd = (char *)calloc(4096, 1);
 	static unsigned cwdlen = 0;
 	if (cwd[0] == 0) {
-		getcwd(cwd, 4096);
-		cwdlen = strlen(cwd);
+		if (getcwd(cwd, 4096) == cwd) {
+			cwdlen = strlen(cwd);
+		} else {
+			panic("error when fussing with getcwd");
+		}
 	}
 
 	std::stringstream ss;

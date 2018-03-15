@@ -41,6 +41,27 @@ type type_info_t struct
 	var size      size_t
 	var name      *char
 
+type str_literal_t struct
+	let type_info *type_info_t
+	let mark int
+	let next null
+	let prev null
+	let allocation uint
+	## DATA
+	let buffer *owning_buffer_literal_t
+	let start uint
+	let length uint
+
+type owning_buffer_literal_t struct
+	let type_info *type_info_t
+	let mark int
+	let next null
+	let prev null
+	let allocation uint
+	## DATA
+	let raw *char
+	let length uint
+
 type type_info_offsets_t struct
 	var type_info_head type_info_t
 	var finalize_fn    def (v *var_t) void

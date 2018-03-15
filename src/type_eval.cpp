@@ -58,6 +58,8 @@ const char *id_from_tb(type_builtins_t tb) {
 	case tb_maybe:
 		return nullptr;
 	}
+	panic("unreachable id_from_tb");
+	return "";
 }
 
 namespace types {
@@ -258,9 +260,21 @@ namespace types {
 	}
 
 	type_t::ref type_and_t::eval_core(env_t::ref env, bool get_structural_type) const {
-		static auto false_type = type_id(make_iid("false"));
-		not_impl();
-		return false_type;
+		for (const auto &term : terms) {
+			auto evaled = term->eval(env, get_structural_type);
+			if (auto id = dyncast<const type_id_t>(evaled)) {
+				if (id->id->get_name() == TRUE_TYPE) {
+					continue;
+				} else if (id->id->get_name() == FALSE_TYPE) {
+					return type_false;
+				}
+			}
+			auto error = user_error(term->get_location(), "term %s does not evaluate to true or false (%s -> %s)",
+					term->str().c_str(), evaled->str().c_str());
+			error.add_info(location, "while evaluating %s", str().c_str());
+			throw error;
+		}
+		return type_true;
 	}
 
 	type_t::ref type_ptr_t::eval_core(env_t::ref env, bool get_structural_type) const {

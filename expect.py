@@ -73,7 +73,7 @@ def main():
     for expect in expects:
         expect = expect[len("# expect: "):]
 
-        msg = "Searching for %s in output from %s..." % (color(expect, "grey"), args.program)
+        msg = "Searching for %s in output from %s..." % (color(expect, "green"), args.program)
 
         if actual.find(expect) == -1:
             print(msg + color(" error", "red") + ".")
@@ -86,7 +86,7 @@ def main():
     for reject in rejects:
         reject = reject[len("# reject: "):]
 
-        msg = "Hoping to not see %s in output from %s..." % (color(reject, "grey"), args.program)
+        msg = "Hoping to not see %s in output from %s..." % (color(reject, "red"), args.program)
 
         if actual.find(reject) != -1:
             print(msg + color(" error", "red") + ".")

@@ -3,20 +3,10 @@ get posix
 
 def getcwd() str
 	cwd_utf8 := posix.getcwd(null)
-	if cwd_utf8 != null
-		cwd := str(mbstowcs(cwd_utf8))
-		posix.free(cwd_utf8)
-		return cwd
-	else
-		posix.puts("could not allocate enough memory to store the working directory!")
-		posix.exit(-1)
-		return null as str
+	assert(cwd_utf8 != null)
+	return str(OwningBuffer(cwd_utf8))
 
 
 def getenv(name str) str?
-	let value = OwningBuffer(posix.getenv(wcstombs(name).raw))
-
-	if value != null
-		return str(mbstowcs(value.raw, value.length))
-	else
-		return null
+	let value = OwningBuffer(posix.getenv(name))
+	return value != null ? str(value) : null

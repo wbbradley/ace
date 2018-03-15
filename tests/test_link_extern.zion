@@ -24,7 +24,9 @@ def __finalize__(entry Entry)
 def get_name(entry Entry, default str) str
 	let name = get_name(entry.entry)
 	if name != null
-		return __box__(name)
+		name_copy := posix.strdup(name)
+		assert(name_copy != null)
+		return str(OwningBuffer(name_copy))
 	else
 		return default
 

@@ -9,7 +9,7 @@ def get_2(n int) str
 	return n
 
 def get_3() int
-	# error: 13:2.* return expression type \*char does not match int
+	# error: 13:2.* return expression type str does not match int
 	return "hey"
 
 def main()

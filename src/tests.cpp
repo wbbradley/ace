@@ -528,6 +528,8 @@ const char *tosstr(test_output_source_t tos) {
 	case tos_compiler_error:
 		return c_error("compiler error");
 	}
+	panic("unreachable");
+	return "";
 }
 
 bool check_output_contains(test_output_source_t tos, std::string output, std::string expected, bool use_regex) {
@@ -933,7 +935,6 @@ auto test_descs = std::vector<test_desc>{
 				{"*char", "*char"},
 				{"*char or *char", "*char"},
 				{"*char or *char or *char", "*char"},
-				{"*wchar", "*wchar"},
 				{"*?char", "*?char"},
 				{"*?char or int", "(Int or str)?"},
 				{"integer(8, true)?", "Int?"},
@@ -1309,7 +1310,7 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_code_gen_renders_function",
 		[] () -> bool {
-			return check_code_gen_emitted("test_puts_emit", "declare i64 @puts");
+			return check_code_gen_emitted("test_puts_emit", "declare i32 @puts");
 		}
 	},
 
@@ -1379,7 +1380,7 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 					/* create a test_desc of this file */
 					test_desc test_desc = {
 						name,
-						[ext_regex, tests_errors_dir, name, &skipped] () {
+						[tests_errors_dir, name, &skipped] () {
 							auto filename = tests_errors_dir + "/" + name;
 							note_logger note_logger(string_format("testing " C_FILENAME " %s " C_RESET "...",
 										filename.c_str()));

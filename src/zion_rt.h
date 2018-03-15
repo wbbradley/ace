@@ -14,6 +14,7 @@ typedef double zion_float_t;
 #include <assert.h>
 #include <signal.h>
 #include <locale.h>
+#include <langinfo.h>
 #include "colors.h"
 #include "type_kind.h"
 

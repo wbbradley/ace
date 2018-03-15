@@ -1,9 +1,9 @@
 module _
 # test: pass
 
-link def wprintf(format *wchar, s1 *wchar) int
+link def printf(format *char, s1 *char) int
 
 def main() int
-	wprintf(c_str(str("%S\n")).raw, c_str(str("hey")).raw)
-	wprintf(c_str(str("%S\n")).raw, c_str(str(10 + 3.4)).raw)
+	printf("%s\n", "hey")
+	printf("%s\n", str(10 + 3.4))
 	return 1

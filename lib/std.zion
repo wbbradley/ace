@@ -6,7 +6,6 @@ get buffer
 get bool
 get bytes
 get str
-get utf8
 get int
 get float
 get vector
@@ -26,76 +25,28 @@ var stderr *posix.FILE = posix.fdopen(2, "a")!
 # initialization of modules is automatically generated.
 # link def __init_modules() void
 
-def mbstowcs(s utf8) OwningBuffer wchar
-	return mbstowcs(unsafe_access(s), s.length)
-
-def mbstowcs(mbs *char) OwningBuffer wchar
-	# Converts from current locale's encoding to wide-char encoding. Allocates memory that
-	# must be freed later.
-	let mbslen = posix.strlen(mbs)
-	return mbstowcs(mbs, mbslen)
-
-def mbstowcs(mbs *char, mbslen uint) OwningBuffer wchar
-	let characters = posix.mbstowcs(null, mbs, 0)
-	if characters == -1
-		posix.puts("Failed to convert string from multi-byte to wide char!")
-		posix.exit(1)
-	let cb = sizeof(wchar) * (characters + 1)
-	let wcs = posix.malloc(cb) as *?wchar
-	assert(wcs != null)
-
-	posix.mbstowcs(wcs, mbs, characters)
-	wcs[characters] = 0
-
-	return OwningBuffer(wcs, characters)
-
-def wcstombs(s str) OwningBuffer char
-	return wcstombs(unsafe_access(s), s.length)
-
-def wcstombs(wcs *wchar) OwningBuffer char
-	# Converts from wide char encoding to current locale's encoding
-	# must be freed later.
-	let wcslen = posix.wcslen(wcs)
-	return wcstombs(wcs, wcslen)
-
-def wcstombs(wcs *wchar, wcslen uint) OwningBuffer char
-	let characters = posix.wcstombs(null, wcs, wcslen)
-	if characters == -1
-		posix.puts("Failed to convert string from wide char to multi-byte!")
-		breakpoint()
-		posix.exit(1)
-
-	let cb = sizeof(char) * (characters + 1)
-	let mbs = posix.malloc(cb) as *?char
-	assert(mbs != null)
-
-	posix.wcstombs(mbs, wcs, characters)
-	mbs[characters] = 0
-
-	return OwningBuffer(mbs, characters)
-
 def print[T where is_maybe T](x T) void
 	if x != null
 		print(x)
 	else
 		write(stdout, "<null>\n")
 
-def print[T where not(is_maybe T)](x T) void
+def print[T where not (is_maybe T) and (not (T <: str))](x T) void
 	write(stdout, str(x))
+	write(stdout, "\n")
+
+def print[T where not(is_maybe T) and (T <: str)](x T) void
+	write(stdout, x)
 	write(stdout, "\n")
 
 def panic(x str) void
 	write(stderr, x)
 	posix.exit(-1)
 
-def panic(x utf8) void
-	write(stderr, x)
-	posix.exit(-1)
-
 tag NoLF
 
 def print(x, _ NoLF) void
-	posix.fputs(utf8(str(x)).raw, stdout)
+	write(stdout, str(x))
 
 def breakpoint() void
 	posix.raise(posix.SIGTRAP)
@@ -152,9 +103,9 @@ def input() str?
 	var lim = posix.strlen(buf) - 1
 	while lim >= 0 and posix.isspace(buf[lim])
 		lim -= 1
-	buf[lim + 1] = 0
+	length := lim + 1
+	buf[length] = 0
 
-	ret := str(mbstowcs(buf, lim + 1))
-	posix.free(buf)
+	ret := str(OwningBuffer(buf, length), 0, length)
 	# runtime.gc()
 	return ret
