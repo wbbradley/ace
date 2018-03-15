@@ -7,7 +7,6 @@
 
 bool function_exists_in(bound_var_t::ref fn, const fittings_t &fittings) {
     for (auto fitting : fittings) {
-        assert(fitting.fn->name == fn->name);
         if (fitting.fn->get_signature() == fn->get_signature()) {
             return true;
         }

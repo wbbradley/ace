@@ -33,7 +33,7 @@ def hash(input_ str) bytes
 	assert(out != null)
 	crypto_generichash(out.data, out.cb,
 		unsafe_access(input_) as *uint8,
-		sizeof(wchar) * input_.length, null, 0)
+		sizeof(char) * input_.length, null, 0)
 	return out
 	
 	

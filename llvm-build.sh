@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 function require() {
@@ -11,7 +11,7 @@ require git --version
 
 # Specify which version of LLVM you'd like to use (corresponds to branch names in
 # https://github.com/llvm-mirror/... repos.)
-RELEASE=release_40
+RELEASE=release_50
 
 # We need to make sure you have the LLVM sources.
 mkdir -p $HOME/src
@@ -26,10 +26,11 @@ function enlist() {
 		git clone git@github.com:llvm-mirror/$1 $2
 	else
 		echo $2 already exists, skipping cloning $1 into it...
+		(cd $2 && git fetch)
 	fi
 
 	cd $2
-	git checkout $RELEASE
+	git checkout -B $RELEASE origin/$RELEASE
 }
 
 # Get the sources

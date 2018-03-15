@@ -238,9 +238,6 @@ unification_t unify_core(
 				return {true, "", bindings, coercions + 1, {}};
 			} else if (ptI_b != nullptr && a_name == MANAGED_CHAR) {
 				return {true, "", bindings, coercions + 1, {}};
-			} else if (a_name == MANAGED_STR && types::is_ptr_type_id(b, CHAR_TYPE, nullptr)) {
-				/* we should be able to convert a *char_t to a str */
-				return {true, "", bindings, coercions + 1, {}};
 			}
 		}
 	}
@@ -520,6 +517,12 @@ unification_t unify_core(
 		if (types::is_type_id(a_element_type, STD_MANAGED_TYPE, nullptr)) {
 			if (types::is_managed_ptr(b, env)) {
 				/* any managed pointer can be coerced to *var_t */
+				return {true, "", bindings, coercions + 1, {}};
+			}
+		}
+
+		if (depth == 0 && types::is_type_id(a_element_type, CHAR_TYPE, nullptr)) {
+			if (types::is_type_id(b, MANAGED_STR, nullptr)) {
 				return {true, "", bindings, coercions + 1, {}};
 			}
 		}

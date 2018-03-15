@@ -426,10 +426,12 @@ namespace ast {
 						eat_token();
 						auto array_index_expr = create<ast::array_index_expr_t>(ps.token);
 
-						auto index = expression_t::parse(ps);
-						array_index_expr->index.swap(index);
-						array_index_expr->lhs.swap(expr);
-						assert(expr == nullptr);
+						array_index_expr->lhs = expr;
+						array_index_expr->start = expression_t::parse(ps);
+						if (ps.token.tk == tk_colon) {
+							ps.advance();
+							array_index_expr->stop = expression_t::parse(ps);
+						}
 						expr = array_index_expr;
 						chomp_token(tk_rsquare);
 						break;
@@ -821,7 +823,7 @@ ptr<expression_t> ternary_expr_t::parse(parse_state_t &ps) {
 		auto truthy_expr = or_expr_t::parse(ps);
 		expect_token(tk_colon);
 		ps.advance();
-		auto falsey_expr = or_expr_t::parse(ps);
+		auto falsey_expr = expression_t::parse(ps);
 		auto ternary = ast::create<ternary_expr_t>(condition->token);
 		ternary->condition = condition;
 		ternary->when_true = truthy_expr;

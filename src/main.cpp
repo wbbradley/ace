@@ -44,13 +44,20 @@ int run_program(std::string executable, std::vector<const char *> args)  {
 		}
 	} else {
 		/* child */
-		execvp(executable.c_str(), (char **)&args[0]);
+		execvp(executable.c_str(), const_cast<char **>(&args[0]));
 	}
 
 	return 0;
 }
 
+void handle_sigint(int sig) {
+	print_stacktrace(stderr, 100);
+	exit(2);
+}
+		
+		
 int main(int argc, char *argv[]) {
+	signal(SIGINT, &handle_sigint);
 	init_dbg();
 	ptr<logger> logger(make_ptr<standard_logger>("", "."));
     std::string cmd;

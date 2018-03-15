@@ -212,11 +212,6 @@ void add_global_types(
 					type_id(make_iid("module")),
 				   	INTERNAL_LOC(),
 				   	builder.getVoidTy())},
-		{{WCHAR_TYPE},
-		   	bound_type_t::create(
-					type_id(make_iid(WCHAR_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getInt32Ty())},
 		{{CHAR_TYPE},
 		   	bound_type_t::create(
 					type_id(make_iid(CHAR_TYPE)),
@@ -252,16 +247,6 @@ void add_global_types(
 					type_ptr(type_ptr(type_id(make_iid(CHAR_TYPE)))),
 				   	INTERNAL_LOC(),
 				   	builder.getInt8Ty()->getPointerTo()->getPointerTo())},
-		{{WCS_TYPE},
-		   	bound_type_t::create(
-					type_ptr(type_id(make_iid(WCHAR_TYPE))),
-				   	INTERNAL_LOC(),
-				   	builder.getInt32Ty()->getPointerTo())},
-		{{PTR_TO_WCS_TYPE},
-		   	bound_type_t::create(
-					type_ptr(type_ptr(type_id(make_iid(WCHAR_TYPE)))),
-				   	INTERNAL_LOC(),
-				   	builder.getInt32Ty()->getPointerTo()->getPointerTo())},
 	};
 
 	program_scope->put_nominal_typename(MANAGED_BOOL,

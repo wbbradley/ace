@@ -675,7 +675,7 @@ bound_type_t::ref upsert_bound_type(
 {
 	static int depth = 0;
 
-	depth_guard_t depth_guard(depth, 10);
+	depth_guard_t depth_guard(type->get_location(), depth, 10);
 
 	if (auto lazy = dyncast<const types::type_lazy_t>(type)) {
 		type = type->eval(scope);

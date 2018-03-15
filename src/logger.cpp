@@ -26,8 +26,7 @@ void log_enable(int log_level) {
 logger *_logger = nullptr;
 
 const char *level_color(log_level_t ll) {
-	switch (ll)
-	{
+	switch (ll) {
 	case log_info:
 		return C_INFO;
 	case log_warning:
@@ -37,6 +36,7 @@ const char *level_color(log_level_t ll) {
 	case log_panic:
 		return C_PANIC;
 	}
+	return "";
 }
 
 const char *logstr(log_level_t ll) {
@@ -51,6 +51,7 @@ const char *logstr(log_level_t ll) {
 	case log_panic:
 		return "panic: ";
 	}
+	return "";
 }
 
 void write_log_streamv(std::ostream &os, log_level_t level, const location_t *location, const char *format, va_list args) {

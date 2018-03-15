@@ -217,7 +217,11 @@ namespace ast {
 	void array_index_expr_t::render(render_state_t &rs) const {
 		lhs->render(rs);
 		rs.ss << "[";
-		index->render(rs);
+		start->render(rs);
+		if (stop != nullptr) {
+			rs.ss << ":";
+			stop->render(rs);
+		}
 		rs.ss << "]";
 	}
 

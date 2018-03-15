@@ -5,4 +5,3 @@ get json
 
 def main()
 	let o = json.json_object()
-	assert(o != null)

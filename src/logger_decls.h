@@ -22,3 +22,4 @@ void log_dump();
 void write_fp(FILE *fp, const char *format, ...);
 
 bool check_errno(const char *tag);
+void print_stacktrace(FILE *p_out, unsigned int p_max_frames);

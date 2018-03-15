@@ -5,15 +5,15 @@ link in "m"
 link in "rt_posix.o"
 
 link def getenv(x *char) *?char
-link def puts(x *char) int
-link def fputs(x *char, fp *FILE) int
-link def fprintf(fp *FILE, fmt *char, s *char) int to fprintf
-link def putchar(x int) int
-link def perror(x *char) int
-link def open(path *char, oflag int) int
-link def close(fd int) int
-link def read(fileds int, buf *void, nbytes size_t) ssize_t
-link def write(fileds int, buf *void, nbytes size_t) ssize_t
+link def puts(x *char) posix_int
+link def fputs(x *char, fp *FILE) posix_int
+link def fprintf(fp *FILE, fmt *char, s *char) posix_int to fprintf
+link def putchar(x int) posix_int
+link def perror(x *char) posix_int
+link def open(path *char, oflag posix_int) posix_int
+link def close(fd posix_int) posix_int
+link def read(fileds posix_int, buf *void, nbytes size_t) ssize_t
+link def write(fileds posix_int, buf *void, nbytes size_t) ssize_t
 link def calloc(cb size_t, size size_t) *?void
 link def malloc(cb size_t) *?void
 link def realloc(ptr *void, cb size_t) *?void
@@ -22,42 +22,36 @@ link def memmove(dst *void, src *void, n size_t) *void
 link def free(pb *?void) void
 link def strdup(s *char) *?char
 link def strndup(s *char, n size_t) *?char
-link def strcmp(x *char, y *char) int
-link def strncmp(x *char, y *char, n size_t) int
+link def strcmp(x *char, y *char) posix_int
+link def strncmp(x *char, y *char, n size_t) posix_int
 link [global] def sqrt(x float) float
 link def arc4random_stir() void
-link def arc4random_buf(dst *void, cb size_t) int
-link def exit(code int) void
-link def getch() int
+link def arc4random_buf(dst *void, cb size_t) posix_int
+link def exit(code posix_int) void
+link def getch() posix_int
 link def getcwd(_ null) *?char
-link def fchdir(filedes int) int
-link def raise(signal int) int
+link def fchdir(filedes posix_int) posix_int
+link def raise(signal posix_int) posix_int
 link def fopen(fn *char, mode *char) *?FILE
-link def fdopen(fd int, mode *char) *?FILE
+link def fdopen(fd posix_int, mode *char) *?FILE
 link def fwrite(p *void, size size_t, nitems size_t, stream *FILE) size_t
 link def fread(p *void, size size_t, nitems size_t, stream *FILE) size_t
-link def ftell(stream *FILE) int
+link def ftell(stream *FILE) posix_int
 link def feof(stream *FILE) bool
 link def ferror(stream *FILE) bool
-link def fseek(stream *FILE, offset int, whence int) int
-link def fclose(fp *FILE) int
-link def getline(linep **?char, linecapp *int, fp *FILE) int
+link def fseek(stream *FILE, offset posix_int, whence posix_int) posix_int
+link def fclose(fp *FILE) posix_int
+link def getline(linep **?char, linecapp *posix_int, fp *FILE) posix_int
 link def strlen(s *char) size_t
-link def putw(wch wchar, fp *FILE) int
-link def mbstowcs(wcs *?wchar, mbs *char, mbslen size_t) size_t
-link def wcscmp(x *wchar, y *wchar) int
-link def wcsdup(s *wchar) *?wchar
-link def wcslen(wcs *wchar) size_t
-link def wcstombs(mbs *?char, wcs *wchar, wcslen size_t) size_t
-link def wmemcmp(x1 *wchar, x2 *wchar, n uint) int
-link def errno() int to __posix_errno
-link def iswspace(wch wchar) bool
+link def errno() posix_int to __posix_errno
 link def isspace(ch char) bool
+
+type posix_int = int32
 
 type FILE struct
 
 # TODO: implement let-refs for module variables
-var SEEK_SET int = 0
-var SEEK_END int = 2
-var SIGTRAP int = 5
-var SIGKILL int = 9
+var SEEK_SET posix_int = 0
+var SEEK_END posix_int = 2
+var SIGTRAP posix_int = 5
+var SIGKILL posix_int = 9

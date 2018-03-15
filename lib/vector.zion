@@ -80,7 +80,8 @@ def join[T](v [T], delim str) str
 		i += 1
 
 	# allocate our resultant string
-	let buf *wchar = posix.malloc(sizeof(wchar) * (total_len + 1))! as *wchar
+	buf := posix.malloc(sizeof(char) * (total_len + 1)) as *?char
+	assert(buf != null)
 
 	# iterate over the elements and append them to our resultant string
 	var pos = 0
@@ -88,18 +89,18 @@ def join[T](v [T], delim str) str
 	while i < vec.size
 		if i > 0
 			# insert a delim if necessary
-			posix.memcpy(&buf[pos], unsafe_access(delim), sizeof(wchar) * delim_len)
+			posix.memcpy(&buf[pos], unsafe_access(delim), sizeof(char) * delim_len)
 			pos += delim_len
 
 		# insert a string
 		let s_len = strs[i].length
-		posix.memcpy(&buf[pos], unsafe_access(strs[i]), sizeof(wchar) * s_len)
+		posix.memcpy(&buf[pos], unsafe_access(strs[i]), sizeof(char) * s_len)
 
 		pos += s_len
 		i += 1
 
 	buf[pos] = 0
-	return str(buf)
+	return str(OwningBuffer(buf))
 
 [global]
 def __getitem__[T](vec [T], index int) T

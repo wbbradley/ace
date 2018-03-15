@@ -1,6 +1,6 @@
 global
 
-link def hexdigit(val int) wchar
+link def hexdigit(val int) char
 
 type bytes has
 	let data *int8
@@ -26,16 +26,16 @@ def hexdigest(b bytes) str
 	return hexdigest(b.data, b.cb)
 
 def hexdigest(data *void, cb size_t) str
-	let s = posix.malloc(sizeof(wchar) * (cb * 2 + 1))! as *wchar
+	let s = posix.malloc(sizeof(char) * (cb * 2 + 1))! as *char
 	iter := data as *uint8
 	var j = 0
 	for i in range(cb)
 		# append to our hexdigest
-		s[j] = hexdigit((iter[i] >> 4) as int) as wchar
-		s[j + 1] = hexdigit((iter[i] & 15) as int) as wchar
+		s[j] = hexdigit((iter[i] >> 4) as int)
+		s[j + 1] = hexdigit((iter[i] & 15) as int)
 
 		# advance iteration
 		j += 2
 
-	s[j] = 0 as wchar
-	return str(s)
+	s[j] = 0
+	return str(OwningBuffer(s))

@@ -272,7 +272,7 @@ namespace types {
 		parens_t parens(os, parent_precedence, get_precedence());
 
 		lhs->emit(os, bindings, get_precedence());
-		os << " " << tkstr(tk_subtype) << " ";
+		os << " <: ";
 		return rhs->emit(os, bindings, get_precedence());
 	}
 
@@ -812,7 +812,7 @@ namespace types {
 		for (auto term : terms) {
 			os << delim;
 			term->emit(os, bindings, get_precedence());
-			delim = " or ";
+			delim = " and ";
 		}
 		return os;
 	}
@@ -843,7 +843,7 @@ namespace types {
 		for (auto term : terms) {
 			type_options.push_back(term->rebind(bindings));
 		}
-		return ::type_sum(type_options, location);
+		return ::type_and(type_options);
 	}
 
 	location_t type_and_t::get_location() const {
@@ -1293,7 +1293,8 @@ namespace types {
 		}
 	}
 
-	bool is_integer(type_t::ref type, env_t::ref env) {
+	bool is_integer(type_t::ref type, env_t::ref _env) {
+		auto env = (_env == nullptr) ? _empty_env : _env;
 		auto expansion = type->eval(env);
 		return dyncast<const type_integer_t>(expansion) != nullptr;
 	}
@@ -1319,10 +1320,6 @@ namespace types {
 				throw user_error(integer->signed_->get_location(), "unable to determine signedness for type from %s",
 						signed_type->str().c_str());
 			}
-		} else if (types::is_type_id(type, WCHAR_TYPE, nullptr)) {
-			bit_size = 32;
-			signed_ = false;
-			return;
 		} else if (types::is_type_id(type, CHAR_TYPE, nullptr)) {
 			bit_size = 8;
 			signed_ = false;
@@ -1477,6 +1474,10 @@ void expand_options(
 		env_t::ref env,
 		std::set<std::string> &visited)
 {
+	assert(new_options.size() != 0);
+	static int depth = 0;
+	depth_guard_t depth_guard(new_options[0]->get_location(), depth, 10);
+
 	for (auto option : new_options) {
 		auto evaled = option->eval(env);
 		auto repr = evaled->repr();

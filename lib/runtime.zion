@@ -15,15 +15,14 @@ link var llvm_gc_root_chain *stack_entry_t
 var __head_var *var_t = __create_head_var()
 
 var __debug_zion_runtime bool = false
-var _zion_rt *char = "zion-rt: "
 
-var TYPE_KIND_TAG int32 = 0 as int32
+var TYPE_KIND_NO_GC int32 = 0 as int32
 var TYPE_KIND_USE_OFFSETS int32 = 1 as int32
 var TYPE_KIND_USE_MARK_FN int32 = 2 as int32
 
-def on_assert_failure(msg *char) void
+def on_assert_failure(msg str) void
 	# called when assertions fail
-	posix.puts(msg)
+	posix.puts(c_str(msg).raw)
 	posix.raise(posix.SIGTRAP)
 
 def get_member_by_index(v *var_t, index int) *?var_t
@@ -49,16 +48,10 @@ var _bytes_allocated size_t = 0
 var _all_bytes_allocated size_t = 0
 var _var_allocation uint = 0
 
-def mem_alloc(cb size_t, comment *char) *?void
+def mem_alloc(cb size_t) *?void
 	runtime._bytes_allocated += cb
 	runtime._all_bytes_allocated += cb
-	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
-
-	# posix.puts("allocating ")
-	# posix.puts(__str__(cb))
-	pb := posix.calloc(cb, 1 as size_t)
-	# posix.puts("allocated 0x" + __str__(pb as int, 16) + " (" + __str__(cb) + " bytes) for " + comment)
-	return pb
+	return posix.calloc(cb, 1)
 
 def mem_free(p *void, cb size_t) void
 	_bytes_allocated -= cb
@@ -164,7 +157,7 @@ def get_var_type_id(v *var_t) typeid
 	return v.type_info.type_id as typeid
 
 def __create_head_var() *var_t
-	p := mem_alloc(sizeof(var_t), "__create_head_var") as *?var_t
+	p := mem_alloc(sizeof(var_t)) as *?var_t
 	assert(p != null)
 	runtime._var_allocation += 1 as size_t
 	p.allocation = runtime._var_allocation
@@ -190,7 +183,7 @@ def create_var(type_info *type_info_t) *var_t
 
 	# allocate the variable tracking object
 	alloc_size := type_info.size
-	obj := mem_alloc(alloc_size, type_info.name) as *?var_t
+	obj := mem_alloc(alloc_size) as *?var_t
 	assert(obj != null)
 
 	obj.type_info = type_info
@@ -266,15 +259,15 @@ def mark_allocation(obj *?var_t)
 
 	# posix.puts("marking allocation at 0x" + __str__(obj as int, 16) + " of type " + obj.type_info.name)
 
-	# mark this node in the heap so that we break any potential cycles
-	obj.mark = 1
-
 	type_kind := obj.type_info.type_kind
 
-	if type_kind == runtime.TYPE_KIND_TAG
+	if type_kind == runtime.TYPE_KIND_NO_GC
 		# tags don't have dependencies
 		return
 	elif type_kind == runtime.TYPE_KIND_USE_OFFSETS
+		# mark this node in the heap so that we break any potential cycles
+		obj.mark = 1
+
 		var type_info_offsets *type_info_offsets_t = obj.type_info as *type_info_offsets_t
 
 		# we may be holding on to child nodes, let's recurse.
@@ -286,7 +279,11 @@ def mark_allocation(obj *?var_t)
 			var child *?var_t = get_member_by_index(obj, j)
 			mark_allocation(child)
 			j += 1
+
 	elif type_kind == runtime.TYPE_KIND_USE_MARK_FN
+		# mark this node in the heap so that we break any potential cycles
+		obj.mark = 1
+
 		# call the type's mark function to recurse
 		type_info_mark_fn := obj.type_info as *type_info_mark_fn_t
 		type_info_mark_fn.mark_fn(obj)
@@ -303,7 +300,7 @@ def clear_mark_bit(obj *var_t)
 def finalize(obj *var_t)
 	type_kind := obj.type_info.type_kind
 
-	if type_kind == runtime.TYPE_KIND_TAG
+	if type_kind == runtime.TYPE_KIND_NO_GC
 		# tags can't have finalizers
 		return
 	elif type_kind == runtime.TYPE_KIND_USE_OFFSETS

@@ -150,6 +150,7 @@ or llvm tools, etc...
   allowed?
 - [ ] Implement fast range(i)
 - [ ] Consider uniform calling syntax for .-chaining and how to acheive customizable monadic behaviors by looking at the receiver
+- [ ] Automatically configure default POSIX/C/System "int" size on first boot of compiler
 - [ ] Use DIBuilder to add line-level debugging information
 - [ ] Consider implementing a macro specifier for declaring macros which would expand inline and have hygenic names
 - [ ] Implement an inline directive to mark functions for inline expansion during optimization

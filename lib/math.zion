@@ -35,6 +35,7 @@ def abs[T](x T) T
 	else
 		return x
 
+[global]
 def min[T](x T, y T) T
 	if x < y
 		return x

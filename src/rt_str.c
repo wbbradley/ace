@@ -4,9 +4,9 @@
 #include <errno.h>
 #include "zion_rt.h"
 
-zion_int_t __errno() {
-	return errno;
-}
+#undef int
+#undef float
+#undef double
 
 void __set_locale__() {
 #ifdef __linux__
@@ -19,6 +19,19 @@ void __set_locale__() {
 		printf("failed to set ctype locale to %s\n", ZION_LOCALE);
 		exit(1);
 	}
+
+	if (strcmp(nl_langinfo(CODESET), "UTF-8") != 0) {
+		printf("Process locale is not set to UTF-8\nExiting...");
+		exit(1);
+	}
+}
+
+#define int do_not_use_int
+#define float do_not_use_float
+#define double do_not_use_double
+
+zion_int_t __errno() {
+	return errno;
 }
 
 void mem_dump(void *addr, zion_int_t cb) {

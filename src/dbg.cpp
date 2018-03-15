@@ -34,11 +34,10 @@ void _emit_assert(
     DEBUG_BREAK();
 }
 
-depth_guard_t::depth_guard_t(int &depth, int max_depth) : depth(depth) {
+depth_guard_t::depth_guard_t(location_t location, int &depth, int max_depth) : depth(depth) {
 	++depth;
 	if (depth > max_depth) {
-		std::cerr << c_error("maximum depth reached") << std::endl;
-        DEBUG_BREAK();
+		throw user_error(location, "maximum recursion depth reached");
 	}
 }
 

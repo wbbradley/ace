@@ -46,6 +46,7 @@ void add_default_type_macros(type_macros_t &type_macros) {
 		/* managed bool is a special case, and should be the only managed type in the default type
 		 * macros until type parsing gets much more sophisticated. */
 		MANAGED_BOOL,
+		MANAGED_STR,
 
 		BOOL_TYPE,
 		INT_TYPE,
@@ -53,7 +54,6 @@ void add_default_type_macros(type_macros_t &type_macros) {
 		FALSE_TYPE,
 		NULL_TYPE,
 		VOID_TYPE,
-		WCHAR_TYPE,
 		FLOAT_TYPE,
 		CHAR_TYPE,
 		TYPE_OP_IF,
