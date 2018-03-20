@@ -182,25 +182,23 @@ $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_OBJE
 
 $(BUILD_DIR)/%.o: src/%.cpp
 	@echo Compiling $<
-	@echo $(CPP) $(CPP_FLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@
 	@$(CPP) $(CPP_FLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	echo $(CPP) $(CPP_FLAGS) $< -o $@
-	$(CPP) $(CPP_FLAGS) $< -o $@
+	@$(CPP) $(CPP_FLAGS) $< -o $@
 
 $(BUILD_DIR)/tests/%.o: tests/%.c
 	@-mkdir -p $(@D)
 	@echo Compiling $<
-	$(CC) $(CFLAGS) $< -o $@
+	@$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/%.o: src/%.c
 	@echo Compiling $<
 	@$(CC) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	$(CC) $(CFLAGS) $< -o $@
+	@$(CC) $(CFLAGS) $< -o $@
 
 %.o: src/%.c
 	@echo Compiling $<
 	@$(CC) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
-	$(CC) $(CFLAGS) $< -o $@
+	@$(CC) $(CFLAGS) $< -o $@
 
 %.llir: %.c zion_rt.h
 	@echo Emitting LLIR from $<

@@ -2568,8 +2568,8 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 				condition->get_location(),
 				ternary_type->get_type(),
 				true_path_value);
+		llvm_phi_node->addIncoming(llvm_truthy_path_value, builder.GetInsertBlock());
 	}
-	llvm_phi_node->addIncoming(llvm_truthy_path_value, then_bb);
 
 	llvm::Value *llvm_false_path_value = nullptr;
 	/* BLOCK */ {
@@ -2593,9 +2593,8 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 				condition->get_location(),
 				ternary_type->get_type(),
 				false_path_value);
+		llvm_phi_node->addIncoming(llvm_false_path_value, builder.GetInsertBlock());
 	}
-
-	llvm_phi_node->addIncoming(llvm_false_path_value, else_bb);
 
 	debug_above(6, log("ternary expression resolved to type %s",
 				ternary_type->str().c_str()));
