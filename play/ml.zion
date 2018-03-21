@@ -2,15 +2,23 @@ module _
 
 get sys
 
-type Node is Symbol
+type Node is Symbol or Operator
+
+[global]
+def str(n Node) str
+	when n
+		is Symbol
+			return "Symbol(" + n.s + ", " + n.pos + ")"
+		is Operator
+			return "Operator(" + n.s + ", " + n.pos + ")"
 
 type Symbol has
 	let s str
 	let pos uint
 
-[global]
-def str(symbol Symbol) str
-	return "Symbol(" + symbol.s + ", " + symbol.pos + ")"
+type Operator has
+	let s str
+	let pos uint
 
 type ParseState has
 	let s str
@@ -18,14 +26,31 @@ type ParseState has
 
 type Parser = def (ps ParseState) (Node?, ParseState)
 
+var operator_chars str = "`!@#$%^&*()-=_+{}[]|\\:;,.<>?/"
+
 def parse_symbol(ps ParseState) (Node?, ParseState)
-	start := ps.i
-	var i = ps.i
-	while posix.isalpha(ps.s[i])
+	var start = ps.i
+	while start < len(ps.s) and isspace(ps.s[start])
+		start += 1
+	var i = start
+	while i < len(ps.s) and isalpha(ps.s[i])
 		i += 1
 
 	if start != i
 		return (Symbol(ps.s[start:i], start), ParseState(ps.s, i))
+	else
+		return (null, ps)
+
+def parse_operator(ps ParseState) (Node?, ParseState)
+	var start = ps.i
+	while start < len(ps.s) and isspace(ps.s[start])
+		start += 1
+	var i = start
+	while i < len(ps.s) and ps.s[i] in operator_chars
+		i += 1
+
+	if start != i
+		return (Operator(ps.s[start:i], start), ParseState(ps.s, i))
 	else
 		return (null, ps)
 
@@ -34,23 +59,6 @@ def parse(text str, parser Parser) Node?
 	return pair[0]
 	
 def main()
-	l := str("hay")[0:1]
-	print(l.length)
-	let characters = posix.wcstombs(
-		null,
-		&l.buffer.raw[l.start],
-		0)
-	print(characters)
-	buffer := wcstombs(&l.buffer.raw[l.start], l.length)
-	print(buffer.length)
-	assert(buffer.length == 1)
-	u := utf8(buffer)
-	assert(u.length == 1)
-	print(l)
-
-	return
-
-def foo()
 	result := readbytes(open("play/test.ml", "rt"))
 	assert(result != null)
 
@@ -58,7 +66,6 @@ def foo()
 		is bytes
 			let s str = decode(result, "utf8") or "FAIL"
 			print(s, NoLF)
-			print("Parsing...")
 			print(parse(s, parse_symbol))
 		is file.Error
 			panic("Error!!")

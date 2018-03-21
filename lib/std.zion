@@ -12,6 +12,7 @@ get vector
 get map
 get math
 get file
+get crypto
 
 link in "rt_typeid.o"
 
@@ -93,7 +94,7 @@ def __iterate__(i IntRangeIter)
 def __iter_item__(i IntRangeIter) int
 	return i.pos
 
-def input() str?
+def readline() str?
 	var buf *?char
 	var linecap int = 0
 

@@ -1,7 +1,5 @@
 module _
 
-get crypto
-
 def main()
-	hash := crypto.hash("blah")
+	hash := hash("blah")
 	print(hexdigest(hash))
