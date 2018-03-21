@@ -18,6 +18,7 @@ link def calloc(cb size_t, size size_t) *?void
 link def malloc(cb size_t) *?void
 link def realloc(ptr *void, cb size_t) *?void
 link def memcpy(dst *void, src *void, n size_t) *void
+link def memcmp(dst *void, src *void, n size_t) posix_int
 link def memmove(dst *void, src *void, n size_t) *void
 link def free(pb *?void) void
 link def strdup(s *char) *?char
@@ -44,7 +45,10 @@ link def fclose(fp *FILE) posix_int
 link def getline(linep **?char, linecapp *posix_int, fp *FILE) posix_int
 link def strlen(s *char) size_t
 link def errno() posix_int to __posix_errno
-link def isspace(ch char) bool
+link [global] def isspace(ch posix_int) bool
+link [global] def isalpha(ch posix_int) bool
+link [global] def isdigit(ch posix_int) bool
+link [global] def isnumber(ch posix_int) bool
 
 type posix_int = int32
 

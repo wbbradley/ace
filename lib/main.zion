@@ -2,7 +2,6 @@ module main
 
 get sys
 get posix
-get crypto
 
 link def __set_locale__() void
 

@@ -91,7 +91,7 @@ def __iterate__(fl Lines any)
 
 def readline(fp *posix.FILE) str or EOF or Error
 	var linecap = 0
-	var line = null as *?char
+	var line *?char = null
 	linelen := posix.getline(&line, &linecap, fp)
 	if linelen == -1
 		return EOF
@@ -100,8 +100,8 @@ def readline(fp *posix.FILE) str or EOF or Error
 
 	# make sure we strip the LF char
 	if linelen > 0
-		if line[linelen - 1] as int == 10
-			line[linelen - 1] = 0 as char
+		if line[linelen - 1] == 10
+			line[linelen - 1] = 0
 	return str(OwningBuffer(line))
 
 def readline(f File) str or Error or EOF
@@ -154,7 +154,7 @@ def readbytes(fp *?posix.FILE) bytes?
 	let size = size(fp)
 	when size
 		is size_t
-			let pb = posix.malloc(size)
+			let pb = posix.malloc(size) as *?int8
 			assert(pb != null)
 
 			let bytes_read = posix.fread(
@@ -165,7 +165,7 @@ def readbytes(fp *?posix.FILE) bytes?
 
 			if posix.ferror(fp)
 				return null
-			return bytes(pb as *int8, bytes_read)
+			return bytes(pb, bytes_read)
 
 		is Error
 			return null

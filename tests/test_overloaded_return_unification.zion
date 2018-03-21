@@ -1,10 +1,24 @@
 module _ @1.0
 # test: pass
 
+tag B
+tag C
+
+type A is B or C
+
 def overloaded_return_unification() float
 	# the unary negation operator is overloaded so this test will make sure
 	# that the overloaded type returned is able to be unified against a float
 	return -1.0
 
+[global]
+def str(a A) str
+	when a
+		is B
+			return "B"
+		is C
+			return "C"
+
 def main()
 	overloaded_return_unification()
+	print(B)

@@ -253,6 +253,9 @@ unification_t unify_core(
 
 		if (ptI_b != nullptr) {
 			return {true, "", bindings, coercions, {}};
+		} else if (depth == 0 && types::is_type_id(b, CHAR_TYPE, nullptr)) {
+			/* we can cast this char to whatever */
+			return {true, "", bindings, coercions + 1, {}};
 		} else if (depth == 0 && types::is_type_id(b, MANAGED_INT, nullptr)) {
 			/* we can cast this int to whatever */
 			return {true, "", bindings, coercions + 1, {}};

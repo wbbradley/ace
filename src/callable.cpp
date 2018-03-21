@@ -162,7 +162,7 @@ bound_var_t::ref check_func_vs_callsite(
 						fn->str().c_str(),
 						::str(unification.bindings).c_str()));
 
-			types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(fn->get_type(scope)->rebind(unification.bindings));
+			types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(fn->get_type(scope)->rebind(unification.bindings)->eval(scope));
 			assert(fn_type != nullptr);
 
             if (auto bound_fn = scope->get_bound_function(fn->get_name(), fn_type->repr())) {

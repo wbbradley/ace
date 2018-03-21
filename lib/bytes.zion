@@ -13,14 +13,21 @@ def alloc(cb int) bytes?
 	if cb < 0
 		assert(false and "attempt to allocate " + cb + " bytes")
 		return null
-	let pb = posix.calloc(1, cb)
-	if pb != null
-		return bytes(pb as *int8, cb)
-	else
-		return null
+	let pb = posix.calloc(1, cb) as *?int8
+	return pb != null ? bytes(pb, cb) : null
 
 def __finalize__(b bytes)
 	posix.free(b.data)
+
+def __eq__(lhs bytes, rhs bytes) bool
+	if lhs.cb != rhs.cb
+		return false
+	return posix.memcmp(lhs.data, rhs.data, lhs.cb) == 0
+
+def __ineq__(lhs bytes, rhs bytes) bool
+	if lhs.cb != rhs.cb
+		return true
+	return posix.memcmp(lhs.data, rhs.data, lhs.cb) != 0
 
 def hexdigest(b bytes) str
 	return hexdigest(b.data, b.cb)
@@ -31,8 +38,8 @@ def hexdigest(data *void, cb size_t) str
 	var j = 0
 	for i in range(cb)
 		# append to our hexdigest
-		s[j] = hexdigit((iter[i] >> 4) as int)
-		s[j + 1] = hexdigit((iter[i] & 15) as int)
+		s[j] = hexdigit(iter[i] >> 4)
+		s[j + 1] = hexdigit(iter[i] & 15)
 
 		# advance iteration
 		j += 2

@@ -27,6 +27,7 @@ def hash(input_ bytes, key bytes) bytes
 	return out
 		
 
+[global]
 def hash(input_ str) bytes
 	outlen := crypto_generichash_bytes_max()
 	out := alloc(outlen)

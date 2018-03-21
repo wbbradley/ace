@@ -18,7 +18,7 @@ std::string unchecked_data_ctor_t::str() const {
 }
 
 types::type_t::ref unchecked_data_ctor_t::get_type(scope_t::ref scope) const {
-	return sig;
+	return scope != nullptr ? sig->eval(scope) : sig;
 }
 
 types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
