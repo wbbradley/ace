@@ -84,7 +84,7 @@ private:
 	ptr<ast::program_t> program;
 
 	friend bool _check_compiler_error(compiler_t &compiler, int &skipped);
-	friend struct program_scope_t;
+	friend struct program_scope_impl_t;
 };
 
 std::string strip_zion_extension(std::string module_name);

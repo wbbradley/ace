@@ -720,6 +720,9 @@ bound_type_t::ref upsert_bound_type(
 							"unable to bind type %s in scope " c_id("%s"),
 							type->str().c_str(),
 							scope->get_name().c_str()));
+			} catch (std::exception &e) {
+				fprintf(stderr, c_error("FAIL: ") "%s\n", e.what());
+				return nullptr;
 			} catch (...) {
 				panic("uncaught exception");
 				return nullptr;

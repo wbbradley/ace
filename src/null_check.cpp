@@ -30,7 +30,7 @@ void unmaybe_variable(
 		scope_t::ref scope,
 		life_t::ref life,
 		ast::reference_expr_t::ref ref_expr,
-		local_scope_t::ref *new_scope)
+		runnable_scope_t::ref *new_scope)
 {
 	token_t token = ref_expr->token;
 	bound_var_t::ref var = scope->get_bound_variable(ref_expr->get_location(), token.text);
@@ -51,7 +51,7 @@ void unmaybe_variable(
 		assert(runnable_scope != nullptr);
 
 		/* variable declarations begin new scopes */
-		local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
+		runnable_scope_t::ref fresh_scope = runnable_scope->new_runnable_scope(
 				string_format("unmaybe-%s", token.text.c_str()));
 
 		scope = fresh_scope;
@@ -89,7 +89,7 @@ void nullify_let_var(
 		scope_t::ref scope,
 		life_t::ref life,
 		ast::reference_expr_t::ref ref_expr,
-		local_scope_t::ref *new_scope)
+		runnable_scope_t::ref *new_scope)
 {
 	/* this is immutable so we can safely just refine it to null */
 	token_t token = ref_expr->token;
@@ -108,7 +108,7 @@ void nullify_let_var(
 			assert(runnable_scope != nullptr);
 
 			/* variable declarations begin new scopes */
-			local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
+			runnable_scope_t::ref fresh_scope = runnable_scope->new_runnable_scope(
 					string_format("nullify-%s", token.text.c_str()));
 
 			scope = fresh_scope;
@@ -130,8 +130,8 @@ bound_var_t::ref resolve_null_check(
 		ast::expression_t::ref node,
 		bound_var_t::ref value,
 		null_check_kind_t nck,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false)
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false)
 {
 	if (!value->type->is_maybe(scope) && value->type->is_ptr(scope)) {
 		auto error = user_error(location, "%s cannot be null here. "
