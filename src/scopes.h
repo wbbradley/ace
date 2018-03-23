@@ -114,8 +114,6 @@ struct module_scope_t : public virtual scope_t {
 std::string str(const module_scope_t::map &modules);
 
 
-/* scope keeps tabs on the bindings of variables, noting their declared
- * type as it goes */
 struct program_scope_t : public virtual module_scope_t {
 	typedef ptr<program_scope_t> ref;
 

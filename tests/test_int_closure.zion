@@ -1,0 +1,12 @@
+module _
+# test: pass
+# expect: pass with 5
+
+def get_int() int
+	return 5
+
+def main()
+	x := get_int()
+	def foo()
+		print("pass with " + x)
+	foo()
