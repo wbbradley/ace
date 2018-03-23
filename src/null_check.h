@@ -22,5 +22,5 @@ bound_var_t::ref resolve_null_check(
 		ptr<const ast::expression_t> node,
 		bound_var_t::ref value,
 		null_check_kind_t nck,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false);
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false);

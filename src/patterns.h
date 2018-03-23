@@ -8,4 +8,4 @@ bound_var_t::ref gen_type_check(
 		identifier::ref value_name,
 		bound_var_t::ref value,
 		bound_type_t::ref bound_type,
-		local_scope_t::ref *new_scope);
+		runnable_scope_t::ref *new_scope);

@@ -73,6 +73,7 @@ ZION_LLVM_SOURCES = \
 				compiler.cpp \
 				dbg.cpp \
 				disk.cpp \
+				dump.cpp \
 				fitting.cpp \
 				identifier.cpp \
 				lexer.cpp \

@@ -14,7 +14,7 @@ void ast::when_block_t::resolve_statement(
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 		life_t::ref life,
-	   	local_scope_t::ref *,
+	   	runnable_scope_t::ref *,
 	   	bool *returns) const
 {
 	assert(life->life_form == lf_statement);
@@ -174,7 +174,7 @@ void ast::when_block_t::resolve_statement(
 		auto matched_type = type_sum_safe(reified_types, pattern_block->get_location(), scope);
 
 		/* set up the variable to be interpreted as the type we've matched */
-		scope_t::ref pattern_scope = runnable_scope->new_local_scope(string_format("pattern.%s", matched_type->str().c_str()));
+		scope_t::ref pattern_scope = runnable_scope->new_runnable_scope(string_format("pattern.%s", matched_type->str().c_str()));
 
 		auto bound_matched_type = upsert_bound_type(builder, scope, matched_type);
 		llvm::Value *llvm_pattern_value = coerce_value(
@@ -252,7 +252,7 @@ bound_var_t::ref gen_null_check(
 		life_t::ref life,
 		identifier::ref value_name,
 		bound_var_t::ref value,
-		local_scope_t::ref *new_scope)
+		runnable_scope_t::ref *new_scope)
 {
 	value = value->resolve_bound_value(builder, scope);
 	if (!value->type->is_ptr(scope)) {
@@ -273,7 +273,7 @@ bound_var_t::ref gen_type_check(
 		identifier::ref value_name,
 		bound_var_t::ref value,
 		bound_type_t::ref bound_type,
-		local_scope_t::ref *new_scope)
+		runnable_scope_t::ref *new_scope)
 {
 	if (bound_type->get_type()->eval_predicate(tb_null, scope)) {
 		/* checking for the null type means checking for a zero value from a
@@ -310,7 +310,7 @@ bound_var_t::ref gen_type_check(
 			/* generate a new scope with the value_name containing a new
 			 * variable to overwrite the prior scoped variable's type with
 			 * the new checked type */
-			*new_scope = runnable_scope->new_local_scope(string_format("when %s %s",
+			*new_scope = runnable_scope->new_runnable_scope(string_format("when %s %s",
 						value_name->str().c_str(),
 						node->str().c_str()));
 

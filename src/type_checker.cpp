@@ -630,7 +630,7 @@ void ast::expression_t::resolve_statement(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope,
+		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	/* expressions as statements just pass through to evaluating the expr */
@@ -641,7 +641,7 @@ void ast::link_module_statement_t::resolve_statement(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope,
+		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	module_scope_t::ref module_scope = dyncast<module_scope_t>(scope);
@@ -746,7 +746,7 @@ void ast::link_name_t::resolve_statement(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope,
+		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	not_impl();
@@ -828,7 +828,7 @@ void resolve_assert_macro(
 		life_t::ref life,
 		token_t token,
 		ptr<ast::expression_t> condition,
-		local_scope_t::ref *new_scope)
+		runnable_scope_t::ref *new_scope)
 {
 	auto if_block = ast::create<ast::if_block_t>(token);
 	if_block->condition = condition;
@@ -860,7 +860,7 @@ void ast::callsite_expr_t::resolve_statement(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope,
+		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	if (auto symbol = dyncast<ast::reference_expr_t>(function_expr)) {
@@ -1101,8 +1101,8 @@ bound_var_t::ref ast::reference_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false) const
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false) const
 {
 	return resolve_reference(builder, scope, life, false /*as_ref*/, nullptr, scope_if_true, scope_if_false);
 }
@@ -1117,7 +1117,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 	return resolve_reference(builder, scope, life, as_ref, expected_type, nullptr, nullptr);
 }
 
-local_scope_t::ref new_refined_scope(
+runnable_scope_t::ref new_refined_scope(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,
@@ -1136,7 +1136,7 @@ local_scope_t::ref new_refined_scope(
 	if (refined_type != value_type) {
 		bound_type_t::ref bound_refined_type = upsert_bound_type(builder, scope, refined_type);
 
-		auto new_scope = local_scope->new_local_scope(
+		auto new_scope = local_scope->new_runnable_scope(
 				string_format("%s.%s", boolstr(refinement_path), name.c_str()));
 		new_scope->put_bound_variable(name,
 				bound_var_t::create(
@@ -1158,8 +1158,8 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 		life_t::ref life,
 		bool as_ref,
 		types::type_t::ref expected_type,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false) const
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false) const
 {
 	/* we wouldn't be referencing a variable name here unless it was unique
 	 * override resolution only happens on callsites, and we don't allow
@@ -1778,8 +1778,8 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		ast::expression_t::ref rhs_node,
 		bound_var_t::ref rhs_var,
 		rnpbc_t rnpbc,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false,
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false,
 		types::type_t::ref expected_type)
 {
 	if (lhs_var->type->get_type()->eval_predicate(tb_null, scope)) {
@@ -1849,8 +1849,8 @@ bound_var_t::ref resolve_native_pointer_binary_operation(
 		ast::expression_t::ref rhs_node,
 		bound_var_t::ref rhs_var,
 		std::string function_name,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false,
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false,
 		types::type_t::ref expected_type)
 {
 	if (function_name == "__binary_eq__" || function_name == "__eq__") {
@@ -2105,8 +2105,8 @@ bound_var_t::ref type_check_binary_operator(
 		bound_var_t::ref rhs,
 		ast::item_t::ref obj,
 		std::string function_name,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false,
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false,
 		types::type_t::ref expected_type)
 {
 	indent_logger indent(obj->get_location(), 6, string_format("checking binary operator " c_id("%s") " with operands %s and %s",
@@ -2199,8 +2199,8 @@ bound_var_t::ref type_check_binary_operator(
 		ptr<const ast::expression_t> rhs,
 		ast::item_t::ref obj,
 		std::string function_name,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false,
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false,
 		types::type_t::ref expected_type)
 {
 	assert(function_name.size() != 0);
@@ -2227,8 +2227,8 @@ bound_var_t::ref type_check_binary_equality(
 		ptr<const ast::expression_t> rhs,
 		ast::item_t::ref obj,
 		std::string function_name,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false,
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false,
 		types::type_t::ref expected_type)
 {
 	bound_var_t::ref lhs_var, rhs_var;
@@ -2264,8 +2264,8 @@ bound_var_t::ref ast::binary_operator_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false) const
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false) const
 {
 	if (token.is_ident(K(is))) {
 		return type_check_binary_equality(builder, scope, life, lhs, rhs,
@@ -2428,13 +2428,13 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		ast::expression_t::ref when_true,
 		ast::expression_t::ref when_false,
 		identifier::ref value_name,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false)
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false)
 {
 	/* these scopes are calculated for the interior conditional branching in order to provide refined types for the
 	 * when_true or when_false branches */
-	local_scope_t::ref inner_scope_if_true;
-	local_scope_t::ref inner_scope_if_false;
+	runnable_scope_t::ref inner_scope_if_true;
+	runnable_scope_t::ref inner_scope_if_false;
 
 	indent_logger indent(condition->get_location(), 6, string_format("resolving ternary expression (%s) ? (%s) : (%s)",
 				condition->str().c_str(), when_true->str().c_str(), when_false->str().c_str()));
@@ -2622,8 +2622,8 @@ bound_var_t::ref ast::ternary_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false) const
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false) const
 {
 	return resolve_cond_expression(builder, scope, life, false /*as_ref*/,
 			condition, when_true, when_false,
@@ -2645,8 +2645,8 @@ bound_var_t::ref ast::or_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false) const
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false) const
 {
 	return resolve_cond_expression(builder, scope, life, false /*as_ref*/,
 			lhs, lhs, rhs, make_iid("or.value"), scope_if_true, scope_if_false);
@@ -2667,8 +2667,8 @@ bound_var_t::ref ast::and_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false) const
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false) const
 {
 	return resolve_cond_expression(builder, scope, life, false /*as_ref*/,
 			lhs, rhs, lhs, make_iid("and.value"), scope_if_true, scope_if_false);
@@ -2990,7 +2990,7 @@ void ast::function_defn_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope,
+		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	resolve_function(builder, scope, life, new_scope, returns);
@@ -3000,7 +3000,7 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref,
-		local_scope_t::ref *new_scope,
+		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	// TODO: handle first-class functions by handling life for functions, and closures.
@@ -3049,7 +3049,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope,
+		runnable_scope_t::ref *new_scope,
 		types::type_t::ref type_constraints,
 		bound_type_t::named_pairs args,
 		bound_type_t::ref return_type,
@@ -3161,7 +3161,7 @@ bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
 		debug_above(7, log("setting return_type_constraint in %s to %s %s", function_var->name.c_str(),
 					return_type->str().c_str(),
 					llvm_print(return_type->get_llvm_type()).c_str()));
-		params_scope->return_type_constraint = return_type;
+		params_scope->set_return_type_constraint(return_type);
 
 		block->resolve_statement(builder, params_scope, life,
 				nullptr, &all_paths_return);
@@ -3267,6 +3267,9 @@ void type_check_module_vars(
 			std::throw_with_nested(user_error(var_decl->get_location(),
 						"while checking module variable %s",
 						var_decl->token.text.c_str()));
+		} catch (std::exception &e) {
+			fprintf(stderr, c_error("FAIL: ") "%s\n", e.what());
+			throw;
 		} catch (...) {
 			panic("uncaught exception");
 		}
@@ -3555,7 +3558,7 @@ void ast::tag_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool * /*returns*/) const
 {
 	indent_logger indent(get_location(), 5, string_format("resolving tag %s",
@@ -3612,7 +3615,7 @@ void ast::type_def_t::resolve_statement(
 		llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool * /*returns*/) const
 {
 	/* the goal of this function is to
@@ -3629,7 +3632,7 @@ void ast::type_def_t::resolve_statement(
 		assert(new_scope != nullptr);
 
 		/* type definitions begin new scopes */
-		local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
+		runnable_scope_t::ref fresh_scope = runnable_scope->new_runnable_scope(
 				string_format("type-%s", token.text.c_str()));
 
 		/* update current scope for writing */
@@ -3651,7 +3654,7 @@ void ast::assignment_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	assert(token.text == "=");
@@ -3672,7 +3675,7 @@ void ast::break_flow_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
@@ -3698,7 +3701,7 @@ void ast::continue_flow_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
@@ -3748,7 +3751,7 @@ void ast::mod_assignment_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	type_check_binary_op_assignment(builder, scope, life,
@@ -3759,7 +3762,7 @@ void ast::plus_assignment_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	type_check_binary_op_assignment(builder, scope, life,
@@ -3770,7 +3773,7 @@ void ast::minus_assignment_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	type_check_binary_op_assignment(builder, scope, life,
@@ -3781,7 +3784,7 @@ void ast::unreachable_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *,
+        runnable_scope_t::ref *,
 		bool *returns) const
 {
 	*returns = true;
@@ -3793,7 +3796,7 @@ void ast::return_statement_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	life = life->new_life(lf_statement);
@@ -3871,7 +3874,7 @@ void ast::times_assignment_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	type_check_binary_op_assignment(builder, scope, life,
@@ -3882,7 +3885,7 @@ void ast::divide_assignment_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	type_check_binary_op_assignment(builder, scope, life,
@@ -3893,7 +3896,7 @@ void ast::block_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool *returns_) const
 {
 	/* it's important that we keep track of returns */
@@ -3916,7 +3919,7 @@ void ast::block_t::resolve_statement(
 			break;
 		}
 
-		local_scope_t::ref next_scope;
+		runnable_scope_t::ref next_scope;
 
 		debug_above(9, log(log_info, "type checking statement\n%s", statement->str().c_str()));
 
@@ -3976,7 +3979,7 @@ void ast::for_block_t::resolve_statement(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope,
+		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	/* this next bit is some code-gen to rewrite the for loop as a while loop */
@@ -4067,8 +4070,8 @@ bound_var_t::ref ast::expression_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref block_scope,
 		life_t::ref life,
-		local_scope_t::ref *,
-		local_scope_t::ref *) const
+		runnable_scope_t::ref *,
+		runnable_scope_t::ref *) const
 {
 	return resolve_expression(builder, block_scope, life, false /*as_ref*/,
 		   	type_id(make_iid("bool_t")));
@@ -4078,11 +4081,11 @@ void ast::while_block_t::resolve_statement(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *,
+		runnable_scope_t::ref *,
 		bool *returns) const
 {
 	/* while scope allows us to set up new variables inside while conditions */
-	local_scope_t::ref while_scope;
+	runnable_scope_t::ref while_scope;
 
 	assert(token.text == "while" || token.text == "for");
 
@@ -4151,13 +4154,13 @@ void ast::if_block_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
 	assert(life->life_form == lf_statement);
 
 	/* if scope allows us to set up new variables inside if conditions */
-	local_scope_t::ref scope_if_true, scope_if_false;
+	runnable_scope_t::ref scope_if_true, scope_if_false;
 
 	bool if_block_returns = false, else_block_returns = false;
 
@@ -4208,7 +4211,7 @@ void ast::if_block_t::resolve_statement(
 	builder.SetInsertPoint(else_bb);
 
 	if (else_ != nullptr) {
-		local_scope_t::ref scope_if_else_false;
+		runnable_scope_t::ref scope_if_else_false;
 		else_->resolve_statement(builder,
 				scope_if_false ? scope_if_false : scope,
 				life, &scope_if_else_false, &else_block_returns);
@@ -4307,15 +4310,15 @@ bound_var_t::ref ast::var_decl_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false) const
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false) const
 {
 	assert(false);
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 	assert(runnable_scope);
 
 	/* variable declarations begin new scopes */
-	local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
+	runnable_scope_t::ref fresh_scope = runnable_scope->new_runnable_scope(
 			string_format("condition-assignment-%s", token.text.c_str()));
 
 	scope = fresh_scope;
@@ -4332,12 +4335,12 @@ void ast::var_decl_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *new_scope,
+		runnable_scope_t::ref *new_scope,
 		bool * /*returns*/) const
 {
 	if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
 		/* variable declarations begin new scopes */
-		local_scope_t::ref fresh_scope = runnable_scope->new_local_scope(
+		runnable_scope_t::ref fresh_scope = runnable_scope->new_runnable_scope(
 				string_format("variable-%s", token.text.c_str()));
 
 		scope = fresh_scope;
@@ -4358,7 +4361,7 @@ void ast::pass_flow_t::resolve_statement(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-        local_scope_t::ref *new_scope,
+        runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
     return;
@@ -4389,8 +4392,8 @@ bound_var_t::ref ast::prefix_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false) const
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false) const
 {
 	return resolve_prefix_expr(builder, scope, 
 			life, false /*as_ref*/,
@@ -4413,8 +4416,8 @@ bound_var_t::ref ast::prefix_expr_t::resolve_prefix_expr(
         scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		local_scope_t::ref *scope_if_true,
-		local_scope_t::ref *scope_if_false) const
+		runnable_scope_t::ref *scope_if_true,
+		runnable_scope_t::ref *scope_if_false) const
 {
 	std::string function_name;
 	switch (token.tk) {

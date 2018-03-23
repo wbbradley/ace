@@ -75,7 +75,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const = 0;
 	};
 
@@ -100,8 +100,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *scope_if_true,
-				local_scope_t::ref *scope_if_false) const = 0;
+				runnable_scope_t::ref *scope_if_true,
+				runnable_scope_t::ref *scope_if_false) const = 0;
 	};
 
 	struct expression_t : public statement_t, public condition_t {
@@ -114,7 +114,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
@@ -128,8 +128,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *scope_if_true,
-				local_scope_t::ref *scope_if_false) const;
+				runnable_scope_t::ref *scope_if_true,
+				runnable_scope_t::ref *scope_if_false) const;
 	};
 
 	namespace postfix_expr {
@@ -144,7 +144,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 	};
@@ -157,7 +157,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 	};
@@ -170,7 +170,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 	};
@@ -223,7 +223,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -243,7 +243,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 	};
 
@@ -258,7 +258,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 	};
 
@@ -397,7 +397,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -414,7 +414,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -435,14 +435,14 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *scope_if_true,
-				local_scope_t::ref *scope_if_false) const;
+				runnable_scope_t::ref *scope_if_true,
+				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
 
 		virtual std::string get_symbol() const;
@@ -475,7 +475,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -490,7 +490,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -505,7 +505,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -520,7 +520,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -535,7 +535,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -550,7 +550,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -567,7 +567,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -605,19 +605,19 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual bound_var_t::ref resolve_function(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		bound_var_t::ref instantiate_with_args_and_return_type(
 			   	llvm::IRBuilder<> &builder,
 			   	scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				types::type_t::ref type_constraints,
 				bound_type_t::named_pairs args,
 				bound_type_t::ref return_type,
@@ -638,7 +638,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -657,7 +657,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -675,7 +675,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -708,7 +708,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -750,7 +750,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -767,7 +767,7 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *new_scope,
+				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
@@ -896,8 +896,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *scope_if_true,
-				local_scope_t::ref *scope_if_false) const;
+				runnable_scope_t::ref *scope_if_true,
+				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression_t> condition, when_true, when_false;
@@ -918,8 +918,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *scope_if_true,
-				local_scope_t::ref *scope_if_false) const;
+				runnable_scope_t::ref *scope_if_true,
+				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression_t> lhs, rhs;
@@ -940,8 +940,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *scope_if_true,
-				local_scope_t::ref *scope_if_false) const;
+				runnable_scope_t::ref *scope_if_true,
+				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression_t> lhs, rhs;
@@ -962,8 +962,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *scope_if_true,
-				local_scope_t::ref *scope_if_false) const;
+				runnable_scope_t::ref *scope_if_true,
+				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::string function_name;
@@ -985,8 +985,8 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *scope_if_true,
-				local_scope_t::ref *scope_if_false) const;
+				runnable_scope_t::ref *scope_if_true,
+				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression_t> rhs;
@@ -997,8 +997,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				local_scope_t::ref *scope_if_true,
-				local_scope_t::ref *scope_if_false) const;
+				runnable_scope_t::ref *scope_if_true,
+				runnable_scope_t::ref *scope_if_false) const;
 	};
 
 	struct typeinfo_expr_t : public expression_t {
@@ -1041,16 +1041,16 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
-				local_scope_t::ref *scope_if_true,
-				local_scope_t::ref *scope_if_false) const;
+				runnable_scope_t::ref *scope_if_true,
+				runnable_scope_t::ref *scope_if_false) const;
 		bound_var_t::ref resolve_reference(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type,
-				local_scope_t::ref *scope_if_true,
-				local_scope_t::ref *scope_if_false) const;
+				runnable_scope_t::ref *scope_if_true,
+				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
 	};
 
