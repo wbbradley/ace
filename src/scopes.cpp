@@ -407,7 +407,7 @@ struct runnable_scope_impl_t : public std::enable_shared_from_this<runnable_scop
 
 	ptr<function_scope_t> new_function_scope(std::string name) {
 		debug_above(8, log("creating a function scope %s within scope %s", name.c_str(), this->get_name().c_str()));
-		return create_function_scope(name, this_scope());
+		return create_function_scope(name, this->get_module_scope());
 	}
 
 	llvm::Module *get_llvm_module() {
@@ -1036,6 +1036,7 @@ struct generic_substitution_scope_impl_t : public std::enable_shared_from_this<g
 
 	ptr<function_scope_t> new_function_scope(std::string name) {
 		debug_above(8, log("creating a function scope %s within scope %s", name.c_str(), this->get_name().c_str()));
+		assert(!dyncast<runnable_scope_t>(get_parent_scope()));
 		return create_function_scope(name, this_scope());
 	}
 
