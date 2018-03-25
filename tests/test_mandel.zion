@@ -59,7 +59,7 @@ def main()
 			append(span, i)
 			x += 1
 
-		print(join(span, " "))
+		print(join(" ", span))
 
 		y += 1.0
 		runtime.gc()

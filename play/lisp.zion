@@ -2,5 +2,5 @@ module _
 
 def main()
 	for line in file.readlines()
-		print(join(split(line), ","))
+		print(join(",", split(line)))
 

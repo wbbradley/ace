@@ -1,0 +1,15 @@
+module _
+# test: pass
+# expect: pass
+
+def main()
+	assert("foo" in "foo")
+	assert("foo" in " foo")
+	assert("foo" in "foo ")
+	assert("" in " ")
+	assert("" in "")
+	assert("foo" not in "fo ")
+	assert("foo" not in " fo0 ")
+	assert("foo" not in " fo")
+	assert(" " not in "")
+	print("pass")

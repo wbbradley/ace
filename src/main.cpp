@@ -104,7 +104,17 @@ int main(int argc, char *argv[]) {
 			return EXIT_FAILURE;
 		}
 	} else if (argc >= 3) {
-		compiler_t compiler(argv[2], {".", "lib", "tests"});
+		std::string zion_path = getenv("ZION_PATH") != nullptr ? getenv("ZION_PATH") : ".";
+		std::vector<std::string> zion_paths = {
+			zion_path,
+			zion_path + "/lib",
+			zion_path + "/tests"};
+
+		if (zion_path != ".") {
+			zion_paths.insert(zion_paths.begin(), ".");
+		}
+
+		compiler_t compiler(argv[2], zion_paths);
 
 		if (cmd == "read-ir") {
 			compiler.llvm_load_ir(argv[2]);

@@ -40,7 +40,7 @@ void unmaybe_variable(
 	}
 
 	bool was_ref = false;
-	types::type_t::ref type = var->type->get_type();
+	types::type_t::ref type = var->type->get_type()->eval(scope);
 	if (auto ref_type = dyncast<const types::type_ref_t>(type)) {
 		was_ref = true;
 		type = ref_type->element_type;
@@ -50,7 +50,6 @@ void unmaybe_variable(
 		runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 		assert(runnable_scope != nullptr);
 
-		/* variable declarations begin new scopes */
 		runnable_scope_t::ref fresh_scope = runnable_scope->new_runnable_scope(
 				string_format("unmaybe-%s", token.text.c_str()));
 
@@ -94,15 +93,16 @@ void nullify_let_var(
 	/* this is immutable so we can safely just refine it to null */
 	token_t token = ref_expr->token;
 	bound_var_t::ref var = scope->get_bound_variable(ref_expr->get_location(), token.text);
-	types::type_t::ref type = var->type->get_type();
 
 	if (var == nullptr) {
 		throw user_error(ref_expr->get_location(), "undefined symbol " c_id("%s"), token.text.c_str());
 	}
 
+	types::type_t::ref type = var->type->get_type()->eval(scope);
+
 	/* we can't change the type of a mutable name in the scope because the user is allowed
 	 * to assign a non-null value, and we don't want to take that away from them */
-	if (!var->type->is_ref(scope)) {
+	if (!type->eval_predicate(tb_ref, nullptr)) {
 		if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 			runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 			assert(runnable_scope != nullptr);

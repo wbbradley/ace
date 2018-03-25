@@ -684,7 +684,7 @@ ptr<expression_t> eq_expr_parse(parse_state_t &ps) {
 		binary_operator->function_name = "__isnot__";
 		ps.advance();
 	} else if (not_in) {
-		binary_operator->function_name = "__notin__";
+		binary_operator->function_name = "__not_in__";
 	}
 
 	auto rhs = ineq_expr_parse(ps);
@@ -1210,8 +1210,8 @@ type_algebra_t::ref type_algebra_t::parse(
 		parse_state_t &ps,
 		ast::type_decl_t::ref type_decl)
 {
-	INDENT(8, string_format("parsing type algebra for %s",
-				type_decl->token.text.c_str()));
+    indent_logger indent(type_decl->token.location, 8, string_format("parsing type algebra for %s",
+                type_decl->token.text.c_str()));
 
 	if (ps.token.is_ident(K(is))) {
 		return type_sum_t::parse(ps, type_decl, type_decl->type_variables);

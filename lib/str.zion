@@ -255,7 +255,7 @@ def __in__(ch char, s str) bool
 		i += 1
 	return false
 
-def __notin__(ch char, s str) bool
+def __not_in__(ch char, s str) bool
 	var i = 0
 	e := s.length
 	while i < e
@@ -264,3 +264,34 @@ def __notin__(ch char, s str) bool
 		i += 1
 	return true
 
+def __not_in__(find_ str, s_ str) bool
+	return not __in__(find_, s_)
+
+def __in__(find_ str, s_ str) bool
+	real_find_len := len(find_)
+	if real_find_len == 0
+		return true
+
+	# set up a search for the remaining characters (after the first)
+	c := find_[0]
+	find := &unsafe_access(find_)[1]
+	find_len := real_find_len - 1
+	
+	var s_len = len(s_)
+	if s_len == 0
+		return false
+
+	var s = &unsafe_access(s_)[0]
+
+	# OK, now start looping through s positions until we either run out of possible space for find,
+	# or we find it
+	while s_len > find_len
+		cur := s[0]
+		s = &s[1]
+		s_len -= 1
+
+		if c == cur
+			if posix.memcmp(s, find, find_len) == 0
+				return true
+
+	return false
