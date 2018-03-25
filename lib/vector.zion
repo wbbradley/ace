@@ -56,10 +56,10 @@ def __init_vector__[T](size size_t) [T]
 
 [global]
 def str(v [any]) str
-	return "[" + join(v, ", ") + "]"
+	return "[" + join(", ", v) + "]"
 
 [global]
-def join[T](v [T], delim str) str
+def join[T](delim str, v [T]) str
 	let vec = v as *(VectorImpl T)
 
 	if vec.size == 0
@@ -200,7 +200,7 @@ def __set_vector_item__[T](vector *(NativeVector T), index uint, item T)
 def __vector_unsafe_append__[T where gc T](vector *ManagedVector, item T) void
 	# To be called by compiler for vector literals
 	assert(vector.reserved > vector.size)
-	vector.items[vector.size] = item
+	vector.items[vector.size] = item as *var_t
 	vector.size += 1
 
 def __vector_unsafe_append__[T where not(gc T)](vector *(NativeVector T), item T) void

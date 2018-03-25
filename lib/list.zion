@@ -25,6 +25,6 @@ def conj[T](maybe_list (list T)?, item T) list T
 
 
 def str(l (list any)?) str
-	return "[" + join(l, ", ") + "]"
+	return "[" + join(", ", l) + "]"
 
 

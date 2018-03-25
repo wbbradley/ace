@@ -6,6 +6,7 @@
 #include "dbg.h"
 #include <csignal>
 #include "logger_decls.h"
+#include "user_error.h"
 
 template <typename T, typename U>
 bool all(const T &xs, U u) {
@@ -790,9 +791,12 @@ void zion_lexer_t::enqueue_indents(int line, int col, int indent_depth) {
 	if (indent_depth > m_last_indent_depth) {
 		if (!m_nested_tks.size()) {
 			// Handle indents
-			assert(indent_depth - 1 == m_last_indent_depth);
-			m_token_queue.enqueue({m_filename, line, col}, tk_indent);
-			m_last_indent_depth = indent_depth;
+            if (indent_depth - 1 == m_last_indent_depth) {
+                m_token_queue.enqueue({m_filename, line, col}, tk_indent);
+                m_last_indent_depth = indent_depth;
+            } else {
+                throw user_error({m_filename, line, col}, "indentation is strange here");
+            }
 		}
 	} else if (indent_depth < m_last_indent_depth) {
 		// We're outdenting

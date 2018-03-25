@@ -4,51 +4,54 @@ link in "c"
 link in "m"
 link in "rt_posix.o"
 
-link def getenv(x *char) *?char
-link def puts(x *char) posix_int
-link def fputs(x *char, fp *FILE) posix_int
-link def fprintf(fp *FILE, fmt *char, s *char) posix_int to fprintf
-link def putchar(x int) posix_int
-link def perror(x *char) posix_int
-link def open(path *char, oflag posix_int) posix_int
-link def close(fd posix_int) posix_int
-link def read(fileds posix_int, buf *void, nbytes size_t) ssize_t
-link def write(fileds posix_int, buf *void, nbytes size_t) ssize_t
-link def calloc(cb size_t, size size_t) *?void
-link def malloc(cb size_t) *?void
-link def realloc(ptr *void, cb size_t) *?void
-link def memcpy(dst *void, src *void, n size_t) *void
-link def memcmp(dst *void, src *void, n size_t) posix_int
-link def memmove(dst *void, src *void, n size_t) *void
-link def free(pb *?void) void
-link def strdup(s *char) *?char
-link def strndup(s *char, n size_t) *?char
-link def strcmp(x *char, y *char) posix_int
-link def strncmp(x *char, y *char, n size_t) posix_int
-link [global] def sqrt(x float) float
-link def arc4random_stir() void
-link def arc4random_buf(dst *void, cb size_t) posix_int
-link def exit(code posix_int) void
-link def getch() posix_int
-link def getcwd(_ null) *?char
-link def fchdir(filedes posix_int) posix_int
-link def raise(signal posix_int) posix_int
-link def fopen(fn *char, mode *char) *?FILE
-link def fdopen(fd posix_int, mode *char) *?FILE
-link def fwrite(p *void, size size_t, nitems size_t, stream *FILE) size_t
-link def fread(p *void, size size_t, nitems size_t, stream *FILE) size_t
-link def ftell(stream *FILE) posix_int
-link def feof(stream *FILE) bool
-link def ferror(stream *FILE) bool
-link def fseek(stream *FILE, offset posix_int, whence posix_int) posix_int
-link def fclose(fp *FILE) posix_int
-link def getline(linep **?char, linecapp *posix_int, fp *FILE) posix_int
-link def strlen(s *char) size_t
-link def errno() posix_int to __posix_errno
-link [global] def isspace(ch posix_int) bool
 link [global] def isalpha(ch posix_int) bool
 link [global] def isdigit(ch posix_int) bool
 link [global] def isnumber(ch posix_int) bool
+link [global] def isspace(ch posix_int) bool
+link [global] def sqrt(x float) float
+link def arc4random_buf(dst *void, cb size_t) posix_int
+link def arc4random_stir() void
+link def calloc(cb size_t, size size_t) *?void
+link def close(fd posix_int) posix_int
+link def errno() posix_int to __posix_errno
+link def exit(code posix_int) void
+link def fchdir(filedes posix_int) posix_int
+link def fclose(fp *FILE) posix_int
+link def fdopen(fd posix_int, mode *char) *?FILE
+link def feof(stream *FILE) bool
+link def ferror(stream *FILE) bool
+link def fflush(fp *FILE) posix_int
+link def fopen(fn *char, mode *char) *?FILE
+link def fprintf(fp *FILE, fmt *char, s *char) posix_int
+link def fputs(x *char, fp *FILE) posix_int
+link def fread(p *void, size size_t, nitems size_t, stream *FILE) size_t
+link def free(pb *?void) void
+link def fseek(stream *FILE, offset posix_int, whence posix_int) posix_int
+link def ftell(stream *FILE) posix_int
+link def fwrite(p *void, size size_t, nitems size_t, stream *FILE) size_t
+link def getch() posix_int
+link def getcwd(_ null) *?char
+link def getenv(x *char) *?char
+link def getline(linep **?char, linecapp *posix_int, fp *FILE) posix_int
+link def malloc(cb size_t) *?void
+link def memcmp(dst *void, src *void, n size_t) posix_int
+link def memcpy(dst *void, src *void, n size_t) *void
+link def memmove(dst *void, src *void, n size_t) *void
+link def open(path *char, oflag posix_int) posix_int
+link def pclose(fp *posix.FILE) posix_int
+link def perror(x *char) posix_int
+link def popen(command *char, mode *char) *?posix.FILE
+link def putchar(x int) posix_int
+link def puts(x *char) posix_int
+link def raise(signal posix_int) posix_int
+link def read(fileds posix_int, buf *void, nbytes size_t) ssize_t
+link def realloc(ptr *void, cb size_t) *?void
+link def strcmp(x *char, y *char) posix_int
+link def strdup(s *char) *?char
+link def strlen(s *char) size_t
+link def strncmp(x *char, y *char, n size_t) posix_int
+link def strndup(s *char, n size_t) *?char
+link def write(fileds posix_int, buf *void, nbytes size_t) ssize_t
 
 type posix_int = int32
 

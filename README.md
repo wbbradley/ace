@@ -143,25 +143,23 @@ or llvm tools, etc...
 
 ### TODO
 
-- [ ] Implement slice array indexing rg[s:end], etc...
-- [ ] Implement vector slicing for strings and arrays
+- [ ] Explore closures with capture by value
+- [ ] Consider uniform calling syntax for .-chaining and how to acheive customizable monadic behaviors by looking at the receiver. This would also entail some magic in terms of modules.
 - [ ] Implement native structures as non-pointer values
-- [ ] Consider how to allow for-macro expansion to have a mutating iterator function. Does that mean pass-by-ref is
-  allowed?
+- [ ] Consider how to allow for-macro expansion to have a mutating iterator function. Does that mean pass-by-ref is allowed?
+- [ ] Consider making all refs managed/heap-allocated (prior to a later escape-analysis test) in order to allow
+  reference capture... maybe.
 - [ ] Implement fast range(i)
-- [ ] Consider uniform calling syntax for .-chaining and how to acheive customizable monadic behaviors by looking at the receiver
 - [ ] Automatically configure default POSIX/C/System "int" size on first boot of compiler
 - [ ] Use DIBuilder to add line-level debugging information
 - [ ] Consider implementing a macro specifier for declaring macros which would expand inline and have hygenic names
 - [ ] Implement an inline directive to mark functions for inline expansion during optimization
 - [ ] Consider exceptions as a monadic construct that can be applied as a macro?
 - [ ] Integrate JSON parsing and mess around with manipulating some existing JSON files
-- [ ] Explore closures with capture by value
 - [ ] Add safety checks on casting (as)
 - [ ] Implement generic sort
 - [ ] Explore using a conservative collector
 - [ ] Exercise: implement parser combinators in Zion
-- [ ] Consider marking null-terminated strings differently for FFI purposes
 - [ ] Consider allowing overloads for arbitrary `tk_operator`s to enable overloading random symbols.
 - [ ] Data structures
   - [x] string (as slices)
@@ -172,6 +170,10 @@ or llvm tools, etc...
 - [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction
 - [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
 - [ ] Enable linking to variadic functions (like printf)
+- [ ] Fix linking issues (rt_float.o, etc...) when running zion from non-zion root dir)
+- [x] Consider marking null-terminated strings differently for FFI purposes (ended up doing this as part of "safe-unboxing" for easier FFI.
+- [x] Implement slice array indexing rg[s:end], etc...
+- [x] Implement vector slicing for strings and arrays
 - [x] Optimize `scope_t`'s `get_nominal_env` and `get_total_env` to be cached
 - [x] Maintenance: Change all `status_t` parts of compiler to use exceptions
 - [x] Check for duplicate bound function instantiations deeper within function instantiation

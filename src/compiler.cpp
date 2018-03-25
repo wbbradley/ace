@@ -438,6 +438,7 @@ void compiler_t::emit_built_program(std::string executable_filename) {
 
 	std::stringstream ss;
 	ss << clang_bin;
+
 	if (getenv("ZION_LINK") != nullptr) {
 		ss << " " << getenv("ZION_LINK");
 	}
@@ -459,6 +460,8 @@ void compiler_t::emit_built_program(std::string executable_filename) {
 		}
 	}
 	ss << " -o " << executable_filename;
+
+	debug_above(2, log("Linking executable with command %s", ss.str().c_str()));
 
 	/* compile the bitcode into a local machine executable */
 	errno = 0;

@@ -869,9 +869,10 @@ void ast::callsite_expr_t::resolve_statement(
 				auto param = params[0];
 				bound_var_t::ref param_var = param->resolve_expression(builder, scope, life, true /*as_ref*/, nullptr);
 				log_location(log_info, param->get_location(),
-						"%s : %s",
+						"%s : %s%s",
 						param->str().c_str(),
-						param_var->type->str().c_str());
+						param_var->type->str().c_str(),
+                        debug_level() >= 8 ? string_format(" %s", scope->get_name().c_str()).c_str() : "");
 				return;
 			} else {
 				throw user_error(get_location(), "static_print requires one and only one parameter");
