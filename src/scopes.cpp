@@ -227,23 +227,20 @@ struct scope_impl_t : public virtual BASE {
 		}
 	}
 
-	bool symbol_exists_in_running_scope(
-			std::string symbol,
-			bound_var_t::ref &bound_var)
-	{
-		auto iter = bound_vars.find(symbol);
+	bool symbol_exists_in_running_scope(std::string name, bound_var_t::ref &bound_var) {
+		auto iter = bound_vars.find(name);
 		if (iter != bound_vars.end()) {
 			assert(iter->second.size() == 1);
-			/* we found this symbol */
+			/* we found this name */
 			bound_var = iter->second.begin()->second;
 			return true;
 		} else if (auto parent_scope = this->get_parent_scope()) {
-			/* we did not find the symbol, let's consider looking higher up the
+			/* we did not find the name, let's consider looking higher up the
 			 * scopes */
 			if (dynamic_cast<const function_scope_t *>(this)) {
 				return false;
 			} else {
-				return parent_scope->symbol_exists_in_running_scope(symbol, bound_var);
+				return parent_scope->symbol_exists_in_running_scope(name, bound_var);
 			}
 		} else {
 			/* we're at the top and we still didn't find it, quit. */
@@ -270,10 +267,7 @@ struct scope_impl_t : public virtual BASE {
 		}
 	}
 
-	bound_var_t::ref get_bound_function(
-			std::string name,
-			std::string signature)
-	{
+	bound_var_t::ref get_bound_function(std::string name, std::string signature) {
 		auto iter = bound_vars.find(name);
 		if (iter != bound_vars.end()) {
 			auto &resolve_map = iter->second;
@@ -365,6 +359,40 @@ struct scope_impl_t : public virtual BASE {
 	types::type_t::map type_variable_bindings;
 };
 
+struct closure_scope_impl_t : public std::enable_shared_from_this<closure_scope_impl_t>, scope_impl_t<closure_scope_t> {
+	virtual ~closure_scope_impl_t() {}
+	closure_scope_impl_t(std::string name, module_scope_t::ref parent_scope, runnable_scope_t::ref runnable_scope) :
+		scope_impl_t<closure_scope_t>(name, parent_scope), running_scope(runnable_scope)
+	{}
+
+	const std::map<std::string, bound_var_t::ref> &get_captures() const {
+		return captures;
+	}
+
+	ptr<scope_t> this_scope() {
+		return this->shared_from_this();
+	}
+	ptr<const scope_t> this_scope() const {
+		return this->shared_from_this();
+	}
+
+	void dump(std::ostream &os) const {
+		assert(false);
+	}
+
+	ptr<function_scope_t> new_function_scope(std::string name) {
+		debug_above(8, log("creating a function scope %s within scope %s", name.c_str(), this->get_name().c_str()));
+		return create_function_scope(name, this->get_module_scope());
+	}
+
+	llvm::Module *get_llvm_module() {
+		return this->get_parent_scope()->get_llvm_module();
+	}
+
+	std::map<std::string, bound_var_t::ref> captures;
+	runnable_scope_t::ref running_scope;
+};
+
 typedef bound_type_t::ref return_type_constraint_t;
 
 template <typename T>
@@ -403,6 +431,10 @@ struct runnable_scope_impl_t : public std::enable_shared_from_this<runnable_scop
 
 	ptr<runnable_scope_t> new_runnable_scope(std::string name) {
 		return create<runnable_scope_t>(name, this->shared_from_this(), this->return_type_constraint);
+	}
+
+	ptr<closure_scope_t> new_closure_scope(std::string name) {
+		return make_ptr<closure_scope_impl_t>(name, this->get_module_scope(), this->shared_from_this());
 	}
 
 	ptr<function_scope_t> new_function_scope(std::string name) {
@@ -759,7 +791,6 @@ struct program_scope_impl_t : public std::enable_shared_from_this<program_scope_
 				this_scope(),
 				INTERNAL_LOC(),
 				type_function(
-					make_iid("__init_module_vars"),
 					nullptr,
 					type_args({}),
 					type_id(make_iid("void"))),
@@ -1221,6 +1252,7 @@ void put_bound_function(
 		/* inline function definitions are scoped to the virtual block in which
 		 * they appear */
 		if (auto local_scope = dyncast<runnable_scope_t>(scope)) {
+			assert(new_scope != nullptr);
 			*new_scope = local_scope->new_runnable_scope(
 					string_format("function-%s", function_name.c_str()));
 

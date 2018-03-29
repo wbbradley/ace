@@ -33,7 +33,7 @@ unification_t var_t::accepts_callsite(
 
 	auto bindings = scope->get_type_variable_bindings();
 
-	auto u = unify(fn_type, type_function(nullptr, nullptr, args, return_type), scope, bindings);
+	auto u = unify(fn_type, type_function(nullptr, args, return_type), scope, bindings);
 
 	debug_above(6, log(log_info, "check of %s %s",
 				str().c_str(),

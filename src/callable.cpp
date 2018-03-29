@@ -8,6 +8,9 @@
 #include "types.h"
 #include "type_instantiation.h"
 #include "fitting.h"
+#include "code_id.h"
+
+#define USER_MAIN_FN "user/main"
 
 bound_var_t::ref make_call_value(
 		llvm::IRBuilder<> &builder,
@@ -29,6 +32,8 @@ bound_var_t::ref instantiate_unchecked_fn(
 		types::type_function_t::ref fn_type,
 		const unification_t &unification)
 {
+	static int depth = 0;
+	depth_guard_t depth_guard(fn_type->get_location(), depth, 10);
 	debug_above(5, log(log_info, "we are in scope " c_id("%s"), scope->get_name().c_str()));
 	debug_above(5, log(log_info, "it's time to instantiate %s at %s with unified signature %s from %s",
 				unchecked_fn->str().c_str(),
@@ -78,9 +83,11 @@ bound_var_t::ref instantiate_unchecked_fn(
 							builder, subst_scope, function->return_type);
 
 					/* instantiate the function we want */
-					return function_defn->instantiate_with_args_and_return_type(
-							builder, subst_scope, life, nullptr /*new_scope*/,
-							type_constraints, named_args, return_type, fn_type);
+					return instantiate_function_with_args_and_return_type(
+							builder, subst_scope, life,
+							unchecked_fn->id->get_token(), function_defn->decl->extends_module, nullptr /*new_scope*/,
+							type_constraints, named_args, return_type, fn_type,
+							function_defn->block);
 				} catch (user_error &e) {
 					std::throw_with_nested(user_error(
 								unchecked_fn->get_location(),
@@ -278,7 +285,11 @@ bound_var_t::ref get_callable(
 		return callable;
 	} else {
 		std::stringstream ss;
-		ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
+		if (fittings.size() != 0) {
+			ss << C_ID << alias << " not found";
+		} else {
+			ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
+		}
 		auto error = user_error(callsite_location, "%s", ss.str().c_str());
 
 		/* report on the places we tried to look for a match */
@@ -327,5 +338,241 @@ bound_var_t::ref call_program_function(
 					::str(var_args).c_str()));
 	}
 	return nullptr;
+}
+
+std::string switch_std_main(std::string name) {
+    if (!getenv("NO_STD_LIB")) {
+        if (name == "main") {
+            return USER_MAIN_FN;
+        } else if (name == "__main__") {
+            return "main";
+        }
+    }
+    return name;
+}
+
+function_scope_t::ref make_param_list_scope(
+		llvm::IRBuilder<> &builder,
+		token_t token,
+		scope_t::ref &scope,
+		life_t::ref life,
+		bound_var_t::ref function_var,
+		bound_type_t::named_pairs params)
+{
+	assert(life->life_form == lf_function);
+
+	auto new_scope = scope->new_function_scope(
+			string_format("function-%s", function_var->name.c_str()));
+
+	llvm::Function *llvm_function = llvm::cast<llvm::Function>(function_var->get_llvm_value());
+	llvm::Function::arg_iterator args = llvm_function->arg_begin();
+
+	assert(llvm_function->arg_size() == dyncast<const types::type_args_t>(dyncast<const types::type_function_t>(function_var->type->get_type())->args)->args.size());
+	assert(llvm_function->arg_size() == params.size());
+
+	int i = 0;
+
+	for (auto &param : params) {
+		llvm::Value *llvm_param = &(*args++);
+		if (llvm_param->getName().str().size() == 0) {
+			llvm_param->setName(param.first);
+		}
+
+		assert(!param.second->is_ref(scope));
+
+		bool allow_reassignment = false;
+		auto param_type = param.second->get_type();
+		if (!param_type->eval_predicate(tb_ref, scope) && !param_type->eval_predicate(tb_null, scope)) {
+			allow_reassignment = true;
+		}
+
+		/* create a slot for the final param value to be determined */
+		llvm::Value *llvm_param_final = llvm_param;
+
+		if (allow_reassignment) {
+			param_type = type_ref(param_type);
+			/* create an alloca in order to be able to reassign the named
+			 * parameter to a new value. this does not mean that the parameter
+			 * is an out param, we are simply enabling reuse of the name */
+			llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(
+					llvm_function, param.second, param.first);
+
+			// REVIEW: how to manage memory for named parameters? if we allow
+			// changing their value then we have to enforce addref/release
+			// semantics on them...
+			debug_above(6, log(log_info, "creating a local alloca for parameter %s := %s",
+						llvm_print(llvm_alloca).c_str(),
+						llvm_print(llvm_param).c_str()));
+			builder.CreateStore(llvm_param, llvm_alloca);	
+			llvm_param_final = llvm_alloca;
+		}
+
+		auto bound_stack_var_type = upsert_bound_type(builder,
+				scope, param_type);
+		auto param_var = bound_var_t::create(INTERNAL_LOC(), param.first, bound_stack_var_type,
+				llvm_param_final, make_iid(params[i++].first));
+
+		bound_type_t::ref return_type = get_function_return_type(builder, scope, function_var->type);
+
+		life->track_var(builder, scope, param_var, lf_function);
+
+		/* add the parameter argument to the current scope */
+		new_scope->put_bound_variable(param.first, param_var);
+	}
+
+	return new_scope;
+}
+
+bound_var_t::ref instantiate_function_with_args_and_return_type(
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		life_t::ref life,
+		token_t name_token,
+		identifier::ref extends_module,
+		runnable_scope_t::ref *new_scope,
+		types::type_t::ref type_constraints,
+		bound_type_t::named_pairs args,
+		bound_type_t::ref return_type,
+		types::type_function_t::ref fn_type,
+		ast::block_t::ref block)
+{
+	program_scope_t::ref program_scope = scope->get_program_scope();
+	std::string function_name = switch_std_main(name_token.text);
+
+	indent_logger indent(name_token.location, 5,
+			string_format("instantiating function " c_id("%s") " at %s", function_name.c_str(),
+				name_token.location.str().c_str()));
+	// debug_above(9, log("function has env %s", ::str(scope->get_total_env()).c_str()));
+	debug_above(9, log("function has bindings %s", ::str(scope->get_type_variable_bindings()).c_str()));
+
+	/* let's make sure we're not instantiating a function we've already instantiated */
+	assert(!scope->get_bound_function(function_name, fn_type->repr()));
+
+	assert(life->life_form == lf_function);
+	assert(life->values.size() == 0);
+
+	assert(scope->get_llvm_module() != nullptr);
+
+	auto function_type = get_function_type(type_constraints, args, return_type);
+	bound_type_t::ref bound_function_type = upsert_bound_type(builder, scope, function_type);
+
+	bound_var_t::ref already_bound_function;
+	if (scope->has_bound(function_name, bound_function_type->get_type(), &already_bound_function)) {
+		return already_bound_function;
+	}
+
+	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+	assert(bound_function_type->get_llvm_type() != nullptr);
+
+	llvm::Type *llvm_type = bound_function_type->get_llvm_specific_type();
+	if (llvm_type->isPointerTy()) {
+		llvm_type = llvm_type->getPointerElementType();
+	}
+	debug_above(5, log(log_info, "creating function %s with LLVM type %s",
+				function_name.c_str(),
+				llvm_print(llvm_type).c_str()));
+	assert(llvm_type->isFunctionTy());
+
+	/* Create a user-defined function */
+	llvm::Function *llvm_function = llvm::Function::Create(
+			(llvm::FunctionType *)llvm_type,
+			llvm::Function::ExternalLinkage, function_name,
+			scope->get_llvm_module());
+
+	// TODO: enable inlining for various functions
+	// llvm_function->addFnAttr(llvm::Attribute::AlwaysInline);
+	llvm_function->setGC(GC_STRATEGY);
+	llvm_function->setDoesNotThrow();
+
+	/* start emitting code into the new function. caller should have an
+	 * insert point guard */
+	llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
+			"entry", llvm_function);
+	llvm::BasicBlock *llvm_body_block = llvm::BasicBlock::Create(builder.getContext(),
+			"body", llvm_function);
+
+	builder.SetInsertPoint(llvm_entry_block);
+	/* leave an empty entry block so that we can insert GC stuff in there, but be able to
+	 * seek to the end of it and not get into business logic */
+	builder.CreateBr(llvm_body_block);
+
+	builder.SetInsertPoint(llvm_body_block);
+
+	if (getenv("TRACE_FNS") != nullptr) {
+		std::stringstream ss;
+		ss << name_token.location.str() << ": " << (name_token.text.size() != 0 ? name_token.text + " : " : "") << bound_function_type->str();
+		auto callsite_debug_function_name_print = expand_callsite_string_literal(
+				name_token,
+				"posix",
+				"puts",
+				ss.str());
+		callsite_debug_function_name_print->resolve_statement(builder, scope, life, nullptr, nullptr);
+	}
+
+	/* set up the mapping to this function for use in recursion */
+	bound_var_t::ref function_var = bound_var_t::create(
+			INTERNAL_LOC(), name_token.text, bound_function_type, llvm_function,
+		   	make_code_id(name_token));
+
+	/* we should be able to check its block as a callsite. note that this
+	 * code will also run for generics but only after the
+	 * sbk_generic_substitution mechanism has run its course. */
+	auto params_scope = make_param_list_scope(builder, name_token, scope,
+			life, function_var, args);
+
+		/* now put this function declaration into the containing scope in case
+		 * of recursion */
+	if (function_var->name.size() != 0) {
+		debug_above(7, log("%s should be %s",
+					function_var->type->get_type()->repr().c_str(),
+					fn_type->eval(scope)->repr().c_str()));
+
+		assert(function_var->get_signature() == fn_type->eval(scope)->repr());
+		put_bound_function(builder, scope, name_token.location, function_var->name, extends_module, function_var,
+				new_scope);
+	}
+
+	bool all_paths_return = false;
+
+	try {
+		/* keep track of whether this function returns */
+		debug_above(7, log("setting return_type_constraint in %s to %s %s", function_var->name.c_str(),
+					return_type->str().c_str(),
+					llvm_print(return_type->get_llvm_type()).c_str()));
+		params_scope->set_return_type_constraint(return_type);
+
+		block->resolve_statement(builder, params_scope, life,
+				nullptr, &all_paths_return);
+
+	} catch (user_error &e) {
+		std::throw_with_nested(user_error(name_token.location,
+					"while checking %s", function_var->str().c_str()));
+	} catch (...) {
+		panic("uncaught exception");
+	}
+
+	debug_above(10, log(log_info, "module dump from %s\n%s",
+				__PRETTY_FUNCTION__,
+				llvm_print_module(*llvm_get_module(builder)).c_str()));
+
+	if (all_paths_return) {
+		llvm_verify_function(name_token.location, llvm_function);
+		return function_var;
+	} else {
+		/* not all control paths return */
+		if (return_type->is_void(scope)) {
+			/* if this is a void let's give the user a break and insert
+			 * a default void return */
+
+			life->release_vars(builder, scope, lf_function);
+			builder.CreateRetVoid();
+			llvm_verify_function(name_token.location, llvm_function);
+			return function_var;
+		} else {
+			/* no breaks here, we don't know what to return */
+			throw user_error(name_token.location, "not all control paths return a value");
+		}
+	}
 }
 

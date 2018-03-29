@@ -15,6 +15,10 @@ std::string iid::str() const {
 	return string_format(c_id("%s"), name.c_str());
 }
 
+token_t iid::get_token() const {
+	return token_t(location, tk_identifier, name);
+}
+
 identifier::ref make_iid_impl(std::string name, location_t location) {
 	return make_ptr<iid>(name, location);
 }

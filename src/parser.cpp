@@ -118,7 +118,7 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 
 	if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(def))) {
 		auto link_function_statement = create<ast::link_function_statement_t>(link_token);
-		auto function_decl = function_decl_t::parse(ps);
+		auto function_decl = function_decl_t::parse(ps, false /*within_expression*/);
 		if (ps.token.is_ident(K(to))) {
 			ps.advance();
 			if (ps.token.tk != tk_identifier && ps.token.tk != tk_string) {
@@ -207,8 +207,6 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 		auto continue_flow = create<ast::continue_flow_t>(ps.token);
 		eat_token();
 		return std::move(continue_flow);
-	} else if (ps.token.is_ident(K(def))) {
-		return function_defn_t::parse(ps);
 	} else if (ps.token.is_ident(K(break))) {
 		auto break_flow = create<ast::break_flow_t>(ps.token);
 		eat_token();
@@ -282,6 +280,8 @@ ptr<expression_t> base_expr::parse(parse_state_t &ps) {
 		return typeid_expr_t::parse(ps);
 	} else if (ps.token.is_ident(K(sizeof))) {
 		return sizeof_expr_t::parse(ps);
+	} else if (ps.token.is_ident(K(def))) {
+		return function_defn_t::parse(ps, true /*within_expression*/);
 	} else if (ps.token.tk == tk_identifier) {
 		// NB: this is last to ensure "special" builtins are in play above
 		return reference_expr_t::parse(ps);
@@ -328,9 +328,6 @@ ptr<expression_t> literal_expr_t::parse(parse_state_t &ps) {
 		throw user_error(ps.token.location, "unexpected indent");
 
 	case tk_identifier:
-		if (ps.token.is_ident(K(def))) {
-			return function_defn_t::parse(ps);
-		}
 		throw user_error(ps.token.location, "unexpected token found when parsing literal expression. '" c_error("%s") "'", ps.token.text.c_str());
 
 	default:
@@ -1021,10 +1018,15 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 	return when_block;
 }
 
-ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
+ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps, bool within_expression) {
 	location_t attributes_location;
 	identifier::ref extends_module;
+
 	if (ps.token.tk == tk_lsquare) {
+		if (within_expression) {
+			throw user_error(ps.token.location, "attributes are not supported within function expression forms");
+		}
+
 		attributes_location = ps.token.location;
 		ps.advance();
 		if (ps.token.is_ident(K(global))) {
@@ -1043,32 +1045,34 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 	}
 
 	expect_ident(K(def));
-	auto parsed_type = types::parse_type(ps, {});
+	location_t location = ps.token.location;
+
+	identifier::ref function_name;
+	auto parsed_type = types::parse_function_type(ps, {}, function_name);
 	debug_above(6, log("parsed function type %s", parsed_type->str().c_str()));
 	types::type_function_t::ref function_type = dyncast<const types::type_function_t>(parsed_type);
 	assert(function_type != nullptr);
-	std::string name;
-	if (function_type->name == nullptr) {
-		throw user_error(function_type->get_location(), "function is missing a name");
-	} else {
-		name = function_type->name->get_name();
-	}
 
-	assert(name.size() != 0);
+	std::string name;
+	if (function_name != nullptr) {
+		name = function_name->get_name();
+	} else if (!within_expression) {
+		throw user_error(function_type->get_location(), "function is missing a name");
+	}
 
 	if (name == "main") {
 		if (extends_module == nullptr) {
 			extends_module = make_iid_impl(GLOBAL_SCOPE_NAME, ps.token.location);
 		} else {
 			throw user_error(attributes_location,
-					"the main function may not specify an inbound context");
+					"the main function may not specify a scope injection module");
 		}
 	}
 
 	if (name == "__finalize__") {
 		if (auto args = dyncast<const types::type_args_t>(function_type->args)) {
 			if (args->args.size() != 1) {
-				throw user_error(function_type->name->get_location(),
+				throw user_error(function_name->get_location(),
 						"finalizers must only take one parameter");
 			}
 		} else {
@@ -1076,12 +1080,21 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 		}
 
 		if (!types::is_type_id(function_type->return_type, VOID_TYPE, nullptr)) {
-			throw user_error(function_type->name->get_location(),
+			throw user_error(function_name->get_location(),
 					"finalizers must return " c_type("void"));
 		}
 	}
 
-	auto name_token = token_t(function_type->name->get_location(), tk_identifier, function_type->name->get_name());
+	auto name_token = 
+		function_name != nullptr
+		? token_t(
+				function_name->get_location(),
+				tk_identifier,
+				name)
+		: token_t(
+				function_type->get_location(),
+				tk_identifier,
+				"");
 
 	auto function_decl = create<ast::function_decl_t>(name_token);
 	function_decl->function_type = function_type;
@@ -1090,8 +1103,8 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps) {
 	return function_decl;
 }
 
-ptr<function_defn_t> function_defn_t::parse(parse_state_t &ps) {
-	auto function_decl = function_decl_t::parse(ps);
+ptr<function_defn_t> function_defn_t::parse(parse_state_t &ps, bool within_expression) {
+	auto function_decl = function_decl_t::parse(ps, within_expression);
 
 	assert(function_decl != nullptr);
 	type_macros_restorer_t type_macros_restorer(ps.type_macros);
@@ -1395,7 +1408,7 @@ ptr<module_t> module_t::parse(parse_state_t &ps) {
 			}
 		} else if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(def))) {
 			/* function definitions */
-			auto function = function_defn_t::parse(ps);
+			auto function = function_defn_t::parse(ps, false /*within_expression*/);
 			if (function->token.text == "main") {
 				bool have_linked_main = false;
 				for (auto linked_module : module->linked_modules) {

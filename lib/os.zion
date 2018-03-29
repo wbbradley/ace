@@ -13,24 +13,26 @@ def getenv(name str) str?
 def shell(cmd str) [str]
 	return shell(cmd, null)
 
+def shell(cmd_parts [str]) [str]
+	return shell(cmd_parts, null)
+
 def shell(cmd_parts [str], pipe_text str?) [str]
 	cmd := join(" ", cmd_parts)
 	return shell(join(" ", cmd_parts), pipe_text)
 
 def shell(cmd str, pipe_text str?) [str]
-	print("Running " + cmd)
+	# print("Running " + cmd)
 	fp := posix.popen(cmd, "r+")
 	assert(fp != null)
 
 	if pipe_text != null
-		print("Writing " + pipe_text + " to the process...")
+		# print("Writing " + pipe_text + " to the process...")
 		ret := posix.fprintf(fp, "%s", pipe_text)
 		assert(ret >= 0)
+		posix.fflush(fp)
 
-	print("Reading...")
 	var lines [str]
 	for line in readlines(fp)
 		append(lines, line)
 	posix.pclose(fp)
-	print("Done reading.")
 	return lines

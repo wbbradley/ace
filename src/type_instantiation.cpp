@@ -168,7 +168,6 @@ void instantiate_data_ctor_type(
 					id->str().c_str()));
 
 		types::type_function_t::ref data_ctor_sig = type_function(
-				qualified_id,
 				nullptr,
 				type_args(types::without_refs(struct_->dimensions)),
 				ctor_return_type);

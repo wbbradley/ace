@@ -1033,8 +1033,13 @@ auto test_descs = std::vector<test_desc>{
 
 			auto bool_sum = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
 			env_map["bool"] = {false, bool_sum};
-			auto types = make_type_pair("bool", "true", {});
-			return unifies(types.first, types.second, make_ptr<test_env>(env_map));
+			try {
+				auto types = make_type_pair("bool", "true", {});
+				return unifies(types.first, types.second, make_ptr<test_env>(env_map));
+			} catch (user_error &e) {
+				print_exception(e);
+				return false;
+			}
 		}
 	},
 	{
@@ -1406,7 +1411,12 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 		if (check_filters(test_desc.name, filter, excludes)) {
 			debug_above(2, log(log_info, "------ " c_test_msg("running %s") " ------", test_desc.name.c_str()));
 
-			bool test_failure = !test_desc.func();
+			bool test_failure = true;
+			try {
+				test_failure = !test_desc.func();
+			} catch (user_error &e) {
+				print_exception(e);
+			}
 
 			if (test_failure) {
 				debug_above(2, log(log_error, "------ " c_error("✗ ") c_test_msg("%s") c_error(" FAILED ") "------", test_desc.name.c_str()));

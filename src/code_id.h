@@ -24,6 +24,10 @@ struct code_id : public identifier {
 	virtual std::string str() const {
 		return token.str();
 	}
+
+	virtual token_t get_token() const {
+		return token;
+	}
 };
 
 struct type_id_code_id : public identifier {
@@ -42,6 +46,10 @@ struct type_id_code_id : public identifier {
 
 	virtual std::string str() const {
 		return name;
+	}
+
+	virtual token_t get_token() const {
+		return token_t(location, tk_identifier, name);
 	}
 
 	const location_t location;

@@ -509,6 +509,7 @@ void destructure_function_decl(
 		const ast::function_decl_t &obj,
 		scope_t::ref scope,
 		types::type_t::ref &type_constraints,
+		bool as_closure,
 		bound_type_t::named_pairs &params,
 		bound_type_t::ref &return_type,
 		types::type_function_t::ref &function_type)
@@ -517,6 +518,8 @@ void destructure_function_decl(
 	debug_above(4, log(log_info, "type checking function decl %s with type %s",
 				obj.token.str().c_str(),
 				obj.function_type->str().c_str()));
+
+	assert_implies(as_closure, dyncast<closure_scope_t>(scope) != nullptr);
 
 	function_type = dyncast<const types::type_function_t>(obj.function_type->rebind(scope->get_type_variable_bindings()));
 	assert(function_type != nullptr);
@@ -552,78 +555,6 @@ bool is_function_decl_generic(scope_t::ref scope, const ast::function_defn_t &ob
 			->function_type
 			->rebind(scope->get_type_variable_bindings())
 			->ftv_count() != 0;
-}
-
-function_scope_t::ref make_param_list_scope(
-		llvm::IRBuilder<> &builder,
-		const ast::function_decl_t &obj,
-		scope_t::ref &scope,
-		life_t::ref life,
-		bound_var_t::ref function_var,
-		bound_type_t::named_pairs params)
-{
-	assert(life->life_form == lf_function);
-
-	auto new_scope = scope->new_function_scope(
-			string_format("function-%s", function_var->name.c_str()));
-
-	auto type_args = dyncast<const types::type_args_t>(obj.function_type->args);
-	assert(type_args != nullptr && type_args->args.size() == params.size());
-
-	llvm::Function *llvm_function = llvm::cast<llvm::Function>(function_var->get_llvm_value());
-	llvm::Function::arg_iterator args = llvm_function->arg_begin();
-
-	int i = 0;
-
-	for (auto &param : params) {
-		llvm::Value *llvm_param = &(*args++);
-		if (llvm_param->getName().str().size() == 0) {
-			llvm_param->setName(param.first);
-		}
-
-		assert(!param.second->is_ref(scope));
-
-		bool allow_reassignment = false;
-		auto param_type = param.second->get_type();
-		if (!param_type->eval_predicate(tb_ref, scope) && !param_type->eval_predicate(tb_null, scope)) {
-			allow_reassignment = true;
-		}
-
-		/* create a slot for the final param value to be determined */
-		llvm::Value *llvm_param_final = llvm_param;
-
-		if (allow_reassignment) {
-			param_type = type_ref(param_type);
-			/* create an alloca in order to be able to reassign the named
-			 * parameter to a new value. this does not mean that the parameter
-			 * is an out param, we are simply enabling reuse of the name */
-			llvm::AllocaInst *llvm_alloca = llvm_create_entry_block_alloca(
-					llvm_function, param.second, param.first);
-
-			// REVIEW: how to manage memory for named parameters? if we allow
-			// changing their value then we have to enforce addref/release
-			// semantics on them...
-			debug_above(6, log(log_info, "creating a local alloca for parameter %s := %s",
-						llvm_print(llvm_alloca).c_str(),
-						llvm_print(llvm_param).c_str()));
-			builder.CreateStore(llvm_param, llvm_alloca);	
-			llvm_param_final = llvm_alloca;
-		}
-
-		auto bound_stack_var_type = upsert_bound_type(builder,
-				scope, param_type);
-		auto param_var = bound_var_t::create(INTERNAL_LOC(), param.first, bound_stack_var_type,
-				llvm_param_final, type_args->names[i++]);
-
-		bound_type_t::ref return_type = get_function_return_type(builder, scope, function_var->type);
-
-		life->track_var(builder, scope, param_var, lf_function);
-
-		/* add the parameter argument to the current scope */
-		new_scope->put_bound_variable(param.first, param_var);
-	}
-
-	return new_scope;
 }
 
 void ast::expression_t::resolve_statement(
@@ -706,7 +637,7 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 	types::type_function_t::ref function_type;
 	bound_type_t::named_pairs named_args;
 	bound_type_t::ref return_value;
-	destructure_function_decl(builder, *extern_function, scope, type_constraints, named_args, return_value, function_type);
+	destructure_function_decl(builder, *extern_function, scope, type_constraints, false /*as_closure*/, named_args, return_value, function_type);
 
 	assert(return_value != nullptr);
 
@@ -2975,6 +2906,25 @@ bound_var_t::ref ast::sizeof_expr_t::resolve_expression(
 			make_iid("sizeof"));
 }
 
+
+bound_var_t::ref llvm_create_closure(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		std::string closure_name,
+		location_t location,
+		bound_var_t::ref bound_function,
+		closure_scope_t::ref closure_scope)
+{
+	auto closure_obj_name = std::string("closure for ") + closure_name;
+	return bound_var_t::create(
+			INTERNAL_LOC(), closure_obj_name,
+			nullptr /*bound_closure_type*/,
+			nullptr /*llvm_closure_object*/,
+			make_iid_impl(closure_obj_name, location));
+}
+
+
 bound_var_t::ref ast::function_defn_t::resolve_expression(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
@@ -2983,8 +2933,20 @@ bound_var_t::ref ast::function_defn_t::resolve_expression(
 		types::type_t::ref expected_type) const
 {
 	assert(!as_ref);
+	debug_above(6, log("resolving function expression with declared signature %s at %s",
+				decl->function_type->str().c_str(),
+				token.location.str().c_str()));
+	auto runnable_scope = dyncast<runnable_scope_t>(scope);
+	if (runnable_scope != nullptr) {
+		/* we are instantiating a function within a runnable scope, let's get closure over the environment we're in */
+		auto closure_name = std::string("anonymous fn ") + decl->function_type->repr() + " at " + token.location.repr();
+		auto closure_scope = runnable_scope->new_closure_scope(closure_name);
+		auto function = resolve_function(builder, closure_scope, life, true /*as_closure*/, nullptr, nullptr);
 
-	return resolve_function(builder, scope, life, nullptr, nullptr);
+		return llvm_create_closure(builder, scope, life, closure_name, get_location(), function, closure_scope);
+	} else {
+		return resolve_function(builder, scope, life, false /*as_closure*/, nullptr, nullptr);
+	}
 }
 
 void ast::function_defn_t::resolve_statement(
@@ -2994,13 +2956,14 @@ void ast::function_defn_t::resolve_statement(
 		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	resolve_function(builder, scope, life, new_scope, returns);
+	resolve_function(builder, scope, life, false /*as_closure*/, new_scope, returns);
 }
 
 bound_var_t::ref ast::function_defn_t::resolve_function(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref,
+		bool as_closure,
 		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -3022,180 +2985,18 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 				"type checking %s in %s", token.str().c_str(),
 				scope->get_name().c_str()));
 
+	assert_implies(as_closure, dyncast<closure_scope_t>(scope) != nullptr);
+
 	/* see if we can get a monotype from the function declaration */
 	types::type_function_t::ref fn_type;
 	types::type_t::ref type_constraints;
 	bound_type_t::named_pairs args;
 	bound_type_t::ref return_type;
-	destructure_function_decl(builder, *decl, scope, type_constraints, args, return_type, fn_type);
+	destructure_function_decl(builder, *decl, scope, type_constraints, as_closure, args, return_type, fn_type);
 
-	return instantiate_with_args_and_return_type(builder, scope, life,
-			new_scope, type_constraints, args, return_type, fn_type);
-}
-
-#define USER_MAIN_FN "user/main"
-
-std::string switch_std_main(std::string name) {
-    if (!getenv("NO_STD_LIB")) {
-        if (name == "main") {
-            return USER_MAIN_FN;
-        } else if (name == "__main__") {
-            return "main";
-        }
-    }
-    return name;
-}
-
-bound_var_t::ref ast::function_defn_t::instantiate_with_args_and_return_type(
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-		life_t::ref life,
-		runnable_scope_t::ref *new_scope,
-		types::type_t::ref type_constraints,
-		bound_type_t::named_pairs args,
-		bound_type_t::ref return_type,
-		types::type_function_t::ref fn_type) const
-{
-	program_scope_t::ref program_scope = scope->get_program_scope();
-	std::string function_name = switch_std_main(token.text);
-
-	indent_logger indent(get_location(), 5, string_format("instantiating function " c_id("%s") " at %s", function_name.c_str(),
-				token.location.str().c_str()));
-	// debug_above(9, log("function has env %s", ::str(scope->get_total_env()).c_str()));
-	debug_above(9, log("function has bindings %s", ::str(scope->get_type_variable_bindings()).c_str()));
-
-	/* let's make sure we're not instantiating a function we've already instantiated */
-	assert(!scope->get_bound_function(function_name, fn_type->repr()));
-
-	assert(life->life_form == lf_function);
-	assert(life->values.size() == 0);
-
-	assert(scope->get_llvm_module() != nullptr);
-
-	auto function_type = get_function_type(type_constraints, args, return_type);
-	bound_type_t::ref bound_function_type = upsert_bound_type(builder, scope, function_type);
-
-	bound_var_t::ref already_bound_function;
-	if (scope->has_bound(function_name, bound_function_type->get_type(), &already_bound_function)) {
-		return already_bound_function;
-	}
-
-	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-
-	assert(bound_function_type->get_llvm_type() != nullptr);
-
-	llvm::Type *llvm_type = bound_function_type->get_llvm_specific_type();
-	if (llvm_type->isPointerTy()) {
-		llvm_type = llvm_type->getPointerElementType();
-	}
-	debug_above(5, log(log_info, "creating function %s with LLVM type %s",
-				function_name.c_str(),
-				llvm_print(llvm_type).c_str()));
-	assert(llvm_type->isFunctionTy());
-
-	/* Create a user-defined function */
-	llvm::Function *llvm_function = llvm::Function::Create(
-			(llvm::FunctionType *)llvm_type,
-			llvm::Function::ExternalLinkage, function_name,
-			scope->get_llvm_module());
-
-	// TODO: enable inlining for various functions
-	// llvm_function->addFnAttr(llvm::Attribute::AlwaysInline);
-	llvm_function->setGC(GC_STRATEGY);
-	llvm_function->setDoesNotThrow();
-
-	/* start emitting code into the new function. caller should have an
-	 * insert point guard */
-	llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
-			"entry", llvm_function);
-	llvm::BasicBlock *llvm_body_block = llvm::BasicBlock::Create(builder.getContext(),
-			"body", llvm_function);
-
-	builder.SetInsertPoint(llvm_entry_block);
-	/* leave an empty entry block so that we can insert GC stuff in there, but be able to
-	 * seek to the end of it and not get into business logic */
-	builder.CreateBr(llvm_body_block);
-
-	builder.SetInsertPoint(llvm_body_block);
-
-
-	if (getenv("TRACE_FNS") != nullptr) {
-		std::stringstream ss;
-		ss << decl->token.location.str() << ": " << decl->str() << " : " << bound_function_type->str();
-		auto callsite_debug_function_name_print = expand_callsite_string_literal(
-				token,
-				"posix",
-				"puts",
-				ss.str());
-		callsite_debug_function_name_print->resolve_statement(builder, scope, life, nullptr, nullptr);
-	}
-
-	/* set up the mapping to this function for use in recursion */
-	bound_var_t::ref function_var = bound_var_t::create(
-			INTERNAL_LOC(), token.text, bound_function_type, llvm_function,
-			make_code_id(token));
-
-	/* we should be able to check its block as a callsite. note that this
-	 * code will also run for generics but only after the
-	 * sbk_generic_substitution mechanism has run its course. */
-	auto params_scope = make_param_list_scope(builder, *decl, scope,
-			life, function_var, args);
-
-	/* now put this function declaration into the containing scope in case
-	 * of recursion */
-	if (function_var->name.size() != 0) {
-		debug_above(7, log("%s should be %s",
-					function_var->type->get_type()->repr().c_str(),
-					fn_type->eval(scope)->repr().c_str()));
-
-		assert(function_var->get_signature() == fn_type->eval(scope)->repr());
-		put_bound_function(builder, scope, get_location(), function_var->name, decl->extends_module,
-				function_var, new_scope);
-	} else {
-		throw user_error(get_location(), "function definitions need names");
-	}
-
-	bool all_paths_return = false;
-
-	try {
-		/* keep track of whether this function returns */
-		debug_above(7, log("setting return_type_constraint in %s to %s %s", function_var->name.c_str(),
-					return_type->str().c_str(),
-					llvm_print(return_type->get_llvm_type()).c_str()));
-		params_scope->set_return_type_constraint(return_type);
-
-		block->resolve_statement(builder, params_scope, life,
-				nullptr, &all_paths_return);
-
-	} catch (user_error &e) {
-		std::throw_with_nested(user_error(get_location(),
-					"while checking %s", function_var->str().c_str()));
-	} catch (...) {
-		panic("uncaught exception");
-	}
-
-	debug_above(10, log(log_info, "module dump from %s\n%s",
-				__PRETTY_FUNCTION__,
-				llvm_print_module(*llvm_get_module(builder)).c_str()));
-
-	if (all_paths_return) {
-		llvm_verify_function(token.location, llvm_function);
-		return function_var;
-	} else {
-		/* not all control paths return */
-		if (return_type->is_void(scope)) {
-			/* if this is a void let's give the user a break and insert
-			 * a default void return */
-
-			life->release_vars(builder, scope, lf_function);
-			builder.CreateRetVoid();
-			llvm_verify_function(token.location, llvm_function);
-			return function_var;
-		} else {
-			/* no breaks here, we don't know what to return */
-			throw user_error(get_location(), "not all control paths return a value");
-		}
-	}
+	return instantiate_function_with_args_and_return_type(builder, scope, life,
+			token, decl->extends_module, new_scope, type_constraints, args, return_type, fn_type,
+			block);
 }
 
 void type_check_module_links(
@@ -3355,6 +3156,7 @@ void type_check_program_variable(
 				*function_defn->decl,
 				unchecked_var->module_scope,
 				type_constraints,
+				false /*as_closure*/,
 				named_params,
 				return_value,
 				function_type);
@@ -3432,7 +3234,6 @@ void create_visit_module_vars_function(
 	bound_type_t::ref bound_callback_fn_type = upsert_bound_type(
 			builder, program_scope, 
 			type_function(
-				make_iid("__visit_module_vars"),
 				nullptr,
 				type_args({type_maybe(type_ptr(type_id(make_iid(STD_MANAGED_TYPE))))}, {}),
 				type_id(make_iid("void"))));
@@ -3442,7 +3243,7 @@ void create_visit_module_vars_function(
 			builder, 
 			program_scope,
 			INTERNAL_LOC(),
-			type_function(nullptr, nullptr,
+			type_function(nullptr,
 				type_args({bound_callback_fn_type->get_type()}),
 				program_scope->get_bound_type(VOID_TYPE)->get_type()),
 			"__visit_module_vars");
