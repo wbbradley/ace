@@ -609,11 +609,10 @@ namespace types {
 	}
 
 	type_function_t::type_function_t(
-			identifier::ref name,
 			types::type_t::ref type_constraints,
 			types::type_t::ref args,
 			type_t::ref return_type) :
-		name(name), type_constraints(type_constraints),
+		type_constraints(type_constraints),
 		args(args), return_type(return_type)
 	{
 		assert(dyncast<const type_args_t>(args) != nullptr || dyncast<const type_variable_t>(args) != nullptr);
@@ -659,7 +658,6 @@ namespace types {
 				args->rebind(bindings));
 		assert(args != nullptr);
 		return ::type_function(
-				name,
 				type_constraints != nullptr ? type_constraints->rebind(bindings) : type_constraints,
 				rebound_args,
 				return_type->rebind(bindings));
@@ -1445,12 +1443,11 @@ types::type_managed_t::ref type_managed(types::type_t::ref element_type) {
 }
 
 types::type_function_t::ref type_function(
-		identifier::ref name,
 		types::type_t::ref type_constraints,
 		types::type_t::ref args,
 		types::type_t::ref return_type)
 {
-	auto ret = make_ptr<types::type_function_t>(name, type_constraints, args, return_type);
+	auto ret = make_ptr<types::type_function_t>(type_constraints, args, return_type);
 	if (type_constraints && type_constraints->repr() == TRUE_TYPE) {
 		debug_above(9, log("created type_function %s", ret->str().c_str()));
 		dbg();

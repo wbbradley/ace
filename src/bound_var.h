@@ -24,7 +24,6 @@ struct bound_var_t : public std::enable_shared_from_this<bound_var_t>, public va
 	   	id(id),
 	   	llvm_value(llvm_value)
    	{
-		assert(name.size() != 0);
 		assert(llvm_value != nullptr);
 		assert(id != nullptr);
 		assert(type != nullptr);

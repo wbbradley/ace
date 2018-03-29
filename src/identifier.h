@@ -2,6 +2,7 @@
 #include <string>
 #include "utils.h"
 #include "location.h"
+#include "token.h"
 #include <vector>
 #include <set>
 #include <list>
@@ -15,6 +16,7 @@ struct identifier {
 	virtual ~identifier() {}
 	virtual std::string get_name() const = 0;
 	virtual location_t get_location() const = 0;
+	virtual token_t get_token() const = 0;
 	virtual std::string str() const = 0;
 
 	bool operator <(const identifier &rhs) const;
@@ -36,6 +38,7 @@ struct iid : public identifier {
 	virtual std::string get_name() const;
 	virtual location_t get_location() const;
 	virtual std::string str() const;
+	virtual token_t get_token() const;
 };
 
 std::string str(identifier::refs ids);

@@ -31,3 +31,8 @@ bound_var_t::ref extract_member_variable(
 		std::string member_name,
 		bool as_ref,
 		types::type_t::ref expected_type);
+ptr<ast::callsite_expr_t> expand_callsite_string_literal(
+		token_t token,
+		std::string module,
+		std::string function_name,
+		std::string param);

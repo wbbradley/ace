@@ -578,7 +578,7 @@ namespace ast {
 		typedef ptr<const function_decl_t> ref;
 
 		static const syntax_kind_t SK = sk_function_decl;
-		static ptr<function_decl_t> parse(parse_state_t &ps);
+		static ptr<function_decl_t> parse(parse_state_t &ps, bool within_expression);
 
 		virtual void render(render_state_t &rs) const;
 
@@ -594,7 +594,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_function_defn;
 
-		static ptr<function_defn_t> parse(parse_state_t &ps);
+		static ptr<function_defn_t> parse(parse_state_t &ps, bool within_expression);
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -611,17 +611,9 @@ namespace ast {
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
+				bool as_closure,
 				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
-		bound_var_t::ref instantiate_with_args_and_return_type(
-			   	llvm::IRBuilder<> &builder,
-			   	scope_t::ref block_scope,
-				life_t::ref life,
-				runnable_scope_t::ref *new_scope,
-				types::type_t::ref type_constraints,
-				bound_type_t::named_pairs args,
-				bound_type_t::ref return_type,
-                types::type_function_t::ref fn_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<function_decl_t> decl;

@@ -14,4 +14,5 @@ namespace ast {
 	struct return_statement_t;
 	struct param_list_decl_t;
 	struct type_product_t;
+	struct callsite_expr_t;
 }

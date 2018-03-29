@@ -164,12 +164,13 @@ namespace types {
 		return parse_type(ps, generics);
 	}
 
-	types::type_t::ref parse_function_type(parse_state_t &ps, identifier::set generics) {
+	types::type_t::ref parse_function_type(parse_state_t &ps, identifier::set generics, identifier::ref &name) {
 		chomp_ident(K(def));
-		identifier::ref name;
 		if (ps.token.tk == tk_identifier) {
 			name = make_code_id(ps.token);
 			ps.advance();
+		} else {
+			name.reset();
 		}
 
 		types::type_t::ref type_constraints;
@@ -262,7 +263,7 @@ namespace types {
 			return_type = type_void();
 		}
 
-		return type_function(name, type_constraints, type_args(param_types, param_names), return_type);
+		return type_function(type_constraints, type_args(param_types, param_names), return_type);
 	}
 
 	type_t::ref parse_map_type(parse_state_t &ps, const identifier::set &generics) {
@@ -312,7 +313,13 @@ namespace types {
 			auto body = parse_and_type(ps, generics);
 				return type_lambda(make_code_id(param_token), body);
 		} else if (ps.token.is_ident(K(def))) {
-			return parse_function_type(ps, generics);
+			identifier::ref name;
+			auto fn_type = parse_function_type(ps, generics, name);
+			if (name != nullptr) {
+				throw user_error(name->get_location(), "function name unexpected in this context (" c_id("%s") ")",
+						name->get_name().c_str());
+			}
+			return fn_type;
 		} else if (ps.token.is_ident(K(any))) {
 			auto token = ps.token;
 			ps.advance();

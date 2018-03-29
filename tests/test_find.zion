@@ -1,0 +1,12 @@
+module _
+# test: pass
+# expect: pass
+
+def main()
+	i := find("hello world", "world", 0)
+	assert(i != null and i == 6)
+	j := find("hello worl", "world", 0)
+	assert(j == null)
+	assert(find("world", "world", 1) == null)
+	assert(find(" world", "world", 1) != null)
+	print("pass")

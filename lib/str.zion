@@ -295,3 +295,55 @@ def __in__(find_ str, s_ str) bool
 				return true
 
 	return false
+
+def find(s_ str, find_ str, start int) int?
+	real_find_len := len(find_)
+	if real_find_len == 0
+		return 0
+
+	# set up a search for the remaining characters (after the first)
+	c := find_[0]
+	find := &unsafe_access(find_)[1]
+	find_len := real_find_len - 1
+	
+	var s_len int = len(s_) - start
+	if s_len <= 0
+		return null
+
+	var s = &unsafe_access(s_)[start]
+
+	# OK, now start looping through s positions until we either run out of possible space for find,
+	# or we find it
+	while s_len > find_len
+		cur := s[0]
+		s = &s[1]
+		s_len -= 1
+
+		if c == cur
+			if posix.memcmp(s, find, find_len) == 0
+				return start
+		start += 1
+
+	return null
+
+def replace(s str, find_ str, repl str) str
+	if len(find_) == 0
+		return s
+
+	var cur = 0
+	var sofar str
+	while cur < len(s)
+		i := find(s, find_, cur)
+		if i != null
+			sofar += s[cur:i]
+			sofar += repl
+			cur = i + len(find_)
+		else
+			if len(sofar) == 0
+				return s
+			else
+				sofar += s[cur:len(s)]
+				return sofar
+
+	return sofar
+			

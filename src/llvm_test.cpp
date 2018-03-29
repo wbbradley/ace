@@ -1,4 +1,6 @@
+#include "zion.h"
 #include "llvm_zion.h"
+#include "llvm_utils.h"
 #include <sstream>
 #include "logger_decls.h"
 #include "dbg.h"
@@ -9,7 +11,11 @@ bool test_llvm_builder() {
 	llvm::Module *module = new llvm::Module("top", context);
 	llvm::IRBuilder<> builder(context); 
 
-	llvm::FunctionType *funcType = llvm::FunctionType::get(builder.getVoidTy(), false);
+	llvm::StructType *ver0 = llvm_create_struct_type(
+			builder, "ver0", std::vector<llvm::Type*>{builder.getInt32Ty(),
+			builder.getInt32Ty()});
+
+	llvm::FunctionType *funcType = llvm::FunctionType::get(builder.getVoidTy(), {ver0->getPointerTo()}, false);
 	llvm::Function *mainFunc = llvm::Function::Create(
 			funcType, llvm::Function::ExternalLinkage, "main", module);
 
@@ -27,9 +33,22 @@ bool test_llvm_builder() {
 
 	builder.CreateCall(putsFunc, helloWorld);
 
+	llvm::Function::arg_iterator args = mainFunc->arg_begin();
+	printf("%s\n", llvm_print(args->getType()).c_str());
+	std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{
+		builder.getInt32(0),
+		builder.getInt32(1),
+	};
+
+	printf("type of GEP is %s\n",
+		   	llvm_print(
+				builder.CreateInBoundsGEP(args, gep_path)->getType()).c_str());
+
 	builder.CreateRetVoid();
 
-	// module->dump();
+	FILE *fp = fopen("jit.llir", "wt");
+	fprintf(fp, "%s\n", llvm_print_module(*module).c_str());
+	fclose(fp);
 
 	std::stringstream ss;
 	llvm::raw_os_ostream os(ss);

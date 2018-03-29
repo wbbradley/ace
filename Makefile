@@ -1,7 +1,7 @@
 IMAGE=zionlang/zion
 VERSION=0.1
 INSTALL_DIR=/usr/local/zion
-OPT_LEVEL=-O3
+OPT_LEVEL=-O0
 UNAME := $(shell uname)
 DEBUG_FLAGS := -DZION_DEBUG -g
 
@@ -182,22 +182,18 @@ $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_OBJE
 	@du -hs $@ | cut -f1 | xargs echo Target \`$@\` is
 
 $(BUILD_DIR)/%.o: src/%.cpp
-	@echo Compiling $<
 	@$(CPP) $(CPP_FLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
 	@$(CPP) $(CPP_FLAGS) $< -o $@
 
 $(BUILD_DIR)/tests/%.o: tests/%.c
 	@-mkdir -p $(@D)
-	@echo Compiling $<
 	@$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/%.o: src/%.c
-	@echo Compiling $<
 	@$(CC) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
 	@$(CC) $(CFLAGS) $< -o $@
 
 %.o: src/%.c
-	@echo Compiling $<
 	@$(CC) $(CFLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
 	@$(CC) $(CFLAGS) $< -o $@
 

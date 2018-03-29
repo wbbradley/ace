@@ -8,6 +8,7 @@
 
 namespace ast {
     struct item_t;
+	struct block_t;
 };
 
 struct can_reference_overloads_t {
@@ -67,3 +68,15 @@ bound_var_t::ref check_func_vs_callsite(
 		types::type_t::ref args,
 		types::type_t::ref return_type,
 		int &coercions);
+bound_var_t::ref instantiate_function_with_args_and_return_type(
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		life_t::ref life,
+		token_t name_token,
+		identifier::ref extends_module,
+		runnable_scope_t::ref *new_scope,
+		types::type_t::ref type_constraints,
+		bound_type_t::named_pairs args,
+		bound_type_t::ref return_type,
+		types::type_function_t::ref fn_type,
+		ptr<const ast::block_t> block);
