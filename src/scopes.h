@@ -15,6 +15,7 @@ extern const char SCOPE_SEP_CHAR;
 extern const char *GLOBAL_ID;
 
 struct scope_t;
+struct life_t;
 
 enum resolution_constraints_t {
 	rc_capture_level,
@@ -26,6 +27,7 @@ struct module_scope_t;
 struct function_scope_t;
 struct runnable_scope_t;
 struct generic_substitution_scope_t;
+struct closure_scope_t;
 
 typedef std::map<std::string, std::pair<bool /*is_structural*/, ptr<const types::type_t> > > env_map_t;
 
@@ -36,11 +38,12 @@ struct scope_t : public env_t {
 	virtual ~scope_t() {}
 	virtual ref this_scope() = 0;
 	virtual cref this_scope() const = 0;
+	// virtual ptr<closure_scope_t> get_closure_scope() = 0;
 	virtual bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const = 0;
 	virtual bool symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var) = 0;
 	virtual bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true) = 0;
 	virtual bound_var_t::ref get_bound_function(std::string name, std::string signature) = 0;
-	virtual bound_var_t::ref get_bound_variable(location_t location, std::string symbol, bool search_parents=true) = 0;
+	virtual bound_var_t::ref get_bound_variable(llvm::IRBuilder<> &builder, location_t location, std::string symbol, scope_t::ref stopping_scope=nullptr) = 0;
 	virtual bound_var_t::ref get_singleton(std::string name) = 0;
 	virtual llvm::Module *get_llvm_module() = 0;
 	virtual ptr<const module_scope_t> get_module_scope() const = 0;
@@ -74,7 +77,7 @@ struct runnable_scope_t : public virtual scope_t {
 	virtual ~runnable_scope_t() {}
 
 	virtual ptr<runnable_scope_t> new_runnable_scope(std::string name) = 0;
-	virtual ptr<closure_scope_t> new_closure_scope(std::string name) = 0;
+	virtual ptr<closure_scope_t> new_closure_scope(llvm::IRBuilder<> &builder, std::string name) = 0;
 	virtual return_type_constraint_t &get_return_type_constraint() = 0;
 	virtual void check_or_update_return_type_constraint(const ptr<const ast::item_t> &return_statement, return_type_constraint_t return_type) = 0;
 	virtual void set_innermost_loop_bbs(llvm::BasicBlock *new_loop_continue_bb, llvm::BasicBlock *new_loop_break_bb) = 0;
@@ -87,7 +90,8 @@ struct closure_scope_t : public virtual scope_t {
 	typedef ptr<closure_scope_t> ref;
 	virtual ~closure_scope_t() {}
 
-	const std::map<std::string, bound_var_t::ref> &get_captures() const;
+	virtual void set_capture_env(bound_var_t::ref capture_env) = 0;
+	virtual bound_var_t::ref create_closure(llvm::IRBuilder<> &builder, ptr<life_t> life, location_t location, bound_var_t::ref function) = 0;
 };
 
 struct loop_tracker_t {

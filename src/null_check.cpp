@@ -33,7 +33,7 @@ void unmaybe_variable(
 		runnable_scope_t::ref *new_scope)
 {
 	token_t token = ref_expr->token;
-	bound_var_t::ref var = scope->get_bound_variable(ref_expr->get_location(), token.text);
+	bound_var_t::ref var = scope->get_bound_variable(builder, ref_expr->get_location(), token.text);
 
 	if (var == nullptr) {
 		throw user_error(ref_expr->get_location(), "undefined symbol " c_id("%s"), token.text.c_str());
@@ -92,7 +92,7 @@ void nullify_let_var(
 {
 	/* this is immutable so we can safely just refine it to null */
 	token_t token = ref_expr->token;
-	bound_var_t::ref var = scope->get_bound_variable(ref_expr->get_location(), token.text);
+	bound_var_t::ref var = scope->get_bound_variable(builder, ref_expr->get_location(), token.text);
 
 	if (var == nullptr) {
 		throw user_error(ref_expr->get_location(), "undefined symbol " c_id("%s"), token.text.c_str());

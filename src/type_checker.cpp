@@ -527,8 +527,22 @@ void destructure_function_decl(
 	type_constraints = function_type->type_constraints;
 
 	/* the parameter types as per the decl */
-	const auto &args = dyncast<const types::type_args_t>(function_type->args);
+	auto args = dyncast<const types::type_args_t>(function_type->args);
 	assert(args != nullptr);
+	if (as_closure) {
+		/* an an implicit parameter to track the closure of the captured env */
+		types::type_t::refs args_args = args->args;
+		auto args_names = args->names;
+
+		assert(args_names.size() == args_args.size());
+
+		/* push the closure env */
+		args_args.push_back(scope->get_program_scope()->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/)->get_type());
+		args_names.push_back(make_iid_impl("__env", obj.get_location()));
+
+		args = type_args(args_args, args_names);
+	}
+
 	bound_type_t::refs bound_args = upsert_bound_types(builder, scope, args->args);
 
 	const auto &arg_names = args->names;
@@ -543,11 +557,15 @@ void destructure_function_decl(
 	auto implied_fn_type = get_function_type(type_constraints, params, return_type)->eval(scope);
 	auto explicit_fn_type = function_type->eval(scope);
 
-	debug_above(7, log("%s should be %s",
-				implied_fn_type->repr().c_str(),
-				explicit_fn_type->repr().c_str()));
+	if (!as_closure) {
+		debug_above(7, log("%s should be %s",
+					implied_fn_type->repr().c_str(),
+					explicit_fn_type->repr().c_str()));
 
-	assert(implied_fn_type->repr() == explicit_fn_type->repr());
+		assert(implied_fn_type->repr() == explicit_fn_type->repr());
+	}
+	function_type = dyncast<const types::type_function_t>(implied_fn_type);
+	assert(function_type != nullptr);
 }
 
 bool is_function_decl_generic(scope_t::ref scope, const ast::function_defn_t &obj) {
@@ -925,7 +943,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 				extern_type->inner->repr().c_str());
 		bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 		/* before we go create this type info, let's see if it already exists */
-		auto bound_type_info = program_scope->get_bound_variable(full_type->get_location(),
+		auto bound_type_info = program_scope->get_bound_variable(builder, full_type->get_location(),
 				type_info_var_name);
 
 		if (bound_type_info != nullptr) {
@@ -1096,7 +1114,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 	/* we wouldn't be referencing a variable name here unless it was unique
 	 * override resolution only happens on callsites, and we don't allow
 	 * passing around unresolved overload references */
-	bound_var_t::ref var = scope->get_bound_variable(get_location(), token.text);
+	bound_var_t::ref var = scope->get_bound_variable(builder, get_location(), token.text);
 
 	/* get_bound_variable can return nullptr without an user_error */
 	if (var != nullptr) {
@@ -1717,9 +1735,9 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 	if (lhs_var->type->get_type()->eval_predicate(tb_null, scope)) {
 		if (rhs_var->type->get_type()->eval_predicate(tb_null, scope)) {
 			return scope->get_program_scope()->get_bound_variable(
-					location,
-					rnpbc_equality_is_truth(rnpbc) ? "true" : "false",
-					false /*search_parents*/);
+					builder, location,
+					rnpbc_equality_is_truth(rnpbc) ? TRUE_TYPE : FALSE_TYPE,
+					nullptr);
 		} else {
 			auto null_check = rnpbc_rhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null;
 			return resolve_null_check(builder, scope, life, location, rhs_node, rhs_var, null_check, scope_if_true, scope_if_false);
@@ -2694,7 +2712,7 @@ bound_var_t::ref resolve_module_variable_reference(
 	debug_above(5,
 			log("attempt to find global id " c_id("%s"),
 				qualified_id.c_str()));
-	bound_var_t::ref var = scope->get_bound_variable(location, qualified_id);
+	bound_var_t::ref var = scope->get_bound_variable(builder, location, qualified_id);
 
 	/* if we couldn't resolve that id, let's look for unchecked variables */
 	program_scope_t::ref program_scope = scope->get_program_scope();
@@ -2940,10 +2958,12 @@ bound_var_t::ref ast::function_defn_t::resolve_expression(
 	if (runnable_scope != nullptr) {
 		/* we are instantiating a function within a runnable scope, let's get closure over the environment we're in */
 		auto closure_name = std::string("anonymous fn ") + decl->function_type->repr() + " at " + token.location.repr();
-		auto closure_scope = runnable_scope->new_closure_scope(closure_name);
-		auto function = resolve_function(builder, closure_scope, life, true /*as_closure*/, nullptr, nullptr);
-
-		return llvm_create_closure(builder, scope, life, closure_name, get_location(), function, closure_scope);
+		auto closure_scope = runnable_scope->new_closure_scope(builder, closure_name);
+		llvm::IRBuilder<> closure_builder(builder);
+		auto function = resolve_function(closure_builder, closure_scope, life, true /*as_closure*/, nullptr, nullptr);
+		debug_above(9, log("closure %s is", closure_name.c_str()));
+		debug_above(9, function->get_llvm_value()->print(llvm::errs()));
+		return closure_scope->create_closure(builder, life, get_location(), function);
 	} else {
 		return resolve_function(builder, scope, life, false /*as_closure*/, nullptr, nullptr);
 	}
@@ -2994,9 +3014,8 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 	bound_type_t::ref return_type;
 	destructure_function_decl(builder, *decl, scope, type_constraints, as_closure, args, return_type, fn_type);
 
-	return instantiate_function_with_args_and_return_type(builder, scope, life,
-			token, decl->extends_module, new_scope, type_constraints, args, return_type, fn_type,
-			block);
+	return instantiate_function_with_args_and_return_type(builder, scope, life, token, as_closure, decl->extends_module,
+			new_scope, type_constraints, args, return_type, fn_type, block);
 }
 
 void type_check_module_links(
@@ -3162,7 +3181,7 @@ void type_check_program_variable(
 				function_type);
 
 		fittings_t fittings;
-		auto callable = maybe_get_callable(
+		bound_var_t::ref callable = maybe_get_callable(
 				builder,
 				unchecked_var->module_scope,
 				function_defn->decl->token.text,
@@ -3172,12 +3191,17 @@ void type_check_program_variable(
 				fittings,
 				false /*check_unchecked*/,
 				false /*allow_coercions*/);
+
 		if (callable != nullptr) {
 			/* we've already checked this function */
-			if (callable->get_location() != function_defn->get_location()) {
-				auto error = user_error(function_defn->get_location(), "duplicate function %s found",
+			// HACKHACK: this is really fragile and probably wrong. Should be checking type-env + signature in some
+			// normal form?
+			if (callable->get_location() != unchecked_var->id->get_location()) {
+				auto error = user_error(
+						function_defn->get_location(), "duplicate function %s found",
 						function_defn->decl->str().c_str());
-				error.add_info(callable->get_location(), "see prior definition here");
+				error.add_info(callable->get_location(), "see prior definition here (%s)",
+						callable->str().c_str());
 				throw error;
 			}
 			return;
