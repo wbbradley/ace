@@ -35,11 +35,9 @@ bound_var_t::ref instantiate_unchecked_fn(
 	static int depth = 0;
 	depth_guard_t depth_guard(fn_type->get_location(), depth, 10);
 	debug_above(5, log(log_info, "we are in scope " c_id("%s"), scope->get_name().c_str()));
-	debug_above(5, log(log_info, "it's time to instantiate %s at %s with unified signature %s from %s",
+	debug_above(5, log(log_info, "instantiating unchecked function %s : %s",
 				unchecked_fn->str().c_str(),
-				unchecked_fn->get_location().str().c_str(),
-				fn_type->str().c_str(),
-				unification.str().c_str()));
+				fn_type->str().c_str()));
 
 	/* save and later restore the current branch insertion point */
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
@@ -85,7 +83,8 @@ bound_var_t::ref instantiate_unchecked_fn(
 					/* instantiate the function we want */
 					return instantiate_function_with_args_and_return_type(
 							builder, subst_scope, life,
-							unchecked_fn->id->get_token(), function_defn->decl->extends_module, nullptr /*new_scope*/,
+							unchecked_fn->id->get_token(), false /*as_closure*/,
+							function_defn->decl->extends_module, nullptr /*new_scope*/,
 							type_constraints, named_args, return_type, fn_type,
 							function_defn->block);
 				} catch (user_error &e) {
@@ -125,7 +124,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 		/* instantiate the data ctor we want */
 		bound_var_t::ref ctor_fn = bind_ctor_to_scope(
 				builder, subst_scope,
-				unchecked_fn->id, node,
+				unchecked_fn->id, node->get_location(),
 				data_ctor_type);
 
 		/* the ctor should now exist */
@@ -356,6 +355,7 @@ function_scope_t::ref make_param_list_scope(
 		token_t token,
 		scope_t::ref &scope,
 		life_t::ref life,
+		bool as_closure,
 		bound_var_t::ref function_var,
 		bound_type_t::named_pairs params)
 {
@@ -382,7 +382,8 @@ function_scope_t::ref make_param_list_scope(
 
 		bool allow_reassignment = false;
 		auto param_type = param.second->get_type();
-		if (!param_type->eval_predicate(tb_ref, scope) && !param_type->eval_predicate(tb_null, scope)) {
+		if (!param_type->eval_predicate(tb_ref, scope) && !param_type->eval_predicate(tb_null, scope)
+				&& ((i != params.size() - 1) || !as_closure)) {
 			allow_reassignment = true;
 		}
 
@@ -412,12 +413,20 @@ function_scope_t::ref make_param_list_scope(
 		auto param_var = bound_var_t::create(INTERNAL_LOC(), param.first, bound_stack_var_type,
 				llvm_param_final, make_iid(params[i++].first));
 
-		bound_type_t::ref return_type = get_function_return_type(builder, scope, function_var->type);
+
+		// REVIEW: why is this here?
+		// bound_type_t::ref return_type = get_function_return_type(builder, scope, function_var->type);
 
 		life->track_var(builder, scope, param_var, lf_function);
-
-		/* add the parameter argument to the current scope */
-		new_scope->put_bound_variable(param.first, param_var);
+		if (as_closure && i == params.size()) {
+			auto closure_scope = dyncast<closure_scope_t>(scope); // ->get_closure_scope();
+			assert(closure_scope != nullptr);
+			assert(!allow_reassignment);
+			closure_scope->set_capture_env(param_var);
+		} else {
+			/* add the parameter argument to the current scope */
+			new_scope->put_bound_variable(param.first, param_var);
+		}
 	}
 
 	return new_scope;
@@ -428,6 +437,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
         scope_t::ref scope,
 		life_t::ref life,
 		token_t name_token,
+		bool as_closure,
 		identifier::ref extends_module,
 		runnable_scope_t::ref *new_scope,
 		types::type_t::ref type_constraints,
@@ -519,7 +529,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 	 * code will also run for generics but only after the
 	 * sbk_generic_substitution mechanism has run its course. */
 	auto params_scope = make_param_list_scope(builder, name_token, scope,
-			life, function_var, args);
+			life, as_closure, function_var, args);
 
 		/* now put this function declaration into the containing scope in case
 		 * of recursion */
@@ -529,7 +539,9 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 					fn_type->eval(scope)->repr().c_str()));
 
 		assert(function_var->get_signature() == fn_type->eval(scope)->repr());
-		put_bound_function(builder, scope, name_token.location, function_var->name, extends_module, function_var,
+		put_bound_function(
+				builder, scope, name_token.location,
+			   	function_var->name, extends_module, function_var,
 				new_scope);
 	}
 

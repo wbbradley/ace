@@ -1,7 +1,7 @@
 module _
 # test: pass
 
-def get_adder(add int) def () void
+def get_adder(add int) def (_ int) void
 	return def (x int) int
 		return add + x
 

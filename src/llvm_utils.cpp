@@ -553,7 +553,7 @@ bound_var_t::ref create_global_str(
 	llvm::Module *llvm_module = scope->get_llvm_module();
 
 	std::string owning_buffer_type_info_name = "__internal.owning_buffer_literal_type_info";
-	bound_var_t::ref owning_buffer_literal_type_info = program_scope->get_bound_variable(location, owning_buffer_type_info_name);
+	bound_var_t::ref owning_buffer_literal_type_info = program_scope->get_bound_variable(builder, location, owning_buffer_type_info_name);
 	llvm::Constant *llvm_owning_buffer_type_info;
 
 	if (owning_buffer_literal_type_info == nullptr) {
@@ -583,7 +583,7 @@ bound_var_t::ref create_global_str(
 	debug_above(8, log("creating owning buffer for string literal \"%s\"", value.c_str()));
 
 	std::string owning_buffer_literal_name = string_format("__internal.owning_buffer_literal_%d", atomize(value));
-	bound_var_t::ref owning_buffer_literal = program_scope->get_bound_variable(location, owning_buffer_literal_name);
+	bound_var_t::ref owning_buffer_literal = program_scope->get_bound_variable(builder, location, owning_buffer_literal_name);
 	llvm::Constant *llvm_owning_buffer_literal;
 
 	if (owning_buffer_literal == nullptr) {
@@ -615,7 +615,7 @@ bound_var_t::ref create_global_str(
 	debug_above(8, log("creating str type info for string literal \"%s\"", value.c_str()));
 
 	std::string str_literal_type_info_name = "__internal.str_literal_type_info";
-	bound_var_t::ref str_literal_type_info = program_scope->get_bound_variable(location, str_literal_type_info_name);
+	bound_var_t::ref str_literal_type_info = program_scope->get_bound_variable(builder, location, str_literal_type_info_name);
 	llvm::Constant *llvm_str_type_info;
 	if (str_literal_type_info == nullptr) {
 		llvm_str_type_info = llvm_get_global(
@@ -642,7 +642,7 @@ bound_var_t::ref create_global_str(
 
 	debug_above(8, log("creating str literal \"%s\"", value.c_str()));
 	std::string str_literal_name = string_format("__internal.str_literal_%d", atomize(value));
-	bound_var_t::ref str_literal = program_scope->get_bound_variable(location, str_literal_name);
+	bound_var_t::ref str_literal = program_scope->get_bound_variable(builder, location, str_literal_name);
 	llvm::Constant *llvm_str_literal;
 
 	if (str_literal == nullptr) {

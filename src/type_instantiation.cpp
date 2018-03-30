@@ -16,12 +16,11 @@ bound_var_t::ref bind_ctor_to_scope(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
-		ast::item_t::ref node,
+		location_t location,
 		types::type_function_t::ref function)
 {
 	assert(id != nullptr);
 	assert(function != nullptr);
-	assert(dyncast<generic_substitution_scope_t>(scope) != nullptr);
 
 	/* create or find an existing ctor function that satisfies the term of
 	 * this node */
@@ -44,18 +43,18 @@ bound_var_t::ref bind_ctor_to_scope(
 			/* now we know the type of the ctor we want to create. let's check
 			 * whether this ctor already exists. if so, we'll just return it. if
 			 * not, we'll generate it. */
-			auto tuple_pair = upsert_tagged_tuple_ctor(builder, scope, id, node,
+			auto tuple_pair = upsert_tagged_tuple_ctor(builder, scope, id, location,
 					function->return_type);
 
 			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
 			return tuple_pair.first;
 		} else {
-			throw user_error(node->get_location(),
+			throw user_error(location,
 					"constructor is not returning a product type: %s",
 					function->str().c_str());
 		}
 	} else {
-		throw user_error(node->get_location(), "arguments do not appear to be ... erm... arguments...");
+		throw user_error(location, "arguments do not appear to be ... erm... arguments...");
 	}
 }
 
@@ -122,7 +121,6 @@ void instantiate_data_ctor_type(
 		scope_t::ref scope,
 		ptr<const ast::item_t> node,
 		identifier::ref id,
-		identifier::ref supertype_id,
 		bool native)
 {
 	/* get the name of the ctor */
@@ -218,7 +216,7 @@ void ast::type_product_t::register_type(
 		/* instantiate_data_ctor_type has the side-effect of creating an
 		 * unchecked data ctor for the type */
 		instantiate_data_ctor_type(builder, type,
-				type_variables, scope, shared_from_this(), id_, nullptr, native);
+				type_variables, scope, shared_from_this(), id_, native);
 		return;
 	} else {
 		/* simple check for an already bound typename env variable */

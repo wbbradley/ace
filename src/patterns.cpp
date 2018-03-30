@@ -302,7 +302,7 @@ bound_var_t::ref gen_type_check(
 			value_name, builder, value);
 
 	auto get_typeid_eq_function = program_scope->get_bound_variable(
-			node->get_location(), "__type_id_eq_type_id");
+			builder, node->get_location(), "__type_id_eq_type_id");
 
 	assert(get_typeid_eq_function != nullptr);
 	if (new_scope != nullptr) {

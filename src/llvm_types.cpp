@@ -758,17 +758,16 @@ std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
 	bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(builder,
 			scope, data_type,
 			make_iid_impl(tuple_type->repr(), tuple_type->get_location()),
-			node);
+			node->get_location());
 
 	return {tuple_ctor, data_type};
 }
 
 std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tagged_tuple_ctor(
-		
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
-		const ast::item_t::ref &node,
+		location_t location,
 		types::type_t::ref type)
 {
 	assert(id != nullptr);
@@ -780,7 +779,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tagged_tuple_ctor(
 
 	debug_above(4, log(log_info, "found bound type %s", data_type->str().c_str()));
 	bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(builder,
-			scope, data_type, id, node);
+			scope, data_type, id, location);
 
 	return {tagged_tuple_ctor, data_type};
 }
@@ -1009,7 +1008,7 @@ bound_var_t::ref upsert_type_info(
 	auto program_scope = scope->get_program_scope();
 	auto signature = data_type->get_signature();
 	auto type_info_name = string_format("__type_info_%s", signature.repr().c_str());
-	auto bound_type_info_var = program_scope->get_bound_variable(location, type_info_name);
+	auto bound_type_info_var = program_scope->get_bound_variable(builder,location, type_info_name);
 	if (bound_type_info_var != nullptr) {
 		/* we found it, let's bail */
 		return bound_type_info_var;
@@ -1029,7 +1028,7 @@ llvm::Value *llvm_call_allocator(
 		llvm::IRBuilder<> &builder,
 	   	program_scope_t::ref program_scope,
 		life_t::ref life,
-	   	const ast::item_t::ref &node,
+		location_t location,
 		bound_type_t::ref data_type,
 		bound_var_t::ref dtor_fn,
 		std::string name,
@@ -1039,14 +1038,14 @@ llvm::Value *llvm_call_allocator(
 				data_type->str().c_str()));
 
 	auto bound_type_info = upsert_type_info(builder, program_scope,
-			name, node->get_location(), data_type, args, dtor_fn, nullptr);
+			name, location, data_type, args, dtor_fn, nullptr);
 
 	bound_var_t::ref allocation = call_program_function(
 			builder,
 			program_scope,
 			life,
 			"runtime.create_var",
-			node->get_location(),
+			location,
 			{bound_type_info});
 	return allocation->get_llvm_value();
 }
@@ -1056,7 +1055,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		scope_t::ref scope,
 		bound_type_t::ref data_type,
 		identifier::ref id,
-		const ast::item_t::ref &node)
+		location_t location)
 {
 	std::string name = id->get_name();
 
@@ -1088,7 +1087,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	/* at this point we should have a struct type in expanded_type */
 	if (product_type == nullptr) {
-		throw user_error(node->get_location(),
+		throw user_error(location,
 				"could not figure out what to do with %s",
 				type->str().c_str());
 	}
@@ -1104,7 +1103,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	/* save and later restore the current branch insertion point */
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
-	auto function = llvm_start_function(builder, scope, node->get_location(), function_type, name);
+	auto function = llvm_start_function(builder, scope, location, function_type, name);
 	life_t::ref life = make_ptr<life_t>(lf_function);
 
 	bound_var_t::ref dtor_fn = maybe_get_dtor(builder,
@@ -1112,7 +1111,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	bound_type_t::refs args = upsert_bound_types(builder, scope, type_args->args);
 	llvm::Value *llvm_alloced = llvm_call_allocator(
-			builder, program_scope, life, node, data_type,
+			builder, program_scope, life, location, data_type,
 			dtor_fn, name, args);
 
 	assert(data_type->get_llvm_type() != nullptr);

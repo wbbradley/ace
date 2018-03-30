@@ -26,11 +26,10 @@ std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
 		const ptr<const ast::item_t> &node);
 
 std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tagged_tuple_ctor(
-		
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		identifier::ref id,
-		const ptr<const ast::item_t> &node,
+		location_t location,
 		types::type_t::ref type);
 
 bound_var_t::ref get_or_create_tuple_ctor(
@@ -38,7 +37,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		scope_t::ref scope,
 		bound_type_t::ref data_type,
 		identifier::ref id,
-		const ast::item_t::ref &node);
+		location_t location);
 
 #if 0
 bound_var_t::ref call_const_subscript_operator(
