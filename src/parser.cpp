@@ -1051,7 +1051,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps, bool within_expre
 	auto parsed_type = types::parse_function_type(ps, {}, function_name);
 	debug_above(6, log("parsed function type %s", parsed_type->str().c_str()));
 	types::type_function_t::ref function_type = dyncast<const types::type_function_t>(parsed_type);
-	assert(function_type != nullptr);
+	assert_implies(!within_expression, function_type != nullptr);
 
 	std::string name;
 	if (function_name != nullptr) {
@@ -1092,12 +1092,12 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps, bool within_expre
 				tk_identifier,
 				name)
 		: token_t(
-				function_type->get_location(),
+				parsed_type->get_location(),
 				tk_identifier,
 				"");
 
 	auto function_decl = create<ast::function_decl_t>(name_token);
-	function_decl->function_type = function_type;
+	function_decl->function_type = parsed_type;
 	function_decl->extends_module = extends_module;
 	function_decl->link_to_name = name_token;
 	return function_decl;

@@ -263,7 +263,12 @@ namespace types {
 			return_type = type_void();
 		}
 
-		return type_function(type_constraints, type_args(param_types, param_names), return_type);
+		auto type = type_function(type_constraints, type_args(param_types, param_names), return_type);
+		if (name != nullptr) {
+			return type;
+		} else {
+			return type_function_closure(type);
+		}
 	}
 
 	type_t::ref parse_map_type(parse_state_t &ps, const identifier::set &generics) {
