@@ -2925,24 +2925,6 @@ bound_var_t::ref ast::sizeof_expr_t::resolve_expression(
 }
 
 
-bound_var_t::ref llvm_create_closure(
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		life_t::ref life,
-		std::string closure_name,
-		location_t location,
-		bound_var_t::ref bound_function,
-		closure_scope_t::ref closure_scope)
-{
-	auto closure_obj_name = std::string("closure for ") + closure_name;
-	return bound_var_t::create(
-			INTERNAL_LOC(), closure_obj_name,
-			nullptr /*bound_closure_type*/,
-			nullptr /*llvm_closure_object*/,
-			make_iid_impl(closure_obj_name, location));
-}
-
-
 bound_var_t::ref ast::function_defn_t::resolve_expression(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,

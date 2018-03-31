@@ -529,20 +529,26 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		   	location_t location,
 		   	bound_var_t::ref function) override
 	{
+		log("create_closure(..., %s, %s)", location.str().c_str(), function->str().c_str());
 		types::type_t::refs dimensions;
 		types::name_index_t name_index;
+		identifier::refs dim_ids;
 
 		dimensions.push_back(function->type->get_type());
+		name_index.insert({"__fn", 0});
+		dim_ids.push_back(make_iid_impl("__fn", function->get_location()));
 
+		int i = 1;
 		for (auto &capture : captures) {
 			dimensions.push_back(capture.value_in_closure->type->get_type());
+			name_index.insert({capture.name, i++});
+			dim_ids.push_back(make_iid_impl(capture.name, capture.original_value->get_location()));
 		}
 
-		// TODO: insert dims
-
 		/* let's create a user type for this closure */
-		types::type_function_t::ref data_ctor_type = type_function(nullptr, type_args(dimensions, {}), type_ptr(type_managed(
-						type_struct(dimensions, name_index))));
+		types::type_function_t::ref data_ctor_type = type_function(
+				nullptr, type_args(dimensions, dim_ids),
+			   	type_ptr(type_managed(type_struct(dimensions, name_index))));
 
 		/* create a constructor for this type */
 		bound_var_t::ref ctor_fn = bind_ctor_to_scope(
@@ -557,7 +563,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		}
 
 		/* call the constructor */
-		return create_callsite(
+		bound_var_t::ref constructed_closure = create_callsite(
 				builder,
 				shared_from_this(),
 				life,
@@ -565,6 +571,42 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 				"closure ctor",
 				location,
 				bound_dimensions);
+		types::type_function_t::ref type_function = dyncast<const types::type_function_t>(function->type->get_type());
+		assert(type_function != nullptr);
+		log("type_function is %s", type_function->str().c_str());
+
+		types::type_args_t::ref type_args = dyncast<const types::type_args_t>(type_function->args);
+		assert(type_args != nullptr);
+
+		types::type_t::refs args = type_args->args;
+		identifier::refs names = type_args->names;
+
+		assert(args.size() >= 1);
+		args.resize(args.size() - 1);
+		if (names.size() >= 1) {
+			names.resize(names.size() - 1);
+		}
+
+		types::type_function_t::ref type_function_unbound = ::type_function(
+				type_function->type_constraints,
+			   	::type_args(args, names),
+			   	type_function->return_type);
+
+		auto closure_type = type_operator(
+				type_id(make_iid("__closure_t")),
+				type_function_unbound);
+
+		auto bound_closure_type = upsert_bound_type(builder, running_scope, closure_type);
+		llvm::Value *llvm_function_closure_value = builder.CreateBitCast(
+				constructed_closure->get_llvm_value(),
+			   	bound_closure_type->get_llvm_specific_type());
+
+		return bound_var_t::create(
+					INTERNAL_LOC(),
+					"opaque closure",
+					bound_closure_type,
+					llvm_function_closure_value,
+					make_iid("opaque closure"));
 	}
 
 	/* the capture builder will emit loads so that they can be copied into the closure. note that it is doing this back
