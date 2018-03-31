@@ -582,7 +582,7 @@ namespace ast {
 
 		virtual void render(render_state_t &rs) const;
 
-		types::type_function_t::ref function_type;
+		types::type_t::ref function_type;
 		identifier::ref extends_module;
 		token_t link_to_name;
 

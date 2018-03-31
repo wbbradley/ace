@@ -667,6 +667,45 @@ namespace types {
 		return args->get_location();
 	}
 
+	type_function_closure_t::type_function_closure_t(type_t::ref function) : function(function) {
+	}
+
+	std::ostream &type_function_closure_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
+		return function->emit(os, bindings, parent_precedence);
+	}
+
+	int type_function_closure_t::ftv_count() const {
+		return function->ftv_count();
+	}
+
+	std::set<std::string> type_function_closure_t::get_ftvs() const {
+		return function->get_ftvs();
+	}
+
+	type_t::ref type_function_closure_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
+		return ::type_function_closure(function->rebind(bindings));
+	}
+
+	location_t type_function_closure_t::get_location() const {
+		return function->get_location();
+	}
+
+	type_t::ref type_function_closure_t::eval_core(env_t::ref env, bool get_structural_type) const {
+		auto new_func = function->eval_core(env, get_structural_type);
+		if (get_structural_type) {
+			return type_operator(type_id(make_iid("__closure_t")), new_func);
+		}
+		if (new_func != function) {
+			return ::type_function_closure(new_func);
+		}
+
+		return shared_from_this();
+	}
+
 	type_lazy_t::type_lazy_t(const type_t::refs &options, location_t location) : options(options), location(location) {
 	}
 
@@ -1454,6 +1493,10 @@ types::type_function_t::ref type_function(
 		types::is_type_id(type_constraints, TRUE_TYPE, nullptr);
 	}
 	return ret;
+}
+
+types::type_function_closure_t::ref type_function_closure(types::type_t::ref type_function) {
+	return make_ptr<types::type_function_closure_t>(type_function);
 }
 
 bool types_contains(const types::type_t::refs &options, std::string signature) {
