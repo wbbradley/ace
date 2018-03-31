@@ -81,10 +81,9 @@ type type_info_mark_fn_t struct
 type tag_t struct
 	var type_info *type_info_t
 
-type nullary_closure_t FN struct
-	var type_info *type_info_t
-	var fn FN
-	var null_ *var_t
+type __closure_t FN has
+	let fn FN
+	let captured_env *var_t
 
 #   The map for a single function's stack frame.  One of these is
 #   compiled as constant data into the executable for each function.

@@ -342,12 +342,11 @@ namespace types {
 
 	struct type_function_closure_t : public type_t {
 		typedef ptr<const type_function_closure_t> ref;
-		type_function_closure_t(
-			   	types::type_t::ref function,
-				types::type_t::ref closure);
+		type_function_closure_t(types::type_t::ref function);
 
 		type_t::ref function;
-		type_t::ref closure;
+		/* the type of the captured variables object aka "closure" is opaque, therefore it is
+		 * unnecessary to be represented in the type system */
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
