@@ -459,15 +459,29 @@ namespace types {
 		}
 	}
 
-	type_t::ref parse_and_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_eq_type(parse_state_t &ps, const identifier::set &generics) {
+		location_t location = ps.token.location;
 		auto lhs = parse_infix_subtype(ps, generics);
+		if (ps.token.tk == type_eq_t::TK) {
+			location = ps.token.location;
+			ps.advance();
+			/* we've got an equality condition */
+			type_t::ref rhs = parse_infix_subtype(ps, generics);
+			return type_eq(lhs, rhs, location);
+		} else {
+			return lhs;
+		}
+	}
+
+	type_t::ref parse_and_type(parse_state_t &ps, const identifier::set &generics) {
+		auto lhs = parse_eq_type(ps, generics);
 		if (ps.token.is_ident(K(and))) {
 			/* we've got a Logical AND expression */
 			std::vector<type_t::ref> terms;
 			terms.push_back(lhs);
 			while (ps.token.is_ident(K(and))) {
 				chomp_ident(K(and));
-				terms.push_back(parse_infix_subtype(ps, generics));
+				terms.push_back(parse_eq_type(ps, generics));
 			}
 
 			return type_and(terms);

@@ -105,6 +105,27 @@ namespace types {
 		return type->eval_core(env, get_structural_type);
 	}
 
+	type_t::ref type_eq_t::eval_core(env_t::ref env, bool get_structural_env) const {
+		auto lhs_eval = lhs->eval_core(env, get_structural_env);
+		auto rhs_eval = lhs->eval_core(env, get_structural_env);
+
+		log("lhs = %s", lhs_eval->repr().c_str());
+		log("rhs = %s", rhs_eval->repr().c_str());
+		return (lhs_eval->repr() == rhs_eval->repr()) ? type_true : type_false;
+	}
+
+	type_t::ref type_function_closure_t::eval_core(env_t::ref env, bool get_structural_type) const {
+		auto new_func = function->eval_core(env, get_structural_type);
+		if (get_structural_type) {
+			return type_operator(type_id(make_iid("__closure_t")), new_func)->eval_core(env, get_structural_type);
+		}
+		if (new_func != function) {
+			return ::type_function_closure(new_func);
+		}
+
+		return shared_from_this();
+	}
+
 	type_t::ref type_t::eval(env_t::ref env, bool get_structural_type) const {
 		auto res = eval_core(env, get_structural_type);
 		debug_above(10, log("eval(%s, %s) -> %s",

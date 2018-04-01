@@ -696,18 +696,6 @@ namespace types {
 		return function->get_location();
 	}
 
-	type_t::ref type_function_closure_t::eval_core(env_t::ref env, bool get_structural_type) const {
-		auto new_func = function->eval_core(env, get_structural_type);
-		if (get_structural_type) {
-			return type_operator(type_id(make_iid("__closure_t")), new_func);
-		}
-		if (new_func != function) {
-			return ::type_function_closure(new_func);
-		}
-
-		return shared_from_this();
-	}
-
 	type_lazy_t::type_lazy_t(const type_t::refs &options, location_t location) : options(options), location(location) {
 	}
 
@@ -886,6 +874,42 @@ namespace types {
 	}
 
 	location_t type_and_t::get_location() const {
+		return location;
+	}
+
+	const token_kind type_eq_t::TK = tk_binary_equal;
+
+	type_eq_t::type_eq_t(type_t::ref lhs, type_t::ref rhs, location_t location) :
+	   	lhs(lhs), rhs(rhs), location(location) {
+	}
+
+	std::ostream &type_eq_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
+		parens_t parens(os, parent_precedence, get_precedence());
+		lhs->emit(os, bindings, get_precedence());
+		os << " " << tkstr(type_eq_t::TK) << " ";
+		return rhs->emit(os, bindings, get_precedence());
+	}
+
+	int type_eq_t::ftv_count() const {
+		return lhs->ftv_count() + rhs->ftv_count();
+	}
+
+	std::set<std::string> type_eq_t::get_ftvs() const {
+		std::set<std::string> set = lhs->get_ftvs();
+		std::set<std::string> rhs_set = rhs->get_ftvs();
+		set.insert(rhs_set.begin(), rhs_set.end());
+		return set;
+	}
+
+	type_t::ref type_eq_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
+		return ::type_eq(lhs->rebind(bindings), rhs->rebind(bindings), location);
+	}
+
+	location_t type_eq_t::get_location() const {
 		return location;
 	}
 
@@ -1811,6 +1835,10 @@ types::type_t::ref type_sum(types::type_t::refs options, location_t location) {
 
 types::type_t::ref type_and(types::type_t::refs terms) {
 	return make_ptr<types::type_and_t>(terms);
+}
+
+types::type_t::ref type_eq(types::type_t::ref lhs, types::type_t::ref rhs, location_t location) {
+	return make_ptr<types::type_eq_t>(lhs, rhs, location);
 }
 
 types::type_t::ref type_literal(token_t token) {

@@ -13,7 +13,8 @@ Operator                                            | Description               
 `x y z` which is the same as `(x y) z` as well as `x{y} z` | Standard term application    | Left-to-right
 **`*?`** `a`<br/>`*?foreign_struct_t`               | Optional native pointer (may be a `null` pointer)   | Right-to-left
 **`*`** `a`<br/>`*FILE`                             | Native pointer. Treated as non-`null`.  | Right-to-left
-**`&`** `a`<br/>`&int`                             | Native reference. Implies the presence of a stack or global address.  | Reference types cannot be passed in to function, and cannot be returned from functions.
+**`&`** `a`<br/>`&int`                              | Native reference. Implies the presence of a stack or global address.  | Reference types cannot be passed in to function, and cannot be returned from functions.
+`a` **`===`** `b`<br/>                              | Weak Normal Form Congruence (aka equality but not really) |
 `a` **`and`** `b`<br/>`gc a` **`and`** `b not c{d} e` which is the same as `and{gc{a}, b{not{c{d, e}}}}`      | Logical AND  |
 `a` **`or`** `b`<br/>`gc a` **`or`** `b not c{d} e` which is the same as `or{gc{a}, b{not{c{d, e}}}}`      | Logical OR    | Lowest precedence.
 

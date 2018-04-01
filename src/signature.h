@@ -21,6 +21,7 @@ namespace types {
 
 		std::string str() const;
 		const std::string &repr() const;
+		const char *c_str() const;
 	};
 }
 

@@ -1191,7 +1191,7 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("Container T?", "Foo Bar?", generics),
 				make_type_pair("Container T", "[int]", generics),
 				make_type_pair("T", "def (x int) float", generics),
-				make_type_pair("def (p T) float", "def (x int) float", generics),
+				make_type_pair("def _(p T) float", "def _(x int) float", generics),
 				make_type_pair("*void", "*int", generics),
 				{type_maybe(type_ptr(type_managed(type_struct({}, {})))), type_null()},
 				{type_ptr(type_id(make_iid("void"))), type_ptr(type_id(make_iid("X")))},

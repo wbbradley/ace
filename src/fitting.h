@@ -1,6 +1,7 @@
 #pragma once
 
 struct fitting_t {
+	var_t::ref var_fn;
 	bound_var_t::ref fn;
 	int coercions;
 };
