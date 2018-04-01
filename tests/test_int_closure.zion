@@ -1,12 +1,19 @@
 module _
-# test: skip
+# test: pass
 # todo: expect: pass with 5
+# todo: expect: pass with 6
 
 def get_int() int
 	return 5
 
-def main()
+def bar()
 	x := get_int()
-	def foo()
-		print("pass with " + x)
-	foo()
+	foo := def (y int)
+		print("pass with " + (x + y))
+
+	foo(0)
+	foo(1)
+
+def main()
+	bar()
+	runtime.gc()
