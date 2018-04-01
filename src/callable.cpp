@@ -384,7 +384,7 @@ function_scope_t::ref make_param_list_scope(
 		bool allow_reassignment = false;
 		auto param_type = param.second->get_type();
 		if (!param_type->eval_predicate(tb_ref, scope) && !param_type->eval_predicate(tb_null, scope)
-				&& ((i != params.size() - 1) || !as_closure)) {
+				&& ((i != (int)params.size() - 1) || !as_closure)) {
 			allow_reassignment = true;
 		}
 
@@ -419,7 +419,7 @@ function_scope_t::ref make_param_list_scope(
 		// bound_type_t::ref return_type = get_function_return_type(builder, scope, function_var->type);
 
 		life->track_var(builder, scope, param_var, lf_function);
-		if (as_closure && i == params.size()) {
+		if (as_closure && i == (int)params.size()) {
 			auto closure_scope = dyncast<closure_scope_t>(scope); // ->get_closure_scope();
 			assert(closure_scope != nullptr);
 			assert(!allow_reassignment);
