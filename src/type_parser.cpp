@@ -320,9 +320,12 @@ namespace types {
 		} else if (ps.token.is_ident(K(def))) {
 			identifier::ref name;
 			auto fn_type = parse_function_type(ps, generics, name);
-			if (name != nullptr) {
-				throw user_error(name->get_location(), "function name unexpected in this context (" c_id("%s") ")",
+			if (name != nullptr && name->get_name() != "_") {
+				auto error = user_error(name->get_location(), "function name unexpected in this context (" c_id("%s") ")",
 						name->get_name().c_str());
+				error.add_info(fn_type->get_location(), "while parsing type %s", fn_type->str().c_str());
+				error.add_info(fn_type->get_location(), "note: to describe an unbound function type use the name '_'");
+				throw error;
 			}
 			return fn_type;
 		} else if (ps.token.is_ident(K(any))) {

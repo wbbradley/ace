@@ -413,8 +413,8 @@ bound_type_t::ref bind_expansion(
 	bound_type_t::ref bound_type = program_scope->get_bound_type(unexpanded_signature, false /*use_mappings*/);
 
 	if (bound_type == nullptr) {
-		/* let's finally create the official bound type for this operator, assuming it didn't
-		 * happen already. */
+		/* let's finally create the official bound type for this nominal type,
+		 * assuming it didn't happen already. */
 		bound_type = bound_type_t::create(
 				unexpanded,
 				unexpanded->get_location(),
@@ -660,8 +660,10 @@ bound_type_t::ref create_bound_type(
 				lambda->str().c_str());
 	} else if (auto ref = dyncast<const types::type_ref_t>(type)) {
 		return create_bound_ref_type(builder, scope, ref);
-	} else  if (auto extern_type = dyncast<const types::type_extern_t>(type)) {
+	} else if (auto extern_type = dyncast<const types::type_extern_t>(type)) {
 		return create_bound_extern_type(builder, scope, extern_type);
+	} else if (auto closure_type = dyncast<const types::type_function_closure_t>(type)) {
+		return create_bound_expr_type(builder, scope, closure_type);
 	}
 
 	assert(false);

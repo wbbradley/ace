@@ -22,7 +22,14 @@ unification_t var_t::accepts_callsite(
 {
 	/* get the args out of the sig */
 	types::type_t::ref type = get_type(scope);
-	types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(type);
+
+	types::type_function_t::ref fn_type;
+	if (auto function_closure = dyncast<const types::type_function_closure_t>(type)) {
+		fn_type = dyncast<const types::type_function_t>(function_closure->function);
+	} else {
+		fn_type = dyncast<const types::type_function_t>(type);
+	}
+	assert(fn_type != nullptr);
 
 	INDENT(6, string_format(
 				"checking whether %s at %s accepts %s and returns %s",
