@@ -521,7 +521,18 @@ void destructure_function_decl(
 
 	assert_implies(as_closure, dyncast<closure_scope_t>(scope) != nullptr);
 
-	function_type = dyncast<const types::type_function_t>(obj.function_type->rebind(scope->get_type_variable_bindings()));
+	types::type_t::ref type_declared_fn = obj.function_type->rebind(scope->get_type_variable_bindings());
+	function_type = dyncast<const types::type_function_t>(type_declared_fn);
+	if (as_closure) {
+		if (function_type != nullptr) {
+			throw user_error(obj.get_location(), "function expressions cannot have names (this one appears to be named " c_id("%s"),
+					obj.token.text.c_str());
+		}
+		types::type_function_closure_t::ref function_closure = dyncast<const types::type_function_closure_t>(type_declared_fn);
+		assert(function_closure != nullptr);
+		function_type = dyncast<const types::type_function_t>(function_closure->function);
+	}
+
 	assert(function_type != nullptr);
 
 	type_constraints = function_type->type_constraints;
@@ -733,6 +744,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 		bound_var_t::ref bound_fn = this->resolve_expression(builder, scope, life, false /*as_ref*/,
 				target_function_type);
 
+		dbg_when(dyncast<const types::type_function_closure_t>(bound_fn->type->get_type()) != nullptr);
 		unification_t unification = unify(
 				bound_fn->type->get_type(),
 				target_function_type,
@@ -875,14 +887,15 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		/* we need to figure out which overload to call, if there are any */
 		debug_above(6, log("arguments to resolve in callsite are %s",
 					::str(arguments).c_str()));
+		debug_above(6, log("resolving against lhs %s",
+					function_expr->str().c_str()));
 		bound_var_t::ref function = can_reference_overloads->resolve_overrides(
 				builder, scope, life, shared_from_this(),
 				bound_type_t::refs_from_vars(arguments));
 
 		debug_above(5, log(log_info, "function chosen is %s", function->str().c_str()));
 
-		return make_call_value(builder, get_location(), scope,
-				life, function, arguments);
+		return make_call_value(builder, get_location(), scope, life, function, arguments);
 	} else {
 		throw user_error(function_expr->get_location(),
 				"%s being called like a function. arguments are %s",
@@ -2941,11 +2954,10 @@ bound_var_t::ref ast::function_defn_t::resolve_expression(
 		/* we are instantiating a function within a runnable scope, let's get closure over the environment we're in */
 		auto closure_name = std::string("anonymous fn ") + decl->function_type->repr() + " at " + token.location.repr();
 		auto closure_scope = runnable_scope->new_closure_scope(builder, closure_name);
-		llvm::IRBuilder<> closure_builder(builder);
-		auto function = resolve_function(closure_builder, closure_scope, life, true /*as_closure*/, nullptr, nullptr);
-		debug_above(9, log("closure %s is", closure_name.c_str()));
-		debug_above(9, function->get_llvm_value()->print(llvm::errs()));
-		return closure_scope->create_closure(builder, life, get_location(), function);
+		auto function = resolve_function(builder, closure_scope, life, true /*as_closure*/, nullptr, nullptr);
+
+		auto r = closure_scope->create_closure(builder, life, get_location(), function);
+		return r;
 	} else {
 		return resolve_function(builder, scope, life, false /*as_closure*/, nullptr, nullptr);
 	}
@@ -2962,7 +2974,7 @@ void ast::function_defn_t::resolve_statement(
 }
 
 bound_var_t::ref ast::function_defn_t::resolve_function(
-        llvm::IRBuilder<> &builder,
+        llvm::IRBuilder<> &builder_,
         scope_t::ref scope,
 		life_t::ref,
 		bool as_closure,
@@ -2970,7 +2982,7 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 		bool *returns) const
 {
 	// TODO: handle first-class functions by handling life for functions, and closures.
-	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+	llvm::IRBuilder<> builder(builder_.getContext());
 
 	/* lifetimes have extents at function boundaries */
 	auto life = make_ptr<life_t>(lf_function);
@@ -4378,8 +4390,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_overrides(
 {
 	/* ok, we know we've got some variable here */
 	try {
-		return get_callable(builder, scope, token.text,
-				get_location(), get_args_type(args), nullptr);
+		return get_callable(builder, scope, token.text, get_location(), get_args_type(args), nullptr);
 	} catch (user_error &e) {
 		std::throw_with_nested(user_error(callsite->get_location(), "while checking %s with %s",
 					callsite->str().c_str(),

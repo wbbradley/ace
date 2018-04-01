@@ -671,7 +671,9 @@ namespace types {
 	}
 
 	std::ostream &type_function_closure_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		return function->emit(os, bindings, parent_precedence);
+		os << "bound(";
+		function->emit(os, bindings, parent_precedence);
+		return os << ")";
 	}
 
 	int type_function_closure_t::ftv_count() const {

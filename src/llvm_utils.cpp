@@ -124,6 +124,8 @@ bound_var_t::ref create_callsite(
 		bound_var_t::refs arguments)
 {
 	assert(function != nullptr);
+	dbg_when(dyncast<const types::type_function_closure_t>(function->type->get_type()) != nullptr);
+
 #ifdef ZION_DEBUG
 	llvm::Value *llvm_function = function->get_llvm_value();
 	debug_above(5, log(log_info, "create_callsite is assuming %s is compatible with %s",
@@ -740,7 +742,14 @@ void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
 	if (llvm::verifyFunction(*llvm_function, &os)) {
 		os.flush();
 		ss << llvm_print_function(llvm_function);
-		throw user_error(location, "LLVM function verification failed: %s", ss.str().c_str());
+		debug_above(5, log("writing to jit.llir..."));
+		std::string llir_filename = "function-verification-failure.llir";
+		FILE *fp = fopen(llir_filename.c_str(), "wt");
+		fprintf(fp, "%s\n", llvm_print_module(*llvm_function->getParent()).c_str());
+		fclose(fp);
+		auto error = user_error(location, "LLVM function verification failed: %s", ss.str().c_str());
+		error.add_info(location_t{llir_filename, 1, 1}, "consult LLVM module dump");
+		throw error;
 	}
 }
 

@@ -210,7 +210,7 @@ def create_var(type_info *type_info_t) *var_t
 #  might copy them to another heap or generation.
 # 
 #  @param heap_visit A function to invoke for every GC root on the stack.
-def visit_heap_roots(heap_visit def (obj *?var_t) void)
+def visit_heap_roots(heap_visit def _(obj *?var_t) void)
 	var R = llvm_gc_root_chain as *?stack_entry_plus_root_t
 	while R != null
 		assert(R as int != 0)
@@ -235,7 +235,7 @@ def visit_heap_roots(heap_visit def (obj *?var_t) void)
 		R = (R.next as *stack_entry_plus_root_t)
 
 
-def visit_allocations(visit def (obj *var_t) void)
+def visit_allocations(visit def _(obj *var_t) void)
 	var node = __head_var.next
 	while node != null
 		# cache the next node in case our current node gets deleted as part of the fn

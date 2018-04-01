@@ -64,7 +64,7 @@ type owning_buffer_literal_t struct
 
 type type_info_offsets_t struct
 	var type_info_head type_info_t
-	var finalize_fn    def (v *var_t) void
+	var finalize_fn    def _(v *var_t) void
 	var refs_count     int16
 	var ref_offsets    *int16
 
@@ -73,10 +73,10 @@ type type_info_mark_fn_t struct
 
 	# the destructor for this type, if one exists. NB: if you change the index
 	# of this dimension, update DTOR_INDEX
-	var finalize_fn def (v *var_t) void
+	var finalize_fn def _(v *var_t) void
 
 	# the mark function for this type.
-	var mark_fn def (v *var_t) void
+	var mark_fn def _(v *var_t) void
 
 type tag_t struct
 	var type_info *type_info_t
