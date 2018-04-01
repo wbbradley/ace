@@ -36,6 +36,10 @@ namespace types {
 		return name;
 	}
 
+	const char *signature::c_str() const {
+		return name.c_str();
+	}
+
 	std::string signature::str() const {
 		std::stringstream ss;
 		ss << C_SIG << repr() << C_RESET;

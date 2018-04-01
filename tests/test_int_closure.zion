@@ -1,7 +1,7 @@
 module _
 # test: pass
-# todo: expect: pass with 5
-# todo: expect: pass with 6
+# expect: pass with 5
+# expect: pass with 6
 
 def get_int() int
 	return 5

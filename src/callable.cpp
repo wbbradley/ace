@@ -205,10 +205,11 @@ bound_var_t::ref maybe_get_callable(
 		bool check_unchecked,
 		bool allow_coercions)
 {
-	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, args=%s, ..., allow_coercions=%s)",
+	debug_above(3, log(log_info, "maybe_get_callable(..., scope=%s, alias=%s, args=%s, ..., check_unchecked=%s, allow_coercions=%s)",
 				scope->get_name().c_str(),
 				alias.c_str(),
 				args->str().c_str(),
+				boolstr(check_unchecked),
 				boolstr(allow_coercions)));
 
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);

@@ -1,6 +1,6 @@
 module _
 # test: pass
-# todo: expect: pass with 5
+# expect: pass with 5
 
 def run_function(f def () void)
 	f()

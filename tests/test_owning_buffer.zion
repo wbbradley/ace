@@ -1,6 +1,0 @@
-module _
-# test: pass
-
-def main()
-	let x = OwningBuffer(null as *?char)
-	static_print(x)

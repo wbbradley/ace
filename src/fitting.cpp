@@ -34,7 +34,7 @@ bound_var_t::ref get_best_fit(
 
 		if (callable != nullptr && (coercions == 0 || allow_coercions)) {
             if (!function_exists_in(callable, fittings)) {
-                fittings.push_back({callable, coercions});
+                fittings.push_back({fn, callable, coercions});
             }
 		}
 	}
@@ -83,7 +83,8 @@ bound_var_t::ref get_best_fit(
 		} catch (user_error &e) {
 			for (auto fitting : fittings) {
 				e.add_info(fitting.fn->get_location(),
-						"matching overload : %s",
+						"matching %soverload : %s",
+						(dyncast<const bound_var_t>(fitting.var_fn) != nullptr) ? c_var("bound ") : c_good("unchecked "),
 						fitting.fn->type->get_type()->str().c_str());
 			}
 			throw;

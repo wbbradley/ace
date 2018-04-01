@@ -326,10 +326,10 @@ unification_t unify_core(
 			return unify_core(ptm_a->just, ptm_b->just, env, bindings, coercions, depth + 1);
 		} else if (types::is_type_id(b, NULL_TYPE, nullptr)) {
 			debug_above(7, log("matching null"));
-			return {true, "", bindings, coercions, {}};
+			return {true, "", bindings, coercions + 1, {}};
 		} else {
 			debug_above(7, log("matching maybe on the lhs"));
-			return unify_core(ptm_a->just, b, env, bindings, coercions, depth);
+			return unify_core(ptm_a->just, b, env, bindings, coercions + 1, depth);
 		}
 	} else if (ptp_a != nullptr) {
 		if (auto ptp_b = dyncast<const types::type_product_t>(b)) {

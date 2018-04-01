@@ -183,6 +183,7 @@ $(ZION_TARGET): $(BUILD_DIR)/.gitignore $(ZION_LLVM_OBJECTS) $(ZION_RUNTIME_OBJE
 
 $(BUILD_DIR)/%.o: src/%.cpp
 	@$(CPP) $(CPP_FLAGS) $< -E -MMD -MP -MF $(patsubst %.o, %.d, $@) -MT $@ > /dev/null
+	@echo Compiling $<...
 	@$(CPP) $(CPP_FLAGS) $< -o $@
 
 $(BUILD_DIR)/tests/%.o: tests/%.c

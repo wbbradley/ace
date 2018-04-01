@@ -11,8 +11,8 @@ type __Value__ struct
 
 type __TypeInfo__ struct
 	var typeid typeid
-	var addref *def (v *__Value__) void
-	var release *def (v *__Value__) void
+	var addref *def _(v *__Value__) void
+	var release *def _(v *__Value__) void
 
 def addref(v *__Value__) void
 	pass
