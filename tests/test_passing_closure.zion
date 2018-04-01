@@ -1,5 +1,5 @@
 module _
-# test: skip
+# test: pass
 # todo: expect: pass with 5
 
 def run_function(f def () void)
@@ -10,6 +10,6 @@ def get_int() int
 
 def main()
 	x := get_int() 
-	def foo()
+	foo := def ()
 		print("pass with " + x)
 	run_function(foo)

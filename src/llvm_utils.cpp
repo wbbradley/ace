@@ -124,7 +124,54 @@ bound_var_t::ref create_callsite(
 		bound_var_t::refs arguments)
 {
 	assert(function != nullptr);
-	dbg_when(dyncast<const types::type_function_closure_t>(function->type->get_type()) != nullptr);
+
+	auto closure = dyncast<const types::type_function_closure_t>(function->type->get_type());
+	if (closure != nullptr) {
+		debug_above(8, log("closure is %s", llvm_print(function->get_llvm_value()).c_str()));
+		debug_above(8, log("closure type is %s", llvm_print(function->get_llvm_value()->getType()).c_str()));
+		bound_type_t::ref var_ptr_type = scope->get_program_scope()->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
+		llvm::Type *llvm_var_ptr_type = var_ptr_type->get_llvm_type();
+
+		/* we will be passing the "closure" to the function for its captured values */
+		arguments.push_back(bound_var_t::create(
+					INTERNAL_LOC(), "closure env",
+					var_ptr_type,
+					builder.CreateBitCast(function->get_llvm_value(), llvm_var_ptr_type),
+					make_iid_impl("closure", function->get_location())));
+
+		auto function_type = dyncast<const types::type_function_t>(closure->function);
+		assert(function_type != nullptr);
+
+		auto args = dyncast<const types::type_args_t>(function_type->args);
+		assert(args != nullptr);
+
+		auto augmented_args = args->args;
+		augmented_args.push_back(var_ptr_type->get_type());
+
+		auto augmented_names = args->names;
+		if (augmented_names.size() != 0) {
+			augmented_names.push_back(make_iid("__capture_env"));
+		}
+
+		types::type_function_t::ref inner_function_type = type_function(nullptr, type_args(augmented_args, augmented_names), function_type->return_type);
+
+		auto bound_inner_function_type = upsert_bound_type(builder, scope, inner_function_type);
+
+		std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{builder.getInt32(0), builder.getInt32(1), builder.getInt32(0)};
+
+		llvm::Value *llvm_inner_function = builder.CreateBitCast(
+				builder.CreateLoad(builder.CreateInBoundsGEP(function->get_llvm_value(), gep_path)),
+				bound_inner_function_type->get_llvm_specific_type());
+
+		/* ok, we are actually calling a closure, so let's augment the existing arguments list with the closure object
+		 * itself, then continue along, but do so by calling the inner function */
+		bound_var_t::ref inner_function = bound_var_t::create(
+				INTERNAL_LOC(), "inner function extraction",
+				bound_inner_function_type, llvm_inner_function,
+				make_iid_impl("inner function extraction", function->get_location()));
+
+		return create_callsite(builder, scope, life, inner_function, name, location, arguments);
+	}
 
 #ifdef ZION_DEBUG
 	llvm::Value *llvm_function = function->get_llvm_value();
@@ -211,6 +258,7 @@ llvm::CallInst *llvm_create_call_inst(
 		llvm::PointerType *llvm_ptr_type = llvm::dyn_cast<llvm::PointerType>(llvm_callee_value->getType());
 		assert(llvm_ptr_type != nullptr);
 
+		debug_above(8, log("llvm_ptr_type is %s", llvm_print(llvm_ptr_type).c_str()));
 		llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(llvm_ptr_type->getElementType());
 		assert(llvm_function_type != nullptr);
 	}
