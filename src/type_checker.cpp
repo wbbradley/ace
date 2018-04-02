@@ -448,13 +448,19 @@ bound_var_t::ref type_check_bound_var_decl(
 				symbol.c_str(), obj.get_symbol().c_str()));
 
 	assert(dyncast<module_scope_t>(scope) == nullptr);
-	bound_var_t::ref bound_var;
-	if (scope->symbol_exists_in_running_scope(symbol, bound_var)) {
-		auto error = user_error(obj.get_location(), "symbol '" c_id("%s") "' cannot be redeclared",
-				symbol.c_str());
-		error.add_info(bound_var->get_location(), "see earlier declaration of " c_id("%s"),
-				bound_var->name.c_str());
-		throw error;
+	auto runnable_scope = dyncast<runnable_scope_t>(scope);
+	if (runnable_scope != nullptr) {
+		bound_var_t::ref bound_var = runnable_scope->get_bound_variable(
+				builder, obj.get_location(), symbol,
+				runnable_scope->get_module_scope());
+
+		if (bound_var != nullptr) {
+			auto error = user_error(obj.get_location(), "symbol '" c_id("%s") "' cannot be redeclared",
+					symbol.c_str());
+			error.add_info(bound_var->get_location(), "see earlier declaration of " c_id("%s"),
+					bound_var->name.c_str());
+			throw error;
+		}
 	}
 
 	assert(obj.get_type() != nullptr);

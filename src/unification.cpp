@@ -192,6 +192,7 @@ unification_t unify_core(
 	auto ptp_a = dyncast<const types::type_product_t>(a);
 
 	auto ptf_a = dyncast<const types::type_function_t>(a);
+	auto ptc_a = dyncast<const types::type_function_closure_t>(a);
 
 	if (pti_a != nullptr) {
 		/* we have reduced down to a type id for a */
@@ -414,6 +415,22 @@ unification_t unify_core(
 				type_constraints.push_back(ptf_a->type_constraints);
 			}
 			return {true, "functions match", bindings, coercions, type_constraints};
+		} else {
+			return {
+				false,
+				string_format("%s <> %s",
+						a->str().c_str(),
+						b->str().c_str()),
+				bindings,
+				coercions,
+				{}};
+		}
+	} else if (ptc_a != nullptr) {
+		if (auto ptf_b = dyncast<const types::type_function_t>(b)) {
+			/* allow coercions for unbound function to bound functions */
+			return unify_core(ptc_a->function, ptf_b, env, bindings, coercions + 1, depth + 1);
+		} else if (auto ptc_b = dyncast<const types::type_function_closure_t>(b)) {
+			return unify_core(ptc_a->function, ptc_b->function, env, bindings, coercions, depth);
 		} else {
 			return {
 				false,

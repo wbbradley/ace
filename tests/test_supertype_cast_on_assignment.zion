@@ -14,5 +14,5 @@ type Point T is
 
 def main()
 	var p Point float = Cartesian(2.4, 1.0)
-	# error: unable to resolve overloads for __getitem__.*
+	# error: __getitem__\(.*Cartesian float.*\) not found
 	print(p[0])

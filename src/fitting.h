@@ -16,4 +16,5 @@ bound_var_t::ref get_best_fit(
 		types::type_t::ref args,
 		types::type_t::ref return_type,
 		var_t::refs &fns,
+		fittings_t &fittings,
 		bool allow_coercions);

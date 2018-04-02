@@ -40,7 +40,6 @@ struct scope_t : public env_t {
 	virtual cref this_scope() const = 0;
 	// virtual ptr<closure_scope_t> get_closure_scope() = 0;
 	virtual bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const = 0;
-	virtual bool symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var) = 0;
 	virtual bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true) = 0;
 	virtual bound_var_t::ref get_bound_function(std::string name, std::string signature) = 0;
 	virtual bound_var_t::ref get_bound_variable(llvm::IRBuilder<> &builder, location_t location, std::string symbol, scope_t::ref stopping_scope=nullptr) = 0;

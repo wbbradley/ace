@@ -70,13 +70,13 @@ bound_var_t::ref get_bound_variable_from_scope(
 		} else {
 			assert(overloads.size() > 1);
 			throw user_error(location,
-				   	"a non-callsite reference to an overloaded variable " c_id("%s") " was found. overloads at this immediate location are:\n%s",
+				   	"a reference to an overloaded variable " c_id("%s") " was found. overloads at this immediate location are:\n%s",
 					symbol.c_str(),
 					::str(overloads).c_str());
 			return nullptr;
 		}
 	} else if (parent_scope != nullptr && parent_scope != stopping_scope) {
-		return parent_scope->get_bound_variable(builder, location, symbol);
+		return parent_scope->get_bound_variable(builder, location, symbol, stopping_scope);
 	}
 
 	debug_above(6, log(log_info,
@@ -231,27 +231,6 @@ struct scope_impl_t : public virtual BASE {
 		}
 	}
 
-	bool symbol_exists_in_running_scope(std::string name, bound_var_t::ref &bound_var) {
-		auto iter = bound_vars.find(name);
-		if (iter != bound_vars.end()) {
-			assert(iter->second.size() == 1);
-			/* we found this name */
-			bound_var = iter->second.begin()->second;
-			return true;
-		} else if (auto parent_scope = this->get_parent_scope()) {
-			/* we did not find the name, let's consider looking higher up the
-			 * scopes */
-			if (dynamic_cast<const function_scope_t *>(this)) {
-				return false;
-			} else {
-				return parent_scope->symbol_exists_in_running_scope(name, bound_var);
-			}
-		} else {
-			/* we're at the top and we still didn't find it, quit. */
-			return false;
-		}
-	}
-
 	bound_var_t::ref get_singleton(std::string name) {
 		/* there can be only one */
 		auto &coll = bound_vars;
@@ -398,11 +377,6 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		return this->get_parent_scope()->get_llvm_module();
 	}
 
-	bool symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var) override {
-		assert(false);
-		return false;
-	}
-
 	void set_capture_env(bound_var_t::ref capture_env) override {
 		assert(this->capture_env == nullptr);
 		this->capture_env = capture_env;
@@ -508,6 +482,8 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		}
 	}
 
+	// TODO: handle get_bound_function or whatev
+	//
 	bound_var_t::ref get_bound_variable(
 			llvm::IRBuilder<> &builder,
 			location_t location,
@@ -851,10 +827,6 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 		dump_env_map(os, this->env_map, "MODULE ENV");
 		dump_type_map(os, this->type_variable_bindings, "MODULE TYPE VARIABLE BINDINGS");
 		this->get_parent_scope()->dump(os);
-	}
-
-	bool symbol_exists_in_running_scope(std::string symbol, bound_var_t::ref &bound_var) {
-		return false;
 	}
 
 	bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var) const {
