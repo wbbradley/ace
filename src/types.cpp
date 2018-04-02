@@ -631,6 +631,7 @@ namespace types {
 			type_constraints->emit(os, bindings, 0);
 			os << "]";
 		}
+		os << "_";
 		args->emit(os, bindings, 0);
 		os << " ";
 		return return_type->emit(os, bindings, 0);

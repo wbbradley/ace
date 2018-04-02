@@ -54,6 +54,14 @@ def parse_operator(ps ParseState) (Node?, ParseState)
 	else
 		return (null, ps)
 
+def either_parser(p1 Parser, p2 Parser) Parser
+	return def (ps ParseState) (Node?, ParseState)
+		pair := p1(ps)
+		if pair[0] != null
+			return pair
+		else
+			return p2(ps)
+			
 def parse(text str, parser Parser) Node?
 	pair := parser(ParseState(text, 0))
 	return pair[0]

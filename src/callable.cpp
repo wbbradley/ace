@@ -231,6 +231,7 @@ bound_var_t::ref maybe_get_callable(
 			args,
 			return_type,
 			fns,
+			fittings,
 			allow_coercions);
 }
 
@@ -271,10 +272,15 @@ bound_var_t::ref get_callable(
 		types::type_args_t::ref args,
 		types::type_t::ref return_type)
 {
-	bound_var_t::ref bound_var;
-	if (scope->symbol_exists_in_running_scope(alias, bound_var)) {
-		return get_callable_from_local_var(builder, scope, alias, bound_var,
-				callsite_location, args, return_type);
+	auto runnable_scope = dyncast<runnable_scope_t>(scope);
+	if (runnable_scope != nullptr) {
+		/* if we're in a function, let's look for locally defined symbols */
+		bound_var_t::ref bound_var = runnable_scope->get_bound_variable(
+				builder, callsite_location, alias, runnable_scope->get_module_scope());
+		if (bound_var != nullptr) {
+			return get_callable_from_local_var(builder, runnable_scope, alias, bound_var, callsite_location,
+					args, return_type);
+		}
 	}
 
 	fittings_t fittings;
@@ -285,8 +291,10 @@ bound_var_t::ref get_callable(
 		return callable;
 	} else {
 		std::stringstream ss;
-		if (fittings.size() != 0) {
-			ss << C_ID << alias << " not found";
+		if (fittings.size() == 0) {
+			ss << C_ID << alias << C_RESET;
+			args->emit(ss, {}, 0 /*parent_precedence*/);
+			ss << " not found";
 		} else {
 			ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
 		}

@@ -110,3 +110,6 @@ def readline() str?
 	ret := str(OwningBuffer(buf, length), 0, length)
 	# runtime.gc()
 	return ret
+
+def __box__[T where is_function T](fn T) __closure_t T
+	return __closure_t(fn)

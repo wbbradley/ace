@@ -154,23 +154,23 @@ def __managed_vector_mark__(vec *var_t)
 		i += 1
 
 [global]
-def __managed_vector_free__(var *var_t)
-	let vector = var as *ManagedVector
+def __managed_vector_free__(v *var_t)
+	let vec = v as *ManagedVector
 
 	/* the gc will handle cleaning up everything that we pointed to, but we need to free up our
 	 * extra allocated heap space. */
-	posix.free(vector.items)
+	posix.free(vec.items)
 
 	/* zion will handle deleting the actual vector_t, since it will be attached to the managed
 	 * object */
 
 [global]
-def __native_vector_free__(var *var_t)
-	let vector = var as *(NativeVector *void)
+def __native_vector_free__(v *var_t)
+	let vec = v as *(NativeVector *void)
 
 	/* the gc will handle cleaning up everything that we pointed to, but we need to free up our
 	 * extra allocated heap space. */
-	posix.free(vector.items)
+	posix.free(vec.items)
 
 	/* zion will handle deleting the actual vector_t, since it will be attached to the managed
 	 * object */
