@@ -25,7 +25,6 @@ bound_var_t::ref bound_var_t::create(
 std::string bound_var_t::str() const {
 	std::stringstream ss;
 	ss << C_VAR << name << C_RESET;
-	ss << " : " << id->str();
 	ss << " : " << *type;
 
 	assert(llvm_value != nullptr);
