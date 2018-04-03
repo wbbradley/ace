@@ -60,6 +60,14 @@ bound_var_t::ref call_program_function(
         const bound_var_t::refs args,
 		types::type_t::ref return_type=nullptr);
 
+bound_var_t::ref call_module_function(
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		life_t::ref life,
+        std::string function_name,
+		location_t callsite_location,
+        const bound_var_t::refs var_args,
+		types::type_t::ref return_type=nullptr);
 bound_var_t::ref check_func_vs_callsite(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -81,3 +89,9 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 		bound_type_t::ref return_type,
 		types::type_function_t::ref fn_type,
 		ptr<const ast::block_t> block);
+bound_var_t::ref instantiate_unchecked_fn(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		unchecked_var_t::ref unchecked_fn,
+		types::type_function_t::ref fn_type,
+		const unification_t *unification);

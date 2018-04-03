@@ -903,11 +903,9 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 
 		return make_call_value(builder, get_location(), scope, life, function, arguments);
 	} else {
-		throw user_error(function_expr->get_location(),
-				"%s being called like a function. arguments are %s",
-				function_expr->str().c_str(),
-				::str(arguments).c_str());
-		return nullptr;
+		bound_var_t::ref lhs_value = function_expr->resolve_expression(builder, scope, life, false /*as_ref*/,
+				type_function_closure(type_variable(INTERNAL_LOC())));
+		return make_call_value(builder, get_location(), scope, life, lhs_value, arguments);
 	}
 }
 
@@ -1159,10 +1157,27 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 		if (function != nullptr) {
 			debug_above(5, log("reference expression for " c_id("%s") " resolved to %s",
 						token.text.c_str(), function->str().c_str()));
+			assert(function->type->get_type()->eval_predicate(tb_function, scope));
 			return function;
 		} else {
 			debug_above(5, log("could not find reference expression for " c_id("%s") " (found %d fns, though)",
 						token.text.c_str(), fittings.size()));
+		}
+	} else {
+		unchecked_var_t::ref unchecked_fn = scope->get_module_scope()->get_unchecked_variable(token.text);
+		if (unchecked_fn != nullptr) {
+			types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(unchecked_fn->get_type(scope)->rebind(scope->get_type_variable_bindings())->eval(scope));
+			if (fn_type != nullptr) {
+				return instantiate_unchecked_fn(
+						builder,
+						scope,
+						unchecked_fn,
+						fn_type,
+						nullptr /*unification*/);
+			} else {
+				throw user_error(get_location(), "unable to instantiate unchecked function %s",
+						unchecked_fn->str().c_str());
+			}
 		}
 	}
 
@@ -1494,11 +1509,11 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 
 				if (stop_val != nullptr) {
 					/* get or instantiate a function we can call on these arguments */
-					return call_program_function(builder, scope, life,
+					return call_module_function(builder, scope, life,
 							"__getslice__", get_location(), {lhs_val, index_val, stop_val});
 				} else {
 					/* get or instantiate a function we can call on these arguments */
-					return call_program_function(builder, scope, life,
+					return call_module_function(builder, scope, life,
 							"__getitem__", get_location(), {lhs_val, index_val});
 				}
 			} else {
@@ -1829,10 +1844,9 @@ bound_var_t::ref resolve_native_pointer_binary_operation(
 		return resolve_native_pointer_binary_compare(
 				builder, scope, life, location, lhs_node, lhs_var, rhs_node, rhs_var, rnpbc_ineq, scope_if_true, scope_if_false, expected_type);
 	} else {
-		throw user_error(location,
-			   	"native pointers cannot be combined using the " c_id("%s") " function. "
-				"if you must compare them, try casting to uint first?",
-			   	function_name.c_str());
+		return call_module_function(
+				builder, scope, life, function_name,
+				location, {lhs_var, rhs_var});
 	}
 }
 
@@ -2102,7 +2116,7 @@ bound_var_t::ref type_check_binary_operator(
 					obj->get_location(), lhs_node, lhs, rhs_node, rhs, function_name, scope_if_true, scope_if_false,
 					expected_type);
 		} else {
-			return call_program_function(
+			return call_module_function(
 					builder, scope, life, function_name,
 					obj->get_location(), {lhs, rhs});
 		}
@@ -2152,10 +2166,9 @@ bound_var_t::ref type_check_binary_operator(
 		}
 
 		/* get or instantiate a function we can call on these arguments */
-		auto value = call_program_function(
+		auto value = call_module_function(
 				builder, scope, life, function_name,
 				obj->get_location(), {lhs, rhs});
-		assert_implies(expected_type != nullptr, unifies(expected_type, value->type->get_type(), scope));
 		return value;
 	}
 }
@@ -4279,7 +4292,7 @@ bound_var_t::ref ast::prefix_expr_t::resolve_prefix_expr(
 			/* TODO: revisit whether managed types must/can override __not__? */
 		}
 	}
-	return call_program_function(builder, scope, life,
+	return call_module_function(builder, scope, life,
 			function_name, get_location(), {rhs_var});
 }
 

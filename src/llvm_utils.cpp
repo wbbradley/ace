@@ -211,7 +211,7 @@ bound_var_t::ref create_callsite(
 		}
 	} else {
 		throw user_error(location,
-				"tried to create_callsite for %s, but it's not a function?",
+				"unable to call %s. it is not callable",
 				function->str().c_str());
 	}
 }

@@ -353,7 +353,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 			runnable_scope_t::ref runnable_scope,
 			llvm::IRBuilder<> &capture_builder) :
 		scope_impl_t<closure_scope_t>(name, parent_scope),
-	   	running_scope(runnable_scope),
+		running_scope(runnable_scope),
 		capture_builder(capture_builder)
 	{}
 
@@ -389,13 +389,16 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		bound_var_t::ref value_in_closure;
 	};
 
-	llvm::StructType *_create_temporary_capture_type(
+	static llvm::StructType *_create_temporary_capture_type(
 			llvm::IRBuilder<> &builder,
-		   	std::string symbol,
-		   	bound_var_t::ref loaded_value,
+			program_scope_t::ref program_scope,
+			std::string scope_name,
+			std::string symbol,
+			bound_var_t::ref loaded_value,
+			const std::vector<capture_t> &captures,
 			std::vector<llvm::Type*> &llvm_types)
 	{
-		bound_type_t::ref bound_var_type = get_program_scope()->get_runtime_type(builder, STD_MANAGED_TYPE, false /*get_ptr*/);
+		bound_type_t::ref bound_var_type = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE, false /*get_ptr*/);
 
 		llvm::StructType *llvm_var_type = llvm::dyn_cast<llvm::StructType>(bound_var_type->get_llvm_type());
 		assert(llvm_var_type != nullptr);
@@ -419,7 +422,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 
 		return llvm_create_struct_type(
 				builder,
-				get_leaf_name() + string_format(" (capture %d for %s)", (int)captures.size(), symbol.c_str()),
+				scope_name + string_format(" (capture %d for %s)", (int)captures.size(), symbol.c_str()),
 				llvm_types);
 	}
 
@@ -427,6 +430,50 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		return [symbol](const capture_t &capture) -> bool {
 			return capture.name == symbol;
 		};
+	}
+
+	static capture_t create_capture(
+			llvm::IRBuilder<> &builder,
+			program_scope_t::ref program_scope,
+			std::string scope_name,
+			location_t location,
+			std::string symbol,
+			bound_var_t::ref loaded_value,
+			bound_var_t::ref capture_env,
+			const std::vector<capture_t> &captures)
+	{
+		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+		builder.SetInsertPoint(llvm_get_function(builder)->getEntryBlock().getTerminator());
+
+		std::vector<llvm::Type*> llvm_types;
+		llvm::StructType *llvm_struct_type = _create_temporary_capture_type(builder, program_scope, scope_name, symbol, loaded_value, captures, llvm_types);
+
+		/* now cast the capture_env to be a pointer to the new closure env type */
+		llvm::Value *llvm_capture_env = builder.CreateBitCast(capture_env->get_llvm_value(), llvm_struct_type->getPointerTo());
+		std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{
+			builder.getInt32(0),
+				/* get the last item from the closure env (so far) */
+				builder.getInt32(llvm_types.size() - 1),
+		};
+
+		debug_above(8, log("llvm_capture_env is %s", llvm_print(llvm_capture_env).c_str()));
+		/* insert the captured loaded value at the end of the entry block */
+		llvm::Value *llvm_closure_value_pointer = builder.CreateInBoundsGEP(llvm_capture_env, gep_path);
+
+		bound_var_t::ref value_in_closure = bound_var_t::create(
+				INTERNAL_LOC(),
+				symbol,
+				loaded_value->type,
+				builder.CreateLoad(llvm_closure_value_pointer),
+				make_iid_impl(symbol, location));
+
+
+		/* sweet, we found a value we can capture */
+		capture_t capture;
+		capture.name = symbol;
+		capture.original_value = loaded_value;
+		capture.value_in_closure = value_in_closure;
+		return capture;
 	}
 
 	bound_var_t::ref capture_hunt(
@@ -447,35 +494,8 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		if (capturable_value != nullptr) {
 			assert(capture_builder.GetInsertBlock() != builder.GetInsertBlock());
 			bound_var_t::ref loaded_value = capturable_value->resolve_bound_value(capture_builder, running_scope);
-			std::vector<llvm::Type*> llvm_types;
-			llvm::StructType *llvm_struct_type = _create_temporary_capture_type(builder, symbol, loaded_value, llvm_types);
-
-			/* now cast the capture_env to be a pointer to the new closure env type */
-			llvm::Value *llvm_capture_env = builder.CreateBitCast(capture_env->get_llvm_value(), llvm_struct_type->getPointerTo());
-			std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{
-				builder.getInt32(0),
-				/* get the last item from the closure env (so far) */
-				builder.getInt32(llvm_types.size() - 1),
-			};
-
-			debug_above(8, log("llvm_capture_env is %s", llvm_print(llvm_capture_env).c_str()));
-			llvm::Value *llvm_closure_value_pointer = builder.CreateInBoundsGEP(llvm_capture_env, gep_path);
-
-			bound_var_t::ref value_in_closure = bound_var_t::create(
-					INTERNAL_LOC(),
-					symbol,
-					loaded_value->type,
-					builder.CreateLoad(llvm_closure_value_pointer),
-					make_iid_impl(symbol, location));
-
-			/* sweet, we found a value we can capture */
-			capture_t capture;
-			capture.name = symbol;
-			capture.original_value = loaded_value;
-			capture.value_in_closure = value_in_closure;
-
-			captures.push_back(capture);
-			return capture.value_in_closure;
+			captures.push_back(create_capture(builder, get_program_scope(), get_leaf_name(), location, symbol, loaded_value, capture_env, captures));
+			return captures.back().value_in_closure;
 		} else {
 			/* we did not find anything to capture */
 			return nullptr;
@@ -503,9 +523,9 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 
 	bound_var_t::ref create_closure(
 			llvm::IRBuilder<> &builder,
-		   	ptr<life_t> life,
-		   	location_t location,
-		   	bound_var_t::ref function) override
+			ptr<life_t> life,
+			location_t location,
+			bound_var_t::ref function) override
 	{
 		debug_above(6, log("create_closure(..., %s, %s)", location.str().c_str(), function->str().c_str()));
 		types::type_t::refs dimensions;
@@ -885,6 +905,9 @@ struct module_scope_impl_impl_t final : public std::enable_shared_from_this<modu
 	}
 	ptr<const scope_t> this_scope() const {
 		return this->shared_from_this();
+	}
+	unchecked_var_t::ref get_unchecked_variable(std::string symbol) {
+		return get_program_scope()->get_unchecked_variable(make_fqn(symbol));
 	}
 };
 
