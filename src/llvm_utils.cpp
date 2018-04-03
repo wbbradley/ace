@@ -210,9 +210,9 @@ bound_var_t::ref create_callsite(
 			return nullptr;
 		}
 	} else {
-		throw user_error(location,
-				"unable to call %s. it is not callable",
-				function->str().c_str());
+		throw user_error(function->get_location(),
+				"this expression is not callable (its type is %s)",
+				function->type->str().c_str());
 	}
 }
 

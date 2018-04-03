@@ -2075,7 +2075,7 @@ bound_var_t::ref type_check_binary_integer_op(
 			final_integer_signed
 			? builder.CreateSExtOrTrunc(llvm_value, final_integer_type->get_llvm_type())
 			: builder.CreateZExtOrTrunc(llvm_value, final_integer_type->get_llvm_type()),
-			make_iid(function_name + ".value"));
+			make_iid_impl(function_name + ".value", location));
 }
 
 bound_var_t::ref type_check_binary_operator(
