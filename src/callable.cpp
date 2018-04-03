@@ -30,7 +30,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 		scope_t::ref scope,
 		unchecked_var_t::ref unchecked_fn,
 		types::type_function_t::ref fn_type,
-		const unification_t &unification)
+		const unification_t *unification)
 {
 	static int depth = 0;
 	depth_guard_t depth_guard(fn_type->get_location(), depth, 10);
@@ -49,15 +49,19 @@ bound_var_t::ref instantiate_unchecked_fn(
 
 	if (auto function_defn = dyncast<const ast::function_defn_t>(unchecked_fn->node)) {
 		/* we shouldn't be here unless we found something to substitute */
+		scope_t::ref subst_scope;
+		if (unification != nullptr) {
+			debug_above(4, log(log_info, "building substitution for %s with unification %s",
+						function_defn->token.str().c_str(),
+						unification->str().c_str()));
 
-		debug_above(4, log(log_info, "building substitution for %s with unification %s",
-					function_defn->token.str().c_str(),
-					unification.str().c_str()));
-
-		/* create a generic substitution scope with the unification */
-		scope_t::ref subst_scope = generic_substitution_scope_t::create(
-				builder, unchecked_fn->node,
-				unchecked_fn->module_scope, unification, fn_type);
+			/* create a generic substitution scope with the unification */
+			subst_scope = generic_substitution_scope_t::create(
+					builder, unchecked_fn->node,
+					unchecked_fn->module_scope, *unification, fn_type);
+		} else {
+			subst_scope = unchecked_fn->module_scope;
+		}
 
 		if (auto function = dyncast<const types::type_function_t>(fn_type)) {
 			if (auto args = dyncast<const types::type_args_t>(function->args)) {
@@ -109,13 +113,22 @@ bound_var_t::ref instantiate_unchecked_fn(
 		assert(unchecked_data_ctor != nullptr);
 		assert(!unchecked_data_ctor->native);
 
-		/* create a generic substitution scope with the unification */
-		scope_t::ref subst_scope = generic_substitution_scope_t::create(
-				builder, unchecked_fn->node,
-				unchecked_fn->module_scope, unification, fn_type);
+		scope_t::ref subst_scope;
+		types::type_function_t::ref data_ctor_type;
 
-		types::type_function_t::ref data_ctor_type = dyncast<const types::type_function_t>(
-				unchecked_data_ctor->sig->rebind(unification.bindings));
+		if (unification != nullptr) {
+			/* create a generic substitution scope with the unification */
+			subst_scope = generic_substitution_scope_t::create(
+					builder, unchecked_fn->node,
+					unchecked_fn->module_scope, *unification, fn_type);
+
+			data_ctor_type = dyncast<const types::type_function_t>(
+					unchecked_data_ctor->sig->rebind(unification->bindings));
+		} else {
+			subst_scope = unchecked_fn->module_scope;
+			data_ctor_type = dyncast<const types::type_function_t>(unchecked_data_ctor->sig->rebind(scope->get_type_variable_bindings()));
+		}
+
 		assert(data_ctor_type != nullptr);
 		// if (data_ctor_type->ftv_count() == 0) {
 		debug_above(4, log(log_info, "going to bind ctor for %s",
@@ -175,8 +188,7 @@ bound_var_t::ref check_func_vs_callsite(
                 /* function fn_type exists with name and signature we want, just use that */
                 return bound_fn;
             }
-			return instantiate_unchecked_fn(builder, scope,
-					unchecked_fn, fn_type, unification);
+			return instantiate_unchecked_fn(builder, scope, unchecked_fn, fn_type, &unification);
 		} else {
 			panic("unhandled var type");
 			return nullptr;
@@ -336,6 +348,38 @@ bound_var_t::ref call_program_function(
 		/* get or instantiate a function we can call on these arguments */
 		bound_var_t::ref function = get_callable(
 				builder, program_scope, function_name, callsite_location,
+				args, return_type);
+
+		return make_call_value(builder, callsite_location, scope,
+				life, function, var_args);
+	} catch (user_error &e) {
+		std::throw_with_nested(user_error(callsite_location, "failed to resolve function " c_id("%s") " with args: %s",
+					function_name.c_str(),
+					::str(var_args).c_str()));
+	}
+	return nullptr;
+}
+
+bound_var_t::ref call_module_function(
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+		life_t::ref life,
+        std::string function_name,
+		location_t callsite_location,
+        const bound_var_t::refs var_args,
+		types::type_t::ref return_type)
+{
+	types::type_args_t::ref args = get_args_type(var_args);
+	auto module_scope = scope->get_module_scope();
+
+	if (return_type == nullptr) {
+		return_type = type_variable(callsite_location);
+	}
+
+	try {
+		/* get or instantiate a function we can call on these arguments */
+		bound_var_t::ref function = get_callable(
+				builder, module_scope, function_name, callsite_location,
 				args, return_type);
 
 		return make_call_value(builder, callsite_location, scope,

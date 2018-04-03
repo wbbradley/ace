@@ -113,6 +113,7 @@ struct module_scope_t : public virtual scope_t {
 	virtual unchecked_var_t::ref put_unchecked_variable(std::string symbol, unchecked_var_t::ref unchecked_variable) = 0;
 	virtual void put_unchecked_type(unchecked_type_t::ref unchecked_type) = 0;
 	virtual unchecked_type_t::ref get_unchecked_type(std::string symbol) = 0;
+	virtual unchecked_var_t::ref get_unchecked_variable(std::string symbol) = 0;
 
 	/* module checking management
 	 * after checking a function regardless of whether it was generic or not
@@ -146,8 +147,6 @@ struct program_scope_t : public virtual module_scope_t {
 	 * this is not an implementation of get_symbol.  */
 	virtual module_scope_t::ref lookup_module(std::string symbol) = 0;
 	virtual std::string dump_llvm_modules() = 0;
-
-	virtual unchecked_var_t::ref get_unchecked_variable(std::string symbol) = 0;
 
 	virtual void put_bound_type(bound_type_t::ref type) = 0;
 	virtual void put_bound_type_mapping(types::signature source, types::signature dest) = 0;

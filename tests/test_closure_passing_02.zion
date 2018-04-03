@@ -1,0 +1,18 @@
+module _
+# test: pass
+# expect: pass with 5
+
+def run_function(f def () void)
+	f()
+
+def get_int() int
+	return 5
+
+def main()
+	x := get_int() 
+	foo := def ()
+		if "he" < "dfdf"
+			print("pass with " + x)
+		else
+			print("pass with " + x)
+	run_function(foo)

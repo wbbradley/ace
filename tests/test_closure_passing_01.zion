@@ -5,7 +5,6 @@ module _
 def twice(f def (int) int) def (_ int) int
 	return def (x int) int
 		return f(f(x))
-		
 
 def main()
 	add_11 := def (x int) int

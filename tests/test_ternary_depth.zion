@@ -1,0 +1,8 @@
+module _
+
+def main()
+	var x int = 3
+	var y str = "hey"
+
+	if x < len(y) and x < len(y) and isalpha(y[x])
+		pass
