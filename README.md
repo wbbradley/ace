@@ -150,6 +150,7 @@ or llvm tools, etc...
 - [ ] Consider making all refs managed/heap-allocated (prior to a later escape-analysis test) in order to allow
   reference capture... maybe.
 - [ ] Implement fast range(i)
+- [ ] Implement tuple destructuring
 - [ ] Automatically configure default POSIX/C/System "int" size on first boot of compiler
 - [ ] Use DIBuilder to add line-level debugging information
 - [ ] Consider implementing a macro specifier for declaring macros which would expand inline and have hygenic names

@@ -42,25 +42,25 @@ type type_info_t struct
 	var name      *char
 
 type str_literal_t struct
-	let type_info *type_info_t
-	let mark int
-	let next null
-	let prev null
-	let allocation uint
+	type_info *type_info_t
+	mark int
+	next null
+	prev null
+	allocation uint
 	## DATA
-	let buffer *owning_buffer_literal_t
-	let start uint
-	let length uint
+	buffer *owning_buffer_literal_t
+	start uint
+	length uint
 
 type owning_buffer_literal_t struct
-	let type_info *type_info_t
-	let mark int
-	let next null
-	let prev null
-	let allocation uint
+	type_info *type_info_t
+	mark int
+	next null
+	prev null
+	allocation uint
 	## DATA
-	let raw *char
-	let length uint
+	raw *char
+	length uint
 
 type type_info_offsets_t struct
 	var type_info_head type_info_t
@@ -82,7 +82,7 @@ type tag_t struct
 	var type_info *type_info_t
 
 type __closure_t FN has
-	let fn FN
+	fn FN
 
 #   The map for a single function's stack frame.  One of these is
 #   compiled as constant data into the executable for each function.

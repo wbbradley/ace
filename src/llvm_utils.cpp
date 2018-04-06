@@ -790,7 +790,7 @@ void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
 	if (llvm::verifyFunction(*llvm_function, &os)) {
 		os.flush();
 		ss << llvm_print_function(llvm_function);
-		debug_above(5, log("writing to jit.llir..."));
+		debug_above(5, log("writing to function-verification-failure.llir..."));
 		std::string llir_filename = "function-verification-failure.llir";
 		FILE *fp = fopen(llir_filename.c_str(), "wt");
 		fprintf(fp, "%s\n", llvm_print_module(*llvm_function->getParent()).c_str());

@@ -18,6 +18,15 @@ namespace llvm {
 	FunctionPass *createZionGCLoweringPass(StructType *StackEntryTy, StructType *FrameMapTy);
 }
 
+#ifdef ZION_DEBUG
+void dump_llir(llvm::Module *llvm_module, std::string filename) {
+	debug_above(5, log(c_error("writing to %s..."), filename.c_str()));
+	FILE *fp = fopen(filename.c_str(), "wt");
+	fprintf(fp, "%s\n", llvm_print_module(*llvm_module).c_str());
+	fclose(fp);
+}
+#endif
+
 std::string strip_zion_extension(std::string module_name) {
 	if (ends_with(module_name, ".zion")) {
 		/* as a courtesy, strip the extension from the filename here */
@@ -270,13 +279,6 @@ void add_globals(
 		program_scope_t::ref program_scope, 
 		ast::item_t::ref program)
 {
-	/*
-	compiler.llvm_load_ir("rt_int.llir");
-	compiler.llvm_load_ir("rt_float.llir");
-	compiler.llvm_load_ir("rt_str.llir");
-	compiler.llvm_load_ir("rt_typeid.llir");
-	*/
-
 	/* set up the global scalar types, as well as memory reference and garbage
 	 * collection types */
 	add_global_types(compiler, builder, program_scope);
@@ -513,12 +515,7 @@ void run_gc_lowering(
 		FPM->run(F);
 		F.setGC("shadow-stack");
 	}
-#ifdef ZION_DEBUG
-	debug_above(5, log("writing to jit.llir..."));
-	FILE *fp = fopen("jit.llir", "wt");
-	fprintf(fp, "%s\n", llvm_print_module(*llvm_module).c_str());
-	fclose(fp);
-#endif
+	dump_llir(llvm_module, "jit.llir");
 }
 
 void compiler_t::lower_program_module() {
@@ -592,10 +589,7 @@ int compiler_t::run_program(int argc, char *argv_input[]) {
 		argv.push_back(argv_input[i]);
 	}
 
-	debug_above(5, log("writing to jit.llir..."));
-	FILE *fp = fopen("jit.llir", "wt");
-	fprintf(fp, "%s\n", llvm_print_module(*llvm_program_module).c_str());
-	fclose(fp);
+	dump_llir(llvm_program_module, "jit.llir");
 
 	/* finally, run the user's program */
 	return llvm_engine->runFunctionAsMain(llvm_fn_main, argv, envp);

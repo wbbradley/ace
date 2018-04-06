@@ -13,6 +13,7 @@
 #include "dump.h"
 #include "type_instantiation.h"
 #include <iostream>
+#include "atom.h"
 
 const char *GLOBAL_ID = "_";
 const token_kind SCOPE_TK = tk_dot;
@@ -452,8 +453,8 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		llvm::Value *llvm_capture_env = builder.CreateBitCast(capture_env->get_llvm_value(), llvm_struct_type->getPointerTo());
 		std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{
 			builder.getInt32(0),
-				/* get the last item from the closure env (so far) */
-				builder.getInt32(llvm_types.size() - 1),
+			/* get the last item from the closure env (so far) */
+			builder.getInt32(llvm_types.size() - 1),
 		};
 
 		debug_above(8, log("llvm_capture_env is %s", llvm_print(llvm_capture_env).c_str()));
@@ -515,7 +516,18 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		auto capture_iter = std::find_if(captures.begin(), captures.end(), capture_finder(symbol));
 		if (capture_iter == captures.end()) {
 			/* we haven't captured this, or it just doesn't make sense, keep looking */
-			return capture_hunt(builder, location, symbol, stopping_scope);
+			auto bound_var = capture_hunt(builder, location, symbol, stopping_scope);
+			if (bound_var != nullptr) {
+				return bound_var;
+			} else {
+				/* fallback to module scope */
+				auto parent_scope = get_parent_scope();
+				if (parent_scope != stopping_scope && parent_scope != nullptr) {
+					return parent_scope->get_bound_variable(builder, location, symbol, stopping_scope);
+				} else {
+					return nullptr;
+				}
+			}
 		} else {
 			return capture_iter->value_in_closure;
 		}
@@ -1223,11 +1235,149 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		return upsert_bound_type(builder, this_scope(), type);
 	}
 
+	bound_var_t::ref make_matcher(
+			llvm::IRBuilder<> &builder,
+		   	location_t location,
+		   	types::type_t::ref type)
+	{
+		auto type_name = type->repr();
+		auto atom = atomize(type_name);
+		log("looking for a type matcher for %s (atom: %d)", type->str().c_str(), (int)atom);
+		bound_var_t::ref &matcher = bound_type_matchers[type_name];
+		if (matcher == nullptr) {
+			log("making type matcher for %s (atom: %d)", type->str().c_str(), (int)atom);
+			auto function_name = std::string("__type_matcher.") + type_name;
+			types::type_t::refs args;
+			/* the pattern to match */
+			args.push_back(type_ptr(::type_integer(
+							type_literal({INTERNAL_LOC(), tk_integer, ZION_TYPEID_BITSIZE_STR}),
+							type_id(make_iid("false" /*signed*/)))));
+
+			/* the size in pattern-word units of the pattern */
+			args.push_back(::type_integer(
+						type_literal({INTERNAL_LOC(), tk_integer, "32"}),
+						type_id(make_iid("false" /*signed*/))));
+
+			/* the starting position for matching */
+			args.push_back(::type_integer(
+						type_literal({INTERNAL_LOC(), tk_integer, "32"}),
+						type_id(make_iid("false" /*signed*/))));
+
+			/* return the next position - 0 on no progress */
+			types::type_t::ref return_type = args.back();
+
+			types::type_args_t::ref type_args = ::type_args(args, {});
+			types::type_function_t::ref type_function = ::type_function(nullptr, type_args, return_type);
+
+			auto bound_function_type = upsert_bound_type(builder, shared_from_this(), type_function);
+			log("bound function type for matcher is %s", bound_function_type->str().c_str());
+
+			/* save and later restore the current branch insertion point */
+			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+			llvm::FunctionType *llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(bound_function_type->get_llvm_specific_type()->getPointerElementType());
+			assert(llvm_function_type != nullptr);
+			log("llvm type for matcher is %s", llvm_print(llvm_function_type).c_str());
+
+			/* now let's generate our actual data ctor fn */
+			auto llvm_function = llvm::Function::Create(
+					llvm_function_type,
+					llvm::Function::ExternalLinkage, 
+					function_name,
+					get_llvm_module());
+
+			llvm_function->setDoesNotThrow();
+			llvm_function->addFnAttr("alwaysinline");
+
+			/* create the actual bound variable for the fn */
+			bound_var_t::ref function = bound_var_t::create(
+					INTERNAL_LOC(), function_name,
+					bound_function_type,
+				   	llvm_function,
+				   	make_iid_impl(function_name, location));
+
+			/* store this matcher to break cycles of recursion in code generation (and to allow recursion in matching) */
+			matcher = function;
+
+			/* start emitting code into the new function. caller should have an
+			 * insert point guard */
+			llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
+					"entry", llvm_function);
+
+			builder.SetInsertPoint(llvm_entry_block);
+
+			// TODO: implement more than type_id matching
+			make_match_id(builder, location, type_name, atom, llvm_function);
+
+			log("function is %s", llvm_print_function(llvm_function).c_str());
+		} else {
+			log("found type matcher for %s (atom: %d)", type->str().c_str(), (int)atom);
+		}
+
+		return matcher;
+	}
+
+	void make_match_id(
+			llvm::IRBuilder<> &builder,
+		   	location_t location,
+			std::string type_name,
+			int atom,
+			llvm::Function *llvm_function)
+	{
+		auto args_iter = llvm_function->arg_begin();
+		llvm::Value *pattern = &*args_iter++;
+		llvm::Value *pattern_len = &*args_iter++;
+		llvm::Value *pos = &*args_iter++;
+		llvm::BasicBlock *no_match_branch = llvm::BasicBlock::Create(
+				builder.getContext(), "no.match", llvm_function);
+		llvm::BasicBlock *space_exists_branch = llvm::BasicBlock::Create(
+				builder.getContext(), "space.exists", llvm_function);
+
+		auto pos_plus_1 = builder.CreateAdd(pos, builder.getInt32(1));
+		builder.CreateCondBr(builder.CreateICmpULT(pattern_len, pos_plus_1), no_match_branch, space_exists_branch);
+
+		/* implement the basic failure block - return null */
+		builder.SetInsertPoint(no_match_branch);
+		builder.CreateRet(builder.getInt32(0));
+
+		/* continue matching */
+		builder.SetInsertPoint(space_exists_branch);
+
+		llvm::Value *pattern_word = get_word_at_offset(builder, pattern, pos, 0);
+		
+		llvm::Value *matched = builder.CreateICmpEQ(pattern_word, builder.getInt16(atom));
+		auto success_block = llvm::BasicBlock::Create(
+				builder.getContext(), "match", llvm_function);
+		builder.CreateCondBr(matched, success_block, no_match_branch);
+
+		builder.SetInsertPoint(success_block);
+
+		builder.CreateRet(pos_plus_1);
+	}
+
+	llvm::Value *get_word_at_offset(
+			llvm::IRBuilder<> &builder,
+			llvm::Value *array,
+		   	llvm::Value *offset,
+		   	int add)
+   	{
+		std::vector<llvm::Value *> gep_path;
+		if (add != 0) {
+			gep_path.push_back(builder.CreateAdd(offset, builder.getInt32(add)));
+		} else {
+			gep_path.push_back(offset);
+		}
+
+		/* insert the captured loaded value at the end of the entry block */
+		return builder.CreateLoad(builder.CreateGEP(array, gep_path));
+	}
+
 private:
 	compiler_t &compiler;
 	module_scope_t::map modules;
 	bound_type_t::map bound_types;
 	std::map<types::signature, types::signature> bound_type_mappings;
+	std::map<std::string, bound_var_t::ref> bound_type_matchers;
 
 	/* track the module var initialization function */
 	bound_var_t::ref init_module_vars_function;

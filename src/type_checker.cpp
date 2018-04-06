@@ -381,6 +381,7 @@ bound_var_t::ref upsert_module_variable(
 
 	if (init_var == nullptr) {
 		/* the user didn't supply an initializer, let's see if this type has one */
+		var_t::refs fns;
 		fittings_t fittings;
 		auto init_fn = maybe_get_callable(
 				builder,
@@ -389,6 +390,7 @@ bound_var_t::ref upsert_module_variable(
 				var_decl.get_location(),
 				type_args({}, {}),
 				declared_type,
+				fns,
 				fittings);
 
 		if (init_fn != nullptr) {
@@ -1151,9 +1153,10 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 	} else if (auto function_type = dyncast<const types::type_function_t>(expected_type)) {
 		indent_logger indent(get_location(), 5, string_format("looking for reference_expr " c_id("%s"),
 					token.text.c_str()));
+		var_t::refs fns;
 		fittings_t fittings;
 		auto function = maybe_get_callable(builder, scope, token.text,
-				get_location(), function_type->args, function_type->return_type, fittings);
+				get_location(), function_type->args, function_type->return_type, fns, fittings);
 		if (function != nullptr) {
 			debug_above(5, log("reference expression for " c_id("%s") " resolved to %s",
 						token.text.c_str(), function->str().c_str()));
@@ -1525,6 +1528,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 				/* let's first try to find the setitem function while using a free-type
 				 * variable for the rhs parameter. */
 				auto type_var_name = types::gensym();
+				var_t::refs fns;
 				fittings_t fittings;
 				bound_var_t::ref setitem_function = maybe_get_callable(
 						builder,
@@ -1533,6 +1537,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 						get_location(),
 						type_args({lhs_val->type->get_type(), index_val->type->get_type(), type_variable(type_var_name)}),
 						type_variable(INTERNAL_LOC()),
+						fns,
 						fittings);
 
 				types::type_t::ref expected_rhs_type;
@@ -1909,6 +1914,7 @@ bound_var_t::ref type_check_binary_integer_op(
 	assert(llvm_rhs->getType()->isIntegerTy());
 
 #ifdef ZION_DEBUG
+	dump_llir(scope->get_program_scope()->get_llvm_module(), "assert.llir");
 	auto llvm_lhs_type = llvm::dyn_cast<llvm::IntegerType>(llvm_lhs->getType());
 	assert(llvm_lhs_type != nullptr);
 	assert(llvm_lhs_type->getBitWidth() == lhs_bit_size);
@@ -1962,6 +1968,12 @@ bound_var_t::ref type_check_binary_integer_op(
 		} else {
 			llvm_value = builder.CreateUDiv(llvm_lhs, llvm_rhs);
 		}
+	} else if (function_name == "__bitwise_and__") {
+		llvm_value = builder.CreateAnd(llvm_lhs, llvm_rhs);
+	} else if (function_name == "__bitwise_or__") {
+		llvm_value = builder.CreateOr(llvm_lhs, llvm_rhs);
+	} else if (function_name == "__xor__") {
+		llvm_value = builder.CreateXor(llvm_lhs, llvm_rhs);
 	} else if (function_name == "__lt__") {
 		return bound_var_t::create(
 				INTERNAL_LOC(),
@@ -2042,27 +2054,6 @@ bound_var_t::ref type_check_binary_integer_op(
 				function_name + ".value",
 				lhs->type,
 				builder.CreateShl(llvm_lhs, llvm_rhs),
-				make_iid(function_name + ".value"));
-	} else if (function_name == "__bitwise_and__") {
-		return bound_var_t::create(
-				INTERNAL_LOC(),
-				function_name + ".value",
-				lhs->type,
-				builder.CreateAnd(llvm_lhs, llvm_rhs),
-				make_iid(function_name + ".value"));
-	} else if (function_name == "__bitwise_or__") {
-		return bound_var_t::create(
-				INTERNAL_LOC(),
-				function_name + ".value",
-				lhs->type,
-				builder.CreateOr(llvm_lhs, llvm_rhs),
-				make_iid(function_name + ".value"));
-	} else if (function_name == "__xor__") {
-		return bound_var_t::create(
-				INTERNAL_LOC(),
-				function_name + ".value",
-				lhs->type,
-				builder.CreateXor(llvm_lhs, llvm_rhs),
 				make_iid(function_name + ".value"));
 	} else {
 		assert(false);
@@ -3193,6 +3184,7 @@ void type_check_program_variable(
 				return_value,
 				function_type);
 
+		var_t::refs fns;
 		fittings_t fittings;
 		bound_var_t::ref callable = maybe_get_callable(
 				builder,
@@ -3201,6 +3193,7 @@ void type_check_program_variable(
 				node->get_location(),
 				function_type->args,
 				function_type->return_type,
+				fns,
 				fittings,
 				false /*check_unchecked*/,
 				false /*allow_coercions*/);

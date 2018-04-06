@@ -14,7 +14,7 @@ link def __times__(x int, y float) float to __int_times_float
 link def __divide__(x int, y float) float to __int_divide_float
 
 type Int has
-	var raw int
+	raw int
 
 var Zero Int = Int(0)
 
