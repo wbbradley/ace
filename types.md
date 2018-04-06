@@ -37,3 +37,61 @@ Keywords | Description | Notes
 
 Tag declarations. Also usually occur at module scope.
 * **`tag`** `Y`
+
+## Runtime type information
+
+Encoding RTTI for pattern matching with infinite types
+
+Example
+
+tag Foo
+tag Bar
+tag Baz
+type Node = Foo or Bar or Baz or vector.Vector Node
+
+These are all "Node" substitutable:
+
+Foo
+[Node]
+[[Node]]
+[[[[Bar or Baz]]] or Foo or Bar]
+
+A type defines an function that will parse the type signature and return true or
+false. In future incantations, it could also fill out inner parts.
+
+
+Foo => 1
+Bar => 2
+Baz => 3
+Node => 4
+Vector => 5
+
+Concrete type ids are written as encoded tuples.
+
+[Node]       -> (5,4)
+[[Node]]     -> (5,(5,4))
+[Bar or Foo or [Node]] -> (5,(or (2,1,(5,4))))
+
+Build a table of relations:
+
+1: 0
+2: 0
+3: 0
+4: (or (1, 2, 3, (5, 4)))
+5: 0
+To match [Bar or Baz] : (5, (or (2, 3))
+
+Against [Bar] : (5, 2)
+
+Match 5 
+Merge-match input against 2,3
+	Accept tuple or scalar
+	if scalar, search for value in match-list
+	if tuple, search for each value in match-list, in order
+
+To match [Node] : (5, (or (1, 2, 3, #[Node])))
+Against [[
+
+
+
+

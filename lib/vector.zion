@@ -59,7 +59,7 @@ def str(v [any]) str
 	return "[" + join(", ", v) + "]"
 
 [global]
-def join[T](delim str, v [T]) str
+def join[T where gc T](delim str, v [T]) str
 	let vec = v as *(VectorImpl T)
 
 	if vec.size == 0
@@ -67,7 +67,7 @@ def join[T](delim str, v [T]) str
 
 	# allocate a vector in which we can store the converted strings
 	let strs [str]
-	reserve(strs as *(VectorImpl T), vec.size)
+	reserve(strs, vec.size)
 
 	delim_len := delim.length
 	delims_len := delim_len * (vec.size - 1)
@@ -75,6 +75,51 @@ def join[T](delim str, v [T]) str
 	var i = 0
 	while i < vec.size
 		s := str(vec.items[i] as T)
+		append(strs, s)
+		total_len += len(s)
+		i += 1
+
+	# allocate our resultant string
+	buf := posix.malloc(sizeof(char) * (total_len + 1)) as *?char
+	assert(buf != null)
+
+	# iterate over the elements and append them to our resultant string
+	var pos = 0
+	i = 0
+	while i < vec.size
+		if i > 0
+			# insert a delim if necessary
+			posix.memcpy(&buf[pos], unsafe_access(delim), sizeof(char) * delim_len)
+			pos += delim_len
+
+		# insert a string
+		let s_len = strs[i].length
+		posix.memcpy(&buf[pos], unsafe_access(strs[i]), sizeof(char) * s_len)
+
+		pos += s_len
+		i += 1
+
+	buf[pos] = 0
+	return str(OwningBuffer(buf))
+
+[global]
+def join[T where not (gc T)](delim str, v [T]) str
+	let vec = v as *(VectorImpl T)
+
+	if vec.size == 0
+		return ""
+
+	# allocate a vector in which we can store the converted strings
+	let strs [str]
+	# print("reserving " + vec.size)
+	reserve(strs, vec.size)
+
+	delim_len := delim.length
+	delims_len := delim_len * (vec.size - 1)
+	var total_len = delims_len
+	var i = 0
+	while i < vec.size
+		s := str(vec.items[i])
 		append(strs, s)
 		total_len += len(s)
 		i += 1
@@ -117,9 +162,9 @@ def __setitem__[T where not(gc T)](vec [T], index int, t T) void
 	__set_vector_item__(vec as *(NativeVector T), index, t)
 
 [global]
-def append[T where gc T](vec [T], t T) void
+def append[T where gc T](vec [T], gc_t T) void
 	# posix.puts("appending " + __str__(t) + " to vector")
-	__unsafe_vector_append__(vec as *ManagedVector, t as *var_t)
+	__unsafe_vector_append__(vec as *ManagedVector, gc_t as *var_t)
 
 [global]
 def append[T where not(gc T)](vec [T], t T) void

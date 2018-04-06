@@ -24,7 +24,7 @@ link def __eq__(x float, y float) bool to __float_eq_float
 link def __ineq__(x float, y float) bool to __float_ineq_float
 
 type Float has
-	let raw float
+	raw float
 
 def __box__(i float) Float
 	return Float(i)

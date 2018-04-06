@@ -1,13 +1,260 @@
 module types
 # test: pass
 
-type MutualInt has   # MutualInt -> types/MutualInt
-	var value int
-	var friend MutualFloat?
+type Type is Sum or Apply or Id
+type Sum has
+	types [Type]
+type Apply has
+	lhs Type
+	rhs Type
+type Id has
+	name str
 
-type MutualB has
-	var value float
-	var friend MutualInt?
+[global]
+def str(t Type) str
+	when t
+		is Sum
+			return "Sum(" + join(", ", t.types) + ")"
+		is Apply
+			return "Apply(" + str(t.lhs) + ", " + str(t.rhs) + ")"
+		is Id
+			return "Id(" + t.name + ")"
+
+var encodings [[uint16]]
+var atoms {str: uint16}
+var atom_index [str]
+var atom_count uint16 = 0
+var SUM_INST uint16 = -2
+var APPLY_INST uint16 = -3
+
+def atomize(s str) uint16
+	value := atoms[s]
+	if value != null
+		return value
+	else
+		ret := atom_count
+		atoms[s] = atom_count
+		append(atom_index, s)
+		append(encodings, [0 as uint16])
+		atom_count += 1
+		return ret
+
+def deatomize(i int) str
+	return atom_index[i]
+
+def atomize(t Type) uint16
+	ret := atomize(str(t))
+	return ret
+	
+def encode(t Type) [uint16]
+	let encoding [uint16]
+	call := def (encoding [uint16], t Type)
+		append(encoding, atomize(t))
+		
+	when t
+		is Sum
+			append(encoding, SUM_INST)
+			append(encoding, len(t.types))
+			for node in t.types
+				call(encoding, node)
+		is Apply
+			append(encoding, APPLY_INST)
+			call(encoding, t.lhs)
+			call(encoding, t.rhs)
+		is Id
+			call(encoding, t)
+	return encoding
+
+type DecodeState has
+	let content [uint16]
+	let pos uint
+
+type Step has
+	let t Type
+	let ds DecodeState
+
+type Decoder = def (ds DecodeState) Step?
+
+def __bitwise_or__(p1 Decoder, p2 Decoder) Decoder
+	return def (ds DecodeState) Step?
+		step := p1(ds)
+		if step != null
+			return step
+		else
+			return p2(ds)
+			
+def decode_call(ds DecodeState) Step?
+	if ds.pos + 1 >= len(ds.content)
+		return null
+	if ds.content[ds.pos] != APPLY_INST and ds.content[ds.pos] != SUM_INST
+		return Step(
+			Id(deatomize(ds.content[ds.pos])),
+			DecodeState(ds.content, ds.pos + 1))
+	return null
+		
+def decode_apply(ds DecodeState) Step?
+	if ds.pos + 2 >= len(ds.content)
+		return null
+	if ds.content[ds.pos] == APPLY_INST
+		step1 := decode(DecodeState(ds.content, ds.pos + 1))
+		if step1 != null
+			step2 := decode(step1.ds)
+			if step2 != null
+				return Step(Apply(step1.t, step2.t), step2.ds)
+	return null
+
+def decode_sum(ds DecodeState) Step?
+	if ds.pos + 3 > len(ds.content)
+		return null
+	if ds.content[ds.pos] == SUM_INST
+		var expect uint16 = ds.content[ds.pos + 1]
+		if ds.pos + 2 + expect > len(ds.content)
+			print("Too many types in sum encountered.")
+			return null
+		let types [Type]
+		var next_pos = ds.pos + 2
+		while expect != 0
+			step := decode(DecodeState(ds.content, next_pos))
+			if step != null
+				next_pos = step.ds.pos
+				append(types, step.t)
+			else
+				print("failed while parsing sum. type so far = " + join(", ", types))
+				return null
+			expect -= 1
+		return Step(Sum(types), DecodeState(ds.content, next_pos))
+	return null
+
+
+def decode(ds DecodeState) Step?
+	return (decode_apply | decode_sum | decode_call)(ds)
+
+# Matchers return the position of the next thing to match when succesfull
+type Matcher = def (pattern [uint16], pos int) int
+type MatcherRef has
+	var proxy Matcher?
+	
+def make_opaque_matcher_ref() (Matcher, MatcherRef)
+	m := MatcherRef(null)
+	matcher := def (pattern [uint16], pos int) int
+		proxy := m.proxy
+		assert(proxy != null)
+		return proxy(pattern, pos)
+	return (matcher, m)
+		
+def match_id(name str, atom uint16) Matcher
+	return def (pattern [uint16], pos int) int
+		print("Matching for id " + name + "(atom: " + atom + ")")
+		print("len(pattern) = " + len(pattern))
+		print("pos = " + pos)
+		print(pattern)
+		if len(pattern) - pos >= 1 and pattern[pos] == atom
+			return pos + 1
+		else
+			return 0
+
+def match_apply(name str, lhs Matcher, rhs Matcher) Matcher
+	return def (pattern [uint16], pos int) int
+		print("Matching for apply " + name)
+		if len(pattern) - pos < 3
+			return 0
+
+		if pattern[0] != APPLY_INST
+			return 0
+
+		next_pos := lhs(pattern, pos + 1)
+		if next_pos != 0
+			return rhs(pattern, next_pos)
+		else
+			return 0
+
+def match_sum(name str, sum_matchers [Matcher]) Matcher
+	return def (pattern [uint16], pos int) int
+		print("Matching for sum " + name)
+		if len(pattern) - pos < 1
+			return 0
+
+		var count int
+		var pattern_pos = pos
+		var matcher_index = 0
+
+		if pattern[pos] == SUM_INST
+			count = pattern[pos + 1]
+			pattern_pos = pos + 2
+		else
+			count = 1
+
+		while count > 0 and matcher_index < len(sum_matchers)
+			matcher := sum_matchers[matcher_index]
+
+			# The order of patterns matters, it must be in ascending alphabetical order
+			matcher_index += 1
+
+			next_pos := matcher(pattern, pattern_pos)
+			if next_pos != 0
+				# reduce the amount of work remaining
+				count -= 1
+				if count == 0
+					# We're done!
+					return next_pos
+
+				# advance which thing in the pattern we are looking at
+				pattern_pos = next_pos
+			else
+				# no match, but that's ok, let's continue looking for a matcher
+				pass
+
+		return 0
+
+
+def make_matcher(t Type, visited_matchers {uint16: Matcher}) Matcher
+	atom := atomize(t)
+	if atom in visited_matchers
+		return visited_matchers[atom]!
+
+	pair := make_opaque_matcher_ref()
+	visited_matchers[atom] = pair[0]
+
+	when t
+		is Id
+			matcher := match_id(str(t), atom)
+			pair[1].proxy = matcher
+			return matcher
+
+		is Apply
+			matcher := match_apply(str(t), make_matcher(t.lhs, visited_matchers), make_matcher(t.rhs, visited_matchers))
+			pair[1].proxy = matcher
+			return matcher
+
+		is Sum
+			let sum_matchers [Matcher]
+			for optional_type in t.types
+				append(sum_matchers, make_matcher(optional_type, visited_matchers))
+			matcher := match_sum(str(t), sum_matchers)
+			pair[1].proxy = matcher
+			return matcher
 
 def main()
-	m := MutualInt(3, MutualFloat(3.4, null))
+	atomize("")
+	Foo := Id("Foo")
+	Bar := Id("Bar")
+	Baz := Id("Baz")
+	Vector := Id("Vector")
+	Choice := Sum([Bar, Baz, Foo])
+	test_type := Apply(Bar, Apply(Vector, Choice))
+	registered_types := [
+		Foo,
+		Bar,
+		Baz,
+		Choice,
+		test_type,
+	]
+
+	let visited_matchers {uint16: Matcher}
+	let tests [(Type, Type)] = [
+		(Choice, Foo),
+		(Apply(Vector, Choice), Apply(Vector, Foo)),
+	]
+	for test in tests
+		choice_matcher := make_matcher(test[0], visited_matchers)
+		assert(choice_matcher(encode(test[1]), 0) != 0)

@@ -35,6 +35,9 @@ llvm::Value *coerce_value(
 		types::type_t::ref lhs_type,
 		bound_var_t::ref rhs)
 {
+	static int depth = 0;
+	depth_guard_t depth_guard(location, depth, 3);
+
 	lhs_type = lhs_type->eval(scope);
 
 	if (auto maybe_type = dyncast<const types::type_maybe_t>(lhs_type)) {
@@ -133,7 +136,7 @@ llvm::Value *coerce_value(
 					builder, scope, life,
 					"__unbox__", location, {rhs}, lhs_type);
 
-			return coercion->get_llvm_value();
+			return coerce_value(builder, scope, life, location, lhs_type, coercion);
 		}
 	} else {
 		debug_above(7, log("trying to coerce native value %s to %s", llvm_print(llvm_rhs_value).c_str(), llvm_print(llvm_lhs_type).c_str()));

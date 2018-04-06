@@ -46,9 +46,7 @@ bool test_llvm_builder() {
 
 	builder.CreateRetVoid();
 
-	FILE *fp = fopen("jit.llir", "wt");
-	fprintf(fp, "%s\n", llvm_print_module(*module).c_str());
-	fclose(fp);
+	dump_llir(module, "jit.llir");
 
 	std::stringstream ss;
 	llvm::raw_os_ostream os(ss);

@@ -213,6 +213,7 @@ bound_var_t::ref maybe_get_callable(
 		location_t location,
 		types::type_t::ref args,
 		types::type_t::ref return_type,
+		var_t::refs &fns,
 		fittings_t &fittings,
 		bool check_unchecked,
 		bool allow_coercions)
@@ -228,7 +229,7 @@ bound_var_t::ref maybe_get_callable(
 
 	/* look through the current scope stack and get a callable that is able
 	 * to be invoked with the given args */
-	var_t::refs fns;
+	fns.resize(0);
 	scope->get_callables(alias, fns, check_unchecked);
 	debug_above(7, log("looking for a " c_id("%s") " going to check:", alias.c_str()));
 	for (auto fn : fns) {
@@ -295,15 +296,16 @@ bound_var_t::ref get_callable(
 		}
 	}
 
+	var_t::refs fns;
 	fittings_t fittings;
 	auto callable = maybe_get_callable(builder, scope, alias,
-			callsite_location, args, return_type, fittings);
+			callsite_location, args, return_type, fns, fittings);
 
 	if (callable != nullptr) {
 		return callable;
 	} else {
 		std::stringstream ss;
-		if (fittings.size() == 0) {
+		if (fns.size() == 0) {
 			ss << C_ID << alias << C_RESET;
 			args->emit(ss, {}, 0 /*parent_precedence*/);
 			ss << " not found";
@@ -313,15 +315,15 @@ bound_var_t::ref get_callable(
 		auto error = user_error(callsite_location, "%s", ss.str().c_str());
 
 		/* report on the places we tried to look for a match */
-		if (fittings.size() > 10) {
+		if (fns.size() > 10) {
 			error.add_info(callsite_location,
 					"%d non-matching functions called " c_id("%s")
 					" found (skipping listing them all)", fittings.size(), alias.c_str());
 		} else {
-			for (auto &fitting : fittings) {
+			for (auto &fn : fns) {
 				ss.str("");
-				ss << fitting.fn->type->str() << " did not match";
-				error.add_info(fitting.fn->get_location(), "%s", ss.str().c_str());
+				ss << fn->get_type(scope)->str() << " did not match";
+				error.add_info(fn->get_location(), "%s", ss.str().c_str());
 			}
 		}
 		throw error;

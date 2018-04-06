@@ -100,6 +100,9 @@ void ast::when_block_t::resolve_statement(
 				type_to_match_raw,
 				scope);
 
+		auto matcher = scope->get_program_scope()->make_matcher(builder,
+			   	pattern_block->type->get_location(), pattern_type_to_match);
+
 		if (auto type_sum = dyncast<const types::type_sum_t>(pattern_type_to_match)) {
 			types_to_match = type_sum->options;
 		} else {

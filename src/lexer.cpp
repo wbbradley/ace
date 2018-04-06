@@ -585,6 +585,7 @@ bool zion_lexer_t::_get_tokens() {
             } else {
                 gts = gts_end;
                 tk = tk_integer;
+				scan_ahead = false;
             }
             break;
         case gts_zerox:

@@ -820,6 +820,7 @@ bound_var_t::ref maybe_get_dtor(
 	// TODO: look at what data_type is, and whether it can be passed as a raw
 	// pointer.
 	auto location = data_type->get_location();
+	var_t::refs fns;
 	fittings_t fn_dtors;
 	bound_var_t::ref dtor = maybe_get_callable(
 			builder,
@@ -828,6 +829,7 @@ bound_var_t::ref maybe_get_dtor(
 			location,
 			type_args({data_type->get_type()}, {}),
 			type_void(),
+			fns,
 			fn_dtors);
 
 	if (dtor != nullptr) {

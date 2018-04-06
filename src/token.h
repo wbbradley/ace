@@ -103,7 +103,6 @@ K(is);
 K(lambda);
 K(let);
 K(link);
-K(matches);
 K(module);
 K(not);
 K(or);

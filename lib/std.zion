@@ -96,7 +96,7 @@ def __iter_item__(i IntRangeIter) int
 
 def readline() str?
 	var buf *?char
-	var linecap int = 0
+	var linecap posix.posix_int = 0
 
 	if posix.getline(&buf, &linecap, stdin) == -1 or buf == null
 		return null

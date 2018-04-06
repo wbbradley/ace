@@ -45,26 +45,18 @@ namespace types {
 			}
 
 			token_t var_token;
-			bool _mutable = false;
-			if (ps.token.is_ident(K(var)) ||
-					ps.token.is_ident(K(let)))
-			{
-				_mutable = ps.token.is_ident(K(var));
-
+			bool _mutable = ps.token.is_ident(K(var));
+			if (ps.token.is_ident(K(var)) || ps.token.is_ident(K(let))) {
 				ps.advance();
-				expect_token(tk_identifier);
-				var_token = ps.token;
-				if (name_index.find(var_token.text) != name_index.end()) {
-					throw user_error(ps.token.location, "name " c_id("%s") " already exists in type", var_token.text.c_str());
-				}
-				name_index[var_token.text] = index++;
-				ps.advance();
-			} else {
-				throw user_error(ps.token.location, "not sure what's going on here");
-				wat();
-				expect_token(tk_identifier);
-				var_token = ps.token;
 			}
+
+			expect_token(tk_identifier);
+			var_token = ps.token;
+			if (name_index.find(var_token.text) != name_index.end()) {
+				throw user_error(ps.token.location, "name " c_id("%s") " already exists in type", var_token.text.c_str());
+			}
+			name_index[var_token.text] = index++;
+			ps.advance();
 
 			type_t::ref dim_type = parse_type(ps, generics);
 			if (_mutable) {

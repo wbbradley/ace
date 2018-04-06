@@ -165,6 +165,8 @@ unification_t unify_core(
 
 	auto a = pruned_a->eval(env);
 	auto b = pruned_b->eval(env);
+	// log("a = %s", a->str().c_str());
+	// log("b = %s", b->str().c_str());
 	if (dyncast<const types::type_sum_t>(a) && types::is_type_id(b, BOOL_TYPE, nullptr)) {
 		/* make sure we enable checking bool against type sums */
 		static auto bool_type = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
@@ -252,17 +254,19 @@ unification_t unify_core(
 			assert(ptI_b == nullptr);
 		}
 
-		if (ptI_b != nullptr) {
-			return {true, "", bindings, coercions, {}};
-		} else if (depth == 0 && types::is_type_id(b, CHAR_TYPE, nullptr)) {
-			/* we can cast this char to whatever */
-			return {true, "", bindings, coercions + 1, {}};
-		} else if (depth == 0 && types::is_type_id(b, MANAGED_INT, nullptr)) {
-			/* we can cast this int to whatever */
-			return {true, "", bindings, coercions + 1, {}};
-		} else if (depth == 0 && types::is_type_id(b, MANAGED_CHAR, nullptr)) {
-			/* we can cast this char to whatever */
-			return {true, "", bindings, coercions + 1, {}};
+		if (depth == 0) {
+			if (ptI_b != nullptr) {
+				return {true, "", bindings, coercions, {}};
+			} else if (types::is_type_id(b, CHAR_TYPE, nullptr)) {
+				/* we can cast this char to whatever */
+				return {true, "", bindings, coercions + 1, {}};
+			} else if (types::is_type_id(b, MANAGED_INT, nullptr)) {
+				/* we can cast this int to whatever */
+				return {true, "", bindings, coercions + 1, {}};
+			} else if (types::is_type_id(b, MANAGED_CHAR, nullptr)) {
+				/* we can cast this char to whatever */
+				return {true, "", bindings, coercions + 1, {}};
+			}
 		}
 	}
 

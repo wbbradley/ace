@@ -46,6 +46,20 @@ def __setitem__[K, V](m {K: V}, key K, val V)
 	append(m.storage, KeyValue(key, val))
 
 [global]
+def __in__[K, V](key K, m {K: V}) bool
+	for kv in m.storage
+		if kv.key == key
+			return true
+	return false
+
+[global]
+def __not_in__[K, V](key K, m {K: V}) bool
+	for kv in m.storage
+		if kv.key == key
+			return false
+	return true
+
+[global]
 def del[K, V](m {K: V}, key K) bool
 	# HACKHACK: O(n) BAD BAD - also vector.ManagedVector coupling BAD BAD
 	var i = 0

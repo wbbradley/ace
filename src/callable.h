@@ -47,6 +47,7 @@ bound_var_t::ref maybe_get_callable(
 		location_t location,
 		types::type_t::ref type_args,
 		types::type_t::ref return_type,
+		var_t::refs &fns,
 		fittings_t &fittings,
 		bool check_unchecked=true,
 		bool allow_coercions=true);
