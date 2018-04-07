@@ -55,6 +55,10 @@ def __init_vector__[T](size size_t) [T]
 	return v
 
 [global]
+def unsafe_access[T](x [T]) *?T
+	return (x as *(VectorImpl T)).items
+
+[global]
 def str(v [any]) str
 	return "[" + join(", ", v) + "]"
 

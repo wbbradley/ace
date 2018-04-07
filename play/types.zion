@@ -130,35 +130,30 @@ def decode(ds DecodeState) Step?
 	return (decode_apply | decode_sum | decode_call)(ds)
 
 # Matchers return the position of the next thing to match when succesfull
-type Matcher = def (pattern [uint16], pos int) int
+type Matcher = def (pattern *uint16, pos int) int
 type MatcherRef has
 	var proxy Matcher?
 	
 def make_opaque_matcher_ref() (Matcher, MatcherRef)
 	m := MatcherRef(null)
-	matcher := def (pattern [uint16], pos int) int
+	matcher := def (pattern *uint16, pos int) int
 		proxy := m.proxy
 		assert(proxy != null)
-		return proxy(pattern, pos)
+		return proxy(&pattern[0], pos)
 	return (matcher, m)
 		
 def match_id(name str, atom uint16) Matcher
-	return def (pattern [uint16], pos int) int
+	return def (pattern *uint16, pos int) int
 		print("Matching for id " + name + "(atom: " + atom + ")")
-		print("len(pattern) = " + len(pattern))
 		print("pos = " + pos)
-		print(pattern)
-		if len(pattern) - pos >= 1 and pattern[pos] == atom
+		if pattern[pos] == atom
 			return pos + 1
 		else
 			return 0
 
 def match_apply(name str, lhs Matcher, rhs Matcher) Matcher
-	return def (pattern [uint16], pos int) int
+	return def (pattern *uint16, pos int) int
 		print("Matching for apply " + name)
-		if len(pattern) - pos < 3
-			return 0
-
 		if pattern[0] != APPLY_INST
 			return 0
 
@@ -169,11 +164,8 @@ def match_apply(name str, lhs Matcher, rhs Matcher) Matcher
 			return 0
 
 def match_sum(name str, sum_matchers [Matcher]) Matcher
-	return def (pattern [uint16], pos int) int
+	return def (pattern *uint16, pos int) int
 		print("Matching for sum " + name)
-		if len(pattern) - pos < 1
-			return 0
-
 		var count int
 		var pattern_pos = pos
 		var matcher_index = 0
@@ -257,4 +249,5 @@ def main()
 	]
 	for test in tests
 		choice_matcher := make_matcher(test[0], visited_matchers)
-		assert(choice_matcher(encode(test[1]), 0) != 0)
+		encoding := encode(test[1])
+		assert(choice_matcher(unsafe_access(encoding)!, 0) != 0)

@@ -22,7 +22,7 @@ type uint16 = unsigned 16
 type int8 = signed 8
 type uint8 = unsigned 8
 
-type typeid = unsigned 32
+type RTTI = *(unsigned 16)
 
 type var_t struct
 	var type_info *type_info_t
@@ -36,10 +36,10 @@ type var_t struct
 	#
 
 type type_info_t struct
-	var type_id   int32
-	var type_kind int32
-	var size      size_t
-	var name      *char
+	rtti       RTTI
+	type_kind  int32
+	size       size_t
+	name      *char
 
 type str_literal_t struct
 	type_info *type_info_t

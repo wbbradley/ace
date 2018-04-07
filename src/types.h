@@ -93,6 +93,7 @@ namespace types {
 		ref eval(env_t::ref env, bool get_structural_type=false) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const = 0;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
+		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
 
 		/* helpers */
 		bool eval_predicate(type_builtins_t tb, env_t::ref env) const;
@@ -145,6 +146,7 @@ namespace types {
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
+		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
 	};
 
 	struct type_variable_t : public type_t {
@@ -175,6 +177,7 @@ namespace types {
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
+		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
 	};
 
 	struct type_product_t : public type_t {
@@ -403,6 +406,7 @@ namespace types {
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
+		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
 	};
 
 	struct type_maybe_t : public type_t {
