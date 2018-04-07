@@ -9,6 +9,7 @@
 #include "unification.h"
 #include "atom.h"
 #include "scopes.h"
+#include "encoding.h"
 
 const char *NULL_TYPE = "null";
 const char *STD_MANAGED_TYPE = "var_t";
@@ -74,6 +75,12 @@ namespace types {
 		return str(map{});
 	}
 
+	void type_t::encode(env_t::ref env, std::vector<uint16_t> &encoding) const {
+		assert(eval(env) == shared_from_this());
+		encoding.push_back(atomize(repr()));
+		// throw user_error(get_location(), "unable to encode type %s", str().c_str());
+	}
+
 	std::string type_t::str(const map &bindings) const {
 		return string_format(c_type("%s"), this->repr(bindings).c_str());
 	}
@@ -96,6 +103,10 @@ namespace types {
 
 	std::ostream &type_id_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		return os << id->get_name();
+	}
+
+	void type_id_t::encode(env_t::ref env, std::vector<uint16_t> &encoding) const {
+		encoding.push_back(atomize(id->get_name()));
 	}
 
 	int type_id_t::ftv_count() const {
@@ -215,6 +226,12 @@ namespace types {
 			operand->emit(os, bindings, get_precedence() + 1);
 			return os;
 		}
+	}
+
+	void type_operator_t::encode(env_t::ref env, std::vector<uint16_t> &encoding) const {
+		encoding.push_back(APPLY_INST);
+		oper->eval(env)->encode(env, encoding);
+		operand->eval(env)->encode(env, encoding);
 	}
 
 	int type_operator_t::ftv_count() const {
@@ -780,6 +797,14 @@ namespace types {
 			delim = " or ";
 		}
 		return os;
+	}
+
+	void type_sum_t::encode(env_t::ref env, std::vector<uint16_t> &encoding) const {
+		encoding.push_back(SUM_INST);
+		encoding.push_back(options.size());
+		for (auto option : options) {
+			option->eval(env)->encode(env, encoding);
+		}
 	}
 
 	int type_sum_t::ftv_count() const {

@@ -920,8 +920,9 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 {
 	auto bindings = scope->get_type_variable_bindings();
 	auto full_type = type->rebind(bindings);
-	debug_above(3, log("evaluating typeinfo(%s)",
-				full_type->str().c_str()));
+
+	debug_above(3, log("evaluating typeinfo(%s)", full_type->str().c_str()));
+
 	auto bound_type = upsert_bound_type(builder, scope, full_type);
 	types::type_t::ref expanded_type = full_type->eval(scope, true);
 	debug_above(3, log("type evaluated to %s", expanded_type->str().c_str()));
@@ -1015,17 +1016,17 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 		llvm::Constant *llvm_type_info = llvm_create_constant_struct_instance(
 				llvm_type_info_type,
 				{
-				/* the type_id */
-				builder.getInt32(atomize(signature)),
+					/* the rtti */
+					llvm_create_rtti(builder, program_scope, bound_type->get_type()),
 
-				/* the kind of this type_info */
-				builder.getInt32(type_kind_use_mark_fn),
+					/* the kind of this type_info */
+					builder.getInt32(type_kind_use_mark_fn),
 
-				/* allocation size */
-				llvm_sizeof_tuple,
+					/* allocation size */
+					llvm_sizeof_tuple,
 
-				/* name this variable */
-				(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
+					/* name this variable */
+					(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
 				});
 
 		llvm::Constant *llvm_type_info_mark_fn = llvm_create_struct_instance(
@@ -1033,14 +1034,14 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 				llvm_module,
 				llvm::dyn_cast<llvm::StructType>(type_info_mark_fn->get_llvm_type()),
 				{
-				/* the type info header */
-				llvm_type_info,
+					/* the type info header */
+					llvm_type_info,
 
-				/* finalize_fn */
-				llvm_finalize_fn,
+					/* finalize_fn */
+					llvm_finalize_fn,
 
-				/* mark_fn */
-				llvm_mark_fn,
+					/* mark_fn */
+					llvm_mark_fn,
 				});
 
 		debug_above(5, log(log_info, "llvm_type_info_mark_fn = %s",
@@ -1891,20 +1892,20 @@ bound_var_t::ref type_check_binary_integer_op(
 			final_integer_signed = lhs_signed;
 			final_integer_type = upsert_bound_type(builder, scope,
 					type_integer(
-						type_id(make_iid(string_format("%d", lhs_bit_size))),
+						type_literal(token_t(location, tk_integer, string_format("%d", lhs_bit_size))),
 						type_id(make_iid(string_format("%s", boolstr(lhs_signed))))));
 		} else {
 			final_integer_signed = true;
 			final_integer_type = upsert_bound_type(builder, scope,
 					type_integer(
-						type_id(make_iid(string_format("%d", lhs_bit_size))),
+						type_literal(token_t(location, tk_integer, string_format("%d", lhs_bit_size))),
 						type_id(make_iid("true"))));
 		}
 	} else {
 		final_integer_signed = true;
 		final_integer_type = upsert_bound_type(builder, scope,
 				type_integer(
-					type_id(make_iid(string_format("%d", lhs_bit_size))),
+					type_literal(token_t(location, tk_integer, string_format("%d", lhs_bit_size))),
 					type_id(make_iid("false"))));
 	}
 
@@ -2849,7 +2850,7 @@ bound_var_t::ref cast_bound_var(
 	return bound_var_t::create(INTERNAL_LOC(), "cast", bound_type, llvm_dest_val, make_iid("cast"));
 }
 
-bound_var_t::ref call_typeid(
+bound_var_t::ref call_get_var_rtti(
 		scope_t::ref scope,
 		life_t::ref life,
 		ast::item_t::ref callsite,
@@ -2880,7 +2881,7 @@ bound_var_t::ref call_typeid(
 		bound_var_t::ref get_typeid_function = get_callable(
 				builder,
 				scope,
-				"runtime.get_var_type_id",
+				"runtime.get_var_rtti",
 				callsite->get_location(),
 				type_args({bound_managed_var->type->get_type()}),
 				type_variable(INTERNAL_LOC()));
@@ -2895,6 +2896,10 @@ bound_var_t::ref call_typeid(
 				id->get_location(),
 				{bound_managed_var});
 	} else {
+		// There is no type info here, so...
+		assert(false);
+		return nullptr;
+#if 0
 		auto type_as_managed = promote_to_managed_type(resolved_value->type->get_type(), scope);
 		auto typeid_type = upsert_bound_type(builder, program_scope, type_id(make_iid(TYPEID_TYPE)));
 		return bound_var_t::create(
@@ -2903,6 +2908,7 @@ bound_var_t::ref call_typeid(
 				typeid_type,
 				llvm_create_int32(builder, atomize(type_as_managed->get_signature())),
 				id);
+#endif
 	}
 }
 
@@ -2923,8 +2929,7 @@ bound_var_t::ref ast::typeid_expr_t::resolve_expression(
 			false /*as_ref*/,
 			nullptr);
 
-	return call_typeid(scope, life, shared_from_this(),
-			make_code_id(token), builder, resolved_value);
+	return call_get_var_rtti(scope, life, shared_from_this(), make_code_id(token), builder, resolved_value);
 }
 
 bound_var_t::ref ast::sizeof_expr_t::resolve_expression(

@@ -851,7 +851,6 @@ bound_var_t::ref upsert_type_info_mark_fn(
 		bound_type_t::ref data_type,
 		bound_var_t::ref dtor_fn,
 		bound_var_t::ref mark_fn,
-		types::signature signature,
 		std::string type_info_name)
 {
 	assert(0);
@@ -867,7 +866,6 @@ bound_var_t::ref upsert_type_info_offsets(
 		bound_type_t::ref data_type,
 		bound_var_t::ref dtor_fn,
 		bound_type_t::refs args,
-		types::signature signature,
 		std::string type_info_name)
 {
 	llvm::Value *llvm_dtor_fn = nullptr;
@@ -945,14 +943,11 @@ bound_var_t::ref upsert_type_info_offsets(
 	debug_above(5, log(log_info, "llvm_dim_offsets = %s",
 				llvm_print(llvm_dim_offsets).c_str()));
 
-	debug_above(5, log(log_info, "mapping type " c_type("%s") " to typeid %d",
-				signature.str().c_str(), atomize(signature.repr())));
-
 	llvm::Constant *llvm_type_info_head = llvm_create_constant_struct_instance(
 			llvm_type_info_head_type,
 			{
 			/* the type_id */
-			builder.getInt32(atomize(signature.repr())),
+			llvm_create_rtti(builder, program_scope, data_type->get_type()),
 
 			/* the kind of this type_info */
 			builder.getInt32(type_kind_use_offsets),
@@ -965,7 +960,7 @@ bound_var_t::ref upsert_type_info_offsets(
 			});
 
 	llvm::Constant *llvm_type_info = llvm_create_struct_instance(
-			std::string("__type_info_") + signature.repr().c_str(),
+			std::string("__type_info_") + data_type->get_type()->repr(),
 			llvm_module,
 			llvm_type_info_offsets_type, 
 			{
@@ -1020,10 +1015,10 @@ bound_var_t::ref upsert_type_info(
 
 	if (mark_fn != nullptr) {
 		return upsert_type_info_mark_fn(builder, scope, name, location, data_type, dtor_fn,
-				mark_fn, signature, type_info_name);
+				mark_fn, type_info_name);
 	} else {
 		return upsert_type_info_offsets(builder, scope, name, location, data_type, dtor_fn,
-				args, signature, type_info_name);
+				args, type_info_name);
 	}
 }
 
