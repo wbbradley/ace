@@ -1,8 +1,9 @@
 module _
 # test: pass
+# expect: 2
 
 get list
 
 def main()
-	l := list(3, list(2, null))
+	l := list.List(3, list.List(2, null))
 	print(len(l))

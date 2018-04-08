@@ -1,10 +1,10 @@
-global
+module list
 
-type list T has
+type List T has
 	var value T
-	var next (list T)?
+	var next (List T)?
 
-def nth[T](l (list T)?, index int) T?
+def nth[T](l (List T)?, index int) T?
 	if l
 		if index == 0
 			return l.value
@@ -13,18 +13,17 @@ def nth[T](l (list T)?, index int) T?
 
 	return null
 
-def len(l (list any)?) int
+[global]
+def len(l (List any)?) int
 	if l != null
 		return len(l.next) + 1
 	return 0
 
-def conj[T](maybe_list (list T)?, item T) list T
+def conj[T](maybe_list (List T)?, item T) List T
 	if maybe_list != null
-		return list(item, l)
-	return list(item, null)
+		return List(item, maybe_list)
+	return List(item, null)
 
-
-def str(l (list any)?) str
-	return "[" + join(", ", l) + "]"
-
-
+[global]
+def str(l (List any)?) str
+	return "[...list...]"

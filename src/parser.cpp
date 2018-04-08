@@ -1310,6 +1310,8 @@ type_alias_t::ref type_alias_t::parse(
 	types::type_t::ref type = types::parse_type(ps, generics);
 
 	auto type_alias = ast::create<ast::type_alias_t>(type_decl->token);
+	assert(type_alias->token.text != "");
+
 	type_alias->type = type;
 	type_alias->type_variables = generics;
 	return type_alias;

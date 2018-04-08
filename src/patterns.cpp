@@ -66,38 +66,6 @@ void build_patterns(
 				type_to_match_raw,
 				scope);
 
-		llvm::BasicBlock *check_block = llvm::BasicBlock::Create(builder.getContext(), "test." + pattern_type_to_match->repr(), llvm_function_current);
-		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-		builder.SetInsertPoint(check_block);
-
-		/* create a new block for catching the pattern jump */
-		llvm::BasicBlock *llvm_pattern_block = llvm::BasicBlock::Create(
-				builder.getContext(),
-				"matched." + pattern_block->type->repr(),
-				llvm_function_current);
-
-		auto matcher = scope->get_program_scope()->make_matcher(builder,
-				pattern_block->type->get_location(), pattern_type_to_match);
-
-		std::vector<llvm::Value *> matching_params;
-		matching_params.push_back(rtti_encoding->get_llvm_value());
-		matching_params.push_back(builder.getInt32(0));
-		llvm::CallInst *llvm_type_match = llvm_create_call_inst(
-				builder,
-				pattern_block->get_location(),
-				matcher,
-				matching_params);
-
-		/* branch upon testing the type */
-		llvm::Constant *zero = llvm::ConstantInt::get(llvm_type_match->getType(), 0);
-		builder.CreateCondBr(
-				builder.CreateICmpNE(llvm_type_match, zero),
-				llvm_pattern_block, llvm_next_merge);
-
-		/* save this as the "next" block to jump to (since we are travesering the patterns in
-		 * reverse order */
-		llvm_next_merge = check_block;
-
 		if (auto type_sum = dyncast<const types::type_sum_t>(pattern_type_to_match)) {
 			types_to_match = type_sum->options;
 		} else {
@@ -149,9 +117,40 @@ void build_patterns(
 		if (reified_types.size() == 0) {
 			/* there was really nothing to check from that type pattern because of
 			 * reasons */
-			assert(false);
 			continue;
 		}
+
+		llvm::BasicBlock *check_block = llvm::BasicBlock::Create(builder.getContext(), "test." + pattern_type_to_match->repr(), llvm_function_current);
+		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+		builder.SetInsertPoint(check_block);
+
+		/* create a new block for catching the pattern jump */
+		llvm::BasicBlock *llvm_pattern_block = llvm::BasicBlock::Create(
+				builder.getContext(),
+				"matched." + pattern_block->type->repr(),
+				llvm_function_current);
+
+		auto matcher = scope->get_program_scope()->make_matcher(builder,
+				scope, pattern_block->type->get_location(), pattern_type_to_match);
+
+		std::vector<llvm::Value *> matching_params;
+		matching_params.push_back(rtti_encoding->get_llvm_value());
+		matching_params.push_back(builder.getInt32(0));
+		llvm::CallInst *llvm_type_match = llvm_create_call_inst(
+				builder,
+				pattern_block->get_location(),
+				matcher,
+				matching_params);
+
+		/* branch upon testing the type */
+		llvm::Constant *zero = llvm::ConstantInt::get(llvm_type_match->getType(), 0);
+		builder.CreateCondBr(
+				builder.CreateICmpNE(llvm_type_match, zero),
+				llvm_pattern_block, llvm_next_merge);
+
+		/* save this as the "next" block to jump to (since we are travesering the patterns in
+		 * reverse order */
+		llvm_next_merge = check_block;
 
 		/* remember where we were */
 		llvm::IRBuilderBase::InsertPointGuard ipg2(builder);
@@ -211,7 +210,7 @@ void build_patterns(
 	}
 
 	/* check whether all cases of the pattern_value's type are handled */
-	types::type_sum_t::ref type_sum_matched = type_sum_safe(types_matched, location, scope);
+	types::type_t::ref type_sum_matched = type_sum_safe(types_matched, location, scope);
 
 	unification_t unification = unify(type_sum_matched, pattern_value->type->get_type(), scope);
 	if (unification.result) {

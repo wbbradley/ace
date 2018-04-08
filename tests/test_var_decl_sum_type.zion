@@ -2,5 +2,5 @@ module _
 
 def main()
 	var x int or bool = 3
-	# error: str.* not found
+	# error: unable to resolve overloads for str.*
 	print(x)

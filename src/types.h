@@ -164,6 +164,8 @@ namespace types {
 	};
 
 	struct type_operator_t : public type_t {
+		typedef ptr<const type_operator_t> ref;
+
 		type_operator_t(type_t::ref oper, type_t::ref operand);
 		type_t::ref oper;
 		type_t::ref operand;
@@ -173,7 +175,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
@@ -396,13 +398,14 @@ namespace types {
 		type_sum_t(type_t::refs options, location_t location);
 		type_t::refs options;
 		location_t location;
+		typedef ptr<const type_sum_t> ref;
 
 		virtual int get_precedence() const { return 3; }
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;

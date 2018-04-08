@@ -405,7 +405,7 @@ std::string switch_std_main(std::string name) {
     return name;
 }
 
-function_scope_t::ref make_param_list_scope(
+function_scope_t::ref make_function_scope(
 		llvm::IRBuilder<> &builder,
 		token_t token,
 		scope_t::ref &scope,
@@ -416,6 +416,9 @@ function_scope_t::ref make_param_list_scope(
 {
 	assert(life->life_form == lf_function);
 
+	debug_above(5, log("creating function scope for " c_id("%s") " in " C_MODULE "%s" C_RESET,
+			function_var->name.c_str(),
+			scope->get_name().c_str()));
 	auto new_scope = scope->new_function_scope(
 			string_format("function-%s", function_var->name.c_str()));
 
@@ -583,7 +586,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 	/* we should be able to check its block as a callsite. note that this
 	 * code will also run for generics but only after the
 	 * sbk_generic_substitution mechanism has run its course. */
-	auto params_scope = make_param_list_scope(builder, name_token, scope,
+	auto function_scope = make_function_scope(builder, name_token, scope,
 			life, as_closure, function_var, args);
 
 		/* now put this function declaration into the containing scope in case
@@ -601,22 +604,22 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 	}
 
 	bool all_paths_return = false;
+	debug_above(7, log("deeper %s", function_scope->get_name().c_str()));
 
 	try {
 		/* keep track of whether this function returns */
-		debug_above(7, log("setting return_type_constraint in %s to %s %s", function_var->name.c_str(),
+		debug_above(7, log("setting return_type_constraint in %s to %s %s",
+				   	function_var->name.c_str(),
 					return_type->str().c_str(),
 					llvm_print(return_type->get_llvm_type()).c_str()));
-		params_scope->set_return_type_constraint(return_type);
+		function_scope->set_return_type_constraint(return_type);
 
-		block->resolve_statement(builder, params_scope, life,
+		block->resolve_statement(builder, function_scope, life,
 				nullptr, &all_paths_return);
 
 	} catch (user_error &e) {
 		std::throw_with_nested(user_error(name_token.location,
 					"while checking %s", function_var->str().c_str()));
-	} catch (...) {
-		panic("uncaught exception");
 	}
 
 	debug_above(10, log(log_info, "module dump from %s\n%s",

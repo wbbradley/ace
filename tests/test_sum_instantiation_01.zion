@@ -6,6 +6,6 @@ type Special has
 def main()
 	x := Special(1)
 
-	# error: str\(.*Special\) not found
+	# error: unable to resolve overloads for str\(.*Special\)
 	print(x)
 

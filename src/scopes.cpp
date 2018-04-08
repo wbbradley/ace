@@ -14,6 +14,7 @@
 #include "type_instantiation.h"
 #include <iostream>
 #include "atom.h"
+#include "encoding.h"
 
 const char *GLOBAL_ID = "_";
 const token_kind SCOPE_TK = tk_dot;
@@ -1237,15 +1238,16 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 
 	bound_var_t::ref make_matcher(
 			llvm::IRBuilder<> &builder,
+			scope_t::ref scope,
 		   	location_t location,
 		   	types::type_t::ref type)
 	{
 		auto type_name = type->repr();
-		auto atom = atomize(type_name);
-		debug_above(8, log("looking for a type matcher for %s (atom: %d)", type->str().c_str(), (int)atom));
+		debug_above(8, log("looking for a type matcher for %s", type->str().c_str()));
 		bound_var_t::ref &matcher = bound_type_matchers[type_name];
 		if (matcher == nullptr) {
-			debug_above(8, log("making type matcher for %s (atom: %d)", type->str().c_str(), (int)atom));
+			debug_above(8, log("size of bound_type_matchers is %d", int(bound_type_matchers.size())));
+			debug_above(8, log("making type matcher for %s", type->str().c_str()));
 			auto function_name = std::string("__type_matcher.") + type_name;
 			types::type_t::refs args;
 			/* the pattern to match */
@@ -1264,7 +1266,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 			types::type_args_t::ref type_args = ::type_args(args, {});
 			types::type_function_t::ref type_function = ::type_function(nullptr, type_args, return_type);
 
-			auto bound_function_type = upsert_bound_type(builder, shared_from_this(), type_function);
+			auto bound_function_type = upsert_bound_type(builder, scope, type_function);
 			debug_above(8, log("bound function type for matcher is %s", bound_function_type->str().c_str()));
 
 			/* save and later restore the current branch insertion point */
@@ -1293,22 +1295,50 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 
 			/* store this matcher to break cycles of recursion in code generation (and to allow recursion in matching) */
 			matcher = function;
+			type = type->eval(scope);
+			if (type->repr() != type_name) {
+				assert(false);
+				bound_type_matchers[type->repr()] = matcher;
+			}
 
-			/* start emitting code into the new function. caller should have an
-			 * insert point guard */
-			llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
-					"entry", llvm_function);
+			builder.SetInsertPoint(llvm::BasicBlock::Create(builder.getContext(), "entry", llvm_function));
+			llvm::BasicBlock *no_match_branch = llvm::BasicBlock::Create(builder.getContext(), "no.match", llvm_function);
 
-			builder.SetInsertPoint(llvm_entry_block);
+			{
+				/* implement the basic failure block - return null */
+				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+				builder.SetInsertPoint(no_match_branch);
+				builder.CreateRet(builder.getInt32(0));
+			}
 
-			assert(dyncast<const types::type_id_t>(type) != nullptr);
+			auto args_iter = llvm_function->arg_begin();
+			llvm::Value *pattern = &*args_iter++;
+			llvm::Value *pos = &*args_iter++;
 
-			// TODO: implement more than type_id matching
-			make_match_id(builder, location, type_name, atom, llvm_function);
+			debug_above(8, log("making matcher for %s", type->str().c_str()));
+			if (auto type_id = dyncast<const types::type_id_t>(type)) {
+				make_match_id(builder, scope, location, type_name, type_id->repr(), llvm_function, no_match_branch, pattern, pos);
+			} else if (auto type_integer = dyncast<const types::type_integer_t>(type)) {
+				make_match_id(builder, scope, location, type_name, type_integer->repr(), llvm_function, no_match_branch, pattern, pos);
+			} else if (auto type_sum = dyncast<const types::type_sum_t>(type)) {
+				make_match_sum(builder, scope, location, type_name, type_sum, llvm_function, no_match_branch, pattern, pos);
+			} else if (auto type_operator = dyncast<const types::type_operator_t>(type)) {
+				make_match_operator(builder, scope, location, type_name, type_operator, llvm_function, no_match_branch, pattern, pos);
+			} else if (auto type_variable = dyncast<const types::type_variable_t>(type)) {
+				log("matcher for type %s never matches", type->str().c_str());
+				builder.CreateBr(no_match_branch);
+			} else {
+				log_location(log_error, location, "unable to make a matcher for %s in scope %s", type->str().c_str(), scope->get_name().c_str());
+				log_location(log_error, location, "unable to make a matcher for %s", type->rebind(scope->get_type_variable_bindings())->eval(scope)->str().c_str());
+				log("type variable bindings are %s", ::str(scope->get_parent_scope()->get_type_variable_bindings()).c_str());
+				// unbound variables cannot be matched...
+				dbg();
+				assert(false);
+			}
 
 			debug_above(8, log("function is %s", llvm_print_function(llvm_function).c_str()));
 		} else {
-			debug_above(8, log("found type matcher for %s (atom: %d)", type->str().c_str(), (int)atom));
+			debug_above(8, log("found type matcher for %s = %s", type->str().c_str(), matcher->str().c_str()));
 		}
 
 		return matcher;
@@ -1316,27 +1346,17 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 
 	void make_match_id(
 			llvm::IRBuilder<> &builder,
+			scope_t::ref scope,
 		   	location_t location,
 			std::string type_name,
-			int atom,
-			llvm::Function *llvm_function)
+			std::string id,
+			llvm::Function *llvm_function,
+			llvm::BasicBlock *no_match_branch,
+			llvm::Value *pattern,
+			llvm::Value *pos)
 	{
-		auto args_iter = llvm_function->arg_begin();
-		llvm::Value *pattern = &*args_iter++;
-		llvm::Value *pos = &*args_iter++;
-		llvm::BasicBlock *no_match_branch = llvm::BasicBlock::Create(
-				builder.getContext(), "no.match", llvm_function);
-
-		{
-			/* implement the basic failure block - return null */
-			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-			builder.SetInsertPoint(no_match_branch);
-			builder.CreateRet(builder.getInt32(0));
-		}
-
 		llvm::Value *pattern_word = get_word_at_offset(builder, pattern, pos, 0);
-		
-		llvm::Value *matched = builder.CreateICmpEQ(pattern_word, builder.getInt16(atom));
+		llvm::Value *matched = builder.CreateICmpEQ(pattern_word, builder.getInt16(atomize(id)));
 		auto success_block = llvm::BasicBlock::Create(
 				builder.getContext(), "match", llvm_function);
 		builder.CreateCondBr(matched, success_block, no_match_branch);
@@ -1344,6 +1364,196 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		builder.SetInsertPoint(success_block);
 
 		builder.CreateRet(builder.CreateAdd(pos, builder.getInt32(1)));
+	}
+
+	void make_match_operator(
+			llvm::IRBuilder<> &builder,
+			scope_t::ref scope,
+			location_t location,
+			std::string type_name,
+			types::type_operator_t::ref type_operator,
+			llvm::Function *llvm_function,
+			llvm::BasicBlock *no_match_branch,
+			llvm::Value *pattern,
+			llvm::Value *pos)
+	{
+		llvm::Value *pattern_word = get_word_at_offset(builder, pattern, pos, 0);
+
+		llvm::Value *matched = builder.CreateICmpEQ(pattern_word, builder.getInt16(APPLY_INST));
+		matched->setName("is_apply_inst");
+
+		auto success_block = llvm::BasicBlock::Create(builder.getContext(), "is.apply", llvm_function);
+		builder.CreateCondBr(matched, success_block, no_match_branch);
+
+		builder.SetInsertPoint(success_block);
+
+		auto lhs_matcher = make_matcher(builder, scope, location, type_operator->oper);
+
+		std::vector<llvm::Value *> llvm_values{pattern, builder.CreateAdd(pos, builder.getInt32(1))};
+		llvm::Value *next_pos = llvm_create_call_inst(
+				builder,
+				location,
+				lhs_matcher,
+				llvm_values);
+		next_pos->setName(string_format("next_pos.after.%s", type_operator->oper->repr().c_str()));
+
+		auto next_pos_is_zero = builder.CreateICmpEQ(next_pos, builder.getInt32(0));
+		next_pos_is_zero->setName("no.match.lhs");
+
+		auto rhs_check = llvm::BasicBlock::Create(builder.getContext(), "rhs.check", llvm_function);
+		auto rhs_matcher = make_matcher(builder, scope, location, type_operator->operand);
+
+		/* BLOCK */ {
+			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+			builder.SetInsertPoint(rhs_check);
+
+			next_pos = llvm_create_call_inst(
+					builder,
+					location,
+					rhs_matcher,
+					std::vector<llvm::Value *>{pattern, next_pos});
+			next_pos->setName(string_format("next_pos.after.%s", type_operator->operand->repr().c_str()));
+
+			auto next_pos_is_zero_this_time = builder.CreateICmpEQ(next_pos, builder.getInt32(0));
+			next_pos_is_zero_this_time->setName("no.match.rhs");
+
+			auto match_branch = llvm::BasicBlock::Create(builder.getContext(), "match", llvm_function);
+
+			/* BLOCK */ {
+				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+				builder.SetInsertPoint(match_branch);
+				builder.CreateRet(next_pos);
+			}
+			builder.CreateCondBr(next_pos_is_zero_this_time, no_match_branch, match_branch);
+		}
+
+		builder.CreateCondBr(next_pos_is_zero, no_match_branch, rhs_check);
+	}
+
+	void make_match_sum(
+			llvm::IRBuilder<> &builder,
+			scope_t::ref scope,
+			location_t location,
+			std::string type_name,
+			types::type_sum_t::ref type_sum,
+			llvm::Function *llvm_function,
+			llvm::BasicBlock *no_match_branch,
+			llvm::Value *pattern,
+			llvm::Value *pos)
+	{
+		llvm::Value *count_ptr = builder.CreateAlloca(builder.getInt32Ty());
+		count_ptr->setName("count");
+		llvm::Value *pattern_pos_ptr = builder.CreateAlloca(builder.getInt32Ty());
+		pattern_pos_ptr->setName("pattern_pos");
+
+		llvm::Value *pattern_word = get_word_at_offset(builder, pattern, pos, 0);
+		pattern_word->setName("pattern_word");
+
+		llvm::Value *matched_sum_inst = builder.CreateICmpEQ(pattern_word, builder.getInt16(SUM_INST));
+		matched_sum_inst->setName("matched_sum_inst");
+
+		llvm::BasicBlock *llvm_next_block = llvm::BasicBlock::Create(builder.getContext(), "match.search", llvm_function);
+		llvm::BasicBlock *read_count_block = llvm::BasicBlock::Create(builder.getContext(), "read.sum.inst.count", llvm_function);
+		llvm::BasicBlock *one_count_block = llvm::BasicBlock::Create(builder.getContext(), "assume.one", llvm_function);
+
+		/* BLOCK */ {
+			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+			builder.SetInsertPoint(read_count_block);
+			builder.CreateStore(
+					builder.CreateZExt(
+						builder.CreateLoad(
+							builder.CreateGEP(
+								pattern,
+								std::vector<llvm::Value*>({
+									builder.CreateAdd(pos, builder.getInt32(1)),
+									}))),
+						count_ptr->getType()->getPointerElementType()),
+					count_ptr);
+			builder.CreateStore(builder.CreateAdd(pos, builder.getInt32(2)), pattern_pos_ptr);
+			builder.CreateBr(llvm_next_block);
+		}
+
+		/* BLOCK */ {
+			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+			builder.SetInsertPoint(one_count_block);
+			builder.CreateStore(builder.getInt32(1), count_ptr);
+			builder.CreateStore(pos, pattern_pos_ptr);
+			builder.CreateBr(llvm_next_block);
+		}
+
+		builder.CreateCondBr(matched_sum_inst, read_count_block, one_count_block);
+
+		builder.SetInsertPoint(llvm_next_block);
+
+		int remaining_options = type_sum->options.size();
+		for (auto option : type_sum->options) {
+			--remaining_options;
+
+			/* call the matcher for this option */
+			auto option_matcher = make_matcher(builder, scope, location, option);
+			std::vector<llvm::Value *> llvm_values{pattern, builder.CreateLoad(pattern_pos_ptr)};
+			llvm::Value *next_pos = llvm_create_call_inst(
+					builder,
+					location,
+					option_matcher,
+					llvm_values);
+			next_pos->setName(string_format("next_pos.after.%s", option->repr().c_str()));
+
+			llvm::BasicBlock *found_option_match = llvm::BasicBlock::Create(builder.getContext(), "found.match", llvm_function);
+			llvm::BasicBlock *no_option_match = llvm::BasicBlock::Create(builder.getContext(), "did.not.match", llvm_function);
+
+			llvm_next_block = llvm::BasicBlock::Create(builder.getContext(), "next.check", llvm_function);
+
+			/* BLOCK */ {
+				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+				builder.SetInsertPoint(no_option_match);
+				
+				/* we've run out of one option for matching this value, if the count of things to
+				 * match rises above the number of remaining option matchers, then we are doomed, so
+				 * fail early */
+				builder.CreateCondBr(
+						builder.CreateICmpSLT(
+							builder.getInt32(remaining_options),
+							builder.CreateLoad(count_ptr)),
+						no_match_branch,
+						llvm_next_block);
+			}
+
+			/* BLOCK */ {
+				llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+				builder.SetInsertPoint(found_option_match);
+
+				/* decrement the count of work left */
+				llvm::Value *count = builder.CreateSub(builder.CreateLoad(count_ptr), builder.getInt32(1));
+				count->setName("decremented.count.of.remaining");
+
+				llvm::BasicBlock *we_are_done = llvm::BasicBlock::Create(builder.getContext(), "we.are.done", llvm_function);
+				llvm::BasicBlock *not_done = llvm::BasicBlock::Create(builder.getContext(), "we.are.not.done", llvm_function);
+
+				/* BLOCK */ {
+					llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+					builder.SetInsertPoint(not_done);
+					/* store the next value of the count */
+					builder.CreateStore(count, count_ptr);
+
+					builder.CreateBr(llvm_next_block);
+				}
+
+				/* BLOCK */ {
+					llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+					builder.SetInsertPoint(we_are_done);
+					builder.CreateRet(next_pos);
+				}
+
+				/* if the count is at zero, return "next_pos" */
+				builder.CreateCondBr(builder.CreateICmpEQ(count, builder.getInt32(0)), we_are_done, not_done);
+			}
+
+			builder.CreateCondBr(builder.CreateICmpEQ(next_pos, builder.getInt32(0)), no_option_match, found_option_match);
+			builder.SetInsertPoint(llvm_next_block);
+		}
+
+		builder.CreateRet(builder.getInt32(0));
 	}
 
 	llvm::Value *get_word_at_offset(

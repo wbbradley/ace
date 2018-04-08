@@ -26,10 +26,10 @@ def main()
 	var x2 int16 = -y
 	printf("-32728: %lld\n", x2)
 
-	var max_signed_int int64 = 0x7FFFFFFFFFFFFFFFr
+	var max_signed_int int64 = 0x7FFFFFFFFFFFFFFF
 	printf("max_int: %lld\n", max_signed_int)
 
-	var max_signed_int_plus_one int64 = 0x7FFFFFFFFFFFFFFFr + 1
+	var max_signed_int_plus_one int64 = 0x7FFFFFFFFFFFFFFF + 1
 	printf("max_int_plus_one: %lld\n", max_signed_int_plus_one)
 
 	printf("255 ^ 255 == %lld\n", 255 ^ 255)

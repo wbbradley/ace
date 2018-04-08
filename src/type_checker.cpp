@@ -2868,16 +2868,16 @@ bound_var_t::ref call_get_var_rtti(
 			builder,
 			scope,
 			is_managed);
-	bound_var_t::ref bound_managed_var = cast_bound_var(
-			builder,
-			scope,
-			life,
-			callsite->get_location(),
-			resolved_value,
-			type_ptr(type_id(make_iid(STD_MANAGED_TYPE))));
-	auto name = string_format("typeid(%s)", resolved_value->str().c_str());
-
 	if (is_managed) {
+		bound_var_t::ref bound_managed_var = cast_bound_var(
+				builder,
+				scope,
+				life,
+				callsite->get_location(),
+				resolved_value,
+				type_ptr(type_id(make_iid(STD_MANAGED_TYPE))));
+		auto name = string_format("typeid(%s)", resolved_value->str().c_str());
+
 		bound_var_t::ref get_typeid_function = get_callable(
 				builder,
 				scope,
@@ -2897,7 +2897,9 @@ bound_var_t::ref call_get_var_rtti(
 				{bound_managed_var});
 	} else {
 		// There is no type info here, so...
-		assert(false);
+		throw user_error(callsite->get_location(), "data of type %s has no runtime type information",
+				resolved_value->type->str().c_str());
+
 		return nullptr;
 #if 0
 		auto type_as_managed = promote_to_managed_type(resolved_value->type->get_type(), scope);

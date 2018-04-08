@@ -1,0 +1,36 @@
+module _
+
+tag Dog
+tag Cat
+tag Pig
+tag Alien
+
+[global]
+def str(a Animal or Alien) str
+	when a
+		is Dog
+			return "Dog"
+		is Cat
+			return "Cat"
+		is Pig
+			return "Pig"
+		is Alien
+			return "Alien"
+
+type Animal is Dog or Cat or Pig
+
+def add_pig(animals [Animal])
+	append(animals, Pig)
+
+def main()
+	var cats_and_dogs [Cat or Dog]
+	append(cats_and_dogs, Cat)
+	append(cats_and_dogs, Dog)
+	# error: unable to resolve overloads for add_pig
+	add_pig(cats_and_dogs)
+	for cat_or_dog in cats_and_dogs
+		print(cat_or_dog)
+	# Program runs and prints out
+	# Cat
+	# Dog
+	# Pig

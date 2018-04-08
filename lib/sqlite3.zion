@@ -1,0 +1,229 @@
+module _
+
+# This assumes that we have compiled the sqlite3 amalgamation file
+link in "sqlite3.o"
+
+link def libversion() *char to sqlite3_libversion
+link def sourceid() *char to sqlite3_sourceid
+link def libversion_number() posix.int to sqlite3_libversion_number
+link def threadsafe() posix.int to sqlite3_threadsafe
+link def close(db *Sqlite3) posix.int to sqlite3_close
+link def close_v2(db *Sqlite3) posix.int to sqlite3_close_v2
+link def sqlite3_exec(
+	db *Sqlite3,        /* An open database */
+	sql *char,          /* SQL to be evaluated */
+	callback callback_t?, /* callback_t function */
+	arg *?void,         /* 1st argument to callback */
+	errmsg **?char      /* Error msg written here */
+) posix.int
+link def initialize() posix.int to sqlite3_initialize
+link def shutdown() posix.int to sqlite3_shutdown
+link def os_init() posix.int to sqlite3_os_init
+link def os_end() posix.int to sqlite3_os_end
+link def last_insert_rowid(db *Sqlite3) int64 to sqlite3_last_insert_rowid
+link def set_last_insert_rowid(db *Sqlite3, id int64) void to sqlite3_set_last_insert_rowid
+link def changes(db *Sqlite3) posix.int to sqlite3_changes
+link def total_changes(db *Sqlite3) posix.int to sqlite3_total_changes
+link def interrupt(db *Sqlite3) void to sqlite3_interrupt
+link def complete(sql *char) posix.int to sqlite3_complete
+link def complete16(sql *uint16) posix.int to sqlite3_complete16
+link def busy_handler(db *Sqlite3, callback def _(_ *void, _  posix.int) posix.int, _ *void) posix.int to sqlite3_busy_handler
+link def busy_timeout(db *Sqlite3, ms posix.int) posix.int to sqlite3_busy_timeout
+link def get_table(
+	db *Sqlite3,          /* An open database */
+	zSql *char,           /* SQL to be evaluated */
+	pazResult *?*?*?char, /* Results of the query */
+	pnRow *posix.int,     /* Number of result rows written here */
+	pnColumn *posix.int,  /* Number of result columns written here */
+	pzErrmsg **?char      /* Error msg written here */
+) posix.int to sqlite3_get_table
+link def free_table(result char **) void to sqlite3_free_table
+link def open(
+	filename *char,   /* Database filename (UTF-8) */
+	ppDb **?Sqlite3    /* OUT: SQLite db handle */
+) posix.int to sqlite3_open
+link def open16(
+	filename *uint16, /* Database filename (UTF-16) */
+	ppDb **?Sqlite3  /* OUT: SQLite db handle */
+) posix.int to sqlite3_open16
+link def open_v2(
+	filename   *char,       /* Database filename (UTF-8) */
+	ppDb     **?Sqlite3,    /* OUT: SQLite db handle */
+	flags       posix.int,  /* Flags */
+	zVfs      *?char        /* Name of VFS module to use */
+) posix.int to sqlite3_open_v2
+
+link def uri_parameter(zFilename *char, zParam *char) *char to sqlite3_uri_parameter
+link def uri_boolean(zFile *char, zParam *char, bDefault posix.int) posix.int to sqlite3_uri_boolean
+link def uri_int64(_ *char, _ *char, _ int64) int64 to sqlite3_uri_int64
+
+link def errcode(db *Sqlite3) posix.int  to sqlite3_errcode
+link def extended_errcode(db *Sqlite3) posix.int to sqlite3_extended_errcode
+link def errmsg(db *Sqlite3) *char to sqlite3_errmsg
+link def errmsg16(db *Sqlite3) *void to sqlite3_errmsg16
+link def errstr(_ posix.int) *char to sqlite3_errstr
+
+type Sqlite3 struct
+type callback_t = def _(_ *void, _ int, _ *?*?char, _ *?*?char) posix.int
+type Callback = def (argc int, argv *?*?char, column_name *?*?char) int
+
+def zion_exec_callback(context *void, a int, b *?*?char, c *?*?char) posix.int
+	callback := context as Callback
+	return callback(a, b, c)
+
+def exec(db *Sqlite3, sql str, callback Callback?) posix.int
+	var errmsg *char = ""
+	return sqlite3_exec(
+		db,
+		sql,
+		zion_exec_callback,
+		callback != null ? callback as *void : null,
+		&errmsg)
+
+var OK posix.int = 0   /* Successful result */
+# beginning-of-error-codes
+var ERROR posix.int = 1   /* Generic error */
+var INTERNAL posix.int = 2   /* Internal logic error in SQLite */
+var PERM posix.int = 3   /* Access permission denied */
+var ABORT posix.int = 4   /* callback_t routine requested an abort */
+var BUSY posix.int = 5   /* The database file is locked */
+var LOCKED posix.int = 6   /* A table in the database is locked */
+var NOMEM posix.int = 7   /* A malloc() failed */
+var READONLY posix.int = 8   /* Attempt to write a readonly database */
+var INTERRUPT posix.int = 9   /* Operation terminated by sqlite3_interrupt()*/
+var IOERR posix.int = 10   /* Some kind of disk I/O error occurred */
+var CORRUPT posix.int = 11   /* The database disk image is malformed */
+var NOTFOUND posix.int = 12   /* Unknown opcode in sqlite3_file_control() */
+var FULL posix.int = 13   /* Insertion failed because database is full */
+var CANTOPEN posix.int = 14   /* Unable to open the database file */
+var PROTOCOL posix.int = 15   /* Database lock protocol error */
+var EMPTY posix.int = 16   /* Internal use only */
+var SCHEMA posix.int = 17   /* The database schema changed */
+var TOOBIG posix.int = 18   /* String or BLOB exceeds size limit */
+var CONSTRAINT posix.int = 19   /* Abort due to constraint violation */
+var MISMATCH posix.int = 20   /* Data type mismatch */
+var MISUSE posix.int = 21   /* Library used incorrectly */
+var NOLFS posix.int = 22   /* Uses OS features not supported on host */
+var AUTH posix.int = 23   /* Authorization denied */
+var FORMAT posix.int = 24   /* Not used */
+var RANGE posix.int = 25   /* 2nd parameter to sqlite3_bind out of range */
+var NOTADB posix.int = 26   /* File opened that is not a database file */
+var NOTICE posix.int = 27   /* Notifications from sqlite3_log() */
+var WARNING posix.int = 28   /* Warnings from sqlite3_log() */
+var ROW posix.int = 100  /* sqlite3_step() has another row ready */
+var DONE posix.int = 101  /* sqlite3_step() has finished executing */
+# end-of-error-codes
+
+# extended error codes
+#define SQLITE_ERROR_MISSING_COLLSEQ   (SQLITE_ERROR | (1<<8))
+#define SQLITE_ERROR_RETRY             (SQLITE_ERROR | (2<<8))
+#define SQLITE_IOERR_READ              (SQLITE_IOERR | (1<<8))
+#define SQLITE_IOERR_SHORT_READ        (SQLITE_IOERR | (2<<8))
+#define SQLITE_IOERR_WRITE             (SQLITE_IOERR | (3<<8))
+#define SQLITE_IOERR_FSYNC             (SQLITE_IOERR | (4<<8))
+#define SQLITE_IOERR_DIR_FSYNC         (SQLITE_IOERR | (5<<8))
+#define SQLITE_IOERR_TRUNCATE          (SQLITE_IOERR | (6<<8))
+#define SQLITE_IOERR_FSTAT             (SQLITE_IOERR | (7<<8))
+#define SQLITE_IOERR_UNLOCK            (SQLITE_IOERR | (8<<8))
+#define SQLITE_IOERR_RDLOCK            (SQLITE_IOERR | (9<<8))
+#define SQLITE_IOERR_DELETE            (SQLITE_IOERR | (10<<8))
+#define SQLITE_IOERR_BLOCKED           (SQLITE_IOERR | (11<<8))
+#define SQLITE_IOERR_NOMEM             (SQLITE_IOERR | (12<<8))
+#define SQLITE_IOERR_ACCESS            (SQLITE_IOERR | (13<<8))
+#define SQLITE_IOERR_CHECKRESERVEDLOCK (SQLITE_IOERR | (14<<8))
+#define SQLITE_IOERR_LOCK              (SQLITE_IOERR | (15<<8))
+#define SQLITE_IOERR_CLOSE             (SQLITE_IOERR | (16<<8))
+#define SQLITE_IOERR_DIR_CLOSE         (SQLITE_IOERR | (17<<8))
+#define SQLITE_IOERR_SHMOPEN           (SQLITE_IOERR | (18<<8))
+#define SQLITE_IOERR_SHMSIZE           (SQLITE_IOERR | (19<<8))
+#define SQLITE_IOERR_SHMLOCK           (SQLITE_IOERR | (20<<8))
+#define SQLITE_IOERR_SHMMAP            (SQLITE_IOERR | (21<<8))
+#define SQLITE_IOERR_SEEK              (SQLITE_IOERR | (22<<8))
+#define SQLITE_IOERR_DELETE_NOENT      (SQLITE_IOERR | (23<<8))
+#define SQLITE_IOERR_MMAP              (SQLITE_IOERR | (24<<8))
+#define SQLITE_IOERR_GETTEMPPATH       (SQLITE_IOERR | (25<<8))
+#define SQLITE_IOERR_CONVPATH          (SQLITE_IOERR | (26<<8))
+#define SQLITE_IOERR_VNODE             (SQLITE_IOERR | (27<<8))
+#define SQLITE_IOERR_AUTH              (SQLITE_IOERR | (28<<8))
+#define SQLITE_IOERR_BEGIN_ATOMIC      (SQLITE_IOERR | (29<<8))
+#define SQLITE_IOERR_COMMIT_ATOMIC     (SQLITE_IOERR | (30<<8))
+#define SQLITE_IOERR_ROLLBACK_ATOMIC   (SQLITE_IOERR | (31<<8))
+#define SQLITE_LOCKED_SHAREDCACHE      (SQLITE_LOCKED |  (1<<8))
+#define SQLITE_BUSY_RECOVERY           (SQLITE_BUSY   |  (1<<8))
+#define SQLITE_BUSY_SNAPSHOT           (SQLITE_BUSY   |  (2<<8))
+#define SQLITE_CANTOPEN_NOTEMPDIR      (SQLITE_CANTOPEN | (1<<8))
+#define SQLITE_CANTOPEN_ISDIR          (SQLITE_CANTOPEN | (2<<8))
+#define SQLITE_CANTOPEN_FULLPATH       (SQLITE_CANTOPEN | (3<<8))
+#define SQLITE_CANTOPEN_CONVPATH       (SQLITE_CANTOPEN | (4<<8))
+#define SQLITE_CORRUPT_VTAB            (SQLITE_CORRUPT | (1<<8))
+#define SQLITE_READONLY_RECOVERY       (SQLITE_READONLY | (1<<8))
+#define SQLITE_READONLY_CANTLOCK       (SQLITE_READONLY | (2<<8))
+#define SQLITE_READONLY_ROLLBACK       (SQLITE_READONLY | (3<<8))
+#define SQLITE_READONLY_DBMOVED        (SQLITE_READONLY | (4<<8))
+#define SQLITE_READONLY_CANTINIT       (SQLITE_READONLY | (5<<8))
+#define SQLITE_READONLY_DIRECTORY      (SQLITE_READONLY | (6<<8))
+#define SQLITE_ABORT_ROLLBACK          (SQLITE_ABORT | (2<<8))
+#define SQLITE_CONSTRAINT_CHECK        (SQLITE_CONSTRAINT | (1<<8))
+#define SQLITE_CONSTRAINT_COMMITHOOK   (SQLITE_CONSTRAINT | (2<<8))
+#define SQLITE_CONSTRAINT_FOREIGNKEY   (SQLITE_CONSTRAINT | (3<<8))
+#define SQLITE_CONSTRAINT_FUNCTION     (SQLITE_CONSTRAINT | (4<<8))
+#define SQLITE_CONSTRAINT_NOTNULL      (SQLITE_CONSTRAINT | (5<<8))
+#define SQLITE_CONSTRAINT_PRIMARYKEY   (SQLITE_CONSTRAINT | (6<<8))
+#define SQLITE_CONSTRAINT_TRIGGER      (SQLITE_CONSTRAINT | (7<<8))
+#define SQLITE_CONSTRAINT_UNIQUE       (SQLITE_CONSTRAINT | (8<<8))
+#define SQLITE_CONSTRAINT_VTAB         (SQLITE_CONSTRAINT | (9<<8))
+#define SQLITE_CONSTRAINT_ROWID        (SQLITE_CONSTRAINT |(10<<8))
+#define SQLITE_NOTICE_RECOVER_WAL      (SQLITE_NOTICE | (1<<8))
+#define SQLITE_NOTICE_RECOVER_ROLLBACK (SQLITE_NOTICE | (2<<8))
+#define SQLITE_WARNING_AUTOINDEX       (SQLITE_WARNING | (1<<8))
+#define SQLITE_AUTH_USER               (SQLITE_AUTH | (1<<8))
+#define SQLITE_OK_LOAD_PERMANENTLY     (SQLITE_OK | (1<<8))
+
+/*
+** CAPI3REF: Flags For File Open Operations
+**
+** These bit values are intended for use in the
+** 3rd parameter to the [sqlite3_open_v2()] interface and
+** in the 4th parameter to the [sqlite3_vfs.xOpen] method.
+*/
+#define SQLITE_OPEN_READONLY         0x00000001  /* Ok for sqlite3_open_v2() */
+#define SQLITE_OPEN_READWRITE        0x00000002  /* Ok for sqlite3_open_v2() */
+#define SQLITE_OPEN_CREATE           0x00000004  /* Ok for sqlite3_open_v2() */
+#define SQLITE_OPEN_DELETEONCLOSE    0x00000008  /* VFS only */
+#define SQLITE_OPEN_EXCLUSIVE        0x00000010  /* VFS only */
+#define SQLITE_OPEN_AUTOPROXY        0x00000020  /* VFS only */
+#define SQLITE_OPEN_URI              0x00000040  /* Ok for sqlite3_open_v2() */
+#define SQLITE_OPEN_MEMORY           0x00000080  /* Ok for sqlite3_open_v2() */
+#define SQLITE_OPEN_MAIN_DB          0x00000100  /* VFS only */
+#define SQLITE_OPEN_TEMP_DB          0x00000200  /* VFS only */
+#define SQLITE_OPEN_TRANSIENT_DB     0x00000400  /* VFS only */
+#define SQLITE_OPEN_MAIN_JOURNAL     0x00000800  /* VFS only */
+#define SQLITE_OPEN_TEMP_JOURNAL     0x00001000  /* VFS only */
+#define SQLITE_OPEN_SUBJOURNAL       0x00002000  /* VFS only */
+#define SQLITE_OPEN_MASTER_JOURNAL   0x00004000  /* VFS only */
+#define SQLITE_OPEN_NOMUTEX          0x00008000  /* Ok for sqlite3_open_v2() */
+#define SQLITE_OPEN_FULLMUTEX        0x00010000  /* Ok for sqlite3_open_v2() */
+#define SQLITE_OPEN_SHAREDCACHE      0x00020000  /* Ok for sqlite3_open_v2() */
+#define SQLITE_OPEN_PRIVATECACHE     0x00040000  /* Ok for sqlite3_open_v2() */
+#define SQLITE_OPEN_WAL              0x00080000  /* VFS only */
+
+var OPEN_READONLY posix.int = 0x00000001  /* Ok for sqlite3_open_v2() */
+var OPEN_READWRITE posix.int = 0x00000002  /* Ok for sqlite3_open_v2() */
+var OPEN_CREATE posix.int = 0x00000004  /* Ok for sqlite3_open_v2() */
+var OPEN_DELETEONCLOSE posix.int = 0x00000008  /* VFS only */
+var OPEN_EXCLUSIVE posix.int = 0x00000010  /* VFS only */
+var OPEN_AUTOPROXY posix.int = 0x00000020  /* VFS only */
+var OPEN_URI posix.int = 0x00000040  /* Ok for sqlite3_open_v2() */
+var OPEN_MEMORY posix.int = 0x00000080  /* Ok for sqlite3_open_v2() */
+var OPEN_MAIN_DB posix.int = 0x00000100  /* VFS only */
+var OPEN_TEMP_DB posix.int = 0x00000200  /* VFS only */
+var OPEN_TRANSIENT_DB posix.int = 0x00000400  /* VFS only */
+var OPEN_MAIN_JOURNAL posix.int = 0x00000800  /* VFS only */
+var OPEN_TEMP_JOURNAL posix.int = 0x00001000  /* VFS only */
+var OPEN_SUBJOURNAL posix.int = 0x00002000  /* VFS only */
+var OPEN_MASTER_JOURNAL posix.int = 0x00004000  /* VFS only */
+var OPEN_NOMUTEX posix.int = 0x00008000  /* Ok for sqlite3_open_v2() */
+var OPEN_FULLMUTEX posix.int = 0x00010000  /* Ok for sqlite3_open_v2() */
+var OPEN_SHAREDCACHE posix.int = 0x00020000  /* Ok for sqlite3_open_v2() */
+var OPEN_PRIVATECACHE posix.int = 0x00040000  /* Ok for sqlite3_open_v2() */
+var OPEN_WAL posix.int = 0x00080000  /* VFS only */

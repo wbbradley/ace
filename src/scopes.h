@@ -143,7 +143,7 @@ struct program_scope_t : public virtual module_scope_t {
 	virtual llvm::Type *get_llvm_type(location_t location, std::string type_name) = 0;
 	virtual llvm::Function *get_llvm_function(location_t location, std::string function_name) = 0;
 
-	virtual bound_var_t::ref make_matcher(llvm::IRBuilder<> &builder, location_t location, types::type_t::ref type) = 0;
+	virtual bound_var_t::ref make_matcher(llvm::IRBuilder<> &builder, scope_t::ref scope, location_t location, types::type_t::ref type) = 0;
 
 	/* this is meant to be called when we know we're looking in program scope.
 	 * this is not an implementation of get_symbol.  */
