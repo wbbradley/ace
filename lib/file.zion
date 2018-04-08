@@ -90,7 +90,7 @@ def __iterate__(fl Lines any)
 			fl.cur_line = null
 
 def readline(fp *posix.FILE) str or EOF or Error
-	var linecap posix.posix_int = 0
+	var linecap posix.int = 0
 	var line *?char = null
 	linelen := posix.getline(&line, &linecap, fp)
 	if linelen == -1

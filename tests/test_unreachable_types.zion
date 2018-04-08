@@ -12,7 +12,7 @@ type Box X Y is
 	Crate X Y
 
 def show(b Box any any)
-	# error: __getitem__\(.*Crate str .*\) not found
+	# error: unable to resolve overloads for __getitem__\(.*Crate str .*\)
 	print(b[0])
 
 def main()

@@ -3,7 +3,7 @@ module _
 type Foo has
 	var x int
 
-# error: str\(.*Foo\) not found
+# error: unable to resolve overloads for str\(.*Foo\)
 def str(f Foo) str
 	return str(f.x)
 

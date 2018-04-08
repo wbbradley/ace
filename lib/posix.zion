@@ -4,61 +4,64 @@ link in "c"
 link in "m"
 link in "rt_posix.o"
 
-link [global] def isalpha(ch posix_int) bool
-link [global] def isdigit(ch posix_int) bool
-link [global] def isnumber(ch posix_int) bool
-link [global] def isspace(ch posix_int) bool
+link [global] def isalpha(ch posix.int) bool
+link [global] def isdigit(ch posix.int) bool
+link [global] def isnumber(ch posix.int) bool
+link [global] def isspace(ch posix.int) bool
 link [global] def sqrt(x float) float
-link def arc4random_buf(dst *void, cb size_t) posix_int
+link def arc4random_buf(dst *void, cb size_t) posix.int
 link def arc4random_stir() void
+link def random() posix.long
 link def calloc(cb size_t, size size_t) *?void
-link def close(fd posix_int) posix_int
-link def errno() posix_int to __posix_errno
-link def exit(code posix_int) void
-link def fchdir(filedes posix_int) posix_int
-link def fclose(fp *FILE) posix_int
-link def fdopen(fd posix_int, mode *char) *?FILE
+link def close(fd posix.int) posix.int
+link def errno() posix.int to __posix_errno
+link def exit(code posix.int) void
+link def fchdir(filedes posix.int) posix.int
+link def fclose(fp *FILE) posix.int
+link def fdopen(fd posix.int, mode *char) *?FILE
 link def feof(stream *FILE) bool
 link def ferror(stream *FILE) bool
-link def fflush(fp *FILE) posix_int
+link def fflush(fp *FILE) posix.int
 link def fopen(fn *char, mode *char) *?FILE
-link def fprintf(fp *FILE, fmt *char, s *char) posix_int
-link def fputs(x *char, fp *FILE) posix_int
+link def fprintf(fp *FILE, fmt *char, s *char) posix.int
+link def fputs(x *char, fp *FILE) posix.int
 link def fread(p *void, size size_t, nitems size_t, stream *FILE) size_t
 link def free(pb *?void) void
-link def fseek(stream *FILE, offset posix_int, whence posix_int) posix_int
-link def ftell(stream *FILE) posix_int
+link def fseek(stream *FILE, offset posix.int, whence posix.int) posix.int
+link def ftell(stream *FILE) posix.int
 link def fwrite(p *void, size size_t, nitems size_t, stream *FILE) size_t
-link def getch() posix_int
+link def getch() posix.int
 link def getcwd(_ null) *?char
 link def getenv(x *char) *?char
-link def getline(linep **?char, linecapp *posix_int, fp *FILE) posix_int
+link def getline(linep **?char, linecapp *posix.int, fp *FILE) posix.int
 link def malloc(cb size_t) *?void
-link def memcmp(dst *void, src *void, n size_t) posix_int
+link def memcmp(dst *void, src *void, n size_t) posix.int
 link def memcpy(dst *void, src *void, n size_t) *void
 link def memmove(dst *void, src *void, n size_t) *void
-link def open(path *char, oflag posix_int) posix_int
-link def pclose(fp *posix.FILE) posix_int
-link def perror(x *char) posix_int
+link def open(path *char, oflag posix.int) posix.int
+link def pclose(fp *posix.FILE) posix.int
+link def perror(x *char) posix.int
 link def popen(command *char, mode *char) *?posix.FILE
-link def putchar(x int) posix_int
-link def puts(x *char) posix_int
-link def raise(signal posix_int) posix_int
-link def read(fileds posix_int, buf *void, nbytes size_t) ssize_t
+link def putchar(x int) posix.int
+link def puts(x *char) posix.int
+link def qsort(base *void, nel size_t, width size_t, _ def _(lhs *void, rhs *void) posix.int)
+link def raise(signal posix.int) posix.int
+link def read(fileds posix.int, buf *void, nbytes size_t) ssize_t
 link def realloc(ptr *void, cb size_t) *?void
-link def strcmp(x *char, y *char) posix_int
+link def strcmp(x *char, y *char) posix.int
 link def strdup(s *char) *?char
 link def strlen(s *char) size_t
-link def strncmp(x *char, y *char, n size_t) posix_int
+link def strncmp(x *char, y *char, n size_t) posix.int
 link def strndup(s *char, n size_t) *?char
-link def write(fileds posix_int, buf *void, nbytes size_t) ssize_t
+link def write(fileds posix.int, buf *void, nbytes size_t) ssize_t
 
-type posix_int = int32
+type int = int32
+type long = int32
 
 type FILE struct
 
 # TODO: implement let-refs for module variables
-var SEEK_SET posix_int = 0
-var SEEK_END posix_int = 2
-var SIGTRAP posix_int = 5
-var SIGKILL posix_int = 9
+var SEEK_SET posix.int = 0
+var SEEK_END posix.int = 2
+var SIGTRAP posix.int = 5
+var SIGKILL posix.int = 9

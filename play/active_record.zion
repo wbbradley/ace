@@ -1,0 +1,35 @@
+module _
+
+get os
+get sqlite3
+
+def main()
+	sqlite3.initialize()
+	print(OwningBuffer(posix.strdup(sqlite3.libversion())))
+	var db *?sqlite3.Sqlite3 = null
+	var res = sqlite3.open_v2(
+		"./database.db",
+		&db,
+		sqlite3.OPEN_READONLY,
+		null)
+	
+	if res != sqlite3.OK
+		print("Failed to open file. (" + res + ")")
+		return
+
+	print("Succeeded in opening file.")
+	assert(db != null)
+
+	c := def (argc int, argv **char, column_name **char) int
+		print("found " + str(argc) + " row of data")
+		for i in range(argc)
+			posix.fputs(column_name[i], stdout)
+			posix.fputs(" = ", stdout)
+			posix.fputs(argv[i], stdout)
+			posix.fputs("\n", stdout)
+
+		return sqlite3.OK
+
+	res = sqlite3.exec(db, "SELECT * FROM Header", c) 
+	
+	sqlite3.shutdown()

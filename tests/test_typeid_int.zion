@@ -4,5 +4,5 @@ module _
 type Foo is Bar
 
 def main()
-	var i int = 0
+	var i Int = 0
 	typeid(i)

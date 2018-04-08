@@ -9,5 +9,5 @@ def main()
 		print(x)
 		return
 
-	# error: str\(null\) not found
+	# error: unable to resolve overloads for str\(null\)
 	print(x)

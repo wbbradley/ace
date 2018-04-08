@@ -229,6 +229,9 @@ namespace types {
 	}
 
 	void type_operator_t::encode(env_t::ref env, std::vector<uint16_t> &encoding) const {
+		static int depth = 0;
+		depth_guard_t depth_guard(get_location(), depth, 10);
+
 		encoding.push_back(APPLY_INST);
 		oper->eval(env)->encode(env, encoding);
 		operand->eval(env)->encode(env, encoding);

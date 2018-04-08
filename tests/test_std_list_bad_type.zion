@@ -2,6 +2,6 @@ module _
 get list
 
 def main()
-	# error: list\(int, list str\) not found
-	l := list(3, list("hello", null))
+	# error: unable to resolve overloads for List\(int, list.List str\)
+	l := list.List(3, list.List("hello", null))
 	print(len(l))

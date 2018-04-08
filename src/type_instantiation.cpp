@@ -298,7 +298,9 @@ void ast::type_alias_t::register_type(
 		identifier::refs type_variables,
 	   	scope_t::ref scope) const
 {
-	debug_above(5, log(log_info, "creating type alias for %s", str().c_str()));
+	debug_above(5, log(log_info, "creating type alias for " c_id("%s") " %s",
+				supertype_id->get_name().c_str(),
+				str().c_str()));
 
 	std::list<identifier::ref> lambda_vars;
 	std::set<std::string> generics;
@@ -308,7 +310,7 @@ void ast::type_alias_t::register_type(
 	for (auto lambda_var : lambda_vars) {
 		final_type = type_lambda(lambda_var, type);
 	}
-	auto existing_type = scope->get_type(token.text, true /*allow_structural_types*/);
+	auto existing_type = scope->get_type(scope->make_fqn(token.text), true /*allow_structural_types*/);
 	if (existing_type == nullptr) {
 		scope->put_nominal_typename(token.text, final_type);
 	} else {

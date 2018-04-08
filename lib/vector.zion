@@ -385,3 +385,12 @@ def __iterate__(i VectorIter any C)
 [global]
 def __iter_item__(i VectorIter any C) any C
 	return i.vec[i.pos]
+
+#[global]
+# def sort[T](v [T])
+#	def compare(lhs_ *void, rhs_ *void) posix.int
+#		lhs := (lhs_ as *T)[0]
+#		rhs := (rhs_ as *T)[0]
+#		return lhs < rhs ? -1 : ((lhs == rhs) ? 0 : 1)
+#	vec := v as *(VectorImpl T)
+#	posix.qsort(vec.items, vec.length, sizeof(*void), compare)

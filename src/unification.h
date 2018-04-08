@@ -48,7 +48,8 @@ unification_t unify_core(
 		env_t::ref env,
         types::type_t::map bindings,
 		int coercions,
-        int depth);
+        int depth,
+		bool allow_variance);
 
 bool unifies(
 		types::type_t::ref a,
