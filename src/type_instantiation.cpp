@@ -231,27 +231,24 @@ void ast::type_product_t::register_type(
 	}
 }
 
-void ast::type_sum_t::register_type(
+void ast::data_type_t::register_type(
 		llvm::IRBuilder<> &builder,
 		identifier::ref id,
 		identifier::refs type_variables,
 		scope_t::ref scope) const
 {
-	debug_above(3, log(log_info, "creating subtypes to %s with type variables [%s] for type %s",
-				token.text.c_str(),
-				join_str(type_variables, ", ").c_str(),
-				type->str().c_str()));
+	debug_above(3, log(log_info, "registering data type %s", str().c_str()));
 
 	auto existing_type = scope->get_type(id->get_name());
 	if (existing_type == nullptr) {
 		/* good, we haven't seen this symbol before */
-		auto expansion = type;
+		auto expansion = type_id(id);
 		for (auto type_variable : type_variables) {
 			expansion = type_lambda(type_variable, expansion);
 		}
 		scope->put_nominal_typename(id->get_name(), expansion);
 	} else {
-		auto error = user_error(id->get_location(), "sum types cannot be registered twice");
+		auto error = user_error(id->get_location(), "data types cannot be registered twice");
 		error.add_info(existing_type->get_location(), "see prior type registered here");
 		throw error;
 	}

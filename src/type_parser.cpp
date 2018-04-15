@@ -156,6 +156,61 @@ namespace types {
 		return parse_type(ps, generics);
 	}
 
+	types::type_args_t::ref parse_type_args(parse_state_t &ps, const identifier::set &generics) {
+		chomp_token(tk_lparen);
+		types::type_t::refs param_types;
+		identifier::refs param_names;
+
+		while (true) {
+			if (ps.token.tk == tk_identifier) {
+				auto var_name = ps.token;
+				ps.advance();
+
+				/* parse the type */
+				if (ps.token.tk == tk_comma || ps.token.tk == tk_rparen) {
+					/* if there is no type then assume `any` */
+					param_types.push_back(type_variable(var_name.location));
+				} else {
+					param_types.push_back(parse_type(ps, generics));
+				}
+
+				auto param_name = make_code_id(var_name);
+				if (in_vector(param_name, param_names)) {
+					throw user_error(ps.token.location, "duplicated parameter name: %s", var_name.text.c_str());
+				} else {
+					param_names.push_back(param_name);
+				}
+
+				if (ps.token.tk == tk_rparen) {
+					ps.advance();
+					break;
+				}
+				if (ps.token.tk == tk_comma) {
+					/* advance past a comma */
+					ps.advance();
+				}
+			} else if (ps.token.tk == tk_rparen) {
+				ps.advance();
+				break;
+			} else {
+				throw user_error(ps.token.location, "expected a parameter name");
+			}
+		}
+		return type_args(param_types, param_names);
+	}
+
+	types::type_args_t::ref parse_data_ctor_type(
+			parse_state_t &ps,
+		   	const identifier::set &generics)
+   	{
+		types::type_args_t::ref type_args;
+		if (ps.token.tk == tk_lparen) {
+			return parse_type_args(ps, generics);
+		} else {
+			return ::type_args({}, {});
+		}
+	}
+
 	types::type_t::ref parse_function_type(parse_state_t &ps, identifier::set generics, identifier::ref &name) {
 		chomp_ident(K(def));
 		if (ps.token.tk == tk_identifier) {
@@ -207,47 +262,9 @@ namespace types {
 			}
 		}
 
-		chomp_token(tk_lparen);
-		types::type_t::refs param_types;
-		identifier::refs param_names;
+		type_args_t::ref type_args = parse_type_args(ps, generics);
+
 		types::type_t::ref return_type;
-
-		while (true) {
-			if (ps.token.tk == tk_identifier) {
-				auto var_name = ps.token;
-				ps.advance();
-
-				/* parse the type */
-				if (ps.token.tk == tk_comma || ps.token.tk == tk_rparen) {
-					/* if there is no type then assume `any` */
-					param_types.push_back(type_variable(var_name.location));
-				} else {
-					param_types.push_back(parse_type(ps, generics));
-				}
-
-				auto param_name = make_code_id(var_name);
-				if (in_vector(param_name, param_names)) {
-					throw user_error(ps.token.location, "duplicated parameter name: %s", var_name.text.c_str());
-				} else {
-					param_names.push_back(param_name);
-				}
-
-				if (ps.token.tk == tk_rparen) {
-					ps.advance();
-					break;
-				}
-				if (ps.token.tk == tk_comma) {
-					/* advance past a comma */
-					ps.advance();
-				}
-			} else if (ps.token.tk == tk_rparen) {
-				ps.advance();
-				break;
-			} else {
-				throw user_error(ps.token.location, "expected a parameter name");
-			}
-		}
-
 		/* now let's parse the return type */
 		if (!ps.line_broke()) {
 			return_type = parse_type(ps, generics);
@@ -255,7 +272,7 @@ namespace types {
 			return_type = type_void();
 		}
 
-		auto type = type_function(type_constraints, type_args(param_types, param_names), return_type);
+		auto type = type_function(type_constraints, type_args, return_type);
 		if (name != nullptr) {
 			return type;
 		} else {
@@ -308,7 +325,7 @@ namespace types {
 			auto param_token = ps.token;
 			ps.advance();
 			auto body = parse_and_type(ps, generics);
-				return type_lambda(make_code_id(param_token), body);
+			return type_lambda(make_code_id(param_token), body);
 		} else if (ps.token.is_ident(K(def))) {
 			identifier::ref name;
 			auto fn_type = parse_function_type(ps, generics, name);

@@ -1,7 +1,8 @@
 global
 
-tag False
-tag True
+type Bool is
+	False
+	True
 
 # Bool is defined in the compiler since True or False reduces to native "bool" through type optimization
 # type Bool is True or False

@@ -2,15 +2,14 @@ module file
 
 get posix
 
-type Open has
-	var fp *?posix.FILE
-tag Closed
-type Error has
-	errno int
+type State is
+	Closed
+	Error(errno Int)
+	Open(fp *posix.FILE)
 
 type File has
 	filename str
-	var state Open or Closed or Error
+	var state State
 
 tag EOF
 
@@ -79,17 +78,21 @@ def __iter_item__(fl Lines any) str
 
 [global]
 def __iterate__(fl Lines any)
-	s := readline(fl.file)
-	when s
-		is str
-			fl.cur_line = s
-		is Error
-			print("Error: encountered error " + s.errno + " while reading file")
+	when readline(fl.file) is
+		Line(line)
+			fl.cur_line = line
+		Error(errno)
+			print("Error: encountered error " + errno + " while reading file")
 			fl.cur_line = null
-		is EOF
+		EOF
 			fl.cur_line = null
 
-def readline(fp *posix.FILE) str or EOF or Error
+type Readline is
+	EOF
+	Error(errno int)
+	Line(line str)
+
+def readline(fp *posix.FILE) Readline
 	var linecap posix.int = 0
 	var line *?char = null
 	linelen := posix.getline(&line, &linecap, fp)
@@ -102,18 +105,17 @@ def readline(fp *posix.FILE) str or EOF or Error
 	if linelen > 0
 		if line[linelen - 1] == 10
 			line[linelen - 1] = 0
-	return str(OwningBuffer(line))
+	return Line(str(OwningBuffer(line)))
 
-def readline(f File) str or Error or EOF
+def readline(f File) Readline
 	state := f.state
-	when state
-		is Open
-			let fp = state.fp
+	when state is
+		Open(fp)
 			assert(fp != null)
 			return readline(fp)
-		is Closed
+		Closed
 			return Error(-1)
-		is Error
+		Error
 			return state
 
 def size(fp *?posix.FILE) size_t or Error

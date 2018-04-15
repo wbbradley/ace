@@ -94,19 +94,11 @@ namespace ast {
 	void when_block_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << K(when) << C_RESET << " ";
 		value->render(rs);
+		rs.ss << " " << C_TYPE << K(is) << C_RESET;
 		/* BLOCK */ {
 			indented(rs);
 			for (auto pattern_block : pattern_blocks) {
 				pattern_block->render(rs);
-			}
-
-			if (else_block != nullptr) {
-				newline(rs);
-				indent(rs);
-				rs.ss << C_CONTROL << K(else) << C_RESET;
-				newline(rs);
-				indented(rs);
-				else_block->render(rs);
 			}
 		}
 	}
@@ -114,8 +106,7 @@ namespace ast {
 	void pattern_block_t::render(render_state_t &rs) const {
 		newline(rs);
 		indent(rs);
-		rs.ss << C_TYPE << K(is) << C_RESET << " ";
-		rs.ss << type->str();
+		rs.ss << predicate->str();
 		newline(rs);
 		indented(rs);
 		block->render(rs);
@@ -367,9 +358,17 @@ namespace ast {
 		type_algebra->render(rs);
 	}
 
-	void type_sum_t::render(render_state_t &rs) const {
+	void data_type_t::render(render_state_t &rs) const {
 		rs.ss << K(is);
-		rs.ss << " " << type->str();
+		newline(rs);
+		indented(rs);
+		for (auto ctor_pair : ctor_pairs) {
+			rs.ss << ctor_pair.first.str();
+			if (ctor_pair.second != nullptr) {
+				rs.ss << " " << ctor_pair.second->str();
+			}
+			newline(rs);
+		}
 	}
 
 	void link_var_statement_t::render(render_state_t &rs) const {

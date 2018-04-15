@@ -5,6 +5,7 @@ struct parse_state_t;
 namespace types {
 	type_t::ref parse_type(parse_state_t &ps, const identifier::set &generics);
 	type_t::ref parse_function_type(parse_state_t &ps, identifier::set generics, identifier::ref &name);
+	type_args_t::ref parse_data_ctor_type(parse_state_t &ps, const identifier::set &generics);
 	type_t::ref parse_product_type(parse_state_t &ps, const identifier::set &generics);
 	identifier::ref reduce_ids(const std::list<identifier::ref> &ids, location_t location);
 }

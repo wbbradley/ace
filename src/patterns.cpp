@@ -20,7 +20,6 @@ void build_patterns(
 		bound_var_t::ref pattern_value,
 		bound_var_t::ref rtti_encoding,
 		identifier::ref var_name,
-		ast::block_t::ref else_block,
 		bool *returns)
 {
 	assert(false);
@@ -296,7 +295,6 @@ void ast::when_block_t::resolve_statement(
 			pattern_value,
 			rtti_encoding,
 			var_name,
-			else_block,
 			returns);
 }
 
@@ -318,4 +316,15 @@ bound_var_t::ref gen_null_check(
 	value = value->resolve_bound_value(builder, scope);
 	assert(llvm::dyn_cast<llvm::PointerType>(value->type->get_llvm_specific_type()));
 	return value;
+}
+
+bound_var_t::ref ast::expression_t::resolve_match(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bound_var_t::ref input_value,
+		runnable_scope_t::ref *scope_if_true) const
+{
+	assert(false);
+	return nullptr;
 }
