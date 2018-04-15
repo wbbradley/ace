@@ -99,12 +99,6 @@ namespace types {
 		return shared_from_this();
 	}
 
-	type_t::ref type_lazy_t::eval_core(env_t::ref env, bool get_structural_type) const {
-		auto type = type_sum_safe(options, location, env);
-
-		return type->eval_core(env, get_structural_type);
-	}
-
 	type_t::ref type_eq_t::eval_core(env_t::ref env, bool get_structural_env) const {
 		auto lhs_eval = lhs->eval_core(env, get_structural_env);
 		auto rhs_eval = lhs->eval_core(env, get_structural_env);
@@ -361,10 +355,6 @@ namespace types {
 		if (new_found) {
 			return ::type_args(new_args, names);
 		}
-		return shared_from_this();
-	}
-
-	type_t::ref type_sum_t::eval_core(env_t::ref env, bool get_structural_type) const {
 		return shared_from_this();
 	}
 

@@ -168,11 +168,6 @@ unification_t unify_core(
 	auto b = pruned_b->eval(env);
 	// log("a = %s", a->str().c_str());
 	// log("b = %s", b->str().c_str());
-	if (dyncast<const types::type_sum_t>(a) && types::is_type_id(b, BOOL_TYPE, nullptr)) {
-		/* make sure we enable checking bool against type sums */
-		static auto bool_type = type_sum({type_id(make_iid("true")), type_id(make_iid("false"))}, INTERNAL_LOC());
-		b = bool_type;
-	}
 
 	auto ptm_a = dyncast<const types::type_maybe_t>(a);
 	auto ptm_b = dyncast<const types::type_maybe_t>(b);
@@ -182,9 +177,6 @@ unification_t unify_core(
 
 	auto pto_a = dyncast<const types::type_operator_t>(a);
 	auto pto_b = dyncast<const types::type_operator_t>(b);
-
-	auto pts_a = dyncast<const types::type_sum_t>(a);
-	auto pts_b = dyncast<const types::type_sum_t>(b);
 
 	auto ptr_a = dyncast<const types::type_ptr_t>(a);
 	auto ptr_b = dyncast<const types::type_ptr_t>(b);
@@ -446,74 +438,6 @@ unification_t unify_core(
 				coercions,
 				{}};
 		}
-	} else if (pts_a != nullptr) {
-		if (pts_b == nullptr) {
-			std::vector<std::string> reasons;
-			bool match = true;
-			for (auto option : pts_a->options) {
-				debug_above(7, log("matching option of sum type against rhs"));
-				auto unification = unify_core(option, b, env, bindings, 0, depth, allow_variance);
-				if (unification.result) {
-					if (unification.bindings.size() > bindings.size()) {
-						debug_above(2, log(log_info, "replacing bindings %s with %s",
-									str(bindings).c_str(),
-									str(unification.bindings).c_str()));
-					}
-					bindings = unification.bindings;
-					coercions += unification.coercions;
-					if (allow_variance) {
-						return {true, option->str(bindings), bindings, coercions, {}};
-					}
-				} else {
-					reasons.push_back(unification.reasons);
-					match = false;
-				}
-			}
-			return {match, join(reasons, "\n\t"), {}, coercions, {}};
-		} else {
-			assert(pts_b != nullptr);
-			for (auto inbound_option : pts_b->options) {
-				debug_above(7, log("checking inbound %s against lhs %s", inbound_option->repr().c_str(), a->repr().c_str()));
-				auto unification = unify_core(a, inbound_option, env, bindings, 0, depth, allow_variance);
-				if (unification.result) {
-					bindings = unification.bindings;
-					coercions += unification.coercions;
-				} else {
-					return {
-						false,
-						string_format(
-								"\n\tcould not find a match for \n\t\t%s"
-								"\n\tin\n\t\t%s",
-								inbound_option->str(bindings).c_str(),
-								a->str(bindings).c_str()),
-						bindings,
-						coercions,
-						{}};
-				}
-			}
-			return {true, "inbound type is a subset of outbound type", bindings, coercions, {}};
-		}
-	} else if (pts_b != nullptr) {
-		for (auto inbound_option : pts_b->options) {
-			debug_above(7, log("checking inbound %s against lhs %s", inbound_option->repr().c_str(), a->repr().c_str()));
-			auto unification = unify_core(a, inbound_option, env, bindings, 0, depth, allow_variance);
-			if (unification.result) {
-				bindings = unification.bindings;
-				coercions += unification.coercions;
-			} else {
-				return {
-					false,
-					string_format(
-							"\n\tcould not find a match for \n\t\t%s"
-							"\n\tin\n\t\t%s",
-							inbound_option->str(bindings).c_str(),
-							a->str(bindings).c_str()),
-					bindings,
-					coercions,
-					{}};
-			}
-		}
-		return {true, "inbound type is a subset of outbound type", bindings, coercions, {}};
 	} else if (pto_a != nullptr) {
 		debug_above(7, log(log_info, "checking inbound type_operator %s",
 					pto_a->str().c_str()));

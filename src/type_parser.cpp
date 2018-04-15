@@ -484,24 +484,7 @@ namespace types {
 	}
 
 	type_t::ref parse_or_type(parse_state_t &ps, const identifier::set &generics) {
-		location_t location = ps.token.location;
-		type_t::refs options;
-		while (true) {
-			options.push_back(parse_and_type(ps, generics));
-			if (ps.token.is_ident(K(or))) {
-				ps.advance();
-				continue;
-			} else {
-				break;
-			}
-		}
-
-		if (options.size() == 1) {
-			if (auto function_type = dyncast<const type_function_t>(options[0])) {
-				return function_type;
-			} 
-		}
-		return type_lazy(options, location);
+		return parse_and_type(ps, generics);
 	}
 
 	type_t::ref parse_type(parse_state_t &ps, const identifier::set &generics) {

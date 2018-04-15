@@ -717,143 +717,6 @@ namespace types {
 		return function->get_location();
 	}
 
-	type_lazy_t::type_lazy_t(const type_t::refs &options, location_t location) : options(options), location(location) {
-	}
-
-	std::ostream &type_lazy_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		if (options.size() == 1) {
-			return options[0]->emit(os, bindings, parent_precedence);
-		}
-		parens_t parens(os, parent_precedence, get_precedence());
-		const char *delim = "";
-		assert(options.size() != 0);
-		for (auto option : options) {
-			os << delim;
-			option->emit(os, bindings, get_precedence());
-			delim = " or ";
-		}
-		return os;
-	}
-
-	int type_lazy_t::ftv_count() const {
-		int ftv_sum = 0;
-		for (auto option : options) {
-			ftv_sum += option->ftv_count();
-		}
-		return ftv_sum;
-	}
-
-	std::set<std::string> type_lazy_t::get_ftvs() const {
-		std::set<std::string> set;
-		for (auto option : options) {
-			std::set<std::string> option_set = option->get_ftvs();
-			set.insert(option_set.begin(), option_set.end());
-		}
-		return set;
-	}
-
-	type_t::ref type_lazy_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
-			return shared_from_this();
-		}
-
-		refs type_options;
-		for (auto option : options) {
-			type_options.push_back(option->rebind(bindings));
-		}
-		return ::type_lazy(type_options, location);
-	}
-
-	location_t type_lazy_t::get_location() const {
-		return location;
-	}
-
-	type_t::ref type_lazy_t::boolean_refinement(bool elimination_value, env_t::ref env) const {
-		auto type = type_sum_safe(options, location, env);
-		return type->boolean_refinement(elimination_value, env);
-	}
-
-	type_sum_t::type_sum_t(type_t::refs options, location_t location) : options(options), location(location) {
-		for (auto option : options) {
-			if (dyncast<const type_maybe_t>(option) != nullptr) {
-				log(log_error, "found maybe type %s within type_sum %s", option->str().c_str(), ::str(options).c_str());
-				dbg();
-			}
-			if (is_type_id(option, NULL_TYPE, nullptr)) {
-				log(log_error, "found null type within type_sum %s", ::str(options).c_str());
-				dbg();
-			}
-		}
-	}
-
-	std::ostream &type_sum_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		if (options.size() < 2) {
-			log("found type_sum with fewer than 2 options. %s", ::str(options).c_str());
-			dbg();
-		}
-		parens_t parens(os, parent_precedence, get_precedence());
-		const char *delim = "";
-		assert(options.size() != 0);
-		for (auto option : options) {
-			os << delim;
-			option->emit(os, bindings, get_precedence());
-			delim = " or ";
-		}
-		return os;
-	}
-
-	void type_sum_t::encode(env_t::ref env, std::vector<uint16_t> &encoding) const {
-		encoding.push_back(SUM_INST);
-		encoding.push_back(options.size());
-		for (auto option : options) {
-			option->eval(env)->encode(env, encoding);
-		}
-	}
-
-	int type_sum_t::ftv_count() const {
-		int ftv_sum = 0;
-		for (auto option : options) {
-			ftv_sum += option->ftv_count();
-		}
-		return ftv_sum;
-	}
-
-	std::set<std::string> type_sum_t::get_ftvs() const {
-		std::set<std::string> set;
-		for (auto option : options) {
-			std::set<std::string> option_set = option->get_ftvs();
-			set.insert(option_set.begin(), option_set.end());
-		}
-		return set;
-	}
-
-	type_t::ref type_sum_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
-			return shared_from_this();
-		}
-
-		refs type_options;
-		for (auto option : options) {
-			type_options.push_back(option->rebind(bindings));
-		}
-		return ::type_sum(type_options, location);
-	}
-
-	location_t type_sum_t::get_location() const {
-		return location;
-	}
-
-	type_t::ref type_sum_t::boolean_refinement(bool elimination_value, env_t::ref env) const {
-		types::type_t::refs new_options;
-		for (auto option : options) {
-			option = option->boolean_refinement(elimination_value, env);
-			if (option != nullptr) {
-				new_options.push_back(option);
-			}
-		}
-
-		return type_sum_safe(new_options, get_location(), env);
-	}
 
 	type_and_t::type_and_t(type_t::refs terms) : terms(terms) {
 		for (auto term : terms) {
@@ -1279,7 +1142,6 @@ namespace types {
 				type = maybe->just;
 			}
 		}
-		assert(!dyncast<const type_lazy_t>(type));
 		if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
 			return is_type_id(ptr_type->element_type, type_name, env);
 		}
@@ -1338,10 +1200,6 @@ namespace types {
 			return true;
 		}
 
-		if (auto ptr_type = dyncast<const types::type_sum_t>(type)) {
-			/* sum types are always managed pointers for now */
-			return true;
-		}
 		return false;
 	}
 
@@ -1357,10 +1215,6 @@ namespace types {
 			return true;
 		}
 
-		if (auto ptr_type = dyncast<const types::type_sum_t>(type)) {
-			/* sum types are always managed pointers for now */
-			return true;
-		}
 		if (auto extern_type = dyncast<const types::type_extern_t>(type)) {
 			/* extern types are always managed pointers for now */
 			return true;
@@ -1433,10 +1287,6 @@ namespace types {
 					type->str().c_str());
 		} else if (auto type_id = dyncast<const type_id_t>(expansion)) {
 			typeids.insert(atomize(type_id->repr()));
-		} else if (auto type_sum = dyncast<const type_sum_t>(expansion)) {
-			for (auto option : type_sum->options) {
-				get_runtime_typeids(option, env, typeids);
-			}
 		} else if (auto type_operator = dyncast<const type_operator_t>(expansion)) {
 			typeids.insert(atomize(type_operator->repr()));
 		} else {
@@ -1563,100 +1413,8 @@ bool types_contains(const types::type_t::refs &options, std::string signature) {
 	return false;
 }
 
-void expand_options(
-		types::type_t::refs &options,
-	   	const types::type_t::refs &new_options,
-		env_t::ref env,
-		std::set<std::string> &visited)
-{
-	assert(new_options.size() != 0);
-	static int depth = 0;
-	depth_guard_t depth_guard(new_options[0]->get_location(), depth, 10);
-
-	for (auto option : new_options) {
-		auto evaled = option->eval(env);
-		auto repr = evaled->repr();
-		if (in(repr, visited)) {
-			continue;
-		} else {
-			visited.insert(repr);
-		}
-
-		if (auto sum_type = dyncast<const types::type_sum_t>(evaled)) {
-			expand_options(options, sum_type->options, env, visited);
-		} else {
-			options.push_back(option);
-		}
-	}
-}
-
-
-void eliminate_redundant_types(types::type_t::refs &options, env_t::ref env) {
-	/* this function expects managed types, and will promote to managed types */
-	if (options.size() == 0) {
-		return;
-	}
-	for (int i=options.size() - 1; i >= 0 && options.size() > 1; --i) {
-		if (dyncast<const types::type_variable_t>(options[i])) {
-			/* if we have a free type variable, let's not eliminate anything... this needs more thought. */
-			return;
-		}
-	}
-
-	if (options.size() == 2) {
-		auto &option0 = options[0];
-		auto &option1 = options[1];
-		if (
-				(types::is_type_id(option0, MANAGED_TRUE, env)  && types::is_type_id(option1, MANAGED_FALSE, env)) ||
-				(types::is_type_id(option0, MANAGED_FALSE, env) && types::is_type_id(option1, MANAGED_TRUE, env)))
-		{
-			/* any of the above combinations can be simplified */
-			options = {type_id(make_iid(MANAGED_BOOL))};
-			return;
-		}
-	}
-
-	for (int i=options.size() - 1; i >= 0 && options.size() > 1; --i) {
-		types::type_t::refs partial = options;
-		std::swap(partial[i], partial[partial.size() - 1]);
-		partial.resize(partial.size() - 1);
-
-		assert(partial.size() == options.size() - 1);
-		assert(partial.size() > 0);
-
-		types::type_t::ref type_partial;
-		if (partial.size() == 1) {
-			type_partial = partial[0];
-		} else {
-			type_partial = type_sum(partial, INTERNAL_LOC());
-		}
-		if (unifies(type_partial, options[i], env)) {
-			/* options[i] is not needed */
-			debug_above(9, log("removing one instance of type %s from %s", options[i]->str().c_str(),
-						type_sum(options, INTERNAL_LOC())->str().c_str()));
-			std::swap(options, partial);
-		} else {
-			debug_above(9, log("could not remove %s from %s", options[i]->str().c_str(),
-						type_sum(options, INTERNAL_LOC())->str().c_str()));
-		}
-	}
-}
-
 types::type_t::ref demote_to_native_type(const types::type_t::ref &option, env_t::ref env) {
 	auto evaled = option->eval(env);
-
-	/* detect that we just have a bool */
-	if (auto sum = dyncast<const types::type_sum_t>(evaled)) {
-		const auto &options = sum->options;
-		if (options.size() == 2) {
-			/* NB: rely on alphabetical sort order of options */
-			if (types::is_type_id(options[0], MANAGED_FALSE, nullptr) &&
-					types::is_type_id(options[1], MANAGED_TRUE, nullptr))
-			{
-				return type_id(make_iid(BOOL_TYPE));
-			}
-		}
-	}
 
 	if (types::is_type_id(evaled, MANAGED_BOOL, nullptr)) {
 		return type_id(make_iid(BOOL_TYPE));
@@ -1723,144 +1481,6 @@ types::type_t::ref promote_to_managed_type(
 	return res;
 }
 
-
-types::type_t::ref type_sum_safe_3(
-        types::type_t::refs options,
-        location_t location,
-		env_t::ref env,
-		bool make_maybe)
-{
-	debug_above(9, log("type_sum_safe_3(..., %s, %s, ..., ..., %s)",
-				::str(options).c_str(), location.str().c_str(),
-				boolstr(make_maybe)));
-
-	/* check preconditions */
-	for (auto option : options) {
-		auto evaled = option->eval(env);
-		assert(!types::is_type_id(evaled, NULL_TYPE, env));
-		assert(dyncast<const types::type_maybe_t>(evaled) == nullptr);
-	}
-	
-	types::type_t::refs expanded_options;
-	std::set<std::string> visited;
-	expand_options(expanded_options, options, env, visited);
-	for (auto &option : expanded_options) {
-		option = promote_to_managed_type(option, env);
-	}
-	eliminate_redundant_types(expanded_options, env);
-
-	if (expanded_options.size() == 0) {
-		if (make_maybe) {
-			return type_id(make_iid_impl("null", location));
-		} else {
-			throw user_error(location, "no type found");
-		}
-	} else if (expanded_options.size() == 1) {
-		if (make_maybe) {
-			return type_maybe(expanded_options[0]);
-		} else {
-			return demote_to_native_type(expanded_options[0], env);
-		}
-	} else if (expanded_options.size() >= 2) {
-		if (make_maybe) {
-			return type_maybe(type_sum(expanded_options, location));
-		} else {
-			return type_sum(expanded_options, location);
-		}
-	}
-	assert(false);
-	return nullptr;
-}
-
-types::type_t::ref type_sum_safe_2(
-        types::type_t::refs options,
-        location_t location,
-		env_t::ref env)
-{
-	assert(options.size() > 1);
-
-	bool make_maybe = false;
-	types::type_t::refs new_options;
-	new_options.reserve(options.size());
-	for (auto option : options) {
-		auto evaled = option->eval(env);
-		if (types::is_type_id(evaled, NULL_TYPE, nullptr)) {
-			make_maybe = true;
-			continue;
-		} else if (auto maybe = dyncast<const types::type_maybe_t>(evaled)) {
-			make_maybe = true;
-			new_options.push_back(maybe->just);
-		} else {
-			new_options.push_back(option);
-		}
-	}
-	return type_sum_safe_3(new_options, location, env, make_maybe);
-}
-
-types::type_t::ref type_sum_safe(
-        const types::type_t::refs &orig_options,
-        location_t location,
-		env_t::ref env)
-{
-	debug_above(9, log("type_sum_safe(%s, %s, ..., ...)", ::str(orig_options).c_str(), location.str().c_str()));
-	types::type_t::refs options;
-	std::set<std::string> visited;
-	expand_options(options, orig_options, env, visited);
-
-	if (options.size() == 1) {
-		auto evaled = options[0]->eval(env);
-		if (
-				types::is_type_id(evaled, FLOAT_TYPE, nullptr) ||
-				types::is_type_id(evaled, NULL_TYPE, nullptr) ||
-				types::is_ptr_type_id(evaled, CHAR_TYPE, env, true) ||
-				types::is_integer(evaled, env))
-		{
-			return options[0];
-		} else {
-			bool make_maybe = false;
-			if (auto maybe = dyncast<const types::type_maybe_t>(evaled)) {
-				make_maybe = true;
-				evaled = maybe->just;
-			}
-
-			if (!make_maybe) {
-				return options[0];
-			}
-			return type_sum_safe_3({evaled}, location, env, make_maybe);
-		}
-	} else {
-		if (options.size() == 2) {
-			/* NB: rely on alphabetical sort order of options */
-			if (types::is_type_id(options[0], MANAGED_FALSE, nullptr) &&
-					types::is_type_id(options[1], MANAGED_TRUE, nullptr))
-			{
-				return type_id(make_iid(MANAGED_BOOL));
-			}
-		}
-		return type_sum_safe_2(options, location, env);
-	}
-}
-
-
-types::type_t::ref type_lazy(types::type_t::refs options, location_t location) {
-	std::sort(
-		options.begin(),
-		options.end(),
-		[] (const types::type_t::ref &lhs, const types::type_t::ref &rhs) -> bool {
-			return lhs->repr() < rhs->repr();
-		});
-	return make_ptr<types::type_lazy_t>(options, location);
-}
-
-types::type_t::ref type_sum(types::type_t::refs options, location_t location) {
-	std::sort(
-		options.begin(),
-		options.end(),
-		[] (const types::type_t::ref &lhs, const types::type_t::ref &rhs) -> bool {
-			return lhs->repr() < rhs->repr();
-		});
-	return make_ptr<types::type_sum_t>(options, location);
-}
 
 types::type_t::ref type_and(types::type_t::refs terms) {
 	return make_ptr<types::type_and_t>(terms);

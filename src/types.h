@@ -101,21 +101,6 @@ namespace types {
 		virtual int get_precedence() const { return 10; }
 	};
 
-	struct type_lazy_t : public type_t {
-		type_lazy_t(const type_t::refs &options, location_t location);
-		const type_t::refs options;
-		const location_t location;
-
-		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
-		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual int get_precedence() const { return 3; }
-		virtual ref rebind(const map &bindings) const;
-		virtual location_t get_location() const;
-        virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
-		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
-	};
-
 	struct type_subtype_t : public type_t {
 		type_subtype_t(const type_t::ref lhs, const type_t::ref rhs);
 		const type_t::ref lhs;
@@ -393,25 +378,6 @@ namespace types {
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
 	};
 
-	struct type_sum_t : public type_t {
-		type_sum_t(type_t::refs options);
-		type_sum_t(type_t::refs options, location_t location);
-		type_t::refs options;
-		location_t location;
-		typedef ptr<const type_sum_t> ref;
-
-		virtual int get_precedence() const { return 3; }
-
-		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
-		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
-		virtual location_t get_location() const;
-        virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
-		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
-		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
-	};
-
 	struct type_maybe_t : public type_t {
 		type_maybe_t(type_t::ref just);
 		type_t::ref just;
@@ -516,12 +482,6 @@ types::type_function_t::ref type_function(types::type_t::ref type_constraints, t
 types::type_function_closure_t::ref type_function_closure(types::type_t::ref function);
 types::type_t::ref type_and(types::type_t::refs terms);
 types::type_t::ref type_eq(types::type_t::ref lhs, types::type_t::ref rhs, location_t location);
-types::type_t::ref type_lazy(types::type_t::refs options, location_t location);
-types::type_t::ref type_sum(types::type_t::refs options, location_t location);
-types::type_t::ref type_sum_safe(
-        const types::type_t::refs &options,
-        location_t location,
-		env_t::ref env);
 types::type_t::ref type_maybe(types::type_t::ref just);
 types::type_ptr_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_ref(types::type_t::ref raw);
