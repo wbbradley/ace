@@ -258,12 +258,6 @@ void add_global_types(
 				   	builder.getInt8Ty()->getPointerTo()->getPointerTo())},
 	};
 
-	program_scope->put_nominal_typename(MANAGED_BOOL,
-			::type_sum({
-				type_id(make_iid(MANAGED_TRUE)),
-				type_id(make_iid(MANAGED_FALSE))
-			}, INTERNAL_LOC()));
-
 	for (auto type_pair : globals) {
 		program_scope->put_bound_type(type_pair.second);
 		compiler.base_type_macros[type_pair.first] = type_id(make_iid(type_pair.first));

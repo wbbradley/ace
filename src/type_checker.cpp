@@ -1682,7 +1682,7 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 		types::type_t::ref expected_type) const
 {
 	types::type_t::ref expected_element_type;
-	types::type_t::refs element_types;
+	types::type_t::ref element_type;
 
 	if (expected_type != nullptr) {
 		auto type_var_name = types::gensym();
@@ -1694,7 +1694,7 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 		if (unification.result) {
 			expected_element_type = unification.bindings[type_var_name->get_name()];
 			if (expected_element_type != nullptr && expected_element_type->ftv_count() == 0) {
-				element_types.push_back(expected_element_type);
+				element_type = expected_element_type;
 			}
 		}
 	}
@@ -1705,16 +1705,24 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 				expected_element_type);
 
 		bound_items.push_back(bound_item);
-		element_types.push_back(bound_item->type->get_type());
+		if (element_type == nullptr) {
+			element_type = bound_item->type->get_type();
+		} else {
+
+			if (!unifies(element_type, bound_item->type->get_type(), scope)) {
+				auto error = user_error(bound_item->get_location(), "vector item is incompatible with container type");
+				error.add_info(element_type->get_location(), "container is a %s", element_type->str().c_str());
+				error.add_info(bound_item->get_location(), "item is a %s", bound_item->type->get_type()->str().c_str());
+				throw error;
+			}
+		}
 	}
 
-	if (element_types.size() == 0) {
+	if (items.size() == 0) {
 		throw user_error(get_location(), "not enough information to infer the element type for the vector literal");
 	}
 
-	types::type_t::ref element_type = type_sum_safe(element_types, get_location(), scope);
-	debug_above(6, log("creating vector literal of %s",
-				element_type->str().c_str()));
+	debug_above(6, log("creating vector literal of type %s", element_type->str().c_str()));
 	return create_bound_vector_literal(
 			builder, scope, life,
 			get_location(), element_type, bound_items);
@@ -2367,21 +2375,14 @@ bound_type_t::ref refine_conditional_type(
 
 	assert((truthy_path_type != nullptr) || (falsey_path_type != nullptr));
 
-	types::type_t::refs options;
-	if (truthy_path_type != nullptr) {
-		options.push_back(truthy_path_type);
+	if (!unifies(truthy_path_type, falsey_path_type, scope)) {
+		auto error = user_error(truthy_path_type->get_location(), "ternary type is inconsistent");
+		error.add_info(truthy_path_type->get_location(), "truthy path is type %s", truthy_path_type->str().c_str());
+		error.add_info(truthy_path_type->get_location(), "falsey path is type %s", falsey_path_type->str().c_str());
+		throw error;
 	}
-	if (falsey_path_type != nullptr) {
-		options.push_back(falsey_path_type);
-	}
 
-	/* the when_true and when_false values have different
-	 * types, let's create a sum type to represent this */
-	auto ternary_sum_type = type_sum_safe(options, location, scope);
-
-	assert(ternary_sum_type != nullptr);
-
-	// TODO: lift this logic into type_sum_safe so that all callers downshift into native types
+	auto ternary_sum_type = truthy_path_type;
 
 	/* if we just ended up with a Bool, let's simplify it to bool */
 	auto Bool = type_id(make_iid(MANAGED_BOOL))->eval(scope);

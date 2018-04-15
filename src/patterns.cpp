@@ -23,6 +23,8 @@ void build_patterns(
 		ast::block_t::ref else_block,
 		bool *returns)
 {
+	assert(false);
+#if 0
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
 	llvm::BasicBlock *merge_block = nullptr;
 	llvm::BasicBlock *default_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.default", llvm_function_current);
@@ -66,11 +68,7 @@ void build_patterns(
 				type_to_match_raw,
 				scope);
 
-		if (auto type_sum = dyncast<const types::type_sum_t>(pattern_type_to_match)) {
-			types_to_match = type_sum->options;
-		} else {
-			types_to_match.push_back(pattern_type_to_match);
-		}
+		types_to_match.push_back(pattern_type_to_match);
 
 		std::set<int> typeids;
 		types::type_t::refs reified_types;
@@ -236,6 +234,7 @@ void build_patterns(
 			return;
 		}
 	}
+#endif
 }
 
 void ast::when_block_t::resolve_statement(

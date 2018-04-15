@@ -558,37 +558,6 @@ bound_type_t::ref create_bound_maybe_type(
 	}
 }
 
-bound_type_t::ref create_bound_sum_type(
-		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-		const ptr<const types::type_sum_t> &sum)
-{
-	assert(!scope->get_bound_type(sum->get_signature()));
-	auto var_ptr_type = scope->get_program_scope()->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
-	auto bound_type = bound_type_t::create(sum,
-			sum->get_location(),
-			var_ptr_type->get_llvm_type());
-
-	ptr<program_scope_t> program_scope = scope->get_program_scope();
-	program_scope->put_bound_type(bound_type);
-
-	/* check for disallowed types */
-	for (auto subtype : sum->options) {
-		if (!types::is_managed_ptr(subtype, scope)) {
-			auto error = user_error(subtype->get_location(),
-					"unable to create a sum type with %s in it. %s lacks run-time type information",
-					subtype->str().c_str(),
-					subtype->str().c_str());
-			error.add_info(sum->get_location(),
-					"while attempting to instantiate sum type %s",
-					sum->str().c_str());
-			throw error;
-		}
-	}
-
-	return bound_type;
-}
-
 bound_type_t::ref create_bound_function_type(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
@@ -649,8 +618,6 @@ bound_type_t::ref create_bound_type(
 		return create_bound_tuple_type(builder, scope, tuple_type);
 	} else if (auto function = dyncast<const types::type_function_t>(type)) {
 		return create_bound_function_type(builder, scope, function);
-	} else if (auto sum = dyncast<const types::type_sum_t>(type)) {
-		return create_bound_sum_type(builder, scope, sum);
 	} else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
 		return create_bound_expr_type(builder, scope, operator_);
 	} else if (auto variable = dyncast<const types::type_variable_t>(type)) {
@@ -678,10 +645,6 @@ bound_type_t::ref upsert_bound_type(
 	static int depth = 0;
 
 	depth_guard_t depth_guard(type->get_location(), depth, 10);
-
-	if (auto lazy = dyncast<const types::type_lazy_t>(type)) {
-		type = type->eval(scope);
-	}
 
 	type = type->rebind(scope->get_type_variable_bindings());
 
