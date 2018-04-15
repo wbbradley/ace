@@ -2,10 +2,7 @@ module _
 # test: pass
 # expect: x : Float or test_type_exprs.F int
 
-type F T has
-	var p T
-
-type X = F int or float
+type X = F Int or Float
 
 def main()
 	let x X = F(3)

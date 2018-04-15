@@ -104,7 +104,50 @@ namespace ast {
 				runnable_scope_t::ref *scope_if_false) const = 0;
 	};
 
-	struct expression_t : public statement_t, public condition_t {
+	struct predicate_t : public virtual item_t {
+		typedef ptr<const predicate_t> ref;
+		typedef std::vector<ref> refs;
+		virtual ~predicate_t() {}
+
+		static ref parse(parse_state_t &ps);
+		virtual bound_var_t::ref resolve_match(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				life_t::ref life,
+				bound_var_t::ref input_value,
+				runnable_scope_t::ref *scope_if_true) const = 0;
+	};
+
+	struct irrefutable_predicate_t : public predicate_t {
+		typedef ptr<const irrefutable_predicate_t> ref;
+
+		static const syntax_kind_t SK = sk_irrefutable_predicate;
+		virtual bound_var_t::ref resolve_match(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				life_t::ref life,
+				bound_var_t::ref input_value,
+				runnable_scope_t::ref *scope_if_true) const;
+	};
+
+	struct ctor_predicate_t : public predicate_t {
+		typedef ptr<const ctor_predicate_t> ref;
+		typedef std::vector<ref> refs;
+
+		static const syntax_kind_t SK = sk_ctor_predicate;
+		static ptr<const predicate_t> parse(parse_state_t &ps);
+		virtual bound_var_t::ref resolve_match(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				life_t::ref life,
+				bound_var_t::ref input_value,
+				runnable_scope_t::ref *scope_if_true) const;
+		virtual void render(render_state_t &rs) const;
+
+		std::vector<predicate_t::ref> params;
+	};
+
+	struct expression_t : public statement_t, public predicate_t, public condition_t {
 		typedef ptr<const expression_t> ref;
 
 		static const syntax_kind_t SK = sk_expression;
@@ -122,6 +165,13 @@ namespace ast {
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const = 0;
+
+		virtual bound_var_t::ref resolve_match(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				life_t::ref life,
+				bound_var_t::ref input_value,
+				runnable_scope_t::ref *scope_if_true) const;
 
 		/* when resolve_condition is not overriden, it just proxies through to resolve_expression */
 		virtual bound_var_t::ref resolve_condition(
@@ -321,12 +371,11 @@ namespace ast {
 		static ref parse(parse_state_t &ps, ast::type_decl_t::ref type_decl);
 	};
 
-	struct type_sum_t : public type_algebra_t {
-		typedef ptr<const type_sum_t> ref;
+	struct data_type_t : public type_algebra_t {
+		typedef ptr<const data_type_t> ref;
 
-		type_sum_t(types::type_t::ref type);
-		virtual ~type_sum_t() throw() {}
-		static const syntax_kind_t SK = sk_type_sum;
+		virtual ~data_type_t() throw() {}
+		static const syntax_kind_t SK = sk_data_type;
 		static ref parse(parse_state_t &ps, type_decl_t::ref type_decl, identifier::refs type_variables);
 		virtual void register_type(
 				llvm::IRBuilder<> &builder,
@@ -335,7 +384,7 @@ namespace ast {
 				scope_t::ref scope) const;
 		virtual void render(render_state_t &rs) const;
 
-		types::type_t::ref type;
+		std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs;
 	};
 
 	struct type_product_t : public type_algebra_t {
@@ -354,7 +403,7 @@ namespace ast {
 
 		bool native;
 		types::type_t::ref type;
-		identifier::set type_variables;
+		// identifier::set type_variables;
 	};
 
 	struct type_alias_t : public type_algebra_t {
@@ -686,7 +735,7 @@ namespace ast {
 		static ref parse(parse_state_t &ps);
 		virtual void render(render_state_t &rs) const;
 		
-		types::type_t::ref type;
+		predicate_t::ref predicate;
 		ptr<block_t> block;
 	};
 
@@ -706,7 +755,6 @@ namespace ast {
 
 		ptr<expression_t> value;
 		pattern_block_t::refs pattern_blocks;
-		ptr<block_t> else_block;
 	};
 
 	struct semver_t : public item_t {

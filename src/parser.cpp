@@ -360,7 +360,7 @@ ptr<typeinfo_expr_t> typeinfo_expr_t::parse(parse_state_t &ps) {
 
 std::vector<ptr<expression_t>> parse_param_list(parse_state_t &ps) {
 	std::vector<ptr<expression_t>> params;
-	chomp_token_or_return(tk_lparen, {});
+	chomp_token(tk_lparen);
 	int i = 0;
 	while (ps.token.tk != tk_rparen) {
 		++i;
@@ -372,7 +372,7 @@ std::vector<ptr<expression_t>> parse_param_list(parse_state_t &ps) {
 		}
 		// continue and read the next parameter
 	}
-	chomp_token_or_return(tk_rparen, {});
+	chomp_token(tk_rparen);
 
 	return params;
 }
@@ -981,13 +981,62 @@ ptr<for_block_t> for_block_t::parse(parse_state_t &ps) {
 	return for_block;
 }
 
+ast::predicate_t::ref ctor_predicate_t::parse(parse_state_t &ps) {
+	assert(ps.token.tk == tk_identifier && isupper(ps.token.text[0]));
+	auto value_name = ps.token;
+
+	ps.advance();
+	
+	std::vector<predicate_t::ref> params;
+	if (ps.token.tk == tk_lparen) {
+		ps.advance();
+		while (ps.token.tk != tk_rparen) {
+			auto predicate = predicate_t::parse(ps);
+			params.push_back(predicate);
+		}
+		chomp_token(tk_rparen);
+	}
+	auto ctor = ast::create<ast::ctor_predicate_t>(value_name);
+	std::swap(ctor->params, params);
+	return ctor;
+}
+
+ast::predicate_t::ref predicate_t::parse(parse_state_t &ps) {
+	if (ps.token.tk == tk_identifier) {
+		if (isupper(ps.token.text[0])) {
+			/* match a ctor */
+			return ctor_predicate_t::parse(ps);
+		} else {
+			/* match anything */
+			return irrefutable_predicate_t::parse(ps);
+		}
+	} else {
+		switch (ps.token.tk) {
+		case tk_integer:
+		case tk_string:
+		case tk_char:
+		case tk_float:
+			{
+				/* match a literal */
+				auto literal = create<ast::literal_expr_t>(ps.token);
+				ps.advance();
+				return literal;
+			}
+		default:
+			throw user_error(ps.token.location, "unexpected token for pattern " c_warn("%s"),
+					ps.token.text.c_str());
+		}
+		null_impl();
+	}
+}
+
 ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 	auto is_token = ps.token;
 	chomp_ident(K(is));
 
 	auto pattern_block = ast::create<ast::pattern_block_t>(is_token);
 
-	pattern_block->type = types::parse_type(ps, {});
+	pattern_block->predicate = predicate_t::parse(ps);
 	pattern_block->block = block_t::parse(ps);
 	return pattern_block;
 }
@@ -996,17 +1045,11 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 	auto when_block = create<ast::when_block_t>(ps.token);
 	chomp_ident(K(when));
 	when_block->value = expression_t::parse(ps);
+	chomp_ident(K(is));
 
-	/* this is a multi_pattern_block */
 	chomp_token(tk_indent);
-	while (ps.token.is_ident(K(is))) {
-		when_block->pattern_blocks.push_back(
-				pattern_block_t::parse(ps));
-	}
-
-	if (ps.token.is_ident(K(else))) {
-		ps.advance();
-		when_block->else_block = block_t::parse(ps);
+	while (ps.token.tk != tk_outdent) {
+		when_block->pattern_blocks.push_back(pattern_block_t::parse(ps));
 	}
 
 	chomp_token(tk_outdent);
@@ -1227,7 +1270,7 @@ type_algebra_t::ref type_algebra_t::parse(
                 type_decl->token.text.c_str()));
 
 	if (ps.token.is_ident(K(is))) {
-		return type_sum_t::parse(ps, type_decl, type_decl->type_variables);
+		return data_type_t::parse(ps, type_decl, type_decl->type_variables);
 	} else if (ps.token.is_ident(K(has))) {
 		return type_product_t::parse(ps, type_decl, type_decl->type_variables, false /*native*/);
 	} else if (ps.token.is_ident(K(link))) {
@@ -1244,7 +1287,21 @@ type_algebra_t::ref type_algebra_t::parse(
 	}
 }
 
-type_sum_t::ref type_sum_t::parse(
+std::pair<token_t, types::type_args_t::ref> parse_ctor(
+		parse_state_t &ps,
+	   	identifier::refs type_variables_list)
+{
+	expect_token(tk_identifier);
+	auto name = ps.token;
+	if (!isupper(name.text[0])) {
+		throw user_error(name.location, "constructors first letter must be uppercase");
+	}
+
+	ps.advance();
+	return {name, types::parse_data_ctor_type(ps, to_set(type_variables_list))};
+}
+
+data_type_t::ref data_type_t::parse(
 		parse_state_t &ps,
 		ast::type_decl_t::ref type_decl,
 		identifier::refs type_variables_list)
@@ -1259,17 +1316,25 @@ type_sum_t::ref type_sum_t::parse(
 		ps.advance();
 	}
 
-	auto type = types::parse_type(ps, type_variables);
-
-	if (expect_outdent) {
-		if (ps.token.tk == tk_lparen) {
-			throw user_error(ps.token.location, "subtypes of a supertype must be separated by the '" c_type("or") "' keyword");
-		} else {
-			chomp_token(tk_outdent);
+	auto data_type = create<data_type_t>(type_decl->token);
+	while (ps.token.tk == tk_identifier) {
+		auto ctor_pair = parse_ctor(ps, type_variables_list);
+		for (auto x : data_type->ctor_pairs) {
+			if (x.first.text == ctor_pair.first.text) {
+				auto error = user_error(ctor_pair.first.location, "duplicated data constructor name");
+				error.add_info(x.first.location, "see initial declaration here");
+				throw error;
+			}
 		}
+		debug_above(8, log("parsed ctor %s for type " c_type("%s"), ctor_pair.first.str().c_str(), data_type->token.text.c_str()));
+		data_type->ctor_pairs.push_back(ctor_pair);
 	}
 
-	return create<type_sum_t>(type_decl->token, type);
+	if (expect_outdent) {
+		chomp_token(tk_outdent);
+	}
+
+	return data_type;
 }
 
 type_product_t::ref type_product_t::parse(

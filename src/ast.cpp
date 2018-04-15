@@ -76,11 +76,6 @@ namespace ast {
 	{
 	}
 
-	type_sum_t::type_sum_t(types::type_t::ref type) :
-		type(type)
-	{
-	}
-
 	dimension_t::dimension_t(std::string name, types::type_t::ref type) :
 		name(name), type(type)
 	{
@@ -90,9 +85,9 @@ namespace ast {
 			bool native,
 			types::type_t::ref type,
 			identifier::set type_variables) :
-		native(native),
-		type(type),
-		type_variables(type_variables)
+		native(native)
+		, type(type)
+		// , type_variables(type_variables)
 	{
 	}
 

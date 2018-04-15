@@ -636,7 +636,7 @@ namespace types {
 		args(args), return_type(return_type)
 	{
 		assert(dyncast<const type_args_t>(args) != nullptr || dyncast<const type_variable_t>(args) != nullptr);
-		assert(return_type != nullptr);
+		// assert(return_type != nullptr);
 	}
 
 	std::ostream &type_function_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
