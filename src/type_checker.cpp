@@ -577,9 +577,11 @@ void destructure_function_decl(
 	auto explicit_fn_type = function_type->eval(scope);
 
 	if (!as_closure) {
-		debug_above(7, log("%s should be %s",
+		debug_above(7, log_location(log_info, explicit_fn_type->get_location(),
+				   	"%s should be %s (from %s)",
 					implied_fn_type->repr().c_str(),
-					explicit_fn_type->repr().c_str()));
+					explicit_fn_type->repr().c_str(),
+					function_type->str().c_str()));
 
 		assert(implied_fn_type->repr() == explicit_fn_type->repr());
 	}
@@ -2375,23 +2377,29 @@ bound_type_t::ref refine_conditional_type(
 
 	assert((truthy_path_type != nullptr) || (falsey_path_type != nullptr));
 
-	if (!unifies(truthy_path_type, falsey_path_type, scope)) {
-		auto error = user_error(truthy_path_type->get_location(), "ternary type is inconsistent");
+	types::type_t::ref ternary_sum_type;
+	if (truthy_path_type == nullptr) {
+		ternary_sum_type = falsey_path_type;
+	} else if (falsey_path_type == nullptr) {
+		ternary_sum_type = truthy_path_type;
+	} else if (unifies(truthy_path_type, falsey_path_type, scope)) {
+		ternary_sum_type = truthy_path_type;
+	} else if (unifies(falsey_path_type, truthy_path_type, scope)) {
+		ternary_sum_type = falsey_path_type;
+	} else if (truthy_path_type->eval_predicate(tb_null, scope)) {
+		assert(types::is_managed_ptr(falsey_path_type, scope));
+		ternary_sum_type = type_maybe(falsey_path_type);
+	} else if (falsey_path_type->eval_predicate(tb_null, scope)) {
+		assert(types::is_managed_ptr(truthy_path_type, scope));
+		ternary_sum_type = type_maybe(truthy_path_type);
+	} else {
+		auto error = user_error(location, "ternary type is inconsistent");
 		error.add_info(truthy_path_type->get_location(), "truthy path is type %s", truthy_path_type->str().c_str());
 		error.add_info(truthy_path_type->get_location(), "falsey path is type %s", falsey_path_type->str().c_str());
 		throw error;
 	}
 
-	auto ternary_sum_type = truthy_path_type;
-
-	/* if we just ended up with a Bool, let's simplify it to bool */
-	auto Bool = type_id(make_iid(MANAGED_BOOL))->eval(scope);
-
-	if (ternary_sum_type->eval(scope)->repr() == Bool->repr()) {
-		return upsert_bound_type(builder, scope, type_id(make_iid(BOOL_TYPE)));
-	} else {
-		return upsert_bound_type(builder, scope, ternary_sum_type);
-	}
+	return upsert_bound_type(builder, scope, ternary_sum_type);
 }
 
 bound_var_t::ref resolve_cond_expression( /* ternary expression */

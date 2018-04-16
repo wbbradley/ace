@@ -46,10 +46,9 @@ identifier::ref make_code_id(const token_t &token);
 #define expect_ident(text_) \
 	do { \
 		const char * const token_text = (text_); \
-		expect_token(tk_identifier); \
-		if (ps.token.text != token_text) { \
-			ps.error("expected '%s', got '%s'", \
-					token_text, ps.token.text.c_str()); \
+		if (ps.token.tk != tk_identifier || ps.token.text != token_text) { \
+			ps.error("expected " c_id("%s") ", got " c_warn("%s"), \
+					token_text, ps.token.text.size() != 0 ? ps.token.text.c_str() : tkstr(ps.token.tk)); \
 		} \
 	} while (0)
 

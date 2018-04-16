@@ -42,7 +42,7 @@ link def open(path *char, oflag posix.int) posix.int
 link def pclose(fp *posix.FILE) posix.int
 link def perror(x *char) posix.int
 link def popen(command *char, mode *char) *?posix.FILE
-link def putchar(x int) posix.int
+link def putchar(x posix.int) posix.int
 link def puts(x *char) posix.int
 link def qsort(base *void, nel size_t, width size_t, _ def _(lhs *void, rhs *void) posix.int)
 link def raise(signal posix.int) posix.int

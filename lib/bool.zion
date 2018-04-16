@@ -1,31 +1,7 @@
 global
 
-type Bool is
-	False
-	True
-
-# Bool is defined in the compiler since True or False reduces to native "bool" through type optimization
-# type Bool is True or False
-
-def __not__(b Bool) bool
-	when b
-		is True
-			return false
-		is False
-			return true
-
 def str(x bool) str
 	if x
 		return "true"
 	else
 		return "false"
-
-def __box__(b bool) Bool
-	if b
-		return True
-	else
-		return False
-
-def Bool(x bool) Bool
-	return x
-

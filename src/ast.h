@@ -128,6 +128,7 @@ namespace ast {
 				life_t::ref life,
 				bound_var_t::ref input_value,
 				runnable_scope_t::ref *scope_if_true) const;
+		virtual void render(render_state_t &rs) const;
 	};
 
 	struct ctor_predicate_t : public predicate_t {

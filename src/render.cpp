@@ -371,6 +371,24 @@ namespace ast {
 		}
 	}
 
+	void ctor_predicate_t::render(render_state_t &rs) const {
+		rs.ss << C_ID << token.text << C_RESET;
+		if (params.size() != 0) {
+			rs.ss << "(";
+			const char *delim = "";
+			for (auto predicate : params) {
+				rs.ss << delim;
+				predicate->render(rs);
+				delim = ", ";
+			}
+			rs.ss << ")";
+		}
+	}
+
+	void irrefutable_predicate_t::render(render_state_t &rs) const {
+		rs.ss << C_ID << token.text << C_RESET;
+	}
+
 	void link_var_statement_t::render(render_state_t &rs) const {
 		rs.ss << C_SCOPE_SEP << K(link) << C_RESET;
 		rs.ss << " ";

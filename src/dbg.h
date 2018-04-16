@@ -51,7 +51,7 @@ extern int __dbg_level;
 	DEBUG_BREAK(); \
 } while (0)
 
-#define dbg_when(x) if (x) { log(C_ERROR "======    " C_RESET C_CONTROL "dbg_when(%s)" C_RESET C_ERROR "    ======" C_RESET, #x); dbg(); } else { }
+#define dbg_when(x) if (x) { fprintf(stderr, C_ERROR "======    " C_RESET C_CONTROL "dbg_when(%s)" C_RESET C_ERROR "    ======" C_RESET "\n", #x); dbg(); } else { }
 
 #define wat() panic("wat is this branch doing?")
 

@@ -378,21 +378,6 @@ namespace types {
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
 	};
 
-	struct type_maybe_t : public type_t {
-		type_maybe_t(type_t::ref just);
-		type_t::ref just;
-
-		virtual int get_precedence() const { return 8; }
-
-		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
-		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
-		virtual location_t get_location() const;
-        virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
-		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
-	};
-
 	struct type_ptr_t : public type_t {
 		typedef ptr<const type_ptr_t> ref;
 		type_ptr_t(type_t::ref raw);

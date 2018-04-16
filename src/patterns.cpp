@@ -328,3 +328,25 @@ bound_var_t::ref ast::expression_t::resolve_match(
 	assert(false);
 	return nullptr;
 }
+
+bound_var_t::ref ast::ctor_predicate_t::resolve_match(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bound_var_t::ref input_value,
+		runnable_scope_t::ref *scope_if_true) const
+{
+	assert(false);
+	return nullptr;
+}
+
+bound_var_t::ref ast::irrefutable_predicate_t::resolve_match(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bound_var_t::ref input_value,
+		runnable_scope_t::ref *scope_if_true) const
+{
+	assert(false);
+	return nullptr;
+}

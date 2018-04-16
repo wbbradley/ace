@@ -1,10 +1,9 @@
 module _ @1.0
 # test: pass
 
-tag True
-tag False
-
-type Boolean is True or False
+type Boolean is
+	True
+	False
 
 def main()
 	x := True
