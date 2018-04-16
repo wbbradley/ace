@@ -928,7 +928,7 @@ auto test_descs = std::vector<test_desc>{
 				{"char", "char"},
 				{"*char", "*char"},
 				{"*?char", "*?char"},
-				{"integer(8, true)?", "int8?"},
+				{"integer(8, true)", "int8"},
 				{"integer(16, false)", "uint16"},
 				{"any a", "any a"},
 				{"any", "any __1"},
@@ -1031,7 +1031,7 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("T", "def (x int) float", generics),
 				make_type_pair("def _(p T) float", "def _(x int) float", generics),
 				make_type_pair("*void", "*int", generics),
-				{type_maybe(type_ptr(type_managed(type_struct({}, {})))), type_null()},
+				{type_maybe(type_ptr(type_managed(type_struct({}, {}))), {}), type_null()},
 				{type_ptr(type_id(make_iid("void"))), type_ptr(type_id(make_iid("X")))},
 			};
 

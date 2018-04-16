@@ -397,7 +397,7 @@ namespace types {
 			if (ps.token.tk == tk_maybe) {
 				throw user_error(ps.token.location, "redundant usage of ?. you may need parentheses");
 			} else {
-				return type_maybe(type_ptr(element));
+				return type_maybe(type_ptr(element), {});
 			}
 		} else if (is_ptr) {
 			if (ps.token.tk == tk_maybe) {
@@ -411,7 +411,7 @@ namespace types {
 					throw user_error(ps.token.location, "ambiguous ?. try using `*?`, or parentheses");
 				} else {
 					ps.advance();
-					return type_maybe(element);
+					return type_maybe(element, {});
 				}
 			} else {
 				return element;
