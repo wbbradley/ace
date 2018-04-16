@@ -834,7 +834,9 @@ namespace types {
 			return shared_from_this();
 		}
 
-		return ::type_maybe(just->rebind(bindings));
+		// NOTE: this may fail because i have not plumbed through the env... probably
+		// can bypass the ptr check here
+		return ::type_maybe(just->rebind(bindings), {});
 	}
 
 	location_t type_maybe_t::get_location() const {
@@ -853,7 +855,8 @@ namespace types {
 			if (just_refined != just) {
 				/* eliminate truthyness. the just refinement returned a new object, so let's construct a maybe around
 				 * it, since we can not eliminate the maybe when we are eliminating truthyness */
-				return ::type_maybe(just_refined);
+				// NB: no env here, prolly need to bypass
+				return ::type_maybe(just_refined, {});
 			} else {
 				/* nothing learned from this refinement */
 				return shared_from_this();
@@ -1486,7 +1489,18 @@ types::type_t::ref type_integer(types::type_t::ref bit_size, types::type_t::ref 
 	return make_ptr<types::type_integer_t>(bit_size, signed_);
 }
 
-types::type_t::ref type_maybe(types::type_t::ref just) {
+types::type_t::ref type_maybe(types::type_t::ref just, env_t::ref env) {
+	if (dyncast<const types::type_ptr_t>(just) == nullptr) {
+		types::type_t::ref expanded_just =
+			(env != nullptr)
+		   	? just->eval(env, true /*get_structural_type*/)
+			: nullptr;
+		if (dyncast<const types::type_ptr_t>(expanded_just) == nullptr) {
+			throw user_error(just->get_location(), "type %s cannot be a maybe type since it is not a pointer",
+					just->str().c_str());
+		}
+	}
+
     if (auto maybe = dyncast<const types::type_maybe_t>(just)) {
         return just;
     }
@@ -1521,7 +1535,7 @@ types::type_t::ref type_extern(types::type_t::ref inner)
 
 types::type_t::ref type_list_type(types::type_t::ref element) {
 	return type_maybe(type_operator(type_id(make_iid_impl(
-						STD_VECTOR_TYPE, element->get_location())), element));
+						STD_VECTOR_TYPE, element->get_location())), element), {});
 }
 
 types::type_t::ref type_vector_type(types::type_t::ref element) {

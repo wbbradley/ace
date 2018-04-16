@@ -2388,10 +2388,10 @@ bound_type_t::ref refine_conditional_type(
 		ternary_sum_type = falsey_path_type;
 	} else if (truthy_path_type->eval_predicate(tb_null, scope)) {
 		assert(types::is_managed_ptr(falsey_path_type, scope));
-		ternary_sum_type = type_maybe(falsey_path_type);
+		ternary_sum_type = type_maybe(falsey_path_type, scope);
 	} else if (falsey_path_type->eval_predicate(tb_null, scope)) {
 		assert(types::is_managed_ptr(truthy_path_type, scope));
-		ternary_sum_type = type_maybe(truthy_path_type);
+		ternary_sum_type = type_maybe(truthy_path_type, scope);
 	} else {
 		auto error = user_error(location, "ternary type is inconsistent");
 		error.add_info(truthy_path_type->get_location(), "truthy path is type %s", truthy_path_type->str().c_str());
@@ -3281,7 +3281,7 @@ void create_visit_module_vars_function(
 			builder, program_scope, 
 			type_function(
 				nullptr,
-				type_args({type_maybe(type_ptr(type_id(make_iid(STD_MANAGED_TYPE))))}, {}),
+				type_args({type_maybe(type_ptr(type_id(make_iid(STD_MANAGED_TYPE))), {})}),
 				type_id(make_iid("void"))));
 
 	/* we are creating this function, but we'll be adding to it elsewhere */

@@ -534,6 +534,7 @@ bound_type_t::ref create_bound_maybe_type(
 	program_scope->put_bound_type_mapping(maybe->get_signature(),
 			maybe->just->get_signature());
 
+	assert(dyncast<const types::type_ptr_t>(maybe->just->eval(scope, true)) != nullptr);
 	bound_type_t::ref bound_just_type = upsert_bound_type(builder, scope, maybe->just);
 	auto llvm_type = bound_just_type->get_llvm_specific_type();
 	if (llvm_type->isPointerTy()) {

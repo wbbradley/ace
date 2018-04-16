@@ -315,7 +315,7 @@ namespace types {
 	type_t::ref type_maybe_t::eval_core(env_t::ref env, bool get_structural_type) const {
 		auto expansion = just->eval_core(env, get_structural_type);
 		if (expansion != just) {
-			return type_maybe(expansion);
+			return type_maybe(expansion, env);
 		} else {
 			return shared_from_this();
 		}

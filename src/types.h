@@ -378,6 +378,21 @@ namespace types {
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
 	};
 
+	struct type_maybe_t : public type_t {
+		type_maybe_t(type_t::ref just);
+		type_t::ref just;
+
+		virtual int get_precedence() const { return 8; }
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
+		virtual int ftv_count() const;
+		virtual std::set<std::string> get_ftvs() const;
+		virtual ref rebind(const map &bindings) const;
+		virtual location_t get_location() const;
+        virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
+		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
+	};
+
 	struct type_ptr_t : public type_t {
 		typedef ptr<const type_ptr_t> ref;
 		type_ptr_t(type_t::ref raw);
@@ -467,7 +482,7 @@ types::type_function_t::ref type_function(types::type_t::ref type_constraints, t
 types::type_function_closure_t::ref type_function_closure(types::type_t::ref function);
 types::type_t::ref type_and(types::type_t::refs terms);
 types::type_t::ref type_eq(types::type_t::ref lhs, types::type_t::ref rhs, location_t location);
-types::type_t::ref type_maybe(types::type_t::ref just);
+types::type_t::ref type_maybe(types::type_t::ref just, env_t::ref env);
 types::type_ptr_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_ref(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body);
