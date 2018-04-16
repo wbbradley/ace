@@ -130,7 +130,7 @@ namespace types {
 
 	type_t::ref type_id_t::eval_core(env_t::ref env, bool get_structural_type) const {
 		auto type = env->get_type(id->get_name(), get_structural_type);
-		if (type != nullptr) {
+		if (type != nullptr && type->repr() != repr() /*hack?*/) {
 			return type->eval_core(env, get_structural_type);
 		}
 
@@ -211,7 +211,9 @@ namespace types {
 		if (result != nullptr) {
 			return result;
 		} else {
-			log(log_warning, "unable to compute function %s for %s", function_name.c_str(), default_value->str().c_str());
+			log(log_warning, "unable to compute function " c_id("%s") " for %s",
+				   	function_name.c_str(),
+				   	default_value->str().c_str());
 			assert(false);
 			return default_value;
 		}

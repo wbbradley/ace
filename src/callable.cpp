@@ -521,8 +521,9 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 
 	assert(scope->get_llvm_module() != nullptr);
 
-	auto function_type = get_function_type(type_constraints, args, return_type);
+	auto function_type = get_function_type(type_constraints, args, return_type)->eval(scope);
 	bound_type_t::ref bound_function_type = upsert_bound_type(builder, scope, function_type);
+	assert(bound_function_type->get_type()->get_signature() == fn_type->eval(scope)->repr());
 
 	bound_var_t::ref already_bound_function;
 	if (scope->has_bound(function_name, bound_function_type->get_type(), &already_bound_function)) {

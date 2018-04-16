@@ -205,16 +205,6 @@ unification_t unify_core(
 					const char *to;
 					const char *from;
 				} coercions_table[] = {
-					{MANAGED_BOOL, BOOL_TYPE},
-					{MANAGED_BOOL, FALSE_TYPE},
-					{MANAGED_BOOL, TRUE_TYPE},
-					{MANAGED_FALSE, FALSE_TYPE},
-					{MANAGED_TRUE, TRUE_TYPE},
-					{FALSE_TYPE, MANAGED_FALSE},
-					{TRUE_TYPE, MANAGED_TRUE},
-					{BOOL_TYPE, MANAGED_BOOL},
-					{BOOL_TYPE, MANAGED_TRUE},
-					{BOOL_TYPE, MANAGED_FALSE},
 					{BOOL_TYPE, FALSE_TYPE},
 					{BOOL_TYPE, TRUE_TYPE},
 					{MANAGED_FLOAT, FLOAT_TYPE},

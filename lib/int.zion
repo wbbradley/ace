@@ -24,8 +24,8 @@ def __init__() Int
 def __box__(i int) Int
 	return Int(i)
 
-def __unbox__(i (False or Int)?) int
-	return (i! as Int).raw
+# def __unbox__(i (False or Int)?) int
+#	return (i! as Int).raw
 
 def int(s int) int
 	return s

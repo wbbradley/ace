@@ -24,16 +24,16 @@ def open(name str, mode str) File
 [global]
 def close(f File)
 	state := f.state
-	when state
-		is Open
+	when state is
+		Open
 			let fp = state.fp
 			if fp != null
 				posix.fclose(fp)
 			state.fp = null
 			f.state = Closed
-		is Closed
+		Closed
 			print("Error: attempt to close a file that is already closed.")
-		is Error
+		Error
 			print("Error: attempt to close a file " + f.filename + " that has already seen error " + state.errno)
 
 [global]
@@ -118,7 +118,11 @@ def readline(f File) Readline
 		Error
 			return state
 
-def size(fp *?posix.FILE) size_t or Error
+type FileSize is
+	Size(cb uint64)
+	Error(errno posix.int)
+
+def size(fp *?posix.FILE) FileSize
 	if fp != null
 		let prev int = posix.ftell(fp)
 		posix.fseek(fp, 0, posix.SEEK_END)
@@ -130,23 +134,22 @@ def size(fp *?posix.FILE) size_t or Error
 		return Error(-4)
 
 [global]
-def size(f File) size_t or Error
-	state := f.state
-	when state
-		is Open
-			return size(state.fp)
-		is Closed
+def size(f File) FileSize
+	when f.state is
+		Open(fp)
+			return size(fp)
+		Closed
 			return Error(-1)
-		is Error
-			return state
+		Error(errno)
+			return Error(errno)
 
 [global]
 def readbytes(f File) bytes?
 	let state = f.state
-	when state
-		is Open
-			return readbytes(state.fp)
-		is Closed or Error
+	when state is
+		Open(fp)
+			return readbytes(fp)
+		else
 			return null
 
 def readbytes(fp *?posix.FILE) bytes?
@@ -154,9 +157,9 @@ def readbytes(fp *?posix.FILE) bytes?
 		return null
 
 	let size = size(fp)
-	when size
-		is size_t
-			let pb = posix.malloc(size) as *?int8
+	when size is
+		Size(cb)
+			let pb = posix.malloc(cb) as *?int8
 			assert(pb != null)
 
 			let bytes_read = posix.fread(
@@ -168,8 +171,7 @@ def readbytes(fp *?posix.FILE) bytes?
 			if posix.ferror(fp)
 				return null
 			return bytes(pb, bytes_read)
-
-		is Error
+		else
 			return null
 
 [global]
@@ -178,15 +180,11 @@ def write(fp *posix.FILE, s str)
 	
 [global]
 def write(f File, s str)
-	state := f.state
-	when state
-		is Open
-			let fp = state.fp
+	when f.state is
+		Open(fp)
 			assert(fp != null)
 			write(fp, s)
-		is Closed
+		Closed
 			posix.fprintf(stderr, "writing to closed file %s", f.filename)
-			return
-		is Error
+		Error(_)
 			posix.fprintf(stderr, "writing to errored file %s", f.filename)
-			return

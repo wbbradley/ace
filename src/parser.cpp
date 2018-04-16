@@ -656,8 +656,7 @@ ptr<expression_t> eq_expr_parse(parse_state_t &ps) {
 	if (ps.line_broke() ||
 			!(ps.token.is_ident(K(in))
 				|| ps.token.tk == tk_equal
-				|| ps.token.tk == tk_inequal
-				|| ps.token.is_ident(K(is)))) {
+				|| ps.token.tk == tk_inequal)) {
 		/* there is no rhs */
 		return lhs;
 	}
@@ -669,18 +668,13 @@ ptr<expression_t> eq_expr_parse(parse_state_t &ps) {
 		binary_operator->function_name = "__eq__";
 	} else if (ps.token.tk == tk_inequal) {
 		binary_operator->function_name = "__ineq__";
-	} else if (ps.token.is_ident(K(is))) {
-		binary_operator->function_name = "__is__";
 	} else {
 		assert(false);
 	}
 
 	eat_token();
 
-	if (ps.token.is_ident(K(not)) && binary_operator->token.is_ident(K(is))) {
-		binary_operator->function_name = "__isnot__";
-		ps.advance();
-	} else if (not_in) {
+	if (not_in) {
 		binary_operator->function_name = "__not_in__";
 	}
 
@@ -990,9 +984,15 @@ ast::predicate_t::ref ctor_predicate_t::parse(parse_state_t &ps) {
 	std::vector<predicate_t::ref> params;
 	if (ps.token.tk == tk_lparen) {
 		ps.advance();
+		bool expect_comma = false;
 		while (ps.token.tk != tk_rparen) {
+			if (expect_comma) {
+				chomp_token(tk_comma);
+			}
+
 			auto predicate = predicate_t::parse(ps);
 			params.push_back(predicate);
+			expect_comma = true;
 		}
 		chomp_token(tk_rparen);
 	}
@@ -1008,7 +1008,9 @@ ast::predicate_t::ref predicate_t::parse(parse_state_t &ps) {
 			return ctor_predicate_t::parse(ps);
 		} else {
 			/* match anything */
-			return irrefutable_predicate_t::parse(ps);
+			auto symbol = ps.token;
+			ps.advance();
+			return ast::create<ast::irrefutable_predicate_t>(symbol);
 		}
 	} else {
 		switch (ps.token.tk) {
@@ -1032,7 +1034,6 @@ ast::predicate_t::ref predicate_t::parse(parse_state_t &ps) {
 
 ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 	auto is_token = ps.token;
-	chomp_ident(K(is));
 
 	auto pattern_block = ast::create<ast::pattern_block_t>(is_token);
 
@@ -1046,12 +1047,10 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 	chomp_ident(K(when));
 	when_block->value = expression_t::parse(ps);
 	chomp_ident(K(is));
-
 	chomp_token(tk_indent);
 	while (ps.token.tk != tk_outdent) {
 		when_block->pattern_blocks.push_back(pattern_block_t::parse(ps));
 	}
-
 	chomp_token(tk_outdent);
 
 	if (when_block->pattern_blocks.size() == 0) {

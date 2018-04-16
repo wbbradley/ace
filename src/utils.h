@@ -190,10 +190,6 @@ inline const char *boolstr(bool x) {
 	return x ? "true" : "false";
 }
 
-inline const char *Boolstr(bool x) {
-	return x ? "True" : "False";
-}
-
 std::vector<std::string> readlines(std::string filename);
 bool real_path(std::string filename, std::string &real_path);
 std::string get_cwd();

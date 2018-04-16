@@ -145,15 +145,11 @@ namespace types {
 			}
 
 			/* handle builtin type ids */
-			if (name == boolstr(elimination_value) || name == Boolstr(elimination_value)) {
+			if (name == boolstr(elimination_value)) {
 				debug_above(6, log("eliding the whole type of %s", str().c_str()));
 				return nullptr;
 			} else if (name == BOOL_TYPE) {
 				auto refinement = type_id(make_iid_impl(boolstr(!elimination_value), get_location()));
-				debug_above(6, log("refining %s to %s", str().c_str(), refinement->str().c_str()));
-				return refinement;
-			} else if (name == MANAGED_BOOL) {
-				auto refinement = type_id(make_iid_impl(Boolstr(!elimination_value), get_location()));
 				debug_above(6, log("refining %s to %s", str().c_str(), refinement->str().c_str()));
 				return refinement;
 			}
@@ -1416,16 +1412,10 @@ bool types_contains(const types::type_t::refs &options, std::string signature) {
 types::type_t::ref demote_to_native_type(const types::type_t::ref &option, env_t::ref env) {
 	auto evaled = option->eval(env);
 
-	if (types::is_type_id(evaled, MANAGED_BOOL, nullptr)) {
-		return type_id(make_iid(BOOL_TYPE));
-	} else if (types::is_type_id(evaled, MANAGED_INT, nullptr)) {
+	if (types::is_type_id(evaled, MANAGED_INT, nullptr)) {
 		return type_id(make_iid(INT_TYPE));
 	} else if (types::is_type_id(evaled, MANAGED_FLOAT, nullptr)) {
 		return type_id(make_iid(FLOAT_TYPE));
-	} else if (types::is_type_id(evaled, MANAGED_TRUE, nullptr)) {
-		return type_id(make_iid(TRUE_TYPE));
-	} else if (types::is_type_id(evaled, MANAGED_FALSE, nullptr)) {
-		return type_id(make_iid(FALSE_TYPE));
 	} else {
 		return option;
 	}
@@ -1454,9 +1444,6 @@ types::type_t::ref promote_to_managed_type_(
 	} coercions[] = {
 		{INT_TYPE, MANAGED_INT},
 		{FLOAT_TYPE, MANAGED_FLOAT},
-		{BOOL_TYPE, MANAGED_BOOL},
-		{TRUE_TYPE, MANAGED_TRUE},
-		{FALSE_TYPE, MANAGED_FALSE},
 	};
 
 	for (unsigned i = 0; i < sizeof(coercions)/sizeof(coercions[0]); ++i) {

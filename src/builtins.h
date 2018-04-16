@@ -20,7 +20,3 @@ extern const char *MANAGED_STR;
 extern const char *MANAGED_INT;
 extern const char *MANAGED_CHAR;
 extern const char *MANAGED_FLOAT;
-extern const char *MANAGED_BOOL;
-extern const char *MANAGED_TRUE;
-extern const char *MANAGED_FALSE;
-

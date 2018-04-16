@@ -2,8 +2,8 @@ module _ @1.0
 # test: pass
 
 
-def do_recursive_boolean(b Bool)
+def do_recursive_boolean(b bool)
 	do_recursive_boolean(b)
 	
 def main()
-	do_recursive_boolean(True)
+	do_recursive_boolean(true)

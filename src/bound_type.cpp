@@ -207,54 +207,6 @@ void bound_type_t::is_managed_ptr(
 		bool &is_managed) const
 {
 	is_managed = types::is_managed_ptr(type, scope);
-
-#ifdef ZION_DEBUG
-	debug_above(7, log("%s expands to %s", type->str().c_str(), type->eval(scope, true /*get_structural_env*/)->str().c_str()));
-	debug_above(7, log("checking whether %s is a managed ptr: %s",
-				type->str().c_str(),
-				is_managed ? c_good("it is") : c_error("it isn't")));
-	auto program_scope = scope->get_program_scope();
-
-	/* get the memory management structure type */
-	auto var = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE);
-	assert(var != nullptr);
-
-	if (is_managed) {
-		auto llvm_type = get_llvm_specific_type();
-		if (is_ref(scope)) {
-			llvm::PointerType *llvm_pointer_type = llvm::dyn_cast<llvm::PointerType>(llvm_type);
-			if (llvm_pointer_type != nullptr) {
-				llvm_type = llvm_pointer_type->getElementType();
-			} else {
-				assert(false);
-			}
-		}
-
-		/* sanity check that the LLVM types are sane with regards to the scope we're
-		 * looking in for the typename environment */
-		if (llvm::PointerType *llvm_pointer_type = llvm::dyn_cast<llvm::PointerType>(llvm_type)) {
-			if (llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_pointer_type->getElementType())) {
-				/* either this type is an unspecified managed pointer (which would
-				 * need runtime type information to decipher, or it's a concrete
-				 * static managed type (or not). */
-				if (var->get_llvm_type() != llvm_struct_type) {
-					auto &elems = llvm_struct_type->elements();
-					assert_implies(is_managed, elems.size() == 2);
-					if (elems.size() != 2 || var->get_llvm_specific_type() != elems[0]) {
-						std::cerr << llvm_print_type(var->get_llvm_type()) << " != " << llvm_print_type(llvm_struct_type) << std::endl;
-						dbg();
-					}
-				}
-			} else {
-				debug_above(1, log("%s is not a struct", llvm_print(llvm_pointer_type->getElementType()).c_str()));
-				dbg();
-			}
-		} else {
-			debug_above(1, log("%s is not a pointer", llvm_print(llvm_type).c_str()));
-			assert(false);
-		}
-	}
-#endif
 }
 
 
