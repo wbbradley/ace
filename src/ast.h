@@ -455,23 +455,6 @@ namespace ast {
 		type_algebra_t::ref type_algebra;
 	};
 
-	struct tag_t : public statement_t {
-		typedef ptr<const tag_t> ref;
-
-		static const syntax_kind_t SK = sk_tag;
-		static ptr<tag_t> parse(parse_state_t &ps);
-		virtual void resolve_statement(
-				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
-				life_t::ref life,
-				runnable_scope_t::ref *new_scope,
-				bool *returns) const;
-		virtual void render(render_state_t &rs) const;
-
-		/* track type variables on tags to aid in type enforcement, deserialization and marshalling */
-		identifier::refs type_variables;
-	};
-
 	struct var_decl_t : public virtual statement_t, public condition_t {
 		typedef ptr<const var_decl_t> ref;
 
@@ -866,7 +849,6 @@ namespace ast {
 		ptr<module_decl_t> decl;
 		std::vector<ptr<var_decl_t>> var_decls;
 		std::vector<ptr<type_def_t>> type_defs;
-		std::vector<ptr<tag_t>> tags;
 		std::vector<ptr<function_defn_t>> functions;
 		std::vector<ptr<link_module_statement_t>> linked_modules;
 		std::vector<ptr<link_function_statement_t>> linked_functions;

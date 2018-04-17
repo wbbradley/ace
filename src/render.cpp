@@ -342,15 +342,6 @@ namespace ast {
 		block->render(rs);
 	}
 
-	void tag_t::render(render_state_t &rs) const {
-		rs.ss << C_TYPE << K(tag) << C_RESET << " ";
-		rs.ss << C_ID << token.text << C_RESET;
-		if (type_variables.size() != 0) {
-			rs.ss << '{' << join(type_variables, ", ") << '}';
-		}
-		newline(rs);
-	}
-
 	void type_def_t::render(render_state_t &rs) const {
 		rs.ss << K(type) << " ";
 		type_decl->render(rs);

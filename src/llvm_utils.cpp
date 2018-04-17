@@ -978,8 +978,7 @@ bound_var_t::ref llvm_create_global_tag(
 	bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 	llvm::Type *llvm_var_ptr_type = var_ptr_type->get_llvm_type();
 
-	bound_type_t::ref tag_struct_type = program_scope->get_runtime_type(builder, "tag_t");
-	llvm::StructType *llvm_tag_type = llvm::dyn_cast<llvm::StructType>(tag_struct_type->get_llvm_type());
+	llvm::StructType *llvm_tag_type = llvm::dyn_cast<llvm::StructType>(llvm_var_ptr_type->getPointerElementType());
 	debug_above(10, log(log_info, "var_ptr_type is %s", llvm_print(var_ptr_type->get_llvm_type()).c_str()));
 	debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print(tag_struct_type->get_llvm_type()).c_str()));
 	assert(llvm_tag_type != nullptr);

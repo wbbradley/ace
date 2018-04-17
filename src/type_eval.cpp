@@ -129,6 +129,9 @@ namespace types {
 	}
 
 	type_t::ref type_id_t::eval_core(env_t::ref env, bool get_structural_type) const {
+		static int depth = 0;
+		depth_guard_t depth_guard(id->get_location(), depth, 4);
+
 		auto type = env->get_type(id->get_name(), get_structural_type);
 		if (type != nullptr && type->repr() != repr() /*hack?*/) {
 			return type->eval_core(env, get_structural_type);

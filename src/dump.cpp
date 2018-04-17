@@ -39,7 +39,7 @@ void dump_unchecked_vars(
 			const unchecked_var_t::overload_vector &overloads = var_pair.second;
 			const char *sep = "";
 			for (auto &var_overload : overloads) {
-				os << sep << var_overload->node->token.str();
+				os << sep << var_overload->id->str();
 				sep = ", ";
 			}
 			os << "]" << std::endl;
@@ -67,7 +67,7 @@ void dump_unchecked_type_tags(std::ostream &os, const unchecked_type_t::map &unc
 void dump_unchecked_var_tags(std::ostream &os, const unchecked_var_t::map &unchecked_vars) {
 	for (auto &var_pair : unchecked_vars) {
 		for (auto unchecked_var : var_pair.second) {
-			auto loc = unchecked_var->node->get_location();
+			auto loc = unchecked_var->get_location();
 			os << var_pair.first << "\t" << loc.filename_repr() << "\t" << loc.line << ";/^\\(var\\|let\\|def\\) " << var_pair.first << "/;\"\tkind:f" << std::endl;
 		}
 	}

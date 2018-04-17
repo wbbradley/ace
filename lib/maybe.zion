@@ -1,0 +1,5 @@
+global
+
+type Maybe T is
+	Just T
+	Empty

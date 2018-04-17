@@ -6,7 +6,7 @@
 
 std::string unchecked_var_t::str() const {
     std::stringstream ss;
-    ss << "unchecked var : " << id->str() << " " << node->get_location();
+    ss << "unchecked var : " << id->str() << " " << get_location();
     return ss.str();
 }
 

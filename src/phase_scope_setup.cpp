@@ -55,16 +55,6 @@ void scope_setup_type_def(
 			unchecked_type_t::create(obj.token.text, obj.shared_from_this(), module_scope));
 }
 
-void scope_setup_tag(
-	   	const ast::tag_t &obj,
-	   	ptr<module_scope_t> module_scope)
-{
-	assert(obj.token.text.find(SCOPE_SEP) == std::string::npos);
-	assert(obj.token.text.size() != 0);
-	module_scope->put_unchecked_type(
-			unchecked_type_t::create(obj.token.text, obj.shared_from_this(), module_scope));
-}
-
 void scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 	auto module_name = obj.decl->get_canonical_name();
 

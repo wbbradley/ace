@@ -634,6 +634,7 @@ bound_type_t::ref create_bound_type(
 		return create_bound_expr_type(builder, scope, closure_type);
 	}
 
+	log("failed to create bound type for %s", type->str().c_str());
 	assert(false);
 	return nullptr;
 }

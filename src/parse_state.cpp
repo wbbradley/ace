@@ -43,30 +43,28 @@ void parse_state_t::error(const char *format, ...) {
 
 void add_default_type_macros(type_macros_t &type_macros) {
 	const char *ids[] = {
-		/* managed bool is a special case, and should be the only managed type in the default type
-		 * macros until type parsing gets much more sophisticated. */
-		MANAGED_STR,
-
 		BOOL_TYPE,
-		INT_TYPE,
-		TRUE_TYPE,
-		FALSE_TYPE,
-		NULL_TYPE,
-		VOID_TYPE,
-		FLOAT_TYPE,
 		CHAR_TYPE,
-		TYPE_OP_IF,
-		TYPE_OP_NOT,
-		TYPE_OP_IF,
+		FALSE_TYPE,
+		FLOAT_TYPE,
+		INT_TYPE,
+		MANAGED_STR,
+		MAYBE_TYPE,
+		NULL_TYPE,
+		TRUE_TYPE,
 		TYPE_OP_GC,
+		TYPE_OP_IF,
+		TYPE_OP_IF,
+		TYPE_OP_IS_FALSE,
+		TYPE_OP_IS_FUNCTION,
+		TYPE_OP_IS_MAYBE,
+		TYPE_OP_IS_NULL,
+		TYPE_OP_IS_POINTER,
 		TYPE_OP_IS_REF,
 		TYPE_OP_IS_TRUE,
-		TYPE_OP_IS_FALSE,
-		TYPE_OP_IS_POINTER,
-		TYPE_OP_IS_FUNCTION,
 		TYPE_OP_IS_VOID,
-		TYPE_OP_IS_NULL,
-		TYPE_OP_IS_MAYBE,
+		TYPE_OP_NOT,
+		VOID_TYPE,
 	};
 
 	for (auto id : ids) {

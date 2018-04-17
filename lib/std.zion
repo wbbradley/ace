@@ -2,6 +2,7 @@ global
 
 get runtime
 get posix
+get maybe
 get buffer
 get bool
 get bytes
@@ -98,7 +99,7 @@ def readline() str?
 	var linecap posix.int = 0
 
 	if posix.getline(&buf, &linecap, stdin) == -1 or buf == null
-		return null
+		return Empty
 
 	var lim = posix.strlen(buf) - 1
 	while lim >= 0 and posix.isspace(buf[lim])
