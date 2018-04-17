@@ -38,7 +38,7 @@ struct unchecked_var_t : public var_t {
 		   	ptr<const ast::item_t> node,
 		   	ptr<module_scope_t> module_scope)
 	{
-		return ref(new unchecked_var_t(id, node, module_scope));
+		return make_ptr<unchecked_var_t>(id, node, module_scope);
 	}
 
     virtual types::type_t::ref get_type(ptr<scope_t> scope) const;
@@ -66,7 +66,7 @@ struct unchecked_data_ctor_t : public unchecked_var_t {
 		   	types::type_function_t::ref sig,
 			bool native)
    	{
-		return ref(new unchecked_data_ctor_t(id, node, module_scope, sig, native));
+		return make_ptr<unchecked_data_ctor_t>(id, node, module_scope, sig, native);
 	}
 
     virtual types::type_t::ref get_type(ptr<scope_t> scope) const;

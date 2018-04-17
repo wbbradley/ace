@@ -25,21 +25,15 @@ type uint8 = unsigned 8
 type RTTI = *(unsigned 16)
 
 type var_t struct
-	var type_info *type_info_t
 	# and a ref-count of its own
 	var mark int
 	var next *?var_t
 	var prev *?var_t
 	var allocation uint
-	#
-	# THE ACTUAL DATA IS APPENDED HERE
-	#
 
-type type_info_t struct
-	rtti       RTTI
-	type_kind  int32
-	size       size_t
-	name      *char
+	#
+	# The actual data values are appended here, including a constructor, if necessary
+	#
 
 type str_literal_t struct
 	type_info *type_info_t
@@ -77,9 +71,6 @@ type type_info_mark_fn_t struct
 
 	# the mark function for this type.
 	var mark_fn def _(v *var_t) void
-
-type tag_t struct
-	var type_info *type_info_t
 
 type __closure_t FN has
 	fn FN

@@ -238,15 +238,61 @@ void ast::data_type_t::register_type(
 		scope_t::ref scope) const
 {
 	debug_above(3, log(log_info, "registering data type %s", str().c_str()));
+	auto module_scope = scope->get_module_scope();
 
-	auto existing_type = scope->get_type(id->get_name());
+	auto existing_type = scope->get_type(id->get_name(), true /*allow_structural_types*/);
 	if (existing_type == nullptr) {
 		/* good, we haven't seen this symbol before */
-		auto expansion = type_id(id);
+		std::vector<types::type_variable_t::ref> vars;
+		for (auto var : type_variables) {
+			vars.push_back(type_variable(var));
+		}
+
+		types::name_index_t name_index;
+		name_index["variant"] = 0;
+
+		types::type_t::ref expansion = type_ptr(type_managed(type_struct({
+						::type_integer(
+								type_literal({INTERNAL_LOC(), tk_integer, "32"}),
+								type_id(make_iid("false" /*signed*/)))}, {})));
+
+
+		/* create the tag type */
+		identifier::ref data_type_id = make_iid_impl(
+					scope->make_fqn(id->get_name()),
+					id->get_location());
+		types::type_t::ref ctor_return_type = type_id(data_type_id);
+
 		for (auto type_variable : type_variables) {
 			expansion = type_lambda(type_variable, expansion);
+			ctor_return_type = type_operator(ctor_return_type, ::type_variable(type_variable));
 		}
-		scope->put_nominal_typename(id->get_name(), expansion);
+		scope->put_structural_typename(id->get_name(), expansion);
+
+		for (auto &ctor_pair : ctor_pairs) {
+			identifier::ref ctor_id = make_code_id(ctor_pair.first);
+
+			if (ctor_pair.second->args.size() == 0) {
+				bound_var_t::ref tag = llvm_create_global_tag(
+						builder, scope, ctor_return_type, ctor_id,
+						ctor_id);
+				/* record this tag variable for use later */
+				scope->put_bound_variable(tag_name, tag);
+
+				debug_above(7, log(log_info, "instantiated nullary data ctor %s",
+							tag->str().c_str()));
+			} else {
+
+
+				types::type_function_t::ref data_ctor_sig = type_function(nullptr, 
+						ctor_pair.second, ctor_return_type);
+
+				module_scope->put_unchecked_variable(
+						ctor_id->get_name(),
+						unchecked_data_ctor_t::create(ctor_id, shared_from_this(),
+							module_scope, data_ctor_sig, false /*native*/));
+			}
+		}
 	} else {
 		auto error = user_error(id->get_location(), "data types cannot be registered twice");
 		error.add_info(existing_type->get_location(), "see prior type registered here");

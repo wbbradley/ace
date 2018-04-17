@@ -3137,9 +3137,6 @@ void resolve_unchecked_type(
 	if (auto type_def = dyncast<const ast::type_def_t>(node)) {
 		type_def->resolve_statement(builder,
 				module_scope, nullptr, nullptr, nullptr);
-	} else if (auto tag = dyncast<const ast::tag_t>(node)) {
-		tag->resolve_statement(builder, module_scope,
-				nullptr, nullptr, nullptr);
 	} else {
 		panic("unhandled unchecked type node at module scope");
 	}
@@ -3400,63 +3397,6 @@ void type_check_program(
 	 * need to check the primary module, since that is the one that is expected
 	 * to have the entry point ... at least for now... */
 	type_check_program_variables(builder, program_scope);
-}
-
-void ast::tag_t::resolve_statement(
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-		life_t::ref life,
-        runnable_scope_t::ref *new_scope,
-		bool * /*returns*/) const
-{
-	indent_logger indent(get_location(), 5, string_format("resolving tag %s",
-				str().c_str()));
-
-	if (type_variables.size() != 0) {
-		return;
-	}
-
-	std::string tag_name = token.text;
-	std::string fqn_tag_name = scope->make_fqn(tag_name);
-	auto qualified_id = make_iid_impl(fqn_tag_name, token.location);
-
-	auto tag_type = type_id(qualified_id);
-
-	auto already_bound_tag = scope->get_bound_type(tag_type->get_signature(), true /*use_mapping*/);
-	if (already_bound_tag != nullptr) {
-		debug_above(1, log(log_warning, "found predefined bound tag for %s -> %s",
-					tag_type->str().c_str(),
-					already_bound_tag->str().c_str()));
-		return;
-	}
-
-	/* it's a nullary enumeration or "tag", let's create a global value to
-	 * represent this tag. */
-
-	auto var_ptr_type = scope->get_program_scope()->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
-	assert(var_ptr_type != nullptr);
-
-	/* start by making a type for the tag */
-	bound_type_t::ref bound_tag_type = bound_type_t::create(
-			tag_type,
-			token.location,
-			/* all tags use the var_t* type */
-			var_ptr_type->get_llvm_type());
-
-	scope->put_structural_typename(tag_name, type_ptr(type_managed(type_struct({}, {}))));
-	scope->get_program_scope()->put_bound_type(bound_tag_type);
-	bound_var_t::ref tag = llvm_create_global_tag(
-			builder, scope, bound_tag_type, fqn_tag_name,
-			make_code_id(token));
-	/* record this tag variable for use later */
-	scope->put_bound_variable(tag_name, tag);
-
-	debug_above(7, log(log_info, "instantiated nullary data ctor %s",
-				tag->str().c_str()));
-
-	/* guarantee the cycle won't loop */
-	assert(scope->get_bound_type(tag_type->get_signature()) != nullptr);
-	return;
 }
 
 void ast::type_def_t::resolve_statement(

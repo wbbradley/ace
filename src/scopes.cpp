@@ -939,6 +939,7 @@ void get_callables_from_unchecked_vars(
 			assert(dyncast<const ast::function_defn_t>(var->node) ||
 					dyncast<const ast::var_decl_t>(var->node) ||
 					dyncast<const ast::type_product_t>(var->node) ||
+					dyncast<const ast::data_type_t>(var->node) ||
 					dyncast<const ast::link_function_statement_t>(var->node));
 			fns.push_back(var);
 		}

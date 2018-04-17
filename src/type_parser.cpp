@@ -411,7 +411,7 @@ namespace types {
 					throw user_error(ps.token.location, "ambiguous ?. try using `*?`, or parentheses");
 				} else {
 					ps.advance();
-					return type_maybe(element, {});
+					return type_operator(type_id(make_iid(MAYBE_TYPE)), element);
 				}
 			} else {
 				return element;
@@ -524,6 +524,7 @@ types::type_t::ref parse_type_expr(
 	type_macros_t global_type_macros;
 
 	add_default_type_macros(global_type_macros);
+	global_type_macros[MAYBE_TYPE] = type_id(make_iid(MAYBE_TYPE));
 	global_type_macros[MANAGED_STR] = type_id(make_iid(MANAGED_STR));
 	global_type_macros[MANAGED_INT] = type_id(make_iid(MANAGED_INT));
 	global_type_macros[MANAGED_FLOAT] = type_id(make_iid(MANAGED_FLOAT));

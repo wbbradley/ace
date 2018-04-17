@@ -20,3 +20,4 @@ const char *MANAGED_STR = "str";
 const char *MANAGED_INT = "Int";
 const char *MANAGED_CHAR = "Char";
 const char *MANAGED_FLOAT = "Float";
+const char *MAYBE_TYPE = "Maybe";

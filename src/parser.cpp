@@ -1250,17 +1250,6 @@ ptr<type_def_t> type_def_t::parse(parse_state_t &ps) {
 	return type_def;
 }
 
-ptr<tag_t> tag_t::parse(parse_state_t &ps) {
-	chomp_ident(K(tag));
-	expect_token(tk_identifier);
-	auto tag = create<ast::tag_t>(ps.token);
-	ps.advance();
-
-	parse_maybe_type_decl(ps, tag->type_variables);
-
-	return tag;
-}
-
 type_algebra_t::ref type_algebra_t::parse(
 		parse_state_t &ps,
 		ast::type_decl_t::ref type_decl)
@@ -1498,15 +1487,6 @@ ptr<module_t> module_t::parse(parse_state_t &ps) {
 				}
 			}
 			module->functions.push_back(std::move(function));
-		} else if (ps.token.is_ident(K(tag))) {
-			/* tags */
-			auto tag = tag_t::parse(ps);
-			module->tags.push_back(tag);
-			if (module->global) {
-				auto id = make_code_id(tag->token);
-				ps.type_macros.insert({tag->token.text, type_id(id)});
-				ps.global_type_macros.insert({tag->token.text, type_id(id)});
-			}
 		} else if (ps.token.is_ident(K(type))) {
 			/* type definitions */
 			auto type_def = type_def_t::parse(ps);
