@@ -1014,8 +1014,13 @@ llvm::Value *llvm_call_allocator(
 int get_ctor_id_index(program_scope_t::ref program_scope, llvm::IRBuilder<> &builder) {
 	static int index = -1;
 	if (index == -1) {
-		bound_type_t::ref var_type = program_scope->get_runtime_type(builder, "var_t");
-		auto struct_type = dyncast<const types::type_struct_t>(var_type->get_type());
+		bound_type_t::ref bound_var_type = program_scope->get_runtime_type(builder, "var_t");
+		auto var_type = bound_var_type->get_type()->eval(program_scope, true /*get_structural_type*/);
+
+		debug_above(8, log("var_type is %s with %s",
+				var_type->str().c_str(),
+				llvm_print(bound_var_type->get_llvm_specific_type()).c_str()));
+		auto struct_type = dyncast<const types::type_struct_t>(var_type);
 		assert(struct_type != nullptr);
 		auto iter = struct_type->name_index.find("ctor_id");
 		if (iter == struct_type->name_index.end()) {
@@ -1024,7 +1029,7 @@ int get_ctor_id_index(program_scope_t::ref program_scope, llvm::IRBuilder<> &bui
 
 		index = iter->second;
 
-		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(var_type->get_llvm_type());
+		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(bound_var_type->get_llvm_type());
 		assert(llvm_struct_type->elements()[index]->isIntegerTy(32));
 	}
 

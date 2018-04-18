@@ -648,6 +648,7 @@ bound_var_t::ref create_global_str(
 					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
 					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
 					llvm_create_int(builder, 0),
+					builder.getInt32(atomize("OwningBuffer")),
 					(llvm::Constant *)builder.CreateGlobalStringPtr(value),
 					llvm_create_int(builder, value.size()),
 					}),
@@ -706,6 +707,7 @@ bound_var_t::ref create_global_str(
 					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
 					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
 					llvm_create_int(builder, 0),
+					builder.getInt32(atomize(MANAGED_STR)),
 					llvm_owning_buffer_literal,
 					llvm_create_int(builder, 0),
 					llvm_create_int(builder, value.size()),
@@ -729,6 +731,13 @@ llvm::Constant *llvm_create_struct_instance(
 		llvm::StructType *llvm_struct_type, 
 		std::vector<llvm::Constant *> llvm_struct_data)
 {
+	debug_above(5, log("creating struct %s with %s",
+			llvm_print(llvm_struct_type).c_str(),
+			join_with(llvm_struct_data, ", ",
+			   	[] (llvm::Constant *c) -> std::string {
+					return llvm_print(c);
+					}).c_str()));
+
 	return llvm_get_global(
 			llvm_module, var_name,
 			llvm_create_constant_struct_instance(llvm_struct_type, llvm_struct_data),
@@ -986,8 +995,8 @@ bound_var_t::ref llvm_create_global_tag(
 	std::vector<llvm::Constant *> llvm_struct_data_tag = {
 		llvm_type_info,
 		llvm_create_int(builder, 0),
-		llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
-		llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
+		llvm::Constant::getNullValue(llvm_tag_struct_type->getPointerTo()),
+		llvm::Constant::getNullValue(llvm_tag_struct_type->getPointerTo()),
 		llvm_create_int(builder, 0),
 		builder.getInt32(atomize(tag)),
 	};

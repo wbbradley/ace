@@ -25,13 +25,13 @@ type uint8 = unsigned 8
 type CtorID = uint32
 
 type var_t struct
-	type_info *type_info_t
+	var type_info *type_info_t
 	# and a ref-count of its own
 	var mark int
 	var next *?var_t
 	var prev *?var_t
-	allocation uint
-	ctor_id CtorID
+	var allocation uint
+	var ctor_id CtorID
 
 	#
 	# THE ACTUAL DATA IS APPENDED HERE
@@ -60,8 +60,8 @@ type owning_buffer_literal_t struct
 	next null
 	prev null
 	allocation uint
-	## DATA
 	ctor_id CtorID
+	## DATA
 	raw *char
 	length uint
 
