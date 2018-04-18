@@ -36,8 +36,7 @@ bound_var_t::ref bind_ctor_to_scope(
 
 		/* now that we know the parameter types, let's see what the term looks
 		 * like */
-		debug_above(5, log(log_info, "ctor type should be %s",
-					function->str().c_str()));
+		debug_above(5, log(log_info, "ctor type should be %s", function->str().c_str()));
 
 		if (function->return_type != nullptr) {
 			/* now we know the type of the ctor we want to create. let's check

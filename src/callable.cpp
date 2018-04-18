@@ -25,6 +25,52 @@ bound_var_t::ref make_call_value(
 			"temp_call_value", INTERNAL_LOC(), arguments);
 }
 
+	
+bound_var_t::ref instantiate_data_type_ctor(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		unchecked_var_t::ref unchecked_fn,
+		ast::item_t::ref node,
+		types::type_function_t::ref fn_type,
+		const unification_t *unification)
+{
+	/* we shouldn't be here unless we found something to substitute */
+	debug_above(4, log(log_info, "building substitution for %s",
+				node->token.str().c_str()));
+	auto unchecked_data_ctor = dyncast<const unchecked_data_ctor_t>(unchecked_fn);
+	assert(unchecked_data_ctor != nullptr);
+	assert(!unchecked_data_ctor->native);
+
+	scope_t::ref subst_scope;
+	types::type_function_t::ref data_ctor_type;
+
+	if (unification != nullptr) {
+		/* create a generic substitution scope with the unification */
+		subst_scope = generic_substitution_scope_t::create(
+				builder, unchecked_fn->node,
+				unchecked_fn->module_scope, *unification, fn_type);
+
+		data_ctor_type = dyncast<const types::type_function_t>(
+				unchecked_data_ctor->sig->rebind(unification->bindings));
+	} else {
+		subst_scope = unchecked_fn->module_scope;
+		data_ctor_type = dyncast<const types::type_function_t>(unchecked_data_ctor->sig->rebind(scope->get_type_variable_bindings()));
+	}
+
+	assert(data_ctor_type != nullptr);
+	debug_above(4, log(log_info, "going to bind ctor for %s", data_ctor_type->str().c_str()));
+
+	/* instantiate the data ctor we want */
+	bound_var_t::ref ctor_fn = bind_ctor_to_scope(
+			builder, subst_scope,
+			unchecked_fn->id, node->get_location(),
+			data_ctor_type);
+
+	/* the ctor should now exist */
+	assert(ctor_fn != nullptr);
+	return ctor_fn;
+}
+
 bound_var_t::ref instantiate_unchecked_fn(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -102,48 +148,9 @@ bound_var_t::ref instantiate_unchecked_fn(
 			panic("we should have a product type for our fn_type");
 		}
 	} else if (ast::type_product_t::ref type_product = dyncast<const ast::type_product_t>(unchecked_fn->node)) {
-		ast::item_t::ref node = type_product;
-
-		/* we shouldn't be here unless we found something to substitute */
-		debug_above(4, log(log_info, "building substitution for %s",
-					node->token.str().c_str()));
-		auto unchecked_data_ctor = dyncast<const unchecked_data_ctor_t>(unchecked_fn);
-		assert(unchecked_data_ctor != nullptr);
-		assert(!unchecked_data_ctor->native);
-
-		scope_t::ref subst_scope;
-		types::type_function_t::ref data_ctor_type;
-
-		if (unification != nullptr) {
-			/* create a generic substitution scope with the unification */
-			subst_scope = generic_substitution_scope_t::create(
-					builder, unchecked_fn->node,
-					unchecked_fn->module_scope, *unification, fn_type);
-
-			data_ctor_type = dyncast<const types::type_function_t>(
-					unchecked_data_ctor->sig->rebind(unification->bindings));
-		} else {
-			subst_scope = unchecked_fn->module_scope;
-			data_ctor_type = dyncast<const types::type_function_t>(unchecked_data_ctor->sig->rebind(scope->get_type_variable_bindings()));
-		}
-
-		assert(data_ctor_type != nullptr);
-		// if (data_ctor_type->ftv_count() == 0) {
-		debug_above(4, log(log_info, "going to bind ctor for %s",
-					data_ctor_type->str().c_str()));
-
-		/* instantiate the data ctor we want */
-		bound_var_t::ref ctor_fn = bind_ctor_to_scope(
-				builder, subst_scope,
-				unchecked_fn->id, node->get_location(),
-				data_ctor_type);
-
-		/* the ctor should now exist */
-		assert(ctor_fn != nullptr);
-		return ctor_fn;
+		return instantiate_data_type_ctor(builder, scope, unchecked_fn, type_product, fn_type, unification);
 	} else if (ast::data_type_t::ref data_type = dyncast<const ast::data_type_t>(unchecked_fn->node)) {
-		assert(false);
-		return nullptr;
+		return instantiate_data_type_ctor(builder, scope, unchecked_fn, data_type, fn_type, unification);
 	} else {
 		panic("we should only have function defn's in unchecked var's, right?");
 		return nullptr;
