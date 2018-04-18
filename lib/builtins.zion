@@ -22,18 +22,25 @@ type uint16 = unsigned 16
 type int8 = signed 8
 type uint8 = unsigned 8
 
-type RTTI = *(unsigned 16)
+type CtorID = uint32
 
 type var_t struct
+	type_info *type_info_t
 	# and a ref-count of its own
 	var mark int
 	var next *?var_t
 	var prev *?var_t
-	var allocation uint
+	allocation uint
+	ctor_id CtorID
 
 	#
-	# The actual data values are appended here, including a constructor, if necessary
+	# THE ACTUAL DATA IS APPENDED HERE
 	#
+
+type type_info_t struct
+	type_kind  int32
+	size       size_t
+	name      *char
 
 type str_literal_t struct
 	type_info *type_info_t
@@ -42,6 +49,7 @@ type str_literal_t struct
 	prev null
 	allocation uint
 	## DATA
+	ctor_id CtorID
 	buffer *owning_buffer_literal_t
 	start uint
 	length uint
@@ -53,6 +61,7 @@ type owning_buffer_literal_t struct
 	prev null
 	allocation uint
 	## DATA
+	ctor_id CtorID
 	raw *char
 	length uint
 

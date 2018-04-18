@@ -15,7 +15,7 @@ void type_check_program(
 bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn_t &obj);
 std::vector<std::string> get_param_list_decl_variable_names(ptr<const ast::param_list_decl_t> obj);
 bound_type_t::named_pairs zip_named_pairs(std::vector<std::string> names, bound_type_t::refs args);
-bound_var_t::ref call_get_var_rtti(
+bound_var_t::ref call_get_ctor_id(
 		scope_t::ref scope,
 		life_t::ref life,
 		ptr<const ast::item_t> callsite,

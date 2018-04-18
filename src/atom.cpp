@@ -93,8 +93,8 @@ int atomize(const char *str) {
 	} else {
 		int iatom = atoms.size();
 
-		/* if our atoms grow too large, we'll need to change how we pack rtti */
-		assert(iatom < (1 << 14));
+		/* if our atoms grow too large, we'll need to change how we pack CtorID's */
+		assert(iatom < (1 << 30));
 
 		atom_str_index[str] = iatom;
 		atoms.push_back(str);

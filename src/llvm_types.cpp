@@ -646,7 +646,7 @@ bound_type_t::ref upsert_bound_type(
 {
 	static int depth = 0;
 
-	depth_guard_t depth_guard(type->get_location(), depth, 10);
+	depth_guard_t depth_guard(type->get_location(), depth, 40);
 
 	type = type->rebind(scope->get_type_variable_bindings());
 
@@ -911,9 +911,6 @@ bound_var_t::ref upsert_type_info_offsets(
 	llvm::Constant *llvm_type_info_head = llvm_create_constant_struct_instance(
 			llvm_type_info_head_type,
 			{
-			/* the type_id */
-			llvm_create_rtti(builder, program_scope, data_type->get_type()),
-
 			/* the kind of this type_info */
 			builder.getInt32(type_kind_use_offsets),
 
@@ -1014,6 +1011,28 @@ llvm::Value *llvm_call_allocator(
 	return allocation->get_llvm_value();
 }
 
+int get_ctor_id_index(program_scope_t::ref program_scope, llvm::IRBuilder<> &builder) {
+	static int index = -1;
+	if (index == -1) {
+		bound_type_t::ref var_type = program_scope->get_runtime_type(builder, "var_t");
+		auto struct_type = dyncast<const types::type_struct_t>(var_type->get_type());
+		assert(struct_type != nullptr);
+		auto iter = struct_type->name_index.find("ctor_id");
+		if (iter == struct_type->name_index.end()) {
+			panic("could not find ctor_id index within var_t");
+		}
+
+		index = iter->second;
+
+		llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(var_type->get_llvm_type());
+		assert(llvm_struct_type->elements()[index]->isIntegerTy(32));
+	}
+
+	assert(index != -1);
+	return index;
+}
+	
+
 bound_var_t::ref get_or_create_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -1084,6 +1103,11 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	 * let's get our allocation as such */
 	llvm::Value *llvm_final_obj = llvm_maybe_pointer_cast(builder,
 			llvm_alloced, data_type);
+
+	/* initialize the ctor_id */
+	int ctor_id_index = get_ctor_id_index(program_scope, builder);
+	llvm::Value *llvm_ctor_id_slot = llvm_make_gep(builder, llvm_alloced, ctor_id_index, false /*managed*/);
+	builder.CreateStore(builder.getInt32(atomize(name)), llvm_ctor_id_slot);
 
 	int index = 0;
 

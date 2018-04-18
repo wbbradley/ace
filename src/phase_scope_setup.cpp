@@ -72,11 +72,7 @@ void scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 
    	compiler.set_module_scope(obj.module_key, module_scope);
 
-	/* add any unchecked tags, types, links, or variables to this module */
-	for (auto &tag : obj.tags) {
-		scope_setup_tag(*tag, module_scope);
-	}
-
+	/* add any unchecked types, links, or variables to this module */
 	for (auto &type_def : obj.type_defs) {
 		scope_setup_type_def(*type_def, module_scope);
 	}

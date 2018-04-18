@@ -282,7 +282,7 @@ void ast::when_block_t::resolve_statement(
 		var_name = make_iid(types::gensym()->get_name());
 	}
 
-	bound_var_t::ref rtti_encoding = call_get_var_rtti(scope, life, shared_from_this(),
+	bound_var_t::ref rtti_encoding = call_get_ctor_id(scope, life, shared_from_this(),
 			make_iid("value.to.match"), builder, pattern_value);
 
 	build_patterns(

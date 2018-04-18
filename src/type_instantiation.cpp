@@ -251,11 +251,7 @@ void ast::data_type_t::register_type(
 		types::name_index_t name_index;
 		name_index["variant"] = 0;
 
-		types::type_t::ref expansion = type_ptr(type_managed(type_struct({
-						::type_integer(
-								type_literal({INTERNAL_LOC(), tk_integer, "32"}),
-								type_id(make_iid("false" /*signed*/)))}, {})));
-
+		types::type_t::ref expansion = type_ptr(type_managed(type_struct({}, {})));
 
 		/* create the tag type */
 		identifier::ref data_type_id = make_iid_impl(
@@ -273,17 +269,16 @@ void ast::data_type_t::register_type(
 			identifier::ref ctor_id = make_code_id(ctor_pair.first);
 
 			if (ctor_pair.second->args.size() == 0) {
+				bound_type_t::ref bound_tag_type = upsert_bound_type(builder, scope, ctor_return_type);
 				bound_var_t::ref tag = llvm_create_global_tag(
-						builder, scope, ctor_return_type, ctor_id,
+						builder, scope, bound_tag_type, ctor_id->get_name(),
 						ctor_id);
 				/* record this tag variable for use later */
-				scope->put_bound_variable(tag_name, tag);
+				scope->put_bound_variable(ctor_id->get_name(), tag);
 
-				debug_above(7, log(log_info, "instantiated nullary data ctor %s",
-							tag->str().c_str()));
+				debug_above(7, log(log_info, "instantiated nullary data ctor %s", tag->str().c_str()));
 			} else {
-
-
+				/* create and register an unchecked data ctor */
 				types::type_function_t::ref data_ctor_sig = type_function(nullptr, 
 						ctor_pair.second, ctor_return_type);
 
