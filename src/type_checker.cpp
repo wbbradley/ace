@@ -1018,9 +1018,6 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 		llvm::Constant *llvm_type_info = llvm_create_constant_struct_instance(
 				llvm_type_info_type,
 				{
-					/* the rtti */
-					llvm_create_rtti(builder, program_scope, bound_type->get_type()),
-
 					/* the kind of this type_info */
 					builder.getInt32(type_kind_use_mark_fn),
 
@@ -2859,7 +2856,7 @@ bound_var_t::ref cast_bound_var(
 	return bound_var_t::create(INTERNAL_LOC(), "cast", bound_type, llvm_dest_val, make_iid("cast"));
 }
 
-bound_var_t::ref call_get_var_rtti(
+bound_var_t::ref call_get_ctor_id(
 		scope_t::ref scope,
 		life_t::ref life,
 		ast::item_t::ref callsite,
@@ -2890,7 +2887,7 @@ bound_var_t::ref call_get_var_rtti(
 		bound_var_t::ref get_typeid_function = get_callable(
 				builder,
 				scope,
-				"runtime.get_var_rtti",
+				"runtime.__get_ctor_id",
 				callsite->get_location(),
 				type_args({bound_managed_var->type->get_type()}),
 				type_variable(INTERNAL_LOC()));
@@ -2940,7 +2937,7 @@ bound_var_t::ref ast::typeid_expr_t::resolve_expression(
 			false /*as_ref*/,
 			nullptr);
 
-	return call_get_var_rtti(scope, life, shared_from_this(), make_code_id(token), builder, resolved_value);
+	return call_get_ctor_id(scope, life, shared_from_this(), make_code_id(token), builder, resolved_value);
 }
 
 bound_var_t::ref ast::sizeof_expr_t::resolve_expression(

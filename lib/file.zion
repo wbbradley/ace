@@ -11,7 +11,7 @@ type File has
 	filename str
 	var state State
 
-tag EOF
+type EOF is EOF
 
 [global]
 def open(name str, mode str) File

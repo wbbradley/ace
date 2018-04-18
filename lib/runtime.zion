@@ -152,8 +152,8 @@ def protect_node(node *var_t) void
 
 	# check_node_existence(node, false)
 
-def get_var_rtti(v *var_t) RTTI
-	return v.type_info.rtti
+def __get_ctor_id(v *var_t) CtorID
+	return (v as *variant_var_t).ctor_id
 
 def __create_head_var() *var_t
 	p := mem_alloc(sizeof(var_t)) as *?var_t
@@ -164,8 +164,6 @@ def __create_head_var() *var_t
 
 def dbg_type_info(type_info *?type_info_t)
 	if type_info != null
-		posix.puts("rtti - TODO")
-		# posix.puts(__str__(type_info.rtti))
 		posix.puts("type_kind")
 		posix.puts(__str__(type_info.type_kind))
 		posix.puts("size")

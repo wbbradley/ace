@@ -12,9 +12,11 @@
 
 
 int __dbg_level = 0;
+int __depth_level_override = 0;
 
 void init_dbg() {
-	const_cast<int&>(__dbg_level) = atoi((getenv("DEBUG") != nullptr) ? getenv("DEBUG") : "0");
+	__dbg_level = atoi((getenv("DEBUG") != nullptr) ? getenv("DEBUG") : "0");
+	__depth_level_override = atoi((getenv("IGNORE_DEPTH") != nullptr) ? getenv("IGNORE_DEPTH") : "0");
 }
 
 void _emit_assert(
@@ -36,7 +38,7 @@ void _emit_assert(
 
 depth_guard_t::depth_guard_t(location_t location, int &depth, int max_depth) : depth(depth) {
 	++depth;
-	if (depth > max_depth) {
+	if (!__depth_level_override && (depth > max_depth)) {
 		throw user_error(location, "maximum recursion depth reached");
 	}
 }

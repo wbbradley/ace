@@ -615,7 +615,6 @@ bound_var_t::ref create_global_str(
 					llvm::dyn_cast<llvm::StructType>(
 						type_info_type->get_llvm_type()->getPointerElementType()),
 						{
-							llvm_create_rtti(builder, program_scope, type_id(make_iid("owning_buffer_literal_t"))),
 							llvm_create_int32(builder, type_kind_no_gc),
 							llvm_create_int(builder, 0/*size*/),
 							(llvm::Constant *)builder.CreateGlobalStringPtr("owning-buffer-literal"/*name*/),
@@ -675,7 +674,6 @@ bound_var_t::ref create_global_str(
 				llvm_create_constant_struct_instance(
 					llvm::dyn_cast<llvm::StructType>(type_info_type->get_llvm_type()->getPointerElementType()),
 					{
-					llvm_create_rtti(builder, program_scope, type_id(make_iid(MANAGED_STR))),
 					llvm_create_int32(builder, type_kind_no_gc),
 					llvm_create_int(builder, 0/*size*/),
 					(llvm::Constant *)builder.CreateGlobalStringPtr("string-literal"/*name*/),
@@ -933,32 +931,6 @@ llvm::GlobalVariable *llvm_get_global(
 	return llvm_global_variable;
 }
 
-llvm::Constant *llvm_create_rtti(
-		llvm::IRBuilder<> &builder,
-	   	program_scope_t::ref program_scope,
-	   	types::type_t::ref type)
-{
-	std::vector<uint16_t> encoding;
-	type->encode(program_scope, encoding);
-
-	debug_above(6, log("encoded type %s as [%s]", type->str().c_str(), join(encoding, ", ").c_str()));
-	
-	std::vector<llvm::Constant *> values;
-	values.reserve(encoding.size());
-	for (uint16_t x : encoding) {
-		values.push_back(builder.getInt16(x));
-	}
-	llvm::ArrayType *llvm_array_type = llvm::ArrayType::get(builder.getInt16Ty(), encoding.size());
-
-	llvm::GlobalVariable *llvm_array = llvm_get_global(
-			program_scope->get_llvm_module(),
-			std::string("rtti.") + type->repr(),
-			llvm::ConstantArray::get(llvm_array_type, values),
-			true /*is_constant*/);
-	debug_above(6, log("created rtti %s", llvm_print(llvm_array).c_str()));
-	return llvm::cast<llvm::Constant>(builder.CreateBitCast(llvm_array, builder.getInt16Ty()->getPointerTo()));
-}
-
 bound_var_t::ref llvm_create_global_tag(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -978,10 +950,10 @@ bound_var_t::ref llvm_create_global_tag(
 	bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 	llvm::Type *llvm_var_ptr_type = var_ptr_type->get_llvm_type();
 
-	llvm::StructType *llvm_tag_type = llvm::dyn_cast<llvm::StructType>(llvm_var_ptr_type->getPointerElementType());
+	llvm::StructType *llvm_tag_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_var_ptr_type->getPointerElementType());
 	debug_above(10, log(log_info, "var_ptr_type is %s", llvm_print(var_ptr_type->get_llvm_type()).c_str()));
-	debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print(tag_struct_type->get_llvm_type()).c_str()));
-	assert(llvm_tag_type != nullptr);
+	debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print(llvm_tag_struct_type).c_str()));
+	assert(llvm_tag_struct_type != nullptr);
 
 	llvm::Module *llvm_module = scope->get_llvm_module();
 	assert(llvm_module != nullptr);
@@ -1000,32 +972,34 @@ bound_var_t::ref llvm_create_global_tag(
 			llvm_module,
 			llvm_type_info_type,
 			{
-				/* rtti - the actual type information at runtime */
-				llvm_create_rtti(builder, program_scope, tag_type->get_type()),
+			/* the type kind */
+			builder.getInt32(type_kind_no_gc),
 
-				/* the type kind */
-				builder.getInt32(type_kind_no_gc),
+			/* size - should always be zero since the type_id is part of this var_t
+			 * as builtin type info. */
+			builder.getInt64(0),
 
-				/* size - should always be zero since the type_id is part of this var_t
-				 * as builtin type info. */
-				builder.getInt64(0),
-
-				/* name - for debugging */
-				llvm_name,
+			/* name - for debugging */
+			llvm_name,
 			});
+
+	std::vector<llvm::Constant *> llvm_struct_data_tag = {
+		llvm_type_info,
+		llvm_create_int(builder, 0),
+		llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
+		llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
+		llvm_create_int(builder, 0),
+		builder.getInt32(atomize(tag)),
+	};
 
 	/* create the actual tag singleton */
 	llvm::Constant *llvm_tag_constant = llvm_create_struct_instance(
 			std::string("__tag_") + tag,
-			llvm_module, llvm_tag_type, {llvm_type_info});
+			llvm_module,
+			llvm_tag_struct_type,
+			llvm_struct_data_tag);
 
-	debug_above(10, log(log_info, "getBitCast(%s, %s)",
-				llvm_print(*llvm_tag_constant).c_str(),
-				llvm_print(llvm_var_ptr_type).c_str()));
-	llvm::Constant *llvm_tag_value = llvm::ConstantExpr::getPointerCast(
-			llvm_tag_constant, llvm_var_ptr_type);
-
-	return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_value, id);
+	return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_constant, id);
 }
 
 llvm::Value *llvm_maybe_pointer_cast(

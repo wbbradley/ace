@@ -44,11 +44,6 @@ def panic(x str) void
 	write(stderr, x)
 	posix.exit(-1)
 
-tag NoLF
-
-def print(x, _ NoLF) void
-	write(stdout, str(x))
-
 def breakpoint() void
 	posix.raise(posix.SIGTRAP)
 
