@@ -45,8 +45,6 @@ bound_var_t::ref instantiate_unchecked_fn(
 	/* lifetimes have extents at function boundaries */
 	auto life = make_ptr<life_t>(lf_function);
 
-	ast::type_product_t::ref type_product = dyncast<const ast::type_product_t>(unchecked_fn->node);
-
 	if (auto function_defn = dyncast<const ast::function_defn_t>(unchecked_fn->node)) {
 		/* we shouldn't be here unless we found something to substitute */
 		scope_t::ref subst_scope;
@@ -103,7 +101,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 		} else {
 			panic("we should have a product type for our fn_type");
 		}
-	} else if (type_product != nullptr) {
+	} else if (ast::type_product_t::ref type_product = dyncast<const ast::type_product_t>(unchecked_fn->node)) {
 		ast::item_t::ref node = type_product;
 
 		/* we shouldn't be here unless we found something to substitute */
@@ -143,6 +141,9 @@ bound_var_t::ref instantiate_unchecked_fn(
 		/* the ctor should now exist */
 		assert(ctor_fn != nullptr);
 		return ctor_fn;
+	} else if (ast::data_type_t::ref data_type = dyncast<const ast::data_type_t>(unchecked_fn->node)) {
+		assert(false);
+		return nullptr;
 	} else {
 		panic("we should only have function defn's in unchecked var's, right?");
 		return nullptr;
