@@ -109,6 +109,7 @@ namespace ast {
 		typedef std::vector<ref> refs;
 		virtual ~predicate_t() {}
 
+		virtual std::string repr() const = 0;
 		static ref parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_match(
 				llvm::IRBuilder<> &builder,
@@ -128,6 +129,7 @@ namespace ast {
 				life_t::ref life,
 				bound_var_t::ref input_value,
 				runnable_scope_t::ref *scope_if_true) const;
+		virtual std::string repr() const;
 		virtual void render(render_state_t &rs) const;
 	};
 
@@ -143,12 +145,13 @@ namespace ast {
 				life_t::ref life,
 				bound_var_t::ref input_value,
 				runnable_scope_t::ref *scope_if_true) const;
+		virtual std::string repr() const;
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<predicate_t::ref> params;
 	};
 
-	struct expression_t : public statement_t, public predicate_t, public condition_t {
+	struct expression_t : public statement_t, public condition_t {
 		typedef ptr<const expression_t> ref;
 
 		static const syntax_kind_t SK = sk_expression;
@@ -166,13 +169,6 @@ namespace ast {
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const = 0;
-
-		virtual bound_var_t::ref resolve_match(
-				llvm::IRBuilder<> &builder,
-				scope_t::ref scope,
-				life_t::ref life,
-				bound_var_t::ref input_value,
-				runnable_scope_t::ref *scope_if_true) const;
 
 		/* when resolve_condition is not overriden, it just proxies through to resolve_expression */
 		virtual bound_var_t::ref resolve_condition(
@@ -1077,7 +1073,7 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 	};
 
-	struct literal_expr_t : public expression_t {
+	struct literal_expr_t : public expression_t, public predicate_t {
 		typedef ptr<const literal_expr_t> ref;
 
 		static const syntax_kind_t SK = sk_literal_expr;
@@ -1088,6 +1084,13 @@ namespace ast {
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const;
+		virtual bound_var_t::ref resolve_match(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				life_t::ref life,
+				bound_var_t::ref input_value,
+				runnable_scope_t::ref *scope_if_true) const;
+		virtual std::string repr() const;
 		virtual void render(render_state_t &rs) const;
 	};
 
