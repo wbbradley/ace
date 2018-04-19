@@ -25,16 +25,15 @@ def open(name str, mode str) File
 def close(f File)
 	state := f.state
 	when state is
-		Open
-			let fp = state.fp
+		Open(fp)
 			if fp != null
 				posix.fclose(fp)
 			state.fp = null
 			f.state = Closed
 		Closed
 			print("Error: attempt to close a file that is already closed.")
-		Error
-			print("Error: attempt to close a file " + f.filename + " that has already seen error " + state.errno)
+		Error(errno)
+			print("Error: attempt to close a file " + f.filename + " that has already seen error " + errno)
 
 [global]
 def __finalize__(of Open)

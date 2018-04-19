@@ -112,6 +112,10 @@ namespace ast {
 		block->render(rs);
 	}
 
+	std::string literal_expr_t::repr() const {
+		return token.text;
+	}
+
 	void literal_expr_t::render(render_state_t &rs) const {
 		switch (token.tk) {
 		case tk_string:
@@ -362,6 +366,23 @@ namespace ast {
 		}
 	}
 
+	std::string ctor_predicate_t::repr() const {
+		std::stringstream ss;
+		ss << token.text;
+		if (params.size() != 0) {
+			ss << "(";
+			const char *delim = "";
+			for (auto predicate : params) {
+				ss << delim;
+				ss << predicate->repr();
+				delim = ",";
+			}
+			ss << ")";
+		}
+		return ss.str();
+	}
+
+
 	void ctor_predicate_t::render(render_state_t &rs) const {
 		rs.ss << C_ID << token.text << C_RESET;
 		if (params.size() != 0) {
@@ -374,6 +395,10 @@ namespace ast {
 			}
 			rs.ss << ")";
 		}
+	}
+
+	std::string irrefutable_predicate_t::repr() const {
+		return token.text;
 	}
 
 	void irrefutable_predicate_t::render(render_state_t &rs) const {
