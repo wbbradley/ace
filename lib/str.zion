@@ -179,10 +179,10 @@ def decode(b bytes, fmt str) str?
 		assert(res != null)
 		posix.memcpy(res, b.data, b_len)
 		res[b_len] = 0
-		return str(OwningBuffer(res, b_len))
+		return Just(str(OwningBuffer(res, b_len)))
 	else
 		panic("unknown format to decode: " + fmt)
-		return null
+		return Empty
 
 def strip(s str) str
 	var start int = 0
@@ -299,7 +299,7 @@ def __in__(find_ str, s_ str) bool
 def find(s_ str, find_ str, start int) int?
 	real_find_len := len(find_)
 	if real_find_len == 0
-		return 0
+		return Just(0)
 
 	# set up a search for the remaining characters (after the first)
 	c := find_[0]
@@ -308,7 +308,7 @@ def find(s_ str, find_ str, start int) int?
 	
 	var s_len int = len(s_) - start
 	if s_len <= 0
-		return null
+		return Empty
 
 	var s = &unsafe_access(s_)[start]
 
@@ -321,10 +321,10 @@ def find(s_ str, find_ str, start int) int?
 
 		if c == cur
 			if posix.memcmp(s, find, find_len) == 0
-				return start
+				return Just(start)
 		start += 1
 
-	return null
+	return Empty
 
 def replace(s str, find_ str, repl str) str
 	if len(find_) == 0
@@ -334,16 +334,17 @@ def replace(s str, find_ str, repl str) str
 	var sofar str
 	while cur < len(s)
 		i := find(s, find_, cur)
-		if i != null
-			sofar += s[cur:i]
-			sofar += repl
-			cur = i + len(find_)
-		else
-			if len(sofar) == 0
-				return s
-			else
-				sofar += s[cur:len(s)]
-				return sofar
+		when i is
+			Just(i)
+				sofar += s[cur:i]
+				sofar += repl
+				cur = i + len(find_)
+			Empty
+				if len(sofar) == 0
+					return s
+				else
+					sofar += s[cur:len(s)]
+					return sofar
 
 	return sofar
 			

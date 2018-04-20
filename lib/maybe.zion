@@ -1,5 +1,5 @@
 global
 
 type Maybe T is
-	Just T
+	Just(t T)
 	Empty

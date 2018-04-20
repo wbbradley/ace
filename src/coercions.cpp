@@ -182,9 +182,15 @@ std::vector<llvm::Value *> get_llvm_values(
 	llvm_values.reserve(vars.size());
 
 	if (type_args->args.size() != vars.size()) {
-		throw user_error(location, "invalid parameter count to function call. expected %d parameters, got %d",
+		dbg();
+		auto error = user_error(location, "invalid parameter count to function call. expected %d parameters, got %d",
 				(int)type_args->args.size(),
 				(int)vars.size());
+		error.add_info(type_args->get_location(), "target args is %s",
+				type_args->str().c_str());
+		error.add_info(location, "input args is [%s]",
+				join_with(vars, ", ", [] (bound_var_t::ref var) -> std::string { return var->str(); }).c_str());
+		throw error;
 	}
 
 	auto type_iter = type_args->args.begin();

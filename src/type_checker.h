@@ -31,6 +31,16 @@ bound_var_t::ref extract_member_variable(
 		std::string member_name,
 		bool as_ref,
 		types::type_t::ref expected_type);
+bound_var_t::ref extract_member_by_index(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		location_t location,
+		bound_var_t::ref bound_var,
+		bound_type_t::ref bound_obj_type,
+		int index,
+		std::string member_name,
+		bool as_ref);
 ptr<ast::callsite_expr_t> expand_callsite_string_literal(
 		token_t token,
 		std::string module,

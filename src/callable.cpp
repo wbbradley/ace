@@ -35,8 +35,8 @@ bound_var_t::ref instantiate_data_type_ctor(
 		const unification_t *unification)
 {
 	/* we shouldn't be here unless we found something to substitute */
-	debug_above(4, log(log_info, "building substitution for %s",
-				node->token.str().c_str()));
+	debug_above(4, log(log_info, "building substitution for %s with %s",
+				unchecked_fn->str().c_str(), node->token.str().c_str()));
 	auto unchecked_data_ctor = dyncast<const unchecked_data_ctor_t>(unchecked_fn);
 	assert(unchecked_data_ctor != nullptr);
 	assert(!unchecked_data_ctor->native);
@@ -515,6 +515,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 	program_scope_t::ref program_scope = scope->get_program_scope();
 	std::string function_name = switch_std_main(name_token.text);
 
+	dbg_when(name_token.text == "Just")
 	indent_logger indent(name_token.location, 5,
 			string_format("instantiating function " c_id("%s") " at %s", function_name.c_str(),
 				name_token.location.str().c_str()));
