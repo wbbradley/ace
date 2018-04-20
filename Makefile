@@ -24,7 +24,7 @@ ifeq ($(UNAME),Darwin)
 	CPP=$(CLANG)++
 	CC=$(CLANG)
 	LINKER=$(CPP)
-	STDCPP=c++11
+	STDCPP=c++14
 	STDCPPLIB=-stdlib=libc++
 	LLVM_VERSION = release_50
 	LLVM_DEBUG_ROOT = $(HOME)/opt/llvm/$(LLVM_VERSION)/Debug
@@ -38,7 +38,7 @@ ifeq ($(UNAME),Linux)
 	CPP=ccache g++
 	CC=ccache gcc
 	LINKER=$(CPP)
-	STDCPP=c++11
+	STDCPP=c++14
 	STDCPPLIB=
 	PLATFORM_CPP_FLAGS = \
 				 -I/usr/include/c++/5 \

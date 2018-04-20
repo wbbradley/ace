@@ -150,7 +150,13 @@ struct scope_impl_t : public virtual BASE {
 	}
 
 	void put_nominal_typename(const std::string &type_name, types::type_t::ref expansion) {
-		assert(env_map.find(type_name) == env_map.end());
+		auto iter = env_map.find(type_name);
+		if (iter != env_map.end()) {
+			auto error = user_error(expansion->get_location(), "duplicate type %s found", type_name.c_str());
+			error.add_info((*iter).second.second->get_location(), "see earlier type %s here", 
+					(*iter).second.second->str().c_str());
+			throw error;
+		}
 		put_typename_impl(get_parent_scope(), scope_name, env_map, type_name, expansion, false /*is_structural*/);
 	}
 

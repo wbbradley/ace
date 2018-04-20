@@ -115,6 +115,52 @@ namespace types {
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 	};
 
+	struct type_product_t : public type_t {
+		typedef ptr<const type_product_t> ref;
+
+		virtual product_kind_t get_pk() const = 0;
+		virtual type_t::refs get_dimensions() const = 0;
+	};
+
+	struct type_args_t : public type_product_t {
+		typedef ptr<const type_args_t> ref;
+
+		type_args_t(type_t::refs args, identifier::refs names);
+
+		virtual product_kind_t get_pk() const;
+		virtual type_t::refs get_dimensions() const;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
+		virtual int ftv_count() const;
+		virtual std::set<std::string> get_ftvs() const;
+		virtual type_t::ref rebind(const map &bindings) const;
+		virtual location_t get_location() const;
+		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
+
+		type_t::refs args;
+		identifier::refs names;
+	};
+
+	struct type_data_t : public type_t {
+		type_data_t(location_t location, std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs);
+
+		location_t location;
+		std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs;
+
+		typedef ptr<const type_data_t> ref;
+
+		virtual int get_precedence() const { return 3; }
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
+		virtual int ftv_count() const;
+		virtual std::set<std::string> get_ftvs() const;
+		virtual type_t::ref rebind(const map &bindings) const;
+		virtual location_t get_location() const;
+		virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
+		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
+		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
+	};
+
 	bool is_type_id(type_t::ref type, const std::string &type_name, env_t::ref env);
 	bool is_ptr_type_id(type_t::ref type, const std::string &type_name, env_t::ref env, bool allow_maybe=false);
 	bool is_managed_ptr(types::type_t::ref type, env_t::ref env);
@@ -165,13 +211,6 @@ namespace types {
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
 		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
-	};
-
-	struct type_product_t : public type_t {
-		typedef ptr<const type_product_t> ref;
-
-		virtual product_kind_t get_pk() const = 0;
-		virtual type_t::refs get_dimensions() const = 0;
 	};
 
 	struct type_any_of_t : public type_t {
@@ -253,25 +292,6 @@ namespace types {
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 
 		type_t::ref element_type;
-	};
-
-	struct type_args_t : public type_product_t {
-		typedef ptr<const type_args_t> ref;
-
-		type_args_t(type_t::refs args, identifier::refs names);
-
-		virtual product_kind_t get_pk() const;
-		virtual type_t::refs get_dimensions() const;
-
-		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
-		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
-		virtual location_t get_location() const;
-		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
-
-		type_t::refs args;
-		identifier::refs names;
 	};
 
 	struct type_struct_t : public type_product_t {
@@ -476,12 +496,14 @@ types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs);
 types::type_module_t::ref type_module(types::type_t::ref module);
 types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
+types::type_struct_t::ref type_struct(types::type_args_t::ref type_args);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_args_t::ref type_args(types::type_t::refs args, const identifier::refs &names={});
 types::type_function_t::ref type_function(types::type_t::ref type_constraints, types::type_t::ref args, types::type_t::ref return_type);
 types::type_function_closure_t::ref type_function_closure(types::type_t::ref function);
 types::type_t::ref type_and(types::type_t::refs terms);
 types::type_t::ref type_eq(types::type_t::ref lhs, types::type_t::ref rhs, location_t location);
+types::type_t::ref type_data(location_t location, std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs);
 types::type_t::ref type_maybe(types::type_t::ref just, env_t::ref env);
 types::type_ptr_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_ref(types::type_t::ref raw);

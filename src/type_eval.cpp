@@ -231,6 +231,10 @@ namespace types {
 		return shared_from_this();
 	}
 
+	type_t::ref type_data_t::eval_core(env_t::ref env, bool get_structural_env) const {
+		return shared_from_this();
+	}
+
 	type_t::ref type_operator_t::eval_core(env_t::ref env, bool get_structural_type) const {
 		auto oper_ = oper->eval_core(env, get_structural_type);
 

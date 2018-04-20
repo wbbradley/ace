@@ -13,15 +13,6 @@
 #include "types.h"
 #include "code_id.h"
 
-types::name_index_t get_name_index_from_ids(identifier::refs ids) {
-	types::name_index_t name_index;
-	int i = 0;
-	for (auto id : ids) {
-		name_index[id->get_name()] = i++;
-	}
-	return name_index;
-}
-
 bound_var_t::ref bind_ctor_to_scope(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -41,7 +32,7 @@ bound_var_t::ref bind_ctor_to_scope(
 	assert(type_args != nullptr);
 
 	/* let's create the data type from the type args in the ctor function */
-	types::type_t::ref data_type = type_ptr(type_managed(type_struct(type_args->args, get_name_index_from_ids(type_args->names))));
+	types::type_t::ref data_type = type_ptr(type_managed(type_struct(type_args)));
 
 	bound_type_t::ref bound_data_type = upsert_bound_type(builder, scope, data_type);
 
@@ -256,28 +247,26 @@ void ast::data_type_t::register_type(
 		types::name_index_t name_index;
 		name_index["variant"] = 0;
 
-		/* create the tag type */
+		/* create the data type's environment entry */
+		types::type_t::ref expansion = type_data(id->get_location(), ctor_pairs);
+		for (auto type_variable : reverse(type_variables)) {
+			expansion = type_lambda(type_variable, expansion);
+		}
+		scope->put_nominal_typename(id->get_name(), expansion);
+
+		/* create the ctor return type */
 		identifier::ref data_type_id = make_iid_impl(
 					scope->make_fqn(id->get_name()),
 					id->get_location());
-		types::type_t::ref ctor_return_type = type_id(data_type_id);
 
+		types::type_t::ref ctor_return_type = type_id(data_type_id);
 		for (auto type_variable : type_variables) {
-			expansion = type_lambda(type_variable, expansion);
 			ctor_return_type = type_operator(ctor_return_type, ::type_variable(type_variable));
 		}
 
-		types::type_t::map data_ctors;
 		for (auto &ctor_pair : ctor_pairs) {
 			identifier::ref ctor_id = make_code_id(ctor_pair.first);
-			if (in(ctor_id->get_name(), data_ctors)) {
-				auto original = data_ctors[ctor_id->get_name()];
-				auto error = user_error(ctor_id->get_location, "duplicate constructor found");
-				error.add_info(original->get_location(), "see first instance of %s here", original->str().c_str());
-				throw error;
-			}
-
-			if (ctor_pair.second->args.size() == 0) {
+			if (ctor_pair.second->args.size() != 0) {
 				bound_type_t::ref bound_tag_type = upsert_bound_type(builder, scope, ctor_return_type);
 				bound_var_t::ref tag = llvm_create_global_tag(
 						builder, scope, bound_tag_type, ctor_id->get_name(),
@@ -285,24 +274,11 @@ void ast::data_type_t::register_type(
 				/* record this tag variable for use later */
 				scope->put_bound_variable(ctor_id->get_name(), tag);
 
-				options.push_back(type_id(ctor_id));
-				data_ctors[ctor_id->get_name()] = options.back();
-
 				debug_above(7, log(log_info, "instantiated nullary data ctor %s", tag->str().c_str()));
 			} else {
 				/* create and register an unchecked data ctor */
 				types::type_function_t::ref data_ctor_sig = type_function(nullptr, 
 						ctor_pair.second, ctor_return_type);
-
-				options.push_back(
-						type_ptr(
-							type_managed(
-								type_struct(
-									ctor_pair.second->args,
-								   	get_name_index_from_ids(ctor_pair.second->names)))));
-
-				data_ctors[ctor_id->get_name()] = options.back();
-		scope->put_nominal_typename(ctor_id, options.back());
 
 				module_scope->put_unchecked_variable(
 						ctor_id->get_name(),
@@ -310,10 +286,6 @@ void ast::data_type_t::register_type(
 							module_scope, data_ctor_sig, false /*native*/));
 			}
 		}
-
-		types::type_t::ref expansion = type_sum(options);
-		scope->put_nominal_typename(id->get_name(), expansion);
-
 	} else {
 		auto error = user_error(id->get_location(), "data types cannot be registered twice");
 		error.add_info(existing_type->get_location(), "see prior type registered here");
