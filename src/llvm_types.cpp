@@ -81,16 +81,6 @@ bound_type_t::ref create_bound_extern_type(
 
 	assert(!scope->get_bound_type(type_extern->get_signature()));
 
-	auto ftvs = type_extern->get_ftvs();
-	if (ftvs.size() != 0) {
-		throw user_error(type_extern->get_location(),
-				"unable to instantiate type %s because free variables [%s] still exist",
-				type_extern->str().c_str(),
-				join_with(ftvs, ", ", [] (std::string a) -> std::string {
-					return string_format(c_id("%s"), a.c_str());
-					}).c_str());
-	}
-
 	bound_type_t::ref var_ref_type = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 	auto bound_type = bound_type_t::create(type_extern,
 			type_extern->get_location(),
@@ -109,17 +99,6 @@ bound_type_t::ref create_bound_ptr_type(
 	ptr<program_scope_t> program_scope = scope->get_program_scope();
 
 	assert(!scope->get_bound_type(type_ptr->get_signature()));
-
-	auto ftvs = type_ptr->get_ftvs();
-	if (ftvs.size() != 0) {
-		throw user_error(type_ptr->get_location(),
-				"unable to instantiate type %s because free variables [%s] still exist",
-				type_ptr->str().c_str(),
-				join_with(ftvs, ", ", [] (std::string a) -> std::string {
-					return string_format(c_id("%s"), a.c_str());
-					}).c_str());
-		return nullptr;
-	}
 
 	debug_above(8, log("recursing in to create element type %s", type_ptr->element_type->str().c_str()));
 	/* get or create the element type's bound type, if it exists */
@@ -559,6 +538,23 @@ bound_type_t::ref create_bound_maybe_type(
 	}
 }
 
+bound_type_t::ref create_bound_data_type(
+               llvm::IRBuilder<> &builder,
+               ptr<scope_t> scope,
+               const ptr<const types::type_data_t> &data)
+{
+	assert(!scope->get_bound_type(data->get_signature()));
+	auto var_ptr_type = scope->get_program_scope()->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
+	auto bound_type = bound_type_t::create(data,
+			data->get_location(),
+			var_ptr_type->get_llvm_type());
+
+	ptr<program_scope_t> program_scope = scope->get_program_scope();
+	program_scope->put_bound_type(bound_type);
+
+	return bound_type;
+}
+
 bound_type_t::ref create_bound_function_type(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
@@ -617,6 +613,8 @@ bound_type_t::ref create_bound_type(
 		return create_bound_struct_type(builder, scope, struct_type);
 	} else if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
 		return create_bound_tuple_type(builder, scope, tuple_type);
+	} else if (auto data = dyncast<const types::type_data_t>(type)) {
+		return create_bound_data_type(builder, scope, data);
 	} else if (auto function = dyncast<const types::type_function_t>(type)) {
 		return create_bound_function_type(builder, scope, function);
 	} else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {

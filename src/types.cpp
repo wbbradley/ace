@@ -768,8 +768,8 @@ namespace types {
 	const token_kind type_eq_t::TK = tk_binary_equal;
 
 	type_eq_t::type_eq_t(type_t::ref lhs, type_t::ref rhs, location_t location) :
-	   	lhs(lhs), rhs(rhs), location(location) {
-	}
+		lhs(lhs), rhs(rhs), location(location) {
+		}
 
 	std::ostream &type_eq_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		parens_t parens(os, parent_precedence, get_precedence());
@@ -1126,6 +1126,68 @@ namespace types {
 		return inner->get_location();
 	}
 
+	type_data_t::type_data_t(location_t location, std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs) :
+		location(location),
+		ctor_pairs(ctor_pairs)
+	{
+	}
+
+	std::ostream &type_data_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
+		os << "<type_data_t placeholder>";
+		return os;
+	}
+
+	void type_data_t::encode(env_t::ref env, std::vector<uint16_t> &encoding) const {
+		assert(false);
+	}
+
+	int type_data_t::ftv_count() const {
+		int ftv_sum = 0;
+		for (auto ctor_pair : ctor_pairs) {
+			ftv_sum += ctor_pair.second->ftv_count();
+		}
+		return ftv_sum;
+	}
+
+	std::set<std::string> type_data_t::get_ftvs() const {
+		std::set<std::string> set;
+		for (auto ctor_pair : ctor_pairs) {
+			std::set<std::string> option_set = ctor_pair.second->get_ftvs();
+			set.insert(option_set.begin(), option_set.end());
+		}
+		return set;
+	}
+
+	type_t::ref type_data_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
+			return shared_from_this();
+		}
+
+		bool found_new = false;
+		std::vector<std::pair<token_t, type_args_t::ref>> new_ctor_pairs;
+		for (auto ctor_pair : ctor_pairs) {
+			types::type_args_t::ref elem = dyncast<const type_args_t>(ctor_pair.second->rebind(bindings));
+			assert(elem != nullptr);
+			new_ctor_pairs.push_back({ctor_pair.first, elem});
+			if (elem != ctor_pair.second) {
+				found_new = true;
+			}
+		}
+		if (found_new) {
+			return ::type_data(location, new_ctor_pairs);
+		} else {
+			return shared_from_this();
+		}
+	}
+
+	location_t type_data_t::get_location() const {
+		return location;
+	}
+
+	type_t::ref type_data_t::boolean_refinement(bool elimination_value, env_t::ref env) const {
+		return shared_from_this();
+	}
+
 	bool is_ptr_type_id(
 			type_t::ref type,
 			const std::string &type_name,
@@ -1348,6 +1410,21 @@ types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs) 
 	return make_ptr<types::type_subtype_t>(lhs, rhs);
 }
 
+types::name_index_t get_name_index_from_ids(identifier::refs ids) {
+	types::name_index_t name_index;
+	int i = 0;
+	for (auto id : ids) {
+		name_index[id->get_name()] = i++;
+	}
+	return name_index;
+}
+
+types::type_struct_t::ref type_struct(types::type_args_t::ref type_args) {
+	return ::type_struct(
+			type_args->args,
+			get_name_index_from_ids(type_args->names));
+}
+
 types::type_struct_t::ref type_struct(
 	   	types::type_t::refs dimensions,
 	   	types::name_index_t name_index)
@@ -1531,6 +1608,13 @@ types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body)
 types::type_t::ref type_extern(types::type_t::ref inner)
 {
     return make_ptr<types::type_extern_t>(inner);
+}
+
+types::type_t::ref type_data(
+		location_t location,
+	   	std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs)
+{
+	return make_ptr<types::type_data_t>(location, ctor_pairs);
 }
 
 types::type_t::ref type_list_type(types::type_t::ref element) {
