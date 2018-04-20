@@ -1311,12 +1311,8 @@ bound_var_t::ref extract_member_by_index(
 		bound_type_t::ref bound_obj_type,
 		int index,
 		std::string member_name,
-		bool as_ref,
-		types::type_t::ref expected_type)
+		bool as_ref)
 {
-	if (expected_type != nullptr) {
-		debug_above(8, log("binary integer op is expecting a %s", expected_type->str().c_str()));
-	}
 	types::type_struct_t::ref struct_type = get_struct_type_from_bound_type(
 			scope, location, bound_obj_type);
 
@@ -1463,7 +1459,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 
 		bound_var_t::ref value = extract_member_by_index(builder, scope, life,
 				get_location(), lhs_val, lhs_val->type, member_index,
-				string_format("%d", member_index), as_ref, expected_type);
+				string_format("%d", member_index), as_ref);
 
 		if (rhs != nullptr) {
 			/* let's assign into this tuple slot */
@@ -2708,7 +2704,7 @@ bound_var_t::ref extract_member_variable(
 
 		return extract_member_by_index(builder, scope, 
 				life, location, bound_var, bound_obj_type, index,
-				member_name, as_ref, expected_type);
+				member_name, as_ref);
 
 	} else {
 		auto bindings = scope->get_type_variable_bindings();
@@ -3230,9 +3226,13 @@ void type_check_program_variable(
 		stmt->resolve_statement(
 				builder, unchecked_var->module_scope,
 				nullptr, nullptr, nullptr);
-	} else if (auto data_ctor = dyncast<const ast::type_product_t>(node)) {
+	} else if (auto product = dyncast<const ast::type_product_t>(node)) {
+		/* ignore until instantiation at a callsite */
+	} else if (auto data_ctor = dyncast<const ast::data_type_t>(node)) {
 		/* ignore until instantiation at a callsite */
 	} else {
+		log("unchecked node is %s", node->str().c_str());
+		dbg();
 		panic("unhandled unchecked node at module scope");
 	}
 }

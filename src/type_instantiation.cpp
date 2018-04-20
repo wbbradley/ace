@@ -1,4 +1,5 @@
 #include "zion.h"
+#include "logger.h"
 #include <iostream>
 #include <numeric>
 #include <list>
@@ -12,6 +13,15 @@
 #include "types.h"
 #include "code_id.h"
 
+types::name_index_t get_name_index_from_ids(identifier::refs ids) {
+	types::name_index_t name_index;
+	int i = 0;
+	for (auto id : ids) {
+		name_index[id->get_name()] = i++;
+	}
+	return name_index;
+}
+
 bound_var_t::ref bind_ctor_to_scope(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -24,37 +34,31 @@ bound_var_t::ref bind_ctor_to_scope(
 
 	/* create or find an existing ctor function that satisfies the term of
 	 * this node */
-	debug_above(5, log(log_info, "finding/creating data ctor for " c_type("%s") " with return type %s",
-			id->str().c_str(), function->return_type->str().c_str()));
+	debug_above(5, log(log_info, "finding/creating data ctor for " c_type("%s") " with type %s",
+				id->str().c_str(), function->str().c_str()));
 
-	debug_above(5, log(log_info, "function return_type %s expands to %s",
-				function->return_type->str().c_str(),
-				function->return_type->eval(scope)->str().c_str()));
+	types::type_args_t::ref type_args = dyncast<const types::type_args_t>(function->args);
+	assert(type_args != nullptr);
 
-	if (auto args = dyncast<const types::type_args_t>(function->args)) {
-		bound_type_t::refs bound_args = upsert_bound_types(builder, scope, args->args);
+	/* let's create the data type from the type args in the ctor function */
+	types::type_t::ref data_type = type_ptr(type_managed(type_struct(type_args->args, get_name_index_from_ids(type_args->names))));
 
-		/* now that we know the parameter types, let's see what the term looks
-		 * like */
-		debug_above(5, log(log_info, "ctor type should be %s", function->str().c_str()));
+	bound_type_t::ref bound_data_type = upsert_bound_type(builder, scope, data_type);
 
-		if (function->return_type != nullptr) {
-			/* now we know the type of the ctor we want to create. let's check
-			 * whether this ctor already exists. if so, we'll just return it. if
-			 * not, we'll generate it. */
-			auto tuple_pair = upsert_tagged_tuple_ctor(builder, scope, id, location,
-					function->return_type);
+	/* now that we know the parameter types, let's see what the term looks
+	 * like */
+	debug_above(5, log(log_info, "ctor type should be %s", function->str().c_str()));
 
-			debug_above(5, log(log_info, "created a ctor %s", tuple_pair.first->str().c_str()));
-			return tuple_pair.first;
-		} else {
-			throw user_error(location,
-					"constructor is not returning a product type: %s",
-					function->str().c_str());
-		}
-	} else {
-		throw user_error(location, "arguments do not appear to be ... erm... arguments...");
-	}
+	assert(function->return_type != nullptr);
+
+	/* now we know the type of the ctor we want to create. let's check
+	 * whether this ctor already exists. if so, we'll just return it. if
+	 * not, we'll generate it. */
+	auto ctor = upsert_tagged_tuple_ctor(builder, scope, id, location,
+			data_type, function->return_type);
+
+	debug_above(5, log(log_info, "created a ctor %s", ctor->str().c_str()));
+	return ctor;
 }
 
 void get_generics_and_lambda_vars(
@@ -122,6 +126,8 @@ void instantiate_data_ctor_type(
 		identifier::ref id,
 		bool native)
 {
+	indent_logger indent(node->get_location(), 5,
+			string_format("instantiating data ctor %s", id->str().c_str()));
 	/* get the name of the ctor */
 	std::string tag_name = id->get_name();
 	std::string fqn_tag_name = scope->make_fqn(tag_name);
@@ -250,8 +256,6 @@ void ast::data_type_t::register_type(
 		types::name_index_t name_index;
 		name_index["variant"] = 0;
 
-		types::type_t::ref expansion = type_ptr(type_managed(type_struct({}, {})));
-
 		/* create the tag type */
 		identifier::ref data_type_id = make_iid_impl(
 					scope->make_fqn(id->get_name()),
@@ -262,10 +266,16 @@ void ast::data_type_t::register_type(
 			expansion = type_lambda(type_variable, expansion);
 			ctor_return_type = type_operator(ctor_return_type, ::type_variable(type_variable));
 		}
-		scope->put_structural_typename(id->get_name(), expansion);
 
+		types::type_t::map data_ctors;
 		for (auto &ctor_pair : ctor_pairs) {
 			identifier::ref ctor_id = make_code_id(ctor_pair.first);
+			if (in(ctor_id->get_name(), data_ctors)) {
+				auto original = data_ctors[ctor_id->get_name()];
+				auto error = user_error(ctor_id->get_location, "duplicate constructor found");
+				error.add_info(original->get_location(), "see first instance of %s here", original->str().c_str());
+				throw error;
+			}
 
 			if (ctor_pair.second->args.size() == 0) {
 				bound_type_t::ref bound_tag_type = upsert_bound_type(builder, scope, ctor_return_type);
@@ -275,11 +285,24 @@ void ast::data_type_t::register_type(
 				/* record this tag variable for use later */
 				scope->put_bound_variable(ctor_id->get_name(), tag);
 
+				options.push_back(type_id(ctor_id));
+				data_ctors[ctor_id->get_name()] = options.back();
+
 				debug_above(7, log(log_info, "instantiated nullary data ctor %s", tag->str().c_str()));
 			} else {
 				/* create and register an unchecked data ctor */
 				types::type_function_t::ref data_ctor_sig = type_function(nullptr, 
 						ctor_pair.second, ctor_return_type);
+
+				options.push_back(
+						type_ptr(
+							type_managed(
+								type_struct(
+									ctor_pair.second->args,
+								   	get_name_index_from_ids(ctor_pair.second->names)))));
+
+				data_ctors[ctor_id->get_name()] = options.back();
+		scope->put_nominal_typename(ctor_id, options.back());
 
 				module_scope->put_unchecked_variable(
 						ctor_id->get_name(),
@@ -287,6 +310,10 @@ void ast::data_type_t::register_type(
 							module_scope, data_ctor_sig, false /*native*/));
 			}
 		}
+
+		types::type_t::ref expansion = type_sum(options);
+		scope->put_nominal_typename(id->get_name(), expansion);
+
 	} else {
 		auto error = user_error(id->get_location(), "data types cannot be registered twice");
 		error.add_info(existing_type->get_location(), "see prior type registered here");

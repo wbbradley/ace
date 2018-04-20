@@ -723,32 +723,35 @@ std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
 	bound_type_t::ref data_type = upsert_bound_type(builder, scope, tuple_type);
 
 	bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(builder,
-			scope, data_type,
+			scope, data_type, data_type,
 			make_iid_impl(tuple_type->repr(), tuple_type->get_location()),
 			node->get_location());
 
 	return {tuple_ctor, data_type};
 }
 
-std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tagged_tuple_ctor(
+bound_var_t::ref upsert_tagged_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
 		location_t location,
-		types::type_t::ref type)
+		types::type_t::ref data_type,
+		types::type_t::ref return_type)
 {
 	assert(id != nullptr);
-	assert(type != nullptr);
+	assert(data_type != nullptr);
+	assert(return_type != nullptr);
 
 	/* this is a tuple constructor function */
 	program_scope_t::ref program_scope = scope->get_program_scope();
-	bound_type_t::ref data_type = upsert_bound_type(builder, scope, type);
+	bound_type_t::ref bound_data_type = upsert_bound_type(builder, scope, data_type);
+	bound_type_t::ref bound_return_type = upsert_bound_type(builder, scope, return_type);
 
-	debug_above(4, log(log_info, "found bound type %s", data_type->str().c_str()));
+	debug_above(4, log(log_info, "found bound type %s", bound_data_type->str().c_str()));
 	bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(builder,
-			scope, data_type, id, location);
+			scope, bound_data_type, bound_return_type, id, location);
 
-	return {tagged_tuple_ctor, data_type};
+	return tagged_tuple_ctor;
 }
 
 llvm::Constant *llvm_dim_offset_gep(llvm::StructType *llvm_struct_type, int index) {
@@ -1041,7 +1044,8 @@ int get_ctor_id_index(program_scope_t::ref program_scope, llvm::IRBuilder<> &bui
 bound_var_t::ref get_or_create_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		bound_type_t::ref data_type,
+		bound_type_t::ref bound_data_type,
+		bound_type_t::ref bound_return_type,
 		identifier::ref id,
 		location_t location)
 {
@@ -1049,12 +1053,13 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	auto program_scope = scope->get_program_scope();
 
-	types::type_t::ref type = data_type->get_type();
+	types::type_t::ref data_type = bound_data_type->get_type();
+	types::type_t::ref return_type = bound_return_type->get_type();
 
 	debug_above(4, log(log_info, "get_or_create_tuple_ctor evaluating %s with llvm type %s",
-				type->str().c_str(),
-				llvm_print(data_type->get_llvm_specific_type()).c_str()));
-	types::type_t::ref expanded_type = type->eval(scope, true);
+				data_type->str().c_str(),
+				llvm_print(bound_data_type->get_llvm_specific_type()).c_str()));
+	types::type_t::ref expanded_type = data_type->eval(scope, true);
 
 	types::type_product_t::ref product_type = dyncast<const types::type_product_t>(expanded_type);
 
@@ -1077,11 +1082,11 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	if (product_type == nullptr) {
 		throw user_error(location,
 				"could not figure out what to do with %s",
-				type->str().c_str());
+				data_type->str().c_str());
 	}
 
 	types::type_args_t::ref type_args = ::type_args(types::without_refs(product_type->get_dimensions()));
-	types::type_function_t::ref function_type = ::type_function(nullptr, type_args, type);
+	types::type_function_t::ref function_type = ::type_function(nullptr, type_args, return_type);
 	bound_var_t::ref already_bound_function;
 	if (program_scope->has_bound(id->get_name(), function_type, &already_bound_function)) {
 		/* fulfill the "get_or_" part of this function name */
@@ -1095,19 +1100,19 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	life_t::ref life = make_ptr<life_t>(lf_function);
 
 	bound_var_t::ref dtor_fn = maybe_get_dtor(builder,
-			program_scope, data_type);
+			program_scope, bound_data_type);
 
 	bound_type_t::refs args = upsert_bound_types(builder, scope, type_args->args);
 	llvm::Value *llvm_alloced = llvm_call_allocator(
-			builder, program_scope, life, location, data_type,
+			builder, program_scope, life, location, bound_data_type,
 			dtor_fn, name, args);
 
-	assert(data_type->get_llvm_type() != nullptr);
+	assert(bound_data_type->get_llvm_type() != nullptr);
 
 	/* we've allocated enough space for the object type,
 	 * let's get our allocation as such */
 	llvm::Value *llvm_final_obj = llvm_maybe_pointer_cast(builder,
-			llvm_alloced, data_type);
+			llvm_alloced, bound_data_type->get_llvm_specific_type());
 
 	/* initialize the ctor_id */
 	int ctor_id_index = get_ctor_id_index(program_scope, builder);
@@ -1135,7 +1140,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	}
 
 	/* create a return statement for the final object. */
-	builder.CreateRet(llvm_final_obj);
+	builder.CreateRet(llvm_maybe_pointer_cast(builder, llvm_final_obj, bound_return_type->get_llvm_specific_type()));
 
 	llvm_verify_function(id->get_location(), llvm_function);
 

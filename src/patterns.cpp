@@ -18,7 +18,6 @@ void build_patterns(
 		llvm::BasicBlock *llvm_start_block,
 		const ast::pattern_block_t::refs &pattern_blocks,
 		bound_var_t::ref pattern_value,
-		bound_var_t::ref input_ctor_id,
 		bool *returns)
 {
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
@@ -58,16 +57,12 @@ void build_patterns(
 				llvm_function_current);
 
 		runnable_scope_t::ref scope_if_match;
-		bound_var_t::ref matched = predicate->resolve_match(
+		predicate->resolve_match(
 				builder, scope, life,
-				input_ctor_id,
+				pattern_value,
+				llvm_pattern_block,
+				llvm_next_merge,
 				&scope_if_match);
-
-		/* branch upon testing the type - zero means no-match */
-		llvm::Constant *zero = llvm::ConstantInt::get(matched->get_llvm_value()->getType(), 0);
-		builder.CreateCondBr(
-				builder.CreateICmpNE(matched->get_llvm_value(), zero),
-				llvm_pattern_block, llvm_next_merge);
 
 		/* save this as the "next" block to jump to (since we are travesering the patterns in
 		 * reverse order */
@@ -158,13 +153,7 @@ void ast::when_block_t::resolve_statement(
 		throw error;
 	}
 
-	std::set<int> possible_incoming_typeids;
-	types::get_runtime_typeids(pattern_value->type->get_type(), scope, possible_incoming_typeids);
-
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
-
-	bound_var_t::ref input_ctor_id = call_get_ctor_id(scope, life, shared_from_this(),
-			make_iid("input_ctor_id"), builder, pattern_value);
 
 	build_patterns(
 			builder,
@@ -174,7 +163,6 @@ void ast::when_block_t::resolve_statement(
 			builder.GetInsertBlock(),
 			pattern_blocks,
 			pattern_value,
-			input_ctor_id,
 			returns);
 }
 
@@ -198,35 +186,89 @@ bound_var_t::ref gen_null_check(
 	return value;
 }
 
-bound_var_t::ref ast::literal_expr_t::resolve_match(
+void ast::literal_expr_t::resolve_match(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		bound_var_t::ref input_value,
+		llvm::BasicBlock *llvm_match_block,
+		llvm::BasicBlock *llvm_no_match_block,
 		runnable_scope_t::ref *scope_if_true) const
 {
 	assert(false);
-	return nullptr;
 }
 
-bound_var_t::ref ast::ctor_predicate_t::resolve_match(
+void ast::ctor_predicate_t::resolve_match(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		bound_var_t::ref input_value,
+		llvm::BasicBlock *llvm_match_block,
+		llvm::BasicBlock *llvm_no_match_block,
 		runnable_scope_t::ref *scope_if_true) const
 {
-	assert(false);
-	return nullptr;
+	llvm::Function *llvm_function_current = llvm_get_function(builder);
+	bound_var_t::ref input_ctor_id = call_get_ctor_id(scope, life, shared_from_this(),
+			make_iid("input_ctor_id"), builder, input_value);
+
+	int ctor_id = atomize(token.text);
+	debug_above(7, log("matching ctor id %s = %d", token.text.c_str(), ctor_id));
+
+	/* check that this is the right ctor */
+	llvm::Value *match_bit = builder.CreateICmpEQ(input_ctor_id->get_llvm_value(), builder.getInt32(ctor_id));
+	match_bit->setName("ctor." + token.text + ".matched");
+
+	llvm::BasicBlock *llvm_next_check = llvm_match_block;
+	runnable_scope_t::ref scope_if_match_at_end = scope;
+
+	for (int i = params.size()-1; i >= 0; --i) {
+		llvm::BasicBlock *check_block = llvm::BasicBlock::Create(
+				builder.getContext(),
+				"check." + params[i]->repr(),
+				llvm_function_current);
+		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+		builder.SetInsertPoint(check_block);
+		bound_var_t::ref member = extract_member_by_index(
+				builder,
+				scope,
+				life,
+				params[i]->get_location(),
+				input_value,
+				input_value->type,
+				i,
+				token.text,
+				false /*as_ref*/);
+
+		/* resolve sub-patterns */
+		runnable_scope_t::ref scope_if_match = nullptr;
+		params[i]->resolve_match(builder, scope_if_match_at_end, life, 
+				member, llvm_next_check, llvm_no_match_block, &scope_if_match);
+		if (scope_if_match != nullptr) {
+			scope_if_match_at_end = scope_if_match;
+		}
+		llvm_next_check = check_block;
+	}
+
+	/* by this point llvm_next_check should point to either the next thing we need to check or the
+	 * final pattern block */
+	builder.CreateCondBr(match_bit, llvm_next_check, llvm_no_match_block);
+	*scope_if_true = scope_if_match_at_end;
 }
 
-bound_var_t::ref ast::irrefutable_predicate_t::resolve_match(
+void ast::irrefutable_predicate_t::resolve_match(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		bound_var_t::ref input_value,
+		llvm::BasicBlock *llvm_match_block,
+		llvm::BasicBlock *,
 		runnable_scope_t::ref *scope_if_true) const
 {
-	assert(false);
-	return nullptr;
+	if (token.is_ident(K(_)) && token.is_ident(K(else))) {
+		*scope_if_true = scope->new_runnable_scope("irrefutable.%s" + token.text);
+		(*scope_if_true)->put_bound_variable(token.text, input_value);
+	}
+
+	/* throw away this value, and continue */
+	builder.CreateBr(llvm_match_block);
 }

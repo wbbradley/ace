@@ -990,7 +990,7 @@ ast::predicate_t::ref ctor_predicate_t::parse(parse_state_t &ps) {
 				chomp_token(tk_comma);
 			}
 
-			auto predicate = predicate_t::parse(ps);
+			auto predicate = predicate_t::parse(ps, false /*allow_else*/);
 			params.push_back(predicate);
 			expect_comma = true;
 		}
@@ -1001,7 +1001,12 @@ ast::predicate_t::ref ctor_predicate_t::parse(parse_state_t &ps) {
 	return ctor;
 }
 
-ast::predicate_t::ref predicate_t::parse(parse_state_t &ps) {
+ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else) {
+	if (!allow_else && ps.token.is_ident(K(else))) {
+		throw user_error(ps.token.location, "illegal keyword " c_type("%s") " in a pattern match context",
+				ps.token.text.c_str());
+	}
+
 	if (ps.token.tk == tk_identifier) {
 		if (isupper(ps.token.text[0])) {
 			/* match a ctor */
@@ -1037,7 +1042,7 @@ ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 
 	auto pattern_block = ast::create<ast::pattern_block_t>(is_token);
 
-	pattern_block->predicate = predicate_t::parse(ps);
+	pattern_block->predicate = predicate_t::parse(ps, true /*allow_else*/);
 	pattern_block->block = block_t::parse(ps);
 	return pattern_block;
 }

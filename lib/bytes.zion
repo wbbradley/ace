@@ -9,12 +9,12 @@ type bytes has
 def len(b bytes) size_t
 	return b.cb
 
-def alloc(cb int) bytes?
+def alloc(cb int) bytes
 	if cb < 0
 		assert(false and "attempt to allocate " + cb + " bytes")
-		return null
 	let pb = posix.calloc(1, cb) as *?int8
-	return pb != null ? bytes(pb, cb) : null
+	assert(pb != null)
+	return bytes(pb, cb)
 
 def __finalize__(b bytes)
 	posix.free(b.data)

@@ -25,17 +25,19 @@ std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
 		types::type_tuple_t::ref tuple_type,
 		const ptr<const ast::item_t> &node);
 
-std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tagged_tuple_ctor(
+bound_var_t::ref upsert_tagged_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		identifier::ref id,
 		location_t location,
-		types::type_t::ref type);
+		types::type_t::ref data_type,
+		types::type_t::ref return_type);
 
 bound_var_t::ref get_or_create_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		bound_type_t::ref data_type,
+		bound_type_t::ref bound_data_type,
+		bound_type_t::ref bound_return_type,
 		identifier::ref id,
 		location_t location);
 
