@@ -22,7 +22,6 @@ def init()
 def hash(input_ bytes, key bytes) bytes
 	outlen := crypto_generichash_bytes_max()
 	out := alloc(outlen)
-	assert(out != null)
 	crypto_generichash(out.data, out.cb, input_.data, input_.cb, key.data, key.cb)
 	return out
 		
@@ -31,7 +30,6 @@ def hash(input_ bytes, key bytes) bytes
 def hash(input_ str) bytes
 	outlen := crypto_generichash_bytes_max()
 	out := alloc(outlen)
-	assert(out != null)
 	crypto_generichash(out.data, out.cb,
 		unsafe_access(input_) as *int8,
 		sizeof(char) * input_.length,

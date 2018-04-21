@@ -274,7 +274,7 @@ void ast::ctor_predicate_t::resolve_match(
 				casted_input,
 				casted_input->type,
 				i,
-				token.text,
+				params[i]->token.text,
 				false /*as_ref*/);
 
 		/* resolve sub-patterns */
@@ -304,7 +304,7 @@ void ast::irrefutable_predicate_t::resolve_match(
 		runnable_scope_t::ref *scope_if_true) const
 {
 	if (!(token.is_ident(K(_)) || token.is_ident(K(else)))) {
-		*scope_if_true = scope->new_runnable_scope("irrefutable.%s" + token.text);
+		*scope_if_true = scope->new_runnable_scope("irrefutable." + token.text);
 		(*scope_if_true)->put_bound_variable(token.text, input_value);
 	}
 

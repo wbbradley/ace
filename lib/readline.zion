@@ -25,12 +25,10 @@ def readline(fp *posix.FILE) Readline
 def readline(f file.File) Readline
 	when f.state is
 		Open(fp)
-			assert(fp != null)
 			return readline(fp)
 		Closed
 			return Error(-1)
 		Error(errno)
-			static_print(errno)
 			return Error(errno)
 
 type Lines LineReader has

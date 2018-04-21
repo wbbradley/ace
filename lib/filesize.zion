@@ -5,7 +5,7 @@ get posix
 
 type FileSize is
 	Size(cb uint64)
-	SizeError(errno posix.int)
+	Error(errno posix.int)
 
 [global]
 def size(fp *?posix.FILE) FileSize
@@ -17,7 +17,7 @@ def size(fp *?posix.FILE) FileSize
 		return Size(sz)
 	else
 		panic("Null file stream passed to size function")
-		return SizeError(-4)
+		return Error(-4)
 
 [global]
 def size(f file.File) FileSize

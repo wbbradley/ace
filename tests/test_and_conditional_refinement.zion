@@ -9,7 +9,8 @@ def maybe_a_line() str?
 def main()
 	let cur_line = maybe_a_line()
 	static_print(cur_line)
-	if cur_line != null and cur_line == "something"
-		let foobar = cur_line
-		static_print(foobar)
-
+	when cur_line is
+		Just(line)
+			if line == "something"
+				foobar := line
+				static_print(foobar)
