@@ -189,6 +189,9 @@ unification_t unify_core(
 	auto ptf_a = dyncast<const types::type_function_t>(a);
 	auto ptc_a = dyncast<const types::type_function_closure_t>(a);
 
+	auto ptd_a = dyncast<const types::type_data_t>(a);
+	auto ptd_b = dyncast<const types::type_data_t>(b);
+
 	if (pti_a != nullptr) {
 		/* we have reduced down to a type id for a */
 		auto a_name = pti_a->id->get_name();
@@ -224,6 +227,36 @@ unification_t unify_core(
 				return {true, "", bindings, coercions + 1, {}};
 			} else if (ptI_b != nullptr && a_name == MANAGED_CHAR) {
 				return {true, "", bindings, coercions + 1, {}};
+			}
+		}
+	}
+
+	if (ptd_a != nullptr) {
+		if (ptd_b != nullptr) {
+			if (ptd_a->name.text != ptd_b->name.text || ptd_a->type_vars.size() != ptd_b->type_vars.size()) {
+				return {false, "type mismatch", bindings, coercions, {}};
+			} else {
+				for (int i = 0; i < ptd_a->type_vars.size(); ++i) {
+					unification_t unification = unify_core(
+							ptd_a->type_vars[i], ptd_b->type_vars[i], env, bindings, coercions, depth, false /*allow_variance*/);
+					if (unification.result) {
+						bindings = unification.bindings;
+					} else {
+						return {false, "type mismatch", bindings, coercions, {}};
+					}
+				}
+				return {true, "", bindings, coercions, {}};
+			}
+		} else {
+			if (ptd_a->name.text == "Maybe" && depth == 0) {
+				if (types::is_type_id(b, NULL_TYPE, nullptr)) {
+					return {true, "", bindings, coercions + 1, {}};
+				} else {
+					assert(ptd_a->type_vars.size() == 1);
+					return unify_core(
+							ptd_a->type_vars[0], b, 
+							env, bindings, coercions, depth, allow_variance);
+				}
 			}
 		}
 	}

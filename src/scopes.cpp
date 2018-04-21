@@ -219,6 +219,7 @@ struct scope_impl_t : public virtual BASE {
 					this->get_name().c_str(),
 					bound_variable->str().c_str(),
 					bound_variable->get_location().str().c_str()));
+		dbg_when(dynamic_cast<program_scope_t*>(this) && symbol == "Error");
 
 		auto &resolve_map = bound_vars[symbol];
 		types::signature signature = bound_variable->get_signature();

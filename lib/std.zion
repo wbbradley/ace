@@ -94,7 +94,7 @@ def readline() str?
 	var linecap posix.int = 0
 
 	if posix.getline(&buf, &linecap, stdin) == -1 or buf == null
-		return Empty
+		return null
 
 	var lim = posix.strlen(buf) - 1
 	while lim >= 0 and posix.isspace(buf[lim])

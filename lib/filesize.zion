@@ -1,0 +1,32 @@
+module filesize
+
+get file
+get posix
+
+type FileSize is
+	Size(cb uint64)
+	SizeError(errno posix.int)
+
+[global]
+def size(fp *?posix.FILE) FileSize
+	if fp != null
+		let prev int = posix.ftell(fp)
+		posix.fseek(fp, 0, posix.SEEK_END)
+		let sz size_t = posix.ftell(fp)
+		posix.fseek(fp, prev, posix.SEEK_SET)
+		return Size(sz)
+	else
+		panic("Null file stream passed to size function")
+		return SizeError(-4)
+
+[global]
+def size(f file.File) FileSize
+	when f.state is
+		Open(fp)
+			return size(fp)
+		Closed
+			return Error(-1)
+		Error(errno)
+			return Error(errno)
+
+

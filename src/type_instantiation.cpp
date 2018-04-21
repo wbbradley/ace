@@ -244,11 +244,12 @@ void ast::data_type_t::register_type(
 			vars.push_back(type_variable(var));
 		}
 
-		types::name_index_t name_index;
-		name_index["variant"] = 0;
-
 		/* create the data type's environment entry */
-		types::type_t::ref expansion = type_data(id->get_location(), ctor_pairs);
+		types::type_t::ref expansion = type_data(
+				token_t(id->get_location(), tk_identifier, id->get_name()),
+				vars,
+			   	ctor_pairs);
+
 		for (auto type_variable : reverse(type_variables)) {
 			expansion = type_lambda(type_variable, expansion);
 		}
@@ -266,7 +267,7 @@ void ast::data_type_t::register_type(
 
 		for (auto &ctor_pair : ctor_pairs) {
 			identifier::ref ctor_id = make_code_id(ctor_pair.first);
-			if (ctor_pair.second->args.size() != 0) {
+			if (ctor_pair.second->args.size() == 0) {
 				bound_type_t::ref bound_tag_type = upsert_bound_type(builder, scope, ctor_return_type);
 				bound_var_t::ref tag = llvm_create_global_tag(
 						builder, scope, bound_tag_type, ctor_id->get_name(),

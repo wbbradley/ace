@@ -1126,14 +1126,31 @@ namespace types {
 		return inner->get_location();
 	}
 
-	type_data_t::type_data_t(location_t location, std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs) :
-		location(location),
+	type_data_t::type_data_t(
+			token_t name,
+		   	type_variable_t::refs type_vars,
+			 std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs) :
+		name(name),
+		type_vars(type_vars),
 		ctor_pairs(ctor_pairs)
 	{
 	}
 
 	std::ostream &type_data_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		os << "<type_data_t placeholder>";
+		parens_t parens(os, parent_precedence, get_precedence());
+		os << name.text;
+		for (auto type_var : type_vars) {
+			os << " ";
+			type_var->emit(os, bindings, get_precedence());
+		}
+	   	os << " " << K(is);
+		for (auto ctor_pair : ctor_pairs) {
+			os << " ";
+			os << ctor_pair.first.text;
+			if (ctor_pair.second->args.size() != 0) {
+				ctor_pair.second->emit(os, bindings, get_precedence());
+			}
+		}
 		return os;
 	}
 
@@ -1164,6 +1181,15 @@ namespace types {
 		}
 
 		bool found_new = false;
+		type_variable_t::refs new_type_vars;
+		new_type_vars.reserve(type_vars.size());
+		for (auto type_var : type_vars) {
+			new_type_vars.push_back(type_var->rebind(bindings));
+			if (new_type_vars.back() != type_var) {
+				found_new = true;
+			}
+		}
+
 		std::vector<std::pair<token_t, type_args_t::ref>> new_ctor_pairs;
 		for (auto ctor_pair : ctor_pairs) {
 			types::type_args_t::ref elem = dyncast<const type_args_t>(ctor_pair.second->rebind(bindings));
@@ -1174,14 +1200,14 @@ namespace types {
 			}
 		}
 		if (found_new) {
-			return ::type_data(location, new_ctor_pairs);
+			return ::type_data(name, new_type_vars, new_ctor_pairs);
 		} else {
 			return shared_from_this();
 		}
 	}
 
 	location_t type_data_t::get_location() const {
-		return location;
+		return name.location;
 	}
 
 	type_t::ref type_data_t::boolean_refinement(bool elimination_value, env_t::ref env) const {
@@ -1245,6 +1271,10 @@ namespace types {
 
 		if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 			type = maybe_type->just;
+		}
+
+		if (auto data_type = dyncast<const types::type_data_t>(type)) {
+			return true;
 		}
 
 		if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
@@ -1611,10 +1641,11 @@ types::type_t::ref type_extern(types::type_t::ref inner)
 }
 
 types::type_t::ref type_data(
-		location_t location,
+		token_t name,
+	   	types::type_variable_t::refs type_vars,
 	   	std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs)
 {
-	return make_ptr<types::type_data_t>(location, ctor_pairs);
+	return make_ptr<types::type_data_t>(name, type_vars, ctor_pairs);
 }
 
 types::type_t::ref type_list_type(types::type_t::ref element) {
