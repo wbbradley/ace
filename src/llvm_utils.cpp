@@ -82,7 +82,7 @@ llvm::FunctionType *llvm_create_function_type(
 		::str(args).c_str(),
 		return_value->str().c_str()));
 
-	assert(return_value->get_type()->ftv_count() == 0 && "return values should never be abstract");
+	// assert(return_value->get_type()->ftv_count() == 0 && "return values should never be abstract");
 	std::vector<llvm::Type *> llvm_type_args;
 
 	for (auto &arg : args) {

@@ -1,0 +1,77 @@
+module readline
+
+get file
+
+type Readline is
+	EOF
+	Error(errno int)
+	Line(line str)
+
+def readline(fp *posix.FILE) Readline
+	var linecap posix.int = 0
+	var line *?char = null
+	linelen := posix.getline(&line, &linecap, fp)
+	if linelen == -1
+		return EOF
+
+	assert(line != null)
+
+	# make sure we strip the LF char
+	if linelen > 0
+		if line[linelen - 1] == 10
+			line[linelen - 1] = 0
+	return Line(str(OwningBuffer(line)))
+
+def readline(f file.File) Readline
+	when f.state is
+		Open(fp)
+			assert(fp != null)
+			return readline(fp)
+		Closed
+			return Error(-1)
+		Error(errno)
+			static_print(errno)
+			return Error(errno)
+
+type Lines LineReader has
+	var file LineReader
+	var cur_line str?
+
+[global]
+def readlines() Lines *posix.FILE
+	return readlines(stdin)
+
+[global]
+def readlines[LineReader](f LineReader) Lines LineReader
+	return Lines(f, Empty)
+
+[global]
+def __iter_begin__[LineReader](fl Lines LineReader) Lines LineReader
+	__iterate__(fl)
+	return fl
+
+[global]
+def __iter_end__(fl Lines any) null
+	return null
+
+[global]
+def __iter_valid__(fl Lines any, _ null) bool
+	return fl.cur_line != null
+
+[global]
+def __iter_item__(fl Lines any) str
+	let cur_line = fl.cur_line
+	r := cur_line != null ? cur_line : ""
+	return r
+
+[global]
+def __iterate__(fl Lines any)
+	when readline(fl.file) is
+		Line(line)
+			fl.cur_line = line
+		Error(errno)
+			print("Error: encountered error " + errno + " while reading file")
+			fl.cur_line = null
+		EOF
+			fl.cur_line = null
+

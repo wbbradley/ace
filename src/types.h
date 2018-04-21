@@ -141,10 +141,25 @@ namespace types {
 		identifier::refs names;
 	};
 
-	struct type_data_t : public type_t {
-		type_data_t(location_t location, std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs);
-
+	struct type_variable_t : public type_t {
+		type_variable_t(identifier::ref id);
+		type_variable_t(location_t location /* auto-generated fresh type variables */);
+		identifier::ref id;
 		location_t location;
+
+		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const { return shared_from_this(); }
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
+		virtual int ftv_count() const;
+		virtual std::set<std::string> get_ftvs() const;
+		virtual ref rebind(const map &bindings) const;
+		virtual location_t get_location() const;
+	};
+
+	struct type_data_t : public type_t {
+		type_data_t(token_t name, type_variable_t::refs type_vars, std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs);
+
+		token_t name;
+		type_t::refs type_vars;
 		std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs;
 
 		typedef ptr<const type_data_t> ref;
@@ -178,20 +193,6 @@ namespace types {
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
 		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
-	};
-
-	struct type_variable_t : public type_t {
-		type_variable_t(identifier::ref id);
-		type_variable_t(location_t location /* auto-generated fresh type variables */);
-		identifier::ref id;
-		location_t location;
-
-		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const { return shared_from_this(); }
-		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
-		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
-		virtual location_t get_location() const;
 	};
 
 	struct type_operator_t : public type_t {
@@ -503,7 +504,7 @@ types::type_function_t::ref type_function(types::type_t::ref type_constraints, t
 types::type_function_closure_t::ref type_function_closure(types::type_t::ref function);
 types::type_t::ref type_and(types::type_t::refs terms);
 types::type_t::ref type_eq(types::type_t::ref lhs, types::type_t::ref rhs, location_t location);
-types::type_t::ref type_data(location_t location, std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs);
+types::type_t::ref type_data(token_t name, types::type_variable_t::refs type_vars, std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs);
 types::type_t::ref type_maybe(types::type_t::ref just, env_t::ref env);
 types::type_ptr_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_ref(types::type_t::ref raw);

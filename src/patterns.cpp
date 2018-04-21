@@ -26,9 +26,11 @@ void build_patterns(
 
 	/* we may need a stub implementation in the default block to make LLVM happy that
 	 * all paths return */
-	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-	builder.SetInsertPoint(default_block);
-	llvm_generate_dead_return(builder, scope);
+	{
+		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+		builder.SetInsertPoint(default_block);
+		llvm_generate_dead_return(builder, scope);
+	}
 
 	std::map<int, location_t> typeids_tested;
 	types::type_t::refs types_matched;
@@ -59,6 +61,7 @@ void build_patterns(
 		runnable_scope_t::ref scope_if_match;
 		predicate->resolve_match(
 				builder, scope, life,
+				location,
 				pattern_value,
 				llvm_pattern_block,
 				llvm_next_merge,
@@ -67,9 +70,6 @@ void build_patterns(
 		/* save this as the "next" block to jump to (since we are travesering the patterns in
 		 * reverse order */
 		llvm_next_merge = check_block;
-
-		/* remember where we were */
-		llvm::IRBuilderBase::InsertPointGuard ipg2(builder);
 
 		/* start emitting code in the block */
 		builder.SetInsertPoint(llvm_pattern_block);
@@ -159,7 +159,7 @@ void ast::when_block_t::resolve_statement(
 			builder,
 			runnable_scope,
 			life,
-			get_location(),
+			value->get_location(),
 			builder.GetInsertBlock(),
 			pattern_blocks,
 			pattern_value,
@@ -190,6 +190,7 @@ void ast::literal_expr_t::resolve_match(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
+		location_t value_location,
 		bound_var_t::ref input_value,
 		llvm::BasicBlock *llvm_match_block,
 		llvm::BasicBlock *llvm_no_match_block,
@@ -198,10 +199,42 @@ void ast::literal_expr_t::resolve_match(
 	assert(false);
 }
 
+bound_var_t::ref cast_data_type_to_ctor_struct(
+		llvm::IRBuilder<> &builder,
+		runnable_scope_t::ref scope,
+		location_t value_location,
+		bound_var_t::ref input_value,
+		token_t ctor_name)
+{
+	types::type_data_t::ref data_type = dyncast<const types::type_data_t>(
+			input_value->type->get_type()->eval(scope));
+	if (data_type == nullptr) {
+		throw new user_error(input_value->get_location(), "unable to find data type in %s", input_value->str().c_str());
+	}
+
+	for (auto ctor_pair : data_type->ctor_pairs) {
+		if (ctor_pair.first.text == ctor_name.text) {
+			auto bound_type = upsert_bound_type(builder, scope, type_ptr(type_managed(type_struct(ctor_pair.second))));
+			return bound_var_t::create(
+					INTERNAL_LOC(),
+					ctor_name.text,
+					bound_type,
+					llvm_maybe_pointer_cast(builder,
+						input_value->get_llvm_value(), bound_type->get_llvm_specific_type()),
+					make_code_id(ctor_pair.first));
+		}
+	}
+	throw user_error(ctor_name.location, "unable to find " c_id("%s") " in %s",
+			ctor_name.text.c_str(),
+			input_value->str().c_str());
+	return nullptr;
+}
+
 void ast::ctor_predicate_t::resolve_match(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
+		location_t value_location,
 		bound_var_t::ref input_value,
 		llvm::BasicBlock *llvm_match_block,
 		llvm::BasicBlock *llvm_no_match_block,
@@ -215,9 +248,14 @@ void ast::ctor_predicate_t::resolve_match(
 	debug_above(7, log("matching ctor id %s = %d", token.text.c_str(), ctor_id));
 
 	/* check that this is the right ctor */
-	llvm::Value *match_bit = builder.CreateICmpEQ(input_ctor_id->get_llvm_value(), builder.getInt32(ctor_id));
+	llvm::Value *match_bit = builder.CreateICmpEQ(
+			input_ctor_id->get_llvm_value(),
+		   	builder.getInt32(ctor_id));
 	match_bit->setName("ctor." + token.text + ".matched");
 
+	auto casted_input = cast_data_type_to_ctor_struct(
+			builder, scope, value_location, input_value, token);
+	
 	llvm::BasicBlock *llvm_next_check = llvm_match_block;
 	runnable_scope_t::ref scope_if_match_at_end = scope;
 
@@ -233,8 +271,8 @@ void ast::ctor_predicate_t::resolve_match(
 				scope,
 				life,
 				params[i]->get_location(),
-				input_value,
-				input_value->type,
+				casted_input,
+				casted_input->type,
 				i,
 				token.text,
 				false /*as_ref*/);
@@ -242,7 +280,7 @@ void ast::ctor_predicate_t::resolve_match(
 		/* resolve sub-patterns */
 		runnable_scope_t::ref scope_if_match = nullptr;
 		params[i]->resolve_match(builder, scope_if_match_at_end, life, 
-				member, llvm_next_check, llvm_no_match_block, &scope_if_match);
+				value_location, member, llvm_next_check, llvm_no_match_block, &scope_if_match);
 		if (scope_if_match != nullptr) {
 			scope_if_match_at_end = scope_if_match;
 		}
@@ -259,12 +297,13 @@ void ast::irrefutable_predicate_t::resolve_match(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
+		location_t value_location,
 		bound_var_t::ref input_value,
 		llvm::BasicBlock *llvm_match_block,
 		llvm::BasicBlock *,
 		runnable_scope_t::ref *scope_if_true) const
 {
-	if (token.is_ident(K(_)) && token.is_ident(K(else))) {
+	if (!(token.is_ident(K(_)) || token.is_ident(K(else)))) {
 		*scope_if_true = scope->new_runnable_scope("irrefutable.%s" + token.text);
 		(*scope_if_true)->put_bound_variable(token.text, input_value);
 	}

@@ -1,10 +1,12 @@
 module file
 
 get posix
+get readline
+get filesize
 
 type State is
 	Closed
-	Error(errno Int)
+	Error(errno int)
 	Open(fp *posix.FILE)
 
 type File has
@@ -26,9 +28,7 @@ def close(f File)
 	state := f.state
 	when state is
 		Open(fp)
-			if fp != null
-				posix.fclose(fp)
-			state.fp = null
+			posix.fclose(fp)
 			f.state = Closed
 		Closed
 			print("Error: attempt to close a file that is already closed.")
@@ -36,111 +36,10 @@ def close(f File)
 			print("Error: attempt to close a file " + f.filename + " that has already seen error " + errno)
 
 [global]
-def __finalize__(of Open)
-	let fp = of.fp
-	if fp != null
-		ret := posix.fclose(fp)
-		if ret != 0
-			print("Error: failed to close file")
-		of.fp = null
-
-type Lines LineReader has
-	var file LineReader
-	var cur_line str?
-
-[global]
-def readlines() Lines *posix.FILE
-	return readlines(stdin)
-
-[global]
-def readlines[LineReader](f LineReader) Lines LineReader
-	return Lines(f, null)
-
-[global]
-def __iter_begin__[LineReader](fl Lines LineReader) Lines LineReader
-	__iterate__(fl)
-	return fl
-
-[global]
-def __iter_end__(fl Lines any) null
-	return null
-
-[global]
-def __iter_valid__(fl Lines any, _ null) bool
-	return fl.cur_line != null
-
-[global]
-def __iter_item__(fl Lines any) str
-	let cur_line = fl.cur_line
-	r := cur_line != null ? cur_line : ""
-	return r
-
-[global]
-def __iterate__(fl Lines any)
-	when readline(fl.file) is
-		Line(line)
-			fl.cur_line = line
-		Error(errno)
-			print("Error: encountered error " + errno + " while reading file")
-			fl.cur_line = null
-		EOF
-			fl.cur_line = null
-
-type Readline is
-	EOF
-	Error(errno int)
-	Line(line str)
-
-def readline(fp *posix.FILE) Readline
-	var linecap posix.int = 0
-	var line *?char = null
-	linelen := posix.getline(&line, &linecap, fp)
-	if linelen == -1
-		return EOF
-
-	assert(line != null)
-
-	# make sure we strip the LF char
-	if linelen > 0
-		if line[linelen - 1] == 10
-			line[linelen - 1] = 0
-	return Line(str(OwningBuffer(line)))
-
-def readline(f File) Readline
-	state := f.state
-	when state is
+def __finalize__(of File)
+	when of.state is
 		Open(fp)
-			assert(fp != null)
-			return readline(fp)
-		Closed
-			return Error(-1)
-		Error
-			return state
-
-type FileSize is
-	Size(cb uint64)
-	Error(errno posix.int)
-
-def size(fp *?posix.FILE) FileSize
-	if fp != null
-		let prev int = posix.ftell(fp)
-		posix.fseek(fp, 0, posix.SEEK_END)
-		let sz size_t = posix.ftell(fp)
-		posix.fseek(fp, prev, posix.SEEK_SET)
-		return sz
-	else
-		panic("Null file stream passed to size function")
-		return Error(-4)
-
-[global]
-def size(f File) FileSize
-	when f.state is
-		Open(fp)
-			return size(fp)
-		Closed
-			return Error(-1)
-		Error(errno)
-			return Error(errno)
+			posix.fclose(fp)
 
 [global]
 def readbytes(f File) bytes?
@@ -149,7 +48,7 @@ def readbytes(f File) bytes?
 		Open(fp)
 			return readbytes(fp)
 		else
-			return null
+			return Empty
 
 def readbytes(fp *?posix.FILE) bytes?
 	if fp == null
@@ -164,7 +63,7 @@ def readbytes(fp *?posix.FILE) bytes?
 			let bytes_read = posix.fread(
 				pb,
 				1,
-				size,
+				cb,
 				fp)
 
 			if posix.ferror(fp)
@@ -181,7 +80,6 @@ def write(fp *posix.FILE, s str)
 def write(f File, s str)
 	when f.state is
 		Open(fp)
-			assert(fp != null)
 			write(fp, s)
 		Closed
 			posix.fprintf(stderr, "writing to closed file %s", f.filename)

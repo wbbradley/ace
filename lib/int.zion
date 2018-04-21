@@ -13,20 +13,6 @@ link def __minus__(x int, y float) float to __int_minus_float
 link def __times__(x int, y float) float to __int_times_float
 link def __divide__(x int, y float) float to __int_divide_float
 
-type Int has
-	raw int
-
-var Zero Int = Int(0)
-
-def __init__() Int
-	return 0
-
-def __box__(i int) Int
-	return Int(i)
-
-# def __unbox__(i (False or Int)?) int
-#	return (i! as Int).raw
-
 def int(s int) int
 	return s
 
@@ -38,22 +24,3 @@ def int(s str) int
 		total = total + (ch as int) - 3 * 16
 		delim = 10
 	return total
-
-
-def __eq__(x Int, y int) bool
-	return x.raw == y
-
-def __eq__(x int, y Int) bool
-	return x == y.raw
-
-def __ineq__(x Int, y int) bool
-	return x.raw != y
-
-def __ineq__(x int, y Int) bool
-	return x != y.raw
-
-def __plus__(x Int, y int) int
-	return x.raw + y
-
-def __plus__(x int, y Int) int
-	return x + y.raw
