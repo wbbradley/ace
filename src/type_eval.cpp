@@ -101,10 +101,8 @@ namespace types {
 
 	type_t::ref type_eq_t::eval_core(env_t::ref env, bool get_structural_env) const {
 		auto lhs_eval = lhs->eval_core(env, get_structural_env);
-		auto rhs_eval = lhs->eval_core(env, get_structural_env);
+		auto rhs_eval = rhs->eval_core(env, get_structural_env);
 
-		log("lhs = %s", lhs_eval->repr().c_str());
-		log("rhs = %s", rhs_eval->repr().c_str());
 		return (lhs_eval->repr() == rhs_eval->repr()) ? type_true : type_false;
 	}
 

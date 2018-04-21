@@ -63,7 +63,10 @@ bound_var_t::ref instantiate_data_type_ctor(
 	/* instantiate the data ctor we want */
 	bound_var_t::ref ctor_fn = bind_ctor_to_scope(
 			builder, subst_scope,
-			unchecked_fn->id, node->get_location(),
+			make_iid_impl(
+				subst_scope->make_fqn(unchecked_fn->id->get_name()),
+			   	unchecked_fn->id->get_location()),
+		   	node->get_location(),
 			data_ctor_type);
 
 	/* the ctor should now exist */
@@ -363,9 +366,10 @@ bound_var_t::ref call_program_function(
 		return make_call_value(builder, callsite_location, scope,
 				life, function, var_args);
 	} catch (user_error &e) {
-		std::throw_with_nested(user_error(callsite_location, "failed to resolve function " c_id("%s") " with args: %s",
+		std::throw_with_nested(user_error(callsite_location, "failed to resolve function " c_id("%s") " with args: %s and return type: %s",
 					function_name.c_str(),
-					::str(var_args).c_str()));
+					::str(var_args).c_str(),
+					return_type->str().c_str()));
 	}
 	return nullptr;
 }

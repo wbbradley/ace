@@ -100,7 +100,8 @@ unification_t unify(
 			if (!types::is_type_id(value, TRUE_TYPE, nullptr)) {
 				unification.result = false;
 				unification.reasons = string_format(
-						"type constraints evaluated to %s",
+						"type constraints %s evaluated to %s",
+						type_constraint->str().c_str(),
 						value->str().c_str());
 				break;
 			}
@@ -234,6 +235,12 @@ unification_t unify_core(
 	if (ptd_a != nullptr) {
 		if (ptd_b != nullptr) {
 			if (ptd_a->name.text != ptd_b->name.text || ptd_a->type_vars.size() != ptd_b->type_vars.size()) {
+				if (ptd_a->name.text == "Maybe" && depth == 0) {
+					assert(ptd_a->type_vars.size() == 1);
+					return unify_core(
+							ptd_a->type_vars[0], b, 
+							env, bindings, coercions, depth, allow_variance);
+				}
 				return {false, "type mismatch", bindings, coercions, {}};
 			} else {
 				for (int i = 0; i < ptd_a->type_vars.size(); ++i) {

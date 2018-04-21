@@ -1688,7 +1688,7 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 
 		if (unification.result) {
 			expected_element_type = unification.bindings[type_var_name->get_name()];
-			if (expected_element_type != nullptr && expected_element_type->ftv_count() == 0) {
+			if (expected_element_type != nullptr) {
 				element_type = expected_element_type;
 			}
 		}
@@ -1713,7 +1713,7 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 		}
 	}
 
-	if (items.size() == 0) {
+	if (items.size() == 0 && element_type == nullptr) {
 		throw user_error(get_location(), "not enough information to infer the element type for the vector literal");
 	}
 

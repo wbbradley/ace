@@ -3,3 +3,6 @@ global
 type Maybe T is
 	Just(t T)
 	Empty
+
+def __box__[T where not (T === Empty) and not (T === Maybe any)](t T) Maybe T
+	return Just(t)
