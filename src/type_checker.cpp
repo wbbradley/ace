@@ -1068,7 +1068,7 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 
 bound_var_t::ref ast::reference_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
@@ -1392,7 +1392,7 @@ bound_var_t::ref type_check_assignment(
 {
 	if (!lhs_var->type->is_ref(scope)) {
 		auto error = user_error(location,
-				"you cannot re-assign the name " c_id("%s") " to anything else here. it is not assignable.",
+				"the left-hand side of this assignment is not a reference",
 				lhs_var->name.c_str());
 		error.add_info(lhs_var->get_location(),
 				"see declaration of " c_id("%s") " with type %s",
@@ -1763,7 +1763,7 @@ bool rnpbc_lhs_non_null_is_truth(rnpbc_t rnpbc) {
 
 bound_var_t::ref resolve_native_pointer_binary_compare(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
 		ast::expression_t::ref lhs_node,
@@ -1834,7 +1834,7 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 
 bound_var_t::ref resolve_native_pointer_binary_operation(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
 		ast::expression_t::ref lhs_node,
@@ -2075,7 +2075,7 @@ bound_var_t::ref type_check_binary_integer_op(
 
 bound_var_t::ref type_check_binary_operator(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		ast::expression_t::ref lhs_node,
 		bound_var_t::ref lhs,
@@ -2132,6 +2132,37 @@ bound_var_t::ref type_check_binary_operator(
 				function_name,
 				expected_type);
 	} else {
+		if (function_name == "__eq__" || function_name == "__ineq__") {
+			if (auto lhs_data = dyncast<const types::type_data_t>(lhs_type)) {
+				if (rhs_is_null) {
+					return resolve_null_check(
+							builder,
+							scope,
+							life,
+							obj->get_location(),
+							lhs_node,
+							lhs,
+							function_name == "__eq__" ? nck_is_null : nck_is_non_null,
+							scope_if_true,
+							scope_if_false);
+				}
+			}
+			if (auto rhs_data = dyncast<const types::type_data_t>(rhs_type)) {
+				if (lhs_is_null) {
+					return resolve_null_check(
+							builder,
+							scope,
+							life,
+							obj->get_location(),
+							rhs_node,
+							rhs,
+							function_name == "__eq__" ? nck_is_null : nck_is_non_null,
+							scope_if_true,
+							scope_if_false);
+				}
+			}
+		}
+
 		/* intercept binary operations on native pointers */
 		if (
 				(lhs->type->is_function(scope)
@@ -2170,7 +2201,7 @@ bound_var_t::ref type_check_binary_operator(
 
 bound_var_t::ref type_check_binary_operator(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		ptr<const ast::expression_t> lhs,
 		ptr<const ast::expression_t> rhs,
@@ -2198,7 +2229,7 @@ bound_var_t::ref type_check_binary_operator(
 
 bound_var_t::ref type_check_binary_equality(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		ptr<const ast::expression_t> lhs,
 		ptr<const ast::expression_t> rhs,
@@ -2228,18 +2259,20 @@ bound_var_t::ref ast::binary_operator_t::resolve_expression(
 		bool as_ref,
 		types::type_t::ref expected_type) const
 {
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+
 	if (token.is_ident(K(is))) {
-		return type_check_binary_equality(builder, scope, life, lhs, rhs,
+		return type_check_binary_equality(builder, runnable_scope, life, lhs, rhs,
 				shared_from_this(), function_name, nullptr, nullptr, expected_type);
 	}
 
-	return type_check_binary_operator(builder, scope, life, lhs, rhs,
+	return type_check_binary_operator(builder, runnable_scope, life, lhs, rhs,
 			shared_from_this(), function_name, nullptr, nullptr, expected_type);
 }
 
 bound_var_t::ref ast::binary_operator_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
@@ -2397,7 +2430,7 @@ bound_type_t::ref refine_conditional_type(
 
 bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
 		ast::condition_t::ref condition,
@@ -2589,19 +2622,21 @@ bound_var_t::ref ast::ternary_expr_t::resolve_expression(
 		bool as_ref,
 		types::type_t::ref expected_type) const
 {
-	return resolve_cond_expression(builder, scope, life, as_ref,
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+	return resolve_cond_expression(builder, runnable_scope, life, as_ref,
 			condition, when_true, when_false,
 			make_code_id(this->token), nullptr, nullptr);
 }
 
 bound_var_t::ref ast::ternary_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
 {
-	return resolve_cond_expression(builder, scope, life, false /*as_ref*/,
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+	return resolve_cond_expression(builder, runnable_scope, life, false /*as_ref*/,
 			condition, when_true, when_false,
 			make_code_id(this->token), scope_if_true, scope_if_false);
 }
@@ -2613,13 +2648,14 @@ bound_var_t::ref ast::or_expr_t::resolve_expression(
 		bool as_ref,
 		types::type_t::ref expected_type) const
 {
-	return resolve_cond_expression(builder, scope, life, as_ref,
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+	return resolve_cond_expression(builder, runnable_scope, life, as_ref,
 			lhs, lhs, rhs, make_iid("or.value"), nullptr, nullptr);
 }
 
 bound_var_t::ref ast::or_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
@@ -2635,18 +2671,20 @@ bound_var_t::ref ast::and_expr_t::resolve_expression(
 		bool as_ref,
 		types::type_t::ref expected_type) const
 {
-	return resolve_cond_expression(builder, scope, life, as_ref,
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+	return resolve_cond_expression(builder, runnable_scope, life, as_ref,
 			lhs, rhs, lhs, make_iid("and.value"), nullptr, nullptr);
 }
 
 bound_var_t::ref ast::and_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
 {
-	return resolve_cond_expression(builder, scope, life, false /*as_ref*/,
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+	return resolve_cond_expression(builder, runnable_scope, life, false /*as_ref*/,
 			lhs, rhs, lhs, make_iid("and.value"), scope_if_true, scope_if_false);
 }
 
@@ -3510,7 +3548,7 @@ void ast::continue_flow_t::resolve_statement(
 
 bound_var_t::ref type_check_binary_op_assignment(
 	   	llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		ast::item_t::ref op_node,
 		ast::expression_t::ref lhs,
@@ -3539,7 +3577,8 @@ void ast::mod_assignment_t::resolve_statement(
         runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	type_check_binary_op_assignment(builder, scope, life,
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+	type_check_binary_op_assignment(builder, runnable_scope, life,
 			shared_from_this(), lhs, rhs, token.location, "__mod__");
 }
 
@@ -3550,7 +3589,8 @@ void ast::plus_assignment_t::resolve_statement(
         runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	type_check_binary_op_assignment(builder, scope, life,
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+	type_check_binary_op_assignment(builder, runnable_scope, life,
 			shared_from_this(), lhs, rhs, token.location, "__plus__");
 }
 
@@ -3561,7 +3601,8 @@ void ast::minus_assignment_t::resolve_statement(
         runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	type_check_binary_op_assignment(builder, scope, life,
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+	type_check_binary_op_assignment(builder, runnable_scope, life,
 			shared_from_this(), lhs, rhs, token.location, "__minus__");
 }
 
@@ -3662,7 +3703,8 @@ void ast::times_assignment_t::resolve_statement(
         runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	type_check_binary_op_assignment(builder, scope, life,
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+	type_check_binary_op_assignment(builder, runnable_scope, life,
 			shared_from_this(), lhs, rhs, token.location, "__times__");
 }
 
@@ -3673,7 +3715,8 @@ void ast::divide_assignment_t::resolve_statement(
         runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	type_check_binary_op_assignment(builder, scope, life,
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+	type_check_binary_op_assignment(builder, runnable_scope, life,
 			shared_from_this(), lhs, rhs, token.location, "__divide__");
 }
 
@@ -3853,7 +3896,7 @@ void ast::for_block_t::resolve_statement(
 
 bound_var_t::ref ast::expression_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref block_scope,
+		runnable_scope_t::ref block_scope,
 		life_t::ref life,
 		runnable_scope_t::ref *,
 		runnable_scope_t::ref *) const
@@ -3888,12 +3931,14 @@ void ast::while_block_t::resolve_statement(
 	life_t::ref cond_life = life->new_life(lf_statement);
 	bound_var_t::ref condition_value;
 
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+
 	/* evaluate the condition for branching */
 	/* our user is attempting any assorted collection of ergonomic improvements to their life by
 	 * asserting possible type modifications to their variables, or by injecting new variables
 	 * into the nested scope. */
 	condition_value = condition->resolve_condition(
-			builder, scope, cond_life, &while_scope, nullptr /*scope_if_false*/);
+			builder, runnable_scope, cond_life, &while_scope, nullptr /*scope_if_false*/);
 
 	/* generate some new blocks */
 	llvm::BasicBlock *while_block_bb = llvm::BasicBlock::Create(builder.getContext(), "while.block", llvm_function_current);
@@ -3954,9 +3999,11 @@ void ast::if_block_t::resolve_statement(
 
 	auto cond_life = life->new_life(lf_statement);
 
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+
 	/* evaluate the condition for branching */
 	condition_value = condition->resolve_condition(
-			builder, scope, cond_life, &scope_if_true, &scope_if_false);
+			builder, runnable_scope, cond_life, &scope_if_true, &scope_if_false);
 
 	/* test that the if statement doesn't return */
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
@@ -4093,7 +4140,7 @@ bound_var_t::ref ast::var_decl_t::resolve_as_link(
 
 bound_var_t::ref ast::var_decl_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
@@ -4175,7 +4222,7 @@ bound_var_t::ref take_address(
 
 bound_var_t::ref ast::prefix_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
@@ -4193,12 +4240,13 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
 		bool as_ref,
 		types::type_t::ref expected_type) const
 {
-	return resolve_prefix_expr(builder, scope, life, as_ref, nullptr, nullptr);
+	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
+	return resolve_prefix_expr(builder, runnable_scope, life, as_ref, nullptr, nullptr);
 }
 
 bound_var_t::ref ast::prefix_expr_t::resolve_prefix_expr(
         llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
+        runnable_scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
 		runnable_scope_t::ref *scope_if_true,

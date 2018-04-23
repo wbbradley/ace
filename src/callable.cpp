@@ -66,6 +66,7 @@ bound_var_t::ref instantiate_data_type_ctor(
 			make_iid_impl(
 				subst_scope->make_fqn(unchecked_fn->id->get_name()),
 			   	unchecked_fn->id->get_location()),
+			unchecked_fn->id->get_name(),
 		   	node->get_location(),
 			data_ctor_type);
 
@@ -322,6 +323,9 @@ bound_var_t::ref get_callable(
 			ss << " not found";
 		} else {
 			ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
+			if (return_type != nullptr) {
+				ss << " " << return_type->str();
+			}
 		}
 		auto error = user_error(callsite_location, "%s", ss.str().c_str());
 

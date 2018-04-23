@@ -17,6 +17,7 @@ bound_var_t::ref bind_ctor_to_scope(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
+		std::string ctor_name,
 		location_t location,
 		types::type_function_t::ref function)
 {
@@ -26,7 +27,8 @@ bound_var_t::ref bind_ctor_to_scope(
 	/* create or find an existing ctor function that satisfies the term of
 	 * this node */
 	debug_above(5, log(log_info, "finding/creating data ctor for " c_type("%s") " with type %s",
-				id->str().c_str(), function->str().c_str()));
+				id->str().c_str(),
+			   	function->str().c_str()));
 
 	types::type_args_t::ref type_args = dyncast<const types::type_args_t>(function->args);
 	assert(type_args != nullptr);
@@ -45,7 +47,7 @@ bound_var_t::ref bind_ctor_to_scope(
 	/* now we know the type of the ctor we want to create. let's check
 	 * whether this ctor already exists. if so, we'll just return it. if
 	 * not, we'll generate it. */
-	auto ctor = upsert_tagged_tuple_ctor(builder, scope, id, location,
+	auto ctor = upsert_tagged_tuple_ctor(builder, scope, id, ctor_name, location,
 			data_type, function->return_type);
 
 	debug_above(5, log(log_info, "created a ctor %s", ctor->str().c_str()));

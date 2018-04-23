@@ -156,8 +156,17 @@ namespace types {
 		return parse_type(ps, generics);
 	}
 
-	types::type_args_t::ref parse_type_args(parse_state_t &ps, const identifier::set &generics) {
+	types::type_t::ref parse_type_args(parse_state_t &ps, const identifier::set &generics) {
 		chomp_token(tk_lparen);
+		if (ps.token.tk == tk_double_dot) {
+			ps.advance();
+			expect_token(tk_identifier);
+			auto type_args = type_variable(make_code_id(ps.token));
+			ps.advance();
+			chomp_token(tk_rparen);
+			return type_args;
+		}
+
 		types::type_t::refs param_types;
 		identifier::refs param_names;
 
@@ -205,7 +214,12 @@ namespace types {
    	{
 		types::type_args_t::ref type_args;
 		if (ps.token.tk == tk_lparen) {
-			return parse_type_args(ps, generics);
+			auto type = parse_type_args(ps, generics);
+			type_args = dyncast<const types::type_args_t>(type_args);
+			if (type_args == nullptr) {
+				throw user_error(type->get_location(), "data ctors must contain non-generic type args");
+			}
+			return type_args;
 		} else {
 			return ::type_args({}, {});
 		}
@@ -262,7 +276,7 @@ namespace types {
 			}
 		}
 
-		type_args_t::ref type_args = parse_type_args(ps, generics);
+		type_t::ref type_args = parse_type_args(ps, generics);
 
 		types::type_t::ref return_type;
 		/* now let's parse the return type */

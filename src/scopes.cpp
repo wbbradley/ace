@@ -571,7 +571,9 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		/* create a constructor for this type */
 		bound_var_t::ref ctor_fn = bind_ctor_to_scope(
 				builder, get_parent_scope(),
-				make_iid_impl("closure", location), location,
+				make_iid_impl("closure", location),
+				"__closure",
+			   	location,
 				data_ctor_type);
 
 		bound_var_t::refs bound_dimensions;

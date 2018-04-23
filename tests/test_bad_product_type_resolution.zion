@@ -6,7 +6,9 @@ type Derived Y has
 type Derived2 Y has
 	var y Y
 
-type Base X Y is Derived X or Derived2 Y
+type Base X Y is
+	Derived(x X)
+	Derived2(y Y)
 
 # error: unable to bind type .*C int
 def do(b C int)

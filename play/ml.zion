@@ -4,30 +4,25 @@ module _
 
 get sys
 
-type Symbol has
-	let s str
-	let pos uint
-
-type Sequence has
-	let nodes [Node]
-
-type Node is Symbol or Sequence
+type Node is
+	Symbol(s str, pos uint)
+	Sequence(nodes [Node])
 
 [global]
 def str(n Node) str
-	when n
-		is Symbol
-			return "Symbol('" + n.s + "', " + n.pos + ")"
-		is Sequence
-			return "[" + join(", ", n.nodes) + "]"
+	when n is
+		Symbol(s, pos)
+			return "Symbol('" + s + "', " + pos + ")"
+		Sequence(nodes)
+			return "[" + join(", ", nodes) + "]"
 
 type ParseState has
-	let s str
-	let i uint
+	s str
+	i uint
 
 type Step has
-	let node Node
-	let ps ParseState
+	node Node
+	ps ParseState
 
 type Parser = def (ps ParseState) Step?
 

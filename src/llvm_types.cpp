@@ -709,7 +709,6 @@ bound_type_t::ref get_function_return_type(
 }
 
 std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
-		
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		types::type_tuple_t::ref tuple_type,
@@ -723,6 +722,7 @@ std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
 	bound_var_t::ref tuple_ctor = get_or_create_tuple_ctor(builder,
 			scope, data_type, data_type,
 			make_iid_impl(tuple_type->repr(), tuple_type->get_location()),
+			tuple_type->repr(),
 			node->get_location());
 
 	return {tuple_ctor, data_type};
@@ -732,6 +732,7 @@ bound_var_t::ref upsert_tagged_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		identifier::ref id,
+		std::string ctor_name,
 		location_t location,
 		types::type_t::ref data_type,
 		types::type_t::ref return_type)
@@ -747,7 +748,7 @@ bound_var_t::ref upsert_tagged_tuple_ctor(
 
 	debug_above(4, log(log_info, "found bound type %s", bound_data_type->str().c_str()));
 	bound_var_t::ref tagged_tuple_ctor = get_or_create_tuple_ctor(builder,
-			scope, bound_data_type, bound_return_type, id, location);
+			scope, bound_data_type, bound_return_type, id, ctor_name, location);
 
 	return tagged_tuple_ctor;
 }
@@ -1045,9 +1046,17 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		bound_type_t::ref bound_data_type,
 		bound_type_t::ref bound_return_type,
 		identifier::ref id,
+		std::string ctor_name,
 		location_t location)
 {
 	std::string name = id->get_name();
+	debug_above(6, log("get_or_create_tuple_ctor(..., %s, %s, %s, %s, " c_id("%s") ", %s)",
+		   scope->get_name().c_str(),
+		   bound_data_type->str().c_str(),
+		   bound_return_type->str().c_str(),
+		   id->str().c_str(),
+		   ctor_name.c_str(),
+		   location.str().c_str()));
 
 	auto program_scope = scope->get_program_scope();
 
@@ -1115,7 +1124,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	/* initialize the ctor_id */
 	int ctor_id_index = get_ctor_id_index(program_scope, builder);
 	llvm::Value *llvm_ctor_id_slot = llvm_make_gep(builder, llvm_alloced, ctor_id_index, false /*managed*/);
-	builder.CreateStore(builder.getInt32(atomize(name)), llvm_ctor_id_slot);
+	builder.CreateStore(builder.getInt32(atomize(ctor_name)), llvm_ctor_id_slot);
 
 	int index = 0;
 
