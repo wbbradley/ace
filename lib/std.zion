@@ -106,5 +106,5 @@ def readline() str?
 	# runtime.gc()
 	return Just(ret)
 
-def __box__[T where is_function T](fn T) __closure_t T
-	return __closure_t(fn)
+def __box__[Args, Ret](fn def _(..Args) Ret) def (..Args) Ret
+	return __closure_t(fn) as def Args Ret

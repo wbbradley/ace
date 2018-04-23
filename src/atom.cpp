@@ -69,6 +69,7 @@ int atomize(std::string &&str) {
 	} else {
 		int iatom = atoms.size();
 		atom_str_index[str] = iatom;
+		// log("atomizing %s as %d", str.c_str(), iatom);
 		atoms.push_back(std::move(str));
 		return iatom;
 	}
@@ -82,6 +83,7 @@ int atomize(const std::string &str) {
 		int iatom = atoms.size();
 		atom_str_index[str] = iatom;
 		atoms.push_back(str);
+		// log("atomizing %s as %d", str.c_str(), iatom);
 		return iatom;
 	}
 }
@@ -98,6 +100,7 @@ int atomize(const char *str) {
 
 		atom_str_index[str] = iatom;
 		atoms.push_back(str);
+		// log("atomizing %s as %d", str, iatom);
 		return iatom;
 	}
 }

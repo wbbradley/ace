@@ -98,7 +98,7 @@ namespace ast {
 		virtual ~condition_t() {}
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
+				runnable_scope_t::ref block_scope,
 				life_t::ref life,
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const = 0;
@@ -182,7 +182,7 @@ namespace ast {
 		/* when resolve_condition is not overriden, it just proxies through to resolve_expression */
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
+				runnable_scope_t::ref block_scope,
 				life_t::ref life,
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
@@ -477,7 +477,7 @@ namespace ast {
 				bool *returns) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
+				runnable_scope_t::ref block_scope,
 				life_t::ref life,
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
@@ -922,7 +922,7 @@ namespace ast {
 				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
+				runnable_scope_t::ref block_scope,
 				life_t::ref life,
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
@@ -944,7 +944,7 @@ namespace ast {
 				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
+				runnable_scope_t::ref block_scope,
 				life_t::ref life,
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
@@ -966,7 +966,7 @@ namespace ast {
 				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
+				runnable_scope_t::ref block_scope,
 				life_t::ref life,
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
@@ -988,7 +988,7 @@ namespace ast {
 				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
+				runnable_scope_t::ref block_scope,
 				life_t::ref life,
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
@@ -1011,7 +1011,7 @@ namespace ast {
 				types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
+				runnable_scope_t::ref block_scope,
 				life_t::ref life,
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
@@ -1022,7 +1022,7 @@ namespace ast {
 	private:
 		virtual bound_var_t::ref resolve_prefix_expr(
 				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
+				runnable_scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
 				runnable_scope_t::ref *scope_if_true,
@@ -1067,7 +1067,7 @@ namespace ast {
 				const bound_type_t::refs &args) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
+				runnable_scope_t::ref block_scope,
 				life_t::ref life,
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;

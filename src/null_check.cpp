@@ -6,6 +6,8 @@
 #include "compiler.h"
 #include "llvm_types.h"
 #include "code_id.h"
+#include "atom.h"
+#include "patterns.h"
 
 bound_var_t::ref get_null(
         llvm::IRBuilder<> &builder,
@@ -122,12 +124,43 @@ void nullify_let_var(
 	}
 }
 
+void extract_just_value(
+		llvm::IRBuilder<> &builder,
+		runnable_scope_t::ref scope,
+		life_t::ref life,
+		ast::reference_expr_t::ref ref_expr,
+		bound_var_t::ref value,
+		runnable_scope_t::ref *scope_if_true)
+{
+	auto casted_input = cast_data_type_to_ctor_struct(
+			builder, scope, ref_expr->get_location(),
+			value, token_t(INTERNAL_LOC(), tk_identifier, "Just"));
+
+	bound_var_t::ref member = extract_member_by_index(
+			builder,
+			scope,
+			life,
+			ref_expr->get_location(),
+			casted_input,
+			casted_input->type,
+			0,
+			"value",
+			false /*as_ref*/);
+
+	runnable_scope_t::ref fresh_scope = scope->new_runnable_scope(
+			string_format("just-%s", ref_expr->token.text.c_str()));
+
+	*scope_if_true = fresh_scope;
+
+	fresh_scope->put_bound_variable(ref_expr->token.text, member);
+}
+
 bound_var_t::ref resolve_null_check(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
-		ast::expression_t::ref node,
+		ast::item_t::ref node,
 		bound_var_t::ref value,
 		null_check_kind_t nck,
 		runnable_scope_t::ref *scope_if_true,
@@ -140,50 +173,77 @@ bound_var_t::ref resolve_null_check(
 		error.add_info(location, "the type of %s is %s", node->str().c_str(), value->type->str().c_str());
 		throw error;
 	}
-	llvm::Value *llvm_value = value->resolve_bound_var_value(scope, builder);
+
 	bound_type_t::ref bound_bool_type = upsert_bound_type(builder, scope, type_id(make_iid(BOOL_TYPE)));
 	assert(bound_bool_type != nullptr);
 	llvm::Type *llvm_bool_type = bound_bool_type->get_llvm_specific_type();
-
-	llvm::Constant *zero;
-	if (llvm::dyn_cast<llvm::PointerType>(llvm_value->getType())) {
-		zero = llvm::Constant::getNullValue(llvm_value->getType());
-	} else if (llvm_value->getType()->isIntegerTy()) {
-		zero = llvm::ConstantInt::get(llvm_value->getType(), 0);
-	} else {
-		assert(false);
-	}
-
 	llvm::Value *llvm_bool_value;
-	switch (nck) {
-	case nck_is_non_null:
-		llvm_bool_value = builder.CreateIntCast(
-				builder.CreateICmpNE(llvm_value, zero),
-				llvm_bool_type, false /*isSigned*/);
 
-		if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
-			if (scope_if_true != nullptr) {
-				unmaybe_variable(builder, scope, life, ref_expr, scope_if_true);
-			}
-			if (scope_if_false != nullptr) {
-				nullify_let_var(builder, scope, life, ref_expr, scope_if_false);
-			}
-		}
-		break;
-	case nck_is_null:
-		llvm_bool_value = builder.CreateIntCast(
-				builder.CreateICmpEQ(llvm_value, zero),
-				llvm_bool_type, false /*isSigned*/);
+	if (auto data = dyncast<const types::type_data_t>(value->type->get_type()->eval(scope))) {
+		bound_var_t::ref ctor_id = call_get_ctor_id(
+					scope, life, node, make_iid("ctor_id"), builder, value);
 
-		if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
-			if (scope_if_false != nullptr) {
-				unmaybe_variable(builder, scope, life, ref_expr, scope_if_false);
+		switch (nck) {
+		case nck_is_null:
+			assert(false);
+			llvm_bool_value = nullptr;
+			break;
+		case nck_is_non_null:
+			llvm_bool_value = builder.CreateIntCast(
+					builder.CreateICmpNE(ctor_id->get_llvm_value(), builder.getInt32(atomize("Empty"))),
+					llvm_bool_type, false /*isSigned*/);
+			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+				if (scope_if_true != nullptr) {
+					extract_just_value(builder, scope,
+						   	life, ref_expr, value, scope_if_true);
+				}
+				if (scope_if_false != nullptr) {
+				}
 			}
-			if (scope_if_true != nullptr) {
-				nullify_let_var(builder, scope, life, ref_expr, scope_if_true);
-			}
+			break;
 		}
-		break;
+	} else {
+		llvm::Value *llvm_value = value->resolve_bound_var_value(scope, builder);
+
+		llvm::Constant *zero;
+		if (llvm::dyn_cast<llvm::PointerType>(llvm_value->getType())) {
+			zero = llvm::Constant::getNullValue(llvm_value->getType());
+		} else if (llvm_value->getType()->isIntegerTy()) {
+			zero = llvm::ConstantInt::get(llvm_value->getType(), 0);
+		} else {
+			assert(false);
+		}
+
+		switch (nck) {
+		case nck_is_non_null:
+			llvm_bool_value = builder.CreateIntCast(
+					builder.CreateICmpNE(llvm_value, zero),
+					llvm_bool_type, false /*isSigned*/);
+
+			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+				if (scope_if_true != nullptr) {
+					unmaybe_variable(builder, scope, life, ref_expr, scope_if_true);
+				}
+				if (scope_if_false != nullptr) {
+					nullify_let_var(builder, scope, life, ref_expr, scope_if_false);
+				}
+			}
+			break;
+		case nck_is_null:
+			llvm_bool_value = builder.CreateIntCast(
+					builder.CreateICmpEQ(llvm_value, zero),
+					llvm_bool_type, false /*isSigned*/);
+
+			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+				if (scope_if_false != nullptr) {
+					unmaybe_variable(builder, scope, life, ref_expr, scope_if_false);
+				}
+				if (scope_if_true != nullptr) {
+					nullify_let_var(builder, scope, life, ref_expr, scope_if_true);
+				}
+			}
+			break;
+		}
 	}
 
 	assert(llvm_bool_value != nullptr);

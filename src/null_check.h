@@ -16,10 +16,10 @@ bound_var_t::ref get_null(
 
 bound_var_t::ref resolve_null_check(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		runnable_scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
-		ptr<const ast::expression_t> node,
+		ptr<const ast::item_t> node,
 		bound_var_t::ref value,
 		null_check_kind_t nck,
 		runnable_scope_t::ref *scope_if_true,

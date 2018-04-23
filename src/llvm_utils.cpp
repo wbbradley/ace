@@ -124,8 +124,8 @@ bound_var_t::ref create_callsite(
 		bound_var_t::refs arguments)
 {
 	assert(function != nullptr);
-
-	auto closure = dyncast<const types::type_function_closure_t>(function->type->get_type());
+	auto expanded_type = function->type->get_type()->eval(scope);
+	auto closure = dyncast<const types::type_function_closure_t>(expanded_type);
 	if (closure != nullptr) {
 		debug_above(8, log("closure is %s", llvm_print(function->get_llvm_value()).c_str()));
 		debug_above(8, log("closure type is %s", llvm_print(function->get_llvm_value()->getType()).c_str()));
@@ -171,48 +171,49 @@ bound_var_t::ref create_callsite(
 				make_iid_impl("inner function extraction", function->get_location()));
 
 		return create_callsite(builder, scope, life, inner_function, name, location, arguments);
-	}
+	} else {
 
 #ifdef ZION_DEBUG
-	llvm::Value *llvm_function = function->get_llvm_value();
-	debug_above(5, log(log_info, "create_callsite is assuming %s is compatible with %s",
-				function->get_type()->str().c_str(),
-				str(arguments).c_str()));
-	debug_above(5, log(log_info, "calling function " c_id("%s") " with type %s",
-				function->name.c_str(),
-				llvm_print(llvm_function->getType()).c_str()));
+		llvm::Value *llvm_function = function->get_llvm_value();
+		debug_above(5, log(log_info, "create_callsite is assuming %s is compatible with %s",
+					function->get_type()->str().c_str(),
+					str(arguments).c_str()));
+		debug_above(5, log(log_info, "calling function " c_id("%s") " with type %s",
+					function->name.c_str(),
+					llvm_print(llvm_function->getType()).c_str()));
 #endif
 
-	/* downcast the arguments as necessary to var_t * */
-	types::type_function_t::ref function_type = dyncast<const types::type_function_t>(
-			function->get_type());
+		/* downcast the arguments as necessary to var_t * */
+		types::type_function_t::ref function_type = dyncast<const types::type_function_t>(
+				function->get_type());
 
-	if (function_type != nullptr) {
-		auto return_type = upsert_bound_type(builder, scope, function_type->return_type);
-		if (auto args = dyncast<const types::type_args_t>(function_type->args)) {
-			auto coerced_parameter_values = get_llvm_values(builder,
-					scope, life, location, args, arguments);
-			llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
-					builder, location, function, coerced_parameter_values);
+		if (function_type != nullptr) {
+			auto return_type = upsert_bound_type(builder, scope, function_type->return_type);
+			if (auto args = dyncast<const types::type_args_t>(function_type->args)) {
+				auto coerced_parameter_values = get_llvm_values(builder,
+						scope, life, location, args, arguments);
+				llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
+						builder, location, function, coerced_parameter_values);
 
-			bound_type_t::ref return_type = get_function_return_type(builder, scope, function->type);
+				bound_type_t::ref return_type = get_function_return_type(builder, scope, function->type);
 
-			bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
-					return_type, llvm_call_inst,
-					make_type_id_code_id(location, name));
+				bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
+						return_type, llvm_call_inst,
+						make_type_id_code_id(location, name));
 
-			/* all return values must be tracked since the callee is
-			 * expected to return a ref-counted value */
-			life->track_var(builder, scope, ret, lf_statement);
-			return ret;
+				/* all return values must be tracked since the callee is
+				 * expected to return a ref-counted value */
+				life->track_var(builder, scope, ret, lf_statement);
+				return ret;
+			} else {
+				panic("type args are not type_args_t");
+				return nullptr;
+			}
 		} else {
-			panic("type args are not type_args_t");
-			return nullptr;
+			throw user_error(function->get_location(),
+					"this expression is not callable (its type is %s)",
+					function->type->str().c_str());
 		}
-	} else {
-		throw user_error(function->get_location(),
-				"this expression is not callable (its type is %s)",
-				function->type->str().c_str());
 	}
 }
 

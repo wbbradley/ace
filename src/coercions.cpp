@@ -111,7 +111,7 @@ llvm::Value *coerce_value(
 		debug_above(6, log(log_info, "calling " c_id("__box__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
 		bound_var_t::ref coercion = call_program_function(
 				builder, scope, life,
-				"__box__", location, {rhs});
+				"__box__", location, {rhs}, lhs_type);
 
 		/* trust the type system. */
 		return builder.CreateBitCast(coercion->get_llvm_value(), llvm_lhs_type);

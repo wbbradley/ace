@@ -21,7 +21,8 @@ unification_t var_t::accepts_callsite(
 		types::type_t::ref return_type) const
 {
 	/* get the args out of the sig */
-	types::type_t::ref type = get_type(scope);
+	types::type_t::ref type = get_type(scope)->eval(scope);
+	debug_above(9, log("var_t type = %s", str().c_str()));
 
 	types::type_function_t::ref fn_type;
 	if (auto function_closure = dyncast<const types::type_function_closure_t>(type)) {

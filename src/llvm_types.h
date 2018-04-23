@@ -29,6 +29,7 @@ bound_var_t::ref upsert_tagged_tuple_ctor(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		identifier::ref id,
+		std::string ctor_name,
 		location_t location,
 		types::type_t::ref data_type,
 		types::type_t::ref return_type);
@@ -39,6 +40,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 		bound_type_t::ref bound_data_type,
 		bound_type_t::ref bound_return_type,
 		identifier::ref id,
+		std::string ctor_name,
 		location_t location);
 
 #if 0
