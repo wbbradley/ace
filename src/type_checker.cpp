@@ -195,6 +195,11 @@ bound_var_t::ref generate_stack_variable(
 			if (unification.result) {
 				/* the lhs is a supertype of the rhs */
 				declared_type = declared_type->rebind(unification.bindings);
+				debug_above(7, log_location(log_info, var_decl.get_location(),
+					   	"initializer %s (%s) unifies with declared type %s",
+						var_decl.initializer->str().c_str(),
+						init_var->str().c_str(),
+						declared_type->str().c_str()));
 			} else {
 				/* report that the variable type does not match the initializer type */
 				auto error = user_error(var_decl.get_location(),
@@ -2132,37 +2137,6 @@ bound_var_t::ref type_check_binary_operator(
 				function_name,
 				expected_type);
 	} else {
-		if (function_name == "__eq__" || function_name == "__ineq__") {
-			if (auto lhs_data = dyncast<const types::type_data_t>(lhs_type)) {
-				if (rhs_is_null) {
-					return resolve_null_check(
-							builder,
-							scope,
-							life,
-							obj->get_location(),
-							lhs_node,
-							lhs,
-							function_name == "__eq__" ? nck_is_null : nck_is_non_null,
-							scope_if_true,
-							scope_if_false);
-				}
-			}
-			if (auto rhs_data = dyncast<const types::type_data_t>(rhs_type)) {
-				if (lhs_is_null) {
-					return resolve_null_check(
-							builder,
-							scope,
-							life,
-							obj->get_location(),
-							rhs_node,
-							rhs,
-							function_name == "__eq__" ? nck_is_null : nck_is_non_null,
-							scope_if_true,
-							scope_if_false);
-				}
-			}
-		}
-
 		/* intercept binary operations on native pointers */
 		if (
 				(lhs->type->is_function(scope)
@@ -2887,7 +2861,8 @@ bound_var_t::ref cast_bound_var(
 				type_cast->str().c_str());
 	}
 
-	return bound_var_t::create(INTERNAL_LOC(), "cast", bound_type, llvm_dest_val, make_iid("cast"));
+	return bound_var_t::create(INTERNAL_LOC(), "cast", bound_type, llvm_dest_val, make_iid_impl("cast",
+			   bound_var->get_location()));
 }
 
 bound_var_t::ref call_get_ctor_id(

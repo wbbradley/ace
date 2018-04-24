@@ -130,7 +130,7 @@ The bool and vector types are declared in the standard library exactly as depict
 above. See `lib/std.zion`.
 
 When a call to a function that takes a sum type and there still remain free type
-variables, they will be substituted with the "unreachable" type (void) during
+variables, they will be substituted with the bottom "⊥" type (void) during
 function instantiation.
 
 ### Getting LLVM built on your Mac

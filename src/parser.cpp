@@ -1310,7 +1310,7 @@ data_type_t::ref data_type_t::parse(
 	}
 
 	auto data_type = create<data_type_t>(type_decl->token);
-	while (ps.token.tk == tk_identifier) {
+	while (ps.token.tk == tk_identifier && (!expect_outdent ? !ps.line_broke() : true)) {
 		auto ctor_pair = parse_ctor(ps, type_variables_list);
 		for (auto x : data_type->ctor_pairs) {
 			if (x.first.text == ctor_pair.first.text) {

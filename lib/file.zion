@@ -52,7 +52,7 @@ def readbytes(f File) bytes?
 
 def readbytes(fp *?posix.FILE) bytes?
 	if fp == null
-		return null
+		return Empty
 
 	let size = size(fp)
 	when size is
@@ -67,10 +67,10 @@ def readbytes(fp *?posix.FILE) bytes?
 				fp)
 
 			if posix.ferror(fp)
-				return null
-			return bytes(pb, bytes_read)
+				return Empty
+			return Just(bytes(pb, bytes_read))
 		else
-			return null
+			return Empty
 
 [global]
 def write(fp *posix.FILE, s str)

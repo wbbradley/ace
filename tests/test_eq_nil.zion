@@ -3,7 +3,7 @@ module _
 # expect: pass
 
 def main()
-	var x int?
+	var x *?int = null
 	if x == null
 		print("pass")
 	else

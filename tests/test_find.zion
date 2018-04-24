@@ -4,9 +4,14 @@ module _
 
 def main()
 	i := find("hello world", "world", 0)
-	assert(i != null and i == 6)
+	assert(i == 6)
+	assert(not (i != 6))
+	assert(6 == i)
+	assert(not (6 != i))
+
 	j := find("hello worl", "world", 0)
-	assert(j == null)
+	assert(j == Empty)
+
 	assert(find("world", "world", 1) == null)
 	assert(find(" world", "world", 1) != null)
 	print("pass")

@@ -5,5 +5,5 @@ module _
 def foo(x int, y int) bool
 	return x > y
 
-def foo(x Int, y int) bool
-	return x.raw < y
+def foo(x float, y int) bool
+	return x < y

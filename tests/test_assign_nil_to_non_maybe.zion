@@ -1,12 +1,13 @@
 module _
+# test: pass
 
 type Vector has
 	var x float
 	var y float
 
 def main()
-	var v Vector? = Vector(2.0, 4.3)
-	if v != null
-		# error: left-hand side of this assignment is not a reference
-		v = Vector(1.0, 2.0)
+	var v Vector? = Just(Vector(2.0, 4.3))
+	when v is
+		Just(_)
+			v = Just(Vector(1.0, 2.0))
 	print("pass")

@@ -33,7 +33,7 @@ types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 	} else {
 		log(log_warning, "not-impl: get a type from unchecked_var %s", node->str().c_str());
 		not_impl();
-		return type_unreachable();
+		return type_bottom();
 	}
 }
 

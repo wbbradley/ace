@@ -109,7 +109,7 @@ void build_patterns(
 	}
 
 	/* check whether all cases of the pattern_value's type are handled */
-	bool all_values_matched = true; // TODO: <--- figure out if this is true or not
+	bool all_values_matched = false; // TODO: <--- figure out if this is true or not
 	if (all_values_matched) {
 		/* good, the user knew not to have an else block because they are handling
 		 * all paths */

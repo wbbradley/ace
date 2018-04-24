@@ -228,6 +228,16 @@ void ast::type_product_t::register_type(
 		throw error;
 	}
 }
+types::type_t::map bottom_out_unreferenced_vars(const std::set<std::string> &seen, const identifier::refs &all) {
+	types::type_t::map bindings;
+	for (auto a : all) {
+		const auto &name = a->get_name();
+		if (!in(name, seen)) {
+			bindings[name] = type_bottom();
+		}
+	}
+	return bindings;
+}
 
 void ast::data_type_t::register_type(
 		llvm::IRBuilder<> &builder,
@@ -270,7 +280,9 @@ void ast::data_type_t::register_type(
 		for (auto &ctor_pair : ctor_pairs) {
 			identifier::ref ctor_id = make_code_id(ctor_pair.first);
 			if (ctor_pair.second->args.size() == 0) {
-				bound_type_t::ref bound_tag_type = upsert_bound_type(builder, scope, ctor_return_type);
+				bound_type_t::ref bound_tag_type = upsert_bound_type(builder, scope,
+						ctor_return_type->rebind(
+							bottom_out_unreferenced_vars({}, type_variables)));
 				bound_var_t::ref tag = llvm_create_global_tag(
 						builder, scope, bound_tag_type, ctor_id->get_name(),
 						ctor_id);
@@ -281,7 +293,9 @@ void ast::data_type_t::register_type(
 			} else {
 				/* create and register an unchecked data ctor */
 				types::type_function_t::ref data_ctor_sig = type_function(nullptr, 
-						ctor_pair.second, ctor_return_type);
+						ctor_pair.second,
+					   	ctor_return_type->rebind(
+							bottom_out_unreferenced_vars(ctor_pair.second->get_ftvs(), type_variables)));
 
 				module_scope->put_unchecked_variable(
 						ctor_id->get_name(),
