@@ -185,8 +185,17 @@ bound_var_t::ref resolve_null_check(
 
 		switch (nck) {
 		case nck_is_null:
-			assert(false);
-			llvm_bool_value = nullptr;
+			llvm_bool_value = builder.CreateIntCast(
+					builder.CreateICmpEQ(ctor_id->get_llvm_value(), builder.getInt32(atomize("Empty"))),
+					llvm_bool_type, false /*isSigned*/);
+			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+				if (scope_if_true != nullptr) {
+				}
+				if (scope_if_false != nullptr) {
+					extract_just_value(builder, scope,
+						   	life, ref_expr, value, scope_if_true);
+				}
+			}
 			break;
 		case nck_is_non_null:
 			llvm_bool_value = builder.CreateIntCast(

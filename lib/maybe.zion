@@ -4,5 +4,43 @@ type Maybe T is
 	Just(t T)
 	Empty
 
-def __box__[T where not (T === Empty) and not (T === Maybe any)](t T) Maybe T
-	return Just(t)
+def __eq__[U](lhs Maybe U, rhs Maybe U) bool
+	when rhs is
+		Just(rhs_value)
+			when lhs is
+				Just(lhs_value)
+					return lhs_value == rhs_value
+			return false
+		Empty
+			when lhs is
+				Empty
+					return true
+			return false
+
+def __eq__[U, V where U === V](lhs U, rhs Maybe V) bool
+	when rhs is
+		Just(rhs_value)
+			return lhs == rhs_value
+		Empty
+			return false
+
+def __ineq__[U, V where U === V](lhs U, rhs Maybe V) bool
+	when rhs is
+		Just(rhs_value)
+			return lhs != rhs_value
+		Empty
+			return true
+
+def __eq__[U, V where U === V](lhs Maybe U, rhs V) bool
+	when lhs is
+		Just(lhs_value)
+			return lhs_value == rhs
+		Empty
+			return false
+
+def __ineq__[U, V where U === V](lhs Maybe U, rhs V) bool
+	when lhs is
+		Just(lhs_value)
+			return lhs_value != rhs
+		Empty
+			return true

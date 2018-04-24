@@ -16,7 +16,7 @@ const char *STD_MANAGED_TYPE = "var_t";
 const char *STD_VECTOR_TYPE = "vector.Vector";
 const char *STD_MAP_TYPE = "map.Map";
 const char *VOID_TYPE = "void";
-const char *UNREACHABLE_TYPE = "__unreachable";
+const char *BOTTOM_TYPE = "⊥";
 
 const char *TYPE_OP_NOT = "not";
 const char *TYPE_OP_IF = "if";
@@ -954,14 +954,14 @@ namespace types {
 		/* pretend this is getting applied */
 		panic("This should not really get called ....");
 		map bindings;
-		bindings[binding->get_name()] = type_unreachable();
+		bindings[binding->get_name()] = type_bottom();
 		return body->rebind(bindings)->ftv_count();
 	}
 
 	std::set<std::string> type_lambda_t::get_ftvs() const {
 		panic("This should not really get called ....");
 		map bindings;
-		bindings[binding->get_name()] = type_unreachable();
+		bindings[binding->get_name()] = type_bottom();
 		return body->rebind(bindings)->get_ftvs();
 	}
 
@@ -1166,6 +1166,9 @@ namespace types {
 
 	int type_data_t::ftv_count() const {
 		int ftv_sum = 0;
+		for (auto type_var : type_vars) {
+			ftv_sum += type_var->ftv_count();
+		}
 		for (auto ctor_pair : ctor_pairs) {
 			ftv_sum += ctor_pair.second->ftv_count();
 		}
@@ -1174,6 +1177,10 @@ namespace types {
 
 	std::set<std::string> type_data_t::get_ftvs() const {
 		std::set<std::string> set;
+		for (auto type_var : type_vars) {
+			std::set<std::string> option_set = type_var->get_ftvs();
+			set.insert(option_set.begin(), option_set.end());
+		}
 		for (auto ctor_pair : ctor_pairs) {
 			std::set<std::string> option_set = ctor_pair.second->get_ftvs();
 			set.insert(option_set.begin(), option_set.end());
@@ -1424,9 +1431,9 @@ types::type_t::ref type_variable(location_t location) {
 	return make_ptr<types::type_variable_t>(location);
 }
 
-types::type_t::ref type_unreachable() {
-	static auto unreachable_type =  make_ptr<types::type_id_t>(make_iid(UNREACHABLE_TYPE));
-	return unreachable_type;
+types::type_t::ref type_bottom() {
+	static auto bottom_type = make_ptr<types::type_id_t>(make_iid(BOTTOM_TYPE));
+	return bottom_type;
 }
 
 types::type_t::ref type_null() {

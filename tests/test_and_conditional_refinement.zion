@@ -4,7 +4,7 @@ module _
 # expect: foobar : str
 
 def maybe_a_line() str?
-	return null
+	return Empty
 
 def main()
 	let cur_line = maybe_a_line()

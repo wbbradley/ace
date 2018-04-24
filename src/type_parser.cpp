@@ -215,9 +215,11 @@ namespace types {
 		types::type_args_t::ref type_args;
 		if (ps.token.tk == tk_lparen) {
 			auto type = parse_type_args(ps, generics);
-			type_args = dyncast<const types::type_args_t>(type_args);
+			type_args = dyncast<const types::type_args_t>(type);
 			if (type_args == nullptr) {
-				throw user_error(type->get_location(), "data ctors must contain non-generic type args");
+				auto error = user_error(type->get_location(), "data ctors must contain non-generic type args");
+				error.add_info(type->get_location(), "type of args is %s", type->str().c_str());
+				throw error;
 			}
 			return type_args;
 		} else {

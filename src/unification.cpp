@@ -141,6 +141,10 @@ unification_t unify_core(
 	const auto lhs = lhs_->rebind(bindings)->eval(env);
 	const auto rhs = rhs_->rebind(bindings)->eval(env);
 
+	if (lhs == type_bottom() || rhs == type_bottom()) {
+		return {true, "bottom type is subtype to everything", bindings, coercions, {}};
+	}
+
 	auto ptref_lhs = dyncast<const types::type_ref_t>(lhs);
 
 	if (ptref_lhs != nullptr) {
@@ -235,12 +239,14 @@ unification_t unify_core(
 	if (ptd_a != nullptr) {
 		if (ptd_b != nullptr) {
 			if (ptd_a->name.text != ptd_b->name.text || ptd_a->type_vars.size() != ptd_b->type_vars.size()) {
+#if 0
 				if (ptd_a->name.text == "Maybe" && depth == 0) {
 					assert(ptd_a->type_vars.size() == 1);
 					return unify_core(
 							ptd_a->type_vars[0], b, 
 							env, bindings, coercions, depth, allow_variance);
 				}
+#endif
 				return {false, "type mismatch", bindings, coercions, {}};
 			} else {
 				for (int i = 0; i < ptd_a->type_vars.size(); ++i) {
@@ -255,6 +261,7 @@ unification_t unify_core(
 				return {true, "", bindings, coercions, {}};
 			}
 		} else {
+#if 0
 			if (ptd_a->name.text == "Maybe" && depth == 0) {
 				if (types::is_type_id(b, NULL_TYPE, nullptr)) {
 					return {true, "", bindings, coercions + 1, {}};
@@ -265,6 +272,7 @@ unification_t unify_core(
 							env, bindings, coercions, depth, allow_variance);
 				}
 			}
+#endif
 		}
 	}
 

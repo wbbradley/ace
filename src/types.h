@@ -12,7 +12,7 @@ extern const char *STD_MANAGED_TYPE;
 extern const char *STD_VECTOR_TYPE;
 extern const char *STD_MAP_TYPE;
 extern const char *VOID_TYPE;
-extern const char *UNREACHABLE_TYPE;
+extern const char *BOTTOM_TYPE;
 
 /* Product Kinds */
 enum product_kind_t {
@@ -486,7 +486,7 @@ namespace types {
 /* type data ctors */
 types::type_t::ref type_null();
 types::type_t::ref type_void();
-types::type_t::ref type_unreachable();
+types::type_t::ref type_bottom();
 types::type_t::ref type_literal(token_t token);
 types::type_t::ref type_integer(types::type_t::ref size, types::type_t::ref is_signed);
 types::type_t::ref type_id(identifier::ref var);
