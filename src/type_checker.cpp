@@ -1711,6 +1711,9 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 
 			if (!unifies(element_type, bound_item->type->get_type(), scope)) {
 				auto error = user_error(bound_item->get_location(), "vector item is incompatible with container type");
+				if (dyncast<const types::type_lambda_t>(element_type)) {
+					error.add_info(element_type->get_location(), "you may be missing an application of a type operator");
+				}
 				error.add_info(element_type->get_location(), "container is a %s", element_type->str().c_str());
 				error.add_info(bound_item->get_location(), "item is a %s", bound_item->type->get_type()->str().c_str());
 				throw error;

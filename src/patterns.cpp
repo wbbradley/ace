@@ -38,7 +38,6 @@ void build_patterns(
 	llvm::BasicBlock *llvm_next_merge = default_block;
 
 	bool all_patterns_return = true;
-	auto bindings = scope->get_type_variable_bindings();
 	for (auto pattern_block_iter = pattern_blocks.rbegin(); pattern_block_iter != pattern_blocks.rend(); ++pattern_block_iter) {
 		auto pattern_block = *pattern_block_iter;
 		auto predicate = pattern_block->predicate;
@@ -109,7 +108,7 @@ void build_patterns(
 	}
 
 	/* check whether all cases of the pattern_value's type are handled */
-	bool all_values_matched = false; // TODO: <--- figure out if this is true or not
+	bool all_values_matched = true; // TODO: <--- figure out if this is true or not
 	if (all_values_matched) {
 		/* good, the user knew not to have an else block because they are handling
 		 * all paths */
@@ -224,7 +223,7 @@ bound_var_t::ref cast_data_type_to_ctor_struct(
 					make_code_id(ctor_pair.first));
 		}
 	}
-	throw user_error(ctor_name.location, "unable to find " c_id("%s") " in %s",
+	throw user_error(ctor_name.location, "unable to find value of " c_id("%s") " in %s",
 			ctor_name.text.c_str(),
 			input_value->str().c_str());
 	return nullptr;

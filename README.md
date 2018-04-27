@@ -166,6 +166,7 @@ or llvm tools, etc...
   - [x] string (as slices)
   - [x] vectors
   - [ ] hash map
+  - [ ] set
   - [ ] binary tree
   - [ ] avl tree
 - [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction
