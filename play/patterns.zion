@@ -1,0 +1,276 @@
+module _
+
+type Either L R is
+	Left(l L)
+	Right(r R)
+
+type Error is Error(message str)
+
+######################
+type Type is
+	Integer
+	DataType(typename str, ctors [Ctor])
+
+type Ctor has
+	name str
+	arg_types [Type]
+	
+type CtorPattern has
+	typename str
+	name str
+	args [Pattern]
+
+type Pattern is
+	CtorPatterns(ctor_patterns [CtorPattern])
+	IntegersExcept(except [int])
+	AllOf(t Type)
+	Nothing
+	SomeIntegers(include [int])
+
+def pattern_from_type(t Type) Pattern
+	when t is
+		Integer
+			let ints [int]
+			return IntegersExcept(ints)
+		DataType(typename, ctors)
+			let ctor_patterns [CtorPattern]
+			for ctor in ctors
+				let patterns [Pattern]
+				for arg_type in ctor.arg_types
+					append(patterns, AllOf(arg_type))
+				append(ctor_patterns, CtorPattern(typename, ctor.name, patterns))
+			return CtorPatterns(ctor_patterns)
+			
+type Pair T S is Pair(lhs T, rhs S)
+
+def __bitwise_and__(lhs Either Pattern Error, rhs Either Pattern Error) Either Pattern Error
+	when Pair(lhs, rhs) is
+		Pair(Right(Error(lhs_message)), Right(Error(rhs_message)))
+			return Right(Error("Error! " + lhs_message + " and " + rhs_message))
+		Pair(Right(_), _)
+			return lhs
+		Pair(_, Right(_))
+			return rhs
+		Pair(Left(lhs), Left(rhs))
+			return lhs & rhs
+
+def set_subtract(lhs [int], rhs [int]) [int]
+	let new [int]
+	for l in lhs
+		if l not in rhs
+			append(new, l)
+	return new
+			
+def __bitwise_and__(lhs Pattern, rhs Pattern) Either Pattern Error
+	when Pair(lhs, rhs) is
+		Pair(Nothing, _)
+			return Left(Nothing)
+		Pair(_, Nothing)
+			return Left(Nothing)
+
+		# Handle Integer reduction from the entire domain of integers
+		Pair(AllOf(Integer), SomeIntegers(_))
+			return Left(rhs)
+		Pair(SomeIntegers(_), AllOf(Integer))
+			return Left(lhs)
+		Pair(AllOf(Integer), IntegersExcept(_))
+			return Left(rhs)
+		Pair(IntegersExcept(_), AllOf(Integer))
+			return Left(lhs)
+
+		# Handle Integer reduction from an infinite set that has been pruned
+		Pair(IntegersExcept(except), SomeIntegers(include))
+			return Left(SomeIntegers(set_subtract(include, except)))
+		Pair(SomeIntegers(include), IntegersExcept(except))
+			return Left(SomeIntegers(set_subtract(include, except)))
+		Pair(IntegersExcept(except), SomeIntegers(include))
+			return Left(SomeIntegers(set_subtract(include, except)))
+
+		# Handle Ctors
+		Pair(AllOf(DataType(lhs_typename, lhs_ctors)), AllOf(DataType(rhs_typename, rhs_ctors)))
+			if lhs_typename == rhs_typename
+				assert(len(lhs_ctors) == len(rhs_ctors))
+
+				# No reduction in the pattern
+				return Left(lhs)
+			else
+				return Right(Error("Type mismatch. " + lhs_typename + " != " + rhs_typename))
+
+		# Handle reduction from total domain to a subset
+		Pair(AllOf(DataType(lhs_typename, _)), CtorPatterns(ctor_patterns))
+			return reduce_all_datatype(lhs_typename, rhs, ctor_patterns)
+		Pair(CtorPatterns(ctor_patterns), AllOf(DataType(rhs_typename, _)))
+			return reduce_all_datatype(rhs_typename, lhs, ctor_patterns)
+
+		Pair(CtorPatterns(lhs_ctor_patterns), CtorPatterns(rhs_ctor_patterns))
+			return reduce_ctor_patterns(lhs_ctor_patterns, rhs_ctor_patterns)
+		else
+			assert(false)
+			return Right(Error("Not implemented"))
+
+def impossible_ctor_pattern_to_match(reduced_pattern CtorPattern) bool
+	assert(false)
+	return true
+	
+def reduce_ctor_patterns(lhs_ctor_patterns, rhs_ctor_patterns) Either Pattern Error
+	let final_ctor_patterns [CtorPattern]
+	for lhs_cp in lhs_ctor_patterns
+		reduced_typename := lhs_cp.typename
+		reduced_name := lhs_cp.name
+		reduced_args := copy(lhs_cp.args)
+
+		for rhs_cp in rhs_ctor_patterns
+			if lhs_cp.typename != rhs_cp.typename
+				return Right(
+					Error("Type mismatch in patterns. " + lhs_cp.typename + " != " +
+						rhs_cp.typename))
+			if len(rhs_cp.args) != len(reduced_args)
+				return Right(
+					Error("Different number of patterns in ctors. |" + lhs_cp.name + "| != |" +
+						rhs_cp.name + "|"))
+
+			if rhs_cp.name == reduced_name
+				for i in range(len(reduced_args))
+					result := reduced_args[i] & rhs_cp.args[i]
+					when result is
+						Left(pattern)
+							reduced_args[i] = pattern
+						Right(_)
+							return result
+
+		reduced_pattern := CtorPattern(reduced_typename, reduced_name, reduced_args)
+		if impossible_ctor_pattern_to_match(reduced_pattern)
+			continue
+		append(final_ctor_patterns, reduced_pattern)
+
+	if len(final_ctor_patterns) == 0
+		return Right(Error("No patterns remain"))
+	else
+		return Left(CtorPatterns(final_ctor_patterns))
+
+
+def reduce_all_datatype(lhs_typename str, rhs Pattern, ctor_patterns [CtorPattern]) Either Pattern Error
+	for ctor_pattern in ctor_patterns
+		if ctor_pattern.typename != lhs_typename
+			return Right(
+				Error(
+					"Invalid typed ctor pattern found. Expected " + lhs_typename
+					+ " but ctor_pattern indicates it is a " + ctor_pattern.typename))
+
+	# This is a reduction to the right hand side
+	return Left(rhs)
+
+[global]
+def str(ctor Ctor) str
+	if len(ctor.arg_types) == 0
+		return ctor.name
+	return ctor.name + "(" + join(", ", ctor.arg_types) + ")"
+
+[global]
+def str(t Type) str
+	when t is
+		Integer
+			return "Integer"
+		DataType(typename, ctors)
+			return "DataType(" + typename + ", " + join(", ", ctors) + ")"
+
+[global]
+def str(pattern Pattern) str
+	when pattern is
+		IntegersExcept(except)
+			return "IntegersExcept(" + join(", ", except) + ")"
+		CtorPatterns(ctor_patterns)
+			return "CtorPatterns(" + join(", ", ctor_patterns) + ")"
+		AllOf(t)
+			return "AllOf(" + str(t) + ")"
+		Nothing
+			return "Nothing"
+		SomeIntegers(include)
+			return "SomeIntegers(" + join(", ", include) + ")"
+	
+[global]
+def str(ctor_pattern CtorPattern) str
+	if len(ctor_pattern.args) == 0
+		return ctor_pattern.name
+	return ctor_pattern.name + "(" + join(", ", ctor_pattern.args) + ")"
+	
+type Coverage has
+	covered Pattern
+	uncovered [Pattern]
+
+[global]
+def str(cov Coverage) str
+	return "Coverage(" + str(cov.covered) + ", " + str(cov.uncovered) + ")"
+
+def impossible_pattern_to_match(pattern Pattern) bool
+	when pattern is
+		Nothing
+			return true
+		SomeIntegers(include)
+			return len(include) != 0
+		else
+			return false
+
+def dimensions(a Pattern) int
+	
+def cover(to_cover Pattern, uncovered Pattern) Either Coverage Error
+	# Compute the final covering of this incoming pattern
+	# Also compute the final uncovered pattern
+	either_covered := to_cover & uncovered
+	when either_covered is
+		Right(error)
+			return covered
+		Left(pattern)
+			return cover2(covered, uncovered)
+
+def cover2(covered Pattern, uncovered Pattern) Either Coverage Error
+	# `covered` is guaranteed to only contain patterns covered by uncovered, that is
+	# it should only be useful for covering uncovered.
+	# Now the trick is to visit the covered and the uncovered in parallel, and generate new uncovered patterns
+	when covered is
+		AllOf(t)
+			# Ensure that we don't have to deal with AllOf down below
+			covered = pattern_from_type(t)
+		else
+			pass
+
+	when uncovered is
+		AllOf(t)
+			# Ensure that we don't have to deal with AllOf down below
+			uncovered = pattern_from_type(t)
+		else
+			pass
+
+	if covered == Nothing
+		return Right(Error("No coverage"))
+
+	when Pair(covered, uncovered) is
+		Pair(CtorPatterns(lhs), CtorPatterns(rhs))
+		Pair(IntegersExcept(except)
+		Nothing
+		SomeIntegers(include [int])
+
+	let uncovered [Pattern]
+	for index in range(dimensions(covered))
+		uncovered = to_cover & flip_dimension(cover, index)
+		when flipped is
+			Left(pattern)
+				append(uncovered, flipped)
+		
+	uncovered := to_cover - cover
+
+	
+	# check conditions
+	if nothing_in_covered(covered)
+		return Right(Error("Pattern (" + join(", ", cover) + ") can never obtain"))
+	
+	return Left(Coverage(covered, [uncovered]))
+
+def main()
+	when coverage_match([All, All], [Some([0]), All]) is
+		Left(coverage)
+			static_print(coverage)
+			print(coverage)
+		Right(Error(message))
+			print("Error: " + message)
+

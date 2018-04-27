@@ -333,7 +333,7 @@ bound_var_t::ref get_callable(
 		if (fns.size() > 10) {
 			error.add_info(callsite_location,
 					"%d non-matching functions called " c_id("%s")
-					" found (skipping listing them all)", fittings.size(), alias.c_str());
+					" found (skipping listing them all)", fns.size(), alias.c_str());
 		} else {
 			for (auto &fn : fns) {
 				ss.str("");

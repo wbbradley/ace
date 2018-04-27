@@ -258,7 +258,7 @@ void ast::data_type_t::register_type(
 
 		/* create the data type's environment entry */
 		types::type_t::ref expansion = type_data(
-				token_t(id->get_location(), tk_identifier, id->get_name()),
+				token_t(id->get_location(), tk_identifier, scope->make_fqn(id->get_name())),
 				vars,
 			   	ctor_pairs);
 

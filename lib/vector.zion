@@ -332,7 +332,7 @@ def reserve[T](vec *(NativeVector T), n size_t)
 def copy(orig [any T]) [any T]
 	var new [any T]
 	reserve(new, len(orig))
-	i := 0
+	var i = 0
 	while i != len(orig)
 		append(new, orig[i])
 		i += 1
@@ -394,3 +394,17 @@ def __iter_item__(i VectorIter any C) any C
 #		return lhs < rhs ? -1 : ((lhs == rhs) ? 0 : 1)
 #	vec := v as *(VectorImpl T)
 #	posix.qsort(vec.items, vec.length, sizeof(*void), compare)
+
+[global]
+def __not_in__[T](lhs T, rhs [T]) bool
+	for r in rhs
+		if lhs == r
+			return false
+	return true
+
+[global]
+def __in__[T](lhs T, rhs [T]) bool
+	for r in rhs
+		if lhs == r
+			return true
+	return false

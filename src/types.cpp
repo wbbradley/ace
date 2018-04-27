@@ -952,14 +952,12 @@ namespace types {
 
 	int type_lambda_t::ftv_count() const {
 		/* pretend this is getting applied */
-		panic("This should not really get called ....");
 		map bindings;
 		bindings[binding->get_name()] = type_bottom();
 		return body->rebind(bindings)->ftv_count();
 	}
 
 	std::set<std::string> type_lambda_t::get_ftvs() const {
-		panic("This should not really get called ....");
 		map bindings;
 		bindings[binding->get_name()] = type_bottom();
 		return body->rebind(bindings)->get_ftvs();
