@@ -237,11 +237,10 @@ def str(t Type) str
 		Integer
 			return "Integer"
 		DataType(typename, ctors)
-			return typename + ": DataType(" + join(", ", ctors) + ")"
+			return typename #  + ": DataType(" + join(", ", ctors) + ")"
 
 [global]
 def str(pattern Pattern) str
-	print("switching on " + runtime.__get_ctor_id(pattern as! *var_t))
 	when pattern is
 		CtorPatterns(ctor_patterns)
 			return "CtorPatterns(" + ctor_patterns + ")"
@@ -257,14 +256,9 @@ def str(pattern Pattern) str
 	
 [global]
 def str(ctor_pattern CtorPattern) str
-	print("ctor id of ctor pattern is " + runtime.__get_ctor_id(ctor_pattern as! *var_t))
 	args := ctor_pattern.args
 	if len(args) == 0
 		return ctor_pattern.name
-	print("len(args) = " + len(args))
-	# for arg in args
-	# print("- " + arg)
-	
 	return ctor_pattern.name + "(" + args + ")"
 	
 type Coverage has
@@ -317,7 +311,7 @@ def ctor_patterns_difference(lhs CtorPattern, rhs CtorPattern) [CtorPattern]
 							let args [Pattern] = copy(lhs.args)
 							assert(i < len(args) and i >= 0)
 							print("replacing " + args[i] + " with " + a + " with ctor id " + runtime.__get_ctor_id(a as! *var_t))
-							args[i] = a
+							args[i] = CtorPatterns([a])
 							append(difference, CtorPattern(lhs.typename, lhs.name, args))
 					Nothing
 						pass
@@ -362,12 +356,11 @@ def cover2(covered Pattern, uncovered Pattern) Either Coverage Error
 			return Right(Error("Nothing left to cover."))
 
 		Pair(CtorPatterns(lhs), CtorPatterns(rhs))
-			let working_set_uncovered [CtorPattern]
+			var uncovered_now = rhs
 			for p in lhs
-				# Remove each pattern from the "covering" side from the uncovered set
-				for j in ctor_patterns_difference(rhs, p)
-					append(working_set_uncovered, j)
-			return Left(Coverage(covered, CtorPatterns(working_set_uncovered)))
+				# Remove each pattern from the "covering" side from the uncovered set, but reduce the uncovered set of patterns on each iteration
+				uncovered_now = ctor_patterns_difference(uncovered_now, p)
+			return Left(Coverage(covered, CtorPatterns(uncovered_now)))
 		Pair(CtorPatterns(_), _)
 			return Right(Error("Type mismatch"))
 		Pair(_, CtorPatterns(_))
@@ -390,7 +383,11 @@ def main()
 
 	c := cover(
 			CtorPatterns([
-				CtorPattern("Pair", "Pair", [CtorPatterns([True]), AllOf(Bool)])
+				CtorPattern("Pair", "Pair", [CtorPatterns([True]), CtorPatterns([False])]),
+				CtorPattern("Pair", "Pair", [CtorPatterns([False]), CtorPatterns([True])]),
+				CtorPattern("Pair", "Pair", [CtorPatterns([False]), AllOf(Bool)]),
+				CtorPattern("Pair", "Pair", [AllOf(Bool), CtorPatterns([True])]),
+				CtorPattern("Pair", "Pair", [AllOf(Bool), CtorPatterns([True])]),
 			]),
 			CtorPatterns([
 				CtorPattern("Pair", "Pair", [AllOf(Bool), AllOf(Bool)])
