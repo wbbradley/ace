@@ -48,7 +48,7 @@ def str(b *int8, length size_t, encoding str) str
 	dest_len := length + 1
 	dest := posix.calloc(1, dest_len)!
 	posix.memcpy(dest, b, length)
-	return str(OwningBuffer(dest as *char))
+	return str(OwningBuffer(dest as! *char))
 
 def __eq__(x str, y str) bool
 	# See above about coercions
@@ -123,7 +123,7 @@ def __getslice__(s str, start uint, lim uint) str
 def c_str(u str) OwningBuffer char
 	# ensures a null-terminated string 
 	if u.start != 0 or u.length != u.buffer.length
-		let pch = posix.malloc(sizeof(char) * (u.length + 1))! as *char
+		let pch = posix.malloc(sizeof(char) * (u.length + 1))! as! *char
 		posix.memcpy(pch, unsafe_access(u), sizeof(char) * u.length)
 		pch[u.length] = 0 as char
 		return OwningBuffer(pch, u.length)
@@ -133,14 +133,15 @@ def c_str(u str) OwningBuffer char
 def __plus__(x str, y str) str
 	return concat(unsafe_access(x), x.length, unsafe_access(y), y.length)
 
-# This is an insane way of getting "int or float" because we don't have logical OR yet for types
-def __plus__[T where (not (gc T)) and (not ((not (T <: int)) and (not (T <: float))))](x str, y T) str
-	let y_expanded = __str__(y)
+def __plus__[T where not (str === T)](x str, y T) str
+	let y_str = str(y)
 	if x.length == 0
-		return str(OwningBuffer(y_expanded))
+		return y_str
 
-	let result = concat(unsafe_access(x), x.length, y_expanded, posix.strlen(y_expanded))
-	posix.free(y_expanded)
+	if y_str.length == 0
+		return x
+
+	let result = concat(unsafe_access(x), x.length, unsafe_access(y_str), y_str.length)
 	return result
 
 type StrIter has
@@ -166,7 +167,7 @@ def concat(x *char, x_len uint, y *char, y_len uint) str
 	let x_cb = sizeof(char) * x_len
 	let y_cb = sizeof(char) * (y_len + 1)
 	total_cb := x_cb + y_cb
-	let res = posix.malloc(total_cb) as *?char
+	let res = posix.malloc(total_cb) as! *?char
 	assert(res != null)
 	posix.memcpy(res, x, x_cb)
 	posix.memcpy(&res[x_len], y, y_cb)
@@ -175,7 +176,7 @@ def concat(x *char, x_len uint, y *char, y_len uint) str
 def decode(b bytes, fmt str) str?
 	if fmt == "utf8"
 		b_len := len(b)
-		res := posix.malloc(b_len + 1) as *?char
+		res := posix.malloc(b_len + 1) as! *?char
 		assert(res != null)
 		posix.memcpy(res, b.data, b_len)
 		res[b_len] = 0

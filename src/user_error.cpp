@@ -14,8 +14,33 @@ void print_exception(const user_error &e, int level) {
 	e.display();
 }
 
+user_error::user_error(log_level_t log_level, location_t location, const char *format...) :
+	log_level(log_level), 
+   	location(location),
+   	extra_info(make_ptr<std::vector<std::pair<location_t, std::string>>>())
+{
+	va_list args;
+	va_start(args, format);
+	message = string_formatv(format, args);
+	va_end(args);
+
+	if (getenv("STATUS_BREAK") != nullptr) {
+		dbg();
+	}
+}
+
+user_error::user_error(log_level_t log_level, location_t location, const char *format, va_list args) :
+   	log_level(log_level), location(location), extra_info(make_ptr<std::vector<std::pair<location_t, std::string>>>())
+{
+	message = string_formatv(format, args);
+
+	if (getenv("STATUS_BREAK") != nullptr) {
+		dbg();
+	}
+}
+
 user_error::user_error(location_t location, const char *format...) :
-   	location(location), extra_info(make_ptr<std::vector<std::pair<location_t, std::string>>>())
+   	log_level(log_error), location(location), extra_info(make_ptr<std::vector<std::pair<location_t, std::string>>>())
 {
 	va_list args;
 	va_start(args, format);
@@ -28,7 +53,7 @@ user_error::user_error(location_t location, const char *format...) :
 }
 
 user_error::user_error(location_t location, const char *format, va_list args) :
-   	location(location), extra_info(make_ptr<std::vector<std::pair<location_t, std::string>>>())
+   	log_level(log_error), location(location), extra_info(make_ptr<std::vector<std::pair<location_t, std::string>>>())
 {
 	message = string_formatv(format, args);
 
@@ -42,7 +67,7 @@ const char *user_error::what() const noexcept {
 }
 
 void user_error::display() const {
-	log_location(log_error, location, "%s", what());
+	log_location(log_level, location, "%s", what());
 	if (extra_info != nullptr) {
 		for (auto info : *extra_info) {
 			log_location(log_info, info.first, "%s", info.second.c_str());

@@ -1233,7 +1233,7 @@ namespace types {
 	{
 		auto env = (_env == nullptr) ? _empty_env : _env;
 
-		type = type->eval(env, true /*get_structural_type*/);
+		type = type->eval(env, false /*get_structural_type*/);
 
 		if (allow_maybe) {
 			if (auto maybe = dyncast<const types::type_maybe_t>(type)) {

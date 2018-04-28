@@ -1362,7 +1362,7 @@ bound_var_t::ref extract_member_by_index(
 	auto dot_name = string_format("%s.%s", bound_var->name.c_str(), member_name.c_str());
 	return bound_var_t::create(
 			INTERNAL_LOC(), dot_name,
-			bound_member_type, llvm_item, make_iid(dot_name));
+			bound_member_type, llvm_item, make_iid_impl(dot_name, location));
 }
 
 int64_t parse_int_value(token_t token) {
@@ -1536,10 +1536,15 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 						scope,
 						"__setitem__",
 						get_location(),
-						type_args({lhs_val->type->get_type(), index_val->type->get_type(), type_variable(type_var_name)}),
+						type_args({
+							lhs_val->type->get_type(),
+						   	index_val->type->get_type(),
+						   	type_variable(type_var_name)}),
 						type_variable(INTERNAL_LOC()),
 						fns,
 						fittings);
+
+				debug_above(9, log("resolved setitem to %s", setitem_function->str().c_str()));
 
 				types::type_t::ref expected_rhs_type;
 				if (setitem_function != nullptr) {
@@ -1559,6 +1564,15 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 				/* let's solve for the rhs */
 				bound_var_t::ref rhs_val = rhs->resolve_expression(builder, scope, life, false /*as_ref*/,
 						expected_rhs_type);
+
+				if (!unifies(expected_rhs_type, rhs_val->type->get_type(), scope)) {
+					auto error = user_error(rhs->get_location(), "incompatible rhs for assignment");
+					error.add_info(setitem_function->get_location(), "see definition of __setitem__");
+					error.add_info(expected_rhs_type->get_location(), "it is expecting a value of type %s",
+							expected_rhs_type->str().c_str());
+					error.add_info(rhs_val->get_location(), "and your rhs is of type %s", rhs_val->type->get_type()->str().c_str());
+					throw error;
+				}
 
 				/* we have a rhs to assign into this lhs, let's find the function we should be calling to do
 				 * the update. */
@@ -2813,12 +2827,13 @@ bound_var_t::ref cast_bound_var(
 		life_t::ref life,
 		location_t location,
 		bound_var_t::ref bound_var,
-		types::type_t::ref type_cast)
+		types::type_t::ref type_cast,
+		bool force_cast)
 {
 	assert(!bound_var->type->is_ref(scope));
 	if (bound_var->type->is_maybe(scope) && !type_cast->eval_predicate(tb_maybe, scope)) {
-		auto error = user_error(location, "you cannot cast away maybe. use the ! operator instead");
-		error.add_info(location, "better yet, use an if statement to check the return value so you don't accidentally dereference a null pointer");
+		auto error = user_error(location, "you cannot safely cast away maybe. use the ! operator instead");
+		error.add_info(location, "better yet, use an if statement to check the return value so you don't accidentally dereference a null pointer. assertions also work.");
 		throw error;
 	}
 
@@ -2836,6 +2851,17 @@ bound_var_t::ref cast_bound_var(
 	llvm::Value *llvm_dest_val = nullptr;
 	llvm::Type *llvm_dest_type = bound_type->get_llvm_specific_type();
 
+	if (!force_cast) {
+		/* don't let anyone cast pointers unless they are forcing it! */
+		if (llvm_source_type->isPointerTy() || llvm_dest_type->isPointerTy()) {
+			auto error = user_error(location, "you cannot safely cast user-defined types like this. if you must be unsafe, use \"as!\".");
+			error.add_info(location, "attempt to cast a value of type %s to a %s",
+					bound_var->type->get_type()->str().c_str(),
+					type_cast->str().c_str());
+			throw error;
+		}
+	}
+
 	// TODO: put some more constraints on this...
 	if (llvm_dest_type->isIntegerTy()) {
 		/* we want an integer at the end... */
@@ -2851,10 +2877,9 @@ bound_var_t::ref cast_bound_var(
 			llvm_dest_val = builder.CreateBitCast(llvm_source_val, llvm_dest_type);
 		} else {
 			if (!llvm_source_type->isIntegerTy()) {
-				log("source type for cast is %s (while casting to %s)",
+				throw user_error(location, "unsure how to cast from %s to %s",
 						llvm_print(llvm_source_type).c_str(),
 						type_cast->str().c_str());
-				dbg();
 			}
 			llvm_dest_val = builder.CreateIntToPtr(llvm_source_val, llvm_dest_type);
 		}
@@ -2865,7 +2890,7 @@ bound_var_t::ref cast_bound_var(
 	}
 
 	return bound_var_t::create(INTERNAL_LOC(), "cast", bound_type, llvm_dest_val, make_iid_impl("cast",
-			   bound_var->get_location()));
+				bound_var->get_location()));
 }
 
 bound_var_t::ref call_get_ctor_id(
@@ -2893,7 +2918,8 @@ bound_var_t::ref call_get_ctor_id(
 				life,
 				callsite->get_location(),
 				resolved_value,
-				type_ptr(type_id(make_iid(STD_MANAGED_TYPE))));
+				type_ptr(type_id(make_iid(STD_MANAGED_TYPE))),
+				true /*force_cast*/);
 		auto name = string_format("typeid(%s)", resolved_value->str().c_str());
 
 		bound_var_t::ref get_typeid_function = get_callable(
@@ -3114,7 +3140,7 @@ void type_check_module_vars(
 			auto module_var = type_check_module_var_decl(builder, module_scope, *var_decl);
 			global_vars.push_back(module_var);
 		} catch (user_error &e) {
-			std::throw_with_nested(user_error(var_decl->get_location(),
+			std::throw_with_nested(user_error(log_info, var_decl->get_location(),
 						"while checking module variable %s",
 						var_decl->token.text.c_str()));
 		} catch (std::exception &e) {
@@ -3766,9 +3792,9 @@ void ast::block_t::resolve_statement(
 				debug_above(10, log(log_info, "got a new scope %s", current_scope->str().c_str()));
 			}
 		} catch (user_error &e) {
-			std::throw_with_nested(user_error(statement->get_location(), "while checking statement"));
-		} catch (...) {
-			panic("uncaught exception");
+			std::throw_with_nested(user_error(log_info, statement->get_location(), "while checking statement"));
+		} catch (std::exception &e) {
+			panic(string_format("uncaught exception: %s", e.what()).c_str());
 		}
 	}
 
@@ -4383,11 +4409,9 @@ bound_var_t::ref ast::reference_expr_t::resolve_overrides(
 	try {
 		return get_callable(builder, scope, token.text, get_location(), get_args_type(args), nullptr);
 	} catch (user_error &e) {
-		std::throw_with_nested(user_error(callsite->get_location(), "while checking %s with %s",
+		std::throw_with_nested(user_error(log_info, callsite->get_location(), "while checking %s with %s",
 					callsite->str().c_str(),
 					::str(args).c_str()));
-	} catch (...) {
-		panic("uncaught exception");
 	}
 
 	return nullptr;
@@ -4409,7 +4433,8 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 			life,
 			get_location(),
 			bound_var,
-			type_cast->rebind(scope->get_type_variable_bindings())->eval(scope));
+			type_cast->rebind(scope->get_type_variable_bindings())->eval(scope),
+			force_cast);
 }
 
 void dump_builder(llvm::IRBuilder<> &builder) {
