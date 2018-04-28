@@ -124,7 +124,8 @@ llvm::Value *coerce_value(
 
 			/* the *var_t object accepts all managed objects */
 			return builder.CreateBitCast(llvm_rhs_value, llvm_lhs_type);
-		} else if (types::is_ptr_type_id(lhs_type, CHAR_TYPE, scope) && types::is_type_id(rhs_type, MANAGED_STR, scope)) {
+		} else if (types::is_ptr_type_id(lhs_type, CHAR_TYPE, scope) &&
+			   	types::is_type_id(rhs_type, MANAGED_STR, scope)) {
 			/* custom unboxing because we need to inject some life management to cleanup in the
 			 * event that we need to convert a slice to a heap-alloced null-terminated string. */
 			bound_var_t::ref c_str = call_program_function(
@@ -141,12 +142,19 @@ llvm::Value *coerce_value(
 				type_ptr(type_id(make_iid_impl(CHAR_TYPE, INTERNAL_LOC()))));
 			return raw_c_str->get_llvm_value();
 		} else {
+			throw user_error(rhs->get_location(), "unsure how to get native value of type %s from managed value of type %s [%s, %s]",
+					lhs_type->str().c_str(),
+					rhs_type->str().c_str(),
+					boolstr(lhs_is_managed),
+					boolstr(rhs_is_managed));
+#if 0
 			debug_above(6, log(log_info, "calling " c_id("__unbox__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
 			bound_var_t::ref coercion = call_program_function(
 					builder, scope, life,
 					"__unbox__", location, {rhs}, lhs_type);
 
 			return coerce_value(builder, scope, life, location, lhs_type, coercion);
+#endif
 		}
 	} else {
 		debug_above(7, log("trying to coerce native value %s to %s", llvm_print(llvm_rhs_value).c_str(), llvm_print(llvm_lhs_type).c_str()));

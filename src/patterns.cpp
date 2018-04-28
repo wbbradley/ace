@@ -208,7 +208,7 @@ bound_var_t::ref cast_data_type_to_ctor_struct(
 	types::type_data_t::ref data_type = dyncast<const types::type_data_t>(
 			input_value->type->get_type()->eval(scope));
 	if (data_type == nullptr) {
-		throw new user_error(input_value->get_location(), "unable to find data type in %s", input_value->str().c_str());
+		throw user_error(input_value->get_location(), "unable to find data type in %s", input_value->str().c_str());
 	}
 
 	for (auto ctor_pair : data_type->ctor_pairs) {

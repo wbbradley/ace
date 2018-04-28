@@ -512,12 +512,6 @@ unification_t unify_core(
 		return {false, string_format("%s <> %s", a->str().c_str(), b->str().c_str()), bindings, coercions, {}};
 	} else if (ptr_a != nullptr) {
 		auto a_element_type = ptr_a->element_type->eval(env);
-		if (types::is_type_id(a_element_type, STD_MANAGED_TYPE, nullptr)) {
-			if (types::is_managed_ptr(b, env)) {
-				/* any managed pointer can be coerced to *var_t */
-				return {true, "", bindings, coercions + 1, {}};
-			}
-		}
 
 		if (depth == 0 && types::is_type_id(a_element_type, CHAR_TYPE, nullptr)) {
 			if (types::is_type_id(b, MANAGED_STR, nullptr)) {

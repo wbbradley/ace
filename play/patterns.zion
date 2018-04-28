@@ -20,25 +20,36 @@ type CtorPattern has
 	name str
 	args [Pattern]
 
+type IntSet is
+	Exclude(exclude [int])
+	Include(include [int])
+
+def empty(set IntSet) bool
+	when set is
+		Exclude(exclude)
+			return false
+		Include(include)
+			return len(include) == 0
+	
+[global]
+def str(set IntSet) str
+	when set is
+		Exclude(exclude)
+			return "Exclude(" + exclude + ")"
+		Include(include)
+			return "Include(" + include + ")"
+
 type Pattern is
 	CtorPatterns(ctor_patterns [CtorPattern])
-	IntegersExcept(except [int])
+	Integers(set IntSet)
 	AllOf(t Type)
 	Nothing
-	SomeIntegers(include [int])
-
-def ensure_pattern(c Pattern) Pattern
-	when c is
-		AllOf(t)
-			return pattern_from_type(t)
-		else
-			return c
 
 def pattern_from_type(t Type) Pattern
 	when t is
 		Integer
 			let ints [int]
-			return IntegersExcept(ints)
+			return Integers(Exclude(ints))
 		DataType(typename, ctors)
 			let ctor_patterns [CtorPattern]
 			for ctor in ctors
@@ -59,16 +70,52 @@ def __bitwise_and__(lhs Either Pattern Error, rhs Either Pattern Error) Either P
 		Pair(_, Right(_))
 			return rhs
 		Pair(Left(lhs), Left(rhs))
-			return lhs & rhs
+			return set_intersect(lhs, rhs)
 
-def set_subtract(lhs [int], rhs [int]) [int]
+def set_difference(lhs [int], rhs [int]) [int]
 	let new [int]
 	for l in lhs
 		if l not in rhs
 			append(new, l)
 	return new
 			
-def __bitwise_and__(lhs Pattern, rhs Pattern) Either Pattern Error
+def set_intersect(lhs [int], rhs [int]) [int]
+	let new [int]
+	for l in lhs
+		if l in rhs
+			append(new, l)
+	return new
+			
+def set_union(lhs [int], rhs [int]) [int]
+	let new [int] = copy(lhs)
+	for r in rhs
+		if r not in new
+			append(new, r)
+	return new
+
+def set_difference(lhs IntSet, rhs IntSet) IntSet
+	when Pair(lhs, rhs) is
+		Pair(Exclude(lhs_exclude), Exclude(rhs_exclude))
+			return Include(set_difference(rhs_exclude, lhs_exclude))
+		Pair(Exclude(exclude), Include(include))
+			return Exclude(set_union(exclude, include))
+		Pair(Include(include), Exclude(exclude))
+			return Include(set_intersect(include, exclude))
+		Pair(Include(lhs_include), Include(rhs_include))
+			return Include(set_difference(lhs_include, rhs_include))
+
+def set_intersect(lhs IntSet, rhs IntSet) IntSet
+	when Pair(lhs, rhs) is
+		Pair(Exclude(lhs_exclude), Exclude(rhs_exclude))
+			return Exclude(set_union(lhs_exclude, rhs_exclude))
+		Pair(Exclude(exclude), Include(include))
+			return Include(set_difference(include, exclude))
+		Pair(Include(include), Exclude(exclude))
+			return Include(set_difference(include, exclude))
+		Pair(Include(lhs_include), Include(rhs_include))
+			return Include(set_intersect(lhs_include, rhs_include))
+
+def set_intersect(lhs Pattern, rhs Pattern) Either Pattern Error
 	when Pair(lhs, rhs) is
 		Pair(Nothing, _)
 			return Left(Nothing)
@@ -76,22 +123,14 @@ def __bitwise_and__(lhs Pattern, rhs Pattern) Either Pattern Error
 			return Left(Nothing)
 
 		# Handle Integer reduction from the entire domain of integers
-		Pair(AllOf(Integer), SomeIntegers(_))
+		Pair(AllOf(Integer), Integers(_))
 			return Left(rhs)
-		Pair(SomeIntegers(_), AllOf(Integer))
-			return Left(lhs)
-		Pair(AllOf(Integer), IntegersExcept(_))
-			return Left(rhs)
-		Pair(IntegersExcept(_), AllOf(Integer))
+		Pair(Integers(_), AllOf(Integer))
 			return Left(lhs)
 
-		# Handle Integer reduction from an infinite set that has been pruned
-		Pair(IntegersExcept(except), SomeIntegers(include))
-			return Left(SomeIntegers(set_subtract(include, except)))
-		Pair(SomeIntegers(include), IntegersExcept(except))
-			return Left(SomeIntegers(set_subtract(include, except)))
-		Pair(IntegersExcept(except), SomeIntegers(include))
-			return Left(SomeIntegers(set_subtract(include, except)))
+		# Handle Integer set intersection
+		Pair(Integers(lhs_set), Integers(rhs_set))
+			return Left(Integers(set_intersect(lhs_set, rhs_set)))
 
 		# Handle Ctors
 		Pair(AllOf(DataType(lhs_typename, lhs_ctors)), AllOf(DataType(rhs_typename, rhs_ctors)))
@@ -115,10 +154,29 @@ def __bitwise_and__(lhs Pattern, rhs Pattern) Either Pattern Error
 			assert(false)
 			return Right(Error("Not implemented"))
 
-def impossible_ctor_pattern_to_match(reduced_pattern CtorPattern) bool
-	assert(false)
-	return true
+def impossible(pattern CtorPattern) bool
+	for arg in pattern.args
+		if impossible(arg)
+			return true
+		
+	return false
 	
+def impossible(pattern Pattern) bool
+	when pattern is
+		CtorPatterns(ctor_patterns)
+			for cp in ctor_patterns
+				if impossible(cp)
+					return true
+			return false
+		Integers(set)
+			if empty(set)
+				return true
+			return false
+		AllOf(t)
+			return false
+		Nothing
+			return true
+		
 def reduce_ctor_patterns(lhs_ctor_patterns, rhs_ctor_patterns) Either Pattern Error
 	let final_ctor_patterns [CtorPattern]
 	for lhs_cp in lhs_ctor_patterns
@@ -138,7 +196,7 @@ def reduce_ctor_patterns(lhs_ctor_patterns, rhs_ctor_patterns) Either Pattern Er
 
 			if rhs_cp.name == reduced_name
 				for i in range(len(reduced_args))
-					result := reduced_args[i] & rhs_cp.args[i]
+					result := set_intersect(reduced_args[i], rhs_cp.args[i])
 					when result is
 						Left(pattern)
 							reduced_args[i] = pattern
@@ -146,7 +204,7 @@ def reduce_ctor_patterns(lhs_ctor_patterns, rhs_ctor_patterns) Either Pattern Er
 							return result
 
 		reduced_pattern := CtorPattern(reduced_typename, reduced_name, reduced_args)
-		if impossible_ctor_pattern_to_match(reduced_pattern)
+		if impossible(reduced_pattern)
 			continue
 		append(final_ctor_patterns, reduced_pattern)
 
@@ -179,104 +237,165 @@ def str(t Type) str
 		Integer
 			return "Integer"
 		DataType(typename, ctors)
-			return "DataType(" + typename + ", " + join(", ", ctors) + ")"
+			return typename + ": DataType(" + join(", ", ctors) + ")"
 
 [global]
 def str(pattern Pattern) str
+	print("switching on " + runtime.__get_ctor_id(pattern as! *var_t))
 	when pattern is
-		IntegersExcept(except)
-			return "IntegersExcept(" + join(", ", except) + ")"
 		CtorPatterns(ctor_patterns)
-			return "CtorPatterns(" + join(", ", ctor_patterns) + ")"
+			return "CtorPatterns(" + ctor_patterns + ")"
 		AllOf(t)
-			return "AllOf(" + str(t) + ")"
+			return "AllOf(" + t + ")"
 		Nothing
 			return "Nothing"
-		SomeIntegers(include)
-			return "SomeIntegers(" + join(", ", include) + ")"
+		Integers(set)
+			return "Integers(" + set + ")"
+		else
+			assert(false)
+			return "FAIL"
 	
 [global]
 def str(ctor_pattern CtorPattern) str
-	if len(ctor_pattern.args) == 0
+	print("ctor id of ctor pattern is " + runtime.__get_ctor_id(ctor_pattern as! *var_t))
+	args := ctor_pattern.args
+	if len(args) == 0
 		return ctor_pattern.name
-	return ctor_pattern.name + "(" + join(", ", ctor_pattern.args) + ")"
+	print("len(args) = " + len(args))
+	# for arg in args
+	# print("- " + arg)
+	
+	return ctor_pattern.name + "(" + args + ")"
 	
 type Coverage has
 	covered Pattern
-	uncovered [Pattern]
+	uncovered Pattern
 
 [global]
 def str(cov Coverage) str
-	return "Coverage(" + str(cov.covered) + ", " + str(cov.uncovered) + ")"
+	return "Coverage(" + cov.covered + ", " + cov.uncovered + ")"
 
 def impossible_pattern_to_match(pattern Pattern) bool
 	when pattern is
 		Nothing
 			return true
-		SomeIntegers(include)
-			return len(include) != 0
+		Integers(set)
+			return empty(set)
 		else
 			return false
 
 def cover(to_cover Pattern, uncovered Pattern) Either Coverage Error
 	# Compute the final covering of this incoming pattern
 	# Also compute the final uncovered pattern
-	either := to_cover & uncovered
+	either := set_intersect(to_cover, uncovered)
 	when either is
 		Right(error)
 			return Right(error)
 		Left(pattern)
+			print("cover(" + to_cover + ", " + uncovered + ") calling cover2(" + pattern + ", " +
+					uncovered + ")")
 			return cover2(pattern, uncovered)
+
+def ctor_patterns_difference(lhs CtorPattern, rhs CtorPattern) [CtorPattern]
+	assert(lhs.typename == rhs.typename)
+	if lhs.name != rhs.name
+		print("ctor_patterns_difference(" + lhs + ", " + rhs + ") => " + [lhs])
+		return [lhs]
+	assert(len(lhs.args) == len(rhs.args))
+	
+	let difference [CtorPattern]
+	print("len(lhs.args) = " + len(lhs.args))
+	for i in range(len(lhs.args))
+		print("i = " + i)
+		result := cover(rhs.args[i], lhs.args[i])
+		when result is
+			Left(coverage)
+				print("coverage.uncovered = " + coverage.uncovered)
+				when coverage.uncovered is 
+					CtorPatterns(ctor_patterns)
+						for a in ctor_patterns
+							let args [Pattern] = copy(lhs.args)
+							assert(i < len(args) and i >= 0)
+							print("replacing " + args[i] + " with " + a + " with ctor id " + runtime.__get_ctor_id(a as! *var_t))
+							args[i] = a
+							append(difference, CtorPattern(lhs.typename, lhs.name, args))
+					Nothing
+						pass
+					else
+						assert(false)
+			Right(Error(message))
+				print("swallowing error " + message)
+
+	print("ctor_patterns_difference(" + lhs + ", " + rhs + ") => " + difference)
+	return difference
+					
+	
+def ctor_patterns_difference(lhs_patterns [CtorPattern], rhs CtorPattern) [CtorPattern]
+	let ctor_patterns [CtorPattern]
+	for lhs in lhs_patterns
+		for remaining in ctor_patterns_difference(lhs, rhs)
+			append(ctor_patterns, remaining)
+		
+	print("ctor_patterns_difference(" + lhs_patterns + ", " + rhs + ") => " + ctor_patterns)
+	return ctor_patterns
 
 def cover2(covered Pattern, uncovered Pattern) Either Coverage Error
 	# `covered` is guaranteed to only contain patterns covered by uncovered, that is
 	# it should only be useful for covering uncovered.
 	# Now the trick is to visit the covered and the uncovered in parallel, and generate new uncovered patterns
-	covered = ensure_pattern(covered)
-	uncovered = ensure_pattern(uncovered)
 
-	when covered is
-		Nothing
-			return Right(Error("No coverage"))
+	when Pair(covered, uncovered) is
+		Pair(AllOf(Integer), AllOf(Integer))
+			return Left(Coverage(covered, Nothing))
+		Pair(AllOf(DataType(typename1, _)), AllOf(DataType(typename2, _)))
+			if typename1 == typename2
+				return Left(Coverage(covered, Nothing))
+			else
+				return Right(Error("Type mismatch."))
+		Pair(AllOf(t), _)
+			return cover2(pattern_from_type(t), uncovered)
+		Pair(_, AllOf(t))
+			return cover2(covered, pattern_from_type(t))
+		Pair(Nothing, _)
+			return Right(Error("This pattern will never match."))
+		Pair(_, Nothing)
+			return Right(Error("Nothing left to cover."))
+
+		Pair(CtorPatterns(lhs), CtorPatterns(rhs))
+			let working_set_uncovered [CtorPattern]
+			for p in lhs
+				# Remove each pattern from the "covering" side from the uncovered set
+				for j in ctor_patterns_difference(rhs, p)
+					append(working_set_uncovered, j)
+			return Left(Coverage(covered, CtorPatterns(working_set_uncovered)))
+		Pair(CtorPatterns(_), _)
+			return Right(Error("Type mismatch"))
+		Pair(_, CtorPatterns(_))
+			return Right(Error("Type mismatch"))
+
+		Pair(Integers(covered_set), Integers(uncovered_set))
+			return Left(Coverage(covered, Integers(set_difference(uncovered_set, covered_set))))
+
 		else
-			when uncovered is
-				Nothing
-					assert(false)
-				else
-					when Pair(covered, uncovered) is
-						Pair(CtorPatterns(lhs), CtorPatterns(rhs))
-							pass
-						Pair(CtorPatterns(_), _)
-							return Right(Error("Type mismatch"))
-						Pair(IntegersExcept(_), IntegersExcept(_))
-							print("cover2 int except except")
-							return Right(Error("Not yet impl"))
-						Pair(IntegersExcept(_), SomeIntegers(_))
-							print("cover2 int except some")
-							return Right(Error("Not yet impl"))
-						Pair(IntegersExcept(_), _)
-							return Right(Error("Type mismatch"))
-						Pair(SomeIntegers(_), SomeIntegers(_))
-							print("cover2 int some some")
-							return Right(Error("Not yet impl"))
-						Pair(SomeIntegers(_), IntegersExcept(_))
-							print("cover2 int some except")
-							return Right(Error("Not yet impl"))
-						Pair(SomeIntegers(_), _)
-							return Right(Error("Type mismatch"))
-
-					# check conditions
-					if false # nothing_in_covered(covered)
-						return Right(Error("Pattern " + str(covered) + " can never obtain"))
-					
-					return Left(Coverage(covered, [uncovered]))
-	return Right(Error("Unhandled patterns?"))
-
+			return Right(Error("Unmatched Pair(" + covered + ", " + uncovered + ")"))
 
 def main()
 	let empty_types [Type]
 	Bool := DataType("Bool", [Ctor("True", empty_types), Ctor("False", empty_types)])
-	c := cover(AllOf(Bool), AllOf(Bool))
+	Pair := DataType("Pair", [Ctor("Pair", [Bool, Bool])])
+
+	let empty_pattern [Pattern]
+	True := CtorPattern("Bool", "True", empty_pattern)
+	False := CtorPattern("Bool", "False", empty_pattern)
+
+	c := cover(
+			CtorPatterns([
+				CtorPattern("Pair", "Pair", [CtorPatterns([True]), AllOf(Bool)])
+			]),
+			CtorPatterns([
+				CtorPattern("Pair", "Pair", [AllOf(Bool), AllOf(Bool)])
+			]))
+
 	when c is
 		Left(coverage)
 			print(coverage)

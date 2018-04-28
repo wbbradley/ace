@@ -57,7 +57,7 @@ def readbytes(fp *?posix.FILE) bytes?
 	let size = size(fp)
 	when size is
 		Size(cb)
-			let pb = posix.malloc(cb) as *?int8
+			let pb = posix.malloc(cb) as! *?int8
 			assert(pb != null)
 
 			let bytes_read = posix.fread(

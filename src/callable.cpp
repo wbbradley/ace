@@ -141,6 +141,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 							function_defn->block);
 				} catch (user_error &e) {
 					std::throw_with_nested(user_error(
+								log_info,
 								unchecked_fn->get_location(),
 								"while instantiating function %s",
 								unchecked_fn->str().c_str()));
@@ -563,7 +564,8 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 	/* Create a user-defined function */
 	llvm::Function *llvm_function = llvm::Function::Create(
 			(llvm::FunctionType *)llvm_type,
-			llvm::Function::ExternalLinkage, function_name,
+			llvm::Function::ExternalLinkage,
+		   	function_name + (function_name != "main" ? ::str(args) : ""),
 			scope->get_llvm_module());
 
 	// TODO: enable inlining for various functions
@@ -587,13 +589,15 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 
 	if (getenv("TRACE_FNS") != nullptr) {
 		std::stringstream ss;
-		ss << name_token.location.str() << ": " << (name_token.text.size() != 0 ? name_token.text + " : " : "") << bound_function_type->str();
-		auto callsite_debug_function_name_print = expand_callsite_string_literal(
-				name_token,
-				"posix",
-				"puts",
-				ss.str());
-		callsite_debug_function_name_print->resolve_statement(builder, scope, life, nullptr, nullptr);
+		if (name_token.text != "c_str") {
+			ss << name_token.location.str() << ": " << (name_token.text.size() != 0 ? name_token.text + " : " : "") << bound_function_type->str();
+			auto callsite_debug_function_name_print = expand_callsite_string_literal(
+					name_token,
+					"posix",
+					"puts",
+					ss.str());
+			callsite_debug_function_name_print->resolve_statement(builder, scope, life, nullptr, nullptr);
+		}
 	}
 
 	/* set up the mapping to this function for use in recursion */
@@ -636,7 +640,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 				nullptr, &all_paths_return);
 
 	} catch (user_error &e) {
-		std::throw_with_nested(user_error(name_token.location,
+		std::throw_with_nested(user_error(log_info, name_token.location,
 					"while checking %s", function_var->str().c_str()));
 	}
 

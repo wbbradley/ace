@@ -29,16 +29,16 @@ def get_member_by_index(v *var_t, index int) *?var_t
 	assert(v.type_info.type_kind == TYPE_KIND_USE_OFFSETS)
 
 	# Get the var's type_info
-	type_info_offsets := v.type_info as *type_info_offsets_t
+	type_info_offsets := v.type_info as! *type_info_offsets_t
 
 	# Get the base of the object in order to compute the offset of the member
-	base_ptr := v as *int8
+	base_ptr := v as! *int8
 
 	# Member offset computation
 	offset := type_info_offsets.ref_offsets[index]
 
 	# Compute the address of the child member slot
-	var_ptr := &base_ptr[offset as int] as **?var_t
+	var_ptr := &base_ptr[offset as int] as! **?var_t
 
 	# Return the address of the child member
 	return var_ptr[0]
@@ -55,10 +55,10 @@ def mem_alloc(cb size_t) *?void
 
 def mem_free(p *void, cb size_t) void
 	_bytes_allocated -= cb
-	var pch = p as *int8
-	pch_lim := &((p as *int8)[cb])
-	while pch as int < pch_lim as int
-		pch[0] = 221 as int8 # 0xDD
+	var pch = p as! *int8
+	pch_lim := &((p as! *int8)[cb])
+	while pch as! int < pch_lim as! int
+		pch[0] = 0xDD
 		pch = &pch[1]
 
 	# posix.free(p)
@@ -73,8 +73,8 @@ def check_node_existence(node *var_t, should_exist bool) void
 
 	if should_exist
 		assert(p!.next != null)
-		assert(node.prev != 3735928559 as *var_t)
-		assert(node.next != 3735928559 as *var_t)
+		assert(node.prev != 3735928559 as! *var_t)
+		assert(node.next != 3735928559 as! *var_t)
 		assert(node.prev != null)
 
 	while p != null
@@ -130,8 +130,8 @@ def remove_node(node *var_t) void
 	node.prev!.next = node.next
 	if node.next != null
 		node.next!.prev = node.prev
-	node.next = 0xdeadbeef as *var_t
-	node.prev = 0xdeadbeef as *var_t
+	node.next = 0xdeadbeef as! *var_t
+	node.prev = 0xdeadbeef as! *var_t
 
 	# check_node_existence(node, false)
 
@@ -156,7 +156,7 @@ def __get_ctor_id(v *var_t) CtorID
 	return v.ctor_id
 
 def __create_head_var() *var_t
-	p := mem_alloc(sizeof(var_t)) as *?var_t
+	p := mem_alloc(sizeof(var_t)) as! *?var_t
 	assert(p != null)
 	runtime._var_allocation += 1 as size_t
 	p.allocation = runtime._var_allocation
@@ -180,7 +180,7 @@ def create_var(type_info *type_info_t) *var_t
 
 	# allocate the variable tracking object
 	alloc_size := type_info.size
-	obj := mem_alloc(alloc_size) as *?var_t
+	obj := mem_alloc(alloc_size) as! *?var_t
 	assert(obj != null)
 
 	obj.type_info = type_info
@@ -208,10 +208,10 @@ def create_var(type_info *type_info_t) *var_t
 # 
 #  @param heap_visit A function to invoke for every GC root on the stack.
 def visit_heap_roots(heap_visit def _(obj *?var_t) void)
-	var R = llvm_gc_root_chain as *?stack_entry_plus_root_t
+	var R = llvm_gc_root_chain as! *?stack_entry_plus_root_t
 	while R != null
-		assert(R as int != 0)
-		assert(R.map.num_meta == 0 as int32)
+		assert(R as! int != 0)
+		assert(R.map.num_meta == 0)
 		# posix.puts("R is 0x" + __str__(&R.root0 as int, 16))
 
 		# For roots [num_meta, num_roots), the metadata pointer is null.
@@ -223,13 +223,13 @@ def visit_heap_roots(heap_visit def _(obj *?var_t) void)
 		# mem_dump(&R.root0 as *int, R.map.num_roots as int * sizeof(*var_t))
 		assert(i <= e)
 		while i != e
-			node := (&R.root0 as **?var_t)[i]
+			node := (&R.root0 as! **?var_t)[i]
 			if node != null
 				# we have a heap variable
 				heap_visit(node)
 			i += 1
 
-		R = (R.next as *stack_entry_plus_root_t)
+		R = (R.next as! *stack_entry_plus_root_t)
 
 
 def visit_allocations(visit def _(obj *var_t) void)
@@ -265,7 +265,7 @@ def mark_allocation(obj *?var_t)
 		# mark this node in the heap so that we break any potential cycles
 		obj.mark = 1
 
-		var type_info_offsets *type_info_offsets_t = obj.type_info as *type_info_offsets_t
+		var type_info_offsets *type_info_offsets_t = obj.type_info as! *type_info_offsets_t
 
 		# we may be holding on to child nodes, let's recurse.
 		var refs_count int = type_info_offsets.refs_count as int
@@ -282,7 +282,7 @@ def mark_allocation(obj *?var_t)
 		obj.mark = 1
 
 		# call the type's mark function to recurse
-		type_info_mark_fn := obj.type_info as *type_info_mark_fn_t
+		type_info_mark_fn := obj.type_info as! *type_info_mark_fn_t
 		type_info_mark_fn.mark_fn(obj)
 	else
 		posix.perror("found a heap variable with an invalid type_kind")
@@ -301,7 +301,7 @@ def finalize(obj *var_t)
 		# tags can't have finalizers
 		return
 	elif type_kind == runtime.TYPE_KIND_USE_OFFSETS
-		var type_info_offsets *type_info_offsets_t = obj.type_info as *type_info_offsets_t
+		var type_info_offsets *type_info_offsets_t = obj.type_info as! *type_info_offsets_t
 
 		finalizer := type_info_offsets.finalize_fn
 		if finalizer != null
@@ -309,7 +309,7 @@ def finalize(obj *var_t)
 
 	elif type_kind == runtime.TYPE_KIND_USE_MARK_FN
 		# call the type's mark function to recurse
-		type_info_mark_fn := obj.type_info as *type_info_mark_fn_t
+		type_info_mark_fn := obj.type_info as! *type_info_mark_fn_t
 		finalizer := type_info_mark_fn.finalize_fn
 		if finalizer != null
 			finalizer(obj)
@@ -325,14 +325,14 @@ def free_unmarked(obj *var_t)
 		if obj.allocation < _gc_generation
 			finalize(obj)
 			remove_node(obj)
-			mem_free(obj as *void, obj.type_info.size)
+			mem_free(obj as! *void, obj.type_info.size)
 	else
 		# posix.puts("not freeing " + dbghex(obj))
 		pass
 
 def dbghex(v *void) *char
 	# LEAKLEAKLEAK
-	return concat("0x", __str__(v as int, 16))
+	return concat("0x", __str__(v as! int, 16))
 
 var _gc_generation uint = 0
 
@@ -366,14 +366,10 @@ def report(use_case *char)
 	posix.free(bytes_allocated)
 
 def print_var(node *var_t)
-	# LEAKLEAKLEAK
-	posix.puts(
-		concat(
-			concat(
-				concat("heap variable exists at 0x",
-					dbghex(node)),
-				" and is a "),
-			node.type_info.name))
+	print("heap variable exists at 0x" +
+			OwningBuffer(dbghex(node)) +
+			" and is a " +
+			OwningBuffer(posix.strdup(node.type_info.name)!))
 
 def heap_dump()
 	posix.puts("dumping the heap...")

@@ -31,7 +31,7 @@ def hash(input_ str) bytes
 	outlen := crypto_generichash_bytes_max()
 	out := alloc(outlen)
 	crypto_generichash(out.data, out.cb,
-		unsafe_access(input_) as *int8,
+		unsafe_access(input_) as! *int8,
 		sizeof(char) * input_.length,
 		null, 0)
 	return out
