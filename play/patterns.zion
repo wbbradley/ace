@@ -84,7 +84,6 @@ def set_union(lhs Pattern, rhs Pattern) Pattern
 			return CtorPatterns(patterns)
 		Pair(CtorPattern(lhs), CtorPattern(rhs))
 			return CtorPatterns([lhs, rhs])
-
 		else
 			panic("Unhandled set_union parameters: " + lhs + " ∪ " + rhs + "\n")
 	assert(false)
@@ -208,7 +207,7 @@ def str(t DataType) str
 def str(pattern Pattern) str
 	when pattern is
 		CtorPattern(ctor_pattern)
-			return str(ctor_pattern)
+			return "CtorPattern(" + ctor_pattern + ")"
 		CtorPatterns(ctor_patterns)
 			return "CtorPatterns(" + ctor_patterns + ")"
 		AllOf(t)
@@ -286,10 +285,30 @@ def set_difference(lhs Pattern, rhs Pattern, send Sender) void
 		Pair(AllOf(t), _)
 			set_difference(pattern_from_type(t), rhs, send)
 
-		Pair(CtorPatterns(lhs), CtorPatterns(rhs))
+		Pair(CtorPatterns(lhs), CtorPatterns(_))
+			# Iterate over all the initial patterns
 			for a in lhs
-				for b in rhs
-					set_difference(a, b, send)
+				set_difference(CtorPattern(a), rhs, send)
+
+		Pair(CtorPattern(lhs), CtorPatterns(rhs))
+			# Make a state machine to compose the difference per sub-pattern
+			var new_a = Ref(Nothing)
+			new_a_send := def (p Pattern)
+				new_a.value = set_union(new_a.value, p)
+
+			# Simplify a bit
+			new_a.value = CtorPattern(lhs)
+
+			# Iterate over all the things to subtract
+			for b in rhs
+				# compose...
+				current_a := new_a.value
+				new_a.value = Nothing
+
+				# Compute the difference at this level, and join it 
+				set_difference(current_a, CtorPattern(b), new_a_send)
+
+			send(new_a.value)
 
 		Pair(CtorPatterns(lhs), CtorPattern(rhs))
 			for a in lhs
@@ -299,7 +318,10 @@ def set_difference(lhs Pattern, rhs Pattern, send Sender) void
 			panic("Type mismatch. " + lhs + " != " + rhs)
 
 		Pair(_, CtorPatterns(_))
-			panic("Type mismatch")
+			panic("Type mismatch. " + lhs + " != " + rhs)
+
+		Pair(CtorPattern(lhs), CtorPattern(rhs))
+			set_difference(lhs, rhs, send)
 
 		else
 			panic("Unmatched Pair(" + lhs + ", " + rhs + ")")
@@ -329,8 +351,20 @@ def get_set_difference(lhs Pattern, rhs Pattern) Pattern
 def main()
 	let empty_types [DataType]
 	Bool := DataType("Bool", [Ctor("True", empty_types), Ctor("False", empty_types)])
-	Pair := DataType("Pair", [Ctor("Pair", [Bool, Bool])])
+	Brightness := DataType("Brightness", [
+		Ctor("High", empty_types),
+		Ctor("Medium", empty_types),
+		Ctor("Low", empty_types),
+	])
 
+	Color := DataType("Color", [
+		Ctor("Red", [Brightness]),
+		Ctor("Green", [Brightness]),
+		Ctor("Ble", [Brightness]),
+	])
+
+	Pair := DataType("Pair", [Ctor("Pair", [Bool, Bool])])
+	ColorPair := DataType("ColorPair", [Ctor("ColorPair", [Color, Color])])
 
 	let empty_patterns [Pattern] = []
 	True := CtorPatternValue("Bool", "True", empty_patterns)
@@ -345,8 +379,8 @@ def main()
 			]),
 			CtorPatterns([
 				CtorPatternValue("Pair", "Pair", [CtorPatterns([True]), CtorPatterns([False])]),
-				# CtorPatternValue("Pair", "Pair", [CtorPatterns([False]), CtorPatterns([True])]),
-				# CtorPatternValue("Pair", "Pair", [CtorPatterns([False]), AllOf(Bool)]),
-				# CtorPatternValue("Pair", "Pair", [AllOf(Bool), CtorPatterns([True])]),
-				# CtorPatternValue("Pair", "Pair", [AllOf(Bool), CtorPatterns([True])]),
+				CtorPatternValue("Pair", "Pair", [CtorPatterns([False]), CtorPatterns([True])]),
+				CtorPatternValue("Pair", "Pair", [CtorPatterns([False]), CtorPattern(False)]),
+				CtorPatternValue("Pair", "Pair", [AllOf(Bool), CtorPatterns([True])]),
+				CtorPatternValue("Pair", "Pair", [AllOf(Bool), CtorPatterns([True])]),
 			]))
