@@ -525,7 +525,7 @@ ptr<expression_t> plus_expr_parse(parse_state_t &ps) {
 	auto expr = times_expr_parse(ps);
 
 	while (!ps.line_broke() &&
-			(ps.token.tk == tk_plus || ps.token.tk == tk_minus))
+			(ps.token.tk == tk_plus || ps.token.tk == tk_minus || ps.token.tk == tk_backslash))
 	{
 		auto binary_operator = create<ast::binary_operator_t>(ps.token);
 		switch (ps.token.tk) {
@@ -534,6 +534,9 @@ ptr<expression_t> plus_expr_parse(parse_state_t &ps) {
 			break;
 		case tk_minus:
 			binary_operator->function_name = "__minus__";
+			break;
+		case tk_backslash:
+			binary_operator->function_name = "__backslash__";
 			break;
 		default:
 			assert(false);
@@ -904,7 +907,8 @@ ptr<block_t> block_t::parse(parse_state_t &ps) {
 		if (!ps.line_broke()
 				&& !(ps.prior_token.tk == tk_indent
 					|| ps.prior_token.tk == tk_outdent)) {
-			throw user_error(ps.token.location, "statements must be separated by a newline (or a semicolon)");
+			throw user_error(ps.token.location, "unexpected token " c_warn("%s") " encountered",
+					ps.token.text.c_str());
 		}
 		block->statements.push_back(statement_t::parse(ps));
 	}

@@ -1,0 +1,9 @@
+module _
+# TODO: figure out what's going on here
+
+def foo(a [Cow])
+	# error: Cow not defined or something?
+	pass
+
+def main()
+	print("hi")

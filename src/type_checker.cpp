@@ -2292,7 +2292,6 @@ bound_var_t::ref ast::tuple_expr_t::resolve_expression(
 		debug_above(7, log("tuple literal is expected to return a %s", expected_type->str().c_str()));
 	}
 	types::type_product_t::ref expected_product = dyncast<const types::type_product_t>(expected_type);
-	assert(!as_ref);
 
 	/* let's get the actual values in our tuple. */
 	bound_var_t::refs vars;

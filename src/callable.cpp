@@ -83,7 +83,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 		const unification_t *unification)
 {
 	static int depth = 0;
-	depth_guard_t depth_guard(fn_type->get_location(), depth, 10);
+	depth_guard_t depth_guard(fn_type->get_location(), depth, 20);
 	debug_above(5, log(log_info, "we are in scope " c_id("%s"), scope->get_name().c_str()));
 	debug_above(5, log(log_info, "instantiating unchecked function %s : %s",
 				unchecked_fn->str().c_str(),

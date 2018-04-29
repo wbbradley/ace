@@ -394,6 +394,10 @@ bool zion_lexer_t::_get_tokens() {
 			case '/':
 				gts = gts_divide_by;
 				break;
+			case '\\':
+				tk = tk_backslash;
+				gts = gts_end;
+				break;
 			case '*':
 				gts = gts_times;
 				break;

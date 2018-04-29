@@ -1,0 +1,17 @@
+module _
+# TODO: figure out what's going on here
+
+type D is
+	AA(x int)
+	BB
+
+def foo(a D)
+	pass
+
+def main()
+	AA(3)
+	when BB is
+		BB
+			pass
+
+	print("hi")
