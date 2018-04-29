@@ -1,43 +1,14 @@
 module _
 
-type Either L R is
-	Left(l L)
-	Right(r R)
+type MutableValue T has
+	var value T
 
-type Error is Error(message str)
-
-######################
 type DataType is DataType(typename str, ctors [Ctor])
 
 type Ctor has
 	name str
 	arg_types [DataType]
 	
-type IntSet is
-	Exclude(exclude [int])
-	Include(include [int])
-
-def empty(set IntSet) bool
-	when set is
-		Exclude(exclude)
-			return false
-		Include(include)
-			return len(include) == 0
-	
-[global]
-def str(error Error) str
-	when error is
-		Error(error)
-			return "Error: " + error
-
-[global]
-def str(set IntSet) str
-	when set is
-		Exclude(exclude)
-			return "Exclude(" + exclude + ")"
-		Include(include)
-			return "Include(" + include + ")"
-
 type CtorPatternValue has
 	typename str
 	name str
@@ -201,7 +172,7 @@ def str(ctor Ctor) str
 def str(t DataType) str
 	when t is
 		DataType(typename, ctors)
-			return typename #  + ": DataType(" + join(", ", ctors) + ")"
+			return typename
 
 [global]
 def str(pattern Pattern) str
@@ -225,29 +196,21 @@ def str(ctor_pattern CtorPatternValue) str
 		return ctor_pattern.name
 	return ctor_pattern.name + "(" + args + ")"
 	
-type Coverage has
-	covered Pattern
-	uncovered Pattern
-
-[global]
-def str(cov Coverage) str
-	return "Coverage(" + cov.covered + ", " + cov.uncovered + ")"
-
 type Sender = def (pattern Pattern) void
 
 def set_difference(lhs CtorPatternValue, rhs CtorPatternValue, send Sender)
-	print("set_difference(" + lhs + ", " + rhs + ")")
+	# print("set_difference(" + lhs + ", " + rhs + ")")
 	assert(lhs.typename == rhs.typename)
 	assert(len(rhs.args) == len(lhs.args))
 
 	if lhs.name != rhs.name
 		send(CtorPattern(lhs))
-
-	if len(lhs.args) == 0
+	elif len(lhs.args) == 0
 		send(Nothing)
 	else
 		for i in range(len(lhs.args))
 			send_ctor_pattern := def (arg Pattern)
+				# print("Sending: " + arg)
 				when arg is
 					Nothing
 						send(Nothing)
@@ -292,7 +255,7 @@ def set_difference(lhs Pattern, rhs Pattern, send Sender) void
 
 		Pair(CtorPattern(lhs), CtorPatterns(rhs))
 			# Make a state machine to compose the difference per sub-pattern
-			var new_a = Ref(Nothing)
+			new_a := MutableValue(Nothing)
 			new_a_send := def (p Pattern)
 				new_a.value = set_union(new_a.value, p)
 
@@ -326,27 +289,14 @@ def set_difference(lhs Pattern, rhs Pattern, send Sender) void
 		else
 			panic("Unmatched Pair(" + lhs + ", " + rhs + ")")
 
-[global]
-def str(c Either any T any Q) str
-	when c is
-		Left(t)
-			return str(t)
-		Right(q)
-			return str(q)
-
-type Ref T has
-	var value T
-
-def get_set_difference(lhs Pattern, rhs Pattern) Pattern
-	var final_difference = Ref(Nothing)
+def set_difference(lhs Pattern, rhs Pattern) Pattern
+	difference := MutableValue(Nothing)
 
 	send := def (p Pattern)
-		print("Found: " + p)
-		final_difference.value = set_union(p, final_difference.value)
+		difference.value = set_union(p, difference.value)
 
 	set_difference(lhs, rhs, send)
-	print(str(lhs) + " - " + rhs + " = " + final_difference.value)
-	return final_difference.value
+	return difference.value
 
 def main()
 	let empty_types [DataType]
@@ -360,7 +310,7 @@ def main()
 	Color := DataType("Color", [
 		Ctor("Red", [Brightness]),
 		Ctor("Green", [Brightness]),
-		Ctor("Ble", [Brightness]),
+		Ctor("Blue", [Brightness]),
 	])
 
 	Pair := DataType("Pair", [Ctor("Pair", [Bool, Bool])])
@@ -371,16 +321,16 @@ def main()
 	False := CtorPatternValue("Bool", "False", empty_patterns)
 	bool_pattern := AllOf(Bool)
 	true_pattern := CtorPattern(True)
-	# get_set_difference(bool_pattern, true_pattern)
 
-	get_set_difference(
-			CtorPatterns([
-				CtorPatternValue("Pair", "Pair", [AllOf(Bool), AllOf(Bool)])
-			]),
-			CtorPatterns([
-				CtorPatternValue("Pair", "Pair", [CtorPatterns([True]), CtorPatterns([False])]),
-				CtorPatternValue("Pair", "Pair", [CtorPatterns([False]), CtorPatterns([True])]),
-				CtorPatternValue("Pair", "Pair", [CtorPatterns([False]), CtorPattern(False)]),
-				CtorPatternValue("Pair", "Pair", [AllOf(Bool), CtorPatterns([True])]),
-				CtorPatternValue("Pair", "Pair", [AllOf(Bool), CtorPatterns([True])]),
-			]))
+	print(
+			set_difference(
+				CtorPatterns([
+					CtorPatternValue("ColorPair", "ColorPair", [AllOf(Color), AllOf(Color)])
+				]),
+				CtorPattern(
+					CtorPatternValue("ColorPair", "ColorPair", [
+						CtorPattern(CtorPatternValue("Color",
+								"Red", [AllOf(Brightness)])),
+						CtorPattern(CtorPatternValue(
+								"Color", "Red", [CtorPattern(CtorPatternValue("Brightness", "High",
+										empty_patterns))]))]))))
