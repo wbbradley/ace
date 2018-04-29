@@ -411,3 +411,10 @@ def __in__[T](lhs T, rhs [T]) bool
 		if lhs == r
 			return true
 	return false
+
+[global]
+def foldl[T, U](binop def (lhs T, rhs U) T, starting T, operands [U]) T
+	var state = starting
+	for operand in operands
+		state = binop(state, operand)
+	return state

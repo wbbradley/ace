@@ -59,6 +59,7 @@ enum token_kind
 	tk_subtype, /* <: */
 	tk_plus, /* + */
 	tk_minus, /* - */
+	tk_backslash, /* \ */
 	tk_times, /* * */
 	tk_divide_by, /* / */
 	tk_mod, /* % */

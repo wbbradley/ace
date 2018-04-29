@@ -106,4 +106,4 @@ def readline() str?
 	return Just(ret)
 
 def __box__[Args, Ret](fn def _(..Args) Ret) def (..Args) Ret
-	return __closure_t(fn) as def (..Args) Ret
+	return __closure_t(fn) as! def (..Args) Ret

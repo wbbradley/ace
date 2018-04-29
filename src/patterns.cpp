@@ -66,7 +66,7 @@ void build_patterns(
 				llvm_next_merge,
 				&scope_if_match);
 
-		/* save this as the "next" block to jump to (since we are travesering the patterns in
+		/* save this as the "next" block to jump to (since we are traversing the patterns in
 		 * reverse order */
 		llvm_next_merge = check_block;
 

@@ -7,19 +7,12 @@ type Either L R is
 type Error is Error(message str)
 
 ######################
-type Type is
-	Integer
-	DataType(typename str, ctors [Ctor])
+type DataType is DataType(typename str, ctors [Ctor])
 
 type Ctor has
 	name str
-	arg_types [Type]
+	arg_types [DataType]
 	
-type CtorPattern has
-	typename str
-	name str
-	args [Pattern]
-
 type IntSet is
 	Exclude(exclude [int])
 	Include(include [int])
@@ -32,6 +25,12 @@ def empty(set IntSet) bool
 			return len(include) == 0
 	
 [global]
+def str(error Error) str
+	when error is
+		Error(error)
+			return "Error: " + error
+
+[global]
 def str(set IntSet) str
 	when set is
 		Exclude(exclude)
@@ -39,98 +38,65 @@ def str(set IntSet) str
 		Include(include)
 			return "Include(" + include + ")"
 
+type CtorPatternValue has
+	typename str
+	name str
+	args [Pattern]
+
 type Pattern is
-	CtorPatterns(ctor_patterns [CtorPattern])
-	Integers(set IntSet)
-	AllOf(t Type)
+	CtorPattern(cpv CtorPatternValue)
+	CtorPatterns(patterns [CtorPatternValue])
+	AllOf(t DataType)
 	Nothing
 
-def pattern_from_type(t Type) Pattern
+def pattern_from_type(t DataType) Pattern
 	when t is
-		Integer
-			let ints [int]
-			return Integers(Exclude(ints))
 		DataType(typename, ctors)
-			let ctor_patterns [CtorPattern]
+			let ctor_patterns [CtorPatternValue]
 			for ctor in ctors
-				let patterns [Pattern]
+				let arg_patterns [Pattern]
 				for arg_type in ctor.arg_types
-					append(patterns, AllOf(arg_type))
-				append(ctor_patterns, CtorPattern(typename, ctor.name, patterns))
+					append(arg_patterns, AllOf(arg_type))
+				append(ctor_patterns, CtorPatternValue(typename, ctor.name, arg_patterns))
 			return CtorPatterns(ctor_patterns)
 			
 type Pair T S is Pair(lhs T, rhs S)
 
-def __bitwise_and__(lhs Either Pattern Error, rhs Either Pattern Error) Either Pattern Error
+def set_union(lhs Pattern, rhs Pattern) Pattern
+	# ∪ Operator for Patterns
 	when Pair(lhs, rhs) is
-		Pair(Right(Error(lhs_message)), Right(Error(rhs_message)))
-			return Right(Error("Error! " + lhs_message + " and " + rhs_message))
-		Pair(Right(_), _)
+		Pair(_, Nothing)
 			return lhs
-		Pair(_, Right(_))
+		Pair(Nothing, _)
 			return rhs
-		Pair(Left(lhs), Left(rhs))
-			return set_intersect(lhs, rhs)
+		Pair(CtorPatterns(lhs), CtorPatterns(rhs))
+			let patterns [CtorPatternValue] = copy(lhs)
+			for a in rhs
+				append(patterns, a)
+			return CtorPatterns(patterns)
+		Pair(CtorPatterns(lhs), CtorPattern(rhs))
+			let patterns [CtorPatternValue] = copy(lhs)
+			append(patterns, rhs)
+			return CtorPatterns(patterns)
+		Pair(CtorPattern(lhs), CtorPatterns(rhs))
+			let patterns [CtorPatternValue] = copy(rhs)
+			append(patterns, lhs)
+			return CtorPatterns(patterns)
+		Pair(CtorPattern(lhs), CtorPattern(rhs))
+			return CtorPatterns([lhs, rhs])
 
-def set_difference(lhs [int], rhs [int]) [int]
-	let new [int]
-	for l in lhs
-		if l not in rhs
-			append(new, l)
-	return new
-			
-def set_intersect(lhs [int], rhs [int]) [int]
-	let new [int]
-	for l in lhs
-		if l in rhs
-			append(new, l)
-	return new
-			
-def set_union(lhs [int], rhs [int]) [int]
-	let new [int] = copy(lhs)
-	for r in rhs
-		if r not in new
-			append(new, r)
-	return new
+		else
+			panic("Unhandled set_union parameters: " + lhs + " ∪ " + rhs + "\n")
+	assert(false)
+	return lhs
 
-def set_difference(lhs IntSet, rhs IntSet) IntSet
-	when Pair(lhs, rhs) is
-		Pair(Exclude(lhs_exclude), Exclude(rhs_exclude))
-			return Include(set_difference(rhs_exclude, lhs_exclude))
-		Pair(Exclude(exclude), Include(include))
-			return Exclude(set_union(exclude, include))
-		Pair(Include(include), Exclude(exclude))
-			return Include(set_intersect(include, exclude))
-		Pair(Include(lhs_include), Include(rhs_include))
-			return Include(set_difference(lhs_include, rhs_include))
-
-def set_intersect(lhs IntSet, rhs IntSet) IntSet
-	when Pair(lhs, rhs) is
-		Pair(Exclude(lhs_exclude), Exclude(rhs_exclude))
-			return Exclude(set_union(lhs_exclude, rhs_exclude))
-		Pair(Exclude(exclude), Include(include))
-			return Include(set_difference(include, exclude))
-		Pair(Include(include), Exclude(exclude))
-			return Include(set_difference(include, exclude))
-		Pair(Include(lhs_include), Include(rhs_include))
-			return Include(set_intersect(lhs_include, rhs_include))
-
-def set_intersect(lhs Pattern, rhs Pattern) Either Pattern Error
+def set_intersect(lhs Pattern, rhs Pattern) Pattern
+	# ∩ Operator for Patterns
 	when Pair(lhs, rhs) is
 		Pair(Nothing, _)
-			return Left(Nothing)
+			return Nothing
 		Pair(_, Nothing)
-			return Left(Nothing)
-
-		# Handle Integer reduction from the entire domain of integers
-		Pair(AllOf(Integer), Integers(_))
-			return Left(rhs)
-		Pair(Integers(_), AllOf(Integer))
-			return Left(lhs)
-
-		# Handle Integer set intersection
-		Pair(Integers(lhs_set), Integers(rhs_set))
-			return Left(Integers(set_intersect(lhs_set, rhs_set)))
+			return Nothing
 
 		# Handle Ctors
 		Pair(AllOf(DataType(lhs_typename, lhs_ctors)), AllOf(DataType(rhs_typename, rhs_ctors)))
@@ -138,9 +104,10 @@ def set_intersect(lhs Pattern, rhs Pattern) Either Pattern Error
 				assert(len(lhs_ctors) == len(rhs_ctors))
 
 				# No reduction in the pattern
-				return Left(lhs)
+				return lhs
 			else
-				return Right(Error("Type mismatch. " + lhs_typename + " != " + rhs_typename))
+				panic("Type mismatch. " + lhs_typename + " != " + rhs_typename)
+				return Nothing
 
 		# Handle reduction from total domain to a subset
 		Pair(AllOf(DataType(lhs_typename, _)), CtorPatterns(ctor_patterns))
@@ -149,12 +116,12 @@ def set_intersect(lhs Pattern, rhs Pattern) Either Pattern Error
 			return reduce_all_datatype(rhs_typename, lhs, ctor_patterns)
 
 		Pair(CtorPatterns(lhs_ctor_patterns), CtorPatterns(rhs_ctor_patterns))
-			return reduce_ctor_patterns(lhs_ctor_patterns, rhs_ctor_patterns)
+			return set_intersect(lhs_ctor_patterns, rhs_ctor_patterns)
 		else
 			assert(false)
-			return Right(Error("Not implemented"))
+			return Nothing
 
-def impossible(pattern CtorPattern) bool
+def impossible(pattern CtorPatternValue) bool
 	for arg in pattern.args
 		if impossible(arg)
 			return true
@@ -163,67 +130,67 @@ def impossible(pattern CtorPattern) bool
 	
 def impossible(pattern Pattern) bool
 	when pattern is
+		CtorPattern(ctor_pattern)
+			return impossible(ctor_pattern)
 		CtorPatterns(ctor_patterns)
+			# print("seeing if " + ctor_patterns + " is impossible")
+			if len(ctor_patterns) == 0
+				return true
 			for cp in ctor_patterns
 				if impossible(cp)
 					return true
-			return false
-		Integers(set)
-			if empty(set)
-				return true
 			return false
 		AllOf(t)
 			return false
 		Nothing
 			return true
 		
-def reduce_ctor_patterns(lhs_ctor_patterns, rhs_ctor_patterns) Either Pattern Error
-	let final_ctor_patterns [CtorPattern]
-	for lhs_cp in lhs_ctor_patterns
-		reduced_typename := lhs_cp.typename
-		reduced_name := lhs_cp.name
-		reduced_args := copy(lhs_cp.args)
+def set_intersect(lhs [CtorPatternValue], rhs [CtorPatternValue]) Pattern
+	var intersect = Nothing
+	for a in lhs
+		intersect = set_union(foldl(set_cpv_intersect, CtorPattern(a), rhs), intersect)
+	return intersect
 
-		for rhs_cp in rhs_ctor_patterns
-			if lhs_cp.typename != rhs_cp.typename
-				return Right(
-					Error("Type mismatch in patterns. " + lhs_cp.typename + " != " +
-						rhs_cp.typename))
-			if len(rhs_cp.args) != len(reduced_args)
-				return Right(
-					Error("Different number of patterns in ctors. |" + lhs_cp.name + "| != |" +
-						rhs_cp.name + "|"))
+def set_cpv_intersect(lhs Pattern, rhs CtorPatternValue) Pattern
+	when lhs is
+		CtorPattern(cpv)
+			return set_intersect(cpv, rhs)
+		else
+			assert(false)
+			return Nothing
 
-			if rhs_cp.name == reduced_name
-				for i in range(len(reduced_args))
-					result := set_intersect(reduced_args[i], rhs_cp.args[i])
-					when result is
-						Left(pattern)
-							reduced_args[i] = pattern
-						Right(_)
-							return result
+def set_intersect(lhs CtorPatternValue, rhs CtorPatternValue) Pattern
+	assert(lhs.typename == rhs.typename)
+	assert(len(rhs.args) == len(lhs.args))
 
-		reduced_pattern := CtorPattern(reduced_typename, reduced_name, reduced_args)
-		if impossible(reduced_pattern)
-			continue
-		append(final_ctor_patterns, reduced_pattern)
+	if rhs.name != rhs.name
+		return Nothing
 
-	if len(final_ctor_patterns) == 0
-		return Right(Error("No patterns remain"))
-	else
-		return Left(CtorPatterns(final_ctor_patterns))
+	let reduced_args [Pattern]
+	reserve(reduced_args, len(lhs.args))
+
+	for i in range(len(lhs.args))
+		new_arg := set_intersect(lhs.args[i], rhs.args[i])
+		when new_arg is
+			Nothing
+				return Nothing
+			else
+				append(reduced_args, new_arg)
+
+	return CtorPattern(CtorPatternValue(lhs.typename, lhs.name, reduced_args))
 
 
-def reduce_all_datatype(lhs_typename str, rhs Pattern, ctor_patterns [CtorPattern]) Either Pattern Error
+def reduce_all_datatype(lhs_typename str, rhs Pattern, ctor_patterns [CtorPatternValue]) Pattern
 	for ctor_pattern in ctor_patterns
 		if ctor_pattern.typename != lhs_typename
-			return Right(
-				Error(
-					"Invalid typed ctor pattern found. Expected " + lhs_typename
-					+ " but ctor_pattern indicates it is a " + ctor_pattern.typename))
+			panic("Invalid typed ctor pattern found. Expected " + lhs_typename
+					+ " but ctor_pattern indicates it is a " + ctor_pattern.typename)
 
 	# This is a reduction to the right hand side
-	return Left(rhs)
+	if len(ctor_patterns) == 1
+		return CtorPattern(ctor_patterns[0])
+	else
+		return CtorPatterns(ctor_patterns)
 
 [global]
 def str(ctor Ctor) str
@@ -232,30 +199,28 @@ def str(ctor Ctor) str
 	return ctor.name + "(" + join(", ", ctor.arg_types) + ")"
 
 [global]
-def str(t Type) str
+def str(t DataType) str
 	when t is
-		Integer
-			return "Integer"
 		DataType(typename, ctors)
 			return typename #  + ": DataType(" + join(", ", ctors) + ")"
 
 [global]
 def str(pattern Pattern) str
 	when pattern is
+		CtorPattern(ctor_pattern)
+			return str(ctor_pattern)
 		CtorPatterns(ctor_patterns)
 			return "CtorPatterns(" + ctor_patterns + ")"
 		AllOf(t)
 			return "AllOf(" + t + ")"
 		Nothing
 			return "Nothing"
-		Integers(set)
-			return "Integers(" + set + ")"
 		else
 			assert(false)
 			return "FAIL"
 	
 [global]
-def str(ctor_pattern CtorPattern) str
+def str(ctor_pattern CtorPatternValue) str
 	args := ctor_pattern.args
 	if len(args) == 0
 		return ctor_pattern.name
@@ -269,133 +234,119 @@ type Coverage has
 def str(cov Coverage) str
 	return "Coverage(" + cov.covered + ", " + cov.uncovered + ")"
 
-def impossible_pattern_to_match(pattern Pattern) bool
-	when pattern is
-		Nothing
-			return true
-		Integers(set)
-			return empty(set)
-		else
-			return false
+type Sender = def (pattern Pattern) void
 
-def cover(to_cover Pattern, uncovered Pattern) Either Coverage Error
-	# Compute the final covering of this incoming pattern
-	# Also compute the final uncovered pattern
-	either := set_intersect(to_cover, uncovered)
-	when either is
-		Right(error)
-			return Right(error)
-		Left(pattern)
-			print("cover(" + to_cover + ", " + uncovered + ") calling cover2(" + pattern + ", " +
-					uncovered + ")")
-			return cover2(pattern, uncovered)
-
-def ctor_patterns_difference(lhs CtorPattern, rhs CtorPattern) [CtorPattern]
+def set_difference(lhs CtorPatternValue, rhs CtorPatternValue, send Sender)
+	print("set_difference(" + lhs + ", " + rhs + ")")
 	assert(lhs.typename == rhs.typename)
-	if lhs.name != rhs.name
-		print("ctor_patterns_difference(" + lhs + ", " + rhs + ") => " + [lhs])
-		return [lhs]
-	assert(len(lhs.args) == len(rhs.args))
-	
-	let difference [CtorPattern]
-	print("len(lhs.args) = " + len(lhs.args))
-	for i in range(len(lhs.args))
-		print("i = " + i)
-		result := cover(rhs.args[i], lhs.args[i])
-		when result is
-			Left(coverage)
-				print("coverage.uncovered = " + coverage.uncovered)
-				when coverage.uncovered is 
-					CtorPatterns(ctor_patterns)
-						for a in ctor_patterns
-							let args [Pattern] = copy(lhs.args)
-							assert(i < len(args) and i >= 0)
-							print("replacing " + args[i] + " with " + a + " with ctor id " + runtime.__get_ctor_id(a as! *var_t))
-							args[i] = CtorPatterns([a])
-							append(difference, CtorPattern(lhs.typename, lhs.name, args))
-					Nothing
-						pass
-					else
-						assert(false)
-			Right(Error(message))
-				print("swallowing error " + message)
+	assert(len(rhs.args) == len(lhs.args))
 
-	print("ctor_patterns_difference(" + lhs + ", " + rhs + ") => " + difference)
-	return difference
+	if lhs.name != rhs.name
+		send(CtorPattern(lhs))
+
+	if len(lhs.args) == 0
+		send(Nothing)
+	else
+		for i in range(len(lhs.args))
+			send_ctor_pattern := def (arg Pattern)
+				when arg is
+					Nothing
+						send(Nothing)
+					else
+						args := copy(lhs.args)
+						args[i] = arg
+						send(CtorPattern(CtorPatternValue(lhs.typename, lhs.name, args)))
+
+			set_difference(lhs.args[i], rhs.args[i], send_ctor_pattern)
 					
 	
-def ctor_patterns_difference(lhs_patterns [CtorPattern], rhs CtorPattern) [CtorPattern]
-	let ctor_patterns [CtorPattern]
-	for lhs in lhs_patterns
-		for remaining in ctor_patterns_difference(lhs, rhs)
-			append(ctor_patterns, remaining)
-		
-	print("ctor_patterns_difference(" + lhs_patterns + ", " + rhs + ") => " + ctor_patterns)
-	return ctor_patterns
-
-def cover2(covered Pattern, uncovered Pattern) Either Coverage Error
-	# `covered` is guaranteed to only contain patterns covered by uncovered, that is
-	# it should only be useful for covering uncovered.
-	# Now the trick is to visit the covered and the uncovered in parallel, and generate new uncovered patterns
-
-	when Pair(covered, uncovered) is
-		Pair(AllOf(Integer), AllOf(Integer))
-			return Left(Coverage(covered, Nothing))
-		Pair(AllOf(DataType(typename1, _)), AllOf(DataType(typename2, _)))
-			if typename1 == typename2
-				return Left(Coverage(covered, Nothing))
-			else
-				return Right(Error("Type mismatch."))
-		Pair(AllOf(t), _)
-			return cover2(pattern_from_type(t), uncovered)
-		Pair(_, AllOf(t))
-			return cover2(covered, pattern_from_type(t))
-		Pair(Nothing, _)
-			return Right(Error("This pattern will never match."))
+def set_difference(lhs Pattern, rhs Pattern, send Sender) void
+	# Set difference on patterns
+	when Pair(lhs, rhs) is
 		Pair(_, Nothing)
-			return Right(Error("Nothing left to cover."))
+			# Identity
+			send(Nothing)
+
+		Pair(Nothing, _)
+			# Unit
+			send(Nothing)
+
+		Pair(AllOf(DataType(typename2, _)), AllOf(DataType(typename1, _)))
+			if typename1 == typename2
+				send(Nothing)
+			else
+				panic("Type mismatch.")
+
+		Pair(AllOf(_), AllOf(_))
+			panic("Type mismatch.")
+
+		Pair(_, AllOf(t))
+			set_difference(lhs, pattern_from_type(t), send)
+
+		Pair(AllOf(t), _)
+			set_difference(pattern_from_type(t), rhs, send)
 
 		Pair(CtorPatterns(lhs), CtorPatterns(rhs))
-			var uncovered_now = rhs
-			for p in lhs
-				# Remove each pattern from the "covering" side from the uncovered set, but reduce the uncovered set of patterns on each iteration
-				uncovered_now = ctor_patterns_difference(uncovered_now, p)
-			return Left(Coverage(covered, CtorPatterns(uncovered_now)))
-		Pair(CtorPatterns(_), _)
-			return Right(Error("Type mismatch"))
-		Pair(_, CtorPatterns(_))
-			return Right(Error("Type mismatch"))
+			for a in lhs
+				for b in rhs
+					set_difference(a, b, send)
 
-		Pair(Integers(covered_set), Integers(uncovered_set))
-			return Left(Coverage(covered, Integers(set_difference(uncovered_set, covered_set))))
+		Pair(CtorPatterns(lhs), CtorPattern(rhs))
+			for a in lhs
+				set_difference(a, rhs, send)
+
+		Pair(CtorPatterns(_), _)
+			panic("Type mismatch. " + lhs + " != " + rhs)
+
+		Pair(_, CtorPatterns(_))
+			panic("Type mismatch")
 
 		else
-			return Right(Error("Unmatched Pair(" + covered + ", " + uncovered + ")"))
+			panic("Unmatched Pair(" + lhs + ", " + rhs + ")")
+
+[global]
+def str(c Either any T any Q) str
+	when c is
+		Left(t)
+			return str(t)
+		Right(q)
+			return str(q)
+
+type Ref T has
+	var value T
+
+def get_set_difference(lhs Pattern, rhs Pattern) Pattern
+	var final_difference = Ref(Nothing)
+
+	send := def (p Pattern)
+		print("Found: " + p)
+		final_difference.value = set_union(p, final_difference.value)
+
+	set_difference(lhs, rhs, send)
+	print(str(lhs) + " - " + rhs + " = " + final_difference.value)
+	return final_difference.value
 
 def main()
-	let empty_types [Type]
+	let empty_types [DataType]
 	Bool := DataType("Bool", [Ctor("True", empty_types), Ctor("False", empty_types)])
 	Pair := DataType("Pair", [Ctor("Pair", [Bool, Bool])])
 
-	let empty_pattern [Pattern]
-	True := CtorPattern("Bool", "True", empty_pattern)
-	False := CtorPattern("Bool", "False", empty_pattern)
 
-	c := cover(
+	let empty_patterns [Pattern] = []
+	True := CtorPatternValue("Bool", "True", empty_patterns)
+	False := CtorPatternValue("Bool", "False", empty_patterns)
+	bool_pattern := AllOf(Bool)
+	true_pattern := CtorPattern(True)
+	# get_set_difference(bool_pattern, true_pattern)
+
+	get_set_difference(
 			CtorPatterns([
-				CtorPattern("Pair", "Pair", [CtorPatterns([True]), CtorPatterns([False])]),
-				CtorPattern("Pair", "Pair", [CtorPatterns([False]), CtorPatterns([True])]),
-				CtorPattern("Pair", "Pair", [CtorPatterns([False]), AllOf(Bool)]),
-				CtorPattern("Pair", "Pair", [AllOf(Bool), CtorPatterns([True])]),
-				CtorPattern("Pair", "Pair", [AllOf(Bool), CtorPatterns([True])]),
+				CtorPatternValue("Pair", "Pair", [AllOf(Bool), AllOf(Bool)])
 			]),
 			CtorPatterns([
-				CtorPattern("Pair", "Pair", [AllOf(Bool), AllOf(Bool)])
+				CtorPatternValue("Pair", "Pair", [CtorPatterns([True]), CtorPatterns([False])]),
+				# CtorPatternValue("Pair", "Pair", [CtorPatterns([False]), CtorPatterns([True])]),
+				# CtorPatternValue("Pair", "Pair", [CtorPatterns([False]), AllOf(Bool)]),
+				# CtorPatternValue("Pair", "Pair", [AllOf(Bool), CtorPatterns([True])]),
+				# CtorPatternValue("Pair", "Pair", [AllOf(Bool), CtorPatterns([True])]),
 			]))
-
-	when c is
-		Left(coverage)
-			print(coverage)
-		Right(Error(message))
-			print("Error: " + message)
-
