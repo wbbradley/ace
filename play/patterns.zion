@@ -102,29 +102,6 @@ def set_intersect(lhs Pattern, rhs Pattern) Pattern
 			assert(false)
 			return Nothing
 
-def impossible(pattern CtorPatternValue) bool
-	for arg in pattern.args
-		if impossible(arg)
-			return true
-		
-	return false
-	
-def impossible(pattern Pattern) bool
-	when pattern is
-		CtorPattern(ctor_pattern)
-			return impossible(ctor_pattern)
-		CtorPatterns(ctor_patterns)
-			if len(ctor_patterns) == 0
-				return true
-			for cp in ctor_patterns
-				if impossible(cp)
-					return true
-			return false
-		AllOf(t)
-			return false
-		Nothing
-			return true
-		
 def set_intersect(lhs [CtorPatternValue], rhs [CtorPatternValue]) Pattern
 	var intersect = Nothing
 	for a in lhs
