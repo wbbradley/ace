@@ -84,6 +84,7 @@ ZION_LLVM_SOURCES = \
 				location.cpp \
 				logger.cpp \
 				main.cpp \
+				match.cpp \
 				mmap_file.cpp \
 				null_check.cpp \
 				parse_state.cpp \
