@@ -124,17 +124,17 @@ void check_patterns(
 		const ast::pattern_block_t::refs &pattern_blocks,
 		bound_var_t::ref pattern_value)
 {
-	patterns::Pattern::ref uncovered = make_ptr<patterns::AllOf>(pattern_value->type->get_type());
+	match::Pattern::ref uncovered = make_ptr<match::AllOf>(pattern_value->type->get_type());
 	for (auto pattern_block : pattern_blocks) {
-		patterns::Pattern::ref covering = pattern_block->predicate->get_pattern();
-		if (patterns::pattern_intersect(uncovered, covering)->asNothing() != nullptr) {
+		match::Pattern::ref covering = pattern_block->predicate->get_pattern();
+		if (match::pattern_intersect(uncovered, covering)->asNothing() != nullptr) {
 			auto error = user_error(pattern_block->get_location(), "pattern will never match any possible values");
 			error.add_info(pattern_block->get_location(), "uncovered values at this spot: %s",
 					uncovered->str().c_str());
 			throw error;
 		}
 
-		uncovered = patterns::pattern_difference(uncovered, covering);
+		uncovered = match::pattern_difference(uncovered, covering);
 	}
 
 	if (uncovered->asNothing() == nullptr) {
