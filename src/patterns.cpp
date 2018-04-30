@@ -32,9 +32,6 @@ void build_patterns(
 		llvm_generate_dead_return(builder, scope);
 	}
 
-	std::map<int, location_t> typeids_tested;
-	types::type_t::refs types_matched;
-
 	llvm::BasicBlock *llvm_next_merge = default_block;
 
 	bool all_patterns_return = true;
@@ -121,6 +118,33 @@ void build_patterns(
 	}
 }
 
+void check_patterns(
+		runnable_scope_t::ref runnable_scope,
+		location_t location,
+		const ast::pattern_block_t::refs &pattern_blocks,
+		bound_var_t::ref pattern_value)
+{
+	patterns::Pattern::ref uncovered = make_ptr<patterns::AllOf>(pattern_value->type->get_type());
+	for (auto pattern_block : pattern_blocks) {
+		patterns::Pattern::ref covering = pattern_block->predicate->get_pattern();
+		if (patterns::pattern_intersect(uncovered, covering)->asNothing() != nullptr) {
+			auto error = user_error(pattern_block->get_location(), "pattern will never match any possible values");
+			error.add_info(pattern_block->get_location(), "uncovered values at this spot: %s",
+					uncovered->str().c_str());
+			throw error;
+		}
+
+		uncovered = patterns::pattern_difference(uncovered, covering);
+	}
+
+	if (uncovered->asNothing() == nullptr) {
+			auto error = user_error(location, "not all patterns are covered");
+			error.add_info(location, "uncovered patterns: %s",
+					uncovered->str().c_str());
+			throw error;
+	}
+}
+
 void ast::when_block_t::resolve_statement(
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
@@ -154,6 +178,7 @@ void ast::when_block_t::resolve_statement(
 
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 
+	check_patterns(runnable_scope, value->get_location(), pattern_blocks, pattern_value);
 	build_patterns(
 			builder,
 			runnable_scope,
