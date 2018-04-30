@@ -82,11 +82,22 @@ def set_intersect(lhs Pattern, rhs Pattern) Pattern
 		# Handle reduction from total domain to a subset
 		Pair(AllOf(DataType(lhs_typename, _)), CtorPatterns(ctor_patterns))
 			return reduce_all_datatype(lhs_typename, rhs, ctor_patterns)
+
+		Pair(AllOf(DataType(lhs_typename, _)), CtorPattern(ctor_pattern))
+			return reduce_all_datatype(lhs_typename, rhs, [ctor_pattern])
+
 		Pair(CtorPatterns(ctor_patterns), AllOf(DataType(rhs_typename, _)))
 			return reduce_all_datatype(rhs_typename, lhs, ctor_patterns)
 
-		Pair(CtorPatterns(lhs_ctor_patterns), CtorPatterns(rhs_ctor_patterns))
-			return set_intersect(lhs_ctor_patterns, rhs_ctor_patterns)
+		Pair(CtorPattern(ctor_pattern), AllOf(DataType(rhs_typename, _)))
+			return reduce_all_datatype(rhs_typename, lhs, [ctor_pattern])
+
+		Pair(CtorPatterns(lhs), CtorPatterns(rhs))
+			return set_intersect(lhs, rhs)
+		Pair(CtorPatterns(lhs), CtorPattern(rhs))
+			return set_intersect(lhs, [rhs])
+		Pair(CtorPattern(lhs), CtorPattern(rhs))
+			return set_intersect([lhs], [rhs])
 		else
 			assert(false)
 			return Nothing
@@ -103,7 +114,6 @@ def impossible(pattern Pattern) bool
 		CtorPattern(ctor_pattern)
 			return impossible(ctor_pattern)
 		CtorPatterns(ctor_patterns)
-			# print("seeing if " + ctor_patterns + " is impossible")
 			if len(ctor_patterns) == 0
 				return true
 			for cp in ctor_patterns
@@ -133,7 +143,7 @@ def set_intersect(lhs CtorPatternValue, rhs CtorPatternValue) Pattern
 	assert(lhs.typename == rhs.typename)
 	assert(len(rhs.args) == len(lhs.args))
 
-	if rhs.name != rhs.name
+	if lhs.name != rhs.name
 		return Nothing
 
 	let reduced_args [Pattern]
@@ -147,6 +157,7 @@ def set_intersect(lhs CtorPatternValue, rhs CtorPatternValue) Pattern
 			else
 				append(reduced_args, new_arg)
 
+	assert(len(reduced_args) == len(lhs.args))
 	return CtorPattern(CtorPatternValue(lhs.typename, lhs.name, reduced_args))
 
 
@@ -199,7 +210,6 @@ def str(ctor_pattern CtorPatternValue) str
 type Sender = def (pattern Pattern) void
 
 def set_difference(lhs CtorPatternValue, rhs CtorPatternValue, send Sender)
-	# print("set_difference(" + lhs + ", " + rhs + ")")
 	assert(lhs.typename == rhs.typename)
 	assert(len(rhs.args) == len(lhs.args))
 
@@ -210,7 +220,6 @@ def set_difference(lhs CtorPatternValue, rhs CtorPatternValue, send Sender)
 	else
 		for i in range(len(lhs.args))
 			send_ctor_pattern := def (arg Pattern)
-				# print("Sending: " + arg)
 				when arg is
 					Nothing
 						send(Nothing)
@@ -322,15 +331,18 @@ def main()
 	bool_pattern := AllOf(Bool)
 	true_pattern := CtorPattern(True)
 
-	print(
-			set_difference(
-				CtorPatterns([
-					CtorPatternValue("ColorPair", "ColorPair", [AllOf(Color), AllOf(Color)])
-				]),
-				CtorPattern(
-					CtorPatternValue("ColorPair", "ColorPair", [
-						CtorPattern(CtorPatternValue("Color",
-								"Red", [AllOf(Brightness)])),
-						CtorPattern(CtorPatternValue(
-								"Color", "Red", [CtorPattern(CtorPatternValue("Brightness", "High",
-										empty_patterns))]))]))))
+	start := CtorPattern(CtorPatternValue("ColorPair", "ColorPair", [AllOf(Color), AllOf(Color)]))
+	cover := CtorPattern(
+			CtorPatternValue("ColorPair", "ColorPair", [
+				AllOf(Color),
+				CtorPattern(CtorPatternValue("Color", "Red", [CtorPattern(CtorPatternValue("Brightness", "High", empty_patterns))]))]))
+
+	uncovered := set_difference(start, cover)
+	print("uncovered = " + uncovered)
+	print("covered = " + cover)
+	cover2 := CtorPattern(
+			CtorPatternValue("ColorPair", "ColorPair", [
+				CtorPattern(CtorPatternValue("Color", "Red", [CtorPattern(CtorPatternValue("Brightness", "High", empty_patterns))])),
+				CtorPattern(CtorPatternValue("Color", "Red", [CtorPattern(CtorPatternValue("Brightness", "High", empty_patterns))]))]))
+	print("cover2 = " + cover2)
+	print(set_intersect(uncovered,  cover2))
