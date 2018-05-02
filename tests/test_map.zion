@@ -16,9 +16,13 @@ def main()
 		Empty
 			print(0)
 	m["hello"] = Just(13)
-	print(m["hello"] or 14)
+	when m["hello"] is
+		Just(Just(x))
+			print(x)
+		Just(Empty)
+			pass
+		Empty
+			pass
+
 	if del(m, "hello")
 		print("deleted hello")
-	print(m["hello"] or 15)
-	if not del(m, "hello")
-		print("could not find hello")

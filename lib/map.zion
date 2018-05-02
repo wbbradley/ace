@@ -7,7 +7,7 @@ module map
 # FUTURE: we'll get ourselves a shiny fast implementation of an (un)ordered map.
 
 type KeyValue K V has
-	let key K
+	key K
 	var value V
 
 # aka {KeyType: ValueType}
@@ -33,8 +33,8 @@ def __getitem__[K, V](m {K: V}, key K) V?
 	# HACKHACK: O(n) BAD BAD
 	for kv in m.storage
 		if kv.key == key
-			return kv.value
-	return null
+			return Just(kv.value)
+	return Empty
 
 [global]
 def __setitem__[K, V](m {K: V}, key K, val V)
@@ -64,7 +64,7 @@ def del[K, V](m {K: V}, key K) bool
 	# HACKHACK: O(n) BAD BAD - also vector.ManagedVector coupling BAD BAD
 	var i = 0
 	let storage = m.storage
-	let size = (storage as *vector.ManagedVector).size
+	let size = (storage as! *(vector.VectorImpl (KeyValue K V))).size
 	while i < size
 		let item = storage[i]
 		if item.key == key

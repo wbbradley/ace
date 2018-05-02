@@ -4,20 +4,14 @@ module _
 # expect: 3
 # expect: Empty
 
-type Just T has
-	var val T
-
-tag Empty
-type Maybe T is Empty or Just T
-
 def do(t Maybe any T) void
-	when t
-		is Just any T
+	when t is
+		Just(val)
 			print("Just")
-			print(t.val)
-		is Empty
+			print(val)
+		Empty
 			print("Empty")
 
 def main()
-	do(Just(3))
 	do(Empty)
+	do(Just(3))

@@ -1305,7 +1305,7 @@ namespace types {
 		return false;
 	}
 
-	bool is_ptr(types::type_t::ref type, const ptr<const env_t> &env) {
+	bool is_ptr(types::type_t::ref type, env_t::ref env) {
 		// REVIEW: this is nebulous, it really depends on what env is passed in
 		type = type->eval(env, true /*get_structural_type*/);
 

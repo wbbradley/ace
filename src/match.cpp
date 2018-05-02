@@ -398,30 +398,28 @@ namespace match {
 
 	std::string AllOf::str() const {
 		std::stringstream ss;
-		ss << "AllOf(" << type->str() << ")";
+		ss << "_"; // AllOf(" << type->str() << ")";
 		return ss.str();
 	}
 
 	std::string Nothing::str() const {
-		return "Nothing";
+		return "<nothing>";
 	}
 
 	std::string CtorPattern::str() const {
-		std::stringstream ss;
-		ss << "CtorPattern(" << cpv.str() << ")";
-		return ss.str();
+		return cpv.str();
 	}
 
 	std::string CtorPatterns::str() const {
-		std::stringstream ss;
-		ss << "CtorPatterns(" << ::join_with(cpvs, ", ", [](const CtorPatternValue &cpv) -> std::string { return cpv.str(); }) << ")";
-		return ss.str();
+		return ::join_with(cpvs, " and ", [](const CtorPatternValue &cpv) -> std::string { return cpv.str(); });
 	}
 
 	std::string CtorPatternValue::str() const {
 		std::stringstream ss;
-		ss << "CtorPatternValue(" << type_name << ", " << name << ", [";
-		ss << ::join_str(args, ", ") << "])";
+		ss << name;
+		if (args.size() != 0) {
+			ss << "(" << ::join_str(args, ", ") << ")";
+		}
 		return ss.str();
 	}
 
