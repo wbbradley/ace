@@ -7,8 +7,8 @@ def main()
 	filename := "tests/test_if_finalizer.zion"
 	f := file.open(filename, "r")
 	state := f.state
-	when state
-		is file.Open
-			print("opened " + filename + " as fp " + str(state.fp! as int))
+	when state is
+		Open(fp)
+			print("opened " + filename + " as fp " + str(fp as! int))
 		else
 			print("unable to open " + filename)

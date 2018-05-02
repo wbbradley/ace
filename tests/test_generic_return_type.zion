@@ -1,13 +1,7 @@
 module _
-# test: pass
 
-type D T has
-	var t T
-
-type E T has
-	var c C T
-
-type C T is D T or E T
+# error: parameter is missing a type specifier
+type C T is D(T) E(T)
 
 def identity[X](expr C X) X
 	return "asdf"

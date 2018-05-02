@@ -1,8 +1,9 @@
 module _
+# test: skip
 # TODO: figure out what's going on here
 
 def foo(a [Cow])
-	# error: Cow not defined or something?
+	# should be error: Cow not defined or something?
 	pass
 
 def main()

@@ -156,7 +156,7 @@ namespace types {
 		return parse_type(ps, generics);
 	}
 
-	types::type_t::ref parse_type_args(parse_state_t &ps, const identifier::set &generics) {
+	types::type_t::ref parse_type_args(parse_state_t &ps, const identifier::set &generics, bool automatic_any) {
 		chomp_token(tk_lparen);
 		if (ps.token.tk == tk_double_dot) {
 			ps.advance();
@@ -177,8 +177,12 @@ namespace types {
 
 				/* parse the type */
 				if (ps.token.tk == tk_comma || ps.token.tk == tk_rparen) {
-					/* if there is no type then assume `any` */
-					param_types.push_back(type_variable(var_name.location));
+					if (automatic_any) {
+						/* if there is no type then assume `any` */
+						param_types.push_back(type_variable(var_name.location));
+					} else {
+						throw user_error(var_name.location, "parameter is missing a type specifier");
+					}
 				} else {
 					param_types.push_back(parse_type(ps, generics));
 				}
@@ -214,7 +218,7 @@ namespace types {
    	{
 		types::type_args_t::ref type_args;
 		if (ps.token.tk == tk_lparen) {
-			auto type = parse_type_args(ps, generics);
+			auto type = parse_type_args(ps, generics, false /*automatic_any*/);
 			type_args = dyncast<const types::type_args_t>(type);
 			if (type_args == nullptr) {
 				auto error = user_error(type->get_location(), "data ctors must contain non-generic type args");
@@ -278,7 +282,7 @@ namespace types {
 			}
 		}
 
-		type_t::ref type_args = parse_type_args(ps, generics);
+		type_t::ref type_args = parse_type_args(ps, generics, true /*automatic_any*/);
 
 		types::type_t::ref return_type;
 		/* now let's parse the return type */

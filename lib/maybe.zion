@@ -4,18 +4,48 @@ type Maybe T is
 	Just(t T)
 	Empty
 
+def __eq__[U](lhs Maybe U, rhs null) bool
+	when lhs is
+		Just(_)
+			return false
+		Empty
+			return true
+
+def __ineq__[U](lhs Maybe U, rhs null) bool
+	when lhs is
+		Just(_)
+			return true
+		Empty
+			return false
+
+def __eq__[U](lhs null, rhs Maybe U) bool
+	when rhs is
+		Just(_)
+			return false
+		Empty
+			return true
+
+def __ineq__[U](lhs null, rhs Maybe U) bool
+	when rhs is
+		Just(_)
+			return true
+		Empty
+			return false
+
 def __eq__[U](lhs Maybe U, rhs Maybe U) bool
 	when rhs is
 		Just(rhs_value)
 			when lhs is
 				Just(lhs_value)
 					return lhs_value == rhs_value
-			return false
+				Empty
+					return false
 		Empty
 			when lhs is
+				Just(_)
+					return false
 				Empty
 					return true
-			return false
 
 def __eq__[U, V where U === V](lhs U, rhs Maybe V) bool
 	when rhs is

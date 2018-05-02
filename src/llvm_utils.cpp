@@ -545,7 +545,7 @@ void llvm_create_if_branch(
 		} else {
 			user_error error = user_error(
 					location,
-				   	allow_maybe_check ? "condition is not a boolean value or a maybe type" : "condition is not a boolean value");
+				   	allow_maybe_check ? "condition is not a boolean value or a nullable pointer type (*?)" : "condition is not a boolean value");
 			error.add_info(location, "the condition of this branch instruction is of type %s", value->type->str().c_str());
 			error.add_info(value->get_location(), "the value was defined here");
 			throw error;

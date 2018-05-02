@@ -7,5 +7,5 @@ type Vector has
 
 def main()
 	let v = Vector(1.2, 4.3, 4.3)
-	# error: you cannot re-assign the name v.x to anything else here
+	# error: the left-hand side of this assignment is not a reference
 	v.x = 3.4

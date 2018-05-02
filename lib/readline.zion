@@ -58,18 +58,20 @@ def __iter_valid__(fl Lines any, _ null) bool
 
 [global]
 def __iter_item__(fl Lines any) str
-	let cur_line = fl.cur_line
-	r := cur_line != null ? cur_line : ""
-	return r
+	when fl.cur_line is
+		Just(line)
+			return line
+		Empty
+			return ""
 
 [global]
 def __iterate__(fl Lines any)
 	when readline(fl.file) is
 		Line(line)
-			fl.cur_line = line
+			fl.cur_line = Just(line)
 		Error(errno)
 			print("Error: encountered error " + errno + " while reading file")
-			fl.cur_line = null
+			fl.cur_line = Empty
 		EOF
-			fl.cur_line = null
+			fl.cur_line = Empty
 

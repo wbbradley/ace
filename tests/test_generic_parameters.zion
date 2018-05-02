@@ -21,3 +21,5 @@ def main()
 	when nth(Just(x), 1) is
 		Just(y)
 			print(y)
+		Empty
+			pass

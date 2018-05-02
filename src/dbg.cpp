@@ -27,10 +27,12 @@ void _emit_assert(
 {
 	location_t location(filename, line, 1);
 	std::stringstream ss;
+	log_location(log_panic, location, c_error("============="));
 	ss << c_error("assert failed");
 	ss << " --> " << C_ERROR << assertion << C_RESET << " in ";
 	ss << C_INTERNAL << function << C_RESET;
 	log_location(log_panic, location, "%s", ss.str().c_str());
+	log_location(log_panic, location, c_error("============="));
 	log_dump();
 	// ::log_stack(log_warning);
     DEBUG_BREAK();

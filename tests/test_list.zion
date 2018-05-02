@@ -1,27 +1,23 @@
 module _
 # test: pass
 
-type NodeInt has
-	var value int
-	var next ListInt
-
-tag Done
-
-type ListInt is NodeInt or Done
+type ListInt is
+	NodeInt(value int, next ListInt)
+	Done
 
 def len(l ListInt) int
-	when l
-		is Done
+	when l is
+		Done
 			return 0
-		is NodeInt
-			return 1 + len(l.next)
+		NodeInt(_, next)
+			return 1 + len(next)
 
 def sum(l ListInt) int
-	when l
-		is Done
+	when l is
+		Done
 			return 0
-		is NodeInt
-			return l.value + sum(l.next)
+		NodeInt(value, next)
+			return value + sum(next)
 
 def main()
 	l := NodeInt(1, NodeInt(2, NodeInt(3, Done)))
