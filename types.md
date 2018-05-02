@@ -44,6 +44,7 @@ Encoding RTTI for pattern matching with infinite types
 
 Example
 
+```
 tag Foo
 tag Bar
 tag Baz
@@ -92,6 +93,6 @@ Merge-match input against 2,3
 To match [Node] : (5, (or (1, 2, 3, #[Node])))
 Against [[
 
-
+```
 
 
