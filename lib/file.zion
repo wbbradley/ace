@@ -40,6 +40,8 @@ def __finalize__(of File)
 	when of.state is
 		Open(fp)
 			posix.fclose(fp)
+		else
+			pass
 
 [global]
 def readbytes(f File) bytes?

@@ -1,13 +1,9 @@
 module _
 # test: pass
 
-type Data has
-	var value int
-	var node ListNode
-
-tag Done
-
-type ListNode is Data or Done
+type ListNode is
+	Data(value int, node ListNode)
+	Done
 
 type HList has
 	var l ListNode

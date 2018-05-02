@@ -1126,8 +1126,8 @@ namespace types {
 
 	type_data_t::type_data_t(
 			token_t name,
-		   	type_variable_t::refs type_vars,
-			 std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs) :
+			type_variable_t::refs type_vars,
+			std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs) :
 		name(name),
 		type_vars(type_vars),
 		ctor_pairs(ctor_pairs)

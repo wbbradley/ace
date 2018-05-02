@@ -10,4 +10,6 @@ def main()
 	when v is
 		Just(_)
 			v = Just(Vector(1.0, 2.0))
+		Empty
+			pass
 	print("pass")

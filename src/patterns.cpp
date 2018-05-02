@@ -42,8 +42,8 @@ void build_patterns(
 		std::string pattern_name = predicate->repr();
 		llvm::BasicBlock *check_block = llvm::BasicBlock::Create(
 				builder.getContext(),
-			   	"test." + pattern_name,
-			   	llvm_function_current);
+				"test." + pattern_name,
+				llvm_function_current);
 
 		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 		builder.SetInsertPoint(check_block);
@@ -104,18 +104,9 @@ void build_patterns(
 		builder.SetInsertPoint(merge_block);
 	}
 
-	/* check whether all cases of the pattern_value's type are handled */
-	bool all_values_matched = true; // TODO: <--- figure out if this is true or not
-	if (all_values_matched) {
-		/* good, the user knew not to have an else block because they are handling
-		 * all paths */
-		*returns = all_patterns_return;
-		return;
-	} else {
-		/* the patterns don't cover all possible values */
-		auto error = user_error(location, "the 'when' block does not handle all inbound values");
-		throw error;
-	}
+	/* good, the user knew not to have an else block because they are handling
+	 * all paths */
+	*returns = all_patterns_return;
 }
 
 void check_patterns(
@@ -124,17 +115,17 @@ void check_patterns(
 		const ast::pattern_block_t::refs &pattern_blocks,
 		bound_var_t::ref pattern_value)
 {
-	match::Pattern::ref uncovered = make_ptr<match::AllOf>(pattern_value->type->get_type());
+	match::Pattern::ref uncovered = make_ptr<match::AllOf>(location, runnable_scope, pattern_value->type->get_type());
 	for (auto pattern_block : pattern_blocks) {
-		match::Pattern::ref covering = pattern_block->predicate->get_pattern();
-		if (match::pattern_intersect(uncovered, covering)->asNothing() != nullptr) {
+		match::Pattern::ref covering = pattern_block->predicate->get_pattern(pattern_value->type->get_type(), runnable_scope);
+		if (match::intersect(uncovered, covering)->asNothing() != nullptr) {
 			auto error = user_error(pattern_block->get_location(), "pattern will never match any possible values");
 			error.add_info(pattern_block->get_location(), "uncovered values at this spot: %s",
 					uncovered->str().c_str());
 			throw error;
 		}
 
-		uncovered = match::pattern_difference(uncovered, covering);
+		uncovered = match::difference(uncovered, covering);
 	}
 
 	if (uncovered->asNothing() == nullptr) {

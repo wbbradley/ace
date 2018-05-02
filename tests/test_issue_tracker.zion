@@ -10,9 +10,9 @@ type Task has
 	var state TaskState
 
 type TaskState is
-	Active or
-	InternalReview or
-	ExternalReview or
+	Active(owner str)
+	InternalReview
+	ExternalReview
 	Complete
 
 type QuestionTaskMessages has
@@ -21,11 +21,6 @@ type QuestionTaskMessages has
 	var message str
 	var from str
 
-type Active has
-	var owner str
-tag InternalReview
-tag ExternalReview
-tag Complete
 
 
 def reassign(q Task, new_owner str) Task
@@ -49,12 +44,12 @@ def str(q Task) str
 			+ ", " + q.original_owner + ", " + str(q.state) + ")")
 
 def str(s TaskState) str
-	when s
-		is Active
-			return "Active(" + s.owner + ")"
-		is InternalReview
+	when s is
+		Active(owner)
+			return "Active(" + owner + ")"
+		InternalReview
 			return "InternalReview"
-		is ExternalReview
+		ExternalReview
 			return "ExternalReview"
-		is Complete
+		Complete
 			return "Complete"

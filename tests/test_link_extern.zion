@@ -31,13 +31,14 @@ def get_name(entry Entry, default str) str
 		return default
 
 def main()
-	var entry Entry? = Entry(make_entry("Will", 123)!)
-	if entry != null
-		print(get_name(entry, ""))
-		static_print(entry)
-	else
-		print("No name found!")
-		static_print(entry)
+	var entry Entry? = Just(Entry(make_entry("Will", 123)!))
+	when entry is
+		Just(entry)
+			print(get_name(entry, ""))
+			static_print(entry)
+		Empty
+			print("No name found!")
+			static_print(entry)
 	static_print(entry)
-	entry = null
+	entry = Empty
 	runtime.gc()

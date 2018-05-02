@@ -9,7 +9,7 @@ def fib(e Either int float) int
 	var value int = 10
 	print(value)	
 	value = 11
-	print(runtime.__get_ctor_id(e))
+	print(runtime.__get_ctor_id(e as! *var_t))
 	when e is
 		Left(i)
 			print(i)

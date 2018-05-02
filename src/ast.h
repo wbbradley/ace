@@ -112,7 +112,7 @@ namespace ast {
 
 		virtual std::string repr() const = 0;
 		static ref parse(parse_state_t &ps, bool allow_else);
-		virtual match::Pattern::ref get_pattern() const = 0;
+		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const = 0;
 		virtual void resolve_match(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref scope,
@@ -139,7 +139,7 @@ namespace ast {
 				runnable_scope_t::ref *scope_if_true) const;
 		virtual std::string repr() const;
 		virtual void render(render_state_t &rs) const;
-		virtual match::Pattern::ref get_pattern() const;
+		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const;
 	};
 
 	struct ctor_predicate_t : public predicate_t {
@@ -159,7 +159,7 @@ namespace ast {
 				runnable_scope_t::ref *scope_if_true) const;
 		virtual std::string repr() const;
 		virtual void render(render_state_t &rs) const;
-		virtual match::Pattern::ref get_pattern() const;
+		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const;
 
 		std::vector<predicate_t::ref> params;
 	};
@@ -1109,7 +1109,7 @@ namespace ast {
 		virtual std::string repr() const;
 		virtual void render(render_state_t &rs) const;
 
-		virtual match::Pattern::ref get_pattern() const;
+		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const;
 	};
 
 	struct array_literal_expr_t : public expression_t {

@@ -118,10 +118,11 @@ def set_cpv_intersect(lhs Pattern, rhs CtorPatternValue) Pattern
 
 def set_intersect(lhs CtorPatternValue, rhs CtorPatternValue) Pattern
 	assert(lhs.typename == rhs.typename)
-	assert(len(rhs.args) == len(lhs.args))
 
 	if lhs.name != rhs.name
 		return Nothing
+
+	assert(len(rhs.args) == len(lhs.args))
 
 	let reduced_args [Pattern]
 	reserve(reduced_args, len(lhs.args))
@@ -213,7 +214,7 @@ def set_difference(lhs Pattern, rhs Pattern, send Sender) void
 	when Pair(lhs, rhs) is
 		Pair(_, Nothing)
 			# Identity
-			send(Nothing)
+			send(lhs)
 
 		Pair(Nothing, _)
 			# Unit
