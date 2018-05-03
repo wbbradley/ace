@@ -1,10 +1,10 @@
 module _
 
 def main()
-	var x *?int8 = 0 as *?int8
-	assert(not (null != x))
-	x = 100 as *int8
-	y := 200 as *int8
+	var x *?int8 = null
+	assert(not(null == x))
+	x = 100 as! *int8
+	y := 200 as! *int8
 
 	# error: 10.* x cannot be null here
 	if x != null

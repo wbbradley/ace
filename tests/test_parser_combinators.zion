@@ -4,30 +4,23 @@ module _
 
 get sys
 
-type Symbol has
-	let s str
-	let pos uint
-
-type Sequence has
-	let nodes [Node]
-
-type Node is Symbol or Sequence
+type Node is
+	Symbol(s str, pos uint)
+	Sequence(nodes [Node])
 
 [global]
 def str(n Node) str
-	when n
-		is Symbol
-			return "Symbol('" + n.s + "', " + n.pos + ")"
-		is Sequence
-			return "[" + join(", ", n.nodes) + "]"
+	when n is
+		Symbol(s, pos)
+			return "Symbol('" + s + "', " + pos + ")"
+		Sequence(nodes)
+			return "[" + join(", ", nodes) + "]"
 
 type ParseState has
 	let s str
 	let i uint
 
-type Step has
-	let node Node
-	let ps ParseState
+type Step is Step(node Node, ps ParseState)
 
 type Parser = def (ps ParseState) Step?
 
@@ -44,8 +37,8 @@ def parse_token(k str) Parser
 		if start != i
 			symbol := ps.s[start:i]
 			if symbol == k
-				return Step(Symbol(symbol, start), ParseState(ps.s, i))
-		return null
+				return Just(Step(Symbol(symbol, start), ParseState(ps.s, i)))
+		return Empty
 
 def parse_symbol(ps ParseState) Step?
 	var start = ps.i
@@ -56,9 +49,9 @@ def parse_symbol(ps ParseState) Step?
 		i += 1
 
 	if start != i
-		return Step(Symbol(ps.s[start:i], start), ParseState(ps.s, i))
+		return Just(Step(Symbol(ps.s[start:i], start), ParseState(ps.s, i)))
 	else
-		return null
+		return Empty
 
 def __bitwise_or__(p1 Parser, p2 Parser) Parser
 	return def (ps ParseState) Step?
@@ -71,11 +64,16 @@ def __bitwise_or__(p1 Parser, p2 Parser) Parser
 def __plus__(p1 Parser, p2 Parser) Parser
 	return def (ps ParseState) Step?
 		step1 := p1(ps)
-		if step1 != null
-			step2 := p2(step1.ps)
-			if step2 != null
-				return Step(Sequence([step1.node, step2.node]), step2.ps)
-		return null
+		when step1 is
+			Just(Step(node1, ps1))
+				step2 := p2(ps1)
+				when step2 is
+					Just(Step(node2, ps2))
+						return Just(Step(Sequence([node1, node2]), ps2))
+					Empty
+						return Empty
+			Empty
+				return Empty
 			
 def __plus__(s str, p2 Parser) Parser
 	return parse_token(s) + p2
@@ -87,13 +85,17 @@ def parse_kleene_star(parser Parser) Parser
 	return def (ps ParseState) Step?
 		let nodes [Node]
 		while ps.i < len(ps.s)
-			next_step := parser(ps)
-			if next_step != null
-				append(nodes, next_step.node)
-				ps = next_step.ps
-			else
-				break
-		return Step(Sequence(nodes), ps)
+			when parser(ps) is
+				Just(Step(node, next_ps))
+					append(nodes, node)
+					ps = next_ps
+				Empty
+					break
+		return Just(Step(Sequence(nodes), ps))
+
+[global]
+def str[Args, R](fn def (..Args) R) str
+	return "<closure>"
 
 def main()
 	program := "def f x = * x x"
@@ -101,7 +103,7 @@ def main()
 	ps := ParseState(program, 0)
 
 	parse_expr := (parse_token("*") | parse_token("+") | parse_token("-")) + parse_symbol + parse_symbol
-	parse_parens := "(" + parse_expr + ")"
+	parse_parens := "(" + str(parse_expr) + ")"
 	parser := "def" + parse_symbol + parse_kleene_star(parse_symbol) + "=" + parse_expr
 
 	step := parser(ps)

@@ -14,10 +14,15 @@ void print_exception(const user_error &e, int level) {
 	e.display();
 }
 
-user_error::user_error(log_level_t log_level, location_t location, const char *format...) :
-	log_level(log_level), 
-   	location(location),
+user_error::user_error(log_level_t log_level, location_t location) :
+	log_level(log_level),
+	location(location),
    	extra_info(make_ptr<std::vector<std::pair<location_t, std::string>>>())
+{
+}
+
+user_error::user_error(log_level_t log_level, location_t location, const char *format...) :
+	user_error(log_level, location)
 {
 	va_list args;
 	va_start(args, format);
@@ -30,7 +35,7 @@ user_error::user_error(log_level_t log_level, location_t location, const char *f
 }
 
 user_error::user_error(log_level_t log_level, location_t location, const char *format, va_list args) :
-   	log_level(log_level), location(location), extra_info(make_ptr<std::vector<std::pair<location_t, std::string>>>())
+	user_error(log_level, location)
 {
 	message = string_formatv(format, args);
 
@@ -40,7 +45,7 @@ user_error::user_error(log_level_t log_level, location_t location, const char *f
 }
 
 user_error::user_error(location_t location, const char *format...) :
-   	log_level(log_error), location(location), extra_info(make_ptr<std::vector<std::pair<location_t, std::string>>>())
+	user_error(log_error, location)
 {
 	va_list args;
 	va_start(args, format);
@@ -53,7 +58,7 @@ user_error::user_error(location_t location, const char *format...) :
 }
 
 user_error::user_error(location_t location, const char *format, va_list args) :
-   	log_level(log_error), location(location), extra_info(make_ptr<std::vector<std::pair<location_t, std::string>>>())
+	user_error(log_error, location)
 {
 	message = string_formatv(format, args);
 
@@ -81,4 +86,31 @@ void user_error::add_info(location_t location, const char *format...) {
 	std::string info = string_formatv(format, args);
 	va_end(args);
 	extra_info->push_back({location, info});
+}
+
+unbound_type_error::unbound_type_error(location_t location, const char *format...) :
+	user_error(log_error, location)
+{
+	va_list args;
+	va_start(args, format);
+	user_error.message = string_formatv(format, args);
+	va_end(args);
+
+	if (getenv("STATUS_BREAK") != nullptr) {
+		dbg();
+	}
+}
+
+unbound_type_error::unbound_type_error(location_t location, const char *format, va_list args) :
+	user_error(log_error, location)
+{
+	user_error.message = string_formatv(format, args);
+
+	if (getenv("STATUS_BREAK") != nullptr) {
+		dbg();
+	}
+}
+
+const char *unbound_type_error::what() const noexcept {
+	return user_error.what();
 }

@@ -2,27 +2,21 @@ module _
 # test: skip
 
 # This might require backtracking in the unification in order to handle the tricky resolution of T
-type Plus T has
-	var lhs Expr T
-	var rhs Expr T
-
-type Times T has
-	var lhs Expr T
-	var rhs Expr T
 
 type Expr T is
-	Plus T or
-	Times T or
-	T
+	Plus(lhs Expr T, rhs Expr T)
+	Times(lhs Expr T, rhs Expr T)
+	Value(x T)
 
-def eval(expr Expr any T) int
-	when expr
-		is Plus any T
-			return eval(expr.lhs) + eval(expr.rhs)
-		is Times any T
-			return eval(expr.lhs) * eval(expr.rhs)
-		is any T
-			return expr
+def eval(expr Expr any T) any T
+	when expr is
+		Plus(lhs, rhs)
+			return eval(lhs) + eval(rhs)
+		Times(lhs, rhs)
+			return eval(lhs) * eval(rhs)
+		Value(x)
+			return x
 
 def main()
-	print(eval(Plus(Times(4, 2), 3)))
+	print(eval(Plus(Times(Value(4), Value(2)), Value(3))))
+	print(eval(Plus(Times(Value(4.0), Value(2.0)), Value(3.0))))

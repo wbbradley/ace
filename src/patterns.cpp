@@ -29,10 +29,15 @@ void build_patterns(
 	{
 		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 		builder.SetInsertPoint(default_block);
+		runnable_scope_t::ref new_scope;
+		resolve_assert_macro(builder, scope, life,
+			   	token_t{location, tk_string, "assert"},
+				ast::create<ast::reference_expr_t>(token_t{location, tk_identifier, "false"}), &new_scope);
 		llvm_generate_dead_return(builder, scope);
 	}
 
 	llvm::BasicBlock *llvm_next_merge = default_block;
+	assert(pattern_blocks.size() != 0);
 
 	bool all_patterns_return = true;
 	for (auto pattern_block_iter = pattern_blocks.rbegin(); pattern_block_iter != pattern_blocks.rend(); ++pattern_block_iter) {
@@ -55,40 +60,53 @@ void build_patterns(
 				llvm_function_current);
 
 		runnable_scope_t::ref scope_if_match;
-		predicate->resolve_match(
-				builder, scope, life,
-				location,
-				pattern_value,
-				llvm_pattern_block,
-				llvm_next_merge,
-				&scope_if_match);
+		if (!predicate->resolve_match(
+					builder, scope, life,
+					location,
+					pattern_value,
+					llvm_pattern_block,
+					llvm_next_merge,
+					&scope_if_match))
+		{
+			/* this pattern cannot match because the incoming type is unbound */
+			assert(check_block->getTerminator() == nullptr);
+			builder.CreateBr(llvm_next_merge);
 
-		/* save this as the "next" block to jump to (since we are traversing the patterns in
-		 * reverse order */
-		llvm_next_merge = check_block;
+			assert(llvm_pattern_block->getTerminator() == nullptr);
+			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+			builder.SetInsertPoint(llvm_pattern_block);
+			builder.CreateBr(llvm_next_merge);
 
-		/* start emitting code in the block */
-		builder.SetInsertPoint(llvm_pattern_block);
+			llvm_next_merge = check_block;
+		} else {
 
-		/* set up the variable to be interpreted as the type we've matched */
-		scope_t::ref pattern_scope = (
-				(scope_if_match != nullptr)
-				? scope_if_match
-				: scope->new_runnable_scope(string_format("pattern.%s", pattern_name.c_str())));
+			/* save this as the "next" block to jump to (since we are traversing the patterns in
+			 * reverse order */
+			llvm_next_merge = check_block;
 
-		bool pattern_returns = false;
-		pattern_block->block->resolve_statement(builder, pattern_scope, life, nullptr, &pattern_returns);
+			/* start emitting code in the block */
+			builder.SetInsertPoint(llvm_pattern_block);
 
-		assert_implies(pattern_returns, builder.GetInsertBlock()->getTerminator() != nullptr);
-		if (!pattern_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
-			/* if this block didn't return or break/continue, then we need to make sure we can merge
-			 * to the next block */
-			all_patterns_return = false;
-			if (merge_block == nullptr) {
-				merge_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.merge", llvm_function_current);
+			/* set up the variable to be interpreted as the type we've matched */
+			scope_t::ref pattern_scope = (
+					(scope_if_match != nullptr)
+					? scope_if_match
+					: scope->new_runnable_scope(string_format("pattern.%s", pattern_name.c_str())));
+
+			bool pattern_returns = false;
+			pattern_block->block->resolve_statement(builder, pattern_scope, life, nullptr, &pattern_returns);
+
+			assert_implies(pattern_returns, builder.GetInsertBlock()->getTerminator() != nullptr);
+			if (!pattern_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
+				/* if this block didn't return or break/continue, then we need to make sure we can merge
+				 * to the next block */
+				all_patterns_return = false;
+				if (merge_block == nullptr) {
+					merge_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.merge", llvm_function_current);
+				}
+				assert(builder.GetInsertBlock()->getTerminator() == nullptr);
+				builder.CreateBr(merge_block);
 			}
-			assert(builder.GetInsertBlock()->getTerminator() == nullptr);
-			builder.CreateBr(merge_block);
 		}
 	}
 
@@ -112,10 +130,11 @@ void build_patterns(
 void check_patterns(
 		runnable_scope_t::ref runnable_scope,
 		location_t location,
+		std::string expr,
 		const ast::pattern_block_t::refs &pattern_blocks,
 		bound_var_t::ref pattern_value)
 {
-	match::Pattern::ref uncovered = make_ptr<match::AllOf>(location, runnable_scope, pattern_value->type->get_type());
+	match::Pattern::ref uncovered = make_ptr<match::AllOf>(location, expr, runnable_scope, pattern_value->type->get_type());
 	for (auto pattern_block : pattern_blocks) {
 		match::Pattern::ref covering = pattern_block->predicate->get_pattern(pattern_value->type->get_type(), runnable_scope);
 		if (match::intersect(uncovered, covering)->asNothing() != nullptr) {
@@ -169,7 +188,13 @@ void ast::when_block_t::resolve_statement(
 
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 
-	check_patterns(runnable_scope, value->get_location(), pattern_blocks, pattern_value);
+	check_patterns(
+			runnable_scope,
+			value->get_location(),
+			value->str(),
+			pattern_blocks,
+			pattern_value);
+
 	build_patterns(
 			builder,
 			runnable_scope,
@@ -201,7 +226,7 @@ bound_var_t::ref gen_null_check(
 	return value;
 }
 
-void ast::literal_expr_t::resolve_match(
+bool ast::literal_expr_t::resolve_match(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
@@ -212,6 +237,7 @@ void ast::literal_expr_t::resolve_match(
 		runnable_scope_t::ref *scope_if_true) const
 {
 	assert(false);
+	return true;
 }
 
 bound_var_t::ref cast_data_type_to_ctor_struct(
@@ -245,7 +271,7 @@ bound_var_t::ref cast_data_type_to_ctor_struct(
 	return nullptr;
 }
 
-void ast::ctor_predicate_t::resolve_match(
+bool ast::ctor_predicate_t::resolve_match(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
@@ -255,6 +281,15 @@ void ast::ctor_predicate_t::resolve_match(
 		llvm::BasicBlock *llvm_no_match_block,
 		runnable_scope_t::ref *scope_if_true) const
 {
+	bound_var_t::ref casted_input;
+	try {
+		casted_input = cast_data_type_to_ctor_struct(
+				builder, scope, value_location, input_value, token);
+	} catch (unbound_type_error &error) {
+		/* this match is impossible because the type it is matching cannot be instantiated */
+		return false;
+	}
+
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
 	bound_var_t::ref input_ctor_id = call_get_ctor_id(scope, life, shared_from_this(),
 			make_iid("input_ctor_id"), builder, input_value);
@@ -265,12 +300,9 @@ void ast::ctor_predicate_t::resolve_match(
 	/* check that this is the right ctor */
 	llvm::Value *match_bit = builder.CreateICmpEQ(
 			input_ctor_id->get_llvm_value(),
-		   	builder.getInt32(ctor_id));
+			builder.getInt32(ctor_id));
 	match_bit->setName("ctor." + token.text + ".matched");
 
-	auto casted_input = cast_data_type_to_ctor_struct(
-			builder, scope, value_location, input_value, token);
-	
 	llvm::BasicBlock *llvm_next_check = llvm_match_block;
 	runnable_scope_t::ref scope_if_match_at_end = scope;
 
@@ -294,8 +326,14 @@ void ast::ctor_predicate_t::resolve_match(
 
 		/* resolve sub-patterns */
 		runnable_scope_t::ref scope_if_match = nullptr;
-		params[i]->resolve_match(builder, scope_if_match_at_end, life, 
-				value_location, member, llvm_next_check, llvm_no_match_block, &scope_if_match);
+		if (!params[i]->resolve_match(builder, scope_if_match_at_end, life, 
+				value_location, member, llvm_next_check, llvm_no_match_block, &scope_if_match))
+	   	{
+			assert(check_block->getTerminator() == nullptr);
+			builder.CreateBr(llvm_no_match_block);
+			return false;
+		}
+
 		if (scope_if_match != nullptr) {
 			scope_if_match_at_end = scope_if_match;
 		}
@@ -306,9 +344,10 @@ void ast::ctor_predicate_t::resolve_match(
 	 * final pattern block */
 	builder.CreateCondBr(match_bit, llvm_next_check, llvm_no_match_block);
 	*scope_if_true = scope_if_match_at_end;
+	return true;
 }
 
-void ast::irrefutable_predicate_t::resolve_match(
+bool ast::irrefutable_predicate_t::resolve_match(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
@@ -325,4 +364,5 @@ void ast::irrefutable_predicate_t::resolve_match(
 
 	/* throw away this value, and continue */
 	builder.CreateBr(llvm_match_block);
+	return true;
 }

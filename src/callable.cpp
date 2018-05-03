@@ -131,7 +131,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 
 					bound_type_t::ref return_type = upsert_bound_type(
 							builder, subst_scope, function->return_type);
-
+					assert(unchecked_fn->id->get_token().location.str().find("cpp") == std::string::npos);
 					/* instantiate the function we want */
 					return instantiate_function_with_args_and_return_type(
 							builder, subst_scope, life,
@@ -194,14 +194,24 @@ bound_var_t::ref check_func_vs_callsite(
 						fn->str().c_str(),
 						::str(unification.bindings).c_str()));
 
-			types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(fn->get_type(scope)->rebind(unification.bindings)->eval(scope));
+			types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(
+					fn
+					->get_type(scope)
+					->rebind(unification.bindings, true /*bottom_out_free_vars*/)
+					->eval(scope));
+
 			assert(fn_type != nullptr);
 
             if (auto bound_fn = scope->get_bound_function(fn->get_name(), fn_type->repr())) {
                 /* function fn_type exists with name and signature we want, just use that */
                 return bound_fn;
             }
-			return instantiate_unchecked_fn(builder, scope, unchecked_fn, fn_type, &unification);
+			try {
+				return instantiate_unchecked_fn(builder, scope, unchecked_fn, fn_type, &unification);
+			} catch (unbound_type_error &error) {
+				/* instantiation of this function would rely on non-existent callsite types */
+				return nullptr;
+			}
 		} else {
 			panic("unhandled var type");
 			return nullptr;

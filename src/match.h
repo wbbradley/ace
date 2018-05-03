@@ -49,9 +49,10 @@ namespace match {
 	};
 
 	struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
+		std::string name;
 		env_t::ref env;
 		types::type_t::ref type;
-		AllOf(location_t location, env_t::ref env, types::type_t::ref type);
+		AllOf(location_t location, std::string name, env_t::ref env, types::type_t::ref type);
 
 		virtual ptr<const AllOf> asAllOf() const { return shared_from_this(); }
 		virtual std::string str() const;

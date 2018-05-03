@@ -1,18 +1,14 @@
 module _
 # test: pass
 
-type Cartesian T has
-	var x T
-	var y T
-
-type Radial T has
-	var radius T
-	var theta T
-	
 type Point T is
-	Cartesian T or
-	Radial T
+	Cartesian(x T, y T)
+	Radial(radius T, theta T)
 
 def main()
 	var p = Cartesian(2.4, 1.0)
-	print(p.x)
+	when p is
+		Cartesian(x, y)
+			print(str(x) + ", " + y)
+		Radial(radius, theta)
+			print(str(radius) + ", " + theta)

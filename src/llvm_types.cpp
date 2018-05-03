@@ -437,6 +437,8 @@ bound_type_t::ref create_bound_expr_type(
 	/* however, what it expands to might already have a bound type */
 	if (total_expansion != id) {
 		return bind_expansion(builder, scope, nominal_expansion, total_expansion);
+	} else if (id->repr() == BOTTOM_TYPE) {
+		throw unbound_type_error(id->get_location(), "cannot instantiate bottom type");
 	} else {
 		throw user_error(id->get_location(), "no type definition found for %s",
 				id->str().c_str());
@@ -620,7 +622,7 @@ bound_type_t::ref create_bound_type(
 	} else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
 		return create_bound_expr_type(builder, scope, operator_);
 	} else if (auto variable = dyncast<const types::type_variable_t>(type)) {
-		throw user_error(variable->get_location(), "found a free type variable where a bound type was expected: %s", variable->str().c_str());
+		throw unbound_type_error(variable->get_location(), "found a free type variable where a bound type was expected: %s", variable->str().c_str());
 	} else if (auto lambda = dyncast<const types::type_lambda_t>(type)) {
 		throw user_error(lambda->get_location(), "unable to instantiate generic type %s without the necessary type application",
 				lambda->str().c_str());
@@ -685,12 +687,6 @@ bound_type_t::ref upsert_bound_type(
 							"unable to bind type %s in scope " c_id("%s"),
 							type->str().c_str(),
 							scope->get_name().c_str()));
-			} catch (std::exception &e) {
-				fprintf(stderr, c_error("FAIL: ") "%s\n", e.what());
-				return nullptr;
-			} catch (...) {
-				panic("uncaught exception");
-				return nullptr;
 			}
 		}
 	}

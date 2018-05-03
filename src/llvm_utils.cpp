@@ -1095,7 +1095,12 @@ void llvm_generate_dead_return(llvm::IRBuilder<> &builder, scope_t::ref scope) {
 		builder.CreateRet(llvm::ConstantInt::get(llvm_return_type, 0));
 	} else if (llvm_return_type->isVoidTy()) {
 		builder.CreateRetVoid();
+	} else if (llvm_return_type->isFloatTy()) {
+		builder.CreateRet(llvm::ConstantFP::get(llvm_return_type, 0.0));
+	} else if (llvm_return_type->isDoubleTy()) {
+		builder.CreateRet(llvm::ConstantFP::get(llvm_return_type, 0.0));
 	} else {
+		log(log_error, "unhandled return type for dead return %s", llvm_print(llvm_return_type).c_str());
 		assert(false && "Unhandled return type.");
 	}
 }

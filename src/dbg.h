@@ -46,7 +46,9 @@ extern int __dbg_level;
 	std::string dbg_msg = clean_ansi_escapes_if_not_tty( \
 		stderr, \
 		string_format(C_LINE_REF "%s:%d:1" C_RESET ": " c_id("dbg()") " hit in " c_internal("%s") " : %s\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, #x)); \
+	::fprintf(stderr, C_ERROR "==============================" C_RESET "\n"); \
 	::fprintf(stderr, "%s", dbg_msg.c_str()); \
+	::fprintf(stderr, C_ERROR "==============================" C_RESET "\n"); \
    	/*::log_stack(log_warning); */ \
 	DEBUG_BREAK(); \
 } while (0)

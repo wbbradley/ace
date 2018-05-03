@@ -681,7 +681,11 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 	types::type_function_t::ref function_type;
 	bound_type_t::named_pairs named_args;
 	bound_type_t::ref return_value;
-	destructure_function_decl(builder, *extern_function, scope, type_constraints, false /*as_closure*/, named_args, return_value, function_type);
+	try {
+		destructure_function_decl(builder, *extern_function, scope, type_constraints, false /*as_closure*/, named_args, return_value, function_type);
+	} catch (unbound_type_error &error) {
+		throw user_error(error.user_error);
+	}
 
 	assert(return_value != nullptr);
 
@@ -2550,17 +2554,6 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		/* make sure that we cast the incoming phi value to the
 		 * final type in the incoming BB, not in the merge BB */
 		llvm::IRBuilder<> builder(truthy_merge_branch);
-		if (ternary_type->get_type()->eval_predicate(tb_gc, scope)) {
-			if (!true_path_value->type->get_type()->eval_predicate(tb_gc, scope)) {
-				auto managed_true_path_type = promote_to_managed_type(
-						true_path_value->type->get_type(), scope);
-				true_path_value = coerce_bound_value(
-						builder, scope, life,
-						condition->get_location(),
-						managed_true_path_type,
-						true_path_value);
-			}
-		}
 
 		llvm_truthy_path_value = coerce_value(
 				builder, scope, life,
@@ -2575,18 +2568,6 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		/* make sure that we cast the incoming phi value to the
 		 * final type in the incoming BB, not in the merge BB */
 		llvm::IRBuilder<> builder(false_merge_branch);
-		if (ternary_type->get_type()->eval_predicate(tb_gc, scope)) {
-			if (!false_path_value->type->get_type()->eval_predicate(tb_gc, scope)) {
-				auto managed_false_path_type = promote_to_managed_type(
-						false_path_value->type->get_type(),
-						scope);
-				false_path_value = coerce_bound_value(
-						builder, scope, life,
-						condition->get_location(),
-						managed_false_path_type,
-						false_path_value);
-			}
-		}
 		llvm_false_path_value = coerce_value(
 				builder, scope, life,
 				condition->get_location(),
@@ -2944,16 +2925,6 @@ bound_var_t::ref call_get_ctor_id(
 				resolved_value->type->str().c_str());
 
 		return nullptr;
-#if 0
-		auto type_as_managed = promote_to_managed_type(resolved_value->type->get_type(), scope);
-		auto typeid_type = upsert_bound_type(builder, program_scope, type_id(make_iid(TYPEID_TYPE)));
-		return bound_var_t::create(
-				INTERNAL_LOC(),
-				string_format("typeid(%s)", resolved_value->str().c_str()),
-				typeid_type,
-				llvm_create_int32(builder, atomize(type_as_managed->get_signature())),
-				id);
-#endif
 	}
 }
 
@@ -4282,11 +4253,17 @@ bound_var_t::ref ast::prefix_expr_t::resolve_prefix_expr(
 		bool is_managed;
 		rhs_var->type->is_managed_ptr(builder, scope, is_managed);
 		if (!is_managed) {
-			return resolve_null_check(builder, scope, life,
-					get_location(), rhs, rhs_var, nck_is_null,
-					scope_if_true, scope_if_false);
-		} else {
-			/* TODO: revisit whether managed types must/can override __not__? */
+			if ((scope_if_true && *scope_if_true) || (scope_if_false && *scope_if_false)) {
+				std::swap(*scope_if_true, *scope_if_false);
+				runnable_scope_t::ref a, b;
+				return resolve_null_check(builder, scope, life,
+						get_location(), rhs, rhs_var, nck_is_null,
+						&a, &b);
+			} else {
+				return resolve_null_check(builder, scope, life,
+						get_location(), rhs, rhs_var, nck_is_null,
+						scope_if_true, scope_if_false);
+			}
 		}
 	}
 	return call_module_function(builder, scope, life,
@@ -4301,15 +4278,15 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		types::type_t::ref expected_type) const
 {
     scope_t::ref program_scope = scope->get_program_scope();
-    switch (token.tk) {
+	switch (token.tk) {
 	case tk_identifier:
 		{
 			assert(token.text == "null");
 			return get_null(builder, scope, token.location);
 		}
 		break;
-    case tk_integer:
-		if (expected_type == nullptr || !types::is_type_id(expected_type, MANAGED_INT, scope)) {
+	case tk_integer:
+		{
 			/* create a native integer */
 			int64_t value = parse_int_value(token);
 			bound_type_t::ref native_type = upsert_bound_type(builder, program_scope, type_id(make_iid(INT_TYPE)));
@@ -4317,84 +4294,25 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 					INTERNAL_LOC(), "int_literal", native_type,
 					llvm_create_int(builder, value),
 					make_code_id(token));
-		} else {
-			/* create a boxed integer */
-			int64_t value = parse_int_value(token);
-			bound_type_t::ref native_type = upsert_bound_type(builder, program_scope, type_id(make_iid(INT_TYPE)));
-			bound_type_t::ref boxed_type = upsert_bound_type(
-					builder,
-					scope,
-					type_id(make_iid(MANAGED_INT)));
-			assert(boxed_type != nullptr);
-			bound_var_t::ref box_int = get_callable(
-					builder,
-					scope,
-					MANAGED_INT,
-					get_location(),
-					get_args_type({native_type}),
-					nullptr);
-
-			assert(box_int != nullptr);
-			return create_callsite(
-					builder,
-					scope,
-					life,
-					box_int,
-					string_format("literal int (%d)", value),
-					get_location(),
-					{bound_var_t::create(
-							INTERNAL_LOC(), "temp_int_literal", boxed_type,
-							llvm_create_int(builder, value),
-							make_code_id(token))});
 		}
-		break;
 
-    case tk_string:
+	case tk_string:
 		debug_above(8, log_location(log_info, token.location, "creating string: %s", token.text.c_str()));
 		return create_global_str(builder, scope, token.location, unescape_json_quotes(token.text));
 
 	case tk_float:
 		{
 			bound_type_t::ref native_type = upsert_bound_type(builder, program_scope, type_id(make_iid(FLOAT_TYPE)));
-			if (expected_type == nullptr || !types::is_type_id(expected_type, MANAGED_FLOAT, scope)) {
-				double value = atof(token.text.c_str());
-				return bound_var_t::create(
-						INTERNAL_LOC(), "float_literal", native_type,
-						llvm_create_double(builder, value),
-						make_code_id(token));
-			} else {
-				double value = atof(token.text.c_str());
-				bound_type_t::ref boxed_type = upsert_bound_type(
-						builder,
-						scope,
-						type_id(make_iid(MANAGED_FLOAT)));
-				assert(boxed_type != nullptr);
-				bound_var_t::ref box_float = get_callable(
-						builder,
-						scope,
-						MANAGED_FLOAT,
-						get_location(),
-						get_args_type({native_type}),
-						nullptr);
-
-				return create_callsite(
-						builder,
-						scope,
-						life,
-						box_float,
-						{string_format("literal float (%f)", value)},
-						get_location(),
-						{bound_var_t::create(
-								INTERNAL_LOC(), "temp_float_literal", boxed_type,
-								llvm_create_double(builder, value),
-								make_code_id(token))});
-			}
-			break;
+			double value = atof(token.text.c_str());
+			return bound_var_t::create(
+					INTERNAL_LOC(), "float_literal", native_type,
+					llvm_create_double(builder, value),
+					make_code_id(token));
 		}
-    default:
-        assert(false);
+	default:
+		assert(false);
 		return nullptr;
-    };
+	};
 }
 
 bound_var_t::ref ast::reference_expr_t::resolve_overrides(

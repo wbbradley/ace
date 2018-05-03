@@ -118,7 +118,7 @@ namespace types {
 		return {};
 	}
 
-	type_t::ref type_id_t::rebind(const map &bindings) const {
+	type_t::ref type_id_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
 		return shared_from_this();
 	}
 
@@ -188,17 +188,14 @@ namespace types {
 		return {id->get_name()};
 	}
 
-	type_t::ref type_variable_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
-			return shared_from_this();
+	type_t::ref type_variable_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() != 0) {
+			auto instance_iter = bindings.find(id->get_name());
+			if (instance_iter != bindings.end()) {
+				return instance_iter->second;
+			}
 		}
-
-		auto instance_iter = bindings.find(id->get_name());
-		if (instance_iter != bindings.end()) {
-			return instance_iter->second;
-		} else {
-			return shared_from_this();
-		}
+		return bottom_out_free_vars ? type_bottom() : shared_from_this();
 	}
 
 	location_t type_variable_t::get_location() const {
@@ -244,12 +241,12 @@ namespace types {
 		return oper_set;
 	}
 
-	type_t::ref type_operator_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_operator_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
-		return ::type_operator(oper->rebind(bindings), operand->rebind(bindings));
+		return ::type_operator(oper->rebind(bindings, bottom_out_free_vars), operand->rebind(bindings, bottom_out_free_vars));
 	}
 
 	location_t type_operator_t::get_location() const {
@@ -303,12 +300,12 @@ namespace types {
 		return lhs_set;
 	}
 
-	type_t::ref type_subtype_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_subtype_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
-		return ::type_subtype(lhs->rebind(bindings), rhs->rebind(bindings));
+		return ::type_subtype(lhs->rebind(bindings, bottom_out_free_vars), rhs->rebind(bindings, bottom_out_free_vars));
 	}
 
 	location_t type_subtype_t::get_location() const {
@@ -358,15 +355,15 @@ namespace types {
 	}
 
 
-	type_t::ref type_struct_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_struct_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
 		bool anything_was_rebound = false;
 		refs type_dimensions;
 		for (auto dimension : dimensions) {
-			auto new_dim = dimension->rebind(bindings);
+			auto new_dim = dimension->rebind(bindings, bottom_out_free_vars);
 			if (new_dim != dimension) {
 				anything_was_rebound = true;
 			}
@@ -430,15 +427,15 @@ namespace types {
 	}
 
 
-	type_t::ref type_tuple_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_tuple_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
 		bool anything_was_rebound = false;
 		refs type_dimensions;
 		for (auto dimension : dimensions) {
-			auto new_dim = dimension->rebind(bindings);
+			auto new_dim = dimension->rebind(bindings, bottom_out_free_vars);
 			if (new_dim != dimension) {
 				anything_was_rebound = true;
 			}
@@ -517,14 +514,14 @@ namespace types {
 	}
 
 
-	type_t::ref type_args_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_args_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
 		refs type_args;
 		for (auto arg : args) {
-			type_args.push_back(arg->rebind(bindings));
+			type_args.push_back(arg->rebind(bindings, bottom_out_free_vars));
 		}
 		return ::type_args(type_args, names);
 	}
@@ -569,12 +566,12 @@ namespace types {
 		return element_type->get_ftvs();
 	}
 
-	type_t::ref type_managed_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_managed_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
-		return ::type_managed(element_type->rebind(bindings));
+		return ::type_managed(element_type->rebind(bindings, bottom_out_free_vars));
 	}
 
 	location_t type_managed_t::get_location() const {
@@ -612,12 +609,12 @@ namespace types {
 	}
 
 
-	type_t::ref type_module_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_module_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
-		return ::type_module(module_type->rebind(bindings));
+		return ::type_module(module_type->rebind(bindings, bottom_out_free_vars));
 	}
 
 	location_t type_module_t::get_location() const {
@@ -631,7 +628,8 @@ namespace types {
 		type_constraints(type_constraints),
 		args(args), return_type(return_type)
 	{
-		assert(dyncast<const type_args_t>(args) != nullptr || dyncast<const type_variable_t>(args) != nullptr);
+		assert(args != nullptr);
+		// assert(dyncast<const type_args_t>(args) != nullptr || dyncast<const type_variable_t>(args) != nullptr);
 		// assert(return_type != nullptr);
 	}
 
@@ -666,18 +664,20 @@ namespace types {
 		return set;
 	}
 
-	type_t::ref type_function_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_function_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
-		types::type_args_t::ref rebound_args = dyncast<const types::type_args_t>(
-				args->rebind(bindings));
-		assert(args != nullptr);
+		types::type_t::ref rebound_args = args->rebind(bindings, bottom_out_free_vars);
+		assert(rebound_args != nullptr);
+		if (rebound_args == args) {
+			return shared_from_this();
+		}
 		return ::type_function(
-				type_constraints != nullptr ? type_constraints->rebind(bindings) : type_constraints,
+				type_constraints != nullptr ? type_constraints->rebind(bindings, bottom_out_free_vars) : type_constraints,
 				rebound_args,
-				return_type->rebind(bindings));
+				return_type->rebind(bindings, bottom_out_free_vars));
 	}
 
 	location_t type_function_t::get_location() const {
@@ -701,12 +701,12 @@ namespace types {
 		return function->get_ftvs();
 	}
 
-	type_t::ref type_function_closure_t::rebind(const map &bindings) const {
+	type_t::ref type_function_closure_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
 		if (bindings.size() == 0) {
 			return shared_from_this();
 		}
 
-		return ::type_function_closure(function->rebind(bindings));
+		return ::type_function_closure(function->rebind(bindings, bottom_out_free_vars));
 	}
 
 	location_t type_function_closure_t::get_location() const {
@@ -749,14 +749,14 @@ namespace types {
 		return set;
 	}
 
-	type_t::ref type_and_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_and_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
 		refs type_options;
 		for (auto term : terms) {
-			type_options.push_back(term->rebind(bindings));
+			type_options.push_back(term->rebind(bindings, bottom_out_free_vars));
 		}
 		return ::type_and(type_options);
 	}
@@ -789,12 +789,12 @@ namespace types {
 		return set;
 	}
 
-	type_t::ref type_eq_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_eq_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
-		return ::type_eq(lhs->rebind(bindings), rhs->rebind(bindings), location);
+		return ::type_eq(lhs->rebind(bindings, bottom_out_free_vars), rhs->rebind(bindings, bottom_out_free_vars), location);
 	}
 
 	location_t type_eq_t::get_location() const {
@@ -829,14 +829,14 @@ namespace types {
 		return just->get_ftvs();
 	}
 
-	type_t::ref type_maybe_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_maybe_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
 		// NOTE: this may fail because i have not plumbed through the env... probably
 		// can bypass the ptr check here
-		return ::type_maybe(just->rebind(bindings), {});
+		return ::type_maybe(just->rebind(bindings, bottom_out_free_vars), {});
 	}
 
 	location_t type_maybe_t::get_location() const {
@@ -883,12 +883,12 @@ namespace types {
 		return element_type->get_ftvs();
 	}
 
-	type_t::ref type_ptr_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_ptr_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
-		return ::type_ptr(element_type->rebind(bindings));
+		return ::type_ptr(element_type->rebind(bindings, bottom_out_free_vars));
 	}
 
 	location_t type_ptr_t::get_location() const {
@@ -921,12 +921,12 @@ namespace types {
 		return element_type->get_ftvs();
 	}
 
-	type_t::ref type_ref_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_ref_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
-		return ::type_ref(element_type->rebind(bindings));
+		return ::type_ref(element_type->rebind(bindings, bottom_out_free_vars));
 	}
 
 	location_t type_ref_t::get_location() const {
@@ -963,7 +963,7 @@ namespace types {
 		return body->rebind(bindings)->get_ftvs();
 	}
 
-	type_t::ref type_lambda_t::rebind(const map &bindings_) const {
+	type_t::ref type_lambda_t::rebind(const map &bindings_, bool bottom_out_free_vars) const {
 		if (bindings_.size() == 0) {
 			return shared_from_this();
 		}
@@ -973,7 +973,7 @@ namespace types {
 		if (binding_iter != bindings.end()) {
 			bindings.erase(binding_iter);
 		}
-		return ::type_lambda(binding, body->rebind(bindings));
+		return ::type_lambda(binding, body->rebind(bindings, bottom_out_free_vars));
 	}
 
 	location_t type_lambda_t::get_location() const {
@@ -1037,9 +1037,9 @@ namespace types {
 		return ftvs;
 	}
 
-	type_t::ref type_integer_t::rebind(const map &bindings) const {
-		auto bit_size_rebound = bit_size->rebind(bindings);
-		auto signed_rebound = signed_->rebind(bindings);
+	type_t::ref type_integer_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		auto bit_size_rebound = bit_size->rebind(bindings, bottom_out_free_vars);
+		auto signed_rebound = signed_->rebind(bindings, bottom_out_free_vars);
 		if (bit_size_rebound != bit_size || signed_rebound != signed_) {
 			return ::type_integer(bit_size_rebound, signed_rebound);
 		} else {
@@ -1067,7 +1067,7 @@ namespace types {
 		return {};
 	}
 
-	type_t::ref type_literal_t::rebind(const map &bindings_) const {
+	type_t::ref type_literal_t::rebind(const map &bindings_, bool bottom_out_free_vars) const {
 		return shared_from_this();
 	}
 
@@ -1112,12 +1112,12 @@ namespace types {
 		return inner->get_ftvs();
 	}
 
-	type_t::ref type_extern_t::rebind(const map &bindings_) const {
+	type_t::ref type_extern_t::rebind(const map &bindings_, bool bottom_out_free_vars) const {
 		if (bindings_.size() == 0) {
 			return shared_from_this();
 		}
 
-		return ::type_extern(inner->rebind(bindings_));
+		return ::type_extern(inner->rebind(bindings_, bottom_out_free_vars));
 	}
 
 	location_t type_extern_t::get_location() const {
@@ -1186,8 +1186,8 @@ namespace types {
 		return set;
 	}
 
-	type_t::ref type_data_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
+	type_t::ref type_data_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
@@ -1195,7 +1195,7 @@ namespace types {
 		type_variable_t::refs new_type_vars;
 		new_type_vars.reserve(type_vars.size());
 		for (auto type_var : type_vars) {
-			new_type_vars.push_back(type_var->rebind(bindings));
+			new_type_vars.push_back(type_var->rebind(bindings, bottom_out_free_vars));
 			if (new_type_vars.back() != type_var) {
 				found_new = true;
 			}
@@ -1203,7 +1203,7 @@ namespace types {
 
 		std::vector<std::pair<token_t, type_args_t::ref>> new_ctor_pairs;
 		for (auto ctor_pair : ctor_pairs) {
-			types::type_args_t::ref elem = dyncast<const type_args_t>(ctor_pair.second->rebind(bindings));
+			types::type_args_t::ref elem = dyncast<const type_args_t>(ctor_pair.second->rebind(bindings, bottom_out_free_vars));
 			assert(elem != nullptr);
 			new_ctor_pairs.push_back({ctor_pair.first, elem});
 			if (elem != ctor_pair.second) {
@@ -1530,66 +1530,6 @@ bool types_contains(const types::type_t::refs &options, std::string signature) {
 	return false;
 }
 
-types::type_t::ref demote_to_native_type(const types::type_t::ref &option, env_t::ref env) {
-	auto evaled = option->eval(env);
-
-	if (types::is_type_id(evaled, MANAGED_INT, nullptr)) {
-		return type_id(make_iid(INT_TYPE));
-	} else if (types::is_type_id(evaled, MANAGED_FLOAT, nullptr)) {
-		return type_id(make_iid(FLOAT_TYPE));
-	} else {
-		return option;
-	}
-}
-
-types::type_t::ref promote_to_managed_type_(
-		const types::type_t::ref &option,
-		env_t::ref env)
-{
-
-	if (types::is_managed_ptr(option, env)) {
-		return option;
-	}
-
-	if (types::is_ptr_type_id(option, CHAR_TYPE, env)) {
-		return type_id(make_iid_impl(MANAGED_STR, option->get_location()));
-	}
-
-	if (types::is_integer(option, env)) {
-		return type_id(make_iid_impl(MANAGED_INT, option->get_location()));
-	}
-
-	static struct {
-		const char * const native_type;
-		const char * const managed_type;
-	} coercions[] = {
-		{INT_TYPE, MANAGED_INT},
-		{FLOAT_TYPE, MANAGED_FLOAT},
-	};
-
-	for (unsigned i = 0; i < sizeof(coercions)/sizeof(coercions[0]); ++i) {
-		/* coerce native types to managed types for the sake of maintaining polymorphism during (de)serialization */
-		if (types::is_type_id(option, coercions[i].native_type, env)) {
-			debug_above(9, log("coercing %s to %s for sum type", coercions[i].native_type, coercions[i].managed_type));
-			return type_id(make_iid_impl(coercions[i].managed_type, option->get_location()));
-		}
-	}
-
-	return option;
-}
-
-types::type_t::ref promote_to_managed_type(
-		const types::type_t::ref &option,
-		env_t::ref env)
-{
-	auto res = promote_to_managed_type_(option, env);
-	debug_above(9, log("promotion of %s to a managed type => %s",
-				option->str().c_str(),
-				res->str().c_str()));
-	return res;
-}
-
-
 types::type_t::ref type_and(types::type_t::refs terms) {
 	return make_ptr<types::type_and_t>(terms);
 }
@@ -1611,8 +1551,14 @@ types::type_t::ref type_maybe(types::type_t::ref just, env_t::ref env) {
 	if (dyncast<const types::type_ptr_t>(just) == nullptr) {
 		types::type_t::ref expanded_just =
 			(env != nullptr)
-		   	? just->eval(env, true /*get_structural_type*/)
+			? just->eval(env, true /*get_structural_type*/)
 			: nullptr;
+
+		if (just->eval_predicate(tb_null, env)) {
+			/* maybe of null is just null */
+			return just;
+		}
+
 		if (dyncast<const types::type_ptr_t>(expanded_just) == nullptr) {
 			throw user_error(just->get_location(), "type %s cannot be a maybe type since it is not a pointer",
 					just->str().c_str());
@@ -1622,13 +1568,6 @@ types::type_t::ref type_maybe(types::type_t::ref just, env_t::ref env) {
     if (auto maybe = dyncast<const types::type_maybe_t>(just)) {
         return just;
     }
-
-#if 0
-	if (just->is_null()) {
-		/* maybe of null is just null */
-		return just;
-	}
-#endif
 
     return make_ptr<types::type_maybe_t>(just);
 }

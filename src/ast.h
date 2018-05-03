@@ -113,7 +113,7 @@ namespace ast {
 		virtual std::string repr() const = 0;
 		static ref parse(parse_state_t &ps, bool allow_else);
 		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const = 0;
-		virtual void resolve_match(
+		virtual bool resolve_match(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref scope,
 				life_t::ref life,
@@ -128,7 +128,7 @@ namespace ast {
 		typedef ptr<const irrefutable_predicate_t> ref;
 
 		static const syntax_kind_t SK = sk_irrefutable_predicate;
-		virtual void resolve_match(
+		virtual bool resolve_match(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref scope,
 				life_t::ref life,
@@ -148,7 +148,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_ctor_predicate;
 		static ptr<const predicate_t> parse(parse_state_t &ps);
-		virtual void resolve_match(
+		virtual bool resolve_match(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref scope,
 				life_t::ref life,
@@ -1097,7 +1097,7 @@ namespace ast {
 				life_t::ref life,
 				bool as_ref,
 				types::type_t::ref expected_type) const;
-		virtual void resolve_match(
+		virtual bool resolve_match(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref scope,
 				life_t::ref life,
