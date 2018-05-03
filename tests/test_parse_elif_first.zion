@@ -1,6 +1,6 @@
 module _
 
 def main()
-	# error: statements must be separated by a newline
+	# error: unexpected token true encountered
 	elif true
 		pass

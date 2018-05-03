@@ -2,7 +2,6 @@ global
 
 link in "rt_int.o"
 
-link def __not__(x int) bool to __int_not
 link def __int__(x float) int to __int_float
 link def int(x float) int to __int_float
 link def int(x *char, length uint) int to __int_from_mbs

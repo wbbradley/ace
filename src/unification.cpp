@@ -142,7 +142,7 @@ unification_t unify_core(
 	const auto rhs = rhs_->rebind(bindings)->eval(env);
 
 	if (lhs == type_bottom() || rhs == type_bottom()) {
-		return {true, "bottom type is subtype to everything", bindings, coercions, {}};
+		return {true, "bottom type is subtype to everything", bindings, coercions + 1, {}};
 	}
 
 	auto ptref_lhs = dyncast<const types::type_ref_t>(lhs);
@@ -215,8 +215,6 @@ unification_t unify_core(
 				} coercions_table[] = {
 					{BOOL_TYPE, FALSE_TYPE},
 					{BOOL_TYPE, TRUE_TYPE},
-					{MANAGED_FLOAT, FLOAT_TYPE},
-					{FLOAT_TYPE, MANAGED_FLOAT},
 				};
 
 				static constexpr auto len_coercions = sizeof(coercions_table)/sizeof(coercions_table[0]);
@@ -226,12 +224,6 @@ unification_t unify_core(
 					}
 				}
 				return {false, "type ids do not match", bindings, coercions, {}};
-			}
-		} else if (depth == 0) {
-			if (ptI_b != nullptr && a_name == MANAGED_INT) {
-				return {true, "", bindings, coercions + 1, {}};
-			} else if (ptI_b != nullptr && a_name == MANAGED_CHAR) {
-				return {true, "", bindings, coercions + 1, {}};
 			}
 		}
 	}
@@ -254,6 +246,7 @@ unification_t unify_core(
 							ptd_a->type_vars[i], ptd_b->type_vars[i], env, bindings, coercions, depth, false /*allow_variance*/);
 					if (unification.result) {
 						bindings = unification.bindings;
+						coercions += unification.coercions;
 					} else {
 						return {false, "type mismatch", bindings, coercions, {}};
 					}
@@ -287,14 +280,8 @@ unification_t unify_core(
 
 		if (depth == 0) {
 			if (ptI_b != nullptr) {
-				return {true, "", bindings, coercions, {}};
+				return {true, "", bindings, coercions + 1, {}};
 			} else if (types::is_type_id(b, CHAR_TYPE, nullptr)) {
-				/* we can cast this char to whatever */
-				return {true, "", bindings, coercions + 1, {}};
-			} else if (types::is_type_id(b, MANAGED_INT, nullptr)) {
-				/* we can cast this int to whatever */
-				return {true, "", bindings, coercions + 1, {}};
-			} else if (types::is_type_id(b, MANAGED_CHAR, nullptr)) {
 				/* we can cast this char to whatever */
 				return {true, "", bindings, coercions + 1, {}};
 			}

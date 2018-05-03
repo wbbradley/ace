@@ -21,10 +21,11 @@ namespace match {
    	{
 	}
 
-	AllOf::AllOf(location_t location, env_t::ref env, types::type_t::ref type) :
-	   	Pattern(location),
-	   	env(env),
-	   	type(type)
+	AllOf::AllOf(location_t location, std::string name, env_t::ref env, types::type_t::ref type) :
+		Pattern(location),
+		name(name),
+		env(env),
+		type(type)
    	{
 	}
 
@@ -234,8 +235,12 @@ namespace match {
 				std::vector<Pattern::ref> args;
 				args.reserve(ctor_pair.second->args.size());
 
-				for (auto arg_type : ctor_pair.second->args) {
-					args.push_back(make_ptr<AllOf>(location, env, arg_type));
+				for (int i = 0; i < ctor_pair.second->args.size(); ++i) {
+					args.push_back(
+							make_ptr<AllOf>(location,
+								(ctor_pair.second->names.size() > i) ? ctor_pair.second->names[i]->get_name() : "_",
+								env,
+								ctor_pair.second->args[i]));
 				}
 
 				/* add a ctor */
@@ -398,7 +403,7 @@ namespace match {
 
 	std::string AllOf::str() const {
 		std::stringstream ss;
-		ss << "_"; // AllOf(" << type->str() << ")";
+		ss << name;
 		return ss.str();
 	}
 
@@ -461,7 +466,7 @@ namespace ast {
 		}
 	}
 	Pattern::ref irrefutable_predicate_t::get_pattern(type_t::ref type, env_t::ref env) const {
-		return make_ptr<AllOf>(token.location, env, type);
+		return make_ptr<AllOf>(token.location, token.text, env, type);
 	}
 	Pattern::ref literal_expr_t::get_pattern(type_t::ref type, env_t::ref env) const {
 		throw user_error(INTERNAL_LOC(), "not implemented");

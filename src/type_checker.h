@@ -46,3 +46,10 @@ ptr<ast::callsite_expr_t> expand_callsite_string_literal(
 		std::string module,
 		std::string function_name,
 		std::string param);
+void resolve_assert_macro(
+		llvm::IRBuilder<> &builder, 
+		scope_t::ref scope, 
+		life_t::ref life,
+		token_t token,
+		ptr<ast::expression_t> condition,
+		runnable_scope_t::ref *new_scope);

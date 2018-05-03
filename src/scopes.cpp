@@ -1136,6 +1136,11 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 			std::string symbol,
 			unchecked_var_t::ref unchecked_variable)
 	{
+		debug_above(8, log("put_unchecked_variable %s %s",
+				unchecked_variable->str().c_str(),
+				unchecked_variable->get_type(shared_from_this())->str().c_str()));
+		assert(unchecked_variable->get_type(shared_from_this())->eval_predicate(tb_function, shared_from_this()) ?
+				unchecked_variable->id->get_location().str().find("cpp") == std::string::npos : true);
 		debug_above(6, log(log_info,
 					"registering an unchecked variable " c_id("%s") " as %s",
 					symbol.c_str(),

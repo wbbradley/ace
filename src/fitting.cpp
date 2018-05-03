@@ -60,13 +60,11 @@ bound_var_t::ref get_best_fit(
 					if (winner == nullptr) {
 						winner = fitting.fn;
 					} else {
-						if (winner->get_location() != fitting.fn->get_location()) {
-							throw user_error(location,
-									"multiple (noncoercing) overloads found for %s%s %s",
-									alias.c_str(),
-									args->str().c_str(),
-									return_type != nullptr ? return_type->str().c_str() : "");
-						}
+						throw user_error(location,
+								"multiple (noncoercing) overloads found for %s%s %s",
+								alias.c_str(),
+								args->str().c_str(),
+								return_type != nullptr ? return_type->str().c_str() : "");
 					}
 				}
 			}

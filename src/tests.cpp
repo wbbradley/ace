@@ -918,13 +918,10 @@ auto test_descs = std::vector<test_desc>{
 			};
 
 			auto parses = std::vector<spec>{{
-				// {"int?", "Int?"},
 				{"bool", "bool"},
 				{"int", "int"},
 				{"(int)", "int"},
-				{"Int", "Int"},
 				{"float", "float"},
-				{"Float", "Float"},
 				{"char", "char"},
 				{"*char", "*char"},
 				{"*?char", "*?char"},
@@ -1008,8 +1005,6 @@ auto test_descs = std::vector<test_desc>{
 			auto unifies = std::vector<types::type_t::pair>{
 				make_type_pair("any", "float", generics),
 				make_type_pair("void", "void", generics),
-				make_type_pair("float", "Float", generics),
-				make_type_pair("Float", "float", generics),
 				make_type_pair("any a", "int", generics),
 				make_type_pair("any", "map int int", generics),
 				make_type_pair("any a", "map int str", generics),

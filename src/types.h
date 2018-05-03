@@ -89,7 +89,7 @@ namespace types {
 		std::string str(const map &bindings) const;
 		std::string get_signature() const { return repr(); }
 
-		virtual ref rebind(const map &bindings) const = 0;
+		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const = 0;
 		ref eval(env_t::ref env, bool get_structural_type=false) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const = 0;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
@@ -110,7 +110,7 @@ namespace types {
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual int get_precedence() const { return 6; }
-		virtual ref rebind(const map &bindings) const;
+		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 	};
@@ -133,7 +133,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 
@@ -151,7 +151,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
+		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 	};
 
@@ -169,7 +169,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
@@ -188,7 +188,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
+		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
@@ -207,7 +207,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
@@ -224,7 +224,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 	};
 
@@ -236,7 +236,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
+		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		int coerce_to_int() const;
 	};
@@ -251,7 +251,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
+		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
@@ -270,7 +270,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 
@@ -288,7 +288,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 
@@ -306,7 +306,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 
@@ -325,7 +325,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 
@@ -346,7 +346,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 	};
@@ -362,7 +362,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 	};
@@ -379,7 +379,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
+		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
 	};
@@ -394,7 +394,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
+		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
 	};
@@ -408,7 +408,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
+		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
@@ -424,7 +424,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
@@ -440,7 +440,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
@@ -455,7 +455,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings) const;
+		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 	};
@@ -468,7 +468,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &bindings) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 	};
@@ -528,4 +528,3 @@ types::type_t::pair make_type_pair(std::string fst, std::string snd, identifier:
 bool get_type_variable_name(types::type_t::ref type, std::string &name);
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings);
 std::string get_name_from_index(const types::name_index_t &name_index, int i);
-types::type_t::ref promote_to_managed_type(const types::type_t::ref &option, env_t::ref env);

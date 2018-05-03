@@ -1,10 +1,8 @@
 module _ @1.0
 # test: pass
+# expect: B
 
-tag B
-tag C
-
-type A is B or C
+type A is B C
 
 def overloaded_return_unification() float
 	# the unary negation operator is overloaded so this test will make sure
@@ -13,10 +11,10 @@ def overloaded_return_unification() float
 
 [global]
 def str(a A) str
-	when a
-		is B
+	when a is
+		B
 			return "B"
-		is C
+		C
 			return "C"
 
 def main()

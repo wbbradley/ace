@@ -90,7 +90,6 @@ K(get);
 K(any);
 K(as);
 K(break);
-K(bound);
 K(continue);
 K(def);
 K(elif);
@@ -123,6 +122,8 @@ K(while);
 K(with);
 #undef K
 #define K(x) K_##x
+
+bool is_restricted_var_name(std::string x);
 
 struct token_t {
 	token_t(const location_t &location={{""},-1,-1}, token_kind tk=tk_none, std::string text="") : location(location), tk(tk), text(text) {}

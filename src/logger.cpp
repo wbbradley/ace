@@ -17,6 +17,8 @@
 
 #define STDERR stdout
 
+static int _max_log_depth = atoi(getenv("LOG_DEPTH") != nullptr ? getenv("LOG_DEPTH") : "0");
+
 int logger_level = log_info | log_warning | log_error | log_panic;
 
 void log_enable(int log_level) {
@@ -99,12 +101,14 @@ tee_logger::~tee_logger() throw() {
 }
 
 void tee_logger::logv(log_level_t level, const location_t *location, const char *format, va_list args) {
-	auto str = string_formatv(format, args);
+	if (_max_log_depth == 0 || get_depth() < _max_log_depth) {
+		auto str = string_formatv(format, args);
 
-	captured_logs.push_back(std::tuple<log_level_t, maybe<location_t>, std::string>{level, location, str});
+		captured_logs.push_back(std::tuple<log_level_t, maybe<location_t>, std::string>{level, location, str});
 
-	if (logger_old != nullptr) {
-		logger_old->log(level, location, "%s", str.c_str());
+		if (logger_old != nullptr) {
+			logger_old->log(level, location, "%s", str.c_str());
+		}
 	}
 }
 
@@ -139,9 +143,11 @@ indent_logger::~indent_logger() throw() {
 }
 
 void indent_logger::logv(log_level_t level, const location_t *location, const char *format, va_list args) {
-	auto str = string_formatv(format, args);
-	if (logger_old != nullptr) {
-		logger_old->log(level, location, "%s%s", (location != nullptr) ? "" : "  ", str.c_str());
+	if (_max_log_depth == 0 || get_depth() < _max_log_depth) {
+		auto str = string_formatv(format, args);
+		if (logger_old != nullptr) {
+			logger_old->log(level, location, "%s%s", (location != nullptr) ? "" : "  ", str.c_str());
+		}
 	}
 }
 
@@ -163,8 +169,10 @@ note_logger::~note_logger() throw() {
 }
 
 void note_logger::logv(log_level_t level, const location_t *location, const char *format, va_list args) {
-	if (logger_old != nullptr) {
-		logger_old->logv(level, location, format, args);
+	if (_max_log_depth == 0 || get_depth() < _max_log_depth) {
+		if (logger_old != nullptr) {
+			logger_old->logv(level, location, format, args);
+		}
 	}
 }
 
@@ -371,23 +379,25 @@ void standard_logger::logv(log_level_t level, const location_t *location, const 
 	if (mask(logger_level, level) == 0) {
 		return;
 	}
+	if (_max_log_depth == 0 || get_depth() < _max_log_depth) {
 
 #if 0
-	if (level == log_info) {
-		/* if we're not in debugging mode, never emit "info" statements */
-		if (debug_level() == 0) {
-			return;
+		if (level == log_info) {
+			/* if we're not in debugging mode, never emit "info" statements */
+			if (debug_level() == 0) {
+				return;
+			}
 		}
-	}
 #endif
 
-	std::lock_guard<std::mutex> lock(m_mutex);
+		std::lock_guard<std::mutex> lock(m_mutex);
 
-	FILE *fp = m_fp;
-	if (fp == NULL)
-		fp = stdout;
+		FILE *fp = m_fp;
+		if (fp == NULL)
+			fp = stdout;
 
-	write_logv(fp, level, location, format, args);
+		write_logv(fp, level, location, format, args);
+	}
 }
 
 void print_stacktrace(FILE *p_out, unsigned int p_max_frames) {

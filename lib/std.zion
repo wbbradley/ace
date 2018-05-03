@@ -32,11 +32,11 @@ def print[T where is_maybe T](x T) void
 	else
 		write(stdout, "<null>\n")
 
-def print[T where not (is_maybe T) and (not (T <: str))](x T) void
+def print[T, Args, R where not (is_maybe T) and not (T === str) and not (T <: def (..Args) R)](x T) void
 	write(stdout, str(x))
 	write(stdout, "\n")
 
-def print[T where not(is_maybe T) and (T <: str)](x T) void
+def print[T where not(is_maybe T) and (T === str)](x T) void
 	write(stdout, x)
 	write(stdout, "\n")
 

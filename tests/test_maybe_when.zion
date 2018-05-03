@@ -1,14 +1,12 @@
 module _
 # test: pass
-# expect: Just
-# expect: 3
 # expect: Empty
+# expect: Just(3)
 
 def do(t Maybe any T) void
 	when t is
 		Just(val)
-			print("Just")
-			print(val)
+			print("Just(" + val + ")")
 		Empty
 			print("Empty")
 

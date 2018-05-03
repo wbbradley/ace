@@ -17,6 +17,7 @@ struct logger {
 	virtual ~logger() throw() {}
 	virtual void logv(log_level_t level, const location_t *location, const char *format, va_list args) = 0;
 	virtual void log(log_level_t level, const location_t *location, const char *format, ...) = 0;
+	virtual int get_depth() const = 0;
 	virtual void dump() = 0;
 };
 
@@ -35,6 +36,8 @@ public:
 	friend void panic_(const char *filename, int line, std::string msg);
 	friend void logv(log_level_t level, const char *format, va_list args);
 
+	virtual int get_depth() const { return 0; }
+
 private:
 	std::mutex m_mutex;
 	std::string m_name;
@@ -52,6 +55,7 @@ struct tee_logger : public logger {
 	void dump();
 
 	std::string captured_logs_as_string() const;
+	virtual int get_depth() const { return logger_old->get_depth() + 1; }
 
 	logger *logger_old;
 	std::list<std::tuple<log_level_t, maybe<location_t>, std::string>> captured_logs;
@@ -64,6 +68,8 @@ struct indent_logger : logger {
 	virtual void logv(log_level_t level, const location_t *location, const char *format, va_list args);
 	virtual void log(log_level_t level, const location_t *location, const char *format, ...);
 	virtual void dump();
+
+	virtual int get_depth() const { return logger_old->get_depth() + 1; }
 
 	location_t location;
 	std::string msg;
@@ -85,6 +91,7 @@ struct note_logger : logger {
 	virtual void logv(log_level_t level, const location_t *location, const char *format, va_list args);
 	virtual void log(log_level_t level, const location_t *location, const char *format, ...);
 	virtual void dump();
+	virtual int get_depth() const { return logger_old->get_depth() + 1; }
 
 	std::string msg;
 	logger *logger_old;

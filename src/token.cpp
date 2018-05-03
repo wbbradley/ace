@@ -4,6 +4,45 @@
 #include <sstream>
 
 
+bool is_restricted_var_name(std::string x) {
+
+	static const std::string keywords[] = {
+		"__unreachable__",
+		"and",
+		"any",
+		"as",
+		"break",
+		"continue",
+		"def",
+		"elif",
+		"else",
+		"false",
+		"for",
+		"if",
+		"in",
+		"is",
+		"let",
+		"not",
+		"null",
+		"or",
+		"pass",
+		"return",
+		"sizeof",
+		"struct",
+		"true",
+		"type",
+		"var",
+		"when",
+		"while",
+	};
+	for (auto k : keywords) {
+		if (x == k) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool tkvisible(token_kind tk) {
 	switch (tk) {
 	default:

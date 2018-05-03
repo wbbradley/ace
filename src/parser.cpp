@@ -1012,9 +1012,13 @@ ast::predicate_t::ref ctor_predicate_t::parse(parse_state_t &ps) {
 }
 
 ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else) {
-	if (!allow_else && ps.token.is_ident(K(else))) {
-		throw user_error(ps.token.location, "illegal keyword " c_type("%s") " in a pattern match context",
-				ps.token.text.c_str());
+	if (ps.token.is_ident(K(else))) {
+		if (!allow_else) {
+			throw user_error(ps.token.location, "illegal keyword " c_type("%s") " in a pattern match context",
+					ps.token.text.c_str());
+		}
+	} else if (is_restricted_var_name(ps.token.text)) {
+		throw user_error(ps.token.location, "irrefutable predicates are restricted to non-keyword symbols");
 	}
 
 	if (ps.token.tk == tk_identifier) {
@@ -1106,7 +1110,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps, bool within_expre
 
 	identifier::ref function_name;
 	auto parsed_type = types::parse_function_type(ps, {}, function_name);
-	debug_above(6, log("parsed function type %s", parsed_type->str().c_str()));
+	debug_above(6, log("parsed function type %s at %s", parsed_type->str().c_str(), ps.token.location.str().c_str()));
 	types::type_function_t::ref function_type = dyncast<const types::type_function_t>(parsed_type);
 	assert_implies(!within_expression, function_type != nullptr);
 

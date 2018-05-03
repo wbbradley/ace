@@ -228,6 +228,7 @@ void ast::type_product_t::register_type(
 		throw error;
 	}
 }
+
 types::type_t::map bottom_out_unreferenced_vars(const std::set<std::string> &seen, const identifier::refs &all) {
 	types::type_t::map bindings;
 	for (auto a : all) {
