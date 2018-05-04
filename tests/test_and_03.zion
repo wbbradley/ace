@@ -6,7 +6,7 @@ type Either L R is
 	Right(right R)
 
 def hey(x Either int float)
-	when x is
+	match x
 		Left(x)
 			print(x)
 		Right(x)

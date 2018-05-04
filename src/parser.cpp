@@ -191,7 +191,7 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 		return while_block_t::parse(ps);
 	} else if (ps.token.is_ident(K(for))) {
 		return for_block_t::parse(ps);
-	} else if (ps.token.is_ident(K(when))) {
+	} else if (ps.token.is_ident(K(match))) {
 		return when_block_t::parse(ps);
 	} else if (ps.token.is_ident(K(return))) {
 		return return_statement_t::parse(ps);
@@ -1063,9 +1063,8 @@ ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 
 ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 	auto when_block = create<ast::when_block_t>(ps.token);
-	chomp_ident(K(when));
+	chomp_ident(K(match));
 	when_block->value = expression_t::parse(ps);
-	chomp_ident(K(is));
 	chomp_token(tk_indent);
 	while (ps.token.tk != tk_outdent) {
 		when_block->pattern_blocks.push_back(pattern_block_t::parse(ps));
@@ -1253,7 +1252,6 @@ identifier::ref make_type_id_code_id(const location_t location, std::string var_
 type_decl_t::ref type_decl_t::parse(parse_state_t &ps, token_t name_token) {
 	identifier::refs type_variables;
 	parse_maybe_type_decl(ps, type_variables);
-
 	return create<ast::type_decl_t>(name_token, type_variables);
 }
 
@@ -1301,7 +1299,7 @@ std::pair<token_t, types::type_args_t::ref> parse_ctor(
 	expect_token(tk_identifier);
 	auto name = ps.token;
 	if (!isupper(name.text[0])) {
-		throw user_error(name.location, "constructors first letter must be uppercase");
+		throw user_error(name.location, "constructor names must begin with an uppercase letter");
 	}
 
 	ps.advance();

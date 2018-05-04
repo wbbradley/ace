@@ -7,9 +7,7 @@ type Vector has
 	var y float
 
 def do(t Vector) void
-	when t
-		is Vector
-			print("yep")
+	print("yep")
 
 def main()
 	do(Vector(0.0, 0.1))

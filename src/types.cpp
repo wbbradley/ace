@@ -622,9 +622,11 @@ namespace types {
 	}
 
 	type_function_t::type_function_t(
+			location_t location,
 			types::type_t::ref type_constraints,
 			types::type_t::ref args,
 			type_t::ref return_type) :
+		location(location),
 		type_constraints(type_constraints),
 		args(args), return_type(return_type)
 	{
@@ -675,13 +677,14 @@ namespace types {
 			return shared_from_this();
 		}
 		return ::type_function(
+				get_location(),
 				type_constraints != nullptr ? type_constraints->rebind(bindings, bottom_out_free_vars) : type_constraints,
 				rebound_args,
 				return_type->rebind(bindings, bottom_out_free_vars));
 	}
 
 	location_t type_function_t::get_location() const {
-		return args->get_location();
+		return location;
 	}
 
 	type_function_closure_t::type_function_closure_t(type_t::ref function) : function(function) {
@@ -1504,11 +1507,12 @@ types::type_managed_t::ref type_managed(types::type_t::ref element_type) {
 }
 
 types::type_function_t::ref type_function(
+		location_t location,
 		types::type_t::ref type_constraints,
 		types::type_t::ref args,
 		types::type_t::ref return_type)
 {
-	auto ret = make_ptr<types::type_function_t>(type_constraints, args, return_type);
+	auto ret = make_ptr<types::type_function_t>(location, type_constraints, args, return_type);
 	if (type_constraints && type_constraints->repr() == TRUE_TYPE) {
 		debug_above(9, log("created type_function %s", ret->str().c_str()));
 		dbg();
@@ -1712,4 +1716,8 @@ std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimen
 		sep = ", ";
 	}
 	return os;
+}
+
+bool is_valid_udt_initial_char(int ch) {
+	return ch == '_' || isupper(ch);
 }

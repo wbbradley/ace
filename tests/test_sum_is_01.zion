@@ -1,6 +1,6 @@
 module _
 # test: pass
-type PhoneNumber is int
+type PhoneNumber = int
 
 def main()
 	pass

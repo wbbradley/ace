@@ -1,15 +1,15 @@
 module _
 
 def truthy(x any) bool
-	# error: when statements only work with managed types
-	when x
-		is int 
+	# error: irrefutable predicates are restricted to non-keyword symbols
+	match x
+		int 
 			print("int found")
 			return x != 0
-		is float
+		float
 			print("float found")
 			return x != 0
-		is bool
+		bool
 			print("bool found")
 			return x
 

@@ -153,7 +153,7 @@ bound_var_t::ref create_callsite(
 			augmented_names.push_back(make_iid("__capture_env"));
 		}
 
-		types::type_function_t::ref inner_function_type = type_function(nullptr, type_args(augmented_args, augmented_names), function_type->return_type);
+		types::type_function_t::ref inner_function_type = type_function(location, nullptr, type_args(augmented_args, augmented_names), function_type->return_type);
 
 		auto bound_inner_function_type = upsert_bound_type(builder, scope, inner_function_type);
 

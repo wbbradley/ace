@@ -1,8 +1,8 @@
 module _
-# test: pass
 
 type Foo is Bar
 
 def main()
-	var i Int = 0
+	var i int = 0
+	# error: data of type int has no runtime type information
 	typeid(i)

@@ -224,7 +224,7 @@ namespace types {
 		type_t::ref new_args = args->eval_core(env, get_structural_type);
 		type_t::ref new_return_type = return_type->eval_core(env, get_structural_type);
 		if (new_args != args || new_return_type != return_type) {
-			return ::type_function(type_constraints, new_args, new_return_type);
+			return ::type_function(get_location(), type_constraints, new_args, new_return_type);
 		}
 		return shared_from_this();
 	}

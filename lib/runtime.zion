@@ -21,7 +21,7 @@ var TYPE_KIND_USE_OFFSETS int32 = 1 as int32
 var TYPE_KIND_USE_MARK_FN int32 = 2 as int32
 
 def on_assert_failure(msg str) void
-	# called when assertions fail
+	# called match assertions fail
 	posix.puts(c_str(msg).raw)
 	posix.raise(posix.SIGTRAP)
 

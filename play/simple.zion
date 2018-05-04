@@ -10,7 +10,7 @@ tag Empty
 type Maybe{T} is Empty or JustInt{T}
 
 def do(t Maybe{any Q})
-	when t
+	match t
 		is JustInt{any Q}
 			pass
 		is Empty

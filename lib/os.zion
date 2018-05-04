@@ -7,14 +7,17 @@ def getcwd() str
 	return str(OwningBuffer(cwd_utf8))
 
 def getenv(name str) str?
-	let value = OwningBuffer(posix.getenv(name))
-	return value != null ? str(value) : null
+	match OwningBuffer(posix.getenv(name))
+		Just(buffer)
+			return Just(str(buffer))
+		Empty
+			return Empty
 
 def shell(cmd str) [str]
-	return shell(cmd, null)
+	return shell(cmd, Empty)
 
 def shell(cmd_parts [str]) [str]
-	return shell(cmd_parts, null)
+	return shell(cmd_parts, Empty)
 
 def shell(cmd_parts [str], pipe_text str?) [str]
 	cmd := join(" ", cmd_parts)
@@ -25,11 +28,14 @@ def shell(cmd str, pipe_text str?) [str]
 	fp := posix.popen(cmd, "r+")
 	assert(fp != null)
 
-	if pipe_text != null
-		# print("Writing " + pipe_text + " to the process...")
-		ret := posix.fprintf(fp, "%s", pipe_text)
-		assert(ret >= 0)
-		posix.fflush(fp)
+	match pipe_text
+		Just(text)
+			# print("Writing " + pipe_text + " to the process...")
+			ret := posix.fprintf(fp, "%s", text)
+			assert(ret >= 0)
+			posix.fflush(fp)
+		Empty
+			pass
 
 	var lines [str]
 	for line in readlines(fp)

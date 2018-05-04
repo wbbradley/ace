@@ -179,80 +179,46 @@ bound_var_t::ref resolve_null_check(
 	llvm::Type *llvm_bool_type = bound_bool_type->get_llvm_specific_type();
 	llvm::Value *llvm_bool_value;
 
-	if (auto data = dyncast<const types::type_data_t>(value->type->get_type()->eval(scope))) {
-		bound_var_t::ref ctor_id = call_get_ctor_id(
-					scope, life, node, make_iid("ctor_id"), builder, value);
+	llvm::Value *llvm_value = value->resolve_bound_var_value(scope, builder);
 
-		switch (nck) {
-		case nck_is_null:
-			llvm_bool_value = builder.CreateIntCast(
-					builder.CreateICmpEQ(ctor_id->get_llvm_value(), builder.getInt32(atomize("Empty"))),
-					llvm_bool_type, false /*isSigned*/);
-			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
-				if (scope_if_true != nullptr) {
-				}
-				if (scope_if_false != nullptr) {
-					extract_just_value(builder, scope,
-						   	life, ref_expr, value, scope_if_true);
-				}
-			}
-			break;
-		case nck_is_non_null:
-			llvm_bool_value = builder.CreateIntCast(
-					builder.CreateICmpNE(ctor_id->get_llvm_value(), builder.getInt32(atomize("Empty"))),
-					llvm_bool_type, false /*isSigned*/);
-			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
-				if (scope_if_true != nullptr) {
-					extract_just_value(builder, scope,
-						   	life, ref_expr, value, scope_if_true);
-				}
-				if (scope_if_false != nullptr) {
-				}
-			}
-			break;
-		}
+	llvm::Constant *zero;
+	if (llvm::dyn_cast<llvm::PointerType>(llvm_value->getType())) {
+		zero = llvm::Constant::getNullValue(llvm_value->getType());
+	} else if (llvm_value->getType()->isIntegerTy()) {
+		zero = llvm::ConstantInt::get(llvm_value->getType(), 0);
 	} else {
-		llvm::Value *llvm_value = value->resolve_bound_var_value(scope, builder);
+		assert(false);
+	}
 
-		llvm::Constant *zero;
-		if (llvm::dyn_cast<llvm::PointerType>(llvm_value->getType())) {
-			zero = llvm::Constant::getNullValue(llvm_value->getType());
-		} else if (llvm_value->getType()->isIntegerTy()) {
-			zero = llvm::ConstantInt::get(llvm_value->getType(), 0);
-		} else {
-			assert(false);
-		}
+	switch (nck) {
+	case nck_is_non_null:
+		llvm_bool_value = builder.CreateIntCast(
+				builder.CreateICmpNE(llvm_value, zero),
+				llvm_bool_type, false /*isSigned*/);
 
-		switch (nck) {
-		case nck_is_non_null:
-			llvm_bool_value = builder.CreateIntCast(
-					builder.CreateICmpNE(llvm_value, zero),
-					llvm_bool_type, false /*isSigned*/);
-
-			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
-				if (scope_if_true != nullptr) {
-					unmaybe_variable(builder, scope, life, ref_expr, scope_if_true);
-				}
-				if (scope_if_false != nullptr) {
-					nullify_let_var(builder, scope, life, ref_expr, scope_if_false);
-				}
+		if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+			if (scope_if_true != nullptr) {
+				unmaybe_variable(builder, scope, life, ref_expr, scope_if_true);
 			}
-			break;
-		case nck_is_null:
-			llvm_bool_value = builder.CreateIntCast(
-					builder.CreateICmpEQ(llvm_value, zero),
-					llvm_bool_type, false /*isSigned*/);
-
-			if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
-				if (scope_if_false != nullptr) {
-					unmaybe_variable(builder, scope, life, ref_expr, scope_if_false);
-				}
-				if (scope_if_true != nullptr) {
-					nullify_let_var(builder, scope, life, ref_expr, scope_if_true);
-				}
+			if (scope_if_false != nullptr) {
+				nullify_let_var(builder, scope, life, ref_expr, scope_if_false);
 			}
-			break;
 		}
+		break;
+	case nck_is_null:
+		llvm_bool_value = builder.CreateIntCast(
+				builder.CreateICmpEQ(llvm_value, zero),
+				llvm_bool_type, false /*isSigned*/);
+
+		if (auto ref_expr = dyncast<const ast::reference_expr_t>(node)) {
+			if (scope_if_false != nullptr) {
+				unmaybe_variable(builder, scope, life, ref_expr, scope_if_false);
+			}
+			if (scope_if_true != nullptr) {
+				nullify_let_var(builder, scope, life, ref_expr, scope_if_true);
+			}
+		}
+		break;
 	}
 
 	assert(llvm_bool_value != nullptr);

@@ -1,6 +1,0 @@
-module _
-
-def main()
-	var x int or bool = 3
-	# error: unable to resolve overloads for str.*
-	print(x)

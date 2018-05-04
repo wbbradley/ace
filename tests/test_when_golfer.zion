@@ -1,19 +1,15 @@
 module when_contact
 # test: pass
 
-type Golfer has
-	var first str
-	var last str
-
-tag Baker
-
-type Athlete is Golfer or Baker
+type Athlete is
+	Golfer(first str, last str)
+	Baker
 
 def recognize(athlete Athlete)
-	when athlete
-		is Golfer
-			if athlete.first == "Arnold"
-				if athlete.last == "Palmer"
+	match athlete
+		Golfer(first, last)
+			if first == "Arnold"
+				if last == "Palmer"
 					print("RIP")
 				else
 					print("You are alive")

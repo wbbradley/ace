@@ -1,5 +1,6 @@
 module _
-# TODO: figure out what's going on here
+# test: pass
+# expect: hi
 
 type D is
 	AA(x int)
@@ -10,7 +11,9 @@ def foo(a D)
 
 def main()
 	AA(3)
-	when BB is
+	match BB
+		AA(x)
+			pass
 		BB
 			pass
 

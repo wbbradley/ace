@@ -238,6 +238,7 @@ types::type_function_t::ref get_function_type(
 	}
 
 	return ::type_function(
+			INTERNAL_LOC(),
 			type_constraints,
 			::type_args(type_args),
 			return_type->get_type());
@@ -255,6 +256,7 @@ types::type_function_t::ref get_function_type(
 	}
 
 	return ::type_function(
+			INTERNAL_LOC(),
 			type_constraints,
 			::type_args(type_args),
 			return_type);

@@ -230,20 +230,11 @@ unification_t unify_core(
 
 	if (ptd_a != nullptr) {
 		if (ptd_b != nullptr) {
-			if (ptd_a->name.text != ptd_b->name.text || ptd_a->type_vars.size() != ptd_b->type_vars.size()) {
-#if 0
-				if (ptd_a->name.text == "Maybe" && depth == 0) {
-					assert(ptd_a->type_vars.size() == 1);
-					return unify_core(
-							ptd_a->type_vars[0], b, 
-							env, bindings, coercions, depth, allow_variance);
-				}
-#endif
-				return {false, "type mismatch", bindings, coercions, {}};
-			} else {
+			// TODO: compare ctor_pair type args between them?!
+			if (ptd_a->name.text == ptd_b->name.text && ptd_a->type_vars.size() == ptd_b->type_vars.size()) {
 				for (int i = 0; i < ptd_a->type_vars.size(); ++i) {
 					unification_t unification = unify_core(
-							ptd_a->type_vars[i], ptd_b->type_vars[i], env, bindings, coercions, depth, false /*allow_variance*/);
+							ptd_a->type_vars[i], ptd_b->type_vars[i], env, bindings, coercions, depth + 1, false /*allow_variance*/);
 					if (unification.result) {
 						bindings = unification.bindings;
 						coercions += unification.coercions;
@@ -252,20 +243,9 @@ unification_t unify_core(
 					}
 				}
 				return {true, "", bindings, coercions, {}};
+			} else {
+				return {false, "type mismatch", bindings, coercions, {}};
 			}
-		} else {
-#if 0
-			if (ptd_a->name.text == "Maybe" && depth == 0) {
-				if (types::is_type_id(b, NULL_TYPE, nullptr)) {
-					return {true, "", bindings, coercions + 1, {}};
-				} else {
-					assert(ptd_a->type_vars.size() == 1);
-					return unify_core(
-							ptd_a->type_vars[0], b, 
-							env, bindings, coercions, depth, allow_variance);
-				}
-			}
-#endif
 		}
 	}
 
@@ -380,21 +360,53 @@ unification_t unify_core(
 					coercions,
 					{}};
 			} else {
-				auto a_dims_end = a_dimensions.end();
-				auto b_dims_iter = b_dimensions.begin();
-				for (auto a_dims_iter = a_dimensions.begin();
-						a_dims_iter != a_dims_end;
-						++a_dims_iter, ++b_dims_iter) {
-					debug_above(7, log("matching subitem in product type"));
-					auto unification = unify_core(*a_dims_iter, *b_dims_iter, env, bindings, 0, depth, allow_variance);
-					if (!unification.result) {
-						return {false, unification.reasons, {}, coercions, {}};
-					}
-					bindings = unification.bindings;
-					coercions += unification.coercions;
+				std::vector<int> indices;
+				indices.reserve(a_dimensions.size());
+				for (int i = 0; i < a_dimensions.size(); ++i) {
+					indices.push_back(i);
 				}
 
-				return {true, "products match", bindings, coercions, {}};
+				int permutations = 0;
+				std::string reasons;
+				do {
+					++permutations;
+
+					/* try each permutation of the ordering of dimensions */
+					auto working_bindings = bindings;
+					auto working_coercions = coercions;
+					bool failed = false;
+
+					for (int i = 0; i < indices.size(); ++i) {
+						auto &a_elem = a_dimensions[indices[i]];
+						auto &b_elem = b_dimensions[indices[i]];
+
+						debug_above(7, log("matching subitem in product type"));
+						auto unification = unify_core(a_elem, b_elem, env, working_bindings, 0, depth, allow_variance);
+						if (!unification.result) {
+							reasons = unification.reasons;
+							failed = true;
+							break;
+						}
+						working_bindings = unification.bindings;
+						working_coercions += unification.coercions;
+					}
+
+					if (!failed) {
+						debug_above(9, log("found a match for %s vs. %s after backtracking through %d permutations",
+								a->str().c_str(),
+								b->str().c_str(),
+								permutations));
+
+						return {true, "products match", working_bindings, working_coercions, {}};
+					}
+
+				} while (std::next_permutation(indices.begin(), indices.end()));
+
+				debug_above(9, log("found no match for %s vs. %s after backtracking through %d permutations",
+						a->str().c_str(),
+						b->str().c_str(),
+						permutations));
+				return {false, reasons, {}, coercions, {}};
 			}
 		} else {
 			return {

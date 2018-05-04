@@ -3,7 +3,7 @@ module _
 # expect: 28231
 
 def nth[T](l (Node T)?, i int) T?
-	when l is
+	match l
 		Empty
 			return Empty
 		Just(l)
@@ -18,7 +18,7 @@ type Node T has
 
 def main()
 	x := Node(3, Just(Node(28231, Empty)))
-	when nth(Just(x), 1) is
+	match nth(Just(x), 1)
 		Just(y)
 			print(y)
 		Empty

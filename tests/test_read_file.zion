@@ -9,14 +9,12 @@ get sys
 def main()
 	f := file.open("tests/test_read_file.zion", "r")
 	while true
-		line := file.readline(f)
-		when line
-			is str
+		match readline(f)
+			Line(line)
 				print(line)
-			is file.EOF
+			EOF
 				break
-			is file.Error
-				print("error " + line.errno + " encountered")
+			Error(_)
 				break
 	file.close(f)
 	runtime.gc()

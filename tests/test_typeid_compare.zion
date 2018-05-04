@@ -2,9 +2,7 @@ module _
 # test: pass
 # expect: different types
 
-tag Cow
-tag Hiss
-type Boo is Hiss or Cow
+type Boo is Hiss Cow
 
 # Note that this function returns an int, because we don't yet
 # support creating bools

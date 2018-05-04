@@ -3,20 +3,14 @@ module _
 # test: pass
 # expect: yay this works
 
-type BigBox T has
-	var t T
-
-type Crate P Q has
-	var p P
-	var q Q
-
 type Box X Y is
-	BigBox X or
-	Crate X Y
+	BigBox(x X)
+	Crate(x X, y Y)
 
 def main()
-	x := BigBox("yay this works")
-	y := Crate(1, x.t)
-	print(x.t)
-	print(y.p)
-	print(y.q)
+	match BigBox("yay this works")
+		BigBox(x)
+			y := Crate(1, x)
+			print(x)
+		Crate(x, y)
+			print(x, y)

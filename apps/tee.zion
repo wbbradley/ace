@@ -8,7 +8,7 @@ def main()
 		newline := "\n"
 		f := open(sys.args[1], "w")
 		state := f.state
-		when state
+		match state
 			is file.Open
 				for line in readlines()
 					print(line)

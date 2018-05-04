@@ -32,7 +32,7 @@ def get_name(entry Entry, default str) str
 
 def main()
 	var entry Entry? = Just(Entry(make_entry("Will", 123)!))
-	when entry is
+	match entry
 		Just(entry)
 			print(get_name(entry, ""))
 			static_print(entry)

@@ -116,7 +116,7 @@ K(tag);
 K(to);
 K(type);
 K(var);
-K(when);
+K(match);
 K(where);
 K(while);
 K(with);

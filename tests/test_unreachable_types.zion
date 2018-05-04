@@ -1,18 +1,11 @@
 module _
 
-type Part T has
-	var i T
-
-type Crate T U has
-	var t T
-	var u U
-
 type Box X Y is
-	Part X or
-	Crate X Y
+	Part(x X)
+	Crate(x X, y Y)
 
 def show(b Box any any)
-	# error: unable to resolve overloads for __getitem__\(.*Crate str .*\)
+	# error: unable to resolve overloads for __getitem__
 	print(b[0])
 
 def main()

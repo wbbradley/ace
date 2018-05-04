@@ -4,7 +4,7 @@ module _
 # expect: Just(3)
 
 def do(t Maybe any T) void
-	when t is
+	match t
 		Just(val)
 			print("Just(" + val + ")")
 		Empty

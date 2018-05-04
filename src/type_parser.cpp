@@ -232,6 +232,7 @@ namespace types {
 	}
 
 	types::type_t::ref parse_function_type(parse_state_t &ps, identifier::set generics, identifier::ref &name) {
+		location_t location = ps.token.location;
 		chomp_ident(K(def));
 		if (ps.token.tk == tk_identifier) {
 			name = make_code_id(ps.token);
@@ -292,7 +293,7 @@ namespace types {
 			return_type = type_void();
 		}
 
-		auto type = type_function(type_constraints, type_args, return_type);
+		auto type = type_function(location, type_constraints, type_args, return_type);
 		if (name != nullptr) {
 			return type;
 		} else {

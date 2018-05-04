@@ -6,5 +6,5 @@ def main()
 		append(xyz, i)
 	print(xyz)
 	let abc [int]
-	# error: you cannot re-assign the name xyz
+	# error: the left-hand side of this assignment is not a ref
 	xyz = abc

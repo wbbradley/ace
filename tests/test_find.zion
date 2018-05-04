@@ -12,6 +12,6 @@ def main()
 	j := find("hello worl", "world", 0)
 	assert(j == Empty)
 
-	assert(find("world", "world", 1) == null)
-	assert(find(" world", "world", 1) != null)
+	assert(not exists(find("world", "world", 1)))
+	assert(exists(find(" world", "world", 1)))
 	print("pass")

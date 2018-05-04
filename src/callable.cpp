@@ -651,7 +651,9 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 
 	} catch (user_error &e) {
 		std::throw_with_nested(user_error(log_info, name_token.location,
-					"while checking %s", function_var->str().c_str()));
+					"while checking " c_id("%s") " : %s",
+					name_token.text.c_str(),
+					function_var->str().c_str()));
 	}
 
 	debug_above(10, log(log_info, "module dump from %s\n%s",

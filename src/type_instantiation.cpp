@@ -164,6 +164,7 @@ void instantiate_data_ctor_type(
 					id->str().c_str()));
 
 		types::type_function_t::ref data_ctor_sig = type_function(
+				id->get_location(),
 				nullptr,
 				type_args(types::without_refs(struct_->dimensions)),
 				ctor_return_type);
@@ -207,6 +208,12 @@ void ast::type_product_t::register_type(
 	std::string name = id_->get_name();
 	auto location = id_->get_location();
 
+	if (!native) {
+		if (dyncast<const program_scope_t>(scope) == nullptr && !is_valid_udt_initial_char(name[0])) {
+			throw user_error(location, "type names must begin with an uppercase letter");
+		}
+	}
+
 	/* instantiate a lazily bound data ctor, and inject the typename for this type into the
 	 * type environment */
 	auto existing_type = scope->get_type(name, true /*allow_structural_types*/);
@@ -248,6 +255,10 @@ void ast::data_type_t::register_type(
 {
 	debug_above(3, log(log_info, "registering data type %s", str().c_str()));
 	auto module_scope = scope->get_module_scope();
+
+	if (dyncast<const program_scope_t>(scope) == nullptr && !is_valid_udt_initial_char(id->get_name()[0])) {
+		throw user_error(id->get_location(), "type names must begin with an uppercase letter");
+	}
 
 	auto existing_type = scope->get_type(id->get_name(), true /*allow_structural_types*/);
 	if (existing_type == nullptr) {
@@ -293,7 +304,9 @@ void ast::data_type_t::register_type(
 				debug_above(7, log(log_info, "instantiated nullary data ctor %s", tag->str().c_str()));
 			} else {
 				/* create and register an unchecked data ctor */
-				types::type_function_t::ref data_ctor_sig = type_function(nullptr, 
+				types::type_function_t::ref data_ctor_sig = type_function(
+						id->get_location(),
+					   	nullptr, 
 						ctor_pair.second,
 					   	ctor_return_type->rebind(
 							bottom_out_unreferenced_vars(ctor_pair.second->get_ftvs(), type_variables)));

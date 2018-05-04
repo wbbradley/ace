@@ -21,7 +21,7 @@ type Pattern is
 	Nothing
 
 def pattern_from_type(t DataType) Pattern
-	when t is
+	match t
 		DataType(typename, ctors)
 			let ctor_patterns [CtorPatternValue]
 			for ctor in ctors
@@ -35,7 +35,7 @@ type Pair T S is Pair(lhs T, rhs S)
 
 def set_union(lhs Pattern, rhs Pattern) Pattern
 	# ∪ Operator for Patterns
-	when Pair(lhs, rhs) is
+	match Pair(lhs, rhs)
 		Pair(_, Nothing)
 			return lhs
 		Pair(Nothing, _)
@@ -62,7 +62,7 @@ def set_union(lhs Pattern, rhs Pattern) Pattern
 
 def set_intersect(lhs Pattern, rhs Pattern) Pattern
 	# ∩ Operator for Patterns
-	when Pair(lhs, rhs) is
+	match Pair(lhs, rhs)
 		Pair(Nothing, _)
 			return Nothing
 		Pair(_, Nothing)
@@ -109,7 +109,7 @@ def set_intersect(lhs [CtorPatternValue], rhs [CtorPatternValue]) Pattern
 	return intersect
 
 def set_cpv_intersect(lhs Pattern, rhs CtorPatternValue) Pattern
-	when lhs is
+	match lhs
 		CtorPattern(cpv)
 			return set_intersect(cpv, rhs)
 		else
@@ -129,7 +129,7 @@ def set_intersect(lhs CtorPatternValue, rhs CtorPatternValue) Pattern
 
 	for i in range(len(lhs.args))
 		new_arg := set_intersect(lhs.args[i], rhs.args[i])
-		when new_arg is
+		match new_arg
 			Nothing
 				return Nothing
 			else
@@ -159,13 +159,13 @@ def str(ctor Ctor) str
 
 [global]
 def str(t DataType) str
-	when t is
+	match t
 		DataType(typename, ctors)
 			return typename
 
 [global]
 def str(pattern Pattern) str
-	when pattern is
+	match pattern
 		CtorPattern(ctor_pattern)
 			return "CtorPattern(" + ctor_pattern + ")"
 		CtorPatterns(ctor_patterns)
@@ -198,7 +198,7 @@ def set_difference(lhs CtorPatternValue, rhs CtorPatternValue, send Sender)
 	else
 		for i in range(len(lhs.args))
 			send_ctor_pattern := def (arg Pattern)
-				when arg is
+				match arg
 					Nothing
 						send(Nothing)
 					else
@@ -211,7 +211,7 @@ def set_difference(lhs CtorPatternValue, rhs CtorPatternValue, send Sender)
 	
 def set_difference(lhs Pattern, rhs Pattern, send Sender) void
 	# Set difference on patterns
-	when Pair(lhs, rhs) is
+	match Pair(lhs, rhs)
 		Pair(_, Nothing)
 			# Identity
 			send(lhs)

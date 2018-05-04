@@ -2,19 +2,14 @@ module _
 # test: pass
 # expect: pass
 
-type Relative has
-	var value float
-
-type Absolute has
-	var value float
-
 type Point is
-	Relative or Absolute
+	Relative(value float)
+	Absolute(value float)
 
 def main()
 	point := Relative(1.0)
-	when point
-		is Relative
+	match point
+		Relative(_)
 			print("pass")
-		is Absolute
+		Absolute(_)
 			print("what?")

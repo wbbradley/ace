@@ -173,6 +173,7 @@ or llvm tools, etc...
 - [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
 - [ ] Enable linking to variadic functions (like printf)
 - [ ] Fix linking issues (rt_float.o, etc...) when running zion from non-zion root dir)
+- [ ] Rename `typeid` function to `ctor_id` or something similar.
 - [x] Consider marking null-terminated strings differently for FFI purposes (ended up doing this as part of "safe-unboxing" for easier FFI.
 - [x] Implement slice array indexing rg[s:end], etc...
 - [x] Implement vector slicing for strings and arrays
