@@ -10,7 +10,7 @@ type Node is
 
 [global]
 def str(n Node) str
-	when n is
+	match n
 		Symbol(s, pos)
 			return "Symbol('" + s + "', " + pos + ")"
 		Sequence(nodes)
@@ -56,18 +56,19 @@ def parse_symbol(ps ParseState) Step?
 def __bitwise_or__(p1 Parser, p2 Parser) Parser
 	return def (ps ParseState) Step?
 		step := p1(ps)
-		if step != null
-			return step
-		else
-			return p2(ps)
+		match step
+			Just(_)
+				return step
+			else
+				return p2(ps)
 			
-def __plus__(p1 Parser, p2 Parser) Parser
+def __backslash__(p1 Parser, p2 Parser) Parser
 	return def (ps ParseState) Step?
 		step1 := p1(ps)
-		when step1 is
+		match step1
 			Just(Step(node1, ps1))
 				step2 := p2(ps1)
-				when step2 is
+				match step2
 					Just(Step(node2, ps2))
 						return Just(Step(Sequence([node1, node2]), ps2))
 					Empty
@@ -75,17 +76,17 @@ def __plus__(p1 Parser, p2 Parser) Parser
 			Empty
 				return Empty
 			
-def __plus__(s str, p2 Parser) Parser
-	return parse_token(s) + p2
+def __backslash__(s str, p2 Parser) Parser
+	return parse_token(s) \ p2
 			
-def __plus__(p1 Parser, s str) Parser
-	return p1 + parse_token(s)
+def __backslash__(p1 Parser, s str) Parser
+	return p1 \ parse_token(s)
 			
 def parse_kleene_star(parser Parser) Parser
 	return def (ps ParseState) Step?
 		let nodes [Node]
 		while ps.i < len(ps.s)
-			when parser(ps) is
+			match parser(ps)
 				Just(Step(node, next_ps))
 					append(nodes, node)
 					ps = next_ps
@@ -102,11 +103,14 @@ def main()
 	print(program)
 	ps := ParseState(program, 0)
 
-	parse_expr := (parse_token("*") | parse_token("+") | parse_token("-")) + parse_symbol + parse_symbol
-	parse_parens := "(" + str(parse_expr) + ")"
-	parser := "def" + parse_symbol + parse_kleene_star(parse_symbol) + "=" + parse_expr
+	parse_expr := (parse_token("*") | parse_token("+") | parse_token("-")) \ parse_symbol \ parse_symbol
+	parse_parens := "(" \ parse_expr \ ")"
+	parser := "def" \ parse_symbol \ parse_kleene_star(parse_symbol) \ "=" \ parse_expr
 
 	step := parser(ps)
-	if step != null
-		print(step.node)
-		print(step.ps.i)
+	match step
+		Empty
+			pass
+		Just(Step(node, ps))
+			print(node)
+			print(ps.i)

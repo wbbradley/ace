@@ -7,6 +7,24 @@ type Readline is
 	Error(errno int)
 	Line(line str)
 
+[global]
+def readline() Readline
+	var buf *?char
+	var linecap posix.int = 0
+
+	if posix.getline(&buf, &linecap, stdin) == -1 or buf == null
+		return EOF
+
+	var lim = posix.strlen(buf) - 1
+	while lim >= 0 and posix.isspace(buf[lim])
+		lim -= 1
+	length := lim + 1
+	buf[length] = 0
+
+	ret := str(OwningBuffer(buf, length), 0, length)
+	# runtime.gc()
+	return Line(ret)
+
 def readline(fp *posix.FILE) Readline
 	var linecap posix.int = 0
 	var line *?char = null
@@ -22,8 +40,9 @@ def readline(fp *posix.FILE) Readline
 			line[linelen - 1] = 0
 	return Line(str(OwningBuffer(line)))
 
+[global]
 def readline(f file.File) Readline
-	when f.state is
+	match f.state
 		Open(fp)
 			return readline(fp)
 		Closed
@@ -54,11 +73,11 @@ def __iter_end__(fl Lines any) null
 
 [global]
 def __iter_valid__(fl Lines any, _ null) bool
-	return fl.cur_line != null
+	return exists(fl.cur_line)
 
 [global]
 def __iter_item__(fl Lines any) str
-	when fl.cur_line is
+	match fl.cur_line
 		Just(line)
 			return line
 		Empty
@@ -66,7 +85,7 @@ def __iter_item__(fl Lines any) str
 
 [global]
 def __iterate__(fl Lines any)
-	when readline(fl.file) is
+	match readline(fl.file)
 		Line(line)
 			fl.cur_line = Just(line)
 		Error(errno)

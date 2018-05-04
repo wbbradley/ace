@@ -1,36 +1,32 @@
 module _
 
-tag Dog
-tag Cat
-tag Pig
-tag Alien
+type Animal is
+	Dog
+	Cat
+	Pig
+	Alien
 
 [global]
-def str(a Animal or Alien) str
-	when a
-		is Dog
+def str(a Animal) str
+	match a
+		Dog
 			return "Dog"
-		is Cat
+		Cat
 			return "Cat"
-		is Pig
+		Pig
 			return "Pig"
-		is Alien
+		Alien
 			return "Alien"
 
-type Animal is Dog or Cat or Pig
+type CatDog is
+	Cat
+	Dog
 
 def add_pig(animals [Animal])
 	append(animals, Pig)
 
 def main()
-	var cats_and_dogs [Cat or Dog]
+	var cats_and_dogs [CatDog]
+
+	# error: reference to an overloaded variable Cat was found
 	append(cats_and_dogs, Cat)
-	append(cats_and_dogs, Dog)
-	# error: unable to resolve overloads for add_pig
-	add_pig(cats_and_dogs)
-	for cat_or_dog in cats_and_dogs
-		print(cat_or_dog)
-	# Program runs and prints out
-	# Cat
-	# Dog
-	# Pig

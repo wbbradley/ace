@@ -44,7 +44,7 @@ def str(q Task) str
 			+ ", " + q.original_owner + ", " + str(q.state) + ")")
 
 def str(s TaskState) str
-	when s is
+	match s
 		Active(owner)
 			return "Active(" + owner + ")"
 		InternalReview

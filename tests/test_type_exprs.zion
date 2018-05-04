@@ -1,8 +1,8 @@
 module _
 # test: pass
-# expect: x : Float or test_type_exprs.F int
+# expect: x : test_type_exprs.X.*
 
-type X = F Int or Float
+type X is F(f int) Float(f float)
 
 def main()
 	let x X = F(3)

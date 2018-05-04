@@ -12,7 +12,7 @@ type Id has
 
 [global]
 def str(t Type) str
-	when t
+	match t
 		is Sum
 			return "Sum(" + join(", ", t.types) + ")"
 		is Apply
@@ -51,7 +51,7 @@ def encode(t Type) [uint16]
 	call := def (encoding [uint16], t Type)
 		append(encoding, atomize(t))
 		
-	when t
+	match t
 		is Sum
 			append(encoding, SUM_INST)
 			append(encoding, len(t.types))
@@ -207,7 +207,7 @@ def make_matcher(t Type, visited_matchers {uint16: Matcher}) Matcher
 	pair := make_opaque_matcher_ref()
 	visited_matchers[atom] = pair[0]
 
-	when t
+	match t
 		is Id
 			matcher := match_id(str(t), atom)
 			pair[1].proxy = matcher

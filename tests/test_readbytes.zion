@@ -5,6 +5,12 @@ module _
 get sys
 
 def main()
-	result := readbytes(open("tests/test_readbytes.zion", "rt"))
-	if result != null
-		print(decode(result, "utf8"))
+	match readbytes(open("tests/test_readbytes.zion", "rt"))
+		Just(result)
+			match decode(result, "utf8")
+				Just(line)
+					print(line)
+				else
+					pass
+		else
+			pass

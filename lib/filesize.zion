@@ -21,7 +21,7 @@ def size(fp *?posix.FILE) FileSize
 
 [global]
 def size(f file.File) FileSize
-	when f.state is
+	match f.state
 		Open(fp)
 			return size(fp)
 		Closed

@@ -1,7 +1,7 @@
 module _
 # test: pass
 # expect: hello
-# expect: 0
+# expect: 4
 
 type Ax G has
 	var t G
@@ -24,7 +24,7 @@ type C T is
 	Cx(t T)
 
 def handle_c(c C any T) any T
-	when c is
+	match c
 		Ax(x)
 			return x
 		Bx(x)

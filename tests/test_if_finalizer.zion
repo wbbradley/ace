@@ -7,7 +7,7 @@ def main()
 	filename := "tests/test_if_finalizer.zion"
 	f := file.open(filename, "r")
 	state := f.state
-	when state is
+	match state
 		Open(fp)
 			print("opened " + filename + " as fp " + str(fp as! int))
 		else

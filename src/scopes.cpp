@@ -565,6 +565,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 
 		/* let's create a user type for this closure */
 		types::type_function_t::ref data_ctor_type = type_function(
+				location,
 				nullptr, type_args(dimensions, dim_ids),
 				type_ptr(type_managed(type_struct(dimensions, name_index))));
 
@@ -609,6 +610,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		}
 
 		types::type_function_t::ref type_function_unbound = ::type_function(
+				location,
 				type_function->type_constraints,
 				::type_args(args, names),
 				type_function->return_type);
@@ -1034,6 +1036,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 				this_scope(),
 				INTERNAL_LOC(),
 				type_function(
+					INTERNAL_LOC(),
 					nullptr,
 					type_args({}),
 					type_id(make_iid("void"))),
@@ -1136,11 +1139,8 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 			std::string symbol,
 			unchecked_var_t::ref unchecked_variable)
 	{
-		debug_above(8, log("put_unchecked_variable %s %s",
-				unchecked_variable->str().c_str(),
-				unchecked_variable->get_type(shared_from_this())->str().c_str()));
-		assert(unchecked_variable->get_type(shared_from_this())->eval_predicate(tb_function, shared_from_this()) ?
-				unchecked_variable->id->get_location().str().find("cpp") == std::string::npos : true);
+		// assert(unchecked_variable->get_type(shared_from_this())->eval_predicate(tb_function, shared_from_this()) ?
+		// 		unchecked_variable->id->get_location().str().find("cpp") == std::string::npos : true);
 		debug_above(6, log(log_info,
 					"registering an unchecked variable " c_id("%s") " as %s",
 					symbol.c_str(),
@@ -1279,7 +1279,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 			types::type_t::ref return_type = args.back();
 
 			types::type_args_t::ref type_args = ::type_args(args, {});
-			types::type_function_t::ref type_function = ::type_function(nullptr, type_args, return_type);
+			types::type_function_t::ref type_function = ::type_function(location, nullptr, type_args, return_type);
 
 			auto bound_function_type = upsert_bound_type(builder, scope, type_function);
 			debug_above(8, log("bound function type for matcher is %s", bound_function_type->str().c_str()));

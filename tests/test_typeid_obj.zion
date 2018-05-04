@@ -1,7 +1,6 @@
 module _
 # test: pass
 
-tag Bar
 type Foo is Bar
 
 def main()

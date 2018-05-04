@@ -77,6 +77,7 @@ llvm::Value *coerce_value(
 		return llvm::ConstantInt::get(
 				bound_lhs_type->get_llvm_specific_type(), 1, false);
 	} else if (lhs_type->eval_predicate(tb_null, scope) || rhs_type->eval_predicate(tb_null, scope)) {
+#if 0
 		if (auto type_data = dyncast<const types::type_data_t>(lhs_type)) {
 			if (type_data->name.text == "Maybe") {
 				return scope->get_program_scope()->get_bound_variable(
@@ -86,6 +87,7 @@ llvm::Value *coerce_value(
 						nullptr)->get_llvm_value();
 			}
 		}
+#endif
 
 		return llvm::Constant::getNullValue(llvm_lhs_type);
 	}

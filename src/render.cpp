@@ -92,14 +92,12 @@ namespace ast {
 	}
 
 	void when_block_t::render(render_state_t &rs) const {
-		rs.ss << C_CONTROL << K(when) << C_RESET << " ";
+		rs.ss << C_CONTROL << K(match) << C_RESET;
 		value->render(rs);
-		rs.ss << " " << C_TYPE << K(is) << C_RESET;
-		/* BLOCK */ {
-			indented(rs);
-			for (auto pattern_block : pattern_blocks) {
-				pattern_block->render(rs);
-			}
+		newline(rs);
+		indented(rs);
+		for (auto pattern_block : pattern_blocks) {
+			pattern_block->render(rs);
 		}
 	}
 

@@ -335,7 +335,7 @@ def replace(s str, find_ str, repl str) str
 	var sofar str
 	while cur < len(s)
 		i := find(s, find_, cur)
-		when i is
+		match i
 			Just(i)
 				sofar += s[cur:i]
 				sofar += repl

@@ -2760,7 +2760,9 @@ bound_var_t::ref resolve_module_variable_reference(
 						*var_decl,
 						symbol);
 			} else {
-				assert(false);
+				throw user_error(location, "symbol " c_module("%s") "." c_id("%s") " is either ambiguous in this context or does not exist",
+						module_name.c_str(),
+						symbol.c_str());
 			}
 		}
 	}
@@ -3286,6 +3288,7 @@ void create_visit_module_vars_function(
 	bound_type_t::ref bound_callback_fn_type = upsert_bound_type(
 			builder, program_scope, 
 			type_function(
+				INTERNAL_LOC(),
 				nullptr,
 				type_args({type_maybe(type_ptr(type_id(make_iid(STD_MANAGED_TYPE))), {})}),
 				type_id(make_iid("void"))));
@@ -3295,7 +3298,9 @@ void create_visit_module_vars_function(
 			builder, 
 			program_scope,
 			INTERNAL_LOC(),
-			type_function(nullptr,
+			type_function(
+				INTERNAL_LOC(),
+				nullptr,
 				type_args({bound_callback_fn_type->get_type()}),
 				program_scope->get_bound_type(VOID_TYPE)->get_type()),
 			"__visit_module_vars");

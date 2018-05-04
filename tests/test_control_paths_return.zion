@@ -10,7 +10,7 @@ def fib(e Either int float) int
 	print(value)	
 	value = 11
 	print(runtime.__get_ctor_id(e as! *var_t))
-	when e is
+	match e
 		Left(i)
 			print(i)
 			value = i

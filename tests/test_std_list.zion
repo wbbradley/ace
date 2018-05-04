@@ -1,9 +1,15 @@
 module _
 # test: pass
-# expect: 2
+# expect: 3
+# reject: error
 
 get list
 
 def main()
-	l := list.List(3, list.List(2, null))
+	l := list.Cons(400, list.Cons(3, list.Cons(5001, list.Nil)))
 	print(len(l))
+	match list.nth(l, 2)
+		Just(x)
+			print(x)
+		else
+			print("error")

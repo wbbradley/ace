@@ -2,18 +2,16 @@ module _
 # test: pass
 # expect: 11
 
-type Plus has
-	let lhs Expr
-	let rhs Expr
-
-type Expr is Plus or int
+type Expr is
+	Plus(lhs Expr, rhs Expr)
+	Value(x int)
 
 def eval[T where T <: Expr](e T) int
-	when e
-		is Plus
-			return eval(e.lhs) + eval(e.rhs)
-		is int
+	match e
+		Plus(lhs, rhs)
+			return eval(lhs) + eval(rhs)
+		Value(e)
 			return e
 
 def main()
-	print(eval(Plus(2, Plus(4, 5))))
+	print(eval(Plus(Value(2), Plus(Value(4), Value(5)))))

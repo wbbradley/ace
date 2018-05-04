@@ -10,13 +10,13 @@ def main()
 	var m {str: int?}
 
 	m["hello"] = Just(12)
-	when get(m, "hello", Just(0)) is
+	match get(m, "hello", Just(0))
 		Just(x)
 			print(x)
 		Empty
 			print(0)
 	m["hello"] = Just(13)
-	when m["hello"] is
+	match m["hello"]
 		Just(Just(x))
 			print(x)
 		Just(Empty)

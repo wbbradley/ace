@@ -7,7 +7,7 @@ type Point T is
 
 def main()
 	var p = Cartesian(2.4, 1.0)
-	when p is
+	match p
 		Cartesian(x, y)
 			print(str(x) + ", " + y)
 		Radial(radius, theta)

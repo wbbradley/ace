@@ -26,7 +26,7 @@ def open(name str, mode str) File
 [global]
 def close(f File)
 	state := f.state
-	when state is
+	match state
 		Open(fp)
 			posix.fclose(fp)
 			f.state = Closed
@@ -37,7 +37,7 @@ def close(f File)
 
 [global]
 def __finalize__(of File)
-	when of.state is
+	match of.state
 		Open(fp)
 			posix.fclose(fp)
 		else
@@ -46,7 +46,7 @@ def __finalize__(of File)
 [global]
 def readbytes(f File) bytes?
 	let state = f.state
-	when state is
+	match state
 		Open(fp)
 			return readbytes(fp)
 		else
@@ -57,7 +57,7 @@ def readbytes(fp *?posix.FILE) bytes?
 		return Empty
 
 	let size = size(fp)
-	when size is
+	match size
 		Size(cb)
 			let pb = posix.malloc(cb) as! *?int8
 			assert(pb != null)
@@ -80,7 +80,7 @@ def write(fp *posix.FILE, s str)
 	
 [global]
 def write(f File, s str)
-	when f.state is
+	match f.state
 		Open(fp)
 			write(fp, s)
 		Closed

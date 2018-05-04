@@ -1,21 +1,16 @@
 module _
-
 # test: pass
-type Y has
-	var y int
 
-type TY is Y
+type TY is Y(y int)
 
-type foo T has
-	var t T
-
-type bar has
-	var y Y
-
-type baz X is
-	foo X or
-	bar
+type Baz X Y is
+	Foo(x X)
+	Bar(y Y)
 
 def main()
-	y := bar(Y(1))
-	print(y.y.y)
+	y := Bar(Y(1))
+	match y
+		Bar(Y(y))
+			print(y)
+		Foo(_)
+			pass

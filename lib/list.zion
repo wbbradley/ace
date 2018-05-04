@@ -1,29 +1,30 @@
 module list
 
-type List T has
-	var value T
-	var next (List T)?
+type List T is
+	Cons(t T, next List T)
+	Nil
 
-def nth[T](l (List T)?, index int) T?
-	if l
-		if index == 0
-			return l.value
-		else
-			return nth(l.next, index - 1)
-
-	return null
-
-[global]
-def len(l (List any)?) int
-	if l != null
-		return len(l.next) + 1
-	return 0
-
-def conj[T](maybe_list (List T)?, item T) List T
-	if maybe_list != null
-		return List(item, maybe_list)
-	return List(item, null)
+def nth[T](l List T, index int) T?
+	while index >= 0
+		match l
+			Cons(t, next)
+				if index == 0
+					return Just(t)
+				else
+					l = next
+					index -= 1
+			Nil
+				return Empty
+	return Empty
 
 [global]
-def str(l (List any)?) str
+def len(l List any) int
+	match l
+		Cons(_, next)
+			return len(next) + 1
+		Nil
+			return 0
+
+[global]
+def str(l List any) str
 	return "[...list...]"

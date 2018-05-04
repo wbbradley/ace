@@ -335,10 +335,12 @@ namespace types {
 	struct type_function_t : public type_t {
 		typedef ptr<const type_function_t> ref;
 		type_function_t(
+				location_t location,
 			   	types::type_t::ref type_constraints,
 				types::type_t::ref args,
 			   	type_t::ref return_type);
 
+		location_t location;
 		type_t::ref type_constraints;
 		type_t::ref args;
 		type_t::ref return_type;
@@ -500,7 +502,7 @@ types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::nam
 types::type_struct_t::ref type_struct(types::type_args_t::ref type_args);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_args_t::ref type_args(types::type_t::refs args, const identifier::refs &names={});
-types::type_function_t::ref type_function(types::type_t::ref type_constraints, types::type_t::ref args, types::type_t::ref return_type);
+types::type_function_t::ref type_function(location_t location, types::type_t::ref type_constraints, types::type_t::ref args, types::type_t::ref return_type);
 types::type_function_closure_t::ref type_function_closure(types::type_t::ref function);
 types::type_t::ref type_and(types::type_t::refs terms);
 types::type_t::ref type_eq(types::type_t::ref lhs, types::type_t::ref rhs, location_t location);
@@ -528,3 +530,4 @@ types::type_t::pair make_type_pair(std::string fst, std::string snd, identifier:
 bool get_type_variable_name(types::type_t::ref type, std::string &name);
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings);
 std::string get_name_from_index(const types::name_index_t &name_index, int i);
+bool is_valid_udt_initial_char(int ch);

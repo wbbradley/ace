@@ -1,13 +1,16 @@
 module _
 
 def get_maybe() int?
-	return 2
+	return Just(2)
 
 def main()
 	let x = get_maybe()
-	if x != null
-		print(x)
-		return
+	match x
+		Just(x)
+			print(x)
+			return
+		else
+			pass
 
-	# error: unable to resolve overloads for str\(null\)
+	# error: 36:16.* unable to resolve overloads for str
 	print(x)

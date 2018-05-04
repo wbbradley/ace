@@ -10,7 +10,7 @@ def main()
 	n1 := Node(6, Empty)
 	n2 := Node(4, Just(n1))
 	let next = n2.next
-	when next is
+	match next
 		Just(next)
 			print(next.value)
 		Empty

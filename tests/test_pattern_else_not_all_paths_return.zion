@@ -1,15 +1,13 @@
 module _
 
-tag A
-tag B
-tag C
+type D is A B C
 
-def poly(a A or B or C) int
+def poly(a D) int
 	# error: not all control paths return a value
-	when a
-		is A
+	match a
+		A
 			return 0
-		is B
+		B
 			pass
 		else
 			return 44

@@ -23,8 +23,8 @@ def main()
 	kids := [charlotte, mark]
 
 	for kid in kids
-		# error: 26:8.* not all patterns are covered
-		when kid is
+		# error: 27:9.* not all patterns are covered
+		match kid
 			Boy(name, Curly, Just(Dog))
 				print(name + " has curly hair and a dog")
 			Boy(name, Curly, Just(Cat))

@@ -2,19 +2,18 @@ module _
 # test: pass
 # expect: hooray 1.2
 
-type A T has
-	var t T
+type D T is
+	A(t T)
+	B
+	C
 
-tag B
-tag C
-
-def poly(a A any T or B or C) str
-	when a
-		is A any T
-			return "hooray " + a.t
-		is B
+def poly(a D any) str
+	match a
+		A(t)
+			return "hooray " + t
+		B
 			return "nope"
-		is C
+		C
 			return "sad panda"
 
 def main()

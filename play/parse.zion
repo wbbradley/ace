@@ -32,7 +32,7 @@ type Expr is
 	Literal
 
 def compute(expr Expr) int
-	when expr
+	match expr
 		is Literal
 			return expr.value
 		is Plus

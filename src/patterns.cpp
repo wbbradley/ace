@@ -175,7 +175,7 @@ void ast::when_block_t::resolve_statement(
 
 	if (!is_managed) {
 		throw user_error(value->get_location(),
-				"when statements only work with managed types. %s is a native type.",
+				"match statements only work with managed types. %s is a native type.",
 				pattern_value->type->str().c_str());
 	}
 	if (pattern_value->type->is_maybe(scope)) {

@@ -2,14 +2,7 @@ module _
 
 # test: pass
 
-type Local has
-	var number int
-
-type Intl has
-	var country_code int
-	var number int
-
-type PhoneNumber is Local or Intl
+type PhoneNumber is Local(num int) Intl(cc int, num int)
 
 def main()
 	number := Local(100)

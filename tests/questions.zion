@@ -55,7 +55,7 @@ def str(q QuestionTask) str
 			+ ", " + q.original_owner + ", " + str(q.state) + ")")
 
 def str(s QuestionState) str
-	when s
+	match s
 		is Active
 			return "Active(" + s.owner + ")"
 		is InternalReview

@@ -24,8 +24,10 @@ bound_var_t::ref bound_var_t::create(
 
 std::string bound_var_t::str() const {
 	std::stringstream ss;
-	ss << C_VAR << name << C_RESET;
-	ss << " : " << *type;
+	if (debug_level() >= 1) {
+		ss << C_VAR << name << C_RESET << " : ";
+	}
+	ss << *type;
 
 	assert(llvm_value != nullptr);
 
@@ -37,7 +39,7 @@ std::string bound_var_t::str() const {
 		ss << " : " << llir << C_RESET;
 		ss << " " << internal_location.str();
 	}
-    return ss.str();
+	return ss.str();
 }
 
 location_t bound_var_t::get_location() const {
@@ -56,8 +58,6 @@ llvm::Value *bound_var_t::get_llvm_value() const {
 llvm::Value *bound_var_t::resolve_bound_var_value(scope_t::ref scope, llvm::IRBuilder<> &builder) const {
 	if (type->get_type()->eval_predicate(tb_ref, scope)) {
 		return builder.CreateLoad(llvm_value);
-	} else {
-		assert(!llvm::dyn_cast<llvm::GlobalVariable>(llvm_value));
 	}
 
 	return llvm_value;

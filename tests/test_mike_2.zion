@@ -9,7 +9,7 @@ type Expr T is
 	Value(x T)
 
 def eval(expr Expr any T) any T
-	when expr is
+	match expr
 		Plus(lhs, rhs)
 			return eval(lhs) + eval(rhs)
 		Times(lhs, rhs)

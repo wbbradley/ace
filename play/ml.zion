@@ -10,7 +10,7 @@ type Node is
 
 [global]
 def str(n Node) str
-	when n is
+	match n
 		Symbol(s, pos)
 			return "Symbol('" + s + "', " + pos + ")"
 		Sequence(nodes)
