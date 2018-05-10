@@ -78,29 +78,28 @@ std::string compiler_t::get_executable_filename() const {
 	return program_name + ".zx";
 }
 
-void compiler_t::resolve_module_filename(
+std::string compiler_t::resolve_module_filename(
 		location_t location,
 		std::string name,
-		std::string &resolved)
+		std::string extension)
 {
 	std::string filename_test_resolution;
 	if (real_path(name, filename_test_resolution)) {
 		if (name == filename_test_resolution) {
-			if (!ends_with(filename_test_resolution, ".zion")) {
-				filename_test_resolution = filename_test_resolution + ".zion";
+			if (!ends_with(filename_test_resolution, extension)) {
+				filename_test_resolution = filename_test_resolution + extension;
 			}
 
 			if (file_exists(filename_test_resolution)) {
 				/* short circuit if we're given a real path */
-				resolved = filename_test_resolution;
-				return;
+				return filename_test_resolution;
 			} else {
 				panic(string_format("filename %s does not exist", name.c_str()));
 			}
 		}
 	}
 
-	std::string leaf_name = name + ".zion";
+	std::string leaf_name = name + extension;
 	std::string working_resolution;
 	for (auto zion_path : *zion_paths) {
 		auto test_path = zion_path + "/" + leaf_name;
@@ -135,12 +134,12 @@ void compiler_t::resolve_module_filename(
 	if (working_resolution.size() != 0) {
 		/* cool, we found one and only one module with the requested name in
 		 * the source paths */
-		resolved = working_resolution;
-		return;
+		return working_resolution;
 	} else {
 		throw user_error(location, "module not found: " c_error("`%s`") " (Note that module names should not have .zion extensions.) Looked in ZION_PATH=[%s]",
 				name.c_str(),
 				join(*zion_paths, ":").c_str());
+		return "";
 	}
 }
 
@@ -160,8 +159,7 @@ ast::module_t::ref compiler_t::build_parse(
 		std::string module_name,
 		type_macros_t &global_type_macros)
 {
-	std::string module_filename;
-	resolve_module_filename(location, module_name, module_filename);
+	std::string module_filename = resolve_module_filename(location, module_name, ".zion");
 
 	// TODO: include some notion of versions
 	assert(module_filename.size() != 0);
@@ -435,6 +433,9 @@ void compiler_t::emit_built_program(std::string executable_filename) {
 	std::stringstream ss;
 	ss << clang_bin;
 
+	if (getenv("ZIONOS") != nullptr) {
+		ss << " --target=" << getenv("ZIONOS");
+	}
 	if (getenv("ZION_LINK") != nullptr) {
 		ss << " " << getenv("ZION_LINK");
 	}
@@ -448,7 +449,13 @@ void compiler_t::emit_built_program(std::string executable_filename) {
 	}
 	for (auto link_in : link_ins) {
 		auto text = unescape_json_quotes(link_in.text);
-		if (ends_with(text, ".o") || ends_with(text, ".a") || starts_with(text, "-")) {
+		if (ends_with(text, ".o") || ends_with(text, ".a")) {
+			std::string resolved = resolve_module_filename(
+					link_in.location,
+					text,
+				   	"" /* extension */);
+			ss << " " << resolved;
+		} else if (starts_with(text, "-")) {
 			ss << " " << text;
 		} else {
 			/* shorthand for linking */
@@ -596,7 +603,12 @@ std::unique_ptr<llvm::MemoryBuffer> codegen(llvm::Module &module) {
 void emit_object_file_from_module(llvm::Module *llvm_module, std::string Filename) {
 	debug_above(2, log("Creating %s...", Filename.c_str()));
 	using namespace llvm;
-	auto TargetTriple = llvm::sys::getProcessTriple();
+	std::string TargetTriple = llvm::sys::getProcessTriple();
+
+	if (getenv("ZIONOS") != nullptr) {
+		TargetTriple = getenv("ZIONOS");
+	}
+
 	llvm_module->setTargetTriple(TargetTriple);
 
 	// Create the llvm_target
@@ -733,8 +745,7 @@ ptr<const ast::module_t> compiler_t::get_module(std::string key_alias) {
 		debug_above(4, log(log_info, "could not find valid module for " c_module("%s"),
 					key_alias.c_str()));
 
-		std::string module_filename;
-		resolve_module_filename(INTERNAL_LOC(), key_alias, module_filename);
+		std::string module_filename = resolve_module_filename(INTERNAL_LOC(), key_alias, ".zion");
 
 		auto module_iter = modules_map.find(module_filename);
 		if (module_iter != modules_map.end()) {

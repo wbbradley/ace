@@ -22,6 +22,9 @@ type str has
 def str(x str) str
 	return x
 
+def str[A, B](p (A, B)) str
+	return "(" + p[0] + ", " + p[1] + ")"
+
 def __getitem__(s str, i uint) char
 	return s.buffer[s.start + i]
 

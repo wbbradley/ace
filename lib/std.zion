@@ -14,6 +14,7 @@ get map
 get math
 get file
 get crypto
+get functional
 
 link in "rt_typeid.o"
 

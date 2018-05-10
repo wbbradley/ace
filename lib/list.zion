@@ -28,3 +28,17 @@ def len(l List any) int
 [global]
 def str(l List any) str
 	return "[...list...]"
+
+[global]
+def bind[A, B](ma [A], f def (a A) [B]) [B]
+	# (>>=) :: m a -> (a -> m b) -> m b
+	let mb [B]
+	for a in ma
+		mb_new := f(a)
+		for b in mb_new
+			append(mb, b)
+	return mb
+		
+[global]
+def fail[A](reason str) [A]
+	return []

@@ -120,11 +120,7 @@ int main(int argc, char *argv[]) {
 			compiler.llvm_load_ir(argv[2]);
 			return EXIT_SUCCESS;
 		} else if (cmd == "find") {
-			std::string filename;
-			compiler.resolve_module_filename(INTERNAL_LOC(),
-					argv[2], filename);
-
-			std::cout << filename << std::endl;
+			std::cout << compiler.resolve_module_filename(INTERNAL_LOC(), argv[2], "") << std::endl;
 			return EXIT_SUCCESS;
 		} else if (cmd == "compile") {
 			if (compiler.build_parse_modules()) {

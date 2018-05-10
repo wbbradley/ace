@@ -143,8 +143,9 @@ bound_var_t::ref instantiate_unchecked_fn(
 					std::throw_with_nested(user_error(
 								log_info,
 								unchecked_fn->get_location(),
-								"while instantiating function %s",
-								unchecked_fn->str().c_str()));
+								"while instantiating function %s with type variable bindings %s",
+								unchecked_fn->str().c_str(),
+								::str(subst_scope->get_type_variable_bindings()).c_str()));
 				}
 			} else {
 				panic("the arguments are not actually type_args_t");

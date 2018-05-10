@@ -18,7 +18,7 @@ struct compiler_t {
 	compiler_t(std::string program_name, const libs &zion_paths);
 	~compiler_t();
 
-	void resolve_module_filename(location_t location, std::string name, std::string &resolved);
+	std::string resolve_module_filename(location_t location, std::string name, std::string extension);
 	void info(const char *format, ...);
 
 	module_scope_t::ref get_module_scope(std::string module_key);
