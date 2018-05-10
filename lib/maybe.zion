@@ -53,3 +53,32 @@ def __ineq__[U, V where U === V](lhs Maybe U, rhs V) bool
 			return lhs_value != rhs
 		Empty
 			return true
+
+def join[A](a Maybe (Maybe A)) Maybe A
+	match a
+		Just(a)
+			return a
+		Empty
+			return Empty
+
+def bind[A, B](a Maybe A, f def (a A) Maybe B) Maybe B
+	match a
+		Empty
+			return Empty
+		Just(a)
+			return f(a)
+	
+def fmap[A, B where not (B === void)](f def (a A) B, a Maybe A) Maybe B
+	match a
+		Empty
+			return Empty
+		Just(x)
+			return Just(f(x))
+
+def fmap[A](f def (a A) void, a Maybe A) void
+	match a
+		Empty
+			return
+		Just(x)
+			f(x)
+			return

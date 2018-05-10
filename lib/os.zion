@@ -17,11 +17,11 @@ def shell(cmd str) [str]
 	return shell(cmd, Empty)
 
 def shell(cmd_parts [str]) [str]
-	return shell(cmd_parts, Empty)
+	return shell(cmd_parts)
 
-def shell(cmd_parts [str], pipe_text str?) [str]
+def shell(cmd_parts [str], pipe_text str) [str]
 	cmd := join(" ", cmd_parts)
-	return shell(join(" ", cmd_parts), pipe_text)
+	return shell(join(" ", cmd_parts), Just(pipe_text))
 
 def shell(cmd str, pipe_text str?) [str]
 	# print("Running " + cmd)

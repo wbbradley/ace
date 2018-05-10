@@ -528,9 +528,11 @@ void destructure_function_decl(
 		types::type_function_t::ref &function_type)
 {
 	/* returns the parameters and the return value types fully resolved */
-	debug_above(4, log(log_info, "type checking function decl %s with type %s",
+	debug_above(4, log(log_info, "type checking function decl %s with type %s in scope %s with type variables %s",
 				obj.token.str().c_str(),
-				obj.function_type->str().c_str()));
+				obj.function_type->str().c_str(),
+				scope->get_name().c_str(),
+				::str(scope->get_type_variable_bindings()).c_str()));
 
 	assert_implies(as_closure, dyncast<closure_scope_t>(scope) != nullptr);
 
@@ -736,12 +738,14 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 		scope_t::ref scope,
 		life_t::ref life,
 		const ptr<const ast::item_t> &callsite,
-		const bound_type_t::refs &args) const
+		const bound_type_t::refs &args,
+		types::type_t::ref return_type) const
 {
 	INDENT(5, string_format(
-				"dot_expr_t::resolve_overrides for %s with %s",
+				"dot_expr_t::resolve_overrides for %s with %s -> %s",
 				callsite->str().c_str(),
-				::str(args).c_str()));
+				::str(args).c_str(),
+				return_type != nullptr ? return_type->str().c_str() : c_type("any")));
 
 	/* check the left-hand side first, it should be a type_namespace */
 	bound_var_t::ref lhs_var = lhs->resolve_expression(
@@ -847,6 +851,17 @@ void ast::callsite_expr_t::resolve_statement(
 		if (symbol->token.text == "static_print") {
 			if (params.size() == 1) {
 				auto param = params[0];
+				if (auto ref_expr = dyncast<const ast::reference_expr_t>(param)) {
+					if (ref_expr->token.text == "return") {
+						/* print the return type of the current function */
+						auto runnable_scope = dyncast<runnable_scope_t>(scope);
+						assert(runnable_scope != nullptr);
+						log_location(log_info, param->get_location(),
+								"return type : %s",
+								runnable_scope->get_return_type_constraint()->str().c_str());
+						return;
+					}
+				}
 				bound_var_t::ref param_var = param->resolve_expression(builder, scope, life, true /*as_ref*/, nullptr);
 				log_location(log_info, param->get_location(),
 						"%s : %s%s",
@@ -898,6 +913,9 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 
 		assert(!param_var->get_type()->eval_predicate(tb_ref, scope));
 
+		if (param_var->type->is_void(scope)) {
+			throw user_error(param->get_location(), "function parameters cannot be void");
+		}
 		arguments.push_back(param_var);
 		param_types.push_back(param_var->type);
 	}
@@ -910,7 +928,8 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 					function_expr->str().c_str()));
 		bound_var_t::ref function = can_reference_overloads->resolve_overrides(
 				builder, scope, life, shared_from_this(),
-				bound_type_t::refs_from_vars(arguments));
+				bound_type_t::refs_from_vars(arguments),
+				expected_type);
 
 		debug_above(5, log(log_info, "function chosen is %s", function->str().c_str()));
 
@@ -1740,7 +1759,8 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 	}
 
 	if (items.size() == 0 && element_type == nullptr) {
-		throw user_error(get_location(), "not enough information to infer the element type for the vector literal");
+		throw user_error(get_location(), "not enough information to infer the element type for the vector literal (expected type is %s)",
+				expected_type != nullptr ? expected_type->str().c_str() : "<unknown>");
 	}
 
 	debug_above(6, log("creating vector literal of type %s", element_type->str().c_str()));
@@ -2275,7 +2295,7 @@ bound_var_t::ref ast::binary_operator_t::resolve_condition(
 	if (token.is_ident(K(is))) {
 		return type_check_binary_equality(builder, scope, life, lhs, rhs,
 				shared_from_this(), function_name, scope_if_true, scope_if_false,
-				type_id(make_iid("bool_t")));
+				type_id(make_iid(BOOL_TYPE)));
 	}
 
 	return type_check_binary_operator(builder, scope, life, lhs, rhs,
@@ -3029,8 +3049,10 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 	 * 2. bind the function name to the generated code within the given scope.
 	 * */
 	INDENT(2, string_format(
-				"type checking %s in %s", token.str().c_str(),
-				scope->get_name().c_str()));
+				"type checking %s in %s with type variable bindings %s",
+			   	token.str().c_str(),
+				scope->get_name().c_str(),
+				::str(scope->get_type_variable_bindings()).c_str()));
 
 	assert_implies(as_closure, dyncast<closure_scope_t>(scope) != nullptr);
 
@@ -3881,7 +3903,7 @@ bound_var_t::ref ast::expression_t::resolve_condition(
 		runnable_scope_t::ref *) const
 {
 	return resolve_expression(builder, block_scope, life, false /*as_ref*/,
-		   	type_id(make_iid("bool_t")));
+		   	type_id(make_iid(BOOL_TYPE)));
 }
 
 void ast::while_block_t::resolve_statement(
@@ -4325,15 +4347,17 @@ bound_var_t::ref ast::reference_expr_t::resolve_overrides(
 		scope_t::ref scope,
 		life_t::ref life,
 		const ptr<const ast::item_t> &callsite,
-		const bound_type_t::refs &args) const
+		const bound_type_t::refs &args,
+		types::type_t::ref expected_type) const
 {
 	/* ok, we know we've got some variable here */
 	try {
-		return get_callable(builder, scope, token.text, get_location(), get_args_type(args), nullptr);
+		return get_callable(builder, scope, token.text, get_location(), get_args_type(args), expected_type);
 	} catch (user_error &e) {
-		std::throw_with_nested(user_error(log_info, callsite->get_location(), "while checking %s with %s",
+		std::throw_with_nested(user_error(log_info, callsite->get_location(), "while checking %s with %s -> %s",
 					callsite->str().c_str(),
-					::str(args).c_str()));
+					::str(args).c_str(),
+					expected_type != nullptr ? expected_type->str().c_str() : c_type("any")));
 	}
 
 	return nullptr;

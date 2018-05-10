@@ -163,8 +163,8 @@ struct scope_impl_t : public virtual BASE {
 	void put_type_variable_binding(const std::string &name, types::type_t::ref type) {
 		auto iter = type_variable_bindings.find(name);
 		if (iter == type_variable_bindings.end()) {
-			debug_above(2, log(log_info, "binding type variable " c_type("%s") " as %s",
-						name.c_str(), type->str().c_str()));
+			debug_above(2, log(log_info, "binding type variable " c_type("%s") " as %s in scope %s",
+						name.c_str(), type->str().c_str(), get_name().c_str()));
 			type_variable_bindings[name] = type;
 		} else {
 			debug_above(8, log(log_info, "type variable " c_type("%s") " has already been bound as %s",
@@ -375,6 +375,15 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 
 	void dump(std::ostream &os) const override {
 		assert(false);
+	}
+
+	types::type_t::map get_type_variable_bindings() const override {
+		auto parent_scope = running_scope;
+		if (parent_scope != nullptr) {
+			return merge(parent_scope->get_type_variable_bindings(), type_variable_bindings);
+		} else {
+			return type_variable_bindings;
+		}
 	}
 
 	ptr<function_scope_t> new_function_scope(std::string name) override {

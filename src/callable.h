@@ -18,7 +18,8 @@ struct can_reference_overloads_t {
 			scope_t::ref scope,
 			life_t::ref,
 			const ptr<const ast::item_t> &obj,
-			const bound_type_t::refs &args) const = 0;
+			const bound_type_t::refs &args,
+			types::type_t::ref return_type) const = 0;
 };
 
 bound_var_t::ref make_call_value(

@@ -3,6 +3,7 @@ module _
 # expect: Symbol
 
 get sys
+get list
 
 type Node is
 	Symbol(s str, pos uint)
@@ -98,6 +99,13 @@ def parse_kleene_star(parser Parser) Parser
 def str[Args, R](fn def (..Args) R) str
 	return "<closure>"
 
+def print_node(s Step) int
+	match s
+		Step(node, ps)
+			print(node)
+			print(ps.i)
+	return 0
+
 def main()
 	program := "def f x = * x x"
 	print(program)
@@ -107,10 +115,36 @@ def main()
 	parse_parens := "(" \ parse_expr \ ")"
 	parser := "def" \ parse_symbol \ parse_kleene_star(parse_symbol) \ "=" \ parse_expr
 
-	step := parser(ps)
-	match step
-		Empty
-			pass
-		Just(Step(node, ps))
-			print(node)
-			print(ps.i)
+	fmap(print_node, parser(ps))
+
+	mj := def (s int) Maybe int
+		return Just(s)
+
+	ret := compose(mj, print_node)
+
+	bind(parser(ps), ret)
+
+	# The following Haskell list comprehension (from https://www.haskell.org/tutorial/monads.html)
+	# [(x,y) | x <- [1,2,3] , y <- [1,2,3], x /= y]
+	# would look like this desugared in Zion...
+	f1 := def (x int) [(int, int)]
+		f2 := def (y int) [(int, int)]
+			f3 := def (r bool) [(int,int)]
+				if r
+					return [(x, y)]
+				else
+					return fail("")
+					
+			return bind([x != y], f3)
+		return bind([1, 2, 3], f2)
+
+	print(bind([1, 2, 3], f1))
+
+	# [1,2,3] >>=
+	#  (\ x -> [1,2,3] >>=
+	#   (\y -> return (x/=y) >>=
+	#    (\r -> case r of True -> return (x,y)
+	#                     _    -> fail "")))
+
+
+

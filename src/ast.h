@@ -890,7 +890,8 @@ namespace ast {
 				scope_t::ref scope,
 				life_t::ref,
 				const ptr<const ast::item_t> &obj,
-				const bound_type_t::refs &args) const;
+				const bound_type_t::refs &args,
+				types::type_t::ref return_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression_t> lhs;
@@ -1068,7 +1069,8 @@ namespace ast {
 				scope_t::ref scope,
 				life_t::ref,
 				const ptr<const ast::item_t> &obj,
-				const bound_type_t::refs &args) const;
+				const bound_type_t::refs &args,
+				types::type_t::ref return_type) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref block_scope,
