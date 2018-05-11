@@ -10,11 +10,11 @@ link def threadsafe() posix.int to sqlite3_threadsafe
 link def close(db *Sqlite3) posix.int to sqlite3_close
 link def close_v2(db *Sqlite3) posix.int to sqlite3_close_v2
 link def sqlite3_exec(
-	db *Sqlite3,        /* An open database */
-	sql *char,          /* SQL to be evaluated */
-	callback callback_t?, /* callback_t function */
-	arg *?void,         /* 1st argument to callback */
-	errmsg **?char      /* Error msg written here */
+    db *Sqlite3,        /* An open database */
+    sql *char,          /* SQL to be evaluated */
+    callback callback_t?, /* callback_t function */
+    arg *?void,         /* 1st argument to callback */
+    errmsg **?char      /* Error msg written here */
 ) posix.int
 link def initialize() posix.int to sqlite3_initialize
 link def shutdown() posix.int to sqlite3_shutdown
@@ -30,27 +30,27 @@ link def complete16(sql *uint16) posix.int to sqlite3_complete16
 link def busy_handler(db *Sqlite3, callback def _(_ *void, _  posix.int) posix.int, _ *void) posix.int to sqlite3_busy_handler
 link def busy_timeout(db *Sqlite3, ms posix.int) posix.int to sqlite3_busy_timeout
 link def get_table(
-	db *Sqlite3,          /* An open database */
-	zSql *char,           /* SQL to be evaluated */
-	pazResult *?*?*?char, /* Results of the query */
-	pnRow *posix.int,     /* Number of result rows written here */
-	pnColumn *posix.int,  /* Number of result columns written here */
-	pzErrmsg **?char      /* Error msg written here */
+    db *Sqlite3,          /* An open database */
+    zSql *char,           /* SQL to be evaluated */
+    pazResult *?*?*?char, /* Results of the query */
+    pnRow *posix.int,     /* Number of result rows written here */
+    pnColumn *posix.int,  /* Number of result columns written here */
+    pzErrmsg **?char      /* Error msg written here */
 ) posix.int to sqlite3_get_table
 link def free_table(result char **) void to sqlite3_free_table
 link def open(
-	filename *char,   /* Database filename (UTF-8) */
-	ppDb **?Sqlite3    /* OUT: SQLite db handle */
+    filename *char,   /* Database filename (UTF-8) */
+    ppDb **?Sqlite3    /* OUT: SQLite db handle */
 ) posix.int to sqlite3_open
 link def open16(
-	filename *uint16, /* Database filename (UTF-16) */
-	ppDb **?Sqlite3  /* OUT: SQLite db handle */
+    filename *uint16, /* Database filename (UTF-16) */
+    ppDb **?Sqlite3  /* OUT: SQLite db handle */
 ) posix.int to sqlite3_open16
 link def open_v2(
-	filename   *char,       /* Database filename (UTF-8) */
-	ppDb     **?Sqlite3,    /* OUT: SQLite db handle */
-	flags       posix.int,  /* Flags */
-	zVfs      *?char        /* Name of VFS module to use */
+    filename   *char,       /* Database filename (UTF-8) */
+    ppDb     **?Sqlite3,    /* OUT: SQLite db handle */
+    flags       posix.int,  /* Flags */
+    zVfs      *?char        /* Name of VFS module to use */
 ) posix.int to sqlite3_open_v2
 
 link def uri_parameter(zFilename *char, zParam *char) *char to sqlite3_uri_parameter
@@ -68,17 +68,17 @@ type callback_t = def _(_ *void, _ int, _ *?*?char, _ *?*?char) posix.int
 type Callback = def (argc int, argv *?*?char, column_name *?*?char) int
 
 def zion_exec_callback(context *void, a int, b *?*?char, c *?*?char) posix.int
-	callback := context as Callback
-	return callback(a, b, c)
+    callback := context as Callback
+    return callback(a, b, c)
 
 def exec(db *Sqlite3, sql str, callback Callback?) posix.int
-	var errmsg *char = ""
-	return sqlite3_exec(
-		db,
-		sql,
-		zion_exec_callback,
-		callback != null ? callback as *void : null,
-		&errmsg)
+    var errmsg *char = ""
+    return sqlite3_exec(
+        db,
+        sql,
+        zion_exec_callback,
+        callback != null ? callback as *void : null,
+        &errmsg)
 
 var OK posix.int = 0   /* Successful result */
 # beginning-of-error-codes

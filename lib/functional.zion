@@ -1,13 +1,13 @@
 global
 
 def compose[A, B, C](f def (b B) C, g def (a A) B) def (a A) C {
-	return def (a A) C {
-		return f(g(a))
+    return def (a A) C {
+        return f(g(a))
     }
 }
 
 def kleisli_arrow[A, B, C, M](f def (a A) M B, g def (b B) M C) def (a A) M C {
-	return def (a A) M C {
-		return fmap(g, f(a))
+    return def (a A) M C {
+        return fmap(g, f(a))
     }
 }

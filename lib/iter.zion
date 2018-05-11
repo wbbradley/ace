@@ -2,8 +2,8 @@ module iter
 
 
 type Step{T, IterState} has
-	var item T
-	var next_state IterState
+    var item T
+    var next_state IterState
 
 # for X in Y
 #   maybe_step := next(iter(Y))

@@ -7,17 +7,17 @@ link def __set_locale__() void
 
 [global]
 def __main__(argc int32, argv **char) int32 {
-	# This is the actual default entry point to every program.
-	__set_locale__()
-	crypto.init()
+    # This is the actual default entry point to every program.
+    __set_locale__()
+    crypto.init()
 
-	# runtime.report("__main__ start")
-	# Allocate global space for each module's top-level variables, and
-	# initialize them. NB: Order of initialization is currently undefined.
-	__init_module_vars()
-	# runtime.report("__main__ after __init_module_vars")
+    # runtime.report("__main__ start")
+    # Allocate global space for each module's top-level variables, and
+    # initialize them. NB: Order of initialization is currently undefined.
+    __init_module_vars()
+    # runtime.report("__main__ after __init_module_vars")
 
-	sys.set_args(argc, argv)
-	main()
-	return 0
+    sys.set_args(argc, argv)
+    main()
+    return 0
 }
