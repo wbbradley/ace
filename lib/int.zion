@@ -12,14 +12,17 @@ link def __minus__(x int, y float) float to __int_minus_float
 link def __times__(x int, y float) float to __int_times_float
 link def __divide__(x int, y float) float to __int_divide_float
 
-def int(s int) int
+def int(s int) int {
 	return s
+}
 
-def int(s str) int
+def int(s str) int {
 	var total int = 0
 	var delim int = 1
-	for ch in s
+	for ch in s {
 		total *= delim
 		total = total + (ch as int) - 3 * 16
 		delim = 10
+    }
 	return total
+}

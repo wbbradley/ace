@@ -6,7 +6,7 @@ get posix
 link def __set_locale__() void
 
 [global]
-def __main__(argc int32, argv **char) int32
+def __main__(argc int32, argv **char) int32 {
 	# This is the actual default entry point to every program.
 	__set_locale__()
 	crypto.init()
@@ -19,4 +19,5 @@ def __main__(argc int32, argv **char) int32
 
 	sys.set_args(argc, argv)
 	main()
-	return 0 as int32
+	return 0
+}

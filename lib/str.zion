@@ -14,159 +14,197 @@ link def __str__(x float) *char to __str_float
 link def __str__(x *char) *char to __str_str
 link def concat(x *char, y *char) *char to __mbs_concat
 
-type str has
+type str has {
 	let buffer OwningBuffer char
 	let start uint
 	let length uint
+}
 
-def str(x str) str
+def str(x str) str {
 	return x
+}
 
-def str[A, B](p (A, B)) str
+def str[A, B](p (A, B)) str {
 	return "(" + p[0] + ", " + p[1] + ")"
+}
 
-def __getitem__(s str, i uint) char
+def __getitem__(s str, i uint) char {
 	return s.buffer[s.start + i]
+}
 
-def __init__() str
+def __init__() str {
 	return ""
+}
 
-def unsafe_access(u str) *char
+def unsafe_access(u str) *char {
 	return &u.buffer.raw[u.start]
+}
 
-def str(buffer OwningBuffer char) str
+def str(buffer OwningBuffer char) str {
 	return str(buffer, 0, buffer.length)
+}
 
-def str(x int) str
+def str(x int) str {
 	return str(OwningBuffer(__str__(x)))
+}
 
-def str(x float) str
+def str(x float) str {
 	return str(OwningBuffer(__str__(x)))
+}
 
-def len(u str) uint
+def len(u str) uint {
 	return u.length
+}
 
-def str(b *int8, length size_t, encoding str) str
+def str(b *int8, length size_t, encoding str) str {
 	assert(encoding == "str")
 	dest_len := length + 1
 	dest := posix.calloc(1, dest_len)!
 	posix.memcpy(dest, b, length)
 	return str(OwningBuffer(dest as! *char))
+}
 
-def __eq__(x str, y str) bool
+def __eq__(x str, y str) bool {
 	# See above about coercions
-	if x.length != y.length
+	if x.length != y.length {
 		return false
+    }
 	return posix.strncmp(unsafe_access(x), unsafe_access(y), x.length) == 0
+}
 
-def __ineq__(x str, y str) bool
-	if x.length != y.length
+def __ineq__(x str, y str) bool {
+	if x.length != y.length {
 		return true
+    }
 	return posix.strncmp(unsafe_access(x), unsafe_access(y), x.length) != 0
+}
 
-def __gt__(x str, y str) bool
+def __gt__(x str, y str) bool {
 	length := min(x.length, y.length)
 	ret := posix.strncmp(unsafe_access(x), unsafe_access(y), length)
 
-	if ret < 0
+	if ret < 0 {
 		return false
-	elif ret > 0
+    } elif ret > 0 {
 		return true
-	else
+    } else {
 		return x.length > y.length
+    } 
+}
 
-def __gte__(x str, y str) bool
+def __gte__(x str, y str) bool {
 	length := min(x.length, y.length)
 	ret := posix.strncmp(unsafe_access(x), unsafe_access(y), length)
 
-	if ret < 0
+	if ret < 0 {
 		return false
-	elif ret > 0
+    } elif ret > 0 {
 		return true
-	else
+    } else {
 		return x.length >= y.length
+    } 
+}
 
-def __lt__(x str, y str) bool
+def __lt__(x str, y str) bool {
 	length := min(x.length, y.length)
 	ret := posix.strncmp(unsafe_access(x), unsafe_access(y), length)
 
-	if ret < 0
+	if ret < 0 {
 		return true
-	elif ret > 0
+    } elif ret > 0 {
 		return false
-	else
+    } else {
 		return x.length < y.length
+    }
+}
 
-def __lte__(x str, y str) bool
+def __lte__(x str, y str) bool {
 	length := min(x.length, y.length)
 	ret := posix.strncmp(unsafe_access(x), unsafe_access(y), length)
 
-	if ret < 0
+	if ret < 0 {
 		return true
-	elif ret > 0
+    } elif ret > 0 {
 		return false
-	else
+    } else {
 		return x.length <= y.length
+    } 
+}
 
-def __getslice__(s str, start uint, lim uint) str
+def __getslice__(s str, start uint, lim uint) str {
 	var length = lim - start
 	s_len := len(s)
 
-	if start >= s_len
+	if start >= s_len {
 		return ""
-	if start + length > s_len
+    }
+	if start + length > s_len {
 		length = s_len - start
+    }
 
-	if start != 0 or length < s_len
+	if start != 0 or length < s_len {
 		return str(s.buffer, s.start + start, length)
-	else
+    } else {
 		return s
+    }
+}
 
-
-def c_str(u str) OwningBuffer char
+def c_str(u str) OwningBuffer char {
 	# ensures a null-terminated string 
-	if u.start != 0 or u.length != u.buffer.length
+	if u.start != 0 or u.length != u.buffer.length {
 		let pch = posix.malloc(sizeof(char) * (u.length + 1))! as! *char
 		posix.memcpy(pch, unsafe_access(u), sizeof(char) * u.length)
 		pch[u.length] = 0 as char
 		return OwningBuffer(pch, u.length)
-	else
+    } else {
 		return u.buffer
+    }
+}
 
-def __plus__(x str, y str) str
+def __plus__(x str, y str) str {
 	return concat(unsafe_access(x), x.length, unsafe_access(y), y.length)
+}
 
-def __plus__[T where not (str === T)](x str, y T) str
+def __plus__[T where not (str === T)](x str, y T) str {
 	let y_str = str(y)
-	if x.length == 0
+	if x.length == 0 {
 		return y_str
+    }
 
-	if y_str.length == 0
+	if y_str.length == 0 {
 		return x
+    }
 
 	let result = concat(unsafe_access(x), x.length, unsafe_access(y_str), y_str.length)
 	return result
+}
 
-type StrIter has
+type StrIter has {
 	let s str
 	var pos int
+}
 
-def __iter_begin__(s str) StrIter
+def __iter_begin__(s str) StrIter {
 	return StrIter(s, 0)
+}
 
-def __iter_end__(s str) null
+def __iter_end__(s str) null {
 	return null
+}
 
-def __iter_valid__(cur StrIter, _ null) bool
+def __iter_valid__(cur StrIter, _ null) bool {
 	return cur.pos < cur.s.length
+}
 
-def __iter_item__(cur StrIter) char
+def __iter_item__(cur StrIter) char {
 	return cur.s[cur.pos]
+}
 
-def __iterate__(cur StrIter)
+def __iterate__(cur StrIter) {
 	cur.pos += 1
+}
 
-def concat(x *char, x_len uint, y *char, y_len uint) str
+def concat(x *char, x_len uint, y *char, y_len uint) str {
 	let x_cb = sizeof(char) * x_len
 	let y_cb = sizeof(char) * (y_len + 1)
 	total_cb := x_cb + y_cb
@@ -175,106 +213,135 @@ def concat(x *char, x_len uint, y *char, y_len uint) str
 	posix.memcpy(res, x, x_cb)
 	posix.memcpy(&res[x_len], y, y_cb)
 	return str(OwningBuffer(res, x_len + y_len))
+}
 
-def decode(b bytes, fmt str) str?
-	if fmt == "utf8"
+def decode(b bytes, fmt str) str? {
+	if fmt == "utf8" {
 		b_len := len(b)
 		res := posix.malloc(b_len + 1) as! *?char
 		assert(res != null)
 		posix.memcpy(res, b.data, b_len)
 		res[b_len] = 0
 		return Just(str(OwningBuffer(res, b_len)))
-	else
+    } else {
 		panic("unknown format to decode: " + fmt)
 		return Empty
+    }
+}
 
-def strip(s str) str
+def strip(s str) str {
 	var start int = 0
 	let max int = s.length
 	var lim int = max - 1
 
-	while start <= lim
-		if not posix.isspace(s[start])
+	while start <= lim {
+		if not posix.isspace(s[start]) {
 			break
+        }
 		start += 1
+    }
 	
-	while lim > start and posix.isspace(s[lim])
+	while lim > start and posix.isspace(s[lim]) {
 		lim -= 1
+    }
 	
-	if start == 0 and lim == max - 1
+	if start == 0 and lim == max - 1 {
 		return s
+    }
 	
 	return s[start:lim + 1]
+}
 
-def split(s str) [str]
+def split(s str) [str] {
 	# Split a string based on whitespace
 	let tokens [str]
 	var i = 0
 	var j = 0
 	let s_length = s.length
-	while true
-		while i < s_length and posix.isspace(s[i])
+	while true {
+		while i < s_length and posix.isspace(s[i]) {
 			i += 1
-		if i == s_length
+        }
+		if i == s_length {
 			break
+        }
+
 		j = i
 		i += 1
-		while i < s_length and not posix.isspace(s[i])
+		while i < s_length and not posix.isspace(s[i]) {
 			i += 1
-		if j == 0 and i == s_length
+        }
+		if j == 0 and i == s_length {
 			append(tokens, s)
 			break
+        }
 		append(tokens, s[j:i])
+    }
 
 	return tokens
+}
 
-def split(s str, delims str) [str]
+def split(s str, delims str) [str] {
 	# Split a string based on the given delims
 	let tokens [str]
 	var i = 0
 	var j = 0
 	let s_length = s.length
-	while true
-		while i < s_length and s[i] in delims
+	while true {
+		while i < s_length and s[i] in delims {
 			i += 1
-		if i == s_length
+        }
+		if i == s_length {
 			break
+        }
 		j = i
 		i += 1
-		while i < s_length and s[i] not in delims
+		while i < s_length and s[i] not in delims {
 			i += 1
-		if j == 0 and i == s_length
+        }
+		if j == 0 and i == s_length {
 			append(tokens, s)
 			break
+        }
 		append(tokens, s[j:i])
+    }
 
 	return tokens
+}
 
-def __in__(ch char, s str) bool
+def __in__(ch char, s str) bool {
 	var i = 0
 	e := s.length
-	while i < e
-		if s[i] == ch
+	while i < e {
+		if s[i] == ch {
 			return true
+        }
 		i += 1
+    }
 	return false
+}
 
-def __not_in__(ch char, s str) bool
+def __not_in__(ch char, s str) bool {
 	var i = 0
 	e := s.length
-	while i < e
-		if s[i] == ch
+	while i < e {
+		if s[i] == ch {
 			return false
+        }
 		i += 1
+    }
 	return true
+}
 
-def __not_in__(find_ str, s_ str) bool
+def __not_in__(find_ str, s_ str) bool {
 	return not __in__(find_, s_)
+}
 
-def __in__(find_ str, s_ str) bool
+def __in__(find_ str, s_ str) bool {
 	real_find_len := len(find_)
-	if real_find_len == 0
+	if real_find_len == 0 {
 		return true
+    }
 
 	# set up a search for the remaining characters (after the first)
 	c := find_[0]
@@ -282,28 +349,34 @@ def __in__(find_ str, s_ str) bool
 	find_len := real_find_len - 1
 	
 	var s_len = len(s_)
-	if s_len == 0
+	if s_len == 0 {
 		return false
+    }
 
 	var s = &unsafe_access(s_)[0]
 
 	# OK, now start looping through s positions until we either run out of possible space for find,
 	# or we find it
-	while s_len > find_len
+	while s_len > find_len {
 		cur := s[0]
 		s = &s[1]
 		s_len -= 1
 
-		if c == cur
-			if posix.memcmp(s, find, find_len) == 0
+		if c == cur {
+			if posix.memcmp(s, find, find_len) == 0 {
 				return true
+            }
+        }
+    }
 
 	return false
+}
 
-def find(s_ str, find_ str, start int) int?
+def find(s_ str, find_ str, start int) int? {
 	real_find_len := len(find_)
-	if real_find_len == 0
+	if real_find_len == 0 {
 		return Just(0)
+    }
 
 	# set up a search for the remaining characters (after the first)
 	c := find_[0]
@@ -311,44 +384,55 @@ def find(s_ str, find_ str, start int) int?
 	find_len := real_find_len - 1
 	
 	var s_len int = len(s_) - start
-	if s_len <= 0
+	if s_len <= 0 {
 		return Empty
+    }
 
 	var s = &unsafe_access(s_)[start]
 
 	# OK, now start looping through s positions until we either run out of possible space for find,
 	# or we find it
-	while s_len > find_len
+	while s_len > find_len {
 		cur := s[0]
 		s = &s[1]
 		s_len -= 1
 
-		if c == cur
-			if posix.memcmp(s, find, find_len) == 0
+		if c == cur {
+			if posix.memcmp(s, find, find_len) == 0 {
 				return Just(start)
+            }
+        }
 		start += 1
+    }
 
 	return Empty
+}
 
-def replace(s str, find_ str, repl str) str
-	if len(find_) == 0
-		return s
+def replace(s str, find_ str, repl str) str {
+    if len(find_) == 0 {
+        return s
+    }
 
-	var cur = 0
-	var sofar str
-	while cur < len(s)
-		i := find(s, find_, cur)
-		match i
-			Just(i)
-				sofar += s[cur:i]
-				sofar += repl
-				cur = i + len(find_)
-			Empty
-				if len(sofar) == 0
-					return s
-				else
-					sofar += s[cur:len(s)]
-					return sofar
+    var cur = 0
+    var sofar str
+    while cur < len(s) {
+        i := find(s, find_, cur)
+        match i {
+            Just(i) {
+                sofar += s[cur:i]
+                sofar += repl
+                cur = i + len(find_)
+            }
+            Empty {
+                if len(sofar) == 0 {
+                    return s
+                } else {
+                    sofar += s[cur:len(s)]
+                    return sofar
+                }
+            }
+        }
+    }
 
 	return sofar
-			
+}

@@ -1,21 +1,26 @@
 global
 
 
-type OwningBuffer CharType has
+type OwningBuffer CharType has {
 	let raw *CharType
 	let length uint
+}
 
-def __getitem__[CharType](buffer OwningBuffer CharType, i uint) CharType
+def __getitem__[CharType](buffer OwningBuffer CharType, i uint) CharType {
 	assert(buffer.length >= i)
 	return buffer.raw[i]
+}
 
-def __finalize__(owning_buffer OwningBuffer any)
+def __finalize__(owning_buffer OwningBuffer any) {
 	posix.free(owning_buffer.raw)
+}
 
-def OwningBuffer[T where *?char <: T](s T) (OwningBuffer char)?
+def OwningBuffer[T where *?char <: T](s T) (OwningBuffer char)? {
 	return (s != null
 		? Just(OwningBuffer(s, posix.strlen(s)))
 		: Empty)
+    }
 
-def OwningBuffer(s *char) OwningBuffer char
+def OwningBuffer(s *char) OwningBuffer char {
 	return OwningBuffer(s, posix.strlen(s))
+}

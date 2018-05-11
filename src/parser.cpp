@@ -927,8 +927,14 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 	if (ps.prior_token.tk == tk_rcurly) {
 		/* check the successive instructions for elif or else */
 		if (ps.token.is_ident(K(elif))) {
+			if (ps.line_broke()) {
+				throw user_error(ps.token.location, "elif cannot be the first word on a line (end the prior block on the same line before the elif)");
+			}
 			if_block->else_ = if_block_t::parse(ps);
 		} else if (ps.token.is_ident(K(else))) {
+			if (ps.line_broke()) {
+				throw user_error(ps.token.location, "else cannot be the first word on a line (end the prior block on the same line before the else)");
+			}
 			ps.advance();
 			if_block->else_ = block_t::parse(ps);
 		}
