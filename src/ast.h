@@ -222,19 +222,6 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 	};
 
-	struct pass_flow_t : public statement_t {
-		typedef ptr<const pass_flow_t> ref;
-
-		static const syntax_kind_t SK = sk_pass_flow;
-		virtual void resolve_statement(
-				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
-				life_t::ref life,
-				runnable_scope_t::ref *new_scope,
-				bool *returns) const;
-		virtual void render(render_state_t &rs) const;
-	};
-
 	struct typeid_expr_t : public expression_t {
 		typedef ptr<const typeid_expr_t> ref;
 

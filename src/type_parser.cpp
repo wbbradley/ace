@@ -4,8 +4,8 @@
 #include "type_parser.h"
 
 bool token_is_illegal_in_type(const token_t &token) {
-	if (token.tk == tk_outdent) {
-		return false;
+	if (token.tk == tk_lcurly || token.tk == tk_rcurly) {
+		return true;
 	}
 	return token.tk == tk_identifier && (
 			token.text == K(to) ||
@@ -30,17 +30,17 @@ namespace types {
 		bool native_struct = ps.token.is_ident(K(struct));
 		ps.advance();
 
-		if (ps.token.tk != tk_indent && native_struct) {
+		if (ps.token.tk != tk_lcurly && native_struct) {
 			/* special case of empty structure */
 			return ::type_struct({}, {});
 		}
 
-		chomp_token(tk_indent);
+		chomp_token(tk_lcurly);
 		type_t::refs dimensions;
 		name_index_t name_index;
 		int index = 0;
-		while (ps.token.tk != tk_outdent) {
-			if (!ps.line_broke() && ps.prior_token.tk != tk_indent) {
+		while (ps.token.tk != tk_rcurly) {
+			if (!ps.line_broke() && ps.prior_token.tk != tk_lcurly) {
 				throw user_error(ps.token.location, "product type dimensions must be separated by a newline");
 			}
 
@@ -65,7 +65,7 @@ namespace types {
 
 			dimensions.push_back(dim_type);
 		}
-		chomp_token(tk_outdent);
+		chomp_token(tk_rcurly);
 		return ::type_struct(dimensions, name_index);
 	}
 
@@ -287,7 +287,7 @@ namespace types {
 
 		types::type_t::ref return_type;
 		/* now let's parse the return type */
-		if (!ps.line_broke()) {
+		if (!ps.line_broke() && !(ps.token.tk == tk_lcurly || ps.token.tk == tk_rcurly)) {
 			return_type = parse_type(ps, generics);
 		} else {
 			return_type = type_void();
@@ -376,8 +376,8 @@ namespace types {
 			return parse_integer_type(ps, generics);
 		} else if (ps.token.tk == tk_lparen) {
 			return parse_parens_type(ps, generics);
-		} else if (ps.token.tk == tk_lcurly) {
-			return parse_map_type(ps, generics);
+		// } else if (ps.token.tk == tk_lcurly) {
+		// return parse_map_type(ps, generics);
 		} else if (ps.token.tk == tk_lsquare) {
 			return parse_vector_type(ps, generics);
 		} else if ((ps.token.tk == tk_integer) || (ps.token.tk == tk_string)) {
@@ -526,6 +526,7 @@ namespace types {
 	}
 
 	type_t::ref parse_type(parse_state_t &ps, const identifier::set &generics) {
+		assert(ps.token.tk != tk_lcurly && ps.token.tk != tk_rcurly);
 		return parse_or_type(ps, generics);
 	}
 
