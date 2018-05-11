@@ -3,6 +3,6 @@ module _
 # expect: pass
 
 def main()
-	def foo()
-		print("pass")
-	foo()
+    def foo()
+        print("pass")
+    foo()

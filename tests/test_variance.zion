@@ -1,8 +1,8 @@
 module _
 
 def takes(f true)
-	pass
+    pass
 
 def main()
-	# error: unable to resolve overloads for takes\(false\)
-	takes(false)
+    # error: unable to resolve overloads for takes\(false\)
+    takes(false)

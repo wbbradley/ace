@@ -1,8 +1,8 @@
 module types_math_static @1.0
 
 def compute() int
-	var x int
-	x = 2 + 3
-	return x
-	
+    var x int
+    x = 2 + 3
+    return x
+    
 

@@ -4,38 +4,38 @@ module _
 # expect: 4
 
 type Ax G has
-	var t G
-	var x int
-	var y float
+    var t G
+    var x int
+    var y float
 
 type Bx G has
-	var x int
-	var t G
-	var y float
+    var x int
+    var t G
+    var y float
 
 type Cx P has
-	var i int
-	var f float
-	var t P
+    var i int
+    var f float
+    var t P
 
 type C T is
-	Ax(t T)
-	Bx(t T)
-	Cx(t T)
+    Ax(t T)
+    Bx(t T)
+    Cx(t T)
 
 def handle_c(c C any T) any T
-	match c
-		Ax(x)
-			return x
-		Bx(x)
-			return x
-		Cx(i)
-			return i
+    match c
+        Ax(x)
+            return x
+        Bx(x)
+            return x
+        Cx(i)
+            return i
 
 def main()
-	a_int := Ax(4, 5, 2.1)
-	a_int2 := Ax(4)
-	b_int := Bx(4, 5, 2.1)
-	c_str := Cx(4, 5.2, "hello")
-	print(c_str.t)
-	print(handle_c(a_int2))
+    a_int := Ax(4, 5, 2.1)
+    a_int2 := Ax(4)
+    b_int := Bx(4, 5, 2.1)
+    c_str := Cx(4, 5.2, "hello")
+    print(c_str.t)
+    print(handle_c(a_int2))

@@ -2,11 +2,11 @@ module _ @1.0
 # test: pass
 
 def inner_function(x int) void
-	def foo() void
-		return
+    def foo() void
+        return
 
 def inner_function() void
-	pass
+    pass
 
 def main()
-	pass
+    pass

@@ -3,7 +3,7 @@ module _
 
 
 def arity1(variable int)
-	pass
+    pass
 
 def main()
-	arity1(1)
+    arity1(1)

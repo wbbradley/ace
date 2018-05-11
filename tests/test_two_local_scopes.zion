@@ -2,8 +2,8 @@ module _
 # test: pass
 
 def main()
-	x := "Hello world."
-	print(x)
+    x := "Hello world."
+    print(x)
 
-	y := "Hillo world."
-	print(x)
+    y := "Hillo world."
+    print(x)

@@ -1,6 +1,6 @@
 module _
 
 def main()
-	# error: unexpected token true encountered
-	elif true
-		pass
+    # error: unexpected token true encountered
+    elif true
+        pass

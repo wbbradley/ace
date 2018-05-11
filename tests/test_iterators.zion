@@ -7,18 +7,18 @@ get file
 # expect: Cheating Quine Detected!
 
 def main()
-	var l [str]
-	append(l, "there")
-	append(l, "is")
-	append(l, "a")
-	append(l, "house")
+    var l [str]
+    append(l, "there")
+    append(l, "is")
+    append(l, "a")
+    append(l, "house")
 
-	for x in l
-		print(x)
+    for x in l
+        print(x)
 
-	for x in range(10)
-		print(x)
+    for x in range(10)
+        print(x)
 
-	f := file.open("tests/test_iterators.zion", "r")
-	for line in file.readlines(f)
-		print(line)
+    f := file.open("tests/test_iterators.zion", "r")
+    for line in file.readlines(f)
+        print(line)

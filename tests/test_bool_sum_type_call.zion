@@ -3,7 +3,7 @@ module _ @1.0
 
 
 def do_recursive_boolean(b bool)
-	do_recursive_boolean(b)
-	
+    do_recursive_boolean(b)
+    
 def main()
-	do_recursive_boolean(true)
+    do_recursive_boolean(true)

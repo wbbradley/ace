@@ -4,9 +4,9 @@ module _
 # expect: 252
 
 def main()
-	var x int8 = -3
-	var y uint8 = x
-	print(y)
+    var x int8 = -3
+    var y uint8 = x
+    print(y)
 
-	y = -4
-	print(y)
+    y = -4
+    print(y)

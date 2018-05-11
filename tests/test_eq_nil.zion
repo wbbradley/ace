@@ -3,8 +3,8 @@ module _
 # expect: pass
 
 def main()
-	var x *?int = null
-	if x == null
-		print("pass")
-	else
-		print("fail")
+    var x *?int = null
+    if x == null
+        print("pass")
+    else
+        print("fail")

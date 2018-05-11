@@ -3,16 +3,16 @@ module _
 # test: pass
 
 type Vector has
-	var x float
-	var y float
+    var x float
+    var y float
 
 type Matrix has
-	var row_1 Vector
-	var row_2 Vector
+    var row_1 Vector
+    var row_2 Vector
 
 def main()
-	position := Vector(4.0, 3.2)
-	scale := Vector(1.0, -1.0)
+    position := Vector(4.0, 3.2)
+    scale := Vector(1.0, -1.0)
 
-	matrix := Matrix(position, scale)
-	print(matrix.row_1.x)
+    matrix := Matrix(position, scale)
+    print(matrix.row_1.x)

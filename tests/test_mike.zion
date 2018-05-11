@@ -3,19 +3,19 @@ module _
 # expect: 11
 
 type Expr is
-	Plus(lhs Expr, rhs Expr)
-	Times(lhs Expr, rhs Expr)
-	Value(x int)
+    Plus(lhs Expr, rhs Expr)
+    Times(lhs Expr, rhs Expr)
+    Value(x int)
 
 def eval(expr Expr) int
-	match expr
-		Plus(lhs, rhs)
-			return eval(lhs) + eval(rhs)
-		Times(lhs, rhs)
-			return eval(lhs) * eval(rhs)
-		Value(x)
-			return x
+    match expr
+        Plus(lhs, rhs)
+            return eval(lhs) + eval(rhs)
+        Times(lhs, rhs)
+            return eval(lhs) * eval(rhs)
+        Value(x)
+            return x
 
 def main()
-	let e Expr = Value(3)
-	print(eval(Plus(Times(Value(4), Value(2)), Value(3))))
+    let e Expr = Value(3)
+    print(eval(Plus(Times(Value(4), Value(2)), Value(3))))

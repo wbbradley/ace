@@ -2,7 +2,7 @@ module _
 # test: pass
 
 def cool()
-	print("COOL")
+    print("COOL")
 
 def main()
-	cool()
+    cool()

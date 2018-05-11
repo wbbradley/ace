@@ -2,21 +2,21 @@ module _
 # test: skip
 
 def do(y str) bool
-	return true
+    return true
 
 def do(y int) bool
-	return false
+    return false
 
 def do(y bool) bool
-	return false
+    return false
 
 def something() bool
-	return true
+    return true
 
 def main()
-	x := something() ? 12 : "hey"
+    x := something() ? 12 : "hey"
 
-	# this call to `do` should invoke auto-code-generation of runtime
-	# polymorphism switching constructs to ensure that a sum type can be
-	# dispatched at runtime if necessary
-	g := do(x)
+    # this call to `do` should invoke auto-code-generation of runtime
+    # polymorphism switching constructs to ensure that a sum type can be
+    # dispatched at runtime if necessary
+    g := do(x)

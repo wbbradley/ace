@@ -2,9 +2,9 @@ module _
 # test: pass
 
 def foo(x any)
-	var y int = 0
-	print(x)
+    var y int = 0
+    print(x)
 
 def main()
-	foo("Hello world.")
-	foo(1)
+    foo("Hello world.")
+    foo(1)

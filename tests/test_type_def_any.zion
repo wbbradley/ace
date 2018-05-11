@@ -4,4 +4,4 @@ module _
 type Optional any Data is Just(rk Data) None
 
 def main()
-	var o Optional any = Just(3)
+    var o Optional any = Just(3)

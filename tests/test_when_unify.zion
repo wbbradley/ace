@@ -2,45 +2,45 @@ module when_contact
 # test: skip
 
 type Id has
-	var name str
+    var name str
 
 type Var has
-	var name str
+    var name str
 
 type Operator has
-	var operator Term
-	var operand Term
+    var operator Term
+    var operand Term
 
 type Term is
-	Id or
-	Var or
-	Operator
+    Id or
+    Var or
+    Operator
 
 type Ternary is true or false or null
 
 type Node{T} has
-	var value T
-	var next List{T}
+    var value T
+    var next List{T}
 
 type Vector has
-	var x float
-	var y float
+    var x float
+    var y float
 
 type List{T} is
-	Done or
-	Node{T}
+    Done or
+    Node{T}
 
 def unify(a Term, b Term) bool
-	if str(a) == str(b)
-		return true
+    if str(a) == str(b)
+        return true
 
-	if a is Id(some x) and b is Id(some x)
-		return true
+    if a is Id(some x) and b is Id(some x)
+        return true
 
-	if a is Var(name)
-		if occurs_in_type(a, b, bindings)
-			return false
-			
+    if a is Var(name)
+        if occurs_in_type(a, b, bindings)
+            return false
+            
 
 def main()
-	recognize_golfer(Golfer("Arnold", "Woods"))
+    recognize_golfer(Golfer("Arnold", "Woods"))

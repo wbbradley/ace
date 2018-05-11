@@ -2,9 +2,9 @@ module _
 # test: pass
 
 type Vector has
-	var x float
-	var y float
+    var x float
+    var y float
 
 def main()
-	v := Vector(3.4, 3.2)
-	print(v.x)
+    v := Vector(3.4, 3.2)
+    print(v.x)

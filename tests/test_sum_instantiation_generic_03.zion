@@ -4,13 +4,13 @@ module _
 type TY is Y(y int)
 
 type Baz X Y is
-	Foo(x X)
-	Bar(y Y)
+    Foo(x X)
+    Bar(y Y)
 
 def main()
-	y := Bar(Y(1))
-	match y
-		Bar(Y(y))
-			print(y)
-		Foo(_)
-			pass
+    y := Bar(Y(1))
+    match y
+        Bar(Y(y))
+            print(y)
+        Foo(_)
+            pass

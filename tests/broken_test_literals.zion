@@ -2,10 +2,10 @@ module literals
 get assert
 
 def test() void
-	var x any = [0, 1, 2]
-	assert.equals(x, [0, 1, 2], "array literal matching")
-	assert.equals(len(x), 3, "array length")
-	assert.equals(len(x, x), 2, "param list length -- sort strange")
-	assert.equals(str(x), "[0, 1, 2]", "array str")
-	x = ["a", "b", x]
-	assert.equals(x, ["a", "b", [0, 1, 2]], "lhs ref in rhs array")
+    var x any = [0, 1, 2]
+    assert.equals(x, [0, 1, 2], "array literal matching")
+    assert.equals(len(x), 3, "array length")
+    assert.equals(len(x, x), 2, "param list length -- sort strange")
+    assert.equals(str(x), "[0, 1, 2]", "array str")
+    x = ["a", "b", x]
+    assert.equals(x, ["a", "b", [0, 1, 2]], "lhs ref in rhs array")

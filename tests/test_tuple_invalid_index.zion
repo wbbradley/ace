@@ -1,6 +1,6 @@
 module _
 
 def main()
-	x := (1,)
-	# error: tuple index is out of bounds
-	y := x[1]
+    x := (1,)
+    # error: tuple index is out of bounds
+    y := x[1]

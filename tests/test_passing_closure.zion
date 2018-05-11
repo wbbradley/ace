@@ -3,13 +3,13 @@ module _
 # expect: pass with 5
 
 def run_function(f def () void)
-	f()
+    f()
 
 def get_int() int
-	return 5
+    return 5
 
 def main()
-	x := get_int() 
-	foo := def ()
-		print("pass with " + x)
-	run_function(foo)
+    x := get_int() 
+    foo := def ()
+        print("pass with " + x)
+    run_function(foo)

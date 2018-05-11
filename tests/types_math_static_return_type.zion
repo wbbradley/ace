@@ -1,8 +1,8 @@
 module types_math_static_return_type @1.0
 
 def subfunction() int
-	return "hey, this should fail"
+    return "hey, this should fail"
 
 def compute() any
-	return subfunction()
+    return subfunction()
 

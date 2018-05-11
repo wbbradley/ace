@@ -3,7 +3,7 @@ module _
 # test: pass
 
 def foo(x int, y int) bool
-	return x > y
+    return x > y
 
 def foo(x float, y int) bool
-	return x < y
+    return x < y

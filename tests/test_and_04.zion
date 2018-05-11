@@ -1,5 +1,5 @@
 module _
 
 def main()
-	# error: condition is not a boolean value
-	1.0 and 0
+    # error: condition is not a boolean value
+    1.0 and 0

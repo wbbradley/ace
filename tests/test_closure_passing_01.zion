@@ -3,12 +3,12 @@ module _
 # expect: 23
 
 def twice(f def (int) int) def (_ int) int
-	return def (x int) int
-		return f(f(x))
+    return def (x int) int
+        return f(f(x))
 
 def main()
-	add_11 := def (x int) int
-		return x + 11
+    add_11 := def (x int) int
+        return x + 11
 
-	add_22 := twice(add_11)
-	print(add_22(1))
+    add_22 := twice(add_11)
+    print(add_22(1))

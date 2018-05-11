@@ -1,9 +1,9 @@
 module _
 
 def caller()
-	x := 1
-	# error: 6:2.* unable to resolve overloads for callee\(int\)
-	callee(x)
+    x := 1
+    # error: 6:2.* unable to resolve overloads for callee\(int\)
+    callee(x)
 
 def callee(x str)
-	pass
+    pass

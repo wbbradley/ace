@@ -3,53 +3,53 @@ module _
 # expect: Task(1, 1, "", Boss, Active(Minion C))
 
 type Task has
-	var id int
-	var work_item_id int
-	var answer_text str
-	var original_owner str
-	var state TaskState
+    var id int
+    var work_item_id int
+    var answer_text str
+    var original_owner str
+    var state TaskState
 
 type TaskState is
-	Active(owner str)
-	InternalReview
-	ExternalReview
-	Complete
+    Active(owner str)
+    InternalReview
+    ExternalReview
+    Complete
 
 type QuestionTaskMessages has
-	var question_task_id int
-	var timestamp int
-	var message str
-	var from str
+    var question_task_id int
+    var timestamp int
+    var message str
+    var from str
 
 
 
 def reassign(q Task, new_owner str) Task
-	n := Task(
-			q.id, q.work_item_id, q.answer_text, q.original_owner,
-			Active(new_owner))
-	print("Reassigning " + str(q) + " to " + str(n))
-	return n
+    n := Task(
+            q.id, q.work_item_id, q.answer_text, q.original_owner,
+            Active(new_owner))
+    print("Reassigning " + str(q) + " to " + str(n))
+    return n
 
 def main()
-	# Action is: new question task
-	var q = Task(1, 1, "", "Boss", Active("Boss"))
+    # Action is: new question task
+    var q = Task(1, 1, "", "Boss", Active("Boss"))
 
-	q = reassign(q, "Minion A")
-	q = reassign(q, "Minion B")
-	q = reassign(q, "Minion C")
-	print(str(q))
+    q = reassign(q, "Minion A")
+    q = reassign(q, "Minion B")
+    q = reassign(q, "Minion C")
+    print(str(q))
 
 def str(q Task) str
-	return ("Task(" + q.id + ", " + q.work_item_id + ", " + "\"" + q.answer_text + "\""
-			+ ", " + q.original_owner + ", " + str(q.state) + ")")
+    return ("Task(" + q.id + ", " + q.work_item_id + ", " + "\"" + q.answer_text + "\""
+            + ", " + q.original_owner + ", " + str(q.state) + ")")
 
 def str(s TaskState) str
-	match s
-		Active(owner)
-			return "Active(" + owner + ")"
-		InternalReview
-			return "InternalReview"
-		ExternalReview
-			return "ExternalReview"
-		Complete
-			return "Complete"
+    match s
+        Active(owner)
+            return "Active(" + owner + ")"
+        InternalReview
+            return "InternalReview"
+        ExternalReview
+            return "ExternalReview"
+        Complete
+            return "Complete"

@@ -3,5 +3,5 @@ module _
 # expect: true and 1
 
 def main()
-	static_print(true and 1)
-	print(true and 1)
+    static_print(true and 1)
+    print(true and 1)

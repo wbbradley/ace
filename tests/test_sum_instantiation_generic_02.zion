@@ -4,13 +4,13 @@ module _
 # expect: yay this works
 
 type Box X Y is
-	BigBox(x X)
-	Crate(x X, y Y)
+    BigBox(x X)
+    Crate(x X, y Y)
 
 def main()
-	match BigBox("yay this works")
-		BigBox(x)
-			y := Crate(1, x)
-			print(x)
-		Crate(x, y)
-			print(x, y)
+    match BigBox("yay this works")
+        BigBox(x)
+            y := Crate(1, x)
+            print(x)
+        Crate(x, y)
+            print(x, y)

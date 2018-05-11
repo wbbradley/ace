@@ -4,15 +4,15 @@ module _
 # expect: foobar : str
 
 def maybe_a_line() str?
-	return Empty
+    return Empty
 
 def main()
-	let cur_line = maybe_a_line()
-	static_print(cur_line)
-	match cur_line
-		Just(line)
-			if line == "something"
-				foobar := line
-				static_print(foobar)
-		Empty
-			pass
+    let cur_line = maybe_a_line()
+    static_print(cur_line)
+    match cur_line
+        Just(line)
+            if line == "something"
+                foobar := line
+                static_print(foobar)
+        Empty
+            pass

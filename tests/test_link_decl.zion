@@ -3,5 +3,5 @@ link def putch(ch int) int
 # test: pass
 
 def main()
-	# emit the ASCII letter 'a'
-	putch(97)
+    # emit the ASCII letter 'a'
+    putch(97)

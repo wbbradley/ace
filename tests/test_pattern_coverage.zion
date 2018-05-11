@@ -1,38 +1,38 @@
 module _
 
 type Pet is
-	Dog
-	Cat
+    Dog
+    Cat
 
 type Child is
-	Girl(name str, hair HairType, pet Pet?)
-	Boy(name str, hair HairType, pet Pet?)
+    Girl(name str, hair HairType, pet Pet?)
+    Boy(name str, hair HairType, pet Pet?)
 
 type HairType is
-	Straight
-	Curly
-	Wavy
-	Bald
+    Straight
+    Curly
+    Wavy
+    Bald
 
 
 def main()
-	mark := Boy("Mark", Wavy, Empty)
-	charlotte := Girl("Charlotte", Straight, Just(Dog))
-	# etc...
+    mark := Boy("Mark", Wavy, Empty)
+    charlotte := Girl("Charlotte", Straight, Just(Dog))
+    # etc...
 
-	kids := [charlotte, mark]
+    kids := [charlotte, mark]
 
-	for kid in kids
-		# error: 27:9.* not all patterns are covered
-		match kid
-			Boy(name, Curly, Just(Dog))
-				print(name + " has curly hair and a dog")
-			Boy(name, Curly, Just(Cat))
-				print(name + " has curly hair and a cat")
-			Boy(name, _, _)
-				pass
-			Girl(name, _, Empty)
-				print(name + " might have hair and might have a pet")
-			Girl(name, Straight, Just(Cat))
-				print(name + " has straight hair and has a cat")
-				
+    for kid in kids
+        # error: 27:9.* not all patterns are covered
+        match kid
+            Boy(name, Curly, Just(Dog))
+                print(name + " has curly hair and a dog")
+            Boy(name, Curly, Just(Cat))
+                print(name + " has curly hair and a cat")
+            Boy(name, _, _)
+                pass
+            Girl(name, _, Empty)
+                print(name + " might have hair and might have a pet")
+            Girl(name, Straight, Just(Cat))
+                print(name + " has straight hair and has a cat")
+                

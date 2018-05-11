@@ -3,10 +3,10 @@ module _ @1.0
 # expect: 3
 
 type B X has
-	var x X
+    var x X
 
 def do(b B int)
-	print(b.x)
+    print(b.x)
 
 def main()
-	do(B(3))
+    do(B(3))

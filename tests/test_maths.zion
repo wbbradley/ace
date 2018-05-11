@@ -2,41 +2,41 @@ module _
 # test: pass
 
 def main()
-	var x = 5
-	# make sure pure int math compiles
-	print(x + 10)
-	print(3 - 10)
-	print(3 % 10)
-	print(3 / 10)
-	print(3 * 10)
-	print(-3)
-	print(+3)
-	print(-+3)
-	print(+-3)
-	7 & 3
-	1232323 & 12323
-	250 << 1
-	250 >> 2
+    var x = 5
+    # make sure pure int math compiles
+    print(x + 10)
+    print(3 - 10)
+    print(3 % 10)
+    print(3 / 10)
+    print(3 * 10)
+    print(-3)
+    print(+3)
+    print(-+3)
+    print(+-3)
+    7 & 3
+    1232323 & 12323
+    250 << 1
+    250 >> 2
 
-	# make sure pure float math compiles
-	print(3.0 + 10.0)
-	print(3.0 - 10.0)
-	print(3.0 / 10.0)
-	print(3.0 * 10.0)
-	print(-3.0)
-	print(+3.0)
-	print(+-3.0)
-	print(-+3.0)
+    # make sure pure float math compiles
+    print(3.0 + 10.0)
+    print(3.0 - 10.0)
+    print(3.0 / 10.0)
+    print(3.0 * 10.0)
+    print(-3.0)
+    print(+3.0)
+    print(+-3.0)
+    print(-+3.0)
 
-	# make sure mixed math compiles
-	# first look at float op int
-	print(3.0 + 10)
-	print(3.0 - 10)
-	print(3.0 / 10)
-	print(3.0 * 10)
+    # make sure mixed math compiles
+    # first look at float op int
+    print(3.0 + 10)
+    print(3.0 - 10)
+    print(3.0 / 10)
+    print(3.0 * 10)
 
-	# next look at int op float
-	print(3 + 10.0)
-	print(3 - 10.0)
-	print(3 / 10.0)
-	print(3 * 10.0)
+    # next look at int op float
+    print(3 + 10.0)
+    print(3 - 10.0)
+    print(3 / 10.0)
+    print(3 * 10.0)

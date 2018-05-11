@@ -4,8 +4,8 @@ module _
 type C T is D(T) E(T)
 
 def identity[X](expr C X) X
-	return "asdf"
+    return "asdf"
 
 def main()
-	value := E(D("asdf"))
-	identity(value)
+    value := E(D("asdf"))
+    identity(value)

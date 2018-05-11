@@ -6,22 +6,22 @@ get posix
 # expect: [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
 
 def main()
-	var primes [int]
-	var i = 1
-	target := len(sys.args) == 2 ? int(sys.args[1]) : 30
-	while i <= target
-		if is_prime(i)
-			append(primes, i)
-		i += 1
-	print(primes)
+    var primes [int]
+    var i = 1
+    target := len(sys.args) == 2 ? int(sys.args[1]) : 30
+    while i <= target
+        if is_prime(i)
+            append(primes, i)
+        i += 1
+    print(primes)
 
 def is_prime(i int) bool
-	# get the max we need to search
-	j := math.min(i, int(sqrt(float(i)) + 1))
-	var k = 2
-	while k < j
-		if i % k == 0
-			return false
-		k += 1
+    # get the max we need to search
+    j := math.min(i, int(sqrt(float(i)) + 1))
+    var k = 2
+    while k < j
+        if i % k == 0
+            return false
+        k += 1
 
-	return true
+    return true

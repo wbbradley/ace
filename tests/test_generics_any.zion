@@ -2,12 +2,12 @@ module _
 # test: pass
 
 def goo(x any)
-	var y any = " world"
-	print(x + y)
+    var y any = " world"
+    print(x + y)
 
 def main()
-	goo("hello")
+    goo("hello")
 
 type Vector has
-	var x float
-	var y float
+    var x float
+    var y float

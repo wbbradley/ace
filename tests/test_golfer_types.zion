@@ -2,8 +2,8 @@ module golfer_types
 
 # error: found duplicate type variable T
 type Golfer T T has
-	var first T
-	var last T
+    var first T
+    var last T
 
 def main()
-	Golfer("Arnold", "Palmer")
+    Golfer("Arnold", "Palmer")

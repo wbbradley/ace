@@ -2,7 +2,7 @@ module _
 # test: pass
 
 def foo()
-	x := false
+    x := false
 
 def main()
-	pass
+    pass

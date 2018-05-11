@@ -15,30 +15,30 @@ link def get_number(entry *EntryImpl) int
 
 type EntryImpl struct
 type Entry has
-	var entry *EntryImpl
+    var entry *EntryImpl
 
 [global]
 def __finalize__(entry Entry)
-	free_entry(entry.entry)
+    free_entry(entry.entry)
 
 def get_name(entry Entry, default str) str
-	let name = get_name(entry.entry)
-	if name != null
-		name_copy := posix.strdup(name)
-		assert(name_copy != null)
-		return str(OwningBuffer(name_copy))
-	else
-		return default
+    let name = get_name(entry.entry)
+    if name != null
+        name_copy := posix.strdup(name)
+        assert(name_copy != null)
+        return str(OwningBuffer(name_copy))
+    else
+        return default
 
 def main()
-	var entry Entry? = Just(Entry(make_entry("Will", 123)!))
-	match entry
-		Just(entry)
-			print(get_name(entry, ""))
-			static_print(entry)
-		Empty
-			print("No name found!")
-			static_print(entry)
-	static_print(entry)
-	entry = Empty
-	runtime.gc()
+    var entry Entry? = Just(Entry(make_entry("Will", 123)!))
+    match entry
+        Just(entry)
+            print(get_name(entry, ""))
+            static_print(entry)
+        Empty
+            print("No name found!")
+            static_print(entry)
+    static_print(entry)
+    entry = Empty
+    runtime.gc()

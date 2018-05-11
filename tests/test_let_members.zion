@@ -1,11 +1,11 @@
 module _
 
 type Vector has
-	let x float
-	let y float
-	let z float
+    let x float
+    let y float
+    let z float
 
 def main()
-	let v = Vector(1.2, 4.3, 4.3)
-	# error: the left-hand side of this assignment is not a reference
-	v.x = 3.4
+    let v = Vector(1.2, 4.3, 4.3)
+    # error: the left-hand side of this assignment is not a reference
+    v.x = 3.4

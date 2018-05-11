@@ -2,22 +2,22 @@ module when_contact
 # test: pass
 
 type Athlete is
-	Golfer(first str, last str)
-	Baker
+    Golfer(first str, last str)
+    Baker
 
 def recognize(athlete Athlete)
-	match athlete
-		Golfer(first, last)
-			if first == "Arnold"
-				if last == "Palmer"
-					print("RIP")
-				else
-					print("You are alive")
-			else
-				print("You are alive")
-		else
-			print("who are you?")
+    match athlete
+        Golfer(first, last)
+            if first == "Arnold"
+                if last == "Palmer"
+                    print("RIP")
+                else
+                    print("You are alive")
+            else
+                print("You are alive")
+        else
+            print("who are you?")
 
 def main()
-	recognize(Golfer("Arnold", "Palmer"))
-	recognize(Baker)
+    recognize(Golfer("Arnold", "Palmer"))
+    recognize(Baker)

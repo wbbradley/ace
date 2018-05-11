@@ -3,15 +3,15 @@ module _
 # expect: pass
 
 def main()
-	i := find("hello world", "world", 0)
-	assert(i == 6)
-	assert(not (i != 6))
-	assert(6 == i)
-	assert(not (6 != i))
+    i := find("hello world", "world", 0)
+    assert(i == 6)
+    assert(not (i != 6))
+    assert(6 == i)
+    assert(not (6 != i))
 
-	j := find("hello worl", "world", 0)
-	assert(j == Empty)
+    j := find("hello worl", "world", 0)
+    assert(j == Empty)
 
-	assert(not exists(find("world", "world", 1)))
-	assert(exists(find(" world", "world", 1)))
-	print("pass")
+    assert(not exists(find("world", "world", 1)))
+    assert(exists(find(" world", "world", 1)))
+    print("pass")

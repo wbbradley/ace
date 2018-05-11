@@ -2,8 +2,8 @@ module _
 # test: pass
 
 def main()
-	arity1(1)	
+    arity1(1)    
 
 def arity1(variable int)
-	pass
+    pass
 

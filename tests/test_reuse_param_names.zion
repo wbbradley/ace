@@ -2,10 +2,10 @@ module _
 # test: pass
 
 def main()
-	generic("some string")	
+    generic("some string")    
 
 def generic(x any)
-	concrete(x)
+    concrete(x)
 
 def concrete(x str)
-	pass
+    pass

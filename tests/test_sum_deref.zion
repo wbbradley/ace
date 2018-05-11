@@ -3,10 +3,10 @@ module _
 # test: pass
 
 type Value has
-	var i int
-	var s str
+    var i int
+    var s str
 
 def main()
-	a := Value(42, "hey")
-	print(a.i)
-	print(a.s)
+    a := Value(42, "hey")
+    print(a.i)
+    print(a.s)

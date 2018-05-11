@@ -3,9 +3,9 @@ module _
 # expect: pass
 
 def main()
-	var x [int]
-	append(x, 3)
-	if len(x) != 0
-		print("pass")
-	else
-		print("fail")
+    var x [int]
+    append(x, 3)
+    if len(x) != 0
+        print("pass")
+    else
+        print("fail")

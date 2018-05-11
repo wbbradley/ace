@@ -2,6 +2,6 @@ module _
 # test: pass
 
 def main()
-	x := 3
-	if x == 3
-		pass
+    x := 3
+    if x == 3
+        pass
