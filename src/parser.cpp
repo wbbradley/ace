@@ -21,7 +21,7 @@ bool token_begins_type(const token_t &token) {
 	case tk_string:
 	case tk_times:
 	case tk_lsquare:
-	case tk_lcurly:
+	// case tk_lcurly:
 	case tk_identifier:
 		return true;
 	default:
@@ -71,7 +71,7 @@ ptr<var_decl_t> var_decl_t::parse_param(parse_state_t &ps) {
 ptr<return_statement_t> return_statement_t::parse(parse_state_t &ps) {
 	auto return_statement = create<ast::return_statement_t>(ps.token);
 	chomp_ident(K(return));
-	if (!ps.line_broke() && ps.token.tk != tk_outdent) {
+	if (!ps.line_broke() && ps.token.tk != tk_rcurly) {
 		return_statement->expr = expression_t::parse(ps);
 	}
 	return return_statement;
@@ -177,7 +177,7 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 }
 
 ptr<statement_t> statement_t::parse(parse_state_t &ps) {
-	assert(ps.token.tk != tk_outdent);
+	assert(ps.token.tk != tk_rcurly);
 
 	if (ps.token.is_ident(K(var))) {
 		ps.advance();
@@ -199,10 +199,6 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 		return unreachable_t::parse(ps);
 	} else if (ps.token.is_ident(K(type))) {
 		return type_def_t::parse(ps);
-	} else if (ps.token.is_ident(K(pass))) {
-		auto pass_flow = create<ast::pass_flow_t>(ps.token);
-		eat_token();
-		return std::move(pass_flow);
 	} else if (ps.token.is_ident(K(continue))) {
 		auto continue_flow = create<ast::continue_flow_t>(ps.token);
 		eat_token();
@@ -330,8 +326,6 @@ ptr<expression_t> literal_expr_t::parse(parse_state_t &ps) {
 		return array_literal_expr_t::parse(ps);
 	// case tk_lcurly:
 	//	return assoc_array_expr_t::parse(ps);
-	case tk_indent:
-		throw user_error(ps.token.location, "unexpected indent");
 
 	case tk_identifier:
 		throw user_error(ps.token.location, "unexpected token found when parsing literal expression. '" c_error("%s") "'", ps.token.text.c_str());
@@ -894,27 +888,18 @@ ptr<param_list_decl_t> param_list_decl_t::parse(parse_state_t &ps) {
 
 ptr<block_t> block_t::parse(parse_state_t &ps) {
 	auto block = create<ast::block_t>(ps.token);
-	chomp_token(tk_indent);
-	if (ps.token.tk == tk_outdent) {
-		throw user_error(block->token.location, "empty blocks are not allowed, sorry. use pass.");
-	}
-
-	while (ps.token.tk != tk_outdent) {
-		assert(ps.token.tk != tk_none);
+	chomp_token(tk_lcurly);
+	while (ps.token.tk != tk_rcurly) {
 		while (ps.token.tk == tk_semicolon) {
 			ps.advance();
 		}
-		if (!ps.line_broke()
-				&& !(ps.prior_token.tk == tk_indent
-					|| ps.prior_token.tk == tk_outdent)) {
-			throw user_error(ps.token.location, "unexpected token " c_warn("%s") " encountered",
-					ps.token.text.c_str());
-		}
 		block->statements.push_back(statement_t::parse(ps));
+		while (ps.token.tk == tk_semicolon) {
+			ps.advance();
+		}
 	}
 
-	expect_token(tk_outdent);
-	ps.advance();
+	chomp_token(tk_rcurly);
 	return block;
 }
 
@@ -939,7 +924,7 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 
 	if_block->block = block_t::parse(ps);
 
-	if (ps.prior_token.tk == tk_outdent) {
+	if (ps.prior_token.tk == tk_rcurly) {
 		/* check the successive instructions for elif or else */
 		if (ps.token.is_ident(K(elif))) {
 			if_block->else_ = if_block_t::parse(ps);
@@ -1065,11 +1050,11 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 	auto when_block = create<ast::when_block_t>(ps.token);
 	chomp_ident(K(match));
 	when_block->value = expression_t::parse(ps);
-	chomp_token(tk_indent);
-	while (ps.token.tk != tk_outdent) {
+	chomp_token(tk_lcurly);
+	while (ps.token.tk != tk_rcurly) {
 		when_block->pattern_blocks.push_back(pattern_block_t::parse(ps));
 	}
-	chomp_token(tk_outdent);
+	chomp_token(tk_rcurly);
 
 	if (when_block->pattern_blocks.size() == 0) {
 		throw user_error(ps.token.location, "when block did not have subsequent patterns to match");
@@ -1314,15 +1299,10 @@ data_type_t::ref data_type_t::parse(
 	identifier::set type_variables = to_set(type_variables_list);
 	auto is_token = ps.token;
 	chomp_ident(K(is));
-	bool expect_outdent = false;
-	if (ps.token.tk == tk_indent) {
-		/* take note of whether the user has indented or not */
-		expect_outdent = true;
-		ps.advance();
-	}
+	chomp_token(tk_lcurly);
 
 	auto data_type = create<data_type_t>(type_decl->token);
-	while (ps.token.tk == tk_identifier && (!expect_outdent ? !ps.line_broke() : true)) {
+	while (ps.token.tk == tk_identifier) {
 		auto ctor_pair = parse_ctor(ps, type_variables_list);
 		for (auto x : data_type->ctor_pairs) {
 			if (x.first.text == ctor_pair.first.text) {
@@ -1335,9 +1315,7 @@ data_type_t::ref data_type_t::parse(
 		data_type->ctor_pairs.push_back(ctor_pair);
 	}
 
-	if (expect_outdent) {
-		chomp_token(tk_outdent);
-	}
+	chomp_token(tk_rcurly);
 
 	return data_type;
 }

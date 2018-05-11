@@ -19,7 +19,7 @@ bool all(const T &xs, U u) {
 }
 
 zion_lexer_t::zion_lexer_t(std::string filename, std::istream &sock_is)
-	: m_filename(filename), m_is(sock_is), m_last_indent_depth(0)
+	: m_filename(filename), m_is(sock_is)
 {
 }
 
@@ -130,7 +130,6 @@ bool zion_lexer_t::_get_tokens() {
 		gts_quoted_escape,
 		gts_end_quoted,
 		gts_whitespace,
-		gts_indenting,
 		gts_token,
 		gts_error,
 		gts_colon,
@@ -163,7 +162,7 @@ bool zion_lexer_t::_get_tokens() {
 	};
 
 	gt_state gts = gts_start;
-	bool scan_ahead = true, handle_indentation = false;
+	bool scan_ahead = true;
 
 	char ch = 0;
 	size_t sequence_length = 0;
@@ -177,25 +176,9 @@ bool zion_lexer_t::_get_tokens() {
 
 		switch (gts) {
 		case gts_whitespace:
-			if (ch != ' ') {
+			if (ch != ' ' && ch != '\t') {
 				gts = gts_end;
 				scan_ahead = false;
-			}
-			break;
-		case gts_indenting:
-			switch (ch) {
-			case '\t':
-				break;
-			case '\r':
-			case '\n':
-				tk = tk_newline;
-				gts = gts_end;
-				break;
-			default:
-				gts = gts_end;
-				scan_ahead = false;
-				handle_indentation = true;
-				break;
 			}
 			break;
 		case gts_cr:
@@ -450,8 +433,6 @@ bool zion_lexer_t::_get_tokens() {
 				gts = gts_end;
 				break;
 			case '\t':
-				gts = gts_indenting;
-				break;
 			case ' ':
 				tk = tk_space;
 				gts = gts_whitespace;
@@ -723,34 +704,7 @@ bool zion_lexer_t::_get_tokens() {
 	}
 
 	if (gts != gts_error && tk != tk_error) {
-		if (m_token_queue.last_tk() == tk_newline
-			   	&& !handle_indentation) {
-			if (tk != tk_newline) {
-				enqueue_indents(m_line, m_col, 0);
-			}
-		}
-
-		if (handle_indentation) {
-			/* handle standard tab indents */
-			int indent_depth = token_text.size();
-			debug_lexer(log(log_info, "indent_depth = %d, %d",
-						indent_depth, m_last_indent_depth));
-			assert(all(token_text, '\t'));
-			bool empty_line = (ch == '\r' && ch == '\n');
-			if (!empty_line) {
-				enqueue_indents(m_line, m_col, indent_depth);
-			}
-		} else {
-			if (tk != tk_none) {
-				m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
-			}
-		}
-
-		if (ch == EOF) {
-			enqueue_indents(m_line, m_col, 0);
-			m_token_queue.enqueue({m_filename, line, col}, tk_none, token_text);
-		}
-
+		m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
 		return true;
 	}
 
@@ -788,29 +742,6 @@ void zion_lexer_t::pop_nested(token_kind tk) {
 	} else if (back_tk != tk) {
 		debug_lexer(log(log_error, "detected unbalanced %s%s",
 				   	tkstr(back_tk), tkstr(tk)));
-	}
-}
-
-void zion_lexer_t::enqueue_indents(int line, int col, int indent_depth) {
-	debug_lexer(log(log_info, "enqueue_indents(%d)", indent_depth));
-	if (indent_depth > m_last_indent_depth) {
-		if (!m_nested_tks.size()) {
-			// Handle indents
-            if (indent_depth - 1 == m_last_indent_depth) {
-                m_token_queue.enqueue({m_filename, line, col}, tk_indent);
-                m_last_indent_depth = indent_depth;
-            } else {
-                throw user_error({m_filename, line, col}, "indentation is strange here");
-            }
-		}
-	} else if (indent_depth < m_last_indent_depth) {
-		// We're outdenting
-		for (int i = m_last_indent_depth; i > indent_depth; --i) {
-			m_token_queue.enqueue({m_filename, line, col}, tk_outdent);
-		}
-		m_last_indent_depth = indent_depth;
-	} else {
-		m_token_queue.set_last_tk(tk_none);
 	}
 }
 

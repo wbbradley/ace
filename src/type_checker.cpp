@@ -823,8 +823,6 @@ void resolve_assert_macro(
 				condition->str().c_str()));
 
 	auto then_block = ast::create<ast::block_t>(token);
-	then_block->statements.push_back(ast::create<ast::pass_flow_t>(token));
-
 	auto else_block = ast::create<ast::block_t>(token);
 	else_block->statements.push_back(callsite);
 	else_block->statements.push_back(ast::create<ast::unreachable_t>(token));
@@ -4188,16 +4186,6 @@ void ast::var_decl_t::resolve_statement(
 		panic("we should not be trying to instantiate a var decl outside of a runnable scope");
 		return;
 	}
-}
-
-void ast::pass_flow_t::resolve_statement(
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-		life_t::ref life,
-        runnable_scope_t::ref *new_scope,
-		bool *returns) const
-{
-    return;
 }
 
 bound_var_t::ref take_address(

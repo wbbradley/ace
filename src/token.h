@@ -14,12 +14,8 @@ enum token_kind
 	tk_comment, /* # hey */
 
 	// Whitespace
-	tk_space, /* " " */
+	tk_space, /* " \t" */
 	tk_newline, /* newline */
-
-	// Context Blocks
-	tk_indent, /* indent */
-	tk_outdent, /* outdent */
 
 	// References
 	tk_identifier, /* identifier */
@@ -108,7 +104,6 @@ K(link);
 K(module);
 K(not);
 K(or);
-K(pass);
 K(return);
 K(sizeof);
 K(struct);

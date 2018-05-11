@@ -14,51 +14,62 @@ type CtorPatternValue has
 	name str
 	args [Pattern]
 
-type Pattern is
+type Pattern is {
 	CtorPattern(cpv CtorPatternValue)
 	CtorPatterns(patterns [CtorPatternValue])
 	AllOf(t DataType)
 	Nothing
+}
 
-def pattern_from_type(t DataType) Pattern
-	match t
-		DataType(typename, ctors)
+def pattern_from_type(t DataType) Pattern {
+	match t {
+		DataType(typename, ctors) {
 			let ctor_patterns [CtorPatternValue]
-			for ctor in ctors
-				let arg_patterns [Pattern]
-				for arg_type in ctor.arg_types
-					append(arg_patterns, AllOf(arg_type))
-				append(ctor_patterns, CtorPatternValue(typename, ctor.name, arg_patterns))
+				for ctor in ctors {
+					let arg_patterns [Pattern]
+						for arg_type in ctor.arg_types {
+							append(arg_patterns, AllOf(arg_type))
+						}
+					append(ctor_patterns, CtorPatternValue(typename, ctor.name, arg_patterns))
+				}
 			return CtorPatterns(ctor_patterns)
+		}
+	}
+}
 			
 type Pair T S is Pair(lhs T, rhs S)
 
-def set_union(lhs Pattern, rhs Pattern) Pattern
+def set_union(lhs Pattern, rhs Pattern) Pattern {
 	# ∪ Operator for Patterns
-	match Pair(lhs, rhs)
-		Pair(_, Nothing)
-			return lhs
-		Pair(Nothing, _)
-			return rhs
-		Pair(CtorPatterns(lhs), CtorPatterns(rhs))
+	match Pair(lhs, rhs) {
+		Pair(_, Nothing) { return lhs }
+		Pair(Nothing, _) { return rhs }
+		Pair(CtorPatterns(lhs), CtorPatterns(rhs)) {
 			let patterns [CtorPatternValue] = copy(lhs)
-			for a in rhs
+			for a in rhs {
 				append(patterns, a)
+			}
 			return CtorPatterns(patterns)
-		Pair(CtorPatterns(lhs), CtorPattern(rhs))
+		}
+		Pair(CtorPatterns(lhs), CtorPattern(rhs)) {
 			let patterns [CtorPatternValue] = copy(lhs)
 			append(patterns, rhs)
 			return CtorPatterns(patterns)
-		Pair(CtorPattern(lhs), CtorPatterns(rhs))
+		}
+		Pair(CtorPattern(lhs), CtorPatterns(rhs)) {
 			let patterns [CtorPatternValue] = copy(rhs)
 			append(patterns, lhs)
 			return CtorPatterns(patterns)
-		Pair(CtorPattern(lhs), CtorPattern(rhs))
+		}
+		Pair(CtorPattern(lhs), CtorPattern(rhs)) {
 			return CtorPatterns([lhs, rhs])
-		else
+		} else {
 			panic("Unhandled set_union parameters: " + lhs + " ∪ " + rhs + "\n")
+		}
+	}
 	assert(false)
 	return lhs
+}
 
 def set_intersect(lhs Pattern, rhs Pattern) Pattern
 	# ∩ Operator for Patterns

@@ -20,49 +20,53 @@ var TYPE_KIND_NO_GC int32 = 0 as int32
 var TYPE_KIND_USE_OFFSETS int32 = 1 as int32
 var TYPE_KIND_USE_MARK_FN int32 = 2 as int32
 
-def on_assert_failure(msg str) void
+def on_assert_failure(msg str) void {
 	# called match assertions fail
 	posix.puts(c_str(msg).raw)
 	posix.raise(posix.SIGTRAP)
+}
 
-def get_member_by_index(v *var_t, index int) *?var_t
-	assert(v.type_info.type_kind == TYPE_KIND_USE_OFFSETS)
+def get_member_by_index(v *var_t, index int) *?var_t {
+    assert(v.type_info.type_kind == TYPE_KIND_USE_OFFSETS)
 
-	# Get the var's type_info
-	type_info_offsets := v.type_info as! *type_info_offsets_t
+    # Get the var's type_info
+    type_info_offsets := v.type_info as! *type_info_offsets_t
 
-	# Get the base of the object in order to compute the offset of the member
-	base_ptr := v as! *int8
+    # Get the base of the object in order to compute the offset of the member
+    base_ptr := v as! *int8
 
-	# Member offset computation
-	offset := type_info_offsets.ref_offsets[index]
+    # Member offset computation
+    offset := type_info_offsets.ref_offsets[index]
 
-	# Compute the address of the child member slot
-	var_ptr := &base_ptr[offset as int] as! **?var_t
+    # Compute the address of the child member slot
+    var_ptr := &base_ptr[offset as int] as! **?var_t
 
-	# Return the address of the child member
-	return var_ptr[0]
-
+    # Return the address of the child member
+    return var_ptr[0]
+}
 
 var _bytes_allocated size_t = 0
 var _all_bytes_allocated size_t = 0
 var _var_allocation uint = 0
 
-def mem_alloc(cb size_t) *?void
+def mem_alloc(cb size_t) *?void {
 	runtime._bytes_allocated += cb
 	runtime._all_bytes_allocated += cb
 	return posix.calloc(cb, 1)
+}
 
-def mem_free(p *void, cb size_t) void
-	_bytes_allocated -= cb
+def mem_free(p *void, cb size_t) void {
+    _bytes_allocated -= cb
 	var pch = p as! *int8
 	pch_lim := &((p as! *int8)[cb])
-	while pch as! int < pch_lim as! int
+	while pch as! int < pch_lim as! int {
 		pch[0] = 0xDD
 		pch = &pch[1]
+    }
 
 	# posix.free(p)
 	# dbg_zrt(printf("memory allocation is at %ld %ld\n", _bytes_allocated, _all_bytes_allocated))
+}
 
 def get_total_allocated() size_t
 	return _bytes_allocated

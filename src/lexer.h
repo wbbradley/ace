@@ -26,14 +26,12 @@ public:
 
 private:
 	void reset_token();
-	void enqueue_indents(int line, int col, int indent_depth);
 	bool handle_nests(token_kind tk);
 	void pop_nested(token_kind tk);
 
-	std::string                      m_filename;
+	std::string               m_filename;
 	std::istream             &m_is;
 	int                       m_line=1, m_col=1;
-	int                       m_last_indent_depth;
-	zion_token_queue_t       m_token_queue;
+	zion_token_queue_t        m_token_queue;
 	std::list<token_kind>     m_nested_tks;
 };

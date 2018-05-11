@@ -27,67 +27,87 @@ var stderr *posix.FILE = posix.fdopen(2, "a")!
 # initialization of modules is automatically generated.
 # link def __init_modules() void
 
-def print[T where is_maybe T](x T) void
-	if x != null
+def print[T where is_maybe T](x T) void {
+	if x != null {
 		print(x)
-	else
+	} else {
 		write(stdout, "<null>\n")
+	}
+}
 
-def print[T, Args, R where not (is_maybe T) and not (T === str) and not (T <: def (..Args) R)](x T) void
+def print[T, Args, R where not (is_maybe T) and not (T === str) and not (T <: def (..Args) R)](x T) void {
 	write(stdout, str(x))
 	write(stdout, "\n")
+}
 
-def print[T where not(is_maybe T) and (T === str)](x T) void
+def print[T where not(is_maybe T) and (T === str)](x T) void {
 	write(stdout, x)
 	write(stdout, "\n")
+}
 
-def panic(x str) void
+def panic(x str) void {
 	write(stderr, x)
 	posix.exit(-1)
+}
 
-def breakpoint() void
+def breakpoint() void {
 	posix.raise(posix.SIGTRAP)
+}
 
-def rand(max int) int
+def rand(max int) int {
 	# Note that this is not a great way to do this
 	var r int = 0
 	posix.arc4random_buf(&r, sizeof(int))
-	if r < 0
+	if r < 0 {
 		r = -r
+	}
 	return r % max
+}
 
-type IntRange has
+type IntRange has {
 	var first int
 	var lim int
 	var step int
+}
+	
 
-def range(lim int) IntRange
+def range(lim int) IntRange {
 	return IntRange(0, lim, 1)
+}
 
-def range(first int, lim int) IntRange
+def range(first int, lim int) IntRange {
 	return IntRange(first, lim, 1)
+}
 
-def range(first int, lim int, step int) IntRange
+def range(first int, lim int, step int) IntRange {
 	return IntRange(first, lim, step)
+}
 
-type IntRangeIter has
+type IntRangeIter has {
 	var range IntRange
 	var pos int
+}
 
-def __iter_begin__(range IntRange) IntRangeIter
+def __iter_begin__(range IntRange) IntRangeIter {
 	return IntRangeIter(range, range.first)
+}
 	
-def __iter_end__(range IntRange) IntRangeIter
+def __iter_end__(range IntRange) IntRangeIter {
 	return IntRangeIter(range, range.lim)
+}
 
-def __iter_valid__(i IntRangeIter, end IntRangeIter) bool
+def __iter_valid__(i IntRangeIter, end IntRangeIter) bool {
 	return i.pos < end.range.lim
+}
 
-def __iterate__(i IntRangeIter)
+def __iterate__(i IntRangeIter) {
 	i.pos += i.range.step
+}
 
-def __iter_item__(i IntRangeIter) int
+def __iter_item__(i IntRangeIter) int {
 	return i.pos
+}
 
-def __box__[Args, Ret](fn def _(..Args) Ret) def (..Args) Ret
+def __box__[Args, Ret](fn def _(..Args) Ret) def (..Args) Ret {
 	return __closure_t(fn) as! def (..Args) Ret
+}

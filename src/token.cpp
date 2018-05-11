@@ -52,8 +52,6 @@ bool tkvisible(token_kind tk) {
 	default:
 		return true;
 	case tk_newline:
-	case tk_indent:
-	case tk_outdent:
 		return false;
 	}
 }
@@ -90,7 +88,6 @@ const char *tkstr(token_kind tk) {
 	tk_case(gt);
 	tk_case(gte);
 	tk_case(identifier);
-	tk_case(indent);
 	tk_case(inequal);
 	tk_case(binary_inequal);
 	tk_case(integer);
@@ -109,7 +106,6 @@ const char *tkstr(token_kind tk) {
 	tk_case(mod_eq);
 	tk_case(newline);
 	tk_case(none);
-	tk_case(outdent);
 	tk_case(plus);
 	tk_case(pipe);
 	tk_case(hat);
@@ -138,12 +134,10 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_comment:
 	case tk_dot:
 	case tk_double_dot:
-	case tk_indent:
 	case tk_lcurly:
 	case tk_lparen:
 	case tk_lsquare:
 	case tk_newline:
-	case tk_outdent:
 	case tk_rcurly:
 	case tk_float:
 	case tk_rparen:
@@ -220,9 +214,11 @@ void token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_line) 
 		break;
 	case tk_lcurly:
 		printf("{");
+		indent_level++;
 		break;
 	case tk_rcurly:
 		printf("}");
+		indent_level--;
 		break;
 	case tk_lsquare:
 		printf("[");
@@ -284,13 +280,6 @@ void token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_line) 
 	case tk_newline:
 		printf("\n");
 		indented_line = false;
-		break;
-	case tk_indent:
-		++indent_level;
-		break;
-	case tk_outdent:
-		assert(indent_level >= 1);
-		--indent_level;
 		break;
 	case tk_identifier:
 		ensure_space_before(last_tk);

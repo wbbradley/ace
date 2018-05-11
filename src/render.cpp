@@ -426,10 +426,6 @@ namespace ast {
 		}
 	}
 
-	void pass_flow_t::render(render_state_t &rs) const {
-		rs.ss << C_CONTROL << K(pass) << C_RESET;
-	}
-
 	void type_decl_t::render(render_state_t &rs) const {
 		rs.ss << token.text;
 		if (type_variables.size() != 0) {
