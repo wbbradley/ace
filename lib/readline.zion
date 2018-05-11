@@ -3,9 +3,9 @@ module readline
 get file
 
 type Readline is {
-	EOF
-	Error(errno int)
-	Line(line str)
+    EOF
+    Error(errno int)
+    Line(line str)
 }
 
 [global]
@@ -30,94 +30,94 @@ def readline() Readline {
 }
 
 def readline(fp *posix.FILE) Readline {
-	var linecap posix.int = 0
-	var line *?char = null
-	linelen := posix.getline(&line, &linecap, fp)
-	if linelen == -1 {
-		return EOF
+    var linecap posix.int = 0
+    var line *?char = null
+    linelen := posix.getline(&line, &linecap, fp)
+    if linelen == -1 {
+        return EOF
     }
 
-	assert(line != null)
+    assert(line != null)
 
-	# make sure we strip the LF char
-	if linelen > 0 {
-		if line[linelen - 1] == 10 {
-			line[linelen - 1] = 0
+    # make sure we strip the LF char
+    if linelen > 0 {
+        if line[linelen - 1] == 10 {
+            line[linelen - 1] = 0
         }
     }
-	return Line(str(OwningBuffer(line)))
+    return Line(str(OwningBuffer(line)))
 }
 
 [global]
 def readline(f file.File) Readline {
-	match f.state {
-		Open(fp) {
-			return readline(fp)
+    match f.state {
+        Open(fp) {
+            return readline(fp)
         }
-		Closed {
-			return Error(-1)
+        Closed {
+            return Error(-1)
         }
-		Error(errno) {
-			return Error(errno)
+        Error(errno) {
+            return Error(errno)
         }
     }
 }
 
 type Lines LineReader has {
-	var file LineReader
-	var cur_line str?
+    var file LineReader
+    var cur_line str?
 }
 
 [global]
 def readlines() Lines *posix.FILE {
-	return readlines(stdin)
+    return readlines(stdin)
 }
 
 [global]
 def readlines[LineReader](f LineReader) Lines LineReader {
-	return Lines(f, Empty)
+    return Lines(f, Empty)
 }
 
 [global]
 def __iter_begin__[LineReader](fl Lines LineReader) Lines LineReader {
-	__iterate__(fl)
-	return fl
+    __iterate__(fl)
+    return fl
 }
 
 [global]
 def __iter_end__(fl Lines any) null {
-	return null
+    return null
 }
 
 [global]
 def __iter_valid__(fl Lines any, _ null) bool {
-	return exists(fl.cur_line)
+    return exists(fl.cur_line)
 }
 
 [global]
 def __iter_item__(fl Lines any) str {
-	match fl.cur_line {
-		Just(line) {
-			return line
+    match fl.cur_line {
+        Just(line) {
+            return line
         }
-		Empty {
-			return ""
+        Empty {
+            return ""
         }
     }
 }
 
 [global]
 def __iterate__(fl Lines any) {
-	match readline(fl.file) {
-		Line(line) {
-			fl.cur_line = Just(line)
+    match readline(fl.file) {
+        Line(line) {
+            fl.cur_line = Just(line)
         }
-		Error(errno) {
-			print("Error: encountered error " + errno + " while reading file")
-			fl.cur_line = Empty
+        Error(errno) {
+            print("Error: encountered error " + errno + " while reading file")
+            fl.cur_line = Empty
         }
-		EOF {
-			fl.cur_line = Empty
+        EOF {
+            fl.cur_line = Empty
         }
     }
 }

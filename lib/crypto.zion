@@ -27,7 +27,7 @@ def hash(input_ bytes, key bytes) bytes {
     crypto_generichash(out.data, out.cb, input_.data, input_.cb, key.data, key.cb)
     return out
 }
-		
+        
 
 [global]
 def hash(input_ str) bytes {

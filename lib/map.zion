@@ -7,89 +7,89 @@ module map
 # FUTURE: we'll get ourselves a shiny fast implementation of an (un)ordered map.
 
 type KeyValue K V has {
-	key K
-	var value V
+    key K
+    var value V
 }
 
 # aka {KeyType: ValueType}
 type Map KeyType ValueType has {
-	# HACKHACK: O(n) BAD BAD
-	var storage [KeyValue KeyType ValueType]
+    # HACKHACK: O(n) BAD BAD
+    var storage [KeyValue KeyType ValueType]
 }
 
 [global]
 def __init__[K, V]() Map K V {
-	let storage [KeyValue K V]
-	return Map(storage)
+    let storage [KeyValue K V]
+    return Map(storage)
 }
 
 [global]
 def get[K, V](m Map K V, key K, default V) V {
-	# HACKHACK: O(n) BAD BAD
-	for kv in m.storage {
-		if kv.key == key {
-			return kv.value
+    # HACKHACK: O(n) BAD BAD
+    for kv in m.storage {
+        if kv.key == key {
+            return kv.value
         }
     }
-	return default
+    return default
 }
 
 [global]
 def __getitem__[K, V](m Map K V, key K) V? {
-	# HACKHACK: O(n) BAD BAD
-	for kv in m.storage {
-		if kv.key == key {
-			return Just(kv.value)
+    # HACKHACK: O(n) BAD BAD
+    for kv in m.storage {
+        if kv.key == key {
+            return Just(kv.value)
         }
     }
-	return Empty
+    return Empty
 }
 
 [global]
 def __setitem__[K, V](m Map K V, key K, val V) {
-	# HACKHACK: O(n) BAD BAD
-	for kv in m.storage {
-		if kv.key == key {
-			kv.value = val
-			return
+    # HACKHACK: O(n) BAD BAD
+    for kv in m.storage {
+        if kv.key == key {
+            kv.value = val
+            return
         }
     }
-	append(m.storage, KeyValue(key, val))
+    append(m.storage, KeyValue(key, val))
 }
 
 [global]
 def __in__[K, V](key K, m Map K V) bool {
-	for kv in m.storage {
-		if kv.key == key {
-			return true
+    for kv in m.storage {
+        if kv.key == key {
+            return true
         }
     }
-	return false
+    return false
 }
 
 [global]
 def __not_in__[K, V](key K, m Map K V) bool {
-	for kv in m.storage {
-		if kv.key == key {
-			return false
+    for kv in m.storage {
+        if kv.key == key {
+            return false
         }
     }
-	return true
+    return true
 }
 
 [global]
 def del[K, V](m Map K V, key K) bool {
-	# HACKHACK: O(n) BAD BAD - also vector.ManagedVector coupling BAD BAD
-	var i = 0
-	let storage = m.storage
-	let size = (storage as! *(vector.VectorImpl (KeyValue K V))).size
-	while i < size {
-		let item = storage[i]
-		if item.key == key {
-			splice(storage, int(i), 1)
-			return true
+    # HACKHACK: O(n) BAD BAD - also vector.ManagedVector coupling BAD BAD
+    var i = 0
+    let storage = m.storage
+    let size = (storage as! *(vector.VectorImpl (KeyValue K V))).size
+    while i < size {
+        let item = storage[i]
+        if item.key == key {
+            splice(storage, int(i), 1)
+            return true
         }
-		i += 1
+        i += 1
     }
-	return false
+    return false
 }

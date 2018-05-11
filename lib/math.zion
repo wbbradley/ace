@@ -2,75 +2,75 @@ module math @1.0
 get posix
 
 type Complex has {
-	var real float
-	var imag float
+    var real float
+    var imag float
 }
 
 [global]
 def str(c Complex) str {
-	var s = "" + str(c.real);
-	if c.imag < 0 {
-		s = s + " -"
+    var s = "" + str(c.real);
+    if c.imag < 0 {
+        s = s + " -"
     } else {
-		if c.imag == 0.0 {
-			return s
+        if c.imag == 0.0 {
+            return s
         }
-		s = s + " + "
+        s = s + " + "
     }
-	return s + str(math.abs(c.real)) + "i"
+    return s + str(math.abs(c.real)) + "i"
 }
 
 [global]
 def __times__(a Complex, b Complex) Complex {
-	return Complex(a.real * b.real - a.imag * b.imag,
-		a.imag * b.real + a.real * b.imag)
+    return Complex(a.real * b.real - a.imag * b.imag,
+        a.imag * b.real + a.real * b.imag)
 }
 
 [global]
 def __plus__(a Complex, b Complex) Complex {
-	return Complex(a.real + b.real, a.imag + b.imag)
+    return Complex(a.real + b.real, a.imag + b.imag)
 }
 
 def rounded_tenth(x int) int {
-	return (x + 5) / 10
+    return (x + 5) / 10
 }
 
 [global]
 def abs[T](x T) T {
-	if x < 0 {
-		return -x
+    if x < 0 {
+        return -x
     } else {
-		return x
+        return x
     }
 }
 
 [global]
 def min[T](x T, y T) T {
-	if x < y {
-		return x
+    if x < y {
+        return x
     } else {
-		return y
+        return y
     }
 }
 
 def sum_of_squares(N int) int {
-	var ret = 0
-	var n = 0
-	var n_squared = 0
-	while n <= N {
-		n_squared = n * n
-		ret += n_squared
-		n += 1
+    var ret = 0
+    var n = 0
+    var n_squared = 0
+    while n <= N {
+        n_squared = n * n
+        ret += n_squared
+        n += 1
     }
-	return ret
+    return ret
 }
 
 def gcd(x int, y int) int {
-	if x == y {
-		return x
+    if x == y {
+        return x
     } elif x < y {
-		return gcd(x, y - x)
+        return gcd(x, y - x)
     } else {
-		return gcd(x - y, y)
+        return gcd(x - y, y)
     }
 }

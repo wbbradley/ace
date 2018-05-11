@@ -5,14 +5,14 @@ get posix
 var args [str]
 
 def exit(code int) {
-	print("Quitting with code " + code)
-	posix.exit(code)
+    print("Quitting with code " + code)
+    posix.exit(code)
 }
 
 def set_args(argc int32, argv **char) {
-	var i = 0
-	while i < argc {
-		vector.append(args, str(OwningBuffer(posix.strdup(argv[i])!)))
-		i += 1
+    var i = 0
+    while i < argc {
+        vector.append(args, str(OwningBuffer(posix.strdup(argv[i])!)))
+        i += 1
     }
 }
