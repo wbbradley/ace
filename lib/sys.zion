@@ -4,12 +4,15 @@ get posix
 # TODO: make module variable initialization deterministic
 var args [str]
 
-def exit(code int)
+def exit(code int) {
 	print("Quitting with code " + code)
 	posix.exit(code)
+}
 
-def set_args(argc int32, argv **char)
+def set_args(argc int32, argv **char) {
 	var i = 0
-	while i < argc
+	while i < argc {
 		vector.append(args, str(OwningBuffer(posix.strdup(argv[i])!)))
 		i += 1
+    }
+}

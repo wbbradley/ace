@@ -1,84 +1,131 @@
 global
 
-type Maybe T is
+type Maybe T is {
 	Just(t T)
 	Empty
+}
 
-def exists(m Maybe any) bool
-	match m
-		Empty
+def exists(m Maybe any) bool {
+	match m {
+		Empty {
 			return false
-		Just(_)
+        }
+		Just(_) {
 			return true
+        }
+    }
+}
 
-def __eq__[U](lhs Maybe U, rhs Maybe U) bool
-	match rhs
-		Just(rhs_value)
-			match lhs
-				Just(lhs_value)
+def __eq__[U](lhs Maybe U, rhs Maybe U) bool {
+	match rhs {
+		Just(rhs_value) {
+			match lhs {
+				Just(lhs_value) {
 					return lhs_value == rhs_value
-				Empty
+                }
+				Empty {
 					return false
-		Empty
-			match lhs
-				Just(_)
+                }
+            }
+        }
+		Empty {
+			match lhs {
+				Just(_) {
 					return false
-				Empty
+                }
+				Empty {
 					return true
+                }
+            }
+        }
+    }
+}
 
-def __eq__[U, V where U === V](lhs U, rhs Maybe V) bool
-	match rhs
-		Just(rhs_value)
+def __eq__[U, V where U === V](lhs U, rhs Maybe V) bool {
+	match rhs {
+		Just(rhs_value) {
 			return lhs == rhs_value
-		Empty
+        }
+		Empty {
 			return false
+        }
+    }
+}
 
-def __ineq__[U, V where U === V](lhs U, rhs Maybe V) bool
-	match rhs
-		Just(rhs_value)
+def __ineq__[U, V where U === V](lhs U, rhs Maybe V) bool {
+	match rhs {
+		Just(rhs_value) {
 			return lhs != rhs_value
-		Empty
+        }
+		Empty {
 			return true
+        }
+    }
+}
 
-def __eq__[U, V where U === V](lhs Maybe U, rhs V) bool
-	match lhs
-		Just(lhs_value)
+def __eq__[U, V where U === V](lhs Maybe U, rhs V) bool {
+	match lhs {
+		Just(lhs_value) {
 			return lhs_value == rhs
-		Empty
+        }
+		Empty {
 			return false
+        }
+    }
+}
 
-def __ineq__[U, V where U === V](lhs Maybe U, rhs V) bool
-	match lhs
-		Just(lhs_value)
+def __ineq__[U, V where U === V](lhs Maybe U, rhs V) bool {
+	match lhs {
+		Just(lhs_value) {
 			return lhs_value != rhs
-		Empty
+        }
+		Empty {
 			return true
+        }
+    }
+}
 
-def join[A](a Maybe (Maybe A)) Maybe A
-	match a
-		Just(a)
+def join[A](a Maybe (Maybe A)) Maybe A {
+	match a {
+		Just(a) {
 			return a
-		Empty
+        }
+		Empty {
 			return Empty
+        }
+    }
+}
 
-def bind[A, B](a Maybe A, f def (a A) Maybe B) Maybe B
-	match a
-		Empty
+def bind[A, B](a Maybe A, f def (a A) Maybe B) Maybe B {
+	match a {
+		Empty {
 			return Empty
-		Just(a)
+        }
+		Just(a) {
 			return f(a)
+        }
+    }
+}
 	
-def fmap[A, B where not (B === void)](f def (a A) B, a Maybe A) Maybe B
-	match a
-		Empty
+def fmap[A, B where not (B === void)](f def (a A) B, a Maybe A) Maybe B {
+	match a {
+		Empty {
 			return Empty
-		Just(x)
+        }
+		Just(x) {
 			return Just(f(x))
+        }
+    }
+}
 
-def fmap[A](f def (a A) void, a Maybe A) void
-	match a
-		Empty
+def fmap[A](f def (a A) void, a Maybe A) void {
+	match a {
+		Empty {
 			return
-		Just(x)
+        }
+		Just(x) {
 			f(x)
 			return
+        }
+    }
+}

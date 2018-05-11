@@ -4,7 +4,8 @@ get runtime
 # test: pass
 # expect: Hello, world.
 
-def main()
+def main() {
 	x := "Hello, world."
 	print(x)
 	runtime.gc()
+}

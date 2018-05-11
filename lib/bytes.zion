@@ -2,47 +2,59 @@ global
 
 link def hexdigit(val int) char
 
-type bytes has
+type bytes has {
 	let data *int8
 	let cb size_t
+}
 
-def len(b bytes) size_t
+def len(b bytes) size_t {
 	return b.cb
+}
 
-def alloc(cb int) bytes
-	if cb < 0
+def alloc(cb int) bytes {
+	if cb < 0 {
 		assert(false and "attempt to allocate " + cb + " bytes")
+    }
 	let pb = posix.calloc(1, cb) as! *?int8
 	assert(pb != null)
 	return bytes(pb, cb)
+}
 
-def __finalize__(b bytes)
+def __finalize__(b bytes) {
 	posix.free(b.data)
+}
 
-def __eq__(lhs bytes, rhs bytes) bool
-	if lhs.cb != rhs.cb
+def __eq__(lhs bytes, rhs bytes) bool {
+	if lhs.cb != rhs.cb {
 		return false
+    }
 	return posix.memcmp(lhs.data, rhs.data, lhs.cb) == 0
+}
 
-def __ineq__(lhs bytes, rhs bytes) bool
-	if lhs.cb != rhs.cb
+def __ineq__(lhs bytes, rhs bytes) bool {
+	if lhs.cb != rhs.cb {
 		return true
+    }
 	return posix.memcmp(lhs.data, rhs.data, lhs.cb) != 0
+}
 
-def hexdigest(b bytes) str
+def hexdigest(b bytes) str {
 	return hexdigest(b.data, b.cb)
+}
 
-def hexdigest(data *void, cb size_t) str
+def hexdigest(data *void, cb size_t) str {
 	let s = posix.malloc(sizeof(char) * (cb * 2 + 1))! as! *char
 	iter := data as! *uint8
 	var j = 0
-	for i in range(cb)
+	for i in range(cb) {
 		# append to our hexdigest
 		s[j] = hexdigit(iter[i] >> 4)
 		s[j + 1] = hexdigit(iter[i] & 15)
 
 		# advance iteration
 		j += 2
+    }
 
 	s[j] = 0
 	return str(OwningBuffer(s))
+}

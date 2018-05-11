@@ -14,26 +14,28 @@ link def crypto_generichash_keygen(k *int8) void
 
 type crypto_generichash_state struct
 
-def init()
-	if sodium_init() < 0
-		posix.puts("failed to initialize libsodium")
-		posix.exit(1)
+def init() {
+    if sodium_init() < 0 {
+        posix.puts("failed to initialize libsodium")
+        posix.exit(1)
+    }
+}
 
-def hash(input_ bytes, key bytes) bytes
-	outlen := crypto_generichash_bytes_max()
-	out := alloc(outlen)
-	crypto_generichash(out.data, out.cb, input_.data, input_.cb, key.data, key.cb)
-	return out
+def hash(input_ bytes, key bytes) bytes {
+    outlen := crypto_generichash_bytes_max()
+    out := alloc(outlen)
+    crypto_generichash(out.data, out.cb, input_.data, input_.cb, key.data, key.cb)
+    return out
+}
 		
 
 [global]
-def hash(input_ str) bytes
-	outlen := crypto_generichash_bytes_max()
-	out := alloc(outlen)
-	crypto_generichash(out.data, out.cb,
-		unsafe_access(input_) as! *int8,
-		sizeof(char) * input_.length,
-		null, 0)
-	return out
-	
-	
+def hash(input_ str) bytes {
+    outlen := crypto_generichash_bytes_max()
+    out := alloc(outlen)
+    crypto_generichash(out.data, out.cb,
+        unsafe_access(input_) as! *int8,
+        sizeof(char) * input_.length,
+        null, 0)
+    return out
+}

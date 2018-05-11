@@ -1,7 +1,9 @@
 global
 
-def str(x bool) str
-	if x
+def str(x bool) str {
+	if x {
 		return "true"
-	else
+    } else {
 		return "false"
+    }
+}

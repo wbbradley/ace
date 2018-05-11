@@ -696,12 +696,14 @@ bool zion_lexer_t::_get_tokens() {
 		}
 	}
 
+	/*
 	bool nested = handle_nests(tk);
 	if (nested) {
 		if (tk == tk_newline) {
 			tk = tk_space;
 		}
 	}
+	*/
 
 	if (gts != gts_error && tk != tk_error) {
 		m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
