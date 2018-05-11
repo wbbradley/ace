@@ -3,11 +3,11 @@ module _
 # expect: print a Foo: 3
 
 type Foo has
-	var x int
+    var x int
 
 [global]
 def str(f Foo) str
-	return "print a Foo: " + str(f.x)
+    return "print a Foo: " + str(f.x)
 
 def main()
-	print(Foo(3))
+    print(Foo(3))

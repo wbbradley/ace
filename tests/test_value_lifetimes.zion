@@ -2,4 +2,4 @@ module _
 # test: pass
 
 def main()
-	1
+    1

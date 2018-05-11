@@ -2,7 +2,7 @@ module _
 # test: pass
 
 def generic_print(x any)
-	print(x)
+    print(x)
 
 def main()
-	generic_print("hello world.")
+    generic_print("hello world.")

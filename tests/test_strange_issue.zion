@@ -3,18 +3,18 @@ module _
 # expect: hi
 
 type D is
-	AA(x int)
-	BB
+    AA(x int)
+    BB
 
 def foo(a D)
-	pass
+    pass
 
 def main()
-	AA(3)
-	match BB
-		AA(x)
-			pass
-		BB
-			pass
+    AA(3)
+    match BB
+        AA(x)
+            pass
+        BB
+            pass
 
-	print("hi")
+    print("hi")

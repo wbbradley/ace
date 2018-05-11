@@ -3,20 +3,20 @@ module _
 # expect: hooray 1.2
 
 type D T is
-	A(t T)
-	B
-	C
+    A(t T)
+    B
+    C
 
 def poly(a D any) str
-	match a
-		A(t)
-			return "hooray " + t
-		B
-			return "nope"
-		C
-			return "sad panda"
+    match a
+        A(t)
+            return "hooray " + t
+        B
+            return "nope"
+        C
+            return "sad panda"
 
 def main()
-	y := poly(A(1.2))
-	print(y)
+    y := poly(A(1.2))
+    print(y)
 

@@ -4,11 +4,11 @@ get file
 # expect: opened tests/test_if_finalizer.zion as fp
 
 def main()
-	filename := "tests/test_if_finalizer.zion"
-	f := file.open(filename, "r")
-	state := f.state
-	match state
-		Open(fp)
-			print("opened " + filename + " as fp " + str(fp as! int))
-		else
-			print("unable to open " + filename)
+    filename := "tests/test_if_finalizer.zion"
+    f := file.open(filename, "r")
+    state := f.state
+    match state
+        Open(fp)
+            print("opened " + filename + " as fp " + str(fp as! int))
+        else
+            print("unable to open " + filename)

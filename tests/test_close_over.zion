@@ -2,9 +2,9 @@ module _
 # test: pass
 
 def get_adder(add int) def (_ int) int
-	return def (x int) int
-		return add + x
+    return def (x int) int
+        return add + x
 
 def main()
-	adder := get_adder(1)
-	print("5 + 1 = " + adder(5))
+    adder := get_adder(1)
+    print("5 + 1 = " + adder(5))

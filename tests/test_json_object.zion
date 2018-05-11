@@ -4,4 +4,4 @@ module _
 get json
 
 def main()
-	let o = json.json_object()
+    let o = json.json_object()

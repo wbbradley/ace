@@ -2,7 +2,7 @@ module _
 # test: pass
 
 def arity0()
-	pass
+    pass
 
 def main()
-	arity0()
+    arity0()

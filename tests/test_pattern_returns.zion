@@ -5,15 +5,15 @@ module _
 type D is A B C
 
 def poly(a D) int
-	match a
-		A
-			return 0
-		B
-			return 1
-		C
-			return 2
+    match a
+        A
+            return 0
+        B
+            return 1
+        C
+            return 2
 
 def main()
-	y := poly(C)
-	print(y)
+    y := poly(C)
+    print(y)
 

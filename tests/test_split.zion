@@ -5,10 +5,10 @@ module _
 # expect: ||||
 
 def main()
-	s1 := "\t hello\nworld   you   funky people "
-	s2 := join(",", split(s1))
-	print(s2)
-	s3 := join("|", split(s2, ","))
-	print(s3)
-	s4 := join("", split(s3, "abcdefghijklmnopqrstuvwxyz"))
-	print(s4)
+    s1 := "\t hello\nworld   you   funky people "
+    s2 := join(",", split(s1))
+    print(s2)
+    s3 := join("|", split(s2, ","))
+    print(s3)
+    s4 := join("", split(s3, "abcdefghijklmnopqrstuvwxyz"))
+    print(s4)

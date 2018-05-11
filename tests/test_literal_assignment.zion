@@ -1,5 +1,5 @@
 module _
 
 def main()
-	# error: the left-hand side of this assignment is not a reference
-	5 = 3
+    # error: the left-hand side of this assignment is not a reference
+    5 = 3

@@ -2,8 +2,8 @@ module _
 # test: pass
 
 def main() int
-	var x = 0
-	while x < 10
-		print(x)
-		x += 1
-	return x
+    var x = 0
+    while x < 10
+        print(x)
+        x += 1
+    return x

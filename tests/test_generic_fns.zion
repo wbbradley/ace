@@ -2,15 +2,15 @@ module _
 # test: pass
 
 def no_type(y)
-	pass
+    pass
 
 def any_type(y any)
-	pass
+    pass
 
 def named_any_type(y any T)
-	pass
+    pass
 
 def main()
-	no_type(1)
-	any_type(1)
-	named_any_type(1)
+    no_type(1)
+    any_type(1)
+    named_any_type(1)

@@ -2,8 +2,8 @@ module _
 # test: pass
 
 def main()
-	if true
-		pass
+    if true
+        pass
 
-	if false
-		pass
+    if false
+        pass

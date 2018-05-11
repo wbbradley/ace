@@ -7,14 +7,14 @@ get sys
 # expect: This text should appear
 
 def main()
-	f := file.open("tests/test_read_file.zion", "r")
-	while true
-		match readline(f)
-			Line(line)
-				print(line)
-			EOF
-				break
-			Error(_)
-				break
-	file.close(f)
-	runtime.gc()
+    f := file.open("tests/test_read_file.zion", "r")
+    while true
+        match readline(f)
+            Line(line)
+                print(line)
+            EOF
+                break
+            Error(_)
+                break
+    file.close(f)
+    runtime.gc()

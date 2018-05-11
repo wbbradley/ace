@@ -4,6 +4,6 @@ get posix
 get sys
 
 def main()
-	buffer := len(sys.args) > 1 ? c_str(sys.args[1]) : null
-	if buffer != null
-		posix.puts(buffer.raw)
+    buffer := len(sys.args) > 1 ? c_str(sys.args[1]) : null
+    if buffer != null
+        posix.puts(buffer.raw)

@@ -2,28 +2,28 @@ module _ @1.0
 # test: pass
 
 def get_maybe() int?
-	return Empty
+    return Empty
 
 def get() void
-	return
+    return
 
 def get_int() int
-	x := 7
-	y := x + x
-	return y
+    x := 7
+    y := x + x
+    return y
 
 def get_int_2() int
-	z := int("23")
-	return z
+    z := int("23")
+    return z
 
 def get_string_1() str
-	x := "z"
-	return x
+    x := "z"
+    return x
 
 def get_string_4() str
-	x := 9
-	y := str(9)
-	return y
+    x := 9
+    y := str(9)
+    return y
 
 def main()
-	pass
+    pass

@@ -4,8 +4,8 @@ module _
 type C is D E(c C)
 
 def identity(expr C)
-	pass
+    pass
 
 def main()
-	identity(E(D))
+    identity(E(D))
 

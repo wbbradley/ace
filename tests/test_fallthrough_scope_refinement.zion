@@ -6,12 +6,12 @@ module _
 # reject: y : *?int
 
 def main()
-	let x *?int = null
-	if x == null
-		return
-	static_print(x)
+    let x *?int = null
+    if x == null
+        return
+    static_print(x)
 
 def bingo()
-	let y *?int = null
-	assert(y == null)
-	static_print(y)
+    let y *?int = null
+    assert(y == null)
+    static_print(y)

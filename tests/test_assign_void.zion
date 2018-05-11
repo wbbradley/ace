@@ -3,5 +3,5 @@ module hello @1.0
 link def not_really_a_function()
 
 def main()
-	# error: cannot initialize a variable with void, since it has no value
-	x := not_really_a_function()
+    # error: cannot initialize a variable with void, since it has no value
+    x := not_really_a_function()

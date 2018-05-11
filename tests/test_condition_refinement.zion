@@ -10,14 +10,14 @@ module _
 
 
 def gimme_bool() bool
-	return true
+    return true
 
 def main()
-	static_print(7)
-	static_print("hello")
-	static_print(gimme_bool())
-	static_print(true and 100)
-	static_print(false and 100)
-	static_print(true or 100)
-	static_print(false or 100)
+    static_print(7)
+    static_print("hello")
+    static_print(gimme_bool())
+    static_print(true and 100)
+    static_print(false and 100)
+    static_print(true or 100)
+    static_print(false or 100)
 

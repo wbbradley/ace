@@ -4,19 +4,19 @@ module _
 # This might require backtracking in the unification in order to handle the tricky resolution of T
 
 type Expr T is
-	Plus(lhs Expr T, rhs Expr T)
-	Times(lhs Expr T, rhs Expr T)
-	Value(x T)
+    Plus(lhs Expr T, rhs Expr T)
+    Times(lhs Expr T, rhs Expr T)
+    Value(x T)
 
 def eval(expr Expr any T) any T
-	match expr
-		Plus(lhs, rhs)
-			return eval(lhs) + eval(rhs)
-		Times(lhs, rhs)
-			return eval(lhs) * eval(rhs)
-		Value(x)
-			return x
+    match expr
+        Plus(lhs, rhs)
+            return eval(lhs) + eval(rhs)
+        Times(lhs, rhs)
+            return eval(lhs) * eval(rhs)
+        Value(x)
+            return x
 
 def main()
-	print(eval(Plus(Times(Value(4), Value(2)), Value(3))))
-	print(eval(Plus(Times(Value(4.0), Value(2.0)), Value(3.0))))
+    print(eval(Plus(Times(Value(4), Value(2)), Value(3))))
+    print(eval(Plus(Times(Value(4.0), Value(2.0)), Value(3.0))))

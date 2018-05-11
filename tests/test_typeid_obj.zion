@@ -4,4 +4,4 @@ module _
 type Foo is Bar
 
 def main()
-	typeid(Bar)
+    typeid(Bar)

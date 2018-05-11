@@ -4,12 +4,12 @@ module _
 # expect: Just(3)
 
 def do(t Maybe any T) void
-	match t
-		Just(val)
-			print("Just(" + val + ")")
-		Empty
-			print("Empty")
+    match t
+        Just(val)
+            print("Just(" + val + ")")
+        Empty
+            print("Empty")
 
 def main()
-	do(Empty)
-	do(Just(3))
+    do(Empty)
+    do(Just(3))

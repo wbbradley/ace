@@ -5,7 +5,7 @@ get runtime
 # expect: Hello, world.
 
 def main() {
-	x := "Hello, world."
-	print(x)
-	runtime.gc()
+    x := "Hello, world."
+    print(x)
+    runtime.gc()
 }

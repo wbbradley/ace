@@ -4,7 +4,7 @@ module _
 # reject: fail
 
 def main()
-	if "hey" == "hey"
-		print("pass")
-	else
-		print("fail")
+    if "hey" == "hey"
+        print("pass")
+    else
+        print("fail")

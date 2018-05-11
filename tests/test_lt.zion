@@ -2,11 +2,11 @@ module _
 # test: pass
 
 def main()
-	var x = 1
-	while true
-		x += 1
-		if x < 20
-			continue
-		print(x)
-		if x > 34
-			break
+    var x = 1
+    while true
+        x += 1
+        if x < 20
+            continue
+        print(x)
+        if x > 34
+            break

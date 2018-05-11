@@ -3,16 +3,16 @@ module _
 type D is A B C
 
 def poly(a D) int
-	# error: not all control paths return a value
-	match a
-		A
-			return 0
-		B
-			return 1
-		C
-			pass
+    # error: not all control paths return a value
+    match a
+        A
+            return 0
+        B
+            return 1
+        C
+            pass
 
 def main()
-	y := poly(C)
-	print(y)
+    y := poly(C)
+    print(y)
 

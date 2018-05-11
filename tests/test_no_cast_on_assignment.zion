@@ -2,13 +2,13 @@ module _
 # test: pass
 
 type Point T is
-	Cartesian(x T, y T)
-	Radial(radius T, theta T)
+    Cartesian(x T, y T)
+    Radial(radius T, theta T)
 
 def main()
-	var p = Cartesian(2.4, 1.0)
-	match p
-		Cartesian(x, y)
-			print(str(x) + ", " + y)
-		Radial(radius, theta)
-			print(str(radius) + ", " + theta)
+    var p = Cartesian(2.4, 1.0)
+    match p
+        Cartesian(x, y)
+            print(str(x) + ", " + y)
+        Radial(radius, theta)
+            print(str(radius) + ", " + theta)

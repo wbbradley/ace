@@ -4,7 +4,7 @@ module _ @1.0
 type B X is Bx(t X) C
 
 def do(b B int)
-	pass
+    pass
 
 def main()
-	do(Bx(3))
+    do(Bx(3))

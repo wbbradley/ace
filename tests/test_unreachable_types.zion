@@ -1,13 +1,13 @@
 module _
 
 type Box X Y is
-	Part(x X)
-	Crate(x X, y Y)
+    Part(x X)
+    Crate(x X, y Y)
 
 def show(b Box any any)
-	# error: unable to resolve overloads for __getitem__
-	print(b[0])
+    # error: unable to resolve overloads for __getitem__
+    print(b[0])
 
 def main()
-	x := Part("")
-	show(x)
+    x := Part("")
+    show(x)

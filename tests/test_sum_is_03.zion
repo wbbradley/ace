@@ -3,13 +3,13 @@ module _
 # expect: pass
 
 type Point is
-	Relative(value float)
-	Absolute(value float)
+    Relative(value float)
+    Absolute(value float)
 
 def main()
-	point := Relative(1.0)
-	match point
-		Relative(_)
-			print("pass")
-		Absolute(_)
-			print("what?")
+    point := Relative(1.0)
+    match point
+        Relative(_)
+            print("pass")
+        Absolute(_)
+            print("what?")

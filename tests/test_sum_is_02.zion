@@ -5,5 +5,5 @@ module _
 type PhoneNumber is Local(num int) Intl(cc int, num int)
 
 def main()
-	number := Local(100)
-	intl_number := Intl(1, 100)
+    number := Local(100)
+    intl_number := Intl(1, 100)

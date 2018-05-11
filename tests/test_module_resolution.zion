@@ -1,11 +1,11 @@
 module _
 
 type Foo has
-	var x int
+    var x int
 
 # error: unable to resolve overloads for str\(.*Foo\)
 def str(f Foo) str
-	return str(f.x)
+    return str(f.x)
 
 def main()
-	print(Foo(3))
+    print(Foo(3))

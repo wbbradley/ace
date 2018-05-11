@@ -3,8 +3,8 @@ module _
 # TODO: figure out what's going on here
 
 def foo(a [Cow])
-	# should be error: Cow not defined or something?
-	pass
+    # should be error: Cow not defined or something?
+    pass
 
 def main()
-	print("hi")
+    print("hi")

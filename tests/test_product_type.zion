@@ -2,8 +2,8 @@ module _
 # test: pass
 
 type FloatPair has
-	var fst float
-	var snd float
+    var fst float
+    var snd float
 
 def main()
-	pass
+    pass

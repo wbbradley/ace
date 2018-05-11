@@ -2,6 +2,6 @@ module _ @1.0
 # test: skip
 
 def main()
-	inner_func := def foo() bool
-		return "hey"
-	print(inner_func())
+    inner_func := def foo() bool
+        return "hey"
+    print(inner_func())

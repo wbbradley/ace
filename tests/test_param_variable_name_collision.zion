@@ -2,11 +2,11 @@ module _
 # test: pass
 
 def has_an_x_var()
-	x := 1
-	has_an_x_param(x)
+    x := 1
+    has_an_x_param(x)
 
 def has_an_x_param(x int)
-	pass
+    pass
 
 def main()
-	pass
+    pass

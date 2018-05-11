@@ -3,15 +3,15 @@ module _
 # expect: 11
 
 type Expr is
-	Plus(lhs Expr, rhs Expr)
-	Value(x int)
+    Plus(lhs Expr, rhs Expr)
+    Value(x int)
 
 def eval[T where T <: Expr](e T) int
-	match e
-		Plus(lhs, rhs)
-			return eval(lhs) + eval(rhs)
-		Value(e)
-			return e
+    match e
+        Plus(lhs, rhs)
+            return eval(lhs) + eval(rhs)
+        Value(e)
+            return e
 
 def main()
-	print(eval(Plus(Value(2), Plus(Value(4), Value(5)))))
+    print(eval(Plus(Value(2), Plus(Value(4), Value(5)))))

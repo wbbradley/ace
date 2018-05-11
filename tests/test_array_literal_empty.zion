@@ -3,12 +3,12 @@ module _
 # expect: []
 
 def foo()
-	let y = get_empty_vector_of_ints()
-	print(y)
+    let y = get_empty_vector_of_ints()
+    print(y)
 
 def main()
-	foo()
-	runtime.gc()
+    foo()
+    runtime.gc()
 
 def get_empty_vector_of_ints() [int]
-	return []
+    return []

@@ -2,7 +2,7 @@ module _
 # test: pass
 
 type Special has
-	var nothing int
+    var nothing int
 
 def main()
-	Special(2)
+    Special(2)

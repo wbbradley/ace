@@ -2,15 +2,15 @@ module _
 # test: pass
 
 type ListNode is
-	Data(value int, node ListNode)
-	Done
+    Data(value int, node ListNode)
+    Done
 
 type HList has
-	var l ListNode
+    var l ListNode
 
 def __getitem__(l HList, index int) int
-	return 42
+    return 42
 
 def main()
-	l := HList(Data(12, Done))
-	l.l
+    l := HList(Data(12, Done))
+    l.l

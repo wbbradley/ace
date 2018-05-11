@@ -4,12 +4,12 @@ get main
 # expect: pass
 
 def main()
-	var x *?int8 = c_str("hey").raw as! *int8
-	assert(null != x)
-	x = 100 as! *int8
-	var y = 200 as! *int8
+    var x *?int8 = c_str("hey").raw as! *int8
+    assert(null != x)
+    x = 100 as! *int8
+    var y = 200 as! *int8
 
-	y = x
+    y = x
 
-	print("pass")
-		
+    print("pass")
+        

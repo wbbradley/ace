@@ -1,5 +1,5 @@
 module _
 
 def bad_call()
-	# error: 5:5: error: this expression is not callable
-	(3 + 4)(2)
+    # error: 5:5: error: this expression is not callable
+    (3 + 4)(2)

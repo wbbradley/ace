@@ -3,11 +3,11 @@ module _
 # expect: yep
 
 type Vector has
-	var x float
-	var y float
+    var x float
+    var y float
 
 def do(t Vector) void
-	print("yep")
+    print("yep")
 
 def main()
-	do(Vector(0.0, 0.1))
+    do(Vector(0.0, 0.1))

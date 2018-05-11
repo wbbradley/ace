@@ -2,12 +2,12 @@ module _ @1.0
 # test: pass
 
 type Bx T has
-	var x T
+    var x T
 
 type B X is Bx X
 
 def do(b Bx int)
-	print(b.x)
+    print(b.x)
 
 def main()
-	do(Bx(3))
+    do(Bx(3))

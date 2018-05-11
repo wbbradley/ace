@@ -1,15 +1,15 @@
 module _ @1.0
 
 type Derived Y has
-	var y Y
+    var y Y
 
 type Derived2 Y has
-	var y Y
+    var y Y
 
 type Base X Y is
-	Derived(x X)
-	Derived2(y Y)
+    Derived(x X)
+    Derived2(y Y)
 
 # error: unable to bind type .*C int
 def do(b C int)
-	print(b.x)
+    print(b.x)

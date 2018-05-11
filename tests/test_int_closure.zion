@@ -4,16 +4,16 @@ module _
 # expect: pass with 6
 
 def get_int() int
-	return 5
+    return 5
 
 def bar()
-	x := get_int()
-	foo := def (y int)
-		print("pass with " + (x + y))
+    x := get_int()
+    foo := def (y int)
+        print("pass with " + (x + y))
 
-	foo(0)
-	foo(1)
+    foo(0)
+    foo(1)
 
 def main()
-	bar()
-	runtime.gc()
+    bar()
+    runtime.gc()
