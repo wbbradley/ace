@@ -1,11 +1,15 @@
 module _
 # test: pass
 
-type C is D E(c C)
+type C is {
+    D
+    E(c C)
+}
 
-def identity(expr C)
-    pass
+def identity(expr C) {
+}
 
-def main()
+def main() {
     identity(E(D))
+}
 

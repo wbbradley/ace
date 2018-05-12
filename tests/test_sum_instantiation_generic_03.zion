@@ -1,16 +1,22 @@
 module _
 # test: pass
 
-type TY is Y(y int)
+type TY is {
+    Y(y int)
+}
 
-type Baz X Y is
+type Baz X Y is {
     Foo(x X)
     Bar(y Y)
+}
 
-def main()
+def main() {
     y := Bar(Y(1))
-    match y
-        Bar(Y(y))
+    match y {
+        Bar(Y(y)) {
             print(y)
-        Foo(_)
-            pass
+        }
+        Foo(_) {
+        }
+    }
+}

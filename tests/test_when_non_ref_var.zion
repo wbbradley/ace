@@ -2,12 +2,15 @@ module _
 # test: pass
 # expect: yep
 
-type Vector has
+type Vector has {
     var x float
     var y float
+}
 
-def do(t Vector) void
+def do(t Vector) void {
     print("yep")
+}
 
-def main()
+def main() {
     do(Vector(0.0, 0.1))
+}

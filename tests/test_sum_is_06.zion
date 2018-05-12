@@ -1,8 +1,10 @@
 module _
 # test: pass
 
-type Special has
+type Special has {
     var nothing int
+}
 
-def main()
+def main() {
     Special(2)
+}

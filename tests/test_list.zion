@@ -1,25 +1,35 @@
 module _
 # test: pass
 
-type ListInt is
+type ListInt is {
     NodeInt(value int, next ListInt)
     Done
+}
 
-def len(l ListInt) int
-    match l
-        Done
+def len(l ListInt) int {
+    match l {
+        Done {
             return 0
-        NodeInt(_, next)
+        }
+        NodeInt(_, next) {
             return 1 + len(next)
+        }
+    }
+}
 
-def sum(l ListInt) int
-    match l
-        Done
+def sum(l ListInt) int {
+    match l {
+        Done {
             return 0
-        NodeInt(value, next)
+        }
+        NodeInt(value, next) {
             return value + sum(next)
+        }
+    }
+}
 
-def main()
+def main() {
     l := NodeInt(1, NodeInt(2, NodeInt(3, Done)))
     print(len(l))
     print(sum(l))
+}

@@ -2,9 +2,11 @@ module _
 # test: pass
 # expect: pass
 
-def main()
+def main() {
     var x *?int = null
-    if x == null
+    if x == null {
         print("pass")
-    else
+    } else {
         print("fail")
+    }
+}

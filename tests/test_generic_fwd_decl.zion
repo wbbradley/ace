@@ -1,8 +1,9 @@
 module _
 # test: pass
 
-def main()
+def main() {
     generic("some string")    
+}
 
-def generic(x any)
-    pass
+def generic(x any) {
+}

@@ -2,17 +2,22 @@ module _
 # test: pass
 # expect: pass with 5
 
-def run_function(f def () void)
+def run_function(f def () void) {
     f()
+}
 
-def get_int() int
+def get_int() int {
     return 5
+}
 
-def main()
+def main() {
     x := get_int() 
-    foo := def ()
-        if "he" < "dfdf"
+    foo := def () {
+        if "he" < "dfdf" {
             print("pass with " + x)
-        else
+        } else {
             print("pass with " + x)
+        }
+    }
     run_function(foo)
+}

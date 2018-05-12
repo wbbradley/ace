@@ -5,108 +5,151 @@ module _
 get sys
 get list
 
-type Node is
+type Node is {
     Symbol(s str, pos uint)
     Sequence(nodes [Node])
+}
 
 [global]
-def str(n Node) str
-    match n
-        Symbol(s, pos)
+def str(n Node) str {
+    match n {
+        Symbol(s, pos) {
             return "Symbol('" + s + "', " + pos + ")"
-        Sequence(nodes)
+        }
+        Sequence(nodes) {
             return "[" + join(", ", nodes) + "]"
+        }
+    }
+}
 
-type ParseState has
+type ParseState has {
     let s str
     let i uint
+}
 
-type Step is Step(node Node, ps ParseState)
+type Step is {
+    Step(node Node, ps ParseState)
+}
 
 type Parser = def (ps ParseState) Step?
 
-def parse_token(k str) Parser
-    return def (ps ParseState) Step?
+def parse_token(k str) Parser {
+    return def (ps ParseState) Step? {
         var start = ps.i
-        while start < len(ps.s) and isspace(ps.s[start])
+        while start < len(ps.s) and isspace(ps.s[start]) {
             start += 1
+        }
         var i = start
-        while i < len(ps.s) and i-start < len(k) and k[i-start] == ps.s[i]
+        while i < len(ps.s) and i-start < len(k) and k[i-start] == ps.s[i] {
             i += 1
+        }
         # print("while matching for token '" + k + "' we are at position " + i + " and start = " + start)
 
-        if start != i
+        if start != i {
             symbol := ps.s[start:i]
-            if symbol == k
+            if symbol == k {
                 return Just(Step(Symbol(symbol, start), ParseState(ps.s, i)))
+            }
+        }
         return Empty
+    }
+}
 
-def parse_symbol(ps ParseState) Step?
+def parse_symbol(ps ParseState) Step? {
     var start = ps.i
-    while start < len(ps.s) and isspace(ps.s[start])
+    while start < len(ps.s) and isspace(ps.s[start]) {
         start += 1
+    }
     var i = start
-    while i < len(ps.s) and isalpha(ps.s[i])
+    while i < len(ps.s) and isalpha(ps.s[i]) {
         i += 1
+    }
 
-    if start != i
+    if start != i {
         return Just(Step(Symbol(ps.s[start:i], start), ParseState(ps.s, i)))
-    else
+    } else {
         return Empty
+    }
+}
 
-def __bitwise_or__(p1 Parser, p2 Parser) Parser
-    return def (ps ParseState) Step?
+def __bitwise_or__(p1 Parser, p2 Parser) Parser {
+    return def (ps ParseState) Step? {
         step := p1(ps)
-        match step
-            Just(_)
+        match step {
+            Just(_) {
                 return step
-            else
+            }
+            else {
                 return p2(ps)
+            }
+        }
+    }
+}
             
-def __backslash__(p1 Parser, p2 Parser) Parser
-    return def (ps ParseState) Step?
+def __backslash__(p1 Parser, p2 Parser) Parser {
+    return def (ps ParseState) Step? {
         step1 := p1(ps)
-        match step1
-            Just(Step(node1, ps1))
+        match step1 {
+            Just(Step(node1, ps1)) {
                 step2 := p2(ps1)
-                match step2
-                    Just(Step(node2, ps2))
+                match step2 {
+                    Just(Step(node2, ps2)) {
                         return Just(Step(Sequence([node1, node2]), ps2))
-                    Empty
+                    }
+                    Empty {
                         return Empty
-            Empty
+                    }
+                }
+            }
+            Empty {
                 return Empty
+            }
+        }
+    }
+}
             
-def __backslash__(s str, p2 Parser) Parser
+def __backslash__(s str, p2 Parser) Parser {
     return parse_token(s) \ p2
+}
             
-def __backslash__(p1 Parser, s str) Parser
+def __backslash__(p1 Parser, s str) Parser {
     return p1 \ parse_token(s)
+}
             
-def parse_kleene_star(parser Parser) Parser
-    return def (ps ParseState) Step?
+def parse_kleene_star(parser Parser) Parser {
+    return def (ps ParseState) Step? {
         let nodes [Node]
-        while ps.i < len(ps.s)
-            match parser(ps)
-                Just(Step(node, next_ps))
+        while ps.i < len(ps.s) {
+            match parser(ps) {
+                Just(Step(node, next_ps)) {
                     append(nodes, node)
                     ps = next_ps
-                Empty
+                }
+                Empty {
                     break
+                }
+            }
+        }
         return Just(Step(Sequence(nodes), ps))
+    }
+}
 
 [global]
-def str[Args, R](fn def (..Args) R) str
+def str[Args, R](fn def (..Args) R) str {
     return "<closure>"
+}
 
-def print_node(s Step) int
-    match s
-        Step(node, ps)
+def print_node(s Step) int {
+    match s {
+        Step(node, ps) {
             print(node)
             print(ps.i)
+        }
+    }
     return 0
+}
 
-def main()
+def main() {
     program := "def f x = * x x"
     print(program)
     ps := ParseState(program, 0)
@@ -117,34 +160,32 @@ def main()
 
     fmap(print_node, parser(ps))
 
-    mj := def (s int) Maybe int
+    ret := compose(def (s int) Maybe int {
         return Just(s)
-
-    ret := compose(mj, print_node)
+    }, print_node)
 
     bind(parser(ps), ret)
 
     # The following Haskell list comprehension (from https://www.haskell.org/tutorial/monads.html)
     # [(x,y) | x <- [1,2,3] , y <- [1,2,3], x /= y]
     # would look like this desugared in Zion...
-    f1 := def (x int) [(int, int)]
-        f2 := def (y int) [(int, int)]
-            f3 := def (r bool) [(int,int)]
-                if r
-                    return [(x, y)]
-                else
-                    return fail("")
-                    
-            return bind([x != y], f3)
-        return bind([1, 2, 3], f2)
-
-    print(bind([1, 2, 3], f1))
+    print(
+        bind([1, 2, 3], def (x int) [(int, int)] {
+            return bind([1, 2, 3], def (y int) [(int, int)] {
+                return bind([x != y], def (r bool) [(int,int)] {
+                    if r {
+                        return [(x, y)]
+                    } else {
+                        return fail("")
+                    }
+                })
+            })
+        }
+    ))
 
     # [1,2,3] >>=
     #  (\ x -> [1,2,3] >>=
     #   (\y -> return (x/=y) >>=
     #    (\r -> case r of True -> return (x,y)
     #                     _    -> fail "")))
-
-
-
+}

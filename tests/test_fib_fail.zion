@@ -1,8 +1,10 @@
 module fib @1.0
 
-def get(n int) int
-    if n <= 2
+def get(n int) int {
+    if n <= 2 {
         return 1
+    }
 
     # error: undefined symbol fib
     return fib.get(n-1) + fib.get(n-2)
+}

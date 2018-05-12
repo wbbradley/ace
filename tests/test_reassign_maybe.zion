@@ -2,14 +2,17 @@ module _
 # test: pass
 # expect: pass
 
-type Vector is Vector(x float, y float)
+type Vector is { Vector(x float, y float) }
 
-def main()
+def main() {
     var v Vector? = Just(Vector(2.0, 4.3))
-    match v
-        Just(Vector(x, y))
+    match v {
+        Just(Vector(x, y)) {
             v = Just(Vector(1.0, 2.0))
-        else
+        } else {
             assert(false)
+        }
+    }
     v = Empty
     print("pass")
+}

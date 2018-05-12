@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: pass
 
-def main()
+def main() {
     assert("foo" in "foo")
     assert("foo" in " foo")
     assert("foo" in "foo ")
@@ -13,3 +13,4 @@ def main()
     assert("foo" not in " fo")
     assert(" " not in "")
     print("pass")
+}

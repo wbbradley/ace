@@ -5,13 +5,16 @@ module _
 # expect: y : null
 # reject: y : *?int
 
-def main()
+def main() {
     let x *?int = null
-    if x == null
+    if x == null {
         return
+    }
     static_print(x)
+}
 
-def bingo()
+def bingo() {
     let y *?int = null
     assert(y == null)
     static_print(y)
+}

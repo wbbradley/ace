@@ -1,6 +1,7 @@
 module _
 
-def main()
-    # error: unexpected token true encountered
-    elif true
-        pass
+def main() {
+    # error: this squiggly
+    elif true {
+    }
+}

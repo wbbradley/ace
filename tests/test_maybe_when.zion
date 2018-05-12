@@ -3,13 +3,18 @@ module _
 # expect: Empty
 # expect: Just(3)
 
-def do(t Maybe any T) void
-    match t
-        Just(val)
+def do(t Maybe any T) void {
+    match t {
+        Just(val) {
             print("Just(" + val + ")")
-        Empty
+        }
+        Empty {
             print("Empty")
+        }
+    }
+}
 
-def main()
+def main() {
     do(Empty)
     do(Just(3))
+}

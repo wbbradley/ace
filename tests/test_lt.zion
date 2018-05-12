@@ -1,12 +1,16 @@
 module _
 # test: pass
 
-def main()
+def main() {
     var x = 1
-    while true
+    while true {
         x += 1
-        if x < 20
+        if x < 20 {
             continue
+        }
         print(x)
-        if x > 34
+        if x > 34 {
             break
+        }
+    }
+}

@@ -1,11 +1,14 @@
 module _
 
-type Foo has
+type Foo has {
     var x int
+}
 
 # error: unable to resolve overloads for str\(.*Foo\)
-def str(f Foo) str
+def str(f Foo) str {
     return str(f.x)
+}
 
-def main()
+def main() {
     print(Foo(3))
+}

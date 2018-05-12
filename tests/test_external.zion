@@ -1,8 +1,10 @@
 module _
 # test: pass
 
-def cool()
+def cool() {
     print("COOL")
+}
 
-def main()
+def main() {
     cool()
+}

@@ -1,22 +1,29 @@
 module _ @1.0
 # test: pass
-# expect: B
+# expect: B -1.000
 
-type A is B C
+type A is { B(f float) C }
 
-def overloaded_return_unification() float
+def overloaded_return_unification() float {
     # the unary negation operator is overloaded so this test will make sure
     # that the overloaded type returned is able to be unified against a float
     return -1.0
+}
 
 [global]
-def str(a A) str
-    match a
-        B
-            return "B"
-        C
+def str(a A) str {
+    match a {
+        B(f) {
+            return "B " + f
+        }
+        C {
             return "C"
+        }
+    }
+}
 
-def main()
+def main() {
     overloaded_return_unification()
-    print(B)
+
+    print(B(overloaded_return_unification()))
+}

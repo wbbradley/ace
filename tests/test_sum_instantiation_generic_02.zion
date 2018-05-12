@@ -3,14 +3,19 @@ module _
 # test: pass
 # expect: yay this works
 
-type Box X Y is
+type Box X Y is {
     BigBox(x X)
     Crate(x X, y Y)
+}
 
-def main()
-    match BigBox("yay this works")
-        BigBox(x)
+def main() {
+    match BigBox("yay this works") {
+        BigBox(x) {
             y := Crate(1, x)
             print(x)
-        Crate(x, y)
+        }
+        Crate(x, y) {
             print(x, y)
+        }
+    }
+}

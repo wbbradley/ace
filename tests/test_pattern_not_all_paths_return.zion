@@ -1,18 +1,26 @@
 module _
 
-type D is A B C
+type D is {
+    A 
+    B
+    C
+}
 
-def poly(a D) int
+def poly(a D) int {
     # error: not all control paths return a value
-    match a
-        A
+    match a {
+        A {
             return 0
-        B
+        }
+        B {
             return 1
-        C
-            pass
+        }
+        C {}
+    }
+}
 
-def main()
+def main() {
     y := poly(C)
     print(y)
+}
 

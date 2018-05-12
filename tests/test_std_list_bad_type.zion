@@ -1,7 +1,8 @@
 module _
 get list
 
-def main()
+def main() {
     # error: unable to resolve overloads for Cons\(int, list.List str.*\)
     l := list.Cons(3, list.Cons("hello", list.Nil))
     print(len(l))
+}

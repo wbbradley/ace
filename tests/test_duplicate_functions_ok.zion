@@ -2,8 +2,10 @@ module _
 
 # test: pass
 
-def foo(x int, y int) bool
+def foo(x int, y int) bool {
     return x > y
+}
 
-def foo(x float, y int) bool
+def foo(x float, y int) bool {
     return x < y
+}

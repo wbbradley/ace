@@ -3,8 +3,10 @@ module _
 # expect: pass
 # reject: fail
 
-def main()
-    if "hey" == "hey"
+def main() {
+    if "hey" == "hey" {
         print("pass")
-    else
+    } else {
         print("fail")
+    }
+}

@@ -1,6 +1,6 @@
 module _
 
-def main()
+def main() {
     # error: ambiguous \?. try using `\*\?`, or parentheses
     let x *int? = null
-    pass
+}

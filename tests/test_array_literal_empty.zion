@@ -2,13 +2,16 @@ module _
 # test: pass
 # expect: []
 
-def foo()
+def foo() {
     let y = get_empty_vector_of_ints()
     print(y)
+}
 
-def main()
+def main() {
     foo()
     runtime.gc()
+}
 
-def get_empty_vector_of_ints() [int]
+def get_empty_vector_of_ints() [int] {
     return []
+}

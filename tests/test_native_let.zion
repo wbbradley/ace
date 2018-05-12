@@ -1,10 +1,11 @@
 module _
 # test: pass
 
-def main()
+def main() {
     let xyz = 100
     let abc = 23
     let q = xyz / abc
     print(q)
     let u = (100 + 23) / 23
     print(u)
+}

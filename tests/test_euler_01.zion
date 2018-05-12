@@ -1,20 +1,24 @@
 module _
 # test: pass
 
-def main()
+def main() {
     var i = 1
     var sum = 0
-    while i < 1000
-        if i % 3 == 0
+    while i < 1000 {
+        if i % 3 == 0 {
             sum += i
             i += 1
             continue
+        }
 
-        if i % 5 == 0
+        if i % 5 == 0 {
             sum += i
             i += 1
             continue
+        }
 
         i += 1
+    }
 
     print(sum)
+}

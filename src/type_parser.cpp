@@ -301,26 +301,22 @@ namespace types {
 		}
 	}
 
-	type_t::ref parse_map_type(parse_state_t &ps, const identifier::set &generics) {
-		/* we've got a map type */
-		auto curly_token = ps.token;
-		ps.advance();
-		auto lhs = parse_type(ps, generics);
-		chomp_token(tk_colon);
-		auto rhs = parse_type(ps, generics);
-		chomp_token(tk_rcurly);
-		return type_operator(
-				type_operator(type_id(make_iid_impl(STD_MAP_TYPE, curly_token.location)), lhs),
-				rhs);
-	}
-
 	type_t::ref parse_vector_type(parse_state_t &ps, const identifier::set &generics) {
 		/* we've got a map type */
 		auto square_token = ps.token;
 		ps.advance();
 		auto lhs = parse_type(ps, generics);
-		chomp_token(tk_rsquare);
-		return type_operator(type_id(make_iid_impl(STD_VECTOR_TYPE, square_token.location)), lhs);
+		if (ps.token.tk == tk_colon) {
+			ps.advance();
+			auto rhs = parse_type(ps, generics);
+			chomp_token(tk_rsquare);
+			return type_operator(
+					type_operator(type_id(make_iid_impl(STD_MAP_TYPE, square_token.location)), lhs),
+					rhs);
+		} else {
+			chomp_token(tk_rsquare);
+			return type_operator(type_id(make_iid_impl(STD_VECTOR_TYPE, square_token.location)), lhs);
+		}
 	}
 
 	type_t::ref parse_integer_type(parse_state_t &ps, const identifier::set &generics) {
@@ -376,8 +372,6 @@ namespace types {
 			return parse_integer_type(ps, generics);
 		} else if (ps.token.tk == tk_lparen) {
 			return parse_parens_type(ps, generics);
-		// } else if (ps.token.tk == tk_lcurly) {
-		// return parse_map_type(ps, generics);
 		} else if (ps.token.tk == tk_lsquare) {
 			return parse_vector_type(ps, generics);
 		} else if ((ps.token.tk == tk_integer) || (ps.token.tk == tk_string)) {

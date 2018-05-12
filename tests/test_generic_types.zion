@@ -2,16 +2,17 @@ module _
 # test: pass
 # expect: 6
 
-type Node T has
+type Node T has {
     var value T
     var next (Node T)?
+}
 
-def main()
+def main() {
     n1 := Node(6, Empty)
     n2 := Node(4, Just(n1))
     let next = n2.next
-    match next
-        Just(next)
-            print(next.value)
-        Empty
-            pass
+    match next {
+        Just(next) { print(next.value) }
+        Empty { }
+    }
+}

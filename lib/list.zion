@@ -1,44 +1,60 @@
 module list
 
-type List T is
+type List T is {
     Cons(t T, next List T)
     Nil
+}
 
-def nth[T](l List T, index int) T?
-    while index >= 0
-        match l
-            Cons(t, next)
-                if index == 0
+def nth[T](l List T, index int) T? {
+    while index >= 0 {
+        match l {
+            Cons(t, next) {
+                if index == 0 {
                     return Just(t)
-                else
+                } else {
                     l = next
                     index -= 1
-            Nil
+                }
+            }
+            Nil {
                 return Empty
+            }
+        }
+    }
     return Empty
+}
 
 [global]
-def len(l List any) int
-    match l
-        Cons(_, next)
+def len(l List any) int {
+    match l {
+        Cons(_, next) {
             return len(next) + 1
-        Nil
+        }
+        Nil {
             return 0
+        }
+    }
+}
 
 [global]
-def str(l List any) str
+def str(l List any) str {
     return "[...list...]"
+}
 
 [global]
-def bind[A, B](ma [A], f def (a A) [B]) [B]
+def bind[A, B](ma [A], f def (a A) [B]) [B] {
     # (>>=) :: m a -> (a -> m b) -> m b
     let mb [B]
-    for a in ma
+    for a in ma {
         mb_new := f(a)
-        for b in mb_new
+        for b in mb_new {
             append(mb, b)
+        }
+    }
     return mb
+}
         
 [global]
-def fail[A](reason str) [A]
+def fail[A](reason str) [A] {
     return []
+}

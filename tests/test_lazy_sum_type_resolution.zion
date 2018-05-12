@@ -1,13 +1,18 @@
 module _ @1.0
 # test: pass
 
-type Bx T has
+type Bx T has {
     var x T
+}
 
-type B X is Bx X
+type B X is {
+    Bx X
+}
 
-def do(b Bx int)
+def do(b Bx int) {
     print(b.x)
+}
 
-def main()
+def main() {
     do(Bx(3))
+}

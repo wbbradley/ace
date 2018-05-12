@@ -1,12 +1,15 @@
 module _
 
-type X has
+type X has {
     let x int
+}
 
-def foo(px int)
+def foo(px int) {
     px = 2
+}
 
-def main()
+def main() {
     x := X(3)
     # error: can't take address of x.x
     foo(&x.x)
+}

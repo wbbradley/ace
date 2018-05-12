@@ -1,9 +1,10 @@
 module _
 # test: pass
 
-def main()
-    if true
-        pass
+def main() {
+    if true {
+    }
 
-    if false
-        pass
+    if false {
+    }
+}

@@ -1,9 +1,12 @@
 module _
 
-def main()
-    if true
+def main() {
+    if true {
         x := 4
         print(x)
-    if true
-        # error: 9:9.* undefined symbol x
+    }
+    if true {
+        # error: 10:15.* undefined symbol x
         print(x)
+    }
+}

@@ -18,7 +18,7 @@ module _
 link def printf(fmt *char, a *char) int
 link def printf(fmt *char, a int64) int
 
-def main()
+def main() {
     var y int32 = 32808
     var x1 int8 = -y
     printf("-40: %lld\n", x1)
@@ -43,3 +43,4 @@ def main()
     printf("-1 & 0 == %lld\n", -1 & 0)
     printf("-1 & 4 == %lld\n", -1 & 4)
     # assert(MAX_INT32 + MAX_INT32 != 2147483648)
+}

@@ -21,7 +21,6 @@ bool token_begins_type(const token_t &token) {
 	case tk_string:
 	case tk_times:
 	case tk_lsquare:
-	// case tk_lcurly:
 	case tk_identifier:
 		return true;
 	default:
@@ -36,10 +35,10 @@ ptr<var_decl_t> var_decl_t::parse(parse_state_t &ps, bool is_let) {
 	var_decl->is_let_var = is_let;
 	eat_token();
 
-	if (ps.token.tk != tk_assign) {
+	if (token_begins_type(ps.token)) {
 		var_decl->type = types::parse_type(ps, {} /*generics*/);
 	} else {
-		var_decl->type = type_variable(ps.prior_token.location);
+		var_decl->type = type_variable(var_decl->get_location());
 	}
 
 	if (ps.token.tk == tk_assign) {
@@ -331,9 +330,19 @@ ptr<expression_t> literal_expr_t::parse(parse_state_t &ps) {
 		throw user_error(ps.token.location, "unexpected token found when parsing literal expression. '" c_error("%s") "'", ps.token.text.c_str());
 
 	default:
-		throw user_error(ps.token.location, "out of place token found when parsing literal expression. '" c_error("%s") "' (%s)",
-			   	ps.token.text.c_str(),
-				tkstr(ps.token.tk));
+		if (ps.token.tk == tk_lcurly) {
+			throw user_error(ps.token.location, "this squiggly brace is a surprise");
+		} else if (ps.lexer.eof()) {
+			auto error = user_error(ps.token.location, "unexpected end-of-file.");
+			for (auto pair : ps.lexer.nested_tks) {
+				error.add_info(pair.first, "unclosed %s here", tkstr(pair.second));
+			}
+			throw error;
+		} else {
+			throw user_error(ps.token.location, "out of place token found when parsing literal expression. '" c_error("%s") "' (%s)",
+					ps.token.text.c_str(),
+					tkstr(ps.token.tk));
+		}
 	}
 }
 

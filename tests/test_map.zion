@@ -6,23 +6,30 @@ module _
 # expect: 15
 # expect: could not find hello
 
-def main()
-    var m {str: int?}
+def main() {
+    var m [str: int?]
 
     m["hello"] = Just(12)
-    match get(m, "hello", Just(0))
-        Just(x)
+    match get(m, "hello", Just(0)) {
+        Just(x) {
             print(x)
-        Empty
+        }
+        Empty {
             print(0)
+        }
+    }
     m["hello"] = Just(13)
-    match m["hello"]
-        Just(Just(x))
+    match m["hello"] {
+        Just(Just(x)) {
             print(x)
-        Just(Empty)
-            pass
-        Empty
-            pass
+        }
+        Just(Empty) {
+        }
+        Empty {
+        }
+    }
 
-    if del(m, "hello")
+    if del(m, "hello") {
         print("deleted hello")
+    }
+}

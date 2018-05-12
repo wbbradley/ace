@@ -1,6 +1,7 @@
 module _
 
-def main()
+def main() {
     let x int? = Just(3)
     # error: condition is not a boolean value
     x and true
+}

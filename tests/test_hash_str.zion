@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: ok
 
-def main()
+def main() {
     let hash_blah = hash("blah")
     print(hexdigest(hash_blah))
     let hash_foobar = hash("foobar")
@@ -15,3 +15,4 @@ def main()
     assert(hash(b[0:len_bumblebee]) == hash(b[len_bumblebee:len(b)]))
     assert(hash(b[0:len_bumblebee]) != hash(b))
     print("ok")
+}

@@ -1,9 +1,11 @@
 module _
 
 # error: 4:6.*see type .*Special declaration
-type Special has
+type Special has {
     var nothing int
+}
 
-# error: 8:6.*type .*Special already exists
-type Special has
+# error: 9:6.*type .*Special already exists
+type Special has {
     var something int
+}

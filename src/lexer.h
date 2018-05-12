@@ -24,6 +24,8 @@ public:
 	bool _get_tokens();
 	bool eof();
 
+	std::list<std::pair<location_t,token_kind>>     nested_tks;
+
 private:
 	void reset_token();
 	bool handle_nests(token_kind tk);
@@ -33,5 +35,4 @@ private:
 	std::istream             &m_is;
 	int                       m_line=1, m_col=1;
 	zion_token_queue_t        m_token_queue;
-	std::list<token_kind>     m_nested_tks;
 };

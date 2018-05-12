@@ -2,9 +2,10 @@ module _
 # test: pass
 # expect: x : test_type_exprs.X.*
 
-type X is F(f int) Float(f float)
+type X is { F(f int) Float(f float) }
 
-def main()
+def main() {
     let x X = F(3)
 
     static_print(x)
+}

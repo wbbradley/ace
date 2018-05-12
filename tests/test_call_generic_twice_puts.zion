@@ -3,7 +3,8 @@ module _
 
 link def printf(format *char, s1 *char) int
 
-def main() int
+def main() int {
     printf("%s\n", "hey")
     printf("%s\n", str(10 + 3.4))
     return 1
+}

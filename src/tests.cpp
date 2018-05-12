@@ -968,15 +968,15 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("any a", "int", generics),
 				make_type_pair("any", "map int int", generics),
 				make_type_pair("any a", "map int str", generics),
-				// make_type_pair("{int: char}", "{int: char}", generics),
-				// make_type_pair("{int: any A}", "{any A: int}", generics),
-				// make_type_pair("{int: any B}", "{any A: Flamethrower}", generics),
+				make_type_pair("[int: char]", "[int: char]", generics),
+				make_type_pair("[int: any A]", "[any A: int]", generics),
+				make_type_pair("[int: any B]", "[any A: Flamethrower]", generics),
 				make_type_pair("map any a any b", "map int str", generics),
 				make_type_pair("map any a any", "map int str", generics),
-				// make_type_pair("{any: any b}", "map.Map int str", generics),
-				// make_type_pair("{any: any}", "map.Map int str", generics),
+				make_type_pair("[any: any b]", "map.Map int str", generics),
+				make_type_pair("[any: any]", "map.Map int str", generics),
 				make_type_pair("Container any any", "(any look ka) (py py)", generics),
-				// make_type_pair("map.Map (any) T", "{int: str}", generics),
+				make_type_pair("map.Map (any) T", "[int: str]", generics),
 				make_type_pair("Container int T", "(map int) str", generics),
 				make_type_pair("Container T T", "map int int", generics),
 				make_type_pair("Container T?", "Foo Bar?", generics),
@@ -991,8 +991,6 @@ auto test_descs = std::vector<test_desc>{
 
 			auto fails = std::vector<types::type_t::pair>({
 					{type_ptr(type_id(make_iid("X"))),type_ptr(type_id(make_iid("void")))},
-					// {type_ptr(type_managed(type_struct({}, {}))), type_null()},
-					// {type_null(), type_maybe(type_ptr(type_managed(type_struct({}, {}))))},
 					make_type_pair("int", "void", {}),
 					make_type_pair("map Float", "map float", generics),
 					make_type_pair("map float", "map Float", generics),
@@ -1003,7 +1001,6 @@ auto test_descs = std::vector<test_desc>{
 					make_type_pair("Container float", "[int]", generics),
 					make_type_pair("Container T?", "(Foo Bar)?", generics),
 					make_type_pair("def (p T) T", "def (x int) float", generics),
-					// {type_ptr(type_id(make_iid("void"))), type_ptr(type_managed(type_struct({}, {})))},
 					});
 
 			auto _env = make_ptr<test_env>(env);
@@ -1165,6 +1162,7 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 		std::string tests_errors_dir = "tests";
 		auto ext_regex = R"(.+\.zion$)";
 		if (list_files(tests_errors_dir, ext_regex, leaf_names)) {
+			std::sort(leaf_names.begin(), leaf_names.end());
 			for (auto leaf_name : leaf_names) {
 				auto name = leaf_name;
 				assert(regex_exists(name, ext_regex));
@@ -1235,7 +1233,7 @@ bool run_tests(std::string filter, std::vector<std::string> excludes) {
 		log(log_error, "====== %d/%d TESTS PASSED (" c_error("%d failures") ", " c_warn("%d skipped") ") ======",
 				pass, total, total - pass, skipped);
 		for (auto fail : failures) {
-			log(log_error, "%s failed", fail.c_str());
+			log_location(log_error, location_t("tests/" + fail + ".zion", 1, 1), "%s failed", fail.c_str());
 		}
 	}
 	return success;

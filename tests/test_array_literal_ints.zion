@@ -7,7 +7,7 @@ module _
 # expect: [1, 2, 3]
 # expect: [4, 5, 6]
 
-def main()
+def main() {
     let w [int]
     static_print(w)
     var x [int]
@@ -19,3 +19,4 @@ def main()
     var z = [4, 5, 6]
     static_print([4, 5, 6])
     print(z)
+}

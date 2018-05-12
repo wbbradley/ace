@@ -1,12 +1,14 @@
 module _ @1.0
 # test: pass
 
-type Boolean is
+type Boolean is {
     True
     False
+}
 
-def main()
+def main() {
     x := True
     y := False
 
     print("Hello world")
+}

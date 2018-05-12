@@ -1,11 +1,16 @@
 module _
 
 # error: parameter is missing a type specifier
-type C T is D(T) E(T)
+type C T is {
+    D(T)
+    E(x T)
+}
 
-def identity[X](expr C X) X
+def identity[X](expr C X) X {
     return "asdf"
+}
 
-def main()
+def main() {
     value := E(D("asdf"))
     identity(value)
+}

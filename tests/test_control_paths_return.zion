@@ -1,28 +1,34 @@
 module _
 # test: pass
 
-type Either L R is
+type Either L R is {
     Left(l L)
     Right(r R)
+}
 
-def fib(e Either int float) int
+def fib(e Either int float) int {
     var value int = 10
     print(value)    
     value = 11
     print(runtime.__get_ctor_id(e as! *var_t))
-    match e
-        Left(i)
+    match e {
+        Left(i) {
             print(i)
             value = i
-        Right(f)
+        }
+        Right(f) {
             print(f)
             value = int(f)
+        }
+    }
     print(value)    
     return value
+}
 
 
-def main()
+def main() {
     print("hey")
     print(1003)
     fib(Left(3))
     print(100101)
+}

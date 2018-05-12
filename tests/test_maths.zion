@@ -1,7 +1,7 @@
 module _
 # test: pass
 
-def main()
+def main() {
     var x = 5
     # make sure pure int math compiles
     print(x + 10)
@@ -40,3 +40,4 @@ def main()
     print(3 - 10.0)
     print(3 / 10.0)
     print(3 * 10.0)
+}

@@ -1,9 +1,10 @@
 module _
 # test: pass
 
-type FloatPair has
+type FloatPair has {
     var fst float
     var snd float
+}
 
-def main()
-    pass
+def main() {
+}

@@ -2,14 +2,16 @@ module _
 # test: pass
 # expect: 2
 
-type funky_t struct
+type funky_t struct {
     var t int
+}
 
-def main()
+def main() {
     let p *?funky_t = posix.calloc(sizeof(funky_t), 1) as! *?funky_t
     static_print(p)
-    if not p
+    if not p {
         return
+    }
     p.t = 2
     print(p.t)
-    
+}

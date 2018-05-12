@@ -1,20 +1,26 @@
 module _
 
-def truthy(x any) bool
+def truthy(x any) bool {
     # error: irrefutable predicates are restricted to non-keyword symbols
-    match x
-        int 
+    match x {
+        int  {
             print("int found")
             return x != 0
-        float
+        }
+        float {
             print("float found")
             return x != 0
-        bool
+        }
+        bool {
             print("bool found")
             return x
+        }
+    }
+}
 
-def main()
+def main() {
     y := 3.33
     truthy(y)
     truthy(false)
     truthy(23)
+}

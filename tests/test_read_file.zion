@@ -6,15 +6,21 @@ get sys
 # test: pass
 # expect: This text should appear
 
-def main()
+def main() {
     f := file.open("tests/test_read_file.zion", "r")
-    while true
-        match readline(f)
-            Line(line)
+    while true {
+        match readline(f) {
+            Line(line) {
                 print(line)
-            EOF
+            }
+            EOF {
                 break
-            Error(_)
+            }
+            Error(_) {
                 break
+            }
+        }
+    }
     file.close(f)
     runtime.gc()
+}
