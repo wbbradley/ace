@@ -1,9 +1,11 @@
 module _
 
-def main()
-    # error: 5:2.* undefined symbol args
+def main() {
+    # error: 5:5.* undefined symbol args
     args
+}
 
-def foo()
-    # error: 9:2.* undefined symbol sys
+def foo() {
+    # error: 10:5.* undefined symbol sys
     sys.args
+}

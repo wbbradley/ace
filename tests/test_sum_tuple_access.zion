@@ -5,11 +5,12 @@ type Vector2 = (float, float)
 type Vector3 = (float, float, float)
 type Vector4 = (float, float, float, float)
 
-type Matrix4 has
+type Matrix4 has {
     var row1 Vector4
     var row2 Vector4
     var row3 Vector4
     var row4 Vector4
+}
 
-def main()
-    pass
+def main() {
+}

@@ -4,33 +4,37 @@ module _
 # expect: 16
 # expect: 24
 
-type __Value__ struct
+type __Value__ struct {
     var size int64
     var name *char
     var typeinfo *__TypeInfo__
+}
 
-type __TypeInfo__ struct
+type __TypeInfo__ struct {
     var addref *def _(v *__Value__) void
     var release *def _(v *__Value__) void
+}
 
-def addref(v *__Value__) void
-    pass
+def addref(v *__Value__) void {
+}
 
-def release(v *__Value__) void
-    pass
+def release(v *__Value__) void {
+}
 
-type __TwoInts__ struct
+type __TwoInts__ struct {
     var x int
     var y int
+}
 
-type TwoInts has
+type TwoInts has {
     var x int
     var y int
+}
 
-def main()
+def main() {
     # With standard aligned sizeof we get some extra padding for the managed
     # types
     print(sizeof(__TwoInts__))  # 16
     print(sizeof(TwoInts))      # 64
     print(sizeof(__TypeInfo__)) # 24
-
+}

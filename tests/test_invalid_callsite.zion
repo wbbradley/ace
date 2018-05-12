@@ -1,9 +1,10 @@
 module _
 
-def caller()
+def caller() {
     x := 1
-    # error: 6:2.* unable to resolve overloads for callee\(int\)
+    # error: 6:5.* unable to resolve overloads for callee\(int\)
     callee(x)
+}
 
-def callee(x str)
-    pass
+def callee(x str) {
+}

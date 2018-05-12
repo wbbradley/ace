@@ -3,6 +3,8 @@ module _
 # expect: 0
 # expect: 9
 
-def main()
-    for x in range(10)
+def main() {
+    for x in range(10) {
         print(x)
+    }
+}

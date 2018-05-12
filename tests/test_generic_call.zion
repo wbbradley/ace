@@ -1,8 +1,10 @@
 module _
 # test: pass
 
-def generic_print(x any)
+def generic_print(x any) {
     print(x)
+}
 
-def main()
+def main() {
     generic_print("hello world.")
+}

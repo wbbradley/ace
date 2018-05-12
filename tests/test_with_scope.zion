@@ -1,16 +1,19 @@
 module _
 
-def get_maybe() int?
+def get_maybe() int? {
     return Just(2)
+}
 
-def main()
+def main() {
     let x = get_maybe()
-    match x
-        Just(x)
+    match x {
+        Just(x) {
             print(x)
             return
-        else
-            pass
+        } else {
+        }
+    }
 
-    # error: 36:16.* unable to resolve overloads for str
+    # error: .* unable to resolve overloads for str
     print(x)
+}

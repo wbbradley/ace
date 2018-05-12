@@ -1,11 +1,12 @@
 module _
 
-type Special has
+type Special has {
     var i int
+}
 
-def main()
+def main() {
     x := Special(1)
 
     # error: unable to resolve overloads for str\(.*Special\)
     print(x)
-
+}

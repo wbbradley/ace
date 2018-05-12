@@ -2,19 +2,22 @@ module _
 # test: pass
 # expect: hi
 
-type D is
+type D is {
     AA(x int)
     BB
+}
 
-def foo(a D)
-    pass
+def foo(a D) {
+}
 
-def main()
+def main() {
     AA(3)
-    match BB
-        AA(x)
-            pass
-        BB
-            pass
+    match BB {
+        AA(x) {
+        }
+        BB {
+        }
+    }
 
     print("hi")
+}

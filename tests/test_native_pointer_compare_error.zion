@@ -1,14 +1,15 @@
 module _
 
-def main()
+def main() {
     var x *?int8 = null
     assert(not(null == x))
     x = 100 as! *int8
     y := 200 as! *int8
 
     # error: 10.* x cannot be null here
-    if x != null
+    if x != null {
         y = x
+    }
 
     print("pass")
-        
+}

@@ -1,15 +1,19 @@
 module _
 # test: pass
 
-type Vector has
+type Vector has {
     var x float
     var y float
+}
 
-def main()
+def main() {
     var v Vector? = Just(Vector(2.0, 4.3))
-    match v
-        Just(_)
+    match v {
+        Just(_) {
             v = Just(Vector(1.0, 2.0))
-        Empty
-            pass
+        }
+        Empty {
+        }
+    }
     print("pass")
+}

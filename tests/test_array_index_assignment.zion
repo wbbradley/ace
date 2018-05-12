@@ -2,10 +2,11 @@ module _
 # test: pass
 # expect: [1, 44, 3]
 
-def main()
+def main() {
     let w [int]
     append(w, 1)
     append(w, 2)
     append(w, 3)
     w[1] = 44
     print(w)
+}

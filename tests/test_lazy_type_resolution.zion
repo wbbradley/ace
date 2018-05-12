@@ -1,10 +1,14 @@
 module _ @1.0
 # test: pass
 
-type B X is Bx(t X) C
+type B X is {
+    Bx(t X)
+    C
+}
 
-def do(b B int)
-    pass
+def do(b B int) {
+}
 
-def main()
+def main() {
     do(Bx(3))
+}

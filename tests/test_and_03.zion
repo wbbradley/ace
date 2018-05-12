@@ -1,17 +1,23 @@
 module _
 # test: pass
 
-type Either L R is
+type Either L R is {
     Left(left L)
     Right(right R)
+}
 
-def hey(x Either int float)
-    match x
-        Left(x)
+def hey(x Either int float) {
+    match x {
+        Left(x) {
             print(x)
-        Right(x)
+        }
+        Right(x) {
             print(x)
+        }
+    }
+}
 
-def main()
+def main() {
     hey(Left(0))
     hey(Right(1.0))
+}

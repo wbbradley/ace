@@ -3,6 +3,7 @@ get sys
 # test: pass
 # expect: 30
 
-def main()
+def main() {
     target := len(sys.args) == 2 ? int(sys.args[1]) : 30
     print(target)
+}

@@ -1,8 +1,10 @@
 module _
 # test: pass
 
-def foo()
+def foo() {
     x := false
+}
 
-def main()
-    pass
+def main() {
+    foo()
+}

@@ -1,13 +1,16 @@
 module _
 # test: pass
 
-def goo(x any)
+def goo(x any) {
     var y any = " world"
     print(x + y)
+}
 
-def main()
+def main() {
     goo("hello")
+}
 
-type Vector has
+type Vector has {
     var x float
     var y float
+}

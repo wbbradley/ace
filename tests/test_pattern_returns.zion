@@ -2,18 +2,24 @@ module _
 # test: pass
 # expect: 2
 
-type D is A B C
+type D is { A B C }
 
-def poly(a D) int
-    match a
-        A
+def poly(a D) int {
+    match a {
+        A {
             return 0
-        B
+        }
+        B {
             return 1
-        C
+        }
+        C {
             return 2
+        }
+    }
+}
 
-def main()
+def main() {
     y := poly(C)
     print(y)
+}
 

@@ -1,7 +1,10 @@
 module _
 # test: pass
 
-type Foo is Bar
+type Foo is {
+    Bar
+}
 
-def main()
+def main() {
     typeid(Bar)
+}

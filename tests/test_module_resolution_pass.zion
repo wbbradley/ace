@@ -2,12 +2,15 @@ module _
 # test: pass
 # expect: print a Foo: 3
 
-type Foo has
+type Foo has {
     var x int
+}
 
 [global]
-def str(f Foo) str
+def str(f Foo) str {
     return "print a Foo: " + str(f.x)
+}
 
-def main()
+def main() {
     print(Foo(3))
+}

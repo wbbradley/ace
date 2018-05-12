@@ -1,9 +1,11 @@
 module golfer_types
 
 # error: found duplicate type variable T
-type Golfer T T has
+type Golfer T T has {
     var first T
     var last T
+}
 
-def main()
+def main() {
     Golfer("Arnold", "Palmer")
+}

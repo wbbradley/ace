@@ -2,17 +2,20 @@ module _
 # test: pass
 # expect: different types
 
-type Boo is Hiss Cow
+type Boo is { Hiss Cow }
 
 # Note that this function returns an int, because we don't yet
 # support creating bools
-def test(a any, b any) bool
+def test(a any, b any) bool {
     return typeid(a) != typeid(b)
+}
 
-def main()
+def main() {
     i := Cow
     j := Hiss
-    if test(i, j)
+    if test(i, j) {
         print("different types")
-    else
+    } else {
         print("same types")
+    }
+}

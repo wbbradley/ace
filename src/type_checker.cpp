@@ -1096,10 +1096,12 @@ bound_var_t::ref ast::reference_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
+		types::type_t::ref expected_type,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
 {
-	return resolve_reference(builder, scope, life, false /*as_ref*/, nullptr, scope_if_true, scope_if_false);
+	return resolve_reference(builder, scope, life, false /*as_ref*/,
+		   	expected_type, scope_if_true, scope_if_false);
 }
 
 bound_var_t::ref ast::reference_expr_t::resolve_expression(
@@ -2287,18 +2289,19 @@ bound_var_t::ref ast::binary_operator_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
+		types::type_t::ref expected_type,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
 {
 	if (token.is_ident(K(is))) {
 		return type_check_binary_equality(builder, scope, life, lhs, rhs,
 				shared_from_this(), function_name, scope_if_true, scope_if_false,
-				type_id(make_iid(BOOL_TYPE)));
+				expected_type);
 	}
 
 	return type_check_binary_operator(builder, scope, life, lhs, rhs,
 			shared_from_this(), function_name, scope_if_true, scope_if_false,
-			nullptr);
+			expected_type);
 }
 
 
@@ -2449,6 +2452,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		ast::expression_t::ref when_true,
 		ast::expression_t::ref when_false,
 		identifier::ref value_name,
+		types::type_t::ref expected_type,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false)
 {
@@ -2461,7 +2465,10 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 				condition->str().c_str(), when_true->str().c_str(), when_false->str().c_str()));
 
 	/* if scope allows us to set up new variables inside if conditions */
-	bound_var_t::ref condition_value = condition->resolve_condition(builder, scope, life, &inner_scope_if_true, &inner_scope_if_false);
+	bound_var_t::ref condition_value = condition->resolve_condition(
+			builder, scope, life,
+		   	type_id(make_iid(BOOL_TYPE)),
+		   	&inner_scope_if_true, &inner_scope_if_false);
 
 	if ((condition != when_false) && (condition != when_true)) {
 		/* this is a regular ternary expression. for now, there are 4 paths through in terms of truthiness and
@@ -2509,7 +2516,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		}
 		false_path_value = when_false->resolve_condition(
 				builder, inner_scope_if_false ? inner_scope_if_false : scope, life,
-				nullptr, scope_if_false);
+				expected_type, nullptr, scope_if_false);
 	} else {
 		/* this is a TERNARY expression, so compute the third term, and do not return any
 		 * type refinements, because there is no way to discern where the truthy or
@@ -2517,7 +2524,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		 * conditional form. */
 		false_path_value = when_false->resolve_condition(
 				builder, inner_scope_if_false ? inner_scope_if_false : scope, life,
-				nullptr, nullptr);
+				expected_type, nullptr, nullptr);
 	}
 
 	/* after calculation, the code should jump to the phi node's basic block */
@@ -2539,7 +2546,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		}
 		true_path_value = when_true->resolve_condition(
 				builder, inner_scope_if_true ? inner_scope_if_true : scope, life,
-				scope_if_true, nullptr);
+				expected_type, scope_if_true, nullptr);
 	} else {
 		/* this is a TERNARY expression, so compute the third term, and do not return
 		 * any type refinements, because there is no way to discern where the truthy or
@@ -2547,7 +2554,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 		 * conditional form. */
 		true_path_value = when_true->resolve_condition(
 				builder, inner_scope_if_true ? inner_scope_if_true : scope, life,
-				nullptr, nullptr);
+				expected_type, nullptr, nullptr);
 	}
 
 	bound_type_t::ref ternary_type = refine_conditional_type(
@@ -2614,20 +2621,21 @@ bound_var_t::ref ast::ternary_expr_t::resolve_expression(
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 	return resolve_cond_expression(builder, runnable_scope, life, as_ref,
 			condition, when_true, when_false,
-			make_code_id(this->token), nullptr, nullptr);
+			make_code_id(this->token), expected_type, nullptr, nullptr);
 }
 
 bound_var_t::ref ast::ternary_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
+		types::type_t::ref expected_type,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
 {
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 	return resolve_cond_expression(builder, runnable_scope, life, false /*as_ref*/,
 			condition, when_true, when_false,
-			make_code_id(this->token), scope_if_true, scope_if_false);
+			make_code_id(this->token), expected_type, scope_if_true, scope_if_false);
 }
 
 bound_var_t::ref ast::or_expr_t::resolve_expression(
@@ -2639,18 +2647,19 @@ bound_var_t::ref ast::or_expr_t::resolve_expression(
 {
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 	return resolve_cond_expression(builder, runnable_scope, life, as_ref,
-			lhs, lhs, rhs, make_iid("or.value"), nullptr, nullptr);
+			lhs, lhs, rhs, make_iid("or.value"), expected_type, nullptr, nullptr);
 }
 
 bound_var_t::ref ast::or_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
+		types::type_t::ref expected_type,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
 {
 	return resolve_cond_expression(builder, scope, life, false /*as_ref*/,
-			lhs, lhs, rhs, make_iid("or.value"), scope_if_true, scope_if_false);
+			lhs, lhs, rhs, make_iid("or.value"), expected_type, scope_if_true, scope_if_false);
 }
 
 bound_var_t::ref ast::and_expr_t::resolve_expression(
@@ -2662,19 +2671,20 @@ bound_var_t::ref ast::and_expr_t::resolve_expression(
 {
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 	return resolve_cond_expression(builder, runnable_scope, life, as_ref,
-			lhs, rhs, lhs, make_iid("and.value"), nullptr, nullptr);
+			lhs, rhs, lhs, make_iid("and.value"), expected_type, nullptr, nullptr);
 }
 
 bound_var_t::ref ast::and_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
+		types::type_t::ref expected_type,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
 {
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 	return resolve_cond_expression(builder, runnable_scope, life, false /*as_ref*/,
-			lhs, rhs, lhs, make_iid("and.value"), scope_if_true, scope_if_false);
+			lhs, rhs, lhs, make_iid("and.value"), expected_type, scope_if_true, scope_if_false);
 }
 
 types::type_t::ref extract_matching_type(
@@ -3897,11 +3907,12 @@ bound_var_t::ref ast::expression_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref block_scope,
 		life_t::ref life,
+		types::type_t::ref expected_type,
 		runnable_scope_t::ref *,
 		runnable_scope_t::ref *) const
 {
 	return resolve_expression(builder, block_scope, life, false /*as_ref*/,
-		   	type_id(make_iid(BOOL_TYPE)));
+			expected_type);
 }
 
 void ast::while_block_t::resolve_statement(
@@ -3937,7 +3948,9 @@ void ast::while_block_t::resolve_statement(
 	 * asserting possible type modifications to their variables, or by injecting new variables
 	 * into the nested scope. */
 	condition_value = condition->resolve_condition(
-			builder, runnable_scope, cond_life, &while_scope, nullptr /*scope_if_false*/);
+			builder, runnable_scope, cond_life,
+		   	type_id(make_iid(BOOL_TYPE)),
+		   	&while_scope, nullptr /*scope_if_false*/);
 
 	/* generate some new blocks */
 	llvm::BasicBlock *while_block_bb = llvm::BasicBlock::Create(builder.getContext(), "while.block", llvm_function_current);
@@ -4002,7 +4015,9 @@ void ast::if_block_t::resolve_statement(
 
 	/* evaluate the condition for branching */
 	condition_value = condition->resolve_condition(
-			builder, runnable_scope, cond_life, &scope_if_true, &scope_if_false);
+			builder, runnable_scope, cond_life,
+		   	type_id(make_iid(BOOL_TYPE)),
+		   	&scope_if_true, &scope_if_false);
 
 	/* test that the if statement doesn't return */
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
@@ -4141,6 +4156,7 @@ bound_var_t::ref ast::var_decl_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
+		types::type_t::ref expected_type,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
 {
@@ -4192,11 +4208,20 @@ bound_var_t::ref take_address(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-		ast::expression_t::ref expr)
+		ast::expression_t::ref expr,
+		types::type_t::ref expected_type)
 {
+	if (expected_type != nullptr) {
+		if (auto ptr_type = dyncast<const types::type_ptr_t>(expected_type->eval(scope))) {
+			expected_type = ptr_type->element_type;
+		} else {
+			expected_type = nullptr;
+		}
+	}
+
 	/* first solve the right hand side */
 	bound_var_t::ref rhs_var = expr->resolve_expression(builder,
-			scope, life, true /*as_ref*/, type_ref(type_variable(INTERNAL_LOC())));
+			scope, life, true /*as_ref*/, expected_type);
 
 	if (auto ref_type = dyncast<const types::type_ref_t>(rhs_var->type->get_type())) {
 		bound_type_t::ref bound_ptr_type = upsert_bound_type(builder, scope, type_ptr(ref_type->element_type));
@@ -4213,11 +4238,13 @@ bound_var_t::ref ast::prefix_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
+		types::type_t::ref expected_type,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
 {
 	return resolve_prefix_expr(builder, scope, 
 			life, false /*as_ref*/,
+			expected_type,
 			scope_if_true,
 			scope_if_false);
 }
@@ -4230,7 +4257,7 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
 		types::type_t::ref expected_type) const
 {
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
-	return resolve_prefix_expr(builder, runnable_scope, life, as_ref, nullptr, nullptr);
+	return resolve_prefix_expr(builder, runnable_scope, life, as_ref, expected_type, nullptr, nullptr);
 }
 
 bound_var_t::ref ast::prefix_expr_t::resolve_prefix_expr(
@@ -4238,6 +4265,7 @@ bound_var_t::ref ast::prefix_expr_t::resolve_prefix_expr(
         runnable_scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
+		types::type_t::ref expected_type,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false) const
 {
@@ -4250,7 +4278,7 @@ bound_var_t::ref ast::prefix_expr_t::resolve_prefix_expr(
 		function_name = "__positive__";
 		break;
 	case tk_ampersand:
-		return take_address(builder, scope, life, rhs);
+		return take_address(builder, scope, life, rhs, expected_type);
 	case tk_identifier:
 		if (token.is_ident(K(not))) {
 			function_name = "__not__";
@@ -4262,7 +4290,7 @@ bound_var_t::ref ast::prefix_expr_t::resolve_prefix_expr(
 
 	/* first solve the right hand side */
 	bound_var_t::ref rhs_var = rhs->resolve_condition(builder,
-			scope, life, scope_if_true, scope_if_false);
+			scope, life, expected_type, scope_if_true, scope_if_false);
 
 	if (function_name == "__not__") {
 		bool is_managed;

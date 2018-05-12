@@ -3,10 +3,11 @@ module _
 # expect: 253
 # expect: 252
 
-def main()
+def main() {
     var x int8 = -3
     var y uint8 = x
     print(y)
 
     y = -4
     print(y)
+}

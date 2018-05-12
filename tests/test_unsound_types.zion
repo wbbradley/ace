@@ -1,32 +1,42 @@
 module _
 
-type Animal is
+type Animal is {
     Dog
     Cat
     Pig
     Alien
+}
 
 [global]
-def str(a Animal) str
-    match a
-        Dog
+def str(a Animal) str {
+    match a {
+        Dog {
             return "Dog"
-        Cat
+        }
+        Cat {
             return "Cat"
-        Pig
+        }
+        Pig {
             return "Pig"
-        Alien
+        }
+        Alien {
             return "Alien"
+        }
+    }
+}
 
-type CatDog is
+type CatDog is {
     Cat
     Dog
+}
 
-def add_pig(animals [Animal])
+def add_pig(animals [Animal]) {
     append(animals, Pig)
+}
 
-def main()
+def main() {
     var cats_and_dogs [CatDog]
 
     # error: reference to an overloaded variable Cat was found
     append(cats_and_dogs, Cat)
+}

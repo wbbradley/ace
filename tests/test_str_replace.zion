@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: pass
 
-def main()
+def main() {
     assert(replace("funky", "y", "iness") == "funkiness")
     assert(replace("funky", "f", "j") == "junky")
     assert(replace("funky", "F", "j") == "funky")
@@ -14,3 +14,4 @@ def main()
     assert(replace("zion", "", "something") == "zion")
     assert(replace("zion", "", "something") != "something")
     print("pass")
+}

@@ -3,13 +3,15 @@ module _
 # test: pass
 # expect: bigger than three
 
-def value() int
+def value() int {
     return 4
+}
 
-def main()
+def main() {
     v := value()
     target := (
         v > 3 ? "bigger than three" :
         v < 3 ? "less than three" :
         "three")
     print(target)
+}

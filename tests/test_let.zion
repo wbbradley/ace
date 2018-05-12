@@ -1,6 +1,7 @@
 module _
 
-def main()
+def main() {
     let PI = 3.14159265
     # error: the left-hand side of this assignment is not a reference
     PI = 3.1
+}

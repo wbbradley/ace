@@ -1,5 +1,6 @@
 module _
 # test: pass
 
-def main()
+def main() {
     false and true
+}

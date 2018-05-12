@@ -1,8 +1,11 @@
 module _
 
-type Foo is Bar
+type Foo is {
+    Bar
+}
 
-def main()
+def main() {
     var i int = 0
     # error: data of type int has no runtime type information
     typeid(i)
+}

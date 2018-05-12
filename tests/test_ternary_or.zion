@@ -1,13 +1,17 @@
 module _
 
-def takes(x)
-    # error: 7:3.* irrefutable predicates are restricted to non-keyword symbols
+def takes(x) {
+    # error: 7:9.* irrefutable predicates are restricted to non-keyword symbols
     static_print(x)
-    match x
-        int
+    match x {
+        int {
             print(x)
+        }
+    }
+}
 
-def main()
+def main() {
     let y int? = Just(12)
     x := exists(y) ? "hey" : "joe"
     takes(x)
+}

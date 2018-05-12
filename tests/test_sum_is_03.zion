@@ -2,14 +2,19 @@ module _
 # test: pass
 # expect: pass
 
-type Point is
+type Point is {
     Relative(value float)
     Absolute(value float)
+}
 
-def main()
+def main() {
     point := Relative(1.0)
-    match point
-        Relative(_)
+    match point {
+        Relative(_) {
             print("pass")
-        Absolute(_)
+        }
+        Absolute(_) {
             print("what?")
+        }
+    }
+}

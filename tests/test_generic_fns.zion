@@ -1,16 +1,17 @@
 module _
 # test: pass
 
-def no_type(y)
-    pass
+def no_type(y) {
+}
 
-def any_type(y any)
-    pass
+def any_type(y any) {
+}
 
-def named_any_type(y any T)
-    pass
+def named_any_type(y any T) {
+}
 
-def main()
+def main() {
     no_type(1)
     any_type(1)
     named_any_type(1)
+}

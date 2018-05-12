@@ -3,11 +3,15 @@ module _ @1.0
 
 # type names can be given as return values, and can be referenced before they
 # are declared.
-def bar() Z
+def bar() Z {
     return I(3)
+}
 
 # Finally define Z to be int
-type Z is I(s int) F(f float)
+type Z is {
+    I(s int)
+    F(f float)
+}
 
-def main()
-    pass
+def main() {
+}

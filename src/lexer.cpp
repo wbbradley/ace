@@ -176,7 +176,7 @@ bool zion_lexer_t::_get_tokens() {
 
 		switch (gts) {
 		case gts_whitespace:
-			if (ch != ' ' && ch != '\t') {
+			if (ch != ' ') {
 				gts = gts_end;
 				scan_ahead = false;
 			}
@@ -433,6 +433,10 @@ bool zion_lexer_t::_get_tokens() {
 				gts = gts_end;
 				break;
 			case '\t':
+				tk = tk_none;
+				gts = gts_error;
+				log_location(log_error, location_t(m_filename, m_line, m_col), "encountered a tab character (\\t) used outside of a string literal");
+				break;
 			case ' ':
 				tk = tk_space;
 				gts = gts_whitespace;
@@ -696,14 +700,7 @@ bool zion_lexer_t::_get_tokens() {
 		}
 	}
 
-	/*
-	bool nested = handle_nests(tk);
-	if (nested) {
-		if (tk == tk_newline) {
-			tk = tk_space;
-		}
-	}
-	*/
+	handle_nests(tk);
 
 	if (gts != gts_error && tk != tk_error) {
 		m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
@@ -714,13 +711,13 @@ bool zion_lexer_t::_get_tokens() {
 }
 
 bool zion_lexer_t::handle_nests(token_kind tk) {
-	bool was_empty = m_nested_tks.empty();
+	bool was_empty = nested_tks.empty();
 
 	switch (tk) {
 	case tk_lsquare:
 	case tk_lparen:
 	case tk_lcurly:
-		m_nested_tks.push_back(tk);
+		nested_tks.push_back({location_t(m_filename, m_line, m_col - 1), tk});
 		break;
 	case tk_rsquare:
 		pop_nested(tk_lsquare);
@@ -738,12 +735,12 @@ bool zion_lexer_t::handle_nests(token_kind tk) {
 }
 
 void zion_lexer_t::pop_nested(token_kind tk) {
-	auto back_tk = m_nested_tks.size() > 0 ? m_nested_tks.back() : tk_none;
+	auto back_tk = nested_tks.size() > 0 ? nested_tks.back().second : tk_none;
 	if (back_tk == tk) {
-		m_nested_tks.pop_back();
+		nested_tks.pop_back();
 	} else if (back_tk != tk) {
-		debug_lexer(log(log_error, "detected unbalanced %s%s",
-				   	tkstr(back_tk), tkstr(tk)));
+		log_location(log_error, nested_tks.back().first, "detected unbalanced brackets",
+				   	tkstr(back_tk), tkstr(tk));
 	}
 }
 

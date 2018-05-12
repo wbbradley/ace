@@ -1,10 +1,12 @@
 module _
 # test: pass
 # expect: 5.00
-type Value has
+type Value has {
     var x float
+}
 
-def main()
+def main() {
     v := Value(2.0)
     v.x = 5.0
     print(v.x)
+}

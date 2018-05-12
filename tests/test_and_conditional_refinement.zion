@@ -3,16 +3,21 @@ module _
 # expect: cur_line : str?
 # expect: foobar : str
 
-def maybe_a_line() str?
+def maybe_a_line() str? {
     return Empty
+}
 
-def main()
+def main() {
     let cur_line = maybe_a_line()
     static_print(cur_line)
-    match cur_line
-        Just(line)
-            if line == "something"
+    match cur_line {
+        Just(line) {
+            if line == "something" {
                 foobar := line
                 static_print(foobar)
-        Empty
-            pass
+            }
+        }
+        Empty {
+        }
+    }
+}

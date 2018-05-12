@@ -6,19 +6,23 @@ get file
 # expect: 9
 # expect: Cheating Quine Detected!
 
-def main()
+def main() {
     var l [str]
     append(l, "there")
     append(l, "is")
     append(l, "a")
     append(l, "house")
 
-    for x in l
+    for x in l {
         print(x)
+    }
 
-    for x in range(10)
+    for x in range(10) {
         print(x)
+    }
 
     f := file.open("tests/test_iterators.zion", "r")
-    for line in file.readlines(f)
+    for line in file.readlines(f) {
         print(line)
+    }
+}

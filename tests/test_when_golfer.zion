@@ -1,23 +1,30 @@
 module when_contact
 # test: pass
 
-type Athlete is
+type Athlete is {
     Golfer(first str, last str)
     Baker
+}
 
-def recognize(athlete Athlete)
-    match athlete
-        Golfer(first, last)
-            if first == "Arnold"
-                if last == "Palmer"
+def recognize(athlete Athlete) {
+    match athlete {
+        Golfer(first, last) {
+            if first == "Arnold" {
+                if last == "Palmer" {
                     print("RIP")
-                else
+                } else {
                     print("You are alive")
-            else
+                }
+            } else {
                 print("You are alive")
-        else
+            }
+        } else {
             print("who are you?")
+        }
+    }
+}
 
-def main()
+def main() {
     recognize(Golfer("Arnold", "Palmer"))
     recognize(Baker)
+}

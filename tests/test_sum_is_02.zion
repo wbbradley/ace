@@ -2,8 +2,12 @@ module _
 
 # test: pass
 
-type PhoneNumber is Local(num int) Intl(cc int, num int)
+type PhoneNumber is {
+    Local(num int)
+    Intl(cc int, num int)
+}
 
-def main()
+def main() {
     number := Local(100)
     intl_number := Intl(1, 100)
+}

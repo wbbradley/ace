@@ -1,10 +1,12 @@
 module _
 # test: pass
 
-def foo(x any)
+def foo(x any) {
     var y int = 0
     print(x)
+}
 
-def main()
+def main() {
     foo("Hello world.")
     foo(1)
+}

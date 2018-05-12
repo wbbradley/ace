@@ -3,5 +3,6 @@ module _
 
 # test creating tuples
 
-def main()
+def main() {
     x := (1,)
+}
