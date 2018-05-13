@@ -1,9 +1,10 @@
 module _
-link def putch(ch int) int
+link def putchar(ch int) int
+
 # test: pass
 # expect: a
 
 def main() {
     # emit the ASCII letter 'a'
-    putch(97)
+    putchar(97)
 }

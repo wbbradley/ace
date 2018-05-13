@@ -16,9 +16,9 @@ var __head_var *var_t = __create_head_var()
 
 var __debug_zion_runtime bool = false
 
-var TYPE_KIND_NO_GC int32 = 0 as int32
-var TYPE_KIND_USE_OFFSETS int32 = 1 as int32
-var TYPE_KIND_USE_MARK_FN int32 = 2 as int32
+var TYPE_KIND_NO_GC int32 = 0
+var TYPE_KIND_USE_OFFSETS int32 = 1
+var TYPE_KIND_USE_MARK_FN int32 = 2
 
 def on_assert_failure(msg str) void {
     # called match assertions fail
@@ -39,7 +39,7 @@ def get_member_by_index(v *var_t, index int) *?var_t {
     offset := type_info_offsets.ref_offsets[index]
 
     # Compute the address of the child member slot
-    var_ptr := &base_ptr[offset as int] as! **?var_t
+    var_ptr := &base_ptr[offset] as! **?var_t
 
     # Return the address of the child member
     return var_ptr[0]
@@ -177,7 +177,7 @@ def __get_ctor_id(v *var_t) CtorID {
 def __create_head_var() *var_t {
     p := mem_alloc(sizeof(var_t)) as! *?var_t
     assert(p != null)
-    runtime._var_allocation += 1 as size_t
+    runtime._var_allocation += 1
     p.allocation = runtime._var_allocation
     return p
 }
@@ -206,7 +206,7 @@ def create_var(type_info *type_info_t) *var_t {
     assert(obj != null)
 
     obj.type_info = type_info
-    runtime._var_allocation += 1 as uint
+    runtime._var_allocation += 1
 
     # Mark any newly created objects so that just in case we happen to be in the middle of a GC run
     # we don't accidentally delete this object before its had a chance to get marked fairly.
@@ -298,7 +298,7 @@ def mark_allocation(obj *?var_t) {
         var type_info_offsets *type_info_offsets_t = obj.type_info as! *type_info_offsets_t
 
         # we may be holding on to child nodes, let's recurse.
-        var refs_count int = type_info_offsets.refs_count as int
+        var refs_count int = type_info_offsets.refs_count
 
         var j = 0
         while j < refs_count {

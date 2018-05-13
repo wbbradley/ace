@@ -96,6 +96,8 @@ std::string compiler_t::resolve_module_filename(
 			} else {
 				panic(string_format("filename %s does not exist", name.c_str()));
 			}
+		} else if (extension == "" && file_exists(filename_test_resolution)) {
+			return filename_test_resolution;
 		}
 	}
 

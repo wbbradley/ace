@@ -47,6 +47,11 @@ def main():
     parser = _get_argparser()
     args = _parse_args(parser)
 
+    tests = gather_comments('test', args.program)
+    if 'pass' not in tests:
+        print("Skipping " + args.program)
+        sys.exit(0)
+
     injects = gather_comments('inject', args.program)
     expects = gather_comments('expect', args.program)
     rejects = gather_comments('reject', args.program)

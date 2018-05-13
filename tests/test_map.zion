@@ -3,7 +3,6 @@ module _
 # expect: 12
 # expect: 13
 # expect: deleted hello
-# expect: 15
 # expect: could not find hello
 
 def main() {
@@ -32,4 +31,5 @@ def main() {
     if del(m, "hello") {
         print("deleted hello")
     }
+    match m["hello"] { Empty { print("could not find hello") } } else {}
 }

@@ -13,6 +13,9 @@ def recognize(athlete) {
         GolfScore(71) {
             print("You must have had at least one birdie.")
         }
+        GolfScore(-70) {
+            print("You are cheating with that score.")
+        }
         GolfScore(score) {
             print("You are great with a " + score + ".")
         }
@@ -20,5 +23,5 @@ def recognize(athlete) {
 }
 
 def main() {
-    recognize(GolfScore(73))
+    recognize(GolfScore(-70))
 }

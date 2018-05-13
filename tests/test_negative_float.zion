@@ -1,0 +1,17 @@
+module _
+# test: pass
+# expect: -1.5
+# expect: 4.5
+
+type J is { J(j int) }
+
+def main() {
+    print(-1.5)
+    print(+4.5)
+
+    match J(-4) {
+        J(4) { }
+        J(-4) { print("pass") }
+        J(j) {}
+    }
+}

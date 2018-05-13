@@ -1032,14 +1032,39 @@ ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else) {
 			return ast::create<ast::irrefutable_predicate_t>(symbol);
 		}
 	} else {
+		std::string sign;
 		switch (ps.token.tk) {
-		case tk_integer:
+		case tk_minus:
+		case tk_plus:
+				sign = ps.token.text;
+				ps.advance();
+				if (ps.token.tk != tk_integer && ps.token.tk != tk_float) {
+					throw user_error(ps.prior_token.location, "unary prefix %s is not allowed before %s in this context",
+							ps.prior_token.text.c_str(),
+							ps.token.text.c_str());
+				}
+				break;
+		default:
+				break;
+		}
+
+		switch (ps.token.tk) {
 		case tk_string:
 		case tk_char:
-		case tk_float:
 			{
 				/* match a literal */
 				auto literal = create<ast::literal_expr_t>(ps.token);
+				ps.advance();
+				return literal;
+			}
+		case tk_integer:
+		case tk_float:
+			{
+				/* match a literal */
+				auto literal = create<ast::literal_expr_t>(
+						sign != ""
+					   	? token_t(ps.token.location, ps.token.tk, sign + ps.token.text)
+						: ps.token);
 				ps.advance();
 				return literal;
 			}

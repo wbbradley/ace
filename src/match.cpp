@@ -550,10 +550,10 @@ namespace match {
 			}
 		case Integers::Exclude:
 			if (collection.size() == 0) {
-				return "ℤ";
+				return "all integers";
 			} else {
 				std::string coll_str = "[" + ::join(collection, ", ") + "]";
-				return "(ℤ \\ " + coll_str + ")";
+				return "all integers except " + coll_str;
 			}
 		}
 	}

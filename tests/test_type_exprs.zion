@@ -1,6 +1,6 @@
 module _
 # test: pass
-# expect: x : test_type_exprs.X.*
+# expect: x : test_type_exprs.X
 
 type X is { F(f int) Float(f float) }
 
