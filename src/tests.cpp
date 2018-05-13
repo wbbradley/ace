@@ -148,7 +148,7 @@ bool test_lex_comments() {
 
 bool test_lex_functions() {
 	lexer_tests tests = {
-		{"def A\n\tstatement", {tk_identifier, tk_identifier, tk_identifier}},
+		{"def A\nstatement", {tk_identifier, tk_identifier, tk_identifier}},
 		{"def", {tk_identifier}},
 		{" def", {tk_identifier}},
 		{"def ", {tk_identifier}},
@@ -156,7 +156,7 @@ bool test_lex_functions() {
 		{"definitely", {tk_identifier}},
 		{"def A", {tk_identifier, tk_identifier}},
 		{"def A\n", {tk_identifier, tk_identifier}},
-		{"def A {\n\tstatement\n\tstatement\n}", {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_identifier, tk_rcurly}},
+		{"def A {\nstatement\nstatement\n}", {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_identifier, tk_rcurly}},
 		{"def A {pass}", {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_rcurly}},
 	};
 	return lexer_test(tests);
@@ -235,12 +235,12 @@ bool test_lex_syntax() {
 		{"breakfast", {tk_identifier}},
 		{"continue", {tk_identifier}},
 		{"continually", {tk_identifier}},
-		{"while true\n\t{ foo() }", {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_lparen, tk_rparen, tk_rcurly}},
+		{"while true\n{ foo() }", {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_lparen, tk_rparen, tk_rcurly}},
 		{"not in", {tk_identifier, tk_identifier}},
 		{"true false", {tk_identifier, tk_identifier}},
 		{" not", {tk_identifier}},
 		{" nothing", {tk_identifier}},
-		{" not\n\tnot", {tk_identifier, tk_identifier}},
+		{" not\nnot", {tk_identifier, tk_identifier}},
 		{"? + - * / %", {tk_maybe, tk_plus, tk_minus, tk_times, tk_divide_by, tk_mod}},
 		{"+=-=*=/=%=:=?=", {tk_plus_eq, tk_minus_eq, tk_times_eq, tk_divide_by_eq, tk_mod_eq, tk_becomes, tk_maybe_eq}},
 	};
@@ -331,7 +331,7 @@ bool test_parse_minimal_module() {
 }
 
 bool test_parse_module_one_function() {
-	return check_parse<ast::module_t>("module foobar @0.1.0\n\ndef foo() {\n\t }");
+	return check_parse<ast::module_t>("module foobar @0.1.0\n\ndef foo() {\n }");
 }
 
 ptr<ast::binary_operator_t> make_one_plus_two() {
@@ -352,7 +352,7 @@ bool test_parse_return_integer_add() {
 
 bool test_parse_module_function_with_return_plus_expr() {
 	return check_parse<ast::module_t>(
-			"module foobar @0.1.0\ndef foo() {\n\treturn 1 + 2\n}");
+			"module foobar @0.1.0\ndef foo() {\nreturn 1 + 2\n}");
 }
 
 bool test_parse_math_expression() {
@@ -404,9 +404,9 @@ bool test_parse_recursive_function_call() {
 	return check_parse<ast::module_t>(
 		   	"module math @1.0\n"
 			"def fib(n int) int {\n"
-			"\tif n < 2 {\n"
-			"\t\treturn n\n"
-			"\t}\nreturn fib(n-2) + fib(n-1)\n}",
+			"if n < 2 {\n"
+			"return n\n"
+			"}\nreturn fib(n-2) + fib(n-1)\n}",
 			"test" /*module*/);
 }
 
@@ -414,13 +414,13 @@ bool test_parse_if_else() {
 	return check_parse<ast::module_t>(
 		   	"module minmax @1.0\n"
 			"def min(m int, n int) int {\n"
-			"\tif n < m {\n"
-			"\t\treturn n\n"
-			"\t} elif m < n {\n"
-			"\t\treturn m\n"
-			"\t} else {\n"
-			"\t\treturn m\n"
-			"\t}\n}",
+			"if n < m {\n"
+			"return n\n"
+			"} elif m < n {\n"
+			"return m\n"
+			"} else {\n"
+			"return m\n"
+			"}\n}",
 			"test" /*module*/);
 }
 
@@ -428,9 +428,9 @@ bool test_parse_single_line_when() {
 	return check_parse<ast::module_t>(
 			"module _\n"
 			"def check() int\n"
-			"\twhen x is X\n"
-			"\t\treturn 1\n"
-			"\treturn 1\n"
+			"when x is X\n"
+			"return 1\n"
+			"return 1\n"
 			"test" /*module*/);
 }
 
@@ -796,7 +796,7 @@ auto test_descs = std::vector<test_desc>{
 		[] () -> bool {
 			return check_output_contains(
 					tos_compiler_error,
-				   	"aks\t " c_good("djf") " hadssdkf street askfjdaskdjf",
+				   	"aks " c_good("djf") " hadssdkf street askfjdaskdjf",
 					R"(street)", true /*use_regex*/);
 		}
 	},
@@ -806,7 +806,7 @@ auto test_descs = std::vector<test_desc>{
 		[] () -> bool {
 			return expect_output_lacks(
 					tos_compiler_error,
-				   	"aks\t " c_good("djf") " hadssdkf street askfjdaskdjf",
+				   	"aks " c_good("djf") " hadssdkf street askfjdaskdjf",
 					R"(funky chicken)", true /*use_regex*/);
 		}
 	},

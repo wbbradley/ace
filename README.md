@@ -165,6 +165,7 @@ or llvm tools, etc...
 - [ ] Implement native structures as non-pointer values
 - [ ] Consider uniform calling syntax for .-chaining and how to acheive customizable monadic behaviors by looking at the receiver. This would also entail some magic in terms of modules.
 - [ ] Escape analysis to avoid heap-allocation.
+- [ ] Rewrite expect.py in Zion
 - [ ] Consider how to allow for-macro expansion to have a mutating iterator function. Does that mean pass-by-ref is allowed?
 - [ ] Consider making all refs managed/heap-allocated (prior to a later escape-analysis test) in order to allow
   reference capture... maybe.

@@ -63,10 +63,10 @@ def set_union(lhs Pattern, rhs Pattern) Pattern {
 		}
 		Pair(CtorPattern(lhs), CtorPattern(rhs)) {
 			return CtorPatterns([lhs, rhs])
-		} else {
-			panic("Unhandled set_union parameters: " + lhs + " ∪ " + rhs + "\n")
 		}
-	}
+    } else {
+        panic("Unhandled set_union parameters: " + lhs + " ∪ " + rhs + "\n")
+    }
 	assert(false)
 	return lhs
 }

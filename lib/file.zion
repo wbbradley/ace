@@ -49,8 +49,8 @@ def __finalize__(of File) {
     match of.state {
         Open(fp) {
             posix.fclose(fp)
-        } else {
         }
+    } else {
     }
 }
 
@@ -60,9 +60,9 @@ def readbytes(f File) bytes? {
     match state {
         Open(fp) {
             return readbytes(fp)
-        } else {
-            return Empty
         }
+    } else {
+        return Empty
     }
 }
 
@@ -83,9 +83,9 @@ def readbytes(fp *?posix.FILE) bytes? {
                 return Empty
             }
             return Just(bytes(pb, bytes_read))
-        } else {
-            return Empty
         }
+    } else {
+        return Empty
     }
 }
 

@@ -12,6 +12,7 @@
 #define GLOBAL_SCOPE_NAME "std"
 
 #define DEFAULT_INT_BITSIZE 64
+#define DEFAULT_INT_SIGNED true
 #define ZION_BITSIZE_STR "64"
 #define ZION_TYPEID_BITSIZE_STR "16"
 #define getZionIntTy getInt64Ty
