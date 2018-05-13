@@ -1067,9 +1067,15 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 	when_block->value = expression_t::parse(ps);
 	chomp_token(tk_lcurly);
 	while (ps.token.tk != tk_rcurly) {
+		if (ps.token.is_ident(K(else))) {
+			throw user_error(ps.token.location, "place else patterns outside of the match block. (match ... { ... } else { ... })");
+		}
 		when_block->pattern_blocks.push_back(pattern_block_t::parse(ps));
 	}
 	chomp_token(tk_rcurly);
+	if (ps.token.is_ident(K(else))) {
+		when_block->pattern_blocks.push_back(pattern_block_t::parse(ps));
+	}
 
 	if (when_block->pattern_blocks.size() == 0) {
 		throw user_error(ps.token.location, "when block did not have subsequent patterns to match");

@@ -4116,7 +4116,6 @@ bound_var_t::ref ast::bang_expr_t::resolve_expression(
 	if (maybe_type != nullptr) {
 		bound_type_t::ref just_bound_type = upsert_bound_type(
 				builder, scope, maybe_type->just);
-		assert_implies(expected_type != nullptr, unifies(expected_type, just_bound_type->get_type(), scope));
 		return bound_var_t::create(INTERNAL_LOC(), lhs_value->name,
 				just_bound_type,
 				lhs_value->get_llvm_value(),
@@ -4332,10 +4331,27 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		{
 			/* create a native integer */
 			int64_t value = parse_int_value(token);
-			bound_type_t::ref native_type = upsert_bound_type(builder, program_scope, type_id(make_iid(INT_TYPE)));
+			unsigned bit_size = DEFAULT_INT_BITSIZE;
+			bool signed_ = DEFAULT_INT_SIGNED;
+			bound_type_t::ref native_type;
+
+			if (expected_type != nullptr && expected_type->ftv_count() == 0) {
+				get_integer_attributes(
+						expected_type,
+						scope,
+						bit_size,
+						signed_);
+				native_type = upsert_bound_type(
+						builder, program_scope,
+						expected_type);
+			} else {
+				native_type = upsert_bound_type(
+						builder, program_scope,
+						type_id(make_iid(INT_TYPE)));
+			}
 			return bound_var_t::create(
 					INTERNAL_LOC(), "int_literal", native_type,
-					llvm_create_int(builder, value),
+					builder.getIntN(bit_size, value),
 					make_code_id(token));
 		}
 
@@ -4386,17 +4402,31 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 		bool as_ref,
 		types::type_t::ref expected_type) const
 {
-	bound_var_t::ref bound_var = lhs->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr);
-	debug_above(6, log("cast expression is casting to %s", type_cast->str().c_str()));
+	/* throw away expected type because we are saying we know what's best here */
+	expected_type = type_cast->rebind(scope->get_type_variable_bindings())->eval(scope);
 
-	return cast_bound_var(
-			builder,
-			scope,
-			life,
-			get_location(),
-			bound_var,
-			type_cast->rebind(scope->get_type_variable_bindings())->eval(scope),
-			force_cast);
+	if (!force_cast) {
+		bound_var_t::ref bound_var = lhs->resolve_expression(builder, scope, life, false /*as_ref*/,
+				expected_type);
+		if (!unifies(expected_type, bound_var->type->get_type(), scope)) {
+			throw user_error(lhs->get_location(), "unable to get a %s from this expression (which is of type %s)",
+					expected_type->str().c_str(),
+					bound_var->type->get_type()->str().c_str());
+		}
+		return bound_var;
+	} else {
+		bound_var_t::ref bound_var = lhs->resolve_expression(builder, scope, life, false /*as_ref*/,
+				nullptr);
+
+		return cast_bound_var(
+				builder,
+				scope,
+				life,
+				get_location(),
+				bound_var,
+				expected_type,
+				force_cast);
+	}
 }
 
 void dump_builder(llvm::IRBuilder<> &builder) {

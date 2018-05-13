@@ -79,9 +79,8 @@ def __bitwise_or__(p1 Parser, p2 Parser) Parser {
             Just(_) {
                 return step
             }
-            else {
-                return p2(ps)
-            }
+        } else {
+            return p2(ps)
         }
     }
 }

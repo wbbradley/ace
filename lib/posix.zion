@@ -24,6 +24,7 @@ link def ferror(stream *FILE) bool
 link def fflush(fp *FILE) posix.int
 link def fopen(fn *char, mode *char) *?FILE
 link def fprintf(fp *FILE, fmt *char, s *char) posix.int
+link def fscanf(fp *FILE, fmt *char, s *void) posix.int
 link def fputs(x *char, fp *FILE) posix.int
 link def fread(p *void, size size_t, nitems size_t, stream *FILE) size_t
 link def free(pb *?void) void

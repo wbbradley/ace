@@ -6,13 +6,11 @@ get file
 def main() {
     filename := "tests/test_if_finalizer.zion"
     f := file.open(filename, "r")
-    state := f.state
-    match state {
+    match f.state {
         Open(fp) {
             print("opened " + filename + " as fp " + str(fp as! int))
         }
-        else {
-            print("unable to open " + filename)
-        }
+    } else {
+        print("unable to open " + filename)
     }
 }

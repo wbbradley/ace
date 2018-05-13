@@ -30,22 +30,15 @@ def _parse_args(parser):
     return parser.parse_args(sys.argv[1:])
 
 
-def gather_expects(progname):
+def gather_comments(preface, progname):
     try:
-        return (
-            subprocess.check_output('grep "^# expect: " < %s' % progname, shell=True)
-            or ""
-        ).strip().split('\n')
-    except subprocess.CalledProcessError as e:
-        return []
+        return [
+            comment[len("# " + preface + ": "):]
+            for comment in
 
-
-def gather_rejects(progname):
-    try:
-        return (
-            subprocess.check_output('grep "^# reject: " < %s' % progname, shell=True)
-            or ""
-        ).strip().split('\n')
+            (subprocess.check_output('grep "^# ' + preface + ': " < %s' % progname, shell=True)
+             or ""
+             ).strip().split('\n')]
     except subprocess.CalledProcessError as e:
         return []
 
@@ -54,25 +47,32 @@ def main():
     parser = _get_argparser()
     args = _parse_args(parser)
 
-    expects = gather_expects(args.program)
-    rejects = gather_rejects(args.program)
+    injects = gather_comments('inject', args.program)
+    expects = gather_comments('expect', args.program)
+    rejects = gather_comments('reject', args.program)
 
     if not expects and not rejects:
         sys.exit(0)
+    actual = ""
 
     try:
         print("-" * 10 + " " + args.program + " " + "-" * 20)
         cmd = "./zion run %s" % args.program
         print("running " + cmd)
-        actual = subprocess.check_output(cmd, shell=True)
+        proc = subprocess.Popen(cmd, shell=True,
+                                stdin=subprocess.PIPE if injects else None,
+                                stdout=subprocess.PIPE)
+        if injects:
+            actual = proc.communicate(input='\n'.join(injects) + '\n')[0]
+        else:
+            actual = proc.communicate()[0]
+
     except subprocess.CalledProcessError as e:
         print(e)
         print(e.output)
         sys.exit(-1)
 
     for expect in expects:
-        expect = expect[len("# expect: "):]
-
         msg = "Searching for %s in output from %s..." % (color(expect, "green"), args.program)
 
         if actual.find(expect) == -1:
@@ -84,8 +84,6 @@ def main():
             continue
 
     for reject in rejects:
-        reject = reject[len("# reject: "):]
-
         msg = "Hoping to not see %s in output from %s..." % (color(reject, "red"), args.program)
 
         if actual.find(reject) != -1:
