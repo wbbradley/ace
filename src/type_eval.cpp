@@ -190,6 +190,22 @@ namespace types {
 		return type_false;
 	}
 
+	type_t::ref type_eval_is_int(types::type_t::ref operand, env_t::ref env) {
+		debug_above(7, log("type_eval_is_int on %s = %s = %s",
+			   	operand->str().c_str(),
+			   	operand->eval(env)->str().c_str(),
+			   	operand->eval(env, true)->str().c_str()));
+		if (auto id_type = dyncast<const types::type_id_t>(operand->eval(env))) {
+			std::string name = id_type->id->get_name();
+			if (name == INT_TYPE) {
+				return type_true;
+			}
+		} else if (auto int_type = dyncast<const types::type_integer_t>(operand->eval(env))) {
+			return type_true;
+		}
+		return type_false;
+	}
+
 	type_t::ref type_eval_if(types::type_t::ref operand, env_t::ref env) {
 		auto operand_ = operand->eval_core(env, false);
 		if (is_type_id(operand_, TRUE_TYPE, nullptr)) {
@@ -247,6 +263,7 @@ namespace types {
 			{TYPE_OP_IS_TRUE, type_eval_is_true},
 			{TYPE_OP_IS_FALSE, type_eval_is_false},
 			{TYPE_OP_IS_BOOL, type_eval_is_bool},
+			{TYPE_OP_IS_INT, type_eval_is_int},
 			{TYPE_OP_IS_POINTER, type_eval_is_type<type_ptr_t>},
 			{TYPE_OP_IS_FUNCTION, type_eval_is_type<type_function_t>},
 			{TYPE_OP_IS_VOID, type_eval_is_void},

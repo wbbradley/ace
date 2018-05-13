@@ -74,9 +74,6 @@ namespace ast {
 	void while_block_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << K(while) << C_RESET << " ";
 		condition->render(rs);
-		newline(rs);
-
-		indented(rs);
 		block->render(rs);
 	}
 
@@ -85,20 +82,17 @@ namespace ast {
 		rs.ss << " " << C_ID << var_token.text << C_RESET;
 		rs.ss << " " << C_CONTROL << K(in) << C_RESET << " ";
 		iterable->render(rs);
-		newline(rs);
-
-		indented(rs);
 		block->render(rs);
 	}
 
 	void when_block_t::render(render_state_t &rs) const {
-		rs.ss << C_CONTROL << K(match) << C_RESET;
+		rs.ss << C_CONTROL << K(match) << C_RESET << " ";
 		value->render(rs);
-		newline(rs);
-		indented(rs);
+		rs.ss << " {" << std::endl;
 		for (auto pattern_block : pattern_blocks) {
 			pattern_block->render(rs);
 		}
+		rs.ss << std::endl << "}";
 	}
 
 	void pattern_block_t::render(render_state_t &rs) const {

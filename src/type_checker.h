@@ -53,3 +53,4 @@ void resolve_assert_macro(
 		token_t token,
 		ptr<ast::expression_t> condition,
 		runnable_scope_t::ref *new_scope);
+int64_t parse_int_value(token_t token);

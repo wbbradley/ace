@@ -5,15 +5,13 @@ module _
 get sys
 
 def main() {
-    match readbytes(open("tests/test_readbytes.zion", "rt")) {
+    match! readbytes(open("tests/test_readbytes.zion", "rt")) {
         Just(result) {
-            match decode(result, "utf8") {
+            match! decode(result, "utf8") {
                 Just(line) {
                     print(line)
                 }
-                else {}
             }
         }
-        else {}
     }
 }
