@@ -154,7 +154,7 @@ def c_str(u str) OwningBuffer char {
     if u.start != 0 or u.length != u.buffer.length {
         let pch = posix.malloc(sizeof(char) * (u.length + 1))! as! *char
         posix.memcpy(pch, unsafe_access(u), sizeof(char) * u.length)
-        pch[u.length] = 0 as char
+        pch[u.length] = 0
         return OwningBuffer(pch, u.length)
     } else {
         return u.buffer

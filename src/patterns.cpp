@@ -138,8 +138,8 @@ void check_patterns(
 	for (auto pattern_block : pattern_blocks) {
 		match::Pattern::ref covering = pattern_block->predicate->get_pattern(pattern_value->type->get_type(), runnable_scope);
 		if (match::intersect(uncovered, covering)->asNothing() != nullptr) {
-			auto error = user_error(pattern_block->get_location(), "pattern will never match any possible values");
-			error.add_info(pattern_block->get_location(), "uncovered values at this spot: %s",
+			auto error = user_error(pattern_block->get_location(), "this pattern is already covered");
+			error.add_info(pattern_block->get_location(), "so far you haven't covered: %s",
 					uncovered->str().c_str());
 			throw error;
 		}
@@ -236,7 +236,20 @@ bool ast::literal_expr_t::resolve_match(
 		llvm::BasicBlock *llvm_no_match_block,
 		runnable_scope_t::ref *scope_if_true) const
 {
-	assert(false);
+	assert(input_value->type->get_type()->eval_predicate(tb_int, scope));
+	llvm::Value *llvm_value_to_check = input_value->get_llvm_value();
+	llvm::IntegerType *llvm_int_type = llvm::dyn_cast<llvm::IntegerType>(llvm_value_to_check->getType());
+	if (llvm_int_type == nullptr) {
+		throw user_error(token.location, "could not figure out how to compare %s to a %s",
+				token.str().c_str(),
+				input_value->type->get_type()->str().c_str());
+	}
+	auto bit_width = llvm_int_type->getBitWidth();
+	llvm::Value *match_bit = builder.CreateICmpEQ(
+			input_value->get_llvm_value(),
+			builder.getIntN(bit_width, parse_int_value(token)));
+	match_bit->setName("int_literal." + token.text + ".matched");
+	builder.CreateCondBr(match_bit, llvm_match_block, llvm_no_match_block);
 	return true;
 }
 

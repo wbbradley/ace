@@ -4413,7 +4413,13 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 					expected_type->str().c_str(),
 					bound_var->type->get_type()->str().c_str());
 		}
-		return bound_var;
+		return coerce_bound_value(
+				builder,
+				scope,
+				life,
+				token.location,
+				expected_type,
+				bound_var);
 	} else {
 		bound_var_t::ref bound_var = lhs->resolve_expression(builder, scope, life, false /*as_ref*/,
 				nullptr);

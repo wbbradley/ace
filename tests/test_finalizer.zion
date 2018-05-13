@@ -1,0 +1,23 @@
+module _
+# expect: pass
+# test: skip
+
+type ShouldFinalize is { ShouldFinalize(s str) }
+
+def do_thing() {
+    ShouldFinalize("pass")
+}
+
+def main() {
+    do_thing()
+    runtime.gc()
+}
+
+[global]
+def __finalizer__(sf ShouldFinalize) {
+    match sf {
+        ShouldFinalize(s) {
+            print(s)
+        }
+    }
+}

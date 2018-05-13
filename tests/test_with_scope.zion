@@ -10,8 +10,8 @@ def main() {
         Just(x) {
             print(x)
             return
-        } else {
         }
+    } else {
     }
 
     # error: .* unable to resolve overloads for str
