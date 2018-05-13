@@ -12,8 +12,7 @@ def main() {
         Just(x) {
             print(x)
         }
-        else {
-            print("error")
-        }
+    } else {
+        print("error")
     }
 }

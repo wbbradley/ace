@@ -9,9 +9,9 @@ def main() {
     match v {
         Just(Vector(x, y)) {
             v = Just(Vector(1.0, 2.0))
-        } else {
-            assert(false)
         }
+    } else {
+        assert(false)
     }
     v = Empty
     print("pass")

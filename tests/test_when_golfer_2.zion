@@ -1,0 +1,24 @@
+module when_contact
+# test: pass
+
+type GolfScore is {
+    GolfScore(score int)
+}
+
+def recognize(athlete) {
+    match athlete {
+        GolfScore(72) {
+            print("You shot par.")
+        }
+        GolfScore(71) {
+            print("You must have had at least one birdie.")
+        }
+        GolfScore(score) {
+            print("You are great with a " + score + ".")
+        }
+    }
+}
+
+def main() {
+    recognize(GolfScore(73))
+}

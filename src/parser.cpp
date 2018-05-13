@@ -1064,6 +1064,12 @@ ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 	auto when_block = create<ast::when_block_t>(ps.token);
 	chomp_ident(K(match));
+	bool auto_else = false;
+	token_t bang_token = ps.token;
+	if (ps.token.tk == tk_bang) {
+		auto_else = true;
+		ps.advance();
+	}
 	when_block->value = expression_t::parse(ps);
 	chomp_token(tk_lcurly);
 	while (ps.token.tk != tk_rcurly) {
@@ -1073,8 +1079,18 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 		when_block->pattern_blocks.push_back(pattern_block_t::parse(ps));
 	}
 	chomp_token(tk_rcurly);
-	if (ps.token.is_ident(K(else))) {
-		when_block->pattern_blocks.push_back(pattern_block_t::parse(ps));
+	if (auto_else) {
+		auto pattern_block = ast::create<ast::pattern_block_t>(bang_token);
+		pattern_block->predicate = ast::create<ast::irrefutable_predicate_t>(token_t{bang_token.location, tk_identifier, "else"});
+		pattern_block->block = ast::create<ast::block_t>(bang_token);
+		when_block->pattern_blocks.push_back(pattern_block);
+	}
+   	if (ps.token.is_ident(K(else))) {
+		if (auto_else) {
+			throw user_error(ps.token.location, "no need for else block when you are using \"match!\". either delete the ! or discard the else block");
+		} else {
+			when_block->pattern_blocks.push_back(pattern_block_t::parse(ps));
+		}
 	}
 
 	if (when_block->pattern_blocks.size() == 0) {

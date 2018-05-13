@@ -12,9 +12,8 @@ def poly(a D) int {
             return 0
         }
         B { }
-        else {
-            return 44
-        }
+    } else {
+        return 44
     }
 }
 

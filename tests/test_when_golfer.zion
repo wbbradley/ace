@@ -18,9 +18,9 @@ def recognize(athlete Athlete) {
             } else {
                 print("You are alive")
             }
-        } else {
-            print("who are you?")
         }
+    } else {
+        print("who are you?")
     }
 }
 

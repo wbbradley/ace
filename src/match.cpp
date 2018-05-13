@@ -3,22 +3,24 @@
 #include "ast.h"
 #include "types.h"
 #include <numeric>
+#include <algorithm>
 
 namespace match {
 	using namespace ::types;
 
 	ptr<Nothing> theNothing = make_ptr<Nothing>();
+	ptr<Integers> allIntegers = make_ptr<Integers>(INTERNAL_LOC(), Integers::Exclude, std::set<int64_t>{});
 
 	CtorPattern::CtorPattern(location_t location, CtorPatternValue cpv) :
-	   	Pattern(location),
-	   	cpv(cpv)
-   	{
+		Pattern(location),
+		cpv(cpv)
+	{
 	}
 
 	CtorPatterns::CtorPatterns(location_t location, std::vector<CtorPatternValue> cpvs) :
-	   	Pattern(location),
-	   	cpvs(cpvs)
-   	{
+		Pattern(location),
+		cpvs(cpvs)
+	{
 	}
 
 	AllOf::AllOf(location_t location, std::string name, env_t::ref env, types::type_t::ref type) :
@@ -26,7 +28,18 @@ namespace match {
 		name(name),
 		env(env),
 		type(type)
-   	{
+	{
+	}
+
+	Integers::Integers(
+			location_t location,
+			Integers::Kind kind,
+			std::set<int64_t> collection) :
+		Pattern(location),
+		kind(kind),
+		collection(collection)
+	{
+		assert_implies(kind == Include, collection.size() != 0);
 	}
 
 	Pattern::ref reduce_all_datatype(
@@ -89,12 +102,53 @@ namespace match {
 			intersection = pattern_union(
 					std::accumulate(
 						rhs.begin(),
-					   	rhs.end(),
-					   	init,
+						rhs.end(),
+						init,
 						cpv_intersect),
 					intersection);
 		}
 		return intersection;
+	}
+
+	Pattern::ref intersect(
+			const Integers &lhs,
+			const Integers &rhs)
+	{
+		Integers::Kind new_kind;
+		std::set<int64_t> new_collection;
+
+		if (lhs.kind == Integers::Exclude && rhs.kind == Integers::Exclude) {
+			new_kind = Integers::Exclude;
+			std::set_union(
+					lhs.collection.begin(), lhs.collection.end(),
+					rhs.collection.begin(), rhs.collection.end(),
+					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
+		} else if (lhs.kind == Integers::Exclude && rhs.kind == Integers::Include) {
+			new_kind = Integers::Include;
+			std::set_difference(
+					rhs.collection.begin(), rhs.collection.end(),
+					lhs.collection.begin(), lhs.collection.end(),
+					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
+		} else if (lhs.kind == Integers::Include && rhs.kind == Integers::Exclude) {
+			new_kind = Integers::Include;
+			std::set_difference(
+					lhs.collection.begin(), lhs.collection.end(),
+					rhs.collection.begin(), rhs.collection.end(),
+					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
+		} else if (lhs.kind == Integers::Include && rhs.kind == Integers::Include) {
+			new_kind = Integers::Include;
+			std::set_intersection(
+					lhs.collection.begin(), lhs.collection.end(),
+					rhs.collection.begin(), rhs.collection.end(),
+					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
+		} else {
+			return null_impl();
+		}
+
+		if (new_kind == Integers::Include && new_collection.size() == 0) {
+			return theNothing;
+		}
+		return make_ptr<Integers>(lhs.location, new_kind, new_collection);
 	}
 
 	Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
@@ -107,6 +161,8 @@ namespace match {
 		auto rhs_ctor_patterns = rhs->asCtorPatterns();
 		auto lhs_ctor_pattern = lhs->asCtorPattern();
 		auto rhs_ctor_pattern = rhs->asCtorPattern();
+		auto lhs_integers = lhs->asIntegers();
+		auto rhs_integers = rhs->asIntegers();
 
 		if (lhs_nothing) {
 			return lhs;
@@ -147,6 +203,8 @@ namespace match {
 					std::vector<CtorPatternValue> cpvs{lhs_ctor_pattern->cpv};
 					return reduce_all_datatype(rhs->location, rhs_data_type->repr(), lhs, cpvs);
 				}
+			} else if (rhs_allof->type->eval_predicate(tb_int, rhs_allof->env)) {
+				return intersect(lhs, make_ptr<Integers>(rhs->location, Integers::Exclude, std::set<int64_t>{}));
 			}
 			throw user_error(INTERNAL_LOC(), "not implemented");
 		}
@@ -165,6 +223,10 @@ namespace match {
 		if (lhs_ctor_pattern && rhs_ctor_patterns) {
 			std::vector<CtorPatternValue> lhs_cpvs({lhs_ctor_pattern->cpv});
 			return intersect(rhs->location, lhs_cpvs, rhs_ctor_patterns->cpvs);
+		}
+
+		if (lhs_integers && rhs_integers) {
+			return intersect(*lhs_integers, *rhs_integers);
 		}
 
 		log_location(log_error, lhs->location,
@@ -254,6 +316,8 @@ namespace match {
 			} else {
 				throw user_error(INTERNAL_LOC(), "not implemented");
 			}
+		} else if (type->eval_predicate(tb_int, env)) {
+			return allIntegers;
 		} else {
 			throw user_error(type->get_location(), "don't know how to create a pattern from a %s",
 					type->str().c_str());
@@ -264,8 +328,8 @@ namespace match {
 
 	void difference(
 			Pattern::ref lhs,
-		   	Pattern::ref rhs,
-		   	const std::function<void (Pattern::ref)> &send);
+			Pattern::ref rhs,
+			const std::function<void (Pattern::ref)> &send);
 
 	void difference(
 			location_t location,
@@ -298,14 +362,55 @@ namespace match {
 		}
 	}
 
+	Pattern::ref difference(
+			const Integers &lhs,
+			const Integers &rhs)
+	{
+		Integers::Kind new_kind;
+		std::set<int64_t> new_collection;
+
+		if (lhs.kind == Integers::Exclude && rhs.kind == Integers::Exclude) {
+			new_kind = Integers::Include;
+			std::set_difference(
+					rhs.collection.begin(), rhs.collection.end(),
+					lhs.collection.begin(), lhs.collection.end(),
+					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
+		} else if (lhs.kind == Integers::Exclude && rhs.kind == Integers::Include) {
+			new_kind = Integers::Exclude;
+			std::set_union(
+					rhs.collection.begin(), rhs.collection.end(),
+					lhs.collection.begin(), lhs.collection.end(),
+					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
+		} else if (lhs.kind == Integers::Include && rhs.kind == Integers::Exclude) {
+			new_kind = Integers::Include;
+			std::set_intersection(
+					rhs.collection.begin(), rhs.collection.end(),
+					lhs.collection.begin(), lhs.collection.end(),
+					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
+		} else if (lhs.kind == Integers::Include && rhs.kind == Integers::Include) {
+			new_kind = Integers::Include;
+			std::set_difference(
+					lhs.collection.begin(), lhs.collection.end(),
+					rhs.collection.begin(), rhs.collection.end(),
+					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
+		} else {
+			return null_impl();
+		}
+
+		if (new_kind == Integers::Include && new_collection.size() == 0) {
+			return theNothing;
+		}
+		return make_ptr<Integers>(lhs.location, new_kind, new_collection);
+	}
+
 	void difference(
 			Pattern::ref lhs,
 			Pattern::ref rhs,
 			const std::function<void (Pattern::ref)> &send)
 	{
 		debug_above(8, log_location(log_info, rhs->location, "computing %s \\ %s",
-				lhs->str().c_str(),
-				rhs->str().c_str()));
+					lhs->str().c_str(),
+					rhs->str().c_str()));
 
 		auto lhs_nothing = lhs->asNothing();
 		auto rhs_nothing = rhs->asNothing();
@@ -315,6 +420,8 @@ namespace match {
 		auto rhs_ctor_patterns = rhs->asCtorPatterns();
 		auto lhs_ctor_pattern = lhs->asCtorPattern();
 		auto rhs_ctor_pattern = rhs->asCtorPattern();
+		auto lhs_integers = lhs->asIntegers();
+		auto rhs_integers = rhs->asIntegers();
 
 		if (lhs_nothing || rhs_nothing) {
 			send(lhs);
@@ -383,9 +490,15 @@ namespace match {
 			}
 		}
 
-		debug_above(8, log_location(log_error, lhs->location, "unhandled difference - %s \\ %s",
+		if (lhs_integers) {
+			if (rhs_integers) {
+				send(difference(*lhs_integers, *rhs_integers));
+				return;
+			}
+		}
+		log_location(log_error, lhs->location, "unhandled difference - %s \\ %s",
 				lhs->str().c_str(),
-				rhs->str().c_str()));
+				rhs->str().c_str());
 		throw user_error(INTERNAL_LOC(), "not implemented");
 	}
 
@@ -408,7 +521,7 @@ namespace match {
 	}
 
 	std::string Nothing::str() const {
-		return "<nothing>";
+		return "∅";
 	}
 
 	std::string CtorPattern::str() const {
@@ -428,6 +541,22 @@ namespace match {
 		return ss.str();
 	}
 
+	std::string Integers::str() const {
+		switch (kind) {
+		case Integers::Include:
+			{
+				std::string coll_str = "[" + ::join(collection, ", ") + "]";
+				return coll_str;
+			}
+		case Integers::Exclude:
+			if (collection.size() == 0) {
+				return "ℤ";
+			} else {
+				std::string coll_str = "[" + ::join(collection, ", ") + "]";
+				return "(ℤ \\ " + coll_str + ")";
+			}
+		}
+	}
 }
 
 namespace ast {
@@ -469,7 +598,16 @@ namespace ast {
 		return make_ptr<AllOf>(token.location, token.text, env, type);
 	}
 	Pattern::ref literal_expr_t::get_pattern(type_t::ref type, env_t::ref env) const {
-		throw user_error(INTERNAL_LOC(), "not implemented");
+		if (type->eval_predicate(tb_int, env)) {
+			if (token.tk == tk_integer) {
+				int64_t value = parse_int_value(token);
+				return make_ptr<Integers>(token.location, Integers::Include, std::set<int64_t>{value});
+			} else if (token.tk == tk_identifier) {
+				return make_ptr<Integers>(token.location, Integers::Exclude, std::set<int64_t>{});
+			}
+		}
+
+		throw user_error(INTERNAL_LOC(), "not implemented (don't know how to make a predicate for %s)", token.str().c_str());
 		return nullptr;
 	}
 }
