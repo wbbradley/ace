@@ -173,9 +173,8 @@ or llvm tools, etc...
 - [ ] Implement fast range(i)
 - [ ] Use DIBuilder to add line-level debugging information
 - [ ] Implement an inline directive to mark functions for inline expansion during optimization
-- [ ] Add safety checks on casting (as)
+- [x] Add safety checks on casting (as)
 - [ ] Implement generic sort
-- [ ] Explore using a conservative collector
 - [x] Exercise: implement parser combinators in Zion
 - [ ] Consider allowing overloads for arbitrary `tk_operator`s to enable overloading random symbols.
 - [ ] Data structures
@@ -191,6 +190,7 @@ or llvm tools, etc...
 - [ ] Fix linking issues (rt_float.o, etc...) when running zion from non-zion root dir)
 - [ ] Rename `typeid` function to `ctor_id` or something similar.
 - [ ] Automatically configure default POSIX/C/System "int" size on first boot of compiler
+- [ ] Explore using a conservative collector
 - [ ] Integrate JSON parsing and mess around with manipulating some existing JSON files
 - [ ] Expose reflection library for dynamic structure analysis
 - [ ] Pattern-matching
