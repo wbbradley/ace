@@ -77,7 +77,7 @@ namespace match {
 		std::vector<Pattern::ref> reduced_args;
 		reduced_args.reserve(lhs.args.size());
 
-		for (int i = 0; i < lhs.args.size(); ++i) {
+		for (size_t i = 0; i < lhs.args.size(); ++i) {
 			auto new_arg = intersect(lhs.args[i], rhs.args[i]);
 			if (dyncast<const Nothing>(new_arg) != nullptr) {
 				return theNothing;
@@ -297,7 +297,7 @@ namespace match {
 				std::vector<Pattern::ref> args;
 				args.reserve(ctor_pair.second->args.size());
 
-				for (int i = 0; i < ctor_pair.second->args.size(); ++i) {
+				for (size_t i = 0; i < ctor_pair.second->args.size(); ++i) {
 					args.push_back(
 							make_ptr<AllOf>(location,
 								(ctor_pair.second->names.size() > i) ? ctor_pair.second->names[i]->get_name() : "_",
@@ -345,7 +345,7 @@ namespace match {
 			send(theNothing);
 		} else {
 			assert(lhs.args.size() == rhs.args.size());
-			int i = 0;
+			size_t i = 0;
 			auto send_ctor_pattern = [location, &i, &lhs, &send] (Pattern::ref arg) {
 				if (dyncast<const Nothing>(arg)) {
 					send(theNothing);
@@ -556,6 +556,8 @@ namespace match {
 				return "all integers except " + coll_str;
 			}
 		}
+		assert(false);
+		return "";
 	}
 }
 
