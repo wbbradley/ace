@@ -578,7 +578,7 @@ namespace ast {
 								int(ctor_pair.second->args.size()));
 					}
 
-					for (int i = 0; i < params.size(); ++i) {
+					for (size_t i = 0; i < params.size(); ++i) {
 						args.push_back(params[i]->get_pattern(ctor_pair.second->args[i], env));
 					}
 
