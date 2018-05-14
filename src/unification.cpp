@@ -232,7 +232,7 @@ unification_t unify_core(
 		if (ptd_b != nullptr) {
 			// TODO: compare ctor_pair type args between them?!
 			if (ptd_a->name.text == ptd_b->name.text && ptd_a->type_vars.size() == ptd_b->type_vars.size()) {
-				for (int i = 0; i < ptd_a->type_vars.size(); ++i) {
+				for (size_t i = 0; i < ptd_a->type_vars.size(); ++i) {
 					unification_t unification = unify_core(
 							ptd_a->type_vars[i], ptd_b->type_vars[i], env, bindings, coercions, depth + 1, false /*allow_variance*/);
 					if (unification.result) {
@@ -362,7 +362,7 @@ unification_t unify_core(
 			} else {
 				std::vector<int> indices;
 				indices.reserve(a_dimensions.size());
-				for (int i = 0; i < a_dimensions.size(); ++i) {
+				for (size_t i = 0; i < a_dimensions.size(); ++i) {
 					indices.push_back(i);
 				}
 
@@ -376,7 +376,7 @@ unification_t unify_core(
 					auto working_coercions = coercions;
 					bool failed = false;
 
-					for (int i = 0; i < indices.size(); ++i) {
+					for (size_t i = 0; i < indices.size(); ++i) {
 						auto &a_elem = a_dimensions[indices[i]];
 						auto &b_elem = b_dimensions[indices[i]];
 
