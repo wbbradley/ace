@@ -258,7 +258,7 @@ ptr<expression_t> parse_cast_wrap(parse_state_t &ps, ptr<expression_t> expr) {
 		cast->lhs = expr;
 
 		if (ps.token.tk == tk_bang) {
-			if (token.location.line != ps.token.location.line || token.location.col + strlen(K(as)) != ps.token.location.col) {
+			if (token.location.line != ps.token.location.line || token.location.col + int(strlen(K(as))) != ps.token.location.col) {
 				throw user_error(ps.token.location,
 					   	"unsafe casts must not have any whitespace between \"as\" and \"!\". "
 						"They must appear exactly like this: \"as!\". This is to enable "
