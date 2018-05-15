@@ -11,7 +11,7 @@ def __getitem__[CharType](buffer OwningBuffer CharType, i uint) CharType {
     return buffer.raw[i]
 }
 
-def __finalize__(owning_buffer OwningBuffer any) {
+def __finalize__(owning_buffer OwningBuffer any) void {
     posix.free(owning_buffer.raw)
 }
 

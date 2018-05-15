@@ -273,7 +273,7 @@ def visit_allocations(visit def _(obj *var_t) void) {
     }
 }
 
-def mark_allocation(obj *?var_t) {
+def mark_allocation(obj *?var_t) void {
     if obj == null {
         return
     }
@@ -322,7 +322,7 @@ def mark_allocation(obj *?var_t) {
 }
 
 
-def clear_mark_bit(obj *var_t) {
+def clear_mark_bit(obj *var_t) void {
     # posix.puts("clearing marked bit on 0x" + __str__(obj as int, 16))
     obj.mark = 0
 }
@@ -355,7 +355,7 @@ def finalize(obj *var_t) {
     } 
 }
 
-def free_unmarked(obj *var_t) {
+def free_unmarked(obj *var_t) void {
     assert(obj != __head_var)
     if obj.mark == 0 {
         # Protect newly allocated things (during GC) from being prematurely deleted
@@ -407,7 +407,7 @@ def report(use_case *char) {
     posix.free(bytes_allocated)
 }
 
-def print_var(node *var_t) {
+def print_var(node *var_t) void {
     print("heap variable exists at 0x" +
         OwningBuffer(dbghex(node)) +
         " and is a " +

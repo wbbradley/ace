@@ -12,6 +12,8 @@ extern const char *GC_STRATEGY;
 struct compiler_t;
 struct life_t;
 
+void llvm_create_unit_value(llvm::IRBuilder<> &builder, program_scope_t::ref program_scope);
+
 llvm::FunctionType *llvm_create_function_type(
 		llvm::IRBuilder<> &builder,
 		const bound_type_t::refs &args,

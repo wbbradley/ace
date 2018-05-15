@@ -2,29 +2,31 @@
 
 [![Build Status](https://travis-ci.org/zionlang/zion.svg?branch=master)](https://travis-ci.org/zionlang/zion)
 
-Zion is a programming language. Zion prefers correctness and refactorability over performance. Zion
+### Zion features
+- imperative (combined with strict, all this really means is that the language
+  - strict (deterministic ordering of operations)
+  - impure by default (with purity available)
+  - caters to sequential statements and special control flow forms (like `for`,
+    `if`, `while` as much as it does to expressions)
+- strongly-typed
+  - unsafe casts are possible, but conspicuous
+- statically type-checked
+  - types are inferred
+  - polymorphic
+- algebraic data types
+  - supports pattern matching with `match` with robust coverage analysis
+- some cost abstractions
+  - garbage collection
+  - deterministic destruction via ref-counting and/or
+    `defer` or `with` behavior (TBD)
+
+Zion prefers correctness and refactorability over performance. Zion
 targets scenarios where scalability is intended to happen horizontally, not vertically. That being
 said, Zion tries to be fast, using static compilation to native host architecture as its execution
 model. Zion is built on [LLVM](https://llvm.org/).
 
-Bartosz Milewski's Major Tools for Category Theory
-- Abstraction
-  - Get rid of the unnecessary details. Forget about the assembly language or the machine language.
-  - Once you have removed unnecessary details, things that were different appear identical.
-- Composition
-  - Being able to solve larger problems by combining solutions to smaller problems.
-- Identity
-  - The notion of identity is non-trivial. There are things that are strictly
-    identical, and there are things that are identical for all intents and purposes.
-
-Category
-A category is a bunch of items. Not necessarily sets.
-- Left identity axiom `id_b . f = f (for f : a -> b)`
-- Right identity axiom `g . id_a = g (for g : a -> b)`
-- Associativity axiom `(h . g) . f == h . (g . f) (for f : a -> b, g : b -> c, h -> c -> d)`
-
 ## User Roles
- - In industry there are two archetypes of programming language users, Workers and Librarians. Experienced developers wear either of these hats, switching back and forth as necessary. This switching can happen as new dependencies and integrations are initiated and completed within the scope of feature or new product work.
+ - In industry there are two primary archetypes of programming language users, Workers and Librarians. Experienced developers wear either of these hats, switching back and forth as necessary. This switching can happen as new dependencies and integrations are initiated and completed within the scope of feature or new product work.
    - *Workers* build trustworthy applications that solve problems. Workers demand a pleasant and ergonomic experience in order to remain focused on reaching their objectives.
    - *Librarians* extend the capabilities of the language by
      - Creating bindings to external libraries,

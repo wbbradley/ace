@@ -5,6 +5,14 @@ get posix
 
 link def __set_locale__() void
 
+def main_ret(ret int) int {
+    return ret
+}
+
+def main_ret(a ()) int {
+    return 0
+}
+
 [global]
 def __main__(argc int32, argv **char) int32 {
     # This is the actual default entry point to every program.
@@ -18,6 +26,5 @@ def __main__(argc int32, argv **char) int32 {
     # runtime.report("__main__ after __init_module_vars")
 
     sys.set_args(argc, argv)
-    main()
-    return 0
+    return main_ret(main())
 }

@@ -39,6 +39,7 @@ extern const char *TYPE_OP_IS_BOOL;
 extern const char *TYPE_OP_IS_POINTER;
 extern const char *TYPE_OP_IS_FUNCTION;
 extern const char *TYPE_OP_IS_VOID;
+extern const char *TYPE_OP_IS_UNIT;
 extern const char *TYPE_OP_IS_NULL;
 extern const char *TYPE_OP_IS_INT;
 extern const char *TYPE_OP_IS_MAYBE;
@@ -52,6 +53,7 @@ enum type_builtins_t {
 	tb_pointer,
 	tb_function,
 	tb_void,
+	tb_unit,
 	tb_int,
 	tb_null,
 	tb_maybe,
@@ -486,9 +488,10 @@ namespace types {
 };
 
 /* type data ctors */
+types::type_t::ref type_bottom();
+types::type_t::ref type_unit();
 types::type_t::ref type_null();
 types::type_t::ref type_void();
-types::type_t::ref type_bottom();
 types::type_t::ref type_literal(token_t token);
 types::type_t::ref type_integer(types::type_t::ref size, types::type_t::ref is_signed);
 types::type_t::ref type_id(identifier::ref var);

@@ -39,7 +39,13 @@ life_t::life_t(
 life_t::~life_t() {
 	if (!std::uncaught_exception()) {
 		/* only do this check if something didn't go wrong, otherwise we'll get a noisy error */
-		assert(((values.size() == 0) ^ release_vars_called) && "We've cleaned up the bound vars");
+		if (((values.size() == 0) ^ release_vars_called) && "We've cleaned up the bound vars") {
+        } else {
+            for (auto value : values) {
+                log_location(log_error, value->get_location(), "unfreed variable %s", value->str().c_str());
+            }
+            assert(false);
+        }
 	}
 }
 

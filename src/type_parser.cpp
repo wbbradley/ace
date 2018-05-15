@@ -124,6 +124,10 @@ namespace types {
 
 	type_t::ref parse_parens_type(parse_state_t &ps, const identifier::set &generics) {
 		chomp_token(tk_lparen);
+        if (ps.token.tk == tk_rparen) {
+            ps.advance();
+            return type_unit();
+        }
 		auto lhs = parse_type(ps, generics);
 		if (ps.token.tk == tk_comma) {
 			/* we've got a tuple expression */
@@ -290,7 +294,7 @@ namespace types {
 		if (!ps.line_broke() && !(ps.token.tk == tk_lcurly || ps.token.tk == tk_rcurly)) {
 			return_type = parse_type(ps, generics);
 		} else {
-			return_type = type_void();
+			return_type = type_unit();
 		}
 
 		auto type = type_function(location, type_constraints, type_args, return_type);

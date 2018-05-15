@@ -2318,6 +2318,13 @@ bound_var_t::ref ast::tuple_expr_t::resolve_expression(
 	}
 	types::type_product_t::ref expected_product = dyncast<const types::type_product_t>(expected_type);
 
+    if (values.size() == 0) {
+        /* the unit */
+        auto unit = scope->get_program_scope()->get_singleton("__unit__");
+        assert(unit != nullptr);
+        return unit;
+    }
+
 	/* let's get the actual values in our tuple. */
 	bound_var_t::refs vars;
 	vars.reserve(values.size());
@@ -3411,36 +3418,38 @@ void type_check_program(
 		const ast::program_t &obj,
 		compiler_t &compiler)
 {
-	INDENT(2, string_format(
-				"type-checking program %s",
-				compiler.get_program_name().c_str()));
+    INDENT(2, string_format(
+                "type-checking program %s",
+                compiler.get_program_name().c_str()));
 
-	ptr<program_scope_t> program_scope = compiler.get_program_scope();
-	debug_above(11, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
+    ptr<program_scope_t> program_scope = compiler.get_program_scope();
+    debug_above(11, log(log_info, "type_check_program program scope:\n%s", program_scope->str().c_str()));
 
-	/* pass to resolve all module-level types */
-	for (const ast::module_t::ref &module : obj.modules) {
-		if (module->global && module->module_key != "std") {
-			continue;
-		}
+    /* pass to resolve all module-level types */
+    for (const ast::module_t::ref &module : obj.modules) {
+        if (module->global && module->module_key != "std") {
+            continue;
+        }
 
-		type_check_module_types(compiler, builder, *module, program_scope);
-	}
+        type_check_module_types(compiler, builder, *module, program_scope);
+    }
 
-	/* pass to resolve all module-level links */
-	for (auto &module : obj.modules) {
-		type_check_module_links(compiler, builder, *module, program_scope);
-	}
+    /* pass to resolve all module-level links */
+    for (auto &module : obj.modules) {
+        type_check_module_links(compiler, builder, *module, program_scope);
+    }
 
-	/* pass to resolve all module-level vars */
-	type_check_all_module_var_slots(compiler, builder, obj, program_scope);
+    llvm_create_unit_value(builder, program_scope);
 
-	assert(compiler.main_module != nullptr);
+    /* pass to resolve all module-level vars */
+    type_check_all_module_var_slots(compiler, builder, obj, program_scope);
 
-	/* pass to resolve all main module-level variables.  technically we only
-	 * need to check the primary module, since that is the one that is expected
-	 * to have the entry point ... at least for now... */
-	type_check_program_variables(builder, program_scope);
+    assert(compiler.main_module != nullptr);
+
+    /* pass to resolve all main module-level variables.  technically we only
+     * need to check the primary module, since that is the one that is expected
+     * to have the entry point ... at least for now... */
+    type_check_program_variables(builder, program_scope);
 }
 
 void ast::type_def_t::resolve_statement(
@@ -3657,15 +3666,15 @@ void ast::return_statement_t::resolve_statement(
 
 		/* get the type suggested by this return value */
 		return_type = return_value->type;
-	} else {
-		/* we have an empty return, let's just use void */
-		return_type = scope->get_program_scope()->get_bound_type({"void"});
-	}
+    } else if (return_type_constraint == nullptr) {
+        return_type = upsert_bound_type(builder, scope, type_unit());
+    } else {
+        return_type = return_type_constraint;
+    }
 
 	/* make sure this return type makes sense, or keep track of it if we
 	 * didn't yet know the return type for this function */
-	runnable_scope->check_or_update_return_type_constraint(
-			shared_from_this(), return_type);
+	runnable_scope->check_or_update_return_type_constraint(shared_from_this(), return_type);
 
 	if (return_value != nullptr) {
 		if (return_value->type->is_void(scope)) {
@@ -3693,16 +3702,20 @@ void ast::return_statement_t::resolve_statement(
 			builder.CreateRet(llvm_return_value);
 			return;
 		}
-	} else {
-		assert(types::is_type_id(return_type->get_type(), VOID_TYPE, scope));
+    } else { 
+        /* release all variables from all lives */
+        life->release_vars(builder, scope, lf_function);
 
-		/* release all variables from all lives */
-		life->release_vars(builder, scope, lf_function);
+        if (return_type_constraint->is_void(scope)) {
+            /* we have an empty return in a void function, let's just use void */
 
-		// TODO: release live variables in scope
-		builder.CreateRetVoid();
-		return;
-	}
+            builder.CreateRetVoid();
+        } else {
+            assert(return_type_constraint->is_unit(scope));
+
+            builder.CreateRet(scope->get_program_scope()->get_singleton("__unit__")->get_llvm_value());
+        }
+    }
 }
 
 void ast::times_assignment_t::resolve_statement(

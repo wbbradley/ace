@@ -253,8 +253,7 @@ struct scope_impl_t : public virtual BASE {
 			assert(++resolve_iter == resolve_map.end());
 			return item;
 		} else {
-			panic(string_format("could not find singleton " c_id("%s"),
-						name.c_str()));
+			panic(string_format("could not find singleton " c_id("%s"), name.c_str()));
 			return nullptr;
 		}
 	}
@@ -1048,7 +1047,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 					INTERNAL_LOC(),
 					nullptr,
 					type_args({}),
-					type_id(make_iid("void"))),
+					type_id(make_iid(VOID_TYPE))),
 				"__init_module_vars");
 
 		builder.CreateRetVoid();
