@@ -45,7 +45,7 @@ def close(f File) {
 }
 
 [global]
-def __finalize__(of File) {
+def __finalize__(of File) void {
     match of.state {
         Open(fp) {
             posix.fclose(fp)

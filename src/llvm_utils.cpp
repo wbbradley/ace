@@ -588,6 +588,66 @@ void llvm_create_if_branch(
 	builder.CreateCondBr(llvm_value, then_bb, else_bb);
 }
 
+void llvm_create_unit_value(llvm::IRBuilder<> &builder, program_scope_t::ref program_scope) {
+    bound_type_t::ref unit_type = upsert_bound_type(builder, program_scope, type_unit());
+    bound_type_t::ref var_type = program_scope->get_runtime_type(builder, "var_t", false /*get_ptr*/);
+    bound_type_t::ref type_info_type = program_scope->get_runtime_type(builder, "type_info_t", true /*get_ptr*/);
+
+    llvm::Module *llvm_module = program_scope->get_llvm_module();
+    assert(llvm_module != nullptr);
+
+    debug_above(8, log("creating unit type info"));
+
+    std::string unit_type_info_name = "__internal.unit_type_info";
+    assert(program_scope->get_bound_variable(builder, INTERNAL_LOC(), unit_type_info_name) == nullptr);
+
+    llvm::Constant *llvm_unit_type_info;
+    llvm_unit_type_info = llvm_get_global(
+            llvm_module,
+            unit_type_info_name,
+            llvm_create_constant_struct_instance(
+                llvm::dyn_cast<llvm::StructType>(type_info_type->get_llvm_type()->getPointerElementType()),
+                {
+                llvm_create_int32(builder, type_kind_no_gc),
+                llvm_create_int(builder, 0/*size*/),
+                llvm_create_global_string_constant(builder, *llvm_module, "unit"),
+                }),
+            true /*isConstant*/);
+    program_scope->put_bound_variable(
+            unit_type_info_name,
+            bound_var_t::create(
+                INTERNAL_LOC(),
+                unit_type_info_name,
+                type_info_type,
+                llvm_unit_type_info,
+                make_iid_impl(unit_type_info_name, INTERNAL_LOC())));
+
+    debug_above(8, log("creating unit type value"));
+    std::string unit_name = "__unit__";
+    assert(program_scope->get_bound_variable(builder, INTERNAL_LOC(), unit_name) == nullptr);
+    llvm::Constant *llvm_unit_literal = llvm_get_global(
+            llvm_module,
+            "unit_literal",
+            llvm_create_constant_struct_instance(
+                llvm::dyn_cast<llvm::StructType>(var_type->get_llvm_type()),
+                {
+                    llvm_unit_type_info,
+                    llvm_create_int(builder, 0),
+                    llvm::Constant::getNullValue(var_type->get_llvm_type()->getPointerTo()),
+                    llvm::Constant::getNullValue(var_type->get_llvm_type()->getPointerTo()),
+                    llvm_create_int(builder, 0),
+                    builder.getInt32(0),
+                }),
+            true /*isConstant*/);
+    auto unit_literal = bound_var_t::create(
+            INTERNAL_LOC(),
+            unit_name,
+            unit_type,
+            builder.CreateBitCast(llvm_unit_literal, unit_type->get_llvm_type()),
+            make_iid_impl(unit_name, INTERNAL_LOC()));
+    program_scope->put_bound_variable(unit_name, unit_literal);
+}
+
 bound_var_t::ref create_global_str(
 		llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
@@ -618,7 +678,7 @@ bound_var_t::ref create_global_str(
 						{
 							llvm_create_int32(builder, type_kind_no_gc),
 							llvm_create_int(builder, 0/*size*/),
-							(llvm::Constant *)builder.CreateGlobalStringPtr("owning-buffer-literal"/*name*/),
+                            llvm_create_global_string_constant(builder, *llvm_module, "owning-buffer-literal"/*name*/),
 						}),
 				true /*isConstant*/);
 		program_scope->put_bound_variable(owning_buffer_type_info_name, bound_var_t::create(
@@ -650,7 +710,7 @@ bound_var_t::ref create_global_str(
 					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
 					llvm_create_int(builder, 0),
 					builder.getInt32(atomize("OwningBuffer")),
-					(llvm::Constant *)builder.CreateGlobalStringPtr(value),
+                    llvm_create_global_string_constant(builder, *llvm_module, value),
 					llvm_create_int(builder, value.size()),
 					}),
 				true /*isConstant*/);
@@ -678,7 +738,7 @@ bound_var_t::ref create_global_str(
 					{
 					llvm_create_int32(builder, type_kind_no_gc),
 					llvm_create_int(builder, 0/*size*/),
-					(llvm::Constant *)builder.CreateGlobalStringPtr("string-literal"/*name*/),
+                    llvm_create_global_string_constant(builder, *llvm_module, "string-literal"/*name*/),
 					}),
 				true /*isConstant*/);
 		program_scope->put_bound_variable(str_literal_type_info_name, bound_var_t::create(

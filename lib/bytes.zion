@@ -20,7 +20,7 @@ def alloc(cb int) bytes {
     return bytes(pb, cb)
 }
 
-def __finalize__(b bytes) {
+def __finalize__(b bytes) void {
     posix.free(b.data)
 }
 

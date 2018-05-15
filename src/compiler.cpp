@@ -11,6 +11,7 @@
 #include "phase_scope_setup.h"
 #include "utils.h"
 #include "llvm_utils.h"
+#include "llvm_types.h"
 #include <sys/stat.h>
 #include <iostream>
 
@@ -206,14 +207,14 @@ void add_global_types(
 					type_null(),
 					INTERNAL_LOC(),
 					builder.getInt8Ty()->getPointerTo())},
-		{{"void"},
+		{{VOID_TYPE},
 			bound_type_t::create(
-					type_id(make_iid("void")),
+					type_id(make_iid(VOID_TYPE)),
 					INTERNAL_LOC(),
 				   	builder.getVoidTy())},
 		{{"*void"},
 			bound_type_t::create(
-					type_ptr(type_id(make_iid("void"))),
+					type_ptr(type_id(make_iid(VOID_TYPE))),
 					INTERNAL_LOC(),
 				   	builder.getInt8Ty()->getPointerTo())},
 		{{"module"},

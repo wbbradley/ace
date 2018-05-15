@@ -29,6 +29,7 @@ const char *TYPE_OP_IS_BOOL = "is_bool";
 const char *TYPE_OP_IS_POINTER = "is_pointer";
 const char *TYPE_OP_IS_FUNCTION = "is_function";
 const char *TYPE_OP_IS_VOID = "is_void";
+const char *TYPE_OP_IS_UNIT = "is_unit";
 const char *TYPE_OP_IS_NULL = "is_null";
 const char *TYPE_OP_IS_INT = "is_int";
 const char *TYPE_OP_IS_MAYBE = "is_maybe";
@@ -1430,6 +1431,10 @@ types::type_t::ref type_variable(identifier::ref id) {
 
 types::type_t::ref type_variable(location_t location) {
 	return make_ptr<types::type_variable_t>(location);
+}
+
+types::type_t::ref type_unit() {
+    return type_tuple({});
 }
 
 types::type_t::ref type_bottom() {

@@ -769,6 +769,12 @@ ptr<expression_t> and_expr_t::parse(parse_state_t &ps) {
 ptr<expression_t> tuple_expr_t::parse(parse_state_t &ps) {
 	auto start_token = ps.token;
 	chomp_token(tk_lparen);
+    if (ps.token.tk == tk_rparen) {
+		/* we've got a reference to sole value of unit type */
+		auto unit = create<ast::tuple_expr_t>(ps.token);
+        ps.advance();
+        return unit;
+    }
 	auto expr = expression_t::parse(ps);
 	if (ps.token.tk != tk_comma) {
 		chomp_token(tk_rparen);

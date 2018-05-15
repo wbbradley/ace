@@ -225,7 +225,7 @@ def resize[T](vector [T], size int, default T) void {
 
 
 [global]
-def __managed_vector_mark__(vec *var_t) {
+def __managed_vector_mark__(vec *var_t) void {
     # posix.puts("marking vector at 0x" + __str__(vec as int, 16))
     v := vec as! *ManagedVector
     var i = 0
@@ -236,7 +236,7 @@ def __managed_vector_mark__(vec *var_t) {
 }
 
 [global]
-def __managed_vector_free__(v *var_t) {
+def __managed_vector_free__(v *var_t) void {
     let vec = v as! *ManagedVector
 
     /* the gc will handle cleaning up everything that we pointed to, but we need to free up our
@@ -248,7 +248,7 @@ def __managed_vector_free__(v *var_t) {
  }
 
 [global]
-def __native_vector_free__(v *var_t) {
+def __native_vector_free__(v *var_t) void {
     let vec = v as! *(NativeVector *void)
 
     /* the gc will handle cleaning up everything that we pointed to, but we need to free up our
@@ -260,12 +260,12 @@ def __native_vector_free__(v *var_t) {
  }
 
 [global]
-def __native_vector_mark__(vec *var_t) {
+def __native_vector_mark__(vec *var_t) void {
     # TODO: make it possible to omit this function from typeinfo above
 }
 
 
-def __set_vector_item__(vector *ManagedVector, index int, item *var_t) {
+def __set_vector_item__(vector *ManagedVector, index int, item *var_t) void {
     if index < 0 {
         return
     }
@@ -275,7 +275,7 @@ def __set_vector_item__(vector *ManagedVector, index int, item *var_t) {
     vector.items[index] = item
 }
 
-def __set_vector_item__[T](vector *(NativeVector T), index int, item T) {
+def __set_vector_item__[T](vector *(NativeVector T), index int, item T) void {
     if index < 0 {
         return
     }
@@ -440,7 +440,7 @@ def __iter_valid__(i VectorIter any C, end VectorIter any C) bool {
 }
 
 [global]
-def __iterate__(i VectorIter any C) {
+def __iterate__(i VectorIter any C) void {
     i.pos += 1
 }
 

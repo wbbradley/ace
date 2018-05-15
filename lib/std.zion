@@ -111,3 +111,7 @@ def __iter_item__(i IntRangeIter) int {
 def __box__[Args, Ret](fn def _(..Args) Ret) def (..Args) Ret {
     return __closure_t(fn) as! def (..Args) Ret
 }
+
+def __eq__(x (), y ()) true {
+    return true
+}

@@ -1,0 +1,11 @@
+module _
+# test: pass
+# expect: unity!
+
+def main() {
+    x := ()
+    y := ()
+    if x == y {
+        print("unity!")
+    }
+}

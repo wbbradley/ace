@@ -674,6 +674,10 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 			builder.CreateRetVoid();
 			llvm_verify_function(name_token.location, llvm_function);
 			return function_var;
+        } else if (return_type->is_unit(scope)) {
+			life->release_vars(builder, scope, lf_function);
+            builder.CreateRet(program_scope->get_singleton("__unit__")->get_llvm_value());
+            return function_var;
 		} else {
 			/* no breaks here, we don't know what to return */
 			throw user_error(name_token.location, "not all control paths return a value");
