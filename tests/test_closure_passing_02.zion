@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: pass with 5
 
-def run_function(f def () void) {
+def run_function(f def () any) {
     f()
 }
 

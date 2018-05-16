@@ -718,8 +718,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
             assert(updated_return_type != nullptr);
             if (updated_return_type->get_type()->repr() != type_unit()->repr()) {
                 auto new_function_var = clone_and_change_type(builder, function_scope, function_var, updated_return_type->get_llvm_type());
-                // function_var->get_llvm_value()->eraseFromParent();
-                function_var = new_function_var;
+                llvm::cast<llvm::Function>(function_var->get_llvm_value())->eraseFromParent();
                 llvm_verify_function(name_token.location, llvm::cast<llvm::Function>(new_function_var->get_llvm_value()));
                 return new_function_var;
             }

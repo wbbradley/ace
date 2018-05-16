@@ -1,4 +1,5 @@
 module _
+# test: skip
 
 def main() {
     y := def () any {
