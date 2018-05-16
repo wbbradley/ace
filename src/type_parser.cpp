@@ -235,7 +235,7 @@ namespace types {
 		}
 	}
 
-	types::type_t::ref parse_function_type(parse_state_t &ps, identifier::set generics, identifier::ref &name) {
+	types::type_t::ref parse_function_type(parse_state_t &ps, identifier::set generics, identifier::ref &name, types::type_t::ref default_return_type) {
 		location_t location = ps.token.location;
 		chomp_ident(K(def));
 		if (ps.token.tk == tk_identifier) {
@@ -294,7 +294,8 @@ namespace types {
 		if (!ps.line_broke() && !(ps.token.tk == tk_lcurly || ps.token.tk == tk_rcurly)) {
 			return_type = parse_type(ps, generics);
 		} else {
-			return_type = type_unit();
+            assert(default_return_type != nullptr);
+            return_type = default_return_type;
 		}
 
 		auto type = type_function(location, type_constraints, type_args, return_type);
@@ -349,7 +350,7 @@ namespace types {
 			return type_lambda(make_code_id(param_token), body);
 		} else if (ps.token.is_ident(K(def))) {
 			identifier::ref name;
-			auto fn_type = parse_function_type(ps, generics, name);
+			auto fn_type = parse_function_type(ps, generics, name, type_unit());
 			if (name != nullptr && name->get_name() != "_") {
 				auto error = user_error(name->get_location(), "function name unexpected in this context (" c_id("%s") ")",
 						name->get_name().c_str());

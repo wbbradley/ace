@@ -117,7 +117,7 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 
 	if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(def))) {
 		auto link_function_statement = create<ast::link_function_statement_t>(link_token);
-		auto function_decl = function_decl_t::parse(ps, false /*within_expression*/);
+		auto function_decl = function_decl_t::parse(ps, false /*within_expression*/, type_void());
 		if (ps.token.is_ident(K(to))) {
 			ps.advance();
 			if (ps.token.tk != tk_identifier && ps.token.tk != tk_string) {
@@ -1131,7 +1131,11 @@ ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
 	return when_block;
 }
 
-ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps, bool within_expression) {
+ptr<function_decl_t> function_decl_t::parse(
+        parse_state_t &ps,
+        bool within_expression,
+        types::type_t::ref default_return_type)
+{
 	location_t attributes_location;
 	identifier::ref extends_module;
 
@@ -1161,7 +1165,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps, bool within_expre
 	location_t location = ps.token.location;
 
 	identifier::ref function_name;
-	auto parsed_type = types::parse_function_type(ps, {}, function_name);
+	auto parsed_type = types::parse_function_type(ps, {}, function_name, default_return_type);
 	debug_above(6, log("parsed function type %s at %s", parsed_type->str().c_str(), ps.token.location.str().c_str()));
 	types::type_function_t::ref function_type = dyncast<const types::type_function_t>(parsed_type);
 	assert_implies(!within_expression, function_type != nullptr);
@@ -1217,7 +1221,7 @@ ptr<function_decl_t> function_decl_t::parse(parse_state_t &ps, bool within_expre
 }
 
 ptr<function_defn_t> function_defn_t::parse(parse_state_t &ps, bool within_expression) {
-	auto function_decl = function_decl_t::parse(ps, within_expression);
+	auto function_decl = function_decl_t::parse(ps, within_expression, type_unit());
 
 	assert(function_decl != nullptr);
 	type_macros_restorer_t type_macros_restorer(ps.type_macros);

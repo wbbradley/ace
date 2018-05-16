@@ -135,8 +135,11 @@ bound_var_t::ref instantiate_unchecked_fn(
 					/* instantiate the function we want */
 					return instantiate_function_with_args_and_return_type(
 							builder, subst_scope, life,
-							unchecked_fn->id->get_token(), false /*as_closure*/,
-							function_defn->decl->extends_module, nullptr /*new_scope*/,
+							unchecked_fn->id->get_token(),
+                            false /*as_closure*/,
+                            false /*needs_type_fixup*/,
+							function_defn->decl->extends_module,
+                            nullptr /*new_scope*/,
 							type_constraints, named_args, return_type, fn_type,
 							function_defn->block);
 				} catch (user_error &e) {
@@ -517,6 +520,18 @@ function_scope_t::ref make_function_scope(
 
 	return new_scope;
 }
+bound_var_t::ref clone_and_change_type(
+        llvm::IRBuilder<> &builder,
+        function_scope_t::ref scope,
+        bound_var_t::ref function,
+        llvm::Type *llvm_return_type)
+{
+    log("need to convert signature of %s to have a return type of %s",
+            function->str().c_str(),
+            llvm_print(llvm_return_type).c_str());
+    assert(false);
+    return nullptr;
+}
 
 bound_var_t::ref instantiate_function_with_args_and_return_type(
         llvm::IRBuilder<> &builder,
@@ -524,6 +539,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 		life_t::ref life,
 		token_t name_token,
 		bool as_closure,
+        bool needs_type_fixup,
 		identifier::ref extends_module,
 		runnable_scope_t::ref *new_scope,
 		types::type_t::ref type_constraints,
@@ -532,156 +548,184 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 		types::type_function_t::ref fn_type,
 		ast::block_t::ref block)
 {
-	program_scope_t::ref program_scope = scope->get_program_scope();
-	std::string function_name = switch_std_main(name_token.text);
+    assert_implies(!as_closure, !needs_type_fixup);
 
-	dbg_when(name_token.text == "Just")
-	indent_logger indent(name_token.location, 5,
-			string_format("instantiating function " c_id("%s") " at %s", function_name.c_str(),
-				name_token.location.str().c_str()));
-	// debug_above(9, log("function has env %s", ::str(scope->get_total_env()).c_str()));
-	debug_above(9, log("function has bindings %s", ::str(scope->get_type_variable_bindings()).c_str()));
+    program_scope_t::ref program_scope = scope->get_program_scope();
+    std::string function_name = switch_std_main(name_token.text);
 
-	/* let's make sure we're not instantiating a function we've already instantiated */
-	assert(!scope->get_bound_function(function_name, fn_type->repr()));
+    indent_logger indent(name_token.location, 5,
+            string_format("instantiating function " c_id("%s") " at %s", function_name.c_str(),
+                name_token.location.str().c_str()));
+    // debug_above(9, log("function has env %s", ::str(scope->get_total_env()).c_str()));
+    debug_above(9, log("function has bindings %s", ::str(scope->get_type_variable_bindings()).c_str()));
 
-	assert(life->life_form == lf_function);
-	assert(life->values.size() == 0);
+    /* let's make sure we're not instantiating a function we've already instantiated */
+    assert(!scope->get_bound_function(function_name, fn_type->repr()));
 
-	assert(scope->get_llvm_module() != nullptr);
+    assert(life->life_form == lf_function);
+    assert(life->values.size() == 0);
 
-	auto function_type = get_function_type(type_constraints, args, return_type)->eval(scope);
-	bound_type_t::ref bound_function_type = upsert_bound_type(builder, scope, function_type);
-	assert(bound_function_type->get_type()->get_signature() == fn_type->eval(scope)->repr());
+    assert(scope->get_llvm_module() != nullptr);
 
-	bound_var_t::ref already_bound_function;
-	if (scope->has_bound(function_name, bound_function_type->get_type(), &already_bound_function)) {
-		return already_bound_function;
-	}
+    auto function_type = get_function_type(type_constraints, args, return_type)->eval(scope);
+    bound_type_t::ref bound_function_type = upsert_bound_type(builder, scope, function_type);
+    assert(bound_function_type->get_type()->get_signature() == fn_type->eval(scope)->repr());
 
-	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+    bound_var_t::ref already_bound_function;
+    if (scope->has_bound(function_name, bound_function_type->get_type(), &already_bound_function)) {
+        return already_bound_function;
+    }
 
-	assert(bound_function_type->get_llvm_type() != nullptr);
+    llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
-	llvm::Type *llvm_type = bound_function_type->get_llvm_specific_type();
-	if (llvm_type->isPointerTy()) {
-		llvm_type = llvm_type->getPointerElementType();
-	}
-	debug_above(5, log(log_info, "creating function %s with LLVM type %s",
-				function_name.c_str(),
-				llvm_print(llvm_type).c_str()));
-	assert(llvm_type->isFunctionTy());
+    assert(bound_function_type->get_llvm_type() != nullptr);
 
-	/* Create a user-defined function */
-	llvm::Function *llvm_function = llvm::Function::Create(
-			(llvm::FunctionType *)llvm_type,
-			llvm::Function::ExternalLinkage,
-		   	function_name + (function_name != "main" ? ::str(args) : ""),
-			scope->get_llvm_module());
+    llvm::Type *llvm_type = bound_function_type->get_llvm_specific_type();
+    if (llvm_type->isPointerTy()) {
+        llvm_type = llvm_type->getPointerElementType();
+    }
+    debug_above(5, log(log_info, "creating function %s with LLVM type %s",
+                function_name.c_str(),
+                llvm_print(llvm_type).c_str()));
+    assert(llvm_type->isFunctionTy());
 
-	// TODO: enable inlining for various functions
-	// llvm_function->addFnAttr(llvm::Attribute::AlwaysInline);
-	llvm_function->setGC(GC_STRATEGY);
-	llvm_function->setDoesNotThrow();
+    /* Create a user-defined function */
+    llvm::Function *llvm_function = llvm::Function::Create(
+            (llvm::FunctionType *)llvm_type,
+            llvm::Function::ExternalLinkage,
+            function_name + (function_name != "main" ? ::str(args) : ""),
+            scope->get_llvm_module());
 
-	/* start emitting code into the new function. caller should have an
-	 * insert point guard */
-	llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
-			"entry", llvm_function);
-	llvm::BasicBlock *llvm_body_block = llvm::BasicBlock::Create(builder.getContext(),
-			"body", llvm_function);
+    // TODO: enable inlining for various functions
+    // llvm_function->addFnAttr(llvm::Attribute::AlwaysInline);
+    llvm_function->setGC(GC_STRATEGY);
+    llvm_function->setDoesNotThrow();
 
-	builder.SetInsertPoint(llvm_entry_block);
-	/* leave an empty entry block so that we can insert GC stuff in there, but be able to
-	 * seek to the end of it and not get into business logic */
-	builder.CreateBr(llvm_body_block);
+    /* start emitting code into the new function. caller should have an
+     * insert point guard */
+    llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
+            "entry", llvm_function);
+    llvm::BasicBlock *llvm_body_block = llvm::BasicBlock::Create(builder.getContext(),
+            "body", llvm_function);
 
-	builder.SetInsertPoint(llvm_body_block);
+    builder.SetInsertPoint(llvm_entry_block);
+    /* leave an empty entry block so that we can insert GC stuff in there, but be able to
+     * seek to the end of it and not get into business logic */
+    builder.CreateBr(llvm_body_block);
 
-	if (getenv("TRACE_FNS") != nullptr) {
-		std::stringstream ss;
-		if (name_token.text != "c_str") {
-			ss << name_token.location.str() << ": " << (name_token.text.size() != 0 ? name_token.text + " : " : "") << bound_function_type->str();
-			auto callsite_debug_function_name_print = expand_callsite_string_literal(
-					name_token,
-					"posix",
-					"puts",
-					ss.str());
-			callsite_debug_function_name_print->resolve_statement(builder, scope, life, nullptr, nullptr);
-		}
-	}
+    builder.SetInsertPoint(llvm_body_block);
 
-	/* set up the mapping to this function for use in recursion */
-	bound_var_t::ref function_var = bound_var_t::create(
-			INTERNAL_LOC(), name_token.text, bound_function_type, llvm_function,
-		   	make_code_id(name_token));
+    if (getenv("TRACE_FNS") != nullptr) {
+        std::stringstream ss;
+        if (name_token.text != "c_str") {
+            ss << name_token.location.str() << ": " << (name_token.text.size() != 0 ? name_token.text + " : " : "") << bound_function_type->str();
+            auto callsite_debug_function_name_print = expand_callsite_string_literal(
+                    name_token,
+                    "posix",
+                    "puts",
+                    ss.str());
+            callsite_debug_function_name_print->resolve_statement(builder, scope, life, nullptr, nullptr);
+        }
+    }
 
-	/* we should be able to check its block as a callsite. note that this
-	 * code will also run for generics but only after the
-	 * sbk_generic_substitution mechanism has run its course. */
-	auto function_scope = make_function_scope(builder, name_token, scope,
-			life, as_closure, function_var, args);
+    /* set up the mapping to this function for use in recursion */
+    bound_var_t::ref function_var = bound_var_t::create(
+            INTERNAL_LOC(), name_token.text, bound_function_type, llvm_function,
+            make_code_id(name_token));
 
-		/* now put this function declaration into the containing scope in case
-		 * of recursion */
-	if (function_var->name.size() != 0) {
-		debug_above(7, log("%s should be %s",
-					function_var->type->get_type()->repr().c_str(),
-					fn_type->eval(scope)->repr().c_str()));
+    /* we should be able to check its block as a callsite. note that this
+     * code will also run for generics but only after the
+     * sbk_generic_substitution mechanism has run its course. */
+    auto function_scope = make_function_scope(builder, name_token, scope,
+            life, as_closure, function_var, args);
 
-		assert(function_var->get_signature() == fn_type->eval(scope)->repr());
-		put_bound_function(
-				builder, scope, name_token.location,
-			   	function_var->name, extends_module, function_var,
-				new_scope);
-	}
+    /* now put this function declaration into the containing scope in case
+     * of recursion */
+    if (!as_closure && function_var->name.size() != 0) {
+        debug_above(7, log("%s should be %s",
+                    function_var->type->get_type()->repr().c_str(),
+                    fn_type->eval(scope)->repr().c_str()));
 
-	bool all_paths_return = false;
-	debug_above(7, log("deeper %s", function_scope->get_name().c_str()));
+        assert(function_var->get_signature() == fn_type->eval(scope)->repr());
+        put_bound_function(
+                scope, name_token.location,
+                function_var->name, extends_module, function_var,
+                new_scope);
+    }
 
-	try {
-		/* keep track of whether this function returns */
-		debug_above(7, log("setting return_type_constraint in %s to %s %s",
-				   	function_var->name.c_str(),
-					return_type->str().c_str(),
-					llvm_print(return_type->get_llvm_type()).c_str()));
-		function_scope->set_return_type_constraint(return_type);
+    bool all_paths_return = false;
+    debug_above(7, log("deeper %s", function_scope->get_name().c_str()));
 
-		block->resolve_statement(builder, function_scope, life,
-				nullptr, &all_paths_return);
+    try {
+        /* keep track of whether this function returns */
+        debug_above(7, log("setting return_type_constraint in %s to %s %s",
+                    function_var->name.c_str(),
+                    return_type->str().c_str(),
+                    llvm_print(return_type->get_llvm_type()).c_str()));
+        if (!needs_type_fixup) {
+            function_scope->set_return_type_constraint(return_type);
+        }
 
-	} catch (user_error &e) {
-		std::throw_with_nested(user_error(log_info, name_token.location,
-					"while checking " c_id("%s") " : %s",
-					name_token.text.c_str(),
-					function_var->str().c_str()));
-	}
+        block->resolve_statement(builder, function_scope, life,
+                nullptr, &all_paths_return);
 
-	debug_above(10, log(log_info, "module dump from %s\n%s",
-				__PRETTY_FUNCTION__,
-				llvm_print_module(*llvm_get_module(builder)).c_str()));
+    } catch (user_error &e) {
+        std::throw_with_nested(user_error(log_info, name_token.location,
+                    "while checking " c_id("%s") " : %s",
+                    name_token.text.c_str(),
+                    function_var->str().c_str()));
+    }
 
-	if (all_paths_return) {
-		llvm_verify_function(name_token.location, llvm_function);
-		return function_var;
-	} else {
-		/* not all control paths return */
-		if (return_type->is_void(scope)) {
-			/* if this is a void let's give the user a break and insert
-			 * a default void return */
+    debug_above(10, log(log_info, "module dump from %s\n%s",
+                __PRETTY_FUNCTION__,
+                llvm_print_module(*llvm_get_module(builder)).c_str()));
 
-			life->release_vars(builder, scope, lf_function);
-			builder.CreateRetVoid();
-			llvm_verify_function(name_token.location, llvm_function);
-			return function_var;
-        } else if (return_type->is_unit(scope)) {
-			life->release_vars(builder, scope, lf_function);
-            builder.CreateRet(program_scope->get_singleton("__unit__")->get_llvm_value());
+    if (!all_paths_return) {
+        /* not all control paths return */
+        if (needs_type_fixup) {
+            assert(as_closure);
+            auto latest_return_type = function_scope->get_return_type_constraint();
+            if (latest_return_type == nullptr) {
+                life->release_vars(builder, scope, lf_function);
+                builder.CreateRet(program_scope->get_singleton("__unit__")->get_llvm_value());
+                /* by default we already declare anonymous functions as returning unit, so we're
+                 * done */
+                llvm_verify_function(name_token.location, llvm_function);
+                return function_var;
+            }
+        } else if (return_type->is_void(scope)) {
+            /* if this is a void let's give the user a break and insert
+             * a default void return */
+            life->release_vars(builder, scope, lf_function);
+            builder.CreateRetVoid();
+            llvm_verify_function(name_token.location, llvm_function);
             return function_var;
-		} else {
-			/* no breaks here, we don't know what to return */
-			throw user_error(name_token.location, "not all control paths return a value");
-		}
-	}
+        } else if (return_type->is_unit(scope)) {
+            life->release_vars(builder, scope, lf_function);
+            builder.CreateRet(program_scope->get_singleton("__unit__")->get_llvm_value());
+            llvm_verify_function(name_token.location, llvm_function);
+            return function_var;
+        }
+
+        /* no breaks here, we don't know what to return */
+        throw user_error(name_token.location, "not all control paths return a value");
+    } else {
+        /* all paths return, but let's check to see if we need to do type fixup on latent return
+         * type discoveries */
+        if (needs_type_fixup) {
+            assert(as_closure);
+            auto updated_return_type = function_scope->get_return_type_constraint();
+            assert(updated_return_type != nullptr);
+            if (updated_return_type->get_type()->repr() != type_unit()->repr()) {
+                auto new_function_var = clone_and_change_type(builder, function_scope, function_var, updated_return_type->get_llvm_type());
+                // function_var->get_llvm_value()->eraseFromParent();
+                function_var = new_function_var;
+                llvm_verify_function(name_token.location, llvm::cast<llvm::Function>(new_function_var->get_llvm_value()));
+                return new_function_var;
+            }
+        }
+        llvm_verify_function(name_token.location, llvm_function);
+        return function_var;
+    }
 }
 

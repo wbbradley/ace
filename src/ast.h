@@ -610,7 +610,7 @@ namespace ast {
 		typedef ptr<const function_decl_t> ref;
 
 		static const syntax_kind_t SK = sk_function_decl;
-		static ptr<function_decl_t> parse(parse_state_t &ps, bool within_expression);
+		static ptr<function_decl_t> parse(parse_state_t &ps, bool within_expression, types::type_t::ref default_return_type);
 
 		virtual void render(render_state_t &rs) const;
 

@@ -523,6 +523,7 @@ void destructure_function_decl(
 		scope_t::ref scope,
 		types::type_t::ref &type_constraints,
 		bool as_closure,
+        bool &needs_type_fixup,
 		bound_type_t::named_pairs &params,
 		bound_type_t::ref &return_type,
 		types::type_function_t::ref &function_type)
@@ -578,7 +579,16 @@ void destructure_function_decl(
 		params.push_back({param_name, bound_args[i]});
 	}
 
-	return_type = upsert_bound_type(builder, scope, function_type->return_type);
+    if (as_closure && function_type->return_type->ftv_count() != 0) {
+        /* we are unsure at this point about what the return type is, but we're instantiating an
+         * anonymous closure which means recursion is off the table, so we don't really need to know
+         * our return type yet. fake it with LLVM until we discover it, then set it there */
+        return_type = upsert_bound_type(builder, scope, type_unit());
+        needs_type_fixup = true;
+    } else {
+        return_type = upsert_bound_type(builder, scope, function_type->return_type);
+        needs_type_fixup = false;
+    }
 
 	auto implied_fn_type = get_function_type(type_constraints, params, return_type)->eval(scope);
 	auto explicit_fn_type = function_type->eval(scope);
@@ -683,13 +693,19 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 	types::type_function_t::ref function_type;
 	bound_type_t::named_pairs named_args;
 	bound_type_t::ref return_value;
+    bool needs_type_fixup = false;
 	try {
-		destructure_function_decl(builder, *extern_function, scope, type_constraints, false /*as_closure*/, named_args, return_value, function_type);
+        destructure_function_decl(builder, *extern_function, scope, type_constraints,
+                false /*as_closure*/, needs_type_fixup, named_args, return_value, function_type);
+        assert(!needs_type_fixup);
 	} catch (unbound_type_error &error) {
 		throw user_error(error.user_error);
 	}
 
 	assert(return_value != nullptr);
+    if (return_value->is_unit(scope)) {
+        throw user_error(token.location, "linked functions cannot return unit type ()");
+    }
 
 	bound_type_t::refs args;
 	for (auto &named_arg_pair : named_args) {
@@ -3049,7 +3065,6 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	// TODO: handle first-class functions by handling life for functions, and closures.
 	llvm::IRBuilder<> builder(builder_.getContext());
 
 	/* lifetimes have extents at function boundaries */
@@ -3076,10 +3091,12 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 	types::type_t::ref type_constraints;
 	bound_type_t::named_pairs args;
 	bound_type_t::ref return_type;
-	destructure_function_decl(builder, *decl, scope, type_constraints, as_closure, args, return_type, fn_type);
+    bool needs_type_fixup = false;
+	destructure_function_decl(builder, *decl, scope, type_constraints, as_closure, needs_type_fixup, args, return_type, fn_type);
 
-	return instantiate_function_with_args_and_return_type(builder, scope, life, token, as_closure, decl->extends_module,
-			new_scope, type_constraints, args, return_type, fn_type, block);
+    return instantiate_function_with_args_and_return_type(builder, scope, life, token, as_closure,
+            needs_type_fixup, decl->extends_module, new_scope, type_constraints, args, return_type,
+            fn_type, block);
 }
 
 void type_check_module_links(
@@ -3105,7 +3122,6 @@ void type_check_module_links(
 
 		if (link->extern_function->token.text.size() != 0) {
 			put_bound_function(
-					builder,
 					scope,
 					link->extern_function->get_location(),
 					link->extern_function->token.text,
@@ -3230,6 +3246,7 @@ void type_check_program_variable(
 		types::type_function_t::ref function_type;
 		bound_type_t::named_pairs named_params;
 		bound_type_t::ref return_value;
+        bool needs_type_fixup = false;
 
 		destructure_function_decl(
 				builder,
@@ -3237,9 +3254,12 @@ void type_check_program_variable(
 				unchecked_var->module_scope,
 				type_constraints,
 				false /*as_closure*/,
+                needs_type_fixup,
 				named_params,
 				return_value,
 				function_type);
+
+        assert(!needs_type_fixup);
 
 		var_t::refs fns;
 		fittings_t fittings;
@@ -3662,7 +3682,7 @@ void ast::return_statement_t::resolve_statement(
 		 * sure to retain whether the function signature necessitates a ref type */
 		return_value = expr->resolve_expression(builder, scope, life,
 				return_type_constraint ? return_type_constraint->is_ref(scope) : false /*as_ref*/,
-				return_type_constraint->get_type());
+				return_type_constraint ? return_type_constraint->get_type() : type_variable(INTERNAL_LOC()));
 
 		/* get the type suggested by this return value */
 		return_type = return_value->type;
@@ -3706,14 +3726,26 @@ void ast::return_statement_t::resolve_statement(
         /* release all variables from all lives */
         life->release_vars(builder, scope, lf_function);
 
+        /* handle default unspecified type */
+        auto bound_unit_value = scope->get_program_scope()->get_singleton("__unit__");
+        if (return_type_constraint == nullptr) {
+            runnable_scope->check_or_update_return_type_constraint(
+                    shared_from_this(),
+                    bound_unit_value->type);
+            return_type_constraint = runnable_scope->get_return_type_constraint();
+        }
+
         if (return_type_constraint->is_void(scope)) {
             /* we have an empty return in a void function, let's just use void */
 
             builder.CreateRetVoid();
         } else {
-            assert(return_type_constraint->is_unit(scope));
+            if (!return_type_constraint->is_unit(scope)) {
+                throw user_error(token.location, "invalid empty return. should be of type %s",
+                        return_type_constraint->get_type()->str().c_str());
+            }
 
-            builder.CreateRet(scope->get_program_scope()->get_singleton("__unit__")->get_llvm_value());
+            builder.CreateRet(bound_unit_value->get_llvm_value());
         }
     }
 }
