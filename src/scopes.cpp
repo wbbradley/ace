@@ -1705,7 +1705,6 @@ void put_typename_impl(
 }
 
 void put_bound_function(
-		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,
 		std::string function_name,

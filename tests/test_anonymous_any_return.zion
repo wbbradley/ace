@@ -1,0 +1,8 @@
+module _
+
+def main() {
+    y := def () any {
+        return 4
+    }()
+    print(y)
+}

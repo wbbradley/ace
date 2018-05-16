@@ -178,7 +178,6 @@ struct generic_substitution_scope_t : public virtual scope_t {
 };
 
 void put_bound_function(
-		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,
 		std::string function_name,

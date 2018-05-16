@@ -84,6 +84,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 		life_t::ref life,
 		token_t name_token,
 		bool as_closure,
+        bool needs_type_fixup,
 		identifier::ref extends_module,
 		runnable_scope_t::ref *new_scope,
 		types::type_t::ref type_constraints,
