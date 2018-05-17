@@ -517,40 +517,17 @@ bound_type_t::named_pairs zip_named_pairs(
 	return named_args;
 }
 
-void destructure_function_decl(
-		llvm::IRBuilder<> &builder,
-		const ast::function_decl_t &obj,
-		scope_t::ref scope,
-		types::type_t::ref &type_constraints,
-		bool as_closure,
+void destructure_function_details(
+        llvm::IRBuilder<> &builder,
+        scope_t::ref scope,
+        location_t location,
+        bool as_closure,
+        types::type_function_t::ref &function_type,
         bool &needs_type_fixup,
-		bound_type_t::named_pairs &params,
-		bound_type_t::ref &return_type,
-		types::type_function_t::ref &function_type)
+        types::type_t::ref &type_constraints,
+        bound_type_t::named_pairs &params,
+        bound_type_t::ref &return_type)
 {
-	/* returns the parameters and the return value types fully resolved */
-	debug_above(4, log(log_info, "type checking function decl %s with type %s in scope %s with type variables %s",
-				obj.token.str().c_str(),
-				obj.function_type->str().c_str(),
-				scope->get_name().c_str(),
-				::str(scope->get_type_variable_bindings()).c_str()));
-
-	assert_implies(as_closure, dyncast<closure_scope_t>(scope) != nullptr);
-
-	types::type_t::ref type_declared_fn = obj.function_type->rebind(scope->get_type_variable_bindings());
-	function_type = dyncast<const types::type_function_t>(type_declared_fn);
-	if (as_closure) {
-		if (function_type != nullptr) {
-			throw user_error(obj.get_location(), "function expressions cannot have names (this one appears to be named " c_id("%s"),
-					obj.token.text.c_str());
-		}
-		types::type_function_closure_t::ref function_closure = dyncast<const types::type_function_closure_t>(type_declared_fn);
-		assert(function_closure != nullptr);
-		function_type = dyncast<const types::type_function_t>(function_closure->function);
-	}
-
-	assert(function_type != nullptr);
-
 	type_constraints = function_type->type_constraints;
 
 	/* the parameter types as per the decl */
@@ -565,7 +542,7 @@ void destructure_function_decl(
 
 		/* push the closure env */
 		args_args.push_back(scope->get_program_scope()->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/)->get_type());
-		args_names.push_back(make_iid_impl("__env", obj.get_location()));
+		args_names.push_back(make_iid_impl("__env", location));
 
 		args = type_args(args_args, args_names);
 	}
@@ -605,6 +582,53 @@ void destructure_function_decl(
 	function_type = dyncast<const types::type_function_t>(implied_fn_type);
 	assert(function_type != nullptr);
 }
+
+void destructure_function_decl(
+        llvm::IRBuilder<> &builder,
+        const ast::function_decl_t &decl,
+        scope_t::ref scope,
+        types::type_t::ref &type_constraints,
+        bool as_closure,
+        bool &needs_type_fixup,
+        bound_type_t::named_pairs &params,
+        bound_type_t::ref &return_type,
+        types::type_function_t::ref &function_type)
+{
+    /* returns the parameters and the return value types fully resolved */
+    debug_above(4, log(log_info, "type checking function decl %s with type %s in scope %s with type variables %s",
+                decl.token.str().c_str(),
+                decl.function_type->str().c_str(),
+                scope->get_name().c_str(),
+                ::str(scope->get_type_variable_bindings()).c_str()));
+
+    assert_implies(as_closure, dyncast<closure_scope_t>(scope) != nullptr);
+
+    types::type_t::ref type_declared_fn = decl.function_type->rebind(scope->get_type_variable_bindings());
+    function_type = dyncast<const types::type_function_t>(type_declared_fn);
+    if (as_closure) {
+        if (function_type != nullptr) {
+            throw user_error(decl.get_location(), "function expressions cannot have names (this one appears to be named " c_id("%s"),
+                    decl.token.text.c_str());
+        }
+        types::type_function_closure_t::ref function_closure = dyncast<const types::type_function_closure_t>(type_declared_fn);
+        assert(function_closure != nullptr);
+        function_type = dyncast<const types::type_function_t>(function_closure->function);
+    }
+
+    assert(function_type != nullptr);
+
+    destructure_function_details(
+            builder,
+            scope,
+            decl.get_location(),
+            as_closure,
+            function_type,
+            needs_type_fixup,
+            type_constraints,
+            params,
+            return_type);
+}
+
 
 bool is_function_decl_generic(scope_t::ref scope, const ast::function_defn_t &obj) {
 	return obj.decl
@@ -3092,7 +3116,8 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 	bound_type_t::named_pairs args;
 	bound_type_t::ref return_type;
     bool needs_type_fixup = false;
-	destructure_function_decl(builder, *decl, scope, type_constraints, as_closure, needs_type_fixup, args, return_type, fn_type);
+    destructure_function_decl(builder, *decl, scope, type_constraints,
+            as_closure, needs_type_fixup, args, return_type, fn_type);
 
     return instantiate_function_with_args_and_return_type(builder, scope, life, token, as_closure,
             needs_type_fixup, decl->extends_module, new_scope, type_constraints, args, return_type,
@@ -3843,6 +3868,8 @@ void ast::block_t::resolve_statement(
 			}
 		} catch (user_error &e) {
 			std::throw_with_nested(user_error(log_info, statement->get_location(), "while checking statement"));
+		} catch (unbound_type_error &e) {
+			std::throw_with_nested(e.user_error); // user_error(log_info, statement->get_location(), "while checking statement"));
 		} catch (std::exception &e) {
 			panic(string_format("uncaught exception: %s", e.what()).c_str());
 		}
@@ -4417,6 +4444,86 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		assert(false);
 		return nullptr;
 	};
+}
+
+bound_var_t::ref ast::function_defn_t::resolve_overrides(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life_outer,
+		const ptr<const ast::item_t> &callsite,
+		const bound_type_t::refs &args,
+		types::type_t::ref expected_type) const
+{
+    auto runnable_scope = dyncast<runnable_scope_t>(scope);
+    assert(runnable_scope != nullptr);
+
+    types::type_t::ref type_declared_fn = decl->function_type->rebind(scope->get_type_variable_bindings());
+    debug_above(8, log("resolving overrides for function defn %s", type_declared_fn->str().c_str()));
+    types::type_function_closure_t::ref closure_type = dyncast<const types::type_function_closure_t>(type_declared_fn);
+    assert(closure_type != nullptr);
+
+    types::type_t::refs param_types;
+    for (auto arg : args) {
+        param_types.push_back(arg->get_type());
+    }
+    /* ok, now because we know how we're being called, let's unify the declared type against the
+     * inbound args and the expected type */
+    unification_t unification = unify(
+            closure_type,
+            type_function_closure(
+                type_function(INTERNAL_LOC(),
+                    nullptr,
+                    type_args(param_types, {}),
+                    expected_type ? expected_type : type_variable(INTERNAL_LOC()))),
+            scope);
+    if (unification.result) {
+        closure_type = dyncast<const types::type_function_closure_t>(closure_type->rebind(unification.bindings));
+        types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(closure_type->function);
+
+        /* lifetimes have extents at function boundaries */
+        auto life = make_ptr<life_t>(lf_function);
+
+        auto closure_name = std::string("anonymous fn ") + fn_type->repr() + " at " + token.location.repr();
+        auto closure_scope = runnable_scope->new_closure_scope(builder, closure_name);
+
+        types::type_t::ref type_constraints;
+        bound_type_t::named_pairs named_args;
+        bound_type_t::ref return_type;
+        bool needs_type_fixup = false;
+        destructure_function_details(
+                builder,
+                closure_scope,
+                callsite->get_location(),
+                true /*as_closure*/,
+                fn_type,
+                needs_type_fixup,
+                type_constraints,
+                named_args,
+                return_type);
+        auto function = instantiate_function_with_args_and_return_type(
+                builder,
+                closure_scope,
+                life,
+                callsite->token,
+                true /*as_closure*/,
+                needs_type_fixup,
+                nullptr /*extends_module*/,
+                nullptr /*new_scope*/,
+                type_constraints,
+                named_args,
+                return_type,
+                fn_type,
+                block);
+
+        return closure_scope->create_closure(builder, life_outer, get_location(), function);
+    } else {
+        auto error = user_error(callsite->token.location, "callsite incompatible with function definition");
+        error.add_info(callsite->token.location, "%s", unification.reasons.c_str());
+        throw error;
+    }
+
+    assert(false);
+    return nullptr;
 }
 
 bound_var_t::ref ast::reference_expr_t::resolve_overrides(

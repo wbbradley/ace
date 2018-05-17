@@ -1221,7 +1221,7 @@ ptr<function_decl_t> function_decl_t::parse(
 }
 
 ptr<function_defn_t> function_defn_t::parse(parse_state_t &ps, bool within_expression) {
-	auto function_decl = function_decl_t::parse(ps, within_expression, type_unit());
+	auto function_decl = function_decl_t::parse(ps, within_expression, nullptr);
 
 	assert(function_decl != nullptr);
 	type_macros_restorer_t type_macros_restorer(ps.type_macros);

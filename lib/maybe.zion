@@ -96,6 +96,14 @@ def join[A](a Maybe (Maybe A)) Maybe A {
     }
 }
 
+def fail[A](reason str) A? {
+    return Empty
+}
+
+def pure[A](v A) A? {
+    return Just(v)
+}
+
 def bind[A, B](a Maybe A, f def (a A) Maybe B) Maybe B {
     match a {
         Empty {

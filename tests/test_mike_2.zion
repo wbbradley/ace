@@ -1,22 +1,29 @@
 module _
-# test: skip
+# test: pass
+# expect: 13
+# expect: 11.00
 
-# This might require backtracking in the unification in order to handle the tricky resolution of T
-
-type Expr T is
+type Expr T is {
     Plus(lhs Expr T, rhs Expr T)
     Times(lhs Expr T, rhs Expr T)
     Value(x T)
+}
 
-def eval(expr Expr any T) any T
-    match expr
-        Plus(lhs, rhs)
+def eval(expr Expr any T) any T {
+    match expr {
+        Plus(lhs, rhs) {
             return eval(lhs) + eval(rhs)
-        Times(lhs, rhs)
+        }
+        Times(lhs, rhs) {
             return eval(lhs) * eval(rhs)
-        Value(x)
+        }
+        Value(x) {
             return x
+        }
+    }
+}
 
-def main()
-    print(eval(Plus(Times(Value(4), Value(2)), Value(3))))
+def main() {
+    print(eval(Plus(Times(Value(5), Value(2)), Value(3))))
     print(eval(Plus(Times(Value(4.0), Value(2.0)), Value(3.0))))
+}

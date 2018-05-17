@@ -1,10 +1,13 @@
 module assert
 
-def fail(msg str)
+def fail(msg str) {
     print("FAILED: " + msg)
+}
 
-def equals(input any, value any, x str)
-    if value != input
+def equals(input any, value any, x str) {
+    if value != input {
         print("FAILED: " + input + " == " + value + " /*" + x + "*/")
-    else
+    } else {
         print("PASS")
+    }
+}

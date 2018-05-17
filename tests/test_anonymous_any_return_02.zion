@@ -1,0 +1,30 @@
+module _
+# test: pass
+# expect: hello world 1 11
+# expect: hello world 1 12
+
+type Ref T has {
+    var value T
+}
+
+def call_twice(f def () any) {
+    f()
+    f()
+}
+
+def main() {
+    x := "hello "
+    y := "world"
+    r := Ref(10)
+    z := def () {
+        q := Ref(0)
+        return def () {
+            r.value += 1
+            q.value += 1
+            return x + y + " " + q.value + " " + r.value
+        }
+    }
+    call_twice(def () {
+        print(z()())
+    })
+}

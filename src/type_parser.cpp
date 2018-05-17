@@ -235,76 +235,85 @@ namespace types {
 		}
 	}
 
-	types::type_t::ref parse_function_type(parse_state_t &ps, identifier::set generics, identifier::ref &name, types::type_t::ref default_return_type) {
-		location_t location = ps.token.location;
-		chomp_ident(K(def));
-		if (ps.token.tk == tk_identifier) {
-			name = make_code_id(ps.token);
-			ps.advance();
-		} else {
-			name.reset();
-		}
+    types::type_t::ref parse_function_type(
+            parse_state_t &ps,
+            identifier::set generics,
+            identifier::ref &name,
+            types::type_t::ref default_return_type)
+    {
+        location_t location = ps.token.location;
+        chomp_ident(K(def));
+        if (ps.token.tk == tk_identifier) {
+            name = make_code_id(ps.token);
+            ps.advance();
+        } else {
+            name.reset();
+        }
 
-		types::type_t::ref type_constraints;
-		if (ps.token.tk == tk_lsquare) {
-			auto constraints_token = ps.token;
-			ps.advance();
-			while (ps.token.tk == tk_identifier) {
-				auto ftv = make_code_id(ps.token);
+        if (default_return_type == nullptr) {
+            default_return_type = name != nullptr ? type_unit() : type_variable(ps.token.location);
+        }
 
-				if (in(ftv, generics)) {
-					auto iter = generics.find(ftv);
-					auto error = user_error(ftv->get_location(),
-							"illegal redeclaration of type variable %s", 
-							ftv->str().c_str());
-					error.add_info((*iter)->get_location(), "see original declaration of type variable %s",
-							(*iter)->str().c_str());
-					throw error;
-				}
+        types::type_t::ref type_constraints;
+        if (ps.token.tk == tk_lsquare) {
+            auto constraints_token = ps.token;
+            ps.advance();
+            while (ps.token.tk == tk_identifier) {
+                auto ftv = make_code_id(ps.token);
 
-				generics.insert(ftv);
-				ps.advance();
+                if (in(ftv, generics)) {
+                    auto iter = generics.find(ftv);
+                    auto error = user_error(ftv->get_location(),
+                            "illegal redeclaration of type variable %s", 
+                            ftv->str().c_str());
+                    error.add_info((*iter)->get_location(), "see original declaration of type variable %s",
+                            (*iter)->str().c_str());
+                    throw error;
+                }
 
-				if (ps.token.tk == tk_comma) {
-					ps.advance();
-					expect_token(tk_identifier);
-					if (token_is_illegal_in_type(ps.token)) {
-						throw user_error(ps.token.location, "invalid type variable name %s", ps.token.str().c_str());
-						break;
-					}
-					continue;
-				} else if (ps.token.is_ident(K(where))) {
-					type_constraints = parse_type_constraints(ps, generics);
-					chomp_token(tk_rsquare);
-					break;
-				} else if (ps.token.tk == tk_rsquare) {
-					ps.advance();
-					break;
-				} else {
-					throw user_error(ps.token.location, "expected ',', 'where', or '}'");
-					break;
-				}
-			}
-		}
+                generics.insert(ftv);
+                ps.advance();
 
-		type_t::ref type_args = parse_type_args(ps, generics, true /*automatic_any*/);
+                if (ps.token.tk == tk_comma) {
+                    ps.advance();
+                    expect_token(tk_identifier);
+                    if (token_is_illegal_in_type(ps.token)) {
+                        throw user_error(ps.token.location, "invalid type variable name %s", ps.token.str().c_str());
+                        break;
+                    }
+                    continue;
+                } else if (ps.token.is_ident(K(where))) {
+                    type_constraints = parse_type_constraints(ps, generics);
+                    chomp_token(tk_rsquare);
+                    break;
+                } else if (ps.token.tk == tk_rsquare) {
+                    ps.advance();
+                    break;
+                } else {
+                    throw user_error(ps.token.location, "expected ',', 'where', or '}'");
+                    break;
+                }
+            }
+        }
 
-		types::type_t::ref return_type;
-		/* now let's parse the return type */
-		if (!ps.line_broke() && !(ps.token.tk == tk_lcurly || ps.token.tk == tk_rcurly)) {
-			return_type = parse_type(ps, generics);
-		} else {
+        type_t::ref type_args = parse_type_args(ps, generics, true /*automatic_any*/);
+
+        types::type_t::ref return_type;
+        /* now let's parse the return type */
+        if (!ps.line_broke() && !(ps.token.tk == tk_lcurly || ps.token.tk == tk_rcurly)) {
+            return_type = parse_type(ps, generics);
+        } else {
             assert(default_return_type != nullptr);
             return_type = default_return_type;
-		}
+        }
 
-		auto type = type_function(location, type_constraints, type_args, return_type);
-		if (name != nullptr) {
-			return type;
-		} else {
-			return type_function_closure(type);
-		}
-	}
+        auto type = type_function(location, type_constraints, type_args, return_type);
+        if (name != nullptr) {
+            return type;
+        } else {
+            return type_function_closure(type);
+        }
+    }
 
 	type_t::ref parse_vector_type(parse_state_t &ps, const identifier::set &generics) {
 		/* we've got a map type */
@@ -350,7 +359,7 @@ namespace types {
 			return type_lambda(make_code_id(param_token), body);
 		} else if (ps.token.is_ident(K(def))) {
 			identifier::ref name;
-			auto fn_type = parse_function_type(ps, generics, name, type_unit());
+			auto fn_type = parse_function_type(ps, generics, name, nullptr);
 			if (name != nullptr && name->get_name() != "_") {
 				auto error = user_error(name->get_location(), "function name unexpected in this context (" c_id("%s") ")",
 						name->get_name().c_str());

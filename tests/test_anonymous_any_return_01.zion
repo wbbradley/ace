@@ -1,5 +1,6 @@
 module _
-# test: skip
+# test: pass
+# expect: 4
 
 def main() {
     y := def () any {

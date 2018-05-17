@@ -86,24 +86,32 @@ def __bitwise_or__(p1 Parser, p2 Parser) Parser {
 }
             
 def __backslash__(p1 Parser, p2 Parser) Parser {
+    /*
+    return def (ps ParseState) Step? = do {
+        Step(node1, ps1) := p1(ps)
+        Step(node2, ps2) := p2(ps1)
+        return Step(Sequence([node1, node2]), ps2)
+    }
+    */
+
     return def (ps ParseState) Step? {
-        step1 := p1(ps)
-        match step1 {
-            Just(Step(node1, ps1)) {
-                step2 := p2(ps1)
-                match step2 {
-                    Just(Step(node2, ps2)) {
-                        return Just(Step(Sequence([node1, node2]), ps2))
-                    }
-                    Empty {
-                        return Empty
-                    }
+        return bind(p1(ps), def (x Step) Step? {
+            match x {
+                Step(node1, ps1) {
+                    return bind(p2(ps1), def (y Step) Step? {
+                        match y {
+                            Step(node2, ps2) {
+                                return pure(Step(Sequence([node1, node2]), ps2)) as Step?
+                            }
+                        } /* else {
+                            return fail("")
+                        }*/
+                    })
                 }
-            }
-            Empty {
-                return Empty
-            }
-        }
+            } /*else {
+                return fail("")
+            }*/
+        })
     }
 }
             
@@ -134,7 +142,7 @@ def parse_kleene_star(parser Parser) Parser {
 }
 
 [global]
-def str[Args, R](fn def (..Args) R) str {
+def str[Args, R](f def (..Args) R) str {
     return "<closure>"
 }
 
@@ -169,9 +177,9 @@ def main() {
     # [(x,y) | x <- [1,2,3] , y <- [1,2,3], x /= y]
     # would look like this desugared in Zion...
     print(
-        bind([1, 2, 3], def (x int) [(int, int)] {
-            return bind([1, 2, 3], def (y int) [(int, int)] {
-                return bind([x != y], def (r bool) [(int,int)] {
+        bind([1, 2, 3], def (x int) {
+            return bind([1, 2, 3], def (y int) {
+                return bind([x != y and y != x], def (r bool) {
                     if r {
                         return [(x, y)]
                     } else {
