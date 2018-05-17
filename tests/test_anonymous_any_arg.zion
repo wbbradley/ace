@@ -1,0 +1,9 @@
+module _
+# test: pass
+# expect: 4
+def main() {
+    let x = def (y) {
+        return str(y)
+    }(4)
+    print(x)
+}

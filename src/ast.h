@@ -621,36 +621,43 @@ namespace ast {
 		std::string get_function_name() const;
 	};
 
-	struct function_defn_t : public expression_t {
-		typedef ptr<const function_defn_t> ref;
+    struct function_defn_t : public expression_t, public can_reference_overloads_t {
+        typedef ptr<const function_defn_t> ref;
 
-		static const syntax_kind_t SK = sk_function_defn;
+        static const syntax_kind_t SK = sk_function_defn;
 
-		static ptr<function_defn_t> parse(parse_state_t &ps, bool within_expression);
-		virtual bound_var_t::ref resolve_expression(
-				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
-				life_t::ref life,
-				bool as_ref,
-				types::type_t::ref expected_type) const;
-		virtual void resolve_statement(
-				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
-				life_t::ref life,
-				runnable_scope_t::ref *new_scope,
-				bool *returns) const;
-		virtual bound_var_t::ref resolve_function(
-				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
-				life_t::ref life,
-				bool as_closure,
-				runnable_scope_t::ref *new_scope,
-				bool *returns) const;
-		virtual void render(render_state_t &rs) const;
+        static ptr<function_defn_t> parse(parse_state_t &ps, bool within_expression);
+        virtual bound_var_t::ref resolve_expression(
+                llvm::IRBuilder<> &builder,
+                scope_t::ref block_scope,
+                life_t::ref life,
+                bool as_ref,
+                types::type_t::ref expected_type) const;
+        virtual void resolve_statement(
+                llvm::IRBuilder<> &builder,
+                scope_t::ref block_scope,
+                life_t::ref life,
+                runnable_scope_t::ref *new_scope,
+                bool *returns) const;
+        virtual bound_var_t::ref resolve_function(
+                llvm::IRBuilder<> &builder,
+                scope_t::ref block_scope,
+                life_t::ref life,
+                bool as_closure,
+                runnable_scope_t::ref *new_scope,
+                bool *returns) const;
+        virtual bound_var_t::ref resolve_overrides(
+                llvm::IRBuilder<> &builder,
+                scope_t::ref scope,
+                life_t::ref,
+                const ptr<const ast::item_t> &obj,
+                const bound_type_t::refs &args,
+                types::type_t::ref return_type) const;
+        virtual void render(render_state_t &rs) const;
 
-		ptr<function_decl_t> decl;
-		ptr<block_t> block;
-	};
+        ptr<function_decl_t> decl;
+        ptr<block_t> block;
+    };
 
 	struct if_block_t : public statement_t {
 		typedef ptr<const if_block_t> ref;

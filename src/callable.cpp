@@ -523,14 +523,67 @@ function_scope_t::ref make_function_scope(
 bound_var_t::ref clone_and_change_type(
         llvm::IRBuilder<> &builder,
         function_scope_t::ref scope,
-        bound_var_t::ref function,
-        llvm::Type *llvm_return_type)
+        bound_var_t::ref existing_function,
+        bound_type_t::ref return_type)
 {
-    log("need to convert signature of %s to have a return type of %s",
-            function->str().c_str(),
-            llvm_print(llvm_return_type).c_str());
-    assert(false);
-    return nullptr;
+    debug_above(7, log("clone_and_change_type needs to convert signature of %s : %s : %s to have a return type of %s",
+            existing_function->str().c_str(),
+            existing_function->type->str().c_str(),
+            llvm_print(existing_function->type->get_llvm_type()).c_str(),
+            llvm_print(return_type->get_llvm_type()).c_str()));
+
+    types::type_function_t::ref function_type = dyncast<const types::type_function_t>(existing_function->type->get_type());
+    assert(function_type != nullptr);
+
+    auto existing_function_type = existing_function->type;
+    types::type_args_t::ref type_args = dyncast<const types::type_args_t>(function_type->args);
+    assert(type_args != nullptr);
+
+    bound_type_t::refs args = upsert_bound_types(builder, scope, type_args->args);
+
+    llvm::FunctionType *llvm_fn_type = llvm_create_function_type(
+            builder, args, return_type);
+
+    auto llvm_function = llvm::Function::Create(
+            (llvm::FunctionType *)llvm_fn_type,
+            llvm::Function::ExternalLinkage,
+            existing_function->get_llvm_value()->getName(),
+            scope->get_llvm_module());
+
+    llvm_function->setGC(GC_STRATEGY);
+    llvm_function->setDoesNotThrow();
+
+    llvm::Function *llvm_old_function = llvm::dyn_cast<llvm::Function>(existing_function->get_llvm_value());
+
+    llvm::ValueToValueMapTy VMap;
+    auto new_args_iter=llvm_function->arg_begin();
+    for (auto args_iter=llvm_old_function->arg_begin(); args_iter != llvm_old_function->arg_end(); ++args_iter) {
+        VMap.insert({args_iter, new_args_iter++});
+    }
+    bool ModuleLevelChanges = false;
+    llvm::SmallVector<llvm::ReturnInst *, 8> Returns;
+    llvm::CloneFunctionInto(llvm_function, llvm_old_function, VMap, ModuleLevelChanges, Returns);
+
+#if 0
+    std::cout << "Before:" << std::endl;
+    std::cout << llvm_print_function(llvm::cast<llvm::Function>(existing_function->get_llvm_value())) << std::endl;
+    std::cout << "After:" << std::endl;
+    std::cout << llvm_print_function(llvm_function) << std::endl;
+#endif
+
+    /* create the actual bound variable for the fn */
+    bound_var_t::ref function = bound_var_t::create(
+            INTERNAL_LOC(), existing_function->name,
+            upsert_bound_type(
+                builder,
+                scope,
+                type_function(
+                    existing_function->get_location(),
+                    nullptr,
+                    type_args,
+                    return_type->get_type())),
+            llvm_function, make_iid_impl(existing_function->name, existing_function->get_location()));
+    return function;
 }
 
 bound_var_t::ref instantiate_function_with_args_and_return_type(
@@ -569,6 +622,11 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 
     auto function_type = get_function_type(type_constraints, args, return_type)->eval(scope);
     bound_type_t::ref bound_function_type = upsert_bound_type(builder, scope, function_type);
+
+    debug_above(9, log("checking that %s == %s",
+            bound_function_type->get_type()->get_signature().c_str(),
+            fn_type->eval(scope)->repr().c_str()));
+
     assert(bound_function_type->get_type()->get_signature() == fn_type->eval(scope)->repr());
 
     bound_var_t::ref already_bound_function;
@@ -717,9 +775,12 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
             auto updated_return_type = function_scope->get_return_type_constraint();
             assert(updated_return_type != nullptr);
             if (updated_return_type->get_type()->repr() != type_unit()->repr()) {
-                auto new_function_var = clone_and_change_type(builder, function_scope, function_var, updated_return_type->get_llvm_type());
-                llvm::cast<llvm::Function>(function_var->get_llvm_value())->eraseFromParent();
-                llvm_verify_function(name_token.location, llvm::cast<llvm::Function>(new_function_var->get_llvm_value()));
+                debug_above(7, log("looks like the closure needs type fixup because %s != %s",
+                        updated_return_type->get_type()->repr().c_str(),
+                        type_unit()->repr().c_str()));
+                auto new_function_var = clone_and_change_type(builder, function_scope, function_var, updated_return_type);
+                llvm::dyn_cast<llvm::Function>(function_var->get_llvm_value())->eraseFromParent();
+                llvm_verify_function(name_token.location, llvm::dyn_cast<llvm::Function>(new_function_var->get_llvm_value()));
                 return new_function_var;
             }
         }
