@@ -1,10 +1,10 @@
 module _
 # test: pass
 
-def generic_print(x any) {
+fn generic_print(x any) {
     print(x)
 }
 
-def main() {
+fn main() {
     generic_print("hello world.")
 }

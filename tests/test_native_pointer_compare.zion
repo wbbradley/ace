@@ -3,7 +3,7 @@ get main
 # test: pass
 # expect: pass
 
-def main() {
+fn main() {
     var x *?int8 = c_str("hey").raw as! *int8
     assert(null != x)
     x = 100 as! *int8

@@ -18,7 +18,7 @@ type File has {
 type EOF is { EOF }
 
 [global]
-def open(name str, mode str) File {
+fn open(name str, mode str) File {
     fp := posix.fopen(c_str(name).raw, c_str(mode).raw)
     if fp != null {
         return File(name, Open(fp))
@@ -28,7 +28,7 @@ def open(name str, mode str) File {
 }
 
 [global]
-def close(f File) {
+fn close(f File) {
     state := f.state
     match state {
         Open(fp) {
@@ -45,7 +45,7 @@ def close(f File) {
 }
 
 [global]
-def __finalize__(of File) void {
+fn __finalize__(of File) void {
     match of.state {
         Open(fp) {
             posix.fclose(fp)
@@ -55,7 +55,7 @@ def __finalize__(of File) void {
 }
 
 [global]
-def readbytes(f File) bytes? {
+fn readbytes(f File) bytes? {
     let state = f.state
     match state {
         Open(fp) {
@@ -66,7 +66,7 @@ def readbytes(f File) bytes? {
     }
 }
 
-def readbytes(fp *?posix.FILE) bytes? {
+fn readbytes(fp *?posix.FILE) bytes? {
     if fp == null {
         return Empty
     }
@@ -90,12 +90,12 @@ def readbytes(fp *?posix.FILE) bytes? {
 }
 
 [global]
-def write(fp *posix.FILE, s str) {
+fn write(fp *posix.FILE, s str) {
     posix.fwrite(unsafe_access(s), s.length, 1, fp)
 }
     
 [global]
-def write(f File, s str) {
+fn write(f File, s str) {
     match f.state {
         Open(fp) {
             write(fp, s)

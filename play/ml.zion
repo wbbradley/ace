@@ -9,7 +9,7 @@ type Node is
 	Sequence(nodes [Node])
 
 [global]
-def str(n Node) str
+fn str(n Node) str
 	match n
 		Symbol(s, pos)
 			return "Symbol('" + s + "', " + pos + ")"
@@ -24,10 +24,10 @@ type Step has
 	node Node
 	ps ParseState
 
-type Parser = def (ps ParseState) Step?
+type Parser = fn (ps ParseState) Step?
 
-def parse_token(k str) Parser
-	return def (ps ParseState) Step?
+fn parse_token(k str) Parser
+	return fn (ps ParseState) Step?
 		var start = ps.i
 		while start < len(ps.s) and isspace(ps.s[start])
 			start += 1
@@ -42,7 +42,7 @@ def parse_token(k str) Parser
 				return Step(Symbol(symbol, start), ParseState(ps.s, i))
 		return null
 
-def parse_symbol(ps ParseState) Step?
+fn parse_symbol(ps ParseState) Step?
 	var start = ps.i
 	while start < len(ps.s) and isspace(ps.s[start])
 		start += 1
@@ -55,16 +55,16 @@ def parse_symbol(ps ParseState) Step?
 	else
 		return null
 
-def __bitwise_or__(p1 Parser, p2 Parser) Parser
-	return def (ps ParseState) Step?
+fn __bitwise_or__(p1 Parser, p2 Parser) Parser
+	return fn (ps ParseState) Step?
 		step := p1(ps)
 		if step != null
 			return step
 		else
 			return p2(ps)
 			
-def __plus__(p1 Parser, p2 Parser) Parser
-	return def (ps ParseState) Step?
+fn __plus__(p1 Parser, p2 Parser) Parser
+	return fn (ps ParseState) Step?
 		step1 := p1(ps)
 		if step1 != null
 			step2 := p2(step1.ps)
@@ -72,14 +72,14 @@ def __plus__(p1 Parser, p2 Parser) Parser
 				return Step(Sequence([step1.node, step2.node]), step2.ps)
 		return null
 			
-def __plus__(s str, p2 Parser) Parser
+fn __plus__(s str, p2 Parser) Parser
 	return parse_token(s) + p2
 			
-def __plus__(p1 Parser, s str) Parser
+fn __plus__(p1 Parser, s str) Parser
 	return p1 + parse_token(s)
 			
-def parse_kleene_star(parser Parser) Parser
-	return def (ps ParseState) Step?
+fn parse_kleene_star(parser Parser) Parser
+	return fn (ps ParseState) Step?
 		let nodes [Node]
 		while ps.i < len(ps.s)
 			next_step := parser(ps)
@@ -90,14 +90,14 @@ def parse_kleene_star(parser Parser) Parser
 				break
 		return Step(Sequence(nodes), ps)
 
-def main()
-	program := "def f x = * x x"
+fn main()
+	program := "fn f x = * x x"
 	print(program)
 	ps := ParseState(program, 0)
 
 	parse_expr := (parse_token("*") | parse_token("+") | parse_token("-")) + parse_symbol + parse_symbol
 	parse_parens := "(" + parse_expr + ")"
-	parser := "def" + parse_symbol + parse_kleene_star(parse_symbol) + "=" + parse_expr
+	parser := "fn" + parse_symbol + parse_kleene_star(parse_symbol) + "=" + parse_expr
 
 	step := parser(ps)
 	if step != null

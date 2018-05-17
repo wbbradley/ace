@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: [0, 20, 40, 60, 80]
 
-def main() {
+fn main() {
     let xyz [int]
     for i in range(0, 100, 20) {
         append(xyz, i)

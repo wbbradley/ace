@@ -2,6 +2,6 @@ module b
 
 tag B
 
-def f()
+fn f()
     static_print(B)
     pass

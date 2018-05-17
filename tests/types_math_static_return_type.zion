@@ -1,8 +1,8 @@
 module types_math_static_return_type @1.0
 
-def subfunction() int
+fn subfunction() int
     return "hey, this should fail"
 
-def compute() any
+fn compute() any
     return subfunction()
 

@@ -1,12 +1,12 @@
 module _
 # test: pass
 
-def goo(x any) {
+fn goo(x any) {
     var y any = " world"
     print(x + y)
 }
 
-def main() {
+fn main() {
     goo("hello")
 }
 

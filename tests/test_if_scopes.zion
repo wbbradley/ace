@@ -1,6 +1,6 @@
 module _
 
-def main() {
+fn main() {
     if true {
         x := 4
         print(x)

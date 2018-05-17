@@ -13,7 +13,7 @@ type_ref       ::=
  | ('(' type_ref ( 'or' type_ref )+ ')' )?
  | ('any' identifier?) ( '{' type_ref ( ',' type_ref )*  '}' )? '?'?
  | identifier ( '{' type_ref ( ',' type_ref )* '}' )? '?'?
- | 'def' '(' type_ref ( ',' type_ref )* ')' type_ref?
+ | 'fn' '(' type_ref ( ',' type_ref )* ')' type_ref?
 
 type_algebra   ::=
  ( 'is' type_sum )
@@ -25,7 +25,7 @@ dimension      ::= ('var' identifier)? type_ref
 type_product   ::= dimension+
 
 function       ::= function_decl block
-function_decl  ::= 'def' identifier? '(' param_list_decl ')' type_ref
+function_decl  ::= 'fn' identifier? '(' param_list_decl ')' type_ref
 block          ::= indent (statement)* outdent
 param_list_decl::= var_decl (',' var_decl)*
 param_list     ::= expr (',' expr)*

@@ -2,7 +2,7 @@ module syntax @0.1
 get assert
 
 
-def test() int
+fn test() int
     var x str = 10
     x = x + 10; x = x + 10
     assert.equals(x, 30, "line-break error")

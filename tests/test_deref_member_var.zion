@@ -4,11 +4,11 @@ type X has {
     let x int
 }
 
-def foo(px int) {
+fn foo(px int) {
     px = 2
 }
 
-def main() {
+fn main() {
     x := X(3)
     # error: can't take address of x.x
     foo(&x.x)

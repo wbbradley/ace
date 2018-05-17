@@ -15,10 +15,10 @@ module _
 # expect: -1 & 0 == 0
 # expect: -1 & 4 == 4
 
-link def printf(fmt *char, a *char) int
-link def printf(fmt *char, a int64) int
+link fn printf(fmt *char, a *char) int
+link fn printf(fmt *char, a int64) int
 
-def main() {
+fn main() {
     var y int32 = 32808
     var x1 int8 = -y
     printf("-40: %lld\n", x1)

@@ -6,5 +6,5 @@ type FloatPair has {
     var snd float
 }
 
-def main() {
+fn main() {
 }

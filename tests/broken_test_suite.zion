@@ -4,7 +4,7 @@ get eightq
 get sys
 get capture
 
-def main() any
+fn main() any
     "Run tests in Zion."
     suite.test_char()
     suite.test_while_break()
@@ -25,12 +25,12 @@ def main() any
 
     return [1, 0]
 
-def test_char() void
+fn test_char() void
     assert.equals('c', 'c', "char c")
     assert.equals('\b', '\b', "bell char")
     assert.equals('\n', '\n', "bell char")
 
-def test_while_break() void
+fn test_while_break() void
     i := 0
     while true
         if i == 100
@@ -40,13 +40,13 @@ def test_while_break() void
     while i < 100
         i += 1
 
-def test_parentheses() void
+fn test_parentheses() void
     x := "hey"
     if (x !=
         "hey")
         print("Fail!")
 
-def test_indexing() void
+fn test_indexing() void
     s := "Zion"
     assert.equals(s[0], "C", "string indexing")
     assert.equals(s[1], "i", "string indexing")
@@ -54,14 +54,14 @@ def test_indexing() void
     assert.equals(s[3], "e", "string indexing")
     assert.equals(s[4], "r", "string indexing")
 
-def test_eight_queens() void
+fn test_eight_queens() void
     assert.equals(len(eightq.main(5)), 10, "5 queens")
 
-def test_mod() void
+fn test_mod() void
     assert.equals(555 % 5, 0, "555 % 5")
     assert.equals(557 % 5, 2, "557 % 5")
 
-def test_inc_assign() void
+fn test_inc_assign() void
     x := 1
     x += 1
     x *= 17
@@ -70,7 +70,7 @@ def test_inc_assign() void
     x /= 2
     assert.equals(x, 1, "a bunch of mutating assignments")
 
-def test_unicode() void
+fn test_unicode() void
     assert.equals("\u5ECC", "廌", "unicorn in CJK Unified Ideographs")
 
     汉堡 := "hamburger"
@@ -80,14 +80,14 @@ def test_unicode() void
     assert.equals(廌, "unicorn", "variables in CJK Unified Ideographs")
 
 
-def test_sys() void
+fn test_sys() void
     sys.write(1, "This is from sys.write.\n")
 
-def test_alloc_free() void
+fn test_alloc_free() void
     ptr := malloc(10)
     free(ptr)
 
-def test_type_builtin() void
+fn test_type_builtin() void
     assert.equals(type("hey"), "str", "str")
     
     assert.equals(type(1), "int", "int")
@@ -116,7 +116,7 @@ def test_type_builtin() void
     
     assert.equals(type(null), "null", "null")
 
-def test_float_operations() void
+fn test_float_operations() void
     assert.equals(3 + 4 > 6, true, "int addition with ineq")
     assert.equals(3.0 + 4.0 > 6.0, true, "float addition with ineq")
     assert.equals(3.0 + 4.0 < 60.0, true, "float addition with ineq")
@@ -142,30 +142,30 @@ def test_float_operations() void
     # TODO: handle coercion of division
     # assert.equals(3.0 / 4, 0.75, "float / int")
 
-def test_scopes() void
+fn test_scopes() void
     x := 42
 
-    def scoped_func() void
+    fn scoped_func() void
         assert.equals(42, x, "nested lexically scoped closures")
 
     scoped_func()
     x = 41
     scoped_func()
 
-def test_unnamed_lambda() void
+fn test_unnamed_lambda() void
     x := 42
 
-    scoped_func := def(y int) void
+    scoped_func := fn(y int) void
         assert.equals(y, x, "nested lexically scoped closures")
 
     scoped_func(42)
     x = 41
     scoped_func(42)
 
-def test_closure_return() void
+fn test_closure_return() void
     x := 5
-    def inner_func_creator(x int) func
-        return def(y int) int
+    fn inner_func_creator(x int) func
+        return fn(y int) int
             return x + y
     f := inner_func_creator(6)
     assert.equals(f(1), 7, "closure from an inner function")

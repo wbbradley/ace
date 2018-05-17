@@ -7,10 +7,10 @@ type Vector has {
     var y float
 }
 
-def do(t Vector) void {
+fn do(t Vector) void {
     print("yep")
 }
 
-def main() {
+fn main() {
     do(Vector(0.0, 0.1))
 }

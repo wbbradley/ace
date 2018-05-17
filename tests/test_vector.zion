@@ -6,7 +6,7 @@ type Vector has {
     var y float
 }
 
-def main() {
+fn main() {
     v := Vector(3.4, 3.2)
     print(v.x)
 }

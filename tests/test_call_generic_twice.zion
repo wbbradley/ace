@@ -1,11 +1,11 @@
 module _
 # test: pass
 
-def main() {
+fn main() {
     generic("hey")
     generic(1)
 }
 
-def generic(value any) {
+fn generic(value any) {
     posix.puts(c_str(str(value)).raw)
 }

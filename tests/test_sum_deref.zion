@@ -7,7 +7,7 @@ type Value has {
     var s str
 }
 
-def main() {
+fn main() {
     a := Value(42, "hey")
     print(a.i)
     print(a.s)

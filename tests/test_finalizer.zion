@@ -4,17 +4,17 @@ module _
 
 type ShouldFinalize is { ShouldFinalize(s str) }
 
-def do_thing() {
+fn do_thing() {
     ShouldFinalize("pass")
 }
 
-def main() {
+fn main() {
     do_thing()
     runtime.gc()
 }
 
 [global]
-def __finalizer__(sf ShouldFinalize) {
+fn __finalizer__(sf ShouldFinalize) {
     match sf {
         ShouldFinalize(s) {
             print(s)

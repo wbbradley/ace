@@ -148,16 +148,16 @@ bool test_lex_comments() {
 
 bool test_lex_functions() {
 	lexer_tests tests = {
-		{"def A\nstatement", {tk_identifier, tk_identifier, tk_identifier}},
-		{"def", {tk_identifier}},
-		{" def", {tk_identifier}},
-		{"def ", {tk_identifier}},
+		{"fn A\nstatement", {tk_identifier, tk_identifier, tk_identifier}},
+		{"fn", {tk_identifier}},
+		{" fn", {tk_identifier}},
+		{"fn ", {tk_identifier}},
 		{"_def", {tk_identifier}},
 		{"definitely", {tk_identifier}},
-		{"def A", {tk_identifier, tk_identifier}},
-		{"def A\n", {tk_identifier, tk_identifier}},
-		{"def A {\nstatement\nstatement\n}", {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_identifier, tk_rcurly}},
-		{"def A {pass}", {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_rcurly}},
+		{"fn A", {tk_identifier, tk_identifier}},
+		{"fn A\n", {tk_identifier, tk_identifier}},
+		{"fn A {\nstatement\nstatement\n}", {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_identifier, tk_rcurly}},
+		{"fn A {pass}", {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_rcurly}},
 	};
 	return lexer_test(tests);
 }
@@ -331,7 +331,7 @@ bool test_parse_minimal_module() {
 }
 
 bool test_parse_module_one_function() {
-	return check_parse<ast::module_t>("module foobar @0.1.0\n\ndef foo() {\n }");
+	return check_parse<ast::module_t>("module foobar @0.1.0\n\nfn foo() {\n }");
 }
 
 ptr<ast::binary_operator_t> make_one_plus_two() {
@@ -352,7 +352,7 @@ bool test_parse_return_integer_add() {
 
 bool test_parse_module_function_with_return_plus_expr() {
 	return check_parse<ast::module_t>(
-			"module foobar @0.1.0\ndef foo() {\nreturn 1 + 2\n}");
+			"module foobar @0.1.0\nfn foo() {\nreturn 1 + 2\n}");
 }
 
 bool test_parse_math_expression() {
@@ -403,7 +403,7 @@ bool test_parse_mixed_precedences() {
 bool test_parse_recursive_function_call() {
 	return check_parse<ast::module_t>(
 		   	"module math @1.0\n"
-			"def fib(n int) int {\n"
+			"fn fib(n int) int {\n"
 			"if n < 2 {\n"
 			"return n\n"
 			"}\nreturn fib(n-2) + fib(n-1)\n}",
@@ -413,7 +413,7 @@ bool test_parse_recursive_function_call() {
 bool test_parse_if_else() {
 	return check_parse<ast::module_t>(
 		   	"module minmax @1.0\n"
-			"def min(m int, n int) int {\n"
+			"fn min(m int, n int) int {\n"
 			"if n < m {\n"
 			"return n\n"
 			"} elif m < n {\n"
@@ -427,7 +427,7 @@ bool test_parse_if_else() {
 bool test_parse_single_line_when() {
 	return check_parse<ast::module_t>(
 			"module _\n"
-			"def check() int\n"
+			"fn check() int\n"
 			"when x is X\n"
 			"return 1\n"
 			"return 1\n"
@@ -475,7 +475,7 @@ bool test_parse_link_extern_module() {
 bool test_parse_link_extern_function() {
 	return check_parse<ast::module_t>(
 		   	"module www @1.3.2\n"
-			"link def open(filename str, mode str) int\n");
+			"link fn open(filename str, mode str) int\n");
 }
 
 enum test_output_source_t {
@@ -982,8 +982,8 @@ auto test_descs = std::vector<test_desc>{
 				make_type_pair("Container T?", "Foo Bar?", generics),
 				make_type_pair("(Container T)?", "(Foo Bar)?", generics),
 				make_type_pair("Container T", "[int]", generics),
-				make_type_pair("T", "def (x int) float", generics),
-				make_type_pair("def _(p T) float", "def _(x int) float", generics),
+				make_type_pair("T", "fn (x int) float", generics),
+				make_type_pair("fn _(p T) float", "fn _(x int) float", generics),
 				make_type_pair("*void", "*int", generics),
 				{type_maybe(type_ptr(type_managed(type_struct({}, {}))), {}), type_null()},
 				{type_ptr(type_id(make_iid("void"))), type_ptr(type_id(make_iid("X")))},
@@ -1000,7 +1000,7 @@ auto test_descs = std::vector<test_desc>{
 					make_type_pair("int", "map int int", generics),
 					make_type_pair("Container float", "[int]", generics),
 					make_type_pair("Container T?", "(Foo Bar)?", generics),
-					make_type_pair("def (p T) T", "def (x int) float", generics),
+					make_type_pair("fn (p T) T", "fn (x int) float", generics),
 					});
 
 			auto _env = make_ptr<test_env>(env);

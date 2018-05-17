@@ -22,18 +22,18 @@ type VectorImpl T = if (gc T) ManagedVector (NativeVector T)
 type Vector T link
 
 [global]
-def reserved[T](v [T]) int {
+fn reserved[T](v [T]) int {
     # NB: native and managed vectors share memory layout up to the `items`
     return (v as! *(VectorImpl T)).reserved
 }
 
 [global]
-def len(v [any T]) int {
+fn len(v [any T]) int {
     return (v as! *(VectorImpl T)).size
 }
 
 [global]
-def __init__[T where gc T]() [T] {
+fn __init__[T where gc T]() [T] {
     let ti = typeinfo(
         [T],
         ManagedVector,
@@ -44,7 +44,7 @@ def __init__[T where gc T]() [T] {
 }
         
 [global]
-def __init__[T where not(gc T)]() [T] {
+fn __init__[T where not(gc T)]() [T] {
     let ti = typeinfo(
         [T],
         NativeVector T,
@@ -54,7 +54,7 @@ def __init__[T where not(gc T)]() [T] {
     return runtime.create_var(ti) as! [T]
 }
         
-def __init_vector__[T](size size_t) [T] {
+fn __init_vector__[T](size size_t) [T] {
     # Used by the compiler to instantiate vector literals
     # see src/type_checker.cpp `create_bound_vector_literal`
     let v [T]
@@ -63,17 +63,17 @@ def __init_vector__[T](size size_t) [T] {
 }
 
 [global]
-def unsafe_access[T](x [T]) *?T {
+fn unsafe_access[T](x [T]) *?T {
     return (x as! *(VectorImpl T)).items
 }
 
 [global]
-def str(v [any]) str {
+fn str(v [any]) str {
     return "[" + join(", ", v) + "]"
 }
 
 [global]
-def join[T where gc T](delim str, v [T]) str {
+fn join[T where gc T](delim str, v [T]) str {
     let vec = v as! *(VectorImpl T)
 
     if vec.size == 0 {
@@ -122,7 +122,7 @@ def join[T where gc T](delim str, v [T]) str {
 }
 
 [global]
-def join[T where not (gc T)](delim str, v [T]) str {
+fn join[T where not (gc T)](delim str, v [T]) str {
     let vec = v as! *(VectorImpl T)
 
     if vec.size == 0 {
@@ -172,38 +172,38 @@ def join[T where not (gc T)](delim str, v [T]) str {
 }
 
 [global]
-def __getitem__[T](vec [T], index int) T {
+fn __getitem__[T](vec [T], index int) T {
     let vector = vec as! *(VectorImpl T)
     assert(index >= 0 and index < vector.size)
     return vector.items[index] as! T
 }
 
 [global]
-def __setitem__[T where gc T](vec [T], index int, t T) void {
+fn __setitem__[T where gc T](vec [T], index int, t T) void {
     assert(len(vec) > index)
     __set_vector_item__(vec as! *(VectorImpl T), index, t as! *var_t)
 }
 
 [global]
-def __setitem__[T where not (gc T)](vec [T], index int, t T) void {
+fn __setitem__[T where not (gc T)](vec [T], index int, t T) void {
     assert(len(vec) > index)
     __set_vector_item__(vec as! *(VectorImpl T), index, t)
 }
 
 [global]
-def append[T where gc T](vec [T], gc_t T) void {
+fn append[T where gc T](vec [T], gc_t T) void {
     # posix.puts("appending " + __str__(t) + " to vector")
     __unsafe_vector_append__(vec as! *ManagedVector, gc_t as! *var_t)
 }
 
 [global]
-def append[T where not(gc T)](vec [T], t T) void {
+fn append[T where not(gc T)](vec [T], t T) void {
     # posix.puts("appending " + __str__(t) + " to vector")
     __unsafe_vector_append__(vec as! *(NativeVector T), t)
 }
 
 [global]
-def resize[T](vector [T], size int, default T) void {
+fn resize[T](vector [T], size int, default T) void {
     let vec = vector as! *(VectorImpl T)
     if size < 0 {
         return
@@ -225,7 +225,7 @@ def resize[T](vector [T], size int, default T) void {
 
 
 [global]
-def __managed_vector_mark__(vec *var_t) void {
+fn __managed_vector_mark__(vec *var_t) void {
     # posix.puts("marking vector at 0x" + __str__(vec as int, 16))
     v := vec as! *ManagedVector
     var i = 0
@@ -236,7 +236,7 @@ def __managed_vector_mark__(vec *var_t) void {
 }
 
 [global]
-def __managed_vector_free__(v *var_t) void {
+fn __managed_vector_free__(v *var_t) void {
     let vec = v as! *ManagedVector
 
     /* the gc will handle cleaning up everything that we pointed to, but we need to free up our
@@ -248,7 +248,7 @@ def __managed_vector_free__(v *var_t) void {
  }
 
 [global]
-def __native_vector_free__(v *var_t) void {
+fn __native_vector_free__(v *var_t) void {
     let vec = v as! *(NativeVector *void)
 
     /* the gc will handle cleaning up everything that we pointed to, but we need to free up our
@@ -260,12 +260,12 @@ def __native_vector_free__(v *var_t) void {
  }
 
 [global]
-def __native_vector_mark__(vec *var_t) void {
+fn __native_vector_mark__(vec *var_t) void {
     # TODO: make it possible to omit this function from typeinfo above
 }
 
 
-def __set_vector_item__(vector *ManagedVector, index int, item *var_t) void {
+fn __set_vector_item__(vector *ManagedVector, index int, item *var_t) void {
     if index < 0 {
         return
     }
@@ -275,7 +275,7 @@ def __set_vector_item__(vector *ManagedVector, index int, item *var_t) void {
     vector.items[index] = item
 }
 
-def __set_vector_item__[T](vector *(NativeVector T), index int, item T) void {
+fn __set_vector_item__[T](vector *(NativeVector T), index int, item T) void {
     if index < 0 {
         return
     }
@@ -284,14 +284,14 @@ def __set_vector_item__[T](vector *(NativeVector T), index int, item T) void {
     vector.items[index] = item
 }
 
-def __vector_unsafe_append__[T where gc T](vector *ManagedVector, item T) void {
+fn __vector_unsafe_append__[T where gc T](vector *ManagedVector, item T) void {
     # To be called by compiler for vector literals
     assert(vector.reserved > vector.size)
     vector.items[vector.size] = item as! *var_t
     vector.size += 1
 }
 
-def __vector_unsafe_append__[T where not(gc T)](vector *(NativeVector T), item T) void {
+fn __vector_unsafe_append__[T where not(gc T)](vector *(NativeVector T), item T) void {
     # To be called by compiler for vector literals
     assert(vector.reserved > vector.size)
     vector.items[vector.size] = item
@@ -299,7 +299,7 @@ def __vector_unsafe_append__[T where not(gc T)](vector *(NativeVector T), item T
 }
 
 # This is mildly unsafe against future changes...
-def __unsafe_vector_append__[V, I](vector *V, item I) void {
+fn __unsafe_vector_append__[V, I](vector *V, item I) void {
     if vector.reserved > vector.size {
         # we have space
         let items = vector.items
@@ -338,12 +338,12 @@ def __unsafe_vector_append__[V, I](vector *V, item I) void {
 }
 
 [global]
-def reserve(vec [any T], n size_t) {
+fn reserve(vec [any T], n size_t) {
     # Call the unmanaged version
     reserve(vec as! *(VectorImpl T), n)
 }
 
-def reserve(vec *ManagedVector, n size_t) {
+fn reserve(vec *ManagedVector, n size_t) {
     # Make sure we've got n spaces available in our vector's allocated memory
     if vec.reserved < n {
         let items = vec.items
@@ -360,7 +360,7 @@ def reserve(vec *ManagedVector, n size_t) {
     }
 }
         
-def reserve[T](vec *(NativeVector T), n size_t) {
+fn reserve[T](vec *(NativeVector T), n size_t) {
     let item_size = sizeof(T)
     # Make sure we've got n spaces available in our vector's allocated memory
     if vec.reserved < n {
@@ -380,7 +380,7 @@ def reserve[T](vec *(NativeVector T), n size_t) {
         
 
 [global]
-def copy(orig [any T]) [any T] {
+fn copy(orig [any T]) [any T] {
     var new [any T]
     reserve(new, len(orig))
     var i = 0
@@ -392,7 +392,7 @@ def copy(orig [any T]) [any T] {
 }
 
 [global]
-def copy(orig [any T], t any T) [any T] {
+fn copy(orig [any T], t any T) [any T] {
     var new [any T]
     reserve(new, len(orig) + 1)
     var i = 0
@@ -405,7 +405,7 @@ def copy(orig [any T], t any T) [any T] {
 }
 
 [global]
-def splice[T](vec [T], index int, count int) void {
+fn splice[T](vec [T], index int, count int) void {
     let v = vec as! *(VectorImpl T)
     let orig_count = v.size
     let i = index
@@ -425,33 +425,33 @@ type VectorIter C has {
 }
 
 [global]
-def __iter_begin__(c [any C]) VectorIter any C {
+fn __iter_begin__(c [any C]) VectorIter any C {
     return VectorIter(c, 0)
 }
     
 [global]
-def __iter_end__(c [any C]) VectorIter any C {
+fn __iter_end__(c [any C]) VectorIter any C {
     return VectorIter(c, len(c))
 }
 
 [global]
-def __iter_valid__(i VectorIter any C, end VectorIter any C) bool {
+fn __iter_valid__(i VectorIter any C, end VectorIter any C) bool {
     return i.pos < end.pos
 }
 
 [global]
-def __iterate__(i VectorIter any C) void {
+fn __iterate__(i VectorIter any C) void {
     i.pos += 1
 }
 
 [global]
-def __iter_item__(i VectorIter any C) any C {
+fn __iter_item__(i VectorIter any C) any C {
     return i.vec[i.pos]
 }
 
 #[global]
-# def sort[T](v [T])
-#    def compare(lhs_ *void, rhs_ *void) posix.int
+# fn sort[T](v [T])
+#    fn compare(lhs_ *void, rhs_ *void) posix.int
 #        lhs := (lhs_ as *T)[0]
 #        rhs := (rhs_ as *T)[0]
 #        return lhs < rhs ? -1 : ((lhs == rhs) ? 0 : 1)
@@ -459,7 +459,7 @@ def __iter_item__(i VectorIter any C) any C {
 #    posix.qsort(vec.items, vec.length, sizeof(*void), compare)
 
 [global]
-def __not_in__[T](lhs T, rhs [T]) bool {
+fn __not_in__[T](lhs T, rhs [T]) bool {
     for r in rhs {
         if lhs == r {
             return false
@@ -469,7 +469,7 @@ def __not_in__[T](lhs T, rhs [T]) bool {
 }
 
 [global]
-def __in__[T](lhs T, rhs [T]) bool {
+fn __in__[T](lhs T, rhs [T]) bool {
     for r in rhs {
         if lhs == r {
             return true
@@ -479,7 +479,7 @@ def __in__[T](lhs T, rhs [T]) bool {
 }
 
 [global]
-def foldl[T, U](binop def (lhs T, rhs U) T, starting T, operands [U]) T {
+fn foldl[T, U](binop fn (lhs T, rhs U) T, starting T, operands [U]) T {
     var state = starting
     for operand in operands {
         state = binop(state, operand)

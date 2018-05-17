@@ -6,11 +6,11 @@ type C T is {
     E(x T)
 }
 
-def identity[X](expr C X) X {
+fn identity[X](expr C X) X {
     return "asdf"
 }
 
-def main() {
+fn main() {
     value := E(D("asdf"))
     identity(value)
 }

@@ -1,5 +1,5 @@
 
-def depth(tree Tree{any Data}) any Data
+fn depth(tree Tree{any Data}) any Data
 	match tree
 		case Empty
 			return 0

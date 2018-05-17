@@ -7,10 +7,10 @@ type Foo has {
 }
 
 [global]
-def str(f Foo) str {
+fn str(f Foo) str {
     return "print a Foo: " + str(f.x)
 }
 
-def main() {
+fn main() {
     print(Foo(3))
 }

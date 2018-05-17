@@ -5,7 +5,7 @@ type List T is {
     Nil
 }
 
-def nth[T](l List T, index int) T? {
+fn nth[T](l List T, index int) T? {
     while index >= 0 {
         match l {
             Cons(t, next) {
@@ -25,7 +25,7 @@ def nth[T](l List T, index int) T? {
 }
 
 [global]
-def len(l List any) int {
+fn len(l List any) int {
     match l {
         Cons(_, next) {
             return len(next) + 1
@@ -37,12 +37,12 @@ def len(l List any) int {
 }
 
 [global]
-def str(l List any) str {
+fn str(l List any) str {
     return "[...list...]"
 }
 
 [global]
-def bind[A, B](ma [A], f def (a A) [B]) [B] {
+fn bind[A, B](ma [A], f fn (a A) [B]) [B] {
     # (>>=) :: m a -> (a -> m b) -> m b
     let mb [B]
     for a in ma {
@@ -55,6 +55,6 @@ def bind[A, B](ma [A], f def (a A) [B]) [B] {
 }
         
 [global]
-def fail[A](reason str) [A] {
+fn fail[A](reason str) [A] {
     return []
 }

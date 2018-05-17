@@ -1,13 +1,13 @@
 module _
 # test: pass
 
-def main() {
+fn main() {
     generic("some string")    
 }
 
-def generic(x any) {
+fn generic(x any) {
     concrete(x)
 }
 
-def concrete(x str) {
+fn concrete(x str) {
 }

@@ -2,7 +2,7 @@ module _
 get math
 # test: pass
 
-def main() {
+fn main() {
     str(math.abs(-3))
     c := math.Complex(1.0, 1.0)
 

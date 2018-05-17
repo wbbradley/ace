@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: ok
 
-def main() {
+fn main() {
     let hash_blah = hash("blah")
     print(hexdigest(hash_blah))
     let hash_foobar = hash("foobar")

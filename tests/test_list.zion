@@ -6,7 +6,7 @@ type ListInt is {
     Done
 }
 
-def len(l ListInt) int {
+fn len(l ListInt) int {
     match l {
         Done {
             return 0
@@ -17,7 +17,7 @@ def len(l ListInt) int {
     }
 }
 
-def sum(l ListInt) int {
+fn sum(l ListInt) int {
     match l {
         Done {
             return 0
@@ -28,7 +28,7 @@ def sum(l ListInt) int {
     }
 }
 
-def main() {
+fn main() {
     l := NodeInt(1, NodeInt(2, NodeInt(3, Done)))
     print(len(l))
     print(sum(l))

@@ -5,19 +5,19 @@ module _
 # expect: 4.5
 # inject: 4.5
 
-def read(fp *posix.FILE) int {
+fn read(fp *posix.FILE) int {
     var x int = 0
     assert(posix.fscanf(fp, "%d",  &x as! *void) == 1)
     return x
 }
 
-def read(fp *posix.FILE) float {
+fn read(fp *posix.FILE) float {
     var x float = 0.0
     assert(posix.fscanf(fp, "%lf",  &x as! *void) == 1)
     return x
 }
 
-def main() {
+fn main() {
     print("Gimme an int: ")
     print(read(stdin) as int)
     print("Gimme a float: ")

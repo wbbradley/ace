@@ -7,7 +7,7 @@ type PhoneNumber is {
     Intl(cc int, num int)
 }
 
-def main() {
+fn main() {
     number := Local(100)
     intl_number := Intl(1, 100)
 }

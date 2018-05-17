@@ -1,6 +1,6 @@
 module _
 
-def main() {
+fn main() {
     # error: this squiggly
     elif true {
     }

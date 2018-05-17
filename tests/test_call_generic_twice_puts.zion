@@ -1,9 +1,9 @@
 module _
 # test: pass
 
-link def printf(format *char, s1 *char) int
+link fn printf(format *char, s1 *char) int
 
-def main() int {
+fn main() int {
     printf("%s\n", "hey")
     printf("%s\n", str(10 + 3.4))
     return 1

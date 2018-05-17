@@ -1,10 +1,10 @@
 module _
 
-def get_maybe() int? {
+fn get_maybe() int? {
     return Just(2)
 }
 
-def main() {
+fn main() {
     let x = get_maybe()
     match x {
         Just(x) {

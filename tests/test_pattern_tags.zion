@@ -8,7 +8,7 @@ type D T is {
     C
 }
 
-def poly(a D any) str {
+fn poly(a D any) str {
     match a {
         A(t) {
             return "hooray " + t
@@ -22,7 +22,7 @@ def poly(a D any) str {
     }
 }
 
-def main() {
+fn main() {
     y := poly(A(1.2))
     print(y)
 }

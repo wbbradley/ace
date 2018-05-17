@@ -1,11 +1,11 @@
 module _ @1.0
 
-def A() {
+fn A() {
     # error: 5:5.* undefined symbol C
     C
 }
 
-def ugly() {
+fn ugly() {
     # error: 10:5.* undefined symbol one
     one
 }

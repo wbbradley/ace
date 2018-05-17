@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: 42
 
-def main() {
+fn main() {
     var x [int]
     append(x, 42)
     print(x[0])

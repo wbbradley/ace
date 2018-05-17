@@ -1,7 +1,7 @@
 module while_loop @0.1.0
 # test: pass
 
-def main() int {
+fn main() int {
     var i int = 3
     while i > 0 {
         print(i)

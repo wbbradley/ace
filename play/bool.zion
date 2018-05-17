@@ -1,5 +1,5 @@
 module _
 
-def main()
+fn main()
 	var x bool = true
 	x = false

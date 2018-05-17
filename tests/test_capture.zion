@@ -5,10 +5,10 @@ get assert
 # expect: PASS
 # reject: FAILED
 
-def test_value_capture() void {
+fn test_value_capture() void {
     "Test that the abc lambda's capture gets the x by value."
     var x = 1
-    abc := def () int {
+    abc := fn () int {
         return x
     }
     assert.equals(abc(), 1, "capture by value should work")
@@ -16,7 +16,7 @@ def test_value_capture() void {
     assert.equals(abc(), 1, "capture by value should work")
 }
 
-def main() {
+fn main() {
     test_value_capture()
 }
 

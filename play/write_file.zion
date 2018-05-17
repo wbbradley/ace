@@ -1,10 +1,10 @@
 module _ @1.0
 
-link def open(x str, fd int) int
-link def write(fd int, x str, fd int) int
-link def close(fd int) int
+link fn open(x str, fd int) int
+link fn write(fd int, x str, fd int) int
+link fn close(fd int) int
 
-def main()
+fn main()
 	let O_CREAT = 512
 	let O_WRONLY = 1
 	let fd = open("test.txt", O_CREAT + O_WRONLY)

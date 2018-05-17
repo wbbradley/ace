@@ -7,24 +7,24 @@ type Ref T has {
     var value T
 }
 
-def call_twice(f def () any) {
+fn call_twice(f fn () any) {
     f()
     f()
 }
 
-def main() {
+fn main() {
     x := "hello "
     y := "world"
     r := Ref(10)
-    z := def () {
+    z := fn () {
         q := Ref(0)
-        return def () {
+        return fn () {
             r.value += 1
             q.value += 1
             return x + y + " " + q.value + " " + r.value
         }
     }
-    call_twice(def () {
+    call_twice(fn () {
         print(z()())
     })
 }

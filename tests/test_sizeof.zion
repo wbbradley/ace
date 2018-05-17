@@ -11,14 +11,14 @@ type __Value__ struct {
 }
 
 type __TypeInfo__ struct {
-    var addref *def _(v *__Value__) void
-    var release *def _(v *__Value__) void
+    var addref *fn _(v *__Value__) void
+    var release *fn _(v *__Value__) void
 }
 
-def addref(v *__Value__) void {
+fn addref(v *__Value__) void {
 }
 
-def release(v *__Value__) void {
+fn release(v *__Value__) void {
 }
 
 type __TwoInts__ struct {
@@ -31,7 +31,7 @@ type TwoInts has {
     var y int
 }
 
-def main() {
+fn main() {
     # With standard aligned sizeof we get some extra padding for the managed
     # types
     print(sizeof(__TwoInts__))  # 16

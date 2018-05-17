@@ -7,7 +7,7 @@ module _
 # expect: [1, 2, 3]
 # expect: [4, 5, 6]
 
-def main() {
+fn main() {
     let w [int]
     static_print(w)
     var x [int]

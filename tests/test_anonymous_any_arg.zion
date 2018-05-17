@@ -1,8 +1,8 @@
 module _
 # test: pass
 # expect: 4
-def main() {
-    let x = def (y) {
+fn main() {
+    let x = fn (y) {
         return str(y)
     }(4)
     print(x)

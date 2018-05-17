@@ -5,7 +5,7 @@ get sys
 
 type Y = int
 
-def main() {
+fn main() {
     # TODO: figure out what to do here
     var y Y = 123
     if len(sys.args) == 2 {

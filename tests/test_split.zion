@@ -4,7 +4,7 @@ module _
 # expect: hello|world|you|funky|people
 # expect: ||||
 
-def main() {
+fn main() {
     s1 := "\t hello\nworld   you   funky people "
     s2 := join(",", split(s1))
     print(s2)

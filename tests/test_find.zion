@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: pass
 
-def main() {
+fn main() {
     i := find("hello world", "world", 0)
     assert(i == 6)
     assert(not (i != 6))

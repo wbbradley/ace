@@ -1,9 +1,9 @@
 module _
 # test: pass
 
-def arity1(variable int) {
+fn arity1(variable int) {
 }
 
-def main() {
+fn main() {
     arity1(1)
 }

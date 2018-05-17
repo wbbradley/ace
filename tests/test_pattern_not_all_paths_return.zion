@@ -6,7 +6,7 @@ type D is {
     C
 }
 
-def poly(a D) int {
+fn poly(a D) int {
     # error: not all control paths return a value
     match a {
         A {
@@ -19,7 +19,7 @@ def poly(a D) int {
     }
 }
 
-def main() {
+fn main() {
     y := poly(C)
     print(y)
 }

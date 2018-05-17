@@ -1,7 +1,7 @@
 module _
 
-# error: 4:5: .*while checking .*duplicate_locals
-def duplicate_locals() void {
+# error: 4:4: .*while checking .*duplicate_locals
+fn duplicate_locals() void {
     x := 0
     # error: 7:5: error: symbol 'x' cannot be redeclared
     x := 1

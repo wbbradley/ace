@@ -5,7 +5,7 @@ type Point T is {
     Radial(radius T, theta T)
 }
 
-def main() {
+fn main() {
     var p Point float = Cartesian(2.4, 1.0)
     # error: unable to resolve overloads for __getitem__
     print(p[0])

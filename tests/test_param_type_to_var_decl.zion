@@ -1,6 +1,6 @@
 module _ @1.0
 
-def param_type_to_var_decl(banana int) void {
+fn param_type_to_var_decl(banana int) void {
     # error: declared type of `x` does not match type of initializer
     var x str = banana
 }

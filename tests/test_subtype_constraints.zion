@@ -7,7 +7,7 @@ type Expr is {
     Value(x int)
 }
 
-def eval[T where T <: Expr](e T) int {
+fn eval[T where T <: Expr](e T) int {
     match e {
         Plus(lhs, rhs) {
             return eval(lhs) + eval(rhs)
@@ -18,6 +18,6 @@ def eval[T where T <: Expr](e T) int {
     }
 }
 
-def main() {
+fn main() {
     print(eval(Plus(Value(2), Plus(Value(4), Value(5)))))
 }

@@ -1,13 +1,13 @@
 module _
 # test: pass
 
-def has_an_x_var() {
+fn has_an_x_var() {
     x := 1
     has_an_x_param(x)
 }
 
-def has_an_x_param(x int) {
+fn has_an_x_param(x int) {
 }
 
-def main() {
+fn main() {
 }

@@ -5,7 +5,7 @@ module _
 
 get list
 
-def main() {
+fn main() {
     l := list.Cons(400, list.Cons(3, list.Cons(5001, list.Nil)))
     print(len(l))
     match list.nth(l, 2) {

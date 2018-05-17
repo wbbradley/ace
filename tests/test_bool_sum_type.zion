@@ -6,7 +6,7 @@ type Boolean is {
     False
 }
 
-def main() {
+fn main() {
     x := True
     y := False
 

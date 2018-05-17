@@ -3,18 +3,18 @@ module main
 get sys
 get posix
 
-link def __set_locale__() void
+link fn __set_locale__() void
 
-def main_ret(ret int) int {
+fn main_ret(ret int) int {
     return ret
 }
 
-def main_ret(a ()) int {
+fn main_ret(a ()) int {
     return 0
 }
 
 [global]
-def __main__(argc int32, argv **char) int32 {
+fn __main__(argc int32, argv **char) int32 {
     # This is the actual default entry point to every program.
     __set_locale__()
     crypto.init()

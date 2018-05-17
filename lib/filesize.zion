@@ -9,7 +9,7 @@ type FileSize is {
 }
 
 [global]
-def size(fp *?posix.FILE) FileSize {
+fn size(fp *?posix.FILE) FileSize {
     if fp != null {
         let prev int = posix.ftell(fp)
         posix.fseek(fp, 0, posix.SEEK_END)
@@ -23,7 +23,7 @@ def size(fp *?posix.FILE) FileSize {
 }
 
 [global]
-def size(f file.File) FileSize {
+fn size(f file.File) FileSize {
     match f.state {
         Open(fp) {
             return size(fp)

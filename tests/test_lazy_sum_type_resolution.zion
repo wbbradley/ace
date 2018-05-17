@@ -9,10 +9,10 @@ type B X is {
     Bx X
 }
 
-def do(b Bx int) {
+fn do(b Bx int) {
     print(b.x)
 }
 
-def main() {
+fn main() {
     do(Bx(3))
 }

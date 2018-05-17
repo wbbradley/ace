@@ -1,16 +1,16 @@
 module _
 # test: pass
 
-def no_type(y) {
+fn no_type(y) {
 }
 
-def any_type(y any) {
+fn any_type(y any) {
 }
 
-def named_any_type(y any T) {
+fn named_any_type(y any T) {
 }
 
-def main() {
+fn main() {
     no_type(1)
     any_type(1)
     named_any_type(1)

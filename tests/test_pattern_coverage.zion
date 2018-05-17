@@ -17,7 +17,7 @@ type HairType is {
     Bald
 }
 
-def main() {
+fn main() {
     mark := Boy("Mark", Wavy, Empty)
     charlotte := Girl("Charlotte", Straight, Just(Dog))
     # etc...

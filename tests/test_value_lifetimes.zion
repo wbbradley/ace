@@ -1,6 +1,6 @@
 module _
 # test: pass
 
-def main() {
+fn main() {
     1
 }

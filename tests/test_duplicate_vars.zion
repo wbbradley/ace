@@ -1,6 +1,6 @@
 module _ @1.0
 
-def duplicate_vars() void {
+fn duplicate_vars() void {
     # error: 5:.* see earlier declaration of x
     x := 0
     if true {
@@ -9,7 +9,7 @@ def duplicate_vars() void {
     }
 }
 
-def param_list_override(y int) void {
+fn param_list_override(y int) void {
     # error: 14:.* symbol 'y' cannot be redeclared
     y := 0
 }

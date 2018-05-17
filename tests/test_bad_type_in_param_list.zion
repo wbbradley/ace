@@ -2,11 +2,11 @@ module _
 # test: skip
 # TODO: figure out what's going on here
 
-def foo(a [Cow]) {
+fn foo(a [Cow]) {
     # should be error: Cow not defined or something?
 }
 
-def main() {
+fn main() {
     print("hi")
 }
 

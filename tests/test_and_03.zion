@@ -6,7 +6,7 @@ type Either L R is {
     Right(right R)
 }
 
-def hey(x Either int float) {
+fn hey(x Either int float) {
     match x {
         Left(x) {
             print(x)
@@ -17,7 +17,7 @@ def hey(x Either int float) {
     }
 }
 
-def main() {
+fn main() {
     hey(Left(0))
     hey(Right(1.0))
 }

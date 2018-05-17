@@ -1,10 +1,10 @@
 module _
 # test: pass
 
-def main() {
+fn main() {
     func1()
 }
 
-def func1() {
+fn func1() {
     func1()
 }

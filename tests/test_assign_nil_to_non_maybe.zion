@@ -6,7 +6,7 @@ type Vector has {
     var y float
 }
 
-def main() {
+fn main() {
     var v Vector? = Just(Vector(2.0, 4.3))
     match v {
         Just(_) {

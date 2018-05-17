@@ -11,7 +11,7 @@ type Node is {
 }
 
 [global]
-def str(n Node) str {
+fn str(n Node) str {
     match n {
         Symbol(s, pos) {
             return "Symbol('" + s + "', " + pos + ")"
@@ -31,10 +31,10 @@ type Step is {
     Step(node Node, ps ParseState)
 }
 
-type Parser = def (ps ParseState) Step?
+type Parser = fn (ps ParseState) Step?
 
-def parse_token(k str) Parser {
-    return def (ps ParseState) Step? {
+fn parse_token(k str) Parser {
+    return fn (ps ParseState) Step? {
         var start = ps.i
         while start < len(ps.s) and isspace(ps.s[start]) {
             start += 1
@@ -55,7 +55,7 @@ def parse_token(k str) Parser {
     }
 }
 
-def parse_symbol(ps ParseState) Step? {
+fn parse_symbol(ps ParseState) Step? {
     var start = ps.i
     while start < len(ps.s) and isspace(ps.s[start]) {
         start += 1
@@ -72,8 +72,8 @@ def parse_symbol(ps ParseState) Step? {
     }
 }
 
-def __bitwise_or__(p1 Parser, p2 Parser) Parser {
-    return def (ps ParseState) Step? {
+fn __bitwise_or__(p1 Parser, p2 Parser) Parser {
+    return fn (ps ParseState) Step? {
         step := p1(ps)
         match step {
             Just(_) {
@@ -85,20 +85,20 @@ def __bitwise_or__(p1 Parser, p2 Parser) Parser {
     }
 }
             
-def __backslash__(p1 Parser, p2 Parser) Parser {
+fn __backslash__(p1 Parser, p2 Parser) Parser {
     /*
-    return def (ps ParseState) Step? = do {
+    return fn (ps ParseState) Step? = do {
         Step(node1, ps1) := p1(ps)
         Step(node2, ps2) := p2(ps1)
         return Step(Sequence([node1, node2]), ps2)
     }
     */
 
-    return def (ps ParseState) Step? {
-        return bind(p1(ps), def (x Step) Step? {
+    return fn (ps ParseState) Step? {
+        return bind(p1(ps), fn (x Step) Step? {
             match x {
                 Step(node1, ps1) {
-                    return bind(p2(ps1), def (y Step) Step? {
+                    return bind(p2(ps1), fn (y Step) Step? {
                         match y {
                             Step(node2, ps2) {
                                 return pure(Step(Sequence([node1, node2]), ps2)) as Step?
@@ -115,16 +115,16 @@ def __backslash__(p1 Parser, p2 Parser) Parser {
     }
 }
             
-def __backslash__(s str, p2 Parser) Parser {
+fn __backslash__(s str, p2 Parser) Parser {
     return parse_token(s) \ p2
 }
             
-def __backslash__(p1 Parser, s str) Parser {
+fn __backslash__(p1 Parser, s str) Parser {
     return p1 \ parse_token(s)
 }
             
-def parse_kleene_star(parser Parser) Parser {
-    return def (ps ParseState) Step? {
+fn parse_kleene_star(parser Parser) Parser {
+    return fn (ps ParseState) Step? {
         let nodes [Node]
         while ps.i < len(ps.s) {
             match parser(ps) {
@@ -142,11 +142,11 @@ def parse_kleene_star(parser Parser) Parser {
 }
 
 [global]
-def str[Args, R](f def (..Args) R) str {
+fn str[Args, R](f fn (..Args) R) str {
     return "<closure>"
 }
 
-def print_node(s Step) int {
+fn print_node(s Step) int {
     match s {
         Step(node, ps) {
             print(node)
@@ -156,18 +156,18 @@ def print_node(s Step) int {
     return 0
 }
 
-def main() {
-    program := "def f x = * x x"
+fn main() {
+    program := "fn f x = * x x"
     print(program)
     ps := ParseState(program, 0)
 
     parse_expr := (parse_token("*") | parse_token("+") | parse_token("-")) \ parse_symbol \ parse_symbol
     parse_parens := "(" \ parse_expr \ ")"
-    parser := "def" \ parse_symbol \ parse_kleene_star(parse_symbol) \ "=" \ parse_expr
+    parser := "fn" \ parse_symbol \ parse_kleene_star(parse_symbol) \ "=" \ parse_expr
 
     fmap(print_node, parser(ps))
 
-    ret := compose(def (s int) Maybe int {
+    ret := compose(fn (s int) Maybe int {
         return Just(s)
     }, print_node)
 
@@ -177,9 +177,9 @@ def main() {
     # [(x,y) | x <- [1,2,3] , y <- [1,2,3], x /= y]
     # would look like this desugared in Zion...
     print(
-        bind([1, 2, 3], def (x int) {
-            return bind([1, 2, 3], def (y int) {
-                return bind([x != y and y != x], def (r bool) {
+        bind([1, 2, 3], fn (x int) {
+            return bind([1, 2, 3], fn (y int) {
+                return bind([x != y and y != x], fn (r bool) {
                     if r {
                         return [(x, y)]
                     } else {

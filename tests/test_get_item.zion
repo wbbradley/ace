@@ -10,11 +10,11 @@ type HList has {
     var l ListNode
 }
 
-def __getitem__(l HList, index int) int {
+fn __getitem__(l HList, index int) int {
     return 42
 }
 
-def main() {
+fn main() {
     l := HList(Data(12, Done))
     l.l
 }

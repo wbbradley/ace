@@ -4,7 +4,7 @@ type Special has {
     var i int
 }
 
-def main() {
+fn main() {
     x := Special(1)
 
     # error: unable to resolve overloads for str\(.*Special\)

@@ -1,13 +1,13 @@
 module _
 # test: pass
 
-def get_adder(add int) def (_ int) int {
-    return def (x int) int {
+fn get_adder(add int) fn (_ int) int {
+    return fn (x int) int {
         return add + x
     }
 }
 
-def main() {
+fn main() {
     adder := get_adder(1)
     print("5 + 1 = " + adder(5))
 }

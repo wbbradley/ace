@@ -2,5 +2,5 @@ module _
 # test: pass
 type PhoneNumber = int
 
-def main() {
+fn main() {
 }

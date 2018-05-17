@@ -2,7 +2,7 @@ module _
 
 # test dereferencing into a tuple
 
-def main() {
+fn main() {
     x := (1,)
     # error: unable to read an integer
     y := x["blah"]

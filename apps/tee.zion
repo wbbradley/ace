@@ -3,7 +3,7 @@ module tee
 get sys
 get file
 
-def main()
+fn main()
 	if len(sys.args) == 2
 		newline := "\n"
 		f := open(sys.args[1], "w")

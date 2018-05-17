@@ -3,7 +3,7 @@ module logit
 get os
 get file
 
-def main()
+fn main()
 	print("note: ", NoLF)
 	note := input()
 	if note != null

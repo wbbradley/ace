@@ -6,7 +6,7 @@ type Vector has {
     let z float
 }
 
-def main() {
+fn main() {
     let v = Vector(1.2, 4.3, 4.3)
     # error: the left-hand side of this assignment is not a reference
     v.x = 3.4

@@ -6,7 +6,7 @@ type Either L R is {
     Right(r R)
 }
 
-def fib(e Either int float) int {
+fn fib(e Either int float) int {
     var value int = 10
     print(value)    
     value = 11
@@ -26,7 +26,7 @@ def fib(e Either int float) int {
 }
 
 
-def main() {
+fn main() {
     print("hey")
     print(1003)
     fib(Left(3))

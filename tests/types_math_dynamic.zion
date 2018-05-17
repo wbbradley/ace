@@ -1,6 +1,6 @@
 module dynamic_math @1.0
 
-def compute() int
+fn compute() int
     var x any
     x = 3
     return 3

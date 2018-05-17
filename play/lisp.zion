@@ -1,6 +1,6 @@
 module _
 
-def main()
+fn main()
 	for line in file.readlines()
 		print(join(",", split(line)))
 

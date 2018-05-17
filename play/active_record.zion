@@ -3,7 +3,7 @@ module _
 get os
 get sqlite3
 
-def main()
+fn main()
 	sqlite3.initialize()
 	print(OwningBuffer(posix.strdup(sqlite3.libversion())))
 	var db *?sqlite3.Sqlite3 = null
@@ -20,7 +20,7 @@ def main()
 	print("Succeeded in opening file.")
 	assert(db != null)
 
-	c := def (argc int, argv **char, column_name **char) int
+	c := fn (argc int, argv **char, column_name **char) int
 		print("found " + str(argc) + " row of data")
 		for i in range(argc)
 			posix.fputs(column_name[i], stdout)

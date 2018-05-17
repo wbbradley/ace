@@ -6,7 +6,7 @@ get sys
 # test: pass
 # expect: This text should appear
 
-def main() {
+fn main() {
     f := file.open("tests/test_read_file.zion", "r")
     while true {
         match readline(f) {

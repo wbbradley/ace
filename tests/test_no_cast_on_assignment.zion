@@ -6,7 +6,7 @@ type Point T is {
     Radial(radius T, theta T)
 }
 
-def main() {
+fn main() {
     var p = Cartesian(2.4, 1.0)
     match p {
         Cartesian(x, y) {

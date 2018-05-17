@@ -1,6 +1,6 @@
 module _
 
-def takes(x) {
+fn takes(x) {
     # error: 7:9.* irrefutable predicates are restricted to non-keyword symbols
     static_print(x)
     match x {
@@ -10,7 +10,7 @@ def takes(x) {
     }
 }
 
-def main() {
+fn main() {
     let y int? = Just(12)
     x := exists(y) ? "hey" : "joe"
     takes(x)

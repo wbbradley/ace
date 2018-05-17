@@ -1,8 +1,8 @@
 module climb @1.0
 
-def walls() void
+fn walls() void
     pass
 
-def boulders() void
+fn boulders() void
     var x int = 2
     print(x)

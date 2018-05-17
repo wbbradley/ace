@@ -11,5 +11,5 @@ this is a test
 /***/
 /*/* c */*/
 
-def main() {
+fn main() {
 }

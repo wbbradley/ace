@@ -1,6 +1,6 @@
 module _
 
-def foo() {
+fn foo() {
     # error: local type definitions are not yet impl
     type Double has {
         var x float

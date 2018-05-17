@@ -6,7 +6,7 @@ get file
 # expect: 9
 # expect: Cheating Quine Detected!
 
-def main() {
+fn main() {
     var l [str]
     append(l, "there")
     append(l, "is")

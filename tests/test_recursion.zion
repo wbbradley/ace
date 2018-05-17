@@ -2,13 +2,13 @@ module _
 # test: pass
 # expect: 144
 
-def fib(n) int {
+fn fib(n) int {
     if n < 2 {
         return 1
     }
     return fib(n - 1) + fib(n - 2)
 }
 
-def main() {
+fn main() {
     print(fib(11))
 }

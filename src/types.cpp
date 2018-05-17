@@ -637,7 +637,7 @@ namespace types {
 	}
 
 	std::ostream &type_function_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		os << K(def) << " ";
+		os << K(fn) << " ";
 #if 0
 		if (name != nullptr) {
 			os << C_ID << name->get_name() << C_RESET;

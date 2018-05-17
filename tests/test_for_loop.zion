@@ -3,7 +3,7 @@ module _
 # expect: 0
 # expect: 9
 
-def main() {
+fn main() {
     for x in range(10) {
         print(x)
     }

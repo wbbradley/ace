@@ -2,14 +2,14 @@ module _
 # test: pass
 # expect: 23
 
-def twice(f def (int) int) def (_ int) int {
-    return def (x int) int {
+fn twice(f fn (int) int) fn (_ int) int {
+    return fn (x int) int {
         return f(f(x))
     }
 }
 
-def main() {
-    add_11 := def (x int) int {
+fn main() {
+    add_11 := fn (x int) int {
         return x + 11
     }
 

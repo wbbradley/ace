@@ -4,7 +4,7 @@ module _
 
 get sys
 
-def main() {
+fn main() {
     match! readbytes(open("tests/test_readbytes.zion", "rt")) {
         Just(result) {
             match! decode(result, "utf8") {

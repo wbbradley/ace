@@ -87,7 +87,7 @@ K(any);
 K(as);
 K(break);
 K(continue);
-K(def);
+K(fn);
 K(elif);
 K(else);
 K(for);
