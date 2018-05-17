@@ -1,6 +1,6 @@
 module _
 # test: pass
 
-def main() int {
+fn main() int {
     return 4
 }

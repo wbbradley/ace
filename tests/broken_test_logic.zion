@@ -2,13 +2,13 @@ module logic @1.0
 get assert
 # test: pass
 
-def test_failure() void
+fn test_failure() void
     assert.equals(false, true, "false")
     assert.equals(0 and false, 2, "0 and false")
 
     print("DONE")
 
-def test() void
+fn test() void
     "This is like a docstring."
     assert.equals(true != true, false, "true != true")
     assert.equals(true and true, true, "true and true")

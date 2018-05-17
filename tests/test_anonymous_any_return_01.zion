@@ -2,8 +2,8 @@ module _
 # test: pass
 # expect: 4
 
-def main() {
-    y := def () any {
+fn main() {
+    y := fn () any {
         return 4
     }()
     print(y)

@@ -14,6 +14,6 @@ type Base X Y is {
 }
 
 # error: unable to bind type .*C int
-def do(b C int) {
+fn do(b C int) {
     print(b.x)
 }

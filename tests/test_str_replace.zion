@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: pass
 
-def main() {
+fn main() {
     assert(replace("funky", "y", "iness") == "funkiness")
     assert(replace("funky", "f", "j") == "junky")
     assert(replace("funky", "F", "j") == "funky")

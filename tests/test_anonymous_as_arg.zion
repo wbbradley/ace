@@ -2,7 +2,7 @@ module _
 # test: skip
 # expect: 6
 
-def sum(xs [int], f def (x int) int) int {
+fn sum(xs [int], f fn (x int) int) int {
     var sum = 0
     for x in xs {
         sum += f(x)
@@ -11,6 +11,6 @@ def sum(xs [int], f def (x int) int) int {
 }
 
 
-def main() {
-    print(sum([0, 1, 2], def (x) { return x + 1 }))
+fn main() {
+    print(sum([0, 1, 2], fn (x) { return x + 1 }))
 }

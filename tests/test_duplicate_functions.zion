@@ -1,10 +1,10 @@
 module _
 
-def foo(x int, y int) bool {
+fn foo(x int, y int) bool {
     return x > y
 }
 
-# error: duplicate function def
-def foo(x int, y int) bool {
+# error: duplicate function fn
+fn foo(x int, y int) bool {
     return x < y
 }

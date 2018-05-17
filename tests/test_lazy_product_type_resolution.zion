@@ -6,10 +6,10 @@ type B X has {
     var x X
 }
 
-def do(b B int) {
+fn do(b B int) {
     print(b.x)
 }
 
-def main() {
+fn main() {
     do(B(3))
 }

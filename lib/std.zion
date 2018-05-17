@@ -18,16 +18,16 @@ get functional
 
 link in "rt_typeid.o"
 
-link def mem_dump(x *void, y int) void
+link fn mem_dump(x *void, y int) void
 
 var stdin *posix.FILE = posix.fdopen(0, "r")!
 var stdout *posix.FILE = posix.fdopen(1, "a")!
 var stderr *posix.FILE = posix.fdopen(2, "a")!
 
 # initialization of modules is automatically generated.
-# link def __init_modules() void
+# link fn __init_modules() void
 
-def print[T where is_maybe T](x T) void {
+fn print[T where is_maybe T](x T) void {
     if x != null {
         print(x)
     } else {
@@ -35,26 +35,26 @@ def print[T where is_maybe T](x T) void {
     }
 }
 
-def print[T, Args, R where not (is_maybe T) and not (T === str) and not (T <: def (..Args) R)](x T) void {
+fn print[T, Args, R where not (is_maybe T) and not (T === str) and not (T <: fn (..Args) R)](x T) void {
     write(stdout, str(x))
     write(stdout, "\n")
 }
 
-def print[T where not(is_maybe T) and (T === str)](x T) void {
+fn print[T where not(is_maybe T) and (T === str)](x T) void {
     write(stdout, x)
     write(stdout, "\n")
 }
 
-def panic(x str) void {
+fn panic(x str) void {
     write(stderr, x)
     posix.exit(-1)
 }
 
-def breakpoint() void {
+fn breakpoint() void {
     posix.raise(posix.SIGTRAP)
 }
 
-def rand(max int) int {
+fn rand(max int) int {
     # Note that this is not a great way to do this
     var r int = 0
     posix.arc4random_buf(&r, sizeof(int))
@@ -71,15 +71,15 @@ type IntRange has {
 }
     
 
-def range(lim int) IntRange {
+fn range(lim int) IntRange {
     return IntRange(0, lim, 1)
 }
 
-def range(first int, lim int) IntRange {
+fn range(first int, lim int) IntRange {
     return IntRange(first, lim, 1)
 }
 
-def range(first int, lim int, step int) IntRange {
+fn range(first int, lim int, step int) IntRange {
     return IntRange(first, lim, step)
 }
 
@@ -88,30 +88,30 @@ type IntRangeIter has {
     var pos int
 }
 
-def __iter_begin__(range IntRange) IntRangeIter {
+fn __iter_begin__(range IntRange) IntRangeIter {
     return IntRangeIter(range, range.first)
 }
     
-def __iter_end__(range IntRange) IntRangeIter {
+fn __iter_end__(range IntRange) IntRangeIter {
     return IntRangeIter(range, range.lim)
 }
 
-def __iter_valid__(i IntRangeIter, end IntRangeIter) bool {
+fn __iter_valid__(i IntRangeIter, end IntRangeIter) bool {
     return i.pos < end.range.lim
 }
 
-def __iterate__(i IntRangeIter) {
+fn __iterate__(i IntRangeIter) {
     i.pos += i.range.step
 }
 
-def __iter_item__(i IntRangeIter) int {
+fn __iter_item__(i IntRangeIter) int {
     return i.pos
 }
 
-def __box__[Args, Ret](fn def _(..Args) Ret) def (..Args) Ret {
-    return __closure_t(fn) as! def (..Args) Ret
+fn __box__[Args, Ret](f fn _(..Args) Ret) fn (..Args) Ret {
+    return __closure_t(f) as! fn (..Args) Ret
 }
 
-def __eq__(x (), y ()) true {
+fn __eq__(x (), y ()) true {
     return true
 }

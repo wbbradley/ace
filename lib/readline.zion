@@ -9,7 +9,7 @@ type Readline is {
 }
 
 [global]
-def readline() Readline {
+fn readline() Readline {
     var buf *?char
     var linecap posix.int = 0
 
@@ -29,7 +29,7 @@ def readline() Readline {
     return Line(ret)
 }
 
-def readline(fp *posix.FILE) Readline {
+fn readline(fp *posix.FILE) Readline {
     var linecap posix.int = 0
     var line *?char = null
     linelen := posix.getline(&line, &linecap, fp)
@@ -49,7 +49,7 @@ def readline(fp *posix.FILE) Readline {
 }
 
 [global]
-def readline(f file.File) Readline {
+fn readline(f file.File) Readline {
     match f.state {
         Open(fp) {
             return readline(fp)
@@ -69,33 +69,33 @@ type Lines LineReader has {
 }
 
 [global]
-def readlines() Lines *posix.FILE {
+fn readlines() Lines *posix.FILE {
     return readlines(stdin)
 }
 
 [global]
-def readlines[LineReader](f LineReader) Lines LineReader {
+fn readlines[LineReader](f LineReader) Lines LineReader {
     return Lines(f, Empty)
 }
 
 [global]
-def __iter_begin__[LineReader](fl Lines LineReader) Lines LineReader {
+fn __iter_begin__[LineReader](fl Lines LineReader) Lines LineReader {
     __iterate__(fl)
     return fl
 }
 
 [global]
-def __iter_end__(fl Lines any) null {
+fn __iter_end__(fl Lines any) null {
     return null
 }
 
 [global]
-def __iter_valid__(fl Lines any, _ null) bool {
+fn __iter_valid__(fl Lines any, _ null) bool {
     return exists(fl.cur_line)
 }
 
 [global]
-def __iter_item__(fl Lines any) str {
+fn __iter_item__(fl Lines any) str {
     match fl.cur_line {
         Just(line) {
             return line
@@ -107,7 +107,7 @@ def __iter_item__(fl Lines any) str {
 }
 
 [global]
-def __iterate__(fl Lines any) {
+fn __iterate__(fl Lines any) {
     match readline(fl.file) {
         Line(line) {
             fl.cur_line = Just(line)

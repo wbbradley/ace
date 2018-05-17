@@ -68,7 +68,7 @@ void dump_unchecked_var_tags(std::ostream &os, const unchecked_var_t::map &unche
 	for (auto &var_pair : unchecked_vars) {
 		for (auto unchecked_var : var_pair.second) {
 			auto loc = unchecked_var->get_location();
-			os << var_pair.first << "\t" << loc.filename_repr() << "\t" << loc.line << ";/^\\(var\\|let\\|def\\) " << var_pair.first << "/;\"\tkind:f" << std::endl;
+			os << var_pair.first << "\t" << loc.filename_repr() << "\t" << loc.line << ";/^\\(var\\|let\\|fn\\) " << var_pair.first << "/;\"\tkind:f" << std::endl;
 		}
 	}
 }

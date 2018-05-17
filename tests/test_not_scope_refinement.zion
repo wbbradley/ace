@@ -6,7 +6,7 @@ type funky_t struct {
     var t int
 }
 
-def main() {
+fn main() {
     let p *?funky_t = posix.calloc(sizeof(funky_t), 1) as! *?funky_t
     static_print(p)
     if not p {

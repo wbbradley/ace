@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: [1, 2, 3, 4]
 
-def main() {
+fn main() {
     let x = [1, 2, 3]
     append(x, 4)
     print(x)

@@ -3,7 +3,7 @@ get file
 # test: pass
 # expect: opened tests/test_if_finalizer.zion as fp
 
-def main() {
+fn main() {
     filename := "tests/test_if_finalizer.zion"
     f := file.open(filename, "r")
     match f.state {

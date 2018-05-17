@@ -14,15 +14,15 @@ type Rectangle has {
 }
 
 
-def alpha(x float, min float, max float) float {
+fn alpha(x float, min float, max float) float {
     return (x - min) / (max - min)
 }
 
-def lerp(alpha float, min float, max float) float {
+fn lerp(alpha float, min float, max float) float {
     return alpha * (max - min) + min
 }
 
-def main() {
+fn main() {
     var width = 240
     var height = 240
     if len(sys.args) == 3 {

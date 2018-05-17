@@ -4,7 +4,7 @@ module _
 
 type X is { F(f int) Float(f float) }
 
-def main() {
+fn main() {
     let x X = F(3)
 
     static_print(x)

@@ -1,7 +1,7 @@
 module _
 # test: pass
 
-def main() {
+fn main() {
     var i = 1
     var sum = 0
     while i < 1000 {

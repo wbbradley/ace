@@ -5,7 +5,7 @@ module _
 # expect: deleted hello
 # expect: could not find hello
 
-def main() {
+fn main() {
     var m [str: int?]
 
     m["hello"] = Just(12)

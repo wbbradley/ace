@@ -1,7 +1,7 @@
 module _
 # test: pass
 
-def main() int {
+fn main() int {
     var x = 0
     while x < 10 {
         print(x)

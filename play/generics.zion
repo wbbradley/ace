@@ -5,10 +5,10 @@ type Node{X} has
 
 type List{T} is Node{T}
 
-def foo(a Node{any A})
+fn foo(a Node{any A})
 	var x any A
 	x = a.x
 	print(x)
 
-def main()
+fn main()
 	foo(Node(1))

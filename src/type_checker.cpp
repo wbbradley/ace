@@ -935,6 +935,16 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 	debug_above(7, log("resolving callsite expression of %s with expected type %s",
 				str().c_str(), expected_type != nullptr ? expected_type->str().c_str() : "<null>"));
 
+	if (auto ref_expr = dyncast<const ast::reference_expr_t>(function_expr)) {
+		/* if we are calling a function by name, we should be able to work out the shape of the types for the parameters
+		 * first, if we can resolve the function up front. here's what we know (without more digging):
+		 * 1. arity
+		 * 2. name
+		 * */
+		// auto name = ref_expr->token.text;
+		// scope->get_unchecked_vars_ordered
+	}
+
 	/* get the value of calling a function */
 	bound_type_t::refs param_types;
 	bound_var_t::refs arguments;

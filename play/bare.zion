@@ -1,6 +1,6 @@
 module _
 
-def main()
+fn main()
 	var s_copy any = "hello world"
 	static_print(s_copy)
 	var cur any = __iter_begin__(s_copy)

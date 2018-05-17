@@ -9,7 +9,7 @@ type Expr T is {
     Value(x T)
 }
 
-def eval(expr Expr any T) any T {
+fn eval(expr Expr any T) any T {
     match expr {
         Plus(lhs, rhs) {
             return eval(lhs) + eval(rhs)
@@ -23,7 +23,7 @@ def eval(expr Expr any T) any T {
     }
 }
 
-def main() {
+fn main() {
     print(eval(Plus(Times(Value(5), Value(2)), Value(3))))
     print(eval(Plus(Times(Value(4.0), Value(2.0)), Value(3.0))))
 }

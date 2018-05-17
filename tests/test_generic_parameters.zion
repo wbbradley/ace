@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: 28231
 
-def nth[T](l (Node T)?, i int) T? {
+fn nth[T](l (Node T)?, i int) T? {
     match l {
         Empty {
             return Empty
@@ -22,7 +22,7 @@ type Node T has {
     var next (Node T)?
 }
 
-def main() {
+fn main() {
     x := Node(3, Just(Node(28231, Empty)))
     match nth(Just(x), 1) {
         Just(y) { print(y) }

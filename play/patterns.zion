@@ -21,7 +21,7 @@ type Pattern is {
 	Nothing
 }
 
-def pattern_from_type(t DataType) Pattern {
+fn pattern_from_type(t DataType) Pattern {
 	match t {
 		DataType(typename, ctors) {
 			let ctor_patterns [CtorPatternValue]
@@ -39,7 +39,7 @@ def pattern_from_type(t DataType) Pattern {
 			
 type Pair T S is Pair(lhs T, rhs S)
 
-def set_union(lhs Pattern, rhs Pattern) Pattern {
+fn set_union(lhs Pattern, rhs Pattern) Pattern {
 	# ∪ Operator for Patterns
 	match Pair(lhs, rhs) {
 		Pair(_, Nothing) { return lhs }
@@ -71,7 +71,7 @@ def set_union(lhs Pattern, rhs Pattern) Pattern {
 	return lhs
 }
 
-def set_intersect(lhs Pattern, rhs Pattern) Pattern
+fn set_intersect(lhs Pattern, rhs Pattern) Pattern
 	# ∩ Operator for Patterns
 	match Pair(lhs, rhs)
 		Pair(Nothing, _)
@@ -113,13 +113,13 @@ def set_intersect(lhs Pattern, rhs Pattern) Pattern
 			assert(false)
 			return Nothing
 
-def set_intersect(lhs [CtorPatternValue], rhs [CtorPatternValue]) Pattern
+fn set_intersect(lhs [CtorPatternValue], rhs [CtorPatternValue]) Pattern
 	var intersect = Nothing
 	for a in lhs
 		intersect = set_union(foldl(set_cpv_intersect, CtorPattern(a), rhs), intersect)
 	return intersect
 
-def set_cpv_intersect(lhs Pattern, rhs CtorPatternValue) Pattern
+fn set_cpv_intersect(lhs Pattern, rhs CtorPatternValue) Pattern
 	match lhs
 		CtorPattern(cpv)
 			return set_intersect(cpv, rhs)
@@ -127,7 +127,7 @@ def set_cpv_intersect(lhs Pattern, rhs CtorPatternValue) Pattern
 			assert(false)
 			return Nothing
 
-def set_intersect(lhs CtorPatternValue, rhs CtorPatternValue) Pattern
+fn set_intersect(lhs CtorPatternValue, rhs CtorPatternValue) Pattern
 	assert(lhs.typename == rhs.typename)
 
 	if lhs.name != rhs.name
@@ -150,7 +150,7 @@ def set_intersect(lhs CtorPatternValue, rhs CtorPatternValue) Pattern
 	return CtorPattern(CtorPatternValue(lhs.typename, lhs.name, reduced_args))
 
 
-def reduce_all_datatype(lhs_typename str, rhs Pattern, ctor_patterns [CtorPatternValue]) Pattern
+fn reduce_all_datatype(lhs_typename str, rhs Pattern, ctor_patterns [CtorPatternValue]) Pattern
 	for ctor_pattern in ctor_patterns
 		if ctor_pattern.typename != lhs_typename
 			panic("Invalid typed ctor pattern found. Expected " + lhs_typename
@@ -163,19 +163,19 @@ def reduce_all_datatype(lhs_typename str, rhs Pattern, ctor_patterns [CtorPatter
 		return CtorPatterns(ctor_patterns)
 
 [global]
-def str(ctor Ctor) str
+fn str(ctor Ctor) str
 	if len(ctor.arg_types) == 0
 		return ctor.name
 	return ctor.name + "(" + join(", ", ctor.arg_types) + ")"
 
 [global]
-def str(t DataType) str
+fn str(t DataType) str
 	match t
 		DataType(typename, ctors)
 			return typename
 
 [global]
-def str(pattern Pattern) str
+fn str(pattern Pattern) str
 	match pattern
 		CtorPattern(ctor_pattern)
 			return "CtorPattern(" + ctor_pattern + ")"
@@ -190,15 +190,15 @@ def str(pattern Pattern) str
 			return "FAIL"
 	
 [global]
-def str(ctor_pattern CtorPatternValue) str
+fn str(ctor_pattern CtorPatternValue) str
 	args := ctor_pattern.args
 	if len(args) == 0
 		return ctor_pattern.name
 	return ctor_pattern.name + "(" + args + ")"
 	
-type Sender = def (pattern Pattern) void
+type Sender = fn (pattern Pattern) void
 
-def set_difference(lhs CtorPatternValue, rhs CtorPatternValue, send Sender)
+fn set_difference(lhs CtorPatternValue, rhs CtorPatternValue, send Sender)
 	assert(lhs.typename == rhs.typename)
 	assert(len(rhs.args) == len(lhs.args))
 
@@ -208,7 +208,7 @@ def set_difference(lhs CtorPatternValue, rhs CtorPatternValue, send Sender)
 		send(Nothing)
 	else
 		for i in range(len(lhs.args))
-			send_ctor_pattern := def (arg Pattern)
+			send_ctor_pattern := fn (arg Pattern)
 				match arg
 					Nothing
 						send(Nothing)
@@ -220,7 +220,7 @@ def set_difference(lhs CtorPatternValue, rhs CtorPatternValue, send Sender)
 			set_difference(lhs.args[i], rhs.args[i], send_ctor_pattern)
 					
 	
-def set_difference(lhs Pattern, rhs Pattern, send Sender) void
+fn set_difference(lhs Pattern, rhs Pattern, send Sender) void
 	# Set difference on patterns
 	match Pair(lhs, rhs)
 		Pair(_, Nothing)
@@ -254,7 +254,7 @@ def set_difference(lhs Pattern, rhs Pattern, send Sender) void
 		Pair(CtorPattern(lhs), CtorPatterns(rhs))
 			# Make a state machine to compose the difference per sub-pattern
 			new_a := MutableValue(Nothing)
-			new_a_send := def (p Pattern)
+			new_a_send := fn (p Pattern)
 				new_a.value = set_union(new_a.value, p)
 
 			# Simplify a bit
@@ -287,16 +287,16 @@ def set_difference(lhs Pattern, rhs Pattern, send Sender) void
 		else
 			panic("Unmatched Pair(" + lhs + ", " + rhs + ")")
 
-def set_difference(lhs Pattern, rhs Pattern) Pattern
+fn set_difference(lhs Pattern, rhs Pattern) Pattern
 	difference := MutableValue(Nothing)
 
-	send := def (p Pattern)
+	send := fn (p Pattern)
 		difference.value = set_union(p, difference.value)
 
 	set_difference(lhs, rhs, send)
 	return difference.value
 
-def main()
+fn main()
 	let empty_types [DataType]
 	Bool := DataType("Bool", [Ctor("True", empty_types), Ctor("False", empty_types)])
 	Brightness := DataType("Brightness", [

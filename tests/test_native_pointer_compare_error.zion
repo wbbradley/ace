@@ -1,6 +1,6 @@
 module _
 
-def main() {
+fn main() {
     var x *?int8 = null
     assert(not(null == x))
     x = 100 as! *int8

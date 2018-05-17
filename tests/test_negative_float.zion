@@ -5,7 +5,7 @@ module _
 
 type J is { J(j int) }
 
-def main() {
+fn main() {
     print(-1.5)
     print(+4.5)
 

@@ -6,9 +6,9 @@ type B X is {
     C
 }
 
-def do(b B int) {
+fn do(b B int) {
 }
 
-def main() {
+fn main() {
     do(Bx(3))
 }

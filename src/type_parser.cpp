@@ -9,7 +9,7 @@ bool token_is_illegal_in_type(const token_t &token) {
 	}
 	return token.tk == tk_identifier && (
 			token.text == K(to) ||
-			token.text == K(def) ||
+			token.text == K(fn) ||
 			token.text == K(where) ||
 			token.text == K(any) ||
 			token.text == K(link) ||
@@ -242,7 +242,7 @@ namespace types {
             types::type_t::ref default_return_type)
     {
         location_t location = ps.token.location;
-        chomp_ident(K(def));
+        chomp_ident(K(fn));
         if (ps.token.tk == tk_identifier) {
             name = make_code_id(ps.token);
             ps.advance();
@@ -357,7 +357,7 @@ namespace types {
 			ps.advance();
 			auto body = parse_and_type(ps, generics);
 			return type_lambda(make_code_id(param_token), body);
-		} else if (ps.token.is_ident(K(def))) {
+		} else if (ps.token.is_ident(K(fn))) {
 			identifier::ref name;
 			auto fn_type = parse_function_type(ps, generics, name, nullptr);
 			if (name != nullptr && name->get_name() != "_") {

@@ -6,7 +6,7 @@ type Athlete is {
     Baker
 }
 
-def recognize(athlete Athlete) {
+fn recognize(athlete Athlete) {
     match athlete {
         Golfer(first, last) {
             if first == "Arnold" {
@@ -24,7 +24,7 @@ def recognize(athlete Athlete) {
     }
 }
 
-def main() {
+fn main() {
     recognize(Golfer("Arnold", "Palmer"))
     recognize(Baker)
 }

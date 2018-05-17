@@ -5,6 +5,6 @@ type Special has {
     var nothing int
 }
 
-def main() {
+fn main() {
     Special(2)
 }

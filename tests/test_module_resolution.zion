@@ -5,10 +5,10 @@ type Foo has {
 }
 
 # error: unable to resolve overloads for str\(.*Foo\)
-def str(f Foo) str {
+fn str(f Foo) str {
     return str(f.x)
 }
 
-def main() {
+fn main() {
     print(Foo(3))
 }

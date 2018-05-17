@@ -4,7 +4,7 @@ module _
 
 # test dereferencing into a tuple
 
-def main() {
+fn main() {
     x := ((2,("hello",)),)
     y := x[0][1][0]
     posix.puts(y)

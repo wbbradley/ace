@@ -8,7 +8,7 @@ type Expr is {
     Value(x int)
 }
 
-def eval(expr Expr) int {
+fn eval(expr Expr) int {
     match expr {
         Plus(lhs, rhs) {
             return eval(lhs) + eval(rhs)
@@ -22,7 +22,7 @@ def eval(expr Expr) int {
     }
 }
 
-def main() {
+fn main() {
     let e Expr = Value(3)
     print(eval(Plus(Times(Value(4), Value(2)), Value(3))))
 }

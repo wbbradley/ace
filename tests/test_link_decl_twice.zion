@@ -1,4 +1,4 @@
 module _
-link def putch(ch int) int
-# error: 4:1.* symbol putch is already bound
-link def putch(ch int) int
+link fn putch(ch int) int
+# error: 4:.* symbol putch is already bound
+link fn putch(ch int) int

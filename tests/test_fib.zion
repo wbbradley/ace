@@ -1,7 +1,7 @@
 module _
 # test: pass
 
-def fib(n int) int {
+fn fib(n int) int {
     if n <= 2 {
         return 1
     }
@@ -9,6 +9,6 @@ def fib(n int) int {
     return fib(n-1) + fib(n-2)
 }
 
-def main() {
+fn main() {
     print(fib(10))
 }

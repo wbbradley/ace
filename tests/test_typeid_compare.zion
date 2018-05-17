@@ -6,11 +6,11 @@ type Boo is { Hiss Cow }
 
 # Note that this function returns an int, because we don't yet
 # support creating bools
-def test(a any, b any) bool {
+fn test(a any, b any) bool {
     return typeid(a) != typeid(b)
 }
 
-def main() {
+fn main() {
     i := Cow
     j := Hiss
     if test(i, j) {

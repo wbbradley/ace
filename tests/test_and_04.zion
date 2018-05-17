@@ -1,6 +1,6 @@
 module _
 
-def main() {
+fn main() {
     # error: condition is not a boolean value
     1.0 and 0
 }

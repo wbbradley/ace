@@ -31,7 +31,7 @@ type Expr is
 	Divide or
 	Literal
 
-def compute(expr Expr) int
+fn compute(expr Expr) int
 	match expr
 		is Literal
 			return expr.value
@@ -47,7 +47,7 @@ def compute(expr Expr) int
 	assert(false)
 	return 0
 
-def main()
+fn main()
 	expr := Divide(Plus(Literal(5), Literal(5)), Literal(2))
 
 	# Should print 5

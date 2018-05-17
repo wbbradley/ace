@@ -6,10 +6,10 @@ type C is {
     E(c C)
 }
 
-def identity(expr C) {
+fn identity(expr C) {
 }
 
-def main() {
+fn main() {
     identity(E(D))
 }
 

@@ -55,13 +55,13 @@ Zion looks a bit like Python, minus the colons.
 ```
 module hello_world
 
-def main()
+fn main()
 	print("Hello, world!")
 ```
 
 Comments use `#`.
 ```
-def favorite_number(x int) bool
+fn favorite_number(x int) bool
 	# This is a comment
 	return x == 12
 ```

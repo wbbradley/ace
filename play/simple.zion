@@ -9,12 +9,12 @@ tag Empty
 
 type Maybe{T} is Empty or JustInt{T}
 
-def do(t Maybe{any Q})
+fn do(t Maybe{any Q})
 	match t
 		is JustInt{any Q}
 			pass
 		is Empty
 			pass
 
-def main()
+fn main()
 	do(JustInt(3, "green"))

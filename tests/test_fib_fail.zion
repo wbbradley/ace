@@ -1,6 +1,6 @@
 module fib @1.0
 
-def get(n int) int {
+fn get(n int) int {
     if n <= 2 {
         return 1
     }

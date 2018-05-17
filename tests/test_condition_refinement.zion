@@ -9,11 +9,11 @@ module _
 # expect: (false or 100) : int
 
 
-def gimme_bool() bool {
+fn gimme_bool() bool {
     return true
 }
 
-def main() {
+fn main() {
     static_print(7)
     static_print("hello")
     static_print(gimme_bool())

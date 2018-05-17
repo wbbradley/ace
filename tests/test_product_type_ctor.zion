@@ -12,7 +12,7 @@ type Matrix has {
     var row_2 Vector
 }
 
-def main() {
+fn main() {
     position := Vector(4.0, 3.2)
     scale := Vector(1.0, -1.0)
 

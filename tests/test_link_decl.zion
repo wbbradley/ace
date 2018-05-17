@@ -1,10 +1,10 @@
 module _
-link def putchar(ch int) int
+link fn putchar(ch int) int
 
 # test: pass
 # expect: a
 
-def main() {
+fn main() {
     # emit the ASCII letter 'a'
     putchar(97)
 }

@@ -3,33 +3,33 @@ module _
 # This assumes that we have compiled the sqlite3 amalgamation file
 link in "sqlite3.o"
 
-link def libversion() *char to sqlite3_libversion
-link def sourceid() *char to sqlite3_sourceid
-link def libversion_number() posix.int to sqlite3_libversion_number
-link def threadsafe() posix.int to sqlite3_threadsafe
-link def close(db *Sqlite3) posix.int to sqlite3_close
-link def close_v2(db *Sqlite3) posix.int to sqlite3_close_v2
-link def sqlite3_exec(
+link fn libversion() *char to sqlite3_libversion
+link fn sourceid() *char to sqlite3_sourceid
+link fn libversion_number() posix.int to sqlite3_libversion_number
+link fn threadsafe() posix.int to sqlite3_threadsafe
+link fn close(db *Sqlite3) posix.int to sqlite3_close
+link fn close_v2(db *Sqlite3) posix.int to sqlite3_close_v2
+link fn sqlite3_exec(
     db *Sqlite3,        /* An open database */
     sql *char,          /* SQL to be evaluated */
     callback callback_t?, /* callback_t function */
     arg *?void,         /* 1st argument to callback */
     errmsg **?char      /* Error msg written here */
 ) posix.int
-link def initialize() posix.int to sqlite3_initialize
-link def shutdown() posix.int to sqlite3_shutdown
-link def os_init() posix.int to sqlite3_os_init
-link def os_end() posix.int to sqlite3_os_end
-link def last_insert_rowid(db *Sqlite3) int64 to sqlite3_last_insert_rowid
-link def set_last_insert_rowid(db *Sqlite3, id int64) void to sqlite3_set_last_insert_rowid
-link def changes(db *Sqlite3) posix.int to sqlite3_changes
-link def total_changes(db *Sqlite3) posix.int to sqlite3_total_changes
-link def interrupt(db *Sqlite3) void to sqlite3_interrupt
-link def complete(sql *char) posix.int to sqlite3_complete
-link def complete16(sql *uint16) posix.int to sqlite3_complete16
-link def busy_handler(db *Sqlite3, callback def _(_ *void, _  posix.int) posix.int, _ *void) posix.int to sqlite3_busy_handler
-link def busy_timeout(db *Sqlite3, ms posix.int) posix.int to sqlite3_busy_timeout
-link def get_table(
+link fn initialize() posix.int to sqlite3_initialize
+link fn shutdown() posix.int to sqlite3_shutdown
+link fn os_init() posix.int to sqlite3_os_init
+link fn os_end() posix.int to sqlite3_os_end
+link fn last_insert_rowid(db *Sqlite3) int64 to sqlite3_last_insert_rowid
+link fn set_last_insert_rowid(db *Sqlite3, id int64) void to sqlite3_set_last_insert_rowid
+link fn changes(db *Sqlite3) posix.int to sqlite3_changes
+link fn total_changes(db *Sqlite3) posix.int to sqlite3_total_changes
+link fn interrupt(db *Sqlite3) void to sqlite3_interrupt
+link fn complete(sql *char) posix.int to sqlite3_complete
+link fn complete16(sql *uint16) posix.int to sqlite3_complete16
+link fn busy_handler(db *Sqlite3, callback fn _(_ *void, _  posix.int) posix.int, _ *void) posix.int to sqlite3_busy_handler
+link fn busy_timeout(db *Sqlite3, ms posix.int) posix.int to sqlite3_busy_timeout
+link fn get_table(
     db *Sqlite3,          /* An open database */
     zSql *char,           /* SQL to be evaluated */
     pazResult *?*?*?char, /* Results of the query */
@@ -37,41 +37,41 @@ link def get_table(
     pnColumn *posix.int,  /* Number of result columns written here */
     pzErrmsg **?char      /* Error msg written here */
 ) posix.int to sqlite3_get_table
-link def free_table(result char **) void to sqlite3_free_table
-link def open(
+link fn free_table(result char **) void to sqlite3_free_table
+link fn open(
     filename *char,   /* Database filename (UTF-8) */
     ppDb **?Sqlite3    /* OUT: SQLite db handle */
 ) posix.int to sqlite3_open
-link def open16(
+link fn open16(
     filename *uint16, /* Database filename (UTF-16) */
     ppDb **?Sqlite3  /* OUT: SQLite db handle */
 ) posix.int to sqlite3_open16
-link def open_v2(
+link fn open_v2(
     filename   *char,       /* Database filename (UTF-8) */
     ppDb     **?Sqlite3,    /* OUT: SQLite db handle */
     flags       posix.int,  /* Flags */
     zVfs      *?char        /* Name of VFS module to use */
 ) posix.int to sqlite3_open_v2
 
-link def uri_parameter(zFilename *char, zParam *char) *char to sqlite3_uri_parameter
-link def uri_boolean(zFile *char, zParam *char, bDefault posix.int) posix.int to sqlite3_uri_boolean
-link def uri_int64(_ *char, _ *char, _ int64) int64 to sqlite3_uri_int64
+link fn uri_parameter(zFilename *char, zParam *char) *char to sqlite3_uri_parameter
+link fn uri_boolean(zFile *char, zParam *char, bDefault posix.int) posix.int to sqlite3_uri_boolean
+link fn uri_int64(_ *char, _ *char, _ int64) int64 to sqlite3_uri_int64
 
-link def errcode(db *Sqlite3) posix.int  to sqlite3_errcode
-link def extended_errcode(db *Sqlite3) posix.int to sqlite3_extended_errcode
-link def errmsg(db *Sqlite3) *char to sqlite3_errmsg
-link def errmsg16(db *Sqlite3) *void to sqlite3_errmsg16
-link def errstr(_ posix.int) *char to sqlite3_errstr
+link fn errcode(db *Sqlite3) posix.int  to sqlite3_errcode
+link fn extended_errcode(db *Sqlite3) posix.int to sqlite3_extended_errcode
+link fn errmsg(db *Sqlite3) *char to sqlite3_errmsg
+link fn errmsg16(db *Sqlite3) *void to sqlite3_errmsg16
+link fn errstr(_ posix.int) *char to sqlite3_errstr
 
 type Sqlite3 struct
-type callback_t = def _(_ *void, _ int, _ *?*?char, _ *?*?char) posix.int
-type Callback = def (argc int, argv *?*?char, column_name *?*?char) int
+type callback_t = fn _(_ *void, _ int, _ *?*?char, _ *?*?char) posix.int
+type Callback = fn (argc int, argv *?*?char, column_name *?*?char) int
 
-def zion_exec_callback(context *void, a int, b *?*?char, c *?*?char) posix.int
+fn zion_exec_callback(context *void, a int, b *?*?char, c *?*?char) posix.int
     callback := context as Callback
     return callback(a, b, c)
 
-def exec(db *Sqlite3, sql str, callback Callback?) posix.int
+fn exec(db *Sqlite3, sql str, callback Callback?) posix.int
     var errmsg *char = ""
     return sqlite3_exec(
         db,

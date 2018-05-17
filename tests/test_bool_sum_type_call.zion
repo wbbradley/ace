@@ -2,10 +2,10 @@ module _ @1.0
 # test: pass
 
 
-def do_recursive_boolean(b bool) {
+fn do_recursive_boolean(b bool) {
     do_recursive_boolean(b)
 }
     
-def main() {
+fn main() {
     do_recursive_boolean(true)
 }

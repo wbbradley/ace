@@ -1,9 +1,9 @@
 module _
 
-def takes(f true) {
+fn takes(f true) {
 }
 
-def main() {
+fn main() {
     # error: unable to resolve overloads for takes\(false\)
     takes(false)
 }

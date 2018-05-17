@@ -5,7 +5,7 @@ type Maybe T is {
     Empty
 }
 
-def exists(m Maybe any) bool {
+fn exists(m Maybe any) bool {
     match m {
         Empty {
             return false
@@ -16,7 +16,7 @@ def exists(m Maybe any) bool {
     }
 }
 
-def __eq__[U](lhs Maybe U, rhs Maybe U) bool {
+fn __eq__[U](lhs Maybe U, rhs Maybe U) bool {
     match rhs {
         Just(rhs_value) {
             match lhs {
@@ -41,7 +41,7 @@ def __eq__[U](lhs Maybe U, rhs Maybe U) bool {
     }
 }
 
-def __eq__[U, V where U === V](lhs U, rhs Maybe V) bool {
+fn __eq__[U, V where U === V](lhs U, rhs Maybe V) bool {
     match rhs {
         Just(rhs_value) {
             return lhs == rhs_value
@@ -52,7 +52,7 @@ def __eq__[U, V where U === V](lhs U, rhs Maybe V) bool {
     }
 }
 
-def __ineq__[U, V where U === V](lhs U, rhs Maybe V) bool {
+fn __ineq__[U, V where U === V](lhs U, rhs Maybe V) bool {
     match rhs {
         Just(rhs_value) {
             return lhs != rhs_value
@@ -63,7 +63,7 @@ def __ineq__[U, V where U === V](lhs U, rhs Maybe V) bool {
     }
 }
 
-def __eq__[U, V where U === V](lhs Maybe U, rhs V) bool {
+fn __eq__[U, V where U === V](lhs Maybe U, rhs V) bool {
     match lhs {
         Just(lhs_value) {
             return lhs_value == rhs
@@ -74,7 +74,7 @@ def __eq__[U, V where U === V](lhs Maybe U, rhs V) bool {
     }
 }
 
-def __ineq__[U, V where U === V](lhs Maybe U, rhs V) bool {
+fn __ineq__[U, V where U === V](lhs Maybe U, rhs V) bool {
     match lhs {
         Just(lhs_value) {
             return lhs_value != rhs
@@ -85,7 +85,7 @@ def __ineq__[U, V where U === V](lhs Maybe U, rhs V) bool {
     }
 }
 
-def join[A](a Maybe (Maybe A)) Maybe A {
+fn join[A](a Maybe (Maybe A)) Maybe A {
     match a {
         Just(a) {
             return a
@@ -96,15 +96,15 @@ def join[A](a Maybe (Maybe A)) Maybe A {
     }
 }
 
-def fail[A](reason str) A? {
+fn fail[A](reason str) A? {
     return Empty
 }
 
-def pure[A](v A) A? {
+fn pure[A](v A) A? {
     return Just(v)
 }
 
-def bind[A, B](a Maybe A, f def (a A) Maybe B) Maybe B {
+fn bind[A, B](a Maybe A, f fn (a A) Maybe B) Maybe B {
     match a {
         Empty {
             return Empty
@@ -115,7 +115,7 @@ def bind[A, B](a Maybe A, f def (a A) Maybe B) Maybe B {
     }
 }
     
-def fmap[A, B where not (B === void)](f def (a A) B, a Maybe A) Maybe B {
+fn fmap[A, B where not (B === void)](f fn (a A) B, a Maybe A) Maybe B {
     match a {
         Empty {
             return Empty
@@ -126,7 +126,7 @@ def fmap[A, B where not (B === void)](f def (a A) B, a Maybe A) Maybe B {
     }
 }
 
-def fmap[A](f def (a A) void, a Maybe A) void {
+fn fmap[A](f fn (a A) void, a Maybe A) void {
     match a {
         Empty {
             return

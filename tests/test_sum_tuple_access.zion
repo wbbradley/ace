@@ -12,5 +12,5 @@ type Matrix4 has {
     var row4 Vector4
 }
 
-def main() {
+fn main() {
 }

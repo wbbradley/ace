@@ -7,7 +7,7 @@ type UniqueTree{Data} is
     Leaf{data Data} or
     Node{data Data, left Tree, right Tree}
 
-def set_insert(named coll any Collection, value) bool
+fn set_insert(named coll any Collection, value) bool
     # first check whether this value is in the tree already
     if exists(coll, value)
         return false
@@ -16,7 +16,7 @@ def set_insert(named coll any Collection, value) bool
         coll = copy_with_insertion(coll, value)
         return true
 
-def exists(tree UniqueTree{any Data}, value any Data} bool
+fn exists(tree UniqueTree{any Data}, value any Data} bool
     match tree
         case Empty
             return false
@@ -33,7 +33,7 @@ def exists(tree UniqueTree{any Data}, value any Data} bool
 
     return false
 
-def copy_with_insertion(tree UniqueTree{any Data}, value any Data) 
+fn copy_with_insertion(tree UniqueTree{any Data}, value any Data) 
     match tree
         case Empty
             # this node is empty, we can just replace it with a leaf of our

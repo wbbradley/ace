@@ -8,7 +8,7 @@ type Animal is {
 }
 
 [global]
-def str(a Animal) str {
+fn str(a Animal) str {
     match a {
         Dog {
             return "Dog"
@@ -30,11 +30,11 @@ type CatDog is {
     Dog
 }
 
-def add_pig(animals [Animal]) {
+fn add_pig(animals [Animal]) {
     append(animals, Pig)
 }
 
-def main() {
+fn main() {
     var cats_and_dogs [CatDog]
 
     # error: reference to an overloaded variable Cat was found

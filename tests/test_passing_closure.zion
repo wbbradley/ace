@@ -2,17 +2,17 @@ module _
 # test: pass
 # expect: pass with 5
 
-def run_function(f def () any) {
+fn run_function(f fn () any) {
     f()
 }
 
-def get_int() int {
+fn get_int() int {
     return 5
 }
 
-def main() {
+fn main() {
     x := get_int() 
-    foo := def () {
+    foo := fn () {
         print("pass with " + x)
     }
     run_function(foo)

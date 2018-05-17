@@ -10,7 +10,7 @@ type Box X is {
     Box X
 }
 
-def main() {
+fn main() {
     x := Box(1)
     print(x[0])
 }

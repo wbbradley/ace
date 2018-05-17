@@ -27,14 +27,14 @@ tag ExternalReview
 tag Complete
 
 
-def reassign(q QuestionTask, new_owner str) QuestionTask
+fn reassign(q QuestionTask, new_owner str) QuestionTask
     n := QuestionTask(
             q.id, q.question_id, q.answer_text, q.original_owner,
             Active(new_owner))
     print("Reassigning " + str(q) + " to " + str(n))
     return n
 
-def main()
+fn main()
     # Action is: new question task
     q := QuestionTask(1, 1, "", "Boss", Active("Boss"))
 
@@ -50,11 +50,11 @@ def main()
 
     # close(q)
 
-def str(q QuestionTask) str
+fn str(q QuestionTask) str
     return ("QuestionTask(" + q.id + ", " + q.question_id + ", " + "\"" + q.answer_text + "\""
             + ", " + q.original_owner + ", " + str(q.state) + ")")
 
-def str(s QuestionState) str
+fn str(s QuestionState) str
     match s
         is Active
             return "Active(" + s.owner + ")"

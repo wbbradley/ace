@@ -7,7 +7,7 @@ type Point is {
     Absolute(value float)
 }
 
-def main() {
+fn main() {
     point := Relative(1.0)
     match point {
         Relative(_) {

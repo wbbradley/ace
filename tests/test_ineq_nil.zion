@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: pass
 
-def main() {
+fn main() {
     var x [int]
     append(x, 3)
     if len(x) != 0 {

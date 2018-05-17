@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: pass
 
-def main() {
+fn main() {
     var x *?int = null
     if x == null {
         print("pass")

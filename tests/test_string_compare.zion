@@ -2,7 +2,7 @@ module _
 # test: pass
 # expect: pass
 
-def main() {
+fn main() {
     assert("x" < "y")
     assert("xx" < "y")
     assert("y" <= "y")

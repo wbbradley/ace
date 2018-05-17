@@ -8,7 +8,7 @@ type Box X Y is {
     Crate(x X, y Y)
 }
 
-def main() {
+fn main() {
     match BigBox("yay this works") {
         BigBox(x) {
             y := Crate(1, x)

@@ -11,7 +11,7 @@ type Id has
 	name str
 
 [global]
-def str(t Type) str
+fn str(t Type) str
 	match t
 		is Sum
 			return "Sum(" + join(", ", t.types) + ")"
@@ -27,7 +27,7 @@ var atom_count uint16 = 0
 var SUM_INST uint16 = -2
 var APPLY_INST uint16 = -3
 
-def atomize(s str) uint16
+fn atomize(s str) uint16
 	value := atoms[s]
 	if value != null
 		return value
@@ -39,16 +39,16 @@ def atomize(s str) uint16
 		atom_count += 1
 		return ret
 
-def deatomize(i int) str
+fn deatomize(i int) str
 	return atom_index[i]
 
-def atomize(t Type) uint16
+fn atomize(t Type) uint16
 	ret := atomize(str(t))
 	return ret
 	
-def encode(t Type) [uint16]
+fn encode(t Type) [uint16]
 	let encoding [uint16]
-	call := def (encoding [uint16], t Type)
+	call := fn (encoding [uint16], t Type)
 		append(encoding, atomize(t))
 		
 	match t
@@ -73,17 +73,17 @@ type Step has
 	let t Type
 	let ds DecodeState
 
-type Decoder = def (ds DecodeState) Step?
+type Decoder = fn (ds DecodeState) Step?
 
-def __bitwise_or__(p1 Decoder, p2 Decoder) Decoder
-	return def (ds DecodeState) Step?
+fn __bitwise_or__(p1 Decoder, p2 Decoder) Decoder
+	return fn (ds DecodeState) Step?
 		step := p1(ds)
 		if step != null
 			return step
 		else
 			return p2(ds)
 			
-def decode_call(ds DecodeState) Step?
+fn decode_call(ds DecodeState) Step?
 	if ds.pos + 1 >= len(ds.content)
 		return null
 	if ds.content[ds.pos] != APPLY_INST and ds.content[ds.pos] != SUM_INST
@@ -92,7 +92,7 @@ def decode_call(ds DecodeState) Step?
 			DecodeState(ds.content, ds.pos + 1))
 	return null
 		
-def decode_apply(ds DecodeState) Step?
+fn decode_apply(ds DecodeState) Step?
 	if ds.pos + 2 >= len(ds.content)
 		return null
 	if ds.content[ds.pos] == APPLY_INST
@@ -103,7 +103,7 @@ def decode_apply(ds DecodeState) Step?
 				return Step(Apply(step1.t, step2.t), step2.ds)
 	return null
 
-def decode_sum(ds DecodeState) Step?
+fn decode_sum(ds DecodeState) Step?
 	if ds.pos + 3 > len(ds.content)
 		return null
 	if ds.content[ds.pos] == SUM_INST
@@ -126,24 +126,24 @@ def decode_sum(ds DecodeState) Step?
 	return null
 
 
-def decode(ds DecodeState) Step?
+fn decode(ds DecodeState) Step?
 	return (decode_apply | decode_sum | decode_call)(ds)
 
 # Matchers return the position of the next thing to match when succesfull
-type Matcher = def (pattern *uint16, pos int) int
+type Matcher = fn (pattern *uint16, pos int) int
 type MatcherRef has
 	var proxy Matcher?
 	
-def make_opaque_matcher_ref() (Matcher, MatcherRef)
+fn make_opaque_matcher_ref() (Matcher, MatcherRef)
 	m := MatcherRef(null)
-	matcher := def (pattern *uint16, pos int) int
+	matcher := fn (pattern *uint16, pos int) int
 		proxy := m.proxy
 		assert(proxy != null)
 		return proxy(&pattern[0], pos)
 	return (matcher, m)
 		
-def match_id(name str, atom uint16) Matcher
-	return def (pattern *uint16, pos int) int
+fn match_id(name str, atom uint16) Matcher
+	return fn (pattern *uint16, pos int) int
 		print("Matching for id " + name + "(atom: " + atom + ")")
 		print("pos = " + pos)
 		if pattern[pos] == atom
@@ -151,8 +151,8 @@ def match_id(name str, atom uint16) Matcher
 		else
 			return 0
 
-def match_apply(name str, lhs Matcher, rhs Matcher) Matcher
-	return def (pattern *uint16, pos int) int
+fn match_apply(name str, lhs Matcher, rhs Matcher) Matcher
+	return fn (pattern *uint16, pos int) int
 		print("Matching for apply " + name)
 		if pattern[0] != APPLY_INST
 			return 0
@@ -163,8 +163,8 @@ def match_apply(name str, lhs Matcher, rhs Matcher) Matcher
 		else
 			return 0
 
-def match_sum(name str, sum_matchers [Matcher]) Matcher
-	return def (pattern *uint16, pos int) int
+fn match_sum(name str, sum_matchers [Matcher]) Matcher
+	return fn (pattern *uint16, pos int) int
 		print("Matching for sum " + name)
 		var count int
 		var pattern_pos = pos
@@ -199,7 +199,7 @@ def match_sum(name str, sum_matchers [Matcher]) Matcher
 		return 0
 
 
-def make_matcher(t Type, visited_matchers {uint16: Matcher}) Matcher
+fn make_matcher(t Type, visited_matchers {uint16: Matcher}) Matcher
 	atom := atomize(t)
 	if atom in visited_matchers
 		return visited_matchers[atom]!
@@ -226,7 +226,7 @@ def make_matcher(t Type, visited_matchers {uint16: Matcher}) Matcher
 			pair[1].proxy = matcher
 			return matcher
 
-def main()
+fn main()
 	atomize("")
 	Foo := Id("Foo")
 	Bar := Id("Bar")

@@ -3,7 +3,7 @@ module _
 # expect: pass
 # reject: fail
 
-def main() {
+fn main() {
     if "hey" == "hey" {
         print("pass")
     } else {

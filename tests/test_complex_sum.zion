@@ -27,7 +27,7 @@ type C T is {
     Cx(t T)
 }
 
-def handle_c(c C any T) any T {
+fn handle_c(c C any T) any T {
     match c {
         Ax(x) {
             return x
@@ -41,7 +41,7 @@ def handle_c(c C any T) any T {
     }
 }
 
-def main() {
+fn main() {
     a_int := Ax(4, 5, 2.1)
     a_int2 := Ax(4)
     b_int := Bx(4, 5, 2.1)

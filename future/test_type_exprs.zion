@@ -17,7 +17,7 @@ type Pair{First, Second} has
 
 type IntFirstPair{Second} is Pair{int, Second}
 
-def make_pair(x any X, y any Y) Pair{any X, any Y}
+fn make_pair(x any X, y any Y) Pair{any X, any Y}
 	return Pair(x, y)
 
 type FloatPair has
@@ -45,13 +45,13 @@ type Graph{Data} has
 type IntList matches List{int}
 type AliasType{Param} matches RealType{Param, int}
 
-# But, IntList3 is unique and not interchangeable because of the "def"
+# But, IntList3 is unique and not interchangeable because of the "fn"
 type IntList3 is List{int}
 
 # And generics can be forwarded to other definitions
 type GenericList{Data} is List{Data}
 
-def str(list List{any Data}) str
+fn str(list List{any Data}) str
 	node := list
 	result := "["
 	sep := ""
@@ -67,9 +67,9 @@ def str(list List{any Data}) str
 
 	return result
 
-# type Filter{Value} matches def(Value) bool
+# type Filter{Value} matches fn(Value) bool
 
-def stream_filter(stream Stream{any Value}, filter Filter{any Value}) Stream{any Value}
+fn stream_filter(stream Stream{any Value}, filter Filter{any Value}) Stream{any Value}
 	var val any Value
 
 	while read(stream, val)
@@ -82,5 +82,5 @@ type List{DataType} has
 	var next List{DataType}
 
 
-def main()
+fn main()
 	return

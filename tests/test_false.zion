@@ -1,10 +1,10 @@
 module _
 # test: pass
 
-def foo() {
+fn foo() {
     x := false
 }
 
-def main() {
+fn main() {
     foo()
 }

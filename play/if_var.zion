@@ -7,7 +7,7 @@ type BinaryTree{T} has
 	var value T
 	
 
-def main()
+fn main()
 	var x int? = 34
 	if y := x
 		print(y)

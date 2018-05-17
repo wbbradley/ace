@@ -1,7 +1,7 @@
 module _
 # test: pass
 
-def main() {
+fn main() {
     x := 3
     if x == 3 {
     }

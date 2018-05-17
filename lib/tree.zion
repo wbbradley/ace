@@ -5,7 +5,7 @@ type Tree{T} has
     var value T
     var right Tree{T}?
 
-def insert(tree Tree{any T}?, value any T) Tree{any T}
+fn insert(tree Tree{any T}?, value any T) Tree{any T}
     if tree
         if value > tree.value
             inserted_right := insert(tree.right, value)
@@ -28,7 +28,7 @@ def insert(tree Tree{any T}?, value any T) Tree{any T}
         return Tree(null, value, null)
 
 [module std]
-def str(tree Tree{any T}?) str
+fn str(tree Tree{any T}?) str
     s := "["
     sep := ""
     comma := ", "

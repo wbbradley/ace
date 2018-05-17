@@ -24,7 +24,7 @@ type QuestionTaskMessages has {
     var from str
 }
 
-def reassign(q Task, new_owner str) Task {
+fn reassign(q Task, new_owner str) Task {
     n := Task(
             q.id, q.work_item_id, q.answer_text, q.original_owner,
             Active(new_owner))
@@ -32,7 +32,7 @@ def reassign(q Task, new_owner str) Task {
     return n
 }
 
-def main() {
+fn main() {
     # Action is: new question task
     var q = Task(1, 1, "", "Boss", Active("Boss"))
 
@@ -42,12 +42,12 @@ def main() {
     print(str(q))
 }
 
-def str(q Task) str {
+fn str(q Task) str {
     return ("Task(" + q.id + ", " + q.work_item_id + ", " + "\"" + q.answer_text + "\"" +
         ", " + q.original_owner + ", " + str(q.state) + ")")
 }
 
-def str(s TaskState) str {
+fn str(s TaskState) str {
     match s {
         Active(owner) {
             return "Active(" + owner + ")"

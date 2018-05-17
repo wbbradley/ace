@@ -1,3 +1,3 @@
 module _
-# error: 3:40.* found a free type variable
-link def some_external_function(ch any ZELDA) int
+# error: 3:.* found a free type variable
+link fn some_external_function(ch any ZELDA) int

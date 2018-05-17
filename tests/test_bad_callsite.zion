@@ -1,6 +1,6 @@
 module _
 
-def bad_call() {
+fn bad_call() {
     # error: 5:8: error: this expression is not callable
     (3 + 4)(2)
 }

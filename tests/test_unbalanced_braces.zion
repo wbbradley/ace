@@ -1,6 +1,6 @@
 module _
 
 # error: detected unbalanced brackets
-def main() {)
+fn main() {)
     print("hey")
 }

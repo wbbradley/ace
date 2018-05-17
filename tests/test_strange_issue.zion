@@ -7,10 +7,10 @@ type D is {
     BB
 }
 
-def foo(a D) {
+fn foo(a D) {
 }
 
-def main() {
+fn main() {
     AA(3)
     match BB {
         AA(x) {

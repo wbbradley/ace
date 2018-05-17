@@ -1,7 +1,7 @@
 module _
 get tree
 
-def main()
+fn main()
 	t := tree.insert(null, 5)
 	t = tree.insert(t, 6)
 	t = tree.insert(t, 4)

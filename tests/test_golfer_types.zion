@@ -6,6 +6,6 @@ type Golfer T T has {
     var last T
 }
 
-def main() {
+fn main() {
     Golfer("Arnold", "Palmer")
 }

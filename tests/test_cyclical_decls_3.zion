@@ -1,14 +1,14 @@
 module _
 # test: pass
 
-def main() {
+fn main() {
     func1(1)
 }
 
-def func1(x int) {
+fn func1(x int) {
     func2("hey")
 }
 
-def func2(y str) {
+fn func2(y str) {
     func1(4)
 }

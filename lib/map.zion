@@ -18,13 +18,13 @@ type Map KeyType ValueType has {
 }
 
 [global]
-def __init__[K, V]() Map K V {
+fn __init__[K, V]() Map K V {
     let storage [KeyValue K V]
     return Map(storage)
 }
 
 [global]
-def get[K, V](m Map K V, key K, default V) V {
+fn get[K, V](m Map K V, key K, default V) V {
     # HACKHACK: O(n) BAD BAD
     for kv in m.storage {
         if kv.key == key {
@@ -35,7 +35,7 @@ def get[K, V](m Map K V, key K, default V) V {
 }
 
 [global]
-def __getitem__[K, V](m Map K V, key K) V? {
+fn __getitem__[K, V](m Map K V, key K) V? {
     # HACKHACK: O(n) BAD BAD
     for kv in m.storage {
         if kv.key == key {
@@ -46,7 +46,7 @@ def __getitem__[K, V](m Map K V, key K) V? {
 }
 
 [global]
-def __setitem__[K, V](m Map K V, key K, val V) {
+fn __setitem__[K, V](m Map K V, key K, val V) {
     # HACKHACK: O(n) BAD BAD
     for kv in m.storage {
         if kv.key == key {
@@ -58,7 +58,7 @@ def __setitem__[K, V](m Map K V, key K, val V) {
 }
 
 [global]
-def __in__[K, V](key K, m Map K V) bool {
+fn __in__[K, V](key K, m Map K V) bool {
     for kv in m.storage {
         if kv.key == key {
             return true
@@ -68,7 +68,7 @@ def __in__[K, V](key K, m Map K V) bool {
 }
 
 [global]
-def __not_in__[K, V](key K, m Map K V) bool {
+fn __not_in__[K, V](key K, m Map K V) bool {
     for kv in m.storage {
         if kv.key == key {
             return false
@@ -78,7 +78,7 @@ def __not_in__[K, V](key K, m Map K V) bool {
 }
 
 [global]
-def del[K, V](m Map K V, key K) bool {
+fn del[K, V](m Map K V, key K) bool {
     # HACKHACK: O(n) BAD BAD - also vector.ManagedVector coupling BAD BAD
     var i = 0
     let storage = m.storage

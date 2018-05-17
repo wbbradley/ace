@@ -2,8 +2,8 @@ module _
 # test: pass
 # expect: pass
 
-def main() {
-    def foo() {
+fn main() {
+    fn foo() {
         print("pass")
     }
     foo()

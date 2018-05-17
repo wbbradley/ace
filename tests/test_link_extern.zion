@@ -8,10 +8,10 @@ module _
 # link in "build-Darwin/tests/test_link_extern_entry.o"
 link in "/tmp/test_link_extern_entry.o"
 
-link def make_entry(name *char, number int) *?EntryImpl
-link def free_entry(entry *EntryImpl) void
-link def get_name(entry *EntryImpl) *?char
-link def get_number(entry *EntryImpl) int
+link fn make_entry(name *char, number int) *?EntryImpl
+link fn free_entry(entry *EntryImpl) void
+link fn get_name(entry *EntryImpl) *?char
+link fn get_number(entry *EntryImpl) int
 
 type EntryImpl struct
 type Entry has {
@@ -19,11 +19,11 @@ type Entry has {
 }
 
 [global]
-def __finalize__(entry Entry) {
+fn __finalize__(entry Entry) {
     free_entry(entry.entry)
 }
 
-def get_name(entry Entry, default str) str {
+fn get_name(entry Entry, default str) str {
     let name = get_name(entry.entry)
     if name != null {
         name_copy := posix.strdup(name)
@@ -34,7 +34,7 @@ def get_name(entry Entry, default str) str {
     }
 }
 
-def main() {
+fn main() {
     var entry Entry? = Just(Entry(make_entry("Will", 123)!))
     match entry {
         Just(entry) {

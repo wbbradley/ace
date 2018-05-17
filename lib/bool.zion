@@ -1,6 +1,6 @@
 global
 
-def str(x bool) str {
+fn str(x bool) str {
     if x {
         return "true"
     } else {

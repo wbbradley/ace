@@ -10,7 +10,7 @@ type Baz X Y is {
     Bar(y Y)
 }
 
-def main() {
+fn main() {
     y := Bar(Y(1))
     match y {
         Bar(Y(y)) {

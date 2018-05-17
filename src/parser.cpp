@@ -115,7 +115,7 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 	auto link_token = ps.token;
 	ps.advance();
 
-	if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(def))) {
+	if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(fn))) {
 		auto link_function_statement = create<ast::link_function_statement_t>(link_token);
 		auto function_decl = function_decl_t::parse(ps, false /*within_expression*/, type_void());
 		if (ps.token.is_ident(K(to))) {
@@ -281,7 +281,7 @@ ptr<expression_t> base_expr::parse(parse_state_t &ps) {
 		return typeid_expr_t::parse(ps);
 	} else if (ps.token.is_ident(K(sizeof))) {
 		return sizeof_expr_t::parse(ps);
-	} else if (ps.token.is_ident(K(def))) {
+	} else if (ps.token.is_ident(K(fn))) {
 		return function_defn_t::parse(ps, true /*within_expression*/);
 	} else if (ps.token.tk == tk_identifier) {
 		// NB: this is last to ensure "special" builtins are in play above
@@ -1161,7 +1161,7 @@ ptr<function_decl_t> function_decl_t::parse(
 		}
 	}
 
-	expect_ident(K(def));
+	expect_ident(K(fn));
 	location_t location = ps.token.location;
 
 	identifier::ref function_name;
@@ -1528,7 +1528,7 @@ ptr<module_t> module_t::parse(parse_state_t &ps) {
 				auto var = var_decl_t::parse(ps, is_let);
 				module->var_decls.push_back(var);
 			}
-		} else if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(def))) {
+		} else if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(fn))) {
 			/* function definitions */
 			auto function = function_defn_t::parse(ps, false /*within_expression*/);
 			if (function->token.text == "main") {

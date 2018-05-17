@@ -1,14 +1,14 @@
 module _ @1.0
 # test: pass
 
-def inner_function(x int) void {
-    def foo() void {
+fn inner_function(x int) void {
+    fn foo() void {
         return
     }
 }
 
-def inner_function() void {
+fn inner_function() void {
 }
 
-def main() {
+fn main() {
 }
