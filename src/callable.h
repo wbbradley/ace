@@ -20,6 +20,11 @@ struct can_reference_overloads_t {
 			const ptr<const ast::item_t> &obj,
 			const bound_type_t::refs &args,
 			types::type_t::ref return_type) const = 0;
+	virtual types::type_function_t::ref resolve_arg_types_from_overrides(
+			scope_t::ref scope,
+		   	location_t location,
+		   	types::type_t::refs args,
+		   	types::type_t::ref return_type) const = 0;
 };
 
 bound_var_t::ref make_call_value(
@@ -70,7 +75,7 @@ bound_var_t::ref call_module_function(
 		location_t callsite_location,
         const bound_var_t::refs var_args,
 		types::type_t::ref return_type=nullptr);
-bound_var_t::ref check_func_vs_callsite(
+bound_var_t::ref check_bound_func_vs_callsite(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,
@@ -78,6 +83,20 @@ bound_var_t::ref check_func_vs_callsite(
 		types::type_t::ref args,
 		types::type_t::ref return_type,
 		int &coercions);
+types::type_function_t::ref check_func_type_vs_callsite(
+		scope_t::ref scope,
+		location_t location,
+		var_t::ref fn,
+		types::type_t::ref args,
+		types::type_t::ref return_type);
+void check_func_vs_callsite(
+		scope_t::ref scope,
+		location_t location,
+		var_t::ref fn,
+		types::type_t::ref args,
+		types::type_t::ref return_type,
+		int &coercions,
+		std::function<void (scope_t::ref, var_t::ref, unification_t const &)> &callback);
 bound_var_t::ref instantiate_function_with_args_and_return_type(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,

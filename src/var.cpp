@@ -15,7 +15,6 @@ std::string str(const var_t::refs &vars) {
 }
 
 unification_t var_t::accepts_callsite(
-		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 	   	types::type_t::ref args,
 		types::type_t::ref return_type) const

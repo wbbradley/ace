@@ -78,8 +78,8 @@ fn check_node_existence(node *var_t, should_exist bool) void {
 
     if should_exist {
         assert(p!.next != null)
-        assert(node.prev != 3735928559 as! *var_t)
-        assert(node.next != 3735928559 as! *var_t)
+        assert(node.prev != 0xDDDDDDDD as! *var_t)
+        assert(node.next != 0xDDDDDDDD as! *var_t)
         assert(node.prev != null)
     }
 

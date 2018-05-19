@@ -168,7 +168,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 	return nullptr;
 }
 
-bound_var_t::ref check_func_vs_callsite(
+bound_var_t::ref check_bound_func_vs_callsite(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		location_t location,
@@ -177,60 +177,129 @@ bound_var_t::ref check_func_vs_callsite(
 		types::type_t::ref return_type,
 		int &coercions)
 {
+	bound_var_t::ref callable;
+	std::function<void (scope_t::ref, var_t::ref, unification_t const &)> extractor =
+		[&callable, &builder] (
+				scope_t::ref scope,
+				var_t::ref fn,
+				unification_t const &unification)
+		{
+			if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
+				/* this function has already been bound */
+				debug_above(3, log(log_info, "override resolution has chosen %s", bound_fn->str().c_str()));
+				callable = bound_fn;
+			} else if (auto unchecked_fn = dyncast<const unchecked_var_t>(fn)) {
+				/* we're instantiating a template or a forward decl */
+				/* we know that fn and args are compatible */
+				/* create the new callee signature type for building the generic
+				 * substitution scope */
+				debug_above(5, log(log_info, "rebinding %s with %s",
+							fn->str().c_str(),
+							::str(unification.bindings).c_str()));
+
+				types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(
+						fn
+						->get_type(scope)
+						->rebind(unification.bindings, true /*bottom_out_free_vars*/)
+						->eval(scope));
+
+				assert(fn_type != nullptr);
+
+				if (auto bound_fn = scope->get_bound_function(fn->get_name(), fn_type->repr())) {
+					/* function fn_type exists with name and signature we want, just use that */
+					callable = bound_fn;
+				}
+
+				try {
+					callable = instantiate_unchecked_fn(builder, scope, unchecked_fn, fn_type, &unification);
+				} catch (unbound_type_error &error) {
+					/* instantiation of this function would rely on non-existent callsite types */
+					return;
+				}
+			} else {
+				panic("unhandled var type");
+				return;
+			}
+		};
+
+	check_func_vs_callsite(scope, location, fn, args, return_type, coercions, extractor);
+	return callable;
+}
+
+types::type_function_t::ref check_func_type_vs_callsite(
+		scope_t::ref scope,
+		location_t location,
+		var_t::ref fn,
+		types::type_t::ref args,
+		types::type_t::ref return_type)
+{
+	types::type_function_t::ref function_type;
+	std::function<void (scope_t::ref, var_t::ref, unification_t const &)> extractor =
+		[&function_type] (
+				scope_t::ref scope,
+				var_t::ref fn,
+				unification_t const &unification)
+		{
+			if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
+				/* this function has already been bound */
+				debug_above(3, log(log_info, "override resolution has chosen %s", bound_fn->str().c_str()));
+				function_type = dyncast<const types::type_function_t>(bound_fn->type->get_type());
+				assert(function_type != nullptr);
+			} else if (auto unchecked_fn = dyncast<const unchecked_var_t>(fn)) {
+				/* we're instantiating a template or a forward decl */
+				/* we know that fn and args are compatible */
+				/* create the new callee signature type for building the generic
+				 * substitution scope */
+				debug_above(5, log(log_info, "rebinding %s with %s",
+							fn->str().c_str(),
+							::str(unification.bindings).c_str()));
+
+				function_type = dyncast<const types::type_function_t>(
+						fn
+						->get_type(scope)
+						->rebind(unification.bindings, false /*bottom_out_free_vars*/)
+						->eval(scope));
+				assert(function_type != nullptr);
+			} else {
+				panic("unhandled var type");
+			}
+		};
+
+	int coercions = 0;
+	check_func_vs_callsite(scope, location, fn, args, return_type, coercions, extractor);
+	return function_type;
+}
+
+void check_func_vs_callsite(
+		scope_t::ref scope,
+		location_t location,
+		var_t::ref fn,
+		types::type_t::ref args,
+		types::type_t::ref return_type,
+		int &coercions,
+		std::function<void (scope_t::ref, var_t::ref, unification_t const &)> &callback)
+{
 	if (return_type == nullptr) {
 		return_type = type_variable(location);
 	}
 
-	unification_t unification = fn->accepts_callsite(builder, scope, args, return_type);
+	unification_t unification = fn->accepts_callsite(scope, args, return_type);
 	coercions = unification.coercions;
 	if (unification.result) {
-		if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
-			/* this function has already been bound */
-			debug_above(3, log(log_info, "override resolution has chosen %s",
-						bound_fn->str().c_str()));
-			return bound_fn;
-		} else if (auto unchecked_fn = dyncast<const unchecked_var_t>(fn)) {
-			/* we're instantiating a template or a forward decl */
-			/* we know that fn and args are compatible */
-			/* create the new callee signature type for building the generic
-			 * substitution scope */
-			debug_above(5, log(log_info, "rebinding %s with %s",
-						fn->str().c_str(),
-						::str(unification.bindings).c_str()));
-
-			types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(
-					fn
-					->get_type(scope)
-					->rebind(unification.bindings, true /*bottom_out_free_vars*/)
-					->eval(scope));
-
-			assert(fn_type != nullptr);
-
-            if (auto bound_fn = scope->get_bound_function(fn->get_name(), fn_type->repr())) {
-                /* function fn_type exists with name and signature we want, just use that */
-                return bound_fn;
-            }
-			try {
-				return instantiate_unchecked_fn(builder, scope, unchecked_fn, fn_type, &unification);
-			} catch (unbound_type_error &error) {
-				/* instantiation of this function would rely on non-existent callsite types */
-				return nullptr;
-			}
-		} else {
-			panic("unhandled var type");
-			return nullptr;
-		}
+		debug_above(4, log_location(log_info, fn->get_location(), "fn %s matches args %s and return type %s",
+					fn->str().c_str(),
+				   	args->str().c_str(),
+					return_type->str().c_str()));
+		callback(scope, fn, unification);
+	} else {
+		debug_above(4, log(log_info, "fn %s at %s does not match %s because %s",
+					fn->str().c_str(),
+					location.str().c_str(), 
+					args->str().c_str(),
+					unification.str().c_str()));
+		/* it's possible to exit without finding that the callable matches the
+		 * callsite. this is not an error (unless the status indicates so.) */
 	}
-
-	debug_above(4, log(log_info, "fn %s at %s does not match %s because %s",
-				fn->str().c_str(),
-				location.str().c_str(), 
-				args->str().c_str(),
-				unification.str().c_str()));
-
-	/* it's possible to exit without finding that the callable matches the
-	 * callsite. this is not an error (unless the status indicates so.) */
-	return nullptr;
 }
 
 bound_var_t::ref maybe_get_callable(
@@ -288,7 +357,7 @@ bound_var_t::ref get_callable_from_local_var(
 	auto resolved_bound_var = bound_var->resolve_bound_value(builder, scope);
 
 	int coercions = 0;
-	bound_var_t::ref callable = check_func_vs_callsite(builder,
+	bound_var_t::ref callable = check_bound_func_vs_callsite(builder,
 			scope, callsite_location, resolved_bound_var, args, return_type, coercions);
 	if (callable != nullptr) {
 		return callable;
@@ -337,6 +406,7 @@ bound_var_t::ref get_callable(
 			args->emit(ss, {}, 0 /*parent_precedence*/);
 			ss << " not found";
 		} else {
+			dbg();
 			ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
 			if (return_type != nullptr) {
 				ss << " " << return_type->str();

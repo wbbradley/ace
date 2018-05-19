@@ -507,6 +507,7 @@ types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_args_t::ref type_args(types::type_t::refs args, const identifier::refs &names={});
 types::type_function_t::ref type_function(location_t location, types::type_t::ref type_constraints, types::type_t::ref args, types::type_t::ref return_type);
 types::type_function_closure_t::ref type_function_closure(types::type_t::ref function);
+types::type_t::ref get_arg_from_function(types::type_function_t::ref function, int i);
 types::type_t::ref type_and(types::type_t::refs terms);
 types::type_t::ref type_eq(types::type_t::ref lhs, types::type_t::ref rhs, location_t location);
 types::type_t::ref type_data(token_t name, types::type_variable_t::refs type_vars, std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs);

@@ -88,6 +88,41 @@ bound_var_t::ref get_bound_variable_from_scope(
 	return nullptr;
 }
 
+types::type_t::ref get_variable_type_from_scope(
+		location_t location,
+		std::string scope_name,
+		std::string symbol,
+		const bound_var_t::map &bound_vars,
+		scope_t::ref parent_scope,
+		scope_t::ref stopping_scope)
+{
+	auto iter = bound_vars.find(symbol);
+	if (iter != bound_vars.end()) {
+		const bound_var_t::overloads &overloads = iter->second;
+		if (overloads.size() == 0) {
+			panic("we have an empty list of overloads");
+			return nullptr;
+		} else if (overloads.size() == 1) {
+			return overloads.begin()->second->type->get_type();
+		} else {
+			assert(overloads.size() > 1);
+			throw user_error(location,
+				   	"a reference to an overloaded variable " c_id("%s") " was found. overloads at this immediate location are:\n%s",
+					symbol.c_str(),
+					::str(overloads).c_str());
+			return nullptr;
+		}
+	} else if (parent_scope != nullptr && parent_scope != stopping_scope) {
+		return parent_scope->get_variable_type(location, symbol, stopping_scope);
+	}
+
+	debug_above(6, log(log_info,
+			   	"no bound variable found when looking for " c_id("%s") " in " c_id("%s"), 
+				symbol.c_str(),
+				scope_name.c_str()));
+	return nullptr;
+}
+
 
 template <typename BASE>
 struct scope_impl_t : public virtual BASE {
@@ -276,6 +311,22 @@ struct scope_impl_t : public virtual BASE {
 		return nullptr;
 	}
 
+	virtual types::type_t::ref get_variable_type(std::string name) {
+		assert(false);
+		return nullptr;
+	}
+
+	virtual types::type_t::ref get_variable_type(
+			location_t location,
+			std::string symbol,
+			scope_t::ref stopping_scope)
+	{
+		return ::get_variable_type_from_scope(location, this->get_name(),
+				symbol, bound_vars,
+			   	this->get_parent_scope() != stopping_scope ? this->get_parent_scope() : nullptr,
+				stopping_scope);
+	}
+
 	virtual bound_var_t::ref get_bound_variable(
 			llvm::IRBuilder<> &builder,
 			location_t location,
@@ -444,7 +495,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 	}
 
 	std::function<bool (const capture_t &)> capture_finder(std::string symbol) {
-		return [symbol](const capture_t &capture) -> bool {
+		return [symbol] (const capture_t &capture) -> bool {
 			return capture.name == symbol;
 		};
 	}
@@ -499,8 +550,8 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 			std::string symbol,
 			scope_t::ref stopping_scope)
 	{
-		// TODO: look in running scope for this symbol, if it exists, capture it and return a load from the value in the
-		// closure.
+		/* look in running scope for this symbol, if it exists, capture it and return a load from
+		 * the value in the closure. */
 		module_scope_t::ref module_scope = dyncast<module_scope_t>(get_parent_scope());
 		assert(module_scope != nullptr);
 
@@ -519,8 +570,55 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		}
 	}
 
-	// TODO: handle get_bound_function or whatev
-	//
+	types::type_t::ref capture_type_hunt(
+			location_t location,
+			std::string symbol,
+			scope_t::ref stopping_scope)
+	{
+		/* look in running scope for this symbol, if it exists, capture it and return a load from
+		 * the value in the closure. */
+		module_scope_t::ref module_scope = dyncast<module_scope_t>(get_parent_scope());
+		assert(module_scope != nullptr);
+
+		auto type = running_scope->get_variable_type(location, symbol, module_scope/*stopping_scope*/);
+		if (type != nullptr) {
+			if (auto ref_type = dyncast<const types::type_ref_t>(type)) {
+				return ref_type->element_type;
+			} else {
+				return type;
+			}
+		} else {
+			return nullptr;
+		}
+	}
+
+	types::type_t::ref get_variable_type(
+			location_t location,
+			std::string symbol,
+			scope_t::ref stopping_scope) override
+	{
+		assert(stopping_scope != shared_from_this());
+		debug_above(7, log("trying to find symbol %s's type in closure", symbol.c_str()));
+		auto capture_iter = std::find_if(captures.begin(), captures.end(), capture_finder(symbol));
+		if (capture_iter == captures.end()) {
+			/* we haven't captured this, or it just doesn't make sense, keep looking */
+			auto type = capture_type_hunt(location, symbol, stopping_scope);
+			if (type != nullptr) {
+				return type;
+			} else {
+				/* fallback to module scope */
+				auto parent_scope = get_parent_scope();
+				if (parent_scope != stopping_scope && parent_scope != nullptr) {
+					return parent_scope->get_variable_type(location, symbol, stopping_scope);
+				} else {
+					return nullptr;
+				}
+			}
+		} else {
+			return capture_iter->value_in_closure->type->get_type();
+		}
+	}
+
 	bound_var_t::ref get_bound_variable(
 			llvm::IRBuilder<> &builder,
 			location_t location,

@@ -171,6 +171,7 @@ namespace ast {
 		static const syntax_kind_t SK = sk_expression;
 		virtual ~expression_t() {}
 		static ptr<expression_t> parse(parse_state_t &ps);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const = 0;
 		virtual void resolve_statement(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -229,6 +230,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_typeid_expr;
 		typeid_expr_t(ptr<expression_t> expr);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -246,6 +248,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_sizeof;
 		sizeof_expr_t(types::type_t::ref type);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -262,6 +265,7 @@ namespace ast {
 		typedef ptr<const callsite_expr_t> ref;
 
 		static const syntax_kind_t SK = sk_callsite_expr;
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -335,6 +339,7 @@ namespace ast {
 				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		ptr<expression_t> lhs;
 		types::type_t::ref type_cast;
 		bool force_cast = false;
@@ -621,43 +626,49 @@ namespace ast {
 		std::string get_function_name() const;
 	};
 
-    struct function_defn_t : public expression_t, public can_reference_overloads_t {
-        typedef ptr<const function_defn_t> ref;
+	struct function_defn_t : public expression_t, public can_reference_overloads_t {
+		typedef ptr<const function_defn_t> ref;
 
-        static const syntax_kind_t SK = sk_function_defn;
+		static const syntax_kind_t SK = sk_function_defn;
 
-        static ptr<function_defn_t> parse(parse_state_t &ps, bool within_expression);
-        virtual bound_var_t::ref resolve_expression(
-                llvm::IRBuilder<> &builder,
-                scope_t::ref block_scope,
-                life_t::ref life,
-                bool as_ref,
-                types::type_t::ref expected_type) const;
-        virtual void resolve_statement(
-                llvm::IRBuilder<> &builder,
-                scope_t::ref block_scope,
-                life_t::ref life,
-                runnable_scope_t::ref *new_scope,
-                bool *returns) const;
-        virtual bound_var_t::ref resolve_function(
-                llvm::IRBuilder<> &builder,
-                scope_t::ref block_scope,
-                life_t::ref life,
-                bool as_closure,
-                runnable_scope_t::ref *new_scope,
-                bool *returns) const;
-        virtual bound_var_t::ref resolve_overrides(
-                llvm::IRBuilder<> &builder,
-                scope_t::ref scope,
-                life_t::ref,
-                const ptr<const ast::item_t> &obj,
-                const bound_type_t::refs &args,
-                types::type_t::ref return_type) const;
-        virtual void render(render_state_t &rs) const;
+		static ptr<function_defn_t> parse(parse_state_t &ps, bool within_expression);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
+		virtual bound_var_t::ref resolve_expression(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				bool as_ref,
+				types::type_t::ref expected_type) const;
+		virtual void resolve_statement(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				runnable_scope_t::ref *new_scope,
+				bool *returns) const;
+		virtual bound_var_t::ref resolve_function(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				bool as_closure,
+				runnable_scope_t::ref *new_scope,
+				bool *returns) const;
+		virtual bound_var_t::ref resolve_overrides(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				life_t::ref,
+				const ptr<const ast::item_t> &obj,
+				const bound_type_t::refs &args,
+				types::type_t::ref return_type) const;
+		virtual types::type_function_t::ref resolve_arg_types_from_overrides(
+				scope_t::ref scope,
+				location_t location,
+				types::type_t::refs args,
+				types::type_t::ref return_type) const;
+		virtual void render(render_state_t &rs) const;
 
-        ptr<function_decl_t> decl;
-        ptr<block_t> block;
-    };
+		ptr<function_decl_t> decl;
+		ptr<block_t> block;
+	};
 
 	struct if_block_t : public statement_t {
 		typedef ptr<const if_block_t> ref;
@@ -811,6 +822,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_link_function_statement;
 
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -827,6 +839,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_link_var_statement;
 
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -876,6 +889,7 @@ namespace ast {
 		typedef ptr<const dot_expr_t> ref;
 
 		static const syntax_kind_t SK = sk_dot_expr;
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -889,6 +903,11 @@ namespace ast {
 				const ptr<const ast::item_t> &obj,
 				const bound_type_t::refs &args,
 				types::type_t::ref return_type) const;
+		virtual types::type_function_t::ref resolve_arg_types_from_overrides(
+				scope_t::ref scope,
+				location_t location,
+				types::type_t::refs args,
+				types::type_t::ref return_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression_t> lhs;
@@ -899,6 +918,7 @@ namespace ast {
 		typedef ptr<const tuple_expr_t> ref;
 
 		static const syntax_kind_t SK = sk_tuple_expr;
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
@@ -916,6 +936,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_ternary_expr;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -939,6 +960,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_or_expr;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -962,6 +984,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_and_expr;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -985,6 +1008,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_binary_operator;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -1009,6 +1033,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_prefix_expr;
 		static ptr<ast::expression_t> parse(parse_state_t &ps);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -1042,6 +1067,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_typeinfo_expr;
 		static ptr<typeinfo_expr_t> parse(parse_state_t &ps);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -1061,6 +1087,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_reference_expr;
 		static ptr<expression_t> parse(parse_state_t &ps);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -1089,6 +1116,11 @@ namespace ast {
 				types::type_t::ref expected_type,
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
+		virtual types::type_function_t::ref resolve_arg_types_from_overrides(
+				scope_t::ref scope,
+				location_t location,
+				types::type_t::refs args,
+				types::type_t::ref return_type) const;
 		virtual void render(render_state_t &rs) const;
 	};
 
@@ -1097,6 +1129,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_literal_expr;
 		static ptr<expression_t> parse(parse_state_t &ps);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -1123,6 +1156,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_array_literal_expr;
 		static ptr<expression_t> parse(parse_state_t &ps);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -1138,6 +1172,7 @@ namespace ast {
 		typedef ptr<const bang_expr_t> ref;
 
 		static const syntax_kind_t SK = sk_bang_expr;
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -1154,6 +1189,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_array_index_expr;
 		static ptr<expression_t> parse(parse_state_t &ps);
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual bound_var_t::ref resolve_expression(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,

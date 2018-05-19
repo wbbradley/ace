@@ -941,21 +941,39 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		 * 1. arity
 		 * 2. name
 		 * */
-		// auto name = ref_expr->token.text;
-		// scope->get_unchecked_vars_ordered
+		auto symbol = ref_expr->token.text;
+		var_t::refs fns;
+		scope->get_callables(symbol, fns, params.size()/*arity*/);
+		debug_above(6, log_location(log_info, ref_expr->token.location, "found possible callables %s", ::str(fns).c_str()));
+		dbg_when(symbol == "sum");
 	}
 
 	/* get the value of calling a function */
 	bound_type_t::refs param_types;
 	bound_var_t::refs arguments;
+	types::type_function_t::ref function_type;
 
-	/* iterate through the parameters and add their types to a vector */
+	if (auto can_reference_overloads = dyncast<can_reference_overloads_t>(function_expr)) {
+		/* we can ask this function expression about its parameters */ 
+		types::type_t::refs args;
+
+		/* iterate through the inbound parameters and add their types to a vector (best guess) */
+		for (auto &param : params) {
+			args.push_back(param->resolve_type(scope, nullptr));
+		}
+
+		/* narrow down the function type */
+		function_type = can_reference_overloads->resolve_arg_types_from_overrides(
+				scope, get_location(),
+				args, expected_type);
+	}
+
+	/* now instantiate the parameter values as per their appropriate expected types */
+	int i = 0;
 	for (auto &param : params) {
 		bound_var_t::ref param_var = param->resolve_expression(
 				builder, scope, life, false /*as_ref*/,
-				// TODO: rework this whole apparatus to support solving for the right function
-				// overload more lazily... need to defer codegen, perhaps...
-				nullptr);
+				get_arg_from_function(function_type, i++));
 
 		debug_above(6, log("argument %s -> %s", param->str().c_str(), param_var->type->str().c_str()));
 
@@ -4599,4 +4617,177 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 
 void dump_builder(llvm::IRBuilder<> &builder) {
 	std::cerr << llvm_print_function(llvm_get_function(builder)) << std::endl;
+}
+
+types::type_t::ref ast::typeid_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::sizeof_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	return type_id(make_iid("size_t"));
+}
+
+types::type_t::ref ast::callsite_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::cast_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::function_defn_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::link_function_statement_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::link_var_statement_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::dot_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::tuple_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::ternary_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::or_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::and_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::binary_operator_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::prefix_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::typeinfo_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::reference_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	return scope->get_variable_type(token.location, token.text, nullptr);
+}
+
+types::type_t::ref ast::literal_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+    scope_t::ref program_scope = scope->get_program_scope();
+	switch (token.tk) {
+	case tk_identifier:
+		{
+			assert(token.text == "null");
+			return program_scope->get_bound_type("null")->get_type();
+		}
+		break;
+	case tk_integer:
+		{
+			if (expected_type != nullptr && expected_type->ftv_count() == 0) {
+				unsigned bit_size = DEFAULT_INT_BITSIZE;
+				bool signed_ = DEFAULT_INT_SIGNED;
+				get_integer_attributes(
+						expected_type,
+						scope,
+						bit_size,
+						signed_);
+				return expected_type;
+			} else {
+				return type_id(make_iid(INT_TYPE));
+			}
+		}
+
+	case tk_string:
+		return type_id(make_iid_impl(MANAGED_STR, token.location));
+
+	case tk_float:
+		return type_id(make_iid(FLOAT_TYPE));
+
+	default:
+		assert(false);
+		return nullptr;
+	};
+}
+
+types::type_t::ref ast::array_literal_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::bang_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ast::array_index_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_function_t::ref ast::function_defn_t::resolve_arg_types_from_overrides(
+		scope_t::ref scope,
+		location_t location,
+		types::type_t::refs args,
+		types::type_t::ref return_type) const
+{
+	return nullptr;
+}
+
+types::type_function_t::ref ast::dot_expr_t::resolve_arg_types_from_overrides(
+		scope_t::ref scope,
+		location_t location,
+		types::type_t::refs args,
+		types::type_t::ref return_type) const
+{
+	return nullptr;
+}
+
+types::type_function_t::ref ast::reference_expr_t::resolve_arg_types_from_overrides(
+		scope_t::ref scope,
+		location_t location,
+		types::type_t::refs arguments,
+		types::type_t::ref return_type) const
+{
+	var_t::refs fns;
+	scope->get_callables(token.text, fns, true /*check_unchecked*/);
+
+	types::type_args_t::ref args = type_args(arguments, {});
+	types::type_function_t::ref final_fn_type;
+	for (auto fn : fns) {
+		types::type_function_t::ref fn_type = check_func_type_vs_callsite(
+				scope, location, fn, args, return_type);
+
+		if (fn_type != nullptr) {
+			/* we are optimistic because in the event of ambiguity between generics, and the like,
+			 * we'd have failed here anyway */
+			return fn_type;
+		}
+	}
+
+	return nullptr;
 }
