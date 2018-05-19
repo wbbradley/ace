@@ -19,7 +19,6 @@ struct var_t {
     virtual std::string get_name() const = 0;
 
 	unification_t accepts_callsite(
-			llvm::IRBuilder<> &builder,
 		   	ptr<scope_t> scope,
 		   	types::type_t::ref args,
 			types::type_t::ref return_type) const;

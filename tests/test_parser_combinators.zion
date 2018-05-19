@@ -95,7 +95,7 @@ fn __backslash__(p1 Parser, p2 Parser) Parser {
     */
 
     return fn (ps ParseState) Step? {
-        return bind(p1(ps), fn (x Step) Step? {
+        return bind(p1(ps), fn (x) Step? {
             match x {
                 Step(node1, ps1) {
                     return bind(p2(ps1), fn (y Step) Step? {

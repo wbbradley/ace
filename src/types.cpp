@@ -1726,3 +1726,21 @@ std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimen
 bool is_valid_udt_initial_char(int ch) {
 	return ch == '_' || isupper(ch);
 }
+
+types::type_t::ref get_arg_from_function(types::type_function_t::ref function, int i) {
+	if (function != nullptr) {
+		if (auto args = dyncast<const types::type_args_t>(function->args)) {
+			if (args->args.size() <= i) {
+				throw user_error(function->get_location(), "invalid indexed access (%d) to arguments list for function %s",
+						i, function->str().c_str());
+			}
+			return args->args[i];
+		} else {
+			assert(false);
+			return nullptr;
+		}
+	} else {
+		return nullptr;
+	}
+}
+

@@ -270,6 +270,7 @@ namespace ast {
 	}
 
 	void block_t::render(render_state_t &rs) const {
+		rs.ss << "{";
 		for (size_t i = 0; i < statements.size(); ++i) {
 			if (i > 0) {
 				newline(rs);
@@ -278,6 +279,7 @@ namespace ast {
 			indent(rs);
 			statements[i]->render(rs);
 		}
+		rs.ss << "}";
 	}
 
 	void tuple_expr_t::render(render_state_t &rs) const {

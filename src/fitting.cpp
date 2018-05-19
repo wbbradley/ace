@@ -3,7 +3,7 @@
 #include "bound_var.h"
 #include "callable.h"
 #include "fitting.h"
-
+#include "unification.h"
 
 bool function_exists_in(bound_var_t::ref fn, const fittings_t &fittings) {
     for (auto fitting : fittings) {
@@ -30,13 +30,14 @@ bound_var_t::ref get_best_fit(
 
 	for (auto &fn : fns) {
 		int coercions = 0;
-		bound_var_t::ref callable = check_func_vs_callsite(builder,
-				scope, location, fn, args, return_type, coercions);
+
+		bound_var_t::ref callable = check_bound_func_vs_callsite(
+				builder, scope, location, fn, args, return_type, coercions);
 
 		if (callable != nullptr && (coercions == 0 || allow_coercions)) {
-            if (!function_exists_in(callable, fittings)) {
-                fittings.push_back({fn, callable, coercions});
-            }
+			if (!function_exists_in(callable, fittings)) {
+				fittings.push_back({fn, callable, coercions});
+			}
 		}
 	}
 
