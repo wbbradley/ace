@@ -547,6 +547,11 @@ void destructure_function_details(
 		args = type_args(args_args, args_names);
 	}
 
+	if (args->ftv_count() != 0) {
+		throw unbound_type_error(args->get_location(), "because of the order of evaluation we could not eliminate the unbound type variables in %s. please add type annotations",
+				args->str().c_str());
+	}
+
 	bound_type_t::refs bound_args = upsert_bound_types(builder, scope, args->args);
 
 	const auto &arg_names = args->names;
@@ -949,63 +954,65 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 	debug_above(7, log("resolving callsite expression of %s with expected type %s",
 				str().c_str(), expected_type != nullptr ? expected_type->str().c_str() : "<null>"));
 
-	if (auto ref_expr = dyncast<const ast::reference_expr_t>(function_expr)) {
-		/* if we are calling a function by name, we should be able to work out the shape of the types for the parameters
-		 * first, if we can resolve the function up front. here's what we know (without more digging):
-		 * 1. arity
-		 * 2. name
-		 * */
-		auto symbol = ref_expr->token.text;
-		var_t::refs fns;
-		scope->get_callables(symbol, fns, params.size()/*arity*/);
-		debug_above(6, log_location(log_info, ref_expr->token.location, "found possible callables %s", ::str(fns).c_str()));
-	}
-
 	/* get the value of calling a function */
 	bound_type_t::refs param_types;
 	bound_var_t::refs arguments;
 	types::type_function_t::ref function_type;
 
+	types::type_t::refs args;
 	if (auto can_reference_overloads = dyncast<can_reference_overloads_t>(function_expr)) {
-		/* we can ask this function expression about its parameters */ 
-		types::type_t::refs args;
-
-		/* iterate through the inbound parameters and add their types to a vector (best guess) */
-		for (auto &param : params) {
-			auto arg = param->resolve_type(scope, nullptr);
-			if (arg == nullptr) {
-				arg = type_variable(param->get_location());
-			}
-			args.push_back(arg);
+		for (int i = 0; i < params.size(); ++i) {
+			auto arg = params[i]->resolve_type(scope, nullptr);
+			args.push_back(arg ? arg : type_variable(INTERNAL_LOC()));
 		}
-
-		/* narrow down the function type */
+		debug_above(8, log("found args are %s", ::str(args).c_str()));
 		function_type = can_reference_overloads->resolve_arg_types_from_overrides(
 				scope, get_location(),
 				args, nullptr);
-		auto function_type_2 = can_reference_overloads->resolve_arg_types_from_overrides(
-				scope, get_location(),
-				args, expected_type);
-		debug_above(6, log("callsite probably has type %s", function_type ? function_type->str().c_str() : "<null>"));
-		debug_above(6, log("or callsite probably has type %s", function_type_2 ? function_type_2->str().c_str() : "<null>"));
 	}
 
-	/* now instantiate the parameter values as per their appropriate expected types */
+	/* now instantiate the parameter values as per their appropriate expected types, but if we hit an undefined type
+	 * error, then try to expand our understanding of the function we're calling, and continue. */
 	int i = 0;
-	for (auto &param : params) {
-		bound_var_t::ref param_var = param->resolve_expression(
-				builder, scope, life, false /*as_ref*/,
-				get_arg_from_function(function_type, i++));
+	size_t progress = 0;
+	for (int j = 0; j < params.size(); ) {
+		auto param = params[j];
 
-		debug_above(6, log("argument %s -> %s", param->str().c_str(), param_var->type->str().c_str()));
+		auto expected_type_for_arg = get_arg_from_function(function_type, i);
+		debug_above(7, log(log_info, "resolving parameter %d with expected type %s",
+					i, expected_type_for_arg ? expected_type_for_arg->str().c_str() : "<null>"));
+		try {
+			bound_var_t::ref param_var = param->resolve_expression(
+					builder, scope, life, false /*as_ref*/,
+					expected_type_for_arg);
+			++i;
 
-		assert(!param_var->get_type()->eval_predicate(tb_ref, scope));
+			debug_above(6, log("argument %s -> %s", param->str().c_str(), param_var->type->str().c_str()));
 
-		if (param_var->type->is_void(scope)) {
-			throw user_error(param->get_location(), "function parameters cannot be void");
+			assert(!param_var->get_type()->eval_predicate(tb_ref, scope));
+
+			if (param_var->type->is_void(scope)) {
+				throw user_error(param->get_location(), "function parameters cannot be void");
+			}
+			arguments.push_back(param_var);
+			param_types.push_back(param_var->type);
+			args[j] = param_var->type->get_type();
+			++j;
+		} catch (unbound_type_error &e) {
+			if (i != progress) {
+				if (auto can_reference_overloads = dyncast<can_reference_overloads_t>(function_expr)) {
+					progress = i;
+					function_type = can_reference_overloads->resolve_arg_types_from_overrides(
+							scope, get_location(),
+							args, nullptr);
+					if (function_type != nullptr) {
+						continue;
+					}
+				}
+			}
+
+			throw;
 		}
-		arguments.push_back(param_var);
-		param_types.push_back(param_var->type);
 	}
 
 	if (auto can_reference_overloads = dyncast<can_reference_overloads_t>(function_expr)) {
@@ -2015,14 +2022,14 @@ bound_var_t::ref type_check_binary_integer_op(
 	bound_type_t::ref bound_int_type = upsert_bound_type(builder, scope, type_id(make_iid(INT_TYPE)));
 
 	if (!initialized) {
-		types::get_integer_attributes(bound_int_type->get_type(), scope, int_bit_size, int_signed);
+		types::get_integer_attributes(INTERNAL_LOC(), bound_int_type->get_type(), scope, int_bit_size, int_signed);
 		initialized = true;
 	}
 
 	unsigned lhs_bit_size, rhs_bit_size;
 	bool lhs_signed = false, rhs_signed = false;
-	types::get_integer_attributes(lhs->type->get_type(), scope, lhs_bit_size, lhs_signed);
-	types::get_integer_attributes(rhs->type->get_type(), scope, rhs_bit_size, rhs_signed);
+	types::get_integer_attributes(lhs->get_location(), lhs->type->get_type(), scope, lhs_bit_size, lhs_signed);
+	types::get_integer_attributes(rhs->get_location(), rhs->type->get_type(), scope, rhs_bit_size, rhs_signed);
 
 	bound_type_t::ref final_integer_type;
 	bool final_integer_signed = false;
@@ -4465,6 +4472,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 
 			if (expected_type != nullptr && expected_type->ftv_count() == 0) {
 				get_integer_attributes(
+						token.location,
 						expected_type,
 						scope,
 						bit_size,
@@ -4657,7 +4665,33 @@ types::type_t::ref ast::sizeof_expr_t::resolve_type(scope_t::ref scope, types::t
 }
 
 types::type_t::ref ast::callsite_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	debug_above(6, log_location(log_info, get_location(), "callsite type resolution not yet impl"));
+	debug_above(6, log_location(log_info, get_location(), "callsite type resolution not yet impl (would check %s with expected type %s)",
+				str().c_str(),
+				expected_type ? expected_type->str().c_str() : "<null>"));
+
+#if 0
+	if (auto ref_expr = dyncast<const ast::reference_expr_t>(function_expr)) {
+		/* if we are calling a function by name, we should be able to work out the shape of the types for the parameters
+		 * first, if we can resolve the function up front. here's what we know (without more digging):
+		 * 1. arity
+		 * 2. name
+		 * */
+		auto symbol = ref_expr->token.text;
+		var_t::refs fns;
+		scope->get_callables(symbol, fns);
+		debug_above(6, log_location(log_info, ref_expr->token.location, "found possible callables %s", ::str(fns).c_str()));
+		var_t::refs fns_arity;
+		for (auto fn : fns) {
+			auto fn_type = types::without_closure(fn->get_type(scope));
+			if (fn_type != nullptr) {
+				if (auto args = dyncast<const types::type_args_t>(fn_type->args)) {
+					if (args->args.size() == params.size()) {
+						fns_arity.push_back(fn
+				if (args != 
+
+	}
+#endif
+
 	return nullptr;
 }
 
@@ -4736,6 +4770,7 @@ types::type_t::ref ast::literal_expr_t::resolve_type(scope_t::ref scope, types::
 				unsigned bit_size = DEFAULT_INT_BITSIZE;
 				bool signed_ = DEFAULT_INT_SIGNED;
 				get_integer_attributes(
+						token.location,
 						expected_type,
 						scope,
 						bit_size,
@@ -4760,6 +4795,12 @@ types::type_t::ref ast::literal_expr_t::resolve_type(scope_t::ref scope, types::
 
 types::type_t::ref ast::array_literal_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
 	debug_above(6, log_location(log_info, get_location(), "array_literal_expr_t resolution not yet impl"));
+	if (items.size() != 0) {
+		auto item_type = items[0]->resolve_type(scope, nullptr);
+		item_type = item_type ? item_type : type_variable(INTERNAL_LOC());
+		return type_operator(type_id(make_iid(STD_VECTOR_TYPE)), item_type);
+	}
+
 	return nullptr;
 }
 

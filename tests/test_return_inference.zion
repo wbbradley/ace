@@ -1,0 +1,17 @@
+module _
+
+fn foo() [any T] {
+    let x [any T]
+    return x
+}
+
+fn bind[T](t T, f fn () [T]) {
+    print(f())
+}
+
+fn main() {
+    bind(3, fn () {
+        return foo()
+    })
+}
+

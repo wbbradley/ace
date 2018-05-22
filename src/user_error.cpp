@@ -95,20 +95,12 @@ unbound_type_error::unbound_type_error(location_t location, const char *format..
 	va_start(args, format);
 	user_error.message = string_formatv(format, args);
 	va_end(args);
-
-	if (getenv("STATUS_BREAK") != nullptr) {
-		dbg();
-	}
 }
 
 unbound_type_error::unbound_type_error(location_t location, const char *format, va_list args) :
 	user_error(log_error, location)
 {
 	user_error.message = string_formatv(format, args);
-
-	if (getenv("STATUS_BREAK") != nullptr) {
-		dbg();
-	}
 }
 
 const char *unbound_type_error::what() const noexcept {

@@ -481,12 +481,13 @@ namespace types {
 	identifier::ref gensym();
 	int coerce_to_integer(env_t::ref env, type_t::ref type, type_t::ref &expansion);
 	bool is_integer(type_t::ref type, env_t::ref env);
-	void get_integer_attributes(type_t::ref type, env_t::ref env, unsigned &bit_size, bool &signed_);
+	void get_integer_attributes(location_t location, type_t::ref type, env_t::ref env, unsigned &bit_size, bool &signed_);
 	void get_runtime_typeids(type_t::ref type, env_t::ref env, std::set<int> &typeids);
 	type_t::ref without_ref(type_t::ref type);
 	type_t::refs without_refs(type_t::refs types);
 	type_function_t::ref without_closure(type_t::ref type);
 	types::type_t::ref freshen(types::type_t::ref type);
+	bool share_ftvs(types::type_t::ref lhs, types::type_t::ref rhs);
 };
 
 /* type data ctors */

@@ -82,6 +82,10 @@ bound_var_t::ref instantiate_unchecked_fn(
 		types::type_function_t::ref fn_type,
 		const unification_t *unification)
 {
+	if (fn_type->args->ftv_count() != 0) {
+		throw unbound_type_error(unchecked_fn->get_location(), "we don't have enough info to instantiate this function");
+	}
+
 	static int depth = 0;
 	depth_guard_t depth_guard(fn_type->get_location(), depth, 20);
 	debug_above(5, log(log_info, "we are in scope " c_id("%s"), scope->get_name().c_str()));

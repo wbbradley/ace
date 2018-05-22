@@ -19,8 +19,11 @@ unification_t var_t::accepts_callsite(
 	   	types::type_t::ref args,
 		types::type_t::ref return_type) const
 {
-	/* get the args out of the sig */
-	types::type_t::ref type = get_type(scope)->eval(scope);
+	auto bindings = scope->get_type_variable_bindings();
+	args = args->rebind(bindings);
+	return_type = return_type->rebind(bindings);
+
+	types::type_t::ref type = get_type(scope)->eval(scope)->rebind(bindings);
 	debug_above(9, log("var_t type = %s", str().c_str()));
 
 	types::type_function_t::ref fn_type;
@@ -32,23 +35,21 @@ unification_t var_t::accepts_callsite(
 	assert(fn_type != nullptr);
 
 	INDENT(6, string_format(
-				"checking whether %s at %s accepts %s and returns %s",
+				"checking whether %s : %s at %s accepts %s and returns %s",
 				str().c_str(),
+				fn_type->str().c_str(),
 				get_location().str().c_str(),
 				args->str().c_str(),
 				return_type->str().c_str()));
+	auto expected_type = type_function(
+			INTERNAL_LOC(),
+			nullptr,
+			args,
+			return_type);
 
-	auto bindings = scope->get_type_variable_bindings();
+	assert(!types::share_ftvs(fn_type, expected_type));
 
-	auto u = unify(
-			fn_type,
-			types::freshen(
-				type_function(INTERNAL_LOC(),
-					nullptr,
-					args,
-					return_type)->rebind(bindings)),
-			scope,
-			bindings);
+	auto u = unify(fn_type, expected_type, scope);
 
 	debug_above(6, log(log_info, "check of %s %s",
 				str().c_str(),

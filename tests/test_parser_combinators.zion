@@ -179,7 +179,7 @@ fn main() {
     print(
         bind([1, 2, 3], fn (x int) {
             return bind([1, 2, 3], fn (y int) {
-                return bind([x != y and y != x], fn (r bool) {
+                return bind([x != y], fn (r bool) {
                     if r {
                         return [(x, y)]
                     } else {

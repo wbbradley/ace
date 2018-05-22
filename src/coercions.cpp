@@ -168,7 +168,7 @@ llvm::Value *coerce_value(
 			/* automatically resize integers to match the lhs */
 			unsigned bit_size = 0;
 			bool signed_ = false;
-			types::get_integer_attributes(rhs->type->get_type(), scope, bit_size, signed_);
+			types::get_integer_attributes(rhs->get_location(), rhs->type->get_type(), scope, bit_size, signed_);
 			if (signed_) {
 				return builder.CreateSExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
 			} else {
