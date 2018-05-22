@@ -259,12 +259,12 @@ namespace types {
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 	};
 
-	struct type_module_t : public type_product_t {
-		typedef ptr<const type_module_t> ref;
+	struct type_injection_t : public type_product_t {
+		typedef ptr<const type_injection_t> ref;
 
 		virtual int get_precedence() const { return 0; }
 
-		type_module_t(type_t::ref module_type);
+		type_injection_t(type_t::ref module_type);
 
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
@@ -485,6 +485,8 @@ namespace types {
 	void get_runtime_typeids(type_t::ref type, env_t::ref env, std::set<int> &typeids);
 	type_t::ref without_ref(type_t::ref type);
 	type_t::refs without_refs(type_t::refs types);
+	type_function_t::ref without_closure(type_t::ref type);
+	types::type_t::ref freshen(types::type_t::ref type);
 };
 
 /* type data ctors */
@@ -499,7 +501,7 @@ types::type_t::ref type_variable(identifier::ref name);
 types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
 types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs);
-types::type_module_t::ref type_module(types::type_t::ref module);
+types::type_injection_t::ref type_injection(types::type_t::ref module);
 types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
 types::type_struct_t::ref type_struct(types::type_args_t::ref type_args);

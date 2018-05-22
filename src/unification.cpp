@@ -82,6 +82,16 @@ unification_t unify(
 {
 	static auto type_constraints = type_id(make_iid("true"));
 
+	std::set<std::string> shared_ftvs;
+	auto lhs_ftvs = lhs->get_ftvs();
+	auto rhs_ftvs = rhs->get_ftvs();
+	std::set_intersection(
+			lhs_ftvs.begin(), lhs_ftvs.end(),
+			rhs_ftvs.begin(), rhs_ftvs.end(),
+			std::insert_iterator<std::set<std::string>>(shared_ftvs, shared_ftvs.begin()));
+
+	assert(shared_ftvs.size() == 0);
+
 	unification_t unification = unify_core(lhs, rhs, env, bindings, 0, 0, true);
 
 	if (unification.result) {
@@ -513,6 +523,7 @@ unification_t unify_core(
 		auto a_element_type = ptr_a->element_type->eval(env);
 
 		if (depth == 0 && types::is_type_id(a_element_type, CHAR_TYPE, nullptr)) {
+			/* See fallback in callable.cpp, as well */
 			if (types::is_type_id(b, MANAGED_STR, nullptr)) {
 				return {true, "", bindings, coercions + 1, {}};
 			}

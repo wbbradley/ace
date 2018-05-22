@@ -901,20 +901,56 @@ ptr<param_list_decl_t> param_list_decl_t::parse(parse_state_t &ps) {
 	return param_list_decl;
 }
 
-ptr<block_t> block_t::parse(parse_state_t &ps) {
+ptr<block_t> block_t::parse(parse_state_t &ps, bool expression_means_return) {
 	auto block = create<ast::block_t>(ps.token);
-	chomp_token(tk_lcurly);
-	while (ps.token.tk != tk_rcurly) {
-		while (ps.token.tk == tk_semicolon) {
-			ps.advance();
-		}
-		block->statements.push_back(statement_t::parse(ps));
-		while (ps.token.tk == tk_semicolon) {
-			ps.advance();
-		}
+	bool expression_block_syntax = false;
+	token_t expression_block_assign_token;
+	if (ps.token.tk == tk_lcurly) {
+		ps.advance();
+	} else if (ps.token.tk == tk_assign) {
+		expression_block_syntax = true;
+		expression_block_assign_token = ps.token;
+		ps.advance();
 	}
 
-	chomp_token(tk_rcurly);
+	if (expression_block_syntax) {
+		if (!ps.line_broke()) {
+			auto statement = statement_t::parse(ps);
+			if (expression_means_return) {
+				if (auto expression = dyncast<ast::expression_t>(statement)) {
+					auto return_statement = create<ast::return_statement_t>(ps.token);
+					return_statement->expr = expression;
+					block->statements.push_back(return_statement);
+				}
+			}
+
+			/* all expressions can be statements */
+			block->statements.push_back(statement);
+		} else {
+			/* empty block */
+			if (expression_means_return) {
+				auto return_statement = create<ast::return_statement_t>(ps.token);
+				return_statement->expr = create<ast::tuple_expr_t>(expression_block_assign_token);
+				block->statements.push_back(return_statement);
+			}
+		}
+		if (!ps.line_broke()) {
+			throw user_error(ps.token.location, "you must have a line break after = blocks");
+		}
+	} else {
+		while (ps.token.tk != tk_rcurly) {
+			while (ps.token.tk == tk_semicolon) {
+				ps.advance();
+			}
+			block->statements.push_back(statement_t::parse(ps));
+			while (ps.token.tk == tk_semicolon) {
+				ps.advance();
+			}
+		}
+		chomp_token(tk_rcurly);
+	}
+
+	// log_location(log_info, block->get_location(), "parsed block:\n%s", block->str().c_str());
 	return block;
 }
 
@@ -939,20 +975,22 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 
 	if_block->block = block_t::parse(ps);
 
-	if (ps.prior_token.tk == tk_rcurly) {
-		/* check the successive instructions for elif or else */
-		if (ps.token.is_ident(K(elif))) {
+	/* check the successive instructions for elif or else */
+	if (ps.token.is_ident(K(elif))) {
+		if (ps.prior_token.tk == tk_rcurly) {
 			if (ps.line_broke()) {
 				throw user_error(ps.token.location, "elif cannot be the first word on a line (end the prior block on the same line before the elif)");
 			}
-			if_block->else_ = if_block_t::parse(ps);
-		} else if (ps.token.is_ident(K(else))) {
+		}
+		if_block->else_ = if_block_t::parse(ps);
+	} else if (ps.token.is_ident(K(else))) {
+		if (ps.prior_token.tk == tk_rcurly) {
 			if (ps.line_broke()) {
 				throw user_error(ps.token.location, "else cannot be the first word on a line (end the prior block on the same line before the else)");
 			}
-			ps.advance();
-			if_block->else_ = block_t::parse(ps);
 		}
+		ps.advance();
+		if_block->else_ = block_t::parse(ps);
 	}
 
 	return if_block;
@@ -1236,7 +1274,7 @@ ptr<function_defn_t> function_defn_t::parse(parse_state_t &ps, bool within_expre
 
 	auto function_defn = create<ast::function_defn_t>(function_decl->token);
 	function_defn->decl = function_decl;
-	function_defn->block = block_t::parse(ps);
+	function_defn->block = block_t::parse(ps, true /*expression_means_return*/);
 	return function_defn;
 }
 

@@ -89,6 +89,15 @@ bound_var_t::ref instantiate_unchecked_fn(
 				unchecked_fn->str().c_str(),
 				fn_type->str().c_str()));
 
+	if (auto bound_fn = scope->get_bound_function(unchecked_fn->get_name(), fn_type->repr())) {
+		/* function fn_type exists with name and signature we want, just use that */
+		debug_above(5, log_location(log_info, unchecked_fn->get_location(), "attempting to instantiate function but"));
+		debug_above(5, log_location(log_info, bound_fn->get_location(), "prior bound function exists with same name and signature and location"));
+
+		assert(bound_fn->get_location() == unchecked_fn->get_location());
+		return bound_fn;
+	}
+
 	/* save and later restore the current branch insertion point */
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
@@ -136,10 +145,10 @@ bound_var_t::ref instantiate_unchecked_fn(
 					return instantiate_function_with_args_and_return_type(
 							builder, subst_scope, life,
 							unchecked_fn->id->get_token(),
-                            false /*as_closure*/,
-                            false /*needs_type_fixup*/,
+							false /*as_closure*/,
+							false /*needs_type_fixup*/,
 							function_defn->decl->extends_module,
-                            nullptr /*new_scope*/,
+							nullptr /*new_scope*/,
 							type_constraints, named_args, return_type, fn_type,
 							function_defn->block);
 				} catch (user_error &e) {
@@ -399,6 +408,10 @@ bound_var_t::ref get_callable(
 
 	if (callable != nullptr) {
 		return callable;
+	} else if (return_type != nullptr && types::is_ptr_type_id(return_type, CHAR_TYPE, scope, false /*allow_maybe*/)) {
+		/* fallback if we're looking for a function that will return a *char, we can
+		 * actually find one that returns a str, and then coercion will kick in */
+		return get_callable(builder, scope, alias, callsite_location, args, type_id(make_iid(MANAGED_STR)));
 	} else {
 		std::stringstream ss;
 		if (fns.size() == 0) {
@@ -406,7 +419,6 @@ bound_var_t::ref get_callable(
 			args->emit(ss, {}, 0 /*parent_precedence*/);
 			ss << " not found";
 		} else {
-			dbg();
 			ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
 			if (return_type != nullptr) {
 				ss << " " << return_type->str();

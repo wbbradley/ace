@@ -81,7 +81,7 @@ void scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 		scope_setup_module_symbol(
 				*function,
 				make_iid_impl(function->decl->get_function_name(),
-					function->decl->function_type->get_location()),
+					function->get_location()),
 				function->decl->extends_module,
 				module_scope);
 	}

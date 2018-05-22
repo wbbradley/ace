@@ -17,17 +17,7 @@ struct bound_var_t : public std::enable_shared_from_this<bound_var_t>, public va
 			std::string name,
 			bound_type_t::ref type,
 			llvm::Value *llvm_value,
-			identifier::ref id) :
-	   	internal_location(internal_location),
-	   	name(name),
-	   	type(type),
-	   	id(id),
-	   	llvm_value(llvm_value)
-   	{
-		assert(llvm_value != nullptr);
-		assert(id != nullptr);
-		assert(type != nullptr);
-	}
+			identifier::ref id);
 
 	virtual ~bound_var_t() throw() {}
 

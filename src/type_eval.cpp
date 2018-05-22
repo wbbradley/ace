@@ -404,10 +404,10 @@ namespace types {
 		return shared_from_this();
 	}
 
-	type_t::ref type_module_t::eval_core(env_t::ref env, bool get_structural_type) const {
+	type_t::ref type_injection_t::eval_core(env_t::ref env, bool get_structural_type) const {
 		auto new_module_type = module_type->eval_core(env, get_structural_type);
 		if (new_module_type != module_type) {
-			return ::type_module(new_module_type);
+			return ::type_injection(new_module_type);
 		}
 		return shared_from_this();
 	}

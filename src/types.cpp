@@ -579,7 +579,7 @@ namespace types {
 		return element_type->get_location();
 	}
 
-	type_module_t::type_module_t(type_t::ref module_type) :
+	type_injection_t::type_injection_t(type_t::ref module_type) :
 		module_type(module_type)
 	{
 #ifdef ZION_DEBUG
@@ -587,38 +587,38 @@ namespace types {
 #endif
 	}
 
-	product_kind_t type_module_t::get_pk() const {
+	product_kind_t type_injection_t::get_pk() const {
 		return pk_module;
 	}
 
-	type_t::refs type_module_t::get_dimensions() const {
+	type_t::refs type_injection_t::get_dimensions() const {
 		return {module_type};
 	}
 
-	std::ostream &type_module_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
+	std::ostream &type_injection_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		os << "module ";
 		module_type->emit(os, bindings, get_precedence());
 		return os;
 	}
 
-	int type_module_t::ftv_count() const {
+	int type_injection_t::ftv_count() const {
 		return module_type->ftv_count();
 	}
 
-	std::set<std::string> type_module_t::get_ftvs() const {
+	std::set<std::string> type_injection_t::get_ftvs() const {
 		return module_type->get_ftvs();
 	}
 
 
-	type_t::ref type_module_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+	type_t::ref type_injection_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
 		if (bindings.size() == 0 && !bottom_out_free_vars) {
 			return shared_from_this();
 		}
 
-		return ::type_module(module_type->rebind(bindings, bottom_out_free_vars));
+		return ::type_injection(module_type->rebind(bindings, bottom_out_free_vars));
 	}
 
-	location_t type_module_t::get_location() const {
+	location_t type_injection_t::get_location() const {
 		return module_type->get_location();
 	}
 
@@ -1416,6 +1416,31 @@ namespace types {
 		}
 		return dims;
 	}
+
+	type_function_t::ref without_closure(type_t::ref type) {
+		auto function_closure = dyncast<const types::type_function_closure_t>(type);
+		if (function_closure != nullptr) {
+			return dyncast<const types::type_function_t>(function_closure->function);
+		} else {
+			return dyncast<const types::type_function_t>(type);
+		}
+	}
+
+	types::type_t::ref freshen(types::type_t::ref type) {
+		if (type == nullptr) {
+			return type;
+		}
+		auto ftvs = type->get_ftvs();
+		if (ftvs.size() != 0) {
+			type_t::map bindings;
+			for (auto ftv : ftvs) {
+				bindings[ftv] = type_variable(INTERNAL_LOC());
+			}
+			return type->rebind(bindings);
+		} else {
+			return type;
+		}
+	}
 }
 
 types::type_t::ref type_id(identifier::ref id) {
@@ -1503,8 +1528,8 @@ types::type_args_t::ref type_args(
 	return make_ptr<types::type_args_t>(args, names);
 }
 
-types::type_module_t::ref type_module(types::type_t::ref module_type) {
-	return make_ptr<types::type_module_t>(module_type);
+types::type_injection_t::ref type_injection(types::type_t::ref module_type) {
+	return make_ptr<types::type_injection_t>(module_type);
 }
 
 types::type_managed_t::ref type_managed(types::type_t::ref element_type) {

@@ -4,7 +4,7 @@
 #include "type_parser.h"
 
 bool token_is_illegal_in_type(const token_t &token) {
-	if (token.tk == tk_lcurly || token.tk == tk_rcurly) {
+	if (token.tk == tk_lcurly || token.tk == tk_rcurly || token.tk == tk_assign) {
 		return true;
 	}
 	return token.tk == tk_identifier && (

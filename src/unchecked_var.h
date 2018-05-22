@@ -11,15 +11,7 @@
 
 struct unchecked_var_t : public var_t {
 	unchecked_var_t() = delete;
-	unchecked_var_t(
-			identifier::ref id,
-			ptr<const ast::item_t> node,
-			ptr<module_scope_t> module_scope)
-		: id(id), node(node), module_scope(module_scope)
-	{
-		assert(id && id->get_name().size());
-		assert(node != nullptr);
-	}
+	unchecked_var_t(identifier::ref id, ptr<const ast::item_t> node, ptr<module_scope_t> module_scope);
 	virtual ~unchecked_var_t() throw() {}
 
 	identifier::ref id;

@@ -5,6 +5,23 @@
 #include "parser.h"
 #include "scopes.h"
 
+bound_var_t::bound_var_t(
+			location_t internal_location,
+			std::string name,
+			bound_type_t::ref type,
+			llvm::Value *llvm_value,
+			identifier::ref id) :
+	   	internal_location(internal_location),
+	   	name(name),
+	   	type(type),
+	   	id(id),
+	   	llvm_value(llvm_value)
+{
+	assert(llvm_value != nullptr);
+	assert(id != nullptr);
+	assert(type != nullptr);
+}
+
 bound_var_t::ref bound_var_t::create(
 		location_t internal_location,
 		std::string name,
