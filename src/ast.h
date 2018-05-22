@@ -599,7 +599,7 @@ namespace ast {
 
 		static const syntax_kind_t SK = sk_block;
 
-		static ptr<block_t> parse(parse_state_t &ps);
+		static ptr<block_t> parse(parse_state_t &ps, bool expression_means_return=false);
 		virtual void resolve_statement(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -650,6 +650,7 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_closure,
+				types::type_t::ref expected_type,
 				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual bound_var_t::ref resolve_overrides(

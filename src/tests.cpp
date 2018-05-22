@@ -1005,7 +1005,7 @@ auto test_descs = std::vector<test_desc>{
 
 			auto _env = make_ptr<test_env>(env);
 			for (auto &pair : unifies) {
-				if (!unify(pair.first, pair.second, _env, {}).result) {
+				if (!unify(types::freshen(pair.first), pair.second, _env, {}).result) {
 					log(log_error, "unable to unify %s with %s", pair.first->str().c_str(), pair.second->str().c_str());
 					return false;
 				}

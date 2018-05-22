@@ -592,41 +592,54 @@ void destructure_function_decl(
         bool &needs_type_fixup,
         bound_type_t::named_pairs &params,
         bound_type_t::ref &return_type,
-        types::type_function_t::ref &function_type)
+        types::type_function_t::ref &function_type,
+		types::type_t::ref expected_type)
 {
-    /* returns the parameters and the return value types fully resolved */
-    debug_above(4, log(log_info, "type checking function decl %s with type %s in scope %s with type variables %s",
-                decl.token.str().c_str(),
-                decl.function_type->str().c_str(),
-                scope->get_name().c_str(),
-                ::str(scope->get_type_variable_bindings()).c_str()));
+	/* returns the parameters and the return value types fully resolved */
+	debug_above(4, log(log_info, "type checking function decl %s with type %s in scope %s with type variables %s and expected type %s",
+				decl.token.str().c_str(),
+				decl.function_type->str().c_str(),
+				scope->get_name().c_str(),
+				::str(scope->get_type_variable_bindings()).c_str(),
+				expected_type != nullptr ? expected_type->str().c_str() : "<null>"));
 
-    assert_implies(as_closure, dyncast<closure_scope_t>(scope) != nullptr);
+	assert_implies(as_closure, dyncast<closure_scope_t>(scope) != nullptr);
 
-    types::type_t::ref type_declared_fn = decl.function_type->rebind(scope->get_type_variable_bindings());
-    function_type = dyncast<const types::type_function_t>(type_declared_fn);
-    if (as_closure) {
-        if (function_type != nullptr) {
-            throw user_error(decl.get_location(), "function expressions cannot have names (this one appears to be named " c_id("%s"),
-                    decl.token.text.c_str());
-        }
-        types::type_function_closure_t::ref function_closure = dyncast<const types::type_function_closure_t>(type_declared_fn);
-        assert(function_closure != nullptr);
-        function_type = dyncast<const types::type_function_t>(function_closure->function);
-    }
+	types::type_t::ref type_declared_fn = decl.function_type->rebind(scope->get_type_variable_bindings());
+	function_type = dyncast<const types::type_function_t>(type_declared_fn);
+	if (as_closure) {
+		if (function_type != nullptr) {
+			throw user_error(decl.get_location(), "function expressions cannot have names (this one appears to be named " c_id("%s"),
+					decl.token.text.c_str());
+		}
 
-    assert(function_type != nullptr);
+		function_type = types::without_closure(type_declared_fn);
+		expected_type = types::without_closure(expected_type);
+	}
 
-    destructure_function_details(
-            builder,
-            scope,
-            decl.get_location(),
-            as_closure,
-            function_type,
-            needs_type_fixup,
-            type_constraints,
-            params,
-            return_type);
+	assert(function_type != nullptr);
+	if (expected_type != nullptr) {
+		unification_t unification = unify(function_type, expected_type, scope);
+		if (unification.result) {
+			function_type = dyncast<const types::type_function_t>(function_type->rebind(unification.bindings));
+		} /* else {
+			auto error = user_error(decl.get_location(), "type definition does not meet expected type signature in this context");
+			error.add_info(expected_type->get_location(), "expected type is %s", expected_type->str().c_str());
+			error.add_info(function_type->get_location(), "declared type is %s", function_type->str().c_str());
+			throw error;
+		} */
+	}
+
+	destructure_function_details(
+			builder,
+			scope,
+			decl.get_location(),
+			as_closure,
+			function_type,
+			needs_type_fixup,
+			type_constraints,
+			params,
+			return_type);
 }
 
 
@@ -720,7 +733,8 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
     bool needs_type_fixup = false;
 	try {
         destructure_function_decl(builder, *extern_function, scope, type_constraints,
-                false /*as_closure*/, needs_type_fixup, named_args, return_value, function_type);
+                false /*as_closure*/, needs_type_fixup, named_args, return_value, function_type,
+				expected_type);
         assert(!needs_type_fixup);
 	} catch (unbound_type_error &error) {
 		throw user_error(error.user_error);
@@ -798,7 +812,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 		return get_callable(builder, bound_module->module_scope,
 				rhs.text, callsite->get_location(),
 				get_args_type(args),
-				nullptr);
+				return_type);
 	} else {
 		types::type_function_t::ref target_function_type = get_function_type(
 				type_variable(INTERNAL_LOC()),
@@ -945,7 +959,6 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		var_t::refs fns;
 		scope->get_callables(symbol, fns, params.size()/*arity*/);
 		debug_above(6, log_location(log_info, ref_expr->token.location, "found possible callables %s", ::str(fns).c_str()));
-		dbg_when(symbol == "sum");
 	}
 
 	/* get the value of calling a function */
@@ -959,13 +972,22 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 
 		/* iterate through the inbound parameters and add their types to a vector (best guess) */
 		for (auto &param : params) {
-			args.push_back(param->resolve_type(scope, nullptr));
+			auto arg = param->resolve_type(scope, nullptr);
+			if (arg == nullptr) {
+				arg = type_variable(param->get_location());
+			}
+			args.push_back(arg);
 		}
 
 		/* narrow down the function type */
 		function_type = can_reference_overloads->resolve_arg_types_from_overrides(
 				scope, get_location(),
+				args, nullptr);
+		auto function_type_2 = can_reference_overloads->resolve_arg_types_from_overrides(
+				scope, get_location(),
 				args, expected_type);
+		debug_above(6, log("callsite probably has type %s", function_type ? function_type->str().c_str() : "<null>"));
+		debug_above(6, log("or callsite probably has type %s", function_type_2 ? function_type_2->str().c_str() : "<null>"));
 	}
 
 	/* now instantiate the parameter values as per their appropriate expected types */
@@ -3082,20 +3104,23 @@ bound_var_t::ref ast::function_defn_t::resolve_expression(
 		types::type_t::ref expected_type) const
 {
 	assert(!as_ref);
-	debug_above(6, log("resolving function expression with declared signature %s at %s",
+	expected_type = types::freshen(expected_type ? expected_type->rebind(scope->get_type_variable_bindings()) : nullptr);
+
+	debug_above(6, log("resolving function expression with declared signature %s at %s with expected type %s",
 				decl->function_type->str().c_str(),
-				token.location.str().c_str()));
+				token.location.str().c_str(),
+				expected_type ? expected_type->str().c_str() : "<null>"));
 	auto runnable_scope = dyncast<runnable_scope_t>(scope);
 	if (runnable_scope != nullptr) {
 		/* we are instantiating a function within a runnable scope, let's get closure over the environment we're in */
 		auto closure_name = std::string("anonymous fn ") + decl->function_type->repr() + " at " + token.location.repr();
 		auto closure_scope = runnable_scope->new_closure_scope(builder, closure_name);
-		auto function = resolve_function(builder, closure_scope, life, true /*as_closure*/, nullptr, nullptr);
+		auto function = resolve_function(builder, closure_scope, life, true /*as_closure*/, expected_type, nullptr, nullptr);
 
 		auto r = closure_scope->create_closure(builder, life, get_location(), function);
 		return r;
 	} else {
-		return resolve_function(builder, scope, life, false /*as_closure*/, nullptr, nullptr);
+		return resolve_function(builder, scope, life, false /*as_closure*/, expected_type, nullptr, nullptr);
 	}
 }
 
@@ -3106,7 +3131,7 @@ void ast::function_defn_t::resolve_statement(
 		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	resolve_function(builder, scope, life, false /*as_closure*/, new_scope, returns);
+	resolve_function(builder, scope, life, false /*as_closure*/, nullptr/*expected_type*/, new_scope, returns);
 }
 
 bound_var_t::ref ast::function_defn_t::resolve_function(
@@ -3114,6 +3139,7 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
         scope_t::ref scope,
 		life_t::ref,
 		bool as_closure,
+		types::type_t::ref expected_type,
 		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
@@ -3132,7 +3158,7 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 	 * */
 	INDENT(2, string_format(
 				"type checking %s in %s with type variable bindings %s",
-			   	token.str().c_str(),
+				token.str().c_str(),
 				scope->get_name().c_str(),
 				::str(scope->get_type_variable_bindings()).c_str()));
 
@@ -3143,13 +3169,14 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 	types::type_t::ref type_constraints;
 	bound_type_t::named_pairs args;
 	bound_type_t::ref return_type;
-    bool needs_type_fixup = false;
-    destructure_function_decl(builder, *decl, scope, type_constraints,
-            as_closure, needs_type_fixup, args, return_type, fn_type);
+	bool needs_type_fixup = false;
 
-    return instantiate_function_with_args_and_return_type(builder, scope, life, token, as_closure,
-            needs_type_fixup, decl->extends_module, new_scope, type_constraints, args, return_type,
-            fn_type, block);
+	destructure_function_decl(builder, *decl, scope, type_constraints,
+			as_closure, needs_type_fixup, args, return_type, fn_type, expected_type);
+
+	return instantiate_function_with_args_and_return_type(builder, scope, life, token, as_closure,
+			needs_type_fixup, decl->extends_module, new_scope, type_constraints, args, return_type,
+			fn_type, block);
 }
 
 void type_check_module_links(
@@ -3310,7 +3337,8 @@ void type_check_program_variable(
                 needs_type_fixup,
 				named_params,
 				return_value,
-				function_type);
+				function_type,
+				nullptr);
 
         assert(!needs_type_fixup);
 
@@ -4620,7 +4648,7 @@ void dump_builder(llvm::IRBuilder<> &builder) {
 }
 
 types::type_t::ref ast::typeid_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "typeid expr type resolution not yet impl"));
 	return nullptr;
 }
 
@@ -4629,67 +4657,63 @@ types::type_t::ref ast::sizeof_expr_t::resolve_type(scope_t::ref scope, types::t
 }
 
 types::type_t::ref ast::callsite_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "callsite type resolution not yet impl"));
 	return nullptr;
 }
 
 types::type_t::ref ast::cast_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
-	return nullptr;
+	return expected_type;
 }
 
 types::type_t::ref ast::function_defn_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
-	return nullptr;
+	return decl->function_type->rebind(scope->get_type_variable_bindings());
 }
 
 types::type_t::ref ast::link_function_statement_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
 	return nullptr;
 }
 
 types::type_t::ref ast::link_var_statement_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
 	return nullptr;
 }
 
 types::type_t::ref ast::dot_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "dot expr type resolution not yet impl"));
 	return nullptr;
 }
 
 types::type_t::ref ast::tuple_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "tuple type resolution not yet impl"));
 	return nullptr;
 }
 
 types::type_t::ref ast::ternary_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "ternary type resolution not yet impl"));
 	return nullptr;
 }
 
 types::type_t::ref ast::or_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "or expr type resolution not yet impl"));
 	return nullptr;
 }
 
 types::type_t::ref ast::and_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "and expr type resolution not yet impl"));
 	return nullptr;
 }
 
 types::type_t::ref ast::binary_operator_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "binary operator type resolution not yet impl"));
 	return nullptr;
 }
 
 types::type_t::ref ast::prefix_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "prefix expr type resolution not yet impl"));
 	return nullptr;
 }
 
 types::type_t::ref ast::typeinfo_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "typeinfo type resolution not yet impl"));
 	return nullptr;
 }
 
@@ -4735,17 +4759,17 @@ types::type_t::ref ast::literal_expr_t::resolve_type(scope_t::ref scope, types::
 }
 
 types::type_t::ref ast::array_literal_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "array_literal_expr_t resolution not yet impl"));
 	return nullptr;
 }
 
 types::type_t::ref ast::bang_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "resolve type for array_index_expr not yet impl"));
 	return nullptr;
 }
 
 types::type_t::ref ast::array_index_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
+	debug_above(6, log_location(log_info, get_location(), "resolve type for array_index_expr not yet impl"));
 	return nullptr;
 }
 
@@ -4755,6 +4779,7 @@ types::type_function_t::ref ast::function_defn_t::resolve_arg_types_from_overrid
 		types::type_t::refs args,
 		types::type_t::ref return_type) const
 {
+	debug_above(6, log_location(log_info, get_location(), "resolve_arg_types_from_overrides for function_defn_t not yet impl"));
 	return nullptr;
 }
 
@@ -4764,6 +4789,7 @@ types::type_function_t::ref ast::dot_expr_t::resolve_arg_types_from_overrides(
 		types::type_t::refs args,
 		types::type_t::ref return_type) const
 {
+	debug_above(6, log_location(log_info, get_location(), "resolve_arg_types_from_overrides for dot_expr_t not yet impl"));
 	return nullptr;
 }
 
@@ -4776,8 +4802,10 @@ types::type_function_t::ref ast::reference_expr_t::resolve_arg_types_from_overri
 	var_t::refs fns;
 	scope->get_callables(token.text, fns, true /*check_unchecked*/);
 
-	types::type_args_t::ref args = type_args(arguments, {});
+	types::type_args_t::ref args = type_args(types::without_refs(arguments), {});
 	types::type_function_t::ref final_fn_type;
+
+	std::vector<types::type_function_t::ref> choices;
 	for (auto fn : fns) {
 		types::type_function_t::ref fn_type = check_func_type_vs_callsite(
 				scope, location, fn, args, return_type);
@@ -4785,9 +4813,66 @@ types::type_function_t::ref ast::reference_expr_t::resolve_arg_types_from_overri
 		if (fn_type != nullptr) {
 			/* we are optimistic because in the event of ambiguity between generics, and the like,
 			 * we'd have failed here anyway */
-			return fn_type;
+			choices.push_back(fn_type);
 		}
 	}
 
-	return nullptr;
+	for (auto choice : choices) {
+		debug_above(4, log_location(log_info, get_location(),
+				"%s might be type %s when probed with args %s and return type %s",
+				str().c_str(),
+				choice->str().c_str(),
+				args->str().c_str(),
+				return_type ? return_type->str().c_str() : "<null>"));
+	}
+
+	if (choices.size() == 1) {
+		return choices[0];
+	} else if (choices.size() == 0) {
+		return nullptr;
+	} else {
+		/* find the best candidate */
+		for (int i = 0; i < choices.size(); i++) {
+			if (choices[i] == nullptr) {
+				continue;
+			}
+
+			for (int j = i + 1; j < choices.size(); j++) {
+				if (choices[j] == nullptr) {
+					continue;
+				}
+
+				if (choices[i]->repr() == choices[j]->repr()) {
+					/* they are the same, just eliminate one of them */
+					choices[j] = nullptr;
+				} else if (choices[i]->get_location() == choices[j]->get_location()) {
+					/* see if we can eliminate one of these */
+					int ftv_diff = choices[i]->ftv_count() - choices[j]->ftv_count();
+					if (ftv_diff > 0) {
+						choices[j] = nullptr;
+					} else if (ftv_diff < 0) {
+						choices[i] = nullptr;
+						break;
+					} else {
+						/* can't decide which is better */
+						return nullptr;
+					}
+				}
+			}
+		}
+		std::vector<types::type_function_t::ref> final_choices;
+		std::copy_if (
+				choices.begin(),
+				choices.end(),
+				std::back_inserter(final_choices),
+				[](types::type_t::ref t) {
+				return t != nullptr;
+				});
+
+		if (final_choices.size() == 1) {
+			return final_choices[0];
+		} else {
+			return nullptr;
+		}
+	}
 }

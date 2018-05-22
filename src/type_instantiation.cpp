@@ -290,7 +290,7 @@ void ast::data_type_t::register_type(
 		}
 
 		for (auto &ctor_pair : ctor_pairs) {
-			identifier::ref ctor_id = make_code_id(ctor_pair.first);
+			identifier::ref ctor_id = make_iid_impl(ctor_pair.first.text, get_location());
 			if (ctor_pair.second->args.size() == 0) {
 				bound_type_t::ref bound_tag_type = upsert_bound_type(builder, scope,
 						ctor_return_type->rebind(

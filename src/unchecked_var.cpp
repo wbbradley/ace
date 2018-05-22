@@ -4,6 +4,19 @@
 #include "ast.h"
 #include "bound_type.h"
 
+unchecked_var_t::unchecked_var_t(
+			identifier::ref id,
+			ptr<const ast::item_t> node,
+			ptr<module_scope_t> module_scope) :
+   	id(id),
+   	node(node),
+   	module_scope(module_scope)
+{
+	assert(id->get_location() == node->get_location());
+	assert(id && id->get_name().size());
+	assert(node != nullptr);
+}
+
 std::string unchecked_var_t::str() const {
     std::stringstream ss;
     ss << "unchecked var : " << id->str() << " " << get_location();
