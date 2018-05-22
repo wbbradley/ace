@@ -55,12 +55,8 @@ fn breakpoint() void {
 }
 
 fn rand(max int) int {
-    # Note that this is not a great way to do this
-    var r int = 0
-    posix.arc4random_buf(&r, sizeof(int))
-    if r < 0 {
-        r = -r
-    }
+    var r = 0 as uint
+    posix.arc4random_buf(&r, sizeof(uint))
     return r % max
 }
 

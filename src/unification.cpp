@@ -82,15 +82,7 @@ unification_t unify(
 {
 	static auto type_constraints = type_id(make_iid("true"));
 
-	std::set<std::string> shared_ftvs;
-	auto lhs_ftvs = lhs->get_ftvs();
-	auto rhs_ftvs = rhs->get_ftvs();
-	std::set_intersection(
-			lhs_ftvs.begin(), lhs_ftvs.end(),
-			rhs_ftvs.begin(), rhs_ftvs.end(),
-			std::insert_iterator<std::set<std::string>>(shared_ftvs, shared_ftvs.begin()));
-
-	assert(shared_ftvs.size() == 0);
+	assert(!types::share_ftvs(lhs, rhs));
 
 	unification_t unification = unify_core(lhs, rhs, env, bindings, 0, 0, true);
 

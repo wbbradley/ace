@@ -3,6 +3,7 @@
 #include "parse_state.h"
 #include "type_parser.h"
 
+// REVIEW: this function has a horrible and confusing name
 bool token_is_illegal_in_type(const token_t &token) {
 	if (token.tk == tk_lcurly || token.tk == tk_rcurly || token.tk == tk_assign) {
 		return true;
@@ -11,7 +12,6 @@ bool token_is_illegal_in_type(const token_t &token) {
 			token.text == K(to) ||
 			token.text == K(fn) ||
 			token.text == K(where) ||
-			token.text == K(any) ||
 			token.text == K(link) ||
 			token.text == K(link) ||
 			token.text == K(struct) ||
@@ -300,7 +300,7 @@ namespace types {
 
         types::type_t::ref return_type;
         /* now let's parse the return type */
-        if (!ps.line_broke() && !(ps.token.tk == tk_lcurly || ps.token.tk == tk_rcurly)) {
+        if (!ps.line_broke() && !(ps.token.tk == tk_assign || ps.token.tk == tk_lcurly || ps.token.tk == tk_rcurly)) {
             return_type = parse_type(ps, generics);
         } else {
             assert(default_return_type != nullptr);

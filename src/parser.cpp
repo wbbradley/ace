@@ -920,7 +920,7 @@ ptr<block_t> block_t::parse(parse_state_t &ps, bool expression_means_return) {
 				if (auto expression = dyncast<ast::expression_t>(statement)) {
 					auto return_statement = create<ast::return_statement_t>(ps.token);
 					return_statement->expr = expression;
-					block->statements.push_back(return_statement);
+					statement = return_statement;
 				}
 			}
 
@@ -934,8 +934,13 @@ ptr<block_t> block_t::parse(parse_state_t &ps, bool expression_means_return) {
 				block->statements.push_back(return_statement);
 			}
 		}
-		if (!ps.line_broke()) {
-			throw user_error(ps.token.location, "you must have a line break after = blocks");
+		if (ps.token.tk != tk_rparen
+			   	&& ps.token.tk != tk_rcurly
+			   	&& ps.token.tk != tk_rsquare
+				&& ps.token.tk != tk_comma
+			   	&& !ps.line_broke())
+	   	{
+			throw user_error(ps.token.location, "this looks hard to read. you should have a line break after = blocks, unless they are immediately followed by one of these: )]}");
 		}
 	} else {
 		while (ps.token.tk != tk_rcurly) {

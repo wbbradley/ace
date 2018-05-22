@@ -1352,6 +1352,7 @@ namespace types {
 	}
 
 	void get_integer_attributes(
+			location_t location,
 			type_t::ref type,
 			env_t::ref env,
 			unsigned &bit_size,
@@ -1377,8 +1378,7 @@ namespace types {
 			signed_ = false;
 			return;
 		} else {
-			throw user_error(type->get_location(), "expected an integer type, found %s",
-					type->str().c_str());
+			throw user_error(location, "expected an integer type, found %s", type->str().c_str());
 		}
 	}
 
@@ -1440,6 +1440,18 @@ namespace types {
 		} else {
 			return type;
 		}
+	}
+
+	bool share_ftvs(type_t::ref lhs, type_t::ref rhs) {
+		std::set<std::string> shared_ftvs;
+		auto lhs_ftvs = lhs->get_ftvs();
+		auto rhs_ftvs = rhs->get_ftvs();
+		std::set_intersection(
+				lhs_ftvs.begin(), lhs_ftvs.end(),
+				rhs_ftvs.begin(), rhs_ftvs.end(),
+				std::insert_iterator<std::set<std::string>>(shared_ftvs, shared_ftvs.begin()));
+
+		return shared_ftvs.size() != 0;
 	}
 }
 
