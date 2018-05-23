@@ -3,7 +3,7 @@ module _
 type Just{T} has
 	var val T
 
-type Maybe{T} is Empty or Just{T}
+type Maybe{T} is Nothing or Just{T}
 
 type Literal has
 	var value int

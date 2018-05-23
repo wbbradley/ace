@@ -907,7 +907,7 @@ ptr<block_t> block_t::parse(parse_state_t &ps, bool expression_means_return) {
 	token_t expression_block_assign_token;
 	if (ps.token.tk == tk_lcurly) {
 		ps.advance();
-	} else if (ps.token.tk == tk_assign) {
+	} else if (ps.token.tk == tk_expr_block) {
 		expression_block_syntax = true;
 		expression_block_assign_token = ps.token;
 		ps.advance();

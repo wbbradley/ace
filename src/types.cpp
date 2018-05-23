@@ -193,7 +193,15 @@ namespace types {
 		if (bindings.size() != 0) {
 			auto instance_iter = bindings.find(id->get_name());
 			if (instance_iter != bindings.end()) {
-				return instance_iter->second;
+				/* recurse the rebinding, but remove the current rebinding */
+				map new_bindings;
+				for (auto &pair : bindings) {
+					if (pair.first == id->get_name()) {
+						continue;
+					}
+					new_bindings.insert(pair);
+				}
+				return instance_iter->second->rebind(new_bindings);
 			}
 		}
 		return bottom_out_free_vars ? type_bottom() : shared_from_this();

@@ -41,12 +41,12 @@ fn main() {
             print(get_name(entry, ""))
             static_print(entry)
         }
-        Empty {
+        Nothing {
             print("No name found!")
             static_print(entry)
         }
     }
     static_print(entry)
-    entry = Empty
+    entry = Nothing
     runtime.gc()
 }

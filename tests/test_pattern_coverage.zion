@@ -18,7 +18,7 @@ type HairType is {
 }
 
 fn main() {
-    mark := Boy("Mark", Wavy, Empty)
+    mark := Boy("Mark", Wavy, Nothing)
     charlotte := Girl("Charlotte", Straight, Just(Dog))
     # etc...
 
@@ -34,7 +34,7 @@ fn main() {
                 print(name + " has curly hair and a cat")
             }
             Boy(name, _, _) {}
-            Girl(name, _, Empty) {
+            Girl(name, _, Nothing) {
                 print(name + " might have hair and might have a pet")
             }
             Girl(name, Straight, Just(Cat)) {

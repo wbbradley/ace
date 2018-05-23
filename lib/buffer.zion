@@ -18,7 +18,7 @@ fn __finalize__(owning_buffer OwningBuffer any) void {
 fn OwningBuffer[T where *?char <: T](s T) (OwningBuffer char)? {
     return (s != null
         ? Just(OwningBuffer(s, posix.strlen(s)))
-        : Empty)
+        : Nothing)
     }
 
 fn OwningBuffer(s *char) OwningBuffer char {

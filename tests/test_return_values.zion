@@ -2,7 +2,7 @@ module _ @1.0
 # test: pass
 
 fn get_maybe() int? {
-    return Empty
+    return Nothing
 }
 
 fn get() void {

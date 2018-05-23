@@ -516,6 +516,14 @@ void run_gc_lowering(
 	// Run the optimizations over all functions in the module being added to
 	// the JIT.
 	for (auto &F : *llvm_module) {
+#if 0
+		std::stringstream ss;
+		llvm::raw_os_ostream os(ss);
+		F.print(os);
+		os.flush();
+		std::cerr << ss.str() << std::endl;
+#endif
+
 		FPM->run(F);
 		F.setGC("shadow-stack");
 	}

@@ -13,7 +13,7 @@ fn main() {
         Just(x) {
             print(x)
         }
-        Empty {
+        Nothing {
             print(0)
         }
     }
@@ -22,14 +22,14 @@ fn main() {
         Just(Just(x)) {
             print(x)
         }
-        Just(Empty) {
+        Just(Nothing) {
         }
-        Empty {
+        Nothing {
         }
     }
 
     if del(m, "hello") {
         print("deleted hello")
     }
-    match m["hello"] { Empty { print("could not find hello") } } else {}
+    match m["hello"] { Nothing { print("could not find hello") } } else {}
 }

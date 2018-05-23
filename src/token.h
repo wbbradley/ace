@@ -44,6 +44,7 @@ enum token_kind
 	tk_binary_equal, /* === */
 	tk_inequal, /* != */
 	tk_binary_inequal, /* !== */
+	tk_expr_block, /* => */
 	tk_bang, /* ! */
 	tk_maybe, /* ? */
 	tk_lt, /* < */

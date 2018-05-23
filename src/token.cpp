@@ -72,6 +72,7 @@ const char *tkstr(token_kind tk) {
 	switch (tk) {
 	tk_case(ampersand);
 	tk_case(assign);
+	tk_case(expr_block);
 	tk_case(becomes);
 	tk_case(char);
 	tk_case(colon);
@@ -147,6 +148,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_bang:
 		break;
 	case tk_assign:
+	case tk_expr_block:
 	case tk_becomes:
 	case tk_comma:
 	case tk_divide_by:
@@ -341,6 +343,10 @@ void token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_line) 
 	case tk_assign:
 		ensure_space_before(last_tk);
 		printf("=");
+		break;
+	case tk_expr_block:
+		ensure_space_before(last_tk);
+		printf("=>");
 		break;
 	case tk_plus:
 		ensure_space_before(last_tk);

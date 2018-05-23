@@ -1,7 +1,7 @@
 
 fn depth(tree Tree{any Data}) any Data
 	match tree
-		case Empty
+		case Nothing
 			return 0
 
 		case Leaf(any)

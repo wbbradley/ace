@@ -42,7 +42,7 @@ fn __getitem__[K, V](m Map K V, key K) V? {
             return Just(kv.value)
         }
     }
-    return Empty
+    return Nothing
 }
 
 [global]

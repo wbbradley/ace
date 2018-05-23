@@ -1,16 +1,18 @@
 module _
+# test: pass
 
-fn foo() [any T] {
-    let x [any T]
+fn foo[T]() [T] {
+    let x [T]
     return x
 }
 
-fn bind[T](t T, f fn () [T]) {
-    print(f())
+fn boink[T](t T, f fn () [T]) {
+    print(t)
+    f()
 }
 
 fn main() {
-    bind(3, fn () {
+    boink(3, fn () {
         return foo()
     })
 }

@@ -12,7 +12,7 @@ fn main() {
         Just(_) {
             v = Just(Vector(1.0, 2.0))
         }
-        Empty {
+        Nothing {
         }
     }
     print("pass")

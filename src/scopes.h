@@ -173,7 +173,7 @@ struct generic_substitution_scope_t : public virtual scope_t {
 		   	llvm::IRBuilder<> &builder,
 		   	const ptr<const ast::item_t> &fn_decl,
 		   	scope_t::ref module_scope,
-			unification_t unification,
+			const types::type_t::map &bindings,
 			types::type_t::ref callee_type);
 };
 

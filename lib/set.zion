@@ -3,7 +3,7 @@ module _
 link type Set to UniqueTree
 
 type UniqueTree{Data} is
-    Empty or
+    Nothing or
     Leaf{data Data} or
     Node{data Data, left Tree, right Tree}
 
@@ -18,7 +18,7 @@ fn set_insert(named coll any Collection, value) bool
 
 fn exists(tree UniqueTree{any Data}, value any Data} bool
     match tree
-        case Empty
+        case Nothing
             return false
 
         case Leaf(value)
@@ -35,16 +35,16 @@ fn exists(tree UniqueTree{any Data}, value any Data} bool
 
 fn copy_with_insertion(tree UniqueTree{any Data}, value any Data) 
     match tree
-        case Empty
+        case Nothing
             # this node is empty, we can just replace it with a leaf of our
             # value
             return Leaf(value)
 
         case Leaf(data)
             if data > value
-                return Node(data, Leaf(value), Empty)
+                return Node(data, Leaf(value), Nothing)
             else
-                return Node(data, Empty, Leaf(value))
+                return Node(data, Nothing, Leaf(value))
         
         case Node(data, left, right)
             if data > value

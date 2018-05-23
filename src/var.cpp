@@ -41,11 +41,11 @@ unification_t var_t::accepts_callsite(
 				get_location().str().c_str(),
 				args->str().c_str(),
 				return_type->str().c_str()));
-	auto expected_type = type_function(
+	auto expected_type = types::freshen(type_function(
 			INTERNAL_LOC(),
 			nullptr,
 			args,
-			return_type);
+			return_type));
 
 	assert(!types::share_ftvs(fn_type, expected_type));
 

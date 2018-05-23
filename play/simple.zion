@@ -5,15 +5,15 @@ type JustInt{G} has
 	var val int
 	var hey G
 
-tag Empty
+tag Nothing
 
-type Maybe{T} is Empty or JustInt{T}
+type Maybe{T} is Nothing or JustInt{T}
 
 fn do(t Maybe{any Q})
 	match t
 		is JustInt{any Q}
 			pass
-		is Empty
+		is Nothing
 			pass
 
 fn main()

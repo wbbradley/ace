@@ -13,6 +13,6 @@ fn main() {
     } else {
         assert(false)
     }
-    v = Empty
+    v = Nothing
     print("pass")
 }
