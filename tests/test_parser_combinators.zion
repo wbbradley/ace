@@ -51,7 +51,7 @@ fn parse_token(k str) Parser {
                 return Just(Step(Symbol(symbol, start), ParseState(ps.s, i)))
             }
         }
-        return Empty
+        return Nothing
     }
 }
 
@@ -68,7 +68,7 @@ fn parse_symbol(ps ParseState) Step? {
     if start != i {
         return Just(Step(Symbol(ps.s[start:i], start), ParseState(ps.s, i)))
     } else {
-        return Empty
+        return Nothing
     }
 }
 
@@ -132,7 +132,7 @@ fn parse_kleene_star(parser Parser) Parser {
                     append(nodes, node)
                     ps = next_ps
                 }
-                Empty {
+                Nothing {
                     break
                 }
             }
@@ -177,9 +177,9 @@ fn main() {
     # [(x,y) | x <- [1,2,3] , y <- [1,2,3], x /= y]
     # would look like this desugared in Zion...
     print(
-        bind([1, 2, 3], fn (x int) {
-            return bind([1, 2, 3], fn (y int) {
-                return bind([x != y], fn (r bool) {
+        bind([1, 2, 3], fn (x) {
+            return bind([1, 2, 3], fn (y) {
+                return bind([x != y], fn (r) {
                     if r {
                         return [(x, y)]
                     } else {

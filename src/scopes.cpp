@@ -1652,7 +1652,7 @@ struct generic_substitution_scope_impl_t final : public std::enable_shared_from_
 			llvm::IRBuilder<> &builder,
 			const ptr<const ast::item_t> &fn_decl,
 			scope_t::ref module_scope,
-			unification_t unification,
+			const types::type_t::map &bindings,
 			types::type_t::ref callee_type);
 
 	const types::type_t::ref callee_signature;
@@ -1737,7 +1737,7 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 		llvm::IRBuilder<> &builder,
 		const ptr<const ast::item_t> &fn_decl,
 		scope_t::ref parent_scope,
-		unification_t unification,
+		const types::type_t::map &bindings,
 		types::type_t::ref callee_type)
 {
 	/* instantiate a new scope */
@@ -1746,7 +1746,7 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 
 	/* iterate over the bindings found during unifications and make
 	 * substitutions in the type environment */
-	for (auto &pair : unification.bindings) {
+	for (auto &pair : bindings) {
 		if (pair.first.find("_") != 0) {
 			subst_scope->put_type_variable_binding(pair.first, pair.second);
 		} else {

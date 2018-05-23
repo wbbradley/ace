@@ -17,11 +17,11 @@ fn nth[T](l List T, index int) T? {
                 }
             }
             Nil {
-                return Empty
+                return Nothing
             }
         }
     }
-    return Empty
+    return Nothing
 }
 
 [global]
@@ -39,22 +39,4 @@ fn len(l List any) int {
 [global]
 fn str(l List any) str {
     return "[...list...]"
-}
-
-[global]
-fn bind[A, B](ma [A], f fn (a A) [B]) [B] {
-    # (>>=) :: m a -> (a -> m b) -> m b
-    let mb [B]
-    for a in ma {
-        mb_new := f(a)
-        for b in mb_new {
-            append(mb, b)
-        }
-    }
-    return mb
-}
-        
-[global]
-fn fail[A](reason str) [A] {
-    return []
 }

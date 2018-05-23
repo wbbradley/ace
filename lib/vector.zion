@@ -88,8 +88,10 @@ fn join[T where gc T](delim str, v [T]) str {
     delims_len := delim_len * (vec.size - 1)
     var total_len = delims_len
     var i = 0
+    items := vec.items
+    assert(items != null)
     while i < vec.size {
-        s := str(vec.items[i] as! T)
+        s := str(items[i] as! T)
         append(strs, s)
         total_len += len(s)
         i += 1
@@ -138,8 +140,12 @@ fn join[T where not (gc T)](delim str, v [T]) str {
     delims_len := delim_len * (vec.size - 1)
     var total_len = delims_len
     var i = 0
+
+    items := vec.items
+    assert(items != null)
+
     while i < vec.size {
-        s := str(vec.items[i])
+        s := str(items[i])
         append(strs, s)
         total_len += len(s)
         i += 1
@@ -175,7 +181,9 @@ fn join[T where not (gc T)](delim str, v [T]) str {
 fn __getitem__[T](vec [T], index int) T {
     let vector = vec as! *(VectorImpl T)
     assert(index >= 0 and index < vector.size)
-    return vector.items[index] as! T
+    items := vector.items
+    assert(items != null)
+    return items[index] as! T
 }
 
 [global]
@@ -229,9 +237,12 @@ fn __managed_vector_mark__(vec *var_t) void {
     # posix.puts("marking vector at 0x" + __str__(vec as int, 16))
     v := vec as! *ManagedVector
     var i = 0
-    while i < v.size {
-        runtime.mark_allocation(v.items[i])
-        i += 1
+    items := v.items
+    if items != null {
+        while i < v.size {
+            runtime.mark_allocation(items[i])
+            i += 1
+        }
     }
 }
 
@@ -272,7 +283,9 @@ fn __set_vector_item__(vector *ManagedVector, index int, item *var_t) void {
 
     assert(index < vector.size)
     assert(item as! *?var_t != null)
-    vector.items[index] = item
+    items := vector.items
+    assert(items != null)
+    items[index] = item
 }
 
 fn __set_vector_item__[T](vector *(NativeVector T), index int, item T) void {
@@ -281,27 +294,32 @@ fn __set_vector_item__[T](vector *(NativeVector T), index int, item T) void {
     }
 
     assert(index < vector.size)
-    vector.items[index] = item
+    items := vector.items
+    assert(items != null)
+    items[index] = item
 }
 
 fn __vector_unsafe_append__[T where gc T](vector *ManagedVector, item T) void {
     # To be called by compiler for vector literals
     assert(vector.reserved > vector.size)
-    vector.items[vector.size] = item as! *var_t
+    items := vector.items
+    assert(items != null)
+    items[vector.size] = item as! *var_t
     vector.size += 1
 }
 
 fn __vector_unsafe_append__[T where not(gc T)](vector *(NativeVector T), item T) void {
     # To be called by compiler for vector literals
     assert(vector.reserved > vector.size)
-    vector.items[vector.size] = item
+    items := vector.items
+    assert(items != null)
+    items[vector.size] = item
     vector.size += 1
 }
 
 # This is mildly unsafe against future changes...
 fn __unsafe_vector_append__[V, I](vector *V, item I) void {
     if vector.reserved > vector.size {
-        # we have space
         let items = vector.items
         assert(items != null)
         items[vector.size] = item
@@ -329,10 +347,14 @@ fn __unsafe_vector_append__[V, I](vector *V, item I) void {
         } else {
             # we need to go from zero space to newly allocated space
             assert(vector.reserved == 0)
-            vector.items = posix.calloc(sizeof(I), 4)! as! *I
-            vector.reserved = 4
+
+            reserved := 4
+            items := posix.calloc(sizeof(I), reserved)! as! *I
+            items[0] = item
+            vector.items = items
+
+            vector.reserved = reserved
             vector.size = 1
-            vector.items[0] = item
         }
     }
 }
@@ -415,7 +437,9 @@ fn splice[T](vec [T], index int, count int) void {
         panic("invalid index (" + index + ") and count (" + count + ") passed to vector.splice\n")
     }
 
-    posix.memmove(&v.items[i], &v.items[skip_to], (orig_count - skip_to) * sizeof(T))
+    items := v.items
+    assert(items != null)
+    posix.memmove(&items[i], &items[skip_to], (orig_count - skip_to) * sizeof(T))
     v.size = orig_count - c
 }
 
@@ -485,4 +509,22 @@ fn foldl[T, U](binop fn (lhs T, rhs U) T, starting T, operands [U]) T {
         state = binop(state, operand)
     }
     return state
+}
+
+[global]
+fn bind[A, B](ma [A], f fn (a A) [B]) [B] {
+    # (>>=) :: m a -> (a -> m b) -> m b
+    let mb [B]
+    for a in ma {
+        mb_new := f(a)
+        for b in mb_new {
+            append(mb, b)
+        }
+    }
+    return mb
+}
+        
+[global]
+fn fail(reason str) [any] {
+    return []
 }

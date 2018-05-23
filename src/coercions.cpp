@@ -83,7 +83,7 @@ llvm::Value *coerce_value(
 				return scope->get_program_scope()->get_bound_variable(
 						builder,
 						location,
-						"Empty",
+						"Nothing",
 						nullptr)->get_llvm_value();
 			}
 		}

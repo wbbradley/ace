@@ -285,7 +285,7 @@ bound_var_t::ref generate_stack_variable(
 		llvm::Value *llvm_resolved_value = init_var->resolve_bound_var_value(scope, builder);
 
 		/* we're unboxing a Maybe{any}, so let's return
-		 * whether this was Empty or not... */
+		 * whether this was Nothing or not... */
 		return bound_var_t::create(INTERNAL_LOC(), symbol,
 				condition_type, llvm_resolved_value,
 				make_type_id_code_id(var_decl.get_location(), var_decl.get_symbol()));
@@ -951,88 +951,106 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		bool as_ref,
 		types::type_t::ref expected_type) const
 {
-	debug_above(7, log("resolving callsite expression of %s with expected type %s",
+	try {
+		indent_logger indent(get_location(), 5,
+			   	string_format("resolving callsite expression of %s with expected type %s",
 				str().c_str(), expected_type != nullptr ? expected_type->str().c_str() : "<null>"));
 
-	/* get the value of calling a function */
-	bound_type_t::refs param_types;
-	bound_var_t::refs arguments;
-	types::type_function_t::ref function_type;
+		/* get the value of calling a function */
+		bound_type_t::refs param_types;
+		bound_var_t::refs arguments;
+		types::type_function_t::ref function_type;
 
-	types::type_t::refs args;
-	if (auto can_reference_overloads = dyncast<can_reference_overloads_t>(function_expr)) {
-		for (int i = 0; i < params.size(); ++i) {
-			auto arg = params[i]->resolve_type(scope, nullptr);
-			args.push_back(arg ? arg : type_variable(INTERNAL_LOC()));
-		}
-		debug_above(8, log("found args are %s", ::str(args).c_str()));
-		function_type = can_reference_overloads->resolve_arg_types_from_overrides(
-				scope, get_location(),
-				args, nullptr);
-	}
+		bool need_overload_resolution = false;
+		types::type_t::refs args;
+		std::vector<llvm::IRBuilderBase::InsertPoint> insertion_points;
+		for (int j = 0; j < params.size(); ++j) {
+			auto param = params[j];
+			if (!dyncast<const ast::function_defn_t>(param)) {
+				bound_var_t::ref param_var = param->resolve_expression(
+						builder, scope, life, false /*as_ref*/, nullptr);
 
-	/* now instantiate the parameter values as per their appropriate expected types, but if we hit an undefined type
-	 * error, then try to expand our understanding of the function we're calling, and continue. */
-	int i = 0;
-	size_t progress = 0;
-	for (int j = 0; j < params.size(); ) {
-		auto param = params[j];
+				if (param_var->type->is_void(scope)) {
+					throw user_error(param->get_location(), "function parameters cannot be void");
+				}
 
-		auto expected_type_for_arg = get_arg_from_function(function_type, i);
-		debug_above(7, log(log_info, "resolving parameter %d with expected type %s",
-					i, expected_type_for_arg ? expected_type_for_arg->str().c_str() : "<null>"));
-		try {
-			bound_var_t::ref param_var = param->resolve_expression(
-					builder, scope, life, false /*as_ref*/,
-					expected_type_for_arg);
-			++i;
-
-			debug_above(6, log("argument %s -> %s", param->str().c_str(), param_var->type->str().c_str()));
-
-			assert(!param_var->get_type()->eval_predicate(tb_ref, scope));
-
-			if (param_var->type->is_void(scope)) {
-				throw user_error(param->get_location(), "function parameters cannot be void");
+				arguments.push_back(param_var);
+				param_types.push_back(param_var->type);
+				args.push_back(param_var->type->get_type());
+			} else {
+				arguments.push_back(nullptr);
+				param_types.push_back(nullptr);
+				args.push_back(type_variable(INTERNAL_LOC()));
+				insertion_points.push_back(builder.saveIP());
+				need_overload_resolution = true;
 			}
-			arguments.push_back(param_var);
-			param_types.push_back(param_var->type);
-			args[j] = param_var->type->get_type();
-			++j;
-		} catch (unbound_type_error &e) {
-			if (i != progress) {
-				if (auto can_reference_overloads = dyncast<can_reference_overloads_t>(function_expr)) {
-					progress = i;
-					function_type = can_reference_overloads->resolve_arg_types_from_overrides(
-							scope, get_location(),
-							args, nullptr);
-					if (function_type != nullptr) {
-						continue;
-					}
+		}
+
+		auto callsite_ip = builder.saveIP();
+
+		if (need_overload_resolution) {
+			if (auto can_reference_overloads = dyncast<can_reference_overloads_t>(function_expr)) {
+				function_type = can_reference_overloads->resolve_arg_types_from_overrides(
+						scope, get_location(),
+						args, nullptr);
+				if (function_type == nullptr) {
+					throw user_error(get_location(), "could not find a function type for %s with args %s",
+							function_expr->str().c_str(),
+							::str(args).c_str());
+				}
+			} else {
+				throw user_error(get_location(), "cannot reference overloads when trying to resolve overloads");
+			}
+
+			/* now instantiate the parameter values as per their appropriate expected types, but if we hit an undefined type
+			 * error, then try to expand our understanding of the function we're calling, and continue. */
+			for (int i = 0, j = 0; j < params.size(); ++j) {
+				if (arguments[j] == nullptr) {
+					auto param = params[j];
+					builder.restoreIP(insertion_points[i++]);
+
+					auto expected_type_for_arg = get_arg_from_function(function_type, j);
+					debug_above(7, log(log_info, "resolving parameter %d with expected type %s",
+								j, expected_type_for_arg ? expected_type_for_arg->str().c_str() : "<null>"));
+					bound_var_t::ref param_var = param->resolve_expression(
+							builder, scope, life, false /*as_ref*/,
+							expected_type_for_arg);
+
+					debug_above(6, log("argument %s -> %s", param->str().c_str(), param_var->type->str().c_str()));
+
+					assert(arguments[j] == nullptr);
+					arguments[j] = param_var;
+					assert(param_types[j] == nullptr);
+					param_types[j] = param_var->type;
+					args[j] = param_var->type->get_type();
 				}
 			}
-
-			throw;
 		}
-	}
 
-	if (auto can_reference_overloads = dyncast<can_reference_overloads_t>(function_expr)) {
-		/* we need to figure out which overload to call, if there are any */
-		debug_above(6, log("arguments to resolve in callsite are %s",
-					::str(arguments).c_str()));
-		debug_above(6, log("resolving against lhs %s",
-					function_expr->str().c_str()));
-		bound_var_t::ref function = can_reference_overloads->resolve_overrides(
-				builder, scope, life, shared_from_this(),
-				bound_type_t::refs_from_vars(arguments),
-				expected_type);
+		builder.restoreIP(callsite_ip);
+		if (auto can_reference_overloads = dyncast<can_reference_overloads_t>(function_expr)) {
+			/* we need to figure out which overload to call, if there are any */
+			debug_above(6, log("arguments to resolve in callsite are %s",
+						::str(arguments).c_str()));
+			debug_above(6, log("resolving against lhs %s",
+						function_expr->str().c_str()));
+			bound_var_t::ref function = can_reference_overloads->resolve_overrides(
+					builder, scope, life, shared_from_this(),
+					bound_type_t::refs_from_vars(arguments),
+					expected_type);
 
-		debug_above(5, log(log_info, "function chosen is %s", function->str().c_str()));
+			debug_above(5, log(log_info, "function chosen is %s", function->str().c_str()));
 
-		return make_call_value(builder, get_location(), scope, life, function, arguments);
-	} else {
-		bound_var_t::ref lhs_value = function_expr->resolve_expression(builder, scope, life, false /*as_ref*/,
-				type_function_closure(type_variable(INTERNAL_LOC())));
-		return make_call_value(builder, get_location(), scope, life, lhs_value, arguments);
+			return make_call_value(builder, get_location(), scope, life, function, arguments);
+		} else {
+			bound_var_t::ref lhs_value = function_expr->resolve_expression(builder, scope, life, false /*as_ref*/,
+					type_function_closure(type_variable(INTERNAL_LOC())));
+			return make_call_value(builder, get_location(), scope, life, lhs_value, arguments);
+		}
+	} catch (user_error &e) {
+		std::throw_with_nested(user_error(log_info, 
+					get_location(), "while resolving callsite expression of %s with expected type %s",
+					str().c_str(), expected_type != nullptr ? expected_type->str().c_str() : "<null>"));
 	}
 }
 
@@ -1301,7 +1319,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 						scope,
 						unchecked_fn,
 						fn_type,
-						nullptr /*unification*/);
+						{});
 			} else {
 				throw user_error(get_location(), "unable to instantiate unchecked function %s",
 						unchecked_fn->str().c_str());
@@ -1600,14 +1618,19 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 			return value;
 		}
 	} else {
+		// REVIEW: might want to move this after evaluation of rhs, if rhs exists
 		bound_var_t::ref index_val = start->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr);
 
 		identifier::ref element_type_var = types::gensym();
 
+		if (lhs_val->type->get_type()->eval_predicate(tb_maybe, scope)) {
+			throw user_error(lhs_val->get_location(), "you are not allowed to dereference a potentially null pointer");
+		}
+
 		/* check to see if we are employing pointer arithmetic here */
 		unification_t unification = unify(
 				lhs_val->type->get_type(),
-				type_ptr(type_variable(element_type_var)),
+			   	type_ptr(type_variable(element_type_var)),
 				scope);
 
 		if (unification.result) {
@@ -2796,7 +2819,7 @@ types::type_t::ref extract_matching_type(
 	   	types::type_t::ref actual_type,
 		types::type_t::ref pattern_type)
 {
-	unification_t unification = unify(actual_type, pattern_type, {});
+	unification_t unification = unify(pattern_type, actual_type, {});
 	if (unification.result) {
 		return unification.bindings[type_var_name->get_name()];
 	} else {

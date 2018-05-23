@@ -62,13 +62,13 @@ fn readbytes(f File) bytes? {
             return readbytes(fp)
         }
     } else {
-        return Empty
+        return Nothing
     }
 }
 
 fn readbytes(fp *?posix.FILE) bytes? {
     if fp == null {
-        return Empty
+        return Nothing
     }
 
     let size = size(fp)
@@ -80,12 +80,12 @@ fn readbytes(fp *?posix.FILE) bytes? {
             let bytes_read = posix.fread(pb, 1, cb, fp)
 
             if posix.ferror(fp) {
-                return Empty
+                return Nothing
             }
             return Just(bytes(pb, bytes_read))
         }
     } else {
-        return Empty
+        return Nothing
     }
 }
 

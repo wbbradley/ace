@@ -2,8 +2,8 @@ module _
 # test: pass
 
 fn main()
-	var solution List{List{int}} = Empty
-	var node List{int} = Node(0, Empty)
-	new_solution := Node(node, Empty)
+	var solution List{List{int}} = Nothing
+	var node List{int} = Node(0, Nothing)
+	new_solution := Node(node, Nothing)
 	solution = new_solution
 	print(len(solution))

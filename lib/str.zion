@@ -225,7 +225,7 @@ fn decode(b bytes, fmt str) str? {
         return Just(str(OwningBuffer(res, b_len)))
     } else {
         panic("unknown format to decode: " + fmt)
-        return Empty
+        return Nothing
     }
 }
 
@@ -385,7 +385,7 @@ fn find(s_ str, find_ str, start int) int? {
     
     var s_len int = len(s_) - start
     if s_len <= 0 {
-        return Empty
+        return Nothing
     }
 
     var s = &unsafe_access(s_)[start]
@@ -405,7 +405,7 @@ fn find(s_ str, find_ str, start int) int? {
         start += 1
     }
 
-    return Empty
+    return Nothing
 }
 
 fn replace(s str, find_ str, repl str) str {
@@ -423,7 +423,7 @@ fn replace(s str, find_ str, repl str) str {
                 sofar += repl
                 cur = i + len(find_)
             }
-            Empty {
+            Nothing {
                 if len(sofar) == 0 {
                     return s
                 } else {

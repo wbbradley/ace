@@ -525,6 +525,9 @@ bool zion_lexer_t::_get_tokens() {
 			if (ch == '=') {
 				gts = gts_eqeq;
 				tk = tk_equal;
+			} else if (ch == '>') {
+				tk = tk_expr_block;
+				gts = gts_end;
 			} else {
 				gts = gts_end;
 				scan_ahead = false;

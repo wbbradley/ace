@@ -12,14 +12,14 @@ fn getenv(name str) str? {
         Just(buffer) {
             return Just(str(buffer))
         }
-        Empty {
-            return Empty
+        Nothing {
+            return Nothing
         }
     }
 }
 
 fn shell(cmd str) [str] {
-    return shell(cmd, Empty)
+    return shell(cmd, Nothing)
 }
 
 fn shell(cmd_parts [str]) [str] {
@@ -43,7 +43,7 @@ fn shell(cmd str, pipe_text str?) [str] {
             assert(ret >= 0)
             posix.fflush(fp)
         }
-        Empty {
+        Nothing {
         }
     }
 

@@ -32,7 +32,7 @@ bound_var_t::ref instantiate_data_type_ctor(
 		unchecked_var_t::ref unchecked_fn,
 		ast::item_t::ref node,
 		types::type_function_t::ref fn_type,
-		const unification_t *unification)
+		const types::type_t::map &bindings)
 {
 	/* we shouldn't be here unless we found something to substitute */
 	debug_above(4, log(log_info, "building substitution for %s with %s",
@@ -41,21 +41,13 @@ bound_var_t::ref instantiate_data_type_ctor(
 	assert(unchecked_data_ctor != nullptr);
 	assert(!unchecked_data_ctor->native);
 
-	scope_t::ref subst_scope;
-	types::type_function_t::ref data_ctor_type;
+	/* create a generic substitution scope with the unification bindings */
+	scope_t::ref subst_scope = generic_substitution_scope_t::create(
+			builder, unchecked_fn->node,
+			unchecked_fn->module_scope, bindings, fn_type);
 
-	if (unification != nullptr) {
-		/* create a generic substitution scope with the unification */
-		subst_scope = generic_substitution_scope_t::create(
-				builder, unchecked_fn->node,
-				unchecked_fn->module_scope, *unification, fn_type);
-
-		data_ctor_type = dyncast<const types::type_function_t>(
-				unchecked_data_ctor->sig->rebind(unification->bindings));
-	} else {
-		subst_scope = unchecked_fn->module_scope;
-		data_ctor_type = dyncast<const types::type_function_t>(unchecked_data_ctor->sig->rebind(scope->get_type_variable_bindings()));
-	}
+	types::type_function_t::ref data_ctor_type = dyncast<const types::type_function_t>(
+			unchecked_data_ctor->sig->rebind(bindings));
 
 	assert(data_ctor_type != nullptr);
 	debug_above(4, log(log_info, "going to bind ctor for %s", data_ctor_type->str().c_str()));
@@ -65,9 +57,9 @@ bound_var_t::ref instantiate_data_type_ctor(
 			builder, subst_scope,
 			make_iid_impl(
 				subst_scope->make_fqn(unchecked_fn->id->get_name()),
-			   	unchecked_fn->id->get_location()),
+				unchecked_fn->id->get_location()),
 			unchecked_fn->id->get_name(),
-		   	node->get_location(),
+			node->get_location(),
 			data_ctor_type);
 
 	/* the ctor should now exist */
@@ -80,7 +72,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 		scope_t::ref scope,
 		unchecked_var_t::ref unchecked_fn,
 		types::type_function_t::ref fn_type,
-		const unification_t *unification)
+		const types::type_t::map &bindings)
 {
 	if (fn_type->args->ftv_count() != 0) {
 		throw unbound_type_error(unchecked_fn->get_location(), "we don't have enough info to instantiate this function");
@@ -109,20 +101,14 @@ bound_var_t::ref instantiate_unchecked_fn(
 	auto life = make_ptr<life_t>(lf_function);
 
 	if (auto function_defn = dyncast<const ast::function_defn_t>(unchecked_fn->node)) {
-		/* we shouldn't be here unless we found something to substitute */
-		scope_t::ref subst_scope;
-		if (unification != nullptr) {
-			debug_above(4, log(log_info, "building substitution for %s with unification %s",
-						function_defn->token.str().c_str(),
-						unification->str().c_str()));
+		debug_above(4, log(log_info, "building substitution for %s with bindings %s",
+					function_defn->token.str().c_str(),
+					::str(bindings).c_str()));
 
-			/* create a generic substitution scope with the unification */
-			subst_scope = generic_substitution_scope_t::create(
-					builder, unchecked_fn->node,
-					unchecked_fn->module_scope, *unification, fn_type);
-		} else {
-			subst_scope = unchecked_fn->module_scope;
-		}
+		/* create a generic substitution scope with the bindings */
+		scope_t::ref subst_scope = generic_substitution_scope_t::create(
+				builder, unchecked_fn->node,
+				unchecked_fn->module_scope, bindings, fn_type);
 
 		if (auto function = dyncast<const types::type_function_t>(fn_type)) {
 			if (auto args = dyncast<const types::type_args_t>(function->args)) {
@@ -170,9 +156,21 @@ bound_var_t::ref instantiate_unchecked_fn(
 			panic("we should have a product type for our fn_type");
 		}
 	} else if (ast::type_product_t::ref type_product = dyncast<const ast::type_product_t>(unchecked_fn->node)) {
-		return instantiate_data_type_ctor(builder, scope, unchecked_fn, type_product, fn_type, unification);
+		return instantiate_data_type_ctor(
+				builder,
+			   	scope,
+			   	unchecked_fn,
+			   	type_product,
+			   	fn_type,
+			   	bindings);
 	} else if (ast::data_type_t::ref data_type = dyncast<const ast::data_type_t>(unchecked_fn->node)) {
-		return instantiate_data_type_ctor(builder, scope, unchecked_fn, data_type, fn_type, unification);
+		return instantiate_data_type_ctor(
+				builder,
+			   	scope,
+			   	unchecked_fn,
+			   	data_type,
+			   	fn_type,
+			   	bindings);
 	} else {
 		panic("we should only have function defn's in unchecked var's, right?");
 		return nullptr;
@@ -191,11 +189,11 @@ bound_var_t::ref check_bound_func_vs_callsite(
 		int &coercions)
 {
 	bound_var_t::ref callable;
-	std::function<void (scope_t::ref, var_t::ref, unification_t const &)> extractor =
+	std::function<void (scope_t::ref, var_t::ref, types::type_t::map const &)> extractor =
 		[&callable, &builder] (
 				scope_t::ref scope,
 				var_t::ref fn,
-				unification_t const &unification)
+				types::type_t::map const &bindings)
 		{
 			if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
 				/* this function has already been bound */
@@ -208,12 +206,12 @@ bound_var_t::ref check_bound_func_vs_callsite(
 				 * substitution scope */
 				debug_above(5, log(log_info, "rebinding %s with %s",
 							fn->str().c_str(),
-							::str(unification.bindings).c_str()));
+							::str(bindings).c_str()));
 
 				types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(
 						fn
 						->get_type(scope)
-						->rebind(unification.bindings, true /*bottom_out_free_vars*/)
+						->rebind(bindings, true /*bottom_out_free_vars*/)
 						->eval(scope));
 
 				assert(fn_type != nullptr);
@@ -224,7 +222,12 @@ bound_var_t::ref check_bound_func_vs_callsite(
 				}
 
 				try {
-					callable = instantiate_unchecked_fn(builder, scope, unchecked_fn, fn_type, &unification);
+					callable = instantiate_unchecked_fn(
+							builder,
+						   	scope,
+						   	unchecked_fn,
+						   	fn_type,
+						   	bindings);
 				} catch (unbound_type_error &error) {
 					/* instantiation of this function would rely on non-existent callsite types */
 					return;
@@ -247,11 +250,11 @@ types::type_function_t::ref check_func_type_vs_callsite(
 		types::type_t::ref return_type)
 {
 	types::type_function_t::ref function_type;
-	std::function<void (scope_t::ref, var_t::ref, unification_t const &)> extractor =
+	std::function<void (scope_t::ref, var_t::ref, types::type_t::map const &)> extractor =
 		[&function_type] (
 				scope_t::ref scope,
 				var_t::ref fn,
-				unification_t const &unification)
+				types::type_t::map const &bindings)
 		{
 			if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
 				/* this function has already been bound */
@@ -265,12 +268,12 @@ types::type_function_t::ref check_func_type_vs_callsite(
 				 * substitution scope */
 				debug_above(5, log(log_info, "rebinding %s with %s",
 							fn->str().c_str(),
-							::str(unification.bindings).c_str()));
+							::str(bindings).c_str()));
 
 				function_type = dyncast<const types::type_function_t>(
 						fn
 						->get_type(scope)
-						->rebind(unification.bindings, false /*bottom_out_free_vars*/)
+						->rebind(bindings, false /*bottom_out_free_vars*/)
 						->eval(scope));
 				assert(function_type != nullptr);
 			} else {
@@ -290,7 +293,7 @@ void check_func_vs_callsite(
 		types::type_t::ref args,
 		types::type_t::ref return_type,
 		int &coercions,
-		std::function<void (scope_t::ref, var_t::ref, unification_t const &)> &callback)
+		std::function<void (scope_t::ref, var_t::ref, types::type_t::map const &)> &callback)
 {
 	if (return_type == nullptr) {
 		return_type = type_variable(location);
@@ -303,7 +306,7 @@ void check_func_vs_callsite(
 					fn->str().c_str(),
 				   	args->str().c_str(),
 					return_type->str().c_str()));
-		callback(scope, fn, unification);
+		callback(scope, fn, unification.bindings);
 	} else {
 		debug_above(4, log(log_info, "fn %s at %s does not match %s because %s",
 					fn->str().c_str(),
@@ -377,6 +380,11 @@ bound_var_t::ref get_callable_from_local_var(
 	} else {
 		auto error = user_error(callsite_location, "variable " c_id("%s") " is not callable with these arguments or just isn't a function",
 				alias.c_str());
+		error.add_info(callsite_location, "argument types are %s",
+				args->str().c_str());
+		error.add_info(callsite_location, "return type is %s",
+				return_type->str().c_str());
+		dbg();
 		error.add_info(callsite_location, "type of %s is %s",
 				alias.c_str(),
 				bound_var->type->str().c_str());

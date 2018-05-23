@@ -1,23 +1,13 @@
 module _
-# test: skip
+# test: pass
 # expect: 18 
 
-fn unit() int {
-    return 0
-}
-
-fn unit() str {
-    return ""
-}
-
 fn sum[T, G](f fn (x T) T, y G, xs [T]) T {
-    var sum = unit() as T
+    var sum T = 0
     for x in xs {
         sum += f(x)
     }
     return int(sum * y)
 }
 
-fn main() {
-    print(sum(fn (x) = x + 1, 3.0, [0, 1, 2]))
-}
+fn main() => print(sum(fn (x) => x + 1, 3.0, [0, 1, 2]))

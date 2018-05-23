@@ -27,7 +27,7 @@ var stderr *posix.FILE = posix.fdopen(2, "a")!
 # initialization of modules is automatically generated.
 # link fn __init_modules() void
 
-fn print[T where is_maybe T](x T) void {
+fn print[T where is_maybe T](x T) {
     if x != null {
         print(x)
     } else {
@@ -35,22 +35,22 @@ fn print[T where is_maybe T](x T) void {
     }
 }
 
-fn print[T, Args, R where not (is_maybe T) and not (T === str) and not (T <: fn (..Args) R)](x T) void {
+fn print[T, Args, R where not (is_maybe T) and not (T === str) and not (T <: fn (..Args) R)](x T) {
     write(stdout, str(x))
     write(stdout, "\n")
 }
 
-fn print[T where not(is_maybe T) and (T === str)](x T) void {
+fn print[T where not(is_maybe T) and (T === str)](x T) {
     write(stdout, x)
     write(stdout, "\n")
 }
 
-fn panic(x str) void {
+fn panic(x str) {
     write(stderr, x)
     posix.exit(-1)
 }
 
-fn breakpoint() void {
+fn breakpoint() {
     posix.raise(posix.SIGTRAP)
 }
 

@@ -1,6 +1,6 @@
 module _
 # test: pass
-# expect: Empty
+# expect: Nothing
 # expect: Just(3)
 
 fn do(t Maybe any T) void {
@@ -8,13 +8,13 @@ fn do(t Maybe any T) void {
         Just(val) {
             print("Just(" + val + ")")
         }
-        Empty {
-            print("Empty")
+        Nothing {
+            print("Nothing")
         }
     }
 }
 
 fn main() {
-    do(Empty)
+    do(Nothing)
     do(Just(3))
 }

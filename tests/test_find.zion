@@ -10,7 +10,7 @@ fn main() {
     assert(not (6 != i))
 
     j := find("hello worl", "world", 0)
-    assert(j == Empty)
+    assert(j == Nothing)
 
     assert(not exists(find("world", "world", 1)))
     assert(exists(find(" world", "world", 1)))

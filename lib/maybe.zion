@@ -2,12 +2,12 @@ global
 
 type Maybe T is {
     Just(t T)
-    Empty
+    Nothing
 }
 
 fn exists(m Maybe any) bool {
     match m {
-        Empty {
+        Nothing {
             return false
         }
         Just(_) {
@@ -23,17 +23,17 @@ fn __eq__[U](lhs Maybe U, rhs Maybe U) bool {
                 Just(lhs_value) {
                     return lhs_value == rhs_value
                 }
-                Empty {
+                Nothing {
                     return false
                 }
             }
         }
-        Empty {
+        Nothing {
             match lhs {
                 Just(_) {
                     return false
                 }
-                Empty {
+                Nothing {
                     return true
                 }
             }
@@ -46,7 +46,7 @@ fn __eq__[U, V where U === V](lhs U, rhs Maybe V) bool {
         Just(rhs_value) {
             return lhs == rhs_value
         }
-        Empty {
+        Nothing {
             return false
         }
     }
@@ -57,7 +57,7 @@ fn __ineq__[U, V where U === V](lhs U, rhs Maybe V) bool {
         Just(rhs_value) {
             return lhs != rhs_value
         }
-        Empty {
+        Nothing {
             return true
         }
     }
@@ -68,7 +68,7 @@ fn __eq__[U, V where U === V](lhs Maybe U, rhs V) bool {
         Just(lhs_value) {
             return lhs_value == rhs
         }
-        Empty {
+        Nothing {
             return false
         }
     }
@@ -79,7 +79,7 @@ fn __ineq__[U, V where U === V](lhs Maybe U, rhs V) bool {
         Just(lhs_value) {
             return lhs_value != rhs
         }
-        Empty {
+        Nothing {
             return true
         }
     }
@@ -90,14 +90,14 @@ fn join[A](a Maybe (Maybe A)) Maybe A {
         Just(a) {
             return a
         }
-        Empty {
-            return Empty
+        Nothing {
+            return Nothing
         }
     }
 }
 
 fn fail[A](reason str) A? {
-    return Empty
+    return Nothing
 }
 
 fn pure[A](v A) A? {
@@ -106,8 +106,8 @@ fn pure[A](v A) A? {
 
 fn bind[A, B](a Maybe A, f fn (a A) Maybe B) Maybe B {
     match a {
-        Empty {
-            return Empty
+        Nothing {
+            return Nothing
         }
         Just(a) {
             return f(a)
@@ -117,8 +117,8 @@ fn bind[A, B](a Maybe A, f fn (a A) Maybe B) Maybe B {
     
 fn fmap[A, B where not (B === void)](f fn (a A) B, a Maybe A) Maybe B {
     match a {
-        Empty {
-            return Empty
+        Nothing {
+            return Nothing
         }
         Just(x) {
             return Just(f(x))
@@ -128,7 +128,7 @@ fn fmap[A, B where not (B === void)](f fn (a A) B, a Maybe A) Maybe B {
 
 fn fmap[A](f fn (a A) void, a Maybe A) void {
     match a {
-        Empty {
+        Nothing {
             return
         }
         Just(x) {

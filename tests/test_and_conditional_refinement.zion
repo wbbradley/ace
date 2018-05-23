@@ -4,7 +4,7 @@ module _
 # expect: foobar : str
 
 fn maybe_a_line() str? {
-    return Empty
+    return Nothing
 }
 
 fn main() {
@@ -17,7 +17,7 @@ fn main() {
                 static_print(foobar)
             }
         }
-        Empty {
+        Nothing {
         }
     }
 }

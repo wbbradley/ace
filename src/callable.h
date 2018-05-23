@@ -96,7 +96,7 @@ void check_func_vs_callsite(
 		types::type_t::ref args,
 		types::type_t::ref return_type,
 		int &coercions,
-		std::function<void (scope_t::ref, var_t::ref, unification_t const &)> &callback);
+		std::function<void (scope_t::ref, var_t::ref, types::type_t::map const &)> &callback);
 bound_var_t::ref instantiate_function_with_args_and_return_type(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
@@ -116,4 +116,4 @@ bound_var_t::ref instantiate_unchecked_fn(
 		scope_t::ref scope,
 		unchecked_var_t::ref unchecked_fn,
 		types::type_function_t::ref fn_type,
-		const unification_t *unification);
+		const types::type_t::map &bindings);

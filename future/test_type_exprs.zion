@@ -7,7 +7,7 @@ type Optional{Data} is
 type Either{a, b} is Left{a} or Right{b}
 	
 type Tree{Data} is
-	Empty or
+	Nothing or
 	Leaf{Data} or
 	Node{Tree{Data}, Tree{Data}}
 
@@ -32,7 +32,7 @@ type CountingSet{Value} has
 	var count int
 
 type Set{Value} is
-	Empty or SetBuffer{Value}
+	Nothing or SetBuffer{Value}
 
 type Graph{Data} has
 	var nodes Set{Node{Data}}

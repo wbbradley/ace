@@ -69,13 +69,22 @@ type Lines LineReader has {
 }
 
 [global]
+fn bind[LineReader, T](lines Lines LineReader, f fn (lines [str]) T) T {
+    let text_lines [str]
+    for line in lines {
+        append(text_lines, line)
+    }
+    return f(text_lines)
+}
+
+[global]
 fn readlines() Lines *posix.FILE {
     return readlines(stdin)
 }
 
 [global]
 fn readlines[LineReader](f LineReader) Lines LineReader {
-    return Lines(f, Empty)
+    return Lines(f, Nothing)
 }
 
 [global]
@@ -97,27 +106,19 @@ fn __iter_valid__(fl Lines any, _ null) bool {
 [global]
 fn __iter_item__(fl Lines any) str {
     match fl.cur_line {
-        Just(line) {
-            return line
-        }
-        Empty {
-            return ""
-        }
+        Just(line) => return line
+        Nothing    => return ""
     }
 }
 
 [global]
 fn __iterate__(fl Lines any) {
     match readline(fl.file) {
-        Line(line) {
-            fl.cur_line = Just(line)
-        }
+        Line(line) => fl.cur_line = Just(line)
         Error(errno) {
             print("Error: encountered error " + errno + " while reading file")
-            fl.cur_line = Empty
+            fl.cur_line = Nothing
         }
-        EOF {
-            fl.cur_line = Empty
-        }
+        EOF => fl.cur_line = Nothing
     }
 }

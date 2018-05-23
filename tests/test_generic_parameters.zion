@@ -4,10 +4,10 @@ module _
 
 fn nth[T](l (Node T)?, i int) T? {
     match l {
-        Empty = return Empty
+        Nothing => return Nothing
         Just(l) {
-            if i == 0 = return Just(l.value)
-            else      = return nth(l.next, i - 1)
+            if i == 0 => return Just(l.value)
+            else      => return nth(l.next, i - 1)
         }
     }
 }
@@ -18,10 +18,10 @@ type Node T has {
 }
 
 fn main() {
-    x := Node(3, Just(Node(28231, Empty)))
+    x := Node(3, Just(Node(28231, Nothing)))
     nth(Just(x), 1)
     match nth(Just(x), 1) {
-        Just(y) = print(y)
-        Empty =
+        Just(y) => print(y)
+        Nothing =>
     }
 }
