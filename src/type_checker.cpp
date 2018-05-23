@@ -964,7 +964,7 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		bool need_overload_resolution = false;
 		types::type_t::refs args;
 		std::vector<llvm::IRBuilderBase::InsertPoint> insertion_points;
-		for (int j = 0; j < params.size(); ++j) {
+		for (size_t j = 0; j < params.size(); ++j) {
 			auto param = params[j];
 			if (!dyncast<const ast::function_defn_t>(param)) {
 				bound_var_t::ref param_var = param->resolve_expression(
@@ -1004,7 +1004,7 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 
 			/* now instantiate the parameter values as per their appropriate expected types, but if we hit an undefined type
 			 * error, then try to expand our understanding of the function we're calling, and continue. */
-			for (int i = 0, j = 0; j < params.size(); ++j) {
+			for (size_t i = 0, j = 0; j < params.size(); ++j) {
 				if (arguments[j] == nullptr) {
 					auto param = params[j];
 					builder.restoreIP(insertion_points[i++]);
@@ -4896,12 +4896,12 @@ types::type_function_t::ref ast::reference_expr_t::resolve_arg_types_from_overri
 		return nullptr;
 	} else {
 		/* find the best candidate */
-		for (int i = 0; i < choices.size(); i++) {
+		for (size_t i = 0; i < choices.size(); i++) {
 			if (choices[i] == nullptr) {
 				continue;
 			}
 
-			for (int j = i + 1; j < choices.size(); j++) {
+			for (size_t j = i + 1; j < choices.size(); j++) {
 				if (choices[j] == nullptr) {
 					continue;
 				}

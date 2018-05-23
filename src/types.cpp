@@ -1772,7 +1772,7 @@ bool is_valid_udt_initial_char(int ch) {
 	return ch == '_' || isupper(ch);
 }
 
-types::type_t::ref get_arg_from_function(types::type_function_t::ref function, int i) {
+types::type_t::ref get_arg_from_function(types::type_function_t::ref function, size_t i) {
 	if (function != nullptr) {
 		if (auto args = dyncast<const types::type_args_t>(function->args)) {
 			if (args->args.size() <= i) {
