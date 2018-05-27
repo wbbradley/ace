@@ -64,25 +64,25 @@ bound_type_t::ref bound_type_t::create(
 
 std::string str(const bound_type_t::refs &args) {
 	std::stringstream ss;
-	ss << "[";
+	ss << "(";
 	const char *sep = "";
 	for (auto &arg : args) {
 		ss << sep << arg->get_type()->str();
 		sep = ", ";
 	}
-	ss << "]";
+	ss << ")";
 	return ss.str();
 }
 
 std::string str(const bound_type_t::named_pairs &named_pairs) {
 	std::stringstream ss;
-	ss << "[";
+	ss << "(";
 	const char *sep = "";
 	for (auto &pair : named_pairs) {
 		ss << sep << "(" << pair.first << " " << pair.second->str() << ")";
 		sep = ", ";
 	}
-	ss << "]";
+	ss << ")";
 	return ss.str();
 }
 

@@ -1,0 +1,5 @@
+global
+
+type Resource T is {
+   Resource(handle T, cleanup fn () ())
+}

@@ -162,12 +162,12 @@ namespace types {
 	type_variable_t::type_variable_t(identifier::ref id) : id(id), location(id->get_location()) {
 	}
 
-	identifier::ref gensym() {
+	identifier::ref gensym(location_t location) {
 		/* generate fresh "any" variables */
-		return make_iid({string_format("__%d", next_generic++)});
+		return make_iid_impl(string_format("__%d", next_generic++).c_str(), location);
 	}
 
-	type_variable_t::type_variable_t(location_t location) : id(gensym()), location(location) {
+	type_variable_t::type_variable_t(location_t location) : id(types::gensym(location)), location(location) {
 	}
 
 	std::ostream &type_variable_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
@@ -954,7 +954,7 @@ namespace types {
 		parens_t parens(os, parent_precedence, get_precedence());
 
 		auto var_name = binding->get_name();
-		auto new_name = gensym();
+		auto new_name = gensym(get_location());
 		os << "lambda " << new_name->get_name() << " ";
 		map bindings = bindings_;
 		bindings[var_name] = type_id(new_name);

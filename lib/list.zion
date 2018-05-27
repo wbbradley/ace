@@ -40,3 +40,21 @@ fn len(l List any) int {
 fn str(l List any) str {
     return "[...list...]"
 }
+
+type Pair X Y is {
+    Pair(x X, y Y)
+}
+
+fn merge[X](xs_ [X], ys_ [X]) [X] {
+    match Pair(xs_, ys_) {
+        Pair(Nil, ys) => return ys
+        Pair(xs, Nil) => return xs
+        Pair(Cons(x, xs), Cons(y, ys)) {
+            if x <= y {
+                return Cons(x, merge(xs, ys_))
+            } else {
+                return Cons(y, merge(xs_, ys))
+            }
+        }
+    }
+}

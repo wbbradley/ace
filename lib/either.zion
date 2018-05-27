@@ -1,0 +1,15 @@
+global
+
+type Either L R is {
+    Left(left L)
+    Right(right R)
+}
+
+fn bind[A, B, G](either Either A B, f fn (b B) Either A G) Either A G {
+    match either {
+        Left(a)  => return Left(a)
+        Right(b) => return f(b)
+    }
+}
+
+fn pure[R](r R) Either (any) R => Right(r)
