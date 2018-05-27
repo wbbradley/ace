@@ -1621,7 +1621,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 		// REVIEW: might want to move this after evaluation of rhs, if rhs exists
 		bound_var_t::ref index_val = start->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr);
 
-		identifier::ref element_type_var = types::gensym();
+		identifier::ref element_type_var = types::gensym(lhs_val->type->get_location());
 
 		if (lhs_val->type->get_type()->eval_predicate(tb_maybe, scope)) {
 			throw user_error(lhs_val->get_location(), "you are not allowed to dereference a potentially null pointer");
@@ -1671,7 +1671,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 
 				/* let's first try to find the setitem function while using a free-type
 				 * variable for the rhs parameter. */
-				auto type_var_name = types::gensym();
+				auto type_var_name = types::gensym(INTERNAL_LOC());
 				var_t::refs fns;
 				fittings_t fittings;
 				bound_var_t::ref setitem_function = maybe_get_callable(
@@ -1842,7 +1842,7 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 	types::type_t::ref element_type;
 
 	if (expected_type != nullptr) {
-		auto type_var_name = types::gensym();
+		auto type_var_name = types::gensym(token.location);
 		unification_t unification = unify(
 				type_operator(type_id(make_iid(STD_VECTOR_TYPE)), type_variable(type_var_name)),
 				expected_type,
@@ -3979,9 +3979,9 @@ void ast::for_block_t::resolve_statement(
 {
 	/* this next bit is some code-gen to rewrite the for loop as a while loop */
 
-	token_t iterable_token = token_t(var_token.location, tk_identifier, types::gensym()->get_name());
-	token_t iterator_token = token_t(var_token.location, tk_identifier, types::gensym()->get_name());
-	token_t iterator_end_token = token_t(var_token.location, tk_identifier, types::gensym()->get_name());
+	token_t iterable_token = token_t(var_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name());
+	token_t iterator_token = token_t(var_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name());
+	token_t iterator_end_token = token_t(var_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name());
 	token_t iteration_value_token = var_token;
 
 	/* create the iteratable object by referencing the user-supplied iterable */

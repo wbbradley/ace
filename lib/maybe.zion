@@ -104,6 +104,13 @@ fn pure[A](v A) A? {
     return Just(v)
 }
 
+fn maybe[A, B](default B, f fn (a A) B, a A) B {
+    match a {
+        Just(x) => return f(a)
+        Nothing => return default
+    }
+}
+
 fn bind[A, B](a Maybe A, f fn (a A) Maybe B) Maybe B {
     match a {
         Nothing {

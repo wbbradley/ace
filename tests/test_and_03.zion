@@ -1,11 +1,6 @@
 module _
 # test: pass
 
-type Either L R is {
-    Left(left L)
-    Right(right R)
-}
-
 fn hey(x Either int float) {
     match x {
         Left(x) {

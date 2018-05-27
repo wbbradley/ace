@@ -2,7 +2,9 @@ global
 
 get runtime
 get posix
+get resource
 get maybe
+get either
 get buffer
 get bool
 get bytes
@@ -26,6 +28,8 @@ var stderr *posix.FILE = posix.fdopen(2, "a")!
 
 # initialization of modules is automatically generated.
 # link fn __init_modules() void
+
+fn id[A](a A) A => a
 
 fn print[T where is_maybe T](x T) {
     if x != null {

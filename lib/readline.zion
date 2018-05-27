@@ -48,21 +48,6 @@ fn readline(fp *posix.FILE) Readline {
     return Line(str(OwningBuffer(line)))
 }
 
-[global]
-fn readline(f file.File) Readline {
-    match f.state {
-        Open(fp) {
-            return readline(fp)
-        }
-        Closed {
-            return Error(-1)
-        }
-        Error(errno) {
-            return Error(errno)
-        }
-    }
-}
-
 type Lines LineReader has {
     var file LineReader
     var cur_line str?

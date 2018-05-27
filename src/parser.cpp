@@ -175,6 +175,49 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 	}
 }
 
+ptr<expression_t> parse_with_block(parse_state_t &ps) {
+	auto with_token = ps.token;
+	ps.advance();
+
+	bool have_param = false;
+	token_t param_token;
+
+	auto expr = expression_t::parse(ps);
+	if (auto ref_expr = dyncast<const reference_expr_t>(expr)) {
+		if (ps.token.tk == tk_becomes) {
+			param_token = ref_expr->token;
+			have_param = true;
+			ps.advance();
+			expr = expression_t::parse(ps);
+		}
+	}
+
+	if (!have_param) {
+		param_token = token_t{with_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name()};
+	}
+
+	auto block = block_t::parse(ps, true /*expression_means_return*/);
+
+	auto callsite = create<callsite_expr_t>(with_token);
+	callsite->function_expr = create<reference_expr_t>(with_token);
+	callsite->params.push_back(expr);
+
+	auto fn = create<function_defn_t>(block->token);
+	auto decl = create<function_decl_t>(block->token);
+	fn->decl = decl;
+
+	decl->function_type = type_function_closure(type_function(
+			block->get_location(),
+			nullptr,
+			type_args({type_variable(block->get_location())}, {make_code_id(param_token)}),
+			type_variable(block->get_location())));
+	decl->extends_module = make_iid_impl(GLOBAL_SCOPE_NAME, block->get_location());
+
+	fn->block = block;
+	callsite->params.push_back(fn);
+	return callsite;
+}
+
 ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 	assert(ps.token.tk != tk_rcurly);
 
@@ -217,7 +260,13 @@ ptr<expression_t> reference_expr_t::parse(parse_state_t &ps) {
 			auto token = ps.token;
 			ps.advance();
 			return create<ast::literal_expr_t>(token);
+		} else if (ps.token.text == "__filename__") {
+			auto expr = create<literal_expr_t>(
+					token_t{ps.token.location, tk_string, escape_json_quotes(ps.token.location.filename)});
+			ps.advance();
+			return expr;
 		}
+
 		auto reference_expr = create<ast::reference_expr_t>(ps.token);
 		ps.advance();
 		return std::move(reference_expr);
@@ -283,6 +332,8 @@ ptr<expression_t> base_expr::parse(parse_state_t &ps) {
 		return sizeof_expr_t::parse(ps);
 	} else if (ps.token.is_ident(K(fn))) {
 		return function_defn_t::parse(ps, true /*within_expression*/);
+	} else if (ps.token.is_ident(K(with))) {
+		return parse_with_block(ps);
 	} else if (ps.token.tk == tk_identifier) {
 		// NB: this is last to ensure "special" builtins are in play above
 		return reference_expr_t::parse(ps);
@@ -1587,7 +1638,7 @@ ptr<module_t> module_t::parse(parse_state_t &ps) {
 					linked_module->link_as_name = token_t(
 							function->decl->token.location,
 							tk_identifier,
-							types::gensym()->get_name());
+							types::gensym(INTERNAL_LOC())->get_name());
 					linked_module->extern_module = create<ast::module_decl_t>(token_t(
 								function->decl->token.location,
 								tk_identifier,

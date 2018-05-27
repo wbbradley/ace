@@ -1,11 +1,6 @@
 module _
 # test: pass
 
-type Either L R is {
-    Left(l L)
-    Right(r R)
-}
-
 fn fib(e Either int float) int {
     var value int = 10
     print(value)    

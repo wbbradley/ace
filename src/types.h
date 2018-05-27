@@ -478,7 +478,7 @@ namespace types {
 	};
 
 
-	identifier::ref gensym();
+	identifier::ref gensym(location_t location);
 	int coerce_to_integer(env_t::ref env, type_t::ref type, type_t::ref &expansion);
 	bool is_integer(type_t::ref type, env_t::ref env);
 	void get_integer_attributes(location_t location, type_t::ref type, env_t::ref env, unsigned &bit_size, bool &signed_);

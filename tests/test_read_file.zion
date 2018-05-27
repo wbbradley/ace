@@ -7,20 +7,42 @@ get sys
 # expect: This text should appear
 
 fn main() {
-    f := file.open("tests/test_read_file.zion", "r")
-    while true {
-        match readline(f) {
-            Line(line) {
-                print(line)
-            }
-            EOF {
-                break
-            }
-            Error(_) {
-                break
+    with fp := file.open(__filename__, "r") {
+        while true {
+            match readline(fp) {
+                Line(line) {
+                    print(line)
+                }
+                EOF {
+                    break
+                }
+                Error(_) {
+                    break
+                }
             }
         }
+    } else errno {
+        print("Failed to open " + __filename__ + " with error " + errno)
     }
-    file.close(f)
+
     runtime.gc()
+}
+
+fn expansion() {
+    with x := y {
+        z(x)
+    } else q {
+        print(q)
+    }
+
+    # becomes
+    match y {
+        Right(Resource(x, cleanup)) {
+            defer block `cleanup()`
+
+            z(x) 
+        }
+        Left(q) { print(q) }
+    }
+
 }
