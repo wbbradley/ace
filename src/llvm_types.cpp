@@ -1047,12 +1047,12 @@ bound_var_t::ref get_or_create_tuple_ctor(
 {
 	std::string name = id->get_name();
 	debug_above(6, log("get_or_create_tuple_ctor(..., %s, %s, %s, %s, " c_id("%s") ", %s)",
-		   scope->get_name().c_str(),
-		   bound_data_type->str().c_str(),
-		   bound_return_type->str().c_str(),
-		   id->str().c_str(),
-		   ctor_name.c_str(),
-		   location.str().c_str()));
+				scope->get_name().c_str(),
+				bound_data_type->str().c_str(),
+				bound_return_type->str().c_str(),
+				id->str().c_str(),
+				ctor_name.c_str(),
+				location.str().c_str()));
 
 	auto program_scope = scope->get_program_scope();
 
@@ -1100,7 +1100,10 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
 	auto function = llvm_start_function(builder, scope, location, function_type, name);
-	life_t::ref life = make_ptr<life_t>(lf_function);
+	life_t::ref life = (
+			make_ptr<life_t>(lf_function)
+			->new_life(lf_block)
+			->new_life(lf_statement));
 
 	bound_var_t::ref dtor_fn = maybe_get_dtor(builder,
 			program_scope, bound_data_type);
@@ -1141,6 +1144,14 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 		++index;
 	}
+
+#ifdef ZION_DEBUG
+	int released_count = 
+#endif
+		life->release_vars(builder, scope, lf_function);
+#ifdef ZION_DEBUG
+	assert(released_count == 0 && "We should not be allocating inside of a generated tuple constructor.");
+#endif
 
 	/* create a return statement for the final object. */
 	builder.CreateRet(llvm_maybe_pointer_cast(builder, llvm_final_obj, bound_return_type->get_llvm_specific_type()));

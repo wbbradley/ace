@@ -732,7 +732,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 				"opaque closure",
 				bound_closure_type,
 				llvm_function_closure_value,
-				make_iid("opaque closure"));
+				make_iid_impl("opaque closure", location));
 	}
 
 	/* the capture builder will emit loads so that they can be copied into the closure. note that it is doing this back

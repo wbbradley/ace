@@ -30,6 +30,13 @@ private:
 	int val;
 };
 
+struct trackable_t {
+	virtual ~trackable_t() {}
+	virtual std::string str() const = 0;
+	virtual location_t get_location() const = 0;
+	virtual void release(llvm::IRBuilder<> &builder, scope_t::ref scope) const = 0;
+};
+
 struct life_t : std::enable_shared_from_this<life_t> {
 	typedef ptr<life_t> ref;
 
@@ -48,8 +55,15 @@ struct life_t : std::enable_shared_from_this<life_t> {
 			bound_var_t::ref value,
 			life_form_t track_in_life_form);
 
+	/* track the need to defer a call until the end of a life. expects a callable that takes no parameters and returns
+	 * void. */
+	void defer_call(
+			llvm::IRBuilder<> &builder,
+			scope_t::ref scope,
+			bound_var_t::ref value);
+
 	/* release values down to and including a particular life_form level */
-	void release_vars(
+	int release_vars(
 			llvm::IRBuilder<> &builder,
 			scope_t::ref scope,
 			life_form_t life_form) const;
@@ -61,7 +75,7 @@ struct life_t : std::enable_shared_from_this<life_t> {
 
 	const life_t::ref former_life;
 	const life_form_t life_form;
-	std::vector<bound_var_t::ref> values;
+	std::list<std::unique_ptr<trackable_t>> values;
 
 private:
 	mutable bool release_vars_called;

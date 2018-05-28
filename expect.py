@@ -71,6 +71,11 @@ def main():
             actual = proc.communicate(input='\n'.join(injects) + '\n')[0]
         else:
             actual = proc.communicate()[0]
+        proc.wait()
+        if proc.returncode != 0:
+            print("Return code is " + str(proc.returncode))
+            print("Process returned a non-zero value. " + color("Failing!", "red"))
+            sys.exit(-1)
 
     except subprocess.CalledProcessError as e:
         print(e)

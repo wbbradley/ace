@@ -1,5 +1,6 @@
-global
+module resource
 
-type Resource T is {
-   Resource(handle T, cleanup fn () ())
+type MaybeResource R E is {
+    Acquired(resource R, cleanup fn () ())
+    Failed(error E)
 }

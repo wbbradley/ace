@@ -1,0 +1,14 @@
+module _
+# test: pass
+# expect: 123
+
+fn main() {
+    foo()
+    runtime.gc()
+}
+
+fn foo() {
+    defer fn () => write(stdout, "3\n")
+    defer fn () => write(stdout, "2")
+    write(stdout, "1")
+}

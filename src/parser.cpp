@@ -218,6 +218,13 @@ ptr<expression_t> parse_with_block(parse_state_t &ps) {
 	return callsite;
 }
 
+ptr<statement_t> defer_t::parse(parse_state_t &ps) {
+	auto defer = create<defer_t>(ps.token);
+	ps.advance();
+	defer->callable = expression_t::parse(ps);
+	return defer;
+}
+
 ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 	assert(ps.token.tk != tk_rcurly);
 
@@ -241,6 +248,8 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 		return unreachable_t::parse(ps);
 	} else if (ps.token.is_ident(K(type))) {
 		return type_def_t::parse(ps);
+	} else if (ps.token.is_ident(K(defer))) {
+		return defer_t::parse(ps);
 	} else if (ps.token.is_ident(K(continue))) {
 		auto continue_flow = create<ast::continue_flow_t>(ps.token);
 		eat_token();

@@ -5,12 +5,9 @@ get file
 
 fn main() {
     filename := "tests/test_if_finalizer.zion"
-    f := file.open(filename, "r")
-    match f.state {
-        Open(fp) {
-            print("opened " + filename + " as fp " + str(fp as! int))
-        }
-    } else {
-        print("unable to open " + filename)
+    with fp := file.open(filename, "r") {
+        print("opened " + filename + " as fp " + str(fp as! int))
+    } else error {
+        print("unable to open " + filename + " because of error " + str(error))
     }
 }

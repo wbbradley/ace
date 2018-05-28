@@ -3,6 +3,7 @@ module file
 get posix
 get readline
 get filesize
+get resource
 
 type FileOpen has {
     filename str
@@ -13,12 +14,12 @@ type FileError is { FileError(errno posix.int) }
 type EOF is { EOF }
 
 [global]
-fn open[M, T, U](filename str, mode str) Either FileError (Resource *posix.FILE) {
+fn open[M, T, U](filename str, mode str) resource.MaybeResource *posix.FILE posix.int {
     fp := posix.fopen(filename, mode)
     if fp != null {
-        return Right(Resource(fp, fn () { posix.fclose(fp) }))
+        return resource.Acquired(fp, fn () { posix.fclose(fp) })
     } else {
-        return Left(posix.errno())
+        return resource.Failed(posix.errno())
     }
 }
 

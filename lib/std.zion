@@ -2,8 +2,8 @@ global
 
 get runtime
 get posix
-get resource
 get maybe
+get resource
 get either
 get buffer
 get bool
@@ -30,6 +30,10 @@ var stderr *posix.FILE = posix.fdopen(2, "a")!
 # link fn __init_modules() void
 
 fn id[A](a A) A => a
+
+fn print() {
+    write(stdout, "\n")
+}
 
 fn print[T where is_maybe T](x T) {
     if x != null {
@@ -69,7 +73,6 @@ type IntRange has {
     var lim int
     var step int
 }
-    
 
 fn range(lim int) IntRange {
     return IntRange(0, lim, 1)

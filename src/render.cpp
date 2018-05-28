@@ -447,6 +447,11 @@ namespace ast {
 		}
 	}
 
+	void defer_t::render(render_state_t &rs) const {
+		rs.ss << C_CONTROL << "defer " << C_RESET;
+		callable->render(rs);
+	}
+
 	void function_decl_t::render(render_state_t &rs) const {
 		if (extends_module != nullptr) {
 			rs.ss << '[' << K(module) << " " << C_MODULE << extends_module->get_name() << C_RESET << ']';
