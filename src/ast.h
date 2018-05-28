@@ -503,6 +503,22 @@ namespace ast {
 		identifier::ref extends_module;
 	};
 
+	struct defer_t : public statement_t {
+		typedef ptr<const defer_t> ref;
+
+		static const syntax_kind_t SK = sk_defer;
+		static ptr<statement_t> parse(parse_state_t &ps);
+		virtual void resolve_statement(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				runnable_scope_t::ref *new_scope,
+				bool *returns) const;
+		virtual void render(render_state_t &rs) const;
+
+		ptr<expression_t> callable;
+	};
+
 	struct assignment_t : public statement_t {
 		typedef ptr<const assignment_t> ref;
 

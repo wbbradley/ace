@@ -38,6 +38,7 @@ extern const char *TYPE_OP_IS_FALSE;
 extern const char *TYPE_OP_IS_BOOL;
 extern const char *TYPE_OP_IS_POINTER;
 extern const char *TYPE_OP_IS_FUNCTION;
+extern const char *TYPE_OP_IS_CALLABLE;
 extern const char *TYPE_OP_IS_VOID;
 extern const char *TYPE_OP_IS_UNIT;
 extern const char *TYPE_OP_IS_NULL;
@@ -52,6 +53,7 @@ enum type_builtins_t {
 	tb_bool,
 	tb_pointer,
 	tb_function,
+	tb_callable,
 	tb_void,
 	tb_unit,
 	tb_int,
@@ -244,6 +246,7 @@ namespace types {
 	};
 
 	struct type_integer_t : public type_t {
+		typedef ptr<const type_integer_t> ref;
 		type_integer_t(type_t::ref bit_size, type_t::ref signed_);
 		type_t::ref bit_size;
 		type_t::ref signed_;
@@ -253,7 +256,7 @@ namespace types {
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
-		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
+		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
@@ -481,7 +484,18 @@ namespace types {
 	identifier::ref gensym(location_t location);
 	int coerce_to_integer(env_t::ref env, type_t::ref type, type_t::ref &expansion);
 	bool is_integer(type_t::ref type, env_t::ref env);
-	void get_integer_attributes(location_t location, type_t::ref type, env_t::ref env, unsigned &bit_size, bool &signed_);
+	bool maybe_get_integer_attributes(
+			location_t location,
+		   	type_t::ref type,
+		   	env_t::ref env,
+		   	unsigned &bit_size,
+		   	bool &signed_);
+	void get_integer_attributes(
+			location_t location,
+			type_integer_t::ref type,
+			env_t::ref env,
+			unsigned &bit_size,
+			bool &signed_);
 	void get_runtime_typeids(type_t::ref type, env_t::ref env, std::set<int> &typeids);
 	type_t::ref without_ref(type_t::ref type);
 	type_t::refs without_refs(type_t::refs types);
@@ -519,6 +533,7 @@ types::type_ptr_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_ref(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body);
 types::type_t::ref type_extern(types::type_t::ref inner);
+types::type_function_t::ref type_deferred_function(location_t location, types::type_t::ref return_type);
 
 types::type_t::ref type_list_type(types::type_t::ref element);
 types::type_t::ref type_vector_type(types::type_t::ref element);

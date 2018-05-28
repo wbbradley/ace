@@ -10,15 +10,9 @@ fn main() {
     with fp := file.open(__filename__, "r") {
         while true {
             match readline(fp) {
-                Line(line) {
-                    print(line)
-                }
-                EOF {
-                    break
-                }
-                Error(_) {
-                    break
-                }
+                Line(line) => print(line)
+                EOF        => break
+                Error(_)   => break
             }
         }
     } else errno {
@@ -28,21 +22,26 @@ fn main() {
     runtime.gc()
 }
 
-fn expansion() {
-    with x := y {
-        z(x)
-    } else q {
-        print(q)
-    }
+macro "with" x := y Block(a) "else" q Block(b)
 
     # becomes
     match y {
-        Right(Resource(x, cleanup)) {
-            defer block `cleanup()`
+        With(Resource(x, cleanup)) {
+            defer fn => cleanup()
 
-            z(x) 
+            a
         }
-        Left(q) { print(q) }
+        Without(q) b
     }
-
 }
+
+macro "defer" "fn" Statement(a)
+    # becomes
+    # ensure a deferred list exists
+    append(get_stack_deferred(), fn () void { a })
+
+macro "defer" "block" Statement(a)
+    # becomes
+    # ensure a deferred list exists
+    append(get_block_deferred(), fn () void { a })
+

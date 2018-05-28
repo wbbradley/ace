@@ -993,11 +993,13 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 				function_type = can_reference_overloads->resolve_arg_types_from_overrides(
 						scope, get_location(),
 						args, nullptr);
+				/*
 				if (function_type == nullptr) {
 					throw user_error(get_location(), "could not find a function type for %s with args %s",
 							function_expr->str().c_str(),
 							::str(args).c_str());
 				}
+				*/
 			} else {
 				throw user_error(get_location(), "cannot reference overloads when trying to resolve overloads");
 			}
@@ -2045,14 +2047,14 @@ bound_var_t::ref type_check_binary_integer_op(
 	bound_type_t::ref bound_int_type = upsert_bound_type(builder, scope, type_id(make_iid(INT_TYPE)));
 
 	if (!initialized) {
-		types::get_integer_attributes(INTERNAL_LOC(), bound_int_type->get_type(), scope, int_bit_size, int_signed);
+		assert(types::maybe_get_integer_attributes(INTERNAL_LOC(), bound_int_type->get_type(), scope, int_bit_size, int_signed));
 		initialized = true;
 	}
 
 	unsigned lhs_bit_size, rhs_bit_size;
 	bool lhs_signed = false, rhs_signed = false;
-	types::get_integer_attributes(lhs->get_location(), lhs->type->get_type(), scope, lhs_bit_size, lhs_signed);
-	types::get_integer_attributes(rhs->get_location(), rhs->type->get_type(), scope, rhs_bit_size, rhs_signed);
+	assert(types::maybe_get_integer_attributes(lhs->get_location(), lhs->type->get_type(), scope, lhs_bit_size, lhs_signed));
+	assert(types::maybe_get_integer_attributes(rhs->get_location(), rhs->type->get_type(), scope, rhs_bit_size, rhs_signed));
 
 	bound_type_t::ref final_integer_type;
 	bool final_integer_signed = false;
@@ -4361,6 +4363,23 @@ void ast::var_decl_t::resolve_statement(
 	}
 }
 
+
+void ast::defer_t::resolve_statement(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		runnable_scope_t::ref *new_scope,
+		bool *returns) const
+{
+	auto expr = callable->resolve_expression(builder,
+			scope, life, false /*as_ref*/,
+			type_deferred_function(
+				get_location(),
+			   	type_variable(get_location())));
+
+	life->defer_call(builder, scope, expr);
+}
+
 bound_var_t::ref take_address(
         llvm::IRBuilder<> &builder,
         scope_t::ref scope,
@@ -4493,13 +4512,14 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 			bool signed_ = DEFAULT_INT_SIGNED;
 			bound_type_t::ref native_type;
 
-			if (expected_type != nullptr && expected_type->ftv_count() == 0) {
-				get_integer_attributes(
+			if (expected_type != nullptr && expected_type->ftv_count() == 0 &&
+				maybe_get_integer_attributes(
 						token.location,
 						expected_type,
 						scope,
 						bit_size,
-						signed_);
+						signed_))
+			{
 				native_type = upsert_bound_type(
 						builder, program_scope,
 						expected_type);
@@ -4789,15 +4809,16 @@ types::type_t::ref ast::literal_expr_t::resolve_type(scope_t::ref scope, types::
 		break;
 	case tk_integer:
 		{
-			if (expected_type != nullptr && expected_type->ftv_count() == 0) {
-				unsigned bit_size = DEFAULT_INT_BITSIZE;
-				bool signed_ = DEFAULT_INT_SIGNED;
-				get_integer_attributes(
+			unsigned bit_size = DEFAULT_INT_BITSIZE;
+			bool signed_ = DEFAULT_INT_SIGNED;
+			if (expected_type != nullptr && expected_type->ftv_count() == 0 &&
+				maybe_get_integer_attributes(
 						token.location,
 						expected_type,
 						scope,
 						bit_size,
-						signed_);
+						signed_))
+			{
 				return expected_type;
 			} else {
 				return type_id(make_iid(INT_TYPE));

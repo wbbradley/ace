@@ -57,6 +57,7 @@ void add_default_type_macros(type_macros_t &type_macros) {
 		TYPE_OP_IF,
 		TYPE_OP_IS_FALSE,
 		TYPE_OP_IS_FUNCTION,
+		TYPE_OP_IS_CALLABLE,
 		TYPE_OP_IS_MAYBE,
 		TYPE_OP_IS_NULL,
 		TYPE_OP_IS_POINTER,

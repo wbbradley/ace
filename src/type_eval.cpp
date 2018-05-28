@@ -19,6 +19,8 @@ const char *tbstr(type_builtins_t tb) {
 		return TYPE_OP_IS_POINTER;
 	case tb_function:
 		return TYPE_OP_IS_FUNCTION;
+	case tb_callable:
+		return TYPE_OP_IS_CALLABLE;
 	case tb_void:
 		return TYPE_OP_IS_VOID;
 	case tb_unit:
@@ -50,6 +52,8 @@ const char *id_from_tb(type_builtins_t tb) {
 	case tb_pointer:
 		return nullptr;
 	case tb_function:
+		return nullptr;
+	case tb_callable:
 		return nullptr;
 	case tb_void:
 		return VOID_TYPE;
@@ -170,6 +174,17 @@ namespace types {
 		}
 	}
 
+	template <typename T, typename U>
+	type_t::ref type_eval_is_type_in_pair(types::type_t::ref operand, env_t::ref env) {
+		if (dyncast<const T>(operand->eval(env))) {
+			return type_true;
+		} else if (dyncast<const U>(operand->eval(env))) {
+			return type_true;
+		} else {
+			return type_false;
+		}
+	}
+
 	type_t::ref type_eval_is_unit(types::type_t::ref operand, env_t::ref env) {
 		if (auto tuple_type = dyncast<const type_tuple_t>(operand->eval(env))) {
             return (tuple_type->dimensions.size() == 0) ? type_true : type_false;
@@ -278,6 +293,7 @@ namespace types {
 			{TYPE_OP_IS_INT, type_eval_is_int},
 			{TYPE_OP_IS_POINTER, type_eval_is_type<type_ptr_t>},
 			{TYPE_OP_IS_FUNCTION, type_eval_is_type<type_function_t>},
+			{TYPE_OP_IS_CALLABLE, type_eval_is_type_in_pair<type_function_t, type_function_closure_t>},
 			{TYPE_OP_IS_VOID, type_eval_is_void},
 			{TYPE_OP_IS_UNIT, type_eval_is_unit},
 			{TYPE_OP_IS_NULL, type_eval_is_null},

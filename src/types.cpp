@@ -28,6 +28,7 @@ const char *TYPE_OP_IS_FALSE = "is_false";
 const char *TYPE_OP_IS_BOOL = "is_bool";
 const char *TYPE_OP_IS_POINTER = "is_pointer";
 const char *TYPE_OP_IS_FUNCTION = "is_function";
+const char *TYPE_OP_IS_CALLABLE = "is_callable";
 const char *TYPE_OP_IS_VOID = "is_void";
 const char *TYPE_OP_IS_UNIT = "is_unit";
 const char *TYPE_OP_IS_NULL = "is_null";
@@ -1159,7 +1160,7 @@ namespace types {
 			os << " ";
 			type_var->emit(os, bindings, get_precedence());
 		}
-	   	os << " " << K(is);
+		os << " " << K(is);
 		for (auto ctor_pair : ctor_pairs) {
 			os << " ";
 			os << ctor_pair.first.text;
@@ -1361,6 +1362,28 @@ namespace types {
 
 	void get_integer_attributes(
 			location_t location,
+			type_integer_t::ref integer,
+			env_t::ref env,
+			unsigned &bit_size,
+			bool &signed_)
+	{
+		type_t::ref bit_size_expansion;
+		bit_size = coerce_to_integer(env, integer->bit_size, bit_size_expansion);
+		auto signed_type = integer->signed_->eval(env);
+		if (types::is_type_id(signed_type, TRUE_TYPE, nullptr)) {
+			signed_ = true;
+			return;
+		} else if (types::is_type_id(signed_type, FALSE_TYPE, nullptr)) {
+			signed_ = false;
+			return;
+		} else {
+			throw user_error(integer->signed_->get_location(), "unable to determine signedness for type from %s",
+					signed_type->str().c_str());
+		}
+	}
+
+	bool maybe_get_integer_attributes(
+			location_t location,
 			type_t::ref type,
 			env_t::ref env,
 			unsigned &bit_size,
@@ -1368,25 +1391,14 @@ namespace types {
 	{
 		type = type->eval(env);
 		if (auto integer = dyncast<const type_integer_t>(type)) {
-			type_t::ref bit_size_expansion;
-			bit_size = coerce_to_integer(env, integer->bit_size, bit_size_expansion);
-			auto signed_type = integer->signed_->eval(env);
-			if (types::is_type_id(signed_type, TRUE_TYPE, nullptr)) {
-				signed_ = true;
-				return;
-			} else if (types::is_type_id(signed_type, FALSE_TYPE, nullptr)) {
-				signed_ = false;
-				return;
-			} else {
-				throw user_error(integer->signed_->get_location(), "unable to determine signedness for type from %s",
-						signed_type->str().c_str());
-			}
+			get_integer_attributes(location, integer, env, bit_size, signed_);
+			return true;
 		} else if (types::is_type_id(type, CHAR_TYPE, nullptr)) {
 			bit_size = 8;
 			signed_ = false;
-			return;
+			return true;
 		} else {
-			throw user_error(location, "expected an integer type, found %s", type->str().c_str());
+			return false;
 		}
 	}
 
@@ -1787,5 +1799,13 @@ types::type_t::ref get_arg_from_function(types::type_function_t::ref function, s
 	} else {
 		return nullptr;
 	}
+}
+
+types::type_function_t::ref type_deferred_function(location_t location, types::type_t::ref return_type) {
+	return type_function(
+			location,
+			nullptr,
+			type_args({}, {}),
+			return_type);
 }
 

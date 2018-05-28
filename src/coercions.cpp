@@ -168,11 +168,16 @@ llvm::Value *coerce_value(
 			/* automatically resize integers to match the lhs */
 			unsigned bit_size = 0;
 			bool signed_ = false;
-			types::get_integer_attributes(rhs->get_location(), rhs->type->get_type(), scope, bit_size, signed_);
-			if (signed_) {
-				return builder.CreateSExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
+			if (types::maybe_get_integer_attributes(rhs->get_location(), rhs->type->get_type(), scope, bit_size, signed_)) {
+				if (signed_) {
+					return builder.CreateSExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
+				} else {
+					return builder.CreateZExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
+				}
 			} else {
-				return builder.CreateZExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
+				throw user_error(rhs->get_location(), "could not determine integer makeup for %s",
+						rhs->str().c_str());
+				return nullptr;
 			}
 		}
 
