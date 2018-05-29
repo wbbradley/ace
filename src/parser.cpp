@@ -175,47 +175,69 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 	}
 }
 
-ptr<expression_t> parse_with_block(parse_state_t &ps) {
+ptr<statement_t> parse_with_block(parse_state_t &ps) {
 	auto with_token = ps.token;
 	ps.advance();
 
-	bool have_param = false;
+	bool have_param_token = false;
 	token_t param_token;
+
+	token_t error_token;
 
 	auto expr = expression_t::parse(ps);
 	if (auto ref_expr = dyncast<const reference_expr_t>(expr)) {
 		if (ps.token.tk == tk_becomes) {
 			param_token = ref_expr->token;
-			have_param = true;
+			have_param_token = true;
 			ps.advance();
 			expr = expression_t::parse(ps);
 		}
 	}
 
-	if (!have_param) {
+	if (!have_param_token) {
 		param_token = token_t{with_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name()};
 	}
 
 	auto block = block_t::parse(ps, true /*expression_means_return*/);
 
-	auto callsite = create<callsite_expr_t>(with_token);
-	callsite->function_expr = create<reference_expr_t>(with_token);
-	callsite->params.push_back(expr);
+	auto else_token = ps.token;
+	chomp_ident(K(else));
 
-	auto fn = create<function_defn_t>(block->token);
-	auto decl = create<function_decl_t>(block->token);
-	fn->decl = decl;
+	if (ps.token.tk == tk_identifier) {
+		error_token = ps.token;
+		ps.advance();
+	} else {
+		error_token = token_t{with_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name()};
+	}
 
-	decl->function_type = type_function_closure(type_function(
-			block->get_location(),
-			nullptr,
-			type_args({type_variable(block->get_location())}, {make_code_id(param_token)}),
-			type_variable(block->get_location())));
-	decl->extends_module = make_iid_impl(GLOBAL_SCOPE_NAME, block->get_location());
+	auto error_block = block_t::parse(ps, false /* expression_means_return */);
 
-	fn->block = block;
-	callsite->params.push_back(fn);
-	return callsite;
+	auto cleanup_token = token_t{with_token.location, tk_identifier, "__cleanup"};
+	auto match = create<when_block_t>(with_token);
+	match->value = expr;
+
+	auto with_pattern = create<pattern_block_t>(with_token);
+	with_pattern->block = block;
+
+	auto with_predicate = create<ctor_predicate_t>(token_t{with_token.location, tk_identifier, "Acquired"});
+	with_predicate->params.push_back(create<irrefutable_predicate_t>(param_token));
+	with_predicate->params.push_back(create<irrefutable_predicate_t>(cleanup_token));
+	with_pattern->predicate = with_predicate;
+
+	auto cleanup_defer = create<defer_t>(block->token);
+	cleanup_defer->callable = create<reference_expr_t>(cleanup_token);
+	block->statements.insert(block->statements.begin(), cleanup_defer);
+
+	auto else_pattern = create<pattern_block_t>(else_token);
+	else_pattern->block = error_block;
+
+	auto else_predicate = create<ctor_predicate_t>(token_t{else_token.location, tk_identifier, "Failed"});
+	else_predicate->params.push_back(create<irrefutable_predicate_t>(error_token));
+	else_pattern->predicate = else_predicate;
+
+	match->pattern_blocks.push_back(with_pattern);
+	match->pattern_blocks.push_back(else_pattern);
+	return match;
 }
 
 ptr<statement_t> defer_t::parse(parse_state_t &ps) {
@@ -242,6 +264,8 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 		return for_block_t::parse(ps);
 	} else if (ps.token.is_ident(K(match))) {
 		return when_block_t::parse(ps);
+	} else if (ps.token.is_ident(K(with))) {
+		return parse_with_block(ps);
 	} else if (ps.token.is_ident(K(return))) {
 		return return_statement_t::parse(ps);
 	} else if (ps.token.is_ident(K(__unreachable__))) {
@@ -341,8 +365,6 @@ ptr<expression_t> base_expr::parse(parse_state_t &ps) {
 		return sizeof_expr_t::parse(ps);
 	} else if (ps.token.is_ident(K(fn))) {
 		return function_defn_t::parse(ps, true /*within_expression*/);
-	} else if (ps.token.is_ident(K(with))) {
-		return parse_with_block(ps);
 	} else if (ps.token.tk == tk_identifier) {
 		// NB: this is last to ensure "special" builtins are in play above
 		return reference_expr_t::parse(ps);
