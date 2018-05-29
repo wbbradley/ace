@@ -21,27 +21,3 @@ fn main() {
 
     runtime.gc()
 }
-
-macro "with" x := y Block(a) "else" q Block(b)
-
-    # becomes
-    match y {
-        With(Resource(x, cleanup)) {
-            defer fn => cleanup()
-
-            a
-        }
-        Without(q) b
-    }
-}
-
-macro "defer" "fn" Statement(a)
-    # becomes
-    # ensure a deferred list exists
-    append(get_stack_deferred(), fn () void { a })
-
-macro "defer" "block" Statement(a)
-    # becomes
-    # ensure a deferred list exists
-    append(get_block_deferred(), fn () void { a })
-

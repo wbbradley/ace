@@ -11,7 +11,7 @@ type Readline is {
 [global]
 fn readline() Readline {
     var buf *?char
-    var linecap posix.int = 0
+    var linecap int = 0
 
     if posix.getline(&buf, &linecap, stdin) == -1 or buf == null {
         return EOF
@@ -29,8 +29,9 @@ fn readline() Readline {
     return Line(ret)
 }
 
+[global]
 fn readline(fp *posix.FILE) Readline {
-    var linecap posix.int = 0
+    var linecap int = 0
     var line *?char = null
     linelen := posix.getline(&line, &linecap, fp)
     if linelen == -1 {
