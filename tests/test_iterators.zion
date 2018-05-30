@@ -21,8 +21,11 @@ fn main() {
         print(x)
     }
 
-    f := file.open("tests/test_iterators.zion", "r")
-    for line in file.readlines(f) {
-        print(line)
+    with f := file.open("tests/test_iterators.zion", "r") {
+        for line in file.readlines(f) {
+            print(line)
+        }
+    } else {
+        print("Failed to open file.")
     }
 }
