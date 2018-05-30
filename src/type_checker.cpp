@@ -528,6 +528,7 @@ void destructure_function_details(
         bound_type_t::named_pairs &params,
         bound_type_t::ref &return_type)
 {
+	scope = scope->get_program_scope();
 	type_constraints = function_type->type_constraints;
 
 	/* the parameter types as per the decl */
@@ -552,6 +553,7 @@ void destructure_function_details(
 				args->str().c_str());
 	}
 
+	debug_above(6, log_location(log_info, args->get_location(), "args are %s", args->str().c_str()));
 	bound_type_t::refs bound_args = upsert_bound_types(builder, scope, args->args);
 
 	const auto &arg_names = args->names;
@@ -561,29 +563,32 @@ void destructure_function_details(
 		params.push_back({param_name, bound_args[i]});
 	}
 
-    if (as_closure && function_type->return_type->ftv_count() != 0) {
-        /* we are unsure at this point about what the return type is, but we're instantiating an
-         * anonymous closure which means recursion is off the table, so we don't really need to know
-         * our return type yet. fake it with LLVM until we discover it, then set it there */
-        return_type = upsert_bound_type(builder, scope, type_unit());
-        needs_type_fixup = true;
-    } else {
-        return_type = upsert_bound_type(builder, scope, function_type->return_type);
-        needs_type_fixup = false;
-    }
+	if (as_closure && function_type->return_type->ftv_count() != 0) {
+		/* we are unsure at this point about what the return type is, but we're instantiating an
+		 * anonymous closure which means recursion is off the table, so we don't really need to know
+		 * our return type yet. fake it with LLVM until we discover it, then set it there */
+		return_type = upsert_bound_type(builder, scope, type_unit());
+		needs_type_fixup = true;
+	} else {
+		return_type = upsert_bound_type(builder, scope, function_type->return_type);
+		needs_type_fixup = false;
+	}
 
 	auto implied_fn_type = get_function_type(type_constraints, params, return_type)->eval(scope);
 	auto explicit_fn_type = function_type->eval(scope);
 
 	if (!as_closure) {
-		debug_above(7, log_location(log_info, explicit_fn_type->get_location(),
-				   	"%s should be %s (from %s)",
+		if (implied_fn_type->repr() != explicit_fn_type->repr()) {
+			log_location(log_info, explicit_fn_type->get_location(),
+					"%s should be %s (from %s) in scope %s",
 					implied_fn_type->repr().c_str(),
 					explicit_fn_type->repr().c_str(),
-					function_type->str().c_str()));
-
-		assert(implied_fn_type->repr() == explicit_fn_type->repr());
+					function_type->str().c_str(),
+				   	scope->get_name().c_str());
+			dbg();
+		}
 	}
+
 	function_type = dyncast<const types::type_function_t>(implied_fn_type);
 	assert(function_type != nullptr);
 }
@@ -735,12 +740,12 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 	types::type_function_t::ref function_type;
 	bound_type_t::named_pairs named_args;
 	bound_type_t::ref return_value;
-    bool needs_type_fixup = false;
+	bool needs_type_fixup = false;
 	try {
-        destructure_function_decl(builder, *extern_function, scope, type_constraints,
-                false /*as_closure*/, needs_type_fixup, named_args, return_value, function_type,
+		destructure_function_decl(builder, *extern_function, scope, type_constraints,
+				false /*as_closure*/, needs_type_fixup, named_args, return_value, function_type,
 				expected_type);
-        assert(!needs_type_fixup);
+		assert(!needs_type_fixup);
 	} catch (unbound_type_error &error) {
 		throw user_error(error.user_error);
 	}

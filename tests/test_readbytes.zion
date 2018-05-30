@@ -5,13 +5,16 @@ module _
 get sys
 
 fn main() {
-    match! readbytes(open("tests/test_readbytes.zion", "rt")) {
-        Just(result) {
-            match! decode(result, "utf8") {
-                Just(line) {
-                    print(line)
+    with fp := open("tests/test_readbytes.zion", "rt") {
+        match file.readbytes(fp) {
+            Just(result) {
+                match decode(result, "utf8") {
+                    Just(line) => print(line)
+                    Nothing    =>
                 }
             }
+            Nothing =>
         }
+    } else {
     }
 }
