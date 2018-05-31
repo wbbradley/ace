@@ -63,7 +63,8 @@ struct compiler_t {
 	ptr<const ast::module_t> main_module;
 	type_macros_t base_type_macros;
 
-	/* member variables */
+    std::unique_ptr<llvm::DIBuilder> llvm_dibuilder;
+
 private:
 	void lower_program_module();
 

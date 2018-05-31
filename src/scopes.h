@@ -114,6 +114,7 @@ struct module_scope_t : public virtual scope_t {
 	virtual void put_unchecked_type(unchecked_type_t::ref unchecked_type) = 0;
 	virtual unchecked_type_t::ref get_unchecked_type(std::string symbol) = 0;
 	virtual unchecked_var_t::ref get_unchecked_variable(std::string symbol) = 0;
+    virtual llvm::DICompileUnit *get_compile_unit() = 0;
 
 	/* module checking management
 	 * after checking a function regardless of whether it was generic or not
@@ -133,9 +134,9 @@ struct program_scope_t : public virtual module_scope_t {
 
 	virtual ~program_scope_t() {}
 
-	virtual ptr<module_scope_t> new_module_scope(std::string name, llvm::Module *llvm_module) = 0;
+	virtual ptr<module_scope_t> new_module_scope(std::string name, llvm::Module *llvm_module, llvm::DICompileUnit *llvm_compile_unit) = 0;
 
-	static program_scope_t::ref create(std::string name, compiler_t &compiler, llvm::Module *llvm_module);
+	static program_scope_t::ref create(std::string name, compiler_t &compiler, llvm::Module *llvm_module, llvm::DICompileUnit *llvm_compile_unit);
 
 	virtual bound_var_t::ref upsert_init_module_vars_function(llvm::IRBuilder<> &builder) = 0;
 	virtual void set_insert_point_to_init_module_vars_function(llvm::IRBuilder<> &builder, std::string for_var_decl_name) = 0;
