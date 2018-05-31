@@ -11,15 +11,9 @@ type Expr T is {
 
 fn eval(expr Expr any T) any T {
     match expr {
-        Plus(lhs, rhs) {
-            return eval(lhs) + eval(rhs)
-        }
-        Times(lhs, rhs) {
-            return eval(lhs) * eval(rhs)
-        }
-        Value(x) {
-            return x
-        }
+        Plus(lhs, rhs) => return eval(lhs) + eval(rhs)
+        Times(lhs, rhs) => return eval(lhs) * eval(rhs)
+        Value(x) => return x
     }
 }
 

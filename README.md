@@ -27,7 +27,8 @@ model. Zion is built on [LLVM](https://llvm.org/).
 
 ## User Roles
  - In industry there are two primary archetypes of programming language users, Workers and Librarians. Experienced developers wear either of these hats, switching back and forth as necessary. This switching can happen as new dependencies and integrations are initiated and completed within the scope of feature or new product work.
-   - *Workers* build trustworthy applications that solve problems. Workers demand a pleasant and ergonomic experience in order to remain focused on reaching their objectives.
+   - *Workers* build trustworthy applications that solve problems. Workers demand a pleasant and
+     ergonomic experience in order to remain focused on reaching their objectives.
    - *Librarians* extend the capabilities of the language by
      - Creating bindings to external libraries,
      - Integrating external libraries so as to appear fluid and seamless to the Workers,
@@ -78,77 +79,45 @@ Types are declared as follows:
 
 ```
 # Declare a structure type (aka product type, aka "struct")
-type Vector2D has
-	var x float
-	var y float
+type Vector2D has {
+	x float
+	y float
+}
 
 # Note the use of the word "has" after the type name. This signifies that the
 # Giraffe type "has" the succeeding "dimensions" of data associated with its
 # instances.
-type Giraffe has
-	var name str
-	var age int
-	var number_of_spots int
+type Giraffe has {
+	name str
+	age int
+	number_of_spots int
+}
 
-type Gender is Male or Female
+type Gender is { Male Female }
 
-type Lion has
-	var name str
-	var age int
-	var gender Gender
+type Lion has {
+	name str
+	age int
+	gender Gender
+}
 
-type Mouse has
-	var fur_color str
+type Mouse has {
+	fur_color str
+}
 
-# tags are how you declare a global singleton enum values.
-
-tag Zion
-tag Yellowstone
-tag Yosemite
-
-type NationalPark is
-	Zion or
-	Yellowstone or
+type NationalPark is {
+	Zion
+	Yellowstone
 	Yosemite
+}
 
-type Bison has
-	var favorite_national_park NationalPark
-
-# Types are not limited to being included in only one sum type, they can be
-# included as subtypes of multiple supertypes. Note that Mouse is a possible
-# substitutable type for either AfricanAnimal, or NorthAmericanAnimal.
-
-type AfricanAnimal is
-	Lion or
-	Giraffe or
-	Mouse
-
-type NorthAmericanAnimal is
-	Mouse or
-	Bison
-```
-etc...
-
-Some examples of standard types are:
-```
-type bool is
-	true or
-	false
-
-# The squiggly braces are "type variables", they are not bound to the type until
-# an instance of the type is created by calling its implicit constructor. If the
-# "has" type contains 2 dimensions, then the generated constructor takes 2
-# parameters. The question-mark indicates that the preceding type is a "maybe"
-# type. This means that it can sometimes be `null`. Zion will try its best to not
-# let you dereference `null` pointers.
-
+type Bison has {
+	favorite_national_park NationalPark
+}
 ```
 
-The bool and vector types are declared in the standard library exactly as depicted
-above. See `lib/std.zion`.
-
-When a call to a function that takes a sum type and there still remain free type
-variables, they will be substituted with the bottom "⊥" type (void) during
+When a call to a function that takes a sum type is made, and there remain free type
+variables in the type of the parameters, they will be substituted with the bottom "⊥" type (void) during
 function instantiation.
 
 ### Getting LLVM built on your Mac
@@ -161,16 +130,16 @@ or llvm tools, etc...
 
 ### TODO
 
-- [ ] Ability to import symbols from modules by name (symbol injection)
+- [ ] Ergo: Ability to import symbols from modules by name (symbol injection)
 - [x] Implement closures with capture by value
-- [ ] Implement tuple matching
-- [ ] Implement native structures as non-pointer values
-- [ ] Consider uniform calling syntax for .-chaining and how to acheive customizable monadic behaviors by looking at the receiver. This would also entail some magic in terms of modules.
-- [ ] Escape analysis to avoid heap-allocation.
-- [ ] Rewrite expect.py in Zion
+- [ ] Ergo: Implement tuple matching
+- [ ] Func: Implement string matching
+- [ ] Perf: Implement native structures as non-pointer values
+- [ ] Ergo: Consider uniform calling syntax for .-chaining and how to acheive customizable monadic behaviors by looking at the receiver. This would also entail some magic in terms of modules.
+- [ ] Perf: Escape analysis to avoid heap-allocation.
+- [ ] Play: Rewrite expect.py in Zion
 - [ ] Consider how to allow for-macro expansion to have a mutating iterator function. Does that mean pass-by-ref is allowed?
-- [ ] Consider making all refs managed/heap-allocated (prior to a later escape-analysis test) in order to allow
-  reference capture... maybe.
+- [ ] Consider making all refs managed/heap-allocated (prior to a later escape-analysis test) in order to allow reference capture... maybe.
 - [ ] Consider type-classes
 - [ ] Implement fast range(i)
 - [ ] Use DIBuilder to add line-level debugging information
