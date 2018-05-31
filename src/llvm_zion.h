@@ -10,6 +10,7 @@
 #include <llvm/ExecutionEngine/RuntimeDyld.h>
 #include <llvm/CodeGen/LinkAllCodegenComponents.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/LegacyPassManager.h>

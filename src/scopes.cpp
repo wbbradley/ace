@@ -897,9 +897,11 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 	module_scope_impl_t(
 			std::string name,
 			program_scope_t::ref parent_scope,
-			llvm::Module *llvm_module) :
+			llvm::Module *llvm_module,
+			llvm::DICompileUnit *llvm_compile_unit) :
 		scope_impl_t<T>(name, parent_scope),
-		llvm_module(llvm_module)
+		llvm_module(llvm_module),
+		llvm_compile_unit(llvm_compile_unit)
 	{
 	}
 
@@ -1010,8 +1012,13 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 		}
 	}
 
+	llvm::DICompileUnit *get_compile_unit() {
+		return llvm_compile_unit;
+	}
+
 protected:
 	llvm::Module * const llvm_module;
+	llvm::DICompileUnit *llvm_compile_unit;
 
 	/* modules can have unchecked types */
 	unchecked_type_t::map unchecked_types;
@@ -1024,8 +1031,9 @@ struct module_scope_impl_impl_t final : public std::enable_shared_from_this<modu
 	module_scope_impl_impl_t(
 			std::string name,
 			program_scope_t::ref parent_scope,
-			llvm::Module *llvm_module) :
-		module_scope_impl_t<module_scope_t>(name, parent_scope, llvm_module)
+			llvm::Module *llvm_module,
+			llvm::DICompileUnit *llvm_compile_unit) :
+		module_scope_impl_t<module_scope_t>(name, parent_scope, llvm_module, llvm_compile_unit)
 	{
 	}
 	virtual ~module_scope_impl_impl_t() {}
@@ -1071,33 +1079,34 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 	program_scope_impl_t(
 			std::string name,
 			compiler_t &compiler,
-			llvm::Module *llvm_module) :
-		module_scope_impl_t<program_scope_t>(name, nullptr, llvm_module),
+			llvm::Module *llvm_module,
+			llvm::DICompileUnit *llvm_compile_unit) :
+		module_scope_impl_t<program_scope_t>(name, nullptr, llvm_module, llvm_compile_unit),
 		compiler(compiler) {}
 
 	program_scope_impl_t() = delete;
 	virtual ~program_scope_impl_t() {}
 
-	ptr<scope_t> this_scope() {
+	ptr<scope_t> this_scope() override {
 		return this->shared_from_this();
 	}
-	ptr<const scope_t> this_scope() const {
+	ptr<const scope_t> this_scope() const override {
 		return this->shared_from_this();
 	}
 
-	std::string make_fqn(std::string name) const {
+	std::string make_fqn(std::string name) const override {
 		return name;
 	}
 
-	ptr<program_scope_t> get_program_scope() {
+	ptr<program_scope_t> get_program_scope() override {
 		return dyncast<program_scope_t>(this_scope());
 	}
 
-	ptr<const program_scope_t> get_program_scope() const {
+	ptr<const program_scope_t> get_program_scope() const override {
 		return dyncast<const program_scope_t>(this_scope());
 	}
 
-	void dump(std::ostream &os) const {
+	void dump(std::ostream &os) const override {
 		os << std::endl << "PROGRAM SCOPE: " << scope_name << std::endl;
 		dump_bindings(os, bound_vars, bound_types);
 		dump_unchecked_vars(os, unchecked_vars);
@@ -1106,7 +1115,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		dump_type_map(os, type_variable_bindings, "PROGRAM TYPE VARIABLE BINDINGS");
 	}
 
-	std::string dump_llvm_modules() {
+	std::string dump_llvm_modules() override {
 		std::stringstream ss;
 		for (auto &module_pair : modules) {
 			ss << C_MODULE << "MODULE " << C_RESET << module_pair.first << std::endl;
@@ -1115,20 +1124,20 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		return ss.str();
 	}
 
-	void dump_tags(std::ostream &os) const {
+	void dump_tags(std::ostream &os) const override {
 		dump_unchecked_var_tags(os, unchecked_vars);
 		dump_unchecked_type_tags(os, unchecked_types);
 	}
 
-	ptr<module_scope_t> new_module_scope(std::string name, llvm::Module *llvm_module) {
+	ptr<module_scope_t> new_module_scope(std::string name, llvm::Module *llvm_module, llvm::DICompileUnit *llvm_compile_unit) override {
 		assert(!lookup_module(name));
 
-		auto module_scope = make_ptr<module_scope_impl_impl_t>(name, get_program_scope(), llvm_module);
+		auto module_scope = make_ptr<module_scope_impl_impl_t>(name, get_program_scope(), llvm_module, llvm_compile_unit);
 		modules.insert({name, module_scope});
 		return module_scope;
 	}
 
-	bound_var_t::ref upsert_init_module_vars_function(llvm::IRBuilder<> &builder) {
+	bound_var_t::ref upsert_init_module_vars_function(llvm::IRBuilder<> &builder) override {
 		if (init_module_vars_function != nullptr) {
 			return init_module_vars_function;
 		}
@@ -1157,7 +1166,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 
 	void set_insert_point_to_init_module_vars_function(
 			llvm::IRBuilder<> &builder,
-			std::string for_var_decl_name)
+			std::string for_var_decl_name) override
 	{
 		auto fn = upsert_init_module_vars_function(builder);
 		llvm::Function *llvm_function = llvm::dyn_cast<llvm::Function>(fn->get_llvm_value());
@@ -1169,7 +1178,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 	void get_callables(
 			std::string symbol,
 			var_t::refs &fns,
-			bool check_unchecked)
+			bool check_unchecked) override
 	{
 		if (check_unchecked) {
 			get_callables_from_unchecked_vars(symbol, unchecked_vars, fns);
@@ -1177,7 +1186,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		get_callables_from_bound_vars(this_scope(), symbol, bound_vars, fns);
 	}
 
-	llvm::Type *get_llvm_type(location_t location, std::string type_name) {
+	llvm::Type *get_llvm_type(location_t location, std::string type_name) override {
 		for (auto &module_pair : compiler.llvm_modules) {
 			debug_above(4, log("looking for type " c_type("%s") " in module " C_FILENAME "%s" C_RESET,
 						type_name.c_str(),
@@ -1193,7 +1202,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		return nullptr;
 	}
 
-	llvm::Function *get_llvm_function(location_t location, std::string function_name) {
+	llvm::Function *get_llvm_function(location_t location, std::string function_name) override {
 		for (auto &module_pair : compiler.llvm_modules) {
 			debug_above(4, log("looking for function " c_var("%s") " in module " C_FILENAME "%s" C_RESET,
 						function_name.c_str(),
@@ -1211,7 +1220,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 
 	/* this is meant to be called when we know we're looking in program scope.
 	 * this is not an implementation of get_symbol.  */
-	module_scope_t::ref lookup_module(std::string symbol) {
+	module_scope_t::ref lookup_module(std::string symbol) override {
 		debug_above(8, log("looking for module %s in [%s]",
 					symbol.c_str(),
 					join_with(modules, ", ", [] (module_scope_t::map::value_type module) -> std::string {
@@ -1228,7 +1237,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		}
 	}
 
-	unchecked_var_t::ref get_unchecked_variable(std::string symbol) {
+	unchecked_var_t::ref get_unchecked_variable(std::string symbol) override {
 		debug_above(7, log("looking for unchecked variable " c_id("%s"), symbol.c_str()));
 		var_t::refs vars;
 		get_callables_from_unchecked_vars(
@@ -1243,7 +1252,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 
 	unchecked_var_t::ref put_unchecked_variable(
 			std::string symbol,
-			unchecked_var_t::ref unchecked_variable)
+			unchecked_var_t::ref unchecked_variable) override
 	{
 		// assert(unchecked_variable->get_type(shared_from_this())->eval_predicate(tb_function, shared_from_this()) ?
 		// 		unchecked_variable->id->get_location().str().find("cpp") == std::string::npos : true);
@@ -1275,7 +1284,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		return unchecked_variable;
 	}
 
-	bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings) {
+	bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings) override {
 		INDENT(9, string_format("checking program scope whether %s is bound...",
 					signature.str().c_str()));
 		auto iter = bound_types.find(signature);
@@ -1299,7 +1308,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		return nullptr;
 	}
 
-	void put_bound_type(bound_type_t::ref type) {
+	void put_bound_type(bound_type_t::ref type) override {
 		debug_above(5, log(log_info, "binding type %s as " c_id("%s"),
 					type->str().c_str(),
 					type->get_signature().repr().c_str()));
@@ -1323,7 +1332,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 
 	void put_bound_type_mapping(
 			types::signature source,
-			types::signature dest)
+			types::signature dest) override
 	{
 		if (source == dest) {
 			log("bound type mapping is self-referential on %s", source.str().c_str());
@@ -1341,14 +1350,14 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 
 	unchecked_var_t::map unchecked_vars;
 
-	unchecked_var_t::refs &get_unchecked_vars_ordered() {
+	unchecked_var_t::refs &get_unchecked_vars_ordered() override {
 		return unchecked_vars_ordered;
 	}
 
 	bound_type_t::ref get_runtime_type(
 			llvm::IRBuilder<> &builder,
 			std::string name,
-			bool get_ptr)
+			bool get_ptr) override
 	{
 		auto type = type_id(make_iid_impl(name, INTERNAL_LOC()));
 		if (get_ptr) {
@@ -1361,7 +1370,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 			llvm::IRBuilder<> &builder,
 			scope_t::ref scope,
 		   	location_t location,
-		   	types::type_t::ref type)
+		   	types::type_t::ref type) override
 	{
 		auto type_name = type->repr();
 		debug_above(8, log("looking for a type matcher for %s", type->str().c_str()));
@@ -1729,8 +1738,13 @@ std::string str(const module_scope_t::map &modules) {
 	return ss.str();
 }
 
-program_scope_t::ref program_scope_t::create(std::string name, compiler_t &compiler, llvm::Module *llvm_module) {
-	return make_ptr<program_scope_impl_t>(name, compiler, llvm_module);
+program_scope_t::ref program_scope_t::create(
+		std::string name,
+	   	compiler_t &compiler,
+	   	llvm::Module *llvm_module,
+	   	llvm::DICompileUnit *llvm_compile_unit)
+{
+	return make_ptr<program_scope_impl_t>(name, compiler, llvm_module, llvm_compile_unit);
 }
 
 generic_substitution_scope_t::ref generic_substitution_scope_t::create(

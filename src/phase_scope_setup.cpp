@@ -63,12 +63,16 @@ void scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 
 	if (obj.global) {
 		module_scope = compiler.get_program_scope();
-	} else {
-		auto llvm_module = compiler.llvm_get_program_module();
-		/* create a new scope for this module */
-		module_scope = compiler.get_program_scope()->new_module_scope(
-				module_name, llvm_module);
-	}
+    } else {
+        auto llvm_module = compiler.llvm_get_program_module();
+        auto llvm_difile = compiler.llvm_dibuilder->createFile(obj.token.location.filename, ".");
+        auto llvm_compile_unit = compiler.llvm_dibuilder->
+            createCompileUnit(llvm::dwarf::DW_LANG_C, llvm_difile, "zion-producer",
+                    false /*isOptimized*/, "" /*Flags*/, 0 /*RV*/);
+        /* create a new scope for this module */
+        module_scope = compiler.get_program_scope()->new_module_scope(
+                module_name, llvm_module, llvm_compile_unit);
+    }
 
    	compiler.set_module_scope(obj.module_key, module_scope);
 

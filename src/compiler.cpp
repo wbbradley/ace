@@ -48,8 +48,17 @@ compiler_t::compiler_t(std::string program_name_, const libs &zion_paths) :
 			this->zion_paths->push_back(real_lib_path);
 		}
 	}
-
-	program_scope = program_scope_t::create(GLOBAL_SCOPE_NAME, *this, llvm_create_module(program_name_ + ".global"));
+	auto llvm_module = llvm_create_module(program_name_ + ".global");
+	auto llvm_difile = llvm_dibuilder->createFile("std.zion", "lib");
+	auto llvm_compile_unit = llvm_dibuilder->createCompileUnit(
+			llvm::dwarf::DW_LANG_C,
+			llvm_difile,
+			"zion-producer",
+			false /*isOptimized*/,
+			"" /*Flags*/,
+			0 /*RV*/);
+	program_scope = program_scope_t::create(GLOBAL_SCOPE_NAME, *this, llvm_module,
+			llvm_compile_unit);
 }
 
 compiler_t::~compiler_t() {
@@ -832,6 +841,7 @@ llvm::Module *compiler_t::llvm_create_module(std::string module_name) {
 			module_name,
 			std::unique_ptr<llvm::Module>(new llvm::Module(module_name, llvm_context))
 		};
+		llvm_dibuilder = llvm::make_unique<llvm::DIBuilder>(*llvm_program_module.second.operator ->());
 		return llvm_program_module.second.operator ->();
 	} else {
 		panic("we are using a single LLIR module per application");
