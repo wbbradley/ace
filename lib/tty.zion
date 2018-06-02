@@ -1,0 +1,3 @@
+module tty
+
+link fn isatty(fd int) bool

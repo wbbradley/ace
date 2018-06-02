@@ -1,0 +1,100 @@
+module expect
+
+get sys
+get argparse
+get subprocess
+
+
+fn gather_comments(preface, progname) [str] {
+    lines := os.shell("grep '^# " + preface + ": ' " + str(progname))
+    let comments [str]
+    for line in lines { 
+        line = strip(line)
+        append(comments, comment[len("# " + preface + ": "):len(comment)])
+    }
+    return comments
+}
+
+fn get_program(args [str]) str? {
+    options["-p"] = argparse.Option("program", true)
+    parser := Parser("Expect tests", options, false)
+    with args := argparse.parse(parser, args) {
+        return args["program"]
+    } else parse_error {
+        print(parse_error.reason)
+        parse_error.usage()
+        return Nothing
+    }
+}
+
+fn main() int {
+    let injects [str]
+    let expects [str]
+    let rejects [str]
+
+    program := match get_program(sys.args[1:len(sys.args)]) {
+        Just(program) => program
+        Nothing       => return 1
+    }
+            tests := gather_comments("test", program)
+            if "pass" not in tests {
+                print("Skipping " + args.program)
+                return 0
+            }
+
+            injects = gather_comments("inject", program)
+            expects = gather_comments("expect", program)
+            rejects = gather_comments("reject", program)
+        }
+    }
+
+    if len(expects) == 0 and len(rejects) == 0 {
+        return 0
+    }
+
+    var actual = ""
+
+    print("-" * 10 + " " + args.program + " " + "-" * 20)
+    cmd = "./zion run " + args.program
+    print("running " + cmd)
+
+    match os.shell(cmd, len(injects) != 0 ? Just(join("\n", injects)) : Nothing) {
+    if injects {
+        actual = proc.communicate(input='\n'.join(injects) + '\n')[0]
+    } else {
+        actual = proc.communicate()[0]
+    }
+    proc.wait()
+    if proc.returncode != 0 {
+        print("Return code is " + str(proc.returncode))
+        print("Process returned a non-zero value. " + color("Failing!", "red"))
+        sys.exit(-1)
+    }
+
+    for expect in expects {
+        msg = "Searching for %s in output from %s..." % (color(expect, "green"), args.program)
+
+        if actual.find(expect) == -1 {
+            print(msg + color(" error", "red") + ".")
+            print(actual)
+            sys.exit(-1)
+        } else {
+            print(msg + color(" success", "green") + ".")
+            continue
+        }
+    }
+
+    for reject in rejects {
+        msg = "Hoping to not see %s in output from %s..." % (color(reject, "red"), args.program)
+
+        if actual.find(reject) != -1 {
+            print(msg + color(" error", "red") + ".")
+            print(actual)
+            sys.exit(-1)
+        } else {
+            print(msg + color(" success", "green") + ".")
+            continue
+        }
+    }
+    return 0
+}

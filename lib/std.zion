@@ -43,12 +43,12 @@ fn print[T where is_maybe T](x T) {
     }
 }
 
-fn print[T, Args, R where not (is_maybe T) and not (T === str) and not (T <: fn (..Args) R)](x T) {
+fn print[T, Args, R where not (T <: Maybe any) and not (is_maybe T) and not (T === str) and not (T <: fn (..Args) R)](x T) {
     write(stdout, str(x))
     write(stdout, "\n")
 }
 
-fn print[T where not(is_maybe T) and (T === str)](x T) {
+fn print[T where not(T <: Maybe any) and (T === str)](x T) {
     write(stdout, x)
     write(stdout, "\n")
 }

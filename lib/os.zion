@@ -31,16 +31,25 @@ fn shell(cmd_parts [str], pipe_text str) [str] {
     return shell(join(" ", cmd_parts), Just(pipe_text))
 }
 
-fn shell(cmd str, pipe_text str?) [str] {
-    # print("Running " + cmd)
-    fp := posix.popen(cmd, "r+")
-    assert(fp != null)
+fn shell(cmd str, pipe_text str?) [str]? {
+    fp := posix.popen(
+        cmd,
+        match pipe_text {
+            Just(_) => "r+"
+            Nothing => "r"
+        })
+    if fp == null {
+        return Nothing
+    }
+    defer fn () => posix.pclose(fp)
 
     match pipe_text {
         Just(text) {
             # print("Writing " + pipe_text + " to the process...")
             ret := posix.fprintf(fp, "%s", text)
-            assert(ret >= 0)
+            if ret < 0 {
+                return Nothing
+            }
             posix.fflush(fp)
         }
         Nothing {
@@ -51,6 +60,5 @@ fn shell(cmd str, pipe_text str?) [str] {
     for line in readlines(fp) {
         append(lines, line)
     }
-    posix.pclose(fp)
     return lines
 }
