@@ -831,7 +831,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 		bound_var_t::ref bound_fn = this->resolve_expression(builder, scope, life, false /*as_ref*/,
 				target_function_type);
 
-		dbg_when(dyncast<const types::type_function_closure_t>(bound_fn->type->get_type()) != nullptr);
+		// dbg_when(dyncast<const types::type_function_closure_t>(bound_fn->type->get_type()) != nullptr);
 		unification_t unification = unify(
 				bound_fn->type->get_type(),
 				target_function_type,

@@ -1,0 +1,45 @@
+module argparse
+
+type Parser has {
+    description   str
+    options       [str: Option]
+    expect_extras bool
+}
+
+type Option is { Option(name str, has_arg bool) }
+
+type ParseError has {
+    reason      str
+    usage fn () str
+}
+
+fn parse(parser Parser, args [str]) resource.MaybeResource [str: str] ParseError {
+    print("Parsing args " + str(args) + " with parser for " + parser.description)
+    var iarg = 0
+    var results [str: str]
+    while iarg < len(args) {
+        match parser.options[args[iarg]] {
+            Just(Option(name, has_arg)) {
+                if has_arg {
+                    if iarg + 1 >= len(args) {
+                        return resource.Failed(ParseError("Option " + args[iarg] + " expects an arg but none was provided", make_usage(parser)))
+                    } else {
+                        results[name] = args[iarg + 1]
+                        iarg += 2
+                        continue
+                    }
+                }
+            }
+            Nothing {
+                return resource.Failed(ParseError("Unexpected parameter " + args[iarg] + " encountered", make_usage(parser)))
+            }
+        }
+
+        iarg += 1
+    }
+    return resource.Acquired(results, fn () {})
+}
+
+fn make_usage(parser Parser) fn () str {
+    return fn () => "TODO: impl make_usage in " + __filename__
+}

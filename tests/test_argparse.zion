@@ -1,0 +1,22 @@
+module _
+# test: pass
+# expect: pass
+
+get argparse
+
+fn main() {
+    let options [str: argparse.Option]
+    options["-t"] = argparse.Option("test", true)
+    parser := Parser("Test parser", options, false)
+    with options := argparse.parse(parser, ["-t", "pass"]) {
+        match options["test"] {
+            Just(value) {
+                print(value)
+            }
+            Nothing =>
+        }
+    } else parse_error {
+        print(parse_error.reason)
+        parse_error.usage()
+    }
+}
