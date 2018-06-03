@@ -10,18 +10,20 @@
 #include "unification.h"
 #include "coercions.h"
 
-void build_patterns(
+types::type_t::ref build_patterns(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
 		llvm::BasicBlock *llvm_start_block,
+		llvm::BasicBlock *merge_block,
 		const ast::pattern_block_t::refs &pattern_blocks,
 		bound_var_t::ref pattern_value,
-		bool *returns)
+		bool *returns,
+		types::type_t::ref expected_type,
+		std::list<std::pair<bound_var_t::ref, llvm::BasicBlock *>> &incoming_values)
 {
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
-	llvm::BasicBlock *merge_block = nullptr;
 	llvm::BasicBlock *default_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.default", llvm_function_current);
 
 	/* we may need a stub implementation in the default block to make LLVM happy that
@@ -69,12 +71,13 @@ void build_patterns(
 					&scope_if_match))
 		{
 			/* this pattern cannot match because the incoming type is unbound */
-			assert(check_block->getTerminator() == nullptr);
+			assert(!builder.GetInsertBlock()->getTerminator());
 			builder.CreateBr(llvm_next_merge);
 
 			assert(llvm_pattern_block->getTerminator() == nullptr);
 			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 			builder.SetInsertPoint(llvm_pattern_block);
+			assert(!builder.GetInsertBlock()->getTerminator());
 			builder.CreateBr(llvm_next_merge);
 
 			llvm_next_merge = check_block;
@@ -94,17 +97,48 @@ void build_patterns(
 					: scope->new_runnable_scope(string_format("pattern.%s", pattern_name.c_str())));
 
 			bool pattern_returns = false;
-			pattern_block->block->resolve_statement(builder, pattern_scope, life, nullptr, &pattern_returns);
+			bound_var_t::ref block_value;
+			if (expected_type != type_bottom()) {
+				block_value = pattern_block->block->resolve_expression(
+						builder, pattern_scope, life, false /*as_ref*/, expected_type);
 
-			assert_implies(pattern_returns, builder.GetInsertBlock()->getTerminator() != nullptr);
+				if (block_value == nullptr) {
+					/* block_value probably returned, so it has no value... */
+				} else {
+					/* we are in an expression */
+					unification_t unification = unify(expected_type, block_value->type->get_type(), pattern_scope);
+					if (!unification.result) {
+						auto error = user_error(block_value->get_location(), "value does not have a cohesive type with the rest of the match expression");
+						error.add_info(expected_type->get_location(), "expected type %s", expected_type->str().c_str());
+						throw error;
+					} else {
+						/* update expected type to ensure we are narrowing what is acceptable */
+						expected_type = expected_type->rebind(unification.bindings);
+						assert(expected_type != type_bottom());
+					}
+				}
+			} else {
+				pattern_block->block->resolve_statement(builder, pattern_scope, life, nullptr, &pattern_returns);
+			}
+
+#if 0
+			if (pattern_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
+				log(log_info, "we are in %s\n%s",
+					   	builder.GetInsertBlock()->getName().str().c_str(),
+						llvm_print_function(llvm_function_current).c_str());
+				dbg();
+			}
+#endif
+			// assert_implies(block_value == nullptr, pattern_returns);
 			if (!pattern_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
 				/* if this block didn't return or break/continue, then we need to make sure we can merge
 				 * to the next block */
 				all_patterns_return = false;
-				if (merge_block == nullptr) {
-					merge_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.merge", llvm_function_current);
-				}
 				assert(builder.GetInsertBlock()->getTerminator() == nullptr);
+				if (expected_type != type_bottom()) {
+					incoming_values.push_back(std::pair<bound_var_t::ref, llvm::BasicBlock*>{block_value, builder.GetInsertBlock()});
+				}
+				assert(!builder.GetInsertBlock()->getTerminator());
 				builder.CreateBr(merge_block);
 			}
 		}
@@ -113,6 +147,7 @@ void build_patterns(
 	{
 		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 		builder.SetInsertPoint(llvm_start_block);
+		assert(!builder.GetInsertBlock()->getTerminator());
 		builder.CreateBr(llvm_next_merge);
 	}
 
@@ -125,6 +160,8 @@ void build_patterns(
 	/* good, the user knew not to have an else block because they are handling
 	 * all paths */
 	*returns = all_patterns_return;
+	assert_implies(all_patterns_return, expected_type == type_bottom());
+	return expected_type;
 }
 
 void check_patterns(
@@ -155,13 +192,45 @@ void check_patterns(
 	}
 }
 
-void ast::when_block_t::resolve_statement(
+void ast::match_expr_t::resolve_statement(
 	   	llvm::IRBuilder<> &builder,
 	   	scope_t::ref scope,
 		life_t::ref life,
 	   	runnable_scope_t::ref *,
 	   	bool *returns) const
 {
+	resolve_match_expr(builder, scope, life, false /*as_ref*/, returns, type_bottom());
+}
+
+bound_var_t::ref ast::match_expr_t::resolve_expression(
+	llvm::IRBuilder<> &builder,
+	scope_t::ref scope,
+	life_t::ref life,
+	bool as_ref,
+	types::type_t::ref expected_type) const
+{
+	bool returns = false;
+	bound_var_t::ref value = resolve_match_expr(builder, scope, life, as_ref, &returns,
+		   	expected_type != nullptr ? expected_type : type_variable(token.location));
+	assert(!returns);
+	return value;
+}
+
+
+types::type_t::ref ast::match_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
+}
+
+bound_var_t::ref ast::match_expr_t::resolve_match_expr(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bool as_ref,
+		bool *returns,
+		types::type_t::ref expected_type) const
+{
+	assert(expected_type != nullptr);
 	assert(life->life_form == lf_statement);
 
 	auto pattern_value = value->resolve_expression(builder,
@@ -195,15 +264,56 @@ void ast::when_block_t::resolve_statement(
 			pattern_blocks,
 			pattern_value);
 
-	build_patterns(
+	llvm::Function *llvm_function_current = llvm_get_function(builder);
+	llvm::BasicBlock *merge_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.merge", llvm_function_current);
+
+	std::list<std::pair<bound_var_t::ref, llvm::BasicBlock *>> incoming_values;
+	types::type_t::ref final_type = build_patterns(
 			builder,
 			runnable_scope,
 			life,
 			value->get_location(),
 			builder.GetInsertBlock(),
+			merge_block,
 			pattern_blocks,
 			pattern_value,
-			returns);
+			returns,
+			expected_type,
+			incoming_values);
+
+	if (*returns) {
+		assert(final_type == type_bottom());
+		merge_block->removeFromParent();
+        return scope->get_program_scope()->get_singleton("__unit__");
+	} else {
+		debug_above(5, log_location(log_info, token.location, "checking match"));
+		if (final_type != type_bottom()) {
+			auto bound_final_type = upsert_bound_type(builder, runnable_scope, final_type);
+			builder.SetInsertPoint(merge_block);
+			llvm::PHINode *llvm_phi_node = llvm::PHINode::Create(
+					bound_final_type->get_llvm_specific_type(),
+					incoming_values.size(), "match.phi.node", merge_block);
+
+			for (auto incoming_value : incoming_values) {
+				llvm::IRBuilder<> builder(incoming_value.second);
+				llvm_phi_node->addIncoming(
+						coerce_value(
+							builder, scope, life,
+							incoming_value.first->get_location(),
+							final_type,
+							incoming_value.first),
+						builder.GetInsertBlock());
+			}
+			return bound_var_t::create(
+					INTERNAL_LOC(),
+					"match.value",
+					bound_final_type,
+					llvm_phi_node,
+					make_iid_impl("match.value", get_location()));
+		} else {
+			return scope->get_program_scope()->get_singleton("__unit__");
+		}
+	}
 }
 
 bound_var_t::ref gen_null_check(
@@ -341,8 +451,8 @@ bool ast::ctor_predicate_t::resolve_match(
 		runnable_scope_t::ref scope_if_match = nullptr;
 		if (!params[i]->resolve_match(builder, scope_if_match_at_end, life, 
 				value_location, member, llvm_next_check, llvm_no_match_block, &scope_if_match))
-	   	{
-			assert(check_block->getTerminator() == nullptr);
+		{
+			assert(!builder.GetInsertBlock()->getTerminator());
 			builder.CreateBr(llvm_no_match_block);
 			return false;
 		}
@@ -376,6 +486,7 @@ bool ast::irrefutable_predicate_t::resolve_match(
 	}
 
 	/* throw away this value, and continue */
+	assert(!builder.GetInsertBlock()->getTerminator());
 	builder.CreateBr(llvm_match_block);
 	return true;
 }

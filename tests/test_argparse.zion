@@ -6,15 +6,13 @@ get argparse
 
 fn main() {
     let options [str: argparse.Option]
-    options["-t"] = argparse.Option("test", true)
+    options["-t"] = argparse.Option("test", true, true)
     parser := Parser("Test parser", options, false)
     with options := argparse.parse(parser, ["-t", "pass"]) {
-        match options["test"] {
-            Just(value) {
-                print(value)
-            }
-            Nothing =>
-        }
+        print(match options["test"] {
+            Just(value) => value
+            Nothing => return
+        })
     } else parse_error {
         print(parse_error.reason)
         parse_error.usage()

@@ -1454,6 +1454,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 				make_match_operator(builder, scope, location, type_name, type_operator, llvm_function, no_match_branch, pattern, pos);
 			} else if (auto type_variable = dyncast<const types::type_variable_t>(type)) {
 				log("matcher for type %s never matches", type->str().c_str());
+                assert(!builder.GetInsertBlock()->getTerminator());
 				builder.CreateBr(no_match_branch);
 			} else {
 				log_location(log_error, location, "unable to make a matcher for %s in scope %s", type->str().c_str(), scope->get_name().c_str());

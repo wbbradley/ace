@@ -763,6 +763,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
     builder.SetInsertPoint(llvm_entry_block);
     /* leave an empty entry block so that we can insert GC stuff in there, but be able to
      * seek to the end of it and not get into business logic */
+	assert(!builder.GetInsertBlock()->getTerminator());
     builder.CreateBr(llvm_body_block);
 
     builder.SetInsertPoint(llvm_body_block);

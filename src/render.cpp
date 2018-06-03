@@ -85,7 +85,7 @@ namespace ast {
 		block->render(rs);
 	}
 
-	void when_block_t::render(render_state_t &rs) const {
+	void match_expr_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << K(match) << C_RESET << " ";
 		value->render(rs);
 		rs.ss << " {" << std::endl;

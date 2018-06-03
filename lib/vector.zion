@@ -178,6 +178,22 @@ fn join[T where not (gc T)](delim str, v [T]) str {
 }
 
 [global]
+fn __getslice__[T](s [T], start uint, lim uint) [T] {
+    let ret [T]
+    s_len := len(s)
+
+    if start >= s_len or lim <= start {
+        return ret
+    }
+
+    reserve(ret, lim - start)
+    for i in range(start, lim) {
+        append(ret, s[i])
+    }
+    return ret
+}
+
+[global]
 fn __getitem__[T](vec [T], index int) T {
     let vector = vec as! *(VectorImpl T)
     assert(index >= 0 and index < vector.size)

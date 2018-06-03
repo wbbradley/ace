@@ -18,20 +18,20 @@ fn getenv(name str) str? {
     }
 }
 
-fn shell(cmd str) [str] {
+fn shell(cmd str) Either posix.int [str] {
     return shell(cmd, Nothing)
 }
 
-fn shell(cmd_parts [str]) [str] {
+fn shell(cmd_parts [str]) Either posix.int [str] {
     return shell(cmd_parts)
 }
 
-fn shell(cmd_parts [str], pipe_text str) [str] {
+fn shell(cmd_parts [str], pipe_text str) Either posix.int [str] {
     cmd := join(" ", cmd_parts)
     return shell(join(" ", cmd_parts), Just(pipe_text))
 }
 
-fn shell(cmd str, pipe_text str?) [str]? {
+fn shell(cmd str, pipe_text str?) Either posix.int [str] {
     fp := posix.popen(
         cmd,
         match pipe_text {
@@ -39,16 +39,16 @@ fn shell(cmd str, pipe_text str?) [str]? {
             Nothing => "r"
         })
     if fp == null {
-        return Nothing
+        return Left(posix.errno())
     }
-    defer fn () => posix.pclose(fp)
+    defer fn () { posix.pclose(fp) }
 
     match pipe_text {
         Just(text) {
             # print("Writing " + pipe_text + " to the process...")
             ret := posix.fprintf(fp, "%s", text)
             if ret < 0 {
-                return Nothing
+                return Left(posix.errno())
             }
             posix.fflush(fp)
         }
@@ -60,5 +60,5 @@ fn shell(cmd str, pipe_text str?) [str]? {
     for line in readlines(fp) {
         append(lines, line)
     }
-    return lines
+    return Right(lines)
 }

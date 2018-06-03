@@ -6,7 +6,7 @@ type Parser has {
     expect_extras bool
 }
 
-type Option is { Option(name str, has_arg bool) }
+type Option is { Option(name str, has_arg bool, required bool) }
 
 type ParseError has {
     reason      str
@@ -19,7 +19,7 @@ fn parse(parser Parser, args [str]) resource.MaybeResource [str: str] ParseError
     var results [str: str]
     while iarg < len(args) {
         match parser.options[args[iarg]] {
-            Just(Option(name, has_arg)) {
+            Just(Option(name, has_arg, _)) {
                 if has_arg {
                     if iarg + 1 >= len(args) {
                         return resource.Failed(ParseError("Option " + args[iarg] + " expects an arg but none was provided", make_usage(parser)))
@@ -37,6 +37,17 @@ fn parse(parser Parser, args [str]) resource.MaybeResource [str: str] ParseError
 
         iarg += 1
     }
+
+    for option in parser.options {
+        match option.value {
+            Option(name, _, required) {
+                if required and name not in results {
+                    return resource.Failed(ParseError("Missing option " + name + " in command line parameters", make_usage(parser)))
+                }
+            }
+        }
+    }
+
     return resource.Acquired(results, fn () {})
 }
 

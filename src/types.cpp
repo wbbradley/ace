@@ -1463,6 +1463,8 @@ namespace types {
 	}
 
 	bool share_ftvs(type_t::ref lhs, type_t::ref rhs) {
+		assert(lhs != nullptr);
+		assert(rhs != nullptr);
 		std::set<std::string> shared_ftvs;
 		auto lhs_ftvs = lhs->get_ftvs();
 		auto rhs_ftvs = rhs->get_ftvs();

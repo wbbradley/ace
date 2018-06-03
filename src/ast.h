@@ -610,7 +610,7 @@ namespace ast {
 		ptr<expression_t> lhs, rhs;
 	};
 
-	struct block_t : public statement_t {
+	struct block_t : public expression_t {
 		typedef ptr<const block_t> ref;
 
 		static const syntax_kind_t SK = sk_block;
@@ -622,6 +622,20 @@ namespace ast {
 				life_t::ref life,
 				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
+		virtual bound_var_t::ref resolve_expression(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				bool as_ref,
+				types::type_t::ref expected_type) const;
+		bound_var_t::ref resolve_block_expr(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				bool as_ref,
+				bool *returns,
+				types::type_t::ref expected_type) const;
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<ptr<statement_t>> statements;
@@ -757,18 +771,32 @@ namespace ast {
 		ptr<block_t> block;
 	};
 
-	struct when_block_t : public statement_t {
-		typedef ptr<const when_block_t> ref;
+	struct match_expr_t : public expression_t {
+		typedef ptr<const match_expr_t> ref;
 
 		static const syntax_kind_t SK = sk_when_block;
 
-		static ptr<when_block_t> parse(parse_state_t &ps);
+		static ptr<match_expr_t> parse(parse_state_t &ps);
 		virtual void resolve_statement(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
 				life_t::ref life,
 				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
+		virtual bound_var_t::ref resolve_expression(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				bool as_ref,
+				types::type_t::ref expected_type) const;
+		bound_var_t::ref resolve_match_expr(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				bool as_ref,
+				bool *returns,
+				types::type_t::ref expected_type) const;
+		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression_t> value;
