@@ -854,16 +854,17 @@ llvm::StructType *llvm_create_struct_type(
 }
 
 void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
+	debug_above(5, log("writing to function-verification-failure.llir..."));
+	std::string llir_filename = "function-verification-failure.llir";
+	FILE *fp = fopen(llir_filename.c_str(), "wt");
+	fprintf(fp, "%s\n", llvm_print_module(*llvm_function->getParent()).c_str());
+	fclose(fp);
+
 	std::stringstream ss;
 	llvm::raw_os_ostream os(ss);
 	if (llvm::verifyFunction(*llvm_function, &os)) {
 		os.flush();
 		ss << llvm_print_function(llvm_function);
-		debug_above(5, log("writing to function-verification-failure.llir..."));
-		std::string llir_filename = "function-verification-failure.llir";
-		FILE *fp = fopen(llir_filename.c_str(), "wt");
-		fprintf(fp, "%s\n", llvm_print_module(*llvm_function->getParent()).c_str());
-		fclose(fp);
 		auto error = user_error(location, "LLVM function verification failed: %s", ss.str().c_str());
 		error.add_info(location_t{llir_filename, 1, 1}, "consult LLVM module dump");
 		throw error;
@@ -953,6 +954,7 @@ bound_var_t::ref llvm_start_function(
 	builder.SetInsertPoint(llvm_entry_block);
 	/* leave an empty entry block so that we can insert GC stuff in there, but be able to
 	 * seek to the end of it and not get into business logic */
+	assert(!builder.GetInsertBlock()->getTerminator());
 	builder.CreateBr(llvm_body_block);
 
 	builder.SetInsertPoint(llvm_body_block);

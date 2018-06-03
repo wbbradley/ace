@@ -2662,6 +2662,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 	}
 
 	/* after calculation, the code should jump to the phi node's basic block */
+	assert(!builder.GetInsertBlock()->getTerminator());
 	llvm::Instruction *false_merge_branch = builder.CreateBr(merge_bb);
 
 	/* let's generate code for the "true-path" block */
@@ -2701,6 +2702,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 			: (condition == when_false ? rct_and
 				: rct_ternary));
 
+	assert(!builder.GetInsertBlock()->getTerminator());
 	llvm::Instruction *truthy_merge_branch = builder.CreateBr(merge_bb);
 	builder.SetInsertPoint(merge_bb);
 
@@ -3660,11 +3662,10 @@ void ast::break_flow_t::resolve_statement(
 	if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
 		llvm::BasicBlock *break_bb = runnable_scope->get_innermost_loop_break();
 		if (break_bb != nullptr) {
-			assert(!builder.GetInsertBlock()->getTerminator());
-
 			/* release everything held back to the loop we're in */
 			life->release_vars(builder, scope, lf_loop);
 
+			assert(!builder.GetInsertBlock()->getTerminator());
 			builder.CreateBr(break_bb);
 			return;
 		} else {
@@ -3686,11 +3687,10 @@ void ast::continue_flow_t::resolve_statement(
 	if (auto runnable_scope = dyncast<runnable_scope_t>(scope)) {
 		llvm::BasicBlock *continue_bb = runnable_scope->get_innermost_loop_continue();
 		if (continue_bb != nullptr) {
-			assert(!builder.GetInsertBlock()->getTerminator());
-
 			/* release everything held back to the loop we're in */
 			life->release_vars(builder, scope, lf_loop);
 
+			assert(!builder.GetInsertBlock()->getTerminator());
 			builder.CreateBr(continue_bb);
 			return;
 		} else {
@@ -3899,6 +3899,44 @@ void ast::block_t::resolve_statement(
         runnable_scope_t::ref *new_scope,
 		bool *returns_) const
 {
+	resolve_block_expr(
+			builder,
+		   	scope,
+		   	life,
+		   	false /*as_ref*/,
+		   	returns_,
+			type_bottom());
+}
+
+bound_var_t::ref ast::block_t::resolve_expression(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bool as_ref,
+		types::type_t::ref expected_type) const
+{
+	bool returns = false;
+	auto block_value = resolve_block_expr(
+			builder,
+		   	scope,
+		   	life,
+		   	false /*as_ref*/,
+		   	&returns,
+		   	expected_type);
+
+	// TODO: consider this...
+	// assert(!returns);
+	return block_value;
+}
+
+bound_var_t::ref ast::block_t::resolve_block_expr(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bool as_ref,
+		bool *returns_,
+		types::type_t::ref expected_type) const
+{
 	/* it's important that we keep track of returns */
 	bool placeholder_returns = false;
 	bool *returns = returns_;
@@ -3913,7 +3951,10 @@ void ast::block_t::resolve_statement(
 	/* create a new life for tracking value lifetimes across this block */
 	life = life->new_life(lf_block);
 
-	for (auto &statement : statements) {
+	bound_var_t::ref block_value;
+	for (size_t i = 0; i < statements.size(); ++i) {
+		auto &statement = statements[i];
+
 		if (*returns) {
 			throw user_error(statement->get_location(), "this statement will never run");
 			break;
@@ -3942,9 +3983,44 @@ void ast::block_t::resolve_statement(
 					callsite_debug_function_name_print->resolve_statement(builder, scope, life, nullptr, nullptr);
 				}
 
-				/* resolve the statement */
-				statement->resolve_statement(builder, current_scope, stmt_life,
-						&next_scope, returns);
+				if (expected_type != type_bottom() && i == statements.size() - 1) {
+					/* we expect an expression for the final value of this block */
+					if (auto expr = dyncast<const expression_t>(statement)) {
+						block_value = expr->resolve_expression(
+								builder,
+								current_scope,
+								stmt_life,
+								false /*as_ref*/,
+								expected_type);
+
+						unification_t unification = unify(expected_type, block_value->type->get_type(), current_scope);
+						if (!unification.result) {
+							auto error = user_error(block_value->get_location(), "value does not have a cohesive type with the rest of the match expression");
+							error.add_info(expected_type->get_location(), "expected type %s", expected_type->str().c_str());
+							throw error;
+						} else {
+							/* update expected type to ensure we are narrowing what is acceptable */
+							expected_type = expected_type->rebind(unification.bindings);
+							assert(expected_type != type_bottom());
+						}
+					} else if (dyncast<const return_statement_t>(statement) ||
+							dyncast<const continue_flow_t>(statement) ||
+							dyncast<const break_flow_t>(statement))
+				   	{
+						/* this block does not yield a value, it just jumps to the outer block */
+						expected_type = type_bottom();
+
+						/* resolve the statement */
+						statement->resolve_statement(builder, current_scope, stmt_life,
+								&next_scope, returns);
+					} else {
+						throw user_error(statement->get_location(), "expected an expression here");
+					}
+				} else {
+					/* resolve the statement */
+					statement->resolve_statement(builder, current_scope, stmt_life,
+							&next_scope, returns);
+				}
 			}
 
 			if (!*returns) {
@@ -3974,7 +4050,18 @@ void ast::block_t::resolve_statement(
 		life->release_vars(builder, scope, lf_block);
 	}
 
-	return;
+	if (expected_type != type_bottom()) {
+		assert(block_value != nullptr);
+		return block_value;
+	} else {
+		/* we should be checking for this */
+        return nullptr;
+	}
+}
+
+types::type_t::ref ast::block_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
+	assert(false);
+	return nullptr;
 }
 
 void ast::for_block_t::resolve_statement(
@@ -4046,13 +4133,14 @@ void ast::for_block_t::resolve_statement(
 
 	/* create the while loop */
 	auto while_block = create<while_block_t>(token);
-	while_block->condition = iter_valid_call;
+	while_block->condition = create<literal_expr_t>(token_t{in_token.location, tk_identifier, "true"});
 	while_block->block = create<block_t>(block->token);
-	while_block->block->statements.push_back(value_var_decl);
+	// while_block->block->statements.push_back(value_var_decl);
+
+	while_block->block->statements.push_back(iterate_call);
 	for (auto statement : block->statements) {
 		while_block->block->statements.push_back(statement);
 	}
-	while_block->block->statements.push_back(iterate_call);
 
 	/* finally, type_check all of the generated code */
 	auto block = create<block_t>(token);

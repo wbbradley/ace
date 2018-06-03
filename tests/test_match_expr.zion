@@ -1,0 +1,10 @@
+module _
+# test: pass
+# expect: 2
+
+fn main() {
+    print(match Just(2) {
+        Just(value) => value
+        Nothing     => 0
+    })
+}

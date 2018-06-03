@@ -1,98 +1,99 @@
 module expect
 
+get os
 get sys
 get argparse
-get subprocess
 
 
 fn gather_comments(preface, progname) [str] {
     lines := os.shell("grep '^# " + preface + ": ' " + str(progname))
-    let comments [str]
-    for line in lines { 
-        line = strip(line)
-        append(comments, comment[len("# " + preface + ": "):len(comment)])
+    return match lines {
+        Left(errno) => []
+        Right(lines) {
+            let comments [str]
+            for comment in lines { 
+                comment = strip(comment)
+                append(comments, comment[len("# " + preface + ": "):len(comment)])
+            }
+            comments
+        }
     }
-    return comments
 }
 
 fn get_program(args [str]) str? {
-    options["-p"] = argparse.Option("program", true)
+    let options [str: argparse.Option]
+    options["-p"] = argparse.Option("program", true, true)
     parser := Parser("Expect tests", options, false)
     with args := argparse.parse(parser, args) {
         return args["program"]
     } else parse_error {
         print(parse_error.reason)
-        parse_error.usage()
+        print(parse_error.usage())
         return Nothing
     }
 }
 
 fn main() int {
-    let injects [str]
-    let expects [str]
-    let rejects [str]
-
     program := match get_program(sys.args[1:len(sys.args)]) {
         Just(program) => program
         Nothing       => return 1
     }
-            tests := gather_comments("test", program)
-            if "pass" not in tests {
-                print("Skipping " + args.program)
-                return 0
-            }
 
-            injects = gather_comments("inject", program)
-            expects = gather_comments("expect", program)
-            rejects = gather_comments("reject", program)
-        }
+    tests := gather_comments("test", program)
+    if "pass" not in tests {
+        print("Skipping " + program)
+        return 0
     }
+
+    injects := gather_comments("inject", program)
+    expects := gather_comments("expect", program)
+    rejects := gather_comments("reject", program)
 
     if len(expects) == 0 and len(rejects) == 0 {
         return 0
     }
 
-    var actual = ""
-
-    print("-" * 10 + " " + args.program + " " + "-" * 20)
-    cmd = "./zion run " + args.program
+    print("----------" + " " + program + " " + "--------------------")
+    cmd := "./zion run " + program
     print("running " + cmd)
 
-    match os.shell(cmd, len(injects) != 0 ? Just(join("\n", injects)) : Nothing) {
-    if injects {
-        actual = proc.communicate(input='\n'.join(injects) + '\n')[0]
-    } else {
-        actual = proc.communicate()[0]
-    }
-    proc.wait()
-    if proc.returncode != 0 {
-        print("Return code is " + str(proc.returncode))
-        print("Process returned a non-zero value. " + color("Failing!", "red"))
-        sys.exit(-1)
+    injection := len(injects) != 0 ? Just(join("\n", injects)) : Nothing
+    actual := match os.shell(cmd, injection) {
+        Right(actual)    => actual
+        Left(returncode) {
+            print("Return code is " + str(returncode))
+            print("Process returned a non-zero value. Failing!")
+            return 1
+        }
     }
 
+    print(len(expects))
+    return 0
+}
+
+fn d(expects, rejects, actual) int {
     for expect in expects {
-        msg = "Searching for %s in output from %s..." % (color(expect, "green"), args.program)
+        msg := "Searching for " + expect + " in output from " + program + "..."
 
-        if actual.find(expect) == -1 {
-            print(msg + color(" error", "red") + ".")
+        if expect not in actual {
+            print(msg + " error.")
             print(actual)
-            sys.exit(-1)
+            return 1
         } else {
-            print(msg + color(" success", "green") + ".")
+            print(msg + " success.")
             continue
         }
     }
 
     for reject in rejects {
-        msg = "Hoping to not see %s in output from %s..." % (color(reject, "red"), args.program)
+        msg := "Hoping to not see " + reject + " in output from " + program + "..."
 
-        if actual.find(reject) != -1 {
-            print(msg + color(" error", "red") + ".")
+        if reject in actual {
+            print(msg + " error.")
             print(actual)
-            sys.exit(-1)
+            return 1
         } else {
-            print(msg + color(" success", "green") + ".")
+            print(msg + " success.")
             continue
         }
     }

@@ -213,7 +213,7 @@ ptr<statement_t> parse_with_block(parse_state_t &ps) {
 	auto error_block = block_t::parse(ps, false /* expression_means_return */);
 
 	auto cleanup_token = token_t{with_token.location, tk_identifier, "__cleanup"};
-	auto match = create<when_block_t>(with_token);
+	auto match = create<match_expr_t>(with_token);
 	match->value = expr;
 
 	auto with_pattern = create<pattern_block_t>(with_token);
@@ -263,7 +263,7 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 	} else if (ps.token.is_ident(K(for))) {
 		return for_block_t::parse(ps);
 	} else if (ps.token.is_ident(K(match))) {
-		return when_block_t::parse(ps);
+		return match_expr_t::parse(ps);
 	} else if (ps.token.is_ident(K(with))) {
 		return parse_with_block(ps);
 	} else if (ps.token.is_ident(K(return))) {
@@ -365,6 +365,8 @@ ptr<expression_t> base_expr::parse(parse_state_t &ps) {
 		return sizeof_expr_t::parse(ps);
 	} else if (ps.token.is_ident(K(fn))) {
 		return function_defn_t::parse(ps, true /*within_expression*/);
+	} else if (ps.token.is_ident(K(match))) {
+		return match_expr_t::parse(ps);
 	} else if (ps.token.tk == tk_identifier) {
 		// NB: this is last to ensure "special" builtins are in play above
 		return reference_expr_t::parse(ps);
@@ -1009,12 +1011,16 @@ ptr<block_t> block_t::parse(parse_state_t &ps, bool expression_means_return) {
 			/* all expressions can be statements */
 			block->statements.push_back(statement);
 		} else {
+			throw user_error(ps.token.location, "empty expression blocks are not allowed");
+#if 0
 			/* empty block */
 			if (expression_means_return) {
+
 				auto return_statement = create<ast::return_statement_t>(ps.token);
 				return_statement->expr = create<ast::tuple_expr_t>(expression_block_assign_token);
 				block->statements.push_back(return_statement);
 			}
+#endif
 		}
 		if (ps.token.tk != tk_rparen
 			   	&& ps.token.tk != tk_rcurly
@@ -1217,8 +1223,8 @@ ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 	return pattern_block;
 }
 
-ptr<when_block_t> when_block_t::parse(parse_state_t &ps) {
-	auto when_block = create<ast::when_block_t>(ps.token);
+ptr<match_expr_t> match_expr_t::parse(parse_state_t &ps) {
+	auto when_block = create<ast::match_expr_t>(ps.token);
 	chomp_ident(K(match));
 	bool auto_else = false;
 	token_t bang_token = ps.token;

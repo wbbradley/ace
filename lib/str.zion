@@ -184,24 +184,17 @@ type StrIter has {
     var pos int
 }
 
-fn __iter_begin__(s str) StrIter {
+fn iter(s str) StrIter {
     return StrIter(s, 0)
 }
 
-fn __iter_end__(s str) null {
-    return null
-}
-
-fn __iter_valid__(cur StrIter, _ null) bool {
-    return cur.pos < cur.s.length
-}
-
-fn __iter_item__(cur StrIter) char {
-    return cur.s[cur.pos]
-}
-
-fn __iterate__(cur StrIter) {
+fn next(cur StrIter) Maybe str {
     cur.pos += 1
+    if cur.pos < cur.s.length {
+        return Just(cur.s[cur.pos])
+    } else {
+        return Nothing
+    }
 }
 
 fn concat(x *char, x_len uint, y *char, y_len uint) str {
