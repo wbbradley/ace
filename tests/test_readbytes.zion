@@ -10,10 +10,10 @@ fn main() {
             Just(result) {
                 match decode(result, "utf8") {
                     Just(line) => print(line)
-                    Nothing    =>
+                    Nothing    => ()
                 }
             }
-            Nothing =>
+            Nothing => ()
         }
     } else {
     }

@@ -742,8 +742,11 @@ void zion_lexer_t::pop_nested(token_kind tk) {
 	if (back_tk == tk) {
 		nested_tks.pop_back();
 	} else if (back_tk != tk) {
-		log_location(log_error, nested_tks.back().first, "detected unbalanced brackets",
-				   	tkstr(back_tk), tkstr(tk));
+		log_location(
+				log_error,
+				nested_tks.size() == 0 ? location_t{m_filename, m_line, m_col - 1} : nested_tks.back().first,
+				"detected unbalanced brackets %s != %s",
+				tkstr(back_tk), tkstr(tk));
 	}
 }
 

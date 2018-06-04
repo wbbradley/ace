@@ -3995,7 +3995,7 @@ bound_var_t::ref ast::block_t::resolve_block_expr(
 
 						unification_t unification = unify(expected_type, block_value->type->get_type(), current_scope);
 						if (!unification.result) {
-							auto error = user_error(block_value->get_location(), "value does not have a cohesive type with the rest of the match expression");
+							auto error = user_error(block_value->get_location(), "value does not have a cohesive type with the rest of the block");
 							error.add_info(expected_type->get_location(), "expected type %s", expected_type->str().c_str());
 							throw error;
 						} else {
@@ -4062,98 +4062,6 @@ bound_var_t::ref ast::block_t::resolve_block_expr(
 types::type_t::ref ast::block_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
 	assert(false);
 	return nullptr;
-}
-
-void ast::for_block_t::resolve_statement(
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		life_t::ref life,
-		runnable_scope_t::ref *new_scope,
-		bool *returns) const
-{
-	/* this next bit is some code-gen to rewrite the for loop as a while loop */
-
-	token_t iterable_token = token_t(var_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name());
-	token_t iterator_token = token_t(var_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name());
-	token_t iterator_end_token = token_t(var_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name());
-	token_t iteration_value_token = var_token;
-
-	/* create the iteratable object by referencing the user-supplied iterable */
-	auto iterable_var_decl = create<var_decl_t>(iterable_token);
-	iterable_var_decl->type = type_variable(var_token.location);
-	iterable_var_decl->initializer = iterable;
-
-	/* create the iterator from the iterable */
-	auto iterator_var_decl = create<var_decl_t>(iterator_token);
-	iterator_var_decl->type = type_variable(iterator_token.location);
-
-	/* create the call to begin iteration */
-	auto iter_begin_call = create<callsite_expr_t>(in_token);
-	iter_begin_call->function_expr = create<reference_expr_t>(token_t(in_token.location, tk_identifier, "__iter_begin__"));
-	iter_begin_call->params.push_back(create<reference_expr_t>(iterable_token));
-
-	/* finish creating the iterator_var_decl */
-	iterator_var_decl->initializer = iter_begin_call;
-
-	/* create the end iterator from the iterable */
-	auto iterator_end_var_decl = create<var_decl_t>(iterator_end_token);
-	iterator_end_var_decl->type = type_variable(iterator_end_token.location);
-
-	/* create the call to end iteration */
-	auto iter_end_call = create<callsite_expr_t>(in_token);
-	iter_end_call->function_expr = create<reference_expr_t>(token_t(in_token.location, tk_identifier, "__iter_end__"));
-	iter_end_call->params.push_back(create<reference_expr_t>(iterable_token));
-
-	/* finish creating the iterator_end_var_decl */
-	iterator_end_var_decl->initializer = iter_end_call;
-	iterator_end_var_decl->is_let_var = true;
-
-	/* create the while condition */
-	auto iter_valid_call = create<callsite_expr_t>(in_token);
-	iter_valid_call->function_expr = create<reference_expr_t>(token_t(in_token.location, tk_identifier, "__iter_valid__"));
-	iter_valid_call->params.push_back(create<reference_expr_t>(iterator_token));
-	iter_valid_call->params.push_back(create<reference_expr_t>(iterator_end_token));
-
-	/* create the iterate call to advance iteration */
-	auto iterate_call = create<callsite_expr_t>(in_token);
-	iterate_call->function_expr = create<reference_expr_t>(token_t(in_token.location, tk_identifier, "__iterate__"));
-	iterate_call->params.push_back(create<reference_expr_t>(iterator_token));
-
-	/* create the end iterator from the iterable */
-	auto value_var_decl = create<var_decl_t>(var_token);
-	value_var_decl->type = type_variable(var_token.location);
-
-	/* create the call to get the item from the iterator */
-	auto iter_item_call = create<callsite_expr_t>(var_token);
-	iter_item_call->function_expr = create<reference_expr_t>(token_t(var_token.location, tk_identifier, "__iter_item__"));
-	iter_item_call->params.push_back(create<reference_expr_t>(iterator_token));
-
-	/* finish creating the iterator_end_var_decl */
-	value_var_decl->initializer = iter_item_call;
-
-	/* create the while loop */
-	auto while_block = create<while_block_t>(token);
-	while_block->condition = create<literal_expr_t>(token_t{in_token.location, tk_identifier, "true"});
-	while_block->block = create<block_t>(block->token);
-	// while_block->block->statements.push_back(value_var_decl);
-
-	while_block->block->statements.push_back(iterate_call);
-	for (auto statement : block->statements) {
-		while_block->block->statements.push_back(statement);
-	}
-
-	/* finally, type_check all of the generated code */
-	auto block = create<block_t>(token);
-	block->statements.push_back(iterable_var_decl);
-	block->statements.push_back(iterator_var_decl);
-	block->statements.push_back(iterator_end_var_decl);
-	block->statements.push_back(while_block);
-	debug_above(7, log("for loop %s generated new code\n%s",
-				str().c_str(), block->str().c_str()));
-
-	/* dispatch type checking and code gen to this newly generated ast */
-	return block->resolve_statement(builder, scope,
-			life, new_scope, returns);
 }
 
 bound_var_t::ref ast::expression_t::resolve_condition(

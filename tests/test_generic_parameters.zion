@@ -22,6 +22,6 @@ fn main() {
     nth(Just(x), 1)
     match nth(Just(x), 1) {
         Just(y) => print(y)
-        Nothing =>
+        Nothing => ()
     }
 }

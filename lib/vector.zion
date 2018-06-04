@@ -465,28 +465,19 @@ type VectorIter C has {
 }
 
 [global]
-fn __iter_begin__(c [any C]) VectorIter any C {
+fn __iter__[T](c [T]) VectorIter T {
     return VectorIter(c, 0)
 }
     
 [global]
-fn __iter_end__(c [any C]) VectorIter any C {
-    return VectorIter(c, len(c))
-}
-
-[global]
-fn __iter_valid__(i VectorIter any C, end VectorIter any C) bool {
-    return i.pos < end.pos
-}
-
-[global]
-fn __iterate__(i VectorIter any C) void {
-    i.pos += 1
-}
-
-[global]
-fn __iter_item__(i VectorIter any C) any C {
-    return i.vec[i.pos]
+fn __next__[T](i VectorIter T) T? {
+    if i.pos < len(i.vec) {
+        j := i.pos
+        i.pos += 1
+        return Just(i.vec[j])
+    } else {
+        return Nothing
+    }
 }
 
 #[global]

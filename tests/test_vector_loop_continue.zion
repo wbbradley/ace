@@ -1,4 +1,6 @@
 module _
+# test: pass
+# expect: 1
 
 fn main() {
     let xs [int] = [1]

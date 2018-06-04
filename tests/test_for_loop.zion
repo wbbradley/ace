@@ -4,19 +4,7 @@ module _
 # expect: 9
 
 fn main() {
-    for x := range(10) {
+    for x in range(10) {
         print(x)
-    }
-}
-
-var i = iter(range(10))
-while true {
-    match next(i) {
-        Just(x) {
-            ...
-        }
-        Nothing {
-            break
-        }
     }
 }

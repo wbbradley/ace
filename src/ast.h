@@ -738,26 +738,6 @@ namespace ast {
 		ptr<block_t> block;
 	};
 
-	struct for_block_t : public statement_t {
-		typedef ptr<const for_block_t> ref;
-
-		static const syntax_kind_t SK = sk_for_block;
-
-		static ptr<for_block_t> parse(parse_state_t &ps);
-		virtual void resolve_statement(
-				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
-				life_t::ref life,
-				runnable_scope_t::ref *new_scope,
-				bool *returns) const;
-		virtual void render(render_state_t &rs) const;
-
-		token_t var_token;
-		token_t in_token;
-		ptr<expression_t> iterable;
-		ptr<block_t> block;
-	};
-
 	struct pattern_block_t : public item_t {
 		typedef ptr<const pattern_block_t> ref;
 		typedef std::vector<ref> refs;
