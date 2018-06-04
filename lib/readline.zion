@@ -49,13 +49,12 @@ fn readline(fp *posix.FILE) Readline {
     return Line(str(OwningBuffer(line)))
 }
 
-type Lines LineReader has {
-    var file LineReader
-    var cur_line str?
+type LinesIter F has {
+    var file F
 }
 
 [global]
-fn bind[LineReader, T](lines Lines LineReader, f fn (lines [str]) T) T {
+fn bind[F, T](lines LinesIter F, f fn (lines [str]) T) T {
     let text_lines [str]
     for line in lines {
         append(text_lines, line)
@@ -64,47 +63,28 @@ fn bind[LineReader, T](lines Lines LineReader, f fn (lines [str]) T) T {
 }
 
 [global]
-fn readlines() Lines *posix.FILE {
+fn readlines() LinesIter *posix.FILE {
     return readlines(stdin)
 }
 
 [global]
-fn readlines[LineReader](f LineReader) Lines LineReader {
-    return Lines(f, Nothing)
+fn readlines[F](f F) LinesIter F {
+    return LinesIter(f)
 }
 
 [global]
-fn __iter_begin__[LineReader](fl Lines LineReader) Lines LineReader {
-    __iterate__(fl)
-    return fl
+fn __iter__[F](line_iterator LinesIter F) LinesIter F {
+    return line_iterator
 }
 
 [global]
-fn __iter_end__(fl Lines any) null {
-    return null
-}
-
-[global]
-fn __iter_valid__(fl Lines any, _ null) bool {
-    return exists(fl.cur_line)
-}
-
-[global]
-fn __iter_item__(fl Lines any) str {
-    match fl.cur_line {
-        Just(line) => return line
-        Nothing    => return ""
-    }
-}
-
-[global]
-fn __iterate__(fl Lines any) {
-    match readline(fl.file) {
-        Line(line) => fl.cur_line = Just(line)
+fn __next__(fl LinesIter any) str? {
+    return match readline(fl.file) {
+        Line(line) => Just(line)
         Error(errno) {
             print("Error: encountered error " + errno + " while reading file")
-            fl.cur_line = Nothing
+            Nothing
         }
-        EOF => fl.cur_line = Nothing
+        EOF => Nothing
     }
 }

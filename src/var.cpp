@@ -24,7 +24,7 @@ unification_t var_t::accepts_callsite(
 	return_type = return_type->rebind(bindings);
 
 	types::type_t::ref type = get_type(scope)->eval(scope)->rebind(bindings);
-	debug_above(9, log("var_t type = %s", str().c_str()));
+	debug_above(8, log("var_t type = %s", str().c_str()));
 
 	types::type_function_t::ref fn_type;
 	if (auto function_closure = dyncast<const types::type_function_closure_t>(type)) {
@@ -32,7 +32,12 @@ unification_t var_t::accepts_callsite(
 	} else {
 		fn_type = dyncast<const types::type_function_t>(type);
 	}
-	assert(fn_type != nullptr);
+
+	if (fn_type == nullptr) {
+        throw user_error(get_location(),
+                "this value is not a function. it is a %s",
+                get_type(scope)->str().c_str());
+    }
 
 	INDENT(6, string_format(
 				"checking whether %s : %s at %s accepts %s and returns %s",

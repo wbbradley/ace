@@ -184,14 +184,15 @@ type StrIter has {
     var pos int
 }
 
-fn iter(s str) StrIter {
+fn __iter__(s str) StrIter {
     return StrIter(s, 0)
 }
 
-fn next(cur StrIter) Maybe str {
-    cur.pos += 1
+fn __next__(cur StrIter) Maybe char {
     if cur.pos < cur.s.length {
-        return Just(cur.s[cur.pos])
+        i := cur.pos
+        cur.pos += 1
+        return Just(cur.s[i])
     } else {
         return Nothing
     }

@@ -95,11 +95,7 @@ fn del[K, V](m Map K V, key K) bool {
 }
 
 [global]
-fn __iter_begin__[K, V](map Map K V) vector.VectorIter (KeyValue K V) {
-    return __iter_begin__(map.storage)
-}
-
-[global]
-fn __iter_end__[K, V](map Map K V) vector.VectorIter (KeyValue K V) {
-    return __iter_end__(map.storage)
+fn __iter__[K, V](map Map K V) vector.VectorIter (KeyValue K V) {
+    # For now, just proxy through to the bad storage model
+    return __iter__(map.storage)
 }

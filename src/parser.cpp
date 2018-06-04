@@ -198,7 +198,7 @@ ptr<statement_t> parse_with_block(parse_state_t &ps) {
 		param_token = token_t{with_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name()};
 	}
 
-	auto block = block_t::parse(ps, true /*expression_means_return*/);
+	auto block = block_t::parse(ps, false /*expression_means_return*/);
 
 	auto else_token = ps.token;
 	chomp_ident(K(else));
@@ -240,6 +240,73 @@ ptr<statement_t> parse_with_block(parse_state_t &ps) {
 	return match;
 }
 
+ptr<statement_t> parse_for_block(parse_state_t &ps) {
+	auto for_token = ps.token;
+	ps.advance();
+
+	expect_token(tk_identifier);
+	token_t param_token = ps.token;
+	ps.advance();
+
+	token_t becomes_token;
+
+	chomp_ident(K(in));
+
+	auto expr = expression_t::parse(ps);
+	auto block = block_t::parse(ps, false /*expression_means_return*/);
+
+	auto iter_token = token_t{expr->get_location(), tk_identifier, "__iter__"};
+	auto iter_ref = create<reference_expr_t>(iter_token);
+	auto iter_callsite = create<callsite_expr_t>(iter_token);
+	iter_callsite->function_expr = iter_ref;
+	iter_callsite->params.push_back(expr);
+
+	auto iter_decl = create<var_decl_t>(token_t{becomes_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name()});
+	iter_decl->is_let_var = true;
+	iter_decl->type = type_variable(becomes_token.location);
+	iter_decl->initializer = iter_callsite;
+
+	auto just_pattern = create<pattern_block_t>(for_token);
+	just_pattern->block = block;
+
+	auto just_predicate = create<ctor_predicate_t>(token_t{for_token.location, tk_identifier, "Just"});
+	just_predicate->params.push_back(create<irrefutable_predicate_t>(param_token));
+	just_pattern->predicate = just_predicate;
+
+	auto break_block = create<block_t>(for_token);
+	break_block->statements.push_back(create<break_flow_t>(for_token));
+
+	auto nothing_pattern = create<pattern_block_t>(for_token);
+	nothing_pattern->block = break_block;
+
+	auto nothing_predicate = create<ctor_predicate_t>(token_t{for_token.location, tk_identifier, "Nothing"});
+	nothing_pattern->predicate = nothing_predicate;
+
+	auto next_token = token_t{iter_decl->token.location, tk_identifier, "__next__"};
+	auto next_ref = create<reference_expr_t>(next_token);
+	auto next_callsite = create<callsite_expr_t>(next_token);
+	next_callsite->function_expr = next_ref;
+	next_callsite->params.push_back(create<reference_expr_t>(iter_decl->token));
+
+	auto match = create<match_expr_t>(for_token);
+	match->value = next_callsite;
+	match->pattern_blocks.push_back(just_pattern);
+	match->pattern_blocks.push_back(nothing_pattern);
+
+	auto while_block = create<block_t>(block->token);
+	while_block->statements.push_back(match);
+
+	auto while_loop = create<while_block_t>(for_token);
+	while_loop->block = while_block;
+	while_loop->condition = create<reference_expr_t>(token_t{becomes_token.location, tk_identifier, "true"});
+
+	ptr<block_t> outer_block = create<block_t>(for_token);
+	outer_block->statements.push_back(iter_decl);
+	outer_block->statements.push_back(while_loop);
+	// log_location(log_info, outer_block->get_location(), "created %s", outer_block->str().c_str());
+	return outer_block;
+}
+
 ptr<statement_t> defer_t::parse(parse_state_t &ps) {
 	auto defer = create<defer_t>(ps.token);
 	ps.advance();
@@ -261,7 +328,7 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 	} else if (ps.token.is_ident(K(while))) {
 		return while_block_t::parse(ps);
 	} else if (ps.token.is_ident(K(for))) {
-		return for_block_t::parse(ps);
+		return parse_for_block(ps);
 	} else if (ps.token.is_ident(K(match))) {
 		return match_expr_t::parse(ps);
 	} else if (ps.token.is_ident(K(with))) {
@@ -1106,20 +1173,6 @@ ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {
 	auto block = block_t::parse(ps);
 	while_block->block = block;
 	return while_block;
-}
-
-ptr<for_block_t> for_block_t::parse(parse_state_t &ps) {
-	auto for_block = create<ast::for_block_t>(ps.token);
-	chomp_ident(K(for));
-	expect_token(tk_identifier);
-	for_block->var_token = ps.token;
-	ps.advance();
-	expect_ident(K(in));
-	for_block->in_token = ps.token;
-	ps.advance();
-	for_block->iterable = expression_t::parse(ps);
-	for_block->block = block_t::parse(ps);
-	return for_block;
 }
 
 ast::predicate_t::ref ctor_predicate_t::parse(parse_state_t &ps) {
