@@ -131,23 +131,21 @@ or llvm tools, etc...
 ### TODO
 
 - [ ] Ergo: Ability to import symbols from modules by name (symbol injection)
-- [x] Implement closures with capture by value
-- [ ] Ergo: Implement tuple matching
-- [ ] Func: Implement string matching
+- [ ] Pattern-matching
+  - [x] ctor matching
+  - [ ] int matching
+  - [ ] tuple matching
+  - [ ] string matching
+- [-] Play: Rewrite expect.py in Zion
 - [ ] Perf: Implement native structures as non-pointer values
-- [ ] Ergo: Consider uniform calling syntax for .-chaining and how to acheive customizable monadic behaviors by looking at the receiver. This would also entail some magic in terms of modules.
 - [ ] Perf: Escape analysis to avoid heap-allocation.
-- [ ] Play: Rewrite expect.py in Zion
 - [ ] Consider how to allow for-macro expansion to have a mutating iterator function. Does that mean pass-by-ref is allowed?
 - [ ] Consider making all refs managed/heap-allocated (prior to a later escape-analysis test) in order to allow reference capture... maybe.
 - [ ] Consider type-classes
 - [ ] Implement fast range(i)
 - [ ] Use DIBuilder to add line-level debugging information
 - [ ] Implement an inline directive to mark functions for inline expansion during optimization
-- [x] Add safety checks on casting (as)
 - [ ] Implement generic sort
-- [x] Exercise: implement parser combinators in Zion
-- [ ] Consider allowing overloads for arbitrary `tk_operator`s to enable overloading random symbols.
 - [ ] Data structures
   - [x] string (as slices)
   - [x] vectors
@@ -157,18 +155,17 @@ or llvm tools, etc...
   - [ ] avl tree / red-black tree
 - [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction - or ref-counting
 - [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
-- [ ] Enable linking to variadic functions (like printf)
+- [ ] Ergo: Enable linking to variadic functions (like printf)
 - [ ] Fix linking issues (rt_float.o, etc...) when running zion from non-zion root dir)
 - [ ] Rename `typeid` function to `ctor_id` or something similar.
-- [ ] Automatically configure default POSIX/C/System "int" size on first boot of compiler
-- [ ] Explore using a conservative collector
-- [ ] Integrate JSON parsing and mess around with manipulating some existing JSON files
+- [ ] Perf: Explore using a conservative collector
+- [ ] Libs: Integrate JSON parsing and mess around with manipulating some existing JSON files
 - [ ] Expose reflection library for dynamic structure analysis
-- [ ] Pattern-matching
-  - [x] ctor matching
-  - [ ] int matching
-  - [x] coverage checking for ctors
-  - [ ] coverage checking for ints
+- [ ] Func: Enable `let` vars at global scope
+- [ ] Automatically configure default POSIX/C/System "int" size on first boot of compiler
+- [x] Add safety checks on casting (as)
+- [x] Exercise: implement parser combinators in Zion
+- [x] Implement closures with capture by value
 - [x] Implement backtracking in unification of product types
 - [x] Consider marking null-terminated strings differently for FFI purposes (ended up doing this as part of "safe-unboxing" for easier FFI.
 - [x] Implement slice array indexing rg[s:end], etc...

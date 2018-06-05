@@ -115,6 +115,7 @@ void scope_setup_program(const ast::program_t &obj, compiler_t &compiler) {
 			print_exception(e);
 		}
 	}
+
 	if (failures) {
 		throw user_error(failure_location, "failure during scope setup");
 	}

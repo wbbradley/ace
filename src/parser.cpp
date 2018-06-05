@@ -91,6 +91,19 @@ ptr<statement_t> get_statement_parse(parse_state_t &ps) {
 	auto link_statement = create<link_module_statement_t>(get_token);
 	link_statement->extern_module = module_decl;
 
+	if (ps.token.tk == tk_lcurly) {
+		ps.advance();
+		while (ps.token.tk == tk_identifier) {
+			link_statement->symbols.push_back(make_code_id(ps.token));
+			ps.advance();
+
+			if (ps.token.tk == tk_comma) {
+				ps.advance();
+			}
+		}
+		chomp_token(tk_rcurly);
+	}
+
 	if (ps.token.is_ident(K(as))) {
 		/* get the local name for this module */
 		ps.advance();
