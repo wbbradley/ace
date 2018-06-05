@@ -687,6 +687,12 @@ void ast::link_module_statement_t::resolve_statement(
 	program_scope_t::ref program_scope = scope->get_program_scope();
 	module_scope_t::ref linked_module_scope = program_scope->lookup_module(linked_module_name);
 
+	for (auto symbol : symbols) {
+		/* get all the unchecked or things from the linked_module_scope and shove them into this
+		 * module scope */
+		linked_module_scope->copy_symbol(symbol->get_location(), symbol->get_name(), module_scope);
+	}
+
 	if (linked_module_scope != nullptr) {
 		/* put the module into program scope as a named variable. this is to
 		 * enable dot-expressions to resolve module scope lookups. note that

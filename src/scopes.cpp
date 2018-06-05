@@ -1016,6 +1016,29 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 		return llvm_compile_unit;
 	}
 
+	void copy_symbol(location_t location, std::string symbol, module_scope_t::ref target_scope) {
+		var_t::refs vars;
+		this->get_program_scope()->get_callables(make_fqn(symbol), vars, true /*check_unchecked*/);
+
+		if (vars.size() == 0) {
+			throw user_error(
+					location,
+					"symbol " c_error("%s") " does not exist in module %s",
+					symbol.c_str(),
+					this->get_leaf_name().c_str());
+		}
+
+		for (auto var : vars) {
+			if (auto unchecked_var = dyncast<const unchecked_var_t>(var)) {
+				assert(unchecked_var != nullptr);
+				target_scope->put_unchecked_variable(symbol, unchecked_var);
+			} else {
+				// TODO: handle putting bound vars...
+				assert(false);
+			}
+		}
+	}
+
 protected:
 	llvm::Module * const llvm_module;
 	llvm::DICompileUnit *llvm_compile_unit;

@@ -822,6 +822,7 @@ namespace ast {
 
 		token_t link_as_name;
 		ptr<module_decl_t> extern_module;
+		identifier::refs symbols;
 	};
 
 	struct link_name_t : public statement_t {
