@@ -2,7 +2,6 @@
 #include "zion.h"
 #include "env.h"
 #include "ast_decls.h"
-#include "signature.h"
 #include "utils.h"
 #include "identifier.h"
 #include "token.h"

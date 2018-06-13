@@ -104,7 +104,7 @@ std::string str(const bound_var_t::overloads &overloads) {
 	std::stringstream ss;
 	const char *indent = "\t";
 	for (auto &var_overload : overloads) {
-		ss << indent << var_overload.first.str() << ": ";
+		ss << indent << var_overload.first << ": ";
 	   	ss << var_overload.second->str() << std::endl;
 	}
 	return ss.str();
@@ -144,7 +144,7 @@ bound_type_t::refs get_bound_types(bound_var_t::refs values) {
 	return types;
 }
 
-types::signature bound_var_t::get_signature() const {
+std::string bound_var_t::get_signature() const {
 	return type->get_signature();
 }
 

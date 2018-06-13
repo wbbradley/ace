@@ -62,7 +62,7 @@ def main():
 
     try:
         print("-" * 10 + " " + args.program + " " + "-" * 20)
-        cmd = "./zion run %s" % args.program
+        cmd = "zion run %s" % args.program
         print("running " + cmd)
         proc = subprocess.Popen(cmd, shell=True,
                                 stdin=subprocess.PIPE if injects else None,

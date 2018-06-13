@@ -238,7 +238,7 @@ bound_type_t::ref create_bound_managed_type(
 	/* finally set the elements into the structure */
 	llvm_struct_type->setBody(elements);
 	debug_above(6, log("setting the body of the managed %s structure to %s",
-				var_type->get_signature().str().c_str(),
+				var_type->get_signature().c_str(),
 				llvm_print(llvm_struct_type).c_str()));
 
 	auto bound_type = bound_type_t::create(managed_type,
@@ -966,7 +966,7 @@ bound_var_t::ref upsert_type_info(
 	/* first check if we have already created this type info, memoized */
 	auto program_scope = scope->get_program_scope();
 	auto signature = data_type->get_signature();
-	auto type_info_name = string_format("__type_info_%s", signature.repr().c_str());
+	auto type_info_name = string_format("__type_info_%s", signature.c_str());
 	auto bound_type_info_var = program_scope->get_bound_variable(builder,location, type_info_name);
 	if (bound_type_info_var != nullptr) {
 		/* we found it, let's bail */

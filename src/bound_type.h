@@ -7,7 +7,6 @@
 #include <map>
 #include "ast_decls.h"
 #include "types.h"
-#include "signature.h"
 
 struct bound_var_t;
 
@@ -16,7 +15,7 @@ struct bound_type_t {
 	typedef std::weak_ptr<const bound_type_t> weak_ref;
 	typedef std::vector<std::pair<std::string, ref>> named_pairs;
 	typedef std::vector<ref> refs;
-	typedef std::map<types::signature, ref> map;
+	typedef std::map<std::string, ref> map;
 	typedef std::map<std::string, int> name_index;
 
 	bound_type_t(
@@ -42,7 +41,7 @@ public:
 	bool is_int(ptr<scope_t> scope) const;
 	bool is_maybe(ptr<scope_t> scope) const;
     bool is_module() const;
-	types::signature get_signature() const;
+	std::string get_signature() const;
 
 	std::string str() const;
 	types::type_t::ref get_type() const;
