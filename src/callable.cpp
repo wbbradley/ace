@@ -22,7 +22,7 @@ bound_var_t::ref make_call_value(
 {
 	return create_callsite(
 			builder, scope, life, function,
-			"temp_call_value", INTERNAL_LOC(), arguments);
+			"temp_call_value", location, arguments);
 }
 
 	
