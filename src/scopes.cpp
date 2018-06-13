@@ -257,11 +257,11 @@ struct scope_impl_t : public virtual BASE {
 		dbg_when(dynamic_cast<program_scope_t*>(this) && symbol == "Error");
 
 		auto &resolve_map = bound_vars[symbol];
-		types::signature signature = bound_variable->get_signature();
+		std::string signature = bound_variable->get_signature();
 		auto existing_bound_var_iter = resolve_map.find(signature);
 		if (existing_bound_var_iter != resolve_map.end()) {
 			auto error = user_error(bound_variable->get_location(), "symbol " c_id("%s") " is already bound (signature is %s)", symbol.c_str(),
-					signature.str().c_str());
+					signature.c_str());
 			error.add_info(existing_bound_var_iter->second->get_location(), "see existing bound variable");
 			throw error;
 		} else {
@@ -339,7 +339,7 @@ struct scope_impl_t : public virtual BASE {
 				stopping_scope);
 	}
 
-	bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings) {
+	bound_type_t::ref get_bound_type(std::string signature, bool use_mappings) {
 		return get_bound_type_from_scope(signature, get_program_scope(), use_mappings);
 	}
 
@@ -986,7 +986,7 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 		auto overloads_iter = this->scope_impl_t<T>::bound_vars.find(name);
 		if (overloads_iter != this->scope_impl_t<T>::bound_vars.end()) {
 			auto &overloads = overloads_iter->second;
-			types::signature signature = type->get_signature();
+			std::string signature = type->get_signature();
 			auto existing_bound_var_iter = overloads.find(signature);
 			if (existing_bound_var_iter != overloads.end()) {
 				if (var != nullptr) {
@@ -1307,40 +1307,40 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		return unchecked_variable;
 	}
 
-	bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings) override {
+	bound_type_t::ref get_bound_type(std::string signature, bool use_mappings) override {
 		INDENT(9, string_format("checking program scope whether %s is bound...",
-					signature.str().c_str()));
+					signature.c_str()));
 		auto iter = bound_types.find(signature);
 		if (iter != bound_types.end()) {
 			debug_above(9, log(log_info, "yep. %s is bound to %s",
-						signature.str().c_str(),
+						signature.c_str(),
 						iter->second->str().c_str()));
 			return iter->second;
 		} else if (use_mappings) {
 			auto dest_iter = bound_type_mappings.find(signature);
 			if (dest_iter != bound_type_mappings.end()) {
 				debug_above(4, log("falling back to bound type mappings to find %s (resolved to %s)",
-							signature.str().c_str(),
-							dest_iter->second.str().c_str()));
+							signature.c_str(),
+							dest_iter->second.c_str()));
 				return get_bound_type(dest_iter->second, true /*use_mappings*/);
 			}
 		}
 
 		debug_above(9, log(log_info, "nope. %s is not yet bound",
-					signature.str().c_str()));
+					signature.c_str()));
 		return nullptr;
 	}
 
 	void put_bound_type(bound_type_t::ref type) override {
 		debug_above(5, log(log_info, "binding type %s as " c_id("%s"),
 					type->str().c_str(),
-					type->get_signature().repr().c_str()));
+					type->get_signature().c_str()));
 		/*
 		   if (type->str().find("type_info_mark_fn_t") != std::string::npos) {
 		   dbg();
 		   }
 		   */
-		std::string signature = type->get_signature().repr();
+		std::string signature = type->get_signature();
 		auto iter = bound_types.find(signature);
 		if (iter == bound_types.end()) {
 			bound_types[signature] = type;
@@ -1354,11 +1354,11 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 	}
 
 	void put_bound_type_mapping(
-			types::signature source,
-			types::signature dest) override
+			std::string source,
+			std::string dest) override
 	{
 		if (source == dest) {
-			log("bound type mapping is self-referential on %s", source.str().c_str());
+			log("bound type mapping is self-referential on %s", source.c_str());
 			assert(false);
 		}
 
@@ -1367,7 +1367,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 			bound_type_mappings.insert({source, dest});
 		} else {
 			throw user_error(INTERNAL_LOC(), "bound type mapping %s already exists!",
-					source.str().c_str());
+					source.c_str());
 		}
 	}
 
@@ -1603,7 +1603,7 @@ private:
 	compiler_t &compiler;
 	module_scope_t::map modules;
 	bound_type_t::map bound_types;
-	std::map<types::signature, types::signature> bound_type_mappings;
+	std::map<std::string, std::string> bound_type_mappings;
 	std::map<std::string, bound_var_t::ref> bound_type_matchers;
 
 	/* track the module var initialization function */
@@ -1700,24 +1700,24 @@ void put_typename_impl(
 		bool is_structural);
 
 bound_type_t::ref get_bound_type_from_scope(
-		types::signature signature,
+		std::string signature,
 		program_scope_t::ref program_scope, bool use_mappings);
 
 bound_type_t::ref get_bound_type_from_scope(
-		types::signature signature,
+		std::string signature,
 		program_scope_t::ref program_scope, bool use_mappings)
 {
 	INDENT(9, string_format("checking whether %s is bound...",
-				signature.str().c_str()));
+				signature.c_str()));
 	auto bound_type = program_scope->get_bound_type(signature, use_mappings);
 	if (bound_type != nullptr) {
 		debug_above(9, log(log_info, c_good("yep") ". %s is bound to %s",
-					signature.str().c_str(),
+					signature.c_str(),
 					bound_type->str().c_str()));
 		return bound_type;
 	} else {
 		debug_above(9, log(log_info, c_warn("nope") ". %s is not yet bound",
-					signature.str().c_str()));
+					signature.c_str()));
 		return nullptr;
 	}
 }

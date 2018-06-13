@@ -7,7 +7,6 @@
 #include <set>
 #include "unchecked_type.h"
 #include "unchecked_var.h"
-#include "signature.h"
 
 extern const token_kind SCOPE_TK;
 extern const char *SCOPE_SEP;
@@ -39,7 +38,7 @@ struct scope_t : public env_t {
 	virtual ref this_scope() = 0;
 	virtual cref this_scope() const = 0;
 	virtual bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const = 0;
-	virtual bound_type_t::ref get_bound_type(types::signature signature, bool use_mappings=true) = 0;
+	virtual bound_type_t::ref get_bound_type(std::string signature, bool use_mappings=true) = 0;
 	virtual bound_var_t::ref get_bound_function(std::string name, std::string signature) = 0;
 	virtual bound_var_t::ref get_bound_variable(llvm::IRBuilder<> &builder, location_t location, std::string symbol, scope_t::ref stopping_scope=nullptr) = 0;
 	virtual types::type_t::ref get_variable_type(location_t location, std::string symbol, scope_t::ref stopping_scope=nullptr) = 0;
@@ -153,7 +152,7 @@ struct program_scope_t : public virtual module_scope_t {
 	virtual std::string dump_llvm_modules() = 0;
 
 	virtual void put_bound_type(bound_type_t::ref type) = 0;
-	virtual void put_bound_type_mapping(types::signature source, types::signature dest) = 0;
+	virtual void put_bound_type_mapping(std::string source, std::string dest) = 0;
 
 	virtual unchecked_var_t::refs &get_unchecked_vars_ordered() = 0;
 	virtual bound_type_t::ref get_runtime_type(llvm::IRBuilder<> &builder, std::string name, bool get_ptr=false) = 0;

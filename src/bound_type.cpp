@@ -214,7 +214,7 @@ void bound_type_t::is_managed_ptr(
 }
 
 
-types::signature bound_type_t::get_signature() const {
+std::string bound_type_t::get_signature() const {
 	return get_type()->get_signature();
 }
 
