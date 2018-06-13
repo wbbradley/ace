@@ -6,21 +6,6 @@
 #include <memory>
 #include <map>
 
-using std::rbegin;
-using std::rend;
-
-template <typename T>
-struct reversion_wrapper { T& iterable; };
-
-template <typename T>
-auto begin (reversion_wrapper<T> w) { return rbegin(w.iterable); }
-
-template <typename T>
-auto end (reversion_wrapper<T> w) { return rend(w.iterable); }
-
-template <typename T>
-reversion_wrapper<T> reverse (T&& iterable) { return { iterable }; }
-
 struct shared_comparator {
     template <typename T>
     bool operator()(const std::shared_ptr<T> &lhs,

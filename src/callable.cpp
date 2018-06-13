@@ -22,7 +22,7 @@ bound_var_t::ref make_call_value(
 {
 	return create_callsite(
 			builder, scope, life, function,
-			"temp_call_value", location, arguments);
+			"temp_call_value", INTERNAL_LOC(), arguments);
 }
 
 	
@@ -652,7 +652,7 @@ bound_var_t::ref clone_and_change_type(
     llvm::ValueToValueMapTy VMap;
     auto new_args_iter=llvm_function->arg_begin();
     for (auto args_iter=llvm_old_function->arg_begin(); args_iter != llvm_old_function->arg_end(); ++args_iter) {
-        VMap.insert({args_iter, new_args_iter++});
+        VMap.insert({&*args_iter, &*new_args_iter++});
     }
     bool ModuleLevelChanges = false;
     llvm::SmallVector<llvm::ReturnInst *, 8> Returns;

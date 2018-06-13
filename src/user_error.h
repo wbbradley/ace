@@ -33,7 +33,7 @@ struct unbound_type_error : std::exception {
 
 	unbound_type_error(location_t location, const char *format...);
 	unbound_type_error(location_t location, const char *format, va_list args);
-	user_error user_error;
+	struct user_error user_error;
 };
 
 void print_exception(const user_error &e, int level = 0);

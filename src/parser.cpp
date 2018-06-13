@@ -1275,7 +1275,7 @@ ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else) {
 			throw user_error(ps.token.location, "unexpected token for pattern " c_warn("%s"),
 					ps.token.text.c_str());
 		}
-		null_impl();
+		return null_impl();
 	}
 }
 

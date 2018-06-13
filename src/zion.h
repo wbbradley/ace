@@ -1,7 +1,15 @@
 #pragma once
-#include <algorithm> 
+#include <cstdlib>
 #include <cctype>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <string>
+#include <math.h>
+#include <glob.h>
+#include <algorithm> 
 #include <locale>
+#include <memory>
 #include "llvm_zion.h"
 #include "logger_decls.h"
 #include "ptr.h"

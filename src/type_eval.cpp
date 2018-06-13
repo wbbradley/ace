@@ -139,7 +139,7 @@ namespace types {
 		depth_guard_t depth_guard(id->get_location(), depth, 4);
 
 		auto type = env->get_type(id->get_name(), get_structural_type);
-		if (type != nullptr && type->repr() != repr() /*hack?*/) {
+		if (type != nullptr && type != shared_from_this() && type->repr() != repr() /*hack?*/) {
 			return type->eval_core(env, get_structural_type);
 		}
 
