@@ -274,7 +274,8 @@ void ast::data_type_t::register_type(
 				vars,
 			   	ctor_pairs);
 
-		for (auto type_variable : reverse(type_variables)) {
+		for (auto iter = type_variables.rbegin(); iter != type_variables.rend(); ++iter) {
+			auto &type_variable = *iter;
 			expansion = type_lambda(type_variable, expansion);
 		}
 		scope->put_nominal_typename(id->get_name(), expansion);

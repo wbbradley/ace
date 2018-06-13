@@ -41,8 +41,8 @@ bool test_llvm_builder() {
 	};
 
 	printf("type of GEP is %s\n",
-		   	llvm_print(
-				builder.CreateInBoundsGEP(args, gep_path)->getType()).c_str());
+			llvm_print(
+				builder.CreateInBoundsGEP(&*args, gep_path)->getType()).c_str());
 
 	builder.CreateRetVoid();
 

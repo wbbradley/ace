@@ -11,7 +11,7 @@ require git --version
 
 # Specify which version of LLVM you'd like to use (corresponds to branch names in
 # https://github.com/llvm-mirror/... repos.)
-RELEASE=release_50
+RELEASE=release_40
 
 # We need to make sure you have the LLVM sources.
 mkdir -p $HOME/src
@@ -35,6 +35,7 @@ function enlist() {
 
 # Get the sources
 enlist llvm $LLVM_ROOT
+enlist lldb $LLVM_ROOT/tools/lldb
 enlist clang $LLVM_ROOT/tools/clang
 enlist libcxx $LLVM_ROOT/projects/libcxx
 enlist libcxxabi $LLVM_ROOT/projects/libcxxabi
@@ -48,13 +49,14 @@ function build() {
 	mkdir -p $BUILD_DIR
 	cd $BUILD_DIR
 
+	set -x
 	time cmake \
 		-DCMAKE_INSTALL_PREFIX=$INSTALL_DIR/$1 \
 		-DLLVM_ENABLE_RTTI=On \
 		-DCMAKE_BUILD_TYPE=$1 \
 		-DLLVM_ENABLE_ASSERTIONS=$(if [ $1 = Debug ]; then echo On; else echo Off; fi) \
 		$LLVM_ROOT
-
+	set +x
 	time make -j8
 	time make install
 
