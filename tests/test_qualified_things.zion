@@ -1,4 +1,6 @@
 module _
+# test: pass
+
 get mumford {Sons, MumfordOrSons}
 
 fn main() {

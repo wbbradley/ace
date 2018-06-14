@@ -1,8 +1,8 @@
 module _
-get list
+get list {Cons, Nil}
 
 fn main() {
     # error: unable to resolve overloads for Cons\(int, list.List str.*\)
-    l := list.Cons(3, list.Cons("hello", list.Nil))
+    l := Cons(3, Cons("hello", Nil))
     print(len(l))
 }
