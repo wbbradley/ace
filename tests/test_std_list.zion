@@ -1,14 +1,14 @@
 module _
+get list {Cons, Nil, nth}
+
 # test: pass
 # expect: 3
 # reject: error
 
-get list
-
 fn main() {
-    l := list.Cons(400, list.Cons(3, list.Cons(5001, list.Nil)))
+    l := Cons(400, Cons(3, Cons(5001, Nil)))
     print(len(l))
-    match list.nth(l, 2) {
+    match nth(l, 2) {
         Just(x) {
             print(x)
         }
