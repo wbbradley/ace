@@ -554,8 +554,8 @@ types::type_t::ref parse_type_expr(
 	type_macros_t global_type_macros;
 
 	add_default_type_macros(global_type_macros);
-	global_type_macros[MAYBE_TYPE] = type_id(make_iid(MAYBE_TYPE));
-	global_type_macros[MANAGED_STR] = type_id(make_iid(MANAGED_STR));
+	global_type_macros["Maybe"] = type_id(make_iid(MAYBE_TYPE));
+	global_type_macros["str"] = type_id(make_iid(MANAGED_STR));
 
 	parse_state_t ps("", lexer, global_type_macros, global_type_macros, nullptr);
 	if (module_id != nullptr) {

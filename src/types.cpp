@@ -1148,7 +1148,7 @@ namespace types {
 	}
 
 	std::ostream &type_data_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		if (name.text == "Maybe") {
+		if (name.text == MAYBE_TYPE) {
 			assert(type_vars.size() == 1);
 			type_vars[0]->emit(os, bindings, 8);
 			return os << "?";

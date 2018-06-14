@@ -4,8 +4,7 @@ zion:
 	(cd $(HOME)/var/zion && \
 		make -j8 2>&1)
 
-.PHONY: setup
-setup:
+clean:
 	(export LLVM_DIR=$(LLVM_DIR) ; \
 		export CPLUS_INCLUDE_PATH=$(LLVM_DIR)/include/c++/v1 ; \
 		cd $(HOME)/var && \
@@ -13,5 +12,3 @@ setup:
 		mkdir -p zion && \
 		cd zion && \
 		cmake $(HOME)/src/zion)
-
-

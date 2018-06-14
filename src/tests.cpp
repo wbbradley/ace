@@ -879,8 +879,8 @@ auto test_descs = std::vector<test_desc>{
 
 			auto parses = std::vector<spec>{{
 				{"bool", "bool"},
-				{"int", "int"},
-				{"(int)", "int"},
+				{"int", "M.int"},
+				{"(int)", "M.int"},
 				{"float", "float"},
 				{"char", "char"},
 				{"*char", "*char"},
@@ -892,11 +892,11 @@ auto test_descs = std::vector<test_desc>{
 				/* parsing type variables has monotonically increasing side effects */
 				{"any", "any __1"},
 				{"void", "void"},
-				{"map int int", "M.map int int"},
+				{"map int int", "M.map M.int M.int"},
 				{"map any b any c", "M.map any b any c"},
 				{"T", "any T"},
 				{"T char Q", "any T char any Q"},
-				{"map (T int) Q", "M.map (any T int) any Q"},
+				{"map (T int) Q", "M.map (any T M.int) any Q"},
 			}};
 
 			for (auto p : parses) {

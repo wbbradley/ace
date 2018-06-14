@@ -109,7 +109,7 @@ types::type_t::ref build_patterns(
 					unification_t unification = unify(expected_type, block_value->type->get_type(), pattern_scope);
 					if (!unification.result) {
 						auto error = user_error(block_value->get_location(), "value does not have a cohesive type with the rest of the match expression");
-						error.add_info(expected_type->get_location(), "expected type %s", expected_type->str().c_str());
+						error.add_info(expected_type == type_unit() ? location : expected_type->get_location(), "expected type %s", expected_type->str().c_str());
 						throw error;
 					} else {
 						/* update expected type to ensure we are narrowing what is acceptable */

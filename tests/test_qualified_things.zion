@@ -1,0 +1,10 @@
+module _
+get mumford {Sons, MumfordOrSons}
+
+fn main() {
+    let k MumfordOrSons = Sons(3)
+    print(match k {
+        Sons(x) => str(x) + " sons"
+        Mumford => "just Mumford"
+    })
+}

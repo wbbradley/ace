@@ -1,0 +1,6 @@
+module mumford
+
+type MumfordOrSons is {
+    Mumford
+    Sons(sons int)
+}
