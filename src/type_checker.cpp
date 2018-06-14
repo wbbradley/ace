@@ -687,13 +687,13 @@ void ast::link_module_statement_t::resolve_statement(
 	program_scope_t::ref program_scope = scope->get_program_scope();
 	module_scope_t::ref linked_module_scope = program_scope->lookup_module(linked_module_name);
 
-	for (auto symbol : symbols) {
-		/* get all the unchecked or things from the linked_module_scope and shove them into this
-		 * module scope */
-		linked_module_scope->copy_symbol(symbol->get_location(), symbol->get_name(), module_scope);
-	}
-
 	if (linked_module_scope != nullptr) {
+		for (auto symbol : symbols) {
+			/* get all the unchecked or things from the linked_module_scope and shove them into this
+			 * module scope */
+			linked_module_scope->copy_symbol(builder, symbol->get_location(), symbol->get_name(), module_scope);
+		}
+
 		/* put the module into program scope as a named variable. this is to
 		 * enable dot-expressions to resolve module scope lookups. note that
 		 * the module variables are not reified into the actual generated LLVM
@@ -705,6 +705,10 @@ void ast::link_module_statement_t::resolve_statement(
 
 		module_scope->put_bound_variable(link_as_name.text, module_variable);
 	} else {
+		if (symbols.size() != 0) {
+			throw user_error(token.location, "cannot import symbols from %s. it could be that the referenced module doesn't exist, or is declared global",
+					linked_module_name.c_str());
+		}
 		/* some modules may not create a module scope if they are marked as global modules */
 		return;
 	}
@@ -4002,7 +4006,7 @@ bound_var_t::ref ast::block_t::resolve_block_expr(
 						unification_t unification = unify(expected_type, block_value->type->get_type(), current_scope);
 						if (!unification.result) {
 							auto error = user_error(block_value->get_location(), "value does not have a cohesive type with the rest of the block");
-							error.add_info(expected_type->get_location(), "expected type %s", expected_type->str().c_str());
+							error.add_info(expected_type == type_unit() ? token.location : expected_type->get_location(), "expected type %s", expected_type->str().c_str());
 							throw error;
 						} else {
 							/* update expected type to ensure we are narrowing what is acceptable */

@@ -120,6 +120,20 @@ ptr<statement_t> get_statement_parse(parse_state_t &ps) {
 		throw user_error(ps.token.location, "expected an identifier for link module name (either implicit or explicit)");
 	}
 
+	for (auto symbol : link_statement->symbols) {
+		if (isupper(symbol->get_name()[0])) {
+			/* anything imported with an uppercase name is added to the type macros */
+			auto linked_id = type_id(
+					make_iid_impl(
+						module_decl->get_name().text + "." + symbol->get_name(),
+						symbol->get_location()));
+			assert(ps.type_macros.find(symbol->get_name()) == ps.type_macros.end());
+			assert(ps.global_type_macros.find(symbol->get_name()) == ps.global_type_macros.end());
+			ps.type_macros.insert({symbol->get_name(), linked_id});
+			ps.global_type_macros.insert({symbol->get_name(), linked_id});
+		}
+	}
+
 	return link_statement;
 }
 

@@ -114,7 +114,7 @@ struct module_scope_t : public virtual scope_t {
 	virtual unchecked_type_t::ref get_unchecked_type(std::string symbol) = 0;
 	virtual unchecked_var_t::ref get_unchecked_variable(std::string symbol) = 0;
     virtual llvm::DICompileUnit *get_compile_unit() = 0;
-	virtual void copy_symbol(location_t location, std::string symbol, module_scope_t::ref target_scope) = 0;
+	virtual void copy_symbol(llvm::IRBuilder<> &builder, location_t location, std::string symbol, module_scope_t::ref target_scope) = 0;
 
 	/* module checking management
 	 * after checking a function regardless of whether it was generic or not

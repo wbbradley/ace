@@ -1016,17 +1016,16 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 		return llvm_compile_unit;
 	}
 
-	void copy_symbol(location_t location, std::string symbol, module_scope_t::ref target_scope) {
+	void copy_symbol(
+			llvm::IRBuilder<> &builder,
+			location_t location,
+		   	std::string symbol,
+		   	module_scope_t::ref target_scope)
+	{
 		var_t::refs vars;
-		this->get_program_scope()->get_callables(make_fqn(symbol), vars, true /*check_unchecked*/);
-
-		if (vars.size() == 0) {
-			throw user_error(
-					location,
-					"symbol " c_error("%s") " does not exist in module %s",
-					symbol.c_str(),
-					this->get_leaf_name().c_str());
-		}
+		std::string fqn_name = make_fqn(symbol);
+		auto program_scope = this->get_program_scope();
+		program_scope->get_callables(fqn_name, vars, true /*check_unchecked*/);
 
 		for (auto var : vars) {
 			if (auto unchecked_var = dyncast<const unchecked_var_t>(var)) {
@@ -1036,6 +1035,16 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 				// TODO: handle putting bound vars...
 				assert(false);
 			}
+		}
+
+		auto bound_var = program_scope->get_bound_variable(
+				builder,
+				location,
+				fqn_name,
+				nullptr);
+
+		if (bound_var != nullptr) {
+			target_scope->put_bound_variable(symbol, bound_var);
 		}
 	}
 
