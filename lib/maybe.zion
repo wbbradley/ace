@@ -144,3 +144,10 @@ fn fmap[A](f fn (a A) void, a Maybe A) void {
         }
     }
 }
+
+fn maybe[A](a A?, default A) A {
+    return match a {
+        Just(a) => a
+        Nothing => default
+    }
+}

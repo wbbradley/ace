@@ -92,6 +92,10 @@ ptr<statement_t> get_statement_parse(parse_state_t &ps) {
 	link_statement->extern_module = module_decl;
 
 	if (ps.token.tk == tk_lcurly) {
+        link_statement->link_as_name = token_t{
+                ps.token.location,
+                    tk_identifier,
+            types::gensym(ps.token.location)->get_name()};
 		ps.advance();
 		while (ps.token.tk == tk_identifier) {
 			link_statement->symbols.push_back(make_code_id(ps.token));
@@ -102,9 +106,7 @@ ptr<statement_t> get_statement_parse(parse_state_t &ps) {
 			}
 		}
 		chomp_token(tk_rcurly);
-	}
-
-	if (ps.token.is_ident(K(as))) {
+	} else if (ps.token.is_ident(K(as))) {
 		/* get the local name for this module */
 		ps.advance();
 		expect_token(tk_identifier);
@@ -296,8 +298,16 @@ ptr<statement_t> parse_for_block(parse_state_t &ps) {
 	auto just_pattern = create<pattern_block_t>(for_token);
 	just_pattern->block = block;
 
+	token_t just_value_token = token_t{for_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name()};
+    auto just_var_decl = create<var_decl_t>(param_token);
+    just_var_decl->is_let_var = false;
+    just_var_decl->type = type_variable(param_token.location);
+    just_var_decl->initializer = create<reference_expr_t>(just_value_token);
+
+    just_pattern->block->statements.insert(just_pattern->block->statements.begin(), just_var_decl);
+
 	auto just_predicate = create<ctor_predicate_t>(token_t{for_token.location, tk_identifier, "Just"});
-	just_predicate->params.push_back(create<irrefutable_predicate_t>(param_token));
+	just_predicate->params.push_back(create<irrefutable_predicate_t>(just_value_token));
 	just_pattern->predicate = just_predicate;
 
 	auto break_block = create<block_t>(for_token);

@@ -24,7 +24,7 @@ endif()
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-add_compile_options(-std=c++14 -g -O0 ${option_flags})
+add_compile_options(-std=c++14 -g -O3 ${option_flags})
 
 add_executable(zion
 	src/ast.cpp

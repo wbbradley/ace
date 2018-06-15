@@ -14,7 +14,6 @@ type ParseError has {
 }
 
 fn parse(parser Parser, args [str]) resource.MaybeResource [str: str] ParseError {
-    print("Parsing args " + str(args) + " with parser for " + parser.description)
     var iarg = 0
     var results [str: str]
     while iarg < len(args) {

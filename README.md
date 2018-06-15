@@ -39,32 +39,35 @@ model. Zion is built on [LLVM](https://llvm.org/).
  - Keep it simple, when possible.
  - Keep it readable, when possible.
  - Make algebraic data types compelling for state modeling.
- - Reduce pain near process boundaries. Be opinionated on how to make serialization as comfortable as possible while
-   retaining static type safety.
+ - Reduce pain near process boundaries. Be opinionated on how to make serialization as comfortable
+   as possible while retaining static type safety.
 
 ## Non-goals
- - Solving heavy compute problems is a non-goal. Solve those problems at a lower level,
-   and use the FFI to access those components. Favor algorithmic scaling over bit twiddling and fretting over L1 cache hits.
+ - Solving heavy compute problems is a non-goal. Solve those problems at a lower level, and use the
+   FFI to access those components. Favor algorithmic scaling over bit twiddling and fretting over L1 cache hits.
  - Pause-free execution remains a back-burner goal. (ie: Enabling Game loops, high-speed trading platforms, life support monitoring, embedded systems, etc...) However, in a future version, once language development settles down a bit, this will get more attention.
- - In-language concurrency and asynchronicity will get treatment in the future. These can currently be solved at other levels of
-   the stack (hint: use OS processes.) This is not because it's not important. But, basic ergonomics of the language come first.
+ - In-language concurrency and asynchronicity will get treatment in the future. These can currently
+   be solved at other levels of the stack (hint: use OS processes.) This is not because it's not
+   important. But, basic ergonomics of the language come first.
 
 ## Syntax
 
-Zion looks a bit like Python, minus the colons.
+Zion syntax is in the C family.
 
 ```
 module hello_world
 
-fn main()
+fn main() {
 	print("Hello, world!")
+}
 ```
 
 Comments use `#`.
 ```
-fn favorite_number(x int) bool
+fn favorite_number(x int) bool {
 	# This is a comment
 	return x == 12
+}
 ```
 
 Zion is strict by default, not lazy.  Memory is managed using garbage collection.
@@ -130,13 +133,13 @@ or llvm tools, etc...
 
 ### TODO
 
-- [ ] Ergo: Ability to import symbols from modules by name (symbol injection)
 - [ ] Pattern-matching
   - [x] ctor matching
   - [ ] int matching
   - [ ] tuple matching
   - [ ] string matching
 - [-] Play: Rewrite expect.py in Zion
+- [ ] Documentation needs a higher-level strategy
 - [ ] Perf: Implement native structures as non-pointer values
 - [ ] Perf: Escape analysis to avoid heap-allocation.
 - [ ] Consider how to allow for-macro expansion to have a mutating iterator function. Does that mean pass-by-ref is allowed?
@@ -145,24 +148,25 @@ or llvm tools, etc...
 - [ ] Implement fast range(i)
 - [ ] Use DIBuilder to add line-level debugging information
 - [ ] Implement an inline directive to mark functions for inline expansion during optimization
-- [ ] Implement generic sort
 - [ ] Data structures
   - [x] string (as slices)
   - [x] vectors
-  - [ ] hash map
+  - [-] hash map
   - [ ] set
   - [ ] binary tree
   - [ ] avl tree / red-black tree
-- [ ] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction - or ref-counting
 - [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
 - [ ] Ergo: Enable linking to variadic functions (like printf)
 - [ ] Fix linking issues (rt_float.o, etc...) when running zion from non-zion root dir)
 - [ ] Rename `typeid` function to `ctor_id` or something similar.
 - [ ] Perf: Explore using a conservative collector
 - [ ] Libs: Integrate JSON parsing and mess around with manipulating some existing JSON files
-- [ ] Expose reflection library for dynamic structure analysis
+- [ ] Func: Expose reflection library for dynamic structure analysis
 - [ ] Func: Enable `let` vars at global scope
-- [ ] Automatically configure default POSIX/C/System "int" size on first boot of compiler
+- [ ] Automatically configure default POSIX/C/System "int" size on compiler startup
+- [x] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction - or ref-counting
+- [x] Implement generic in-place sort for vectors
+- [x] Ergo: Ability to import symbols from modules by name (symbol injection)
 - [x] Add safety checks on casting (as)
 - [x] Exercise: implement parser combinators in Zion
 - [x] Implement closures with capture by value

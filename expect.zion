@@ -1,12 +1,11 @@
 module expect
 
-get os
+get os {getenv, shell}
 get sys
-get argparse
-
+get argparse {Option, parse}
 
 fn gather_comments(preface, progname) [str] {
-    lines := os.shell("grep '^# " + preface + ": ' " + str(progname))
+    lines := shell("grep '^# " + preface + ": ' " + str(progname))
     return match lines {
         Left(errno) => []
         Right(lines) {
@@ -21,10 +20,10 @@ fn gather_comments(preface, progname) [str] {
 }
 
 fn get_program(args [str]) str? {
-    let options [str: argparse.Option]
-    options["-p"] = argparse.Option("program", true, true)
+    let options [str: Option]
+    options["-p"] = Option("program", true, true)
     parser := Parser("Expect tests", options, false)
-    with args := argparse.parse(parser, args) {
+    with args := parse(parser, args) {
         return args["program"]
     } else parse_error {
         print(parse_error.reason)
@@ -45,7 +44,6 @@ fn main() int {
         return 0
     }
 
-    injects := gather_comments("inject", program)
     expects := gather_comments("expect", program)
     rejects := gather_comments("reject", program)
 
@@ -54,48 +52,43 @@ fn main() int {
     }
 
     print("----------" + " " + program + " " + "--------------------")
-    cmd := "./zion run " + program
-    print("running " + cmd)
+    cmd := "zion run " + program
+    print(cmd)
 
-    injection := len(injects) != 0 ? Just(join("\n", injects)) : Nothing
-    actual := match os.shell(cmd, injection) {
-        Right(actual)    => actual
+    match shell(cmd) {
+        Right(lines) {
+            actual := join("\n", lines)
+            for expect in expects {
+                msg := "Searching for " + expect + " in output from " + program + "..."
+                if expect not in actual {
+                    print(msg + " error.")
+                    print(actual)
+                    return 1
+                } else {
+                    print(msg + " success.")
+                    continue
+                }
+            }
+
+            for reject in rejects {
+                msg := "Hoping to not see " + reject + " in output from " + program + "..."
+
+                if reject in actual {
+                    print(msg + " error.")
+                    print(actual)
+                    return 1
+                } else {
+                    print(msg + " success.")
+                    continue
+                }
+            }
+            return 0
+        }
+
         Left(returncode) {
             print("Return code is " + str(returncode))
             print("Process returned a non-zero value. Failing!")
             return 1
         }
     }
-
-    print(len(expects))
-    return 0
-}
-
-fn d(expects, rejects, actual) int {
-    for expect in expects {
-        msg := "Searching for " + expect + " in output from " + program + "..."
-
-        if expect not in actual {
-            print(msg + " error.")
-            print(actual)
-            return 1
-        } else {
-            print(msg + " success.")
-            continue
-        }
-    }
-
-    for reject in rejects {
-        msg := "Hoping to not see " + reject + " in output from " + program + "..."
-
-        if reject in actual {
-            print(msg + " error.")
-            print(actual)
-            return 1
-        } else {
-            print(msg + " success.")
-            continue
-        }
-    }
-    return 0
 }
