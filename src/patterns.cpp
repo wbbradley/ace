@@ -160,7 +160,12 @@ types::type_t::ref build_patterns(
 	/* good, the user knew not to have an else block because they are handling
 	 * all paths */
 	*returns = all_patterns_return;
-	assert_implies(all_patterns_return, expected_type == type_bottom());
+    if (all_patterns_return && expected_type != type_bottom()) {
+        throw user_error(
+                expected_type->get_location(),
+                "you will never get a value here");
+    }
+
 	return expected_type;
 }
 

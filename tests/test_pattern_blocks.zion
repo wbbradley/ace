@@ -2,7 +2,9 @@ module _
 # test: pass
 # expect: 8
 
-type Pair L R is { Pair(l L, r R) }
+type Pair L R is {
+    Pair(l L, r R)
+}
 
 fn mult(l, r) int => match Pair(l, r) {
     Pair(Just(l), Just(r)) => l * r

@@ -480,14 +480,20 @@ fn __next__[T](i VectorIter T) T? {
     }
 }
 
-#[global]
-# fn sort[T](v [T])
-#    fn compare(lhs_ *void, rhs_ *void) posix.int
-#        lhs := (lhs_ as *T)[0]
-#        rhs := (rhs_ as *T)[0]
-#        return lhs < rhs ? -1 : ((lhs == rhs) ? 0 : 1)
-#    vec := v as *(VectorImpl T)
-#    posix.qsort(vec.items, vec.length, sizeof(*void), compare)
+[global]
+fn sort[T](v [T]) {
+    fn compare(lhs_ *void, rhs_ *void) posix.int {
+        lhs := (lhs_ as! *T)[0]
+        rhs := (rhs_ as! *T)[0]
+        return lhs < rhs ? -1 : ((rhs < lhs) ? 1 : 0)
+    }
+    vec := v as! *(VectorImpl T)
+    items := vec.items
+    if items != null {
+        # TODO: consider sizeof on managed types to assume the sizeof the pointer, not the sizeof the struct
+        posix.qsort(items, vec.size, sizeof(if (gc T) *T T), compare)
+    }
+}
 
 [global]
 fn __not_in__[T](lhs T, rhs [T]) bool {

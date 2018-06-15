@@ -1,25 +1,29 @@
 module _
 # test: pass
-# inject: 3
 # expect: 3
 # expect: 4.5
-# inject: 4.5
+
+fn read(x str) int {
+    return int(x)
+}
+
+fn read(x str) float {
+    return float(x)
+}
 
 fn read(fp *posix.FILE) int {
     var x int = 0
-    assert(posix.fscanf(fp, "%d",  &x as! *void) == 1)
+    assert(posix.fscanf(fp, "%d", &x as! *void) == 1)
     return x
 }
 
 fn read(fp *posix.FILE) float {
     var x float = 0.0
-    assert(posix.fscanf(fp, "%lf",  &x as! *void) == 1)
+    assert(posix.fscanf(fp, "%lf", &x as! *void) == 1)
     return x
 }
 
 fn main() {
-    print("Gimme an int: ")
-    print(read(stdin) as int)
-    print("Gimme a float: ")
-    print(read(stdin) as float)
+    print(read("3") as int)
+    print(read("4.5") as float)
 }

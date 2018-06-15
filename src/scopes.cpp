@@ -21,7 +21,10 @@ const token_kind SCOPE_TK = tk_dot;
 const char SCOPE_SEP_CHAR = '.';
 const char *SCOPE_SEP = ".";
 
-function_scope_t::ref create_function_scope(std::string module_name, scope_t::ref parent_scope);
+function_scope_t::ref create_function_scope(
+		std::string module_name,
+	   	scope_t::ref parent_scope,
+	   	const types::type_t::map &type_variable_bindings);
 
 void get_callables_from_bound_vars(
 		scope_t::ref scope,
@@ -129,9 +132,12 @@ struct scope_impl_t : public virtual BASE {
 	typedef ptr<BASE> ref;
 	typedef ptr<const BASE> cref;
 
-	scope_impl_t(std::string name, ptr<scope_t> parent_scope) :
+	scope_impl_t(std::string name, ptr<scope_t> parent_scope, const types::type_t::map &bindings={}) :
 		scope_name(name),
-		parent_scope(parent_scope) {}
+		parent_scope(parent_scope),
+		type_variable_bindings(bindings) 
+	{
+	}
 
 	virtual ~scope_impl_t() {}
 	scope_impl_t(ptr<scope_t> parent_scope) = delete;
@@ -323,7 +329,7 @@ struct scope_impl_t : public virtual BASE {
 	{
 		return ::get_variable_type_from_scope(location, this->get_name(),
 				symbol, bound_vars,
-			   	this->get_parent_scope() != stopping_scope ? this->get_parent_scope() : nullptr,
+				this->get_parent_scope() != stopping_scope ? this->get_parent_scope() : nullptr,
 				stopping_scope);
 	}
 
@@ -335,7 +341,7 @@ struct scope_impl_t : public virtual BASE {
 	{
 		return ::get_bound_variable_from_scope(builder, location, this->get_name(),
 				symbol, bound_vars,
-			   	this->get_parent_scope() != stopping_scope ? this->get_parent_scope() : nullptr,
+				this->get_parent_scope() != stopping_scope ? this->get_parent_scope() : nullptr,
 				stopping_scope);
 	}
 
@@ -436,9 +442,13 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		}
 	}
 
-	ptr<function_scope_t> new_function_scope(std::string name) override {
-		debug_above(8, log("creating a function scope %s within scope %s", name.c_str(), this->get_name().c_str()));
-		return create_function_scope(name, shared_from_this());
+	ptr<function_scope_t> new_function_scope(std::string name) override
+	{
+		debug_above(8,
+			   	log("creating a function scope %s within scope %s",
+				   	name.c_str(),
+				   	this->get_name().c_str()));
+		return create_function_scope(name, shared_from_this(), {});
 	}
 
 	llvm::Module *get_llvm_module() override {
@@ -762,8 +772,9 @@ struct runnable_scope_impl_t : public std::enable_shared_from_this<runnable_scop
 	runnable_scope_impl_t(
 			std::string name,
 			scope_t::ref parent_scope,
-			return_type_constraint_t &return_type_constraint) :
-		scope_impl_t<T>(name, parent_scope),
+			return_type_constraint_t &return_type_constraint,
+			const types::type_t::map &bindings={}) :
+		scope_impl_t<T>(name, parent_scope, bindings),
 		return_type_constraint(return_type_constraint)
 	{
 	}
@@ -790,7 +801,7 @@ struct runnable_scope_impl_t : public std::enable_shared_from_this<runnable_scop
 
 	ptr<function_scope_t> new_function_scope(std::string name) {
 		debug_above(8, log("creating a function scope %s within scope %s", name.c_str(), this->get_name().c_str()));
-		return create_function_scope(name, this->get_module_scope());
+		return create_function_scope(name, this->get_module_scope(), this->get_type_variable_bindings());
 	}
 
 	llvm::Module *get_llvm_module() {
@@ -907,7 +918,7 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 
 	ptr<function_scope_t> new_function_scope(std::string name) {
 		debug_above(8, log("creating a function scope %s within scope %s", name.c_str(), this->get_name().c_str()));
-		return create_function_scope(name, this->this_scope());
+		return create_function_scope(name, this->this_scope(), {});
 	}
 
 	virtual ~module_scope_impl_t() {}
@@ -1627,8 +1638,8 @@ struct function_scope_impl_t final : public runnable_scope_impl_t<function_scope
 	typedef ptr<function_scope_t> ref;
 
 	virtual ~function_scope_impl_t() {}
-	function_scope_impl_t(std::string name, scope_t::ref parent_scope) :
-		runnable_scope_impl_t(name, parent_scope, this->return_type_constraint) {}
+	function_scope_impl_t(std::string name, scope_t::ref parent_scope, const types::type_t::map &bindings) :
+		runnable_scope_impl_t(name, parent_scope, this->return_type_constraint, bindings) {}
 
 	void dump(std::ostream &os) const {
 		os << std::endl << "FUNCTION SCOPE: " << scope_name << std::endl;
@@ -1648,8 +1659,12 @@ struct function_scope_impl_t final : public runnable_scope_impl_t<function_scope
 
 };
 
-function_scope_t::ref create_function_scope(std::string module_name, scope_t::ref parent_scope) {
-	return make_ptr<function_scope_impl_t>(module_name, parent_scope);
+function_scope_t::ref create_function_scope(
+		std::string module_name,
+	   	scope_t::ref parent_scope,
+		const types::type_t::map &type_variable_bindings)
+{
+	return make_ptr<function_scope_impl_t>(module_name, parent_scope, type_variable_bindings);
 }
 
 struct generic_substitution_scope_impl_t final : public std::enable_shared_from_this<generic_substitution_scope_impl_t>, public scope_impl_t<generic_substitution_scope_t> {
@@ -1674,7 +1689,7 @@ struct generic_substitution_scope_impl_t final : public std::enable_shared_from_
 	ptr<function_scope_t> new_function_scope(std::string name) {
 		debug_above(8, log("creating a function scope %s within scope %s", name.c_str(), this->get_name().c_str()));
 		assert(!dyncast<runnable_scope_t>(get_parent_scope()));
-		return create_function_scope(name, this_scope());
+		return create_function_scope(name, this_scope(), this->get_type_variable_bindings());
 	}
 
 	void dump(std::ostream &os) const {

@@ -465,7 +465,7 @@ bound_var_t::ref type_check_bound_var_decl(
 			auto error = user_error(obj.get_location(), "symbol '" c_id("%s") "' cannot be redeclared",
 					symbol.c_str());
 			error.add_info(bound_var->get_location(), "see earlier declaration of " c_id("%s"),
-					bound_var->name.c_str());
+					symbol.c_str());
 			throw error;
 		}
 	}
@@ -4673,6 +4673,10 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 		types::type_t::ref expected_type) const
 {
 	/* throw away expected type because we are saying we know what's best here */
+	debug_above(8, log("attempting a cast to type %s in scope %s with bindings %s",
+				type_cast->str().c_str(),
+				scope->get_name().c_str(),
+			   	::str(scope->get_type_variable_bindings()).c_str()));
 	expected_type = type_cast->rebind(scope->get_type_variable_bindings())->eval(scope);
 
 	if (!force_cast) {

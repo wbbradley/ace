@@ -35,6 +35,7 @@ fn shell(cmd str, pipe_text str?) Either posix.int [str] {
     fp := posix.popen(
         cmd,
         match pipe_text {
+            # REVIEW: this only works in BSD, because Linux does not have bidirectional pipes
             Just(_) => "r+"
             Nothing => "r"
         })

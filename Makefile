@@ -1,4 +1,5 @@
 LLVM_DIR=$(HOME)/opt/llvm/release_40/MinSizeRel
+ZION=$(HOME)/var/zion/zion
 
 zion:
 	(cd $(HOME)/var/zion && \
@@ -12,3 +13,10 @@ clean:
 		mkdir -p zion && \
 		cd zion && \
 		cmake $(HOME)/src/zion)
+
+clean-zion: clean
+	make zion
+
+test: clean-zion
+	$(ZION) test
+	./expect-tests.sh $(HOME)/var/zion

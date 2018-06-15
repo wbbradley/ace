@@ -1,0 +1,31 @@
+module _
+# test: pass
+# expect: [-2, 3, 4, 5, 6, 32]
+# expect: [-20, 3, 4, 5, 32, 60]
+
+type Int is { Int(i int) }
+
+[global]
+fn str(x Int) str {
+    return match x {
+        Int(x) => str(x)
+    }
+}
+
+[global]
+fn __lt__(lhs Int, rhs Int) bool {
+    return match lhs {
+        Int(l) => match rhs {
+            Int(r) => l < r
+        }
+    }
+}
+
+fn main() {
+    xs := [-2, 3, 6, 32, 4, 5]
+    sort(xs)
+    print(xs)
+    ys := [Int(-20), Int(3), Int(60), Int(32), Int(4), Int(5)]
+    sort(ys)
+    print(ys)
+}
