@@ -1238,6 +1238,29 @@ ast::predicate_t::ref ctor_predicate_t::parse(parse_state_t &ps) {
 	return ctor;
 }
 
+ast::predicate_t::ref tuple_predicate_t::parse(parse_state_t &ps) {
+	assert(ps.token.tk == tk_lparen);
+	auto paren_token = ps.token;
+
+	ps.advance();
+
+	std::vector<predicate_t::ref> params;
+	bool expect_comma = false;
+	while (ps.token.tk != tk_rparen) {
+		if (expect_comma) {
+			chomp_token(tk_comma);
+		}
+
+		auto predicate = predicate_t::parse(ps, false /*allow_else*/);
+		params.push_back(predicate);
+		expect_comma = true;
+	}
+	chomp_token(tk_rparen);
+	auto tuple = ast::create<ast::tuple_predicate_t>(paren_token);
+	std::swap(tuple->params, params);
+	return tuple;
+}
+
 ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else) {
 	if (ps.token.is_ident(K(else))) {
 		if (!allow_else) {
@@ -1248,7 +1271,9 @@ ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else) {
 		throw user_error(ps.token.location, "irrefutable predicates are restricted to non-keyword symbols");
 	}
 
-	if (ps.token.tk == tk_identifier) {
+	if (ps.token.tk == tk_lparen) {
+		return tuple_predicate_t::parse(ps);
+	} else if (ps.token.tk == tk_identifier) {
 		if (isupper(ps.token.text[0])) {
 			/* match a ctor */
 			return ctor_predicate_t::parse(ps);

@@ -475,6 +475,61 @@ bool ast::ctor_predicate_t::resolve_match(
 	return true;
 }
 
+bool ast::tuple_predicate_t::resolve_match(
+		llvm::IRBuilder<> &builder,
+		runnable_scope_t::ref scope,
+		life_t::ref life,
+		location_t value_location,
+		bound_var_t::ref input_value,
+		llvm::BasicBlock *llvm_match_block,
+		llvm::BasicBlock *llvm_no_match_block,
+		runnable_scope_t::ref *scope_if_true) const
+{
+	llvm::Function *llvm_function_current = llvm_get_function(builder);
+	llvm::BasicBlock *llvm_next_check = llvm_match_block;
+	runnable_scope_t::ref scope_if_match_at_end = scope;
+
+	for (int i = params.size()-1; i >= 0; --i) {
+		llvm::BasicBlock *check_block = llvm::BasicBlock::Create(
+				builder.getContext(),
+				"check." + params[i]->repr(),
+				llvm_function_current);
+		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+		builder.SetInsertPoint(check_block);
+		bound_var_t::ref member = extract_member_by_index(
+				builder,
+				scope,
+				life,
+				params[i]->get_location(),
+				input_value,
+				input_value->type,
+				i,
+				params[i]->token.text,
+				false /*as_ref*/);
+
+		/* resolve sub-patterns */
+		runnable_scope_t::ref scope_if_match = nullptr;
+		if (!params[i]->resolve_match(builder, scope_if_match_at_end, life,
+					value_location, member, llvm_next_check, llvm_no_match_block, &scope_if_match))
+		{
+			assert(!builder.GetInsertBlock()->getTerminator());
+			builder.CreateBr(llvm_no_match_block);
+			return false;
+		}
+
+		if (scope_if_match != nullptr) {
+			scope_if_match_at_end = scope_if_match;
+		}
+		llvm_next_check = check_block;
+	}
+
+	/* by this point llvm_next_check should point to either the next thing we need to check or the
+	 * final pattern block */
+	builder.CreateBr(llvm_next_check);
+	*scope_if_true = scope_if_match_at_end;
+	return true;
+}
+
 bool ast::irrefutable_predicate_t::resolve_match(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
