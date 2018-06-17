@@ -194,66 +194,19 @@ namespace match {
 		auto lhs_integers = lhs->asIntegers();
 		auto rhs_integers = rhs->asIntegers();
 
-		if (lhs_nothing) {
-			return lhs;
-		}
-
-		if (rhs_nothing) {
-			return rhs;
+		if (lhs_nothing || rhs_nothing) {
+			/* intersection of nothing and anything is nothing */
+			return theNothing;
 		}
 
 		if (lhs_allof) {
-			if (rhs_allof) {
-				if (lhs_allof->type->repr() == rhs_allof->type->repr()) {
-					return lhs;
-				}
-
-				auto error = user_error(lhs->location, "type mismatch when comparing ctors for pattern intersection");
-				error.add_info(rhs->location, "comparing this type");
-				throw error;
-			} else {
-				auto lhs_type = lhs_allof->type->eval(lhs_allof->env);
-				if (auto lhs_data_type = dyncast<const type_data_t>(lhs_type)) {
-					if (rhs_ctor_patterns) {
-						return reduce_all_datatype(lhs->location, lhs_data_type->repr(), rhs, rhs_ctor_patterns->cpvs);
-					} else if (rhs_ctor_pattern) {
-						std::vector<CtorPatternValue> cpvs{rhs_ctor_pattern->cpv};
-						return reduce_all_datatype(lhs->location, lhs_data_type->repr(), rhs, cpvs);
-					}
-				} else if (auto lhs_tuple_type = dyncast<const type_tuple_t>(lhs_type)) {
-					if (rhs_tuple) {
-						return rhs_tuple;
-					} else {
-						auto error = user_error(lhs->location, "type mismatch when matching tuple");
-						error.add_info(rhs->location, "comparing this type");
-						throw error;
-					}
-				}
-				throw user_error(INTERNAL_LOC(), "not implemented");
-			}
+			/* intersection of everything and x is x */
+			return rhs;
 		}
 
 		if (rhs_allof) {
-			auto rhs_type = rhs_allof->type->eval(rhs_allof->env) ;
-			if (auto rhs_data_type = dyncast<const type_data_t>(rhs_type)) {
-				if (lhs_ctor_patterns) {
-					return reduce_all_datatype(rhs->location, rhs_data_type->repr(), lhs, lhs_ctor_patterns->cpvs);
-				} else if (lhs_ctor_pattern) {
-					std::vector<CtorPatternValue> cpvs{lhs_ctor_pattern->cpv};
-					return reduce_all_datatype(rhs->location, rhs_data_type->repr(), lhs, cpvs);
-				}
-			} else if (auto rhs_tuple_type = dyncast<const type_tuple_t>(rhs_type)) {
-				if (lhs_tuple) {
-					return lhs_tuple;
-				} else {
-					auto error = user_error(rhs->location, "type mismatch when matching tuple");
-					error.add_info(lhs->location, "comparing this type");
-					throw error;
-				}
-			} else if (rhs_allof->type->eval_predicate(tb_int, rhs_allof->env)) {
-				return intersect(lhs, make_ptr<Integers>(rhs->location, Integers::Exclude, std::set<int64_t>{}));
-			}
-			throw user_error(INTERNAL_LOC(), "not implemented");
+			/* intersection of everything and x is x */
+			return lhs;
 		}
 
 		if (lhs_ctor_pattern && rhs_ctor_pattern) {
