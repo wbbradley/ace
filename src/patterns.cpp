@@ -181,8 +181,12 @@ void check_patterns(
 		match::Pattern::ref covering = pattern_block->predicate->get_pattern(pattern_value->type->get_type(), runnable_scope);
 		if (match::intersect(uncovered, covering)->asNothing() != nullptr) {
 			auto error = user_error(pattern_block->get_location(), "this pattern is already covered");
-			error.add_info(pattern_block->get_location(), "so far you haven't covered: %s",
-					uncovered->str().c_str());
+			if (uncovered->asNothing() != nullptr) {
+				error.add_info(pattern_block->get_location(), "there is nothing left to match by this point");
+			} else {
+				error.add_info(pattern_block->get_location(), "so far you haven't covered: %s",
+						uncovered->str().c_str());
+			}
 			throw error;
 		}
 
@@ -244,6 +248,7 @@ bound_var_t::ref ast::match_expr_t::resolve_match_expr(
 	/* we don't care about references in pattern matching */
 	pattern_value = pattern_value->resolve_bound_value(builder, scope);
 
+#if 0
 	bool is_managed = false;
 	pattern_value->type->is_managed_ptr(builder, scope, is_managed);
 
@@ -252,6 +257,8 @@ bound_var_t::ref ast::match_expr_t::resolve_match_expr(
 				"match statements only work with managed types. %s is a native type.",
 				pattern_value->type->str().c_str());
 	}
+#endif
+
 	if (pattern_value->type->is_maybe(scope)) {
 		auto error = user_error(value->get_location(),
 				"null pattern values are not allowed. "

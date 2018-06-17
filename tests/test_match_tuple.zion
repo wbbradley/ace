@@ -1,12 +1,21 @@
 module _
 # test: pass
+# expect: 0
+# expect: 1
 # expect: 2
+# expect: 3
+# expect: 4
+# expect: 5
+# expect: 6
+# expect: 7
+# expect: 8
+# expect: 9
 
 type Foo is { F(x int) }
 fn main() {
-    print(match (F(3), 3) {
-        (2, _) => 2
-        (_, 3) => 3
-        _      => 4
-    })
+    for x in range(10) {
+        print(match (F(x), 3) {
+            (F(x), _) => x
+        })
+    }
 }
