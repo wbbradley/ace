@@ -10,6 +10,7 @@ namespace match {
 	struct AllOf;
 	struct Nothing;
 	struct Integers;
+	struct Tuple;
 
 	struct Pattern {
 		typedef ptr<const Pattern> ref;
@@ -19,6 +20,7 @@ namespace match {
 		Pattern(location_t location) : location(location) {}
 		virtual ~Pattern() {}
 
+		virtual ptr<const Tuple> asTuple() const { return nullptr; }
 		virtual ptr<const CtorPattern> asCtorPattern() const { return nullptr; }
 		virtual ptr<const CtorPatterns> asCtorPatterns() const { return nullptr; }
 		virtual ptr<const AllOf> asAllOf() const { return nullptr; }
@@ -33,6 +35,15 @@ namespace match {
 		std::vector<Pattern::ref> args;
 
 		std::string str() const;
+	};
+
+	struct Tuple : std::enable_shared_from_this<Tuple>, Pattern {
+		Tuple(location_t location, const std::vector<Pattern::ref> &args);
+
+		std::vector<Pattern::ref> args;
+
+		virtual ptr<const Tuple> asTuple() const { return shared_from_this(); }
+		virtual std::string str() const;
 	};
 
 	struct CtorPattern : std::enable_shared_from_this<CtorPattern>, Pattern {

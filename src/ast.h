@@ -125,6 +125,27 @@ namespace ast {
 				runnable_scope_t::ref *scope_if_true) const = 0;
 	};
 
+	struct tuple_predicate_t : public predicate_t {
+		typedef ptr<const tuple_predicate_t> ref;
+
+		static const syntax_kind_t SK = sk_tuple_predicate;
+		static ast::predicate_t::ref parse(parse_state_t &ps);
+		virtual bool resolve_match(
+				llvm::IRBuilder<> &builder,
+				runnable_scope_t::ref scope,
+				life_t::ref life,
+				location_t value_location,
+				bound_var_t::ref input_value,
+				llvm::BasicBlock *llvm_match_block,
+				llvm::BasicBlock *llvm_no_match_block,
+				runnable_scope_t::ref *scope_if_true) const;
+		virtual std::string repr() const;
+		virtual void render(render_state_t &rs) const;
+		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const;
+
+		std::vector<predicate_t::ref> params;
+	};
+
 	struct irrefutable_predicate_t : public predicate_t {
 		typedef ptr<const irrefutable_predicate_t> ref;
 

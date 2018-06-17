@@ -2,36 +2,47 @@
 
 [![Build Status](https://travis-ci.org/zionlang/zion.svg?branch=master)](https://travis-ci.org/zionlang/zion)
 
-### Zion features
-- imperative (combined with strict, all this really means is that the language
+## About Zion
+- imperative
   - strict (deterministic ordering of operations)
   - impure by default (with purity available)
   - caters to sequential statements and special control flow forms (like `for`,
     `if`, `while` as much as it does to expressions)
+- functional
+  - first-class anonymous functions
+  - capture by value (NB: types can define their internal mutability)
 - strongly-typed
   - unsafe casts are possible, but conspicuous
 - statically type-checked
-  - types are inferred
-  - polymorphic
+  - support for compile-time type-expression evaluation
+  - types are/can be inferred
+  - polymorphism
+    - parametric
+    - ad-hoc (though currently w/o type classes)
 - algebraic data types
-  - supports pattern matching with `match` with robust coverage analysis
-- some cost abstractions
+  - product types
+  - sum types
+  - pattern matching with robust coverage analysis
+- some-cost abstractions
   - garbage collection
-  - deterministic destruction via ref-counting and/or
-    `defer` or `with` behavior (TBD)
+  - deterministic destruction via
+    - `with` special-form
+    - `defer` for block-level determinism
 
-Zion prefers correctness and refactorability over performance. Zion
-targets scenarios where scalability is intended to happen horizontally, not vertically. That being
-said, Zion tries to be fast, using static compilation to native host architecture as its execution
-model. Zion is built on [LLVM](https://llvm.org/).
+Zion prefers correctness and refactorability over performance. Zion targets scenarios where
+scalability is intended to happen horizontally, not vertically. That being said, Zion tries to be
+fast, using static compilation. Zion is built on [LLVM](https://llvm.org/).
 
 ## User Roles
- - In industry there are two primary archetypes of programming language users, Workers and Librarians. Experienced developers wear either of these hats, switching back and forth as necessary. This switching can happen as new dependencies and integrations are initiated and completed within the scope of feature or new product work.
+ - In industry there are two primary archetypes of programming language users, Workers and
+   Librarians. Experienced developers wear either of these hats, switching back and forth as
+   necessary. This switching can happen as new dependencies and integrations are initiated and
+   completed within the scope of feature or product work.
    - *Workers* build trustworthy applications that solve problems. Workers demand a pleasant and
      ergonomic experience in order to remain focused on reaching their objectives.
    - *Librarians* extend the capabilities of the language by
      - Creating bindings to external libraries,
-     - Integrating external libraries so as to appear fluid and seamless to the Workers,
+     - Integrating functionality
      - Exposing extrinsic data via serialization that maintains type-safety and ergonomics to the Workers.
 
 ## Goals
@@ -43,8 +54,9 @@ model. Zion is built on [LLVM](https://llvm.org/).
    as possible while retaining static type safety.
 
 ## Non-goals
- - Solving heavy compute problems is a non-goal. Solve those problems at a lower level, and use the
-   FFI to access those components. Favor algorithmic scaling over bit twiddling and fretting over L1 cache hits.
+ - Solving heavy compute problems is a non-goal in the near future. Solve those problems at a lower
+   level, and use the FFI to access those components. Favor algorithmic scaling over bit twiddling
+   and fretting over L1 cache hits.
  - Pause-free execution remains a back-burner goal. (ie: Enabling Game loops, high-speed trading platforms, life support monitoring, embedded systems, etc...) However, in a future version, once language development settles down a bit, this will get more attention.
  - In-language concurrency and asynchronicity will get treatment in the future. These can currently
    be solved at other levels of the stack (hint: use OS processes.) This is not because it's not
@@ -72,12 +84,6 @@ fn favorite_number(x int) bool {
 
 Zion is strict by default, not lazy.  Memory is managed using garbage collection.
 
-### README TODO
-- [ ] discuss namespaces.
-- [ ] discuss future plans for safe dynamic dispatch. ([some thoughts exist here](https://gist.github.com/wbbradley/86cd672651cf129a91d14586523e979f))
-- [ ] discuss the std library layout.
-
-
 Types are declared as follows:
 
 ```
@@ -87,25 +93,11 @@ type Vector2D has {
 	y float
 }
 
-# Note the use of the word "has" after the type name. This signifies that the
-# Giraffe type "has" the succeeding "dimensions" of data associated with its
-# instances.
-type Giraffe has {
-	name str
-	age int
-	number_of_spots int
-}
-
-type Gender is { Male Female }
-
-type Lion has {
-	name str
-	age int
-	gender Gender
-}
-
-type Mouse has {
-	fur_color str
+type Mammal is {
+    Giraffe(name str, age int, number_of_spots int)
+    Lion(name str, age int)
+    Mouse(fur_color str)
+    Bison(favorite_national_park NationalPark)
 }
 
 type NationalPark is {
@@ -113,15 +105,8 @@ type NationalPark is {
 	Yellowstone
 	Yosemite
 }
-
-type Bison has {
-	favorite_national_park NationalPark
-}
 ```
 
-When a call to a function that takes a sum type is made, and there remain free type
-variables in the type of the parameters, they will be substituted with the bottom "⊥" type (void) during
-function instantiation.
 
 ### Getting LLVM built on your Mac
 
@@ -133,11 +118,11 @@ or llvm tools, etc...
 
 ### TODO
 
-- [ ] Pattern-matching
+- [-] Pattern-matching
   - [x] ctor matching
-  - [ ] int matching
-  - [ ] tuple matching
-  - [ ] string matching
+  - [-] int matching
+  - [x] tuple matching
+  - [-] string matching
 - [-] Play: Rewrite expect.py in Zion
 - [ ] Documentation needs a higher-level strategy
 - [ ] Perf: Implement native structures as non-pointer values

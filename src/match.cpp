@@ -11,6 +11,12 @@ namespace match {
 	ptr<Nothing> theNothing = make_ptr<Nothing>();
 	ptr<Integers> allIntegers = make_ptr<Integers>(INTERNAL_LOC(), Integers::Exclude, std::set<int64_t>{});
 
+	Tuple::Tuple(location_t location, const std::vector<Pattern::ref> &args) :
+		Pattern(location),
+		args(args)
+	{
+	}
+
 	CtorPattern::CtorPattern(location_t location, CtorPatternValue cpv) :
 		Pattern(location),
 		cpv(cpv)
@@ -65,6 +71,28 @@ namespace match {
 		} else {
 			return make_ptr<CtorPatterns>(location, cpvs);
 		}
+	}
+
+	Pattern::ref intersect(
+			location_t location,
+			const std::vector<Pattern::ref> &lhs_args,
+			const std::vector<Pattern::ref> &rhs_args)
+	{
+		assert(lhs_args.size() == rhs_args.size());
+
+		std::vector<Pattern::ref> reduced_args;
+		reduced_args.reserve(lhs_args.size());
+
+		for (size_t i = 0; i < lhs_args.size(); ++i) {
+			auto new_arg = intersect(lhs_args[i], rhs_args[i]);
+			if (dyncast<const Nothing>(new_arg) != nullptr) {
+				return theNothing;
+			} else {
+				reduced_args.push_back(new_arg);
+			}
+		}
+		assert(reduced_args.size() == lhs_args.size());
+		return make_ptr<Tuple>(location, reduced_args);
 	}
 
 	Pattern::ref intersect(location_t location, const CtorPatternValue &lhs, const CtorPatternValue &rhs) {
@@ -157,6 +185,8 @@ namespace match {
 		auto rhs_nothing = rhs->asNothing();
 		auto lhs_allof = lhs->asAllOf();
 		auto rhs_allof = rhs->asAllOf();
+		auto lhs_tuple = lhs->asTuple();
+		auto rhs_tuple = rhs->asTuple();
 		auto lhs_ctor_patterns = lhs->asCtorPatterns();
 		auto rhs_ctor_patterns = rhs->asCtorPatterns();
 		auto lhs_ctor_pattern = lhs->asCtorPattern();
@@ -182,13 +212,21 @@ namespace match {
 				error.add_info(rhs->location, "comparing this type");
 				throw error;
 			} else {
-				auto lhs_data_type = dyncast<const type_data_t>(lhs_allof->type->eval(lhs_allof->env));
-				if (lhs_data_type) {
+				auto lhs_type = lhs_allof->type->eval(lhs_allof->env);
+				if (auto lhs_data_type = dyncast<const type_data_t>(lhs_type)) {
 					if (rhs_ctor_patterns) {
 						return reduce_all_datatype(lhs->location, lhs_data_type->repr(), rhs, rhs_ctor_patterns->cpvs);
 					} else if (rhs_ctor_pattern) {
 						std::vector<CtorPatternValue> cpvs{rhs_ctor_pattern->cpv};
 						return reduce_all_datatype(lhs->location, lhs_data_type->repr(), rhs, cpvs);
+					}
+				} else if (auto lhs_tuple_type = dyncast<const type_tuple_t>(lhs_type)) {
+					if (rhs_tuple) {
+						return rhs_tuple;
+					} else {
+						auto error = user_error(lhs->location, "type mismatch when matching tuple");
+						error.add_info(rhs->location, "comparing this type");
+						throw error;
 					}
 				}
 				throw user_error(INTERNAL_LOC(), "not implemented");
@@ -196,12 +234,21 @@ namespace match {
 		}
 
 		if (rhs_allof) {
-			if (auto rhs_data_type = dyncast<const type_data_t>(rhs_allof->type->eval(rhs_allof->env))) {
+			auto rhs_type = rhs_allof->type->eval(rhs_allof->env) ;
+			if (auto rhs_data_type = dyncast<const type_data_t>(rhs_type)) {
 				if (lhs_ctor_patterns) {
 					return reduce_all_datatype(rhs->location, rhs_data_type->repr(), lhs, lhs_ctor_patterns->cpvs);
 				} else if (lhs_ctor_pattern) {
 					std::vector<CtorPatternValue> cpvs{lhs_ctor_pattern->cpv};
 					return reduce_all_datatype(rhs->location, rhs_data_type->repr(), lhs, cpvs);
+				}
+			} else if (auto rhs_tuple_type = dyncast<const type_tuple_t>(rhs_type)) {
+				if (lhs_tuple) {
+					return lhs_tuple;
+				} else {
+					auto error = user_error(rhs->location, "type mismatch when matching tuple");
+					error.add_info(lhs->location, "comparing this type");
+					throw error;
 				}
 			} else if (rhs_allof->type->eval_predicate(tb_int, rhs_allof->env)) {
 				return intersect(lhs, make_ptr<Integers>(rhs->location, Integers::Exclude, std::set<int64_t>{}));
@@ -229,6 +276,10 @@ namespace match {
 			return intersect(*lhs_integers, *rhs_integers);
 		}
 
+		if (lhs_tuple && rhs_tuple) {
+			return intersect(rhs->location, lhs_tuple->args, rhs_tuple->args);
+		}
+
 		log_location(log_error, lhs->location,
 				"intersect is not implemented yet (%s vs. %s)",
 				lhs->str().c_str(),
@@ -243,6 +294,8 @@ namespace match {
 		auto rhs_nothing = rhs->asNothing();
 		auto lhs_allof = lhs->asAllOf();
 		auto rhs_allof = rhs->asAllOf();
+		auto lhs_tuple = lhs->asTuple();
+		auto rhs_tuple = rhs->asTuple();
 		auto lhs_ctor_patterns = lhs->asCtorPatterns();
 		auto rhs_ctor_patterns = rhs->asCtorPatterns();
 		auto lhs_ctor_pattern = lhs->asCtorPattern();
@@ -316,6 +369,12 @@ namespace match {
 			} else {
 				throw user_error(INTERNAL_LOC(), "not implemented");
 			}
+		} else if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
+			std::vector<Pattern::ref> args;
+			for (auto dim : tuple_type->dimensions) {
+				args.push_back(from_type(location, env, dim));
+			}
+			return make_ptr<Tuple>(location, args);
 		} else if (type->eval_predicate(tb_int, env)) {
 			return allIntegers;
 		} else {
@@ -359,6 +418,32 @@ namespace match {
 			for (; i < lhs.args.size(); ++i) {
 				difference(lhs.args[i], rhs.args[i], send_ctor_pattern);
 			}
+		}
+	}
+
+	void difference(
+			location_t location,
+			const std::vector<Pattern::ref> &lhs_args,
+			const std::vector<Pattern::ref> &rhs_args,
+			const std::function<void (Pattern::ref)> &send)
+	{
+		if (lhs_args.size() == rhs_args.size()) {
+			size_t i = 0;
+			auto send_tuple_pattern = [location, &i, &lhs_args, &send] (Pattern::ref arg) {
+				if (dyncast<const Nothing>(arg)) {
+					send(theNothing);
+				} else {
+					std::vector<Pattern::ref> args = lhs_args;
+					args[i] = arg;
+					send(make_ptr<Tuple>(location, args));
+				}
+			};
+
+			for (; i < lhs_args.size(); ++i) {
+				difference(lhs_args[i], rhs_args[i], send_tuple_pattern);
+			}
+		} else {
+			assert(false);
 		}
 	}
 
@@ -416,6 +501,8 @@ namespace match {
 		auto rhs_nothing = rhs->asNothing();
 		auto lhs_allof = lhs->asAllOf();
 		auto rhs_allof = rhs->asAllOf();
+		auto lhs_tuple = lhs->asTuple();
+		auto rhs_tuple = rhs->asTuple();
 		auto lhs_ctor_patterns = lhs->asCtorPatterns();
 		auto rhs_ctor_patterns = rhs->asCtorPatterns();
 		auto lhs_ctor_pattern = lhs->asCtorPattern();
@@ -496,6 +583,14 @@ namespace match {
 				return;
 			}
 		}
+
+		if (lhs_tuple) {
+			if (rhs_tuple) {
+				difference(lhs->location, lhs_tuple->args, rhs_tuple->args, send);
+				return;
+			}
+		}
+
 		log_location(log_error, lhs->location, "unhandled difference - %s \\ %s",
 				lhs->str().c_str(),
 				rhs->str().c_str());
@@ -522,6 +617,14 @@ namespace match {
 
 	std::string Nothing::str() const {
 		return "∅";
+	}
+
+	std::string Tuple::str() const {
+		std::stringstream ss;
+		if (args.size() != 0) {
+			ss << "(" << ::join_str(args, ", ") << ")";
+		}
+		return ss.str();
 	}
 
 	std::string CtorPattern::str() const {
@@ -565,6 +668,32 @@ namespace ast {
 	using namespace ::match;
 	using namespace ::types;
 
+	Pattern::ref tuple_predicate_t::get_pattern(type_t::ref type, env_t::ref env) const {
+		type = type->eval(env);
+
+		std::vector<Pattern::ref> args;
+		if (auto tuple_type = dyncast<const type_tuple_t>(type->eval(env))) {
+			if (tuple_type->dimensions.size() != params.size()) {
+				throw user_error(token.location, "%s has an incorrect number of sub-patterns. there are %d, there should be %d",
+						token.text.c_str(),
+						int(params.size()),
+						int(tuple_type->dimensions.size()));
+			}
+
+			std::vector<Pattern::ref> args;
+			for (size_t i = 0; i < params.size(); ++i) {
+				args.push_back(params[i]->get_pattern(tuple_type->dimensions[i], env));
+			}
+
+			/* found the ctor we're matching on */
+			return make_ptr<Tuple>(token.location, args);
+		} else {
+			throw user_error(token.location,
+					"type mismatch on pattern. incoming type is %s. "
+					"it is not a %d-tuple.", type->str().c_str(), (int)params.size());
+			return nullptr;
+		}
+	}
 	Pattern::ref ctor_predicate_t::get_pattern(type_t::ref type, env_t::ref env) const {
 		type = type->eval(env);
 		if (auto data_type = dyncast<const type_data_t>(type->eval(env))) {
@@ -609,7 +738,11 @@ namespace ast {
 			}
 		}
 
-		throw user_error(INTERNAL_LOC(), "not implemented (don't know how to make a predicate for %s)", token.str().c_str());
+		auto error = user_error(token.location, "unclear how to make a predicate for a %s with '%s'",
+				type->str().c_str(),
+				token.str().c_str());
+		error.add_info(INTERNAL_LOC(), "maybe it's just not implemented?");
+		throw error;
 		return nullptr;
 	}
 }

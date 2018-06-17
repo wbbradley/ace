@@ -27,7 +27,7 @@ namespace ast {
 	void indent(render_state_t &rs) {
 		if (rs.indent > 0) {
 			assert(rs.indent < 10000);
-			rs.ss << std::string(size_t(rs.indent), '\t');
+			rs.ss << std::string(size_t(rs.indent) * 4, ' ');
 		}
 	}
 
@@ -262,7 +262,7 @@ namespace ast {
 	}
 
 	void block_t::render(render_state_t &rs) const {
-		rs.ss << "{";
+		rs.ss << "{" << std::endl;
 		for (size_t i = 0; i < statements.size(); ++i) {
 			if (i > 0) {
 				newline(rs);
@@ -271,7 +271,7 @@ namespace ast {
 			indent(rs);
 			statements[i]->render(rs);
 		}
-		rs.ss << "}";
+		rs.ss << std::endl << "}";
 	}
 
 	void tuple_expr_t::render(render_state_t &rs) const {
@@ -368,6 +368,18 @@ namespace ast {
 		return ss.str();
 	}
 
+	std::string tuple_predicate_t::repr() const {
+		std::stringstream ss;
+		ss << "(";
+		const char *delim = "";
+		for (auto predicate : params) {
+			ss << delim;
+			ss << predicate->repr();
+			delim = ",";
+		}
+		ss << ")";
+		return ss.str();
+	}
 
 	void ctor_predicate_t::render(render_state_t &rs) const {
 		rs.ss << C_ID << token.text << C_RESET;
@@ -381,6 +393,17 @@ namespace ast {
 			}
 			rs.ss << ")";
 		}
+	}
+
+	void tuple_predicate_t::render(render_state_t &rs) const {
+		rs.ss << "(";
+		const char *delim = "";
+		for (auto predicate : params) {
+			rs.ss << delim;
+			predicate->render(rs);
+			delim = ", ";
+		}
+		rs.ss << ")";
 	}
 
 	std::string irrefutable_predicate_t::repr() const {
