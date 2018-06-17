@@ -4,8 +4,7 @@ project(Zion)
 include_directories(BEFORE src)
 add_definitions(-DZION_DEBUG)
 
-find_package(LLVM REQUIRED CONFIG
-HINTS ${HOME}/opt/llvm/release_40/MinSizeRel/lib)
+find_package(LLVM REQUIRED CONFIG)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
@@ -75,25 +74,15 @@ add_executable(zion
 	src/zion_gc_lowering.cpp
 	)
 
-# Find the libraries that correspond to the LLVM components
-# that we wish to use
-llvm_map_components_to_libnames(llvm_libs all)
-# engine interpreter support core irreader target jit)
-
-# Link against LLVM libraries
-target_link_libraries(zion ${llvm_libs})
+message(STATUS "Using dynamic link options -L${LLVM_LIBRARY_DIR} -lLLVM")
+target_link_libraries(zion -L${LLVM_LIBRARY_DIR} -lLLVM)
 
 enable_testing()
 
 add_test(
 	NAME unit_tests
-	COMMAND ./zion test)
+	COMMAND zion test)
 
-foreach(_test_name
-		test_hello_world
-		test_map
-		test_mike
-		test_recursion
-		test_if_finalizer)
-	add_test(NAME ${_test_name} COMMAND python expect.py -p ${_test_name})
-endforeach(_test_name)
+add_test(
+	NAME expect_tests
+	COMMAND ./expect-tests.sh .)

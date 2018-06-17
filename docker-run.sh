@@ -14,4 +14,4 @@ docker run \
 	--rm \
 	--name $NAME \
 	-it $IMAGE:$VERSION \
-	${1:-make test}
+	${1:-/opt/zion/docker-test.sh}
