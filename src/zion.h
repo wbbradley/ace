@@ -13,7 +13,7 @@
 #include "llvm_zion.h"
 #include "logger_decls.h"
 #include "ptr.h"
-#include "assert.h"
+#include "zion_assert.h"
 #include "builtins.h"
 
 #define ZION 1

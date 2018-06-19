@@ -1,5 +1,5 @@
 #include "dbg.h"
-#include "assert.h"
+#include "zion_assert.h"
 #include <stdlib.h>
 #include <string>
 #include <sstream>

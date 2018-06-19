@@ -104,15 +104,9 @@ int main(int argc, char *argv[]) {
 			return EXIT_FAILURE;
 		}
 	} else if (argc >= 3) {
-		std::string zion_path = getenv("ZION_PATH") != nullptr ? getenv("ZION_PATH") : ".";
-		std::vector<std::string> zion_paths = {
-			zion_path,
-			zion_path + "/lib",
-			zion_path + "/tests"};
-
-		if (zion_path != ".") {
-			zion_paths.insert(zion_paths.begin(), ".");
-		}
+		std::vector<std::string> zion_paths = split(
+				getenv("ZION_PATH") != nullptr ? getenv("ZION_PATH") : ".",
+			   	":");
 
 		compiler_t compiler(argv[2], zion_paths);
 

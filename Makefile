@@ -20,10 +20,3 @@ clean-zion: clean
 test: clean-zion
 	$(ZION) test
 	./expect-tests.sh $(HOME)/var/zion
-
-docker-test:
-	(cd /opt/zion && \
-		cmake . && \
-		make -j8 zion && \
-		./zion test && \
-		./expect-tests.sh /opt/zion)
