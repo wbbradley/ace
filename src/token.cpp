@@ -1,6 +1,6 @@
 #include "token.h"
 #include "dbg.h"
-#include "assert.h"
+#include "zion_assert.h"
 #include <sstream>
 
 

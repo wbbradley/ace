@@ -49,14 +49,13 @@ function build() {
 	mkdir -p $BUILD_DIR
 	cd $BUILD_DIR
 
-	set -x
 	time cmake \
-		-DCMAKE_INSTALL_PREFIX=$INSTALL_DIR/$1 \
-		-DLLVM_ENABLE_RTTI=On \
 		-DCMAKE_BUILD_TYPE=$1 \
+		-DCMAKE_INSTALL_PREFIX=$INSTALL_DIR/$1 \
+		-DLLVM_BUILD_LLVM_DYLIB=On \
 		-DLLVM_ENABLE_ASSERTIONS=$(if [ $1 = Debug ]; then echo On; else echo Off; fi) \
+		-DLLVM_ENABLE_RTTI=On \
 		$LLVM_ROOT
-	set +x
 	time make -j8
 	time make install
 

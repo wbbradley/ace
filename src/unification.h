@@ -1,6 +1,5 @@
 #pragma once
 #include "ptr.h"
-#include "assert.h"
 #include <memory>
 #include <vector>
 #include <map>

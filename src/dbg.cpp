@@ -4,7 +4,6 @@
 #include "user_error.h"
 #include <sstream>
 #include <signal.h>
-#include <assert.h>
 #include <stdbool.h>
 #include <sys/types.h>
 #include <unistd.h>
