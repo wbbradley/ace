@@ -121,15 +121,6 @@ types::type_t::ref build_patterns(
 				pattern_block->block->resolve_statement(builder, pattern_scope, life, nullptr, &pattern_returns);
 			}
 
-#if 0
-			if (pattern_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
-				log(log_info, "we are in %s\n%s",
-					   	builder.GetInsertBlock()->getName().str().c_str(),
-						llvm_print_function(llvm_function_current).c_str());
-				dbg();
-			}
-#endif
-			// assert_implies(block_value == nullptr, pattern_returns);
 			if (!pattern_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
 				/* if this block didn't return or break/continue, then we need to make sure we can merge
 				 * to the next block */
@@ -247,17 +238,6 @@ bound_var_t::ref ast::match_expr_t::resolve_match_expr(
 
 	/* we don't care about references in pattern matching */
 	pattern_value = pattern_value->resolve_bound_value(builder, scope);
-
-#if 0
-	bool is_managed = false;
-	pattern_value->type->is_managed_ptr(builder, scope, is_managed);
-
-	if (!is_managed) {
-		throw user_error(value->get_location(),
-				"match statements only work with managed types. %s is a native type.",
-				pattern_value->type->str().c_str());
-	}
-#endif
 
 	if (pattern_value->type->is_maybe(scope)) {
 		auto error = user_error(value->get_location(),

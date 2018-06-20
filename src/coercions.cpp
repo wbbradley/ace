@@ -77,18 +77,6 @@ llvm::Value *coerce_value(
 		return llvm::ConstantInt::get(
 				bound_lhs_type->get_llvm_specific_type(), 1, false);
 	} else if (lhs_type->eval_predicate(tb_null, scope) || rhs_type->eval_predicate(tb_null, scope)) {
-#if 0
-		if (auto type_data = dyncast<const types::type_data_t>(lhs_type)) {
-			if (type_data->name.text == "Maybe") {
-				return scope->get_program_scope()->get_bound_variable(
-						builder,
-						location,
-						"Nothing",
-						nullptr)->get_llvm_value();
-			}
-		}
-#endif
-
 		return llvm::Constant::getNullValue(llvm_lhs_type);
 	}
 
@@ -149,14 +137,6 @@ llvm::Value *coerce_value(
 					rhs_type->str().c_str(),
 					boolstr(lhs_is_managed),
 					boolstr(rhs_is_managed));
-#if 0
-			debug_above(6, log(log_info, "calling " c_id("__unbox__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
-			bound_var_t::ref coercion = call_program_function(
-					builder, scope, life,
-					"__unbox__", location, {rhs}, lhs_type);
-
-			return coerce_value(builder, scope, life, location, lhs_type, coercion);
-#endif
 		}
 	} else {
 		debug_above(7, log("trying to coerce native value %s to %s", llvm_print(llvm_rhs_value).c_str(), llvm_print(llvm_lhs_type).c_str()));

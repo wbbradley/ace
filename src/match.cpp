@@ -16,18 +16,6 @@ namespace match {
 		virtual std::string str() const;
 	};
 
-	struct Tuple : std::enable_shared_from_this<Tuple>, Pattern {
-		std::vector<Pattern::ref> args;
-
-		Tuple(location_t location, const std::vector<Pattern::ref> &args) :
-			Pattern(location),
-			args(args)
-		{
-		}
-
-		virtual std::string str() const;
-	};
-
 	struct CtorPatternValue {
 		std::string type_name;
 		std::string name;
@@ -119,10 +107,6 @@ namespace match {
 		return "strings";
 	}
 
-	ptr<const Tuple> asTuple(Pattern::ref pattern) {
-		return dyncast<const Tuple>(pattern);
-	}
-
 	ptr<const CtorPattern> asCtorPattern(Pattern::ref pattern) {
 		return dyncast<const CtorPattern>(pattern);
 	}
@@ -171,28 +155,6 @@ namespace match {
 		} else {
 			return make_ptr<CtorPatterns>(location, cpvs);
 		}
-	}
-
-	Pattern::ref intersect(
-			location_t location,
-			const std::vector<Pattern::ref> &lhs_args,
-			const std::vector<Pattern::ref> &rhs_args)
-	{
-		assert(lhs_args.size() == rhs_args.size());
-
-		std::vector<Pattern::ref> reduced_args;
-		reduced_args.reserve(lhs_args.size());
-
-		for (size_t i = 0; i < lhs_args.size(); ++i) {
-			auto new_arg = intersect(lhs_args[i], rhs_args[i]);
-			if (dyncast<const Nothing>(new_arg) != nullptr) {
-				return theNothing;
-			} else {
-				reduced_args.push_back(new_arg);
-			}
-		}
-		assert(reduced_args.size() == lhs_args.size());
-		return make_ptr<Tuple>(location, reduced_args);
 	}
 
 	Pattern::ref intersect(location_t location, const CtorPatternValue &lhs, const CtorPatternValue &rhs) {
@@ -286,8 +248,6 @@ namespace match {
 		auto rhs_nothing = rhs->asNothing();
 		auto lhs_allof = asAllOf(lhs);
 		auto rhs_allof = asAllOf(rhs);
-		auto lhs_tuple = asTuple(lhs);
-		auto rhs_tuple = asTuple(rhs);
 		auto lhs_ctor_patterns = asCtorPatterns(lhs);
 		auto rhs_ctor_patterns = asCtorPatterns(rhs);
 		auto lhs_ctor_pattern = asCtorPattern(lhs);
@@ -336,10 +296,6 @@ namespace match {
 			return intersect(*lhs_strings, *rhs_strings);
 		}
 
-		if (lhs_tuple && rhs_tuple) {
-			return intersect(rhs->location, lhs_tuple->args, rhs_tuple->args);
-		}
-
 		log_location(log_error, lhs->location,
 				"intersect is not implemented yet (%s vs. %s)",
 				lhs->str().c_str(),
@@ -354,10 +310,6 @@ namespace match {
 		auto rhs_nothing = rhs->asNothing();
 		auto lhs_allof = asAllOf(lhs);
 		auto rhs_allof = asAllOf(rhs);
-		auto lhs_tuple = asTuple(lhs);
-		auto rhs_tuple = asTuple(rhs);
-		auto lhs_tuples = asTuples(lhs);
-		auto rhs_tuples = asTuples(rhs);
 		auto lhs_ctor_patterns = asCtorPatterns(lhs);
 		auto rhs_ctor_patterns = asCtorPatterns(rhs);
 		auto lhs_ctor_pattern = asCtorPattern(lhs);
@@ -394,23 +346,6 @@ namespace match {
 		if (lhs_ctor_pattern && rhs_ctor_pattern) {
 			std::vector<CtorPatternValue> cpvs{lhs_ctor_pattern->cpv, rhs_ctor_pattern->cpv};
 			return make_ptr<CtorPatterns>(lhs->location, cpvs);
-		}
-
-		if (lhs_tuples && rhs_tuple) {
-			std::vector<Tuple> tuples = lhs_tuples->tuples;
-			tuples.push_back(rhs_ctor_pattern->cpv);
-			return make_ptr<Tuples>(lhs->location, tuples);
-		}
-
-		if (lhs_tuple && rhs_tuples) {
-			std::vector<Tuple> tuples = rhs_tuples->tuples;
-			tuples.push_back(lhs_ctor_pattern->cpv);
-			return make_ptr<Tuples>(lhs->location, tuples);
-		}
-
-		if (lhs_tuple && rhs_tuple) {
-			std::vector<Tuple> tuples{lhs_tuple, rhs_tuple};
-			return make_ptr<Tuples>(lhs->location, tuples);
 		}
 
 		log_location(log_error, lhs->location, "unhandled pattern_union (%s ∪ %s)",
@@ -453,7 +388,8 @@ namespace match {
 			for (auto dim : tuple_type->dimensions) {
 				args.push_back(from_type(location, env, dim));
 			}
-			return make_ptr<Tuple>(location, args);
+			CtorPatternValue cpv{type->repr(), "tuple", args};
+			return make_ptr<CtorPattern>(location, cpv);
 		} else if (type->eval_predicate(tb_str, env)) {
 			return allStrings;
 		} else if (type->eval_predicate(tb_int, env)) {
@@ -499,32 +435,6 @@ namespace match {
 			for (; i < lhs.args.size(); ++i) {
 				difference(lhs.args[i], rhs.args[i], send_ctor_pattern);
 			}
-		}
-	}
-
-	void difference(
-			location_t location,
-			const std::vector<Pattern::ref> &lhs_args,
-			const std::vector<Pattern::ref> &rhs_args,
-			const std::function<void (Pattern::ref)> &send)
-	{
-		if (lhs_args.size() == rhs_args.size()) {
-			size_t i = 0;
-			auto send_tuple_pattern = [location, &i, &lhs_args, &send] (Pattern::ref arg) {
-				if (dyncast<const Nothing>(arg)) {
-					send(theNothing);
-				} else {
-					std::vector<Pattern::ref> args = lhs_args;
-					args[i] = arg;
-					send(make_ptr<Tuple>(location, args));
-				}
-			};
-
-			for (; i < lhs_args.size(); ++i) {
-				difference(lhs_args[i], rhs_args[i], send_tuple_pattern);
-			}
-		} else {
-			assert(false);
 		}
 	}
 
@@ -583,8 +493,6 @@ namespace match {
 		auto rhs_nothing = rhs->asNothing();
 		auto lhs_allof = asAllOf(lhs);
 		auto rhs_allof = asAllOf(rhs);
-		auto lhs_tuple = asTuple(lhs);
-		auto rhs_tuple = asTuple(rhs);
 		auto lhs_ctor_patterns = asCtorPatterns(lhs);
 		auto rhs_ctor_patterns = asCtorPatterns(rhs);
 		auto lhs_ctor_pattern = asCtorPattern(lhs);
@@ -675,13 +583,6 @@ namespace match {
 			}
 		}
 
-		if (lhs_tuple) {
-			if (rhs_tuple) {
-				difference(lhs->location, lhs_tuple->args, rhs_tuple->args, send);
-				return;
-			}
-		}
-
 		log_location(log_error, lhs->location, "unhandled difference - %s \\ %s",
 				lhs->str().c_str(),
 				rhs->str().c_str());
@@ -708,14 +609,6 @@ namespace match {
 
 	std::string Nothing::str() const {
 		return "∅";
-	}
-
-	std::string Tuple::str() const {
-		std::stringstream ss;
-		if (args.size() != 0) {
-			ss << "(" << ::join_str(args, ", ") << ")";
-		}
-		return ss.str();
 	}
 
 	std::string CtorPattern::str() const {
@@ -757,9 +650,7 @@ namespace ast {
 			for (size_t i = 0; i < params.size(); ++i) {
 				args.push_back(params[i]->get_pattern(tuple_type->dimensions[i], env));
 			}
-
-			/* found the ctor we're matching on */
-			return make_ptr<Tuple>(token.location, args);
+			return make_ptr<CtorPattern>(token.location, CtorPatternValue{tuple_type->repr(), "tuple", args});
 		} else {
 			throw user_error(token.location,
 					"type mismatch on pattern. incoming type is %s. "
@@ -818,11 +709,9 @@ namespace ast {
 			}
 		}
 
-		auto error = user_error(token.location, "unclear how to make a predicate for a %s with '%s'",
-				type->str().c_str(),
-				token.str().c_str());
-		error.add_info(INTERNAL_LOC(), "maybe it's just not implemented?");
-		throw error;
+		throw user_error(token.location, "invalid type for literal '%s'. should be a %s",
+				token.text.c_str(),
+				type->str().c_str());
 		return nullptr;
 	}
 }

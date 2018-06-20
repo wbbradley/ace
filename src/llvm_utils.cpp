@@ -269,29 +269,6 @@ llvm::CallInst *llvm_create_call_inst(
 	debug_above(3, log(log_info, "creating call to %s",
 				llvm_print(llvm_function_type).c_str()));
 
-#if 0
-	auto param_iter = llvm_function_type->param_begin();
-	std::vector<llvm::Value *> llvm_args;
-
-	/* make one last pass over the parameters before we make this call */
-	int index = 0;
-	for (auto &llvm_value : llvm_values) {
-		// assert(!llvm::dyn_cast<llvm::AllocaInst>(llvm_value));
-
-		llvm::Value *llvm_arg = llvm_maybe_pointer_cast(
-				builder,
-				llvm_value,
-				*param_iter);
-		if (llvm_arg->getName().str().size() == 0) {
-			llvm_arg->setName(string_format("arg.%d", index));
-		}
-
-		llvm_args.push_back(llvm_arg);
-
-		++param_iter;
-		++index;
-	}
-#endif
 	llvm::ArrayRef<llvm::Value *> llvm_args_array(llvm_values);
 
 	debug_above(3, log(log_info, "creating call to " c_id("%s") " %s with [%s]",

@@ -492,14 +492,6 @@ namespace types {
 		// int i = 0;
 		for (auto arg : args) {
 			os << sep;
-#if 0
-			if (names.size() != 0) {
-				auto name = names[i++]->get_name();
-				if (name.size() != 0) {
-					os << name << " ";
-				}
-			}
-#endif
 			arg->emit(os, bindings, 0);
 			sep = ", ";
 		}
