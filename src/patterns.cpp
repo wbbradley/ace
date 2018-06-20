@@ -176,7 +176,7 @@ void check_patterns(
 		const ast::pattern_block_t::refs &pattern_blocks,
 		bound_var_t::ref pattern_value)
 {
-	match::Pattern::ref uncovered = make_ptr<match::AllOf>(location, expr, runnable_scope, pattern_value->type->get_type());
+	match::Pattern::ref uncovered = match::all_of(location, expr, runnable_scope, pattern_value->type->get_type());
 	for (auto pattern_block : pattern_blocks) {
 		match::Pattern::ref covering = pattern_block->predicate->get_pattern(pattern_value->type->get_type(), runnable_scope);
 		if (match::intersect(uncovered, covering)->asNothing() != nullptr) {
@@ -358,21 +358,37 @@ bool ast::literal_expr_t::resolve_match(
 		llvm::BasicBlock *llvm_no_match_block,
 		runnable_scope_t::ref *scope_if_true) const
 {
-	assert(input_value->type->get_type()->eval_predicate(tb_int, scope));
-	llvm::Value *llvm_value_to_check = input_value->get_llvm_value();
-	llvm::IntegerType *llvm_int_type = llvm::dyn_cast<llvm::IntegerType>(llvm_value_to_check->getType());
-	if (llvm_int_type == nullptr) {
-		throw user_error(token.location, "could not figure out how to compare %s to a %s",
-				token.str().c_str(),
-				input_value->type->get_type()->str().c_str());
+	if (input_value->type->get_type()->eval_predicate(tb_int, scope)) {
+		llvm::Value *llvm_value_to_check = input_value->get_llvm_value();
+		llvm::IntegerType *llvm_int_type = llvm::dyn_cast<llvm::IntegerType>(llvm_value_to_check->getType());
+		if (llvm_int_type == nullptr) {
+			throw user_error(token.location, "could not figure out how to compare %s to a %s",
+					token.str().c_str(),
+					input_value->type->get_type()->str().c_str());
+		}
+		auto bit_width = llvm_int_type->getBitWidth();
+		llvm::Value *match_bit = builder.CreateICmpEQ(
+				input_value->get_llvm_value(),
+				builder.getIntN(bit_width, parse_int_value(token)));
+		match_bit->setName("int_literal." + token.text + ".matched");
+		builder.CreateCondBr(match_bit, llvm_match_block, llvm_no_match_block);
+		return true;
+	} else if (input_value->type->get_type()->eval_predicate(tb_str, scope)) {
+		auto bound_bool_type = scope->get_program_scope()->get_bound_type(BOOL_TYPE);
+		bound_var_t::ref string_to_test = create_global_str(builder, scope, token.location, unescape_json_quotes(token.text));
+		bound_var_t::ref matched = call_program_function(
+				builder,
+				scope,
+				life,
+				"__eq__",
+				token.location,
+				{string_to_test, input_value},
+				bound_bool_type->get_type());
+		llvm::Value *match_bit = llvm_zion_bool_to_i1(builder, matched->get_llvm_value());
+		match_bit->setName("str_literal." + token.text + ".matched");
+		builder.CreateCondBr(match_bit, llvm_match_block, llvm_no_match_block);
+		return true;
 	}
-	auto bit_width = llvm_int_type->getBitWidth();
-	llvm::Value *match_bit = builder.CreateICmpEQ(
-			input_value->get_llvm_value(),
-			builder.getIntN(bit_width, parse_int_value(token)));
-	match_bit->setName("int_literal." + token.text + ".matched");
-	builder.CreateCondBr(match_bit, llvm_match_block, llvm_no_match_block);
-	return true;
 }
 
 bound_var_t::ref cast_data_type_to_ctor_struct(

@@ -492,6 +492,20 @@ bound_var_t::ref unmaybe_variable(
 	}
 }
 
+llvm::Value *llvm_zion_bool_to_i1(llvm::IRBuilder<> &builder, llvm::Value *llvm_value) {
+	if (llvm_value->getType()->isIntegerTy(1)) {
+		return llvm_value;
+	}
+
+	llvm::Type *llvm_type = llvm_value->getType();
+	assert(llvm_type->isIntegerTy());
+	if (!llvm_type->isIntegerTy(1)) {
+		llvm::Constant *zero = llvm::ConstantInt::get(llvm_type, 0);
+		llvm_value = builder.CreateICmpNE(llvm_value, zero);
+	}
+	assert(llvm_value->getType()->isIntegerTy(1));
+	return llvm_value;
+}
 void llvm_create_if_branch(
 	   	llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -535,13 +549,7 @@ void llvm_create_if_branch(
 		} else if (types::is_type_id(type, FALSE_TYPE, nullptr)) {
 			llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 0);
 		} else if (types::is_type_id(type, BOOL_TYPE, nullptr)) {
-			llvm::Type *llvm_type = llvm_value->getType();
-			assert(llvm_type->isIntegerTy());
-			if (!llvm_type->isIntegerTy(1)) {
-				llvm::Constant *zero = llvm::ConstantInt::get(llvm_type, 0);
-				llvm_value = builder.CreateICmpNE(llvm_value, zero);
-			}
-			assert(llvm_value->getType()->isIntegerTy(1));
+			llvm_value = llvm_zion_bool_to_i1(builder, llvm_value);
 		} else {
 			user_error error = user_error(
 					location,

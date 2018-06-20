@@ -63,6 +63,8 @@ const char *id_from_tb(type_builtins_t tb) {
 		return NULL_TYPE;
 	case tb_int:
 		return nullptr;
+	case tb_str:
+		return MANAGED_STR;
 	case tb_maybe:
 		return nullptr;
 	}
