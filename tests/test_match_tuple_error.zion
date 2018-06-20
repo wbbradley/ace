@@ -1,0 +1,9 @@
+module _
+
+fn main() {
+    # error: invalid type for literal '3'
+    print(match (2, "hi") {
+        (4, 3) => 3
+        (5, 6) => 0
+    })
+}
