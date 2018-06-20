@@ -47,6 +47,7 @@ llvm::Constant *llvm_create_constant_struct_instance(
 llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value);
 llvm::ConstantInt *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value);
 llvm::ConstantInt *llvm_create_int32(llvm::IRBuilder<> &builder, int32_t value);
+llvm::Value *llvm_zion_bool_to_i1(llvm::IRBuilder<> &builder, llvm::Value *llvm_value);
 llvm::Value *llvm_create_double(llvm::IRBuilder<> &builder, double value);
 llvm::GlobalVariable *llvm_get_global(llvm::Module *llvm_module, std::string name, llvm::Constant *llvm_constant, bool is_constant);
 llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder, std::string value);

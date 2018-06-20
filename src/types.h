@@ -56,6 +56,7 @@ enum type_builtins_t {
 	tb_void,
 	tb_unit,
 	tb_int,
+	tb_str,
 	tb_null,
 	tb_maybe,
 };

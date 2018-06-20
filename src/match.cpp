@@ -1,4 +1,5 @@
 #include "zion.h"
+#include <typeinfo>
 #include "match.h"
 #include "ast.h"
 #include "types.h"
@@ -8,44 +9,143 @@
 namespace match {
 	using namespace ::types;
 
+	struct Nothing : std::enable_shared_from_this<Nothing>, Pattern {
+		Nothing() : Pattern(INTERNAL_LOC()) {}
+
+		virtual ptr<const Nothing> asNothing() const { return shared_from_this(); }
+		virtual std::string str() const;
+	};
+
+	struct Tuple : std::enable_shared_from_this<Tuple>, Pattern {
+		std::vector<Pattern::ref> args;
+
+		Tuple(location_t location, const std::vector<Pattern::ref> &args) :
+			Pattern(location),
+			args(args)
+		{
+		}
+
+		virtual std::string str() const;
+	};
+
+	struct CtorPatternValue {
+		std::string type_name;
+		std::string name;
+		std::vector<Pattern::ref> args;
+
+		std::string str() const;
+	};
+
+	struct CtorPattern : std::enable_shared_from_this<CtorPattern>, Pattern {
+		CtorPatternValue cpv;
+		CtorPattern(location_t location, CtorPatternValue cpv) :
+			Pattern(location),
+			cpv(cpv)
+		{
+		}
+
+		virtual std::string str() const;
+	};
+
+	struct CtorPatterns : std::enable_shared_from_this<CtorPatterns>, Pattern {
+		std::vector<CtorPatternValue> cpvs;
+		CtorPatterns(location_t location, std::vector<CtorPatternValue> cpvs) :
+			Pattern(location),
+			cpvs(cpvs)
+		{
+		}
+
+		virtual std::string str() const;
+	};
+
+	struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
+		std::string name;
+		env_t::ref env;
+		types::type_t::ref type;
+
+		AllOf(location_t location, std::string name, env_t::ref env, types::type_t::ref type) :
+			Pattern(location),
+			name(name),
+			env(env),
+			type(type)
+		{
+		}
+
+		virtual std::string str() const;
+	};
+
+	template <typename T>
+	struct Scalars : std::enable_shared_from_this<Scalars<T>>, Pattern {
+		enum Kind { Include, Exclude } kind;
+		std::set<T> collection;
+
+		Scalars(location_t location, Kind kind, std::set<T> collection) :
+			Pattern(location),
+			kind(kind),
+			collection(collection)
+		{
+			assert_implies(kind == Include, collection.size() != 0);
+		}
+
+		static std::string scalar_name();
+
+		virtual std::string str() const {
+			switch (kind) {
+			case Include:
+				{
+					std::string coll_str = "[" + ::join(collection, ", ") + "]";
+					return coll_str;
+				}
+			case Exclude:
+				if (collection.size() == 0) {
+					return "all " + scalar_name();
+				} else {
+					std::string coll_str = "[" + ::join(collection, ", ") + "]";
+					return "all " + scalar_name() + " except " + coll_str;
+				}
+			}
+			assert(false);
+			return "";
+		}
+	};
+
+	template <>
+	std::string Scalars<int64_t>::scalar_name() {
+		return "integers";
+	}
+
+	template <>
+	std::string Scalars<std::string>::scalar_name() {
+		return "strings";
+	}
+
+	ptr<const Tuple> asTuple(Pattern::ref pattern) {
+		return dyncast<const Tuple>(pattern);
+	}
+
+	ptr<const CtorPattern> asCtorPattern(Pattern::ref pattern) {
+		return dyncast<const CtorPattern>(pattern);
+	}
+
+	ptr<const CtorPatterns> asCtorPatterns(Pattern::ref pattern) {
+		return dyncast<const CtorPatterns>(pattern);
+	}
+
+	ptr<const AllOf> asAllOf(Pattern::ref pattern) {
+		return dyncast<const AllOf>(pattern);
+	}
+
+	template <typename T>
+	ptr<const Scalars<T>> asScalars(Pattern::ref pattern) {
+		return dyncast<const Scalars<T>>(pattern);
+	}
+
 	ptr<Nothing> theNothing = make_ptr<Nothing>();
-	ptr<Integers> allIntegers = make_ptr<Integers>(INTERNAL_LOC(), Integers::Exclude, std::set<int64_t>{});
+	ptr<Scalars<int64_t>> allIntegers = make_ptr<Scalars<int64_t>>(INTERNAL_LOC(), Scalars<int64_t>::Exclude, std::set<int64_t>{});
+	ptr<Scalars<std::string>> allStrings = make_ptr<Scalars<std::string>>(INTERNAL_LOC(), Scalars<std::string>::Exclude, std::set<std::string>{});
 
-	Tuple::Tuple(location_t location, const std::vector<Pattern::ref> &args) :
-		Pattern(location),
-		args(args)
-	{
-	}
-
-	CtorPattern::CtorPattern(location_t location, CtorPatternValue cpv) :
-		Pattern(location),
-		cpv(cpv)
-	{
-	}
-
-	CtorPatterns::CtorPatterns(location_t location, std::vector<CtorPatternValue> cpvs) :
-		Pattern(location),
-		cpvs(cpvs)
-	{
-	}
-
-	AllOf::AllOf(location_t location, std::string name, env_t::ref env, types::type_t::ref type) :
-		Pattern(location),
-		name(name),
-		env(env),
-		type(type)
-	{
-	}
-
-	Integers::Integers(
-			location_t location,
-			Integers::Kind kind,
-			std::set<int64_t> collection) :
-		Pattern(location),
-		kind(kind),
-		collection(collection)
-	{
-		assert_implies(kind == Include, collection.size() != 0);
+	Pattern::ref all_of(location_t location, std::string expr, runnable_scope_t::ref runnable_scope, types::type_t::ref type) {
+		return make_ptr<match::AllOf>(location, expr, runnable_scope, type);
 	}
 
 	Pattern::ref reduce_all_datatype(
@@ -138,61 +238,64 @@ namespace match {
 		return intersection;
 	}
 
+	template <typename T>
 	Pattern::ref intersect(
-			const Integers &lhs,
-			const Integers &rhs)
+			const Scalars<T> &lhs,
+			const Scalars<T> &rhs)
 	{
-		Integers::Kind new_kind;
-		std::set<int64_t> new_collection;
+		typename Scalars<T>::Kind new_kind;
+		std::set<T> new_collection;
 
-		if (lhs.kind == Integers::Exclude && rhs.kind == Integers::Exclude) {
-			new_kind = Integers::Exclude;
+		if (lhs.kind == Scalars<T>::Exclude && rhs.kind == Scalars<T>::Exclude) {
+			new_kind = Scalars<T>::Exclude;
 			std::set_union(
 					lhs.collection.begin(), lhs.collection.end(),
 					rhs.collection.begin(), rhs.collection.end(),
-					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
-		} else if (lhs.kind == Integers::Exclude && rhs.kind == Integers::Include) {
-			new_kind = Integers::Include;
+					std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
+		} else if (lhs.kind == Scalars<T>::Exclude && rhs.kind == Scalars<T>::Include) {
+			new_kind = Scalars<T>::Include;
 			std::set_difference(
 					rhs.collection.begin(), rhs.collection.end(),
 					lhs.collection.begin(), lhs.collection.end(),
-					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
-		} else if (lhs.kind == Integers::Include && rhs.kind == Integers::Exclude) {
-			new_kind = Integers::Include;
+					std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
+		} else if (lhs.kind == Scalars<T>::Include && rhs.kind == Scalars<T>::Exclude) {
+			new_kind = Scalars<T>::Include;
 			std::set_difference(
 					lhs.collection.begin(), lhs.collection.end(),
 					rhs.collection.begin(), rhs.collection.end(),
-					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
-		} else if (lhs.kind == Integers::Include && rhs.kind == Integers::Include) {
-			new_kind = Integers::Include;
+					std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
+		} else if (lhs.kind == Scalars<T>::Include && rhs.kind == Scalars<T>::Include) {
+			new_kind = Scalars<T>::Include;
 			std::set_intersection(
 					lhs.collection.begin(), lhs.collection.end(),
 					rhs.collection.begin(), rhs.collection.end(),
-					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
+					std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
 		} else {
 			return null_impl();
 		}
 
-		if (new_kind == Integers::Include && new_collection.size() == 0) {
+		if (new_kind == Scalars<T>::Include && new_collection.size() == 0) {
 			return theNothing;
 		}
-		return make_ptr<Integers>(lhs.location, new_kind, new_collection);
+		return make_ptr<Scalars<T>>(lhs.location, new_kind, new_collection);
 	}
 
 	Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
 		/* ironically, this is where pattern matching would really help... */
 		auto lhs_nothing = lhs->asNothing();
 		auto rhs_nothing = rhs->asNothing();
-		auto lhs_allof = lhs->asAllOf();
-		auto rhs_allof = rhs->asAllOf();
-		auto lhs_tuple = lhs->asTuple();
-		auto rhs_tuple = rhs->asTuple();
-		auto lhs_ctor_patterns = lhs->asCtorPatterns();
-		auto rhs_ctor_patterns = rhs->asCtorPatterns();
-		auto lhs_ctor_pattern = lhs->asCtorPattern();
-		auto rhs_ctor_pattern = rhs->asCtorPattern();
-		auto lhs_integers = lhs->asIntegers();
-		auto rhs_integers = rhs->asIntegers();
+		auto lhs_allof = asAllOf(lhs);
+		auto rhs_allof = asAllOf(rhs);
+		auto lhs_tuple = asTuple(lhs);
+		auto rhs_tuple = asTuple(rhs);
+		auto lhs_ctor_patterns = asCtorPatterns(lhs);
+		auto rhs_ctor_patterns = asCtorPatterns(rhs);
+		auto lhs_ctor_pattern = asCtorPattern(lhs);
+		auto rhs_ctor_pattern = asCtorPattern(rhs);
+		auto lhs_integers = asScalars<int64_t>(lhs);
+		auto rhs_integers = asScalars<int64_t>(rhs);
+		auto lhs_strings = asScalars<std::string>(lhs);
+		auto rhs_strings = asScalars<std::string>(rhs);
 
 		if (lhs_nothing || rhs_nothing) {
 			/* intersection of nothing and anything is nothing */
@@ -229,6 +332,10 @@ namespace match {
 			return intersect(*lhs_integers, *rhs_integers);
 		}
 
+		if (lhs_strings && rhs_strings) {
+			return intersect(*lhs_strings, *rhs_strings);
+		}
+
 		if (lhs_tuple && rhs_tuple) {
 			return intersect(rhs->location, lhs_tuple->args, rhs_tuple->args);
 		}
@@ -245,14 +352,16 @@ namespace match {
 	Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
 		auto lhs_nothing = lhs->asNothing();
 		auto rhs_nothing = rhs->asNothing();
-		auto lhs_allof = lhs->asAllOf();
-		auto rhs_allof = rhs->asAllOf();
-		auto lhs_tuple = lhs->asTuple();
-		auto rhs_tuple = rhs->asTuple();
-		auto lhs_ctor_patterns = lhs->asCtorPatterns();
-		auto rhs_ctor_patterns = rhs->asCtorPatterns();
-		auto lhs_ctor_pattern = lhs->asCtorPattern();
-		auto rhs_ctor_pattern = rhs->asCtorPattern();
+		auto lhs_allof = asAllOf(lhs);
+		auto rhs_allof = asAllOf(rhs);
+		auto lhs_tuple = asTuple(lhs);
+		auto rhs_tuple = asTuple(rhs);
+		auto lhs_tuples = asTuples(lhs);
+		auto rhs_tuples = asTuples(rhs);
+		auto lhs_ctor_patterns = asCtorPatterns(lhs);
+		auto rhs_ctor_patterns = asCtorPatterns(rhs);
+		auto lhs_ctor_pattern = asCtorPattern(lhs);
+		auto rhs_ctor_pattern = asCtorPattern(rhs);
 
 		if (lhs_nothing) {
 			return rhs;
@@ -285,6 +394,23 @@ namespace match {
 		if (lhs_ctor_pattern && rhs_ctor_pattern) {
 			std::vector<CtorPatternValue> cpvs{lhs_ctor_pattern->cpv, rhs_ctor_pattern->cpv};
 			return make_ptr<CtorPatterns>(lhs->location, cpvs);
+		}
+
+		if (lhs_tuples && rhs_tuple) {
+			std::vector<Tuple> tuples = lhs_tuples->tuples;
+			tuples.push_back(rhs_ctor_pattern->cpv);
+			return make_ptr<Tuples>(lhs->location, tuples);
+		}
+
+		if (lhs_tuple && rhs_tuples) {
+			std::vector<Tuple> tuples = rhs_tuples->tuples;
+			tuples.push_back(lhs_ctor_pattern->cpv);
+			return make_ptr<Tuples>(lhs->location, tuples);
+		}
+
+		if (lhs_tuple && rhs_tuple) {
+			std::vector<Tuple> tuples{lhs_tuple, rhs_tuple};
+			return make_ptr<Tuples>(lhs->location, tuples);
 		}
 
 		log_location(log_error, lhs->location, "unhandled pattern_union (%s ∪ %s)",
@@ -328,6 +454,8 @@ namespace match {
 				args.push_back(from_type(location, env, dim));
 			}
 			return make_ptr<Tuple>(location, args);
+		} else if (type->eval_predicate(tb_str, env)) {
+			return allStrings;
 		} else if (type->eval_predicate(tb_int, env)) {
 			return allIntegers;
 		} else {
@@ -400,45 +528,46 @@ namespace match {
 		}
 	}
 
+	template <typename T>
 	Pattern::ref difference(
-			const Integers &lhs,
-			const Integers &rhs)
+			const Scalars<T> &lhs,
+			const Scalars<T> &rhs)
 	{
-		Integers::Kind new_kind;
-		std::set<int64_t> new_collection;
+		typename Scalars<T>::Kind new_kind;
+		std::set<T> new_collection;
 
-		if (lhs.kind == Integers::Exclude && rhs.kind == Integers::Exclude) {
-			new_kind = Integers::Include;
+		if (lhs.kind == Scalars<T>::Exclude && rhs.kind == Scalars<T>::Exclude) {
+			new_kind = Scalars<T>::Include;
 			std::set_difference(
 					rhs.collection.begin(), rhs.collection.end(),
 					lhs.collection.begin(), lhs.collection.end(),
-					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
-		} else if (lhs.kind == Integers::Exclude && rhs.kind == Integers::Include) {
-			new_kind = Integers::Exclude;
+					std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
+		} else if (lhs.kind == Scalars<T>::Exclude && rhs.kind == Scalars<T>::Include) {
+			new_kind = Scalars<T>::Exclude;
 			std::set_union(
 					rhs.collection.begin(), rhs.collection.end(),
 					lhs.collection.begin(), lhs.collection.end(),
-					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
-		} else if (lhs.kind == Integers::Include && rhs.kind == Integers::Exclude) {
-			new_kind = Integers::Include;
+					std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
+		} else if (lhs.kind == Scalars<T>::Include && rhs.kind == Scalars<T>::Exclude) {
+			new_kind = Scalars<T>::Include;
 			std::set_intersection(
 					rhs.collection.begin(), rhs.collection.end(),
 					lhs.collection.begin(), lhs.collection.end(),
-					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
-		} else if (lhs.kind == Integers::Include && rhs.kind == Integers::Include) {
-			new_kind = Integers::Include;
+					std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
+		} else if (lhs.kind == Scalars<T>::Include && rhs.kind == Scalars<T>::Include) {
+			new_kind = Scalars<T>::Include;
 			std::set_difference(
 					lhs.collection.begin(), lhs.collection.end(),
 					rhs.collection.begin(), rhs.collection.end(),
-					std::insert_iterator<std::set<int64_t>>(new_collection, new_collection.begin()));
+					std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
 		} else {
 			return null_impl();
 		}
 
-		if (new_kind == Integers::Include && new_collection.size() == 0) {
+		if (new_kind == Scalars<T>::Include && new_collection.size() == 0) {
 			return theNothing;
 		}
-		return make_ptr<Integers>(lhs.location, new_kind, new_collection);
+		return make_ptr<Scalars<T>>(lhs.location, new_kind, new_collection);
 	}
 
 	void difference(
@@ -452,16 +581,18 @@ namespace match {
 
 		auto lhs_nothing = lhs->asNothing();
 		auto rhs_nothing = rhs->asNothing();
-		auto lhs_allof = lhs->asAllOf();
-		auto rhs_allof = rhs->asAllOf();
-		auto lhs_tuple = lhs->asTuple();
-		auto rhs_tuple = rhs->asTuple();
-		auto lhs_ctor_patterns = lhs->asCtorPatterns();
-		auto rhs_ctor_patterns = rhs->asCtorPatterns();
-		auto lhs_ctor_pattern = lhs->asCtorPattern();
-		auto rhs_ctor_pattern = rhs->asCtorPattern();
-		auto lhs_integers = lhs->asIntegers();
-		auto rhs_integers = rhs->asIntegers();
+		auto lhs_allof = asAllOf(lhs);
+		auto rhs_allof = asAllOf(rhs);
+		auto lhs_tuple = asTuple(lhs);
+		auto rhs_tuple = asTuple(rhs);
+		auto lhs_ctor_patterns = asCtorPatterns(lhs);
+		auto rhs_ctor_patterns = asCtorPatterns(rhs);
+		auto lhs_ctor_pattern = asCtorPattern(lhs);
+		auto rhs_ctor_pattern = asCtorPattern(rhs);
+		auto lhs_integers = asScalars<int64_t>(lhs);
+		auto rhs_integers = asScalars<int64_t>(rhs);
+		auto lhs_strings = asScalars<std::string>(lhs);
+		auto rhs_strings = asScalars<std::string>(rhs);
 
 		if (lhs_nothing || rhs_nothing) {
 			send(lhs);
@@ -537,6 +668,13 @@ namespace match {
 			}
 		}
 
+		if (lhs_strings) {
+			if (rhs_strings) {
+				send(difference(*lhs_strings, *rhs_strings));
+				return;
+			}
+		}
+
 		if (lhs_tuple) {
 			if (rhs_tuple) {
 				difference(lhs->location, lhs_tuple->args, rhs_tuple->args, send);
@@ -597,24 +735,6 @@ namespace match {
 		return ss.str();
 	}
 
-	std::string Integers::str() const {
-		switch (kind) {
-		case Integers::Include:
-			{
-				std::string coll_str = "[" + ::join(collection, ", ") + "]";
-				return coll_str;
-			}
-		case Integers::Exclude:
-			if (collection.size() == 0) {
-				return "all integers";
-			} else {
-				std::string coll_str = "[" + ::join(collection, ", ") + "]";
-				return "all integers except " + coll_str;
-			}
-		}
-		assert(false);
-		return "";
-	}
 }
 
 namespace ast {
@@ -685,9 +805,16 @@ namespace ast {
 		if (type->eval_predicate(tb_int, env)) {
 			if (token.tk == tk_integer) {
 				int64_t value = parse_int_value(token);
-				return make_ptr<Integers>(token.location, Integers::Include, std::set<int64_t>{value});
+				return make_ptr<Scalars<int64_t>>(token.location, Scalars<int64_t>::Include, std::set<int64_t>{value});
 			} else if (token.tk == tk_identifier) {
-				return make_ptr<Integers>(token.location, Integers::Exclude, std::set<int64_t>{});
+				return make_ptr<Scalars<int64_t>>(token.location, Scalars<int64_t>::Exclude, std::set<int64_t>{});
+			}
+		} else if (type->eval_predicate(tb_str, env)) {
+			if (token.tk == tk_string) {
+				std::string value = unescape_json_quotes(token.text);
+				return make_ptr<Scalars<std::string>>(token.location, Scalars<std::string>::Include, std::set<std::string>{value});
+			} else if (token.tk == tk_identifier) {
+				return make_ptr<Scalars<std::string>>(token.location, Scalars<std::string>::Exclude, std::set<std::string>{});
 			}
 		}
 
