@@ -1137,14 +1137,6 @@ bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
 		auto llvm_linked_type = bound_underlying_type->get_llvm_type();
 		llvm::Module *llvm_module = llvm_get_module(builder);
 
-#if 0
-		llvm::FunctionType *llvm_var_fn_type = llvm::FunctionType::get(
-				builder.getVoidTy(),
-				llvm::ArrayRef<llvm::Type*>(
-					std::vector<llvm::Type*>{var_ptr_type->get_llvm_type()}),
-				false /*isVarArg*/);
-#endif
-
 		/* get references to the functions named by the user */
 		bound_var_t::ref finalize_fn = get_callable(
 				builder,
@@ -4726,29 +4718,6 @@ types::type_t::ref ast::callsite_expr_t::resolve_type(scope_t::ref scope, types:
 	debug_above(6, log_location(log_info, get_location(), "callsite type resolution not yet impl (would check %s with expected type %s)",
 				str().c_str(),
 				expected_type ? expected_type->str().c_str() : "<null>"));
-
-#if 0
-	if (auto ref_expr = dyncast<const ast::reference_expr_t>(function_expr)) {
-		/* if we are calling a function by name, we should be able to work out the shape of the types for the parameters
-		 * first, if we can resolve the function up front. here's what we know (without more digging):
-		 * 1. arity
-		 * 2. name
-		 * */
-		auto symbol = ref_expr->token.text;
-		var_t::refs fns;
-		scope->get_callables(symbol, fns);
-		debug_above(6, log_location(log_info, ref_expr->token.location, "found possible callables %s", ::str(fns).c_str()));
-		var_t::refs fns_arity;
-		for (auto fn : fns) {
-			auto fn_type = types::without_closure(fn->get_type(scope));
-			if (fn_type != nullptr) {
-				if (auto args = dyncast<const types::type_args_t>(fn_type->args)) {
-					if (args->args.size() == params.size()) {
-						fns_arity.push_back(fn
-				if (args != 
-
-	}
-#endif
 
 	return nullptr;
 }

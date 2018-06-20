@@ -1116,16 +1116,8 @@ ptr<block_t> block_t::parse(parse_state_t &ps, bool expression_means_return) {
 			block->statements.push_back(statement);
 		} else {
 			throw user_error(ps.token.location, "empty expression blocks are not allowed");
-#if 0
-			/* empty block */
-			if (expression_means_return) {
-
-				auto return_statement = create<ast::return_statement_t>(ps.token);
-				return_statement->expr = create<ast::tuple_expr_t>(expression_block_assign_token);
-				block->statements.push_back(return_statement);
-			}
-#endif
 		}
+
 		if (ps.token.tk != tk_rparen
 			   	&& ps.token.tk != tk_rcurly
 			   	&& ps.token.tk != tk_rsquare

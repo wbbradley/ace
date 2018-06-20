@@ -917,21 +917,6 @@ auto test_descs = std::vector<test_desc>{
 				} else {
 					log(" => " c_type("%s"), repr.c_str());
 				}
-
-#if 0
-				auto evaled = parsed_type->eval(
-						types::type_t::map{},
-						types::type_t::map{});
-
-				if (evaled->repr() != p.second) {
-					log(log_error, c_type("%s") " evaled to " c_type("%s")
-							" - should have been " c_type("%s"),
-							parsed_type->str().c_str(),
-							evaled->str().c_str(),
-							p.second.c_str());
-					return false;
-				}
-#endif
 			}
 			return true;
 		}
