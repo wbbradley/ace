@@ -54,15 +54,17 @@ fast, using static compilation. Zion is built on [LLVM](https://llvm.org/).
    as possible while retaining static type safety.
 
 ## Non-goals
- - Solving heavy compute problems is a non-goal in the near future. Solve those problems at a lower
+ - Solving heavy compute/FPU problems is a non-goal in the near future. Solve those problems at a lower
    level, and use the FFI to access those components. Favor algorithmic scaling over bit twiddling
    and fretting over L1 cache hits.
- - Pause-free execution remains a back-burner goal. (ie: Enabling Game loops, high-speed trading platforms, life support monitoring, embedded systems, etc...) However, in a future version, once language development settles down a bit, this will get more attention.
+ - Pause-free execution remains a back-burner goal. (ie: Enabling Game loops, high-speed trading
+   platforms, life support monitoring, embedded systems, etc...) However, in a future version, once
+   language development settles down a bit, this will get more attention.
  - In-language concurrency and asynchronicity will get treatment in the future. These can currently
    be solved at other levels of the stack (hint: use OS processes.) This is not because it's not
    important. But, basic ergonomics of the language come first.
 
-## Syntax
+## Syntax Examples
 
 Zion syntax is in the C family.
 
@@ -108,75 +110,21 @@ type NationalPark is {
 ```
 
 
-### Getting LLVM built on your Mac
+### Development Environment Setup
 
+You'll need LLVM. Zion is using the `release_40` checkpoint of LLVM currently. The `llvm-build.sh`
+script will clone the LLVM (and clang, etc...) sources from github onto your machine, and try to
+build them. It will attempt to install into the `$HOME/opt/llvm/release_40/{MinSizeRel,Debug}`
+directories. Theoretically you only need the `MinSizeRel` build to work with, however it can be
+useful to drop into the `Debug` build from time to time. That will require repointing your config as
+appropriate.
+
+
+Add the following to your `.bashrc` (or equivalent), assuming you have cloned Zion into `$HOME/src/zion`:
 ```
-./llvm-build.sh
+ZION_SRC="$HOME/src/zion"
+LLVM_DIR="$HOME/opt/llvm/release_40/MinSizeRel"
+export PATH="$LLVM_DIR/bin:$PATH"
+export LD_LIBRARY_PATH=$LLVM_DIR/lib:$LIBRARY_PATH
+export ZION_PATH=$ZION_SRC:$ZION_SRC/lib:$ZION_SRC/tests:$HOME/var/zion
 ```
-Then add $HOME/opt/llvm/release_40/MinSizeRel/bin to your path. Be sure to add it before any existing versions of clang
-or llvm tools, etc...
-
-### TODO
-
-- [-] Pattern-matching
-  - [x] ctor matching
-  - [-] int matching
-  - [x] tuple matching
-  - [-] string matching
-- [-] Play: Rewrite expect.py in Zion
-- [ ] Documentation needs a higher-level strategy
-- [ ] Perf: Implement native structures as non-pointer values
-- [ ] Perf: Escape analysis to avoid heap-allocation.
-- [ ] Consider how to allow for-macro expansion to have a mutating iterator function. Does that mean pass-by-ref is allowed?
-- [ ] Consider making all refs managed/heap-allocated (prior to a later escape-analysis test) in order to allow reference capture... maybe.
-- [ ] Consider type-classes
-- [ ] Implement fast range(i)
-- [ ] Use DIBuilder to add line-level debugging information
-- [ ] Implement an inline directive to mark functions for inline expansion during optimization
-- [ ] Data structures
-  - [x] string (as slices)
-  - [x] vectors
-  - [-] hash map
-  - [ ] set
-  - [ ] binary tree
-  - [ ] avl tree / red-black tree
-- [ ] Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
-- [ ] Ergo: Enable linking to variadic functions (like printf)
-- [ ] Fix linking issues (rt_float.o, etc...) when running zion from non-zion root dir)
-- [ ] Rename `typeid` function to `ctor_id` or something similar.
-- [ ] Perf: Explore using a conservative collector
-- [ ] Libs: Integrate JSON parsing and mess around with manipulating some existing JSON files
-- [ ] Func: Expose reflection library for dynamic structure analysis
-- [ ] Func: Enable `let` vars at global scope
-- [ ] Automatically configure default POSIX/C/System "int" size on compiler startup
-- [x] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction - or ref-counting
-- [x] Implement generic in-place sort for vectors
-- [x] Ergo: Ability to import symbols from modules by name (symbol injection)
-- [x] Add safety checks on casting (as)
-- [x] Exercise: implement parser combinators in Zion
-- [x] Implement closures with capture by value
-- [x] Implement backtracking in unification of product types
-- [x] Consider marking null-terminated strings differently for FFI purposes (ended up doing this as part of "safe-unboxing" for easier FFI.
-- [x] Implement slice array indexing rg[s:end], etc...
-- [x] Implement vector slicing for strings and arrays
-- [x] Optimize `scope_t`'s `get_nominal_env` and `get_total_env` to be cached
-- [x] Maintenance: Change all `status_t` parts of compiler to use exceptions
-- [x] Check for duplicate bound function instantiations deeper within function instantiation
-- [x] Change := to be let by default
-- [x] (un)signed integers
-  - [x] write a C integer promotion compatibility test as part of test framework
-  - [x] integers as a type with parameterized number of bits and whether to use
-    sign-extend or zero-extend
-  - [x] promotions upon binary operators
-  - [x] prevent overloading integer operations unless one side is not an integer
-  - [x] deal with casting integers
-- [x] implement `let` declarations
-- [x] change `str` to use `wchar_t` as its underlying physical character type
-  - [x] use C99's `mbstowcs` and `wcstombs` to convert back and forth
-  - [x] propagate usage of utf8 for `char`
-- [x] 'for' syntax - based on `tests/test_list_iter.zion` pattern
-- [x] Ternary operator
-- [x] Logical and/or (build with ternary operator)
-- [x] Type refinements for ternary / conditional expressions
-- [x] Implement vector literal checking and code gen
-- [x] Design/Implement tags functionality (for integration with ctags and LSP)
