@@ -1,0 +1,59 @@
+# TODO
+
+- [ ] Documentation needs a higher-level strategy
+- [ ] Func: Expose reflection library for dynamic structure analysis
+- [ ] Func: Enable `let` vars at global scope
+- [ ] Use DIBuilder to add line-level debugging information
+- [ ] Data structures
+  - [x] string (as slices)
+  - [x] vectors
+  - [ ] hash map
+  - [ ] set
+  - [ ] binary tree
+  - [ ] avl tree / red-black tree
+- [ ] Ergo: Enable linking to variadic functions (like printf)
+- [ ] Rename `typeid` function to `ctor_id` or something similar.
+- [ ] Libs: Integrate JSON parsing and mess around with manipulating some existing JSON files
+- [ ] Compat: Automatically configure default POSIX/C/System "int" size on compiler startup
+- [ ] Perf: Implement native structures as non-pointer values
+- [ ] Perf: Escape analysis to avoid heap-allocation.
+- [ ] Perf: Explore using a conservative collector
+- [ ] Perf: Implement an inline directive to mark functions for inline expansion during optimization
+- [ ] Dev: Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
+- [x] Pattern-matching
+  - [x] ctor matching
+  - [x] int matching
+  - [x] tuple matching
+  - [x] string matching
+- [x] Play: Rewrite expect.py in Zion
+- [x] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction - or ref-counting
+- [x] Implement generic in-place sort for vectors
+- [x] Ergo: Ability to import symbols from modules by name (symbol injection)
+- [x] Add safety checks on casting (as)
+- [x] Exercise: implement parser combinators in Zion
+- [x] Implement closures with capture by value
+- [x] Implement backtracking in unification of product types
+- [x] Consider marking null-terminated strings differently for FFI purposes (ended up doing this as part of "safe-unboxing" for easier FFI.
+- [x] Implement slice array indexing rg[s:end], etc...
+- [x] Implement vector slicing for strings and arrays
+- [x] Optimize `scope_t`'s `get_nominal_env` and `get_total_env` to be cached
+- [x] Maintenance: Change all `status_t` parts of compiler to use exceptions
+- [x] Check for duplicate bound function instantiations deeper within function instantiation
+- [x] Change := to be let by default
+- [x] (un)signed integers
+  - [x] write a C integer promotion compatibility test as part of test framework
+  - [x] integers as a type with parameterized number of bits and whether to use
+    sign-extend or zero-extend
+  - [x] promotions upon binary operators
+  - [x] prevent overloading integer operations unless one side is not an integer
+  - [x] deal with casting integers
+- [x] implement `let` declarations
+- [x] change `str` to use `wchar_t` as its underlying physical character type
+  - [x] use C99's `mbstowcs` and `wcstombs` to convert back and forth
+  - [x] propagate usage of utf8 for `char`
+- [x] 'for' syntax - based on `tests/test_list_iter.zion` pattern
+- [x] Ternary operator
+- [x] Logical and/or (build with ternary operator)
+- [x] Type refinements for ternary / conditional expressions
+- [x] Implement vector literal checking and code gen
+- [x] Design/Implement tags functionality (for integration with ctags and LSP)
