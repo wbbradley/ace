@@ -65,7 +65,11 @@ fn breakpoint() {
 fn rand(max int) int {
     var r = 0 as uint
     posix.arc4random_buf(&r, sizeof(uint))
-    return r % max
+    if r < 0 {
+        return -r % max
+    } else {
+        return r % max
+    }
 }
 
 type IntRange has {
