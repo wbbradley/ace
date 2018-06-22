@@ -2,14 +2,14 @@ module _
 # test: pass
 # expect: pass
 
-get argparse
+get argparse {parse, Option, None}
 
 fn main() {
     let options [str: argparse.Option]
-    options["-t"] = argparse.Option("test", true, true)
-    parser := Parser("Test parser", options, false)
-    with options := argparse.parse(parser, ["-t", "pass"]) {
-        print(match options["test"] {
+    options["-t"] = Option("test", true, true)
+    parser := Parser("Test parser", options, None)
+    with arguments := parse(parser, ["-t", "pass"]) {
+        print(match arguments.options["test"] {
             Just(value) => value
             Nothing => return
         })

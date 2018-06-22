@@ -1,0 +1,34 @@
+module fib_closure
+
+type Ref T has {
+    var val T
+}
+
+# fib returns a function that returns
+# successive Fibonacci numbers.
+fn fib() fn() int {
+    # Consider that in the Golang version of this, it's much more succinct, however that is because
+    # Go's closure's capture by reference. This may require some consideration as to whether it is
+    # permissible to allow capture by reference in Zion. Given that it can be simulated by creating
+    # a user-defined reference type as follows, I'm not certain it's worth introducing more implicit
+    # impurity.
+    a := Ref(0)
+    b := Ref(1)
+    return fn() int {
+        return match (b.val, a.val + b.val) {
+            (next_a, next_b) {
+                a.val = next_a
+                b.val = next_b
+                a.val
+            }
+        }
+    }
+}
+
+fn main() {
+    f := fib()
+    # Function calls are evaluated left-to-right.
+    print([f(), f(), f(), f(), f()])
+}
+
+ 

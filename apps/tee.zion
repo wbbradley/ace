@@ -1,23 +1,39 @@
+# A basic implementation of tee
 module tee
 
 get sys
-get file
 
-fn main()
-	if len(sys.args) == 2
-		newline := "\n"
-		f := open(sys.args[1], "w")
-		state := f.state
-		match state
-			is file.Open
-				for line in readlines()
-					print(line)
-					write(f, line)
-					write(f, newline)
-				close(f)
-			else
-				print("Failed to open file " + sys.args[1])
-				sys.exit(-1)
-	else
-		for line in readlines()
-			print(line)
+get argparse {parse, Parser, Some, Option}
+
+fn main() int {
+    var options [str: Option]
+    options["-a"] = Option("append", false /*has_arg*/, false)
+    parser := Parser("tee", options, Some(0, 1))
+
+    with args := parse(parser, sys.args[1:len(sys.args)]) {
+        newline := "\n"
+        if len(args.positionals) != 0 {
+            # There was a filename given, so check whether we need to append or create.
+            with f := open(args.positionals[0], "-a" in args.options ? "a" : "w") {
+                # Now pipe to both the file and stdout.
+                for line in readlines() {
+                    print(line)
+                    write(f, line)
+                    write(f, newline)
+                }
+            } else {
+                print("Failed to open file " + sys.args[1])
+                return 1
+            }
+        } else {
+            # There was no filename given, so just pipe it through
+            for line in readlines() {
+                print(line)
+            }
+        }
+    } else parse_error {
+        print("Command-line parse failed: " + parse_error.reason)
+        print(parse_error.usage())
+    }
+    return 0
+}

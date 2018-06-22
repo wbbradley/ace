@@ -428,6 +428,15 @@ std::string unescape_json_quotes(const char *str, size_t len) {
 			case 't':
 				res.push_back((char)'\t');
 				continue;
+			case 'x':
+				if (i + 3 <= str_end) {
+					++i;
+					int val = hexval(*i++);
+					val <<= 4;
+					val |= hexval(*i);
+					res.push_back(val);
+				}
+				continue;
 			case 'u':
 				assert(std::distance(i, str_end) >= 5);
 				uint16_t ch = 0;

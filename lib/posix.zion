@@ -50,6 +50,7 @@ link fn qsort(base *void, nel size_t, width size_t, _ fn _(lhs *void, rhs *void)
 link fn raise(signal posix.int) posix.int
 link fn read(fileds posix.int, buf *void, nbytes size_t) ssize_t
 link fn realloc(ptr *void, cb size_t) *?void
+link fn sleep(seconds uint) uint
 link fn strcmp(x *char, y *char) posix.int
 link fn strdup(s *char) *?char
 link fn strlen(s *char) size_t
