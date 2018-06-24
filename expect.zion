@@ -2,7 +2,7 @@ module expect
 
 get os {getenv, shell}
 get sys
-get argparse {Option, parse}
+get argparse {Option, parse, None}
 
 fn gather_comments(preface, progname) [str] {
     lines := shell("grep '^# " + preface + ": ' " + str(progname))
@@ -22,9 +22,9 @@ fn gather_comments(preface, progname) [str] {
 fn get_program(args [str]) str? {
     let options [str: Option]
     options["-p"] = Option("program", true, true)
-    parser := Parser("Expect tests", options, false)
+    parser := Parser("Expect tests", options, None)
     with args := parse(parser, args) {
-        return args["program"]
+        return args.options["program"]
     } else parse_error {
         print(parse_error.reason)
         print(parse_error.usage())

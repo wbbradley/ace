@@ -107,6 +107,7 @@ int main(int argc, char *argv[]) {
 		std::vector<std::string> zion_paths = split(
 				getenv("ZION_PATH") != nullptr ? getenv("ZION_PATH") : ".",
 			   	":");
+		zion_paths.insert(zion_paths.begin(), ".");
 
 		compiler_t compiler(argv[2], zion_paths);
 
