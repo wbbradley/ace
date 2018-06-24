@@ -1,0 +1,22 @@
+module _
+# test: pass
+# expect: 3
+# expect: 9000 
+# expect: 14
+# reject: 8000
+# reject: 4
+
+fn main() {
+    print(match rfind("abekdli", "kdli") {
+        Just(i) => i
+        Nothing => 0
+    })
+    print(match rfind("sabekdli", "kdlis") {
+        Just(i) => i
+        Nothing => 9000
+    })
+    print(match rfind("abekdli", "abe") {
+        Just(i) => 14 
+        Nothing => 8000
+    })
+}

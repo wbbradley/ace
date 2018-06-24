@@ -1,0 +1,91 @@
+module SDL
+
+link fn SDL_Init(flags uint32) int
+link fn SDL_InitSubSystem(flags uint32) int
+link fn SDL_QuitSubSystem(flags uint32) void
+link fn SDL_WasInit(flags uint32) uint32
+link fn SDL_Quit() void
+# link fn SDL_SetError(fmt *char, ...) int
+link fn SDL_GetError() *?char
+link fn SDL_ClearError() void
+link fn SDL_CreateWindow(title *char, x int, y int, w int, h int, flags uint32) *?SDL_Window
+link fn SDL_GetBasePath() *?char
+link fn SDL_free(p *?void) void
+link fn SDL_CreateRenderer(window *SDL_Window, index int, flags uint32) *?SDL_Renderer
+link fn SDL_DestroyWindow(window *SDL_Window) void
+link fn SDL_LoadBMP(image_path *char) *?SDL_Surface
+link fn SDL_CreateTextureFromSurface(ren *SDL_Renderer, bmp *SDL_Surface) *?SDL_Texture
+link fn SDL_FreeSurface(bmp *SDL_Surface) void
+link fn SDL_RenderClear(ren *SDL_Renderer) void
+link fn SDL_RenderCopy(ren *SDL_Renderer, tex *SDL_Texture, srcrect *?SDL_Rect, dstrect *?SDL_Rect) int
+link fn SDL_RenderPresent(renderer *SDL_Renderer) void
+link fn SDL_Delay(ms uint32) void
+
+type SDL_Window struct {}
+type SDL_Renderer struct {}
+type SDL_Surface struct {}
+type SDL_Texture struct {}
+type SDL_Rect struct {
+    x int 
+    y int 
+    w int 
+    h int 
+}
+
+var SDL_INIT_TIMER uint32 = 0x00000001
+var SDL_INIT_AUDIO uint32 = 0x00000010
+var SDL_INIT_VIDEO uint32 = 0x00000020
+var SDL_INIT_JOYSTICK uint32 = 0x00000200
+var SDL_INIT_HAPTIC uint32 = 0x00001000
+var SDL_INIT_GAMECONTROLLER uint32 = 0x00002000
+var SDL_INIT_EVENTS uint32 = 0x00004000
+var SDL_INIT_NOPARACHUTE uint32 = 0x00100000
+var SDL_INIT_EVERYTHING uint32 = (
+                SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_EVENTS |
+                SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMECONTROLLER)
+
+# fullscreen window
+var SDL_WINDOW_FULLSCREEN uint32 = 0x00000001
+# window usable with OpenGL context
+var SDL_WINDOW_OPENGL uint32 = 0x00000002
+# window is visible
+var SDL_WINDOW_SHOWN uint32 = 0x00000004
+# window is not visible
+var SDL_WINDOW_HIDDEN uint32 = 0x00000008
+# no window decoration
+var SDL_WINDOW_BORDERLESS uint32 = 0x00000010
+# window can be resized
+var SDL_WINDOW_RESIZABLE uint32 = 0x00000020
+# window is minimized
+var SDL_WINDOW_MINIMIZED uint32 = 0x00000040
+# window is maximized
+var SDL_WINDOW_MAXIMIZED uint32 = 0x00000080
+# window has grabbed input focus
+var SDL_WINDOW_INPUT_GRABBED uint32 = 0x00000100
+# window has input focus
+var SDL_WINDOW_INPUT_FOCUS uint32 = 0x00000200
+# window has mouse focus
+var SDL_WINDOW_MOUSE_FOCUS uint32 = 0x00000400
+var SDL_WINDOW_FULLSCREEN_DESKTOP uint32 = (
+    SDL_WINDOW_FULLSCREEN | 0x00001000)
+# window not created by SDL
+var SDL_WINDOW_FOREIGN uint32 = 0x00000800
+# window should be created in high-DPI mode if supported
+var SDL_WINDOW_ALLOW_HIGHDPI uint32 = 0x00002000
+# window has mouse captured (unrelated to INPUT_GRABBED)
+var SDL_WINDOW_MOUSE_CAPTURE uint32 = 0x00004000
+# window should always be above others
+var SDL_WINDOW_ALWAYS_ON_TOP uint32 = 0x00008000
+# window should not be added to the taskbar
+var SDL_WINDOW_SKIP_TASKBAR  uint32 = 0x00010000
+# window should be treated as a utility window
+var SDL_WINDOW_UTILITY       uint32 = 0x00020000
+# window should be treated as a tooltip
+var SDL_WINDOW_TOOLTIP       uint32 = 0x00040000
+# window should be treated as a popup menu
+var SDL_WINDOW_POPUP_MENU    uint32 = 0x00080000
+
+var SDL_RENDERER_SOFTWARE     uint32 = 0x00000001
+var SDL_RENDERER_ACCELERATED   uint32 = 0x00000002
+var SDL_RENDERER_PRESENTVSYNC  uint32 = 0x00000004
+var SDL_RENDERER_TARGETTEXTURE uint32 = 0x00000008

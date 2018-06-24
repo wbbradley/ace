@@ -25,6 +25,7 @@ add_definitions(${LLVM_DEFINITIONS})
 
 foreach(_rt_module
 		rt_float
+		rt_net
 		rt_int
 		rt_posix
 		rt_str
