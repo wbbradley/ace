@@ -384,8 +384,8 @@ fn find(s_ str, find_ str, start int) int? {
 
     var s = &unsafe_access(s_)[start]
 
-    # OK, now start looping through s positions until we either run out of possible space for find,
-    # or we find it
+    # OK, now start looping through s positions until we either run out of
+    # possible space for find, or we find it
     while s_len > find_len {
         cur := s[0]
         s = &s[1]
@@ -399,6 +399,37 @@ fn find(s_ str, find_ str, start int) int? {
         start += 1
     }
 
+    return Nothing
+}
+
+fn rfind(s_ str, find_ str) int? {
+    var s_len int = len(s_)
+    if s_len <= 0 {
+        return Nothing
+    }
+
+    find_len := len(find_)
+    if find_len == 0 {
+        return Just(s_len)
+    }
+
+    var i int = s_len - find_len
+    while i >= 0 {
+        var j int = 0
+        var k int = i
+        while true {
+            if s_[k] == find_[j] {
+                j += 1
+                k += 1
+                if j >= find_len {
+                    return Just(i)
+                }
+            } else {
+                break
+            }
+        }
+        i -= 1
+    }
     return Nothing
 }
 

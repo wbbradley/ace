@@ -1,0 +1,1024 @@
+module _
+
+var default_socket_timeout_ms int = 10000
+
+
+fn main() {
+    fd = 
+}
+
+
+socket_buf::socket_buf(int socket,
+		const sockaddr_in *addr,
+		const shared_ptr<ssl_context_t> &ssl_context,
+		double time_socket_expiry)
+: m_socket(socket), m_port(-1), m_time_socket_expiry(time_socket_expiry)
+{
+#ifdef DEBUG
+	track_capture(this);
+#endif
+
+#ifdef OPENSSL
+	this->ssl_context = ssl_context;
+	needs_server_ssl_setup = (ssl_context != nullptr);
+	ssl = nullptr;
+#endif
+
+	setg(NULL, NULL, NULL);
+
+	if (m_socket != -1)
+	{
+		set_non_blocking();
+		ip_buffer[0] = '\0';
+		if (addr != NULL)
+		{
+			if (inet_ntop(AF_INET, &addr->sin_addr, ip_buffer, 32) == NULL)
+			{
+				HostShipTag("LWER");
+			}
+			else
+			{
+				ip_buffer[sizeof(ip_buffer) - 1] = '\0';
+				std::stringstream ss;
+				ss << m_socket << "|" << ip_buffer;
+				info = ss.str();
+			}
+		}
+	}
+}
+
+#ifdef OPENSSL
+bool socket_buf::ssl_enable()
+{
+	if ((ssl == nullptr) && (ssl_context != nullptr))
+	{
+		ssl = SSL_new(ssl_context->ctx);
+		if (ssl == nullptr)
+		{
+			log(log_error, "socket_buf : couldn't create SSL object\n");
+			//log(ERR_print_errors_fp);
+			return false;
+		}
+
+		//SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+	}
+	return true;
+}
+
+bool socket_buf::ssl_verify_connection()
+{
+	// TODO(will) impl
+	return true;
+}
+#endif
+
+void socket_buf::set_no_sigpipe()
+{
+#ifndef ANDROID
+
+#ifdef SO_NOSIGPIPE
+	int set = 1;
+	errno = 0;
+	setsockopt(m_socket, SOL_SOCKET, SO_NOSIGPIPE, reinterpret_cast<void *>(&set), sizeof(set));
+	if (!check_errno("NOXG"))
+		HostTag("TFFX");
+#endif
+
+#endif
+}
+
+void socket_buf::set_non_blocking()
+{
+	assert(m_socket != -1);
+	/* In order to allow the socket calls to time out, we need to not
+	   block when calling in to fetch data. */
+	if (fcntl(m_socket, F_SETFL, fcntl(m_socket, F_GETFL) | O_NONBLOCK) < 0)
+	{
+		check_errno("EJKE");
+		log(log_error, "unable to set non-blocking mode on socket %d\n", m_socket);
+	}
+}
+
+bool socket_buf::connect(
+		const std::string &machine,
+		int port,
+		bool blocking,
+		bool use_dns_cache)
+{
+	assert(m_port == -1);
+
+	int socket_retval;
+
+	if (m_socket == -1)
+	{
+		errno = 0;
+		socket_retval = ::socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+		check_errno("DJFK");
+
+		if (socket_retval < 0)
+		{
+			HostTag("KBMZ");
+			return false;
+		}
+		m_socket = socket_retval;
+		set_no_sigpipe();
+		if (!blocking)
+			set_non_blocking();
+	}
+	else
+	{
+		dlog(log_info, "it looks like the socket is already alive!\n");
+	}
+
+	dlog(log_info, "socket_buf : opened socket %d\n", m_socket);
+
+	sockaddr_in socka;
+	socka.sin_family = AF_INET;
+	socka.sin_port = htons(port);
+
+	if (use_dns_cache)
+	{
+		if (!dns_cache::get_address(machine, socka.sin_addr))
+		{
+			HostTag("HJLV");
+			return false;
+		}
+	}
+	else
+	{
+		hostent *he;
+		he = gethostbyname(machine.c_str());
+		if (he == NULL)
+		{
+			HostTag("FBHH");
+			log(log_error, "socket_buf::connect : failed to get address of %s\n", machine.c_str());
+			return false;
+		}
+
+		socka.sin_addr = *((in_addr*)he->h_addr);
+	}
+
+	memset(&socka.sin_zero, 0, sizeof(socka.sin_zero));
+
+	errno = 0;
+	socket_retval = ::connect(m_socket, reinterpret_cast<sockaddr *>(&socka),
+			sizeof(sockaddr));
+	if (socket_retval != 0)
+	{
+		if (errno == EINPROGRESS)
+		{
+			while (true)
+			{
+				pollfd pfd;
+				pfd.events = POLLWRNORM;
+				pfd.fd = m_socket;
+				pfd.revents = 0;
+				errno = 0;
+				int ret = poll(&pfd, 1, default_socket_timeout_ms);
+				if (ret == 1)
+				{
+					if (mask(pfd.revents, POLLHUP) != 0)
+					{
+						log(log_warning, "socket_buf : connect to %s received hup in connect\n", machine.c_str());
+						return false;
+					}
+					if (mask(pfd.revents, POLLWRNORM) != 0)
+						break;
+				}
+
+				if ((ret < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+				{
+					HostTag("TJJZ");
+					continue;
+				}
+
+				log(log_warning, "socket_buf : connect to %s timed out\n", machine.c_str());
+				return false;
+			}
+		}
+		else
+		{
+			check_errno("EUIL");
+			log(log_warning, "unable to connect to %s:%d\n", machine.c_str(), port);
+			return false;
+		}
+	}
+
+#ifdef OPENSSL
+	if (ssl != nullptr)
+	{
+		errno = 0;
+		if (SSL_set_fd(ssl, m_socket) != 1)
+		{
+			log(log_warning, "socket_buf : unable to bind SSL to socket\n");
+			log(ERR_print_errors_fp);
+			HostTag("IWSN");
+			return false;
+		}
+
+		double time_start = HostGetCurrentTime();
+
+		while (true)
+		{
+#ifdef SPOTTY_NETWORK
+			if (SPOTTY_DROP_PACKET())
+			{
+				HostBacktrace(SPOTTY_MESSAGE);
+				return false;
+			}
+			SPOTTY_LATENCY_SLEEP();
+#endif
+
+			errno = 0;
+			int ret = SSL_connect(ssl);
+			if (ret == 1)
+				break;
+			if (ret != 1)
+			{
+				int err = SSL_get_error(ssl, ret);
+				CheckSSL();
+				if ((HostGetCurrentTime() - time_start) > (default_socket_timeout_ms / 1000))
+				{
+					HostTag("JPDC");
+					return false;
+				}
+
+				pollfd pfd;
+				pfd.events = 0;
+				switch (err)
+				{
+					case SSL_ERROR_ZERO_RETURN:
+						return false;
+					case SSL_ERROR_NONE:
+					case SSL_ERROR_WANT_ACCEPT:
+					case SSL_ERROR_WANT_X509_LOOKUP:
+					case SSL_ERROR_SYSCALL:
+						HostShipTag("VURV");
+						log(log_warning, "socket_buf::connect : failure SSL_connect\n");
+						log(ERR_print_errors_fp);
+						return false;
+					case SSL_ERROR_SSL:
+						HostShipTag("RIIH");
+						log(log_warning, "socket_buf::connect : failure SSL_connect\n");
+						log(ERR_print_errors_fp);
+						return false;
+					case SSL_ERROR_WANT_READ:
+						pfd.events |= POLLRDNORM;
+						break;
+					case SSL_ERROR_WANT_CONNECT:
+					case SSL_ERROR_WANT_WRITE:
+						pfd.events |= POLLWRNORM;
+						break;
+				}
+
+				pfd.fd = m_socket;
+				pfd.revents = 0;
+				errno = 0;
+				ret = poll(&pfd, 1, default_socket_timeout_ms);
+				if (ret == 1)
+				{
+					if (mask(pfd.revents, POLLHUP) != 0)
+					{
+						log(log_warning, "socket_buf : socket %d received hup in SSL_connect\n", m_socket);
+						return false;
+					}
+					if (mask(pfd.revents, pfd.events) != 0)
+						continue;
+				}
+
+				if ((ret < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+				{
+					HostTag("DTUZ");
+					continue;
+				}
+				check_errno("ALAU");
+
+				log(log_warning, "socket_buf : SSL_connect failed\n");
+				return false;
+			}
+		}
+	}
+#endif
+
+	return true;
+}
+
+bool socket_buf::start_server(int port, const shared_ptr<ssl_context_t> &ssl_context)
+{
+	assert(m_port == -1);
+	assert(m_socket == -1);
+	this->ssl_context = ssl_context;
+	int socket_retval;
+
+	m_port = port;
+	errno = 0;
+	socket_retval = ::socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (socket_retval < 0)
+	{
+		HostShipTag("SLMV");
+		return false;
+	}
+	m_socket = socket_retval;
+	set_no_sigpipe();
+	int reuse_addr = 1;
+	errno = 0;
+	socket_retval = setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
+	if (socket_retval != 0)
+	{
+		check_errno("WKJC");
+		dlog(log_info, "setsockopt failed on this socket trying to enable SO_REUSEADDR\ncontinuing...");
+	}
+	log(log_info, "sockets : attempting to listen on port %d\n", port);
+	sockaddr_in socka;
+	memset(&socka, 0, sizeof(socka));
+	socka.sin_family = AF_INET;
+	socka.sin_addr.s_addr = htonl(INADDR_ANY);
+	socka.sin_port = htons(port);
+	errno = 0;
+	socket_retval = ::bind(m_socket, reinterpret_cast<sockaddr*>(&socka), sizeof(socka));
+	if (socket_retval != 0)
+	{
+		check_errno("OBXL");
+		log(log_error, "port %d may be protected, try prefacing the command line with \"sudo\"\n", port);
+		return false;
+	}
+
+	errno = 0;
+	socket_retval = listen(m_socket, RWS_MAXPENDING);
+	if (socket_retval != 0)
+	{
+		check_errno("JMND");
+		return false;
+	}
+
+	log(log_info, "server started on port %d\n", port);
+	return true;
+}
+
+shared_ptr<socket_buf> socket_buf::accept()
+{
+	sockaddr_in client_addr;
+	socklen_t client_addr_size = sizeof(client_addr);
+	int socket_retval = -1;
+
+	/* Now wait for an incoming connection. */
+	while (socket_retval == -1)
+	{
+		errno = 0;
+		socket_retval = ::accept(m_socket,
+								 reinterpret_cast<sockaddr*>(&client_addr),
+								 &client_addr_size);
+		check_errno("ACPT");
+	}
+	if (socket_retval < 0)
+		return shared_ptr<socket_buf>();
+#ifdef SOCKETS_DEBUG
+	dlog(log_info, "accepting client %s\n", inet_ntoa(client_addr.sin_addr));
+#endif
+
+	shared_ptr<socket_buf> client(new socket_buf(socket_retval, &client_addr,
+												 ssl_context));
+
+	client->set_no_sigpipe();
+
+	return client;
+}
+
+bool socket_buf::ssl_send(const void *data_to_send, size_t total)
+{
+#ifdef OPENSSL
+	if (ssl == nullptr)
+	{
+		HostShipTag("NPJS");
+		return false;
+	}
+
+	double time_start = HostGetCurrentTime();
+
+	ssize_t ret;
+	size_t sent = 0;
+	const char *to_send = reinterpret_cast<const char *>(data_to_send);
+	while (sent < total)
+	{
+		size_t chunk_size = std::min(size_t(16 * 1024), total - sent);
+		errno = 0;
+
+#ifdef SPOTTY_NETWORK
+		if (SPOTTY_DROP_PACKET())
+		{
+			HostBacktrace(SPOTTY_MESSAGE);
+			return false;
+		}
+		SPOTTY_LATENCY_SLEEP();
+#endif
+
+#ifdef DEBUG
+		track_capture(this);
+#endif
+		/* Send data over the wire. */
+		ret = SSL_write(ssl,
+				reinterpret_cast<const void*>(to_send),
+				chunk_size);
+
+		if (ret > 0)
+		{
+			sent += ret;
+			to_send += ret;
+		}
+		else if (ret <= 0)
+		{
+			int err = SSL_get_error(ssl, ret);
+			CheckSSL();
+			if ((HostGetCurrentTime() - time_start) > (default_socket_timeout_ms / 1000))
+			{
+				HostTag("IIOV");
+				return false;
+			}
+
+			pollfd pfd;
+			pfd.events = 0;
+			switch (err)
+			{
+			case SSL_ERROR_ZERO_RETURN:
+				return false;
+			case SSL_ERROR_NONE:
+			case SSL_ERROR_WANT_CONNECT:
+			case SSL_ERROR_WANT_ACCEPT:
+			case SSL_ERROR_WANT_X509_LOOKUP:
+			case SSL_ERROR_SYSCALL:
+			case SSL_ERROR_SSL:
+				log(log_warning, "socket_buf::ssl_send : failure SSL_write (err = %d)\n", err);
+				log(ERR_print_errors_fp);
+				return false;
+			case SSL_ERROR_WANT_READ:
+				pfd.events |= POLLRDNORM;
+				break;
+			case SSL_ERROR_WANT_WRITE:
+				pfd.events |= POLLWRNORM;
+				break;
+			}
+
+			pfd.fd = m_socket;
+			pfd.revents = 0;
+			errno = 0;
+			ret = poll(&pfd, 1, default_socket_timeout_ms);
+			if (ret == 1)
+			{
+				if ((mask(pfd.revents, POLLHUP) != 0) && (mask(pfd.events, POLLWRNORM) != 0))
+				{
+					log(log_warning, "socket_buf : socket %d received hup in SSL_write\n", m_socket);
+					return false;
+				}
+				if (mask(pfd.revents, pfd.events) != 0)
+					continue;
+			}
+
+			if ((ret < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+			{
+				HostTag("LPQL");
+				continue;
+			}
+			check_errno("XNYG");
+
+			/* Out of time. Give up. */
+			log(log_info, "TRS\t%d\n", m_socket);
+
+			/* socket timed out */
+			return false;
+		}
+
+		if (errno != 0)
+			HostShipTag("OIKJ");
+	}
+
+#ifdef SOCKETS_DEBUG
+	for (size_t i = 0; i < total; i++)
+	{
+		char ch = ((const char *)data_to_send)[i];
+		if (isprint(ch) || iswspace(ch))
+			log(log_direct, "%c", ch);
+	}
+	log_flush();
+#endif
+
+	return true;
+#else
+	HostShipTag("BCNS");
+	return false;
+#endif
+}
+
+bool socket_buf::send(const void *data_to_send, size_t total)
+{
+#ifdef OPENSSL
+	if (!ssl_update_state())
+	{
+		HostTag("PLEP");
+		return false;
+	}
+#endif
+
+	if (total == 0)
+	{
+		HostShipTag("ZJSL");
+		return true;
+	}
+
+	if (ssl != nullptr)
+		return ssl_send(data_to_send, total);
+
+	ssize_t ret;
+	size_t sent = 0;
+	const char *to_send = reinterpret_cast<const char *>(data_to_send);
+	while (sent < total)
+	{
+		size_t chunk_size = std::min(size_t(4 * 1024), total - sent);
+		errno = 0;
+
+		/* Send data over the wire. */
+		ret = ::send(m_socket,
+				reinterpret_cast<const void*>(to_send),
+				chunk_size,
+				0 /*flags*/);
+
+		if (ret > 0)
+		{
+			sent += ret;
+			to_send += ret;
+		}
+		else if (ret < 0)
+		{
+			if (errno == EAGAIN)
+			{
+				pollfd pfd;
+				pfd.fd = m_socket;
+				pfd.events = POLLWRNORM;
+				pfd.revents = 0;
+				errno = 0;
+				int ret = poll(&pfd, 1, default_socket_timeout_ms);
+				if (ret == 1 && ((pfd.revents & POLLWRNORM) != 0))
+					continue;
+
+				if ((ret < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+				{
+					HostTag("NWKW");
+					continue;
+				}
+				check_errno("IOEO");
+
+				/* Out of time. Give up. */
+				log(log_info, "TRS\t%d\n", m_socket);
+			}
+			else
+			{
+				check_errno("NEKS");
+			}
+
+			/* socket was disconnected probably */
+			return false;
+		}
+
+		if (errno != 0)
+		{
+			if (sent != total)
+			{
+				if (!check_errno("IZFO"))
+					return false;
+			}
+		}
+
+		if (ret == 0)
+		{
+			sockets_debug(log(log_error, "socket %d is not sending\n", m_socket));
+			return false;
+		}
+	}
+
+#ifdef SOCKETS_DEBUG
+	for (size_t i = 0; i < total; i++)
+	{
+		char ch = ((const char *)data_to_send)[i];
+		if (isprint(ch) || iswspace(ch))
+			log(log_direct, "%c", ch);
+	}
+	log_flush();
+#endif
+
+	return true;
+}
+
+int socket_buf::overflow(int c)
+{
+	if (traits_type::eq_int_type(c, traits_type::eof()))
+	{
+		return traits_type::not_eof(c);
+	}
+	else
+	{
+		char ch = c;
+		return (send(&ch, 1) == 1) ? traits_type::not_eof(c)
+				: traits_type::eof();
+	}
+}
+
+socket_buf::int_type socket_buf::underflow()
+{
+	if (gptr() == NULL || gptr() >= egptr())
+	{
+		if (recv(&m_peek_char, sizeof(char)))
+		{
+			setg(&m_peek_char, &m_peek_char, (&m_peek_char) + 1);
+			return traits_type::to_int_type(m_peek_char);
+		}
+		else
+		{
+			return traits_type::eof();
+		}
+	}
+	else
+	{
+		return traits_type::to_int_type(m_peek_char);
+	}
+}
+
+#ifdef OPENSSL
+bool socket_buf::set_ssl_context(const shared_ptr<ssl_context_t> &ssl_context)
+{
+	assert(ssl == nullptr);
+	assert(this->ssl_context == nullptr);
+	this->ssl_context = ssl_context;
+	return ssl_enable();
+}
+
+bool socket_buf::ssl_update_state()
+{
+	if ((m_time_socket_expiry != 0)
+			&& (HostGetCurrentTime() > m_time_socket_expiry))
+	{
+		HostShipTag("TLGT");
+		return false;
+	}
+
+	if (needs_server_ssl_setup)
+	{
+		if (!ssl_enable())
+		{
+			HostShipTag("ENAL");
+			return false;
+		}
+		assert(ssl != nullptr);
+
+		if (SSL_set_fd(ssl, m_socket) != 1)
+		{
+			log(log_warning, "socket_buf : unable to bind SSL to socket\n");
+			log(ERR_print_errors_fp);
+			HostShipTag("ELYT");
+			return false;
+		}
+
+		double time_start = HostGetCurrentTime();
+		while (true)
+		{
+#ifdef DEBUG
+			track_capture(this);
+#endif
+			errno = 0;
+			auto ret = SSL_accept(ssl);
+			if (ret != 1)
+			{
+				int err = SSL_get_error(ssl, ret);
+				CheckSSL();
+
+				if ((HostGetCurrentTime() - time_start) > (default_socket_timeout_ms / 1000))
+				{
+					HostTag("WXJG");
+					return false;
+				}
+
+				pollfd pfd;
+				pfd.events = 0;
+				switch (err)
+				{
+				case SSL_ERROR_NONE:
+					HostShipTag("EPMF");
+					break;
+				case SSL_ERROR_ZERO_RETURN:
+					HostShipTag("QMHV");
+					break;
+				case SSL_ERROR_WANT_READ:
+					pfd.events |= POLLRDNORM;
+					goto l_poll;
+					break;
+				case SSL_ERROR_WANT_WRITE:
+					pfd.events |= POLLWRNORM;
+					goto l_poll;
+					break;
+				case SSL_ERROR_WANT_CONNECT:
+					HostShipTag("CVHV");
+					break;
+				case SSL_ERROR_WANT_ACCEPT:
+					HostShipTag("WIGX");
+					break;
+				case SSL_ERROR_WANT_X509_LOOKUP:
+					HostShipTag("FYJM");
+					break;
+				case SSL_ERROR_SYSCALL:
+					break;
+				case SSL_ERROR_SSL:
+					HostShipTag("JAVR");
+					break;
+				default:
+					HostShipTag("HJHV");
+					break;
+				}
+				log(ERR_print_errors_fp);
+				return false;
+l_poll:
+				pfd.fd = m_socket;
+				pfd.revents = 0;
+				errno = 0;
+				ret = poll(&pfd, 1, default_socket_timeout_ms);
+				if (ret == 1)
+				{
+					if (mask(pfd.revents, POLLHUP) != 0)
+					{
+						log(log_warning, "socket_buf : socket %d received hup in accept\n", m_socket);
+						return false;
+					}
+					if (mask(pfd.revents, pfd.events) != 0)
+						continue;
+				}
+
+				if ((ret < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+				{
+					HostTag("KAXH");
+					continue;
+				}
+				check_errno("NHUF");
+				if (ret == 0)
+					continue;
+
+				HostShipTag("PLDK");
+				break;
+			}
+			else
+			{
+				break;
+			}
+		}
+		needs_server_ssl_setup = false;
+	}
+
+	return true;
+}
+#endif
+
+bool socket_buf::ssl_recv(void *data_to_recv, size_t total)
+{
+#ifdef OPENSSL
+	if (ssl == nullptr)
+	{
+		HostShipTag("GVBB");
+		return false;
+	}
+
+	double time_start = HostGetCurrentTime();
+	ssize_t ret;
+	size_t received = 0;
+	char *to_recv = reinterpret_cast<char *>(data_to_recv);
+	while (received < total)
+	{
+		size_t chunk_size = total - received;
+
+		errno = 0;
+
+#ifdef SPOTTY_NETWORK
+		if (SPOTTY_DROP_PACKET())
+		{
+			HostBacktrace(SPOTTY_MESSAGE);
+			return false;
+		}
+		SPOTTY_LATENCY_SLEEP();
+#endif
+
+#ifdef DEBUG
+		track_capture(this);
+#endif
+
+		/* Receive data over the wire. */
+		ret = SSL_read(ssl, to_recv, chunk_size);
+
+		if (ret > 0)
+		{
+			received += ret;
+			to_recv += ret;
+		}
+		else if (ret <= 0)
+		{
+			int err = SSL_get_error(ssl, ret);
+			CheckSSL();
+			if ((HostGetCurrentTime() - time_start) > (default_socket_timeout_ms / 1000))
+			{
+				HostTag("DRNC");
+				return false;
+			}
+
+			pollfd pfd;
+			pfd.events = 0;
+			switch (err)
+			{
+				case SSL_ERROR_ZERO_RETURN:
+					return false;
+				case SSL_ERROR_NONE:
+					HostShipTag("TTBO");
+					log(ERR_print_errors_fp);
+					return false;
+				case SSL_ERROR_WANT_CONNECT:
+					HostShipTag("OSEZ");
+					log(ERR_print_errors_fp);
+					return false;
+				case SSL_ERROR_WANT_ACCEPT:
+					HostShipTag("VNYQ");
+					log(ERR_print_errors_fp);
+					return false;
+				case SSL_ERROR_WANT_X509_LOOKUP:
+					HostShipTag("INTH");
+					log(ERR_print_errors_fp);
+					return false;
+				case SSL_ERROR_SYSCALL:
+					check_errno("LWPS");
+					log(ERR_print_errors_fp);
+					return false;
+				case SSL_ERROR_SSL:
+					HostShipTag("ABSE");
+					log(ERR_print_errors_fp);
+					return false;
+				case SSL_ERROR_WANT_READ:
+					pfd.events |= POLLRDNORM;
+					break;
+				case SSL_ERROR_WANT_WRITE:
+					pfd.events |= POLLWRNORM;
+					break;
+			}
+
+			pfd.fd = m_socket;
+			pfd.revents = 0;
+			errno = 0;
+			ret = poll(&pfd, 1, default_socket_timeout_ms);
+			if (ret == 1)
+			{
+				if ((mask(pfd.revents, POLLHUP) != 0) && (mask(pfd.events, POLLWRNORM) != 0))
+				{
+					log(log_warning, "socket_buf : socket %d received hup in SSL_read\n", m_socket);
+					return false;
+				}
+				if (mask(pfd.revents, pfd.events) != 0)
+					continue;
+			}
+			if ((ret < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+			{
+				HostTag("HBDD");
+				continue;
+			}
+			check_errno("UJQQ");
+
+			/* Out of time. Give up. */
+			log(log_info, "socket_buf : SSL socket out of time (%d)\n", m_socket);
+
+			return false;
+		}
+	}
+	sockets_debug(dump_binary_data((const char *)data_to_recv, total));
+	return true;
+#else
+	HostShipTag("NHNX");
+	return false;
+#endif
+}
+
+bool socket_buf::recv(void *data_to_recv, size_t total)
+{
+#ifdef OPENSSL
+	if (!ssl_update_state())
+	{
+		HostTag("FRSB");
+		return false;
+	}
+#endif
+
+	if (ssl != nullptr)
+		return ssl_recv(data_to_recv, total);
+
+	ssize_t ret;
+	size_t received = 0;
+	char *to_recv = reinterpret_cast<char *>(data_to_recv);
+	while (received < total)
+	{
+		size_t chunk_size = total - received;
+
+		errno = 0;
+		/* Receive data over the wire. */
+		ret = ::recv(m_socket,
+				to_recv,
+				chunk_size,
+				0 /*flags*/);
+
+		if (ret == 0)
+		{
+#ifdef SOCKETS_DEBUG
+			dlog(log_info, "socket %d is not receiving\n", m_socket);
+#endif
+			return false;
+		}
+
+		if (ret > 0)
+		{
+			received += ret;
+			to_recv += ret;
+		}
+		else if (ret < 0)
+		{
+			if (errno == EAGAIN)
+			{
+				pollfd pfd;
+				pfd.fd = m_socket;
+				pfd.events = POLLRDNORM;
+				pfd.revents = 0;
+				errno = 0;
+				int ret = poll(&pfd, 1, default_socket_timeout_ms);
+				if (ret == 1 && ((pfd.revents & POLLRDNORM) != 0))
+					continue;
+
+				if ((ret < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+				{
+					HostTag("KZAG");
+					continue;
+				}
+				check_errno("BQUI");
+
+				/* Out of time. Give up. */
+				log(log_info, "socket_buf : socket out of time (%d)\n", m_socket);
+			}
+			else
+			{
+				check_errno("WKJJ");
+			}
+
+			/* socket was disconnected probably */
+			HostTag("DGWY");
+			return false;
+		}
+	}
+	return true;
+}
+
+socket_buf::~socket_buf()
+{
+#ifdef OPENSSL
+	if (ssl != nullptr)
+	{
+		int ret = SSL_shutdown(ssl);
+		if (ret != 1)
+		{
+			CheckSSL();
+		}
+		SSL_free(ssl);
+		ssl = nullptr;
+	}
+
+#endif
+
+	if (m_socket != -1)
+	{
+#ifdef SOCKETS_DEBUG
+		dlog(log_info, "\nclosing connection %d\n", m_socket);
+#endif
+
+		errno = 0;
+		shutdown(m_socket, SHUT_RDWR);
+
+		errno = 0;
+		if (close(m_socket) < 0)
+		{
+			check_errno("EIJK");
+		}
+	}
+#ifdef DEBUG
+	track_release(this);
+#endif
+}
+
+#ifdef SPOTTY_NETWORK
+void latency_sleep()
+{
+	int millisec = rand() % 50;
+
+    struct timespec req={0};
+    time_t sec=(int)(millisec / 1000);
+    millisec %= 1000;
+    req.tv_sec=sec;
+    req.tv_nsec=millisec*1000000L;
+    while (nanosleep(&req, &req) == -1)
+		continue;
+}
+#endif
