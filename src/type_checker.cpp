@@ -1319,19 +1319,28 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 						token.text.c_str(), fittings.size()));
 		}
 	} else {
-		unchecked_var_t::ref unchecked_fn = scope->get_module_scope()->get_unchecked_variable(token.text);
-		if (unchecked_fn != nullptr) {
-			types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(unchecked_fn->get_type(scope)->rebind(scope->get_type_variable_bindings())->eval(scope));
+		unchecked_var_t::ref unchecked_var = scope->get_module_scope()->get_unchecked_variable(token.text);
+		if (unchecked_var != nullptr) {
+			auto bound_var = unchecked_var->module_scope->get_bound_variable(
+					builder,
+					unchecked_var->get_location(),
+					token.text);
+
+			if (bound_var != nullptr) {
+				return as_ref ? bound_var : bound_var->resolve_bound_value(builder, scope);
+			}
+
+			types::type_function_t::ref fn_type = dyncast<const types::type_function_t>(unchecked_var->get_type(scope)->rebind(scope->get_type_variable_bindings())->eval(scope));
 			if (fn_type != nullptr) {
 				return instantiate_unchecked_fn(
 						builder,
 						scope,
-						unchecked_fn,
+						unchecked_var,
 						fn_type,
 						{});
 			} else {
 				throw user_error(get_location(), "unable to instantiate unchecked function %s",
-						unchecked_fn->str().c_str());
+						unchecked_var->str().c_str());
 			}
 		}
 	}

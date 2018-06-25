@@ -1,0 +1,4 @@
+module _
+# test: skip
+
+link fn puts(x *char) int

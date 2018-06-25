@@ -864,7 +864,7 @@ namespace ast {
 		token_t remote_name;
 	};
 
-	struct link_function_statement_t : public expression_t {
+	struct link_function_statement_t : public std::enable_shared_from_this<link_function_statement_t>, public expression_t {
 		typedef ptr<const link_function_statement_t> ref;
 
 		static const syntax_kind_t SK = sk_link_function_statement;

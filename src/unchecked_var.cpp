@@ -43,7 +43,16 @@ types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
 		} else {
 			return decl->function_type;
 		}
+	} else if (auto link_fn = dyncast<const ast::link_function_statement_t>(node)) {
+		auto decl = link_fn->extern_function;
+		assert(decl != nullptr);
+		if (scope != nullptr) {
+			return decl->function_type->rebind(scope->get_type_variable_bindings());
+		} else {
+			return decl->function_type;
+		}
 	} else {
+		dbg();
 		log_location(log_error, get_location(), "not-impl: get a type from unchecked_var %s", node->str().c_str());
 		not_impl();
 		return type_bottom();

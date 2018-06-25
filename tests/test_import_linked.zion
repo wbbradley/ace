@@ -1,0 +1,9 @@
+module _
+# test: pass
+# expect: Hello world.
+
+get test_import_linked_module {puts}
+
+fn main() {
+    puts("Hello world.")
+}

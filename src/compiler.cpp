@@ -723,10 +723,16 @@ std::string compute_module_key(std::vector<std::string> lib_paths, std::string f
 				working_key = working_key.substr(0, working_key.size() - strlen(".zion"));
 			}
 		}
+
 	}
 	if (working_key.size() == 0) {
-		panic(string_format("could not find module filename in lib paths (%s)",
-					filename.c_str()));
+		if (filename[0] == '/') {
+				assert(ends_with(filename, ".zion"));
+				working_key = filename.substr(0, filename.size() - strlen(".zion"));
+		} else {
+			panic(string_format("could not find module filename in lib paths (%s)",
+						filename.c_str()));
+		}
 	}
 	return working_key;
 }
