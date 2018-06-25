@@ -145,8 +145,8 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 	ps.advance();
 
 	if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(fn))) {
-		auto link_function_statement = create<ast::link_function_statement_t>(link_token);
 		auto function_decl = function_decl_t::parse(ps, false /*within_expression*/, type_void());
+		auto link_function_statement = create<ast::link_function_statement_t>(function_decl->token);
 		if (ps.token.is_ident(K(to))) {
 			ps.advance();
 			if (ps.token.tk != tk_identifier && ps.token.tk != tk_string) {

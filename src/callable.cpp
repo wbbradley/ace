@@ -85,7 +85,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 				unchecked_fn->str().c_str(),
 				fn_type->str().c_str()));
 
-	if (auto bound_fn = scope->get_bound_function(unchecked_fn->get_name(), fn_type->repr())) {
+	if (auto bound_fn = unchecked_fn->module_scope->get_bound_function(unchecked_fn->get_name(), fn_type->repr())) {
 		/* function fn_type exists with name and signature we want, just use that */
 		debug_above(5, log_location(log_info, unchecked_fn->get_location(), "attempting to instantiate function but"));
 		debug_above(5, log_location(log_info, bound_fn->get_location(), "prior bound function exists with same name and signature and location"));
@@ -155,6 +155,11 @@ bound_var_t::ref instantiate_unchecked_fn(
 		} else {
 			panic("we should have a product type for our fn_type");
 		}
+	} else if (auto link_fn = dyncast<const ast::link_function_statement_t>(unchecked_fn->node)) {
+		/* by now this function should have been instantiated */
+		return unchecked_fn->module_scope->get_bound_function(
+				link_fn->extern_function->token.text,
+				link_fn->extern_function->function_type->eval(unchecked_fn->module_scope)->get_signature());
 	} else if (ast::type_product_t::ref type_product = dyncast<const ast::type_product_t>(unchecked_fn->node)) {
 		return instantiate_data_type_ctor(
 				builder,
@@ -345,8 +350,7 @@ bound_var_t::ref maybe_get_callable(
 	scope->get_callables(alias, fns, check_unchecked);
 	debug_above(7, log("looking for a " c_id("%s") " going to check:", alias.c_str()));
 	for (auto fn : fns) {
-		debug_above(7, log("callable %s : %s", fn->str().c_str(),
-					fn->get_type(nullptr)->str().c_str()));
+		debug_above(7, log("callable %s", fn->str().c_str()));
 	}
 
 	return get_best_fit(builder,

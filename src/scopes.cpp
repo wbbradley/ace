@@ -1033,12 +1033,19 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 		   	std::string symbol,
 		   	module_scope_t::ref target_scope)
 	{
+
 		var_t::refs vars;
 		std::string fqn_name = make_fqn(symbol);
 		auto program_scope = this->get_program_scope();
+
+		debug_above(6, log("copying symbol %s into scope %s",
+				fqn_name.c_str(),
+				target_scope->get_name().c_str()));
+
 		program_scope->get_callables(fqn_name, vars, true /*check_unchecked*/);
 
 		for (auto var : vars) {
+			debug_above(6, log("copying %s", var->str().c_str()));
 			if (auto unchecked_var = dyncast<const unchecked_var_t>(var)) {
 				assert(unchecked_var != nullptr);
 				target_scope->put_unchecked_variable(symbol, unchecked_var);
@@ -1311,7 +1318,9 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 				iter->second.push_back(unchecked_variable);
 			} else if (dyncast<const unchecked_data_ctor_t>(unchecked_variable)) {
 				iter->second.push_back(unchecked_variable);
-			} else if (dyncast<const ast::var_decl_t>(unchecked_variable)) {
+			} else if (dyncast<const ast::var_decl_t>(unchecked_variable->node)) {
+				iter->second.push_back(unchecked_variable);
+			} else if (dyncast<const ast::link_function_statement_t>(unchecked_variable->node)) {
 				iter->second.push_back(unchecked_variable);
 			} else {
 				dbg();

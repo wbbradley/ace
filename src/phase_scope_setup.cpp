@@ -97,6 +97,19 @@ void scope_setup_module(compiler_t &compiler, const ast::module_t &obj) {
 				var_decl->extends_module,
 				module_scope);
 	}
+
+	for (auto &linked_function : obj.linked_functions) {
+		assert(linked_function->extern_function->token.tk == tk_identifier);
+		auto name = linked_function->extern_function->token.text;
+		module_scope->put_unchecked_variable(
+				name,
+				unchecked_var_t::create(
+					make_iid_impl(
+						linked_function->extern_function->token.text,
+						linked_function->extern_function->get_location()),
+					linked_function,
+					module_scope));
+	}
 }
 
 void scope_setup_program(const ast::program_t &obj, compiler_t &compiler) {
