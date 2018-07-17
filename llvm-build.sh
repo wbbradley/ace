@@ -43,16 +43,25 @@ enlist libcxxabi $LLVM_ROOT/projects/libcxxabi
 # Set up the installation dir
 mkdir -p $INSTALL_DIR
 
+# TODO: if you want to codesign debugserver, follow instructions here, and remove DLLDB_CODESIGN_IDENTITY from below.
+# http://llvm.org/svn/llvm-project/lldb/trunk/docs/code-signing.txt
+
 function build() {
+	mkdir -p $INSTALL_DIR/$1
+	chmod -R u+w $INSTALL_DIR/$1
+
 	# Run the LLVM build and install
 	BUILD_DIR=$HOME/var/tmp/llvm/$1
+	rm -rf $BUILD_DIR
 	mkdir -p $BUILD_DIR
 	cd $BUILD_DIR
 
 	time cmake \
+		-DLLDB_CODESIGN_IDENTITY='' \
 		-DCMAKE_BUILD_TYPE=$1 \
 		-DCMAKE_INSTALL_PREFIX=$INSTALL_DIR/$1 \
 		-DLLVM_BUILD_LLVM_DYLIB=On \
+		-DLLVM_DYLIB_EXPORT_ALL=On \
 		-DLLVM_ENABLE_ASSERTIONS=$(if [ $1 = Debug ]; then echo On; else echo Off; fi) \
 		-DLLVM_ENABLE_RTTI=On \
 		$LLVM_ROOT
@@ -63,5 +72,5 @@ function build() {
 	chmod -R a-w $INSTALL_DIR/$1
 }
 
-build Debug
+# build Debug
 build MinSizeRel

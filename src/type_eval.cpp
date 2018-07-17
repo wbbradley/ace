@@ -15,6 +15,8 @@ const char *tbstr(type_builtins_t tb) {
 		return TYPE_OP_IS_FALSE;
 	case tb_bool:
 		return TYPE_OP_IS_BOOL;
+	case tb_str:
+		return TYPE_OP_IS_STR;
 	case tb_pointer:
 		return TYPE_OP_IS_POINTER;
 	case tb_function:

@@ -369,6 +369,8 @@ bool ast::literal_expr_t::resolve_match(
 		builder.CreateCondBr(match_bit, llvm_match_block, llvm_no_match_block);
 		return true;
 	}
+	assert(false);
+	return false;
 }
 
 bound_var_t::ref cast_data_type_to_ctor_struct(
