@@ -26,6 +26,7 @@ const char *TYPE_OP_IS_REF = "is_ref";
 const char *TYPE_OP_IS_TRUE = "is_true";
 const char *TYPE_OP_IS_FALSE = "is_false";
 const char *TYPE_OP_IS_BOOL = "is_bool";
+const char *TYPE_OP_IS_STR = "is_str";
 const char *TYPE_OP_IS_POINTER = "is_pointer";
 const char *TYPE_OP_IS_FUNCTION = "is_function";
 const char *TYPE_OP_IS_CALLABLE = "is_callable";

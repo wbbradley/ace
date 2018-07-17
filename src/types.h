@@ -35,6 +35,7 @@ extern const char *TYPE_OP_IS_REF;
 extern const char *TYPE_OP_IS_TRUE;
 extern const char *TYPE_OP_IS_FALSE;
 extern const char *TYPE_OP_IS_BOOL;
+extern const char *TYPE_OP_IS_STR;
 extern const char *TYPE_OP_IS_POINTER;
 extern const char *TYPE_OP_IS_FUNCTION;
 extern const char *TYPE_OP_IS_CALLABLE;

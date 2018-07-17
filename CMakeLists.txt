@@ -8,6 +8,7 @@ find_package(LLVM REQUIRED CONFIG)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+message(STATUS "LLVM installation prefix is ${LLVM_INSTALL_PREFIX}")
 
 option(MEMORY_DEBUGGING "Track all allocations and spew to stdout about it" OFF)
 if(MEMORY_DEBUGGING)
@@ -40,6 +41,7 @@ foreach(_rt_module
 endforeach(_rt_module)
 
 add_compile_options(-std=c++14 -g -O0 ${option_flags})
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,${LLVM_INSTALL_PREFIX}/lib")
 
 add_executable(zion
 	src/ast.cpp
