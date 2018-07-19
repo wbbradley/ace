@@ -3,8 +3,6 @@ module _
 # expect: 3
 # expect: 9000 
 # expect: 14
-# reject: 8000
-# reject: 4
 
 fn main() {
     print(match rfind("abekdli", "kdli") {

@@ -1090,8 +1090,9 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	types::type_args_t::ref type_args = ::type_args(types::without_refs(product_type->get_dimensions()));
 	types::type_function_t::ref function_type = ::type_function(id->get_location(), nullptr, type_args, return_type);
+
 	bound_var_t::ref already_bound_function;
-	if (program_scope->has_bound(id->get_name(), function_type, &already_bound_function)) {
+	if (program_scope->has_bound(id->get_name(), false /*is_global*/, function_type, &already_bound_function)) {
 		/* fulfill the "get_or_" part of this function name */
 		return already_bound_function;
 	}

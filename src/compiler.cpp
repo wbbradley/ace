@@ -451,10 +451,6 @@ void compiler_t::emit_built_program(std::string executable_filename) {
 	if (getenv("ZION_LINK") != nullptr) {
 		ss << " " << getenv("ZION_LINK");
 	}
-	if (getenv("ARC4RANDOM_LIB") != nullptr) {
-		ss << " -l" << getenv("ARC4RANDOM_LIB");
-	}
-
 	ss << " -Wno-override-module -Wall -g -O0 -mcx16";
 	for (auto obj_file : obj_files) {
 		ss << " " << obj_file;

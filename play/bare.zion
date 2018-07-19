@@ -1,14 +1,7 @@
 module _
 
-fn main()
-	var s_copy any = "hello world"
-	static_print(s_copy)
-	var cur any = __iter_begin__(s_copy)
-	static_print(cur)
-	let end any = __iter_end__(s_copy)
-	static_print(end)
-	while __iter_valid__(cur, end)
-		var ch any = __iter_item__(cur)
-		static_print(ch)
-		print(ch)
-		__iterate__(cur)
+fn main() {
+    for i in range(100) {
+        print(rand(100))
+    }
+}

@@ -304,7 +304,7 @@ bound_var_t::ref upsert_module_variable(
 
 	/* 'declared_type' tells us the user-declared type on the left-hand side of
 	 * the assignment. */
-	types::type_t::ref declared_type = var_decl.type->rebind(module_scope->get_type_variable_bindings());
+	types::type_t::ref declared_type = var_decl.type->rebind(module_scope->get_type_variable_bindings())->eval(module_scope);
 	if (declared_type == nullptr || declared_type->ftv_count() != 0) {
 		throw user_error(var_decl.get_location(), "module variables must have explicitly declared types");
 		return nullptr;
@@ -316,7 +316,7 @@ bound_var_t::ref upsert_module_variable(
 	auto bound_global_type = upsert_bound_type(builder, module_scope, type_ref(declared_type));
 
 	bound_var_t::ref already_bound_var;
-	if (module_scope->has_bound(symbol, type_ref(declared_type), &already_bound_var)) {
+	if (module_scope->has_bound(symbol, false/*is_global*/, type_ref(declared_type), &already_bound_var)) {
 		return already_bound_var;
 	}
 
@@ -341,8 +341,7 @@ bound_var_t::ref upsert_module_variable(
 			bound_global_type, llvm_global_variable, make_code_id(var_decl.token));
 
 	/* preemptively stash the variable in the module scope */
-	module_scope->put_bound_variable(var_decl_variable->name,
-			var_decl_variable);
+	module_scope->put_bound_variable(var_decl_variable->name, var_decl_variable);
 
 	function_scope_t::ref function_scope = module_scope->new_function_scope(
 			std::string("__init_module_vars_") + symbol);
@@ -529,6 +528,7 @@ void destructure_function_details(
         bound_type_t::ref &return_type)
 {
 	scope = scope->get_program_scope();
+	function_type = dyncast<const types::type_function_t>(function_type->eval(scope));
 	type_constraints = function_type->type_constraints;
 
 	/* the parameter types as per the decl */
@@ -789,6 +789,9 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 	bound_type_t::ref bound_function_type = upsert_bound_type(
 			builder, scope, function_sig);
 
+	debug_above(7, log("resolved linked function " c_id("%s") " into %s",
+				extern_function->token.text.c_str(),
+				bound_function_type->get_type()->str().c_str()));
 	return bound_var_t::create(
 			INTERNAL_LOC(),
 			scope->make_fqn(extern_function->token.text),

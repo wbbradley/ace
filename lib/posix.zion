@@ -2,16 +2,17 @@ module posix
 
 link in "c"
 link in "m"
-link in "bsd" # for arc4random_...
 link in "rt_posix.o"
+
+type int = int32
+type long = int32
+type FILE struct
 
 link [global] fn isalpha(ch posix.int) bool
 link [global] fn isdigit(ch posix.int) bool
 link [global] fn isnumber(ch posix.int) bool
 link [global] fn isspace(ch posix.int) bool
 link [global] fn sqrt(x float) float
-link fn arc4random_buf(dst *void, cb size_t) posix.int # you may need to install libbsd
-link fn arc4random_stir() void                         # TODO: remove this dependency
 link fn random() posix.long
 link fn calloc(cb size_t, size size_t) *?void
 link fn close(fd posix.int) posix.int
@@ -57,11 +58,6 @@ link fn strlen(s *char) size_t
 link fn strncmp(x *char, y *char, n size_t) posix.int
 link fn strndup(s *char, n size_t) *?char
 link fn write(fileds posix.int, buf *void, nbytes size_t) ssize_t
-
-type int = int32
-type long = int32
-
-type FILE struct
 
 # TODO: implement let-refs for module variables
 var SEEK_SET posix.int = 0

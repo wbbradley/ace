@@ -62,14 +62,8 @@ fn breakpoint() {
     posix.raise(posix.SIGTRAP)
 }
 
-fn rand(max int) int {
-    var r = 0 as uint
-    posix.arc4random_buf(&r, sizeof(uint))
-    if r < 0 {
-        return -r % max
-    } else {
-        return r % max
-    }
+fn rand(max uint32) int32 {
+    return crypto.randombytes_uniform(max)
 }
 
 type IntRange has {

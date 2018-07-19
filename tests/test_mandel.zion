@@ -1,10 +1,9 @@
 module test_mandel
 get runtime
 get sys
+get math {Complex}
 
 # test: pass
-
-link Complex to math.Complex
 
 type Rectangle has {
     var x float

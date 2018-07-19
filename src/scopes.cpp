@@ -266,7 +266,9 @@ struct scope_impl_t : public virtual BASE {
 		std::string signature = bound_variable->get_signature();
 		auto existing_bound_var_iter = resolve_map.find(signature);
 		if (existing_bound_var_iter != resolve_map.end()) {
-			auto error = user_error(bound_variable->get_location(), "symbol " c_id("%s") " is already bound (signature is %s)", symbol.c_str(),
+			dbg_when(symbol.find("write") != std::string::npos);
+			auto error = user_error(bound_variable->get_location(), "symbol " c_id("%s") " is already bound (signature is %s)",
+				   	symbol.c_str(),
 					signature.c_str());
 			error.add_info(existing_bound_var_iter->second->get_location(), "see existing bound variable");
 			throw error;
@@ -349,8 +351,8 @@ struct scope_impl_t : public virtual BASE {
 		return get_bound_type_from_scope(signature, get_program_scope(), use_mappings);
 	}
 
-	bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var) const {
-		return get_parent_scope()->has_bound(name, type, var);
+	bool has_bound(const std::string &name, bool is_global, const types::type_t::ref &type, bound_var_t::ref *var) const {
+		return get_parent_scope()->has_bound(name, is_global, type, var);
 	}
 
 	void get_callables(
@@ -992,7 +994,7 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 		this->get_parent_scope()->dump(os);
 	}
 
-	bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var) const {
+	bool has_bound(const std::string &name, bool is_global, const types::type_t::ref &type, bound_var_t::ref *var) const {
 		// NOTE: for now this only really works for module and global variables
 		auto overloads_iter = this->scope_impl_t<T>::bound_vars.find(name);
 		if (overloads_iter != this->scope_impl_t<T>::bound_vars.end()) {
@@ -1004,22 +1006,30 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 					*var = existing_bound_var_iter->second;
 				}
 				return true;
+			} else {
+				std::vector<std::string> signatures;
+				for (auto overload_pair : overloads) {
+					signatures.push_back(overload_pair.first);
+				}
+				debug_above(7, log("looking for bound %s : %s in %s. only found these [%s]",
+							name.c_str(),
+							type->str().c_str(),
+							this->get_name().c_str(),
+							::join(signatures, ", ").c_str()));
 			}
 		}
+
+		debug_above(7, log("looking for bound %s : %s in %s. did not find any overloads",
+					name.c_str(),
+					type->str().c_str(),
+					this->get_name().c_str()));
 
 		if (dynamic_cast<const program_scope_t*>(this) != nullptr) {
 			/* we are already at program scope, and we didn't find it */
 			return false;
 		} else {
 			/* we didn't find that name in our bound vars, let's check if it's registered at global scope */
-			bool found_at_global_scope = this->scope_impl_t<T>::get_program_scope()->has_bound(make_fqn(name), type, var);
-
-			// REVIEW: this really shouldn't happen, since if we are asking if something is bound, it
-			// should be right before we would be instantiating it, which would be in the context of its
-			// owning module...right?
-			assert(!found_at_global_scope);
-
-			return found_at_global_scope;
+			return this->scope_impl_t<T>::get_program_scope()->has_bound(is_global ? name : make_fqn(name), is_global, type, var);
 		}
 	}
 
@@ -1033,7 +1043,6 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 		   	std::string symbol,
 		   	module_scope_t::ref target_scope)
 	{
-
 		var_t::refs vars;
 		std::string fqn_name = make_fqn(symbol);
 		auto program_scope = this->get_program_scope();

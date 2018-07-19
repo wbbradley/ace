@@ -2,6 +2,8 @@ module crypto
 
 link in "sodium"
 
+type crypto_generichash_state struct
+
 link fn sodium_init() int
 link fn crypto_generichash_bytes_min() size_t
 link fn crypto_generichash_bytes_max() size_t
@@ -11,8 +13,10 @@ link fn crypto_generichash_init(state *crypto_generichash_state, key *int8, keyl
 link fn crypto_generichash_update(state *crypto_generichash_state, input_ *int8, inputlen size_t) int
 link fn crypto_generichash_final(state *crypto_generichash_state, out *int8, outlen size_t) int
 link fn crypto_generichash_keygen(k *int8) void
+link fn randombytes_random() uint32
+link fn randombytes_uniform(upper_bound uint32) uint32
+link fn randombytes_buf(buf *int8, size size_t) void
 
-type crypto_generichash_state struct
 
 fn init() {
     if sodium_init() < 0 {

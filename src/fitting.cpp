@@ -34,10 +34,11 @@ bound_var_t::ref get_best_fit(
 		bound_var_t::ref callable = check_bound_func_vs_callsite(
 				builder, scope, location, fn, args, return_type, coercions);
 
-		if (callable != nullptr && (coercions == 0 || allow_coercions)) {
-			if (!function_exists_in(callable, fittings)) {
-				fittings.push_back({fn, callable, coercions});
-			}
+		if (callable != nullptr && (coercions == 0 || allow_coercions) && !function_exists_in(callable, fittings)) {
+			fittings.push_back({fn, callable, coercions});
+		} else {
+			debug_above(8, log("not adding callable %s to fittings",
+						callable ? callable->str().c_str() : "<null>"));
 		}
 	}
 

@@ -175,30 +175,6 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 		}
 		ps.advance();
 		return nullptr;
-	} else if (ps.token.tk == tk_identifier) {
-		/*
-		 * link name to some_module.something
-		 *
-		 * 1. Sets up a type parser macro "name" => "some_module.something"
-		 * 2. Sets up a "scope link" from this module to the "some_module" for the
-		 * "something" name so that if there is a call to "something" from
-		 * within this module, we also search "some_module" when enumerating
-		 * callables.
-		 * 3. Start tracking whether the link is in use in the module
-		 */
-		auto name_token = ps.token;
-		ps.advance();
-		chomp_ident(K(to));
-
-		auto link_name = create<ast::link_name_t>(link_token);
-		link_name->local_name = name_token;
-		link_name->extern_module = module_decl_t::parse(ps, true /* skip_module_token */);
-
-			chomp_token(tk_dot);
-			expect_token(tk_identifier);
-			link_name->remote_name = ps.token;
-			ps.advance();
-			return link_name;
 	} else {
 		throw user_error(ps.token.location, "invalid link syntax (TODO: make this error better)");
 	}
@@ -1692,31 +1668,6 @@ dimension_t::ref dimension_t::parse(parse_state_t &ps, identifier::set generics)
 	return ast::create<ast::dimension_t>(primary_token, name, type);
 }
 
-void add_type_macros_to_parser(
-		parse_state_t &ps,
-		std::vector<ptr<const ast::link_name_t>> linked_names)
-{
-	std::set<std::string> names_seen;
-	for (auto link_name : linked_names) {
-		std::string local_name = {link_name->local_name.text};
-		if (in(local_name, ps.type_macros)) {
-			throw user_error(link_name->local_name.location,
-					"you may not import multiple instances of the same name: " c_id("%s"),
-					link_name->local_name.text.c_str());
-		}
-
-		std::list<identifier::ref> ids;
-		ids.push_back(make_code_id(link_name->extern_module->get_name()));
-		ids.push_back(make_code_id(link_name->remote_name));
-		auto type_macro_expansion = type_id(types::reduce_ids(ids, link_name->remote_name.location));
-
-		debug_above(4, log("creating type macro " c_id("%s") " => %s",
-					local_name.c_str(),
-					type_macro_expansion->str().c_str()));
-		ps.type_macros.insert({local_name, type_macro_expansion});
-	}
-}
-
 ptr<module_t> module_t::parse(parse_state_t &ps) {
 	debug_above(6, log("about to parse %s with type_macros: [%s]",
 				ps.filename.c_str(),
@@ -1740,24 +1691,17 @@ ptr<module_t> module_t::parse(parse_state_t &ps) {
 			module->linked_modules.push_back(linked_module);
 		}
 	}
-	// Get links
-	while (ps.token.is_ident(K(link))) {
-		auto link_statement = link_statement_parse(ps);
-		if (auto linked_function = dyncast<link_function_statement_t>(link_statement)) {
-			module->linked_functions.push_back(linked_function);
-		} else if (auto linked_var = dyncast<link_var_statement_t>(link_statement)) {
-			module->linked_vars.push_back(linked_var);
-		} else if (auto linked_name = dyncast<link_name_t>(link_statement)) {
-			module->linked_names.push_back(linked_name);
-		}
-	}
-
-	/* TODO: update the parser to contain the type maps from the link_names */
-	add_type_macros_to_parser(ps, module->linked_names);
 
 	/* Get vars, functions or type defs */
 	while (true) {
-		if (ps.token.is_ident(K(var)) || ps.token.is_ident(K(let))) {
+		if (ps.token.is_ident(K(link))) {
+			auto link_statement = link_statement_parse(ps);
+			if (auto linked_function = dyncast<link_function_statement_t>(link_statement)) {
+				module->linked_functions.push_back(linked_function);
+			} else if (auto linked_var = dyncast<link_var_statement_t>(link_statement)) {
+				module->linked_vars.push_back(linked_var);
+			}
+		} else if (ps.token.is_ident(K(var)) || ps.token.is_ident(K(let))) {
 			bool is_let = ps.token.is_ident(K(let));
 			if (is_let) {
 				throw user_error(ps.token.location, "let variables are not yet supported at the module level");

@@ -919,7 +919,6 @@ namespace ast {
 		std::vector<ptr<link_module_statement_t>> linked_modules;
 		std::vector<ptr<link_function_statement_t>> linked_functions;
 		std::vector<ptr<link_var_statement_t>> linked_vars;
-		std::vector<ptr<const link_name_t>> linked_names;
 	};
 
 	struct program_t : public item_t {
