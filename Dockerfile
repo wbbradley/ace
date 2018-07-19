@@ -16,7 +16,6 @@ RUN apt-get update -y && apt-get install -y \
 	gdb \
 	cmake \
 	libedit-dev \
-	libbsd-dev \
 	build-essential \
 	libsodium-dev \
 	clang-5.0 \
@@ -46,7 +45,6 @@ RUN \
 	make && \
 	make install
 
-ENV ARC4RANDOM_LIB bsd
 ADD . /opt/zion
 WORKDIR /opt/zion
 CMD bash

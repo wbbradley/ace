@@ -224,6 +224,7 @@ bound_var_t::ref check_bound_func_vs_callsite(
 				if (auto bound_fn = scope->get_bound_function(fn->get_name(), fn_type->repr())) {
 					/* function fn_type exists with name and signature we want, just use that */
 					callable = bound_fn;
+					return;
 				}
 
 				try {
@@ -728,9 +729,19 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
     assert(bound_function_type->get_type()->get_signature() == fn_type->eval(scope)->repr());
 
     bound_var_t::ref already_bound_function;
-    if (scope->has_bound(function_name, bound_function_type->get_type(), &already_bound_function)) {
+    if (scope->has_bound(
+				function_name,
+			   	extends_module != nullptr && extends_module->get_name() == GLOBAL_SCOPE_NAME /*is_global*/,
+			   	bound_function_type->get_type(),
+			   	&already_bound_function))
+   	{
         return already_bound_function;
     }
+
+	debug_above(6, log("scope %s does not have a bound function %s %s. proceeding with instantiation",
+				scope->get_name().c_str(),
+				function_name.c_str(),
+				bound_function_type->str().c_str()));
 
     llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 

@@ -37,7 +37,7 @@ struct scope_t : public env_t {
 	virtual ~scope_t() {}
 	virtual ref this_scope() = 0;
 	virtual cref this_scope() const = 0;
-	virtual bool has_bound(const std::string &name, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const = 0;
+	virtual bool has_bound(const std::string &name, bool is_global, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const = 0;
 	virtual bound_type_t::ref get_bound_type(std::string signature, bool use_mappings=true) = 0;
 	virtual bound_var_t::ref get_bound_function(std::string name, std::string signature) = 0;
 	virtual bound_var_t::ref get_bound_variable(llvm::IRBuilder<> &builder, location_t location, std::string symbol, scope_t::ref stopping_scope=nullptr) = 0;

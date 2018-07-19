@@ -407,6 +407,7 @@ namespace types {
 				new_found = true;
 			}
 			new_args.push_back(new_arg);
+			debug_above(10, log("eval'd arg %s -> %s", arg->str().c_str(), new_arg->str().c_str()));
 		}
 
 		if (new_found) {

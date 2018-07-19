@@ -1,6 +1,0 @@
-module _
-
-link foo to bar.baz
-
-# error: you may not import multiple instances of the same name: foo
-link foo to blah.blah
