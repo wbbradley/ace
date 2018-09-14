@@ -1,7 +1,9 @@
-LLVM_DIR=$(HOME)/opt/llvm/release_40/MinSizeRel
+# LLVM_DIR=$(HOME)/opt/llvm/release_40/MinSizeRel
+LLVM_DIR=/usr/local/Cellar/llvm@4/4.0.1
 ZION=$(HOME)/var/zion/zion
 
 zion:
+	mkdir -p $(HOME)/var/zion
 	(cd $(HOME)/var/zion && \
 		make -j8 2>&1)
 
@@ -17,6 +19,9 @@ clean:
 clean-zion: clean
 	make zion
 
-test: clean-zion
+clean-test: clean-zion
+	make test
+
+test:
 	$(ZION) test
 	./expect-tests.sh $(HOME)/var/zion
