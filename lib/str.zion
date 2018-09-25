@@ -59,7 +59,7 @@ fn len(u str) uint {
 fn str(b *int8, length size_t, encoding str) str {
     assert(encoding == "str")
     dest_len := length + 1
-    dest := posix.calloc(1, dest_len)!
+    dest := runtime.mem_alloc(dest_len)!
     posix.memcpy(dest, b, length)
     return str(OwningBuffer(dest as! *char))
 }
@@ -152,7 +152,7 @@ fn __getslice__(s str, start uint, lim uint) str {
 fn c_str(u str) OwningBuffer char {
     # ensures a null-terminated string 
     if u.start != 0 or u.length != u.buffer.length {
-        let pch = posix.malloc(sizeof(char) * (u.length + 1))! as! *char
+        let pch = runtime.mem_alloc(sizeof(char) * (u.length + 1))! as! *char
         posix.memcpy(pch, unsafe_access(u), sizeof(char) * u.length)
         pch[u.length] = 0
         return OwningBuffer(pch, u.length)
@@ -202,7 +202,7 @@ fn concat(x *char, x_len uint, y *char, y_len uint) str {
     let x_cb = sizeof(char) * x_len
     let y_cb = sizeof(char) * (y_len + 1)
     total_cb := x_cb + y_cb
-    let res = posix.malloc(total_cb) as! *?char
+    let res = runtime.mem_alloc(total_cb) as! *?char
     assert(res != null)
     posix.memcpy(res, x, x_cb)
     posix.memcpy(&res[x_len], y, y_cb)
@@ -212,7 +212,7 @@ fn concat(x *char, x_len uint, y *char, y_len uint) str {
 fn decode(b bytes, fmt str) str? {
     if fmt == "utf8" {
         b_len := len(b)
-        res := posix.malloc(b_len + 1) as! *?char
+        res := runtime.mem_alloc(b_len + 1) as! *?char
         assert(res != null)
         posix.memcpy(res, b.data, b_len)
         res[b_len] = 0

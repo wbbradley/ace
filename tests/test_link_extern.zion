@@ -18,9 +18,11 @@ type Entry has {
     var entry *EntryImpl
 }
 
-[global]
-fn __finalize__(entry Entry) {
-    free_entry(entry.entry)
+fn close(entry Entry?) {
+    match entry {
+        Just(entry) => free_entry(entry.entry)
+        Nothing {}
+    }
 }
 
 fn get_name(entry Entry, default str) str {
@@ -36,6 +38,7 @@ fn get_name(entry Entry, default str) str {
 
 fn main() {
     var entry Entry? = Just(Entry(make_entry("Will", 123)!))
+    defer fn () { close(entry) }
     match entry {
         Just(entry) {
             print(get_name(entry, ""))
@@ -48,5 +51,4 @@ fn main() {
     }
     static_print(entry)
     entry = Nothing
-    runtime.gc()
 }

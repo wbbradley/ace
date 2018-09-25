@@ -602,12 +602,8 @@ function_scope_t::ref make_function_scope(
 				llvm_param_final, make_iid(params[i++].first));
 
 
-		// REVIEW: why is this here?
-		// bound_type_t::ref return_type = get_function_return_type(builder, scope, function_var->type);
-
-		life->track_var(builder, scope, param_var, lf_function);
 		if (as_closure && i == (int)params.size()) {
-			auto closure_scope = dyncast<closure_scope_t>(scope); // ->get_closure_scope();
+			auto closure_scope = dyncast<closure_scope_t>(scope);
 			assert(closure_scope != nullptr);
 			assert(!allow_reassignment);
 			closure_scope->set_capture_env(param_var);
@@ -649,7 +645,6 @@ bound_var_t::ref clone_and_change_type(
             existing_function->get_llvm_value()->getName(),
             scope->get_llvm_module());
 
-    llvm_function->setGC(GC_STRATEGY);
     llvm_function->setDoesNotThrow();
 
     llvm::Function *llvm_old_function = llvm::dyn_cast<llvm::Function>(existing_function->get_llvm_value());
@@ -765,7 +760,6 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 
     // TODO: enable inlining for various functions
     // llvm_function->addFnAttr(llvm::Attribute::AlwaysInline);
-    llvm_function->setGC(GC_STRATEGY);
     llvm_function->setDoesNotThrow();
 
     /* start emitting code into the new function. caller should have an

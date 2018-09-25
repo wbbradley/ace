@@ -30,13 +30,13 @@ fn open(filename str, mode str) resource.MaybeResource *posix.FILE posix.int {
 fn readbytes(fp *posix.FILE) bytes? {
     match size(fp) {
         Right(cb) {
-            let pb = posix.malloc(cb) as! *?int8
+            let pb = runtime.mem_alloc(cb) as! *?int8
             assert(pb != null)
 
             let bytes_read = posix.fread(pb, 1, cb, fp)
 
             if posix.ferror(fp) {
-                posix.free(pb)
+                # posix.free(pb)
                 return Nothing
             }
 

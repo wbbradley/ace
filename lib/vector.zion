@@ -33,25 +33,8 @@ fn len(v [any T]) int {
 }
 
 [global]
-fn __init__[T where gc T]() [T] {
-    let ti = typeinfo(
-        [T],
-        ManagedVector,
-        __managed_vector_free__,
-        __managed_vector_mark__)
-
-    return runtime.create_var(ti) as! [T]
-}
-        
-[global]
-fn __init__[T where not(gc T)]() [T] {
-    let ti = typeinfo(
-        [T],
-        NativeVector T,
-        __native_vector_free__,
-        __native_vector_mark__)
-
-    return runtime.create_var(ti) as! [T]
+fn __init__[T]() [T] {
+    return runtime.create_var(sizeof([T])) as! [T]
 }
         
 fn __init_vector__[T](size size_t) [T] {
@@ -98,7 +81,7 @@ fn join[T where gc T](delim str, v [T]) str {
     }
 
     # allocate our resultant string
-    buf := posix.malloc(sizeof(char) * (total_len + 1)) as! *?char
+    buf := runtime.mem_alloc(sizeof(char) * (total_len + 1)) as! *?char
     assert(buf != null)
 
     # iterate over the elements and append them to our resultant string
@@ -152,7 +135,7 @@ fn join[T where not (gc T)](delim str, v [T]) str {
     }
 
     # allocate our resultant string
-    buf := posix.malloc(sizeof(char) * (total_len + 1)) as! *?char
+    buf := runtime.mem_alloc(sizeof(char) * (total_len + 1)) as! *?char
     assert(buf != null)
 
     # iterate over the elements and append them to our resultant string
@@ -247,51 +230,6 @@ fn resize[T](vector [T], size int, default T) void {
     }
 }
 
-
-[global]
-fn __managed_vector_mark__(vec *var_t) void {
-    # posix.puts("marking vector at 0x" + __str__(vec as int, 16))
-    v := vec as! *ManagedVector
-    var i = 0
-    items := v.items
-    if items != null {
-        while i < v.size {
-            runtime.mark_allocation(items[i])
-            i += 1
-        }
-    }
-}
-
-[global]
-fn __managed_vector_free__(v *var_t) void {
-    let vec = v as! *ManagedVector
-
-    /* the gc will handle cleaning up everything that we pointed to, but we need to free up our
-     * extra allocated heap space. */
-    posix.free(vec.items)
-
-    /* zion will handle deleting the actual vector_t, since it will be attached to the managed
-     * object */
- }
-
-[global]
-fn __native_vector_free__(v *var_t) void {
-    let vec = v as! *(NativeVector *void)
-
-    /* the gc will handle cleaning up everything that we pointed to, but we need to free up our
-     * extra allocated heap space. */
-    posix.free(vec.items)
-
-    /* zion will handle deleting the actual vector_t, since it will be attached to the managed
-     * object */
- }
-
-[global]
-fn __native_vector_mark__(vec *var_t) void {
-    # TODO: make it possible to omit this function from typeinfo above
-}
-
-
 fn __set_vector_item__(vector *ManagedVector, index int, item *var_t) void {
     if index < 0 {
         return
@@ -351,13 +289,13 @@ fn __unsafe_vector_append__[V, I](vector *V, item I) void {
                 new_reserved = 16
             }
 
-            new_items := posix.calloc(sizeof(I), new_reserved) as! *?I
+            new_items := runtime.mem_alloc(sizeof(I) * new_reserved) as! *?I
             assert(new_items != null)
             posix.memcpy(new_items as! *int8, existing_items as! *int8, sizeof(I) * vector.size)
             new_items[vector.size] = item
             vector.size += 1
 
-            posix.free(vector.items)
+            # posix.free(vector.items)
             vector.items = new_items
             vector.reserved = new_reserved
         } else {
@@ -365,7 +303,7 @@ fn __unsafe_vector_append__[V, I](vector *V, item I) void {
             assert(vector.reserved == 0)
 
             reserved := 4
-            items := posix.calloc(sizeof(I), reserved)! as! *I
+            items := runtime.mem_alloc(sizeof(I) * reserved)! as! *I
             items[0] = item
             vector.items = items
 
@@ -386,13 +324,13 @@ fn reserve(vec *ManagedVector, n size_t) {
     if vec.reserved < n {
         let items = vec.items
         if items != null {
-            new_items := posix.calloc(sizeof(*var_t), n)! as! **var_t
+            new_items := runtime.mem_alloc(sizeof(*var_t) * n)! as! **var_t
             posix.memcpy(new_items as! *int8, items as! *int8, sizeof(*var_t) * vec.size)
-            posix.free(items)
+            # posix.free(items)
             vec.items = new_items
             vec.reserved = n
         } else {
-            vec.items = posix.calloc(sizeof(*var_t), n)! as! **var_t
+            vec.items = runtime.mem_alloc(sizeof(*var_t) * n)! as! **var_t
             vec.reserved = n
         }
     }
@@ -404,13 +342,13 @@ fn reserve[T](vec *(NativeVector T), n size_t) {
     if vec.reserved < n {
         let items = vec.items
         if items != null {
-            new_items := posix.calloc(sizeof(T), n)! as! *T
+            new_items := runtime.mem_alloc(sizeof(T) * n)! as! *T
             posix.memcpy(new_items as! *int8, items as! *int8, sizeof(T) * vec.size)
-            posix.free(items)
+            # posix.free(items)
             vec.items = new_items
             vec.reserved = n
         } else {
-            vec.items = posix.calloc(item_size, n)! as! *T
+            vec.items = runtime.mem_alloc(item_size * n)! as! *T
             vec.reserved = n
         }
     }

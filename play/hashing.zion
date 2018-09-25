@@ -1,5 +1,6 @@
 module _
 
-fn main()
-	hash := hash("blah")
-	print(hexdigest(hash))
+fn main() {
+    hash := hash("blah")
+    print(hexdigest(hash))
+}

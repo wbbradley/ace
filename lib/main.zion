@@ -16,6 +16,7 @@ fn main_ret(a ()) int {
 [global]
 fn __main__(argc int32, argv **char) int32 {
     # This is the actual default entry point to every program.
+    runtime.gc_init()
     __set_locale__()
     crypto.init()
 

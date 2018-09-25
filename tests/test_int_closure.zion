@@ -19,5 +19,4 @@ fn bar() {
 
 fn main() {
     bar()
-    runtime.gc()
 }

@@ -1108,26 +1108,6 @@ namespace ast {
 				runnable_scope_t::ref *scope_if_false) const;
 	};
 
-	struct typeinfo_expr_t : public expression_t {
-		typedef ptr<const typeinfo_expr_t> ref;
-
-		static const syntax_kind_t SK = sk_typeinfo_expr;
-		static ptr<typeinfo_expr_t> parse(parse_state_t &ps);
-		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
-		virtual bound_var_t::ref resolve_expression(
-				llvm::IRBuilder<> &builder,
-				scope_t::ref block_scope,
-				life_t::ref life,
-				bool as_ref,
-				types::type_t::ref expected_type) const;
-		virtual void render(render_state_t &rs) const;
-
-		types::type_t::ref type;
-		types::type_t::ref underlying_type;
-		token_t finalize_function;
-		token_t mark_function;
-	};
-
 	struct reference_expr_t : public expression_t, public can_reference_overloads_t {
 		typedef ptr<const reference_expr_t> ref;
 
