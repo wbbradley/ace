@@ -65,14 +65,8 @@ llvm::Value *resolve_init_var(
 	/* assumption here is that init_var has already been unified against the declared type.
 	 * if this function returns an AllocaInst then that will imply that the variable should be
 	 * treated as a ref that can be changed. */
-	llvm::AllocaInst *llvm_alloca;
-	if (is_managed) {
-		/* we need stack space, and we have to track it for garbage collection */
-		llvm_alloca = llvm_call_gcroot(llvm_function, value_type, symbol);
-	} else if (obj.is_let()) {
-		/* we don't need a stack var */
-		llvm_alloca = nullptr;
-	} else {
+	llvm::AllocaInst *llvm_alloca = nullptr;
+	if (!obj.is_let()) {
 		/* we need some stack space because this name is mutable */
 		llvm_alloca = llvm_create_entry_block_alloca(llvm_function, value_type, symbol);
 	}
@@ -127,9 +121,8 @@ llvm::Value *resolve_init_var(
 	}
 
 	if (llvm_alloca == nullptr) {
-		/* this is a native 'let' */
+		/* this is a 'let' */
 		assert(obj.is_let());
-		assert(!is_managed);
 		return llvm_init_value;
 	} else {
 		debug_above(6, log(log_info, "creating a store instruction %s := %s",
@@ -137,14 +130,9 @@ llvm::Value *resolve_init_var(
 					llvm_print(llvm_init_value).c_str()));
 
 		builder.CreateStore(llvm_init_value, llvm_alloca);
-		if (obj.is_let()) {
-			/* this is a managed 'let' */
-			assert(is_managed);
-			return builder.CreateLoad(llvm_alloca);
-		} else {
-			/* this is a native or managed 'var' */
-			return llvm_alloca;
-		}
+		assert(!obj.is_let());
+		/* this is a native or managed 'var' */
+		return llvm_alloca;
 	}
 }
 
@@ -266,9 +254,6 @@ bound_var_t::ref generate_stack_variable(
 			llvm::dyn_cast<llvm::AllocaInst>(llvm_value) ? stack_var_type : value_type,
 			llvm_value,
 			make_type_id_code_id(var_decl.get_location(), var_decl.get_symbol()));
-
-	/* memory management */
-	life->track_var(builder, scope, var_decl_variable, lf_block);
 
 	/* on our way out, stash the variable in the current scope */
 	scope->put_bound_variable(var_decl_variable->name, var_decl_variable);
@@ -1074,151 +1059,6 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 	}
 }
 
-bound_var_t::ref ast::typeinfo_expr_t::resolve_expression(
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		life_t::ref life,
-		bool as_ref,
-		types::type_t::ref expected_type) const
-{
-	auto bindings = scope->get_type_variable_bindings();
-	auto full_type = type->rebind(bindings);
-
-	debug_above(3, log("evaluating typeinfo(%s)", full_type->str().c_str()));
-
-	auto bound_type = upsert_bound_type(builder, scope, full_type);
-	types::type_t::ref expanded_type = full_type->eval(scope, true);
-	debug_above(3, log("type evaluated to %s", expanded_type->str().c_str()));
-
-	/* destructure the structure that this should have */
-	if (auto pointer = dyncast<const types::type_ptr_t>(expanded_type)) {
-		if (auto managed = dyncast<const types::type_managed_t>(pointer->element_type)) {
-			expanded_type = managed->element_type;
-		} else {
-			assert(false);
-			return null_impl();
-		}
-	} else if (auto ref = dyncast<const types::type_ref_t>(expanded_type)) {
-		// bug in not handling this above?
-		assert(false);
-	}
-
-	/* at this point we should have a struct type in expanded_type */
-	if (auto struct_type = dyncast<const types::type_struct_t>(expanded_type)) {
-		bound_type_t::refs args = upsert_bound_types(
-				builder, scope, struct_type->dimensions);
-
-		dbg();
-		// TODO: find the dtor
-		return upsert_type_info(
-				builder,
-				scope,
-				struct_type->repr().c_str(),
-				full_type->get_location(),
-				bound_type,
-				args,
-				nullptr,
-				nullptr);
-	} else if (auto extern_type = dyncast<const types::type_extern_t>(expanded_type)) {
-		/* we need this in order to be able to get runtime type information */
-		auto program_scope = scope->get_program_scope();
-		std::string type_info_var_name = string_format("__type_info_%s",
-				extern_type->inner->repr().c_str());
-		bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
-		/* before we go create this type info, let's see if it already exists */
-		auto bound_type_info = program_scope->get_bound_variable(builder, full_type->get_location(),
-				type_info_var_name);
-
-		if (bound_type_info != nullptr) {
-			/* we've already created this bound type info, so let's just return it */
-			return bound_type_info;
-		}
-
-		/* we have to create it */
-		auto bound_underlying_type = upsert_bound_type(builder, scope, underlying_type);
-
-		auto llvm_linked_type = bound_underlying_type->get_llvm_type();
-		llvm::Module *llvm_module = llvm_get_module(builder);
-
-		/* get references to the functions named by the user */
-		bound_var_t::ref finalize_fn = get_callable(
-				builder,
-				scope,
-				finalize_function.text,
-				finalize_function.location,
-				type_args({var_ptr_type->get_type()}, {}),
-				type_void());
-
-		llvm::Constant *llvm_finalize_fn = llvm::dyn_cast<llvm::Constant>(finalize_fn->get_llvm_value());
-
-		bound_var_t::ref mark_fn = get_callable(
-				builder,
-				scope,
-				mark_function.text,
-				mark_function.location,
-				type_args({var_ptr_type->get_type()}, {}),
-				type_void());
-		llvm::Constant *llvm_mark_fn = llvm::dyn_cast<llvm::Constant>(mark_fn->get_llvm_value());
-
-		bound_type_t::ref type_info = program_scope->get_runtime_type(builder, "type_info_t");
-		bound_type_t::ref type_info_mark_fn = program_scope->get_runtime_type(builder, "type_info_mark_fn_t");
-		llvm::StructType *llvm_type_info_type = llvm::cast<llvm::StructType>(
-				type_info->get_llvm_type());
-
-		llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder, llvm_linked_type);
-		auto signature = full_type->get_signature();
-
-		llvm::Constant *llvm_type_info = llvm_create_constant_struct_instance(
-				llvm_type_info_type,
-				{
-					/* the kind of this type_info */
-					builder.getInt32(type_kind_use_mark_fn),
-
-					/* allocation size */
-					llvm_sizeof_tuple,
-
-					/* name this variable */
-					(llvm::Constant *)builder.CreateGlobalStringPtr(type_info_var_name),
-				});
-
-		llvm::Constant *llvm_type_info_mark_fn = llvm_create_struct_instance(
-				string_format("__type_info_mark_fn_%s", signature.c_str()),
-				llvm_module,
-				llvm::dyn_cast<llvm::StructType>(type_info_mark_fn->get_llvm_type()),
-				{
-					/* the type info header */
-					llvm_type_info,
-
-					/* finalize_fn */
-					llvm_finalize_fn,
-
-					/* mark_fn */
-					llvm_mark_fn,
-				});
-
-		debug_above(5, log(log_info, "llvm_type_info_mark_fn = %s",
-					llvm_print(llvm_type_info_mark_fn).c_str()));
-
-		bound_type_t::ref type_info_ptr_type = program_scope->get_runtime_type(builder, "type_info_t", true /*get_ptr*/);
-		auto bound_type_info_var = bound_var_t::create(
-				INTERNAL_LOC(),
-				type_info_var_name,
-				type_info_ptr_type,
-				llvm::ConstantExpr::getPointerCast(
-					llvm_type_info_mark_fn,
-					type_info_ptr_type->get_llvm_type()),
-				make_iid("type info value"));
-
-		program_scope->put_bound_variable(
-				type_info_var_name,
-				bound_type_info_var);
-		return bound_type_info_var;
-	} else {
-		not_impl();
-		return nullptr;
-	}
-}
-
 bound_var_t::ref ast::reference_expr_t::resolve_condition(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
@@ -1764,7 +1604,6 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 }
 
 bound_var_t::ref create_bound_vector_literal(
-		
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
@@ -4782,11 +4621,6 @@ types::type_t::ref ast::binary_operator_t::resolve_type(scope_t::ref scope, type
 
 types::type_t::ref ast::prefix_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
 	debug_above(6, log_location(log_info, get_location(), "prefix expr type resolution not yet impl"));
-	return nullptr;
-}
-
-types::type_t::ref ast::typeinfo_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	debug_above(6, log_location(log_info, get_location(), "typeinfo type resolution not yet impl"));
 	return nullptr;
 }
 

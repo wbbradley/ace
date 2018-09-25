@@ -510,27 +510,6 @@ ptr<expression_t> literal_expr_t::parse(parse_state_t &ps) {
 	}
 }
 
-ptr<typeinfo_expr_t> typeinfo_expr_t::parse(parse_state_t &ps) {
-	expect_token(tk_lparen);
-	auto typeinfo_expr = ast::create<typeinfo_expr_t>(ps.prior_token);
-	ps.advance();
-	typeinfo_expr->type = types::parse_type(ps, {});
-	chomp_token(tk_comma);
-
-	typeinfo_expr->underlying_type = types::parse_type(ps, {});
-
-	chomp_token(tk_comma);
-	expect_token(tk_identifier);
-	typeinfo_expr->finalize_function = ps.token;
-	ps.advance();
-	chomp_token(tk_comma);
-	expect_token(tk_identifier);
-	typeinfo_expr->mark_function = ps.token;
-	ps.advance();
-	chomp_token(tk_rparen);
-	return typeinfo_expr;
-}
-
 std::vector<ptr<expression_t>> parse_param_list(parse_state_t &ps) {
 	std::vector<ptr<expression_t>> params;
 	chomp_token(tk_lparen);
@@ -564,19 +543,12 @@ namespace ast {
 				switch (ps.token.tk) {
 				case tk_lparen:
 					{
-						auto ref_expr = dyncast<reference_expr_t>(expr);
-
-						if (ref_expr != nullptr && ref_expr->token.text == "typeinfo") {
-							/* override the typeinfo keyword */
-							expr = typeinfo_expr_t::parse(ps);
-						} else {
-							/* function call */
-							auto callsite = create<callsite_expr_t>(ps.token);
-							callsite->params = parse_param_list(ps);
-							callsite->function_expr.swap(expr);
-							assert(expr == nullptr);
-							expr = callsite;
-						}
+						/* function call */
+						auto callsite = create<callsite_expr_t>(ps.token);
+						callsite->params = parse_param_list(ps);
+						callsite->function_expr.swap(expr);
+						assert(expr == nullptr);
+						expr = callsite;
 						break;
 					}
 				case tk_dot:
@@ -1397,22 +1369,6 @@ ptr<function_decl_t> function_decl_t::parse(
 		} else {
 			throw user_error(attributes_location,
 					"the main function may not specify a scope injection module");
-		}
-	}
-
-	if (name == "__finalize__") {
-		if (auto args = dyncast<const types::type_args_t>(function_type->args)) {
-			if (args->args.size() != 1) {
-				throw user_error(function_name->get_location(),
-						"finalizers must only take one parameter");
-			}
-		} else {
-			panic("we should have a type_args_t here");
-		}
-
-		if (!types::is_type_id(function_type->return_type, VOID_TYPE, nullptr)) {
-			throw user_error(function_name->get_location(),
-					"finalizers must return " c_type("void"));
 		}
 	}
 

@@ -529,7 +529,9 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		llvm::StructType *llvm_struct_type = _create_temporary_capture_type(builder, program_scope, scope_name, symbol, loaded_value, captures, llvm_types);
 
 		/* now cast the capture_env to be a pointer to the new closure env type */
-		llvm::Value *llvm_capture_env = builder.CreateBitCast(capture_env->get_llvm_value(), llvm_struct_type->getPointerTo());
+		llvm::Value *llvm_capture_env = builder.CreateBitCast(
+				capture_env->get_llvm_value(),
+			   	llvm_struct_type->getPointerTo());
 		std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{
 			builder.getInt32(0),
 			/* get the last item from the closure env (so far) */
@@ -537,6 +539,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		};
 
 		debug_above(8, log("llvm_capture_env is %s", llvm_print(llvm_capture_env).c_str()));
+
 		/* insert the captured loaded value at the end of the entry block */
 		llvm::Value *llvm_closure_value_pointer = builder.CreateInBoundsGEP(llvm_capture_env, gep_path);
 

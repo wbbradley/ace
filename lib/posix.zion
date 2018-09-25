@@ -14,7 +14,7 @@ link [global] fn isnumber(ch posix.int) bool
 link [global] fn isspace(ch posix.int) bool
 link [global] fn sqrt(x float) float
 link fn random() posix.long
-link fn calloc(cb size_t, size size_t) *?void
+# link fn calloc(cb size_t, size size_t) *?void
 link fn close(fd posix.int) posix.int
 link fn errno() posix.int to __posix_errno
 link fn exit(code posix.int) void
@@ -29,7 +29,7 @@ link fn fprintf(fp *FILE, fmt *char, s *char) posix.int
 link fn fscanf(fp *FILE, fmt *char, s *void) posix.int
 link fn fputs(x *char, fp *FILE) posix.int
 link fn fread(p *void, size size_t, nitems size_t, stream *FILE) size_t
-link fn free(pb *?void) void
+# link fn free(pb *?void) void
 link fn fseek(stream *FILE, offset posix.int, whence posix.int) posix.int
 link fn ftell(stream *FILE) posix.int
 link fn fwrite(p *void, size size_t, nitems size_t, stream *FILE) size_t
@@ -37,7 +37,7 @@ link fn getch() posix.int
 link fn getcwd(_ null) *?char
 link fn getenv(x *char) *?char
 link fn getline(linep **?char, linecapp *int, fp *FILE) posix.int
-link fn malloc(cb size_t) *?void
+# link fn malloc(cb size_t) *?void
 link fn memcmp(dst *void, src *void, n size_t) posix.int
 link fn memcpy(dst *void, src *void, n size_t) *void
 link fn memmove(dst *void, src *void, n size_t) *void
@@ -50,7 +50,7 @@ link fn puts(x *char) posix.int
 link fn qsort(base *void, nel size_t, width size_t, _ fn _(lhs *void, rhs *void) posix.int)
 link fn raise(signal posix.int) posix.int
 link fn read(fileds posix.int, buf *void, nbytes size_t) ssize_t
-link fn realloc(ptr *void, cb size_t) *?void
+# link fn realloc(ptr *void, cb size_t) *?void
 link fn sleep(seconds uint) uint
 link fn strcmp(x *char, y *char) posix.int
 link fn strdup(s *char) *?char

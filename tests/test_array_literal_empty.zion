@@ -9,7 +9,6 @@ fn foo() {
 
 fn main() {
     foo()
-    runtime.gc()
 }
 
 fn get_empty_vector_of_ints() [int] {

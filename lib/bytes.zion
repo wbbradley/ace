@@ -15,13 +15,9 @@ fn alloc(cb int) bytes {
     if cb < 0 {
         assert(false and "attempt to allocate " + cb + " bytes")
     }
-    let pb = posix.calloc(1, cb) as! *?int8
+    let pb = runtime.mem_alloc(cb) as! *?int8
     assert(pb != null)
     return bytes(pb, cb)
-}
-
-fn __finalize__(b bytes) void {
-    posix.free(b.data)
 }
 
 fn __eq__(lhs bytes, rhs bytes) bool {
@@ -43,7 +39,7 @@ fn hexdigest(b bytes) str {
 }
 
 fn hexdigest(data *void, cb size_t) str {
-    let s = posix.malloc(sizeof(char) * (cb * 2 + 1))! as! *char
+    let s = runtime.mem_alloc(sizeof(char) * (cb * 2 + 1))! as! *char
     iter := data as! *uint8
     var j = 0
     for i in range(cb) {

@@ -48,15 +48,8 @@ struct life_t : std::enable_shared_from_this<life_t> {
 
 	std::string str() const;
 
-	/* track a value for later release at a given life_form level */
-	void track_var(
-			llvm::IRBuilder<> &builder,
-			scope_t::ref scope,
-			bound_var_t::ref value,
-			life_form_t track_in_life_form);
-
-	/* track the need to defer a call until the end of a life. expects a callable that takes no parameters and returns
-	 * void. */
+	/* track the need to defer a call until the end of a life. expects a callable that takes no
+	 * parameters and returns void. */
 	void defer_call(
 			llvm::IRBuilder<> &builder,
 			scope_t::ref scope,

@@ -18,6 +18,4 @@ fn main() {
     } else errno {
         print("Failed to open " + __filename__ + " with error " + errno)
     }
-
-    runtime.gc()
 }

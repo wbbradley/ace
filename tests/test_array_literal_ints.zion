@@ -15,7 +15,6 @@ fn main() {
     let y = [1, 2, 3]
     static_print(y)
     print(y)
-    runtime.gc()
     var z = [4, 5, 6]
     static_print([4, 5, 6])
     print(z)

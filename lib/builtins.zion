@@ -25,12 +25,6 @@ type uint8 = unsigned 8
 type CtorID = uint32
 
 type var_t struct {
-    var type_info *type_info_t
-    # and a ref-count of its own
-    var mark int
-    var next *?var_t
-    var prev *?var_t
-    var allocation uint
     var ctor_id CtorID
 
     #
@@ -38,18 +32,7 @@ type var_t struct {
     #
 }
 
-type type_info_t struct {
-    type_kind  int32
-    size       size_t
-    name      *char
-}
-
 type str_literal_t struct {
-    type_info *type_info_t
-    mark int
-    next null
-    prev null
-    allocation uint
     ## DATA
     ctor_id CtorID
     buffer *owning_buffer_literal_t
@@ -58,58 +41,12 @@ type str_literal_t struct {
 }
 
 type owning_buffer_literal_t struct {
-    type_info *type_info_t
-    mark int
-    next null
-    prev null
-    allocation uint
     ctor_id CtorID
     ## DATA
     raw *char
     length uint
 }
 
-type type_info_offsets_t struct {
-    var type_info_head type_info_t
-    var finalize_fn    fn _(v *var_t) void
-    var refs_count     int16
-    var ref_offsets    *int16
-}
-
-type type_info_mark_fn_t struct {
-    var type_info_head type_info_t
-
-    # the destructor for this type, if one exists. NB: if you change the index
-    # of this dimension, update DTOR_INDEX
-    var finalize_fn fn _(v *var_t) void
-
-    # the mark function for this type.
-    var mark_fn fn _(v *var_t) void
-}
-
 type __closure_t FN has {
     fn FN
-}
-
-#   The map for a single function's stack frame.  One of these is
-#   compiled as constant data into the executable for each function.
-#  
-#   Storage of metadata values is elided if the %metadata parameter to
-#   @llvm.gcroot is null.
-type stack_frame_map_t struct {
-    var num_roots int32  # Number of roots in stack frame.
-    var num_meta  int32  # Number of metadata entries.  May be < num_roots.
-}
-
-#   A link in the dynamic shadow stack.  One of these is embedded in
-#   the stack frame of each function on the call stack.
-type stack_entry_t struct {
-    var next *stack_entry_t       # Link to next stack entry (the caller's).
-    var map  *stack_frame_map_t   # Pointer to constant stack_frame_map_t.
-}
-
-type stack_entry_plus_root_t struct {
-    var next  *stack_entry_t       # Link to next stack entry (the caller's).
-    var map   *stack_frame_map_t   # Pointer to constant stack_frame_map_t.
-    var root0 *?void
 }

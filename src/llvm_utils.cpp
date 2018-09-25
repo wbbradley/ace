@@ -201,9 +201,6 @@ bound_var_t::ref create_callsite(
 						return_type, llvm_call_inst,
 						make_type_id_code_id(location, name));
 
-				/* all return values must be tracked since the callee is
-				 * expected to return a ref-counted value */
-				life->track_var(builder, scope, ret, lf_statement);
 				return ret;
 			} else {
 				panic("type args are not type_args_t");
@@ -363,88 +360,6 @@ llvm::AllocaInst *llvm_create_entry_block_alloca(
 	return builder.CreateAlloca(type->get_llvm_specific_type(), nullptr, var_name.c_str());
 }
 
-llvm::AllocaInst *llvm_call_gcroot(
-        llvm::Function *llvm_function,
-        bound_type_t::ref type,
-        std::string var_name)
-{
-    llvm::IRBuilder<> builder(
-            &llvm_function->getEntryBlock(),
-            llvm_function->getEntryBlock().begin());
-
-    /* create the local variable */
-    llvm::AllocaInst *llvm_alloca = builder.CreateAlloca(
-            type->get_llvm_specific_type(), nullptr, var_name.c_str());
-    auto module = llvm_get_module(builder);
-    auto &context = builder.getContext();
-
-    std::vector<llvm::Type *> arg_types;
-    arg_types.push_back(llvm::PointerType::get(
-                llvm::Type::getInt8PtrTy(context), 0));
-    arg_types.push_back(llvm::Type::getInt8PtrTy(context));
-    auto func_type = llvm::FunctionType::get(
-            llvm::Type::getVoidTy(context), arg_types, false);
-
-	module->getOrInsertFunction("llvm.gcroot", func_type);
-
-    llvm::Value *v = builder.CreateBitCast(
-            llvm_alloca, llvm::PointerType::get(
-                llvm::PointerType::get(
-                    llvm::Type::getInt8Ty(context), 0),
-                0));
-
-    std::vector<llvm::Value *> arg_vec;
-    arg_vec.push_back(v);
-    arg_vec.push_back(llvm::Constant::getNullValue(llvm::PointerType::get(
-                    llvm::Type::getInt8Ty(context), 0)));
-    builder.CreateCall(module->getFunction("llvm.gcroot"), arg_vec);
-
-	/* set insertion point to the end of the entry block */
-	auto llvm_terminator_inst = builder.GetInsertBlock()->getTerminator();
-	assert(llvm_terminator_inst != nullptr);
-
-	/* initialize this alloca as null, so that if we want to call runtime.gc somewhere in the middle
-	 * of the function we don't read uninitialized data */
-
-	builder.SetInsertPoint(llvm_terminator_inst);
-	builder.CreateStore(llvm::Constant::getNullValue(type->get_llvm_specific_type()), llvm_alloca);
-
-	// std::cerr << llvm_print(builder.GetInsertBlock()->getParent()) << std::endl;
-    return llvm_alloca;
-}
-
-bound_var_t::ref llvm_stack_map_value(
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-        bound_var_t::ref value)
-{
-#ifdef ZION_DEBUG
-	{
-		bool is_managed;
-		value->type->is_managed_ptr(builder, scope, is_managed);
-		assert(is_managed);
-	}
-#endif
-
-	if (value->type->is_ref(scope)) {
-		return value;
-	}
-
-    llvm::Function *llvm_function = llvm_get_function(builder);
-    auto name = string_format("stack_map.%s", value->name.c_str());
-	/* put this stack variable into the shadow-stack */
-	llvm::AllocaInst *llvm_alloca = llvm_call_gcroot(llvm_function, value->type, name);
-	builder.CreateStore(
-			value->resolve_bound_var_value(scope, builder),
-			llvm_alloca);
-
-	auto bound_type = upsert_bound_type(builder, scope, type_ref(value->type->get_type()));
-	return bound_var_t::create(INTERNAL_LOC(),
-			name, bound_type,
-			llvm_alloca,
-			make_iid(name));
-}
-
 bound_var_t::ref unmaybe_variable(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
@@ -576,36 +491,9 @@ void llvm_create_if_branch(
 void llvm_create_unit_value(llvm::IRBuilder<> &builder, program_scope_t::ref program_scope) {
     bound_type_t::ref unit_type = upsert_bound_type(builder, program_scope, type_unit());
     bound_type_t::ref var_type = program_scope->get_runtime_type(builder, "var_t", false /*get_ptr*/);
-    bound_type_t::ref type_info_type = program_scope->get_runtime_type(builder, "type_info_t", true /*get_ptr*/);
 
     llvm::Module *llvm_module = program_scope->get_llvm_module();
     assert(llvm_module != nullptr);
-
-    debug_above(8, log("creating unit type info"));
-
-    std::string unit_type_info_name = "__internal.unit_type_info";
-    assert(program_scope->get_bound_variable(builder, INTERNAL_LOC(), unit_type_info_name) == nullptr);
-
-    llvm::Constant *llvm_unit_type_info;
-    llvm_unit_type_info = llvm_get_global(
-            llvm_module,
-            unit_type_info_name,
-            llvm_create_constant_struct_instance(
-                llvm::dyn_cast<llvm::StructType>(type_info_type->get_llvm_type()->getPointerElementType()),
-                {
-                llvm_create_int32(builder, type_kind_no_gc),
-                llvm_create_int(builder, 0/*size*/),
-                llvm_create_global_string_constant(builder, *llvm_module, "unit"),
-                }),
-            true /*isConstant*/);
-    program_scope->put_bound_variable(
-            unit_type_info_name,
-            bound_var_t::create(
-                INTERNAL_LOC(),
-                unit_type_info_name,
-                type_info_type,
-                llvm_unit_type_info,
-                make_iid_impl(unit_type_info_name, INTERNAL_LOC())));
 
     debug_above(8, log("creating unit type value"));
     std::string unit_name = "__unit__";
@@ -616,11 +504,6 @@ void llvm_create_unit_value(llvm::IRBuilder<> &builder, program_scope_t::ref pro
             llvm_create_constant_struct_instance(
                 llvm::dyn_cast<llvm::StructType>(var_type->get_llvm_type()),
                 {
-                    llvm_unit_type_info,
-                    llvm_create_int(builder, 0),
-                    llvm::Constant::getNullValue(var_type->get_llvm_type()->getPointerTo()),
-                    llvm::Constant::getNullValue(var_type->get_llvm_type()->getPointerTo()),
-                    llvm_create_int(builder, 0),
                     builder.getInt32(0),
                 }),
             true /*isConstant*/);
@@ -644,37 +527,8 @@ bound_var_t::ref create_global_str(
 	bound_type_t::ref str_type = upsert_bound_type(builder, scope, type_id(make_iid_impl(MANAGED_STR, location)));
 	bound_type_t::ref str_literal_type = program_scope->get_runtime_type(builder, "str_literal_t", true /*get_ptr*/);
 	bound_type_t::ref owning_buffer_literal_type = program_scope->get_runtime_type(builder, "owning_buffer_literal_t", true /*get_ptr*/);
-	bound_type_t::ref type_info_type = program_scope->get_runtime_type(builder, "type_info_t", true /*get_ptr*/);
 
 	llvm::Module *llvm_module = scope->get_llvm_module();
-
-	std::string owning_buffer_type_info_name = "__internal.owning_buffer_literal_type_info";
-	bound_var_t::ref owning_buffer_literal_type_info = program_scope->get_bound_variable(builder, location, owning_buffer_type_info_name);
-	llvm::Constant *llvm_owning_buffer_type_info;
-
-	if (owning_buffer_literal_type_info == nullptr) {
-		debug_above(8, log("creating owning buffer type info"));
-		llvm_owning_buffer_type_info = llvm_get_global(
-				llvm_module,
-				"owning_buffer_literal_type_info",
-				llvm_create_constant_struct_instance(
-					llvm::dyn_cast<llvm::StructType>(
-						type_info_type->get_llvm_type()->getPointerElementType()),
-						{
-							llvm_create_int32(builder, type_kind_no_gc),
-							llvm_create_int(builder, 0/*size*/),
-                            llvm_create_global_string_constant(builder, *llvm_module, "owning-buffer-literal"/*name*/),
-						}),
-				true /*isConstant*/);
-		program_scope->put_bound_variable(owning_buffer_type_info_name, bound_var_t::create(
-					INTERNAL_LOC(),
-					owning_buffer_type_info_name,
-					type_info_type,
-					llvm_owning_buffer_type_info,
-					make_iid_impl(owning_buffer_type_info_name, location)));
-	} else {
-		llvm_owning_buffer_type_info = (llvm::Constant *)owning_buffer_literal_type_info->get_llvm_value();
-	}
 
 	debug_above(8, log("creating owning buffer for string literal \"%s\"", value.c_str()));
 
@@ -689,11 +543,6 @@ bound_var_t::ref create_global_str(
 				llvm_create_constant_struct_instance(
 					llvm::dyn_cast<llvm::StructType>(owning_buffer_literal_type->get_llvm_type()->getPointerElementType()),
 					{
-					llvm_owning_buffer_type_info,
-					llvm_create_int(builder, 0),
-					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
-					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
-					llvm_create_int(builder, 0),
 					builder.getInt32(atomize("OwningBuffer")),
                     llvm_create_global_string_constant(builder, *llvm_module, value),
 					llvm_create_int(builder, value.size()),
@@ -709,33 +558,6 @@ bound_var_t::ref create_global_str(
 		llvm_owning_buffer_literal = (llvm::Constant *)owning_buffer_literal->get_llvm_value();
 	}
 
-	debug_above(8, log("creating str type info for string literal \"%s\"", value.c_str()));
-
-	std::string str_literal_type_info_name = "__internal.str_literal_type_info";
-	bound_var_t::ref str_literal_type_info = program_scope->get_bound_variable(builder, location, str_literal_type_info_name);
-	llvm::Constant *llvm_str_type_info;
-	if (str_literal_type_info == nullptr) {
-		llvm_str_type_info = llvm_get_global(
-				llvm_module,
-				str_literal_type_info_name,
-				llvm_create_constant_struct_instance(
-					llvm::dyn_cast<llvm::StructType>(type_info_type->get_llvm_type()->getPointerElementType()),
-					{
-					llvm_create_int32(builder, type_kind_no_gc),
-					llvm_create_int(builder, 0/*size*/),
-                    llvm_create_global_string_constant(builder, *llvm_module, "string-literal"/*name*/),
-					}),
-				true /*isConstant*/);
-		program_scope->put_bound_variable(str_literal_type_info_name, bound_var_t::create(
-					INTERNAL_LOC(),
-					str_literal_type_info_name,
-					type_info_type,
-					llvm_str_type_info,
-					make_iid_impl(str_literal_type_info_name, location)));
-	} else {
-		llvm_str_type_info = (llvm::Constant *)str_literal_type_info->get_llvm_value();
-	}
-
 	debug_above(8, log("creating str literal \"%s\"", value.c_str()));
 	std::string str_literal_name = string_format("__internal.str_literal_%d", atomize(value));
 	bound_var_t::ref str_literal = program_scope->get_bound_variable(builder, location, str_literal_name);
@@ -748,11 +570,6 @@ bound_var_t::ref create_global_str(
 				llvm_create_constant_struct_instance(
 					llvm::dyn_cast<llvm::StructType>(str_literal_type->get_llvm_type()->getPointerElementType()),
 					{
-					llvm_str_type_info,
-					llvm_create_int(builder, 0),
-					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
-					llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
-					llvm_create_int(builder, 0),
 					builder.getInt32(atomize(MANAGED_STR)),
 					llvm_owning_buffer_literal,
 					llvm_create_int(builder, 0),
@@ -921,7 +738,6 @@ bound_var_t::ref llvm_start_function(
 			llvm::Function::ExternalLinkage, name,
 			scope->get_llvm_module());
 
-	llvm_function->setGC(GC_STRATEGY);
 	llvm_function->setDoesNotThrow();
 
 	/* create the actual bound variable for the fn */
@@ -997,13 +813,6 @@ bound_var_t::ref llvm_create_global_tag(
 {
 	auto program_scope = scope->get_program_scope();
 
-	/* For a tag called "Example" with a type_id of 42, the LLIR should look
-	 * like this:
-	 *
-	 * @__tag_type_info_Example = global %struct.type_info_t { i32 42, i16 -1, i16* null, i8* getelementptr inbounds ([5 x i8], [5 x i8]* @.str, i32 0, i32 0), i16 0 }, align 8
-	 * @__tag_Example = global %struct.tag_t { %struct.type_info_t* @__tag_type_info_Example }, align 8
-	 * @Example = global %struct.var_t* bitcast (%struct.tag_t* @__tag_Example to %struct.var_t*), align 8 */
-
 	bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 	llvm::Type *llvm_var_ptr_type = var_ptr_type->get_llvm_type();
 
@@ -1018,34 +827,7 @@ bound_var_t::ref llvm_create_global_tag(
 	llvm::Constant *llvm_name = llvm_create_global_string_constant(builder, *llvm_module, tag);
 	debug_above(10, log(log_info, "llvm_name is %s", llvm_print(*llvm_name).c_str()));
 
-	bound_type_t::ref type_info_type = program_scope->get_runtime_type(builder, "type_info_t");
-	llvm::StructType *llvm_type_info_type = llvm::dyn_cast<llvm::StructType>(
-			type_info_type->get_llvm_type());
-	assert(llvm_type_info_type != nullptr);
-
-	/* create the type information inside the tag singleton */
-	llvm::Constant *llvm_type_info = llvm_create_struct_instance(
-			std::string("__tag_type_info_") + tag,
-			llvm_module,
-			llvm_type_info_type,
-			{
-			/* the type kind */
-			builder.getInt32(type_kind_no_gc),
-
-			/* size - should always be zero since the type_id is part of this var_t
-			 * as builtin type info. */
-			builder.getInt64(0),
-
-			/* name - for debugging */
-			llvm_name,
-			});
-
 	std::vector<llvm::Constant *> llvm_struct_data_tag = {
-		llvm_type_info,
-		llvm_create_int(builder, 0),
-		llvm::Constant::getNullValue(llvm_tag_struct_type->getPointerTo()),
-		llvm::Constant::getNullValue(llvm_tag_struct_type->getPointerTo()),
-		llvm_create_int(builder, 0),
 		builder.getInt32(atomize(tag)),
 	};
 

@@ -5,31 +5,6 @@
 #include <iostream>
 
 
-struct bound_var_trackable_t : public trackable_t {
-	bound_var_trackable_t(bound_var_t::ref value) : value(value) {
-	}
-
-	const bound_var_t::ref value;
-	
-	std::string str() const override {
-		return value->str();
-	}
-
-	virtual location_t get_location() const override {
-		return value->get_location();
-	}
-
-	virtual void release(llvm::IRBuilder<> &builder, scope_t::ref scope) const override {
-		assert(value->type->is_ref(scope));
-		llvm::AllocaInst *llvm_alloca = llvm::dyn_cast<llvm::AllocaInst>(value->get_llvm_value());
-		/* be sure to null out any stack references as we pass out of scope so that the GC
-		 * can avoid marking this guy */
-		builder.CreateStore(
-				llvm::Constant::getNullValue(llvm_deref_type(llvm_alloca->getType())),
-				llvm_alloca);
-	}
-};
-
 struct defer_call_trackable_t : public trackable_t {
 	defer_call_trackable_t(bound_var_t::ref callable) : callable(callable) {
 	}
@@ -168,45 +143,10 @@ void life_t::defer_call(
 		}
 
 		/* ensure this callable doesn't go away before its used. */
-		values.push_front(std::make_unique<bound_var_trackable_t>(llvm_stack_map_value(builder, scope, callable)));
-
 		values.push_front(std::make_unique<defer_call_trackable_t>(callable));
 	} else {
 		assert(this->former_life != nullptr && "We found a track_in_life_form for a life_form that is not on the stack.");
 		this->former_life->defer_call(builder, scope, callable);
-	}
-}
-
-void life_t::track_var(
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		bound_var_t::ref value,
-		life_form_t track_in_life_form)
-{
-	if (this->life_form == track_in_life_form) {
-		bool is_managed;
-		value->type->is_managed_ptr(builder, scope, is_managed);
-
-		if (!is_managed) {
-			/* we only track managed variables */
-			debug_above(9, log("not tracking %s because it's not managed : %s",
-						value->str().c_str(),
-						value->type->str().c_str()));
-			return;
-		}
-
-		if (value->type->get_type()->eval_predicate(tb_unit, scope)) {
-			debug_above(9, log("not tracking %s because it is the unit type", value->str().c_str()));
-			return;
-		}
-
-		/* ensure there is a slot in the stack map for this heap pointer */
-		value = llvm_stack_map_value(builder, scope, value);
-
-		values.push_back(std::make_unique<bound_var_trackable_t>(value));
-	} else {
-		assert(this->former_life != nullptr && "We found a track_in_life_form for a life_form that is not on the stack.");
-		this->former_life->track_var(builder, scope, value, track_in_life_form);
 	}
 }
 

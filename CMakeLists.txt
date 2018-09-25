@@ -89,7 +89,6 @@ add_executable(zion
 	src/user_error.cpp
 	src/utils.cpp
 	src/var.cpp
-	src/zion_gc_lowering.cpp
 	)
 
 message(STATUS "Using dynamic link options -L${LLVM_LIBRARY_DIR} -lLLVM")

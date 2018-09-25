@@ -11,10 +11,6 @@ fn __getitem__[CharType](buffer OwningBuffer CharType, i uint) CharType {
     return buffer.raw[i]
 }
 
-fn __finalize__(owning_buffer OwningBuffer any) void {
-    posix.free(owning_buffer.raw)
-}
-
 fn OwningBuffer[T where *?char <: T](s T) (OwningBuffer char)? {
     return (s != null
         ? Just(OwningBuffer(s, posix.strlen(s)))

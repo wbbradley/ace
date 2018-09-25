@@ -490,22 +490,13 @@ void compiler_t::emit_built_program(std::string executable_filename) {
 	return;
 }
 
-void run_gc_lowering(
-		llvm::Module *llvm_module,
-		llvm::StructType *llvm_stack_frame_map_type,
-		llvm::StructType *llvm_stack_entry_type)
-{
+void run_gc_lowering(llvm::Module *llvm_module) {
 	assert(llvm_module != nullptr);
-	assert(llvm_stack_frame_map_type != nullptr);
-	assert(llvm_stack_entry_type != nullptr);
 
 	// Create a function pass manager.
 	auto FPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(llvm_module);
 
 	// Add some optimizations.
-	FPM->add(llvm::createZionGCLoweringPass(
-				llvm_stack_entry_type,
-				llvm_stack_frame_map_type));
 
 	bool optimize = false;
 	if (optimize) {
@@ -530,7 +521,6 @@ void run_gc_lowering(
 #endif
 
 		FPM->run(F);
-		F.setGC("shadow-stack");
 	}
 	dump_llir(llvm_module, "jit.llir");
 }
@@ -538,21 +528,7 @@ void run_gc_lowering(
 void compiler_t::lower_program_module() {
 	// Create the JIT.  This takes ownership of the module.
 	llvm::Module *llvm_program_module = llvm_get_program_module();
-
-	auto program_scope = get_program_scope();
-
-	llvm::LLVMContext &llvm_context = llvm_program_module->getContext();
-	llvm::IRBuilder<> builder(llvm_context);
-	auto bound_stack_frame_map_type = program_scope->get_runtime_type(
-			builder, "stack_frame_map_t");
-
-	auto bound_stack_entry_type = program_scope->get_runtime_type(
-			builder, "stack_entry_t");
-
-	run_gc_lowering(
-			llvm_program_module,
-			llvm::dyn_cast<llvm::StructType>(bound_stack_frame_map_type->get_llvm_specific_type()),
-			llvm::dyn_cast<llvm::StructType>(bound_stack_entry_type->get_llvm_specific_type()));
+	run_gc_lowering(llvm_program_module);
 }
 
 int compiler_t::run_program(int argc, char *argv_input[]) {

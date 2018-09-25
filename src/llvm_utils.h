@@ -125,10 +125,6 @@ bound_var_t::ref maybe_load_from_pointer(
 		llvm::IRBuilder<> &builder,
 		ptr<scope_t> scope,
 		bound_var_t::ref var);
-bound_var_t::ref llvm_stack_map_value(
-        llvm::IRBuilder<> &builder,
-        scope_t::ref scope,
-        bound_var_t::ref value);
 bool llvm_value_is_handle(llvm::Value *llvm_value);
 bool llvm_value_is_pointer(llvm::Value *llvm_value);
 llvm::StructType *llvm_find_struct(llvm::Type *llvm_type);
