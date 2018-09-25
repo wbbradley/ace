@@ -7,5 +7,4 @@ get runtime
 fn main() {
     x := "Hello, world."
     print(x)
-    runtime.gc()
 }

@@ -34,7 +34,7 @@ fn len(v [any T]) int {
 
 [global]
 fn __init__[T]() [T] {
-    return runtime.create_var(sizeof([T])) as! [T]
+    return runtime.create_var(sizeof(VectorImpl T)) as! [T]
 }
         
 fn __init_vector__[T](size size_t) [T] {
