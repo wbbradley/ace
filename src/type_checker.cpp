@@ -2979,8 +2979,7 @@ bound_var_t::ref ast::sizeof_expr_t::resolve_expression(
 	/* calculate the size of the object being referenced assume native types */
 	bound_type_t::ref bound_type = upsert_bound_type(builder, scope, type->rebind(scope->get_type_variable_bindings()));
 	bound_type_t::ref size_type = upsert_bound_type(builder, scope->get_program_scope(), type_id(make_iid("size_t")));
-	llvm::Value *llvm_size = llvm_sizeof_type(builder,
-			llvm_deref_type(bound_type->get_llvm_specific_type()));
+	llvm::Value *llvm_size = llvm_sizeof_type(builder, bound_type->get_llvm_specific_type());
 
 	return bound_var_t::create(
 			INTERNAL_LOC(), type->str(), size_type, llvm_size,
