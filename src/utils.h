@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include "location.h"
 
 struct shared_comparator {
     template <typename T>
@@ -21,6 +22,9 @@ bool base64_decode(const std::string &input, char * * const output, size_t * con
 bool regex_exists(std::string input, std::string regex);
 bool regex_match(std::string input, std::string regex);
 
+std::string get_pkg_config_libs(std::string pkg_name);
+std::string shell_get_line(std::string command);
+void check_command_line_text(location_t location, std::string text);
 std::string clean_ansi_escapes_if_not_tty(FILE *fp, std::string out);
 std::string clean_ansi_escapes(std::string out);
 std::string string_formatv(const std::string fmt_str, va_list args);

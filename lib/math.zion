@@ -1,6 +1,9 @@
 module math @1.0
 get posix
 
+link fn log10(x float) float
+link fn pow(x float, y float) float
+
 type Complex has {
     var real float
     var imag float

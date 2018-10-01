@@ -4,8 +4,9 @@ get posix
 
 # On MacOS:
 # brew install libgc
-# TODO: make this more portable
-link in "-L/usr/local/Cellar/bdw-gc/7.6.8/lib -lgc"
+# On Linux:
+# apt-get install libgc-dev
+link in "bdw-gc.pc"
 
 link fn gc_malloc(cb size_t) *?void to GC_malloc
 link fn gc_init() void to GC_init
