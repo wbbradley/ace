@@ -2086,6 +2086,7 @@ bound_var_t::ref type_check_binary_integer_op(
 				builder.CreateShl(llvm_lhs, llvm_rhs),
 				make_iid(function_name + ".value"));
 	} else {
+		log(log_error, "don't know how to %s", function_name.c_str());
 		assert(false);
 	}
 

@@ -1,0 +1,23 @@
+module _
+
+var nums [uint64: uint]
+
+fn fib(n uint64) uint64 {
+    if n <= 1 {
+        return 1
+    }
+    match nums[n] {
+        Just(k) {
+            return k
+        }
+        Nothing {
+            let nn = fib(n - 1) + fib(n - 2)
+            nums[n] = nn
+            return nn
+        }
+    }
+}
+
+fn main() {
+  print(fib(46))
+}

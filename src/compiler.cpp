@@ -457,7 +457,13 @@ void compiler_t::emit_built_program(std::string executable_filename) {
 	}
 	for (auto link_in : link_ins) {
 		auto text = unescape_json_quotes(link_in.text);
-		if (ends_with(text, ".o") || ends_with(text, ".a")) {
+		check_command_line_text(link_in.location, text);
+
+		if (ends_with(text, ".pc")) {
+			/* use pkg-config */
+			std::string package_name = text.substr(0, text.size() - 3);
+			ss << " " << get_pkg_config_libs(package_name);
+		} else if (ends_with(text, ".o") || ends_with(text, ".a")) {
 			std::string resolved = resolve_module_filename(
 					link_in.location,
 					text,
@@ -476,6 +482,7 @@ void compiler_t::emit_built_program(std::string executable_filename) {
 
 	/* compile the bitcode into a local machine executable */
 	errno = 0;
+	assert(ss.str().find("\n") == std::string::npos);
 	int ret = system(ss.str().c_str());
 	if (ret != 0) {
 		throw user_error(location_t{}, "failure (%d) when running: %s",

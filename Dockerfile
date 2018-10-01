@@ -16,6 +16,7 @@ RUN apt-get update -y && apt-get install -y \
 	gdb \
 	cmake \
 	libedit-dev \
+	pkg-config \
 	build-essential \
 	libsodium-dev \
 	clang-5.0 \
@@ -27,7 +28,8 @@ RUN apt-get update -y && apt-get install -y \
 	libc++-helpers \
 	libstdc++-4.8-dev \
 	libz-dev \
-	libncurses5-dev
+	libncurses5-dev \
+	libgc-dev
 
 # Make sure llvm-link and clang are linked to be available without version numbers
 RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-link-5.0 100 \
