@@ -230,7 +230,6 @@ bool test_lex_syntax() {
 		{"with", {tk_identifier}},
 		{"typeid", {tk_identifier}},
 		{"else", {tk_identifier}},
-		{"elif", {tk_identifier}},
 		{"break", {tk_identifier}},
 		{"breakfast", {tk_identifier}},
 		{"continue", {tk_identifier}},
@@ -416,7 +415,7 @@ bool test_parse_if_else() {
 			"fn min(m int, n int) int {\n"
 			"if n < m {\n"
 			"return n\n"
-			"} elif m < n {\n"
+			"} else if m < n {\n"
 			"return m\n"
 			"} else {\n"
 			"return m\n"

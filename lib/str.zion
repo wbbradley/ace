@@ -85,7 +85,7 @@ fn __gt__(x str, y str) bool {
 
     if ret < 0 {
         return false
-    } elif ret > 0 {
+    } else if ret > 0 {
         return true
     } else {
         return x.length > y.length
@@ -98,7 +98,7 @@ fn __gte__(x str, y str) bool {
 
     if ret < 0 {
         return false
-    } elif ret > 0 {
+    } else if ret > 0 {
         return true
     } else {
         return x.length >= y.length
@@ -111,7 +111,7 @@ fn __lt__(x str, y str) bool {
 
     if ret < 0 {
         return true
-    } elif ret > 0 {
+    } else if ret > 0 {
         return false
     } else {
         return x.length < y.length
@@ -124,7 +124,7 @@ fn __lte__(x str, y str) bool {
 
     if ret < 0 {
         return true
-    } elif ret > 0 {
+    } else if ret > 0 {
         return false
     } else {
         return x.length <= y.length

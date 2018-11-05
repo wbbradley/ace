@@ -1,53 +1,168 @@
 module _
 
-link type Set to UniqueTree
+type Color is {
+    Red
+    Black
+}
 
-type UniqueTree{Data} is
-    Nothing or
-    Leaf{data Data} or
-    Node{data Data, left Tree, right Tree}
+type Set DD is {
+    Empty
+    Node(color Color, left Set DD, data DD, right Set DD)
+}
 
-fn set_insert(named coll any Collection, value) bool
-    # first check whether this value is in the tree already
-    if exists(coll, value)
-        return false
-    else
-        # update the named tree variable
-        coll = copy_with_insertion(coll, value)
-        return true
 
-fn exists(tree UniqueTree{any Data}, value any Data} bool
-    match tree
-        case Nothing
-            return false
+fn ins[T](s Set T, x T) Set T {
+    match s {
+        Empty => return Node(Red, Empty, x, Empty)
+        Node(color, a, y, b) {
+            if x < y {
+                return balance(color, ins(a, x), y, b)
+            } else if y < x {
+                return balance(color, a, y, ins(b, x))
+            } else {
+                return s
+            }
+        }
+    }
+}
 
-        case Leaf(value)
-            # first match the actual value
-            return true
+fn set_insert[T](coll Set T, value T) Set T {
+    return match ins(coll, value) {
+        Empty => Empty
+        Node(_, a, y, b) => Node(Black, a, y, b)
+    }
+}
 
-        case Node(value, any, any)
-            return true
+fn balance[T](color Color, left Set T, v T, right Set T) Set T {
+    return match (color, left, v, right) {
+        (Black, Node(Red, Node(Red, a, x, b), y, c), z, d) => Node(Red, Node(Black, a, x, b), y, Node(Black, c, z, d))
+        (Black, Node(Red, a, x, Node(Red, b, y, c)), z, d) => Node(Red, Node(Black, a, x, b), y, Node(Black, c, z, d))
+        (Black, a, x, Node(Red, Node(Red, b, y, c), z, d)) => Node(Red, Node(Black, a, x, b), y, Node(Black, c, z, d))
+        (Black, a, x, Node(Red, b, y, Node(Red, c, z, d))) => Node(Red, Node(Black, a, x, b), y, Node(Black, c, z, d))
+    } else => Node(color, left, v, right)
+}
 
-        case Node(any, left, right)
-            return exists(left, value) or exists(right, value)
+fn exists[D](tree Set D, value D) bool {
+    match tree {
+        Empty => return false
+        Just(Node(_, v, left, right)) {
+            if value < v {
+                return exists(right, value)
+            } else if v < value {
+                return exists(left, value)
+            } else {
+                # Assume a total order to the values
+                return true
+            }
+        }
+    }
+}
 
-    return false
+[global]
+fn str[D](s Set D) str {
+    var string = "{"
+    var delim = ""
+    for x in s {
+        string += delim
+        string += str(x)
+        delim = ", "
+    }
+    return string + "}"
+}
 
-fn copy_with_insertion(tree UniqueTree{any Data}, value any Data) 
-    match tree
-        case Nothing
-            # this node is empty, we can just replace it with a leaf of our
-            # value
-            return Leaf(value)
+type SetIter D has {
+    var stack [(Set D, bool)]
+}
 
-        case Leaf(data)
-            if data > value
-                return Node(data, Leaf(value), Nothing)
-            else
-                return Node(data, Nothing, Leaf(value))
-        
-        case Node(data, left, right)
-            if data > value
-                return Node(data, copy_with_insertion(left, value), right)
-            else
-                return Node(data, copy_with_insertion(left, value), right)
+[global]
+fn __iter__[D](s Set D) SetIter D {
+    let stack [(Set D, bool)]
+    find_first(stack, s, true)
+    return SetIter(stack)
+}
+
+fn find_first[D](stack [(Set D, bool)], s Set D, from_right bool) {
+    var p = s
+    while match p {
+        Empty => break
+        Node(_, Empty, v, _) {
+            append(stack, (p, from_right))
+            break
+        }
+        Node(_, left, v, _) {
+            append(stack, (p, from_right))
+            p = left
+            from_right = false
+        }
+    }
+}
+
+[global]
+fn __next__[D](iter SetIter D) D? {
+    var l = len(iter.stack)
+    if l == 0 {
+        return Nothing
+    }
+
+    stopper := (Empty, false)
+    cur_pair := last(iter.stack, stopper)
+
+    from_right := cur_pair[1]
+    if not from_right {
+        let tail = cur_pair[0]
+        match tail {
+            Empty {
+                assert(false)
+                # __unreachable__
+                return Just(3)
+            }
+            Node(_, left, d, Empty) {
+                iter.stack = iter.stack[0:l-1]
+                assert(len(iter.stack) == l-1)
+                return Just(d)
+            }
+            Node(_, left, d, right) {
+                # we will want to return d
+                # Find the next position for the next iteration
+                find_first(iter.stack, right, true)
+                return Just(d)
+            }
+        }
+    } else {
+        let tail = cur_pair[0]
+        match tail {
+            Empty { assert(false) }
+            Node(_, _, d, Empty) {
+
+                # we're at the end of a right branch with no more right branches below us
+                # go up all tail right branches, and then 1 left branch. leave the iterator there,
+                # and return d.
+
+                while true {
+                    back := last(iter.stack, stopper)
+                    if back[1] {
+                        l -= 1
+                        iter.stack = iter.stack[0:l]
+                        assert(len(iter.stack) == l)
+                    } else {
+                        if l == 0 {
+                            assert(len(iter.stack) == 0)
+                        } else {
+                            l -= 1
+                            iter.stack = iter.stack[0:l]
+                            assert(len(iter.stack) == l)
+                        }
+                        return Just(d)
+                    }
+                }
+                __unreachable__
+            }
+            Node(_, _, d, right) {
+                find_first(iter.stack, right, true)
+                return Just(d)
+            }
+        }
+        return Nothing
+    }
+}
+

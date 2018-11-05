@@ -15,7 +15,6 @@ bool is_restricted_var_name(std::string x) {
 		"break",
 		"continue",
 		"fn",
-		"elif",
 		"else",
 		"false",
 		"float",

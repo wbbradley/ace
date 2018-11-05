@@ -838,10 +838,6 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
                     function_var->str().c_str()));
     }
 
-    debug_above(10, log(log_info, "module dump from %s\n%s",
-                __PRETTY_FUNCTION__,
-                llvm_print_module(*llvm_get_module(builder)).c_str()));
-
     if (!all_paths_return) {
         /* not all control paths return */
         if (needs_type_fixup) {

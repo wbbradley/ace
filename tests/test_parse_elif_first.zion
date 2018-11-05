@@ -1,7 +1,0 @@
-module _
-
-fn main() {
-    # error: this squiggly
-    elif true {
-    }
-}
