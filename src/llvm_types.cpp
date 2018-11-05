@@ -952,8 +952,6 @@ bound_var_t::ref get_or_create_tuple_ctor(
 	/* bind the ctor to the program scope */
 	scope->get_program_scope()->put_bound_variable(name, function);
 
-	debug_above(10, log(log_info, "module so far is:\n" c_ir("%s"), llvm_print_module(
-					*llvm_get_module(builder)).c_str()));
 	return function;
 }
 

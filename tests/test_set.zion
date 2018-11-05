@@ -1,0 +1,21 @@
+module test_set
+# test: pass
+# expect: 1, 2, 3, 30, 35, 40, 50
+
+get set {set_insert, Empty}
+
+fn main() {
+    test()
+}
+
+fn test() {
+    var s = set_insert(Empty, 3)
+    s = set_insert(s, 2)
+    s = set_insert(s, 1)
+    s = set_insert(s, 35)
+    s = set_insert(s, 30)
+    s = set_insert(s, 40)
+    s = set_insert(s, 50)
+    print(s)
+}
+

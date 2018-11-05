@@ -4020,7 +4020,7 @@ void ast::if_block_t::resolve_statement(
 
 	bool if_block_returns = false, else_block_returns = false;
 
-	assert(token.text == "if" || token.text == "elif" || token.text == "assert");
+	assert(token.text == "if" || token.text == "assert");
 	bound_var_t::ref condition_value;
 
 	auto cond_life = life->new_life(lf_statement);

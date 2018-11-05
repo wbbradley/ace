@@ -6,40 +6,44 @@ type Tree{T} has
     var right Tree{T}?
 
 fn insert(tree Tree{any T}?, value any T) Tree{any T}
-    if tree
-        if value > tree.value
+    if tree {
+        if value > tree.value {
             inserted_right := insert(tree.right, value)
-            if inserted_right is tree.right
+            if inserted_right is tree.right {
                 # this value already exists, just return the existing tree
                 return tree
-            else
+            } else {
                 return Tree(tree.left, tree.value, inserted_right)
-        elif tree.value > value
+            } else if tree.value > value {
             inserted_left := insert(tree.left, value)
-            if inserted_left is tree.left
+            if inserted_left is tree.left {
                 # this value already exists, just return the existing tree
                 return tree
-            else
+            } else {
                 return Tree(inserted_left, tree.value, tree.right)
-        else
+            }
+        } else {
             # this value already exists, just return the existing tree
             return tree
-    else
+        }
+    } else {
         return Tree(null, value, null)
+    } 
+}
 
 [module std]
-fn str(tree Tree{any T}?) str
+fn str(tree Tree{any T}?) str {
     s := "["
     sep := ""
     comma := ", "
-    if tree
-        if left := tree.left
+    if tree {
+        if left := tree.left {
             s += str(left)
             sep = comma
         s += sep
         s += str(tree.value)
         sep = comma
-        if right := tree.right
+        if right := tree.right {
             s += sep
             s += str(right)
     s += "]"

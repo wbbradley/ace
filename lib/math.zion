@@ -71,7 +71,7 @@ fn sum_of_squares(N int) int {
 fn gcd(x int, y int) int {
     if x == y {
         return x
-    } elif x < y {
+    } else if x < y {
         return gcd(x, y - x)
     } else {
         return gcd(x - y, y)

@@ -33,6 +33,16 @@ fn len(v [any T]) int {
 }
 
 [global]
+fn last[T](v [T], default T) T {
+    l := len(v)
+    if l == 0 {
+        return default
+    } else {
+        return v[l-1]
+    }
+}
+
+[global]
 fn __init__[T]() [T] {
     return runtime.create_var(sizeof(VectorImpl T)) as! [T]
 }
@@ -218,7 +228,7 @@ fn resize[T](vector [T], size int, default T) void {
 
     if vec.size == size {
         return
-    } elif vec.size < size {
+    } else if vec.size < size {
         # grow the vector
         reserve(vec, size)
         while vec.size < size {

@@ -90,7 +90,6 @@ K(break);
 K(continue);
 K(defer);
 K(fn);
-K(elif);
 K(else);
 K(for);
 K(global);

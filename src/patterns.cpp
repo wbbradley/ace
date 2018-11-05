@@ -446,6 +446,7 @@ bool ast::ctor_predicate_t::resolve_match(
 				llvm_function_current);
 		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 		builder.SetInsertPoint(check_block);
+		// TODO: allow as_ref below to be true
 		bound_var_t::ref member = extract_member_by_index(
 				builder,
 				scope,

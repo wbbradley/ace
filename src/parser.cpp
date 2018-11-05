@@ -21,6 +21,7 @@ bool token_begins_type(const token_t &token) {
 	case tk_string:
 	case tk_times:
 	case tk_lsquare:
+	case tk_lparen:
 	case tk_identifier:
 		return true;
 	default:
@@ -1093,10 +1094,10 @@ ptr<block_t> block_t::parse(parse_state_t &ps, bool expression_means_return) {
 
 ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 	auto if_block = create<ast::if_block_t>(ps.token);
-	if (ps.token.is_ident(K(if)) || ps.token.is_ident(K(elif))) {
+	if (ps.token.is_ident(K(if))) {
 		ps.advance();
 	} else {
-		throw user_error(ps.token.location, "expected if or elif");
+		throw user_error(ps.token.location, "expected if");
 	}
 
 	token_t condition_token = ps.token;
@@ -1112,22 +1113,20 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 
 	if_block->block = block_t::parse(ps);
 
-	/* check the successive instructions for elif or else */
-	if (ps.token.is_ident(K(elif))) {
-		if (ps.prior_token.tk == tk_rcurly) {
-			if (ps.line_broke()) {
-				throw user_error(ps.token.location, "elif cannot be the first word on a line (end the prior block on the same line before the elif)");
-			}
-		}
-		if_block->else_ = if_block_t::parse(ps);
-	} else if (ps.token.is_ident(K(else))) {
-		if (ps.prior_token.tk == tk_rcurly) {
-			if (ps.line_broke()) {
-				throw user_error(ps.token.location, "else cannot be the first word on a line (end the prior block on the same line before the else)");
-			}
+	/* check the successive instructions for "else if" or else */
+	if (ps.token.is_ident(K(else))) {
+		if (ps.line_broke() && if_block->block->token.tk != tk_expr_block) {
+			throw user_error(ps.token.location, "else must be on the same line as the prior closing squiggly");
 		}
 		ps.advance();
-		if_block->else_ = block_t::parse(ps);
+		if (ps.token.is_ident(K(if))) {
+			if (ps.line_broke()) {
+				throw user_error(ps.token.location, "else if must be on the same line");
+			}
+			if_block->else_ = if_block_t::parse(ps);
+		} else {
+			if_block->else_ = block_t::parse(ps);
+		}
 	}
 
 	return if_block;
@@ -1135,20 +1134,29 @@ ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 
 ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {
 	auto while_block = create<ast::while_block_t>(ps.token);
+	auto while_token = ps.token;
 	chomp_ident(K(while));
 	token_t condition_token = ps.token;
-	auto expr = expression_t::parse(ps);
-	if (auto condition = dyncast<const expression_t>(expr)) {
-		while_block->condition = condition;
-	} else if (auto var_decl = dyncast<const var_decl_t>(expr)) {
-		while_block->condition = var_decl;
+	if (condition_token.is_ident(K(match))) {
+		/* sugar for while match ... which becomes while true { match ... } */
+		auto true_token = token_t{while_token.location, tk_identifier, "true"};
+		while_block->condition = create<reference_expr_t>(true_token);
+		while_block->block = create<block_t>(while_token);
+		while_block->block->statements.push_back(match_expr_t::parse(ps));
 	} else {
-		throw user_error(condition_token.location,
-				"while conditions are limited to expressions or variable definitions");
-	}
+		auto expr = expression_t::parse(ps);
+		if (auto condition = dyncast<const expression_t>(expr)) {
+			while_block->condition = condition;
+		} else if (auto var_decl = dyncast<const var_decl_t>(expr)) {
+			while_block->condition = var_decl;
+		} else {
+			throw user_error(condition_token.location,
+					"while conditions are limited to expressions or variable definitions");
+		}
 
-	auto block = block_t::parse(ps);
-	while_block->block = block;
+		auto block = block_t::parse(ps);
+		while_block->block = block;
+	}
 	return while_block;
 }
 
