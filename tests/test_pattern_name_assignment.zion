@@ -1,0 +1,20 @@
+module _
+
+# test: pass
+# expect: 28.00
+
+type MathThing is {
+    Number(x float)
+    Vector(x MathThing, y MathThing)
+    Scaled(x float, m MathThing)
+}
+
+fn first_value(mt MathThing) float => match mt {
+    Number(x) => x
+    Vector(x@Number(_), y@Number(_)) => first_value(x)
+    Scaled(x, m) => x * first_value(m)
+} else => 0.0
+
+fn main() {
+    print(first_value(Scaled(2.0, Vector(Number(14.0), Number(2.0)))))
+}

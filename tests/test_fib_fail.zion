@@ -1,4 +1,4 @@
-module fib @1.0
+module fib
 
 fn get(n int) int {
     if n <= 2 {

@@ -53,9 +53,10 @@ fn print[T where not(T <: Maybe any) and (T === str)](x T) {
     write(stdout, "\n")
 }
 
-fn panic(x str) {
+fn panic(x str) ⊥ {
     write(stderr, x)
     posix.exit(-1)
+    __unreachable__
 }
 
 fn breakpoint() {

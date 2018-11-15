@@ -165,7 +165,7 @@ bool test_lex_functions() {
 bool test_lex_module_stuff() {
 	lexer_tests tests = {
 		{"module modules", {tk_identifier, tk_identifier}},
-		{"module modules @1.0.2", {tk_identifier, tk_identifier, tk_version}},
+		{"module modules", {tk_identifier, tk_identifier}},
 		{"get foo", {tk_identifier, tk_identifier}},
 	};
 	return lexer_test(tests);
@@ -191,6 +191,7 @@ bool test_lex_operators() {
 		{"a << b", {tk_identifier, tk_shift_left, tk_identifier}},
 		{"a >> b", {tk_identifier, tk_shift_right, tk_identifier}},
 		{"^", {tk_hat}},
+		{"@", {tk_about}},
 		{"a|b", {tk_identifier, tk_pipe, tk_identifier}},
 	};
 	return lexer_test(tests);
@@ -326,11 +327,11 @@ bool check_parse(std::string text, std::string filename = test_module_name) {
  * PARSER TESTS
  */
 bool test_parse_minimal_module() {
-	return check_parse<ast::module_t>("module minimal @0.1.0");
+	return check_parse<ast::module_t>("module minimal");
 }
 
 bool test_parse_module_one_function() {
-	return check_parse<ast::module_t>("module foobar @0.1.0\n\nfn foo() {\n }");
+	return check_parse<ast::module_t>("module foobar\n\nfn foo() {\n }");
 }
 
 ptr<ast::binary_operator_t> make_one_plus_two() {
@@ -351,7 +352,7 @@ bool test_parse_return_integer_add() {
 
 bool test_parse_module_function_with_return_plus_expr() {
 	return check_parse<ast::module_t>(
-			"module foobar @0.1.0\nfn foo() {\nreturn 1 + 2\n}");
+			"module foobar\nfn foo() {\nreturn 1 + 2\n}");
 }
 
 bool test_parse_math_expression() {
@@ -401,7 +402,7 @@ bool test_parse_mixed_precedences() {
 
 bool test_parse_recursive_function_call() {
 	return check_parse<ast::module_t>(
-		   	"module math @1.0\n"
+		   	"module math\n"
 			"fn fib(n int) int {\n"
 			"if n < 2 {\n"
 			"return n\n"
@@ -411,7 +412,7 @@ bool test_parse_recursive_function_call() {
 
 bool test_parse_if_else() {
 	return check_parse<ast::module_t>(
-		   	"module minmax @1.0\n"
+		   	"module minmax\n"
 			"fn min(m int, n int) int {\n"
 			"if n < m {\n"
 			"return n\n"
@@ -461,19 +462,19 @@ bool test_parse_empty_quote() {
 
 bool test_parse_link_extern_module_with_link_as() {
 	return check_parse<ast::module_t>(
-		   	"module www @1.0.0\n"
-			"get http @1.0.0 as http1\n");
+		   	"module www\n"
+			"get http as http1\n");
 }
 
 bool test_parse_link_extern_module() {
 	return check_parse<ast::module_t>(
-		   	"module www @1.0.0\n"
-			"get http @7.0.0\n");
+		   	"module www\n"
+			"get http\n");
 }
 
 bool test_parse_link_extern_function() {
 	return check_parse<ast::module_t>(
-		   	"module www @1.3.2\n"
+		   	"module www\n"
 			"link fn open(filename str, mode str) int\n");
 }
 

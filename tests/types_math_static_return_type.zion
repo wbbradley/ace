@@ -1,4 +1,4 @@
-module types_math_static_return_type @1.0
+module types_math_static_return_type
 
 fn subfunction() int
     return "hey, this should fail"

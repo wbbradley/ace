@@ -153,11 +153,15 @@ bound_var_t::ref generate_stack_variable(
 	assert(dyncast<runnable_scope_t>(scope) != nullptr);
 
 	if (var_decl.initializer != nullptr) {
+		bool returns = false;
 		/* we have an initializer */
-		init_var = var_decl.initializer->resolve_expression(builder, scope, life, false /*as_ref*/, declared_type);
+		init_var = var_decl.initializer->resolve_expression(builder, scope, life, false /*as_ref*/, declared_type, &returns);
 		if (init_var->type->is_void(scope)) {
 			throw user_error(var_decl.get_location(),
 					"cannot initialize a variable with void, since it has no value");
+		} else if (init_var->type->is_bottom(scope) || returns) {
+			throw user_error(var_decl.get_location(),
+					"this variable will never be initialized because the right-hand side will not pass control back to this function");
 		}
 	}
 
@@ -346,9 +350,11 @@ bound_var_t::ref upsert_module_variable(
 			->new_life(lf_statement));
 
 	if (var_decl.initializer) {
+		bool returns = false;
 		/* we have an initializer */
 		init_var = var_decl.initializer->resolve_expression(builder,
-				function_scope, life, false /*as_ref*/, declared_type);
+				function_scope, life, false /*as_ref*/, declared_type, &returns);
+		assert(!returns);
 	}
 
 	if (init_var != nullptr) {
@@ -653,7 +659,7 @@ void ast::expression_t::resolve_statement(
 		bool *returns) const
 {
 	/* expressions as statements just pass through to evaluating the expr */
-	resolve_expression(builder, scope, life, false /*as_ref*/, nullptr);
+	resolve_expression(builder, scope, life, false /*as_ref*/, nullptr, returns);
 }
 
 void ast::link_module_statement_t::resolve_statement(
@@ -704,7 +710,8 @@ bound_var_t::ref ast::link_var_statement_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	assert(!as_ref);
 	assert(expected_type == nullptr);
@@ -722,7 +729,8 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	assert(expected_type == nullptr);
 	assert(!as_ref);
@@ -801,17 +809,23 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 		life_t::ref life,
 		const ptr<const ast::item_t> &callsite,
 		const bound_type_t::refs &args,
-		types::type_t::ref return_type) const
+		types::type_t::ref return_type,
+		bool *returns) const
 {
 	INDENT(5, string_format(
 				"dot_expr_t::resolve_overrides for %s with %s -> %s",
 				callsite->str().c_str(),
 				::str(args).c_str(),
 				return_type != nullptr ? return_type->str().c_str() : c_type("any")));
+	assert(returns != nullptr);
 
 	/* check the left-hand side first, it should be a type_namespace */
 	bound_var_t::ref lhs_var = lhs->resolve_expression(
-			builder, scope, life, false /*as_ref*/, nullptr);
+			builder, scope, life, false /*as_ref*/, nullptr, returns);
+
+	if (*returns) {
+		throw user_error(lhs->get_location(), "the call to this value will never happen because computing this value breaks control flow");
+	}
 
 	if (auto bound_module = dyncast<const bound_module_t>(lhs_var)) {
 		assert(bound_module->module_scope != nullptr);
@@ -827,7 +841,7 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 				args,
 				type_variable(INTERNAL_LOC()));
 		bound_var_t::ref bound_fn = this->resolve_expression(builder, scope, life, false /*as_ref*/,
-				target_function_type);
+				target_function_type, returns);
 
 		// dbg_when(dyncast<const types::type_function_closure_t>(bound_fn->type->get_type()) != nullptr);
 		unification_t unification = unify(
@@ -922,7 +936,11 @@ void ast::callsite_expr_t::resolve_statement(
 						return;
 					}
 				}
-				bound_var_t::ref param_var = param->resolve_expression(builder, scope, life, true /*as_ref*/, nullptr);
+				bound_var_t::ref param_var = param->resolve_expression(builder, scope, life, true /*as_ref*/, nullptr, returns);
+				if (*returns) {
+					throw user_error(param->get_location(), "parameter to static_print breaks control flow");
+				}
+
 				log_location(log_info, param->get_location(),
 						"%s : %s%s",
 						param->str().c_str(),
@@ -944,7 +962,7 @@ void ast::callsite_expr_t::resolve_statement(
 		}
 	}
 
-	resolve_expression(builder, scope, life, false /*as_ref*/, nullptr);
+	resolve_expression(builder, scope, life, false /*as_ref*/, nullptr, returns);
 }
 
 bound_var_t::ref ast::callsite_expr_t::resolve_expression(
@@ -952,8 +970,11 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
+	assert(returns != nullptr);
+
 	try {
 		indent_logger indent(get_location(), 5,
 			   	string_format("resolving callsite expression of %s with expected type %s",
@@ -970,11 +991,16 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 		for (size_t j = 0; j < params.size(); ++j) {
 			auto param = params[j];
 			if (!dyncast<const ast::function_defn_t>(param)) {
+				bool param_returns = false;
 				bound_var_t::ref param_var = param->resolve_expression(
-						builder, scope, life, false /*as_ref*/, nullptr);
+						builder, scope, life, false /*as_ref*/, nullptr, &param_returns);
 
 				if (param_var->type->is_void(scope)) {
 					throw user_error(param->get_location(), "function parameters cannot be void");
+				}
+
+				if (param_returns || param_var->type->is_bottom(scope)) {
+					throw user_error(param->get_location(), "function parameters cannot be the bottom type (⊥)");
 				}
 
 				arguments.push_back(param_var);
@@ -1017,9 +1043,15 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 					auto expected_type_for_arg = get_arg_from_function(function_type, j);
 					debug_above(7, log(log_info, "resolving parameter %d with expected type %s",
 								j, expected_type_for_arg ? expected_type_for_arg->str().c_str() : "<null>"));
+					bool param_returns = false;
 					bound_var_t::ref param_var = param->resolve_expression(
 							builder, scope, life, false /*as_ref*/,
-							expected_type_for_arg);
+							expected_type_for_arg,
+							&param_returns);
+
+					if (param_returns || param_var->type->is_bottom(scope)) {
+						throw user_error(param->get_location(), "function parameters cannot be the bottom type (⊥)");
+					}
 
 					debug_above(6, log("argument %s -> %s", param->str().c_str(), param_var->type->str().c_str()));
 
@@ -1042,15 +1074,28 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 			bound_var_t::ref function = can_reference_overloads->resolve_overrides(
 					builder, scope, life, shared_from_this(),
 					bound_type_t::refs_from_vars(arguments),
-					expected_type);
+					expected_type,
+					returns);
+			assert(!*returns);
 
 			debug_above(5, log(log_info, "function chosen is %s", function->str().c_str()));
 
-			return make_call_value(builder, get_location(), scope, life, function, arguments);
+			auto value = make_call_value(builder, get_location(), scope, life, function, arguments);
+			if (value->type->is_bottom(scope)) {
+				*returns = false;
+			}
+			return value;
 		} else {
 			bound_var_t::ref lhs_value = function_expr->resolve_expression(builder, scope, life, false /*as_ref*/,
-					type_function_closure(type_variable(INTERNAL_LOC())));
-			return make_call_value(builder, get_location(), scope, life, lhs_value, arguments);
+					type_function_closure(type_variable(INTERNAL_LOC())), returns);
+			if (*returns) {
+				throw user_error(get_location(), "callsite will never get called because function value breaks control flow");
+			}
+			auto value = make_call_value(builder, get_location(), scope, life, lhs_value, arguments);
+			if (value->type->is_bottom(scope)) {
+				*returns = true;
+			}
+			return value;
 		}
 	} catch (user_error &e) {
 		std::throw_with_nested(user_error(log_info, 
@@ -1076,7 +1121,8 @@ bound_var_t::ref ast::reference_expr_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	return resolve_reference(builder, scope, life, as_ref, expected_type, nullptr, nullptr);
 }
@@ -1196,7 +1242,8 @@ bound_var_t::ref ast::array_index_expr_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	return resolve_assignment(builder, scope, life, as_ref, nullptr, expected_type);
 }
@@ -1255,7 +1302,11 @@ bound_var_t::ref resolve_pointer_array_index(
 					make_iid_impl("dereferenced.pointer", lhs_val->get_location()));
 		} else {
 			/* we are assigning to a native pointer dereference */
-			auto value = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, element_type);
+			bool returns = false;
+			auto value = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, element_type, &returns);
+			if (returns) {
+				throw user_error(rhs->get_location(), "term breaks control flow");
+			}
 			llvm::Value *llvm_value = coerce_value(builder, scope, life, lhs->get_location(), element_type, value);
 			builder.CreateStore(llvm_value, llvm_gep);
 			return nullptr;
@@ -1453,8 +1504,13 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 		as_ref = true;
 	}
 
+	bool returns = false;
 	bound_var_t::ref lhs_val = lhs->resolve_expression(builder,
-			scope, life, false /*as_ref*/, nullptr);
+			scope, life, false /*as_ref*/, nullptr, &returns);
+	if (returns) {
+		throw user_error(lhs->get_location(), "term breaks control flow");
+	}
+
 	if (auto tuple_type = dyncast<const types::type_tuple_t>(lhs_val->type->get_type())) {
 		int member_index = get_constant_int(start);
 		if (stop != nullptr) {
@@ -1467,7 +1523,10 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 
 		if (rhs != nullptr) {
 			/* let's assign into this tuple slot */
-			bound_var_t::ref rhs_val = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, value->type->get_type());
+			bound_var_t::ref rhs_val = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, value->type->get_type(), &returns);
+			if (returns) {
+				throw user_error(rhs->get_location(), "term breaks control flow");
+			}
 
 			/* we shouldn't have known what type to expect, because this is a
 			 * statement */
@@ -1480,7 +1539,10 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 		}
 	} else {
 		// REVIEW: might want to move this after evaluation of rhs, if rhs exists
-		bound_var_t::ref index_val = start->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr);
+		bound_var_t::ref index_val = start->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr, &returns);
+		if (returns) {
+			throw user_error(start->get_location(), "term breaks control flow");
+		}
 
 		identifier::ref element_type_var = types::gensym(lhs_val->type->get_location());
 
@@ -1507,8 +1569,11 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 			if (rhs == nullptr) {
 				bound_var_t::ref stop_val = (
 						(stop != nullptr)
-						? stop->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr)
+						? stop->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr, &returns)
 						: nullptr);
+				if (returns) {
+					throw user_error(stop->get_location(), "term breaks control flow");
+				}
 
 				/* this is not a native pointer we are dereferencing */
 				debug_above(5, log("attempting to call " c_id("%s") " on %s and %s",
@@ -1567,7 +1632,10 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 
 				/* let's solve for the rhs */
 				bound_var_t::ref rhs_val = rhs->resolve_expression(builder, scope, life, false /*as_ref*/,
-						expected_rhs_type);
+						expected_rhs_type, &returns);
+				if (returns) {
+					throw user_error(rhs->get_location(), "term breaks control flow");
+				}
 
 				if (!unifies(expected_rhs_type, rhs_val->type->get_type(), scope)) {
 					auto error = user_error(rhs->get_location(), "incompatible rhs for assignment");
@@ -1696,7 +1764,8 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool /*as_ref*/,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	types::type_t::ref expected_element_type;
 	types::type_t::ref element_type;
@@ -1719,7 +1788,10 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 	bound_var_t::refs bound_items;
 	for (auto item : items) {
 		auto bound_item = item->resolve_expression(builder, scope, life, false /*as_ref*/,
-				expected_element_type);
+				expected_element_type, returns);
+		if (*returns) {
+			throw user_error(item->get_location(), "term breaks control flow");
+		}
 
 		bound_items.push_back(bound_item);
 		if (element_type == nullptr) {
@@ -2210,10 +2282,17 @@ bound_var_t::ref type_check_binary_operator(
 	assert(function_name.size() != 0);
 
 	bound_var_t::ref lhs_var, rhs_var;
-	lhs_var = lhs->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr);
+	bool returns = false;
+	lhs_var = lhs->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr, &returns);
+	if (returns) {
+		throw user_error(lhs->get_location(), "term breaks control flow");
+	}
 	assert(!lhs_var->type->is_ref(scope));
 
-	rhs_var = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr);
+	rhs_var = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr, &returns);
+	if (returns) {
+		throw user_error(rhs->get_location(), "term breaks control flow");
+	}
 
 	assert(!rhs_var->type->is_ref(scope));
 
@@ -2236,10 +2315,15 @@ bound_var_t::ref type_check_binary_equality(
 		types::type_t::ref expected_type)
 {
 	bound_var_t::ref lhs_var, rhs_var;
-	lhs_var = lhs->resolve_expression(builder, scope, life,
-			false /*as_ref*/, nullptr);
-	rhs_var = rhs->resolve_expression(builder, scope, life,
-			false /*as_ref*/, nullptr);
+	bool returns = false;
+	lhs_var = lhs->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr, &returns);
+	if (returns) {
+		throw user_error(lhs->get_location(), "term breaks control flow");
+	}
+	rhs_var = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr, &returns);
+	if (returns) {
+		throw user_error(rhs->get_location(), "term breaks control flow");
+	}
 
 	assert(!lhs_var->type->is_ref(scope));
 	assert(!rhs_var->type->is_ref(scope));
@@ -2253,7 +2337,8 @@ bound_var_t::ref ast::binary_operator_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 
@@ -2292,7 +2377,8 @@ bound_var_t::ref ast::tuple_expr_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	if (expected_type != nullptr) {
 		debug_above(7, log("tuple literal is expected to return a %s", expected_type->str().c_str()));
@@ -2323,7 +2409,11 @@ bound_var_t::ref ast::tuple_expr_t::resolve_expression(
 	for (auto &value: values) {
 		bound_var_t::ref var = value->resolve_expression(builder,
 				scope, life, false /*as_ref*/,
-				expected_product != nullptr ? expected_dimensions[i] : nullptr);
+				expected_product != nullptr ? expected_dimensions[i] : nullptr,
+				returns);
+		if (*returns) {
+			throw user_error(value->get_location(), "term breaks control flow, maybe there's no point to have this in a tuple");
+		}
 		vars.push_back(var);
 		++i;
 	}
@@ -2606,7 +2696,8 @@ bound_var_t::ref ast::ternary_expr_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 	return resolve_cond_expression(builder, runnable_scope, life, as_ref,
@@ -2633,7 +2724,8 @@ bound_var_t::ref ast::or_expr_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 	return resolve_cond_expression(builder, runnable_scope, life, as_ref,
@@ -2657,7 +2749,8 @@ bound_var_t::ref ast::and_expr_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 	return resolve_cond_expression(builder, runnable_scope, life, as_ref,
@@ -2804,11 +2897,15 @@ bound_var_t::ref ast::dot_expr_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	debug_above(6, log("resolving dot_expr %s", str().c_str()));
 	bound_var_t::ref lhs_val = lhs->resolve_expression(
-			builder, scope, life, false /*as_ref*/, nullptr);
+			builder, scope, life, false /*as_ref*/, nullptr, returns);
+	if (*returns) {
+		throw user_error(lhs->get_location(), "lhs term breaks control flow. maybe there is no need for the dot expression?");
+	}
 
 	types::type_t::ref member_type;
 
@@ -2954,16 +3051,22 @@ bound_var_t::ref ast::typeid_expr_t::resolve_expression(
 	   	scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	assert(!as_ref);
+	assert(returns != nullptr);
 
 	auto resolved_value = expr->resolve_expression(
 			builder,
 			scope,
 			life,
 			false /*as_ref*/,
-			nullptr);
+			nullptr,
+			returns);
+	if (*returns) {
+		throw user_error(expr->get_location(), "term breaks control flow, maybe there is no need for the typeid_expr");
+	}
 
 	return call_get_ctor_id(scope, life, shared_from_this(), make_code_id(token), builder, resolved_value);
 }
@@ -2973,7 +3076,8 @@ bound_var_t::ref ast::sizeof_expr_t::resolve_expression(
 	   	scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	assert(!as_ref);
 
@@ -2993,7 +3097,8 @@ bound_var_t::ref ast::function_defn_t::resolve_expression(
         scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	assert(!as_ref);
 	expected_type = types::freshen(expected_type ? expected_type->rebind(scope->get_type_variable_bindings()) : nullptr);
@@ -3090,7 +3195,7 @@ void type_check_module_links(
 
 	for (const ptr<ast::link_function_statement_t> &link : obj.linked_functions) {
 		bound_var_t::ref link_value = link->resolve_expression(
-				builder, scope, nullptr, false /*as_ref*/, nullptr);
+				builder, scope, nullptr, false /*as_ref*/, nullptr, nullptr /*returns*/);
 
 		if (link->extern_function->token.text.size() != 0) {
 			put_bound_function(
@@ -3107,7 +3212,7 @@ void type_check_module_links(
 
 	for (const ptr<ast::link_var_statement_t> &link : obj.linked_vars) {
 		bound_var_t::ref link_value = link->resolve_expression(
-				builder, scope, nullptr, false /*as_ref*/, nullptr);
+				builder, scope, nullptr, false /*as_ref*/, nullptr, nullptr /*returns*/);
 
 		scope->put_bound_variable(link->var_decl->get_symbol(), link_value);
 	}
@@ -3491,6 +3596,7 @@ void ast::assignment_t::resolve_statement(
         runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
+	assert(returns != nullptr);
 	assert(token.text == "=");
 
 	if (auto array_index = dyncast<const ast::array_index_expr_t>(lhs)) {
@@ -3498,8 +3604,14 @@ void ast::assignment_t::resolve_statement(
 		array_index->resolve_assignment(builder, scope, life, false /*as_ref*/, rhs, nullptr);
 		return;
 	} else {
-		auto lhs_var = lhs->resolve_expression(builder, scope, life, true /*as_ref*/, nullptr);
-		auto rhs_var = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, types::without_ref(lhs_var->type->get_type()));
+		auto lhs_var = lhs->resolve_expression(builder, scope, life, true /*as_ref*/, nullptr, returns);
+		if (*returns) {
+			throw user_error(lhs->get_location(), "lhs term breaks control flow, the assignment seems pointless");
+		}
+		auto rhs_var = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, types::without_ref(lhs_var->type->get_type()), returns);
+		if (*returns) {
+			throw user_error(rhs->get_location(), "rhs term breaks control flow, the assignment seems pointless");
+		}
 		type_check_assignment(builder, scope, life, lhs_var, rhs_var, token.location);
 		return;
 	}
@@ -3565,10 +3677,17 @@ bound_var_t::ref type_check_binary_op_assignment(
 		location_t location,
 		std::string function_name)
 {
-	auto lhs_var = lhs->resolve_expression(builder, scope, life, true /*as_ref*/, nullptr);
+	bool returns = false;
+	auto lhs_var = lhs->resolve_expression(builder, scope, life, true /*as_ref*/, nullptr, &returns);
+	if (returns) {
+		throw user_error(lhs->get_location(), "lhs breaks control flow");
+	}
 	bound_var_t::ref lhs_val = lhs_var->resolve_bound_value(builder, scope);
 
-	bound_var_t::ref rhs_var = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr);
+	bound_var_t::ref rhs_var = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr, &returns);
+	if (returns) {
+		throw user_error(rhs->get_location(), "rhs breaks control flow");
+	}
 
 	assert(!rhs_var->type->is_ref(scope));
 	auto computed_var = type_check_binary_operator(builder, scope, life, lhs,
@@ -3649,11 +3768,16 @@ void ast::return_statement_t::resolve_statement(
 	auto return_type_constraint = runnable_scope->get_return_type_constraint();
 
 	if (expr != nullptr) {
+		bool expr_returns = false;
 		/* if there is a return expression resolve it into a value. also, be
 		 * sure to retain whether the function signature necessitates a ref type */
 		return_value = expr->resolve_expression(builder, scope, life,
 				return_type_constraint ? return_type_constraint->is_ref(scope) : false /*as_ref*/,
-				return_type_constraint ? return_type_constraint->get_type() : type_variable(INTERNAL_LOC()));
+				return_type_constraint ? return_type_constraint->get_type() : type_variable(INTERNAL_LOC()),
+				&expr_returns);
+		if (expr_returns) {
+			throw user_error(expr->get_location(), "return is useless here since the expression bottoms out itself");
+		}
 
 		/* get the type suggested by this return value */
 		return_type = return_value->type;
@@ -3671,6 +3795,9 @@ void ast::return_statement_t::resolve_statement(
 		if (return_value->type->is_void(scope)) {
 			throw user_error(get_location(),
 					"return expressions cannot be " c_type("void") ". use an empty return statement to return from this function");
+		} else if (return_value->type->is_bottom(scope)) {
+			throw user_error(get_location(),
+					"return expressions cannot be " c_type("⊥") ". use __unreachable__");
 		} else {
 			auto llvm_return_value = coerce_value(
 					builder, scope, life,
@@ -3709,6 +3836,13 @@ void ast::return_statement_t::resolve_statement(
         if (return_type_constraint->is_void(scope)) {
             /* we have an empty return in a void function, let's just use void */
 
+            builder.CreateRetVoid();
+		} else if (return_type_constraint->is_bottom(scope)) {
+            /* we have an empty return in a bottom function */
+
+			// TODO: figure out what this means
+			assert(false);
+			// TODO: probably not this:
             builder.CreateRetVoid();
         } else {
             if (!return_type_constraint->is_unit(scope)) {
@@ -3766,15 +3900,15 @@ bound_var_t::ref ast::block_t::resolve_expression(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
-	bool returns = false;
 	auto block_value = resolve_block_expr(
 			builder,
 		   	scope,
 		   	life,
 		   	false /*as_ref*/,
-		   	&returns,
+		   	returns,
 		   	expected_type);
 
 	// TODO: consider this...
@@ -3787,15 +3921,11 @@ bound_var_t::ref ast::block_t::resolve_block_expr(
 		scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		bool *returns_,
+		bool *returns,
 		types::type_t::ref expected_type) const
 {
 	/* it's important that we keep track of returns */
-	bool placeholder_returns = false;
-	bool *returns = returns_;
-	if (returns == nullptr) {
-		returns = &placeholder_returns;
-	}
+	assert(returns != nullptr);
 
 	scope_t::ref current_scope = scope;
 
@@ -3844,7 +3974,10 @@ bound_var_t::ref ast::block_t::resolve_block_expr(
 								current_scope,
 								stmt_life,
 								false /*as_ref*/,
-								expected_type);
+								expected_type,
+								returns);
+						// TODO: review what should happen if !*returns
+						assert(!*returns);
 
 						unification_t unification = unify(expected_type, block_value->type->get_type(), current_scope);
 						if (!unification.result) {
@@ -3925,8 +4058,13 @@ bound_var_t::ref ast::expression_t::resolve_condition(
 		runnable_scope_t::ref *,
 		runnable_scope_t::ref *) const
 {
-	return resolve_expression(builder, block_scope, life, false /*as_ref*/,
-			expected_type);
+	bool returns = false;
+	auto ret = resolve_expression(builder, block_scope, life, false /*as_ref*/,
+			expected_type, &returns);
+	if (returns) {
+		throw user_error(get_location(), "conditional value breaks control flow, perhaps it should not be in a conditional");
+	}
+	return ret;
 }
 
 void ast::while_block_t::resolve_statement(
@@ -3987,9 +4125,10 @@ void ast::while_block_t::resolve_statement(
 
 	cond_life->release_vars(builder, scope, lf_statement);
 
+	bool block_returns = false;
 	block->resolve_statement(builder,
 			while_scope ? while_scope : scope, life, nullptr,
-			nullptr);
+			&block_returns);
 
 	/* the loop can't store values */
 	assert(life->values.size() == 0 && life->life_form == lf_loop);
@@ -4120,10 +4259,15 @@ bound_var_t::ref ast::bang_expr_t::resolve_expression(
 	   	scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
+	assert(returns != nullptr);
 	auto lhs_value = lhs->resolve_expression(builder, scope, life,
-			false /*as_ref*/, nullptr);
+			false /*as_ref*/, nullptr, returns);
+	if (*returns) {
+		throw user_error(lhs->get_location(), "expression unexpectedly breaks control flow");
+	}
 
 	auto type = lhs_value->type->get_type();
 	auto maybe_type = dyncast<const types::type_maybe_t>(type);
@@ -4229,7 +4373,10 @@ void ast::defer_t::resolve_statement(
 			scope, life, false /*as_ref*/,
 			type_deferred_function(
 				get_location(),
-			   	type_variable(get_location())));
+			   	type_variable(get_location())),
+			returns);
+	// TODO: handle this
+	assert(!*returns);
 
 	life->defer_call(builder, scope, expr);
 }
@@ -4249,9 +4396,13 @@ bound_var_t::ref take_address(
 		}
 	}
 
+	bool returns = false;
 	/* first solve the right hand side */
 	bound_var_t::ref rhs_var = expr->resolve_expression(builder,
-			scope, life, true /*as_ref*/, expected_type);
+			scope, life, true /*as_ref*/, expected_type, &returns);
+
+	// TODO: handle this
+	assert(!returns);
 
 	if (auto ref_type = dyncast<const types::type_ref_t>(rhs_var->type->get_type())) {
 		bound_type_t::ref bound_ptr_type = upsert_bound_type(builder, scope, type_ptr(ref_type->element_type));
@@ -4284,7 +4435,8 @@ bound_var_t::ref ast::prefix_expr_t::resolve_expression(
         scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	runnable_scope_t::ref runnable_scope = dyncast<runnable_scope_t>(scope);
 	return resolve_prefix_expr(builder, runnable_scope, life, as_ref, expected_type, nullptr, nullptr);
@@ -4348,7 +4500,8 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
         scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
     scope_t::ref program_scope = scope->get_program_scope();
 	switch (token.tk) {
@@ -4413,7 +4566,8 @@ bound_var_t::ref ast::function_defn_t::resolve_overrides(
 		life_t::ref life_outer,
 		const ptr<const ast::item_t> &callsite,
 		const bound_type_t::refs &args,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
     auto runnable_scope = dyncast<runnable_scope_t>(scope);
     assert(runnable_scope != nullptr);
@@ -4493,7 +4647,8 @@ bound_var_t::ref ast::reference_expr_t::resolve_overrides(
 		life_t::ref life,
 		const ptr<const ast::item_t> &callsite,
 		const bound_type_t::refs &args,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	/* ok, we know we've got some variable here */
 	try {
@@ -4513,7 +4668,8 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 	   	scope_t::ref scope,
 		life_t::ref life,
 		bool as_ref,
-		types::type_t::ref expected_type) const
+		types::type_t::ref expected_type,
+		bool *returns) const
 {
 	/* throw away expected type because we are saying we know what's best here */
 	debug_above(8, log("attempting a cast to type %s in scope %s with bindings %s",
@@ -4524,7 +4680,8 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 
 	if (!force_cast) {
 		bound_var_t::ref bound_var = lhs->resolve_expression(builder, scope, life, false /*as_ref*/,
-				expected_type);
+				expected_type, returns);
+		assert(!*returns);
 		if (!unifies(expected_type, bound_var->type->get_type(), scope)) {
 			throw user_error(lhs->get_location(), "unable to get a %s from this expression (which is of type %s)",
 					expected_type->str().c_str(),
@@ -4539,7 +4696,8 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 				bound_var);
 	} else {
 		bound_var_t::ref bound_var = lhs->resolve_expression(builder, scope, life, false /*as_ref*/,
-				nullptr);
+				nullptr, returns);
+		assert(!*returns);
 
 		return cast_bound_var(
 				builder,

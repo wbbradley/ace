@@ -1,4 +1,4 @@
-module climb @1.0
+module climb
 
 fn walls() void
     pass

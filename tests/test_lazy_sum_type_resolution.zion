@@ -1,4 +1,4 @@
-module _ @1.0
+module _
 # test: pass
 
 type Bx T has {

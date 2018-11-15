@@ -1,4 +1,4 @@
-module sys @0.1
+module sys
 get posix
 
 # TODO: make module variable initialization deterministic

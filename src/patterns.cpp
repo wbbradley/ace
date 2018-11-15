@@ -100,10 +100,11 @@ types::type_t::ref build_patterns(
 			bound_var_t::ref block_value;
 			if (expected_type != type_bottom()) {
 				block_value = pattern_block->block->resolve_expression(
-						builder, pattern_scope, life, false /*as_ref*/, expected_type);
+						builder, pattern_scope, life, false /*as_ref*/, expected_type, &pattern_returns);
 
 				if (block_value == nullptr) {
 					/* block_value probably returned, so it has no value... */
+					assert(pattern_returns);
 				} else {
 					/* we are in an expression */
 					unification_t unification = unify(expected_type, block_value->type->get_type(), pattern_scope);
@@ -207,13 +208,11 @@ bound_var_t::ref ast::match_expr_t::resolve_expression(
 	scope_t::ref scope,
 	life_t::ref life,
 	bool as_ref,
-	types::type_t::ref expected_type) const
+	types::type_t::ref expected_type,
+	bool *returns) const
 {
-	bool returns = false;
-	bound_var_t::ref value = resolve_match_expr(builder, scope, life, as_ref, &returns,
+	return resolve_match_expr(builder, scope, life, as_ref, returns,
 		   	expected_type != nullptr ? expected_type : type_variable(token.location));
-	assert(!returns);
-	return value;
 }
 
 
@@ -232,9 +231,14 @@ bound_var_t::ref ast::match_expr_t::resolve_match_expr(
 {
 	assert(expected_type != nullptr);
 	assert(life->life_form == lf_statement);
+	assert(returns != nullptr);
 
 	auto pattern_value = value->resolve_expression(builder,
-			scope, life, true /*as_ref*/, nullptr);
+			scope, life, true /*as_ref*/, nullptr, returns);
+
+	if (returns != nullptr && *returns) {
+		throw user_error(value->get_location(), "this value will return so the match seems pointless?");
+	}
 
 	/* we don't care about references in pattern matching */
 	pattern_value = pattern_value->resolve_bound_value(builder, scope);
@@ -388,6 +392,9 @@ bound_var_t::ref cast_data_type_to_ctor_struct(
 
 	for (auto ctor_pair : data_type->ctor_pairs) {
 		if (ctor_pair.first.text == ctor_name.text) {
+			if (ctor_pair.second->str().find(BOTTOM_TYPE) != std::string::npos) {
+				throw unbound_type_error(value_location, "ctor_pair has bottomed out");
+			}
 			auto bound_type = upsert_bound_type(builder, scope, type_ptr(type_managed(type_struct(ctor_pair.second))));
 			return bound_var_t::create(
 					INTERNAL_LOC(),
@@ -478,6 +485,13 @@ bool ast::ctor_predicate_t::resolve_match(
 	 * final pattern block */
 	builder.CreateCondBr(match_bit, llvm_next_check, llvm_no_match_block);
 	*scope_if_true = scope_if_match_at_end;
+
+	if (name_assignment.tk == tk_identifier) {
+		/* put a name on the pattern match. for example: a match on x@T(_, _) gets named x */
+		*scope_if_true = (*scope_if_true)->new_runnable_scope("name_assignment." + name_assignment.text);
+		(*scope_if_true)->put_bound_variable(name_assignment.text, input_value);
+	}
+
 	return true;
 }
 
@@ -533,6 +547,13 @@ bool ast::tuple_predicate_t::resolve_match(
 	 * final pattern block */
 	builder.CreateBr(llvm_next_check);
 	*scope_if_true = scope_if_match_at_end;
+
+	if (name_assignment.tk == tk_identifier) {
+		/* put a name on the pattern match. for example: a match on x@T(_, _) gets named x */
+		*scope_if_true = (*scope_if_true)->new_runnable_scope("name_assignment." + name_assignment.text);
+		(*scope_if_true)->put_bound_variable(name_assignment.text, input_value);
+	}
+
 	return true;
 }
 

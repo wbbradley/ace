@@ -1,4 +1,4 @@
-module _ @1.0
+module _
 
 fn duplicate_vars() void {
     # error: 5:.* see earlier declaration of x

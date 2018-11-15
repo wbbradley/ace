@@ -1,4 +1,4 @@
-module math @1.0
+module math
 get posix
 
 link fn log10(x float) float

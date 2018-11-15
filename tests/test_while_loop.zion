@@ -1,4 +1,4 @@
-module while_loop @0.1.0
+module while_loop
 # test: pass
 
 fn main() int {

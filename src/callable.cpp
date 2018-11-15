@@ -858,7 +858,10 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
             builder.CreateRetVoid();
             llvm_verify_function(name_token.location, llvm_function);
             return function_var;
-        } else if (return_type->is_unit(scope)) {
+		} else if (return_type->is_bottom(scope)) {
+			// TODO: figure out what is supposed to happen here
+			throw user_error(name_token.location, "not all control paths return %s", BOTTOM_TYPE);
+		} else if (return_type->is_unit(scope)) {
             life->release_vars(builder, scope, lf_function);
             builder.CreateRet(program_scope->get_singleton("__unit__")->get_llvm_value());
             llvm_verify_function(name_token.location, llvm_function);

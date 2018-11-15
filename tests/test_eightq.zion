@@ -1,4 +1,4 @@
-module eightq @1.0
+module eightq
 # test: pass
 
 fn queens(rows int, columns int) [[int]] {

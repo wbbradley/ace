@@ -112,7 +112,7 @@ namespace ast {
 		virtual ~predicate_t() {}
 
 		virtual std::string repr() const = 0;
-		static ref parse(parse_state_t &ps, bool allow_else);
+		static ref parse(parse_state_t &ps, bool allow_else, token_t *name_assignment);
 		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const = 0;
 		virtual bool resolve_match(
 				llvm::IRBuilder<> &builder,
@@ -129,7 +129,7 @@ namespace ast {
 		typedef ptr<const tuple_predicate_t> ref;
 
 		static const syntax_kind_t SK = sk_tuple_predicate;
-		static ast::predicate_t::ref parse(parse_state_t &ps);
+		static ast::predicate_t::ref parse(parse_state_t &ps, token_t *name_assignment);
 		virtual bool resolve_match(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref scope,
@@ -144,6 +144,7 @@ namespace ast {
 		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const;
 
 		std::vector<predicate_t::ref> params;
+		token_t name_assignment;
 	};
 
 	struct irrefutable_predicate_t : public predicate_t {
@@ -169,7 +170,7 @@ namespace ast {
 		typedef std::vector<ref> refs;
 
 		static const syntax_kind_t SK = sk_ctor_predicate;
-		static ptr<const predicate_t> parse(parse_state_t &ps);
+		static ast::predicate_t::ref parse(parse_state_t &ps, token_t *name_assignment);
 		virtual bool resolve_match(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref scope,
@@ -184,6 +185,7 @@ namespace ast {
 		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const;
 
 		std::vector<predicate_t::ref> params;
+		token_t name_assignment;
 	};
 
 	struct expression_t : public statement_t, public condition_t {
@@ -204,7 +206,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const = 0;
+				types::type_t::ref expected_type,
+				bool *returns) const = 0;
 
 		/* when resolve_condition is not overriden, it just proxies through to resolve_expression */
 		virtual bound_var_t::ref resolve_condition(
@@ -257,7 +260,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 		static ptr<typeid_expr_t> parse(parse_state_t &ps);
 
@@ -275,7 +279,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 		static ptr<sizeof_expr_t> parse(parse_state_t &ps);
 
@@ -292,7 +297,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual void resolve_statement(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -357,7 +363,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
@@ -648,7 +655,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		bound_var_t::ref resolve_block_expr(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -689,7 +697,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual void resolve_statement(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -710,7 +719,8 @@ namespace ast {
 				life_t::ref,
 				const ptr<const ast::item_t> &obj,
 				const bound_type_t::refs &args,
-				types::type_t::ref return_type) const;
+				types::type_t::ref return_type,
+				bool *returns) const;
 		virtual types::type_function_t::ref resolve_arg_types_from_overrides(
 				scope_t::ref scope,
 				location_t location,
@@ -789,7 +799,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		bound_var_t::ref resolve_match_expr(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,
@@ -804,14 +815,6 @@ namespace ast {
 		pattern_block_t::refs pattern_blocks;
 	};
 
-	struct semver_t : public item_t {
-		typedef ptr<const semver_t> ref;
-		virtual void render(render_state_t &rs) const;
-
-		static const syntax_kind_t SK = sk_semver;
-		static ptr<semver_t> parse(parse_state_t &ps);
-	};
-
 	struct module_decl_t : public item_t {
 		typedef ptr<const module_decl_t> ref;
 
@@ -820,7 +823,6 @@ namespace ast {
 		static ptr<module_decl_t> parse(parse_state_t &ps, bool skip_module_token=false);
 		virtual void render(render_state_t &rs) const;
 
-		ptr<semver_t> semver;
 		std::string get_canonical_name() const;
 		token_t get_name() const;
 
@@ -875,7 +877,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<function_decl_t> extern_function;
@@ -892,7 +895,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<var_decl_t> var_decl;
@@ -941,14 +945,16 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
         virtual bound_var_t::ref resolve_overrides(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref scope,
 				life_t::ref,
 				const ptr<const ast::item_t> &obj,
 				const bound_type_t::refs &args,
-				types::type_t::ref return_type) const;
+				types::type_t::ref return_type,
+				bool *returns) const;
 		virtual types::type_function_t::ref resolve_arg_types_from_overrides(
 				scope_t::ref scope,
 				location_t location,
@@ -971,7 +977,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<ptr<ast::expression_t>> values;
@@ -988,7 +995,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref block_scope,
@@ -1012,7 +1020,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref block_scope,
@@ -1036,7 +1045,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref block_scope,
@@ -1060,7 +1070,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref block_scope,
@@ -1085,7 +1096,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref block_scope,
@@ -1119,14 +1131,16 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual bound_var_t::ref resolve_overrides(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref scope,
 				life_t::ref,
 				const ptr<const ast::item_t> &obj,
 				const bound_type_t::refs &args,
-				types::type_t::ref return_type) const;
+				types::type_t::ref return_type,
+				bool *returns) const;
 		virtual bound_var_t::ref resolve_condition(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref block_scope,
@@ -1161,7 +1175,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual bool resolve_match(
 				llvm::IRBuilder<> &builder,
 				runnable_scope_t::ref scope,
@@ -1188,7 +1203,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		std::vector<ptr<expression_t>> items;
@@ -1204,7 +1220,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<expression_t> lhs;
@@ -1221,7 +1238,8 @@ namespace ast {
 				scope_t::ref block_scope,
 				life_t::ref life,
 				bool as_ref,
-				types::type_t::ref expected_type) const;
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		bound_var_t::ref resolve_assignment(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref block_scope,

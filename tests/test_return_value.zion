@@ -1,4 +1,4 @@
-module test_return_value @1.0
+module test_return_value
 
 fn get_1(n str) int {
     # error: 5:5.* return expression type str does not match int

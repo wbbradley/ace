@@ -25,6 +25,8 @@ const char *tbstr(type_builtins_t tb) {
 		return TYPE_OP_IS_CALLABLE;
 	case tb_void:
 		return TYPE_OP_IS_VOID;
+	case tb_bottom:
+		return TYPE_OP_IS_BOTTOM;
 	case tb_unit:
 		return TYPE_OP_IS_UNIT;
 	case tb_null:
@@ -59,6 +61,8 @@ const char *id_from_tb(type_builtins_t tb) {
 		return nullptr;
 	case tb_void:
 		return VOID_TYPE;
+	case tb_bottom:
+		return BOTTOM_TYPE;
 	case tb_unit:
 		return nullptr;
 	case tb_null:
@@ -133,7 +137,8 @@ namespace types {
 	type_t::ref type_t::eval(env_t::ref env, bool get_structural_type) const {
 		auto res = eval_core(env, get_structural_type);
 		debug_above(10, log("eval(%s, %s) -> %s",
-					str().c_str(), boolstr(get_structural_type),
+					str().c_str(),
+				   	boolstr(get_structural_type),
 					res->str().c_str()));
 		return res;
 	}
@@ -210,6 +215,7 @@ namespace types {
 	type_eval_is_(true, TRUE_TYPE)
 	type_eval_is_(void, VOID_TYPE)
 	type_eval_is_(null, NULL_TYPE)
+	type_eval_is_(bottom, BOTTOM_TYPE)
 
 	type_t::ref type_eval_is_bool(types::type_t::ref operand, env_t::ref env) {
 		if (auto id_type = dyncast<const types::type_id_t>(operand->eval(env))) {
@@ -299,6 +305,7 @@ namespace types {
 			{TYPE_OP_IS_FUNCTION, type_eval_is_type<type_function_t>},
 			{TYPE_OP_IS_CALLABLE, type_eval_is_type_in_pair<type_function_t, type_function_closure_t>},
 			{TYPE_OP_IS_VOID, type_eval_is_void},
+			{TYPE_OP_IS_BOTTOM, type_eval_is_bottom},
 			{TYPE_OP_IS_UNIT, type_eval_is_unit},
 			{TYPE_OP_IS_NULL, type_eval_is_null},
 			{TYPE_OP_IS_MAYBE, type_eval_is_type<type_maybe_t>},

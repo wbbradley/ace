@@ -34,6 +34,7 @@ protected:
 public:
 	bool is_function(ptr<scope_t> scope) const;
 	bool is_void(ptr<scope_t> scope) const;
+	bool is_bottom(ptr<scope_t> scope) const;
 	bool is_unit(ptr<scope_t> scope) const;
 	void is_managed_ptr(llvm::IRBuilder<> &builder, ptr<scope_t> scope, bool &is_managed) const;
 	bool is_ptr(ptr<scope_t> scope) const;

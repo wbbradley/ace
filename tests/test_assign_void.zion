@@ -1,4 +1,4 @@
-module hello @1.0
+module hello
 
 link fn not_really_a_function()
 

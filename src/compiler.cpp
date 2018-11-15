@@ -221,6 +221,11 @@ void add_global_types(
 					type_id(make_iid(VOID_TYPE)),
 					INTERNAL_LOC(),
 				   	builder.getVoidTy())},
+		{{BOTTOM_TYPE},
+			bound_type_t::create(
+					type_id(make_iid(BOTTOM_TYPE)),
+					INTERNAL_LOC(),
+				   	builder.getVoidTy())},
 		{{"*void"},
 			bound_type_t::create(
 					type_ptr(type_id(make_iid(VOID_TYPE))),

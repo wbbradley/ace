@@ -448,10 +448,6 @@ namespace ast {
 			rs.ss << C_MODULE << K(global) << C_RESET;
 		} else {
 			rs.ss << C_MODULE << K(module) << C_RESET << " " << get_canonical_name();
-			if (semver != nullptr) {
-				rs.ss << " ";
-				semver->render(rs);
-			}
 		}
 	}
 
@@ -522,10 +518,6 @@ namespace ast {
 			function->render(rs);
 			newline(rs, 2);
 		}
-	}
-
-	void semver_t::render(render_state_t &rs) const {
-		rs.ss << token.text;
 	}
 
 	void program_t::render(render_state_t &rs) const {

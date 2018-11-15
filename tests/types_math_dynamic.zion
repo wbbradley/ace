@@ -1,4 +1,4 @@
-module dynamic_math @1.0
+module dynamic_math
 
 fn compute() int
     var x any

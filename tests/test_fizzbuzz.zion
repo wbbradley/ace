@@ -1,4 +1,4 @@
-module fizzbuzz @0.1.0
+module fizzbuzz
 # test: pass
 
 fn main() {

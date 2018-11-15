@@ -58,6 +58,22 @@ fn exists[D](tree Set D, value D) bool {
     }
 }
 
+fn exists[D](tree Set D, value D) bool {
+    match tree {
+        Empty => return false
+        Just(Node(_, v, left, right)) {
+            if value < v {
+                return exists(right, value)
+            } else if v < value {
+                return exists(left, value)
+            } else {
+                # Assume a total order to the values
+                return true
+            }
+        }
+    }
+}
+
 [global]
 fn str[D](s Set D) str {
     var string = "{"
@@ -113,8 +129,7 @@ fn __next__[D](iter SetIter D) D? {
         match tail {
             Empty {
                 assert(false)
-                # __unreachable__
-                return Just(3)
+                __unreachable__
             }
             Node(_, left, d, Empty) {
                 iter.stack = iter.stack[0:l-1]
