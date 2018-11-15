@@ -1,4 +1,4 @@
-module hello @1.0
+module hello
 get runtime
 
 # test: pass

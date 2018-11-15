@@ -19,7 +19,8 @@ struct can_reference_overloads_t {
 			life_t::ref,
 			const ptr<const ast::item_t> &obj,
 			const bound_type_t::refs &args,
-			types::type_t::ref return_type) const = 0;
+			types::type_t::ref return_type,
+			bool *returns) const = 0;
 	virtual types::type_function_t::ref resolve_arg_types_from_overrides(
 			scope_t::ref scope,
 		   	location_t location,

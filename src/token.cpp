@@ -121,7 +121,7 @@ const char *tkstr(token_kind tk) {
 	tk_case(string);
 	tk_case(times);
 	tk_case(times_eq);
-	tk_case(version);
+	tk_case(about);
 	}
 	return "";
 }
@@ -145,6 +145,7 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_space:
 	case tk_maybe:
 	case tk_bang:
+	case tk_about:
 		break;
 	case tk_assign:
 	case tk_expr_block:
@@ -181,7 +182,6 @@ void ensure_space_before(token_kind prior_tk) {
 	case tk_times:
 	case tk_ampersand:
 	case tk_times_eq:
-	case tk_version:
 		printf(" ");
 		break;
 	}
@@ -293,9 +293,11 @@ void token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_line) 
 	case tk_string:
 	case tk_integer:
 	case tk_float:
-	case tk_version:
 		ensure_space_before(last_tk);
 		printf("%s", text.c_str());
+		break;
+	case tk_about:
+		printf("@");
 		break;
 	case tk_dot:
 		printf(".");

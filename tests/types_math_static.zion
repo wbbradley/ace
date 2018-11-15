@@ -1,4 +1,4 @@
-module types_math_static @1.0
+module types_math_static
 
 fn compute() int
     var x int

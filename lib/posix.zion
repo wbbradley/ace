@@ -17,7 +17,7 @@ link fn random() posix.long
 # link fn calloc(cb size_t, size size_t) *?void
 link fn close(fd posix.int) posix.int
 link fn errno() posix.int to __posix_errno
-link fn exit(code posix.int) void
+link fn exit(code posix.int) ⊥
 link fn fchdir(filedes posix.int) posix.int
 link fn fclose(fp *FILE) posix.int
 link fn fdopen(fd posix.int, mode *char) *?FILE

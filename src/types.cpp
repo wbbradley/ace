@@ -31,6 +31,7 @@ const char *TYPE_OP_IS_POINTER = "is_pointer";
 const char *TYPE_OP_IS_FUNCTION = "is_function";
 const char *TYPE_OP_IS_CALLABLE = "is_callable";
 const char *TYPE_OP_IS_VOID = "is_void";
+const char *TYPE_OP_IS_BOTTOM = "is_bottom";
 const char *TYPE_OP_IS_UNIT = "is_unit";
 const char *TYPE_OP_IS_NULL = "is_null";
 const char *TYPE_OP_IS_INT = "is_int";

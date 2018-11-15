@@ -158,7 +158,6 @@ bool zion_lexer_t::_get_tokens() {
 		gts_multiline_comment,
 		gts_multiline_comment_star,
 		gts_multiline_comment_slash,
-		gts_version,
 	};
 
 	gt_state gts = gts_start;
@@ -308,12 +307,6 @@ bool zion_lexer_t::_get_tokens() {
 				--multiline_comment_depth;
 			}
 			break;
-		case gts_version:
-			if (ch == EOF || isspace(ch)) {
-				gts = gts_end;
-				scan_ahead = false;
-			}
-			break;
 		case gts_dot:
 			gts = gts_end;
 			if (isdigit(ch)) {
@@ -402,8 +395,8 @@ bool zion_lexer_t::_get_tokens() {
 				gts = gts_plus;
 				break;
 			case '@':
-				gts = gts_version;
-				tk = tk_version;
+				gts = gts_end;
+				tk = tk_about;
 				break;
 			case '#':
 				gts = gts_comment;

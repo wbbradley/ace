@@ -37,7 +37,7 @@ enum token_kind
 	tk_float, /* 3.1415e20 */
 	tk_integer, /* [0-9]+ */
 	tk_string, /* "string literal" */
-	tk_version, /* #blah */
+	tk_about, /* @ */
 
 	// Operators
 	tk_equal, /* == */

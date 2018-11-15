@@ -395,8 +395,12 @@ namespace match {
 		} else if (type->eval_predicate(tb_int, env)) {
 			return allIntegers;
 		} else {
-			throw user_error(type->get_location(), "don't know how to create a pattern from a %s",
-					type->str().c_str());
+			/* just accept all of whatever this is */
+			return make_ptr<AllOf>(
+					type->get_location(),
+					string_format("AllOf(%s)", type->str().c_str()),
+					env,
+					type);
 		}
 
 		return nullptr;

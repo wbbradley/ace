@@ -1160,7 +1160,7 @@ ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {
 	return while_block;
 }
 
-ast::predicate_t::ref ctor_predicate_t::parse(parse_state_t &ps) {
+ast::predicate_t::ref ctor_predicate_t::parse(parse_state_t &ps, token_t *name_assignment) {
 	assert(ps.token.tk == tk_identifier && isupper(ps.token.text[0]));
 	auto value_name = ps.token;
 
@@ -1175,18 +1175,21 @@ ast::predicate_t::ref ctor_predicate_t::parse(parse_state_t &ps) {
 				chomp_token(tk_comma);
 			}
 
-			auto predicate = predicate_t::parse(ps, false /*allow_else*/);
+			auto predicate = predicate_t::parse(ps, false /*allow_else*/, nullptr /*name_assignment*/);
 			params.push_back(predicate);
 			expect_comma = true;
 		}
 		chomp_token(tk_rparen);
 	}
 	auto ctor = ast::create<ast::ctor_predicate_t>(value_name);
+	if (name_assignment != nullptr) {
+		ctor->name_assignment = *name_assignment;
+	}
 	std::swap(ctor->params, params);
 	return ctor;
 }
 
-ast::predicate_t::ref tuple_predicate_t::parse(parse_state_t &ps) {
+ast::predicate_t::ref tuple_predicate_t::parse(parse_state_t &ps, token_t *name_assignment) {
 	assert(ps.token.tk == tk_lparen);
 	auto paren_token = ps.token;
 
@@ -1199,17 +1202,20 @@ ast::predicate_t::ref tuple_predicate_t::parse(parse_state_t &ps) {
 			chomp_token(tk_comma);
 		}
 
-		auto predicate = predicate_t::parse(ps, false /*allow_else*/);
+		auto predicate = predicate_t::parse(ps, false /*allow_else*/, nullptr /*name_assignment*/);
 		params.push_back(predicate);
 		expect_comma = true;
 	}
 	chomp_token(tk_rparen);
 	auto tuple = ast::create<ast::tuple_predicate_t>(paren_token);
+	if (name_assignment != nullptr) {
+		tuple->name_assignment = *name_assignment;
+	}
 	std::swap(tuple->params, params);
 	return tuple;
 }
 
-ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else) {
+ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else, token_t *name_assignment) {
 	if (ps.token.is_ident(K(else))) {
 		if (!allow_else) {
 			throw user_error(ps.token.location, "illegal keyword " c_type("%s") " in a pattern match context",
@@ -1220,32 +1226,46 @@ ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else) {
 	}
 
 	if (ps.token.tk == tk_lparen) {
-		return tuple_predicate_t::parse(ps);
+		return tuple_predicate_t::parse(ps, name_assignment);
 	} else if (ps.token.tk == tk_identifier) {
 		if (isupper(ps.token.text[0])) {
 			/* match a ctor */
-			return ctor_predicate_t::parse(ps);
+			return ctor_predicate_t::parse(ps, name_assignment);
 		} else {
-			/* match anything */
-			auto symbol = ps.token;
-			ps.advance();
-			return ast::create<ast::irrefutable_predicate_t>(symbol);
+			if (name_assignment != nullptr) {
+				throw user_error(ps.token.location, "pattern name assignment is only allowed once per term");
+			} else {
+				/* match anything */
+				auto symbol = ps.token;
+				ps.advance();
+				if (ps.token.tk == tk_about) {
+					ps.advance();
+
+					return predicate_t::parse(ps, allow_else, &symbol);
+				} else {
+					return ast::create<ast::irrefutable_predicate_t>(symbol);
+				}
+			}
 		}
 	} else {
+		if (name_assignment != nullptr) {
+			throw user_error(ps.token.location, "pattern name assignment is only allowed for data constructor matching");
+		}
+
 		std::string sign;
 		switch (ps.token.tk) {
 		case tk_minus:
 		case tk_plus:
-				sign = ps.token.text;
-				ps.advance();
-				if (ps.token.tk != tk_integer && ps.token.tk != tk_float) {
-					throw user_error(ps.prior_token.location, "unary prefix %s is not allowed before %s in this context",
-							ps.prior_token.text.c_str(),
-							ps.token.text.c_str());
-				}
-				break;
+			sign = ps.token.text;
+			ps.advance();
+			if (ps.token.tk != tk_integer && ps.token.tk != tk_float) {
+				throw user_error(ps.prior_token.location, "unary prefix %s is not allowed before %s in this context",
+						ps.prior_token.text.c_str(),
+						ps.token.text.c_str());
+			}
+			break;
 		default:
-				break;
+			break;
 		}
 
 		switch (ps.token.tk) {
@@ -1263,7 +1283,7 @@ ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else) {
 				/* match a literal */
 				auto literal = create<ast::literal_expr_t>(
 						sign != ""
-					   	? token_t(ps.token.location, ps.token.tk, sign + ps.token.text)
+						? token_t(ps.token.location, ps.token.tk, sign + ps.token.text)
 						: ps.token);
 				ps.advance();
 				return literal;
@@ -1281,7 +1301,7 @@ ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
 
 	auto pattern_block = ast::create<ast::pattern_block_t>(is_token);
 
-	pattern_block->predicate = predicate_t::parse(ps, true /*allow_else*/);
+	pattern_block->predicate = predicate_t::parse(ps, true /*allow_else*/, nullptr /*name_assignment*/);
 	pattern_block->block = block_t::parse(ps);
 	return pattern_block;
 }
@@ -1439,25 +1459,7 @@ ptr<module_decl_t> module_decl_t::parse(parse_state_t &ps, bool skip_module_toke
 		eat_token();
 	}
 
-	if (ps.token.tk == tk_version) {
-		auto semver = semver_t::parse(ps);
-		if (semver) {
-			module_decl->semver.swap(semver);
-		} else {
-			/* ok for now */
-		}
-	}
 	return module_decl;
-}
-
-ptr<semver_t> semver_t::parse(parse_state_t &ps) {
-	if (ps.token.tk == tk_version) {
-		auto semver = create<ast::semver_t>(ps.token);
-		eat_token();
-		return semver;
-	} else {
-		return nullptr;
-	}
 }
 
 void parse_maybe_type_decl(parse_state_t &ps, identifier::refs &type_variables) {

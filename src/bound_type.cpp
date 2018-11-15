@@ -183,6 +183,10 @@ bool bound_type_t::is_void(scope_t::ref scope) const {
 	return get_type()->eval_predicate(tb_void, scope);
 }
 
+bool bound_type_t::is_bottom(scope_t::ref scope) const {
+	return get_type()->eval_predicate(tb_bottom, scope);
+}
+
 bool bound_type_t::is_unit(scope_t::ref scope) const {
     return get_type()->eval_predicate(tb_unit, scope);
 }

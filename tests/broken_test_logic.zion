@@ -1,4 +1,4 @@
-module logic @1.0
+module logic
 get assert
 # test: pass
 

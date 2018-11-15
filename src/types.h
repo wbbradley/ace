@@ -40,6 +40,7 @@ extern const char *TYPE_OP_IS_POINTER;
 extern const char *TYPE_OP_IS_FUNCTION;
 extern const char *TYPE_OP_IS_CALLABLE;
 extern const char *TYPE_OP_IS_VOID;
+extern const char *TYPE_OP_IS_BOTTOM;
 extern const char *TYPE_OP_IS_UNIT;
 extern const char *TYPE_OP_IS_NULL;
 extern const char *TYPE_OP_IS_INT;
@@ -55,6 +56,7 @@ enum type_builtins_t {
 	tb_function,
 	tb_callable,
 	tb_void,
+	tb_bottom,
 	tb_unit,
 	tb_int,
 	tb_str,

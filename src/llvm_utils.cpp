@@ -123,6 +123,14 @@ bound_var_t::ref create_callsite(
 		const location_t &location,
 		bound_var_t::refs arguments)
 {
+	int i = 1;
+	for (auto arg : arguments) {
+		if (arg->type->is_bottom(scope)) {
+			throw user_error(location, "this call will never happen because argument %d returns bottom", i);
+		}
+		i += 1;
+	}
+
 	assert(function != nullptr);
 	auto expanded_type = function->type->get_type()->eval(scope);
 	auto closure = dyncast<const types::type_function_closure_t>(expanded_type);

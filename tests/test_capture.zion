@@ -1,4 +1,4 @@
-module capture @0.1.0
+module capture
 get assert
 
 # test: pass

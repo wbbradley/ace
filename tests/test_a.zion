@@ -1,4 +1,4 @@
-module _ @1.0
+module _
 
 fn A() {
     # error: 5:5.* undefined symbol C

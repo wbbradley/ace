@@ -1,4 +1,4 @@
-module simple @1.0
+module simple
 # test: pass
 
 fn main() {
