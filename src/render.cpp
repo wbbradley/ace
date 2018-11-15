@@ -74,6 +74,7 @@ namespace ast {
 	void while_block_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << K(while) << C_RESET << " ";
 		condition->render(rs);
+		rs.ss << " ";
 		block->render(rs);
 	}
 
@@ -81,18 +82,24 @@ namespace ast {
 		rs.ss << C_CONTROL << K(match) << C_RESET << " ";
 		value->render(rs);
 		rs.ss << " {" << std::endl;
-		for (auto pattern_block : pattern_blocks) {
-			pattern_block->render(rs);
+		{
+			indented(rs);
+			const char *delim = "";
+			for (auto pattern_block : pattern_blocks) {
+				rs.ss << delim;
+				indent(rs);
+				pattern_block->render(rs);
+				delim = "\n";
+			}
 		}
-		rs.ss << std::endl << "}";
+		newline(rs);
+		indent(rs);
+	   	rs.ss << "}";
 	}
 
 	void pattern_block_t::render(render_state_t &rs) const {
-		newline(rs);
-		indent(rs);
 		rs.ss << predicate->str();
-		newline(rs);
-		indented(rs);
+		rs.ss << " ";
 		block->render(rs);
 	}
 
@@ -156,11 +163,8 @@ namespace ast {
 	}
 
 	void function_defn_t::render(render_state_t &rs) const {
-		newline(rs);
 		decl->render(rs);
-		newline(rs);
-
-		indented(rs);
+		rs.ss << " ";
 		block->render(rs);
 	}
 
@@ -228,12 +232,22 @@ namespace ast {
 	}
 
 	void link_module_statement_t::render(render_state_t &rs) const {
-		rs.ss << C_SCOPE_SEP << K(link) << C_RESET;
+		rs.ss << C_SCOPE_SEP << K(get) << C_RESET;
 		rs.ss << " ";
 		extern_module->render(rs);
 		if (link_as_name.text != extern_module->token.text) {
 			rs.ss << " " << C_SCOPE_SEP << K(as) << C_RESET;
 			rs.ss << " " << link_as_name.text;
+		}
+		if (symbols.size() != 0) {
+			rs.ss << " {";
+			const char *delim = "";
+			for (auto symbol : symbols) {
+				rs.ss << delim;
+				rs.ss << symbol->get_name();
+				delim = ", ";
+			}
+			rs.ss << "}";
 		}
 	}
 
@@ -256,15 +270,20 @@ namespace ast {
 
 	void block_t::render(render_state_t &rs) const {
 		rs.ss << "{" << std::endl;
-		for (size_t i = 0; i < statements.size(); ++i) {
-			if (i > 0) {
-				newline(rs);
-			}
+		{
+			indented(rs);
+			for (size_t i = 0; i < statements.size(); ++i) {
+				if (i > 0) {
+					newline(rs);
+				}
 
-			indent(rs);
-			statements[i]->render(rs);
+				indent(rs);
+				statements[i]->render(rs);
+			}
 		}
-		rs.ss << std::endl << "}";
+		rs.ss << std::endl;
+		indent(rs);
+		rs.ss << "}";
 	}
 
 	void tuple_expr_t::render(render_state_t &rs) const {
@@ -318,10 +337,7 @@ namespace ast {
 	void if_block_t::render(render_state_t &rs) const {
 		rs.ss << C_CONTROL << K(if) << C_RESET << " ";
 		condition->render(rs);
-
-		newline(rs);
-
-		indented(rs);
+		rs.ss << " ";
 		block->render(rs);
 	}
 
@@ -333,16 +349,21 @@ namespace ast {
 	}
 
 	void data_type_t::render(render_state_t &rs) const {
-		rs.ss << K(is);
+		rs.ss << K(is) << " {";
 		newline(rs);
-		indented(rs);
-		for (auto ctor_pair : ctor_pairs) {
-			rs.ss << ctor_pair.first.str();
-			if (ctor_pair.second != nullptr) {
-				rs.ss << " " << ctor_pair.second->str();
+		{
+			indented(rs);
+			for (auto ctor_pair : ctor_pairs) {
+				indent(rs);
+				rs.ss << ctor_pair.first.text;
+				if (ctor_pair.second != nullptr) {
+					rs.ss << ctor_pair.second->str();
+				}
+				newline(rs);
 			}
-			newline(rs);
 		}
+		indent(rs);
+		rs.ss << "}";
 	}
 
 	std::string ctor_predicate_t::repr() const {

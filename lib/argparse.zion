@@ -26,6 +26,7 @@ type ParseError has {
     reason      str
     usage fn () str
 }
+
 type Arguments has {
     options     [str: str]
     positionals [str]
@@ -79,7 +80,7 @@ fn parse(parser Parser, args [str]) MaybeResource Arguments ParseError {
         }
     }
 
-    min := match(parser.positionals) {
+    min := match parser.positionals {
         None => 0
         Some(min, _) => min
     }
