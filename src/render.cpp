@@ -339,6 +339,10 @@ namespace ast {
 		condition->render(rs);
 		rs.ss << " ";
 		block->render(rs);
+		if (else_ != nullptr) {
+			rs.ss << " " << C_CONTROL << K(else) << C_RESET << " ";
+			else_->render(rs);
+		}
 	}
 
 	void type_def_t::render(render_state_t &rs) const {

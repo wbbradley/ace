@@ -347,6 +347,8 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 		return match_expr_t::parse(ps);
 	} else if (ps.token.is_ident(K(with))) {
 		return parse_with_block(ps);
+	} else if (ps.token.is_ident(K(fn))) {
+		return function_defn_t::parse(ps, false /*within_expression*/);
 	} else if (ps.token.is_ident(K(return))) {
 		return return_statement_t::parse(ps);
 	} else if (ps.token.is_ident(K(__unreachable__))) {
@@ -1375,20 +1377,24 @@ ptr<function_decl_t> function_decl_t::parse(
 		}
 	}
 
-	expect_ident(K(fn));
 	location_t location = ps.token.location;
+	chomp_ident(K(fn));
 
+	bool no_closure = false;
+	if (ps.token.tk == tk_lsquare) {
+		ps.advance();
+		chomp_token(tk_rsquare);
+		no_closure = true;
+	}
 	identifier::ref function_name;
-	auto parsed_type = types::parse_function_type(ps, {}, function_name, default_return_type);
+	auto parsed_type = types::parse_function_type(ps, location, {}, function_name, default_return_type);
 	debug_above(6, log("parsed function type %s at %s", parsed_type->str().c_str(), ps.token.location.str().c_str()));
-	types::type_function_t::ref function_type = dyncast<const types::type_function_t>(parsed_type);
-	assert_implies(!within_expression, function_type != nullptr);
 
 	std::string name;
 	if (function_name != nullptr) {
 		name = function_name->get_name();
 	} else if (!within_expression) {
-		throw user_error(function_type->get_location(), "function is missing a name");
+		throw user_error(parsed_type->get_location(), "function is missing a name");
 	}
 
 	if (name == "main") {
@@ -1415,6 +1421,7 @@ ptr<function_decl_t> function_decl_t::parse(
 	function_decl->function_type = parsed_type;
 	function_decl->extends_module = extends_module;
 	function_decl->link_to_name = name_token;
+	function_decl->no_closure = no_closure;
 	return function_decl;
 }
 

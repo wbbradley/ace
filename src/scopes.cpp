@@ -531,7 +531,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		/* now cast the capture_env to be a pointer to the new closure env type */
 		llvm::Value *llvm_capture_env = builder.CreateBitCast(
 				capture_env->get_llvm_value(),
-			   	llvm_struct_type->getPointerTo());
+				llvm_struct_type->getPointerTo());
 		std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{
 			builder.getInt32(0),
 			/* get the last item from the closure env (so far) */
@@ -683,7 +683,6 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 			name_index.insert({capture.name, i++});
 			dim_ids.push_back(make_iid_impl(capture.name, capture.original_value->get_location()));
 		}
-
 		/* let's create a user type for this closure */
 		types::type_function_t::ref data_ctor_type = type_function(
 				location,
@@ -695,7 +694,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 				builder, get_parent_scope(),
 				make_iid_impl("closure", location),
 				"__closure",
-			   	location,
+				location,
 				data_ctor_type);
 
 		bound_var_t::refs bound_dimensions;

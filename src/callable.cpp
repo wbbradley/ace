@@ -388,8 +388,7 @@ bound_var_t::ref get_callable_from_local_var(
 		error.add_info(callsite_location, "argument types are %s",
 				args->str().c_str());
 		error.add_info(callsite_location, "return type is %s",
-				return_type->str().c_str());
-		dbg();
+				return_type != nullptr ? return_type->str().c_str() : "<null>");
 		error.add_info(callsite_location, "type of %s is %s",
 				alias.c_str(),
 				bound_var->type->str().c_str());
@@ -568,12 +567,11 @@ function_scope_t::ref make_function_scope(
 
 		assert(!param.second->is_ref(scope));
 
-		bool allow_reassignment = false;
 		auto param_type = param.second->get_type();
-		if (!param_type->eval_predicate(tb_ref, scope) && !param_type->eval_predicate(tb_null, scope)
-				&& ((i != (int)params.size() - 1) || !as_closure)) {
-			allow_reassignment = true;
-		}
+		const bool is_the_closure_env = ((i == (int)params.size() - 1) && as_closure);
+		const bool allow_reassignment = (!param_type->eval_predicate(tb_ref, scope)
+				&& !param_type->eval_predicate(tb_null, scope)
+				&& !is_the_closure_env);
 
 		/* create a slot for the final param value to be determined */
 		llvm::Value *llvm_param_final = llvm_param;
@@ -602,7 +600,7 @@ function_scope_t::ref make_function_scope(
 				llvm_param_final, make_iid(params[i++].first));
 
 
-		if (as_closure && i == (int)params.size()) {
+		if (is_the_closure_env) {
 			auto closure_scope = dyncast<closure_scope_t>(scope);
 			assert(closure_scope != nullptr);
 			assert(!allow_reassignment);
@@ -696,6 +694,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 		ast::block_t::ref block)
 {
     assert_implies(!as_closure, !needs_type_fixup);
+    assert_implies(as_closure, dyncast<closure_scope_t>(scope));
 
     program_scope_t::ref program_scope = scope->get_program_scope();
     std::string function_name = switch_std_main(name_token.text);
@@ -801,19 +800,56 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
     auto function_scope = make_function_scope(builder, name_token, scope,
             life, as_closure, function_var, args);
 
-    /* now put this function declaration into the containing scope in case
-     * of recursion */
-    if (!as_closure && function_var->name.size() != 0) {
-        debug_above(7, log("%s should be %s",
-                    function_var->type->get_type()->repr().c_str(),
-                    fn_type->eval(scope)->repr().c_str()));
+	if (function_var->name.size() != 0) {
+		/* now put this function declaration into the containing scope */
+		if (!as_closure) {
+			debug_above(7, log("%s should be %s",
+						function_var->type->get_type()->repr().c_str(),
+						fn_type->eval(scope)->repr().c_str()));
 
-        assert(function_var->get_signature() == fn_type->eval(scope)->repr());
-        put_bound_function(
-                scope, name_token.location,
-                function_var->name, extends_module, function_var,
-                new_scope);
-    }
+			assert(function_var->get_signature() == fn_type->eval(scope)->repr());
+			put_bound_function(
+					scope, name_token.location,
+					function_var->name, extends_module, function_var,
+					new_scope);
+		} else {
+			/* ensure that this closure can reference itself by looking at the last param */
+			llvm::Value *llvm_closure_env_as_var = &*--llvm_function->arg_end();
+
+			auto args = dyncast<const types::type_args_t>(fn_type->args);
+			assert(args != nullptr);
+			types::type_t::refs args_args = args->args;
+			auto args_names = args->names;
+
+			/* remove the closure env */
+			assert(args_args.size() != 0);
+			args_args.resize(args_args.size() - 1);
+			if (args_names.size() != 0) {
+				args_names.resize(args_names.size() - 1);
+			}
+
+			args = type_args(args_args, args_names);
+
+			auto bound_closure_type = upsert_bound_type(
+					builder,
+					scope,
+					type_function_closure(
+						type_function(
+							name_token.location,
+							fn_type->type_constraints,
+							args,
+							fn_type->return_type)));
+
+			llvm::Value *llvm_closure_env = builder.CreateBitCast(llvm_closure_env_as_var,
+					bound_closure_type->get_llvm_specific_type());
+
+			bound_var_t::ref closure = bound_var_t::create(
+					INTERNAL_LOC(), name_token.text, bound_closure_type, llvm_closure_env,
+					make_code_id(name_token));
+
+			function_scope->put_bound_variable(function_var->name, closure);
+		}
+	}
 
     bool all_paths_return = false;
     debug_above(7, log("deeper %s", function_scope->get_name().c_str()));

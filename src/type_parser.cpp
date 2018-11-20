@@ -237,12 +237,11 @@ namespace types {
 
     types::type_t::ref parse_function_type(
             parse_state_t &ps,
+			location_t location,
             identifier::set generics,
             identifier::ref &name,
             types::type_t::ref default_return_type)
     {
-        location_t location = ps.token.location;
-        chomp_ident(K(fn));
         if (ps.token.tk == tk_identifier) {
             name = make_code_id(ps.token);
             ps.advance();
@@ -358,8 +357,10 @@ namespace types {
 			auto body = parse_and_type(ps, generics);
 			return type_lambda(make_code_id(param_token), body);
 		} else if (ps.token.is_ident(K(fn))) {
+			auto location = ps.token.location;
+			ps.advance();
 			identifier::ref name;
-			auto fn_type = parse_function_type(ps, generics, name, nullptr);
+			auto fn_type = parse_function_type(ps, location, generics, name, nullptr);
 			if (name != nullptr && name->get_name() != "_") {
 				auto error = user_error(name->get_location(), "function name unexpected in this context (" c_id("%s") ")",
 						name->get_name().c_str());

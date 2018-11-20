@@ -137,7 +137,8 @@ bound_var_t::ref create_callsite(
 	if (closure != nullptr) {
 		debug_above(8, log("closure is %s", llvm_print(function->get_llvm_value()).c_str()));
 		debug_above(8, log("closure type is %s", llvm_print(function->get_llvm_value()->getType()).c_str()));
-		bound_type_t::ref var_ptr_type = scope->get_program_scope()->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
+		bound_type_t::ref var_ptr_type = scope->get_program_scope()->get_runtime_type(
+				builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 		llvm::Type *llvm_var_ptr_type = var_ptr_type->get_llvm_type();
 
 		/* we will be passing the "closure" to the function for its captured values */
@@ -165,8 +166,8 @@ bound_var_t::ref create_callsite(
 
 		auto bound_inner_function_type = upsert_bound_type(builder, scope, inner_function_type);
 
+		/* The following GEP is based on __closure_t's structure */
 		std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{builder.getInt32(0), builder.getInt32(1), builder.getInt32(0)};
-
 		llvm::Value *llvm_inner_function = builder.CreateBitCast(
 				builder.CreateLoad(builder.CreateInBoundsGEP(function->get_llvm_value(), gep_path)),
 				bound_inner_function_type->get_llvm_specific_type());

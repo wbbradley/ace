@@ -223,7 +223,7 @@ void add_global_types(
 				   	builder.getVoidTy())},
 		{{BOTTOM_TYPE},
 			bound_type_t::create(
-					type_id(make_iid(BOTTOM_TYPE)),
+					type_bottom(),
 					INTERNAL_LOC(),
 				   	builder.getVoidTy())},
 		{{"*void"},
@@ -275,7 +275,8 @@ void add_global_types(
 
 	for (auto type_pair : globals) {
 		program_scope->put_bound_type(type_pair.second);
-		compiler.base_type_macros[type_pair.first] = type_id(make_iid(type_pair.first));
+		/* there can be only one BOTTOM_TYPE */
+		compiler.base_type_macros[type_pair.first] = (type_pair.first == BOTTOM_TYPE) ? type_bottom() : type_id(make_iid(type_pair.first));
 	}
 	add_default_type_macros(compiler.base_type_macros);
 

@@ -115,15 +115,18 @@ fn max[V](coll RBSet V) V => match coll {
 # Insertion:
 
 fn insert[V](x V, s RBSet V) RBSet V {
-    ins := fn (c RBSet V) RBSet V => match c {
-        E => T(R, E, x, E)
-        s@T(color, a, y, b) {
-            if x < y {
-                return balance(color, ins(a), y, b)
-            } else if x > y {
-                return balance(color, a, y, ins(b))
-            } else {
-                return s
+    fn ins(c RBSet V) RBSet V {
+        match c {
+            E => return T(R, E, x, E)
+            EE => return T(R, E, x, E)
+            s@T(color, a, y, b) {
+                if x < y {
+                    return balance(color, ins(a), y, b)
+                } else if x > y {
+                    return balance(color, a, y, ins(b))
+                } else {
+                    return s
+                }
             }
         }
     }
@@ -163,4 +166,8 @@ fn removeMax[V](s RBSet V) RBSet V => match s {
     E => panic("no maximum to remove")
     T(_, _, _, E) => remove(s)
     T(color, l, x, r) => bubble(color, l, x, removeMax(r))
+}
+
+fn test() {
+    var s = insert(3, E)
 }
