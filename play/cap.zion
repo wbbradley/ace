@@ -1,0 +1,13 @@
+module _
+
+fn main() {
+    y := 1
+    fn fib(x int) int {
+        if x <= 2 {
+            return y
+        } else {
+            return fib(x-1) + fib(x-2)
+        }
+    }
+    print(fib(10))
+}

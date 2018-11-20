@@ -53,7 +53,10 @@ llvm::Value *coerce_value(
 		assert(false);
 	}
 
+	assert(!rhs->type->is_bottom(scope));
+
 	auto rhs_type = rhs->type->get_type();
+
 	auto bound_lhs_type = upsert_bound_type(builder, scope, lhs_type);
 	llvm::Value *llvm_rhs_value = rhs->get_llvm_value();
 

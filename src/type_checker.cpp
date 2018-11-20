@@ -609,11 +609,6 @@ void destructure_function_decl(
 	types::type_t::ref type_declared_fn = decl.function_type->rebind(scope->get_type_variable_bindings());
 	function_type = dyncast<const types::type_function_t>(type_declared_fn);
 	if (as_closure) {
-		if (function_type != nullptr) {
-			throw user_error(decl.get_location(), "function expressions cannot have names (this one appears to be named " c_id("%s"),
-					decl.token.text.c_str());
-		}
-
 		function_type = types::without_closure(type_declared_fn);
 		expected_type = types::without_closure(expected_type);
 	}
@@ -3108,14 +3103,20 @@ bound_var_t::ref ast::function_defn_t::resolve_expression(
 				token.location.str().c_str(),
 				expected_type ? expected_type->str().c_str() : "<null>"));
 	auto runnable_scope = dyncast<runnable_scope_t>(scope);
-	if (runnable_scope != nullptr) {
+	if (!decl->no_closure && runnable_scope != nullptr) {
 		/* we are instantiating a function within a runnable scope, let's get closure over the environment we're in */
 		auto closure_name = std::string("anonymous fn ") + decl->function_type->repr() + " at " + token.location.repr();
 		auto closure_scope = runnable_scope->new_closure_scope(builder, closure_name);
-		auto function = resolve_function(builder, closure_scope, life, true /*as_closure*/, expected_type, nullptr, nullptr);
-
-		auto r = closure_scope->create_closure(builder, life, get_location(), function);
-		return r;
+		auto function = resolve_function(
+				builder,
+			   	closure_scope,
+			   	life,
+			   	true /*as_closure*/,
+			   	expected_type,
+			   	nullptr,
+			   	returns);
+		assert(!*returns);
+		return closure_scope->create_closure(builder, life, get_location(), function);
 	} else {
 		return resolve_function(builder, scope, life, false /*as_closure*/, expected_type, nullptr, nullptr);
 	}
@@ -3128,7 +3129,38 @@ void ast::function_defn_t::resolve_statement(
 		runnable_scope_t::ref *new_scope,
 		bool *returns) const
 {
-	resolve_function(builder, scope, life, false /*as_closure*/, nullptr/*expected_type*/, new_scope, returns);
+	auto runnable_scope = dyncast<runnable_scope_t>(scope);
+	if (!decl->no_closure && runnable_scope != nullptr) {
+		/* we are instantiating a named function within a runnable scope, let's get closure over the environment we're in */
+		auto closure_name = token.text + " " + decl->function_type->repr() + " at " + token.location.repr();
+		auto closure_scope = runnable_scope->new_closure_scope(builder, closure_name);
+		auto function = resolve_function(
+				builder,
+				closure_scope,
+				life,
+				true /*as_closure*/,
+				nullptr/*expected_type*/,
+				nullptr,
+				returns);
+
+		auto closure = closure_scope->create_closure(builder, life, get_location(), function);
+		put_bound_function(
+				scope,
+				get_location(),
+				token.text,
+				decl->extends_module,
+				closure,
+				new_scope);
+	} else {
+		resolve_function(
+				builder,
+				scope,
+				life,
+				false /*as_closure*/,
+				nullptr/*expected_type*/,
+				new_scope,
+				returns);
+	}
 }
 
 bound_var_t::ref ast::function_defn_t::resolve_function(
@@ -3154,8 +3186,9 @@ bound_var_t::ref ast::function_defn_t::resolve_function(
 	 * 2. bind the function name to the generated code within the given scope.
 	 * */
 	INDENT(2, string_format(
-				"type checking %s in %s with type variable bindings %s",
+				"type checking %s %s in %s with type variable bindings %s",
 				token.str().c_str(),
+				as_closure ? "as a closure" : "as a module-level function",
 				scope->get_name().c_str(),
 				::str(scope->get_type_variable_bindings()).c_str()));
 

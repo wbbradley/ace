@@ -430,7 +430,7 @@ fn __next__[T](i VectorIter T) T? {
 
 [global]
 fn sort[T](v [T]) {
-    fn compare(lhs_ *void, rhs_ *void) posix.int {
+    fn[] compare(lhs_ *void, rhs_ *void) posix.int {
         lhs := (lhs_ as! *T)[0]
         rhs := (rhs_ as! *T)[0]
         return lhs < rhs ? -1 : ((rhs < lhs) ? 1 : 0)

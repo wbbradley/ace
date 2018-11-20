@@ -103,6 +103,11 @@ namespace types {
 	}
 
 	type_id_t::type_id_t(identifier::ref id) : id(id) {
+		static bool seen_bottom = false;
+		if (id->get_name().find(BOTTOM_TYPE) != std::string::npos) {
+			assert(!seen_bottom);
+			seen_bottom = true;
+		}
 	}
 
 	std::ostream &type_id_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {

@@ -101,10 +101,12 @@ types::type_t::ref build_patterns(
 			if (expected_type != type_bottom()) {
 				block_value = pattern_block->block->resolve_expression(
 						builder, pattern_scope, life, false /*as_ref*/, expected_type, &pattern_returns);
-
 				if (block_value == nullptr) {
 					/* block_value probably returned, so it has no value... */
 					assert(pattern_returns);
+				} else if (block_value->type->is_bottom(scope)) {
+					builder.CreateUnreachable();
+					pattern_returns = true;
 				} else {
 					/* we are in an expression */
 					unification_t unification = unify(expected_type, block_value->type->get_type(), pattern_scope);
@@ -128,6 +130,7 @@ types::type_t::ref build_patterns(
 				all_patterns_return = false;
 				assert(builder.GetInsertBlock()->getTerminator() == nullptr);
 				if (expected_type != type_bottom()) {
+					assert(!block_value->type->is_bottom(scope));
 					incoming_values.push_back(std::pair<bound_var_t::ref, llvm::BasicBlock*>{block_value, builder.GetInsertBlock()});
 				}
 				assert(!builder.GetInsertBlock()->getTerminator());
@@ -182,6 +185,8 @@ void check_patterns(
 			throw error;
 		}
 
+		debug_above(9, log("uncovered = %s", uncovered->str().c_str()));
+		debug_above(9, log("covering = %s", covering->str().c_str()));
 		uncovered = match::difference(uncovered, covering);
 	}
 

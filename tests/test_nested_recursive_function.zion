@@ -1,0 +1,16 @@
+module _
+
+# test: pass
+# expect: 6
+
+fn main() {
+    fn[] sum_up(i int, n int) int {
+        if i == n {
+            return i
+        } else {
+            return i + sum_up(i+1)
+        }
+    }
+    print(sum_up(0, 3))
+}
+

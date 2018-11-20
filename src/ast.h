@@ -681,6 +681,7 @@ namespace ast {
 		types::type_t::ref function_type;
 		identifier::ref extends_module;
 		token_t link_to_name;
+		bool no_closure = false;
 
 		std::string get_function_name() const;
 	};

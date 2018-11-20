@@ -6,10 +6,8 @@ module _
 type Int is { Int(i int) }
 
 [global]
-fn str(x Int) str {
-    return match x {
-        Int(x) => str(x)
-    }
+fn str(x Int) str => match x {
+    Int(x) => str(x)
 }
 
 [global]
