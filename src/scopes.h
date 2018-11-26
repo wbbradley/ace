@@ -40,14 +40,15 @@ struct scope_t : public env_t {
 	virtual bool has_bound(const std::string &name, bool is_global, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const = 0;
 	virtual bound_type_t::ref get_bound_type(std::string signature, bool use_mappings=true) = 0;
 	virtual bound_var_t::ref get_bound_function(std::string name, std::string signature) = 0;
-	virtual bound_var_t::ref get_bound_variable(llvm::IRBuilder<> &builder, location_t location, std::string symbol, scope_t::ref stopping_scope=nullptr) = 0;
-	virtual types::type_t::ref get_variable_type(location_t location, std::string symbol, scope_t::ref stopping_scope=nullptr) = 0;
+	virtual bound_var_t::ref get_bound_variable(llvm::IRBuilder<> &builder, location_t location, std::string symbol, scope_t::ref stopping_before_scope=nullptr) = 0;
+	virtual types::type_t::ref get_variable_type(location_t location, std::string symbol, scope_t::ref stopping_before_scope=nullptr) = 0;
 	virtual bound_var_t::ref get_singleton(std::string name) = 0;
 	virtual llvm::Module *get_llvm_module() = 0;
 	virtual ptr<const module_scope_t> get_module_scope() const = 0;
 	virtual ptr<const program_scope_t> get_program_scope() const = 0;
 	virtual ptr<const scope_t> get_parent_scope() const = 0;
-	virtual ptr<function_scope_t> new_function_scope(std::string name) = 0;
+	virtual ptr<function_scope_t> new_function_scope(std::string name, llvm::Function *llvm_function) = 0;
+	virtual llvm::Function *llvm_get_current_function() const = 0;
 	virtual ptr<module_scope_t> get_module_scope() = 0;
 	virtual ptr<program_scope_t> get_program_scope() = 0;
 	virtual ptr<scope_t> get_parent_scope() = 0;
@@ -57,7 +58,7 @@ struct scope_t : public env_t {
 	virtual std::string str() = 0;
 	virtual types::type_t::map get_type_variable_bindings() const = 0;
 	virtual void dump(std::ostream &os) const = 0;
-	virtual void get_callables(std::string symbol, var_t::refs &fns, bool check_unchecked=true) = 0;
+	virtual void get_callables(std::string symbol, var_t::refs &fns, bool check_unchecked, ref for_scope) = 0;
 	virtual void put_bound_variable(std::string symbol, bound_var_t::ref bound_variable) = 0;
     virtual void put_nominal_typename(const std::string &name, types::type_t::ref expansion) = 0;
     virtual void put_structural_typename(const std::string &name, types::type_t::ref expansion) = 0;

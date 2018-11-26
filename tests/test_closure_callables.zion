@@ -1,0 +1,18 @@
+module _
+# test: pass
+# expect: closure z
+# reject: module z
+
+fn z1() {
+    print("module z")
+}
+
+fn main() {
+    z := fn () {
+        print("closure z")
+    }
+    q := fn () {
+        z()
+    }
+    q()
+}

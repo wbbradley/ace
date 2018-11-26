@@ -77,7 +77,7 @@ fn balance[V](color Color, l RBSet V, a V, r RBSet V) RBSet V {
 }
 
 # `bubble` "bubbles" double-blackness upward:
-fn bubble[V](color Color, l RBSet V, a V, r RBSet V) RBSet a {
+fn bubble[V](color Color, l RBSet V, a V, r RBSet V) RBSet V {
     if isBB(l) or isBB(r) {
         return balance(blacker(color), redder(l), x, redder(r))
     } else {

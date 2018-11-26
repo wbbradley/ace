@@ -104,12 +104,12 @@ types::type_t::ref build_patterns(
 				if (block_value == nullptr) {
 					/* block_value probably returned, so it has no value... */
 					assert(pattern_returns);
-				} else if (block_value->type->is_bottom(scope)) {
+				} else if (block_value->get_type()->is_bottom(scope)) {
 					builder.CreateUnreachable();
 					pattern_returns = true;
 				} else {
 					/* we are in an expression */
-					unification_t unification = unify(expected_type, block_value->type->get_type(), pattern_scope);
+					unification_t unification = unify(expected_type, block_value->get_type(), pattern_scope);
 					if (!unification.result) {
 						auto error = user_error(block_value->get_location(), "value does not have a cohesive type with the rest of the match expression");
 						error.add_info(expected_type == type_unit() ? location : expected_type->get_location(), "expected type %s", expected_type->str().c_str());
@@ -130,7 +130,7 @@ types::type_t::ref build_patterns(
 				all_patterns_return = false;
 				assert(builder.GetInsertBlock()->getTerminator() == nullptr);
 				if (expected_type != type_bottom()) {
-					assert(!block_value->type->is_bottom(scope));
+					assert(!block_value->get_type()->is_bottom(scope));
 					incoming_values.push_back(std::pair<bound_var_t::ref, llvm::BasicBlock*>{block_value, builder.GetInsertBlock()});
 				}
 				assert(!builder.GetInsertBlock()->getTerminator());
@@ -171,9 +171,9 @@ void check_patterns(
 		const ast::pattern_block_t::refs &pattern_blocks,
 		bound_var_t::ref pattern_value)
 {
-	match::Pattern::ref uncovered = match::all_of(location, expr, runnable_scope, pattern_value->type->get_type());
+	match::Pattern::ref uncovered = match::all_of(location, expr, runnable_scope, pattern_value->get_type());
 	for (auto pattern_block : pattern_blocks) {
-		match::Pattern::ref covering = pattern_block->predicate->get_pattern(pattern_value->type->get_type(), runnable_scope);
+		match::Pattern::ref covering = pattern_block->predicate->get_pattern(pattern_value->get_type(), runnable_scope);
 		if (match::intersect(uncovered, covering)->asNothing() != nullptr) {
 			auto error = user_error(pattern_block->get_location(), "this pattern is already covered");
 			if (uncovered->asNothing() != nullptr) {
@@ -248,11 +248,11 @@ bound_var_t::ref ast::match_expr_t::resolve_match_expr(
 	/* we don't care about references in pattern matching */
 	pattern_value = pattern_value->resolve_bound_value(builder, scope);
 
-	if (pattern_value->type->is_maybe(scope)) {
+	if (pattern_value->get_type()->is_maybe(scope)) {
 		auto error = user_error(value->get_location(),
 				"null pattern values are not allowed. "
 				"check for null beforehand");
-		error.add_info(pattern_value->get_location(), "pattern value has type %s", pattern_value->type->str().c_str());
+		error.add_info(pattern_value->get_location(), "pattern value has type %s", pattern_value->get_type()->str().c_str());
 		throw error;
 	}
 
@@ -305,7 +305,7 @@ bound_var_t::ref ast::match_expr_t::resolve_match_expr(
 							incoming_value.first),
 						builder.GetInsertBlock());
 			}
-			return bound_var_t::create(
+			return make_bound_var(
 					INTERNAL_LOC(),
 					"match.value",
 					bound_final_type,
@@ -327,13 +327,13 @@ bound_var_t::ref gen_null_check(
 		runnable_scope_t::ref *new_scope)
 {
 	value = value->resolve_bound_value(builder, scope);
-	if (!value->type->is_ptr(scope)) {
+	if (!value->get_type()->is_ptr(scope)) {
 		throw user_error(node->get_location(),
-				"type %s cannot be compared to null", value->type->str().c_str());
+				"type %s cannot be compared to null", value->get_type()->str().c_str());
 	}
 
 	value = value->resolve_bound_value(builder, scope);
-	assert(llvm::dyn_cast<llvm::PointerType>(value->type->get_llvm_specific_type()));
+	assert(llvm::dyn_cast<llvm::PointerType>(value->get_bound_type()->get_llvm_specific_type()));
 	return value;
 }
 
@@ -347,22 +347,22 @@ bool ast::literal_expr_t::resolve_match(
 		llvm::BasicBlock *llvm_no_match_block,
 		runnable_scope_t::ref *scope_if_true) const
 {
-	if (input_value->type->get_type()->eval_predicate(tb_int, scope)) {
-		llvm::Value *llvm_value_to_check = input_value->get_llvm_value();
+	if (input_value->get_type()->eval_predicate(tb_int, scope)) {
+		llvm::Value *llvm_value_to_check = input_value->get_llvm_value(scope);
 		llvm::IntegerType *llvm_int_type = llvm::dyn_cast<llvm::IntegerType>(llvm_value_to_check->getType());
 		if (llvm_int_type == nullptr) {
 			throw user_error(token.location, "could not figure out how to compare %s to a %s",
 					token.str().c_str(),
-					input_value->type->get_type()->str().c_str());
+					input_value->get_type()->str().c_str());
 		}
 		auto bit_width = llvm_int_type->getBitWidth();
 		llvm::Value *match_bit = builder.CreateICmpEQ(
-				input_value->get_llvm_value(),
+				input_value->get_llvm_value(scope),
 				builder.getIntN(bit_width, parse_int_value(token)));
 		match_bit->setName("int_literal." + token.text + ".matched");
 		builder.CreateCondBr(match_bit, llvm_match_block, llvm_no_match_block);
 		return true;
-	} else if (input_value->type->get_type()->eval_predicate(tb_str, scope)) {
+	} else if (input_value->get_type()->eval_predicate(tb_str, scope)) {
 		auto bound_bool_type = scope->get_program_scope()->get_bound_type(BOOL_TYPE);
 		bound_var_t::ref string_to_test = create_global_str(builder, scope, token.location, unescape_json_quotes(token.text));
 		bound_var_t::ref matched = call_program_function(
@@ -373,7 +373,7 @@ bool ast::literal_expr_t::resolve_match(
 				token.location,
 				{string_to_test, input_value},
 				bound_bool_type->get_type());
-		llvm::Value *match_bit = llvm_zion_bool_to_i1(builder, matched->get_llvm_value());
+		llvm::Value *match_bit = llvm_zion_bool_to_i1(builder, matched->get_llvm_value(scope));
 		match_bit->setName("str_literal." + token.text + ".matched");
 		builder.CreateCondBr(match_bit, llvm_match_block, llvm_no_match_block);
 		return true;
@@ -390,7 +390,7 @@ bound_var_t::ref cast_data_type_to_ctor_struct(
 		token_t ctor_name)
 {
 	types::type_data_t::ref data_type = dyncast<const types::type_data_t>(
-			input_value->type->get_type()->eval(scope));
+			input_value->get_type()->eval(scope));
 	if (data_type == nullptr) {
 		throw user_error(input_value->get_location(), "unable to find data type in %s", input_value->str().c_str());
 	}
@@ -401,12 +401,12 @@ bound_var_t::ref cast_data_type_to_ctor_struct(
 				throw unbound_type_error(value_location, "ctor_pair has bottomed out");
 			}
 			auto bound_type = upsert_bound_type(builder, scope, type_ptr(type_managed(type_struct(ctor_pair.second))));
-			return bound_var_t::create(
+			return make_bound_var(
 					INTERNAL_LOC(),
 					ctor_name.text,
 					bound_type,
 					llvm_maybe_pointer_cast(builder,
-						input_value->get_llvm_value(), bound_type->get_llvm_specific_type()),
+						input_value->get_llvm_value(scope), bound_type->get_llvm_specific_type()),
 					make_code_id(ctor_pair.first));
 		}
 	}
@@ -444,7 +444,7 @@ bool ast::ctor_predicate_t::resolve_match(
 
 	/* check that this is the right ctor */
 	llvm::Value *match_bit = builder.CreateICmpEQ(
-			input_ctor_id->get_llvm_value(),
+			input_ctor_id->get_llvm_value(scope),
 			builder.getInt32(ctor_id));
 	match_bit->setName("ctor." + token.text + ".matched");
 
@@ -465,7 +465,7 @@ bool ast::ctor_predicate_t::resolve_match(
 				life,
 				params[i]->get_location(),
 				casted_input,
-				casted_input->type,
+				casted_input->get_bound_type(),
 				i,
 				params[i]->token.text,
 				false /*as_ref*/);
@@ -527,7 +527,7 @@ bool ast::tuple_predicate_t::resolve_match(
 				life,
 				params[i]->get_location(),
 				input_value,
-				input_value->type,
+				input_value->get_bound_type(),
 				i,
 				params[i]->token.text,
 				false /*as_ref*/);

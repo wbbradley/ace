@@ -374,7 +374,7 @@ fn find(s_ str, find_ str, start int) int? {
 
     # set up a search for the remaining characters (after the first)
     c := find_[0]
-    find := &unsafe_access(find_)[1]
+    find_pos := &unsafe_access(find_)[1]
     find_len := real_find_len - 1
     
     var s_len int = len(s_) - start
@@ -392,7 +392,7 @@ fn find(s_ str, find_ str, start int) int? {
         s_len -= 1
 
         if c == cur {
-            if posix.memcmp(s, find, find_len) == 0 {
+            if posix.memcmp(s, find_pos, find_len) == 0 {
                 return Just(start)
             }
         }

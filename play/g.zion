@@ -1,0 +1,19 @@
+module _
+
+fn for_each(coll [int], f fn (int) void) {
+    for c in coll {
+        f(c)
+    }
+}
+
+type Ref has {
+    var val int
+}
+
+fn main() {
+    var sum = Ref(0)
+    for_each([1, 2, 3], fn (x int) {
+        sum.val += x
+    })
+    print(sum.val)
+}

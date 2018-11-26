@@ -102,6 +102,46 @@ namespace types {
 		return shared_from_this();
 	}
 
+	bool type_t::is_ref(env_t::ref scope) const {
+		return eval_predicate(tb_ref, scope);
+	}
+
+	bool type_t::is_int(env_t::ref scope) const {
+		return eval_predicate(tb_int, scope);
+	}
+
+	bool type_t::is_function(env_t::ref scope) const {
+		return eval_predicate(tb_function, scope);
+	}
+
+	bool type_t::is_callable(env_t::ref scope) const {
+		return eval_predicate(tb_callable, scope);
+	}
+
+	bool type_t::is_void(env_t::ref scope) const {
+		return eval_predicate(tb_void, scope);
+	}
+
+	bool type_t::is_bool(env_t::ref scope) const {
+		return eval_predicate(tb_bool, scope);
+	}
+
+	bool type_t::is_bottom(env_t::ref scope) const {
+		return eval_predicate(tb_bottom, scope);
+	}
+
+	bool type_t::is_unit(env_t::ref scope) const {
+		return eval_predicate(tb_unit, scope);
+	}
+
+	bool type_t::is_maybe(env_t::ref scope) const {
+		return eval_predicate(tb_maybe, scope);
+	}
+
+	bool type_t::is_module() const {
+		return types::is_type_id(shared_from_this(), "module", nullptr);
+	}
+
 	type_id_t::type_id_t(identifier::ref id) : id(id) {
 		static bool seen_bottom = false;
 		if (id->get_name().find(BOTTOM_TYPE) != std::string::npos) {
@@ -336,7 +376,11 @@ namespace types {
 		for (auto dimension: dimensions) {
 			assert(dimension != nullptr);
 		}
-		assert(name_index.size() == dimensions.size() || name_index.size() == 0);
+		if (name_index.size() != dimensions.size() && name_index.size() != 0) {
+			// mismatch in params here...
+			std::cerr << ::join_str(dimensions, ", ") << std::endl;
+			dbg();
+		}
 #endif
 	}
 
@@ -1281,9 +1325,10 @@ namespace types {
 		return false;
 	}
 
-	bool is_managed_ptr(types::type_t::ref type, env_t::ref _env) {
+	bool type_t::is_managed_ptr(env_t::ref _env) const {
 		env_t::ref env = (_env == nullptr) ? _empty_env : _env;
-		debug_above(9, log(log_info, "checking if %s is a managed ptr", type->str().c_str()));
+		debug_above(9, log(log_info, "checking if %s is a managed ptr", this->str().c_str()));
+		types::type_t::ref type = shared_from_this();
 		if (auto expanded_type = type->eval(env, true /*get_structural_type*/)) {
 			type = expanded_type;
 		}
@@ -1317,9 +1362,9 @@ namespace types {
 		return false;
 	}
 
-	bool is_ptr(types::type_t::ref type, env_t::ref env) {
+	bool type_t::is_ptr(env_t::ref env) const {
 		// REVIEW: this is nebulous, it really depends on what env is passed in
-		type = type->eval(env, true /*get_structural_type*/);
+		auto type = this->eval(env, true /*get_structural_type*/);
 
 		if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 			type = maybe_type->just;

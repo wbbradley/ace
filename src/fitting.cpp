@@ -53,7 +53,7 @@ bound_var_t::ref get_best_fit(
 		std::sort(fittings.begin(), fittings.end(), [] (const fitting_t &lhs, const fitting_t &rhs) -> bool {
 			/* use the most generic fn that matched, because it will generally be the most efficient (fewer cases per
 			 * switch) */
-			return lhs.fn->type->get_type()->ftv_count() > rhs.fn->type->get_type()->ftv_count();
+			return lhs.fn->get_type()->ftv_count() > rhs.fn->get_type()->ftv_count();
 		});
 
 		try {
@@ -86,7 +86,7 @@ bound_var_t::ref get_best_fit(
 				e.add_info(fitting.fn->get_location(),
 						"matching %soverload : %s",
 						(dyncast<const bound_var_t>(fitting.var_fn) != nullptr) ? c_var("bound ") : c_good("unchecked "),
-						fitting.fn->type->get_type()->str().c_str());
+						fitting.fn->get_type()->str().c_str());
 			}
 			throw;
 		}

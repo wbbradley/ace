@@ -3,11 +3,11 @@ module _
 # expect: 18 
 
 fn sum[T, G](f fn (x T) T, y G, xs [T]) T {
-    var sum T = 0
+    var running_sum T = 0
     for x in xs {
-        sum += f(x)
+        running_sum += f(x)
     }
-    return int(sum * y)
+    return int(running_sum * y)
 }
 
 fn main() => print(sum(fn (x) => x + 1, 3.0, [0, 1, 2]))

@@ -19,7 +19,7 @@ bound_var_t::ref coerce_bound_value(
 {
 	bound_type_t::ref bound_type = upsert_bound_type(builder, scope, lhs_type);
 	auto llvm_value = coerce_value(builder, scope, life, location, lhs_type, rhs);
-	return bound_var_t::create(
+	return make_bound_var(
 			INTERNAL_LOC(),
 			"coerced.value",
 			bound_type,
@@ -53,12 +53,12 @@ llvm::Value *coerce_value(
 		assert(false);
 	}
 
-	assert(!rhs->type->is_bottom(scope));
+	assert(!rhs->get_type()->is_bottom(scope));
 
-	auto rhs_type = rhs->type->get_type();
+	auto rhs_type = rhs->get_type();
 
 	auto bound_lhs_type = upsert_bound_type(builder, scope, lhs_type);
-	llvm::Value *llvm_rhs_value = rhs->get_llvm_value();
+	llvm::Value *llvm_rhs_value = rhs->get_llvm_value(scope);
 
 	/* get the target type */
 	llvm::Type *llvm_lhs_type = bound_lhs_type->get_llvm_type();
@@ -67,7 +67,7 @@ llvm::Value *coerce_value(
 	 * compatible. Nevertheless, if we are here, then that means we must try to make the
 	 * rhs type become the lhs type. */
 	debug_above(5, log(log_info, "seeing about coercion from %s (aka %s) to %s (aka %s)",
-				rhs->type->str().c_str(),
+				rhs->get_bound_type()->str().c_str(),
 				llvm_print(llvm_rhs_value).c_str(),
 				lhs_type->str().c_str(),
 				llvm_print(llvm_lhs_type).c_str()));
@@ -94,8 +94,8 @@ llvm::Value *coerce_value(
 	}
 
 	/* check pragmatically for certain coercions that should take place */
-	bool lhs_is_managed = types::is_managed_ptr(lhs_type, scope);
-	bool rhs_is_managed = types::is_managed_ptr(rhs_type, scope);
+	bool lhs_is_managed = lhs_type->is_managed_ptr(scope);
+	bool rhs_is_managed = rhs_type->is_managed_ptr(scope);
 	if (lhs_is_managed && rhs_is_managed) {
 		/* we must trust the type system! */
 		debug_above(6, log("casting a %s to be a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
@@ -107,7 +107,7 @@ llvm::Value *coerce_value(
 				"__box__", location, {rhs}, lhs_type);
 
 		/* trust the type system. */
-		return builder.CreateBitCast(coercion->get_llvm_value(), llvm_lhs_type);
+		return builder.CreateBitCast(coercion->get_llvm_value(scope), llvm_lhs_type);
 	} else if (rhs_is_managed) {
 		if (types::is_ptr_type_id(lhs_type, STD_MANAGED_TYPE, scope)) {
 			// Consider allowing this conversion for all pointers, since coercion is
@@ -133,7 +133,7 @@ llvm::Value *coerce_value(
 				"raw", // OwningBuffer.raw
 				false /* as_ref */,
 				type_ptr(type_id(make_iid_impl(CHAR_TYPE, INTERNAL_LOC()))));
-			return raw_c_str->get_llvm_value();
+			return raw_c_str->get_llvm_value(scope);
 		} else {
 			throw user_error(rhs->get_location(), "unsure how to get native value of type %s from managed value of type %s [%s, %s]",
 					lhs_type->str().c_str(),
@@ -151,7 +151,7 @@ llvm::Value *coerce_value(
 			/* automatically resize integers to match the lhs */
 			unsigned bit_size = 0;
 			bool signed_ = false;
-			if (types::maybe_get_integer_attributes(rhs->get_location(), rhs->type->get_type(), scope, bit_size, signed_)) {
+			if (types::maybe_get_integer_attributes(rhs->get_location(), rhs->get_type(), scope, bit_size, signed_)) {
 				if (signed_) {
 					return builder.CreateSExtOrTrunc(llvm_rhs_value, llvm_lhs_type);
 				} else {
@@ -164,7 +164,7 @@ llvm::Value *coerce_value(
 			}
 		}
 
-		if (rhs->type->get_type()->eval_predicate(tb_null, scope)) {
+		if (rhs->get_type()->eval_predicate(tb_null, scope)) {
 			/* we're passing in a null value */
 			assert(llvm_lhs_type->isPointerTy());
 			return llvm::Constant::getNullValue(llvm_lhs_type);
@@ -174,7 +174,7 @@ llvm::Value *coerce_value(
 				lhs_type->str().c_str());
 		assert(false);
 		dbg();
-		return rhs->get_llvm_value();
+		return rhs->get_llvm_value(scope);
 	}
 }
 
