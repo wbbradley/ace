@@ -23,7 +23,7 @@ unification_t var_t::accepts_callsite(
 	args = args->rebind(bindings);
 	return_type = return_type->rebind(bindings);
 
-	types::type_t::ref type = get_type(scope)->eval(scope)->rebind(bindings);
+	types::type_t::ref type = types::without_ref(get_type(scope)->eval(scope)->rebind(bindings));
 	debug_above(8, log("var_t type = %s", str().c_str()));
 
 	types::type_function_t::ref fn_type;

@@ -106,6 +106,18 @@ namespace types {
 		bool eval_predicate(type_builtins_t tb, env_t::ref env) const;
 
 		virtual int get_precedence() const { return 10; }
+		bool is_function(env_t::ref scope) const;
+		bool is_callable(env_t::ref scope) const;
+		bool is_void(env_t::ref scope) const;
+		bool is_bool(env_t::ref scope) const;
+		bool is_bottom(env_t::ref scope) const;
+		bool is_unit(env_t::ref scope) const;
+		bool is_ptr(env_t::ref scope) const;
+		bool is_managed_ptr(env_t::ref scope) const;
+		bool is_ref(env_t::ref scope) const;
+		bool is_int(env_t::ref scope) const;
+		bool is_maybe(env_t::ref scope) const;
+		bool is_module() const;
 	};
 
 	struct type_subtype_t : public type_t {
@@ -185,8 +197,6 @@ namespace types {
 
 	bool is_type_id(type_t::ref type, const std::string &type_name, env_t::ref env);
 	bool is_ptr_type_id(type_t::ref type, const std::string &type_name, env_t::ref env, bool allow_maybe=false);
-	bool is_managed_ptr(types::type_t::ref type, env_t::ref env);
-	bool is_ptr(types::type_t::ref type, env_t::ref env);
 
 	struct type_id_t : public type_t {
 		type_id_t(identifier::ref id);

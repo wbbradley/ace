@@ -948,7 +948,7 @@ namespace ast {
 				bool as_ref,
 				types::type_t::ref expected_type,
 				bool *returns) const;
-        virtual bound_var_t::ref resolve_overrides(
+		virtual bound_var_t::ref resolve_overrides(
 				llvm::IRBuilder<> &builder,
 				scope_t::ref scope,
 				life_t::ref,
@@ -961,6 +961,14 @@ namespace ast {
 				location_t location,
 				types::type_t::refs args,
 				types::type_t::ref return_type) const;
+		bound_var_t::ref resolve_with_lhs(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref scope,
+				life_t::ref life,
+				bound_var_t::ref lhs_val,
+				bool as_ref,
+				types::type_t::ref expected_type,
+				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
 
 		ptr<ast::expression_t> lhs;

@@ -32,16 +32,6 @@ protected:
 	bound_type_t &operator =(const bound_type_t &) = delete;
 
 public:
-	bool is_function(ptr<scope_t> scope) const;
-	bool is_void(ptr<scope_t> scope) const;
-	bool is_bottom(ptr<scope_t> scope) const;
-	bool is_unit(ptr<scope_t> scope) const;
-	void is_managed_ptr(llvm::IRBuilder<> &builder, ptr<scope_t> scope, bool &is_managed) const;
-	bool is_ptr(ptr<scope_t> scope) const;
-	bool is_ref(ptr<scope_t> scope) const;
-	bool is_int(ptr<scope_t> scope) const;
-	bool is_maybe(ptr<scope_t> scope) const;
-    bool is_module() const;
 	std::string get_signature() const;
 
 	std::string str() const;

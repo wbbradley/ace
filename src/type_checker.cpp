@@ -108,7 +108,7 @@ llvm::Value *resolve_init_var(
 
 	assert(init_var != nullptr);
 	llvm::Value *llvm_init_value;
-	if (!init_var->type->get_type()->eval_predicate(tb_null, scope)) {
+	if (!init_var->get_type()->eval_predicate(tb_null, scope)) {
 		llvm_init_value = coerce_value(builder, scope, life,
 				obj.get_location(), value_type->get_type(), init_var);
 	} else {
@@ -156,10 +156,10 @@ bound_var_t::ref generate_stack_variable(
 		bool returns = false;
 		/* we have an initializer */
 		init_var = var_decl.initializer->resolve_expression(builder, scope, life, false /*as_ref*/, declared_type, &returns);
-		if (init_var->type->is_void(scope)) {
+		if (init_var->get_type()->is_void(scope)) {
 			throw user_error(var_decl.get_location(),
 					"cannot initialize a variable with void, since it has no value");
-		} else if (init_var->type->is_bottom(scope) || returns) {
+		} else if (init_var->get_type()->is_bottom(scope) || returns) {
 			throw user_error(var_decl.get_location(),
 					"this variable will never be initialized because the right-hand side will not pass control back to this function");
 		}
@@ -199,13 +199,13 @@ bound_var_t::ref generate_stack_variable(
 						var_decl.get_symbol().c_str());
 				error.add_info(init_var->get_location(), c_type("%s") " != " c_type("%s") " because %s",
 						declared_type->str().c_str(),
-						init_var->type->str().c_str(),
+						init_var->get_type()->str().c_str(),
 						unification.reasons.c_str());
 				throw error;
 			}
 		} else {
 			/* we must get the type from the initializer */
-			declared_type = init_var->type->get_type();
+			declared_type = init_var->get_type();
 		}
 	}
 
@@ -244,15 +244,14 @@ bound_var_t::ref generate_stack_variable(
 	llvm::Function *llvm_function = llvm_get_function(builder);
 
 	// NOTE: we don't make this a gcroot until a little later on
-	bool is_managed;
-	value_type->is_managed_ptr(builder, scope, is_managed);
+	bool is_managed = value_type->get_type()->is_managed_ptr(scope);
 	llvm::Value *llvm_value = nullptr;
 	llvm_value = resolve_init_var(builder, scope, life, var_decl, symbol, declared_type,
 			llvm_function, init_var, value_type, is_managed);
 
 	/* the reference_expr that looks at this llvm_value will need to
 	 * know to use store/load semantics, not just pass-by-value */
-	bound_var_t::ref var_decl_variable = bound_var_t::create(
+	bound_var_t::ref var_decl_variable = make_bound_var(
 			INTERNAL_LOC(),
 			symbol,
 			llvm::dyn_cast<llvm::AllocaInst>(llvm_value) ? stack_var_type : value_type,
@@ -260,7 +259,7 @@ bound_var_t::ref generate_stack_variable(
 			make_type_id_code_id(var_decl.get_location(), var_decl.get_symbol()));
 
 	/* on our way out, stash the variable in the current scope */
-	scope->put_bound_variable(var_decl_variable->name, var_decl_variable);
+	scope->put_bound_variable(var_decl_variable->get_name(), var_decl_variable);
 
 	if (unboxed) {
 		/* 'condition_value' refers to whether this was an unboxed maybe */
@@ -275,7 +274,7 @@ bound_var_t::ref generate_stack_variable(
 
 		/* we're unboxing a Maybe{any}, so let's return
 		 * whether this was Nothing or not... */
-		return bound_var_t::create(INTERNAL_LOC(), symbol,
+		return make_bound_var(INTERNAL_LOC(), symbol,
 				condition_type, llvm_resolved_value,
 				make_type_id_code_id(var_decl.get_location(), var_decl.get_symbol()));
 	} else {
@@ -326,14 +325,14 @@ bound_var_t::ref upsert_module_variable(
 			llvm_constant,
 			false /*is_constant*/);
 
-	bound_var_t::ref var_decl_variable = bound_var_t::create(INTERNAL_LOC(), symbol,
+	bound_var_t::ref var_decl_variable = make_bound_var(INTERNAL_LOC(), symbol,
 			bound_global_type, llvm_global_variable, make_code_id(var_decl.token));
 
 	/* preemptively stash the variable in the module scope */
-	module_scope->put_bound_variable(var_decl_variable->name, var_decl_variable);
+	module_scope->put_bound_variable(var_decl_variable->get_name(), var_decl_variable);
 
 	function_scope_t::ref function_scope = module_scope->new_function_scope(
-			std::string("__init_module_vars_") + symbol);
+			std::string("__init_module_vars_") + symbol, nullptr /*llvm_function*/);
 
 	/* 'init_var' is keeping track of the value we are assigning to our new
 	 * variable (if any exists.) */
@@ -368,7 +367,7 @@ bound_var_t::ref upsert_module_variable(
 					var_decl.token.text.c_str());
 			error.add_info(init_var->get_location(), c_type("%s") " != " c_type("%s") " because %s",
 					declared_type->str().c_str(),
-					init_var->type->str().c_str(),
+					init_var->get_type()->str().c_str(),
 					unification.reasons.c_str());
 			throw error;
 		}
@@ -397,7 +396,7 @@ bound_var_t::ref upsert_module_variable(
 	if (init_var != nullptr) {
 		debug_above(6, log(log_info, "creating a store instruction %s := %s",
 					llvm_print(llvm_global_variable).c_str(),
-					llvm_print(init_var->get_llvm_value()).c_str()));
+					llvm_print(init_var->get_llvm_value(function_scope)).c_str()));
 
 		llvm::Value *llvm_init_value = coerce_value(builder, module_scope, 
 				life, var_decl.get_location(), declared_type, init_var);
@@ -410,18 +409,10 @@ bound_var_t::ref upsert_module_variable(
 				llvm_maybe_pointer_cast(builder, llvm_init_value,
 					bound_type->get_llvm_specific_type()),
 				llvm_global_variable);
-	} else {
-		bool is_managed = false;
-		var_decl_variable->type->is_managed_ptr(
-				builder,
-				module_scope,
-				is_managed);
-
-		if (is_managed) {
-			if (!var_decl_variable->type->is_maybe(module_scope)) {
-				throw user_error(var_decl.get_location(), "module var " c_id("%s") " missing initializer",
-						symbol.c_str());
-			}
+	} else if (var_decl_variable->get_type()->is_managed_ptr(module_scope)) {
+		if (!var_decl_variable->get_type()->is_maybe(module_scope)) {
+			throw user_error(var_decl.get_location(), "module var " c_id("%s") " missing initializer",
+					symbol.c_str());
 		}
 	}
 
@@ -686,8 +677,8 @@ void ast::link_module_statement_t::resolve_statement(
 		 * IR.  they are resolved entirely at compile time.  perhaps in a
 		 * future version they can be used as run-time variables, so that we
 		 * can pass modules around for another level of polymorphism. */
-		bound_module_t::ref module_variable = bound_module_t::create(INTERNAL_LOC(),
-				linked_module_name, make_code_id(token), linked_module_scope);
+		bound_var_t::ref module_variable = make_bound_module(INTERNAL_LOC(),
+				linked_module_name, make_code_id(extern_module->name), linked_module_scope);
 
 		module_scope->put_bound_variable(link_as_name.text, module_variable);
 	} else {
@@ -749,7 +740,7 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 	}
 
 	assert(return_value != nullptr);
-    if (return_value->is_unit(scope)) {
+    if (return_value->get_type()->is_unit(scope)) {
         throw user_error(token.location, "linked functions cannot return unit type ()");
     }
 
@@ -780,7 +771,7 @@ bound_var_t::ref ast::link_function_statement_t::resolve_expression(
 	debug_above(7, log("resolved linked function " c_id("%s") " into %s",
 				extern_function->token.text.c_str(),
 				bound_function_type->get_type()->str().c_str()));
-	return bound_var_t::create(
+	return make_bound_var(
 			INTERNAL_LOC(),
 			scope->make_fqn(extern_function->token.text),
 			bound_function_type,
@@ -823,10 +814,10 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 	}
 
 	if (auto bound_module = dyncast<const bound_module_t>(lhs_var)) {
-		assert(bound_module->module_scope != nullptr);
+		assert(bound_module->get_module_scope() != nullptr);
 
 		/* let's see if the associated module has a method that can handle this callsite */
-		return get_callable(builder, bound_module->module_scope,
+		return get_callable(builder, bound_module->get_module_scope(),
 				rhs.text, callsite->get_location(),
 				get_args_type(args),
 				return_type);
@@ -835,12 +826,12 @@ bound_var_t::ref ast::dot_expr_t::resolve_overrides(
 				type_variable(INTERNAL_LOC()),
 				args,
 				type_variable(INTERNAL_LOC()));
-		bound_var_t::ref bound_fn = this->resolve_expression(builder, scope, life, false /*as_ref*/,
-				target_function_type, returns);
+		bound_var_t::ref bound_fn = this->resolve_with_lhs(builder, scope, life, lhs_var,
+			   	false /*as_ref*/, target_function_type, returns);
 
-		// dbg_when(dyncast<const types::type_function_closure_t>(bound_fn->type->get_type()) != nullptr);
+		// dbg_when(dyncast<const types::type_function_closure_t>(bound_fn->get_type()) != nullptr);
 		unification_t unification = unify(
-				bound_fn->type->get_type(),
+				bound_fn->get_type(),
 				target_function_type,
 				scope);
 
@@ -939,7 +930,7 @@ void ast::callsite_expr_t::resolve_statement(
 				log_location(log_info, param->get_location(),
 						"%s : %s%s",
 						param->str().c_str(),
-						param_var->type->str().c_str(),
+						param_var->get_type()->str().c_str(),
                         debug_level() >= 8 ? string_format(" %s", scope->get_name().c_str()).c_str() : "");
 				return;
 			} else {
@@ -990,17 +981,17 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 				bound_var_t::ref param_var = param->resolve_expression(
 						builder, scope, life, false /*as_ref*/, nullptr, &param_returns);
 
-				if (param_var->type->is_void(scope)) {
+				if (param_var->get_type()->is_void(scope)) {
 					throw user_error(param->get_location(), "function parameters cannot be void");
 				}
 
-				if (param_returns || param_var->type->is_bottom(scope)) {
+				if (param_returns || param_var->get_type()->is_bottom(scope)) {
 					throw user_error(param->get_location(), "function parameters cannot be the bottom type (⊥)");
 				}
 
 				arguments.push_back(param_var);
-				param_types.push_back(param_var->type);
-				args.push_back(param_var->type->get_type());
+				param_types.push_back(param_var->get_bound_type());
+				args.push_back(param_var->get_type());
 			} else {
 				arguments.push_back(nullptr);
 				param_types.push_back(nullptr);
@@ -1044,17 +1035,18 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 							expected_type_for_arg,
 							&param_returns);
 
-					if (param_returns || param_var->type->is_bottom(scope)) {
+					if (param_returns || param_var->get_type()->is_bottom(scope)) {
 						throw user_error(param->get_location(), "function parameters cannot be the bottom type (⊥)");
 					}
 
-					debug_above(6, log("argument %s -> %s", param->str().c_str(), param_var->type->str().c_str()));
+					debug_above(6, log("argument %s -> %s", param->str().c_str(),
+							   	param_var->get_bound_type()->str().c_str()));
 
 					assert(arguments[j] == nullptr);
 					arguments[j] = param_var;
 					assert(param_types[j] == nullptr);
-					param_types[j] = param_var->type;
-					args[j] = param_var->type->get_type();
+					param_types[j] = param_var->get_bound_type();
+					args[j] = param_var->get_type();
 				}
 			}
 		}
@@ -1076,7 +1068,7 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 			debug_above(5, log(log_info, "function chosen is %s", function->str().c_str()));
 
 			auto value = make_call_value(builder, get_location(), scope, life, function, arguments);
-			if (value->type->is_bottom(scope)) {
+			if (value->get_type()->is_bottom(scope)) {
 				*returns = false;
 			}
 			return value;
@@ -1087,7 +1079,7 @@ bound_var_t::ref ast::callsite_expr_t::resolve_expression(
 				throw user_error(get_location(), "callsite will never get called because function value breaks control flow");
 			}
 			auto value = make_call_value(builder, get_location(), scope, life, lhs_value, arguments);
-			if (value->type->is_bottom(scope)) {
+			if (value->get_type()->is_bottom(scope)) {
 				*returns = true;
 			}
 			return value;
@@ -1135,7 +1127,7 @@ runnable_scope_t::ref new_refined_scope(
 	auto local_scope = dyncast<runnable_scope_t>(scope);
 	assert(local_scope != nullptr);
 
-	types::type_t::ref value_type = value->type->get_type();
+	types::type_t::ref value_type = value->get_type();
 	types::type_t::ref refined_type = value_type->boolean_refinement(!refinement_path, scope);
 
 	if (refined_type != value_type) {
@@ -1144,11 +1136,11 @@ runnable_scope_t::ref new_refined_scope(
 		auto new_scope = local_scope->new_runnable_scope(
 				string_format("%s.%s", boolstr(refinement_path), name.c_str()));
 		new_scope->put_bound_variable(name,
-				bound_var_t::create(
+				make_bound_var(
 					INTERNAL_LOC(),
 					name,
 					bound_refined_type,
-					value->get_llvm_value(),
+					value->get_llvm_value(scope),
 					make_iid_impl(name, location)));
 		return new_scope;
 	} else {
@@ -1175,7 +1167,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 	if (var != nullptr) {
 		if (!as_ref) {
 			bound_var_t::ref value = var->resolve_bound_value(builder, scope);
-			if (scope_if_true != nullptr && scope_if_false != nullptr && value->type->is_maybe(scope)) {
+			if (scope_if_true != nullptr && scope_if_false != nullptr && value->get_type()->is_maybe(scope)) {
 				assert(*scope_if_true == nullptr);
 				assert(*scope_if_false == nullptr);
 				*scope_if_true = new_refined_scope(builder, scope, token.location, token.text, value, true);
@@ -1196,7 +1188,7 @@ bound_var_t::ref ast::reference_expr_t::resolve_reference(
 		if (function != nullptr) {
 			debug_above(5, log("reference expression for " c_id("%s") " resolved to %s",
 						token.text.c_str(), function->str().c_str()));
-			assert(function->type->get_type()->eval_predicate(tb_function, scope));
+			assert(function->get_type()->eval_predicate(tb_callable, scope));
 			return function;
 		} else {
 			debug_above(5, log("could not find reference expression for " c_id("%s") " (found %d fns, though)",
@@ -1263,7 +1255,7 @@ bound_var_t::ref resolve_pointer_array_index(
 	// REVIEW: consider just checking the LLVM type for whether it's an integer type
 	unification_t index_unification = unify(
 			type_integer(type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC())),
-			index_val->type->get_type(),
+			index_val->get_type(),
 			scope);
 
 	if (index_unification.result) {
@@ -1273,9 +1265,9 @@ bound_var_t::ref resolve_pointer_array_index(
 					index_val->str().c_str()));
 
 		/* create the GEP instruction */
-		std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{index_val->get_llvm_value()};
+		std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{index_val->get_llvm_value(scope)};
 
-		llvm::Value *llvm_gep = builder.CreateGEP(lhs_val->get_llvm_value(), gep_path);
+		llvm::Value *llvm_gep = builder.CreateGEP(lhs_val->get_llvm_value(scope), gep_path);
 
 		debug_above(5, log(log_info,
 					"created dereferencing GEP %s : %s (element type is %s)",
@@ -1289,7 +1281,7 @@ bound_var_t::ref resolve_pointer_array_index(
 					builder, scope,
 					as_ref ? type_ref(element_type) : element_type);
 
-			return bound_var_t::create(
+			return make_bound_var(
 					INTERNAL_LOC(),
 					{"dereferenced.pointer"},
 					bound_element_type,
@@ -1309,7 +1301,7 @@ bound_var_t::ref resolve_pointer_array_index(
 	} else {
 		throw user_error(index->get_location(),
 				"pointer index must be of an integer type. your index is of type %s",
-				index_val->type->get_type()->str().c_str());
+				index_val->get_type()->str().c_str());
 	}
 }
 
@@ -1382,7 +1374,7 @@ bound_var_t::ref extract_member_by_index(
 	/* GEP and load the member value from the structure */
 	llvm::Value *llvm_gep = llvm_make_gep(builder,
 			llvm_var_value, index,
-			types::is_managed_ptr(bound_var->get_type(), scope));
+			bound_var->get_type()->is_managed_ptr(scope));
 	if (llvm_gep->getName().str().size() == 0) {
 		llvm_gep->setName(string_format("address_of.%s", member_name.c_str()));
 	}
@@ -1404,8 +1396,8 @@ bound_var_t::ref extract_member_by_index(
 	bound_type_t::ref bound_member_type = upsert_bound_type(builder, scope, 
 			as_ref ? member_type : types::without_ref(member_type));
 
-	auto dot_name = string_format("%s.%s", bound_var->name.c_str(), member_name.c_str());
-	return bound_var_t::create(
+	auto dot_name = string_format("%s.%s", bound_var->get_name().c_str(), member_name.c_str());
+	return make_bound_var(
 			INTERNAL_LOC(), dot_name,
 			bound_member_type, llvm_item, make_iid_impl(dot_name, location));
 }
@@ -1440,14 +1432,14 @@ bound_var_t::ref type_check_assignment(
 		bound_var_t::ref rhs_var,
 		location_t location)
 {
-	if (!lhs_var->type->is_ref(scope)) {
+	if (!lhs_var->get_type()->is_ref(scope)) {
 		auto error = user_error(location,
 				"the left-hand side of this assignment is not a reference",
-				lhs_var->name.c_str());
+				lhs_var->get_name().c_str());
 		error.add_info(lhs_var->get_location(),
 				"see declaration of " c_id("%s") " with type %s",
-				lhs_var->name.c_str(),
-				lhs_var->type->get_type()->str().c_str());
+				lhs_var->get_name().c_str(),
+				lhs_var->get_type()->str().c_str());
 		throw error;
 	}
 
@@ -1456,22 +1448,22 @@ bound_var_t::ref type_check_assignment(
 				lhs_var->str().c_str(),
 				rhs_var->str().c_str()));
 
-	auto lhs_unreferenced_type = dyncast<const types::type_ref_t>(lhs_var->type->get_type())->element_type;
+	auto lhs_unreferenced_type = dyncast<const types::type_ref_t>(lhs_var->get_type())->element_type;
 	bound_type_t::ref lhs_unreferenced_bound_type = upsert_bound_type(builder, scope, lhs_unreferenced_type);
 
 	unification_t unification = unify(
 			lhs_unreferenced_type,
-			rhs_var->type->get_type(),
+			rhs_var->get_type(),
 			scope);
 
 	if (unification.result) {
 		llvm::Value *llvm_rhs_value = coerce_value(builder, scope, life,
 				location, lhs_unreferenced_type, rhs_var);
-		assert(llvm::dyn_cast<llvm::AllocaInst>(lhs_var->get_llvm_value())
-				|| llvm::dyn_cast<llvm::GlobalVariable>(lhs_var->get_llvm_value())
-				|| llvm_value_is_pointer(lhs_var->get_llvm_value()));
+		assert(llvm::dyn_cast<llvm::AllocaInst>(lhs_var->get_llvm_value(scope))
+				|| llvm::dyn_cast<llvm::GlobalVariable>(lhs_var->get_llvm_value(scope))
+				|| llvm_value_is_pointer(lhs_var->get_llvm_value(scope)));
 
-		builder.CreateStore(llvm_rhs_value, lhs_var->get_llvm_value());
+		builder.CreateStore(llvm_rhs_value, lhs_var->get_llvm_value(scope));
 
 		return lhs_var;
 	} else {
@@ -1506,19 +1498,19 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 		throw user_error(lhs->get_location(), "term breaks control flow");
 	}
 
-	if (auto tuple_type = dyncast<const types::type_tuple_t>(lhs_val->type->get_type())) {
+	if (auto tuple_type = dyncast<const types::type_tuple_t>(lhs_val->get_type())) {
 		int member_index = get_constant_int(start);
 		if (stop != nullptr) {
 			throw user_error(stop->get_location(), "slicing tuples is not yet supported. accepting pull requests...");
 		}
 
 		bound_var_t::ref value = extract_member_by_index(builder, scope, life,
-				get_location(), lhs_val, lhs_val->type, member_index,
+				get_location(), lhs_val, lhs_val->get_bound_type(), member_index,
 				string_format("%d", member_index), as_ref);
 
 		if (rhs != nullptr) {
 			/* let's assign into this tuple slot */
-			bound_var_t::ref rhs_val = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, value->type->get_type(), &returns);
+			bound_var_t::ref rhs_val = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, value->get_type(), &returns);
 			if (returns) {
 				throw user_error(rhs->get_location(), "term breaks control flow");
 			}
@@ -1539,15 +1531,15 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 			throw user_error(start->get_location(), "term breaks control flow");
 		}
 
-		identifier::ref element_type_var = types::gensym(lhs_val->type->get_location());
+		identifier::ref element_type_var = types::gensym(lhs_val->get_type()->get_location());
 
-		if (lhs_val->type->get_type()->eval_predicate(tb_maybe, scope)) {
+		if (lhs_val->get_type()->eval_predicate(tb_maybe, scope)) {
 			throw user_error(lhs_val->get_location(), "you are not allowed to dereference a potentially null pointer");
 		}
 
 		/* check to see if we are employing pointer arithmetic here */
 		unification_t unification = unify(
-				lhs_val->type->get_type(),
+				lhs_val->get_type(),
 			   	type_ptr(type_variable(element_type_var)),
 				scope);
 
@@ -1601,8 +1593,8 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 						"__setitem__",
 						get_location(),
 						type_args({
-							lhs_val->type->get_type(),
-						   	index_val->type->get_type(),
+							lhs_val->get_type(),
+						   	index_val->get_type(),
 						   	type_variable(type_var_name)}),
 						type_variable(INTERNAL_LOC()),
 						fns,
@@ -1612,7 +1604,7 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 
 				types::type_t::ref expected_rhs_type;
 				if (setitem_function != nullptr) {
-					if (auto function = dyncast<const types::type_function_t>(setitem_function->type->get_type())) {
+					if (auto function = dyncast<const types::type_function_t>(setitem_function->get_type())) {
 						if (auto args = dyncast<const types::type_args_t>(function->args)) {
 							assert(args->args.size() == 3);
 							/* we found the expected rhs type */
@@ -1632,12 +1624,12 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 					throw user_error(rhs->get_location(), "term breaks control flow");
 				}
 
-				if (!unifies(expected_rhs_type, rhs_val->type->get_type(), scope)) {
+				if (!unifies(expected_rhs_type, rhs_val->get_type(), scope)) {
 					auto error = user_error(rhs->get_location(), "incompatible rhs for assignment");
 					error.add_info(setitem_function->get_location(), "see definition of __setitem__");
 					error.add_info(expected_rhs_type->get_location(), "it is expecting a value of type %s",
 							expected_rhs_type->str().c_str());
-					error.add_info(rhs_val->get_location(), "and your rhs is of type %s", rhs_val->type->get_type()->str().c_str());
+					error.add_info(rhs_val->get_location(), "and your rhs is of type %s", rhs_val->get_type()->str().c_str());
 					throw error;
 				}
 
@@ -1646,14 +1638,14 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 				std::vector<llvm::Value *> llvm_args = get_llvm_values(
 						builder, scope, life,
 						get_location(),
-						get_function_args_types(setitem_function->type),
+						get_function_args_types(setitem_function->get_bound_type()),
 						{lhs_val, index_val, rhs_val});
 
 				bound_type_t::ref return_type = get_function_return_type(
 						builder,
 						scope,
-						setitem_function->type);
-				return bound_var_t::create(
+						setitem_function->get_bound_type());
+				return make_bound_var(
 						INTERNAL_LOC(),
 						"array.index.assignment",
 						return_type,
@@ -1724,7 +1716,7 @@ bound_var_t::ref create_bound_vector_literal(
 			builder, location, get_vector_init_function,
 			{builder.getZionInt(bound_items.size())});
 
-	auto append_fn_type = dyncast<const types::type_function_t>(get_vector_append_function->type->get_type());
+	auto append_fn_type = dyncast<const types::type_function_t>(get_vector_append_function->get_type());
 	auto element_args_type = dyncast<const types::type_args_t>(append_fn_type->args);
 	auto arg0_type = element_args_type->args[0];
 	auto arg1_type = element_args_type->args[1];
@@ -1746,7 +1738,7 @@ bound_var_t::ref create_bound_vector_literal(
 	}
 
 	/* the type of the resultant vector */
-	return bound_var_t::create(
+	return make_bound_var(
 			INTERNAL_LOC(),
 			"vector.literal",
 			bound_vector_type,
@@ -1790,16 +1782,16 @@ bound_var_t::ref ast::array_literal_expr_t::resolve_expression(
 
 		bound_items.push_back(bound_item);
 		if (element_type == nullptr) {
-			element_type = bound_item->type->get_type();
+			element_type = bound_item->get_type();
 		} else {
 
-			if (!unifies(element_type, bound_item->type->get_type(), scope)) {
+			if (!unifies(element_type, bound_item->get_type(), scope)) {
 				auto error = user_error(bound_item->get_location(), "vector item is incompatible with container type");
 				if (dyncast<const types::type_lambda_t>(element_type)) {
 					error.add_info(element_type->get_location(), "you may be missing an application of a type operator");
 				}
 				error.add_info(element_type->get_location(), "container is a %s", element_type->str().c_str());
-				error.add_info(bound_item->get_location(), "item is a %s", bound_item->type->get_type()->str().c_str());
+				error.add_info(bound_item->get_location(), "item is a %s", bound_item->get_type()->str().c_str());
 				throw error;
 			}
 		}
@@ -1868,8 +1860,8 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		runnable_scope_t::ref *scope_if_false,
 		types::type_t::ref expected_type)
 {
-	if (lhs_var->type->get_type()->eval_predicate(tb_null, scope)) {
-		if (rhs_var->type->get_type()->eval_predicate(tb_null, scope)) {
+	if (lhs_var->get_type()->eval_predicate(tb_null, scope)) {
+		if (rhs_var->get_type()->eval_predicate(tb_null, scope)) {
 			return scope->get_program_scope()->get_bound_variable(
 					builder, location,
 					rnpbc_equality_is_truth(rnpbc) ? TRUE_TYPE : FALSE_TYPE,
@@ -1878,21 +1870,21 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 			auto null_check = rnpbc_rhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null;
 			return resolve_null_check(builder, scope, life, location, rhs_node, rhs_var, null_check, scope_if_true, scope_if_false);
 		}
-	} else if (rhs_var->type->get_type()->eval_predicate(tb_null, scope)) {
+	} else if (rhs_var->get_type()->eval_predicate(tb_null, scope)) {
 		auto null_check = rnpbc_lhs_non_null_is_truth(rnpbc) ? nck_is_non_null : nck_is_null;
 		return resolve_null_check(builder, scope, life, location, lhs_node, lhs_var, null_check, scope_if_true, scope_if_false);
 	} else {
 		/* neither side is null */
-		if (!lhs_var->type->is_ptr(scope)) { std::cerr << lhs_var->str() << " " << llvm_print(lhs_var->get_llvm_value()) << std::endl; dbg(); }
-		if (!rhs_var->type->is_ptr(scope)) { std::cerr << rhs_var->str() << " " << llvm_print(rhs_var->get_llvm_value()) << std::endl; dbg(); }
+		if (!lhs_var->get_type()->is_ptr(scope)) { std::cerr << lhs_var->str() << " " << llvm_print(lhs_var->get_llvm_value(scope)) << std::endl; dbg(); }
+		if (!rhs_var->get_type()->is_ptr(scope)) { std::cerr << rhs_var->str() << " " << llvm_print(rhs_var->get_llvm_value(scope)) << std::endl; dbg(); }
 
 		if (
-				!unifies(lhs_var->type->get_type(), rhs_var->type->get_type(), scope) &&
-				!unifies(rhs_var->type->get_type(), lhs_var->type->get_type(), scope))
+				!unifies(lhs_var->get_type(), rhs_var->get_type(), scope) &&
+				!unifies(rhs_var->get_type(), lhs_var->get_type(), scope))
 		{
 			throw user_error(location, "values of types (%s and %s) cannot be compared",
-					lhs_var->type->get_type()->str().c_str(),
-					rhs_var->type->get_type()->str().c_str());
+					lhs_var->get_type()->str().c_str(),
+					rhs_var->get_type()->str().c_str());
 			return nullptr;
 		}
 
@@ -1903,20 +1895,20 @@ bound_var_t::ref resolve_native_pointer_binary_compare(
 		switch (rnpbc) {
 		case rnpbc_eq:
 			llvm_value = builder.CreateICmpEQ(
-					builder.CreateBitCast(lhs_var->get_llvm_value(), llvm_char_ptr_type),
-					builder.CreateBitCast(rhs_var->get_llvm_value(), llvm_char_ptr_type));
+					builder.CreateBitCast(lhs_var->get_llvm_value(scope), llvm_char_ptr_type),
+					builder.CreateBitCast(rhs_var->get_llvm_value(scope), llvm_char_ptr_type));
 			break;
 		case rnpbc_ineq:
 			llvm_value = builder.CreateICmpNE(
-					builder.CreateBitCast(lhs_var->get_llvm_value(), llvm_char_ptr_type),
-					builder.CreateBitCast(rhs_var->get_llvm_value(), llvm_char_ptr_type));
+					builder.CreateBitCast(lhs_var->get_llvm_value(scope), llvm_char_ptr_type),
+					builder.CreateBitCast(rhs_var->get_llvm_value(scope), llvm_char_ptr_type));
 			break;
 		}
 
 		auto bool_type = program_scope->get_bound_type(BOOL_TYPE);
 		assert_implies(expected_type != nullptr, unifies(expected_type, bool_type->get_type(), scope));
 
-		return bound_var_t::create(
+		return make_bound_var(
 				INTERNAL_LOC(),
 				{"equality.cond"},
 				bool_type,
@@ -1978,8 +1970,8 @@ bound_var_t::ref type_check_binary_integer_op(
 
 	unsigned lhs_bit_size, rhs_bit_size;
 	bool lhs_signed = false, rhs_signed = false;
-	assert(types::maybe_get_integer_attributes(lhs->get_location(), lhs->type->get_type(), scope, lhs_bit_size, lhs_signed));
-	assert(types::maybe_get_integer_attributes(rhs->get_location(), rhs->type->get_type(), scope, rhs_bit_size, rhs_signed));
+	assert(types::maybe_get_integer_attributes(lhs->get_location(), lhs->get_type(), scope, lhs_bit_size, lhs_signed));
+	assert(types::maybe_get_integer_attributes(rhs->get_location(), rhs->get_type(), scope, rhs_bit_size, rhs_signed));
 
 	bound_type_t::ref final_integer_type;
 	bool final_integer_signed = false;
@@ -2005,8 +1997,8 @@ bound_var_t::ref type_check_binary_integer_op(
 					type_id(make_iid("false"))));
 	}
 
-	llvm::Value *llvm_lhs = lhs->get_llvm_value();
-	llvm::Value *llvm_rhs = rhs->get_llvm_value();
+	llvm::Value *llvm_lhs = lhs->get_llvm_value(scope);
+	llvm::Value *llvm_rhs = rhs->get_llvm_value(scope);
 	assert(llvm_lhs->getType()->isIntegerTy());
 	assert(llvm_rhs->getType()->isIntegerTy());
 
@@ -2072,7 +2064,7 @@ bound_var_t::ref type_check_binary_integer_op(
 	} else if (function_name == "__xor__") {
 		llvm_value = builder.CreateXor(llvm_lhs, llvm_rhs);
 	} else if (function_name == "__lt__") {
-		return bound_var_t::create(
+		return make_bound_var(
 				INTERNAL_LOC(),
 				function_name + ".value",
 				bound_bool_type,
@@ -2083,7 +2075,7 @@ bound_var_t::ref type_check_binary_integer_op(
 					bound_bool_type->get_llvm_type()),
 				make_iid(function_name + ".value"));
 	} else if (function_name == "__lte__") {
-		return bound_var_t::create(
+		return make_bound_var(
 				INTERNAL_LOC(),
 				function_name + ".value",
 				bound_bool_type,
@@ -2094,7 +2086,7 @@ bound_var_t::ref type_check_binary_integer_op(
 					bound_bool_type->get_llvm_type()),
 				make_iid(function_name + ".value"));
 	} else if (function_name == "__gt__") {
-		return bound_var_t::create(
+		return make_bound_var(
 				INTERNAL_LOC(),
 				function_name + ".value",
 				bound_bool_type,
@@ -2105,7 +2097,7 @@ bound_var_t::ref type_check_binary_integer_op(
 					bound_bool_type->get_llvm_type()),
 				make_iid(function_name + ".value"));
 	} else if (function_name == "__gte__") {
-		return bound_var_t::create(
+		return make_bound_var(
 				INTERNAL_LOC(),
 				function_name + ".value",
 				bound_bool_type,
@@ -2116,14 +2108,14 @@ bound_var_t::ref type_check_binary_integer_op(
 					bound_bool_type->get_llvm_type()),
 				make_iid(function_name + ".value"));
 	} else if (function_name == "__ineq__") {
-		return bound_var_t::create(
+		return make_bound_var(
 				INTERNAL_LOC(),
 				function_name + ".value",
 				bound_bool_type,
 				builder.CreateZExtOrTrunc(builder.CreateICmpNE(llvm_lhs, llvm_rhs), bound_bool_type->get_llvm_type()),
 				make_iid(function_name + ".value"));
 	} else if (function_name == "__eq__") {
-		return bound_var_t::create(
+		return make_bound_var(
 				INTERNAL_LOC(),
 				function_name + ".value",
 				bound_bool_type,
@@ -2131,25 +2123,25 @@ bound_var_t::ref type_check_binary_integer_op(
 				make_iid(function_name + ".value"));
 	} else if (function_name == "__shr__") {
 		if (lhs_signed) {
-			return bound_var_t::create(
+			return make_bound_var(
 					INTERNAL_LOC(),
 					function_name + ".value",
-					lhs->type,
+					lhs->get_bound_type(),
 					builder.CreateAShr(llvm_lhs, llvm_rhs),
 					make_iid(function_name + ".value"));
 		} else {
-			return bound_var_t::create(
+			return make_bound_var(
 					INTERNAL_LOC(),
 					function_name + ".value",
-					lhs->type,
+					lhs->get_bound_type(),
 					builder.CreateLShr(llvm_lhs, llvm_rhs),
 					make_iid(function_name + ".value"));
 		}
 	} else if (function_name == "__shl__") {
-		return bound_var_t::create(
+		return make_bound_var(
 				INTERNAL_LOC(),
 				function_name + ".value",
-				lhs->type,
+				lhs->get_bound_type(),
 				builder.CreateShl(llvm_lhs, llvm_rhs),
 				make_iid(function_name + ".value"));
 	} else {
@@ -2157,7 +2149,7 @@ bound_var_t::ref type_check_binary_integer_op(
 		assert(false);
 	}
 
-	return bound_var_t::create(
+	return make_bound_var(
 			INTERNAL_LOC(),
 			function_name + ".value",
 			final_integer_type,
@@ -2185,13 +2177,13 @@ bound_var_t::ref type_check_binary_operator(
 				function_name.c_str(),
 				lhs->str().c_str(),
 				rhs->str().c_str()));
-	auto lhs_type = lhs->type->get_type()->eval(scope);
-	auto rhs_type = rhs->type->get_type()->eval(scope);
+	auto lhs_type = lhs->get_type()->eval(scope);
+	auto rhs_type = rhs->get_type()->eval(scope);
 
 	debug_above(5, log("generating binary operator %s %s %s", 
-				lhs->type->str().c_str(),
+				lhs->get_type()->str().c_str(),
 				function_name.c_str(),
-				rhs->type->str().c_str()));
+				rhs->get_type()->str().c_str()));
 
 	bool lhs_is_null = lhs_type->eval_predicate(tb_null, scope);
 	bool rhs_is_null = rhs_type->eval_predicate(tb_null, scope);
@@ -2212,10 +2204,10 @@ bound_var_t::ref type_check_binary_operator(
 	}
 
 	if (
-			lhs->type->get_llvm_type()->isIntegerTy() &&
-			rhs->type->get_llvm_type()->isIntegerTy() &&
-			!lhs_type->eval_predicate(tb_bool, scope) &&
-			!rhs_type->eval_predicate(tb_bool, scope))
+			lhs->get_bound_type()->get_llvm_type()->isIntegerTy() &&
+			rhs->get_bound_type()->get_llvm_type()->isIntegerTy() &&
+			!lhs_type->is_bool(scope) &&
+			!rhs_type->is_bool(scope))
 	{
 		/* we are dealing with two integers, standard function resolution rules do not apply */
 		return type_check_binary_integer_op(
@@ -2228,23 +2220,16 @@ bound_var_t::ref type_check_binary_operator(
 	} else {
 		/* intercept binary operations on native pointers */
 		if (
-				(lhs->type->is_function(scope)
-				 || lhs->type->is_ptr(scope)
+				(lhs->get_type()->is_function(scope)
+				 || lhs->get_type()->is_ptr(scope)
 				 || lhs_is_null) &&
-				(rhs->type->is_function(scope)
-				 || rhs->type->is_ptr(scope)
+				(rhs->get_type()->is_function(scope)
+				 || rhs->get_type()->is_ptr(scope)
 				 || rhs_is_null))
 		{
-			bool lhs_is_managed;
-			lhs->type->is_managed_ptr(
-					builder,
-					scope,
-					lhs_is_managed);
+			bool lhs_is_managed = lhs->get_type()->is_managed_ptr(scope);
 			if (!lhs_is_managed || rhs_is_null) {
-				bool rhs_is_managed;
-				rhs->type->is_managed_ptr(
-						builder, scope,
-						rhs_is_managed);
+				bool rhs_is_managed = rhs->get_type()->is_managed_ptr(scope);
 				if (!rhs_is_managed || lhs_is_null) {
 					/* yeah, it looks like we are operating on two native pointers */
 					return resolve_native_pointer_binary_operation(builder, scope, life,
@@ -2282,14 +2267,14 @@ bound_var_t::ref type_check_binary_operator(
 	if (returns) {
 		throw user_error(lhs->get_location(), "term breaks control flow");
 	}
-	assert(!lhs_var->type->is_ref(scope));
+	assert(!lhs_var->get_type()->is_ref(scope));
 
 	rhs_var = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, nullptr, &returns);
 	if (returns) {
 		throw user_error(rhs->get_location(), "term breaks control flow");
 	}
 
-	assert(!rhs_var->type->is_ref(scope));
+	assert(!rhs_var->get_type()->is_ref(scope));
 
 	return type_check_binary_operator(
 			builder, scope, life, lhs, lhs_var, rhs, rhs_var, obj,
@@ -2320,8 +2305,8 @@ bound_var_t::ref type_check_binary_equality(
 		throw user_error(rhs->get_location(), "term breaks control flow");
 	}
 
-	assert(!lhs_var->type->is_ref(scope));
-	assert(!rhs_var->type->is_ref(scope));
+	assert(!lhs_var->get_type()->is_ref(scope));
+	assert(!rhs_var->get_type()->is_ref(scope));
 	bool negated = (function_name == "__ineq__" || function_name == "__isnot__");
 	return resolve_native_pointer_binary_compare(builder, scope, life, obj->get_location(), lhs, lhs_var, rhs, rhs_var,
 			negated ? rnpbc_ineq : rnpbc_eq, scope_if_true, scope_if_false, expected_type);
@@ -2501,10 +2486,10 @@ bound_type_t::ref refine_conditional_type(
 	} else if (unifies(falsey_path_type, truthy_path_type, scope)) {
 		ternary_sum_type = falsey_path_type;
 	} else if (truthy_path_type->eval_predicate(tb_null, scope)) {
-		assert(types::is_managed_ptr(falsey_path_type, scope));
+		assert(falsey_path_type->is_managed_ptr(scope));
 		ternary_sum_type = type_maybe(falsey_path_type, scope);
 	} else if (falsey_path_type->eval_predicate(tb_null, scope)) {
-		assert(types::is_managed_ptr(truthy_path_type, scope));
+		assert(truthy_path_type->is_managed_ptr(scope));
 		ternary_sum_type = type_maybe(truthy_path_type, scope);
 	} else {
 		auto error = user_error(location, "ternary type is inconsistent");
@@ -2551,9 +2536,9 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 	}
 
 	/* evaluate the condition for branching */
-	debug_above(7, log("conditional expression has condition of type %s", condition_value->type->str().c_str()));
+	debug_above(7, log("conditional expression has condition of type %s", condition_value->get_type()->str().c_str()));
 
-	assert(!condition_value->type->is_ref(scope));
+	assert(!condition_value->get_type()->is_ref(scope));
 
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
 
@@ -2634,9 +2619,9 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 	bound_type_t::ref ternary_type = refine_conditional_type(
 			builder, scope,
 			condition->get_location(),
-			condition_value->type->get_type(),
-			true_path_value->type->get_type(),
-			false_path_value->type->get_type(),
+			condition_value->get_type(),
+			true_path_value->get_type(),
+			false_path_value->get_type(),
 			(condition == when_true) ? rct_or
 			: (condition == when_false ? rct_and
 				: rct_ternary));
@@ -2678,7 +2663,7 @@ bound_var_t::ref resolve_cond_expression( /* ternary expression */
 
 	debug_above(6, log("ternary expression resolved to type %s",
 				ternary_type->str().c_str()));
-	return bound_var_t::create(
+	return make_bound_var(
 			INTERNAL_LOC(),
 			{"ternary.value"},
 			ternary_type,
@@ -2790,7 +2775,7 @@ bound_var_t::ref extract_member_variable(
 {
 	bound_var = bound_var->resolve_bound_value(builder, scope);
 
-	auto expanded_type = bound_var->type->get_type()->eval(scope, true);
+	auto expanded_type = bound_var->get_type()->eval(scope, true);
 	bound_type_t::ref bound_obj_type = upsert_bound_type(builder, scope, expanded_type);
 
 	types::type_struct_t::ref struct_type = get_struct_type_from_bound_type(
@@ -2815,7 +2800,7 @@ bound_var_t::ref extract_member_variable(
 
 		debug_above(5, log(log_info, "looking at bound_var %s : %s",
 					bound_var->str().c_str(),
-					llvm_print(bound_var->type->get_llvm_type()).c_str()));
+					llvm_print(bound_var->get_bound_type()->get_llvm_type()).c_str()));
 
 		return extract_member_by_index(builder, scope, 
 				life, location, bound_var, bound_obj_type, index,
@@ -2823,12 +2808,12 @@ bound_var_t::ref extract_member_variable(
 
 	} else {
 		auto bindings = scope->get_type_variable_bindings();
-		auto full_type = bound_var->type->get_type()->rebind(bindings);
+		auto full_type = bound_var->get_type()->rebind(bindings);
 		auto error = user_error(location,
 				"%s has no dimension called " c_id("%s"),
 				full_type->str().c_str(),
 				member_name.c_str());
-		error.add_info(bound_var->type->get_location(), "%s has dimension(s) [%s]",
+		error.add_info(bound_var->get_type()->get_location(), "%s has dimension(s) [%s]",
 				full_type->str().c_str(),
 				join_with(member_index, ", ", [] (std::pair<std::string, int> index) -> std::string {
 					return std::string(C_ID) + index.first + C_RESET;
@@ -2901,12 +2886,24 @@ bound_var_t::ref ast::dot_expr_t::resolve_expression(
 	if (*returns) {
 		throw user_error(lhs->get_location(), "lhs term breaks control flow. maybe there is no need for the dot expression?");
 	}
+	return resolve_with_lhs(builder, scope, life, lhs_val, as_ref, expected_type, returns);
+}
 
+bound_var_t::ref ast::dot_expr_t::resolve_with_lhs(
+        llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		bound_var_t::ref lhs_val,
+		bool as_ref,
+		types::type_t::ref expected_type,
+		bool *returns) const
+{
+	/* we've already solved for our lhs */
 	types::type_t::ref member_type;
 
-	if (lhs_val->type->is_module()) {
+	if (lhs_val->get_type()->is_module()) {
 		return resolve_module_variable_reference(builder, scope, get_location(),
-				lhs_val->name, rhs.text, as_ref);
+				lhs_val->get_name(), rhs.text, as_ref);
 	} else {
 		return extract_member_variable(builder, scope, life, get_location(),
 				lhs_val, rhs.text, as_ref, expected_type);
@@ -2922,8 +2919,8 @@ bound_var_t::ref cast_bound_var(
 		types::type_t::ref type_cast,
 		bool force_cast)
 {
-	assert(!bound_var->type->is_ref(scope));
-	if (bound_var->type->is_maybe(scope) && !type_cast->eval_predicate(tb_maybe, scope)) {
+	assert(!bound_var->get_type()->is_ref(scope));
+	if (bound_var->get_type()->is_maybe(scope) && !type_cast->eval_predicate(tb_maybe, scope)) {
 		auto error = user_error(location, "you cannot safely cast away maybe. use the ! operator instead");
 		error.add_info(location, "better yet, use an if statement to check the return value so you don't accidentally dereference a null pointer. assertions also work.");
 		throw error;
@@ -2932,9 +2929,9 @@ bound_var_t::ref cast_bound_var(
 	bound_type_t::ref bound_type = upsert_bound_type(builder, scope, type_cast);
 	debug_above(7, log("upserted bound type in cast expr is %s", bound_type->str().c_str()));
 	indent_logger indent(location, 5, string_format("casting %s: %s (%s) to a %s (%s)",
-				bound_var->name.c_str(),
-				bound_var->type->get_type()->str().c_str(),
-				llvm_print(bound_var->get_llvm_value()->getType()).c_str(),
+				bound_var->get_name().c_str(),
+				bound_var->get_type()->str().c_str(),
+				llvm_print(bound_var->get_llvm_value(scope)->getType()).c_str(),
 				type_cast->str().c_str(),
 				llvm_print(bound_type->get_llvm_specific_type()).c_str()));
 	llvm::Value *llvm_source_val = bound_var->resolve_bound_var_value(scope, builder);
@@ -2948,7 +2945,7 @@ bound_var_t::ref cast_bound_var(
 		if (llvm_source_type->isPointerTy() || llvm_dest_type->isPointerTy()) {
 			auto error = user_error(location, "you cannot safely cast user-defined types like this. if you must be unsafe, use \"as!\".");
 			error.add_info(location, "attempt to cast a value of type %s to a %s",
-					bound_var->type->get_type()->str().c_str(),
+					bound_var->get_type()->str().c_str(),
 					type_cast->str().c_str());
 			throw error;
 		}
@@ -2977,11 +2974,11 @@ bound_var_t::ref cast_bound_var(
 		}
 	} else {
 		throw user_error(location, "invalid cast: cannot cast %s to %s",
-				bound_var->type->str().c_str(),
+				bound_var->get_type()->str().c_str(),
 				type_cast->str().c_str());
 	}
 
-	return bound_var_t::create(INTERNAL_LOC(), "cast", bound_type, llvm_dest_val, make_iid_impl("cast",
+	return make_bound_var(INTERNAL_LOC(), "cast", bound_type, llvm_dest_val, make_iid_impl("cast",
 				bound_var->get_location()));
 }
 
@@ -2995,14 +2992,10 @@ bound_var_t::ref call_get_ctor_id(
 {
 	resolved_value = resolved_value->resolve_bound_value(builder, scope);
 	indent_logger indent(callsite->get_location(), 4, string_format("getting typeid of %s",
-				resolved_value->type->str().c_str()));
+				resolved_value->get_type()->str().c_str()));
 	auto program_scope = scope->get_program_scope();
 
-	bool is_managed = false;
-	resolved_value->type->is_managed_ptr(
-			builder,
-			scope,
-			is_managed);
+	const bool is_managed = resolved_value->get_type()->is_managed_ptr(scope);
 	if (is_managed) {
 		bound_var_t::ref bound_managed_var = cast_bound_var(
 				builder,
@@ -3019,7 +3012,7 @@ bound_var_t::ref call_get_ctor_id(
 				scope,
 				"runtime.__get_ctor_id",
 				callsite->get_location(),
-				type_args({bound_managed_var->type->get_type()}),
+				type_args({bound_managed_var->get_type()}),
 				type_variable(INTERNAL_LOC()));
 
 		assert(get_typeid_function != nullptr);
@@ -3034,7 +3027,7 @@ bound_var_t::ref call_get_ctor_id(
 	} else {
 		// There is no type info here, so...
 		throw user_error(callsite->get_location(), "data of type %s has no runtime type information",
-				resolved_value->type->str().c_str());
+				resolved_value->get_type()->str().c_str());
 
 		return nullptr;
 	}
@@ -3081,7 +3074,7 @@ bound_var_t::ref ast::sizeof_expr_t::resolve_expression(
 	bound_type_t::ref size_type = upsert_bound_type(builder, scope->get_program_scope(), type_id(make_iid("size_t")));
 	llvm::Value *llvm_size = llvm_sizeof_type(builder, bound_type->get_llvm_specific_type());
 
-	return bound_var_t::create(
+	return make_bound_var(
 			INTERNAL_LOC(), type->str(), size_type, llvm_size,
 			make_iid("sizeof"));
 }
@@ -3098,10 +3091,11 @@ bound_var_t::ref ast::function_defn_t::resolve_expression(
 	assert(!as_ref);
 	expected_type = types::freshen(expected_type ? expected_type->rebind(scope->get_type_variable_bindings()) : nullptr);
 
-	debug_above(6, log("resolving function expression with declared signature %s at %s with expected type %s",
+	debug_above(6, log("resolving function expression with declared signature %s at %s with expected type %s in scope %s",
 				decl->function_type->str().c_str(),
 				token.location.str().c_str(),
-				expected_type ? expected_type->str().c_str() : "<null>"));
+				expected_type ? expected_type->str().c_str() : "<null>",
+				scope->get_name().c_str()));
 	auto runnable_scope = dyncast<runnable_scope_t>(scope);
 	if (!decl->no_closure && runnable_scope != nullptr) {
 		/* we are instantiating a function within a runnable scope, let's get closure over the environment we're in */
@@ -3473,12 +3467,12 @@ void create_visit_module_vars_function(
 				program_scope->get_bound_type(VOID_TYPE)->get_type()),
 			"__visit_module_vars");
 
-	llvm::Function *llvm_function = llvm::dyn_cast<llvm::Function>(visit_module_vars_fn->get_llvm_value());
+	llvm::Function *llvm_function = llvm::dyn_cast<llvm::Function>(visit_module_vars_fn->get_llvm_value(nullptr));
 	assert(llvm_function != nullptr);
 	assert(llvm_function->arg_size() == 1);
 
 	llvm::Value *llvm_visitor_fn = &(*llvm_function->arg_begin());
-	auto user_visitor_fn = bound_var_t::create(
+	auto user_visitor_fn = make_bound_var(
 			INTERNAL_LOC(),
 			"user_visitor_fn",
 			bound_callback_fn_type,
@@ -3489,10 +3483,7 @@ void create_visit_module_vars_function(
 
 	for (auto global_var : global_vars) {
 		/* for each managed global_var, call the visitor function on it */
-		bool is_managed;
-		global_var->type->is_managed_ptr(builder, program_scope, is_managed);
-
-		if (is_managed) {
+		if (global_var->get_type()->is_managed_ptr(program_scope)) {
 			llvm_create_call_inst(
 					builder,
 					INTERNAL_LOC(),
@@ -3641,7 +3632,7 @@ void ast::assignment_t::resolve_statement(
 		if (*returns) {
 			throw user_error(lhs->get_location(), "lhs term breaks control flow, the assignment seems pointless");
 		}
-		auto rhs_var = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, types::without_ref(lhs_var->type->get_type()), returns);
+		auto rhs_var = rhs->resolve_expression(builder, scope, life, false /*as_ref*/, types::without_ref(lhs_var->get_type()), returns);
 		if (*returns) {
 			throw user_error(rhs->get_location(), "rhs term breaks control flow, the assignment seems pointless");
 		}
@@ -3722,10 +3713,10 @@ bound_var_t::ref type_check_binary_op_assignment(
 		throw user_error(rhs->get_location(), "rhs breaks control flow");
 	}
 
-	assert(!rhs_var->type->is_ref(scope));
+	assert(!rhs_var->get_type()->is_ref(scope));
 	auto computed_var = type_check_binary_operator(builder, scope, life, lhs,
 			lhs_val, rhs, rhs_var, op_node, function_name, nullptr, nullptr,
-			lhs_val->type->get_type());
+			lhs_val->get_type());
 
 	return type_check_assignment(builder, scope, life, lhs_var,
 			computed_var, location);
@@ -3805,7 +3796,7 @@ void ast::return_statement_t::resolve_statement(
 		/* if there is a return expression resolve it into a value. also, be
 		 * sure to retain whether the function signature necessitates a ref type */
 		return_value = expr->resolve_expression(builder, scope, life,
-				return_type_constraint ? return_type_constraint->is_ref(scope) : false /*as_ref*/,
+				return_type_constraint ? return_type_constraint->get_type()->is_ref(scope) : false /*as_ref*/,
 				return_type_constraint ? return_type_constraint->get_type() : type_variable(INTERNAL_LOC()),
 				&expr_returns);
 		if (expr_returns) {
@@ -3813,7 +3804,7 @@ void ast::return_statement_t::resolve_statement(
 		}
 
 		/* get the type suggested by this return value */
-		return_type = return_value->type;
+		return_type = return_value->get_bound_type();
     } else if (return_type_constraint == nullptr) {
         return_type = upsert_bound_type(builder, scope, type_unit());
     } else {
@@ -3825,10 +3816,10 @@ void ast::return_statement_t::resolve_statement(
 	runnable_scope->check_or_update_return_type_constraint(shared_from_this(), return_type);
 
 	if (return_value != nullptr) {
-		if (return_value->type->is_void(scope)) {
+		if (return_value->get_type()->is_void(scope)) {
 			throw user_error(get_location(),
 					"return expressions cannot be " c_type("void") ". use an empty return statement to return from this function");
-		} else if (return_value->type->is_bottom(scope)) {
+		} else if (return_value->get_type()->is_bottom(scope)) {
 			throw user_error(get_location(),
 					"return expressions cannot be " c_type("⊥") ". use __unreachable__");
 		} else {
@@ -3862,15 +3853,15 @@ void ast::return_statement_t::resolve_statement(
         if (return_type_constraint == nullptr) {
             runnable_scope->check_or_update_return_type_constraint(
                     shared_from_this(),
-                    bound_unit_value->type);
+                    bound_unit_value->get_bound_type());
             return_type_constraint = runnable_scope->get_return_type_constraint();
         }
 
-        if (return_type_constraint->is_void(scope)) {
+        if (return_type_constraint->get_type()->is_void(scope)) {
             /* we have an empty return in a void function, let's just use void */
 
             builder.CreateRetVoid();
-		} else if (return_type_constraint->is_bottom(scope)) {
+		} else if (return_type_constraint->get_type()->is_bottom(scope)) {
             /* we have an empty return in a bottom function */
 
 			// TODO: figure out what this means
@@ -3878,12 +3869,12 @@ void ast::return_statement_t::resolve_statement(
 			// TODO: probably not this:
             builder.CreateRetVoid();
         } else {
-            if (!return_type_constraint->is_unit(scope)) {
+            if (!return_type_constraint->get_type()->is_unit(scope)) {
                 throw user_error(token.location, "invalid empty return. should be of type %s",
                         return_type_constraint->get_type()->str().c_str());
             }
 
-            builder.CreateRet(bound_unit_value->get_llvm_value());
+            builder.CreateRet(bound_unit_value->get_llvm_value(nullptr));
         }
     }
 }
@@ -4012,7 +4003,7 @@ bound_var_t::ref ast::block_t::resolve_block_expr(
 						// TODO: review what should happen if !*returns
 						assert(!*returns);
 
-						unification_t unification = unify(expected_type, block_value->type->get_type(), current_scope);
+						unification_t unification = unify(expected_type, block_value->get_type(), current_scope);
 						if (!unification.result) {
 							auto error = user_error(block_value->get_location(), "value does not have a cohesive type with the rest of the block");
 							error.add_info(expected_type == type_unit() ? token.location : expected_type->get_location(), "expected type %s", expected_type->str().c_str());
@@ -4302,15 +4293,15 @@ bound_var_t::ref ast::bang_expr_t::resolve_expression(
 		throw user_error(lhs->get_location(), "expression unexpectedly breaks control flow");
 	}
 
-	auto type = lhs_value->type->get_type();
+	auto type = lhs_value->get_type();
 	auto maybe_type = dyncast<const types::type_maybe_t>(type);
 	if (maybe_type != nullptr) {
 		bound_type_t::ref just_bound_type = upsert_bound_type(
 				builder, scope, maybe_type->just);
-		return bound_var_t::create(INTERNAL_LOC(), lhs_value->name,
+		return make_bound_var(INTERNAL_LOC(), lhs_value->get_name(),
 				just_bound_type,
-				lhs_value->get_llvm_value(),
-				lhs_value->id);
+				lhs_value->get_llvm_value(scope),
+				lhs_value->get_id());
 	} else {
 		throw user_error(get_location(), "bang expression is unnecessary since this is not a 'maybe' type: %s",
 				type->str().c_str());
@@ -4334,7 +4325,7 @@ bound_var_t::ref ast::var_decl_t::resolve_as_link(
 			false /*is_constant*/, llvm::GlobalValue::ExternalLinkage,
 			nullptr, token.text, nullptr,
 			llvm::GlobalVariable::NotThreadLocal);
-	return bound_var_t::create(
+	return make_bound_var(
 			INTERNAL_LOC(),
 			token.text,
 			ref_var_type,
@@ -4437,11 +4428,11 @@ bound_var_t::ref take_address(
 	// TODO: handle this
 	assert(!returns);
 
-	if (auto ref_type = dyncast<const types::type_ref_t>(rhs_var->type->get_type())) {
+	if (auto ref_type = dyncast<const types::type_ref_t>(rhs_var->get_type())) {
 		bound_type_t::ref bound_ptr_type = upsert_bound_type(builder, scope, type_ptr(ref_type->element_type));
-		return bound_var_t::create(
-				expr->get_location(), string_format("address_of.%s", rhs_var->name.c_str()),
-				bound_ptr_type, rhs_var->get_llvm_value(),
+		return make_bound_var(
+				expr->get_location(), string_format("address_of.%s", rhs_var->get_name().c_str()),
+				bound_ptr_type, rhs_var->get_llvm_value(scope),
 				make_code_id(expr->token));
 	} else {
 		throw user_error(expr->get_location(), "can't take address of %s", expr->str().c_str());
@@ -4508,8 +4499,7 @@ bound_var_t::ref ast::prefix_expr_t::resolve_prefix_expr(
 			scope, life, expected_type, scope_if_true, scope_if_false);
 
 	if (function_name == "__not__") {
-		bool is_managed;
-		rhs_var->type->is_managed_ptr(builder, scope, is_managed);
+		const bool is_managed = rhs_var->get_type()->is_managed_ptr(scope);
 		if (!is_managed) {
 			if ((scope_if_true && *scope_if_true) || (scope_if_false && *scope_if_false)) {
 				std::swap(*scope_if_true, *scope_if_false);
@@ -4568,7 +4558,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 						builder, program_scope,
 						type_id(make_iid(INT_TYPE)));
 			}
-			return bound_var_t::create(
+			return make_bound_var(
 					INTERNAL_LOC(), "int_literal", native_type,
 					builder.getIntN(bit_size, value),
 					make_code_id(token));
@@ -4582,7 +4572,7 @@ bound_var_t::ref ast::literal_expr_t::resolve_expression(
 		{
 			bound_type_t::ref native_type = upsert_bound_type(builder, program_scope, type_id(make_iid(FLOAT_TYPE)));
 			double value = atof(token.text.c_str());
-			return bound_var_t::create(
+			return make_bound_var(
 					INTERNAL_LOC(), "float_literal", native_type,
 					llvm_create_double(builder, value),
 					make_code_id(token));
@@ -4715,10 +4705,10 @@ bound_var_t::ref ast::cast_expr_t::resolve_expression(
 		bound_var_t::ref bound_var = lhs->resolve_expression(builder, scope, life, false /*as_ref*/,
 				expected_type, returns);
 		assert(!*returns);
-		if (!unifies(expected_type, bound_var->type->get_type(), scope)) {
+		if (!unifies(expected_type, bound_var->get_type(), scope)) {
 			throw user_error(lhs->get_location(), "unable to get a %s from this expression (which is of type %s)",
 					expected_type->str().c_str(),
-					bound_var->type->get_type()->str().c_str());
+					bound_var->get_type()->str().c_str());
 		}
 		return coerce_bound_value(
 				builder,
@@ -4906,7 +4896,7 @@ types::type_function_t::ref ast::reference_expr_t::resolve_arg_types_from_overri
 		types::type_t::ref return_type) const
 {
 	var_t::refs fns;
-	scope->get_callables(token.text, fns, true /*check_unchecked*/);
+	scope->get_callables(token.text, fns, true /*check_unchecked*/, scope /*for_scope*/);
 
 	types::type_args_t::ref args = type_args(types::without_refs(arguments), {});
 	types::type_function_t::ref final_fn_type;

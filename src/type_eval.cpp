@@ -167,11 +167,7 @@ namespace types {
 	}
 
 	type_t::ref type_eval_is_gc(types::type_t::ref operand, env_t::ref env) {
-		if (is_managed_ptr(operand, env)) {
-			return type_true;
-		} else {
-			return type_false;
-		}
+		return operand->is_managed_ptr(env) ? type_true : type_false;
 	}
 
 	template <typename T>

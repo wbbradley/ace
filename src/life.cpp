@@ -20,8 +20,8 @@ struct defer_call_trackable_t : public trackable_t {
 	}
 
 	virtual void release(llvm::IRBuilder<> &builder, scope_t::ref scope) const override {
-		assert(!callable->type->is_ref(scope));
-		assert(callable->type->get_type()->eval_predicate(tb_callable, scope));
+		assert(!callable->get_type()->is_ref(scope));
+		assert(callable->get_type()->eval_predicate(tb_callable, scope));
 
 		auto fake_life = (
 				make_ptr<life_t>(lf_function)
@@ -128,17 +128,17 @@ void life_t::defer_call(
 {
 	if (this->life_form == lf_block) {
 		if (!unifies(
-					callable->type->get_type(),
+					callable->get_type(),
 					type_deferred_function(callable->get_location(), type_void()),
 					scope) &&
 				!unifies(
-					callable->type->get_type(),
+					callable->get_type(),
 					type_deferred_function(callable->get_location(), type_unit()),
 					scope))
 		{
 			auto error = user_error(callable->get_location(), "deferred expression must be a function taking no arguments, and returning void or ()");
 			error.add_info(callable->get_location(), "the type of the deferred expression given is %s",
-					callable->type->get_type()->str().c_str());
+					callable->get_type()->str().c_str());
 			throw error;
 		}
 

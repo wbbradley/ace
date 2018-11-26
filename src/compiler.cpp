@@ -308,14 +308,14 @@ void add_globals(
 
 	program_scope->put_bound_variable(
 			"true",
-			bound_var_t::create(INTERNAL_LOC(),
+			make_bound_var(INTERNAL_LOC(),
 				"true",
 				true_type,
 				builder.getZionInt(1/*true*/), make_iid("true")));
 
 	program_scope->put_bound_variable(
 		   	"false",
-		   	bound_var_t::create(INTERNAL_LOC(),
+		   	make_bound_var(INTERNAL_LOC(),
 			   	"false",
 			   	false_type,
 			   	builder.getZionInt(0/*false*/),

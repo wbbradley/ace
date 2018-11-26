@@ -118,34 +118,37 @@ bound_var_t::ref create_callsite(
 		llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-		const bound_var_t::ref function,
+		const bound_var_t::ref function_,
 		std::string name,
 		const location_t &location,
 		bound_var_t::refs arguments)
 {
 	int i = 1;
 	for (auto arg : arguments) {
-		if (arg->type->is_bottom(scope)) {
+		if (arg->get_type()->is_bottom(scope)) {
 			throw user_error(location, "this call will never happen because argument %d returns bottom", i);
 		}
 		i += 1;
 	}
 
+	assert(function_ != nullptr);
+	const bound_var_t::ref function = function_->resolve_bound_value(builder, scope);
+
 	assert(function != nullptr);
-	auto expanded_type = function->type->get_type()->eval(scope);
+	auto expanded_type = function->get_type()->eval(scope);
 	auto closure = dyncast<const types::type_function_closure_t>(expanded_type);
 	if (closure != nullptr) {
-		debug_above(8, log("closure is %s", llvm_print(function->get_llvm_value()).c_str()));
-		debug_above(8, log("closure type is %s", llvm_print(function->get_llvm_value()->getType()).c_str()));
+		debug_above(8, log("closure is %s", llvm_print(function->get_llvm_value(scope)).c_str()));
+		debug_above(8, log("closure type is %s", llvm_print(function->get_llvm_value(scope)->getType()).c_str()));
 		bound_type_t::ref var_ptr_type = scope->get_program_scope()->get_runtime_type(
 				builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 		llvm::Type *llvm_var_ptr_type = var_ptr_type->get_llvm_type();
 
 		/* we will be passing the "closure" to the function for its captured values */
-		arguments.push_back(bound_var_t::create(
+		arguments.push_back(make_bound_var(
 					INTERNAL_LOC(), "closure env",
 					var_ptr_type,
-					builder.CreateBitCast(function->get_llvm_value(), llvm_var_ptr_type),
+					builder.CreateBitCast(function->get_llvm_value(scope), llvm_var_ptr_type),
 					make_iid_impl("closure", function->get_location())));
 
 		auto function_type = dyncast<const types::type_function_t>(closure->function);
@@ -169,12 +172,12 @@ bound_var_t::ref create_callsite(
 		/* The following GEP is based on __closure_t's structure */
 		std::vector<llvm::Value *> gep_path = std::vector<llvm::Value *>{builder.getInt32(0), builder.getInt32(1), builder.getInt32(0)};
 		llvm::Value *llvm_inner_function = builder.CreateBitCast(
-				builder.CreateLoad(builder.CreateInBoundsGEP(function->get_llvm_value(), gep_path)),
+				builder.CreateLoad(builder.CreateInBoundsGEP(function->get_llvm_value(scope), gep_path)),
 				bound_inner_function_type->get_llvm_specific_type());
 
 		/* ok, we are actually calling a closure, so let's augment the existing arguments list with the closure object
 		 * itself, then continue along, but do so by calling the inner function */
-		bound_var_t::ref inner_function = bound_var_t::create(
+		bound_var_t::ref inner_function = make_bound_var(
 				INTERNAL_LOC(), "inner function extraction",
 				bound_inner_function_type, llvm_inner_function,
 				make_iid_impl("inner function extraction", function->get_location()));
@@ -183,12 +186,12 @@ bound_var_t::ref create_callsite(
 	} else {
 
 #ifdef ZION_DEBUG
-		llvm::Value *llvm_function = function->get_llvm_value();
+		llvm::Value *llvm_function = function->get_llvm_value(scope);
 		debug_above(5, log(log_info, "create_callsite is assuming %s is compatible with %s",
 					function->get_type()->str().c_str(),
 					str(arguments).c_str()));
 		debug_above(5, log(log_info, "calling function " c_id("%s") " with type %s",
-					function->name.c_str(),
+					function->get_name().c_str(),
 					llvm_print(llvm_function->getType()).c_str()));
 #endif
 
@@ -204,9 +207,9 @@ bound_var_t::ref create_callsite(
 				llvm::CallInst *llvm_call_inst = llvm_create_call_inst(
 						builder, location, function, coerced_parameter_values);
 
-				bound_type_t::ref return_type = get_function_return_type(builder, scope, function->type);
+				bound_type_t::ref return_type = get_function_return_type(builder, scope, function->get_bound_type());
 
-				bound_var_t::ref ret = bound_var_t::create(INTERNAL_LOC(), name,
+				bound_var_t::ref ret = make_bound_var(INTERNAL_LOC(), name,
 						return_type, llvm_call_inst,
 						make_type_id_code_id(location, name));
 
@@ -218,7 +221,7 @@ bound_var_t::ref create_callsite(
 		} else {
 			throw user_error(function->get_location(),
 					"this expression is not callable (its type is %s)",
-					function->type->str().c_str());
+					function->get_bound_type()->str().c_str());
 		}
 	}
 }
@@ -230,7 +233,7 @@ llvm::CallInst *llvm_create_call_inst(
 		std::vector<llvm::Value *> llvm_values)
 {
 	assert(callee != nullptr);
-	llvm::Value *llvm_callee_value = callee->get_llvm_value();
+	llvm::Value *llvm_callee_value = callee->get_llvm_value(nullptr);
 	debug_above(9, log("found llvm_callee_value %s of type %s",
 				llvm_print(llvm_callee_value).c_str(),
 				llvm_print(llvm_callee_value->getType()).c_str()));
@@ -377,7 +380,7 @@ bound_var_t::ref unmaybe_variable(
 		bound_var_t::ref var)
 {
 	bool was_ref = false;
-	types::type_t::ref type = var->type->get_type();
+	types::type_t::ref type = var->get_type();
 	if (auto ref_type = dyncast<const types::type_ref_t>(type)) {
 		was_ref = true;
 		type = ref_type->element_type;
@@ -386,8 +389,8 @@ bound_var_t::ref unmaybe_variable(
 	if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
 		auto bound_type = upsert_bound_type(builder, scope,
 				was_ref ? type_ref(maybe_type->just) : maybe_type->just);
-		return bound_var_t::create(INTERNAL_LOC(), name, bound_type,
-				var->get_llvm_value(), make_iid_impl(name, location));
+		return make_bound_var(INTERNAL_LOC(), name, bound_type,
+				var->get_llvm_value(scope), make_iid_impl(name, location));
 	} else {
 		return var;
 	}
@@ -425,17 +428,17 @@ void llvm_create_if_branch(
 	/* we don't care about references, load past them if need be */
 	value = value->resolve_bound_value(builder, scope);
 
-	llvm::Value *llvm_value = value->get_llvm_value();
-	if (value->type->is_maybe(scope)) {
+	llvm::Value *llvm_value = value->get_llvm_value(scope);
+	if (value->get_type()->is_maybe(scope)) {
 		if (allow_maybe_check) {
-			llvm::Type *llvm_type = value->get_llvm_value()->getType();
+			llvm::Type *llvm_type = value->get_llvm_value(scope)->getType();
 			assert(llvm_type->isPointerTy());
 			llvm::Constant *null = llvm::Constant::getNullValue(llvm_type);
-			llvm_value = builder.CreateICmpNE(value->get_llvm_value(), null);
+			llvm_value = builder.CreateICmpNE(value->get_llvm_value(scope), null);
 		} else {
 			auto error = user_error(location, "implicit maybe checks are not allowed here");
 			error.add_info(location, "the condition of this branch instruction is of type %s",
-					value->type->str().c_str());
+					value->get_type()->str().c_str());
 			throw error;
 		}
 	}
@@ -443,7 +446,7 @@ void llvm_create_if_branch(
 	if (llvm_value->getType()->isIntegerTy(1)) {
 		/* pass */
 	} else {
-		types::type_t::ref type = value->type->get_type();
+		types::type_t::ref type = value->get_type();
 
 		if (types::is_type_id(type, TRUE_TYPE, nullptr)) {
 			llvm_value = llvm::ConstantInt::get(builder.getIntNTy(1), 1);
@@ -455,7 +458,7 @@ void llvm_create_if_branch(
 			user_error error = user_error(
 					location,
 				   	allow_maybe_check ? "condition is not a boolean value or a nullable pointer type (*?)" : "condition is not a boolean value");
-			error.add_info(location, "the condition of this branch instruction is of type %s", value->type->str().c_str());
+			error.add_info(location, "the condition of this branch instruction is of type %s", value->get_type()->str().c_str());
 			error.add_info(value->get_location(), "the value was defined here");
 			throw error;
 		}
@@ -516,7 +519,7 @@ void llvm_create_unit_value(llvm::IRBuilder<> &builder, program_scope_t::ref pro
                     builder.getInt32(0),
                 }),
             true /*isConstant*/);
-    auto unit_literal = bound_var_t::create(
+    auto unit_literal = make_bound_var(
             INTERNAL_LOC(),
             unit_name,
             unit_type,
@@ -557,14 +560,14 @@ bound_var_t::ref create_global_str(
 					llvm_create_int(builder, value.size()),
 					}),
 				true /*isConstant*/);
-		program_scope->put_bound_variable(owning_buffer_literal_name, bound_var_t::create(
+		program_scope->put_bound_variable(owning_buffer_literal_name, make_bound_var(
 					INTERNAL_LOC(),
 					owning_buffer_literal_name,
 					owning_buffer_literal_type,
 					llvm_owning_buffer_literal,
 					make_iid_impl(owning_buffer_literal_name, location)));
 	} else {
-		llvm_owning_buffer_literal = (llvm::Constant *)owning_buffer_literal->get_llvm_value();
+		llvm_owning_buffer_literal = (llvm::Constant *)owning_buffer_literal->get_llvm_value(nullptr);
 	}
 
 	debug_above(8, log("creating str literal \"%s\"", value.c_str()));
@@ -585,7 +588,7 @@ bound_var_t::ref create_global_str(
 					llvm_create_int(builder, value.size()),
 					}),
 				true /*isConstant*/);
-		str_literal = bound_var_t::create(
+		str_literal = make_bound_var(
 				INTERNAL_LOC(),
 				str_literal_name,
 				str_type,
@@ -750,7 +753,7 @@ bound_var_t::ref llvm_start_function(
 	llvm_function->setDoesNotThrow();
 
 	/* create the actual bound variable for the fn */
-	bound_var_t::ref function = bound_var_t::create(
+	bound_var_t::ref function = make_bound_var(
 			INTERNAL_LOC(), name,
 			bound_function_type, llvm_function, make_iid_impl(name, location));
 
@@ -847,7 +850,7 @@ bound_var_t::ref llvm_create_global_tag(
 			llvm_tag_struct_type,
 			llvm_struct_data_tag);
 
-	return bound_var_t::create(INTERNAL_LOC(), tag, tag_type, llvm_tag_constant, id);
+	return make_bound_var(INTERNAL_LOC(), tag, tag_type, llvm_tag_constant, id);
 }
 
 llvm::Value *llvm_maybe_pointer_cast(
@@ -941,4 +944,13 @@ void llvm_generate_dead_return(llvm::IRBuilder<> &builder, scope_t::ref scope) {
 		log(log_error, "unhandled return type for dead return %s", llvm_print(llvm_return_type).c_str());
 		assert(false && "Unhandled return type.");
 	}
+}
+
+llvm::Value *llvm_last_param(llvm::Function *llvm_function) {
+	llvm::Value *last = nullptr;
+	for (auto arg = llvm_function->arg_begin(); arg != llvm_function->arg_end(); ++arg) {
+		last = &*arg;
+	}
+	assert(last != nullptr);
+	return last;
 }

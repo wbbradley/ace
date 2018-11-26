@@ -265,7 +265,7 @@ types::type_function_t::ref check_func_type_vs_callsite(
 			if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
 				/* this function has already been bound */
 				debug_above(3, log(log_info, "override resolution has chosen %s", bound_fn->str().c_str()));
-				function_type = dyncast<const types::type_function_t>(bound_fn->type->get_type());
+				function_type = dyncast<const types::type_function_t>(bound_fn->get_type());
 				assert(function_type != nullptr);
 			} else if (auto unchecked_fn = dyncast<const unchecked_var_t>(fn)) {
 				/* we're instantiating a template or a forward decl */
@@ -348,7 +348,9 @@ bound_var_t::ref maybe_get_callable(
 	/* look through the current scope stack and get a callable that is able
 	 * to be invoked with the given args */
 	fns.resize(0);
-	scope->get_callables(alias, fns, check_unchecked);
+	debug_above(7, log("getting callable %s in scope %s", alias.c_str(),
+				scope->get_name().c_str()));
+	scope->get_callables(alias, fns, check_unchecked, scope);
 	debug_above(7, log("looking for a " c_id("%s") " going to check:", alias.c_str()));
 	for (auto fn : fns) {
 		debug_above(7, log("callable %s", fn->str().c_str()));
@@ -391,7 +393,7 @@ bound_var_t::ref get_callable_from_local_var(
 				return_type != nullptr ? return_type->str().c_str() : "<null>");
 		error.add_info(callsite_location, "type of %s is %s",
 				alias.c_str(),
-				bound_var->type->str().c_str());
+				bound_var->get_type()->str().c_str());
 		throw error;
 	}
 
@@ -406,6 +408,7 @@ bound_var_t::ref get_callable(
 		types::type_args_t::ref args,
 		types::type_t::ref return_type)
 {
+#if 0
 	auto runnable_scope = dyncast<runnable_scope_t>(scope);
 	if (runnable_scope != nullptr) {
 		/* if we're in a function, let's look for locally defined symbols */
@@ -416,6 +419,7 @@ bound_var_t::ref get_callable(
 					args, return_type);
 		}
 	}
+#endif
 
 	var_t::refs fns;
 	fittings_t fittings;
@@ -546,15 +550,18 @@ function_scope_t::ref make_function_scope(
 	assert(life->life_form == lf_function);
 
 	debug_above(5, log("creating function scope for " c_id("%s") " in " C_MODULE "%s" C_RESET,
-			function_var->name.c_str(),
+			function_var->get_name().c_str(),
 			scope->get_name().c_str()));
-	auto new_scope = scope->new_function_scope(
-			string_format("function-%s", function_var->name.c_str()));
 
-	llvm::Function *llvm_function = llvm::cast<llvm::Function>(function_var->get_llvm_value());
+	llvm::Function *llvm_function = llvm::cast<llvm::Function>(function_var->get_llvm_value(scope));
+
+	auto new_scope = scope->new_function_scope(
+			string_format("function-%s", function_var->get_name().c_str()),
+			llvm_function);
+
 	llvm::Function::arg_iterator args = llvm_function->arg_begin();
 
-	assert(llvm_function->arg_size() == dyncast<const types::type_args_t>(dyncast<const types::type_function_t>(function_var->type->get_type())->args)->args.size());
+	assert(llvm_function->arg_size() == dyncast<const types::type_args_t>(dyncast<const types::type_function_t>(function_var->get_type())->args)->args.size());
 	assert(llvm_function->arg_size() == params.size());
 
 	int i = 0;
@@ -565,7 +572,7 @@ function_scope_t::ref make_function_scope(
 			llvm_param->setName(param.first);
 		}
 
-		assert(!param.second->is_ref(scope));
+		assert(!param.second->get_type()->is_ref(scope));
 
 		auto param_type = param.second->get_type();
 		const bool is_the_closure_env = ((i == (int)params.size() - 1) && as_closure);
@@ -596,7 +603,7 @@ function_scope_t::ref make_function_scope(
 
 		auto bound_stack_var_type = upsert_bound_type(builder,
 				scope, param_type);
-		auto param_var = bound_var_t::create(INTERNAL_LOC(), param.first, bound_stack_var_type,
+		auto param_var = make_bound_var(INTERNAL_LOC(), param.first, bound_stack_var_type,
 				llvm_param_final, make_iid(params[i++].first));
 
 
@@ -621,14 +628,14 @@ bound_var_t::ref clone_and_change_type(
 {
     debug_above(7, log("clone_and_change_type needs to convert signature of %s : %s : %s to have a return type of %s",
             existing_function->str().c_str(),
-            existing_function->type->str().c_str(),
-            llvm_print(existing_function->type->get_llvm_type()).c_str(),
+            existing_function->get_type()->str().c_str(),
+            llvm_print(existing_function->get_bound_type()->get_llvm_type()).c_str(),
             llvm_print(return_type->get_llvm_type()).c_str()));
 
-    types::type_function_t::ref function_type = dyncast<const types::type_function_t>(existing_function->type->get_type());
+    types::type_function_t::ref function_type = dyncast<const types::type_function_t>(existing_function->get_type());
     assert(function_type != nullptr);
 
-    auto existing_function_type = existing_function->type;
+    auto existing_function_type = existing_function->get_bound_type();
     types::type_args_t::ref type_args = dyncast<const types::type_args_t>(function_type->args);
     assert(type_args != nullptr);
 
@@ -640,12 +647,12 @@ bound_var_t::ref clone_and_change_type(
     auto llvm_function = llvm::Function::Create(
             (llvm::FunctionType *)llvm_fn_type,
             llvm::Function::ExternalLinkage,
-            existing_function->get_llvm_value()->getName(),
+            existing_function->get_llvm_value(scope)->getName(),
             scope->get_llvm_module());
 
     llvm_function->setDoesNotThrow();
 
-    llvm::Function *llvm_old_function = llvm::dyn_cast<llvm::Function>(existing_function->get_llvm_value());
+    llvm::Function *llvm_old_function = llvm::dyn_cast<llvm::Function>(existing_function->get_llvm_value(scope));
 
     llvm::ValueToValueMapTy VMap;
     auto new_args_iter=llvm_function->arg_begin();
@@ -664,8 +671,9 @@ bound_var_t::ref clone_and_change_type(
 #endif
 
     /* create the actual bound variable for the fn */
-    bound_var_t::ref function = bound_var_t::create(
-            INTERNAL_LOC(), existing_function->name,
+    bound_var_t::ref function = make_bound_var(
+            INTERNAL_LOC(),
+		   	existing_function->get_name(),
             upsert_bound_type(
                 builder,
                 scope,
@@ -674,7 +682,8 @@ bound_var_t::ref clone_and_change_type(
                     nullptr,
                     type_args,
                     return_type->get_type())),
-            llvm_function, make_iid_impl(existing_function->name, existing_function->get_location()));
+            llvm_function,
+		   	make_iid_impl(existing_function->get_name(), existing_function->get_location()));
     return function;
 }
 
@@ -702,6 +711,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
     indent_logger indent(name_token.location, 5,
             string_format("instantiating function " c_id("%s") " at %s", function_name.c_str(),
                 name_token.location.str().c_str()));
+    debug_above(7, log("instantiating function in scope %s", scope->get_name().c_str()));
     // debug_above(9, log("function has env %s", ::str(scope->get_total_env()).c_str()));
     debug_above(9, log("function has bindings %s", ::str(scope->get_type_variable_bindings()).c_str()));
 
@@ -790,7 +800,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
     }
 
     /* set up the mapping to this function for use in recursion */
-    bound_var_t::ref function_var = bound_var_t::create(
+    bound_var_t::ref function_var = make_bound_var(
             INTERNAL_LOC(), name_token.text, bound_function_type, llvm_function,
             make_code_id(name_token));
 
@@ -800,21 +810,22 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
     auto function_scope = make_function_scope(builder, name_token, scope,
             life, as_closure, function_var, args);
 
-	if (function_var->name.size() != 0) {
+	if (function_var->get_name().size() != 0) {
 		/* now put this function declaration into the containing scope */
 		if (!as_closure) {
 			debug_above(7, log("%s should be %s",
-						function_var->type->get_type()->repr().c_str(),
+						function_var->get_type()->repr().c_str(),
 						fn_type->eval(scope)->repr().c_str()));
 
 			assert(function_var->get_signature() == fn_type->eval(scope)->repr());
 			put_bound_function(
 					scope, name_token.location,
-					function_var->name, extends_module, function_var,
+					function_var->get_name(), extends_module, function_var,
 					new_scope);
+			function_scope->put_bound_variable(function_var->get_name(), function_var);
 		} else {
 			/* ensure that this closure can reference itself by looking at the last param */
-			llvm::Value *llvm_closure_env_as_var = &*--llvm_function->arg_end();
+			llvm::Value *llvm_closure_env_as_var = llvm_last_param(llvm_function);
 
 			auto args = dyncast<const types::type_args_t>(fn_type->args);
 			assert(args != nullptr);
@@ -843,11 +854,11 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 			llvm::Value *llvm_closure_env = builder.CreateBitCast(llvm_closure_env_as_var,
 					bound_closure_type->get_llvm_specific_type());
 
-			bound_var_t::ref closure = bound_var_t::create(
+			bound_var_t::ref closure = make_bound_var(
 					INTERNAL_LOC(), name_token.text, bound_closure_type, llvm_closure_env,
 					make_code_id(name_token));
 
-			function_scope->put_bound_variable(function_var->name, closure);
+			function_scope->put_bound_variable(function_var->get_name(), closure);
 		}
 	}
 
@@ -857,7 +868,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
     try {
         /* keep track of whether this function returns */
         debug_above(7, log("setting return_type_constraint in %s to %s %s",
-                    function_var->name.c_str(),
+                    function_var->get_name().c_str(),
                     return_type->str().c_str(),
                     llvm_print(return_type->get_llvm_type()).c_str()));
         if (!needs_type_fixup) {
@@ -881,25 +892,25 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
             auto latest_return_type = function_scope->get_return_type_constraint();
             if (latest_return_type == nullptr) {
                 life->release_vars(builder, scope, lf_function);
-                builder.CreateRet(program_scope->get_singleton("__unit__")->get_llvm_value());
+                builder.CreateRet(program_scope->get_singleton("__unit__")->get_llvm_value(scope));
                 /* by default we already declare anonymous functions as returning unit, so we're
                  * done */
                 llvm_verify_function(name_token.location, llvm_function);
                 return function_var;
             }
-        } else if (return_type->is_void(scope)) {
+        } else if (return_type->get_type()->is_void(scope)) {
             /* if this is a void let's give the user a break and insert
              * a default void return */
             life->release_vars(builder, scope, lf_function);
             builder.CreateRetVoid();
             llvm_verify_function(name_token.location, llvm_function);
             return function_var;
-		} else if (return_type->is_bottom(scope)) {
+		} else if (return_type->get_type()->is_bottom(scope)) {
 			// TODO: figure out what is supposed to happen here
 			throw user_error(name_token.location, "not all control paths return %s", BOTTOM_TYPE);
-		} else if (return_type->is_unit(scope)) {
+		} else if (return_type->get_type()->is_unit(scope)) {
             life->release_vars(builder, scope, lf_function);
-            builder.CreateRet(program_scope->get_singleton("__unit__")->get_llvm_value());
+            builder.CreateRet(program_scope->get_singleton("__unit__")->get_llvm_value(scope));
             llvm_verify_function(name_token.location, llvm_function);
             return function_var;
         }
@@ -918,8 +929,8 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
                         updated_return_type->get_type()->repr().c_str(),
                         type_unit()->repr().c_str()));
                 auto new_function_var = clone_and_change_type(builder, function_scope, function_var, updated_return_type);
-                llvm::dyn_cast<llvm::Function>(function_var->get_llvm_value())->eraseFromParent();
-                llvm_verify_function(name_token.location, llvm::dyn_cast<llvm::Function>(new_function_var->get_llvm_value()));
+                llvm::dyn_cast<llvm::Function>(function_var->get_llvm_value(nullptr))->eraseFromParent();
+                llvm_verify_function(name_token.location, llvm::dyn_cast<llvm::Function>(new_function_var->get_llvm_value(nullptr)));
                 return new_function_var;
             }
         }

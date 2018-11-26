@@ -75,6 +75,8 @@ llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder, llvm::Value *ll
 llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder, llvm::Value *llvm_value, const bound_type_t::ref &bound_type);
 llvm::Value *llvm_int_cast(llvm::IRBuilder<> &builder, llvm::Value *llvm_value, llvm::Type *llvm_type);
 llvm::Constant *llvm_get_pointer_to_constant(llvm::IRBuilder<> &builder, llvm::Constant *llvm_constant);
+llvm::Value *llvm_last_param(llvm::Function *llvm_function);
+
 void check_struct_initialization(
 		llvm::ArrayRef<llvm::Constant*> llvm_struct_initialization,
 		llvm::StructType *llvm_struct_type);

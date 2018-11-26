@@ -595,7 +595,7 @@ bound_type_t::ref create_bound_type(
 		ptr<scope_t> scope,
 		types::type_t::ref type)
 {
-	INDENT(3,
+	INDENT(4,
 		string_format("attempting to create a bound type for %s in scope " c_id("%s"),
 			type->str().c_str(), scope->get_name().c_str()));
 
@@ -786,7 +786,7 @@ llvm::Value *llvm_call_allocator(
 	llvm::Constant *llvm_sizeof_tuple = llvm_sizeof_type(builder,
 			llvm_deref_type(data_type->get_llvm_specific_type()));
 
-	bound_var_t::ref size_param = bound_var_t::create(
+	bound_var_t::ref size_param = make_bound_var(
 			INTERNAL_LOC(),
 			"size_param",
 			program_scope->get_bound_type({INT_TYPE}),
@@ -800,7 +800,7 @@ llvm::Value *llvm_call_allocator(
 			"runtime.create_var",
 			location,
 			{size_param});
-	return allocation->get_llvm_value();
+	return allocation->get_llvm_value(nullptr);
 }
 
 int get_ctor_id_index(program_scope_t::ref program_scope, llvm::IRBuilder<> &builder) {
@@ -918,7 +918,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	int index = 0;
 
-	llvm::Function *llvm_function = llvm::cast<llvm::Function>(function->get_llvm_value());
+	llvm::Function *llvm_function = llvm::cast<llvm::Function>(function->get_llvm_value(nullptr));
 	llvm::Function::arg_iterator args_iter = llvm_function->arg_begin();
 	while (args_iter != llvm_function->arg_end()) {
 		llvm::Value *llvm_param = &*args_iter++;
@@ -964,7 +964,7 @@ bound_var_t::ref type_check_get_item_with_int_literal(
 		identifier::ref index_id,
 		int subscript_index)
 {
-	bound_var_t::ref index = bound_var_t::create(
+	bound_var_t::ref index = make_bound_var(
 			INTERNAL_LOC(),
 			"temp_deref_index",
 			scope->get_program_scope()->get_bound_type({INT_TYPE}),

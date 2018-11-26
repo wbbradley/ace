@@ -161,62 +161,11 @@ bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {
 	bound_type_t::refs arg_types;
 	for (auto &arg : args) {
 		assert(arg != nullptr);
-		assert(arg->type != nullptr);
-		arg_types.push_back(arg->type);
+		assert(arg->get_bound_type() != nullptr);
+		arg_types.push_back(arg->get_bound_type());
 	}
 	return arg_types;
 }
-
-bool bound_type_t::is_ref(scope_t::ref scope) const {
-	return get_type()->eval_predicate(tb_ref, scope);
-}
-
-bool bound_type_t::is_int(scope_t::ref scope) const {
-	return get_type()->eval_predicate(tb_int, scope);
-}
-
-bool bound_type_t::is_function(scope_t::ref scope) const {
-	return get_type()->eval_predicate(tb_function, scope);
-}
-
-bool bound_type_t::is_void(scope_t::ref scope) const {
-	return get_type()->eval_predicate(tb_void, scope);
-}
-
-bool bound_type_t::is_bottom(scope_t::ref scope) const {
-	return get_type()->eval_predicate(tb_bottom, scope);
-}
-
-bool bound_type_t::is_unit(scope_t::ref scope) const {
-    return get_type()->eval_predicate(tb_unit, scope);
-}
-
-bool bound_type_t::is_maybe(scope_t::ref scope) const {
-	return get_type()->eval_predicate(tb_maybe, scope);
-}
-
-bool bound_type_t::is_module() const {
-	return types::is_type_id(get_type(), "module", nullptr);
-}
-
-bool bound_type_t::is_ptr(scope_t::ref scope) const {
-	bool res = types::is_ptr(type, scope);
-	debug_above(7, log("checking whether %s is a ptr of some kind: %s",
-				type->str().c_str(),
-				res ? c_good("it is") : c_error("it isn't")));
-
-	assert_implies(res, llvm::dyn_cast<llvm::PointerType>(get_llvm_specific_type()));
-	return res;
-}
-
-void bound_type_t::is_managed_ptr(
-	   	llvm::IRBuilder<> &builder,
-	   	ptr<scope_t> scope,
-		bool &is_managed) const
-{
-	is_managed = types::is_managed_ptr(type, scope);
-}
-
 
 std::string bound_type_t::get_signature() const {
 	return get_type()->get_signature();

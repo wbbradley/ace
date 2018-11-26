@@ -21,7 +21,7 @@ bound_var_t::ref get_null(
 			location,
 			null_type->get_llvm_type(),
 			null_type->get_llvm_specific_type());
-	return bound_var_t::create(
+	return make_bound_var(
 			INTERNAL_LOC(), "null", bound_type,
 			llvm::Constant::getNullValue(null_type->get_llvm_specific_type()),
 			make_iid_impl("null", location));
@@ -42,7 +42,7 @@ void unmaybe_variable(
 	}
 
 	bool was_ref = false;
-	types::type_t::ref type = var->type->get_type()->eval(scope);
+	types::type_t::ref type = var->get_type()->eval(scope);
 	if (auto ref_type = dyncast<const types::type_ref_t>(type)) {
 		was_ref = true;
 		type = ref_type->element_type;
@@ -74,12 +74,11 @@ void unmaybe_variable(
 		 * without its maybe, since we know it will be valid if the
 		 * condition passes */
 		bound_var_t::ref var_decl_variable =
-			bound_var_t::create(INTERNAL_LOC(), token.text, bound_type,
-					var->get_llvm_value(), make_code_id(token));
+			make_bound_var(INTERNAL_LOC(), token.text, bound_type,
+					var->get_llvm_value(scope), make_code_id(token));
 
 		/* on our way out, stash the variable in the current scope */
-		scope->put_bound_variable(var_decl_variable->name,
-				var_decl_variable);
+		scope->put_bound_variable(var_decl_variable->get_name(), var_decl_variable);
 	} else {
 		/* this is not a maybe, so let's just move along */
 	}
@@ -100,7 +99,7 @@ void nullify_let_var(
 		throw user_error(ref_expr->get_location(), "undefined symbol " c_id("%s"), token.text.c_str());
 	}
 
-	types::type_t::ref type = var->type->get_type()->eval(scope);
+	types::type_t::ref type = var->get_type()->eval(scope);
 
 	/* we can't change the type of a mutable name in the scope because the user is allowed
 	 * to assign a non-null value, and we don't want to take that away from them */
@@ -124,37 +123,6 @@ void nullify_let_var(
 	}
 }
 
-void extract_just_value(
-		llvm::IRBuilder<> &builder,
-		runnable_scope_t::ref scope,
-		life_t::ref life,
-		ast::reference_expr_t::ref ref_expr,
-		bound_var_t::ref value,
-		runnable_scope_t::ref *scope_if_true)
-{
-	auto casted_input = cast_data_type_to_ctor_struct(
-			builder, scope, ref_expr->get_location(),
-			value, token_t(INTERNAL_LOC(), tk_identifier, "Just"));
-
-	bound_var_t::ref member = extract_member_by_index(
-			builder,
-			scope,
-			life,
-			ref_expr->get_location(),
-			casted_input,
-			casted_input->type,
-			0,
-			"value",
-			false /*as_ref*/);
-
-	runnable_scope_t::ref fresh_scope = scope->new_runnable_scope(
-			string_format("just-%s", ref_expr->token.text.c_str()));
-
-	*scope_if_true = fresh_scope;
-
-	fresh_scope->put_bound_variable(ref_expr->token.text, member);
-}
-
 bound_var_t::ref resolve_null_check(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
@@ -166,11 +134,12 @@ bound_var_t::ref resolve_null_check(
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false)
 {
-	if (!value->type->is_maybe(scope) && value->type->is_ptr(scope)) {
+	if (!value->get_type()->is_maybe(scope) && value->get_type()->is_ptr(scope)) {
 		auto error = user_error(location, "%s cannot be null here. "
 				"if you must compare this to null, try casting it to a maybe pointer first.",
 				node->str().c_str());
-		error.add_info(location, "the type of %s is %s", node->str().c_str(), value->type->str().c_str());
+		error.add_info(location, "the type of %s is %s", node->str().c_str(),
+				value->get_bound_type()->str().c_str());
 		throw error;
 	}
 
@@ -222,7 +191,7 @@ bound_var_t::ref resolve_null_check(
 	}
 
 	assert(llvm_bool_value != nullptr);
-	return bound_var_t::create(
+	return make_bound_var(
 			INTERNAL_LOC(), "nullcheck",
 			bound_bool_type, llvm_bool_value, make_iid("nullcheck"));
 }
