@@ -179,6 +179,10 @@ namespace types {
 				auto var_name = ps.token;
 				ps.advance();
 
+				if (var_name.text == "_") {
+					var_name.text = types::gensym(INTERNAL_LOC())->get_name();
+				}
+
 				/* parse the type */
 				if (ps.token.tk == tk_comma || ps.token.tk == tk_rparen) {
 					if (automatic_any) {
@@ -192,11 +196,15 @@ namespace types {
 				}
 
 				auto param_name = make_code_id(var_name);
-				if (in_vector(param_name, param_names)) {
-					throw user_error(ps.token.location, "duplicated parameter name: %s", var_name.text.c_str());
-				} else {
-					param_names.push_back(param_name);
+
+				/* check for duplicate param names */
+				for (auto p : param_names) {
+					if (([](identifier::ref x) { return x->get_name(); })(p) == param_name->get_name()) {
+						throw user_error(ps.token.location, "duplicated parameter name: %s", var_name.text.c_str());
+					}
 				}
+
+				param_names.push_back(param_name);
 
 				if (ps.token.tk == tk_rparen) {
 					ps.advance();

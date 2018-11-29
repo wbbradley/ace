@@ -211,3 +211,14 @@ template <typename U, typename COLL>
 bool in_vector(U item, const COLL &set) {
 	return std::find(set.begin(), set.end(), item) != set.end();
 }
+
+template <typename U, typename COLL, typename V>
+bool in_vector_with(U item, const COLL &set, std::function<V (U)> extractor) {
+	auto val = extractor(item);
+	for (auto x : set) {
+		if (extractor(x) == val) {
+			return true;
+		}
+	}
+	return false;
+}
