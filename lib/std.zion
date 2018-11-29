@@ -95,7 +95,7 @@ fn __iter__(range IntRange) IntRangeIter {
     return IntRangeIter(range.lim, range.step, range.first)
 }
     
-fn __next__(iter IntRangeIter) Maybe int {
+fn __next__(iter IntRangeIter) int? {
     if iter.pos < iter.lim {
         j := iter.pos
         iter.pos += iter.step
