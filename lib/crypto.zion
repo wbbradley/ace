@@ -32,6 +32,17 @@ fn hash(input_ bytes, key bytes) bytes {
     return out
 }
         
+[global]
+fn __map_hash__(s int) HashType {
+    outlen := crypto_generichash_bytes_max()
+    out := alloc(outlen)
+    crypto_generichash(out.data, out.cb, &s as! *int8, sizeof(int), null, 0)
+
+    var hash_value HashType = 0
+    posix.memcpy(&hash_value, out.data, sizeof(HashType))
+    return hash_value
+}
+
 
 [global]
 fn hash(input_ str) bytes {

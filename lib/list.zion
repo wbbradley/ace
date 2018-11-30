@@ -58,3 +58,23 @@ fn merge[X](xs_ [X], ys_ [X]) [X] {
         }
     }
 }
+
+type ListIter T has {
+    var node List T
+}
+
+[global]
+fn __iter__[T](l List T) ListIter T {
+    return ListIter(l)
+}
+
+[global]
+fn __next__[T](li ListIter T) T? => match li.node {
+    Cons(val, next) {
+        li.node = next
+        Just(val)
+    }
+    Nil {
+        Nothing
+    }
+}

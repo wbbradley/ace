@@ -1,101 +1,208 @@
 module map
 
-# map is an associative array. it is currently implemented using O(n) searches for all operations.
-# this is obviously not good, but it's just a placeholder to work with the language syntax and
-# grammar as it evolves.
+# map is an associative array
 
-# FUTURE: we'll get ourselves a shiny fast implementation of an (un)ordered map.
+type HashType = uint32
 
-type KeyValue K V has {
+type ChainEntry K V has {
+    hash_value HashType
     key K
     var value V
+    var next (ChainEntry K V)?
 }
 
-# aka {KeyType: ValueType}
-type Map KeyType ValueType has {
-    # HACKHACK: O(n) BAD BAD
-    var storage [KeyValue KeyType ValueType]
+# aka {K: V}
+type Map K V has {
+    var count int
+    var storage [(ChainEntry K V)?]
 }
 
 [global]
 fn __init__[K, V]() Map K V {
-    let storage [KeyValue K V]
-    return Map(storage)
+    let storage [(ChainEntry K V)?]
+    return Map(0, storage)
 }
 
 [global]
-fn get[K, V](m Map K V, key K, default V) V {
-    # HACKHACK: O(n) BAD BAD
-    for kv in m.storage {
-        if kv.key == key {
-            return kv.value
-        }
+fn len[K, V](m Map K V) int {
+    return m.count
+}
+
+fn realloc[K, V](m Map K V) {
+    let storage [(ChainEntry K V)?]
+    new_size := (len(m.storage) + 1) * 2
+    resize(storage, new_size, Nothing)
+
+    old_storage := m.storage
+    m.storage = storage
+
+    ls := len(m.storage)
+    for chain in old_storage {
+        while match chain {
+            Just(entry) {
+                next_chain := entry.next
+
+                # Figure out the new index
+                index := entry.hash_value % ls
+
+                # Have this entry point to the existing entry in the new allocation
+                entry.next = m.storage[index]
+
+                # Insert this entry into the chain
+                m.storage[index] = chain
+
+                # Advance to the next item that was in this chain
+                chain = next_chain
+            }
+        } else => break
     }
-    return default
+}
+
+[global]
+fn get[K, V](m Map K V, key K, default V) V => match m[key] {
+    Just(val) => val
+    Nothing   => default
 }
 
 [global]
 fn __getitem__[K, V](m Map K V, key K) V? {
-    # HACKHACK: O(n) BAD BAD
-    for kv in m.storage {
-        if kv.key == key {
-            return Just(kv.value)
-        }
+    ls := len(m.storage)
+    if ls == 0 {
+        return Nothing
     }
+
+    let hash_value HashType = __map_hash__(key)
+    index := hash_value % ls
+    var chain = m.storage[index]
+    while match chain {
+        Just(entry) {
+            if entry.hash_value == hash_value and entry.key == key {
+                return Just(entry.value)
+            }
+            chain = entry.next
+        }
+    } else => break
     return Nothing
 }
 
 [global]
 fn __setitem__[K, V](m Map K V, key K, val V) {
-    # HACKHACK: O(n) BAD BAD
-    for kv in m.storage {
-        if kv.key == key {
-            kv.value = val
-            return
-        }
+    hash_value := __map_hash__(key)
+    ls := len(m.storage)
+    if ls == 0 {
+        realloc(m)
     }
-    append(m.storage, KeyValue(key, val))
+    var index = hash_value % len(m.storage)
+
+    var chain = m.storage[index]
+    while match chain {
+        Just(entry) {
+            if entry.hash_value == hash_value and entry.key == key {
+                entry.value = val
+                return
+            }
+            chain = entry.next
+        }
+    } else => break
+
+    # We didn't find the key in our map
+    if m.count + 1 > ls * 3 / 4 {
+        realloc(m)
+        index = hash_value % len(m.storage)
+    }
+    entry := ChainEntry(hash_value, key, val, m.storage[index])
+    m.storage[index] = Just(entry)
+    m.count += 1
 }
 
 [global]
 fn __in__[K, V](key K, m Map K V) bool {
-    for kv in m.storage {
-        if kv.key == key {
-            return true
-        }
+    hash_value := __map_hash__(key)
+    ls := len(m.storage)
+    if ls == 0 {
+        return false
     }
+    index := hash_value % ls
+
+    var chain = m.storage[index]
+    while match chain {
+        Just(entry) {
+            if entry.hash_value == hash_value and entry.key == key {
+                return true
+            }
+            chain = entry.next
+        }
+    } else => break
     return false
 }
 
 [global]
 fn __not_in__[K, V](key K, m Map K V) bool {
-    for kv in m.storage {
-        if kv.key == key {
-            return false
-        }
-    }
-    return true
+    return not __in__(key, m)
 }
 
 [global]
 fn del[K, V](m Map K V, key K) bool {
-    # HACKHACK: O(n) BAD BAD - also vector.ManagedVector coupling BAD BAD
-    var i = 0
-    let storage = m.storage
-    let size = (storage as! *(vector.VectorImpl (KeyValue K V))).size
-    while i < size {
-        let item = storage[i]
-        if item.key == key {
-            splice(storage, int(i), 1)
-            return true
-        }
-        i += 1
-    }
-    return false
+    return exists(pop(m, key))
 }
 
 [global]
-fn __iter__[K, V](map Map K V) vector.VectorIter (KeyValue K V) {
-    # For now, just proxy through to the bad storage model
-    return __iter__(map.storage)
+fn pop[K, V](m Map K V, key K) V? {
+    hash_value := __map_hash__(key)
+    ls := len(m.storage)
+    if ls == 0 {
+        return Nothing
+    }
+    var index = hash_value % ls
+
+    var chain = m.storage[index]
+    var prior = Nothing as (ChainEntry K V)?
+    while match chain {
+        Just(entry) {
+            if entry.hash_value == hash_value and entry.key == key {
+                match prior {
+                    Just(prior_entry) {
+                        prior_entry.next = entry.next
+                    }
+                    Nothing {
+                        m.storage[index] = entry.next
+                    }
+                }
+                m.count -= 1
+                assert(key not in m)
+                return Just(entry.value)
+            }
+            prior = chain
+            chain = entry.next
+        }
+    } else => break
+
+    return Nothing
+}
+
+[global]
+fn __iter__[K, V](m Map K V) vector.VectorIter (K, V) {
+    let items [(K, V)]
+    reserve(items, len(m))
+
+    for index in range(len(m.storage)) {
+        var chain = m.storage[index]
+        while match chain {
+            Just(entry) {
+                append(items, (entry.key, entry.value))
+                chain = entry.next
+            }
+            Nothing => break
+        }
+    }
+
+    # By default we iterate over a copy of the data in the map, stored as
+    # tuples of key value pairs
+    return __iter__(items)
+}
+
+fn __test_compilation() {
+    let m [str: int]
+    m["hey"] = 5
+    print(get(m, "hey", 0))
 }
