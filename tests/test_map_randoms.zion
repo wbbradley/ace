@@ -1,0 +1,15 @@
+module _
+
+# test: pass
+# expect: m has 2 entries
+
+fn main() {
+    var m [int: int]
+    for i in range(10) {
+        m[i] = 1
+    }
+    for i in range(1, 9) {
+        pop(m, i)
+    }
+    print("m has " + len(m) + " entries")
+}

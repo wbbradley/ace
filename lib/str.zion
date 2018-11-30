@@ -1,5 +1,6 @@
 global
 
+get map {HashType}
 #
 # str
 #
@@ -26,6 +27,13 @@ fn str(x str) str {
 
 fn str[A, B](p (A, B)) str {
     return "(" + p[0] + ", " + p[1] + ")"
+}
+
+fn __map_hash__(s str) HashType {
+    hash := hash(s)
+    var hash_value HashType = 0
+    posix.memcpy(&hash_value, hash.data, sizeof(HashType))
+    return hash_value
 }
 
 fn __getitem__(s str, i uint) char {

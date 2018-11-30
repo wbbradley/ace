@@ -74,7 +74,7 @@ fn parse(parser Parser, args [str]) MaybeResource Arguments ParseError {
     }
 
     for pair in parser.options {
-        option := pair.value
+        option := pair[1]
         if option.required and option.name not in results {
             return Failed(ParseError("Missing option " + option.name + " in command line parameters", make_usage(parser)))
         }
