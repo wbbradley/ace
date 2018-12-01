@@ -1008,7 +1008,7 @@ ptr<statement_t> assignment_t::parse(parse_state_t &ps) {
 	handle_assign(tk_mod_eq, ast::mod_assignment_t);
 
 	if (!ps.line_broke() && ps.token.tk == tk_becomes) {
-		if (lhs->sk == sk_reference_expr) {
+		if (dyncast<reference_expr_t>(lhs) != nullptr) {
 			auto var_decl = create<ast::var_decl_t>(lhs->token);
 			var_decl->is_let_var = true;
 			var_decl->type = type_variable(lhs->token.location);

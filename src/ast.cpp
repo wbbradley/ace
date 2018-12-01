@@ -6,23 +6,6 @@
 #include "utils.h"
 #include "lexer.h"
 
-const char *skstr(syntax_kind_t sk) {
-	switch (sk) {
-
-#define sk_case(x) case sk_##x: return (":" #x);
-
-		sk_case(null)
-
-#define OP sk_case
-#include "sk_ops.h"
-#undef OP
-
-		sk_case(expression)
-		sk_case(statement)
-	};
-	return "<error>";
-}
-
 namespace ast {
 	void log_named_item_create(const char *type, const std::string &name) {
 		if (name.size() > 0) {
