@@ -29,6 +29,10 @@ fn str[A, B](p (A, B)) str {
     return "(" + p[0] + ", " + p[1] + ")"
 }
 
+fn __eq__(ch char, s str) bool {
+    return len(s) == 1 and ch == s[0]
+}
+
 fn __map_hash__(s str) HashType {
     hash := hash(s)
     var hash_value HashType = 0

@@ -1,0 +1,9 @@
+module _
+
+fn main() {
+    # error: number of items destructured is not correct
+    ((x, y), z) := (1, 2, 3)
+    print(x)
+    print(y)
+    print(z)
+}

@@ -1,0 +1,12 @@
+module _
+
+# test: pass
+# expect: baz
+# expect: funky
+
+fn main() {
+    var (_, a) = ("bar", ("baz", "foo"))
+    print(a[0])
+    a = ("hey", "funky")
+    print(a[1])
+}

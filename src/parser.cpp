@@ -29,25 +29,55 @@ bool token_begins_type(const token_t &token) {
 	};
 }
 
-ptr<var_decl_t> var_decl_t::parse(parse_state_t &ps, bool is_let) {
-	expect_token(tk_identifier);
+ptr<statement_t> var_decl_t::parse(parse_state_t &ps, bool is_let, bool allow_tuple_destructuring) {
+	if (ps.token.tk == tk_lparen) {
+		if (!allow_tuple_destructuring) {
+			throw user_error(ps.token.location, "tuple destructuring is not allowed here");
+		}
+		auto lhs = tuple_expr_t::parse(ps);
+		auto tuple_expr = dyncast<tuple_expr_t>(lhs);
+		if (tuple_expr == nullptr) {
+			throw user_error(lhs->token.location, "tuple destructuring detected an invalid expression on the lhs");
+		}
 
-	auto var_decl = create<ast::var_decl_t>(ps.token);
-	var_decl->is_let_var = is_let;
-	eat_token();
+		ptr<destructured_tuple_decl_t> destructured_tuple_decl = create<destructured_tuple_decl_t>(lhs->token);
+		destructured_tuple_decl->lhs = tuple_expr;
+		destructured_tuple_decl->is_let = is_let;
+		if (token_begins_type(ps.token)) {
+			destructured_tuple_decl->type = types::parse_type(ps, {} /*generics*/);
+		} else {
+			destructured_tuple_decl->type = type_variable(destructured_tuple_decl->get_location());
+		}
 
-	if (token_begins_type(ps.token)) {
-		var_decl->type = types::parse_type(ps, {} /*generics*/);
+		if (ps.token.tk == tk_assign) {
+			eat_token();
+			destructured_tuple_decl->initializer = expression_t::parse(ps);
+		} else {
+			throw user_error(ps.token.location, "destructured tuples must be assigned to an rhs");
+		}
+
+		return destructured_tuple_decl;
+
 	} else {
-		var_decl->type = type_variable(var_decl->get_location());
-	}
+		expect_token(tk_identifier);
 
-	if (ps.token.tk == tk_assign) {
+		auto var_decl = create<ast::var_decl_t>(ps.token);
+		var_decl->is_let_var = is_let;
 		eat_token();
-		var_decl->initializer = expression_t::parse(ps);
-	}
 
-	return var_decl;
+		if (token_begins_type(ps.token)) {
+			var_decl->type = types::parse_type(ps, {} /*generics*/);
+		} else {
+			var_decl->type = type_variable(var_decl->get_location());
+		}
+
+		if (ps.token.tk == tk_assign) {
+			eat_token();
+			var_decl->initializer = expression_t::parse(ps);
+		}
+
+		return var_decl;
+	}
 }
 
 ptr<var_decl_t> var_decl_t::parse_param(parse_state_t &ps) {
@@ -164,9 +194,10 @@ ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 	} else if (ps.token.is_ident(K(var))) {
 		ps.advance();
 		// REVIEW: does it make sense to handle 'let' in this context?
-		auto var_decl = var_decl_t::parse(ps, false /* is_let */);
+		auto var_decl = var_decl_t::parse(ps, false /* is_let */, false /*allow_tuple_destructuring*/);
 		auto link_var = create<link_var_statement_t>(link_token);
-		link_var->var_decl = var_decl;
+		link_var->var_decl = dyncast<var_decl_t>(var_decl);
+		assert(link_var->var_decl != nullptr);
 		return link_var;
 	} else if (ps.token.is_ident(K(in))) {
 		ps.advance();
@@ -333,10 +364,10 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 
 	if (ps.token.is_ident(K(var))) {
 		ps.advance();
-		return var_decl_t::parse(ps, false /*is_let*/);
+		return var_decl_t::parse(ps, false /*is_let*/, true /*allow_tuple_destructuring*/);
 	} else if (ps.token.is_ident(K(let))) {
 		ps.advance();
-		return var_decl_t::parse(ps, true /*is_let*/);
+		return var_decl_t::parse(ps, true /*is_let*/, true /*allow_tuple_destructuring*/);
 	} else if (ps.token.is_ident(K(if))) {
 		return if_block_t::parse(ps);
 	} else if (ps.token.is_ident(K(while))) {
@@ -1016,6 +1047,14 @@ ptr<statement_t> assignment_t::parse(parse_state_t &ps) {
 			auto initializer = expression_t::parse(ps);
 			var_decl->initializer.swap(initializer);
 			return var_decl;
+		} else if (auto tuple_expr = dyncast<tuple_expr_t>(lhs)) {
+			ptr<destructured_tuple_decl_t> destructured_tuple_decl = create<destructured_tuple_decl_t>(lhs->token);
+			destructured_tuple_decl->is_let = true;
+			destructured_tuple_decl->lhs = tuple_expr;
+			destructured_tuple_decl->type = type_variable(lhs->token.location);
+			chomp_token(tk_becomes);
+			destructured_tuple_decl->initializer = expression_t::parse(ps);
+			return destructured_tuple_decl;
 		} else {
 			throw user_error(ps.token.location, ":= may only come after a new symbol name");
 		}
@@ -1680,8 +1719,10 @@ ptr<module_t> module_t::parse(parse_state_t &ps) {
 				throw user_error(ps.token.location, "let variables are not yet supported at the module level");
 			} else {
 				ps.advance();
-				auto var = var_decl_t::parse(ps, is_let);
-				module->var_decls.push_back(var);
+				auto var = var_decl_t::parse(ps, is_let, false /*allow_tuple_destructuring*/);
+				auto var_decl = dyncast<var_decl_t>(var);
+				assert(var_decl != nullptr);
+				module->var_decls.push_back(var_decl);
 			}
 		} else if (ps.token.tk == tk_lsquare || ps.token.is_ident(K(fn))) {
 			/* function definitions */

@@ -1,0 +1,6 @@
+module _
+
+fn main() {
+    # error: initializer does not match declared type
+    let (a, b, c) (int, int, int) = (1, 2, "hey")
+}

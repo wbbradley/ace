@@ -341,7 +341,7 @@ unification_t unify_core(
 			if (ptp_a->get_pk() != ptp_b->get_pk()) {
 				return {
 					false,
-					string_format("product kinds are different %s <> %s (%s != %s)",
+					string_format("product kinds are different %s != %s (%s != %s)",
 							pkstr(ptp_a->get_pk()),
 							pkstr(ptp_b->get_pk()),
 							ptp_a->str().c_str(),
@@ -413,7 +413,7 @@ unification_t unify_core(
 		} else {
 			return {
 				false,
-				string_format("%s <> %s",
+				string_format("%s != %s",
 						a->str().c_str(),
 						b->str().c_str()),
 				bindings,
@@ -454,7 +454,7 @@ unification_t unify_core(
 		} else {
 			return {
 				false,
-				string_format("%s <> %s",
+				string_format("%s != %s",
 						a->str().c_str(),
 						b->str().c_str()),
 				bindings,
@@ -470,7 +470,7 @@ unification_t unify_core(
 		} else {
 			return {
 				false,
-				string_format("%s <> %s",
+				string_format("%s != %s",
 						a->str().c_str(),
 						b->str().c_str()),
 				bindings,
@@ -510,7 +510,7 @@ unification_t unify_core(
 					   	false /*allow_variance*/);
 			}
 		}
-		return {false, string_format("%s <> %s", a->str().c_str(), b->str().c_str()), bindings, coercions, {}};
+		return {false, string_format("%s != %s", a->str().c_str(), b->str().c_str()), bindings, coercions, {}};
 	} else if (ptr_a != nullptr) {
 		auto a_element_type = ptr_a->element_type->eval(env);
 
@@ -557,7 +557,7 @@ unification_t unify_core(
 		/* types don't match */
 		return {
 			false,
-			string_format("%s <> %s with attempted bindings %s",
+			string_format("%s != %s with attempted bindings %s",
 					a->str().c_str(),
 					b->str().c_str(),
 					str(bindings).c_str()),

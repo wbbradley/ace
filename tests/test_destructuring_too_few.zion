@@ -1,0 +1,8 @@
+module _
+
+fn main() {
+    # error: number of items destructured is not correct
+    (x, y) := ("a", "b", "c")
+    print(x)
+    print(y)
+}

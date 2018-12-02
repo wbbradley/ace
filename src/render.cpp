@@ -438,6 +438,21 @@ namespace ast {
 		var_decl->render(rs);
 	}
 
+	void destructured_tuple_decl_t::render(render_state_t &rs) const {
+		rs.ss << C_TYPE << (is_let ? K(let) : K(var)) << C_RESET << " ";
+
+		lhs->render(rs);
+
+		if (type != nullptr) {
+			rs.ss << " " << type->str();
+		}
+
+		if (initializer != nullptr) {
+			rs.ss << " = ";
+			initializer->render(rs);
+		}
+	}
+
 	void var_decl_t::render(render_state_t &rs) const {
 		if (rs.param_list_decl_depth == 0) {
 			rs.ss << C_TYPE << (is_let() ? K(let) : K(var)) << C_RESET << " ";
