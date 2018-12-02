@@ -54,21 +54,21 @@ llvm::Value *resolve_init_var(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		const ast::var_decl_t &obj,
-		const std::string &symbol,
+		identifier::ref symbol,
 		types::type_t::ref declared_type,
 		llvm::Function *llvm_function,
 		bound_var_t::ref init_var,
 		bound_type_t::ref value_type,
+		bool is_let,
 		bool is_managed)
 {
 	/* assumption here is that init_var has already been unified against the declared type.
 	 * if this function returns an AllocaInst then that will imply that the variable should be
 	 * treated as a ref that can be changed. */
 	llvm::AllocaInst *llvm_alloca = nullptr;
-	if (!obj.is_let()) {
+	if (!is_let) {
 		/* we need some stack space because this name is mutable */
-		llvm_alloca = llvm_create_entry_block_alloca(llvm_function, value_type, symbol);
+		llvm_alloca = llvm_create_entry_block_alloca(llvm_function, value_type, symbol->get_name());
 	}
 
 	if (init_var == nullptr) {
@@ -78,8 +78,8 @@ llvm::Value *resolve_init_var(
 			if (llvm_alloca == nullptr) {
 				return llvm_null_value;
 			} else {
-				if (obj.is_let()) {
-					throw user_error(obj.get_location(), "you might as well just use " c_id("null") " rather than declaring this uninitialized maybe");
+				if (is_let) {
+					throw user_error(symbol->get_location(), "you might as well just use " c_id("null") " rather than declaring this uninitialized maybe");
 				}
 
 				assert(llvm_alloca != nullptr);
@@ -95,13 +95,13 @@ llvm::Value *resolve_init_var(
 						builder,
 						scope->get_module_scope(),
 						"__init__",
-						obj.get_location(),
+						symbol->get_location(),
 						type_args({}, {}),
 						value_type->get_type());
-				init_var = make_call_value(builder, obj.get_location(), scope,
+				init_var = make_call_value(builder, symbol->get_location(), scope,
 						life, init_fn, {} /*arguments*/);
 			} catch (user_error &e) {
-				std::throw_with_nested(user_error(obj.get_location(), "missing initializer"));
+				std::throw_with_nested(user_error(symbol->get_location(), "missing initializer"));
 			}
 		}
 	}
@@ -110,19 +110,19 @@ llvm::Value *resolve_init_var(
 	llvm::Value *llvm_init_value;
 	if (!init_var->get_type()->eval_predicate(tb_null, scope)) {
 		llvm_init_value = coerce_value(builder, scope, life,
-				obj.get_location(), value_type->get_type(), init_var);
+				symbol->get_location(), value_type->get_type(), init_var);
 	} else {
 		llvm_init_value = llvm::Constant::getNullValue(value_type->get_llvm_specific_type());
 	}
 
 	assert(llvm_init_value != nullptr);
 	if (llvm_init_value->getName().size() == 0) {
-		llvm_init_value->setName(string_format("%s.initializer", symbol.c_str()));
+		llvm_init_value->setName(string_format("%s.initializer", symbol->get_name().c_str()));
 	}
 
 	if (llvm_alloca == nullptr) {
 		/* this is a 'let' */
-		assert(obj.is_let());
+		assert(is_let);
 		return llvm_init_value;
 	} else {
 		debug_above(6, log(log_info, "creating a store instruction %s := %s",
@@ -130,41 +130,23 @@ llvm::Value *resolve_init_var(
 					llvm_print(llvm_init_value).c_str()));
 
 		builder.CreateStore(llvm_init_value, llvm_alloca);
-		assert(!obj.is_let());
+		assert(!is_let);
 		/* this is a native or managed 'var' */
 		return llvm_alloca;
 	}
 }
 
-bound_var_t::ref generate_stack_variable(
+bound_var_t::ref generate_stack_variable_core(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		const ast::var_decl_t &var_decl,
-		const std::string &symbol,
+		identifier::ref symbol,
+		bound_var_t::ref init_var,
+		std::string initializer_code,
 		types::type_t::ref declared_type,
-		bool maybe_unbox)
+		bool maybe_unbox,
+		bool is_let)
 {
-	/* 'init_var' is keeping track of the value we are assigning to our new
-	 * variable (if any exists.) */
-	bound_var_t::ref init_var;
-
-	/* only check initializers inside a runnable scope */
-	assert(dyncast<runnable_scope_t>(scope) != nullptr);
-
-	if (var_decl.initializer != nullptr) {
-		bool returns = false;
-		/* we have an initializer */
-		init_var = var_decl.initializer->resolve_expression(builder, scope, life, false /*as_ref*/, declared_type, &returns);
-		if (init_var->get_type()->is_void(scope)) {
-			throw user_error(var_decl.get_location(),
-					"cannot initialize a variable with void, since it has no value");
-		} else if (init_var->get_type()->is_bottom(scope) || returns) {
-			throw user_error(var_decl.get_location(),
-					"this variable will never be initialized because the right-hand side will not pass control back to this function");
-		}
-	}
-
 	/* 'stack_var_type' is keeping track of what the stack variable's type will be (hint: it should
 	 * just be a ref to the value_type) */
 	bound_type_t::ref stack_var_type;
@@ -187,16 +169,16 @@ bound_var_t::ref generate_stack_variable(
 			if (unification.result) {
 				/* the lhs is a supertype of the rhs */
 				declared_type = declared_type->rebind(unification.bindings);
-				debug_above(7, log_location(log_info, var_decl.get_location(),
+				debug_above(7, log_location(log_info, symbol->get_location(),
 					   	"initializer %s (%s) unifies with declared type %s",
-						var_decl.initializer->str().c_str(),
+						initializer_code.c_str(),
 						init_var->str().c_str(),
 						declared_type->str().c_str()));
 			} else {
 				/* report that the variable type does not match the initializer type */
-				auto error = user_error(var_decl.get_location(),
+				auto error = user_error(symbol->get_location(),
 						"declared type of `" c_var("%s") "` does not match type of initializer",
-						var_decl.get_symbol().c_str());
+						symbol->get_name().c_str());
 				error.add_info(init_var->get_location(), c_type("%s") " != " c_type("%s") " because %s",
 						declared_type->str().c_str(),
 						init_var->get_type()->str().c_str(),
@@ -213,11 +195,11 @@ bound_var_t::ref generate_stack_variable(
 	declared_type = declared_type->eval(scope);
 
 	if (maybe_unbox) {
-		debug_above(3, log(log_info, "attempting to unbox %s", var_decl.get_symbol().c_str()));
+		debug_above(3, log(log_info, "attempting to unbox %s", symbol->get_name().c_str()));
 
 		/* try to see if we can unbox this if it's a Maybe */
 		if (init_var == nullptr) {
-			throw user_error(var_decl.get_location(), "missing initialization value");
+			throw user_error(symbol->get_location(), "missing initialization value");
 		} else {
 			/* since we are maybe unboxing, then let's first off see if
 			 * this is even a maybe type. */
@@ -246,17 +228,17 @@ bound_var_t::ref generate_stack_variable(
 	// NOTE: we don't make this a gcroot until a little later on
 	bool is_managed = value_type->get_type()->is_managed_ptr(scope);
 	llvm::Value *llvm_value = nullptr;
-	llvm_value = resolve_init_var(builder, scope, life, var_decl, symbol, declared_type,
-			llvm_function, init_var, value_type, is_managed);
+	llvm_value = resolve_init_var(builder, scope, life, symbol, declared_type,
+			llvm_function, init_var, value_type, is_let, is_managed);
 
 	/* the reference_expr that looks at this llvm_value will need to
 	 * know to use store/load semantics, not just pass-by-value */
 	bound_var_t::ref var_decl_variable = make_bound_var(
 			INTERNAL_LOC(),
-			symbol,
+			symbol->get_name(),
 			llvm::dyn_cast<llvm::AllocaInst>(llvm_value) ? stack_var_type : value_type,
 			llvm_value,
-			make_type_id_code_id(var_decl.get_location(), var_decl.get_symbol()));
+			symbol);
 
 	/* on our way out, stash the variable in the current scope */
 	scope->put_bound_variable(var_decl_variable->get_name(), var_decl_variable);
@@ -274,12 +256,48 @@ bound_var_t::ref generate_stack_variable(
 
 		/* we're unboxing a Maybe{any}, so let's return
 		 * whether this was Nothing or not... */
-		return make_bound_var(INTERNAL_LOC(), symbol,
+		return make_bound_var(INTERNAL_LOC(), symbol->get_name(),
 				condition_type, llvm_resolved_value,
-				make_type_id_code_id(var_decl.get_location(), var_decl.get_symbol()));
+				symbol);
 	} else {
 		return var_decl_variable;
 	}
+}
+
+bound_var_t::ref generate_stack_variable(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		const ast::var_decl_t &var_decl,
+		const std::string &symbol,
+		types::type_t::ref declared_type,
+		bool maybe_unbox)
+{
+	/* 'init_var' is keeping track of the value we are assigning to our new
+	 * variable (if any exists.) */
+	bound_var_t::ref init_var;
+	std::string initializer_code;
+
+	/* only check initializers inside a runnable scope */
+	assert(dyncast<runnable_scope_t>(scope) != nullptr);
+
+	if (var_decl.initializer != nullptr) {
+		bool returns = false;
+		/* we have an initializer */
+		init_var = var_decl.initializer->resolve_expression(builder, scope, life, false /*as_ref*/, declared_type, &returns);
+		initializer_code = var_decl.initializer->str();
+		if (init_var->get_type()->is_void(scope)) {
+			throw user_error(var_decl.get_location(),
+					"cannot initialize a variable with void, since it has no value");
+		} else if (init_var->get_type()->is_bottom(scope) || returns) {
+			throw user_error(var_decl.get_location(),
+					"this variable will never be initialized because the right-hand side will not pass control back to this function");
+		}
+	}
+
+	return generate_stack_variable_core(
+			builder, scope, life, make_iid_impl(symbol, var_decl.get_location()),
+			init_var, initializer_code, declared_type, maybe_unbox, var_decl.is_let());
 }
 
 bound_var_t::ref upsert_module_variable(
@@ -440,7 +458,7 @@ bound_var_t::ref type_check_bound_var_decl(
 	if (runnable_scope != nullptr) {
 		bound_var_t::ref bound_var = runnable_scope->get_bound_variable(
 				builder, obj.get_location(), symbol,
-				runnable_scope->get_module_scope());
+				runnable_scope->get_module_scope() /*stopping_before_scope*/);
 
 		if (bound_var != nullptr) {
 			auto error = user_error(obj.get_location(), "symbol '" c_id("%s") "' cannot be redeclared",
@@ -4306,6 +4324,96 @@ bound_var_t::ref ast::bang_expr_t::resolve_expression(
 		throw user_error(get_location(), "bang expression is unnecessary since this is not a 'maybe' type: %s",
 				type->str().c_str());
 	}
+}
+
+void traverse_tuple_destructuring(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope_,
+		life_t::ref life,
+		bool is_let,
+		ptr<ast::tuple_expr_t> lhs,
+		bound_var_t::ref rhs,
+		runnable_scope_t::ref *new_scope)
+{
+	ptr<runnable_scope_t> runnable_scope = dyncast<runnable_scope_t>(scope_);
+	assert(runnable_scope != nullptr);
+
+	types::type_struct_t::ref struct_type = get_struct_type_from_bound_type(
+			runnable_scope, rhs->get_location(), rhs->get_bound_type());
+
+	if (lhs->values.size() != struct_type->dimensions.size()) {
+		throw user_error(lhs->get_location(), "number of items destructured is not correct. use _ to ignore dimensions (expected %d, found %d)",
+				(int)struct_type->dimensions.size(),
+				(int)lhs->values.size());
+	}
+
+	/* traverse tuple looking for variables to declare and assign based on the initializer */
+	for (int i = 0; i < lhs->values.size(); ++i) {
+		if (auto ref_expr = dyncast<ast::reference_expr_t>(lhs->values[i])) {
+			if (ref_expr->token.text == "_") {
+				continue;
+			}
+			bound_var_t::ref value = extract_member_by_index(builder, runnable_scope, life,
+					ref_expr->get_location(), rhs, rhs->get_bound_type(), i,
+					string_format("%d", i), false /*as_ref*/);
+
+			runnable_scope_t::ref next_scope = runnable_scope->new_runnable_scope(
+					string_format("destructuring-%s", ref_expr->token.text.c_str()));
+
+			if (is_let) {
+				next_scope->put_bound_variable(ref_expr->token.text, value);
+			} else {
+				generate_stack_variable_core(
+						builder,
+						next_scope,
+						life,
+						make_code_id(ref_expr->token),
+						value,
+						"" /*initializer_code*/,
+						nullptr /*declared_type*/,
+						false /*maybe_unbox*/,
+						is_let);
+			}
+			runnable_scope = next_scope;
+		} else if (auto tuple_expr = dyncast<ast::tuple_expr_t>(lhs->values[i])) {
+			runnable_scope_t::ref next_scope;
+			bound_var_t::ref value = extract_member_by_index(builder, runnable_scope, life,
+					tuple_expr->get_location(), rhs, rhs->get_bound_type(), i,
+					string_format("%d", i), false /*as_ref*/);
+			traverse_tuple_destructuring(builder, runnable_scope, life, is_let, tuple_expr,
+					value, &next_scope);
+			runnable_scope = next_scope;
+		} else {
+			throw user_error(lhs->values[i]->get_location(),
+					"cannot destructure assignment into %s",
+					lhs->values[i]->str().c_str());
+		}
+	}
+	*new_scope = runnable_scope;
+}
+
+void ast::destructured_tuple_decl_t::resolve_statement(
+		llvm::IRBuilder<> &builder,
+		scope_t::ref scope,
+		life_t::ref life,
+		runnable_scope_t::ref *new_scope,
+		bool *returns) const
+{
+	/* resolve the rhs initializer */
+	auto rhs_val = initializer->resolve_expression(builder, scope, life,
+			false /*as_ref*/, type, returns);
+	if (*returns) {
+		throw user_error(initializer->get_location(), "initializer should not return");
+	}
+
+	unification_t unification = unify(rhs_val->get_type(), type, scope, {});
+	if (!unification.result || unification.coercions > 0) {
+		auto error = user_error(type->get_location(), "initializer does not match declared type or required coercions");
+		error.add_info(type->get_location(), unification.str().c_str());
+		throw error;
+	}
+
+	traverse_tuple_destructuring(builder, scope, life, is_let, lhs, rhs_val, new_scope);
 }
 
 bound_var_t::ref ast::var_decl_t::resolve_as_link(

@@ -61,6 +61,7 @@ namespace ast {
 	struct module_t;
 	struct expression_t;
 	struct var_decl_t;
+	struct tuple_expr_t;
 
 	struct param_list_decl_t : public item_t {
 		typedef ptr<const param_list_decl_t> ref;
@@ -447,7 +448,7 @@ namespace ast {
 	struct var_decl_t : public virtual statement_t, public condition_t {
 		typedef ptr<const var_decl_t> ref;
 
-		static ptr<var_decl_t> parse(parse_state_t &ps, bool is_let);
+		static ptr<statement_t> parse(parse_state_t &ps, bool is_let, bool allow_tuple_destructuring);
 		static ptr<var_decl_t> parse_param(parse_state_t &ps);
 		bound_var_t::ref resolve_as_link(
 				llvm::IRBuilder<> &builder,
@@ -486,6 +487,22 @@ namespace ast {
 
 		/* for module variables, extends_module describes the module that this variable should be injected into */
 		identifier::ref extends_module;
+	};
+
+	struct destructured_tuple_decl_t : public statement_t {
+		static ptr<statement_t> parse(parse_state_t &ps, ptr<tuple_expr_t> lhs);
+		virtual void resolve_statement(
+				llvm::IRBuilder<> &builder,
+				scope_t::ref block_scope,
+				life_t::ref life,
+				runnable_scope_t::ref *new_scope,
+				bool *returns) const;
+		virtual void render(render_state_t &rs) const;
+
+		bool is_let = true;
+		types::type_t::ref type;
+		ptr<tuple_expr_t> lhs;
+		ptr<expression_t> initializer;
 	};
 
 	struct defer_t : public statement_t {
