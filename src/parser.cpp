@@ -281,9 +281,19 @@ ptr<statement_t> parse_for_block(parse_state_t &ps) {
 	auto for_token = ps.token;
 	ps.advance();
 
-	expect_token(tk_identifier);
-	token_t param_token = ps.token;
-	ps.advance();
+	token_t param_token;
+	ptr<tuple_expr_t> tuple_expr;
+
+	if (ps.token.tk == tk_lparen) {
+		tuple_expr = dyncast<tuple_expr_t>(tuple_expr_t::parse(ps));
+		if (tuple_expr == nullptr) {
+			throw user_error(ps.token.location, "expected a tuple of variable names");
+		}
+	} else {
+		expect_token(tk_identifier);
+		param_token = ps.token;
+		ps.advance();
+	}
 
 	token_t becomes_token;
 
@@ -307,12 +317,23 @@ ptr<statement_t> parse_for_block(parse_state_t &ps) {
 	just_pattern->block = block;
 
 	token_t just_value_token = token_t{for_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name()};
-    auto just_var_decl = create<var_decl_t>(param_token);
-    just_var_decl->is_let_var = false;
-    just_var_decl->type = type_variable(param_token.location);
-    just_var_decl->initializer = create<reference_expr_t>(just_value_token);
+	if (tuple_expr != nullptr) {
+		auto destructured_tuple_decl = ast::create<ast::destructured_tuple_decl_t>(tuple_expr->token);
+		destructured_tuple_decl->is_let = false;
+		destructured_tuple_decl->lhs = tuple_expr;
+		assert(destructured_tuple_decl->lhs != nullptr);
+		destructured_tuple_decl->type = type_variable(tuple_expr->token.location);
+		destructured_tuple_decl->initializer = create<reference_expr_t>(just_value_token);
 
-    just_pattern->block->statements.insert(just_pattern->block->statements.begin(), just_var_decl);
+		just_pattern->block->statements.insert(just_pattern->block->statements.begin(), destructured_tuple_decl);
+	} else {
+		auto just_var_decl = create<var_decl_t>(param_token);
+		just_var_decl->is_let_var = false;
+		just_var_decl->type = type_variable(param_token.location);
+		just_var_decl->initializer = create<reference_expr_t>(just_value_token);
+
+		just_pattern->block->statements.insert(just_pattern->block->statements.begin(), just_var_decl);
+	}
 
 	auto just_predicate = create<ctor_predicate_t>(token_t{for_token.location, tk_identifier, "Just"});
 	just_predicate->params.push_back(create<irrefutable_predicate_t>(just_value_token));
