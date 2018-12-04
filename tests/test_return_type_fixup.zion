@@ -1,0 +1,15 @@
+module _
+
+# test: pass
+
+fn fetch_something(t int) int {
+    return t + 1
+}
+
+fn get_something[T](t T) any {
+    return fetch_something(t)
+}
+
+fn main() {
+    print(get_something(1))
+}

@@ -2,7 +2,7 @@ module _
 # test: pass
 
 
-fn do_recursive_boolean(b bool) {
+fn do_recursive_boolean(b bool) void {
     do_recursive_boolean(b)
 }
     

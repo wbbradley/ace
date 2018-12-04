@@ -108,15 +108,22 @@ types::type_t::ref build_patterns(
 					builder.CreateUnreachable();
 					pattern_returns = true;
 				} else {
+					auto unbottomed_expected_type = expected_type->rebind(pattern_scope->get_type_variable_bindings())->unbottom();
+
 					/* we are in an expression */
-					unification_t unification = unify(expected_type, block_value->get_type(), pattern_scope);
+					unification_t unification = unify(
+							unbottomed_expected_type,
+						   	block_value->get_type()->rebind(pattern_scope->get_type_variable_bindings())->unbottom(),
+						   	pattern_scope);
+
 					if (!unification.result) {
 						auto error = user_error(block_value->get_location(), "value does not have a cohesive type with the rest of the match expression");
 						error.add_info(expected_type == type_unit() ? location : expected_type->get_location(), "expected type %s", expected_type->str().c_str());
 						throw error;
 					} else {
 						/* update expected type to ensure we are narrowing what is acceptable */
-						expected_type = expected_type->rebind(unification.bindings);
+						expected_type = unbottomed_expected_type->rebind(unification.bindings);
+						debug_above(6, log("refined expected type to %s", expected_type->str().c_str()));
 						assert(expected_type != type_bottom());
 					}
 				}
@@ -234,6 +241,7 @@ bound_var_t::ref ast::match_expr_t::resolve_match_expr(
 		bool *returns,
 		types::type_t::ref expected_type) const
 {
+	debug_above(6, log("match expression is expecting type %s", expected_type->str().c_str()));
 	assert(expected_type != nullptr);
 	assert(life->life_form == lf_statement);
 	assert(returns != nullptr);
@@ -397,9 +405,6 @@ bound_var_t::ref cast_data_type_to_ctor_struct(
 
 	for (auto ctor_pair : data_type->ctor_pairs) {
 		if (ctor_pair.first.text == ctor_name.text) {
-			if (ctor_pair.second->str().find(BOTTOM_TYPE) != std::string::npos) {
-				throw unbound_type_error(value_location, "ctor_pair has bottomed out");
-			}
 			auto bound_type = upsert_bound_type(builder, scope, type_ptr(type_managed(type_struct(ctor_pair.second))));
 			return make_bound_var(
 					INTERNAL_LOC(),

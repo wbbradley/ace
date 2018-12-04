@@ -131,3 +131,4 @@ bool llvm_value_is_handle(llvm::Value *llvm_value);
 bool llvm_value_is_pointer(llvm::Value *llvm_value);
 llvm::StructType *llvm_find_struct(llvm::Type *llvm_type);
 void llvm_generate_dead_return(llvm::IRBuilder<> &builder, scope_t::ref scope);
+llvm::Instruction *llvm_dead_return(llvm::IRBuilder<> &builder, llvm::Type *llvm_return_type);

@@ -5,6 +5,8 @@
 #include "scopes.h"
 #include "life.h"
 #include "fitting.h"
+#include "binding.h"
+#include <set>
 
 namespace ast {
     struct item_t;
@@ -83,7 +85,8 @@ bound_var_t::ref check_bound_func_vs_callsite(
 		var_t::ref fn,
 		types::type_t::ref args,
 		types::type_t::ref return_type,
-		int &coercions);
+		int &coercions,
+		bindings_set_t &checked_bindings);
 types::type_function_t::ref check_func_type_vs_callsite(
 		scope_t::ref scope,
 		location_t location,

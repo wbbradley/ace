@@ -1,0 +1,13 @@
+module _
+
+# test: pass
+# expect: [0, 10]
+# expect: [1, 9]
+# expect: [2, 8]
+
+fn main() {
+    g := [10, 9, 8]
+    for (i, x) in enumerate(g) {
+        print([i, x])
+    }
+}

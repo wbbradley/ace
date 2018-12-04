@@ -277,6 +277,15 @@ ptr<statement_t> parse_with_block(parse_state_t &ps) {
 	return match;
 }
 
+ptr<expression_t> wrap_with_iter(ptr<expression_t> expr) {
+	auto iter_token = token_t{expr->get_location(), tk_identifier, "__iter__"};
+	auto iter_ref = create<reference_expr_t>(iter_token);
+	auto iter_callsite = create<callsite_expr_t>(iter_token);
+	iter_callsite->function_expr = iter_ref;
+	iter_callsite->params.push_back(expr);
+	return iter_callsite;
+}
+
 ptr<statement_t> parse_for_block(parse_state_t &ps) {
 	auto for_token = ps.token;
 	ps.advance();
@@ -302,16 +311,17 @@ ptr<statement_t> parse_for_block(parse_state_t &ps) {
 	auto expr = expression_t::parse(ps);
 	auto block = block_t::parse(ps, false /*expression_means_return*/);
 
-	auto iter_token = token_t{expr->get_location(), tk_identifier, "__iter__"};
+	/* create the iterator function by evaluating the `iterable` (for _ in `iterable` { ... }) */
+	auto iter_func_decl = create<var_decl_t>(token_t{expr->get_location(), tk_identifier, types::gensym(INTERNAL_LOC())->get_name()});
+	iter_func_decl->is_let_var = true;
+	iter_func_decl->type = type_variable(expr->get_location());
+	iter_func_decl->initializer = wrap_with_iter(expr);
+
+	/* call the iterator value (which is a function returned by the expression */
+	auto iter_token = token_t{expr->get_location(), tk_identifier, iter_func_decl->token.text};
 	auto iter_ref = create<reference_expr_t>(iter_token);
 	auto iter_callsite = create<callsite_expr_t>(iter_token);
 	iter_callsite->function_expr = iter_ref;
-	iter_callsite->params.push_back(expr);
-
-	auto iter_decl = create<var_decl_t>(token_t{becomes_token.location, tk_identifier, types::gensym(INTERNAL_LOC())->get_name()});
-	iter_decl->is_let_var = true;
-	iter_decl->type = type_variable(becomes_token.location);
-	iter_decl->initializer = iter_callsite;
 
 	auto just_pattern = create<pattern_block_t>(for_token);
 	just_pattern->block = block;
@@ -348,14 +358,8 @@ ptr<statement_t> parse_for_block(parse_state_t &ps) {
 	auto nothing_predicate = create<ctor_predicate_t>(token_t{for_token.location, tk_identifier, "Nothing"});
 	nothing_pattern->predicate = nothing_predicate;
 
-	auto next_token = token_t{iter_decl->token.location, tk_identifier, "__next__"};
-	auto next_ref = create<reference_expr_t>(next_token);
-	auto next_callsite = create<callsite_expr_t>(next_token);
-	next_callsite->function_expr = next_ref;
-	next_callsite->params.push_back(create<reference_expr_t>(iter_decl->token));
-
 	auto match = create<match_expr_t>(for_token);
-	match->value = next_callsite;
+	match->value = iter_callsite;
 	match->pattern_blocks.push_back(just_pattern);
 	match->pattern_blocks.push_back(nothing_pattern);
 
@@ -367,7 +371,7 @@ ptr<statement_t> parse_for_block(parse_state_t &ps) {
 	while_loop->condition = create<reference_expr_t>(token_t{becomes_token.location, tk_identifier, "true"});
 
 	ptr<block_t> outer_block = create<block_t>(for_token);
-	outer_block->statements.push_back(iter_decl);
+	outer_block->statements.push_back(iter_func_decl);
 	outer_block->statements.push_back(while_loop);
 	// log_location(log_info, outer_block->get_location(), "created %s", outer_block->str().c_str());
 	return outer_block;

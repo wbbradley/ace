@@ -3,10 +3,6 @@ module _
 # expect: hello world 1 11
 # expect: hello world 1 12
 
-type Ref T has {
-    var value T
-}
-
 fn call_twice(f fn () any) {
     f()
     f()

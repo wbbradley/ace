@@ -33,6 +33,8 @@ fn readline() Readline {
 fn readline(fp *posix.FILE) Readline {
     var linecap int = 0
     var line *?char = null
+
+    # TODO: Probably a leak here, since the introduction of the conservative collector
     linelen := posix.getline(&line, &linecap, fp)
     if linelen == -1 {
         return EOF
@@ -73,18 +75,15 @@ fn readlines[F](f F) LinesIter F {
 }
 
 [global]
-fn __iter__[F](line_iterator LinesIter F) LinesIter F {
-    return line_iterator
-}
-
-[global]
-fn __next__(fl LinesIter any) str? {
-    return match readline(fl.file) {
-        Line(line) => Just(line)
-        Error(errno) {
-            print("Error: encountered error " + errno + " while reading file")
-            Nothing
+fn __iter__[F](fl LinesIter F) Iter str {
+    return fn () str? {
+        return match readline(fl.file) {
+            Line(line) => Just(line)
+            Error(errno) {
+                print("Error: encountered error " + errno + " while reading file")
+                Nothing
+            }
+            EOF => Nothing
         }
-        EOF => Nothing
     }
 }

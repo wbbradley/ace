@@ -26,6 +26,11 @@ var stdin *posix.FILE = posix.fdopen(0, "r")!
 var stdout *posix.FILE = posix.fdopen(1, "a")!
 var stderr *posix.FILE = posix.fdopen(2, "a")!
 
+type Iter T = fn () T?
+type Ref T has {
+    var value T
+}
+
 # initialization of modules is automatically generated.
 # link fn __init_modules() void
 
@@ -67,22 +72,17 @@ fn rand(max uint32) int32 {
     return crypto.randombytes_uniform(max)
 }
 
-type IntRange has {
-    first int
-    lim   int
-    step  int
-}
 
-fn range(lim int) IntRange {
-    return IntRange(0, lim, 1)
-}
-
-fn range(first int, lim int) IntRange {
-    return IntRange(first, lim, 1)
-}
-
-fn range(first int, lim int, step int) IntRange {
-    return IntRange(first, lim, step)
+fn enumerate(f any) any {
+    let iterator = __iter__(f)
+    i := Ref(-1)
+    return fn () {
+        i.value += 1
+        return match iterator() {
+            Just(t) => Just((i.value, t))
+            Nothing => Nothing
+        }
+    }
 }
 
 type IntRangeIter has {
@@ -91,17 +91,26 @@ type IntRangeIter has {
     var pos int
 }
 
-fn __iter__(range IntRange) IntRangeIter {
-    return IntRangeIter(range.lim, range.step, range.first)
+fn __iter__[T](f Iter T) Iter T => f
+
+fn range(lim int) Iter int {
+    return range(0, lim, 1)
 }
-    
-fn __next__(iter IntRangeIter) int? {
-    if iter.pos < iter.lim {
-        j := iter.pos
-        iter.pos += iter.step
-        return Just(j)
-    } else {
-        return Nothing
+
+fn range(first int, lim int) Iter int {
+    return range(first, lim, 1)
+}
+
+fn range(first int, lim int, step int) Iter int {
+    iter := IntRangeIter(lim, step, first)
+    return fn () int? {
+        if iter.pos < iter.lim {
+            j := iter.pos
+            iter.pos += iter.step
+            return Just(j)
+        } else {
+            return Nothing
+        }
     }
 }
 

@@ -5,7 +5,7 @@ fn main() {
     args
 }
 
-fn foo() {
+fn foo() void {
     # error: 10:5.* undefined symbol sys
     sys.args
 }
