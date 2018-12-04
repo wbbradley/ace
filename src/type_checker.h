@@ -54,3 +54,15 @@ void resolve_assert_macro(
 		ptr<ast::expression_t> condition,
 		runnable_scope_t::ref *new_scope);
 int64_t parse_int_value(token_t token);
+void destructure_function_decl(
+        llvm::IRBuilder<> &builder,
+        const ast::function_decl_t &decl,
+        scope_t::ref scope,
+        types::type_t::ref &type_constraints,
+        bool as_closure,
+		bool is_extern_function,
+        bool &needs_type_fixup,
+        bound_type_t::named_pairs &params,
+        bound_type_t::ref &return_type,
+        types::type_function_t::ref &function_type,
+		types::type_t::ref expected_type);

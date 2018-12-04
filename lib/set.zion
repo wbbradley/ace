@@ -86,17 +86,6 @@ fn str[D](s Set D) str {
     return string + "}"
 }
 
-type SetIter D has {
-    var stack [(Set D, bool)]
-}
-
-[global]
-fn __iter__[D](s Set D) SetIter D {
-    let stack [(Set D, bool)]
-    find_first(stack, s, true)
-    return SetIter(stack)
-}
-
 fn find_first[D](stack [(Set D, bool)], s Set D, from_right bool) {
     var p = s
     while match p {
@@ -113,71 +102,80 @@ fn find_first[D](stack [(Set D, bool)], s Set D, from_right bool) {
     }
 }
 
+type SetIter D has {
+    var stack [(Set D, bool)]
+}
+
 [global]
-fn __next__[D](iter SetIter D) D? {
-    var l = len(iter.stack)
-    if l == 0 {
-        return Nothing
-    }
-
-    stopper := (Empty, false)
-    cur_pair := last(iter.stack, stopper)
-
-    from_right := cur_pair[1]
-    if not from_right {
-        let tail = cur_pair[0]
-        match tail {
-            Empty {
-                assert(false)
-                __unreachable__
-            }
-            Node(_, left, d, Empty) {
-                iter.stack = iter.stack[0:l-1]
-                assert(len(iter.stack) == l-1)
-                return Just(d)
-            }
-            Node(_, left, d, right) {
-                # we will want to return d
-                # Find the next position for the next iteration
-                find_first(iter.stack, right, true)
-                return Just(d)
-            }
+fn __iter__[D](s Set D) Iter D {
+    let stack [(Set D, bool)]
+    find_first(stack, s, true)
+    iter := SetIter(stack)
+    return fn () D? {
+        var l = len(iter.stack)
+        if l == 0 {
+            return Nothing
         }
-    } else {
-        let tail = cur_pair[0]
-        match tail {
-            Empty { assert(false) }
-            Node(_, _, d, Empty) {
 
-                # we're at the end of a right branch with no more right branches below us
-                # go up all tail right branches, and then 1 left branch. leave the iterator there,
-                # and return d.
+        stopper := (Empty, false)
+        cur_pair := last(iter.stack, stopper)
 
-                while true {
-                    back := last(iter.stack, stopper)
-                    if back[1] {
-                        l -= 1
-                        iter.stack = iter.stack[0:l]
-                        assert(len(iter.stack) == l)
-                    } else {
-                        if l == 0 {
-                            assert(len(iter.stack) == 0)
-                        } else {
+        from_right := cur_pair[1]
+        if not from_right {
+            let tail = cur_pair[0]
+            match tail {
+                Empty {
+                    assert(false)
+                    __unreachable__
+                }
+                Node(_, left, d, Empty) {
+                    iter.stack = iter.stack[0:l-1]
+                    assert(len(iter.stack) == l-1)
+                    return Just(d)
+                }
+                Node(_, left, d, right) {
+                    # we will want to return d
+                    # Find the next position for the next iteration
+                    find_first(iter.stack, right, true)
+                    return Just(d)
+                }
+            }
+        } else {
+            let tail = cur_pair[0]
+            match tail {
+                Empty { assert(false) }
+                Node(_, _, d, Empty) {
+
+                    # we're at the end of a right branch with no more right branches below us
+                    # go up all tail right branches, and then 1 left branch. leave the iterator there,
+                    # and return d.
+
+                    while true {
+                        back := last(iter.stack, stopper)
+                        if back[1] {
                             l -= 1
                             iter.stack = iter.stack[0:l]
                             assert(len(iter.stack) == l)
+                        } else {
+                            if l == 0 {
+                                assert(len(iter.stack) == 0)
+                            } else {
+                                l -= 1
+                                iter.stack = iter.stack[0:l]
+                                assert(len(iter.stack) == l)
+                            }
+                            return Just(d)
                         }
-                        return Just(d)
                     }
+                    __unreachable__
                 }
-                __unreachable__
+                Node(_, _, d, right) {
+                    find_first(iter.stack, right, true)
+                    return Just(d)
+                }
             }
-            Node(_, _, d, right) {
-                find_first(iter.stack, right, true)
-                return Just(d)
-            }
+            return Nothing
         }
-        return Nothing
     }
 }
 

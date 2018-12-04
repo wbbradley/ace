@@ -356,7 +356,7 @@ struct bound_module_impl_t : public std::enable_shared_from_this<bound_module_im
 };
 
 bound_var_t::ref make_lazily_bound_var(closure_scope_t::ref closure_scope, bound_var_t::ref var, std::function<bound_var_t::ref (ptr<scope_t>)> resolver) {
-	debug_above(2, log("making lazily_bound_var(%s, %s)", closure_scope->str().c_str(), var->str().c_str()));
+	debug_above(2, log("making lazily_bound_var(%s, %s)", closure_scope->get_name().c_str(), var->str().c_str()));
 
 	return make_ptr<lazily_bound_var_impl_t>(closure_scope, var, resolver);
 }

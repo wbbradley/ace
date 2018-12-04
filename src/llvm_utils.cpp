@@ -930,19 +930,24 @@ llvm::StructType *llvm_find_struct(llvm::Type *llvm_type) {
 void llvm_generate_dead_return(llvm::IRBuilder<> &builder, scope_t::ref scope) {
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
 	llvm::Type *llvm_return_type = llvm_function_current->getReturnType();
+	llvm_dead_return(builder, llvm_return_type);
+}
+
+llvm::Instruction *llvm_dead_return(llvm::IRBuilder<> &builder, llvm::Type *llvm_return_type) {
 	if (llvm_return_type->isPointerTy()) {
-		builder.CreateRet(llvm::Constant::getNullValue(llvm_return_type));
+		return builder.CreateRet(llvm::Constant::getNullValue(llvm_return_type));
 	} else if (llvm_return_type->isIntegerTy()) {
-		builder.CreateRet(llvm::ConstantInt::get(llvm_return_type, 0));
+		return builder.CreateRet(llvm::ConstantInt::get(llvm_return_type, 0));
 	} else if (llvm_return_type->isVoidTy()) {
-		builder.CreateRetVoid();
+		return builder.CreateRetVoid();
 	} else if (llvm_return_type->isFloatTy()) {
-		builder.CreateRet(llvm::ConstantFP::get(llvm_return_type, 0.0));
+		return builder.CreateRet(llvm::ConstantFP::get(llvm_return_type, 0.0));
 	} else if (llvm_return_type->isDoubleTy()) {
-		builder.CreateRet(llvm::ConstantFP::get(llvm_return_type, 0.0));
+		return builder.CreateRet(llvm::ConstantFP::get(llvm_return_type, 0.0));
 	} else {
 		log(log_error, "unhandled return type for dead return %s", llvm_print(llvm_return_type).c_str());
 		assert(false && "Unhandled return type.");
+		return nullptr;
 	}
 }
 

@@ -9,6 +9,7 @@
 #include "type_instantiation.h"
 #include "fitting.h"
 #include "code_id.h"
+#include <iostream>
 
 #define USER_MAIN_FN "user/main"
 
@@ -74,10 +75,6 @@ bound_var_t::ref instantiate_unchecked_fn(
 		types::type_function_t::ref fn_type,
 		const types::type_t::map &bindings)
 {
-	if (fn_type->args->ftv_count() != 0) {
-		throw unbound_type_error(unchecked_fn->get_location(), "we don't have enough info to instantiate this function");
-	}
-
 	static int depth = 0;
 	depth_guard_t depth_guard(fn_type->get_location(), depth, 20);
 	debug_above(5, log(log_info, "we are in scope " c_id("%s"), scope->get_name().c_str()));
@@ -110,50 +107,44 @@ bound_var_t::ref instantiate_unchecked_fn(
 				builder, unchecked_fn->node,
 				unchecked_fn->module_scope, bindings, fn_type);
 
-		if (auto function = dyncast<const types::type_function_t>(fn_type)) {
-			if (auto args = dyncast<const types::type_args_t>(function->args)) {
-				types::type_t::ref type_constraints = (
-						function->type_constraints
-						? function->type_constraints->rebind(subst_scope->get_type_variable_bindings())
-						: nullptr);
+		/* see if we can get a monotype from the function declaration */
+		types::type_function_t::ref fn_type;
+		types::type_t::ref type_constraints;
+		bound_type_t::named_pairs named_args;
+		bound_type_t::ref return_type;
+		bool needs_type_fixup = false;
 
-				try {
-					bound_type_t::refs bound_args = upsert_bound_types(
-							builder, subst_scope, args->args);
+		destructure_function_decl(
+				builder,
+				*function_defn->decl,
+				subst_scope,
+				type_constraints,
+				false /*as_closure*/, 
+				false /*is_extern_function*/,
+				needs_type_fixup,
+				named_args,
+				return_type,
+				fn_type,
+				nullptr /*expected_type*/);
 
-					std::vector<std::string> names;
-					for (auto id : args->names) {
-						names.push_back(id->get_name());
-					}
-
-					bound_type_t::named_pairs named_args = zip_named_pairs(names, bound_args);
-
-					bound_type_t::ref return_type = upsert_bound_type(
-							builder, subst_scope, function->return_type);
-					assert(unchecked_fn->id->get_token().location.str().find("cpp") == std::string::npos);
-					/* instantiate the function we want */
-					return instantiate_function_with_args_and_return_type(
-							builder, subst_scope, life,
-							unchecked_fn->id->get_token(),
-							false /*as_closure*/,
-							false /*needs_type_fixup*/,
-							function_defn->decl->extends_module,
-							nullptr /*new_scope*/,
-							type_constraints, named_args, return_type, fn_type,
-							function_defn->block);
-				} catch (user_error &e) {
-					std::throw_with_nested(user_error(
-								log_info,
-								unchecked_fn->get_location(),
-								"while instantiating function %s with type variable bindings %s",
-								unchecked_fn->str().c_str(),
-								::str(subst_scope->get_type_variable_bindings()).c_str()));
-				}
-			} else {
-				panic("the arguments are not actually type_args_t");
-			}
-		} else {
-			panic("we should have a product type for our fn_type");
+		try {
+			/* instantiate the function we want */
+			return instantiate_function_with_args_and_return_type(
+					builder, subst_scope, life,
+					unchecked_fn->id->get_token(),
+					false /*as_closure*/,
+					needs_type_fixup,
+					function_defn->decl->extends_module,
+					nullptr /*new_scope*/,
+					type_constraints, named_args, return_type, fn_type,
+					function_defn->block);
+		} catch (user_error &e) {
+			std::throw_with_nested(user_error(
+						log_info,
+						unchecked_fn->get_location(),
+						"while instantiating function %s with type variable bindings %s",
+						unchecked_fn->str().c_str(),
+						::str(subst_scope->get_type_variable_bindings()).c_str()));
 		}
 	} else if (auto link_fn = dyncast<const ast::link_function_statement_t>(unchecked_fn->node)) {
 		/* by now this function should have been instantiated */
@@ -191,19 +182,33 @@ bound_var_t::ref check_bound_func_vs_callsite(
 		var_t::ref fn,
 		types::type_t::ref args,
 		types::type_t::ref return_type,
-		int &coercions)
+		int &coercions,
+		bindings_set_t &checked_bindings)
 {
+	static bindings_set_t checking_bindings;
+
 	bound_var_t::ref callable;
 	std::function<void (scope_t::ref, var_t::ref, types::type_t::map const &)> extractor =
-		[&callable, &builder] (
+		[location, &callable, &builder, &checked_bindings] (
 				scope_t::ref scope,
 				var_t::ref fn,
 				types::type_t::map const &bindings)
 		{
 			if (auto bound_fn = dyncast<const bound_var_t>(fn)) {
 				/* this function has already been bound */
-				debug_above(3, log(log_info, "override resolution has chosen %s", bound_fn->str().c_str()));
-				callable = bound_fn;
+				auto fn_type = dyncast<const types::type_function_t>(
+						types::without_closure(
+							types::without_ref(fn->get_type(scope)->rebind(bindings))));
+				assert(fn_type != nullptr);
+				binding_t binding{fn->get_location(), fn->get_name(), fn_type->args->repr()};
+
+				if (!in(binding, checked_bindings)) {
+					debug_above(3, log(log_info, "override resolution has chosen %s", bound_fn->str().c_str()));
+					callable = bound_fn;
+					checked_bindings.insert(binding);
+				} else {
+					debug_above(3, log(log_info, "override resolution is skipping %s because it's already been checked", bound_fn->str().c_str()));
+				}
 			} else if (auto unchecked_fn = dyncast<const unchecked_var_t>(fn)) {
 				/* we're instantiating a template or a forward decl */
 				/* we know that fn and args are compatible */
@@ -221,22 +226,40 @@ bound_var_t::ref check_bound_func_vs_callsite(
 
 				assert(fn_type != nullptr);
 
+				binding_t binding{fn->get_location(), fn->get_name(), fn_type->args->repr()};
+				if (in(binding, checked_bindings)) {
+					debug_above(3, log(log_info, "unchecked fn resolution is skipping %s because it's already been checked", fn->get_name().c_str()));
+					return;
+				}
+				checked_bindings.insert(binding);
+
 				if (auto bound_fn = scope->get_bound_function(fn->get_name(), fn_type->repr())) {
 					/* function fn_type exists with name and signature we want, just use that */
 					callable = bound_fn;
 					return;
 				}
 
-				try {
-					callable = instantiate_unchecked_fn(
-							builder,
-						   	scope,
-						   	unchecked_fn,
-						   	fn_type,
-						   	bindings);
-				} catch (unbound_type_error &error) {
-					/* instantiation of this function would rely on non-existent callsite types */
-					return;
+				if (!in(binding, checking_bindings)) {
+					checking_bindings.insert(binding);
+					indent_logger indent(location, 8, string_format("checking function " c_id("%s") " at %s", binding.str().c_str()));
+
+					try {
+						callable = instantiate_unchecked_fn(
+								builder,
+								scope,
+								unchecked_fn,
+								fn_type,
+								bindings);
+						checked_bindings.insert(binding);
+						checking_bindings.erase(binding);
+					} catch (unbound_type_error &error) {
+						/* instantiation of this function would rely on non-existent callsite types */
+						checking_bindings.erase(binding);
+						return;
+					} catch (...) {
+						checking_bindings.erase(binding);
+						throw;
+					}
 				}
 			} else {
 				panic("unhandled var type");
@@ -301,6 +324,13 @@ void check_func_vs_callsite(
 		int &coercions,
 		std::function<void (scope_t::ref, var_t::ref, types::type_t::map const &)> &callback)
 {
+	debug_above(5, log("check_func_vs_callsite(%s, %s, %s, %s, %s, ...)",
+			scope->get_name().c_str(),
+			location.str().c_str(),
+			fn->get_name().c_str(),
+			args->str().c_str(),
+			return_type != nullptr ? return_type->str().c_str() : "<null>"));
+
 	if (return_type == nullptr) {
 		return_type = type_variable(location);
 	}
@@ -378,10 +408,10 @@ bound_var_t::ref get_callable_from_local_var(
 {
 	/* make sure the function is just a function, not a reference to a function */
 	auto resolved_bound_var = bound_var->resolve_bound_value(builder, scope);
-
+	bindings_set_t bindings_set;
 	int coercions = 0;
 	bound_var_t::ref callable = check_bound_func_vs_callsite(builder,
-			scope, callsite_location, resolved_bound_var, args, return_type, coercions);
+			scope, callsite_location, resolved_bound_var, args, return_type, coercions, bindings_set);
 	if (callable != nullptr) {
 		return callable;
 	} else {
@@ -408,19 +438,6 @@ bound_var_t::ref get_callable(
 		types::type_args_t::ref args,
 		types::type_t::ref return_type)
 {
-#if 0
-	auto runnable_scope = dyncast<runnable_scope_t>(scope);
-	if (runnable_scope != nullptr) {
-		/* if we're in a function, let's look for locally defined symbols */
-		bound_var_t::ref bound_var = runnable_scope->get_bound_variable(
-				builder, callsite_location, alias, runnable_scope->get_module_scope());
-		if (bound_var != nullptr) {
-			return get_callable_from_local_var(builder, runnable_scope, alias, bound_var, callsite_location,
-					args, return_type);
-		}
-	}
-#endif
-
 	var_t::refs fns;
 	fittings_t fittings;
 	auto callable = maybe_get_callable(builder, scope, alias,
@@ -661,7 +678,38 @@ bound_var_t::ref clone_and_change_type(
     }
     bool ModuleLevelChanges = false;
     llvm::SmallVector<llvm::ReturnInst *, 8> Returns;
+
+	// std::cerr << "type(F) = " << llvm_print(existing_function_type->get_llvm_type()) << std::endl;
+	llvm::FunctionType *llvm_old_function_type = llvm::dyn_cast<llvm::FunctionType>(existing_function_type->get_llvm_type()->getPointerElementType());
+	assert(llvm_old_function_type != nullptr);
+	// std::cerr << "F = " << llvm_print(llvm_old_function_type) << std::endl;
+	llvm::Type *llvm_old_return_type = llvm_old_function_type->getReturnType();
+	// std::cerr << "ret(F) = " << llvm_print(llvm_old_return_type) << std::endl;
+
     llvm::CloneFunctionInto(llvm_function, llvm_old_function, VMap, ModuleLevelChanges, Returns);
+
+	for (auto llvm_inst : Returns) {
+		llvm::Value *llvm_retval = llvm_inst->getReturnValue();
+		// std::cerr << "return inst retval " << llvm_print(llvm_retval) << std::endl;
+		assert(llvm_retval != nullptr);
+		// std::cerr << llvm_print(llvm_retval->getType()) << " vs. " << llvm_print(llvm_old_return_type) << std::endl;
+		if (llvm_retval->getType() == llvm_old_return_type) {
+			llvm::Instruction *llvm_new_return = new llvm::UnreachableInst(builder.getContext());
+			debug_above(7, log("replacing return instruction %s with %s",
+						llvm_print(llvm_inst).c_str(),
+						llvm_print(llvm_new_return).c_str()));
+			llvm::ReplaceInstWithInst(llvm_inst, llvm_new_return);
+		} else if (llvm_retval->getType() != llvm_fn_type->getReturnType()) {
+			llvm::ReturnInst * llvm_new_return = llvm::ReturnInst::Create(
+					builder.getContext(),
+					builder.CreateBitCast(llvm_retval, llvm_fn_type->getReturnType()));
+
+			debug_above(7, log("replacing return instruction %s with %s",
+						llvm_print(llvm_inst).c_str(),
+						llvm_print(llvm_new_return).c_str()));
+			llvm::ReplaceInstWithInst(llvm_inst, llvm_new_return);
+		}
+	}
 
 #if 0
     std::cout << "Before:" << std::endl;
@@ -702,7 +750,6 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 		types::type_function_t::ref fn_type,
 		ast::block_t::ref block)
 {
-    assert_implies(!as_closure, !needs_type_fixup);
     assert_implies(as_closure, dyncast<closure_scope_t>(scope));
 
     program_scope_t::ref program_scope = scope->get_program_scope();
@@ -723,7 +770,8 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 
     assert(scope->get_llvm_module() != nullptr);
 
-    auto function_type = get_function_type(type_constraints, args, return_type)->eval(scope);
+	types::type_function_t::ref function_type = dyncast<const types::type_function_t>(get_function_type(type_constraints, args, return_type)->eval(scope));
+	assert(function_type != nullptr);
     bound_type_t::ref bound_function_type = upsert_bound_type(builder, scope, function_type);
 
     debug_above(9, log("checking that %s == %s",
@@ -812,7 +860,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 
 	if (function_var->get_name().size() != 0) {
 		/* now put this function declaration into the containing scope */
-		if (!as_closure) {
+		if (!as_closure && !needs_type_fixup) {
 			debug_above(7, log("%s should be %s",
 						function_var->get_type()->repr().c_str(),
 						fn_type->eval(scope)->repr().c_str()));
@@ -823,7 +871,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 					function_var->get_name(), extends_module, function_var,
 					new_scope);
 			function_scope->put_bound_variable(function_var->get_name(), function_var);
-		} else {
+		} else if (as_closure) {
 			/* ensure that this closure can reference itself by looking at the last param */
 			llvm::Value *llvm_closure_env_as_var = llvm_last_param(llvm_function);
 
@@ -859,6 +907,20 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 					make_code_id(name_token));
 
 			function_scope->put_bound_variable(function_var->get_name(), closure);
+		} else {
+			/* this function is using return type inference. it cannot use recursion. */
+			types::type_function_t::ref bottomed_function_type = function_type->replace_return_type(type_bottom());
+			debug_above(7, log("placing a bottomed out version of %s in scope %s with type %s",
+						function_var->get_name().c_str(),
+						function_scope->get_name().c_str(),
+						bottomed_function_type->str().c_str()));
+
+			bound_var_t::ref bottomed_function_var = make_bound_var(
+					INTERNAL_LOC(), name_token.text, upsert_bound_type(builder, scope, bottomed_function_type),
+					llvm_function,
+					make_code_id(name_token));
+
+			function_scope->put_bound_variable(function_var->get_name(), bottomed_function_var);
 		}
 	}
 
@@ -886,42 +948,50 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
     }
 
     if (!all_paths_return) {
+		auto latest_return_type = function_scope->get_return_type_constraint();
+
+		if (latest_return_type == nullptr) {
+			assert(needs_type_fixup);
+			debug_above(8, log("unspec'd fn is of type %s", function_var->get_type()->str().c_str()));
+			life->release_vars(builder, scope, lf_function);
+			builder.CreateRet(program_scope->get_singleton("__unit__")->get_llvm_value(scope));
+			/* by default we already declare anonymous functions as returning unit, so we're
+			 * done */
+			llvm_verify_function(name_token.location, llvm_function);
+			return function_var;
+		}
+
+		assert(latest_return_type != nullptr);
+		assert(return_type != nullptr);
+		assert(unifies(latest_return_type->get_type(), return_type->get_type(), function_scope));
+
         /* not all control paths return */
-        if (needs_type_fixup) {
-            assert(as_closure);
-            auto latest_return_type = function_scope->get_return_type_constraint();
-            if (latest_return_type == nullptr) {
-                life->release_vars(builder, scope, lf_function);
-                builder.CreateRet(program_scope->get_singleton("__unit__")->get_llvm_value(scope));
-                /* by default we already declare anonymous functions as returning unit, so we're
-                 * done */
-                llvm_verify_function(name_token.location, llvm_function);
-                return function_var;
-            }
-        } else if (return_type->get_type()->is_void(scope)) {
+        if (latest_return_type->get_type()->is_void(scope)) {
             /* if this is a void let's give the user a break and insert
              * a default void return */
             life->release_vars(builder, scope, lf_function);
             builder.CreateRetVoid();
             llvm_verify_function(name_token.location, llvm_function);
             return function_var;
-		} else if (return_type->get_type()->is_bottom(scope)) {
+		} else if (latest_return_type->get_type()->is_bottom(scope)) {
 			// TODO: figure out what is supposed to happen here
 			throw user_error(name_token.location, "not all control paths return %s", BOTTOM_TYPE);
-		} else if (return_type->get_type()->is_unit(scope)) {
+		} else if (latest_return_type->get_type()->is_unit(scope)) {
             life->release_vars(builder, scope, lf_function);
             builder.CreateRet(program_scope->get_singleton("__unit__")->get_llvm_value(scope));
             llvm_verify_function(name_token.location, llvm_function);
             return function_var;
-        }
-
-        /* no breaks here, we don't know what to return */
-        throw user_error(name_token.location, "not all control paths return a value");
+		} else {
+			/* no breaks here, we don't know what to return */
+			auto error = user_error(name_token.location, "not all control paths return a value");
+			error.add_info(latest_return_type->get_location(), "latest return type inferred is %s",
+					latest_return_type->str().c_str());
+			throw error;
+		}
     } else {
         /* all paths return, but let's check to see if we need to do type fixup on latent return
          * type discoveries */
         if (needs_type_fixup) {
-            assert(as_closure);
             auto updated_return_type = function_scope->get_return_type_constraint();
             assert(updated_return_type != nullptr);
             if (updated_return_type->get_type()->repr() != type_unit()->repr()) {

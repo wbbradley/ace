@@ -1,0 +1,13 @@
+module _
+
+fn a(y int)   str => str(y)
+fn a(y float) int => int(y)
+
+fn f(x any) any {
+    return a(x)
+}
+
+fn main() {
+    print(f(2))
+    print(f(2.0))
+}

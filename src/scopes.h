@@ -78,7 +78,7 @@ struct runnable_scope_t : public virtual scope_t {
 	virtual ptr<runnable_scope_t> new_runnable_scope(std::string name) = 0;
 	virtual ptr<closure_scope_t> new_closure_scope(llvm::IRBuilder<> &builder, std::string name) = 0;
 	virtual return_type_constraint_t &get_return_type_constraint() = 0;
-	virtual void check_or_update_return_type_constraint(const ptr<const ast::item_t> &return_statement, return_type_constraint_t return_type) = 0;
+	virtual void check_or_update_return_type_constraint(llvm::IRBuilder<> &builder, const ptr<const ast::item_t> &return_statement, return_type_constraint_t return_type) = 0;
 	virtual void set_innermost_loop_bbs(llvm::BasicBlock *new_loop_continue_bb, llvm::BasicBlock *new_loop_break_bb) = 0;
 
 	virtual llvm::BasicBlock *get_innermost_loop_break() const = 0;

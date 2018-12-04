@@ -413,18 +413,16 @@ type VectorIter C has {
 }
 
 [global]
-fn __iter__[T](c [T]) VectorIter T {
-    return VectorIter(c, 0)
-}
-    
-[global]
-fn __next__[T](i VectorIter T) T? {
-    if i.pos < len(i.vec) {
-        j := i.pos
-        i.pos += 1
-        return Just(i.vec[j])
-    } else {
-        return Nothing
+fn __iter__[T](c [T]) Iter T {
+    vi := VectorIter(c, 0)
+    return fn () T? {
+        if vi.pos < len(vi.vec) {
+            j := vi.pos
+            vi.pos += 1
+            return Just(vi.vec[j])
+        } else {
+            return Nothing
+        }
     }
 }
 

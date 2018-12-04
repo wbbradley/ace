@@ -1,11 +1,11 @@
 module _
 
-fn A() {
+fn A() void {
     # error: 5:5.* undefined symbol C
     C
 }
 
-fn ugly() {
+fn ugly() void {
     # error: 10:5.* undefined symbol one
     one
 }

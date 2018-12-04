@@ -5,10 +5,10 @@ fn main() {
     func1()
 }
 
-fn func2() {
+fn func2() void {
     func1()
 }
 
-fn func1() {
+fn func1() void {
     func2()
 }

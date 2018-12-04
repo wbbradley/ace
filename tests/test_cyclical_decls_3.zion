@@ -5,10 +5,10 @@ fn main() {
     func1(1)
 }
 
-fn func1(x int) {
+fn func1(x int) void {
     func2("hey")
 }
 
-fn func2(y str) {
+fn func2(y str) void {
     func1(4)
 }

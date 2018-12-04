@@ -132,11 +132,12 @@ std::vector<llvm::Type *> build_struct_elements(
 {
 	std::vector<llvm::Type *> elements;
 
-#ifdef ZION_DEBUG
 	for (auto &dimension : bound_dimensions) {
 		assert(dyncast<const types::type_ref_t>(dimension->get_type()) == nullptr);
+		if (dimension->get_type()->is_bottom(program_scope)) {
+			throw unbound_type_error(dimension->get_location(), "cannot instantiate bottom type");
+		}
 	}
-#endif
 
 	if (native) {
 		/* just add all the dimensions of the native struct */

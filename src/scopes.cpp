@@ -249,6 +249,7 @@ struct scope_impl_t : public virtual BASE {
 		std::stringstream ss;
 		scope_t::ref p = this_scope();
 		do {
+			dbg();
 			p->dump(ss);
 		} while ((p = p->get_parent_scope()) != nullptr);
 		return ss.str();
@@ -898,21 +899,27 @@ struct runnable_scope_impl_t : public std::enable_shared_from_this<runnable_scop
 	}
 
 	void check_or_update_return_type_constraint(
+			llvm::IRBuilder<> &builder,
 			const ast::item_t::ref &return_statement,
 			bound_type_t::ref return_type) override
 	{
 		return_type_constraint_t &return_type_constraint = get_return_type_constraint();
 		if (return_type_constraint == nullptr) {
 			return_type_constraint = return_type;
-			debug_above(5, log(log_info, "set return type to %s", return_type_constraint->str().c_str()));
+			debug_above(6, log(log_info, "in %s set return type to %s",
+					   this->get_name().c_str(),
+				   	   return_type_constraint->str().c_str()));
 		} else {
-			debug_above(5, log(log_info, "checking return type %s against %s",
+			debug_above(6, log(log_info, "checking in %s for return type %s against %s",
+						this->get_name().c_str(),
 						return_type->str().c_str(),
 						return_type_constraint->str().c_str()));
 
+			types::type_t::ref unbottomed_return_type = return_type_constraint->get_type()->rebind(this->get_type_variable_bindings())->unbottom();
+			debug_above(6, log(log_info, "unbottomed is %s", unbottomed_return_type->str().c_str()));
 			unification_t unification = unify(
-					return_type_constraint->get_type(),
-					return_type->get_type(),
+					unbottomed_return_type,
+					return_type->get_type()->rebind(this->get_type_variable_bindings())->unbottom(),
 					this->shared_from_this(),
 					this->get_type_variable_bindings());
 
@@ -925,9 +932,13 @@ struct runnable_scope_impl_t : public std::enable_shared_from_this<runnable_scop
 						return_type_constraint->get_type()->str().c_str());
 			} else {
 				/* this return type checks out */
-				debug_above(2, log(log_info, "unified %s :> %s",
+				debug_above(6, log(log_info, "unified %s :> %s",
 							return_type_constraint->str().c_str(),
 							return_type->str().c_str()));
+				return_type_constraint = upsert_bound_type(builder, this_scope(),
+						unbottomed_return_type->rebind(unification.bindings));
+				debug_above(6, log(log_info, "return type becomes %s",
+							return_type_constraint->str().c_str()));
 			}
 		}
 	}
@@ -1219,6 +1230,9 @@ void get_callables_from_unchecked_vars(
 	if (iter != unchecked_vars.end()) {
 		const unchecked_var_t::overload_vector &overloads = iter->second;
 		for (auto &var : overloads) {
+			debug_above(8, log("found unchecked var %s for name " c_id("%s"),
+					var->str().c_str(),
+					symbol.c_str()));
 			assert(dyncast<const ast::function_defn_t>(var->node) ||
 					dyncast<const ast::var_decl_t>(var->node) ||
 					dyncast<const ast::type_product_t>(var->node) ||
@@ -1964,12 +1978,16 @@ generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 	/* iterate over the bindings found during unifications and make
 	 * substitutions in the type environment */
 	for (auto &pair : bindings) {
+#if 0
 		if (pair.first.find("_") != 0) {
 			subst_scope->put_type_variable_binding(pair.first, pair.second);
 		} else {
 			debug_above(7, log(log_info, "skipping adding %s to generic substitution scope",
 						pair.first.c_str()));
 		}
+#else
+		subst_scope->put_type_variable_binding(pair.first, pair.second);
+#endif
 	}
 
 	return subst_scope;

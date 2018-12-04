@@ -258,7 +258,8 @@ namespace types {
         }
 
         if (default_return_type == nullptr) {
-            default_return_type = name != nullptr ? type_unit() : type_variable(ps.token.location);
+            // default_return_type = name != nullptr ? type_unit() : type_variable(ps.token.location);
+            default_return_type = type_variable(ps.token.location);
         }
 
         types::type_t::ref type_constraints;

@@ -19,6 +19,8 @@ const char *VOID_TYPE = "void";
 const char *BOTTOM_TYPE = "⊥";
 
 const char *TYPE_OP_NOT = "not";
+const char *TYPE_OP_CDR = "cdr";
+const char *TYPE_OP_CAR = "car";
 const char *TYPE_OP_IF = "if";
 const char *TYPE_OP_GC = "gc";
 const char *TYPE_OP_IS_ZERO = "is_zero";
@@ -171,6 +173,14 @@ namespace types {
 		return shared_from_this();
 	}
 
+	type_t::ref type_id_t::unbottom() const {
+		if (id->get_name() == BOTTOM_TYPE) {
+			return type_variable(INTERNAL_LOC());
+		} else {
+			return shared_from_this();
+		}
+	}
+
 	location_t type_id_t::get_location() const {
 		return id->get_location();
 	}
@@ -255,6 +265,10 @@ namespace types {
 		return bottom_out_free_vars ? type_bottom() : shared_from_this();
 	}
 
+	type_t::ref type_variable_t::unbottom() const {
+		return shared_from_this();
+	}
+
 	location_t type_variable_t::get_location() const {
 		return location;
 	}
@@ -304,6 +318,16 @@ namespace types {
 		}
 
 		return ::type_operator(oper->rebind(bindings, bottom_out_free_vars), operand->rebind(bindings, bottom_out_free_vars));
+	}
+
+	type_t::ref type_operator_t::unbottom() const {
+		auto oper_ = oper->unbottom();
+		auto operand_ = operand->unbottom();
+		if (oper_ != oper || operand_ != operand) {
+			return ::type_operator(oper_, operand_);
+		} else {
+			return shared_from_this();
+		}
 	}
 
 	location_t type_operator_t::get_location() const {
@@ -363,6 +387,11 @@ namespace types {
 		}
 
 		return ::type_subtype(lhs->rebind(bindings, bottom_out_free_vars), rhs->rebind(bindings, bottom_out_free_vars));
+	}
+
+	type_t::ref type_subtype_t::unbottom() const {
+		assert(false);
+		return shared_from_this();
 	}
 
 	location_t type_subtype_t::get_location() const {
@@ -438,6 +467,12 @@ namespace types {
 		}
 	}
 
+	type_t::ref type_struct_t::unbottom() const {
+		// TODO: impl
+		assert(false);
+		return shared_from_this();
+	}
+
 	location_t type_struct_t::get_location() const {
 		if (dimensions.size() != 0) {
 			return dimensions[0]->get_location();
@@ -497,6 +532,24 @@ namespace types {
 		refs type_dimensions;
 		for (auto dimension : dimensions) {
 			auto new_dim = dimension->rebind(bindings, bottom_out_free_vars);
+			if (new_dim != dimension) {
+				anything_was_rebound = true;
+			}
+			type_dimensions.push_back(new_dim);
+		}
+
+		if (anything_was_rebound) {
+			return ::type_tuple(type_dimensions);
+		} else {
+			return shared_from_this();
+		}
+	}
+
+	type_t::ref type_tuple_t::unbottom() const {
+		bool anything_was_rebound = false;
+		refs type_dimensions;
+		for (auto dimension : dimensions) {
+			auto new_dim = dimension->unbottom();
 			if (new_dim != dimension) {
 				anything_was_rebound = true;
 			}
@@ -579,6 +632,14 @@ namespace types {
 		return ::type_args(type_args, names);
 	}
 
+	type_t::ref type_args_t::unbottom() const {
+		refs type_args;
+		for (auto arg : args) {
+			type_args.push_back(arg->unbottom());
+		}
+		return ::type_args(type_args, names);
+	}
+
 	location_t type_args_t::get_location() const {
 		if (args.size() != 0) {
 			return args[0]->get_location();
@@ -627,6 +688,12 @@ namespace types {
 		return ::type_managed(element_type->rebind(bindings, bottom_out_free_vars));
 	}
 
+	type_t::ref type_managed_t::unbottom() const {
+		// TODO: impl
+		assert(false);
+		return shared_from_this();
+	}
+
 	location_t type_managed_t::get_location() const {
 		return element_type->get_location();
 	}
@@ -668,6 +735,12 @@ namespace types {
 		}
 
 		return ::type_injection(module_type->rebind(bindings, bottom_out_free_vars));
+	}
+
+	type_t::ref type_injection_t::unbottom() const {
+		// TODO: impl
+		assert(false);
+		return shared_from_this();
 	}
 
 	location_t type_injection_t::get_location() const {
@@ -736,8 +809,29 @@ namespace types {
 				return_type->rebind(bindings, bottom_out_free_vars));
 	}
 
+	type_t::ref type_function_t::unbottom() const {
+		types::type_t::ref rebound_args = args->unbottom();
+		assert(rebound_args != nullptr);
+		if (rebound_args == args) {
+			return shared_from_this();
+		}
+		return ::type_function(
+				get_location(),
+				type_constraints != nullptr ? type_constraints->unbottom() : type_constraints,
+				rebound_args,
+				return_type->unbottom());
+	}
+
 	location_t type_function_t::get_location() const {
 		return location;
+	}
+
+	type_function_t::ref type_function_t::replace_return_type(type_t::ref new_return_type) const {
+		return ::type_function(
+				get_location(),
+				type_constraints,
+				args,
+				new_return_type);
 	}
 
 	type_function_closure_t::type_function_closure_t(type_t::ref function) : function(function) {
@@ -763,6 +857,10 @@ namespace types {
 		}
 
 		return ::type_function_closure(function->rebind(bindings, bottom_out_free_vars));
+	}
+
+	type_t::ref type_function_closure_t::unbottom() const {
+		return ::type_function_closure(function->unbottom());
 	}
 
 	location_t type_function_closure_t::get_location() const {
@@ -817,6 +915,12 @@ namespace types {
 		return ::type_and(type_options);
 	}
 
+	type_t::ref type_and_t::unbottom() const {
+		// TODO: impl
+		assert(false);
+		return shared_from_this();
+	}
+
 	location_t type_and_t::get_location() const {
 		return location;
 	}
@@ -851,6 +955,12 @@ namespace types {
 		}
 
 		return ::type_eq(lhs->rebind(bindings, bottom_out_free_vars), rhs->rebind(bindings, bottom_out_free_vars), location);
+	}
+
+	type_t::ref type_eq_t::unbottom() const {
+		// TODO: impl
+		assert(false);
+		return shared_from_this();
 	}
 
 	location_t type_eq_t::get_location() const {
@@ -893,6 +1003,15 @@ namespace types {
 		// NOTE: this may fail because i have not plumbed through the env... probably
 		// can bypass the ptr check here
 		return ::type_maybe(just->rebind(bindings, bottom_out_free_vars), {});
+	}
+
+	type_t::ref type_maybe_t::unbottom() const {
+		auto just_ = just->unbottom();
+		if (just_ != just) {
+			return make_ptr<types::type_maybe_t>(just_);
+		} else {
+			return shared_from_this();
+		}
 	}
 
 	location_t type_maybe_t::get_location() const {
@@ -947,6 +1066,15 @@ namespace types {
 		return ::type_ptr(element_type->rebind(bindings, bottom_out_free_vars));
 	}
 
+	type_t::ref type_ptr_t::unbottom() const {
+		auto element_type_ = element_type->unbottom();
+		if (element_type_ != element_type) {
+			return make_ptr<types::type_ptr_t>(element_type_);
+		} else {
+			return shared_from_this();
+		}
+	}
+
 	location_t type_ptr_t::get_location() const {
 		return element_type->get_location();
 	}
@@ -983,6 +1111,12 @@ namespace types {
 		}
 
 		return ::type_ref(element_type->rebind(bindings, bottom_out_free_vars));
+	}
+
+	type_t::ref type_ref_t::unbottom() const {
+		// TODO: impl
+		assert(false);
+		return shared_from_this();
 	}
 
 	location_t type_ref_t::get_location() const {
@@ -1030,6 +1164,12 @@ namespace types {
 			bindings.erase(binding_iter);
 		}
 		return ::type_lambda(binding, body->rebind(bindings, bottom_out_free_vars));
+	}
+
+	type_t::ref type_lambda_t::unbottom() const {
+		// TODO: impl
+		assert(false);
+		return shared_from_this();
 	}
 
 	location_t type_lambda_t::get_location() const {
@@ -1103,6 +1243,10 @@ namespace types {
 		}
 	}
 
+	type_t::ref type_integer_t::unbottom() const {
+		return shared_from_this();
+	}
+
 	location_t type_integer_t::get_location() const {
 		return bit_size->get_location();
 	}
@@ -1124,6 +1268,12 @@ namespace types {
 	}
 
 	type_t::ref type_literal_t::rebind(const map &bindings_, bool bottom_out_free_vars) const {
+		return shared_from_this();
+	}
+
+	type_t::ref type_literal_t::unbottom() const {
+		// TODO: impl
+		assert(false);
 		return shared_from_this();
 	}
 
@@ -1174,6 +1324,12 @@ namespace types {
 		}
 
 		return ::type_extern(inner->rebind(bindings_, bottom_out_free_vars));
+	}
+
+	type_t::ref type_extern_t::unbottom() const {
+		// TODO: impl
+		assert(false);
+		return shared_from_this();
 	}
 
 	location_t type_extern_t::get_location() const {
@@ -1260,6 +1416,33 @@ namespace types {
 		std::vector<std::pair<token_t, type_args_t::ref>> new_ctor_pairs;
 		for (auto ctor_pair : ctor_pairs) {
 			types::type_args_t::ref elem = dyncast<const type_args_t>(ctor_pair.second->rebind(bindings, bottom_out_free_vars));
+			assert(elem != nullptr);
+			new_ctor_pairs.push_back({ctor_pair.first, elem});
+			if (elem != ctor_pair.second) {
+				found_new = true;
+			}
+		}
+		if (found_new) {
+			return ::type_data(name, new_type_vars, new_ctor_pairs);
+		} else {
+			return shared_from_this();
+		}
+	}
+
+	type_t::ref type_data_t::unbottom() const {
+		bool found_new = false;
+		type_variable_t::refs new_type_vars;
+		new_type_vars.reserve(type_vars.size());
+		for (auto type_var : type_vars) {
+			new_type_vars.push_back(type_var->unbottom());
+			if (new_type_vars.back() != type_var) {
+				found_new = true;
+			}
+		}
+
+		std::vector<std::pair<token_t, type_args_t::ref>> new_ctor_pairs;
+		for (auto ctor_pair : ctor_pairs) {
+			types::type_args_t::ref elem = dyncast<const type_args_t>(ctor_pair.second->unbottom());
 			assert(elem != nullptr);
 			new_ctor_pairs.push_back({ctor_pair.first, elem});
 			if (elem != ctor_pair.second) {
@@ -1660,6 +1843,7 @@ types::type_t::ref type_integer(types::type_t::ref bit_size, types::type_t::ref 
 }
 
 types::type_t::ref type_maybe(types::type_t::ref just, env_t::ref env) {
+#if 0
 	if (dyncast<const types::type_ptr_t>(just) == nullptr) {
 		types::type_t::ref expanded_just =
 			(env != nullptr)
@@ -1680,6 +1864,7 @@ types::type_t::ref type_maybe(types::type_t::ref just, env_t::ref env) {
     if (auto maybe = dyncast<const types::type_maybe_t>(just)) {
         return just;
     }
+#endif
 
     return make_ptr<types::type_maybe_t>(just);
 }

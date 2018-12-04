@@ -4,8 +4,27 @@
 #include "callable.h"
 #include "fitting.h"
 #include "unification.h"
+#include "binding.h"
 
-bool function_exists_in(bound_var_t::ref fn, const fittings_t &fittings) {
+
+size_t fittings_t::size() const {
+	return fittings.size();
+}
+
+void fittings_t::reserve(size_t i) {
+	fittings.reserve(i);
+}
+
+void fittings_t::clear() {
+	fittings.resize(0);
+}
+
+void fittings_t::push_back(const fitting_t &fitting) {
+	assert(!contains(fitting.fn));
+	fittings.push_back(fitting);
+}
+
+bool fittings_t::contains(bound_var_t::ref fn) const {
     for (auto fitting : fittings) {
         if (fitting.fn->get_signature() == fn->get_signature()) {
             return true;
@@ -25,16 +44,18 @@ bound_var_t::ref get_best_fit(
 		fittings_t &fittings,
 		bool allow_coercions)
 {
-	fittings.resize(0);
+	fittings.clear();
 	fittings.reserve(fns.size());
+
+	bindings_set_t checked_bindings;
 
 	for (auto &fn : fns) {
 		int coercions = 0;
 
 		bound_var_t::ref callable = check_bound_func_vs_callsite(
-				builder, scope, location, fn, args, return_type, coercions);
+				builder, scope, location, fn, args, return_type, coercions, checked_bindings);
 
-		if (callable != nullptr && (coercions == 0 || allow_coercions) && !function_exists_in(callable, fittings)) {
+		if (callable != nullptr && (coercions == 0 || allow_coercions) && !fittings.contains(callable)) {
 			fittings.push_back({fn, callable, coercions});
 		} else {
 			debug_above(8, log("not adding callable %s to fittings",
@@ -42,6 +63,15 @@ bound_var_t::ref get_best_fit(
 		}
 	}
 
+	return fittings.get_best_fitting(location, alias, args, return_type);
+}
+
+bound_var_t::ref fittings_t::get_best_fitting(
+		location_t location,
+		std::string alias, 
+		types::type_t::ref args,
+		types::type_t::ref return_type)
+{
 	if (fittings.size() == 1) {
 		return fittings[0].fn;
 	} else if (fittings.size() == 0) {

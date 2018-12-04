@@ -1,10 +1,10 @@
 module _
 
-fn caller() {
+fn caller() void {
     x := 1
     # error: 6:5.* unable to resolve overloads for callee\(int\)
     callee(x)
 }
 
-fn callee(x str) {
+fn callee(x str) void {
 }
