@@ -198,7 +198,7 @@ bound_var_t::ref check_bound_func_vs_callsite(
 				/* this function has already been bound */
 				auto fn_type = dyncast<const types::type_function_t>(
 						types::without_closure(
-							types::without_ref(fn->get_type(scope)->rebind(bindings))));
+							types::without_ref(fn->get_type(scope)->eval(scope)->rebind(bindings))));
 				assert(fn_type != nullptr);
 				binding_t binding{fn->get_location(), fn->get_name(), fn_type->args->repr()};
 
@@ -962,8 +962,6 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
 		}
 
 		assert(latest_return_type != nullptr);
-		assert(return_type != nullptr);
-		assert(unifies(latest_return_type->get_type(), return_type->get_type(), function_scope));
 
         /* not all control paths return */
         if (latest_return_type->get_type()->is_void(scope)) {

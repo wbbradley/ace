@@ -1,0 +1,19 @@
+module _
+
+# test: pass
+# expect: a
+# expect: b
+# expect: c
+# reject: d
+
+get iter # {take, count, loop_words, cycle}
+
+fn main() {
+    for x in iter.take(6, iter.chain([
+            iter.repeat("a", 3),
+            iter.cycle(["a", "b", "c", "d"])
+        ]))
+    {
+        print(x)
+    }
+}
