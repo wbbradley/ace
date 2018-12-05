@@ -413,7 +413,7 @@ type VectorIter C has {
 }
 
 [global]
-fn __iter__[T](c [T]) Iter T {
+fn iter[T](c [T]) Iter T {
     vi := VectorIter(c, 0)
     return fn () T? {
         if vi.pos < len(vi.vec) {

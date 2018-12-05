@@ -74,7 +74,7 @@ fn rand(max uint32) int32 {
 
 
 fn enumerate(f any) any {
-    let iterator = __iter__(f)
+    let iterator = iter(f)
     i := Ref(-1)
     return fn () {
         i.value += 1
@@ -91,7 +91,7 @@ type IntRangeIter has {
     var pos int
 }
 
-fn __iter__[T](f Iter T) Iter T => f
+fn iter[T](f Iter T) Iter T => f
 
 fn range(lim int) Iter int {
     return range(0, lim, 1)

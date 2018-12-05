@@ -64,7 +64,7 @@ type ListIter T has {
 }
 
 [global]
-fn __iter__[T](l List T) ListIter T {
+fn iter[T](l List T) ListIter T {
     return ListIter(l)
 }
 

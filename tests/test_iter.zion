@@ -6,14 +6,17 @@ module _
 # expect: c
 # reject: d
 
-get iter # {take, count, loop_words, cycle}
+get itertools
 
 fn main() {
-    for x in iter.take(6, iter.chain([
-            iter.repeat("a", 3),
-            iter.cycle(["a", "b", "c", "d"])
+    for x in itertools.take(6, itertools.chain([
+            itertools.repeat("a", 3),
+            itertools.cycle(["a", "b", "c", "d"])
         ]))
     {
         print(x)
+    }
+    for (x, y) in itertools.izip(iter(["a", "b", "c"]), iter(itertools.repeat(4))) {
+        print("(" + str(x) + ", " + str(y) + ")")
     }
 }
