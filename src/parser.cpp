@@ -278,7 +278,7 @@ ptr<statement_t> parse_with_block(parse_state_t &ps) {
 }
 
 ptr<expression_t> wrap_with_iter(ptr<expression_t> expr) {
-	auto iter_token = token_t{expr->get_location(), tk_identifier, "__iter__"};
+	auto iter_token = token_t{expr->get_location(), tk_identifier, "iter"};
 	auto iter_ref = create<reference_expr_t>(iter_token);
 	auto iter_callsite = create<callsite_expr_t>(iter_token);
 	iter_callsite->function_expr = iter_ref;

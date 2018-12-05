@@ -121,6 +121,21 @@ fn izip[A, B](a Iter A, b Iter B) Iter (A, B) {
     }
 }
 
+fn izip[A, B, C](a Iter A, b Iter B, c Iter C) Iter (A, B, C) {
+    return fn () {
+        return match a() {
+            Just(t) => match b() {
+                Just(q) => match c() {
+                    Just(r) => Just((t, q, r))
+                    Nothing => Nothing
+                }
+                Nothing => Nothing
+            }
+            Nothing => Nothing
+        }
+    }
+}
+
 fn loop_words() Iter str {
     words := ["hey", "you", "are", "programming", "hello"]
     i := Ref(-1)

@@ -107,18 +107,18 @@ type SetIter D has {
 }
 
 [global]
-fn __iter__[D](s Set D) Iter D {
+fn iter[D](s Set D) Iter D {
     let stack [(Set D, bool)]
     find_first(stack, s, true)
-    iter := SetIter(stack)
+    it := SetIter(stack)
     return fn () D? {
-        var l = len(iter.stack)
+        var l = len(it.stack)
         if l == 0 {
             return Nothing
         }
 
         stopper := (Empty, false)
-        cur_pair := last(iter.stack, stopper)
+        cur_pair := last(it.stack, stopper)
 
         from_right := cur_pair[1]
         if not from_right {
@@ -129,14 +129,14 @@ fn __iter__[D](s Set D) Iter D {
                     __unreachable__
                 }
                 Node(_, left, d, Empty) {
-                    iter.stack = iter.stack[0:l-1]
-                    assert(len(iter.stack) == l-1)
+                    it.stack = it.stack[0:l-1]
+                    assert(len(it.stack) == l-1)
                     return Just(d)
                 }
                 Node(_, left, d, right) {
                     # we will want to return d
                     # Find the next position for the next iteration
-                    find_first(iter.stack, right, true)
+                    find_first(it.stack, right, true)
                     return Just(d)
                 }
             }
@@ -151,18 +151,18 @@ fn __iter__[D](s Set D) Iter D {
                     # and return d.
 
                     while true {
-                        back := last(iter.stack, stopper)
+                        back := last(it.stack, stopper)
                         if back[1] {
                             l -= 1
-                            iter.stack = iter.stack[0:l]
-                            assert(len(iter.stack) == l)
+                            it.stack = it.stack[0:l]
+                            assert(len(it.stack) == l)
                         } else {
                             if l == 0 {
-                                assert(len(iter.stack) == 0)
+                                assert(len(it.stack) == 0)
                             } else {
                                 l -= 1
-                                iter.stack = iter.stack[0:l]
-                                assert(len(iter.stack) == l)
+                                it.stack = it.stack[0:l]
+                                assert(len(it.stack) == l)
                             }
                             return Just(d)
                         }
@@ -170,7 +170,7 @@ fn __iter__[D](s Set D) Iter D {
                     __unreachable__
                 }
                 Node(_, _, d, right) {
-                    find_first(iter.stack, right, true)
+                    find_first(it.stack, right, true)
                     return Just(d)
                 }
             }

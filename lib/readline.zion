@@ -75,7 +75,7 @@ fn readlines[F](f F) LinesIter F {
 }
 
 [global]
-fn __iter__[F](fl LinesIter F) Iter str {
+fn iter[F](fl LinesIter F) Iter str {
     return fn () str? {
         return match readline(fl.file) {
             Line(line) => Just(line)

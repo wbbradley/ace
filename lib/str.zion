@@ -196,7 +196,7 @@ type StrIter has {
     var pos int
 }
 
-fn __iter__(s str) Iter char {
+fn iter(s str) Iter char {
     si := StrIter(s, 0)
     return fn () char? {
         if si.pos < si.s.length {
