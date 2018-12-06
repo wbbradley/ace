@@ -10,6 +10,7 @@
 #include "atom.h"
 #include "scopes.h"
 #include "encoding.h"
+#include "ast.h"
 
 const char *NULL_TYPE = "null";
 const char *STD_MANAGED_TYPE = "var_t";
@@ -19,8 +20,6 @@ const char *VOID_TYPE = "void";
 const char *BOTTOM_TYPE = "⊥";
 
 const char *TYPE_OP_NOT = "not";
-const char *TYPE_OP_CDR = "cdr";
-const char *TYPE_OP_CAR = "car";
 const char *TYPE_OP_IF = "if";
 const char *TYPE_OP_GC = "gc";
 const char *TYPE_OP_IS_ZERO = "is_zero";
@@ -396,6 +395,35 @@ namespace types {
 
 	location_t type_subtype_t::get_location() const {
 		return lhs->get_location();
+	}
+
+	type_typeof_t::type_typeof_t(ptr<const ast::expression_t> expr) : expr(expr) {
+	}
+
+	std::ostream &type_typeof_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
+		return os << "typeof(" << expr->str() << ")";
+	}
+
+	int type_typeof_t::ftv_count() const {
+		return 0;
+	}
+
+	std::set<std::string> type_typeof_t::get_ftvs() const {
+		std::set<std::string> lhs_set;
+		return lhs_set;
+	}
+
+	type_t::ref type_typeof_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+		return shared_from_this();
+	}
+
+	type_t::ref type_typeof_t::unbottom() const {
+		assert(false);
+		return shared_from_this();
+	}
+
+	location_t type_typeof_t::get_location() const {
+		return expr->get_location();
 	}
 
 	type_struct_t::type_struct_t(type_t::refs dimensions, types::name_index_t name_index) :
@@ -1493,6 +1521,10 @@ namespace types {
 		virtual types::type_t::ref get_type(const std::string &name, bool allow_structural_types) const {
 			return nullptr;
 		}
+		virtual ptr<const types::type_t> resolve_type(ptr<const ast::expression_t> expr, ptr<const types::type_t> expected_type) {
+			assert(false);
+			return nullptr;
+		}
 	};
 
 	env_t::ref _empty_env = make_ptr<empty_env>();
@@ -1743,6 +1775,10 @@ types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::re
 
 types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs) {
 	return make_ptr<types::type_subtype_t>(lhs, rhs);
+}
+
+types::type_t::ref type_typeof(ptr<const ast::expression_t> expr) {
+	return make_ptr<types::type_typeof_t>(expr);
 }
 
 types::name_index_t get_name_index_from_ids(identifier::refs ids) {

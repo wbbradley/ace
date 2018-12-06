@@ -29,8 +29,6 @@ void reset_generics();
 
 
 extern const char *TYPE_OP_NOT;
-extern const char *TYPE_OP_CDR;
-extern const char *TYPE_OP_CAR;
 extern const char *TYPE_OP_IF;
 extern const char *TYPE_OP_GC;
 extern const char *TYPE_OP_IS_REF;
@@ -121,6 +119,20 @@ namespace types {
 		bool is_int(env_t::ref scope) const;
 		bool is_maybe(env_t::ref scope) const;
 		bool is_module() const;
+	};
+
+	struct type_typeof_t : public type_t {
+		type_typeof_t(ptr<const ast::expression_t> expr);
+		ptr<const ast::expression_t> expr;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
+		virtual int ftv_count() const;
+		virtual std::set<std::string> get_ftvs() const;
+		virtual int get_precedence() const { return 6; }
+		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
+		virtual type_t::ref unbottom() const;
+		virtual location_t get_location() const;
+		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 	};
 
 	struct type_subtype_t : public type_t {
@@ -555,6 +567,7 @@ types::type_t::ref type_variable(identifier::ref name);
 types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
 types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs);
+types::type_t::ref type_typeof(ptr<const ast::expression_t> expr);
 types::type_injection_t::ref type_injection(types::type_t::ref module);
 types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);

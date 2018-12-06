@@ -380,6 +380,10 @@ struct scope_impl_t : public virtual BASE {
 		}
 	}
 
+	types::type_t::ref resolve_type(ptr<const ast::expression_t> expr, types::type_t::ref expected_type) {
+		return expr->resolve_type(this_scope(), expected_type);
+	}
+
 	std::string scope_name;
 
 	scope_t::ref parent_scope;
@@ -1216,6 +1220,10 @@ struct module_scope_impl_impl_t final : public std::enable_shared_from_this<modu
 		assert(false && !!"attempt to resolve closure on bindings from module scope... seems like an unnecessary closure?!");
 		return nullptr;
 	}
+	types::type_t::ref resolve_type(ptr<const ast::expression_t> expr, types::type_t::ref expected_type) override {
+		return expr->resolve_type(this_scope(), expected_type);
+	}
+
 };
 
 std::string str(const module_scope_t::map &modules);

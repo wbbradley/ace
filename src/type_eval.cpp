@@ -179,22 +179,6 @@ namespace types {
 		}
 	}
 
-	type_t::ref type_eval_car(types::type_t::ref operand, env_t::ref env) {
-		if (auto type_operator = dyncast<const type_operator_t>(operand->eval(env))) {
-			return type_operator->oper;
-		} else {
-			throw user_error(operand->get_location(), "expected a type application instead %s", operand->str().c_str());
-		}
-	}
-
-	type_t::ref type_eval_cdr(types::type_t::ref operand, env_t::ref env) {
-		if (auto type_operator = dyncast<const type_operator_t>(operand->eval(env))) {
-			return type_operator->operand;
-		} else {
-			throw user_error(operand->get_location(), "expected a type application instead %s", operand->str().c_str());
-		}
-	}
-
 	template <typename T, typename U>
 	type_t::ref type_eval_is_type_in_pair(types::type_t::ref operand, env_t::ref env) {
 		if (dyncast<const T>(operand->eval(env))) {
@@ -307,8 +291,6 @@ namespace types {
 		} builtin_functions[] = {
 			{TYPE_OP_NOT, type_eval_not},
 			{TYPE_OP_GC, type_eval_is_gc},
-			{TYPE_OP_CAR, type_eval_car},
-			{TYPE_OP_CDR, type_eval_cdr},
 			{TYPE_OP_IF, type_eval_if},
 			{TYPE_OP_IS_REF, type_eval_is_type<type_ref_t>},
 			{TYPE_OP_IS_TRUE, type_eval_is_true},
@@ -350,6 +332,12 @@ namespace types {
 		} else {
 			return type_false;
 		}
+	}
+
+	type_t::ref type_typeof_t::eval_core(env_t::ref env, bool get_structural_type) const {
+		return (env
+				->resolve_type(expr, type_variable(INTERNAL_LOC()))
+				->eval_core(env, get_structural_type));
 	}
 
 	type_t::ref type_and_t::eval_core(env_t::ref env, bool get_structural_type) const {

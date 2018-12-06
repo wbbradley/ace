@@ -474,7 +474,8 @@ bound_var_t::ref type_check_bound_var_decl(
 	/* 'declared_type' tells us the user-declared type on the left-hand side of
 	 * the assignment. this is generally used to allow a variable to be more
 	 * generalized than the specific right-hand side initial value might be. */
-	types::type_t::ref declared_type = obj.get_type()->rebind(scope->get_type_variable_bindings());
+	dbg_when(obj.get_type()->str().find("iterables") != std::string::npos);
+	types::type_t::ref declared_type = obj.get_type()->eval(scope)->rebind(scope->get_type_variable_bindings());
 
 	assert(dyncast<runnable_scope_t>(scope) != nullptr);
 

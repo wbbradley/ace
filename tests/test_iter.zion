@@ -19,4 +19,5 @@ fn main() {
     for (x, y) in itertools.izip(iter(["a", "b", "c"]), iter(itertools.repeat(4))) {
         print("(" + str(x) + ", " + str(y) + ")")
     }
+    # itertools.get_iterables(["hi"])
 }

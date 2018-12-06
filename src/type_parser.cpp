@@ -365,6 +365,12 @@ namespace types {
 			ps.advance();
 			auto body = parse_and_type(ps, generics);
 			return type_lambda(make_code_id(param_token), body);
+		} else if (ps.token.is_ident(K(typeof))) {
+			ps.advance();
+			chomp_token(tk_lparen);
+			auto type = type_typeof(ast::expression_t::parse(ps));
+			chomp_token(tk_rparen);
+			return type;
 		} else if (ps.token.is_ident(K(fn))) {
 			auto location = ps.token.location;
 			ps.advance();

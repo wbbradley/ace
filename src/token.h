@@ -94,6 +94,7 @@ K(else);
 K(for);
 K(global);
 K(typeid);
+K(typeof);
 K(integer);
 K(has);
 K(if);

@@ -95,6 +95,14 @@ fn chain[T](iterators [Iter T]) Iter T {
     }
 }
 
+fn get_iterables[G, H](iterables [G]) Iter H {
+    var vec [typeof(iter(iterables))]
+    for i in iterables {
+        append(vec, iter(i))
+    }
+    return iter(vec)
+}
+
 fn izip[T](iterators [Iter T]) Iter T {
     return fn () {
         var zipped [T]
