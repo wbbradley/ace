@@ -57,7 +57,7 @@ type LinesIter F has {
 
 [global]
 fn bind[F, T](lines LinesIter F, f fn (lines [str]) T) T {
-    let text_lines [str]
+    text_lines := new [str]
     for line in lines {
         append(text_lines, line)
     }

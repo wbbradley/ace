@@ -9,7 +9,7 @@ fn gather_comments(preface, progname) [str] {
     return match lines {
         Left(errno) => []
         Right(lines) {
-            let comments [str]
+            comments := new [str]
             for comment in lines { 
                 comment = strip(comment)
                 append(comments, comment[len("# " + preface + ": "):len(comment)])
@@ -20,7 +20,7 @@ fn gather_comments(preface, progname) [str] {
 }
 
 fn get_program(args [str]) str? {
-    let options [str: Option]
+    options := new [str: Option]
     options["-p"] = Option("program", true, true)
     parser := Parser("Expect tests", options, None)
     with args := parse(parser, args) {

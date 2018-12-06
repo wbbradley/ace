@@ -5,7 +5,7 @@ module _
 get argparse {parse, Option, None}
 
 fn main() {
-    let options [str: argparse.Option]
+    options := new [str: argparse.Option]
     options["-t"] = Option("test", true, true)
     parser := Parser("Test parser", options, None)
     with arguments := parse(parser, ["-t", "pass"]) {

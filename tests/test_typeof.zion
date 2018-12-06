@@ -1,0 +1,14 @@
+module _
+
+# test: skip
+
+fn vec(x) {
+    v := new [typeof(x)]
+    append(v, x)
+    return v
+}
+
+fn main() {
+    print(vec(1))
+    print(vec("hey"))
+}

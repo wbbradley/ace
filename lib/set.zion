@@ -108,7 +108,7 @@ type SetIter D has {
 
 [global]
 fn iter[D](s Set D) Iter D {
-    let stack [(Set D, bool)]
+    stack := new [(Set D, bool)]
     find_first(stack, s, true)
     it := SetIter(stack)
     return fn () D? {

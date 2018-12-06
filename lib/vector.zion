@@ -50,7 +50,7 @@ fn __init__[T]() [T] {
 fn __init_vector__[T](size size_t) [T] {
     # Used by the compiler to instantiate vector literals
     # see src/type_checker.cpp `create_bound_vector_literal`
-    let v [T]
+    v := new [T]
     reserve(v as! *(VectorImpl T), size)
     return v
 }
@@ -74,7 +74,7 @@ fn join[T where gc T](delim str, v [T]) str {
     }
 
     # allocate a vector in which we can store the converted strings
-    let strs [str]
+    strs := new [str]
     reserve(strs, vec.size)
 
     delim_len := delim.length
@@ -125,7 +125,7 @@ fn join[T where not (gc T)](delim str, v [T]) str {
     }
 
     # allocate a vector in which we can store the converted strings
-    let strs [str]
+    strs := new [str]
     # print("reserving " + vec.size)
     reserve(strs, vec.size)
 
@@ -177,7 +177,7 @@ fn __getslice__[T](s [T], start uint) [T] {
 
 [global]
 fn __getslice__[T](s [T], start uint, lim uint) [T] {
-    let ret [T]
+    ret := new [T]
     s_len := len(s)
 
     if start >= s_len or lim <= start {
@@ -372,27 +372,27 @@ fn reserve[T](vec *(NativeVector T), n size_t) {
 
 [global]
 fn copy(orig [any T]) [any T] {
-    var new [any T]
-    reserve(new, len(orig))
+    var vec [any T]
+    reserve(vec, len(orig))
     var i = 0
     while i != len(orig) {
-        append(new, orig[i])
+        append(vec, orig[i])
         i += 1
     }
-    return new
+    return vec
 }
 
 [global]
 fn copy(orig [any T], t any T) [any T] {
-    var new [any T]
-    reserve(new, len(orig) + 1)
+    var vec [any T]
+    reserve(vec, len(orig) + 1)
     var i = 0
     while i != len(orig) {
-        append(new, orig[i])
+        append(vec, orig[i])
         i += 1
     }
-    append(new, t)
-    return new
+    append(vec, t)
+    return vec
 }
 
 [global]
@@ -478,7 +478,7 @@ fn foldl[T, U](binop fn (lhs T, rhs U) T, starting T, operands [U]) T {
 [global]
 fn bind[A, B](ma [A], f fn (a A) [B]) [B] {
     # (>>=) :: m a -> (a -> m b) -> m b
-    let mb [B]
+    mb := new [B]
     for a in ma {
         mb_new := f(a)
         for b in mb_new {

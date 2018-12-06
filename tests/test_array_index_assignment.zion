@@ -3,7 +3,7 @@ module _
 # expect: [1, 44, 3]
 
 fn main() {
-    let w [int]
+    w := new [int]
     append(w, 1)
     append(w, 2)
     append(w, 3)

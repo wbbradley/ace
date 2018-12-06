@@ -80,7 +80,7 @@ fn __plus__(p1 Parser, s str) Parser
 			
 fn parse_kleene_star(parser Parser) Parser
 	return fn (ps ParseState) Step?
-		let nodes [Node]
+		nodes := new [Node]
 		while ps.i < len(ps.s)
 			next_step := parser(ps)
 			if next_step != null

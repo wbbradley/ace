@@ -3,7 +3,7 @@ module _
 # expect: [0, 20, 40, 60, 80]
 
 fn main() {
-    let xyz [int]
+    xyz := new [int]
     for i in range(0, 100, 20) {
         append(xyz, i)
     }

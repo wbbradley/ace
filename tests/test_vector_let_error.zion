@@ -1,12 +1,12 @@
 module _
 
 fn main() {
-    let xyz [int]
+    xyz := new [int]
     for i in range(0, 100, 20) {
         append(xyz, i)
     }
     print(xyz)
-    let abc [int]
+    abc := new [int]
     # error: the left-hand side of this assignment is not a ref
     xyz = abc
 }

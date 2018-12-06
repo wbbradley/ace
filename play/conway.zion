@@ -15,10 +15,10 @@ fn NewField(w int, h int) Field {
     # TODO: make array allocation better. It was painful
     # to have to remove Go's `make` construct, and to
     # manually initialize this 2-d array.
-    let s [[bool]]
+    s := new [[bool]]
     reserve(s, h)
     for y in range(h) {
-        let row [bool]
+        row := new [bool]
         reserve(row, w)
         for x in range(w) {
             append(row, false)
