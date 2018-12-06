@@ -143,6 +143,10 @@ fn __lte__(x str, y str) bool {
     } 
 }
 
+fn __getslice__(s str, start uint) str {
+    return __getslice__(s, start, len(s))
+}
+
 fn __getslice__(s str, start uint, lim uint) str {
     var length = lim - start
     s_len := len(s)

@@ -1587,14 +1587,17 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 							stop != nullptr ? "__getslice__" : "__getitem__",
 							lhs_val->str().c_str(), index_val->str().c_str()));
 
+				auto func_name = is_slice ? "__getslice__" : "__getitem__";
+				assert_implies(!is_slice, stop_val == nullptr);
+
 				if (stop_val != nullptr) {
 					/* get or instantiate a function we can call on these arguments */
 					return call_module_function(builder, scope, life,
-							"__getslice__", get_location(), {lhs_val, index_val, stop_val});
+							func_name, get_location(), {lhs_val, index_val, stop_val});
 				} else {
 					/* get or instantiate a function we can call on these arguments */
 					return call_module_function(builder, scope, life,
-							"__getitem__", get_location(), {lhs_val, index_val});
+							func_name, get_location(), {lhs_val, index_val});
 				}
 			} else {
 				/* we're assigning to a managed array index expression */
@@ -1614,8 +1617,8 @@ bound_var_t::ref ast::array_index_expr_t::resolve_assignment(
 						get_location(),
 						type_args({
 							lhs_val->get_type(),
-						   	index_val->get_type(),
-						   	type_variable(type_var_name)}),
+							index_val->get_type(),
+							type_variable(type_var_name)}),
 						type_variable(INTERNAL_LOC()),
 						fns,
 						fittings);

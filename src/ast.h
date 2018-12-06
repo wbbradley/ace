@@ -1189,6 +1189,7 @@ namespace ast {
 
 		ptr<expression_t> lhs;
 		ptr<expression_t> start, stop;
+		bool is_slice = false;
 	};
 
 	namespace base_expr {
