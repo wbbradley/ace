@@ -452,9 +452,8 @@ bound_var_t::ref get_callable(
 	} else {
 		std::stringstream ss;
 		if (fns.size() == 0) {
-			ss << C_ID << alias << C_RESET;
+			ss << "unable to find callable " << C_ID << alias << C_RESET;
 			args->emit(ss, {}, 0 /*parent_precedence*/);
-			ss << " not found";
 		} else {
 			ss << "unable to resolve overloads for " << C_ID << alias << C_RESET << args->str();
 			if (return_type != nullptr) {

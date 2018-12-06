@@ -171,6 +171,11 @@ fn join[T where not (gc T)](delim str, v [T]) str {
 }
 
 [global]
+fn __getslice__[T](s [T], start uint) [T] {
+    return __getslice__(s, start, len(s))
+}
+
+[global]
 fn __getslice__[T](s [T], start uint, lim uint) [T] {
     let ret [T]
     s_len := len(s)

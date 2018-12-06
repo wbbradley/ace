@@ -630,8 +630,11 @@ namespace ast {
 						array_index_expr->lhs = expr;
 						array_index_expr->start = expression_t::parse(ps);
 						if (ps.token.tk == tk_colon) {
+							array_index_expr->is_slice = true;
 							ps.advance();
-							array_index_expr->stop = expression_t::parse(ps);
+							if (ps.token.tk != tk_rsquare) {
+								array_index_expr->stop = expression_t::parse(ps);
+							}
 						}
 						expr = array_index_expr;
 						chomp_token(tk_rsquare);

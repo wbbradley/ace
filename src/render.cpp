@@ -194,8 +194,11 @@ namespace ast {
 		lhs->render(rs);
 		rs.ss << "[";
 		start->render(rs);
-		if (stop != nullptr) {
+		if (is_slice) {
 			rs.ss << ":";
+		}
+		if (stop != nullptr) {
+			assert(is_slice);
 			stop->render(rs);
 		}
 		rs.ss << "]";
