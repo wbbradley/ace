@@ -2,6 +2,7 @@
 #include "scopes.h"
 #include "dbg.h"
 #include "unification.h"
+#include "ast.h"
 
 const char *tbstr(type_builtins_t tb) {
 	switch (tb) {
@@ -335,9 +336,12 @@ namespace types {
 	}
 
 	type_t::ref type_typeof_t::eval_core(env_t::ref env, bool get_structural_type) const {
-		return (env
-				->resolve_type(expr, type_variable(INTERNAL_LOC()))
-				->eval_core(env, get_structural_type));
+		auto type = env->resolve_type(expr, type_variable(INTERNAL_LOC()));
+		if (type == nullptr) {
+			throw user_error(expr->get_location(), "resolving the type of this expression is not working at the moment...");
+			return nullptr;
+		}
+		return type->eval_core(env, get_structural_type);
 	}
 
 	type_t::ref type_and_t::eval_core(env_t::ref env, bool get_structural_type) const {

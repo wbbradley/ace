@@ -23,17 +23,17 @@ type Pattern is {
 
 fn pattern_from_type(t DataType) Pattern {
 	match t {
-		DataType(typename, ctors) {
-			let ctor_patterns [CtorPatternValue]
-				for ctor in ctors {
-					let arg_patterns [Pattern]
-						for arg_type in ctor.arg_types {
-							append(arg_patterns, AllOf(arg_type))
-						}
-					append(ctor_patterns, CtorPatternValue(typename, ctor.name, arg_patterns))
-				}
-			return CtorPatterns(ctor_patterns)
-		}
+        DataType(typename, ctors) {
+            ctor_patterns := new [CtorPatternValue]
+            for ctor in ctors {
+                arg_patterns := new [Pattern]
+                for arg_type in ctor.arg_types {
+                    append(arg_patterns, AllOf(arg_type))
+                }
+                append(ctor_patterns, CtorPatternValue(typename, ctor.name, arg_patterns))
+            }
+            return CtorPatterns(ctor_patterns)
+        }
 	}
 }
 			
@@ -135,7 +135,7 @@ fn set_intersect(lhs CtorPatternValue, rhs CtorPatternValue) Pattern
 
 	assert(len(rhs.args) == len(lhs.args))
 
-	let reduced_args [Pattern]
+	reduced_args := new [Pattern]
 	reserve(reduced_args, len(lhs.args))
 
 	for i in range(len(lhs.args))
@@ -297,7 +297,7 @@ fn set_difference(lhs Pattern, rhs Pattern) Pattern
 	return difference.value
 
 fn main()
-	let empty_types [DataType]
+	empty_types := new [DataType]
 	Bool := DataType("Bool", [Ctor("True", empty_types), Ctor("False", empty_types)])
 	Brightness := DataType("Brightness", [
 		Ctor("High", empty_types),
@@ -314,7 +314,7 @@ fn main()
 	Pair := DataType("Pair", [Ctor("Pair", [Bool, Bool])])
 	ColorPair := DataType("ColorPair", [Ctor("ColorPair", [Color, Color])])
 
-	let empty_patterns [Pattern] = []
+	empty_patterns := new [Pattern]
 	True := CtorPatternValue("Bool", "True", empty_patterns)
 	False := CtorPatternValue("Bool", "False", empty_patterns)
 	bool_pattern := AllOf(Bool)

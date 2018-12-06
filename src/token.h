@@ -104,6 +104,7 @@ K(lambda);
 K(let);
 K(link);
 K(module);
+K(new);
 K(not);
 K(or);
 K(return);

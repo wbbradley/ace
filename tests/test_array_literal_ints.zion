@@ -10,7 +10,7 @@ module _
 fn main() {
     let w [int]
     static_print(w)
-    var x [int]
+    var x = new [int]
     static_print(x)
     let y = [1, 2, 3]
     static_print(y)

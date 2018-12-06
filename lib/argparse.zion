@@ -34,8 +34,8 @@ type Arguments has {
 
 fn parse(parser Parser, args [str]) MaybeResource Arguments ParseError {
     var iarg = 0
-    let results [str: str]
-    let arguments = Arguments(results, [] as [str])
+    results := new [str: str]
+    arguments := Arguments(results, [] as [str])
 
     while iarg < len(args) {
         arg := args[iarg]

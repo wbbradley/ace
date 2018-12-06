@@ -263,7 +263,7 @@ fn strip(s str) str {
 
 fn split(s str) [str] {
     # Split a string based on whitespace
-    let tokens [str]
+    tokens := new [str]
     var i = 0
     var j = 0
     let s_length = s.length
@@ -292,7 +292,7 @@ fn split(s str) [str] {
 
 fn split(s str, delims str) [str] {
     # Split a string based on the given delims
-    let tokens [str]
+    tokens := new [str]
     var i = 0
     var j = 0
     let s_length = s.length

@@ -384,6 +384,22 @@ ptr<statement_t> defer_t::parse(parse_state_t &ps) {
 	return defer;
 }
 
+ptr<expression_t> parse_new_expr(parse_state_t &ps) {
+	auto callsite = create<callsite_expr_t>(ps.token);
+	callsite->function_expr = create<reference_expr_t>({ps.token.location, tk_identifier, "__init__"});
+
+	ps.advance();
+
+	try {
+		auto cast_expr = create<cast_expr_t>(ps.token);
+		cast_expr->lhs = callsite;
+		cast_expr->type_cast = types::parse_type(ps, {} /*generics*/);
+		return cast_expr;
+	} catch (user_error &e) {
+		std::throw_with_nested(user_error(callsite->token.location, "while parsing unary operator new"));
+	}
+}
+
 ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 	assert(ps.token.tk != tk_rcurly);
 
@@ -403,6 +419,8 @@ ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 		return match_expr_t::parse(ps);
 	} else if (ps.token.is_ident(K(with))) {
 		return parse_with_block(ps);
+	} else if (ps.token.is_ident(K(new))) {
+		return parse_new_expr(ps);
 	} else if (ps.token.is_ident(K(fn))) {
 		return function_defn_t::parse(ps, false /*within_expression*/);
 	} else if (ps.token.is_ident(K(return))) {
@@ -502,6 +520,8 @@ ptr<expression_t> base_expr::parse(parse_state_t &ps) {
 		return typeid_expr_t::parse(ps);
 	} else if (ps.token.is_ident(K(sizeof))) {
 		return sizeof_expr_t::parse(ps);
+	} else if (ps.token.is_ident(K(new))) {
+		return parse_new_expr(ps);
 	} else if (ps.token.is_ident(K(fn))) {
 		return function_defn_t::parse(ps, true /*within_expression*/);
 	} else if (ps.token.is_ident(K(match))) {

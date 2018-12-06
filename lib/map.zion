@@ -19,7 +19,7 @@ type Map K V has {
 
 [global]
 fn __init__[K, V]() Map K V {
-    let storage [(ChainEntry K V)?]
+    storage := new [(ChainEntry K V)?]
     return Map(0, storage)
 }
 
@@ -29,7 +29,7 @@ fn len[K, V](m Map K V) int {
 }
 
 fn realloc[K, V](m Map K V) {
-    let storage [(ChainEntry K V)?]
+    storage := new [(ChainEntry K V)?]
     new_size := (len(m.storage) + 1) * 2
     resize(storage, new_size, Nothing)
 
@@ -182,7 +182,7 @@ fn pop[K, V](m Map K V, key K) V? {
 
 [global]
 fn iter[K, V](m Map K V) Iter (K, V) {
-    let items [(K, V)]
+    items := new [(K, V)]
     reserve(items, len(m))
 
     for index in range(len(m.storage)) {
@@ -202,7 +202,7 @@ fn iter[K, V](m Map K V) Iter (K, V) {
 }
 
 fn __test_compilation() {
-    let m [str: int]
+    m := new [str: int]
     m["hey"] = 5
     print(get(m, "hey", 0))
 }

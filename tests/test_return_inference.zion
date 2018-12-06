@@ -1,19 +1,20 @@
 module _
 # test: pass
+# expect: h : [int]
 
 fn foo[T]() [T] {
-    let x [T]
-    return x
+    return new [T]
 }
 
 fn boink[T](t T, f fn () [T]) {
     print(t)
-    f()
+    return f()
 }
 
 fn main() {
-    boink(3, fn () {
+    h := boink(3, fn () {
         return foo()
     })
+    static_print(h)
 }
 
