@@ -712,12 +712,16 @@ struct test_env : public env_t {
 	test_env(env_map_t env_map) : env_map(env_map) {}
 	env_map_t env_map;
 
-	virtual ~test_env() {}
-	virtual types::type_t::ref get_type(const std::string &name, bool allow_structural_types) const {
+	~test_env() {}
+	types::type_t::ref get_type(const std::string &name, bool allow_structural_types) const override {
 		auto iter = env_map.find(name);
 		return ((iter != env_map.end() && (!iter->second.first /*structural*/ || allow_structural_types))
 				? iter->second.second
 				: nullptr);
+	}
+	ptr<const types::type_t> resolve_type(ptr<const ast::expression_t> expr, ptr<const types::type_t> expected_type) override {
+		assert(false);
+		return nullptr;
 	}
 };
 
