@@ -12,7 +12,7 @@ namespace match {
 	struct Nothing : std::enable_shared_from_this<Nothing>, Pattern {
 		Nothing() : Pattern(INTERNAL_LOC()) {}
 
-		virtual ptr<const Nothing> asNothing() const { return shared_from_this(); }
+		virtual std::shared_ptr<const Nothing> asNothing() const { return shared_from_this(); }
 		virtual std::string str() const;
 	};
 
@@ -107,29 +107,29 @@ namespace match {
 		return "strings";
 	}
 
-	ptr<const CtorPattern> asCtorPattern(Pattern::ref pattern) {
+	std::shared_ptr<const CtorPattern> asCtorPattern(Pattern::ref pattern) {
 		return dyncast<const CtorPattern>(pattern);
 	}
 
-	ptr<const CtorPatterns> asCtorPatterns(Pattern::ref pattern) {
+	std::shared_ptr<const CtorPatterns> asCtorPatterns(Pattern::ref pattern) {
 		return dyncast<const CtorPatterns>(pattern);
 	}
 
-	ptr<const AllOf> asAllOf(Pattern::ref pattern) {
+	std::shared_ptr<const AllOf> asAllOf(Pattern::ref pattern) {
 		return dyncast<const AllOf>(pattern);
 	}
 
 	template <typename T>
-	ptr<const Scalars<T>> asScalars(Pattern::ref pattern) {
+	std::shared_ptr<const Scalars<T>> asScalars(Pattern::ref pattern) {
 		return dyncast<const Scalars<T>>(pattern);
 	}
 
-	ptr<Nothing> theNothing = make_ptr<Nothing>();
-	ptr<Scalars<int64_t>> allIntegers = make_ptr<Scalars<int64_t>>(INTERNAL_LOC(), Scalars<int64_t>::Exclude, std::set<int64_t>{});
-	ptr<Scalars<std::string>> allStrings = make_ptr<Scalars<std::string>>(INTERNAL_LOC(), Scalars<std::string>::Exclude, std::set<std::string>{});
+	std::shared_ptr<Nothing> theNothing = std::make_shared<Nothing>();
+	std::shared_ptr<Scalars<int64_t>> allIntegers = std::make_shared<Scalars<int64_t>>(INTERNAL_LOC(), Scalars<int64_t>::Exclude, std::set<int64_t>{});
+	std::shared_ptr<Scalars<std::string>> allStrings = std::make_shared<Scalars<std::string>>(INTERNAL_LOC(), Scalars<std::string>::Exclude, std::set<std::string>{});
 
 	Pattern::ref all_of(location_t location, std::string expr, runnable_scope_t::ref runnable_scope, types::type_t::ref type) {
-		return make_ptr<match::AllOf>(location, expr, runnable_scope, type);
+		return std::make_shared<match::AllOf>(location, expr, runnable_scope, type);
 	}
 
 	Pattern::ref reduce_all_datatype(
@@ -151,9 +151,9 @@ namespace match {
 
 		assert(cpvs.size() != 0);
 		if (cpvs.size() == 1) {
-			return make_ptr<CtorPattern>(location, cpvs[0]);
+			return std::make_shared<CtorPattern>(location, cpvs[0]);
 		} else {
-			return make_ptr<CtorPatterns>(location, cpvs);
+			return std::make_shared<CtorPatterns>(location, cpvs);
 		}
 	}
 
@@ -176,7 +176,7 @@ namespace match {
 			}
 		}
 		assert(reduced_args.size() == lhs.args.size());
-		return make_ptr<CtorPattern>(location, CtorPatternValue{lhs.type_name, lhs.name, reduced_args});
+		return std::make_shared<CtorPattern>(location, CtorPatternValue{lhs.type_name, lhs.name, reduced_args});
 	}
 
 	Pattern::ref cpv_intersect(Pattern::ref lhs, const CtorPatternValue &rhs) {
@@ -188,7 +188,7 @@ namespace match {
 	Pattern::ref intersect(location_t location, const std::vector<CtorPatternValue> &lhs, const std::vector<CtorPatternValue> &rhs) {
 		Pattern::ref intersection = theNothing;
 		for (auto &cpv : lhs) {
-			Pattern::ref init = make_ptr<CtorPattern>(location, cpv);
+			Pattern::ref init = std::make_shared<CtorPattern>(location, cpv);
 			intersection = pattern_union(
 					std::accumulate(
 						rhs.begin(),
@@ -239,7 +239,7 @@ namespace match {
 		if (new_kind == Scalars<T>::Include && new_collection.size() == 0) {
 			return theNothing;
 		}
-		return make_ptr<Scalars<T>>(lhs.location, new_kind, new_collection);
+		return std::make_shared<Scalars<T>>(lhs.location, new_kind, new_collection);
 	}
 
 	Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
@@ -328,24 +328,24 @@ namespace match {
 			for (auto &cpv : rhs_ctor_patterns->cpvs) {
 				cpvs.push_back(cpv);
 			}
-			return make_ptr<CtorPatterns>(lhs->location, cpvs);
+			return std::make_shared<CtorPatterns>(lhs->location, cpvs);
 		}
 
 		if (lhs_ctor_patterns && rhs_ctor_pattern) {
 			std::vector<CtorPatternValue> cpvs = lhs_ctor_patterns->cpvs;
 			cpvs.push_back(rhs_ctor_pattern->cpv);
-			return make_ptr<CtorPatterns>(lhs->location, cpvs);
+			return std::make_shared<CtorPatterns>(lhs->location, cpvs);
 		}
 
 		if (lhs_ctor_pattern && rhs_ctor_patterns) {
 			std::vector<CtorPatternValue> cpvs = rhs_ctor_patterns->cpvs;
 			cpvs.push_back(lhs_ctor_pattern->cpv);
-			return make_ptr<CtorPatterns>(lhs->location, cpvs);
+			return std::make_shared<CtorPatterns>(lhs->location, cpvs);
 		}
 
 		if (lhs_ctor_pattern && rhs_ctor_pattern) {
 			std::vector<CtorPatternValue> cpvs{lhs_ctor_pattern->cpv, rhs_ctor_pattern->cpv};
-			return make_ptr<CtorPatterns>(lhs->location, cpvs);
+			return std::make_shared<CtorPatterns>(lhs->location, cpvs);
 		}
 
 		log_location(log_error, lhs->location, "unhandled pattern_union (%s ∪ %s)",
@@ -366,7 +366,7 @@ namespace match {
 
 				for (size_t i = 0; i < ctor_pair.second->args.size(); ++i) {
 					args.push_back(
-							make_ptr<AllOf>(location,
+							std::make_shared<AllOf>(location,
 								(ctor_pair.second->names.size() > i) ? ctor_pair.second->names[i]->get_name() : "_",
 								env,
 								ctor_pair.second->args[i]));
@@ -377,9 +377,9 @@ namespace match {
 			}
 
 			if (cpvs.size() == 1) {
-				return make_ptr<CtorPattern>(location, cpvs[0]);
+				return std::make_shared<CtorPattern>(location, cpvs[0]);
 			} else if (cpvs.size() > 1) {
-				return make_ptr<CtorPatterns>(location, cpvs);
+				return std::make_shared<CtorPatterns>(location, cpvs);
 			} else {
 				throw user_error(INTERNAL_LOC(), "not implemented");
 			}
@@ -389,14 +389,14 @@ namespace match {
 				args.push_back(from_type(location, env, dim));
 			}
 			CtorPatternValue cpv{type->repr(), "tuple", args};
-			return make_ptr<CtorPattern>(location, cpv);
+			return std::make_shared<CtorPattern>(location, cpv);
 		} else if (type->eval_predicate(tb_str, env)) {
 			return allStrings;
 		} else if (type->eval_predicate(tb_int, env)) {
 			return allIntegers;
 		} else {
 			/* just accept all of whatever this is */
-			return make_ptr<AllOf>(
+			return std::make_shared<AllOf>(
 					type->get_location(),
 					string_format("AllOf(%s)", type->str().c_str()),
 					env,
@@ -420,7 +420,7 @@ namespace match {
 		assert(lhs.type_name == rhs.type_name);
 
 		if (lhs.name != rhs.name) {
-			send(make_ptr<CtorPattern>(location, lhs));
+			send(std::make_shared<CtorPattern>(location, lhs));
 		} else if (lhs.args.size() == 0) {
 			send(theNothing);
 		} else {
@@ -432,7 +432,7 @@ namespace match {
 				} else {
 					std::vector<Pattern::ref> args = lhs.args;
 					args[i] = arg;
-					send(make_ptr<CtorPattern>(location, CtorPatternValue{lhs.type_name, lhs.name, args}));
+					send(std::make_shared<CtorPattern>(location, CtorPatternValue{lhs.type_name, lhs.name, args}));
 				}
 			};
 
@@ -481,7 +481,7 @@ namespace match {
 		if (new_kind == Scalars<T>::Include && new_collection.size() == 0) {
 			return theNothing;
 		}
-		return make_ptr<Scalars<T>>(lhs.location, new_kind, new_collection);
+		return std::make_shared<Scalars<T>>(lhs.location, new_kind, new_collection);
 	}
 
 	void difference(
@@ -539,7 +539,7 @@ namespace match {
 		if (lhs_ctor_patterns) {
 			if (rhs_ctor_patterns) {
 				for (auto &cpv : lhs_ctor_patterns->cpvs) {
-					difference(make_ptr<CtorPattern>(lhs_ctor_patterns->location, cpv), rhs, send);
+					difference(std::make_shared<CtorPattern>(lhs_ctor_patterns->location, cpv), rhs, send);
 				}
 				return;
 			} else if (rhs_ctor_pattern) {
@@ -554,7 +554,7 @@ namespace match {
 
 		if (lhs_ctor_pattern) {
 			if (rhs_ctor_patterns) {
-				Pattern::ref new_a = make_ptr<CtorPattern>(lhs->location, lhs_ctor_pattern->cpv);
+				Pattern::ref new_a = std::make_shared<CtorPattern>(lhs->location, lhs_ctor_pattern->cpv);
 				auto new_a_send = [&new_a] (Pattern::ref pattern) {
 					new_a = pattern_union(new_a, pattern);
 				};
@@ -562,7 +562,7 @@ namespace match {
 				for (auto &b : rhs_ctor_patterns->cpvs) {
 					auto current_a = new_a;
 					new_a = theNothing;
-					difference(current_a, make_ptr<CtorPattern>(rhs->location, b), new_a_send);
+					difference(current_a, std::make_shared<CtorPattern>(rhs->location, b), new_a_send);
 				}
 
 				send(new_a);
@@ -654,7 +654,7 @@ namespace ast {
 			for (size_t i = 0; i < params.size(); ++i) {
 				args.push_back(params[i]->get_pattern(tuple_type->dimensions[i], env));
 			}
-			return make_ptr<CtorPattern>(token.location, CtorPatternValue{tuple_type->repr(), "tuple", args});
+			return std::make_shared<CtorPattern>(token.location, CtorPatternValue{tuple_type->repr(), "tuple", args});
 		} else {
 			throw user_error(token.location,
 					"type mismatch on pattern. incoming type is %s. "
@@ -680,7 +680,7 @@ namespace ast {
 					}
 
 					/* found the ctor we're matching on */
-					return make_ptr<CtorPattern>(token.location, CtorPatternValue{type->repr(), token.text, args});
+					return std::make_shared<CtorPattern>(token.location, CtorPatternValue{type->repr(), token.text, args});
 				}
 			}
 
@@ -694,22 +694,22 @@ namespace ast {
 		}
 	}
 	Pattern::ref irrefutable_predicate_t::get_pattern(type_t::ref type, env_t::ref env) const {
-		return make_ptr<AllOf>(token.location, token.text, env, type);
+		return std::make_shared<AllOf>(token.location, token.text, env, type);
 	}
 	Pattern::ref literal_expr_t::get_pattern(type_t::ref type, env_t::ref env) const {
 		if (type->eval_predicate(tb_int, env)) {
 			if (token.tk == tk_integer) {
 				int64_t value = parse_int_value(token);
-				return make_ptr<Scalars<int64_t>>(token.location, Scalars<int64_t>::Include, std::set<int64_t>{value});
+				return std::make_shared<Scalars<int64_t>>(token.location, Scalars<int64_t>::Include, std::set<int64_t>{value});
 			} else if (token.tk == tk_identifier) {
-				return make_ptr<Scalars<int64_t>>(token.location, Scalars<int64_t>::Exclude, std::set<int64_t>{});
+				return std::make_shared<Scalars<int64_t>>(token.location, Scalars<int64_t>::Exclude, std::set<int64_t>{});
 			}
 		} else if (type->eval_predicate(tb_str, env)) {
 			if (token.tk == tk_string) {
 				std::string value = unescape_json_quotes(token.text);
-				return make_ptr<Scalars<std::string>>(token.location, Scalars<std::string>::Include, std::set<std::string>{value});
+				return std::make_shared<Scalars<std::string>>(token.location, Scalars<std::string>::Include, std::set<std::string>{value});
 			} else if (token.tk == tk_identifier) {
-				return make_ptr<Scalars<std::string>>(token.location, Scalars<std::string>::Exclude, std::set<std::string>{});
+				return std::make_shared<Scalars<std::string>>(token.location, Scalars<std::string>::Exclude, std::set<std::string>{});
 			}
 		}
 

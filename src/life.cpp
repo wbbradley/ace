@@ -3,6 +3,7 @@
 #include "callable.h"
 #include "unification.h"
 #include <iostream>
+#include "llvm_utils.h"
 
 
 struct defer_call_trackable_t : public trackable_t {
@@ -24,11 +25,11 @@ struct defer_call_trackable_t : public trackable_t {
 		assert(callable->get_type()->eval_predicate(tb_callable, scope));
 
 		auto fake_life = (
-				make_ptr<life_t>(lf_function)
+				std::make_shared<life_t>(lf_function)
 				->new_life(lf_block)
 				->new_life(lf_statement));
 
-		create_callsite(
+		::create_callsite(
 				builder,
 				scope,
 				fake_life,
@@ -86,7 +87,7 @@ life_t::~life_t() {
 }
 
 life_t::ref life_t::new_life(life_form_t life_form) {
-	return make_ptr<life_t>(life_form, shared_from_this());
+	return std::make_shared<life_t>(life_form, shared_from_this());
 }
 
 void life_t::exempt_life_release() const {
@@ -159,7 +160,7 @@ std::string life_t::str() const {
 	return ss.str();
 }
 
-void life_dump(ptr<const life_t> life) {
+void life_dump(std::shared_ptr<const life_t> life) {
 	std::stringstream ss;
 	ss << C_CONTROL << "Life Dump:" << C_RESET << std::endl;
 	while (life != nullptr) {

@@ -20,11 +20,11 @@ token_t iid::get_token() const {
 }
 
 identifier::ref make_iid_impl(std::string name, location_t location) {
-	return make_ptr<iid>(name, location);
+	return std::make_shared<iid>(name, location);
 }
 
 identifier::ref make_iid_impl(const char *name, location_t location) {
-	return make_ptr<iid>(std::string{name}, location);
+	return std::make_shared<iid>(std::string{name}, location);
 }
 
 std::string str(identifier::refs ids) {

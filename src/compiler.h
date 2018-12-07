@@ -25,8 +25,8 @@ struct compiler_t {
 	void set_module_scope(std::string module_key, module_scope_t::ref module_scope);
 
 	std::vector<token_t> get_comments() const;
-	ptr<const ast::module_t> get_module(std::string key_alias);
-	void set_module(std::string filename, ptr<ast::module_t> module);
+	std::shared_ptr<const ast::module_t> get_module(std::string key_alias);
+	void set_module(std::string filename, std::shared_ptr<ast::module_t> module);
 	llvm::Module *llvm_load_ir(std::string filename);
 	llvm::Module *llvm_create_module(std::string module_name);
 	llvm::Module *llvm_get_program_module();
@@ -46,9 +46,9 @@ struct compiler_t {
 	bool build_type_check_and_code_gen();
 
 	/* parse a single module */
-	ptr<const ast::module_t> build_parse(location_t location, std::string module_name, type_macros_t &global_type_macros);
+	std::shared_ptr<const ast::module_t> build_parse(location_t location, std::string module_name, type_macros_t &global_type_macros);
 
-	void build_parse_linked(ptr<const ast::module_t> module, type_macros_t &global_type_macros);
+	void build_parse_linked(std::shared_ptr<const ast::module_t> module, type_macros_t &global_type_macros);
 	std::set<std::string> compile_modules();
 	void emit_built_program(std::string bitcode_filename);
 	int run_program(int argc, char *argv[]);
@@ -60,7 +60,7 @@ struct compiler_t {
 	std::string get_program_name() const;
 	std::string get_executable_filename() const;
 
-	ptr<const ast::module_t> main_module;
+	std::shared_ptr<const ast::module_t> main_module;
 	type_macros_t base_type_macros;
 
     std::unique_ptr<llvm::DIBuilder> llvm_dibuilder;
@@ -71,18 +71,18 @@ private:
 	std::unique_ptr<llvm::Module> &get_llvm_module(std::string name);
 
 	std::string program_name;
-	ptr<std::vector<std::string>> zion_paths;
+	std::shared_ptr<std::vector<std::string>> zion_paths;
 	std::set<token_t> link_ins;
 	std::vector<token_t> comments;
 	program_scope_t::ref program_scope;
-	std::map<std::string, ptr<const ast::module_t>> modules_map;
-	std::vector<ptr<const ast::module_t>> ordered_modules;
+	std::map<std::string, std::shared_ptr<const ast::module_t>> modules_map;
+	std::vector<std::shared_ptr<const ast::module_t>> ordered_modules;
 	llvm::LLVMContext llvm_context;
 	llvm::IRBuilder<> builder;
 	llvm_module_t llvm_program_module;
 	llvm_modules_t llvm_modules;
-	std::map<std::string, ptr<module_scope_t>> module_scopes;
-	ptr<ast::program_t> program;
+	std::map<std::string, std::shared_ptr<module_scope_t>> module_scopes;
+	std::shared_ptr<ast::program_t> program;
 
 	friend bool _check_compiler_error(compiler_t &compiler, int &skipped);
 	friend struct program_scope_impl_t;

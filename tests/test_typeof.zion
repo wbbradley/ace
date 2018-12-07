@@ -1,6 +1,8 @@
 module _
 
-# test: skip
+# test: pass
+# expect: [1]
+# expect: [hey]
 
 fn vec(x) {
     v := new [typeof(x)]

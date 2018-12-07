@@ -20,4 +20,9 @@ fn main() {
     for (x, y) in izip(iter(["a", "b", "c"]), iter(repeat(4))) {
         print("(" + str(x) + ", " + str(y) + ")")
     }
+    var y = ""
+    for x in chain([["a", "b", "c"], ["d", "e", "f"]]) {
+        y += x
+    }
+    print(y)
 }

@@ -59,7 +59,7 @@ void handle_sigint(int sig) {
 int main(int argc, char *argv[]) {
 	signal(SIGINT, &handle_sigint);
 	init_dbg();
-	ptr<logger> logger(make_ptr<standard_logger>("", "."));
+	std::shared_ptr<logger> logger(std::make_shared<standard_logger>("", "."));
     std::string cmd;
 	if (argc >= 2) {
 		cmd = argv[1];

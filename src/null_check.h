@@ -4,23 +4,25 @@
 #include "life.h"
 #include "llvm_zion.h"
 
+struct delegate_t;
+
 enum null_check_kind_t {
 	nck_is_non_null,
 	nck_is_null,
 };
 
-bound_var_t::ref get_null(
-        llvm::IRBuilder<> &builder,
+var_t::ref get_null(
+		delegate_t &delegate,
         scope_t::ref scope,
 		location_t location);
 
-bound_var_t::ref resolve_null_check(
-		llvm::IRBuilder<> &builder,
+var_t::ref resolve_null_check(
+		delegate_t &delegate,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
-		ptr<const ast::item_t> node,
-		bound_var_t::ref value,
+		std::shared_ptr<const ast::item_t> node,
+		var_t::ref value,
 		null_check_kind_t nck,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false);

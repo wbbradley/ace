@@ -16,6 +16,8 @@
 #include "atom.h"
 #include "encoding.h"
 #include "binding.h"
+#include "delegate.h"
+#include "checked_var.h"
 
 const char *GLOBAL_ID = "_";
 const token_kind SCOPE_TK = tk_dot;
@@ -62,8 +64,8 @@ void get_callables_from_bound_vars(
 	}
 }
 
-bound_var_t::ref get_bound_variable_from_scope(
-		llvm::IRBuilder<> &builder,
+var_t::ref get_bound_variable_from_scope(
+		delegate_t &delegate,
 		location_t location,
 		std::string scope_name,
 		std::string symbol,
@@ -88,7 +90,7 @@ bound_var_t::ref get_bound_variable_from_scope(
 			return nullptr;
 		}
 	} else if (parent_scope != nullptr && parent_scope != stopping_before_scope) {
-		return parent_scope->get_bound_variable(builder, location, symbol, stopping_before_scope);
+		return safe_dyncast<const bound_var_t>(parent_scope->get_variable(delegate, location, symbol, stopping_before_scope));
 	}
 
 	debug_above(6, log(log_info,
@@ -133,13 +135,22 @@ types::type_t::ref get_variable_type_from_scope(
 	return nullptr;
 }
 
+bound_var_t::ref scope_t::get_bound_variable(
+		llvm::IRBuilder<> &builder,
+		location_t location,
+		std::string symbol,
+		scope_t::ref stopping_before_scope)
+{
+	delegate_t delegate{builder, true};
+	return safe_dyncast<const bound_var_t>(this->get_variable(delegate, location, symbol, stopping_before_scope));
+}
 
 template <typename BASE>
 struct scope_impl_t : public virtual BASE {
-	typedef ptr<BASE> ref;
-	typedef ptr<const BASE> cref;
+	typedef std::shared_ptr<BASE> ref;
+	typedef std::shared_ptr<const BASE> cref;
 
-	scope_impl_t(std::string name, ptr<scope_t> parent_scope, const types::type_t::map &bindings={}) :
+	scope_impl_t(std::string name, std::shared_ptr<scope_t> parent_scope, const types::type_t::map &bindings={}) :
 		scope_name(name),
 		parent_scope(parent_scope),
 		type_variable_bindings(bindings) 
@@ -147,16 +158,16 @@ struct scope_impl_t : public virtual BASE {
 	}
 
 	virtual ~scope_impl_t() {}
-	scope_impl_t(ptr<scope_t> parent_scope) = delete;
+	scope_impl_t(std::shared_ptr<scope_t> parent_scope) = delete;
 	scope_impl_t(const scope_impl_t &scope) = delete;
 
-	virtual ptr<scope_t> this_scope() = 0;
-	virtual ptr<const scope_t> this_scope() const = 0;
+	virtual std::shared_ptr<scope_t> this_scope() = 0;
+	virtual std::shared_ptr<const scope_t> this_scope() const = 0;
 	virtual std::string get_leaf_name() const {
 		return scope_name;
 	}
 
-	ptr<module_scope_t> get_module_scope() {
+	std::shared_ptr<module_scope_t> get_module_scope() {
 		if (auto module_scope = dyncast<module_scope_t>(this_scope())) {
 			return module_scope;
 		} else {
@@ -169,7 +180,7 @@ struct scope_impl_t : public virtual BASE {
 		}
 	}
 
-	ptr<const module_scope_t> get_module_scope() const {
+	std::shared_ptr<const module_scope_t> get_module_scope() const {
 		if (auto module_scope = dyncast<const module_scope_t>(this_scope())) {
 			return module_scope;
 		} else {
@@ -182,12 +193,12 @@ struct scope_impl_t : public virtual BASE {
 		}
 	}
 
-	ptr<program_scope_t> get_program_scope() {
+	std::shared_ptr<program_scope_t> get_program_scope() {
 		assert(!dynamic_cast<program_scope_t* const>(this));
 		return this->get_parent_scope()->get_program_scope();
 	}
 
-	ptr<const program_scope_t> get_program_scope() const {
+	std::shared_ptr<const program_scope_t> get_program_scope() const {
 		assert(!dynamic_cast<const program_scope_t* const>(this));
 		return this->get_parent_scope()->get_program_scope();
 	}
@@ -268,13 +279,11 @@ struct scope_impl_t : public virtual BASE {
 					this->get_name().c_str(),
 					bound_variable->str().c_str(),
 					bound_variable->get_location().str().c_str()));
-		dbg_when(dynamic_cast<program_scope_t*>(this) && symbol == "Error");
 
 		auto &resolve_map = bound_vars[symbol];
 		std::string signature = bound_variable->get_signature();
 		auto existing_bound_var_iter = resolve_map.find(signature);
 		if (existing_bound_var_iter != resolve_map.end()) {
-			dbg_when(symbol.find("write") != std::string::npos);
 			auto error = user_error(bound_variable->get_location(), "symbol " c_id("%s") " is already bound (signature is %s)",
 				   	symbol.c_str(),
 					signature.c_str());
@@ -343,13 +352,13 @@ struct scope_impl_t : public virtual BASE {
 				stopping_before_scope);
 	}
 
-	virtual bound_var_t::ref get_bound_variable(
-			llvm::IRBuilder<> &builder,
+	virtual var_t::ref get_variable(
+			delegate_t &delegate,
 			location_t location,
 			std::string symbol,
 			scope_t::ref stopping_before_scope)
 	{
-		return ::get_bound_variable_from_scope(builder, location, this->get_name(),
+		return ::get_bound_variable_from_scope(delegate, location, this->get_name(),
 				symbol, bound_vars,
 				this->get_parent_scope() != stopping_before_scope ? this->get_parent_scope() : nullptr,
 				stopping_before_scope);
@@ -363,11 +372,11 @@ struct scope_impl_t : public virtual BASE {
 		return get_parent_scope()->has_bound(name, is_global, type, var);
 	}
 
-	ptr<scope_t> get_parent_scope() {
+	std::shared_ptr<scope_t> get_parent_scope() {
 		return parent_scope;
 	}
 
-	ptr<const scope_t> get_parent_scope() const {
+	std::shared_ptr<const scope_t> get_parent_scope() const {
 		return parent_scope;
 	}
 
@@ -380,8 +389,22 @@ struct scope_impl_t : public virtual BASE {
 		}
 	}
 
-	types::type_t::ref resolve_type(ptr<const ast::expression_t> expr, types::type_t::ref expected_type) {
-		return expr->resolve_type(this_scope(), expected_type);
+	types::type_t::ref resolve_type(delegate_t &delegate, std::shared_ptr<const ast::expression_t> expr, types::type_t::ref expected_type) {
+		delegate_t type_delegate = delegate.get_type_delegate();
+		auto life = (
+				std::make_shared<life_t>(lf_function)
+				->new_life(lf_block)
+				->new_life(lf_statement));
+		bool returns = false;
+		var_t::ref val = expr->resolve_expression(
+				type_delegate,
+				this_scope(),
+				life,
+				false /*as_ref*/,
+				nullptr /*expected_type*/,
+				&returns);
+		assert(!returns);
+		return val->get_type();
 	}
 
 	std::string scope_name;
@@ -404,10 +427,10 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		capture_builder(capture_builder)
 	{}
 
-	ptr<scope_t> this_scope() override {
+	std::shared_ptr<scope_t> this_scope() override {
 		return this->shared_from_this();
 	}
-	ptr<const scope_t> this_scope() const override {
+	std::shared_ptr<const scope_t> this_scope() const override {
 		return this->shared_from_this();
 	}
 
@@ -432,7 +455,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		}
 	}
 
-	ptr<function_scope_t> new_function_scope(std::string name, llvm::Function *llvm_function) override
+	std::shared_ptr<function_scope_t> new_function_scope(std::string name, llvm::Function *llvm_function) override
 	{
 		debug_above(8,
 			   	log("creating a function scope %s within scope %s",
@@ -441,8 +464,8 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		return create_function_scope(name, shared_from_this(), {}, llvm_function);
 	}
 
-	llvm::Module *get_llvm_module() override {
-		return this->get_parent_scope()->get_llvm_module();
+	llvm::Module *get_llvm_module(llvm::IRBuilder<> &builder) override {
+		return this->get_parent_scope()->get_llvm_module(builder);
 	}
 
 	void get_callables(
@@ -515,8 +538,8 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 
 	static bound_var_t::ref create_capture(
 			llvm::IRBuilder<> &capture_builder,
-			ptr<scope_t> running_scope,
-			ptr<scope_t> usage_scope,
+			std::shared_ptr<scope_t> running_scope,
+			std::shared_ptr<scope_t> usage_scope,
 			program_scope_t::ref program_scope,
 			std::string scope_name,
 			location_t location,
@@ -526,6 +549,10 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 			std::vector<capture_t> &captures,
 			std::map<binding_t, capture_t> &capture_map)
 	{
+				// loaded_value->get_bound_type(),
+				// builder.CreateLoad(llvm_closure_value_pointer),
+				// make_iid_impl(symbol, location));
+				//
 		binding_t binding{capturable_value->get_location(), symbol, capturable_value->get_type()->get_signature()};
 
 		auto iter_capture = capture_map.find(binding);
@@ -534,7 +561,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		}
 
 		/* OK, we need to capture this value */
-		bound_var_t::ref loaded_value = capturable_value->resolve_bound_value(capture_builder, running_scope);
+		bound_var_t::ref loaded_value = capturable_value->dereferencing_load(capture_builder, running_scope);
 
 		llvm::IRBuilder<> builder(usage_scope->llvm_get_current_function()->getEntryBlock().getTerminator());
 
@@ -542,7 +569,8 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		builder.SetInsertPoint(llvm_get_function(builder)->getEntryBlock().getTerminator());
 
 		std::vector<llvm::Type*> llvm_types;
-		llvm::StructType *llvm_struct_type = _create_temporary_capture_type(builder, program_scope, scope_name, symbol, loaded_value, captures, llvm_types);
+		llvm::StructType *llvm_struct_type = _create_temporary_capture_type(builder, program_scope,
+				scope_name, symbol, loaded_value, captures, llvm_types);
 
 		/* now cast the capture_env to be a pointer to the new closure env type */
 		llvm::Value *llvm_capture_env = builder.CreateBitCast(
@@ -578,8 +606,8 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		return value_in_closure;
 	}
 
-	bound_var_t::ref capture_hunt(
-			llvm::IRBuilder<> &builder,
+	var_t::ref capture_hunt(
+			delegate_t &delegate,
 			location_t location,
 			std::string symbol,
 			scope_t::ref stopping_before_scope)
@@ -589,12 +617,22 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		module_scope_t::ref module_scope = dyncast<module_scope_t>(get_parent_scope());
 		assert(module_scope != nullptr);
 
-		bound_var_t::ref capturable_value = running_scope->get_bound_variable(
-				capture_builder, location, symbol, module_scope/*stopping_before_scope*/);
+		delegate_t capture_delegate{capture_builder, delegate.use_llvm};
+		var_t::ref capturable_value = running_scope->get_variable(
+				capture_delegate,
+			   	location,
+			   	symbol,
+			   	module_scope/*stopping_before_scope*/);
 
 		assert(none_of(captures.begin(), captures.end(), capture_finder(symbol)));
 		if (capturable_value != nullptr) {
-			return make_lazy_capture(location, symbol, capturable_value);
+			if (!delegate.use_llvm) {
+				return make_checked_var(
+						types::without_ref(capturable_value->get_type()),
+						make_iid_impl(symbol, location));
+			} else {
+				return make_lazy_capture(location, symbol, safe_dyncast<const bound_var_t>(capturable_value));
+			}
 		} else {
 			/* we did not find anything to capture */
 			return nullptr;
@@ -612,7 +650,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		return make_lazily_bound_var(
 				shared_from_this(),
 			   	capturable_value,
-				[self, location, symbol, capturable_value](ptr<scope_t> usage_scope) -> bound_var_t::ref {
+				[self, location, symbol, capturable_value](std::shared_ptr<scope_t> usage_scope) -> bound_var_t::ref {
 					assert(self->capture_builder.GetInsertBlock()->getParent() != usage_scope->llvm_get_current_function());
 					return create_capture(
 							self->capture_builder,
@@ -678,8 +716,8 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		}
 	}
 
-	bound_var_t::ref get_bound_variable(
-			llvm::IRBuilder<> &builder,
+	var_t::ref get_variable(
+			delegate_t &delegate,
 			location_t location,
 			std::string symbol,
 			scope_t::ref stopping_before_scope) override
@@ -689,14 +727,14 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		auto capture_iter = std::find_if(captures.begin(), captures.end(), capture_finder(symbol));
 		if (capture_iter == captures.end()) {
 			/* we haven't captured this, or it just doesn't make sense, keep looking */
-			auto bound_var = capture_hunt(builder, location, symbol, stopping_before_scope);
+			auto bound_var = capture_hunt(delegate, location, symbol, stopping_before_scope);
 			if (bound_var != nullptr) {
 				return bound_var;
 			} else {
 				/* fallback to module scope */
 				auto parent_scope = get_parent_scope();
 				if (parent_scope != stopping_before_scope && parent_scope != nullptr) {
-					return parent_scope->get_bound_variable(builder, location, symbol, stopping_before_scope);
+					return parent_scope->get_variable(delegate, location, symbol, stopping_before_scope);
 				} else {
 					return nullptr;
 				}
@@ -708,7 +746,7 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 
 	bound_var_t::ref create_closure(
 			llvm::IRBuilder<> &builder,
-			ptr<life_t> life,
+			std::shared_ptr<life_t> life,
 			location_t location,
 			bound_var_t::ref function) override
 	{
@@ -748,14 +786,15 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 		}
 
 		/* call the constructor */
-		bound_var_t::ref constructed_closure = create_callsite(
-				builder,
-				shared_from_this(),
-				life,
-				ctor_fn,
-				"closure ctor",
-				location,
-				bound_dimensions);
+		bound_var_t::ref constructed_closure = safe_dyncast<const bound_var_t>(
+				create_callsite(
+					builder,
+					shared_from_this(),
+					life,
+					ctor_fn,
+					"closure ctor",
+					location,
+					bound_dimensions));
 
 		types::type_function_t::ref type_function = dyncast<const types::type_function_t>(function->get_type());
 		assert(type_function != nullptr);
@@ -793,9 +832,10 @@ struct closure_scope_impl_t final : public std::enable_shared_from_this<closure_
 				make_iid_impl("opaque closure", location));
 	}
 
-	/* the capture builder will emit loads so that they can be copied into the closure. note that it is doing this back
-	 * in the context of the running scope where this closure is being instantiated, so we need this builder in order to
-	 * remember the context of where we were at the time of capture. */
+	/* the capture builder handles side effects like emitting load instructions so that they can be
+	 * copied into the closure. note that it is doing this back in the context of the running scope
+	 * where this closure is being instantiated, so we need this builder in order to remember the
+	 * context of where we were at the time of capture. */
 	runnable_scope_t::ref running_scope;
 	llvm::IRBuilder<> &capture_builder;
 	std::vector<capture_t> captures;
@@ -808,13 +848,13 @@ typedef bound_type_t::ref return_type_constraint_t;
 template <typename T>
 struct runnable_scope_impl_t : public std::enable_shared_from_this<runnable_scope_impl_t<T>>, scope_impl_t<T> {
 	/* runnable scopes are those that can instantiate local scopes */
-	typedef ptr<T> ref;
+	typedef std::shared_ptr<T> ref;
 
 	virtual ~runnable_scope_impl_t() {}
-	ptr<scope_t> this_scope() override {
+	std::shared_ptr<scope_t> this_scope() override {
 		return this->shared_from_this();
 	}
-	ptr<const scope_t> this_scope() const override {
+	std::shared_ptr<const scope_t> this_scope() const override {
 		return this->shared_from_this();
 	}
 
@@ -832,23 +872,23 @@ struct runnable_scope_impl_t : public std::enable_shared_from_this<runnable_scop
 	runnable_scope_impl_t(const T &) = delete;
 
 	template <typename Q>
-	static ptr<Q> create(
+	static std::shared_ptr<Q> create(
 			std::string name,
 			scope_t::ref parent_scope,
 			return_type_constraint_t &return_type_constraint)
 	{
-		return make_ptr<runnable_scope_impl_t<Q>>(name, parent_scope, return_type_constraint);
+		return std::make_shared<runnable_scope_impl_t<Q>>(name, parent_scope, return_type_constraint);
 	}
 
-	ptr<runnable_scope_t> new_runnable_scope(std::string name) override {
+	std::shared_ptr<runnable_scope_t> new_runnable_scope(std::string name) override {
 		return create<runnable_scope_t>(name, this->shared_from_this(), this->return_type_constraint);
 	}
 
-	ptr<closure_scope_t> new_closure_scope(llvm::IRBuilder<> &builder, std::string name) override {
-		return make_ptr<closure_scope_impl_t>(name, this->get_module_scope(), this->shared_from_this(), builder);
+	std::shared_ptr<closure_scope_t> new_closure_scope(llvm::IRBuilder<> &builder, std::string name) override {
+		return std::make_shared<closure_scope_impl_t>(name, this->get_module_scope(), this->shared_from_this(), builder);
 	}
 
-	ptr<function_scope_t> new_function_scope(std::string name, llvm::Function *llvm_function) override {
+	std::shared_ptr<function_scope_t> new_function_scope(std::string name, llvm::Function *llvm_function) override {
 		debug_above(8, log("creating a function scope %s within scope %s", name.c_str(), this->get_name().c_str()));
 		return create_function_scope(name, this->get_module_scope(), this->get_type_variable_bindings(), llvm_function);
 	}
@@ -858,8 +898,8 @@ struct runnable_scope_impl_t : public std::enable_shared_from_this<runnable_scop
 		return this->get_parent_scope()->llvm_get_current_function();
 	}
 
-	llvm::Module *get_llvm_module() override {
-		return this->get_parent_scope()->get_llvm_module();
+	llvm::Module *get_llvm_module(llvm::IRBuilder<> &builder) override {
+		return this->get_parent_scope()->get_llvm_module(builder);
 	}
 
 	void get_callables(
@@ -983,7 +1023,7 @@ private:
 
 template <typename T>
 struct module_scope_impl_t : public scope_impl_t<T> {
-	typedef ptr<T> ref;
+	typedef std::shared_ptr<T> ref;
 	typedef std::map<std::string, ref> map;
 
 	module_scope_impl_t() = delete;
@@ -998,7 +1038,7 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 	{
 	}
 
-	ptr<function_scope_t> new_function_scope(std::string name, llvm::Function *llvm_function) override {
+	std::shared_ptr<function_scope_t> new_function_scope(std::string name, llvm::Function *llvm_function) override {
 		debug_above(8, log("creating a function scope %s within scope %s", name.c_str(), this->get_name().c_str()));
 		return create_function_scope(name, this->this_scope(), {}, llvm_function);
 	}
@@ -1073,7 +1113,7 @@ struct module_scope_impl_t : public scope_impl_t<T> {
 		}
 	}
 
-	llvm::Module *get_llvm_module() override {
+	llvm::Module *get_llvm_module(llvm::IRBuilder<> &) override {
 		return llvm_module;
 	}
 
@@ -1207,10 +1247,10 @@ struct module_scope_impl_impl_t final : public std::enable_shared_from_this<modu
 	}
 	virtual ~module_scope_impl_impl_t() {}
 
-	ptr<scope_t> this_scope() override {
+	std::shared_ptr<scope_t> this_scope() override {
 		return this->shared_from_this();
 	}
-	ptr<const scope_t> this_scope() const override {
+	std::shared_ptr<const scope_t> this_scope() const override {
 		return this->shared_from_this();
 	}
 	unchecked_var_t::ref get_unchecked_variable(std::string symbol) override {
@@ -1220,10 +1260,13 @@ struct module_scope_impl_impl_t final : public std::enable_shared_from_this<modu
 		assert(false && !!"attempt to resolve closure on bindings from module scope... seems like an unnecessary closure?!");
 		return nullptr;
 	}
-	types::type_t::ref resolve_type(ptr<const ast::expression_t> expr, types::type_t::ref expected_type) override {
-		return expr->resolve_type(this_scope(), expected_type);
-	}
 
+#if 0
+	types::type_t::ref resolve_type(delegate_t &delegate, std::shared_ptr<const ast::expression_t> expr, types::type_t::ref expected_type) override {
+		delegate_t safe_delegate = delegate.get_type_delegate();
+		return expr->resolve_type(safe_delegate, this_scope(), expected_type);
+	}
+#endif
 };
 
 std::string str(const module_scope_t::map &modules);
@@ -1254,7 +1297,7 @@ void get_callables_from_unchecked_vars(
 /* scope keeps tabs on the bindings of variables, noting their declared
  * type as it goes */
 struct program_scope_impl_t final : public std::enable_shared_from_this<program_scope_impl_t>, public module_scope_impl_t<program_scope_t> {
-	typedef ptr<program_scope_t> ref;
+	typedef std::shared_ptr<program_scope_t> ref;
 
 	program_scope_impl_t(
 			std::string name,
@@ -1267,10 +1310,10 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 	program_scope_impl_t() = delete;
 	virtual ~program_scope_impl_t() {}
 
-	ptr<scope_t> this_scope() override {
+	std::shared_ptr<scope_t> this_scope() override {
 		return this->shared_from_this();
 	}
-	ptr<const scope_t> this_scope() const override {
+	std::shared_ptr<const scope_t> this_scope() const override {
 		return this->shared_from_this();
 	}
 
@@ -1278,11 +1321,11 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		return name;
 	}
 
-	ptr<program_scope_t> get_program_scope() override {
+	std::shared_ptr<program_scope_t> get_program_scope() override {
 		return dyncast<program_scope_t>(this_scope());
 	}
 
-	ptr<const program_scope_t> get_program_scope() const override {
+	std::shared_ptr<const program_scope_t> get_program_scope() const override {
 		return dyncast<const program_scope_t>(this_scope());
 	}
 
@@ -1300,11 +1343,11 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		dump_type_map(os, type_variable_bindings, "PROGRAM TYPE VARIABLE BINDINGS");
 	}
 
-	std::string dump_llvm_modules() override {
+	std::string dump_llvm_modules(llvm::IRBuilder<> &builder) override {
 		std::stringstream ss;
 		for (auto &module_pair : modules) {
 			ss << C_MODULE << "MODULE " << C_RESET << module_pair.first << std::endl;
-			ss << llvm_print_module(*module_pair.second->get_llvm_module());
+			ss << llvm_print_module(*module_pair.second->get_llvm_module(builder));
 		}
 		return ss.str();
 	}
@@ -1314,10 +1357,10 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		dump_unchecked_type_tags(os, unchecked_types);
 	}
 
-	ptr<module_scope_t> new_module_scope(std::string name, llvm::Module *llvm_module, llvm::DICompileUnit *llvm_compile_unit) override {
+	std::shared_ptr<module_scope_t> new_module_scope(std::string name, llvm::Module *llvm_module, llvm::DICompileUnit *llvm_compile_unit) override {
 		assert(!lookup_module(name));
 
-		auto module_scope = make_ptr<module_scope_impl_impl_t>(name, get_program_scope(), llvm_module, llvm_compile_unit);
+		auto module_scope = std::make_shared<module_scope_impl_impl_t>(name, get_program_scope(), llvm_module, llvm_compile_unit);
 		modules.insert({name, module_scope});
 		return module_scope;
 	}
@@ -1605,7 +1648,7 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 					llvm_function_type,
 					llvm::Function::ExternalLinkage, 
 					function_name,
-					get_llvm_module());
+					get_llvm_module(builder));
 
 			llvm_function->setDoesNotThrow();
 			llvm_function->addFnAttr(llvm::Attribute::AlwaysInline);
@@ -1770,6 +1813,10 @@ struct program_scope_impl_t final : public std::enable_shared_from_this<program_
 		return builder.CreateLoad(builder.CreateGEP(array, gep_path));
 	}
 
+   	llvm::LLVMContext &llvm_get_context() const override {
+		return llvm_module->getContext();
+	}
+
 private:
 	compiler_t &compiler;
 	module_scope_t::map modules;
@@ -1786,7 +1833,7 @@ private:
 };
 
 struct function_scope_impl_t final : public runnable_scope_impl_t<function_scope_t> {
-	typedef ptr<function_scope_t> ref;
+	typedef std::shared_ptr<function_scope_t> ref;
 
 	virtual ~function_scope_impl_t() {}
 	function_scope_impl_t(std::string name, scope_t::ref parent_scope, const types::type_t::map &bindings, llvm::Function *llvm_function) :
@@ -1824,11 +1871,11 @@ function_scope_t::ref create_function_scope(
 		const types::type_t::map &type_variable_bindings,
 		llvm::Function *llvm_function)
 {
-	return make_ptr<function_scope_impl_t>(module_name, parent_scope, type_variable_bindings, llvm_function);
+	return std::make_shared<function_scope_impl_t>(module_name, parent_scope, type_variable_bindings, llvm_function);
 }
 
 struct generic_substitution_scope_impl_t final : public std::enable_shared_from_this<generic_substitution_scope_impl_t>, public scope_impl_t<generic_substitution_scope_t> {
-	typedef ptr<generic_substitution_scope_t> ref;
+	typedef std::shared_ptr<generic_substitution_scope_t> ref;
 
 	generic_substitution_scope_impl_t(
 			std::string name,
@@ -1839,10 +1886,10 @@ struct generic_substitution_scope_impl_t final : public std::enable_shared_from_
 	}
 	virtual ~generic_substitution_scope_impl_t() {}
 
-	ptr<scope_t> this_scope() override {
+	std::shared_ptr<scope_t> this_scope() override {
 		return shared_from_this();
 	}
-	ptr<const scope_t> this_scope() const override {
+	std::shared_ptr<const scope_t> this_scope() const override {
 		return shared_from_this();
 	}
 
@@ -1850,7 +1897,7 @@ struct generic_substitution_scope_impl_t final : public std::enable_shared_from_
 		return get_parent_scope()->llvm_get_current_function();
 	}
 
-	ptr<function_scope_t> new_function_scope(std::string name, llvm::Function *llvm_function) override {
+	std::shared_ptr<function_scope_t> new_function_scope(std::string name, llvm::Function *llvm_function) override {
 		debug_above(8, log("creating a function scope %s within scope %s", name.c_str(), this->get_name().c_str()));
 		assert(!dyncast<runnable_scope_t>(get_parent_scope()));
 		return create_function_scope(name, this_scope(), this->get_type_variable_bindings(), llvm_function);
@@ -1865,8 +1912,8 @@ struct generic_substitution_scope_impl_t final : public std::enable_shared_from_
 		get_parent_scope()->dump(os);
 	}
 
-	llvm::Module *get_llvm_module() override {
-		return get_parent_scope()->get_llvm_module();
+	llvm::Module *get_llvm_module(llvm::IRBuilder<> &builder) override {
+		return get_parent_scope()->get_llvm_module(builder);
 	}
 
 	void get_callables(
@@ -1884,7 +1931,7 @@ struct generic_substitution_scope_impl_t final : public std::enable_shared_from_
 
 	static ref create(
 			llvm::IRBuilder<> &builder,
-			const ptr<const ast::item_t> &fn_decl,
+			const std::shared_ptr<const ast::item_t> &fn_decl,
 			scope_t::ref module_scope,
 			const types::type_t::map &bindings,
 			types::type_t::ref callee_type);
@@ -1923,9 +1970,9 @@ bound_type_t::ref get_bound_type_from_scope(
 	}
 }
 
-llvm::Module *scope_t::get_llvm_module() {
+llvm::Module *scope_t::get_llvm_module(llvm::IRBuilder<> &builder) {
 	if (get_parent_scope()) {
-		return get_parent_scope()->get_llvm_module();
+		return get_parent_scope()->get_llvm_module(builder);
 	} else {
 		assert(false);
 		return nullptr;
@@ -1969,18 +2016,18 @@ program_scope_t::ref program_scope_t::create(
 	   	llvm::Module *llvm_module,
 	   	llvm::DICompileUnit *llvm_compile_unit)
 {
-	return make_ptr<program_scope_impl_t>(name, compiler, llvm_module, llvm_compile_unit);
+	return std::make_shared<program_scope_impl_t>(name, compiler, llvm_module, llvm_compile_unit);
 }
 
 generic_substitution_scope_t::ref generic_substitution_scope_t::create(
 		llvm::IRBuilder<> &builder,
-		const ptr<const ast::item_t> &fn_decl,
+		const std::shared_ptr<const ast::item_t> &fn_decl,
 		scope_t::ref parent_scope,
 		const types::type_t::map &bindings,
 		types::type_t::ref callee_type)
 {
 	/* instantiate a new scope */
-	auto subst_scope = make_ptr<generic_substitution_scope_impl_t>(
+	auto subst_scope = std::make_shared<generic_substitution_scope_impl_t>(
 			"generic substitution", parent_scope, callee_type);
 
 	/* iterate over the bindings found during unifications and make
@@ -2009,11 +2056,6 @@ void put_typename_impl(
 		types::type_t::ref expansion,
 		bool is_structural)
 {
-#if 0
-	// A good place for a breakpoint when debugging type issues
-	dbg_when(type_name.str().find("map.map") != std::string::npos);
-#endif
-
 	auto iter_type = env_map.find(type_name);
 	if (iter_type == env_map.end()) {
 		debug_above(2, log(log_info, "registering " c_type("%s") " typename " c_type("%s") " as %s in scope " c_id("%s"),
@@ -2100,8 +2142,8 @@ void put_bound_function(
 
 bound_var_t::ref get_closure_over(
 		bound_var_t::ref var,
-	   	ptr<scope_t> found_in_scope,
-	   	ptr<scope_t> usage_scope)
+	   	std::shared_ptr<scope_t> found_in_scope,
+	   	std::shared_ptr<scope_t> usage_scope)
 {
 	if (dyncast<module_scope_t>(found_in_scope) != nullptr) {
 		/* no need to capture module-level vars */
@@ -2109,7 +2151,7 @@ bound_var_t::ref get_closure_over(
 	}
 
 	auto scope = usage_scope;
-	std::list<ptr<closure_scope_impl_t>> closures;
+	std::list<std::shared_ptr<closure_scope_impl_t>> closures;
 	while (scope != nullptr) {
 		if (scope == found_in_scope) {
 			assert(dyncast<closure_scope_impl_t>(scope) == nullptr);

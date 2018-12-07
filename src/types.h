@@ -6,6 +6,8 @@
 #include "identifier.h"
 #include "token.h"
 
+struct delegate_t;
+
 extern const char *NULL_TYPE;
 extern const char *STD_MANAGED_TYPE;
 extern const char *STD_VECTOR_TYPE;
@@ -72,7 +74,7 @@ namespace types {
 	struct signature;
 
 	struct type_t : public std::enable_shared_from_this<type_t> {
-		typedef ptr<const type_t> ref;
+		typedef std::shared_ptr<const type_t> ref;
 		typedef std::vector<ref> refs;
 		typedef std::map<std::string, ref> map;
         typedef std::pair<ref, ref> pair;
@@ -100,6 +102,7 @@ namespace types {
 		virtual type_t::ref unbottom() const = 0;
 		ref eval(env_t::ref env, bool get_structural_type=false) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const = 0;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
 
@@ -122,8 +125,8 @@ namespace types {
 	};
 
 	struct type_typeof_t : public type_t {
-		type_typeof_t(ptr<const ast::expression_t> expr);
-		ptr<const ast::expression_t> expr;
+		type_typeof_t(std::shared_ptr<const ast::expression_t> expr);
+		std::shared_ptr<const ast::expression_t> expr;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
@@ -133,6 +136,7 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_subtype_t : public type_t {
@@ -148,17 +152,18 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_product_t : public type_t {
-		typedef ptr<const type_product_t> ref;
+		typedef std::shared_ptr<const type_product_t> ref;
 
 		virtual product_kind_t get_pk() const = 0;
 		virtual type_t::refs get_dimensions() const = 0;
 	};
 
 	struct type_args_t : public type_product_t {
-		typedef ptr<const type_args_t> ref;
+		typedef std::shared_ptr<const type_args_t> ref;
 
 		type_args_t(type_t::refs args, identifier::refs names);
 
@@ -172,6 +177,7 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 
 		type_t::refs args;
 		identifier::refs names;
@@ -199,7 +205,7 @@ namespace types {
 		type_t::refs type_vars;
 		std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs;
 
-		typedef ptr<const type_data_t> ref;
+		typedef std::shared_ptr<const type_data_t> ref;
 
 		virtual int get_precedence() const { return 3; }
 
@@ -233,7 +239,7 @@ namespace types {
 	};
 
 	struct type_operator_t : public type_t {
-		typedef ptr<const type_operator_t> ref;
+		typedef std::shared_ptr<const type_operator_t> ref;
 
 		type_operator_t(type_t::ref oper, type_t::ref operand);
 		type_t::ref oper;
@@ -250,10 +256,11 @@ namespace types {
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
 		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_any_of_t : public type_t {
-		typedef ptr<const type_any_of_t> ref;
+		typedef std::shared_ptr<const type_any_of_t> ref;
 		
 		type_any_of_t(const map &shapes);
 		refs shapes;
@@ -282,7 +289,7 @@ namespace types {
 	};
 
 	struct type_integer_t : public type_t {
-		typedef ptr<const type_integer_t> ref;
+		typedef std::shared_ptr<const type_integer_t> ref;
 		type_integer_t(type_t::ref bit_size, type_t::ref signed_);
 		type_t::ref bit_size;
 		type_t::ref signed_;
@@ -300,7 +307,7 @@ namespace types {
 	};
 
 	struct type_injection_t : public type_product_t {
-		typedef ptr<const type_injection_t> ref;
+		typedef std::shared_ptr<const type_injection_t> ref;
 
 		virtual int get_precedence() const { return 0; }
 
@@ -321,7 +328,7 @@ namespace types {
 	};
 
 	struct type_managed_t : public type_product_t {
-		typedef ptr<const type_managed_t> ref;
+		typedef std::shared_ptr<const type_managed_t> ref;
 
 		type_managed_t(type_t::ref element_type);
 
@@ -340,7 +347,7 @@ namespace types {
 	};
 
 	struct type_struct_t : public type_product_t {
-		typedef ptr<const type_struct_t> ref;
+		typedef std::shared_ptr<const type_struct_t> ref;
 
 		type_struct_t(type_t::refs dimensions, name_index_t name_index);
 
@@ -354,13 +361,14 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 
 		type_t::refs dimensions;
 		name_index_t name_index;
 	};
 
 	struct type_tuple_t : public type_product_t {
-		typedef ptr<const type_tuple_t> ref;
+		typedef std::shared_ptr<const type_tuple_t> ref;
 
 		type_tuple_t(type_t::refs dimensions);
 
@@ -374,12 +382,13 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 
 		type_t::refs dimensions;
 	};
 
 	struct type_function_t : public type_t {
-		typedef ptr<const type_function_t> ref;
+		typedef std::shared_ptr<const type_function_t> ref;
 		type_function_t(
 				location_t location,
 			   	types::type_t::ref type_constraints,
@@ -398,11 +407,12 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 		type_function_t::ref replace_return_type(type_t::ref return_type) const;
 	};
 
 	struct type_function_closure_t : public type_t {
-		typedef ptr<const type_function_closure_t> ref;
+		typedef std::shared_ptr<const type_function_closure_t> ref;
 		type_function_closure_t(types::type_t::ref function);
 
 		type_t::ref function;
@@ -416,6 +426,7 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_eq_t : public type_t {
@@ -466,10 +477,11 @@ namespace types {
 		virtual location_t get_location() const;
         virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_ptr_t : public type_t {
-		typedef ptr<const type_ptr_t> ref;
+		typedef std::shared_ptr<const type_ptr_t> ref;
 		type_ptr_t(type_t::ref raw);
 		type_t::ref element_type;
 
@@ -483,10 +495,11 @@ namespace types {
 		virtual location_t get_location() const;
 		virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_ref_t : public type_t {
-		typedef ptr<const type_ref_t> ref;
+		typedef std::shared_ptr<const type_ref_t> ref;
 		type_ref_t(type_t::ref raw);
 		type_t::ref element_type;
 
@@ -500,6 +513,7 @@ namespace types {
 		virtual location_t get_location() const;
 
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_lambda_t : public type_t {
@@ -515,10 +529,11 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
+		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_extern_t : public type_t {
-		typedef ptr<const type_extern_t> ref;
+		typedef std::shared_ptr<const type_extern_t> ref;
 		type_extern_t(type_t::ref inner);
 		type_t::ref inner;
 
@@ -567,7 +582,7 @@ types::type_t::ref type_variable(identifier::ref name);
 types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
 types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs);
-types::type_t::ref type_typeof(ptr<const ast::expression_t> expr);
+types::type_t::ref type_typeof(std::shared_ptr<const ast::expression_t> expr);
 types::type_injection_t::ref type_injection(types::type_t::ref module);
 types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);

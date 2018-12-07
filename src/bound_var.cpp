@@ -7,7 +7,7 @@
 #include "scopes.h"
 
 struct local_bound_var_t : public std::enable_shared_from_this<local_bound_var_t>, public bound_var_t {
-	typedef ptr<const local_bound_var_t> ref;
+	typedef std::shared_ptr<const local_bound_var_t> ref;
 
 	local_bound_var_t() = delete;
 	local_bound_var_t(
@@ -38,15 +38,15 @@ private:
 	llvm::Value * const llvm_value;
 
 public:
-	ptr<bound_var_t> this_bound_var() override {
+	std::shared_ptr<bound_var_t> this_bound_var() override {
 		return this->shared_from_this();
 	}
 
-	ptr<const bound_var_t> this_bound_var() const override {
+	std::shared_ptr<const bound_var_t> this_bound_var() const override {
 		return this->shared_from_this();
 	}
 
-	llvm::Value *get_llvm_value(ptr<scope_t> scope) const override {
+	llvm::Value *get_llvm_value(std::shared_ptr<scope_t> scope) const override {
 		return llvm_value;
 	}
 
@@ -83,7 +83,7 @@ public:
 		return type->get_type();
 	}
 
-	types::type_t::ref get_type(ptr<scope_t> scope) const override {
+	types::type_t::ref get_type(std::shared_ptr<scope_t> scope) const override {
 		return type->get_type();
 	}
 
@@ -99,7 +99,7 @@ public:
 		return name;
 	}
 
-	llvm::Value *resolve_bound_var_value(scope_t::ref scope, llvm::IRBuilder<> &builder) const override {
+	llvm::Value *llvm_dereferencing_load(scope_t::ref scope, llvm::IRBuilder<> &builder) const override {
 		if (type->get_type()->eval_predicate(tb_ref, scope)) {
 			return builder.CreateLoad(llvm_value);
 		}
@@ -107,7 +107,7 @@ public:
 		return llvm_value;
 	}
 
-	bound_var_t::ref resolve_bound_value(
+	bound_var_t::ref dereferencing_load(
 			llvm::IRBuilder<> &builder,
 			scope_t::ref scope) const override
 	{
@@ -117,7 +117,7 @@ public:
 					INTERNAL_LOC(),
 					this->name,
 					bound_type,
-					resolve_bound_var_value(scope, builder),
+					llvm_dereferencing_load(scope, builder),
 					this->id);
 		}
 		return shared_from_this();
@@ -139,7 +139,7 @@ bound_var_t::ref make_bound_var(
 	}
 #endif
 
-	return make_ptr<local_bound_var_t>(internal_location, name, type, llvm_value, id);
+	return std::make_shared<local_bound_var_t>(internal_location, name, type, llvm_value, id);
 }
 
 std::ostream &operator <<(std::ostream &os, const bound_var_t &var) {
@@ -176,10 +176,10 @@ bound_type_t::refs get_bound_types(bound_var_t::refs values) {
 }
 
 struct lazily_bound_var_impl_t : public std::enable_shared_from_this<lazily_bound_var_impl_t>, public bound_var_t {
-	typedef ptr<lazily_bound_var_impl_t> ref;
+	typedef std::shared_ptr<lazily_bound_var_impl_t> ref;
 	~lazily_bound_var_impl_t() throw() override {}
 	lazily_bound_var_impl_t() = delete;
-	lazily_bound_var_impl_t(ptr<closure_scope_t> closure_scope, bound_var_t::ref var, std::function<bound_var_t::ref (ptr<scope_t>)> resolver) :
+	lazily_bound_var_impl_t(std::shared_ptr<closure_scope_t> closure_scope, bound_var_t::ref var, std::function<bound_var_t::ref (std::shared_ptr<scope_t>)> resolver) :
 		closure_scope(closure_scope),
 		original_var(var),
 		resolver(resolver)
@@ -187,20 +187,20 @@ struct lazily_bound_var_impl_t : public std::enable_shared_from_this<lazily_boun
 	}
 
 private:
-	ptr<closure_scope_t> closure_scope;
+	std::shared_ptr<closure_scope_t> closure_scope;
 	bound_var_t::ref original_var;
 	mutable bound_var_t::ref resolved_var;
-	std::function<bound_var_t::ref (ptr<scope_t>)> resolver;
+	std::function<bound_var_t::ref (std::shared_ptr<scope_t>)> resolver;
 
-	ptr<bound_var_t> this_bound_var() override {
+	std::shared_ptr<bound_var_t> this_bound_var() override {
 		return this->shared_from_this();
 	}
 
-	ptr<const bound_var_t> this_bound_var() const override {
+	std::shared_ptr<const bound_var_t> this_bound_var() const override {
 		return this->shared_from_this();
 	}
 
-	void resolve_bindings(ptr<scope_t> usage_scope) const {
+	void resolve_bindings(std::shared_ptr<scope_t> usage_scope) const {
 		if (resolved_var == nullptr) {
 			INDENT(4, string_format("resolving bindings for %s for %s",
 						original_var->str().c_str(),
@@ -210,7 +210,7 @@ private:
 		assert(resolved_var != nullptr);
 	}
 
-	llvm::Value *get_llvm_value(ptr<scope_t> scope) const override {
+	llvm::Value *get_llvm_value(std::shared_ptr<scope_t> scope) const override {
 		resolve_bindings(scope);
 		return resolved_var->get_llvm_value(scope);
 	}
@@ -242,7 +242,7 @@ private:
 		return original_var->get_type();
 	}
 
-	types::type_t::ref get_type(ptr<scope_t> scope) const override {
+	types::type_t::ref get_type(std::shared_ptr<scope_t> scope) const override {
 		return static_cast<const var_t*>(original_var.operator->())->get_type(scope);
 	}
 
@@ -258,27 +258,27 @@ private:
 		return original_var->get_name();
 	}
 
-	llvm::Value *resolve_bound_var_value(scope_t::ref scope, llvm::IRBuilder<> &builder) const override {
+	llvm::Value *llvm_dereferencing_load(scope_t::ref scope, llvm::IRBuilder<> &builder) const override {
 		resolve_bindings(scope);
-		return resolved_var->resolve_bound_var_value(scope, builder);
+		return resolved_var->llvm_dereferencing_load(scope, builder);
 	}
 
-	bound_var_t::ref resolve_bound_value(
+	bound_var_t::ref dereferencing_load(
 			llvm::IRBuilder<> &builder,
 			scope_t::ref scope) const override
 	{
 		resolve_bindings(scope);
-		return resolved_var->resolve_bound_value(builder, scope);
+		return resolved_var->dereferencing_load(builder, scope);
 	}
 };
 
 struct bound_module_impl_t : public std::enable_shared_from_this<bound_module_impl_t>, public bound_module_t {
-	typedef ptr<bound_module_impl_t> ref;
+	typedef std::shared_ptr<bound_module_impl_t> ref;
 
 	location_t internal_location;
 	std::string name;
 	identifier::ref id;
-	ptr<module_scope_t> module_scope;
+	std::shared_ptr<module_scope_t> module_scope;
 
 	bound_module_impl_t(
 			location_t internal_location,
@@ -296,19 +296,19 @@ struct bound_module_impl_t : public std::enable_shared_from_this<bound_module_im
 	~bound_module_impl_t() {
 	}
 
-	ptr<module_scope_t> get_module_scope() const override {
+	std::shared_ptr<module_scope_t> get_module_scope() const override {
 		return module_scope;
 	}
 
-	ptr<bound_var_t> this_bound_var() override {
+	std::shared_ptr<bound_var_t> this_bound_var() override {
 		return this->shared_from_this();
 	}
 
-	ptr<const bound_var_t> this_bound_var() const override {
+	std::shared_ptr<const bound_var_t> this_bound_var() const override {
 		return this->shared_from_this();
 	}
 
-	llvm::Value *get_llvm_value(ptr<scope_t> scope) const override {
+	llvm::Value *get_llvm_value(std::shared_ptr<scope_t> scope) const override {
 		assert(false);
 		return nullptr;
 	}
@@ -321,7 +321,7 @@ struct bound_module_impl_t : public std::enable_shared_from_this<bound_module_im
 		return module_scope->get_bound_type({"module"})->get_type();
 	}
 
-	types::type_t::ref get_type(ptr<scope_t> scope) const override {
+	types::type_t::ref get_type(std::shared_ptr<scope_t> scope) const override {
 		return module_scope->get_bound_type({"module"})->get_type();
 	}
 
@@ -345,33 +345,33 @@ struct bound_module_impl_t : public std::enable_shared_from_this<bound_module_im
 		return name;
 	}
 
-	llvm::Value *resolve_bound_var_value(ptr<scope_t> scope, llvm::IRBuilder<> &builder) const override {
+	llvm::Value *llvm_dereferencing_load(std::shared_ptr<scope_t> scope, llvm::IRBuilder<> &builder) const override {
 		assert(false);
 		return nullptr;
 	}
 
-	bound_var_t::ref resolve_bound_value(llvm::IRBuilder<> &builder, ptr<scope_t> scope) const override {
+	bound_var_t::ref dereferencing_load(llvm::IRBuilder<> &builder, std::shared_ptr<scope_t> scope) const override {
 		return shared_from_this();
 	}
 };
 
-bound_var_t::ref make_lazily_bound_var(closure_scope_t::ref closure_scope, bound_var_t::ref var, std::function<bound_var_t::ref (ptr<scope_t>)> resolver) {
+bound_var_t::ref make_lazily_bound_var(closure_scope_t::ref closure_scope, bound_var_t::ref var, std::function<bound_var_t::ref (std::shared_ptr<scope_t>)> resolver) {
 	debug_above(2, log("making lazily_bound_var(%s, %s)", closure_scope->get_name().c_str(), var->str().c_str()));
 
-	return make_ptr<lazily_bound_var_impl_t>(closure_scope, var, resolver);
+	return std::make_shared<lazily_bound_var_impl_t>(closure_scope, var, resolver);
 }
 
 bound_var_t::ref make_bound_module(
 			location_t internal_location,
 			std::string name,
 			identifier::ref id,
-			ptr<module_scope_t> module_scope)
+			std::shared_ptr<module_scope_t> module_scope)
 {
 	debug_above(2, log("making bound_module(%s, %s, %s, ...)",
 			internal_location.str().c_str(),
 			name.c_str(),
 			id->str().c_str()));
 
-	return make_ptr<bound_module_impl_t>(internal_location, name, id, module_scope);
+	return std::make_shared<bound_module_impl_t>(internal_location, name, id, module_scope);
 }
 

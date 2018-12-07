@@ -10,7 +10,6 @@
 #include <algorithm> 
 #include <locale>
 #include <memory>
-#include "llvm_zion.h"
 #include "logger_decls.h"
 #include "ptr.h"
 #include "zion_assert.h"
@@ -23,11 +22,3 @@
 #define DEFAULT_INT_SIGNED true
 #define ZION_BITSIZE_STR "64"
 #define ZION_TYPEID_BITSIZE_STR "16"
-#define getZionIntTy getInt64Ty
-#define getZionInt getInt64
-
-#ifdef ZION_DEBUG
-void dump_llir(llvm::Module *llvm_module, std::string filename);
-#else
-#define dump_llir(module, filename)
-#endif

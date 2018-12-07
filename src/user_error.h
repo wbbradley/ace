@@ -19,7 +19,7 @@ struct user_error : std::exception {
 	location_t location;
 	std::string message;
 
-	ptr<std::vector<std::pair<location_t, std::string>>> extra_info;
+	std::shared_ptr<std::vector<std::pair<location_t, std::string>>> extra_info;
 
 	// Use print_exception externally, not display...
 	void display() const;

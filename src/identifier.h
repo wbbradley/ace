@@ -9,7 +9,7 @@
 
 /* the abstract notion of an identifer */
 struct identifier {
-	typedef ptr<const identifier> ref;
+	typedef std::shared_ptr<const identifier> ref;
 	typedef std::vector<ref> refs;
 	typedef std::set<ref, shared_comparator> set;
 
@@ -24,7 +24,7 @@ struct identifier {
 
 /* internal identifiers - note that they lack a "location" */
 struct iid : public identifier {
-	typedef ptr<iid> ref;
+	typedef std::shared_ptr<iid> ref;
 
 	std::string name;
 	location_t location;

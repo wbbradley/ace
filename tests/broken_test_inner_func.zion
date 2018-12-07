@@ -1,7 +1,0 @@
-module _
-# test: skip
-
-fn main()
-    inner_func := fn foo() bool
-        return "hey"
-    print(inner_func())

@@ -13,21 +13,21 @@ struct unchecked_type_t {
 	unchecked_type_t(const unchecked_type_t &) = delete;
 	unchecked_type_t(
 			std::string name,
-			ptr<const ast::item_t> node,
-			ptr<scope_t> const module_scope);
+			std::shared_ptr<const ast::item_t> node,
+			std::shared_ptr<scope_t> const module_scope);
 
 	std::string const name;
-	ptr<const ast::item_t> const node;
-	ptr<scope_t> const module_scope;
+	std::shared_ptr<const ast::item_t> const node;
+	std::shared_ptr<scope_t> const module_scope;
 
 	std::string str() const;
 
-	typedef ptr<const unchecked_type_t> ref;
+	typedef std::shared_ptr<const unchecked_type_t> ref;
 	typedef std::vector<ref> refs;
 	typedef std::map<std::string, ref> map;
 
 	static ref create(
 			std::string name,
-			ptr<const ast::item_t> node,
-			ptr<scope_t> const module_scope);
+			std::shared_ptr<const ast::item_t> node,
+			std::shared_ptr<scope_t> const module_scope);
 };

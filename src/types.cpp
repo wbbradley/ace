@@ -397,7 +397,7 @@ namespace types {
 		return lhs->get_location();
 	}
 
-	type_typeof_t::type_typeof_t(ptr<const ast::expression_t> expr) : expr(expr) {
+	type_typeof_t::type_typeof_t(std::shared_ptr<const ast::expression_t> expr) : expr(expr) {
 	}
 
 	std::ostream &type_typeof_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
@@ -1029,14 +1029,14 @@ namespace types {
 		}
 
 		// NOTE: this may fail because i have not plumbed through the env... probably
-		// can bypass the ptr check here
+		// can bypass the std::shared_ptr check here
 		return ::type_maybe(just->rebind(bindings, bottom_out_free_vars), {});
 	}
 
 	type_t::ref type_maybe_t::unbottom() const {
 		auto just_ = just->unbottom();
 		if (just_ != just) {
-			return make_ptr<types::type_maybe_t>(just_);
+			return std::make_shared<types::type_maybe_t>(just_);
 		} else {
 			return shared_from_this();
 		}
@@ -1097,7 +1097,7 @@ namespace types {
 	type_t::ref type_ptr_t::unbottom() const {
 		auto element_type_ = element_type->unbottom();
 		if (element_type_ != element_type) {
-			return make_ptr<types::type_ptr_t>(element_type_);
+			return std::make_shared<types::type_ptr_t>(element_type_);
 		} else {
 			return shared_from_this();
 		}
@@ -1518,16 +1518,16 @@ namespace types {
 		empty_env() {}
 
 		virtual ~empty_env() {}
-		virtual types::type_t::ref get_type(const std::string &name, bool allow_structural_types) const {
+		types::type_t::ref get_type(const std::string &name, bool allow_structural_types) const override {
 			return nullptr;
 		}
-		virtual ptr<const types::type_t> resolve_type(ptr<const ast::expression_t> expr, ptr<const types::type_t> expected_type) {
+		std::shared_ptr<const types::type_t> resolve_type(delegate_t &delegate, std::shared_ptr<const ast::expression_t> expr, std::shared_ptr<const types::type_t> expected_type) override {
 			assert(false);
 			return nullptr;
 		}
 	};
 
-	env_t::ref _empty_env = make_ptr<empty_env>();
+	env_t::ref _empty_env = std::make_shared<empty_env>();
 
 	bool is_type_id(type_t::ref type, const std::string &type_name, env_t::ref _env) {
 		env_t::ref env = (_env == nullptr) ? _empty_env : _env;
@@ -1542,7 +1542,7 @@ namespace types {
 
 	bool type_t::is_managed_ptr(env_t::ref _env) const {
 		env_t::ref env = (_env == nullptr) ? _empty_env : _env;
-		debug_above(9, log(log_info, "checking if %s is a managed ptr", this->str().c_str()));
+		debug_above(9, log(log_info, "checking if %s is a managed std::shared_ptr", this->str().c_str()));
 		types::type_t::ref type = shared_from_this();
 		if (auto expanded_type = type->eval(env, true /*get_structural_type*/)) {
 			type = expanded_type;
@@ -1740,15 +1740,15 @@ types::type_t::ref type_id(identifier::ref id) {
 	if (id->get_name().find("std.") == 0) {
 		dbg();
 	}
-	return make_ptr<types::type_id_t>(id);
+	return std::make_shared<types::type_id_t>(id);
 }
 
 types::type_t::ref type_variable(identifier::ref id) {
-	return make_ptr<types::type_variable_t>(id);
+	return std::make_shared<types::type_variable_t>(id);
 }
 
 types::type_t::ref type_variable(location_t location) {
-	return make_ptr<types::type_variable_t>(location);
+	return std::make_shared<types::type_variable_t>(location);
 }
 
 types::type_t::ref type_unit() {
@@ -1756,29 +1756,29 @@ types::type_t::ref type_unit() {
 }
 
 types::type_t::ref type_bottom() {
-	static auto bottom_type = make_ptr<types::type_id_t>(make_iid(BOTTOM_TYPE));
+	static auto bottom_type = std::make_shared<types::type_id_t>(make_iid(BOTTOM_TYPE));
 	return bottom_type;
 }
 
 types::type_t::ref type_null() {
-	static auto null_type = make_ptr<types::type_id_t>(make_iid(NULL_TYPE));
+	static auto null_type = std::make_shared<types::type_id_t>(make_iid(NULL_TYPE));
 	return null_type;
 }
 
 types::type_t::ref type_void() {
-	return make_ptr<types::type_id_t>(make_iid(VOID_TYPE));
+	return std::make_shared<types::type_id_t>(make_iid(VOID_TYPE));
 }
 
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand) {
-	return make_ptr<types::type_operator_t>(operator_, operand);
+	return std::make_shared<types::type_operator_t>(operator_, operand);
 }
 
 types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs) {
-	return make_ptr<types::type_subtype_t>(lhs, rhs);
+	return std::make_shared<types::type_subtype_t>(lhs, rhs);
 }
 
-types::type_t::ref type_typeof(ptr<const ast::expression_t> expr) {
-	return make_ptr<types::type_typeof_t>(expr);
+types::type_t::ref type_typeof(std::shared_ptr<const ast::expression_t> expr) {
+	return std::make_shared<types::type_typeof_t>(expr);
 }
 
 types::name_index_t get_name_index_from_ids(identifier::refs ids) {
@@ -1807,11 +1807,11 @@ types::type_struct_t::ref type_struct(
 			name_index[string_format("_%d", i)] = i;
 		}
 	}
-	return make_ptr<types::type_struct_t>(dimensions, name_index);
+	return std::make_shared<types::type_struct_t>(dimensions, name_index);
 }
 
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions) {
-	return make_ptr<types::type_tuple_t>(dimensions);
+	return std::make_shared<types::type_tuple_t>(dimensions);
 }
 
 types::type_args_t::ref type_args(
@@ -1822,15 +1822,15 @@ types::type_args_t::ref type_args(
 	for (auto arg : args) {
 		assert(dyncast<const types::type_ref_t>(arg) == nullptr);
 	}
-	return make_ptr<types::type_args_t>(args, names);
+	return std::make_shared<types::type_args_t>(args, names);
 }
 
 types::type_injection_t::ref type_injection(types::type_t::ref module_type) {
-	return make_ptr<types::type_injection_t>(module_type);
+	return std::make_shared<types::type_injection_t>(module_type);
 }
 
 types::type_managed_t::ref type_managed(types::type_t::ref element_type) {
-	return make_ptr<types::type_managed_t>(element_type);
+	return std::make_shared<types::type_managed_t>(element_type);
 }
 
 types::type_function_t::ref type_function(
@@ -1839,7 +1839,7 @@ types::type_function_t::ref type_function(
 		types::type_t::ref args,
 		types::type_t::ref return_type)
 {
-	auto ret = make_ptr<types::type_function_t>(location, type_constraints, args, return_type);
+	auto ret = std::make_shared<types::type_function_t>(location, type_constraints, args, return_type);
 	if (type_constraints && type_constraints->repr() == TRUE_TYPE) {
 		debug_above(9, log("created type_function %s", ret->str().c_str()));
 		dbg();
@@ -1849,7 +1849,7 @@ types::type_function_t::ref type_function(
 }
 
 types::type_function_closure_t::ref type_function_closure(types::type_t::ref type_function) {
-	return make_ptr<types::type_function_closure_t>(type_function);
+	return std::make_shared<types::type_function_closure_t>(type_function);
 }
 
 bool types_contains(const types::type_t::refs &options, std::string signature) {
@@ -1862,20 +1862,20 @@ bool types_contains(const types::type_t::refs &options, std::string signature) {
 }
 
 types::type_t::ref type_and(types::type_t::refs terms) {
-	return make_ptr<types::type_and_t>(terms);
+	return std::make_shared<types::type_and_t>(terms);
 }
 
 types::type_t::ref type_eq(types::type_t::ref lhs, types::type_t::ref rhs, location_t location) {
-	return make_ptr<types::type_eq_t>(lhs, rhs, location);
+	return std::make_shared<types::type_eq_t>(lhs, rhs, location);
 }
 
 types::type_t::ref type_literal(token_t token) {
 	assert(token.tk == tk_integer || token.tk == tk_string || token.tk == tk_identifier);
-	return make_ptr<types::type_literal_t>(token);
+	return std::make_shared<types::type_literal_t>(token);
 }
 
 types::type_t::ref type_integer(types::type_t::ref bit_size, types::type_t::ref signed_) {
-	return make_ptr<types::type_integer_t>(bit_size, signed_);
+	return std::make_shared<types::type_integer_t>(bit_size, signed_);
 }
 
 types::type_t::ref type_maybe(types::type_t::ref just, env_t::ref env) {
@@ -1902,25 +1902,25 @@ types::type_t::ref type_maybe(types::type_t::ref just, env_t::ref env) {
     }
 #endif
 
-    return make_ptr<types::type_maybe_t>(just);
+    return std::make_shared<types::type_maybe_t>(just);
 }
 
 types::type_ptr_t::ref type_ptr(types::type_t::ref raw) {
-    return make_ptr<types::type_ptr_t>(raw);
+    return std::make_shared<types::type_ptr_t>(raw);
 }
 
 types::type_t::ref type_ref(types::type_t::ref raw) {
     assert(!dyncast<const types::type_ref_t>(raw));
-    return make_ptr<types::type_ref_t>(raw);
+    return std::make_shared<types::type_ref_t>(raw);
 }
 
 types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body) {
-    return make_ptr<types::type_lambda_t>(binding, body);
+    return std::make_shared<types::type_lambda_t>(binding, body);
 }
 
 types::type_t::ref type_extern(types::type_t::ref inner)
 {
-    return make_ptr<types::type_extern_t>(inner);
+    return std::make_shared<types::type_extern_t>(inner);
 }
 
 types::type_t::ref type_data(
@@ -1928,7 +1928,7 @@ types::type_t::ref type_data(
 	   	types::type_variable_t::refs type_vars,
 	   	std::vector<std::pair<token_t, types::type_args_t::ref>> ctor_pairs)
 {
-	return make_ptr<types::type_data_t>(name, type_vars, ctor_pairs);
+	return std::make_shared<types::type_data_t>(name, type_vars, ctor_pairs);
 }
 
 types::type_t::ref type_list_type(types::type_t::ref element) {

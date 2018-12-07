@@ -1,5 +1,6 @@
 #pragma once
 #include "zion.h"
+#include "llvm_zion.h"
 #include "dbg.h"
 #include "user_error.h"
 #include "utils.h"
@@ -8,10 +9,12 @@
 #include "ast_decls.h"
 #include "types.h"
 
+struct var_t;
 struct bound_var_t;
+struct delegate_t;
 
 struct bound_type_t {
-	typedef ptr<const bound_type_t> ref;
+	typedef std::shared_ptr<const bound_type_t> ref;
 	typedef std::weak_ptr<const bound_type_t> weak_ref;
 	typedef std::vector<std::pair<std::string, ref>> named_pairs;
 	typedef std::vector<ref> refs;
@@ -40,7 +43,8 @@ public:
 	llvm::Type *get_llvm_type() const;
 	llvm::Type *get_llvm_specific_type() const;
 
-	static refs refs_from_vars(const std::vector<ptr<const bound_var_t>> &vars);
+	static refs refs_from_vars(const std::vector<std::shared_ptr<const bound_var_t>> &vars);
+	static bound_type_t::refs refs_from_vars(delegate_t &delegate, std::shared_ptr<scope_t> scope, const std::vector<std::shared_ptr<const var_t>> &args);
 
 	ref get_pointer() const;
 	static ref create(

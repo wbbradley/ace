@@ -10,7 +10,6 @@
 extern const char *GC_STRATEGY;
 
 struct compiler_t;
-struct life_t;
 
 void llvm_create_unit_value(llvm::IRBuilder<> &builder, program_scope_t::ref program_scope);
 
@@ -19,11 +18,11 @@ llvm::FunctionType *llvm_create_function_type(
 		const bound_type_t::refs &args,
 		bound_type_t::ref return_value);
 
-bound_var_t::ref create_callsite(
+var_t::ref create_callsite(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		ptr<life_t> life,
-		ptr<const bound_var_t> callee,
+		life_t::ref life,
+		bound_var_t::ref callee,
 		std::string name,
 		const location_t &location,
 		bound_var_t::refs values);
@@ -31,7 +30,7 @@ bound_var_t::ref create_callsite(
 llvm::CallInst *llvm_create_call_inst(
 		llvm::IRBuilder<> &builder,
 		location_t location,
-		ptr<const bound_var_t> callee,
+		std::shared_ptr<const bound_var_t> callee,
 		std::vector<llvm::Value *> llvm_values);
 
 llvm::Constant *llvm_create_struct_instance(
@@ -97,7 +96,7 @@ void llvm_create_if_branch(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		int iff,
-		ptr<life_t> life,
+		std::shared_ptr<life_t> life,
 		location_t location,
 		bound_var_t::ref value,
         bool allow_maybe_check,
@@ -125,7 +124,7 @@ void explain(llvm::Type *llvm_type);
 
 bound_var_t::ref maybe_load_from_pointer(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
+		std::shared_ptr<scope_t> scope,
 		bound_var_t::ref var);
 bool llvm_value_is_handle(llvm::Value *llvm_value);
 bool llvm_value_is_pointer(llvm::Value *llvm_value);

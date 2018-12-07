@@ -10,7 +10,7 @@ namespace types {
 	struct type_t;
 }
 
-typedef std::map<std::string, ptr<const types::type_t>> type_macros_t;
+typedef std::map<std::string, std::shared_ptr<const types::type_t>> type_macros_t;
 
 struct parse_state_t {
 	typedef log_level_t parse_error_level_t;

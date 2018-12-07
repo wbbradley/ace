@@ -8,18 +8,18 @@ namespace match {
 	struct Nothing;
 
 	struct Pattern {
-		typedef ptr<const Pattern> ref;
+		typedef std::shared_ptr<const Pattern> ref;
 
 		location_t location;
 
 		Pattern(location_t location) : location(location) {}
 		virtual ~Pattern() {}
 
-		virtual ptr<const Nothing> asNothing() const { return nullptr; }
+		virtual std::shared_ptr<const Nothing> asNothing() const { return nullptr; }
 		virtual std::string str() const = 0;
 	};
 
-	extern ptr<Nothing> theNothing;
+	extern std::shared_ptr<Nothing> theNothing;
 	Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs);
 	Pattern::ref difference(Pattern::ref lhs, Pattern::ref rhs);
 	Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs);

@@ -15,6 +15,7 @@ extern const char *GLOBAL_ID;
 
 struct scope_t;
 struct life_t;
+struct delegate_t;
 
 enum resolution_constraints_t {
 	rc_capture_level,
@@ -28,11 +29,11 @@ struct runnable_scope_t;
 struct generic_substitution_scope_t;
 struct closure_scope_t;
 
-typedef std::map<std::string, std::pair<bool /*is_structural*/, ptr<const types::type_t> > > env_map_t;
+typedef std::map<std::string, std::pair<bool /*is_structural*/, std::shared_ptr<const types::type_t> > > env_map_t;
 
 struct scope_t : public env_t {
-	typedef ptr<scope_t> ref;
-	typedef ptr<const scope_t> cref;
+	typedef std::shared_ptr<scope_t> ref;
+	typedef std::shared_ptr<const scope_t> cref;
 
 	virtual ~scope_t() {}
 	virtual ref this_scope() = 0;
@@ -40,18 +41,19 @@ struct scope_t : public env_t {
 	virtual bool has_bound(const std::string &name, bool is_global, const types::type_t::ref &type, bound_var_t::ref *var=nullptr) const = 0;
 	virtual bound_type_t::ref get_bound_type(std::string signature, bool use_mappings=true) = 0;
 	virtual bound_var_t::ref get_bound_function(std::string name, std::string signature) = 0;
-	virtual bound_var_t::ref get_bound_variable(llvm::IRBuilder<> &builder, location_t location, std::string symbol, scope_t::ref stopping_before_scope=nullptr) = 0;
+	bound_var_t::ref get_bound_variable(llvm::IRBuilder<> &builder, location_t location, std::string symbol, scope_t::ref stopping_before_scope=nullptr);
+	virtual var_t::ref get_variable(delegate_t &delegate, location_t location, std::string symbol, scope_t::ref stopping_before_scope=nullptr) = 0;
 	virtual types::type_t::ref get_variable_type(location_t location, std::string symbol, scope_t::ref stopping_before_scope=nullptr) = 0;
 	virtual bound_var_t::ref get_singleton(std::string name) = 0;
-	virtual llvm::Module *get_llvm_module() = 0;
-	virtual ptr<const module_scope_t> get_module_scope() const = 0;
-	virtual ptr<const program_scope_t> get_program_scope() const = 0;
-	virtual ptr<const scope_t> get_parent_scope() const = 0;
-	virtual ptr<function_scope_t> new_function_scope(std::string name, llvm::Function *llvm_function) = 0;
+	virtual llvm::Module *get_llvm_module(llvm::IRBuilder<> &builder) = 0;
+	virtual std::shared_ptr<const module_scope_t> get_module_scope() const = 0;
+	virtual std::shared_ptr<const program_scope_t> get_program_scope() const = 0;
+	virtual std::shared_ptr<const scope_t> get_parent_scope() const = 0;
+	virtual std::shared_ptr<function_scope_t> new_function_scope(std::string name, llvm::Function *llvm_function) = 0;
 	virtual llvm::Function *llvm_get_current_function() const = 0;
-	virtual ptr<module_scope_t> get_module_scope() = 0;
-	virtual ptr<program_scope_t> get_program_scope() = 0;
-	virtual ptr<scope_t> get_parent_scope() = 0;
+	virtual std::shared_ptr<module_scope_t> get_module_scope() = 0;
+	virtual std::shared_ptr<program_scope_t> get_program_scope() = 0;
+	virtual std::shared_ptr<scope_t> get_parent_scope() = 0;
 	virtual std::string get_leaf_name() const = 0;
 	virtual std::string get_name() const = 0;
 	virtual std::string make_fqn(std::string leaf_name) const = 0;
@@ -71,14 +73,14 @@ struct closure_scope_t;
 
 struct runnable_scope_t : public virtual scope_t {
 	/* runnable scopes are those that can instantiate local scopes */
-	typedef ptr<runnable_scope_t> ref;
+	typedef std::shared_ptr<runnable_scope_t> ref;
 
 	virtual ~runnable_scope_t() {}
 
-	virtual ptr<runnable_scope_t> new_runnable_scope(std::string name) = 0;
-	virtual ptr<closure_scope_t> new_closure_scope(llvm::IRBuilder<> &builder, std::string name) = 0;
+	virtual std::shared_ptr<runnable_scope_t> new_runnable_scope(std::string name) = 0;
+	virtual std::shared_ptr<closure_scope_t> new_closure_scope(llvm::IRBuilder<> &builder, std::string name) = 0;
 	virtual return_type_constraint_t &get_return_type_constraint() = 0;
-	virtual void check_or_update_return_type_constraint(llvm::IRBuilder<> &builder, const ptr<const ast::item_t> &return_statement, return_type_constraint_t return_type) = 0;
+	virtual void check_or_update_return_type_constraint(llvm::IRBuilder<> &builder, const std::shared_ptr<const ast::item_t> &return_statement, return_type_constraint_t return_type) = 0;
 	virtual void set_innermost_loop_bbs(llvm::BasicBlock *new_loop_continue_bb, llvm::BasicBlock *new_loop_break_bb) = 0;
 
 	virtual llvm::BasicBlock *get_innermost_loop_break() const = 0;
@@ -86,11 +88,11 @@ struct runnable_scope_t : public virtual scope_t {
 };
 
 struct closure_scope_t : public virtual scope_t {
-	typedef ptr<closure_scope_t> ref;
+	typedef std::shared_ptr<closure_scope_t> ref;
 	virtual ~closure_scope_t() {}
 
 	virtual void set_capture_env(bound_var_t::ref capture_env) = 0;
-	virtual bound_var_t::ref create_closure(llvm::IRBuilder<> &builder, ptr<life_t> life, location_t location, bound_var_t::ref function) = 0;
+	virtual bound_var_t::ref create_closure(llvm::IRBuilder<> &builder, std::shared_ptr<life_t> life, location_t location, bound_var_t::ref function) = 0;
 };
 
 struct loop_tracker_t {
@@ -105,7 +107,7 @@ private:
 };
 
 struct module_scope_t : public virtual scope_t {
-	typedef ptr<module_scope_t> ref;
+	typedef std::shared_ptr<module_scope_t> ref;
 	typedef std::map<std::string, ref> map;
 
 	virtual ~module_scope_t() {}
@@ -131,11 +133,11 @@ std::string str(const module_scope_t::map &modules);
 
 
 struct program_scope_t : public virtual module_scope_t {
-	typedef ptr<program_scope_t> ref;
+	typedef std::shared_ptr<program_scope_t> ref;
 
 	virtual ~program_scope_t() {}
 
-	virtual ptr<module_scope_t> new_module_scope(std::string name, llvm::Module *llvm_module, llvm::DICompileUnit *llvm_compile_unit) = 0;
+	virtual std::shared_ptr<module_scope_t> new_module_scope(std::string name, llvm::Module *llvm_module, llvm::DICompileUnit *llvm_compile_unit) = 0;
 
 	static program_scope_t::ref create(std::string name, compiler_t &compiler, llvm::Module *llvm_module, llvm::DICompileUnit *llvm_compile_unit);
 
@@ -150,17 +152,19 @@ struct program_scope_t : public virtual module_scope_t {
 	/* this is meant to be called when we know we're looking in program scope.
 	 * this is not an implementation of get_symbol.  */
 	virtual module_scope_t::ref lookup_module(std::string symbol) = 0;
-	virtual std::string dump_llvm_modules() = 0;
+	virtual std::string dump_llvm_modules(llvm::IRBuilder<> &) = 0;
 
 	virtual void put_bound_type(bound_type_t::ref type) = 0;
 	virtual void put_bound_type_mapping(std::string source, std::string dest) = 0;
 
 	virtual unchecked_var_t::refs &get_unchecked_vars_ordered() = 0;
 	virtual bound_type_t::ref get_runtime_type(llvm::IRBuilder<> &builder, std::string name, bool get_ptr=false) = 0;
+
+   	virtual llvm::LLVMContext &llvm_get_context() const = 0;
 };
 
 struct function_scope_t : public virtual runnable_scope_t {
-	typedef ptr<function_scope_t> ref;
+	typedef std::shared_ptr<function_scope_t> ref;
 
 	virtual ~function_scope_t() {}
 
@@ -173,7 +177,7 @@ struct generic_substitution_scope_t : public virtual scope_t {
 
 	static ref create(
 		   	llvm::IRBuilder<> &builder,
-		   	const ptr<const ast::item_t> &fn_decl,
+		   	const std::shared_ptr<const ast::item_t> &fn_decl,
 		   	scope_t::ref module_scope,
 			const types::type_t::map &bindings,
 			types::type_t::ref callee_type);

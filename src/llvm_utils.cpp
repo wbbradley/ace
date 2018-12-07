@@ -12,6 +12,7 @@
 #include "type_kind.h"
 #include "coercions.h"
 #include "unification.h"
+#include "delegate.h"
 
 const char *GC_STRATEGY = "zion";
 
@@ -114,11 +115,11 @@ llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_
 	}
 }
 
-bound_var_t::ref create_callsite(
+var_t::ref create_callsite(
 		llvm::IRBuilder<> &builder,
         scope_t::ref scope,
 		life_t::ref life,
-		const bound_var_t::ref function_,
+		bound_var_t::ref function_,
 		std::string name,
 		const location_t &location,
 		bound_var_t::refs arguments)
@@ -132,14 +133,14 @@ bound_var_t::ref create_callsite(
 	}
 
 	assert(function_ != nullptr);
-	const bound_var_t::ref function = function_->resolve_bound_value(builder, scope);
+	bound_var_t::ref function = function_->dereferencing_load(builder, scope);
 
 	assert(function != nullptr);
 	auto expanded_type = function->get_type()->eval(scope);
 	auto closure = dyncast<const types::type_function_closure_t>(expanded_type);
 	if (closure != nullptr) {
-		debug_above(8, log("closure is %s", llvm_print(function->get_llvm_value(scope)).c_str()));
-		debug_above(8, log("closure type is %s", llvm_print(function->get_llvm_value(scope)->getType()).c_str()));
+		// debug_above(8, log("closure is %s", llvm_print(function->get_llvm_value(scope)).c_str()));
+		// debug_above(8, log("closure type is %s", llvm_print(function->get_llvm_value(scope)->getType()).c_str()));
 		bound_type_t::ref var_ptr_type = scope->get_program_scope()->get_runtime_type(
 				builder, STD_MANAGED_TYPE, true /*get_ptr*/);
 		llvm::Type *llvm_var_ptr_type = var_ptr_type->get_llvm_type();
@@ -229,7 +230,7 @@ bound_var_t::ref create_callsite(
 llvm::CallInst *llvm_create_call_inst(
 		llvm::IRBuilder<> &builder,
 		location_t location,
-		ptr<const bound_var_t> callee,
+		std::shared_ptr<const bound_var_t> callee,
 		std::vector<llvm::Value *> llvm_values)
 {
 	assert(callee != nullptr);
@@ -426,7 +427,7 @@ void llvm_create_if_branch(
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
 
 	/* we don't care about references, load past them if need be */
-	value = value->resolve_bound_value(builder, scope);
+	value = value->dereferencing_load(builder, scope);
 
 	llvm::Value *llvm_value = value->get_llvm_value(scope);
 	if (value->get_type()->is_maybe(scope)) {
@@ -504,12 +505,15 @@ void llvm_create_unit_value(llvm::IRBuilder<> &builder, program_scope_t::ref pro
     bound_type_t::ref unit_type = upsert_bound_type(builder, program_scope, type_unit());
     bound_type_t::ref var_type = program_scope->get_runtime_type(builder, "var_t", false /*get_ptr*/);
 
-    llvm::Module *llvm_module = program_scope->get_llvm_module();
+    llvm::Module *llvm_module = program_scope->get_llvm_module(builder);
     assert(llvm_module != nullptr);
 
     debug_above(8, log("creating unit type value"));
     std::string unit_name = "__unit__";
-    assert(program_scope->get_bound_variable(builder, INTERNAL_LOC(), unit_name) == nullptr);
+
+	delegate_t delegate{builder, true};
+    assert(program_scope->get_variable(delegate, INTERNAL_LOC(), unit_name) == nullptr);
+
     llvm::Constant *llvm_unit_literal = llvm_get_global(
             llvm_module,
             "unit_literal",
@@ -540,7 +544,7 @@ bound_var_t::ref create_global_str(
 	bound_type_t::ref str_literal_type = program_scope->get_runtime_type(builder, "str_literal_t", true /*get_ptr*/);
 	bound_type_t::ref owning_buffer_literal_type = program_scope->get_runtime_type(builder, "owning_buffer_literal_t", true /*get_ptr*/);
 
-	llvm::Module *llvm_module = scope->get_llvm_module();
+	llvm::Module *llvm_module = scope->get_llvm_module(builder);
 
 	debug_above(8, log("creating owning buffer for string literal \"%s\"", value.c_str()));
 
@@ -670,9 +674,11 @@ llvm::StructType *llvm_create_struct_type(
 void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
 	debug_above(5, log("writing to function-verification-failure.llir..."));
 	std::string llir_filename = "function-verification-failure.llir";
+#if 0
 	FILE *fp = fopen(llir_filename.c_str(), "wt");
 	fprintf(fp, "%s\n", llvm_print_module(*llvm_function->getParent()).c_str());
 	fclose(fp);
+#endif
 
 	std::stringstream ss;
 	llvm::raw_os_ostream os(ss);
@@ -748,7 +754,7 @@ bound_var_t::ref llvm_start_function(
 	auto llvm_function = llvm::Function::Create(
 			(llvm::FunctionType *)llvm_fn_type,
 			llvm::Function::ExternalLinkage, name,
-			scope->get_llvm_module());
+			scope->get_llvm_module(builder));
 
 	llvm_function->setDoesNotThrow();
 
@@ -833,7 +839,7 @@ bound_var_t::ref llvm_create_global_tag(
 	debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print(llvm_tag_struct_type).c_str()));
 	assert(llvm_tag_struct_type != nullptr);
 
-	llvm::Module *llvm_module = scope->get_llvm_module();
+	llvm::Module *llvm_module = scope->get_llvm_module(builder);
 	assert(llvm_module != nullptr);
 
 	llvm::Constant *llvm_name = llvm_create_global_string_constant(builder, *llvm_module, tag);

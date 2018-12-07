@@ -1,5 +1,5 @@
 module _
-# test: skip
+# test: pass
 # expect: allocating entry for Will: 123
 # expect: freeing entry Will: 123
 # reject: No name found!

@@ -116,6 +116,10 @@ namespace types {
 		return shared_from_this();
 	}
 
+	type_t::ref type_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
+		return shared_from_this();
+	}
+
 	type_t::ref type_eq_t::eval_core(env_t::ref env, bool get_structural_env) const {
 		auto lhs_eval = lhs->eval_core(env, get_structural_env);
 		auto rhs_eval = rhs->eval_core(env, get_structural_env);
@@ -132,6 +136,14 @@ namespace types {
 			return ::type_function_closure(new_func);
 		}
 
+		return shared_from_this();
+	}
+
+	type_t::ref type_function_closure_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
+		auto new_function = function->eval_typeof(delegate, env);
+		if (new_function != function) {
+			return type_function_closure(new_function);
+		}
 		return shared_from_this();
 	}
 
@@ -279,6 +291,20 @@ namespace types {
 		return shared_from_this();
 	}
 
+	type_t::ref type_function_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
+		type_t::ref new_type_constraints = type_constraints != nullptr ? type_constraints->eval_typeof(delegate, env) : nullptr;
+		type_t::ref new_args = args->eval_typeof(delegate, env);
+		type_t::ref new_return_type = return_type->eval_typeof(delegate, env);
+
+		if (new_type_constraints != type_constraints ||
+			   	new_args != args ||
+			   	new_return_type != return_type)
+	   	{
+			return ::type_function(get_location(), new_type_constraints, new_args, new_return_type);
+		}
+		return shared_from_this();
+	}
+
 	type_t::ref type_data_t::eval_core(env_t::ref env, bool get_structural_env) const {
 		return shared_from_this();
 	}
@@ -327,6 +353,16 @@ namespace types {
 		return shared_from_this();
 	}
 
+	type_t::ref type_operator_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
+		auto oper_ = oper->eval_typeof(delegate, env);
+		auto operand_ = operand->eval_typeof(delegate, env);
+		if (oper_ != oper || operand_ != operand) {
+			return type_operator(oper_, operand_);
+		} else {
+			return shared_from_this();
+		}
+	}
+
 	type_t::ref type_subtype_t::eval_core(env_t::ref env, bool get_structural_type) const {
 		if (unifies(rhs, lhs, env)) {
 			return type_true;
@@ -335,13 +371,22 @@ namespace types {
 		}
 	}
 
+	type_t::ref type_subtype_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
+		assert(false);
+		return nullptr;
+	}
+
 	type_t::ref type_typeof_t::eval_core(env_t::ref env, bool get_structural_type) const {
-		auto type = env->resolve_type(expr, type_variable(INTERNAL_LOC()));
+		assert(false && !!"this should have been eliminated already");
+		return shared_from_this();
+	}
+
+	type_t::ref type_typeof_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
+		auto type = env->resolve_type(delegate, expr, type_variable(INTERNAL_LOC()));
 		if (type == nullptr) {
-			throw user_error(expr->get_location(), "resolving the type of this expression is not working at the moment...");
-			return nullptr;
+			throw user_error(expr->get_location(), "unable to resolve the type of %s", expr->str().c_str());
 		}
-		return type->eval_core(env, get_structural_type);
+		return type;
 	}
 
 	type_t::ref type_and_t::eval_core(env_t::ref env, bool get_structural_type) const {
@@ -371,8 +416,26 @@ namespace types {
 		}
 	}
 
+	type_t::ref type_ptr_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
+		auto expansion = element_type->eval_typeof(delegate, env);
+		if (expansion != element_type) {
+			return type_ptr(expansion);
+		} else {
+			return shared_from_this();
+		}
+	}
+
 	type_t::ref type_ref_t::eval_core(env_t::ref env, bool get_structural_type) const {
 		auto expansion = element_type->eval_core(env, get_structural_type);
+		if (expansion != element_type) {
+			return type_ref(expansion);
+		} else {
+			return shared_from_this();
+		}
+	}
+
+	type_t::ref type_ref_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
+		auto expansion = element_type->eval_typeof(delegate, env);
 		if (expansion != element_type) {
 			return type_ref(expansion);
 		} else {
@@ -389,11 +452,24 @@ namespace types {
 		}
 	}
 
+	type_t::ref type_maybe_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
+		auto expansion = just->eval_typeof(delegate, env);
+		if (expansion != just) {
+			return type_maybe(expansion, env);
+		} else {
+			return shared_from_this();
+		}
+	}
+
 	type_t::ref type_managed_t::eval_core(env_t::ref env, bool get_structural_type) const {
 		return shared_from_this();
 	}
 
 	type_t::ref type_struct_t::eval_core(env_t::ref env, bool get_structural_type) const {
+		return shared_from_this();
+	}
+
+	type_t::ref type_struct_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
 		return shared_from_this();
 	}
 
@@ -405,7 +481,32 @@ namespace types {
 		return shared_from_this();
 	}
 
+	type_t::ref type_lambda_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
+		assert(false);
+		return nullptr;
+	}
+
 	type_t::ref type_tuple_t::eval_core(env_t::ref env, bool get_structural_type) const {
+		return shared_from_this();
+	}
+
+	type_t::ref type_tuple_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
+		type_t::refs new_dimensions;
+		new_dimensions.reserve(dimensions.size());
+
+		bool new_found = false;
+		for (auto &dimension : dimensions) {
+			auto new_arg = dimension->eval_typeof(delegate, env);
+			if (new_arg != dimension) {
+				new_found = true;
+			}
+			new_dimensions.push_back(new_arg);
+			debug_above(10, log("eval_typeof'd dimension %s -> %s", dimension->str().c_str(), new_arg->str().c_str()));
+		}
+
+		if (new_found) {
+			return ::type_tuple(new_dimensions);
+		}
 		return shared_from_this();
 	}
 
@@ -421,6 +522,26 @@ namespace types {
 			}
 			new_args.push_back(new_arg);
 			debug_above(10, log("eval'd arg %s -> %s", arg->str().c_str(), new_arg->str().c_str()));
+		}
+
+		if (new_found) {
+			return ::type_args(new_args, names);
+		}
+		return shared_from_this();
+	}
+
+	type_t::ref type_args_t::eval_typeof(delegate_t &delegate, env_t::ref env) const {
+		type_t::refs new_args;
+		new_args.reserve(args.size());
+
+		bool new_found = false;
+		for (auto &arg : args) {
+			auto new_arg = arg->eval_typeof(delegate, env);
+			if (new_arg != arg) {
+				new_found = true;
+			}
+			new_args.push_back(new_arg);
+			debug_above(10, log("eval_typeof'd arg %s -> %s", arg->str().c_str(), new_arg->str().c_str()));
 		}
 
 		if (new_found) {

@@ -5,6 +5,7 @@
 #include <string>
 #include <sstream>
 #include <unistd.h>
+#include <string.h>
 
 std::string location_t::filename_repr() const {
 	static char *cwd = (char *)calloc(4096, 1);

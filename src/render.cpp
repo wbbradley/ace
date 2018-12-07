@@ -58,7 +58,7 @@ namespace ast {
 	}
 
 	void type_alias_t::render(render_state_t &rs) const {
-		rs.ss << "= " << type->str();
+		rs.ss << "= " << parsed_type.str();
 	}
 
 	void prefix_expr_t::render(render_state_t &rs) const {
@@ -123,7 +123,7 @@ namespace ast {
 	}
 
 	void type_product_t::render(render_state_t &rs) const {
-		rs.ss << type->str();
+		rs.ss << parsed_type.str();
 	}
 
 	void type_link_t::render(render_state_t &rs) const {
@@ -139,7 +139,7 @@ namespace ast {
 
 	void sizeof_expr_t::render(render_state_t &rs) const {
 		rs.ss << C_TYPE << K(sizeof) << C_RESET << "(";
-		rs.ss << type->str();
+		rs.ss << parsed_type.str();
 		rs.ss << ")";
 	}
 
@@ -181,7 +181,7 @@ namespace ast {
 			rs.ss << C_TYPE << K(var) << C_RESET << " ";
 			rs.ss << C_VAR << name << C_RESET << " ";
 		}
-		rs.ss << type->str();
+		rs.ss << parsed_type.str();
 	}
 
 	void plus_assignment_t::render(render_state_t &rs) const {
@@ -446,8 +446,8 @@ namespace ast {
 
 		lhs->render(rs);
 
-		if (type != nullptr) {
-			rs.ss << " " << type->str();
+		if (parsed_type.exists()) {
+			rs.ss << " " << parsed_type.str();
 		}
 
 		if (initializer != nullptr) {
@@ -463,8 +463,8 @@ namespace ast {
 
 		rs.ss << C_VAR << token.text << C_RESET;
 
-		if (type != nullptr) {
-			rs.ss << " " << type->str();
+		if (parsed_type.exists()) {
+			rs.ss << " " << parsed_type.str();
 		}
 
 		if (initializer != nullptr) {
@@ -588,6 +588,6 @@ namespace ast {
 		} else {
 			rs.ss << " ";
 		}
-		rs.ss << type_cast->str() << ")";
+		rs.ss << parsed_type_cast.str() << ")";
 	}
 }

@@ -1,8 +1,7 @@
 #pragma once
+#include "zion.h"
 
-#ifdef ZION
-#error Probably we should include LLVM first.
-#endif
+#define ZION_LLVM 1
 
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/GenericValue.h>
@@ -38,3 +37,12 @@
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Utils/ValueMapper.h>
+
+#define getZionIntTy getInt64Ty
+#define getZionInt getInt64
+
+#ifdef ZION_DEBUG
+void dump_llir(llvm::Module *llvm_module, std::string filename);
+#else
+#define dump_llir(module, filename)
+#endif

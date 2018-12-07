@@ -12,6 +12,7 @@
 #include "phase_scope_setup.h"
 #include "types.h"
 #include "code_id.h"
+#include "delegate.h"
 
 bound_var_t::ref bind_ctor_to_scope(
 		llvm::IRBuilder<> &builder,
@@ -115,7 +116,7 @@ void instantiate_data_ctor_type(
 		types::type_t::ref unbound_type,
 		identifier::refs type_variables,
 		scope_t::ref scope,
-		ptr<const ast::item_t> node,
+		std::shared_ptr<const ast::item_t> node,
 		identifier::ref id,
 		bool native)
 {
@@ -130,7 +131,7 @@ void instantiate_data_ctor_type(
 	auto tag_type = type_id(qualified_id);
 
 	/* create the basic struct type */
-	ptr<const types::type_struct_t> struct_ = dyncast<const types::type_struct_t>(unbound_type);
+	std::shared_ptr<const types::type_struct_t> struct_ = dyncast<const types::type_struct_t>(unbound_type);
 	assert(struct_ != nullptr);
 
 	/* lambda_vars tracks the order of the lambda variables we'll accept as we abstract our
@@ -202,8 +203,7 @@ void ast::type_product_t::register_type(
 		scope_t::ref scope) const
 {
 	debug_above(5, log(log_info, "creating product type for %s", str().c_str()));
-	debug_above(7, log(log_info, "%s has type %s", id_->get_name().c_str(),
-				type->str().c_str()));
+	debug_above(7, log(log_info, "%s has type %s", id_->get_name().c_str(), parsed_type.str().c_str()));
 
 	std::string name = id_->get_name();
 	auto location = id_->get_location();
@@ -214,6 +214,8 @@ void ast::type_product_t::register_type(
 		}
 	}
 
+	delegate_t delegate{builder};
+	auto type = parsed_type.get_type(delegate, scope);
 	/* instantiate a lazily bound data ctor, and inject the typename for this type into the
 	 * type environment */
 	auto existing_type = scope->get_type(name, true /*allow_structural_types*/);
@@ -372,6 +374,9 @@ void ast::type_alias_t::register_type(
 
 	std::list<identifier::ref> lambda_vars;
 	std::set<std::string> generics;
+
+	delegate_t delegate{builder};
+	auto type = parsed_type.get_type(delegate, scope);
 
 	get_generics_and_lambda_vars(type, type_variables, scope, lambda_vars, generics);
 	types::type_t::ref final_type = type;

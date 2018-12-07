@@ -43,7 +43,7 @@ types::type_t::ref prune(types::type_t::ref t, const types::type_t::map &binding
 }
 
 template <typename T>
-bool occurs_in(const ptr<types::type_variable_t> &var, const T &types) {
+bool occurs_in(const std::shared_ptr<types::type_variable_t> &var, const T &types) {
     /* checks whether a type variable occurs in any other types. */
 	for (auto &type : types) {
 		if (occurs_in_type(var, type)) {
@@ -134,8 +134,7 @@ unification_t unify_core(
 	assert(lhs_ != nullptr);
 	assert(rhs_ != nullptr);
 
-	INDENT(7,
-			string_format("unify_core(%s, %s, ..., %s)",
+	INDENT(7, string_format("unify_core(%s, %s, ..., %s)",
 				lhs_->str().c_str(),
 				rhs_->str().c_str(),
 				str(bindings).c_str()));
@@ -530,7 +529,7 @@ unification_t unify_core(
 				return {true, "", bindings, coercions, {}};
 			}
 
-			debug_above(7, log("matching ptr types"));
+			debug_above(7, log("matching std::shared_ptr types"));
 			return unify_core(ptr_a->element_type, ptr_b->element_type, env, bindings, coercions, depth + 1, allow_variance);
 		} else if (types::is_type_id(b, NULL_TYPE, nullptr)) {
 			return {
