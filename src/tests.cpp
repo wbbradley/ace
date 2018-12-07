@@ -334,7 +334,7 @@ bool test_parse_module_one_function() {
 	return check_parse<ast::module_t>("module foobar\n\nfn foo() {\n }");
 }
 
-ptr<ast::binary_operator_t> make_one_plus_two() {
+std::shared_ptr<ast::binary_operator_t> make_one_plus_two() {
 	auto expect = ast::create<ast::binary_operator_t>({{"", 1, 3}, tk_plus, "+"});
 	expect->function_name = "__plus__";
 	expect->lhs = ast::create<ast::literal_expr_t>({{"", 1, 1}, tk_integer, "1"});
@@ -719,7 +719,7 @@ struct test_env : public env_t {
 				? iter->second.second
 				: nullptr);
 	}
-	ptr<const types::type_t> resolve_type(ptr<const ast::expression_t> expr, ptr<const types::type_t> expected_type) override {
+	std::shared_ptr<const types::type_t> resolve_type(delegate_t &delegate, std::shared_ptr<const ast::expression_t> expr, std::shared_ptr<const types::type_t> expected_type) override {
 		assert(false);
 		return nullptr;
 	}
@@ -909,7 +909,7 @@ auto test_descs = std::vector<test_desc>{
 				auto parsed_type = parse_type_expr(p.first, generics, module_id);
 				env_map_t env_map;
 
-				auto repr = parsed_type->eval(make_ptr<test_env>(env_map))->repr();
+				auto repr = parsed_type->eval(std::make_shared<test_env>(env_map))->repr();
 				if (repr != p.second) {
 					log(log_error, c_error(" => ") c_type("%s"), repr.c_str());
 					log(log_error, c_type("%s") " parsed to " c_type("%s")
@@ -931,7 +931,7 @@ auto test_descs = std::vector<test_desc>{
 			auto module_id = make_iid("M");
 			env_map_t env_map;
 
-			auto type = parse_type_expr("*?void", {}, module_id)->eval(make_ptr<test_env>(env_map));
+			auto type = parse_type_expr("*?void", {}, module_id)->eval(std::make_shared<test_env>(env_map));
 			log("type repr is %s", type->str().c_str());
 			if (auto maybe = dyncast<const types::type_maybe_t>(type)) {
 				if (auto pointer = dyncast<const types::type_ptr_t>(maybe->just)) {
@@ -992,7 +992,7 @@ auto test_descs = std::vector<test_desc>{
 					make_type_pair("fn (p T) T", "fn (x int) float", generics),
 					});
 
-			auto _env = make_ptr<test_env>(env);
+			auto _env = std::make_shared<test_env>(env);
 			for (auto &pair : unifies) {
 				if (!unify(types::freshen(pair.first), pair.second, _env, {}).result) {
 					log(log_error, "unable to unify %s with %s", pair.first->str().c_str(), pair.second->str().c_str());
@@ -1038,7 +1038,7 @@ auto test_descs = std::vector<test_desc>{
 				"if (not (gc Managed)) BAD OK",
 				"if (not (gc Native)) OK BAD",
 			};
-			auto _env = make_ptr<test_env>(env_map);
+			auto _env = std::make_shared<test_env>(env_map);
 			for (auto test : tests) {
 				auto should_be_x = parse_type_expr(test, {}, module_id);
 				log("parsing type expression %s => %s",

@@ -5,29 +5,29 @@
 
 bound_type_t::refs upsert_bound_types(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
+		std::shared_ptr<scope_t> scope,
 		types::type_t::refs types);
 
 bound_type_t::ref upsert_bound_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
+		std::shared_ptr<scope_t> scope,
 		types::type_t::ref type);
 
 bound_type_t::ref upsert_bound_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
+		std::shared_ptr<scope_t> scope,
 		types::type_t::ref type);
 
 std::pair<bound_var_t::ref, bound_type_t::ref> upsert_tuple_ctor(
 		
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
+		std::shared_ptr<scope_t> scope,
 		types::type_tuple_t::ref tuple_type,
-		const ptr<const ast::item_t> &node);
+		const std::shared_ptr<const ast::item_t> &node);
 
 bound_var_t::ref upsert_tagged_tuple_ctor(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
+		std::shared_ptr<scope_t> scope,
 		identifier::ref id,
 		std::string ctor_name,
 		location_t location,

@@ -82,6 +82,14 @@ fn repeat(x) {
     return fn () => jx
 }
 
+fn chain[T where not (T <: Iter any)](collections [T]) Iter any {
+    iterables := new [typeof(iter(collections[0]))]
+    for collection in collections {
+        append(iterables, iter(collection))
+    }
+    return chain(iterables)
+}
+
 fn chain[T](iterators [Iter T]) Iter T {
     iter_index_ref := Ref(0)
     return fn () {

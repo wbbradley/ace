@@ -39,7 +39,7 @@ std::string strip_zion_extension(std::string module_name) {
 
 compiler_t::compiler_t(std::string program_name_, const libs &zion_paths) :
 	program_name(strip_zion_extension(program_name_)),
-	zion_paths(make_ptr<std::vector<std::string>>()),
+	zion_paths(std::make_shared<std::vector<std::string>>()),
    	builder(llvm_context)
 {
 	for (auto lib_path : zion_paths) {
@@ -156,7 +156,7 @@ std::string compiler_t::resolve_module_filename(
 }
 
 void compiler_t::build_parse_linked(
-		ptr<const ast::module_t> module,
+		std::shared_ptr<const ast::module_t> module,
 		type_macros_t &global_type_macros)
 {
 	/* now, recursively make sure that all of the linked modules are parsed */
@@ -724,7 +724,7 @@ std::string compute_module_key(std::vector<std::string> lib_paths, std::string f
 
 void compiler_t::set_module(
 		std::string filename,
-		ptr<ast::module_t> module)
+		std::shared_ptr<ast::module_t> module)
 {
 	assert(module != nullptr);
 	assert(filename[0] = '/');
@@ -746,7 +746,7 @@ void compiler_t::set_module(
 	}
 }
 
-ptr<const ast::module_t> compiler_t::get_module(std::string key_alias) {
+std::shared_ptr<const ast::module_t> compiler_t::get_module(std::string key_alias) {
 	auto module_iter = modules_map.find(key_alias);
 	if (module_iter != modules_map.end()) {
 		auto module = module_iter->second;
@@ -785,7 +785,7 @@ void compiler_t::set_module_scope(std::string module_key, module_scope_t::ref mo
 }
 
 std::string compiler_t::dump_llvm_modules() {
-	return program_scope->dump_llvm_modules();
+	return program_scope->dump_llvm_modules(builder);
 }
 
 std::string compiler_t::dump_program_text(std::string module_name) {

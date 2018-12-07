@@ -7,6 +7,7 @@
 #include "type_instantiation.h"
 #include "llvm_types.h"
 #include "llvm_utils.h"
+#include "delegate.h"
 #include <iostream>
 
 bound_type_t::bound_type_t(
@@ -58,7 +59,7 @@ bound_type_t::ref bound_type_t::create(
 		llvm::Type *llvm_type,
 		llvm::Type *llvm_specific_type)
 {
-	return make_ptr<bound_type_t>(type, location, llvm_type,
+	return std::make_shared<bound_type_t>(type, location, llvm_type,
 			llvm_specific_type ? llvm_specific_type : llvm_type);
 }
 
@@ -163,6 +164,17 @@ bound_type_t::refs bound_type_t::refs_from_vars(const bound_var_t::refs &args) {
 		assert(arg != nullptr);
 		assert(arg->get_bound_type() != nullptr);
 		arg_types.push_back(arg->get_bound_type());
+	}
+	return arg_types;
+}
+
+bound_type_t::refs bound_type_t::refs_from_vars(delegate_t &delegate, std::shared_ptr<scope_t> scope, const std::vector<std::shared_ptr<const var_t>> &args) {
+	bound_type_t::refs arg_types;
+	for (auto &arg : args) {
+		assert(arg != nullptr);
+		auto bound_type = delegate.get_bound_type(scope, arg);
+		assert(bound_type != nullptr);
+		arg_types.push_back(bound_type);
 	}
 	return arg_types;
 }

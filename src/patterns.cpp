@@ -9,6 +9,7 @@
 #include <iostream>
 #include "unification.h"
 #include "coercions.h"
+#include "delegate.h"
 
 types::type_t::ref build_patterns(
 		llvm::IRBuilder<> &builder,
@@ -23,6 +24,8 @@ types::type_t::ref build_patterns(
 		types::type_t::ref expected_type,
 		std::list<std::pair<bound_var_t::ref, llvm::BasicBlock *>> &incoming_values)
 {
+	delegate_t delegate{builder, true /*use_llvm*/};
+
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
 	llvm::BasicBlock *default_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.default", llvm_function_current);
 
@@ -99,8 +102,10 @@ types::type_t::ref build_patterns(
 			bool pattern_returns = false;
 			bound_var_t::ref block_value;
 			if (expected_type != type_bottom()) {
-				block_value = pattern_block->block->resolve_expression(
-						builder, pattern_scope, life, false /*as_ref*/, expected_type, &pattern_returns);
+				block_value = safe_dyncast<const bound_var_t>(
+						pattern_block->block->resolve_expression(
+							delegate, pattern_scope, life, false /*as_ref*/, expected_type,
+							&pattern_returns));
 				if (block_value == nullptr) {
 					/* block_value probably returned, so it has no value... */
 					assert(pattern_returns);
@@ -113,8 +118,8 @@ types::type_t::ref build_patterns(
 					/* we are in an expression */
 					unification_t unification = unify(
 							unbottomed_expected_type,
-						   	block_value->get_type()->rebind(pattern_scope->get_type_variable_bindings())->unbottom(),
-						   	pattern_scope);
+							block_value->get_type()->rebind(pattern_scope->get_type_variable_bindings())->unbottom(),
+							pattern_scope);
 
 					if (!unification.result) {
 						auto error = user_error(block_value->get_location(), "value does not have a cohesive type with the rest of the match expression");
@@ -215,14 +220,15 @@ void ast::match_expr_t::resolve_statement(
 	resolve_match_expr(builder, scope, life, false /*as_ref*/, returns, type_bottom());
 }
 
-bound_var_t::ref ast::match_expr_t::resolve_expression(
-	llvm::IRBuilder<> &builder,
+var_t::ref ast::match_expr_t::resolve_expression(
+	delegate_t &delegate,
 	scope_t::ref scope,
 	life_t::ref life,
 	bool as_ref,
 	types::type_t::ref expected_type,
 	bool *returns) const
 {
+	auto &builder = delegate.get_builder(get_location());
 	return resolve_match_expr(builder, scope, life, as_ref, returns,
 		   	expected_type != nullptr ? expected_type : type_variable(token.location));
 }
@@ -246,15 +252,17 @@ bound_var_t::ref ast::match_expr_t::resolve_match_expr(
 	assert(life->life_form == lf_statement);
 	assert(returns != nullptr);
 
-	auto pattern_value = value->resolve_expression(builder,
-			scope, life, true /*as_ref*/, nullptr, returns);
+	delegate_t delegate{builder, true};
+	auto pattern_value = safe_dyncast<const bound_var_t>(
+			value->resolve_expression(delegate,
+				scope, life, true /*as_ref*/, nullptr, returns));
 
 	if (returns != nullptr && *returns) {
 		throw user_error(value->get_location(), "this value will return so the match seems pointless?");
 	}
 
 	/* we don't care about references in pattern matching */
-	pattern_value = pattern_value->resolve_bound_value(builder, scope);
+	pattern_value = pattern_value->dereferencing_load(builder, scope);
 
 	if (pattern_value->get_type()->is_maybe(scope)) {
 		auto error = user_error(value->get_location(),
@@ -293,7 +301,7 @@ bound_var_t::ref ast::match_expr_t::resolve_match_expr(
 	if (*returns) {
 		assert(final_type == type_bottom());
 		merge_block->removeFromParent();
-        return scope->get_program_scope()->get_singleton("__unit__");
+		return scope->get_program_scope()->get_singleton("__unit__");
 	} else {
 		debug_above(5, log_location(log_info, token.location, "checking match"));
 		if (final_type != type_bottom()) {
@@ -334,13 +342,13 @@ bound_var_t::ref gen_null_check(
 		bound_var_t::ref value,
 		runnable_scope_t::ref *new_scope)
 {
-	value = value->resolve_bound_value(builder, scope);
+	value = value->dereferencing_load(builder, scope);
 	if (!value->get_type()->is_ptr(scope)) {
 		throw user_error(node->get_location(),
 				"type %s cannot be compared to null", value->get_type()->str().c_str());
 	}
 
-	value = value->resolve_bound_value(builder, scope);
+	value = value->dereferencing_load(builder, scope);
 	assert(llvm::dyn_cast<llvm::PointerType>(value->get_bound_type()->get_llvm_specific_type()));
 	return value;
 }
@@ -373,14 +381,17 @@ bool ast::literal_expr_t::resolve_match(
 	} else if (input_value->get_type()->eval_predicate(tb_str, scope)) {
 		auto bound_bool_type = scope->get_program_scope()->get_bound_type(BOOL_TYPE);
 		bound_var_t::ref string_to_test = create_global_str(builder, scope, token.location, unescape_json_quotes(token.text));
-		bound_var_t::ref matched = call_program_function(
-				builder,
-				scope,
-				life,
-				"__eq__",
-				token.location,
-				{string_to_test, input_value},
-				bound_bool_type->get_type());
+
+		delegate_t delegate{builder, true};
+		bound_var_t::ref matched = safe_dyncast<const bound_var_t>(
+				call_program_function(
+					delegate,
+					scope,
+					life,
+					"__eq__",
+					token.location,
+					{string_to_test, input_value},
+					bound_bool_type->get_type()));
 		llvm::Value *match_bit = llvm_zion_bool_to_i1(builder, matched->get_llvm_value(scope));
 		match_bit->setName("str_literal." + token.text + ".matched");
 		builder.CreateCondBr(match_bit, llvm_match_block, llvm_no_match_block);
@@ -431,6 +442,7 @@ bool ast::ctor_predicate_t::resolve_match(
 		llvm::BasicBlock *llvm_no_match_block,
 		runnable_scope_t::ref *scope_if_true) const
 {
+	delegate_t delegate{builder, true};
 	bound_var_t::ref casted_input;
 	try {
 		casted_input = cast_data_type_to_ctor_struct(
@@ -441,8 +453,9 @@ bool ast::ctor_predicate_t::resolve_match(
 	}
 
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
-	bound_var_t::ref input_ctor_id = call_get_ctor_id(scope, life, shared_from_this(),
-			make_iid("input_ctor_id"), builder, input_value);
+	bound_var_t::ref input_ctor_id = safe_dyncast<const bound_var_t>(
+			call_get_ctor_id(builder, scope, life, shared_from_this(),
+				make_iid("input_ctor_id"), input_value));
 
 	int ctor_id = atomize(token.text);
 	debug_above(7, log("matching ctor id %s = %d", token.text.c_str(), ctor_id));
@@ -463,22 +476,24 @@ bool ast::ctor_predicate_t::resolve_match(
 				llvm_function_current);
 		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 		builder.SetInsertPoint(check_block);
+
 		// TODO: allow as_ref below to be true
-		bound_var_t::ref member = extract_member_by_index(
-				builder,
-				scope,
-				life,
-				params[i]->get_location(),
-				casted_input,
-				casted_input->get_bound_type(),
-				i,
-				params[i]->token.text,
-				false /*as_ref*/);
+		bound_var_t::ref member = safe_dyncast<const bound_var_t>(
+				extract_member_by_index(
+					delegate,
+					scope,
+					life,
+					params[i]->get_location(),
+					casted_input,
+					casted_input->get_bound_type(),
+					i,
+					params[i]->token.text,
+					false /*as_ref*/));
 
 		/* resolve sub-patterns */
 		runnable_scope_t::ref scope_if_match = nullptr;
 		if (!params[i]->resolve_match(builder, scope_if_match_at_end, life, 
-				value_location, member, llvm_next_check, llvm_no_match_block, &scope_if_match))
+					value_location, member, llvm_next_check, llvm_no_match_block, &scope_if_match))
 		{
 			assert(!builder.GetInsertBlock()->getTerminator());
 			builder.CreateBr(llvm_no_match_block);
@@ -515,6 +530,7 @@ bool ast::tuple_predicate_t::resolve_match(
 		llvm::BasicBlock *llvm_no_match_block,
 		runnable_scope_t::ref *scope_if_true) const
 {
+	delegate_t delegate{builder, true};
 	llvm::Function *llvm_function_current = llvm_get_function(builder);
 	llvm::BasicBlock *llvm_next_check = llvm_match_block;
 	runnable_scope_t::ref scope_if_match_at_end = scope;
@@ -526,16 +542,17 @@ bool ast::tuple_predicate_t::resolve_match(
 				llvm_function_current);
 		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 		builder.SetInsertPoint(check_block);
-		bound_var_t::ref member = extract_member_by_index(
-				builder,
-				scope,
-				life,
-				params[i]->get_location(),
-				input_value,
-				input_value->get_bound_type(),
-				i,
-				params[i]->token.text,
-				false /*as_ref*/);
+		bound_var_t::ref member = safe_dyncast<const bound_var_t>(
+				extract_member_by_index(
+					delegate,
+					scope,
+					life,
+					params[i]->get_location(),
+					input_value,
+					input_value->get_bound_type(),
+					i,
+					params[i]->token.text,
+					false /*as_ref*/));
 
 		/* resolve sub-patterns */
 		runnable_scope_t::ref scope_if_match = nullptr;

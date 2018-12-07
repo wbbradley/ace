@@ -17,5 +17,5 @@ std::vector<llvm::Value *> get_llvm_values(
 		scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
-		ptr<const types::type_args_t> type_args,
+		std::shared_ptr<const types::type_args_t> type_args,
 		const bound_var_t::refs &vars);

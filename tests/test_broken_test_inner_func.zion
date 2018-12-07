@@ -1,0 +1,9 @@
+module _
+
+fn main() {
+    # error: return expression type str does not match bool
+    inner_func := fn foo() bool {
+        return "hey"
+    }
+    print(inner_func())
+}

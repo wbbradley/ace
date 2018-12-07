@@ -1,4 +1,5 @@
 #pragma once
+#include <signal.h>
 #include "utils.h"
 #include "location.h"
 
@@ -61,6 +62,7 @@ extern int __dbg_level;
 #define debug(x) ((x))
 #define debug_else(x, y) ((x))
 #define debug_above(level, x) do { if (debug_level() >= (level)) (x); } while (0)
+#define debug_above_else(level, x, y) ((debug_level() >= (level)) ? (x) : (y))
 #define debug_ex(x) debug_above(2, x)
 #else
 #define debug(x)

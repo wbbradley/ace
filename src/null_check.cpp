@@ -8,12 +8,19 @@
 #include "code_id.h"
 #include "atom.h"
 #include "patterns.h"
+#include "delegate.h"
+#include "checked_var.h"
 
-bound_var_t::ref get_null(
-        llvm::IRBuilder<> &builder,
+var_t::ref get_null(
+		delegate_t &delegate,
         scope_t::ref scope,
 		location_t location)
 {
+	auto null_id = make_iid_impl("null", location);
+	if (!delegate.use_llvm) {
+		return make_checked_var(type_null(), null_id);
+	}
+
 	auto program_scope = scope->get_program_scope();
 	auto null_type = program_scope->get_bound_type("null");
 	auto bound_type = bound_type_t::create(
@@ -24,7 +31,7 @@ bound_var_t::ref get_null(
 	return make_bound_var(
 			INTERNAL_LOC(), "null", bound_type,
 			llvm::Constant::getNullValue(null_type->get_llvm_specific_type()),
-			make_iid_impl("null", location));
+			null_id);
 }
 
 void unmaybe_variable(
@@ -115,21 +122,23 @@ void nullify_let_var(
 			scope = fresh_scope;
 			*new_scope = fresh_scope;
 
+			delegate_t delegate{builder, true};
 			scope->put_bound_variable(token.text,
-					get_null(builder, scope, ref_expr->get_location()));
+					safe_dyncast<const bound_var_t>(
+						get_null(delegate, scope, ref_expr->get_location())));
 		} else {
 			/* this is not a maybe, so let's just move along */
 		}
 	}
 }
 
-bound_var_t::ref resolve_null_check(
-		llvm::IRBuilder<> &builder,
+var_t::ref resolve_null_check(
+		delegate_t &delegate,
 		runnable_scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
 		ast::item_t::ref node,
-		bound_var_t::ref value,
+		var_t::ref value,
 		null_check_kind_t nck,
 		runnable_scope_t::ref *scope_if_true,
 		runnable_scope_t::ref *scope_if_false)
@@ -139,16 +148,28 @@ bound_var_t::ref resolve_null_check(
 				"if you must compare this to null, try casting it to a maybe pointer first.",
 				node->str().c_str());
 		error.add_info(location, "the type of %s is %s", node->str().c_str(),
-				value->get_bound_type()->str().c_str());
+				value->get_type()->str().c_str());
 		throw error;
 	}
 
-	bound_type_t::ref bound_bool_type = upsert_bound_type(builder, scope, type_id(make_iid(BOOL_TYPE)));
+	types::type_t::ref bool_type = type_id(make_iid(BOOL_TYPE));
+
+	if (!delegate.use_llvm) {
+		if (scope_if_true != nullptr || scope_if_false != nullptr) {
+			throw user_error(location, "unable to perform this null check in this context");
+		}
+		return make_checked_var(bool_type, make_iid_impl("null.check", location));
+	}
+
+	llvm::IRBuilder<> &builder = delegate.get_builder(location);
+
+	bound_type_t::ref bound_bool_type = upsert_bound_type(builder, scope, bool_type);
 	assert(bound_bool_type != nullptr);
 	llvm::Type *llvm_bool_type = bound_bool_type->get_llvm_specific_type();
 	llvm::Value *llvm_bool_value;
+	bound_var_t::ref bound_value = safe_dyncast<const bound_var_t>(value);
 
-	llvm::Value *llvm_value = value->resolve_bound_var_value(scope, builder);
+	llvm::Value *llvm_value = bound_value->llvm_dereferencing_load(scope, builder);
 
 	llvm::Constant *zero;
 	if (llvm::dyn_cast<llvm::PointerType>(llvm_value->getType())) {

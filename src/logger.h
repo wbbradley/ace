@@ -79,7 +79,7 @@ struct indent_logger : logger {
 
 #ifdef ZION_DEBUG
 #define INDENT(level, message) \
-	indent_logger _indent(INTERNAL_LOC(), level, message)
+	indent_logger _indent(INTERNAL_LOC(), level, debug_above_else(level, message, ""))
 #else
 #define INDENT(level, message)
 #endif

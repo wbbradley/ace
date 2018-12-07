@@ -51,9 +51,11 @@ add_executable(zion
 	src/bound_var.cpp
 	src/builtins.cpp
 	src/callable.cpp
+	src/checked_var.cpp
 	src/coercions.cpp
 	src/compiler.cpp
 	src/dbg.cpp
+	src/delegate.cpp
 	src/disk.cpp
 	src/dump.cpp
 	src/fitting.cpp

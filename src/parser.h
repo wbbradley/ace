@@ -6,7 +6,7 @@
 #include "parse_state.h"
 
 template <typename T, typename... Args>
-ptr<T> parse_text(std::istream &is, std::string filename = "repl.zion") {
+std::shared_ptr<T> parse_text(std::istream &is, std::string filename = "repl.zion") {
 	zion_lexer_t lexer(filename, is);
 	type_macros_t global_type_macros;
 	parse_state_t ps(filename, lexer, {}, global_type_macros);
@@ -20,7 +20,7 @@ ptr<T> parse_text(std::istream &is, std::string filename = "repl.zion") {
 }
 
 template <typename T, typename... Args>
-ptr<T> parse_text(const std::string &text, std::string filename = "repl.zion") {
+std::shared_ptr<T> parse_text(const std::string &text, std::string filename = "repl.zion") {
 	std::istringstream iss(text);
 	return parse_text<T>(iss, filename);
 }

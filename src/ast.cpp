@@ -5,6 +5,7 @@
 #include "scopes.h"
 #include "utils.h"
 #include "lexer.h"
+#include "delegate.h"
 
 namespace ast {
 	void log_named_item_create(const char *type, const std::string &name) {
@@ -48,10 +49,10 @@ namespace ast {
 	item_t::~item_t() throw() {
 	}
 
-	typeid_expr_t::typeid_expr_t(ptr<expression_t> expr) : expr(expr) {
+	typeid_expr_t::typeid_expr_t(std::shared_ptr<expression_t> expr) : expr(expr) {
 	}
 
-	sizeof_expr_t::sizeof_expr_t(types::type_t::ref type) : type(type) {
+	sizeof_expr_t::sizeof_expr_t(types::type_t::ref type) : parsed_type(type) {
 	}
 
 	type_decl_t::type_decl_t(identifier::refs type_variables) :
@@ -60,17 +61,16 @@ namespace ast {
 	}
 
 	dimension_t::dimension_t(std::string name, types::type_t::ref type) :
-		name(name), type(type)
+		name(name), parsed_type(type)
 	{
 	}
 
 	type_product_t::type_product_t(
 			bool native,
 			types::type_t::ref type,
-			identifier::set type_variables) :
-		native(native)
-		, type(type)
-		// , type_variables(type_variables)
+			identifier::set) :
+		native(native),
+		parsed_type(type)
 	{
 	}
 
@@ -82,8 +82,43 @@ namespace ast {
 		return token.location;
 	}
 
-	types::type_t::ref var_decl_t::get_type() const {
-		return type;
+	std::string parsed_type_t::str() const {
+		return type->str();
+	}
+
+	location_t parsed_type_t::get_location() const {
+		return type->get_location();
+	}
+
+	types::type_t::ref parsed_type_t::get_type(delegate_t &delegate, scope_t::ref scope) const {
+		auto safe_delegate = delegate.get_type_delegate();
+		if (type != nullptr) {
+			return type->eval_typeof(safe_delegate, scope);
+		} else {
+			return nullptr;
+		}
+	}
+
+	types::type_t::ref parsed_type_t::get_type(llvm::IRBuilder<> &builder, scope_t::ref scope) const {
+		delegate_t delegate{builder};
+
+		if (type != nullptr) {
+			return type->eval_typeof(delegate, scope);
+		} else {
+			return nullptr;
+		}
+	}
+
+	bool parsed_type_t::exists() const {
+		return type != nullptr;
+	}
+
+	types::type_t::ref var_decl_t::get_type(delegate_t &delegate, scope_t::ref scope) const {
+		return parsed_type.get_type(delegate, scope);
+	}
+
+	types::type_t::ref var_decl_t::get_type(llvm::IRBuilder<> &builder, scope_t::ref scope) const {
+		return parsed_type.get_type(builder, scope);
 	}
 
 	std::string function_decl_t::get_function_name() const {

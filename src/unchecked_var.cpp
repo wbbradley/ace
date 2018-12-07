@@ -6,8 +6,8 @@
 
 unchecked_var_t::unchecked_var_t(
 			identifier::ref id,
-			ptr<const ast::item_t> node,
-			ptr<module_scope_t> module_scope) :
+			std::shared_ptr<const ast::item_t> node,
+			std::shared_ptr<module_scope_t> module_scope) :
    	id(id),
    	node(node),
    	module_scope(module_scope)
@@ -32,6 +32,11 @@ std::string unchecked_data_ctor_t::str() const {
 
 types::type_t::ref unchecked_data_ctor_t::get_type(scope_t::ref scope) const {
 	return scope != nullptr ? sig->eval(scope) : sig;
+}
+
+types::type_t::ref unchecked_var_t::get_type() const {
+	assert(false);
+	return nullptr;
 }
 
 types::type_t::ref unchecked_var_t::get_type(scope_t::ref scope) const {
@@ -65,4 +70,8 @@ location_t unchecked_var_t::get_location() const {
 
 std::string unchecked_var_t::get_name() const {
     return id->get_name();
+}
+
+identifier::ref unchecked_var_t::get_id() const {
+	return id;
 }

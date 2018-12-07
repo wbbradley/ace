@@ -1,8 +1,8 @@
 #pragma once
+#include "scopes.h"
 #include "ptr.h"
 #include "bound_var.h"
 #include "user_error.h"
-#include "llvm_utils.h"
 
 #define lf_function  0x01
 #define lf_block     0x02
@@ -38,7 +38,7 @@ struct trackable_t {
 };
 
 struct life_t : std::enable_shared_from_this<life_t> {
-	typedef ptr<life_t> ref;
+	typedef std::shared_ptr<life_t> ref;
 
 	life_t(life_form_t life_form, life_t::ref former_life=nullptr);
 	~life_t();
@@ -74,4 +74,4 @@ private:
 	mutable bool release_vars_called;
 };
 
-void life_dump(ptr<const life_t> life);
+void life_dump(std::shared_ptr<const life_t> life);

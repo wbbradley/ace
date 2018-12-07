@@ -47,7 +47,7 @@ unchecked_var_t::ref scope_setup_module_symbol(
 
 void scope_setup_type_def(
 	   	const ast::type_def_t &obj,
-	   	ptr<module_scope_t> module_scope)
+	   	std::shared_ptr<module_scope_t> module_scope)
 {
 	assert(obj.token.text.find(SCOPE_SEP) == std::string::npos);
 	assert(obj.token.text.size() != 0);

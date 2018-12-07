@@ -13,35 +13,35 @@ void type_check_program(
 		compiler_t &compiler);
 
 bool is_function_defn_generic(scope_t::ref scope, const ast::function_defn_t &obj);
-std::vector<std::string> get_param_list_decl_variable_names(ptr<const ast::param_list_decl_t> obj);
+std::vector<std::string> get_param_list_decl_variable_names(std::shared_ptr<const ast::param_list_decl_t> obj);
 bound_type_t::named_pairs zip_named_pairs(std::vector<std::string> names, bound_type_t::refs args);
 bound_var_t::ref call_get_ctor_id(
+		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
 		life_t::ref life,
-		ptr<const ast::item_t> callsite,
+		std::shared_ptr<const ast::item_t> callsite,
 		identifier::ref id,
-		llvm::IRBuilder<> &builder,
 		bound_var_t::ref resolved_value);
-bound_var_t::ref extract_member_variable(
-		llvm::IRBuilder<> &builder,
+var_t::ref extract_member_variable(
+		delegate_t &delegate,
 		scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
-		bound_var_t::ref bound_var,
+		var_t::ref var,
 		std::string member_name,
 		bool as_ref,
 		types::type_t::ref expected_type);
-bound_var_t::ref extract_member_by_index(
-		llvm::IRBuilder<> &builder,
+var_t::ref extract_member_by_index(
+		delegate_t &delegate,
 		scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
-		bound_var_t::ref bound_var,
+		var_t::ref var,
 		bound_type_t::ref bound_obj_type,
 		int index,
 		std::string member_name,
 		bool as_ref);
-ptr<ast::callsite_expr_t> expand_callsite_string_literal(
+std::shared_ptr<ast::callsite_expr_t> expand_callsite_string_literal(
 		token_t token,
 		std::string module,
 		std::string function_name,
@@ -51,7 +51,7 @@ void resolve_assert_macro(
 		scope_t::ref scope, 
 		life_t::ref life,
 		token_t token,
-		ptr<ast::expression_t> condition,
+		std::shared_ptr<ast::expression_t> condition,
 		runnable_scope_t::ref *new_scope);
 int64_t parse_int_value(token_t token);
 void destructure_function_decl(

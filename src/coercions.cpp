@@ -8,6 +8,8 @@
 #include "unification.h"
 #include "coercions.h"
 #include "type_checker.h"
+#include "llvm_utils.h"
+#include "delegate.h"
 
 bound_var_t::ref coerce_bound_value(
 		llvm::IRBuilder<> &builder,
@@ -35,6 +37,7 @@ llvm::Value *coerce_value(
 		types::type_t::ref lhs_type,
 		bound_var_t::ref rhs)
 {
+	delegate_t delegate{builder, true};
 	static int depth = 0;
 	depth_guard_t depth_guard(location, depth, 3);
 
@@ -47,7 +50,7 @@ llvm::Value *coerce_value(
 
 	if (!lhs_type->eval_predicate(tb_ref, scope)) {
 		/* make sure that if the lhs is not a ref, we don't pass a ref */
-		rhs = rhs->resolve_bound_value(builder, scope);
+		rhs = rhs->dereferencing_load(builder, scope);
 	} else {
 		// I thought we weren't supporting this!?
 		assert(false);
@@ -102,9 +105,10 @@ llvm::Value *coerce_value(
 		return builder.CreateBitCast(llvm_rhs_value, llvm_lhs_type);
 	} else if (lhs_is_managed) {
 		debug_above(6, log(log_info, "calling " c_id("__box__") " on %s to try to get a %s", rhs_type->str().c_str(), lhs_type->str().c_str()));
-		bound_var_t::ref coercion = call_program_function(
-				builder, scope, life,
-				"__box__", location, {rhs}, lhs_type);
+		bound_var_t::ref coercion = safe_dyncast<const bound_var_t>(
+				call_program_function(
+					delegate, scope, life,
+					"__box__", location, {rhs}, lhs_type));
 
 		/* trust the type system. */
 		return builder.CreateBitCast(coercion->get_llvm_value(scope), llvm_lhs_type);
@@ -118,21 +122,22 @@ llvm::Value *coerce_value(
 			/* the *var_t object accepts all managed objects */
 			return builder.CreateBitCast(llvm_rhs_value, llvm_lhs_type);
 		} else if (types::is_ptr_type_id(lhs_type, CHAR_TYPE, scope) &&
-			   	types::is_type_id(rhs_type, MANAGED_STR, scope)) {
+				types::is_type_id(rhs_type, MANAGED_STR, scope)) {
 			/* custom unboxing because we need to inject some life management to cleanup in the
 			 * event that we need to convert a slice to a heap-alloced null-terminated string. */
-			bound_var_t::ref c_str = call_program_function(
-					builder, scope, life,
+			var_t::ref c_str = call_program_function(
+					delegate, scope, life,
 					"c_str", location, {rhs}, nullptr);
 
 			/* c_str is now an OwningBuffer */
-			auto raw_c_str = extract_member_variable(
-				builder, scope, life,
-				location,
-				c_str,
-				"raw", // OwningBuffer.raw
-				false /* as_ref */,
-				type_ptr(type_id(make_iid_impl(CHAR_TYPE, INTERNAL_LOC()))));
+			auto raw_c_str = safe_dyncast<const bound_var_t>(
+					extract_member_variable(
+						delegate, scope, life,
+						location,
+						c_str,
+						"raw", // OwningBuffer.raw
+						false /* as_ref */,
+						type_ptr(type_id(make_iid_impl(CHAR_TYPE, INTERNAL_LOC())))));
 			return raw_c_str->get_llvm_value(scope);
 		} else {
 			throw user_error(rhs->get_location(), "unsure how to get native value of type %s from managed value of type %s [%s, %s]",
@@ -183,7 +188,7 @@ std::vector<llvm::Value *> get_llvm_values(
 		scope_t::ref scope,
 		life_t::ref life,
 		location_t location,
-		ptr<const types::type_args_t> type_args,
+		std::shared_ptr<const types::type_args_t> type_args,
 		const bound_var_t::refs &vars)
 {
 	std::vector<llvm::Value *> llvm_values;

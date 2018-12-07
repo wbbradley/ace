@@ -24,17 +24,17 @@ void fittings_t::push_back(const fitting_t &fitting) {
 	fittings.push_back(fitting);
 }
 
-bool fittings_t::contains(bound_var_t::ref fn) const {
+bool fittings_t::contains(var_t::ref fn) const {
     for (auto fitting : fittings) {
-        if (fitting.fn->get_signature() == fn->get_signature()) {
+        if (fitting.fn->get_type()->get_signature() == fn->get_type()->get_signature()) {
             return true;
         }
     }
     return false;
 }
 
-bound_var_t::ref get_best_fit(
-		llvm::IRBuilder<> &builder,
+var_t::ref get_best_fit(
+		delegate_t &delegate,
 		scope_t::ref scope,
 		location_t location,
 		std::string alias,
@@ -52,8 +52,8 @@ bound_var_t::ref get_best_fit(
 	for (auto &fn : fns) {
 		int coercions = 0;
 
-		bound_var_t::ref callable = check_bound_func_vs_callsite(
-				builder, scope, location, fn, args, return_type, coercions, checked_bindings);
+		var_t::ref callable = check_bound_func_vs_callsite(
+				delegate, scope, location, fn, args, return_type, coercions, checked_bindings);
 
 		if (callable != nullptr && (coercions == 0 || allow_coercions) && !fittings.contains(callable)) {
 			fittings.push_back({fn, callable, coercions});
@@ -66,7 +66,7 @@ bound_var_t::ref get_best_fit(
 	return fittings.get_best_fitting(location, alias, args, return_type);
 }
 
-bound_var_t::ref fittings_t::get_best_fitting(
+var_t::ref fittings_t::get_best_fitting(
 		location_t location,
 		std::string alias, 
 		types::type_t::ref args,
@@ -79,13 +79,13 @@ bound_var_t::ref fittings_t::get_best_fitting(
 	} else {
 		/* we have multiple matches. however, if one and only one has no coercions, then we'll
 		 * accept that as the winner */
-		bound_var_t::ref winner;
 		std::sort(fittings.begin(), fittings.end(), [] (const fitting_t &lhs, const fitting_t &rhs) -> bool {
 			/* use the most generic fn that matched, because it will generally be the most efficient (fewer cases per
 			 * switch) */
 			return lhs.fn->get_type()->ftv_count() > rhs.fn->get_type()->ftv_count();
 		});
 
+		var_t::ref winner;
 		try {
 			for (auto fitting : fittings) {
 				if (fitting.coercions == 0) {
@@ -93,7 +93,7 @@ bound_var_t::ref fittings_t::get_best_fitting(
 						winner = fitting.fn;
 					} else {
 						throw user_error(location,
-								"multiple (noncoercing) overloads found for %s%s %s",
+								"multiple non-coercing overloads found for %s%s %s",
 								alias.c_str(),
 								args->str().c_str(),
 								return_type != nullptr ? return_type->str().c_str() : "");
@@ -103,13 +103,12 @@ bound_var_t::ref fittings_t::get_best_fitting(
 
 			if (winner == nullptr) {
 				throw user_error(location,
-						"multiple (coercion) overloads found for %s",
+						"multiple coercing overloads found for %s",
 						alias.c_str());
 			}
 
 			/* ok, we'll use the one that doesn't involve coercions */
-			debug_above(5, log("picked %s because it does not have coercions",
-						winner->str().c_str()));
+			debug_above(5, log("picked %s because it does not have coercions", winner->str().c_str()));
 			return winner;
 		} catch (user_error &e) {
 			for (auto fitting : fittings) {

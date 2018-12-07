@@ -9,10 +9,11 @@
 #include <iostream>
 #include "unification.h"
 #include "type_kind.h"
+#include "delegate.h"
 
 bound_type_t::refs upsert_bound_types(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
+		std::shared_ptr<scope_t> scope,
 		types::type_t::refs types)
 {
 	/* iteratate over a product type and pull out a list of the bound types
@@ -30,7 +31,7 @@ bound_type_t::ref create_ptr_type(
 		llvm::IRBuilder<> &builder,
 		T ptr_type)
 {
-	debug_above(4, log(log_info, "creating ptr type for %s",
+	debug_above(4, log(log_info, "creating std::shared_ptr type for %s",
 				ptr_type->element_type->str().c_str()));
 	llvm::StructType *llvm_type = llvm::StructType::create(
 			builder.getContext(),
@@ -46,11 +47,11 @@ bound_type_t::ref create_ptr_type(
 
 bound_type_t::ref create_bound_ref_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
+		std::shared_ptr<scope_t> scope,
 		types::type_ref_t::ref type_ref)
 {
 	/* create a bound_type for a ref type */
-	ptr<program_scope_t> program_scope = scope->get_program_scope();
+	std::shared_ptr<program_scope_t> program_scope = scope->get_program_scope();
 
 	assert(!scope->get_bound_type(type_ref->get_signature()));
 
@@ -73,11 +74,11 @@ bound_type_t::ref create_bound_ref_type(
 
 bound_type_t::ref create_bound_extern_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
+		std::shared_ptr<scope_t> scope,
 		types::type_extern_t::ref type_extern)
 {
 	/* create a bound_type for a ref type */
-	ptr<program_scope_t> program_scope = scope->get_program_scope();
+	std::shared_ptr<program_scope_t> program_scope = scope->get_program_scope();
 
 	assert(!scope->get_bound_type(type_extern->get_signature()));
 
@@ -92,11 +93,11 @@ bound_type_t::ref create_bound_extern_type(
 template <typename T>
 bound_type_t::ref create_bound_ptr_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
+		std::shared_ptr<scope_t> scope,
 		const T &type_ptr)
 {
 	/* create a bound_type for a pointer type */
-	ptr<program_scope_t> program_scope = scope->get_program_scope();
+	std::shared_ptr<program_scope_t> program_scope = scope->get_program_scope();
 
 	assert(!scope->get_bound_type(type_ptr->get_signature()));
 
@@ -175,10 +176,10 @@ std::vector<llvm::Type *> build_struct_elements(
 
 bound_type_t::ref create_bound_managed_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-		const ptr<const types::type_managed_t> &managed_type)
+		std::shared_ptr<scope_t> scope,
+		const std::shared_ptr<const types::type_managed_t> &managed_type)
 {
-	ptr<program_scope_t> program_scope = scope->get_program_scope();
+	std::shared_ptr<program_scope_t> program_scope = scope->get_program_scope();
 
 	if (managed_type->ftv_count() != 0) {
 		debug_above(5, log(log_info,
@@ -254,8 +255,8 @@ bound_type_t::ref create_bound_managed_type(
 
 bound_type_t::ref create_bound_tuple_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-		const ptr<const types::type_tuple_t> &tuple_type)
+		std::shared_ptr<scope_t> scope,
+		const std::shared_ptr<const types::type_tuple_t> &tuple_type)
 {
 	auto program_scope = scope->get_program_scope();
 	auto expansion = type_ptr(type_managed(type_struct(tuple_type->dimensions, {})));
@@ -270,10 +271,10 @@ bound_type_t::ref create_bound_tuple_type(
 
 bound_type_t::ref create_bound_struct_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-		const ptr<const types::type_struct_t> &struct_type)
+		std::shared_ptr<scope_t> scope,
+		const std::shared_ptr<const types::type_struct_t> &struct_type)
 {
-	ptr<program_scope_t> program_scope = scope->get_program_scope();
+	std::shared_ptr<program_scope_t> program_scope = scope->get_program_scope();
 
 	if (struct_type->ftv_count() != 0) {
 		debug_above(5, log(log_info,
@@ -410,8 +411,8 @@ bound_type_t::ref bind_expansion(
 
 bound_type_t::ref create_bound_expr_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-		const ptr<const types::type_t> &id)
+		std::shared_ptr<scope_t> scope,
+		const std::shared_ptr<const types::type_t> &id)
 {
 	/* this id type does not yet have a bound type. */
 	assert(!scope->get_bound_type(id->get_signature()));
@@ -448,8 +449,8 @@ bound_type_t::ref create_bound_expr_type(
 
 bound_type_t::ref create_bound_integer_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-		const ptr<const types::type_integer_t> &integer)
+		std::shared_ptr<scope_t> scope,
+		const std::shared_ptr<const types::type_integer_t> &integer)
 {
 	auto signed_ = integer->signed_->eval(scope, true);
 
@@ -487,8 +488,8 @@ bound_type_t::ref create_bound_integer_type(
 
 bound_type_t::ref create_bound_maybe_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-		const ptr<const types::type_maybe_t> &maybe)
+		std::shared_ptr<scope_t> scope,
+		const std::shared_ptr<const types::type_maybe_t> &maybe)
 {
 	auto program_scope = scope->get_program_scope();
 
@@ -543,8 +544,8 @@ bound_type_t::ref create_bound_maybe_type(
 
 bound_type_t::ref create_bound_data_type(
                llvm::IRBuilder<> &builder,
-               ptr<scope_t> scope,
-               const ptr<const types::type_data_t> &data)
+               std::shared_ptr<scope_t> scope,
+               const std::shared_ptr<const types::type_data_t> &data)
 {
 	assert(!scope->get_bound_type(data->get_signature()));
 	auto var_ptr_type = scope->get_program_scope()->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
@@ -552,7 +553,7 @@ bound_type_t::ref create_bound_data_type(
 			data->get_location(),
 			var_ptr_type->get_llvm_type());
 
-	ptr<program_scope_t> program_scope = scope->get_program_scope();
+	std::shared_ptr<program_scope_t> program_scope = scope->get_program_scope();
 	program_scope->put_bound_type(bound_type);
 
 	return bound_type;
@@ -560,8 +561,8 @@ bound_type_t::ref create_bound_data_type(
 
 bound_type_t::ref create_bound_function_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
-		const ptr<const types::type_function_t> &function)
+		std::shared_ptr<scope_t> scope,
+		const std::shared_ptr<const types::type_function_t> &function)
 {
 	if (auto args = dyncast<const types::type_args_t>(function->args)) {
 		bound_type_t::refs bound_args = upsert_bound_types(
@@ -580,7 +581,7 @@ bound_type_t::ref create_bound_function_type(
 			// TODO: support dynamic function creation
 			bound_type = bound_type_t::create(function,
 					function->get_location(), llvm_fn_type->getPointerTo());
-			ptr<program_scope_t> program_scope = scope->get_program_scope();
+			std::shared_ptr<program_scope_t> program_scope = scope->get_program_scope();
 			program_scope->put_bound_type(bound_type);
 
 			return bound_type;
@@ -593,7 +594,7 @@ bound_type_t::ref create_bound_function_type(
 
 bound_type_t::ref create_bound_type(
 		llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
+		std::shared_ptr<scope_t> scope,
 		types::type_t::ref type)
 {
 	INDENT(4,
@@ -642,7 +643,7 @@ bound_type_t::ref create_bound_type(
 
 bound_type_t::ref upsert_bound_type(
 	   	llvm::IRBuilder<> &builder,
-		ptr<scope_t> scope,
+		std::shared_ptr<scope_t> scope,
 	   	types::type_t::ref type)
 {
 	static int depth = 0;
@@ -794,13 +795,15 @@ llvm::Value *llvm_call_allocator(
 			llvm_sizeof_tuple,
 			make_iid("size_param"));
 
-	bound_var_t::ref allocation = call_program_function(
-			builder,
-			program_scope,
-			life,
-			"runtime.create_var",
-			location,
-			{size_param});
+	delegate_t delegate{builder, true};
+	bound_var_t::ref allocation = safe_dyncast<const bound_var_t>(
+			call_program_function(
+				delegate,
+				program_scope,
+				life,
+				"runtime.create_var",
+				location,
+				{size_param}));
 	return allocation->get_llvm_value(nullptr);
 }
 
@@ -897,7 +900,7 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	auto function = llvm_start_function(builder, scope, location, function_type, name);
 	life_t::ref life = (
-			make_ptr<life_t>(lf_function)
+			std::make_shared<life_t>(lf_function)
 			->new_life(lf_block)
 			->new_life(lf_statement));
 
@@ -955,28 +958,6 @@ bound_var_t::ref get_or_create_tuple_ctor(
 
 	return function;
 }
-
-bound_var_t::ref type_check_get_item_with_int_literal(
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		life_t::ref life,
-		const ast::item_t::ref &node,
-		bound_var_t::ref lhs,
-		identifier::ref index_id,
-		int subscript_index)
-{
-	bound_var_t::ref index = make_bound_var(
-			INTERNAL_LOC(),
-			"temp_deref_index",
-			scope->get_program_scope()->get_bound_type({INT_TYPE}),
-			llvm_create_int(builder, subscript_index),
-			index_id);
-
-	/* get or instantiate a function we can call on these arguments */
-	return call_program_function(builder, scope, life, "__getitem__",
-			node->get_location(), {lhs, index});
-}
-
 
 llvm::Value *llvm_make_gep(
 		llvm::IRBuilder<> &builder,

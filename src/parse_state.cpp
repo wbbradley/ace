@@ -10,8 +10,8 @@
 parse_state_t::parse_state_t(
 		std::string filename,
 		zion_lexer_t &lexer,
-		std::map<std::string, ptr<const types::type_t>> type_macros,
-		std::map<std::string, ptr<const types::type_t>> &global_type_macros,
+		std::map<std::string, std::shared_ptr<const types::type_t>> type_macros,
+		std::map<std::string, std::shared_ptr<const types::type_t>> &global_type_macros,
 		std::vector<token_t> *comments,
 		std::set<token_t> *link_ins) :
 	filename(filename),

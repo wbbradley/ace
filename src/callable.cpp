@@ -9,20 +9,21 @@
 #include "type_instantiation.h"
 #include "fitting.h"
 #include "code_id.h"
+#include "delegate.h"
 #include <iostream>
 
 #define USER_MAIN_FN "user/main"
 
-bound_var_t::ref make_call_value(
-		llvm::IRBuilder<> &builder,
+var_t::ref make_call_value(
+		delegate_t &delegate,
 		location_t location,
 		scope_t::ref scope,
 		life_t::ref life,
-		bound_var_t::ref function,
-		bound_var_t::refs arguments)
+		var_t::ref function,
+		var_t::refs arguments)
 {
-	return create_callsite(
-			builder, scope, life, function,
+	return delegate.create_callsite(
+			scope, life, function,
 			"temp_call_value", INTERNAL_LOC(), arguments);
 }
 
@@ -95,7 +96,7 @@ bound_var_t::ref instantiate_unchecked_fn(
 	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
 	/* lifetimes have extents at function boundaries */
-	auto life = make_ptr<life_t>(lf_function);
+	auto life = std::make_shared<life_t>(lf_function);
 
 	if (auto function_defn = dyncast<const ast::function_defn_t>(unchecked_fn->node)) {
 		debug_above(4, log(log_info, "building substitution for %s with bindings %s",
@@ -175,8 +176,8 @@ bound_var_t::ref instantiate_unchecked_fn(
 	return nullptr;
 }
 
-bound_var_t::ref check_bound_func_vs_callsite(
-		llvm::IRBuilder<> &builder,
+var_t::ref check_bound_func_vs_callsite(
+		delegate_t &delegate,
 		scope_t::ref scope,
 		location_t location,
 		var_t::ref fn,
@@ -187,9 +188,9 @@ bound_var_t::ref check_bound_func_vs_callsite(
 {
 	static bindings_set_t checking_bindings;
 
-	bound_var_t::ref callable;
+	var_t::ref callable;
 	std::function<void (scope_t::ref, var_t::ref, types::type_t::map const &)> extractor =
-		[location, &callable, &builder, &checked_bindings] (
+		[location, &callable, &delegate, &checked_bindings] (
 				scope_t::ref scope,
 				var_t::ref fn,
 				types::type_t::map const &bindings)
@@ -244,8 +245,7 @@ bound_var_t::ref check_bound_func_vs_callsite(
 					indent_logger indent(location, 8, string_format("checking function " c_id("%s") " at %s", binding.str().c_str()));
 
 					try {
-						callable = instantiate_unchecked_fn(
-								builder,
+						callable = delegate.instantiate_unchecked_fn(
 								scope,
 								unchecked_fn,
 								fn_type,
@@ -354,8 +354,8 @@ void check_func_vs_callsite(
 	}
 }
 
-bound_var_t::ref maybe_get_callable(
-		llvm::IRBuilder<> &builder,
+var_t::ref maybe_get_callable(
+		delegate_t &delegate,
 		scope_t::ref scope,
 		std::string alias,
 		location_t location,
@@ -373,7 +373,7 @@ bound_var_t::ref maybe_get_callable(
 				boolstr(check_unchecked),
 				boolstr(allow_coercions)));
 
-	llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+	// llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
 	/* look through the current scope stack and get a callable that is able
 	 * to be invoked with the given args */
@@ -386,7 +386,8 @@ bound_var_t::ref maybe_get_callable(
 		debug_above(7, log("callable %s", fn->str().c_str()));
 	}
 
-	return get_best_fit(builder,
+	return get_best_fit(
+			delegate,
 			scope->get_program_scope(),
 			location,
 			alias,
@@ -397,41 +398,8 @@ bound_var_t::ref maybe_get_callable(
 			allow_coercions);
 }
 
-bound_var_t::ref get_callable_from_local_var(
-		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
-		std::string alias,
-		bound_var_t::ref bound_var,
-		location_t callsite_location,
-		types::type_t::ref args,
-		types::type_t::ref return_type)
-{
-	/* make sure the function is just a function, not a reference to a function */
-	auto resolved_bound_var = bound_var->resolve_bound_value(builder, scope);
-	bindings_set_t bindings_set;
-	int coercions = 0;
-	bound_var_t::ref callable = check_bound_func_vs_callsite(builder,
-			scope, callsite_location, resolved_bound_var, args, return_type, coercions, bindings_set);
-	if (callable != nullptr) {
-		return callable;
-	} else {
-		auto error = user_error(callsite_location, "variable " c_id("%s") " is not callable with these arguments or just isn't a function",
-				alias.c_str());
-		error.add_info(callsite_location, "argument types are %s",
-				args->str().c_str());
-		error.add_info(callsite_location, "return type is %s",
-				return_type != nullptr ? return_type->str().c_str() : "<null>");
-		error.add_info(callsite_location, "type of %s is %s",
-				alias.c_str(),
-				bound_var->get_type()->str().c_str());
-		throw error;
-	}
-
-	return nullptr;
-}
-
-bound_var_t::ref get_callable(
-		llvm::IRBuilder<> &builder,
+var_t::ref get_callable(
+		delegate_t &delegate,
 		scope_t::ref scope,
 		std::string alias,
 		location_t callsite_location,
@@ -440,7 +408,8 @@ bound_var_t::ref get_callable(
 {
 	var_t::refs fns;
 	fittings_t fittings;
-	auto callable = maybe_get_callable(builder, scope, alias,
+
+	var_t::ref callable = maybe_get_callable(delegate, scope, alias,
 			callsite_location, args, return_type, fns, fittings);
 
 	if (callable != nullptr) {
@@ -448,7 +417,8 @@ bound_var_t::ref get_callable(
 	} else if (return_type != nullptr && types::is_ptr_type_id(return_type, CHAR_TYPE, scope, false /*allow_maybe*/)) {
 		/* fallback if we're looking for a function that will return a *char, we can
 		 * actually find one that returns a str, and then coercion will kick in */
-		return get_callable(builder, scope, alias, callsite_location, args, type_id(make_iid(MANAGED_STR)));
+		return get_callable(delegate, scope, alias, callsite_location, args,
+				type_id(make_iid(MANAGED_STR)));
 	} else {
 		std::stringstream ss;
 		if (fns.size() == 0) {
@@ -478,13 +448,13 @@ bound_var_t::ref get_callable(
 	}
 }
 
-bound_var_t::ref call_program_function(
-        llvm::IRBuilder<> &builder,
+var_t::ref call_program_function(
+        delegate_t &delegate,
         scope_t::ref scope,
 		life_t::ref life,
         std::string function_name,
 		location_t callsite_location,
-        const bound_var_t::refs var_args,
+        const var_t::refs var_args,
 		types::type_t::ref return_type)
 {
 	types::type_args_t::ref args = get_args_type(var_args);
@@ -496,14 +466,16 @@ bound_var_t::ref call_program_function(
 
 	try {
 		/* get or instantiate a function we can call on these arguments */
-		bound_var_t::ref function = get_callable(
-				builder, program_scope, function_name, callsite_location,
+		var_t::ref function = get_callable(
+				delegate, program_scope, function_name, callsite_location,
 				args, return_type);
 
-		return make_call_value(builder, callsite_location, scope,
-				life, function, var_args);
+		return make_call_value(delegate, callsite_location, scope, life, function, var_args);
 	} catch (user_error &e) {
-		std::throw_with_nested(user_error(callsite_location, "failed to resolve function " c_id("%s") " with args: %s and return type: %s",
+		std::throw_with_nested(
+				user_error(
+					callsite_location,
+					"failed to resolve function " c_id("%s") " with args: %s and return type: %s",
 					function_name.c_str(),
 					::str(var_args).c_str(),
 					return_type->str().c_str()));
@@ -511,13 +483,13 @@ bound_var_t::ref call_program_function(
 	return nullptr;
 }
 
-bound_var_t::ref call_module_function(
-        llvm::IRBuilder<> &builder,
+var_t::ref call_module_function(
+        delegate_t &delegate,
         scope_t::ref scope,
 		life_t::ref life,
         std::string function_name,
 		location_t callsite_location,
-        const bound_var_t::refs var_args,
+        var_t::refs var_args,
 		types::type_t::ref return_type)
 {
 	types::type_args_t::ref args = get_args_type(var_args);
@@ -529,12 +501,11 @@ bound_var_t::ref call_module_function(
 
 	try {
 		/* get or instantiate a function we can call on these arguments */
-		bound_var_t::ref function = get_callable(
-				builder, module_scope, function_name, callsite_location,
+		var_t::ref function = get_callable(
+				delegate, module_scope, function_name, callsite_location,
 				args, return_type);
 
-		return make_call_value(builder, callsite_location, scope,
-				life, function, var_args);
+		return make_call_value(delegate, callsite_location, scope, life, function, var_args);
 	} catch (user_error &e) {
 		std::throw_with_nested(user_error(callsite_location, "failed to resolve function " c_id("%s") " with args: %s",
 					function_name.c_str(),
@@ -664,7 +635,7 @@ bound_var_t::ref clone_and_change_type(
             (llvm::FunctionType *)llvm_fn_type,
             llvm::Function::ExternalLinkage,
             existing_function->get_llvm_value(scope)->getName(),
-            scope->get_llvm_module());
+            scope->get_llvm_module(builder));
 
     llvm_function->setDoesNotThrow();
 
@@ -767,7 +738,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
     assert(life->life_form == lf_function);
     assert(life->values.size() == 0);
 
-    assert(scope->get_llvm_module() != nullptr);
+    assert(scope->get_llvm_module(builder) != nullptr);
 
 	types::type_function_t::ref function_type = dyncast<const types::type_function_t>(get_function_type(type_constraints, args, return_type)->eval(scope));
 	assert(function_type != nullptr);
@@ -812,7 +783,7 @@ bound_var_t::ref instantiate_function_with_args_and_return_type(
             (llvm::FunctionType *)llvm_type,
             llvm::Function::ExternalLinkage,
             function_name + (function_name != "main" ? ::str(args) : ""),
-            scope->get_llvm_module());
+            scope->get_llvm_module(builder));
 
     // TODO: enable inlining for various functions
     // llvm_function->addFnAttr(llvm::Attribute::AlwaysInline);
