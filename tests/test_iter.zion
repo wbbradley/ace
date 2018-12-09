@@ -6,6 +6,7 @@ module _
 # expect: c
 # reject: d
 # expect: (c, 4)
+# expect: 567890
 
 get itertools {take, chain, repeat, cycle, izip}
 
@@ -21,7 +22,7 @@ fn main() {
         print("(" + str(x) + ", " + str(y) + ")")
     }
     var y = ""
-    for x in chain([["a", "b", "c"], ["d", "e", "f"]]) {
+    for x in chain([["5", "6", "7"], ["8", "9", "0"]]) {
         y += x
     }
     print(y)

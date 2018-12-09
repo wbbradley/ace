@@ -11,6 +11,7 @@
 #include "compiler.h"
 #include "disk.h"
 #include <sys/wait.h>
+#include <chrono>
 
 int usage() {
 	log(log_error, "available commands: test, read-ir, compile, bc, run, fmt, bin");
@@ -118,10 +119,8 @@ int main(int argc, char *argv[]) {
 			std::cout << compiler.resolve_module_filename(INTERNAL_LOC(), argv[2], "") << std::endl;
 			return EXIT_SUCCESS;
 		} else if (cmd == "compile") {
-			if (compiler.build_parse_modules()) {
-				if (compiler.build_type_check_and_code_gen()) {
-					return EXIT_SUCCESS;
-				}
+			if (compiler.build_parse_modules() && compiler.build_type_check_and_code_gen()) {
+				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;
         } else if (cmd == "fmt") {
@@ -141,36 +140,74 @@ int main(int argc, char *argv[]) {
 				return EXIT_FAILURE;
 			}
         } else if (cmd == "run") {
-			if (compiler.build_parse_modules()) {
-				if (compiler.build_type_check_and_code_gen()) {
-					auto executable_filename = compiler.get_executable_filename();
-					compiler.emit_built_program(executable_filename);
-					std::vector<char*> args;
-					args.reserve(argc-2+1);
-					for (int i=2; i<argc; ++i) {
-						args.push_back(argv[i]);
-					}
-					args.push_back(nullptr);
-					return execv(executable_filename.c_str(), &args[0]);
+			if (compiler.build_parse_modules() && compiler.build_type_check_and_code_gen()) {
+				auto executable_filename = compiler.get_executable_filename();
+				compiler.emit_built_program(executable_filename);
+				std::vector<char*> args;
+				args.reserve(argc-2+1);
+				for (int i=2; i<argc; ++i) {
+					args.push_back(argv[i]);
 				}
+				args.push_back(nullptr);
+				execv(executable_filename.c_str(), &args[0]);
+
+				/* this will only run if execve failed */
+				perror(executable_filename.c_str());
+				return EXIT_FAILURE;
+			}
+			return EXIT_FAILURE;
+        } else if (cmd == "time") {
+			if (compiler.build_parse_modules() && compiler.build_type_check_and_code_gen()) {
+				auto executable_filename = compiler.get_executable_filename();
+				compiler.emit_built_program(executable_filename);
+				std::vector<char*> args;
+				args.reserve(argc-2+1);
+				for (int i=2; i<argc; ++i) {
+					args.push_back(argv[i]);
+				}
+				args.push_back(nullptr);
+
+				std::chrono::duration<double> best = std::chrono::duration<double>{100000000.00};
+				for (int i=0; i<3; i++) {
+					auto start = std::chrono::system_clock::now();
+					pid_t pid = fork();
+					if (pid < 0) {
+						perror("fork");
+						exit(127);
+					} else if (pid == 0) {
+						execv(executable_filename.c_str(), &args[0]);
+						/* this will only run if execve failed */
+						perror(executable_filename.c_str());
+						exit(127);
+					} else {
+						int status=0;
+						if (waitpid(pid, &status, 0) == pid) {
+							auto end = std::chrono::system_clock::now();
+
+							std::chrono::duration<double> elapsed_seconds = end-start;
+							if (elapsed_seconds < best) {
+								best = elapsed_seconds;
+							}
+						} else {
+							perror("Failed to measure the time of child process\n");
+						}
+					}
+				}
+				std::cout << "Elapsed seconds = " << best.count() << std::endl;
 			}
 			return EXIT_FAILURE;
 		} else if (cmd == "obj") {
-			if (compiler.build_parse_modules()) {
-				if (compiler.build_type_check_and_code_gen()) {
-					std::vector<std::string> obj_files;
-					compiler.emit_object_files(obj_files);
-					return EXIT_SUCCESS;
-				}
+			if (compiler.build_parse_modules() && compiler.build_type_check_and_code_gen()) {
+				std::vector<std::string> obj_files;
+				compiler.emit_object_files(obj_files);
+				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;
         } else if (cmd == "bin") {
-			if (compiler.build_parse_modules()) {
-				if (compiler.build_type_check_and_code_gen()) {
-					auto executable_filename = compiler.get_executable_filename();
-					compiler.emit_built_program(executable_filename);
-					return EXIT_SUCCESS;
-				}
+			if (compiler.build_parse_modules() && compiler.build_type_check_and_code_gen()) {
+				auto executable_filename = compiler.get_executable_filename();
+				compiler.emit_built_program(executable_filename);
+				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;
 		} else {

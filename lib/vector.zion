@@ -1,6 +1,7 @@
 module vector
 get posix
 get runtime
+get itertools {map}
 
 type ManagedVector struct {
     var _var     var_t
@@ -491,4 +492,9 @@ fn bind[A, B](ma [A], f fn (a A) [B]) [B] {
 [global]
 fn fail(reason str) [any] {
     return []
+}
+
+[global]
+fn map[T, U](v [T], f fn (t T) U) Iter U {
+    return map(iter(v), f)
 }
