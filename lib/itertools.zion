@@ -26,8 +26,6 @@ fn count(start int, step int) {
     }
 }
 
-fn make_maybe_vector[T](_ Iter T) => [] as [T?]
-
 type CycleState T is {
     Building(_ [T?], _ Iter T)
     Cycling(_ [T?], cur Ref int)
@@ -35,7 +33,7 @@ type CycleState T is {
 
 fn cycle(f) {
     iterator_ := iter(f)
-    cycle_state := Ref(Building(make_maybe_vector(iterator_), iterator_))
+    cycle_state := Ref(Building(new [typeof(iterator_())], iterator_))
     return fn () {
         match! cycle_state.value {
             Building(v, iterator) {
@@ -152,19 +150,19 @@ fn izip[A, B, C](a Iter A, b Iter B, c Iter C) Iter (A, B, C) {
     }
 }
 
-fn loop_words() Iter str {
-    words := ["hey", "you", "are", "programming", "hello"]
-    i := Ref(-1)
-    return fn () {
-        i.value += 1
-        return Just(words[i.value % len(words)])
-    }
-}
-
-fn map(c, f) {
-    i := iter(c)
-    return fn () => match i() {
+fn map[T, U](iterator Iter T, f fn (t T) U) Iter U {
+    return fn () => match iterator() {
         Just(t) => Just(f(t))
         Nothing => Nothing
     }
+}
+
+fn join(delim str, coll) str {
+    var result = ""
+    var d = ""
+    for item in coll {
+        result += d
+        result += str(item)
+    }
+    return result
 }

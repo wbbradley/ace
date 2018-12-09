@@ -1,6 +1,8 @@
 module _
 # test: pass
 
+get sys
+
 fn fib(n int) int {
     if n <= 2 {
         return 1
@@ -10,5 +12,5 @@ fn fib(n int) int {
 }
 
 fn main() {
-    print(fib(10))
+    print(fib(int(sys.args[1])))
 }
