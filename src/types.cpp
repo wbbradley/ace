@@ -11,6 +11,7 @@
 #include "scopes.h"
 #include "encoding.h"
 #include "ast.h"
+#include "parens.h"
 
 const char *NULL_TYPE = "null";
 const char *STD_MANAGED_TYPE = "var_t";
@@ -54,21 +55,6 @@ std::string get_name_from_index(const types::name_index_t &name_index, int i) {
 	}
 	return name;
 }
-
-struct parens_t {
-	std::ostream &os;
-	const int parent_precedence, child_precedence;
-	parens_t(std::ostream &os, int parent_precedence, int child_precedence) : os(os), parent_precedence(parent_precedence), child_precedence(child_precedence) {
-		if (parent_precedence > child_precedence) {
-			os << "(";
-		}
-	}
-	~parens_t() {
-		if (parent_precedence > child_precedence) {
-			os << ")";
-		}
-	}
-};
 
 namespace types {
 
@@ -1387,6 +1373,8 @@ namespace types {
 			os << " ";
 			type_var->emit(os, bindings, get_precedence());
 		}
+		os << "/" << ctor_pairs.size();
+#if 0
 		os << " " << K(is);
 		for (auto ctor_pair : ctor_pairs) {
 			os << " ";
@@ -1395,6 +1383,7 @@ namespace types {
 				ctor_pair.second->emit(os, bindings, get_precedence());
 			}
 		}
+#endif
 		return os;
 	}
 

@@ -852,3 +852,37 @@ void compiler_t::dump_ctags() {
 		name_scope_pair.second->dump_tags(std::cout);
 	}
 }
+
+bitter::decl_t::ref compiler_t::make_function_decl(ast::function_defn_t::ref function) const {
+	std::vector<token_t> args = function->decl->get_arg_tokens();
+	if (args.size() < 1) {
+		log("TODO: handle functions with 0 params like %s", function->decl->str().c_str());
+		return nullptr;
+	}
+
+	bitter::expr_t::ref body;
+	for (auto iter = args.rbegin(); iter != args.rend(); ++iter) {
+		if (body == nullptr) {
+			body = std::make_shared<bitter::lambda_t>(*iter, function->block->make_expr());
+		} else {
+			body = std::make_shared<bitter::lambda_t>(*iter, body);
+		}
+	}
+
+	return std::make_shared<bitter::decl_t>(function->decl->token, body);
+}
+
+bitter::program_t::ref compiler_t::make_bitter() const {
+	std::shared_ptr<bitter::program_t> program = std::make_shared<bitter::program_t>();
+	for (auto &module : this->program->modules) {
+		auto module_name = module->decl->get_canonical_name();
+		debug_above(3, log("making bitter from module %s", module_name.c_str()));
+		for (auto function : module->functions) {
+			auto decl = make_function_decl(function);
+			if (decl != nullptr) {
+				program->decls.push_back(decl);
+			}
+		}
+	}
+	return program;
+}

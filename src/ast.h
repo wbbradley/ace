@@ -12,6 +12,7 @@
 #include "type_checker.h"
 #include "callable.h"
 #include "life.h"
+#include "bitter.h"
 
 struct parse_state_t;
 struct delegate_t;
@@ -70,6 +71,7 @@ namespace ast {
 				life_t::ref life,
 				runnable_scope_t::ref *new_scope,
 				bool *returns) const = 0;
+		virtual bitter::expr_t::ref make_expr() const;
 	};
 
 	struct module_t;
@@ -645,6 +647,7 @@ namespace ast {
 				types::type_t::ref expected_type) const;
 		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::vector<std::shared_ptr<statement_t>> statements;
 	};
@@ -655,7 +658,7 @@ namespace ast {
 		static std::shared_ptr<function_decl_t> parse(parse_state_t &ps, bool within_expression, types::type_t::ref default_return_type);
 
 		virtual void render(render_state_t &rs) const;
-
+		std::vector<token_t> get_arg_tokens() const;
 		types::type_t::ref function_type;
 		identifier::ref extends_module;
 		token_t link_to_name;
