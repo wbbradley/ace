@@ -47,6 +47,7 @@ add_executable(zion
 	src/ast.cpp
 	src/atom.cpp
 	src/binding.cpp
+	src/bitter.cpp
 	src/bound_type.cpp
 	src/bound_var.cpp
 	src/builtins.cpp

@@ -196,6 +196,14 @@ int main(int argc, char *argv[]) {
 				std::cout << "Elapsed seconds = " << best.count() << std::endl;
 			}
 			return EXIT_FAILURE;
+		} else if (cmd == "x") {
+			setenv("NO_STD_LIB", "1", 1 /*overwrite*/);
+			if (compiler.build_parse_modules()) {
+				bitter::program_t::ref bitter_program = compiler.make_bitter();
+				std::cout << *bitter_program;
+				return EXIT_SUCCESS;
+			}
+			return EXIT_FAILURE;
 		} else if (cmd == "obj") {
 			if (compiler.build_parse_modules() && compiler.build_type_check_and_code_gen()) {
 				std::vector<std::string> obj_files;

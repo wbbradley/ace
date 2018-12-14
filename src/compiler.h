@@ -7,6 +7,7 @@
 #include "type_checker.h"
 #include "scopes.h"
 #include "parse_state.h"
+#include "bitter.h"
 
 struct compiler_t {
 	typedef std::vector<std::string> libs;
@@ -18,6 +19,8 @@ struct compiler_t {
 	compiler_t(std::string program_name, const libs &zion_paths);
 	~compiler_t();
 
+	bitter::program_t::ref make_bitter() const;
+	bitter::decl_t::ref make_function_decl(std::shared_ptr<const ast::function_defn_t> function) const;
 	std::string resolve_module_filename(location_t location, std::string name, std::string extension);
 	void info(const char *format, ...);
 
