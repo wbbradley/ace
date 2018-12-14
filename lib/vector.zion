@@ -226,6 +226,13 @@ fn append[T where not(gc T)](vec [T], t T) void {
 }
 
 [global]
+fn append[T](vec [T], t [T]) void {
+    for x in t {
+        append(vec, x)
+    }
+}
+
+[global]
 fn resize[T](vector [T], size int, default T) void {
     let vec = vector as! *(VectorImpl T)
     if size < 0 {

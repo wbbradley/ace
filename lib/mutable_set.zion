@@ -1,43 +1,33 @@
-module map
+module mutable_set
 
 # map is an associative array
 
 type HashType = uint32
 
-type ChainEntry K V has {
+type ChainEntry K has {
     hash_value HashType
     key K
-    var value V
-    var next (ChainEntry K V)?
+    var next (ChainEntry K)?
 }
 
-# aka {K: V}
-type Map K V has {
+type MutableSet K has {
     var count int
-    var storage [(ChainEntry K V)?]
+    var storage [(ChainEntry K)?]
 }
 
 [global]
-fn __init__[K, V]() Map K V {
-    storage := new [(ChainEntry K V)?]
-    return Map(0, storage)
+fn __init__[K]() MutableSet K {
+    storage := new [(ChainEntry K)?]
+    return MutableSet(0, storage)
 }
 
 [global]
-fn len[K, V](m Map K V) int {
+fn len[K](m MutableSet K) int {
     return m.count
 }
 
-fn values[K, V](m Map K V) [V] {
-    vals := new [V]
-    for (_, v) in m {
-        append(vals, v)
-    }
-    return vals
-}
-
-fn realloc[K, V](m Map K V) {
-    storage := new [(ChainEntry K V)?]
+fn realloc[K](m MutableSet K) {
+    storage := new [(ChainEntry K)?]
     new_size := (len(m.storage) + 1) * 2
     resize(storage, new_size, Nothing)
 
@@ -66,35 +56,18 @@ fn realloc[K, V](m Map K V) {
     }
 }
 
-[global]
-fn get[K, V](m Map K V, key K, default V) V => match m[key] {
-    Just(val) => val
-    Nothing   => default
-}
-
-[global]
-fn __getitem__[K, V](m Map K V, key K) V? {
-    ls := len(m.storage)
-    if ls == 0 {
-        return Nothing
+fn insert[K](m MutableSet K, n MutableSet K) {
+    g := new MutableSet K
+    for q in n {
+        insert(g, q)
     }
-
-    let hash_value HashType = __map_hash__(key)
-    index := hash_value % ls
-    var chain = m.storage[index]
-    while match chain {
-        Just(entry) {
-            if entry.hash_value == hash_value and entry.key == key {
-                return Just(entry.value)
-            }
-            chain = entry.next
-        }
-    } else => break
-    return Nothing
+    for q in m {
+        insert(g, q)
+    }
+    return g
 }
 
-[global]
-fn __setitem__[K, V](m Map K V, key K, val V) {
+fn insert[K](m MutableSet K, key K) {
     hash_value := __map_hash__(key)
     ls := len(m.storage)
     if ls == 0 {
@@ -106,7 +79,6 @@ fn __setitem__[K, V](m Map K V, key K, val V) {
     while match chain {
         Just(entry) {
             if entry.hash_value == hash_value and entry.key == key {
-                entry.value = val
                 return
             }
             chain = entry.next
@@ -118,20 +90,20 @@ fn __setitem__[K, V](m Map K V, key K, val V) {
         realloc(m)
         index = hash_value % len(m.storage)
     }
-    entry := ChainEntry(hash_value, key, val, m.storage[index])
+    entry := ChainEntry(hash_value, key, m.storage[index])
     m.storage[index] = Just(entry)
     m.count += 1
 }
 
 [global]
-fn __in__[K, V](key K, m Map K V) bool {
-    hash_value := __map_hash__(key)
+fn __in__[K](key K, m MutableSet K) bool {
     ls := len(m.storage)
     if ls == 0 {
         return false
     }
-    index := hash_value % ls
 
+    let hash_value HashType = __map_hash__(key)
+    index := hash_value % ls
     var chain = m.storage[index]
     while match chain {
         Just(entry) {
@@ -145,17 +117,11 @@ fn __in__[K, V](key K, m Map K V) bool {
 }
 
 [global]
-fn __not_in__[K, V](key K, m Map K V) bool {
+fn __not_in__[K](key K, m MutableSet K) bool {
     return not __in__(key, m)
 }
 
-[global]
-fn del[K, V](m Map K V, key K) bool {
-    return exists(pop(m, key))
-}
-
-[global]
-fn pop[K, V](m Map K V, key K) V? {
+fn remove[K](m MutableSet K, key K) bool {
     hash_value := __map_hash__(key)
     ls := len(m.storage)
     if ls == 0 {
@@ -164,7 +130,7 @@ fn pop[K, V](m Map K V, key K) V? {
     var index = hash_value % ls
 
     var chain = m.storage[index]
-    var prior = Nothing as (ChainEntry K V)?
+    var prior = Nothing as (ChainEntry K)?
     while match chain {
         Just(entry) {
             if entry.hash_value == hash_value and entry.key == key {
@@ -178,26 +144,26 @@ fn pop[K, V](m Map K V, key K) V? {
                 }
                 m.count -= 1
                 assert(key not in m)
-                return Just(entry.value)
+                return true
             }
             prior = chain
             chain = entry.next
         }
     } else => break
 
-    return Nothing
+    return false
 }
 
 [global]
-fn iter[K, V](m Map K V) Iter (K, V) {
-    items := new [(K, V)]
+fn iter[K](m MutableSet K) Iter K {
+    items := new [K]
     reserve(items, len(m))
 
     for index in range(len(m.storage)) {
         var chain = m.storage[index]
         while match chain {
             Just(entry) {
-                append(items, (entry.key, entry.value))
+                append(items, entry.key)
                 chain = entry.next
             }
             Nothing => break
@@ -209,8 +175,57 @@ fn iter[K, V](m Map K V) Iter (K, V) {
     return iter(items)
 }
 
-fn __test_compilation() {
-    m := new [str: int]
-    m["hey"] = 5
-    print(get(m, "hey", 0))
+fn difference[K](a MutableSet K, b MutableSet K) MutableSet K {
+    n := new MutableSet K
+    for x in a {
+        if x not in b {
+            insert(n, x)
+        }
+    }
+    return n
+}
+
+fn difference[K](a MutableSet K, b Iter K) MutableSet K {
+    c := new MutableSet K
+    for x in b {
+        insert(c, x)
+    }
+    return difference(a, c)
+}
+
+fn union[K](a MutableSet K, b MutableSet K) MutableSet K {
+    n := new MutableSet K
+    for x in a {
+        insert(n, x)
+    }
+    for x in b {
+        insert(n, x)
+    }
+    return n
+}
+
+fn intersect[K](a MutableSet K, b MutableSet K) MutableSet K {
+    n := new MutableSet K
+
+    if len(a) < len(b) {
+        for x in a {
+            if x in b {
+                insert(n, x)
+            }
+        }
+    } else {
+        for x in b {
+            if x in a {
+                insert(n, x)
+            }
+        }
+    }
+
+    return n
+}
+
+fn __test_compilation() void {
+    m := new MutableSet str
+    insert(m, "hey")
+    print("hey" in m)
 }

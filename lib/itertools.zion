@@ -1,5 +1,32 @@
 module itertools
 
+get mutable_set {MutableSet, insert}
+
+fn fmap[A, B](f fn (a A) B, a Iter A) Iter B {
+    return fn () B? {
+        return fmap(f, a())
+    }
+}
+
+fn uniq[A](i Iter A) Iter A {
+    seen := new MutableSet A
+    return fn () {
+        while true {
+            match i() {
+                Nothing => break
+                Just(t) {
+                    if t in seen {
+                        continue
+                    } else {
+                        insert(seen, t)
+                        return Just(t)
+                    }
+                }
+            }
+        }
+        return Nothing
+    }
+}
 
 fn take(n uint, f) {
     let iterator = iter(f)
