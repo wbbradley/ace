@@ -160,10 +160,19 @@ std::shared_ptr<statement_t> get_statement_parse(parse_state_t &ps) {
 					make_iid_impl(
 						module_decl->get_name().text + "." + symbol->get_name(),
 						symbol->get_location()));
-			assert(ps.type_macros.find(symbol->get_name()) == ps.type_macros.end());
-			assert(ps.global_type_macros.find(symbol->get_name()) == ps.global_type_macros.end());
-			ps.type_macros.insert({symbol->get_name(), linked_id});
-			ps.global_type_macros.insert({symbol->get_name(), linked_id});
+			if (ps.type_macros.find(symbol->get_name()) != ps.type_macros.end()) {
+				/* if this is already inserted, then let's be sure it points to the right place */
+				assert(ps.type_macros[symbol->get_name()]->repr() == linked_id->repr());
+			} else {
+				ps.type_macros.insert({symbol->get_name(), linked_id});
+			}
+
+			if (ps.global_type_macros.find(symbol->get_name()) != ps.global_type_macros.end()) {
+				/* if this is already inserted, then let's be sure it points to the right place */
+				assert(ps.global_type_macros[symbol->get_name()]->repr() == linked_id->repr());
+			} else {
+				ps.global_type_macros.insert({symbol->get_name(), linked_id});
+			}
 		}
 	}
 

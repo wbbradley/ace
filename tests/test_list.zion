@@ -7,24 +7,16 @@ type ListInt is {
 }
 
 fn len(l ListInt) int {
-    match l {
-        Done {
-            return 0
-        }
-        NodeInt(_, next) {
-            return 1 + len(next)
-        }
+    return match l {
+        Done => 0
+        NodeInt(_, next) => 1 + len(next)
     }
 }
 
 fn sum(l ListInt) int {
-    match l {
-        Done {
-            return 0
-        }
-        NodeInt(value, next) {
-            return value + sum(next)
-        }
+    return match l {
+        Done => 0
+        NodeInt(value, next) => value + sum(next)
     }
 }
 
