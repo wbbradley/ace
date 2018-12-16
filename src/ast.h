@@ -29,7 +29,6 @@ namespace ast {
 		location_t get_location() const;
 		bool exists() const;
 
-	private:
 		types::type_t::ref type;
 	};
 
@@ -291,6 +290,7 @@ namespace ast {
 				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::shared_ptr<expression_t> function_expr;
 		std::vector<std::shared_ptr<expression_t>> params;
@@ -347,6 +347,7 @@ namespace ast {
 				types::type_t::ref expected_type,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		std::shared_ptr<expression_t> lhs;
@@ -723,6 +724,7 @@ namespace ast {
 				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::shared_ptr<const condition_t> condition;
 		std::shared_ptr<const block_t> block;
@@ -969,6 +971,7 @@ namespace ast {
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::shared_ptr<ast::expression_t> condition, when_true, when_false;
 	};
@@ -1121,6 +1124,7 @@ namespace ast {
 				types::type_t::refs args,
 				types::type_t::ref return_type) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 	};
 
 	struct literal_expr_t : public expression_t, public predicate_t {
@@ -1146,6 +1150,7 @@ namespace ast {
 				runnable_scope_t::ref *scope_if_true) const;
 		virtual std::string repr() const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const;
 	};

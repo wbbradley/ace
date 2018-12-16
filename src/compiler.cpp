@@ -14,6 +14,7 @@
 #include "llvm_types.h"
 #include <sys/stat.h>
 #include <iostream>
+#include "code_id.h"
 
 namespace llvm {
 	FunctionPass *createZionGCLoweringPass(StructType *StackEntryTy, StructType *FrameMapTy);
@@ -863,26 +864,26 @@ bitter::decl_t::ref compiler_t::make_function_decl(ast::function_defn_t::ref fun
 	bitter::expr_t::ref body;
 	for (auto iter = args.rbegin(); iter != args.rend(); ++iter) {
 		if (body == nullptr) {
-			body = std::make_shared<bitter::lambda_t>(*iter, function->block->make_expr());
+			body = bitter::lambda(make_code_id(*iter), function->block->make_expr());
 		} else {
-			body = std::make_shared<bitter::lambda_t>(*iter, body);
+			body = bitter::lambda(make_code_id(*iter), body);
 		}
 	}
 
-	return std::make_shared<bitter::decl_t>(function->decl->token, body);
+	return bitter::decl(function->decl->token, body);
 }
 
 bitter::program_t::ref compiler_t::make_bitter() const {
-	std::shared_ptr<bitter::program_t> program = std::make_shared<bitter::program_t>();
+	std::vector<bitter::decl_t::ref> decls;
 	for (auto &module : this->program->modules) {
 		auto module_name = module->decl->get_canonical_name();
 		debug_above(3, log("making bitter from module %s", module_name.c_str()));
 		for (auto function : module->functions) {
 			auto decl = make_function_decl(function);
 			if (decl != nullptr) {
-				program->decls.push_back(decl);
+				decls.push_back(decl);
 			}
 		}
 	}
-	return program;
+	return bitter::program(decls, bitter::application(bitter::var("main"), bitter::unit()));
 }
