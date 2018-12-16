@@ -1,8 +1,10 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include "identifier.h"
 #include "token.h"
 #include <iostream>
+#include "types.h"
 
 enum expr_kind_t {
 	var,
@@ -17,7 +19,7 @@ enum expr_kind_t {
 
 namespace bitter {
 	struct expr_t {
-		using ref = std::shared_ptr<expr_t>;
+		using ref = std::shared_ptr<const expr_t>;
 
 		virtual ~expr_t() throw() {}
 		virtual location_t get_location() const = 0;
@@ -25,14 +27,35 @@ namespace bitter {
 	};
 
 	struct var_t : public expr_t {
-		var_t(token_t var) : var(var) {}
+		using ref = std::shared_ptr<const var_t>;
+		var_t(identifier::ref var) : var(var) {}
 		location_t get_location() const override;
 		std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-		token_t var;
+		identifier::ref var;
+	};
+
+	struct block_t : public expr_t {
+		using ref = std::shared_ptr<const block_t>;
+		block_t(std::vector<expr_t::ref> statements) : statements(statements) {}
+		location_t get_location() const override;
+		std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
+		std::vector<expr_t::ref> statements;
+	};
+
+	struct as_t : public expr_t {
+		using ref = std::shared_ptr<const as_t>;
+		as_t(expr_t::ref expr, types::type_t::ref type) : expr(expr), type(type) {}
+		location_t get_location() const override;
+		std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
+		expr_t::ref expr;
+		types::type_t::ref type;
 	};
 
 	struct application_t : public expr_t {
+		using ref = std::shared_ptr<const application_t>;
 		application_t(expr_t::ref a, expr_t::ref b) : a(a), b(b) {}
 		location_t get_location() const override;
 		std::ostream &render(std::ostream &os, int parent_precedence) const override;
@@ -40,24 +63,27 @@ namespace bitter {
 	};
 
 	struct lambda_t : public expr_t {
-		lambda_t(token_t var, expr_t::ref body) : var(var), body(body) {}
+		using ref = std::shared_ptr<const lambda_t>;
+		lambda_t(identifier::ref var, expr_t::ref body) : var(var), body(body) {}
 		location_t get_location() const override;
 		std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-		token_t var;
+		identifier::ref var;
 		expr_t::ref body;
 	};
 
 	struct let_t : public expr_t {
-		let_t(token_t var, expr_t::ref value, expr_t::ref body): var(var), value(value), body(body) {}
+		using ref = std::shared_ptr<const let_t>;
+		let_t(identifier::ref var, expr_t::ref value, expr_t::ref body): var(var), value(value), body(body) {}
 		location_t get_location() const override;
 		std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-		token_t var;
+		identifier::ref var;
 		expr_t::ref value, body;
 	};
 
 	struct literal_t : public expr_t {
+		using ref = std::shared_ptr<const literal_t>;
 		literal_t(token_t value) : value(value) {}
 		location_t get_location() const override;
 		std::ostream &render(std::ostream &os, int parent_precedence) const override;
@@ -66,6 +92,7 @@ namespace bitter {
 	};
 
 	struct conditional_t : public expr_t {
+		using ref = std::shared_ptr<const conditional_t>;
 		conditional_t(expr_t::ref cond, expr_t::ref truthy, expr_t::ref falsey): cond(cond), truthy(truthy), falsey(falsey) {}
 		location_t get_location() const override;
 		std::ostream &render(std::ostream &os, int parent_precedence) const override;
@@ -74,6 +101,7 @@ namespace bitter {
 	};
 
 	struct fix_t : public expr_t {
+		using ref = std::shared_ptr<const fix_t>;
 		fix_t(expr_t::ref f): f(f) {}
 		location_t get_location() const override;
 		std::ostream &render(std::ostream &os, int parent_precedence) const override;
@@ -82,18 +110,37 @@ namespace bitter {
 	};
 
 	struct decl_t {
-		using ref = std::shared_ptr<decl_t>;
+		using ref = std::shared_ptr<const decl_t>;
 
-		decl_t(token_t var, expr_t::ref value) : var(var), value(value) {}
+		decl_t(identifier::ref var, expr_t::ref value) : var(var), value(value) {}
 
-		token_t var;
+		identifier::ref var;
 		expr_t::ref value;
 	};
 
 	struct program_t {
 		using ref = std::shared_ptr<program_t>;
+		program_t(std::vector<decl_t::ref> decls, expr_t::ref expr) : decls(decls), expr(expr) {}
 		std::vector<decl_t::ref> decls;
+		expr_t::ref expr;
 	};
+
+	var_t::ref unit();
+	var_t::ref var(identifier::ref name);
+	var_t::ref var(std::string name);
+	var_t::ref var(std::string name, location_t location);
+	var_t::ref var(token_t token);
+	as_t::ref as(expr_t::ref expr, types::type_t::ref type);
+	block_t::ref block(const std::vector<expr_t::ref> &statements);
+	literal_t::ref literal(token_t token);
+	application_t::ref application(expr_t::ref a, expr_t::ref b);
+	lambda_t::ref lambda(identifier::ref var, expr_t::ref body);
+	let_t::ref let(identifier::ref var, expr_t::ref value, expr_t::ref body);
+	conditional_t::ref conditional(expr_t::ref cond, expr_t::ref truthy, expr_t::ref falsey);
+	fix_t::ref fix(expr_t::ref f);
+	decl_t::ref decl(identifier::ref var, expr_t::ref value);
+	decl_t::ref decl(token_t token, expr_t::ref value);
+	program_t::ref program(std::vector<decl_t::ref> decls, expr_t::ref expr);
 }
 
 std::ostream &operator <<(std::ostream &os, const bitter::program_t &program);
