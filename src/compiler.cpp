@@ -281,7 +281,7 @@ void add_global_types(
 	}
 	add_default_type_macros(compiler.base_type_macros);
 
-	debug_above(10, log(log_info, "%s", program_scope->str().c_str()));
+	// debug_above(10, log(log_info, "%s", program_scope->str().c_str()));
 }
 
 void add_globals(
@@ -855,22 +855,7 @@ void compiler_t::dump_ctags() {
 }
 
 bitter::decl_t::ref compiler_t::make_function_decl(ast::function_defn_t::ref function) const {
-	std::vector<token_t> args = function->decl->get_arg_tokens();
-	if (args.size() < 1) {
-		log("TODO: handle functions with 0 params like %s", function->decl->str().c_str());
-		return nullptr;
-	}
-
-	bitter::expr_t::ref body;
-	for (auto iter = args.rbegin(); iter != args.rend(); ++iter) {
-		if (body == nullptr) {
-			body = bitter::lambda(make_code_id(*iter), function->block->make_expr());
-		} else {
-			body = bitter::lambda(make_code_id(*iter), body);
-		}
-	}
-
-	return bitter::decl(function->decl->token, body);
+	return bitter::decl(function->decl->token, function->make_expr());
 }
 
 bitter::program_t::ref compiler_t::make_bitter() const {

@@ -1792,7 +1792,7 @@ std::shared_ptr<module_t> module_t::parse(parse_state_t &ps) {
 						break;
 					}
 				}
-				if (!have_linked_main) {
+				if (!have_linked_main && getenv("NO_STD_MAIN") == nullptr) {
 					std::shared_ptr<link_module_statement_t> linked_module = create<link_module_statement_t>(ps.token);
 					linked_module->link_as_name = token_t(
 							function->decl->token.location,

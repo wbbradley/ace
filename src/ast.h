@@ -70,7 +70,10 @@ namespace ast {
 				life_t::ref life,
 				runnable_scope_t::ref *new_scope,
 				bool *returns) const = 0;
-		virtual bitter::expr_t::ref make_expr() const;
+		virtual std::vector<ref>::iterator sequence_exprs(
+			std::vector<std::shared_ptr<const bitter::expr_t>> &exprs,
+			std::vector<ref>::iterator next,
+			std::vector<ref>::iterator end) const;
 	};
 
 	struct module_t;
@@ -206,6 +209,7 @@ namespace ast {
 				types::type_t::ref expected_type,
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
+		virtual bitter::expr_t::ref make_expr() const = 0;
 	};
 
 	namespace postfix_expr {
@@ -249,6 +253,7 @@ namespace ast {
 				types::type_t::ref expected_type,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 		static std::shared_ptr<typeid_expr_t> parse(parse_state_t &ps);
 
 		std::shared_ptr<expression_t> expr;
@@ -267,6 +272,7 @@ namespace ast {
 				types::type_t::ref expected_type,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 		static std::shared_ptr<sizeof_expr_t> parse(parse_state_t &ps);
 
 		parsed_type_t parsed_type;
@@ -309,6 +315,10 @@ namespace ast {
 				life_t::ref life,
 				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
+		virtual std::vector<statement_t::ref>::iterator sequence_exprs(
+			std::vector<std::shared_ptr<const bitter::expr_t>> &exprs,
+			std::vector<statement_t::ref>::iterator next,
+			std::vector<statement_t::ref>::iterator end) const;
 	};
 
 	struct unreachable_t : public statement_t {
@@ -483,6 +493,10 @@ namespace ast {
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
+		virtual std::vector<statement_t::ref>::iterator sequence_exprs(
+			std::vector<std::shared_ptr<const bitter::expr_t>> &exprs,
+			std::vector<statement_t::ref>::iterator next,
+			std::vector<statement_t::ref>::iterator end) const;
 
 		virtual std::string get_symbol() const;
 		types::type_t::ref get_type(delegate_t &delegate, scope_t::ref scope) const;
@@ -650,7 +664,7 @@ namespace ast {
 		virtual void render(render_state_t &rs) const;
 		virtual bitter::expr_t::ref make_expr() const;
 
-		std::vector<std::shared_ptr<statement_t>> statements;
+		std::vector<std::shared_ptr<const statement_t>> statements;
 	};
 
 	struct function_decl_t : public item_t {
@@ -708,6 +722,11 @@ namespace ast {
 				types::type_t::refs args,
 				types::type_t::ref return_type) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
+		virtual std::vector<statement_t::ref>::iterator sequence_exprs(
+			std::vector<std::shared_ptr<const bitter::expr_t>> &exprs,
+			std::vector<statement_t::ref>::iterator next,
+			std::vector<statement_t::ref>::iterator end) const;
 
 		std::shared_ptr<function_decl_t> decl;
 		std::shared_ptr<block_t> block;
@@ -724,7 +743,10 @@ namespace ast {
 				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
-		virtual bitter::expr_t::ref make_expr() const;
+		virtual std::vector<statement_t::ref>::iterator sequence_exprs(
+			std::vector<std::shared_ptr<const bitter::expr_t>> &exprs,
+			std::vector<statement_t::ref>::iterator next,
+			std::vector<statement_t::ref>::iterator end) const;
 
 		std::shared_ptr<const condition_t> condition;
 		std::shared_ptr<const block_t> block;
@@ -742,6 +764,10 @@ namespace ast {
 				runnable_scope_t::ref *new_scope,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
+		virtual std::vector<statement_t::ref>::iterator sequence_exprs(
+				std::vector<std::shared_ptr<const bitter::expr_t>> &exprs,
+				std::vector<statement_t::ref>::iterator next,
+				std::vector<statement_t::ref>::iterator end) const;
 
 		std::shared_ptr<const condition_t> condition;
 		std::shared_ptr<block_t> block;
@@ -784,6 +810,7 @@ namespace ast {
 				types::type_t::ref expected_type) const;
 		virtual types::type_t::ref resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::shared_ptr<expression_t> value;
 		pattern_block_t::refs pattern_blocks;
@@ -846,6 +873,7 @@ namespace ast {
 				types::type_t::ref expected_type,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::shared_ptr<function_decl_t> extern_function;
 	};
@@ -862,6 +890,7 @@ namespace ast {
 				types::type_t::ref expected_type,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::shared_ptr<var_decl_t> var_decl;
 	};
@@ -929,6 +958,7 @@ namespace ast {
 				types::type_t::ref expected_type,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::shared_ptr<ast::expression_t> lhs;
 		token_t rhs;
@@ -947,6 +977,7 @@ namespace ast {
 				types::type_t::ref expected_type,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::vector<std::shared_ptr<ast::expression_t>> values;
 	};
@@ -996,6 +1027,7 @@ namespace ast {
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::shared_ptr<ast::expression_t> lhs, rhs;
 	};
@@ -1020,6 +1052,7 @@ namespace ast {
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::shared_ptr<ast::expression_t> lhs, rhs;
 	};
@@ -1044,6 +1077,7 @@ namespace ast {
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::string function_name;
 		std::shared_ptr<ast::expression_t> lhs, rhs;
@@ -1069,6 +1103,7 @@ namespace ast {
 				runnable_scope_t::ref *scope_if_true,
 				runnable_scope_t::ref *scope_if_false) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::shared_ptr<ast::expression_t> rhs;
 
@@ -1168,6 +1203,7 @@ namespace ast {
 				types::type_t::ref expected_type,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::vector<std::shared_ptr<expression_t>> items;
 	};
@@ -1184,6 +1220,7 @@ namespace ast {
 				types::type_t::ref expected_type,
 				bool *returns) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::shared_ptr<expression_t> lhs;
     };
@@ -1208,6 +1245,7 @@ namespace ast {
 				const ast::expression_t::ref &rhs,
 				types::type_t::ref expected_type) const;
 		virtual void render(render_state_t &rs) const;
+		virtual bitter::expr_t::ref make_expr() const;
 
 		std::shared_ptr<expression_t> lhs;
 		std::shared_ptr<expression_t> start, stop;

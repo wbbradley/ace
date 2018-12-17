@@ -198,6 +198,7 @@ int main(int argc, char *argv[]) {
 			return EXIT_FAILURE;
 		} else if (cmd == "x") {
 			setenv("NO_STD_LIB", "1", 1 /*overwrite*/);
+			setenv("NO_STD_MAIN", "1", 1 /*overwrite*/);
 			if (compiler.build_parse_modules()) {
 				bitter::program_t::ref bitter_program = compiler.make_bitter();
 				std::cout << *bitter_program;
