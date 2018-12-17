@@ -6,17 +6,6 @@
 #include <iostream>
 #include "types.h"
 
-enum expr_kind_t {
-	var,
-	app,
-	lam,
-	let,
-	lit,
-	cond,
-	fix,
-	op,
-};
-
 namespace bitter {
 	struct expr_t {
 		using ref = std::shared_ptr<const expr_t>;
@@ -33,6 +22,26 @@ namespace bitter {
 		std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
 		identifier::ref var;
+	};
+
+	struct pattern_block_t {
+		using ref = std::shared_ptr<const pattern_block_t>;
+		using refs = std::vector<ref>;
+		pattern_block_t(std::shared_ptr<const ast::predicate_t> predicate, expr_t::ref result) : predicate(predicate), result(result) {}
+		std::ostream &render(std::ostream &os) const;
+
+		std::shared_ptr<const ast::predicate_t> predicate;
+		expr_t::ref result;
+	};
+
+	struct match_t : public expr_t {
+		using ref = std::shared_ptr<const match_t>;
+		match_t(expr_t::ref scrutinee, pattern_block_t::refs pattern_blocks) : scrutinee(scrutinee), pattern_blocks(pattern_blocks) {}
+		location_t get_location() const override;
+		std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
+		expr_t::ref scrutinee;
+		pattern_block_t::refs pattern_blocks;
 	};
 
 	struct block_t : public expr_t {
@@ -99,6 +108,24 @@ namespace bitter {
 
 		expr_t::ref cond, truthy, falsey;
 	};
+	
+	struct return_statement_t : public expr_t {
+		using ref = std::shared_ptr<const return_statement_t>;
+		return_statement_t(expr_t::ref value) : value(value) {}
+		location_t get_location() const override;
+		std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
+		expr_t::ref value;
+	};
+
+	struct while_t : public expr_t {
+		using ref = std::shared_ptr<const while_t>;
+		while_t(expr_t::ref condition, block_t::ref block) : condition(condition), block(block) {}
+		location_t get_location() const override;
+		std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
+		expr_t::ref condition, block;
+	};
 
 	struct fix_t : public expr_t {
 		using ref = std::shared_ptr<const fix_t>;
@@ -133,8 +160,11 @@ namespace bitter {
 	as_t::ref as(expr_t::ref expr, types::type_t::ref type);
 	block_t::ref block(const std::vector<expr_t::ref> &statements);
 	literal_t::ref literal(token_t token);
+	match_t::ref match(expr_t::ref value, pattern_block_t::refs pattern_blocks);
+	while_t::ref while_loop(expr_t::ref condition, block_t::ref block);
 	application_t::ref application(expr_t::ref a, expr_t::ref b);
 	lambda_t::ref lambda(identifier::ref var, expr_t::ref body);
+	return_statement_t::ref return_statement(expr_t::ref value);
 	let_t::ref let(identifier::ref var, expr_t::ref value, expr_t::ref body);
 	conditional_t::ref conditional(expr_t::ref cond, expr_t::ref truthy, expr_t::ref falsey);
 	fix_t::ref fix(expr_t::ref f);
@@ -145,3 +175,13 @@ namespace bitter {
 
 std::ostream &operator <<(std::ostream &os, const bitter::program_t &program);
 std::ostream &operator <<(std::ostream &os, const bitter::decl_t &decl);
+
+std::vector<std::shared_ptr<const bitter::expr_t>> sequence_exprs(
+		std::vector<std::shared_ptr<const ast::statement_t>>::iterator next,
+		std::vector<std::shared_ptr<const ast::statement_t>>::iterator end);
+bitter::block_t::ref block_from_statements(
+		std::vector<std::shared_ptr<const ast::statement_t>>::iterator begin,
+		std::vector<std::shared_ptr<const ast::statement_t>>::iterator end);
+bitter::block_t::ref block_from_block(std::shared_ptr<const ast::block_t> block);
+bitter::block_t::ref block_from_statement(std::shared_ptr<const ast::statement_t> stmt);
+bitter::block_t::ref block_from_statements(std::vector<std::shared_ptr<const ast::statement_t>> stmts);

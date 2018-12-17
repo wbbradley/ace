@@ -131,7 +131,7 @@ namespace ast {
 	}
 
 	std::vector<token_t> function_decl_t::get_arg_tokens() const {
-		types::type_function_t::ref function = safe_dyncast<types::type_function_t const>(function_type);
+		types::type_function_t::ref function = safe_dyncast<types::type_function_t const>(types::without_closure(function_type));
 		types::type_args_t::ref args = safe_dyncast<types::type_args_t const>(function->args);
 
 		std::vector<token_t> arg_tokens;
