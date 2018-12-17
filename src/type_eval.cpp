@@ -1,5 +1,4 @@
 #include "types.h"
-#include "scopes.h"
 #include "dbg.h"
 #include "unification.h"
 #include "ast.h"

@@ -5,6 +5,7 @@
 #include "logger_decls.h"
 
 #define dyncast std::dynamic_pointer_cast
+#define dcast dynamic_cast
 
 template <typename T, typename U>
 std::shared_ptr<T> safe_dyncast(U p) {

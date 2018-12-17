@@ -1,7 +1,6 @@
 #pragma once
 #include "types.h"
 #include <set>
-#include "scopes.h"
 
 namespace match {
 	struct Pattern;
@@ -23,6 +22,6 @@ namespace match {
 	Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs);
 	Pattern::ref difference(Pattern::ref lhs, Pattern::ref rhs);
 	Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs);
-	Pattern::ref all_of(location_t location, std::string expr, runnable_scope_t::ref runnable_scope, types::type_t::ref type);
+	Pattern::ref all_of(location_t location, std::string expr, types::type_t::ref type);
 }
 

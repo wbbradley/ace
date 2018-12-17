@@ -12,7 +12,7 @@
 #include "code_id.h"
 #include "type_parser.h"
 
-using namespace ast;
+using namespace bitter;
 
 
 bool token_begins_type(const token_t &token) {
@@ -1077,10 +1077,11 @@ std::shared_ptr<expression_t> expression_t::parse(parse_state_t &ps) {
 std::shared_ptr<statement_t> assignment_t::parse(parse_state_t &ps) {
 	auto lhs = expression_t::parse(ps);
 
-#define handle_assign(tk_, type) \
+#define handle_assign(tk_, tk_binop_) \
 	if (!ps.line_broke() && ps.token.tk == tk_) { \
-		auto assignment = create<type>(ps.token); \
+		auto token = ps.token; \
 		chomp_token(tk_); \
+		auto assigment = create<assignment_t>(token); \
 		auto rhs = expression_t::parse(ps); \
 		assignment->lhs = std::move(lhs); \
 		assignment->rhs = std::move(rhs); \
@@ -1088,12 +1089,12 @@ std::shared_ptr<statement_t> assignment_t::parse(parse_state_t &ps) {
 	}
 
 	handle_assign(tk_assign, ast::assignment_t);
-	handle_assign(tk_plus_eq, ast::plus_assignment_t);
+	handle_assign(tk_plus_eq, tk_plus);
 	// handle_assign(tk_maybe_eq, ast::maybe_assignment_t);
-	handle_assign(tk_minus_eq, ast::minus_assignment_t);
-	handle_assign(tk_divide_by_eq, ast::divide_assignment_t);
-	handle_assign(tk_times_eq, ast::times_assignment_t);
-	handle_assign(tk_mod_eq, ast::mod_assignment_t);
+	handle_assign(tk_minus_eq, tk_minus);
+	handle_assign(tk_divide_by_eq, tk_divide_by);
+	handle_assign(tk_times_eq, tk_times);
+	handle_assign(tk_mod_eq, tk_mod);
 
 	if (!ps.line_broke() && ps.token.tk == tk_becomes) {
 		if (dyncast<reference_expr_t>(lhs) != nullptr) {
@@ -1541,30 +1542,6 @@ std::shared_ptr<function_defn_t> function_defn_t::parse(parse_state_t &ps, bool 
 	return function_defn;
 }
 
-std::shared_ptr<module_decl_t> module_decl_t::parse(parse_state_t &ps, bool skip_module_token) {
-	bool global = false;
-	if (!skip_module_token) {
-		if (ps.token.is_ident(K(global))) {
-			global = true;
-			ps.advance();
-		} else {
-			chomp_ident(K(module));
-		}
-	}
-
-	/* we've skipped the check for the 'module' token */
-	auto module_decl = create<ast::module_decl_t>(ps.token);
-	module_decl->global = global;
-
-	if (!global) {
-		expect_token(tk_identifier);
-		module_decl->name = ps.token;
-		eat_token();
-	}
-
-	return module_decl;
-}
-
 void parse_maybe_type_decl(parse_state_t &ps, identifier::refs &type_variables) {
 	while (!ps.line_broke() && ps.token.tk == tk_identifier) {
 		if (token_is_illegal_in_type(ps.token)) {
@@ -1737,30 +1714,53 @@ dimension_t::ref dimension_t::parse(parse_state_t &ps, identifier::set generics)
 	return ast::create<ast::dimension_t>(primary_token, name, type);
 }
 
-std::shared_ptr<module_t> module_t::parse(parse_state_t &ps) {
+module_t *parse_module(parse_state_t &ps, std::vector<identifier::ref> &module_deps) {
 	debug_above(6, log("about to parse %s with type_macros: [%s]",
 				ps.filename.c_str(),
 				join_with(ps.type_macros, ", ", [] (type_macros_t::value_type v) -> std::string {
 					return v.first + ": " + v.second->str();
 					}).c_str()));
 
-	auto module_decl = module_decl_t::parse(ps);
+	assert(ps.module_name.size() == 0);
+	ps.module_name = strip_zion_extension(leaf_from_file_path(ps.filename));
+	assert(ps.module_name.size() != 0);
 
-	assert(module_decl != nullptr);
-	std::string module_name = strip_zion_extension(ps.filename);
-	ps.module_id = make_iid(module_decl->get_canonical_name());
-	assert(ps.module_id != nullptr);
-
-	auto module = create<ast::module_t>(module_decl->token, ps.filename, module_decl->global);
-	module->decl.swap(module_decl);
+	std::vector<decl_t *> decls;
 
 	while (ps.token.is_ident(K(get))) {
-		auto get_statement = get_statement_parse(ps);
-		if (auto linked_module = dyncast<link_module_statement_t>(get_statement)) {
-			module->linked_modules.push_back(linked_module);
+		ps.advance();
+		expect_token(tk_identifier);
+		std::string module_name = ps.token.text;
+		ps.advance();
+		expect_token(tk_lcurly);
+		while (ps.token.tk != tk_rcurly) {
+			expect_token(tk_identifier);
+			ps.add_term_map(ps.token.location, ps.token.text, module_name + "." + ps.token.text);
+			ps.advance();
+			if (ps.token.tk == tk_comma) {
+				ps.advance();
+			}
 		}
 	}
 
+	while (true) {
+		if (ps.token.is_ident(K(var)) || ps.token.is_ident(K(let))) {
+			bool is_let = ps.token.is_ident(K(let));
+			if (is_let) {
+				throw user_error(ps.token.location, "let variables are not yet supported at the module level");
+			} else {
+				ps.advance();
+				auto var = parse_expr(ps, is_let, false /*allow_tuple_destructuring*/);
+				auto var_decl = dyncast<var_decl_t>(var);
+				assert(var_decl != nullptr);
+				module->var_decls.push_back(var_decl);
+			}
+		}
+	}
+	return new module_t(ps.module_name, decls);
+}
+
+void ff() {
 	/* Get vars, functions or type defs */
 	while (true) {
 		if (ps.token.is_ident(K(link))) {

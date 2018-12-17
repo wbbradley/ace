@@ -2,14 +2,9 @@
 #include "atom.h"
 #include "ast.h"
 #include "code_id.h"
-#include "llvm_utils.h"
-#include "type_checker.h"
 #include "compiler.h"
-#include "llvm_types.h"
 #include <iostream>
 #include "unification.h"
-#include "coercions.h"
-#include "delegate.h"
 
 types::type_t::ref build_patterns(
 		llvm::IRBuilder<> &builder,

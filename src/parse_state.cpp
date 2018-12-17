@@ -74,3 +74,9 @@ void add_default_type_macros(type_macros_t &type_macros) {
 	}
 }
 
+void parse_state::add_term_map(location_t location, std::string key, std::string value) {
+	if (in(key, term_map)) {
+		throw user_error(location, "symbol imported twice");
+	}
+	term_map[key] = value;
+}

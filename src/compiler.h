@@ -4,41 +4,23 @@
 #include "location.h"
 #include <vector>
 #include <list>
-#include "type_checker.h"
-#include "scopes.h"
 #include "parse_state.h"
-#include "bitter.h"
 
 struct compiler_t {
 	typedef std::vector<std::string> libs;
-	typedef std::pair<std::string, std::unique_ptr<llvm::Module>> llvm_module_t;
-	typedef std::list<llvm_module_t> llvm_modules_t;
 
 	compiler_t() = delete;
 	compiler_t(const compiler_t &) = delete;
 	compiler_t(std::string program_name, const libs &zion_paths);
 	~compiler_t();
 
-	bitter::program_t::ref make_bitter() const;
-	bitter::decl_t::ref make_function_decl(std::shared_ptr<const ast::function_defn_t> function) const;
 	std::string resolve_module_filename(location_t location, std::string name, std::string extension);
 	void info(const char *format, ...);
 
-	module_scope_t::ref get_module_scope(std::string module_key);
-	void set_module_scope(std::string module_key, module_scope_t::ref module_scope);
-
 	std::vector<token_t> get_comments() const;
-	std::shared_ptr<const ast::module_t> get_module(std::string key_alias);
-	void set_module(std::string filename, std::shared_ptr<ast::module_t> module);
-	llvm::Module *llvm_load_ir(std::string filename);
-	llvm::Module *llvm_create_module(std::string module_name);
-	llvm::Module *llvm_get_program_module();
 
 	/* testing */
-	std::string dump_llvm_modules();
 	std::string dump_program_text(std::string module_name);
-
-	void write_obj_file(std::unique_ptr<llvm::Module> &llvm_module);
 
 	void setup_disk_environment();
 
@@ -49,9 +31,8 @@ struct compiler_t {
 	bool build_type_check_and_code_gen();
 
 	/* parse a single module */
-	std::shared_ptr<const ast::module_t> build_parse(location_t location, std::string module_name, type_macros_t &global_type_macros);
+	bitter::module_t *build_parse(location_t location, std::string module_name, type_macros_t &global_type_macros);
 
-	void build_parse_linked(std::shared_ptr<const ast::module_t> module, type_macros_t &global_type_macros);
 	std::set<std::string> compile_modules();
 	void emit_built_program(std::string bitcode_filename);
 	int run_program(int argc, char *argv[]);
@@ -59,36 +40,23 @@ struct compiler_t {
 
 	void dump_ctags();
 
-	program_scope_t::ref get_program_scope() const;
 	std::string get_program_name() const;
 	std::string get_executable_filename() const;
 
-	std::shared_ptr<const ast::module_t> main_module;
+	bitter::module_t *main_module = nullptr;
 	type_macros_t base_type_macros;
-
-    std::unique_ptr<llvm::DIBuilder> llvm_dibuilder;
 
 private:
 	void lower_program_module();
-
-	std::unique_ptr<llvm::Module> &get_llvm_module(std::string name);
 
 	std::string program_name;
 	std::shared_ptr<std::vector<std::string>> zion_paths;
 	std::set<token_t> link_ins;
 	std::vector<token_t> comments;
-	program_scope_t::ref program_scope;
-	std::map<std::string, std::shared_ptr<const ast::module_t>> modules_map;
-	std::vector<std::shared_ptr<const ast::module_t>> ordered_modules;
-	llvm::LLVMContext llvm_context;
-	llvm::IRBuilder<> builder;
-	llvm_module_t llvm_program_module;
-	llvm_modules_t llvm_modules;
-	std::map<std::string, std::shared_ptr<module_scope_t>> module_scopes;
-	std::shared_ptr<ast::program_t> program;
+	std::map<std::string, bitter::module_t *> modules_map;
+	bitter::program_t *program = nullptr;
 
 	friend bool _check_compiler_error(compiler_t &compiler, int &skipped);
-	friend struct program_scope_impl_t;
 };
 
 std::string strip_zion_extension(std::string module_name);
