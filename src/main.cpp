@@ -7,7 +7,6 @@
 #include "logger_decls.h"
 #include "logger.h"
 #include "tests.h"
-#include "llvm_utils.h"
 #include "compiler.h"
 #include "disk.h"
 #include <sys/wait.h>
@@ -68,19 +67,6 @@ int main(int argc, char *argv[]) {
 		return usage();
 	}
 
-	{
-		using namespace llvm;
-
-		llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
-
-		InitializeAllTargetInfos();
-		InitializeAllTargets();
-		InitializeAllTargetMCs();
-		InitializeAllAsmParsers();
-		InitializeAllAsmPrinters();
-		
-	}
-
 	if (cmd == "test") {
 		std::string filter = (argc == 3 ? argv[2] : "");
 		std::vector<std::string> excludes;
@@ -112,10 +98,7 @@ int main(int argc, char *argv[]) {
 
 		compiler_t compiler(argv[2], zion_paths);
 
-		if (cmd == "read-ir") {
-			compiler.llvm_load_ir(argv[2]);
-			return EXIT_SUCCESS;
-		} else if (cmd == "find") {
+		if (cmd == "find") {
 			std::cout << compiler.resolve_module_filename(INTERNAL_LOC(), argv[2], "") << std::endl;
 			return EXIT_SUCCESS;
 		} else if (cmd == "compile") {
@@ -200,8 +183,8 @@ int main(int argc, char *argv[]) {
 			setenv("NO_STD_LIB", "1", 1 /*overwrite*/);
 			setenv("NO_STD_MAIN", "1", 1 /*overwrite*/);
 			if (compiler.build_parse_modules()) {
-				bitter::program_t::ref bitter_program = compiler.make_bitter();
-				std::cout << *bitter_program;
+				bitter::program_t *bitter_program = compiler.make_bitter();
+				std::cout << bitter_program;
 				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;

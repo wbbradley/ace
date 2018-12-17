@@ -48,13 +48,11 @@ namespace match {
 
 	struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
 		std::string name;
-		env_t::ref env;
 		types::type_t::ref type;
 
-		AllOf(location_t location, std::string name, env_t::ref env, types::type_t::ref type) :
+		AllOf(location_t location, std::string name, types::type_t::ref type) :
 			Pattern(location),
 			name(name),
-			env(env),
 			type(type)
 		{
 		}
@@ -128,8 +126,8 @@ namespace match {
 	std::shared_ptr<Scalars<int64_t>> allIntegers = std::make_shared<Scalars<int64_t>>(INTERNAL_LOC(), Scalars<int64_t>::Exclude, std::set<int64_t>{});
 	std::shared_ptr<Scalars<std::string>> allStrings = std::make_shared<Scalars<std::string>>(INTERNAL_LOC(), Scalars<std::string>::Exclude, std::set<std::string>{});
 
-	Pattern::ref all_of(location_t location, std::string expr, runnable_scope_t::ref runnable_scope, types::type_t::ref type) {
-		return std::make_shared<match::AllOf>(location, expr, runnable_scope, type);
+	Pattern::ref all_of(location_t location, std::string expr, types::type_t::ref type) {
+		return std::make_shared<match::AllOf>(location, expr, type);
 	}
 
 	Pattern::ref reduce_all_datatype(

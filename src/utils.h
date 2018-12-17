@@ -132,6 +132,16 @@ InputIt find_if(InputIt first, InputIt last, UnaryPredicate p)
 	return last;
 }
 
+template<typename K, typename V>
+V get(const std::map<K, V> &t, K k, V default_) {
+	auto iter = t.find(k);
+	if (iter != t.end()) {
+		return iter.second;
+	} else {
+		return default_;
+	}
+}
+
 static inline std::string &ltrim(std::string &s) {
 	s.erase(s.begin(), ::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
 	return s;

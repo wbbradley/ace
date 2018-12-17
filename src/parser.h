@@ -63,3 +63,4 @@ identifier::ref make_code_id(const token_t &token);
 		eat_token(); \
 	} while (0)
 
+module_t *parse_module(parse_state_t &ps, std::vector<identifier::ref> &module_deps);

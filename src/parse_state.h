@@ -26,17 +26,19 @@ struct parse_state_t {
 
 	bool advance();
 	void error(const char *format, ...);
-
+	void add_term_map(location_t, std::string, std::string);
 	bool line_broke() const { return newline || prior_token.tk == tk_semicolon; }
 	token_t token;
 	token_t prior_token;
 	std::string filename;
-	identifier::ref module_id;
+	std::string module_name;
 	zion_lexer_t &lexer;
+	std::unordered_map<std::string, std::string> term_map;
 	type_macros_t type_macros;
 	type_macros_t &global_type_macros;
 	std::vector<token_t> *comments;
 	std::set<token_t> *link_ins;
+	std::list<scope_t> stack_of_scopes;
 
 	/* keep track of the current function declaration parameter position */
 	int argument_index;

@@ -16,7 +16,6 @@ typedef double zion_float_t;
 #include <locale.h>
 #include <langinfo.h>
 #include "colors.h"
-#include "type_kind.h"
 
 typedef int64_t zion_int_t;
 typedef int64_t zion_bool_t;

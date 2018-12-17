@@ -8,26 +8,10 @@
 #include "disk.h"
 #include <fstream>
 #include <set>
-#include "phase_scope_setup.h"
 #include "utils.h"
-#include "llvm_utils.h"
-#include "llvm_types.h"
 #include <sys/stat.h>
 #include <iostream>
 #include "code_id.h"
-
-namespace llvm {
-	FunctionPass *createZionGCLoweringPass(StructType *StackEntryTy, StructType *FrameMapTy);
-}
-
-#ifdef ZION_DEBUG
-void dump_llir(llvm::Module *llvm_module, std::string filename) {
-	debug_above(5, log(c_error("writing to %s..."), filename.c_str()));
-	FILE *fp = fopen(filename.c_str(), "wt");
-	fprintf(fp, "%s\n", llvm_print_module(*llvm_module).c_str());
-	fclose(fp);
-}
-#endif
 
 std::string strip_zion_extension(std::string module_name) {
 	if (ends_with(module_name, ".zion")) {
@@ -40,8 +24,7 @@ std::string strip_zion_extension(std::string module_name) {
 
 compiler_t::compiler_t(std::string program_name_, const libs &zion_paths) :
 	program_name(strip_zion_extension(program_name_)),
-	zion_paths(std::make_shared<std::vector<std::string>>()),
-   	builder(llvm_context)
+	zion_paths(std::make_shared<std::vector<std::string>>())
 {
 	for (auto lib_path : zion_paths) {
 		std::string real_lib_path;
@@ -49,21 +32,9 @@ compiler_t::compiler_t(std::string program_name_, const libs &zion_paths) :
 			this->zion_paths->push_back(real_lib_path);
 		}
 	}
-	auto llvm_module = llvm_create_module(program_name_ + ".global");
-	auto llvm_difile = llvm_dibuilder->createFile("std.zion", "lib");
-	auto llvm_compile_unit = llvm_dibuilder->createCompileUnit(
-			llvm::dwarf::DW_LANG_C,
-			llvm_difile,
-			"zion-producer",
-			false /*isOptimized*/,
-			"" /*Flags*/,
-			0 /*RV*/);
-	program_scope = program_scope_t::create(GLOBAL_SCOPE_NAME, *this, llvm_module,
-			llvm_compile_unit);
 }
 
 compiler_t::~compiler_t() {
-	debug_above(12, std::cout << dump_llvm_modules());
 }
 
 void compiler_t::info(const char *format, ...) {
@@ -71,10 +42,6 @@ void compiler_t::info(const char *format, ...) {
 	va_start(args, format);
 	logv(log_info, format, args);
 	va_end(args);
-}
-
-program_scope_t::ref compiler_t::get_program_scope() const {
-	return program_scope;
 }
 
 std::vector<token_t> compiler_t::get_comments() const {
@@ -156,18 +123,7 @@ std::string compiler_t::resolve_module_filename(
 	}
 }
 
-void compiler_t::build_parse_linked(
-		std::shared_ptr<const ast::module_t> module,
-		type_macros_t &global_type_macros)
-{
-	/* now, recursively make sure that all of the linked modules are parsed */
-	for (auto &link : module->linked_modules) {
-		auto linked_module_name = link->extern_module->get_canonical_name();
-		build_parse(link->extern_module->token.location, linked_module_name, global_type_macros);
-	}
-}
-
-ast::module_t::ref compiler_t::build_parse(
+bitter::module_t *compiler_t::build_parse(
 		location_t location,
 		std::string module_name,
 		type_macros_t &global_type_macros)
@@ -176,7 +132,7 @@ ast::module_t::ref compiler_t::build_parse(
 
 	// TODO: include some notion of versions
 	assert(module_filename.size() != 0);
-	auto existing_module = get_module(module_filename);
+	bitter::module_t *existing_module = get(modules_map, module_filename, (bitter::module_t *)nullptr);
 	if (existing_module == nullptr) {
 		/* we found an unparsed file */
 		std::ifstream ifs;
@@ -188,7 +144,7 @@ ast::module_t::ref compiler_t::build_parse(
 			zion_lexer_t lexer({module_filename}, ifs);
 
 			parse_state_t ps(module_filename, lexer, global_type_macros, global_type_macros, &comments, &link_ins);
-			auto module = ast::module_t::parse(ps);
+			auto module = parse_module(ps);
 
 			set_module(module->filename, module);
 			build_parse_linked(module, global_type_macros);
