@@ -4,6 +4,7 @@
 #include "compiler.h"
 #include "lexer.h"
 #include "parse_state.h"
+#include "parser.h"
 #include <vector>
 #include "disk.h"
 #include <fstream>
@@ -12,6 +13,8 @@
 #include <sys/stat.h>
 #include <iostream>
 #include "code_id.h"
+
+using namespace bitter;
 
 std::string strip_zion_extension(std::string module_name) {
 	if (ends_with(module_name, ".zion")) {
@@ -22,16 +25,27 @@ std::string strip_zion_extension(std::string module_name) {
 	}
 }
 
-compiler_t::compiler_t(std::string program_name_, const libs &zion_paths) :
-	program_name(strip_zion_extension(program_name_)),
-	zion_paths(std::make_shared<std::vector<std::string>>())
-{
-	for (auto lib_path : zion_paths) {
-		std::string real_lib_path;
-		if (real_path(lib_path, real_lib_path)) {
-			this->zion_paths->push_back(real_lib_path);
+const std::vector<std::string> &get_zion_paths() {
+	static bool checked = false;
+	static std::vector<std::string> zion_paths;
+
+	if (!checked) {
+		checked = true;
+		if (getenv("ZION_PATH") != nullptr) {
+			zion_paths = split(getenv("ZION_PATH"), ":");
+		}
+		zion_paths.insert(zion_paths.begin(), ".");
+		for (auto &zion_path : zion_paths) {
+			/* fix any paths to be absolute */
+			real_path(zion_path, zion_path);
 		}
 	}
+	return zion_paths;
+}
+
+compiler_t::compiler_t(std::string program_name_) :
+	program_name(strip_zion_extension(program_name_))
+{
 }
 
 compiler_t::~compiler_t() {
@@ -56,7 +70,7 @@ std::string compiler_t::get_executable_filename() const {
 	return program_name + ".zx";
 }
 
-std::string compiler_t::resolve_module_filename(
+std::string resolve_module_filename(
 		location_t location,
 		std::string name,
 		std::string extension)
@@ -81,7 +95,7 @@ std::string compiler_t::resolve_module_filename(
 
 	std::string leaf_name = name + extension;
 	std::string working_resolution;
-	for (auto zion_path : *zion_paths) {
+	for (auto zion_path : get_zion_paths()) {
 		auto test_path = zion_path + "/" + leaf_name;
 		if (file_exists(test_path)) {
 			std::string test_resolution;
@@ -118,168 +132,213 @@ std::string compiler_t::resolve_module_filename(
 	} else {
 		throw user_error(location, "module not found: " c_error("`%s`") " (Note that module names should not have .zion extensions.) Looked in ZION_PATH=[%s]",
 				name.c_str(),
-				join(*zion_paths, ":").c_str());
+				join(get_zion_paths(), ":").c_str());
 		return "";
 	}
 }
 
-bitter::module_t *compiler_t::build_parse(
-		location_t location,
-		std::string module_name,
-		type_macros_t &global_type_macros)
-{
-	std::string module_filename = resolve_module_filename(location, module_name, ".zion");
+struct global_parser_state_t {
 
-	// TODO: include some notion of versions
-	assert(module_filename.size() != 0);
-	bitter::module_t *existing_module = get(modules_map, module_filename, (bitter::module_t *)nullptr);
-	if (existing_module == nullptr) {
+	std::vector<module_t *> modules;
+	std::map<std::string, module_t *> modules_map_by_filename;
+	std::map<std::string, module_t *> modules_map_by_name;
+	std::vector<token_t> comments;
+	std::set<token_t> link_ins;
+
+	module_t *parse_module(location_t location, std::string module_name) {
+		if (auto module = get(modules_map_by_name, module_name, (module_t *)nullptr)) {
+			return module;
+		}
+		std::string module_filename = resolve_module_filename(location, module_name, ".zion");
+		if (auto module = get(modules_map_by_filename, module_filename, (module_t *)nullptr)) {
+			return module;
+		}
+
 		/* we found an unparsed file */
 		std::ifstream ifs;
-		assert(ends_with(module_filename, ".zion"));
 		ifs.open(module_filename.c_str());
 
 		if (ifs.good()) {
 			debug_above(4, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
 			zion_lexer_t lexer({module_filename}, ifs);
 
-			parse_state_t ps(module_filename, lexer, global_type_macros, global_type_macros, &comments, &link_ins);
-			auto module = parse_module(ps);
+			parse_state_t ps(module_filename, lexer, &comments, &link_ins);
 
-			set_module(module->filename, module);
-			build_parse_linked(module, global_type_macros);
+			std::vector<identifier::ref> dependencies;
+			module_t *module = ::parse_module(ps, dependencies);
+
+			modules.push_back(module);
+			modules_map_by_name[ps.module_name] = module;
+			modules_map_by_filename[ps.filename] = module;
+
+			for (auto dependency : dependencies) {
+				parse_module(dependency->get_location(), dependency->get_name());
+			}
 
 			return module;
 		} else {
-			throw user_error(location, "could not open \"%s\" when trying to link module",
-					module_filename.c_str());
+			auto error = user_error(location, "could not open \"%s\" when trying to link module", module_filename.c_str());
+			error.add_info(location, "imported here");
+			throw error;
 		}
+	}
+};
+
+
+std::set<std::string> get_top_level_decls(const std::vector<decl_t *> &decls) {
+	std::map<std::string, location_t> module_decls;
+	for (decl_t *decl : decls) {
+		if (module_decls.find(decl->var->get_name()) != module_decls.end()) {
+			auto error = user_error(decl->var->get_location(), "duplicate symbol");
+			error.add_info(module_decls[decl->var->get_name()], "see prior definition here");
+			throw error;
+		}
+		module_decls[decl->var->get_name()] = decl->var->get_location();
+	}
+	std::set<std::string> top_level_decls;
+	for (auto pair : module_decls) {
+		top_level_decls.insert(pair.first);
+	}
+	return top_level_decls;
+}
+
+std::string prefix(std::set<std::string> bindings, std::string pre, std::string name) {
+	if (in(name, bindings)) {
+		return pre + "." + name;
 	} else {
-		debug_above(3, info("no need to build %s as it's already been linked in",
-					module_name.c_str()));
-		return existing_module;
+		return name;
 	}
 }
 
-void add_global_types(
-		compiler_t &compiler,
-		llvm::IRBuilder<> &builder,
-	   	program_scope_t::ref program_scope)
-{
-	/* let's add the builtin types to the program scope */
-	std::vector<std::pair<std::string, bound_type_t::ref>> globals = {
-		{{"null"},
-			bound_type_t::create(
-					type_null(),
-					INTERNAL_LOC(),
-					builder.getInt8Ty()->getPointerTo())},
-		{{VOID_TYPE},
-			bound_type_t::create(
-					type_id(make_iid(VOID_TYPE)),
-					INTERNAL_LOC(),
-				   	builder.getVoidTy())},
-		{{BOTTOM_TYPE},
-			bound_type_t::create(
-					type_bottom(),
-					INTERNAL_LOC(),
-				   	builder.getVoidTy())},
-		{{"*void"},
-			bound_type_t::create(
-					type_ptr(type_id(make_iid(VOID_TYPE))),
-					INTERNAL_LOC(),
-				   	builder.getInt8Ty()->getPointerTo())},
-		{{"module"},
-		   	bound_type_t::create(
-					type_id(make_iid("module")),
-				   	INTERNAL_LOC(),
-				   	builder.getVoidTy())},
-		{{CHAR_TYPE},
-		   	bound_type_t::create(
-					type_id(make_iid(CHAR_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getInt8Ty())},
-		{{FLOAT_TYPE},
-		   	bound_type_t::create(
-					type_id(make_iid(FLOAT_TYPE)),
-					INTERNAL_LOC(),
-					builder.getDoubleTy())},
-		{{BOOL_TYPE},
-		   	bound_type_t::create(
-					type_id(make_iid(BOOL_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getZionIntTy())},
-		{{TRUE_TYPE},
-		   	bound_type_t::create(
-					type_id(make_iid(TRUE_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getZionIntTy())},
-		{{FALSE_TYPE},
-		   	bound_type_t::create(
-					type_id(make_iid(FALSE_TYPE)),
-				   	INTERNAL_LOC(),
-				   	builder.getZionIntTy())},
-		{{MBS_TYPE},
-		   	bound_type_t::create(
-					type_ptr(type_id(make_iid(CHAR_TYPE))),
-				   	INTERNAL_LOC(),
-				   	builder.getInt8Ty()->getPointerTo())},
-		{{PTR_TO_MBS_TYPE},
-		   	bound_type_t::create(
-					type_ptr(type_ptr(type_id(make_iid(CHAR_TYPE)))),
-				   	INTERNAL_LOC(),
-				   	builder.getInt8Ty()->getPointerTo()->getPointerTo())},
-	};
+identifier::ref prefix(std::set<std::string> bindings, std::string pre, identifier::ref name) {
+	return make_iid_impl(prefix(bindings, pre, name->get_name()), name->get_location());
+}
 
-	for (auto type_pair : globals) {
-		program_scope->put_bound_type(type_pair.second);
-		/* there can be only one BOTTOM_TYPE */
-		compiler.base_type_macros[type_pair.first] = (type_pair.first == BOTTOM_TYPE) ? type_bottom() : type_id(make_iid(type_pair.first));
+token_t prefix(std::set<std::string> bindings, std::string pre, token_t name) {
+	assert(name.tk == tk_identifier);
+	return token_t{name.location, tk_identifier, prefix(bindings, pre, name.text)};
+}
+
+expr_t *prefix(std::set<std::string> bindings, std::string pre, expr_t *value);
+
+predicate_t *prefix(
+		std::set<std::string> bindings,
+	   	std::string pre,
+	   	predicate_t *predicate,
+	   	std::set<std::string> &new_symbols)
+{
+	if (auto p = dcast<tuple_predicate_t *>(predicate)) {
+		std::vector<predicate_t *> params;
+		for (auto param : p->params) {
+			params.push_back(prefix(bindings, pre, param, new_symbols));
+		}
+		return new tuple_predicate_t(params, prefix(bindings, pre, p->name_assignment));
+	} else if (auto p = dcast<irrefutable_predicate_t *>(predicate)) {
+		return new irrefutable_predicate_t(prefix(bindings, pre, p->name_assignment));
+	} else if (auto p = dcast<ctor_predicate_t *>(predicate)) {
+		std::vector<predicate_t *> params;
+		for (auto param : p->params) {
+			params.push_back(prefix(bindings, pre, param, new_symbols));
+		}
+		return new ctor_predicate_t(
+				params,
+				prefix(bindings, pre, p->ctor_name),
+				prefix(bindings, pre, p->name_assignment));
+	} else {
+		assert(false);
+		return nullptr;
 	}
-	add_default_type_macros(compiler.base_type_macros);
-
-	// debug_above(10, log(log_info, "%s", program_scope->str().c_str()));
 }
 
-void add_globals(
-		compiler_t &compiler,
-	   	llvm::IRBuilder<> &builder,
-		program_scope_t::ref program_scope, 
-		ast::item_t::ref program)
-{
-	/* set up the global scalar types, as well as memory reference and garbage
-	 * collection types */
-	add_global_types(compiler, builder, program_scope);
+pattern_block_t *prefix(std::set<std::string> bindings, std::string pre, pattern_block_t *pattern_block) {
+	std::set<std::string> new_symbols;
+	predicate_t *new_predicate = prefix(bindings, pre, pattern_block->predicate, new_symbols);
 
-	/* lookup the types of bool and void pointer for use below */
-	bound_type_t::ref null_type = program_scope->get_bound_type({"null"});
-	assert(null_type != nullptr);
-
-	bound_type_t::ref bool_type = program_scope->get_bound_type({BOOL_TYPE});
-	assert(bool_type != nullptr);
-
-	bound_type_t::ref true_type = program_scope->get_bound_type({TRUE_TYPE});
-	assert(true_type != nullptr);
-
-	bound_type_t::ref false_type = program_scope->get_bound_type({FALSE_TYPE});
-	assert(false_type != nullptr);
-
-	program_scope->put_bound_variable(
-			"true",
-			make_bound_var(INTERNAL_LOC(),
-				"true",
-				true_type,
-				builder.getZionInt(1/*true*/), make_iid("true")));
-
-	program_scope->put_bound_variable(
-		   	"false",
-		   	make_bound_var(INTERNAL_LOC(),
-			   	"false",
-			   	false_type,
-			   	builder.getZionInt(0/*false*/),
-			   	make_iid("false")));
+	return new pattern_block_t(
+			new_predicate,
+			prefix(set_diff(bindings, new_symbols), pre, pattern_block->result));
 }
 
-bool compiler_t::build_parse_modules() {
+decl_t *prefix(std::set<std::string> bindings, std::string pre, decl_t *value) {
+	return new decl_t(
+			prefix(bindings, pre, value->var), 
+			prefix(bindings, pre, value->value));
+}
+
+template <typename T>
+std::vector<T> prefix(std::set<std::string> bindings, std::string pre, std::vector<T> things) {
+	std::vector<T> new_things;
+	for (T pb : things) {
+		new_things.push_back(::prefix(bindings, pre, pb));
+	}
+	return new_things;
+}
+
+expr_t *prefix(std::set<std::string> bindings, std::string pre, expr_t *value) {
+	if (auto var = dcast<var_t*>(value)) {
+		return new var_t(prefix(bindings, pre, var->var));
+	} else if (auto match = dcast<match_t*>(value)) {
+		return new match_t(
+				prefix(bindings, pre, match->scrutinee),
+				prefix(bindings, pre, match->pattern_blocks));
+	} else if (auto block = dcast<block_t*>(value)) {
+		return new block_t(prefix(bindings, pre, block->statements));
+	} else if (auto as = dcast<as_t*>(value)) {
+		return new as_t(prefix(bindings, pre, as->expr), as->type);
+	} else if (auto application = dcast<application_t*>(value)) {
+		return new application_t(
+				prefix(bindings, pre, application->a),
+				prefix(bindings, pre, application->b));
+	} else if (auto lambda = dcast<lambda_t*>(value)) {
+		return new lambda_t(
+				lambda->var,
+				prefix(
+					without(bindings,lambda->var->get_name()),
+					pre,
+					lambda->body));
+	} else if (auto let = dcast<let_t*>(value)) {
+		return new let_t(
+				let->var,
+				prefix(
+					without(bindings, let->var->get_name()),
+					pre,
+					let->value),
+				prefix(
+					without(bindings, let->var->get_name()),
+					pre,
+					let->body));
+	} else if (auto conditional = dcast<conditional_t*>(value)) {
+		return new conditional_t(
+				prefix(bindings, pre, conditional->cond),
+				prefix(bindings, pre, conditional->truthy),
+				prefix(bindings, pre, conditional->falsey));
+	} else if (auto ret = dcast<return_statement_t*>(value)) {
+		return new return_statement_t(prefix(bindings, pre, ret->value));
+	} else if (auto fix = dcast<fix_t*>(value)) {
+		return new fix_t(prefix(bindings, pre, fix->f));
+	} else if (auto while_ = dcast<while_t*>(value)) {
+		return new while_t(
+				prefix(bindings, pre, while_->condition),
+				prefix(bindings, pre, while_->block));
+	} else {
+		assert(false);
+		return nullptr;
+	}
+}
+	
+std::vector<expr_t *> prefix(std::set<std::string> bindings, std::string pre, std::vector<expr_t *> values) {
+	std::vector<expr_t *> new_values;
+	for (auto value : values) {
+		new_values.push_back(prefix(bindings, pre, value));
+	}
+	return new_values;
+}
+
+module_t *prefix(std::set<std::string> bindings, module_t *module) {
+	return new module_t(module->name, prefix(bindings, module->name, module->decls));
+}
+
+bool compiler_t::parse_program() {
 	try {
 		/* first just parse all the modules that are reachable from the initial module
 		 * and bring them into our whole ast */
@@ -287,44 +346,47 @@ bool compiler_t::build_parse_modules() {
 
 		assert(program == nullptr);
 
-		/* create the program ast to contain all of the modules */
-		program = ast::create<ast::program_t>({});
-
-		/* set up global types and variables */
-		add_globals(*this, builder, program_scope, program);
-
-		type_macros_t global_type_macros = base_type_macros;
+		global_parser_state_t gps;
 
 		/* always include the builtins library */
 		if (getenv("NO_BUILTINS") == nullptr) {
-			build_parse(location_t{"builtins", 0, 0},
-					"lib/builtins",
-					global_type_macros);
+			gps.parse_module(location_t{"builtins", 0, 0}, "lib/builtins");
 		}
 
 		/* always include the standard library */
 		if (getenv("NO_STD_LIB") == nullptr) {
-			build_parse(location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0},
-					"lib/std",
-					global_type_macros);
+			gps.parse_module(location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0}, "lib/std");
 		}
 
 		/* now parse the main program module */
-		main_module = build_parse(location_t{"command line build parameters", 0, 0},
-				module_name, global_type_macros);
+		gps.parse_module(location_t{"command line build parameters", 0, 0}, module_name);
 
-		debug_above(4, log(log_info, "build_parse of %s succeeded", module_name.c_str(),
+		debug_above(4, log(log_info, "parse_module of %s succeeded", module_name.c_str(),
 					false /*global*/));
 
+		std::vector<decl_t *> program_decls;
 		/* next, merge the entire set of modules into one program */
-		for (const auto &module : ordered_modules) {
-			/* note the use of the find here to ensure that each module is only
-			 * included once */
-			assert(module != nullptr);
-			assert(std::find(program->modules.begin(), program->modules.end(), module) == program->modules.end());
 
-			program->modules.push_back(module);
+		for (module_t *module : gps.modules) {
+			/* get a list of all top-level decls */
+			std::set<std::string> bindings = get_top_level_decls(module->decls);
+			module_t *module_rebound = prefix(bindings, module);
+
+			/* now all locally referring vars are fully qualified */
+			for (decl_t *decl : module_rebound->decls) {
+				program_decls.push_back(decl);
+			}
 		}
+		assert(program == nullptr);
+		program = new program_t(
+				program_decls,
+			   	new application_t(
+					new var_t(make_iid("main")),
+				   	new var_t(make_iid("unit"))));
+
+		comments = gps.comments;
+		link_ins = gps.link_ins;
+
 		return true;
 	} catch (user_error &e) {
 		print_exception(e);
@@ -335,324 +397,15 @@ bool compiler_t::build_parse_modules() {
 
 bool compiler_t::build_type_check_and_code_gen() {
 	try {
-		/* set up the names that point back into the AST resolved to the right
-		 * module scopes */
-		scope_setup_program(*program, *this);
-
-		/* final and most complex pass to resolve all needed symbols in order to guarantee type constraints, and
-		 * generate LLVM IR */
-		type_check_program(builder, *program, *this);
-
 		debug_above(2, log(log_info, "type checking found no errors"));
+		// TODO:...
+		assert(false);
 		return true;
 
 	} catch (user_error &e) {
 		print_exception(e);
 		return false;
 	}
-}
-
-std::string collect_filename_from_module_pair(
-	   	const compiler_t::llvm_module_t &llvm_module_pair)
-{
-	std::ofstream ofs;
-	std::string filename = llvm_module_pair.first + ".ir";
-
-	debug_above(1, log(log_info, "opening %s...", filename.c_str()));
-	ofs.open(filename.c_str());
-	if (ofs.good()) {
-		llvm::raw_os_ostream os(ofs);
-		llvm_module_pair.second->setTargetTriple(LLVMGetDefaultTargetTriple());
-
-		// TODO: set the data layout string to whatever llvm-link wants
-		// llvm_module_pair.second->setDataLayout(...);
-
-		try {
-			llvm_verify_module(*llvm_module_pair.second);
-		} catch (...) {
-			llvm_module_pair.second->print(os, nullptr /*AssemblyAnnotationWriter*/);
-			os.flush();
-			throw;
-		}
-	} else {
-		throw user_error(INTERNAL_LOC(), "failed to open file named %s to write LLIR data",
-				filename.c_str());
-	}
-	return filename;
-}
-
-std::set<std::string> compiler_t::compile_modules() {
-	std::set<std::string> filenames;
-	filenames.insert(collect_filename_from_module_pair(llvm_program_module));
-
-	for (auto &llvm_module_pair : llvm_modules) {
-		std::string filename = collect_filename_from_module_pair(llvm_module_pair);
-
-		/* make sure we're not overwriting ourselves... probably need to fix this
-		 * later */
-		assert(filenames.find(filename) == filenames.end());
-		filenames.insert(filename);
-	}
-	return filenames;
-}
-
-void compiler_t::emit_built_program(std::string executable_filename) {
-	std::vector<std::string> obj_files;
-	emit_object_files(obj_files);
-	std::string clang_bin = getenv("LLVM_CLANG_BIN") ? getenv("LLVM_CLANG_BIN") : "/usr/bin/clang";
-	if (clang_bin.size() == 0) {
-		throw user_error(INTERNAL_LOC(), "cannot find clang! please specify it in an ENV var called LLVM_CLANG_BIN");
-		return;
-	}
-
-	std::stringstream ss;
-	ss << clang_bin;
-
-	if (getenv("ZIONOS") != nullptr) {
-		ss << " --target=" << getenv("ZIONOS");
-	}
-	if (getenv("ZION_LINK") != nullptr) {
-		ss << " " << getenv("ZION_LINK");
-	}
-	ss << " -Wno-override-module -Wall -g -O0 -mcx16";
-	for (auto obj_file : obj_files) {
-		ss << " " << obj_file;
-	}
-	for (auto link_in : link_ins) {
-		auto text = unescape_json_quotes(link_in.text);
-		check_command_line_text(link_in.location, text);
-
-		if (ends_with(text, ".pc")) {
-			/* use pkg-config */
-			std::string package_name = text.substr(0, text.size() - 3);
-			ss << " " << get_pkg_config_libs(package_name);
-		} else if (ends_with(text, ".o") || ends_with(text, ".a")) {
-			std::string resolved = resolve_module_filename(
-					link_in.location,
-					text,
-				   	"" /* extension */);
-			ss << " " << resolved;
-		} else if (starts_with(text, "-")) {
-			ss << " " << text;
-		} else {
-			/* shorthand for linking */
-			ss << " -l" << text;
-		}
-	}
-	ss << " -o " << executable_filename;
-
-	debug_above(2, log("Linking executable with command %s", ss.str().c_str()));
-
-	/* compile the bitcode into a local machine executable */
-	errno = 0;
-	assert(ss.str().find("\n") == std::string::npos);
-	int ret = system(ss.str().c_str());
-	if (ret != 0) {
-		throw user_error(location_t{}, "failure (%d) when running: %s",
-				ret, ss.str().c_str());
-	}
-
-#ifdef ZION_DEBUG
-	struct stat s;
-	assert(stat(executable_filename.c_str(), &s) == 0);
-#endif
-
-	return;
-}
-
-void run_gc_lowering(llvm::Module *llvm_module) {
-	assert(llvm_module != nullptr);
-
-	// Create a function pass manager.
-	auto FPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(llvm_module);
-
-	// Add some optimizations.
-
-	bool optimize = false;
-	if (optimize) {
-		// FPM->add(llvm::createInstructionCombiningPass());
-		FPM->add(llvm::createFunctionInliningPass());
-		// FPM->add(llvm::createReassociatePass());
-		// FPM->add(llvm::createGVNPass());
-		// FPM->add(llvm::createCFGSimplificationPass());
-	}
-
-	FPM->doInitialization();
-
-	// Run the optimizations over all functions in the module being added to
-	// the JIT.
-	for (auto &F : *llvm_module) {
-#if 0
-		std::stringstream ss;
-		llvm::raw_os_ostream os(ss);
-		F.print(os);
-		os.flush();
-		std::cerr << ss.str() << std::endl;
-#endif
-
-		FPM->run(F);
-	}
-	dump_llir(llvm_module, "jit.llir");
-}
-
-void compiler_t::lower_program_module() {
-	// Create the JIT.  This takes ownership of the module.
-	llvm::Module *llvm_program_module = llvm_get_program_module();
-	run_gc_lowering(llvm_program_module);
-}
-
-int compiler_t::run_program(int argc, char *argv_input[]) {
-	using namespace llvm;
-
-	lower_program_module();
-
-	llvm::Module *llvm_program_module = this->llvm_get_program_module();
-
-	std::string error_str;
-	auto llvm_engine = EngineBuilder(std::unique_ptr<llvm::Module>(llvm_program_module))
-		.setErrorStr(&error_str)
-		.setVerifyModules(true)
-		.create();
-
-	if (llvm_engine == nullptr) {
-		fprintf(stderr, "Could not create ExecutionEngine: %s\n", error_str.c_str());
-		exit(1);
-	}
-
-	while (llvm_modules.size() != 0) {
-		std::unique_ptr<llvm::Module> llvm_module;
-
-		/* grab the module from the list of included modules */
-		std::swap(llvm_module, llvm_modules.back().second);
-
-		/* make sure that the engine can find functions from this module */
-		llvm_engine->addModule(std::move(llvm_module));
-		// REVIEW: alternatively... 
-		// llvm::Linker::linkModules(*llvm_program_module, std::move(llvm_module));
-
-		/* remove this module from the list, now that we've transitioned it over to the engine */
-		llvm_modules.pop_back();
-	}
-
-	/* prepare for dumping info about any crashes in the user's program */
-	sys::PrintStackTraceOnErrorSignal(argv_input[0]);
-	PrettyStackTraceProgram X(argc, argv_input);
-
-	/* Call llvm_shutdown() on exit. */
-	atexit(llvm_shutdown);
-
-	/* find the standard library's main entry point. */
-	auto llvm_fn_main = llvm_engine->FindFunctionNamed("__main__");
-	assert(llvm_fn_main != nullptr);
-	char **envp = (char**)malloc(sizeof(char**) * 1);
-	envp[0] = nullptr;
-
-	std::vector<std::string> argv;
-	for (int i = 0; i < argc; ++i) {
-		argv.push_back(argv_input[i]);
-	}
-
-	dump_llir(llvm_program_module, "jit.llir");
-
-	/* finally, run the user's program */
-	return llvm_engine->runFunctionAsMain(llvm_fn_main, argv, envp);
-}
-
-std::unique_ptr<llvm::MemoryBuffer> codegen(llvm::Module &module) {
-	return nullptr;
-}
-
-void emit_object_file_from_module(llvm::Module *llvm_module, std::string Filename) {
-	debug_above(2, log("Creating %s...", Filename.c_str()));
-	using namespace llvm;
-	std::string TargetTriple = llvm::sys::getProcessTriple();
-
-	if (getenv("ZIONOS") != nullptr) {
-		TargetTriple = getenv("ZIONOS");
-	}
-
-	llvm_module->setTargetTriple(TargetTriple);
-
-	// Create the llvm_target
-	std::string Error;
-	auto llvm_target = TargetRegistry::lookupTarget(TargetTriple, Error);
-
-	// Print an error and exit if we couldn't find the requested target.
-	// This generally occurs if we've forgotten to initialise the
-	// TargetRegistry or we have a bogus target triple.
-	if (!llvm_target) {
-		throw user_error(INTERNAL_LOC(), "%s", Error.c_str());
-		return;
-	}
-
-	auto CPU = "generic";
-	auto Features = "";
-	TargetOptions opt;
-	auto RM = Optional<Reloc::Model>();
-	auto llvm_target_machine = llvm_target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
-
-	llvm_module->setDataLayout(llvm_target_machine->createDataLayout());
-
-	std::error_code EC;
-	raw_fd_ostream dest(Filename, EC, sys::fs::F_None);
-
-	if (EC) {
-		throw user_error(INTERNAL_LOC(), "Could not open file: %s", EC.message().c_str());
-		return;
-	}
-
-	legacy::PassManager pass;
-	auto FileType = TargetMachine::CGFT_ObjectFile;
-
-	if (llvm_target_machine->addPassesToEmitFile(pass, dest, FileType)) {
-		throw user_error(INTERNAL_LOC(), "TargetMachine can't emit a file of this type");
-		return;
-	}
-
-	pass.run(*llvm_module);
-	dest.flush();
-}
-
-void compiler_t::emit_object_files(std::vector<std::string> &obj_files) {
-	lower_program_module();
-
-	while (llvm_modules.size() != 0) {
-		std::unique_ptr<llvm::Module> llvm_module;
-
-		/* grab the module from the list of included modules */
-		std::swap(llvm_module, llvm_modules.back().second);
-
-		std::string obj_file = (llvm_module->getName() + ".o").str();
-		emit_object_file_from_module(llvm_module.operator->(), obj_file);
-		obj_files.push_back(obj_file);
-		llvm_modules.pop_back();
-	}
-	auto program_obj_file = get_program_name() + ".o";
-	emit_object_file_from_module(llvm_get_program_module(), program_obj_file);
-	obj_files.push_back(program_obj_file);
-	return;
-}
-
-std::unique_ptr<llvm::Module> &compiler_t::get_llvm_module(std::string name) {
-	std::stringstream ss;
-	ss << "did not find module " << name << " in [";
-	const char *sep = "";
-	if (name == llvm_program_module.first) {
-		return llvm_program_module.second;
-	}
-	// TODO: don't use O(N)
-	for (auto &pair : llvm_modules) {
-		if (name == pair.first) {
-			return pair.second;
-		}
-		ss << sep << pair.first << ": " << pair.second->getName().str();
-		sep = ", ";
-	}
-	ss << "]";
-	debug_above(1, log(log_warning, "%s", ss.str().c_str()));
-
-	static std::unique_ptr<llvm::Module> hack;
-	return hack;
 }
 
 std::string compute_module_key(std::vector<std::string> lib_paths, std::string filename) {
@@ -677,154 +430,4 @@ std::string compute_module_key(std::vector<std::string> lib_paths, std::string f
 		}
 	}
 	return working_key;
-}
-
-void compiler_t::set_module(
-		std::string filename,
-		std::shared_ptr<ast::module_t> module)
-{
-	assert(module != nullptr);
-	assert(filename[0] = '/');
-	module->module_key = compute_module_key(*zion_paths, filename);
-	assert(module->filename == filename);
-
-	debug_above(4, log(log_info, "setting syntax and scope for module (`%s`, `%s`) valid=%s",
-				module->module_key.c_str(),
-				module->filename.c_str(),
-				boolstr(!!module)));
-
-	if (!get_module(filename))  {
-		/* add the module to the compiler's modules map */
-		modules_map[filename] = module;
-		ordered_modules.push_back(module);
-	} else {
-		panic(string_format("module " C_FILENAME "%s" C_RESET " already exists!",
-					filename.c_str()));
-	}
-}
-
-std::shared_ptr<const ast::module_t> compiler_t::get_module(std::string key_alias) {
-	auto module_iter = modules_map.find(key_alias);
-	if (module_iter != modules_map.end()) {
-		auto module = module_iter->second;
-		assert(module != nullptr);
-		return module;
-	} else {
-		debug_above(4, log(log_info, "could not find valid module for " c_module("%s"),
-					key_alias.c_str()));
-
-		std::string module_filename = resolve_module_filename(INTERNAL_LOC(), key_alias, ".zion");
-
-		auto module_iter = modules_map.find(module_filename);
-		if (module_iter != modules_map.end()) {
-			auto module = module_iter->second;
-			assert(module != nullptr);
-			return module;
-		} else {
-			return nullptr;
-		}
-	}
-}
-
-module_scope_t::ref compiler_t::get_module_scope(std::string module_key) {
-    auto iter = module_scopes.find(module_key);
-    if (iter != module_scopes.end()) {
-        return iter->second;
-    } else {
-        return nullptr;
-    }
-}
-
-void compiler_t::set_module_scope(std::string module_key, module_scope_t::ref module_scope) {
-    assert(get_module_scope(module_key) == nullptr);
-	assert(module_scope != nullptr);
-    module_scopes[module_key] = module_scope;
-}
-
-std::string compiler_t::dump_llvm_modules() {
-	return program_scope->dump_llvm_modules(builder);
-}
-
-std::string compiler_t::dump_program_text(std::string module_name) {
-	auto module = get_module(module_name);
-	if (module != nullptr) {
-		return module->str();
-	} else {
-		panic("this module does not exist");
-		return "";
-	}
-}
-
-
-llvm::Module *compiler_t::llvm_load_ir(std::string filename) {
-	llvm::LLVMContext &llvm_context = builder.getContext();
-	llvm::SMDiagnostic err;
-	llvm_modules.push_back({filename, parseIRFile(filename, err, llvm_context)});
-
-	auto *llvm_module = llvm_modules.back().second.operator ->();
-	if (llvm_module == nullptr) {
-		llvm_modules.pop_back();
-
-		/* print the diagnostic error messages */
-		std::stringstream ss;
-		llvm::raw_os_ostream os(ss);
-		err.print("zion", os);
-		os.flush();
-
-		/* report the error */
-		throw user_error(location_t{filename, 0, 0}, "%s", ss.str().c_str());
-		return nullptr;
-	} else {
-		debug_above(9, log(log_info, "parsed module %s\n%s", filename.c_str(),
-					llvm_print_module(*llvm_module).c_str()));
-		return llvm_module;
-	}
-}
-
-llvm::Module *compiler_t::llvm_create_module(std::string module_name) {
-	llvm::LLVMContext &llvm_context = builder.getContext();
-	if (llvm_program_module.second == nullptr) {
-		/* only allow creating one program module */
-		llvm_program_module = {
-			module_name,
-			std::unique_ptr<llvm::Module>(new llvm::Module(module_name, llvm_context))
-		};
-		llvm_dibuilder = llvm::make_unique<llvm::DIBuilder>(*llvm_program_module.second.operator ->());
-		return llvm_program_module.second.operator ->();
-	} else {
-		panic("we are using a single LLIR module per application");
-		return nullptr;
-	}
-}
-
-llvm::Module *compiler_t::llvm_get_program_module() {
-	return llvm_program_module.second.operator ->();
-}
-
-void compiler_t::dump_ctags() {
-	/* set up the names that point back into the AST resolved to the right
-		 * module scopes */
-	scope_setup_program(*program, *this);
-	for (auto name_scope_pair : module_scopes) {
-		name_scope_pair.second->dump_tags(std::cout);
-	}
-}
-
-bitter::decl_t::ref compiler_t::make_function_decl(ast::function_defn_t::ref function) const {
-	return bitter::decl(function->decl->token, function->make_expr());
-}
-
-bitter::program_t::ref compiler_t::make_bitter() const {
-	std::vector<bitter::decl_t::ref> decls;
-	for (auto &module : this->program->modules) {
-		auto module_name = module->decl->get_canonical_name();
-		debug_above(3, log("making bitter from module %s", module_name.c_str()));
-		for (auto function : module->functions) {
-			auto decl = make_function_decl(function);
-			if (decl != nullptr) {
-				decls.push_back(decl);
-			}
-		}
-	}
-	return bitter::program(decls, bitter::application(bitter::var("main"), bitter::unit()));
 }

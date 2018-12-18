@@ -136,3 +136,5 @@ struct token_t {
 
 const char *tkstr(token_kind tk);
 void emit_tokens(const std::vector<token_t> &tokens);
+int64_t parse_int_value(token_t token);
+

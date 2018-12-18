@@ -8,9 +8,8 @@
 template <typename T, typename... Args>
 std::shared_ptr<T> parse_text(std::istream &is, std::string filename = "repl.zion") {
 	zion_lexer_t lexer(filename, is);
-	type_macros_t global_type_macros;
-	parse_state_t ps(filename, lexer, {}, global_type_macros);
-	ps.module_id = make_iid("__parse_text__");
+	parse_state_t ps(filename, lexer);
+	ps.module_name = "__parse_text__";
 
 	auto item = T::parse(ps);
 	if (ps.token.tk != tk_none) {
@@ -63,4 +62,4 @@ identifier::ref make_code_id(const token_t &token);
 		eat_token(); \
 	} while (0)
 
-module_t *parse_module(parse_state_t &ps, std::vector<identifier::ref> &module_deps);
+bitter::module_t *parse_module(parse_state_t &ps, std::vector<identifier::ref> &module_deps);

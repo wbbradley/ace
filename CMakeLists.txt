@@ -46,6 +46,7 @@ add_executable(zion
 	src/parse_state.cpp
 	src/parser.cpp
 	src/patterns.cpp
+	src/scope.cpp
 	src/tests.cpp
 	src/token.cpp
 	src/token_queue.cpp

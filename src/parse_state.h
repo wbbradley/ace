@@ -5,12 +5,11 @@
 #include "user_error.h"
 #include "ptr.h"
 #include "identifier.h"
+#include "scope.h"
 
 namespace types {
 	struct type_t;
 }
-
-typedef std::map<std::string, std::shared_ptr<const types::type_t>> type_macros_t;
 
 struct parse_state_t {
 	typedef log_level_t parse_error_level_t;
@@ -19,26 +18,28 @@ struct parse_state_t {
 	parse_state_t(
 			std::string filename,
 			zion_lexer_t &lexer,
-			type_macros_t type_macros,
-			type_macros_t &global_type_macros,
 			std::vector<token_t> *comments=nullptr,
 			std::set<token_t> *link_ins=nullptr);
 
 	bool advance();
 	void error(const char *format, ...);
 	void add_term_map(location_t, std::string, std::string);
+	void add_type_map(location_t, std::string, std::string);
 	bool line_broke() const { return newline || prior_token.tk == tk_semicolon; }
 	token_t token;
 	token_t prior_token;
 	std::string filename;
 	std::string module_name;
 	zion_lexer_t &lexer;
+
+	/* top-level term remapping from "get" statements */
 	std::unordered_map<std::string, std::string> term_map;
-	type_macros_t type_macros;
-	type_macros_t &global_type_macros;
+
 	std::vector<token_t> *comments;
 	std::set<token_t> *link_ins;
-	std::list<scope_t> stack_of_scopes;
+
+	/* scoped expression contexts */
+	std::list<token_t> scopes;
 
 	/* keep track of the current function declaration parameter position */
 	int argument_index;
@@ -46,17 +47,3 @@ struct parse_state_t {
 private:
 	bool newline = false;
 };
-
-struct type_macros_restorer_t {
-	type_macros_restorer_t(type_macros_t &old_macros) : old_macros(old_macros), new_macros(old_macros) {
-	   	old_macros.swap(new_macros);
-   	}
-	~type_macros_restorer_t() {
-	   	new_macros.swap(old_macros);
-   	}
-private:
-	type_macros_t &old_macros;
-	type_macros_t new_macros;
-};
-
-void add_default_type_macros(type_macros_t &type_macros);

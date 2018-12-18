@@ -14,6 +14,9 @@
 
 using namespace bitter;
 
+expr_t *parse_expr(parse_state_t &ps);
+expr_t *parse_tuple_expr(parse_state_t &ps);
+expr_t *parse_block(parse_state_t &ps, bool finish_block, bool expression_means_return);
 
 bool token_begins_type(const token_t &token) {
 	switch (token.tk) {
@@ -29,54 +32,107 @@ bool token_begins_type(const token_t &token) {
 	};
 }
 
-std::shared_ptr<statement_t> var_decl_t::parse(parse_state_t &ps, bool is_let, bool allow_tuple_destructuring) {
+struct scoping_t {
+	scoping_t(parse_state_t &ps) : ps(ps) {
+		expect_token(tk_identifier);
+		token = ps.token;
+		for (auto token : ps.scopes) {
+			if (token.text == token.text) {
+				auto error = user_error(token.location, "duplicate name " c_id("%s") " found", token.text.c_str());
+				error.add_info(token.location, "see prior declaration here");
+				throw error;
+			}
+		}
+
+		ps.scopes.push_back(token);
+		ps.advance();
+	}
+
+	~scoping_t() {
+		assert(ps.scopes.back().text == token.text);
+		ps.scopes.pop_back();
+	}
+	parse_state_t &ps;
+	token_t token;
+};
+
+std::vector<std::pair<int, identifier::ref>> extract_ids(const std::vector<expr_t*> &dims) {
+	std::vector<std::pair<int, identifier::ref>> refs;
+	int i = 0;
+	for (auto dim: dims) {
+		if (var_t *var = dcast<var_t*>(dim)) {
+			if (var->var->get_name() != "_") {
+				refs.push_back({i, var->var});
+			}
+		} else {
+			throw user_error(dim->get_location(), "only reference expressions are allowed here");
+		}
+		++i;
+	}
+	assert(refs.size() != 0);
+	return refs;
+}
+
+expr_t *parse_var_decl(parse_state_t &ps, bool is_let, bool allow_tuple_destructuring) {
 	if (ps.token.tk == tk_lparen) {
 		if (!allow_tuple_destructuring) {
 			throw user_error(ps.token.location, "tuple destructuring is not allowed here");
 		}
-		auto lhs = tuple_expr_t::parse(ps);
-		auto tuple_expr = dyncast<tuple_expr_t>(lhs);
-		if (tuple_expr == nullptr) {
-			throw user_error(lhs->token.location, "tuple destructuring detected an invalid expression on the lhs");
-		}
 
-		std::shared_ptr<destructured_tuple_decl_t> destructured_tuple_decl = create<destructured_tuple_decl_t>(lhs->token);
-		destructured_tuple_decl->lhs = tuple_expr;
-		destructured_tuple_decl->is_let = is_let;
-		if (token_begins_type(ps.token)) {
-			destructured_tuple_decl->parsed_type = parsed_type_t(types::parse_type(ps, {} /*generics*/));
-		} else {
-			destructured_tuple_decl->parsed_type = parsed_type_t(type_variable(destructured_tuple_decl->get_location()));
+		auto prior_token = ps.token;
+		auto tuple = dcast<tuple_t*>(parse_tuple_expr(ps));
+		if (tuple == nullptr) {
+			throw user_error(prior_token.location, "tuple destructuring detected an invalid expression on the lhs");
 		}
 
 		if (ps.token.tk == tk_assign) {
 			eat_token();
-			destructured_tuple_decl->initializer = expression_t::parse(ps);
+			auto rhs = parse_expr(ps);
+			auto rhs_var = new var_t(make_iid_impl(fresh(), rhs->get_location()));
+
+			std::vector<std::pair<int, identifier::ref>> refs = extract_ids(tuple->dims);
+			if (refs.size() == 0) {
+				throw user_error(ps.token.location, "nothing to destructure");
+			}
+
+
+			expr_t *body = parse_block(ps, false /*finish_block*/, false/*expression_means_return*/);
+			for (int i=refs.size()-1; i >= 0; --i) {
+				body = new let_t(
+						refs[i].second,
+						new application_t(
+							new var_t(make_iid(string_format("__[%d]__", i))),
+							rhs_var),
+						body);
+			}
+
+			return new let_t(rhs_var->var, rhs, body);
 		} else {
 			throw user_error(ps.token.location, "destructured tuples must be assigned to an rhs");
 		}
-
-		return destructured_tuple_decl;
-
 	} else {
 		expect_token(tk_identifier);
 
-		auto var_decl = create<ast::var_decl_t>(ps.token);
-		var_decl->is_let_var = is_let;
-		eat_token();
+		auto var_id = make_code_id(ps.token);
 
-		if (token_begins_type(ps.token)) {
-			var_decl->parsed_type = parsed_type_t(types::parse_type(ps, {} /*generics*/));
-		} else {
-			var_decl->parsed_type = parsed_type_t(type_variable(var_decl->get_location()));
-		}
+		eat_token();
+		expr_t *initializer = nullptr;
 
 		if (ps.token.tk == tk_assign) {
 			eat_token();
-			var_decl->initializer = expression_t::parse(ps);
+			initializer = parse_expr(ps);
+		} else {
+			initializer = new application_t(
+					new var_t(make_iid("__init__")),
+				   	new var_t(make_iid("unit")));
 		}
 
-		return var_decl;
+		if (!is_let) {
+			initializer = new application_t(new var_t(make_iid("Ref")), initializer);
+		}
+
+		// TODO: consider whether to try making var_id get implicit loads/stores within this scope
+		return new let_t(var_id, initializer, parse_block(ps, false /*finish_block*/, false /*expression_means_return*/));
 	}
 }
 
@@ -113,73 +169,7 @@ std::shared_ptr<unreachable_t> unreachable_t::parse(parse_state_t &ps) {
 	return unreachable;
 }
 
-std::shared_ptr<statement_t> get_statement_parse(parse_state_t &ps) {
-	expect_ident(K(get));
-	auto get_token = ps.token;
-	ps.advance();
-
-	auto module_decl = module_decl_t::parse(ps, true /*skip_module_token*/);
-	auto link_statement = create<link_module_statement_t>(get_token);
-	link_statement->extern_module = module_decl;
-
-	if (ps.token.tk == tk_lcurly) {
-        link_statement->link_as_name = token_t{
-                ps.token.location,
-                    tk_identifier,
-            types::gensym(ps.token.location)->get_name()};
-		ps.advance();
-		while (ps.token.tk == tk_identifier) {
-			link_statement->symbols.push_back(make_code_id(ps.token));
-			ps.advance();
-
-			if (ps.token.tk == tk_comma) {
-				ps.advance();
-			}
-		}
-		chomp_token(tk_rcurly);
-	} else if (ps.token.is_ident(K(as))) {
-		/* get the local name for this module */
-		ps.advance();
-		expect_token(tk_identifier);
-		link_statement->link_as_name = ps.token;
-		ps.advance();
-	}
-
-	if (link_statement->link_as_name.tk == tk_none) {
-		link_statement->link_as_name = module_decl->get_name();
-	}
-
-	if (link_statement->link_as_name.tk != tk_identifier) {
-		throw user_error(ps.token.location, "expected an identifier for link module name (either implicit or explicit)");
-	}
-
-	for (auto symbol : link_statement->symbols) {
-		if (isupper(symbol->get_name()[0])) {
-			/* anything imported with an uppercase name is added to the type macros */
-			auto linked_id = type_id(
-					make_iid_impl(
-						module_decl->get_name().text + "." + symbol->get_name(),
-						symbol->get_location()));
-			if (ps.type_macros.find(symbol->get_name()) != ps.type_macros.end()) {
-				/* if this is already inserted, then let's be sure it points to the right place */
-				assert(ps.type_macros[symbol->get_name()]->repr() == linked_id->repr());
-			} else {
-				ps.type_macros.insert({symbol->get_name(), linked_id});
-			}
-
-			if (ps.global_type_macros.find(symbol->get_name()) != ps.global_type_macros.end()) {
-				/* if this is already inserted, then let's be sure it points to the right place */
-				assert(ps.global_type_macros[symbol->get_name()]->repr() == linked_id->repr());
-			} else {
-				ps.global_type_macros.insert({symbol->get_name(), linked_id});
-			}
-		}
-	}
-
-	return link_statement;
-}
-
-std::shared_ptr<statement_t> link_statement_parse(parse_state_t &ps) {
+expr_t *link_statement_parse(parse_state_t &ps) {
 	expect_ident(K(link));
 	auto link_token = ps.token;
 	ps.advance();
@@ -221,7 +211,7 @@ std::shared_ptr<statement_t> link_statement_parse(parse_state_t &ps) {
 	}
 }
 
-std::shared_ptr<statement_t> parse_with_block(parse_state_t &ps) {
+expr_t *parse_with_block(parse_state_t &ps) {
 	auto with_token = ps.token;
 	ps.advance();
 
@@ -286,7 +276,7 @@ std::shared_ptr<statement_t> parse_with_block(parse_state_t &ps) {
 	return match;
 }
 
-std::shared_ptr<expression_t> wrap_with_iter(std::shared_ptr<expression_t> expr) {
+expr_t *wrap_with_iter(expr_t *expr) {
 	auto iter_token = token_t{expr->get_location(), tk_identifier, "iter"};
 	auto iter_ref = create<reference_expr_t>(iter_token);
 	auto iter_callsite = create<callsite_expr_t>(iter_token);
@@ -295,7 +285,7 @@ std::shared_ptr<expression_t> wrap_with_iter(std::shared_ptr<expression_t> expr)
 	return iter_callsite;
 }
 
-std::shared_ptr<statement_t> parse_for_block(parse_state_t &ps) {
+expr_t *parse_for_block(parse_state_t &ps) {
 	auto for_token = ps.token;
 	ps.advance();
 
@@ -386,14 +376,14 @@ std::shared_ptr<statement_t> parse_for_block(parse_state_t &ps) {
 	return outer_block;
 }
 
-std::shared_ptr<statement_t> defer_t::parse(parse_state_t &ps) {
+expr_t *defer_t::parse(parse_state_t &ps) {
 	auto defer = create<defer_t>(ps.token);
 	ps.advance();
 	defer->callable = expression_t::parse(ps);
 	return defer;
 }
 
-std::shared_ptr<expression_t> parse_new_expr(parse_state_t &ps) {
+expr_t *parse_new_expr(parse_state_t &ps) {
 	auto callsite = create<callsite_expr_t>(ps.token);
 	callsite->function_expr = create<reference_expr_t>({ps.token.location, tk_identifier, "__init__"});
 
@@ -409,7 +399,7 @@ std::shared_ptr<expression_t> parse_new_expr(parse_state_t &ps) {
 	}
 }
 
-std::shared_ptr<statement_t> statement_t::parse(parse_state_t &ps) {
+expr_t *statement_t::parse(parse_state_t &ps) {
 	assert(ps.token.tk != tk_rcurly);
 
 	if (ps.token.is_ident(K(var))) {
@@ -453,7 +443,7 @@ std::shared_ptr<statement_t> statement_t::parse(parse_state_t &ps) {
 	}
 }
 
-std::shared_ptr<expression_t> reference_expr_t::parse(parse_state_t &ps) {
+expr_t *reference_expr_t::parse(parse_state_t &ps) {
 	if (ps.token.tk == tk_identifier) {
 		if (ps.token.text == "null") {
 			auto token = ps.token;
@@ -498,7 +488,7 @@ std::shared_ptr<sizeof_expr_t> sizeof_expr_t::parse(parse_state_t &ps) {
 	return expr;
 }
 
-std::shared_ptr<expression_t> parse_cast_wrap(parse_state_t &ps, std::shared_ptr<expression_t> expr) {
+expr_t *parse_cast_wrap(parse_state_t &ps, expr_t *expr) {
     if (ps.token.is_ident(K(as))) {
 		auto token = ps.token;
 		ps.advance();
@@ -522,19 +512,15 @@ std::shared_ptr<expression_t> parse_cast_wrap(parse_state_t &ps, std::shared_ptr
     }
 }
 
-std::shared_ptr<expression_t> base_expr::parse(parse_state_t &ps) {
+expr_t *base_expr::parse(parse_state_t &ps) {
 	if (ps.token.tk == tk_lparen) {
-		return tuple_expr_t::parse(ps);
-	} else if (ps.token.is_ident(K(typeid))) {
-		return typeid_expr_t::parse(ps);
-	} else if (ps.token.is_ident(K(sizeof))) {
-		return sizeof_expr_t::parse(ps);
+		return parse_tuple_expr(ps);
 	} else if (ps.token.is_ident(K(new))) {
 		return parse_new_expr(ps);
 	} else if (ps.token.is_ident(K(fn))) {
-		return function_defn_t::parse(ps, true /*within_expression*/);
+		return parse_function_defn(ps, true /*within_expression*/);
 	} else if (ps.token.is_ident(K(match))) {
-		return match_expr_t::parse(ps);
+		return parse_match_expr(ps);
 	} else if (ps.token.tk == tk_identifier) {
 		// NB: this is last to ensure "special" builtins are in play above
 		return reference_expr_t::parse(ps);
@@ -543,7 +529,7 @@ std::shared_ptr<expression_t> base_expr::parse(parse_state_t &ps) {
 	}
 }
 
-std::shared_ptr<expression_t> array_literal_expr_t::parse(parse_state_t &ps) {
+expr_t *array_literal_expr_t::parse(parse_state_t &ps) {
 	chomp_token(tk_lsquare);
 	auto array = create<array_literal_expr_t>(ps.token);
 	auto &items = array->items;
@@ -562,7 +548,7 @@ std::shared_ptr<expression_t> array_literal_expr_t::parse(parse_state_t &ps) {
 	return array;
 }
 
-std::shared_ptr<expression_t> literal_expr_t::parse(parse_state_t &ps) {
+expr_t *literal_expr_t::parse(parse_state_t &ps) {
 	switch (ps.token.tk) {
 	case tk_integer:
 	case tk_string:
@@ -619,8 +605,8 @@ std::vector<std::shared_ptr<expression_t>> parse_param_list(parse_state_t &ps) {
 
 namespace ast {
 	namespace postfix_expr {
-		std::shared_ptr<expression_t> parse(parse_state_t &ps) {
-			std::shared_ptr<expression_t> expr = base_expr::parse(ps);
+		expr_t *parse(parse_state_t &ps) {
+			expr_t *expr = base_expr::parse(ps);
 
 			while (!ps.line_broke() &&
 					(ps.token.tk == tk_lsquare ||
@@ -687,7 +673,7 @@ namespace ast {
 	}
 }
 
-std::shared_ptr<expression_t> prefix_expr_t::parse(parse_state_t &ps) {
+expr_t *prefix_expr_t::parse(parse_state_t &ps) {
 	std::shared_ptr<prefix_expr_t> prefix_expr;
 	if (ps.token.tk == tk_ampersand
 			|| ps.token.tk == tk_minus
@@ -698,7 +684,7 @@ std::shared_ptr<expression_t> prefix_expr_t::parse(parse_state_t &ps) {
 		eat_token();
 	}
 
-	std::shared_ptr<expression_t> rhs;
+	expr_t *rhs;
 	if (ps.token.is_ident(K(not))
 			|| ps.token.tk == tk_minus
 			|| ps.token.tk == tk_plus) {
@@ -718,7 +704,7 @@ std::shared_ptr<expression_t> prefix_expr_t::parse(parse_state_t &ps) {
 }
 
 
-std::shared_ptr<expression_t> times_expr_parse(parse_state_t &ps) {
+expr_t *times_expr_parse(parse_state_t &ps) {
 	auto expr = prefix_expr_t::parse(ps);
 
 	while (!ps.line_broke() && (ps.token.tk == tk_times
@@ -751,7 +737,7 @@ std::shared_ptr<expression_t> times_expr_parse(parse_state_t &ps) {
 	return expr;
 }
 
-std::shared_ptr<expression_t> plus_expr_parse(parse_state_t &ps) {
+expr_t *plus_expr_parse(parse_state_t &ps) {
 	auto expr = times_expr_parse(ps);
 
 	while (!ps.line_broke() &&
@@ -784,7 +770,7 @@ std::shared_ptr<expression_t> plus_expr_parse(parse_state_t &ps) {
 	return expr;
 }
 
-std::shared_ptr<expression_t> shift_expr_parse(parse_state_t &ps) {
+expr_t *shift_expr_parse(parse_state_t &ps) {
 	auto expr = plus_expr_parse(ps);
 
 	while (!ps.line_broke() &&
@@ -814,7 +800,7 @@ std::shared_ptr<expression_t> shift_expr_parse(parse_state_t &ps) {
 	return expr;
 }
 
-std::shared_ptr<expression_t> binary_eq_expr_parse(parse_state_t &ps) {
+expr_t *binary_eq_expr_parse(parse_state_t &ps) {
 	auto lhs = shift_expr_parse(ps);
 	if (ps.line_broke()
 			|| !(ps.token.tk == tk_binary_equal
@@ -845,7 +831,7 @@ std::shared_ptr<expression_t> binary_eq_expr_parse(parse_state_t &ps) {
 	return std::move(binary_operator);
 }
 
-std::shared_ptr<expression_t> ineq_expr_parse(parse_state_t &ps) {
+expr_t *ineq_expr_parse(parse_state_t &ps) {
 	auto lhs = binary_eq_expr_parse(ps);
 	if (ps.line_broke()
 			|| !(ps.token.tk == tk_gt
@@ -883,7 +869,7 @@ std::shared_ptr<expression_t> ineq_expr_parse(parse_state_t &ps) {
 	return std::move(binary_operator);
 }
 
-std::shared_ptr<expression_t> eq_expr_parse(parse_state_t &ps) {
+expr_t *eq_expr_parse(parse_state_t &ps) {
 	auto lhs = ineq_expr_parse(ps);
 	bool not_in = false;
 	if (ps.token.is_ident(K(not))) {
@@ -923,7 +909,7 @@ std::shared_ptr<expression_t> eq_expr_parse(parse_state_t &ps) {
 	return binary_operator;
 }
 
-std::shared_ptr<expression_t> bitwise_and_parse(parse_state_t &ps) {
+expr_t *bitwise_and_parse(parse_state_t &ps) {
 	auto expr = eq_expr_parse(ps);
 
 	while (!ps.line_broke() && ps.token.tk == tk_ampersand) {
@@ -941,7 +927,7 @@ std::shared_ptr<expression_t> bitwise_and_parse(parse_state_t &ps) {
 	return expr;
 }
 
-std::shared_ptr<expression_t> bitwise_xor_parse(parse_state_t &ps) {
+expr_t *bitwise_xor_parse(parse_state_t &ps) {
 	auto expr = bitwise_and_parse(ps);
 
 	while (!ps.line_broke() && ps.token.tk == tk_hat) {
@@ -958,7 +944,7 @@ std::shared_ptr<expression_t> bitwise_xor_parse(parse_state_t &ps) {
 	return expr;
 }
 
-std::shared_ptr<expression_t> bitwise_or_parse(parse_state_t &ps) {
+expr_t *bitwise_or_parse(parse_state_t &ps) {
 	auto expr = bitwise_xor_parse(ps);
 
 	while (!ps.line_broke() && ps.token.tk == tk_pipe) {
@@ -976,7 +962,7 @@ std::shared_ptr<expression_t> bitwise_or_parse(parse_state_t &ps) {
 	return expr;
 }
 
-std::shared_ptr<expression_t> and_expr_t::parse(parse_state_t &ps) {
+expr_t *and_expr_t::parse(parse_state_t &ps) {
 	auto expr = bitwise_or_parse(ps);
 
 	while (!ps.line_broke() && (ps.token.is_ident(K(and)))) {
@@ -993,7 +979,7 @@ std::shared_ptr<expression_t> and_expr_t::parse(parse_state_t &ps) {
 	return expr;
 }
 
-std::shared_ptr<expression_t> tuple_expr_t::parse(parse_state_t &ps) {
+expr_t *parse_tuple_expr(parse_state_t &ps) {
 	auto start_token = ps.token;
 	chomp_token(tk_lparen);
     if (ps.token.tk == tk_rparen) {
@@ -1033,7 +1019,7 @@ std::shared_ptr<expression_t> tuple_expr_t::parse(parse_state_t &ps) {
 	}
 }
 
-std::shared_ptr<expression_t> or_expr_t::parse(parse_state_t &ps) {
+expr_t *or_expr_t::parse(parse_state_t &ps) {
 	auto expr = and_expr_t::parse(ps);
 
 	while (!ps.line_broke() && (ps.token.is_ident(K(or)))) {
@@ -1050,7 +1036,7 @@ std::shared_ptr<expression_t> or_expr_t::parse(parse_state_t &ps) {
 	return expr;
 }
 
-std::shared_ptr<expression_t> ternary_expr_t::parse(parse_state_t &ps) {
+expr_t *ternary_expr_t::parse(parse_state_t &ps) {
 	auto condition = or_expr_t::parse(ps);
 	if (ps.token.tk == tk_maybe) {
 		ps.advance();
@@ -1070,11 +1056,11 @@ std::shared_ptr<expression_t> ternary_expr_t::parse(parse_state_t &ps) {
 	}
 }
 
-std::shared_ptr<expression_t> expression_t::parse(parse_state_t &ps) {
-	return ternary_expr_t::parse(ps);
+expr_t *parse_expr(parse_state_t &ps) {
+	return parse_ternary_expr(ps);
 }
 
-std::shared_ptr<statement_t> assignment_t::parse(parse_state_t &ps) {
+expr_t *assignment_t::parse(parse_state_t &ps) {
 	auto lhs = expression_t::parse(ps);
 
 #define handle_assign(tk_, tk_binop_) \
@@ -1137,8 +1123,7 @@ std::shared_ptr<param_list_decl_t> param_list_decl_t::parse(parse_state_t &ps) {
 	return param_list_decl;
 }
 
-std::shared_ptr<block_t> block_t::parse(parse_state_t &ps, bool expression_means_return) {
-	auto block = create<ast::block_t>(ps.token);
+expr_t *parse_block(parse_state_t &ps, bool finish_block, bool expression_means_return) {
 	bool expression_block_syntax = false;
 	token_t expression_block_assign_token;
 	if (ps.token.tk == tk_lcurly) {
@@ -1151,44 +1136,42 @@ std::shared_ptr<block_t> block_t::parse(parse_state_t &ps, bool expression_means
 
 	if (expression_block_syntax) {
 		if (!ps.line_broke()) {
-			auto statement = statement_t::parse(ps);
+			auto statement = parse_statement(ps);
 			if (expression_means_return) {
-				if (auto expression = dyncast<ast::expression_t>(statement)) {
-					auto return_statement = create<ast::return_statement_t>(ps.token);
-					return_statement->expr = expression;
+				if (auto expression = dcast<expr_t*>(statement)) {
+					auto return_statement = new return_statement_t(expression);
 					statement = return_statement;
 				}
 			}
 
-			/* all expressions can be statements */
-			block->statements.push_back(statement);
+			if (ps.token.tk != tk_rparen
+					&& ps.token.tk != tk_rcurly
+					&& ps.token.tk != tk_rsquare
+					&& ps.token.tk != tk_comma
+					&& !ps.line_broke())
+			{
+				throw user_error(ps.token.location, "this looks hard to read. you should have a line break after = blocks, unless they are immediately followed by one of these: )]}");
+			}
+			return statement;
 		} else {
 			throw user_error(ps.token.location, "empty expression blocks are not allowed");
 		}
-
-		if (ps.token.tk != tk_rparen
-			   	&& ps.token.tk != tk_rcurly
-			   	&& ps.token.tk != tk_rsquare
-				&& ps.token.tk != tk_comma
-			   	&& !ps.line_broke())
-	   	{
-			throw user_error(ps.token.location, "this looks hard to read. you should have a line break after = blocks, unless they are immediately followed by one of these: )]}");
-		}
 	} else {
+		std::vector<expr_t*> stmts;
 		while (ps.token.tk != tk_rcurly) {
 			while (ps.token.tk == tk_semicolon) {
 				ps.advance();
 			}
-			block->statements.push_back(statement_t::parse(ps));
+			stmts.push_back(parse_statement(ps));
 			while (ps.token.tk == tk_semicolon) {
 				ps.advance();
 			}
 		}
-		chomp_token(tk_rcurly);
+		if (finish_block) {
+			chomp_token(tk_rcurly);
+		}
+		return new block_t(stmts);
 	}
-
-	// log_location(log_info, block->get_location(), "parsed block:\n%s", block->str().c_str());
-	return block;
 }
 
 std::shared_ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
@@ -1210,7 +1193,7 @@ std::shared_ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 				"if conditions are limited to expressions or variable definitions");
 	}
 
-	if_block->block = block_t::parse(ps);
+	if_block->block = parse_block(ps, true /*finish_block*/, false /*expression_means_return*/);
 
 	/* check the successive instructions for "else if" or else */
 	if (ps.token.is_ident(K(else))) {
@@ -1224,7 +1207,7 @@ std::shared_ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 			}
 			if_block->else_ = if_block_t::parse(ps);
 		} else {
-			if_block->else_ = block_t::parse(ps);
+			if_block->else_ = parse_block(ps, true /*finish_block*/, false /*expression_means_return*/);
 		}
 	}
 
@@ -1253,7 +1236,7 @@ std::shared_ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {
 					"while conditions are limited to expressions or variable definitions");
 		}
 
-		auto block = block_t::parse(ps);
+		auto block = parse_block(ps, true /*finish_block*/, false /*expression_means_return*/);
 		while_block->block = block;
 	}
 	return while_block;
@@ -1395,14 +1378,10 @@ ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else, tok
 	}
 }
 
-ast::pattern_block_t::ref pattern_block_t::parse(parse_state_t &ps) {
-	auto is_token = ps.token;
-
-	auto pattern_block = ast::create<ast::pattern_block_t>(is_token);
-
-	pattern_block->predicate = predicate_t::parse(ps, true /*allow_else*/, nullptr /*name_assignment*/);
-	pattern_block->block = block_t::parse(ps);
-	return pattern_block;
+pattern_block_t *parse_pattern_block(parse_state_t &ps) {
+	return new pattern_block_t(
+			parse_predicate(ps, true /*allow_else*/, nullptr /*name_assignment*/),
+			parse_block(ps, true /*finish_block*/, false /*expression_means_return*/));
 }
 
 std::shared_ptr<match_expr_t> match_expr_t::parse(parse_state_t &ps) {
@@ -1449,31 +1428,6 @@ std::shared_ptr<function_decl_t> function_decl_t::parse(
         bool within_expression,
         types::type_t::ref default_return_type)
 {
-	location_t attributes_location;
-	identifier::ref extends_module;
-
-	if (ps.token.tk == tk_lsquare) {
-		if (within_expression) {
-			throw user_error(ps.token.location, "attributes are not supported within function expression forms");
-		}
-
-		attributes_location = ps.token.location;
-		ps.advance();
-		if (ps.token.is_ident(K(global))) {
-			extends_module = make_iid_impl(GLOBAL_SCOPE_NAME, ps.token.location);
-			ps.advance();
-			chomp_token(tk_rsquare);
-		} else if (ps.token.is_ident(K(module))) {
-			ps.advance();
-			expect_token(tk_identifier);
-			extends_module = make_code_id(ps.token);
-			ps.advance();
-			chomp_token(tk_rsquare);
-		} else {
-			throw user_error(ps.token.location, "expected module injection");
-		}
-	}
-
 	location_t location = ps.token.location;
 	chomp_ident(K(fn));
 
@@ -1522,24 +1476,36 @@ std::shared_ptr<function_decl_t> function_decl_t::parse(
 	return function_decl;
 }
 
-std::shared_ptr<function_defn_t> function_defn_t::parse(parse_state_t &ps, bool within_expression) {
-	auto function_decl = function_decl_t::parse(ps, within_expression, nullptr);
+// TODO: put type mappings into the scope
+type_t::ref parse_type(parse_state_t &ps, const identifier::set &generics) {
+	assert(ps.token.tk != tk_lcurly && ps.token.tk != tk_rcurly);
+	return types::parse_or_type(ps, generics);
+}
 
-	assert(function_decl != nullptr);
-	type_macros_restorer_t type_macros_restorer(ps.type_macros);
+lambda_t *parse_lambda(parse_state_t &ps) {
+	if (ps.token.tk == tk_lsquare) {
+		throw user_error(ps.token.location, "not yet impl");
+	}
+	if (ps.token.tk == tk_comma || ps.token.tk == tk_lparen) {
+		ps.advance();
+	}
+	scoping_t scoping(ps);
 
-	/* temporarily inject free type variables from function declaration into the function parsing context.
-	 * T -> any T parser macros. */
-	for (auto ftv : function_decl->function_type->get_ftvs()) {
-		ps.type_macros[ftv] = type_variable(
-				make_iid_impl(ftv,
-					function_decl->function_type->get_location()));
+	if (ps.token.tk != tk_comma && ps.token.tk != tk_rparen) {
+		auto type = parse_type(ps, {});
+		log(type->get_location(), "discarding parsed param type %s", type->str().c_str());
 	}
 
-	auto function_defn = create<ast::function_defn_t>(function_decl->token);
-	function_defn->decl = function_decl;
-	function_defn->block = block_t::parse(ps, true /*expression_means_return*/);
-	return function_defn;
+	if (ps.token.tk == tk_comma) {
+		return new lambda_t(make_code_id(scoping.var), parse_lambda(ps));
+	} else if (ps.token.tk == tk_rparen) {
+		if (ps.token.tk != tk_lcurly && ps.token.tk != tk_expr_block) {
+			auto return_type = parse_type(ps, {});
+			log(type->get_location(), "discarding parsed return type %s", return_type->str().c_str());
+		}
+
+		return new lambda_t(make_code_id(scoping.var), parse_block(ps, true /*finish_block*/, true /*expression_means_return*/));
+	}
 }
 
 void parse_maybe_type_decl(parse_state_t &ps, identifier::refs &type_variables) {

@@ -317,9 +317,10 @@ std::vector<std::string> split(std::string data, std::string delim) {
 }
 
 bool real_path(std::string filename, std::string &real_path) {
-	char real_path_buf[PATH_MAX];
-	if (realpath(filename.c_str(), real_path_buf)) {
-		real_path = real_path_buf;
+	char *result = nullptr;
+	if (result = realpath(filename.c_str(), nullptr)) {
+		real_path = result;
+		free(result);
 		return true;
 	} else {
 		return false;
