@@ -3,64 +3,38 @@
 #include "dbg.h"
 #include "identifier.h"
 
-std::string iid::get_name() const {
-	return name;
-}
-
-location_t iid::get_location() const {
-	return location;
-}
-
-std::string iid::str() const {
-	return string_format(c_id("%s"), name.c_str());
-}
-
-token_t iid::get_token() const {
-	return token_t(location, tk_identifier, name);
-}
-
-identifier::ref make_iid_impl(std::string name, location_t location) {
-	return std::make_shared<iid>(name, location);
-}
-
-identifier::ref make_iid_impl(const char *name, location_t location) {
-	return std::make_shared<iid>(std::string{name}, location);
-}
-
-std::string str(identifier::refs ids) {
+std::string str(const identifiers_t &ids) {
 	return std::string("[") + join(ids, ", ") + "]";
 }
 
-identifier::set to_set(identifier::refs identifiers) {
-	identifier::set set;
+std::set<identifier_t> to_set(const identifiers_t &identifiers) {
+	std::set<identifier_t> set;
 	std::for_each(
 			identifiers.begin(),
 			identifiers.end(),
-			[&] (identifier::ref x) {
+			[&set] (identifier_t x) {
 				set.insert(x);
 			});
 	return set;
 }
 
-std::set<std::string> to_atom_set(const identifier::refs &refs) {
+std::set<std::string> to_atom_set(const identifiers_t &refs) {
 	std::set<std::string> set;
 	for (auto ref : refs) {
-		set.insert(ref->get_name());
+		set.insert(ref.name);
 	}
 	return set;
 }
 
-identifier::set to_identifier_set(const identifier::refs &refs) {
-	identifier::set set;
-	std::for_each(
-			refs.begin(),
-			refs.end(),
-			[&] (const identifier::ref &x) {
-				set.insert(x);
-			});
-	return set;
+identifier_t identifier_t::from_token(token_t token) {
+	assert(token.tk == tk_identifier);
+	return {token.text, token.location};
 }
 
-bool identifier::operator <(const identifier &rhs) const {
-	return get_name() < rhs.get_name();
+bool identifier_t::operator <(const identifier_t &rhs) const {
+	return name < rhs.name;
+}
+
+std::ostream &operator <<(std::ostream &os, const identifier_t &rhs) {
+	return os << rhs.str();
 }

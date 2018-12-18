@@ -22,6 +22,7 @@ struct parse_state_t {
 			std::set<token_t> *link_ins=nullptr);
 
 	bool advance();
+	token_t token_and_advance();
 	void error(const char *format, ...);
 	void add_term_map(location_t, std::string, std::string);
 	void add_type_map(location_t, std::string, std::string);

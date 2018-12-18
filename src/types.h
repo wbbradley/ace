@@ -165,7 +165,7 @@ namespace types {
 	struct type_args_t : public type_product_t {
 		typedef std::shared_ptr<const type_args_t> ref;
 
-		type_args_t(type_t::refs args, identifier::refs names);
+		type_args_t(type_t::refs args, identifiers_t names);
 
 		virtual product_kind_t get_pk() const;
 		virtual type_t::refs get_dimensions() const;
@@ -180,13 +180,13 @@ namespace types {
 		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 
 		type_t::refs args;
-		identifier::refs names;
+		identifiers_t names;
 	};
 
 	struct type_variable_t : public type_t {
-		type_variable_t(identifier::ref id);
+		type_variable_t(identifier_t id);
 		type_variable_t(location_t location /* auto-generated fresh type variables */);
-		identifier::ref id;
+		identifier_t id;
 		location_t location;
 
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const { return shared_from_this(); }
@@ -224,8 +224,8 @@ namespace types {
 	bool is_ptr_type_id(type_t::ref type, const std::string &type_name, env_t::ref env, bool allow_maybe=false);
 
 	struct type_id_t : public type_t {
-		type_id_t(identifier::ref id);
-		identifier::ref id;
+		type_id_t(identifier_t id);
+		identifier_t id;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
@@ -517,8 +517,8 @@ namespace types {
 	};
 
 	struct type_lambda_t : public type_t {
-		type_lambda_t(identifier::ref binding, type_t::ref body);
-		identifier::ref binding;
+		type_lambda_t(identifier_t binding, type_t::ref body);
+		identifier_t binding;
 		type_t::ref body;
 
 		virtual int get_precedence() const { return 6; }
@@ -547,7 +547,7 @@ namespace types {
 	};
 
 
-	identifier::ref gensym(location_t location);
+	identifier_t gensym(location_t location);
 	int coerce_to_integer(env_t::ref env, type_t::ref type, type_t::ref &expansion);
 	bool is_integer(type_t::ref type, env_t::ref env);
 	bool maybe_get_integer_attributes(
@@ -577,8 +577,8 @@ types::type_t::ref type_null();
 types::type_t::ref type_void();
 types::type_t::ref type_literal(token_t token);
 types::type_t::ref type_integer(types::type_t::ref size, types::type_t::ref is_signed);
-types::type_t::ref type_id(identifier::ref var);
-types::type_t::ref type_variable(identifier::ref name);
+types::type_t::ref type_id(identifier_t var);
+types::type_t::ref type_variable(identifier_t name);
 types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
 types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs);
@@ -588,7 +588,7 @@ types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
 types::type_struct_t::ref type_struct(types::type_args_t::ref type_args);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
-types::type_args_t::ref type_args(types::type_t::refs args, const identifier::refs &names={});
+types::type_args_t::ref type_args(types::type_t::refs args, const identifiers_t &names={});
 types::type_function_t::ref type_function(location_t location, types::type_t::ref type_constraints, types::type_t::ref args, types::type_t::ref return_type);
 types::type_function_closure_t::ref type_function_closure(types::type_t::ref function);
 types::type_t::ref get_arg_from_function(types::type_function_t::ref function, size_t i);
@@ -598,7 +598,7 @@ types::type_t::ref type_data(token_t name, types::type_variable_t::refs type_var
 types::type_t::ref type_maybe(types::type_t::ref just, env_t::ref env);
 types::type_ptr_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_ref(types::type_t::ref raw);
-types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body);
+types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body);
 types::type_t::ref type_extern(types::type_t::ref inner);
 types::type_function_t::ref type_deferred_function(location_t location, types::type_t::ref return_type);
 
@@ -606,7 +606,7 @@ types::type_t::ref type_list_type(types::type_t::ref element);
 types::type_t::ref type_vector_type(types::type_t::ref element);
 types::type_t::ref type_strip_maybe(types::type_t::ref maybe_maybe);
 
-std::ostream &operator <<(std::ostream &os, identifier::ref id);
+std::ostream &operator <<(std::ostream &os, identifier_t id);
 std::string str(types::type_t::refs refs);
 std::string str(const types::type_t::map &coll);
 std::ostream& operator <<(std::ostream &out, const types::type_t::ref &type);
@@ -614,7 +614,7 @@ std::ostream& operator <<(std::ostream &out, const types::type_t::ref &type);
 /* helper functions */
 types::type_t::ref get_function_type_context(types::type_t::ref function_type);
 types::type_t::ref get_function_return_type(types::type_t::ref function_type);
-types::type_t::pair make_type_pair(std::string fst, std::string snd, identifier::set generics);
+types::type_t::pair make_type_pair(std::string fst, std::string snd, std::set<identifier_t> generics);
 
 bool get_type_variable_name(types::type_t::ref type, std::string &name);
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings);

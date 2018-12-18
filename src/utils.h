@@ -71,8 +71,8 @@ T merge(const T &a, const T &b, const T &c) {
 
 template <typename T>
 struct maybe {
-	T t;
-	bool valid;
+	T const t;
+	bool const valid = false;
 
 	template <typename U>
 	friend std::ostream &operator <<(std::ostream &os, const maybe<U> &m);
@@ -80,11 +80,13 @@ struct maybe {
 	maybe() {}
 	maybe(const T &&t) : t(std::move(t)), valid(true) {}
 	maybe(const T &t) : t(t), valid(true) {}
+#if 0
 	maybe(const T *rhs) : valid(bool(rhs != nullptr)) {
 		if (rhs) {
 			t = *rhs;
 		}
 	}
+#endif
 	maybe(const maybe<T> &mt) : t(mt.t), valid(mt.valid) {}
 	maybe(const maybe<T> &&mt) : t(std::move(mt.t)), valid(mt.valid) {}
 

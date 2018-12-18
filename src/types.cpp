@@ -129,7 +129,7 @@ namespace types {
 		return types::is_type_id(shared_from_this(), "module", nullptr);
 	}
 
-	type_id_t::type_id_t(identifier::ref id) : id(id) {
+	type_id_t::type_id_t(identifier_t id) : id(id) {
 		static bool seen_bottom = false;
 		if (id->get_name().find(BOTTOM_TYPE) != std::string::npos) {
 			assert(!seen_bottom);
@@ -202,10 +202,10 @@ namespace types {
 		return shared_from_this();
 	}
 
-	type_variable_t::type_variable_t(identifier::ref id) : id(id), location(id->get_location()) {
+	type_variable_t::type_variable_t(identifier_t id) : id(id), location(id->get_location()) {
 	}
 
-	identifier::ref gensym(location_t location) {
+	identifier_t gensym(location_t location) {
 		/* generate fresh "any" variables */
 		return make_iid_impl(string_format("__%d", next_generic++).c_str(), location);
 	}
@@ -585,7 +585,7 @@ namespace types {
 		}
 	}
 
-	type_args_t::type_args_t(type_t::refs args, identifier::refs names) :
+	type_args_t::type_args_t(type_t::refs args, identifiers_t names) :
 		args(args), names(names)
 	{
 #ifdef ZION_DEBUG
@@ -1137,7 +1137,7 @@ namespace types {
 		return element_type->get_location();
 	}
 
-	type_lambda_t::type_lambda_t(identifier::ref binding, type_t::ref body) :
+	type_lambda_t::type_lambda_t(identifier_t binding, type_t::ref body) :
 		binding(binding), body(body)
 	{
 	}
@@ -1725,14 +1725,14 @@ namespace types {
 	}
 }
 
-types::type_t::ref type_id(identifier::ref id) {
+types::type_t::ref type_id(identifier_t id) {
 	if (id->get_name().find("std.") == 0) {
 		dbg();
 	}
 	return std::make_shared<types::type_id_t>(id);
 }
 
-types::type_t::ref type_variable(identifier::ref id) {
+types::type_t::ref type_variable(identifier_t id) {
 	return std::make_shared<types::type_variable_t>(id);
 }
 
@@ -1770,7 +1770,7 @@ types::type_t::ref type_typeof(std::shared_ptr<const ast::expression_t> expr) {
 	return std::make_shared<types::type_typeof_t>(expr);
 }
 
-types::name_index_t get_name_index_from_ids(identifier::refs ids) {
+types::name_index_t get_name_index_from_ids(identifiers_t ids) {
 	types::name_index_t name_index;
 	int i = 0;
 	for (auto id : ids) {
@@ -1805,7 +1805,7 @@ types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions) {
 
 types::type_args_t::ref type_args(
 	   	types::type_t::refs args,
-		const identifier::refs &names)
+		const identifiers_t &names)
 {
 	assert((names.size() == args.size()) ^ (names.size() == 0 && args.size() != 0));
 	for (auto arg : args) {
@@ -1903,7 +1903,7 @@ types::type_t::ref type_ref(types::type_t::ref raw) {
     return std::make_shared<types::type_ref_t>(raw);
 }
 
-types::type_t::ref type_lambda(identifier::ref binding, types::type_t::ref body) {
+types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body) {
     return std::make_shared<types::type_lambda_t>(binding, body);
 }
 
@@ -1952,11 +1952,11 @@ types::type_t::ref get_function_return_type(types::type_t::ref function_type) {
 	return type_function->return_type;
 }
 
-std::ostream &operator <<(std::ostream &os, identifier::ref id) {
+std::ostream &operator <<(std::ostream &os, identifier_t id) {
 	return os << id->get_name();
 }
 
-types::type_t::pair make_type_pair(std::string fst, std::string snd, identifier::set generics) {
+types::type_t::pair make_type_pair(std::string fst, std::string snd, std::set<identifier_t> generics) {
 	debug_above(4, log(log_info, "creating type pair with (%s, %s) and generics [%s]",
 				fst.c_str(), snd.c_str(),
 			   	join(generics, ", ").c_str()));

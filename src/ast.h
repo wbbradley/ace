@@ -16,11 +16,11 @@ namespace bitter {
 	};
 
 	struct var_t : public expr_t {
-		var_t(identifier::ref var) : var(var) {}
+		var_t(identifier_t id) : id(id) {}
 		location_t get_location() override;
 		std::ostream &render(std::ostream &os, int parent_precedence) override;
 
-		identifier::ref const var;
+		identifier_t const id;
 	};
 
 	struct pattern_block_t {
@@ -48,38 +48,38 @@ namespace bitter {
 	};
 
 	struct tuple_predicate_t : public predicate_t {
-		tuple_predicate_t(std::vector<predicate_t *> params, token_t name_assignment) :
+		tuple_predicate_t(std::vector<predicate_t *> params, identifier_t name_assignment) :
 			params(params), name_assignment(name_assignment) {}
 		std::ostream &render(std::ostream &os) override;
 		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
 
 		location_t location;
 		std::vector<predicate_t *> const params;
-		token_t const name_assignment;
+		identifier_t const name_assignment;
 	};
 
 	struct irrefutable_predicate_t : public predicate_t {
-		irrefutable_predicate_t(token_t name_assignment) : name_assignment(name_assignment) {}
+		irrefutable_predicate_t(identifier_t name_assignment) : name_assignment(name_assignment) {}
 		std::ostream &render(std::ostream &os) override;
 		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
 
 		location_t location;
-		token_t const name_assignment;
+		identifier_t const name_assignment;
 	};
 
 	struct ctor_predicate_t : public predicate_t {
 		ctor_predicate_t(
 				std::vector<predicate_t *> params,
-				token_t ctor_name,
-				token_t name_assignment) :
+				identifier_t ctor_name,
+				identifier_t name_assignment) :
 		   	params(params), ctor_name(ctor_name), name_assignment(name_assignment) {}
 		std::ostream &render(std::ostream &os) override;
 		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
 
 		location_t location;
 		std::vector<predicate_t *> const params;
-		token_t const ctor_name;
-		token_t const name_assignment;
+		identifier_t const ctor_name;
+		identifier_t const name_assignment;
 	};
 
 	struct block_t : public expr_t {
@@ -108,20 +108,20 @@ namespace bitter {
 	};
 
 	struct lambda_t : public expr_t {
-		lambda_t(identifier::ref var, expr_t *body) : var(var), body(body) {}
+		lambda_t(identifier_t var, expr_t *body) : var(var), body(body) {}
 		location_t get_location() override;
 		std::ostream &render(std::ostream &os, int parent_precedence) override;
 
-		identifier::ref const var;
+		identifier_t const var;
 		expr_t * const body;
 	};
 
 	struct let_t : public expr_t {
-		let_t(identifier::ref var, expr_t *value, expr_t *body): var(var), value(value), body(body) {}
+		let_t(identifier_t var, expr_t *value, expr_t *body): var(var), value(value), body(body) {}
 		location_t get_location() override;
 		std::ostream &render(std::ostream &os, int parent_precedence) override;
 
-		identifier::ref const var;
+		identifier_t const var;
 		expr_t * const value;
 		expr_t * const body;
 	};
@@ -178,9 +178,9 @@ namespace bitter {
 	};
 
 	struct decl_t {
-		decl_t(identifier::ref var, expr_t *value) : var(var), value(value) {}
+		decl_t(identifier_t var, expr_t *value) : var(var), value(value) {}
 
-		identifier::ref const var;
+		identifier_t const var;
 		expr_t * const value;
 	};
 

@@ -1,6 +1,5 @@
 #include "parens.h"
 #include "ast.h"
-#include "code_id.h"
 
 #define MATHY_SYMBOLS "!@#$%^&*()+-_=><.,/|[]`~\\"
 
@@ -14,16 +13,16 @@ std::ostream &operator <<(std::ostream &os, bitter::program_t *program) {
 }
 
 std::ostream &operator <<(std::ostream &os, bitter::decl_t *decl) {
-	os << decl->var->get_name() << " = ";
+	os << decl->var.name << " = ";
 	return decl->value->render(os, 0);
 }
 
 namespace bitter {
 	location_t var_t::get_location() {
-		return var->get_location();
+		return id.location;
 	}
 	std::ostream &var_t::render(std::ostream &os, int parent_precedence) {
-		return os << var->get_name();
+		return os << id.name;
 	}
 	location_t as_t::get_location() {
 		return type->get_location();
@@ -43,7 +42,7 @@ namespace bitter {
 		const int precedence = 5;
 		if (auto inner_app = dcast<application_t *>(a)) {
 			if (auto oper = dcast<var_t *>(inner_app->a)) {
-				if (strspn(oper->var->get_name().c_str(), MATHY_SYMBOLS) == oper->var->get_name().size()) {
+				if (strspn(oper->id.name.c_str(), MATHY_SYMBOLS) == oper->id.name.size()) {
 					os << "(";
 					inner_app->b->render(os, precedence + 1);
 					os << " ";
@@ -114,21 +113,21 @@ namespace bitter {
 		return os;
 	}
 	location_t lambda_t::get_location() {
-		return var->get_location();
+		return var.location;
 	}
 	std::ostream &lambda_t::render(std::ostream &os, int parent_precedence) {
 		const int precedence = 7;
-		os << "(λ" << var->get_name() << ".";
+		os << "(λ" << var.name << ".";
 		body->render(os, 0);
 		return os << ")";
 	}
 	location_t let_t::get_location() {
-		return var->get_location();
+		return var.location;
 	}
 	std::ostream &let_t::render(std::ostream &os, int parent_precedence) {
 		const int precedence = 9;
 		parens_t parens(os, parent_precedence, precedence);
-		os << "let " << var->get_name() << " = ";
+		os << "let " << var.name << " = ";
 		value->render(os, precedence);
 		os << " in ";
 		body->render(os, precedence);

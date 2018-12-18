@@ -23,7 +23,7 @@ struct var_t {
 	virtual location_t get_location() const = 0;
 	virtual std::string str() const = 0;
     virtual std::string get_name() const = 0;
-	virtual identifier::ref get_id() const = 0;
+	virtual identifier_t get_id() const = 0;
 
 	unification_t accepts_callsite(
 		   	std::shared_ptr<scope_t> scope,

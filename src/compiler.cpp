@@ -12,7 +12,6 @@
 #include "utils.h"
 #include <sys/stat.h>
 #include <iostream>
-#include "code_id.h"
 
 using namespace bitter;
 
@@ -145,11 +144,11 @@ struct global_parser_state_t {
 	std::vector<token_t> comments;
 	std::set<token_t> link_ins;
 
-	module_t *parse_module(location_t location, std::string module_name) {
-		if (auto module = get(modules_map_by_name, module_name, (module_t *)nullptr)) {
+	module_t *parse_module(identifier_t module_id) {
+		if (auto module = get(modules_map_by_name, module_id.name, (module_t *)nullptr)) {
 			return module;
 		}
-		std::string module_filename = resolve_module_filename(location, module_name, ".zion");
+		std::string module_filename = resolve_module_filename(module_id.location, module_id.name, ".zion");
 		if (auto module = get(modules_map_by_filename, module_filename, (module_t *)nullptr)) {
 			return module;
 		}
@@ -164,7 +163,7 @@ struct global_parser_state_t {
 
 			parse_state_t ps(module_filename, lexer, &comments, &link_ins);
 
-			std::vector<identifier::ref> dependencies;
+			identifiers_t dependencies;
 			module_t *module = ::parse_module(ps, dependencies);
 
 			modules.push_back(module);
@@ -172,13 +171,13 @@ struct global_parser_state_t {
 			modules_map_by_filename[ps.filename] = module;
 
 			for (auto dependency : dependencies) {
-				parse_module(dependency->get_location(), dependency->get_name());
+				parse_module(dependency);
 			}
 
 			return module;
 		} else {
-			auto error = user_error(location, "could not open \"%s\" when trying to link module", module_filename.c_str());
-			error.add_info(location, "imported here");
+			auto error = user_error(module_id.location, "could not open \"%s\" when trying to link module", module_filename.c_str());
+			error.add_info(module_id.location, "imported here");
 			throw error;
 		}
 	}
@@ -188,12 +187,12 @@ struct global_parser_state_t {
 std::set<std::string> get_top_level_decls(const std::vector<decl_t *> &decls) {
 	std::map<std::string, location_t> module_decls;
 	for (decl_t *decl : decls) {
-		if (module_decls.find(decl->var->get_name()) != module_decls.end()) {
-			auto error = user_error(decl->var->get_location(), "duplicate symbol");
-			error.add_info(module_decls[decl->var->get_name()], "see prior definition here");
+		if (module_decls.find(decl->var.name) != module_decls.end()) {
+			auto error = user_error(decl->var.location, "duplicate symbol");
+			error.add_info(module_decls[decl->var.name], "see prior definition here");
 			throw error;
 		}
-		module_decls[decl->var->get_name()] = decl->var->get_location();
+		module_decls[decl->var.name] = decl->var.location;
 	}
 	std::set<std::string> top_level_decls;
 	for (auto pair : module_decls) {
@@ -210,8 +209,8 @@ std::string prefix(std::set<std::string> bindings, std::string pre, std::string 
 	}
 }
 
-identifier::ref prefix(std::set<std::string> bindings, std::string pre, identifier::ref name) {
-	return make_iid_impl(prefix(bindings, pre, name->get_name()), name->get_location());
+identifier_t prefix(std::set<std::string> bindings, std::string pre, identifier_t name) {
+	return {prefix(bindings, pre, name.name), name.location};
 }
 
 token_t prefix(std::set<std::string> bindings, std::string pre, token_t name) {
@@ -276,7 +275,7 @@ std::vector<T> prefix(std::set<std::string> bindings, std::string pre, std::vect
 
 expr_t *prefix(std::set<std::string> bindings, std::string pre, expr_t *value) {
 	if (auto var = dcast<var_t*>(value)) {
-		return new var_t(prefix(bindings, pre, var->var));
+		return new var_t(prefix(bindings, pre, var->id));
 	} else if (auto match = dcast<match_t*>(value)) {
 		return new match_t(
 				prefix(bindings, pre, match->scrutinee),
@@ -293,18 +292,18 @@ expr_t *prefix(std::set<std::string> bindings, std::string pre, expr_t *value) {
 		return new lambda_t(
 				lambda->var,
 				prefix(
-					without(bindings,lambda->var->get_name()),
+					without(bindings,lambda->var.name),
 					pre,
 					lambda->body));
 	} else if (auto let = dcast<let_t*>(value)) {
 		return new let_t(
 				let->var,
 				prefix(
-					without(bindings, let->var->get_name()),
+					without(bindings, let->var.name),
 					pre,
 					let->value),
 				prefix(
-					without(bindings, let->var->get_name()),
+					without(bindings, let->var.name),
 					pre,
 					let->body));
 	} else if (auto conditional = dcast<conditional_t*>(value)) {
@@ -350,16 +349,16 @@ bool compiler_t::parse_program() {
 
 		/* always include the builtins library */
 		if (getenv("NO_BUILTINS") == nullptr) {
-			gps.parse_module(location_t{"builtins", 0, 0}, "lib/builtins");
+			gps.parse_module({"lib/builtins", location_t{"builtins", 0, 0}});
 		}
 
 		/* always include the standard library */
 		if (getenv("NO_STD_LIB") == nullptr) {
-			gps.parse_module(location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0}, "lib/std");
+			gps.parse_module({"lib/std", location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0}});
 		}
 
 		/* now parse the main program module */
-		gps.parse_module(location_t{"command line build parameters", 0, 0}, module_name);
+		gps.parse_module({module_name, location_t{"command line build parameters", 0, 0}});
 
 		debug_above(4, log(log_info, "parse_module of %s succeeded", module_name.c_str(),
 					false /*global*/));

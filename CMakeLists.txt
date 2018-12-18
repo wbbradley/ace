@@ -32,7 +32,6 @@ add_executable(zion
 	src/atom.cpp
 	src/binding.cpp
 	src/builtins.cpp
-	src/checked_var.cpp
 	src/compiler.cpp
 	src/dbg.cpp
 	src/disk.cpp
