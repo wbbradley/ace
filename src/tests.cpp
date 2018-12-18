@@ -873,7 +873,7 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_parse_types",
 		[] () -> bool {
-			identifier::set generics = {make_iid("T"), make_iid("Q")};
+			std::set<identifier_t> generics = {make_iid("T"), make_iid("Q")};
 			auto module_id = make_iid("M");
 
 			struct spec {
@@ -944,7 +944,7 @@ auto test_descs = std::vector<test_desc>{
 	{
 		"test_unification",
 		[] () -> bool {
-			identifier::set generics = {make_iid("Container"), make_iid("T")};
+			std::set<identifier_t> generics = {make_iid("Container"), make_iid("T")};
 
 			env_map_t env;
 			env["int"] = {false, type_integer(

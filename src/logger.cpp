@@ -104,7 +104,11 @@ void tee_logger::logv(log_level_t level, const location_t *location, const char 
 	if (_max_log_depth == 0 || get_depth() < _max_log_depth) {
 		auto str = string_formatv(format, args);
 
-		captured_logs.push_back(std::tuple<log_level_t, maybe<location_t>, std::string>{level, location, str});
+		captured_logs.push_back(
+				std::tuple<log_level_t, maybe<location_t>, std::string>(
+					level,
+					location != nullptr ? maybe<location_t>(*location) : maybe<location_t>(),
+					str));
 
 		if (logger_old != nullptr) {
 			logger_old->log(level, location, "%s", str.c_str());

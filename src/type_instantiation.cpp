@@ -11,13 +11,11 @@
 #include "llvm_utils.h"
 #include "phase_scope_setup.h"
 #include "types.h"
-#include "code_id.h"
-#include "delegate.h"
 
 bound_var_t::ref bind_ctor_to_scope(
 		llvm::IRBuilder<> &builder,
 		scope_t::ref scope,
-		identifier::ref id,
+		identifier_t id,
 		std::string ctor_name,
 		location_t location,
 		types::type_function_t::ref function)
@@ -57,9 +55,9 @@ bound_var_t::ref bind_ctor_to_scope(
 
 void get_generics_and_lambda_vars(
 	   	types::type_t::ref subtype,
-		identifier::refs type_variables,
+		identifiers_t type_variables,
 	   	scope_t::ref scope,
-		std::list<identifier::ref> &lambda_vars,
+		std::list<identifier_t> &lambda_vars,
 		std::set<std::string> &generics)
 {
 	assert(generics.size() == 0);
@@ -114,10 +112,10 @@ void get_generics_and_lambda_vars(
 void instantiate_data_ctor_type(
 		llvm::IRBuilder<> &builder,
 		types::type_t::ref unbound_type,
-		identifier::refs type_variables,
+		identifiers_t type_variables,
 		scope_t::ref scope,
 		std::shared_ptr<const ast::item_t> node,
-		identifier::ref id,
+		identifier_t id,
 		bool native)
 {
 	indent_logger indent(node->get_location(), 5,
@@ -136,7 +134,7 @@ void instantiate_data_ctor_type(
 
 	/* lambda_vars tracks the order of the lambda variables we'll accept as we abstract our
 	 * supertype expansion */
-	std::list<identifier::ref> lambda_vars;
+	std::list<identifier_t> lambda_vars;
 	std::set<std::string> generics;
 
 	get_generics_and_lambda_vars(struct_, type_variables, scope,
@@ -198,8 +196,8 @@ void instantiate_data_ctor_type(
 
 void ast::type_product_t::register_type(
 		llvm::IRBuilder<> &builder,
-		identifier::ref id_,
-		identifier::refs type_variables,
+		identifier_t id_,
+		identifiers_t type_variables,
 		scope_t::ref scope) const
 {
 	debug_above(5, log(log_info, "creating product type for %s", str().c_str()));
@@ -238,7 +236,7 @@ void ast::type_product_t::register_type(
 	}
 }
 
-types::type_t::map bottom_out_unreferenced_vars(const std::set<std::string> &seen, const identifier::refs &all) {
+types::type_t::map bottom_out_unreferenced_vars(const std::set<std::string> &seen, const identifiers_t &all) {
 	types::type_t::map bindings;
 	for (auto a : all) {
 		const auto &name = a->get_name();
@@ -251,8 +249,8 @@ types::type_t::map bottom_out_unreferenced_vars(const std::set<std::string> &see
 
 void ast::data_type_t::register_type(
 		llvm::IRBuilder<> &builder,
-		identifier::ref id,
-		identifier::refs type_variables,
+		identifier_t id,
+		identifiers_t type_variables,
 		scope_t::ref scope) const
 {
 	debug_above(3, log(log_info, "registering data type %s", str().c_str()));
@@ -283,7 +281,7 @@ void ast::data_type_t::register_type(
 		scope->put_nominal_typename(id->get_name(), expansion);
 
 		/* create the ctor return type */
-		identifier::ref data_type_id = make_iid_impl(
+		identifier_t data_type_id = make_iid_impl(
 					scope->make_fqn(id->get_name()),
 					id->get_location());
 
@@ -293,7 +291,7 @@ void ast::data_type_t::register_type(
 		}
 
 		for (auto &ctor_pair : ctor_pairs) {
-			identifier::ref ctor_id = make_iid_impl(ctor_pair.first.text, get_location());
+			identifier_t ctor_id = make_iid_impl(ctor_pair.first.text, get_location());
 			if (ctor_pair.second->args.size() == 0) {
 				bound_type_t::ref bound_tag_type = upsert_bound_type(builder, scope,
 						ctor_return_type->rebind(
@@ -329,8 +327,8 @@ void ast::data_type_t::register_type(
 
 void ast::type_link_t::register_type(
 		llvm::IRBuilder<> &builder,
-		identifier::ref id,
-		identifier::refs type_variables,
+		identifier_t id,
+		identifiers_t type_variables,
 		scope_t::ref scope) const
 {
 	auto type = scope->get_type(id->get_name(), true /*allow_structural_types*/);
@@ -364,15 +362,15 @@ void ast::type_link_t::register_type(
 
 void ast::type_alias_t::register_type(
 		llvm::IRBuilder<> &builder,
-		identifier::ref supertype_id,
-		identifier::refs type_variables,
+		identifier_t supertype_id,
+		identifiers_t type_variables,
 	   	scope_t::ref scope) const
 {
 	debug_above(5, log(log_info, "creating type alias for " c_id("%s") " %s",
 				supertype_id->get_name().c_str(),
 				str().c_str()));
 
-	std::list<identifier::ref> lambda_vars;
+	std::list<identifier_t> lambda_vars;
 	std::set<std::string> generics;
 
 	delegate_t delegate{builder};

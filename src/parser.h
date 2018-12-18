@@ -24,7 +24,7 @@ std::shared_ptr<T> parse_text(const std::string &text, std::string filename = "r
 	return parse_text<T>(iss, filename);
 }
 
-identifier::ref make_code_id(const token_t &token);
+identifier_t make_code_id(const token_t &token);
 
 
 #define eat_token() \
@@ -62,4 +62,4 @@ identifier::ref make_code_id(const token_t &token);
 		eat_token(); \
 	} while (0)
 
-bitter::module_t *parse_module(parse_state_t &ps, std::vector<identifier::ref> &module_deps);
+bitter::module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps);

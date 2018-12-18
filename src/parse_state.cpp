@@ -26,6 +26,11 @@ bool parse_state_t::advance() {
 	return lexer.get_token(token, newline, comments);
 }
 
+token_t parse_state_t::token_and_advance() {
+	advance();
+	return prior_token;
+}
+
 void parse_state_t::error(const char *format, ...) {
 	va_list args;
 	va_start(args, format);

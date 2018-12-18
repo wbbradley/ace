@@ -1,7 +1,6 @@
 #include "zion.h"
 #include "atom.h"
 #include "ast.h"
-#include "code_id.h"
 #include "compiler.h"
 #include <iostream>
 #include "unification.h"
@@ -333,7 +332,7 @@ bound_var_t::ref gen_null_check(
 		ast::item_t::ref node,
 		scope_t::ref scope,
 		life_t::ref life,
-		identifier::ref value_name,
+		identifier_t value_name,
 		bound_var_t::ref value,
 		runnable_scope_t::ref *new_scope)
 {

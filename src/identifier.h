@@ -1,62 +1,38 @@
 #pragma once
 #include <string>
+#include <vector>
+#include <set>
 #include "utils.h"
 #include "location.h"
 #include "token.h"
-#include <vector>
-#include <set>
-#include <list>
+#include "colors.h"
 
-/* the abstract notion of an identifer */
-struct identifier {
-	typedef std::shared_ptr<const identifier> ref;
-	typedef std::vector<ref> refs;
-	typedef std::set<ref, shared_comparator> set;
+struct identifier_t {
+	std::string const name;
+	location_t const location;
+	static identifier_t from_token(token_t token);
+	inline token_t get_token() const { return token_t{location, tk_identifier, name}; }
+	std::string str() const { return string_format(c_id("%s"), name.c_str()); }
 
-	virtual ~identifier() {}
-	virtual std::string get_name() const = 0;
-	virtual location_t get_location() const = 0;
-	virtual token_t get_token() const = 0;
-	virtual std::string str() const = 0;
-
-	bool operator <(const identifier &rhs) const;
+	bool operator <(const identifier_t &rhs) const;
 };
+using identifiers_t = std::vector<identifier_t>;
 
-/* internal identifiers - note that they lack a "location" */
-struct iid : public identifier {
-	typedef std::shared_ptr<iid> ref;
+std::string str(identifiers_t ids);
 
-	std::string name;
-	location_t location;
 
-	iid(std::string name, location_t location) : name(name), location(location) {}
-	iid() = delete;
-	iid(const iid &) = delete;
-	iid(const iid &&) = delete;
-	iid &operator =(const iid &) = delete;
-
-	virtual std::string get_name() const;
-	virtual location_t get_location() const;
-	virtual std::string str() const;
-	virtual token_t get_token() const;
-};
-
-std::string str(identifier::refs ids);
-identifier::ref make_iid_impl(std::string name, location_t location);
-identifier::ref make_iid_impl(const char *name, location_t location);
-
-identifier::set to_set(identifier::refs identifiers);
-
-#define make_iid(name_) make_iid_impl(name_, location_t{__FILE__, __LINE__, 1})
+#define make_iid(name_) identifier_t{name_, location_t{__FILE__, __LINE__, 1}}
 
 namespace std {
 	template <>
-	struct hash<identifier::ref> {
-		int operator ()(identifier::ref s) const {
-			return std::hash<std::string>()(s->get_name());
+	struct hash<identifier_t> {
+		int operator ()(const identifier_t &s) const {
+			return std::hash<std::string>()(s.name);
 		}
 	};
 }
 
-std::set<std::string> to_atom_set(const identifier::refs &refs);
-identifier::set to_identifier_set(const identifier::refs &refs);
+std::set<identifier_t> to_set(const identifiers_t &identifiers);
+std::set<std::string> to_atom_set(const identifiers_t &refs);
+
+std::ostream &operator <<(std::ostream &os, const identifier_t &rhs);

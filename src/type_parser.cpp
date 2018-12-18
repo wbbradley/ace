@@ -23,9 +23,9 @@ bool token_is_illegal_in_type(const token_t &token) {
 }
 
 namespace types {
-	type_t::ref parse_and_type(parse_state_t &ps, const identifier::set &generics);
+	type_t::ref parse_and_type(parse_state_t &ps, const std::set<identifier_t> &generics);
 
-	type_t::ref parse_product_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_product_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		assert(ps.token.is_ident(K(has)) || ps.token.is_ident(K(struct)));
 		bool native_struct = ps.token.is_ident(K(struct));
 		ps.advance();
@@ -69,10 +69,10 @@ namespace types {
 		return ::type_struct(dimensions, name_index);
 	}
 
-	type_t::ref parse_identifier_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_identifier_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		expect_token(tk_identifier);
 		type_t::ref cur_type;
-		std::list<identifier::ref> ids;
+		std::list<identifier_t> ids;
 		location_t location = ps.token.location;
 		while (ps.token.tk == tk_identifier) {
 			ids.push_back(make_code_id(ps.token));
@@ -86,7 +86,7 @@ namespace types {
 		}
 
 		/* reduce the type-path to a single simplified id */
-		identifier::ref id = reduce_ids(ids, location);
+		identifier_t id = reduce_ids(ids, location);
 
 		debug_above(9, log("checking what " c_id("%s") " is",
 					id->str().c_str()));
@@ -116,7 +116,7 @@ namespace types {
 		}
 	}
 
-	type_t::ref parse_parens_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_parens_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		chomp_token(tk_lparen);
         if (ps.token.tk == tk_rparen) {
             ps.advance();
@@ -146,7 +146,7 @@ namespace types {
 		}
 	}
 
-	type_t::ref parse_type_constraints(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_type_constraints(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		expect_ident(K(where));
 		location_t where_location = ps.token.location;
 		ps.advance();
@@ -154,7 +154,7 @@ namespace types {
 		return parse_type(ps, generics);
 	}
 
-	types::type_t::ref parse_type_args(parse_state_t &ps, const identifier::set &generics, bool automatic_any) {
+	types::type_t::ref parse_type_args(parse_state_t &ps, const std::set<identifier_t> &generics, bool automatic_any) {
 		chomp_token(tk_lparen);
 		if (ps.token.tk == tk_double_dot) {
 			ps.advance();
@@ -166,7 +166,7 @@ namespace types {
 		}
 
 		types::type_t::refs param_types;
-		identifier::refs param_names;
+		identifiers_t param_names;
 
 		while (true) {
 			if (ps.token.tk == tk_identifier) {
@@ -193,7 +193,7 @@ namespace types {
 
 				/* check for duplicate param names */
 				for (auto p : param_names) {
-					if (([](identifier::ref x) { return x->get_name(); })(p) == param_name->get_name()) {
+					if (([](identifier_t x) { return x->get_name(); })(p) == param_name->get_name()) {
 						throw user_error(ps.token.location, "duplicated parameter name: %s", var_name.text.c_str());
 					}
 				}
@@ -220,7 +220,7 @@ namespace types {
 
 	types::type_args_t::ref parse_data_ctor_type(
 			parse_state_t &ps,
-		   	const identifier::set &generics)
+		   	const std::set<identifier_t> &generics)
    	{
 		types::type_args_t::ref type_args;
 		if (ps.token.tk == tk_lparen) {
@@ -240,8 +240,8 @@ namespace types {
     types::type_t::ref parse_function_type(
             parse_state_t &ps,
 			location_t location,
-            identifier::set generics,
-            identifier::ref &name,
+            std::set<identifier_t> generics,
+            identifier_t &name,
             types::type_t::ref default_return_type)
     {
         if (ps.token.tk == tk_identifier) {
@@ -317,7 +317,7 @@ namespace types {
         }
     }
 
-	type_t::ref parse_vector_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_vector_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		/* we've got a map type */
 		auto square_token = ps.token;
 		ps.advance();
@@ -335,7 +335,7 @@ namespace types {
 		}
 	}
 
-	type_t::ref parse_integer_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_integer_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		auto token = ps.token;
 		chomp_ident(K(integer));
 		if (ps.token.tk != tk_lparen) {
@@ -351,7 +351,7 @@ namespace types {
 		return type_integer(bit_size, signed_);
 	}
 
-	type_t::ref parse_lambda_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_lambda_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		if (ps.token.is_ident(K(lambda))) {
 			ps.advance();
 			expect_token(tk_identifier);
@@ -368,7 +368,7 @@ namespace types {
 		} else if (ps.token.is_ident(K(fn))) {
 			auto location = ps.token.location;
 			ps.advance();
-			identifier::ref name;
+			identifier_t name;
 			auto fn_type = parse_function_type(ps, location, generics, name, nullptr);
 			if (name != nullptr && name->get_name() != "_") {
 				auto error = user_error(name->get_location(), "function name unexpected in this context (" c_id("%s") ")",
@@ -414,7 +414,7 @@ namespace types {
 		}
 	}
 
-	type_t::ref parse_ptr_type(parse_state_t &ps, const identifier::set &generics, bool disallow_maybe=false) {
+	type_t::ref parse_ptr_type(parse_state_t &ps, const std::set<identifier_t> &generics, bool disallow_maybe=false) {
 		bool is_ptr = false;
 		bool is_maybe = false;
 		if (ps.token.tk == tk_times) {
@@ -458,7 +458,7 @@ namespace types {
 		}
 	}
 
-	type_t::ref parse_ref_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_ref_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		bool is_ref = false;
 		if (ps.token.tk == tk_ampersand) {
 			ps.advance();
@@ -468,7 +468,7 @@ namespace types {
 		return is_ref ? type_ref(element) : element;
 	}
 
-	type_t::ref parse_application_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_application_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		auto lhs = parse_ref_type(ps, generics);
 		if (lhs == nullptr) {
 			throw user_error(ps.token.location, "unable to parse type");
@@ -493,7 +493,7 @@ namespace types {
 		}
 	}
 
-	type_t::ref parse_infix_subtype(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_infix_subtype(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		auto lhs = parse_application_type(ps, generics);
 		if (ps.token.tk == tk_subtype) {
 			/* we've got a subtype expression */
@@ -507,7 +507,7 @@ namespace types {
 		}
 	}
 
-	type_t::ref parse_eq_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_eq_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		location_t location = ps.token.location;
 		auto lhs = parse_infix_subtype(ps, generics);
 		if (ps.token.tk == type_eq_t::TK) {
@@ -521,7 +521,7 @@ namespace types {
 		}
 	}
 
-	type_t::ref parse_and_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_and_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		auto lhs = parse_eq_type(ps, generics);
 		if (ps.token.is_ident(K(and))) {
 			/* we've got a Logical AND expression */
@@ -539,11 +539,11 @@ namespace types {
 		}
 	}
 
-	type_t::ref parse_or_type(parse_state_t &ps, const identifier::set &generics) {
+	type_t::ref parse_or_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
 		return parse_and_type(ps, generics);
 	}
 
-	identifier::ref reduce_ids(const std::list<identifier::ref> &ids, location_t location) {
+	identifier_t reduce_ids(const std::list<identifier_t> &ids, location_t location) {
 		assert(ids.size() != 0);
 		return make_iid_impl(join(ids, SCOPE_SEP), location);
 	}
@@ -551,8 +551,8 @@ namespace types {
 
 types::type_t::ref parse_type_expr(
 		std::string input,
-	   	identifier::set generics,
-	   	identifier::ref module_id)
+	   	std::set<identifier_t> generics,
+	   	identifier_t module_id)
 {
 	std::istringstream iss(input);
 	zion_lexer_t lexer("", iss);

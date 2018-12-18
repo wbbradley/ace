@@ -368,7 +368,9 @@ namespace match {
 				for (size_t i = 0; i < ctor_pair.second->args.size(); ++i) {
 					args.push_back(
 							std::make_shared<AllOf>(location,
-								(ctor_pair.second->names.size() > i) ? ctor_pair.second->names[i]->get_name() : "_",
+								(ctor_pair.second->names.size() > i)
+							   	? ctor_pair.second->names[i].name
+							   	: "_",
 								env,
 								ctor_pair.second->args[i]));
 				}
@@ -666,11 +668,11 @@ namespace bitter {
 		type = type->eval(env);
 		if (auto data_type = dyncast<const type_data_t>(type->eval(env))) {
 			for (auto ctor_pair : data_type->ctor_pairs) {
-				if (ctor_pair.first.text == ctor_name.text) {
+				if (ctor_pair.first.text == ctor_name.name) {
 					std::vector<Pattern::ref> args;
 					if (ctor_pair.second->args.size() != params.size()) {
 						throw user_error(location, "%s has an incorrect number of sub-patterns. there are %d, there should be %d",
-								ctor_name.text.c_str(),
+								ctor_name.name.c_str(),
 								int(params.size()),
 								int(ctor_pair.second->args.size()));
 					}
@@ -683,22 +685,22 @@ namespace bitter {
 					return std::make_shared<CtorPattern>(
 							location,
 						   	CtorPatternValue{type->repr(),
-						   	ctor_name.text,
+						   	ctor_name.name,
 						   	args});
 				}
 			}
 
 			throw user_error(location, "invalid ctor, " c_id("%s") " is not a member of %s",
-					ctor_name.text.c_str(), type->str().c_str());
+					ctor_name.name.c_str(), type->str().c_str());
 			return nullptr;
 		} else {
 			throw user_error(location, "type mismatch on pattern. incoming type is %s. "
-				   	c_id("%s") " cannot match it.", type->str().c_str(), ctor_name.text.c_str());
+				   	c_id("%s") " cannot match it.", type->str().c_str(), ctor_name.name.c_str());
 			return nullptr;
 		}
 	}
 	Pattern::ref irrefutable_predicate_t::get_pattern(type_t::ref type, env_t::ref env) const {
-		return std::make_shared<AllOf>(location, name_assignment.text, env, type);
+		return std::make_shared<AllOf>(location, name_assignment.name, env, type);
 	}
 	Pattern::ref literal_t::get_pattern(type_t::ref type, env_t::ref env) const {
 		if (type->eval_predicate(tb_int, env)) {
