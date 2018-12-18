@@ -1,12 +1,14 @@
 #pragma once
 #include <vector>
-#include <memory>
 #include "identifier.h"
 #include "token.h"
 #include <iostream>
 #include "types.h"
+#include "match.h"
 
 namespace bitter {
+	std::string fresh();
+
 	struct expr_t {
 		virtual ~expr_t() throw() {}
 		virtual location_t get_location() = 0;
@@ -42,24 +44,39 @@ namespace bitter {
 	struct predicate_t {
 		virtual ~predicate_t() {}
 		virtual std::ostream &render(std::ostream &os);
+		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const = 0;
 	};
 
 	struct tuple_predicate_t : public predicate_t {
-		virtual std::ostream &render(std::ostream &os);
+		tuple_predicate_t(std::vector<predicate_t *> params, token_t name_assignment) :
+			params(params), name_assignment(name_assignment) {}
+		std::ostream &render(std::ostream &os) override;
+		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
 
+		location_t location;
 		std::vector<predicate_t *> const params;
 		token_t const name_assignment;
 	};
 
 	struct irrefutable_predicate_t : public predicate_t {
-		virtual std::ostream &render(std::ostream &os);
+		irrefutable_predicate_t(token_t name_assignment) : name_assignment(name_assignment) {}
+		std::ostream &render(std::ostream &os) override;
+		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
 
+		location_t location;
 		token_t const name_assignment;
 	};
 
 	struct ctor_predicate_t : public predicate_t {
-		virtual std::ostream &render(std::ostream &os);
+		ctor_predicate_t(
+				std::vector<predicate_t *> params,
+				token_t ctor_name,
+				token_t name_assignment) :
+		   	params(params), ctor_name(ctor_name), name_assignment(name_assignment) {}
+		std::ostream &render(std::ostream &os) override;
+		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
 
+		location_t location;
 		std::vector<predicate_t *> const params;
 		token_t const ctor_name;
 		token_t const name_assignment;
@@ -109,12 +126,23 @@ namespace bitter {
 		expr_t * const body;
 	};
 
-	struct literal_t : public expr_t {
-		literal_t(token_t value) : value(value) {}
+	struct tuple_t : public expr_t {
+		tuple_t(location_t location, std::vector<expr_t *> dims) : location(location), dims(dims) {}
 		location_t get_location() override;
 		std::ostream &render(std::ostream &os, int parent_precedence) override;
 
-		token_t const value;
+		location_t const location;
+		std::vector<expr_t *> const dims;
+	};
+
+	struct literal_t : public expr_t, public predicate_t {
+		literal_t(token_t token) : token(token) {}
+		location_t get_location() override;
+		std::ostream &render(std::ostream &os, int parent_precedence) override;
+		std::ostream &render(std::ostream &os) override;
+		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
+
+		token_t const token;
 	};
 
 	struct conditional_t : public expr_t {
@@ -134,7 +162,7 @@ namespace bitter {
 	};
 
 	struct while_t : public expr_t {
-		while_t(expr_t *condition, block_t *block) : condition(condition), block(block) {}
+		while_t(expr_t *condition, expr_t *block) : condition(condition), block(block) {}
 		location_t get_location() override;
 		std::ostream &render(std::ostream &os, int parent_precedence) override;
 

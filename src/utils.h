@@ -1,5 +1,8 @@
 #pragma once
 #include <string>
+#include <set>
+#include <algorithm>
+#include <iterator>
 #include <functional> 
 #include <sstream>
 #include <vector>
@@ -31,6 +34,13 @@ std::string string_formatv(const std::string fmt_str, va_list args);
 std::string string_format(const std::string fmt_str, ...);
 std::string base26(unsigned int i);
 void strrev(char *p);
+
+template <typename T>
+std::set<T> without(const std::set<T> &s, T v) {
+	std::set<T> c = s;
+	c.erase(v);
+	return c;
+}
 
 template <typename T>
 T merge(const T &a, const T &b) {
@@ -101,6 +111,14 @@ std::vector<U> keys(const std::map<U, V> &map) {
 	return k;
 }
 
+template <typename T>
+std::set<T> set_diff(std::set<T> a, std::set<T> b) {
+	std::set<T> diff;
+	std::set_difference(a.begin(), a.end(), b.begin(), b.end(), 
+			std::inserter(diff, diff.begin()));
+	return diff;
+}
+
 bool starts_with(const std::string &str, const std::string &search);
 bool starts_with(const char *str, const std::string &search);
 bool ends_with(const std::string &str, const std::string &search);
@@ -136,7 +154,7 @@ template<typename K, typename V>
 V get(const std::map<K, V> &t, K k, V default_) {
 	auto iter = t.find(k);
 	if (iter != t.end()) {
-		return iter.second;
+		return iter->second;
 	} else {
 		return default_;
 	}

@@ -98,13 +98,7 @@ namespace types {
 			return type_variable(id);
 		} else {
 			/* this is not a generic */
-			if (in(id->get_name(), ps.type_macros)) {
-				debug_above(9, log("checking whether type " c_id("%s") " expands...",
-							id->get_name().c_str()));
-
-				/* macro type expansion */
-				return ps.type_macros[id->get_name()];
-			} else if (id->get_name().find(SCOPE_SEP_CHAR) != std::string::npos) {
+			if (id->get_name().find(SCOPE_SEP_CHAR) != std::string::npos) {
 				/* if we're explicit about the type path, then let's just
 				 * use that as the id */
 				return type_id(id);
@@ -549,11 +543,6 @@ namespace types {
 		return parse_and_type(ps, generics);
 	}
 
-	type_t::ref parse_type(parse_state_t &ps, const identifier::set &generics) {
-		assert(ps.token.tk != tk_lcurly && ps.token.tk != tk_rcurly);
-		return parse_or_type(ps, generics);
-	}
-
 	identifier::ref reduce_ids(const std::list<identifier::ref> &ids, location_t location) {
 		assert(ids.size() != 0);
 		return make_iid_impl(join(ids, SCOPE_SEP), location);
@@ -567,13 +556,8 @@ types::type_t::ref parse_type_expr(
 {
 	std::istringstream iss(input);
 	zion_lexer_t lexer("", iss);
-	type_macros_t global_type_macros;
 
-	add_default_type_macros(global_type_macros);
-	global_type_macros["Maybe"] = type_id(make_iid(MAYBE_TYPE));
-	global_type_macros["str"] = type_id(make_iid(MANAGED_STR));
-
-	parse_state_t ps("", lexer, global_type_macros, global_type_macros, nullptr);
+	parse_state_t ps("", lexer, nullptr);
 	if (module_id != nullptr) {
 		ps.module_id = module_id;
 	} else {

@@ -5,6 +5,7 @@
 #include "types.h"
 #include <numeric>
 #include <algorithm>
+#include "user_error.h"
 
 namespace match {
 	using namespace ::types;
@@ -48,11 +49,13 @@ namespace match {
 
 	struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
 		std::string name;
+		env_t::ref env;
 		types::type_t::ref type;
 
-		AllOf(location_t location, std::string name, types::type_t::ref type) :
+		AllOf(location_t location, std::string name, env_t::ref env, types::type_t::ref type) :
 			Pattern(location),
 			name(name),
+			env(env),
 			type(type)
 		{
 		}
@@ -126,8 +129,8 @@ namespace match {
 	std::shared_ptr<Scalars<int64_t>> allIntegers = std::make_shared<Scalars<int64_t>>(INTERNAL_LOC(), Scalars<int64_t>::Exclude, std::set<int64_t>{});
 	std::shared_ptr<Scalars<std::string>> allStrings = std::make_shared<Scalars<std::string>>(INTERNAL_LOC(), Scalars<std::string>::Exclude, std::set<std::string>{});
 
-	Pattern::ref all_of(location_t location, std::string expr, types::type_t::ref type) {
-		return std::make_shared<match::AllOf>(location, expr, type);
+	Pattern::ref all_of(location_t location, std::string expr, env_t::ref env, types::type_t::ref type) {
+		return std::make_shared<match::AllOf>(location, expr, env, type);
 	}
 
 	Pattern::ref reduce_all_datatype(
@@ -632,7 +635,7 @@ namespace match {
 
 }
 
-namespace ast {
+namespace bitter {
 	using namespace ::match;
 	using namespace ::types;
 
@@ -642,8 +645,7 @@ namespace ast {
 		std::vector<Pattern::ref> args;
 		if (auto tuple_type = dyncast<const type_tuple_t>(type->eval(env))) {
 			if (tuple_type->dimensions.size() != params.size()) {
-				throw user_error(token.location, "%s has an incorrect number of sub-patterns. there are %d, there should be %d",
-						token.text.c_str(),
+				throw user_error(location, "tuple predicate has an incorrect number of sub-patterns. there are %d, there should be %d",
 						int(params.size()),
 						int(tuple_type->dimensions.size()));
 			}
@@ -652,9 +654,9 @@ namespace ast {
 			for (size_t i = 0; i < params.size(); ++i) {
 				args.push_back(params[i]->get_pattern(tuple_type->dimensions[i], env));
 			}
-			return std::make_shared<CtorPattern>(token.location, CtorPatternValue{tuple_type->repr(), "tuple", args});
+			return std::make_shared<CtorPattern>(location, CtorPatternValue{tuple_type->repr(), "tuple", args});
 		} else {
-			throw user_error(token.location,
+			throw user_error(location,
 					"type mismatch on pattern. incoming type is %s. "
 					"it is not a %d-tuple.", type->str().c_str(), (int)params.size());
 			return nullptr;
@@ -664,11 +666,11 @@ namespace ast {
 		type = type->eval(env);
 		if (auto data_type = dyncast<const type_data_t>(type->eval(env))) {
 			for (auto ctor_pair : data_type->ctor_pairs) {
-				if (ctor_pair.first.text == token.text) {
+				if (ctor_pair.first.text == ctor_name.text) {
 					std::vector<Pattern::ref> args;
 					if (ctor_pair.second->args.size() != params.size()) {
-						throw user_error(token.location, "%s has an incorrect number of sub-patterns. there are %d, there should be %d",
-								token.text.c_str(),
+						throw user_error(location, "%s has an incorrect number of sub-patterns. there are %d, there should be %d",
+								ctor_name.text.c_str(),
 								int(params.size()),
 								int(ctor_pair.second->args.size()));
 					}
@@ -678,23 +680,27 @@ namespace ast {
 					}
 
 					/* found the ctor we're matching on */
-					return std::make_shared<CtorPattern>(token.location, CtorPatternValue{type->repr(), token.text, args});
+					return std::make_shared<CtorPattern>(
+							location,
+						   	CtorPatternValue{type->repr(),
+						   	ctor_name.text,
+						   	args});
 				}
 			}
 
-			throw user_error(token.location, "invalid ctor, " c_id("%s") " is not a member of %s",
-					token.text.c_str(), type->str().c_str());
+			throw user_error(location, "invalid ctor, " c_id("%s") " is not a member of %s",
+					ctor_name.text.c_str(), type->str().c_str());
 			return nullptr;
 		} else {
-			throw user_error(token.location, "type mismatch on pattern. incoming type is %s. "
-				   	c_id("%s") " cannot match it.", type->str().c_str(), token.text.c_str());
+			throw user_error(location, "type mismatch on pattern. incoming type is %s. "
+				   	c_id("%s") " cannot match it.", type->str().c_str(), ctor_name.text.c_str());
 			return nullptr;
 		}
 	}
 	Pattern::ref irrefutable_predicate_t::get_pattern(type_t::ref type, env_t::ref env) const {
-		return std::make_shared<AllOf>(token.location, token.text, env, type);
+		return std::make_shared<AllOf>(location, name_assignment.text, env, type);
 	}
-	Pattern::ref literal_expr_t::get_pattern(type_t::ref type, env_t::ref env) const {
+	Pattern::ref literal_t::get_pattern(type_t::ref type, env_t::ref env) const {
 		if (type->eval_predicate(tb_int, env)) {
 			if (token.tk == tk_integer) {
 				int64_t value = parse_int_value(token);

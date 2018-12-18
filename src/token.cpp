@@ -2,6 +2,7 @@
 #include "dbg.h"
 #include "zion_assert.h"
 #include <sstream>
+#include "user_error.h"
 
 
 bool is_restricted_var_name(std::string x) {
@@ -391,3 +392,23 @@ void emit_tokens(const std::vector<token_t> &tokens) {
 		token.emit(indent_level, tk, indented_line);
 	}
 }
+
+int64_t parse_int_value(token_t token) {
+	switch (token.tk) {
+	case tk_integer:
+		{
+			int64_t value;
+			if (token.text.size() > 2 && token.text.substr(0, 2) == "0x") {
+				value = strtoll(token.text.substr(2).c_str(), nullptr, 16);
+			} else {
+				value = atoll(token.text.c_str());
+			}
+			return value;
+		}
+		break;
+	default:
+		throw user_error(token.location, "unable to read an integer value from %s", token.str().c_str());
+	}
+}
+
+

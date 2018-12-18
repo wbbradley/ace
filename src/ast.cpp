@@ -135,10 +135,10 @@ namespace bitter {
 		return os;
 	}
 	location_t literal_t::get_location() {
-		return value.location;
+		return token.location;
 	}
 	std::ostream &literal_t::render(std::ostream &os, int parent_precedence) {
-		return os << value.text;
+		return os << token.text;
 	}
 	location_t conditional_t::get_location() {
 		return cond->get_location();
@@ -174,14 +174,16 @@ namespace bitter {
 	}
 }
 
-#if 0
 namespace ast {
 	int next_fresh = 0;
 
 	std::string fresh() {
 		return string_format("__v%d", next_fresh++);
 	}
+}
 
+#if 0
+namespace ast {
 	bitter::expr_t::ref and_expr_t::make_expr() {
 		return new application(
 				bitter::application(
