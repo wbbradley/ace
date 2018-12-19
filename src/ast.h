@@ -13,6 +13,7 @@ namespace bitter {
 		virtual ~expr_t() throw() {}
 		virtual location_t get_location() = 0;
 		virtual std::ostream &render(std::ostream &os, int parent_precedence) = 0;
+		std::string str();
 	};
 
 	struct var_t : public expr_t {
