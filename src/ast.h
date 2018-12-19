@@ -216,4 +216,5 @@ namespace bitter {
 
 std::ostream &operator <<(std::ostream &os, bitter::program_t *program);
 std::ostream &operator <<(std::ostream &os, bitter::decl_t *decl);
+std::ostream &operator <<(std::ostream &os, bitter::expr_t *expr);
 

@@ -40,6 +40,7 @@ bool token_begins_type(const token_t &token) {
 	};
 }
 
+#if 0
 struct scoping_t {
 	scoping_t(parse_state_t &ps, bool is_let) :
 		ps(ps),
@@ -68,6 +69,7 @@ struct scoping_t {
 	parse_state_t &ps;
 	scope_t cur_scope;
 };
+#endif
 
 std::vector<std::pair<int, identifier_t>> extract_ids(const std::vector<expr_t*> &dims) {
 	std::vector<std::pair<int, identifier_t>> refs;
@@ -521,7 +523,7 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 					ps.advance();
 					expr = new application_t(expr, new var_t(identifier_t{"unit", INTERNAL_LOC()}));
 				} else {
-					while (ps.token.tk != tk_rparen && ps.token.tk != tk_none) {
+					while (ps.token.tk != tk_rparen) {
 						expr = new application_t(expr, parse_expr(ps));
 						if (ps.token.tk == tk_comma) {
 							ps.advance();
@@ -529,6 +531,7 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 							expect_token(tk_rparen);
 						}
 					}
+					ps.advance();
 				}
 				break;
 			}
@@ -957,7 +960,13 @@ expr_t *parse_block(parse_state_t &ps, bool expression_means_return) {
 		if (finish_block) {
 			chomp_token(tk_rcurly);
 		}
-		return new block_t(stmts);
+		if (stmts.size() == 0) {
+			return new var_t(identifier_t{"unit", ps.token.location});
+		} else if (stmts.size() == 1) {
+			return stmts[0];
+		} else {
+			return new block_t(stmts);
+		}
 	}
 }
 
@@ -1179,6 +1188,24 @@ match_t *parse_match(parse_state_t &ps) {
 #endif
 }
 
+identifier_t parse_lambda_param(parse_state_t &ps) {
+	if (ps.token.tk == tk_lparen) {
+		ps.advance();
+		if (ps.token.tk == tk_identifier) {
+			return iid(ps.token_and_advance());
+		} else if (ps.token.tk == tk_rparen) {
+			return identifier_t{"_", ps.token.location};
+		}
+	} else if (ps.token.tk == tk_comma) {
+		ps.advance();
+		if (ps.token.tk == tk_identifier) {
+			return iid(ps.token_and_advance());
+		}
+	}
+
+	throw user_error(ps.token.location, "missing parameter name");
+}
+
 // TODO: put type mappings into the scope
 lambda_t *parse_lambda(parse_state_t &ps) {
 	if (ps.token.tk == tk_identifier) {
@@ -1188,10 +1215,8 @@ lambda_t *parse_lambda(parse_state_t &ps) {
 	if (ps.token.tk == tk_lsquare) {
 		throw user_error(ps.token.location, "not yet impl");
 	}
-	if (ps.token.tk == tk_comma || ps.token.tk == tk_lparen) {
-		ps.advance();
-	}
-	scoping_t scoping(ps, true /*is_let*/);
+
+	identifier_t param_id = parse_lambda_param(ps);
 
 	if (ps.token.tk != tk_comma && ps.token.tk != tk_rparen) {
 		auto type = types::parse_type(ps, {});
@@ -1199,14 +1224,11 @@ lambda_t *parse_lambda(parse_state_t &ps) {
 	}
 
 	if (ps.token.tk == tk_comma) {
-		return new lambda_t(scoping.cur_scope.id, parse_lambda(ps));
+		return new lambda_t(param_id, parse_lambda(ps));
 	} else if (ps.token.tk == tk_rparen) {
-		if (ps.token.tk != tk_lcurly && ps.token.tk != tk_expr_block) {
-			auto return_type = types::parse_type(ps, {});
-			log_location(log_info, return_type->get_location(), "discarding parsed return type %s", return_type->str().c_str());
-		}
+		ps.advance();
 
-		return new lambda_t(scoping.cur_scope.id, parse_block(ps, true /*expression_means_return*/));
+		return new lambda_t(param_id, parse_block(ps, true /*expression_means_return*/));
 	} else {
 		throw user_error(ps.token.location, "unexpected token");
 	}
@@ -1380,10 +1402,6 @@ dimension_t::ref dimension_t::parse(parse_state_t &ps, std::set<identifier_t> ge
 
 module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 	debug_above(6, log("about to parse %s", ps.filename.c_str()));
-
-	assert(ps.module_name.size() == 0);
-	ps.module_name = strip_zion_extension(leaf_from_file_path(ps.filename));
-	assert(ps.module_name.size() != 0);
 
 	std::vector<decl_t *> decls;
 

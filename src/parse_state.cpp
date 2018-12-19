@@ -1,11 +1,12 @@
 #include "zion.h"
+#include "compiler.h"
 #include "dbg.h"
 #include "parse_state.h"
 #include "logger_decls.h"
 #include <cstdarg>
 #include "builtins.h"
 #include "types.h"
-
+#include "disk.h"
 
 parse_state_t::parse_state_t(
 		std::string filename,
@@ -14,7 +15,7 @@ parse_state_t::parse_state_t(
 		std::vector<token_t> *comments,
 		std::set<token_t> *link_ins) :
 	filename(filename),
-	module_name(module_name),
+	module_name(module_name.size() != 0 ? module_name : strip_zion_extension(leaf_from_file_path(filename))),
 	lexer(lexer),
 	comments(comments),
 	link_ins(link_ins)

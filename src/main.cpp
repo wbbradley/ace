@@ -77,6 +77,7 @@ int main(int argc, char *argv[]) {
 		} else if (cmd == "compile") {
 			setenv("NO_STD_LIB", "1", 1 /*overwrite*/);
 			setenv("NO_STD_MAIN", "1", 1 /*overwrite*/);
+			setenv("NO_BUILTINS", "1", 1 /*overwrite*/);
 			if (compiler.parse_program()) {
 				std::cout << compiler.program;
 				return EXIT_SUCCESS;

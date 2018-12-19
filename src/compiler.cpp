@@ -161,7 +161,7 @@ struct global_parser_state_t {
 			debug_above(4, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
 			zion_lexer_t lexer({module_filename}, ifs);
 
-			parse_state_t ps(module_filename, module_id.name, lexer, &comments, &link_ins);
+			parse_state_t ps(module_filename, "", lexer, &comments, &link_ins);
 
 			identifiers_t dependencies;
 			module_t *module = ::parse_module(ps, dependencies);
@@ -323,7 +323,10 @@ expr_t *prefix(std::set<std::string> bindings, std::string pre, expr_t *value) {
 		return new while_t(
 				prefix(bindings, pre, while_->condition),
 				prefix(bindings, pre, while_->block));
+	} else if (auto literal = dcast<literal_t*>(value)) {
+		return value;
 	} else {
+		std::cerr << "What should I do with " << value << "?" << std::endl;
 		assert(false);
 		return nullptr;
 	}

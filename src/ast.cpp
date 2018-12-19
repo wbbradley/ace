@@ -17,6 +17,10 @@ std::ostream &operator <<(std::ostream &os, bitter::decl_t *decl) {
 	return decl->value->render(os, 0);
 }
 
+std::ostream &operator <<(std::ostream &os, bitter::expr_t *expr) {
+	return expr->render(os, 0);
+}
+
 namespace bitter {
 	location_t var_t::get_location() {
 		return id.location;

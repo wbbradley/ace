@@ -9,22 +9,6 @@ if(MEMORY_DEBUGGING)
 	set(option_flags -DMEMORY_DEBUGGING)
 endif()
 
-foreach(_rt_module
-		rt_float
-		rt_net
-		rt_int
-		rt_posix
-		rt_str
-		rt_typeid
-		)
-	add_custom_target(
-		${_rt_module}.o
-		ALL
-		COMMAND clang -c ${CMAKE_SOURCE_DIR}/src/${_rt_module}.c -o ${PROJECT_BINARY_DIR}/${_rt_module}.o
-		BYPRODUCTS ${PROJECT_BINARY_DIR}/${_rt_module}.o
-		)
-endforeach(_rt_module)
-
 add_compile_options(-std=c++14 -g -O0 ${option_flags})
 
 add_executable(zion
