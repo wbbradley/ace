@@ -19,7 +19,9 @@ add_executable(zion
 	src/compiler.cpp
 	src/dbg.cpp
 	src/disk.cpp
+	src/env.cpp
 	src/identifier.cpp
+	src/infer.cpp
 	src/lexer.cpp
 	src/location.cpp
 	src/logger.cpp
@@ -33,7 +35,6 @@ add_executable(zion
 	src/token.cpp
 	src/token_queue.cpp
 	src/type_eval.cpp
-	src/type_parser.cpp
 	src/types.cpp
 	src/unification.cpp
 	src/user_error.cpp

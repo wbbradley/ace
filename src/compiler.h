@@ -5,6 +5,7 @@
 #include <vector>
 #include <list>
 #include "parse_state.h"
+#include "infer.h"
 
 struct compiler_t {
 	typedef std::vector<std::string> libs;

@@ -17,4 +17,4 @@ extern const char *FLOAT_TYPE;
 extern const char *MBS_TYPE;
 extern const char *PTR_TO_MBS_TYPE;
 extern const char *TYPEID_TYPE;
-extern const char *MANAGED_STR;
+extern const char *STR_TYPE;

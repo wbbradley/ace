@@ -12,7 +12,6 @@
 #include "disk.h"
 #include "utils.h"
 #include "unification.h"
-#include "type_parser.h"
 #include <fcntl.h>
 #include <unistd.h>
 

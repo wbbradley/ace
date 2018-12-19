@@ -22,6 +22,11 @@ std::ostream &operator <<(std::ostream &os, bitter::expr_t *expr) {
 }
 
 namespace bitter {
+	std::string expr_t::str() {
+		std::stringstream ss;
+		this->render(ss, 0);
+		return ss.str();
+	}
 	location_t var_t::get_location() {
 		return id.location;
 	}

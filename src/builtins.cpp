@@ -16,5 +16,5 @@ const char *FLOAT_TYPE = "float";
 const char *MBS_TYPE = "*char";
 const char *PTR_TO_MBS_TYPE = "**char";
 const char *TYPEID_TYPE = "typeid";
-const char *MANAGED_STR = "str";
+const char *STR_TYPE = "str";
 const char *MAYBE_TYPE = "Maybe";

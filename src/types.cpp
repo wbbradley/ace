@@ -4,7 +4,6 @@
 #include <sstream>
 #include "utils.h"
 #include "types.h"
-#include "type_parser.h"
 #include <iostream>
 #include "unification.h"
 #include "atom.h"
@@ -20,25 +19,6 @@ const char *STD_VECTOR_TYPE = "vector.Vector";
 const char *STD_MAP_TYPE = "map.Map";
 const char *VOID_TYPE = "void";
 const char *BOTTOM_TYPE = "⊥";
-
-const char *TYPE_OP_NOT = "not";
-const char *TYPE_OP_IF = "if";
-const char *TYPE_OP_GC = "gc";
-const char *TYPE_OP_IS_ZERO = "is_zero";
-const char *TYPE_OP_IS_REF = "is_ref";
-const char *TYPE_OP_IS_TRUE = "is_true";
-const char *TYPE_OP_IS_FALSE = "is_false";
-const char *TYPE_OP_IS_BOOL = "is_bool";
-const char *TYPE_OP_IS_STR = "is_str";
-const char *TYPE_OP_IS_POINTER = "is_pointer";
-const char *TYPE_OP_IS_FUNCTION = "is_function";
-const char *TYPE_OP_IS_CALLABLE = "is_callable";
-const char *TYPE_OP_IS_VOID = "is_void";
-const char *TYPE_OP_IS_BOTTOM = "is_bottom";
-const char *TYPE_OP_IS_UNIT = "is_unit";
-const char *TYPE_OP_IS_NULL = "is_null";
-const char *TYPE_OP_IS_INT = "is_int";
-const char *TYPE_OP_IS_MAYBE = "is_maybe";
 
 int next_generic = 1;
 
@@ -83,44 +63,16 @@ namespace types {
 		return ss.str();
 	}
 
-	bool type_t::is_ref(env_t::ref scope) const {
-		return eval_predicate(tb_ref, scope);
-	}
-
-	bool type_t::is_int(env_t::ref scope) const {
-		return eval_predicate(tb_int, scope);
-	}
-
-	bool type_t::is_function(env_t::ref scope) const {
-		return eval_predicate(tb_function, scope);
-	}
-
-	bool type_t::is_callable(env_t::ref scope) const {
-		return eval_predicate(tb_callable, scope);
-	}
-
-	bool type_t::is_void(env_t::ref scope) const {
-		return eval_predicate(tb_void, scope);
-	}
-
-	bool type_t::is_bool(env_t::ref scope) const {
-		return eval_predicate(tb_bool, scope);
-	}
-
-	bool type_t::is_bottom(env_t::ref scope) const {
-		return eval_predicate(tb_bottom, scope);
-	}
-
-	bool type_t::is_unit(env_t::ref scope) const {
-		return eval_predicate(tb_unit, scope);
-	}
-
-	bool type_t::is_maybe(env_t::ref scope) const {
-		return eval_predicate(tb_maybe, scope);
-	}
-
-	bool type_t::is_module() const {
-		return types::is_type_id(shared_from_this(), "module", nullptr);
+	std::shared_ptr<forall_t> type_t::generalize(env_t::ref env) const {
+		std::vector<std::string> vs;
+		auto type_ftvs = get_ftvs();
+		auto env_ftvs = env.get_ftvs();
+		for (auto ftv : type_ftvs) {
+			if (!in(ftv, env_ftvs)) {
+				vs.push_back(ftv);
+			}
+		}
+		return forall(vs, shared_from_this());
 	}
 
 	type_id_t::type_id_t(identifier_t id) : id(id) {
@@ -226,7 +178,7 @@ namespace types {
 	}
 
 	std::ostream &type_operator_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		if (is_type_id(oper->rebind(bindings), STD_VECTOR_TYPE, nullptr)) {
+		if (is_type_id(oper->rebind(bindings), STD_VECTOR_TYPE, {})) {
 			os << "[";
 			operand->emit(os, bindings, 0);
 			return os << "]";
@@ -671,131 +623,7 @@ namespace types {
 		return module_type->get_location();
 	}
 
-	type_function_t::type_function_t(
-			location_t location,
-			types::type_t::ref type_constraints,
-			types::type_t::ref args,
-			type_t::ref return_type) :
-		location(location),
-		type_constraints(type_constraints),
-		args(args), return_type(return_type)
-	{
-		assert(args != nullptr);
-		// assert(dyncast<const type_args_t>(args) != nullptr || dyncast<const type_variable_t>(args) != nullptr);
-		// assert(return_type != nullptr);
-	}
-
-	std::ostream &type_function_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		os << K(fn) << " ";
-#if 0
-		if (name != nullptr) {
-			os << C_ID << name.name << C_RESET;
-		}
-#endif
-		if (type_constraints != nullptr) {
-			os << "[" << C_CONTROL << "where " << C_RESET;
-			type_constraints->emit(os, bindings, 0);
-			os << "]";
-		}
-		os << "_";
-		args->emit(os, bindings, 0);
-		os << " ";
-		return return_type->emit(os, bindings, 0);
-	}
-
-	int type_function_t::ftv_count() const {
-		return args->ftv_count() + return_type->ftv_count();
-	}
-
-	std::set<std::string> type_function_t::get_ftvs() const {
-		std::set<std::string> set;
-		std::set<std::string> args_ftvs = args->get_ftvs();
-		set.insert(args_ftvs.begin(), args_ftvs.end());
-		std::set<std::string> return_type_ftvs = return_type->get_ftvs();
-		set.insert(return_type_ftvs.begin(), return_type_ftvs.end());
-		return set;
-	}
-
-	type_t::ref type_function_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
-			return shared_from_this();
-		}
-
-		types::type_t::ref rebound_args = args->rebind(bindings, bottom_out_free_vars);
-		assert(rebound_args != nullptr);
-		if (rebound_args == args) {
-			return shared_from_this();
-		}
-		return ::type_function(
-				get_location(),
-				type_constraints != nullptr ? type_constraints->rebind(bindings, bottom_out_free_vars) : type_constraints,
-				rebound_args,
-				return_type->rebind(bindings, bottom_out_free_vars));
-	}
-
-	type_t::ref type_function_t::unbottom() const {
-		types::type_t::ref rebound_args = args->unbottom();
-		assert(rebound_args != nullptr);
-		if (rebound_args == args) {
-			return shared_from_this();
-		}
-		return ::type_function(
-				get_location(),
-				type_constraints != nullptr ? type_constraints->unbottom() : type_constraints,
-				rebound_args,
-				return_type->unbottom());
-	}
-
-	location_t type_function_t::get_location() const {
-		return location;
-	}
-
-	type_function_t::ref type_function_t::replace_return_type(type_t::ref new_return_type) const {
-		return ::type_function(
-				get_location(),
-				type_constraints,
-				args,
-				new_return_type);
-	}
-
-	type_function_closure_t::type_function_closure_t(type_t::ref function) : function(function) {
-	}
-
-	std::ostream &type_function_closure_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		os << "bound(";
-		function->emit(os, bindings, parent_precedence);
-		return os << ")";
-	}
-
-	int type_function_closure_t::ftv_count() const {
-		return function->ftv_count();
-	}
-
-	std::set<std::string> type_function_closure_t::get_ftvs() const {
-		return function->get_ftvs();
-	}
-
-	type_t::ref type_function_closure_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0) {
-			return shared_from_this();
-		}
-
-		return ::type_function_closure(function->rebind(bindings, bottom_out_free_vars));
-	}
-
-	type_t::ref type_function_closure_t::unbottom() const {
-		return ::type_function_closure(function->unbottom());
-	}
-
-	location_t type_function_closure_t::get_location() const {
-		return function->get_location();
-	}
-
-
 	type_and_t::type_and_t(type_t::refs terms) : terms(terms) {
-		for (auto term : terms) {
-			assert(!dyncast<const type_maybe_t>(term));
-		}
 	}
 
 	std::ostream &type_and_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
@@ -889,57 +717,6 @@ namespace types {
 
 	location_t type_eq_t::get_location() const {
 		return location;
-	}
-
-	type_maybe_t::type_maybe_t(type_t::ref just) : just(just) {
-		assert(!dyncast<const type_maybe_t>(just));
-		assert(!dyncast<const type_ref_t>(just));
-		// TODO: revisit this... lazy types...
-		// assert(!just->is_null());
-	}
-
-	std::ostream &type_maybe_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		if (auto pointer = dyncast<const type_ptr_t>(just)) {
-			/* this is a native pointer that might be null */
-			os << "*?";
-			return pointer->element_type->emit(os, bindings, get_precedence());
-		} else {
-			/* this is a managed pointer that might be null. we subsume the maybeness onto the whole typename in order
-			 * to look nicer. */
-			just->emit(os, bindings, get_precedence());
-			return os << "?";
-		}
-	}
-
-	int type_maybe_t::ftv_count() const {
-		return just->ftv_count();
-	}
-
-	std::set<std::string> type_maybe_t::get_ftvs() const {
-		return just->get_ftvs();
-	}
-
-	type_t::ref type_maybe_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
-			return shared_from_this();
-		}
-
-		// NOTE: this may fail because i have not plumbed through the env... probably
-		// can bypass the std::shared_ptr check here
-		return ::type_maybe(just->rebind(bindings, bottom_out_free_vars), {});
-	}
-
-	type_t::ref type_maybe_t::unbottom() const {
-		auto just_ = just->unbottom();
-		if (just_ != just) {
-			return std::make_shared<types::type_maybe_t>(just_);
-		} else {
-			return shared_from_this();
-		}
-	}
-
-	location_t type_maybe_t::get_location() const {
-		return just->get_location();
 	}
 
 	type_ptr_t::type_ptr_t(type_t::ref element_type) : element_type(element_type) {
@@ -1354,102 +1131,11 @@ namespace types {
 		return name.location;
 	}
 
-	bool is_ptr_type_id(
-			type_t::ref type,
-			const std::string &type_name,
-			env_t::ref _env,
-			bool allow_maybe)
-	{
-		auto env = (_env == nullptr) ? _empty_env : _env;
-
-		type = type->eval(env, false /*get_structural_type*/);
-
-		if (allow_maybe) {
-			if (auto maybe = dyncast<const types::type_maybe_t>(type)) {
-				type = maybe->just;
-			}
-		}
-		if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
-			return is_type_id(ptr_type->element_type, type_name, env);
-		}
-		return false;
-	}
-
-
-	struct empty_env : public env_t {
-		empty_env() {}
-
-		virtual ~empty_env() {}
-		types::type_t::ref get_type(const std::string &name, bool allow_structural_types) const override {
-			return nullptr;
-		}
-	};
-
-	env_t::ref _empty_env = std::make_shared<empty_env>();
-
-	bool is_type_id(type_t::ref type, const std::string &type_name, env_t::ref _env) {
-		env_t::ref env = (_env == nullptr) ? _empty_env : _env;
+	bool is_type_id(type_t::ref type, const std::string &type_name, env_t::ref env) {
 		type = type->eval(env);
 
 		if (auto pti = dyncast<const types::type_id_t>(type)) {
 			return pti->id.name == type_name;
-		}
-
-		return false;
-	}
-
-	bool type_t::is_managed_ptr(env_t::ref _env) const {
-		env_t::ref env = (_env == nullptr) ? _empty_env : _env;
-		debug_above(9, log(log_info, "checking if %s is a managed std::shared_ptr", this->str().c_str()));
-		types::type_t::ref type = shared_from_this();
-		if (auto expanded_type = type->eval(env, true /*get_structural_type*/)) {
-			type = expanded_type;
-		}
-
-		if (auto ref_type = dyncast<const types::type_ref_t>(type)) {
-			type = ref_type->element_type;
-		}
-
-		if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
-			type = maybe_type->just;
-		}
-
-		if (auto data_type = dyncast<const types::type_data_t>(type)) {
-			return true;
-		}
-
-		if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
-			return true;
-		}
-
-		if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
-			if (dyncast<const types::type_managed_t>(ptr_type->element_type)) {
-				return true;
-			}
-		}
-
-		if (auto extern_type = dyncast<const types::type_extern_t>(type)) {
-			return true;
-		}
-
-		return false;
-	}
-
-	bool type_t::is_ptr(env_t::ref env) const {
-		// REVIEW: this is nebulous, it really depends on what env is passed in
-		auto type = this->eval(env, true /*get_structural_type*/);
-
-		if (auto maybe_type = dyncast<const types::type_maybe_t>(type)) {
-			type = maybe_type->just;
-		}
-
-		if (auto ptr_type = dyncast<const types::type_ptr_t>(type)) {
-			return true;
-		}
-
-		if (auto extern_type = dyncast<const types::type_extern_t>(type)) {
-			/* extern types are always managed pointers for now */
-			return true;
 		}
 
 		return false;
@@ -1471,8 +1157,7 @@ namespace types {
 		}
 	}
 
-	bool is_integer(type_t::ref type, env_t::ref _env) {
-		auto env = (_env == nullptr) ? _empty_env : _env;
+	bool is_integer(type_t::ref type, env_t::ref env) {
 		auto expansion = type->eval(env);
 		return dyncast<const type_integer_t>(expansion) != nullptr;
 	}
@@ -1487,10 +1172,10 @@ namespace types {
 		type_t::ref bit_size_expansion;
 		bit_size = coerce_to_integer(env, integer->bit_size, bit_size_expansion);
 		auto signed_type = integer->signed_->eval(env);
-		if (types::is_type_id(signed_type, TRUE_TYPE, nullptr)) {
+		if (types::is_type_id(signed_type, TRUE_TYPE, {})) {
 			signed_ = true;
 			return;
-		} else if (types::is_type_id(signed_type, FALSE_TYPE, nullptr)) {
+		} else if (types::is_type_id(signed_type, FALSE_TYPE, {})) {
 			signed_ = false;
 			return;
 		} else {
@@ -1510,7 +1195,7 @@ namespace types {
 		if (auto integer = dyncast<const type_integer_t>(type)) {
 			get_integer_attributes(location, integer, env, bit_size, signed_);
 			return true;
-		} else if (types::is_type_id(type, CHAR_TYPE, nullptr)) {
+		} else if (types::is_type_id(type, CHAR_TYPE, {})) {
 			bit_size = 8;
 			signed_ = false;
 			return true;
@@ -1554,15 +1239,6 @@ namespace types {
 		return dims;
 	}
 
-	type_function_t::ref without_closure(type_t::ref type) {
-		auto function_closure = dyncast<const types::type_function_closure_t>(type);
-		if (function_closure != nullptr) {
-			return dyncast<const types::type_function_t>(function_closure->function);
-		} else {
-			return dyncast<const types::type_function_t>(type);
-		}
-	}
-
 	types::type_t::ref freshen(types::type_t::ref type) {
 		if (type == nullptr) {
 			return type;
@@ -1592,12 +1268,26 @@ namespace types {
 
 		return shared_ftvs.size() != 0;
 	}
+
+	types::type_t::ref forall_t::instantiate(location_t location) {
+		type_t::map subst;
+		for (auto var : vars) {
+			subst[var] = type_variable(location);
+		}
+		return type->rebind(subst);
+	}
+	std::set<std::string> forall_t::get_ftvs() {
+		std::set<std::string> ftvs;
+		for (auto ftv : type->get_ftvs()) {
+			if (!in_vector(ftv, vars)) {
+				ftvs.insert(ftv);
+			}
+		}
+		return ftvs;
+	}
 }
 
 types::type_t::ref type_id(identifier_t id) {
-	if (id.name.find("std.") == 0) {
-		dbg();
-	}
 	return std::make_shared<types::type_id_t>(id);
 }
 
@@ -1618,6 +1308,21 @@ types::type_t::ref type_bottom() {
 	return bottom_type;
 }
 
+types::type_t::ref type_bool() {
+	static auto bool_type = std::make_shared<types::type_id_t>(make_iid(BOOL_TYPE));
+	return bool_type;
+}
+
+types::type_t::ref type_string() {
+	static auto string_type = std::make_shared<types::type_id_t>(make_iid(STR_TYPE));
+	return string_type;
+}
+
+types::type_t::ref type_int() {
+	static auto int_type = std::make_shared<types::type_id_t>(make_iid(INT_TYPE));
+	return int_type;
+}
+
 types::type_t::ref type_null() {
 	static auto null_type = std::make_shared<types::type_id_t>(make_iid(NULL_TYPE));
 	return null_type;
@@ -1633,6 +1338,10 @@ types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::re
 
 types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs) {
 	return std::make_shared<types::type_subtype_t>(lhs, rhs);
+}
+
+types::forall_t::ref forall(std::vector<std::string> vars, types::type_t::ref type) {
+	return std::make_shared<types::forall_t>(vars, type);
 }
 
 types::name_index_t get_name_index_from_ids(identifiers_t ids) {
@@ -1687,25 +1396,6 @@ types::type_managed_t::ref type_managed(types::type_t::ref element_type) {
 	return std::make_shared<types::type_managed_t>(element_type);
 }
 
-types::type_function_t::ref type_function(
-		location_t location,
-		types::type_t::ref type_constraints,
-		types::type_t::ref args,
-		types::type_t::ref return_type)
-{
-	auto ret = std::make_shared<types::type_function_t>(location, type_constraints, args, return_type);
-	if (type_constraints && type_constraints->repr() == TRUE_TYPE) {
-		debug_above(9, log("created type_function %s", ret->str().c_str()));
-		dbg();
-		types::is_type_id(type_constraints, TRUE_TYPE, nullptr);
-	}
-	return ret;
-}
-
-types::type_function_closure_t::ref type_function_closure(types::type_t::ref type_function) {
-	return std::make_shared<types::type_function_closure_t>(type_function);
-}
-
 bool types_contains(const types::type_t::refs &options, std::string signature) {
 	for (auto &option : options) {
 		if (option->get_signature() == signature) {
@@ -1723,6 +1413,10 @@ types::type_t::ref type_eq(types::type_t::ref lhs, types::type_t::ref rhs, locat
 	return std::make_shared<types::type_eq_t>(lhs, rhs, location);
 }
 
+types::type_t::ref type_arrow(types::type_t::ref a, types::type_t::ref b) {
+	return type_operator(type_operator(type_id(identifier_t{"->", INTERNAL_LOC()}), a), b);
+}
+
 types::type_t::ref type_literal(token_t token) {
 	assert(token.tk == tk_integer || token.tk == tk_string || token.tk == tk_identifier);
 	return std::make_shared<types::type_literal_t>(token);
@@ -1730,33 +1424,6 @@ types::type_t::ref type_literal(token_t token) {
 
 types::type_t::ref type_integer(types::type_t::ref bit_size, types::type_t::ref signed_) {
 	return std::make_shared<types::type_integer_t>(bit_size, signed_);
-}
-
-types::type_t::ref type_maybe(types::type_t::ref just, env_t::ref env) {
-#if 0
-	if (dyncast<const types::type_ptr_t>(just) == nullptr) {
-		types::type_t::ref expanded_just =
-			(env != nullptr)
-			? just->eval(env, true /*get_structural_type*/)
-			: nullptr;
-
-		if (just->eval_predicate(tb_null, env)) {
-			/* maybe of null is just null */
-			return just;
-		}
-
-		if (dyncast<const types::type_ptr_t>(expanded_just) == nullptr) {
-			throw user_error(just->get_location(), "type %s cannot be a maybe type since it is not a pointer",
-					just->str().c_str());
-		}
-	}
-
-    if (auto maybe = dyncast<const types::type_maybe_t>(just)) {
-        return just;
-    }
-#endif
-
-    return std::make_shared<types::type_maybe_t>(just);
 }
 
 types::type_ptr_t::ref type_ptr(types::type_t::ref raw) {
@@ -1785,47 +1452,14 @@ types::type_t::ref type_data(
 	return std::make_shared<types::type_data_t>(name, type_vars, ctor_pairs);
 }
 
-types::type_t::ref type_list_type(types::type_t::ref element) {
-	return type_maybe(type_operator(type_id(identifier_t{
-						STD_VECTOR_TYPE, element->get_location()}), element), {});
-}
-
 types::type_t::ref type_vector_type(types::type_t::ref element) {
 	return type_operator(type_id(identifier_t{
 					STD_VECTOR_TYPE, element->get_location()}), element);
 }
 
-types::type_t::ref type_strip_maybe(types::type_t::ref maybe_maybe) {
-    if (auto maybe = dyncast<const types::type_maybe_t>(maybe_maybe)) {
-        return maybe->just;
-    } else {
-        return maybe_maybe;
-    }
-}
-
 std::ostream& operator <<(std::ostream &os, const types::type_t::ref &type) {
 	os << type->str();
 	return os;
-}
-
-types::type_t::ref get_function_return_type(types::type_t::ref function_type) {
-	debug_above(5, log(log_info, "getting function return type from %s", function_type->str().c_str()));
-
-	auto type_function = dyncast<const types::type_function_t>(function_type);
-	assert(type_function != nullptr);
-
-	return type_function->return_type;
-}
-
-types::type_t::pair make_type_pair(std::string fst, std::string snd, std::set<identifier_t> generics) {
-	debug_above(4, log(log_info, "creating type pair with (%s, %s) and generics [%s]",
-				fst.c_str(), snd.c_str(),
-			   	join(generics, ", ").c_str()));
-
-	auto module_id = make_iid(GLOBAL_SCOPE_NAME);
-	return types::type_t::pair{
-		parse_type_expr(fst, generics, module_id),
-	   	parse_type_expr(snd, generics, module_id)};
 }
 
 bool get_type_variable_name(types::type_t::ref type, std::string &name) {
@@ -1900,29 +1534,3 @@ std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimen
 bool is_valid_udt_initial_char(int ch) {
 	return ch == '_' || isupper(ch);
 }
-
-types::type_t::ref get_arg_from_function(types::type_function_t::ref function, size_t i) {
-	if (function != nullptr) {
-		if (auto args = dyncast<const types::type_args_t>(function->args)) {
-			if (args->args.size() <= i) {
-				throw user_error(function->get_location(), "invalid indexed access (%d) to arguments list for function %s",
-						i, function->str().c_str());
-			}
-			return args->args[i];
-		} else {
-			assert(false);
-			return nullptr;
-		}
-	} else {
-		return nullptr;
-	}
-}
-
-types::type_function_t::ref type_deferred_function(location_t location, types::type_t::ref return_type) {
-	return type_function(
-			location,
-			nullptr,
-			type_args({}, {}),
-			return_type);
-}
-

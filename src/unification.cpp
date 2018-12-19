@@ -98,7 +98,7 @@ unification_t unify(
 
 			types::type_t::ref value = type_constraint->eval(env);
 
-			if (!types::is_type_id(value, TRUE_TYPE, nullptr)) {
+			if (!types::is_type_id(value, TRUE_TYPE, {})) {
 				unification.result = false;
 				unification.reasons = string_format(
 						"type constraints %s evaluated to %s",
@@ -174,9 +174,6 @@ unification_t unify_core(
 	// log("a = %s", a->str().c_str());
 	// log("b = %s", b->str().c_str());
 
-	auto ptm_a = dyncast<const types::type_maybe_t>(a);
-	auto ptm_b = dyncast<const types::type_maybe_t>(b);
-
 	auto pti_a = dyncast<const types::type_id_t>(a);
 	auto pti_b = dyncast<const types::type_id_t>(b);
 
@@ -190,9 +187,6 @@ unification_t unify_core(
 	auto ptI_b = dyncast<const types::type_integer_t>(b);
 
 	auto ptp_a = dyncast<const types::type_product_t>(a);
-
-	auto ptf_a = dyncast<const types::type_function_t>(a);
-	auto ptc_a = dyncast<const types::type_function_closure_t>(a);
 
 	auto ptd_a = dyncast<const types::type_data_t>(a);
 	auto ptd_b = dyncast<const types::type_data_t>(b);
@@ -261,7 +255,7 @@ unification_t unify_core(
 		if (depth == 0) {
 			if (ptI_b != nullptr) {
 				return {true, "", bindings, coercions + 1, {}};
-			} else if (types::is_type_id(b, CHAR_TYPE, nullptr)) {
+			} else if (types::is_type_id(b, CHAR_TYPE, {})) {
 				/* we can cast this char to whatever */
 				return {true, "", bindings, coercions + 1, {}};
 			}
@@ -323,17 +317,6 @@ unification_t unify_core(
 		}
 
 		return {true, "", bindings, coercions, {}};
-	} else if (ptm_a != nullptr) {
-		if (ptm_b != nullptr) {
-			debug_above(7, log("matching maybe types"));
-			return unify_core(ptm_a->just, ptm_b->just, env, bindings, coercions, depth + 1, allow_variance);
-		} else if (types::is_type_id(b, NULL_TYPE, nullptr)) {
-			debug_above(7, log("matching null"));
-			return {true, "", bindings, coercions + 1, {}};
-		} else {
-			debug_above(7, log("matching maybe on the lhs"));
-			return unify_core(ptm_a->just, b, env, bindings, coercions + 1, depth, allow_variance);
-		}
 	} else if (ptp_a != nullptr) {
 		if (auto ptp_b = dyncast<const types::type_product_t>(b)) {
 			if (ptp_a->get_pk() != ptp_b->get_pk()) {
@@ -418,63 +401,6 @@ unification_t unify_core(
 				coercions,
 				{}};
 		}
-	} else if (ptf_a != nullptr) {
-		if (auto ptf_b = dyncast<const types::type_function_t>(b)) {
-			// NB: it does not yet make sense to unify_core over type constraints...
-
-			debug_above(7, log("matching function arguments"));
-			/* now make sure the arguments unify_core */
-			auto args_unification = unify_core(ptf_a->args, ptf_b->args, env, bindings, 0, depth, allow_variance);
-			if (!args_unification.result) {
-				return {false, args_unification.reasons, {}, coercions + args_unification.coercions, {}};
-			}
-			bindings = args_unification.bindings;
-			coercions += args_unification.coercions;
-			types::type_t::refs type_constraints;
-			type_constraints.swap(args_unification.type_constraints);
-
-			debug_above(7, log("matching function return types"));
-			/* finally, make sure the return types unify_core */
-			auto return_type_unification = unify_core(ptf_a->return_type, ptf_b->return_type, env, bindings, 0, depth, allow_variance);
-			if (!return_type_unification.result) {
-				return {false, return_type_unification.reasons, {}, coercions, {}};
-			}
-			bindings = return_type_unification.bindings;
-			coercions += return_type_unification.coercions;
-			for (auto type_constraint: return_type_unification.type_constraints) {
-				type_constraints.push_back(type_constraint);
-			}
-
-			if (ptf_a->type_constraints != nullptr) {
-				type_constraints.push_back(ptf_a->type_constraints);
-			}
-			return {true, "functions match", bindings, coercions, type_constraints};
-		} else {
-			return {
-				false,
-				string_format("%s != %s",
-						a->str().c_str(),
-						b->str().c_str()),
-				bindings,
-				coercions,
-				{}};
-		}
-	} else if (ptc_a != nullptr) {
-		if (auto ptf_b = dyncast<const types::type_function_t>(b)) {
-			/* allow coercions for unbound function to bound functions */
-			return unify_core(ptc_a->function, ptf_b, env, bindings, coercions + 1, depth + 1, allow_variance);
-		} else if (auto ptc_b = dyncast<const types::type_function_closure_t>(b)) {
-			return unify_core(ptc_a->function, ptc_b->function, env, bindings, coercions, depth, allow_variance);
-		} else {
-			return {
-				false,
-				string_format("%s != %s",
-						a->str().c_str(),
-						b->str().c_str()),
-				bindings,
-				coercions,
-				{}};
-		}
 	} else if (pto_a != nullptr) {
 		debug_above(7, log(log_info, "checking inbound type_operator %s",
 					pto_a->str().c_str()));
@@ -512,16 +438,16 @@ unification_t unify_core(
 	} else if (ptr_a != nullptr) {
 		auto a_element_type = ptr_a->element_type->eval(env);
 
-		if (depth == 0 && types::is_type_id(a_element_type, CHAR_TYPE, nullptr)) {
+		if (depth == 0 && types::is_type_id(a_element_type, CHAR_TYPE, {})) {
 			/* See fallback in callable.cpp, as well */
-			if (types::is_type_id(b, MANAGED_STR, nullptr)) {
+			if (types::is_type_id(b, STR_TYPE, {})) {
 				return {true, "", bindings, coercions + 1, {}};
 			}
 		}
 
 		if (ptr_b != nullptr) {
 			/* handle pointer to void here, rather than making void the top type */
-			if (types::is_type_id(a_element_type, VOID_TYPE, nullptr)) {
+			if (types::is_type_id(a_element_type, VOID_TYPE, {})) {
 				/* managed pointers cannot be passed to *void because that seems dangerous.
 				 * if you really want to do that, cast it to *void yourself first. */
 				assert(dyncast<const types::type_managed_t>(ptr_b->element_type) == nullptr);
@@ -530,7 +456,7 @@ unification_t unify_core(
 
 			debug_above(7, log("matching std::shared_ptr types"));
 			return unify_core(ptr_a->element_type, ptr_b->element_type, env, bindings, coercions, depth + 1, allow_variance);
-		} else if (types::is_type_id(b, NULL_TYPE, nullptr)) {
+		} else if (types::is_type_id(b, NULL_TYPE, {})) {
 			return {
 				false,
 				string_format("pointer types cannot accept null unless they are guarded by a maybe (in other words, use a ? after the left-hand-side type name)",

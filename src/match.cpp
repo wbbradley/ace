@@ -6,6 +6,7 @@
 #include <numeric>
 #include <algorithm>
 #include "user_error.h"
+#include "unification.h"
 
 namespace match {
 	using namespace ::types;
@@ -393,9 +394,9 @@ namespace match {
 			}
 			CtorPatternValue cpv{type->repr(), "tuple", args};
 			return std::make_shared<CtorPattern>(location, cpv);
-		} else if (type->eval_predicate(tb_str, env)) {
+		} else if (unifies(type, type_string(), env)) {
 			return allStrings;
-		} else if (type->eval_predicate(tb_int, env)) {
+		} else if (unifies(type, type_int(), env)) {
 			return allIntegers;
 		} else {
 			/* just accept all of whatever this is */
@@ -703,14 +704,14 @@ namespace bitter {
 		return std::make_shared<AllOf>(location, name_assignment, env, type);
 	}
 	Pattern::ref literal_t::get_pattern(type_t::ref type, env_t::ref env) const {
-		if (type->eval_predicate(tb_int, env)) {
+		if (unifies(type, type_int(), env)) {
 			if (token.tk == tk_integer) {
 				int64_t value = parse_int_value(token);
 				return std::make_shared<Scalars<int64_t>>(token.location, Scalars<int64_t>::Include, std::set<int64_t>{value});
 			} else if (token.tk == tk_identifier) {
 				return std::make_shared<Scalars<int64_t>>(token.location, Scalars<int64_t>::Exclude, std::set<int64_t>{});
 			}
-		} else if (type->eval_predicate(tb_str, env)) {
+		} else if (unifies(type, type_string(), env)) {
 			if (token.tk == tk_string) {
 				std::string value = unescape_json_quotes(token.text);
 				return std::make_shared<Scalars<std::string>>(token.location, Scalars<std::string>::Include, std::set<std::string>{value});

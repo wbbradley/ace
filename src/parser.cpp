@@ -9,7 +9,6 @@
 #include <csignal>
 #include "parse_state.h"
 #include "parser.h"
-#include "type_parser.h"
 #include "disk.h"
 
 using namespace bitter;
@@ -351,12 +350,17 @@ expr_t *parse_new_expr(parse_state_t &ps) {
 			new var_t({"__init__", ps.token.location}),
 			new var_t({"unit", ps.token.location}));
 	ps.advance();
+	// TODO: allow type specification here.
+#if 0
 	try {
 		types::type_t::ref type = types::parse_type(ps, {});
 		return new as_t(init, type);
 	} catch (user_error &e) {
 		std::throw_with_nested(user_error(init->get_location(), "while parsing unary operator new"));
 	}
+#else
+	return init;
+#endif
 }
 
 expr_t *parse_statement(parse_state_t &ps) {
@@ -462,13 +466,16 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 		}
 	}
 	chomp_token(tk_rsquare);
+	const auto array_size_to_reserve = string_format("%d", exprs.size());
+
+	/* now, add another item just for the actual array value to be returned */
 	exprs.push_back(array_var);
 
 	return new let_t(
 			array_var->id,
 			new application_t(
 				new var_t(identifier_t{"__init_vector__", location}),
-				new literal_t(token_t{location, tk_integer, string_format("%d", exprs.size())})),
+				new literal_t(token_t{location, tk_integer, array_size_to_reserve})),
 			new block_t(exprs));
 }
 
@@ -1219,8 +1226,9 @@ lambda_t *parse_lambda(parse_state_t &ps) {
 	identifier_t param_id = parse_lambda_param(ps);
 
 	if (ps.token.tk != tk_comma && ps.token.tk != tk_rparen) {
-		auto type = types::parse_type(ps, {});
-		log_location(log_info, type->get_location(), "discarding parsed param type %s", type->str().c_str());
+		// auto type = types::parse_type(ps, {});
+		// log_location(log_info, type->get_location(), "discarding parsed param type %s", type->str().c_str());
+		throw user_error(ps.token.location, "type annotations are not impl");
 	}
 
 	if (ps.token.tk == tk_comma) {
@@ -1233,172 +1241,6 @@ lambda_t *parse_lambda(parse_state_t &ps) {
 		throw user_error(ps.token.location, "unexpected token");
 	}
 }
-
-void parse_maybe_type_decl(parse_state_t &ps, identifiers_t &type_variables) {
-	while (!ps.line_broke() && ps.token.tk == tk_identifier) {
-		if (token_is_illegal_in_type(ps.token)) {
-			if (ps.token.is_ident(K(any))) {
-				throw user_error(ps.token.location, "`any` is unnecessary within type parameters of type declarations");
-			}
-
-			break;
-		}
-
-		/* we found a type variable, let's stash it */
-		type_variables.push_back(iid(ps.token));
-		ps.advance();
-	}
-}
-
-#if 0
-type_decl_t::ref type_decl_t::parse(parse_state_t &ps, token_t name_token) {
-	identifiers_t type_variables;
-	parse_maybe_type_decl(ps, type_variables);
-	return create<ast::type_decl_t>(name_token, type_variables);
-}
-
-std::shared_ptr<type_def_t> type_def_t::parse(parse_state_t &ps) {
-	chomp_ident(K(type));
-	expect_token(tk_identifier);
-	auto type_name_token = ps.token;
-	ps.advance();
-
-	auto type_def = create<ast::type_def_t>(type_name_token);
-	type_def->type_decl = type_decl_t::parse(ps, type_name_token);
-	type_def->type_algebra = ast::type_algebra_t::parse(ps, type_def->type_decl);
-	return type_def;
-}
-
-type_algebra_t::ref type_algebra_t::parse(
-		parse_state_t &ps,
-		ast::type_decl_t::ref type_decl)
-{
-    indent_logger indent(type_decl->token.location, 8, string_format("parsing type algebra for %s",
-                type_decl->token.text.c_str()));
-
-	if (ps.token.is_ident(K(is))) {
-		return data_type_t::parse(ps, type_decl, type_decl->type_variables);
-	} else if (ps.token.is_ident(K(has))) {
-		return type_product_t::parse(ps, type_decl, type_decl->type_variables, false /*native*/);
-	} else if (ps.token.is_ident(K(link))) {
-		return type_link_t::parse(ps, type_decl, type_decl->type_variables);
-	} else if (ps.token.tk == tk_assign) {
-		return type_alias_t::parse(ps, type_decl, type_decl->type_variables);
-	} else if (ps.token.is_ident(K(struct))) {
-		return type_product_t::parse(ps, type_decl, type_decl->type_variables, true /*native*/);
-	} else {
-		throw user_error(ps.token.location, 
-				"type descriptions must begin with "
-			   	c_id("is") ", " c_id("has") ", or " c_id("=") ". (Found %s)",
-				ps.token.str().c_str());
-	}
-}
-
-std::pair<token_t, types::type_args_t::ref> parse_ctor(
-		parse_state_t &ps,
-	   	identifiers_t type_variables_list)
-{
-	expect_token(tk_identifier);
-	auto name = ps.token;
-	if (!isupper(name.text[0])) {
-		throw user_error(name.location, "constructor names must begin with an uppercase letter");
-	}
-
-	ps.advance();
-	return {name, types::parse_data_ctor_type(ps, to_set(type_variables_list))};
-}
-
-data_type_t::ref data_type_t::parse(
-		parse_state_t &ps,
-		ast::type_decl_t::ref type_decl,
-		identifiers_t type_variables_list)
-{
-	std::set<identifier_t> type_variables = to_set(type_variables_list);
-	auto is_token = ps.token;
-	chomp_ident(K(is));
-	chomp_token(tk_lcurly);
-
-	auto data_type = create<data_type_t>(type_decl->token);
-	while (ps.token.tk == tk_identifier) {
-		auto ctor_pair = parse_ctor(ps, type_variables_list);
-		for (auto x : data_type->ctor_pairs) {
-			if (x.first.text == ctor_pair.first.text) {
-				auto error = user_error(ctor_pair.first.location, "duplicated data constructor name");
-				error.add_info(x.first.location, "see initial declaration here");
-				throw error;
-			}
-		}
-		debug_above(8, log("parsed ctor %s for type " c_type("%s"), ctor_pair.first.str().c_str(), data_type->token.text.c_str()));
-		data_type->ctor_pairs.push_back(ctor_pair);
-	}
-
-	chomp_token(tk_rcurly);
-
-	return data_type;
-}
-
-type_product_t::ref type_product_t::parse(
-		parse_state_t &ps,
-		ast::type_decl_t::ref type_decl,
-	   	identifiers_t type_variables,
-		bool native)
-{
-	std::set<identifier_t> generics = to_identifier_set(type_variables);
-	if (native) {
-		expect_ident(K(struct));
-	} else {
-		expect_ident(K(has));
-	}
-	auto type = types::parse_product_type(ps, generics);
-	return create<type_product_t>(type_decl->token, native, type, generics);
-}
-
-type_link_t::ref type_link_t::parse(
-		parse_state_t &ps,
-		ast::type_decl_t::ref type_decl,
-		identifiers_t type_variables)
-{
-	std::set<identifier_t> generics = to_identifier_set(type_variables);
-	chomp_ident(K(link));
-	return create<type_link_t>(type_decl->token);
-
-}
-
-type_alias_t::ref type_alias_t::parse(
-		parse_state_t &ps,
-		ast::type_decl_t::ref type_decl,
-	   	identifiers_t type_variables)
-{
-	chomp_token(tk_assign);
-
-	std::set<identifier_t> generics = to_identifier_set(type_variables);
-	types::type_t::ref type = types::parse_type(ps, generics);
-
-	auto type_alias = ast::create<ast::type_alias_t>(type_decl->token);
-	assert(type_alias->token.text != "");
-
-	type_alias->parsed_type = parsed_type_t(type);
-	type_alias->type_variables = generics;
-	return type_alias;
-}
-
-dimension_t::ref dimension_t::parse(parse_state_t &ps, std::set<identifier_t> generics) {
-	token_t primary_token;
-	std::string name;
-	if (ps.token.is_ident(K(var))) {
-		ps.advance();
-		expect_token(tk_identifier);
-		primary_token = ps.token;
-		name = primary_token.text;
-		ps.advance();
-	} else {
-		throw user_error(ps.token.location, "not sure what's going on here");
-	}
-
-	types::type_t::ref type = types::parse_type(ps, generics);
-	return ast::create<ast::dimension_t>(primary_token, name, type);
-}
-#endif 
 
 module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 	debug_above(6, log("about to parse %s", ps.filename.c_str()));

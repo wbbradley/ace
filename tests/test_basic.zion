@@ -1,4 +1,8 @@
+fn sqr(x) => x * x
+
 fn main() {
-    x = 3
-    f(x)
+    let f = fn (y) => 4 + y
+    x := 3
+    f(x) and [4, "hey"]
 }
+

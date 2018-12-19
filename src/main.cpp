@@ -11,6 +11,7 @@
 #include "disk.h"
 #include <sys/wait.h>
 #include <chrono>
+#include "ast.h"
 
 int usage() {
 	log(log_error, "available commands: test, read-ir, compile, bc, run, fmt, bin");
@@ -71,22 +72,45 @@ int main(int argc, char *argv[]) {
 
 		compiler_t compiler(argv[2]);
 
+		setenv("NO_STD_LIB", "1", 1 /*overwrite*/);
+		setenv("NO_STD_MAIN", "1", 1 /*overwrite*/);
+		setenv("NO_BUILTINS", "1", 1 /*overwrite*/);
+
 		if (cmd == "find") {
 			std::cout << resolve_module_filename(INTERNAL_LOC(), argv[2], "") << std::endl;
 			return EXIT_SUCCESS;
-		} else if (cmd == "compile") {
-			setenv("NO_STD_LIB", "1", 1 /*overwrite*/);
-			setenv("NO_STD_MAIN", "1", 1 /*overwrite*/);
-			setenv("NO_BUILTINS", "1", 1 /*overwrite*/);
+		} else if (cmd == "parse") {
 			if (compiler.parse_program()) {
 				std::cout << compiler.program;
+				return EXIT_SUCCESS;
+			}
+			return EXIT_FAILURE;
+		} else if (cmd == "compile") {
+			if (compiler.parse_program()) {
+				std::cout << compiler.program;
+				bitter::program_t *program = compiler.program;
+
+				env_t env;
+				constraints_t constraints;
+				for (bitter::decl_t *decl : program->decls) {
+					types::type_t::ref ty = infer(decl->value, env, constraints);
+					env = env.extend(decl->var, forall({}, ty));
+				}
+
+				for (auto pair : constraints) {
+					std::cout << "Constraint: " << pair.first << " = " << pair.second << std::endl;
+				}
+				for (auto pair : env.map) {
+					std::cout << "Env: " << pair.first << " = " << pair.second << std::endl;
+				}
+				std::cout << "TODO: unify..." << std::endl;
 				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;
 		} else {
 			panic(string_format("bad CLI invocation of %s", argv[0]));
 		}
-    } else {
+	} else {
 		return usage();
 	}
 
