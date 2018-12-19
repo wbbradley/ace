@@ -8,10 +8,11 @@
 #include <iostream>
 #include "unification.h"
 #include "atom.h"
-#include "scopes.h"
+#include "env.h"
 #include "encoding.h"
 #include "ast.h"
 #include "parens.h"
+#include "user_error.h"
 
 const char *NULL_TYPE = "null";
 const char *STD_MANAGED_TYPE = "var_t";
@@ -82,13 +83,6 @@ namespace types {
 		return ss.str();
 	}
 
-	type_t::ref type_t::boolean_refinement(
-			bool elimination_value,
-			env_t::ref env) const
-	{
-		return shared_from_this();
-	}
-
 	bool type_t::is_ref(env_t::ref scope) const {
 		return eval_predicate(tb_ref, scope);
 	}
@@ -131,18 +125,18 @@ namespace types {
 
 	type_id_t::type_id_t(identifier_t id) : id(id) {
 		static bool seen_bottom = false;
-		if (id->get_name().find(BOTTOM_TYPE) != std::string::npos) {
+		if (id.name.find(BOTTOM_TYPE) != std::string::npos) {
 			assert(!seen_bottom);
 			seen_bottom = true;
 		}
 	}
 
 	std::ostream &type_id_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		return os << id->get_name();
+		return os << id.name;
 	}
 
 	void type_id_t::encode(env_t::ref env, std::vector<uint16_t> &encoding) const {
-		encoding.push_back(atomize(id->get_name()));
+		encoding.push_back(atomize(id.name));
 	}
 
 	int type_id_t::ftv_count() const {
@@ -159,7 +153,7 @@ namespace types {
 	}
 
 	type_t::ref type_id_t::unbottom() const {
-		if (id->get_name() == BOTTOM_TYPE) {
+		if (id.name == BOTTOM_TYPE) {
 			return type_variable(INTERNAL_LOC());
 		} else {
 			return shared_from_this();
@@ -167,59 +161,27 @@ namespace types {
 	}
 
 	location_t type_id_t::get_location() const {
-		return id->get_location();
+		return id.location;
 	}
 
-	type_t::ref type_id_t::boolean_refinement(
-			bool elimination_value,
-			env_t::ref env) const
-	{
-		debug_above(6, log("refining %s. looking to eliminate %s values from the type", str().c_str(), boolstr(elimination_value)));
-		auto evaled = eval_core(env, false /*get_structural_type*/);
-		if (auto id_type = dyncast<const type_id_t>(evaled)) {
-			auto name = id_type->id->get_name();
-			if (name == NULL_TYPE) {
-				if (elimination_value) {
-					debug_above(6, log("keeping %s", str().c_str()));
-					return shared_from_this();
-				} else {
-					debug_above(6, log("eliding the whole type of %s", str().c_str()));
-					return nullptr;
-				}
-			}
-
-			/* handle builtin type ids */
-			if (name == boolstr(elimination_value)) {
-				debug_above(6, log("eliding the whole type of %s", str().c_str()));
-				return nullptr;
-			} else if (name == BOOL_TYPE) {
-				auto refinement = type_id(make_iid_impl(boolstr(!elimination_value), get_location()));
-				debug_above(6, log("refining %s to %s", str().c_str(), refinement->str().c_str()));
-				return refinement;
-			}
-		}
-
-		return shared_from_this();
-	}
-
-	type_variable_t::type_variable_t(identifier_t id) : id(id), location(id->get_location()) {
+	type_variable_t::type_variable_t(identifier_t id) : id(id), location(id.location) {
 	}
 
 	identifier_t gensym(location_t location) {
 		/* generate fresh "any" variables */
-		return make_iid_impl(string_format("__%d", next_generic++).c_str(), location);
+		return identifier_t{string_format("__%d", next_generic++).c_str(), location};
 	}
 
 	type_variable_t::type_variable_t(location_t location) : id(types::gensym(location)), location(location) {
 	}
 
 	std::ostream &type_variable_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		auto instance_iter = bindings.find(id->get_name());
+		auto instance_iter = bindings.find(id.name);
 		if (instance_iter != bindings.end()) {
 			assert(instance_iter->second != shared_from_this());
 			return instance_iter->second->emit(os, bindings, parent_precedence);
 		} else {
-			return os << string_format("any %s", id->get_name().c_str());
+			return os << string_format("any %s", id.name.c_str());
 		}
 	}
 
@@ -229,17 +191,17 @@ namespace types {
 	}
 
 	std::set<std::string> type_variable_t::get_ftvs() const {
-		return {id->get_name()};
+		return {id.name};
 	}
 
 	type_t::ref type_variable_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
 		if (bindings.size() != 0) {
-			auto instance_iter = bindings.find(id->get_name());
+			auto instance_iter = bindings.find(id.name);
 			if (instance_iter != bindings.end()) {
 				/* recurse the rebinding, but remove the current rebinding */
 				map new_bindings;
 				for (auto &pair : bindings) {
-					if (pair.first == id->get_name()) {
+					if (pair.first == id.name) {
 						continue;
 					}
 					new_bindings.insert(pair);
@@ -319,29 +281,6 @@ namespace types {
 		return oper->get_location();
 	}
 
-	type_t::ref type_operator_t::boolean_refinement(bool elimination_value, env_t::ref env) const {
-		auto expansion = eval(env);
-		if (expansion != nullptr) {
-			/* refine the expanded version of this type */
-			auto refined_expansion = expansion->boolean_refinement(elimination_value, env);
-			if (refined_expansion == nullptr) {
-				/* if the refinement results in elimination, so be it */
-				return nullptr;
-			} else if (refined_expansion->get_signature() == expansion->get_signature()) {
-				/* if the refinement does nothing, return the original type */
-				return shared_from_this();
-			} else {
-				/* the refinement changed something, so return that */
-				return refined_expansion;
-			}
-		} else {
-			/* there is no expansion, so just return this type because we don't know how to refine
-			 * it */
-			debug_above(6, log("no boolean refinement available for %s", str().c_str()));
-			return shared_from_this();
-		}
-	}
-
 	type_subtype_t::type_subtype_t(type_t::ref lhs, type_t::ref rhs) :
 		lhs(lhs), rhs(rhs)
 	{
@@ -381,35 +320,6 @@ namespace types {
 
 	location_t type_subtype_t::get_location() const {
 		return lhs->get_location();
-	}
-
-	type_typeof_t::type_typeof_t(std::shared_ptr<const ast::expression_t> expr) : expr(expr) {
-	}
-
-	std::ostream &type_typeof_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		return os << "typeof(" << expr->str() << ")";
-	}
-
-	int type_typeof_t::ftv_count() const {
-		return 0;
-	}
-
-	std::set<std::string> type_typeof_t::get_ftvs() const {
-		std::set<std::string> lhs_set;
-		return lhs_set;
-	}
-
-	type_t::ref type_typeof_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		return shared_from_this();
-	}
-
-	type_t::ref type_typeof_t::unbottom() const {
-		assert(false);
-		return shared_from_this();
-	}
-
-	location_t type_typeof_t::get_location() const {
-		return expr->get_location();
 	}
 
 	type_struct_t::type_struct_t(type_t::refs dimensions, types::name_index_t name_index) :
@@ -779,7 +689,7 @@ namespace types {
 		os << K(fn) << " ";
 #if 0
 		if (name != nullptr) {
-			os << C_ID << name->get_name() << C_RESET;
+			os << C_ID << name.name << C_RESET;
 		}
 #endif
 		if (type_constraints != nullptr) {
@@ -1032,27 +942,6 @@ namespace types {
 		return just->get_location();
 	}
 
-	type_t::ref type_maybe_t::boolean_refinement(
-			bool elimination_value,
-			env_t::ref env) const
-	{
-		auto just_refined = just->boolean_refinement(elimination_value, env);
-		if (!elimination_value) {
-			/* we are eliminating falseyness, so we can eliminate the maybeness, too */
-			return just_refined;
-		} else {
-			if (just_refined != just) {
-				/* eliminate truthyness. the just refinement returned a new object, so let's construct a maybe around
-				 * it, since we can not eliminate the maybe when we are eliminating truthyness */
-				// NB: no env here, prolly need to bypass
-				return ::type_maybe(just_refined, {});
-			} else {
-				/* nothing learned from this refinement */
-				return shared_from_this();
-			}
-		}
-	}
-
 	type_ptr_t::type_ptr_t(type_t::ref element_type) : element_type(element_type) {
 		// assert(!element_type->is_null());
 	}
@@ -1091,14 +980,6 @@ namespace types {
 
 	location_t type_ptr_t::get_location() const {
 		return element_type->get_location();
-	}
-
-	type_t::ref type_ptr_t::boolean_refinement(bool elimination_value, env_t::ref env) const {
-		if (elimination_value) {
-			/* we can eliminate truthy types, so this pointer must be just null */
-			return type_null();
-		}
-		return shared_from_this();
 	}
 
 	type_ref_t::type_ref_t(type_t::ref element_type) : element_type(element_type) {
@@ -1145,9 +1026,9 @@ namespace types {
 	std::ostream &type_lambda_t::emit(std::ostream &os, const map &bindings_, int parent_precedence) const {
 		parens_t parens(os, parent_precedence, get_precedence());
 
-		auto var_name = binding->get_name();
+		auto var_name = binding.name;
 		auto new_name = gensym(get_location());
-		os << "lambda " << new_name->get_name() << " ";
+		os << "lambda " << new_name.name << " ";
 		map bindings = bindings_;
 		bindings[var_name] = type_id(new_name);
 		body->emit(os, bindings, get_precedence());
@@ -1157,13 +1038,13 @@ namespace types {
 	int type_lambda_t::ftv_count() const {
 		/* pretend this is getting applied */
 		map bindings;
-		bindings[binding->get_name()] = type_bottom();
+		bindings[binding.name] = type_bottom();
 		return body->rebind(bindings)->ftv_count();
 	}
 
 	std::set<std::string> type_lambda_t::get_ftvs() const {
 		map bindings;
-		bindings[binding->get_name()] = type_bottom();
+		bindings[binding.name] = type_bottom();
 		return body->rebind(bindings)->get_ftvs();
 	}
 
@@ -1173,7 +1054,7 @@ namespace types {
 		}
 
 		map bindings = bindings_;
-		auto binding_iter = bindings.find(binding->get_name());
+		auto binding_iter = bindings.find(binding.name);
 		if (binding_iter != bindings.end()) {
 			bindings.erase(binding_iter);
 		}
@@ -1187,7 +1068,7 @@ namespace types {
 	}
 
 	location_t type_lambda_t::get_location() const {
-		return binding->get_location();
+		return binding.location;
 	}
 
 	type_integer_t::type_integer_t(type_t::ref bit_size, type_t::ref signed_) :
@@ -1229,10 +1110,6 @@ namespace types {
 		}
 
 		return os << K(integer) << "(" << bit_size_str << ", " << signed_str << ")";
-	}
-
-	type_t::ref type_integer_t::boolean_refinement(bool elimination_value, env_t::ref env) const {
-		return shared_from_this();
 	}
 
 	int type_integer_t::ftv_count() const {
@@ -1477,10 +1354,6 @@ namespace types {
 		return name.location;
 	}
 
-	type_t::ref type_data_t::boolean_refinement(bool elimination_value, env_t::ref env) const {
-		return shared_from_this();
-	}
-
 	bool is_ptr_type_id(
 			type_t::ref type,
 			const std::string &type_name,
@@ -1510,10 +1383,6 @@ namespace types {
 		types::type_t::ref get_type(const std::string &name, bool allow_structural_types) const override {
 			return nullptr;
 		}
-		std::shared_ptr<const types::type_t> resolve_type(delegate_t &delegate, std::shared_ptr<const ast::expression_t> expr, std::shared_ptr<const types::type_t> expected_type) override {
-			assert(false);
-			return nullptr;
-		}
 	};
 
 	env_t::ref _empty_env = std::make_shared<empty_env>();
@@ -1523,7 +1392,7 @@ namespace types {
 		type = type->eval(env);
 
 		if (auto pti = dyncast<const types::type_id_t>(type)) {
-			return pti->id->get_name() == type_name;
+			return pti->id.name == type_name;
 		}
 
 		return false;
@@ -1726,7 +1595,7 @@ namespace types {
 }
 
 types::type_t::ref type_id(identifier_t id) {
-	if (id->get_name().find("std.") == 0) {
+	if (id.name.find("std.") == 0) {
 		dbg();
 	}
 	return std::make_shared<types::type_id_t>(id);
@@ -1766,15 +1635,11 @@ types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs) 
 	return std::make_shared<types::type_subtype_t>(lhs, rhs);
 }
 
-types::type_t::ref type_typeof(std::shared_ptr<const ast::expression_t> expr) {
-	return std::make_shared<types::type_typeof_t>(expr);
-}
-
 types::name_index_t get_name_index_from_ids(identifiers_t ids) {
 	types::name_index_t name_index;
 	int i = 0;
 	for (auto id : ids) {
-		name_index[id->get_name()] = i++;
+		name_index[id.name] = i++;
 	}
 	return name_index;
 }
@@ -1921,13 +1786,13 @@ types::type_t::ref type_data(
 }
 
 types::type_t::ref type_list_type(types::type_t::ref element) {
-	return type_maybe(type_operator(type_id(make_iid_impl(
-						STD_VECTOR_TYPE, element->get_location())), element), {});
+	return type_maybe(type_operator(type_id(identifier_t{
+						STD_VECTOR_TYPE, element->get_location()}), element), {});
 }
 
 types::type_t::ref type_vector_type(types::type_t::ref element) {
-	return type_operator(type_id(make_iid_impl(
-					STD_VECTOR_TYPE, element->get_location())), element);
+	return type_operator(type_id(identifier_t{
+					STD_VECTOR_TYPE, element->get_location()}), element);
 }
 
 types::type_t::ref type_strip_maybe(types::type_t::ref maybe_maybe) {
@@ -1952,10 +1817,6 @@ types::type_t::ref get_function_return_type(types::type_t::ref function_type) {
 	return type_function->return_type;
 }
 
-std::ostream &operator <<(std::ostream &os, identifier_t id) {
-	return os << id->get_name();
-}
-
 types::type_t::pair make_type_pair(std::string fst, std::string snd, std::set<identifier_t> generics) {
 	debug_above(4, log(log_info, "creating type pair with (%s, %s) and generics [%s]",
 				fst.c_str(), snd.c_str(),
@@ -1969,7 +1830,7 @@ types::type_t::pair make_type_pair(std::string fst, std::string snd, std::set<id
 
 bool get_type_variable_name(types::type_t::ref type, std::string &name) {
     if (auto ptv = dyncast<const types::type_variable_t>(type)) {
-		name = ptv->id->get_name();
+		name = ptv->id.name;
 		return true;
 	} else {
 		return false;

@@ -161,7 +161,7 @@ struct global_parser_state_t {
 			debug_above(4, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
 			zion_lexer_t lexer({module_filename}, ifs);
 
-			parse_state_t ps(module_filename, lexer, &comments, &link_ins);
+			parse_state_t ps(module_filename, module_id.name, lexer, &comments, &link_ins);
 
 			identifiers_t dependencies;
 			module_t *module = ::parse_module(ps, dependencies);
@@ -227,22 +227,26 @@ predicate_t *prefix(
 	   	std::set<std::string> &new_symbols)
 {
 	if (auto p = dcast<tuple_predicate_t *>(predicate)) {
-		std::vector<predicate_t *> params;
-		for (auto param : p->params) {
-			params.push_back(prefix(bindings, pre, param, new_symbols));
+		if (p->name_assignment.valid) {
+			new_symbols.insert(p->name_assignment.t.name);
 		}
-		return new tuple_predicate_t(params, prefix(bindings, pre, p->name_assignment));
+		for (auto param : p->params) {
+			prefix(bindings, pre, param, new_symbols);
+		}
+		return predicate;
 	} else if (auto p = dcast<irrefutable_predicate_t *>(predicate)) {
-		return new irrefutable_predicate_t(prefix(bindings, pre, p->name_assignment));
-	} else if (auto p = dcast<ctor_predicate_t *>(predicate)) {
-		std::vector<predicate_t *> params;
-		for (auto param : p->params) {
-			params.push_back(prefix(bindings, pre, param, new_symbols));
+		if (p->name_assignment.valid) {
+			new_symbols.insert(p->name_assignment.t.name);
 		}
-		return new ctor_predicate_t(
-				params,
-				prefix(bindings, pre, p->ctor_name),
-				prefix(bindings, pre, p->name_assignment));
+		return predicate;
+	} else if (auto p = dcast<ctor_predicate_t *>(predicate)) {
+		if (p->name_assignment.valid) {
+			new_symbols.insert(p->name_assignment.t.name);
+		}
+		for (auto param : p->params) {
+			prefix(bindings, pre, param, new_symbols);
+		}
+		return predicate;
 	} else {
 		assert(false);
 		return nullptr;

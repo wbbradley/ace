@@ -98,7 +98,9 @@ struct maybe {
 template <typename T>
 std::ostream &operator <<(std::ostream &os, const maybe<T> &m) {
 	if (m.valid) {
-		return os << m.t;
+		assert(false);
+		// return os << m.t;
+		return os;
 	} else {
 		return os;
 	}

@@ -9,10 +9,12 @@
 
 parse_state_t::parse_state_t(
 		std::string filename,
+		std::string module_name,
 		zion_lexer_t &lexer,
 		std::vector<token_t> *comments,
 		std::set<token_t> *link_ins) :
 	filename(filename),
+	module_name(module_name),
 	lexer(lexer),
 	comments(comments),
 	link_ins(link_ins)
@@ -29,6 +31,15 @@ bool parse_state_t::advance() {
 token_t parse_state_t::token_and_advance() {
 	advance();
 	return prior_token;
+}
+
+bool parse_state_t::is_mutable_var(std::string name) {
+	for (auto iter = scopes.rbegin(); iter != scopes.rend(); ++iter) {
+		if ((*iter).id.name == name) {
+			return (*iter).is_let;
+		}
+	}
+	return false;
 }
 
 void parse_state_t::error(const char *format, ...) {

@@ -102,8 +102,6 @@ namespace types {
 		virtual type_t::ref unbottom() const = 0;
 		ref eval(env_t::ref env, bool get_structural_type=false) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const = 0;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
-        virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
 
 		/* helpers */
@@ -124,21 +122,6 @@ namespace types {
 		bool is_module() const;
 	};
 
-	struct type_typeof_t : public type_t {
-		type_typeof_t(std::shared_ptr<const ast::expression_t> expr);
-		std::shared_ptr<const ast::expression_t> expr;
-
-		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
-		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual int get_precedence() const { return 6; }
-		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
-		virtual type_t::ref unbottom() const;
-		virtual location_t get_location() const;
-		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
-	};
-
 	struct type_subtype_t : public type_t {
 		type_subtype_t(const type_t::ref lhs, const type_t::ref rhs);
 		const type_t::ref lhs;
@@ -152,7 +135,6 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_product_t : public type_t {
@@ -177,7 +159,6 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 
 		type_t::refs args;
 		identifiers_t names;
@@ -215,7 +196,6 @@ namespace types {
 		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
-		virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
 		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
 	};
@@ -233,7 +213,6 @@ namespace types {
 		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
-        virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
 		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
 	};
@@ -253,10 +232,8 @@ namespace types {
 		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
-        virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
 		virtual void encode(env_t::ref env, std::vector<uint16_t> &encoding) const;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_any_of_t : public type_t {
@@ -302,7 +279,6 @@ namespace types {
 		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
-        virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
 	};
 
@@ -361,7 +337,6 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 
 		type_t::refs dimensions;
 		name_index_t name_index;
@@ -382,7 +357,6 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 
 		type_t::refs dimensions;
 	};
@@ -407,7 +381,6 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 		type_function_t::ref replace_return_type(type_t::ref return_type) const;
 	};
 
@@ -426,7 +399,6 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_eq_t : public type_t {
@@ -475,9 +447,7 @@ namespace types {
 		virtual ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
-        virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_ptr_t : public type_t {
@@ -493,9 +463,7 @@ namespace types {
 		virtual type_t::ref rebind(const map &bindings, bool bottom_out_free_vars=false) const;
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
-		virtual type_t::ref boolean_refinement(bool elimination_value, env_t::ref env) const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_ref_t : public type_t {
@@ -513,7 +481,6 @@ namespace types {
 		virtual location_t get_location() const;
 
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_env) const;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_lambda_t : public type_t {
@@ -529,7 +496,6 @@ namespace types {
 		virtual type_t::ref unbottom() const;
 		virtual location_t get_location() const;
 		virtual type_t::ref eval_core(env_t::ref env, bool get_structural_type) const;
-		virtual type_t::ref eval_typeof(delegate_t &delegate, env_t::ref env) const;
 	};
 
 	struct type_extern_t : public type_t {
@@ -582,7 +548,6 @@ types::type_t::ref type_variable(identifier_t name);
 types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
 types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs);
-types::type_t::ref type_typeof(std::shared_ptr<const ast::expression_t> expr);
 types::type_injection_t::ref type_injection(types::type_t::ref module);
 types::type_managed_t::ref type_managed(types::type_t::ref element);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
@@ -606,7 +571,6 @@ types::type_t::ref type_list_type(types::type_t::ref element);
 types::type_t::ref type_vector_type(types::type_t::ref element);
 types::type_t::ref type_strip_maybe(types::type_t::ref maybe_maybe);
 
-std::ostream &operator <<(std::ostream &os, identifier_t id);
 std::string str(types::type_t::refs refs);
 std::string str(const types::type_t::map &coll);
 std::ostream& operator <<(std::ostream &out, const types::type_t::ref &type);

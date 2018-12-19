@@ -43,43 +43,44 @@ namespace bitter {
 
 	struct predicate_t {
 		virtual ~predicate_t() {}
-		virtual std::ostream &render(std::ostream &os);
+		virtual std::ostream &render(std::ostream &os) = 0;
 		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const = 0;
 	};
 
 	struct tuple_predicate_t : public predicate_t {
-		tuple_predicate_t(std::vector<predicate_t *> params, identifier_t name_assignment) :
-			params(params), name_assignment(name_assignment) {}
+		tuple_predicate_t(location_t location, std::vector<predicate_t *> params, maybe<identifier_t> name_assignment) :
+			location(location), params(params), name_assignment(name_assignment) {}
 		std::ostream &render(std::ostream &os) override;
 		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
 
-		location_t location;
+		location_t const location;
 		std::vector<predicate_t *> const params;
-		identifier_t const name_assignment;
+		maybe<identifier_t> const name_assignment;
 	};
 
 	struct irrefutable_predicate_t : public predicate_t {
-		irrefutable_predicate_t(identifier_t name_assignment) : name_assignment(name_assignment) {}
+		irrefutable_predicate_t(location_t location, maybe<identifier_t> name_assignment) : location(location), name_assignment(name_assignment) {}
 		std::ostream &render(std::ostream &os) override;
 		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
 
-		location_t location;
-		identifier_t const name_assignment;
+		location_t const location;
+		maybe<identifier_t> const name_assignment;
 	};
 
 	struct ctor_predicate_t : public predicate_t {
 		ctor_predicate_t(
+				location_t location,
 				std::vector<predicate_t *> params,
 				identifier_t ctor_name,
-				identifier_t name_assignment) :
-		   	params(params), ctor_name(ctor_name), name_assignment(name_assignment) {}
+				maybe<identifier_t> name_assignment) :
+			location(location), params(params), ctor_name(ctor_name), name_assignment(name_assignment) {}
 		std::ostream &render(std::ostream &os) override;
 		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
 
-		location_t location;
+		location_t const location;
 		std::vector<predicate_t *> const params;
 		identifier_t const ctor_name;
-		identifier_t const name_assignment;
+		maybe<identifier_t> const name_assignment;
 	};
 
 	struct block_t : public expr_t {
@@ -159,6 +160,20 @@ namespace bitter {
 		std::ostream &render(std::ostream &os, int parent_precedence) override;
 
 		expr_t * const value;
+	};
+
+	struct continue_t : public expr_t {
+		continue_t(location_t location) : location(location) {}
+		location_t get_location() override;
+		std::ostream &render(std::ostream &os, int parent_precedence) override;
+		location_t location;
+	};
+
+	struct break_t : public expr_t {
+		break_t(location_t location) : location(location) {}
+		location_t get_location() override;
+		std::ostream &render(std::ostream &os, int parent_precedence) override;
+		location_t location;
 	};
 
 	struct while_t : public expr_t {

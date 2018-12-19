@@ -17,6 +17,7 @@ struct parse_state_t {
 
 	parse_state_t(
 			std::string filename,
+			std::string module_name,
 			zion_lexer_t &lexer,
 			std::vector<token_t> *comments=nullptr,
 			std::set<token_t> *link_ins=nullptr);
@@ -40,7 +41,9 @@ struct parse_state_t {
 	std::set<token_t> *link_ins;
 
 	/* scoped expression contexts */
-	std::list<token_t> scopes;
+	std::list<scope_t> scopes;
+
+	bool is_mutable_var(std::string name);
 
 	/* keep track of the current function declaration parameter position */
 	int argument_index;

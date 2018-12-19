@@ -48,11 +48,11 @@ namespace match {
 	};
 
 	struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
-		std::string name;
+		maybe<identifier_t> name;
 		env_t::ref env;
 		types::type_t::ref type;
 
-		AllOf(location_t location, std::string name, env_t::ref env, types::type_t::ref type) :
+		AllOf(location_t location, maybe<identifier_t> name, env_t::ref env, types::type_t::ref type) :
 			Pattern(location),
 			name(name),
 			env(env),
@@ -129,7 +129,7 @@ namespace match {
 	std::shared_ptr<Scalars<int64_t>> allIntegers = std::make_shared<Scalars<int64_t>>(INTERNAL_LOC(), Scalars<int64_t>::Exclude, std::set<int64_t>{});
 	std::shared_ptr<Scalars<std::string>> allStrings = std::make_shared<Scalars<std::string>>(INTERNAL_LOC(), Scalars<std::string>::Exclude, std::set<std::string>{});
 
-	Pattern::ref all_of(location_t location, std::string expr, env_t::ref env, types::type_t::ref type) {
+	Pattern::ref all_of(location_t location, maybe<identifier_t> expr, env_t::ref env, types::type_t::ref type) {
 		return std::make_shared<match::AllOf>(location, expr, env, type);
 	}
 
@@ -369,8 +369,8 @@ namespace match {
 					args.push_back(
 							std::make_shared<AllOf>(location,
 								(ctor_pair.second->names.size() > i)
-							   	? ctor_pair.second->names[i].name
-							   	: "_",
+							   	? maybe<identifier_t>(ctor_pair.second->names[i])
+							   	: maybe<identifier_t>(),
 								env,
 								ctor_pair.second->args[i]));
 				}
@@ -401,7 +401,7 @@ namespace match {
 			/* just accept all of whatever this is */
 			return std::make_shared<AllOf>(
 					type->get_location(),
-					string_format("AllOf(%s)", type->str().c_str()),
+					maybe<identifier_t>(identifier_t{string_format("AllOf(%s)", type->str().c_str()), type->get_location()}),
 					env,
 					type);
 		}
@@ -700,7 +700,7 @@ namespace bitter {
 		}
 	}
 	Pattern::ref irrefutable_predicate_t::get_pattern(type_t::ref type, env_t::ref env) const {
-		return std::make_shared<AllOf>(location, name_assignment.name, env, type);
+		return std::make_shared<AllOf>(location, name_assignment, env, type);
 	}
 	Pattern::ref literal_t::get_pattern(type_t::ref type, env_t::ref env) const {
 		if (type->eval_predicate(tb_int, env)) {

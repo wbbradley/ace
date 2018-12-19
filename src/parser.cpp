@@ -10,12 +10,21 @@
 #include "parse_state.h"
 #include "parser.h"
 #include "type_parser.h"
+#include "disk.h"
 
 using namespace bitter;
 
+expr_t *parse_literal(parse_state_t &ps);
 expr_t *parse_expr(parse_state_t &ps);
+expr_t *parse_assignment(parse_state_t &ps);
 expr_t *parse_tuple_expr(parse_state_t &ps);
+expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let);
 expr_t *parse_block(parse_state_t &ps, bool expression_means_return);
+conditional_t *parse_if(parse_state_t &ps);
+while_t *parse_while(parse_state_t &ps);
+lambda_t *parse_lambda(parse_state_t &ps);
+match_t *parse_match(parse_state_t &ps);
+predicate_t *parse_predicate(parse_state_t &ps, bool allow_else, maybe<identifier_t> name_assignment);
 
 bool token_begins_type(const token_t &token) {
 	switch (token.tk) {
@@ -32,27 +41,32 @@ bool token_begins_type(const token_t &token) {
 }
 
 struct scoping_t {
-	scoping_t(parse_state_t &ps) : ps(ps) {
-		expect_token(tk_identifier);
-		token = ps.token;
-		for (auto token : ps.scopes) {
-			if (token.text == token.text) {
-				auto error = user_error(token.location, "duplicate name " c_id("%s") " found", token.text.c_str());
-				error.add_info(token.location, "see prior declaration here");
+	scoping_t(parse_state_t &ps, bool is_let) :
+		ps(ps),
+		cur_scope(scope_t{identifier_t::from_token(ps.token), is_let})
+	{
+		chomp_token(tk_identifier);
+		for (const scope_t &scope : ps.scopes) {
+			if (cur_scope.id.name == scope.id.name) {
+				auto error = user_error(
+						cur_scope.id.location,
+					   	"duplicate name " c_id("%s") " found",
+					   	cur_scope.id.name.c_str());
+				error.add_info(scope.id.location, "see prior declaration here");
 				throw error;
 			}
 		}
 
-		ps.scopes.push_back(token);
-		ps.advance();
+		ps.scopes.push_back(cur_scope);
 	}
 
 	~scoping_t() {
-		assert(ps.scopes.back().text == token.text);
+		assert(ps.scopes.back().id.name == cur_scope.id.name);
 		ps.scopes.pop_back();
 	}
+
 	parse_state_t &ps;
-	token_t token;
+	scope_t cur_scope;
 };
 
 std::vector<std::pair<int, identifier_t>> extract_ids(const std::vector<expr_t*> &dims) {
@@ -72,8 +86,35 @@ std::vector<std::pair<int, identifier_t>> extract_ids(const std::vector<expr_t*>
 	return refs;
 }
 
+expr_t *parse_assign_tuple(parse_state_t &ps, tuple_t *tuple) {
+	eat_token();
+	auto rhs = parse_expr(ps);
+	auto rhs_var = new var_t({fresh(), rhs->get_location()});
+
+	std::vector<std::pair<int, identifier_t>> refs = extract_ids(tuple->dims);
+	if (refs.size() == 0) {
+		throw user_error(ps.token.location, "nothing to destructure");
+	}
+
+
+	expr_t *body = parse_block(ps, false/*expression_means_return*/);
+	for (int i=refs.size()-1; i >= 0; --i) {
+		body = new let_t(
+				refs[i].second,
+				new application_t(
+					new var_t(make_iid(string_format("__[%d]__", i))),
+					rhs_var),
+				body);
+	}
+
+	return new let_t(rhs_var->id, rhs, body);
+}
+
 expr_t *parse_var_decl(parse_state_t &ps, bool is_let, bool allow_tuple_destructuring) {
 	if (ps.token.tk == tk_lparen) {
+		if (!is_let) {
+			throw user_error(ps.token.location, "mutable tuple destructuring is not yet impl");
+		}
 		if (!allow_tuple_destructuring) {
 			throw user_error(ps.token.location, "tuple destructuring is not allowed here");
 		}
@@ -85,54 +126,36 @@ expr_t *parse_var_decl(parse_state_t &ps, bool is_let, bool allow_tuple_destruct
 		}
 
 		if (ps.token.tk == tk_assign) {
-			eat_token();
-			auto rhs = parse_expr(ps);
-			auto rhs_var = new var_t({fresh(), rhs->get_location()});
-
-			std::vector<std::pair<int, identifier_t>> refs = extract_ids(tuple->dims);
-			if (refs.size() == 0) {
-				throw user_error(ps.token.location, "nothing to destructure");
-			}
-
-
-			expr_t *body = parse_block(ps, false/*expression_means_return*/);
-			for (int i=refs.size()-1; i >= 0; --i) {
-				body = new let_t(
-						refs[i].second,
-						new application_t(
-							new var_t(make_iid(string_format("__[%d]__", i))),
-							rhs_var),
-						body);
-			}
-
-			return new let_t(rhs_var->id, rhs, body);
+			return parse_assign_tuple(ps, tuple);
 		} else {
 			throw user_error(ps.token.location, "destructured tuples must be assigned to an rhs");
 		}
 	} else {
 		expect_token(tk_identifier);
 
-		auto var_id = make_code_id(ps.token);
-
-		eat_token();
-		expr_t *initializer = nullptr;
-
-		if (ps.token.tk == tk_assign) {
-			eat_token();
-			initializer = parse_expr(ps);
-		} else {
-			initializer = new application_t(
-					new var_t(make_iid("__init__")),
-				   	new var_t(make_iid("unit")));
-		}
-
-		if (!is_let) {
-			initializer = new application_t(new var_t(make_iid("Ref")), initializer);
-		}
-
-		// TODO: consider whether to try making var_id get implicit loads/stores within this scope
-		return new let_t(var_id, initializer, parse_block(ps, false /*expression_means_return*/));
+		identifier_t var_id = identifier_t::from_token(ps.token);
+		ps.advance();
+		return parse_let(ps, var_id, is_let);
 	}
+}
+
+expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let) {
+	expr_t *initializer = nullptr;
+
+	if (!ps.line_broke() && (ps.token.tk == tk_assign || ps.token.tk == tk_becomes)) {
+		eat_token();
+		initializer = parse_expr(ps);
+	} else {
+		initializer = new application_t(
+				new var_t(make_iid("__init__")),
+				new var_t(make_iid("unit")));
+	}
+
+	if (!is_let) {
+		initializer = new application_t(new var_t(make_iid("Ref")), initializer);
+	}
+
+	return new let_t(var_id, initializer, parse_block(ps, false /*expression_means_return*/));
 }
 
 expr_t *parse_return_statement(parse_state_t &ps) {
@@ -158,6 +181,8 @@ maybe<identifier_t> parse_with_param(parse_state_t &ps, expr_t *&expr) {
 }
 
 expr_t *parse_with_block(parse_state_t &ps) {
+	return new var_t(identifier_t{"unit", INTERNAL_LOC()});
+#if 0
 	auto with_token = ps.token;
 	ps.advance();
 
@@ -206,18 +231,18 @@ expr_t *parse_with_block(parse_state_t &ps) {
 	match->pattern_blocks.push_back(with_pattern);
 	match->pattern_blocks.push_back(else_pattern);
 	return match;
+#endif
 }
 
 expr_t *wrap_with_iter(expr_t *expr) {
-	auto iter_token = token_t{expr->get_location(), tk_identifier, "iter"};
-	auto iter_ref = create<reference_expr_t>(iter_token);
-	auto iter_callsite = create<callsite_expr_t>(iter_token);
-	iter_callsite->function_expr = iter_ref;
-	iter_callsite->params.push_back(expr);
-	return iter_callsite;
+	return new application_t(
+			new var_t(identifier_t{"iter", expr->get_location()}),
+			expr);
 }
 
 expr_t *parse_for_block(parse_state_t &ps) {
+	return new var_t(identifier_t{"unit", INTERNAL_LOC()});
+#if 0
 	auto for_token = ps.token;
 	ps.advance();
 
@@ -306,170 +331,128 @@ expr_t *parse_for_block(parse_state_t &ps) {
 	outer_block->statements.push_back(while_loop);
 	// log_location(log_info, outer_block->get_location(), "created %s", outer_block->str().c_str());
 	return outer_block;
+#endif
 }
 
-expr_t *defer_t::parse(parse_state_t &ps) {
+expr_t *parse_defer(parse_state_t &ps) {
+	return new var_t(identifier_t{"unit", INTERNAL_LOC()});
+#if 0
 	auto defer = create<defer_t>(ps.token);
 	ps.advance();
 	defer->callable = expression_t::parse(ps);
 	return defer;
+#endif
 }
 
 expr_t *parse_new_expr(parse_state_t &ps) {
-	auto callsite = create<callsite_expr_t>(ps.token);
-	callsite->function_expr = create<reference_expr_t>({ps.token.location, tk_identifier, "__init__"});
-
+	expr_t *init = new application_t(
+			new var_t({"__init__", ps.token.location}),
+			new var_t({"unit", ps.token.location}));
 	ps.advance();
-
 	try {
-		auto cast_expr = create<cast_expr_t>(ps.token);
-		cast_expr->lhs = callsite;
-		cast_expr->parsed_type_cast = parsed_type_t(types::parse_type(ps, {} /*generics*/));
-		return cast_expr;
+		types::type_t::ref type = types::parse_type(ps, {});
+		return new as_t(init, type);
 	} catch (user_error &e) {
-		std::throw_with_nested(user_error(callsite->token.location, "while parsing unary operator new"));
+		std::throw_with_nested(user_error(init->get_location(), "while parsing unary operator new"));
 	}
 }
 
-expr_t *statement_t::parse(parse_state_t &ps) {
+expr_t *parse_statement(parse_state_t &ps) {
 	assert(ps.token.tk != tk_rcurly);
 
 	if (ps.token.is_ident(K(var))) {
 		ps.advance();
-		return var_decl_t::parse(ps, false /*is_let*/, true /*allow_tuple_destructuring*/);
+		return parse_var_decl(ps, false /*is_let*/, true /*allow_tuple_destructuring*/);
 	} else if (ps.token.is_ident(K(let))) {
 		ps.advance();
-		return var_decl_t::parse(ps, true /*is_let*/, true /*allow_tuple_destructuring*/);
+		return parse_var_decl(ps, true /*is_let*/, true /*allow_tuple_destructuring*/);
 	} else if (ps.token.is_ident(K(if))) {
-		return if_block_t::parse(ps);
+		return parse_if(ps);
 	} else if (ps.token.is_ident(K(while))) {
-		return while_block_t::parse(ps);
+		return parse_while(ps);
 	} else if (ps.token.is_ident(K(for))) {
 		return parse_for_block(ps);
-	} else if (ps.token.is_ident(K(match))) {
-		return match_expr_t::parse(ps);
-	} else if (ps.token.is_ident(K(with))) {
-		return parse_with_block(ps);
+	//} else if (ps.token.is_ident(K(match))) {
+		//return parse_match(ps);
+	// } else if (ps.token.is_ident(K(with))) {
+		// return parse_with_block(ps);
 	} else if (ps.token.is_ident(K(new))) {
 		return parse_new_expr(ps);
 	} else if (ps.token.is_ident(K(fn))) {
-		return function_defn_t::parse(ps, false /*within_expression*/);
+		ps.advance();
+		if (ps.token.tk == tk_identifier) {
+			return new let_t(
+					identifier_t::from_token(ps.token),
+				   	parse_lambda(ps),
+				   	parse_block(ps, false /*expression_means_return*/));
+		} else {
+			return parse_lambda(ps);
+		}
 	} else if (ps.token.is_ident(K(return))) {
-		return return_statement_t::parse(ps);
+		return parse_return_statement(ps);
 	} else if (ps.token.is_ident(K(unreachable))) {
-		return new var_t(make_code_id(ps.token));
-	} else if (ps.token.is_ident(K(type))) {
-		return type_def_t::parse(ps);
-	} else if (ps.token.is_ident(K(defer))) {
-		return defer_t::parse(ps);
+		return new var_t(iid(ps.token));
+	// } else if (ps.token.is_ident(K(type))) {
+		// return parse_type_def_t::parse(ps);
+	// } else if (ps.token.is_ident(K(defer))) {
+		// return defer_t::parse(ps);
 	} else if (ps.token.is_ident(K(continue))) {
-		auto continue_flow = create<ast::continue_flow_t>(ps.token);
-		eat_token();
-		return std::move(continue_flow);
+		return new continue_t(ps.token_and_advance().location);
 	} else if (ps.token.is_ident(K(break))) {
-		auto break_flow = create<ast::break_flow_t>(ps.token);
-		eat_token();
-		return std::move(break_flow);
+		return new break_t(ps.token_and_advance().location);
 	} else {
-		return assignment_t::parse(ps);
+		return parse_assignment(ps);
 	}
 }
 
-expr_t *reference_expr_t::parse(parse_state_t &ps) {
-	if (ps.token.tk == tk_identifier) {
-		if (ps.token.text == "null") {
-			auto token = ps.token;
-			ps.advance();
-			return create<ast::literal_expr_t>(token);
-		} else if (ps.token.text == "__filename__") {
-			auto expr = create<literal_expr_t>(
-					token_t{ps.token.location, tk_string, escape_json_quotes(ps.token.location.filename)});
-			ps.advance();
-			return expr;
-		}
-
-		auto reference_expr = create<ast::reference_expr_t>(ps.token);
-		ps.advance();
-		return std::move(reference_expr);
-	} else {
+expr_t *parse_var_ref(parse_state_t &ps) {
+	// TODO: if this name is a var, then treat it as a load
+	if (ps.token.tk != tk_identifier) {
 		throw user_error(ps.token.location, "expected an identifier");
 	}
+
+	if (ps.token.is_ident(K(__filename__))) {
+		auto token = ps.token_and_advance();
+		return new literal_t(token_t{token.location, tk_string, escape_json_quotes(token.location.filename)});
+	}
+
+	return new var_t(identifier_t::from_token(ps.token_and_advance()));
 }
 
-std::shared_ptr<typeid_expr_t> typeid_expr_t::parse(parse_state_t &ps) {
-	auto token = ps.token;
-	chomp_ident(K(typeid));
-	chomp_token(tk_lparen);
-
-	auto value = expression_t::parse(ps);
-	assert(value != nullptr);
-	auto expr = ast::create<typeid_expr_t>(token, value);
-	chomp_token(tk_rparen);
-	return expr;
-}
-
-std::shared_ptr<sizeof_expr_t> sizeof_expr_t::parse(parse_state_t &ps) {
-	auto token = ps.token;
-	chomp_ident(K(sizeof));
-	chomp_token(tk_lparen);
-
-	auto type = types::parse_type(ps, {});
-	assert(type != nullptr);
-	auto expr = ast::create<sizeof_expr_t>(token, type);
-	chomp_token(tk_rparen);
-	return expr;
-}
-
-expr_t *parse_cast_wrap(parse_state_t &ps, expr_t *expr) {
-    if (ps.token.is_ident(K(as))) {
-		auto token = ps.token;
-		ps.advance();
-		auto cast = ast::create<ast::cast_expr_t>(token);
-		cast->lhs = expr;
-
-		if (ps.token.tk == tk_bang) {
-			if (token.location.line != ps.token.location.line || token.location.col + int(strlen(K(as))) != ps.token.location.col) {
-				throw user_error(ps.token.location,
-					   	"unsafe casts must not have any whitespace between \"as\" and \"!\". "
-						"They must appear exactly like this: \"as!\". This is to enable "
-						"searching over codebases for any misused unsafe casts.");
-			}
-			ps.advance();
-			cast->force_cast = true;
-		}
-		cast->parsed_type_cast = parsed_type_t(types::parse_type(ps, {}));
-        return cast;
-    } else {
-        return expr;
-    }
-}
-
-expr_t *base_expr::parse(parse_state_t &ps) {
+expr_t *parse_base_expr(parse_state_t &ps) {
 	if (ps.token.tk == tk_lparen) {
 		return parse_tuple_expr(ps);
 	} else if (ps.token.is_ident(K(new))) {
 		return parse_new_expr(ps);
 	} else if (ps.token.is_ident(K(fn))) {
-		return parse_function_defn(ps, true /*within_expression*/);
-	} else if (ps.token.is_ident(K(match))) {
-		return parse_match_expr(ps);
+		ps.advance();
+		return parse_lambda(ps);
+	// } else if (ps.token.is_ident(K(match))) {
+		// return parse_match(ps);
 	} else if (ps.token.tk == tk_identifier) {
-		// NB: this is last to ensure "special" builtins are in play above
-		return reference_expr_t::parse(ps);
+		return parse_var_ref(ps);
 	} else {
-		return literal_expr_t::parse(ps);
+		return parse_literal(ps);
 	}
 }
 
-expr_t *array_literal_expr_t::parse(parse_state_t &ps) {
+expr_t *parse_array_literal(parse_state_t &ps) {
+	location_t location = ps.token.location;
 	chomp_token(tk_lsquare);
-	auto array = create<array_literal_expr_t>(ps.token);
-	auto &items = array->items;
+	std::vector<expr_t*> exprs;
+
+	auto array_var = new var_t(identifier_t{fresh(), location});
 
 	int i = 0;
 	while (ps.token.tk != tk_rsquare && ps.token.tk != tk_none) {
 		++i;
-		items.push_back(expression_t::parse(ps));
+		exprs.push_back(
+				new application_t(
+					new application_t(
+						new var_t(identifier_t{"append", ps.token.location}),
+						array_var),
+					parse_expr(ps)));
+
 		if (ps.token.tk == tk_comma) {
 			ps.advance();
 		} else if (ps.token.tk != tk_rsquare) {
@@ -477,22 +460,25 @@ expr_t *array_literal_expr_t::parse(parse_state_t &ps) {
 		}
 	}
 	chomp_token(tk_rsquare);
-	return array;
+	exprs.push_back(array_var);
+
+	return new let_t(
+			array_var->id,
+			new application_t(
+				new var_t(identifier_t{"__init_vector__", location}),
+				new literal_t(token_t{location, tk_integer, string_format("%d", exprs.size())})),
+			new block_t(exprs));
 }
 
-expr_t *literal_expr_t::parse(parse_state_t &ps) {
+expr_t *parse_literal(parse_state_t &ps) {
 	switch (ps.token.tk) {
 	case tk_integer:
 	case tk_string:
 	case tk_char:
 	case tk_float:
-		{
-			auto literal_expr = create<ast::literal_expr_t>(ps.token);
-			ps.advance();
-			return std::move(literal_expr);
-		}
+		return new literal_t(ps.token_and_advance());
 	case tk_lsquare:
-		return array_literal_expr_t::parse(ps);
+		return parse_array_literal(ps);
 	// case tk_lcurly:
 	//	return assoc_array_expr_t::parse(ps);
 
@@ -516,224 +502,179 @@ expr_t *literal_expr_t::parse(parse_state_t &ps) {
 	}
 }
 
-std::vector<std::shared_ptr<expression_t>> parse_param_list(parse_state_t &ps) {
-	std::vector<std::shared_ptr<expression_t>> params;
-	chomp_token(tk_lparen);
-	int i = 0;
-	while (ps.token.tk != tk_rparen) {
-		++i;
-		params.push_back(expression_t::parse(ps));
-		if (ps.token.tk == tk_comma) {
-			eat_token();
-		} else if (ps.token.tk != tk_rparen) {
-			throw user_error(ps.token.location, "unexpected %s in parameter list (" c_id("%s") ")", tkstr(ps.token.tk), ps.token.text.c_str());
-		}
-		// continue and read the next parameter
-	}
-	chomp_token(tk_rparen);
+expr_t *parse_postfix_expr(parse_state_t &ps) {
+	expr_t *expr = parse_base_expr(ps);
 
-	return params;
-}
-
-namespace ast {
-	namespace postfix_expr {
-		expr_t *parse(parse_state_t &ps) {
-			expr_t *expr = base_expr::parse(ps);
-
-			while (!ps.line_broke() &&
-					(ps.token.tk == tk_lsquare ||
-					 ps.token.tk == tk_lparen ||
-					 ps.token.tk == tk_dot ||
-					 ps.token.tk == tk_bang))
-			{
-				switch (ps.token.tk) {
-				case tk_lparen:
-					{
-						/* function call */
-						auto callsite = create<callsite_expr_t>(ps.token);
-						callsite->params = parse_param_list(ps);
-						callsite->function_expr.swap(expr);
-						assert(expr == nullptr);
-						expr = callsite;
-						break;
-					}
-				case tk_dot:
-					{
-						auto dot_expr = create<ast::dot_expr_t>(ps.token);
-						eat_token();
-						expect_token(tk_identifier);
-						dot_expr->rhs = ps.token;
-						ps.advance();
-						dot_expr->lhs.swap(expr);
-						assert(expr == nullptr);
-						expr = dot_expr;
-						break;
-					}
-				case tk_lsquare:
-					{
-						eat_token();
-						auto array_index_expr = create<ast::array_index_expr_t>(ps.token);
-
-						array_index_expr->lhs = expr;
-						array_index_expr->start = expression_t::parse(ps);
-						if (ps.token.tk == tk_colon) {
-							array_index_expr->is_slice = true;
-							ps.advance();
-							if (ps.token.tk != tk_rsquare) {
-								array_index_expr->stop = expression_t::parse(ps);
-							}
-						}
-						expr = array_index_expr;
-						chomp_token(tk_rsquare);
-						break;
-					}
-				case tk_bang:
-					{
-						auto bang = ast::create<ast::bang_expr_t>(ps.token);
-						bang->lhs = expr;
-						expr = bang;
-						ps.advance();
-						break;
-					}
-				default:
-					break;
-				}
-			}
-
-			return expr;
-		}
-	}
-}
-
-expr_t *prefix_expr_t::parse(parse_state_t &ps) {
-	std::shared_ptr<prefix_expr_t> prefix_expr;
-	if (ps.token.tk == tk_ampersand
-			|| ps.token.tk == tk_minus
-			|| ps.token.tk == tk_plus
-			|| ps.token.is_ident(K(not)))
+	while (!ps.line_broke() &&
+			(ps.token.tk == tk_lsquare ||
+			 ps.token.tk == tk_lparen ||
+			 ps.token.tk == tk_dot ||
+			 ps.token.tk == tk_bang))
 	{
-		prefix_expr = create<ast::prefix_expr_t>(ps.token);
-		eat_token();
+		switch (ps.token.tk) {
+		case tk_lparen:
+			{
+				/* function call */
+				auto location = ps.token.location;
+				ps.advance();
+				if (ps.token.tk == tk_rparen) {
+					ps.advance();
+					expr = new application_t(expr, new var_t(identifier_t{"unit", INTERNAL_LOC()}));
+				} else {
+					while (ps.token.tk != tk_rparen && ps.token.tk != tk_none) {
+						expr = new application_t(expr, parse_expr(ps));
+						if (ps.token.tk == tk_comma) {
+							ps.advance();
+						} else {
+							expect_token(tk_rparen);
+						}
+					}
+				}
+				break;
+			}
+#if 0
+		case tk_dot:
+			{
+				auto dot_expr = create<ast::dot_expr_t>(ps.token);
+				eat_token();
+				expect_token(tk_identifier);
+				dot_expr->rhs = ps.token;
+				ps.advance();
+				dot_expr->lhs.swap(expr);
+				assert(expr == nullptr);
+				expr = dot_expr;
+				break;
+			}
+#endif
+		case tk_lsquare:
+			{
+				ps.advance();
+				bool is_slice = false;
+
+				expr_t *start = parse_expr(ps);
+				if (ps.token.tk == tk_colon) {
+					is_slice = true;
+					ps.advance();
+				} else {
+					chomp_token(tk_rsquare);
+				}
+
+				if (ps.token.tk == tk_rsquare) {
+					expr = new application_t(
+							new application_t(
+								new var_t(identifier_t{is_slice ? "__getslice__/2" : "__getitem__", ps.token.location}),
+								expr),
+							start);
+				} else {
+					expr_t *stop = parse_expr(ps);
+					chomp_token(tk_rsquare);
+
+					assert(is_slice);
+					expr = new application_t(
+							new application_t(
+								new application_t(
+									new var_t(identifier_t{"__getslice__/3", ps.token.location}),
+									expr),
+								start),
+							stop);
+				}
+				break;
+			}
+		default:
+			break;
+		}
+	}
+
+	return expr;
+}
+
+expr_t *parse_prefix_expr(parse_state_t &ps) {
+	maybe<token_t> prefix = 
+		(ps.token.tk == tk_minus || ps.token.tk == tk_plus || ps.token.is_ident(K(not)))
+	   	? maybe<token_t>(ps.token)
+	   	: maybe<token_t>();
+
+	if (prefix.valid) {
+		ps.advance();
 	}
 
 	expr_t *rhs;
-	if (ps.token.is_ident(K(not))
-			|| ps.token.tk == tk_minus
-			|| ps.token.tk == tk_plus) {
+	if (ps.token.is_ident(K(not)) || ps.token.tk == tk_minus || ps.token.tk == tk_plus) {
 		/* recurse to find more prefix expressions */
-		rhs = prefix_expr_t::parse(ps);
+		rhs = parse_prefix_expr(ps);
 	} else {
 		/* ok, we're done with prefix operators */
-		rhs = postfix_expr::parse(ps);
+		rhs = parse_postfix_expr(ps);
 	}
 
-	if (prefix_expr) {
-		prefix_expr->rhs = std::move(rhs);
-		return parse_cast_wrap(ps, prefix_expr);
+	if (prefix.valid) {
+		return new application_t(
+				new var_t(identifier_t{prefix.t.text, prefix.t.location}),
+				rhs);
 	} else {
-		return parse_cast_wrap(ps, rhs);
-	}
+	   	return rhs;
+   	}
 }
 
-
-expr_t *times_expr_parse(parse_state_t &ps) {
-	auto expr = prefix_expr_t::parse(ps);
+expr_t *parse_times_expr(parse_state_t &ps) {
+	expr_t *expr = parse_prefix_expr(ps);
 
 	while (!ps.line_broke() && (ps.token.tk == tk_times
 				|| ps.token.tk == tk_divide_by
 				|| ps.token.tk == tk_mod)) {
-		auto binary_operator = create<ast::binary_operator_t>(ps.token);
-		switch (ps.token.tk) {
-		case tk_times:
-			binary_operator->function_name = "__times__";
-			break;
-		case tk_divide_by:
-			binary_operator->function_name = "__divide__";
-			break;
-		case tk_mod:
-			binary_operator->function_name = "__mod__";
-			break;
-		default:
-			assert(false);
-			break;
-		}
+		identifier_t op{ps.token.text, ps.token.location};
+		ps.advance();
 
-		eat_token();
-
-		auto rhs = prefix_expr_t::parse(ps);
-		binary_operator->lhs = expr;
-		binary_operator->rhs = rhs;
-		expr = binary_operator;
+		expr = new application_t(
+				new application_t(
+					new var_t(op),
+					expr),
+				parse_prefix_expr(ps));
 	}
 
 	return expr;
 }
 
-expr_t *plus_expr_parse(parse_state_t &ps) {
-	auto expr = times_expr_parse(ps);
+expr_t *parse_plus_expr(parse_state_t &ps) {
+	auto expr = parse_times_expr(ps);
 
 	while (!ps.line_broke() &&
 			(ps.token.tk == tk_plus || ps.token.tk == tk_minus || ps.token.tk == tk_backslash))
 	{
-		auto binary_operator = create<ast::binary_operator_t>(ps.token);
-		switch (ps.token.tk) {
-		case tk_plus:
-			binary_operator->function_name = "__plus__";
-			break;
-		case tk_minus:
-			binary_operator->function_name = "__minus__";
-			break;
-		case tk_backslash:
-			binary_operator->function_name = "__backslash__";
-			break;
-		default:
-			assert(false);
-			break;
-		}
+		identifier_t op{ps.token.text, ps.token.location};
+		ps.advance();
 
-		eat_token();
-
-		auto rhs = times_expr_parse(ps);
-		binary_operator->lhs = expr;
-		binary_operator->rhs = rhs;
-		expr = binary_operator;
+		expr = new application_t(
+				new application_t(
+					new var_t(op),
+					expr),
+				parse_times_expr(ps));
 	}
 
 	return expr;
 }
 
-expr_t *shift_expr_parse(parse_state_t &ps) {
-	auto expr = plus_expr_parse(ps);
+expr_t *parse_shift_expr(parse_state_t &ps) {
+	auto expr = parse_plus_expr(ps);
 
 	while (!ps.line_broke() &&
 		   	(ps.token.tk == tk_shift_left || ps.token.tk == tk_shift_right))
 	{
-		auto binary_operator = create<ast::binary_operator_t>(ps.token);
-		switch (ps.token.tk) {
-		case tk_shift_left:
-			binary_operator->function_name = "__shl__";
-			break;
-		case tk_shift_right:
-			binary_operator->function_name = "__shr__";
-			break;
-		default:
-			assert(false);
-			break;
-		}
+		identifier_t op{ps.token.text, ps.token.location};
+		ps.advance();
 
-		eat_token();
-
-		auto rhs = plus_expr_parse(ps);
-		binary_operator->lhs = expr;
-		binary_operator->rhs = rhs;
-		expr = binary_operator;
+		expr = new application_t(
+				new application_t(
+					new var_t(op),
+					expr),
+				parse_plus_expr(ps));
 	}
 
 	return expr;
 }
 
-expr_t *binary_eq_expr_parse(parse_state_t &ps) {
-	auto lhs = shift_expr_parse(ps);
+expr_t *parse_binary_eq_expr(parse_state_t &ps) {
+	auto lhs = parse_shift_expr(ps);
 	if (ps.line_broke()
 			|| !(ps.token.tk == tk_binary_equal
 				|| ps.token.tk == tk_binary_inequal))
@@ -742,29 +683,18 @@ expr_t *binary_eq_expr_parse(parse_state_t &ps) {
 		return lhs;
 	}
 
-	auto binary_operator = create<ast::binary_operator_t>(ps.token);
-	switch (ps.token.tk) {
-	case tk_binary_equal:
-		binary_operator->function_name = "__binary_eq__";
-		break;
-	case tk_binary_inequal:
-		binary_operator->function_name = "__binary_ineq__";
-		break;
-	default:
-		assert(false);
-		break;
-	}
+	identifier_t op{ps.token.text, ps.token.location};
+	ps.advance();
 
-	eat_token();
-
-	auto rhs = shift_expr_parse(ps);
-	binary_operator->lhs = std::move(lhs);
-	binary_operator->rhs = std::move(rhs);
-	return std::move(binary_operator);
+	return new application_t(
+			new application_t(
+				new var_t(op),
+				lhs),
+			parse_shift_expr(ps));
 }
 
-expr_t *ineq_expr_parse(parse_state_t &ps) {
-	auto lhs = binary_eq_expr_parse(ps);
+expr_t *parse_ineq_expr(parse_state_t &ps) {
+	auto lhs = parse_binary_eq_expr(ps);
 	if (ps.line_broke()
 			|| !(ps.token.tk == tk_gt
 				|| ps.token.tk == tk_gte
@@ -774,35 +704,18 @@ expr_t *ineq_expr_parse(parse_state_t &ps) {
 		return lhs;
 	}
 
-	auto binary_operator = create<ast::binary_operator_t>(ps.token);
-	switch (ps.token.tk) {
-	case tk_gt:
-		binary_operator->function_name = "__gt__";
-		break;
-	case tk_gte:
-		binary_operator->function_name = "__gte__";
-		break;
-	case tk_lt:
-		binary_operator->function_name = "__lt__";
-		break;
-	case tk_lte:
-		binary_operator->function_name = "__lte__";
-		break;
-	default:
-		assert(false);
-		break;
-	}
+	identifier_t op{ps.token.text, ps.token.location};
+	ps.advance();
 
-	eat_token();
-
-	auto rhs = binary_eq_expr_parse(ps);
-	binary_operator->lhs = std::move(lhs);
-	binary_operator->rhs = std::move(rhs);
-	return std::move(binary_operator);
+	return new application_t(
+			new application_t(
+				new var_t(op),
+				lhs),
+			parse_shift_expr(ps));
 }
 
-expr_t *eq_expr_parse(parse_state_t &ps) {
-	auto lhs = ineq_expr_parse(ps);
+expr_t *parse_eq_expr(parse_state_t &ps) {
+	auto lhs = parse_ineq_expr(ps);
 	bool not_in = false;
 	if (ps.token.is_ident(K(not))) {
 		eat_token();
@@ -818,94 +731,79 @@ expr_t *eq_expr_parse(parse_state_t &ps) {
 		return lhs;
 	}
 
-	auto binary_operator = create<ast::binary_operator_t>(ps.token);
-	if (ps.token.is_ident(K(in))) {
-		binary_operator->function_name = "__in__";
-	} else if (ps.token.tk == tk_equal) {
-		binary_operator->function_name = "__eq__";
-	} else if (ps.token.tk == tk_inequal) {
-		binary_operator->function_name = "__ineq__";
-	} else {
-		assert(false);
-	}
+	identifier_t op{not_in ? "not-in" : ps.token.text, ps.token.location};
+	ps.advance();
 
-	eat_token();
-
-	if (not_in) {
-		binary_operator->function_name = "__not_in__";
-	}
-
-	auto rhs = ineq_expr_parse(ps);
-	binary_operator->lhs = lhs;
-	binary_operator->rhs = rhs;
-	return binary_operator;
+	return new application_t(
+			new application_t(
+				new var_t(op),
+				lhs),
+			parse_ineq_expr(ps));
 }
 
-expr_t *bitwise_and_parse(parse_state_t &ps) {
-	auto expr = eq_expr_parse(ps);
+expr_t *parse_bitwise_and(parse_state_t &ps) {
+	auto expr = parse_eq_expr(ps);
 
 	while (!ps.line_broke() && ps.token.tk == tk_ampersand) {
-		auto binary_operator = create<ast::binary_operator_t>(ps.token);
-		binary_operator->function_name = "__bitwise_and__";
 
-		eat_token();
+		identifier_t op{ps.token.text, ps.token.location};
+		ps.advance();
 
-		auto rhs = eq_expr_parse(ps);
-		binary_operator->lhs = expr;
-		binary_operator->rhs = rhs;
-		expr = binary_operator;
+		expr = new application_t(
+				new application_t(
+					new var_t(op),
+					expr),
+				parse_eq_expr(ps));
 	}
 
 	return expr;
 }
 
-expr_t *bitwise_xor_parse(parse_state_t &ps) {
-	auto expr = bitwise_and_parse(ps);
+expr_t *parse_bitwise_xor(parse_state_t &ps) {
+	auto expr = parse_bitwise_and(ps);
 
 	while (!ps.line_broke() && ps.token.tk == tk_hat) {
-		auto binary_operator = create<ast::binary_operator_t>(ps.token);
-		binary_operator->function_name = "__xor__";
+		identifier_t op{ps.token.text, ps.token.location};
+		ps.advance();
 
-		eat_token();
-
-		auto rhs = bitwise_and_parse(ps);
-		binary_operator->lhs = expr;
-		binary_operator->rhs = rhs;
-		expr = binary_operator;
+		expr = new application_t(
+				new application_t(
+					new var_t(op),
+					expr),
+				parse_bitwise_and(ps));
 	}
 	return expr;
 }
 
-expr_t *bitwise_or_parse(parse_state_t &ps) {
-	auto expr = bitwise_xor_parse(ps);
+expr_t *parse_bitwise_or(parse_state_t &ps) {
+	auto expr = parse_bitwise_xor(ps);
 
 	while (!ps.line_broke() && ps.token.tk == tk_pipe) {
-		auto binary_operator = create<ast::binary_operator_t>(ps.token);
-		binary_operator->function_name = "__bitwise_or__";
+		identifier_t op{ps.token.text, ps.token.location};
+		ps.advance();
 
-		eat_token();
-
-		auto rhs = bitwise_xor_parse(ps);
-		binary_operator->lhs = expr;
-		binary_operator->rhs = rhs;
-		expr = binary_operator;
+		expr = new application_t(
+				new application_t(
+					new var_t(op),
+					expr),
+				parse_bitwise_xor(ps));
 	}
 
 	return expr;
 }
 
-expr_t *and_expr_t::parse(parse_state_t &ps) {
-	auto expr = bitwise_or_parse(ps);
+expr_t *parse_and_expr(parse_state_t &ps) {
+	auto expr = parse_bitwise_or(ps);
 
 	while (!ps.line_broke() && (ps.token.is_ident(K(and)))) {
-		auto and_expr = create<ast::and_expr_t>(ps.token);
+		identifier_t op{ps.token.text, ps.token.location};
+		ps.advance();
 
-		eat_token();
-
-		auto rhs = bitwise_or_parse(ps);
-		and_expr->lhs = expr;
-		and_expr->rhs = rhs;
-		expr = and_expr;
+		expr = new application_t(
+				new application_t(
+					new var_t(op),
+					expr),
+				parse_bitwise_or(ps));
 	}
 
 	return expr;
@@ -916,73 +814,64 @@ expr_t *parse_tuple_expr(parse_state_t &ps) {
 	chomp_token(tk_lparen);
     if (ps.token.tk == tk_rparen) {
 		/* we've got a reference to sole value of unit type */
-		auto unit = create<ast::tuple_expr_t>(ps.token);
-        ps.advance();
-        return unit;
+        return new var_t(identifier_t{"unit", ps.token_and_advance().location});
     }
-	auto expr = expression_t::parse(ps);
+	expr_t *expr = parse_expr(ps);
 	if (ps.token.tk != tk_comma) {
 		chomp_token(tk_rparen);
 		return expr;
 	} else {
 		ps.advance();
 
-		/* we've got a tuple */
-		auto tuple_expr = create<ast::tuple_expr_t>(start_token);
+		std::vector<expr_t *> exprs;
 
-		/* add the first value */
-		tuple_expr->values.push_back(expr);
+		exprs.push_back(expr);
 
 		/* now let's find the rest of the values */
 		while (ps.token.tk != tk_rparen) {
-			expr = expression_t::parse(ps);
-			tuple_expr->values.push_back(expr);
+			exprs.push_back(parse_expr(ps));
 			if (ps.token.tk == tk_comma) {
-				eat_token();
-			} else if (ps.token.tk != tk_rparen) {
-				throw user_error(ps.token.location, 
-						"unexpected token " c_id("%s") " in tuple. expected comma or right-paren",
-						ps.token.text.c_str());
+				ps.advance();
+			} else {
+				chomp_token(tk_rparen);
 			}
 			// continue and read the next parameter
 		}
 		chomp_token(tk_rparen);
-		return tuple_expr;
+
+		return new tuple_t(start_token.location, exprs);
 	}
 }
 
-expr_t *or_expr_t::parse(parse_state_t &ps) {
-	auto expr = and_expr_t::parse(ps);
+expr_t *parse_or_expr(parse_state_t &ps) {
+	expr_t *expr = parse_and_expr(ps);
 
 	while (!ps.line_broke() && (ps.token.is_ident(K(or)))) {
-		auto or_expr = create<ast::or_expr_t>(ps.token);
+		identifier_t op{ps.token.text, ps.token.location};
+		ps.advance();
 
-		eat_token();
-
-		auto rhs = and_expr_t::parse(ps);
-		or_expr->lhs = std::move(expr);
-		or_expr->rhs = std::move(rhs);
-		expr = std::move(or_expr);
+		expr = new application_t(
+				new application_t(
+					new var_t(op),
+					expr),
+				parse_and_expr(ps));
 	}
 
 	return expr;
 }
 
-expr_t *ternary_expr_t::parse(parse_state_t &ps) {
-	auto condition = or_expr_t::parse(ps);
+expr_t *parse_ternary_expr(parse_state_t &ps) {
+	expr_t *condition = parse_or_expr(ps);
 	if (ps.token.tk == tk_maybe) {
 		ps.advance();
-		// TODO: handle a ?? b form
 
-		auto truthy_expr = or_expr_t::parse(ps);
+		expr_t *truthy_expr = parse_or_expr(ps);
 		expect_token(tk_colon);
 		ps.advance();
-		auto falsey_expr = expression_t::parse(ps);
-		auto ternary = ast::create<ternary_expr_t>(condition->token);
-		ternary->condition = condition;
-		ternary->when_true = truthy_expr;
-		ternary->when_false = falsey_expr;
-		return ternary;
+		return new conditional_t(
+				condition,
+				truthy_expr,
+				parse_expr(ps));
 	} else {
 		return condition;
 	}
@@ -992,67 +881,31 @@ expr_t *parse_expr(parse_state_t &ps) {
 	return parse_ternary_expr(ps);
 }
 
-expr_t *assignment_t::parse(parse_state_t &ps) {
-	auto lhs = expression_t::parse(ps);
+expr_t *parse_assignment(parse_state_t &ps) {
+	// (store! x y)
+	expr_t *lhs = parse_expr(ps);
 
-#define handle_assign(tk_, tk_binop_) \
-	if (!ps.line_broke() && ps.token.tk == tk_) { \
-		auto token = ps.token; \
-		chomp_token(tk_); \
-		auto assigment = create<assignment_t>(token); \
-		auto rhs = expression_t::parse(ps); \
-		assignment->lhs = std::move(lhs); \
-		assignment->rhs = std::move(rhs); \
-		return std::move(assignment); \
+	if (!ps.line_broke() && ps.token.tk == tk_assign) {
+		ps.advance();
+		expr_t *rhs = parse_expr(ps);
+		return new application_t(
+				new application_t(
+					new var_t(identifier_t{std::string{"store!"}, ps.token.location}),
+					lhs),
+				rhs);
 	}
 
-	handle_assign(tk_assign, ast::assignment_t);
-	handle_assign(tk_plus_eq, tk_plus);
-	// handle_assign(tk_maybe_eq, ast::maybe_assignment_t);
-	handle_assign(tk_minus_eq, tk_minus);
-	handle_assign(tk_divide_by_eq, tk_divide_by);
-	handle_assign(tk_times_eq, tk_times);
-	handle_assign(tk_mod_eq, tk_mod);
-
 	if (!ps.line_broke() && ps.token.tk == tk_becomes) {
-		if (dyncast<reference_expr_t>(lhs) != nullptr) {
-			auto var_decl = create<ast::var_decl_t>(lhs->token);
-			var_decl->is_let_var = true;
-			var_decl->parsed_type = parsed_type_t(type_variable(lhs->token.location));
-			chomp_token(tk_becomes);
-			auto initializer = expression_t::parse(ps);
-			var_decl->initializer.swap(initializer);
-			return var_decl;
-		} else if (auto tuple_expr = dyncast<tuple_expr_t>(lhs)) {
-			std::shared_ptr<destructured_tuple_decl_t> destructured_tuple_decl = create<destructured_tuple_decl_t>(lhs->token);
-			destructured_tuple_decl->is_let = true;
-			destructured_tuple_decl->lhs = tuple_expr;
-			destructured_tuple_decl->parsed_type = parsed_type_t(type_variable(lhs->token.location));
-			chomp_token(tk_becomes);
-			destructured_tuple_decl->initializer = expression_t::parse(ps);
-			return destructured_tuple_decl;
+		if (var_t *var = dcast<var_t *>(lhs)) {
+			return parse_let(ps, var->id, true /* is_let */);
+		} else if (auto tuple = dcast<tuple_t *>(lhs)) {
+			return parse_assign_tuple(ps, tuple);
 		} else {
 			throw user_error(ps.token.location, ":= may only come after a new symbol name");
 		}
 	} else {
 		return lhs;
 	}
-}
-
-std::shared_ptr<param_list_decl_t> param_list_decl_t::parse(parse_state_t &ps) {
-	/* reset the argument index */
-	ps.argument_index = 0;
-
-	auto param_list_decl = create<ast::param_list_decl_t>(ps.token);
-	while (ps.token.tk != tk_rparen) {
-		param_list_decl->params.push_back(var_decl_t::parse_param(ps));
-		if (ps.token.tk == tk_comma) {
-			eat_token();
-		} else if (ps.token.tk != tk_rparen) {
-			throw user_error(ps.token.location, "unexpected token in param_list_decl");
-		}
-	}
-	return param_list_decl;
 }
 
 expr_t *parse_block(parse_state_t &ps, bool expression_means_return) {
@@ -1108,8 +961,7 @@ expr_t *parse_block(parse_state_t &ps, bool expression_means_return) {
 	}
 }
 
-std::shared_ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
-	auto if_block = create<ast::if_block_t>(ps.token);
+conditional_t *parse_if(parse_state_t &ps) {
 	if (ps.token.is_ident(K(if))) {
 		ps.advance();
 	} else {
@@ -1117,121 +969,85 @@ std::shared_ptr<if_block_t> if_block_t::parse(parse_state_t &ps) {
 	}
 
 	token_t condition_token = ps.token;
-	auto expression = expression_t::parse(ps);
-	if (auto condition = dyncast<const expression_t>(expression)) {
-		if_block->condition = condition;
-	} else if (auto var_decl = dyncast<const var_decl_t>(expression)) {
-		if_block->condition = var_decl;
-	} else {
-		throw user_error(condition_token.location,
-				"if conditions are limited to expressions or variable definitions");
-	}
-
-	if_block->block = parse_block(ps, false /*expression_means_return*/);
-
+	expr_t *condition = parse_expr(ps);
+	expr_t *block = parse_block(ps, false /*expression_means_return*/);
+	expr_t *else_ = nullptr;
 	/* check the successive instructions for "else if" or else */
 	if (ps.token.is_ident(K(else))) {
-		if (ps.line_broke() && if_block->block->token.tk != tk_expr_block) {
-			throw user_error(ps.token.location, "else must be on the same line as the prior closing squiggly");
-		}
 		ps.advance();
 		if (ps.token.is_ident(K(if))) {
 			if (ps.line_broke()) {
 				throw user_error(ps.token.location, "else if must be on the same line");
 			}
-			if_block->else_ = if_block_t::parse(ps);
+			else_ = parse_if(ps);
 		} else {
-			if_block->else_ = parse_block(ps, false /*expression_means_return*/);
+			else_ = parse_block(ps, false /*expression_means_return*/);
 		}
 	}
 
-	return if_block;
+	return new conditional_t(condition, block, else_);
 }
 
-std::shared_ptr<while_block_t> while_block_t::parse(parse_state_t &ps) {
-	auto while_block = create<ast::while_block_t>(ps.token);
+while_t *parse_while(parse_state_t &ps) {
 	auto while_token = ps.token;
 	chomp_ident(K(while));
 	token_t condition_token = ps.token;
 	if (condition_token.is_ident(K(match))) {
 		/* sugar for while match ... which becomes while true { match ... } */
-		auto true_token = token_t{while_token.location, tk_identifier, "true"};
-		while_block->condition = create<reference_expr_t>(true_token);
-		while_block->block = create<block_t>(while_token);
-		while_block->block->statements.push_back(match_expr_t::parse(ps));
+		return new while_t(
+				new var_t(identifier_t{"true", while_token.location}),
+				parse_match(ps));
 	} else {
-		auto expr = expression_t::parse(ps);
-		if (auto condition = dyncast<const expression_t>(expr)) {
-			while_block->condition = condition;
-		} else if (auto var_decl = dyncast<const var_decl_t>(expr)) {
-			while_block->condition = var_decl;
-		} else {
-			throw user_error(condition_token.location,
-					"while conditions are limited to expressions or variable definitions");
-		}
-
-		auto block = parse_block(ps, false /*expression_means_return*/);
-		while_block->block = block;
+		return new while_t(parse_expr(ps), parse_block(ps, false /*expression_means_return*/));
 	}
-	return while_block;
 }
 
-ast::predicate_t::ref ctor_predicate_t::parse(parse_state_t &ps, token_t *name_assignment) {
+predicate_t *parse_ctor_predicate(parse_state_t &ps, maybe<identifier_t> name_assignment) {
 	assert(ps.token.tk == tk_identifier && isupper(ps.token.text[0]));
-	auto value_name = ps.token;
+	identifier_t ctor_name = identifier_t::from_token(ps.token);
 
 	ps.advance();
-	
-	std::vector<predicate_t::ref> params;
+
+	std::vector<predicate_t *> params;
 	if (ps.token.tk == tk_lparen) {
 		ps.advance();
-		bool expect_comma = false;
 		while (ps.token.tk != tk_rparen) {
-			if (expect_comma) {
+			params.push_back(parse_predicate(ps, false /*allow_else*/, maybe<identifier_t>() /*name_assignment*/));
+			if (ps.token.tk != tk_rparen) {
 				chomp_token(tk_comma);
 			}
-
-			auto predicate = predicate_t::parse(ps, false /*allow_else*/, nullptr /*name_assignment*/);
-			params.push_back(predicate);
-			expect_comma = true;
 		}
 		chomp_token(tk_rparen);
 	}
-	auto ctor = ast::create<ast::ctor_predicate_t>(value_name);
-	if (name_assignment != nullptr) {
-		ctor->name_assignment = *name_assignment;
-	}
-	std::swap(ctor->params, params);
-	return ctor;
+	return new ctor_predicate_t(
+			ctor_name.location,
+			params,
+			ctor_name,
+		   	name_assignment);
 }
 
-ast::predicate_t::ref tuple_predicate_t::parse(parse_state_t &ps, token_t *name_assignment) {
+predicate_t *parse_tuple_predicate(parse_state_t &ps, maybe<identifier_t> name_assignment) {
 	assert(ps.token.tk == tk_lparen);
-	auto paren_token = ps.token;
-
 	ps.advance();
 
-	std::vector<predicate_t::ref> params;
-	bool expect_comma = false;
-	while (ps.token.tk != tk_rparen) {
-		if (expect_comma) {
-			chomp_token(tk_comma);
+	std::vector<predicate_t *> params;
+	if (ps.token.tk == tk_lparen) {
+		ps.advance();
+		while (ps.token.tk != tk_rparen) {
+			params.push_back(parse_predicate(ps, false /*allow_else*/, maybe<identifier_t>() /*name_assignment*/));
+			if (ps.token.tk != tk_rparen) {
+				chomp_token(tk_comma);
+			}
 		}
-
-		auto predicate = predicate_t::parse(ps, false /*allow_else*/, nullptr /*name_assignment*/);
-		params.push_back(predicate);
-		expect_comma = true;
+		chomp_token(tk_rparen);
 	}
-	chomp_token(tk_rparen);
-	auto tuple = ast::create<ast::tuple_predicate_t>(paren_token);
-	if (name_assignment != nullptr) {
-		tuple->name_assignment = *name_assignment;
-	}
-	std::swap(tuple->params, params);
-	return tuple;
+	return new tuple_predicate_t(
+			ps.token.location,
+			params,
+		   	name_assignment);
 }
 
-ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else, token_t *name_assignment) {
+predicate_t *parse_predicate(parse_state_t &ps, bool allow_else, maybe<identifier_t> name_assignment) {
 	if (ps.token.is_ident(K(else))) {
 		if (!allow_else) {
 			throw user_error(ps.token.location, "illegal keyword " c_type("%s") " in a pattern match context",
@@ -1242,29 +1058,32 @@ ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else, tok
 	}
 
 	if (ps.token.tk == tk_lparen) {
-		return tuple_predicate_t::parse(ps, name_assignment);
+		return parse_tuple_predicate(ps, name_assignment);
 	} else if (ps.token.tk == tk_identifier) {
 		if (isupper(ps.token.text[0])) {
 			/* match a ctor */
-			return ctor_predicate_t::parse(ps, name_assignment);
+			return parse_ctor_predicate(ps, name_assignment);
 		} else {
-			if (name_assignment != nullptr) {
+			if (name_assignment.valid) {
 				throw user_error(ps.token.location, "pattern name assignment is only allowed once per term");
 			} else {
 				/* match anything */
-				auto symbol = ps.token;
+				auto symbol = identifier_t::from_token(ps.token);
 				ps.advance();
 				if (ps.token.tk == tk_about) {
 					ps.advance();
 
-					return predicate_t::parse(ps, allow_else, &symbol);
+					return parse_predicate(
+							ps,
+						   	allow_else,
+						   	maybe<identifier_t>(symbol));
 				} else {
-					return ast::create<ast::irrefutable_predicate_t>(symbol);
+					return new irrefutable_predicate_t(symbol.location, symbol);
 				}
 			}
 		}
 	} else {
-		if (name_assignment != nullptr) {
+		if (name_assignment.valid) {
 			throw user_error(ps.token.location, "pattern name assignment is only allowed for data constructor matching");
 		}
 
@@ -1289,15 +1108,13 @@ ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else, tok
 		case tk_char:
 			{
 				/* match a literal */
-				auto literal = create<ast::literal_expr_t>(ps.token);
-				ps.advance();
-				return literal;
+				return new literal_t(ps.token_and_advance());
 			}
 		case tk_integer:
 		case tk_float:
 			{
 				/* match a literal */
-				auto literal = create<ast::literal_expr_t>(
+				predicate_t *literal = new literal_t(
 						sign != ""
 						? token_t(ps.token.location, ps.token.tk, sign + ps.token.text)
 						: ps.token);
@@ -1314,11 +1131,15 @@ ast::predicate_t::ref predicate_t::parse(parse_state_t &ps, bool allow_else, tok
 
 pattern_block_t *parse_pattern_block(parse_state_t &ps) {
 	return new pattern_block_t(
-			parse_predicate(ps, true /*allow_else*/, nullptr /*name_assignment*/),
+			parse_predicate(ps, true /*allow_else*/, maybe<identifier_t>() /*name_assignment*/),
 			parse_block(ps, false /*expression_means_return*/));
 }
 
-std::shared_ptr<match_expr_t> match_expr_t::parse(parse_state_t &ps) {
+match_t *parse_match(parse_state_t &ps) {
+	assert(false);
+	return nullptr;
+
+#if 0
 	auto when_block = create<ast::match_expr_t>(ps.token);
 	chomp_ident(K(match));
 	bool auto_else = false;
@@ -1355,90 +1176,39 @@ std::shared_ptr<match_expr_t> match_expr_t::parse(parse_state_t &ps) {
 	}
 
 	return when_block;
-}
-
-std::shared_ptr<function_decl_t> function_decl_t::parse(
-        parse_state_t &ps,
-        bool within_expression,
-        types::type_t::ref default_return_type)
-{
-	location_t location = ps.token.location;
-	chomp_ident(K(fn));
-
-	bool no_closure = false;
-	if (ps.token.tk == tk_lsquare) {
-		ps.advance();
-		chomp_token(tk_rsquare);
-		no_closure = true;
-	}
-	identifier_t function_name;
-	auto parsed_type = types::parse_function_type(ps, location, {}, function_name, default_return_type);
-	debug_above(6, log("parsed function type %s at %s", parsed_type->str().c_str(), ps.token.location.str().c_str()));
-
-	std::string name;
-	if (function_name != nullptr) {
-		name = function_name->get_name();
-	} else if (!within_expression) {
-		throw user_error(parsed_type->get_location(), "function is missing a name");
-	}
-
-	if (name == "main") {
-		if (extends_module == nullptr) {
-			extends_module = make_iid_impl(GLOBAL_SCOPE_NAME, ps.token.location);
-		} else {
-			throw user_error(attributes_location,
-					"the main function may not specify a scope injection module");
-		}
-	}
-
-	auto name_token = 
-		function_name != nullptr
-		? token_t(
-				function_name->get_location(),
-				tk_identifier,
-				name)
-		: token_t(
-				parsed_type->get_location(),
-				tk_identifier,
-				"");
-
-	auto function_decl = create<ast::function_decl_t>(name_token);
-	function_decl->function_type = parsed_type;
-	function_decl->extends_module = extends_module;
-	function_decl->link_to_name = name_token;
-	function_decl->no_closure = no_closure;
-	return function_decl;
+#endif
 }
 
 // TODO: put type mappings into the scope
-type_t::ref parse_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
-	assert(ps.token.tk != tk_lcurly && ps.token.tk != tk_rcurly);
-	return types::parse_or_type(ps, generics);
-}
-
 lambda_t *parse_lambda(parse_state_t &ps) {
+	if (ps.token.tk == tk_identifier) {
+		throw user_error(ps.token.location, "identifiers are unexpected here");
+	}
+
 	if (ps.token.tk == tk_lsquare) {
 		throw user_error(ps.token.location, "not yet impl");
 	}
 	if (ps.token.tk == tk_comma || ps.token.tk == tk_lparen) {
 		ps.advance();
 	}
-	scoping_t scoping(ps);
+	scoping_t scoping(ps, true /*is_let*/);
 
 	if (ps.token.tk != tk_comma && ps.token.tk != tk_rparen) {
-		auto type = parse_type(ps, {});
-		log(type->get_location(), "discarding parsed param type %s", type->str().c_str());
+		auto type = types::parse_type(ps, {});
+		log_location(log_info, type->get_location(), "discarding parsed param type %s", type->str().c_str());
 	}
 
 	if (ps.token.tk == tk_comma) {
-		return new lambda_t(make_code_id(scoping.var), parse_lambda(ps));
+		return new lambda_t(scoping.cur_scope.id, parse_lambda(ps));
 	} else if (ps.token.tk == tk_rparen) {
 		if (ps.token.tk != tk_lcurly && ps.token.tk != tk_expr_block) {
-			auto return_type = parse_type(ps, {});
-			log(type->get_location(), "discarding parsed return type %s", return_type->str().c_str());
+			auto return_type = types::parse_type(ps, {});
+			log_location(log_info, return_type->get_location(), "discarding parsed return type %s", return_type->str().c_str());
 		}
 
-		return new lambda_t(make_code_id(scoping.var), parse_block(ps, true /*expression_means_return*/));
+		return new lambda_t(scoping.cur_scope.id, parse_block(ps, true /*expression_means_return*/));
+	} else {
+		throw user_error(ps.token.location, "unexpected token");
 	}
 }
 
@@ -1453,19 +1223,12 @@ void parse_maybe_type_decl(parse_state_t &ps, identifiers_t &type_variables) {
 		}
 
 		/* we found a type variable, let's stash it */
-		type_variables.push_back(make_code_id(ps.token));
+		type_variables.push_back(iid(ps.token));
 		ps.advance();
 	}
 }
 
-identifier_t make_code_id(const token_t &token) {
-	return std::make_shared<code_id>(token);
-}
-
-identifier_t make_type_id_code_id(const location_t location, std::string var_name) {
-	return std::make_shared<type_id_code_id>(location, var_name);
-}
-
+#if 0
 type_decl_t::ref type_decl_t::parse(parse_state_t &ps, token_t name_token) {
 	identifiers_t type_variables;
 	parse_maybe_type_decl(ps, type_variables);
@@ -1613,13 +1376,10 @@ dimension_t::ref dimension_t::parse(parse_state_t &ps, std::set<identifier_t> ge
 	types::type_t::ref type = types::parse_type(ps, generics);
 	return ast::create<ast::dimension_t>(primary_token, name, type);
 }
+#endif 
 
 module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
-	debug_above(6, log("about to parse %s with type_macros: [%s]",
-				ps.filename.c_str(),
-				join_with(ps.type_macros, ", ", [] (type_macros_t::value_type v) -> std::string {
-					return v.first + ": " + v.second->str();
-					}).c_str()));
+	debug_above(6, log("about to parse %s", ps.filename.c_str()));
 
 	assert(ps.module_name.size() == 0);
 	ps.module_name = strip_zion_extension(leaf_from_file_path(ps.filename));
@@ -1643,23 +1403,19 @@ module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 		}
 	}
 
-	while (true) {
-		if (ps.token.is_ident(K(var)) || ps.token.is_ident(K(let))) {
-			bool is_let = ps.token.is_ident(K(let));
-			if (is_let) {
-				throw user_error(ps.token.location, "let variables are not yet supported at the module level");
-			} else {
-				ps.advance();
-				auto var = parse_expr(ps, is_let, false /*allow_tuple_destructuring*/);
-				auto var_decl = dyncast<var_decl_t>(var);
-				assert(var_decl != nullptr);
-				module->var_decls.push_back(var_decl);
-			}
-		}
+	while (ps.token.is_ident(K(fn))) {
+		ps.advance();
+		decls.push_back(new decl_t(
+					identifier_t::from_token(ps.token_and_advance()),
+					parse_lambda(ps)));
+	}
+	if (ps.token.tk != tk_none) {
+		throw user_error(ps.token.location, "unknown stuff here");
 	}
 	return new module_t(ps.module_name, decls);
 }
 
+#if 0
 void ff() {
 	/* Get vars, functions or type defs */
 	while (true) {
@@ -1712,7 +1468,7 @@ void ff() {
 			auto type_def = type_def_t::parse(ps);
 			module->type_defs.push_back(type_def);
 			if (module->global) {
-				auto id = make_code_id(type_def->token);
+				auto id = iid(type_def->token);
 				ps.type_macros.insert({type_def->token.text, type_id(id)});
 				ps.global_type_macros.insert({type_def->token.text, type_id(id)});
 			}
@@ -1730,3 +1486,4 @@ void ff() {
 
 	return module;
 }
+#endif

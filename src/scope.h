@@ -2,10 +2,9 @@
 #include <string>
 #include <unordered_map>
 #include "location.h"
+#include "identifier.h"
 
 struct scope_t {
-	void add_name(std::string, location_t);
-	bool exists(std::string) const;
-
-	std::unordered_map<std::string, location_t> map;
+	identifier_t const id;
+	bool         const is_let;
 };

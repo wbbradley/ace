@@ -22,6 +22,6 @@ namespace match {
 	Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs);
 	Pattern::ref difference(Pattern::ref lhs, Pattern::ref rhs);
 	Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs);
-	Pattern::ref all_of(location_t location, std::string expr, env_t::ref env, types::type_t::ref type);
+	Pattern::ref all_of(location_t location, maybe<identifier_t> expr, env_t::ref env, types::type_t::ref type);
 }
 
