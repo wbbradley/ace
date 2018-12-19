@@ -75,7 +75,7 @@ namespace types {
 		std::list<identifier_t> ids;
 		location_t location = ps.token.location;
 		while (ps.token.tk == tk_identifier) {
-			ids.push_back(make_code_id(ps.token));
+			ids.push_back(iid(ps.token));
 			ps.advance();
 			if (ps.token.tk == SCOPE_TK) {
 				ps.advance();
@@ -88,8 +88,7 @@ namespace types {
 		/* reduce the type-path to a single simplified id */
 		identifier_t id = reduce_ids(ids, location);
 
-		debug_above(9, log("checking what " c_id("%s") " is",
-					id->str().c_str()));
+		debug_above(9, log("checking what " c_id("%s") " is", id.str().c_str()));
 
 		/* stash the identifier */
 		if (generics.find(id) != generics.end()) {
@@ -98,19 +97,19 @@ namespace types {
 			return type_variable(id);
 		} else {
 			/* this is not a generic */
-			if (id->get_name().find(SCOPE_SEP_CHAR) != std::string::npos) {
+			if (id.name.find(SCOPE_SEP_CHAR) != std::string::npos) {
 				/* if we're explicit about the type path, then let's just
 				 * use that as the id */
 				return type_id(id);
 			} else {
 				/* we don't have a macro/type_name link for this type, so
 				 * let's assume it's in this module */
-				if (ps.module_id->get_name() == GLOBAL_SCOPE_NAME) {
+				if (ps.module_name == GLOBAL_SCOPE_NAME) {
 					/* the std module is the only "global" module */
 					return type_id(id);
 				} else {
-					assert(ps.module_id->get_name().size() != 0);
-					return type_id(reduce_ids({ps.module_id, id}, location));
+					assert(ps.module_name.size() != 0);
+					return type_id(reduce_ids({identifier_t{ps.module_name, INTERNAL_LOC()}, id}, location));
 				}
 			}
 		}
@@ -159,7 +158,7 @@ namespace types {
 		if (ps.token.tk == tk_double_dot) {
 			ps.advance();
 			expect_token(tk_identifier);
-			auto type_args = type_variable(make_code_id(ps.token));
+			auto type_args = type_variable(iid(ps.token));
 			ps.advance();
 			chomp_token(tk_rparen);
 			return type_args;
@@ -174,7 +173,7 @@ namespace types {
 				ps.advance();
 
 				if (var_name.text == "_") {
-					var_name.text = types::gensym(INTERNAL_LOC())->get_name();
+					var_name.text = types::gensym(INTERNAL_LOC()).name;
 				}
 
 				/* parse the type */
@@ -189,11 +188,11 @@ namespace types {
 					param_types.push_back(parse_type(ps, generics));
 				}
 
-				auto param_name = make_code_id(var_name);
+				auto param_name = iid(var_name);
 
 				/* check for duplicate param names */
 				for (auto p : param_names) {
-					if (([](identifier_t x) { return x->get_name(); })(p) == param_name->get_name()) {
+					if (([](identifier_t x) { return x.name; })(p) == param_name.name) {
 						throw user_error(ps.token.location, "duplicated parameter name: %s", var_name.text.c_str());
 					}
 				}
@@ -241,11 +240,11 @@ namespace types {
             parse_state_t &ps,
 			location_t location,
             std::set<identifier_t> generics,
-            identifier_t &name,
+            std::shared_ptr<identifier_t> &name,
             types::type_t::ref default_return_type)
     {
         if (ps.token.tk == tk_identifier) {
-            name = make_code_id(ps.token);
+            name = std::make_shared<identifier_t>(identifier_t::from_token(ps.token));
             ps.advance();
         } else {
             name.reset();
@@ -261,15 +260,15 @@ namespace types {
             auto constraints_token = ps.token;
             ps.advance();
             while (ps.token.tk == tk_identifier) {
-                auto ftv = make_code_id(ps.token);
+                auto ftv = iid(ps.token);
 
                 if (in(ftv, generics)) {
                     auto iter = generics.find(ftv);
-                    auto error = user_error(ftv->get_location(),
+                    auto error = user_error(ftv.location,
                             "illegal redeclaration of type variable %s", 
-                            ftv->str().c_str());
-                    error.add_info((*iter)->get_location(), "see original declaration of type variable %s",
-                            (*iter)->str().c_str());
+                            ftv.str().c_str());
+                    error.add_info((*iter).location, "see original declaration of type variable %s",
+                            (*iter).str().c_str());
                     throw error;
                 }
 
@@ -327,11 +326,11 @@ namespace types {
 			auto rhs = parse_type(ps, generics);
 			chomp_token(tk_rsquare);
 			return type_operator(
-					type_operator(type_id(make_iid_impl(STD_MAP_TYPE, square_token.location)), lhs),
+					type_operator(type_id(identifier_t{STD_MAP_TYPE, square_token.location}), lhs),
 					rhs);
 		} else {
 			chomp_token(tk_rsquare);
-			return type_operator(type_id(make_iid_impl(STD_VECTOR_TYPE, square_token.location)), lhs);
+			return type_operator(type_id(identifier_t{STD_VECTOR_TYPE, square_token.location}), lhs);
 		}
 	}
 
@@ -358,21 +357,15 @@ namespace types {
 			auto param_token = ps.token;
 			ps.advance();
 			auto body = parse_and_type(ps, generics);
-			return type_lambda(make_code_id(param_token), body);
-		} else if (ps.token.is_ident(K(typeof))) {
-			ps.advance();
-			chomp_token(tk_lparen);
-			auto type = type_typeof(ast::expression_t::parse(ps));
-			chomp_token(tk_rparen);
-			return type;
+			return type_lambda(iid(param_token), body);
 		} else if (ps.token.is_ident(K(fn))) {
 			auto location = ps.token.location;
 			ps.advance();
-			identifier_t name;
+			std::shared_ptr<identifier_t> name;
 			auto fn_type = parse_function_type(ps, location, generics, name, nullptr);
-			if (name != nullptr && name->get_name() != "_") {
-				auto error = user_error(name->get_location(), "function name unexpected in this context (" c_id("%s") ")",
-						name->get_name().c_str());
+			if (name != nullptr && name->name != "_") {
+				auto error = user_error(name->location, "function name unexpected in this context (" c_id("%s") ")",
+						name->name.c_str());
 				error.add_info(fn_type->get_location(), "while parsing type %s", fn_type->str().c_str());
 				error.add_info(fn_type->get_location(), "note: to describe an unbound function type use the name '_'");
 				throw error;
@@ -385,7 +378,7 @@ namespace types {
 			type_t::ref type;
 			if (!ps.line_broke() && ps.token.tk == tk_identifier && !token_is_illegal_in_type(ps.token)) {
 				/* named generic */
-				type = type_variable(make_code_id(ps.token));
+				type = type_variable(iid(ps.token));
 				ps.advance();
 			} else {
 				/* no named generic */
@@ -545,7 +538,12 @@ namespace types {
 
 	identifier_t reduce_ids(const std::list<identifier_t> &ids, location_t location) {
 		assert(ids.size() != 0);
-		return make_iid_impl(join(ids, SCOPE_SEP), location);
+		return identifier_t{join(ids, SCOPE_SEP), location};
+	}
+
+	type_t::ref parse_type(parse_state_t &ps, const std::set<identifier_t> &generics) {
+		assert(ps.token.tk != tk_lcurly && ps.token.tk != tk_rcurly);
+		return types::parse_or_type(ps, generics);
 	}
 }
 
@@ -557,12 +555,7 @@ types::type_t::ref parse_type_expr(
 	std::istringstream iss(input);
 	zion_lexer_t lexer("", iss);
 
-	parse_state_t ps("", lexer, nullptr);
-	if (module_id != nullptr) {
-		ps.module_id = module_id;
-	} else {
-		ps.module_id = make_iid("__parse_type_expr__");
-	}
+	parse_state_t ps("", module_id.name, lexer, nullptr);
 	debug_above(8, log("parsing %s", input.c_str()));
 	return types::parse_type(ps, generics);
 }

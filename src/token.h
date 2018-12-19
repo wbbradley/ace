@@ -81,28 +81,27 @@ enum token_kind
 
 #define K(x) const char * const K_##x = #x
 K(_);
+K(__filename__);
 K(and);
-K(__unreachable__);
-K(get);
 K(any);
 K(as);
 K(break);
 K(continue);
 K(defer);
-K(fn);
 K(else);
+K(fn);
 K(for);
+K(get);
 K(global);
-K(typeid);
-K(typeof);
-K(integer);
 K(has);
 K(if);
 K(in);
+K(integer);
 K(is);
 K(lambda);
 K(let);
 K(link);
+K(unreachable);
 K(module);
 K(new);
 K(not);

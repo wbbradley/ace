@@ -44,19 +44,16 @@ add_executable(zion
 	src/mmap_file.cpp
 	src/parse_state.cpp
 	src/parser.cpp
-	src/patterns.cpp
 	src/scope.cpp
 	src/tests.cpp
 	src/token.cpp
 	src/token_queue.cpp
 	src/type_eval.cpp
-	src/type_instantiation.cpp
 	src/type_parser.cpp
 	src/types.cpp
 	src/unification.cpp
 	src/user_error.cpp
 	src/utils.cpp
-	src/var.cpp
 	)
 
 enable_testing()

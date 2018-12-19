@@ -5,8 +5,7 @@
 #include "utils.h"
 #include "types.h"
 #include "unification.h"
-#include "scopes.h"
-
+#include "env.h"
 
 unification_t::unification_t(
 		bool result,
@@ -200,11 +199,11 @@ unification_t unify_core(
 
 	if (pti_a != nullptr) {
 		/* we have reduced down to a type id for a */
-		auto a_name = pti_a->id->get_name();
+		auto a_name = pti_a->id.name;
 
 		if (pti_b != nullptr) {
 			/* we have reduced down to a type id for b */
-			auto b_name = pti_b->id->get_name();
+			auto b_name = pti_b->id.name;
 
 			if (a_name == b_name) {
 				/* simple type_id match */
@@ -290,14 +289,14 @@ unification_t unify_core(
 			}
 			debug_above(4, log(log_info,
 						"binding type_variable " c_id("%s") " to " c_type("%s"),
-						ptv_a->id->get_name().c_str(),
+						ptv_a->id.name.c_str(),
 						b->str(bindings).c_str()));
-			assert(bindings.find(ptv_a->id->get_name()) == bindings.end());
+			assert(bindings.find(ptv_a->id.name) == bindings.end());
 			if (b->rebind(bindings)->ftv_count() != 0) {
 				debug_above(4, log(log_info,
 							"note that %s is itself not fully bound", b->str().c_str()));
 			}
-			bindings[ptv_a->id->get_name()] = b;
+			bindings[ptv_a->id.name] = b;
 		}
 
 		return {true, "", bindings, coercions, {}};
@@ -313,14 +312,14 @@ unification_t unify_core(
 			}
 			debug_above(4, log(log_info,
 						"binding type_variable " c_id("%s") " to " c_type("%s"),
-						ptv_b->id->get_name().c_str(),
+						ptv_b->id.name.c_str(),
 						a->str(bindings).c_str()));
-			assert(bindings.find(ptv_b->id->get_name()) == bindings.end());
+			assert(bindings.find(ptv_b->id.name) == bindings.end());
 			if (a->rebind(bindings)->ftv_count() != 0) {
 				debug_above(4, log(log_info,
 							"note that %s is itself not fully bound", a->str().c_str()));
 			}
-			bindings[ptv_b->id->get_name()] = a;
+			bindings[ptv_b->id.name] = a;
 		}
 
 		return {true, "", bindings, coercions, {}};
