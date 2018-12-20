@@ -92,21 +92,48 @@ type_t::map unify(type_t::ref a, type_t::ref b) {
 		}
 	}
 
-	auto error = user_error(a->get_location(), "typing error");
-	error.add_info(b->get_location(), "types do not unify. %s != %s",
+	auto location = best_location(a->get_location(), b->get_location());
+	throw user_error(location, "type error. %s != %s",
 			a->str().c_str(),
 			b->str().c_str());
-	throw error;
 }
 
-types::type_t::map compose(types::type_t::map a, types::type_t::map b) {
+types::type_t::map solver(const types::type_t::map &subst, const constraints_t &constraints, env_t &env) {
+	if (constraints.size() == 0) {
+		return {};
+	}
+	try {
+		auto new_subst = compose(
+				subst,
+				unify(constraints[0].a, constraints[0].b));
+		env = env.rebind(new_subst);
+		return solver(new_subst, rebind_constraints(constraints, new_subst), env);
+	} catch (user_error &e) {
+		e.add_info(constraints[0].info.location, "while checking that %s", constraints[0].info.reason.c_str());
+		throw;
+	}
+}
+
+types::type_t::map compose(const types::type_t::map &a, const types::type_t::map &b) {
+	debug_above(9, log("composing {%s} with {%s}",
+			join_with(a, ", ", [](const auto &pair) {
+				return string_format("%s: %s", pair.first.c_str(), pair.second->str().c_str());
+				}).c_str(),
+			join_with(b, ", ", [](const auto &pair) {
+				return string_format("%s: %s", pair.first.c_str(), pair.second->str().c_str());
+				}).c_str()));
 	types::type_t::map m;
     for (auto pair : b) {
         m[pair.first] = pair.second->rebind(a);
     }
     for (auto pair : a) {
+		assert(!in(pair.first, m));
         m[pair.first] = pair.second;
     }
+	debug_above(9, log("which gives: %s",
+			join_with(m, ", ", [](const auto &pair) {
+				return string_format("%s: %s", pair.first.c_str(), pair.second->str().c_str());
+				}).c_str()));
     return m;
 }
 
@@ -117,6 +144,16 @@ std::vector<type_t::ref> rebind_tails(const std::vector<type_t::ref> &types, con
 		new_types.push_back(types[i]->rebind(env));
 	}
 	return new_types;
+}
+
+constraints_t rebind_constraints(const constraints_t &constraints, const type_t::map &env) {
+	assert(1 <= constraints.size());
+	constraints_t new_constraints;
+	for (int i=1; i<constraints.size(); ++i) {
+		auto &constraint = constraints[i];
+		new_constraints.push_back(constraint.rebind(env));
+	}
+	return new_constraints;
 }
 
 types::type_t::map unify_many(std::vector<types::type_t::ref> as, std::vector<types::type_t::ref> bs) {

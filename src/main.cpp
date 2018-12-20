@@ -83,7 +83,10 @@ int main(int argc, char *argv[]) {
 			return EXIT_SUCCESS;
 		} else if (cmd == "parse") {
 			if (compiler.parse_program()) {
-				std::cout << compiler.program;
+				for (auto decl : compiler.program->decls) {
+					log_location(log_info, decl->var.location, "%s = %s", decl->var.str().c_str(),
+							decl->value->str().c_str());
+				}
 				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;
@@ -101,20 +104,17 @@ int main(int argc, char *argv[]) {
 			assert(alphabetize(27) == "ab");
 
 			if (compiler.parse_program()) {
-				for (auto decl : compiler.program->decls) {
-					log_location(log_info, decl->var.location, "%s = %s", decl->var.str().c_str(),
-							decl->value->str().c_str());
-				}
 				bitter::program_t *program = compiler.program;
 
 				env_t env;
-				env.map["+"] = forall({}, type_arrow(type_int(), type_arrow(type_int(), type_int())));
-				env.map["*"] = forall({}, type_arrow(type_int(), type_arrow(type_int(), type_int())));
-				env.map["-"] = forall({}, type_arrow(type_int(), type_arrow(type_int(), type_int())));
-				env.map["/"] = forall({}, type_arrow(type_int(), type_arrow(type_int(), type_int())));
-				env.map["unit"] = forall({}, type_unit());
-				env.map["true"] = forall({}, type_bool(INTERNAL_LOC()));
-				env.map["false"] = forall({}, type_bool(INTERNAL_LOC()));
+				location_t l_ = INTERNAL_LOC();
+				env.map["+"] = forall({}, type_arrow(l_, type_int(l_), type_arrow(l_, type_int(l_), type_int(l_))));
+				env.map["*"] = forall({}, type_arrow(l_, type_int(l_), type_arrow(l_, type_int(l_), type_int(l_))));
+				env.map["-"] = forall({}, type_arrow(l_, type_int(l_), type_arrow(l_, type_int(l_), type_int(l_))));
+				env.map["/"] = forall({}, type_arrow(l_, type_int(l_), type_arrow(l_, type_int(l_), type_int(l_))));
+				env.map["unit"] = forall({}, type_unit(l_));
+				env.map["true"] = forall({}, type_bool(l_));
+				env.map["false"] = forall({}, type_bool(l_));
 
 				constraints_t constraints;
 				for (bitter::decl_t *decl : program->decls) {
@@ -127,39 +127,37 @@ int main(int argc, char *argv[]) {
 					}
 				}
 
-				for (auto pair : constraints) {
-					assert(pair.first != nullptr);
-					assert(pair.second != nullptr);
-					debug_above(9, log_location(log_info, pair.first->get_location(), "constraining %s to %s",
-							   	pair.first->str().c_str(),
-							   	pair.second->str().c_str()));
-					debug_above(9, log_location(log_info, pair.second->get_location(), "constraining %s to %s",
-							   	pair.first->str().c_str(),
-							   	pair.second->str().c_str()));
+				for (auto constraint : constraints) {
+					assert(constraint.a != nullptr);
+					assert(constraint.b != nullptr);
+					debug_above(7, log_location(log_info, constraint.info.location,
+							   	"constraining %s to %s because %s",
+								constraint.a->str().c_str(),
+								constraint.b->str().c_str(),
+								constraint.info.reason.c_str()));
 				}
+#if 0
 				for (auto pair : env.map) {
 					std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
 				}
-				std::cout << "unification..." << std::endl;
-				types::type_t::map subst;
-				for (auto pair : constraints) {
-					try {
-						auto s = unify(pair.first, pair.second);
-						subst = compose(subst, s);
-					} catch (user_error &e) {
-						print_exception(e);
-						/* keep trying other decls... */
+				std::cout << "unification solver..." << std::endl;
+#endif
+
+				try {
+					types::type_t::map subst = solver({}, constraints, env);
+
+					for (auto pair : subst) {
+						std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
 					}
+
+					for (auto pair : env.map) {
+						std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
+					}
+				} catch (user_error &e) {
+					print_exception(e);
+					/* keep trying other decls... */
 				}
 
-				for (auto pair : subst) {
-					std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
-				}
-
-				env = env.rebind(subst);
-				for (auto pair : env.map) {
-					std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
-				}
 
 				return EXIT_SUCCESS;
 			}

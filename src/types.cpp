@@ -47,12 +47,6 @@ namespace types {
 		return str(map{});
 	}
 
-	void type_t::encode(env_t::ref env, std::vector<uint16_t> &encoding) const {
-		assert(eval(env) == shared_from_this());
-		encoding.push_back(atomize(repr()));
-		// throw user_error(get_location(), "unable to encode type %s", str().c_str());
-	}
-
 	std::string type_t::str(const map &bindings) const {
 		return string_format(c_type("%s"), this->repr(bindings).c_str());
 	}
@@ -85,10 +79,6 @@ namespace types {
 
 	std::ostream &type_id_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		return os << id.name;
-	}
-
-	void type_id_t::encode(env_t::ref env, std::vector<uint16_t> &encoding) const {
-		encoding.push_back(atomize(id.name));
 	}
 
 	int type_id_t::ftv_count() const {
@@ -178,9 +168,9 @@ namespace types {
 			if (auto op = dyncast<const type_operator_t>(rebound_oper)) {
 				if (auto inner_op = dyncast<const type_id_t>(op->oper)) {
 					if (strspn(inner_op->id.name.c_str(), MATHY_SYMBOLS) == inner_op->id.name.size()) {
-						op->operand->emit(os, {}, parent_precedence);
+						op->operand->emit(os, {}, get_precedence());
 						os << " " << inner_op->id.name << " ";
-						return operand->emit(os, bindings, parent_precedence);
+						return operand->emit(os, bindings, get_precedence() + 1);
 					}
 				}
 			}
@@ -189,15 +179,6 @@ namespace types {
 			operand->emit(os, bindings, get_precedence() + 1);
 			return os;
 		}
-	}
-
-	void type_operator_t::encode(env_t::ref env, std::vector<uint16_t> &encoding) const {
-		static int depth = 0;
-		depth_guard_t depth_guard(get_location(), depth, 10);
-
-		encoding.push_back(APPLY_INST);
-		oper->eval(env)->encode(env, encoding);
-		operand->eval(env)->encode(env, encoding);
 	}
 
 	int type_operator_t::ftv_count() const {
@@ -621,127 +602,6 @@ namespace types {
 		return binding.location;
 	}
 
-	type_integer_t::type_integer_t(type_t::ref bit_size, type_t::ref signed_) :
-		bit_size(bit_size), signed_(signed_)
-	{
-	}
-
-	std::ostream &type_integer_t::emit(std::ostream &os, const map &bindings_, int parent_precedence) const {
-		std::stringstream ss;
-		bit_size->emit(ss, bindings_, 0);
-		auto bit_size_str = ss.str();
-		ss.str("");
-		signed_->emit(ss, bindings_, 0);
-		auto signed_str = ss.str();
-
-		bool _signed = (signed_str == "true");
-		bool _unsigned = !_signed && (signed_str == "false");
-
-		if (_signed) {
-			if (bit_size_str == "64") {
-				return os << "int";
-			} else if (bit_size_str == "32") {
-				return os << "int32";
-			} else if (bit_size_str == "16") {
-				return os << "int16";
-			} else if (bit_size_str == "8") {
-				return os << "int8";
-			}
-		} else if (_unsigned) {
-			if (bit_size_str == "64") {
-				return os << "uint";
-			} else if (bit_size_str == "32") {
-				return os << "uint32";
-			} else if (bit_size_str == "16") {
-				return os << "uint16";
-			} else if (bit_size_str == "8") {
-				return os << "uint8";
-			}
-		}
-
-		return os << K(integer) << "(" << bit_size_str << ", " << signed_str << ")";
-	}
-
-	int type_integer_t::ftv_count() const {
-		/* pretend this is getting applied */
-		return bit_size->ftv_count() + signed_->ftv_count();
-	}
-
-	std::set<std::string> type_integer_t::get_ftvs() const {
-		std::set<std::string> ftvs = bit_size->get_ftvs();
-		std::set<std::string> ftvs_signed = signed_->get_ftvs();
-		ftvs.insert(ftvs_signed.begin(), ftvs_signed.end());
-		return ftvs;
-	}
-
-	type_t::ref type_integer_t::rebind(const map &bindings) const {
-		auto bit_size_rebound = bit_size->rebind(bindings);
-		auto signed_rebound = signed_->rebind(bindings);
-		if (bit_size_rebound != bit_size || signed_rebound != signed_) {
-			return ::type_integer(bit_size_rebound, signed_rebound);
-		} else {
-			return shared_from_this();
-		}
-	}
-
-	type_t::ref type_integer_t::remap_vars(const std::map<std::string, std::string> &map) const {
-		auto bit_size_rebound = bit_size->remap_vars(map);
-		auto signed_rebound = signed_->remap_vars(map);
-		if (bit_size_rebound != bit_size || signed_rebound != signed_) {
-			return ::type_integer(bit_size_rebound, signed_rebound);
-		} else {
-			return shared_from_this();
-		}
-	}
-
-	location_t type_integer_t::get_location() const {
-		return bit_size->get_location();
-	}
-
-	type_literal_t::type_literal_t(token_t token) : token(token)
-	{
-	}
-
-	std::ostream &type_literal_t::emit(std::ostream &os, const map &bindings_, int parent_precedence) const {
-		return os << token.text;
-	}
-
-	int type_literal_t::ftv_count() const {
-		return 0;
-	}
-
-	std::set<std::string> type_literal_t::get_ftvs() const {
-		return {};
-	}
-
-	type_t::ref type_literal_t::rebind(const map &bindings_) const {
-		return shared_from_this();
-	}
-
-	type_t::ref type_literal_t::remap_vars(const std::map<std::string, std::string> &map) const {
-		return shared_from_this();
-	}
-
-	location_t type_literal_t::get_location() const {
-		return token.location;
-	}
-
-	int type_literal_t::coerce_to_int() const {
-		std::string text = token.text;
-		if (token.tk == tk_string) {
-			text = unescape_json_quotes(text);
-		}
-		std::istringstream iss(text);
-		int value;
-		iss >> value;
-		if (iss.fail() || !iss.eof()) {
-			throw user_error(get_location(), "could not parse number from %s",
-					text.c_str());
-			return 0;
-		}
-		return value;
-	}
-
 	type_data_t::type_data_t(
 			token_t name,
 			type_variable_t::refs type_vars,
@@ -777,10 +637,6 @@ namespace types {
 		}
 #endif
 		return os;
-	}
-
-	void type_data_t::encode(env_t::ref env, std::vector<uint16_t> &encoding) const {
-		assert(false);
 	}
 
 	int type_data_t::ftv_count() const {
@@ -870,94 +726,11 @@ namespace types {
 	}
 
 	bool is_type_id(type_t::ref type, const std::string &type_name, env_t::ref env) {
-		type = type->eval(env);
-
 		if (auto pti = dyncast<const types::type_id_t>(type)) {
 			return pti->id.name == type_name;
 		}
 
 		return false;
-	}
-
-	int coerce_to_integer(
-			env_t::ref env,
-			type_t::ref type,
-			type_t::ref &expansion)
-	{
-		expansion = type->eval(env);
-
-		if (auto literal = dyncast<const type_literal_t>(expansion)) {
-			return literal->coerce_to_int();
-		} else {
-			throw user_error(type->get_location(),
-					"unable to deduce an integer value from type %s",
-					expansion->str().c_str());
-		}
-	}
-
-	bool is_integer(type_t::ref type, env_t::ref env) {
-		auto expansion = type->eval(env);
-		return dyncast<const type_integer_t>(expansion) != nullptr;
-	}
-
-	void get_integer_attributes(
-			location_t location,
-			type_integer_t::ref integer,
-			env_t::ref env,
-			unsigned &bit_size,
-			bool &signed_)
-	{
-		type_t::ref bit_size_expansion;
-		bit_size = coerce_to_integer(env, integer->bit_size, bit_size_expansion);
-		auto signed_type = integer->signed_->eval(env);
-		if (types::is_type_id(signed_type, TRUE_TYPE, {})) {
-			signed_ = true;
-			return;
-		} else if (types::is_type_id(signed_type, FALSE_TYPE, {})) {
-			signed_ = false;
-			return;
-		} else {
-			throw user_error(integer->signed_->get_location(), "unable to determine signedness for type from %s",
-					signed_type->str().c_str());
-		}
-	}
-
-	bool maybe_get_integer_attributes(
-			location_t location,
-			type_t::ref type,
-			env_t::ref env,
-			unsigned &bit_size,
-			bool &signed_)
-	{
-		type = type->eval(env);
-		if (auto integer = dyncast<const type_integer_t>(type)) {
-			get_integer_attributes(location, integer, env, bit_size, signed_);
-			return true;
-		} else if (types::is_type_id(type, CHAR_TYPE, {})) {
-			bit_size = 8;
-			signed_ = false;
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	void get_runtime_typeids(type_t::ref type, env_t::ref env, std::set<int> &typeids) {
-		auto expansion = type->eval(env);
-		debug_above(7, log("get_runtime_typeids expanded to %s", expansion->str().c_str()));
-		if (auto type_ref = dyncast<const type_ref_t>(expansion)) {
-			throw user_error(type->get_location(), "reference types are not allowed here. %s does not have runtime type information",
-					type->str().c_str());
-		} else if (auto type_ptr = dyncast<const type_ptr_t>(expansion)) {
-			throw user_error(type->get_location(), "pointer types are not allowed here. %s does not have runtime type information",
-					type->str().c_str());
-		} else if (auto type_id = dyncast<const type_id_t>(expansion)) {
-			typeids.insert(atomize(type_id->repr()));
-		} else if (auto type_operator = dyncast<const type_operator_t>(expansion)) {
-			typeids.insert(atomize(type_operator->repr()));
-		} else {
-			assert(false);
-		}
 	}
 
 	type_t::ref without_ref(type_t::ref type) {
@@ -1072,7 +845,7 @@ types::type_t::ref type_variable(location_t location) {
 	return std::make_shared<types::type_variable_t>(location);
 }
 
-types::type_t::ref type_unit() {
+types::type_t::ref type_unit(location_t location) {
     return type_tuple({});
 }
 
@@ -1082,27 +855,23 @@ types::type_t::ref type_bottom() {
 }
 
 types::type_t::ref type_bool(location_t location) {
-	static auto bool_type = std::make_shared<types::type_id_t>(identifier_t{BOOL_TYPE, location});
-	return bool_type;
+	return std::make_shared<types::type_id_t>(identifier_t{BOOL_TYPE, location});
 }
 
-types::type_t::ref type_string() {
-	static auto string_type = std::make_shared<types::type_id_t>(make_iid(STR_TYPE));
-	return string_type;
+types::type_t::ref type_string(location_t location) {
+	return std::make_shared<types::type_id_t>(identifier_t{STR_TYPE, location});
 }
 
-types::type_t::ref type_int() {
-	static auto int_type = std::make_shared<types::type_id_t>(make_iid(INT_TYPE));
-	return int_type;
+types::type_t::ref type_int(location_t location) {
+	return std::make_shared<types::type_id_t>(identifier_t{INT_TYPE, location});
 }
 
-types::type_t::ref type_null() {
-	static auto null_type = std::make_shared<types::type_id_t>(make_iid(NULL_TYPE));
-	return null_type;
+types::type_t::ref type_null(location_t location) {
+	return std::make_shared<types::type_id_t>(identifier_t{NULL_TYPE, location});
 }
 
-types::type_t::ref type_void() {
-	return std::make_shared<types::type_id_t>(make_iid(VOID_TYPE));
+types::type_t::ref type_void(location_t location) {
+	return std::make_shared<types::type_id_t>(identifier_t{VOID_TYPE, location});
 }
 
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand) {
@@ -1157,17 +926,8 @@ types::type_args_t::ref type_args(
 	return std::make_shared<types::type_args_t>(args, names);
 }
 
-types::type_t::ref type_arrow(types::type_t::ref a, types::type_t::ref b) {
-	return type_operator(type_operator(type_id(identifier_t{"->", INTERNAL_LOC()}), a), b);
-}
-
-types::type_t::ref type_literal(token_t token) {
-	assert(token.tk == tk_integer || token.tk == tk_string || token.tk == tk_identifier);
-	return std::make_shared<types::type_literal_t>(token);
-}
-
-types::type_t::ref type_integer(types::type_t::ref bit_size, types::type_t::ref signed_) {
-	return std::make_shared<types::type_integer_t>(bit_size, signed_);
+types::type_t::ref type_arrow(location_t location, types::type_t::ref a, types::type_t::ref b) {
+	return type_operator(type_operator(type_id(identifier_t{"->", location}), a), b);
 }
 
 types::type_ptr_t::ref type_ptr(types::type_t::ref raw) {

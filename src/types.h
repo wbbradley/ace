@@ -64,9 +64,6 @@ namespace types {
 
 		virtual type_t::ref rebind(const map &env) const = 0;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const = 0;
-		ref eval(env_ref_t env) const;
-		virtual type_t::ref eval_core(env_ref_t env) const = 0;
-		virtual void encode(env_ref_t env, std::vector<uint16_t> &encoding) const;
 
 		virtual int get_precedence() const { return 10; }
 	};
@@ -92,7 +89,6 @@ namespace types {
 		virtual type_t::ref rebind(const map &env) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual location_t get_location() const;
-		virtual type_t::ref eval_core(env_ref_t env) const;
 
 		type_t::refs args;
 		identifiers_t names;
@@ -103,7 +99,6 @@ namespace types {
 		type_variable_t(location_t location /* auto-generated fresh type variables */);
 		identifier_t id;
 
-		virtual type_t::ref eval_core(env_ref_t env) const { return shared_from_this(); }
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
@@ -129,8 +124,6 @@ namespace types {
 		virtual type_t::ref rebind(const map &env) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual location_t get_location() const;
-		virtual type_t::ref eval_core(env_ref_t env) const;
-		virtual void encode(env_ref_t env, std::vector<uint16_t> &encoding) const;
 	};
 
 	struct type_id_t : public type_t {
@@ -143,8 +136,6 @@ namespace types {
 		virtual type_t::ref rebind(const map &env) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual location_t get_location() const;
-		virtual type_t::ref eval_core(env_ref_t env) const;
-		virtual void encode(env_ref_t env, std::vector<uint16_t> &encoding) const;
 	};
 
 	struct type_operator_t : public type_t {
@@ -162,8 +153,6 @@ namespace types {
 		virtual type_t::ref rebind(const map &env) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual location_t get_location() const;
-		virtual type_t::ref eval_core(env_ref_t env) const;
-		virtual void encode(env_ref_t env, std::vector<uint16_t> &encoding) const;
 	};
 
 	struct type_any_of_t : public type_t {
@@ -172,27 +161,12 @@ namespace types {
 		type_any_of_t(const map &shapes);
 		refs shapes;
 
-		virtual type_t::ref eval_core(env_ref_t env) const { return shared_from_this(); }
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
 		virtual std::set<std::string> get_ftvs() const;
 		virtual type_t::ref rebind(const map &env) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual location_t get_location() const;
-	};
-
-	struct type_literal_t : public type_t {
-		type_literal_t(token_t token);
-		token_t token;
-
-		virtual type_t::ref eval_core(env_ref_t env) const { return shared_from_this(); }
-		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
-		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &env) const;
-		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
-		virtual location_t get_location() const;
-		int coerce_to_int() const;
 	};
 
 	struct type_integer_t : public type_t {
@@ -209,7 +183,6 @@ namespace types {
 		virtual type_t::ref rebind(const map &env) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual location_t get_location() const;
-		virtual type_t::ref eval_core(env_ref_t env) const;
 	};
 
 	struct type_struct_t : public type_product_t {
@@ -226,7 +199,6 @@ namespace types {
 		virtual type_t::ref rebind(const map &env) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual location_t get_location() const;
-		virtual type_t::ref eval_core(env_ref_t env) const;
 
 		type_t::refs dimensions;
 		name_index_t name_index;
@@ -246,7 +218,6 @@ namespace types {
 		virtual type_t::ref rebind(const map &env) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual location_t get_location() const;
-		virtual type_t::ref eval_core(env_ref_t env) const;
 
 		type_t::refs dimensions;
 	};
@@ -264,7 +235,6 @@ namespace types {
 		virtual type_t::ref rebind(const map &env) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual location_t get_location() const;
-		virtual type_t::ref eval_core(env_ref_t env) const;
 	};
 
 	struct type_ref_t : public type_t {
@@ -281,7 +251,6 @@ namespace types {
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual location_t get_location() const;
 
-		virtual type_t::ref eval_core(env_ref_t env) const;
 	};
 
 	struct type_lambda_t : public type_t {
@@ -296,7 +265,6 @@ namespace types {
 		virtual type_t::ref rebind(const map &env) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual location_t get_location() const;
-		virtual type_t::ref eval_core(env_ref_t env) const;
 	};
 
 	struct forall_t {
@@ -314,19 +282,6 @@ namespace types {
 
 	identifier_t gensym(location_t location);
 	int coerce_to_integer(env_ref_t env, type_t::ref type, type_t::ref &expansion);
-	bool maybe_get_integer_attributes(
-			location_t location,
-		   	type_t::ref type,
-		   	env_ref_t env,
-		   	unsigned &bit_size,
-		   	bool &signed_);
-	void get_integer_attributes(
-			location_t location,
-			type_integer_t::ref type,
-			env_ref_t env,
-			unsigned &bit_size,
-			bool &signed_);
-	void get_runtime_typeids(type_t::ref type, env_ref_t env, std::set<int> &typeids);
 	type_t::ref without_ref(type_t::ref type);
 	type_t::refs without_refs(type_t::refs types);
 	types::type_t::ref freshen(types::type_t::ref type);
@@ -337,13 +292,12 @@ namespace types {
 /* type data ctors */
 types::type_t::ref type_bottom();
 types::type_t::ref type_bool(location_t location);
-types::type_t::ref type_string();
-types::type_t::ref type_int();
-types::type_t::ref type_unit();
-types::type_t::ref type_null();
-types::type_t::ref type_void();
-types::type_t::ref type_literal(token_t token);
-types::type_t::ref type_arrow(types::type_t::ref a, types::type_t::ref b);
+types::type_t::ref type_string(location_t location);
+types::type_t::ref type_int(location_t location);
+types::type_t::ref type_unit(location_t location);
+types::type_t::ref type_null(location_t location);
+types::type_t::ref type_void(location_t location);
+types::type_t::ref type_arrow(location_t location, types::type_t::ref a, types::type_t::ref b);
 types::type_t::ref type_integer(types::type_t::ref size, types::type_t::ref is_signed);
 types::type_t::ref type_id(identifier_t var);
 types::type_t::ref type_variable(identifier_t name);
