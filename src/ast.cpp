@@ -1,8 +1,6 @@
 #include "parens.h"
 #include "ast.h"
 
-#define MATHY_SYMBOLS "!@#$%^&*()+-_=><.,/|[]`~\\"
-
 std::ostream &operator <<(std::ostream &os, bitter::program_t *program) {
 	os << "program";
 	const char *delim = "\n";
@@ -126,12 +124,13 @@ namespace bitter {
 		const int precedence = 0;
 		parens_t parens(os, parent_precedence, precedence);
 		const char *delim = "";
+		os << "{";
 		for (auto statement: statements) {
 			os << delim;
 			statement->render(os, precedence);
 			delim = "; ";
 		}
-		return os;
+		return os << "}";
 	}
 	location_t lambda_t::get_location() {
 		return var.location;

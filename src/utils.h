@@ -95,6 +95,16 @@ struct maybe {
 	}
 };
 
+template <typename T, typename U>
+std::vector<U> values(const std::map<T, U> &map) {
+	std::vector<U> v;
+	v.reserve(map.size());
+	for (auto &pair : map) {
+		v.push_back(pair.second);
+	}
+	return v;
+}
+
 template <typename T>
 std::ostream &operator <<(std::ostream &os, const maybe<T> &m) {
 	if (m.valid) {
@@ -254,3 +264,5 @@ bool in_vector_with(U item, const COLL &set, std::function<V (U)> extractor) {
 	}
 	return false;
 }
+
+std::string alphabetize(int i);

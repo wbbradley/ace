@@ -2,8 +2,15 @@
 #include "ast.h"
 #include "builtins.h"
 #include "user_error.h"
+#include "env.h"
 
 using namespace bitter;
+
+void append(constraints_t &constraints, types::type_t::ref a, types::type_t::ref b) {
+	assert(a != nullptr);
+	assert(b != nullptr);
+	constraints.push_back({a, b});
+}
 
 types::type_t::ref infer(
 		bitter::expr_t *expr,
@@ -27,19 +34,13 @@ types::type_t::ref infer(
 		return env.lookup_env(var->id);
 	} else if (auto lambda = dcast<lambda_t*>(expr)) {
 		auto tv = type_variable(lambda->var.location);
-		return type_arrow(
-				tv,
-				infer(
-					lambda->body,
-					env.extend(
-						lambda->var,
-						forall({}, tv)),
-					constraints));
+		auto local_env = env.extend(lambda->var, forall({}, tv));
+		return type_arrow(tv, infer(lambda->body, local_env, constraints));
 	} else if (auto application = dcast<application_t*>(expr)) {
 		auto t1 = infer(application->a, env, constraints);
 		auto t2 = infer(application->b, env, constraints);
 		auto tv = type_variable(expr->get_location());
-		constraints.push_back({t1, type_arrow(t2, tv)});
+		append(constraints, t1, type_arrow(t2, tv));
 		return tv;
 	} else if (auto let = dcast<let_t*>(expr)) {
 		return infer(
@@ -50,21 +51,34 @@ types::type_t::ref infer(
 				constraints);
 	} else if (auto fix = dcast<fix_t*>(expr)) {
 		auto tv = type_variable(fix->get_location());
-		constraints.push_back(
-				{
-				type_arrow(tv, tv), 
-				infer(fix->f, env, constraints)
-				});
+		append(constraints, type_arrow(tv, tv), infer(fix->f, env, constraints));
 		return tv;
 	} else if (auto condition = dcast<conditional_t*>(expr)) {
 		auto t1 = infer(condition->cond, env, constraints);
 		auto t2 = infer(condition->truthy, env, constraints);
 		auto t3 = infer(condition->falsey, env, constraints);
-		constraints.push_back({t1, type_bool()});
-		constraints.push_back({t2, t3});
+		append(constraints, t1, type_bool(condition->cond->get_location()));
+		append(constraints, t2, t3);
 		return t2;
-	} else {
-		throw user_error(expr->get_location(), "unhandled inference for %s",
-				expr->str().c_str());
+	} else if (auto block = dcast<block_t*>(expr)) {
+		for (int i=0; i<block->statements.size(); ++i) {
+			auto expr = block->statements[i];
+			if (i != block->statements.size()-1) {
+				if (auto return_statement = dcast<return_statement_t*>(expr)) {
+					throw user_error(return_statement->get_location(), "there are statements after a return statement");
+				}
+			}
+
+			auto t1 = infer(expr, env, constraints);
+			append(constraints, t1, type_unit());
+		}
+		return type_unit();
+	} else if (auto return_ = dcast<return_statement_t*>(expr)) {
+		auto t1 = infer(return_->value, env, constraints);
+		// append(constraints, t1, env.return_type);
+		return t1;
 	}
+
+	throw user_error(expr->get_location(), "unhandled inference for %s",
+			expr->str().c_str());
 }

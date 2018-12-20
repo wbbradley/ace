@@ -6,5 +6,5 @@
 using constraints_t = std::vector<std::pair<types::type_t::ref, types::type_t::ref>>;
 types::type_t::ref infer(
 		bitter::expr_t *expr,
-		env_t::ref env,
+		env_ref_t env,
 	   	constraints_t &constraints);

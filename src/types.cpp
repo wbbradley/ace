@@ -100,31 +100,33 @@ namespace types {
 		return {};
 	}
 
-	type_t::ref type_id_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
+	type_t::ref type_id_t::rebind(const map &bindings) const {
 		return shared_from_this();
 	}
 
-	type_t::ref type_id_t::unbottom() const {
-		if (id.name == BOTTOM_TYPE) {
-			return type_variable(INTERNAL_LOC());
-		} else {
-			return shared_from_this();
-		}
+	type_t::ref type_id_t::remap_vars(const std::map<std::string, std::string> &map) const {
+		return shared_from_this();
 	}
 
 	location_t type_id_t::get_location() const {
 		return id.location;
 	}
 
-	type_variable_t::type_variable_t(identifier_t id) : id(id), location(id.location) {
+	type_variable_t::type_variable_t(identifier_t id) : id(id) {
+		for (auto ch : id.name) {
+			assert(islower(ch) || !isalpha(ch));
+		}
 	}
 
 	identifier_t gensym(location_t location) {
 		/* generate fresh "any" variables */
-		return identifier_t{string_format("__%d", next_generic++).c_str(), location};
+		return identifier_t{string_format("__%s", alphabetize(next_generic++).c_str()).c_str(), location};
 	}
 
-	type_variable_t::type_variable_t(location_t location) : id(types::gensym(location)), location(location) {
+	type_variable_t::type_variable_t(location_t location) : id(types::gensym(location)) {
+		for (auto ch : id.name) {
+			assert(islower(ch) || !isalpha(ch));
+		}
 	}
 
 	std::ostream &type_variable_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
@@ -133,7 +135,7 @@ namespace types {
 			assert(instance_iter->second != shared_from_this());
 			return instance_iter->second->emit(os, bindings, parent_precedence);
 		} else {
-			return os << string_format("any %s", id.name.c_str());
+			return os << string_format("%s", id.name.c_str());
 		}
 	}
 
@@ -146,30 +148,18 @@ namespace types {
 		return {id.name};
 	}
 
-	type_t::ref type_variable_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() != 0) {
-			auto instance_iter = bindings.find(id.name);
-			if (instance_iter != bindings.end()) {
-				/* recurse the rebinding, but remove the current rebinding */
-				map new_bindings;
-				for (auto &pair : bindings) {
-					if (pair.first == id.name) {
-						continue;
-					}
-					new_bindings.insert(pair);
-				}
-				return instance_iter->second->rebind(new_bindings);
-			}
-		}
-		return bottom_out_free_vars ? type_bottom() : shared_from_this();
+	type_t::ref type_variable_t::rebind(const map &bindings) const {
+		return get(bindings, id.name, shared_from_this());
 	}
 
-	type_t::ref type_variable_t::unbottom() const {
-		return shared_from_this();
+	type_t::ref type_variable_t::remap_vars(const std::map<std::string, std::string> &map) const {
+		auto iter = map.find(id.name);
+		assert(iter != map.end());
+		return type_variable(identifier_t{iter->second, id.location});
 	}
 
 	location_t type_variable_t::get_location() const {
-		return location;
+		return id.location;
 	}
 
 	type_operator_t::type_operator_t(type_t::ref oper, type_t::ref operand) :
@@ -184,6 +174,16 @@ namespace types {
 			return os << "]";
 		} else {
 			parens_t parens(os, parent_precedence, get_precedence());
+			auto rebound_oper = oper->rebind(bindings);
+			if (auto op = dyncast<const type_operator_t>(rebound_oper)) {
+				if (auto inner_op = dyncast<const type_id_t>(op->oper)) {
+					if (strspn(inner_op->id.name.c_str(), MATHY_SYMBOLS) == inner_op->id.name.size()) {
+						op->operand->emit(os, {}, parent_precedence);
+						os << " " << inner_op->id.name << " ";
+						return operand->emit(os, bindings, parent_precedence);
+					}
+				}
+			}
 			oper->emit(os, bindings, get_precedence());
 			os << " ";
 			operand->emit(os, bindings, get_precedence() + 1);
@@ -211,67 +211,20 @@ namespace types {
 		return oper_set;
 	}
 
-	type_t::ref type_operator_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
+	type_t::ref type_operator_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
 			return shared_from_this();
 		}
 
-		return ::type_operator(oper->rebind(bindings, bottom_out_free_vars), operand->rebind(bindings, bottom_out_free_vars));
+		return ::type_operator(oper->rebind(bindings), operand->rebind(bindings));
 	}
 
-	type_t::ref type_operator_t::unbottom() const {
-		auto oper_ = oper->unbottom();
-		auto operand_ = operand->unbottom();
-		if (oper_ != oper || operand_ != operand) {
-			return ::type_operator(oper_, operand_);
-		} else {
-			return shared_from_this();
-		}
+	type_t::ref type_operator_t::remap_vars(const std::map<std::string, std::string> &map) const {
+		return ::type_operator(oper->remap_vars(map), operand->remap_vars(map));
 	}
 
 	location_t type_operator_t::get_location() const {
 		return oper->get_location();
-	}
-
-	type_subtype_t::type_subtype_t(type_t::ref lhs, type_t::ref rhs) :
-		lhs(lhs), rhs(rhs)
-	{
-	}
-
-	std::ostream &type_subtype_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		parens_t parens(os, parent_precedence, get_precedence());
-
-		lhs->emit(os, bindings, get_precedence());
-		os << " <: ";
-		return rhs->emit(os, bindings, get_precedence());
-	}
-
-	int type_subtype_t::ftv_count() const {
-		return lhs->ftv_count() + rhs->ftv_count();
-	}
-
-	std::set<std::string> type_subtype_t::get_ftvs() const {
-		std::set<std::string> lhs_set = lhs->get_ftvs();
-		std::set<std::string> rhs_set = rhs->get_ftvs();
-		lhs_set.insert(rhs_set.begin(), rhs_set.end());
-		return lhs_set;
-	}
-
-	type_t::ref type_subtype_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
-			return shared_from_this();
-		}
-
-		return ::type_subtype(lhs->rebind(bindings, bottom_out_free_vars), rhs->rebind(bindings, bottom_out_free_vars));
-	}
-
-	type_t::ref type_subtype_t::unbottom() const {
-		assert(false);
-		return shared_from_this();
-	}
-
-	location_t type_subtype_t::get_location() const {
-		return lhs->get_location();
 	}
 
 	type_struct_t::type_struct_t(type_t::refs dimensions, types::name_index_t name_index) :
@@ -321,15 +274,15 @@ namespace types {
 	}
 
 
-	type_t::ref type_struct_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
+	type_t::ref type_struct_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
 			return shared_from_this();
 		}
 
 		bool anything_was_rebound = false;
 		refs type_dimensions;
 		for (auto dimension : dimensions) {
-			auto new_dim = dimension->rebind(bindings, bottom_out_free_vars);
+			auto new_dim = dimension->rebind(bindings);
 			if (new_dim != dimension) {
 				anything_was_rebound = true;
 			}
@@ -343,11 +296,24 @@ namespace types {
 		}
 	}
 
-	type_t::ref type_struct_t::unbottom() const {
-		// TODO: impl
-		assert(false);
-		return shared_from_this();
+	type_t::ref type_struct_t::remap_vars(const std::map<std::string, std::string> &map) const {
+		bool anything_was_rebound = false;
+		refs type_dimensions;
+		for (auto dimension : dimensions) {
+			auto new_dim = dimension->remap_vars(map);
+			if (new_dim != dimension) {
+				anything_was_rebound = true;
+			}
+			type_dimensions.push_back(new_dim);
+		}
+
+		if (anything_was_rebound) {
+			return ::type_struct(type_dimensions, name_index);
+		} else {
+			return shared_from_this();
+		}
 	}
+
 
 	location_t type_struct_t::get_location() const {
 		if (dimensions.size() != 0) {
@@ -399,15 +365,15 @@ namespace types {
 	}
 
 
-	type_t::ref type_tuple_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
+	type_t::ref type_tuple_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
 			return shared_from_this();
 		}
 
 		bool anything_was_rebound = false;
 		refs type_dimensions;
 		for (auto dimension : dimensions) {
-			auto new_dim = dimension->rebind(bindings, bottom_out_free_vars);
+			auto new_dim = dimension->rebind(bindings);
 			if (new_dim != dimension) {
 				anything_was_rebound = true;
 			}
@@ -421,11 +387,11 @@ namespace types {
 		}
 	}
 
-	type_t::ref type_tuple_t::unbottom() const {
+	type_t::ref type_tuple_t::remap_vars(const std::map<std::string, std::string> &map) const {
 		bool anything_was_rebound = false;
 		refs type_dimensions;
 		for (auto dimension : dimensions) {
-			auto new_dim = dimension->unbottom();
+			auto new_dim = dimension->remap_vars(map);
 			if (new_dim != dimension) {
 				anything_was_rebound = true;
 			}
@@ -496,22 +462,22 @@ namespace types {
 	}
 
 
-	type_t::ref type_args_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
+	type_t::ref type_args_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
 			return shared_from_this();
 		}
 
 		refs type_args;
 		for (auto arg : args) {
-			type_args.push_back(arg->rebind(bindings, bottom_out_free_vars));
+			type_args.push_back(arg->rebind(bindings));
 		}
 		return ::type_args(type_args, names);
 	}
 
-	type_t::ref type_args_t::unbottom() const {
+	type_t::ref type_args_t::remap_vars(const std::map<std::string, std::string> &map) const {
 		refs type_args;
 		for (auto arg : args) {
-			type_args.push_back(arg->unbottom());
+			type_args.push_back(arg->remap_vars(map));
 		}
 		return ::type_args(type_args, names);
 	}
@@ -522,201 +488,6 @@ namespace types {
 		} else {
 			return INTERNAL_LOC();
 		}
-	}
-
-	type_managed_t::type_managed_t(type_t::ref element_type) :
-		element_type(element_type)
-	{
-#ifdef ZION_DEBUG
-		assert(element_type != nullptr);
-#endif
-	}
-
-	product_kind_t type_managed_t::get_pk() const {
-		return pk_managed;
-	}
-
-	type_t::refs type_managed_t::get_dimensions() const {
-		return {element_type};
-	}
-
-
-	std::ostream &type_managed_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		os << "managed{";
-		element_type->emit(os, bindings, 0);
-		os << "}";
-		return os;
-	}
-
-	int type_managed_t::ftv_count() const {
-		return element_type->ftv_count();
-	}
-
-	std::set<std::string> type_managed_t::get_ftvs() const {
-		return element_type->get_ftvs();
-	}
-
-	type_t::ref type_managed_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
-			return shared_from_this();
-		}
-
-		return ::type_managed(element_type->rebind(bindings, bottom_out_free_vars));
-	}
-
-	type_t::ref type_managed_t::unbottom() const {
-		// TODO: impl
-		assert(false);
-		return shared_from_this();
-	}
-
-	location_t type_managed_t::get_location() const {
-		return element_type->get_location();
-	}
-
-	type_injection_t::type_injection_t(type_t::ref module_type) :
-		module_type(module_type)
-	{
-#ifdef ZION_DEBUG
-		assert(module_type != nullptr);
-#endif
-	}
-
-	product_kind_t type_injection_t::get_pk() const {
-		return pk_module;
-	}
-
-	type_t::refs type_injection_t::get_dimensions() const {
-		return {module_type};
-	}
-
-	std::ostream &type_injection_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		os << "module ";
-		module_type->emit(os, bindings, get_precedence());
-		return os;
-	}
-
-	int type_injection_t::ftv_count() const {
-		return module_type->ftv_count();
-	}
-
-	std::set<std::string> type_injection_t::get_ftvs() const {
-		return module_type->get_ftvs();
-	}
-
-
-	type_t::ref type_injection_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
-			return shared_from_this();
-		}
-
-		return ::type_injection(module_type->rebind(bindings, bottom_out_free_vars));
-	}
-
-	type_t::ref type_injection_t::unbottom() const {
-		// TODO: impl
-		assert(false);
-		return shared_from_this();
-	}
-
-	location_t type_injection_t::get_location() const {
-		return module_type->get_location();
-	}
-
-	type_and_t::type_and_t(type_t::refs terms) : terms(terms) {
-	}
-
-	std::ostream &type_and_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		parens_t parens(os, parent_precedence, get_precedence());
-		const char *delim = "";
-		assert(terms.size() != 0);
-		for (auto term : terms) {
-			os << delim;
-			term->emit(os, bindings, get_precedence());
-			delim = " and ";
-		}
-		return os;
-	}
-
-	int type_and_t::ftv_count() const {
-		int ftv_sum = 0;
-		for (auto term : terms) {
-			ftv_sum += term->ftv_count();
-		}
-		return ftv_sum;
-	}
-
-	std::set<std::string> type_and_t::get_ftvs() const {
-		std::set<std::string> set;
-		for (auto term : terms) {
-			std::set<std::string> option_set = term->get_ftvs();
-			set.insert(option_set.begin(), option_set.end());
-		}
-		return set;
-	}
-
-	type_t::ref type_and_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
-			return shared_from_this();
-		}
-
-		refs type_options;
-		for (auto term : terms) {
-			type_options.push_back(term->rebind(bindings, bottom_out_free_vars));
-		}
-		return ::type_and(type_options);
-	}
-
-	type_t::ref type_and_t::unbottom() const {
-		// TODO: impl
-		assert(false);
-		return shared_from_this();
-	}
-
-	location_t type_and_t::get_location() const {
-		return location;
-	}
-
-	const token_kind type_eq_t::TK = tk_binary_equal;
-
-	type_eq_t::type_eq_t(type_t::ref lhs, type_t::ref rhs, location_t location) :
-		lhs(lhs), rhs(rhs), location(location) {
-		}
-
-	std::ostream &type_eq_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		parens_t parens(os, parent_precedence, get_precedence());
-		lhs->emit(os, bindings, get_precedence());
-		os << " " << tkstr(type_eq_t::TK) << " ";
-		return rhs->emit(os, bindings, get_precedence());
-	}
-
-	int type_eq_t::ftv_count() const {
-		return lhs->ftv_count() + rhs->ftv_count();
-	}
-
-	std::set<std::string> type_eq_t::get_ftvs() const {
-		std::set<std::string> set = lhs->get_ftvs();
-		std::set<std::string> rhs_set = rhs->get_ftvs();
-		set.insert(rhs_set.begin(), rhs_set.end());
-		return set;
-	}
-
-	type_t::ref type_eq_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
-			return shared_from_this();
-		}
-
-		return ::type_eq(lhs->rebind(bindings, bottom_out_free_vars), rhs->rebind(bindings, bottom_out_free_vars), location);
-	}
-
-	type_t::ref type_eq_t::unbottom() const {
-		// TODO: impl
-		assert(false);
-		return shared_from_this();
-	}
-
-	location_t type_eq_t::get_location() const {
-		return location;
 	}
 
 	type_ptr_t::type_ptr_t(type_t::ref element_type) : element_type(element_type) {
@@ -738,21 +509,16 @@ namespace types {
 		return element_type->get_ftvs();
 	}
 
-	type_t::ref type_ptr_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
+	type_t::ref type_ptr_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
 			return shared_from_this();
 		}
 
-		return ::type_ptr(element_type->rebind(bindings, bottom_out_free_vars));
+		return ::type_ptr(element_type->rebind(bindings));
 	}
 
-	type_t::ref type_ptr_t::unbottom() const {
-		auto element_type_ = element_type->unbottom();
-		if (element_type_ != element_type) {
-			return std::make_shared<types::type_ptr_t>(element_type_);
-		} else {
-			return shared_from_this();
-		}
+	type_t::ref type_ptr_t::remap_vars(const std::map<std::string, std::string> &map) const {
+		return ::type_ptr(element_type->remap_vars(map));
 	}
 
 	location_t type_ptr_t::get_location() const {
@@ -777,18 +543,16 @@ namespace types {
 		return element_type->get_ftvs();
 	}
 
-	type_t::ref type_ref_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
+	type_t::ref type_ref_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
 			return shared_from_this();
 		}
 
-		return ::type_ref(element_type->rebind(bindings, bottom_out_free_vars));
+		return ::type_ref(element_type->rebind(bindings));
 	}
 
-	type_t::ref type_ref_t::unbottom() const {
-		// TODO: impl
-		assert(false);
-		return shared_from_this();
+	type_t::ref type_ref_t::remap_vars(const std::map<std::string, std::string> &map) const {
+		return ::type_ref(element_type->remap_vars(map));
 	}
 
 	location_t type_ref_t::get_location() const {
@@ -825,7 +589,7 @@ namespace types {
 		return body->rebind(bindings)->get_ftvs();
 	}
 
-	type_t::ref type_lambda_t::rebind(const map &bindings_, bool bottom_out_free_vars) const {
+	type_t::ref type_lambda_t::rebind(const map &bindings_) const {
 		if (bindings_.size() == 0) {
 			return shared_from_this();
 		}
@@ -835,13 +599,22 @@ namespace types {
 		if (binding_iter != bindings.end()) {
 			bindings.erase(binding_iter);
 		}
-		return ::type_lambda(binding, body->rebind(bindings, bottom_out_free_vars));
+		return ::type_lambda(binding, body->rebind(bindings));
 	}
 
-	type_t::ref type_lambda_t::unbottom() const {
-		// TODO: impl
+	type_t::ref type_lambda_t::remap_vars(const std::map<std::string, std::string> &map_) const {
 		assert(false);
-		return shared_from_this();
+		if (in(binding.name, map_)) {
+			std::map<std::string, std::string> map = map_;
+			auto new_binding = alphabetize(map.size());
+			map[binding.name] = new_binding;
+			assert(!in(new_binding, map_));
+			assert(!in(new_binding, get_ftvs()));
+			return ::type_lambda(
+					identifier_t{new_binding, binding.location},
+					body->remap_vars(map));
+		}
+		return ::type_lambda(binding, body->remap_vars(map_));
 	}
 
 	location_t type_lambda_t::get_location() const {
@@ -901,9 +674,9 @@ namespace types {
 		return ftvs;
 	}
 
-	type_t::ref type_integer_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		auto bit_size_rebound = bit_size->rebind(bindings, bottom_out_free_vars);
-		auto signed_rebound = signed_->rebind(bindings, bottom_out_free_vars);
+	type_t::ref type_integer_t::rebind(const map &bindings) const {
+		auto bit_size_rebound = bit_size->rebind(bindings);
+		auto signed_rebound = signed_->rebind(bindings);
 		if (bit_size_rebound != bit_size || signed_rebound != signed_) {
 			return ::type_integer(bit_size_rebound, signed_rebound);
 		} else {
@@ -911,8 +684,14 @@ namespace types {
 		}
 	}
 
-	type_t::ref type_integer_t::unbottom() const {
-		return shared_from_this();
+	type_t::ref type_integer_t::remap_vars(const std::map<std::string, std::string> &map) const {
+		auto bit_size_rebound = bit_size->remap_vars(map);
+		auto signed_rebound = signed_->remap_vars(map);
+		if (bit_size_rebound != bit_size || signed_rebound != signed_) {
+			return ::type_integer(bit_size_rebound, signed_rebound);
+		} else {
+			return shared_from_this();
+		}
 	}
 
 	location_t type_integer_t::get_location() const {
@@ -935,13 +714,11 @@ namespace types {
 		return {};
 	}
 
-	type_t::ref type_literal_t::rebind(const map &bindings_, bool bottom_out_free_vars) const {
+	type_t::ref type_literal_t::rebind(const map &bindings_) const {
 		return shared_from_this();
 	}
 
-	type_t::ref type_literal_t::unbottom() const {
-		// TODO: impl
-		assert(false);
+	type_t::ref type_literal_t::remap_vars(const std::map<std::string, std::string> &map) const {
 		return shared_from_this();
 	}
 
@@ -963,45 +740,6 @@ namespace types {
 			return 0;
 		}
 		return value;
-	}
-
-	type_extern_t::type_extern_t(types::type_t::ref inner) : inner(inner)
-	{
-	}
-
-	std::ostream &type_extern_t::emit(std::ostream &os, const map &bindings_, int parent_precedence) const {
-		parens_t parens(os, parent_precedence, get_precedence());
-
-		os << "extern ";
-		inner->emit(os, bindings_, get_precedence());
-		return os;
-	}
-
-	int type_extern_t::ftv_count() const {
-		/* pretend this is getting applied */
-		return inner->ftv_count();
-	}
-
-	std::set<std::string> type_extern_t::get_ftvs() const {
-		return inner->get_ftvs();
-	}
-
-	type_t::ref type_extern_t::rebind(const map &bindings_, bool bottom_out_free_vars) const {
-		if (bindings_.size() == 0) {
-			return shared_from_this();
-		}
-
-		return ::type_extern(inner->rebind(bindings_, bottom_out_free_vars));
-	}
-
-	type_t::ref type_extern_t::unbottom() const {
-		// TODO: impl
-		assert(false);
-		return shared_from_this();
-	}
-
-	location_t type_extern_t::get_location() const {
-		return inner->get_location();
 	}
 
 	type_data_t::type_data_t(
@@ -1069,8 +807,8 @@ namespace types {
 		return set;
 	}
 
-	type_t::ref type_data_t::rebind(const map &bindings, bool bottom_out_free_vars) const {
-		if (bindings.size() == 0 && !bottom_out_free_vars) {
+	type_t::ref type_data_t::rebind(const map &bindings) const {
+		if (bindings.size() == 0) {
 			return shared_from_this();
 		}
 
@@ -1078,7 +816,7 @@ namespace types {
 		type_variable_t::refs new_type_vars;
 		new_type_vars.reserve(type_vars.size());
 		for (auto type_var : type_vars) {
-			new_type_vars.push_back(type_var->rebind(bindings, bottom_out_free_vars));
+			new_type_vars.push_back(type_var->rebind(bindings));
 			if (new_type_vars.back() != type_var) {
 				found_new = true;
 			}
@@ -1086,7 +824,7 @@ namespace types {
 
 		std::vector<std::pair<token_t, type_args_t::ref>> new_ctor_pairs;
 		for (auto ctor_pair : ctor_pairs) {
-			types::type_args_t::ref elem = dyncast<const type_args_t>(ctor_pair.second->rebind(bindings, bottom_out_free_vars));
+			types::type_args_t::ref elem = dyncast<const type_args_t>(ctor_pair.second->rebind(bindings));
 			assert(elem != nullptr);
 			new_ctor_pairs.push_back({ctor_pair.first, elem});
 			if (elem != ctor_pair.second) {
@@ -1100,12 +838,12 @@ namespace types {
 		}
 	}
 
-	type_t::ref type_data_t::unbottom() const {
+	type_t::ref type_data_t::remap_vars(const std::map<std::string, std::string> &map) const {
 		bool found_new = false;
 		type_variable_t::refs new_type_vars;
 		new_type_vars.reserve(type_vars.size());
 		for (auto type_var : type_vars) {
-			new_type_vars.push_back(type_var->unbottom());
+			new_type_vars.push_back(type_var->remap_vars(map));
 			if (new_type_vars.back() != type_var) {
 				found_new = true;
 			}
@@ -1113,7 +851,7 @@ namespace types {
 
 		std::vector<std::pair<token_t, type_args_t::ref>> new_ctor_pairs;
 		for (auto ctor_pair : ctor_pairs) {
-			types::type_args_t::ref elem = dyncast<const type_args_t>(ctor_pair.second->unbottom());
+			types::type_args_t::ref elem = dyncast<const type_args_t>(ctor_pair.second->remap_vars(map));
 			assert(elem != nullptr);
 			new_ctor_pairs.push_back({ctor_pair.first, elem});
 			if (elem != ctor_pair.second) {
@@ -1276,6 +1014,41 @@ namespace types {
 		}
 		return type->rebind(subst);
 	}
+
+	type_t::map remove_bindings(const type_t::map &env, const std::vector<std::string> &vars) {
+		type_t::map new_map{env};
+		for (auto var : vars) {
+			new_map.erase(var);
+		}
+		return new_map;
+	}
+
+	forall_t::ref forall_t::rebind(const types::type_t::map &env) {
+		return forall(vars, type->rebind(remove_bindings(env, vars)));
+	}
+
+	forall_t::ref forall_t::normalize() {
+		std::map<std::string, std::string> ord;
+
+		int counter = 0;
+		for (auto ftv: type->get_ftvs()) {
+			ord[ftv] = alphabetize(counter++);
+		}
+		return forall(values(ord), type->remap_vars(ord));
+	}
+
+	std::string forall_t::str() {
+		std::stringstream ss;
+		if (vars.size() != 0) {
+			ss << "(∀ " << join(vars, " ") << ". ";
+		}
+		type->emit(ss, {}, 0);
+		if (vars.size() != 0) {
+			ss << ")";
+		}
+		return ss.str();
+	}
+
 	std::set<std::string> forall_t::get_ftvs() {
 		std::set<std::string> ftvs;
 		for (auto ftv : type->get_ftvs()) {
@@ -1308,8 +1081,8 @@ types::type_t::ref type_bottom() {
 	return bottom_type;
 }
 
-types::type_t::ref type_bool() {
-	static auto bool_type = std::make_shared<types::type_id_t>(make_iid(BOOL_TYPE));
+types::type_t::ref type_bool(location_t location) {
+	static auto bool_type = std::make_shared<types::type_id_t>(identifier_t{BOOL_TYPE, location});
 	return bool_type;
 }
 
@@ -1334,10 +1107,6 @@ types::type_t::ref type_void() {
 
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand) {
 	return std::make_shared<types::type_operator_t>(operator_, operand);
-}
-
-types::type_t::ref type_subtype(types::type_t::ref lhs, types::type_t::ref rhs) {
-	return std::make_shared<types::type_subtype_t>(lhs, rhs);
 }
 
 types::forall_t::ref forall(std::vector<std::string> vars, types::type_t::ref type) {
@@ -1388,31 +1157,6 @@ types::type_args_t::ref type_args(
 	return std::make_shared<types::type_args_t>(args, names);
 }
 
-types::type_injection_t::ref type_injection(types::type_t::ref module_type) {
-	return std::make_shared<types::type_injection_t>(module_type);
-}
-
-types::type_managed_t::ref type_managed(types::type_t::ref element_type) {
-	return std::make_shared<types::type_managed_t>(element_type);
-}
-
-bool types_contains(const types::type_t::refs &options, std::string signature) {
-	for (auto &option : options) {
-		if (option->get_signature() == signature) {
-			return true;
-		}
-	}
-	return false;
-}
-
-types::type_t::ref type_and(types::type_t::refs terms) {
-	return std::make_shared<types::type_and_t>(terms);
-}
-
-types::type_t::ref type_eq(types::type_t::ref lhs, types::type_t::ref rhs, location_t location) {
-	return std::make_shared<types::type_eq_t>(lhs, rhs, location);
-}
-
 types::type_t::ref type_arrow(types::type_t::ref a, types::type_t::ref b) {
 	return type_operator(type_operator(type_id(identifier_t{"->", INTERNAL_LOC()}), a), b);
 }
@@ -1437,11 +1181,6 @@ types::type_t::ref type_ref(types::type_t::ref raw) {
 
 types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body) {
     return std::make_shared<types::type_lambda_t>(binding, body);
-}
-
-types::type_t::ref type_extern(types::type_t::ref inner)
-{
-    return std::make_shared<types::type_extern_t>(inner);
 }
 
 types::type_t::ref type_data(
