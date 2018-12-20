@@ -1,8 +1,10 @@
-fn sqr(x) => x * x
+# fn two() => 2
+fn sqr(x) => x + 4.0
 
-fn main() {
-    let f = fn (y) => 4 + y
-    x := 3
-    f(x) and [4, "hey"]
-}
+
+# fn plus(x, y) => x + y
+# fn I(x) => x
+# fn K(x) => fn (y) => x
+# fn S(f) => fn (g) => fn (x) => f(x)(g(x))
+# fn SKK(x) => S(K)(K)(x)
 

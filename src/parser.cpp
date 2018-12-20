@@ -1001,7 +1001,12 @@ conditional_t *parse_if(parse_state_t &ps) {
 		}
 	}
 
-	return new conditional_t(condition, block, else_);
+	return new conditional_t(
+			condition,
+		   	block,
+		   	else_ != nullptr
+		   	? else_
+		   	: new var_t(identifier_t{"unit", ps.token.location}));
 }
 
 while_t *parse_while(parse_state_t &ps) {

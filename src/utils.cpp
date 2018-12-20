@@ -510,3 +510,19 @@ void check_command_line_text(location_t location, std::string text) {
 		}
 	}
 }
+
+std::string alphabetize(int i) {
+	assert(i >= 0);
+	std::string x;
+	while (true) {
+		char letter[2] = {char('a' + (i % 26)), 0};
+		x = std::string(((const char *)letter)) + x;
+		if (i < 26) {
+			break;
+		}
+		i /= 26;
+		i -= 1;
+	}
+	return x;
+}
+

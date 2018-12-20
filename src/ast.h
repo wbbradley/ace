@@ -45,14 +45,14 @@ namespace bitter {
 	struct predicate_t {
 		virtual ~predicate_t() {}
 		virtual std::ostream &render(std::ostream &os) = 0;
-		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const = 0;
+		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_ref_t env) const = 0;
 	};
 
 	struct tuple_predicate_t : public predicate_t {
 		tuple_predicate_t(location_t location, std::vector<predicate_t *> params, maybe<identifier_t> name_assignment) :
 			location(location), params(params), name_assignment(name_assignment) {}
 		std::ostream &render(std::ostream &os) override;
-		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
+		match::Pattern::ref get_pattern(types::type_t::ref type, env_ref_t env) const override;
 
 		location_t const location;
 		std::vector<predicate_t *> const params;
@@ -62,7 +62,7 @@ namespace bitter {
 	struct irrefutable_predicate_t : public predicate_t {
 		irrefutable_predicate_t(location_t location, maybe<identifier_t> name_assignment) : location(location), name_assignment(name_assignment) {}
 		std::ostream &render(std::ostream &os) override;
-		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
+		match::Pattern::ref get_pattern(types::type_t::ref type, env_ref_t env) const override;
 
 		location_t const location;
 		maybe<identifier_t> const name_assignment;
@@ -76,7 +76,7 @@ namespace bitter {
 				maybe<identifier_t> name_assignment) :
 			location(location), params(params), ctor_name(ctor_name), name_assignment(name_assignment) {}
 		std::ostream &render(std::ostream &os) override;
-		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
+		match::Pattern::ref get_pattern(types::type_t::ref type, env_ref_t env) const override;
 
 		location_t const location;
 		std::vector<predicate_t *> const params;
@@ -142,7 +142,7 @@ namespace bitter {
 		location_t get_location() override;
 		std::ostream &render(std::ostream &os, int parent_precedence) override;
 		std::ostream &render(std::ostream &os) override;
-		match::Pattern::ref get_pattern(types::type_t::ref type, env_t::ref env) const override;
+		match::Pattern::ref get_pattern(types::type_t::ref type, env_ref_t env) const override;
 
 		token_t const token;
 	};

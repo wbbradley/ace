@@ -57,16 +57,8 @@ void compiler_t::info(const char *format, ...) {
 	va_end(args);
 }
 
-std::vector<token_t> compiler_t::get_comments() const {
-	return comments;
-}
-
-std::string compiler_t::get_program_name() const {
-	return program_name;
-}
-
 std::string compiler_t::get_executable_filename() const {
-	return program_name + ".zx";
+	return "z.out";
 }
 
 std::string resolve_module_filename(
@@ -326,7 +318,7 @@ expr_t *prefix(std::set<std::string> bindings, std::string pre, expr_t *value) {
 	} else if (auto literal = dcast<literal_t*>(value)) {
 		return value;
 	} else {
-		std::cerr << "What should I do with " << value << "?" << std::endl;
+		std::cerr << "What should I do with " << value->str() << "?" << std::endl;
 		assert(false);
 		return nullptr;
 	}

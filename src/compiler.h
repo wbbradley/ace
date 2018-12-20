@@ -17,12 +17,8 @@ struct compiler_t {
 
 	void info(const char *format, ...);
 
-	std::vector<token_t> get_comments() const;
-
 	/* testing */
 	std::string dump_program_text(std::string module_name);
-
-	void setup_disk_environment();
 
 	/* first step is to parse all modules */
 	bool parse_program();
@@ -32,7 +28,6 @@ struct compiler_t {
 	/* parse a single module */
 	bitter::module_t *parse_module(location_t location, std::string module_name);
 
-	std::string get_program_name() const;
 	std::string get_executable_filename() const;
 
 	bitter::program_t *program = nullptr;
