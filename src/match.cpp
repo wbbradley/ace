@@ -359,7 +359,8 @@ namespace match {
 	}
 
 	Pattern::ref from_type(location_t location, env_t::ref env, type_t::ref type) {
-		type = type->eval(env);
+		assert(false);
+		// type = type->eval(env);
 		if (auto data_type = dyncast<const type_data_t>(type)) {
 			std::vector<CtorPatternValue> cpvs;
 
@@ -395,9 +396,9 @@ namespace match {
 			}
 			CtorPatternValue cpv{type->repr(), "tuple", args};
 			return std::make_shared<CtorPattern>(location, cpv);
-		} else if (type_equality(type, type_string())) {
+		} else if (type_equality(type, type_string(INTERNAL_LOC()))) {
 			return allStrings;
-		} else if (type_equality(type, type_int())) {
+		} else if (type_equality(type, type_int(INTERNAL_LOC()))) {
 			return allIntegers;
 		} else {
 			/* just accept all of whatever this is */
@@ -644,10 +645,11 @@ namespace bitter {
 	using namespace ::types;
 
 	Pattern::ref tuple_predicate_t::get_pattern(type_t::ref type, env_t::ref env) const {
-		type = type->eval(env);
+		assert(false);
+		// type = type->eval(env);
 
 		std::vector<Pattern::ref> args;
-		if (auto tuple_type = dyncast<const type_tuple_t>(type->eval(env))) {
+		if (auto tuple_type = dyncast<const type_tuple_t>(type)) {
 			if (tuple_type->dimensions.size() != params.size()) {
 				throw user_error(location, "tuple predicate has an incorrect number of sub-patterns. there are %d, there should be %d",
 						int(params.size()),
@@ -667,8 +669,9 @@ namespace bitter {
 		}
 	}
 	Pattern::ref ctor_predicate_t::get_pattern(type_t::ref type, env_t::ref env) const {
-		type = type->eval(env);
-		if (auto data_type = dyncast<const type_data_t>(type->eval(env))) {
+		assert(false);
+		// type = type->eval(env);
+		if (auto data_type = dyncast<const type_data_t>(type)) {
 			for (auto ctor_pair : data_type->ctor_pairs) {
 				if (ctor_pair.first.text == ctor_name.name) {
 					std::vector<Pattern::ref> args;
@@ -705,14 +708,14 @@ namespace bitter {
 		return std::make_shared<AllOf>(location, name_assignment, env, type);
 	}
 	Pattern::ref literal_t::get_pattern(type_t::ref type, env_t::ref env) const {
-		if (type_equality(type, type_int())) {
+		if (type_equality(type, type_int(INTERNAL_LOC()))) {
 			if (token.tk == tk_integer) {
 				int64_t value = parse_int_value(token);
 				return std::make_shared<Scalars<int64_t>>(token.location, Scalars<int64_t>::Include, std::set<int64_t>{value});
 			} else if (token.tk == tk_identifier) {
 				return std::make_shared<Scalars<int64_t>>(token.location, Scalars<int64_t>::Exclude, std::set<int64_t>{});
 			}
-		} else if (type_equality(type, type_string())) {
+		} else if (type_equality(type, type_string(INTERNAL_LOC()))) {
 			if (token.tk == tk_string) {
 				std::string value = unescape_json_quotes(token.text);
 				return std::make_shared<Scalars<std::string>>(token.location, Scalars<std::string>::Include, std::set<std::string>{value});

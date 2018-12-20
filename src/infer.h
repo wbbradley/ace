@@ -1,9 +1,22 @@
 #pragma once
 #include <vector>
+#include <tuple>
 #include "types.h"
 #include "ast_decls.h"
 
-using constraints_t = std::vector<std::pair<types::type_t::ref, types::type_t::ref>>;
+struct constraint_info_t {
+	std::string const reason;
+	location_t const location;
+	std::string str() const;
+};
+
+struct constraint_t {
+	types::type_t::ref const a;
+	types::type_t::ref const b;
+	constraint_info_t const info;
+	constraint_t rebind(const types::type_t::map &env) const;
+};
+typedef std::vector<constraint_t> constraints_t;
 types::type_t::ref infer(
 		bitter::expr_t *expr,
 		env_ref_t env,

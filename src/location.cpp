@@ -81,3 +81,11 @@ bool location_t::operator !=(const location_t &rhs) const {
 bool location_t::has_file_location() const {
 	return filename.size() != 0 && line != -1 && col != -1;
 }
+
+location_t best_location(location_t a, location_t b) {
+	if (a.filename.find(".cpp") != std::string::npos) {
+		return b;
+	} else {
+		return a;
+	}
+}

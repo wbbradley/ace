@@ -1,10 +1,16 @@
 # fn two() => 2
-fn sqr(x) => x + 4.0
+fn print(x) {}
+fn sqr(x) {
+    print(x + 2)
+    return fn () {
+        return "hey"
+    }
+}
 
 
-# fn plus(x, y) => x + y
-# fn I(x) => x
-# fn K(x) => fn (y) => x
-# fn S(f) => fn (g) => fn (x) => f(x)(g(x))
-# fn SKK(x) => S(K)(K)(x)
+fn plus(x, y) => x + y
+fn I(x) => x
+fn K(x) => fn (y) => x
+fn S(f, g, x) => f(x)(g(x))
+fn SK() => S(K)
 

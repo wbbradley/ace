@@ -21,7 +21,7 @@ expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let);
 expr_t *parse_block(parse_state_t &ps, bool expression_means_return);
 conditional_t *parse_if(parse_state_t &ps);
 while_t *parse_while(parse_state_t &ps);
-lambda_t *parse_lambda(parse_state_t &ps);
+expr_t *parse_lambda(parse_state_t &ps);
 match_t *parse_match(parse_state_t &ps);
 predicate_t *parse_predicate(parse_state_t &ps, bool allow_else, maybe<identifier_t> name_assignment);
 
@@ -925,6 +925,9 @@ expr_t *parse_block(parse_state_t &ps, bool expression_means_return) {
 	if (ps.token.tk == tk_lcurly) {
 		finish_block = true;
 		ps.advance();
+		if (ps.token.tk == tk_rcurly) {
+			return new return_statement_t(new var_t(identifier_t{"unit", ps.token_and_advance().location}));
+		}
 	} else if (ps.token.tk == tk_expr_block) {
 		expression_block_syntax = true;
 		expression_block_assign_token = ps.token;
@@ -1219,7 +1222,7 @@ identifier_t parse_lambda_param(parse_state_t &ps) {
 }
 
 // TODO: put type mappings into the scope
-lambda_t *parse_lambda(parse_state_t &ps) {
+expr_t *parse_lambda(parse_state_t &ps) {
 	if (ps.token.tk == tk_identifier) {
 		throw user_error(ps.token.location, "identifiers are unexpected here");
 	}
@@ -1237,7 +1240,7 @@ lambda_t *parse_lambda(parse_state_t &ps) {
 	}
 
 	if (ps.token.tk == tk_comma) {
-		return new lambda_t(param_id, parse_lambda(ps));
+		return new lambda_t(param_id, new return_statement_t(parse_lambda(ps)));
 	} else if (ps.token.tk == tk_rparen) {
 		ps.advance();
 

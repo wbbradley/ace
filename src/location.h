@@ -25,3 +25,4 @@ struct location_t {
 };
 
 std::ostream &operator <<(std::ostream &os, const location_t &location);
+location_t best_location(location_t a, location_t b);
