@@ -23,6 +23,7 @@ std::shared_ptr<T> parse_text(const std::string &text, std::string filename = "r
 	return parse_text<T>(iss, filename);
 }
 
+bool token_begins_type(const token_t &token);
 inline identifier_t iid(const token_t &token) { return identifier_t::from_token(token); }
 
 

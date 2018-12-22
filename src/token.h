@@ -86,6 +86,7 @@ K(and);
 K(any);
 K(as);
 K(break);
+K(class);
 K(continue);
 K(defer);
 K(else);

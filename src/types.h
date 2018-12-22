@@ -267,7 +267,25 @@ namespace types {
 		virtual location_t get_location() const;
 	};
 
-	struct forall_t {
+	struct scheme_t {
+		virtual ~scheme_t() throw() {}
+	};
+
+#if 0
+	struct qualifier_t : public scheme_t {
+		typedef std::shared_ptr<bounded_t> ref;
+		bounded_t(std::vector<std::string> vars, types::type_t::ref type) : vars(vars), type(type) {}
+		types::type_t::ref instantiate(location_t location);
+		bounded_t::ref rebind(const types::type_t::map &env);
+		bounded_t::ref normalize();
+		std::set<std::string> get_ftvs();
+		std::string str();
+
+		types::type_t::ref type_variable;
+	};
+#endif
+
+	struct forall_t : public scheme_t {
 		typedef std::shared_ptr<forall_t> ref;
 		forall_t(std::vector<std::string> vars, types::type_t::ref type) : vars(vars), type(type) {}
 		types::type_t::ref instantiate(location_t location);
@@ -298,12 +316,15 @@ types::type_t::ref type_int(location_t location);
 types::type_t::ref type_unit(location_t location);
 types::type_t::ref type_null(location_t location);
 types::type_t::ref type_void(location_t location);
+types::type_t::ref type_map(types::type_t::ref a, types::type_t::ref b);
 types::type_t::ref type_arrow(location_t location, types::type_t::ref a, types::type_t::ref b);
+types::type_t::ref type_arrows(types::type_t::refs types, int offset=0);
 types::type_t::ref type_integer(types::type_t::ref size, types::type_t::ref is_signed);
 types::type_t::ref type_id(identifier_t var);
 types::type_t::ref type_variable(identifier_t name);
 types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
+types::type_t::ref type_operator(const types::type_t::refs &xs);
 types::forall_t::ref forall(std::vector<std::string> vars, types::type_t::ref type);
 types::type_struct_t::ref type_struct(types::type_t::refs dimensions, types::name_index_t name_index);
 types::type_struct_t::ref type_struct(types::type_args_t::ref type_args);
