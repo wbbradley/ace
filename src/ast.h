@@ -110,12 +110,14 @@ namespace bitter {
 	};
 
 	struct lambda_t : public expr_t {
-		lambda_t(identifier_t var, expr_t *body) : var(var), body(body) {}
+		lambda_t(identifier_t var, types::type_t::ref param_type, types::type_t::ref return_type, expr_t *body) : var(var), param_type(param_type), return_type(return_type), body(body) {}
 		location_t get_location() override;
 		std::ostream &render(std::ostream &os, int parent_precedence) override;
 
 		identifier_t const var;
 		expr_t * const body;
+		types::type_t::ref const param_type;
+		types::type_t::ref const return_type;
 	};
 
 	struct let_t : public expr_t {
@@ -141,6 +143,7 @@ namespace bitter {
 		literal_t(token_t token) : token(token) {}
 		location_t get_location() override;
 		std::ostream &render(std::ostream &os, int parent_precedence) override;
+
 		std::ostream &render(std::ostream &os) override;
 		match::Pattern::ref get_pattern(types::type_t::ref type, env_ref_t env) const override;
 

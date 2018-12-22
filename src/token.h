@@ -90,6 +90,7 @@ K(continue);
 K(defer);
 K(else);
 K(fn);
+K(fix);
 K(for);
 K(get);
 K(global);

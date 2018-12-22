@@ -137,9 +137,23 @@ namespace bitter {
 	}
 	std::ostream &lambda_t::render(std::ostream &os, int parent_precedence) {
 		const int precedence = 7;
-		os << "(λ" << var.name << ".";
+		os << "(λ" << var.name;
+		if (param_type != nullptr) {
+			os << c_good(" :: ");
+			os << C_TYPE;
+			param_type->emit(os, {}, 0);
+			os << C_RESET " ";
+		}
+		os << ".";
 		body->render(os, 0);
-		return os << ")";
+		os << ")";
+		if (return_type != nullptr) {
+			os << c_good(" :: ");
+			os << C_TYPE;
+			return_type->emit(os, {}, 0);
+			os << C_RESET;
+		}
+		return os;
 	}
 	location_t let_t::get_location() {
 		return var.location;

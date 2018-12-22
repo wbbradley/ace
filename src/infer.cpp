@@ -3,11 +3,16 @@
 #include "builtins.h"
 #include "user_error.h"
 #include "env.h"
+#include "unification.h"
 
 using namespace bitter;
 
 void append(constraints_t &constraints, types::type_t::ref a, types::type_t::ref b, constraint_info_t info) {
-	debug_above(6, log("constraining %s to %s", a->str().c_str(), b->str().c_str()));
+	debug_above(6, log_location(log_info, info.location,
+				"constraining %s to %s because %s",
+				a->str().c_str(),
+				b->str().c_str(),
+				info.reason.c_str()));
 	assert(a != nullptr);
 	assert(b != nullptr);
 	constraints.push_back({a, b, info});
@@ -18,6 +23,7 @@ types::type_t::ref infer(
 		env_t::ref env,
 	   	constraints_t &constraints)
 {
+	debug_above(8, log("infer(%s, ..., ...)", expr->str().c_str()));
 	if (auto literal = dcast<literal_t *>(expr)) {
 		switch (literal->token.tk) {
 		case tk_integer:
@@ -32,27 +38,56 @@ types::type_t::ref infer(
 			throw user_error(literal->token.location, "unsupported type of literal");
 		}
 	} else if (auto var = dcast<var_t*>(expr)) {
-		return env.lookup_env(var->id);
+		auto t1 = env.lookup_env(var->id);
+		debug_above(8, log("instance of %s :: %s", var->id.str().c_str(), t1->str().c_str()));
+		return t1;
 	} else if (auto lambda = dcast<lambda_t*>(expr)) {
-		auto tv = type_variable(lambda->var.location);
+		auto tv = lambda->param_type != nullptr ? lambda->param_type : type_variable(lambda->var.location);
 		auto return_type = type_variable(lambda->var.location);
 		auto local_env = env.extend(lambda->var, return_type, forall({}, tv));
 		auto body_type = infer(lambda->body, local_env, constraints);
-		// append(constraints, return_type, body_type, {"return types must match return statements", lambda->get_location()});
+		append(constraints, body_type, type_unit(lambda->body->get_location()), {"all statements must return unit", lambda->body->get_location()});
+#if 0
+		if (lambda->param_type != nullptr) {
+			append(constraints, tv, lambda->param_type, {"lambda variable must match type annotation", lambda->param_type->get_location()});
+		}
+#endif
+		if (lambda->return_type != nullptr) {
+			append(constraints, return_type, lambda->return_type, {"lambda return type must match type annotation", lambda->return_type->get_location()});
+		}
 		return type_arrow(lambda->get_location(), tv, return_type);
 	} else if (auto application = dcast<application_t*>(expr)) {
 		auto t1 = infer(application->a, env, constraints);
 		auto t2 = infer(application->b, env, constraints);
 		auto tv = type_variable(expr->get_location());
-		append(constraints, t1, type_arrow(application->get_location(), t2, tv), {"function calls must match types", application->get_location()});
+		append(constraints, t1, type_arrow(application->get_location(), t2, tv),
+				{string_format("(%s :: %s) applied to (%s :: %s) results in type %s",
+						application->a->str().c_str(),
+						t1->str().c_str(),
+						application->b->str().c_str(),
+						t2->str().c_str(),
+						tv->str().c_str()),
+				application->get_location()});
 		return tv;
 	} else if (auto let = dcast<let_t*>(expr)) {
-		return infer(
-				let->body, 
-				env.extend(
-					let->var,
-					infer(let->value, env, constraints)->generalize(env)),
-				constraints);
+		constraints_t local_constraints;
+		auto t1 = infer(let->value, env, local_constraints);
+		env_t local_env;
+		auto subst = solver({}, local_constraints, local_env);
+		for (auto constraint: local_constraints) {
+			log("in let found constraint %s", constraint.str().c_str());
+		}
+		auto schema = forall({}, t1); // t1->rebind(subst)->generalize(env.extend(let->var, schema).rebind(subst));
+		for (auto constraint: local_constraints) {
+			constraints.push_back(constraint);
+		}
+		auto t2 = infer(let->body, env.extend(let->var, schema), constraints)->rebind(subst);
+		log("the let variable is %s :: %s and the body is %s :: %s",
+				let->var.str().c_str(),
+				schema->str().c_str(),
+				let->body->str().c_str(),
+				t2->str().c_str());
+		return t2;
 	} else if (auto fix = dcast<fix_t*>(expr)) {
 		auto tv = type_variable(fix->get_location());
 		append(constraints, type_arrow(fix->get_location(), tv, tv), infer(fix->f, env, constraints), {"fixpoint", fix->get_location()});
@@ -81,7 +116,12 @@ types::type_t::ref infer(
 		return type_unit(block->get_location());
 	} else if (auto return_ = dcast<return_statement_t*>(expr)) {
 		auto t1 = infer(return_->value, env, constraints);
-		append(constraints, t1, env.return_type, {"return type expressions must match the type of the containing lambda", return_->get_location()});
+		append(constraints, t1, env.return_type,
+				{
+				string_format(
+						"returning (%s " c_good("::") " %s and %s)",
+						return_->value->str().c_str(), t1->str().c_str(), env.return_type->str().c_str()), 
+				return_->get_location()});
 		return type_unit(return_->get_location());
 	}
 
@@ -95,4 +135,23 @@ std::string constraint_info_t::str() const {
 
 constraint_t constraint_t::rebind(const types::type_t::map &env) const {
 	return {a->rebind(env), b->rebind(env), info};
+}
+
+std::string constraint_t::str() const {
+	return string_format("%s == %s because %s",
+			a->str().c_str(),
+			b->str().c_str(),
+			info.str().c_str());
+}
+
+std::string str(const constraints_t &constraints) {
+	std::stringstream ss;
+	ss << "[";
+	const char *delim = "";
+	for (auto c : constraints) {
+		ss << delim << c.str();
+		delim = ", ";
+	}
+	ss << "]";
+	return ss.str();
 }

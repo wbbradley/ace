@@ -1,16 +1,10 @@
-# fn two() => 2
-fn print(x) {}
-fn sqr(x) {
-    print(x + 2)
-    return fn () {
-        return "hey"
+fn lte(x, y) {
+    return true
+}
+let fib = fix fn (fib, n) {
+    if (lte(n, 2)) {
+        return 1
+    } else {
+        return fib(n-2) + fib(n-1)
     }
 }
-
-
-fn plus(x, y) => x + y
-fn I(x) => x
-fn K(x) => fn (y) => x
-fn S(f, g, x) => f(x)(g(x))
-fn SK() => S(K)
-

@@ -60,6 +60,7 @@ void handle_sigint(int sig) {
 		
 		
 int main(int argc, char *argv[]) {
+	//setenv("DEBUG", "8", 1 /*overwrite*/);
 	signal(SIGINT, &handle_sigint);
 	init_dbg();
 	std::shared_ptr<logger> logger(std::make_shared<standard_logger>("", "."));
@@ -97,13 +98,14 @@ int main(int argc, char *argv[]) {
 			assert(alphabetize(26) == "aa");
 			assert(alphabetize(27) == "ab");
 		} else if (cmd == "compile") {
-			assert(alphabetize(0) == "a");
-			assert(alphabetize(1) == "b");
-			assert(alphabetize(2) == "c");
-			assert(alphabetize(26) == "aa");
-			assert(alphabetize(27) == "ab");
 
 			if (compiler.parse_program()) {
+#if 0
+				for (auto decl : compiler.program->decls) {
+					log_location(log_info, decl->var.location, "%s = %s", decl->var.str().c_str(),
+							decl->value->str().c_str());
+				}
+#endif
 				bitter::program_t *program = compiler.program;
 
 				env_t env;
@@ -116,25 +118,34 @@ int main(int argc, char *argv[]) {
 				env.map["true"] = forall({}, type_bool(l_));
 				env.map["false"] = forall({}, type_bool(l_));
 
-				constraints_t constraints;
 				for (bitter::decl_t *decl : program->decls) {
+					constraints_t constraints;
 					try {
+						// log("type checking %s", decl->var.str().c_str());
 						types::type_t::ref ty = infer(decl->value, env, constraints);
-						env = env.extend(decl->var, forall({}, ty));
+						types::type_t::map subst = solver({}, constraints, env);
+
+						ty = ty->rebind(subst);
+						// log(">> %s", str(constraints).c_str());
+						// log(">> %s", str(subst).c_str());
+						env = env.extend(decl->var, ty->generalize(env));
+
+#if 0
+						for (auto pair : subst) {
+							std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
+						}
+
+						for (auto pair : env.map) {
+							std::cout << C_ID "------------------------------" C_RESET << std::endl;
+							std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
+						}
+#endif
+						// log("type checking %s :: %s", decl->var.str().c_str(), ty->generalize(env)->str().c_str());
 					} catch (user_error &e) {
 						print_exception(e);
 						/* keep trying other decls... */
 					}
-				}
 
-				for (auto constraint : constraints) {
-					assert(constraint.a != nullptr);
-					assert(constraint.b != nullptr);
-					debug_above(7, log_location(log_info, constraint.info.location,
-							   	"constraining %s to %s because %s",
-								constraint.a->str().c_str(),
-								constraint.b->str().c_str(),
-								constraint.info.reason.c_str()));
 				}
 #if 0
 				for (auto pair : env.map) {
@@ -143,6 +154,7 @@ int main(int argc, char *argv[]) {
 				std::cout << "unification solver..." << std::endl;
 #endif
 
+#if 0
 				try {
 					types::type_t::map subst = solver({}, constraints, env);
 
@@ -151,13 +163,15 @@ int main(int argc, char *argv[]) {
 					}
 
 					for (auto pair : env.map) {
+						std::cout << C_ID "------------------------------" C_RESET << std::endl;
+						std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
 						std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
 					}
 				} catch (user_error &e) {
 					print_exception(e);
 					/* keep trying other decls... */
 				}
-
+#endif
 
 				return EXIT_SUCCESS;
 			}
