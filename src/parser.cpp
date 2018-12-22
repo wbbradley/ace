@@ -841,16 +841,17 @@ expr_t *parse_tuple_expr(parse_state_t &ps) {
 		exprs.push_back(expr);
 
 		/* now let's find the rest of the values */
-		while (ps.token.tk != tk_rparen) {
+		while (true) {
+			if (ps.token.tk == tk_rparen) {
+				ps.advance();
+				break;
+			}
 			exprs.push_back(parse_expr(ps));
 			if (ps.token.tk == tk_comma) {
 				ps.advance();
-			} else {
-				chomp_token(tk_rparen);
 			}
 			// continue and read the next parameter
 		}
-		chomp_token(tk_rparen);
 
 		return new tuple_t(start_token.location, exprs);
 	}

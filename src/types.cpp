@@ -170,7 +170,7 @@ namespace types {
 					if (strspn(inner_op->id.name.c_str(), MATHY_SYMBOLS) == inner_op->id.name.size()) {
 						op->operand->emit(os, {}, get_precedence());
 						os << " " << inner_op->id.name << " ";
-						return operand->emit(os, bindings, get_precedence() + 1);
+						return operand->emit(os, bindings, get_precedence());
 					}
 				}
 			}
@@ -325,6 +325,9 @@ namespace types {
 	std::ostream &type_tuple_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		os << "(";
 		join_dimensions(os, dimensions, {}, bindings);
+		if (dimensions.size() != 0) {
+			os << ",";
+		}
 		return os << ")";
 	}
 

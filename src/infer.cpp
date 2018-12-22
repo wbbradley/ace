@@ -46,7 +46,7 @@ types::type_t::ref infer(
 		auto return_type = type_variable(lambda->var.location);
 		auto local_env = env.extend(lambda->var, return_type, forall({}, tv));
 		auto body_type = infer(lambda->body, local_env, constraints);
-		append(constraints, body_type, type_unit(lambda->body->get_location()), {"all statements must return unit", lambda->body->get_location()});
+		// append(constraints, body_type, type_unit(lambda->body->get_location()), {"all statements must return unit", lambda->body->get_location()});
 #if 0
 		if (lambda->param_type != nullptr) {
 			append(constraints, tv, lambda->param_type, {"lambda variable must match type annotation", lambda->param_type->get_location()});
@@ -110,7 +110,7 @@ types::type_t::ref infer(
 					}
 				}
 			} else {
-				append(constraints, t1, type_unit(block->get_location()), {"statements must return unit type", block->get_location()});
+				// append(constraints, t1, type_unit(block->get_location()), {"statements must return unit type", block->get_location()});
 			}
 		}
 		return type_unit(block->get_location());
@@ -122,7 +122,13 @@ types::type_t::ref infer(
 						"returning (%s " c_good("::") " %s and %s)",
 						return_->value->str().c_str(), t1->str().c_str(), env.return_type->str().c_str()), 
 				return_->get_location()});
-		return type_unit(return_->get_location());
+		return type_bottom();
+	} else if (auto tuple = dcast<tuple_t*>(expr)) {
+		std::vector<types::type_t::ref> dimensions;
+		for (auto dim : tuple->dims) {
+			dimensions.push_back(infer(dim, env, constraints));
+		}
+		return type_tuple(dimensions);
 	}
 
 	throw user_error(expr->get_location(), "unhandled inference for %s",

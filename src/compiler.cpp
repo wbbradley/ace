@@ -319,6 +319,10 @@ expr_t *prefix(std::set<std::string> bindings, std::string pre, expr_t *value) {
 				prefix(bindings, pre, while_->block));
 	} else if (auto literal = dcast<literal_t*>(value)) {
 		return value;
+	} else if (auto tuple = dcast<tuple_t*>(value)) {
+		return new tuple_t(
+				tuple->location,
+				prefix(bindings, pre, tuple->dims));
 	} else {
 		std::cerr << "What should I do with " << value->str() << "?" << std::endl;
 		assert(false);
