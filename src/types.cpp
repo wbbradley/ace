@@ -26,6 +26,11 @@ void reset_generics() {
 	next_generic = 1;
 }
 
+identifier_t gensym(location_t location) {
+	/* generate fresh "any" variables */
+	return identifier_t{string_format("__%s", alphabetize(next_generic++).c_str()).c_str(), location};
+}
+
 std::string get_name_from_index(const types::name_index_t &name_index, int i) {
 	std::string name;
 	for (auto name_pair : name_index) {
@@ -108,12 +113,7 @@ namespace types {
 		}
 	}
 
-	identifier_t gensym(location_t location) {
-		/* generate fresh "any" variables */
-		return identifier_t{string_format("__%s", alphabetize(next_generic++).c_str()).c_str(), location};
-	}
-
-	type_variable_t::type_variable_t(location_t location) : id(types::gensym(location)) {
+	type_variable_t::type_variable_t(location_t location) : id(gensym(location)) {
 		for (auto ch : id.name) {
 			assert(islower(ch) || !isalpha(ch));
 		}

@@ -280,7 +280,6 @@ namespace types {
 		types::type_t::ref type;
 	};
 
-	identifier_t gensym(location_t location);
 	int coerce_to_integer(env_ref_t env, type_t::ref type, type_t::ref &expansion);
 	type_t::ref without_ref(type_t::ref type);
 	type_t::refs without_refs(type_t::refs types);
@@ -288,6 +287,8 @@ namespace types {
 	bool share_ftvs(types::type_t::ref lhs, types::type_t::ref rhs);
 	bool is_type_id(type_t::ref type, const std::string &type_name, env_ref_t env);
 };
+
+identifier_t gensym(location_t location);
 
 /* type data ctors */
 types::type_t::ref type_bottom();

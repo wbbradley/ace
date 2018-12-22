@@ -71,7 +71,7 @@ type_t::map bind(std::string a, type_t::ref type) {
 }
 
 type_t::map unify(type_t::ref a, type_t::ref b) {
-	debug_above(8, log("unify(%s, %s)", a->str().c_str(), b->str().c_str()));
+	debug_above(6, log("unify(%s, %s)", a->str().c_str(), b->str().c_str()));
 	if (type_equality(a, b)) {
 		return {};
 	}
@@ -100,7 +100,7 @@ type_t::map unify(type_t::ref a, type_t::ref b) {
 
 types::type_t::map solver(const types::type_t::map &subst, const constraints_t &constraints, env_t &env) {
 	if (constraints.size() == 0) {
-		return {};
+		return subst;
 	}
 	try {
 		auto new_subst = compose(

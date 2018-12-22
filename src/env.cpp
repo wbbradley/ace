@@ -19,7 +19,7 @@ types::type_t::ref env_t::lookup_env(identifier_t id) const {
 	throw user_error(id.location, "unbound variable " C_ID "%s" C_RESET, id.name.c_str());
 }
 
-env_t env_t::rebind(const types::type_t::map &env) {
+env_t env_t::rebind(const types::type_t::map &env) const {
 	if (env.size() == 0) {
 		return *this;
 	}

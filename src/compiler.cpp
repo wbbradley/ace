@@ -99,7 +99,7 @@ std::string resolve_module_filename(
 							test_resolution.c_str());
 				} else {
 					working_resolution = test_resolution;
-					debug_above(4, log(log_info, "searching for file %s, found it at %s",
+					debug_above(11, log(log_info, "searching for file %s, found it at %s",
 								name.c_str(),
 								working_resolution.c_str()));
 				}
@@ -110,7 +110,7 @@ std::string resolve_module_filename(
 							test_path.c_str()));
 			}
 		} else {
-			debug_above(4, log(log_info, "searching for file %s, did not find it at %s",
+			debug_above(11, log(log_info, "searching for file %s, did not find it at %s",
 						name.c_str(),
 						test_path.c_str()));
 		}
@@ -150,7 +150,7 @@ struct global_parser_state_t {
 		ifs.open(module_filename.c_str());
 
 		if (ifs.good()) {
-			debug_above(4, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
+			debug_above(11, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
 			zion_lexer_t lexer({module_filename}, ifs);
 
 			parse_state_t ps(module_filename, "", lexer, &comments, &link_ins);
@@ -287,6 +287,8 @@ expr_t *prefix(std::set<std::string> bindings, std::string pre, expr_t *value) {
 	} else if (auto lambda = dcast<lambda_t*>(value)) {
 		return new lambda_t(
 				lambda->var,
+				lambda->param_type,
+				lambda->return_type,
 				prefix(
 					without(bindings,lambda->var.name),
 					pre,
@@ -359,7 +361,7 @@ bool compiler_t::parse_program() {
 		/* now parse the main program module */
 		gps.parse_module({module_name, location_t{"command line build parameters", 0, 0}});
 
-		debug_above(4, log(log_info, "parse_module of %s succeeded", module_name.c_str(),
+		debug_above(11, log(log_info, "parse_module of %s succeeded", module_name.c_str(),
 					false /*global*/));
 
 		std::vector<decl_t *> program_decls;
