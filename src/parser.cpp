@@ -13,6 +13,7 @@
 
 using namespace bitter;
 
+types::type_t::ref parse_type(parse_state_t &ps);
 expr_t *parse_literal(parse_state_t &ps);
 expr_t *parse_expr(parse_state_t &ps);
 expr_t *parse_assignment(parse_state_t &ps);
@@ -1259,6 +1260,102 @@ expr_t *parse_lambda(parse_state_t &ps) {
 	}
 }
 
+types::type_t::ref parse_function_type(parse_state_t &ps) {
+	chomp_token(tk_lparen);
+	types::type_t::refs params;
+	while (true) {
+		if (ps.token.tk == tk_rparen) {
+			ps.advance();
+			break;
+		}
+		params.push_back(parse_type(ps));
+		if (ps.token.tk == tk_comma) {
+			ps.advance();
+		}
+	}
+
+	if (token_begins_type(ps.token) && !ps.line_broke()) {
+		params.push_back(parse_type(ps));
+	}
+
+	return type_arrows(params);
+}
+
+types::type_t::ref parse_tuple_type(parse_state_t &ps) {
+	chomp_token(tk_lparen);
+	std::vector<types::type_t::ref> dims;
+	bool is_tuple = false;
+	while (true) {
+		dims.push_back(parse_type(ps));
+		if (ps.token.tk == tk_comma) {
+			ps.advance();
+			is_tuple = true;
+		}
+		if (ps.token.tk == tk_rparen) {
+			ps.advance();
+			break;
+		}
+	}
+
+	if (is_tuple) {
+		return type_tuple(dims);
+	} else {
+		return dims[0];
+	}
+}
+
+types::type_t::ref parse_square_type(parse_state_t &ps) {
+	chomp_token(tk_lsquare);
+	auto lhs = parse_type(ps);
+	if (ps.token.tk == tk_colon) {
+		ps.advance();
+		auto rhs = parse_type(ps);
+		chomp_token(tk_rsquare);
+		return type_map(lhs, rhs);
+	} else {
+		chomp_token(tk_rsquare);
+		return type_operator(type_id(identifier_t{"Vector", ps.token.location}), lhs);
+	}
+}
+
+types::type_t::ref parse_named_type(parse_state_t &ps) {
+	if (islower(ps.token.text[0])) {
+		return type_variable(iid(ps.token_and_advance()));
+	} else {
+		return type_id(iid(ps.token_and_advance()));
+	}
+}
+
+types::type_t::ref parse_type(parse_state_t &ps) {
+	/* look for type application */
+	std::vector<types::type_t::ref> types;
+
+	while (token_begins_type(ps.token) && !ps.line_broke()) {
+		if (ps.token.tk == tk_lparen) {
+			types.push_back(parse_tuple_type(ps));
+		} else if (ps.token.tk == tk_lsquare) {
+			types.push_back(parse_square_type(ps));
+		} else if (ps.token.is_ident(K(fn))) {
+			ps.advance();
+			types.push_back(parse_function_type(ps));
+		} else if (ps.token.tk == tk_identifier) {
+			types.push_back(parse_named_type(ps));
+		} else {
+			auto error = user_error(ps.token.location, "unhandled syntax for type specification");
+			error.add_info(ps.token.location, "type components found so far: [%s]",
+					join_str(types, ", ").c_str());
+			throw error;
+		}
+	}
+	if (types.size() == 0) {
+		throw user_error(ps.token.location, "expected a type here");
+	} else if (types.size() == 1) {
+		return types[0];
+	} else {
+		return type_operator(types);
+	}
+}
+
 module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 	debug_above(6, log("about to parse %s", ps.filename.c_str()));
 
@@ -1290,6 +1387,44 @@ module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 			auto id = identifier_t::from_token(ps.token_and_advance());
 			chomp_token(tk_assign);
 			decls.push_back(new decl_t(id, parse_expr(ps)));
+		} else if (ps.token.is_ident(K(class))) {
+			ps.advance();
+			expect_token(tk_identifier);
+			auto class_id = iid(ps.token_and_advance());
+			if (!isupper(class_id.name[0])) {
+				throw user_error(class_id.location, "type classes must begin with an upper-case letter");
+			}
+
+			std::vector<identifier_t> params;
+			while (true) {
+				if (ps.token.tk == tk_identifier) {
+					params.push_back(iid(ps.token_and_advance()));
+				} else {
+					chomp_token(tk_lcurly);
+					break;
+				}
+			}
+			if (params.size() == 0) {
+				throw user_error(class_id.location, "type classes must list their type parameters explicitly");
+			}
+			types::type_t::refs superclasses;
+			std::map<std::string, types::type_t::ref> overloads;
+			while (true) {
+				if (ps.token.is_ident(K(has))) {
+					ps.advance();
+					superclasses.push_back(parse_type(ps));
+				} else if (ps.token.is_ident(K(fn))) {
+					/* an overloaded function */
+					ps.advance();
+					auto id = iid(ps.token);
+					ps.advance();
+
+					overloads[id.name] = parse_function_type(ps);
+				}
+			}
+
+			chomp_token(tk_rcurly);
+			return new type_class_t(class_id, superclasses, overloads);
 		} else {
 			break;
 		}

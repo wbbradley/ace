@@ -2,6 +2,42 @@ fn tuple(h) {
     return (h,)
 }
 
+"
+class Stringable a {
+    get Num a
+    str :: a -> str
+}
+
+type Ordering is {
+    EQ
+    LT
+    GT
+}
+
+class Orderable a {
+    fn compare(a, a) -> Ordering
+    fn ==(a, a) bool
+    fn <=(a, a) bool
+    fn <(a, a) bool
+    fn >=(a, a) bool
+    fn >(a, a) bool
+}
+
+class Num a {
+    has Orderable a
+    fn +(a, a) a
+    fn *(a, a) a
+    fn -(a, a) a
+    fn /(a, a) a
+}
+
+instance Orderable (a, b) {
+    has Orderable a
+    has Orderable b
+    fn 
+}
+"
+    
 fn main() {
-    return tuple(3)
+    return str((2, 3))
 }
