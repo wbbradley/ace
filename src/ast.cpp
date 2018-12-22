@@ -182,11 +182,14 @@ namespace bitter {
 	std::ostream &tuple_t::render(std::ostream &os, int parent_precedence) {
 		os << "(";
 		int i = 0;
+		const char *delim = "";
 		for (auto dim : dims) {
+			os << delim;
 			dim->render(os, 0);
-			if (dims.size() - 1 != i || i == 0) {
-				os << ", ";
-			}
+			delim = ", ";
+		}
+		if (dims.size() == 1) {
+			os << ",";
 		}
 		return os << ")";
 	}

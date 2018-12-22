@@ -1,10 +1,7 @@
-fn lte(x, y) {
-    return true
+fn tuple(h) {
+    return (h,)
 }
-let fib = fix fn (fib, n) {
-    if (lte(n, 2)) {
-        return 1
-    } else {
-        return fib(n-2) + fib(n-1)
-    }
+
+fn main() {
+    return tuple(3)
 }

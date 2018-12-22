@@ -128,7 +128,8 @@ int main(int argc, char *argv[]) {
 						ty = ty->rebind(subst);
 						// log(">> %s", str(constraints).c_str());
 						// log(">> %s", str(subst).c_str());
-						env = env.extend(decl->var, ty->generalize(env));
+						auto scheme = ty->generalize(env)->normalize();
+						env = env.extend(decl->var, scheme);
 
 #if 0
 						for (auto pair : subst) {
@@ -140,10 +141,12 @@ int main(int argc, char *argv[]) {
 							std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
 						}
 #endif
-						// log("type checking %s :: %s", decl->var.str().c_str(), ty->generalize(env)->str().c_str());
+						log_location(log_info, decl->var.location, "info: %s :: %s", decl->var.str().c_str(), scheme->str().c_str());
 					} catch (user_error &e) {
 						print_exception(e);
-						/* keep trying other decls... */
+						/* keep trying other decls, and pretend like this function gives back
+						 * whatever the user wants... */
+						env = env.extend(decl->var, type_arrow(INTERNAL_LOC(), type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC()))->generalize(env)->normalize());
 					}
 
 				}
