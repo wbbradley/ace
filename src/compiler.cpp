@@ -284,6 +284,15 @@ std::vector<T> prefix(std::set<std::string> bindings, std::string pre, std::vect
 	return new_things;
 }
 
+types::type_t::ref prefix(std::set<std::string> bindings, std::string pre, types::type_t::ref type) {
+	if (type == nullptr) {
+		return nullptr;
+	}
+
+	assert(false);
+	return type;
+}
+
 expr_t *prefix(std::set<std::string> bindings, std::string pre, expr_t *value) {
 	if (auto var = dcast<var_t*>(value)) {
 		return new var_t(prefix(bindings, pre, var->id));
@@ -294,7 +303,10 @@ expr_t *prefix(std::set<std::string> bindings, std::string pre, expr_t *value) {
 	} else if (auto block = dcast<block_t*>(value)) {
 		return new block_t(prefix(bindings, pre, block->statements));
 	} else if (auto as = dcast<as_t*>(value)) {
-		return new as_t(prefix(bindings, pre, as->expr), as->type);
+		return new as_t(
+				prefix(bindings, pre, as->expr),
+			   	prefix(bindings, pre, as->type),
+			   	as->force_cast);
 	} else if (auto application = dcast<application_t*>(value)) {
 		return new application_t(
 				prefix(bindings, pre, application->a),
@@ -302,8 +314,8 @@ expr_t *prefix(std::set<std::string> bindings, std::string pre, expr_t *value) {
 	} else if (auto lambda = dcast<lambda_t*>(value)) {
 		return new lambda_t(
 				lambda->var,
-				lambda->param_type,
-				lambda->return_type,
+				prefix(bindings, pre, lambda->param_type),
+				prefix(bindings, pre, lambda->return_type),
 				prefix(
 					without(bindings,lambda->var.name),
 					pre,

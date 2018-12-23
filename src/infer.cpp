@@ -129,6 +129,12 @@ types::type_t::ref infer(
 			dimensions.push_back(infer(dim, env, constraints));
 		}
 		return type_tuple(dimensions);
+	} else if (auto as = dcast<as_t*>(expr)) {
+		auto t1 = infer(as->expr, env, constraints);
+		if (!as->force_cast) {
+			append(constraints, t1, as->type, {string_format("casting %s to %s", as->expr->str().c_str(), as->type->str().c_str()), as->get_location()});
+		}
+		return as->type;
 	}
 
 	throw user_error(expr->get_location(), "unhandled inference for %s",

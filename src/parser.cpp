@@ -1381,9 +1381,36 @@ type_decl_t parse_type_decl(parse_state_t &ps) {
 	return {class_id, params};
 }
 
-expr_t *create_ctor(int index, const type_decl_t &type_decl, types::type_t::refs param_types) {
-	assert(false);
-	return nullptr;
+expr_t *create_ctor(
+		location_t location,
+	   	int ctor_id,
+	   	const type_decl_t &type_decl,
+	   	types::type_t::refs param_types)
+{
+	std::vector<expr_t *> dims;
+	/* add the ctor's id value as the first element in the tuple */
+	dims.push_back(new literal_t({location, tk_integer, string_format("%d", ctor_id)}));
+
+	std::vector<identifier_t> params;
+	for (int i = 0; i < param_types.size(); ++i) {
+		/* enumerate the nested lambda variables */
+		params.push_back(identifier_t{fresh(), param_types[i]->get_location()});
+		dims.push_back(new var_t(params.back()));
+	}
+
+	expr_t *expr =
+		new as_t(
+				new tuple_t(location, dims),
+				type_decl.get_type(),
+				true /*force_cast*/);
+
+	assert(dims.size() == params.size() + 1);
+	for (int i = params.size()-1; i >= 0; --i) {
+		/* (λx y z . return! (ctor_id, x, y, z) as! type_decl) */
+		expr = new lambda_t(params[i], param_types[i], nullptr, expr);
+	} 
+
+	return expr;
 }
 
 struct data_type_decl_t {
@@ -1399,9 +1426,10 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps) {
 	for (int i = 0; true; ++i) {
 		expect_token(tk_identifier);
 
-		auto id = iid(ps.token_and_advance());
+		auto type_id = iid(ps.token_and_advance());
 		types::type_t::refs param_types;
 		if (ps.token.tk == tk_lparen) {
+			ps.advance();
 			/* this is a data ctor */
 			while (true) {
 				/* parse the types of the dimensions (unnamed for now) */
@@ -1416,7 +1444,11 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps) {
 		} else {
 			/* this is a constant (like an enum) */
 		}
-		decls.push_back(new decl_t(id, create_ctor(i, type_decl, param_types)));
+		decls.push_back(new decl_t(type_id, create_ctor(type_id.location, i, type_decl, param_types)));
+		if (ps.token.tk == tk_rcurly) {
+			ps.advance();
+			break;
+		}
 	}
 
 	return {type_decl, decls};
@@ -1439,7 +1471,7 @@ type_class_t *parse_type_class(parse_state_t &ps) {
 		} else if (ps.token.is_ident(K(fn))) {
 			/* an overloaded function */
 			ps.advance();
-			auto id = iid(ps.token);
+			auto id = identifier_t{ps.token.text, ps.token.location};
 			ps.advance();
 
 			overloads[id.name] = parse_function_type(ps);

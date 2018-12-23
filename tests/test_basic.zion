@@ -23,14 +23,14 @@ class Stringable a {
     fn str(a) str
 }
 
-data Ordering is {
+data Ordering {
     EQ
     LT
     GT
 }
 
 class Orderable a {
-    fn compare(a, a) -> Ordering
+    fn compare(a, a) Ordering
     fn ==(a, a) bool
     fn <=(a, a) bool
     fn <(a, a) bool

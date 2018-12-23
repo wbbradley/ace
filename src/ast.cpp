@@ -254,6 +254,21 @@ namespace bitter {
 	std::ostream &irrefutable_predicate_t::render(std::ostream &os) {
 		return os << C_ID << (name_assignment.valid ? name_assignment.t.name : "_") << C_RESET;
 	}
+
+	types::type_t::ref type_decl_t::get_type() const {
+		std::vector<types::type_t::ref> types;
+		assert(isupper(id.name[0]));
+		types.push_back(type_id(id));
+		for (auto param : params) {
+			assert(islower(param.name[0]));
+			types.push_back(type_variable(param));
+		}
+		if (types.size() >= 2) {
+			return type_operator(types);
+		} else {
+			return types[0];
+		}
+	}
 }
 
 namespace bitter {

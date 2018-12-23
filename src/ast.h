@@ -93,12 +93,13 @@ namespace bitter {
 	};
 
 	struct as_t : public expr_t {
-		as_t(expr_t *expr, types::type_t::ref type) : expr(expr), type(type) {}
+		as_t(expr_t *expr, types::type_t::ref type, bool force_cast) : expr(expr), type(type), force_cast(force_cast) {}
 		location_t get_location() override;
 		std::ostream &render(std::ostream &os, int parent_precedence) override;
 
 		expr_t * const expr;
 		types::type_t::ref const type;
+		bool force_cast;
 	};
 
 	struct application_t : public expr_t {
@@ -208,6 +209,7 @@ namespace bitter {
 
 		identifier_t const id;
 		identifiers_t const params;
+		types::type_t::ref get_type() const;
 		int kind() const { return params.size() + 1; }
 	};
 
