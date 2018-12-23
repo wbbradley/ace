@@ -1356,10 +1356,108 @@ types::type_t::ref parse_type(parse_state_t &ps) {
 	}
 }
 
+type_decl_t parse_type_decl(parse_state_t &ps) {
+	expect_token(tk_identifier);
+
+	auto class_id = iid(ps.token_and_advance());
+	if (!isupper(class_id.name[0])) {
+		throw user_error(class_id.location, "names in type-space must begin with an upper-case letter");
+	}
+
+	std::vector<identifier_t> params;
+	while (true) {
+		if (ps.token.is_ident(K(is)) || ps.token.is_ident(K(has))) {
+			break;
+		} else if (ps.token.tk == tk_identifier) {
+			if (!islower(ps.token.text[0])) {
+				throw user_error(ps.token.location, "type declaration parameters must be lowercase");
+			}
+			params.push_back(iid(ps.token_and_advance()));
+		} else {
+			expect_token(tk_lcurly);
+			break;
+		}
+	}
+	return {class_id, params};
+}
+
+expr_t *create_ctor(int index, const type_decl_t &type_decl, types::type_t::refs param_types) {
+	assert(false);
+	return nullptr;
+}
+
+struct data_type_decl_t {
+	type_decl_t type_decl;
+	std::vector<decl_t *> decls;
+};
+
+data_type_decl_t parse_data_type_decl(parse_state_t &ps) {
+	auto type_decl = parse_type_decl(ps);
+	std::vector<decl_t *> decls;
+
+	chomp_token(tk_lcurly);
+	for (int i = 0; true; ++i) {
+		expect_token(tk_identifier);
+
+		auto id = iid(ps.token_and_advance());
+		types::type_t::refs param_types;
+		if (ps.token.tk == tk_lparen) {
+			/* this is a data ctor */
+			while (true) {
+				/* parse the types of the dimensions (unnamed for now) */
+				param_types.push_back(parse_type(ps));
+				if (ps.token.tk == tk_comma) {
+					ps.advance();
+				} else {
+					chomp_token(tk_rparen);
+					break;
+				}
+			}
+		} else {
+			/* this is a constant (like an enum) */
+		}
+		decls.push_back(new decl_t(id, create_ctor(i, type_decl, param_types)));
+	}
+
+	return {type_decl, decls};
+}
+
+type_class_t *parse_type_class(parse_state_t &ps) {
+	auto type_decl = parse_type_decl(ps);
+
+	if (type_decl.params.size() == 0) {
+		throw user_error(type_decl.id.location, "type classes must be parameterized over at least one type variable");
+	}
+
+	chomp_token(tk_lcurly);
+	types::type_t::refs superclasses;
+	std::map<std::string, types::type_t::ref> overloads;
+	while (true) {
+		if (ps.token.is_ident(K(has))) {
+			ps.advance();
+			superclasses.push_back(parse_type(ps));
+		} else if (ps.token.is_ident(K(fn))) {
+			/* an overloaded function */
+			ps.advance();
+			auto id = iid(ps.token);
+			ps.advance();
+
+			overloads[id.name] = parse_function_type(ps);
+		} else {
+			chomp_token(tk_rcurly);
+			break;
+		}
+	}
+
+	return new type_class_t(type_decl.id, type_decl.params, superclasses, overloads);
+}
+
 module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 	debug_above(6, log("about to parse %s", ps.filename.c_str()));
 
 	std::vector<decl_t *> decls;
+	std::vector<type_decl_t> type_decls;
+	std::vector<type_class_t *> type_classes;
 
 	while (ps.token.is_ident(K(get))) {
 		ps.advance();
@@ -1379,52 +1477,28 @@ module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 
 	while (true) {
 		if (ps.token.is_ident(K(fn))) {
+			/* module-level functions */
 			ps.advance();
 			auto id = identifier_t::from_token(ps.token_and_advance());
 			decls.push_back(new decl_t(id, parse_lambda(ps)));
+		} else if (ps.token.is_ident(K(data))) {
+			/* module-level types */
+			ps.advance();
+			auto data_type = parse_data_type_decl(ps);
+			type_decls.push_back(data_type.type_decl);
+			for (auto &decl : data_type.decls) {
+				decls.push_back(decl);
+			}
 		} else if (ps.token.is_ident(K(let))) {
+			/* module-level constants */
 			ps.advance();
 			auto id = identifier_t::from_token(ps.token_and_advance());
 			chomp_token(tk_assign);
 			decls.push_back(new decl_t(id, parse_expr(ps)));
 		} else if (ps.token.is_ident(K(class))) {
+			/* module-level type classes */
 			ps.advance();
-			expect_token(tk_identifier);
-			auto class_id = iid(ps.token_and_advance());
-			if (!isupper(class_id.name[0])) {
-				throw user_error(class_id.location, "type classes must begin with an upper-case letter");
-			}
-
-			std::vector<identifier_t> params;
-			while (true) {
-				if (ps.token.tk == tk_identifier) {
-					params.push_back(iid(ps.token_and_advance()));
-				} else {
-					chomp_token(tk_lcurly);
-					break;
-				}
-			}
-			if (params.size() == 0) {
-				throw user_error(class_id.location, "type classes must list their type parameters explicitly");
-			}
-			types::type_t::refs superclasses;
-			std::map<std::string, types::type_t::ref> overloads;
-			while (true) {
-				if (ps.token.is_ident(K(has))) {
-					ps.advance();
-					superclasses.push_back(parse_type(ps));
-				} else if (ps.token.is_ident(K(fn))) {
-					/* an overloaded function */
-					ps.advance();
-					auto id = iid(ps.token);
-					ps.advance();
-
-					overloads[id.name] = parse_function_type(ps);
-				}
-			}
-
-			chomp_token(tk_rcurly);
-			return new type_class_t(class_id, superclasses, overloads);
+			type_classes.push_back(parse_type_class(ps));
 		} else {
 			break;
 		}
@@ -1432,7 +1506,7 @@ module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 	if (ps.token.tk != tk_none) {
 		throw user_error(ps.token.location, "unknown stuff here");
 	}
-	return new module_t(ps.module_name, decls);
+	return new module_t(ps.module_name, decls, type_decls, type_classes);
 }
 
 #if 0

@@ -121,6 +121,7 @@ int main(int argc, char *argv[]) {
 				for (bitter::decl_t *decl : program->decls) {
 					constraints_t constraints;
 					try {
+						// std::cout << C_ID "------------------------------" C_RESET << std::endl;
 						// log("type checking %s", decl->var.str().c_str());
 						types::type_t::ref ty = infer(decl->value, env, constraints);
 						types::type_t::map subst = solver({}, constraints, env);
@@ -137,7 +138,7 @@ int main(int argc, char *argv[]) {
 						}
 
 						for (auto pair : env.map) {
-							std::cout << C_ID "------------------------------" C_RESET << std::endl;
+							std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
 							std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
 						}
 #endif

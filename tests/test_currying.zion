@@ -1,0 +1,14 @@
+fn add(a, b, c) {
+    return a + b + c
+}
+
+fn apply(f, x) {
+    # f :: a -> b
+    # x :: a
+    # apply :: a -> b -> a -> b
+    return f(x)
+}
+
+fn main() {
+    return apply(add, 1)
+}

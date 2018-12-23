@@ -203,11 +203,36 @@ namespace bitter {
 		expr_t * const value;
 	};
 
+	struct type_decl_t {
+		type_decl_t(identifier_t id, const identifiers_t &params) : id(id), params(params) {}
+
+		identifier_t const id;
+		identifiers_t const params;
+		int kind() const { return params.size() + 1; }
+	};
+
+	struct type_class_t {
+		type_class_t(identifier_t id, const identifiers_t &params, const types::type_t::refs &superclasses, const std::map<std::string, types::type_t::ref> &overloads) :
+		   	id(id), params(params), superclasses(superclasses), overloads(overloads) {}
+
+		identifier_t const id;
+		identifiers_t const params;
+		types::type_t::refs const superclasses;
+		std::map<std::string, types::type_t::ref> const overloads;
+	};
+
 	struct module_t {
-		module_t(std::string name, std::vector<decl_t *> decls) : name(name), decls(decls) {}
+		module_t(
+				std::string name,
+			   	const std::vector<decl_t *> &decls,
+			   	const std::vector<type_decl_t> &type_decls,
+			   	const std::vector<type_class_t *> &type_classes) :
+		   	name(name), decls(decls), type_decls(type_decls), type_classes(type_classes) {}
 
 		std::string const name;
 		std::vector<decl_t *> const decls;
+		std::vector<type_decl_t> const type_decls;
+		std::vector<type_class_t *> const type_classes;
 	};
 
 	struct program_t {

@@ -176,7 +176,11 @@ struct global_parser_state_t {
 };
 
 
-std::set<std::string> get_top_level_decls(const std::vector<decl_t *> &decls) {
+std::set<std::string> get_top_level_decls(
+		const std::vector<decl_t *> &decls,
+		const std::vector<type_decl_t> &type_decls,
+		const std::vector<type_class_t *> &type_classes)
+{
 	std::map<std::string, location_t> module_decls;
 	for (decl_t *decl : decls) {
 		if (module_decls.find(decl->var.name) != module_decls.end()) {
@@ -190,6 +194,8 @@ std::set<std::string> get_top_level_decls(const std::vector<decl_t *> &decls) {
 	for (auto pair : module_decls) {
 		top_level_decls.insert(pair.first);
 	}
+	assert(type_decls.size() == 0);
+	assert(type_classes.size() == 0);
 	return top_level_decls;
 }
 
@@ -258,6 +264,15 @@ decl_t *prefix(std::set<std::string> bindings, std::string pre, decl_t *value) {
 	return new decl_t(
 			prefix(bindings, pre, value->var), 
 			prefix(bindings, pre, value->value));
+}
+
+type_decl_t prefix(std::set<std::string> bindings, std::string pre, const bitter::type_decl_t &type_decl) {
+	return type_decl_t{prefix(bindings, pre, type_decl.id), type_decl.params};
+}
+
+type_class_t *prefix(std::set<std::string> bindings, std::string pre, bitter::type_class_t *type_class) {
+	assert(false);
+	return nullptr;
 }
 
 template <typename T>
@@ -339,7 +354,17 @@ std::vector<expr_t *> prefix(std::set<std::string> bindings, std::string pre, st
 }
 
 module_t *prefix(std::set<std::string> bindings, module_t *module) {
-	return new module_t(module->name, prefix(bindings, module->name, module->decls));
+	return new module_t(
+			module->name,
+		   	prefix(bindings,
+			   	module->name,
+			   	module->decls),
+		   	prefix(bindings,
+			   	module->name,
+			   	module->type_decls),
+		   	prefix(bindings,
+			   	module->name,
+			   	module->type_classes));
 }
 
 bool compiler_t::parse_program() {
@@ -373,7 +398,7 @@ bool compiler_t::parse_program() {
 
 		for (module_t *module : gps.modules) {
 			/* get a list of all top-level decls */
-			std::set<std::string> bindings = get_top_level_decls(module->decls);
+			std::set<std::string> bindings = get_top_level_decls(module->decls, module->type_decls, module->type_classes);
 			module_t *module_rebound = prefix(bindings, module);
 
 			/* now all locally referring vars are fully qualified */
