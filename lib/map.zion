@@ -4,6 +4,10 @@ module map
 
 type HashType = uint32
 
+data ChainEntry k v {
+    ChainEntry(HashType, k, v, (ChainEntry k v)?)
+}
+
 type ChainEntry K V has {
     hash_value HashType
     key K

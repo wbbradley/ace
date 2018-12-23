@@ -2,13 +2,28 @@ fn tuple(h) {
     return (h,)
 }
 
-"
-class Stringable a {
-    get Num a
-    str :: a -> str
+data Maybe a {
+    Nothing
+    Just(a)
 }
 
-type Ordering is {
+class Functor f {
+    fn fmap(fn (a) b, f a) f b  
+}
+
+/*
+instance Functor Maybe {
+    fn fmap(f, m) => match m {
+        Nothing => Nothing
+        Just(x) => Just(f(x))
+    }
+}
+*/
+class Stringable a {
+    fn str(a) str
+}
+
+data Ordering is {
     EQ
     LT
     GT
@@ -36,7 +51,6 @@ instance Orderable (a, b) {
     has Orderable b
     fn 
 }
-"
     
 fn main() {
     return str((2, 3))

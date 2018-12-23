@@ -9,7 +9,7 @@ using namespace bitter;
 
 void append(constraints_t &constraints, types::type_t::ref a, types::type_t::ref b, constraint_info_t info) {
 	debug_above(6, log_location(log_info, info.location,
-				"constraining %s to %s because %s",
+				"constraining %s == %s because %s",
 				a->str().c_str(),
 				b->str().c_str(),
 				info.reason.c_str()));

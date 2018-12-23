@@ -6,6 +6,8 @@ namespace bitter {
 	struct pattern_block_t;
 	using pattern_blocks_t = std::vector<pattern_block_t *>;
 	struct match_t;
+	struct type_decl_t;
+	struct type_class_t;
 	struct block_t;
 	struct as_t;
 	struct application_t;

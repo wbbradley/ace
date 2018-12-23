@@ -816,7 +816,7 @@ namespace types {
 	std::string forall_t::str() {
 		std::stringstream ss;
 		if (vars.size() != 0) {
-			ss << "(∀ " << join(vars, " ") << ". ";
+			ss << "(∀ " << join(vars, " ") << " . ";
 		}
 		type->emit(ss, {}, 0);
 		if (vars.size() != 0) {
@@ -882,15 +882,12 @@ types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::re
 }
 
 types::type_t::ref type_operator(const types::type_t::refs &xs) {
-	if (xs.size() - offset < 2) {
-		assert(false);
-	} else {
-		types::type_t::ref result = type_operator(xs[0], xs[1]);
-		for (int i=2; i<xs.size(); ++i) {
-			result = type_operator(result, xs[i]);
-		}
-		return result;
+	assert(xs.size() >= 2);
+	types::type_t::ref result = type_operator(xs[0], xs[1]);
+	for (int i=2; i<xs.size(); ++i) {
+		result = type_operator(result, xs[i]);
 	}
+	return result;
 }
 
 types::forall_t::ref forall(std::vector<std::string> vars, types::type_t::ref type) {
@@ -927,7 +924,7 @@ types::type_struct_t::ref type_struct(
 }
 
 types::type_t::ref type_map(types::type_t::ref a, types::type_t::ref b) {
-	return type_operator(type_operator(type_id(iid("Map")), a), b);
+	return type_operator(type_operator(type_id(identifier_t{"Map", a->get_location()}), a), b);
 }
 
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions) {
@@ -950,12 +947,11 @@ types::type_t::ref type_arrow(location_t location, types::type_t::ref a, types::
 }
 
 types::type_t::ref type_arrows(types::type_t::refs types, int offset) {
-	if (types.size() - offset <= 0) {
-		assert(false);
-	} else if (types.size() - offset == 1) {
+	assert(types.size() - offset > 0);
+	if (types.size() - offset == 1) {
 		return types[0];
 	} else {
-		return type_arrow(types[offset], type_arrows(types, offset + 1));
+		return type_arrow(types[offset]->get_location(), types[offset], type_arrows(types, offset + 1));
 	}
 }
 

@@ -23,3 +23,5 @@ struct env_t {
 	std::shared_ptr<const types::type_t> lookup_env(identifier_t id) const;
 	std::shared_ptr<const types::type_t> maybe_lookup_env(identifier_t id) const;
 };
+
+std::string str(const env_t::map_t &m);
