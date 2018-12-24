@@ -41,7 +41,7 @@ namespace types {
 		virtual int ftv_count() const = 0;
 
         /* NB: Also assumes you have rebound the bindings at the callsite. */
-		virtual std::set<std::string> get_ftvs() const = 0;
+		virtual predicate_map get_predicate_map() const = 0;
 
 		std::shared_ptr<forall_t> generalize(env_ref_t env) const;
 		std::string repr(const map &bindings) const;
@@ -53,7 +53,7 @@ namespace types {
 		std::string str(const map &bindings) const;
 		std::string get_signature() const { return repr(); }
 
-		virtual type_t::ref rebind(const map &env) const = 0;
+		virtual type_t::ref rebind(const map &bindings) const = 0;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const = 0;
 		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const = 0;
 
@@ -69,8 +69,8 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &env) const;
+		virtual predicate_map get_predicate_map() const;
+		virtual type_t::ref rebind(const map &bindings) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
 		virtual location_t get_location() const;
@@ -83,8 +83,8 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &env) const;
+		virtual predicate_map get_predicate_map() const;
+		virtual type_t::ref rebind(const map &bindings) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
 		virtual location_t get_location() const;
@@ -96,8 +96,8 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &env) const;
+		virtual predicate_map get_predicate_map() const;
+		virtual type_t::ref rebind(const map &bindings) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
 		virtual location_t get_location() const;
@@ -114,8 +114,8 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &env) const;
+		virtual predicate_map get_predicate_map() const;
+		virtual type_t::ref rebind(const map &bindings) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
 		virtual location_t get_location() const;
@@ -131,8 +131,8 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &env) const;
+		virtual predicate_map get_predicate_map() const;
+		virtual type_t::ref rebind(const map &bindings) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
 		virtual location_t get_location() const;
@@ -145,8 +145,8 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &env) const;
+		virtual predicate_map get_predicate_map() const;
+		virtual type_t::ref rebind(const map &bindings) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
 		virtual location_t get_location() const;
@@ -163,8 +163,8 @@ namespace types {
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &env) const;
+		virtual predicate_map get_predicate_map() const;
+		virtual type_t::ref rebind(const map &bindings) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
 		virtual location_t get_location() const;
@@ -179,8 +179,8 @@ namespace types {
 		virtual int get_precedence() const { return 6; }
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
-		virtual std::set<std::string> get_ftvs() const;
-		virtual type_t::ref rebind(const map &env) const;
+		virtual predicate_map get_predicate_map() const;
+		virtual type_t::ref rebind(const map &bindings) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
 		virtual location_t get_location() const;
@@ -196,7 +196,7 @@ namespace types {
 		types::type_t::ref instantiate(location_t location);
 		forall_t::ref rebind(const types::type_t::map &env);
 		forall_t::ref normalize();
-		std::set<std::string> get_ftvs();
+		predicate_map get_predicate_map();
 		std::string str();
 
 		std::vector<std::string> vars;
@@ -204,12 +204,10 @@ namespace types {
 		types::type_t::ref type;
 	};
 
-	int coerce_to_integer(env_ref_t env, type_t::ref type, type_t::ref &expansion);
 	type_t::ref without_ref(type_t::ref type);
 	type_t::refs without_refs(type_t::refs types);
-	types::type_t::ref freshen(types::type_t::ref type);
-	bool share_ftvs(types::type_t::ref lhs, types::type_t::ref rhs);
 	bool is_type_id(type_t::ref type, const std::string &type_name, env_ref_t env);
+	type_t::refs rebind(const type_t::refs &types, const type_t::map &bindings);
 };
 
 identifier_t gensym(location_t location);
@@ -232,7 +230,7 @@ types::type_t::ref type_variable(identifier_t name);
 types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
 types::type_t::ref type_operator(const types::type_t::refs &xs);
-types::forall_t::ref forall(std::vector<std::string> vars, const types::forall_t::predicate_map &predicates, types::type_t::ref type);
+types::forall_t::ref forall(std::vector<std::string> vars, const types::predicate_map &predicates, types::type_t::ref type);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_t::ref type_ref(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body);
@@ -241,7 +239,13 @@ types::type_t::ref type_vector_type(types::type_t::ref element);
 
 std::string str(types::type_t::refs refs);
 std::string str(const types::type_t::map &coll);
+std::string str(const types::predicate_map &pm);
 std::ostream& operator <<(std::ostream &out, const types::type_t::ref &type);
+
+void mutating_merge(const types::predicate_map::value_type &pair, types::predicate_map &c);
+void mutating_merge(const types::predicate_map &a, types::predicate_map &c);
+types::predicate_map merge(const types::predicate_map &a, const types::predicate_map &b);
+types::predicate_map safe_merge(const types::predicate_map &a, const types::predicate_map &b);
 
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings);
 std::string get_name_from_index(const types::name_index_t &name_index, int i);

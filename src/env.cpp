@@ -41,14 +41,12 @@ env_t env_t::extend(identifier_t id, types::type_t::ref return_type_, types::for
 	return env_t{new_map, return_type_};
 }
 
-std::set<std::string> env_t::get_ftvs() const {
-	std::set<std::string> ftvs;
+types::predicate_map env_t::get_predicate_map() const {
+	types::predicate_map predicate_map;
 	for (auto pair : map) {
-		for (auto v : pair.second->get_ftvs()) {
-			ftvs.insert(v);
-		}
+		mutating_merge(pair.second->get_predicate_map(), predicate_map);
 	}
-	return ftvs;
+	return predicate_map;
 }
 
 std::string str(const env_t::map_t &m) {

@@ -19,7 +19,7 @@ struct env_t {
 	env_t extend(identifier_t id, std::shared_ptr<types::forall_t> scheme) const;
 	env_t extend(identifier_t id, std::shared_ptr<const types::type_t> return_type, std::shared_ptr<types::forall_t> scheme) const;
 	env_t rebind(const types::type_t::map &env) const;
-	std::set<std::string> get_ftvs() const;
+	types::predicate_map get_predicate_map() const;
 	std::shared_ptr<const types::type_t> lookup_env(identifier_t id) const;
 	std::shared_ptr<const types::type_t> maybe_lookup_env(identifier_t id) const;
 };
