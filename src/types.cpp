@@ -134,7 +134,11 @@ namespace types {
 			assert(instance_iter->second != shared_from_this());
 			return instance_iter->second->emit(os, bindings, parent_precedence);
 		} else {
-			return os << string_format("%s", id.name.c_str());
+			if (predicates.size() == 0) {
+				return os << string_format("%s", id.name.c_str());
+			} else {
+				return os << string_format("%s|[%s]", id.name.c_str(), join(predicates, ", ").c_str());
+			}
 		}
 	}
 
@@ -158,7 +162,7 @@ namespace types {
 	}
 
 	type_t::ref type_variable_t::prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const {
-		return shared_from_this();
+		return type_variable(id, prefix(bindings, pre, predicates));
 	}
 
 	location_t type_variable_t::get_location() const {
@@ -233,14 +237,6 @@ namespace types {
 			assert(dimension != nullptr);
 		}
 #endif
-	}
-
-	product_kind_t type_tuple_t::get_pk() const {
-		return pk_tuple;
-	}
-
-	type_t::refs type_tuple_t::get_dimensions() const {
-		return dimensions;
 	}
 
 	std::ostream &type_tuple_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
@@ -556,6 +552,10 @@ types::type_t::ref type_variable(identifier_t id) {
 	return std::make_shared<types::type_variable_t>(id);
 }
 
+types::type_t::ref type_variable(identifier_t id, const std::set<std::string> &predicates) {
+	return std::make_shared<types::type_variable_t>(id, predicates);
+}
+
 types::type_t::ref type_variable(location_t location) {
 	return std::make_shared<types::type_variable_t>(location);
 }
@@ -602,8 +602,13 @@ types::type_t::ref type_operator(const types::type_t::refs &xs) {
 	return result;
 }
 
-types::forall_t::ref forall(std::vector<std::string> vars, types::type_t::ref type) {
-	return std::make_shared<types::forall_t>(vars, type);
+types::forall_t::ref forall(
+		std::vector<std::string> vars,
+	   	const types::forall_t::predicate_map &predicates,
+	   	types::type_t::ref type)
+{
+	assert(type->str().find("|") == std::string::npos);
+	return std::make_shared<types::forall_t>(vars, predicates, type);
 }
 
 types::name_index_t get_name_index_from_ids(identifiers_t ids) {
@@ -655,16 +660,6 @@ std::ostream& operator <<(std::ostream &os, const types::type_t::ref &type) {
 	return os;
 }
 
-bool get_type_variable_name(types::type_t::ref type, std::string &name) {
-    if (auto ptv = dyncast<const types::type_variable_t>(type)) {
-		name = ptv->id.name;
-		return true;
-	} else {
-		return false;
-	}
-	return false;
-}
-
 std::string str(types::type_t::refs refs) {
 	std::stringstream ss;
 	ss << "(";
@@ -690,23 +685,6 @@ std::string str(const types::type_t::map &coll) {
 	}
 	ss << "}";
 	return ss.str();
-}
-
-const char *pkstr(product_kind_t pk) {
-	switch (pk) {
-	case pk_module:
-		return "module";
-	case pk_struct:
-		return "struct";
-	case pk_tuple:
-		return "tuple";
-	case pk_managed:
-		return "managed";
-	case pk_args:
-		return "args";
-	}
-	assert(false);
-	return nullptr;
 }
 
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings) {

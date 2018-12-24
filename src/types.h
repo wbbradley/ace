@@ -14,16 +14,6 @@ extern const char *STD_MAP_TYPE;
 extern const char *VOID_TYPE;
 extern const char *BOTTOM_TYPE;
 
-/* Product Kinds */
-enum product_kind_t {
-	pk_module = 0,
-	pk_args,
-	pk_tuple,
-	pk_struct,
-	pk_managed,
-};
-
-const char *pkstr(product_kind_t pk);
 
 /* used to reset the generic type id counter */
 void reset_generics();
@@ -32,6 +22,7 @@ using env_ref_t = const env_t &;
 
 namespace types {
 	typedef std::map<std::string, int> name_index_t;
+	typedef std::map<std::string, std::set<std::string>> predicate_map;
 
 	struct signature;
 	struct forall_t;
@@ -69,17 +60,26 @@ namespace types {
 		virtual int get_precedence() const { return 10; }
 	};
 
-	struct type_product_t : public type_t {
-		typedef std::shared_ptr<const type_product_t> ref;
-
-		virtual product_kind_t get_pk() const = 0;
-		virtual type_t::refs get_dimensions() const = 0;
-	};
-
 	struct type_variable_t : public type_t {
+		type_variable_t(identifier_t id, std::set<std::string> predicates);
 		type_variable_t(identifier_t id);
 		type_variable_t(location_t location /* auto-generated fresh type variables */);
 		identifier_t id;
+		std::set<std::string> predicates;
+
+		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
+		virtual int ftv_count() const;
+		virtual std::set<std::string> get_ftvs() const;
+		virtual type_t::ref rebind(const map &env) const;
+		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
+		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
+		virtual location_t get_location() const;
+	};
+
+	struct type_predicate_t : public type_t {
+		type_predicate_t(identifier_t id, type_t::ref type);
+		identifier_t id;
+		type_t::ref type;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
@@ -138,13 +138,10 @@ namespace types {
 		virtual location_t get_location() const;
 	};
 
-	struct type_tuple_t : public type_product_t {
+	struct type_tuple_t : public type_t {
 		typedef std::shared_ptr<const type_tuple_t> ref;
 
 		type_tuple_t(type_t::refs dimensions);
-
-		virtual product_kind_t get_pk() const;
-		virtual type_t::refs get_dimensions() const;
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
@@ -193,23 +190,9 @@ namespace types {
 		virtual ~scheme_t() throw() {}
 	};
 
-#if 0
-	struct qualifier_t : public scheme_t {
-		typedef std::shared_ptr<bounded_t> ref;
-		bounded_t(std::vector<std::string> vars, types::type_t::ref type) : vars(vars), type(type) {}
-		types::type_t::ref instantiate(location_t location);
-		bounded_t::ref rebind(const types::type_t::map &env);
-		bounded_t::ref normalize();
-		std::set<std::string> get_ftvs();
-		std::string str();
-
-		types::type_t::ref type_variable;
-	};
-#endif
-
-	struct forall_t : public scheme_t {
+	struct forall_t {
 		typedef std::shared_ptr<forall_t> ref;
-		forall_t(std::vector<std::string> vars, types::type_t::ref type) : vars(vars), type(type) {}
+		forall_t(std::vector<std::string> vars, const predicate_map &predicates, types::type_t::ref type) : vars(vars), predicates(predicates), type(type) {}
 		types::type_t::ref instantiate(location_t location);
 		forall_t::ref rebind(const types::type_t::map &env);
 		forall_t::ref normalize();
@@ -217,6 +200,7 @@ namespace types {
 		std::string str();
 
 		std::vector<std::string> vars;
+		predicate_map predicates;
 		types::type_t::ref type;
 	};
 
@@ -243,11 +227,12 @@ types::type_t::ref type_arrow(location_t location, types::type_t::ref a, types::
 types::type_t::ref type_arrows(types::type_t::refs types, int offset=0);
 types::type_t::ref type_integer(types::type_t::ref size, types::type_t::ref is_signed);
 types::type_t::ref type_id(identifier_t var);
+types::type_t::ref type_variable(identifier_t id, const std::set<std::string> &predicates);
 types::type_t::ref type_variable(identifier_t name);
 types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
 types::type_t::ref type_operator(const types::type_t::refs &xs);
-types::forall_t::ref forall(std::vector<std::string> vars, types::type_t::ref type);
+types::forall_t::ref forall(std::vector<std::string> vars, const types::forall_t::predicate_map &predicates, types::type_t::ref type);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_t::ref type_ref(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body);
@@ -258,7 +243,6 @@ std::string str(types::type_t::refs refs);
 std::string str(const types::type_t::map &coll);
 std::ostream& operator <<(std::ostream &out, const types::type_t::ref &type);
 
-bool get_type_variable_name(types::type_t::ref type, std::string &name);
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings);
 std::string get_name_from_index(const types::name_index_t &name_index, int i);
 bool is_valid_udt_initial_char(int ch);

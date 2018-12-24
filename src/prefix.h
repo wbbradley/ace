@@ -38,7 +38,7 @@ template <typename T>
 std::map<std::string, T> prefix(
 		const std::set<std::string> &bindings,
 	   	std::string pre,
-	   	const std::map<std::string, T> map)
+	   	const std::map<std::string, T> &map)
 {
 	std::map<std::string, T> new_map;
 	for (auto pair : map) {
@@ -47,3 +47,15 @@ std::map<std::string, T> prefix(
 	return new_map;
 }
 
+template <typename T>
+std::set<T> prefix(
+		const std::set<std::string> &bindings,
+	   	std::string pre,
+	   	const std::set<T> &set)
+{
+	std::set<T> new_set;
+	for (auto s : set) {
+		new_set.insert(prefix(bindings, pre, s));
+	}
+	return new_set;
+}
