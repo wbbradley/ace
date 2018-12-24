@@ -30,6 +30,7 @@ add_executable(zion
 	src/mmap_file.cpp
 	src/parse_state.cpp
 	src/parser.cpp
+	src/prefix.cpp
 	src/scope.cpp
 	src/tests.cpp
 	src/token.cpp

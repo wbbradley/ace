@@ -360,6 +360,7 @@ namespace match {
 
 	Pattern::ref from_type(location_t location, env_t::ref env, type_t::ref type) {
 		assert(false);
+#if 0
 		// type = type->eval(env);
 		if (auto data_type = dyncast<const type_data_t>(type)) {
 			std::vector<CtorPatternValue> cpvs;
@@ -408,7 +409,7 @@ namespace match {
 					env,
 					type);
 		}
-
+#endif
 		return nullptr;
 	}
 
@@ -670,6 +671,7 @@ namespace bitter {
 	}
 	Pattern::ref ctor_predicate_t::get_pattern(type_t::ref type, env_t::ref env) const {
 		assert(false);
+#if 0
 		// type = type->eval(env);
 		if (auto data_type = dyncast<const type_data_t>(type)) {
 			for (auto ctor_pair : data_type->ctor_pairs) {
@@ -703,6 +705,8 @@ namespace bitter {
 				   	c_id("%s") " cannot match it.", type->str().c_str(), ctor_name.name.c_str());
 			return nullptr;
 		}
+#endif
+		return nullptr;
 	}
 	Pattern::ref irrefutable_predicate_t::get_pattern(type_t::ref type, env_t::ref env) const {
 		return std::make_shared<AllOf>(location, name_assignment, env, type);

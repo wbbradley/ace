@@ -8,9 +8,15 @@ data Maybe a {
 }
 
 class Functor f {
-    fn fmap(fn (a) b, f a) f b  
+    fn [Functor f] fmap(fn (a) b, f a) f b  
 }
 
+fn add(x, y) => x + y
+fn twice(f, x) => f(f(x))
+fn plus4(x) => twice(add(2))(x)
+fn hey() {
+    return plus4(3)
+}
 /*
 instance Functor Maybe {
     fn fmap(f, m) => match m {
@@ -29,29 +35,21 @@ data Ordering {
     GT
 }
 
-class Orderable a {
-    fn compare(a, a) Ordering
-    fn ==(a, a) bool
-    fn <=(a, a) bool
-    fn <(a, a) bool
-    fn >=(a, a) bool
-    fn >(a, a) bool
-}
-
 class Num a {
-    has Orderable a
+    fn from_int(int) a
     fn +(a, a) a
     fn *(a, a) a
     fn -(a, a) a
     fn /(a, a) a
 }
 
-instance Orderable (a, b) {
-    has Orderable a
-    has Orderable b
-    fn 
+fn doit(m) {
+    return m
 }
-    
+
+fn test_doit() {
+    return doit(Just("hey"))
+}
 fn main() {
     return str((2, 3))
 }
