@@ -19,7 +19,7 @@ bool type_equality(types::type_t::ref a, types::type_t::ref b) {
 		}
 	} else if (auto tv_a = dyncast<const type_variable_t>(a)) {
 		if (auto tv_b = dyncast<const type_variable_t>(b)) {
-			return tv_a->id.name == tv_b->id.name;
+			return tv_a->id.name == tv_b->id.name && tv_a->predicates == tv_b->predicates;
 		} else {
 			return false;
 		}
@@ -55,31 +55,42 @@ bool occurs_check(std::string a, type_t::ref type) {
 	return in(a, type->get_ftvs());
 }
 
-type_t::map bind(std::string a, type_t::ref type) {
+unification_t bind(std::string a, type_t::ref type, const std::set<std::string> &instances) {
+	unification_t unification;
+	for (auto instance : instances) {
+		unification.instances.push_back(type_operator(type_id(identifier_t{instance, INTERNAL_LOC()}), type));
+	}
     if (auto tv = dyncast<const type_variable_t>(type)) {
 	   	if (tv->id.name == a) {
+			assert(instances.size() == tv->predicates.size());
 			return {};
+		} else {
+			/* make sure to copy the instances off of this type variable */
+			for (auto instance : tv->predicates) {
+				assert(false && !!"Not a bug, just interesting...");
+				unification.instances.push_back(type_operator(type_id(identifier_t{instance, INTERNAL_LOC()}), type));
+			}
 		}
     }
     if (occurs_check(a, type)) {
         throw user_error(type->get_location(), "infinite type detected! %s = %s", a.c_str(), type->str().c_str());
     }
+
     debug_above(6, log("binding type variable %s to %s", a.c_str(), type->str().c_str()));
-	type_t::map s;
-    s[a] = type;
-    return s;
+    unification.bindings[a] = type;
+    return unification;
 }
 
-type_t::map unify(type_t::ref a, type_t::ref b) {
+unification_t unify(type_t::ref a, type_t::ref b) {
 	debug_above(8, log("unify(%s, %s)", a->str().c_str(), b->str().c_str()));
 	if (type_equality(a, b)) {
 		return {};
 	}
 
 	if (auto tv_a = dyncast<const type_variable_t>(a)) {
-		return bind(tv_a->id.name, b);
+		return bind(tv_a->id.name, b, a->predicates);
 	} else if (auto tv_b = dyncast<const type_variable_t>(b)) {
-		return bind(tv_b->id.name, a);
+		return bind(tv_b->id.name, a, b->predicates);
 	} else if (auto to_a = dyncast<const type_operator_t>(a)) {
 		if (auto to_b = dyncast<const type_operator_t>(b)) {
 			return unify_many(
@@ -98,14 +109,14 @@ type_t::map unify(type_t::ref a, type_t::ref b) {
 			b->str().c_str());
 }
 
-types::type_t::map solver(const types::type_t::map &subst, const constraints_t &constraints, env_t &env) {
+unification_t solver(const unification_t &unification, const constraints_t &constraints, env_t &env) {
 	if (constraints.size() == 0) {
-		return subst;
+		return unification;
 	}
 	try {
-		auto new_subst = compose(
+		auto new_unification = compose(
 				unify(constraints[0].a, constraints[0].b),
-				subst);
+				unification);
 		env = env.rebind(new_subst);
 		return solver(new_subst, rebind_constraints(constraints, new_subst), env);
 	} catch (user_error &e) {

@@ -110,13 +110,16 @@ int main(int argc, char *argv[]) {
 
 				env_t env;
 				location_t l_ = INTERNAL_LOC();
-				env.map["+"] = forall({}, type_arrow(l_, type_int(l_), type_arrow(l_, type_int(l_), type_int(l_))));
-				env.map["*"] = forall({}, type_arrow(l_, type_int(l_), type_arrow(l_, type_int(l_), type_int(l_))));
-				env.map["-"] = forall({}, type_arrow(l_, type_int(l_), type_arrow(l_, type_int(l_), type_int(l_))));
-				env.map["/"] = forall({}, type_arrow(l_, type_int(l_), type_arrow(l_, type_int(l_), type_int(l_))));
-				env.map["unit"] = forall({}, type_unit(l_));
-				env.map["true"] = forall({}, type_bool(l_));
-				env.map["false"] = forall({}, type_bool(l_));
+				auto tv_id = make_iid(bitter::fresh());
+				auto tv = type_variable(tv_id);
+
+				types::forall_t::predicate_map pm;
+				pm[tv_id.name] = {"test_basic.Num"};
+
+				env.map["+"] = forall({tv_id.name}, pm, type_arrows({tv, tv, tv}));
+				env.map["unit"] = forall({}, {}, type_unit(l_));
+				env.map["true"] = forall({}, {}, type_bool(l_));
+				env.map["false"] = forall({}, {}, type_bool(l_));
 
 				for (bitter::decl_t *decl : program->decls) {
 					constraints_t constraints;
@@ -124,9 +127,9 @@ int main(int argc, char *argv[]) {
 						// std::cout << C_ID "------------------------------" C_RESET << std::endl;
 						// log("type checking %s", decl->var.str().c_str());
 						types::type_t::ref ty = infer(decl->value, env, constraints);
-						types::type_t::map subst = solver({}, constraints, env);
+						unification_t unification = solver({}, constraints, env);
 
-						ty = ty->rebind(subst);
+						ty = ty->rebind(unification.bindings);
 						// log(">> %s", str(constraints).c_str());
 						// log(">> %s", str(subst).c_str());
 						auto scheme = ty->generalize(env)->normalize();

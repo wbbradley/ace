@@ -44,7 +44,7 @@ types::type_t::ref infer(
 	} else if (auto lambda = dcast<lambda_t*>(expr)) {
 		auto tv = lambda->param_type != nullptr ? lambda->param_type : type_variable(lambda->var.location);
 		auto return_type = type_variable(lambda->var.location);
-		auto local_env = env.extend(lambda->var, return_type, forall({}, tv));
+		auto local_env = env.extend(lambda->var, return_type, forall({}, {}, tv));
 		auto body_type = infer(lambda->body, local_env, constraints);
 		// append(constraints, body_type, type_unit(lambda->body->get_location()), {"all statements must return unit", lambda->body->get_location()});
 #if 0
@@ -73,15 +73,15 @@ types::type_t::ref infer(
 		constraints_t local_constraints;
 		auto t1 = infer(let->value, env, local_constraints);
 		env_t local_env;
-		auto subst = solver({}, local_constraints, local_env);
+		auto unification = solver({}, local_constraints, local_env);
 		for (auto constraint: local_constraints) {
 			log("in let found constraint %s", constraint.str().c_str());
 		}
-		auto schema = forall({}, t1); // t1->rebind(subst)->generalize(env.extend(let->var, schema).rebind(subst));
+		auto schema = forall({}, {}, t1);
 		for (auto constraint: local_constraints) {
 			constraints.push_back(constraint);
 		}
-		auto t2 = infer(let->body, env.extend(let->var, schema), constraints)->rebind(subst);
+		auto t2 = infer(let->body, env.extend(let->var, schema), constraints)->rebind(unification.bindings);
 		log("the let variable is %s :: %s and the body is %s :: %s",
 				let->var.str().c_str(),
 				schema->str().c_str(),
