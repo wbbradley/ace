@@ -37,7 +37,11 @@ namespace bitter {
 	std::ostream &as_t::render(std::ostream &os, int parent_precedence) {
 		os << "(";
 		expr->render(os, 10);
-		os << C_TYPE " as " C_RESET;
+		if (force_cast) {
+			os << C_WARN " as! " C_RESET;
+		} else {
+			os << C_TYPE " as " C_RESET;
+		}
 		type->emit(os, {}, 0);
 		os << ")";
 		return os;

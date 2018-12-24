@@ -1404,6 +1404,9 @@ expr_t *create_ctor(
 				type_decl.get_type(),
 				true /*force_cast*/);
 
+	if (params.size() != 0) {
+		expr = new return_statement_t(expr);
+	}
 	assert(dims.size() == params.size() + 1);
 	for (int i = params.size()-1; i >= 0; --i) {
 		/* (λx y z . return! (ctor_id, x, y, z) as! type_decl) */
