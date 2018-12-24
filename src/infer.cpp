@@ -73,7 +73,7 @@ types::type_t::ref infer(
 		constraints_t local_constraints;
 		auto t1 = infer(let->value, env, local_constraints);
 		env_t local_env;
-		auto unification = solver({}, local_constraints, local_env);
+		auto bindings = solver({}, local_constraints, local_env);
 		for (auto constraint: local_constraints) {
 			log("in let found constraint %s", constraint.str().c_str());
 		}
@@ -81,7 +81,7 @@ types::type_t::ref infer(
 		for (auto constraint: local_constraints) {
 			constraints.push_back(constraint);
 		}
-		auto t2 = infer(let->body, env.extend(let->var, schema), constraints)->rebind(unification.bindings);
+		auto t2 = infer(let->body, env.extend(let->var, schema), constraints)->rebind(bindings);
 		log("the let variable is %s :: %s and the body is %s :: %s",
 				let->var.str().c_str(),
 				schema->str().c_str(),

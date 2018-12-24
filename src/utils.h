@@ -43,6 +43,15 @@ std::set<T> without(const std::set<T> &s, T v) {
 }
 
 template <typename T>
+T set_union(const T &as, const T &bs) {
+	T t(as);
+	for (auto b: bs) {
+		t.insert(b);
+	}
+	return t;
+}
+
+template <typename T>
 T merge(const T &a, const T &b) {
 	T new_t;
 	for (auto i : a) {
@@ -247,6 +256,16 @@ size_t utf8_sequence_length(char ch_);
 template <typename U, typename COLL>
 bool in(U item, const COLL &set) {
 	return set.find(item) != set.end();
+}
+
+template <typename C1, typename C2>
+bool all_in(const C1 &items, const C2 &set) {
+	for (auto item : items) {
+		if (!in(item, set)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 template <typename U, typename COLL>

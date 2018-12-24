@@ -1,3 +1,5 @@
+fn sqr(a) => a * a
+
 fn tuple(h) {
     return (h,)
 }
@@ -8,7 +10,7 @@ data Maybe a {
 }
 
 class Functor f {
-    fn [Functor f] fmap(fn (a) b, f a) f b  
+    fn fmap(fn (a) b, f a) f b  
 }
 
 fn add(x, y) => x + y
@@ -50,6 +52,10 @@ fn doit(m) {
 fn test_doit() {
     return doit(Just("hey"))
 }
+
+fn dd(x) {
+    return sqr(x)
+}
 fn main() {
-    return str((2, 3))
+    return dd("hey")
 }

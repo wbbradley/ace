@@ -111,12 +111,10 @@ int main(int argc, char *argv[]) {
 				env_t env;
 				location_t l_ = INTERNAL_LOC();
 				auto tv_id = make_iid(bitter::fresh());
-				auto tv = type_variable(tv_id);
+				auto tv = type_variable(tv_id, {"Num"});
 
-				types::forall_t::predicate_map pm;
-				pm[tv_id.name] = {"test_basic.Num"};
-
-				env.map["+"] = forall({tv_id.name}, pm, type_arrows({tv, tv, tv}));
+				env.map["+"] = type_arrows({tv, tv, tv})->generalize({});
+				env.map["*"] = type_arrows({tv, tv, tv})->generalize({});
 				env.map["unit"] = forall({}, {}, type_unit(l_));
 				env.map["true"] = forall({}, {}, type_bool(l_));
 				env.map["false"] = forall({}, {}, type_bool(l_));
@@ -127,25 +125,20 @@ int main(int argc, char *argv[]) {
 						// std::cout << C_ID "------------------------------" C_RESET << std::endl;
 						// log("type checking %s", decl->var.str().c_str());
 						types::type_t::ref ty = infer(decl->value, env, constraints);
-						unification_t unification = solver({}, constraints, env);
+						auto bindings = solver({}, constraints, env);
 
-						ty = ty->rebind(unification.bindings);
+						// log("GOT ty = %s", ty->str().c_str());
+						ty = ty->rebind(bindings);
+						// log("REBOUND ty = %s", ty->str().c_str());
 						// log(">> %s", str(constraints).c_str());
 						// log(">> %s", str(subst).c_str());
 						auto scheme = ty->generalize(env)->normalize();
+						// log("NORMALIED ty = %s", n->str().c_str());
+
 						env = env.extend(decl->var, scheme);
 
-#if 0
-						for (auto pair : subst) {
-							std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
-						}
-
-						for (auto pair : env.map) {
-							std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
-							std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
-						}
-#endif
-						log_location(log_info, decl->var.location, "info: %s :: %s", decl->var.str().c_str(), scheme->str().c_str());
+						log_location(log_info, decl->var.location, "info: %s :: %s",
+							   	decl->var.str().c_str(), scheme->str().c_str());
 					} catch (user_error &e) {
 						print_exception(e);
 						/* keep trying other decls, and pretend like this function gives back
@@ -154,31 +147,11 @@ int main(int argc, char *argv[]) {
 					}
 
 				}
-#if 0
+
 				for (auto pair : env.map) {
-					std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
+					// std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
+					std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
 				}
-				std::cout << "unification solver..." << std::endl;
-#endif
-
-#if 0
-				try {
-					types::type_t::map subst = solver({}, constraints, env);
-
-					for (auto pair : subst) {
-						std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
-					}
-
-					for (auto pair : env.map) {
-						std::cout << C_ID "------------------------------" C_RESET << std::endl;
-						std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
-						std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
-					}
-				} catch (user_error &e) {
-					print_exception(e);
-					/* keep trying other decls... */
-				}
-#endif
 
 				return EXIT_SUCCESS;
 			}
