@@ -75,7 +75,7 @@ types::type_t::map bind(std::string a, type_t::ref type, const std::set<std::str
 		if (instances.size() != 0) {
 			throw user_error(
 				   	type->get_location(),
-				   	"skipping promoting predicates {%s} onto type %s from type variable %s",
+				   	"skipping promoting predicates {%s} onto type %s from type variable " c_type("%s"),
 					join(instances, ", ").c_str(), type->str().c_str(), a.c_str());
 		}
 	}

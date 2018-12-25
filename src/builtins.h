@@ -11,8 +11,6 @@ extern const char *INT8_TYPE;
 extern const char *UINT8_TYPE;
 extern const char *CHAR_TYPE;
 extern const char *BOOL_TYPE;
-extern const char *TRUE_TYPE;
-extern const char *FALSE_TYPE;
 extern const char *FLOAT_TYPE;
 extern const char *MBS_TYPE;
 extern const char *PTR_TO_MBS_TYPE;
