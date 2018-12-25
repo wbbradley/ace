@@ -1460,31 +1460,43 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps) {
 type_class_t *parse_type_class(parse_state_t &ps) {
 	auto type_decl = parse_type_decl(ps);
 
-	if (type_decl.params.size() == 0) {
-		throw user_error(type_decl.id.location, "type classes must be parameterized over at least one type variable");
+	if (type_decl.params.size() != 1) {
+		throw user_error(type_decl.id.location, "type classes must be parameterized over (only) one type variable");
 	}
 
 	chomp_token(tk_lcurly);
-	types::type_t::refs superclasses;
-	std::map<std::string, types::type_t::ref> overloads;
+	std::set<std::string> superclasses;
+	env_t overloads;
 	while (true) {
 		if (ps.token.is_ident(K(has))) {
 			ps.advance();
-			superclasses.push_back(parse_type(ps));
+			expect_token(tk_identifier);
+			if (!isupper(ps.token.text[0])) {
+				throw user_error(ps.token.location, "type class requirements need to be upper-case because type classes need to be uppercase");
+			}
+			if (in(ps.token.text, superclasses)) {
+				throw user_error(ps.token.location, "type class requirement mentioned more than once");
+			}
+			superclasses.insert(ps.token_and_advance().text);
 		} else if (ps.token.is_ident(K(fn))) {
 			/* an overloaded function */
 			ps.advance();
 			auto id = identifier_t{ps.token.text, ps.token.location};
 			ps.advance();
 
-			overloads[id.name] = parse_function_type(ps);
+			auto predicates = superclasses;
+			predicates.insert(type_decl.id.name);
+
+			types::type_t::map bindings;
+			bindings[type_decl.params[0].name] = type_variable(gensym(type_decl.params[0].location), predicates);
+			overloads.map[id.name] = parse_function_type(ps)->rebind(bindings)->generalize({})->normalize();
 		} else {
 			chomp_token(tk_rcurly);
 			break;
 		}
 	}
 
-	return new type_class_t(type_decl.id, type_decl.params, superclasses, overloads);
+	return new type_class_t(type_decl.id, superclasses, overloads);
 }
 
 module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {

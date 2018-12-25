@@ -231,6 +231,7 @@ bool compiler_t::parse_program() {
 					false /*global*/));
 
 		std::vector<decl_t *> program_decls;
+		std::vector<type_class_t *> program_type_classes;
 		/* next, merge the entire set of modules into one program */
 
 		for (module_t *module : gps.modules) {
@@ -242,10 +243,14 @@ bool compiler_t::parse_program() {
 			for (decl_t *decl : module_rebound->decls) {
 				program_decls.push_back(decl);
 			}
+			for (type_class_t *type_class : module_rebound->type_classes) {
+				program_type_classes.push_back(type_class);
+			}
 		}
 		assert(program == nullptr);
 		program = new program_t(
 				program_decls,
+				program_type_classes,
 			   	new application_t(
 					new var_t(make_iid("main")),
 				   	new var_t(make_iid("unit"))));

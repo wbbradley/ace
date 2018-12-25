@@ -5,6 +5,7 @@
 #include <iostream>
 #include "types.h"
 #include "match.h"
+#include "env.h"
 
 namespace bitter {
 	std::string fresh();
@@ -214,13 +215,15 @@ namespace bitter {
 	};
 
 	struct type_class_t {
-		type_class_t(identifier_t id, const identifiers_t &params, const types::type_t::refs &superclasses, const std::map<std::string, types::type_t::ref> &overloads) :
-		   	id(id), params(params), superclasses(superclasses), overloads(overloads) {}
+		type_class_t(
+				identifier_t id,
+				const std::set<std::string> &superclasses,
+				const env_t &overloads) :
+			id(id), superclasses(superclasses), overloads(overloads) {}
 
 		identifier_t const id;
-		identifiers_t const params;
-		types::type_t::refs const superclasses;
-		std::map<std::string, types::type_t::ref> const overloads;
+		std::set<std::string> const superclasses;
+		env_t const overloads;
 	};
 
 	struct module_t {
@@ -238,9 +241,16 @@ namespace bitter {
 	};
 
 	struct program_t {
-		program_t(std::vector<decl_t *> decls, expr_t *expr) : decls(decls), expr(expr) {}
+		program_t(
+				std::vector<decl_t *> decls,
+			   	std::vector<type_class_t *> type_classes,
+			   	expr_t *expr) :
+		   	decls(decls),
+			type_classes(type_classes),
+		   	expr(expr) {}
 
 		std::vector<decl_t *> const decls;
+		std::vector<type_class_t *> const type_classes;
 		expr_t * const expr;
 	};
 }
@@ -248,4 +258,3 @@ namespace bitter {
 std::ostream &operator <<(std::ostream &os, bitter::program_t *program);
 std::ostream &operator <<(std::ostream &os, bitter::decl_t *decl);
 std::ostream &operator <<(std::ostream &os, bitter::expr_t *expr);
-

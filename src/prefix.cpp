@@ -87,9 +87,8 @@ type_class_t *prefix(const std::set<std::string> &bindings, std::string pre, typ
 	auto uppercase_bindings = only_uppercase_bindings(bindings);
 	return new type_class_t(
 			prefix(bindings, pre, type_class->id),
-			prefix(uppercase_bindings, pre, type_class->params),
 			prefix(bindings, pre, type_class->superclasses),
-			prefix(bindings, pre, type_class->overloads));
+			env_t{prefix(bindings, pre, type_class->overloads.map), nullptr});
 }
 
 types::type_t::ref prefix(const std::set<std::string> &bindings, std::string pre, types::type_t::ref type) {
@@ -187,3 +186,10 @@ module_t *prefix(const std::set<std::string> &bindings, module_t *module) {
 			   	module->type_classes));
 }
 
+types::forall_t::ref prefix(
+		const std::set<std::string> &bindings,
+	   	std::string pre,
+	   	types::forall_t::ref scheme)
+{
+	return forall(scheme->vars, scheme->predicates, prefix(bindings, pre, scheme->type));
+}

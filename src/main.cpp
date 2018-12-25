@@ -88,6 +88,12 @@ int main(int argc, char *argv[]) {
 					log_location(log_info, decl->var.location, "%s = %s", decl->var.str().c_str(),
 							decl->value->str().c_str());
 				}
+				for (auto type_class : compiler.program->type_classes) {
+					log_location(log_info, type_class->id.location, "\nclass %s {\n\t%s%s\n}",
+							type_class->id.str().c_str(),
+							type_class->superclasses.size() != 0 ? string_format("get %s\n\t", join(type_class->superclasses, ", ").c_str()).c_str() : "",
+							type_class->overloads.str().c_str());
+				}
 				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;
@@ -111,24 +117,11 @@ int main(int argc, char *argv[]) {
 
 				env_t env;
 				location_t l_ = INTERNAL_LOC();
-				auto tv_id = make_iid(bitter::fresh());
-				auto tv = type_variable(tv_id, {"Num"});
+				// auto tv_id = make_iid(bitter::fresh());
+				// auto tv = type_variable(tv_id, {"Num"});
 
-				env.map["+"] = type_arrows({tv, tv, tv})->generalize({});
-				env.map["*"] = type_arrows({tv, tv, tv})->generalize({});
-
-				auto tv_a = type_variable(make_iid(bitter::fresh()));
-				auto tv_b = type_variable(make_iid(bitter::fresh()));
-				auto tv_f = type_variable(make_iid(bitter::fresh()), {"Functor"});
-				auto taa = type_arrows({
-						type_arrow(tv_a, tv_b),
-						type_operator(tv_f, tv_a),
-						type_operator(tv_f, tv_b)});
-				log("fmap is %s", taa->str().c_str());
-				env.map["fmap"] = type_arrows({
-						type_arrow(tv_a, tv_b),
-						type_operator(tv_f, tv_a),
-						type_operator(tv_f, tv_b)})->generalize({});
+				// env.map["+"] = type_arrows({tv, tv, tv})->generalize({});
+				// env.map["*"] = type_arrows({tv, tv, tv})->generalize({});
 
 				env.map["unit"] = forall({}, {}, type_unit(l_));
 				env.map["true"] = forall({}, {}, type_bool(l_));
