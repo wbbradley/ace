@@ -19,14 +19,7 @@ fn plus4(x) => twice(add(2))(x)
 fn hey() {
     return plus4(3)
 }
-/*
-instance Functor Maybe {
-    fn fmap(f, m) => match m {
-        Nothing => Nothing
-        Just(x) => Just(f(x))
-    }
-}
-*/
+
 class Stringable a {
     fn str(a) str
 }
@@ -57,5 +50,6 @@ fn dd(x) {
     return sqr(x)
 }
 fn main() {
-    return dd("hey")
+    return fmap(fn (x) => "str", Just(3))
+    # return dd("hey")
 }

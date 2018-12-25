@@ -73,8 +73,7 @@ types::type_t::map bind(std::string a, type_t::ref type, const std::set<std::str
 		bindings[tv->id.name] = type;
 	} else {
 		if (instances.size() != 0) {
-			log_location(
-					log_error,
+			throw user_error(
 				   	type->get_location(),
 				   	"skipping promoting predicates {%s} onto type %s from type variable %s",
 					join(instances, ", ").c_str(), type->str().c_str(), a.c_str());

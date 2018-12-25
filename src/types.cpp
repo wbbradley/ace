@@ -653,6 +653,10 @@ types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions) {
 	return std::make_shared<types::type_tuple_t>(dimensions);
 }
 
+types::type_t::ref type_arrow(types::type_t::ref a, types::type_t::ref b) {
+	return type_arrow(a->get_location(), a, b);
+}
+
 types::type_t::ref type_arrow(location_t location, types::type_t::ref a, types::type_t::ref b) {
 	return type_operator(type_operator(type_id(identifier_t{"->", location}), a), b);
 }
@@ -660,7 +664,7 @@ types::type_t::ref type_arrow(location_t location, types::type_t::ref a, types::
 types::type_t::ref type_arrows(types::type_t::refs types, int offset) {
 	assert(types.size() - offset > 0);
 	if (types.size() - offset == 1) {
-		return types[0];
+		return types[offset];
 	} else {
 		return type_arrow(types[offset]->get_location(), types[offset], type_arrows(types, offset + 1));
 	}

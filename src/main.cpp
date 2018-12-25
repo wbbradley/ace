@@ -116,6 +116,20 @@ int main(int argc, char *argv[]) {
 
 				env.map["+"] = type_arrows({tv, tv, tv})->generalize({});
 				env.map["*"] = type_arrows({tv, tv, tv})->generalize({});
+
+				auto tv_a = type_variable(make_iid(bitter::fresh()));
+				auto tv_b = type_variable(make_iid(bitter::fresh()));
+				auto tv_f = type_variable(make_iid(bitter::fresh()), {"Functor"});
+				auto taa = type_arrows({
+						type_arrow(tv_a, tv_b),
+						type_operator(tv_f, tv_a),
+						type_operator(tv_f, tv_b)});
+				log("fmap is %s", taa->str().c_str());
+				env.map["fmap"] = type_arrows({
+						type_arrow(tv_a, tv_b),
+						type_operator(tv_f, tv_a),
+						type_operator(tv_f, tv_b)})->generalize({});
+
 				env.map["unit"] = forall({}, {}, type_unit(l_));
 				env.map["true"] = forall({}, {}, type_bool(l_));
 				env.map["false"] = forall({}, {}, type_bool(l_));
