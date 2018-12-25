@@ -72,23 +72,23 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (argc >= 3) {
-
-		compiler_t compiler(argv[2]);
+		std::string user_program_name = argv[2];
 
 		setenv("NO_STD_LIB", "1", 1 /*overwrite*/);
 		setenv("NO_STD_MAIN", "1", 1 /*overwrite*/);
 		setenv("NO_BUILTINS", "1", 1 /*overwrite*/);
 
 		if (cmd == "find") {
-			std::cout << resolve_module_filename(INTERNAL_LOC(), argv[2], "") << std::endl;
+			std::cout << compiler::resolve_module_filename(INTERNAL_LOC(), user_program_name, "") << std::endl;
 			return EXIT_SUCCESS;
 		} else if (cmd == "parse") {
-			if (compiler.parse_program()) {
-				for (auto decl : compiler.program->decls) {
+			auto compilation = compiler::parse_program(user_program_name);
+			if (compilation != nullptr) {
+				for (auto decl : compilation->program->decls) {
 					log_location(log_info, decl->var.location, "%s = %s", decl->var.str().c_str(),
 							decl->value->str().c_str());
 				}
-				for (auto type_class : compiler.program->type_classes) {
+				for (auto type_class : compilation->program->type_classes) {
 					log_location(log_info, type_class->id.location, C_TYPE "\nclass %s {\n\t%s%s\n}" C_RESET,
 							type_class->id.name.c_str(),
 							type_class->superclasses.size() != 0 ? string_format("has %s\n\t", join(type_class->superclasses, ", ").c_str()).c_str() : "",
@@ -106,14 +106,9 @@ int main(int argc, char *argv[]) {
 		} else if (cmd == "compile") {
 			bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
 			bool debug_types = getenv("SHOW_TYPES") != nullptr;
-			if (compiler.parse_program()) {
-#if 0
-				for (auto decl : compiler.program->decls) {
-					log_location(log_info, decl->var.location, "%s = %s", decl->var.str().c_str(),
-							decl->value->str().c_str());
-				}
-#endif
-				bitter::program_t *program = compiler.program;
+			auto compilation = compiler::parse_program(user_program_name);
+			if (compilation != nullptr) {
+				bitter::program_t *program = compilation->program;
 
 				env_t env;
 				location_t l_ = INTERNAL_LOC();
