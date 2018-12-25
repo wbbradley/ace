@@ -112,6 +112,15 @@ namespace types {
 	}
 
 	type_id_t::type_id_t(identifier_t id) : id(id) {
+		auto dot_index = id.name.find(".");
+		if (dot_index == std::string::npos) {
+			dot_index = 0;
+		}
+		assert(id.name.size() > dot_index);
+		if (islower(id.name[dot_index])) {
+			throw user_error(id.location, "type identifiers must begin with an upper-case letter");
+		}
+
 		static bool seen_bottom = false;
 		if (id.name.find(BOTTOM_TYPE) != std::string::npos) {
 			assert(!seen_bottom);

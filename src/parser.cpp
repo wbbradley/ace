@@ -40,37 +40,6 @@ bool token_begins_type(const token_t &token) {
 	};
 }
 
-#if 0
-struct scoping_t {
-	scoping_t(parse_state_t &ps, bool is_let) :
-		ps(ps),
-		cur_scope(scope_t{identifier_t::from_token(ps.token), is_let})
-	{
-		chomp_token(tk_identifier);
-		for (const scope_t &scope : ps.scopes) {
-			if (cur_scope.id.name == scope.id.name) {
-				auto error = user_error(
-						cur_scope.id.location,
-					   	"duplicate name " c_id("%s") " found",
-					   	cur_scope.id.name.c_str());
-				error.add_info(scope.id.location, "see prior declaration here");
-				throw error;
-			}
-		}
-
-		ps.scopes.push_back(cur_scope);
-	}
-
-	~scoping_t() {
-		assert(ps.scopes.back().id.name == cur_scope.id.name);
-		ps.scopes.pop_back();
-	}
-
-	parse_state_t &ps;
-	scope_t cur_scope;
-};
-#endif
-
 std::vector<std::pair<int, identifier_t>> extract_ids(const std::vector<expr_t*> &dims) {
 	std::vector<std::pair<int, identifier_t>> refs;
 	int i = 0;
@@ -423,7 +392,7 @@ expr_t *parse_var_ref(parse_state_t &ps) {
 		return new literal_t(token_t{token.location, tk_string, escape_json_quotes(token.location.filename)});
 	}
 
-	return new var_t(identifier_t::from_token(ps.token_and_advance()));
+	return new var_t(ps.identifier_and_advance());
 }
 
 expr_t *parse_base_expr(parse_state_t &ps) {
@@ -1033,9 +1002,7 @@ while_t *parse_while(parse_state_t &ps) {
 
 predicate_t *parse_ctor_predicate(parse_state_t &ps, maybe<identifier_t> name_assignment) {
 	assert(ps.token.tk == tk_identifier && isupper(ps.token.text[0]));
-	identifier_t ctor_name = identifier_t::from_token(ps.token);
-
-	ps.advance();
+	identifier_t ctor_name = ps.identifier_and_advance();
 
 	std::vector<predicate_t *> params;
 	if (ps.token.tk == tk_lparen) {
@@ -1477,7 +1444,7 @@ type_class_t *parse_type_class(parse_state_t &ps) {
 			if (in(ps.token.text, superclasses)) {
 				throw user_error(ps.token.location, "type class requirement mentioned more than once");
 			}
-			superclasses.insert(ps.token_and_advance().text);
+			superclasses.insert(ps.identifier_and_advance().name);
 		} else if (ps.token.is_ident(K(fn))) {
 			/* an overloaded function */
 			ps.advance();
@@ -1511,13 +1478,16 @@ module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 		expect_token(tk_identifier);
 		std::string module_name = ps.token.text;
 		ps.advance();
-		expect_token(tk_lcurly);
-		while (ps.token.tk != tk_rcurly) {
+		chomp_token(tk_lcurly);
+		while (true) {
 			expect_token(tk_identifier);
 			ps.add_term_map(ps.token.location, ps.token.text, module_name + "." + ps.token.text);
 			ps.advance();
 			if (ps.token.tk == tk_comma) {
 				ps.advance();
+			} else {
+				chomp_token(tk_rcurly);
+				break;
 			}
 		}
 	}

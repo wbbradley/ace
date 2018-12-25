@@ -2,6 +2,7 @@
 #include "compiler.h"
 #include "dbg.h"
 #include "parse_state.h"
+#include "parser.h"
 #include "logger_decls.h"
 #include <cstdarg>
 #include "builtins.h"
@@ -32,6 +33,19 @@ bool parse_state_t::advance() {
 token_t parse_state_t::token_and_advance() {
 	advance();
 	return prior_token;
+}
+
+identifier_t parse_state_t::identifier_and_advance() {
+	assert(token.tk == tk_identifier);
+	advance();
+	assert(prior_token.tk == tk_identifier);
+
+	auto iter = term_map.find(prior_token.text);
+	if (iter != term_map.end()) {
+		return identifier_t{iter->second, prior_token.location};
+	} else {
+		return iid(prior_token);
+	}
 }
 
 bool parse_state_t::is_mutable_var(std::string name) {

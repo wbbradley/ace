@@ -30,6 +30,10 @@ data Ordering {
     GT
 }
 
+class Ord a {
+    fn compare(a, a) Ordering
+}
+
 class Num a {
     has Ord
     fn from_int(Int) a
