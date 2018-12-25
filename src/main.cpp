@@ -89,9 +89,9 @@ int main(int argc, char *argv[]) {
 							decl->value->str().c_str());
 				}
 				for (auto type_class : compiler.program->type_classes) {
-					log_location(log_info, type_class->id.location, "\nclass %s {\n\t%s%s\n}",
-							type_class->id.str().c_str(),
-							type_class->superclasses.size() != 0 ? string_format("get %s\n\t", join(type_class->superclasses, ", ").c_str()).c_str() : "",
+					log_location(log_info, type_class->id.location, C_TYPE "\nclass %s {\n\t%s%s\n}" C_RESET,
+							type_class->id.name.c_str(),
+							type_class->superclasses.size() != 0 ? string_format("has %s\n\t", join(type_class->superclasses, ", ").c_str()).c_str() : "",
 							type_class->overloads.str().c_str());
 				}
 				return EXIT_SUCCESS;
