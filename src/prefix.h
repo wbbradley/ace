@@ -36,6 +36,19 @@ std::vector<T> prefix(const std::set<std::string> &bindings, std::string pre, co
 }
 
 template <typename T>
+std::set<T> prefix(
+		const std::set<std::string> &bindings,
+		std::string pre,
+		const std::set<T> &set)
+{
+	std::set<T> new_set;
+	for (auto s : set) {
+		new_set.insert(prefix(bindings, pre, s));
+	}
+	return new_set;
+}
+
+template <typename T>
 std::map<std::string, T> prefix(
 		const std::set<std::string> &bindings,
 	   	std::string pre,
@@ -51,17 +64,4 @@ std::map<std::string, T> prefix(
 		}
 	}
 	return new_map;
-}
-
-template <typename T>
-std::set<T> prefix(
-		const std::set<std::string> &bindings,
-	   	std::string pre,
-	   	const std::set<T> &set)
-{
-	std::set<T> new_set;
-	for (auto s : set) {
-		new_set.insert(prefix(bindings, pre, s));
-	}
-	return new_set;
 }

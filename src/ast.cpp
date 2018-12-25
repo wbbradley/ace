@@ -273,6 +273,13 @@ namespace bitter {
 			return types[0];
 		}
 	}
+
+	std::string type_class_t::str() const {
+		return string_format("class %s {\n\t%s%s\n}",
+				id.name.c_str(),
+				superclasses.size() != 0 ? string_format("has %s\n\t", join(superclasses, ", ").c_str()).c_str() : "",
+				::str(overloads).c_str());
+	}
 }
 
 namespace bitter {

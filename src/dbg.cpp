@@ -49,10 +49,6 @@ depth_guard_t::~depth_guard_t() {
 }
 
 #ifdef __APPLE_API_UNSTABLE
-bool AmIBeingDebugged(void) {
-	return false;
-}
-#else
 bool AmIBeingDebugged(void)
     // Returns true if the current process is being debugged (either 
     // running under the debugger or has a debugger attached post facto).
