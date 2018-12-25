@@ -44,7 +44,7 @@ types::type_t::ref infer(
 	} else if (auto lambda = dcast<lambda_t*>(expr)) {
 		auto tv = lambda->param_type != nullptr ? lambda->param_type : type_variable(lambda->var.location);
 		auto return_type = type_variable(lambda->var.location);
-		auto local_env = env.extend(lambda->var, return_type, forall({}, {}, tv));
+		auto local_env = env.extend(lambda->var, return_type, scheme({}, {}, tv));
 		auto body_type = infer(lambda->body, local_env, constraints);
 		// append(constraints, body_type, type_unit(lambda->body->get_location()), {"all statements must return unit", lambda->body->get_location()});
 #if 0
@@ -77,7 +77,7 @@ types::type_t::ref infer(
 		for (auto constraint: local_constraints) {
 			log("in let found constraint %s", constraint.str().c_str());
 		}
-		auto schema = forall({}, {}, t1);
+		auto schema = scheme({}, {}, t1);
 		for (auto constraint: local_constraints) {
 			constraints.push_back(constraint);
 		}

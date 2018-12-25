@@ -25,7 +25,7 @@ namespace types {
 	typedef std::map<std::string, std::set<std::string>> predicate_map;
 
 	struct signature;
-	struct forall_t;
+	struct scheme_t;
 
 	struct type_t : public std::enable_shared_from_this<type_t> {
 		typedef std::shared_ptr<const type_t> ref;
@@ -43,7 +43,7 @@ namespace types {
         /* NB: Also assumes you have rebound the bindings at the callsite. */
 		virtual predicate_map get_predicate_map() const = 0;
 
-		std::shared_ptr<forall_t> generalize(env_ref_t env) const;
+		std::shared_ptr<scheme_t> generalize(env_ref_t env) const;
 		std::string repr(const map &bindings) const;
 		std::string repr() const { return this->repr({}); }
 
@@ -187,17 +187,16 @@ namespace types {
 	};
 
 	struct scheme_t {
-		virtual ~scheme_t() throw() {}
-	};
+		typedef std::shared_ptr<scheme_t> ref;
+		typedef std::map<std::string, ref> map;
 
-	struct forall_t {
-		typedef std::shared_ptr<forall_t> ref;
-		forall_t(std::vector<std::string> vars, const predicate_map &predicates, types::type_t::ref type) : vars(vars), predicates(predicates), type(type) {}
+		scheme_t(std::vector<std::string> vars, const predicate_map &predicates, types::type_t::ref type) : vars(vars), predicates(predicates), type(type) {}
 		types::type_t::ref instantiate(location_t location);
-		forall_t::ref rebind(const types::type_t::map &env);
-		forall_t::ref normalize();
+		scheme_t::ref rebind(const types::type_t::map &env);
+		scheme_t::ref normalize();
 		predicate_map get_predicate_map();
 		std::string str();
+		location_t get_location() const;
 
 		std::vector<std::string> vars;
 		predicate_map predicates;
@@ -231,7 +230,7 @@ types::type_t::ref type_variable(identifier_t name);
 types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
 types::type_t::ref type_operator(const types::type_t::refs &xs);
-types::forall_t::ref forall(std::vector<std::string> vars, const types::predicate_map &predicates, types::type_t::ref type);
+types::scheme_t::ref scheme(std::vector<std::string> vars, const types::predicate_map &predicates, types::type_t::ref type);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_t::ref type_ref(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body);

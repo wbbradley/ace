@@ -30,12 +30,12 @@ env_t env_t::rebind(const types::type_t::map &env) const {
 	return new_env;
 }
 
-env_t env_t::extend(identifier_t id, types::forall_t::ref scheme) const {
+env_t env_t::extend(identifier_t id, types::scheme_t::ref scheme) const {
 	return extend(id, return_type, scheme);
 }
 
-env_t env_t::extend(identifier_t id, types::type_t::ref return_type_, types::forall_t::ref scheme) const {
-	map_t new_map{map};
+env_t env_t::extend(identifier_t id, types::type_t::ref return_type_, types::scheme_t::ref scheme) const {
+	types::scheme_t::map new_map{map};
 	new_map[id.name] = scheme;
 	debug_above(9, log("extending env with %s => %s", id.str().c_str(), ::str(new_map).c_str()));
 	return env_t{new_map, return_type_};
@@ -49,7 +49,7 @@ types::predicate_map env_t::get_predicate_map() const {
 	return predicate_map;
 }
 
-std::string str(const env_t::map_t &m) {
+std::string str(const types::scheme_t::map &m) {
 	std::stringstream ss;
 	ss << "{";
 	ss << join_with(m, ", ", [] (const auto &pair) {

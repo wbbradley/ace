@@ -95,7 +95,7 @@ namespace types {
 		return ss.str();
 	}
 
-	std::shared_ptr<forall_t> type_t::generalize(env_t::ref env) const {
+	std::shared_ptr<scheme_t> type_t::generalize(env_t::ref env) const {
 		std::vector<std::string> vs;
 		auto type_ftvs = get_predicate_map();
 		auto env_ftvs = env.get_predicate_map();
@@ -108,7 +108,7 @@ namespace types {
 				bindings[ftv.first] = type_variable(make_iid(ftv.first));
 			}
 		}
-		return forall(vs, predicate_map, rebind(bindings));
+		return scheme(vs, predicate_map, rebind(bindings));
 	}
 
 	type_id_t::type_id_t(identifier_t id) : id(id) {
@@ -511,7 +511,7 @@ namespace types {
 		return rebound_types;
 	}
 
-	types::type_t::ref forall_t::instantiate(location_t location) {
+	types::type_t::ref scheme_t::instantiate(location_t location) {
 		type_t::map subst;
 		for (auto var : vars) {
 			subst[var] = type_variable(gensym(location), predicates[var]);
@@ -527,11 +527,11 @@ namespace types {
 		return new_map;
 	}
 
-	forall_t::ref forall_t::rebind(const types::type_t::map &env) {
-		return forall(vars, predicates, type->rebind(remove_bindings(env, vars)));
+	scheme_t::ref scheme_t::rebind(const types::type_t::map &env) {
+		return scheme(vars, predicates, type->rebind(remove_bindings(env, vars)));
 	}
 
-	forall_t::ref forall_t::normalize() {
+	scheme_t::ref scheme_t::normalize() {
 		std::map<std::string, std::string> ord;
 		predicate_map pm;
 
@@ -543,10 +543,10 @@ namespace types {
 				pm[new_name] = predicates[ftv.first];
 			}
 		}
-		return forall(values(ord), pm, type->remap_vars(ord));
+		return scheme(values(ord), pm, type->remap_vars(ord));
 	}
 
-	std::string forall_t::str() {
+	std::string scheme_t::str() {
 		std::stringstream ss;
 		if (vars.size() != 0) {
 			ss << "(∀ " << join(vars, " ");
@@ -562,12 +562,15 @@ namespace types {
 		return ss.str();
 	}
 
-	predicate_map forall_t::get_predicate_map() {
+	predicate_map scheme_t::get_predicate_map() {
 		predicate_map predicate_map = type->get_predicate_map();
 		for (auto var : vars) {
 			predicate_map.erase(var);
 		}
 		return predicate_map;
+	}
+	location_t scheme_t::get_location() const {
+		return type->get_location();
 	}
 }
 
@@ -629,13 +632,13 @@ types::type_t::ref type_operator(const types::type_t::refs &xs) {
 	return result;
 }
 
-types::forall_t::ref forall(
+types::scheme_t::ref scheme(
 		std::vector<std::string> vars,
 	   	const types::predicate_map &predicates,
 	   	types::type_t::ref type)
 {
 	assert(type->str().find("|") == std::string::npos);
-	return std::make_shared<types::forall_t>(vars, predicates, type);
+	return std::make_shared<types::scheme_t>(vars, predicates, type);
 }
 
 types::name_index_t get_name_index_from_ids(identifiers_t ids) {

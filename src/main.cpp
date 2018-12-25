@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
 					log_location(log_info, type_class->id.location, C_TYPE "\nclass %s {\n\t%s%s\n}" C_RESET,
 							type_class->id.name.c_str(),
 							type_class->superclasses.size() != 0 ? string_format("has %s\n\t", join(type_class->superclasses, ", ").c_str()).c_str() : "",
-							type_class->overloads.str().c_str());
+							str(type_class->overloads).c_str());
 				}
 				return EXIT_SUCCESS;
 			}
@@ -112,15 +112,26 @@ int main(int argc, char *argv[]) {
 
 				env_t env;
 				location_t l_ = INTERNAL_LOC();
-				// auto tv_id = make_iid(bitter::fresh());
-				// auto tv = type_variable(tv_id, {"Num"});
+				env.map["unit"] = scheme({}, {}, type_unit(l_));
+				env.map["true"] = scheme({}, {}, type_bool(l_));
+				env.map["false"] = scheme({}, {}, type_bool(l_));
 
-				// env.map["+"] = type_arrows({tv, tv, tv})->generalize({});
-				// env.map["*"] = type_arrows({tv, tv, tv})->generalize({});
-
-				env.map["unit"] = forall({}, {}, type_unit(l_));
-				env.map["true"] = forall({}, {}, type_bool(l_));
-				env.map["false"] = forall({}, {}, type_bool(l_));
+				/* first, introduce all the type class signatures into the env */
+				for (bitter::type_class_t *type_class : program->type_classes) {
+					try {
+						for (auto pair : type_class->overloads) {
+							if (in(pair.first, env.map)) {
+								auto error = user_error(pair.second->get_location(),
+										"the name " c_id("%s") " is already in use", pair.first.c_str());
+								error.add_info(env.map[pair.first]->get_location(), "see first declaration here");
+								throw error;
+							}
+							env = env.extend(identifier_t{pair.first, pair.second->get_location()}, pair.second);
+						}
+					} catch (user_error &e) {
+						print_exception(e);
+					}
+				}
 
 				for (bitter::decl_t *decl : program->decls) {
 					constraints_t constraints;
