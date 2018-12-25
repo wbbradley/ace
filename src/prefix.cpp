@@ -88,7 +88,7 @@ type_class_t *prefix(const std::set<std::string> &bindings, std::string pre, typ
 	return new type_class_t(
 			prefix(bindings, pre, type_class->id),
 			prefix(bindings, pre, type_class->superclasses),
-			env_t{prefix(bindings, pre, type_class->overloads.map), nullptr});
+			prefix(bindings, pre, type_class->overloads, true /*include_keys*/));
 }
 
 types::type_t::ref prefix(const std::set<std::string> &bindings, std::string pre, types::type_t::ref type) {
@@ -186,10 +186,10 @@ module_t *prefix(const std::set<std::string> &bindings, module_t *module) {
 			   	module->type_classes));
 }
 
-types::forall_t::ref prefix(
+types::scheme_t::ref prefix(
 		const std::set<std::string> &bindings,
 	   	std::string pre,
-	   	types::forall_t::ref scheme)
+	   	types::scheme_t::ref scheme)
 {
-	return forall(scheme->vars, scheme->predicates, prefix(bindings, pre, scheme->type));
+	return ::scheme(scheme->vars, scheme->predicates, prefix(bindings, pre, scheme->type));
 }

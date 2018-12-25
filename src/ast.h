@@ -218,12 +218,12 @@ namespace bitter {
 		type_class_t(
 				identifier_t id,
 				const std::set<std::string> &superclasses,
-				const env_t &overloads) :
+				const types::scheme_t::map &overloads) :
 			id(id), superclasses(superclasses), overloads(overloads) {}
 
 		identifier_t const id;
 		std::set<std::string> const superclasses;
-		env_t const overloads;
+		types::scheme_t::map const overloads;
 	};
 
 	struct module_t {

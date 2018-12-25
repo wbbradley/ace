@@ -1466,7 +1466,7 @@ type_class_t *parse_type_class(parse_state_t &ps) {
 
 	chomp_token(tk_lcurly);
 	std::set<std::string> superclasses;
-	env_t overloads;
+	types::scheme_t::map overloads;
 	while (true) {
 		if (ps.token.is_ident(K(has))) {
 			ps.advance();
@@ -1489,7 +1489,7 @@ type_class_t *parse_type_class(parse_state_t &ps) {
 
 			types::type_t::map bindings;
 			bindings[type_decl.params[0].name] = type_variable(gensym(type_decl.params[0].location), predicates);
-			overloads.map[id.name] = parse_function_type(ps)->rebind(bindings)->generalize({})->normalize();
+			overloads[id.name] = parse_function_type(ps)->rebind(bindings)->generalize({})->normalize();
 		} else {
 			chomp_token(tk_rcurly);
 			break;

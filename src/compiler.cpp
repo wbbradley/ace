@@ -187,6 +187,9 @@ namespace compiler {
 		}
 		for (auto type_class : type_classes) {
 			top_level_decls.insert(type_class->id.name);
+			for (auto overload_pair : type_class->overloads) {
+				top_level_decls.insert(overload_pair.first);
+			}
 		}
 		return top_level_decls;
 	}

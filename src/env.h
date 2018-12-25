@@ -6,18 +6,17 @@
 
 namespace types {
 	struct type_t;
-	struct forall_t;
+	struct scheme_t;
 };
 
 struct env_t {
 	using ref = const env_t &;
-	using map_t = std::map<std::string, std::shared_ptr<types::forall_t>>;
 
-	map_t map;
+	types::scheme_t::map map;
 	std::shared_ptr<const types::type_t> return_type;
 
-	env_t extend(identifier_t id, std::shared_ptr<types::forall_t> scheme) const;
-	env_t extend(identifier_t id, std::shared_ptr<const types::type_t> return_type, std::shared_ptr<types::forall_t> scheme) const;
+	env_t extend(identifier_t id, std::shared_ptr<types::scheme_t> scheme) const;
+	env_t extend(identifier_t id, std::shared_ptr<const types::type_t> return_type, std::shared_ptr<types::scheme_t> scheme) const;
 	env_t rebind(const types::type_t::map &env) const;
 	types::predicate_map get_predicate_map() const;
 	std::shared_ptr<const types::type_t> lookup_env(identifier_t id) const;
@@ -25,4 +24,4 @@ struct env_t {
 	std::string str() const;
 };
 
-std::string str(const env_t::map_t &m);
+std::string str(const types::scheme_t::map &m);
