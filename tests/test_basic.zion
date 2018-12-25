@@ -20,8 +20,8 @@ fn hey() {
     return plus4(3)
 }
 
-class Stringable a {
-    fn str(a) str
+class Show a {
+    fn str(a) String
 }
 
 data Ordering {
@@ -32,7 +32,7 @@ data Ordering {
 
 class Num a {
     has Ord
-    fn from_int(int) a
+    fn from_int(Int) a
     fn +(a, a) a
     fn *(a, a) a
     fn -(a, a) a
