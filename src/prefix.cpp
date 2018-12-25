@@ -85,6 +85,7 @@ std::set<std::string> only_uppercase_bindings(const std::set<std::string> &bindi
 
 type_class_t *prefix(const std::set<std::string> &bindings, std::string pre, type_class_t *type_class) {
 	auto uppercase_bindings = only_uppercase_bindings(bindings);
+	prefix(bindings, pre, type_class->superclasses);
 	return new type_class_t(
 			prefix(bindings, pre, type_class->id),
 			prefix(bindings, pre, type_class->superclasses),
@@ -191,5 +192,8 @@ types::scheme_t::ref prefix(
 	   	std::string pre,
 	   	types::scheme_t::ref scheme)
 {
-	return ::scheme(scheme->vars, scheme->predicates, prefix(bindings, pre, scheme->type));
+	return ::scheme(
+			scheme->vars,
+			prefix(bindings, pre, scheme->predicates, false),
+			prefix(bindings, pre, scheme->type));
 }

@@ -220,6 +220,7 @@ namespace bitter {
 				const std::set<std::string> &superclasses,
 				const types::scheme_t::map &overloads) :
 			id(id), superclasses(superclasses), overloads(overloads) {}
+		std::string str() const;
 
 		identifier_t const id;
 		std::set<std::string> const superclasses;
