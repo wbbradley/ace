@@ -37,7 +37,7 @@ env_t env_t::extend(identifier_t id, types::forall_t::ref scheme) const {
 env_t env_t::extend(identifier_t id, types::type_t::ref return_type_, types::forall_t::ref scheme) const {
 	map_t new_map{map};
 	new_map[id.name] = scheme;
-	debug_above(9, log("extending env with %s => %s", id.str().c_str(), str(new_map).c_str()));
+	debug_above(9, log("extending env with %s => %s", id.str().c_str(), ::str(new_map).c_str()));
 	return env_t{new_map, return_type_};
 }
 
@@ -56,5 +56,16 @@ std::string str(const env_t::map_t &m) {
 			return string_format("%s: %s", pair.first.c_str(), pair.second->str().c_str());
 			});
 	ss << "}";
+	return ss.str();
+}
+
+std::string env_t::str() const {
+	std::stringstream ss;
+	ss << "{context: " << ::str(map);
+	if (return_type != nullptr) {
+		ss << ", return_type=(" << return_type->str() << ")}";
+	} else {
+		ss << "}";
+	}
 	return ss.str();
 }

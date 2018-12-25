@@ -21,6 +21,7 @@ bitter::type_class_t *prefix(const std::set<std::string> &bindings, std::string 
 
 
 types::type_t::ref prefix(const std::set<std::string> &bindings, std::string pre, types::type_t::ref type);
+types::forall_t::ref prefix(const std::set<std::string> &bindings, std::string pre, types::forall_t::ref scheme);
 bitter::expr_t *prefix(const std::set<std::string> &bindings, std::string pre, bitter::expr_t *value);
 std::vector<bitter::expr_t *> prefix(const std::set<std::string> &bindings, std::string pre, std::vector<bitter::expr_t *> values);
 bitter::module_t *prefix(const std::set<std::string> &bindings, bitter::module_t *module);
