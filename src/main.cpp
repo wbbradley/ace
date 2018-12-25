@@ -98,7 +98,8 @@ int main(int argc, char *argv[]) {
 			assert(alphabetize(26) == "aa");
 			assert(alphabetize(27) == "ab");
 		} else if (cmd == "compile") {
-
+			bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
+			bool debug_types = getenv("SHOW_TYPES") != nullptr;
 			if (compiler.parse_program()) {
 #if 0
 				for (auto decl : compiler.program->decls) {
@@ -137,8 +138,10 @@ int main(int argc, char *argv[]) {
 
 						env = env.extend(decl->var, scheme);
 
-						log_location(log_info, decl->var.location, "info: %s :: %s",
-							   	decl->var.str().c_str(), scheme->str().c_str());
+						if (debug_types) {
+							log_location(log_info, decl->var.location, "info: %s :: %s",
+									decl->var.str().c_str(), scheme->str().c_str());
+						}
 					} catch (user_error &e) {
 						print_exception(e);
 						/* keep trying other decls, and pretend like this function gives back
@@ -148,9 +151,11 @@ int main(int argc, char *argv[]) {
 
 				}
 
-				for (auto pair : env.map) {
-					// std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
-					std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
+				if (debug_compiled_env) {
+					for (auto pair : env.map) {
+						// std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
+						std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
+					}
 				}
 
 				return EXIT_SUCCESS;

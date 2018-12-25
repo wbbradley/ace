@@ -71,6 +71,14 @@ types::type_t::map bind(std::string a, type_t::ref type, const std::set<std::str
 		type = type_variable(gensym(type->get_location()), set_union(instances, tv->predicates));
 		debug_above(10, log("adding a binding from %s to new freshie %s", tv->id.str().c_str(), type->str().c_str()));
 		bindings[tv->id.name] = type;
+	} else {
+		if (instances.size() != 0) {
+			log_location(
+					log_error,
+				   	type->get_location(),
+				   	"skipping promoting predicates {%s} onto type %s from type variable %s",
+					join(instances, ", ").c_str(), type->str().c_str(), a.c_str());
+		}
 	}
 
     bindings[a] = type;
