@@ -289,6 +289,10 @@ namespace bitter {
 				::str(overloads).c_str());
 	}
 
+	location_t type_class_t::get_location() const {
+		return id.location;
+	}
+
 	std::string instance_t::str() const {
 		return string_format("instance %s %s {\n\t%s\n}",
 				type_class_id.name.c_str(),

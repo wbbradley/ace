@@ -6,6 +6,7 @@
 #include <string.h>
 #include <iomanip>
 #include <sstream>
+#include <iostream>
 #include <sys/time.h>
 #include "disk.h"
 #include <execinfo.h>
@@ -326,6 +327,13 @@ void log_location(log_level_t level, const location_t &location, const char *for
 	va_list args;
 	va_start(args, format);
 	logv_location(level, location, format, args);
+	va_end(args);
+}
+
+void log_location(const location_t &location, const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	logv_location(log_info, location, format, args);
 	va_end(args);
 }
 

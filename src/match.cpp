@@ -496,7 +496,7 @@ namespace match {
 			Pattern::ref rhs,
 			const std::function<void (Pattern::ref)> &send)
 	{
-		debug_above(8, log_location(log_info, rhs->location, "computing %s \\ %s",
+		debug_above(8, log_location(rhs->location, "computing %s \\ %s",
 					lhs->str().c_str(),
 					rhs->str().c_str()));
 

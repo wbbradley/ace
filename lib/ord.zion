@@ -1,0 +1,9 @@
+data Ordering {
+    EQ
+    LT
+    GT
+}
+
+class Ord a {
+    fn compare(a, a) Ordering
+}
