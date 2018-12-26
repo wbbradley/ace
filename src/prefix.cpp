@@ -93,9 +93,9 @@ type_class_t *prefix(const std::set<std::string> &bindings, std::string pre, typ
 
 instance_t *prefix(const std::set<std::string> &bindings, std::string pre, instance_t *instance) {
 	return new instance_t(
-				prefix(bindings, pre, instance->type_class_id),
-				prefix(bindings, pre, instance->type),
-				prefix(bindings, pre, instance->decls));
+			prefix(bindings, pre, instance->type_class_id),
+			prefix(bindings, pre, instance->type),
+			prefix(bindings, pre, instance->decls));
 }
 
 types::type_t::ref prefix(const std::set<std::string> &bindings, std::string pre, types::type_t::ref type) {

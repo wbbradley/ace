@@ -39,12 +39,15 @@ identifier_t parse_state_t::identifier_and_advance() {
 	assert(token.tk == tk_identifier);
 	advance();
 	assert(prior_token.tk == tk_identifier);
+	return id_mapped(identifier_t{prior_token.text, prior_token.location});
+}
 
-	auto iter = term_map.find(prior_token.text);
+identifier_t parse_state_t::id_mapped(identifier_t id) {
+	auto iter = term_map.find(id.name);
 	if (iter != term_map.end()) {
-		return identifier_t{iter->second, prior_token.location};
+		return identifier_t{iter->second, id.location};
 	} else {
-		return iid(prior_token);
+		return id;
 	}
 }
 
