@@ -68,12 +68,12 @@ std::string str(const types::scheme_t::map &m) {
 
 std::string env_t::str() const {
 	std::stringstream ss;
-	ss << "{" c_ast("context") ": " << ::str(map);
+	ss << "{context: " << ::str(map);
 	if (return_type != nullptr) {
-		ss << ", " c_ast("return_type") ": (" << return_type->str() << ")";
+		ss << ", return_type: (" << return_type->str() << ")";
 	}
 	if (instance_requirements.size() != 0) {
-		ss << ", " c_ast("instance_requirements") ": [" << join_with(instance_requirements, ", ", [] (const instance_requirement_t &ir) {
+		ss << ", instance_requirements: [" << join_with(instance_requirements, ", ", [] (const instance_requirement_t &ir) {
 				return (
 						std::stringstream()
 						<< "{"

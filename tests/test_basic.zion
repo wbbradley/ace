@@ -1,3 +1,4 @@
+fn id(x) => x
 fn sqr(a) => a * a
 
 fn tuple(h) {
@@ -43,6 +44,14 @@ class Num a {
     fn /(a, a) a
 }
 
+instance Num Int {
+    let from_int = id
+    fn +(x, y) => add_int(x, y)
+    fn *(x, y) => multiply_int(x, y)
+    fn -(x, y) => subtract_int(x, y)
+    fn /(x, y) => divide_int(x, y)
+}
+
 fn doit(m) {
     return m
 }
@@ -54,6 +63,7 @@ fn test_doit() {
 fn dd(x) {
     return sqr(x)
 }
+
 fn main() {
     return fmap(fn (x) => "str", Just(3))
     # return dd("hey")

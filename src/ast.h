@@ -200,6 +200,7 @@ namespace bitter {
 
 	struct decl_t {
 		decl_t(identifier_t var, expr_t *value) : var(var), value(value) {}
+		std::string str() const;
 
 		identifier_t const var;
 		expr_t * const value;
@@ -217,14 +218,36 @@ namespace bitter {
 	struct type_class_t {
 		type_class_t(
 				identifier_t id,
+				identifier_t type_var_id,
 				const std::set<std::string> &superclasses,
-				const types::scheme_t::map &overloads) :
-			id(id), superclasses(superclasses), overloads(overloads) {}
+				const types::type_t::map &overloads) :
+			id(id),
+			type_var_id(type_var_id),
+			superclasses(superclasses),
+			overloads(overloads) {}
+
 		std::string str() const;
 
 		identifier_t const id;
+		identifier_t const type_var_id;
 		std::set<std::string> const superclasses;
-		types::scheme_t::map const overloads;
+		types::type_t::map const overloads;
+	};
+
+	struct instance_t {
+		instance_t(
+				identifier_t type_class_id,
+				types::type_t::ref type,
+				const std::vector<decl_t *> &decls) :
+			type_class_id(type_class_id),
+			type(type),
+			decls(decls)
+		{}
+		std::string str() const;
+
+		identifier_t const type_class_id;
+		types::type_t::ref const type;
+		std::vector<decl_t *> const decls;
 	};
 
 	struct module_t {
@@ -232,26 +255,35 @@ namespace bitter {
 				std::string name,
 			   	const std::vector<decl_t *> &decls,
 			   	const std::vector<type_decl_t> &type_decls,
-			   	const std::vector<type_class_t *> &type_classes) :
-		   	name(name), decls(decls), type_decls(type_decls), type_classes(type_classes) {}
+			   	const std::vector<type_class_t *> &type_classes,
+			   	const std::vector<instance_t *> &instances) :
+		   	name(name),
+		   	decls(decls),
+		   	type_decls(type_decls),
+		   	type_classes(type_classes), instances(instances)
+		{}
 
 		std::string const name;
 		std::vector<decl_t *> const decls;
 		std::vector<type_decl_t> const type_decls;
 		std::vector<type_class_t *> const type_classes;
+		std::vector<instance_t *> const instances;
 	};
 
 	struct program_t {
 		program_t(
-				std::vector<decl_t *> decls,
-			   	std::vector<type_class_t *> type_classes,
-			   	expr_t *expr) :
-		   	decls(decls),
+				const std::vector<decl_t *> &decls,
+				const std::vector<type_class_t *> &type_classes,
+				const std::vector<instance_t *> &instances,
+				expr_t *expr) :
+			decls(decls),
 			type_classes(type_classes),
+			instances(instances),
 		   	expr(expr) {}
 
 		std::vector<decl_t *> const decls;
 		std::vector<type_class_t *> const type_classes;
+		std::vector<instance_t *> const instances;
 		expr_t * const expr;
 	};
 }

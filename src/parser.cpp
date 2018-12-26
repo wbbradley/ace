@@ -1424,6 +1424,34 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps) {
 	return {type_decl, decls};
 }
 
+instance_t *parse_type_class_instance(parse_state_t &ps) {
+	identifier_t type_class_id = ps.identifier_and_advance();
+	types::type_t::ref type = parse_type(ps);
+	chomp_token(tk_lcurly);
+
+	std::vector<decl_t *> decls;
+	while (true) {
+		if (ps.token.is_ident(K(fn))) {
+			/* instance-level functions */
+			ps.advance();
+			auto token = ps.token_and_advance();
+			auto id = identifier_t{token.text, token.location};
+			decls.push_back(new decl_t(id, parse_lambda(ps)));
+		} else if (ps.token.is_ident(K(let))) {
+			/* instance-level let vars */
+			ps.advance();
+			auto id = identifier_t::from_token(ps.token_and_advance());
+			chomp_token(tk_assign);
+			decls.push_back(new decl_t(id, parse_expr(ps)));
+		} else {
+			chomp_token(tk_rcurly);
+			break;
+		}
+	}
+
+	return new instance_t{type_class_id, type, decls};
+}
+
 type_class_t *parse_type_class(parse_state_t &ps) {
 	auto type_decl = parse_type_decl(ps);
 
@@ -1433,7 +1461,7 @@ type_class_t *parse_type_class(parse_state_t &ps) {
 
 	chomp_token(tk_lcurly);
 	std::set<std::string> superclasses;
-	types::scheme_t::map overloads;
+	types::type_t::map overloads;
 	while (true) {
 		if (ps.token.is_ident(K(has))) {
 			ps.advance();
@@ -1451,19 +1479,21 @@ type_class_t *parse_type_class(parse_state_t &ps) {
 			auto id = identifier_t{ps.token.text, ps.token.location};
 			ps.advance();
 
+			/*
 			auto predicates = superclasses;
 			predicates.insert(type_decl.id.name);
 
 			types::type_t::map bindings;
 			bindings[type_decl.params[0].name] = type_variable(gensym(type_decl.params[0].location), predicates);
-			overloads[id.name] = parse_function_type(ps)->rebind(bindings)->generalize({})->normalize();
+			*/
+			overloads[id.name] = parse_function_type(ps); // ->rebind(bindings)->generalize({})->normalize();
 		} else {
 			chomp_token(tk_rcurly);
 			break;
 		}
 	}
 
-	return new type_class_t(type_decl.id, superclasses, overloads);
+	return new type_class_t(type_decl.id, type_decl.params[0], superclasses, overloads);
 }
 
 module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
@@ -1472,6 +1502,7 @@ module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 	std::vector<decl_t *> decls;
 	std::vector<type_decl_t> type_decls;
 	std::vector<type_class_t *> type_classes;
+	std::vector<instance_t *> instances;
 
 	while (ps.token.is_ident(K(get))) {
 		ps.advance();
@@ -1516,6 +1547,10 @@ module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 			/* module-level type classes */
 			ps.advance();
 			type_classes.push_back(parse_type_class(ps));
+		} else if (ps.token.is_ident(K(instance))) {
+			/* module-level type instances */
+			ps.advance();
+			instances.push_back(parse_type_class_instance(ps));
 		} else {
 			break;
 		}
@@ -1523,7 +1558,7 @@ module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 	if (ps.token.tk != tk_none) {
 		throw user_error(ps.token.location, "unknown stuff here");
 	}
-	return new module_t(ps.module_name, decls, type_decls, type_classes);
+	return new module_t(ps.module_name, decls, type_decls, type_classes, instances);
 }
 
 #if 0

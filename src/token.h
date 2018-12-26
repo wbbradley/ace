@@ -99,7 +99,7 @@ K(global);
 K(has);
 K(if);
 K(in);
-K(integer);
+K(instance);
 K(is);
 K(let);
 K(link);

@@ -89,10 +89,10 @@ int main(int argc, char *argv[]) {
 							decl->value->str().c_str());
 				}
 				for (auto type_class : compilation->program->type_classes) {
-					log_location(log_info, type_class->id.location, C_TYPE "\nclass %s {\n\t%s%s\n}" C_RESET,
-							type_class->id.name.c_str(),
-							type_class->superclasses.size() != 0 ? string_format("has %s\n\t", join(type_class->superclasses, ", ").c_str()).c_str() : "",
-							str(type_class->overloads).c_str());
+					log_location(log_info, type_class->id.location, "%s", type_class->str().c_str());
+				}
+				for (auto instance : compilation->program->instances) {
+					log_location(log_info, instance->type_class_id.location, "%s", instance->str().c_str());
 				}
 				return EXIT_SUCCESS;
 			}
@@ -118,6 +118,12 @@ int main(int argc, char *argv[]) {
 
 				/* first, introduce all the type class signatures into the env */
 				for (bitter::type_class_t *type_class : program->type_classes) {
+					auto predicates = type_class->superclasses;
+					predicates.insert(type_class->id.name);
+
+					types::type_t::map bindings;
+					bindings[type_class->type_var_id.name] = type_variable(gensym(type_class->type_var_id.location), predicates);
+
 					try {
 						for (auto pair : type_class->overloads) {
 							if (in(pair.first, env.map)) {
@@ -126,7 +132,10 @@ int main(int argc, char *argv[]) {
 								error.add_info(env.map[pair.first]->get_location(), "see first declaration here");
 								throw error;
 							}
-							env.extend(identifier_t{pair.first, pair.second->get_location()}, pair.second);
+
+							env.extend(
+									identifier_t{pair.first, pair.second->get_location()},
+									pair.second->rebind(bindings)->generalize({})->normalize());
 						}
 					} catch (user_error &e) {
 						print_exception(e);
@@ -165,8 +174,6 @@ int main(int argc, char *argv[]) {
 				}
 
 				if (debug_compiled_env) {
-					std::cout << env.str() << std::endl;
-
 					for (auto pair : env.map) {
 						// std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
 						std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
