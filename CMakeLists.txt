@@ -13,8 +13,6 @@ add_compile_options(-std=c++14 -g -O0 ${option_flags})
 
 add_executable(zion
 	src/ast.cpp
-	src/atom.cpp
-	src/binding.cpp
 	src/builtins.cpp
 	src/compiler.cpp
 	src/dbg.cpp

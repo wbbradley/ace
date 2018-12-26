@@ -6,7 +6,6 @@
 #include "types.h"
 #include <iostream>
 #include "unification.h"
-#include "atom.h"
 #include "env.h"
 #include "encoding.h"
 #include "ast.h"
