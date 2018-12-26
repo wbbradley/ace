@@ -19,15 +19,23 @@ types::type_t::ref env_t::lookup_env(identifier_t id) const {
 	throw user_error(id.location, "unbound variable " C_ID "%s" C_RESET, id.name.c_str());
 }
 
-env_t env_t::rebind(const types::type_t::map &env) const {
-	if (env.size() == 0) {
+env_t env_t::rebind(const types::type_t::map &bindings) const {
+	if (bindings.size() == 0) {
 		return *this;
 	}
 	env_t new_env;
 	for (auto pair : map) {
-		new_env.map[pair.first] = pair.second->rebind(env);
+		new_env.map[pair.first] = pair.second->rebind(bindings);
+	}
+	for (auto ir : instance_requirements) {
+		new_env.instance_requirements.push_back(instance_requirement_t{ir.type_class_name, ir.location, ir.type->rebind(bindings)});
 	}
 	return new_env;
+}
+
+env_t env_t::add_instance_requirement_t(instance_requirement_t ir) const {
+	assert(false);
+	return *this;
 }
 
 env_t env_t::extend(identifier_t id, types::scheme_t::ref scheme) const {
@@ -38,7 +46,7 @@ env_t env_t::extend(identifier_t id, types::type_t::ref return_type_, types::sch
 	types::scheme_t::map new_map{map};
 	new_map[id.name] = scheme;
 	debug_above(9, log("extending env with %s => %s", id.str().c_str(), ::str(new_map).c_str()));
-	return env_t{new_map, return_type_};
+	return env_t{new_map, return_type_, instance_requirements};
 }
 
 types::predicate_map env_t::get_predicate_map() const {
@@ -61,11 +69,22 @@ std::string str(const types::scheme_t::map &m) {
 
 std::string env_t::str() const {
 	std::stringstream ss;
-	ss << "{context: " << ::str(map);
+	ss << "{" c_ast("context") ": " << ::str(map);
 	if (return_type != nullptr) {
-		ss << ", return_type=(" << return_type->str() << ")}";
-	} else {
-		ss << "}";
+		ss << ", " c_ast("return_type") ": (" << return_type->str() << ")";
 	}
+	if (instance_requirements.size() != 0) {
+		ss << ", " c_ast("instance_requirements") ": [" << join_with(instance_requirements, ", ", [] (const instance_requirement_t &ir) {
+				return (
+						std::stringstream()
+						<< "{"
+						<< ir.type_class_name
+						<< ", " << ir.location
+						<< ", " << ir.type->str()
+						<< "}").str();
+
+				}) << "]";
+	}
+	ss << "}";
 	return ss.str();
 }

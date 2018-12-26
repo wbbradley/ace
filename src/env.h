@@ -9,12 +9,20 @@ namespace types {
 	struct scheme_t;
 };
 
+struct instance_requirement_t {
+	std::string type_class_name;
+	location_t location;
+	types::type_t::ref type;
+};
+
 struct env_t {
 	using ref = const env_t &;
 
 	types::scheme_t::map map;
 	std::shared_ptr<const types::type_t> return_type;
+	std::vector<instance_requirement_t> instance_requirements;
 
+	env_t add_instance_requirement_t(instance_requirement_t ir) const;
 	env_t extend(identifier_t id, std::shared_ptr<types::scheme_t> scheme) const;
 	env_t extend(identifier_t id, std::shared_ptr<const types::type_t> return_type, std::shared_ptr<types::scheme_t> scheme) const;
 	env_t rebind(const types::type_t::map &env) const;
