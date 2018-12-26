@@ -11,6 +11,11 @@
 using namespace types;
 
 bool type_equality(types::type_t::ref a, types::type_t::ref b) {
+	if (a == b) {
+		/* the same pointer */
+		return true;
+	}
+
 	if (auto ti_a = dyncast<const type_id_t>(a)) {
 		if (auto ti_b = dyncast<const type_id_t>(b)) {
 			return ti_a->id.name == ti_b->id.name;
@@ -55,7 +60,7 @@ bool occurs_check(std::string a, type_t::ref type) {
 	return in(a, type->get_predicate_map());
 }
 
-types::type_t::map bind(std::string a, type_t::ref type, const std::set<std::string> &instances) {
+types::type_t::map bind(std::string a, type_t::ref type, const std::set<std::string> &instances, env_t &env) {
     if (occurs_check(a, type)) {
         throw user_error(type->get_location(), "infinite type detected! %s = %s", a.c_str(), type->str().c_str());
     }
@@ -73,10 +78,9 @@ types::type_t::map bind(std::string a, type_t::ref type, const std::set<std::str
 		bindings[tv->id.name] = type;
 	} else {
 		if (instances.size() != 0) {
-			throw user_error(
-				   	type->get_location(),
-				   	"skipping promoting predicates {%s} onto type %s from type variable " c_type("%s"),
-					join(instances, ", ").c_str(), type->str().c_str(), a.c_str());
+			for (auto instance : instances) {
+				env.add_instance_requirement({instance, type->get_location(), type});
+			}
 		}
 	}
 
@@ -86,25 +90,25 @@ types::type_t::map bind(std::string a, type_t::ref type, const std::set<std::str
     return bindings;
 }
 
-types::type_t::map unify(type_t::ref a, type_t::ref b) {
+types::type_t::map unify(type_t::ref a, type_t::ref b, env_t &env) {
 	debug_above(8, log("unify(%s, %s)", a->str().c_str(), b->str().c_str()));
 	if (type_equality(a, b)) {
 		return {};
 	}
 
 	if (auto tv_a = dyncast<const type_variable_t>(a)) {
-		return bind(tv_a->id.name, b, tv_a->predicates);
+		return bind(tv_a->id.name, b, tv_a->predicates, env);
 	} else if (auto tv_b = dyncast<const type_variable_t>(b)) {
-		return bind(tv_b->id.name, a, tv_b->predicates);
+		return bind(tv_b->id.name, a, tv_b->predicates, env);
 	} else if (auto to_a = dyncast<const type_operator_t>(a)) {
 		if (auto to_b = dyncast<const type_operator_t>(b)) {
 			return unify_many(
 					{to_a->oper, to_a->operand}, 
-					{to_b->oper, to_b->operand});
+					{to_b->oper, to_b->operand}, env);
 		}
 	} else if (auto tup_a = dyncast<const type_tuple_t>(a)) {
 		if (auto tup_b = dyncast<const type_tuple_t>(b)) {
-			return unify_many(tup_a->dimensions, tup_b->dimensions);
+			return unify_many(tup_a->dimensions, tup_b->dimensions, env);
 		}
 	}
 
@@ -124,9 +128,9 @@ types::type_t::map solver(
 	}
 	try {
 		auto new_bindings = compose(
-				unify(constraints[0].a, constraints[0].b),
+				unify(constraints[0].a, constraints[0].b, env),
 				bindings);
-		env = env.rebind(new_bindings);
+		env.rebind(new_bindings);
 		return solver(new_bindings, rebind_constraints(constraints, new_bindings), env);
 	} catch (user_error &e) {
 		e.add_info(constraints[0].info.location, "while checking that %s", constraints[0].info.reason.c_str());
@@ -178,7 +182,7 @@ constraints_t rebind_constraints(const constraints_t &constraints, const type_t:
 	return new_constraints;
 }
 
-types::type_t::map unify_many(const types::type_t::refs &as, const types::type_t::refs &bs) {
+types::type_t::map unify_many(const types::type_t::refs &as, const types::type_t::refs &bs, env_t &env) {
     debug_above(8, log("unify_many([%s], [%s])", join_str(as, ", ").c_str(), join_str(bs, ", ").c_str()));
     if (as.size() == 0 && bs.size() == 0) {
         return {};
@@ -187,7 +191,7 @@ types::type_t::map unify_many(const types::type_t::refs &as, const types::type_t
 			   	join_str(as, " -> ").c_str(), join(bs, " -> ").c_str());
     }
 
-    auto su1 = unify(as[0], bs[0]);
-    auto su2 = unify_many(rebind_tails(as, su1), rebind_tails(bs, su1));
+    auto su1 = unify(as[0], bs[0], env);
+    auto su2 = unify_many(rebind_tails(as, su1), rebind_tails(bs, su1), env);
     return compose(su2, su1);
 }

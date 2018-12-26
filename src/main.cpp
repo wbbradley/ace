@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
 								error.add_info(env.map[pair.first]->get_location(), "see first declaration here");
 								throw error;
 							}
-							env = env.extend(identifier_t{pair.first, pair.second->get_location()}, pair.second);
+							env.extend(identifier_t{pair.first, pair.second->get_location()}, pair.second);
 						}
 					} catch (user_error &e) {
 						print_exception(e);
@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
 						auto scheme = ty->generalize(env)->normalize();
 						// log("NORMALIED ty = %s", n->str().c_str());
 
-						env = env.extend(decl->var, scheme);
+						env.extend(decl->var, scheme);
 
 						if (debug_types) {
 							log_location(log_info, decl->var.location, "info: %s :: %s",
@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) {
 						print_exception(e);
 						/* keep trying other decls, and pretend like this function gives back
 						 * whatever the user wants... */
-						env = env.extend(decl->var, type_arrow(INTERNAL_LOC(), type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC()))->generalize(env)->normalize());
+						env.extend(decl->var, type_arrow(INTERNAL_LOC(), type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC()))->generalize(env)->normalize());
 					}
 
 				}
