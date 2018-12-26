@@ -29,6 +29,7 @@ struct parse_state_t {
 	void add_term_map(location_t, std::string, std::string);
 	void add_type_map(location_t, std::string, std::string);
 	bool line_broke() const { return newline || prior_token.tk == tk_semicolon; }
+	identifier_t id_mapped(identifier_t id);
 	token_t token;
 	token_t prior_token;
 	std::string filename;

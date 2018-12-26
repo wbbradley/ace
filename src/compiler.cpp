@@ -143,7 +143,7 @@ namespace compiler {
 
 				parse_state_t ps(module_filename, "", lexer, &comments, &link_ins);
 
-				identifiers_t dependencies;
+				std::set<identifier_t> dependencies;
 				module_t *module = ::parse_module(ps, dependencies);
 
 				modules.push_back(module);

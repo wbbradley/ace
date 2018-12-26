@@ -186,29 +186,35 @@ int main(int argc, char *argv[]) {
 				}
 
 				for (bitter::instance_t *instance : program->instances) {
-					log_location(
-							instance->type_class_id.location,
-							"checking that member functions of instance [%s %s] type check",
-							instance->type_class_id.str().c_str(),
-							instance->type->str().c_str());
-					/* first put an instance requirement on any superclasses of the associated
-					 * type_class */
-					auto iter = type_class_map.find(instance->type_class_id.name);
-					if (iter == type_class_map.end()) {
-						auto error = user_error(instance->type_class_id.location,
-								"could not find type class for instance %s %s",
+					try {
+						log_location(
+								instance->type_class_id.location,
+								"checking that member functions of instance [%s %s] type check",
 								instance->type_class_id.str().c_str(),
 								instance->type->str().c_str());
-						auto leaf_name = split(instance->type_class_id.name, ".").back();
-						for (auto type_class : program->type_classes) {
-							if (type_class->id.name.find(leaf_name) != std::string::npos) {
-								error.add_info(type_class->id.location, "did you mean %s?",
-										type_class->id.str().c_str());
+						/* first put an instance requirement on any superclasses of the associated
+						 * type_class */
+						auto iter = type_class_map.find(instance->type_class_id.name);
+						if (iter == type_class_map.end()) {
+							auto error = user_error(instance->type_class_id.location,
+									"could not find type class for instance %s %s",
+									instance->type_class_id.str().c_str(),
+									instance->type->str().c_str());
+							auto leaf_name = split(instance->type_class_id.name, ".").back();
+							std::cout << "leaf = " << leaf_name << std::endl;
+							for (auto type_class : program->type_classes) {
+								std::cout << "looking at " << type_class->id.str() << std::endl;
+								if (type_class->id.name.find(leaf_name) != std::string::npos) {
+									error.add_info(type_class->id.location, "did you mean %s?",
+											type_class->id.str().c_str());
+								}
 							}
+							throw error;
 						}
-						throw error;
+						bitter::type_class_t *type_class = iter->second;
+					} catch (user_error &e) {
+						print_exception(e);
 					}
-					bitter::type_class_t *type_class = iter->second;
 				}
 
 				if (debug_compiled_env) {

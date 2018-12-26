@@ -123,7 +123,7 @@ expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let) {
 	}
 
 	if (!is_let) {
-		initializer = new application_t(new var_t(make_iid("Ref")), initializer);
+		initializer = new application_t(new var_t(ps.id_mapped(make_iid("Ref"))), initializer);
 	}
 
 	return new let_t(var_id, initializer, parse_block(ps, false /*expression_means_return*/));
@@ -205,9 +205,9 @@ expr_t *parse_with_block(parse_state_t &ps) {
 #endif
 }
 
-expr_t *wrap_with_iter(expr_t *expr) {
+expr_t *wrap_with_iter(parse_state_t &ps, expr_t *expr) {
 	return new application_t(
-			new var_t(identifier_t{"iter", expr->get_location()}),
+			new var_t(ps.id_mapped(identifier_t{"iter", expr->get_location()})),
 			expr);
 }
 
@@ -242,7 +242,7 @@ expr_t *parse_for_block(parse_state_t &ps) {
 	auto iter_func_decl = create<var_decl_t>(token_t{expr->get_location(), tk_identifier, gensym(INTERNAL_LOC())->get_name()});
 	iter_func_decl->is_let_var = true;
 	iter_func_decl->parsed_type = parsed_type_t(type_variable(expr->get_location()));
-	iter_func_decl->initializer = wrap_with_iter(expr);
+	iter_func_decl->initializer = wrap_with_iter(ps, expr);
 
 	/* call the iterator value (which is a function returned by the expression */
 	auto iter_token = token_t{expr->get_location(), tk_identifier, iter_func_decl->token.text};
@@ -428,7 +428,7 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 		exprs.push_back(
 				new application_t(
 					new application_t(
-						new var_t(identifier_t{"append", ps.token.location}),
+						new var_t(ps.id_mapped(identifier_t{"append", ps.token.location})),
 						array_var),
 					parse_expr(ps)));
 
@@ -447,7 +447,7 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 	return new let_t(
 			array_var->id,
 			new application_t(
-				new var_t(identifier_t{"__init_vector__", location}),
+				new var_t(ps.id_mapped(identifier_t{"__init_vector__", location})),
 				new literal_t(token_t{location, tk_integer, array_size_to_reserve})),
 			new block_t(exprs));
 }
@@ -545,7 +545,7 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 				if (ps.token.tk == tk_rsquare) {
 					expr = new application_t(
 							new application_t(
-								new var_t(identifier_t{is_slice ? "__getslice__/2" : "__getitem__", ps.token.location}),
+								new var_t(ps.id_mapped(identifier_t{is_slice ? "__getslice2__" : "__getitem__", ps.token.location})),
 								expr),
 							start);
 				} else {
@@ -556,7 +556,7 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 					expr = new application_t(
 							new application_t(
 								new application_t(
-									new var_t(identifier_t{"__getslice__/3", ps.token.location}),
+									new var_t(ps.id_mapped(identifier_t{"__getslice3__", ps.token.location})),
 									expr),
 								start),
 							stop);
@@ -573,7 +573,7 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 
 expr_t *parse_prefix_expr(parse_state_t &ps) {
 	maybe<token_t> prefix = 
-		(ps.token.tk == tk_minus || ps.token.tk == tk_plus || ps.token.is_ident(K(not)))
+		(ps.token.tk == tk_minus || ps.token.is_ident(K(not)))
 	   	? maybe<token_t>(ps.token)
 	   	: maybe<token_t>();
 
@@ -582,7 +582,7 @@ expr_t *parse_prefix_expr(parse_state_t &ps) {
 	}
 
 	expr_t *rhs;
-	if (ps.token.is_ident(K(not)) || ps.token.tk == tk_minus || ps.token.tk == tk_plus) {
+	if (ps.token.is_ident(K(not)) || ps.token.tk == tk_minus) {
 		/* recurse to find more prefix expressions */
 		rhs = parse_prefix_expr(ps);
 	} else {
@@ -591,9 +591,15 @@ expr_t *parse_prefix_expr(parse_state_t &ps) {
 	}
 
 	if (prefix.valid) {
-		return new application_t(
-				new var_t(identifier_t{prefix.t.text, prefix.t.location}),
-				rhs);
+		if (prefix.t.text == "-") {
+			return new application_t(
+					new var_t(ps.id_mapped(identifier_t{"negate", prefix.t.location})),
+					rhs);
+		} else {
+			return new application_t(
+					new var_t(ps.id_mapped(identifier_t{prefix.t.text, prefix.t.location})),
+					rhs);
+		}
 	} else {
 	   	return rhs;
    	}
@@ -605,7 +611,7 @@ expr_t *parse_times_expr(parse_state_t &ps) {
 	while (!ps.line_broke() && (ps.token.tk == tk_times
 				|| ps.token.tk == tk_divide_by
 				|| ps.token.tk == tk_mod)) {
-		identifier_t op{ps.token.text, ps.token.location};
+		identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
 		ps.advance();
 
 		expr = new application_t(
@@ -624,7 +630,7 @@ expr_t *parse_plus_expr(parse_state_t &ps) {
 	while (!ps.line_broke() &&
 			(ps.token.tk == tk_plus || ps.token.tk == tk_minus || ps.token.tk == tk_backslash))
 	{
-		identifier_t op{ps.token.text, ps.token.location};
+		identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
 		ps.advance();
 
 		expr = new application_t(
@@ -643,7 +649,7 @@ expr_t *parse_shift_expr(parse_state_t &ps) {
 	while (!ps.line_broke() &&
 		   	(ps.token.tk == tk_shift_left || ps.token.tk == tk_shift_right))
 	{
-		identifier_t op{ps.token.text, ps.token.location};
+		identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
 		ps.advance();
 
 		expr = new application_t(
@@ -666,7 +672,7 @@ expr_t *parse_binary_eq_expr(parse_state_t &ps) {
 		return lhs;
 	}
 
-	identifier_t op{ps.token.text, ps.token.location};
+	identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
 	ps.advance();
 
 	return new application_t(
@@ -687,7 +693,7 @@ expr_t *parse_ineq_expr(parse_state_t &ps) {
 		return lhs;
 	}
 
-	identifier_t op{ps.token.text, ps.token.location};
+	identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
 	ps.advance();
 
 	return new application_t(
@@ -714,7 +720,7 @@ expr_t *parse_eq_expr(parse_state_t &ps) {
 		return lhs;
 	}
 
-	identifier_t op{not_in ? "not-in" : ps.token.text, ps.token.location};
+	identifier_t op = ps.id_mapped({not_in ? "not-in" : ps.token.text, ps.token.location});
 	ps.advance();
 
 	return new application_t(
@@ -729,7 +735,7 @@ expr_t *parse_bitwise_and(parse_state_t &ps) {
 
 	while (!ps.line_broke() && ps.token.tk == tk_ampersand) {
 
-		identifier_t op{ps.token.text, ps.token.location};
+		identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
 		ps.advance();
 
 		expr = new application_t(
@@ -746,7 +752,7 @@ expr_t *parse_bitwise_xor(parse_state_t &ps) {
 	auto expr = parse_bitwise_and(ps);
 
 	while (!ps.line_broke() && ps.token.tk == tk_hat) {
-		identifier_t op{ps.token.text, ps.token.location};
+		identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
 		ps.advance();
 
 		expr = new application_t(
@@ -762,7 +768,7 @@ expr_t *parse_bitwise_or(parse_state_t &ps) {
 	auto expr = parse_bitwise_xor(ps);
 
 	while (!ps.line_broke() && ps.token.tk == tk_pipe) {
-		identifier_t op{ps.token.text, ps.token.location};
+		identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
 		ps.advance();
 
 		expr = new application_t(
@@ -779,7 +785,7 @@ expr_t *parse_and_expr(parse_state_t &ps) {
 	auto expr = parse_bitwise_or(ps);
 
 	while (!ps.line_broke() && (ps.token.is_ident(K(and)))) {
-		identifier_t op{ps.token.text, ps.token.location};
+		identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
 		ps.advance();
 
 		expr = new application_t(
@@ -831,7 +837,7 @@ expr_t *parse_or_expr(parse_state_t &ps) {
 	expr_t *expr = parse_and_expr(ps);
 
 	while (!ps.line_broke() && (ps.token.is_ident(K(or)))) {
-		identifier_t op{ps.token.text, ps.token.location};
+		identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
 		ps.advance();
 
 		expr = new application_t(
@@ -993,7 +999,7 @@ while_t *parse_while(parse_state_t &ps) {
 	if (condition_token.is_ident(K(match))) {
 		/* sugar for while match ... which becomes while true { match ... } */
 		return new while_t(
-				new var_t(identifier_t{"true", while_token.location}),
+				new var_t(ps.id_mapped(identifier_t{"True", while_token.location})),
 				parse_match(ps));
 	} else {
 		return new while_t(parse_expr(ps), parse_block(ps, false /*expression_means_return*/));
@@ -1506,8 +1512,19 @@ type_class_t *parse_type_class(parse_state_t &ps) {
 	return new type_class_t(type_decl.id, type_decl.params[0], superclasses, overloads);
 }
 
-module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
+module_t *parse_module(parse_state_t &ps, std::set<identifier_t> &module_deps) {
 	debug_above(6, log("about to parse %s", ps.filename.c_str()));
+
+	std::string auto_gets[] = {
+		"num.+",
+		"num.*",
+		"num.-",
+		"num./",
+	};
+	for (auto get : auto_gets) {
+		ps.add_term_map(INTERNAL_LOC(), split(get, ".").back(), get);
+		module_deps.insert(identifier_t{split(get, ".").front(), INTERNAL_LOC()});
+	}
 
 	std::vector<decl_t *> decls;
 	std::vector<type_decl_t> type_decls;
@@ -1517,12 +1534,12 @@ module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 	while (ps.token.is_ident(K(get))) {
 		ps.advance();
 		expect_token(tk_identifier);
-		std::string module_name = ps.token.text;
-		ps.advance();
+		identifier_t module_name = ps.identifier_and_advance();
+
 		chomp_token(tk_lcurly);
 		while (true) {
 			expect_token(tk_identifier);
-			ps.add_term_map(ps.token.location, ps.token.text, module_name + "." + ps.token.text);
+			ps.add_term_map(ps.token.location, ps.token.text, module_name.name + "." + ps.token.text);
 			ps.advance();
 			if (ps.token.tk == tk_comma) {
 				ps.advance();
@@ -1531,6 +1548,7 @@ module_t *parse_module(parse_state_t &ps, identifiers_t &module_deps) {
 				break;
 			}
 		}
+		module_deps.insert(module_name);
 	}
 
 	while (true) {
