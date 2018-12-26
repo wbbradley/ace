@@ -1,3 +1,5 @@
+get num {Num}
+
 fn id(x) => x
 fn sqr(a) => a * a
 
@@ -23,25 +25,6 @@ fn hey() {
 
 class Show a {
     fn str(a) String
-}
-
-data Ordering {
-    EQ
-    LT
-    GT
-}
-
-class Ord a {
-    fn compare(a, a) Ordering
-}
-
-class Num a {
-    has Ord
-    fn from_int(Int) a
-    fn +(a, a) a
-    fn *(a, a) a
-    fn -(a, a) a
-    fn /(a, a) a
 }
 
 instance Num Int {

@@ -226,6 +226,7 @@ namespace bitter {
 			superclasses(superclasses),
 			overloads(overloads) {}
 
+		location_t get_location() const;
 		std::string str() const;
 
 		identifier_t const id;

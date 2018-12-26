@@ -300,7 +300,7 @@ expr_t *parse_for_block(parse_state_t &ps) {
 	std::shared_ptr<block_t> outer_block = create<block_t>(for_token);
 	outer_block->statements.push_back(iter_func_decl);
 	outer_block->statements.push_back(while_loop);
-	// log_location(log_info, outer_block->get_location(), "created %s", outer_block->str().c_str());
+	// log_location(outer_block->get_location(), "created %s", outer_block->str().c_str());
 	return outer_block;
 #endif
 }
@@ -1179,7 +1179,7 @@ std::pair<identifier_t, types::type_t::ref>  parse_lambda_param_core(parse_state
 	auto param_token = ps.token_and_advance();
 	if (ps.token.tk != tk_comma && ps.token.tk != tk_rparen) {
 		// auto type = types::parse_type(ps, {});
-		// log_location(log_info, type->get_location(), "discarding parsed param type %s", type->str().c_str());
+		// log_location(type->get_location(), "discarding parsed param type %s", type->str().c_str());
 		throw user_error(ps.token.location, "type annotations are not impl");
 	}
 
@@ -1241,8 +1241,14 @@ types::type_t::ref parse_function_type(parse_state_t &ps) {
 		}
 	}
 
+	if (params.size() == 0) {
+		params.push_back(type_unit(ps.prior_token.location));
+	}
+
 	if (token_begins_type(ps.token) && !ps.line_broke()) {
 		params.push_back(parse_type(ps));
+	} else {
+		params.push_back(type_unit(ps.prior_token.location));
 	}
 
 	return type_arrows(params);
@@ -1253,14 +1259,18 @@ types::type_t::ref parse_tuple_type(parse_state_t &ps) {
 	std::vector<types::type_t::ref> dims;
 	bool is_tuple = false;
 	while (true) {
+		if (ps.token.tk == tk_rparen) {
+			if (dims.size() == 0) {
+				is_tuple = true;
+			}
+			ps.advance();
+			break;
+		}
+
 		dims.push_back(parse_type(ps));
 		if (ps.token.tk == tk_comma) {
 			ps.advance();
 			is_tuple = true;
-		}
-		if (ps.token.tk == tk_rparen) {
-			ps.advance();
-			break;
 		}
 	}
 

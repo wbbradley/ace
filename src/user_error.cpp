@@ -75,7 +75,7 @@ void user_error::display() const {
 	log_location(log_level, location, "%s", what());
 	if (extra_info != nullptr) {
 		for (auto info : *extra_info) {
-			log_location(log_info, info.first, "%s", info.second.c_str());
+			log_location(info.first, "%s", info.second.c_str());
 		}
 	}
 }

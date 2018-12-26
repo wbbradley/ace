@@ -1,6 +1,7 @@
 #include "env.h"
 #include "types.h"
 #include "user_error.h"
+#include <iostream>
 
 types::type_t::ref env_t::maybe_lookup_env(identifier_t id) const {
 	auto iter = map.find(id.name);

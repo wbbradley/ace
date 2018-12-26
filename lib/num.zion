@@ -1,0 +1,10 @@
+get ord {Ord}
+
+class Num a {
+    has Ord
+    fn from_int(Int) a
+    fn +(a, a) a
+    fn *(a, a) a
+    fn -(a, a) a
+    fn /(a, a) a
+}

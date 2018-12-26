@@ -16,6 +16,7 @@ void logv_location(log_level_t level, const location_t &location, const char *fo
 void log(const char *format, ...);
 void log(log_level_t level, const char *format, ...);
 void log_location(log_level_t level, const location_t &location, const char *format, ...);
+void log_location(const location_t &location, const char *format, ...);
 void panic_(const char *filename, int line, std::string msg);
 void log_stack(log_level_t level);
 void log_dump();

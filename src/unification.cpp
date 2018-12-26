@@ -1,5 +1,6 @@
 #include "zion.h"
 #include "dbg.h"
+#include <iostream>
 #include "logger.h"
 #include <sstream>
 #include "utils.h"

@@ -85,14 +85,14 @@ int main(int argc, char *argv[]) {
 			auto compilation = compiler::parse_program(user_program_name);
 			if (compilation != nullptr) {
 				for (auto decl : compilation->program->decls) {
-					log_location(log_info, decl->var.location, "%s = %s", decl->var.str().c_str(),
+					log_location(decl->var.location, "%s = %s", decl->var.str().c_str(),
 							decl->value->str().c_str());
 				}
 				for (auto type_class : compilation->program->type_classes) {
-					log_location(log_info, type_class->id.location, "%s", type_class->str().c_str());
+					log_location(type_class->id.location, "%s", type_class->str().c_str());
 				}
 				for (auto instance : compilation->program->instances) {
-					log_location(log_info, instance->type_class_id.location, "%s", instance->str().c_str());
+					log_location(instance->type_class_id.location, "%s", instance->str().c_str());
 				}
 				return EXIT_SUCCESS;
 			}
@@ -116,15 +116,27 @@ int main(int argc, char *argv[]) {
 				env.map["true"] = scheme({}, {}, type_bool(l_));
 				env.map["false"] = scheme({}, {}, type_bool(l_));
 
-				/* first, introduce all the type class signatures into the env */
+				std::map<std::string, bitter::type_class_t *> type_class_map;
+
+				/* first, introduce all the type class signatures into the env, and build up an
+				 * index of type_class names */
 				for (bitter::type_class_t *type_class : program->type_classes) {
-					auto predicates = type_class->superclasses;
-					predicates.insert(type_class->id.name);
-
-					types::type_t::map bindings;
-					bindings[type_class->type_var_id.name] = type_variable(gensym(type_class->type_var_id.location), predicates);
-
 					try {
+						if (in(type_class->id.name, type_class_map)) {
+							auto error = user_error(type_class->id.location, "type class name %s is already taken", type_class->id.str().c_str());
+							error.add_info(type_class_map[type_class->id.name]->get_location(),
+									"see earlier type class declaration here");
+							throw error;
+						} else {
+							type_class_map[type_class->id.name] = type_class;
+						}
+
+						auto predicates = type_class->superclasses;
+						predicates.insert(type_class->id.name);
+
+						types::type_t::map bindings;
+						bindings[type_class->type_var_id.name] = type_variable(gensym(type_class->type_var_id.location), predicates);
+
 						for (auto pair : type_class->overloads) {
 							if (in(pair.first, env.map)) {
 								auto error = user_error(pair.second->get_location(),
@@ -139,6 +151,7 @@ int main(int argc, char *argv[]) {
 						}
 					} catch (user_error &e) {
 						print_exception(e);
+						/* and continue */
 					}
 				}
 
@@ -161,7 +174,7 @@ int main(int argc, char *argv[]) {
 						env.extend(decl->var, scheme);
 
 						if (debug_types) {
-							log_location(log_info, decl->var.location, "info: %s :: %s",
+							log_location(decl->var.location, "info: %s :: %s",
 									decl->var.str().c_str(), scheme->str().c_str());
 						}
 					} catch (user_error &e) {
@@ -170,7 +183,32 @@ int main(int argc, char *argv[]) {
 						 * whatever the user wants... */
 						env.extend(decl->var, type_arrow(INTERNAL_LOC(), type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC()))->generalize(env)->normalize());
 					}
+				}
 
+				for (bitter::instance_t *instance : program->instances) {
+					log_location(
+							instance->type_class_id.location,
+							"checking that member functions of instance [%s %s] type check",
+							instance->type_class_id.str().c_str(),
+							instance->type->str().c_str());
+					/* first put an instance requirement on any superclasses of the associated
+					 * type_class */
+					auto iter = type_class_map.find(instance->type_class_id.name);
+					if (iter == type_class_map.end()) {
+						auto error = user_error(instance->type_class_id.location,
+								"could not find type class for instance %s %s",
+								instance->type_class_id.str().c_str(),
+								instance->type->str().c_str());
+						auto leaf_name = split(instance->type_class_id.name, ".").back();
+						for (auto type_class : program->type_classes) {
+							if (type_class->id.name.find(leaf_name) != std::string::npos) {
+								error.add_info(type_class->id.location, "did you mean %s?",
+										type_class->id.str().c_str());
+							}
+						}
+						throw error;
+					}
+					bitter::type_class_t *type_class = iter->second;
 				}
 
 				if (debug_compiled_env) {
