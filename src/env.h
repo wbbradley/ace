@@ -22,10 +22,9 @@ struct env_t {
 	std::shared_ptr<const types::type_t> return_type;
 	std::vector<instance_requirement_t> instance_requirements;
 
-	env_t add_instance_requirement_t(instance_requirement_t ir) const;
-	env_t extend(identifier_t id, std::shared_ptr<types::scheme_t> scheme) const;
-	env_t extend(identifier_t id, std::shared_ptr<const types::type_t> return_type, std::shared_ptr<types::scheme_t> scheme) const;
-	env_t rebind(const types::type_t::map &env) const;
+	void add_instance_requirement(const instance_requirement_t &ir);
+	void extend(identifier_t id, std::shared_ptr<types::scheme_t> scheme);
+	void rebind(const types::type_t::map &env);
 	types::predicate_map get_predicate_map() const;
 	std::shared_ptr<const types::type_t> lookup_env(identifier_t id) const;
 	std::shared_ptr<const types::type_t> maybe_lookup_env(identifier_t id) const;

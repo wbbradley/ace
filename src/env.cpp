@@ -19,34 +19,33 @@ types::type_t::ref env_t::lookup_env(identifier_t id) const {
 	throw user_error(id.location, "unbound variable " C_ID "%s" C_RESET, id.name.c_str());
 }
 
-env_t env_t::rebind(const types::type_t::map &bindings) const {
+void env_t::rebind(const types::type_t::map &bindings) {
 	if (bindings.size() == 0) {
-		return *this;
+		return;
 	}
-	env_t new_env;
 	for (auto pair : map) {
-		new_env.map[pair.first] = pair.second->rebind(bindings);
+		map[pair.first] = pair.second->rebind(bindings);
 	}
-	for (auto ir : instance_requirements) {
-		new_env.instance_requirements.push_back(instance_requirement_t{ir.type_class_name, ir.location, ir.type->rebind(bindings)});
+	std::vector<instance_requirement_t> new_instance_requirements;
+	for (auto &ir : instance_requirements) {
+		new_instance_requirements.push_back(instance_requirement_t{ir.type_class_name, ir.location, ir.type->rebind(bindings)});
 	}
-	return new_env;
+	std::swap(instance_requirements, new_instance_requirements);
 }
 
-env_t env_t::add_instance_requirement_t(instance_requirement_t ir) const {
-	assert(false);
-	return *this;
+void env_t::add_instance_requirement(const instance_requirement_t &ir) {
+	debug_above(6,
+		   	log_location(
+				log_info,
+				ir.location,
+				"adding type class requirement for %s %s",
+				ir.type_class_name.c_str(), ir.type->str().c_str()));
+	instance_requirements.push_back(ir);
 }
 
-env_t env_t::extend(identifier_t id, types::scheme_t::ref scheme) const {
-	return extend(id, return_type, scheme);
-}
-
-env_t env_t::extend(identifier_t id, types::type_t::ref return_type_, types::scheme_t::ref scheme) const {
-	types::scheme_t::map new_map{map};
-	new_map[id.name] = scheme;
-	debug_above(9, log("extending env with %s => %s", id.str().c_str(), ::str(new_map).c_str()));
-	return env_t{new_map, return_type_, instance_requirements};
+void env_t::extend(identifier_t id, types::scheme_t::ref scheme) {
+	map[id.name] = scheme;
+	debug_above(9, log("extending env with %s => %s", id.str().c_str(), scheme->str().c_str()));
 }
 
 types::predicate_map env_t::get_predicate_map() const {
