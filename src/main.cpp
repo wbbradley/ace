@@ -165,6 +165,8 @@ int main(int argc, char *argv[]) {
 				}
 
 				if (debug_compiled_env) {
+					std::cout << env.str() << std::endl;
+
 					for (auto pair : env.map) {
 						// std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
 						std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;

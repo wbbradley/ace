@@ -188,6 +188,7 @@ namespace types {
 
 	struct scheme_t {
 		typedef std::shared_ptr<scheme_t> ref;
+		typedef std::vector<ref> refs;
 		typedef std::map<std::string, ref> map;
 
 		scheme_t(std::vector<std::string> vars, const predicate_map &predicates, types::type_t::ref type) : vars(vars), predicates(predicates), type(type) {}

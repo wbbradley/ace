@@ -114,7 +114,11 @@ types::type_t::map unify(type_t::ref a, type_t::ref b) {
 			b->str().c_str());
 }
 
-types::type_t::map solver(const types::type_t::map &bindings, const constraints_t &constraints, env_t &env) {
+types::type_t::map solver(
+		const types::type_t::map &bindings,
+		const constraints_t &constraints,
+		env_t &env)
+{
 	if (constraints.size() == 0) {
 		return bindings;
 	}

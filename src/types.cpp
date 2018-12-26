@@ -559,9 +559,7 @@ namespace types {
 		std::stringstream ss;
 		if (vars.size() != 0) {
 			ss << "(∀ " << join(vars, " ");
-			if (predicates.size() != 0) {
-				ss << " " << ::str(predicates);
-			}
+			ss << ::str(predicates);
 			ss << " . ";
 		}
 		type->emit(ss, {}, 0);
@@ -731,17 +729,21 @@ std::string str(const types::type_t::map &coll) {
 }
 
 std::string str(const types::predicate_map &pm) {
+	bool saw_predicate = false;
 	std::stringstream ss;
-	ss << "[where ";
-	const char *delim = "";
+	const char *delim = " [where ";
 	for (auto pair : pm) {
 		for (auto predicate: pair.second) {
 			ss << delim;
 			ss << predicate << " " << pair.first;
 			delim = ", ";
+			saw_predicate = true;
 		}
 	}
-	ss << "]";
+	if (saw_predicate) {
+		ss << "]";
+	}
+
 	return ss.str();
 }
 
