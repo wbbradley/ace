@@ -274,11 +274,26 @@ namespace bitter {
 		}
 	}
 
+	std::string decl_t::str() const {
+		std::stringstream ss;
+		ss << "let " << var << " = ";
+		value->render(ss, 0);
+		return ss.str();
+	}
+
 	std::string type_class_t::str() const {
-		return string_format("class %s {\n\t%s%s\n}",
+		return string_format("class %s %s {\n\t%s%s\n}",
 				id.name.c_str(),
+				type_var_id.name.c_str(),
 				superclasses.size() != 0 ? string_format("has %s\n\t", join(superclasses, ", ").c_str()).c_str() : "",
 				::str(overloads).c_str());
+	}
+
+	std::string instance_t::str() const {
+		return string_format("instance %s %s {\n\t%s\n}",
+				type_class_id.name.c_str(),
+				type->str().c_str(),
+				::join_str(decls, "\n\t").c_str());
 	}
 }
 

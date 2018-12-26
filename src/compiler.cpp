@@ -221,8 +221,9 @@ namespace compiler {
 
 			std::vector<decl_t *> program_decls;
 			std::vector<type_class_t *> program_type_classes;
-			/* next, merge the entire set of modules into one program */
+			std::vector<instance_t *> program_instances;
 
+			/* next, merge the entire set of modules into one program */
 			for (module_t *module : gps.modules) {
 				/* get a list of all top-level decls */
 				std::set<std::string> bindings = get_top_level_decls(module->decls, module->type_decls, module->type_classes);
@@ -232,8 +233,13 @@ namespace compiler {
 				for (decl_t *decl : module_rebound->decls) {
 					program_decls.push_back(decl);
 				}
+
 				for (type_class_t *type_class : module_rebound->type_classes) {
 					program_type_classes.push_back(type_class);
+				}
+
+				for (instance_t *instance : module_rebound->instances) {
+					program_instances.push_back(instance);
 				}
 			}
 
@@ -242,6 +248,7 @@ namespace compiler {
 					new program_t(
 						program_decls,
 						program_type_classes,
+						program_instances,
 						new application_t(
 							new var_t(make_iid("main")),
 							new var_t(make_iid("unit")))),

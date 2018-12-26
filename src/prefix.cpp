@@ -84,12 +84,18 @@ std::set<std::string> only_uppercase_bindings(const std::set<std::string> &bindi
 }
 
 type_class_t *prefix(const std::set<std::string> &bindings, std::string pre, type_class_t *type_class) {
-	auto uppercase_bindings = only_uppercase_bindings(bindings);
-	prefix(bindings, pre, type_class->superclasses);
 	return new type_class_t(
 			prefix(bindings, pre, type_class->id),
+			type_class->type_var_id,
 			prefix(bindings, pre, type_class->superclasses),
 			prefix(bindings, pre, type_class->overloads, true /*include_keys*/));
+}
+
+instance_t *prefix(const std::set<std::string> &bindings, std::string pre, instance_t *instance) {
+	return new instance_t(
+				instance->type_class_id,
+				prefix(bindings, pre, instance->type),
+				prefix(bindings, pre, instance->decls));
 }
 
 types::type_t::ref prefix(const std::set<std::string> &bindings, std::string pre, types::type_t::ref type) {
@@ -184,7 +190,10 @@ module_t *prefix(const std::set<std::string> &bindings, module_t *module) {
 			   	module->type_decls),
 		   	prefix(bindings,
 			   	module->name,
-			   	module->type_classes));
+			   	module->type_classes),
+		   	prefix(bindings,
+			   	module->name,
+			   	module->instances));
 }
 
 types::scheme_t::ref prefix(

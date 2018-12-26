@@ -25,6 +25,7 @@ types::scheme_t::ref prefix(const std::set<std::string> &bindings, std::string p
 bitter::expr_t *prefix(const std::set<std::string> &bindings, std::string pre, bitter::expr_t *value);
 std::vector<bitter::expr_t *> prefix(const std::set<std::string> &bindings, std::string pre, std::vector<bitter::expr_t *> values);
 bitter::module_t *prefix(const std::set<std::string> &bindings, bitter::module_t *module);
+bitter::instance_t *prefix(const std::set<std::string> &bindings, std::string pre, bitter::instance_t *instance);
 
 template <typename T>
 std::vector<T> prefix(const std::set<std::string> &bindings, std::string pre, const std::vector<T> &things) {
