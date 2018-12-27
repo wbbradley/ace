@@ -202,11 +202,6 @@ int main(int argc, char *argv[]) {
 
 				for (bitter::instance_t *instance : program->instances) {
 					try {
-						log_location(
-								instance->type_class_id.location,
-								"checking that member functions of instance [%s %s] type check",
-								instance->type_class_id.str().c_str(),
-								instance->type->str().c_str());
 						auto iter = type_class_map.find(instance->type_class_id.name);
 						if (iter == type_class_map.end()) {
 							auto error = user_error(instance->type_class_id.location,
@@ -269,6 +264,11 @@ int main(int argc, char *argv[]) {
 							}
 						}
 					} catch (user_error &e) {
+						log_location(
+								instance->type_class_id.location,
+								"checking that member functions of instance %s %s type check",
+								instance->type_class_id.str().c_str(),
+								instance->type->str().c_str());
 						print_exception(e);
 					}
 				}
