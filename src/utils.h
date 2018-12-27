@@ -1,4 +1,5 @@
 #pragma once
+#include "zion_assert.h"
 #include <string>
 #include <set>
 #include <algorithm>

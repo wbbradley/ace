@@ -1,8 +1,10 @@
-fn sqr(a) => a * a
+get functor {fmap}
 
-class Functor f {
-    fn fmap(fn (a) b, f a) f b  
-}
+fn sqr(a) => a * a
+let I = fn (x) => x
+let S = fn (x, y, z) => x(z)(y(z))
+let K = fn (x, y) => x
+let SKK = S(K)(K)
 
 fn add(x, y) => x + y
 fn twice(f, x) => f(f(x))
