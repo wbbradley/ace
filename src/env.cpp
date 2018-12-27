@@ -44,7 +44,10 @@ void env_t::add_instance_requirement(const instance_requirement_t &ir) {
 	instance_requirements.push_back(ir);
 }
 
-void env_t::extend(identifier_t id, types::scheme_t::ref scheme) {
+void env_t::extend(identifier_t id, types::scheme_t::ref scheme, bool allow_subscoping) {
+	if (!allow_subscoping && in(id.name, map)) {
+		throw user_error(id.location, "duplicate symbol (TODO: make this error better)");
+	}
 	map[id.name] = scheme;
 	debug_above(9, log("extending env with %s => %s", id.str().c_str(), scheme->str().c_str()));
 }

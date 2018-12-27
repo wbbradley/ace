@@ -76,7 +76,7 @@ void check(identifier_t id, bitter::expr_t *expr, env_t &env) {
 	auto scheme = ty->generalize(env)->normalize();
 	// log("NORMALIED ty = %s", n->str().c_str());
 
-	env.extend(id, scheme);
+	env.extend(id, scheme, false /*allow_subscoping*/);
 
 	if (debug_types) {
 		log_location(id.location, "info: %s :: %s",
@@ -84,6 +84,165 @@ void check(identifier_t id, bitter::expr_t *expr, env_t &env) {
 	}
 }
 		
+void check_instances(
+		const std::vector<bitter::instance_t *> &instances,
+	   	const std::map<std::string, bitter::type_class_t *> &type_class_map,
+	   	env_t &env)
+{
+	for (bitter::instance_t *instance : instances) {
+		try {
+			auto iter = type_class_map.find(instance->type_class_id.name);
+			if (iter == type_class_map.end()) {
+				auto error = user_error(instance->type_class_id.location,
+						"could not find type class for instance %s %s",
+						instance->type_class_id.str().c_str(),
+						instance->type->str().c_str());
+				auto leaf_name = split(instance->type_class_id.name, ".").back();
+				for (auto type_class_pair : type_class_map) {
+					auto type_class = type_class_pair.second;
+					if (type_class->id.name.find(leaf_name) != std::string::npos) {
+						error.add_info(type_class->id.location, "did you mean %s?",
+								type_class->id.str().c_str());
+					}
+				}
+				throw error;
+			}
+
+			/* first put an instance requirement on any superclasses of the associated
+			 * type_class */
+			bitter::type_class_t *type_class = iter->second;
+			// TODO: env.instance_requirements.push_back(type_class->superclasses * instance->type);
+
+			std::set<std::string> names_checked;
+
+			/* make a template for the type that the instance implementation should
+			 * conform to */
+			types::type_t::map subst;
+			subst[type_class->type_var_id.name] = instance->type->generalize({})->instantiate(INTERNAL_LOC());
+
+			// check whether this instance properly implements the given type class
+			for (auto pair : type_class->overloads) {
+				auto name = pair.first;
+				auto type = pair.second;
+				for (auto decl : instance->decls) {
+					if (decl->var.name == split(name, ".").back()) {
+						if (in(name, names_checked)) {
+							throw user_error(
+									decl->get_location(),
+									"name %s already duplicated in this instance",
+									decl->var.str().c_str());
+						}
+						names_checked.insert(decl->var.name);
+
+						env_t local_env{env};
+						local_env.instance_requirements.resize(0);
+						check(
+								identifier_t{instance->type->repr()+"."+decl->var.name, decl->var.location},
+								new bitter::as_t(decl->value, type->rebind(subst)->generalize(local_env)->instantiate(INTERNAL_LOC()), false),
+								local_env);
+						assert(local_env.instance_requirements.size() == 0);
+					}
+				}
+			}
+			/* check for unrelated declarations inside of an instance */
+			for (auto decl : instance->decls) {
+				if (!in(decl->var.name, names_checked)) {
+					throw user_error(decl->var.location, "extraneous declaration %s found in instance %s %s",
+							decl->var.str().c_str(),
+							type_class->id.str().c_str(),
+							instance->type->str().c_str());
+				}
+			}
+		} catch (user_error &e) {
+			log_location(
+					instance->type_class_id.location,
+					"checking that member functions of instance %s %s type check",
+					instance->type_class_id.str().c_str(),
+					instance->type->str().c_str());
+			print_exception(e);
+		}
+	}
+}
+
+void initialize_default_env(env_t &env) {
+	auto Int = type_id(make_iid("Int"));
+	auto Float = type_id(make_iid("Float"));
+
+	env.map["unit"] = scheme({}, {}, type_unit(INTERNAL_LOC()));
+	env.map["true"] = scheme({}, {}, type_bool(INTERNAL_LOC()));
+	env.map["false"] = scheme({}, {}, type_bool(INTERNAL_LOC()));
+	env.map["__multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+	env.map["__divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+	env.map["__subtract_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+	env.map["__add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+	env.map["__multiply_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+	env.map["__divide_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+	env.map["__subtract_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+	env.map["__add_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+}
+
+std::map<std::string, bitter::type_class_t *> check_type_classes(const std::vector<bitter::type_class_t *> &type_classes, env_t &env) {
+	std::map<std::string, bitter::type_class_t *> type_class_map;
+
+	/* introduce all the type class signatures into the env, and build up an
+	 * index of type_class names */
+	for (bitter::type_class_t *type_class : type_classes) {
+		try {
+			if (in(type_class->id.name, type_class_map)) {
+				auto error = user_error(type_class->id.location, "type class name %s is already taken", type_class->id.str().c_str());
+				error.add_info(type_class_map[type_class->id.name]->get_location(),
+						"see earlier type class declaration here");
+				throw error;
+			} else {
+				type_class_map[type_class->id.name] = type_class;
+			}
+
+			auto predicates = type_class->superclasses;
+			predicates.insert(type_class->id.name);
+
+			types::type_t::map bindings;
+			bindings[type_class->type_var_id.name] = type_variable(gensym(type_class->type_var_id.location), predicates);
+
+			for (auto pair : type_class->overloads) {
+				if (in(pair.first, env.map)) {
+					auto error = user_error(pair.second->get_location(),
+							"the name " c_id("%s") " is already in use", pair.first.c_str());
+					error.add_info(env.map[pair.first]->get_location(), "see first declaration here");
+					throw error;
+				}
+
+				env.extend(
+						identifier_t{pair.first, pair.second->get_location()},
+						pair.second->rebind(bindings)->generalize({})->normalize(),
+						false /*allow_duplicates*/);
+			}
+		} catch (user_error &e) {
+			print_exception(e);
+			/* and continue */
+		}
+	}
+	return type_class_map;
+}
+
+void check_decls(const std::vector<bitter::decl_t *> &decls, env_t &env) {
+	for (bitter::decl_t *decl : decls) {
+		try {
+			check(decl->var, decl->value, env);
+		} catch (user_error &e) {
+			print_exception(e);
+
+			/* keep trying other decls, and pretend like this function gives back
+			 * whatever the user wants... */
+			env.extend(
+					decl->var,
+					type_arrow(
+						type_variable(INTERNAL_LOC()),
+						type_variable(INTERNAL_LOC()))->generalize(env)->normalize(),
+					false /*allow_subscoping*/);
+		}
+	}
+}
+
 int main(int argc, char *argv[]) {
 	//setenv("DEBUG", "8", 1 /*overwrite*/);
 	signal(SIGINT, &handle_sigint);
@@ -136,144 +295,14 @@ int main(int argc, char *argv[]) {
 				bitter::program_t *program = compilation->program;
 
 				env_t env;
-				location_t l_ = INTERNAL_LOC();
-				auto Int = type_id(make_iid("Int"));
-				auto Float = type_id(make_iid("Float"));
+				initialize_default_env(env);
 
-				env.map["unit"] = scheme({}, {}, type_unit(l_));
-				env.map["true"] = scheme({}, {}, type_bool(l_));
-				env.map["false"] = scheme({}, {}, type_bool(l_));
-				env.map["__multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-				env.map["__divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-				env.map["__subtract_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-				env.map["__add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-				env.map["__multiply_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-				env.map["__divide_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-				env.map["__subtract_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-				env.map["__add_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+				auto type_class_map = check_type_classes(program->type_classes, env);
 
-				std::map<std::string, bitter::type_class_t *> type_class_map;
+				// TODO: come up with an ordering of the decls (including instance decls)
+				check_decls(program->decls, env);
 
-				/* first, introduce all the type class signatures into the env, and build up an
-				 * index of type_class names */
-				for (bitter::type_class_t *type_class : program->type_classes) {
-					try {
-						if (in(type_class->id.name, type_class_map)) {
-							auto error = user_error(type_class->id.location, "type class name %s is already taken", type_class->id.str().c_str());
-							error.add_info(type_class_map[type_class->id.name]->get_location(),
-									"see earlier type class declaration here");
-							throw error;
-						} else {
-							type_class_map[type_class->id.name] = type_class;
-						}
-
-						auto predicates = type_class->superclasses;
-						predicates.insert(type_class->id.name);
-
-						types::type_t::map bindings;
-						bindings[type_class->type_var_id.name] = type_variable(gensym(type_class->type_var_id.location), predicates);
-
-						for (auto pair : type_class->overloads) {
-							if (in(pair.first, env.map)) {
-								auto error = user_error(pair.second->get_location(),
-										"the name " c_id("%s") " is already in use", pair.first.c_str());
-								error.add_info(env.map[pair.first]->get_location(), "see first declaration here");
-								throw error;
-							}
-
-							env.extend(
-									identifier_t{pair.first, pair.second->get_location()},
-									pair.second->rebind(bindings)->generalize({})->normalize());
-						}
-					} catch (user_error &e) {
-						print_exception(e);
-						/* and continue */
-					}
-				}
-
-				for (bitter::decl_t *decl : program->decls) {
-					try {
-						check(decl->var, decl->value, env);
-					} catch (user_error &e) {
-						print_exception(e);
-						/* keep trying other decls, and pretend like this function gives back
-						 * whatever the user wants... */
-						env.extend(decl->var, type_arrow(INTERNAL_LOC(), type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC()))->generalize(env)->normalize());
-					}
-				}
-
-				for (bitter::instance_t *instance : program->instances) {
-					try {
-						auto iter = type_class_map.find(instance->type_class_id.name);
-						if (iter == type_class_map.end()) {
-							auto error = user_error(instance->type_class_id.location,
-									"could not find type class for instance %s %s",
-									instance->type_class_id.str().c_str(),
-									instance->type->str().c_str());
-							auto leaf_name = split(instance->type_class_id.name, ".").back();
-							for (auto type_class : program->type_classes) {
-								if (type_class->id.name.find(leaf_name) != std::string::npos) {
-									error.add_info(type_class->id.location, "did you mean %s?",
-											type_class->id.str().c_str());
-								}
-							}
-							throw error;
-						}
-
-						/* first put an instance requirement on any superclasses of the associated
-						 * type_class */
-						bitter::type_class_t *type_class = iter->second;
-						// TODO: env.instance_requirements.push_back(type_class->superclasses * instance->type);
-
-						std::set<std::string> names_checked;
-
-						/* make a template for the type that the instance implementation should
-						 * conform to */
-						types::type_t::map subst;
-						subst[type_class->type_var_id.name] = instance->type->generalize({})->instantiate(INTERNAL_LOC());
-
-						// check whether this instance properly implements the given type class
-						for (auto pair : type_class->overloads) {
-							auto name = pair.first;
-							auto type = pair.second;
-							for (auto decl : instance->decls) {
-								if (decl->var.name == split(name, ".").back()) {
-									if (in(name, names_checked)) {
-										throw user_error(
-												decl->get_location(),
-											   	"name %s already duplicated in this instance",
-												decl->var.str().c_str());
-									}
-									names_checked.insert(decl->var.name);
-
-									env_t local_env{env};
-									local_env.instance_requirements.resize(0);
-									check(
-											identifier_t{instance->type->repr()+"."+decl->var.name, decl->var.location},
-											new bitter::as_t(decl->value, type->rebind(subst)->generalize(local_env)->instantiate(INTERNAL_LOC()), false),
-										   	local_env);
-									assert(local_env.instance_requirements.size() == 0);
-								}
-							}
-						}
-						/* check for unrelated declarations inside of an instance */
-						for (auto decl : instance->decls) {
-							if (!in(decl->var.name, names_checked)) {
-								throw user_error(decl->var.location, "extraneous declaration %s found in instance %s %s",
-										decl->var.str().c_str(),
-										type_class->id.str().c_str(),
-										instance->type->str().c_str());
-							}
-						}
-					} catch (user_error &e) {
-						log_location(
-								instance->type_class_id.location,
-								"checking that member functions of instance %s %s type check",
-								instance->type_class_id.str().c_str(),
-								instance->type->str().c_str());
-						print_exception(e);
-					}
-				}
+				check_instances(program->instances, type_class_map, env);
 
 				if (debug_compiled_env) {
 					for (auto pair : env.map) {

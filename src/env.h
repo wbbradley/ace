@@ -23,7 +23,7 @@ struct env_t {
 	std::vector<instance_requirement_t> instance_requirements;
 
 	void add_instance_requirement(const instance_requirement_t &ir);
-	void extend(identifier_t id, std::shared_ptr<types::scheme_t> scheme);
+	void extend(identifier_t id, std::shared_ptr<types::scheme_t> scheme, bool allow_subscoping);
 	void rebind(const types::type_t::map &env);
 	types::predicate_map get_predicate_map() const;
 	std::shared_ptr<const types::type_t> lookup_env(identifier_t id) const;
