@@ -246,6 +246,7 @@ namespace bitter {
 			decls(decls)
 		{}
 		std::string str() const;
+		location_t get_location() const;
 
 		identifier_t const type_class_id;
 		types::type_t::ref const type;

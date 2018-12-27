@@ -235,7 +235,22 @@ namespace compiler {
 			for (module_t *module : gps.modules) {
 				/* get a list of all top-level decls */
 				std::set<std::string> bindings = get_top_level_decls(module->decls, module->type_decls, module->type_classes);
+
+#if 0
+				for (auto decl : module->decls) {
+					log_location(decl->var.location, "%s = %s", decl->var.str().c_str(),
+							decl->value->str().c_str());
+				}
+				for (auto type_class : module->type_classes) {
+					log_location(type_class->id.location, "%s", type_class->str().c_str());
+				}
+				for (auto instance : module->instances) {
+					log_location(instance->type_class_id.location, "%s", instance->str().c_str());
+				}
+#endif
+
 				module_t *module_rebound = prefix(bindings, module);
+
 
 				/* now all locally referring vars are fully qualified */
 				for (decl_t *decl : module_rebound->decls) {

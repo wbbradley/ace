@@ -44,6 +44,10 @@ namespace compiler {
 			location_t location,
 			std::string name,
 			std::string extension);
+	std::set<std::string> get_top_level_decls(
+			const std::vector<bitter::decl_t *> &decls,
+			const std::vector<bitter::type_decl_t> &type_decls,
+			const std::vector<bitter::type_class_t *> &type_classes);
 };
 
 std::string strip_zion_extension(std::string module_name);

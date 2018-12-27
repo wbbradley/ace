@@ -303,6 +303,10 @@ namespace bitter {
 				type->str().c_str(),
 				::join_str(decls, "\n\t").c_str());
 	}
+
+	location_t instance_t::get_location() const {
+		return type_class_id.location;
+	}
 }
 
 namespace bitter {

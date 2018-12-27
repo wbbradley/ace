@@ -114,9 +114,11 @@ types::type_t::map unify(type_t::ref a, type_t::ref b, env_t &env) {
 	}
 
 	auto location = best_location(a->get_location(), b->get_location());
-	throw user_error(location, "type error. %s != %s",
+	throw user_error(location, "type error. %s != %s (%s, %s)",
 			a->str().c_str(),
-			b->str().c_str());
+			b->str().c_str(),
+			a->get_location().str().c_str(),
+			b->get_location().str().c_str());
 }
 
 types::type_t::map solver(
