@@ -1,6 +1,0 @@
-module _
-
-# error: detected unbalanced brackets
-fn main() {)
-    print("hey")
-}

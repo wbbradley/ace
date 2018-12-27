@@ -1,9 +1,0 @@
-module _
-# test: pass
-# expect: 4
-fn main() {
-    let x = fn (y) {
-        return str(y)
-    }(4)
-    print(x)
-}

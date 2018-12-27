@@ -1,8 +1,0 @@
-module hello
-
-link fn not_really_a_function()
-
-fn main() {
-    # error: cannot initialize a variable with void, since it has no value
-    x := not_really_a_function()
-}

@@ -1,9 +1,0 @@
-module _
-# test: pass
-# expect: Hello world.
-
-get __test_linked_module {puts}
-
-fn main() {
-    puts("Hello world.")
-}

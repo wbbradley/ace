@@ -1,5 +1,0 @@
-module _
-
-fn main()
-    print("asdf")
-    print(int(__int__(typeid(3))))

@@ -1,6 +1,0 @@
-module _
-
-fn bad_call() void {
-    # error: 5:8: error: this expression is not callable
-    (3 + 4)(2)
-}

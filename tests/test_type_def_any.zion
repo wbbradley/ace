@@ -1,7 +1,0 @@
-module _
-
-# error: `any` is unnecessary within .*
-type Optional any Data is Just(rk Data) None
-
-fn main()
-    var o Optional any = Just(3)

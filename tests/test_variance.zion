@@ -1,9 +1,0 @@
-module _
-
-fn takes(f true) {
-}
-
-fn main() {
-    # error: unable to resolve overloads for takes\(false\)
-    takes(false)
-}

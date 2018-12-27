@@ -1,6 +1,0 @@
-module _
-
-fn main() {
-    # error: 5:21.* not allowed here
-    t := new typeof(fn () {})
-}

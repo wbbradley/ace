@@ -1,8 +1,0 @@
-module climb
-
-fn walls() void
-    pass
-
-fn boulders() void
-    var x int = 2
-    print(x)

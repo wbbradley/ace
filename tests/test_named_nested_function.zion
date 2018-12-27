@@ -1,6 +1,0 @@
-module _
-
-fn main() {
-    # error: function is missing a name
-    fn (x int) int => x + 1
-}

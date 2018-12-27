@@ -1,8 +1,0 @@
-module _
-# test: skip
-
-get json
-
-fn main() {
-    let o = json.json_object()
-}

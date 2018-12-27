@@ -1,8 +1,0 @@
-module _
-# test: pass
-
-fn main() {
-    x := 3
-    if x == 3 {
-    }
-}

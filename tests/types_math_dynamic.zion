@@ -1,7 +1,0 @@
-module dynamic_math
-
-fn compute() int
-    var x any
-    x = 3
-    return 3
-

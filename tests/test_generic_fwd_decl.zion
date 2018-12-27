@@ -1,9 +1,0 @@
-module _
-# test: pass
-
-fn main() {
-    generic("some string")    
-}
-
-fn generic(x any) {
-}

@@ -1,7 +1,0 @@
-module _
-# test: pass
-
-fn main() {
-    let x = "hey, you"
-    static_print(x[0])
-}

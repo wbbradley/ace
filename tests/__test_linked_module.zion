@@ -1,3 +1,0 @@
-module _
-
-link fn puts(x *char) int

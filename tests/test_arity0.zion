@@ -1,9 +1,0 @@
-module _
-# test: pass
-
-fn arity0() {
-}
-
-fn main() {
-    arity0()
-}
