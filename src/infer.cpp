@@ -46,7 +46,7 @@ types::type_t::ref infer(
 		auto return_type = type_variable(lambda->var.location);
 		auto local_env = env_t{env};
 		local_env.return_type = return_type;
-		local_env.extend(lambda->var, scheme({}, {}, tv));
+		local_env.extend(lambda->var, scheme({}, {}, tv), true /*allow_subscoping*/);
 		auto body_type = infer(lambda->body, local_env, constraints);
 		// append(constraints, body_type, type_unit(lambda->body->get_location()), {"all statements must return unit", lambda->body->get_location()});
 #if 0
@@ -84,7 +84,7 @@ types::type_t::ref infer(
 			constraints.push_back(constraint);
 		}
 		auto body_env = env_t{env};
-		body_env.extend(let->var, schema);
+		body_env.extend(let->var, schema, true /*allow_subscoping*/);
 		auto t2 = infer(let->body, body_env, constraints)->rebind(bindings);
 		log("the let variable is %s :: %s and the body is %s :: %s",
 				let->var.str().c_str(),
