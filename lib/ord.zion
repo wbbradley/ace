@@ -6,4 +6,8 @@ data Ordering {
 
 class Ord a {
     fn compare(a, a) Ordering
+    fn <(a, a) Bool
+    fn <=(a, a) Bool
+    fn >(a, a) Bool
+    fn >=(a, a) Bool
 }

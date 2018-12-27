@@ -37,17 +37,6 @@ fn test_doit() {
     return doit(Just("hey"))
 }
 
-fn dd(x) {
-    return sqr(x)
-}
-
-instance Show Maybe a {
-    fn str(m) {
-        return "hey"
-    }
-}
-
 fn main() {
     return fmap(fn (x) => "str", Just(3))
-    # return dd("hey")
 }

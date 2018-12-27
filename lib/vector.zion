@@ -1,7 +1,3 @@
-module vector
-get posix
-get runtime
-get itertools {map}
 
 type ManagedVector struct {
     var _var     var_t
