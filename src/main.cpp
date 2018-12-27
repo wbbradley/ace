@@ -92,6 +92,14 @@ int main(int argc, char *argv[]) {
     std::string cmd;
 	if (argc >= 2) {
 		cmd = argv[1];
+		if (cmd == "test") {
+			assert(alphabetize(0) == "a");
+			assert(alphabetize(1) == "b");
+			assert(alphabetize(2) == "c");
+			assert(alphabetize(26) == "aa");
+			assert(alphabetize(27) == "ab");
+			return EXIT_SUCCESS;
+		}
 	} else {
 		return usage();
 	}
@@ -122,12 +130,6 @@ int main(int argc, char *argv[]) {
 				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;
-		} else if (cmd == "test") {
-			assert(alphabetize(0) == "a");
-			assert(alphabetize(1) == "b");
-			assert(alphabetize(2) == "c");
-			assert(alphabetize(26) == "aa");
-			assert(alphabetize(27) == "ab");
 		} else if (cmd == "compile") {
 			auto compilation = compiler::parse_program(user_program_name);
 			if (compilation != nullptr) {
