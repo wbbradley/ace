@@ -15,6 +15,8 @@
 #include "unification.h"
 #include "env.h"
 
+using namespace bitter;
+
 const bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
 const bool debug_types = getenv("SHOW_TYPES") != nullptr;
 
@@ -61,7 +63,7 @@ void handle_sigint(int sig) {
 	exit(2);
 }
 		
-void check(identifier_t id, bitter::expr_t *expr, env_t &env) {
+void check(identifier_t id, expr_t *expr, env_t &env) {
 	constraints_t constraints;
 	// std::cout << C_ID "------------------------------" C_RESET << std::endl;
 	// log("type checking %s", id.str().c_str());
@@ -84,91 +86,6 @@ void check(identifier_t id, bitter::expr_t *expr, env_t &env) {
 	}
 }
 		
-void check_instances(
-		const std::vector<bitter::instance_t *> &instances,
-	   	const std::map<std::string, bitter::type_class_t *> &type_class_map,
-	   	env_t &env)
-{
-	for (bitter::instance_t *instance : instances) {
-		try {
-			auto iter = type_class_map.find(instance->type_class_id.name);
-			if (iter == type_class_map.end()) {
-				auto error = user_error(instance->type_class_id.location,
-						"could not find type class for instance %s %s",
-						instance->type_class_id.str().c_str(),
-						instance->type->str().c_str());
-				auto leaf_name = split(instance->type_class_id.name, ".").back();
-				for (auto type_class_pair : type_class_map) {
-					auto type_class = type_class_pair.second;
-					if (type_class->id.name.find(leaf_name) != std::string::npos) {
-						error.add_info(type_class->id.location, "did you mean %s?",
-								type_class->id.str().c_str());
-					}
-				}
-				throw error;
-			}
-
-			/* first put an instance requirement on any superclasses of the associated
-			 * type_class */
-			bitter::type_class_t *type_class = iter->second;
-			// TODO: env.instance_requirements.push_back(type_class->superclasses * instance->type);
-
-			std::set<std::string> names_checked;
-
-			/* make a template for the type that the instance implementation should
-			 * conform to */
-			types::type_t::map subst;
-			subst[type_class->type_var_id.name] = instance->type->generalize({})->instantiate(INTERNAL_LOC());
-
-			// check whether this instance properly implements the given type class
-			for (auto pair : type_class->overloads) {
-				auto name = pair.first;
-				auto type = pair.second;
-				for (auto decl : instance->decls) {
-					if (decl->var.name == split(name, ".").back()) {
-						if (in(name, names_checked)) {
-							throw user_error(
-									decl->get_location(),
-									"name %s already duplicated in this instance",
-									decl->var.str().c_str());
-						}
-						names_checked.insert(decl->var.name);
-
-						env_t local_env{env};
-						local_env.instance_requirements.resize(0);
-						auto instance_decl_id = identifier_t{
-							split(type_class->id.name, ".").back() + instance->type->repr()+"."+decl->var.name, decl->var.location};
-						auto expected_scheme = type->rebind(subst)->generalize(local_env);
-						auto type_instance = expected_scheme->instantiate(INTERNAL_LOC());
-						check(
-								instance_decl_id,
-								new bitter::as_t(decl->value, type_instance, false),
-								local_env);
-						assert(local_env.instance_requirements.size() == 0);
-						env.map[instance_decl_id.name] = expected_scheme;
-					}
-				}
-			}
-			/* check for unrelated declarations inside of an instance */
-			for (auto decl : instance->decls) {
-				if (!in(decl->var.name, names_checked)) {
-					throw user_error(decl->var.location, "extraneous declaration %s found in instance %s %s",
-							decl->var.str().c_str(),
-							type_class->id.str().c_str(),
-							instance->type->str().c_str());
-				}
-			}
-		} catch (user_error &e) {
-			log_location(
-					instance->type_class_id.location,
-					"checking that member functions of instance %s %s type check",
-					instance->type_class_id.str().c_str(),
-					instance->type->str().c_str());
-			print_exception(e);
-		}
-	}
-}
-
 void initialize_default_env(env_t &env) {
 	auto Int = type_id(make_iid("Int"));
 	auto Float = type_id(make_iid("Float"));
@@ -186,12 +103,12 @@ void initialize_default_env(env_t &env) {
 	env.map["__add_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
 }
 
-std::map<std::string, bitter::type_class_t *> check_type_classes(const std::vector<bitter::type_class_t *> &type_classes, env_t &env) {
-	std::map<std::string, bitter::type_class_t *> type_class_map;
+std::map<std::string, type_class_t *> check_type_classes(const std::vector<type_class_t *> &type_classes, env_t &env) {
+	std::map<std::string, type_class_t *> type_class_map;
 
 	/* introduce all the type class signatures into the env, and build up an
 	 * index of type_class names */
-	for (bitter::type_class_t *type_class : type_classes) {
+	for (type_class_t *type_class : type_classes) {
 		try {
 			if (in(type_class->id.name, type_class_map)) {
 				auto error = user_error(type_class->id.location, "type class name %s is already taken", type_class->id.str().c_str());
@@ -229,8 +146,8 @@ std::map<std::string, bitter::type_class_t *> check_type_classes(const std::vect
 	return type_class_map;
 }
 
-void check_decls(const std::vector<bitter::decl_t *> &decls, env_t &env) {
-	for (bitter::decl_t *decl : decls) {
+void check_decls(const std::vector<decl_t *> &decls, env_t &env) {
+	for (decl_t *decl : decls) {
 		try {
 			check(decl->var, decl->value, env);
 		} catch (user_error &e) {
@@ -248,11 +165,147 @@ void check_decls(const std::vector<bitter::decl_t *> &decls, env_t &env) {
 	}
 }
 
-void generate_instance_dictionaries(
-		const std::vector<bitter::instance_t *> &instances,
-	   	const std::map<std::string, bitter::type_class_t *> &type_class_map,
-	   	env_t &env)
+#define INSTANCE_ID_SEP "/"
+identifier_t make_instance_id(std::string type_class_name, instance_t *instance) {
+	return identifier_t{type_class_name + INSTANCE_ID_SEP + instance->type->repr(), instance->get_location()};
+}
+
+identifier_t make_instance_decl_id(std::string type_class_name, instance_t *instance, identifier_t decl_id) {
+	return identifier_t{make_instance_id(type_class_name, instance).name + INSTANCE_ID_SEP + decl_id.name, decl_id.location};
+}
+
+identifier_t make_instance_dict_id(std::string type_class_name, instance_t *instance) {
+	auto id = make_instance_id(type_class_name, instance);
+	return identifier_t{"dict" INSTANCE_ID_SEP + id.name, id.location};
+}
+
+std::vector<decl_t *> check_instances(
+		const std::vector<instance_t *> &instances,
+		const std::map<std::string, type_class_t *> &type_class_map,
+		env_t &env)
 {
+	std::vector<decl_t *> instance_decls;
+
+	for (instance_t *instance : instances) {
+		try {
+			auto iter = type_class_map.find(instance->type_class_id.name);
+			if (iter == type_class_map.end()) {
+				auto error = user_error(instance->type_class_id.location,
+						"could not find type class for instance %s %s",
+						instance->type_class_id.str().c_str(),
+						instance->type->str().c_str());
+				auto leaf_name = split(instance->type_class_id.name, ".").back();
+				for (auto type_class_pair : type_class_map) {
+					auto type_class = type_class_pair.second;
+					if (type_class->id.name.find(leaf_name) != std::string::npos) {
+						error.add_info(type_class->id.location, "did you mean %s?",
+								type_class->id.str().c_str());
+					}
+				}
+				throw error;
+			}
+
+			/* first put an instance requirement on any superclasses of the associated
+			 * type_class */
+			type_class_t *type_class = iter->second;
+
+			std::set<std::string> names_checked;
+
+			/* make a template for the type that the instance implementation should
+			 * conform to */
+			types::type_t::map subst;
+			subst[type_class->type_var_id.name] = instance->type->generalize({})->instantiate(INTERNAL_LOC());
+
+			// check whether this instance properly implements the given type class
+			for (auto pair : type_class->overloads) {
+				auto name = pair.first;
+				auto type = pair.second;
+				bool found = false;
+				for (auto decl : instance->decls) {
+					assert(name.find(".") != std::string::npos);
+					assert(decl->var.name.find(".") != std::string::npos);
+					if (decl->var.name == name) {
+						found = true;
+						if (in(name, names_checked)) {
+							throw user_error(
+									decl->get_location(),
+									"name %s already duplicated in this instance",
+									decl->var.str().c_str());
+						}
+						names_checked.insert(decl->var.name);
+
+						env_t local_env{env};
+						local_env.instance_requirements.resize(0);
+						auto instance_decl_id = make_instance_decl_id(type_class->id.name, instance, decl->var);
+						auto expected_scheme = type->rebind(subst)->generalize(local_env);
+						auto type_instance = expected_scheme->instantiate(INTERNAL_LOC());
+
+						auto instance_decl_expr = new as_t(decl->value, type_instance, false /*force_cast*/);
+						check(
+								instance_decl_id,
+								instance_decl_expr,
+								local_env);
+						assert(local_env.instance_requirements.size() == 0);
+						env.map[instance_decl_id.name] = expected_scheme;
+
+						instance_decls.push_back(new decl_t(instance_decl_id, instance_decl_expr));
+					}
+				}
+				if (!found) {
+					throw user_error(pair.second->get_location(), "could not find decl for %s in instance %s %s",
+							name.c_str(), type_class->id.str().c_str(), instance->type->str().c_str());
+				}
+			}
+
+			/* check for unrelated declarations inside of an instance */
+			for (auto decl : instance->decls) {
+				if (!in(decl->var.name, names_checked)) {
+					throw user_error(decl->var.location,
+						   	"extraneous declaration %s found in instance %s %s (names_checked = {%s})",
+							decl->var.str().c_str(),
+							type_class->id.str().c_str(),
+							instance->type->str().c_str(),
+							join(names_checked, ", ").c_str());
+				}
+			}
+		} catch (user_error &e) {
+			log_location(
+					instance->type_class_id.location,
+					"checking that member functions of instance %s %s type check",
+					instance->type_class_id.str().c_str(),
+					instance->type->str().c_str());
+			print_exception(e);
+		}
+	}
+		return instance_decls;
+}
+
+void generate_instance_dictionaries(
+		const std::vector<instance_t *> &instances,
+		const std::map<std::string, type_class_t *> &type_class_map,
+		std::map<std::string, decl_t *> &decl_map,
+		env_t &env)
+{
+	for (auto instance : instances) {
+		auto type_class_iter = type_class_map.find(instance->type_class_id.name);
+		assert(type_class_iter != type_class_map.end());
+		auto type_class = type_class_iter->second;
+		auto instance_dict_name = make_instance_dict_id(type_class->id.name, instance).name;
+		debug_above(7, log("trying to make a dictionary called %s", instance_dict_name.c_str()));
+
+		std::vector<expr_t *> dims;
+		for (auto superclass : type_class->superclasses) {
+			identifier_t instance_decl_id = make_instance_dict_id(superclass, instance);
+			dims.push_back(new var_t(instance_decl_id));
+		}
+
+		for (auto decl : instance->decls) {
+			identifier_t instance_decl_id = make_instance_decl_id(type_class->id.name, instance, decl->var);
+			dims.push_back(new var_t(instance_decl_id));
+		}
+		assert(!in(instance_dict_name, decl_map));
+		decl_map[instance_dict_name] = new decl_t(identifier_t{instance_dict_name, instance->get_location()}, new tuple_t(instance->get_location(), dims));
+	}
 }
 
 int main(int argc, char *argv[]) {
@@ -304,17 +357,30 @@ int main(int argc, char *argv[]) {
 		} else if (cmd == "compile") {
 			auto compilation = compiler::parse_program(user_program_name);
 			if (compilation != nullptr) {
-				bitter::program_t *program = compilation->program;
+				program_t *program = compilation->program;
 
 				env_t env;
 				initialize_default_env(env);
 
 				auto type_class_map = check_type_classes(program->type_classes, env);
 
-				// TODO: come up with an ordering of the decls (including instance decls)
 				check_decls(program->decls, env);
 
-				check_instances(program->instances, type_class_map, env);
+				auto instance_decls = check_instances(program->instances, type_class_map, env);
+
+				std::map<std::string, decl_t *> decl_map;
+
+				for (auto decl : program->decls) {
+					assert(!in(decl->var.name, decl_map));
+					decl_map[decl->var.name] = decl;
+				}
+
+				/* the instance decls were already checked, but let's add them to the list of decls
+				 * for the lowering step */
+				for (auto decl : instance_decls) {
+					assert(!in(decl->var.name, decl_map));
+					decl_map[decl->var.name] = decl;
+				}
 
 				if (debug_compiled_env) {
 					for (auto pair : env.map) {
@@ -323,7 +389,13 @@ int main(int argc, char *argv[]) {
 					}
 				}
 
-				generate_instance_dictionaries(program->instances, type_class_map, env);
+				generate_instance_dictionaries(program->instances, type_class_map, decl_map, env);
+
+				if (debug_compiled_env) {
+					for (auto pair : decl_map) {
+						std::cout << pair.second->str() << std::endl;
+					}
+				}
 
 				return EXIT_SUCCESS;
 			}

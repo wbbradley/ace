@@ -1305,7 +1305,7 @@ types::type_t::ref parse_named_type(parse_state_t &ps) {
 	if (islower(ps.token.text[0])) {
 		return type_variable(iid(ps.token_and_advance()));
 	} else {
-		return type_id(iid(ps.token_and_advance()));
+		return type_id(ps.identifier_and_advance());
 	}
 }
 
@@ -1451,12 +1451,12 @@ instance_t *parse_type_class_instance(parse_state_t &ps) {
 			/* instance-level functions */
 			ps.advance();
 			auto token = ps.token_and_advance();
-			auto id = identifier_t{token.text, token.location};
+			auto id = ps.id_mapped(identifier_t{token.text, token.location});
 			decls.push_back(new decl_t(id, parse_lambda(ps)));
 		} else if (ps.token.tk != tk_rcurly) {
 			/* instance-level let vars */
 			auto name_token = ps.token_and_advance();
-			auto id = identifier_t{name_token.text, name_token.location};
+			auto id = ps.id_mapped(identifier_t{name_token.text, name_token.location});
 			chomp_token(tk_assign);
 			decls.push_back(new decl_t(id, parse_expr(ps)));
 		} else {
@@ -1519,42 +1519,17 @@ module_t *parse_module(
 {
 	debug_above(6, log("about to parse %s", ps.filename.c_str()));
 
-	/*
-	std::string auto_gets[] = {
-		"bool.Bool",
-		"bool.True",
-		"bool.False",
-		"ord.compare",
-		"ord.<",
-		"ord.<=",
-		"ord.>=",
-		"ord.>",
-		"num.+",
-		"num.*",
-		"num.-",
-		"num./",
-		"num.Num",
-		"maybe.Maybe",
-		"maybe.Just",
-		"maybe.Nothing",
-	};
-	for (auto get : auto_gets) {
-		ps.add_term_map(INTERNAL_LOC(), split(get, ".").back(), get);
-		module_deps.insert(identifier_t{split(get, ".").front(), INTERNAL_LOC()});
-	}
-	*/
 	for (auto aim : auto_import_modules) {
 		if (aim == nullptr) {
 			continue;
 		}
-		for (auto decl : aim->decls) {
-			ps.add_term_map(INTERNAL_LOC(), decl->var.name, aim->name + "." + decl->var.name);
-		}
-		for (auto type_class : aim->type_classes) {
-			ps.add_term_map(type_class->get_location(), type_class->id.name, aim->name + "." + type_class->id.name);
-			for (auto pair : type_class->overloads) {
-				ps.add_term_map(pair.second->get_location(), pair.first, aim->name + "." + pair.first);
-			}
+		std::set<std::string> tlds = compiler::get_top_level_decls(
+				aim->decls,
+				aim->type_decls,
+				aim->type_classes);
+		for (auto tld : tlds) {
+			debug_above(9, log("adding tld %s -> %s in %s", tld.c_str(), (aim->name + "." + tld).c_str(), ps.filename.c_str()));
+			ps.add_term_map(INTERNAL_LOC(), tld, aim->name + "." + tld);
 		}
 	}
 
