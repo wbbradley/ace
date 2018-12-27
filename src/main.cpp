@@ -136,11 +136,16 @@ void check_instances(
 
 						env_t local_env{env};
 						local_env.instance_requirements.resize(0);
+						auto instance_decl_id = identifier_t{
+							split(type_class->id.name, ".").back() + instance->type->repr()+"."+decl->var.name, decl->var.location};
+						auto expected_scheme = type->rebind(subst)->generalize(local_env);
+						auto type_instance = expected_scheme->instantiate(INTERNAL_LOC());
 						check(
-								identifier_t{instance->type->repr()+"."+decl->var.name, decl->var.location},
-								new bitter::as_t(decl->value, type->rebind(subst)->generalize(local_env)->instantiate(INTERNAL_LOC()), false),
+								instance_decl_id,
+								new bitter::as_t(decl->value, type_instance, false),
 								local_env);
 						assert(local_env.instance_requirements.size() == 0);
+						env.map[instance_decl_id.name] = expected_scheme;
 					}
 				}
 			}
@@ -243,6 +248,13 @@ void check_decls(const std::vector<bitter::decl_t *> &decls, env_t &env) {
 	}
 }
 
+void generate_instance_dictionaries(
+		const std::vector<bitter::instance_t *> &instances,
+	   	const std::map<std::string, bitter::type_class_t *> &type_class_map,
+	   	env_t &env)
+{
+}
+
 int main(int argc, char *argv[]) {
 	//setenv("DEBUG", "8", 1 /*overwrite*/);
 	signal(SIGINT, &handle_sigint);
@@ -310,6 +322,8 @@ int main(int argc, char *argv[]) {
 						std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
 					}
 				}
+
+				generate_instance_dictionaries(program->instances, type_class_map, env);
 
 				return EXIT_SUCCESS;
 			}
