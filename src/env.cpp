@@ -75,14 +75,9 @@ std::string env_t::str() const {
 	}
 	if (instance_requirements.size() != 0) {
 		ss << ", instance_requirements: [" << join_with(instance_requirements, ", ", [] (const instance_requirement_t &ir) {
-				return (
-						std::stringstream()
-						<< "{"
-						<< ir.type_class_name
-						<< ", " << ir.location
-						<< ", " << ir.type->str()
-						<< "}").str();
-
+				std::stringstream ss;
+				ss << "{" << ir.type_class_name << ", " << ir.location << ", " << ir.type->str() << "}";
+				return ss.str();
 				}) << "]";
 	}
 	ss << "}";
