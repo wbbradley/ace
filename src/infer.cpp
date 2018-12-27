@@ -136,7 +136,9 @@ types::type_t::ref infer(
 	} else if (auto as = dcast<as_t*>(expr)) {
 		auto t1 = infer(as->expr, env, constraints);
 		if (!as->force_cast) {
-			append(constraints, t1, as->type, {string_format("casting %s to %s", as->expr->str().c_str(), as->type->str().c_str()), as->get_location()});
+			append(constraints, t1, as->type, {string_format("we can get type %s from %s",
+					   	as->type->str().c_str(),
+					   	as->expr->str().c_str()), as->get_location()});
 		}
 		return as->type;
 	}

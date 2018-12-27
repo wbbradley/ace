@@ -15,6 +15,9 @@
 #include "unification.h"
 #include "env.h"
 
+const bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
+const bool debug_types = getenv("SHOW_TYPES") != nullptr;
+
 int usage() {
 	log(log_error, "available commands: test, read-ir, compile, bc, run, fmt, bin");
 	return EXIT_FAILURE;
@@ -58,6 +61,28 @@ void handle_sigint(int sig) {
 	exit(2);
 }
 		
+void check(identifier_t id, bitter::expr_t *expr, env_t &env) {
+	constraints_t constraints;
+	// std::cout << C_ID "------------------------------" C_RESET << std::endl;
+	// log("type checking %s", id.str().c_str());
+	types::type_t::ref ty = infer(expr, env, constraints);
+	auto bindings = solver({}, constraints, env);
+
+	// log("GOT ty = %s", ty->str().c_str());
+	ty = ty->rebind(bindings);
+	// log("REBOUND ty = %s", ty->str().c_str());
+	// log(">> %s", str(constraints).c_str());
+	// log(">> %s", str(subst).c_str());
+	auto scheme = ty->generalize(env)->normalize();
+	// log("NORMALIED ty = %s", n->str().c_str());
+
+	env.extend(id, scheme);
+
+	if (debug_types) {
+		log_location(id.location, "info: %s :: %s",
+				id.str().c_str(), scheme->str().c_str());
+	}
+}
 		
 int main(int argc, char *argv[]) {
 	//setenv("DEBUG", "8", 1 /*overwrite*/);
@@ -104,17 +129,26 @@ int main(int argc, char *argv[]) {
 			assert(alphabetize(26) == "aa");
 			assert(alphabetize(27) == "ab");
 		} else if (cmd == "compile") {
-			bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
-			bool debug_types = getenv("SHOW_TYPES") != nullptr;
 			auto compilation = compiler::parse_program(user_program_name);
 			if (compilation != nullptr) {
 				bitter::program_t *program = compilation->program;
 
 				env_t env;
 				location_t l_ = INTERNAL_LOC();
+				auto Int = type_id(make_iid("Int"));
+				auto Float = type_id(make_iid("Float"));
+
 				env.map["unit"] = scheme({}, {}, type_unit(l_));
 				env.map["true"] = scheme({}, {}, type_bool(l_));
 				env.map["false"] = scheme({}, {}, type_bool(l_));
+				env.map["__multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+				env.map["__divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+				env.map["__subtract_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+				env.map["__add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+				env.map["__multiply_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+				env.map["__divide_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+				env.map["__subtract_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+				env.map["__add_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
 
 				std::map<std::string, bitter::type_class_t *> type_class_map;
 
@@ -156,27 +190,8 @@ int main(int argc, char *argv[]) {
 				}
 
 				for (bitter::decl_t *decl : program->decls) {
-					constraints_t constraints;
 					try {
-						// std::cout << C_ID "------------------------------" C_RESET << std::endl;
-						// log("type checking %s", decl->var.str().c_str());
-						types::type_t::ref ty = infer(decl->value, env, constraints);
-						auto bindings = solver({}, constraints, env);
-
-						// log("GOT ty = %s", ty->str().c_str());
-						ty = ty->rebind(bindings);
-						// log("REBOUND ty = %s", ty->str().c_str());
-						// log(">> %s", str(constraints).c_str());
-						// log(">> %s", str(subst).c_str());
-						auto scheme = ty->generalize(env)->normalize();
-						// log("NORMALIED ty = %s", n->str().c_str());
-
-						env.extend(decl->var, scheme);
-
-						if (debug_types) {
-							log_location(decl->var.location, "info: %s :: %s",
-									decl->var.str().c_str(), scheme->str().c_str());
-						}
+						check(decl->var, decl->value, env);
 					} catch (user_error &e) {
 						print_exception(e);
 						/* keep trying other decls, and pretend like this function gives back
@@ -192,8 +207,6 @@ int main(int argc, char *argv[]) {
 								"checking that member functions of instance [%s %s] type check",
 								instance->type_class_id.str().c_str(),
 								instance->type->str().c_str());
-						/* first put an instance requirement on any superclasses of the associated
-						 * type_class */
 						auto iter = type_class_map.find(instance->type_class_id.name);
 						if (iter == type_class_map.end()) {
 							auto error = user_error(instance->type_class_id.location,
@@ -211,7 +224,52 @@ int main(int argc, char *argv[]) {
 							}
 							throw error;
 						}
+
+						/* first put an instance requirement on any superclasses of the associated
+						 * type_class */
 						bitter::type_class_t *type_class = iter->second;
+						// TODO: env.instance_requirements.push_back(type_class->superclasses * instance->type);
+
+						std::set<std::string> names_checked;
+
+						/* make a template for the type that the instance implementation should
+						 * conform to */
+						types::type_t::map subst;
+						subst[type_class->type_var_id.name] = instance->type->generalize({})->instantiate(INTERNAL_LOC());
+
+						// check whether this instance properly implements the given type class
+						for (auto pair : type_class->overloads) {
+							auto name = pair.first;
+							auto type = pair.second;
+							for (auto decl : instance->decls) {
+								if (decl->var.name == split(name, ".").back()) {
+									if (in(name, names_checked)) {
+										throw user_error(
+												decl->get_location(),
+											   	"name %s already duplicated in this instance",
+												decl->var.str().c_str());
+									}
+									names_checked.insert(decl->var.name);
+
+									env_t local_env{env};
+									local_env.instance_requirements.resize(0);
+									check(
+											identifier_t{instance->type->repr()+"."+decl->var.name, decl->var.location},
+											new bitter::as_t(decl->value, type->rebind(subst)->generalize(local_env)->instantiate(INTERNAL_LOC()), false),
+										   	local_env);
+									assert(local_env.instance_requirements.size() == 0);
+								}
+							}
+						}
+						/* check for unrelated declarations inside of an instance */
+						for (auto decl : instance->decls) {
+							if (!in(decl->var.name, names_checked)) {
+								throw user_error(decl->var.location, "extraneous declaration %s found in instance %s %s",
+										decl->var.str().c_str(),
+										type_class->id.str().c_str(),
+										instance->type->str().c_str());
+							}
+						}
 					} catch (user_error &e) {
 						print_exception(e);
 					}

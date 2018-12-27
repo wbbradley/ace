@@ -1,0 +1,3 @@
+class Show a {
+    fn str(a) String
+}
