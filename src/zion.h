@@ -1,4 +1,5 @@
 #pragma once
+#include "zion_assert.h"
 #include <cstdlib>
 #include <cctype>
 #include <stdlib.h>
@@ -12,7 +13,6 @@
 #include <memory>
 #include "logger_decls.h"
 #include "ptr.h"
-#include "zion_assert.h"
 #include "builtins.h"
 
 #define ZION 1
