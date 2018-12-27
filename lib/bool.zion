@@ -1,9 +1,15 @@
-global
 
-fn str(x bool) str {
-    if x {
-        return "true"
-    } else {
-        return "false"
+data Bool {
+    True
+    False
+}
+
+instance Show Bool {
+    fn str(x) {
+        if x {
+            return "True"
+        } else {
+            return "False"
+        }
     }
 }

@@ -1453,9 +1453,8 @@ instance_t *parse_type_class_instance(parse_state_t &ps) {
 			auto token = ps.token_and_advance();
 			auto id = identifier_t{token.text, token.location};
 			decls.push_back(new decl_t(id, parse_lambda(ps)));
-		} else if (ps.token.is_ident(K(let))) {
+		} else if (ps.token.tk != tk_rcurly) {
 			/* instance-level let vars */
-			ps.advance();
 			auto name_token = ps.token_and_advance();
 			auto id = identifier_t{name_token.text, name_token.location};
 			chomp_token(tk_assign);
@@ -1517,6 +1516,14 @@ module_t *parse_module(parse_state_t &ps, std::set<identifier_t> &module_deps) {
 	debug_above(6, log("about to parse %s", ps.filename.c_str()));
 
 	std::string auto_gets[] = {
+		"bool.Bool",
+		"bool.True",
+		"bool.False",
+		"ord.compare",
+		"ord.<",
+		"ord.<=",
+		"ord.>=",
+		"ord.>",
 		"num.+",
 		"num.*",
 		"num.-",
