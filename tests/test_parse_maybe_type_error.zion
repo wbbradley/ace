@@ -1,6 +1,0 @@
-module _
-
-fn main() {
-    # error: ambiguous \?. try using `\*\?`, or parentheses
-    let x *int? = null
-}

@@ -1,5 +1,0 @@
-module _
-
-fn var_type() void
-    # error: type mismatch
-    var x str = 0

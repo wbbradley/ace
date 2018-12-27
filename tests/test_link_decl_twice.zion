@@ -1,4 +1,0 @@
-module _
-link fn putch(ch int) int
-# error: 4:.* symbol putch is already bound
-link fn putch(ch int) int

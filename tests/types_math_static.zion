@@ -1,8 +1,0 @@
-module types_math_static
-
-fn compute() int
-    var x int
-    x = 2 + 3
-    return x
-    
-

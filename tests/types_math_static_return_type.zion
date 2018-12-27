@@ -1,8 +1,0 @@
-module types_math_static_return_type
-
-fn subfunction() int
-    return "hey, this should fail"
-
-fn compute() any
-    return subfunction()
-

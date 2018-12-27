@@ -1,3 +1,0 @@
-module _
-# error: 3:.* please add concrete type annotations
-link fn some_external_function(ch any ZELDA) int

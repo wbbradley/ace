@@ -1,9 +1,0 @@
-module _
-
-# test dereferencing into a tuple
-
-fn main() {
-    x := (1,)
-    # error: unable to read an integer
-    y := x["blah"]
-}

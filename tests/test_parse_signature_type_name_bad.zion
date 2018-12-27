@@ -1,4 +1,0 @@
-module _
-
-# error: type descriptions must
-type Bar Baz matches int

@@ -1,8 +1,0 @@
-module _
-# test: pass
-# expect: true and 1
-
-fn main() {
-    static_print(true and 1)
-    print(true and 1)
-}

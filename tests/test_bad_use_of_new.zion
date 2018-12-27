@@ -1,7 +1,0 @@
-module _
-
-fn main() {
-    # error: unable to parse type
-    # error: while parsing unary operator new
-    new := 3
-}

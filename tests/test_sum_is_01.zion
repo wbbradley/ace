@@ -1,6 +1,0 @@
-module _
-# test: pass
-type PhoneNumber = int
-
-fn main() {
-}
