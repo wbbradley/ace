@@ -281,6 +281,10 @@ namespace bitter {
 		return ss.str();
 	}
 
+	location_t decl_t::get_location() const {
+		return var.location;
+	}
+
 	std::string type_class_t::str() const {
 		return string_format("class %s %s {\n\t%s%s\n}",
 				id.name.c_str(),

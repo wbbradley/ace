@@ -201,6 +201,7 @@ namespace bitter {
 	struct decl_t {
 		decl_t(identifier_t var, expr_t *value) : var(var), value(value) {}
 		std::string str() const;
+		location_t get_location() const;
 
 		identifier_t const var;
 		expr_t * const value;

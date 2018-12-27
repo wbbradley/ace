@@ -1456,7 +1456,8 @@ instance_t *parse_type_class_instance(parse_state_t &ps) {
 		} else if (ps.token.is_ident(K(let))) {
 			/* instance-level let vars */
 			ps.advance();
-			auto id = identifier_t::from_token(ps.token_and_advance());
+			auto name_token = ps.token_and_advance();
+			auto id = identifier_t{name_token.text, name_token.location};
 			chomp_token(tk_assign);
 			decls.push_back(new decl_t(id, parse_expr(ps)));
 		} else {
@@ -1520,6 +1521,9 @@ module_t *parse_module(parse_state_t &ps, std::set<identifier_t> &module_deps) {
 		"num.*",
 		"num.-",
 		"num./",
+		"num.Num",
+		"show.Show",
+		"show.str",
 	};
 	for (auto get : auto_gets) {
 		ps.add_term_map(INTERNAL_LOC(), split(get, ".").back(), get);

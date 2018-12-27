@@ -1,5 +1,3 @@
-get num {Num}
-
 fn id(x) => x
 fn sqr(a) => a * a
 
@@ -23,16 +21,12 @@ fn hey() {
     return plus4(3)
 }
 
-class Show a {
-    fn str(a) String
-}
-
 instance Num Int {
-    let from_int = id
-    fn +(x, y) => add_int(x, y)
-    fn *(x, y) => multiply_int(x, y)
-    fn -(x, y) => subtract_int(x, y)
-    fn /(x, y) => divide_int(x, y)
+    from_int = id
+    + = __add_int
+    * = __multiply_int
+    - = __subtract_int
+    / = __divide_int
 }
 
 fn doit(m) {
@@ -45,6 +39,12 @@ fn test_doit() {
 
 fn dd(x) {
     return sqr(x)
+}
+
+instance Show Maybe a {
+    fn str(m) {
+        return "hey"
+    }
 }
 
 fn main() {
