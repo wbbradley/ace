@@ -1,4 +1,4 @@
-get functor {fmap}
+get functor {fmap, Functor}
 
 fn sqr(a) => a * a
 let I = fn (x) => x
@@ -21,6 +21,11 @@ instance Num Int {
     / = __divide_int
 }
 
+instance Functor Maybe {
+    fn fmap(f, m) {
+        return Just(3)
+    }
+}
 fn doit(m) {
     return m
 }
