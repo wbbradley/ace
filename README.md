@@ -12,13 +12,12 @@ More to come...
 
 ## Roadmap
 
-[ ] Instance dictionary creation
-[ ] Instance finding
-[ ] Evaluation
-[ ] REPL
-[ ] Pattern matching
-[ ] Out of order declarations
-[ ] Supporting implicit recursion without `fn rec` or `let rec x and y ...`
-[ ] Type aliases for convenience `type String = [Char]`
-[ ] Type hiding with `newtype`
-
+- [ ] Instance dictionary creation
+- [ ] Instance finding
+- [ ] Evaluation
+- [ ] REPL
+- [ ] Pattern matching
+- [ ] Out of order declarations
+- [ ] Supporting implicit recursion without `fn rec` or `let rec x and y ...`
+- [ ] Type aliases for convenience `type String = [Char]`
+- [ ] Type hiding with `newtype`
