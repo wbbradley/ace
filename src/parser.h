@@ -62,4 +62,4 @@ inline identifier_t iid(const token_t &token) { return identifier_t::from_token(
 		eat_token(); \
 	} while (0)
 
-bitter::module_t *parse_module(parse_state_t &ps, std::set<identifier_t> &module_deps);
+bitter::module_t *parse_module(parse_state_t &ps, std::vector<bitter::module_t *> auto_import_modules, std::set<identifier_t> &module_deps);

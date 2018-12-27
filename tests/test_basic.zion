@@ -1,14 +1,4 @@
-fn id(x) => x
 fn sqr(a) => a * a
-
-fn tuple(h) {
-    return (h,)
-}
-
-data Maybe a {
-    Nothing
-    Just(a)
-}
 
 class Functor f {
     fn fmap(fn (a) b, f a) f b  

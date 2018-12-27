@@ -214,9 +214,7 @@ int main(int argc, char *argv[]) {
 									instance->type_class_id.str().c_str(),
 									instance->type->str().c_str());
 							auto leaf_name = split(instance->type_class_id.name, ".").back();
-							std::cout << "leaf = " << leaf_name << std::endl;
 							for (auto type_class : program->type_classes) {
-								std::cout << "looking at " << type_class->id.str() << std::endl;
 								if (type_class->id.name.find(leaf_name) != std::string::npos) {
 									error.add_info(type_class->id.location, "did you mean %s?",
 											type_class->id.str().c_str());

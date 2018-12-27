@@ -124,7 +124,7 @@ namespace compiler {
 		std::vector<token_t> comments;
 		std::set<token_t> link_ins;
 
-		module_t *parse_module(identifier_t module_id) {
+		module_t *parse_module_statefully(identifier_t module_id) {
 			if (auto module = get(modules_map_by_name, module_id.name, (module_t *)nullptr)) {
 				return module;
 			}
@@ -144,14 +144,22 @@ namespace compiler {
 				parse_state_t ps(module_filename, "", lexer, &comments, &link_ins);
 
 				std::set<identifier_t> dependencies;
-				module_t *module = ::parse_module(ps, dependencies);
+				module_t *module = ::parse_module(ps, {
+						modules_map_by_name["prelude"],
+						modules_map_by_name["bool"],
+						modules_map_by_name["num"],
+						modules_map_by_name["maybe"],
+						}, dependencies);
 
 				modules.push_back(module);
 				modules_map_by_name[ps.module_name] = module;
 				modules_map_by_filename[ps.filename] = module;
 
+				debug_above(8, log("while parsing %s got dependencies {%s}",
+						module_id.str().c_str(),
+						join(dependencies, ", ").c_str()));
 				for (auto dependency : dependencies) {
-					parse_module(dependency);
+					parse_module_statefully(dependency);
 				}
 
 				return module;
@@ -204,17 +212,17 @@ namespace compiler {
 			global_parser_state_t gps;
 
 			/* always include the builtins library */
-			if (getenv("NO_BUILTINS") == nullptr) {
-				gps.parse_module({"lib/builtins", location_t{"builtins", 0, 0}});
+			if (getenv("NO_PRELUDE") == nullptr) {
+				gps.parse_module_statefully({"lib/prelude", location_t{"prelude", 0, 0}});
 			}
 
 			/* always include the standard library */
 			if (getenv("NO_STD_LIB") == nullptr) {
-				gps.parse_module({"lib/std", location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0}});
+				gps.parse_module_statefully({"lib/std", location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0}});
 			}
 
 			/* now parse the main program module */
-			gps.parse_module({module_name, location_t{"command line build parameters", 0, 0}});
+			gps.parse_module_statefully({module_name, location_t{"command line build parameters", 0, 0}});
 
 			debug_above(11, log(log_info, "parse_module of %s succeeded", module_name.c_str(),
 						false /*global*/));

@@ -1512,9 +1512,14 @@ type_class_t *parse_type_class(parse_state_t &ps) {
 	return new type_class_t(type_decl.id, type_decl.params[0], superclasses, overloads);
 }
 
-module_t *parse_module(parse_state_t &ps, std::set<identifier_t> &module_deps) {
+module_t *parse_module(
+		parse_state_t &ps,
+	   	std::vector<module_t *> auto_import_modules,
+	   	std::set<identifier_t> &module_deps)
+{
 	debug_above(6, log("about to parse %s", ps.filename.c_str()));
 
+	/*
 	std::string auto_gets[] = {
 		"bool.Bool",
 		"bool.True",
@@ -1529,12 +1534,28 @@ module_t *parse_module(parse_state_t &ps, std::set<identifier_t> &module_deps) {
 		"num.-",
 		"num./",
 		"num.Num",
-		"show.Show",
-		"show.str",
+		"maybe.Maybe",
+		"maybe.Just",
+		"maybe.Nothing",
 	};
 	for (auto get : auto_gets) {
 		ps.add_term_map(INTERNAL_LOC(), split(get, ".").back(), get);
 		module_deps.insert(identifier_t{split(get, ".").front(), INTERNAL_LOC()});
+	}
+	*/
+	for (auto aim : auto_import_modules) {
+		if (aim == nullptr) {
+			continue;
+		}
+		for (auto decl : aim->decls) {
+			ps.add_term_map(INTERNAL_LOC(), decl->var.name, aim->name + "." + decl->var.name);
+		}
+		for (auto type_class : aim->type_classes) {
+			ps.add_term_map(type_class->get_location(), type_class->id.name, aim->name + "." + type_class->id.name);
+			for (auto pair : type_class->overloads) {
+				ps.add_term_map(pair.second->get_location(), pair.first, aim->name + "." + pair.first);
+			}
+		}
 	}
 
 	std::vector<decl_t *> decls;
@@ -1547,16 +1568,18 @@ module_t *parse_module(parse_state_t &ps, std::set<identifier_t> &module_deps) {
 		expect_token(tk_identifier);
 		identifier_t module_name = ps.identifier_and_advance();
 
-		chomp_token(tk_lcurly);
-		while (true) {
-			expect_token(tk_identifier);
-			ps.add_term_map(ps.token.location, ps.token.text, module_name.name + "." + ps.token.text);
+		if (ps.token.tk == tk_lcurly) {
 			ps.advance();
-			if (ps.token.tk == tk_comma) {
+			while (true) {
+				expect_token(tk_identifier);
+				ps.add_term_map(ps.token.location, ps.token.text, module_name.name + "." + ps.token.text);
 				ps.advance();
-			} else {
-				chomp_token(tk_rcurly);
-				break;
+				if (ps.token.tk == tk_comma) {
+					ps.advance();
+				} else {
+					chomp_token(tk_rcurly);
+					break;
+				}
 			}
 		}
 		module_deps.insert(module_name);
