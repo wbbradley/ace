@@ -309,6 +309,10 @@ namespace bitter {
 	}
 }
 
+bitter::expr_t *unit_expr(location_t location) {
+	return new bitter::tuple_t(location, {});
+}
+
 namespace bitter {
 	int next_fresh = 0;
 

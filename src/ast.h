@@ -291,6 +291,7 @@ namespace bitter {
 	};
 }
 
+bitter::expr_t *unit_expr(location_t location);
 std::ostream &operator <<(std::ostream &os, bitter::program_t *program);
 std::ostream &operator <<(std::ostream &os, bitter::decl_t *decl);
 std::ostream &operator <<(std::ostream &os, bitter::expr_t *expr);

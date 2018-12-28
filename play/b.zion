@@ -1,0 +1,8 @@
+class A a {
+    fn g(a, x, y) Int
+}
+instance A Int {
+    fn g(b, x, y) {
+        return 3 + 4
+    }
+}

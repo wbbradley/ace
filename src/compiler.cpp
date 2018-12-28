@@ -274,7 +274,7 @@ namespace compiler {
 						program_instances,
 						new application_t(
 							new var_t(make_iid("main")),
-							new var_t(make_iid("unit")))),
+							new tuple_t(INTERNAL_LOC(), {}))),
 					gps.comments,
 					gps.link_ins);
 		} catch (user_error &e) {

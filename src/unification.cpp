@@ -11,6 +11,10 @@
 
 using namespace types;
 
+bool scheme_equality(types::scheme_t::ref a, types::scheme_t::ref b) {
+	return a->normalize()->str() == b->normalize()->str();
+}
+
 bool type_equality(types::type_t::ref a, types::type_t::ref b) {
 	if (a == b) {
 		/* the same pointer */

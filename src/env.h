@@ -13,6 +13,7 @@ struct instance_requirement_t {
 	std::string type_class_name;
 	location_t location;
 	types::type_t::ref type;
+	std::string str() const;
 };
 
 struct env_t {
