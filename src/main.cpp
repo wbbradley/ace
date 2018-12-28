@@ -89,8 +89,8 @@ void check(identifier_t id, expr_t *expr, env_t &env) {
 void initialize_default_env(env_t &env) {
 	auto Int = type_id(make_iid("Int"));
 	auto Float = type_id(make_iid("Float"));
+	auto Bool = type_id(make_iid("bool.Bool"));
 
-	/*
 	env.map["__multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
 	env.map["__divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
 	env.map["__subtract_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
@@ -99,7 +99,10 @@ void initialize_default_env(env_t &env) {
 	env.map["__divide_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
 	env.map["__subtract_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
 	env.map["__add_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-	*/
+
+	auto tv = type_variable(INTERNAL_LOC());
+	env.map["__raw_eq"] = scheme({}, {}, type_arrows({tv, tv, Bool}));
+	env.map["__raw_ne"] = scheme({}, {}, type_arrows({tv, tv, Bool}));
 }
 
 std::map<std::string, type_class_t *> check_type_classes(const std::vector<type_class_t *> &type_classes, env_t &env) {
@@ -332,6 +335,15 @@ void generate_instance_dictionaries(
 	}
 }
 
+bool instance_matches_requirement(instance_t *instance, const instance_requirement_t &ir, env_t &env) {
+	log("checking %s %s vs. %s %s",
+		   	ir.type_class_name.c_str(), ir.type->str().c_str(),
+			instance->type_class_id.name.c_str(), instance->type->str().c_str());
+	return instance->type_class_id.name == ir.type_class_name && scheme_equality(
+			ir.type->generalize(env)->normalize(),
+			instance->type->generalize(env)->normalize());
+}
+
 int main(int argc, char *argv[]) {
 	//setenv("DEBUG", "8", 1 /*overwrite*/);
 	signal(SIGINT, &handle_sigint);
@@ -360,7 +372,7 @@ int main(int argc, char *argv[]) {
 		setenv("NO_BUILTINS", "1", 1 /*overwrite*/);
 
 		if (cmd == "find") {
-			std::cout << compiler::resolve_module_filename(INTERNAL_LOC(), user_program_name, "") << std::endl;
+			log("%s", compiler::resolve_module_filename(INTERNAL_LOC(), user_program_name, "").c_str());
 			return EXIT_SUCCESS;
 		} else if (cmd == "parse") {
 			auto compilation = compiler::parse_program(user_program_name);
@@ -408,8 +420,9 @@ int main(int argc, char *argv[]) {
 
 				if (debug_compiled_env) {
 					for (auto pair : env.map) {
-						// std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->str() << C_RESET << std::endl;
-						std::cout << pair.first << c_good(" :: ") << C_TYPE << pair.second->normalize()->str() << C_RESET << std::endl;
+						log("%s" c_good(" :: ") c_type("%s"),
+								pair.first.c_str(),
+								pair.second->normalize()->str().c_str());
 					}
 				}
 
@@ -432,10 +445,39 @@ int main(int argc, char *argv[]) {
 							log(log_error, "stopping compilation due to above errors");
 							return EXIT_FAILURE;
 						}
-						std::cout << pair.second->str() << c_good(" :: ") << env.map[pair.first]->str() << std::endl;
+						log("%s " c_good("::") " %s",
+								pair.second->str().c_str(),
+								env.map[pair.first]->str().c_str());
 					}
 				}
 
+				try {
+					for (auto ir : env.instance_requirements) {
+						log("checking instance requirement %s", ir.str().c_str());
+						std::vector<instance_t *> matching_instances;
+						for (auto instance : program->instances) {
+							if (instance_matches_requirement(instance, ir, env)) {
+								matching_instances.push_back(instance);
+							}
+						}
+
+						if (matching_instances.size() == 0) {
+							throw user_error(ir.location, "could not find an instance that supports the requirement %s",
+									ir.str().c_str());
+						} else if (matching_instances.size() != 1) {
+							auto error = user_error(ir.location, "found multiple instances implementing %s", ir.str().c_str());
+							for (auto mi : matching_instances) {
+								error.add_info(mi->get_location(), "matching instance found is %s %s",
+										mi->type_class_id.str().c_str(),
+										mi->type->str().c_str());
+							}
+							throw error;
+						}
+					}
+				} catch (user_error &e) {
+					print_exception(e);
+					return EXIT_FAILURE;
+				}
 				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;

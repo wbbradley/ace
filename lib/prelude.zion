@@ -1,7 +1,10 @@
+/* NB: the following imports must match the ordering of imports in
+* compiler.cpp. See the `::parse_module` call. */
+
 get bool
+get eq
 get num
 get maybe
 
 let unit = ()
-
-fn id(x) => x
+let id = fn (x) => x
