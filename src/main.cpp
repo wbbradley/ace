@@ -90,9 +90,7 @@ void initialize_default_env(env_t &env) {
 	auto Int = type_id(make_iid("Int"));
 	auto Float = type_id(make_iid("Float"));
 
-	env.map["unit"] = scheme({}, {}, type_unit(INTERNAL_LOC()));
-	env.map["true"] = scheme({}, {}, type_bool(INTERNAL_LOC()));
-	env.map["false"] = scheme({}, {}, type_bool(INTERNAL_LOC()));
+	/*
 	env.map["__multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
 	env.map["__divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
 	env.map["__subtract_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
@@ -101,6 +99,7 @@ void initialize_default_env(env_t &env) {
 	env.map["__divide_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
 	env.map["__subtract_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
 	env.map["__add_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+	*/
 }
 
 std::map<std::string, type_class_t *> check_type_classes(const std::vector<type_class_t *> &type_classes, env_t &env) {
@@ -245,7 +244,32 @@ std::vector<decl_t *> check_instances(
 								instance_decl_id,
 								instance_decl_expr,
 								local_env);
-						assert(local_env.instance_requirements.size() == 0);
+						debug_above(5, log("checking the instance fn %s gave scheme %s. we expected %s.",
+								instance_decl_id.str().c_str(),
+								local_env.map[instance_decl_id.name]->normalize()->str().c_str(),
+								expected_scheme->normalize()->str().c_str()));
+
+						if (!scheme_equality(
+									local_env.map[instance_decl_id.name],
+									expected_scheme->normalize()))
+						{
+							auto error = user_error(instance_decl_id.location, "instance component %s appears to be more constrained than the type class",
+									decl->var.str().c_str());
+							error.add_info(instance_decl_id.location, "instance component declaration has scheme %s",
+									local_env.map[instance_decl_id.name]->normalize()->str().c_str());
+							error.add_info(type->get_location(), "type class component declaration has scheme %s",
+									expected_scheme->normalize()->str().c_str());
+							throw error;
+						}
+
+						/* keep track of any instance requirements that were referenced inside the
+						 * implementation of the type class instance components */
+						if (local_env.instance_requirements.size() != 0) {
+							for (auto ir : local_env.instance_requirements) {
+								env.instance_requirements.push_back(ir);
+							}
+						}
+
 						env.map[instance_decl_id.name] = expected_scheme;
 
 						instance_decls.push_back(new decl_t(instance_decl_id, instance_decl_expr));
@@ -393,7 +417,22 @@ int main(int argc, char *argv[]) {
 
 				if (debug_compiled_env) {
 					for (auto pair : decl_map) {
-						std::cout << pair.second->str() << std::endl;
+						assert(pair.first == pair.second->var.name);
+
+						auto type = env.maybe_lookup_env(make_iid(pair.first));
+						if (type == nullptr) {
+							try {
+								check(pair.second->var, pair.second->value, env);
+							} catch (user_error &e) {
+								print_exception(e);
+							}
+						}
+						type = env.maybe_lookup_env(make_iid(pair.first));
+						if (type == nullptr) {
+							log(log_error, "stopping compilation due to above errors");
+							return EXIT_FAILURE;
+						}
+						std::cout << pair.second->str() << c_good(" :: ") << env.map[pair.first]->str() << std::endl;
 					}
 				}
 

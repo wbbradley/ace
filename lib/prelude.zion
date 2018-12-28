@@ -2,4 +2,6 @@ get bool
 get num
 get maybe
 
+let unit = ()
+
 fn id(x) => x

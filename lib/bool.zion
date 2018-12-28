@@ -2,3 +2,6 @@ data Bool {
     False
     True
 }
+
+let true = True
+let false = False

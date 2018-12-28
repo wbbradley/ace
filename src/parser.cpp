@@ -119,7 +119,7 @@ expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let) {
 	} else {
 		initializer = new application_t(
 				new var_t(make_iid("__init__")),
-				new var_t(make_iid("unit")));
+				unit_expr(INTERNAL_LOC()));
 	}
 
 	if (!is_let) {
@@ -135,7 +135,7 @@ expr_t *parse_return_statement(parse_state_t &ps) {
 	return new return_statement_t(
 			(!ps.line_broke() && ps.token.tk != tk_rcurly)
 			? parse_expr(ps)
-			: new var_t(make_iid("unit")));
+			: unit_expr(INTERNAL_LOC()));
 }
 
 maybe<identifier_t> parse_with_param(parse_state_t &ps, expr_t *&expr) {
@@ -152,7 +152,7 @@ maybe<identifier_t> parse_with_param(parse_state_t &ps, expr_t *&expr) {
 }
 
 expr_t *parse_with_block(parse_state_t &ps) {
-	return new var_t(identifier_t{"unit", INTERNAL_LOC()});
+	return unit_expr(INTERNAL_LOC());
 #if 0
 	auto with_token = ps.token;
 	ps.advance();
@@ -162,8 +162,8 @@ expr_t *parse_with_block(parse_state_t &ps) {
 	assert(expr != nullptr);
 
 	identifier_t param_id = (maybe_param_id.valid
-	   	? maybe_param_id.t
-	   	: identifier_t{fresh(), with_token.location});
+			? maybe_param_id.t
+			: identifier_t{fresh(), with_token.location});
 
 	auto block = parse_block(ps, false /*expression_means_return*/);
 
@@ -212,7 +212,7 @@ expr_t *wrap_with_iter(parse_state_t &ps, expr_t *expr) {
 }
 
 expr_t *parse_for_block(parse_state_t &ps) {
-	return new var_t(identifier_t{"unit", INTERNAL_LOC()});
+	return unit_expr(INTERNAL_LOC());
 #if 0
 	auto for_token = ps.token;
 	ps.advance();
@@ -306,7 +306,7 @@ expr_t *parse_for_block(parse_state_t &ps) {
 }
 
 expr_t *parse_defer(parse_state_t &ps) {
-	return new var_t(identifier_t{"unit", INTERNAL_LOC()});
+	return unit_expr(INTERNAL_LOC());
 #if 0
 	auto defer = create<defer_t>(ps.token);
 	ps.advance();
@@ -318,7 +318,7 @@ expr_t *parse_defer(parse_state_t &ps) {
 expr_t *parse_new_expr(parse_state_t &ps) {
 	expr_t *init = new application_t(
 			new var_t({"__init__", ps.token.location}),
-			new var_t({"unit", ps.token.location}));
+			unit_expr(ps.token.location));
 	ps.advance();
 	// TODO: allow type specification here.
 #if 0
@@ -489,9 +489,7 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 
 	while (!ps.line_broke() &&
 			(ps.token.tk == tk_lsquare ||
-			 ps.token.tk == tk_lparen ||
-			 ps.token.tk == tk_dot ||
-			 ps.token.tk == tk_bang))
+			 ps.token.tk == tk_lparen))
 	{
 		switch (ps.token.tk) {
 		case tk_lparen:
@@ -501,7 +499,8 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 				ps.advance();
 				if (ps.token.tk == tk_rparen) {
 					ps.advance();
-					expr = new application_t(expr, new var_t(identifier_t{"unit", INTERNAL_LOC()}));
+					expr = new application_t(expr,
+							unit_expr(ps.token.location));
 				} else {
 					while (ps.token.tk != tk_rparen) {
 						expr = new application_t(expr, parse_expr(ps));
@@ -801,10 +800,10 @@ expr_t *parse_and_expr(parse_state_t &ps) {
 expr_t *parse_tuple_expr(parse_state_t &ps) {
 	auto start_token = ps.token;
 	chomp_token(tk_lparen);
-    if (ps.token.tk == tk_rparen) {
+	if (ps.token.tk == tk_rparen) {
 		/* we've got a reference to sole value of unit type */
-        return new var_t(identifier_t{"unit", ps.token_and_advance().location});
-    }
+		return unit_expr(ps.token_and_advance().location);
+	}
 	expr_t *expr = parse_expr(ps);
 	if (ps.token.tk != tk_comma) {
 		chomp_token(tk_rparen);
@@ -906,7 +905,8 @@ expr_t *parse_block(parse_state_t &ps, bool expression_means_return) {
 		finish_block = true;
 		ps.advance();
 		if (ps.token.tk == tk_rcurly) {
-			return new return_statement_t(new var_t(identifier_t{"unit", ps.token_and_advance().location}));
+			return new return_statement_t(
+					unit_expr(ps.token_and_advance().location));
 		}
 	} else if (ps.token.tk == tk_expr_block) {
 		expression_block_syntax = true;
@@ -951,7 +951,7 @@ expr_t *parse_block(parse_state_t &ps, bool expression_means_return) {
 			chomp_token(tk_rcurly);
 		}
 		if (stmts.size() == 0) {
-			return new var_t(identifier_t{"unit", ps.token.location});
+			return unit_expr(ps.token.location);
 		} else if (stmts.size() == 1) {
 			return stmts[0];
 		} else {
@@ -989,7 +989,7 @@ conditional_t *parse_if(parse_state_t &ps) {
 		   	block,
 		   	else_ != nullptr
 		   	? else_
-		   	: new var_t(identifier_t{"unit", ps.token.location}));
+			: unit_expr(ps.token.location));
 }
 
 while_t *parse_while(parse_state_t &ps) {
