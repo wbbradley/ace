@@ -1,11 +1,3 @@
-instance Num Int {
-    from_int = id
-    + = __add_int
-    * = __multiply_int
-    - = __subtract_int
-    / = __divide_int
-}
-
 class A a {
     fn g(a, x, y) Int
 }

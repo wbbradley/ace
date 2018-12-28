@@ -1,4 +1,0 @@
-get functor {fmap}
-
-fn compose(f, g) => fn (x) => f(g(x))
-fn kleisli_arrow(f, g) => fn (a) => fmap(g, f(a))

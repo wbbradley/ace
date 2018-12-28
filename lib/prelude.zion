@@ -1,10 +1,72 @@
-/* NB: the following imports must match the ordering of imports in
-* compiler.cpp. See the `::parse_module` call. */
+data Bool {
+    False
+    True
+}
 
-get bool
-get eq
-get num
-get maybe
+class Eq a {
+    fn ==(a, a) Bool
+    fn !=(a, a) Bool
+    /*default {
+        fn ==(a, b) {
+            return a != b
+        }
+        fn !=(a, b) {
+            return not (a == b)
+        }
+    }*/
+}
+
+instance Eq Int {
+    == = __raw_eq
+    != = __raw_ne
+}
+
+class Num a {
+    has Eq
+    fn from_int(Int) a
+    fn +(a, a) a
+    fn *(a, a) a
+    fn -(a, a) a
+    fn /(a, a) a
+}
+
+instance Num Int {
+    from_int = id
+    + = __add_int
+    * = __multiply_int
+    - = __subtract_int
+    / = __divide_int
+}
+
+data Ordering {
+    EQ
+    LT
+    GT
+}
+
+class Ord a {
+    fn compare(a, a) Ordering
+    fn <(a, a) Bool
+    fn <=(a, a) Bool
+    fn >(a, a) Bool
+    fn >=(a, a) Bool
+}
+
+data Maybe t {
+    Just(t)
+    Nothing
+}
+
+/*
+fn exists(m) => match m {
+    Nothing => false
+    Just(_) => true
+}
+*/
 
 let unit = ()
 let id = fn (x) => x
+
+class Functor f {
+    fn fmap(fn (a) b, f a) f b
+}

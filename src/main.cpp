@@ -87,9 +87,9 @@ void check(identifier_t id, expr_t *expr, env_t &env) {
 }
 		
 void initialize_default_env(env_t &env) {
-	auto Int = type_id(make_iid("Int"));
-	auto Float = type_id(make_iid("Float"));
-	auto Bool = type_id(make_iid("bool.Bool"));
+	auto Int = type_id(make_iid(INT_TYPE));
+	auto Float = type_id(make_iid(FLOAT_TYPE));
+	auto Bool = type_id(make_iid(BOOL_TYPE));
 
 	env.map["__multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
 	env.map["__divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
@@ -336,9 +336,9 @@ void generate_instance_dictionaries(
 }
 
 bool instance_matches_requirement(instance_t *instance, const instance_requirement_t &ir, env_t &env) {
-	log("checking %s %s vs. %s %s",
+	debug_above(8, log("checking %s %s vs. %s %s",
 		   	ir.type_class_name.c_str(), ir.type->str().c_str(),
-			instance->type_class_id.name.c_str(), instance->type->str().c_str());
+			instance->type_class_id.name.c_str(), instance->type->str().c_str()));
 	return instance->type_class_id.name == ir.type_class_name && scheme_equality(
 			ir.type->generalize(env)->normalize(),
 			instance->type->generalize(env)->normalize());
@@ -453,7 +453,7 @@ int main(int argc, char *argv[]) {
 
 				try {
 					for (auto ir : env.instance_requirements) {
-						log("checking instance requirement %s", ir.str().c_str());
+						debug_above(8, log("checking instance requirement %s", ir.str().c_str()));
 						std::vector<instance_t *> matching_instances;
 						for (auto instance : program->instances) {
 							if (instance_matches_requirement(instance, ir, env)) {
