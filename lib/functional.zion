@@ -1,13 +1,4 @@
-global
+get functor {fmap}
 
-fn compose[A, B, C](f fn (b B) C, g fn (a A) B) fn (a A) C {
-    return fn (a A) C {
-        return f(g(a))
-    }
-}
-
-fn kleisli_arrow[A, B, C, M](f fn (a A) M B, g fn (b B) M C) fn (a A) M C {
-    return fn (a A) M C {
-        return fmap(g, f(a))
-    }
-}
+fn compose(f, g) => fn (x) => f(g(x))
+fn kleisli_arrow(f, g) => fn (a) => fmap(g, f(a))

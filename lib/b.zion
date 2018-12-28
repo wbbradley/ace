@@ -1,7 +1,0 @@
-module b
-
-tag B
-
-fn f()
-    static_print(B)
-    pass
