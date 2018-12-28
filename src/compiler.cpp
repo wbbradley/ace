@@ -144,16 +144,7 @@ namespace compiler {
 				parse_state_t ps(module_filename, "", lexer, &comments, &link_ins);
 
 				std::set<identifier_t> dependencies;
-				/* NB: these automatic imports MUST MATCH the prelude or you won't get proper
-				 * parsing behavior (TODO: fix this) */
-				module_t *module = ::parse_module(ps, {
-						modules_map_by_name["prelude"],
-						modules_map_by_name["bool"],
-						modules_map_by_name["eq"],
-						modules_map_by_name["num"],
-						modules_map_by_name["ord"],
-						modules_map_by_name["maybe"],
-						}, dependencies);
+				module_t *module = ::parse_module(ps, {modules_map_by_name["prelude"]}, dependencies);
 
 				modules.push_back(module);
 				modules_map_by_name[ps.module_name] = module;

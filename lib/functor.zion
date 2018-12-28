@@ -1,4 +1,0 @@
-class Functor f {
-    fn fmap(fn (a) b, f a) f b
-}
-
