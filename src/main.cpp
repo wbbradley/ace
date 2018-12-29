@@ -95,6 +95,8 @@ void initialize_default_env(env_t &env) {
 	env.map["__divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
 	env.map["__subtract_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
 	env.map["__add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+	env.map["__negate_int"] = scheme({}, {}, type_arrows({Int, Int}));
+	env.map["__abs_int"] = scheme({}, {}, type_arrows({Int, Int}));
 	env.map["__multiply_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
 	env.map["__divide_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
 	env.map["__subtract_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
@@ -180,6 +182,7 @@ identifier_t make_instance_dict_id(std::string type_class_name, instance_t *inst
 	auto id = make_instance_id(type_class_name, instance);
 	return identifier_t{"dict" INSTANCE_ID_SEP + id.name, id.location};
 }
+
 void check_instance_for_type_class_overload(
 		std::string name,
 	   	types::type_t::ref type,
@@ -364,7 +367,13 @@ void generate_instance_dictionaries(
 			dims.push_back(new var_t(instance_decl_id));
 		}
 		assert(!in(instance_dict_name, decl_map));
-		decl_map[instance_dict_name] = new decl_t(identifier_t{instance_dict_name, instance->get_location()}, new tuple_t(instance->get_location(), dims));
+		decl_t *dict_decl = new decl_t(identifier_t{instance_dict_name, instance->get_location()}, new tuple_t(instance->get_location(), dims));
+		decl_map[instance_dict_name] = dict_decl;
+
+		assert(env.maybe_lookup_env(dict_decl->var) == nullptr);
+
+		/* for good measure, let's type check the instance dict */
+		check(dict_decl->var, dict_decl->value, env);
 	}
 }
 
@@ -375,6 +384,91 @@ bool instance_matches_requirement(instance_t *instance, const instance_requireme
 	return instance->type_class_id.name == ir.type_class_name && scheme_equality(
 			ir.type->generalize(env)->normalize(),
 			instance->type->generalize(env)->normalize());
+}
+
+void check_instance_requirements(const std::vector<instance_t *> &instances, env_t &env) {
+	for (auto ir : env.instance_requirements) {
+		debug_above(8, log("checking instance requirement %s", ir.str().c_str()));
+		std::vector<instance_t *> matching_instances;
+		for (auto instance : instances) {
+			if (instance_matches_requirement(instance, ir, env)) {
+				matching_instances.push_back(instance);
+			}
+		}
+
+		if (matching_instances.size() == 0) {
+			throw user_error(ir.location, "could not find an instance that supports the requirement %s",
+					ir.str().c_str());
+		} else if (matching_instances.size() != 1) {
+			auto error = user_error(ir.location, "found multiple instances implementing %s", ir.str().c_str());
+			for (auto mi : matching_instances) {
+				error.add_info(mi->get_location(), "matching instance found is %s %s",
+						mi->type_class_id.str().c_str(),
+						mi->type->str().c_str());
+			}
+			throw error;
+		}
+	}
+}
+
+std::map<std::string, decl_t *> compile(std::string user_program_name) {
+	auto compilation = compiler::parse_program(user_program_name);
+	if (compilation == nullptr) {
+		return {};
+	}
+
+	program_t *program = compilation->program;
+
+	env_t env;
+	initialize_default_env(env);
+
+	auto type_class_map = check_type_classes(program->type_classes, env);
+
+	check_decls(program->decls, env);
+
+	auto instance_decls = check_instances(program->instances, type_class_map, env);
+
+	std::map<std::string, decl_t *> decl_map;
+
+	for (auto decl : program->decls) {
+		assert(!in(decl->var.name, decl_map));
+		decl_map[decl->var.name] = decl;
+	}
+
+	/* the instance decls were already checked, but let's add them to the list of decls
+	 * for the lowering step */
+	for (auto decl : instance_decls) {
+		assert(!in(decl->var.name, decl_map));
+		decl_map[decl->var.name] = decl;
+	}
+
+	if (debug_compiled_env) {
+		for (auto pair : env.map) {
+			log("%s" c_good(" :: ") c_type("%s"),
+					pair.first.c_str(),
+					pair.second->normalize()->str().c_str());
+		}
+	}
+
+	generate_instance_dictionaries(program->instances, type_class_map, decl_map, env);
+
+	for (auto pair : decl_map) {
+		assert(pair.first == pair.second->var.name);
+
+		auto type = env.lookup_env(make_iid(pair.first));
+		if (debug_compiled_env) {
+			log("%s " c_good("::") " %s",
+					pair.second->str().c_str(),
+					env.map[pair.first]->str().c_str());
+		}
+	}
+
+	try {
+		check_instance_requirements(program->instances, env);
+	} catch (user_error &e) {
+		print_exception(e);
+	}
+	return decl_map;
 }
 
 int main(int argc, char *argv[]) {
@@ -424,96 +518,14 @@ int main(int argc, char *argv[]) {
 			}
 			return EXIT_FAILURE;
 		} else if (cmd == "compile") {
-			auto compilation = compiler::parse_program(user_program_name);
-			if (compilation != nullptr) {
-				program_t *program = compilation->program;
-
-				env_t env;
-				initialize_default_env(env);
-
-				auto type_class_map = check_type_classes(program->type_classes, env);
-
-				check_decls(program->decls, env);
-
-				auto instance_decls = check_instances(program->instances, type_class_map, env);
-
-				std::map<std::string, decl_t *> decl_map;
-
-				for (auto decl : program->decls) {
-					assert(!in(decl->var.name, decl_map));
-					decl_map[decl->var.name] = decl;
-				}
-
-				/* the instance decls were already checked, but let's add them to the list of decls
-				 * for the lowering step */
-				for (auto decl : instance_decls) {
-					assert(!in(decl->var.name, decl_map));
-					decl_map[decl->var.name] = decl;
-				}
-
-				if (debug_compiled_env) {
-					for (auto pair : env.map) {
-						log("%s" c_good(" :: ") c_type("%s"),
-								pair.first.c_str(),
-								pair.second->normalize()->str().c_str());
-					}
-				}
-
-				generate_instance_dictionaries(program->instances, type_class_map, decl_map, env);
-
-				if (debug_compiled_env) {
-					for (auto pair : decl_map) {
-						assert(pair.first == pair.second->var.name);
-
-						auto type = env.maybe_lookup_env(make_iid(pair.first));
-						if (type == nullptr) {
-							try {
-								check(pair.second->var, pair.second->value, env);
-							} catch (user_error &e) {
-								print_exception(e);
-							}
-						}
-						type = env.maybe_lookup_env(make_iid(pair.first));
-						if (type == nullptr) {
-							log(log_error, "stopping compilation due to above errors");
-							return EXIT_FAILURE;
-						}
-						log("%s " c_good("::") " %s",
-								pair.second->str().c_str(),
-								env.map[pair.first]->str().c_str());
-					}
-				}
-
-				try {
-					for (auto ir : env.instance_requirements) {
-						debug_above(8, log("checking instance requirement %s", ir.str().c_str()));
-						std::vector<instance_t *> matching_instances;
-						for (auto instance : program->instances) {
-							if (instance_matches_requirement(instance, ir, env)) {
-								matching_instances.push_back(instance);
-							}
-						}
-
-						if (matching_instances.size() == 0) {
-							throw user_error(ir.location, "could not find an instance that supports the requirement %s",
-									ir.str().c_str());
-						} else if (matching_instances.size() != 1) {
-							auto error = user_error(ir.location, "found multiple instances implementing %s", ir.str().c_str());
-							for (auto mi : matching_instances) {
-								error.add_info(mi->get_location(), "matching instance found is %s %s",
-										mi->type_class_id.str().c_str(),
-										mi->type->str().c_str());
-							}
-							throw error;
-						}
-					}
-				} catch (user_error &e) {
-					print_exception(e);
-					return EXIT_FAILURE;
-				}
-				return EXIT_SUCCESS;
+			compile(user_program_name);
+			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
+		} else if (cmd == "run") {
+			auto decl_map = compile(user_program_name);
+			if (user_error::errors_occurred()) {
+				return EXIT_FAILURE;
 			}
-			return EXIT_FAILURE;
+			log("TODO: try running from `main`");
 		} else {
 			panic(string_format("bad CLI invocation of %s", argv[0]));
 		}
