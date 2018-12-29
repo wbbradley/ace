@@ -25,15 +25,8 @@ struct user_error : std::exception {
 	void display() const;
 
 	friend void print_exception(const user_error &e, int level);
-};
-
-struct unbound_type_error : std::exception {
-	virtual ~unbound_type_error() {}
-	virtual const char *what() const noexcept;
-
-	unbound_type_error(location_t location, const char *format...);
-	unbound_type_error(location_t location, const char *format, va_list args);
-	struct user_error user_error;
+	static bool errors_occurred();
+	static void reset_errors_occurred();
 };
 
 void print_exception(const user_error &e, int level = 0);

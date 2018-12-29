@@ -28,14 +28,8 @@ class Num a {
     fn *(a, a) a
     fn -(a, a) a
     fn /(a, a) a
-}
-
-instance Num Int {
-    from_int = id
-    + = __add_int
-    * = __multiply_int
-    - = __subtract_int
-    / = __divide_int
+    fn abs(a) a
+    fn negate(a) a
 }
 
 data Ordering {
@@ -50,6 +44,16 @@ class Ord a {
     fn <=(a, a) Bool
     fn >(a, a) Bool
     fn >=(a, a) Bool
+}
+
+instance Num Int {
+    from_int = id
+    + = __add_int
+    * = __multiply_int
+    - = __subtract_int
+    / = __divide_int
+    negate = __negate_int
+    abs = __abs_int
 }
 
 data Maybe t {

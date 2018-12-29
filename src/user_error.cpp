@@ -4,6 +4,16 @@
 #include "logger.h"
 #include "ast.h"
 
+static bool errors_occurred = false;
+
+bool user_error::errors_occurred() {
+	return ::errors_occurred;
+}
+
+void user_error::reset_errors_occurred() {
+	::errors_occurred = false;
+}
+
 void print_exception(const user_error &e, int level) {
 	try {
 		std::rethrow_if_nested(e);
@@ -19,6 +29,7 @@ user_error::user_error(log_level_t log_level, location_t location) :
 	location(location),
    	extra_info(std::make_shared<std::vector<std::pair<location_t, std::string>>>())
 {
+	::errors_occurred = true;
 }
 
 user_error::user_error(log_level_t log_level, location_t location, const char *format...) :
@@ -86,23 +97,4 @@ void user_error::add_info(location_t location, const char *format...) {
 	std::string info = string_formatv(format, args);
 	va_end(args);
 	extra_info->push_back({location, info});
-}
-
-unbound_type_error::unbound_type_error(location_t location, const char *format...) :
-	user_error(log_error, location)
-{
-	va_list args;
-	va_start(args, format);
-	user_error.message = string_formatv(format, args);
-	va_end(args);
-}
-
-unbound_type_error::unbound_type_error(location_t location, const char *format, va_list args) :
-	user_error(log_error, location)
-{
-	user_error.message = string_formatv(format, args);
-}
-
-const char *unbound_type_error::what() const noexcept {
-	return user_error.what();
 }
