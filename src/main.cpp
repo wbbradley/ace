@@ -180,6 +180,117 @@ identifier_t make_instance_dict_id(std::string type_class_name, instance_t *inst
 	auto id = make_instance_id(type_class_name, instance);
 	return identifier_t{"dict" INSTANCE_ID_SEP + id.name, id.location};
 }
+void check_instance_for_type_class_overload(
+		std::string name,
+	   	types::type_t::ref type,
+	   	instance_t *instance,
+		type_class_t *type_class,
+		const types::type_t::map &subst,
+		std::set<std::string> &names_checked,
+		std::vector<decl_t *> &instance_decls,
+	   	env_t &env)
+{
+	bool found = false;
+	for (auto decl : instance->decls) {
+		assert(name.find(".") != std::string::npos);
+		assert(decl->var.name.find(".") != std::string::npos);
+		if (decl->var.name == name) {
+			found = true;
+			if (in(name, names_checked)) {
+				throw user_error(
+						decl->get_location(),
+						"name %s already duplicated in this instance",
+						decl->var.str().c_str());
+			}
+			names_checked.insert(decl->var.name);
+
+			env_t local_env{env};
+			local_env.instance_requirements.resize(0);
+			auto instance_decl_id = make_instance_decl_id(type_class->id.name, instance, decl->var);
+			auto expected_scheme = type->rebind(subst)->generalize(local_env);
+			auto type_instance = expected_scheme->instantiate(INTERNAL_LOC());
+
+			auto instance_decl_expr = new as_t(decl->value, type_instance, false /*force_cast*/);
+			check(
+					instance_decl_id,
+					instance_decl_expr,
+					local_env);
+			debug_above(5, log("checking the instance fn %s gave scheme %s. we expected %s.",
+						instance_decl_id.str().c_str(),
+						local_env.map[instance_decl_id.name]->normalize()->str().c_str(),
+						expected_scheme->normalize()->str().c_str()));
+
+			if (!scheme_equality(
+						local_env.map[instance_decl_id.name],
+						expected_scheme->normalize()))
+			{
+				auto error = user_error(instance_decl_id.location, "instance component %s appears to be more constrained than the type class",
+						decl->var.str().c_str());
+				error.add_info(instance_decl_id.location, "instance component declaration has scheme %s",
+						local_env.map[instance_decl_id.name]->normalize()->str().c_str());
+				error.add_info(type->get_location(), "type class component declaration has scheme %s",
+						expected_scheme->normalize()->str().c_str());
+				throw error;
+			}
+
+			/* keep track of any instance requirements that were referenced inside the
+			 * implementation of the type class instance components */
+			if (local_env.instance_requirements.size() != 0) {
+				for (auto ir : local_env.instance_requirements) {
+					env.instance_requirements.push_back(ir);
+				}
+			}
+
+			env.map[instance_decl_id.name] = expected_scheme;
+
+			instance_decls.push_back(new decl_t(instance_decl_id, instance_decl_expr));
+		}
+	}
+	if (!found) {
+		throw user_error(type->get_location(), "could not find decl for %s in instance %s %s",
+				name.c_str(), type_class->id.str().c_str(), instance->type->str().c_str());
+	}
+}
+void check_instance_for_type_class_overloads(
+	   	instance_t *instance,
+		type_class_t *type_class,
+		std::vector<decl_t *> &instance_decls,
+	   	env_t &env)
+{
+	/* make a template for the type that the instance implementation should
+	 * conform to */
+	types::type_t::map subst;
+	subst[type_class->type_var_id.name] = instance->type->generalize({})->instantiate(INTERNAL_LOC());
+
+	/* check whether this instance properly implements the given type class */
+	std::set<std::string> names_checked;
+
+	for (auto pair : type_class->overloads) {
+		auto name = pair.first;
+		auto type = pair.second;
+		check_instance_for_type_class_overload(
+				name,
+			   	type,
+			   	instance,
+			   	type_class,
+			   	subst,
+				names_checked,
+				instance_decls,
+			   	env/*, type_class->defaults*/);
+	}
+
+	/* check for unrelated declarations inside of an instance */
+	for (auto decl : instance->decls) {
+		if (!in(decl->var.name, names_checked)) {
+			throw user_error(decl->var.location,
+					"extraneous declaration %s found in instance %s %s (names_checked = {%s})",
+					decl->var.str().c_str(),
+					type_class->id.str().c_str(),
+					instance->type->str().c_str(),
+					join(names_checked, ", ").c_str());
+		}
+	}
+}
 
 std::vector<decl_t *> check_instances(
 		const std::vector<instance_t *> &instances,
@@ -211,94 +322,16 @@ std::vector<decl_t *> check_instances(
 			 * type_class */
 			type_class_t *type_class = iter->second;
 
-			std::set<std::string> names_checked;
+			check_instance_for_type_class_overloads(
+					instance,
+					type_class,
+					instance_decls,
+					env);
 
-			/* make a template for the type that the instance implementation should
-			 * conform to */
-			types::type_t::map subst;
-			subst[type_class->type_var_id.name] = instance->type->generalize({})->instantiate(INTERNAL_LOC());
-
-			// check whether this instance properly implements the given type class
-			for (auto pair : type_class->overloads) {
-				auto name = pair.first;
-				auto type = pair.second;
-				bool found = false;
-				for (auto decl : instance->decls) {
-					assert(name.find(".") != std::string::npos);
-					assert(decl->var.name.find(".") != std::string::npos);
-					if (decl->var.name == name) {
-						found = true;
-						if (in(name, names_checked)) {
-							throw user_error(
-									decl->get_location(),
-									"name %s already duplicated in this instance",
-									decl->var.str().c_str());
-						}
-						names_checked.insert(decl->var.name);
-
-						env_t local_env{env};
-						local_env.instance_requirements.resize(0);
-						auto instance_decl_id = make_instance_decl_id(type_class->id.name, instance, decl->var);
-						auto expected_scheme = type->rebind(subst)->generalize(local_env);
-						auto type_instance = expected_scheme->instantiate(INTERNAL_LOC());
-
-						auto instance_decl_expr = new as_t(decl->value, type_instance, false /*force_cast*/);
-						check(
-								instance_decl_id,
-								instance_decl_expr,
-								local_env);
-						debug_above(5, log("checking the instance fn %s gave scheme %s. we expected %s.",
-								instance_decl_id.str().c_str(),
-								local_env.map[instance_decl_id.name]->normalize()->str().c_str(),
-								expected_scheme->normalize()->str().c_str()));
-
-						if (!scheme_equality(
-									local_env.map[instance_decl_id.name],
-									expected_scheme->normalize()))
-						{
-							auto error = user_error(instance_decl_id.location, "instance component %s appears to be more constrained than the type class",
-									decl->var.str().c_str());
-							error.add_info(instance_decl_id.location, "instance component declaration has scheme %s",
-									local_env.map[instance_decl_id.name]->normalize()->str().c_str());
-							error.add_info(type->get_location(), "type class component declaration has scheme %s",
-									expected_scheme->normalize()->str().c_str());
-							throw error;
-						}
-
-						/* keep track of any instance requirements that were referenced inside the
-						 * implementation of the type class instance components */
-						if (local_env.instance_requirements.size() != 0) {
-							for (auto ir : local_env.instance_requirements) {
-								env.instance_requirements.push_back(ir);
-							}
-						}
-
-						env.map[instance_decl_id.name] = expected_scheme;
-
-						instance_decls.push_back(new decl_t(instance_decl_id, instance_decl_expr));
-					}
-				}
-				if (!found) {
-					throw user_error(pair.second->get_location(), "could not find decl for %s in instance %s %s",
-							name.c_str(), type_class->id.str().c_str(), instance->type->str().c_str());
-				}
-			}
-
-			/* check for unrelated declarations inside of an instance */
-			for (auto decl : instance->decls) {
-				if (!in(decl->var.name, names_checked)) {
-					throw user_error(decl->var.location,
-						   	"extraneous declaration %s found in instance %s %s (names_checked = {%s})",
-							decl->var.str().c_str(),
-							type_class->id.str().c_str(),
-							instance->type->str().c_str(),
-							join(names_checked, ", ").c_str());
-				}
-			}
 		} catch (user_error &e) {
-			log_location(
+			e.add_info(
 					instance->type_class_id.location,
-					"checking that member functions of instance %s %s type check",
+					"while checking instance %s %s",
 					instance->type_class_id.str().c_str(),
 					instance->type->str().c_str());
 			print_exception(e);

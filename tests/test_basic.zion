@@ -1,5 +1,3 @@
-get functor {fmap, Functor}
-
 fn sqr(a) => a * a
 let I = fn (x) => x
 let S = fn (x, y, z) => x(z)(y(z))
@@ -11,20 +9,6 @@ fn twice(f, x) => f(f(x))
 fn plus4(x) => twice(add(2))(x)
 fn hey() {
     return plus4(3)
-}
-
-instance Num Int {
-    from_int = id
-    + = __add_int
-    * = __multiply_int
-    - = __subtract_int
-    / = __divide_int
-}
-
-instance Functor Maybe {
-    fn fmap(f, m) {
-        return Just(3)
-    }
 }
 
 class Foo a {
