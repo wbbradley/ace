@@ -57,16 +57,17 @@ data Maybe t {
     Nothing
 }
 
-/*
-fn exists(m) => match m {
-    Nothing => false
-    Just(_) => true
+class Functor f {
+    fn fmap(fn (a) b, f a) f b
 }
-*/
+
+instance Functor Maybe {
+    fn fmap(f, m) {
+        /* obv this is borked */
+        return Nothing
+    }
+}
 
 let unit = ()
 let id = fn (x) => x
 
-class Functor f {
-    fn fmap(fn (a) b, f a) f b
-}

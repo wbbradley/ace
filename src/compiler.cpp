@@ -144,7 +144,7 @@ namespace compiler {
 				parse_state_t ps(module_filename, "", lexer, &comments, &link_ins);
 
 				std::set<identifier_t> dependencies;
-				module_t *module = ::parse_module(ps, {modules_map_by_name["prelude"]}, dependencies);
+				module_t *module = ::parse_module(ps, {modules_map_by_name["std"]}, dependencies);
 
 				modules.push_back(module);
 				modules_map_by_name[ps.module_name] = module;
@@ -208,7 +208,7 @@ namespace compiler {
 
 			/* always include the builtins library */
 			if (getenv("NO_PRELUDE") == nullptr) {
-				gps.parse_module_statefully({"lib/prelude", location_t{"prelude", 0, 0}});
+				gps.parse_module_statefully({"lib/std", location_t{"std", 0, 0}});
 			}
 
 			/* always include the standard library */
