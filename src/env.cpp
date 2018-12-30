@@ -32,6 +32,30 @@ void env_t::rebind(const types::type_t::map &bindings) {
 		new_instance_requirements.push_back(instance_requirement_t{ir.type_class_name, ir.location, ir.type->rebind(bindings)});
 	}
 	std::swap(instance_requirements, new_instance_requirements);
+	assert(tracked_types != nullptr);
+	std::unordered_map<bitter::expr_t *, types::type_t::ref> temp_tracked_types;
+
+	for (auto pair : *tracked_types) {
+		temp_tracked_types.insert({pair.first, pair.second->rebind(bindings)});
+	}
+	temp_tracked_types.swap(*tracked_types);
+}
+
+types::type_t::ref env_t::track(bitter::expr_t *expr, types::type_t::ref type) {
+	assert(tracked_types != nullptr);
+	assert(!in(expr, *tracked_types));
+	(*tracked_types)[expr] = type;
+	return type;
+}
+
+types::type_t::ref env_t::get_tracked_type(bitter::expr_t *expr) const {
+	assert(tracked_types != nullptr);
+	auto iter = tracked_types->find(expr);
+	if (iter == tracked_types->end()) {
+		throw user_error(iter->second->get_location(), "could not find type for expression");
+	} else {
+		return iter->second;
+	}
 }
 
 void env_t::add_instance_requirement(const instance_requirement_t &ir) {
@@ -46,7 +70,8 @@ void env_t::add_instance_requirement(const instance_requirement_t &ir) {
 
 void env_t::extend(identifier_t id, types::scheme_t::ref scheme, bool allow_subscoping) {
 	if (!allow_subscoping && in(id.name, map)) {
-		throw user_error(id.location, "duplicate symbol (TODO: make this error better)");
+		throw user_error(id.location, "duplicate symbol " c_id("%s") " (TODO: make this error better)",
+				id.name.c_str());
 	}
 	map[id.name] = scheme;
 	debug_above(9, log("extending env with %s => %s", id.str().c_str(), scheme->str().c_str()));

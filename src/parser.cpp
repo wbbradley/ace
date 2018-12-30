@@ -455,6 +455,9 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 expr_t *parse_literal(parse_state_t &ps) {
 	switch (ps.token.tk) {
 	case tk_integer:
+		return new application_t(
+				new var_t(identifier_t{"std.from_int", ps.token.location}),
+			   	new literal_t(ps.token_and_advance()));
 	case tk_string:
 	case tk_char:
 	case tk_float:
@@ -1227,7 +1230,11 @@ expr_t *parse_lambda(parse_state_t &ps) {
 	} else if (ps.token.tk == tk_rparen) {
 		ps.advance();
 
-		return new lambda_t(param.first, param.second, nullptr, parse_block(ps, true /*expression_means_return*/));
+		types::type_t::ref return_type;
+		if (token_begins_type(ps.token) && !ps.line_broke()) {
+			return_type = parse_type(ps);
+		}
+		return new lambda_t(param.first, param.second, return_type, parse_block(ps, true /*expression_means_return*/));
 	} else {
 		throw user_error(ps.token.location, "unexpected token");
 	}
