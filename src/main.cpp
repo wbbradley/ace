@@ -14,6 +14,7 @@
 #include "ast.h"
 #include "unification.h"
 #include "env.h"
+#include "translate.h"
 
 using namespace bitter;
 
@@ -81,8 +82,7 @@ void check(identifier_t id, expr_t *expr, env_t &env) {
 	env.extend(id, scheme, false /*allow_subscoping*/);
 
 	if (debug_types) {
-		log_location(id.location, "info: %s :: %s",
-				id.str().c_str(), scheme->str().c_str());
+		log_location(id.location, "info: %s :: %s", id.str().c_str(), scheme->str().c_str());
 	}
 }
 		
@@ -101,6 +101,9 @@ void initialize_default_env(env_t &env) {
 	env.map["__divide_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
 	env.map["__subtract_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
 	env.map["__add_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+	env.map["__abs_float"] = scheme({}, {}, type_arrows({Float, Float}));
+	env.map["__int_to_float"] = scheme({}, {}, type_arrows({Int, Float}));
+	env.map["__negate_float"] = scheme({}, {}, type_arrows({Float, Float}));
 
 	auto tv = type_variable(INTERNAL_LOC());
 	env.map["__raw_eq"] = scheme({}, {}, type_arrows({tv, tv, Bool}));
@@ -411,15 +414,20 @@ void check_instance_requirements(const std::vector<instance_t *> &instances, env
 	}
 }
 
-std::map<std::string, decl_t *> compile(std::string user_program_name) {
+std::pair<const env_t, std::map<std::string, decl_t *>> compile(std::string user_program_name) {
 	auto compilation = compiler::parse_program(user_program_name);
 	if (compilation == nullptr) {
-		return {};
+		return {{},{}};
 	}
 
 	program_t *program = compilation->program;
 
-	env_t env;
+	env_t env{
+		{} /*map*/,
+		nullptr /*return_type*/,
+		{} /*instance_requirements*/,
+		std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>()};
+
 	initialize_default_env(env);
 
 	auto type_class_map = check_type_classes(program->type_classes, env);
@@ -468,7 +476,39 @@ std::map<std::string, decl_t *> compile(std::string user_program_name) {
 	} catch (user_error &e) {
 		print_exception(e);
 	}
-	return decl_map;
+	if (debug_compiled_env) {
+		log(c_good("All Expression Types"));
+		for (auto pair : *env.tracked_types) {
+			log_location(
+					pair.first->get_location(),
+				   	"%s :: %s", pair.first->str().c_str(),
+				   	pair.second->generalize({})->str().c_str());
+		}
+	}
+	return {env, decl_map};
+}
+
+std::map<std::string, decl_t *> translate(const std::map<std::string, decl_t *> &decl_map, const env_t &env) {
+	log(c_good("Expression Types Within test_basic.main"));
+	env_t local_env{env};
+	local_env.tracked_types = std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>();
+	auto iter = decl_map.find("test_basic.main");
+	log("env.get_tracked_type(iter->second->value) = %s", env.get_tracked_type(iter->second->value)->str().c_str());
+	auto as_main = new as_t(iter->second->value, env.get_tracked_type(iter->second->value), false);
+	log("checking %s", as_main->str().c_str());
+	check(
+			make_iid("+test_basic.main"),
+			as_main,
+			local_env);
+
+	for (auto pair : *local_env.tracked_types) {
+		log_location(
+				pair.first->get_location(),
+				"%s :: %s", pair.first->str().c_str(),
+				pair.second->str().c_str());
+	}
+	std::map<std::string, decl_t *> translation;
+	return translation;
 }
 
 int main(int argc, char *argv[]) {
@@ -521,11 +561,17 @@ int main(int argc, char *argv[]) {
 			compile(user_program_name);
 			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		} else if (cmd == "run") {
-			auto decl_map = compile(user_program_name);
+			auto pair = compile(user_program_name);
+
 			if (user_error::errors_occurred()) {
 				return EXIT_FAILURE;
 			}
 			log("TODO: try running from `main`");
+			auto translated_decl_map = translate(pair.second, pair.first);
+			for (auto pair : translated_decl_map) {
+				log_location(pair.second->get_location(), "%s", pair.second->str().c_str());
+			}
+			return EXIT_SUCCESS;
 		} else {
 			panic(string_format("bad CLI invocation of %s", argv[0]));
 		}
@@ -535,4 +581,3 @@ int main(int argc, char *argv[]) {
 
 	return EXIT_SUCCESS;
 }
-

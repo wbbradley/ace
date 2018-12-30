@@ -11,14 +11,6 @@ fn hey() {
     return plus4(3)
 }
 
-class Foo a {
-    fn get_foo(Int) a
-}
-
-instance Foo a {
-    fn get_foo(x) => 4
-}
-
 # let dictFunctorMaybe = (FunctorMaybe.fmap,)
 # let dictNumInt = (NumInt.from_int, NumInt.+, NumInt.*, ...)
 

@@ -20,6 +20,6 @@ struct constraint_t {
 typedef std::vector<constraint_t> constraints_t;
 types::type_t::ref infer(
 		bitter::expr_t *expr,
-		env_ref_t env,
+		env_t &env,
 	   	constraints_t &constraints);
 std::string str(const constraints_t &constraints);

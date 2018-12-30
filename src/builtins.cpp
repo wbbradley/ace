@@ -10,6 +10,6 @@ const char *INT8_TYPE = "Int8";
 const char *UINT8_TYPE = "UInt8";
 const char *CHAR_TYPE = "char.Char";
 const char *BOOL_TYPE = "std.Bool";
-const char *FLOAT_TYPE = "float.Float";
+const char *FLOAT_TYPE = "Float";
 const char *STR_TYPE = "string.String";
 const char *MAYBE_TYPE = "std.Maybe";

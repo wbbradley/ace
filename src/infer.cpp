@@ -18,10 +18,10 @@ void append(constraints_t &constraints, types::type_t::ref a, types::type_t::ref
 	constraints.push_back({a, b, info});
 }
 
-types::type_t::ref infer(
-		bitter::expr_t *expr,
-		env_t::ref env,
-	   	constraints_t &constraints)
+types::type_t::ref infer_core(
+		expr_t *expr,
+		env_t &env,
+		constraints_t &constraints)
 {
 	debug_above(8, log("infer(%s, ..., ...)", expr->str().c_str()));
 	if (auto literal = dcast<literal_t *>(expr)) {
@@ -48,12 +48,6 @@ types::type_t::ref infer(
 		local_env.return_type = return_type;
 		local_env.extend(lambda->var, scheme({}, {}, tv), true /*allow_subscoping*/);
 		auto body_type = infer(lambda->body, local_env, constraints);
-		// append(constraints, body_type, type_unit(lambda->body->get_location()), {"all statements must return unit", lambda->body->get_location()});
-#if 0
-		if (lambda->param_type != nullptr) {
-			append(constraints, tv, lambda->param_type, {"lambda variable must match type annotation", lambda->param_type->get_location()});
-		}
-#endif
 		if (lambda->return_type != nullptr) {
 			append(constraints, return_type, lambda->return_type, {"lambda return type must match type annotation", lambda->return_type->get_location()});
 		}
@@ -74,12 +68,17 @@ types::type_t::ref infer(
 	} else if (auto let = dcast<let_t*>(expr)) {
 		constraints_t local_constraints;
 		auto t1 = infer(let->value, env, local_constraints);
-		env_t local_env;
+		auto tracked_types = std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>();
+		env_t local_env{{} /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/, tracked_types};
+
 		auto bindings = solver({}, local_constraints, local_env);
 		for (auto constraint: local_constraints) {
 			log("in let found constraint %s", constraint.str().c_str());
 		}
 		auto schema = scheme({}, {}, t1);
+		for (auto pair : *tracked_types) {
+			env.track(pair.first, pair.second);
+		}
 		for (auto constraint: local_constraints) {
 			constraints.push_back(constraint);
 		}
@@ -145,6 +144,14 @@ types::type_t::ref infer(
 
 	throw user_error(expr->get_location(), "unhandled inference for %s",
 			expr->str().c_str());
+}
+
+types::type_t::ref infer(
+		expr_t *expr,
+		env_t &env,
+		constraints_t &constraints)
+{
+	return env.track(expr, infer_core(expr, env, constraints));
 }
 
 std::string constraint_info_t::str() const {

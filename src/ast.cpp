@@ -152,7 +152,7 @@ namespace bitter {
 		body->render(os, 0);
 		os << ")";
 		if (return_type != nullptr) {
-			os << c_good(" :: ");
+			os << c_good(" -> ");
 			os << C_TYPE;
 			return_type->emit(os, {}, 0);
 			os << C_RESET;

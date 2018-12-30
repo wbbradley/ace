@@ -21,6 +21,11 @@ instance Eq Int {
     != = __raw_ne
 }
 
+instance Eq Float {
+    == = __raw_eq
+    != = __raw_ne
+}
+
 class Num a {
     has Eq
     fn from_int(Int) a
@@ -54,6 +59,16 @@ instance Num Int {
     / = __divide_int
     negate = __negate_int
     abs = __abs_int
+}
+
+instance Num Float {
+    from_int = __int_to_float
+    + = __add_float
+    * = __multiply_float
+    - = __subtract_float
+    / = __divide_float
+    negate = __negate_float
+    abs = __abs_float
 }
 
 data Maybe t {
