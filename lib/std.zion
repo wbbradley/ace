@@ -87,6 +87,11 @@ instance Functor Maybe {
     }
 }
 
+data ExitCode {
+    ExitOK
+    ExitError(Int)
+}
+
 let unit = ()
 let id = fn (x) => x
 

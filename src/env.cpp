@@ -2,6 +2,7 @@
 #include "types.h"
 #include "user_error.h"
 #include <iostream>
+#include "ast.h"
 
 types::type_t::ref env_t::maybe_lookup_env(identifier_t id) const {
 	auto iter = map.find(id.name);
@@ -49,13 +50,20 @@ types::type_t::ref env_t::track(bitter::expr_t *expr, types::type_t::ref type) {
 }
 
 types::type_t::ref env_t::get_tracked_type(bitter::expr_t *expr) const {
+	auto type = maybe_get_tracked_type(expr);
+	if (type == nullptr) {
+		throw user_error(expr->get_location(), "could not find type for expression %s",
+				expr->str().c_str());
+	}
+
+	return type;
+}
+
+
+types::type_t::ref env_t::maybe_get_tracked_type(bitter::expr_t *expr) const {
 	assert(tracked_types != nullptr);
 	auto iter = tracked_types->find(expr);
-	if (iter == tracked_types->end()) {
-		throw user_error(iter->second->get_location(), "could not find type for expression");
-	} else {
-		return iter->second;
-	}
+	return (iter != tracked_types->end()) ? iter->second : nullptr;
 }
 
 void env_t::add_instance_requirement(const instance_requirement_t &ir) {

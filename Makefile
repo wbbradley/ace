@@ -19,4 +19,4 @@ clean-test: clean-zion
 	make test
 
 test:
-	$(ZION) test
+	$(ZION) compile test_basic

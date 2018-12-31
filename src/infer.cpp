@@ -49,7 +49,12 @@ types::type_t::ref infer_core(
 		local_env.extend(lambda->var, scheme({}, {}, tv), true /*allow_subscoping*/);
 		auto body_type = infer(lambda->body, local_env, constraints);
 		if (lambda->return_type != nullptr) {
-			append(constraints, return_type, lambda->return_type, {"lambda return type must match type annotation", lambda->return_type->get_location()});
+			append(
+					constraints,
+					return_type,
+					lambda->return_type,
+					{string_format("return type does not match type annotation :: %s", lambda->return_type->str().c_str()),
+					lambda->return_type->get_location()});
 		}
 		return type_arrow(lambda->get_location(), tv, return_type);
 	} else if (auto application = dcast<application_t*>(expr)) {
@@ -72,9 +77,6 @@ types::type_t::ref infer_core(
 		env_t local_env{{} /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/, tracked_types};
 
 		auto bindings = solver({}, local_constraints, local_env);
-		for (auto constraint: local_constraints) {
-			log("in let found constraint %s", constraint.str().c_str());
-		}
 		auto schema = scheme({}, {}, t1);
 		for (auto pair : *tracked_types) {
 			env.track(pair.first, pair.second);

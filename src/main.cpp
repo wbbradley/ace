@@ -21,6 +21,8 @@ using namespace bitter;
 const bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
 const bool debug_types = getenv("SHOW_TYPES") != nullptr;
 
+types::type_t::ref program_main_type = type_arrows({type_unit(INTERNAL_LOC()), type_id(make_iid("std.ExitCode"))});
+
 int usage() {
 	log(log_error, "available commands: test, read-ir, compile, bc, run, fmt, bin");
 	return EXIT_FAILURE;
@@ -153,10 +155,21 @@ std::map<std::string, type_class_t *> check_type_classes(const std::vector<type_
 	return type_class_map;
 }
 
-void check_decls(const std::vector<decl_t *> &decls, env_t &env) {
+void check_decls(std::string entry_point_name, const std::vector<decl_t *> &decls, env_t &env) {
 	for (decl_t *decl : decls) {
 		try {
-			check(decl->var, decl->value, env);
+			if (decl->var.name == entry_point_name) {
+				/* make sure that the "main" function has the correct signature */
+				check(
+						decl->var,
+					   	new as_t(
+							decl->value,
+							program_main_type,
+							false /*force_cast*/),
+						env);
+			} else {
+				check(decl->var, decl->value, env);
+			}
 		} catch (user_error &e) {
 			print_exception(e);
 
@@ -414,10 +427,17 @@ void check_instance_requirements(const std::vector<instance_t *> &instances, env
 	}
 }
 
-std::pair<const env_t, std::map<std::string, decl_t *>> compile(std::string user_program_name) {
-	auto compilation = compiler::parse_program(user_program_name);
+
+struct phase_2_t {
+	std::shared_ptr<compilation_t const> compilation;
+	const env_t env;
+	std::map<std::string, decl_t *> decl_map;
+};
+
+phase_2_t compile(std::string user_program_name_) {
+	auto compilation = compiler::parse_program(user_program_name_);
 	if (compilation == nullptr) {
-		return {{},{}};
+		return {{}, {},{}};
 	}
 
 	program_t *program = compilation->program;
@@ -432,7 +452,7 @@ std::pair<const env_t, std::map<std::string, decl_t *>> compile(std::string user
 
 	auto type_class_map = check_type_classes(program->type_classes, env);
 
-	check_decls(program->decls, env);
+	check_decls(compilation->program_name + ".main", program->decls, env);
 
 	auto instance_decls = check_instances(program->instances, type_class_map, env);
 
@@ -485,20 +505,90 @@ std::pair<const env_t, std::map<std::string, decl_t *>> compile(std::string user
 				   	pair.second->generalize({})->str().c_str());
 		}
 	}
-	return {env, decl_map};
+
+	return {compilation, env, decl_map};
 }
 
-std::map<std::string, decl_t *> translate(const std::map<std::string, decl_t *> &decl_map, const env_t &env) {
-	log(c_good("Expression Types Within test_basic.main"));
+struct defn_id_t {
+	identifier_t const id;
+	types::scheme_t::ref const specialization;
+	mutable std::string cached_str;
+
+	location_t get_location() const {
+		return id.location;
+	}
+
+	std::string str() const {
+		if (cached_str.size() != 0) {
+			return cached_str;
+		} else {
+			cached_str = "{" + id.name + "::" + specialization->str() + "}";
+			return cached_str;
+		}
+	}
+	bool operator <(const defn_id_t &rhs) const {
+		return str() < rhs.str();
+	}
+};
+
+void specialize(
+		const std::map<std::string, decl_t *> &decl_map,
+		const env_t &env,
+		defn_id_t defn_id,
+		std::map<defn_id_t, expr_t *> &defn_map,
+		std::list<defn_id_t> &needed_defns)
+{
+	/* expected type schemes for specializations can have unresolved type variables. That indicates
+	 * that an input to the function is irrelevant to the output. However, since Zion is eagerly
+	 * evaluated and permits impure side effects, it may not be irrelevant to the overall program's
+	 * semantics, so terms with ambiguous types cannot be thrown out altogether. They cannot have
+	 * unresolved bounded type variables, because that would imply that we don't know which type
+	 * class instance to choose within the inner specialization. */
+	assert(defn_id.specialization->btvs() == 0);
+
+	auto iter = defn_map.find(defn_id);
+	if (iter != defn_map.end()) {
+		if (iter->second == nullptr) {
+			throw user_error(defn_id.get_location(), "recursion is not yet impl - and besides, it should be handled earlier in the compiler");
+		}
+		log("we have already specialized %s. it is %s", defn_id.str().c_str(), iter->second->str().c_str());
+		return;
+	}
+
+	/* ... like a GRAY mark in the visited set... */
+	defn_map[defn_id] = nullptr;
+
+	log(c_good("Specializing subprogram %s"), defn_id.str().c_str());
+
+	/* cross-check all our data sources */
+#if 0
+	auto existing_type = env.maybe_get_tracked_type(defn_map[defn_id]);
+	auto existing_scheme = existing_type->generalize(env)->normalize();
+	/* the env should be internally self-consistent */
+	assert(scheme_equality(get(env.map, defn_id.id.name, {}), existing_scheme));
+	/* the existing scheme for the unspecialized version should not match the one we are seeking
+	 * because above we looked in our map for this specialization. */
+	assert(!scheme_equality(existing_scheme, defn_id.specialization));
+	assert(!scheme_equality(get(env.map, defn_id.id.name, {}), defn_id.specialization));
+#endif
+
+	/* start the process of specializing our decl */
 	env_t local_env{env};
 	local_env.tracked_types = std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>();
-	auto iter = decl_map.find("test_basic.main");
-	log("env.get_tracked_type(iter->second->value) = %s", env.get_tracked_type(iter->second->value)->str().c_str());
-	auto as_main = new as_t(iter->second->value, env.get_tracked_type(iter->second->value), false);
-	log("checking %s", as_main->str().c_str());
+
+	decl_t *decl_to_check = get(decl_map, defn_id.id.name, (bitter::decl_t *)nullptr);
+	if (decl_to_check == nullptr) {
+		throw user_error(defn_id.get_location(), "requested decl `%s` to specialize does not seem to exist",
+				defn_id.id.str().c_str());
+	}
+
+	expr_t *to_check = decl_to_check->value;
+	auto specialization_type = defn_id.specialization->instantiate(defn_id.get_location());
+	auto as_defn = new as_t(to_check, specialization_type, false);
+	log("checking %s", as_defn->str().c_str());
 	check(
-			make_iid("+test_basic.main"),
-			as_main,
+			identifier_t{defn_id.str(), defn_id.id.location},
+			as_defn,
 			local_env);
 
 	for (auto pair : *local_env.tracked_types) {
@@ -507,8 +597,25 @@ std::map<std::string, decl_t *> translate(const std::map<std::string, decl_t *> 
 				"%s :: %s", pair.first->str().c_str(),
 				pair.second->str().c_str());
 	}
-	std::map<std::string, decl_t *> translation;
-	return translation;
+	defn_map[defn_id] = as_defn;
+}
+
+void initialize_defn_map_from_decl_map(
+		std::map<defn_id_t, expr_t *> &defn_map,
+		const std::map<std::string, bitter::decl_t *> &decl_map,
+		const env_t &env)
+{
+	assert(defn_map.size() == 0);
+
+	for (auto pair : decl_map) {
+		auto iter = env.map.find(pair.first);
+		if (iter == env.map.end()) {
+			throw user_error(pair.second->get_location(),
+					"could not find principal type scheme for %s",
+					pair.first.c_str());
+		}
+		defn_map[{pair.second->var, iter->second}] = pair.second->value;
+	}
 }
 
 int main(int argc, char *argv[]) {
@@ -539,7 +646,7 @@ int main(int argc, char *argv[]) {
 		setenv("NO_BUILTINS", "1", 1 /*overwrite*/);
 
 		if (cmd == "find") {
-			log("%s", compiler::resolve_module_filename(INTERNAL_LOC(), user_program_name, "").c_str());
+			log("%s", compiler::resolve_module_filename(INTERNAL_LOC(), user_program_name, ".zion").c_str());
 			return EXIT_SUCCESS;
 		} else if (cmd == "parse") {
 			auto compilation = compiler::parse_program(user_program_name);
@@ -557,19 +664,39 @@ int main(int argc, char *argv[]) {
 				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;
-		} else if (cmd == "compile") {
+		} else if (cmd == "check") {
 			compile(user_program_name);
 			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
-		} else if (cmd == "run") {
-			auto pair = compile(user_program_name);
+		} else if (cmd == "compile") {
+			auto phase_2 = compile(user_program_name);
 
 			if (user_error::errors_occurred()) {
 				return EXIT_FAILURE;
 			}
-			log("TODO: try running from `main`");
-			auto translated_decl_map = translate(pair.second, pair.first);
-			for (auto pair : translated_decl_map) {
-				log_location(pair.second->get_location(), "%s", pair.second->str().c_str());
+			const auto &decl_map = phase_2.decl_map;
+			const auto &env = phase_2.env;
+			decl_t *program_main = get(decl_map, phase_2.compilation->program_name + ".main", (bitter::decl_t *)nullptr);
+			assert(program_main != nullptr);
+			std::list<defn_id_t> needed_defns;
+			defn_id_t main_defn{program_main->var, scheme({}, {}, program_main_type)};
+			needed_defns.push_back(main_defn);
+
+			std::map<defn_id_t, expr_t *> defn_map;
+			// initialize_defn_map_from_decl_map(defn_map, decl_map, env);
+			while (!needed_defns.empty()) {
+				specialize(
+						decl_map,
+						env,
+						needed_defns.front(),
+						defn_map,
+						needed_defns);
+				needed_defns.pop_front();
+			}
+
+			for (auto pair : defn_map) {
+				log_location(pair.second->get_location(), "%s = %s",
+						pair.first.str().c_str(),
+					   	pair.second->str().c_str());
 			}
 			return EXIT_SUCCESS;
 		} else {

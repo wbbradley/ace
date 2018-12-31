@@ -72,7 +72,12 @@ namespace compiler {
 			}
 		}
 
-		std::string leaf_name = name + extension;
+		std::string leaf_name;
+		if (name.find(extension) == name.size() - extension.size()) {
+			leaf_name = name;
+		} else {
+			leaf_name = name + extension;
+		}
 		std::string working_resolution;
 		for (auto zion_path : get_zion_paths()) {
 			auto test_path = zion_path + "/" + leaf_name;
@@ -198,7 +203,7 @@ namespace compiler {
 	}
 
 	compilation_t::ref parse_program(std::string user_program_name) {
-		std::string program_name = strip_zion_extension(user_program_name);
+		std::string program_name = strip_zion_extension(leaf_from_file_path(user_program_name));
 		try {
 			/* first just parse all the modules that are reachable from the initial module
 			 * and bring them into our whole ast */

@@ -535,8 +535,12 @@ namespace types {
 		return new_map;
 	}
 
-	scheme_t::ref scheme_t::rebind(const types::type_t::map &env) {
-		return scheme(vars, predicates, type->rebind(remove_bindings(env, vars)));
+	scheme_t::ref scheme_t::rebind(const types::type_t::map &bindings) {
+		/* this is subtle because it actually rebinds type variables that are free within the
+		 * not-yet-normalized scheme. This is because the map containing the schemes is a working
+		 * set of types that are waiting to be bound. In some cases the variability of the inner
+		 * types can be resolved. */
+		return scheme(vars, predicates, type->rebind(remove_bindings(bindings, vars)));
 	}
 
 	scheme_t::ref scheme_t::normalize() {
@@ -568,6 +572,14 @@ namespace types {
 		return ss.str();
 	}
 
+	int scheme_t::btvs() const {
+		int sum = 0;
+		for (auto pair : predicates) {
+			sum += pair.second.size();
+		}
+		return sum;
+	}
+
 	predicate_map scheme_t::get_predicate_map() {
 		predicate_map predicate_map = type->get_predicate_map();
 		for (auto var : vars) {
@@ -575,6 +587,7 @@ namespace types {
 		}
 		return predicate_map;
 	}
+
 	location_t scheme_t::get_location() const {
 		return type->get_location();
 	}

@@ -186,7 +186,7 @@ namespace types {
 		virtual location_t get_location() const;
 	};
 
-	struct scheme_t {
+	struct scheme_t : public std::enable_shared_from_this<scheme_t> {
 		typedef std::shared_ptr<scheme_t> ref;
 		typedef std::vector<ref> refs;
 		typedef std::map<std::string, ref> map;
@@ -195,6 +195,10 @@ namespace types {
 		types::type_t::ref instantiate(location_t location);
 		scheme_t::ref rebind(const types::type_t::map &env);
 		scheme_t::ref normalize();
+
+		/* count of the bounded type variables */
+		int btvs() const;
+
 		predicate_map get_predicate_map();
 		std::string str();
 		location_t get_location() const;

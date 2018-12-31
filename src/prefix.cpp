@@ -203,6 +203,7 @@ types::scheme_t::ref prefix(
 {
 	return ::scheme(
 			scheme->vars,
-			prefix(bindings, pre, scheme->predicates, false),
+			{},
+			// prefix(bindings, pre, scheme->predicates, false),
 			prefix(bindings, pre, scheme->type));
 }

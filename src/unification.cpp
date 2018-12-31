@@ -12,6 +12,10 @@
 using namespace types;
 
 bool scheme_equality(types::scheme_t::ref a, types::scheme_t::ref b) {
+	if (a == nullptr || b == nullptr) {
+		assert(false);
+		return false;
+	}
 	return a->normalize()->str() == b->normalize()->str();
 }
 
