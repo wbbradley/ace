@@ -31,6 +31,7 @@ struct env_t {
 
 	types::type_t::ref track(bitter::expr_t *expr, types::type_t::ref type);
 	types::type_t::ref get_tracked_type(bitter::expr_t *expr) const;
+	types::type_t::ref maybe_get_tracked_type(bitter::expr_t *expr) const;
 	void add_instance_requirement(const instance_requirement_t &ir);
 	void extend(identifier_t id, std::shared_ptr<types::scheme_t> scheme, bool allow_subscoping);
 	void rebind(const types::type_t::map &env);

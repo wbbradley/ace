@@ -258,11 +258,11 @@ std::string directory_from_file_path(const std::string &file_path)
 	return file_path.substr(0, pos);
 }
 
-std::string leaf_from_file_path(const std::string &file_path)
-{
+std::string leaf_from_file_path(const std::string &file_path) {
 	size_t pos = file_path.find_last_of('/');
-	if (pos == std::string::npos)
-		return std::string();
+	if (pos == std::string::npos) {
+		return file_path;
+	}
 
 	return file_path.substr(pos + 1);
 }

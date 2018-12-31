@@ -83,9 +83,15 @@ bool location_t::has_file_location() const {
 }
 
 location_t best_location(location_t a, location_t b) {
+	/* this function is entirely heuristic garbage. */
+	// FUTURE: do better at plumbing info around so that heuristics like this are less necessary
 	if (a.filename.find(".cpp") != std::string::npos) {
 		return b;
 	} else {
-		return a;
+		if (a.filename.find("lib/") != std::string::npos && b.filename.find("lib/") == std::string::npos) {
+			return b;
+		} else {
+			return a;
+		}
 	}
 }
