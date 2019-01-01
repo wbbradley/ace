@@ -509,33 +509,11 @@ phase_2_t compile(std::string user_program_name_) {
 	return {compilation, env, decl_map};
 }
 
-struct defn_id_t {
-	identifier_t const id;
-	types::scheme_t::ref const specialization;
-	mutable std::string cached_str;
-
-	location_t get_location() const {
-		return id.location;
-	}
-
-	std::string str() const {
-		if (cached_str.size() != 0) {
-			return cached_str;
-		} else {
-			cached_str = "{" + id.name + "::" + specialization->str() + "}";
-			return cached_str;
-		}
-	}
-	bool operator <(const defn_id_t &rhs) const {
-		return str() < rhs.str();
-	}
-};
-
 void specialize(
 		const std::map<std::string, decl_t *> &decl_map,
 		const env_t &env,
 		defn_id_t defn_id,
-		std::map<defn_id_t, expr_t *> &defn_map,
+		std::map<defn_id_t, translation_t::ref> &defn_map,
 		std::list<defn_id_t> &needed_defns)
 {
 	/* expected type schemes for specializations can have unresolved type variables. That indicates
@@ -574,7 +552,8 @@ void specialize(
 
 	/* start the process of specializing our decl */
 	env_t local_env{env};
-	local_env.tracked_types = std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>();
+	auto tracked_types = std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>();
+	local_env.tracked_types = tracked_types;
 
 	decl_t *decl_to_check = get(decl_map, defn_id.id.name, (bitter::decl_t *)nullptr);
 	if (decl_to_check == nullptr) {
@@ -591,13 +570,20 @@ void specialize(
 			as_defn,
 			local_env);
 
-	for (auto pair : *local_env.tracked_types) {
+	for (auto pair : *tracked_types) {
 		log_location(
 				pair.first->get_location(),
 				"%s :: %s", pair.first->str().c_str(),
 				pair.second->str().c_str());
 	}
-	defn_map[defn_id] = as_defn;
+
+	std::unordered_set<std::string> bound_vars;
+	log("----------- specialize %s ------------", defn_id.str().c_str());
+	defn_map[defn_id] = translate(
+			as_defn,
+			bound_vars,
+			[tracked_types](expr_t *e) { auto t = (*tracked_types)[e]; assert(t != nullptr); return t; },
+			needed_defns);
 }
 
 void initialize_defn_map_from_decl_map(
@@ -681,8 +667,7 @@ int main(int argc, char *argv[]) {
 			defn_id_t main_defn{program_main->var, scheme({}, {}, program_main_type)};
 			needed_defns.push_back(main_defn);
 
-			std::map<defn_id_t, expr_t *> defn_map;
-			// initialize_defn_map_from_decl_map(defn_map, decl_map, env);
+			std::map<defn_id_t, translation_t::ref> defn_map;
 			while (!needed_defns.empty()) {
 				specialize(
 						decl_map,
