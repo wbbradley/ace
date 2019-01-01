@@ -23,8 +23,9 @@ struct translation_t {
 };
 
 std::shared_ptr<translation_t> translate(
+		const defn_id_t &for_defn_id,
 		bitter::expr_t *expr,
 		const std::unordered_set<std::string> &bound_vars,
 	   	const std::function<types::type_t::ref (bitter::expr_t *)> &get_type,
-		std::list<defn_id_t> &needed_defns);
+		std::set<defn_id_t> &needed_defns);
 
