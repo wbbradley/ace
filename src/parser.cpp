@@ -455,9 +455,6 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 expr_t *parse_literal(parse_state_t &ps) {
 	switch (ps.token.tk) {
 	case tk_integer:
-		return new application_t(
-				new var_t(identifier_t{"std.from_int", ps.token.location}),
-			   	new literal_t(ps.token_and_advance()));
 	case tk_string:
 	case tk_char:
 	case tk_float:

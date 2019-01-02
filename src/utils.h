@@ -9,6 +9,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <unordered_map>
 #include "location.h"
 
 struct shared_comparator {
@@ -176,6 +177,16 @@ InputIt find_if(InputIt first, InputIt last, UnaryPredicate p)
 
 template<typename K, typename V>
 V get(const std::map<K, V> &t, K k, V default_) {
+	auto iter = t.find(k);
+	if (iter != t.end()) {
+		return iter->second;
+	} else {
+		return default_;
+	}
+}
+
+template<typename K, typename V>
+V get(const std::unordered_map<K, V> &t, K k, V default_) {
 	auto iter = t.find(k);
 	if (iter != t.end()) {
 		return iter->second;
