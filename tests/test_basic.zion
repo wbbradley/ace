@@ -23,5 +23,9 @@ fn test_doit() {
 }
 
 fn main() {
-    return ExitError(sqr(34))
+    if 4 == 7 {
+        return ExitOK
+    } else {
+        return ExitError(sqr(34))
+    }
 }

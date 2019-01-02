@@ -94,23 +94,23 @@ void initialize_default_env(env_t &env) {
 	auto Float = type_id(make_iid(FLOAT_TYPE));
 	auto Bool = type_id(make_iid(BOOL_TYPE));
 
-	env.map["__multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-	env.map["__divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-	env.map["__subtract_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-	env.map["__add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-	env.map["__negate_int"] = scheme({}, {}, type_arrows({Int, Int}));
-	env.map["__abs_int"] = scheme({}, {}, type_arrows({Int, Int}));
-	env.map["__multiply_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-	env.map["__divide_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-	env.map["__subtract_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-	env.map["__add_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-	env.map["__abs_float"] = scheme({}, {}, type_arrows({Float, Float}));
-	env.map["__int_to_float"] = scheme({}, {}, type_arrows({Int, Float}));
-	env.map["__negate_float"] = scheme({}, {}, type_arrows({Float, Float}));
-
-	auto tv = type_variable(INTERNAL_LOC());
-	env.map["__raw_eq"] = scheme({}, {}, type_arrows({tv, tv, Bool}));
-	env.map["__raw_ne"] = scheme({}, {}, type_arrows({tv, tv, Bool}));
+	env.map["__builtin_multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+	env.map["__builtin_divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+	env.map["__builtin_subtract_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+	env.map["__builtin_add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+	env.map["__builtin_negate_int"] = scheme({}, {}, type_arrows({Int, Int}));
+	env.map["__builtin_abs_int"] = scheme({}, {}, type_arrows({Int, Int}));
+	env.map["__builtin_multiply_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+	env.map["__builtin_divide_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+	env.map["__builtin_subtract_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+	env.map["__builtin_add_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+	env.map["__builtin_abs_float"] = scheme({}, {}, type_arrows({Float, Float}));
+	env.map["__builtin_int_to_float"] = scheme({}, {}, type_arrows({Int, Float}));
+	env.map["__builtin_negate_float"] = scheme({}, {}, type_arrows({Float, Float}));
+	env.map["__builtin_float_eq"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+	env.map["__builtin_float_ne"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+	env.map["__builtin_int_eq"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+	env.map["__builtin_int_ne"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
 }
 
 std::map<std::string, type_class_t *> check_type_classes(const std::vector<type_class_t *> &type_classes, env_t &env) {
@@ -402,11 +402,53 @@ void check_instance_requirements(const std::vector<instance_t *> &instances, env
 	}
 }
 
+class defn_map_t {
+	std::map<defn_id_t, decl_t *> map;
+	std::map<std::string, decl_t *> decl_map;
+
+public:
+	decl_t *lookup(defn_id_t defn_id) const {
+		auto iter = map.find(defn_id);
+		if (iter == map.end()) {
+			auto iter_decl = decl_map.find(defn_id.id.name);
+			if (iter_decl != decl_map.end()) {
+				return iter_decl->second;
+			}
+			throw user_error(defn_id.id.location, "symbol %s does not seem to exist", defn_id.id.str().c_str());
+		} else {
+			return iter->second;
+		}
+	}
+
+	void populate(
+			const std::map<std::string, decl_t *> &decl_map_,
+			const std::map<defn_id_t, decl_t *> &overrides_map,
+			const env_t &env)
+	{
+		decl_map = decl_map_;
+
+		/* populate the definition map which is the main result of the first phase of compilation */
+		for (auto pair : decl_map) {
+			assert(pair.first == pair.second->var.name);
+			auto scheme = env.lookup_env(pair.second->var)->generalize({})->normalize();
+			auto defn_id = defn_id_t{pair.second->var, scheme};
+			assert(!in(defn_id, map));
+			debug_above(8, log("populating defn_map with %s", defn_id.str().c_str()));
+			map[defn_id] = pair.second;
+		}
+
+		for (auto pair : overrides_map) {
+			debug_above(8, log("populating defn_map with override %s", pair.first.str().c_str()));
+			assert(!in(pair.first, map));
+			map[pair.first] = pair.second;
+		}
+	}
+};
 
 struct phase_2_t {
 	std::shared_ptr<compilation_t const> const compilation;
 	types::scheme_t::map const typing;
-	std::map<defn_id_t, decl_t *> const defn_map;
+	defn_map_t const defn_map;
 };
 
 phase_2_t compile(std::string user_program_name_) {
@@ -481,38 +523,28 @@ phase_2_t compile(std::string user_program_name_) {
 		}
 	}
 
-	/* populate the definition map which is the main result of the first phase of compilation */
-	std::map<defn_id_t, decl_t *> defn_map;
-	for (auto pair : decl_map) {
-		assert(pair.first == pair.second->var.name);
-		auto scheme = env.lookup_env(pair.second->var)->generalize({})->normalize();
-		auto defn_id = defn_id_t{pair.second->var, scheme};
-		assert(!in(defn_id, defn_map));
-		defn_map[defn_id] = pair.second;
-	}
-
-	for (auto pair : overrides_map) {
-		assert(!in(pair.first, defn_map));
-		defn_map.insert(pair);
-	}
-
+	defn_map_t defn_map;
+	defn_map.populate(decl_map, overrides_map, env);
 	return {compilation, env.map, defn_map};
 }
 
 void specialize(
-		std::map<defn_id_t, decl_t *> const &defn_map,
+		defn_map_t const &defn_map,
 		types::scheme_t::map const &typing,
 		defn_id_t defn_id,
 		/* output */ std::map<defn_id_t, translation_t::ref> &translation_map,
 		/* output */ std::set<defn_id_t> &needed_defns)
 {
+	if (starts_with(defn_id.id.name, "__builtin_")) {
+		return;
+	}
 	/* expected type schemes for specializations can have unresolved type variables. That indicates
 	 * that an input to the function is irrelevant to the output. However, since Zion is eagerly
 	 * evaluated and permits impure side effects, it may not be irrelevant to the overall program's
 	 * semantics, so terms with ambiguous types cannot be thrown out altogether. They cannot have
 	 * unresolved bounded type variables, because that would imply that we don't know which type
 	 * class instance to choose within the inner specialization. */
-	assert(defn_id.specialization->btvs() == 0);
+	assert(defn_id.scheme->btvs() == 0);
 
 	auto iter = translation_map.find(defn_id);
 	if (iter != translation_map.end()) {
@@ -525,74 +557,62 @@ void specialize(
 
 	/* ... like a GRAY mark in the visited set... */
 	translation_map[defn_id] = nullptr;
+	try {
 
-	log(c_good("Specializing subprogram %s"), defn_id.str().c_str());
+		debug_above(7, log(c_good("Specializing subprogram %s"), defn_id.str().c_str()));
 
-	/* cross-check all our data sources */
+		/* cross-check all our data sources */
 #if 0
-	auto existing_type = env.maybe_get_tracked_type(translation_map[defn_id]);
-	auto existing_scheme = existing_type->generalize(env)->normalize();
-	/* the env should be internally self-consistent */
-	assert(scheme_equality(get(env.map, defn_id.id.name, {}), existing_scheme));
-	/* the existing scheme for the unspecialized version should not match the one we are seeking
-	 * because above we looked in our map for this specialization. */
-	assert(!scheme_equality(existing_scheme, defn_id.specialization));
-	assert(!scheme_equality(get(env.map, defn_id.id.name, {}), defn_id.specialization));
+		auto existing_type = env.maybe_get_tracked_type(translation_map[defn_id]);
+		auto existing_scheme = existing_type->generalize(env)->normalize();
+		/* the env should be internally self-consistent */
+		assert(scheme_equality(get(env.map, defn_id.id.name, {}), existing_scheme));
+		/* the existing scheme for the unspecialized version should not match the one we are seeking
+		 * because above we looked in our map for this specialization. */
+		assert(!scheme_equality(existing_scheme, defn_id.specialization));
+		assert(!scheme_equality(get(env.map, defn_id.id.name, {}), defn_id.specialization));
 #endif
 
-	/* start the process of specializing our decl */
-	env_t env{typing /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/, {} /*tracked_types*/};
-	auto tracked_types = std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>();
-	env.tracked_types = tracked_types;
+		/* start the process of specializing our decl */
+		env_t env{typing /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/, {} /*tracked_types*/};
+		auto tracked_types = std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>();
+		env.tracked_types = tracked_types;
 
-	decl_t *decl_to_check = get(defn_map, defn_id, (bitter::decl_t *)nullptr);
+		decl_t *decl_to_check = defn_map.lookup(defn_id);
 
-	if (decl_to_check == nullptr) {
-		throw user_error(defn_id.get_location(), "cannot specialize `%s` because it does not seem to exist",
-				defn_id.str().c_str());
-	}
+		expr_t *to_check = decl_to_check->value;
+		auto specialization_type = defn_id.scheme->instantiate(defn_id.get_location());
+		auto as_defn = new as_t(to_check, specialization_type, false);
+		check(
+				identifier_t{defn_id.str(), defn_id.id.location},
+				as_defn,
+				env);
 
-	expr_t *to_check = decl_to_check->value;
-	auto specialization_type = defn_id.specialization->instantiate(defn_id.get_location());
-	auto as_defn = new as_t(to_check, specialization_type, false);
-	log("checking %s", as_defn->str().c_str());
-	check(
-			identifier_t{defn_id.str(), defn_id.id.location},
-			as_defn,
-			env);
-
-	for (auto pair : *tracked_types) {
-		log_location(
-				pair.first->get_location(),
-				"%s :: %s", pair.first->str().c_str(),
-				pair.second->str().c_str());
-	}
-
-	std::unordered_set<std::string> bound_vars;
-	log("----------- specialize %s ------------", defn_id.str().c_str());
-	translation_map[defn_id] = translate(
-			defn_id,
-			as_defn,
-			bound_vars,
-			[tracked_types](expr_t *e) { auto t = (*tracked_types)[e]; assert(t != nullptr); return t; },
-			needed_defns);
-}
-
-void initialize_defn_map_from_decl_map(
-		std::map<defn_id_t, expr_t *> &defn_map,
-		const std::map<std::string, bitter::decl_t *> &decl_map,
-		const env_t &env)
-{
-	assert(defn_map.size() == 0);
-
-	for (auto pair : decl_map) {
-		auto iter = env.map.find(pair.first);
-		if (iter == env.map.end()) {
-			throw user_error(pair.second->get_location(),
-					"could not find principal type scheme for %s",
-					pair.first.c_str());
+		if (debug_compiled_env) {
+			for (auto pair : *tracked_types) {
+				log_location(
+						pair.first->get_location(),
+						"%s :: %s", pair.first->str().c_str(),
+						pair.second->str().c_str());
+			}
 		}
-		defn_map[{pair.second->var, iter->second}] = pair.second->value;
+
+		std::unordered_set<std::string> bound_vars;
+		INDENT(6, string_format("----------- specialize %s ------------", defn_id.str().c_str()));
+		auto translated_decl = translate(
+				defn_id,
+				as_defn,
+				bound_vars,
+				[tracked_types](expr_t *e) { auto t = (*tracked_types)[e]; assert(t != nullptr); return t; },
+				needed_defns);
+		log(C_CONTROL "let final " C_RESET "%s = %s",
+				defn_id.id.str().c_str(),
+				translated_decl->str().c_str());
+		translation_map[defn_id] = translated_decl;
+	} catch (...) {
+		assert(translation_map[defn_id] == nullptr);
+		translation_map.erase(defn_id);
+		throw;
 	}
 }
 
@@ -648,14 +668,7 @@ int main(int argc, char *argv[]) {
 			if (user_error::errors_occurred()) {
 				return EXIT_FAILURE;
 			}
-			decl_t *program_main = get(
-					phase_2.defn_map,
-				   	{make_iid(phase_2.compilation->program_name + ".main"), program_main_scheme},
-				   	(bitter::decl_t *)nullptr);
-
-			if (program_main == nullptr) {
-				throw user_error(INTERNAL_LOC(), "no user-defined `main` function in %s", user_program_name.c_str());
-			}
+			decl_t *program_main = phase_2.defn_map.lookup({make_iid(phase_2.compilation->program_name + ".main"), program_main_scheme});
 
 			std::set<defn_id_t> needed_defns;
 			defn_id_t main_defn{program_main->var, program_main_scheme};
@@ -678,12 +691,14 @@ int main(int argc, char *argv[]) {
 				needed_defns.erase(next_defn_id);
 			}
 
-			for (auto pair : translation_map) {
-				log_location(pair.second->get_location(), "%s = %s",
-						pair.first.str().c_str(),
-					   	pair.second->str().c_str());
+			if (debug_compiled_env) {
+				for (auto pair : translation_map) {
+					log_location(pair.second->get_location(), "%s = %s",
+							pair.first.str().c_str(),
+							pair.second->str().c_str());
+				}
 			}
-			return EXIT_SUCCESS;
+			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		} else {
 			panic(string_format("bad CLI invocation of %s", argv[0]));
 		}

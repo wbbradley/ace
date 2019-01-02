@@ -5,7 +5,7 @@
 
 struct defn_id_t {
 	identifier_t const id;
-	types::scheme_t::ref const specialization;
+	types::scheme_t::ref const scheme;
 	mutable std::string cached_str;
 
 	location_t get_location() const {
@@ -16,7 +16,7 @@ struct defn_id_t {
 		if (cached_str.size() != 0) {
 			return cached_str;
 		} else {
-			cached_str = "{" + id.name + "::" + specialization->str() + "}";
+			cached_str = "{" + id.name + "::" + scheme->str() + "}";
 			return cached_str;
 		}
 	}

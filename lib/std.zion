@@ -17,13 +17,13 @@ class Eq a {
 }
 
 instance Eq Int {
-    == = __raw_eq
-    != = __raw_ne
+    == = __builtin_int_eq
+    != = __builtin_int_ne
 }
 
 instance Eq Float {
-    == = __raw_eq
-    != = __raw_ne
+    == = __builtin_float_eq
+    != = __builtin_float_ne
 }
 
 class Num a {
@@ -53,22 +53,22 @@ class Ord a {
 
 instance Num Int {
     from_int = id
-    + = __add_int
-    * = __multiply_int
-    - = __subtract_int
-    / = __divide_int
-    negate = __negate_int
-    abs = __abs_int
+    + = __builtin_add_int
+    * = __builtin_multiply_int
+    - = __builtin_subtract_int
+    / = __builtin_divide_int
+    negate = __builtin_negate_int
+    abs = __builtin_abs_int
 }
 
 instance Num Float {
-    from_int = __int_to_float
-    + = __add_float
-    * = __multiply_float
-    - = __subtract_float
-    / = __divide_float
-    negate = __negate_float
-    abs = __abs_float
+    from_int = __builtin_int_to_float
+    + = __builtin_add_float
+    * = __builtin_multiply_float
+    - = __builtin_subtract_float
+    / = __builtin_divide_float
+    negate = __builtin_negate_float
+    abs = __builtin_abs_float
 }
 
 data Maybe t {
