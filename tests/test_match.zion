@@ -1,0 +1,4 @@
+fn main() => match True {
+    False => ExitError(1)
+    True => ExitOK
+}

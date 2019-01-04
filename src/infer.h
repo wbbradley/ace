@@ -2,7 +2,6 @@
 #include <vector>
 #include <tuple>
 #include "types.h"
-#include "ast_decls.h"
 
 struct constraint_info_t {
 	std::string const reason;

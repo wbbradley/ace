@@ -174,6 +174,9 @@ namespace bitter {
 	location_t literal_t::get_location() {
 		return token.location;
 	}
+	location_t literal_t::get_location() const {
+		return token.location;
+	}
 	std::ostream &literal_t::render(std::ostream &os, int parent_precedence) {
 		return os << token.text;
 	}
@@ -244,6 +247,10 @@ namespace bitter {
 		return os;
 	}
 
+	location_t ctor_predicate_t::get_location() const {
+		return location;
+	}
+
 	std::ostream &tuple_predicate_t::render(std::ostream &os) {
 		os << "(";
 		const char *delim = "";
@@ -255,8 +262,16 @@ namespace bitter {
 		return os << ")";
 	}
 
+	location_t tuple_predicate_t::get_location() const {
+		return location;
+	}
+
 	std::ostream &irrefutable_predicate_t::render(std::ostream &os) {
 		return os << C_ID << (name_assignment.valid ? name_assignment.t.name : "_") << C_RESET;
+	}
+
+	location_t irrefutable_predicate_t::get_location() const {
+		return location;
 	}
 
 	types::type_t::ref type_decl_t::get_type() const {
