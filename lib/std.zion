@@ -80,18 +80,23 @@ class Functor f {
     fn fmap(fn (a) b, f a) f b
 }
 
+/*
 instance Functor Maybe {
     fn fmap(f, m) {
-        /* obv this is borked */
         return Nothing
     }
 }
+*/
 
 data ExitCode {
     ExitOK
     ExitError(Int)
 }
 
+data Either a b {
+    Left(a)
+    Right(b)
+}
+
 let unit = ()
 let id = fn (x) => x
-

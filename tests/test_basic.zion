@@ -1,31 +1,6 @@
-fn sqr(a) => a * a
-let I = fn (x) => x
-let S = fn (x, y, z) => x(z)(y(z))
-let K = fn (x, y) => x
-let SKK = S(K)(K)
+fn foo() => Left(3)
 
-fn add(x, y) => x + y
-fn twice(f, x) => f(f(x))
-fn plus4(x) => twice(add(2))(x)
-fn hey() {
-    return plus4(3)
-}
-
-# let dictFunctorMaybe = (FunctorMaybe.fmap,)
-# let dictNumInt = (NumInt.from_int, NumInt.+, NumInt.*, ...)
-
-fn doit(m) {
-    return m
-}
-
-fn test_doit() {
-    return doit(Just("hey"))
-}
-
-fn main() {
-    if 4 == 7 {
-        return ExitOK
-    } else {
-        return ExitError(sqr(34))
-    }
+fn main() => match foo() {
+    Left(x)  => ExitOK
+    Right(y) => ExitError(y)
 }

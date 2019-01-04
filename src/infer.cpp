@@ -142,6 +142,26 @@ types::type_t::ref infer_core(
 					   	as->expr->str().c_str()), as->get_location()});
 		}
 		return as->type;
+	} else if (auto match = dcast<match_t*>(expr)) {
+		auto t1 = infer(match->scrutinee, env, constraints);
+		types::type_t::ref match_type;
+		for (auto pattern_block : match->pattern_blocks) {
+			// TODO: recurse through the pattern_block->predicate to generate more constraints and
+			auto local_env = env_t{env};
+			auto tp = pattern_block->predicate->infer(local_env, constraints);
+			append(constraints, tp, t1, {"pattern must match type of scrutinee", pattern_block->predicate->get_location()});
+
+			auto t2 = infer(pattern_block->result, local_env, constraints);
+			if (match_type != nullptr) {
+				append(constraints, t2, match_type, {"match pattern blocks must all have the same type",
+					   	pattern_block->result->get_location()});
+			} else {
+				match_type = t2;
+			}
+		}
+		assert(match_type != nullptr);
+		return match_type;
+
 	}
 
 	throw user_error(expr->get_location(), "unhandled inference for %s",
@@ -154,6 +174,26 @@ types::type_t::ref infer(
 		constraints_t &constraints)
 {
 	return env.track(expr, infer_core(expr, env, constraints));
+}
+
+types::type_t::ref literal_t::infer(env_t &env, constraints_t &constraints) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref tuple_predicate_t::infer(env_t &env, constraints_t &constraints) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref irrefutable_predicate_t::infer(env_t &env, constraints_t &constraints) const {
+	assert(false);
+	return nullptr;
+}
+
+types::type_t::ref ctor_predicate_t::infer(env_t &env, constraints_t &constraints) const {
+	assert(false);
+	return nullptr;
 }
 
 std::string constraint_info_t::str() const {

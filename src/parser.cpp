@@ -348,30 +348,30 @@ expr_t *parse_statement(parse_state_t &ps) {
 		return parse_while(ps);
 	} else if (ps.token.is_ident(K(for))) {
 		return parse_for_block(ps);
-	//} else if (ps.token.is_ident(K(match))) {
-		//return parse_match(ps);
+	} else if (ps.token.is_ident(K(match))) {
+		return parse_match(ps);
 	// } else if (ps.token.is_ident(K(with))) {
 		// return parse_with_block(ps);
-	} else if (ps.token.is_ident(K(new))) {
-		return parse_new_expr(ps);
-	} else if (ps.token.is_ident(K(fn))) {
-		ps.advance();
-		if (ps.token.tk == tk_identifier) {
-			return new let_t(
-					identifier_t::from_token(ps.token),
-				   	parse_lambda(ps),
-				   	parse_block(ps, false /*expression_means_return*/));
-		} else {
-			return parse_lambda(ps);
-		}
-	} else if (ps.token.is_ident(K(return))) {
-		return parse_return_statement(ps);
-	} else if (ps.token.is_ident(K(unreachable))) {
-		return new var_t(iid(ps.token));
+} else if (ps.token.is_ident(K(new))) {
+	return parse_new_expr(ps);
+} else if (ps.token.is_ident(K(fn))) {
+	ps.advance();
+	if (ps.token.tk == tk_identifier) {
+		return new let_t(
+				identifier_t::from_token(ps.token),
+				parse_lambda(ps),
+				parse_block(ps, false /*expression_means_return*/));
+	} else {
+		return parse_lambda(ps);
+	}
+} else if (ps.token.is_ident(K(return))) {
+	return parse_return_statement(ps);
+} else if (ps.token.is_ident(K(unreachable))) {
+	return new var_t(iid(ps.token));
 	// } else if (ps.token.is_ident(K(type))) {
-		// return parse_type_def_t::parse(ps);
+	// return parse_type_def_t::parse(ps);
 	// } else if (ps.token.is_ident(K(defer))) {
-		// return defer_t::parse(ps);
+	// return defer_t::parse(ps);
 	} else if (ps.token.is_ident(K(continue))) {
 		return new continue_t(ps.token_and_advance().location);
 	} else if (ps.token.is_ident(K(break))) {
@@ -1138,11 +1138,6 @@ pattern_block_t *parse_pattern_block(parse_state_t &ps) {
 }
 
 match_t *parse_match(parse_state_t &ps) {
-	assert(false);
-	return nullptr;
-
-#if 0
-	auto when_block = create<ast::match_expr_t>(ps.token);
 	chomp_ident(K(match));
 	bool auto_else = false;
 	token_t bang_token = ps.token;
@@ -1150,35 +1145,37 @@ match_t *parse_match(parse_state_t &ps) {
 		auto_else = true;
 		ps.advance();
 	}
-	when_block->value = expression_t::parse(ps);
+	auto scrutinee = parse_expr(ps);
 	chomp_token(tk_lcurly);
+	pattern_blocks_t pattern_blocks;
 	while (ps.token.tk != tk_rcurly) {
 		if (ps.token.is_ident(K(else))) {
 			throw user_error(ps.token.location, "place else patterns outside of the match block. (match ... { ... } else { ... })");
 		}
-		when_block->pattern_blocks.push_back(pattern_block_t::parse(ps));
+		pattern_blocks.push_back(parse_pattern_block(ps));
 	}
 	chomp_token(tk_rcurly);
 	if (auto_else) {
-		auto pattern_block = ast::create<ast::pattern_block_t>(bang_token);
-		pattern_block->predicate = ast::create<ast::irrefutable_predicate_t>(token_t{bang_token.location, tk_identifier, "else"});
-		pattern_block->block = ast::create<ast::block_t>(bang_token);
-		when_block->pattern_blocks.push_back(pattern_block);
+		auto pattern_block = new pattern_block_t(
+				new irrefutable_predicate_t(
+					bang_token.location,
+					maybe<identifier_t>()),
+				unit_expr(bang_token.location));
+		pattern_blocks.push_back(pattern_block);
 	}
    	if (ps.token.is_ident(K(else))) {
 		if (auto_else) {
 			throw user_error(ps.token.location, "no need for else block when you are using \"match!\". either delete the ! or discard the else block");
 		} else {
-			when_block->pattern_blocks.push_back(pattern_block_t::parse(ps));
+			pattern_blocks.push_back(parse_pattern_block(ps));
 		}
 	}
 
-	if (when_block->pattern_blocks.size() == 0) {
+	if (pattern_blocks.size() == 0) {
 		throw user_error(ps.token.location, "when block did not have subsequent patterns to match");
 	}
 
-	return when_block;
-#endif
+	return new match_t(scrutinee, pattern_blocks);
 }
 
 std::pair<identifier_t, types::type_t::ref>  parse_lambda_param_core(parse_state_t &ps) {
