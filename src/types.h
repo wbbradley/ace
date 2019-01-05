@@ -214,6 +214,9 @@ namespace types {
 	type_t::refs rebind(const type_t::refs &types, const type_t::map &bindings);
 };
 
+typedef std::map<std::string, types::type_t::ref> data_ctors_t;
+typedef std::map<std::string, data_ctors_t> data_ctors_map_t;
+
 identifier_t gensym(location_t location);
 
 /* type data ctors */
@@ -239,7 +242,6 @@ types::scheme_t::ref scheme(std::vector<std::string> vars, const types::predicat
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_t::ref type_ref(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body);
-
 types::type_t::ref type_vector_type(types::type_t::ref element);
 
 std::string str(types::type_t::refs refs);
@@ -247,6 +249,7 @@ std::string str(const types::type_t::map &coll);
 std::string str(const types::predicate_map &pm);
 std::ostream& operator <<(std::ostream &out, const types::type_t::ref &type);
 
+void unfold_binops_rassoc(std::string id, types::type_t::ref t, types::type_t::refs &unfolding);
 void mutating_merge(const types::predicate_map::value_type &pair, types::predicate_map &c);
 void mutating_merge(const types::predicate_map &a, types::predicate_map &c);
 types::predicate_map merge(const types::predicate_map &a, const types::predicate_map &b);

@@ -180,7 +180,7 @@ namespace bitter {
 	std::ostream &literal_t::render(std::ostream &os, int parent_precedence) {
 		return os << token.text;
 	}
-	std::ostream &literal_t::render(std::ostream &os) {
+	std::ostream &literal_t::render(std::ostream &os) const {
 		return os << token.text;
 	}
 	location_t tuple_t::get_location() {
@@ -232,7 +232,12 @@ namespace bitter {
 		result->render(os, 0);
 		return os << ")";
 	}
-	std::ostream &ctor_predicate_t::render(std::ostream &os) {
+	std::string predicate_t::str() const {
+		std::stringstream ss;
+		this->render(ss);
+		return ss.str();
+	}
+	std::ostream &ctor_predicate_t::render(std::ostream &os) const {
 		os << C_ID << ctor_name.name << C_RESET;
 		if (params.size() != 0) {
 			os << "(";
@@ -251,7 +256,7 @@ namespace bitter {
 		return location;
 	}
 
-	std::ostream &tuple_predicate_t::render(std::ostream &os) {
+	std::ostream &tuple_predicate_t::render(std::ostream &os) const {
 		os << "(";
 		const char *delim = "";
 		for (auto predicate : params) {
@@ -266,7 +271,7 @@ namespace bitter {
 		return location;
 	}
 
-	std::ostream &irrefutable_predicate_t::render(std::ostream &os) {
+	std::ostream &irrefutable_predicate_t::render(std::ostream &os) const {
 		return os << C_ID << (name_assignment.valid ? name_assignment.t.name : "_") << C_RESET;
 	}
 

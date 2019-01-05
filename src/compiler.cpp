@@ -126,6 +126,7 @@ namespace compiler {
 		std::vector<module_t *> modules;
 		std::map<std::string, module_t *> modules_map_by_filename;
 		std::map<std::string, module_t *> modules_map_by_name;
+		data_ctors_map_t data_ctors_map;
 		std::vector<token_t> comments;
 		std::set<token_t> link_ins;
 
@@ -146,7 +147,7 @@ namespace compiler {
 				debug_above(11, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
 				zion_lexer_t lexer({module_filename}, ifs);
 
-				parse_state_t ps(module_filename, "", lexer, &comments, &link_ins);
+				parse_state_t ps(module_filename, "", lexer, comments, link_ins, data_ctors_map);
 
 				std::set<identifier_t> dependencies;
 				module_t *module = ::parse_module(ps, {modules_map_by_name["std"]}, dependencies);
@@ -277,6 +278,7 @@ namespace compiler {
 							new tuple_t(INTERNAL_LOC(), {}))),
 					gps.comments,
 					gps.link_ins);
+					// gps.data_ctors);
 		} catch (user_error &e) {
 			print_exception(e);
 			return nullptr;

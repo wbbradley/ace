@@ -28,4 +28,3 @@
 #define SCOPE_SEP "."
 
 #define MATHY_SYMBOLS "!@#$%^&*()+-_=><.,/|[]`~\\"
-

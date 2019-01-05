@@ -8,7 +8,10 @@
 template <typename T, typename... Args>
 std::shared_ptr<T> parse_text(std::istream &is, std::string filename = "repl.zion") {
 	zion_lexer_t lexer(filename, is);
-	parse_state_t ps(filename, "<text>", lexer);
+	std::vector<token_t> comments;
+	std::set<token_t> link_ins;
+	data_ctors_map_t data_ctors_map;
+	parse_state_t ps(filename, "<text>", lexer, comments, link_ins, data_ctors_map);
 
 	auto item = T::parse(ps);
 	if (ps.token.tk != tk_none) {

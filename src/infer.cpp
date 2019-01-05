@@ -146,7 +146,7 @@ types::type_t::ref infer_core(
 		auto t1 = infer(match->scrutinee, env, constraints);
 		types::type_t::ref match_type;
 		for (auto pattern_block : match->pattern_blocks) {
-			// TODO: recurse through the pattern_block->predicate to generate more constraints and
+			/* recurse through the pattern_block->predicate to generate more constraints */
 			auto local_env = env_t{env};
 			auto tp = pattern_block->predicate->infer(local_env, constraints);
 			append(constraints, tp, t1, {"pattern must match type of scrutinee", pattern_block->predicate->get_location()});
@@ -177,23 +177,56 @@ types::type_t::ref infer(
 }
 
 types::type_t::ref literal_t::infer(env_t &env, constraints_t &constraints) const {
-	assert(false);
-	return nullptr;
+	switch (token.tk) {
+	case tk_integer:
+		return type_id(identifier_t{INT_TYPE, token.location});
+	case tk_float:
+		return type_id(identifier_t{FLOAT_TYPE, token.location});
+	case tk_string:
+		return type_id(identifier_t{STR_TYPE, token.location});
+	case tk_char:
+		return type_id(identifier_t{CHAR_TYPE, token.location});
+	default:
+		throw user_error(token.location, "unsupported type of literal");
+	}
 }
 
 types::type_t::ref tuple_predicate_t::infer(env_t &env, constraints_t &constraints) const {
-	assert(false);
-	return nullptr;
+	types::type_t::refs types;
+	for (auto param : params) {
+		types.push_back(param->infer(env, constraints));
+	}
+	return type_tuple(types);
 }
 
 types::type_t::ref irrefutable_predicate_t::infer(env_t &env, constraints_t &constraints) const {
-	assert(false);
-	return nullptr;
+	auto tv = type_variable(location);
+	if (name_assignment.valid) {
+		env.extend(name_assignment.t, scheme({}, {}, tv), true /*allow_subscoping*/);
+	}
+	return tv;
 }
 
 types::type_t::ref ctor_predicate_t::infer(env_t &env, constraints_t &constraints) const {
-	assert(false);
-	return nullptr;
+	types::type_t::ref ctor_type = env.lookup_env(ctor_name);
+	
+	types::type_t::refs ctor_params;
+	unfold_binops_rassoc(ARROW_TYPE_OPERATOR, ctor_type, ctor_params);
+	assert(ctor_params.size() != 0);
+
+	log("unfolded %s%s", ctor_name.str().c_str(), ::str(ctor_params).c_str());
+
+	if (ctor_params.size() - 1 != params.size()) {
+		throw user_error(get_location(), "incorrect number of sub-patterns given to %s", ctor_name.str().c_str());
+	}
+
+	types::type_t::ref result_type;
+	for (int i=0; i<params.size(); ++i) {
+		auto tp = params[i]->infer(env, constraints);
+		append(constraints, tp, ctor_params[i], {string_format("checking subpattern %s", params[i]->str().c_str()), params[i]->get_location()});
+	}
+
+	return ctor_params.back();
 }
 
 std::string constraint_info_t::str() const {

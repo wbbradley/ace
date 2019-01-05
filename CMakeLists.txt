@@ -26,6 +26,7 @@ add_executable(zion
 	src/main.cpp
 	src/match.cpp
 	src/mmap_file.cpp
+	src/patterns.cpp
 	src/parse_state.cpp
 	src/parser.cpp
 	src/prefix.cpp

@@ -13,13 +13,15 @@ parse_state_t::parse_state_t(
 		std::string filename,
 		std::string module_name,
 		zion_lexer_t &lexer,
-		std::vector<token_t> *comments,
-		std::set<token_t> *link_ins) :
+		std::vector<token_t> &comments,
+		std::set<token_t> &link_ins,
+		std::map<std::string, data_ctors_t> &data_ctors_map) :
 	filename(filename),
 	module_name(module_name.size() != 0 ? module_name : strip_zion_extension(leaf_from_file_path(filename))),
 	lexer(lexer),
 	comments(comments),
-	link_ins(link_ins)
+	link_ins(link_ins),
+	data_ctors_map(data_ctors_map)
 {
 	advance();
 }
@@ -27,7 +29,7 @@ parse_state_t::parse_state_t(
 bool parse_state_t::advance() {
 	debug_lexer(log(log_info, "advanced from %s %s", tkstr(token.tk), token.text.c_str()[0] != '\n' ? token.text.c_str() : ""));
 	prior_token = token;
-	return lexer.get_token(token, newline, comments);
+	return lexer.get_token(token, newline, &comments);
 }
 
 token_t parse_state_t::token_and_advance() {

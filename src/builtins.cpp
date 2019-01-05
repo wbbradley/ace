@@ -13,3 +13,4 @@ const char *BOOL_TYPE = "std.Bool";
 const char *FLOAT_TYPE = "Float";
 const char *STR_TYPE = "string.String";
 const char *MAYBE_TYPE = "std.Maybe";
+const char *ARROW_TYPE_OPERATOR = "->";
