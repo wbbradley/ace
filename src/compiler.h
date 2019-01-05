@@ -13,13 +13,13 @@ struct compilation_t {
 			std::string program_name,
 			bitter::program_t *program,
 			std::vector<token_t> comments,
-			std::set<token_t> link_ins) : 
-			// std::map<std::string, std::set<std::string>> data_ctors) :
+			std::set<token_t> link_ins,
+			const data_ctors_map_t &data_ctors_map) :
 		program_name(program_name),
 		program(program),
 		comments(comments),
-		link_ins(link_ins)
-		// data_ctors(data_ctors)
+		link_ins(link_ins),
+		data_ctors_map(data_ctors_map)
 	{
 	}
 
@@ -27,7 +27,7 @@ struct compilation_t {
 	bitter::program_t * const program;
 	std::vector<token_t> const comments;
 	std::set<token_t> const link_ins;
-	// std::map<std::string, std::set<std::string>> const data_ctors;
+	data_ctors_map_t const data_ctors_map;
 };
 
 namespace compiler {

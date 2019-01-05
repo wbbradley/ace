@@ -17,8 +17,7 @@ struct parse_state_t {
 			std::string module_name,
 			zion_lexer_t &lexer,
 			std::vector<token_t> &comments,
-			std::set<token_t> &link_ins,
-			data_ctors_map_t &data_ctors);
+			std::set<token_t> &link_ins);
 
 	bool advance();
 	token_t token_and_advance();
@@ -39,7 +38,7 @@ struct parse_state_t {
 
 	std::vector<token_t> &comments;
 	std::set<token_t> &link_ins;
-	data_ctors_map_t &data_ctors_map;
+	data_ctors_map_t data_ctors_map;
 
 	/* scoped expression contexts */
 	std::list<scope_t> scopes;

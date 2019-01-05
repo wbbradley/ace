@@ -43,7 +43,7 @@ namespace types {
         /* NB: Also assumes you have rebound the bindings at the callsite. */
 		virtual predicate_map get_predicate_map() const = 0;
 
-		std::shared_ptr<scheme_t> generalize(env_ref_t env) const;
+		std::shared_ptr<scheme_t> generalize(const types::predicate_map &pm) const;
 		std::string repr(const map &bindings) const;
 		std::string repr() const { return this->repr({}); }
 
@@ -56,6 +56,7 @@ namespace types {
 		virtual type_t::ref rebind(const map &bindings) const = 0;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const = 0;
 		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const = 0;
+		virtual type_t::ref apply(ref type) const;
 
 		virtual int get_precedence() const { return 10; }
 	};
@@ -183,6 +184,7 @@ namespace types {
 		virtual type_t::ref rebind(const map &bindings) const;
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
+		virtual type_t::ref apply(types::type_t::ref type) const;
 		virtual location_t get_location() const;
 	};
 
@@ -210,12 +212,11 @@ namespace types {
 
 	type_t::ref without_ref(type_t::ref type);
 	type_t::refs without_refs(type_t::refs types);
-	bool is_type_id(type_t::ref type, const std::string &type_name, env_ref_t env);
+	bool is_type_id(type_t::ref type, const std::string &type_name);
 	type_t::refs rebind(const type_t::refs &types, const type_t::map &bindings);
 };
 
-typedef std::map<std::string, types::type_t::ref> data_ctors_t;
-typedef std::map<std::string, data_ctors_t> data_ctors_map_t;
+typedef std::map<std::string, types::type_t::map> data_ctors_map_t;
 
 identifier_t gensym(location_t location);
 
@@ -247,9 +248,11 @@ types::type_t::ref type_vector_type(types::type_t::ref element);
 std::string str(types::type_t::refs refs);
 std::string str(const types::type_t::map &coll);
 std::string str(const types::predicate_map &pm);
+std::string str(const data_ctors_map_t &data_ctors_map);
 std::ostream& operator <<(std::ostream &out, const types::type_t::ref &type);
 
 void unfold_binops_rassoc(std::string id, types::type_t::ref t, types::type_t::refs &unfolding);
+void unfold_ops_lassoc(types::type_t::ref t, types::type_t::refs &unfolding);
 void mutating_merge(const types::predicate_map::value_type &pair, types::predicate_map &c);
 void mutating_merge(const types::predicate_map &a, types::predicate_map &c);
 types::predicate_map merge(const types::predicate_map &a, const types::predicate_map &b);

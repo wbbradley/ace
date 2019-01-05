@@ -79,7 +79,7 @@ void check(identifier_t id, expr_t *expr, env_t &env) {
 	// log("REBOUND ty = %s", ty->str().c_str());
 	// log(">> %s", str(constraints).c_str());
 	// log(">> %s", str(subst).c_str());
-	auto scheme = ty->generalize(env)->normalize();
+	auto scheme = ty->generalize(env.get_predicate_map())->normalize();
 	// log("NORMALIED ty = %s", n->str().c_str());
 
 	env.extend(id, scheme, false /*allow_subscoping*/);
@@ -180,7 +180,7 @@ void check_decls(std::string entry_point_name, const std::vector<decl_t *> &decl
 					decl->var,
 					type_arrow(
 						type_variable(INTERNAL_LOC()),
-						type_variable(INTERNAL_LOC()))->generalize(env)->normalize(),
+						type_variable(INTERNAL_LOC()))->generalize(env.get_predicate_map())->normalize(),
 					false /*allow_subscoping*/);
 		}
 	}
@@ -228,7 +228,7 @@ void check_instance_for_type_class_overload(
 			env_t local_env{env};
 			local_env.instance_requirements.resize(0);
 			auto instance_decl_id = make_instance_decl_id(type_class->id.name, instance, decl->var);
-			auto expected_scheme = type->rebind(subst)->generalize(local_env);
+			auto expected_scheme = type->rebind(subst)->generalize(local_env.get_predicate_map());
 			auto type_instance = expected_scheme->instantiate(INTERNAL_LOC());
 
 			auto instance_decl_expr = new as_t(decl->value, type_instance, false /*force_cast*/);
@@ -372,9 +372,10 @@ bool instance_matches_requirement(instance_t *instance, const instance_requireme
 	debug_above(8, log("checking %s %s vs. %s %s",
 		   	ir.type_class_name.c_str(), ir.type->str().c_str(),
 			instance->type_class_id.name.c_str(), instance->type->str().c_str()));
+	auto pm = env.get_predicate_map();
 	return instance->type_class_id.name == ir.type_class_name && scheme_equality(
-			ir.type->generalize(env)->normalize(),
-			instance->type->generalize(env)->normalize());
+			ir.type->generalize(pm)->normalize(),
+			instance->type->generalize(pm)->normalize());
 }
 
 void check_instance_requirements(const std::vector<instance_t *> &instances, env_t &env) {
@@ -449,6 +450,7 @@ struct phase_2_t {
 	std::shared_ptr<compilation_t const> const compilation;
 	types::scheme_t::map const typing;
 	defn_map_t const defn_map;
+	data_ctors_map_t const data_ctors_map;
 };
 
 phase_2_t compile(std::string user_program_name_) {
@@ -463,7 +465,8 @@ phase_2_t compile(std::string user_program_name_) {
 		{} /*map*/,
 		nullptr /*return_type*/,
 		{} /*instance_requirements*/,
-		std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>()};
+		std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>(),
+		compilation->data_ctors_map};
 
 	initialize_default_env(env);
 
@@ -525,12 +528,13 @@ phase_2_t compile(std::string user_program_name_) {
 
 	defn_map_t defn_map;
 	defn_map.populate(decl_map, overrides_map, env);
-	return {compilation, env.map, defn_map};
+	return {compilation, env.map, defn_map, compilation->data_ctors_map};
 }
 
 void specialize(
 		defn_map_t const &defn_map,
 		types::scheme_t::map const &typing,
+		data_ctors_map_t const &data_ctors_map,
 		defn_id_t defn_id,
 		/* output */ std::map<defn_id_t, translation_t::ref> &translation_map,
 		/* output */ std::set<defn_id_t> &needed_defns)
@@ -574,7 +578,7 @@ void specialize(
 #endif
 
 		/* start the process of specializing our decl */
-		env_t env{typing /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/, {} /*tracked_types*/};
+		env_t env{typing /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/, {} /*tracked_types*/, data_ctors_map};
 		auto tracked_types = std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>();
 		env.tracked_types = tracked_types;
 
@@ -597,13 +601,14 @@ void specialize(
 			}
 		}
 
+		translation_env_t tenv{tracked_types, data_ctors_map};
 		std::unordered_set<std::string> bound_vars;
 		INDENT(6, string_format("----------- specialize %s ------------", defn_id.str().c_str()));
 		auto translated_decl = translate(
 				defn_id,
 				as_defn,
 				bound_vars,
-				[tracked_types](expr_t *e) { auto t = (*tracked_types)[e]; assert(t != nullptr); return t; },
+				tenv,
 				needed_defns);
 		log(C_CONTROL "let final " C_RESET "%s = %s",
 				defn_id.id.str().c_str(),
@@ -681,6 +686,7 @@ int main(int argc, char *argv[]) {
 					specialize(
 							phase_2.defn_map,
 							phase_2.typing,
+							phase_2.data_ctors_map,
 							next_defn_id,
 							translation_map,
 							needed_defns);

@@ -10,8 +10,8 @@ std::shared_ptr<T> parse_text(std::istream &is, std::string filename = "repl.zio
 	zion_lexer_t lexer(filename, is);
 	std::vector<token_t> comments;
 	std::set<token_t> link_ins;
-	data_ctors_map_t data_ctors_map;
-	parse_state_t ps(filename, "<text>", lexer, comments, link_ins, data_ctors_map);
+
+	parse_state_t ps(filename, "<text>", lexer, comments, link_ins);
 
 	auto item = T::parse(ps);
 	if (ps.token.tk != tk_none) {
