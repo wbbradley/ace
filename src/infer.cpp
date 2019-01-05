@@ -74,7 +74,8 @@ types::type_t::ref infer_core(
 		constraints_t local_constraints;
 		auto t1 = infer(let->value, env, local_constraints);
 		auto tracked_types = std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>();
-		env_t local_env{{} /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/, tracked_types};
+		env_t local_env{{} /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/,
+			tracked_types, env.data_ctors_map};
 
 		auto bindings = solver({}, local_constraints, local_env);
 		auto schema = scheme({}, {}, t1);
@@ -161,7 +162,6 @@ types::type_t::ref infer_core(
 		}
 		assert(match_type != nullptr);
 		return match_type;
-
 	}
 
 	throw user_error(expr->get_location(), "unhandled inference for %s",
@@ -208,16 +208,17 @@ types::type_t::ref irrefutable_predicate_t::infer(env_t &env, constraints_t &con
 }
 
 types::type_t::ref ctor_predicate_t::infer(env_t &env, constraints_t &constraints) const {
-	types::type_t::ref ctor_type = env.lookup_env(ctor_name);
-	
-	types::type_t::refs ctor_params;
-	unfold_binops_rassoc(ARROW_TYPE_OPERATOR, ctor_type, ctor_params);
-	assert(ctor_params.size() != 0);
+	types::type_t::refs ctor_params = env.get_fresh_data_ctor_terms(ctor_name);
 
-	log("unfolded %s%s", ctor_name.str().c_str(), ::str(ctor_params).c_str());
+	log("got fresh ctor params %s%s", ctor_name.str().c_str(), ::str(ctor_params).c_str());
 
 	if (ctor_params.size() - 1 != params.size()) {
-		throw user_error(get_location(), "incorrect number of sub-patterns given to %s", ctor_name.str().c_str());
+		throw user_error(get_location(), "incorrect number of sub-patterns given to %s (%d vs. %d) %s %s",
+			   	ctor_name.str().c_str(),
+				ctor_params.size()-1,
+				params.size(),
+				ctor_params.back()->str().c_str(),
+				::join_str(ctor_params, ", ").c_str());
 	}
 
 	types::type_t::ref result_type;
@@ -226,6 +227,7 @@ types::type_t::ref ctor_predicate_t::infer(env_t &env, constraints_t &constraint
 		append(constraints, tp, ctor_params[i], {string_format("checking subpattern %s", params[i]->str().c_str()), params[i]->get_location()});
 	}
 
+	log("ctor_predicate_t::infer(...) -> %s", ctor_params.back()->str().c_str());
 	return ctor_params.back();
 }
 

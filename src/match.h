@@ -2,6 +2,8 @@
 #include "types.h"
 #include <set>
 
+struct translation_env_t;
+
 namespace match {
 	struct Pattern;
 	struct Nothing;
@@ -22,6 +24,6 @@ namespace match {
 	Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs);
 	Pattern::ref difference(Pattern::ref lhs, Pattern::ref rhs);
 	Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs);
-	Pattern::ref all_of(location_t location, maybe<identifier_t> expr, env_ref_t env, types::type_t::ref type);
+	Pattern::ref all_of(location_t location, maybe<identifier_t> expr, const translation_env_t &env, types::type_t::ref type);
 }
 

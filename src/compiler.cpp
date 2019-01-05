@@ -126,7 +126,6 @@ namespace compiler {
 		std::vector<module_t *> modules;
 		std::map<std::string, module_t *> modules_map_by_filename;
 		std::map<std::string, module_t *> modules_map_by_name;
-		data_ctors_map_t data_ctors_map;
 		std::vector<token_t> comments;
 		std::set<token_t> link_ins;
 
@@ -147,7 +146,7 @@ namespace compiler {
 				debug_above(11, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
 				zion_lexer_t lexer({module_filename}, ifs);
 
-				parse_state_t ps(module_filename, "", lexer, comments, link_ins, data_ctors_map);
+				parse_state_t ps(module_filename, "", lexer, comments, link_ins);
 
 				std::set<identifier_t> dependencies;
 				module_t *module = ::parse_module(ps, {modules_map_by_name["std"]}, dependencies);
@@ -200,6 +199,7 @@ namespace compiler {
 				top_level_decls.insert(overload_pair.first);
 			}
 		}
+		log("tlds are %s", ::join(top_level_decls, ", ").c_str());
 		return top_level_decls;
 	}
 
@@ -231,27 +231,14 @@ namespace compiler {
 			std::vector<decl_t *> program_decls;
 			std::vector<type_class_t *> program_type_classes;
 			std::vector<instance_t *> program_instances;
+			data_ctors_map_t data_ctors_map;
 
 			/* next, merge the entire set of modules into one program */
 			for (module_t *module : gps.modules) {
 				/* get a list of all top-level decls */
 				std::set<std::string> bindings = get_top_level_decls(module->decls, module->type_decls, module->type_classes);
 
-#if 0
-				for (auto decl : module->decls) {
-					log_location(decl->var.location, "%s = %s", decl->var.str().c_str(),
-							decl->value->str().c_str());
-				}
-				for (auto type_class : module->type_classes) {
-					log_location(type_class->id.location, "%s", type_class->str().c_str());
-				}
-				for (auto instance : module->instances) {
-					log_location(instance->type_class_id.location, "%s", instance->str().c_str());
-				}
-#endif
-
 				module_t *module_rebound = prefix(bindings, module);
-
 
 				/* now all locally referring vars are fully qualified */
 				for (decl_t *decl : module_rebound->decls) {
@@ -265,6 +252,10 @@ namespace compiler {
 				for (instance_t *instance : module_rebound->instances) {
 					program_instances.push_back(instance);
 				}
+				for (auto pair : module_rebound->data_ctors_map) {
+					assert(!in(pair.first, data_ctors_map));
+					data_ctors_map[pair.first] = pair.second;
+				}
 			}
 
 			return std::make_shared<compilation_t>(
@@ -277,8 +268,8 @@ namespace compiler {
 							new var_t(make_iid("main")),
 							new tuple_t(INTERNAL_LOC(), {}))),
 					gps.comments,
-					gps.link_ins);
-					// gps.data_ctors);
+					gps.link_ins,
+					data_ctors_map);
 		} catch (user_error &e) {
 			print_exception(e);
 			return nullptr;

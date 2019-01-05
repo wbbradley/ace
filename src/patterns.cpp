@@ -1,42 +1,20 @@
 #include "zion.h"
+#include "patterns.h"
 #include "ast.h"
 #include "compiler.h"
 #include <iostream>
-#include "unification.h"
+#include "translate.h"
 
 using namespace bitter;
 
+#if 0
 types::type_t::ref build_patterns(
-		llvm::IRBuilder<> &builder,
-		runnable_scope_t::ref scope,
-		life_t::ref life,
 		location_t location,
-		llvm::BasicBlock *llvm_start_block,
-		llvm::BasicBlock *merge_block,
-		const ast::pattern_block_t::refs &pattern_blocks,
-		bound_var_t::ref pattern_value,
+		const ast::pattern_blocks_t &pattern_blocks,
+		types::type_t::ref pattern_value_type,
 		bool *returns,
-		types::type_t::ref expected_type,
-		std::list<std::pair<bound_var_t::ref, llvm::BasicBlock *>> &incoming_values)
+		types::type_t::ref expected_type)
 {
-	delegate_t delegate{builder, true /*use_llvm*/};
-
-	llvm::Function *llvm_function_current = llvm_get_function(builder);
-	llvm::BasicBlock *default_block = llvm::BasicBlock::Create(builder.getContext(), "pattern.default", llvm_function_current);
-
-	/* we may need a stub implementation in the default block to make LLVM happy that
-	 * all paths return */
-	{
-		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-		builder.SetInsertPoint(default_block);
-		runnable_scope_t::ref new_scope;
-		resolve_assert_macro(builder, scope, life,
-			   	token_t{location, tk_string, "assert"},
-				ast::create<ast::reference_expr_t>(token_t{location, tk_identifier, "false"}), &new_scope);
-		llvm_generate_dead_return(builder, scope);
-	}
-
-	llvm::BasicBlock *llvm_next_merge = default_block;
 	assert(pattern_blocks.size() != 0);
 
 	bool all_patterns_return = true;
@@ -45,21 +23,7 @@ types::type_t::ref build_patterns(
 		auto predicate = pattern_block->predicate;
 
 		std::string pattern_name = predicate->repr();
-		llvm::BasicBlock *check_block = llvm::BasicBlock::Create(
-				builder.getContext(),
-				"test." + pattern_name,
-				llvm_function_current);
 
-		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-		builder.SetInsertPoint(check_block);
-
-		/* create a new block for catching the pattern jump */
-		llvm::BasicBlock *llvm_pattern_block = llvm::BasicBlock::Create(
-				builder.getContext(),
-				"matched." + pattern_name,
-				llvm_function_current);
-
-		runnable_scope_t::ref scope_if_match;
 		if (!predicate->resolve_match(
 					builder, scope, life,
 					location,
@@ -170,22 +134,25 @@ types::type_t::ref build_patterns(
 
 	return expected_type;
 }
+#endif
 
 void check_patterns(
 		location_t location,
 		std::string expr,
+		const translation_env_t &tenv,
 		const pattern_blocks_t &pattern_blocks,
 		types::type_t::ref pattern_value_type)
 {
-	match::Pattern::ref uncovered = match::all_of(location, maybe<identifier_t>(make_iid(expr)), pattern_value_type);
+	match::Pattern::ref uncovered = match::all_of(location, maybe<identifier_t>(make_iid(expr)), tenv, pattern_value_type);
 	for (auto pattern_block : pattern_blocks) {
-		match::Pattern::ref covering = pattern_block->predicate->get_pattern(pattern_value->get_type(), runnable_scope);
+		match::Pattern::ref covering = pattern_block->predicate->get_pattern(
+				pattern_value_type, tenv);
 		if (match::intersect(uncovered, covering)->asNothing() != nullptr) {
-			auto error = user_error(pattern_block->get_location(), "this pattern is already covered");
+			auto error = user_error(pattern_block->predicate->get_location(), "this pattern is already covered");
 			if (uncovered->asNothing() != nullptr) {
-				error.add_info(pattern_block->get_location(), "there is nothing left to match by this point");
+				error.add_info(pattern_block->predicate->get_location(), "there is nothing left to match by this point");
 			} else {
-				error.add_info(pattern_block->get_location(), "so far you haven't covered: %s",
+				error.add_info(pattern_block->predicate->get_location(), "so far you haven't covered: %s",
 						uncovered->str().c_str());
 			}
 			throw error;
@@ -204,63 +171,36 @@ void check_patterns(
 	}
 }
 
-void ast::match_expr_t::resolve_statement(
-	   	llvm::IRBuilder<> &builder,
-	   	scope_t::ref scope,
-		life_t::ref life,
-	   	runnable_scope_t::ref *,
-	   	bool *returns) const
-{
-	resolve_match_expr(builder, scope, life, false /*as_ref*/, returns, type_bottom());
-}
-
-var_t::ref ast::match_expr_t::resolve_expression(
-	delegate_t &delegate,
-	scope_t::ref scope,
-	life_t::ref life,
-	bool as_ref,
-	types::type_t::ref expected_type,
-	bool *returns) const
-{
-	auto &builder = delegate.get_builder(get_location());
-	return resolve_match_expr(builder, scope, life, as_ref, returns,
-		   	expected_type != nullptr ? expected_type : type_variable(token.location));
-}
-
-
-types::type_t::ref ast::match_expr_t::resolve_type(scope_t::ref scope, types::type_t::ref expected_type) const {
-	assert(false);
-	return nullptr;
-}
-
 expr_t *translate_match_expr(
 		const defn_id_t &for_defn_id,
-		bitter::match_expr_t *match,
+		bitter::match_t *match,
 		const std::unordered_set<std::string> &bound_vars,
-		const std::function<types::type_t::ref (bitter::expr_t *)> &get_type,
+		const translation_env_t &tenv,
 		std::unordered_map<bitter::expr_t *, types::type_t::ref> &typing,
 		std::set<defn_id_t> &needed_defns)
 {
 	bool returns_ = false;
 	bool *returns = &returns_;
-	auto expected_type = get_type(match);
+	auto expected_type = tenv.get_type(match);
 
 	log("match expression is expecting type %s", expected_type->str().c_str());
 
-	auto pattern_value = texpr(for_defn_id, match->scrutinee, bound_vars, get_type, typing, needed_defns);
+	auto pattern_value = texpr(for_defn_id, match->scrutinee, bound_vars, tenv, typing, needed_defns);
 
 	if (returns != nullptr && *returns) {
-		throw user_error(value->get_location(), "this value will return so the match seems pointless?");
+		throw user_error(pattern_value->get_location(), "this value will return so the match seems pointless?");
 	}
 
-	auto scrutinee_type = get_type(match->scrutinee);
+	auto scrutinee_type = tenv.get_type(match->scrutinee);
 
 	check_patterns(
 			pattern_value->get_location(),
 			match->scrutinee->str(),
+			tenv,
 			match->pattern_blocks,
 			scrutinee_type);
 
+#if 0
 	build_patterns(
 			builder,
 			runnable_scope,
@@ -273,28 +213,12 @@ expr_t *translate_match_expr(
 			returns,
 			expected_type,
 			incoming_values);
+#endif
+	// assert(false);
+	return match;
 }
 
-bound_var_t::ref gen_null_check(
-		llvm::IRBuilder<> &builder,
-		ast::item_t::ref node,
-		scope_t::ref scope,
-		life_t::ref life,
-		identifier_t value_name,
-		bound_var_t::ref value,
-		runnable_scope_t::ref *new_scope)
-{
-	value = value->dereferencing_load(builder, scope);
-	if (!value->get_type()->is_ptr(scope)) {
-		throw user_error(node->get_location(),
-				"type %s cannot be compared to null", value->get_type()->str().c_str());
-	}
-
-	value = value->dereferencing_load(builder, scope);
-	assert(llvm::dyn_cast<llvm::PointerType>(value->get_bound_type()->get_llvm_specific_type()));
-	return value;
-}
-
+#if 0
 bool ast::literal_expr_t::resolve_match(
 		llvm::IRBuilder<> &builder,
 		runnable_scope_t::ref scope,
@@ -341,37 +265,6 @@ bool ast::literal_expr_t::resolve_match(
 	}
 	assert(false);
 	return false;
-}
-
-bound_var_t::ref cast_data_type_to_ctor_struct(
-		llvm::IRBuilder<> &builder,
-		runnable_scope_t::ref scope,
-		location_t value_location,
-		bound_var_t::ref input_value,
-		token_t ctor_name)
-{
-	types::type_data_t::ref data_type = dyncast<const types::type_data_t>(
-			input_value->get_type()->eval(scope));
-	if (data_type == nullptr) {
-		throw user_error(input_value->get_location(), "unable to find data type in %s", input_value->str().c_str());
-	}
-
-	for (auto ctor_pair : data_type->ctor_pairs) {
-		if (ctor_pair.first.text == ctor_name.text) {
-			auto bound_type = upsert_bound_type(builder, scope, type_ptr(type_managed(type_struct(ctor_pair.second))));
-			return make_bound_var(
-					INTERNAL_LOC(),
-					ctor_name.text,
-					bound_type,
-					llvm_maybe_pointer_cast(builder,
-						input_value->get_llvm_value(scope), bound_type->get_llvm_specific_type()),
-					make_code_id(ctor_pair.first));
-		}
-	}
-	throw user_error(ctor_name.location, "unable to find value of " c_id("%s") " in %s",
-			ctor_name.text.c_str(),
-			input_value->str().c_str());
-	return nullptr;
 }
 
 bool ast::ctor_predicate_t::resolve_match(
@@ -546,3 +439,4 @@ bool ast::irrefutable_predicate_t::resolve_match(
 	builder.CreateBr(llvm_match_block);
 	return true;
 }
+#endif

@@ -31,10 +31,11 @@ predicate_t *prefix(
 		if (p->name_assignment.valid) {
 			new_symbols.insert(p->name_assignment.t.name);
 		}
+		std::vector<predicate_t *> new_params;
 		for (auto param : p->params) {
-			prefix(bindings, pre, param, new_symbols);
+			new_params.push_back(prefix(bindings, pre, param, new_symbols));
 		}
-		return predicate;
+		return new tuple_predicate_t(p->location, new_params, p->name_assignment);
 	} else if (auto p = dcast<irrefutable_predicate_t *>(predicate)) {
 		if (p->name_assignment.valid) {
 			new_symbols.insert(p->name_assignment.t.name);
@@ -44,10 +45,11 @@ predicate_t *prefix(
 		if (p->name_assignment.valid) {
 			new_symbols.insert(p->name_assignment.t.name);
 		}
+		std::vector<predicate_t *> new_params;
 		for (auto param : p->params) {
-			prefix(bindings, pre, param, new_symbols);
+			new_params.push_back(prefix(bindings, pre, param, new_symbols));
 		}
-		return predicate;
+		return new ctor_predicate_t(p->location, new_params, prefix(bindings, pre, p->ctor_name), p->name_assignment);
 	} else {
 		assert(false);
 		return nullptr;
@@ -179,6 +181,22 @@ std::vector<expr_t *> prefix(const std::set<std::string> &bindings, std::string 
 	return new_values;
 }
 
+types::type_t::map prefix(const std::set<std::string> &bindings, std::string pre, const types::type_t::map &data_ctors) {
+	types::type_t::map new_data_ctors;
+	for (auto pair : data_ctors) {
+		new_data_ctors[prefix(bindings, pre, pair.first)] = prefix(bindings, pre, pair.second);
+	}
+	return new_data_ctors;
+}
+
+data_ctors_map_t prefix(const std::set<std::string> &bindings, std::string pre, const data_ctors_map_t &data_ctors_map) {
+	data_ctors_map_t new_data_ctors_map;
+	for (auto pair : data_ctors_map) {
+		new_data_ctors_map[prefix(bindings, pre, pair.first)] = prefix(bindings, pre, pair.second);
+	}
+	return new_data_ctors_map;
+}
+
 module_t *prefix(const std::set<std::string> &bindings, module_t *module) {
 	return new module_t(
 			module->name,
@@ -193,7 +211,10 @@ module_t *prefix(const std::set<std::string> &bindings, module_t *module) {
 			   	module->type_classes),
 		   	prefix(bindings,
 			   	module->name,
-			   	module->instances));
+			   	module->instances),
+			prefix(bindings,
+				module->name,
+				module->data_ctors_map));
 }
 
 types::scheme_t::ref prefix(

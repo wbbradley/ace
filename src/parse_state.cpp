@@ -14,14 +14,12 @@ parse_state_t::parse_state_t(
 		std::string module_name,
 		zion_lexer_t &lexer,
 		std::vector<token_t> &comments,
-		std::set<token_t> &link_ins,
-		std::map<std::string, data_ctors_t> &data_ctors_map) :
+		std::set<token_t> &link_ins) :
 	filename(filename),
 	module_name(module_name.size() != 0 ? module_name : strip_zion_extension(leaf_from_file_path(filename))),
 	lexer(lexer),
 	comments(comments),
-	link_ins(link_ins),
-	data_ctors_map(data_ctors_map)
+	link_ins(link_ins)
 {
 	advance();
 }

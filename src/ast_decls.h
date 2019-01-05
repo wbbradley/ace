@@ -1,4 +1,7 @@
 #pragma once
+#include <vector>
+#include <ostream>
+
 namespace bitter {
 	struct expr_t;
 	struct var_t;

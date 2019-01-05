@@ -94,20 +94,25 @@ namespace types {
 		return ss.str();
 	}
 
-	std::shared_ptr<scheme_t> type_t::generalize(env_t::ref env) const {
+	std::shared_ptr<scheme_t> type_t::generalize(const types::predicate_map &pm) const {
 		std::vector<std::string> vs;
 		auto type_ftvs = get_predicate_map();
-		auto env_ftvs = env.get_predicate_map();
+		// auto env_ftvs = env.get_predicate_map();
 		predicate_map predicate_map;
 		type_t::map bindings;
 		for (auto ftv : type_ftvs) {
-			if (!in(ftv.first, env_ftvs)) {
+			if (!in(ftv.first, pm)) {
 				vs.push_back(ftv.first);
 				mutating_merge(ftv, predicate_map);
 				bindings[ftv.first] = type_variable(make_iid(ftv.first));
 			}
 		}
 		return scheme(vs, predicate_map, rebind(bindings));
+	}
+
+	type_t::ref type_t::apply(types::type_t::ref type) const {
+		assert(false);
+		return type_operator(shared_from_this(), type);
 	}
 
 	type_id_t::type_id_t(identifier_t id) : id(id) {
@@ -225,7 +230,7 @@ namespace types {
 	}
 
 	std::ostream &type_operator_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		if (is_type_id(oper->rebind(bindings), STD_VECTOR_TYPE, {})) {
+		if (is_type_id(oper->rebind(bindings), STD_VECTOR_TYPE)) {
 			os << "[";
 			operand->emit(os, bindings, 0);
 			return os << "]";
@@ -426,7 +431,7 @@ namespace types {
 
 		auto var_name = binding.name;
 		auto new_name = gensym(get_location());
-		os << "lambda " << new_name.name << " ";
+		os << "Λ " << new_name.name << " . ";
 		map bindings = bindings_;
 		bindings[var_name] = type_id(new_name);
 		body->emit(os, bindings, get_precedence());
@@ -482,11 +487,17 @@ namespace types {
 		return type_lambda(binding, body->prefix_ids(without(bindings, binding.name), pre));
 	}
 
+	type_t::ref type_lambda_t::apply(types::type_t::ref type) const {
+		map bindings;
+		bindings[binding.name] = type;
+		return body->rebind(bindings);
+	}
+
 	location_t type_lambda_t::get_location() const {
 		return binding.location;
 	}
 
-	bool is_type_id(type_t::ref type, const std::string &type_name, env_t::ref env) {
+	bool is_type_id(type_t::ref type, const std::string &type_name) {
 		if (auto pti = dyncast<const types::type_id_t>(type)) {
 			return pti->id.name == type_name;
 		}
@@ -759,6 +770,16 @@ std::string str(const types::predicate_map &pm) {
 	return ss.str();
 }
 
+std::string str(const data_ctors_map_t &data_ctors_map) {
+	std::stringstream ss;
+	const char *delim = "";
+	for (auto pair : data_ctors_map) {
+		ss << delim << pair.first << ": " << ::str(pair.second);
+		delim = ", ";
+	}
+	return ss.str();
+}
+
 std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimensions, const types::name_index_t &name_index, const types::type_t::map &bindings) {
 	const char *sep = "";
 	int i = 0;
@@ -782,11 +803,21 @@ void unfold_binops_rassoc(std::string id, types::type_t::ref t, types::type_t::r
 	auto op = dyncast<const types::type_operator_t>(t);
 	if (op != nullptr) {
 		auto nested_op = dyncast<const types::type_operator_t>(op->oper);
- 		if (is_type_id(nested_op->oper, id, {})) {
+ 		if (is_type_id(nested_op->oper, id)) {
 			unfolding.push_back(nested_op->operand);
 			unfold_binops_rassoc(id, op->operand, unfolding);
 			return;
 		}
 	}
 	unfolding.push_back(t);
+}
+
+void unfold_ops_lassoc(types::type_t::ref t, types::type_t::refs &unfolding) {
+	auto op = dyncast<const types::type_operator_t>(t);
+	if (op != nullptr) {
+		unfold_ops_lassoc(op->oper, unfolding);
+		unfolding.push_back(op->operand);
+	} else {
+		unfolding.push_back(t);
+	}
 }

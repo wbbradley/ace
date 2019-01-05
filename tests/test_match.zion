@@ -1,4 +1,10 @@
-fn main() => match True {
-    False => ExitError(1)
-    True => ExitOK
+data Three a b c {
+    One(a, b)
+    Two(b, c)
+    Three(a, c)
+}
+
+fn main() => match Three(3, "hey") {
+    One(a, b) => ExitError(a)
+    Two(_, _) => ExitOK
 }

@@ -1419,10 +1419,9 @@ struct data_type_decl_t {
 	std::vector<decl_t *> decls;
 };
 
-data_type_decl_t parse_data_type_decl(parse_state_t &ps, data_ctors_t &data_ctors) {
+data_type_decl_t parse_data_type_decl(parse_state_t &ps, types::type_t::map &data_ctors) {
 	auto type_decl = parse_type_decl(ps);
 	std::vector<decl_t *> decls;
-	//std::map<std::string, types::type_t::ref> 
 
 	chomp_token(tk_lcurly);
 	for (int i = 0; true; ++i) {
@@ -1586,7 +1585,7 @@ module_t *parse_module(
 		} else if (ps.token.is_ident(K(data))) {
 			/* module-level types */
 			ps.advance();
-			data_ctors_t data_ctors;
+			types::type_t::map data_ctors;
 			auto data_type = parse_data_type_decl(ps, data_ctors);
 			type_decls.push_back(data_type.type_decl);
 			for (auto &decl : data_type.decls) {
@@ -1614,7 +1613,7 @@ module_t *parse_module(
 	if (ps.token.tk != tk_none) {
 		throw user_error(ps.token.location, "unknown stuff here");
 	}
-	return new module_t(ps.module_name, decls, type_decls, type_classes, instances);
+	return new module_t(ps.module_name, decls, type_decls, type_classes, instances, ps.data_ctors_map);
 }
 
 #if 0

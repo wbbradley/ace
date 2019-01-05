@@ -8,6 +8,8 @@
 #include "env.h"
 #include "infer.h"
 
+struct translation_env_t;
+
 namespace bitter {
 	std::string fresh();
 
@@ -47,7 +49,7 @@ namespace bitter {
 	struct predicate_t {
 		virtual ~predicate_t() {}
 		virtual std::ostream &render(std::ostream &os) const = 0;
-		virtual match::Pattern::ref get_pattern(types::type_t::ref type, env_ref_t env) const = 0;
+		virtual match::Pattern::ref get_pattern(types::type_t::ref type, const translation_env_t &env) const = 0;
 		virtual types::type_t::ref infer(env_t &env, constraints_t &constraints) const = 0;
 		virtual location_t get_location() const = 0;
 		std::string str() const;
@@ -57,7 +59,7 @@ namespace bitter {
 		tuple_predicate_t(location_t location, std::vector<predicate_t *> params, maybe<identifier_t> name_assignment) :
 			location(location), params(params), name_assignment(name_assignment) {}
 		std::ostream &render(std::ostream &os) const override;
-		match::Pattern::ref get_pattern(types::type_t::ref type, env_ref_t env) const override;
+		match::Pattern::ref get_pattern(types::type_t::ref type, const translation_env_t &env) const override;
 		types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
 		location_t get_location() const override;
 
@@ -69,7 +71,7 @@ namespace bitter {
 	struct irrefutable_predicate_t : public predicate_t {
 		irrefutable_predicate_t(location_t location, maybe<identifier_t> name_assignment) : location(location), name_assignment(name_assignment) {}
 		std::ostream &render(std::ostream &os) const override;
-		match::Pattern::ref get_pattern(types::type_t::ref type, env_ref_t env) const override;
+		match::Pattern::ref get_pattern(types::type_t::ref type, const translation_env_t &env) const override;
 		types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
 		location_t get_location() const override;
 
@@ -85,7 +87,7 @@ namespace bitter {
 				maybe<identifier_t> name_assignment) :
 			location(location), params(params), ctor_name(ctor_name), name_assignment(name_assignment) {}
 		std::ostream &render(std::ostream &os) const override;
-		match::Pattern::ref get_pattern(types::type_t::ref type, env_ref_t env) const override;
+		match::Pattern::ref get_pattern(types::type_t::ref type, const translation_env_t &env) const override;
 		types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
 		location_t get_location() const override;
 
@@ -157,7 +159,7 @@ namespace bitter {
 		std::ostream &render(std::ostream &os, int parent_precedence) override;
 
 		std::ostream &render(std::ostream &os) const override;
-		match::Pattern::ref get_pattern(types::type_t::ref type, env_ref_t env) const override;
+		match::Pattern::ref get_pattern(types::type_t::ref type, const translation_env_t &env) const override;
 		types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
 		location_t get_location() const override;
 
@@ -271,11 +273,14 @@ namespace bitter {
 			   	const std::vector<decl_t *> &decls,
 			   	const std::vector<type_decl_t> &type_decls,
 			   	const std::vector<type_class_t *> &type_classes,
-			   	const std::vector<instance_t *> &instances) :
+			   	const std::vector<instance_t *> &instances,
+				const data_ctors_map_t &data_ctors_map) :
 		   	name(name),
 		   	decls(decls),
 		   	type_decls(type_decls),
-		   	type_classes(type_classes), instances(instances)
+		   	type_classes(type_classes),
+		   	instances(instances),
+			data_ctors_map(data_ctors_map)
 		{}
 
 		std::string const name;
@@ -283,6 +288,7 @@ namespace bitter {
 		std::vector<type_decl_t> const type_decls;
 		std::vector<type_class_t *> const type_classes;
 		std::vector<instance_t *> const instances;
+		data_ctors_map_t const data_ctors_map;
 	};
 
 	struct program_t {
