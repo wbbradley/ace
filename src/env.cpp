@@ -4,6 +4,10 @@
 #include <iostream>
 #include "ast.h"
 
+std::vector<std::pair<std::string, types::type_t::refs>> env_t::get_ctors(types::type_t::ref type) const {
+	return {};
+}
+
 types::type_t::ref env_t::maybe_lookup_env(identifier_t id) const {
 	auto iter = map.find(id.name);
 	if (iter != map.end()) {

@@ -6,10 +6,7 @@
 #include "ptr.h"
 #include "identifier.h"
 #include "scope.h"
-
-namespace types {
-	struct type_t;
-}
+#include "types.h"
 
 struct parse_state_t {
 	typedef log_level_t parse_error_level_t;
@@ -19,8 +16,9 @@ struct parse_state_t {
 			std::string filename,
 			std::string module_name,
 			zion_lexer_t &lexer,
-			std::vector<token_t> *comments=nullptr,
-			std::set<token_t> *link_ins=nullptr);
+			std::vector<token_t> &comments,
+			std::set<token_t> &link_ins,
+			data_ctors_map_t &data_ctors);
 
 	bool advance();
 	token_t token_and_advance();
@@ -39,8 +37,9 @@ struct parse_state_t {
 	/* top-level term remapping from "get" statements */
 	std::unordered_map<std::string, std::string> term_map;
 
-	std::vector<token_t> *comments;
-	std::set<token_t> *link_ins;
+	std::vector<token_t> &comments;
+	std::set<token_t> &link_ins;
+	data_ctors_map_t &data_ctors_map;
 
 	/* scoped expression contexts */
 	std::list<scope_t> scopes;

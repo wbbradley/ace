@@ -682,7 +682,7 @@ types::type_t::ref type_arrow(types::type_t::ref a, types::type_t::ref b) {
 }
 
 types::type_t::ref type_arrow(location_t location, types::type_t::ref a, types::type_t::ref b) {
-	return type_operator(type_operator(type_id(identifier_t{"->", location}), a), b);
+	return type_operator(type_operator(type_id(identifier_t{ARROW_TYPE_OPERATOR, location}), a), b);
 }
 
 types::type_t::ref type_arrows(types::type_t::refs types, int offset) {
@@ -776,4 +776,17 @@ std::ostream &join_dimensions(std::ostream &os, const types::type_t::refs &dimen
 
 bool is_valid_udt_initial_char(int ch) {
 	return ch == '_' || isupper(ch);
+}
+
+void unfold_binops_rassoc(std::string id, types::type_t::ref t, types::type_t::refs &unfolding) {
+	auto op = dyncast<const types::type_operator_t>(t);
+	if (op != nullptr) {
+		auto nested_op = dyncast<const types::type_operator_t>(op->oper);
+ 		if (is_type_id(nested_op->oper, id, {})) {
+			unfolding.push_back(nested_op->operand);
+			unfold_binops_rassoc(id, op->operand, unfolding);
+			return;
+		}
+	}
+	unfolding.push_back(t);
 }

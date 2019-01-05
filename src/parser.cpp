@@ -1365,6 +1365,20 @@ type_decl_t parse_type_decl(parse_state_t &ps) {
 	return {class_id, params};
 }
 
+types::type_t::ref create_ctor_type(
+		location_t location,
+	   	const type_decl_t &type_decl,
+	   	types::type_t::refs param_types)
+{
+	param_types.push_back(type_decl.get_type());
+	auto type = type_arrows(param_types);
+
+	for (int i=type_decl.params.size()-1; i>=0; --i) {
+		type = type_lambda(type_decl.params[i], type);
+	}
+	return type;
+}
+
 expr_t *create_ctor(
 		location_t location,
 	   	int ctor_id,
@@ -1405,15 +1419,16 @@ struct data_type_decl_t {
 	std::vector<decl_t *> decls;
 };
 
-data_type_decl_t parse_data_type_decl(parse_state_t &ps) {
+data_type_decl_t parse_data_type_decl(parse_state_t &ps, data_ctors_t &data_ctors) {
 	auto type_decl = parse_type_decl(ps);
 	std::vector<decl_t *> decls;
+	//std::map<std::string, types::type_t::ref> 
 
 	chomp_token(tk_lcurly);
 	for (int i = 0; true; ++i) {
 		expect_token(tk_identifier);
 
-		auto type_id = iid(ps.token_and_advance());
+		auto ctor_id = iid(ps.token_and_advance());
 		types::type_t::refs param_types;
 		if (ps.token.tk == tk_lparen) {
 			ps.advance();
@@ -1431,7 +1446,8 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps) {
 		} else {
 			/* this is a constant (like an enum) */
 		}
-		decls.push_back(new decl_t(type_id, create_ctor(type_id.location, i, type_decl, param_types)));
+		data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl, param_types);
+		decls.push_back(new decl_t(ctor_id, create_ctor(ctor_id.location, i, type_decl, param_types)));
 		if (ps.token.tk == tk_rcurly) {
 			ps.advance();
 			break;
@@ -1570,11 +1586,13 @@ module_t *parse_module(
 		} else if (ps.token.is_ident(K(data))) {
 			/* module-level types */
 			ps.advance();
-			auto data_type = parse_data_type_decl(ps);
+			data_ctors_t data_ctors;
+			auto data_type = parse_data_type_decl(ps, data_ctors);
 			type_decls.push_back(data_type.type_decl);
 			for (auto &decl : data_type.decls) {
 				decls.push_back(decl);
 			}
+			ps.data_ctors_map[data_type.type_decl.id.name] = data_ctors;
 		} else if (ps.token.is_ident(K(let))) {
 			/* module-level constants */
 			ps.advance();

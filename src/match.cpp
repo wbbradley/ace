@@ -51,10 +51,14 @@ namespace match {
 
 	struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
 		maybe<identifier_t> name;
-		env_t::ref env;
+		const env_t &env;
 		types::type_t::ref type;
 
-		AllOf(location_t location, maybe<identifier_t> name, env_t::ref env, types::type_t::ref type) :
+		AllOf(
+				location_t location,
+				maybe<identifier_t> name,
+				const env_t &env,
+				types::type_t::ref type) :
 			Pattern(location),
 			name(name),
 			env(env),
@@ -131,7 +135,12 @@ namespace match {
 	std::shared_ptr<Scalars<int64_t>> allIntegers = std::make_shared<Scalars<int64_t>>(INTERNAL_LOC(), Scalars<int64_t>::Exclude, std::set<int64_t>{});
 	std::shared_ptr<Scalars<std::string>> allStrings = std::make_shared<Scalars<std::string>>(INTERNAL_LOC(), Scalars<std::string>::Exclude, std::set<std::string>{});
 
-	Pattern::ref all_of(location_t location, maybe<identifier_t> expr, env_t::ref env, types::type_t::ref type) {
+	Pattern::ref all_of(
+			location_t location,
+		   	maybe<identifier_t> expr, 
+			const env_t &env,
+			types::type_t::ref type)
+   	{
 		return std::make_shared<match::AllOf>(location, expr, env, type);
 	}
 
@@ -358,39 +367,8 @@ namespace match {
 		return nullptr;
 	}
 
-	Pattern::ref from_type(location_t location, env_t::ref env, type_t::ref type) {
-		assert(false);
-#if 0
-		// type = type->eval(env);
-		if (auto data_type = dyncast<const type_data_t>(type)) {
-			std::vector<CtorPatternValue> cpvs;
-
-			for (auto ctor_pair : data_type->ctor_pairs) {
-				std::vector<Pattern::ref> args;
-				args.reserve(ctor_pair.second->args.size());
-
-				for (size_t i = 0; i < ctor_pair.second->args.size(); ++i) {
-					args.push_back(
-							std::make_shared<AllOf>(location,
-								(ctor_pair.second->names.size() > i)
-							   	? maybe<identifier_t>(ctor_pair.second->names[i])
-							   	: maybe<identifier_t>(),
-								env,
-								ctor_pair.second->args[i]));
-				}
-
-				/* add a ctor */
-				cpvs.push_back(CtorPatternValue{type->repr(), ctor_pair.first.text, args});
-			}
-
-			if (cpvs.size() == 1) {
-				return std::make_shared<CtorPattern>(location, cpvs[0]);
-			} else if (cpvs.size() > 1) {
-				return std::make_shared<CtorPatterns>(location, cpvs);
-			} else {
-				throw user_error(INTERNAL_LOC(), "not implemented");
-			}
-		} else if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
+	Pattern::ref from_type(location_t location, const env_t &env, type_t::ref type) {
+		if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
 			std::vector<Pattern::ref> args;
 			for (auto dim : tuple_type->dimensions) {
 				args.push_back(from_type(location, env, dim));
@@ -401,16 +379,57 @@ namespace match {
 			return allStrings;
 		} else if (type_equality(type, type_int(INTERNAL_LOC()))) {
 			return allIntegers;
-		} else {
-			/* just accept all of whatever this is */
-			return std::make_shared<AllOf>(
-					type->get_location(),
-					maybe<identifier_t>(identifier_t{string_format("AllOf(%s)", type->str().c_str()), type->get_location()}),
-					env,
-					type);
+		} else if (auto op = dyncast<const types::type_operator_t>(type)) {
+			if (auto id = dyncast<const types::type_id_t>(op->oper)) {
+				if (isupper(id->id.name[0])) {
+					auto ctors = env.get_ctors(type);
+					std::vector<CtorPatternValue> cpvs;
+
+					for (auto pair : ctors) {
+						auto &ctor_name = pair.first;
+						auto &ctor_terms = pair.second;
+
+						assert(ctor_terms.size() != 0);
+						// do earlier unfold_binops_rassoc(ARROW_TYPE_OPERATOR, get_type(ctor_decl->value), ctor_terms);
+
+						std::vector<Pattern::ref> args;
+						args.reserve(ctor_terms.size() - 1);
+
+						for (size_t i = 0; i < ctor_terms.size()-1; ++i) {
+							args.push_back(
+									std::make_shared<AllOf>(
+										location,
+										maybe<identifier_t>(),
+										env,
+										ctor_terms[i]));
+						}
+						/* add a ctor */
+						cpvs.push_back(CtorPatternValue{type->repr(), ctor_name, args});
+					}
+
+					if (cpvs.size() == 1) {
+						return std::make_shared<CtorPattern>(location, cpvs[0]);
+					} else if (cpvs.size() > 1) {
+						return std::make_shared<CtorPatterns>(location, cpvs);
+					} else {
+						throw user_error(INTERNAL_LOC(), "not implemented");
+					}
+				} else {
+					throw user_error(location, "wtf");
+				}
+			} else {
+				throw user_error(location, "wtf2");
+			}
 		}
-#endif
-		return nullptr;
+
+		auto mi = maybe<identifier_t>(identifier_t{string_format("AllOf(%s)", type->str().c_str()), type->get_location()});
+
+		/* just accept all of whatever this is */
+		return std::make_shared<AllOf>(
+				type->get_location(),
+				mi,
+				env,
+				type);
 	}
 
 	void difference(

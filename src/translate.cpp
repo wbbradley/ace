@@ -1,5 +1,6 @@
 #include "translate.h"
 #include <unordered_set>
+#include "patterns.h"
 
 using namespace bitter;
 
@@ -112,6 +113,14 @@ expr_t *texpr(
 		auto new_tuple = new tuple_t(tuple->get_location(), dims);
 		typing[new_tuple] = type;
 		return new_tuple;
+	} else if (auto match = dcast<match_t*>(expr)) {
+		return translate_match_expr(
+				for_defn_id,
+				match,
+				bound_vars,
+				get_type,
+				typing,
+				needed_defns);
 	} else if (auto as = dcast<as_t*>(expr)) {
 		auto expr = texpr(
 				for_defn_id,
