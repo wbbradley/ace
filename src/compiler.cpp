@@ -199,7 +199,7 @@ namespace compiler {
 				top_level_decls.insert(overload_pair.first);
 			}
 		}
-		log("tlds are %s", ::join(top_level_decls, ", ").c_str());
+		debug_above(8, log("tlds are %s", ::join(top_level_decls, ", ").c_str()));
 		return top_level_decls;
 	}
 

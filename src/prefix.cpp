@@ -50,6 +50,8 @@ predicate_t *prefix(
 			new_params.push_back(prefix(bindings, pre, param, new_symbols));
 		}
 		return new ctor_predicate_t(p->location, new_params, prefix(bindings, pre, p->ctor_name), p->name_assignment);
+	} else if (auto p = dcast<literal_t *>(predicate)) {
+		return p;
 	} else {
 		assert(false);
 		return nullptr;

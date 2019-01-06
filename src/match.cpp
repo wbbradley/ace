@@ -625,7 +625,7 @@ namespace match {
 		if (name.valid) {
 			ss << name.t;
 		} else {
-			ss << "<no name>";
+			ss << "_";
 		}
 		return ss.str();
 	}

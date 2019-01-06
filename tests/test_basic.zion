@@ -1,6 +1,6 @@
-fn foo() => Left(3)
+fn foo() => Left(Right(3))
 
 fn main() => match foo() {
-    Left(x)  => ExitOK
-    Right(y) => ExitError(y)
+    Left(Right(x))  => ExitOK
+    _ => ExitError(0)
 }

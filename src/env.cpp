@@ -11,6 +11,7 @@ std::vector<std::pair<std::string, types::type_t::refs>> env_t::get_ctors(types:
 types::type_t::ref env_t::maybe_lookup_env(identifier_t id) const {
 	auto iter = map.find(id.name);
 	if (iter != map.end()) {
+		// log_location(id.location, "found %s :: %s", id.str().c_str(), iter->second->str().c_str());
 		return iter->second->instantiate(id.location);
 	} else {
 		return nullptr;

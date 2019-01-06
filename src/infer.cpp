@@ -7,12 +7,18 @@
 
 using namespace bitter;
 
+const bool dbg_show_constraints = getenv("ZION_SHOW_CONSTRAINTS") != nullptr;
+
 void append(constraints_t &constraints, types::type_t::ref a, types::type_t::ref b, constraint_info_t info) {
-	debug_above(6, log_location(info.location,
-				"constraining %s == %s because %s",
+	if (dbg_show_constraints) {
+		log_location(info.location,
+				"constraining a: %s b: %s because %s",
 				a->str().c_str(),
 				b->str().c_str(),
-				info.reason.c_str()));
+				info.reason.c_str());
+		log_location(a->get_location(), "a: %s", a->str().c_str());
+		log_location(b->get_location(), "b: %s", b->str().c_str());
+	}
 	assert(a != nullptr);
 	assert(b != nullptr);
 	constraints.push_back({a, b, info});
@@ -39,7 +45,7 @@ types::type_t::ref infer_core(
 		}
 	} else if (auto var = dcast<var_t*>(expr)) {
 		auto t1 = env.lookup_env(var->id);
-		debug_above(8, log("instance of %s :: %s", var->id.str().c_str(), t1->str().c_str()));
+		// log("instance of %s :: %s", var->id.str().c_str(), t1->str().c_str());
 		return t1;
 	} else if (auto lambda = dcast<lambda_t*>(expr)) {
 		auto tv = lambda->param_type != nullptr ? lambda->param_type : type_variable(lambda->var.location);
@@ -210,7 +216,7 @@ types::type_t::ref irrefutable_predicate_t::infer(env_t &env, constraints_t &con
 types::type_t::ref ctor_predicate_t::infer(env_t &env, constraints_t &constraints) const {
 	types::type_t::refs ctor_params = env.get_fresh_data_ctor_terms(ctor_name);
 
-	log("got fresh ctor params %s%s", ctor_name.str().c_str(), ::str(ctor_params).c_str());
+	debug_above(8, log("got fresh ctor params %s :: %s", ctor_name.str().c_str(), ::join_str(ctor_params, " -> ").c_str()));
 
 	if (ctor_params.size() - 1 != params.size()) {
 		throw user_error(get_location(), "incorrect number of sub-patterns given to %s (%d vs. %d) %s %s",
@@ -227,7 +233,7 @@ types::type_t::ref ctor_predicate_t::infer(env_t &env, constraints_t &constraint
 		append(constraints, tp, ctor_params[i], {string_format("checking subpattern %s", params[i]->str().c_str()), params[i]->get_location()});
 	}
 
-	log("ctor_predicate_t::infer(...) -> %s", ctor_params.back()->str().c_str());
+	debug_above(8, log("ctor_predicate_t::infer(...) -> %s", ctor_params.back()->str().c_str()));
 	return ctor_params.back();
 }
 
