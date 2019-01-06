@@ -1,10 +1,13 @@
-data Three a b c {
-    One(a, b)
-    Two(b, c)
-    Three(a, c)
+data Numbers x z {
+    One(x, x)
+    Two(z, z)
+    Three(x, z)
 }
 
-fn main() => match Three(3, "hey") {
-    One(a, b) => ExitError(a)
+fn foo() => 3
+
+fn main() => match Three(foo(), "hey") {
+    One(a, _) => ExitError(a)
     Two(_, _) => ExitOK
+    Three(_, _) => ExitOK
 }

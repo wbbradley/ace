@@ -196,8 +196,8 @@ types::type_t::refs translation_env_t::get_data_ctor_terms(types::type_t::ref ty
 	assert(type_terms.size() != 0);
 
 	auto id = safe_dyncast<const types::type_id_t>(type_terms[0]);
-	log("looking for %s in data_ctors_map of size %d", id->str().c_str(), int(data_ctors_map.size()));
-	log("%s", ::str(data_ctors_map).c_str());
+	debug_above(7, log("looking for %s in data_ctors_map of size %d", id->str().c_str(), int(data_ctors_map.size())));
+	debug_above(8, log("%s", ::str(data_ctors_map).c_str()));
 	auto iter = data_ctors_map.find(id->id.name);
 	assert(iter != data_ctors_map.end());
 	auto &data_ctors = iter->second;
@@ -207,14 +207,14 @@ types::type_t::refs translation_env_t::get_data_ctor_terms(types::type_t::ref ty
 		throw user_error(ctor_id.location, "data ctor %s does not exist", ctor_id.str().c_str());
 	}
 
-	log("starting with ctor_type as %s and type_terms as %s",
+	debug_above(7, log("starting with ctor_type as %s and type_terms as %s",
 		   	ctor_type->str().c_str(),
-			::str(type_terms).c_str());
+			::str(type_terms).c_str()));
 
 	for (int i=1; i<type_terms.size(); ++i) {
 		ctor_type = ctor_type->apply(type_terms[i]);
 	}
-	log("resolved ctor_type as %s", ctor_type->str().c_str());
+	debug_above(7, log("resolved ctor_type as %s", ctor_type->str().c_str()));
 
 	types::type_t::refs ctor_terms;
 	unfold_binops_rassoc(ARROW_TYPE_OPERATOR, ctor_type, ctor_terms);
@@ -227,8 +227,8 @@ std::map<std::string, types::type_t::refs> translation_env_t::get_data_ctors_ter
 	assert(type_terms.size() != 0);
 
 	auto id = safe_dyncast<const types::type_id_t>(type_terms[0]);
-	log("looking for %s in data_ctors_map of size %d", id->str().c_str(), int(data_ctors_map.size()));
-	log("%s", ::str(data_ctors_map).c_str());
+	debug_above(7, log("looking for %s in data_ctors_map of size %d", id->str().c_str(), int(data_ctors_map.size())));
+	debug_above(7, log("%s", ::str(data_ctors_map).c_str()));
 	auto iter = data_ctors_map.find(id->id.name);
 	assert(iter != data_ctors_map.end());
 	auto &data_ctors = iter->second;
@@ -236,14 +236,14 @@ std::map<std::string, types::type_t::refs> translation_env_t::get_data_ctors_ter
 
 	for (auto pair : data_ctors) {
 		auto ctor_type = pair.second;
-		log("starting with ctor_type as %s and type_terms as %s",
+		debug_above(7, log("starting with ctor_type as %s and type_terms as %s",
 				ctor_type->str().c_str(),
-				::str(type_terms).c_str());
+				::str(type_terms).c_str()));
 
 		for (int i=1; i<type_terms.size(); ++i) {
 			ctor_type = ctor_type->apply(type_terms[i]);
 		}
-		log("resolved ctor_type as %s", ctor_type->str().c_str());
+		debug_above(7, log("resolved ctor_type as %s", ctor_type->str().c_str()));
 
 		types::type_t::refs ctor_terms;
 		unfold_binops_rassoc(ARROW_TYPE_OPERATOR, ctor_type, ctor_terms);

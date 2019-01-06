@@ -82,6 +82,8 @@ void check(identifier_t id, expr_t *expr, env_t &env) {
 	auto scheme = ty->generalize(env.get_predicate_map())->normalize();
 	// log("NORMALIED ty = %s", n->str().c_str());
 
+	// log_location(id.location, "adding %s to env as %s", id.str().c_str(), scheme->str().c_str());
+	// log_location(id.location, "let %s = %s", id.str().c_str(), expr->str().c_str());
 	env.extend(id, scheme, false /*allow_subscoping*/);
 
 	if (debug_types) {

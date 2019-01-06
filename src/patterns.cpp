@@ -183,7 +183,7 @@ expr_t *translate_match_expr(
 	bool *returns = &returns_;
 	auto expected_type = tenv.get_type(match);
 
-	log("match expression is expecting type %s", expected_type->str().c_str());
+	debug_above(6, log("match expression is expecting type %s", expected_type->str().c_str()));
 
 	auto pattern_value = texpr(for_defn_id, match->scrutinee, bound_vars, tenv, typing, needed_defns);
 
