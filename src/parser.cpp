@@ -26,6 +26,10 @@ expr_t *parse_lambda(parse_state_t &ps);
 match_t *parse_match(parse_state_t &ps);
 predicate_t *parse_predicate(parse_state_t &ps, bool allow_else, maybe<identifier_t> name_assignment);
 
+identifier_t make_accessor_id(identifier_t id) {
+	return identifier_t{"__get_" + id.name, id.location};
+}
+
 bool token_begins_type(const token_t &token) {
 	switch (token.tk) {
 	case tk_integer:
@@ -258,7 +262,7 @@ expr_t *parse_new_expr(parse_state_t &ps) {
 	ps.advance();
 	return new as_t(
 			new application_t(
-				new var_t({"new", ps.token.location}),
+				new var_t(ps.id_mapped({"new", ps.prior_token.location})),
 				unit_expr(ps.token.location)),
 			parse_type(ps),
 			false /*force_cast*/);
@@ -281,28 +285,22 @@ expr_t *parse_statement(parse_state_t &ps) {
 		return parse_for_block(ps);
 	} else if (ps.token.is_ident(K(match))) {
 		return parse_match(ps);
-	// } else if (ps.token.is_ident(K(with))) {
-		// return parse_with_block(ps);
-} else if (ps.token.is_ident(K(new))) {
-	return parse_new_expr(ps);
-} else if (ps.token.is_ident(K(fn))) {
-	ps.advance();
-	if (ps.token.tk == tk_identifier) {
-		return new let_t(
-				identifier_t::from_token(ps.token),
-				parse_lambda(ps),
-				parse_block(ps, false /*expression_means_return*/));
-	} else {
-		return parse_lambda(ps);
-	}
-} else if (ps.token.is_ident(K(return))) {
-	return parse_return_statement(ps);
-} else if (ps.token.is_ident(K(unreachable))) {
-	return new var_t(iid(ps.token));
-	// } else if (ps.token.is_ident(K(type))) {
-	// return parse_type_def_t::parse(ps);
-	// } else if (ps.token.is_ident(K(defer))) {
-	// return defer_t::parse(ps);
+	} else if (ps.token.is_ident(K(new))) {
+		return parse_new_expr(ps);
+	} else if (ps.token.is_ident(K(fn))) {
+		ps.advance();
+		if (ps.token.tk == tk_identifier) {
+			return new let_t(
+					identifier_t::from_token(ps.token),
+					parse_lambda(ps),
+					parse_block(ps, false /*expression_means_return*/));
+		} else {
+			return parse_lambda(ps);
+		}
+	} else if (ps.token.is_ident(K(return))) {
+		return parse_return_statement(ps);
+	} else if (ps.token.is_ident(K(unreachable))) {
+		return new var_t(iid(ps.token));
 	} else if (ps.token.is_ident(K(continue))) {
 		return new continue_t(ps.token_and_advance().location);
 	} else if (ps.token.is_ident(K(break))) {
@@ -337,8 +335,11 @@ expr_t *parse_base_expr(parse_state_t &ps) {
 	} else if (ps.token.is_ident(K(fix))) {
 		ps.advance();
 		return new fix_t(parse_base_expr(ps));
-	// } else if (ps.token.is_ident(K(match))) {
-		// return parse_match(ps);
+	} else if (ps.token.is_ident(K(null))) {
+		return new as_t(
+				new literal_t(token_t{ps.token.location, tk_integer, "0"}),
+				scheme({"a"}, {}, type_ptr(type_variable(make_iid("a")))),
+				true /*force_cast*/);
 	} else if (ps.token.tk == tk_identifier) {
 		return parse_var_ref(ps);
 	} else {
@@ -1219,6 +1220,7 @@ types::type_t::ref parse_tuple_type(parse_state_t &ps) {
 }
 
 types::type_t::ref parse_square_type(parse_state_t &ps) {
+	auto location = ps.token.location;
 	chomp_token(tk_lsquare);
 	auto lhs = parse_type(ps);
 	if (ps.token.tk == tk_colon) {
@@ -1228,7 +1230,7 @@ types::type_t::ref parse_square_type(parse_state_t &ps) {
 		return type_map(lhs, rhs);
 	} else {
 		chomp_token(tk_rsquare);
-		return type_operator(type_id(identifier_t{"Vector", ps.token.location}), lhs);
+		return type_operator(type_id(identifier_t{VECTOR_TYPE, location}), lhs);
 	}
 }
 
@@ -1243,6 +1245,9 @@ types::type_t::ref parse_named_type(parse_state_t &ps) {
 types::type_t::ref parse_type(parse_state_t &ps) {
 	/* look for type application */
 	std::vector<types::type_t::ref> types;
+	if (ps.line_broke()) {
+		throw user_error(ps.token.location, "encountered a line break where a type annotation was expected");
+	}
 
 	while (token_begins_type(ps.token) && !ps.line_broke()) {
 		if (ps.token.tk == tk_lparen) {
@@ -1254,6 +1259,9 @@ types::type_t::ref parse_type(parse_state_t &ps) {
 			types.push_back(parse_function_type(ps));
 		} else if (ps.token.tk == tk_identifier) {
 			types.push_back(parse_named_type(ps));
+		} else if (ps.token.tk == tk_times) {
+			ps.advance();
+			types.push_back(type_ptr(parse_type(ps)));
 		} else {
 			auto error = user_error(ps.token.location, "unhandled syntax for type specification");
 			error.add_info(ps.token.location, "type components found so far: [%s]",
@@ -1292,7 +1300,7 @@ type_decl_t parse_type_decl(parse_state_t &ps) {
 			break;
 		}
 	}
-	return {class_id, params};
+	return type_decl_t{class_id, params};
 }
 
 types::type_t::ref create_ctor_type(
@@ -1311,13 +1319,15 @@ types::type_t::ref create_ctor_type(
 
 expr_t *create_ctor(
 		location_t location,
-	   	int ctor_id,
+	   	maybe<int> ctor_id,
 	   	const type_decl_t &type_decl,
 	   	types::type_t::refs param_types)
 {
 	std::vector<expr_t *> dims;
-	/* add the ctor's id value as the first element in the tuple */
-	dims.push_back(new literal_t({location, tk_integer, string_format("%d", ctor_id)}));
+	if (ctor_id.valid) {
+		/* add the ctor's id value as the first element in the tuple */
+		dims.push_back(new literal_t({location, tk_integer, string_format("%d", ctor_id.t)}));
+	}
 
 	std::vector<identifier_t> params;
 	for (int i = 0; i < param_types.size(); ++i) {
@@ -1332,7 +1342,8 @@ expr_t *create_ctor(
 				type_decl.get_type(),
 				true /*force_cast*/);
 
-	assert(dims.size() == params.size() + 1);
+	assert_implies(ctor_id.valid, dims.size() == params.size() + 1);
+	assert_implies(!ctor_id.valid, dims.size() == params.size());
 	for (int i = params.size()-1; i >= 0; --i) {
 		/* (λx y z . return! (ctor_id, x, y, z) as! type_decl) */
 		expr = new lambda_t(params[i], param_types[i], nullptr, new return_statement_t(expr));
@@ -1345,6 +1356,61 @@ struct data_type_decl_t {
 	type_decl_t type_decl;
 	std::vector<decl_t *> decls;
 };
+
+data_type_decl_t parse_struct_decl(parse_state_t &ps, types::type_t::map &data_ctors) {
+	auto type_decl = parse_type_decl(ps);
+	std::vector<decl_t *> decls;
+	types::type_t::refs dims;
+	identifiers_t member_ids;
+
+	chomp_token(tk_lcurly);
+	for (int i = 0; true; ++i) {
+		if (ps.token.tk == tk_rcurly) {
+			break;
+		}
+		expect_token(tk_identifier);
+
+		if (!islower(ps.token.text[0])) {
+			throw user_error(ps.token.location, "struct members must begin with lowercase letters");
+		}
+
+		member_ids.push_back(iid(ps.token_and_advance()));
+		dims.push_back(parse_type(ps));
+	}
+
+	for (int i=0; i<dims.size(); ++i) {
+		decls.push_back(
+				new decl_t(
+					/* accessor function names look like __.x */
+					make_accessor_id(member_ids[i]),
+					new lambda_t(
+						identifier_t{"obj", member_ids[i].location},
+						type_decl.get_type(),
+						dims[i],
+						new return_statement_t(
+							new tuple_deref_t(
+								new as_t(
+									new var_t(identifier_t{"obj", member_ids[i].location}),
+									type_tuple(dims),
+									true /*force_cast*/),
+								i,
+								dims.size())))));
+	}
+
+	chomp_token(tk_rcurly);
+
+	/* there is only one ctor for structs which are just product types */
+	auto ctor_id = type_decl.id;
+
+	data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl, dims);
+	decls.push_back(
+			new decl_t(
+				ctor_id,
+				create_ctor(ctor_id.location, maybe<int>(0, false/*valid*/), type_decl, dims)));
+	// log("parsed struct with decls %s", join_str(decls, ", ").c_str());
+
+	return {type_decl, decls};
+}
 
 data_type_decl_t parse_data_type_decl(parse_state_t &ps, types::type_t::map &data_ctors) {
 	auto type_decl = parse_type_decl(ps);
@@ -1373,7 +1439,7 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps, types::type_t::map &dat
 			/* this is a constant (like an enum) */
 		}
 		data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl, param_types);
-		decls.push_back(new decl_t(ctor_id, create_ctor(ctor_id.location, i, type_decl, param_types)));
+		decls.push_back(new decl_t(ctor_id, create_ctor(ctor_id.location, maybe<int>(i), type_decl, param_types)));
 		if (ps.token.tk == tk_rcurly) {
 			ps.advance();
 			break;
@@ -1509,6 +1575,16 @@ module_t *parse_module(
 			ps.advance();
 			auto id = identifier_t::from_token(ps.token_and_advance());
 			decls.push_back(new decl_t(id, parse_lambda(ps)));
+		} else if (ps.token.is_ident(K(struct))) {
+			ps.advance();
+			types::type_t::map data_ctors;
+			auto data_type = parse_struct_decl(ps, data_ctors);
+			type_decls.push_back(data_type.type_decl);
+			for (auto &decl : data_type.decls) {
+				decls.push_back(decl);
+			}
+			ps.newtypes.insert(data_type.type_decl.id);
+			ps.data_ctors_map[data_type.type_decl.id.name] = data_ctors;
 		} else if (ps.token.is_ident(K(data))) {
 			/* module-level types */
 			ps.advance();
@@ -1540,7 +1616,7 @@ module_t *parse_module(
 	if (ps.token.tk != tk_none) {
 		throw user_error(ps.token.location, "unknown stuff here");
 	}
-	return new module_t(ps.module_name, decls, type_decls, type_classes, instances, ps.data_ctors_map);
+	return new module_t(ps.module_name, decls, type_decls, type_classes, instances, ps.data_ctors_map, ps.newtypes);
 }
 
 #if 0

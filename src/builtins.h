@@ -15,5 +15,5 @@ extern const char *FLOAT_TYPE;
 extern const char *MBS_TYPE;
 extern const char *PTR_TO_MBS_TYPE;
 extern const char *TYPEID_TYPE;
-extern const char *STR_TYPE;
 extern const char *ARROW_TYPE_OPERATOR;
+extern const char *VECTOR_TYPE;

@@ -200,6 +200,14 @@ namespace bitter {
 		}
 		return os << ")";
 	}
+	location_t tuple_deref_t::get_location() {
+		return expr->get_location();
+	}
+	std::ostream &tuple_deref_t::render(std::ostream &os, int parent_precedence) {
+		const int precedence = 20;
+		expr->render(os, precedence);
+		return os << "[" << index << " of " << max << "]";
+	}
 	location_t conditional_t::get_location() {
 		return cond->get_location();
 	}

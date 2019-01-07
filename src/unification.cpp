@@ -41,7 +41,13 @@ bool type_equality(types::type_t::ref a, types::type_t::ref b) {
 		if (auto to_b = dyncast<const type_operator_t>(b)) {
 			return (
 					type_equality(to_a->oper, to_b->oper) &&
-				   	type_equality(to_a->operand, to_b->operand));
+					type_equality(to_a->operand, to_b->operand));
+		} else {
+			return false;
+		}
+	} else if (auto tp_a = dyncast<const type_ptr_t>(a)) {
+		if (auto tp_b = dyncast<const type_ptr_t>(b)) {
+			return type_equality(tp_a->element_type, tp_b->element_type);
 		} else {
 			return false;
 		}
@@ -114,6 +120,10 @@ types::type_t::map unify(type_t::ref a, type_t::ref b, env_t &env) {
 			return unify_many(
 					{to_a->oper, to_a->operand}, 
 					{to_b->oper, to_b->operand}, env);
+		}
+	} else if (auto tp_a = dyncast<const type_ptr_t>(a)) {
+		if (auto tp_b = dyncast<const type_ptr_t>(b)) {
+			return unify(tp_a->element_type, tp_b->element_type, env);
 		}
 	} else if (auto tup_a = dyncast<const type_tuple_t>(a)) {
 		if (auto tup_b = dyncast<const type_tuple_t>(b)) {

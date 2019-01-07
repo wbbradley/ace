@@ -31,18 +31,7 @@ types::type_t::ref infer_core(
 {
 	debug_above(8, log("infer(%s, ..., ...)", expr->str().c_str()));
 	if (auto literal = dcast<literal_t *>(expr)) {
-		switch (literal->token.tk) {
-		case tk_integer:
-			return type_id(identifier_t{INT_TYPE, literal->token.location});
-		case tk_float:
-			return type_id(identifier_t{FLOAT_TYPE, literal->token.location});
-		case tk_string:
-			return type_id(identifier_t{STR_TYPE, literal->token.location});
-		case tk_char:
-			return type_id(identifier_t{CHAR_TYPE, literal->token.location});
-		default:
-			throw user_error(literal->token.location, "unsupported type of literal");
-		}
+		return literal->infer(env, constraints);
 	} else if (auto var = dcast<var_t*>(expr)) {
 		auto t1 = env.lookup_env(var->id);
 		// log("instance of %s :: %s", var->id.str().c_str(), t1->str().c_str());
@@ -141,6 +130,15 @@ types::type_t::ref infer_core(
 			dimensions.push_back(infer(dim, env, constraints));
 		}
 		return type_tuple(dimensions);
+	} else if (auto tuple_deref = dcast<tuple_deref_t*>(expr)) {
+		types::type_t::refs dims;
+		for (int i=0;i<tuple_deref->max;++i) {
+			dims.push_back(type_variable(INTERNAL_LOC()));
+		}
+		auto t1 = infer(tuple_deref->expr, env, constraints);
+		auto tuple = type_tuple(dims);
+		append(constraints, t1, tuple, {string_format("dereferencing tuple index %d of %d", tuple_deref->index, tuple_deref->max), expr->get_location()});
+		return dims[tuple_deref->index];
 	} else if (auto as = dcast<as_t*>(expr)) {
 		auto t1 = infer(as->expr, env, constraints);
 		if (!as->force_cast) {
@@ -189,7 +187,7 @@ types::type_t::ref literal_t::infer(env_t &env, constraints_t &constraints) cons
 	case tk_float:
 		return type_id(identifier_t{FLOAT_TYPE, token.location});
 	case tk_string:
-		return type_id(identifier_t{STR_TYPE, token.location});
+		return type_string(token.location);
 	case tk_char:
 		return type_id(identifier_t{CHAR_TYPE, token.location});
 	default:

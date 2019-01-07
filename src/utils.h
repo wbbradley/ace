@@ -91,6 +91,7 @@ struct maybe {
 	maybe() {}
 	maybe(const T &&t) : t(std::move(t)), valid(true) {}
 	maybe(const T &t) : t(t), valid(true) {}
+	maybe(const T t, bool valid) : t(t), valid(valid) {}
 #if 0
 	maybe(const T *rhs) : valid(bool(rhs != nullptr)) {
 		if (rhs) {

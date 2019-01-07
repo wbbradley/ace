@@ -1,14 +1,18 @@
+data Bool {
+    False
+    True
+}
+
 class HasDefault a {
     fn new() a
 }
 
-data Ref a {
-    Ref(a)
+class Show a {
+    fn str(a) [Char]
 }
 
-data Bool {
-    False
-    True
+data Ref a {
+    Ref(a)
 }
 
 class Eq a {
@@ -106,5 +110,19 @@ data Either a b {
     Right(b)
 }
 
+struct Vector a {
+    array Ref *a
+    size Ref Int
+    capacity Ref Int
+}
+
+instance HasDefault [a] {
+    fn new() {
+        return Vector(Ref(null as *a), Ref(0), Ref(0))
+    }
+}
+
 let unit = ()
-let id = fn (x) => x
+fn id(x) => x
+fn print(x) => __builtin_print(str(x))
+

@@ -153,6 +153,16 @@ namespace bitter {
 		std::vector<expr_t *> const dims;
 	};
 
+	struct tuple_deref_t : public expr_t {
+		tuple_deref_t(expr_t * expr, int index, int max) : expr(expr), index(index), max(max) {}
+
+		location_t get_location() override;
+		std::ostream &render(std::ostream &os, int parent_precedence) override;
+
+		expr_t *expr;
+		int index, max;
+	};
+
 	struct literal_t : public expr_t, public predicate_t {
 		literal_t(token_t token) : token(token) {}
 		location_t get_location() override;
@@ -224,8 +234,9 @@ namespace bitter {
 	struct type_decl_t {
 		type_decl_t(identifier_t id, const identifiers_t &params) : id(id), params(params) {}
 
-		identifier_t const id;
+		identifier_t  const id;
 		identifiers_t const params;
+
 		types::type_t::ref get_type() const;
 		int kind() const { return params.size() + 1; }
 	};
@@ -274,13 +285,15 @@ namespace bitter {
 			   	const std::vector<type_decl_t> &type_decls,
 			   	const std::vector<type_class_t *> &type_classes,
 			   	const std::vector<instance_t *> &instances,
-				const data_ctors_map_t &data_ctors_map) :
+				const data_ctors_map_t &data_ctors_map,
+				const std::set<identifier_t> &newtypes) :
 		   	name(name),
 		   	decls(decls),
 		   	type_decls(type_decls),
 		   	type_classes(type_classes),
 		   	instances(instances),
-			data_ctors_map(data_ctors_map)
+			data_ctors_map(data_ctors_map),
+			newtypes(newtypes)
 		{}
 
 		std::string const name;
@@ -289,6 +302,7 @@ namespace bitter {
 		std::vector<type_class_t *> const type_classes;
 		std::vector<instance_t *> const instances;
 		data_ctors_map_t const data_ctors_map;
+		std::set<identifier_t> const newtypes;
 	};
 
 	struct program_t {

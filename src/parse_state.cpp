@@ -72,6 +72,7 @@ void parse_state_t::error(const char *format, ...) {
 }
 
 void parse_state_t::add_term_map(location_t location, std::string key, std::string value) {
+	// log("adding %s to term map => %s", key.c_str(), value.c_str());
 	if (in(key, term_map)) {
 		throw user_error(location, "symbol imported twice");
 	}

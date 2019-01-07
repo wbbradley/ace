@@ -109,6 +109,7 @@ K(new);
 K(not);
 K(or);
 K(return);
+K(struct);
 K(to);
 K(var);
 K(match);
