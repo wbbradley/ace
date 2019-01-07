@@ -1,3 +1,11 @@
+class HasDefault a {
+    fn new() a
+}
+
+data Ref a {
+    Ref(a)
+}
+
 data Bool {
     False
     True

@@ -458,7 +458,7 @@ struct phase_2_t {
 phase_2_t compile(std::string user_program_name_) {
 	auto compilation = compiler::parse_program(user_program_name_);
 	if (compilation == nullptr) {
-		throw user_error(INTERNAL_LOC(), "a bad thing happened");
+		exit(EXIT_FAILURE);
 	}
 
 	program_t *program = compilation->program;

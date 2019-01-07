@@ -111,6 +111,7 @@ expr_t *parse_var_decl(parse_state_t &ps, bool is_let, bool allow_tuple_destruct
 }
 
 expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let) {
+	auto location = ps.token.location;
 	expr_t *initializer = nullptr;
 
 	if (!ps.line_broke() && (ps.token.tk == tk_assign || ps.token.tk == tk_becomes)) {
@@ -118,12 +119,12 @@ expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let) {
 		initializer = parse_expr(ps);
 	} else {
 		initializer = new application_t(
-				new var_t(make_iid("__init__")),
+				new var_t(make_iid("std.new")),
 				unit_expr(INTERNAL_LOC()));
 	}
 
 	if (!is_let) {
-		initializer = new application_t(new var_t(ps.id_mapped(make_iid("Ref"))), initializer);
+		initializer = new application_t(new var_t(ps.id_mapped(identifier_t{"Ref", location})), initializer);
 	}
 
 	return new let_t(var_id, initializer, parse_block(ps, false /*expression_means_return*/));
@@ -212,97 +213,35 @@ expr_t *wrap_with_iter(parse_state_t &ps, expr_t *expr) {
 }
 
 expr_t *parse_for_block(parse_state_t &ps) {
-	return unit_expr(INTERNAL_LOC());
-#if 0
-	auto for_token = ps.token;
-	ps.advance();
-
-	token_t param_id;
-	std::shared_ptr<tuple_expr_t> tuple_expr;
+	chomp_ident(K(for));
 
 	if (ps.token.tk == tk_lparen) {
-		tuple_expr = dyncast<tuple_expr_t>(tuple_expr_t::parse(ps));
-		if (tuple_expr == nullptr) {
-			throw user_error(ps.token.location, "expected a tuple of variable names");
-		}
+		// TODO: handle destructuring tuples
+		assert(false);
+		return nullptr;
 	} else {
 		expect_token(tk_identifier);
-		param_id = ps.token;
-		ps.advance();
+		auto var = iid(ps.token_and_advance());
+		auto in_token = ps.token;
+		chomp_ident(K(in));
+		auto iterable = parse_expr(ps);
+		auto block = parse_block(ps, false /*expression_means_return*/);
+		/*
+		 * let iter = iter(iterable) in while true {
+		 *     match iter() {
+		 *         Just(var) block
+		 *         Nothing   break
+		 *     }
+		 */
+		return new let_t(
+				var,
+				new application_t(
+					new var_t(identifier_t{"iter", in_token.location}),
+					iterable),
+				new while_t(
+					new var_t(identifier_t{"True", in_token.location}),
+					block));
 	}
-
-	token_t becomes_token;
-
-	chomp_ident(K(in));
-
-	auto expr = expression_t::parse(ps);
-	auto block = block_t::parse(ps, false /*expression_means_return*/);
-
-	/* create the iterator function by evaluating the `iterable` (for _ in `iterable` { ... }) */
-	auto iter_func_decl = create<var_decl_t>(token_t{expr->get_location(), tk_identifier, gensym(INTERNAL_LOC())->get_name()});
-	iter_func_decl->is_let_var = true;
-	iter_func_decl->parsed_type = parsed_type_t(type_variable(expr->get_location()));
-	iter_func_decl->initializer = wrap_with_iter(ps, expr);
-
-	/* call the iterator value (which is a function returned by the expression */
-	auto iter_token = token_t{expr->get_location(), tk_identifier, iter_func_decl->token.text};
-	auto iter_ref = create<reference_expr_t>(iter_token);
-	auto iter_callsite = create<callsite_expr_t>(iter_token);
-	iter_callsite->function_expr = iter_ref;
-
-	auto just_pattern = create<pattern_block_t>(for_token);
-	just_pattern->block = block;
-
-	token_t just_value_token = token_t{for_token.location, tk_identifier, gensym(INTERNAL_LOC())->get_name()};
-	if (tuple_expr != nullptr) {
-		auto destructured_tuple_decl = ast::create<ast::destructured_tuple_decl_t>(tuple_expr->token);
-		destructured_tuple_decl->is_let = false;
-		destructured_tuple_decl->lhs = tuple_expr;
-		assert(destructured_tuple_decl->lhs != nullptr);
-		destructured_tuple_decl->parsed_type = parsed_type_t(type_variable(tuple_expr->token.location));
-		destructured_tuple_decl->initializer = create<reference_expr_t>(just_value_token);
-
-		just_pattern->block->statements.insert(just_pattern->block->statements.begin(), destructured_tuple_decl);
-	} else {
-		auto just_var_decl = create<var_decl_t>(param_id);
-		just_var_decl->is_let_var = false;
-		just_var_decl->parsed_type = parsed_type_t(type_variable(param_id.location));
-		just_var_decl->initializer = create<reference_expr_t>(just_value_token);
-
-		just_pattern->block->statements.insert(just_pattern->block->statements.begin(), just_var_decl);
-	}
-
-	auto just_predicate = create<ctor_predicate_t>(token_t{for_token.location, tk_identifier, "Just"});
-	just_predicate->params.push_back(create<irrefutable_predicate_t>(just_value_token));
-	just_pattern->predicate = just_predicate;
-
-	auto break_block = create<block_t>(for_token);
-	break_block->statements.push_back(create<break_flow_t>(for_token));
-
-	auto nothing_pattern = create<pattern_block_t>(for_token);
-	nothing_pattern->block = break_block;
-
-	auto nothing_predicate = create<ctor_predicate_t>(token_t{for_token.location, tk_identifier, "Nothing"});
-	nothing_pattern->predicate = nothing_predicate;
-
-	auto match = create<match_expr_t>(for_token);
-	match->value = iter_callsite;
-	match->pattern_blocks.push_back(just_pattern);
-	match->pattern_blocks.push_back(nothing_pattern);
-
-	auto while_block = create<block_t>(block->token);
-	while_block->statements.push_back(match);
-
-	auto while_loop = create<while_block_t>(for_token);
-	while_loop->block = while_block;
-	while_loop->condition = create<reference_expr_t>(token_t{becomes_token.location, tk_identifier, "true"});
-
-	std::shared_ptr<block_t> outer_block = create<block_t>(for_token);
-	outer_block->statements.push_back(iter_func_decl);
-	outer_block->statements.push_back(while_loop);
-	// log_location(outer_block->get_location(), "created %s", outer_block->str().c_str());
-	return outer_block;
-#endif
 }
 
 expr_t *parse_defer(parse_state_t &ps) {
@@ -316,21 +255,13 @@ expr_t *parse_defer(parse_state_t &ps) {
 }
 
 expr_t *parse_new_expr(parse_state_t &ps) {
-	expr_t *init = new application_t(
-			new var_t({"__init__", ps.token.location}),
-			unit_expr(ps.token.location));
 	ps.advance();
-	// TODO: allow type specification here.
-#if 0
-	try {
-		types::type_t::ref type = types::parse_type(ps, {});
-		return new as_t(init, type);
-	} catch (user_error &e) {
-		std::throw_with_nested(user_error(init->get_location(), "while parsing unary operator new"));
-	}
-#else
-	return init;
-#endif
+	return new as_t(
+			new application_t(
+				new var_t({"new", ps.token.location}),
+				unit_expr(ps.token.location)),
+			parse_type(ps),
+			false /*force_cast*/);
 }
 
 expr_t *parse_statement(parse_state_t &ps) {
@@ -537,11 +468,10 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 				if (ps.token.tk == tk_colon) {
 					is_slice = true;
 					ps.advance();
-				} else {
-					chomp_token(tk_rsquare);
 				}
 
 				if (ps.token.tk == tk_rsquare) {
+					ps.advance();
 					expr = new application_t(
 							new application_t(
 								new var_t(ps.id_mapped(identifier_t{is_slice ? "__getslice2__" : "__getitem__", ps.token.location})),
