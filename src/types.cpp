@@ -15,7 +15,6 @@
 
 const char *NULL_TYPE = "null";
 const char *STD_MANAGED_TYPE = "var_t";
-const char *STD_VECTOR_TYPE = "vector.Vector";
 const char *STD_MAP_TYPE = "map.Map";
 const char *VOID_TYPE = "void";
 const char *BOTTOM_TYPE = "⊥";
@@ -230,7 +229,7 @@ namespace types {
 	}
 
 	std::ostream &type_operator_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		if (is_type_id(oper->rebind(bindings), STD_VECTOR_TYPE)) {
+		if (is_type_id(oper->rebind(bindings), VECTOR_TYPE)) {
 			os << "[";
 			operand->emit(os, bindings, 0);
 			return os << "]";
@@ -382,41 +381,41 @@ namespace types {
 		}
 	}
 
-	type_ref_t::type_ref_t(type_t::ref element_type) : element_type(element_type) {
+	type_ptr_t::type_ptr_t(type_t::ref element_type) : element_type(element_type) {
 	}
 
-	std::ostream &type_ref_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
+	std::ostream &type_ptr_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
 		parens_t parens(os, parent_precedence, get_precedence());
-		os << "&";
+		os << "*";
 		element_type->emit(os, bindings, get_precedence());
 		return os;
 	}
 
-	int type_ref_t::ftv_count() const {
+	int type_ptr_t::ftv_count() const {
 		return element_type->ftv_count();
 	}
 
-	predicate_map type_ref_t::get_predicate_map() const {
+	predicate_map type_ptr_t::get_predicate_map() const {
 		return element_type->get_predicate_map();
 	}
 
-	type_t::ref type_ref_t::rebind(const map &bindings) const {
+	type_t::ref type_ptr_t::rebind(const map &bindings) const {
 		if (bindings.size() == 0) {
 			return shared_from_this();
 		}
 
-		return ::type_ref(element_type->rebind(bindings));
+		return ::type_ptr(element_type->rebind(bindings));
 	}
 
-	type_t::ref type_ref_t::remap_vars(const std::map<std::string, std::string> &map) const {
-		return ::type_ref(element_type->remap_vars(map));
+	type_t::ref type_ptr_t::remap_vars(const std::map<std::string, std::string> &map) const {
+		return ::type_ptr(element_type->remap_vars(map));
 	}
 
-	type_t::ref type_ref_t::prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const {
-		return type_ref(element_type->prefix_ids(bindings, pre));
+	type_t::ref type_ptr_t::prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const {
+		return type_ptr(element_type->prefix_ids(bindings, pre));
 	}
 
-	location_t type_ref_t::get_location() const {
+	location_t type_ptr_t::get_location() const {
 		return element_type->get_location();
 	}
 
@@ -506,7 +505,7 @@ namespace types {
 	}
 
 	type_t::ref without_ref(type_t::ref type) {
-		if (auto ref = dyncast<const type_ref_t>(type)) {
+		if (auto ref = dyncast<const type_ptr_t>(type)) {
 			return ref->element_type;
 		} else {
 			return type;
@@ -633,8 +632,13 @@ types::type_t::ref type_bool(location_t location) {
 	return std::make_shared<types::type_id_t>(identifier_t{BOOL_TYPE, location});
 }
 
+types::type_t::ref type_vector_type(types::type_t::ref element) {
+	return type_operator(type_id(identifier_t{
+					VECTOR_TYPE, element->get_location()}), element);
+}
+
 types::type_t::ref type_string(location_t location) {
-	return std::make_shared<types::type_id_t>(identifier_t{STR_TYPE, location});
+	return type_vector_type(type_id(identifier_t{CHAR_TYPE, location}));
 }
 
 types::type_t::ref type_int(location_t location) {
@@ -705,18 +709,21 @@ types::type_t::ref type_arrows(types::type_t::refs types, int offset) {
 	}
 }
 
-types::type_t::ref type_ref(types::type_t::ref raw) {
-    assert(!dyncast<const types::type_ref_t>(raw));
-    return std::make_shared<types::type_ref_t>(raw);
+types::type_t::ref type_ptr(types::type_t::ref raw) {
+    assert(!dyncast<const types::type_ptr_t>(raw));
+    return std::make_shared<types::type_ptr_t>(raw);
 }
 
 types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body) {
     return std::make_shared<types::type_lambda_t>(binding, body);
 }
 
-types::type_t::ref type_vector_type(types::type_t::ref element) {
-	return type_operator(type_id(identifier_t{
-					STD_VECTOR_TYPE, element->get_location()}), element);
+types::type_t::ref type_tuple_accessor(int i, int max, const std::vector<std::string> &vars) {
+	types::type_t::refs dims;
+	for (int j=0; j<max; ++j) {
+		dims.push_back(type_variable(make_iid(vars[j])));
+	}
+	return type_arrows({type_tuple(dims), type_variable(make_iid(vars[i]))});
 }
 
 std::ostream& operator <<(std::ostream &os, const types::type_t::ref &type) {

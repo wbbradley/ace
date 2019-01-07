@@ -8,8 +8,6 @@
 struct env_t;
 
 extern const char *NULL_TYPE;
-extern const char *STD_MANAGED_TYPE;
-extern const char *STD_VECTOR_TYPE;
 extern const char *STD_MAP_TYPE;
 extern const char *VOID_TYPE;
 extern const char *BOTTOM_TYPE;
@@ -155,9 +153,9 @@ namespace types {
 		type_t::refs dimensions;
 	};
 
-	struct type_ref_t : public type_t {
-		typedef std::shared_ptr<const type_ref_t> ref;
-		type_ref_t(type_t::ref raw);
+	struct type_ptr_t : public type_t {
+		typedef std::shared_ptr<const type_ptr_t> ref;
+		type_ptr_t(type_t::ref raw);
 		type_t::ref element_type;
 
 		virtual int get_precedence() const { return 10; }
@@ -169,7 +167,6 @@ namespace types {
 		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
 		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
 		virtual location_t get_location() const;
-
 	};
 
 	struct type_lambda_t : public type_t {
@@ -241,9 +238,10 @@ types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::re
 types::type_t::ref type_operator(const types::type_t::refs &xs);
 types::scheme_t::ref scheme(std::vector<std::string> vars, const types::predicate_map &predicates, types::type_t::ref type);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
-types::type_t::ref type_ref(types::type_t::ref raw);
+types::type_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body);
 types::type_t::ref type_vector_type(types::type_t::ref element);
+types::type_t::ref type_tuple_accessor(int i, int max, const std::vector<std::string> &vars);
 
 std::string str(types::type_t::refs refs);
 std::string str(const types::type_t::map &coll);

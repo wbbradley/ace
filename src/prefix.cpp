@@ -135,7 +135,7 @@ expr_t *prefix(const std::set<std::string> &bindings, std::string pre, expr_t *v
 				prefix(bindings, pre, lambda->param_type),
 				prefix(bindings, pre, lambda->return_type),
 				prefix(
-					without(bindings,lambda->var.name),
+					without(bindings, lambda->var.name),
 					pre,
 					lambda->body));
 	} else if (auto let = dcast<let_t*>(value)) {
@@ -168,6 +168,11 @@ expr_t *prefix(const std::set<std::string> &bindings, std::string pre, expr_t *v
 		return new tuple_t(
 				tuple->location,
 				prefix(bindings, pre, tuple->dims));
+	} else if (auto tuple_deref = dcast<tuple_deref_t*>(value)) {
+		return new tuple_deref_t(
+				prefix(bindings, pre, tuple_deref->expr),
+				tuple_deref->index,
+				tuple_deref->max);
 	} else {
 		std::cerr << "What should I do with " << value->str() << "?" << std::endl;
 		assert(false);
@@ -216,7 +221,10 @@ module_t *prefix(const std::set<std::string> &bindings, module_t *module) {
 			   	module->instances),
 			prefix(bindings,
 				module->name,
-				module->data_ctors_map));
+				module->data_ctors_map),
+			prefix(bindings,
+				module->name,
+				module->newtypes));
 }
 
 types::scheme_t::ref prefix(
