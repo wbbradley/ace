@@ -106,12 +106,12 @@ namespace bitter {
 	};
 
 	struct as_t : public expr_t {
-		as_t(expr_t *expr, types::type_t::ref type, bool force_cast) : expr(expr), type(type), force_cast(force_cast) {}
+		as_t(expr_t *expr, types::scheme_t::ref scheme, bool force_cast) : expr(expr), scheme(scheme), force_cast(force_cast) {}
 		location_t get_location() override;
 		std::ostream &render(std::ostream &os, int parent_precedence) override;
 
 		expr_t * const expr;
-		types::type_t::ref const type;
+		types::scheme_t::ref const scheme;
 		bool force_cast;
 	};
 

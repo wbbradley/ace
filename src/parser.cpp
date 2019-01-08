@@ -264,7 +264,7 @@ expr_t *parse_new_expr(parse_state_t &ps) {
 			new application_t(
 				new var_t(ps.id_mapped({"new", ps.prior_token.location})),
 				unit_expr(ps.token.location)),
-			parse_type(ps),
+			scheme({}, {}, parse_type(ps)),
 			false /*force_cast*/);
 }
 
@@ -337,7 +337,7 @@ expr_t *parse_base_expr(parse_state_t &ps) {
 		return new fix_t(parse_base_expr(ps));
 	} else if (ps.token.is_ident(K(null))) {
 		return new as_t(
-				new literal_t(token_t{ps.token.location, tk_integer, "0"}),
+				new literal_t(token_t{ps.token_and_advance().location, tk_integer, "0"}),
 				scheme({"a"}, {}, type_ptr(type_variable(make_iid("a")))),
 				true /*force_cast*/);
 	} else if (ps.token.tk == tk_identifier) {
@@ -1339,7 +1339,7 @@ expr_t *create_ctor(
 	expr_t *expr =
 		new as_t(
 				new tuple_t(location, dims),
-				type_decl.get_type(),
+				scheme({}, {}, type_decl.get_type()),
 				true /*force_cast*/);
 
 	assert_implies(ctor_id.valid, dims.size() == params.size() + 1);
@@ -1391,7 +1391,7 @@ data_type_decl_t parse_struct_decl(parse_state_t &ps, types::type_t::map &data_c
 							new tuple_deref_t(
 								new as_t(
 									new var_t(identifier_t{"obj", member_ids[i].location}),
-									type_tuple(dims),
+									scheme({}, {}, type_tuple(dims)),
 									true /*force_cast*/),
 								i,
 								dims.size())))));

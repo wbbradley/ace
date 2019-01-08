@@ -1,5 +1,5 @@
 fn foo() => Left(Right(3))
 
 fn main() {
-    new [Int]
+    x := new [Int]
 }

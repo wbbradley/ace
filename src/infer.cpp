@@ -141,12 +141,13 @@ types::type_t::ref infer_core(
 		return dims[tuple_deref->index];
 	} else if (auto as = dcast<as_t*>(expr)) {
 		auto t1 = infer(as->expr, env, constraints);
+		auto as_type = as->scheme->instantiate(as->get_location());
 		if (!as->force_cast) {
-			append(constraints, t1, as->type, {string_format("we can get type %s from %s",
-					   	as->type->str().c_str(),
+			append(constraints, t1, as_type, {string_format("we can get type %s from %s",
+					   	as->scheme->str().c_str(),
 					   	as->expr->str().c_str()), as->get_location()});
 		}
-		return as->type;
+		return as_type;
 	} else if (auto match = dcast<match_t*>(expr)) {
 		auto t1 = infer(match->scrutinee, env, constraints);
 		types::type_t::ref match_type;

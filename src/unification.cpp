@@ -16,7 +16,24 @@ bool scheme_equality(types::scheme_t::ref a, types::scheme_t::ref b) {
 		assert(false);
 		return false;
 	}
-	return a->normalize()->str() == b->normalize()->str();
+	// log("checking %s == %s", a->str().c_str(), b->str().c_str());
+	// log("normalized checking %s == %s", a->normalize()->str().c_str(), b->normalize()->str().c_str());
+	if (a->normalize()->str() == b->normalize()->str()) {
+		return true;
+	}
+
+	try {
+		env_t env({}, {}, {}, nullptr, {});
+		auto bindings = unify(
+				a->instantiate(INTERNAL_LOC()),
+				b->instantiate(INTERNAL_LOC()), 
+				env);
+	} catch (...) {
+		// TODO: make unify more monadic and less exceptiony
+		dbg();
+		return false;
+	}
+	return true;
 }
 
 bool type_equality(types::type_t::ref a, types::type_t::ref b) {
