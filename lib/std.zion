@@ -11,8 +11,23 @@ class Show a {
     fn str(a) [Char]
 }
 
+instance Show [Char] {
+    str = id
+}
+
+instance Show Int {
+    fn str(x) {
+        return "0"
+    }
+}
+
+
 data Ref a {
     Ref(a)
+}
+
+fn load_ref(a Ref a) a => match a {
+    Ref(a) => a
 }
 
 class Eq a {
@@ -20,12 +35,17 @@ class Eq a {
     fn !=(a, a) Bool
     /*default {
         fn ==(a, b) {
-            return a != b
+            return not (a != b)
         }
         fn !=(a, b) {
             return not (a == b)
         }
     }*/
+}
+
+instance Eq *a {
+    == = __builtin_ptr_eq
+    != = __builtin_ptr_ne
 }
 
 instance Eq Int {
@@ -92,14 +112,6 @@ class Functor f {
     fn fmap(fn (a) b, f a) f b
 }
 
-/*
-instance Functor Maybe {
-    fn fmap(f, m) {
-        return Nothing
-    }
-}
-*/
-
 data ExitCode {
     ExitOK
     ExitError(Int)
@@ -125,4 +137,21 @@ instance HasDefault [a] {
 let unit = ()
 fn id(x) => x
 fn print(x) => __builtin_print(str(x))
+fn panic(x) {
+    print(x)
+    __builtin_exit(1)
+}
+
+fn append(vec [a], val a) {
+    if !vec.array == null {
+    }
+}
+
+fn __getitem__(v Vector a, i Int) a {
+    if (!v.array == null) {
+        print("Array index out of bounds")
+    }
+}
+
+
 

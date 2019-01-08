@@ -2,4 +2,6 @@ fn foo() => Left(Right(3))
 
 fn main() {
     x := new [Int]
+    append(x, 1)
+    print(x[0])
 }

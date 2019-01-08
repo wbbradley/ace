@@ -26,10 +26,10 @@ bool scheme_equality(types::scheme_t::ref a, types::scheme_t::ref b) {
 	auto tb = b->instantiate(INTERNAL_LOC());
 	auto unification = unify(ta, tb);
 	if (!unification.result) {
-		log_location(
+		debug_above(3, log_location(
 				unification.error_location,
 				"schemes %s and %s do not match because %s",
-				ta->str().c_str(), tb->str().c_str(), unification.error_string.c_str());
+				ta->str().c_str(), tb->str().c_str(), unification.error_string.c_str()));
 	}
 	return unification.result;
 }
