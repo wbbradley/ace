@@ -83,11 +83,11 @@ types::type_t::ref infer_core(
 		auto body_env = env_t{env};
 		body_env.extend(let->var, schema, true /*allow_subscoping*/);
 		auto t2 = infer(let->body, body_env, constraints)->rebind(bindings);
-		log("the let variable is %s :: %s and the body is %s :: %s",
+		debug_above(9, log("the let variable is %s :: %s and the body is %s :: %s",
 				let->var.str().c_str(),
 				schema->str().c_str(),
 				let->body->str().c_str(),
-				t2->str().c_str());
+				t2->str().c_str()));
 		return t2;
 	} else if (auto fix = dcast<fix_t*>(expr)) {
 		auto tv = type_variable(fix->get_location());
@@ -123,7 +123,7 @@ types::type_t::ref infer_core(
 						"returning (%s " c_good("::") " %s and %s)",
 						return_->value->str().c_str(), t1->str().c_str(), env.return_type->str().c_str()), 
 				return_->get_location()});
-		return type_bottom();
+		return type_unit(return_->get_location());
 	} else if (auto tuple = dcast<tuple_t*>(expr)) {
 		std::vector<types::type_t::ref> dimensions;
 		for (auto dim : tuple->dims) {

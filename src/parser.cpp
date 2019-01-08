@@ -338,7 +338,7 @@ expr_t *parse_base_expr(parse_state_t &ps) {
 	} else if (ps.token.is_ident(K(null))) {
 		return new as_t(
 				new literal_t(token_t{ps.token_and_advance().location, tk_integer, "0"}),
-				scheme({"a"}, {}, type_ptr(type_variable(make_iid("a")))),
+				scheme({"a"}, {}, type_ptr(type_variable(identifier_t{"a", ps.prior_token.location}))),
 				true /*force_cast*/);
 	} else if (ps.token.tk == tk_identifier) {
 		return parse_var_ref(ps);
@@ -421,7 +421,8 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 
 	while (!ps.line_broke() &&
 			(ps.token.tk == tk_lsquare ||
-			 ps.token.tk == tk_lparen))
+			 ps.token.tk == tk_lparen ||
+			 ps.token.tk == tk_dot))
 	{
 		switch (ps.token.tk) {
 		case tk_lparen:
@@ -446,20 +447,19 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 				}
 				break;
 			}
-#if 0
 		case tk_dot:
 			{
-				auto dot_expr = create<ast::dot_expr_t>(ps.token);
-				eat_token();
-				expect_token(tk_identifier);
-				dot_expr->rhs = ps.token;
 				ps.advance();
-				dot_expr->lhs.swap(expr);
-				assert(expr == nullptr);
-				expr = dot_expr;
+				expect_token(tk_identifier);
+				if (!islower(ps.token.text[0])) {
+					throw user_error(ps.token.location, "property accessors must start with lowercase letters");
+				}
+				auto iid = identifier_t{"__get_" + ps.token_and_advance().text, ps.prior_token.location};
+				expr = new application_t(
+						new var_t(iid),
+						expr);
 				break;
 			}
-#endif
 		case tk_lsquare:
 			{
 				ps.advance();
@@ -503,7 +503,7 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 
 expr_t *parse_prefix_expr(parse_state_t &ps) {
 	maybe<token_t> prefix = 
-		(ps.token.tk == tk_minus || ps.token.is_ident(K(not)))
+		(ps.token.tk == tk_minus || ps.token.is_ident(K(not)) || ps.token.tk == tk_bang)
 	   	? maybe<token_t>(ps.token)
 	   	: maybe<token_t>();
 
@@ -512,7 +512,7 @@ expr_t *parse_prefix_expr(parse_state_t &ps) {
 	}
 
 	expr_t *rhs;
-	if (ps.token.is_ident(K(not)) || ps.token.tk == tk_minus) {
+	if (ps.token.is_ident(K(not)) || ps.token.tk == tk_minus || ps.token.tk == tk_bang) {
 		/* recurse to find more prefix expressions */
 		rhs = parse_prefix_expr(ps);
 	} else {
@@ -524,6 +524,10 @@ expr_t *parse_prefix_expr(parse_state_t &ps) {
 		if (prefix.t.text == "-") {
 			return new application_t(
 					new var_t(ps.id_mapped(identifier_t{"negate", prefix.t.location})),
+					rhs);
+		} else if (prefix.t.text == "!") {
+			return new application_t(
+					new var_t(ps.id_mapped(identifier_t{"load_ref", prefix.t.location})),
 					rhs);
 		} else {
 			return new application_t(
@@ -1111,13 +1115,12 @@ match_t *parse_match(parse_state_t &ps) {
 
 std::pair<identifier_t, types::type_t::ref>  parse_lambda_param_core(parse_state_t &ps) {
 	auto param_token = ps.token_and_advance();
-	if (ps.token.tk != tk_comma && ps.token.tk != tk_rparen) {
-		// auto type = types::parse_type(ps, {});
-		// log_location(type->get_location(), "discarding parsed param type %s", type->str().c_str());
-		throw user_error(ps.token.location, "type annotations are not impl");
+	types::type_t::ref type;
+	if (token_begins_type(ps.token)) {
+		type = parse_type(ps);
 	}
 
-	return {iid(param_token), nullptr};
+	return {iid(param_token), type};
 }
 
 std::pair<identifier_t, types::type_t::ref> parse_lambda_param(parse_state_t &ps) {

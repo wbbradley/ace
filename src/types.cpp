@@ -810,10 +810,12 @@ void unfold_binops_rassoc(std::string id, types::type_t::ref t, types::type_t::r
 	auto op = dyncast<const types::type_operator_t>(t);
 	if (op != nullptr) {
 		auto nested_op = dyncast<const types::type_operator_t>(op->oper);
- 		if (is_type_id(nested_op->oper, id)) {
-			unfolding.push_back(nested_op->operand);
-			unfold_binops_rassoc(id, op->operand, unfolding);
-			return;
+		if (nested_op != nullptr) {
+			if (is_type_id(nested_op->oper, id)) {
+				unfolding.push_back(nested_op->operand);
+				unfold_binops_rassoc(id, op->operand, unfolding);
+				return;
+			}
 		}
 	}
 	unfolding.push_back(t);

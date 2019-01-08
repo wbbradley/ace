@@ -122,10 +122,12 @@ void initialize_default_env(env_t &env) {
 	env.map["__builtin_negate_float"] = scheme({}, {}, type_arrows({Float, Float}));
 	env.map["__builtin_float_eq"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
 	env.map["__builtin_float_ne"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+	env.map["__builtin_ptr_eq"] = scheme({"a"}, {}, type_arrows({type_ptr(type_variable(make_iid("a"))), type_ptr(type_variable(make_iid("a"))), Bool}));
+	env.map["__builtin_ptr_ne"] = scheme({"a"}, {}, type_arrows({type_ptr(type_variable(make_iid("a"))), type_ptr(type_variable(make_iid("a"))), Bool}));
 	env.map["__builtin_int_eq"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
 	env.map["__builtin_int_ne"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
 	env.map["__builtin_print"] = scheme({}, {}, type_arrows({String, type_unit(INTERNAL_LOC())}));
-	env.map["__builtin_null"] = scheme({"a"}, {}, type_ptr(type_variable(make_iid("a"))));
+	env.map["__builtin_exit"] = scheme({}, {}, type_arrows({Int, type_bottom()}));
 }
 
 std::map<std::string, type_class_t *> check_type_classes(const std::vector<type_class_t *> &type_classes, env_t &env) {
@@ -383,9 +385,7 @@ std::vector<decl_t *> check_instances(
 }
 
 bool instance_matches_requirement(instance_t *instance, const instance_requirement_t &ir, env_t &env) {
-	log("checking %s %s vs. %s %s",
-		   	ir.type_class_name.c_str(), ir.type->str().c_str(),
-			instance->type_class_id.name.c_str(), instance->type->str().c_str());
+	// log("checking %s %s vs. %s %s", ir.type_class_name.c_str(), ir.type->str().c_str(), instance->type_class_id.name.c_str(), instance->type->str().c_str());
 	auto pm = env.get_predicate_map();
 	return instance->type_class_id.name == ir.type_class_name && scheme_equality(
 			ir.type->generalize(pm)->normalize(),

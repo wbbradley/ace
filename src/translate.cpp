@@ -30,7 +30,6 @@ expr_t *texpr(
 		}
 		return var;
 	} else if (auto lambda = dcast<lambda_t*>(expr)) {
-		auto operator_type = safe_dyncast<const types::type_operator_t>(type);
 		auto new_bound_vars = bound_vars;
 		new_bound_vars.insert(lambda->var.name);
 		auto new_body = texpr(
@@ -62,7 +61,25 @@ expr_t *texpr(
 		typing[new_app] = type;
 		return new_app;
 	} else if (auto let = dcast<let_t*>(expr)) {
-		assert(false);
+		auto new_value = texpr(
+				for_defn_id,
+				let->value,
+				bound_vars,
+				tenv,
+				typing,
+				needed_defns);
+		auto new_bound_vars = bound_vars;
+		new_bound_vars.insert(let->var.name);
+		auto new_body = texpr(
+				for_defn_id,
+				let->body,
+				new_bound_vars,
+				tenv,
+				typing,
+				needed_defns);
+		auto new_let = new let_t(let->var, new_value, new_body);
+		typing[new_let] = type;
+		return new_let;
 	} else if (auto fix = dcast<fix_t*>(expr)) {
 		assert(false);
 	} else if (auto condition = dcast<conditional_t*>(expr)) {
@@ -91,7 +108,19 @@ expr_t *texpr(
 		typing[new_conditional] = type;
 		return new_conditional;
 	} else if (auto block = dcast<block_t*>(expr)) {
-		assert(false);
+		std::vector<expr_t *> statements;
+		for (auto stmt : block->statements) {
+			statements.push_back(texpr(
+						for_defn_id,
+						stmt,
+						bound_vars,
+						tenv,
+						typing,
+						needed_defns));
+		}
+		auto new_block = new block_t(statements);
+		typing[new_block] = type;
+		return new_block;
 	} else if (auto return_ = dcast<return_statement_t*>(expr)) {
 		return new return_statement_t(
 				texpr(
@@ -145,7 +174,21 @@ expr_t *texpr(
 					typing,
 					needed_defns);
 		}
+	} else if (auto tuple_deref = dcast<tuple_deref_t*>(expr)) {
+		auto new_tuple_deref = new tuple_deref_t(
+				texpr(
+					for_defn_id,
+					tuple_deref->expr,
+					bound_vars,
+					tenv,
+					typing,
+					needed_defns),
+				tuple_deref->index,
+				tuple_deref->max);
+		typing[new_tuple_deref] = type;
+		return new_tuple_deref;
 	}
+	log_location(expr->get_location(), "don't know how to texpr %s", expr->str().c_str());
 	assert(false);
 	return nullptr;
 }
