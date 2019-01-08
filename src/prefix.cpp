@@ -123,7 +123,7 @@ expr_t *prefix(const std::set<std::string> &bindings, std::string pre, expr_t *v
 	} else if (auto as = dcast<as_t*>(value)) {
 		return new as_t(
 				prefix(bindings, pre, as->expr),
-			   	prefix(bindings, pre, as->type),
+			   	prefix(bindings, pre, as->scheme),
 			   	as->force_cast);
 	} else if (auto application = dcast<application_t*>(value)) {
 		return new application_t(

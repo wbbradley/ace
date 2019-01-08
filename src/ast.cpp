@@ -32,7 +32,7 @@ namespace bitter {
 		return os << id.name;
 	}
 	location_t as_t::get_location() {
-		return type->get_location();
+		return scheme->get_location();
 	}
 	std::ostream &as_t::render(std::ostream &os, int parent_precedence) {
 		os << "(";
@@ -42,7 +42,7 @@ namespace bitter {
 		} else {
 			os << C_TYPE " as " C_RESET;
 		}
-		type->emit(os, {}, 0);
+		os << scheme->str();
 		os << ")";
 		return os;
 	}

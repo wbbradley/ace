@@ -180,7 +180,7 @@ void check_decls(std::string entry_point_name, const std::vector<decl_t *> &decl
 						decl->var,
 					   	new as_t(
 							decl->value,
-							program_main_type,
+							program_main_scheme,
 							false /*force_cast*/),
 						env);
 			} else {
@@ -229,7 +229,7 @@ void check_instance_for_type_class_overload(
 	bool found = false;
 	for (auto decl : instance->decls) {
 		assert(name.find(".") != std::string::npos);
-		assert(decl->var.name.find(".") != std::string::npos);
+		// assert(decl->var.name.find(".") != std::string::npos);
 		if (decl->var.name == name) {
 			found = true;
 			if (in(name, names_checked)) {
@@ -244,9 +244,8 @@ void check_instance_for_type_class_overload(
 			local_env.instance_requirements.resize(0);
 			auto instance_decl_id = make_instance_decl_id(type_class->id.name, instance, decl->var);
 			auto expected_scheme = type->rebind(subst)->generalize(local_env.get_predicate_map());
-			auto type_instance = expected_scheme->instantiate(INTERNAL_LOC());
 
-			auto instance_decl_expr = new as_t(decl->value, type_instance, false /*force_cast*/);
+			auto instance_decl_expr = new as_t(decl->value, expected_scheme, false /*force_cast*/);
 			check(
 					instance_decl_id,
 					instance_decl_expr,
@@ -384,9 +383,9 @@ std::vector<decl_t *> check_instances(
 }
 
 bool instance_matches_requirement(instance_t *instance, const instance_requirement_t &ir, env_t &env) {
-	debug_above(8, log("checking %s %s vs. %s %s",
+	log("checking %s %s vs. %s %s",
 		   	ir.type_class_name.c_str(), ir.type->str().c_str(),
-			instance->type_class_id.name.c_str(), instance->type->str().c_str()));
+			instance->type_class_id.name.c_str(), instance->type->str().c_str());
 	auto pm = env.get_predicate_map();
 	return instance->type_class_id.name == ir.type_class_name && scheme_equality(
 			ir.type->generalize(pm)->normalize(),
@@ -423,6 +422,34 @@ class defn_map_t {
 	std::map<std::string, decl_t *> decl_map;
 
 public:
+	decl_t *maybe_lookup(defn_id_t defn_id) const {
+		auto iter = map.find(defn_id);
+		if (iter == map.end()) {
+			decl_t *decl = nullptr;
+			for (auto pair : map) {
+				if (pair.first.id.name == defn_id.id.name) {
+					if (scheme_equality(pair.first.scheme, defn_id.scheme)) {
+						if (decl != nullptr) {
+							throw user_error(defn_id.id.location, "found ambiguous instance method");
+						}
+						decl = pair.second;
+					}
+				}
+			}
+			if (decl != nullptr) {
+				return decl;
+			}
+
+			auto iter_decl = decl_map.find(defn_id.id.name);
+			if (iter_decl != decl_map.end()) {
+				return iter_decl->second;
+			}
+			return nullptr;
+		} else {
+			return iter->second;
+		}
+	}
+
 	decl_t *lookup(defn_id_t defn_id) const {
 		auto iter = map.find(defn_id);
 		if (iter == map.end()) {
@@ -430,7 +457,14 @@ public:
 			if (iter_decl != decl_map.end()) {
 				return iter_decl->second;
 			}
-			throw user_error(defn_id.id.location, "symbol %s does not seem to exist", defn_id.id.str().c_str());
+			auto error = user_error(defn_id.id.location, "symbol %s does not seem to exist", defn_id.id.str().c_str());
+			std::stringstream ss;
+
+			for (auto pair: decl_map) {
+				ss << pair.first << " " << pair.second << std::endl;
+			}
+			error.add_info(defn_id.id.location, "%s", ss.str().c_str());
+			throw error;
 		} else {
 			return iter->second;
 		}
@@ -597,11 +631,14 @@ void specialize(
 		auto tracked_types = std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>();
 		env.tracked_types = tracked_types;
 
-		decl_t *decl_to_check = defn_map.lookup(defn_id);
+		decl_t *decl_to_check = defn_map.maybe_lookup(defn_id);
+		if (decl_to_check == nullptr) {
+			throw user_error(defn_id.id.location, "could not find a definition for %s :: %s",
+					defn_id.id.str().c_str(), defn_id.scheme->str().c_str());
+		}
 
 		expr_t *to_check = decl_to_check->value;
-		auto specialization_type = defn_id.scheme->instantiate(defn_id.get_location());
-		auto as_defn = new as_t(to_check, specialization_type, false);
+		auto as_defn = new as_t(to_check, defn_id.scheme, false);
 		check(
 				identifier_t{defn_id.str(), defn_id.id.location},
 				as_defn,

@@ -132,7 +132,7 @@ expr_t *texpr(
 				typing,
 				needed_defns);
 		if (as->force_cast) {
-			auto new_as = new as_t(expr, type, true /*force_cast*/);
+			auto new_as = new as_t(expr, scheme({}, {}, type), true /*force_cast*/);
 			typing[new_as] = type;
 			return new_as;
 		} else {

@@ -118,7 +118,7 @@ struct Vector a {
 
 instance HasDefault [a] {
     fn new() {
-        return Vector(Ref(null as *a), Ref(0), Ref(0))
+        return Vector(Ref(null), Ref(0), Ref(0))
     }
 }
 
