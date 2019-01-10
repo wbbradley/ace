@@ -60,12 +60,6 @@ bool type_equality(types::type_t::ref a, types::type_t::ref b) {
 		} else {
 			return false;
 		}
-	} else if (auto tp_a = dyncast<const type_ptr_t>(a)) {
-		if (auto tp_b = dyncast<const type_ptr_t>(b)) {
-			return type_equality(tp_a->element_type, tp_b->element_type);
-		} else {
-			return false;
-		}
 	} else if (auto tup_a = dyncast<const type_tuple_t>(a)) {
 		if (auto tup_b = dyncast<const type_tuple_t>(b)) {
 			if (tup_a->dimensions.size() != tup_b->dimensions.size()) {
@@ -135,10 +129,6 @@ unification_t unify(type_t::ref a, type_t::ref b) {
 			return unify_many(
 					{to_a->oper, to_a->operand}, 
 					{to_b->oper, to_b->operand});
-		}
-	} else if (auto tp_a = dyncast<const type_ptr_t>(a)) {
-		if (auto tp_b = dyncast<const type_ptr_t>(b)) {
-			return unify(tp_a->element_type, tp_b->element_type);
 		}
 	} else if (auto tup_a = dyncast<const type_tuple_t>(a)) {
 		if (auto tup_b = dyncast<const type_tuple_t>(b)) {

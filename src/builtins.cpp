@@ -1,4 +1,5 @@
 const char *ARROW_TYPE_OPERATOR = "->";
+const char *PTR_TYPE_OPERATOR = "*";
 
 const char *CHAR_TYPE = "Char";
 const char *INT_TYPE = "Int";

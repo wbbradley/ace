@@ -540,7 +540,7 @@ expr_t *parse_prefix_expr(parse_state_t &ps) {
 					rhs);
 		} else if (prefix.t.text == "!") {
 			return new application_t(
-					new var_t(ps.id_mapped(identifier_t{"load_ref", prefix.t.location})),
+					new var_t(ps.id_mapped(identifier_t{"load_value", prefix.t.location})),
 					rhs);
 		} else {
 			return new application_t(
@@ -1276,8 +1276,7 @@ types::type_t::ref parse_type(parse_state_t &ps) {
 		} else if (ps.token.tk == tk_identifier) {
 			types.push_back(parse_named_type(ps));
 		} else if (ps.token.tk == tk_times) {
-			ps.advance();
-			types.push_back(type_ptr(parse_type(ps)));
+			types.push_back(type_id(identifier_t{PTR_TYPE_OPERATOR, ps.token_and_advance().location}));
 		} else {
 			auto error = user_error(ps.token.location, "unhandled syntax for type specification");
 			error.add_info(ps.token.location, "type components found so far: [%s]",
