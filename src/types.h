@@ -153,22 +153,6 @@ namespace types {
 		type_t::refs dimensions;
 	};
 
-	struct type_ptr_t : public type_t {
-		typedef std::shared_ptr<const type_ptr_t> ref;
-		type_ptr_t(type_t::ref raw);
-		type_t::ref element_type;
-
-		virtual int get_precedence() const { return 10; }
-
-		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
-		virtual int ftv_count() const;
-		virtual predicate_map get_predicate_map() const;
-		virtual type_t::ref rebind(const map &bindings) const;
-		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
-		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
-		virtual location_t get_location() const;
-	};
-
 	struct type_lambda_t : public type_t {
 		type_lambda_t(identifier_t binding, type_t::ref body);
 		identifier_t binding;
@@ -207,8 +191,6 @@ namespace types {
 		types::type_t::ref type;
 	};
 
-	type_t::ref without_ref(type_t::ref type);
-	type_t::refs without_refs(type_t::refs types);
 	bool is_type_id(type_t::ref type, const std::string &type_name);
 	type_t::refs rebind(const type_t::refs &types, const type_t::map &bindings);
 };

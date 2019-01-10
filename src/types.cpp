@@ -381,44 +381,6 @@ namespace types {
 		}
 	}
 
-	type_ptr_t::type_ptr_t(type_t::ref element_type) : element_type(element_type) {
-	}
-
-	std::ostream &type_ptr_t::emit(std::ostream &os, const map &bindings, int parent_precedence) const {
-		parens_t parens(os, parent_precedence, get_precedence());
-		os << "*";
-		element_type->emit(os, bindings, get_precedence());
-		return os;
-	}
-
-	int type_ptr_t::ftv_count() const {
-		return element_type->ftv_count();
-	}
-
-	predicate_map type_ptr_t::get_predicate_map() const {
-		return element_type->get_predicate_map();
-	}
-
-	type_t::ref type_ptr_t::rebind(const map &bindings) const {
-		if (bindings.size() == 0) {
-			return shared_from_this();
-		}
-
-		return ::type_ptr(element_type->rebind(bindings));
-	}
-
-	type_t::ref type_ptr_t::remap_vars(const std::map<std::string, std::string> &map) const {
-		return ::type_ptr(element_type->remap_vars(map));
-	}
-
-	type_t::ref type_ptr_t::prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const {
-		return type_ptr(element_type->prefix_ids(bindings, pre));
-	}
-
-	location_t type_ptr_t::get_location() const {
-		return element_type->get_location();
-	}
-
 	type_lambda_t::type_lambda_t(identifier_t binding, type_t::ref body) :
 		binding(binding), body(body)
 	{
@@ -502,23 +464,6 @@ namespace types {
 		}
 
 		return false;
-	}
-
-	type_t::ref without_ref(type_t::ref type) {
-		if (auto ref = dyncast<const type_ptr_t>(type)) {
-			return ref->element_type;
-		} else {
-			return type;
-		}
-	}
-
-	type_t::refs without_refs(type_t::refs types) {
-		type_t::refs dims;
-		dims.reserve(types.size());
-		for (auto type : types) {
-			dims.push_back(without_ref(type));
-		}
-		return dims;
 	}
 
 	type_t::refs rebind(const type_t::refs &types, const type_t::map &bindings) {
@@ -710,8 +655,7 @@ types::type_t::ref type_arrows(types::type_t::refs types, int offset) {
 }
 
 types::type_t::ref type_ptr(types::type_t::ref raw) {
-    assert(!dyncast<const types::type_ptr_t>(raw));
-    return std::make_shared<types::type_ptr_t>(raw);
+	return type_operator(type_id(identifier_t{PTR_TYPE_OPERATOR, raw->get_location()}), raw);
 }
 
 types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body) {

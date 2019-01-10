@@ -26,8 +26,29 @@ data Ref a {
     Ref(a)
 }
 
-fn load_ref(a Ref a) a => match a {
-    Ref(a) => a
+instance Show Ref {
+    fn str(x) {
+        s := new [Char]
+        append(s, "Ref(")
+        append(s, str(x))
+        append(s, ")")
+        return s
+        # return "Ref(" ++ str(x) ++ ")"
+    }
+}
+
+class LoadableValue f {
+    fn load_value(f a) a
+}
+
+instance LoadableValue Ref {
+    fn load_value(a) => match a {
+        Ref(a) => a
+    }
+}
+
+instance LoadableValue * {
+    load_value = __builtin_ptr_load
 }
 
 class Eq a {
@@ -58,6 +79,35 @@ instance Eq Float {
     != = __builtin_float_ne
 }
 
+instance Eq [a] {
+    fn ==(xs, ys) {
+        if !xs.size != !ys.size {
+            return False
+        }
+        size := !xs.size
+        var i = 0
+        while !i < size {
+            if xs[!i] != ys[!i] {
+                return False
+            }
+        }
+        return True
+    }
+    fn !=(xs, ys) {
+        if !xs.size != !ys.size {
+            return True
+        }
+        size := !(xs.size)
+        var i = 0
+        while !i < size {
+            if xs[!i] != ys[!i] {
+                return True
+            }
+        }
+        return False
+    }
+}
+
 class Num a {
     has Eq
     fn from_int(Int) a
@@ -81,6 +131,18 @@ class Ord a {
     fn <=(a, a) Bool
     fn >(a, a) Bool
     fn >=(a, a) Bool
+}
+
+instance Ord Int {
+    fn compare(a, b) {
+        if a < b {
+            return LT
+        } else if b < a {
+            return GT
+        } else {
+            return EQ
+        }
+    }
 }
 
 instance Num Int {
@@ -123,7 +185,7 @@ data Either a b {
 }
 
 struct Vector a {
-    array Ref *a
+    array Ref (*(Ref a))
     size Ref Int
     capacity Ref Int
 }
@@ -132,9 +194,22 @@ fn alloc(count Int) *a {
     return __builtin_calloc(sizeof(a) * count)
 }
 
+fn __getptritem__(ptr, index) {
+    return !__builtin_add_ptr(ptr, index)
+}
+
+fn __getitem__(vec, index) {
+    return __getptritem__(!vec.array, index)
+}
+
 fn append(vec [a], val a) {
     if !vec.array == null {
         vec.array = alloc(4)
+        vec.size = 1
+        vec.capacity = 4
+
+        # array := load_value(vec.array)
+        # (array[0]) = Ref(val)
     }
 }
 
@@ -151,12 +226,3 @@ fn panic(x) {
     print(x)
     __builtin_exit(1)
 }
-
-fn __getitem__(v Vector a, i Int) a {
-    if (!v.array == null) {
-        print("Array index out of bounds")
-    }
-}
-
-
-

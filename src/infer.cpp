@@ -100,6 +100,11 @@ types::type_t::ref infer_core(
 		append(constraints, t1, type_bool(condition->cond->get_location()), {"conditions must be bool", condition->get_location()});
 		append(constraints, t2, t3, {"both branches of conditionals must match types with each other", condition->falsey->get_location()});
 		return t2;
+	} else if (auto while_ = dcast<while_t*>(expr)) {
+		auto t1 = infer(while_->condition, env, constraints);
+		append(constraints, t1, type_bool(while_->condition->get_location()), {"while conditions must be bool", while_->condition->get_location()});
+		auto t2 = infer(while_->block, env, constraints);
+		return type_unit(while_->get_location());
 	} else if (auto block = dcast<block_t*>(expr)) {
 		for (int i=0; i<block->statements.size(); ++i) {
 			auto expr = block->statements[i];
