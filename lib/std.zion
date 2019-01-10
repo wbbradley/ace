@@ -128,6 +128,16 @@ struct Vector a {
     capacity Ref Int
 }
 
+fn alloc(count Int) *a {
+    return __builtin_calloc(sizeof(a) * count)
+}
+
+fn append(vec [a], val a) {
+    if !vec.array == null {
+        vec.array = alloc(4)
+    }
+}
+
 instance HasDefault [a] {
     fn new() {
         return Vector(Ref(null), Ref(0), Ref(0))
@@ -140,11 +150,6 @@ fn print(x) => __builtin_print(str(x))
 fn panic(x) {
     print(x)
     __builtin_exit(1)
-}
-
-fn append(vec [a], val a) {
-    if !vec.array == null {
-    }
 }
 
 fn __getitem__(v Vector a, i Int) a {

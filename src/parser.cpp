@@ -501,7 +501,20 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 	return expr;
 }
 
+expr_t *parse_sizeof(parse_state_t &ps) {
+	auto location = ps.token.location;
+	ps.advance();
+	chomp_token(tk_lparen);
+	auto type = parse_type(ps);
+	chomp_token(tk_rparen);
+	return new sizeof_t(location, type);
+}
+
 expr_t *parse_prefix_expr(parse_state_t &ps) {
+	if (ps.token.is_ident(K(sizeof))) {
+		return parse_sizeof(ps);
+	}
+
 	maybe<token_t> prefix = 
 		(ps.token.tk == tk_minus || ps.token.is_ident(K(not)) || ps.token.tk == tk_bang)
 	   	? maybe<token_t>(ps.token)
@@ -814,7 +827,7 @@ expr_t *parse_assignment(parse_state_t &ps) {
 		expr_t *rhs = parse_expr(ps);
 		return new application_t(
 				new application_t(
-					new var_t(identifier_t{std::string{"store!"}, ps.token.location}),
+					new var_t(identifier_t{std::string{"__builtin_store"}, ps.token.location}),
 					lhs),
 				rhs);
 	}
@@ -1291,9 +1304,7 @@ type_decl_t parse_type_decl(parse_state_t &ps) {
 
 	std::vector<identifier_t> params;
 	while (true) {
-		if (ps.token.is_ident(K(is)) || ps.token.is_ident(K(has))) {
-			break;
-		} else if (ps.token.tk == tk_identifier) {
+		if (ps.token.tk == tk_identifier) {
 			if (!islower(ps.token.text[0])) {
 				throw user_error(ps.token.location, "type declaration parameters must be lowercase");
 			}
@@ -1559,6 +1570,9 @@ module_t *parse_module(
 			ps.advance();
 			while (true) {
 				expect_token(tk_identifier);
+				if (starts_with(ps.token.text, "_")) {
+					throw user_error(ps.token.location, "it is not possible to import module-scoped variables into other modules");
+				}
 				ps.add_term_map(ps.token.location, ps.token.text, module_name.name + "." + ps.token.text);
 				ps.advance();
 				if (ps.token.tk == tk_comma) {

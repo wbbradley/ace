@@ -83,39 +83,32 @@ enum token_kind
 K(_);
 K(__filename__);
 K(and);
-K(any);
 K(as);
 K(break);
 K(class);
 K(continue);
 K(data);
-K(defer);
 K(else);
 K(fn);
 K(fix);
 K(for);
 K(get);
-K(global);
 K(has);
 K(if);
 K(in);
 K(instance);
-K(is);
 K(let);
-K(link);
 K(unreachable);
-K(module);
 K(new);
 K(not);
 K(null);
 K(or);
 K(return);
 K(struct);
-K(to);
+K(sizeof);
 K(var);
 K(match);
 K(while);
-K(with);
 #undef K
 #define K(x) K_##x
 

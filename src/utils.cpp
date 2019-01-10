@@ -283,18 +283,18 @@ std::string clean_ansi_escapes_if_not_tty(FILE *fp, std::string out) {
 	}
 }
 
-bool starts_with(const std::string &str, const std::string &search) {
-	return str.find(search) == 0;
+bool starts_with(const std::string &haystack, const std::string &needle) {
+	return haystack.find(needle) == 0;
 }
 
-bool starts_with(const char *str, const std::string &search) {
-	return strstr(str, search.c_str()) == str;
+bool starts_with(const char *haystack, const std::string &needle) {
+	return strstr(haystack, needle.c_str()) == haystack;
 }
 
-bool ends_with(const std::string &str, const std::string &search) {
-	int pos = str.size() - search.size();
+bool ends_with(const std::string &haystack, const std::string &needle) {
+	int pos = haystack.size() - needle.size();
 	if (pos >= 0) {
-		return str.find(search, pos) == (size_t)pos;
+		return haystack.find(needle, pos) == (size_t)pos;
 	} else {
 		return false;
 	}

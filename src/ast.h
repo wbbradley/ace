@@ -115,6 +115,15 @@ namespace bitter {
 		bool force_cast;
 	};
 
+	struct sizeof_t : public expr_t {
+		sizeof_t(location_t location, types::type_t::ref type) : type(type) {}
+		location_t get_location() override;
+		std::ostream &render(std::ostream &os, int parent_precedence) override;
+
+		location_t const location;
+		types::type_t::ref const type;
+	};
+
 	struct application_t : public expr_t {
 		application_t(expr_t *a, expr_t *b) : a(a), b(b) {}
 		location_t get_location() override;
