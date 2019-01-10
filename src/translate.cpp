@@ -174,6 +174,10 @@ expr_t *texpr(
 					typing,
 					needed_defns);
 		}
+	} else if (auto sizeof_ = dcast<sizeof_t*>(expr)) {
+		auto new_sizeof = new var_t(identifier_t{"__builtin_word_size", sizeof_->get_location()});
+		typing[new_sizeof] = type;
+		return new_sizeof;
 	} else if (auto tuple_deref = dcast<tuple_deref_t*>(expr)) {
 		auto new_tuple_deref = new tuple_deref_t(
 				texpr(

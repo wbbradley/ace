@@ -20,6 +20,7 @@ using namespace bitter;
 
 const bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
 const bool debug_types = getenv("SHOW_TYPES") != nullptr;
+const bool debug_all_expr_types = getenv("SHOW_EXPR_TYPES") != nullptr;
 const int max_tuple_size = (getenv("ZION_MAX_TUPLE") != nullptr) ? atoi(getenv("ZION_MAX_TUPLE")) : 16;
 
 types::type_t::ref program_main_type = type_arrows({type_unit(INTERNAL_LOC()), type_id(make_iid("std.ExitCode"))});
@@ -106,6 +107,7 @@ void initialize_default_env(env_t &env) {
 	auto Bool = type_id(make_iid(BOOL_TYPE));
 	auto Char = type_id(make_iid(CHAR_TYPE));
 	auto String = type_operator(type_id(make_iid(VECTOR_TYPE)), Char);
+	auto tv_a = type_variable(make_iid("a"));
 
 	env.map["__builtin_multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
 	env.map["__builtin_divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
@@ -122,12 +124,17 @@ void initialize_default_env(env_t &env) {
 	env.map["__builtin_negate_float"] = scheme({}, {}, type_arrows({Float, Float}));
 	env.map["__builtin_float_eq"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
 	env.map["__builtin_float_ne"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-	env.map["__builtin_ptr_eq"] = scheme({"a"}, {}, type_arrows({type_ptr(type_variable(make_iid("a"))), type_ptr(type_variable(make_iid("a"))), Bool}));
-	env.map["__builtin_ptr_ne"] = scheme({"a"}, {}, type_arrows({type_ptr(type_variable(make_iid("a"))), type_ptr(type_variable(make_iid("a"))), Bool}));
+	env.map["__builtin_ptr_eq"] = scheme({"a"}, {}, type_arrows({type_ptr(tv_a), type_ptr(tv_a), Bool}));
+	env.map["__builtin_ptr_ne"] = scheme({"a"}, {}, type_arrows({type_ptr(tv_a), type_ptr(tv_a), Bool}));
 	env.map["__builtin_int_eq"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
 	env.map["__builtin_int_ne"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
 	env.map["__builtin_print"] = scheme({}, {}, type_arrows({String, type_unit(INTERNAL_LOC())}));
 	env.map["__builtin_exit"] = scheme({}, {}, type_arrows({Int, type_bottom()}));
+	env.map["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, type_ptr(tv_a)}));
+	env.map["__builtin_store"] = scheme({"a"}, {}, type_arrows({
+				type_operator(type_id(make_iid("std.Ref")), tv_a),
+				tv_a,
+				type_unit(INTERNAL_LOC())}));
 }
 
 std::map<std::string, type_class_t *> check_type_classes(const std::vector<type_class_t *> &type_classes, env_t &env) {
@@ -565,7 +572,7 @@ phase_2_t compile(std::string user_program_name_) {
 		print_exception(e);
 	}
 
-	if (debug_compiled_env) {
+	if (debug_all_expr_types) {
 		log(c_good("All Expression Types"));
 		for (auto pair : *env.tracked_types) {
 			log_location(

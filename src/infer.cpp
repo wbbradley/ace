@@ -148,6 +148,8 @@ types::type_t::ref infer_core(
 					   	as->expr->str().c_str()), as->get_location()});
 		}
 		return as_type;
+	} else if (auto sizeof_ = dcast<sizeof_t*>(expr)) {
+		return type_id(identifier_t{INT_TYPE, sizeof_->get_location()});
 	} else if (auto match = dcast<match_t*>(expr)) {
 		auto t1 = infer(match->scrutinee, env, constraints);
 		types::type_t::ref match_type;

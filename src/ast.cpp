@@ -46,6 +46,12 @@ namespace bitter {
 		os << ")";
 		return os;
 	}
+	location_t sizeof_t::get_location() {
+		return location;
+	}
+	std::ostream &sizeof_t::render(std::ostream &os, int parent_precedence) {
+		return os << "sizeof(" << type->str() << ")";
+	}
 	location_t application_t::get_location() {
 		return a->get_location();
 	}
