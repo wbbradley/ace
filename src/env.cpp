@@ -127,6 +127,6 @@ std::string env_t::str() const {
 
 std::string instance_requirement_t::str() const {
 	std::stringstream ss;
-	ss << type_class_name << " " << type << " at " << location;
+	ss << type_class_name << " " << type;
 	return ss.str();
 }

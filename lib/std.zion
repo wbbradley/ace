@@ -19,8 +19,8 @@ class Show a {
     fn str(a) [Char]
 }
 
-instance Show [Char] {
-    str = id
+instance Show () {
+    fn str(a) => "()"
 }
 
 instance Show Int {
@@ -237,6 +237,16 @@ struct Vector a {
     capacity Ref Int
 }
 
+instance Show [a] {
+    fn str(xs) {
+        y := new [Char]
+        for x in xs {
+            concat(y, str(x))
+        }
+        return y
+    }
+}
+
 class HasLength a {
     fn len(a) Int
 }
@@ -283,6 +293,16 @@ instance HasDefault [a] {
 
 class Iterable f {
     fn iter(f a) fn () Maybe a
+}
+
+instance Iterable Vector {
+    fn iter(vec) {
+        index := Ref(-1)
+        return fn() {
+            index = !index + 1
+            return vec[!index]
+        }
+    }
 }
 
 let unit = ()

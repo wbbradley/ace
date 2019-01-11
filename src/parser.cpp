@@ -370,7 +370,7 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 	chomp_token(tk_lsquare);
 	std::vector<expr_t*> exprs;
 
-	auto array_var = new var_t(gensym(location));
+	auto array_var = new var_t(make_iid(fresh()));
 
 	int i = 0;
 	while (ps.token.tk != tk_rsquare && ps.token.tk != tk_none) {
@@ -400,7 +400,7 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 				new application_t(
 					new var_t(ps.id_mapped({"new", ps.prior_token.location})),
 					unit_expr(ps.token.location)),
-				scheme({"a"}, {}, type_variable(make_iid("a"))),
+				scheme({"a"}, {}, type_vector_type(type_variable(make_iid("a")))),
 				false /*force_cast*/),
 			new block_t(exprs));
 }

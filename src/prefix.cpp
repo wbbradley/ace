@@ -175,6 +175,8 @@ expr_t *prefix(const std::set<std::string> &bindings, std::string pre, expr_t *v
 				tuple_deref->max);
 	} else if (auto sizeof_ = dcast<sizeof_t*>(value)) {
 		return new sizeof_t(sizeof_->location, prefix(bindings, pre, sizeof_->type));
+	} else if (auto break_ = dcast<break_t*>(value)) {
+		return break_;
 	} else {
 		std::cerr << "What should I do with " << value->str() << "?" << std::endl;
 		assert(false);
