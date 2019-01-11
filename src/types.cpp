@@ -7,7 +7,6 @@
 #include <iostream>
 #include "unification.h"
 #include "env.h"
-#include "encoding.h"
 #include "ast.h"
 #include "parens.h"
 #include "user_error.h"
