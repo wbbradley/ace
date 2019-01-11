@@ -1,3 +1,8 @@
+fn abc() {
+    return ["a", "b", "c"]
+}
 fn main() {
+    abc()
+    print("hey")
     print([1, 2, 3])
 }

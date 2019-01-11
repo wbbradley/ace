@@ -121,6 +121,28 @@ expr_t *texpr(
 		auto new_block = new block_t(statements);
 		typing[new_block] = type;
 		return new_block;
+	} else if (auto while_ = dcast<while_t *>(expr)) {
+		auto condition = texpr(
+				for_defn_id,
+				while_->condition,
+				bound_vars,
+				tenv,
+				typing,
+				needed_defns);
+		auto block = texpr(
+				for_defn_id,
+				while_->block,
+				bound_vars,
+				tenv,
+				typing,
+				needed_defns);
+		auto new_while = new while_t(condition, block);
+		typing[new_while] = type;
+		return new_while;
+	} else if (auto break_ = dcast<break_t*>(expr)) {
+		return break_;
+	} else if (auto continue_ = dcast<continue_t*>(expr)) {
+		return continue_;
 	} else if (auto return_ = dcast<return_statement_t*>(expr)) {
 		return new return_statement_t(
 				texpr(

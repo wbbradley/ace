@@ -442,39 +442,40 @@ class defn_map_t {
 public:
 	decl_t *maybe_lookup(defn_id_t defn_id) const {
 		auto iter = map.find(defn_id);
-		if (iter == map.end()) {
-			decl_t *decl = nullptr;
-			for (auto pair : map) {
-				if (pair.first.id.name == defn_id.id.name) {
-					if (scheme_equality(pair.first.scheme, defn_id.scheme)) {
-						if (decl != nullptr) {
-							throw user_error(defn_id.id.location, "found ambiguous instance method");
-						}
-						decl = pair.second;
+		decl_t *decl = nullptr;
+		if (iter != map.end()) {
+			decl = iter->second;
+		}
+
+		for (auto pair : map) {
+			if (pair.second == decl) {
+				/* we've already chosen this one, we're just checking for dupes */
+				continue;
+			}
+			if (pair.first.id.name == defn_id.id.name) {
+				if (scheme_equality(pair.first.scheme, defn_id.scheme)) {
+					if (decl != nullptr) {
+						throw user_error(defn_id.id.location, "found ambiguous instance method");
 					}
+					decl = pair.second;
 				}
 			}
-			if (decl != nullptr) {
-				return decl;
-			}
-
-			auto iter_decl = decl_map.find(defn_id.id.name);
-			if (iter_decl != decl_map.end()) {
-				return iter_decl->second;
-			}
-			return nullptr;
-		} else {
-			return iter->second;
 		}
+
+		if (decl != nullptr) {
+			return decl;
+		}
+
+		auto iter_decl = decl_map.find(defn_id.id.name);
+		if (iter_decl != decl_map.end()) {
+			return iter_decl->second;
+		}
+		return nullptr;
 	}
 
 	decl_t *lookup(defn_id_t defn_id) const {
-		auto iter = map.find(defn_id);
-		if (iter == map.end()) {
-			auto iter_decl = decl_map.find(defn_id.id.name);
-			if (iter_decl != decl_map.end()) {
-				return iter_decl->second;
-			}
+		auto decl = maybe_lookup(defn_id);
+		if (decl == nullptr) {
 			auto error = user_error(defn_id.id.location, "symbol %s does not seem to exist", defn_id.id.str().c_str());
 			std::stringstream ss;
 
@@ -484,7 +485,7 @@ public:
 			error.add_info(defn_id.id.location, "%s", ss.str().c_str());
 			throw error;
 		} else {
-			return iter->second;
+			return decl;
 		}
 	}
 
@@ -693,96 +694,117 @@ void specialize(
 	}
 }
 
-int main(int argc, char *argv[]) {
-	//setenv("DEBUG", "8", 1 /*overwrite*/);
-	signal(SIGINT, &handle_sigint);
-	init_dbg();
-	std::shared_ptr<logger> logger(std::make_shared<standard_logger>("", "."));
-    std::string cmd;
-	if (argc >= 2) {
-		cmd = argv[1];
-		if (cmd == "test") {
-			assert(alphabetize(0) == "a");
-			assert(alphabetize(1) == "b");
-			assert(alphabetize(2) == "c");
-			assert(alphabetize(26) == "aa");
-			assert(alphabetize(27) == "ab");
+struct job_t {
+	std::string cmd;
+	std::vector<std::string> args;
+};
+
+int run_job(const job_t &job) {
+	if (job.cmd == "test") {
+		assert(alphabetize(0) == "a");
+		assert(alphabetize(1) == "b");
+		assert(alphabetize(2) == "c");
+		assert(alphabetize(26) == "aa");
+		assert(alphabetize(27) == "ab");
+		return run_job({"compile", {"test_basic"}});
+	} else if (job.cmd == "find") {
+		if (job.args.size() != 1) {
+			return run_job({"help", {}});
+		}
+		log("%s", compiler::resolve_module_filename(INTERNAL_LOC(), job.args[0], ".zion").c_str());
+		return EXIT_SUCCESS;
+	} else if (job.cmd == "parse") {
+		if (job.args.size() != 1) {
+			return run_job({"help", {}});
+		}
+
+		std::string user_program_name = job.args[0];
+		auto compilation = compiler::parse_program(user_program_name);
+		if (compilation != nullptr) {
+			for (auto decl : compilation->program->decls) {
+				log_location(decl->var.location, "%s = %s", decl->var.str().c_str(),
+						decl->value->str().c_str());
+			}
+			for (auto type_class : compilation->program->type_classes) {
+				log_location(type_class->id.location, "%s", type_class->str().c_str());
+			}
+			for (auto instance : compilation->program->instances) {
+				log_location(instance->type_class_id.location, "%s", instance->str().c_str());
+			}
 			return EXIT_SUCCESS;
 		}
-	} else {
-		return usage();
-	}
+		return EXIT_FAILURE;
+	} else if (job.cmd == "compile") {
+		if (job.args.size() != 1) {
+			return run_job({"help", {}});
+		}
 
-	if (argc >= 3) {
-		std::string user_program_name = argv[2];
+		std::string user_program_name = job.args[0];
 
 		setenv("NO_STD_LIB", "1", 1 /*overwrite*/);
 		setenv("NO_STD_MAIN", "1", 1 /*overwrite*/);
 		setenv("NO_BUILTINS", "1", 1 /*overwrite*/);
 
-		if (cmd == "find") {
-			log("%s", compiler::resolve_module_filename(INTERNAL_LOC(), user_program_name, ".zion").c_str());
-			return EXIT_SUCCESS;
-		} else if (cmd == "parse") {
-			auto compilation = compiler::parse_program(user_program_name);
-			if (compilation != nullptr) {
-				for (auto decl : compilation->program->decls) {
-					log_location(decl->var.location, "%s = %s", decl->var.str().c_str(),
-							decl->value->str().c_str());
-				}
-				for (auto type_class : compilation->program->type_classes) {
-					log_location(type_class->id.location, "%s", type_class->str().c_str());
-				}
-				for (auto instance : compilation->program->instances) {
-					log_location(instance->type_class_id.location, "%s", instance->str().c_str());
-				}
-				return EXIT_SUCCESS;
-			}
+		auto phase_2 = compile(user_program_name);
+
+		if (user_error::errors_occurred()) {
 			return EXIT_FAILURE;
-		} else if (cmd == "compile") {
-			auto phase_2 = compile(user_program_name);
+		}
+		decl_t *program_main = phase_2.defn_map.lookup({make_iid(phase_2.compilation->program_name + ".main"), program_main_scheme});
 
-			if (user_error::errors_occurred()) {
-				return EXIT_FAILURE;
+		std::set<defn_id_t> needed_defns;
+		defn_id_t main_defn{program_main->var, program_main_scheme};
+		needed_defns.insert(main_defn);
+
+		std::map<defn_id_t, translation_t::ref> translation_map;
+		while (needed_defns.size() != 0) {
+			auto next_defn_id = *needed_defns.begin();
+			try {
+				specialize(
+						phase_2.defn_map,
+						phase_2.typing,
+						phase_2.data_ctors_map,
+						next_defn_id,
+						translation_map,
+						needed_defns);
+			} catch (user_error &e) {
+				print_exception(e);
+				/* and continue */
 			}
-			decl_t *program_main = phase_2.defn_map.lookup({make_iid(phase_2.compilation->program_name + ".main"), program_main_scheme});
+			needed_defns.erase(next_defn_id);
+		}
 
-			std::set<defn_id_t> needed_defns;
-			defn_id_t main_defn{program_main->var, program_main_scheme};
-			needed_defns.insert(main_defn);
-
-			std::map<defn_id_t, translation_t::ref> translation_map;
-			while (needed_defns.size() != 0) {
-				auto next_defn_id = *needed_defns.begin();
-				try {
-					specialize(
-							phase_2.defn_map,
-							phase_2.typing,
-							phase_2.data_ctors_map,
-							next_defn_id,
-							translation_map,
-							needed_defns);
-				} catch (user_error &e) {
-					print_exception(e);
-					/* and continue */
-				}
-				needed_defns.erase(next_defn_id);
+		if (debug_compiled_env) {
+			for (auto pair : translation_map) {
+				log_location(pair.second->get_location(), "%s = %s",
+						pair.first.str().c_str(),
+						pair.second->str().c_str());
 			}
+		}
+		return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
+	} else {
+		panic(string_format("bad CLI invocation of %s %s", job.cmd.c_str(), join(job.args, " ").c_str()));
+		return EXIT_FAILURE;
+	}
+}
 
-			if (debug_compiled_env) {
-				for (auto pair : translation_map) {
-					log_location(pair.second->get_location(), "%s = %s",
-							pair.first.str().c_str(),
-							pair.second->str().c_str());
-				}
-			}
-			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
-		} else {
-			panic(string_format("bad CLI invocation of %s", argv[0]));
+int main(int argc, char *argv[]) {
+	signal(SIGINT, &handle_sigint);
+	init_dbg();
+	std::shared_ptr<logger> logger(std::make_shared<standard_logger>("", "."));
+
+	job_t job;
+	if (1 < argc) {
+		int index = 1;
+		job.cmd = argv[index++];
+		while (index < argc) {
+			job.args.push_back(argv[index++]);
 		}
 	} else {
-		return usage();
+		job.cmd = "help";
 	}
 
-	return EXIT_SUCCESS;
+
+	return run_job(job);
 }
+

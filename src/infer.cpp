@@ -100,26 +100,27 @@ types::type_t::ref infer_core(
 		append(constraints, t1, type_bool(condition->cond->get_location()), {"conditions must be bool", condition->get_location()});
 		append(constraints, t2, t3, {"both branches of conditionals must match types with each other", condition->falsey->get_location()});
 		return t2;
+	} else if (auto break_ = dcast<break_t*>(expr)) {
+		return type_unit(break_->get_location());
 	} else if (auto while_ = dcast<while_t*>(expr)) {
 		auto t1 = infer(while_->condition, env, constraints);
 		append(constraints, t1, type_bool(while_->condition->get_location()), {"while conditions must be bool", while_->condition->get_location()});
 		auto t2 = infer(while_->block, env, constraints);
 		return type_unit(while_->get_location());
 	} else if (auto block = dcast<block_t*>(expr)) {
+		types::type_t::ref last_expr_type = type_unit(block->get_location());
 		for (int i=0; i<block->statements.size(); ++i) {
 			auto expr = block->statements[i];
 			auto t1 = infer(expr, env, constraints);
-			if (auto return_statement = dcast<return_statement_t*>(expr)) {
-				if (i != block->statements.size()-1) {
-					if (auto return_statement = dcast<return_statement_t*>(expr)) {
-						throw user_error(return_statement->get_location(), "there are statements after a return statement");
-					}
+			if (i != block->statements.size()-1) {
+				if (auto return_statement = dcast<return_statement_t*>(expr)) {
+					throw user_error(return_statement->get_location(), "there are statements after a return statement");
 				}
 			} else {
-				// append(constraints, t1, type_unit(block->get_location()), {"statements must return unit type", block->get_location()});
+				last_expr_type = t1;
 			}
 		}
-		return type_unit(block->get_location());
+		return last_expr_type;
 	} else if (auto return_ = dcast<return_statement_t*>(expr)) {
 		auto t1 = infer(return_->value, env, constraints);
 		append(constraints, t1, env.return_type,
