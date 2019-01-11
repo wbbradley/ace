@@ -11,4 +11,5 @@ bitter::expr_t *translate_match_expr(
 		const std::unordered_set<std::string> &bound_vars,
 		const translation_env_t &tenv,
 		std::unordered_map<bitter::expr_t *, types::type_t::ref> &typing,
-		std::set<defn_id_t> &needed_defns);
+		std::set<defn_id_t> &needed_defns,
+		bool &returns);

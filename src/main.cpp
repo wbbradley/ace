@@ -21,6 +21,7 @@ using namespace bitter;
 const bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
 const bool debug_types = getenv("SHOW_TYPES") != nullptr;
 const bool debug_all_expr_types = getenv("SHOW_EXPR_TYPES") != nullptr;
+const bool debug_all_translated_defns = getenv("SHOW_DEFN_TYPES") != nullptr;
 const int max_tuple_size = (getenv("ZION_MAX_TUPLE") != nullptr) ? atoi(getenv("ZION_MAX_TUPLE")) : 16;
 
 types::type_t::ref program_main_type = type_arrows({type_unit(INTERNAL_LOC()), type_id(make_iid("std.ExitCode"))});
@@ -677,17 +678,25 @@ void specialize(
 		translation_env_t tenv{tracked_types, data_ctors_map};
 		std::unordered_set<std::string> bound_vars;
 		INDENT(6, string_format("----------- specialize %s ------------", defn_id.str().c_str()));
+		bool returns = true;
 		auto translated_decl = translate(
 				defn_id,
 				as_defn,
 				bound_vars,
 				tenv,
-				needed_defns);
-		log_location(
-				defn_id.id.location,
-				"%s = %s",
-				defn_id.id.str().c_str(),
-				translated_decl->str().c_str());
+				needed_defns,
+				returns);
+
+		assert(returns);
+
+		if (debug_all_translated_defns) {
+			log_location(
+					defn_id.id.location,
+					"%s = %s",
+					defn_id.id.str().c_str(),
+					translated_decl->str().c_str());
+		}
+
 		translation_map[defn_id] = translated_decl;
 	} catch (...) {
 		assert(translation_map[defn_id] == nullptr);
