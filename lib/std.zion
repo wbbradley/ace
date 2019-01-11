@@ -144,6 +144,11 @@ class Num a {
     fn negate(a) a
 }
 
+class Bounded a {
+    fn min_bound() a
+    fn max_bound() a
+}
+
 data Ordering {
     EQ
     LT
@@ -183,6 +188,11 @@ instance Num Int {
     / = __builtin_divide_int
     negate = __builtin_negate_int
     abs = __builtin_abs_int
+}
+
+instance Bounded Int {
+    fn min_bound() => __builtin_min_int
+    fn max_bound() => __builtin_max_int
 }
 
 instance Num Float {
@@ -316,5 +326,30 @@ fn panic(x) {
 fn concat(xs [a], ys [a]) {
     for y in ys {
         append(xs, y)
+    }
+}
+
+struct Range a {
+    range_min a
+    step_size a
+    range_max a
+}
+
+fn range(max Int) {
+    return Range(0, max-1, 1)
+}
+
+instance Iterable Range {
+    fn iter(ri) {
+        index := Ref(ri.range_min)
+        return fn () {
+            cur_index := !index;
+            if cur_index <= ri.range_max {
+                index = cur_index + ri.step_size
+                return Just(cur_index)
+            } else {
+                return Nothing
+            }
+        }
     }
 }

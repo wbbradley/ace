@@ -241,10 +241,10 @@ expr_t *parse_for_block(parse_state_t &ps) {
 		return new let_t(
 				iterator_id,
 				new application_t(
-					new var_t(identifier_t{"iter", in_token.location}),
+					new var_t(ps.id_mapped(identifier_t{"iter", in_token.location})),
 					iterable),
 				new while_t(
-					new var_t(identifier_t{"True", in_token.location}),
+					new var_t(ps.id_mapped(identifier_t{"True", in_token.location})),
 					new match_t(
 						new application_t(
 							new var_t(iterator_id),
@@ -253,14 +253,14 @@ expr_t *parse_for_block(parse_state_t &ps) {
 								new ctor_predicate_t(
 									iterator_id.location,
 									{new irrefutable_predicate_t(var.location, maybe<identifier_t>(var))},
-									identifier_t{"std.Just", iterator_id.location},
+									ps.id_mapped(identifier_t{"Just", iterator_id.location}),
 									maybe<identifier_t>()),
 								block),
 						new pattern_block_t(
 								new ctor_predicate_t(
 									iterator_id.location,
 									{},
-									identifier_t{"std.Nothing", iterator_id.location},
+									ps.id_mapped(identifier_t{"Nothing", iterator_id.location}),
 									maybe<identifier_t>()),
 								new break_t(in_token.location))})));
 	}
@@ -370,29 +370,81 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 	chomp_token(tk_lsquare);
 	std::vector<expr_t*> exprs;
 
-	auto array_var = new var_t(make_iid(fresh()));
-
 	int i = 0;
 	while (ps.token.tk != tk_rsquare && ps.token.tk != tk_none) {
 		++i;
-		exprs.push_back(
+		exprs.push_back(parse_expr(ps));
+
+		if (ps.token.tk == tk_double_dot && (i == 1 || i == 2)) {
+			/* range syntax with step calculation */
+			auto location = ps.token.location;
+			ps.advance();
+			/* let range_min = exprs[0] in let range_next = {exprs[1] or (range_min+1)} in let range_max = {exprs[1] or Max Int} in Range(range_min, range_next-range_min, range_max) */
+
+			identifier_t range_min = make_iid("__range_min" + fresh());
+			identifier_t range_next = make_iid("__range_next" + fresh());
+			identifier_t range_max = make_iid("__range_max" + fresh());
+
+			auto range_body = new application_t(
+					new application_t(
+						new application_t(
+							new var_t(ps.id_mapped(identifier_t{"Range", location})),
+							new var_t(range_min)),
+						new application_t(new application_t(new var_t(make_iid("std.-")), new var_t(range_next)), new var_t(range_min))),
+					new var_t(range_max));
+
+			auto let_range_max = new let_t(
+					range_max,
+					(ps.token.tk != tk_rsquare)
+					? parse_expr(ps)
+					: new application_t(
+						new var_t(ps.id_mapped(make_iid("max_bound"))),
+						unit_expr(location)),
+					range_body);
+
+			auto let_range_next = new let_t(
+					range_next,
+					(i == 2)
+					? exprs[1]
+					: new application_t(
+						new application_t(
+							new var_t(make_iid("std.+")),
+							new literal_t(token_t{location, tk_integer, "1"})),
+						new var_t(range_min)),
+					let_range_max);
+
+			auto let_range_min = new let_t(
+					range_min,
+					exprs[0],
+					let_range_next);
+
+			chomp_token(tk_rsquare);
+			return let_range_min;
+		} else if (ps.token.tk == tk_comma) {
+			ps.advance();
+		} else if (ps.token.tk != tk_rsquare) {
+			throw user_error(ps.token.location, "found something (%s) that does not make sense in an array literal", ps.token.str().c_str());
+		}
+	}
+	chomp_token(tk_rsquare);
+
+	auto array_var = new var_t(make_iid(fresh()));
+
+	/* take all the exprs from the array, and turn them into statements to fill out a vector */
+	std::vector<expr_t*> stmts;
+	for (auto expr: exprs) {
+		stmts.push_back(
 				new application_t(
 					new application_t(
 						new var_t(ps.id_mapped(identifier_t{"append", ps.token.location})),
 						array_var),
-					parse_expr(ps)));
-
-		if (ps.token.tk == tk_comma) {
-			ps.advance();
-		} else if (ps.token.tk != tk_rsquare) {
-			throw user_error(ps.token.location, "found something that does not make sense in an array literal");
-		}
+					expr));
 	}
-	chomp_token(tk_rsquare);
+
 	const auto array_size_to_reserve = string_format("%d", exprs.size());
 
 	/* now, add another item just for the actual array value to be returned */
-	exprs.push_back(array_var);
+	stmts.push_back(array_var);
 
 	return new let_t(
 			array_var->id,
@@ -402,7 +454,7 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 					unit_expr(ps.token.location)),
 				scheme({"a"}, {}, type_vector_type(type_variable(make_iid("a")))),
 				false /*force_cast*/),
-			new block_t(exprs));
+			new block_t(stmts));
 }
 
 expr_t *parse_literal(parse_state_t &ps) {
@@ -485,8 +537,10 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 			{
 				ps.advance();
 				bool is_slice = false;
+				dbg_when(ps.token.location.filename.find("loop") != std::string::npos);
 
 				expr_t *start = parse_expr(ps);
+
 				if (ps.token.tk == tk_colon) {
 					is_slice = true;
 					ps.advance();
