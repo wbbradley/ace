@@ -12,8 +12,8 @@ types::type_t::ref build_patterns(
 		location_t location,
 		const ast::pattern_blocks_t &pattern_blocks,
 		types::type_t::ref pattern_value_type,
-		bool *returns,
-		types::type_t::ref expected_type)
+		types::type_t::ref expected_type,
+		bool &returns)
 {
 	assert(pattern_blocks.size() != 0);
 
@@ -177,17 +177,16 @@ expr_t *translate_match_expr(
 		const std::unordered_set<std::string> &bound_vars,
 		const translation_env_t &tenv,
 		std::unordered_map<bitter::expr_t *, types::type_t::ref> &typing,
-		std::set<defn_id_t> &needed_defns)
+		std::set<defn_id_t> &needed_defns,
+		bool &returns)
 {
-	bool returns_ = false;
-	bool *returns = &returns_;
 	auto expected_type = tenv.get_type(match);
 
 	debug_above(6, log("match expression is expecting type %s", expected_type->str().c_str()));
 
-	auto pattern_value = texpr(for_defn_id, match->scrutinee, bound_vars, tenv, typing, needed_defns);
+	auto pattern_value = texpr(for_defn_id, match->scrutinee, bound_vars, tenv, typing, needed_defns, returns);
 
-	if (returns != nullptr && *returns) {
+	if (returns) {
 		throw user_error(pattern_value->get_location(), "this value will return so the match seems pointless?");
 	}
 
@@ -212,7 +211,8 @@ expr_t *translate_match_expr(
 			pattern_value,
 			returns,
 			expected_type,
-			incoming_values);
+			incoming_values,
+			returns);
 #endif
 	// assert(false);
 	return match;
