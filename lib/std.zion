@@ -3,6 +3,14 @@ data Bool {
     True
 }
 
+fn not(x) {
+    if x {
+        return False
+    } else {
+        return True
+    }
+}
+
 class HasDefault a {
     fn new() a
 }
@@ -21,6 +29,9 @@ instance Show Int {
     }
 }
 
+instance Show Ref a {
+    fn str(a) => str(!a)
+}
 
 data Ref a {
     Ref(a)
@@ -29,11 +40,10 @@ data Ref a {
 instance Show Ref {
     fn str(x) {
         s := new [Char]
-        append(s, "Ref(")
-        append(s, str(x))
-        append(s, ")")
+        concat(s, "Ref(")
+        concat(s, str(x))
+        concat(s, ")")
         return s
-        # return "Ref(" ++ str(x) ++ ")"
     }
 }
 
@@ -69,6 +79,11 @@ instance Eq *a {
     != = __builtin_ptr_ne
 }
 
+instance Eq Ref a {
+    fn ==(a, b) => !a == !b
+    fn !=(a, b) => !a != !b
+}
+
 instance Eq Int {
     == = __builtin_int_eq
     != = __builtin_int_ne
@@ -78,6 +93,16 @@ instance Eq Float {
     == = __builtin_float_eq
     != = __builtin_float_ne
 }
+
+instance Eq Maybe a {
+    fn ==(a, b) => match (a, b) {
+        (Nothing, Nothing) => True
+        (Just(a), Just(b)) => a == b
+        _ => False
+    }
+    fn !=(a, b) => not (a == b)
+}
+
 
 instance Eq [a] {
     fn ==(xs, ys) {
@@ -134,6 +159,11 @@ class Ord a {
 }
 
 instance Ord Int {
+    < = __builtin_int_lt
+    <= = __builtin_int_lte
+    > = __builtin_int_gt
+    >= = __builtin_int_gte
+
     fn compare(a, b) {
         if a < b {
             return LT
@@ -170,6 +200,23 @@ data Maybe t {
     Nothing
 }
 
+instance Show Maybe a {
+    fn str(ma) {
+        match ma {
+            Just(a) {
+                s := new [Char]
+                concat(s, "Just(")
+                concat(s, str(a))
+                concat(s, ")")
+                return s
+            }
+            Nothing {
+                return "Nothing"
+            }
+        }
+    }
+}
+
 class Functor f {
     fn fmap(fn (a) b, f a) f b
 }
@@ -190,6 +237,14 @@ struct Vector a {
     capacity Ref Int
 }
 
+class HasLength a {
+    fn len(a) Int
+}
+
+instance HasLength [a] {
+    fn len(v) => !v.size
+}
+
 fn alloc(count Int) *a {
     return __builtin_calloc(sizeof(a) * count)
 }
@@ -199,7 +254,14 @@ fn __getptritem__(ptr, index) {
 }
 
 fn __getitem__(vec, index) {
-    return __getptritem__(!vec.array, index)
+    size := len(vec)
+    if index < 0 {
+        return Nothing
+    } else if index >= size {
+        return Nothing
+    } else {
+        return Just(!__getptritem__(!vec.array, index))
+    }
 }
 
 fn append(vec [a], val a) {
@@ -219,10 +281,20 @@ instance HasDefault [a] {
     }
 }
 
+class Iterable f {
+    fn iter(f a) fn () Maybe a
+}
+
 let unit = ()
 fn id(x) => x
 fn print(x) => __builtin_print(str(x))
 fn panic(x) {
     print(x)
     __builtin_exit(1)
+}
+
+fn concat(xs [a], ys [a]) {
+    for y in ys {
+        append(xs, y)
+    }
 }

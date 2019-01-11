@@ -101,10 +101,8 @@ unification_t bind(std::string a, type_t::ref type, const std::set<std::string> 
 		debug_above(10, log("adding a binding from %s to new freshie %s", tv->id.str().c_str(), type->str().c_str()));
 		unification.bindings[tv->id.name] = type;
 	} else {
-		if (instances.size() != 0) {
-			for (auto instance : instances) {
-				unification.add_instance_requirement({instance, type->get_location(), type});
-			}
+		for (auto instance : instances) {
+			unification.add_instance_requirement({instance, type->get_location(), type});
 		}
 	}
 

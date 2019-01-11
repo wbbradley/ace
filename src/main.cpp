@@ -123,14 +123,22 @@ void initialize_default_env(env_t &env) {
 	env.map["__builtin_abs_float"] = scheme({}, {}, type_arrows({Float, Float}));
 	env.map["__builtin_int_to_float"] = scheme({}, {}, type_arrows({Int, Float}));
 	env.map["__builtin_negate_float"] = scheme({}, {}, type_arrows({Float, Float}));
-	env.map["__builtin_float_eq"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-	env.map["__builtin_float_ne"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
 	env.map["__builtin_add_ptr"] = scheme({"a"}, {}, type_arrows({tp_a, Int, tp_a}));
 	env.map["__builtin_ptr_eq"] = scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
 	env.map["__builtin_ptr_ne"] = scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
 	env.map["__builtin_ptr_load"] = scheme({"a"}, {}, type_arrows({tp_a, tv_a}));
 	env.map["__builtin_int_eq"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
 	env.map["__builtin_int_ne"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+	env.map["__builtin_int_lt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+	env.map["__builtin_int_lte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+	env.map["__builtin_int_gt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+	env.map["__builtin_int_gte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+	env.map["__builtin_float_eq"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+	env.map["__builtin_float_ne"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+	env.map["__builtin_float_lt"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+	env.map["__builtin_float_lte"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+	env.map["__builtin_float_gt"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+	env.map["__builtin_float_gte"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
 	env.map["__builtin_print"] = scheme({}, {}, type_arrows({String, type_unit(INTERNAL_LOC())}));
 	env.map["__builtin_exit"] = scheme({}, {}, type_arrows({Int, type_bottom()}));
 	env.map["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
@@ -672,7 +680,9 @@ void specialize(
 				bound_vars,
 				tenv,
 				needed_defns);
-		log(C_CONTROL "let final " C_RESET "%s = %s",
+		log_location(
+				defn_id.id.location,
+				"%s = %s",
 				defn_id.id.str().c_str(),
 				translated_decl->str().c_str());
 		translation_map[defn_id] = translated_decl;
