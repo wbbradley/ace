@@ -220,13 +220,13 @@ namespace bitter {
 	std::ostream &conditional_t::render(std::ostream &os, int parent_precedence) {
 		const int precedence = 11;
 		parens_t parens(os, parent_precedence, precedence);
-		os << C_CONTROL "if " C_RESET;
+		os << "(" C_CONTROL "if " C_RESET;
 		cond->render(os, precedence);
 		os << C_CONTROL " then " C_RESET;
 		truthy->render(os, precedence);
 		os << C_CONTROL " else " C_RESET;
 		falsey->render(os, precedence);
-		return os;
+		return os << ")";
 	}
 	location_t fix_t::get_location() {
 		return f->get_location();

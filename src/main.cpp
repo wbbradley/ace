@@ -110,6 +110,8 @@ void initialize_default_env(env_t &env) {
 	auto tv_a = type_variable(make_iid("a"));
 	auto tp_a = type_ptr(tv_a);
 
+	env.map["__builtin_min_int"] = scheme({}, {}, Int);
+	env.map["__builtin_max_int"] = scheme({}, {}, Int);
 	env.map["__builtin_multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
 	env.map["__builtin_divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
 	env.map["__builtin_subtract_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
@@ -623,7 +625,7 @@ void specialize(
 		if (iter->second == nullptr) {
 			throw user_error(defn_id.get_location(), "recursion is not yet impl - and besides, it should be handled earlier in the compiler");
 		}
-		log("we have already specialized %s. it is %s", defn_id.str().c_str(), iter->second->str().c_str());
+		debug_above(6, log("we have already specialized %s. it is %s", defn_id.str().c_str(), iter->second->str().c_str()));
 		return;
 	}
 

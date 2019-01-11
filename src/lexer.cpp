@@ -61,6 +61,8 @@ bool zion_lexer_t::get_token(
 
 		if (token.tk == tk_newline) {
 			newline = true;
+		} else {
+			// log_location(token.location, "%s", token.str().c_str());
 		}
 
 		if (comments != nullptr && token.tk == tk_comment) {
@@ -140,7 +142,6 @@ bool zion_lexer_t::_get_tokens() {
 		gts_zero,
 		gts_zerox,
 		gts_float,
-		gts_float_symbol,
 		gts_expon,
 		gts_expon_symbol,
 		gts_eq,
@@ -310,8 +311,9 @@ bool zion_lexer_t::_get_tokens() {
 		case gts_dot:
 			gts = gts_end;
 			if (isdigit(ch)) {
-				gts = gts_float_symbol;
+				gts = gts_float;
 			} else if (ch == '.') {
+				gts = gts_end;
 				tk = tk_double_dot;
 			} else {
 				scan_ahead = false;
@@ -534,13 +536,6 @@ bool zion_lexer_t::_get_tokens() {
 				scan_ahead = false;
 			}
 			break;
-		case gts_float_symbol:
-			if (!isdigit(ch)) {
-				gts = gts_error;
-			} else {
-				gts = gts_float;
-			}
-			break;
 		case gts_float:
 			if (ch == 'e' || ch == 'E') {
 				gts = gts_expon_symbol;
@@ -586,7 +581,11 @@ bool zion_lexer_t::_get_tokens() {
             } else if (ch == 'e') {
                 gts = gts_expon_symbol;
             } else if (ch == '.') {
-                gts = gts_float_symbol;
+				m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
+				token_text.reset();
+				col = m_col;
+				gts = gts_start;
+				scan_ahead = false;
             } else if (!isdigit(ch)) {
                 gts = gts_end;
                 scan_ahead = false;
@@ -598,7 +597,11 @@ bool zion_lexer_t::_get_tokens() {
 			if (ch == 'e') {
 				gts = gts_expon_symbol;
 			} else if (ch == '.') {
-				gts = gts_float_symbol;
+				m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
+				token_text.reset();
+				col = m_col;
+				gts = gts_start;
+				scan_ahead = false;
 			} else if (!isdigit(ch)) {
 				gts = gts_end;
 				scan_ahead = false;
@@ -694,6 +697,7 @@ bool zion_lexer_t::_get_tokens() {
 				return false;
 			}
 		}
+		scan_ahead = true;
 	}
 
 	handle_nests(tk);
