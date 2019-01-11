@@ -1,0 +1,25 @@
+# test: pass
+
+class Funky a {
+    fn funky(a) Int
+}
+
+class Monkey a {
+    fn monkey(a) Int
+}
+
+data Junky a {
+    Junky(a)
+}
+
+instance Funky Junky a {
+    funky = monkey
+}
+
+instance Monkey Junky b {
+    fn monkey(aa) => 4
+}
+
+fn main() {
+    funky(Junky(2))
+}

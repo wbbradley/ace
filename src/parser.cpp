@@ -123,7 +123,7 @@ expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let) {
 		initializer = parse_expr(ps);
 	} else {
 		initializer = new application_t(
-				new var_t(make_iid("std.new")),
+				new var_t(ps.id_mapped(identifier_t{"new", location})),
 				unit_expr(INTERNAL_LOC()));
 	}
 
@@ -237,14 +237,32 @@ expr_t *parse_for_block(parse_state_t &ps) {
 		 *         Nothing   break
 		 *     }
 		 */
+		auto iterator_id = identifier_t{fresh(), var.location};
 		return new let_t(
-				var,
+				iterator_id,
 				new application_t(
 					new var_t(identifier_t{"iter", in_token.location}),
 					iterable),
 				new while_t(
 					new var_t(identifier_t{"True", in_token.location}),
-					block));
+					new match_t(
+						new application_t(
+							new var_t(iterator_id),
+							unit_expr(iterator_id.location)),
+						{new pattern_block_t(
+								new ctor_predicate_t(
+									iterator_id.location,
+									{new irrefutable_predicate_t(var.location, maybe<identifier_t>(var))},
+									identifier_t{"std.Just", iterator_id.location},
+									maybe<identifier_t>()),
+								block),
+						new pattern_block_t(
+								new ctor_predicate_t(
+									iterator_id.location,
+									{},
+									identifier_t{"std.Nothing", iterator_id.location},
+									maybe<identifier_t>()),
+								new break_t(in_token.location))})));
 	}
 }
 
@@ -378,9 +396,12 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 
 	return new let_t(
 			array_var->id,
-			new application_t(
-				new var_t(ps.id_mapped(identifier_t{"__init_vector__", location})),
-				new literal_t(token_t{location, tk_integer, array_size_to_reserve})),
+			new as_t(
+				new application_t(
+					new var_t(ps.id_mapped({"new", ps.prior_token.location})),
+					unit_expr(ps.token.location)),
+				scheme({"a"}, {}, type_variable(make_iid("a"))),
+				false /*force_cast*/),
 			new block_t(exprs));
 }
 
@@ -981,16 +1002,14 @@ predicate_t *parse_tuple_predicate(parse_state_t &ps, maybe<identifier_t> name_a
 	ps.advance();
 
 	std::vector<predicate_t *> params;
-	if (ps.token.tk == tk_lparen) {
-		ps.advance();
-		while (ps.token.tk != tk_rparen) {
-			params.push_back(parse_predicate(ps, false /*allow_else*/, maybe<identifier_t>() /*name_assignment*/));
-			if (ps.token.tk != tk_rparen) {
-				chomp_token(tk_comma);
-			}
+	while (ps.token.tk != tk_rparen) {
+		params.push_back(parse_predicate(ps, false /*allow_else*/, maybe<identifier_t>() /*name_assignment*/));
+		if (ps.token.tk != tk_rparen || params.size() == 1) {
+			chomp_token(tk_comma);
 		}
-		chomp_token(tk_rparen);
 	}
+	chomp_token(tk_rparen);
+
 	return new tuple_predicate_t(
 			ps.token.location,
 			params,
