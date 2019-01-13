@@ -27,6 +27,7 @@ std::vector<bitter::expr_t *> prefix(const std::set<std::string> &bindings, std:
 bitter::module_t *prefix(const std::set<std::string> &bindings, bitter::module_t *module);
 bitter::instance_t *prefix(const std::set<std::string> &bindings, std::string pre, bitter::instance_t *instance);
 data_ctors_map_t prefix(const std::set<std::string> &bindings, std::string pre, const data_ctors_map_t &data_ctors_map);
+inline int prefix(const std::set<std::string> &, std::string, int x) { return x; }
 
 template <typename T>
 std::vector<T> prefix(const std::set<std::string> &bindings, std::string pre, const std::vector<T> &things) {
@@ -58,6 +59,24 @@ std::map<std::string, T> prefix(
 		bool include_keys)
 {
 	std::map<std::string, T> new_map;
+	for (auto pair : map) {
+		if (include_keys) {
+			new_map[prefix(bindings, pre, pair.first)] = prefix(bindings, pre, pair.second);
+		} else {
+			new_map[pair.first] = prefix(bindings, pre, pair.second);
+		}
+	}
+	return new_map;
+}
+
+template <typename T>
+std::unordered_map<std::string, T> prefix(
+		const std::set<std::string> &bindings,
+	   	std::string pre,
+	   	const std::unordered_map<std::string, T> &map,
+		bool include_keys)
+{
+	std::unordered_map<std::string, T> new_map;
 	for (auto pair : map) {
 		if (include_keys) {
 			new_map[prefix(bindings, pre, pair.first)] = prefix(bindings, pre, pair.second);

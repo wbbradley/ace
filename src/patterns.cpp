@@ -7,134 +7,89 @@
 
 using namespace bitter;
 
-#if 0
-types::type_t::ref build_patterns(
-		location_t location,
-		const ast::pattern_blocks_t &pattern_blocks,
-		types::type_t::ref pattern_value_type,
-		types::type_t::ref expected_type,
-		bool &returns)
+expr_t *build_patterns(
+		const defn_id_t &for_defn_id,
+		const pattern_blocks_t &pattern_blocks,
+		int index,
+		const std::unordered_set<std::string> &bound_vars_,
+		const translation_env_t &tenv,
+		tracked_types_t &typing,
+		std::set<defn_id_t> &needed_defns,
+		bool &returns,
+		identifier_t scrutinee_id,
+		types::type_t::ref scrutinee_type,
+		types::type_t::ref expected_type)
 {
-	assert(pattern_blocks.size() != 0);
+	if (index == pattern_blocks.size()) {
+		auto last_block = unit_expr(INTERNAL_LOC());
+		typing[last_block] = type_unit(INTERNAL_LOC());
+		return last_block;
+	} else {
+		auto &pattern_block = pattern_blocks[index];
 
-	bool all_patterns_return = true;
-	for (auto pattern_block_iter = pattern_blocks.rbegin(); pattern_block_iter != pattern_blocks.rend(); ++pattern_block_iter) {
-		auto pattern_block = *pattern_block_iter;
-		auto predicate = pattern_block->predicate;
+		/* if pattern-matches then let names = {names} in block else build next pattern */
+		auto scrutinee_id_with_name_assignment = pattern_block->predicate->instantiate_name_assignment();
 
-		std::string pattern_name = predicate->repr();
+		auto bound_vars = bound_vars_;
+		bound_vars.insert(scrutinee_id_with_name_assignment.name);
 
-		if (!predicate->resolve_match(
-					builder, scope, life,
-					location,
-					pattern_value,
-					llvm_pattern_block,
-					llvm_next_merge,
-					&scope_if_match))
-		{
-			/* this pattern cannot match because the incoming type is unbound */
-			assert(!builder.GetInsertBlock()->getTerminator());
-			builder.CreateBr(llvm_next_merge);
+		/* because we have coverage analysis for the patterns, we know we can sometimes skip the
+		 * checks, and just do the destructuring. */
+		bool do_checks = (index != pattern_blocks.size()-1);
 
-			assert(llvm_pattern_block->getTerminator() == nullptr);
-			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-			builder.SetInsertPoint(llvm_pattern_block);
-			assert(!builder.GetInsertBlock()->getTerminator());
-			builder.CreateBr(llvm_next_merge);
+		auto expr = new let_t(
+				scrutinee_id_with_name_assignment,
+				new var_t(scrutinee_id),
+				pattern_block->predicate->translate(
+					scrutinee_id_with_name_assignment,
+					do_checks,
+					bound_vars,
+					tenv,
+					typing,
+					needed_defns,
+					returns,
+					[&for_defn_id, &pattern_block](const std::unordered_set<std::string> &bound_vars,
+						const translation_env_t &tenv,
+						tracked_types_t &typing,
+						std::set<defn_id_t> &needed_defns,
+						bool &returns) -> expr_t * {
+						return texpr(
+								for_defn_id,
+								pattern_block->result,
+								bound_vars,
+								tenv,
+								typing,
+								needed_defns,
+								returns);
+					},
+					[index, &pattern_blocks, &for_defn_id, &scrutinee_id, &scrutinee_type, &expected_type](const std::unordered_set<std::string> &bound_vars,
+						const translation_env_t &tenv,
+						tracked_types_t &typing,
+						std::set<defn_id_t> &needed_defns,
+						bool &returns) -> expr_t * {
+						if (index + 1 < pattern_blocks.size()) {
+							return build_patterns(
+									for_defn_id,
+									pattern_blocks,
+									index + 1,
+									bound_vars,
+									tenv,
+									typing,
+									needed_defns,
+									returns,
+									scrutinee_id,
+									scrutinee_type,
+									expected_type);
+						} else {
+							assert(false);
+							return nullptr;
+						}
+					}));
 
-			llvm_next_merge = check_block;
-		} else {
-
-			/* save this as the "next" block to jump to (since we are traversing the patterns in
-			 * reverse order */
-			llvm_next_merge = check_block;
-
-			/* start emitting code in the block */
-			builder.SetInsertPoint(llvm_pattern_block);
-
-			/* set up the variable to be interpreted as the type we've matched */
-			scope_t::ref pattern_scope = (
-					(scope_if_match != nullptr)
-					? scope_if_match
-					: scope->new_runnable_scope(string_format("pattern.%s", pattern_name.c_str())));
-
-			bool pattern_returns = false;
-			bound_var_t::ref block_value;
-			if (expected_type != type_bottom()) {
-				block_value = safe_dyncast<const bound_var_t>(
-						pattern_block->block->resolve_expression(
-							delegate, pattern_scope, life, false /*as_ref*/, expected_type,
-							&pattern_returns));
-				if (block_value == nullptr) {
-					/* block_value probably returned, so it has no value... */
-					assert(pattern_returns);
-				} else if (block_value->get_type()->is_bottom(scope)) {
-					builder.CreateUnreachable();
-					pattern_returns = true;
-				} else {
-					auto unbottomed_expected_type = expected_type->rebind(pattern_scope->get_type_variable_bindings())->unbottom();
-
-					/* we are in an expression */
-					unification_t unification = unify(
-							unbottomed_expected_type,
-							block_value->get_type()->rebind(pattern_scope->get_type_variable_bindings())->unbottom(),
-							pattern_scope);
-
-					if (!unification.result) {
-						auto error = user_error(block_value->get_location(), "value does not have a cohesive type with the rest of the match expression");
-						error.add_info(expected_type == type_unit() ? location : expected_type->get_location(), "expected type %s", expected_type->str().c_str());
-						throw error;
-					} else {
-						/* update expected type to ensure we are narrowing what is acceptable */
-						expected_type = unbottomed_expected_type->rebind(unification.bindings);
-						debug_above(6, log("refined expected type to %s", expected_type->str().c_str()));
-						assert(expected_type != type_bottom());
-					}
-				}
-			} else {
-				pattern_block->block->resolve_statement(builder, pattern_scope, life, nullptr, &pattern_returns);
-			}
-
-			if (!pattern_returns && builder.GetInsertBlock()->getTerminator() == nullptr) {
-				/* if this block didn't return or break/continue, then we need to make sure we can merge
-				 * to the next block */
-				all_patterns_return = false;
-				assert(builder.GetInsertBlock()->getTerminator() == nullptr);
-				if (expected_type != type_bottom()) {
-					assert(!block_value->get_type()->is_bottom(scope));
-					incoming_values.push_back(std::pair<bound_var_t::ref, llvm::BasicBlock*>{block_value, builder.GetInsertBlock()});
-				}
-				assert(!builder.GetInsertBlock()->getTerminator());
-				builder.CreateBr(merge_block);
-			}
-		}
+		typing[expr] = expected_type;
+		return expr;
 	}
-
-	{
-		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-		builder.SetInsertPoint(llvm_start_block);
-		assert(!builder.GetInsertBlock()->getTerminator());
-		builder.CreateBr(llvm_next_merge);
-	}
-
-	if (merge_block != nullptr) {
-		/* make sure that if we needed a merge block, that any downstream codegen knows
-		 * to pick up from here when emitting code */
-		builder.SetInsertPoint(merge_block);
-	}
-
-	/* good, the user knew not to have an else block because they are handling
-	 * all paths */
-	*returns = all_patterns_return;
-    if (all_patterns_return && expected_type != type_bottom()) {
-        throw user_error(
-                expected_type->get_location(),
-                "you will never get a value here");
-    }
-
-	return expected_type;
 }
-#endif
 
 void check_patterns(
 		location_t location,
@@ -176,7 +131,7 @@ expr_t *translate_match_expr(
 		bitter::match_t *match,
 		const std::unordered_set<std::string> &bound_vars,
 		const translation_env_t &tenv,
-		std::unordered_map<bitter::expr_t *, types::type_t::ref> &typing,
+		tracked_types_t &typing,
 		std::set<defn_id_t> &needed_defns,
 		bool &returns)
 {
@@ -184,259 +139,214 @@ expr_t *translate_match_expr(
 
 	debug_above(6, log("match expression is expecting type %s", expected_type->str().c_str()));
 
-	auto pattern_value = texpr(for_defn_id, match->scrutinee, bound_vars, tenv, typing, needed_defns, returns);
+	auto scrutinee_expr = texpr(for_defn_id, match->scrutinee, bound_vars, tenv, typing, needed_defns, returns);
 
 	if (returns) {
-		throw user_error(pattern_value->get_location(), "this value will return so the match seems pointless?");
+		throw user_error(scrutinee_expr->get_location(), "this value will return so the match seems pointless?");
 	}
 
 	auto scrutinee_type = tenv.get_type(match->scrutinee);
 
 	check_patterns(
-			pattern_value->get_location(),
+			scrutinee_expr->get_location(),
 			match->scrutinee->str(),
 			tenv,
 			match->pattern_blocks,
 			scrutinee_type);
 
-#if 0
-	build_patterns(
-			builder,
-			runnable_scope,
-			life,
-			value->get_location(),
-			builder.GetInsertBlock(),
-			merge_block,
-			pattern_blocks,
-			pattern_value,
-			returns,
-			expected_type,
-			incoming_values,
-			returns);
-#endif
-	// assert(false);
-	return match;
+	identifier_t scrutinee_id = make_iid("__scrutinee_" + fresh());
+	auto new_match = new let_t(
+			scrutinee_id,
+			scrutinee_expr,
+			build_patterns(
+				for_defn_id,
+				match->pattern_blocks,
+				0,
+				bound_vars,
+				tenv,
+				typing,
+				needed_defns,
+				returns,
+				scrutinee_id,
+				typing[scrutinee_expr],
+				expected_type));
+	typing[new_match] = expected_type;
+	return new_match;
 }
 
-#if 0
-bool ast::literal_expr_t::resolve_match(
-		llvm::IRBuilder<> &builder,
-		runnable_scope_t::ref scope,
-		life_t::ref life,
-		location_t value_location,
-		bound_var_t::ref input_value,
-		llvm::BasicBlock *llvm_match_block,
-		llvm::BasicBlock *llvm_no_match_block,
-		runnable_scope_t::ref *scope_if_true) const
+expr_t *literal_t::translate(
+		const identifier_t &scrutinee_id,
+		bool do_checks,
+		const std::unordered_set<std::string> &bound_vars,
+		const translation_env_t &tenv,
+		tracked_types_t &typing,
+		std::set<defn_id_t> &needed_defns,
+		bool &returns,
+	   	translate_continuation_t &matched,
+	   	translate_continuation_t &failed) const
 {
-	if (input_value->get_type()->eval_predicate(tb_int, scope)) {
-		llvm::Value *llvm_value_to_check = input_value->get_llvm_value(scope);
-		llvm::IntegerType *llvm_int_type = llvm::dyn_cast<llvm::IntegerType>(llvm_value_to_check->getType());
-		if (llvm_int_type == nullptr) {
-			throw user_error(token.location, "could not figure out how to compare %s to a %s",
-					token.str().c_str(),
-					input_value->get_type()->str().c_str());
-		}
-		auto bit_width = llvm_int_type->getBitWidth();
-		llvm::Value *match_bit = builder.CreateICmpEQ(
-				input_value->get_llvm_value(scope),
-				builder.getIntN(bit_width, parse_int_value(token)));
-		match_bit->setName("int_literal." + token.text + ".matched");
-		builder.CreateCondBr(match_bit, llvm_match_block, llvm_no_match_block);
-		return true;
-	} else if (input_value->get_type()->eval_predicate(tb_str, scope)) {
-		auto bound_bool_type = scope->get_program_scope()->get_bound_type(BOOL_TYPE);
-		bound_var_t::ref string_to_test = create_global_str(builder, scope, token.location, unescape_json_quotes(token.text));
-
-		delegate_t delegate{builder, true};
-		bound_var_t::ref matched = safe_dyncast<const bound_var_t>(
-				call_program_function(
-					delegate,
-					scope,
-					life,
-					"__eq__",
-					token.location,
-					{string_to_test, input_value},
-					bound_bool_type->get_type()));
-		llvm::Value *match_bit = llvm_zion_bool_to_i1(builder, matched->get_llvm_value(scope));
-		match_bit->setName("str_literal." + token.text + ".matched");
-		builder.CreateCondBr(match_bit, llvm_match_block, llvm_no_match_block);
-		return true;
+	if (!do_checks) {
+		return matched(bound_vars, tenv, typing, needed_defns, returns);
 	}
-	assert(false);
-	return false;
+
+	auto type = tenv.get_type(this);
+	assert(type != nullptr);
+
+	auto cmp_defn_id = defn_id_t{make_iid("std.=="), type_arrows({type, type, type_id(make_iid(BOOL_TYPE))})->generalize({})};
+	auto literal_cmp = new var_t(make_iid(cmp_defn_id.str()));
+	typing[literal_cmp] = cmp_defn_id.scheme->instantiate(INTERNAL_LOC());
+	needed_defns.insert(cmp_defn_id);
+
+	bool truthy_returns = false;
+	bool falsey_returns = false;
+
+	auto cond = new conditional_t(
+			new application_t(
+				new application_t(
+					literal_cmp,
+					new var_t(scrutinee_id)),
+				new literal_t(token)),
+			matched(bound_vars, tenv, typing, needed_defns, truthy_returns),
+			failed(bound_vars, tenv, typing, needed_defns, falsey_returns));
+	assert(!returns);
+	returns = returns || (truthy_returns && falsey_returns);
+	return cond;
 }
 
-bool ast::ctor_predicate_t::resolve_match(
-		llvm::IRBuilder<> &builder,
-		runnable_scope_t::ref scope,
-		life_t::ref life,
-		location_t value_location,
-		bound_var_t::ref input_value,
-		llvm::BasicBlock *llvm_match_block,
-		llvm::BasicBlock *llvm_no_match_block,
-		runnable_scope_t::ref *scope_if_true) const
+expr_t *translate_next(
+				const identifier_t &scrutinee_id,
+				bool do_checks,
+				const std::unordered_set<std::string> &bound_vars_,
+				const std::vector<predicate_t *> &params,
+				int param_index,
+				int dim_offset,
+				const translation_env_t &tenv,
+				tracked_types_t &typing,
+				std::set<defn_id_t> &needed_defns,
+				bool &returns,
+			   	translate_continuation_t &matched,
+			   	translate_continuation_t &failed)
 {
-	delegate_t delegate{builder, true};
-	bound_var_t::ref casted_input;
-	try {
-		casted_input = cast_data_type_to_ctor_struct(
-				builder, scope, value_location, input_value, token);
-	} catch (unbound_type_error &error) {
-		/* this match is impossible because the type it is matching cannot be instantiated */
-		return false;
-	}
+	identifier_t param_id = params[param_index]->instantiate_name_assignment();
 
-	llvm::Function *llvm_function_current = llvm_get_function(builder);
-	bound_var_t::ref input_ctor_id = safe_dyncast<const bound_var_t>(
-			call_get_ctor_id(builder, scope, life, shared_from_this(),
-				make_iid("input_ctor_id"), input_value));
+	auto bound_vars = bound_vars_;
+	bound_vars.insert(param_id.name);
 
-	int ctor_id = atomize(token.text);
-	debug_above(7, log("matching ctor id %s = %d", token.text.c_str(), ctor_id));
-
-	/* check that this is the right ctor */
-	llvm::Value *match_bit = builder.CreateICmpEQ(
-			input_ctor_id->get_llvm_value(scope),
-			builder.getInt32(ctor_id));
-	match_bit->setName("ctor." + token.text + ".matched");
-
-	llvm::BasicBlock *llvm_next_check = llvm_match_block;
-	runnable_scope_t::ref scope_if_match_at_end = scope;
-
-	for (int i = params.size()-1; i >= 0; --i) {
-		llvm::BasicBlock *check_block = llvm::BasicBlock::Create(
-				builder.getContext(),
-				"check." + params[i]->repr(),
-				llvm_function_current);
-		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-		builder.SetInsertPoint(check_block);
-
-		// TODO: allow as_ref below to be true
-		bound_var_t::ref member = safe_dyncast<const bound_var_t>(
-				extract_member_by_index(
-					delegate,
-					scope,
-					life,
-					params[i]->get_location(),
-					casted_input,
-					casted_input->get_bound_type(),
-					i,
-					params[i]->token.text,
-					false /*as_ref*/));
-
-		/* resolve sub-patterns */
-		runnable_scope_t::ref scope_if_match = nullptr;
-		if (!params[i]->resolve_match(builder, scope_if_match_at_end, life, 
-					value_location, member, llvm_next_check, llvm_no_match_block, &scope_if_match))
-		{
-			assert(!builder.GetInsertBlock()->getTerminator());
-			builder.CreateBr(llvm_no_match_block);
-			return false;
+	auto matching = [param_index, dim_offset, &matched, &failed, &params, &scrutinee_id, do_checks](
+			const std::unordered_set<std::string> &bound_vars,
+			const translation_env_t &tenv,
+			tracked_types_t &typing,
+			std::set<defn_id_t> &needed_defns,
+			bool &returns)
+	{
+		if (param_index + 1 < params.size()) {
+			return translate_next(
+					scrutinee_id,
+					do_checks,
+					bound_vars,
+					params,
+					param_index + 1,
+					dim_offset,
+					tenv,
+					typing,
+					needed_defns,
+					returns,
+					matched,
+					failed);
+		} else {
+			return matched(bound_vars, tenv, typing, needed_defns, returns);
 		}
+	};
 
-		if (scope_if_match != nullptr) {
-			scope_if_match_at_end = scope_if_match;
-		}
-		llvm_next_check = check_block;
-	}
-
-	/* by this point llvm_next_check should point to either the next thing we need to check or the
-	 * final pattern block */
-	builder.CreateCondBr(match_bit, llvm_next_check, llvm_no_match_block);
-	*scope_if_true = scope_if_match_at_end;
-
-	if (name_assignment.tk == tk_identifier) {
-		/* put a name on the pattern match. for example: a match on x@T(_, _) gets named x */
-		*scope_if_true = (*scope_if_true)->new_runnable_scope("name_assignment." + name_assignment.text);
-		(*scope_if_true)->put_bound_variable(name_assignment.text, input_value);
-	}
-
-	return true;
+	return new let_t(
+			param_id,
+			new application_t(
+				new application_t(
+					new var_t(make_iid("__builtin_get_dim")),
+					new var_t(scrutinee_id)),
+				new literal_t(token_t{INTERNAL_LOC(), tk_integer, string_format("%d", param_index + dim_offset)})),
+			params[param_index]->translate(
+				param_id,
+				do_checks,
+				bound_vars,
+			   	tenv,
+			   	typing,
+			   	needed_defns,
+				returns,
+			   	matching,
+			   	failed));
 }
 
-bool ast::tuple_predicate_t::resolve_match(
-		llvm::IRBuilder<> &builder,
-		runnable_scope_t::ref scope,
-		life_t::ref life,
-		location_t value_location,
-		bound_var_t::ref input_value,
-		llvm::BasicBlock *llvm_match_block,
-		llvm::BasicBlock *llvm_no_match_block,
-		runnable_scope_t::ref *scope_if_true) const
+expr_t *ctor_predicate_t::translate(
+		const identifier_t &scrutinee_id,
+		bool do_checks,
+		const std::unordered_set<std::string> &bound_vars,
+		const translation_env_t &tenv,
+		tracked_types_t &typing,
+		std::set<defn_id_t> &needed_defns,
+		bool &returns,
+	   	translate_continuation_t &matched,
+	   	translate_continuation_t &failed) const
 {
-	delegate_t delegate{builder, true};
-	llvm::Function *llvm_function_current = llvm_get_function(builder);
-	llvm::BasicBlock *llvm_next_check = llvm_match_block;
-	runnable_scope_t::ref scope_if_match_at_end = scope;
+	if (do_checks) {
+		static auto Int = type_id(make_iid(INT_TYPE));
+		auto cmp_defn_id = defn_id_t{make_iid("std.=="), type_arrows({Int, Int, type_id(make_iid(BOOL_TYPE))})->generalize({})};
+		auto ctor_id_cmp = new var_t(make_iid(cmp_defn_id.str()));
+		typing[ctor_id_cmp] = cmp_defn_id.scheme->instantiate(INTERNAL_LOC());
+		needed_defns.insert(cmp_defn_id);
 
-	for (int i = params.size()-1; i >= 0; --i) {
-		llvm::BasicBlock *check_block = llvm::BasicBlock::Create(
-				builder.getContext(),
-				"check." + params[i]->repr(),
-				llvm_function_current);
-		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-		builder.SetInsertPoint(check_block);
-		bound_var_t::ref member = safe_dyncast<const bound_var_t>(
-				extract_member_by_index(
-					delegate,
-					scope,
-					life,
-					params[i]->get_location(),
-					input_value,
-					input_value->get_bound_type(),
-					i,
-					params[i]->token.text,
-					false /*as_ref*/));
+		auto condition = new application_t(
+				new application_t(
+					ctor_id_cmp,
+					new literal_t(token_t{location, tk_integer, "0"})),
+				new application_t(
+					new var_t(make_iid("__builtin_get_ctor_id")),
+					new var_t(scrutinee_id)));
 
-		/* resolve sub-patterns */
-		runnable_scope_t::ref scope_if_match = nullptr;
-		if (!params[i]->resolve_match(builder, scope_if_match_at_end, life,
-					value_location, member, llvm_next_check, llvm_no_match_block, &scope_if_match))
-		{
-			assert(!builder.GetInsertBlock()->getTerminator());
-			builder.CreateBr(llvm_no_match_block);
-			return false;
-		}
-
-		if (scope_if_match != nullptr) {
-			scope_if_match_at_end = scope_if_match;
-		}
-		llvm_next_check = check_block;
+		bool truthy_returns = false;
+		bool falsey_returns = false;
+		auto cond = new conditional_t(
+				condition,
+				(params.size() != 0)
+				? translate_next(scrutinee_id, do_checks, bound_vars, params, 0, 1 /*dim_offset*/, tenv, typing, needed_defns, truthy_returns, matched, failed)
+				: matched(bound_vars, tenv, typing, needed_defns, truthy_returns),
+				failed(bound_vars, tenv, typing, needed_defns, falsey_returns));
+		assert(!returns);
+		returns = returns || (truthy_returns && falsey_returns);
+		return cond;
+	} else {
+		return (params.size() != 0)
+			? translate_next(scrutinee_id, do_checks, bound_vars, params, 0, 1 /*dim_offset*/, tenv, typing, needed_defns, returns, matched, failed)
+			: matched(bound_vars, tenv, typing, needed_defns, returns);
 	}
-
-	/* by this point llvm_next_check should point to either the next thing we need to check or the
-	 * final pattern block */
-	builder.CreateBr(llvm_next_check);
-	*scope_if_true = scope_if_match_at_end;
-
-	if (name_assignment.tk == tk_identifier) {
-		/* put a name on the pattern match. for example: a match on x@T(_, _) gets named x */
-		*scope_if_true = (*scope_if_true)->new_runnable_scope("name_assignment." + name_assignment.text);
-		(*scope_if_true)->put_bound_variable(name_assignment.text, input_value);
-	}
-
-	return true;
 }
 
-bool ast::irrefutable_predicate_t::resolve_match(
-		llvm::IRBuilder<> &builder,
-		runnable_scope_t::ref scope,
-		life_t::ref life,
-		location_t value_location,
-		bound_var_t::ref input_value,
-		llvm::BasicBlock *llvm_match_block,
-		llvm::BasicBlock *,
-		runnable_scope_t::ref *scope_if_true) const
+expr_t *tuple_predicate_t::translate(
+		const identifier_t &scrutinee_id,
+		bool do_checks,
+		const std::unordered_set<std::string> &bound_vars,
+		const translation_env_t &tenv,
+		tracked_types_t &typing,
+		std::set<defn_id_t> &needed_defns,
+		bool &returns,
+	   	translate_continuation_t &matched,
+	   	translate_continuation_t &failed) const
 {
-	if (!(token.is_ident(K(_)) || token.is_ident(K(else)))) {
-		*scope_if_true = scope->new_runnable_scope("irrefutable." + token.text);
-		(*scope_if_true)->put_bound_variable(token.text, input_value);
-	}
-
-	/* throw away this value, and continue */
-	assert(!builder.GetInsertBlock()->getTerminator());
-	builder.CreateBr(llvm_match_block);
-	return true;
+	return (params.size() != 0)
+		? translate_next(scrutinee_id, do_checks, bound_vars, params, 0, 0 /*dim_offset*/, tenv, typing, needed_defns, returns, matched, failed)
+		: matched(bound_vars, tenv, typing, needed_defns, returns);
 }
-#endif
+
+expr_t *irrefutable_predicate_t::translate(
+		const identifier_t &scrutinee_id,
+		bool do_checks,
+		const std::unordered_set<std::string> &bound_vars,
+		const translation_env_t &tenv,
+		tracked_types_t &typing,
+		std::set<defn_id_t> &needed_defns,
+		bool &returns,
+	   	translate_continuation_t &matched,
+	   	translate_continuation_t &) const
+{
+	return matched(bound_vars, tenv, typing, needed_defns, returns);
+}

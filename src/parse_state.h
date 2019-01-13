@@ -38,8 +38,10 @@ struct parse_state_t {
 
 	std::vector<token_t> &comments;
 	std::set<token_t> &link_ins;
+	ctor_id_map_t ctor_id_map;
 	data_ctors_map_t data_ctors_map;
 	std::set<identifier_t> newtypes;
+
 
 	/* scoped expression contexts */
 	std::list<scope_t> scopes;

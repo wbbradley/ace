@@ -1,17 +1,28 @@
 # test: pass
 
-fn queens(rows, columns) {
-    var solutions [[int]]
-    var solution [int]
+fn no_conflict(new_row, new_column, solution) {
+    for row in range(new_row) {
+        condition := (
+            solution[row]       != new_column           and
+            solution[row] + row != new_column + new_row and
+            solution[row] - row != new_column - new_row)
 
-    # Introduce an empty solution upon which the dynamic programming algorithm can build
-    append(solutions, solution)
-
-    for row in range(rows) {
-        solutions = add_one_queen(row, columns, solutions)
+        if not condition {
+            return False
+        }
     }
 
-    return solutions
+    return True
+}
+
+fn copy_and_extend(v, a) {
+    n := []
+    reserve(n, len(v) + 1)
+    for x in v {
+        append(n, x)
+    }
+    append(n, a)
+    return n
 }
 
 fn add_one_queen(new_row, columns, prev_solutions) [[Int]] {
@@ -21,7 +32,7 @@ fn add_one_queen(new_row, columns, prev_solutions) [[Int]] {
     for solution in prev_solutions {
         for new_column in range(columns) {
             if no_conflict(new_row, new_column, solution) {
-                append(solutions, copy(solution, new_column))
+                append(solutions, copy_and_extend(solution, new_column))
             }
         }
     }
@@ -29,19 +40,18 @@ fn add_one_queen(new_row, columns, prev_solutions) [[Int]] {
     return solutions
 }
 
-fn no_conflict(new_row, new_column, solution) bool {
-    for row in range(new_row) {
-        condition := (
-            solution[row]       != new_column           and
-            solution[row] + row != new_column + new_row and
-            solution[row] - row != new_column - new_row)
+fn queens(rows, columns) {
+    solutions := Ref([[]])
+    solution := []
 
-        if not condition {
-            return false
-        }
+    # Introduce an empty solution upon which the dynamic programming algorithm can build
+    append(!solutions, solution)
+
+    for row in range(rows) {
+        solutions = add_one_queen(row, columns, !solutions)
     }
 
-    return true
+    return !solutions
 }
 
 fn main() {

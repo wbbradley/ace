@@ -20,21 +20,21 @@ std::ostream &operator <<(std::ostream &os, bitter::expr_t *expr) {
 }
 
 namespace bitter {
-	std::string expr_t::str() {
+	std::string expr_t::str() const {
 		std::stringstream ss;
 		this->render(ss, 0);
 		return ss.str();
 	}
-	location_t var_t::get_location() {
+	location_t var_t::get_location() const {
 		return id.location;
 	}
-	std::ostream &var_t::render(std::ostream &os, int parent_precedence) {
-		return os << id.name;
+	std::ostream &var_t::render(std::ostream &os, int parent_precedence) const {
+		return os << C_ID << id.name << C_RESET;
 	}
-	location_t as_t::get_location() {
+	location_t as_t::get_location() const {
 		return scheme->get_location();
 	}
-	std::ostream &as_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &as_t::render(std::ostream &os, int parent_precedence) const {
 		os << "(";
 		expr->render(os, 10);
 		if (force_cast) {
@@ -46,16 +46,16 @@ namespace bitter {
 		os << ")";
 		return os;
 	}
-	location_t sizeof_t::get_location() {
+	location_t sizeof_t::get_location() const {
 		return location;
 	}
-	std::ostream &sizeof_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &sizeof_t::render(std::ostream &os, int parent_precedence) const {
 		return os << "sizeof(" << type->str() << ")";
 	}
-	location_t application_t::get_location() {
+	location_t application_t::get_location() const {
 		return a->get_location();
 	}
-	std::ostream &application_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &application_t::render(std::ostream &os, int parent_precedence) const {
 		const int precedence = 5;
 		if (auto inner_app = dcast<application_t *>(a)) {
 			if (auto oper = dcast<var_t *>(inner_app->a)) {
@@ -78,32 +78,32 @@ namespace bitter {
 		b->render(os, precedence + 1);
 		return os;
 	}
-	location_t continue_t::get_location() {
+	location_t continue_t::get_location() const {
 		return location;
 	}
-	std::ostream &continue_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &continue_t::render(std::ostream &os, int parent_precedence) const {
 		return os << "(" C_CONTROL "continue!" C_RESET ")";
 	}
-	location_t break_t::get_location() {
+	location_t break_t::get_location() const {
 		return location;
 	}
-	std::ostream &break_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &break_t::render(std::ostream &os, int parent_precedence) const {
 		return os << "(" C_CONTROL "break!" C_RESET ")";
 	}
-	location_t return_statement_t::get_location() {
+	location_t return_statement_t::get_location() const {
 		return value->get_location();
 	}
-	std::ostream &return_statement_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &return_statement_t::render(std::ostream &os, int parent_precedence) const {
 		const int precedence = 4;
 		parens_t parens(os, parent_precedence, precedence);
 		os << C_CONTROL "return! " C_RESET;
 		value->render(os, 0);
 		return os;
 	}
-	location_t match_t::get_location() {
+	location_t match_t::get_location() const {
 		return scrutinee->get_location();
 	}
-	std::ostream &match_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &match_t::render(std::ostream &os, int parent_precedence) const {
 		const int precedence = 4;
 		parens_t parens(os, parent_precedence, precedence);
 		os << "match ";
@@ -114,10 +114,10 @@ namespace bitter {
 		}
 		return os;
 	}
-	location_t while_t::get_location() {
+	location_t while_t::get_location() const {
 		return condition->get_location();
 	}
-	std::ostream &while_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &while_t::render(std::ostream &os, int parent_precedence) const {
 		const int precedence = 3;
 		parens_t parens(os, parent_precedence, precedence);
 		os << C_CONTROL "while " C_RESET;
@@ -126,11 +126,11 @@ namespace bitter {
 		block->render(os, precedence);
 		return os;
 	}
-	location_t block_t::get_location() {
+	location_t block_t::get_location() const {
 		assert(statements.size() != 0);
 		return statements[0]->get_location();
 	}
-	std::ostream &block_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &block_t::render(std::ostream &os, int parent_precedence) const {
 		const int precedence = 0;
 		parens_t parens(os, parent_precedence, precedence);
 		const char *delim = "";
@@ -142,10 +142,10 @@ namespace bitter {
 		}
 		return os << "}";
 	}
-	location_t lambda_t::get_location() {
+	location_t lambda_t::get_location() const {
 		return var.location;
 	}
-	std::ostream &lambda_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &lambda_t::render(std::ostream &os, int parent_precedence) const {
 		const int precedence = 7;
 		os << "(λ" << var.name;
 		if (param_type != nullptr) {
@@ -165,10 +165,10 @@ namespace bitter {
 		}
 		return os;
 	}
-	location_t let_t::get_location() {
+	location_t let_t::get_location() const {
 		return var.location;
 	}
-	std::ostream &let_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &let_t::render(std::ostream &os, int parent_precedence) const {
 		const int precedence = 9;
 		parens_t parens(os, parent_precedence, precedence);
 		os << "let " << var.name << " = ";
@@ -177,22 +177,23 @@ namespace bitter {
 		body->render(os, precedence);
 		return os;
 	}
-	location_t literal_t::get_location() {
-		return token.location;
-	}
 	location_t literal_t::get_location() const {
 		return token.location;
 	}
-	std::ostream &literal_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &literal_t::render(std::ostream &os, int parent_precedence) const {
 		return os << token.text;
 	}
 	std::ostream &literal_t::render(std::ostream &os) const {
 		return os << token.text;
 	}
-	location_t tuple_t::get_location() {
+	identifier_t literal_t::instantiate_name_assignment() const {
+		return identifier_t{fresh(), token.location};
+	}
+
+	location_t tuple_t::get_location() const {
 		return location;
 	}
-	std::ostream &tuple_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &tuple_t::render(std::ostream &os, int parent_precedence) const {
 		os << "(";
 		int i = 0;
 		const char *delim = "";
@@ -206,18 +207,18 @@ namespace bitter {
 		}
 		return os << ")";
 	}
-	location_t tuple_deref_t::get_location() {
+	location_t tuple_deref_t::get_location() const {
 		return expr->get_location();
 	}
-	std::ostream &tuple_deref_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &tuple_deref_t::render(std::ostream &os, int parent_precedence) const {
 		const int precedence = 20;
 		expr->render(os, precedence);
 		return os << "[" << index << " of " << max << "]";
 	}
-	location_t conditional_t::get_location() {
+	location_t conditional_t::get_location() const {
 		return cond->get_location();
 	}
-	std::ostream &conditional_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &conditional_t::render(std::ostream &os, int parent_precedence) const {
 		const int precedence = 11;
 		parens_t parens(os, parent_precedence, precedence);
 		os << "(" C_CONTROL "if " C_RESET;
@@ -228,10 +229,10 @@ namespace bitter {
 		falsey->render(os, precedence);
 		return os << ")";
 	}
-	location_t fix_t::get_location() {
+	location_t fix_t::get_location() const {
 		return f->get_location();
 	}
-	std::ostream &fix_t::render(std::ostream &os, int parent_precedence) {
+	std::ostream &fix_t::render(std::ostream &os, int parent_precedence) const {
 		const int precedence = 6;
 		parens_t parens(os, parent_precedence, precedence);
 		os << C_TYPE "fix " C_RESET;
@@ -239,7 +240,7 @@ namespace bitter {
 		return os;
 	}
 
-	std::ostream &pattern_block_t::render(std::ostream &os) {
+	std::ostream &pattern_block_t::render(std::ostream &os) const {
 		os << "(";
 		predicate->render(os);
 		os << " ";
@@ -270,6 +271,14 @@ namespace bitter {
 		return location;
 	}
 
+	identifier_t ctor_predicate_t::instantiate_name_assignment() const {
+		if (name_assignment.valid) {
+			return name_assignment.t;
+		} else {
+			return identifier_t{fresh(), location};
+		}
+	}
+
 	std::ostream &tuple_predicate_t::render(std::ostream &os) const {
 		os << "(";
 		const char *delim = "";
@@ -285,12 +294,28 @@ namespace bitter {
 		return location;
 	}
 
+	identifier_t tuple_predicate_t::instantiate_name_assignment() const {
+		if (name_assignment.valid) {
+			return name_assignment.t;
+		} else {
+			return identifier_t{fresh(), location};
+		}
+	}
+
 	std::ostream &irrefutable_predicate_t::render(std::ostream &os) const {
 		return os << C_ID << (name_assignment.valid ? name_assignment.t.name : "_") << C_RESET;
 	}
 
 	location_t irrefutable_predicate_t::get_location() const {
 		return location;
+	}
+
+	identifier_t irrefutable_predicate_t::instantiate_name_assignment() const {
+		if (name_assignment.valid) {
+			return name_assignment.t;
+		} else {
+			return identifier_t{fresh(), location};
+		}
 	}
 
 	types::type_t::ref type_decl_t::get_type() const {

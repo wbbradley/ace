@@ -196,11 +196,14 @@ namespace types {
 };
 
 typedef std::map<std::string, types::type_t::map> data_ctors_map_t;
+typedef std::unordered_map<const bitter::expr_t *, types::type_t::ref> tracked_types_t;
+typedef std::unordered_map<std::string, int> ctor_id_map_t;
 
 identifier_t gensym(location_t location);
 
 /* type data ctors */
 types::type_t::ref type_bottom();
+types::type_t::ref type_bool(location_t location);
 types::type_t::ref type_bool(location_t location);
 types::type_t::ref type_string(location_t location);
 types::type_t::ref type_int(location_t location);

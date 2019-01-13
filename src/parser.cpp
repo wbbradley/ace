@@ -537,7 +537,6 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 			{
 				ps.advance();
 				bool is_slice = false;
-				dbg_when(ps.token.location.filename.find("loop") != std::string::npos);
 
 				expr_t *start = parse_expr(ps);
 
@@ -803,21 +802,32 @@ expr_t *parse_bitwise_or(parse_state_t &ps) {
 	return expr;
 }
 
+expr_t *fold_and_exprs(std::vector<expr_t *> exprs, int index) {
+	if (index < exprs.size() - 1) {
+		/* let a = exprs[index] in if a then recurse else False */
+		identifier_t term_id = make_iid(fresh());
+		return new let_t(
+				term_id,
+			   	exprs[index],
+			   	new conditional_t(
+					new var_t(term_id),
+					fold_and_exprs(exprs, index + 1),
+					new var_t(make_iid("std.False"))));
+	} else {
+		return exprs[index];
+	}
+}
+
 expr_t *parse_and_expr(parse_state_t &ps) {
-	auto expr = parse_bitwise_or(ps);
+	std::vector<expr_t *> exprs;
+	exprs.push_back(parse_bitwise_or(ps));
 
 	while (!ps.line_broke() && (ps.token.is_ident(K(and)))) {
-		identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
 		ps.advance();
-
-		expr = new application_t(
-				new application_t(
-					new var_t(op),
-					expr),
-				parse_bitwise_or(ps));
+		exprs.push_back(parse_bitwise_or(ps));
 	}
 
-	return expr;
+	return fold_and_exprs(exprs, 0);
 }
 
 expr_t *parse_tuple_expr(parse_state_t &ps) {
@@ -1498,7 +1508,11 @@ data_type_decl_t parse_struct_decl(parse_state_t &ps, types::type_t::map &data_c
 	return {type_decl, decls};
 }
 
-data_type_decl_t parse_data_type_decl(parse_state_t &ps, types::type_t::map &data_ctors) {
+data_type_decl_t parse_data_type_decl(
+		parse_state_t &ps,
+	   	types::type_t::map &data_ctors,
+	   	ctor_id_map_t &ctor_id_map)
+{
 	auto type_decl = parse_type_decl(ps);
 	std::vector<decl_t *> decls;
 
@@ -1526,6 +1540,8 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps, types::type_t::map &dat
 		}
 		data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl, param_types);
 		decls.push_back(new decl_t(ctor_id, create_ctor(ctor_id.location, maybe<int>(i), type_decl, param_types)));
+		ctor_id_map[ctor_id.name] = i;
+
 		if (ps.token.tk == tk_rcurly) {
 			ps.advance();
 			break;
@@ -1678,7 +1694,7 @@ module_t *parse_module(
 			/* module-level types */
 			ps.advance();
 			types::type_t::map data_ctors;
-			auto data_type = parse_data_type_decl(ps, data_ctors);
+			auto data_type = parse_data_type_decl(ps, data_ctors, ps.ctor_id_map);
 			type_decls.push_back(data_type.type_decl);
 			for (auto &decl : data_type.decls) {
 				decls.push_back(decl);
@@ -1705,7 +1721,15 @@ module_t *parse_module(
 	if (ps.token.tk != tk_none) {
 		throw user_error(ps.token.location, "unknown stuff here");
 	}
-	return new module_t(ps.module_name, decls, type_decls, type_classes, instances, ps.data_ctors_map, ps.newtypes);
+	return new module_t(
+			ps.module_name,
+		   	decls,
+		   	type_decls,
+		   	type_classes,
+		   	instances,
+		   	ps.ctor_id_map,
+			ps.data_ctors_map,
+		   	ps.newtypes);
 }
 
 #if 0
