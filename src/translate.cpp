@@ -3,6 +3,7 @@
 #include "patterns.h"
 #include "user_error.h"
 #include "ast.h"
+#include "unification.h"
 
 using namespace bitter;
 
@@ -11,7 +12,7 @@ expr_t *texpr(
 		bitter::expr_t *expr,
 		const std::unordered_set<std::string> &bound_vars,
 		const translation_env_t &tenv,
-		std::unordered_map<bitter::expr_t *, types::type_t::ref> &typing,
+		tracked_types_t &typing,
 		std::set<defn_id_t> &needed_defns,
 		bool &returns)
 {
@@ -25,13 +26,17 @@ expr_t *texpr(
 			typing[literal] = type;
 			return literal;
 		} else if (auto var = dcast<var_t*>(expr)) {
-			typing[var] = type;
 			if (!in(var->id.name, bound_vars)) {
 				auto defn_id = defn_id_t{var->id, type->generalize({})->normalize()};
 				debug_above(6, log(c_id("%s") " depends on " c_id("%s"), for_defn_id.str().c_str(), defn_id.str().c_str()));
 				needed_defns.insert(defn_id);
+				auto new_var = new var_t(identifier_t{defn_id.str(), var->get_location()});
+				typing[new_var] = type;
+				return new_var;
+			} else {
+				typing[var] = type;
+				return var;
 			}
-			return var;
 		} else if (auto lambda = dcast<lambda_t*>(expr)) {
 			auto new_bound_vars = bound_vars;
 			new_bound_vars.insert(lambda->var.name);
@@ -44,8 +49,13 @@ expr_t *texpr(
 					typing,
 					needed_defns,
 					lambda_returns);
-			if (!lambda_returns) {
-				throw user_error(lambda->get_location(), "not all control paths return a value");
+			types::type_t::refs lambda_terms;
+			unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, lambda_terms);
+			assert(lambda_terms.size() >= 2);
+			if (!lambda_returns && !unify(lambda_terms.back(), type_unit(INTERNAL_LOC())).result) {
+				auto error = user_error(lambda->get_location(), "not all control paths return a value");
+				error.add_info(lambda_terms.back()->get_location(), "return type is %s", lambda_terms.back()->str().c_str());
+				throw error;
 			}
 			auto new_lambda = new lambda_t(lambda->var, nullptr, nullptr, new_body);
 			typing[new_lambda] = type;
@@ -226,14 +236,7 @@ expr_t *texpr(
 				return new_as;
 			} else {
 				/* eliminate non-forceful casts */
-				return texpr(
-						for_defn_id,
-						as->expr,
-						bound_vars,
-						tenv,
-						typing,
-						needed_defns,
-						returns);
+				return expr;
 			}
 		} else if (auto sizeof_ = dcast<sizeof_t*>(expr)) {
 			auto new_sizeof = new var_t(identifier_t{"__builtin_word_size", sizeof_->get_location()});
@@ -271,7 +274,7 @@ translation_t::ref translate(
 		std::set<defn_id_t> &needed_defns,
 		bool &returns)
 {
-	std::unordered_map<bitter::expr_t *, types::type_t::ref> typing;
+	tracked_types_t typing;
 	expr_t *translated_expr = texpr(
 				for_defn_id,
 				expr,
@@ -291,7 +294,7 @@ location_t translation_t::get_location() const {
 	return expr->get_location();
 }
 
-types::type_t::ref translation_env_t::get_type(bitter::expr_t *e) const {
+types::type_t::ref translation_env_t::get_type(const bitter::expr_t *e) const {
 	auto t = (*tracked_types)[e];
 	assert(t != nullptr);
 	return t;

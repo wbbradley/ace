@@ -14,11 +14,13 @@ struct compilation_t {
 			bitter::program_t *program,
 			std::vector<token_t> comments,
 			std::set<token_t> link_ins,
+			const ctor_id_map_t &ctor_id_map,
 			const data_ctors_map_t &data_ctors_map) :
 		program_name(program_name),
 		program(program),
 		comments(comments),
 		link_ins(link_ins),
+		ctor_id_map(ctor_id_map),
 		data_ctors_map(data_ctors_map)
 	{
 	}
@@ -27,6 +29,7 @@ struct compilation_t {
 	bitter::program_t * const program;
 	std::vector<token_t> const comments;
 	std::set<token_t> const link_ins;
+	ctor_id_map_t const ctor_id_map;
 	data_ctors_map_t const data_ctors_map;
 };
 

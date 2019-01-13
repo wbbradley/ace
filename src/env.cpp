@@ -39,7 +39,7 @@ void env_t::rebind(const types::type_t::map &bindings) {
 	}
 	std::swap(instance_requirements, new_instance_requirements);
 	assert(tracked_types != nullptr);
-	std::unordered_map<bitter::expr_t *, types::type_t::ref> temp_tracked_types;
+	tracked_types_t temp_tracked_types;
 
 	for (auto pair : *tracked_types) {
 		temp_tracked_types.insert({pair.first, pair.second->rebind(bindings)});
@@ -47,7 +47,7 @@ void env_t::rebind(const types::type_t::map &bindings) {
 	temp_tracked_types.swap(*tracked_types);
 }
 
-types::type_t::ref env_t::track(bitter::expr_t *expr, types::type_t::ref type) {
+types::type_t::ref env_t::track(const bitter::expr_t *expr, types::type_t::ref type) {
 	assert(tracked_types != nullptr);
 	assert(!in(expr, *tracked_types));
 	(*tracked_types)[expr] = type;

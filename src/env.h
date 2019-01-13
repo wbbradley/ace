@@ -29,7 +29,7 @@ struct env_t : public translation_env_t {
 			const types::scheme_t::map &map,
 			const std::shared_ptr<const types::type_t> &return_type,
 			const std::vector<instance_requirement_t> &instance_requirements,
-			std::shared_ptr<std::unordered_map<bitter::expr_t *, types::type_t::ref>> tracked_types,
+			std::shared_ptr<tracked_types_t> tracked_types,
 			const data_ctors_map_t &data_ctors_map) :
 		translation_env_t(tracked_types, data_ctors_map),
 		map(map),
@@ -41,7 +41,7 @@ struct env_t : public translation_env_t {
 	std::shared_ptr<const types::type_t> return_type;
 	std::vector<instance_requirement_t> instance_requirements;
 
-	types::type_t::ref track(bitter::expr_t *expr, types::type_t::ref type);
+	types::type_t::ref track(const bitter::expr_t *expr, types::type_t::ref type);
 	types::type_t::ref get_tracked_type(bitter::expr_t *expr) const;
 	types::type_t::ref maybe_get_tracked_type(bitter::expr_t *expr) const;
 	void add_instance_requirement(const instance_requirement_t &ir);

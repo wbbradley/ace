@@ -18,13 +18,13 @@
 
 using namespace bitter;
 
-const bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
-const bool debug_types = getenv("SHOW_TYPES") != nullptr;
-const bool debug_all_expr_types = getenv("SHOW_EXPR_TYPES") != nullptr;
-const bool debug_all_translated_defns = getenv("SHOW_DEFN_TYPES") != nullptr;
-const int max_tuple_size = (getenv("ZION_MAX_TUPLE") != nullptr) ? atoi(getenv("ZION_MAX_TUPLE")) : 16;
+bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
+bool debug_types = getenv("SHOW_TYPES") != nullptr;
+bool debug_all_expr_types = getenv("SHOW_EXPR_TYPES") != nullptr;
+bool debug_all_translated_defns = getenv("SHOW_DEFN_TYPES") != nullptr;
+int max_tuple_size = (getenv("ZION_MAX_TUPLE") != nullptr) ? atoi(getenv("ZION_MAX_TUPLE")) : 16;
 
-types::type_t::ref program_main_type = type_arrows({type_unit(INTERNAL_LOC()), type_id(make_iid("std.ExitCode"))});
+types::type_t::ref program_main_type = type_arrows({type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
 types::scheme_t::ref program_main_scheme = scheme({}, {}, program_main_type);
 
 int usage() {
@@ -88,10 +88,6 @@ void check(identifier_t id, expr_t *expr, env_t &env) {
 	// log_location(id.location, "adding %s to env as %s", id.str().c_str(), scheme->str().c_str());
 	// log_location(id.location, "let %s = %s", id.str().c_str(), expr->str().c_str());
 	env.extend(id, scheme, false /*allow_subscoping*/);
-
-	if (debug_types) {
-		log_location(id.location, "info: %s :: %s", id.str().c_str(), scheme->str().c_str());
-	}
 }
 		
 std::vector<std::string> alphabet(int count) {
@@ -110,6 +106,8 @@ void initialize_default_env(env_t &env) {
 	auto String = type_operator(type_id(make_iid(VECTOR_TYPE)), Char);
 	auto tv_a = type_variable(make_iid("a"));
 	auto tp_a = type_ptr(tv_a);
+	auto tv_b = type_variable(make_iid("b"));
+	auto tp_b = type_ptr(tv_b);
 
 	env.map["__builtin_min_int"] = scheme({}, {}, Int);
 	env.map["__builtin_max_int"] = scheme({}, {}, Int);
@@ -130,6 +128,8 @@ void initialize_default_env(env_t &env) {
 	env.map["__builtin_ptr_eq"] = scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
 	env.map["__builtin_ptr_ne"] = scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
 	env.map["__builtin_ptr_load"] = scheme({"a"}, {}, type_arrows({tp_a, tv_a}));
+	env.map["__builtin_get_dim"] = scheme({"a", "b"}, {}, type_arrows({tv_a, Int, tv_b}));
+	env.map["__builtin_get_ctor_id"] = scheme({"a"}, {}, type_arrows({tv_a, Int}));
 	env.map["__builtin_int_eq"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
 	env.map["__builtin_int_ne"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
 	env.map["__builtin_int_lt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
@@ -536,7 +536,7 @@ phase_2_t compile(std::string user_program_name_) {
 		{} /*map*/,
 		nullptr /*return_type*/,
 		{} /*instance_requirements*/,
-		std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>(),
+		std::make_shared<tracked_types_t>(),
 		compilation->data_ctors_map};
 
 	initialize_default_env(env);
@@ -650,7 +650,7 @@ void specialize(
 
 		/* start the process of specializing our decl */
 		env_t env{typing /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/, {} /*tracked_types*/, data_ctors_map};
-		auto tracked_types = std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>();
+		auto tracked_types = std::make_shared<tracked_types_t>();
 		env.tracked_types = tracked_types;
 
 		decl_t *decl_to_check = defn_map.maybe_lookup(defn_id);
@@ -693,7 +693,7 @@ void specialize(
 			log_location(
 					defn_id.id.location,
 					"%s = %s",
-					defn_id.id.str().c_str(),
+					defn_id.str().c_str(),
 					translated_decl->str().c_str());
 		}
 
@@ -707,20 +707,27 @@ void specialize(
 
 struct job_t {
 	std::string cmd;
+	std::vector<std::string> opts;
 	std::vector<std::string> args;
 };
 
 int run_job(const job_t &job) {
+	debug_compiled_env = (getenv("SHOW_ENV") != nullptr) || in_vector("-show-env", job.opts);
+	debug_types = (getenv("SHOW_TYPES") != nullptr) || in_vector("-show-types", job.opts);
+	debug_all_expr_types = (getenv("SHOW_EXPR_TYPES") != nullptr) || in_vector("-show-expr-types", job.opts);
+	debug_all_translated_defns = (getenv("SHOW_DEFN_TYPES") != nullptr) || in_vector("-show-defn-types", job.opts);
+	max_tuple_size = (getenv("ZION_MAX_TUPLE") != nullptr) ? atoi(getenv("ZION_MAX_TUPLE")) : 16;
+
 	if (job.cmd == "test") {
 		assert(alphabetize(0) == "a");
 		assert(alphabetize(1) == "b");
 		assert(alphabetize(2) == "c");
 		assert(alphabetize(26) == "aa");
 		assert(alphabetize(27) == "ab");
-		return run_job({"compile", {"test_basic"}});
+		return run_job({"compile", {}, {"test_basic"}});
 	} else if (job.cmd == "find") {
 		if (job.args.size() != 1) {
-			return run_job({"help", {}});
+			return run_job({"help", {}, {}});
 		}
 		log("%s", compiler::resolve_module_filename(INTERNAL_LOC(), job.args[0], ".zion").c_str());
 		return EXIT_SUCCESS;
@@ -793,6 +800,11 @@ int run_job(const job_t &job) {
 			}
 		}
 		return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
+	} else if (job.cmd == "help") {
+		std::cout << "zion {compile, test}" << std::endl;
+		return EXIT_FAILURE;
+	} else if (!starts_with(job.cmd, "-")) {
+		return run_job({"compile", {}, {job.cmd}});
 	} else {
 		panic(string_format("bad CLI invocation of %s %s", job.cmd.c_str(), join(job.args, " ").c_str()));
 		return EXIT_FAILURE;
@@ -809,12 +821,15 @@ int main(int argc, char *argv[]) {
 		int index = 1;
 		job.cmd = argv[index++];
 		while (index < argc) {
-			job.args.push_back(argv[index++]);
+			if (starts_with(argv[index], "-")) {
+				job.opts.push_back(argv[index++]);
+			} else {
+				job.args.push_back(argv[index++]);
+			}
 		}
 	} else {
 		job.cmd = "help";
 	}
-
 
 	return run_job(job);
 }

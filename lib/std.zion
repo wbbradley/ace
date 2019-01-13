@@ -231,11 +231,6 @@ class Functor f {
     fn fmap(fn (a) b, f a) f b
 }
 
-data ExitCode {
-    ExitOK
-    ExitError(Int)
-}
-
 data Either a b {
     Left(a)
     Right(b)
@@ -245,6 +240,14 @@ struct Vector a {
     array Ref (*(Ref a))
     size Ref Int
     capacity Ref Int
+}
+
+instance Show Char {
+    fn str(ch) {
+        y := new [Char]
+        append(y, ch)
+        return y
+    }
 }
 
 instance Show [a] {
@@ -274,14 +277,7 @@ fn __getptritem__(ptr, index) {
 }
 
 fn __getitem__(vec, index) {
-    size := len(vec)
-    if index < 0 {
-        return Nothing
-    } else if index >= size {
-        return Nothing
-    } else {
-        return Just(!__getptritem__(!vec.array, index))
-    }
+    return !__getptritem__(!vec.array, index)
 }
 
 fn append(vec [a], val a) {
@@ -295,6 +291,10 @@ fn append(vec [a], val a) {
     }
 }
 
+fn reserve(vec [a], cap Int) {
+
+}
+
 instance HasDefault [a] {
     fn new() {
         return Vector(Ref(null), Ref(0), Ref(0))
@@ -306,11 +306,11 @@ class Iterable f {
 }
 
 instance Iterable Vector {
-    fn iter(vec) {
+    fn iter(vec Vector a) {
         index := Ref(-1)
         return fn() {
             index = !index + 1
-            return vec[!index]
+            return Just(vec[!index])
         }
     }
 }

@@ -68,7 +68,7 @@ types::type_t::ref infer_core(
 	} else if (auto let = dcast<let_t*>(expr)) {
 		constraints_t local_constraints;
 		auto t1 = infer(let->value, env, local_constraints);
-		auto tracked_types = std::make_shared<std::unordered_map<bitter::expr_t *, types::type_t::ref>>();
+		auto tracked_types = std::make_shared<tracked_types_t>();
 		env_t local_env{{} /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/,
 			tracked_types, env.data_ctors_map};
 

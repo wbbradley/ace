@@ -1,0 +1,4 @@
+fn main() {
+    print(["hey", "you", "guys"])
+    return ExitOK
+}

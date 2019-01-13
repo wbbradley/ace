@@ -16,6 +16,7 @@ add_executable(zion
 	src/builtins.cpp
 	src/compiler.cpp
 	src/dbg.cpp
+	src/defn_id.cpp
 	src/disk.cpp
 	src/env.cpp
 	src/identifier.cpp

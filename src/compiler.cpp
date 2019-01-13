@@ -231,6 +231,7 @@ namespace compiler {
 			std::vector<decl_t *> program_decls;
 			std::vector<type_class_t *> program_type_classes;
 			std::vector<instance_t *> program_instances;
+			ctor_id_map_t ctor_id_map;
 			data_ctors_map_t data_ctors_map;
 
 			/* next, merge the entire set of modules into one program */
@@ -252,6 +253,12 @@ namespace compiler {
 				for (instance_t *instance : module_rebound->instances) {
 					program_instances.push_back(instance);
 				}
+
+				for (auto pair : module_rebound->ctor_id_map) {
+					assert(!in(pair.first, ctor_id_map));
+					ctor_id_map[pair.first] = pair.second;
+				}
+
 				for (auto pair : module_rebound->data_ctors_map) {
 					assert(!in(pair.first, data_ctors_map));
 					data_ctors_map[pair.first] = pair.second;
@@ -269,6 +276,7 @@ namespace compiler {
 							new tuple_t(INTERNAL_LOC(), {}))),
 					gps.comments,
 					gps.link_ins,
+					ctor_id_map,
 					data_ctors_map);
 		} catch (user_error &e) {
 			print_exception(e);

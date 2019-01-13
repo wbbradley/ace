@@ -10,6 +10,13 @@ bitter::expr_t *translate_match_expr(
 		bitter::match_t *match,
 		const std::unordered_set<std::string> &bound_vars,
 		const translation_env_t &tenv,
-		std::unordered_map<bitter::expr_t *, types::type_t::ref> &typing,
+		tracked_types_t &typing,
 		std::set<defn_id_t> &needed_defns,
 		bool &returns);
+
+typedef const std::function<bitter::expr_t *(
+		const std::unordered_set<std::string> &bound_vars,
+		const translation_env_t &tenv,
+		tracked_types_t &typing,
+		std::set<defn_id_t> &needed_defns,
+		bool &returns)> &translate_continuation_t;
