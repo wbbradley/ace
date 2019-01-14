@@ -17,4 +17,5 @@ extern const char *PTR_TO_MBS_TYPE;
 extern const char *TYPEID_TYPE;
 extern const char *ARROW_TYPE_OPERATOR;
 extern const char *PTR_TYPE_OPERATOR;
+extern const char *REF_TYPE_OPERATOR;
 extern const char *VECTOR_TYPE;

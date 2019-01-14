@@ -4,7 +4,7 @@
 #include "utils.h"
 #include "identifier.h"
 #include "token.h"
-
+#include "defn_id.h"
 struct env_t;
 
 extern const char *NULL_TYPE;
@@ -198,6 +198,13 @@ namespace types {
 typedef std::map<std::string, types::type_t::map> data_ctors_map_t;
 typedef std::unordered_map<const bitter::expr_t *, types::type_t::ref> tracked_types_t;
 typedef std::unordered_map<std::string, int> ctor_id_map_t;
+struct defn_ref_t {
+	location_t location;
+	defn_id_t from_defn_id;
+};
+
+typedef std::map<defn_id_t, std::vector<defn_ref_t>> needed_defns_t;
+void insert_needed_defn(needed_defns_t &needed_defns, const defn_id_t &defn_id, location_t location, const defn_id_t &from_defn_id);
 
 identifier_t gensym(location_t location);
 

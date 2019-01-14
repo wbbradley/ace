@@ -145,8 +145,12 @@ void initialize_default_env(env_t &env) {
 	env.map["__builtin_print"] = scheme({}, {}, type_arrows({String, type_unit(INTERNAL_LOC())}));
 	env.map["__builtin_exit"] = scheme({}, {}, type_arrows({Int, type_bottom()}));
 	env.map["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
-	env.map["__builtin_store"] = scheme({"a"}, {}, type_arrows({
-				type_operator(type_id(make_iid("std.Ref")), tv_a),
+	env.map["__builtin_store_ref"] = scheme({"a"}, {}, type_arrows({
+				type_operator(type_id(make_iid(REF_TYPE_OPERATOR)), tv_a),
+				tv_a,
+				type_unit(INTERNAL_LOC())}));
+	env.map["__builtin_store_ptr"] = scheme({"a"}, {}, type_arrows({
+				type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a),
 				tv_a,
 				type_unit(INTERNAL_LOC())}));
 }
@@ -608,7 +612,7 @@ void specialize(
 		data_ctors_map_t const &data_ctors_map,
 		defn_id_t defn_id,
 		/* output */ std::map<defn_id_t, translation_t::ref> &translation_map,
-		/* output */ std::set<defn_id_t> &needed_defns)
+		/* output */ needed_defns_t &needed_defns)
 {
 	if (starts_with(defn_id.id.name, "__builtin_")) {
 		return;
@@ -770,13 +774,13 @@ int run_job(const job_t &job) {
 		}
 		decl_t *program_main = phase_2.defn_map.lookup({make_iid(phase_2.compilation->program_name + ".main"), program_main_scheme});
 
-		std::set<defn_id_t> needed_defns;
+		needed_defns_t needed_defns;
 		defn_id_t main_defn{program_main->var, program_main_scheme};
-		needed_defns.insert(main_defn);
+		insert_needed_defn(needed_defns, main_defn, INTERNAL_LOC(), main_defn);
 
 		std::map<defn_id_t, translation_t::ref> translation_map;
 		while (needed_defns.size() != 0) {
-			auto next_defn_id = *needed_defns.begin();
+			auto next_defn_id = needed_defns.begin()->first;
 			try {
 				specialize(
 						phase_2.defn_map,

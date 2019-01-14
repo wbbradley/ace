@@ -105,6 +105,7 @@ K(null);
 K(or);
 K(return);
 K(struct);
+K(static_print);
 K(sizeof);
 K(var);
 K(match);

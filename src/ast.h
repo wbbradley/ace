@@ -21,6 +21,15 @@ namespace bitter {
 		std::string str() const;
 	};
 
+	struct static_print_t : public expr_t {
+		static_print_t(location_t location, expr_t *expr) : location(location), expr(expr) {}
+		location_t get_location() const override;
+		std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
+		location_t location;
+		expr_t * const expr;
+	};
+
 	struct var_t : public expr_t {
 		var_t(identifier_t id) : id(id) {}
 		location_t get_location() const override;
@@ -55,12 +64,13 @@ namespace bitter {
 		virtual location_t get_location() const = 0;
 		virtual identifier_t instantiate_name_assignment() const = 0;
 		virtual expr_t *translate(
+				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
 				bool do_checks,
 				const std::unordered_set<std::string> &bound_vars,
 				const translation_env_t &tenv,
 				tracked_types_t &typing,
-				std::set<defn_id_t> &needed_defns,
+				needed_defns_t &needed_defns,
 				bool &returns,
 			   	translate_continuation_t &matched,
 			   	translate_continuation_t &failed) const = 0;
@@ -75,12 +85,13 @@ namespace bitter {
 		types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
 		identifier_t instantiate_name_assignment() const override;
 		expr_t *translate(
+				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
 				bool do_checks,
 				const std::unordered_set<std::string> &bound_vars,
 				const translation_env_t &tenv,
 				tracked_types_t &typing,
-				std::set<defn_id_t> &needed_defns,
+				needed_defns_t &needed_defns,
 				bool &returns,
 			   	translate_continuation_t &matched,
 			   	translate_continuation_t &failed) const override;
@@ -98,12 +109,13 @@ namespace bitter {
 		types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
 		identifier_t instantiate_name_assignment() const override;
 		expr_t *translate(
+				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
 				bool do_checks,
 				const std::unordered_set<std::string> &bound_vars,
 				const translation_env_t &tenv,
 				tracked_types_t &typing,
-				std::set<defn_id_t> &needed_defns,
+				needed_defns_t &needed_defns,
 				bool &returns,
 			   	translate_continuation_t &matched,
 			   	translate_continuation_t &failed) const override;
@@ -125,12 +137,13 @@ namespace bitter {
 		types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
 		identifier_t instantiate_name_assignment() const override;
 		expr_t *translate(
+				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
 				bool do_checks,
 				const std::unordered_set<std::string> &bound_vars,
 				const translation_env_t &tenv,
 				tracked_types_t &typing,
-				std::set<defn_id_t> &needed_defns,
+				needed_defns_t &needed_defns,
 				bool &returns,
 			   	translate_continuation_t &matched,
 			   	translate_continuation_t &failed) const override;
@@ -226,12 +239,13 @@ namespace bitter {
 		types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
 		identifier_t instantiate_name_assignment() const override;
 		expr_t *translate(
+				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
 				bool do_checks,
 				const std::unordered_set<std::string> &bound_vars,
 				const translation_env_t &tenv,
 				tracked_types_t &typing,
-				std::set<defn_id_t> &needed_defns,
+				needed_defns_t &needed_defns,
 				bool &returns,
 			   	translate_continuation_t &matched,
 			   	translate_continuation_t &failed) const override;

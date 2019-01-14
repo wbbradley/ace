@@ -43,7 +43,7 @@ translation_t::ref translate(
 		bitter::expr_t *expr,
 		const std::unordered_set<std::string> &bound_vars,
 		const translation_env_t &tenv,
-		std::set<defn_id_t> &needed_defns,
+		needed_defns_t &needed_defns,
 		bool &returns);
 bitter::expr_t *texpr(
 		const defn_id_t &for_defn_id,
@@ -51,5 +51,5 @@ bitter::expr_t *texpr(
 		const std::unordered_set<std::string> &bound_vars,
 		const translation_env_t &tenv,
 		tracked_types_t &typing,
-		std::set<defn_id_t> &needed_defns,
+		needed_defns_t &needed_defns,
 		bool &returns);

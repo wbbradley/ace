@@ -51,9 +51,19 @@ class LoadableValue f {
     fn load_value(f a) a
 }
 
+class StorableValue f {
+    fn store_value(f a, a) ()
+}
+
 instance LoadableValue Ref {
     fn load_value(a) => match a {
         Ref(a) => a
+    }
+}
+
+instance StorableValue Ref {
+    fn store_value(ra Ref a, a a) () {
+        __builtin_store_ref(ra, a)
     }
 }
 
@@ -103,35 +113,6 @@ instance Eq Maybe a {
     fn !=(a, b) => not (a == b)
 }
 
-
-instance Eq [a] {
-    fn ==(xs, ys) {
-        if !xs.size != !ys.size {
-            return False
-        }
-        size := !xs.size
-        var i = 0
-        while !i < size {
-            if xs[!i] != ys[!i] {
-                return False
-            }
-        }
-        return True
-    }
-    fn !=(xs, ys) {
-        if !xs.size != !ys.size {
-            return True
-        }
-        size := !(xs.size)
-        var i = 0
-        while !i < size {
-            if xs[!i] != ys[!i] {
-                return True
-            }
-        }
-        return False
-    }
-}
 
 class Num a {
     has Eq
@@ -237,7 +218,7 @@ data Either a b {
 }
 
 struct Vector a {
-    array Ref (*(Ref a))
+    array Ref (*a)
     size Ref Int
     capacity Ref Int
 }
@@ -272,23 +253,75 @@ fn alloc(count Int) *a {
     return __builtin_calloc(sizeof(a) * count)
 }
 
-fn __getptritem__(ptr, index) {
-    return !__builtin_add_ptr(ptr, index)
+class HasIndexableItems f {
+    fn get_indexed_item(f a, Int) a
 }
 
-fn __getitem__(vec, index) {
-    return !__getptritem__(!vec.array, index)
+instance HasIndexableItems * {
+    fn get_indexed_item(p *a, index Int) a {
+        return !__builtin_add_ptr(p, index)
+    }
+}
+
+instance HasIndexableItems Vector {
+    fn get_indexed_item(vec Vector a, index Int) a {
+        return (!vec.array)[index]
+    }
+}
+
+class HasAssignableIndexableItems f {
+    fn set_indexed_item(f a, Int, a) ()
+}
+
+instance HasAssignableIndexableItems * {
+    fn set_indexed_item(p *a, index Int, a a) {
+        __builtin_store_ptr(__builtin_add_ptr(p, index), a)
+    }
+}
+
+instance HasAssignableIndexableItems Vector {
+    fn set_indexed_item(v Vector a, index Int, a a) {
+        (!v.array)[index] = a
+    }
+}
+
+instance Eq [a] {
+    fn ==(xs, ys) {
+        if !xs.size != !ys.size {
+            return False
+        }
+        size := !xs.size
+        var i = 0
+        while !i < size {
+            if xs[!i] != ys[!i] {
+                return False
+            }
+        }
+        return True
+    }
+    fn !=(xs, ys) {
+        if !xs.size != !ys.size {
+            return True
+        }
+        size := !(xs.size)
+        var i = 0
+        while !i < size {
+            if xs[!i] != ys[!i] {
+                return True
+            }
+        }
+        return False
+    }
 }
 
 fn append(vec [a], val a) {
     if !vec.array == null {
         vec.array = alloc(4)
-        vec.size = 1
+        vec.size = 0
         vec.capacity = 4
-
-        # array := load_value(vec.array)
-        # (array[0]) = Ref(val)
     }
+
+    __builtin_store_ptr(__builtin_add_ptr(!vec.array, !vec.size), val)
 }
 
 fn reserve(vec [a], cap Int) {
