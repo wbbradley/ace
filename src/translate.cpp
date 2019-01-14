@@ -13,7 +13,7 @@ expr_t *texpr(
 		const std::unordered_set<std::string> &bound_vars,
 		const translation_env_t &tenv,
 		tracked_types_t &typing,
-		std::set<defn_id_t> &needed_defns,
+		needed_defns_t &needed_defns,
 		bool &returns)
 {
 	bool starts_already_returned = returns;
@@ -25,11 +25,27 @@ expr_t *texpr(
 		if (auto literal = dcast<literal_t *>(expr)) {
 			typing[literal] = type;
 			return literal;
+		} else if (auto static_print = dcast<static_print_t*>(expr)) {
+			bool fake_returns = false;
+			auto inner_expr = texpr(
+							for_defn_id,
+							static_print->expr,
+							bound_vars,
+							tenv,
+							typing,
+							needed_defns,
+							fake_returns);
+			log_location(static_print->expr->get_location(),
+					"type is %s", typing[inner_expr]->str().c_str());
+			log_location(static_print->get_location(), "while translating %s", for_defn_id.str().c_str());
+			auto unit_ret = unit_expr(static_print->get_location());
+			typing[unit_ret] = type_unit(static_print->get_location());
+			return unit_ret;
 		} else if (auto var = dcast<var_t*>(expr)) {
 			if (!in(var->id.name, bound_vars)) {
 				auto defn_id = defn_id_t{var->id, type->generalize({})->normalize()};
 				debug_above(6, log(c_id("%s") " depends on " c_id("%s"), for_defn_id.str().c_str(), defn_id.str().c_str()));
-				needed_defns.insert(defn_id);
+				insert_needed_defn(needed_defns, defn_id, var->get_location(), for_defn_id);
 				auto new_var = new var_t(identifier_t{defn_id.str(), var->get_location()});
 				typing[new_var] = type;
 				return new_var;
@@ -271,7 +287,7 @@ translation_t::ref translate(
 		bitter::expr_t *expr,
 		const std::unordered_set<std::string> &bound_vars,
 		const translation_env_t &tenv,
-		std::set<defn_id_t> &needed_defns,
+		needed_defns_t &needed_defns,
 		bool &returns)
 {
 	tracked_types_t typing;

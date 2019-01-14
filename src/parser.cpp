@@ -286,6 +286,14 @@ expr_t *parse_new_expr(parse_state_t &ps) {
 			false /*force_cast*/);
 }
 
+expr_t *parse_static_print(parse_state_t &ps) {
+	auto location = ps.token_and_advance().location;
+	chomp_token(tk_lparen);
+	auto sp = new static_print_t(location, parse_expr(ps));
+	chomp_token(tk_rparen);
+	return sp;
+}
+
 expr_t *parse_statement(parse_state_t &ps) {
 	assert(ps.token.tk != tk_rcurly);
 
@@ -305,6 +313,8 @@ expr_t *parse_statement(parse_state_t &ps) {
 		return parse_match(ps);
 	} else if (ps.token.is_ident(K(new))) {
 		return parse_new_expr(ps);
+	} else if (ps.token.is_ident(K(static_print))) {
+		return parse_static_print(ps);
 	} else if (ps.token.is_ident(K(fn))) {
 		ps.advance();
 		if (ps.token.tk == tk_identifier) {
@@ -547,11 +557,24 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 
 				if (ps.token.tk == tk_rsquare) {
 					ps.advance();
-					expr = new application_t(
-							new application_t(
-								new var_t(ps.id_mapped(identifier_t{is_slice ? "__getslice2__" : "__getitem__", ps.token.location})),
-								expr),
-							start);
+					if (ps.token.tk == tk_assign) {
+						/* set up an array index assignment */
+						auto location = ps.token_and_advance().location;
+						auto rhs = parse_expr(ps);
+						expr = new application_t(
+								new application_t(
+									new application_t(
+										new var_t({"std.set_indexed_item", location}),
+										expr),
+									start),
+								rhs);
+					} else {
+						expr = new application_t(
+								new application_t(
+									new var_t(identifier_t{is_slice ? "__getslice2__" : "std.get_indexed_item", ps.token.location}),
+									expr),
+								start);
+					}
 				} else {
 					expr_t *stop = parse_expr(ps);
 					chomp_token(tk_rsquare);
@@ -614,7 +637,7 @@ expr_t *parse_prefix_expr(parse_state_t &ps) {
 					rhs);
 		} else if (prefix.t.text == "!") {
 			return new application_t(
-					new var_t(ps.id_mapped(identifier_t{"load_value", prefix.t.location})),
+					new var_t(identifier_t{"std.load_value", prefix.t.location}),
 					rhs);
 		} else {
 			return new application_t(
@@ -904,15 +927,14 @@ expr_t *parse_expr(parse_state_t &ps) {
 }
 
 expr_t *parse_assignment(parse_state_t &ps) {
-	// (store! x y)
 	expr_t *lhs = parse_expr(ps);
 
-	if (!ps.line_broke() && ps.token.tk == tk_assign) {
+	if (ps.token.tk == tk_assign) {
 		ps.advance();
 		expr_t *rhs = parse_expr(ps);
 		return new application_t(
 				new application_t(
-					new var_t(identifier_t{std::string{"__builtin_store"}, ps.token.location}),
+					new var_t(identifier_t{"std.store_value", ps.token.location}),
 					lhs),
 				rhs);
 	}

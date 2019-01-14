@@ -112,7 +112,9 @@ types::type_t::ref prefix(const std::set<std::string> &bindings, std::string pre
 }
 
 expr_t *prefix(const std::set<std::string> &bindings, std::string pre, expr_t *value) {
-	if (auto var = dcast<var_t*>(value)) {
+	if (auto static_print = dcast<static_print_t*>(value)) {
+		return new static_print_t(static_print->location, prefix(bindings, pre, static_print->expr));
+	} else if (auto var = dcast<var_t*>(value)) {
 		return new var_t(prefix(bindings, pre, var->id));
 	} else if (auto match = dcast<match_t*>(value)) {
 		return new match_t(

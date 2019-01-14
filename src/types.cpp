@@ -773,3 +773,7 @@ void unfold_ops_lassoc(types::type_t::ref t, types::type_t::refs &unfolding) {
 		unfolding.push_back(t);
 	}
 }
+
+void insert_needed_defn(needed_defns_t &needed_defns, const defn_id_t &defn_id, location_t location, const defn_id_t &for_defn_id) {
+	needed_defns[defn_id].push_back({location, for_defn_id});
+}

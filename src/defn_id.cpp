@@ -1,4 +1,5 @@
 #include "defn_id.h"
+#include "types.h"
 
 location_t defn_id_t::get_location() const {
 	return id.location;

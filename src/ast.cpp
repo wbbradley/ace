@@ -25,6 +25,14 @@ namespace bitter {
 		this->render(ss, 0);
 		return ss.str();
 	}
+	location_t static_print_t::get_location() const {
+		return location;
+	}
+	std::ostream &static_print_t::render(std::ostream &os, int parent_precedence) const {
+		os << "(static_print ";
+		expr->render(os, 0);
+		return os << ")";
+	}
 	location_t var_t::get_location() const {
 		return id.location;
 	}
@@ -152,9 +160,9 @@ namespace bitter {
 			os << c_good(" :: ");
 			os << C_TYPE;
 			param_type->emit(os, {}, 0);
-			os << C_RESET " ";
+			os << C_RESET;
 		}
-		os << ".";
+		os << " . ";
 		body->render(os, 0);
 		os << ")";
 		if (return_type != nullptr) {

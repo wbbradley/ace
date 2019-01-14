@@ -32,6 +32,9 @@ types::type_t::ref infer_core(
 	debug_above(8, log("infer(%s, ..., ...)", expr->str().c_str()));
 	if (auto literal = dcast<literal_t *>(expr)) {
 		return literal->infer(env, constraints);
+	} else if (auto static_print = dcast<static_print_t*>(expr)) {
+		infer(static_print->expr, env, constraints);
+		return type_unit(static_print->location);
 	} else if (auto var = dcast<var_t*>(expr)) {
 		auto t1 = env.lookup_env(var->id);
 		// log("instance of %s :: %s", var->id.str().c_str(), t1->str().c_str());
