@@ -217,11 +217,6 @@ namespace compiler {
 				gps.parse_module_statefully({"lib/std", location_t{"std", 0, 0}});
 			}
 
-			/* always include the standard library */
-			if (getenv("NO_STD_LIB") == nullptr) {
-				gps.parse_module_statefully({"lib/std", location_t{std::string(GLOBAL_SCOPE_NAME) + " lib", 0, 0}});
-			}
-
 			/* now parse the main program module */
 			gps.parse_module_statefully({module_name, location_t{"command line build parameters", 0, 0}});
 
