@@ -1,0 +1,7 @@
+# test: pass
+
+# test creating tuples
+
+fn main() {
+    x := (1,)
+}

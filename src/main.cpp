@@ -709,6 +709,47 @@ void specialize(
 	}
 }
 
+struct phase_3_t {
+	phase_2_t phase_2;
+	std::map<defn_id_t, translation_t::ref> translation_map;
+};
+
+phase_3_t specialize(const phase_2_t &phase_2) {
+	assert(!user_error::errors_occurred());
+	decl_t *program_main = phase_2.defn_map.lookup({make_iid(phase_2.compilation->program_name + ".main"), program_main_scheme});
+
+	needed_defns_t needed_defns;
+	defn_id_t main_defn{program_main->var, program_main_scheme};
+	insert_needed_defn(needed_defns, main_defn, INTERNAL_LOC(), main_defn);
+
+	std::map<defn_id_t, translation_t::ref> translation_map;
+	while (needed_defns.size() != 0) {
+		auto next_defn_id = needed_defns.begin()->first;
+		try {
+			specialize(
+					phase_2.defn_map,
+					phase_2.typing,
+					phase_2.data_ctors_map,
+					next_defn_id,
+					translation_map,
+					needed_defns);
+		} catch (user_error &e) {
+			print_exception(e);
+			/* and continue */
+		}
+		needed_defns.erase(next_defn_id);
+	}
+
+	if (debug_compiled_env) {
+		for (auto pair : translation_map) {
+			log_location(pair.second->get_location(), "%s = %s",
+					pair.first.str().c_str(),
+					pair.second->str().c_str());
+		}
+	}
+	return phase_3_t{phase_2, translation_map};
+}
+
 struct job_t {
 	std::string cmd;
 	std::vector<std::string> opts;
@@ -759,56 +800,22 @@ int run_job(const job_t &job) {
 	} else if (job.cmd == "compile") {
 		if (job.args.size() != 1) {
 			return run_job({"help", {}});
+		} else {
+			compile(job.args[0]);
+			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		}
-
-		std::string user_program_name = job.args[0];
-
-		setenv("NO_STD_LIB", "1", 1 /*overwrite*/);
-		setenv("NO_STD_MAIN", "1", 1 /*overwrite*/);
-		setenv("NO_BUILTINS", "1", 1 /*overwrite*/);
-
-		auto phase_2 = compile(user_program_name);
-
-		if (user_error::errors_occurred()) {
-			return EXIT_FAILURE;
+	} else if (job.cmd == "specialize") {
+		if (job.args.size() != 1) {
+			return run_job({"help", {}});
+		} else {
+			specialize(compile(job.args[0]));
+			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		}
-		decl_t *program_main = phase_2.defn_map.lookup({make_iid(phase_2.compilation->program_name + ".main"), program_main_scheme});
-
-		needed_defns_t needed_defns;
-		defn_id_t main_defn{program_main->var, program_main_scheme};
-		insert_needed_defn(needed_defns, main_defn, INTERNAL_LOC(), main_defn);
-
-		std::map<defn_id_t, translation_t::ref> translation_map;
-		while (needed_defns.size() != 0) {
-			auto next_defn_id = needed_defns.begin()->first;
-			try {
-				specialize(
-						phase_2.defn_map,
-						phase_2.typing,
-						phase_2.data_ctors_map,
-						next_defn_id,
-						translation_map,
-						needed_defns);
-			} catch (user_error &e) {
-				print_exception(e);
-				/* and continue */
-			}
-			needed_defns.erase(next_defn_id);
-		}
-
-		if (debug_compiled_env) {
-			for (auto pair : translation_map) {
-				log_location(pair.second->get_location(), "%s = %s",
-						pair.first.str().c_str(),
-						pair.second->str().c_str());
-			}
-		}
-		return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 	} else if (job.cmd == "help") {
 		std::cout << "zion {compile, test}" << std::endl;
 		return EXIT_FAILURE;
 	} else if (!starts_with(job.cmd, "-")) {
-		return run_job({"compile", {}, {job.cmd}});
+		return run_job({"specialize", {}, {job.cmd}});
 	} else {
 		panic(string_format("bad CLI invocation of %s %s", job.cmd.c_str(), join(job.args, " ").c_str()));
 		return EXIT_FAILURE;
