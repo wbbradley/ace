@@ -19,6 +19,7 @@ add_executable(zion
 	src/defn_id.cpp
 	src/disk.cpp
 	src/env.cpp
+	src/gen.cpp
 	src/identifier.cpp
 	src/infer.cpp
 	src/lexer.cpp
@@ -26,9 +27,9 @@ add_executable(zion
 	src/logger.cpp
 	src/main.cpp
 	src/match.cpp
-	src/patterns.cpp
 	src/parse_state.cpp
 	src/parser.cpp
+	src/patterns.cpp
 	src/prefix.cpp
 	src/scope.cpp
 	src/tests.cpp

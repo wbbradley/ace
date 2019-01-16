@@ -175,6 +175,9 @@ expr_t *translate_match_expr(
 	return new_match;
 }
 
+void literal_t::get_bound_vars(std::unordered_set<std::string> &bound_vars) const {
+}
+
 expr_t *literal_t::translate(
 		const defn_id_t &for_defn_id,
 		const identifier_t &scrutinee_id,
@@ -195,7 +198,7 @@ expr_t *literal_t::translate(
 	assert(type != nullptr);
 
 	auto cmp_defn_id = defn_id_t{make_iid("std.=="), type_arrows({type, type, type_id(make_iid(BOOL_TYPE))})->generalize({})};
-	auto literal_cmp = new var_t(make_iid(cmp_defn_id.str()));
+	auto literal_cmp = new var_t(make_iid(cmp_defn_id.repr()));
 	typing[literal_cmp] = cmp_defn_id.scheme->instantiate(INTERNAL_LOC());
 	insert_needed_defn(needed_defns, cmp_defn_id, token.location, for_defn_id);
 
@@ -282,6 +285,15 @@ expr_t *translate_next(
 				failed));
 }
 
+void ctor_predicate_t::get_bound_vars(std::unordered_set<std::string> &bound_vars) const {
+	if (name_assignment.valid) {
+		bound_vars.insert(name_assignment.t.name);
+	}
+	for (auto param : params) {
+		param->get_bound_vars(bound_vars);
+	}
+}
+
 expr_t *ctor_predicate_t::translate(
 		const defn_id_t &for_defn_id,
 		const identifier_t &scrutinee_id,
@@ -297,7 +309,7 @@ expr_t *ctor_predicate_t::translate(
 	if (do_checks) {
 		static auto Int = type_id(make_iid(INT_TYPE));
 		auto cmp_defn_id = defn_id_t{make_iid("std.=="), type_arrows({Int, Int, type_id(make_iid(BOOL_TYPE))})->generalize({})};
-		auto ctor_id_cmp = new var_t(make_iid(cmp_defn_id.str()));
+		auto ctor_id_cmp = new var_t(make_iid(cmp_defn_id.repr()));
 		typing[ctor_id_cmp] = cmp_defn_id.scheme->instantiate(INTERNAL_LOC());
 		insert_needed_defn(needed_defns, cmp_defn_id, get_location(), for_defn_id);
 
@@ -327,6 +339,15 @@ expr_t *ctor_predicate_t::translate(
 	}
 }
 
+void tuple_predicate_t::get_bound_vars(std::unordered_set<std::string> &bound_vars) const {
+	if (name_assignment.valid) {
+		bound_vars.insert(name_assignment.t.name);
+	}
+	for (auto param : params) {
+		param->get_bound_vars(bound_vars);
+	}
+}
+
 expr_t *tuple_predicate_t::translate(
 		const defn_id_t &for_defn_id,
 		const identifier_t &scrutinee_id,
@@ -342,6 +363,12 @@ expr_t *tuple_predicate_t::translate(
 	return (params.size() != 0)
 		? translate_next(for_defn_id, scrutinee_id, do_checks, bound_vars, params, 0, 0 /*dim_offset*/, tenv, typing, needed_defns, returns, matched, failed)
 		: matched(bound_vars, tenv, typing, needed_defns, returns);
+}
+
+void irrefutable_predicate_t::get_bound_vars(std::unordered_set<std::string> &bound_vars) const {
+	if (name_assignment.valid) {
+		bound_vars.insert(name_assignment.t.name);
+	}
 }
 
 expr_t *irrefutable_predicate_t::translate(

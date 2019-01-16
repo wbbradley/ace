@@ -15,6 +15,7 @@
 #include "unification.h"
 #include "env.h"
 #include "translate.h"
+#include "gen.h"
 
 using namespace bitter;
 
@@ -630,7 +631,9 @@ void specialize(
 		if (iter->second == nullptr) {
 			throw user_error(defn_id.get_location(), "recursion is not yet impl - and besides, it should be handled earlier in the compiler");
 		}
-		debug_above(6, log("we have already specialized %s. it is %s", defn_id.str().c_str(), iter->second->str().c_str()));
+		debug_above(6, log("we have already specialized %s. it is %s",
+				   	defn_id.str().c_str(),
+				   	iter->second->str().c_str()));
 		return;
 	}
 
@@ -666,7 +669,7 @@ void specialize(
 		expr_t *to_check = decl_to_check->value;
 		auto as_defn = new as_t(to_check, defn_id.scheme, false);
 		check(
-				identifier_t{defn_id.str(), defn_id.id.location},
+				identifier_t{defn_id.repr(), defn_id.id.location},
 				as_defn,
 				env);
 
@@ -750,6 +753,37 @@ phase_3_t specialize(const phase_2_t &phase_2) {
 	return phase_3_t{phase_2, translation_map};
 }
 
+struct phase_4_t {
+	phase_3_t phase_3;
+	gen::env_t env;
+};
+
+phase_4_t ssa_gen(const phase_3_t phase_3) {
+	gen::env_t env;
+	std::unordered_set<std::string> globals;
+	for (auto pair : phase_3.translation_map) {
+		auto name = pair.first.repr();
+		// env[name] = gen::gen_function(name, pair.second->identifier_t param_id, location_t location, types::type_t::ref type) {
+		globals.insert(name);
+	}
+
+
+	gen::module_t module;
+
+	gen::builder_t builder(module);
+	for (auto pair : phase_3.translation_map) {
+		if (starts_with(pair.first.id.name, "__builtin_")) {
+		}
+	}
+
+	for (auto pair : phase_3.translation_map) {
+		auto name = pair.first.repr();
+		env[name] = gen::gen(builder, pair.second->expr, pair.second->typing, env, globals);
+	}
+
+	return {phase_3, env};
+}
+
 struct job_t {
 	std::string cmd;
 	std::vector<std::string> opts;
@@ -769,7 +803,7 @@ int run_job(const job_t &job) {
 		assert(alphabetize(2) == "c");
 		assert(alphabetize(26) == "aa");
 		assert(alphabetize(27) == "ab");
-		return run_job({"compile", {}, {"test_basic"}});
+		return run_job({"ssa-gen", {}, {"test_basic"}});
 	} else if (job.cmd == "find") {
 		if (job.args.size() != 1) {
 			return run_job({"help", {}, {}});
@@ -811,11 +845,18 @@ int run_job(const job_t &job) {
 			specialize(compile(job.args[0]));
 			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		}
+	} else if (job.cmd == "ssa-gen") {
+		if (job.args.size() != 1) {
+			return run_job({"help", {}});
+		} else {
+			ssa_gen(specialize(compile(job.args[0])));
+			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
+		}
 	} else if (job.cmd == "help") {
 		std::cout << "zion {compile, test}" << std::endl;
 		return EXIT_FAILURE;
 	} else if (!starts_with(job.cmd, "-")) {
-		return run_job({"specialize", {}, {job.cmd}});
+		return run_job({"ssa-gen", {}, {job.cmd}});
 	} else {
 		panic(string_format("bad CLI invocation of %s %s", job.cmd.c_str(), join(job.args, " ").c_str()));
 		return EXIT_FAILURE;
