@@ -63,6 +63,7 @@ namespace bitter {
 		virtual types::type_t::ref infer(env_t &env, constraints_t &constraints) const = 0;
 		virtual location_t get_location() const = 0;
 		virtual identifier_t instantiate_name_assignment() const = 0;
+		virtual void get_bound_vars(std::unordered_set<std::string> &bound_vars) const = 0;
 		virtual expr_t *translate(
 				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
@@ -84,6 +85,7 @@ namespace bitter {
 		match::Pattern::ref get_pattern(types::type_t::ref type, const translation_env_t &env) const override;
 		types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
 		identifier_t instantiate_name_assignment() const override;
+		void get_bound_vars(std::unordered_set<std::string> &bound_vars) const override;
 		expr_t *translate(
 				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
@@ -108,6 +110,7 @@ namespace bitter {
 		match::Pattern::ref get_pattern(types::type_t::ref type, const translation_env_t &env) const override;
 		types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
 		identifier_t instantiate_name_assignment() const override;
+		void get_bound_vars(std::unordered_set<std::string> &bound_vars) const override;
 		expr_t *translate(
 				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
@@ -136,6 +139,7 @@ namespace bitter {
 		match::Pattern::ref get_pattern(types::type_t::ref type, const translation_env_t &env) const override;
 		types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
 		identifier_t instantiate_name_assignment() const override;
+		void get_bound_vars(std::unordered_set<std::string> &bound_vars) const override;
 		expr_t *translate(
 				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
@@ -238,6 +242,7 @@ namespace bitter {
 		match::Pattern::ref get_pattern(types::type_t::ref type, const translation_env_t &env) const override;
 		types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
 		identifier_t instantiate_name_assignment() const override;
+		void get_bound_vars(std::unordered_set<std::string> &bound_vars) const override;
 		expr_t *translate(
 				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,

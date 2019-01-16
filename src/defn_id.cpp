@@ -6,13 +6,27 @@ location_t defn_id_t::get_location() const {
 }
 
 std::string defn_id_t::str() const {
-	if (cached_str.size() != 0) {
-		return cached_str;
+	return C_ID + repr() + C_RESET;
+}
+
+std::string defn_id_t::repr() const {
+	if (cached_repr.size() != 0) {
+		return cached_repr;
 	} else {
-		cached_str = "(" + id.name + " :: " + scheme->str() + ")";
-		return cached_str;
+		cached_repr = "(" + id.name + " :: " + scheme->str() + ")";
+		return cached_repr;
 	}
 }
 bool defn_id_t::operator <(const defn_id_t &rhs) const {
-	return str() < rhs.str();
+	return repr() < rhs.repr();
+}
+
+types::type_t::ref defn_id_t::get_lambda_param_type() const {
+	auto lambda_type = safe_dyncast<const types::type_operator_t>(scheme->instantiate(INTERNAL_LOC()));
+	return lambda_type->oper;
+}
+
+types::type_t::ref defn_id_t::get_lambda_return_type() const {
+	auto lambda_type = safe_dyncast<const types::type_operator_t>(scheme->instantiate(INTERNAL_LOC()));
+	return lambda_type->operand;
 }
