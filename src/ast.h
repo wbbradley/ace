@@ -67,6 +67,7 @@ namespace bitter {
 		virtual expr_t *translate(
 				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
+				const types::type_t::ref &scrutinee_type,
 				bool do_checks,
 				const std::unordered_set<std::string> &bound_vars,
 				const translation_env_t &tenv,
@@ -89,6 +90,7 @@ namespace bitter {
 		expr_t *translate(
 				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
+				const types::type_t::ref &scrutinee_type,
 				bool do_checks,
 				const std::unordered_set<std::string> &bound_vars,
 				const translation_env_t &tenv,
@@ -114,6 +116,7 @@ namespace bitter {
 		expr_t *translate(
 				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
+				const types::type_t::ref &scrutinee_type,
 				bool do_checks,
 				const std::unordered_set<std::string> &bound_vars,
 				const translation_env_t &tenv,
@@ -143,6 +146,7 @@ namespace bitter {
 		expr_t *translate(
 				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
+				const types::type_t::ref &scrutinee_type,
 				bool do_checks,
 				const std::unordered_set<std::string> &bound_vars,
 				const translation_env_t &tenv,
@@ -246,6 +250,7 @@ namespace bitter {
 		expr_t *translate(
 				const defn_id_t &defn_id,
 				const identifier_t &scrutinee_id,
+				const types::type_t::ref &scrutinee_type,
 				bool do_checks,
 				const std::unordered_set<std::string> &bound_vars,
 				const translation_env_t &tenv,
