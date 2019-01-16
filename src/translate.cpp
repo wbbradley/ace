@@ -408,3 +408,12 @@ types::type_t::refs translation_env_t::get_fresh_data_ctor_terms(identifier_t ct
 	}
 	throw user_error(ctor_id.location, "no data constructor found for %s", ctor_id.str().c_str());
 }
+
+int translation_env_t::get_ctor_id(std::string ctor_name) const {
+	auto iter = ctor_id_map.find(ctor_name);
+	if (iter == ctor_id_map.end()) {
+		throw user_error(INTERNAL_LOC(), "bad ctor name requested during translation (%s)", ctor_name.c_str());
+	} else {
+		return iter->second;
+	}
+}

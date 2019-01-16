@@ -73,7 +73,7 @@ types::type_t::ref infer_core(
 		auto t1 = infer(let->value, env, local_constraints);
 		auto tracked_types = std::make_shared<tracked_types_t>();
 		env_t local_env{{} /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/,
-			tracked_types, env.data_ctors_map};
+			tracked_types, env.ctor_id_map, env.data_ctors_map};
 
 		auto bindings = solver({}, local_constraints, local_env);
 		auto schema = scheme({}, {}, t1);

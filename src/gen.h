@@ -97,6 +97,10 @@ namespace gen {
 
 	value_t::ref get_env_variable(const env_t &env, identifier_t id);
 
+	struct module_t {
+		env_t env;
+	};
+
 	struct builder_t {
 		builder_t() {}
 		builder_t(function_t::ref function) : function(function) {}

@@ -30,8 +30,9 @@ struct env_t : public translation_env_t {
 			const std::shared_ptr<const types::type_t> &return_type,
 			const std::vector<instance_requirement_t> &instance_requirements,
 			std::shared_ptr<tracked_types_t> tracked_types,
+			const ctor_id_map_t &ctor_id_map,
 			const data_ctors_map_t &data_ctors_map) :
-		translation_env_t(tracked_types, data_ctors_map),
+		translation_env_t(tracked_types, ctor_id_map, data_ctors_map),
 		map(map),
 		return_type(return_type),
 		instance_requirements(instance_requirements)

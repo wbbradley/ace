@@ -526,6 +526,7 @@ struct phase_2_t {
 	std::shared_ptr<compilation_t const> const compilation;
 	types::scheme_t::map const typing;
 	defn_map_t const defn_map;
+	ctor_id_map_t const ctor_id_map;
 	data_ctors_map_t const data_ctors_map;
 };
 
@@ -542,6 +543,7 @@ phase_2_t compile(std::string user_program_name_) {
 		nullptr /*return_type*/,
 		{} /*instance_requirements*/,
 		std::make_shared<tracked_types_t>(),
+		compilation->ctor_id_map,
 		compilation->data_ctors_map};
 
 	initialize_default_env(env);
@@ -604,12 +606,13 @@ phase_2_t compile(std::string user_program_name_) {
 
 	defn_map_t defn_map;
 	defn_map.populate(decl_map, overrides_map, env);
-	return {compilation, env.map, defn_map, compilation->data_ctors_map};
+	return {compilation, env.map, defn_map, compilation->ctor_id_map, compilation->data_ctors_map};
 }
 
 void specialize(
 		defn_map_t const &defn_map,
 		types::scheme_t::map const &typing,
+		ctor_id_map_t const &ctor_id_map,
 		data_ctors_map_t const &data_ctors_map,
 		defn_id_t defn_id,
 		/* output */ std::map<defn_id_t, translation_t::ref> &translation_map,
@@ -656,7 +659,7 @@ void specialize(
 #endif
 
 		/* start the process of specializing our decl */
-		env_t env{typing /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/, {} /*tracked_types*/, data_ctors_map};
+		env_t env{typing /*map*/, nullptr /*return_type*/, {} /*instance_requirements*/, {} /*tracked_types*/, ctor_id_map, data_ctors_map};
 		auto tracked_types = std::make_shared<tracked_types_t>();
 		env.tracked_types = tracked_types;
 
@@ -682,7 +685,7 @@ void specialize(
 			}
 		}
 
-		translation_env_t tenv{tracked_types, data_ctors_map};
+		translation_env_t tenv{tracked_types, ctor_id_map, data_ctors_map};
 		std::unordered_set<std::string> bound_vars;
 		INDENT(6, string_format("----------- specialize %s ------------", defn_id.str().c_str()));
 		bool returns = true;
@@ -732,6 +735,7 @@ phase_3_t specialize(const phase_2_t &phase_2) {
 			specialize(
 					phase_2.defn_map,
 					phase_2.typing,
+					phase_2.ctor_id_map,
 					phase_2.data_ctors_map,
 					next_defn_id,
 					translation_map,
@@ -758,30 +762,96 @@ struct phase_4_t {
 	gen::env_t env;
 };
 
-phase_4_t ssa_gen(const phase_3_t phase_3) {
-	gen::env_t env;
-	std::unordered_set<std::string> globals;
-	for (auto pair : phase_3.translation_map) {
-		auto name = pair.first.repr();
-		// env[name] = gen::gen_function(name, pair.second->identifier_t param_id, location_t location, types::type_t::ref type) {
-		globals.insert(name);
-	}
-
-
-	gen::module_t module;
-
-	gen::builder_t builder(module);
-	for (auto pair : phase_3.translation_map) {
-		if (starts_with(pair.first.id.name, "__builtin_")) {
+void get_builtins(const bitter::expr_t *expr, const tracked_types_t &typing, std::set<defn_id_t> &builtins) {
+	debug_above(8, log("get_builtins(%s, ...)", expr->str().c_str()));
+	if (auto literal = dcast<const literal_t *>(expr)) {
+		return;
+	} else if (auto static_print = dcast<const bitter::static_print_t*>(expr)) {
+		return;
+	} else if (auto var = dcast<const bitter::var_t*>(expr)) {
+		auto type = get(typing, expr, {});
+		if (type == nullptr) {
+			throw user_error(var->get_location(), "could not find out the type of %s", expr->str().c_str());
 		}
-	}
+		assert(type != nullptr);
 
-	for (auto pair : phase_3.translation_map) {
-		auto name = pair.first.repr();
-		env[name] = gen::gen(builder, pair.second->expr, pair.second->typing, env, globals);
+		if (starts_with(var->id.name, "(__builtin_") || starts_with(var->id.name, "__builtin_")) {
+			builtins.insert({var->id, type->generalize({})});
+		}
+	} else if (auto lambda = dcast<const bitter::lambda_t*>(expr)) {
+		get_builtins(lambda->body, typing, builtins);
+	} else if (auto application = dcast<const bitter::application_t*>(expr)) {
+		get_builtins(application->a, typing, builtins);
+		get_builtins(application->b, typing, builtins);
+	} else if (auto let = dcast<const bitter::let_t*>(expr)) {
+		get_builtins(let->value, typing, builtins);
+		get_builtins(let->body, typing, builtins);
+	} else if (auto fix = dcast<const bitter::fix_t*>(expr)) {
+		get_builtins(fix->f, typing, builtins);
+	} else if (auto condition = dcast<const bitter::conditional_t*>(expr)) {
+		get_builtins(condition->cond, typing, builtins);
+		get_builtins(condition->truthy, typing, builtins);
+		get_builtins(condition->falsey, typing, builtins);
+	} else if (auto break_ = dcast<const bitter::break_t*>(expr)) {
+		return;
+	} else if (auto while_ = dcast<const bitter::while_t*>(expr)) {
+		get_builtins(while_->condition, typing, builtins);
+		get_builtins(while_->block, typing, builtins);
+	} else if (auto block = dcast<const bitter::block_t*>(expr)) {
+		for (auto statement: block->statements) {
+			get_builtins(statement, typing, builtins);
+		}
+	} else if (auto return_ = dcast<const bitter::return_statement_t*>(expr)) {
+		get_builtins(return_->value, typing, builtins);
+	} else if (auto tuple = dcast<const bitter::tuple_t*>(expr)) {
+		for (auto dim: tuple->dims) {
+			get_builtins(dim, typing, builtins);
+		}
+	} else if (auto tuple_deref = dcast<const bitter::tuple_deref_t*>(expr)) {
+		get_builtins(tuple_deref->expr, typing, builtins);
+	} else if (auto as = dcast<const bitter::as_t*>(expr)) {
+		get_builtins(as->expr, typing, builtins);
+	} else if (auto sizeof_ = dcast<const bitter::sizeof_t*>(expr)) {
+	} else if (auto match = dcast<const bitter::match_t*>(expr)) {
+		for (auto pattern_block: match->pattern_blocks) {
+			get_builtins(pattern_block->result, typing, builtins);
+		}
+	} else {
+		throw user_error(expr->get_location(), "unhandled get_builtins for %s", expr->str().c_str());
 	}
+}
 
-	return {phase_3, env};
+phase_4_t ssa_gen(const phase_3_t phase_3) {
+	try {
+		gen::env_t env;
+		std::unordered_set<std::string> globals;
+		for (auto pair : phase_3.translation_map) {
+			auto name = pair.first.repr();
+			/* env[name] = gen::gen_function(name, pair.second->identifier_t param_id, location_t location, types::type_t::ref type) */
+			globals.insert(name);
+		}
+
+		gen::module_t module;
+		gen::builder_t builder;
+		std::set<defn_id_t> builtins;
+		for (auto pair : phase_3.translation_map) {
+			log("checking builtins in %s", pair.second->expr->str().c_str());
+			get_builtins(pair.second->expr, pair.second->typing, builtins);
+		}
+
+		log("builtins: {%s}", join_with(builtins, ", ", [](defn_id_t defn_id) { return defn_id.str(); }).c_str());
+
+		for (auto pair : phase_3.translation_map) {
+			auto name = pair.first.repr();
+			env[name] = gen::gen(builder, pair.second->expr, pair.second->typing, env, globals);
+		}
+
+		return {phase_3, env};
+	} catch (user_error &e) {
+		print_exception(e);
+		/* and continue */
+	}
+	return phase_4_t{phase_3, {}};
 }
 
 struct job_t {
