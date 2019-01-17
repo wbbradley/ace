@@ -201,10 +201,11 @@ expr_t *literal_t::translate(
 	auto type = tenv.get_type(this);
 	assert(type != nullptr);
 
-	auto cmp_defn_id = defn_id_t{make_iid("std.=="), type_arrows({type, type, type_id(make_iid(BOOL_TYPE))})->generalize({})};
-	auto literal_cmp = new var_t(make_iid(cmp_defn_id.repr()));
-	typing[literal_cmp] = cmp_defn_id.scheme->instantiate(INTERNAL_LOC());
-	insert_needed_defn(needed_defns, cmp_defn_id, token.location, for_defn_id);
+	auto literal_cmp = new var_t(make_iid("std.=="));
+	auto cmp_type = type_arrows({type, type, type_id(make_iid(BOOL_TYPE))});
+
+	typing[literal_cmp] = cmp_type;
+	insert_needed_defn(needed_defns, defn_id_t{literal_cmp->id, cmp_type->generalize({})}, token.location, for_defn_id);
 
 	bool truthy_returns = false;
 	bool falsey_returns = false;
@@ -278,8 +279,11 @@ expr_t *translate_next(
 	auto scrutinee = new var_t(scrutinee_id);
 	typing[scrutinee] = scrutinee_type;
 
-	auto get_dim = new var_t(make_iid(string_format("__builtin_get_dim_%d", param_index + dim_offset)));
-	typing[get_dim] = type_arrows({scrutinee_type, param_types[param_index]});
+	auto get_dim_type = type_arrows({scrutinee_type, param_types[param_index]});
+	auto builtin_get_dim_id = make_iid(string_format("__builtin_get_dim_%d", param_index + dim_offset));
+
+	auto get_dim = new var_t(builtin_get_dim_id);
+	typing[get_dim] = get_dim_type;
 
 	auto dim = new application_t(get_dim, scrutinee);
 	typing[dim] = param_types[param_index];
@@ -330,9 +334,10 @@ expr_t *ctor_predicate_t::translate(
 	if (do_checks) {
 		int ctor_id = tenv.get_ctor_id(ctor_name.name);
 
-		auto cmp_defn_id = defn_id_t{make_iid("std.=="), type_arrows({Int, Int, type_id(make_iid(BOOL_TYPE))})->generalize({})};
-		auto ctor_id_cmp = new var_t(make_iid(cmp_defn_id.repr()));
-		typing[ctor_id_cmp] = cmp_defn_id.scheme->instantiate(INTERNAL_LOC());
+		auto cmp_type = type_arrows({Int, Int, type_id(make_iid(BOOL_TYPE))});
+		auto cmp_defn_id = defn_id_t{make_iid("std.=="), cmp_type->generalize({})};
+		auto ctor_id_cmp = new var_t(cmp_defn_id.id);
+		typing[ctor_id_cmp] = cmp_type;
 		insert_needed_defn(needed_defns, cmp_defn_id, get_location(), for_defn_id);
 
 		auto cmp_ctor_id = new var_t(make_iid("__builtin_cmp_ctor_id"));

@@ -22,6 +22,7 @@ namespace gen {
 	};
 
 	struct block_t;
+	struct function_t;
 
 	struct instruction_t : public value_t {
 		typedef std::shared_ptr<instruction_t> ref;
@@ -38,8 +39,11 @@ namespace gen {
 	struct block_t {
 		typedef std::shared_ptr<block_t> ref;
 
+		block_t(std::weak_ptr<function_t> parent, std::string name) : parent(parent), name(name) {}
 		std::string str() const;
 
+		std::weak_ptr<function_t> parent;
+		std::string const name;
 		instructions_t instructions;
 	};
 
@@ -105,10 +109,16 @@ namespace gen {
 		builder_t() {}
 		builder_t(function_t::ref function) : function(function) {}
 
-		void new_block(std::string name);
+		block_t::ref create_block(std::string name);
 
 		builder_t save_ip() const;
 		void restore_ip(const builder_t &builder);
+
+		value_t::ref create_call(value_t::ref callable, const std::vector<value_t::ref> params);
+		value_t::ref create_tuple(const std::vector<value_t::ref> dims);
+		value_t::ref create_gep(value_t::ref value, const std::vector<int> &path);
+		value_t::ref create_branch(block_t::ref block);
+		value_t::ref create_return(value_t::ref expr);
 
 		function_t::ref function;
 		block_t::ref block;
@@ -117,4 +127,5 @@ namespace gen {
 
 	phi_node_t::ref phi_node(types::type_t::ref type);
 	value_t::ref gen(builder_t &builder, const bitter::expr_t *expr, const tracked_types_t &typing, const env_t &env, const std::unordered_set<std::string> &globals);
+	value_t::ref derive_builtin(defn_id_t builtin_defn_id);
 }

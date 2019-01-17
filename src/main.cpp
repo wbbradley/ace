@@ -775,7 +775,8 @@ void get_builtins(const bitter::expr_t *expr, const tracked_types_t &typing, std
 		}
 		assert(type != nullptr);
 
-		if (starts_with(var->id.name, "(__builtin_") || starts_with(var->id.name, "__builtin_")) {
+		assert(!starts_with(var->id.name, "(__builtin_"));
+		if (starts_with(var->id.name, "__builtin_")) {
 			builtins.insert({var->id, type->generalize({})});
 		}
 	} else if (auto lambda = dcast<const bitter::lambda_t*>(expr)) {
@@ -841,8 +842,14 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 
 		log("builtins: {%s}", join_with(builtins, ", ", [](defn_id_t defn_id) { return defn_id.str(); }).c_str());
 
+		for (auto builtin: builtins) {
+			log("adding %s to env", builtin.id.name.c_str());
+			env[builtin.id.name] = gen::derive_builtin(builtin);
+		}
+
 		for (auto pair : phase_3.translation_map) {
 			auto name = pair.first.repr();
+			log("running gen phase for " c_id("%s"), name.c_str());
 			env[name] = gen::gen(builder, pair.second->expr, pair.second->typing, env, globals);
 		}
 
