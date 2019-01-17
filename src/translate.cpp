@@ -46,7 +46,7 @@ expr_t *texpr(
 				auto defn_id = defn_id_t{var->id, type->generalize({})->normalize()};
 				debug_above(6, log(c_id("%s") " depends on " c_id("%s"), for_defn_id.str().c_str(), defn_id.repr/*str*/().c_str()));
 				insert_needed_defn(needed_defns, defn_id, var->get_location(), for_defn_id);
-				auto new_var = new var_t(identifier_t{defn_id.repr(), var->get_location()});
+				auto new_var = new var_t(var->id);
 				typing[new_var] = type;
 				return new_var;
 			} else {
@@ -255,7 +255,8 @@ expr_t *texpr(
 				return expr;
 			}
 		} else if (auto sizeof_ = dcast<sizeof_t*>(expr)) {
-			auto new_sizeof = new var_t(identifier_t{"__builtin_word_size", sizeof_->get_location()});
+			auto builtin_word_id = identifier_t{"__builtin_word_size", sizeof_->get_location()};
+			auto new_sizeof = new var_t(builtin_word_id);
 			typing[new_sizeof] = type;
 			return new_sizeof;
 		} else if (auto tuple_deref = dcast<tuple_deref_t*>(expr)) {

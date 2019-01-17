@@ -1,6 +1,7 @@
 #pragma once
 #include "identifier.h"
 #include <string>
+#include <ostream>
 
 namespace types {
 	struct scheme_t;
@@ -24,8 +25,11 @@ private:
 public:
 	location_t get_location() const;
 	std::string repr() const;
+	identifier_t repr_id() const;
 	std::string str() const;
 	bool operator <(const defn_id_t &rhs) const;
 	std::shared_ptr<const types::type_t> get_lambda_param_type() const;
 	std::shared_ptr<const types::type_t> get_lambda_return_type() const;
 };
+
+std::ostream &operator <<(std::ostream &os, const defn_id_t &defn_id);
