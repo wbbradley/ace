@@ -68,7 +68,7 @@ instance StorableValue Ref {
 }
 
 instance LoadableValue * {
-    load_value = __builtin_ptr_load
+    fn load_value(a) => __builtin_ptr_load(a)
 }
 
 class Eq a {
@@ -85,8 +85,8 @@ class Eq a {
 }
 
 instance Eq *a {
-    == = __builtin_ptr_eq
-    != = __builtin_ptr_ne
+    fn ==(a, b) => __builtin_ptr_eq(a, b)
+    fn !=(a, b) => __builtin_ptr_ne(a, b)
 }
 
 instance Eq Ref a {
@@ -95,13 +95,13 @@ instance Eq Ref a {
 }
 
 instance Eq Int {
-    == = __builtin_int_eq
-    != = __builtin_int_ne
+    fn ==(a, b) => __builtin_int_eq(a, b)
+    fn !=(a, b) => __builtin_int_ne(a, b)
 }
 
 instance Eq Float {
-    == = __builtin_float_eq
-    != = __builtin_float_ne
+    fn ==(a, b) => __builtin_float_eq(a, b)
+    fn !=(a, b) => __builtin_float_ne(a, b)
 }
 
 instance Eq Maybe a {
@@ -145,10 +145,10 @@ class Ord a {
 }
 
 instance Ord Int {
-    < = __builtin_int_lt
-    <= = __builtin_int_lte
-    > = __builtin_int_gt
-    >= = __builtin_int_gte
+    fn <(a, b) => __builtin_int_lt(a, b)
+    fn <=(a, b) => __builtin_int_lte(a, b)
+    fn >(a, b) => __builtin_int_gt(a, b)
+    fn >=(a, b) => __builtin_int_gte(a, b)
 
     fn compare(a, b) {
         if a < b {
@@ -163,12 +163,12 @@ instance Ord Int {
 
 instance Num Int {
     from_int = id
-    + = __builtin_add_int
-    * = __builtin_multiply_int
-    - = __builtin_subtract_int
-    / = __builtin_divide_int
-    negate = __builtin_negate_int
-    abs = __builtin_abs_int
+    fn +(a, b) => __builtin_add_int(a, b)
+    fn *(a, b) => __builtin_multiply_int(a, b)
+    fn -(a, b) => __builtin_subtract_int(a, b)
+    fn /(a, b) => __builtin_divide_int(a, b)
+    fn negate(a) => __builtin_negate_int(a)
+    fn abs(a) => __builtin_abs_int(a)
 }
 
 instance Bounded Int {
@@ -178,12 +178,12 @@ instance Bounded Int {
 
 instance Num Float {
     from_int = __builtin_int_to_float
-    + = __builtin_add_float
-    * = __builtin_multiply_float
-    - = __builtin_subtract_float
-    / = __builtin_divide_float
-    negate = __builtin_negate_float
-    abs = __builtin_abs_float
+    fn +(a, b) => __builtin_add_float(a, b)
+    fn *(a, b) => __builtin_multiply_float(a, b)
+    fn -(a, b) => __builtin_subtract_float(a, b)
+    fn /(a, b) => __builtin_divide_float(a, b)
+    fn negate(a) => __builtin_negate_float(a)
+    fn abs(a) => __builtin_abs_float(a)
 }
 
 data Maybe t {

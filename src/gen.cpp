@@ -5,6 +5,18 @@
 #include "user_error.h"
 
 namespace gen {
+	struct ip_guard_t {
+		builder_t &builder;
+		builder_t::saved_state saved;
+
+		ip_guard_t(builder_t &builder) : builder(builder), saved(builder.save_ip()) {
+			saved = builder.save_ip();
+		}
+		~ip_guard_t() {
+			builder.restore_ip(saved);
+		}
+	};
+
 	types::type_t::ref tuple_type(const std::vector<value_t::ref> &dims) {
 		types::type_t::refs terms;
 		for (auto dim: dims) {
@@ -151,23 +163,101 @@ namespace gen {
 		env[defn_id.repr()] = value;
 	}
 
-	function_t::ref builder_t::create_function(std::string name, identifier_t param_id, location_t location, types::type_t::ref type) {
-		auto function = std::make_shared<function_t>(module, name, param_id, location, type);
+	function_t::ref builder_t::create_function(std::string name, identifiers_t param_ids, location_t location, types::type_t::ref type) {
+		auto function = std::make_shared<function_t>(module, name, location, type);
 		types::type_t::refs terms;
 		unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, terms);
-		assert(terms.size() > 1);
-		auto param_type = terms[0];
-		terms.erase(terms.begin());
+		assert(terms.size() > param_ids.size());
+		for (int i=0; i<param_ids.size(); ++i) {
+			auto param_type = terms[0];
+			terms.erase(terms.begin());
 
-		log("creating gen::function_t %s :: fn (%s %s) %s",
-			   	name.c_str(),
-			   	param_id.str().c_str(),
-			   	param_type->str().c_str(),
-			   	type_arrows(terms)->str().c_str());
-		function->args.push_back(
-				std::make_shared<argument_t>(param_id.location, param_type, 0, function));
+			log("creating argument %s :: %s for %s",
+					param_ids[i].str().c_str(),
+					name.c_str(),
+					param_type->str().c_str());
+			function->args.push_back(
+					std::make_shared<argument_t>(param_ids[i].location, param_type, i, function));
+		}
+
+		if (param_ids.size() != 1) {
+			/* check that we are naming it correctly based on the arity */
+			assert(ends_with(name, string_format("|%d", (int)param_ids.size())));
+		}
+
 		set_env_var(module->env, name, function);
 		return function;
+	}
+
+	value_t::ref gen_lambda(
+			builder_t &builder,
+			const bitter::lambda_t *lambda,
+			types::type_t::ref type,
+			const tracked_types_t &typing,
+			const env_t &env,
+			const std::unordered_set<std::string> &globals)
+	{
+		auto lambda_type = safe_dyncast<const types::type_operator_t>(type);
+		auto param_type = lambda_type->oper;
+		auto return_type = lambda_type->operand;
+
+		/* see if we need to lift any free variables into a closure */
+		free_vars_t free_vars;
+		get_free_vars(lambda, typing, globals, free_vars);
+
+		function_t::ref function = builder.create_function(
+				bitter::fresh(),
+				{lambda->var},
+				lambda->get_location(),
+				type);
+
+		builder_t new_builder(function);
+		new_builder.create_block("entry");
+
+		/* put the param in scope */
+		auto new_env = env;
+		new_env[lambda->var.name] = function->args.back();
+
+		value_t::ref closure;
+
+		if (free_vars.count() != 0) {
+			/* this is a closure, and as such requires that we capture the free_vars from our
+			 * current environment */
+			log("we need closure by value of %s", free_vars.str().c_str());
+
+			std::vector<value_t::ref> dims;
+
+			/* the closure includes a reference to this function */
+			dims.push_back(function);
+
+			for (auto defn_id : free_vars.defn_ids) {
+				/* add a copy of each closed over variable */
+				dims.push_back(get_env_var(env, defn_id.id, defn_id.scheme));
+			}
+
+			closure = builder.create_tuple(lambda->get_location(), dims);
+
+			/* let's add the closure argument to this function */
+			function->args.push_back(
+					std::make_shared<argument_t>(INTERNAL_LOC(), closure->type, 1, function));
+
+			// new_env["__self"] = builder.create_gep(function->args.back(), {0});
+			int arg_index = 0;
+			for (auto defn_id : free_vars.defn_ids) {
+				/* inject the closed over vars into the new environment within the closure */
+				auto new_closure_var = new_builder.create_tuple_deref(
+						defn_id.id.location,
+						function->args.back(),
+						arg_index + 1);
+				new_env[defn_id.id.name] = new_closure_var;
+				++arg_index;
+			}
+		} else {
+			/* this can be considered a top-level function that takes no closure env */
+		}
+
+		gen(new_builder, lambda->body, typing, new_env, globals);
+		return free_vars.count() != 0 ? closure : function;
 	}
 
 	value_t::ref gen(
@@ -192,64 +282,7 @@ namespace gen {
 			} else if (auto var = dcast<const bitter::var_t*>(expr)) {
 				return get_env_var(env, var->id, type->generalize({})->normalize());
 			} else if (auto lambda = dcast<const bitter::lambda_t*>(expr)) {
-				auto lambda_type = safe_dyncast<const types::type_operator_t>(type);
-				auto param_type = lambda_type->oper;
-				auto return_type = lambda_type->operand;
-
-				/* see if we need to lift any free variables into a closure */
-				free_vars_t free_vars;
-				get_free_vars(lambda, typing, globals, free_vars);
-
-				function_t::ref function = builder.create_function(bitter::fresh(), lambda->var, lambda->get_location(), type);
-
-				builder_t new_builder(function);
-				new_builder.create_block("entry");
-
-				/* put the param in scope */
-				auto new_env = env;
-				new_env[lambda->var.name] = function->args.back();
-
-				value_t::ref closure;
-
-				if (free_vars.count() != 0) {
-					/* this is a closure, and as such requires that we capture the free_vars from our
-					 * current environment */
-					log("we need closure by value of %s", free_vars.str().c_str());
-
-					std::vector<value_t::ref> dims;
-
-					/* the closure includes a reference to this function */
-					dims.push_back(function);
-
-					for (auto defn_id : free_vars.defn_ids) {
-						/* add a copy of each closed over variable */
-						dims.push_back(get_env_var(env, defn_id.id, defn_id.scheme));
-					}
-
-					closure = builder.create_tuple(lambda->get_location(), dims);
-
-					/* let's add the closure argument to this function */
-					function->args.push_back(
-							std::make_shared<argument_t>(INTERNAL_LOC(), closure->type, 1, function));
-
-
-					// new_env["__self"] = builder.create_gep(function->args.back(), {0});
-					int arg_index = 0;
-					for (auto defn_id : free_vars.defn_ids) {
-						/* inject the closed over vars into the new environment within the closure */
-						auto new_closure_var = new_builder.create_tuple_deref(
-								defn_id.id.location,
-							   	function->args.back(),
-							   	arg_index + 1);
-						new_env[defn_id.id.name] = new_closure_var;
-						++arg_index;
-					}
-				} else {
-					/* this can be considered a top-level function that takes no closure env */
-				}
-
-				gen(new_builder, lambda->body, typing, new_env, globals);
-				return free_vars.count() != 0 ? closure : function;
+				return gen_lambda(builder, lambda, type, typing, env, globals);
 			} else if (auto application = dcast<const bitter::application_t*>(expr)) {
 			} else if (auto let = dcast<const bitter::let_t*>(expr)) {
 			} else if (auto fix = dcast<const bitter::fix_t*>(expr)) {
@@ -296,7 +329,7 @@ namespace gen {
 		function->blocks.push_back(
 				std::make_shared<block_t>(function, name.size() == 0 ? bitter::fresh() : name));
 		block = function->blocks.back();
-		inserter = std::make_shared<std::back_insert_iterator<instructions_t>>(block->instructions);
+		// inserter = std::make_shared<std::back_insert_iterator<instructions_t>>(block->instructions);
 		return block;
 	}
 
@@ -384,7 +417,11 @@ namespace gen {
 		auto return_type = type_arrows(terms);
 
 		std::stringstream ss;
-		ss << "fn " << name << "(" << param_id.str() << " " << param_type->str() << ") " << return_type->str();
+		ss << "fn " << name << "(" << join_with(args, ", ", [](const std::shared_ptr<argument_t> &arg) {
+					return arg->str();
+					});
+		ss << " " << param_type->str() << ") " << return_type->str();
+
 		if (blocks.size() != 0) {
 			ss << " {" << std::endl;
 			ss << "\tTODO: show blocks" << std::endl;
@@ -413,8 +450,18 @@ namespace gen {
 		return get_value_name(INTERNAL_LOC()) + " :: " + type->str().c_str();
 	}
 
-	value_t::ref derive_builtin(defn_id_t builtin_defn_id) {
+	void builder_t::derive_builtin(defn_id_t builtin_defn_id) {
+		ip_guard_t ip_guard(*this);
+
 		log("deriving builtin %s", builtin_defn_id.str().c_str());
-		return nullptr;
+		assert(function == nullptr);
+		assert(block == nullptr);
+
+		if (builtin_defn_id.id.name == "__builtin_multiply_int") {
+			function_t::ref function = create_function(
+					"__builtin_multiply_int",
+					{make_iid("a"), make_iid("b")},
+				   	INTERNAL_LOC(), builtin_defn_id.scheme->instantiate(INTERNAL_LOC()));
+		}
 	}
 }

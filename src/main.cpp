@@ -99,61 +99,74 @@ std::vector<std::string> alphabet(int count) {
 	return xs;
 }
 
-void initialize_default_env(env_t &env) {
-	auto Int = type_id(make_iid(INT_TYPE));
-	auto Float = type_id(make_iid(FLOAT_TYPE));
-	auto Bool = type_id(make_iid(BOOL_TYPE));
-	auto Char = type_id(make_iid(CHAR_TYPE));
-	auto String = type_operator(type_id(make_iid(VECTOR_TYPE)), Char);
-	auto tv_a = type_variable(make_iid("a"));
-	auto tp_a = type_ptr(tv_a);
-	auto tv_b = type_variable(make_iid("b"));
-	auto tp_b = type_ptr(tv_b);
 
-	env.map["__builtin_min_int"] = scheme({}, {}, Int);
-	env.map["__builtin_max_int"] = scheme({}, {}, Int);
-	env.map["__builtin_multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-	env.map["__builtin_divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-	env.map["__builtin_subtract_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-	env.map["__builtin_add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-	env.map["__builtin_negate_int"] = scheme({}, {}, type_arrows({Int, Int}));
-	env.map["__builtin_abs_int"] = scheme({}, {}, type_arrows({Int, Int}));
-	env.map["__builtin_multiply_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-	env.map["__builtin_divide_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-	env.map["__builtin_subtract_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-	env.map["__builtin_add_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-	env.map["__builtin_abs_float"] = scheme({}, {}, type_arrows({Float, Float}));
-	env.map["__builtin_int_to_float"] = scheme({}, {}, type_arrows({Int, Float}));
-	env.map["__builtin_negate_float"] = scheme({}, {}, type_arrows({Float, Float}));
-	env.map["__builtin_add_ptr"] = scheme({"a"}, {}, type_arrows({tp_a, Int, tp_a}));
-	env.map["__builtin_ptr_eq"] = scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
-	env.map["__builtin_ptr_ne"] = scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
-	env.map["__builtin_ptr_load"] = scheme({"a"}, {}, type_arrows({tp_a, tv_a}));
-	env.map["__builtin_get_dim"] = scheme({"a", "b"}, {}, type_arrows({tv_a, Int, tv_b}));
-	env.map["__builtin_get_ctor_id"] = scheme({"a"}, {}, type_arrows({tv_a, Int}));
-	env.map["__builtin_int_eq"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-	env.map["__builtin_int_ne"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-	env.map["__builtin_int_lt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-	env.map["__builtin_int_lte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-	env.map["__builtin_int_gt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-	env.map["__builtin_int_gte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-	env.map["__builtin_float_eq"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-	env.map["__builtin_float_ne"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-	env.map["__builtin_float_lt"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-	env.map["__builtin_float_lte"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-	env.map["__builtin_float_gt"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-	env.map["__builtin_float_gte"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-	env.map["__builtin_print"] = scheme({}, {}, type_arrows({String, type_unit(INTERNAL_LOC())}));
-	env.map["__builtin_exit"] = scheme({}, {}, type_arrows({Int, type_bottom()}));
-	env.map["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
-	env.map["__builtin_store_ref"] = scheme({"a"}, {}, type_arrows({
-				type_operator(type_id(make_iid(REF_TYPE_OPERATOR)), tv_a),
-				tv_a,
-				type_unit(INTERNAL_LOC())}));
-	env.map["__builtin_store_ptr"] = scheme({"a"}, {}, type_arrows({
-				type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a),
-				tv_a,
-				type_unit(INTERNAL_LOC())}));
+const types::scheme_t::map &get_builtins() {
+	static std::unique_ptr<types::scheme_t::map> map;
+	if (map == nullptr) {
+		auto Int = type_id(make_iid(INT_TYPE));
+		auto Float = type_id(make_iid(FLOAT_TYPE));
+		auto Bool = type_id(make_iid(BOOL_TYPE));
+		auto Char = type_id(make_iid(CHAR_TYPE));
+		auto String = type_operator(type_id(make_iid(VECTOR_TYPE)), Char);
+		auto tv_a = type_variable(make_iid("a"));
+		auto tp_a = type_ptr(tv_a);
+		auto tv_b = type_variable(make_iid("b"));
+		auto tp_b = type_ptr(tv_b);
+
+		map = std::make_unique<types::scheme_t::map>();
+
+		(*map)["__builtin_min_int"] = scheme({}, {}, Int);
+		(*map)["__builtin_max_int"] = scheme({}, {}, Int);
+		(*map)["__builtin_multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+		(*map)["__builtin_divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+		(*map)["__builtin_subtract_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+		(*map)["__builtin_add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+		(*map)["__builtin_negate_int"] = scheme({}, {}, type_arrows({Int, Int}));
+		(*map)["__builtin_abs_int"] = scheme({}, {}, type_arrows({Int, Int}));
+		(*map)["__builtin_multiply_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+		(*map)["__builtin_divide_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+		(*map)["__builtin_subtract_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+		(*map)["__builtin_add_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+		(*map)["__builtin_abs_float"] = scheme({}, {}, type_arrows({Float, Float}));
+		(*map)["__builtin_int_to_float"] = scheme({}, {}, type_arrows({Int, Float}));
+		(*map)["__builtin_negate_float"] = scheme({}, {}, type_arrows({Float, Float}));
+		(*map)["__builtin_add_ptr"] = scheme({"a"}, {}, type_arrows({tp_a, Int, tp_a}));
+		(*map)["__builtin_ptr_eq"] = scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
+		(*map)["__builtin_ptr_ne"] = scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
+		(*map)["__builtin_ptr_load"] = scheme({"a"}, {}, type_arrows({tp_a, tv_a}));
+		(*map)["__builtin_get_dim"] = scheme({"a", "b"}, {}, type_arrows({tv_a, Int, tv_b}));
+		(*map)["__builtin_get_ctor_id"] = scheme({"a"}, {}, type_arrows({tv_a, Int}));
+		(*map)["__builtin_int_eq"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+		(*map)["__builtin_int_ne"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+		(*map)["__builtin_int_lt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+		(*map)["__builtin_int_lte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+		(*map)["__builtin_int_gt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+		(*map)["__builtin_int_gte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+		(*map)["__builtin_float_eq"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+		(*map)["__builtin_float_ne"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+		(*map)["__builtin_float_lt"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+		(*map)["__builtin_float_lte"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+		(*map)["__builtin_float_gt"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+		(*map)["__builtin_float_gte"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+		(*map)["__builtin_print"] = scheme({}, {}, type_arrows({String, type_unit(INTERNAL_LOC())}));
+		(*map)["__builtin_exit"] = scheme({}, {}, type_arrows({Int, type_bottom()}));
+		(*map)["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
+		(*map)["__builtin_store_ref"] = scheme({"a"}, {}, type_arrows({
+					type_operator(type_id(make_iid(REF_TYPE_OPERATOR)), tv_a),
+					tv_a,
+					type_unit(INTERNAL_LOC())}));
+		(*map)["__builtin_store_ptr"] = scheme({"a"}, {}, type_arrows({
+					type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a),
+					tv_a,
+					type_unit(INTERNAL_LOC())}));
+	}
+	return *map;
+}
+
+void initialize_default_env(env_t &env) {
+	for (auto pair : get_builtins()) {
+		env.map[pair.first] = pair.second;
+	}
 }
 
 std::map<std::string, type_class_t *> check_type_classes(const std::vector<type_class_t *> &type_classes, env_t &env) {
@@ -530,7 +543,22 @@ struct phase_2_t {
 	data_ctors_map_t const data_ctors_map;
 };
 
+std::map<std::string, int> get_builtin_arities() {
+	const types::scheme_t::map &map = get_builtins();
+	std::map<std::string, int> builtin_arities;
+	for (auto pair : map) {
+		types::type_t::refs terms;
+		unfold_binops_rassoc(ARROW_TYPE_OPERATOR, pair.second->instantiate(INTERNAL_LOC()), terms);
+		builtin_arities[pair.first] = terms.size() - 1;
+	}
+	log("builtin_arities are %s", join_with(builtin_arities, ", ", [](std::pair<std::string, int> a) {
+				return string_format("%s: %d", a.first.c_str(), a.second);
+				}).c_str());
+	return builtin_arities;
+}
+
 phase_2_t compile(std::string user_program_name_) {
+	auto builtin_arities = get_builtin_arities();
 	auto compilation = compiler::parse_program(user_program_name_);
 	if (compilation == nullptr) {
 		exit(EXIT_FAILURE);
@@ -823,16 +851,16 @@ void get_builtins(const bitter::expr_t *expr, const tracked_types_t &typing, std
 }
 
 phase_4_t ssa_gen(const phase_3_t phase_3) {
+	gen::module_t::ref module = std::make_shared<gen::module_t>();
+	gen::env_t &env = module->env;
+
 	try {
-		gen::env_t env;
 		std::unordered_set<std::string> globals;
 		for (auto pair : phase_3.translation_map) {
 			auto name = pair.first.repr();
-			/* env[name] = gen::gen_function(name, pair.second->identifier_t param_id, location_t location, types::type_t::ref type) */
 			globals.insert(name);
 		}
 
-		gen::module_t::ref module = std::make_shared<gen::module_t>();
 		gen::builder_t builder(module);
 		std::set<defn_id_t> builtins;
 		for (auto pair : phase_3.translation_map) {
@@ -844,7 +872,7 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 
 		for (auto builtin: builtins) {
 			// log("adding %s to env", builtin.id.name.c_str());
-			env[builtin.repr()] = gen::derive_builtin(builtin);
+			builder.derive_builtin(builtin);
 		}
 
 		for (auto pair : phase_3.translation_map) {
