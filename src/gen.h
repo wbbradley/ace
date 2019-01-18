@@ -78,20 +78,17 @@ namespace gen {
 		typedef std::shared_ptr<function_t> ref;
 		typedef std::weak_ptr<function_t> wref;
 
-		function_t(module_t::ref module, std::string name, identifier_t param_id, location_t location, types::type_t::ref type) :
+		function_t(module_t::ref module, std::string name, location_t location, types::type_t::ref type) :
 			value_t(location, type),
 			parent(module),
-		   	name(name),
-			param_id(param_id)
+		   	name(name)
 	   	{
 		}
-		friend function_t::ref gen_function(std::string name, identifier_t param_id, location_t location, types::type_t::ref type);
 
 		std::string str() const override;
 
 		std::weak_ptr<module_t> parent;
 		std::string name;
-		identifier_t param_id;
 		std::vector<block_t::ref> blocks;
 		std::vector<std::shared_ptr<argument_t>> args;
 	};
@@ -184,6 +181,7 @@ namespace gen {
 	};
 
 	struct builder_t {
+		typedef gen::builder_t saved_state;
 		builder_t(module_t::ref module) : module(module) {}
 		builder_t(function_t::ref function) : module(function->parent), function(function) {}
 
@@ -192,6 +190,8 @@ namespace gen {
 		builder_t save_ip() const;
 		void restore_ip(const builder_t &builder);
 
+		void derive_builtin(defn_id_t builtin_defn_id);
+
 		value_t::ref create_literal(token_t token, types::type_t::ref type);
 		value_t::ref create_call(value_t::ref callable, const std::vector<value_t::ref> params);
 		value_t::ref create_cast(value_t::ref value, types::type_t::ref type);
@@ -199,17 +199,16 @@ namespace gen {
 		value_t::ref create_tuple_deref(location_t location, value_t::ref value, int index);
 		value_t::ref create_branch(block_t::ref block);
 		value_t::ref create_return(value_t::ref expr);
-		function_t::ref create_function(std::string name, identifier_t param_id, location_t location, types::type_t::ref type);
+		function_t::ref create_function(std::string name, identifiers_t param_ids, location_t location, types::type_t::ref type);
 		void insert_instruction(instruction_t::ref instruction);
 
 	public:
 		module_t::ref module;
 		function_t::ref function;
 		block_t::ref block;
-		std::shared_ptr<std::iterator<std::output_iterator_tag, void, void, void, void>> inserter;
+		// std::shared_ptr<std::iterator<std::output_iterator_tag, void, void, void, void>> inserter;
 	};
 
 	phi_node_t::ref phi_node(types::type_t::ref type);
 	value_t::ref gen(builder_t &builder, const bitter::expr_t *expr, const tracked_types_t &typing, const env_t &env, const std::unordered_set<std::string> &globals);
-	value_t::ref derive_builtin(defn_id_t builtin_defn_id);
 }

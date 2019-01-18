@@ -279,13 +279,7 @@ expr_t *translate_next(
 	auto scrutinee = new var_t(scrutinee_id);
 	typing[scrutinee] = scrutinee_type;
 
-	auto get_dim_type = type_arrows({scrutinee_type, param_types[param_index]});
-	auto builtin_get_dim_id = make_iid(string_format("__builtin_get_dim_%d", param_index + dim_offset));
-
-	auto get_dim = new var_t(builtin_get_dim_id);
-	typing[get_dim] = get_dim_type;
-
-	auto dim = new application_t(get_dim, scrutinee);
+	auto dim = new tuple_deref_t(scrutinee, param_index + dim_offset, 0 /*ignored in gen phase*/);
 	typing[dim] = param_types[param_index];
 
 	return new let_t(
