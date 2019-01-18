@@ -777,3 +777,22 @@ void unfold_ops_lassoc(types::type_t::ref t, types::type_t::refs &unfolding) {
 void insert_needed_defn(needed_defns_t &needed_defns, const defn_id_t &defn_id, location_t location, const defn_id_t &for_defn_id) {
 	needed_defns[defn_id].push_back({location, for_defn_id});
 }
+
+types::type_t::ref type_deref(location_t location, types::type_t::ref type) {
+	auto ptr = safe_dyncast<const types::type_operator_t>(type);
+	if (types::is_type_id(ptr->oper, PTR_TYPE_OPERATOR)) {
+		return ptr->operand;
+	} else {
+		throw user_error(location, "attempt to dereference value of type %s", type->str().c_str());
+	}
+}
+
+types::type_t::ref tuple_deref_type(location_t location, types::type_t::ref tuple_, int index) {
+	auto tuple = safe_dyncast<const types::type_tuple_t>(tuple_);
+	if (tuple->dimensions.size() < index || index < 0) {
+		auto error = user_error(location, "attempt to access type of element at index %d which is out of range", index);
+		error.add_info(tuple_->get_location(), "type is %s", tuple_->str().c_str());
+		throw error;
+	}
+	return tuple->dimensions[index];
+}

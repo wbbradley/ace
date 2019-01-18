@@ -228,6 +228,7 @@ types::type_t::ref type_variable(identifier_t name);
 types::type_t::ref type_variable(location_t location);
 types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
 types::type_t::ref type_operator(const types::type_t::refs &xs);
+types::type_t::ref type_deref(types::type_t::ref type);
 types::scheme_t::ref scheme(std::vector<std::string> vars, const types::predicate_map &predicates, types::type_t::ref type);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_t::ref type_ptr(types::type_t::ref raw);
@@ -241,6 +242,7 @@ std::string str(const types::predicate_map &pm);
 std::string str(const data_ctors_map_t &data_ctors_map);
 std::ostream& operator <<(std::ostream &out, const types::type_t::ref &type);
 
+types::type_t::ref tuple_deref_type(location_t location, types::type_t::ref tuple, int index);
 void unfold_binops_rassoc(std::string id, types::type_t::ref t, types::type_t::refs &unfolding);
 void unfold_ops_lassoc(types::type_t::ref t, types::type_t::refs &unfolding);
 void mutating_merge(const types::predicate_map::value_type &pair, types::predicate_map &c);
