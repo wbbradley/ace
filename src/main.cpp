@@ -832,19 +832,19 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 			globals.insert(name);
 		}
 
-		gen::module_t module;
-		gen::builder_t builder;
+		gen::module_t::ref module = std::make_shared<gen::module_t>();
+		gen::builder_t builder(module);
 		std::set<defn_id_t> builtins;
 		for (auto pair : phase_3.translation_map) {
-			log("checking builtins in %s", pair.second->expr->str().c_str());
+			debug_above(8, log("checking builtins in %s", pair.second->expr->str().c_str()));
 			get_builtins(pair.second->expr, pair.second->typing, builtins);
 		}
 
 		log("builtins: {%s}", join_with(builtins, ", ", [](defn_id_t defn_id) { return defn_id.str(); }).c_str());
 
 		for (auto builtin: builtins) {
-			log("adding %s to env", builtin.id.name.c_str());
-			env[builtin.id.name] = gen::derive_builtin(builtin);
+			// log("adding %s to env", builtin.id.name.c_str());
+			env[builtin.repr()] = gen::derive_builtin(builtin);
 		}
 
 		for (auto pair : phase_3.translation_map) {

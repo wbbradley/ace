@@ -208,6 +208,7 @@ expr_t *texpr(
 						typing,
 						needed_defns,
 						returns));
+			typing[ret] = type_unit(return_->get_location());
 			returns = true;
 			return ret;
 		} else if (auto tuple = dcast<tuple_t*>(expr)) {
