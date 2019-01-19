@@ -255,6 +255,30 @@ expr_t *texpr(
 				/* eliminate non-forceful casts */
 				return expr;
 			}
+		} else if (auto builtin = dcast<builtin_t*>(expr)) {
+			std::vector<expr_t*> exprs;
+			for (auto expr: builtin->exprs) {
+				exprs.push_back(texpr(
+							for_defn_id,
+							expr,
+							bound_vars,
+							tenv,
+							typing,
+							needed_defns,
+							returns));
+			}
+			auto new_builtin = new builtin_t(
+					dynamic_cast<var_t *>(texpr(
+						for_defn_id,
+						builtin->var,
+						bound_vars,
+						tenv,
+						typing,
+						needed_defns,
+						returns)),
+					exprs);
+			typing[new_builtin] = type;
+			return new_builtin;
 		} else if (auto sizeof_ = dcast<sizeof_t*>(expr)) {
 			auto builtin_word_id = identifier_t{"__builtin_word_size", sizeof_->get_location()};
 			auto new_sizeof = new var_t(builtin_word_id);

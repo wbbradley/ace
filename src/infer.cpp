@@ -148,6 +148,15 @@ types::type_t::ref infer_core(
 		auto tuple = type_tuple(dims);
 		append(constraints, t1, tuple, {string_format("dereferencing tuple index %d of %d", tuple_deref->index, tuple_deref->max), expr->get_location()});
 		return dims[tuple_deref->index];
+	} else if (auto builtin = dcast<builtin_t*>(expr)) {
+		types::type_t::refs ts;
+		for (auto expr: builtin->exprs) {
+			ts.push_back(infer(expr, env, constraints));
+		}
+		ts.push_back(type_variable(builtin->get_location()));
+		auto t1 = infer(builtin->var, env, constraints);
+		append(constraints, t1, type_arrows(ts), {string_format("builtin %s", builtin->var->str().c_str()), builtin->get_location()});
+		return ts.back();
 	} else if (auto as = dcast<as_t*>(expr)) {
 		auto t1 = infer(as->expr, env, constraints);
 		auto as_type = as->scheme->instantiate(as->get_location());

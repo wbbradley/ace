@@ -179,6 +179,12 @@ expr_t *prefix(const std::set<std::string> &bindings, std::string pre, expr_t *v
 		return new sizeof_t(sizeof_->location, prefix(bindings, pre, sizeof_->type));
 	} else if (auto break_ = dcast<break_t*>(value)) {
 		return break_;
+	} else if (auto builtin = dcast<builtin_t*>(value)) {
+		std::vector<expr_t *> exprs;
+		for (auto expr: builtin->exprs) {
+			exprs.push_back(prefix(bindings, pre, expr));
+		}
+		return new builtin_t(new var_t(builtin->var->id), exprs);
 	} else {
 		std::cerr << "What should I do with " << value->str() << "?" << std::endl;
 		assert(false);

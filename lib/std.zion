@@ -177,7 +177,7 @@ instance Bounded Int {
 }
 
 instance Num Float {
-    from_int = __builtin_int_to_float
+    fn from_int(a) => __builtin_int_to_float(a)
     fn +(a, b) => __builtin_add_float(a, b)
     fn *(a, b) => __builtin_multiply_float(a, b)
     fn -(a, b) => __builtin_subtract_float(a, b)
