@@ -5,6 +5,7 @@
 namespace gen {
 	struct value_t {
 		typedef std::shared_ptr<value_t> ref;
+		typedef std::vector<ref> refs;
 
 		value_t(location_t location, types::type_t::ref type) : location(location), type(type) {}
 		virtual ~value_t() {}
@@ -61,13 +62,17 @@ namespace gen {
 		instructions_t instructions;
 	};
 
-	struct cast_t : public value_t {
-		cast_t(value_t::ref value, types::type_t::ref type) :
-		   	value_t(value->get_location(), type),
+	struct cast_t : public instruction_t {
+		cast_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref value, types::type_t::ref type) :
+			instruction_t(location, type, parent),
+			lhs_name(bitter::fresh()),
 			value(value)
 		{}
 			
-		std::string str() const override;
+		std::string get_value_name(location_t location) const override;
+		std::ostream &render(std::ostream &os) const override;
+
+		std::string lhs_name;
 		value_t::ref value;
 
 	};
@@ -81,11 +86,12 @@ namespace gen {
 		function_t(module_t::ref module, std::string name, location_t location, types::type_t::ref type) :
 			value_t(location, type),
 			parent(module),
-		   	name(name)
-	   	{
+			name(name)
+		{
 		}
 
 		std::string str() const override;
+		std::ostream &render(std::ostream &os) const;
 
 		std::weak_ptr<module_t> parent;
 		std::string name;
@@ -93,16 +99,36 @@ namespace gen {
 		std::vector<std::shared_ptr<argument_t>> args;
 	};
 
+	struct builtin_t : public instruction_t {
+		typedef std::shared_ptr<builtin_t> ref;
+
+		builtin_t(location_t location, std::weak_ptr<block_t> parent, identifier_t id, value_t::refs values, types::type_t::ref type) :
+			instruction_t(location, type, parent),
+			lhs_name(bitter::fresh()),
+			id(id),
+			values(values)
+		{}
+
+		std::string get_value_name(location_t location) const override;
+		std::ostream &render(std::ostream &os) const override;
+
+		std::string lhs_name;
+		identifier_t id;
+		value_t::refs values;
+	};
+
 	struct argument_t : public value_t {
 		typedef std::shared_ptr<argument_t> ref;
-		argument_t(location_t location, types::type_t::ref type, int index, function_t::wref function) :
-		   	value_t(location, type),
+		argument_t(identifier_t id, types::type_t::ref type, int index, function_t::wref function) :
+		   	value_t(id.location, type),
+			name(id.name),
 		   	index(index),
 			function(function)
 		{}
 
 		std::string str() const override;
 
+		std::string name;
 		int index;
 		function_t::wref function;
 	};
@@ -190,11 +216,10 @@ namespace gen {
 		builder_t save_ip() const;
 		void restore_ip(const builder_t &builder);
 
-		void derive_builtin(defn_id_t builtin_defn_id);
-
+		value_t::ref create_builtin(identifier_t id, const value_t::refs &values, types::type_t::ref type);
 		value_t::ref create_literal(token_t token, types::type_t::ref type);
 		value_t::ref create_call(value_t::ref callable, const std::vector<value_t::ref> params);
-		value_t::ref create_cast(value_t::ref value, types::type_t::ref type);
+		value_t::ref create_cast(location_t location, value_t::ref value, types::type_t::ref type);
 		value_t::ref create_tuple(location_t location, const std::vector<value_t::ref> &dims);
 		value_t::ref create_tuple_deref(location_t location, value_t::ref value, int index);
 		value_t::ref create_branch(block_t::ref block);

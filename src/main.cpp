@@ -875,11 +875,6 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 
 		log("builtins: {%s}", join_with(builtins, ", ", [](defn_id_t defn_id) { return defn_id.str(); }).c_str());
 
-		for (auto builtin: builtins) {
-			// log("adding %s to env", builtin.id.name.c_str());
-			builder.derive_builtin(builtin);
-		}
-
 		for (auto pair : phase_3.translation_map) {
 			auto name = pair.first.repr();
 			log("running gen phase for " c_id("%s"), name.c_str());
