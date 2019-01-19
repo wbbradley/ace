@@ -86,6 +86,10 @@ namespace gen {
 		} else if (auto as = dcast<const bitter::as_t*>(expr)) {
 			get_free_vars(as->expr, typing, bindings, free_vars);
 		} else if (auto sizeof_ = dcast<const bitter::sizeof_t*>(expr)) {
+		} else if (auto builtin = dcast<const bitter::builtin_t*>(expr)) {
+			for (auto expr: builtin->exprs) {
+				get_free_vars(expr, typing, bindings, free_vars);
+			}
 		} else if (auto match = dcast<const bitter::match_t*>(expr)) {
 			get_free_vars(match->scrutinee, typing, bindings, free_vars);
 			for (auto pattern_block: match->pattern_blocks) {
@@ -143,9 +147,15 @@ namespace gen {
 		iter = env.find(defn_id.repr());
 		if (iter == env.end()) {
 			auto error = user_error(id.location, "could not find variable %s", id.str().c_str());
-			error.add_info(id.location, "env is %s",
-					join_with(env, ", ", [](std::pair<std::string, value_t::ref> pair) {
-						return string_format("%s: %s", pair.first.c_str(), pair.second ? pair.second->str().c_str() : "<none>");
+			error.add_info(id.location, "env is\n%s",
+					join_with(env, "\n", [](std::pair<std::string, value_t::ref> pair) {
+						if (auto function = dyncast<function_t>(pair.second)) {
+							std::stringstream ss;
+							function->render(ss);
+							return ss.str();
+						} else {
+							return string_format("%s: %s", pair.first.c_str(), pair.second ? pair.second->str().c_str() : "<none>");
+						}
 						}).c_str());
 			throw error;
 		}
@@ -163,7 +173,12 @@ namespace gen {
 		env[defn_id.repr()] = value;
 	}
 
-	function_t::ref builder_t::create_function(std::string name, identifiers_t param_ids, location_t location, types::type_t::ref type) {
+	function_t::ref builder_t::create_function(
+			std::string name,
+		   	identifiers_t param_ids,
+		   	location_t location,
+		   	types::type_t::ref type)
+   	{
 		auto function = std::make_shared<function_t>(module, name, location, type);
 		types::type_t::refs terms;
 		unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, terms);
@@ -174,15 +189,10 @@ namespace gen {
 
 			log("creating argument %s :: %s for %s",
 					param_ids[i].str().c_str(),
-					name.c_str(),
-					param_type->str().c_str());
+					param_type->str().c_str(),
+					name.c_str());
 			function->args.push_back(
-					std::make_shared<argument_t>(param_ids[i].location, param_type, i, function));
-		}
-
-		if (param_ids.size() != 1) {
-			/* check that we are naming it correctly based on the arity */
-			assert(ends_with(name, string_format("|%d", (int)param_ids.size())));
+					std::make_shared<argument_t>(param_ids[i], param_type, i, function));
 		}
 
 		set_env_var(module->env, name, function);
@@ -239,7 +249,7 @@ namespace gen {
 
 			/* let's add the closure argument to this function */
 			function->args.push_back(
-					std::make_shared<argument_t>(INTERNAL_LOC(), closure->type, 1, function));
+					std::make_shared<argument_t>(identifier_t{"closure", INTERNAL_LOC()}, closure->type, 1, function));
 
 			// new_env["__self"] = builder.create_gep(function->args.back(), {0});
 			int arg_index = 0;
@@ -299,14 +309,27 @@ namespace gen {
 				}
 				return builder.create_tuple(tuple->get_location(), dim_values);
 			} else if (auto tuple_deref = dcast<const bitter::tuple_deref_t*>(expr)) {
-				return builder.create_tuple_deref(tuple_deref->get_location(),
-						gen(builder, tuple_deref->expr, typing, env, globals),
-						tuple_deref->index);
+				auto td = gen(builder, tuple_deref->expr, typing, env, globals);
+				log_location(
+						tuple_deref->expr->get_location(),
+					   	"created tuple deref %s from %s",
+					   	td->str().c_str(),
+					   	tuple_deref->expr->str().c_str());
+				return builder.create_tuple_deref(tuple_deref->get_location(), td, tuple_deref->index);
 			} else if (auto as = dcast<const bitter::as_t*>(expr)) {
 				assert(as->force_cast);
-				return builder.create_cast(gen(builder, as->expr, typing, env, globals), as->scheme->instantiate(INTERNAL_LOC()));
+				return builder.create_cast(
+						as->get_location(),
+						gen(builder, as->expr, typing, env, globals),
+					   	as->scheme->instantiate(INTERNAL_LOC()));
 			} else if (auto sizeof_ = dcast<const bitter::sizeof_t*>(expr)) {
 			} else if (auto match = dcast<const bitter::match_t*>(expr)) {
+			} else if (auto builtin = dcast<const bitter::builtin_t*>(expr)) {
+				std::vector<value_t::ref> values;
+				for (auto expr: builtin->exprs) {
+					values.push_back(gen(builder, expr, typing, env, globals));
+				}
+				return builder.create_builtin(builtin->var->id, values, type);
 			}
 
 			throw user_error(expr->get_location(), "unhandled ssa-gen for %s :: %s", expr->str().c_str(), type->str().c_str());
@@ -338,6 +361,16 @@ namespace gen {
 		block->instructions.push_back(instruction);
 	}
 
+	value_t::ref builder_t::create_builtin(identifier_t id, const value_t::refs &values, types::type_t::ref type) {
+		log("creating builtin %s for %s with type %s",
+				id.str().c_str(),
+				join_str(values, ", ").c_str(),
+				type->str().c_str());
+		auto builtin = std::make_shared<builtin_t>(id.location, block, id, values, type);
+		insert_instruction(builtin);
+		return builtin;
+	}
+
 	value_t::ref builder_t::create_literal(token_t token, types::type_t::ref type) {
 		return std::make_shared<literal_t>(token, type);
 	}
@@ -347,8 +380,10 @@ namespace gen {
 		return nullptr;
 	}
 
-	value_t::ref builder_t::create_cast(value_t::ref value, types::type_t::ref type) {
-		return std::make_shared<cast_t>(value, type);
+	value_t::ref builder_t::create_cast(location_t location, value_t::ref value, types::type_t::ref type) {
+		auto cast = std::make_shared<cast_t>(location, block, value, type);
+		insert_instruction(cast);
+		return cast;
 	}
 
 	value_t::ref builder_t::create_tuple(location_t location, const std::vector<value_t::ref> &dims) {
@@ -374,8 +409,12 @@ namespace gen {
 		return return_;
 	}
 
-	std::string cast_t::str() const {
-		return value->str() + " as! " + type->str();
+	std::string cast_t::get_value_name(location_t location) const {
+		return lhs_name;
+	}
+
+	std::ostream &cast_t::render(std::ostream &os) const {
+		return os << C_ID << lhs_name << C_RESET << " := " << value->str() + " as! " + type->str();
 	}
 
 	std::string load_t::get_value_name(location_t location) const {
@@ -383,7 +422,7 @@ namespace gen {
 	}
 
 	std::ostream &load_t::render(std::ostream &os) const {
-		return os << lhs_name << " := load " << rhs->str() << " :: " + rhs->type->str();
+		return os << C_ID << lhs_name << C_RESET << " := load " << rhs->str() << " :: " + rhs->type->str();
 	}
 
 	std::ostream &store_t::render(std::ostream &os) const {
@@ -395,8 +434,22 @@ namespace gen {
 		throw user_error(location, "attempt to treat instruction %s as a value", (render(ss), ss.str().c_str()));
 	}
 
+	std::string builtin_t::get_value_name(location_t location) const {
+		return lhs_name;
+	}
+
+	std::ostream &builtin_t::render(std::ostream &os) const {
+		os << C_ID << lhs_name << C_RESET << " := " << id.str();
+		if (values.size() != 0) {
+			os << "(";
+			os << join_str(values, ", ");
+			os << ")";
+		}
+		return os;
+	}
+
 	std::ostream &return_t::render(std::ostream &os) const {
-		return os << "return " << value->str();
+		return os << C_CONTROL "return " C_RESET << value->str();
 	}
 
 	std::string literal_t::str() const {
@@ -404,10 +457,15 @@ namespace gen {
 	}
 
 	std::string argument_t::str() const {
-		return string_format("arg%d :: %s", index, type->str().c_str());
+		return C_ID + name + C_RESET;
+		//return string_format("arg%d", index);
 	}
 
 	std::string function_t::str() const {
+		return C_GOOD "@" + name + C_RESET;
+	}
+
+	std::ostream &function_t::render(std::ostream &os) const {
 		auto lambda_type = safe_dyncast<const types::type_operator_t>(type);
 		types::type_t::refs terms;
 		unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, terms);
@@ -416,18 +474,24 @@ namespace gen {
 		terms.erase(terms.begin());
 		auto return_type = type_arrows(terms);
 
-		std::stringstream ss;
-		ss << "fn " << name << "(" << join_with(args, ", ", [](const std::shared_ptr<argument_t> &arg) {
-					return arg->str();
+		os << "fn " C_GOOD << name << C_RESET "(" << join_with(args, ", ", [](const std::shared_ptr<argument_t> &arg) {
+					return arg->str() + " :: " + arg->type->str();
 					});
-		ss << " " << param_type->str() << ") " << return_type->str();
+		os << ") " << return_type->str();
 
 		if (blocks.size() != 0) {
-			ss << " {" << std::endl;
-			ss << "\tTODO: show blocks" << std::endl;
-			ss << "}" << std::endl;
+			os << " {" << std::endl;
+			for (auto block: blocks) {
+				os << block->name << ":" << std::endl;
+				for (auto inst: block->instructions) {
+					os << "\t";
+					inst->render(os);
+					os << std::endl;
+				}
+			}
+			os << "}" << std::endl;
 		}
-		return ss.str();
+		return os;
 	}
 
 	std::string tuple_t::get_value_name(location_t location) const {
@@ -435,11 +499,11 @@ namespace gen {
 	}
 
 	std::ostream &tuple_t::render(std::ostream &os) const {
-		return os << lhs_name << " := make_tuple(" << join_str(dims, ", ") << ")";
+		return os << C_ID << lhs_name << C_RESET << " := make_tuple(" << join_str(dims, ", ") << ")";
 	}
 
 	std::ostream &tuple_deref_t::render(std::ostream &os) const {
-		return os << value->str() << "[" << index << "] :: " << type->str();
+		return os << C_ID << lhs_name << C_RESET " := " << value->str() << "[" << index << "] :: " << type->str();
 	}
 
 	std::string tuple_deref_t::get_value_name(location_t location) const {
@@ -447,21 +511,6 @@ namespace gen {
 	}
 
 	std::string instruction_t::str() const {
-		return get_value_name(INTERNAL_LOC()) + " :: " + type->str().c_str();
-	}
-
-	void builder_t::derive_builtin(defn_id_t builtin_defn_id) {
-		ip_guard_t ip_guard(*this);
-
-		log("deriving builtin %s", builtin_defn_id.str().c_str());
-		assert(function == nullptr);
-		assert(block == nullptr);
-
-		if (builtin_defn_id.id.name == "__builtin_multiply_int") {
-			function_t::ref function = create_function(
-					"__builtin_multiply_int",
-					{make_iid("a"), make_iid("b")},
-				   	INTERNAL_LOC(), builtin_defn_id.scheme->instantiate(INTERNAL_LOC()));
-		}
+		return C_ID + get_value_name(INTERNAL_LOC()) + C_RESET;
 	}
 }
