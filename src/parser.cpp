@@ -347,6 +347,27 @@ expr_t *parse_var_ref(parse_state_t &ps) {
 	if (ps.token.is_ident(K(__filename__))) {
 		auto token = ps.token_and_advance();
 		return new literal_t(token_t{token.location, tk_string, escape_json_quotes(token.location.filename)});
+	} else if (in(ps.token.text, ps.builtin_arities)) {
+		int arity = get(ps.builtin_arities, ps.token.text, -1);
+		assert(arity >= 0);
+		auto builtin_token = ps.token_and_advance();
+		std::vector<expr_t *> exprs;
+		if (arity > 0) {
+			chomp_token(tk_lparen);
+			while (true) {
+				exprs.push_back(parse_expr(ps));
+				--arity;
+				if (arity > 0) {
+					chomp_token(tk_comma);
+					continue;
+				} else {
+					chomp_token(tk_rparen);
+					break;
+				}
+			}
+		}
+
+		return new builtin_t(new var_t(iid(builtin_token)), exprs);
 	}
 
 	return new var_t(ps.identifier_and_advance());

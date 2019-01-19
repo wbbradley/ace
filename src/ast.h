@@ -238,6 +238,16 @@ namespace bitter {
 		int index, max;
 	};
 
+	struct builtin_t : public expr_t {
+		builtin_t(var_t *var, std::vector<expr_t*> exprs) : var(var), exprs(exprs) {}
+
+		location_t get_location() const override;
+		std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
+		var_t *var;
+		std::vector<expr_t*> exprs;
+	};
+
 	struct literal_t : public expr_t, public predicate_t {
 		literal_t(token_t token) : token(token) {}
 		std::ostream &render(std::ostream &os, int parent_precedence) const override;

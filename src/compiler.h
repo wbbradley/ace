@@ -42,7 +42,7 @@ namespace compiler {
 	std::string dump_program_text(std::string module_name);
 
 	/* first step is to parse all modules */
-	compilation_t::ref parse_program(std::string program_name);
+	compilation_t::ref parse_program(std::string program_name, const std::map<std::string, int> &builtin_arities);
 
 	/* parse a single module */
 	bitter::module_t *parse_module(location_t location, std::string module_name);

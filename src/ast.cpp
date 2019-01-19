@@ -223,6 +223,18 @@ namespace bitter {
 		expr->render(os, precedence);
 		return os << "[" << index << " of " << max << "]";
 	}
+	location_t builtin_t::get_location() const {
+		return var->get_location();
+	}
+	std::ostream &builtin_t::render(std::ostream &os, int parent_precedence) const {
+		os << var->str();
+		if (exprs.size() != 0) {
+			os << "(";
+			os << join_str(exprs, ", ");
+			os << ")";
+		}
+		return os;
+	}
 	location_t conditional_t::get_location() const {
 		return cond->get_location();
 	}

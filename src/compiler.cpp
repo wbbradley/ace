@@ -123,11 +123,14 @@ namespace compiler {
 
 	struct global_parser_state_t {
 
+		global_parser_state_t(const std::map<std::string, int> &builtin_arities) : builtin_arities(builtin_arities)
+		{}
 		std::vector<module_t *> modules;
 		std::map<std::string, module_t *> modules_map_by_filename;
 		std::map<std::string, module_t *> modules_map_by_name;
 		std::vector<token_t> comments;
 		std::set<token_t> link_ins;
+		const std::map<std::string, int> &builtin_arities;
 
 		module_t *parse_module_statefully(identifier_t module_id) {
 			if (auto module = get(modules_map_by_name, module_id.name, (module_t *)nullptr)) {
@@ -146,7 +149,7 @@ namespace compiler {
 				debug_above(11, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
 				zion_lexer_t lexer({module_filename}, ifs);
 
-				parse_state_t ps(module_filename, "", lexer, comments, link_ins);
+				parse_state_t ps(module_filename, "", lexer, comments, link_ins, builtin_arities);
 
 				std::set<identifier_t> dependencies;
 				module_t *module = ::parse_module(ps, {modules_map_by_name["std"]}, dependencies);
@@ -203,14 +206,14 @@ namespace compiler {
 		return top_level_decls;
 	}
 
-	compilation_t::ref parse_program(std::string user_program_name) {
+	compilation_t::ref parse_program(std::string user_program_name, const std::map<std::string, int> &builtin_arities) {
 		std::string program_name = strip_zion_extension(leaf_from_file_path(user_program_name));
 		try {
 			/* first just parse all the modules that are reachable from the initial module
 			 * and bring them into our whole ast */
 			auto module_name = program_name;
 
-			global_parser_state_t gps;
+			global_parser_state_t gps(builtin_arities);
 
 			/* always include the builtins library */
 			if (getenv("NO_PRELUDE") == nullptr) {

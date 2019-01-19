@@ -5,13 +5,15 @@
 #include <sstream>
 #include "parse_state.h"
 
+std::map<std::string, int> get_builtin_arities();
+
 template <typename T, typename... Args>
 std::shared_ptr<T> parse_text(std::istream &is, std::string filename = "repl.zion") {
 	zion_lexer_t lexer(filename, is);
 	std::vector<token_t> comments;
 	std::set<token_t> link_ins;
 
-	parse_state_t ps(filename, "<text>", lexer, comments, link_ins);
+	parse_state_t ps(filename, "<text>", lexer, comments, link_ins, get_builtin_arities());
 
 	auto item = T::parse(ps);
 	if (ps.token.tk != tk_none) {

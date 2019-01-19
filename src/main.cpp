@@ -559,7 +559,7 @@ std::map<std::string, int> get_builtin_arities() {
 
 phase_2_t compile(std::string user_program_name_) {
 	auto builtin_arities = get_builtin_arities();
-	auto compilation = compiler::parse_program(user_program_name_);
+	auto compilation = compiler::parse_program(user_program_name_, builtin_arities);
 	if (compilation == nullptr) {
 		exit(EXIT_FAILURE);
 	}
@@ -845,6 +845,11 @@ void get_builtins(const bitter::expr_t *expr, const tracked_types_t &typing, std
 		for (auto pattern_block: match->pattern_blocks) {
 			get_builtins(pattern_block->result, typing, builtins);
 		}
+	} else if (auto builtin = dcast<const bitter::builtin_t*>(expr)) {
+		get_builtins(builtin->var, typing, builtins);
+		for (auto expr: builtin->exprs) {
+			get_builtins(expr, typing, builtins);
+		}
 	} else {
 		throw user_error(expr->get_location(), "unhandled get_builtins for %s", expr->str().c_str());
 	}
@@ -921,7 +926,7 @@ int run_job(const job_t &job) {
 		}
 
 		std::string user_program_name = job.args[0];
-		auto compilation = compiler::parse_program(user_program_name);
+		auto compilation = compiler::parse_program(user_program_name, get_builtin_arities());
 		if (compilation != nullptr) {
 			for (auto decl : compilation->program->decls) {
 				log_location(decl->var.location, "%s = %s", decl->var.str().c_str(),
