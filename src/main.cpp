@@ -115,6 +115,7 @@ const types::scheme_t::map &get_builtins() {
 
 		map = std::make_unique<types::scheme_t::map>();
 
+		(*map)["__builtin_word_size"] = scheme({}, {}, Int);
 		(*map)["__builtin_min_int"] = scheme({}, {}, Int);
 		(*map)["__builtin_max_int"] = scheme({}, {}, Int);
 		(*map)["__builtin_multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
@@ -790,71 +791,6 @@ struct phase_4_t {
 	gen::env_t env;
 };
 
-void get_builtins(const bitter::expr_t *expr, const tracked_types_t &typing, std::set<defn_id_t> &builtins) {
-	debug_above(8, log("get_builtins(%s, ...)", expr->str().c_str()));
-	if (auto literal = dcast<const literal_t *>(expr)) {
-		return;
-	} else if (auto static_print = dcast<const bitter::static_print_t*>(expr)) {
-		return;
-	} else if (auto var = dcast<const bitter::var_t*>(expr)) {
-		auto type = get(typing, expr, {});
-		if (type == nullptr) {
-			throw user_error(var->get_location(), "could not find out the type of %s", expr->str().c_str());
-		}
-		assert(type != nullptr);
-
-		assert(!starts_with(var->id.name, "(__builtin_"));
-		if (starts_with(var->id.name, "__builtin_")) {
-			builtins.insert({var->id, type->generalize({})});
-		}
-	} else if (auto lambda = dcast<const bitter::lambda_t*>(expr)) {
-		get_builtins(lambda->body, typing, builtins);
-	} else if (auto application = dcast<const bitter::application_t*>(expr)) {
-		get_builtins(application->a, typing, builtins);
-		get_builtins(application->b, typing, builtins);
-	} else if (auto let = dcast<const bitter::let_t*>(expr)) {
-		get_builtins(let->value, typing, builtins);
-		get_builtins(let->body, typing, builtins);
-	} else if (auto fix = dcast<const bitter::fix_t*>(expr)) {
-		get_builtins(fix->f, typing, builtins);
-	} else if (auto condition = dcast<const bitter::conditional_t*>(expr)) {
-		get_builtins(condition->cond, typing, builtins);
-		get_builtins(condition->truthy, typing, builtins);
-		get_builtins(condition->falsey, typing, builtins);
-	} else if (auto break_ = dcast<const bitter::break_t*>(expr)) {
-		return;
-	} else if (auto while_ = dcast<const bitter::while_t*>(expr)) {
-		get_builtins(while_->condition, typing, builtins);
-		get_builtins(while_->block, typing, builtins);
-	} else if (auto block = dcast<const bitter::block_t*>(expr)) {
-		for (auto statement: block->statements) {
-			get_builtins(statement, typing, builtins);
-		}
-	} else if (auto return_ = dcast<const bitter::return_statement_t*>(expr)) {
-		get_builtins(return_->value, typing, builtins);
-	} else if (auto tuple = dcast<const bitter::tuple_t*>(expr)) {
-		for (auto dim: tuple->dims) {
-			get_builtins(dim, typing, builtins);
-		}
-	} else if (auto tuple_deref = dcast<const bitter::tuple_deref_t*>(expr)) {
-		get_builtins(tuple_deref->expr, typing, builtins);
-	} else if (auto as = dcast<const bitter::as_t*>(expr)) {
-		get_builtins(as->expr, typing, builtins);
-	} else if (auto sizeof_ = dcast<const bitter::sizeof_t*>(expr)) {
-	} else if (auto match = dcast<const bitter::match_t*>(expr)) {
-		for (auto pattern_block: match->pattern_blocks) {
-			get_builtins(pattern_block->result, typing, builtins);
-		}
-	} else if (auto builtin = dcast<const bitter::builtin_t*>(expr)) {
-		get_builtins(builtin->var, typing, builtins);
-		for (auto expr: builtin->exprs) {
-			get_builtins(expr, typing, builtins);
-		}
-	} else {
-		throw user_error(expr->get_location(), "unhandled get_builtins for %s", expr->str().c_str());
-	}
-}
-
 phase_4_t ssa_gen(const phase_3_t phase_3) {
 	gen::module_t::ref module = std::make_shared<gen::module_t>();
 	gen::env_t &env = module->env;
@@ -866,15 +802,13 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 			globals.insert(name);
 		}
 
-		gen::builder_t builder(module);
-		std::set<defn_id_t> builtins;
-		for (auto pair : phase_3.translation_map) {
-			debug_above(8, log("checking builtins in %s", pair.second->expr->str().c_str()));
-			get_builtins(pair.second->expr, pair.second->typing, builtins);
+		/* make sure the builtins are in the list of globals so that they don't get collected when
+		 * creating closures */
+		for (auto pair: get_builtins()) {
+			globals.insert(pair.first);
 		}
 
-		log("builtins: {%s}", join_with(builtins, ", ", [](defn_id_t defn_id) { return defn_id.str(); }).c_str());
-
+		gen::builder_t builder(module);
 		for (auto pair : phase_3.translation_map) {
 			auto name = pair.first.repr();
 			log("running gen phase for " c_id("%s"), name.c_str());
