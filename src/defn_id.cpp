@@ -14,7 +14,7 @@ std::string defn_id_t::repr() const {
 	if (cached_repr.size() != 0) {
 		return cached_repr;
 	} else {
-		cached_repr = id.name + c_type(" :: ") + scheme->str();
+		cached_repr = id.name + " :: " + scheme->repr();
 		return cached_repr;
 	}
 }

@@ -513,6 +513,10 @@ namespace types {
 	}
 
 	std::string scheme_t::str() {
+		return repr();
+	}
+
+	std::string scheme_t::repr() {
 		std::stringstream ss;
 		if (vars.size() != 0) {
 			ss << "(∀ " << join(vars, " ");
