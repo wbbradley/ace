@@ -103,37 +103,6 @@ namespace gen {
 	}
 
 
-	block_t::ref gen_block(builder_t &builder, const bitter::expr_t *expr, const tracked_types_t &typing, env_t &cenv) {
-		debug_above(8, log("block(%s, ..., ...)", expr->str().c_str()));
-		if (auto literal = dcast<const literal_t *>(expr)) {
-			throw user_error(expr->get_location(), "literal %s has no effect here", expr->str().c_str());
-		} else if (auto static_print = dcast<const bitter::static_print_t*>(expr)) {
-			assert(false);
-		} else if (auto var = dcast<const bitter::var_t*>(expr)) {
-			throw user_error(expr->get_location(), "variable reference %s has no effect here", expr->str().c_str());
-		} else if (auto lambda = dcast<const bitter::lambda_t*>(expr)) {
-			throw user_error(expr->get_location(), "function %s has no effect here", expr->str().c_str());
-		} else if (auto application = dcast<const bitter::application_t*>(expr)) {
-			/*
-			 * a b ==> eval b then eval a then create a call instruction. so we need a three subgraphs
-			 * where the b eval subgraph falls into a Phi node (potentially) in the a eval subgraph then */
-		} else if (auto let = dcast<const bitter::let_t*>(expr)) {
-		} else if (auto fix = dcast<const bitter::fix_t*>(expr)) {
-		} else if (auto condition = dcast<const bitter::conditional_t*>(expr)) {
-		} else if (auto break_ = dcast<const bitter::break_t*>(expr)) {
-		} else if (auto while_ = dcast<const bitter::while_t*>(expr)) {
-		} else if (auto block = dcast<const bitter::block_t*>(expr)) {
-		} else if (auto return_ = dcast<const bitter::return_statement_t*>(expr)) {
-		} else if (auto tuple = dcast<const bitter::tuple_t*>(expr)) {
-		} else if (auto tuple_deref = dcast<const bitter::tuple_deref_t*>(expr)) {
-		} else if (auto as = dcast<const bitter::as_t*>(expr)) {
-		} else if (auto sizeof_ = dcast<const bitter::sizeof_t*>(expr)) {
-		} else if (auto match = dcast<const bitter::match_t*>(expr)) {
-		}
-
-		throw user_error(expr->get_location(), "unhandled block gen for %s", expr->str().c_str());
-	}
-
 	value_t::ref get_env_var(const env_t &env, identifier_t id, types::scheme_t::ref scheme) {
 		auto iter = env.find(id.name);
 		if (iter != env.end()) {
@@ -297,6 +266,28 @@ namespace gen {
 			} else if (auto let = dcast<const bitter::let_t*>(expr)) {
 			} else if (auto fix = dcast<const bitter::fix_t*>(expr)) {
 			} else if (auto condition = dcast<const bitter::conditional_t*>(expr)) {
+				auto cond = gen(builder, condition->cond, typing, env, globals);
+				block_t::ref truthy_branch = builder.create_block("truthy", false /*insert_in_new_block*/);
+				block_t::ref falsey_branch = builder.create_block("falsey", false /*insert_in_new_block*/);
+				block_t::ref merge_branch = builder.create_block("merge", false /*insert_in_new_block*/);
+
+				builder.create_cond_branch(cond, truthy_branch, falsey_branch);
+
+				builder.set_insertion_block(truthy_branch);
+				value_t::ref truthy_value = gen(builder, condition->truthy, typing, env, globals);
+				builder.merge_value_into(truthy_value, merge_branch);
+
+				builder.set_insertion_block(falsey_branch);
+				value_t::ref falsey_value = gen(builder, condition->falsey, typing, env, globals);
+				builder.merge_value_into(falsey_value, merge_branch);
+
+				builder.set_insertion_block(merge_branch);
+
+				if (auto phi_node = builder.get_current_phi_node()) {
+					return phi_node;
+				} else {
+					return builder.create_unit(condition->get_location());
+				}
 			} else if (auto break_ = dcast<const bitter::break_t*>(expr)) {
 			} else if (auto while_ = dcast<const bitter::while_t*>(expr)) {
 			} else if (auto block = dcast<const bitter::block_t*>(expr)) {
@@ -339,6 +330,12 @@ namespace gen {
 		}
 	}
 
+	void builder_t::set_insertion_block(block_t::ref new_block) {
+		block = new_block;
+		function = new_block->parent.lock();
+		module = function->parent.lock();
+	}
+
 	builder_t builder_t::save_ip() const {
 		return *this;
 	}
@@ -347,18 +344,43 @@ namespace gen {
 		*this = builder;
 	}
 
-	block_t::ref builder_t::create_block(std::string name) {
+	block_t::ref builder_t::create_block(std::string name, bool insert_in_new_block) {
 		assert(function != nullptr);
 		function->blocks.push_back(
 				std::make_shared<block_t>(function, name.size() == 0 ? bitter::fresh() : name));
-		block = function->blocks.back();
-		// inserter = std::make_shared<std::back_insert_iterator<instructions_t>>(block->instructions);
+		if (insert_in_new_block) {
+			block = function->blocks.back();
+		}
 		return block;
 	}
 
 	void builder_t::insert_instruction(instruction_t::ref instruction) {
 		assert(block != nullptr);
 		block->instructions.push_back(instruction);
+	}
+
+	void builder_t::merge_value_into(value_t::ref incoming_value, block_t::ref merge_block) {
+		assert(false);
+	}
+
+	void phi_node_t::add_incoming_value(value_t::ref value, block_t::ref incoming_block) {
+		for (auto pair : incoming_values) {
+			if (pair.second == incoming_block) {
+				throw user_error(value->get_location(), "there is already a value from this incoming block");
+			} else if (pair.first == value) {
+				throw user_error(value->get_location(), "this value is being added as an incoming value twice");
+			}
+		}
+		incoming_values.push_back({value, incoming_block});
+	}
+
+	phi_node_t::ref builder_t::get_current_phi_node() {
+		if (block->instructions.size() != 0) {
+			if (auto phi_node = dyncast<phi_node_t>(block->instructions.front())) {
+				return phi_node;
+			}
+		}
+		return nullptr;
 	}
 
 	value_t::ref builder_t::create_builtin(identifier_t id, const value_t::refs &values, types::type_t::ref type) {
@@ -392,6 +414,10 @@ namespace gen {
 		return tuple;
 	}
 
+	value_t::ref builder_t::create_unit(location_t location) {
+		return create_tuple(location, {});
+	}
+
 	value_t::ref builder_t::create_tuple_deref(location_t location, value_t::ref value, int index) {
 		auto tuple_deref = std::make_shared<tuple_deref_t>(location, block, value, index);
 		insert_instruction(tuple_deref);
@@ -403,10 +429,32 @@ namespace gen {
 		return nullptr;
 	}
 
+	value_t::ref builder_t::create_cond_branch(value_t::ref cond, block_t::ref truthy_branch, block_t::ref falsey_branch) {
+		auto cond_branch = std::make_shared<cond_branch_t>(cond->get_location(), block, cond, truthy_branch, falsey_branch);
+		insert_instruction(cond_branch);
+		return cond_branch;
+	}
+
 	value_t::ref builder_t::create_return(value_t::ref expr) {
 		auto return_ = std::make_shared<return_t>(expr->get_location(), block, expr);
 		insert_instruction(return_);
 		return return_;
+	}
+
+	std::ostream &cond_branch_t::render(std::ostream &os) const {
+		return os << "if " << cond->str() << " then goto " << truthy_branch->name << " else goto " << falsey_branch->name;
+	}
+
+	std::string phi_node_t::get_value_name(location_t location) const {
+		return lhs_name;
+	}
+
+	std::ostream &phi_node_t::render(std::ostream &os) const {
+		os << C_ID << lhs_name << C_RESET << " := " << C_WARN "phi" C_RESET "(";
+		os << join_with(incoming_values, ", ", [](const std::pair<value_t::ref, block_t::ref> &pair) {
+				return string_format("%s, %s", pair.first->str().c_str(), pair.second->name.c_str());
+				});
+		return os << ")";
 	}
 
 	std::string cast_t::get_value_name(location_t location) const {
