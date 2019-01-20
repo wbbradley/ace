@@ -798,8 +798,7 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 	try {
 		std::unordered_set<std::string> globals;
 		for (auto pair : phase_3.translation_map) {
-			auto name = pair.first.repr();
-			globals.insert(name);
+			globals.insert(pair.first.id.name);
 		}
 
 		/* make sure the builtins are in the list of globals so that they don't get collected when

@@ -211,7 +211,7 @@ static inline std::string &trim(std::string &s) {
 }
 
 template <typename X>
-std::string join(const X &xs, std::string delim) {
+std::string join(const X &xs, std::string delim=", ") {
 	std::stringstream ss;
 	const char *sep = "";
 	for (const auto &x : xs) {
@@ -222,7 +222,7 @@ std::string join(const X &xs, std::string delim) {
 }
 
 template <typename X>
-std::string join_str(const X &xs, std::string delim) {
+std::string join_str(const X &xs, std::string delim=", ") {
 	std::stringstream ss;
 	const char *sep = "";
 	for (const auto &x : xs) {
@@ -233,7 +233,7 @@ std::string join_str(const X &xs, std::string delim) {
 }
 
 template <typename X>
-std::string join_str(X begin, X end, std::string delim) {
+std::string join_str(X begin, X end, std::string delim=", ") {
 	std::stringstream ss;
 	const char *sep = "";
 	for (X iter=begin; iter != end; ++iter) {

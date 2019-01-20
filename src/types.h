@@ -184,6 +184,7 @@ namespace types {
 
 		predicate_map get_predicate_map();
 		std::string str();
+		std::string repr();
 		location_t get_location() const;
 
 		std::vector<std::string> vars;
