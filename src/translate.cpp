@@ -281,7 +281,7 @@ expr_t *texpr(
 			return new_builtin;
 		} else if (auto sizeof_ = dcast<sizeof_t*>(expr)) {
 			auto builtin_word_id = identifier_t{"__builtin_word_size", sizeof_->get_location()};
-			auto new_sizeof = new var_t(builtin_word_id);
+			auto new_sizeof = new builtin_t(new var_t(builtin_word_id), {});
 			typing[new_sizeof] = type;
 			return new_sizeof;
 		} else if (auto tuple_deref = dcast<tuple_deref_t*>(expr)) {
