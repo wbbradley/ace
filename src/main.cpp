@@ -812,7 +812,7 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 		gen::builder_t builder(module);
 		for (auto pair : phase_3.translation_map) {
 			auto name = pair.first.repr();
-			log("running gen phase for " c_id("%s"), name.c_str());
+			debug_above(4, log("running gen phase for " c_id("%s"), name.c_str()));
 			env[name] = gen::gen(builder, pair.second->expr, pair.second->typing, env, globals);
 		}
 
@@ -821,7 +821,7 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 		print_exception(e);
 		/* and continue */
 	}
-	return phase_4_t{phase_3, {}};
+	return phase_4_t{phase_3, {module->env}};
 }
 
 struct job_t {
@@ -889,7 +889,19 @@ int run_job(const job_t &job) {
 		if (job.args.size() != 1) {
 			return run_job({"help", {}});
 		} else {
-			ssa_gen(specialize(compile(job.args[0])));
+			auto phase_4 = ssa_gen(specialize(compile(job.args[0])));
+			std::cout << 
+					join_with(phase_4.env, "\n", [](std::pair<std::string, gen::value_t::ref> pair) {
+						if (auto function = dyncast<gen::function_t>(pair.second)) {
+							std::stringstream ss;
+							function->render(ss);
+							return ss.str();
+						} else {
+							return string_format("%s: %s", pair.first.c_str(), pair.second ? pair.second->str().c_str() : "<none>");
+						}
+						});
+			std::cout << std::endl;
+
 			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		}
 	} else if (job.cmd == "help") {
