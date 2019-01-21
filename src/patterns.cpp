@@ -279,24 +279,41 @@ expr_t *translate_next(
 	auto scrutinee = new var_t(scrutinee_id);
 	typing[scrutinee] = scrutinee_type;
 
-	auto dim = new tuple_deref_t(scrutinee, param_index + dim_offset, 0 /*ignored in gen phase*/);
+	types::type_t::refs tuple_dims;
+	for (auto i=0; i<dim_offset; ++i) {
+		tuple_dims.push_back(type_unit(INTERNAL_LOC()));
+	}
+	for (auto param_type: param_types) {
+		tuple_dims.push_back(param_type);
+	}
+
+	auto as_tuple_type = type_tuple(tuple_dims);
+	auto scrutinee_as_tuple = new as_t(scrutinee, as_tuple_type->generalize({})->normalize(), true /*force_cast*/);
+	typing[scrutinee_as_tuple] = as_tuple_type;
+
+	auto dim = new tuple_deref_t(scrutinee_as_tuple, param_index + dim_offset, 0 /*ignored in gen phase*/);
 	typing[dim] = param_types[param_index];
 
-	return new let_t(
+	auto body = params[param_index]->translate(
+			for_defn_id,
+			param_id,
+			param_types[param_index],
+			do_checks,
+			bound_vars,
+			tenv,
+			typing,
+			needed_defns,
+			returns,
+			matching,
+			failed);
+	assert(in(body, typing));
+
+	auto let = new let_t(
 			param_id,
 			dim,
-			params[param_index]->translate(
-				for_defn_id,
-				param_id,
-				param_types[param_index],
-				do_checks,
-				bound_vars,
-				tenv,
-				typing,
-				needed_defns,
-				returns,
-				matching,
-				failed));
+			body);
+	typing[let] = typing[body];
+	return let;
 }
 
 void ctor_predicate_t::get_bound_vars(std::unordered_set<std::string> &bound_vars) const {

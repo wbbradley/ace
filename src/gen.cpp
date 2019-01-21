@@ -117,20 +117,6 @@ namespace gen {
 		if (iter == env.end()) {
 			return std::make_shared<global_ref_t>(defn_id.repr_id(), scheme->instantiate(INTERNAL_LOC()));
 		}
-#if 0
-			auto error = user_error(id.location, "could not find variable %s", id.str().c_str());
-			error.add_info(id.location, "env is\n%s",
-					join_with(env, "\n", [](std::pair<std::string, value_t::ref> pair) {
-						if (auto function = dyncast<function_t>(pair.second)) {
-							std::stringstream ss;
-							function->render(ss);
-							return ss.str();
-						} else {
-							return string_format("%s: %s", pair.first.c_str(), pair.second ? pair.second->str().c_str() : "<none>");
-						}
-						}).c_str());
-			throw error;
-#endif
 		auto value = iter->second;
 		if (value == nullptr) {
 			throw user_error(id.location, "we need a definition for %s", defn_id.str().c_str());
@@ -159,10 +145,10 @@ namespace gen {
 			auto param_type = terms[0];
 			terms.erase(terms.begin());
 
-			log("creating argument %s :: %s for %s",
+			debug_above(8, log("creating argument %s :: %s for %s",
 					param_ids[i].str().c_str(),
 					param_type->str().c_str(),
-					name.c_str());
+					name.c_str()));
 			function->args.push_back(
 					std::make_shared<argument_t>(param_ids[i], param_type, i, function));
 		}
@@ -205,7 +191,7 @@ namespace gen {
 		if (free_vars.count() != 0) {
 			/* this is a closure, and as such requires that we capture the free_vars from our
 			 * current environment */
-			log("we need closure by value of %s", free_vars.str().c_str());
+			debug_above(8, log("we need closure by value of %s", free_vars.str().c_str()));
 
 			std::vector<value_t::ref> dims;
 
@@ -270,7 +256,9 @@ namespace gen {
 						gen(builder, application->a, typing, env, globals),
 						{gen(builder, application->b, typing, env, globals)});
 			} else if (auto let = dcast<const bitter::let_t*>(expr)) {
-				assert(false);
+				auto new_env = env;
+				new_env[let->var.name] = gen(builder, let->value, typing, env, globals);
+				return gen(builder, let->body, typing, new_env, globals);
 			} else if (auto fix = dcast<const bitter::fix_t*>(expr)) {
 				assert(false);
 			} else if (auto condition = dcast<const bitter::conditional_t*>(expr)) {
@@ -321,11 +309,11 @@ namespace gen {
 				return builder.create_tuple(tuple->get_location(), dim_values);
 			} else if (auto tuple_deref = dcast<const bitter::tuple_deref_t*>(expr)) {
 				auto td = gen(builder, tuple_deref->expr, typing, env, globals);
-				log_location(
+				debug_above(10, log_location(
 						tuple_deref->expr->get_location(),
 					   	"created tuple deref %s from %s",
 					   	td->str().c_str(),
-					   	tuple_deref->expr->str().c_str());
+					   	tuple_deref->expr->str().c_str()));
 				return builder.create_tuple_deref(tuple_deref->get_location(), td, tuple_deref->index);
 			} else if (auto as = dcast<const bitter::as_t*>(expr)) {
 				assert(as->force_cast);
@@ -380,7 +368,7 @@ namespace gen {
 		assert(block != nullptr);
 		std::stringstream ss;
 		instruction->render(ss );
-		log("adding instruction %s", ss.str().c_str());
+		// log("adding instruction %s", ss.str().c_str());
 		block->instructions.push_back(instruction);
 	}
 
@@ -420,10 +408,10 @@ namespace gen {
 	}
 
 	value_t::ref builder_t::create_builtin(identifier_t id, const value_t::refs &values, types::type_t::ref type) {
-		log("creating builtin %s for %s with type %s",
+		debug_above(8, log("creating builtin %s for %s with type %s",
 				id.str().c_str(),
 				join_str(values, ", ").c_str(),
-				type->str().c_str());
+				type->str().c_str()));
 		auto builtin = std::make_shared<builtin_t>(id.location, block, id, values, type);
 		insert_instruction(builtin);
 		return builtin;
