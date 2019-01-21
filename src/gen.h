@@ -53,11 +53,33 @@ namespace gen {
 
 	typedef std::list<instruction_t::ref> instructions_t;
 
+	struct phi_node_t : public instruction_t {
+		typedef std::shared_ptr<phi_node_t> ref;
+		phi_node_t(location_t location, std::weak_ptr<block_t> parent, types::type_t::ref type) :
+			instruction_t(location, type, parent),
+			lhs_name(bitter::fresh())
+		{
+			if (type_equality(type, type_unit(INTERNAL_LOC()))) {
+				throw user_error(location, "it is unnecessary to use phi nodes on unit typed values");
+			}
+		}
+
+		std::string get_value_name(location_t location) const override;
+		std::ostream &render(std::ostream &os) const override;
+
+		void add_incoming_value(value_t::ref value, std::shared_ptr<block_t> block);
+
+		std::string lhs_name;
+		std::vector<std::pair<value_t::ref, std::shared_ptr<block_t>>> incoming_values;
+	};
+
 	struct block_t {
 		typedef std::shared_ptr<block_t> ref;
 
 		block_t(std::weak_ptr<function_t> parent, std::string name) : parent(parent), name(name) {}
 		std::string str() const;
+
+		phi_node_t::ref get_phi_node();
 
 		std::weak_ptr<function_t> parent;
 		std::string const name;
@@ -135,6 +157,29 @@ namespace gen {
 		function_t::wref function;
 	};
 
+	struct global_ref_t : public value_t {
+		typedef std::shared_ptr<global_ref_t> ref;
+		global_ref_t(identifier_t id, types::type_t::ref type) :
+		   	value_t(id.location, type),
+			name(id.name)
+		{}
+
+		std::string str() const override;
+
+		std::string name;
+	};
+
+	struct goto_t : public instruction_t {
+		goto_t(location_t location, std::weak_ptr<block_t> parent, block_t::ref branch) :
+			instruction_t(location, type_unit(INTERNAL_LOC()), parent),
+			branch(branch)
+		{}
+
+		std::ostream &render(std::ostream &os) const override;
+
+		block_t::ref branch;
+	};
+
 	struct cond_branch_t : public instruction_t {
 		cond_branch_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref cond, block_t::ref truthy_branch, block_t::ref falsey_branch) :
 			instruction_t(location, type_unit(INTERNAL_LOC()), parent),
@@ -148,6 +193,22 @@ namespace gen {
 		value_t::ref cond;
 		block_t::ref truthy_branch;
 		block_t::ref falsey_branch;
+	};
+
+	struct callsite_t : public instruction_t {
+		callsite_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref callable, value_t::refs params) :
+			instruction_t(location, type_unit(INTERNAL_LOC()), parent),
+			lhs_name(bitter::fresh()),
+			callable(callable),
+			params(params)
+		{}
+
+		std::string get_value_name(location_t location) const override;
+		std::ostream &render(std::ostream &os) const override;
+
+		std::string lhs_name;
+		value_t::ref callable;
+		value_t::refs params;
 	};
 
 	struct return_t : public instruction_t {
@@ -184,25 +245,6 @@ namespace gen {
 			rhs(rhs)
 		{}
 		value_t::ref lhs, rhs;
-	};
-
-	struct phi_node_t : public instruction_t {
-		phi_node_t(location_t location, std::weak_ptr<block_t> parent, types::type_t::ref type) :
-			instruction_t(location, type, parent),
-			lhs_name(bitter::fresh())
-		{
-			if (type_equality(type, type_unit(INTERNAL_LOC()))) {
-				throw user_error(location, "it is unnecessary to use phi nodes on unit typed values");
-			}
-		}
-
-		std::string get_value_name(location_t location) const override;
-		std::ostream &render(std::ostream &os) const override;
-
-		void add_incoming_value(value_t::ref value, block_t::ref incoming_block);
-
-		std::string lhs_name;
-		std::vector<std::pair<value_t::ref, block_t::ref>> incoming_values;
 	};
 
 	types::type_t::ref tuple_type(const std::vector<value_t::ref> &dims);
@@ -252,16 +294,16 @@ namespace gen {
 		value_t::ref create_unit(location_t location);
 		value_t::ref create_builtin(identifier_t id, const value_t::refs &values, types::type_t::ref type);
 		value_t::ref create_literal(token_t token, types::type_t::ref type);
-		value_t::ref create_call(value_t::ref callable, const std::vector<value_t::ref> params);
+		value_t::ref create_call(value_t::ref callable, const value_t::refs &params);
 		value_t::ref create_cast(location_t location, value_t::ref value, types::type_t::ref type);
 		value_t::ref create_tuple(location_t location, const std::vector<value_t::ref> &dims);
 		value_t::ref create_tuple_deref(location_t location, value_t::ref value, int index);
-		value_t::ref create_branch(block_t::ref block);
+		value_t::ref create_branch(location_t location, block_t::ref block);
 		value_t::ref create_cond_branch(value_t::ref cond, block_t::ref truthy_branch, block_t::ref falsey_branch);
 		value_t::ref create_return(value_t::ref expr);
 		function_t::ref create_function(std::string name, identifiers_t param_ids, location_t location, types::type_t::ref type);
 		void insert_instruction(instruction_t::ref instruction);
-		void merge_value_into(value_t::ref incoming_value, block_t::ref merge_block);
+		void merge_value_into(location_t location, value_t::ref incoming_value, block_t::ref merge_block);
 		phi_node_t::ref get_current_phi_node();
 
 	public:

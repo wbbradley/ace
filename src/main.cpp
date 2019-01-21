@@ -798,6 +798,7 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 	try {
 		std::unordered_set<std::string> globals;
 		for (auto pair : phase_3.translation_map) {
+			log("adding global %s", pair.first.id.name.c_str());
 			globals.insert(pair.first.id.name);
 		}
 
@@ -807,6 +808,7 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 			globals.insert(pair.first);
 		}
 
+		log("globals are %s", join(globals).c_str());
 		gen::builder_t builder(module);
 		for (auto pair : phase_3.translation_map) {
 			auto name = pair.first.repr();
