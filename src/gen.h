@@ -9,13 +9,20 @@ namespace gen {
 		typedef std::shared_ptr<value_t> ref;
 		typedef std::vector<ref> refs;
 
-		value_t(location_t location, types::type_t::ref type) : location(location), type(type) {}
+		value_t(location_t location, types::type_t::ref type, std::string name) :
+		   	location(location),
+		   	type(type),
+		   	name(name.size() == 0 ? bitter::fresh() : name)
+		{}
 		virtual ~value_t() {}
 		virtual std::string str() const = 0;
 		location_t get_location() const { return location; }
-
+		virtual void set_name(identifier_t id);
+		virtual std::string get_name() const;
 		location_t const location;
 		types::type_t::ref const type;
+
+		std::string name;
 	};
 
 	typedef std::unordered_map<std::string, value_t::ref> env_t;
@@ -30,7 +37,7 @@ namespace gen {
 
 	struct literal_t : public value_t {
 		std::string str() const override;
-		literal_t(token_t token, types::type_t::ref type) : value_t(token.location, type), token(token) {}
+		literal_t(token_t token, types::type_t::ref type, std::string name) : value_t(token.location, type, name), token(token) {}
 		token_t const token;
 	};
 
@@ -41,10 +48,9 @@ namespace gen {
 		typedef std::shared_ptr<instruction_t> ref;
 
 		std::string str() const override final;
-		virtual std::string get_value_name(location_t location) const;
 		virtual std::ostream &render(std::ostream &os) const = 0;
 
-		instruction_t(location_t location, types::type_t::ref type, std::weak_ptr<block_t> parent) : value_t(location, type), parent(parent) {}
+		instruction_t(location_t location, types::type_t::ref type, std::weak_ptr<block_t> parent, std::string name="") : value_t(location, type, name), parent(parent) {}
 
 		virtual ~instruction_t() {}
 
@@ -56,20 +62,17 @@ namespace gen {
 	struct phi_node_t : public instruction_t {
 		typedef std::shared_ptr<phi_node_t> ref;
 		phi_node_t(location_t location, std::weak_ptr<block_t> parent, types::type_t::ref type) :
-			instruction_t(location, type, parent),
-			lhs_name(bitter::fresh())
+			instruction_t(location, type, parent)
 		{
 			if (type_equality(type, type_unit(INTERNAL_LOC()))) {
 				throw user_error(location, "it is unnecessary to use phi nodes on unit typed values");
 			}
 		}
 
-		std::string get_value_name(location_t location) const override;
 		std::ostream &render(std::ostream &os) const override;
 
 		void add_incoming_value(value_t::ref value, std::shared_ptr<block_t> block);
 
-		std::string lhs_name;
 		std::vector<std::pair<value_t::ref, std::shared_ptr<block_t>>> incoming_values;
 	};
 
@@ -87,16 +90,13 @@ namespace gen {
 	};
 
 	struct cast_t : public instruction_t {
-		cast_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref value, types::type_t::ref type) :
-			instruction_t(location, type, parent),
-			lhs_name(bitter::fresh()),
+		cast_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref value, types::type_t::ref type, std::string name) :
+			instruction_t(location, type, parent, name),
 			value(value)
 		{}
 			
-		std::string get_value_name(location_t location) const override;
 		std::ostream &render(std::ostream &os) const override;
 
-		std::string lhs_name;
 		value_t::ref value;
 
 	};
@@ -108,9 +108,8 @@ namespace gen {
 		typedef std::weak_ptr<function_t> wref;
 
 		function_t(module_t::ref module, std::string name, location_t location, types::type_t::ref type) :
-			value_t(location, type),
-			parent(module),
-			name(name)
+			value_t(location, type, name),
+			parent(module)
 		{
 		}
 
@@ -118,7 +117,6 @@ namespace gen {
 		std::ostream &render(std::ostream &os) const;
 
 		std::weak_ptr<module_t> parent;
-		std::string name;
 		std::vector<block_t::ref> blocks;
 		std::vector<std::shared_ptr<argument_t>> args;
 	};
@@ -126,17 +124,14 @@ namespace gen {
 	struct builtin_t : public instruction_t {
 		typedef std::shared_ptr<builtin_t> ref;
 
-		builtin_t(location_t location, std::weak_ptr<block_t> parent, identifier_t id, value_t::refs values, types::type_t::ref type) :
-			instruction_t(location, type, parent),
-			lhs_name(bitter::fresh()),
+		builtin_t(location_t location, std::weak_ptr<block_t> parent, identifier_t id, value_t::refs values, types::type_t::ref type, std::string name) :
+			instruction_t(location, type, parent, name),
 			id(id),
 			values(values)
 		{}
 
-		std::string get_value_name(location_t location) const override;
 		std::ostream &render(std::ostream &os) const override;
 
-		std::string lhs_name;
 		identifier_t id;
 		value_t::refs values;
 	};
@@ -144,15 +139,13 @@ namespace gen {
 	struct argument_t : public value_t {
 		typedef std::shared_ptr<argument_t> ref;
 		argument_t(identifier_t id, types::type_t::ref type, int index, function_t::wref function) :
-		   	value_t(id.location, type),
-			name(id.name),
+		   	value_t(id.location, type, id.name),
 		   	index(index),
 			function(function)
 		{}
 
 		std::string str() const override;
 
-		std::string name;
 		int index;
 		function_t::wref function;
 	};
@@ -160,13 +153,10 @@ namespace gen {
 	struct global_ref_t : public value_t {
 		typedef std::shared_ptr<global_ref_t> ref;
 		global_ref_t(identifier_t id, types::type_t::ref type) :
-		   	value_t(id.location, type),
-			name(id.name)
+		   	value_t(id.location, type, id.name)
 		{}
 
 		std::string str() const override;
-
-		std::string name;
 	};
 
 	struct goto_t : public instruction_t {
@@ -181,8 +171,8 @@ namespace gen {
 	};
 
 	struct cond_branch_t : public instruction_t {
-		cond_branch_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref cond, block_t::ref truthy_branch, block_t::ref falsey_branch) :
-			instruction_t(location, type_unit(INTERNAL_LOC()), parent),
+		cond_branch_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref cond, block_t::ref truthy_branch, block_t::ref falsey_branch, std::string name) :
+			instruction_t(location, type_unit(INTERNAL_LOC()), parent, name),
 			cond(cond),
 			truthy_branch(truthy_branch),
 			falsey_branch(falsey_branch)
@@ -196,17 +186,14 @@ namespace gen {
 	};
 
 	struct callsite_t : public instruction_t {
-		callsite_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref callable, value_t::refs params) :
-			instruction_t(location, type_unit(INTERNAL_LOC()), parent),
-			lhs_name(bitter::fresh()),
+		callsite_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref callable, value_t::refs params, std::string name) :
+			instruction_t(location, type_unit(INTERNAL_LOC()), parent, name),
 			callable(callable),
 			params(params)
 		{}
 
-		std::string get_value_name(location_t location) const override;
 		std::ostream &render(std::ostream &os) const override;
 
-		std::string lhs_name;
 		value_t::ref callable;
 		value_t::refs params;
 	};
@@ -223,24 +210,21 @@ namespace gen {
 	};
 
 	struct load_t : public instruction_t {
-		load_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref rhs) :
-			instruction_t(location, type_deref(rhs->type), parent),
-			lhs_name(bitter::fresh()),
+		load_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref rhs, std::string name) :
+			instruction_t(location, type_deref(rhs->type), parent, name),
 			rhs(rhs)
 		{}
 
 		std::ostream &render(std::ostream &os) const override;
-		std::string get_value_name(location_t location) const override;
 
-		std::string lhs_name;
 		value_t::ref rhs;
 	};
 
 	struct store_t : public instruction_t {
 		std::ostream &render(std::ostream &os) const override;
 
-		store_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref lhs, value_t::ref rhs) :
-			instruction_t(location, type_bottom(), parent),
+		store_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref lhs, value_t::ref rhs, std::string name) :
+			instruction_t(location, type_bottom(), parent, name),
 			lhs(lhs),
 			rhs(rhs)
 		{}
@@ -251,30 +235,24 @@ namespace gen {
 
 	struct tuple_t : public instruction_t {
 		std::ostream &render(std::ostream &os) const override;
-		tuple_t(location_t location, std::weak_ptr<block_t> parent, std::vector<value_t::ref> dims) :
-		   	instruction_t(location, tuple_type(dims), parent),
-			lhs_name(bitter::fresh()),
+		tuple_t(location_t location, std::weak_ptr<block_t> parent, std::vector<value_t::ref> dims, std::string name) :
+		   	instruction_t(location, tuple_type(dims), parent, name),
 		   	dims(dims)
 		{
 		}
-		std::string get_value_name(location_t location) const override;
 
-		std::string lhs_name;
 		std::vector<value_t::ref> dims;
 	};
 
 	struct tuple_deref_t : public instruction_t {
-		tuple_deref_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref value, int index) :
-		   	instruction_t(location, tuple_deref_type(location, value->type, index), parent),
-			lhs_name(bitter::fresh()),
+		tuple_deref_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref value, int index, std::string name) :
+		   	instruction_t(location, tuple_deref_type(location, value->type, index), parent, name),
 			value(value),
 			index(index)
 		{
 		}
 		std::ostream &render(std::ostream &os) const override;
-		std::string get_value_name(location_t location) const override;
 
-		std::string lhs_name;
 		value_t::ref value;
 		int index;
 	};
@@ -291,15 +269,15 @@ namespace gen {
 
 		void set_insertion_block(block_t::ref block);
 
-		value_t::ref create_unit(location_t location);
-		value_t::ref create_builtin(identifier_t id, const value_t::refs &values, types::type_t::ref type);
-		value_t::ref create_literal(token_t token, types::type_t::ref type);
-		value_t::ref create_call(value_t::ref callable, const value_t::refs &params);
-		value_t::ref create_cast(location_t location, value_t::ref value, types::type_t::ref type);
-		value_t::ref create_tuple(location_t location, const std::vector<value_t::ref> &dims);
-		value_t::ref create_tuple_deref(location_t location, value_t::ref value, int index);
+		value_t::ref create_unit(location_t location, std::string name="");
+		value_t::ref create_builtin(identifier_t id, const value_t::refs &values, types::type_t::ref type, std::string name="");
+		value_t::ref create_literal(token_t token, types::type_t::ref type, std::string name="");
+		value_t::ref create_call(value_t::ref callable, const value_t::refs &params, std::string name="");
+		value_t::ref create_cast(location_t location, value_t::ref value, types::type_t::ref type, std::string name="");
+		value_t::ref create_tuple(location_t location, const std::vector<value_t::ref> &dims, std::string name="");
+		value_t::ref create_tuple_deref(location_t location, value_t::ref value, int index, std::string name="");
 		value_t::ref create_branch(location_t location, block_t::ref block);
-		value_t::ref create_cond_branch(value_t::ref cond, block_t::ref truthy_branch, block_t::ref falsey_branch);
+		value_t::ref create_cond_branch(value_t::ref cond, block_t::ref truthy_branch, block_t::ref falsey_branch, std::string name="");
 		value_t::ref create_return(value_t::ref expr);
 		function_t::ref create_function(std::string name, identifiers_t param_ids, location_t location, types::type_t::ref type);
 		void insert_instruction(instruction_t::ref instruction);
@@ -314,5 +292,5 @@ namespace gen {
 	};
 
 	phi_node_t::ref phi_node(types::type_t::ref type);
-	value_t::ref gen(builder_t &builder, const bitter::expr_t *expr, const tracked_types_t &typing, const env_t &env, const std::unordered_set<std::string> &globals);
+	value_t::ref gen(std::string name, builder_t &builder, const bitter::expr_t *expr, const tracked_types_t &typing, const env_t &env, const std::unordered_set<std::string> &globals);
 }

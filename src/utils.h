@@ -266,6 +266,26 @@ void escape_json_quotes(std::ostream &ss, const std::string &str);
 std::string unescape_json_quotes(const std::string &s);
 size_t utf8_sequence_length(char ch_);
 
+template <typename K, typename V>
+bool contains_value(const std::map<K, V> &map, V value) {
+	for (auto pair: map) {
+		if (pair.second == value) {
+			return true;
+		}
+	}
+	return false;
+}
+
+template <typename K, typename V>
+bool contains_value(const std::unordered_map<K, V> &map, V value) {
+	for (auto pair: map) {
+		if (pair.second == value) {
+			return true;
+		}
+	}
+	return false;
+}
+
 template <typename U, typename COLL>
 bool in(U item, const COLL &set) {
 	return set.find(item) != set.end();

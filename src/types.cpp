@@ -549,6 +549,14 @@ namespace types {
 	location_t scheme_t::get_location() const {
 		return type->get_location();
 	}
+
+	type_t::ref unitize(type_t::ref type) {
+		type_t::map bindings;
+		for (auto pair : type->get_predicate_map()) {
+			bindings[pair.first] = type_unit(INTERNAL_LOC());
+		}
+		return type->rebind(bindings);
+	}
 }
 
 types::type_t::ref type_id(identifier_t id) {

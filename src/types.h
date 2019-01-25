@@ -194,6 +194,7 @@ namespace types {
 
 	bool is_type_id(type_t::ref type, const std::string &type_name);
 	type_t::refs rebind(const type_t::refs &types, const type_t::map &bindings);
+	type_t::ref unitize(type_t::ref type);
 };
 
 typedef std::map<std::string, types::type_t::map> data_ctors_map_t;
