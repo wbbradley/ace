@@ -19,6 +19,9 @@ struct defn_id_t {
 	identifier_t const id;
 	std::shared_ptr<types::scheme_t> const scheme;
 
+	/* convert all free type variables to type unit */
+	defn_id_t unitize() const;
+
 private:
 	mutable std::string cached_repr;
 

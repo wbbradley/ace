@@ -6,7 +6,12 @@ location_t defn_id_t::get_location() const {
 }
 
 std::string defn_id_t::str() const {
-	return C_ID + repr() + C_RESET;
+	return C_TEXT + repr() + C_RESET;
+}
+
+defn_id_t defn_id_t::unitize() const {
+	assert(scheme->btvs() == 0);
+	return {id, types::unitize(scheme->instantiate(INTERNAL_LOC()))->generalize({})};
 }
 
 std::string defn_id_t::repr() const {
@@ -14,7 +19,7 @@ std::string defn_id_t::repr() const {
 	if (cached_repr.size() != 0) {
 		return cached_repr;
 	} else {
-		cached_repr = id.name + " :: " + scheme->repr();
+		cached_repr = "\"" + id.name + " :: " + scheme->repr() + "\"";
 		return cached_repr;
 	}
 }

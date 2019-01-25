@@ -343,7 +343,11 @@ instance Iterable Vector {
         index := Ref(-1)
         return fn() {
             index = !index + 1
-            return Just(vec[!index])
+            if !index >= len(vec) {
+                return Nothing
+            } else {
+                return Just(vec[!index])
+            }
         }
     }
 }

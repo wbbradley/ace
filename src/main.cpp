@@ -552,9 +552,9 @@ std::map<std::string, int> get_builtin_arities() {
 		unfold_binops_rassoc(ARROW_TYPE_OPERATOR, pair.second->instantiate(INTERNAL_LOC()), terms);
 		builtin_arities[pair.first] = terms.size() - 1;
 	}
-	log("builtin_arities are %s", join_with(builtin_arities, ", ", [](std::pair<std::string, int> a) {
+	debug_above(7, log("builtin_arities are %s", join_with(builtin_arities, ", ", [](std::pair<std::string, int> a) {
 				return string_format("%s: %d", a.first.c_str(), a.second);
-				}).c_str());
+				}).c_str()));
 	return builtin_arities;
 }
 
@@ -650,12 +650,14 @@ void specialize(
 	if (starts_with(defn_id.id.name, "__builtin_")) {
 		return;
 	}
+
 	/* expected type schemes for specializations can have unresolved type variables. That indicates
 	 * that an input to the function is irrelevant to the output. However, since Zion is eagerly
 	 * evaluated and permits impure side effects, it may not be irrelevant to the overall program's
-	 * semantics, so terms with ambiguous types cannot be thrown out altogether. They cannot have
-	 * unresolved bounded type variables, because that would imply that we don't know which type
-	 * class instance to choose within the inner specialization. */
+	 * semantics, so terms with ambiguous types cannot be thrown out altogether. */
+
+	/* They cannot have unresolved bounded type variables, because that would imply that we don't
+	 * know which type class instance to choose within the inner specialization. */
 	assert(defn_id.scheme->btvs() == 0);
 
 	auto iter = translation_map.find(defn_id);
@@ -789,6 +791,19 @@ phase_3_t specialize(const phase_2_t &phase_2) {
 struct phase_4_t {
 	phase_3_t phase_3;
 	gen::env_t env;
+	std::ostream &dump(std::ostream &os) {
+		os << 
+			join_with(env, "\n", [](std::pair<std::string, gen::value_t::ref> pair) {
+					if (auto function = dyncast<gen::function_t>(pair.second)) {
+						std::stringstream ss;
+						function->render(ss);
+						return ss.str();
+					} else {
+						return string_format("%s: %s", pair.first.c_str(), pair.second ? pair.second->str().c_str() : "<none>");
+					}
+					});
+		return os << std::endl;
+	}
 };
 
 phase_4_t ssa_gen(const phase_3_t phase_3) {
@@ -798,7 +813,7 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 	try {
 		std::unordered_set<std::string> globals;
 		for (auto pair : phase_3.translation_map) {
-			log("adding global %s", pair.first.id.name.c_str());
+			debug_above(7, log("adding global %s", pair.first.id.name.c_str()));
 			globals.insert(pair.first.id.name);
 		}
 
@@ -808,12 +823,12 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 			globals.insert(pair.first);
 		}
 
-		log("globals are %s", join(globals).c_str());
+		debug_above(6, log("globals are %s", join(globals).c_str()));
 		gen::builder_t builder(module);
 		for (auto pair : phase_3.translation_map) {
-			auto name = pair.first.repr();
-			debug_above(4, log("running gen phase for " c_id("%s"), name.c_str()));
-			env[name] = gen::gen(builder, pair.second->expr, pair.second->typing, env, globals);
+			log("running gen phase for %s", pair.first.repr_id().str().c_str());
+			auto value = gen::gen(pair.first.repr(), builder, pair.second->expr, pair.second->typing, env, globals);
+			// env[pair.first.repr()] = value;
 		}
 
 		return {phase_3, env};
@@ -890,17 +905,7 @@ int run_job(const job_t &job) {
 			return run_job({"help", {}});
 		} else {
 			auto phase_4 = ssa_gen(specialize(compile(job.args[0])));
-			std::cout << 
-					join_with(phase_4.env, "\n", [](std::pair<std::string, gen::value_t::ref> pair) {
-						if (auto function = dyncast<gen::function_t>(pair.second)) {
-							std::stringstream ss;
-							function->render(ss);
-							return ss.str();
-						} else {
-							return string_format("%s: %s", pair.first.c_str(), pair.second ? pair.second->str().c_str() : "<none>");
-						}
-						});
-			std::cout << std::endl;
+			phase_4.dump(std::cout);
 
 			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		}
