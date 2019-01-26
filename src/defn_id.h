@@ -24,11 +24,12 @@ struct defn_id_t {
 
 private:
 	mutable std::string cached_repr;
-
-public:
-	location_t get_location() const;
 	std::string repr() const;
 	identifier_t repr_id() const;
+
+public:
+	std::string repr_public() const { return repr(); }
+	location_t get_location() const;
 	std::string str() const;
 	bool operator <(const defn_id_t &rhs) const;
 	std::shared_ptr<const types::type_t> get_lambda_param_type() const;

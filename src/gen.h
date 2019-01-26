@@ -25,9 +25,9 @@ namespace gen {
 		std::string name;
 	};
 
-	typedef std::unordered_map<std::string, value_t::ref> env_t;
-	value_t::ref get_env_variable(const env_t &env, identifier_t id);
-	void set_env_var(env_t &env, std::string name, value_t::ref value);
+	typedef std::unordered_map<std::string, std::map<types::type_t::ref, value_t::ref, types::compare_type_t>> env_t;
+	value_t::ref get_env_variable(const env_t &env, std::string name, types::type_t::ref type);
+	void set_env_var(env_t &env, std::string name, value_t::ref value, bool allow_shadowing=false);
 
 	struct module_t {
 		typedef std::shared_ptr<module_t> ref;

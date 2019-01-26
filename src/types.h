@@ -59,6 +59,12 @@ namespace types {
 		virtual int get_precedence() const { return 10; }
 	};
 
+	struct compare_type_t {
+		bool operator()(const type_t::ref &a, const type_t::ref &b) const {
+			return a->repr() < b->repr();
+		}
+	};
+
 	struct type_variable_t : public type_t {
 		type_variable_t(identifier_t id, std::set<std::string> predicates);
 		type_variable_t(identifier_t id);
@@ -243,6 +249,7 @@ std::string str(const types::type_t::map &coll);
 std::string str(const types::predicate_map &pm);
 std::string str(const data_ctors_map_t &data_ctors_map);
 std::ostream& operator <<(std::ostream &out, const types::type_t::ref &type);
+bool operator <(const types::type_t::ref &lhs, const types::type_t::ref &rhs);
 
 types::type_t::ref tuple_deref_type(location_t location, types::type_t::ref tuple, int index);
 void unfold_binops_rassoc(std::string id, types::type_t::ref t, types::type_t::refs &unfolding);
