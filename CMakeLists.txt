@@ -36,6 +36,7 @@ add_executable(zion
 	src/token.cpp
 	src/token_queue.cpp
 	src/translate.cpp
+	src/typed_id.cpp
 	src/types.cpp
 	src/unification.cpp
 	src/user_error.cpp

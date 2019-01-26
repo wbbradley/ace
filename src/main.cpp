@@ -638,13 +638,15 @@ phase_2_t compile(std::string user_program_name_) {
 	return {compilation, env.map, defn_map, compilation->ctor_id_map, compilation->data_ctors_map};
 }
 
+typedef std::map<std::string, std::map<types::type_t::ref, translation_t::ref, types::compare_type_t>> translation_map_t;
+
 void specialize(
 		defn_map_t const &defn_map,
 		types::scheme_t::map const &typing,
 		ctor_id_map_t const &ctor_id_map,
 		data_ctors_map_t const &data_ctors_map,
 		defn_id_t defn_id,
-		/* output */ std::map<defn_id_t, translation_t::ref> &translation_map,
+		/* output */ translation_map_t &translation_map,
 		/* output */ needed_defns_t &needed_defns)
 {
 	if (starts_with(defn_id.id.name, "__builtin_")) {
@@ -660,19 +662,17 @@ void specialize(
 	 * know which type class instance to choose within the inner specialization. */
 	assert(defn_id.scheme->btvs() == 0);
 
-	auto iter = translation_map.find(defn_id);
-	if (iter != translation_map.end()) {
-		if (iter->second == nullptr) {
-			throw user_error(defn_id.get_location(), "recursion is not yet impl - and besides, it should be handled earlier in the compiler");
-		}
+	auto type = defn_id.scheme->instantiate({});
+	auto translation = get(translation_map, defn_id.id.name, type, translation_t::ref{});
+	if (translation != nullptr) {
 		debug_above(6, log("we have already specialized %s. it is %s",
-				   	defn_id.str().c_str(),
-				   	iter->second->str().c_str()));
+					defn_id.str().c_str(),
+					translation->str().c_str()));
 		return;
 	}
 
 	/* ... like a GRAY mark in the visited set... */
-	translation_map[defn_id] = nullptr;
+	translation_map[defn_id.id.name][type] = nullptr;
 	try {
 
 		debug_above(7, log(c_good("Specializing subprogram %s"), defn_id.str().c_str()));
@@ -703,7 +703,7 @@ void specialize(
 		expr_t *to_check = decl_to_check->value;
 		auto as_defn = new as_t(to_check, defn_id.scheme, false);
 		check(
-				identifier_t{defn_id.repr(), defn_id.id.location},
+				identifier_t{defn_id.repr_public(), defn_id.id.location},
 				as_defn,
 				env);
 
@@ -738,17 +738,16 @@ void specialize(
 					translated_decl->str().c_str());
 		}
 
-		translation_map[defn_id] = translated_decl;
+		translation_map[defn_id.id.name][type] = translated_decl;
 	} catch (...) {
-		assert(translation_map[defn_id] == nullptr);
-		translation_map.erase(defn_id);
+		assert(get(translation_map, defn_id.id.name, type, translation_t::ref{}) == nullptr);
+		translation_map[defn_id.id.name].erase(type);
 		throw;
 	}
 }
-
 struct phase_3_t {
 	phase_2_t phase_2;
-	std::map<defn_id_t, translation_t::ref> translation_map;
+	translation_map_t translation_map;
 };
 
 phase_3_t specialize(const phase_2_t &phase_2) {
@@ -759,7 +758,7 @@ phase_3_t specialize(const phase_2_t &phase_2) {
 	defn_id_t main_defn{program_main->var, program_main_scheme};
 	insert_needed_defn(needed_defns, main_defn, INTERNAL_LOC(), main_defn);
 
-	std::map<defn_id_t, translation_t::ref> translation_map;
+	translation_map_t translation_map;
 	while (needed_defns.size() != 0) {
 		auto next_defn_id = needed_defns.begin()->first;
 		try {
@@ -778,11 +777,15 @@ phase_3_t specialize(const phase_2_t &phase_2) {
 		needed_defns.erase(next_defn_id);
 	}
 
-	if (debug_compiled_env) {
+	if (debug_compiled_env||true) {
+		log("--debug_compiled_env--");
 		for (auto pair : translation_map) {
-			log_location(pair.second->get_location(), "%s = %s",
-					pair.first.str().c_str(),
-					pair.second->str().c_str());
+			for (auto overload : pair.second) {
+				log_location(overload.second->get_location(), "%s :: %s = %s",
+						pair.first.c_str(),
+						overload.first->str().c_str(),
+						overload.second->str().c_str());
+			}
 		}
 	}
 	return phase_3_t{phase_2, translation_map};
@@ -792,17 +795,12 @@ struct phase_4_t {
 	phase_3_t phase_3;
 	gen::env_t env;
 	std::ostream &dump(std::ostream &os) {
-		os << 
-			join_with(env, "\n", [](std::pair<std::string, gen::value_t::ref> pair) {
-					if (auto function = dyncast<gen::function_t>(pair.second)) {
-						std::stringstream ss;
-						function->render(ss);
-						return ss.str();
-					} else {
-						return string_format("%s: %s", pair.first.c_str(), pair.second ? pair.second->str().c_str() : "<none>");
-					}
-					});
-		return os << std::endl;
+		for (auto pair : env) {
+			for (auto overload : pair.second) {
+				os << pair.first << " :: " << overload.first->repr() << ": " << overload.second->str() << std::endl;
+			}
+		}
+		return os;
 	}
 };
 
@@ -813,8 +811,8 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 	try {
 		std::unordered_set<std::string> globals;
 		for (auto pair : phase_3.translation_map) {
-			debug_above(7, log("adding global %s", pair.first.id.name.c_str()));
-			globals.insert(pair.first.id.name);
+			debug_above(7, log("adding global %s", pair.first.c_str()));
+			globals.insert(pair.first);
 		}
 
 		/* make sure the builtins are in the list of globals so that they don't get collected when
@@ -826,9 +824,16 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 		debug_above(6, log("globals are %s", join(globals).c_str()));
 		gen::builder_t builder(module);
 		for (auto pair : phase_3.translation_map) {
-			log("running gen phase for %s", pair.first.repr_id().str().c_str());
-			auto value = gen::gen(pair.first.repr(), builder, pair.second->expr, pair.second->typing, env, globals);
-			// env[pair.first.repr()] = value;
+			for (auto overload : pair.second) {
+				log("running gen phase for %s :: %s", pair.first.c_str(), overload.first->str().c_str());
+				auto value = gen::gen(
+						pair.first,
+						builder,
+						overload.second->expr,
+						overload.second->typing,
+						env,
+						globals);
+			}
 		}
 
 		return {phase_3, env};

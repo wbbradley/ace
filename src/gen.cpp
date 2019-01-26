@@ -3,6 +3,7 @@
 #include "gen.h"
 #include "ptr.h"
 #include "user_error.h"
+#include "typed_id.h"
 
 namespace gen {
 	struct ip_guard_t {
@@ -26,17 +27,16 @@ namespace gen {
 	}
 
 	struct free_vars_t {
-		std::set<defn_id_t> defn_ids;
+		std::set<typed_id_t> typed_ids;
 		int count() const {
-			return defn_ids.size();
+			return typed_ids.size();
 		}
 		void add(identifier_t id, types::type_t::ref type) {
 			assert(type != nullptr);
-			defn_id_t defn_id{id, type->generalize({})->normalize()};
-			defn_ids.insert(defn_id);
+			typed_ids.insert({id, type});
 		}
 		std::string str() const {
-			return string_format("{%s}", join(defn_ids, ", ").c_str());
+			return string_format("{%s}", join(typed_ids, ", ").c_str());
 		}
 	};
 
@@ -103,33 +103,31 @@ namespace gen {
 	}
 
 
-	value_t::ref get_env_var(const env_t &env, identifier_t id, types::scheme_t::ref scheme) {
+	value_t::ref get_env_var(const env_t &env, identifier_t id, types::type_t::ref type) {
 		auto iter = env.find(id.name);
-		if (iter != env.end()) {
-			auto value = iter->second;
-			if (value == nullptr) {
-				throw user_error(id.location, "we need a definition for %s", id.str().c_str());
-			}
-			return value;
-		}
-		auto defn_id = defn_id_t{id, scheme};
-		iter = env.find(defn_id.repr());
-		if (iter == env.end()) {
-			return std::make_shared<global_ref_t>(defn_id.repr_id(), scheme->instantiate(INTERNAL_LOC()));
-		}
-		auto value = iter->second;
+		value_t::ref value = get(env, id.name, type, value_t::ref{});
 		if (value == nullptr) {
-			throw user_error(id.location, "we need a definition for %s", defn_id.str().c_str());
+			auto error = user_error(id.location, "we need a definition for %s :: %s", id.str().c_str(), type->str().c_str());
+			for (auto pair : env) {
+				for (auto overload: pair.second) {
+					error.add_info(id.location, "%s :: %s = %s",
+							pair.first.c_str(),
+							overload.first->str().c_str(),
+							overload.second->str().c_str());
+				}
+			}
+			throw error;
 		}
 		return value;
 	}
 
-	void set_env_var(env_t &env, std::string name, value_t::ref value) {
+	void set_env_var(env_t &env, std::string name, value_t::ref value, bool allow_shadowing) {
+		log("setting env[%s][%s] = %s", name.c_str(), value->type->str().c_str(), value->str().c_str());
 		assert(name.size() != 0);
-		assert(!in(name, env));
-		defn_id_t defn_id{{name, value->get_location()}, value->type->generalize({})->normalize()};
-		log("setting env[%s] = %s", defn_id.repr().c_str(), value->str().c_str());
-		env[defn_id.repr()] = value;
+		if (!allow_shadowing) {
+			assert(!in(name, env) || !in(value->type, env[name]));
+		}
+		env[name][value->type] = value;
 	}
 
 	void value_t::set_name(identifier_t id) {
@@ -194,7 +192,7 @@ namespace gen {
 
 		/* put the param in scope */
 		auto new_env = env;
-		new_env[lambda->var.name] = function->args.back();
+		set_env_var(new_env, lambda->var.name, function->args.back(), true /*allow_shadowing*/);
 
 		value_t::ref closure;
 
@@ -208,9 +206,9 @@ namespace gen {
 			/* the closure includes a reference to this function */
 			dims.push_back(function);
 
-			for (auto defn_id : free_vars.defn_ids) {
+			for (auto typed_id : free_vars.typed_ids) {
 				/* add a copy of each closed over variable */
-				dims.push_back(get_env_var(env, defn_id.id, defn_id.scheme));
+				dims.push_back(get_env_var(env, typed_id.id, typed_id.type));
 			}
 
 			closure = builder.create_tuple(lambda->get_location(), dims);
@@ -221,13 +219,13 @@ namespace gen {
 
 			// new_env["__self"] = builder.create_gep(function->args.back(), {0});
 			int arg_index = 0;
-			for (auto defn_id : free_vars.defn_ids) {
+			for (auto typed_id : free_vars.typed_ids) {
 				/* inject the closed over vars into the new environment within the closure */
 				auto new_closure_var = new_builder.create_tuple_deref(
-						defn_id.id.location,
+						typed_id.id.location,
 						function->args.back(),
 						arg_index + 1);
-				new_env[defn_id.id.name] = new_closure_var;
+				set_env_var(new_env, typed_id.id.name, new_closure_var, true /*allow_shadowing*/);
 				++arg_index;
 			}
 		} else {
@@ -269,7 +267,7 @@ namespace gen {
 			} else if (auto static_print = dcast<const bitter::static_print_t*>(expr)) {
 				assert(false);
 			} else if (auto var = dcast<const bitter::var_t*>(expr)) {
-				return get_env_var(env, var->id, type->generalize({})->normalize());
+				return get_env_var(env, var->id, type);
 			} else if (auto lambda = dcast<const bitter::lambda_t*>(expr)) {
 				return gen_lambda(name, builder, lambda, type, typing, env, globals);
 			} else if (auto application = dcast<const bitter::application_t*>(expr)) {
@@ -279,7 +277,11 @@ namespace gen {
 						name);
 			} else if (auto let = dcast<const bitter::let_t*>(expr)) {
 				auto new_env = env;
-				new_env[let->var.name] = gen(builder, let->value, typing, env, globals);
+				set_env_var(
+						new_env,
+						let->var.name,
+						gen(builder, let->value, typing, env, globals),
+						true /*allow_shadowing*/);
 				return gen(builder, let->body, typing, new_env, globals);
 			} else if (auto fix = dcast<const bitter::fix_t*>(expr)) {
 				assert(false);

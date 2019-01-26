@@ -176,8 +176,8 @@ InputIt find_if(InputIt first, InputIt last, UnaryPredicate p)
 	return last;
 }
 
-template<typename K, typename V>
-V get(const std::map<K, V> &t, K k, V default_) {
+template<typename K, typename V, typename Comp>
+V get(const std::map<K, V, Comp> &t, K k, V default_) {
 	auto iter = t.find(k);
 	if (iter != t.end()) {
 		return iter->second;
@@ -191,6 +191,16 @@ V get(const std::unordered_map<K, V> &t, K k, V default_) {
 	auto iter = t.find(k);
 	if (iter != t.end()) {
 		return iter->second;
+	} else {
+		return default_;
+	}
+}
+
+template<typename K1, typename K2, typename C, typename V>
+V get(const C &t, K1 k1, K2 k2, V default_) {
+	auto iter = t.find(k1);
+	if (iter != t.end()) {
+		return get(iter->second, k2, default_);
 	} else {
 		return default_;
 	}
