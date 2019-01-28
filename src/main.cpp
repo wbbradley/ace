@@ -599,6 +599,7 @@ phase_2_t compile(std::string user_program_name_) {
 	}
 
 	if (debug_compiled_env) {
+		INDENT(0, "--debug_compiled_env--");
 		for (auto pair : env.map) {
 			log("%s" c_good(" :: ") c_type("%s"),
 					pair.first.c_str(),
@@ -611,6 +612,7 @@ phase_2_t compile(std::string user_program_name_) {
 
 		auto type = env.lookup_env(make_iid(pair.first));
 		if (debug_compiled_env) {
+			INDENT(0, "--debug_compiled_env--");
 			log("%s " c_good("::") " %s",
 					pair.second->str().c_str(),
 					env.map[pair.first]->str().c_str());
@@ -624,6 +626,7 @@ phase_2_t compile(std::string user_program_name_) {
 	}
 
 	if (debug_all_expr_types) {
+		INDENT(0, "--debug_all_expr_types--");
 		log(c_good("All Expression Types"));
 		for (auto pair : *env.tracked_types) {
 			log_location(
@@ -777,8 +780,8 @@ phase_3_t specialize(const phase_2_t &phase_2) {
 		needed_defns.erase(next_defn_id);
 	}
 
-	if (debug_compiled_env||true) {
-		log("--debug_compiled_env--");
+	if (debug_compiled_env) {
+		INDENT(0, "--debug_compiled_env--");
 		for (auto pair : translation_map) {
 			for (auto overload : pair.second) {
 				log_location(overload.second->get_location(), "%s :: %s = %s",
@@ -797,11 +800,26 @@ struct phase_4_t {
 	std::ostream &dump(std::ostream &os) {
 		for (auto pair : env) {
 			for (auto overload : pair.second) {
-				os << pair.first << " :: " << overload.first->repr() << ": " << overload.second->str() << std::endl;
+				os << pair.first << " :: " << overload.first->repr() << ": ";
+				gen::value_t::ref value = gen::resolve_proxy(overload.second);
+				if (value == nullptr) {
+					value = overload.second;
+				}
+
+				os << std::endl;
+				value->render(os);
+				os << std::endl;
 			}
 		}
 		return os;
 	}
+};
+
+struct code_symbol_t {
+	std::string name;
+	types::type_t::ref type;
+	const tracked_types_t &typing;
+	const bitter::expr_t *expr;
 };
 
 phase_4_t ssa_gen(const phase_3_t phase_3) {
@@ -821,19 +839,60 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 			globals.insert(pair.first);
 		}
 
+		std::vector<code_symbol_t> codes;
+
 		debug_above(6, log("globals are %s", join(globals).c_str()));
-		gen::builder_t builder(module);
 		for (auto pair : phase_3.translation_map) {
 			for (auto overload : pair.second) {
-				log("running gen phase for %s :: %s", pair.first.c_str(), overload.first->str().c_str());
-				auto value = gen::gen(
-						pair.first,
-						builder,
-						overload.second->expr,
-						overload.second->typing,
+				auto type = get(overload.second->typing, overload.second->expr, {});
+				assert(type != nullptr);
+
+				gen::value_t::ref value = gen::maybe_get_env_var(
 						env,
-						globals);
+						{pair.first, overload.second->expr->get_location()},
+						type);
+				if (value != nullptr) {
+					continue;
+				} else {
+					gen::set_env_var(
+							env,
+							pair.first,
+							std::make_shared<gen::proxy_value_t>(
+								overload.second->get_location(),
+								pair.first,
+								overload.first));
+					codes.push_back(
+							code_symbol_t{pair.first, overload.first, overload.second->typing, overload.second->expr}
+							);
+				}
 			}
+		}
+		gen::builder_t program_builder(module);
+		auto init_func = program_builder.create_function(
+				"__program_init", {},
+				INTERNAL_LOC(),
+				type_unit(INTERNAL_LOC()));
+
+		/* initialization will happen inside of the __program_init function */
+		gen::builder_t builder(init_func);
+		builder.create_block("program_entry");
+
+		for (auto code : codes) {
+			auto name = code.name;
+			auto type = code.type;
+			assert(type != nullptr);
+
+			auto &typing = code.typing;
+			auto expr = code.expr;
+			debug_above(5, log("running gen phase for %s :: %s", name.c_str(), type->str().c_str()));
+
+			gen::gen(
+					name,
+					builder,
+					expr,
+					typing,
+					env,
+					globals);
 		}
 
 		return {phase_3, env};

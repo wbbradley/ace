@@ -16,6 +16,7 @@ namespace gen {
 		{}
 		virtual ~value_t() {}
 		virtual std::string str() const = 0;
+		virtual std::ostream &render(std::ostream &os) const = 0;
 		location_t get_location() const { return location; }
 		virtual void set_name(identifier_t id);
 		virtual std::string get_name() const;
@@ -25,8 +26,24 @@ namespace gen {
 		std::string name;
 	};
 
+	struct proxy_value_t : public value_t {
+		proxy_value_t(location_t location, std::string name, types::type_t::ref type) :
+		   	value_t(location, type, name)
+		{}
+
+		void set_proxy_impl(value_t::ref impl_);
+
+		std::string str() const override;
+		std::ostream &render(std::ostream &os) const override;
+
+		void set_name(identifier_t id) override;
+
+		value_t::ref impl;
+	};
+
 	typedef std::unordered_map<std::string, std::map<types::type_t::ref, value_t::ref, types::compare_type_t>> env_t;
-	value_t::ref get_env_variable(const env_t &env, std::string name, types::type_t::ref type);
+	value_t::ref maybe_get_env_var(const env_t &env, identifier_t id, types::type_t::ref type);
+	value_t::ref get_env_var(const env_t &env, identifier_t id, types::type_t::ref type);
 	void set_env_var(env_t &env, std::string name, value_t::ref value, bool allow_shadowing=false);
 
 	struct module_t {
@@ -36,8 +53,11 @@ namespace gen {
 	};
 
 	struct literal_t : public value_t {
-		std::string str() const override;
 		literal_t(token_t token, types::type_t::ref type, std::string name) : value_t(token.location, type, name), token(token) {}
+
+		std::string str() const override;
+		std::ostream &render(std::ostream &os) const override;
+
 		token_t const token;
 	};
 
@@ -48,7 +68,6 @@ namespace gen {
 		typedef std::shared_ptr<instruction_t> ref;
 
 		std::string str() const override final;
-		virtual std::ostream &render(std::ostream &os) const = 0;
 
 		instruction_t(location_t location, types::type_t::ref type, std::weak_ptr<block_t> parent, std::string name="") : value_t(location, type, name), parent(parent) {}
 
@@ -114,7 +133,7 @@ namespace gen {
 		}
 
 		std::string str() const override;
-		std::ostream &render(std::ostream &os) const;
+		std::ostream &render(std::ostream &os) const override;
 
 		std::weak_ptr<module_t> parent;
 		std::vector<block_t::ref> blocks;
@@ -145,6 +164,7 @@ namespace gen {
 		{}
 
 		std::string str() const override;
+		std::ostream &render(std::ostream &os) const override;
 
 		int index;
 		function_t::wref function;
@@ -186,8 +206,8 @@ namespace gen {
 	};
 
 	struct callsite_t : public instruction_t {
-		callsite_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref callable, value_t::refs params, std::string name) :
-			instruction_t(location, type_unit(INTERNAL_LOC()), parent, name),
+		callsite_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref callable, value_t::refs params, std::string name, types::type_t::ref return_type) :
+			instruction_t(location, return_type, parent, name),
 			callable(callable),
 			params(params)
 		{}
@@ -257,6 +277,8 @@ namespace gen {
 		int index;
 	};
 
+	value_t::ref resolve_proxy(value_t::ref value);
+				
 	struct builder_t {
 		typedef gen::builder_t saved_state;
 		builder_t(module_t::ref module) : module(module) {}
@@ -273,6 +295,7 @@ namespace gen {
 		value_t::ref create_builtin(identifier_t id, const value_t::refs &values, types::type_t::ref type, std::string name="");
 		value_t::ref create_literal(token_t token, types::type_t::ref type, std::string name="");
 		value_t::ref create_call(value_t::ref callable, const value_t::refs &params, std::string name="");
+		value_t::ref create_call(value_t::ref callable, const value_t::refs &params, types::type_t::ref type, std::string name="");
 		value_t::ref create_cast(location_t location, value_t::ref value, types::type_t::ref type, std::string name="");
 		value_t::ref create_tuple(location_t location, const std::vector<value_t::ref> &dims, std::string name="");
 		value_t::ref create_tuple_deref(location_t location, value_t::ref value, int index, std::string name="");

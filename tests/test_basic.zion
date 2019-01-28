@@ -1,5 +1,6 @@
 fn main() {
-    x := new [Int]
-    append(x, 1)
-    print(x[0])
+    xyz := new [Int]
+    append(xyz, 1)
+    print(xyz[0])
+    print(xyz[0] == 2 ? "no" : "yes")
 }
