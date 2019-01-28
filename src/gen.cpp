@@ -103,10 +103,17 @@ namespace gen {
 	}
 
 
-	value_t::ref get_env_var(const env_t &env, identifier_t id, types::type_t::ref type) {
+	value_t::ref maybe_get_env_var(const env_t &env, identifier_t id, types::type_t::ref type) {
+		type = types::unitize(type);
 		auto iter = env.find(id.name);
 		value_t::ref value = get(env, id.name, type, value_t::ref{});
+		return value;
+	}
+
+	value_t::ref get_env_var(const env_t &env, identifier_t id, types::type_t::ref type) {
+		value_t::ref value = maybe_get_env_var(env, id, type);
 		if (value == nullptr) {
+			type = types::unitize(type);
 			auto error = user_error(id.location, "we need a definition for %s :: %s", id.str().c_str(), type->str().c_str());
 			for (auto pair : env) {
 				for (auto overload: pair.second) {
@@ -122,12 +129,23 @@ namespace gen {
 	}
 
 	void set_env_var(env_t &env, std::string name, value_t::ref value, bool allow_shadowing) {
-		log("setting env[%s][%s] = %s", name.c_str(), value->type->str().c_str(), value->str().c_str());
+		debug_above(5, log("setting env[%s][%s] = %s", name.c_str(), value->type->str().c_str(), value->str().c_str()));
 		assert(name.size() != 0);
-		if (!allow_shadowing) {
-			assert(!in(name, env) || !in(value->type, env[name]));
+		auto type = types::unitize(value->type);
+		value_t::ref existing_value = get(env, name, type, value_t::ref{});
+		if (existing_value == nullptr) {
+			env[name][type] = value;
+		} else {
+			if (auto proxy = dyncast<proxy_value_t>(existing_value)) {
+				assert(!allow_shadowing);
+				proxy->set_proxy_impl(value);
+			} else if (allow_shadowing) {
+				env[name][type] = value;
+			} else {
+				/* what now? probably shouldn't have happened */
+				assert(false);
+			}
 		}
-		env[name][value->type] = value;
 	}
 
 	void value_t::set_name(identifier_t id) {
@@ -136,6 +154,46 @@ namespace gen {
 
 	std::string value_t::get_name() const {
 		return name;
+	}
+
+	bool is_proxy(value_t::ref value) {
+		return dyncast<proxy_value_t>(value) != nullptr;
+	}
+
+	value_t::ref resolve_proxy(value_t::ref value) {
+		if (auto proxy = dyncast<proxy_value_t>(value)) {
+			assert(!is_proxy(proxy->impl));
+			return proxy->impl;
+		} else {
+			return value;
+		}
+	}
+				
+	std::string proxy_value_t::str() const {
+		if (impl) {
+			return impl->str();
+		} else {
+			return string_format("@@" c_id("%s") " :: %s", name.c_str(), type->str().c_str());
+		}
+	}
+
+	void proxy_value_t::set_name(identifier_t id) {
+		throw user_error(id.location, "proxy values cannot acquire new names (trying to change %s to %s",
+				name.c_str(),
+				id.str().c_str());
+	}
+
+	void proxy_value_t::set_proxy_impl(value_t::ref impl_) {
+		assert(impl == nullptr);
+		impl = impl_;
+	}
+
+	std::ostream &proxy_value_t::render(std::ostream &os) const {
+		if (impl) {
+			return impl->render(os);
+		} else {
+			return os << str();
+		}
 	}
 
 	function_t::ref builder_t::create_function(
@@ -274,22 +332,24 @@ namespace gen {
 				return builder.create_call(
 						gen(builder, application->a, typing, env, globals),
 						{gen(builder, application->b, typing, env, globals)},
+						type,
 						name);
 			} else if (auto let = dcast<const bitter::let_t*>(expr)) {
 				auto new_env = env;
+				auto let_value = gen(builder, let->value, typing, env, globals);
 				set_env_var(
 						new_env,
 						let->var.name,
-						gen(builder, let->value, typing, env, globals),
+						let_value,
 						true /*allow_shadowing*/);
 				return gen(builder, let->body, typing, new_env, globals);
 			} else if (auto fix = dcast<const bitter::fix_t*>(expr)) {
 				assert(false);
 			} else if (auto condition = dcast<const bitter::conditional_t*>(expr)) {
 				auto cond = gen(builder, condition->cond, typing, env, globals);
-				block_t::ref truthy_branch = builder.create_block("truthy", false /*insert_in_new_block*/);
-				block_t::ref falsey_branch = builder.create_block("falsey", false /*insert_in_new_block*/);
-				block_t::ref merge_branch = builder.create_block("merge", false /*insert_in_new_block*/);
+				block_t::ref truthy_branch = builder.create_block("truthy" + bitter::fresh(), false /*insert_in_new_block*/);
+				block_t::ref falsey_branch = builder.create_block("falsey" + bitter::fresh(), false /*insert_in_new_block*/);
+				block_t::ref merge_branch = builder.create_block("merge" + bitter::fresh(), false /*insert_in_new_block*/);
 
 				builder.create_cond_branch(cond, truthy_branch, falsey_branch);
 
@@ -446,8 +506,8 @@ namespace gen {
 		return std::make_shared<literal_t>(token, type, name);
 	}
 
-	value_t::ref builder_t::create_call(value_t::ref callable, const value_t::refs &params, std::string name) {
-		auto callsite = std::make_shared<callsite_t>(callable->get_location(), block, callable, params, name);
+	value_t::ref builder_t::create_call(value_t::ref callable, const value_t::refs &params, types::type_t::ref type, std::string name) {
+		auto callsite = std::make_shared<callsite_t>(callable->get_location(), block, callable, params, name, type);
 		insert_instruction(callsite);
 		return callsite;
 	}
@@ -547,9 +607,19 @@ namespace gen {
 		return token.text + " :: " + type->str().c_str();
 	}
 
+	std::ostream &literal_t::render(std::ostream &os) const {
+		assert(false);
+		return os;
+	}
+
 	std::string argument_t::str() const {
 		return C_ID + name + C_RESET;
 		//return string_format("arg%d", index);
+	}
+
+	std::ostream &argument_t::render(std::ostream &os) const {
+		assert(false);
+		return os;
 	}
 
 	std::string function_t::str() const {
