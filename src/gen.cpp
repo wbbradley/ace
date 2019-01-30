@@ -18,6 +18,29 @@ namespace gen {
 		}
 	};
 
+	struct loop_guard_t {
+		builder_t &builder;
+		block_t::ref break_to_block;
+		block_t::ref continue_to_block;
+
+		loop_guard_t(
+				builder_t &builder,
+				block_t::ref new_break_to_block,
+				block_t::ref new_continue_to_block) :
+			builder(builder),
+			break_to_block(builder.break_to_block),
+			continue_to_block(builder.continue_to_block)
+		{
+			builder.break_to_block = new_break_to_block;
+			builder.continue_to_block = new_continue_to_block;
+		}
+
+		~loop_guard_t() {
+			builder.break_to_block = break_to_block;
+			builder.continue_to_block = continue_to_block;
+		}
+	};
+
 	types::type_t::ref tuple_type(const std::vector<value_t::ref> &dims) {
 		types::type_t::refs terms;
 		for (auto dim: dims) {
@@ -196,12 +219,42 @@ namespace gen {
 		}
 	}
 
+	bool is_terminator(instruction_t::ref inst) {
+		if (dyncast<return_t>(inst)) {
+			return true;
+		} else if (dyncast<goto_t>(inst)) {
+			return true;
+		} else if (dyncast<cond_branch_t>(inst)) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	bool has_terminator(instructions_t &instructions) {
+		if (instructions.size() == 0) {
+			return false;
+		} else {
+			return is_terminator(instructions.back());
+		}
+	}
+
+	void builder_t::ensure_terminator(std::function<void (builder_t &)> callback) {
+		assert(block != nullptr);
+		if (!has_terminator(block->instructions)) {
+			callback(*this);
+		}
+	}
+
 	function_t::ref builder_t::create_function(
 			std::string name,
 		   	identifiers_t param_ids,
 		   	location_t location,
 		   	types::type_t::ref type)
    	{
+		if (name == "" && function) {
+			name = function->name + bitter::fresh();
+		}
 		auto function = std::make_shared<function_t>(module, name, location, type);
 		types::type_t::refs terms;
 		unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, terms);
@@ -291,6 +344,9 @@ namespace gen {
 		}
 
 		gen("", new_builder, lambda->body, typing, new_env, globals);
+		new_builder.ensure_terminator([](builder_t &builder) {
+				builder.create_return(builder.create_unit(INTERNAL_LOC()));
+				});
 		return free_vars.count() != 0 ? closure : function;
 	}
 
@@ -349,29 +405,65 @@ namespace gen {
 				auto cond = gen(builder, condition->cond, typing, env, globals);
 				block_t::ref truthy_branch = builder.create_block("truthy" + bitter::fresh(), false /*insert_in_new_block*/);
 				block_t::ref falsey_branch = builder.create_block("falsey" + bitter::fresh(), false /*insert_in_new_block*/);
-				block_t::ref merge_branch = builder.create_block("merge" + bitter::fresh(), false /*insert_in_new_block*/);
+				block_t::ref merge_branch;
 
 				builder.create_cond_branch(cond, truthy_branch, falsey_branch);
 
 				builder.set_insertion_block(truthy_branch);
 				value_t::ref truthy_value = gen(builder, condition->truthy, typing, env, globals);
-				builder.merge_value_into(condition->truthy->get_location(), truthy_value, merge_branch);
+				bool truthy_terminates = has_terminator(truthy_branch->instructions);
+				if (!truthy_terminates) {
+					merge_branch = builder.create_block("merge" + bitter::fresh(), false /*insert_in_new_block*/);
+					builder.merge_value_into(condition->truthy->get_location(), truthy_value, merge_branch);
+				}
 
 				builder.set_insertion_block(falsey_branch);
 				value_t::ref falsey_value = gen(builder, condition->falsey, typing, env, globals);
-				builder.merge_value_into(condition->falsey->get_location(), falsey_value, merge_branch);
+				bool falsey_terminates = has_terminator(falsey_branch->instructions);
+				if (!falsey_terminates) {
+					if (merge_branch == nullptr) {
+						merge_branch = builder.create_block("merge" + bitter::fresh(), false /*insert_in_new_block*/);
+					}
+					builder.merge_value_into(condition->falsey->get_location(), falsey_value, merge_branch);
+				}
 
-				builder.set_insertion_block(merge_branch);
+				if (merge_branch != nullptr) {
+					builder.set_insertion_block(merge_branch);
+				}
 
 				if (auto phi_node = builder.get_current_phi_node()) {
 					return phi_node;
 				} else {
-					return builder.create_unit(condition->get_location(), name);
+					return builder.create_unit(INTERNAL_LOC());
 				}
 			} else if (auto break_ = dcast<const bitter::break_t*>(expr)) {
-				assert(false);
+				assert(builder.break_to_block != nullptr);
+				return builder.create_branch(break_->get_location(), builder.break_to_block);
+			} else if (auto continue_ = dcast<const bitter::continue_t*>(expr)) {
+				assert(builder.continue_to_block != nullptr);
+				return builder.create_branch(continue_->get_location(), builder.continue_to_block);
 			} else if (auto while_ = dcast<const bitter::while_t*>(expr)) {
-				assert(false);
+				auto cond_block = builder.create_block("while_cond" + bitter::fresh(), false /*insert_in_new_block*/);
+				builder.create_branch(while_->get_location(), cond_block);
+				builder.set_insertion_block(cond_block);
+
+				auto cond = gen(builder, while_->condition, typing, env, globals);
+				auto while_block = builder.create_block("while_block" + bitter::fresh(), false /*insert_in_new_block*/);
+				auto else_block = builder.create_block("while_break" + bitter::fresh(), false /*insert_in_new_block*/);
+
+				builder.create_cond_branch(cond, while_block, else_block);
+				builder.set_insertion_block(while_block);
+				loop_guard_t loop_guard(builder, else_block, cond_block);
+				gen(builder, while_->block, typing, env, globals);
+				builder.ensure_terminator([cond_block, while_](builder_t &builder) {
+						builder.create_branch(while_->get_location(), cond_block);
+						});
+
+				builder.set_insertion_block(else_block);
+				auto unit_ret = builder.create_unit(while_->get_location());
+				// builder.function->render(std::cout) << std::endl;
+				// dbg();
+				return unit_ret;
 			} else if (auto block = dcast<const bitter::block_t*>(expr)) {
 				size_t inst_counter = block->statements.size() - 1;
 
@@ -460,11 +552,21 @@ namespace gen {
 	void builder_t::merge_value_into(location_t location, value_t::ref incoming_value, block_t::ref merge_block) {
 		assert(block != nullptr);
 		assert(block != merge_block);
-		if (!type_equality(incoming_value->type, type_unit(INTERNAL_LOC()))) {
-			phi_node_t::ref phi_node = merge_block->get_phi_node();
-			phi_node->add_incoming_value(incoming_value, block);
+		if (!has_terminator(block->instructions)) {
+			if (!type_equality(incoming_value->type, type_unit(INTERNAL_LOC()))) {
+				phi_node_t::ref phi_node = merge_block->get_phi_node();
+				if (phi_node == nullptr) {
+					merge_block->instructions.push_front(
+							std::make_shared<phi_node_t>(
+								INTERNAL_LOC(),
+								merge_block,
+								incoming_value->type));
+					phi_node = safe_dyncast<phi_node_t>(merge_block->instructions.front());
+				}
+				phi_node->add_incoming_value(incoming_value, block);
+			}
+			create_branch(location, merge_block);
 		}
-		create_branch(location, merge_block);
 	}
 
 	void phi_node_t::add_incoming_value(value_t::ref value, block_t::ref incoming_block) {
@@ -525,7 +627,7 @@ namespace gen {
 	}
 
 	value_t::ref builder_t::create_unit(location_t location, std::string name) {
-		return create_tuple(location, {}, name);
+		return create_literal(token_t{INTERNAL_LOC(), tk_string, "unit"}, type_unit(INTERNAL_LOC()));
 	}
 
 	value_t::ref builder_t::create_tuple_deref(location_t location, value_t::ref value, int index, std::string name) {

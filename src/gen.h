@@ -130,6 +130,7 @@ namespace gen {
 			value_t(location, type, name),
 			parent(module)
 		{
+			assert(dyncast<const types::type_operator_t>(type));
 		}
 
 		std::string str() const override;
@@ -306,11 +307,14 @@ namespace gen {
 		void insert_instruction(instruction_t::ref instruction);
 		void merge_value_into(location_t location, value_t::ref incoming_value, block_t::ref merge_block);
 		phi_node_t::ref get_current_phi_node();
+		void ensure_terminator(std::function<void (builder_t &)> callback);
 
 	public:
 		module_t::ref module;
 		function_t::ref function;
 		block_t::ref block;
+		block_t::ref break_to_block;
+		block_t::ref continue_to_block;
 		// std::shared_ptr<std::iterator<std::output_iterator_tag, void, void, void, void>> inserter;
 	};
 

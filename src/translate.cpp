@@ -195,9 +195,13 @@ expr_t *texpr(
 			typing[new_while] = type;
 			return new_while;
 		} else if (auto break_ = dcast<break_t*>(expr)) {
-			return break_;
+			auto new_break = new break_t(break_->get_location());
+			typing[new_break] = type_unit(INTERNAL_LOC());
+			return new_break;
 		} else if (auto continue_ = dcast<continue_t*>(expr)) {
-			return continue_;
+			auto new_continue = new continue_t(continue_->get_location());
+			typing[new_continue] = type_unit(INTERNAL_LOC());
+			return new_continue;
 		} else if (auto return_ = dcast<return_statement_t*>(expr)) {
 			auto ret = new return_statement_t(
 					texpr(
