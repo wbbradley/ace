@@ -360,11 +360,15 @@ expr_t *ctor_predicate_t::translate(
 		auto scrutinee = new var_t(scrutinee_id);
 		typing[scrutinee] = scrutinee_type;
 
-		auto condition = new application_t(
-				new application_t(
+		auto partial_cmp = new application_t(
 					ctor_id_cmp,
-					scrutinee),
+					scrutinee);
+		typing[partial_cmp] = type_arrows({Int, Bool});
+
+		auto condition = new application_t(
+				partial_cmp,
 				ctor_id_literal);
+		typing[condition] = type_bool(INTERNAL_LOC());
 
 		bool truthy_returns = false;
 		bool falsey_returns = false;
@@ -374,6 +378,7 @@ expr_t *ctor_predicate_t::translate(
 				? translate_next(for_defn_id, scrutinee_id, scrutinee_type, ctor_terms, do_checks, bound_vars, params, 0, 1 /*dim_offset*/, tenv, typing, needed_defns, truthy_returns, matched, failed)
 				: matched(bound_vars, tenv, typing, needed_defns, truthy_returns),
 				failed(bound_vars, tenv, typing, needed_defns, falsey_returns));
+		typing[cond] = type_unit(INTERNAL_LOC());
 		assert(!returns);
 		returns = returns || (truthy_returns && falsey_returns);
 		return cond;

@@ -871,7 +871,7 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 		auto init_func = program_builder.create_function(
 				"__program_init", {},
 				INTERNAL_LOC(),
-				type_unit(INTERNAL_LOC()));
+				type_arrows({type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())}));
 
 		/* initialization will happen inside of the __program_init function */
 		gen::builder_t builder(init_func);
