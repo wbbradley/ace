@@ -161,6 +161,23 @@ instance Ord Int {
     }
 }
 
+instance Ord Float {
+    fn <(a, b) => __builtin_float_lt(a, b)
+    fn <=(a, b) => __builtin_float_lte(a, b)
+    fn >(a, b) => __builtin_float_gt(a, b)
+    fn >=(a, b) => __builtin_float_gte(a, b)
+
+    fn compare(a, b) {
+        if a < b {
+            return LT
+        } else if b < a {
+            return GT
+        } else {
+            return EQ
+        }
+    }
+}
+
 instance Num Int {
     from_int = id
     fn +(a, b) => __builtin_add_int(a, b)
