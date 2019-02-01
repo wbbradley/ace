@@ -11,7 +11,7 @@ namespace gen {
 
 		value_t(location_t location, types::type_t::ref type, std::string name) :
 		   	location(location),
-		   	type(type),
+		   	type(types::unitize(type)),
 		   	name(name.size() == 0 ? bitter::fresh() : name)
 		{}
 		virtual ~value_t() {}
@@ -52,15 +52,6 @@ namespace gen {
 		env_t env;
 	};
 
-	struct literal_t : public value_t {
-		literal_t(token_t token, types::type_t::ref type, std::string name) : value_t(token.location, type, name), token(token) {}
-
-		std::string str() const override;
-		std::ostream &render(std::ostream &os) const override;
-
-		token_t const token;
-	};
-
 	struct block_t;
 	struct function_t;
 
@@ -77,6 +68,15 @@ namespace gen {
 	};
 
 	typedef std::list<instruction_t::ref> instructions_t;
+
+	struct literal_t : public instruction_t {
+		literal_t(token_t token, std::weak_ptr<block_t> parent, types::type_t::ref type) :
+		   	instruction_t(token.location, type, parent), token(token) {}
+
+		std::ostream &render(std::ostream &os) const override;
+
+		token_t const token;
+	};
 
 	struct phi_node_t : public instruction_t {
 		typedef std::shared_ptr<phi_node_t> ref;
@@ -294,7 +294,7 @@ namespace gen {
 
 		value_t::ref create_unit(location_t location, std::string name="");
 		value_t::ref create_builtin(identifier_t id, const value_t::refs &values, types::type_t::ref type, std::string name="");
-		value_t::ref create_literal(token_t token, types::type_t::ref type, std::string name="");
+		value_t::ref create_literal(token_t token, types::type_t::ref type);
 		value_t::ref create_call(value_t::ref callable, const value_t::refs &params, std::string name="");
 		value_t::ref create_call(value_t::ref callable, const value_t::refs &params, types::type_t::ref type, std::string name="");
 		value_t::ref create_cast(location_t location, value_t::ref value, types::type_t::ref type, std::string name="");

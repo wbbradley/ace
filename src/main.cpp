@@ -754,7 +754,9 @@ struct phase_3_t {
 };
 
 phase_3_t specialize(const phase_2_t &phase_2) {
-	assert(!user_error::errors_occurred());
+	if (user_error::errors_occurred()) {
+		throw user_error(INTERNAL_LOC(), "quitting");
+	}
 	decl_t *program_main = phase_2.defn_map.lookup({make_iid(phase_2.compilation->program_name + ".main"), program_main_scheme});
 
 	needed_defns_t needed_defns;
@@ -895,6 +897,10 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 					globals);
 		}
 
+		builder.ensure_terminator([](gen::builder_t &builder) {
+				builder.create_return(builder.create_unit(INTERNAL_LOC(), ""));
+				});
+
 		return {phase_3, env};
 	} catch (user_error &e) {
 		print_exception(e);
@@ -1004,6 +1010,12 @@ int main(int argc, char *argv[]) {
 		job.cmd = "help";
 	}
 
-	return run_job(job);
+	try {
+		return run_job(job);
+	} catch (user_error &e) {
+		print_exception(e);
+		/* and continue */
+		return EXIT_FAILURE;
+	}
 }
 

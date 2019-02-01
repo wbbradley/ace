@@ -128,9 +128,7 @@ namespace gen {
 
 	value_t::ref maybe_get_env_var(const env_t &env, identifier_t id, types::type_t::ref type) {
 		type = types::unitize(type);
-		auto iter = env.find(id.name);
-		value_t::ref value = get(env, id.name, type, value_t::ref{});
-		return value;
+		return get(env, id.name, type, value_t::ref{});
 	}
 
 	value_t::ref get_env_var(const env_t &env, identifier_t id, types::type_t::ref type) {
@@ -377,7 +375,7 @@ namespace gen {
 
 			debug_above(8, log("gen(..., %s, ..., ...)", expr->str().c_str()));
 			if (auto literal = dcast<const bitter::literal_t *>(expr)) {
-				return builder.create_literal(literal->token, type, name);
+				return builder.create_literal(literal->token, type);
 			} else if (auto static_print = dcast<const bitter::static_print_t*>(expr)) {
 				assert(false);
 			} else if (auto var = dcast<const bitter::var_t*>(expr)) {
@@ -546,6 +544,7 @@ namespace gen {
 		std::stringstream ss;
 		instruction->render(ss );
 		// log("adding instruction %s", ss.str().c_str());
+		assert(!has_terminator(block->instructions));
 		block->instructions.push_back(instruction);
 	}
 
@@ -604,8 +603,10 @@ namespace gen {
 		return builtin;
 	}
 
-	value_t::ref builder_t::create_literal(token_t token, types::type_t::ref type, std::string name) {
-		return std::make_shared<literal_t>(token, type, name);
+	value_t::ref builder_t::create_literal(token_t token, types::type_t::ref type) {
+		auto literal = std::make_shared<literal_t>(token, block, type);
+		insert_instruction(literal);
+		return literal;
 	}
 
 	value_t::ref builder_t::create_call(value_t::ref callable, const value_t::refs &params, types::type_t::ref type, std::string name) {
@@ -621,9 +622,13 @@ namespace gen {
 	}
 
 	value_t::ref builder_t::create_tuple(location_t location, const std::vector<value_t::ref> &dims, std::string name) {
-		auto tuple = std::make_shared<tuple_t>(location, block, dims, name);
-		insert_instruction(tuple);
-		return tuple;
+		if (dims.size() == 0) {
+			return create_unit(location, name);
+		} else {
+			auto tuple = std::make_shared<tuple_t>(location, block, dims, name);
+			insert_instruction(tuple);
+			return tuple;
+		}
 	}
 
 	value_t::ref builder_t::create_unit(location_t location, std::string name) {
@@ -705,13 +710,8 @@ namespace gen {
 		return C_WARN "@" + name + C_RESET;
 	}
 
-	std::string literal_t::str() const {
-		return token.text + " :: " + type->str().c_str();
-	}
-
 	std::ostream &literal_t::render(std::ostream &os) const {
-		assert(false);
-		return os;
+		return os << C_ID << name << C_RESET << " := " << token.text << " :: " << type->str();
 	}
 
 	std::string argument_t::str() const {
