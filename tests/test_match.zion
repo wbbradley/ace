@@ -4,10 +4,12 @@ data Numbers x z {
     Three(x, z)
 }
 
-fn foo() => 3
+fn interpret(n Numbers x z) => match n {
+    One(a, _) => a
+    Two(_, _) => 2
+    Three(_, _) => 3
+}
 
-fn main() => match Three(foo(), "hey") {
-    One(a, _) => ExitError(a)
-    Two(_, _) => ExitOK
-    Three(_, _) => ExitOK
+fn main() {
+    print(interpret(One(4, 3)))
 }

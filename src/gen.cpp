@@ -409,7 +409,7 @@ namespace gen {
 
 				builder.set_insertion_block(truthy_branch);
 				value_t::ref truthy_value = gen(builder, condition->truthy, typing, env, globals);
-				bool truthy_terminates = has_terminator(truthy_branch->instructions);
+				bool truthy_terminates = has_terminator(builder.block->instructions);
 				if (!truthy_terminates) {
 					merge_branch = builder.create_block("merge" + bitter::fresh(), false /*insert_in_new_block*/);
 					builder.merge_value_into(condition->truthy->get_location(), truthy_value, merge_branch);
@@ -417,7 +417,7 @@ namespace gen {
 
 				builder.set_insertion_block(falsey_branch);
 				value_t::ref falsey_value = gen(builder, condition->falsey, typing, env, globals);
-				bool falsey_terminates = has_terminator(falsey_branch->instructions);
+				bool falsey_terminates = has_terminator(builder.block->instructions);
 				if (!falsey_terminates) {
 					if (merge_branch == nullptr) {
 						merge_branch = builder.create_block("merge" + bitter::fresh(), false /*insert_in_new_block*/);
@@ -632,7 +632,7 @@ namespace gen {
 	}
 
 	value_t::ref builder_t::create_unit(location_t location, std::string name) {
-		return create_literal(token_t{INTERNAL_LOC(), tk_string, "unit"}, type_unit(INTERNAL_LOC()));
+		return std::make_shared<unit_t>(location);
 	}
 
 	value_t::ref builder_t::create_tuple_deref(location_t location, value_t::ref value, int index, std::string name) {
@@ -660,11 +660,12 @@ namespace gen {
 	}
 
 	std::ostream &cond_branch_t::render(std::ostream &os) const {
-		return os << "if " << cond->str() << " then goto " << truthy_branch->name << " else goto " << falsey_branch->name;
+		os << "if " << cond->str() << " then " C_CONTROL "goto " C_RESET;
+		return os << truthy_branch->name << " else " C_CONTROL "goto " C_RESET << falsey_branch->name;
 	}
 
 	std::ostream &goto_t::render(std::ostream &os) const {
-		return os << "goto " << branch->name;
+		return os << C_CONTROL "goto " C_RESET << branch->name;
 	}
 
 	std::ostream &callsite_t::render(std::ostream &os) const {
@@ -758,7 +759,7 @@ namespace gen {
 	}
 
 	std::ostream &tuple_t::render(std::ostream &os) const {
-		return os << C_ID << name << C_RESET << " := make_tuple(" << join_str(dims, ", ") << ")";
+		return os << C_ID << name << C_RESET << " := " C_GOOD "make_tuple" C_RESET "(" << join_str(dims, ", ") << ")";
 	}
 
 	std::ostream &tuple_deref_t::render(std::ostream &os) const {
