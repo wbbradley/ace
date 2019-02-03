@@ -16,6 +16,7 @@
 #include "env.h"
 #include "translate.h"
 #include "gen.h"
+#include "eval.h"
 
 using namespace bitter;
 
@@ -461,6 +462,8 @@ class defn_map_t {
 	std::map<defn_id_t, decl_t *> map;
 	std::map<std::string, decl_t *> decl_map;
 
+	friend struct phase_2_t;
+
 public:
 	decl_t *maybe_lookup(defn_id_t defn_id) const {
 		auto iter = map.find(defn_id);
@@ -542,6 +545,15 @@ struct phase_2_t {
 	defn_map_t const defn_map;
 	ctor_id_map_t const ctor_id_map;
 	data_ctors_map_t const data_ctors_map;
+
+	std::ostream &dump(std::ostream &os) {
+		for (auto pair : defn_map.decl_map) {
+			auto scheme = get(typing, pair.first, types::scheme_t::ref{});
+			assert(scheme != nullptr);
+			os << pair.first << " = " << pair.second->str() << " :: " << scheme->str() << std::endl;
+		}
+		return os;
+	}
 };
 
 std::map<std::string, int> get_builtin_arities() {
@@ -751,6 +763,15 @@ void specialize(
 struct phase_3_t {
 	phase_2_t phase_2;
 	translation_map_t translation_map;
+
+	std::ostream &dump(std::ostream &os) {
+		for (auto pair: translation_map) {
+			for (auto overloads: pair.second) {
+				os << pair.first << " :: " << overloads.first->str() << " = " << overloads.second->expr->str() << std::endl;
+			}
+		}
+		return os;
+	}
 };
 
 phase_3_t specialize(const phase_2_t &phase_2) {
@@ -960,14 +981,17 @@ int run_job(const job_t &job) {
 		if (job.args.size() != 1) {
 			return run_job({"help", {}});
 		} else {
-			compile(job.args[0]);
+			auto phase_2 = compile(job.args[0]);
+			phase_2.dump(std::cout);
+
 			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		}
 	} else if (job.cmd == "specialize") {
 		if (job.args.size() != 1) {
 			return run_job({"help", {}});
 		} else {
-			specialize(compile(job.args[0]));
+			auto phase_3 = specialize(compile(job.args[0]));
+			phase_3.dump(std::cout);
 			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		}
 	} else if (job.cmd == "ssa-gen") {
@@ -978,6 +1002,23 @@ int run_job(const job_t &job) {
 			phase_4.dump(std::cout);
 
 			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
+		}
+	} else if (job.cmd == "run") {
+		if (job.args.size() < 1) {
+			return run_job({"help", {}});
+		} else {
+			phase_4_t phase_4 = ssa_gen(specialize(compile(job.args[0])));
+
+			if (user_error::errors_occurred()) {
+				return EXIT_FAILURE;
+			}
+			eval::run(get_env_var(phase_4.env,
+						identifier_t{
+						phase_4.phase_3.phase_2.compilation->program_name + ".main", 
+						INTERNAL_LOC()},
+						type_arrows({type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())})));
+			// TODO: look at return value?
+			return EXIT_SUCCESS;
 		}
 	} else if (job.cmd == "help") {
 		std::cout << "zion {compile, test}" << std::endl;

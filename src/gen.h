@@ -60,7 +60,10 @@ namespace gen {
 
 		std::string str() const override final;
 
-		instruction_t(location_t location, types::type_t::ref type, std::weak_ptr<block_t> parent, std::string name="") : value_t(location, type, name), parent(parent) {}
+		instruction_t(location_t location, types::type_t::ref type, std::weak_ptr<block_t> parent, std::string name="") :
+			value_t(location, type, name),
+			parent(parent)
+			{}
 
 		virtual ~instruction_t() {}
 
@@ -68,6 +71,12 @@ namespace gen {
 	};
 
 	typedef std::list<instruction_t::ref> instructions_t;
+
+	struct unit_t : public value_t {
+		unit_t(location_t location) : value_t(location, type_unit(INTERNAL_LOC()), "") {}
+		std::string str() const override { return C_GOOD "()" C_RESET; }
+		std::ostream &render(std::ostream &os) const override { return os << str(); }
+	};
 
 	struct literal_t : public instruction_t {
 		literal_t(token_t token, std::weak_ptr<block_t> parent, types::type_t::ref type) :

@@ -384,6 +384,8 @@ expr_t *parse_base_expr(parse_state_t &ps) {
 	} else if (ps.token.is_ident(K(fix))) {
 		ps.advance();
 		return new fix_t(parse_base_expr(ps));
+	} else if (ps.token.is_ident(K(match))) {
+		return parse_match(ps);
 	} else if (ps.token.is_ident(K(null))) {
 		return new as_t(
 				new literal_t(token_t{ps.token_and_advance().location, tk_integer, "0"}),
