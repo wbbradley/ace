@@ -4,12 +4,27 @@ project(Zion)
 include_directories(BEFORE src)
 add_definitions(-DZION_DEBUG)
 
+find_package(LLVM REQUIRED CONFIG)
+
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+message(STATUS "LLVM installation prefix is ${LLVM_INSTALL_PREFIX}")
+
 option(MEMORY_DEBUGGING "Track all allocations and spew to stdout about it" OFF)
 if(MEMORY_DEBUGGING)
 	set(option_flags -DMEMORY_DEBUGGING)
 endif()
 
+option(DEBUG_LLVM_TYPES "Print out LLVM type information a lot" OFF)
+if(DEBUG_LLVM_TYPES)
+	set(option_flags -DDEBUG_LLVM_TYPES)
+endif()
+
+include_directories(${LLVM_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
+
 add_compile_options(-std=c++14 -g -O0 ${option_flags})
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,${LLVM_INSTALL_PREFIX}/lib")
 
 add_executable(zion
 	src/ast.cpp
@@ -43,6 +58,9 @@ add_executable(zion
 	src/user_error.cpp
 	src/utils.cpp
 	)
+
+message(STATUS "Using dynamic link options -L${LLVM_LIBRARY_DIR} -lLLVM")
+target_link_libraries(zion -L${LLVM_LIBRARY_DIR} -lLLVM)
 
 enable_testing()
 
