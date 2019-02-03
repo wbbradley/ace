@@ -190,18 +190,19 @@ void note_logger::log(log_level_t level, const location_t *location, const char 
 
 standard_logger::standard_logger(const std::string &name, const std::string &root_file_path) : m_name(name), m_fp(NULL) {
 	m_root_file_path = root_file_path;
-	if (m_root_file_path[m_root_file_path.size() - 1] != '/')
+	if (m_root_file_path[m_root_file_path.size() - 1] != '/') {
 		m_root_file_path.append("/");
+	}
 	m_root_file_path.append("logs");
-	if (!ensure_directory_exists(m_root_file_path))
-	{
+	if (!ensure_directory_exists(m_root_file_path)) {
 		write_fp(STDERR, "standard_logger : couldn't guarantee that directory %s exists\naborting...\n", m_root_file_path.c_str());
 		exit(1);
 	}
-	if (_logger == NULL)
+	if (_logger == NULL) {
 		_logger = this;
-	else
+	} else {
 		write_fp(STDERR, "multiple loggers are loaded!");
+	}
 
 	open();
 }
@@ -213,25 +214,21 @@ void append_time(std::ostream &os, double time_exact, bool exact, bool for_human
 	gmtime_r(&time, &tdata);
 	os.setf(std::ios::fixed, std::ios::floatfield);
 	os.fill('0'); // Pad on left with '0'
-	if (for_humans)
-	{
+	if (for_humans) {
 		os << std::setw(2) << tdata.tm_mon + 1 << '/'
 			<< std::setw(2) << tdata.tm_mday << '/'
 			<< std::setw(2) << tdata.tm_year + 1900 << sep
 			<< std::setw(2) << tdata.tm_hour << ':'
 			<< std::setw(2) << tdata.tm_min << ':'
 			<< std::setw(2) << tdata.tm_sec;
-	}
-	else
-	{
+	} else {
 		os << std::setw(2) << tdata.tm_year + 1900
 			<< std::setw(2) << tdata.tm_mon + 1
 			<< std::setw(2) << tdata.tm_mday << 'T'
 			<< std::setw(2) << tdata.tm_hour
 			<< std::setw(2) << tdata.tm_min
 			<< std::setw(2) << tdata.tm_sec;
-		if (exact)
-		{
+		if (exact) {
 			double decimals = (time_exact - (double)time);
 			/* Turn it into milliseconds */
 			decimals *= 1000;
@@ -256,11 +253,11 @@ void standard_logger::open() {
 	std::lock_guard<std::mutex> lock(m_mutex);
 
 	assert(m_fp == NULL);
-	if (m_name.size() > 0 && m_root_file_path.size() > 0)
-	{
+	if (m_name.size() > 0 && m_root_file_path.size() > 0) {
 		std::string logfile(m_root_file_path);
-		if (logfile[logfile.size() - 1] != '/')
+		if (logfile[logfile.size() - 1] != '/') {
 			logfile.append("/");
+		}
 
 		std::stringstream ss;
 		ss.setf(std::ios::fixed, std::ios::floatfield);
@@ -579,12 +576,12 @@ standard_logger::~standard_logger() {
 
 bool check_errno(const char *tag) {
 	int err = errno;
-	if (err == 0)
+	if (err == 0) {
 		return true;
+	}
 
 	const char *error_string = "unknown";
-	switch (err)
-	{
+	switch (err) {
 		CaseError(EACCES);
 		CaseError(EAFNOSUPPORT);
 		CaseError(EISCONN);
@@ -613,8 +610,9 @@ bool check_errno(const char *tag) {
 		CaseError(EMSGSIZE);
 		CaseError(ECONNREFUSED);
 	};
-	if (err == -1)
+	if (err == -1) {
 		err = errno;
+	}
 
 	log(log_info, "check_errno : %s %s %s", tag, error_string, strerror(err));
 	return false;
