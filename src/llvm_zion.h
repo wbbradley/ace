@@ -34,3 +34,6 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Utils/ValueMapper.h>
 
+#define getZionIntTy getInt64Ty
+#define getZionInt getInt64
+

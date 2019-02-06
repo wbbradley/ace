@@ -81,20 +81,6 @@ namespace types {
 		virtual location_t get_location() const;
 	};
 
-	struct type_predicate_t : public type_t {
-		type_predicate_t(identifier_t id, type_t::ref type);
-		identifier_t id;
-		type_t::ref type;
-
-		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
-		virtual int ftv_count() const;
-		virtual predicate_map get_predicate_map() const;
-		virtual type_t::ref rebind(const map &bindings) const;
-		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
-		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
-		virtual location_t get_location() const;
-	};
-
 	struct type_id_t : public type_t {
 		type_id_t(identifier_t id);
 		identifier_t id;
@@ -116,23 +102,6 @@ namespace types {
 		type_t::ref operand;
 
 		virtual int get_precedence() const { return 7; }
-
-		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
-		virtual int ftv_count() const;
-		virtual predicate_map get_predicate_map() const;
-		virtual type_t::ref rebind(const map &bindings) const;
-		virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
-		virtual type_t::ref prefix_ids(const std::set<std::string> &bindings, const std::string &pre) const;
-		virtual location_t get_location() const;
-	};
-
-	struct type_integer_t : public type_t {
-		typedef std::shared_ptr<const type_integer_t> ref;
-		type_integer_t(type_t::ref bit_size, type_t::ref signed_);
-		type_t::ref bit_size;
-		type_t::ref signed_;
-
-		virtual int get_precedence() const { return 9; }
 
 		virtual std::ostream &emit(std::ostream &os, const map &bindings, int parent_precedence) const;
 		virtual int ftv_count() const;
