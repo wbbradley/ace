@@ -1013,7 +1013,7 @@ int run_job(const job_t &job) {
 				return EXIT_FAILURE;
 			}
 
-			return lower::run(phase_4.phase_3.phase_2.compilation->program_name + ".main", phase_4.env);
+			return lower::lower(phase_4.phase_3.phase_2.compilation->program_name + ".main", phase_4.env);
 		}
 	} else if (job.cmd == "help") {
 		std::cout << "zion {compile, test}" << std::endl;
