@@ -34,11 +34,12 @@ add_executable(zion
 	src/defn_id.cpp
 	src/disk.cpp
 	src/env.cpp
-	src/eval.cpp
+	src/lower.cpp
 	src/gen.cpp
 	src/identifier.cpp
 	src/infer.cpp
 	src/lexer.cpp
+	src/llvm_utils.cpp
 	src/location.cpp
 	src/logger.cpp
 	src/main.cpp

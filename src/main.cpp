@@ -16,7 +16,7 @@
 #include "env.h"
 #include "translate.h"
 #include "gen.h"
-#include "eval.h"
+#include "lower.h"
 
 using namespace bitter;
 
@@ -949,7 +949,7 @@ int run_job(const job_t &job) {
 		assert(alphabetize(2) == "c");
 		assert(alphabetize(26) == "aa");
 		assert(alphabetize(27) == "ab");
-		return run_job({"ssa-gen", {}, {"test_basic"}});
+		return run_job({"lower", {}, {"test_basic"}});
 	} else if (job.cmd == "find") {
 		if (job.args.size() != 1) {
 			return run_job({"help", {}, {}});
@@ -1003,7 +1003,7 @@ int run_job(const job_t &job) {
 
 			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		}
-	} else if (job.cmd == "run") {
+	} else if (job.cmd == "lower") {
 		if (job.args.size() < 1) {
 			return run_job({"help", {}});
 		} else {
@@ -1012,13 +1012,8 @@ int run_job(const job_t &job) {
 			if (user_error::errors_occurred()) {
 				return EXIT_FAILURE;
 			}
-			eval::run(get_env_var(phase_4.env,
-						identifier_t{
-						phase_4.phase_3.phase_2.compilation->program_name + ".main", 
-						INTERNAL_LOC()},
-						type_arrows({type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())})));
-			// TODO: look at return value?
-			return EXIT_SUCCESS;
+
+			return lower::run(phase_4.phase_3.phase_2.compilation->program_name + ".main", phase_4.env);
 		}
 	} else if (job.cmd == "help") {
 		std::cout << "zion {compile, test}" << std::endl;
