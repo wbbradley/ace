@@ -240,6 +240,10 @@ struct Vector a {
     capacity Ref Int
 }
 
+fn __string_ref(sz * Char, size Int) [Char] {
+    return Vector(Ref(sz), Ref(size), Ref(0))
+}
+
 instance Show Char {
     fn str(ch) {
         y := new [Char]

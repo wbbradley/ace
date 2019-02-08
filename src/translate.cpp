@@ -23,6 +23,42 @@ expr_t *texpr(
 		auto type = tenv.get_type(expr);
 		debug_above(6, log("monomorphizing %s to have type %s", expr->str().c_str(), type->str().c_str()));
 		if (auto literal = dcast<literal_t *>(expr)) {
+			if (literal->token.tk == tk_string) {
+				auto vector_ctor = identifier_t{"std.__string_ref", literal->get_location()};
+				types::type_t::refs string_ref_terms = {
+					type_operator(
+							type_id(make_iid(PTR_TYPE_OPERATOR)),
+							type_id(make_iid(CHAR_TYPE))),
+					type_int(INTERNAL_LOC()),
+					type_operator(
+							type_id(make_iid(VECTOR_TYPE)),
+							type_id(make_iid(CHAR_TYPE))),
+				};
+				auto vector_ctor_type = type_arrows(string_ref_terms);
+				auto ctor_var = new var_t(vector_ctor);
+				typing[ctor_var] = vector_ctor_type;
+
+				/* make sure we let the world know we need string constructors */
+				auto defn_id = defn_id_t{vector_ctor, vector_ctor_type->generalize({})->normalize()};
+				insert_needed_defn(needed_defns, defn_id, literal->get_location(), for_defn_id);
+
+				auto new_str = new literal_t(token_t{literal->token.location, tk_string, literal->token.text});
+				typing[new_str] = type_operator(
+						type_id(make_iid(PTR_TYPE_OPERATOR)),
+						type_id(make_iid(CHAR_TYPE)));
+
+				expr_t *new_ctor_partial_1 = new application_t(ctor_var, new_str);
+				typing[new_ctor_partial_1] = type_arrows(string_ref_terms, 1);
+
+				expr_t *new_str_len = new literal_t(token_t{INTERNAL_LOC(), tk_integer, string_format("%d",
+							unescape_json_quotes(literal->token.text).size())});
+				typing[new_str_len] = type_int(INTERNAL_LOC());
+
+				expr_t *new_ctor_partial_2 = new application_t(new_ctor_partial_1, new_str_len);
+				typing[new_ctor_partial_2] = type_arrows(string_ref_terms, 2);
+
+				return new_ctor_partial_2;
+			}
 			typing[literal] = type;
 			return literal;
 		} else if (auto static_print = dcast<static_print_t*>(expr)) {
