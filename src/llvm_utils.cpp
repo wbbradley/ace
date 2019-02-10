@@ -68,22 +68,13 @@ llvm::Value *llvm_create_double(llvm::IRBuilder<> &builder, double value) {
 
 llvm::FunctionType *llvm_create_function_type(
 		llvm::IRBuilder<> &builder,
-		const types::type_t::refs &args,
-		types::type_t::ref return_value)
+		const std::vector<llvm::Type *> &llvm_type_args,
+		llvm::Type *llvm_return_type)
 {
-	debug_above(4, log(log_info, "creating an LLVM function type from (%s %s)",
-		::str(args).c_str(),
-		return_value->str().c_str()));
-
-	// assert(return_value->get_type()->ftv_count() == 0 && "return values should never be abstract");
-	std::vector<llvm::Type *> llvm_type_args = get_llvm_types(args);
-
-	auto p = llvm::FunctionType::get(
-			get_llvm_type(return_value),
+	return llvm::FunctionType::get(
+			llvm_return_type,
 			llvm::ArrayRef<llvm::Type*>(llvm_type_args),
 			false /*isVarArg*/);
-	assert(p->isFunctionTy());
-	return p;
 }
 
 llvm::Type *llvm_resolve_type(llvm::Value *llvm_value) {
@@ -468,38 +459,28 @@ llvm::Type *llvm_deref_type(llvm::Type *llvm_type) {
 	}
 }
 
-#if 0
 llvm::Function *llvm_start_function(
 		llvm::IRBuilder<> &builder, 
-		location_t location,
-		const types::type_t::ref &function_type,
+		const types::type_t::refs &terms,
 		std::string name)
 {
-	types::type_args_t::ref type_args = dyncast<const types::type_args_t>(function_type->args);
-	assert(type_args != nullptr);
+	std::vector<llvm::Type *> llvm_type_terms = get_llvm_types(terms);
 
-	bound_type_t::refs args = upsert_bound_types(builder, scope, type_args->args);
-	bound_type_t::ref data_type = upsert_bound_type(builder, scope, function_type->return_type);
 	/* get the llvm function type for the data ctor */
 	llvm::FunctionType *llvm_fn_type = llvm_create_function_type(
-			builder, args, data_type);
-
-	/* create the bound type for the ctor function */
-	auto bound_function_type = bound_type_t::create(function_type, location, llvm_fn_type);
+			builder,
+			vec_slice(llvm_type_terms, 0, llvm_type_terms.size()-1),
+			llvm_type_terms.back());
 
 	/* now let's generate our actual data ctor fn */
 	auto llvm_function = llvm::Function::Create(
 			(llvm::FunctionType *)llvm_fn_type,
 			llvm::Function::ExternalLinkage, name,
-			scope->get_llvm_module(builder));
+			llvm_get_module(builder));
 
 	llvm_function->setDoesNotThrow();
 
-	/* create the actual bound variable for the fn */
-	bound_var_t::ref function = make_bound_var(
-			INTERNAL_LOC(), name,
-			bound_function_type, llvm_function, make_iid_impl(name, location));
-
+#if 0
 	/* start emitting code into the new function. caller should have an
 	 * insert point guard */
 	llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
@@ -514,10 +495,10 @@ llvm::Function *llvm_start_function(
 	builder.CreateBr(llvm_body_block);
 
 	builder.SetInsertPoint(llvm_body_block);
-
-	return function;
-}
 #endif
+
+	return llvm_function;
+}
 
 void check_struct_initialization(
 		llvm::ArrayRef<llvm::Constant*> llvm_struct_initialization,
@@ -710,10 +691,15 @@ llvm::Value *llvm_last_param(llvm::Function *llvm_function) {
 
 llvm::Type *get_llvm_type(const types::type_t::ref &type) {
 	log("get_llvm_type(%s)...", type->str().c_str());
+	assert(false);
 	return nullptr;
 }
 
 std::vector<llvm::Type *> get_llvm_types(const types::type_t::refs &types) {
-	log("get_llvm_type([%s])...", join_str(types, ", ").c_str());
-	return {};
+	log("get_llvm_types([%s])...", join_str(types, ", ").c_str());
+	std::vector<llvm::Type *> llvm_types;
+	for (auto type: types) {
+		llvm_types.push_back(get_llvm_type(type));
+	}
+	return llvm_types;
 }

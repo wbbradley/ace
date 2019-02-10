@@ -180,15 +180,6 @@ namespace gen {
 		function_t::wref function;
 	};
 
-	struct global_ref_t : public value_t {
-		typedef std::shared_ptr<global_ref_t> ref;
-		global_ref_t(identifier_t id, types::type_t::ref type) :
-		   	value_t(id.location, type, id.name)
-		{}
-
-		std::string str() const override;
-	};
-
 	struct goto_t : public instruction_t {
 		goto_t(location_t location, std::weak_ptr<block_t> parent, block_t::ref branch) :
 			instruction_t(location, type_unit(INTERNAL_LOC()), parent),

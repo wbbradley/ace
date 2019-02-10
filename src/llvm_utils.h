@@ -5,8 +5,8 @@
 
 llvm::FunctionType *llvm_create_function_type(
 		llvm::IRBuilder<> &builder,
-		const types::type_t::refs &args,
-		types::type_t::ref return_value);
+		const std::vector<llvm::Type *> &llvm_type_args,
+		llvm::Type *llvm_return_type);
 
 llvm::Constant *llvm_create_struct_instance(
 		std::string var_name,
@@ -83,8 +83,7 @@ void llvm_create_if_branch(
 llvm::Type *llvm_deref_type(llvm::Type *llvm_pointer_type);
 llvm::Function *llvm_start_function(
 		llvm::IRBuilder<> &builder, 
-		location_t location,
-		const types::type_t::ref &function_type,
+		const types::type_t::refs &terms,
 		std::string name);
 
 // NOTE: the explain function is a tool to learn about LLVM types, it does not

@@ -37,3 +37,4 @@
 #define getZionIntTy getInt64Ty
 #define getZionInt getInt64
 
+#include "zion_assert.h"
