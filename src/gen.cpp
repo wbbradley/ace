@@ -707,10 +707,6 @@ namespace gen {
 		return os << C_CONTROL "return " C_RESET << value->str();
 	}
 
-	std::string global_ref_t::str() const {
-		return C_WARN "@" + name + C_RESET;
-	}
-
 	std::ostream &literal_t::render(std::ostream &os) const {
 		return os << C_ID << name << C_RESET << " := " << token.text << " :: " << type->str();
 	}

@@ -311,6 +311,17 @@ bool all_in(const C1 &items, const C2 &set) {
 	return true;
 }
 
+template <typename V>
+std::vector<V> vec_slice(const std::vector<V> &orig, int start, int lim) {
+	std::vector<V> output;
+	output.reserve(lim - start);
+	for (int i=start; i<lim; ++i) {
+		auto &v = orig[i];
+		output.push_back(v);
+	}
+	return output;
+}
+
 template <typename U, typename COLL>
 bool in_vector(U item, const COLL &set) {
 	return std::find(set.begin(), set.end(), item) != set.end();

@@ -1,4 +1,3 @@
-#pragma once
 #include "logger_decls.h"
 #include <csignal>
 
@@ -10,6 +9,10 @@ void _emit_assert(
 
 #ifdef assert
 #undef assert
+#endif
+
+#ifdef null_impl
+#undef null_impl
 #endif
 
 #define verbose() (getenv("DEBUG") != nullptr)
@@ -28,12 +31,18 @@ void _emit_assert(
 #error We should have had assert defined in here.
 #endif
 
+#ifndef ship_assert
 #define ship_assert(x) do { int y = (x); if (!y) panic(#x); } while (0)
+#endif
 
 #ifdef ZION_DEBUG
 #define assert_implies(x, y) do { if (x) assert(y); } while (0)
 #else
 #define assert_implies(x, y)
+#endif
+
+#ifdef panic
+#undef panic
 #endif
 
 #define panic(msg) panic_(__FILE__, __LINE__, msg)
