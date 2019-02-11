@@ -18,8 +18,8 @@ llvm::Constant *llvm_create_constant_struct_instance(
 		llvm::StructType *llvm_struct_type, 
 		std::vector<llvm::Constant *> llvm_struct_data);
 
-std::vector<llvm::Type *> get_llvm_types(const types::type_t::refs &types);
-llvm::Type *get_llvm_type(const types::type_t::ref &type);
+std::vector<llvm::Type *> get_llvm_types(llvm::IRBuilder<> &builder, const types::type_t::refs &types);
+llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder, const types::type_t::ref &type);
 
 llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value);
 llvm::ConstantInt *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value);
@@ -83,6 +83,7 @@ void llvm_create_if_branch(
 llvm::Type *llvm_deref_type(llvm::Type *llvm_pointer_type);
 llvm::Function *llvm_start_function(
 		llvm::IRBuilder<> &builder, 
+		llvm::Module *llvm_module,
 		const types::type_t::refs &terms,
 		std::string name);
 

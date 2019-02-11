@@ -239,7 +239,7 @@ llvm::AllocaInst *llvm_create_entry_block_alloca(
 		   	llvm_function->getEntryBlock().begin());
 
 	/* create the local variable */
-	return builder.CreateAlloca(get_llvm_type(type), nullptr, var_name.c_str());
+	return builder.CreateAlloca(get_llvm_type(builder, type), nullptr, var_name.c_str());
 }
 
 llvm::Value *llvm_zion_bool_to_i1(llvm::IRBuilder<> &builder, llvm::Value *llvm_value) {
@@ -396,7 +396,7 @@ llvm::StructType *llvm_create_struct_type(
 		std::string name,
 		const types::type_t::refs &dimensions) 
 {
-	return llvm_create_struct_type(builder, name, get_llvm_types(dimensions));
+	return llvm_create_struct_type(builder, name, get_llvm_types(builder, dimensions));
 }
 
 void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
@@ -461,10 +461,11 @@ llvm::Type *llvm_deref_type(llvm::Type *llvm_type) {
 
 llvm::Function *llvm_start_function(
 		llvm::IRBuilder<> &builder, 
+		llvm::Module *llvm_module,
 		const types::type_t::refs &terms,
 		std::string name)
 {
-	std::vector<llvm::Type *> llvm_type_terms = get_llvm_types(terms);
+	std::vector<llvm::Type *> llvm_type_terms = get_llvm_types(builder, terms);
 
 	/* get the llvm function type for the data ctor */
 	llvm::FunctionType *llvm_fn_type = llvm_create_function_type(
@@ -476,7 +477,7 @@ llvm::Function *llvm_start_function(
 	auto llvm_function = llvm::Function::Create(
 			(llvm::FunctionType *)llvm_fn_type,
 			llvm::Function::ExternalLinkage, name,
-			llvm_get_module(builder));
+			llvm_module != nullptr ? llvm_module : llvm_get_module(builder));
 
 	llvm_function->setDoesNotThrow();
 
@@ -689,17 +690,53 @@ llvm::Value *llvm_last_param(llvm::Function *llvm_function) {
 	return last;
 }
 
-llvm::Type *get_llvm_type(const types::type_t::ref &type) {
+llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder, const types::type_t::ref &type) {
 	log("get_llvm_type(%s)...", type->str().c_str());
-	assert(false);
-	return nullptr;
+	if (auto id = dyncast<const types::type_id_t>(type)) {
+		const std::string &name = id->id.name;
+		if (name == INT_TYPE) {
+			return builder.getZionIntTy();
+		} else if (name == FLOAT_TYPE) {
+			return builder.getFloatTy();
+		} else {
+			return builder.getVoidTy()->getPointerTo();
+		}
+	} else if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
+		std::vector<llvm::Type *> llvm_types = get_llvm_types(builder, tuple_type->dimensions);
+		llvm::StructType *llvm_struct_type = llvm_create_struct_type(
+				builder,
+				type->repr(),
+				llvm_types);
+		return llvm_struct_type;
+	} else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
+		types::type_t::refs terms;
+		unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, terms);
+		if (terms.size() <= 1) {
+			return builder.getVoidTy()->getPointerTo();
+		} else {
+			auto llvm_types = get_llvm_types(builder, terms);
+			return llvm_create_function_type(
+					builder,
+					vec_slice(llvm_types, 0, llvm_types.size()-1),
+					llvm_types.back());
+		}
+	} else if (auto variable = dyncast<const types::type_variable_t>(type)) {
+		assert(false);
+		return nullptr;
+	} else if (auto lambda = dyncast<const types::type_lambda_t>(type)) {
+		assert(false);
+		return nullptr;
+	} else {
+		assert(false);
+		return nullptr;
+	}
 }
 
-std::vector<llvm::Type *> get_llvm_types(const types::type_t::refs &types) {
+std::vector<llvm::Type *> get_llvm_types(llvm::IRBuilder<> &builder, const types::type_t::refs &types) {
 	log("get_llvm_types([%s])...", join_str(types, ", ").c_str());
 	std::vector<llvm::Type *> llvm_types;
 	for (auto type: types) {
-		llvm_types.push_back(get_llvm_type(type));
+		llvm_types.push_back(get_llvm_type(builder, type));
 	}
 	return llvm_types;
 }
