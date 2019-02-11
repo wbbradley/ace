@@ -48,12 +48,17 @@ namespace lower {
 	void lower_decl(
 			std::string name,
 			llvm::IRBuilder<> &builder,
+			llvm::Module *llvm_module,
 			gen::value_t::ref value,
 			env_t &env)
 	{
 		debug_above(4, log("lower(%s, ..., %s, ...)", name.c_str(), value->str().c_str()));
 
 		value = gen::resolve_proxy(value);
+		if (value == nullptr) {
+			log("skipping %s", name.c_str());
+			return;
+		}
 
 		if (auto unit = dyncast<gen::unit_t>(value)) {
 			assert(false);
@@ -70,7 +75,7 @@ namespace lower {
 		} else if (auto function = dyncast<gen::function_t>(value)) {
 			types::type_t::refs type_terms;
 			unfold_binops_rassoc(ARROW_TYPE_OPERATOR, function->type, type_terms);
-			llvm::Function *llvm_function = llvm_start_function(builder, type_terms, name + " :: " + function->type->repr());
+			llvm::Function *llvm_function = llvm_start_function(builder, llvm_module, type_terms, name + " :: " + function->type->repr());
 			set_env_value(env, name, function->type, llvm_function, false /*allow_shadowing*/);
 			return;
 		} else if (auto builtin = dyncast<gen::builtin_t>(value)) {
@@ -125,7 +130,7 @@ namespace lower {
 							name.c_str(),
 							type->str().c_str(),
 							value->str().c_str());
-					lower_decl(pair.first, builder, overload.second, lower_env);
+					lower_decl(pair.first, builder, module, overload.second, lower_env);
 				}
 			}
 			std::cout << llvm_print_module(*module) << std::endl;
