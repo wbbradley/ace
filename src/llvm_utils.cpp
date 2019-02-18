@@ -94,15 +94,11 @@ llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_
 	}
 }
 
-#if 0
 llvm::CallInst *llvm_create_call_inst(
 		llvm::IRBuilder<> &builder,
-		location_t location,
-		std::shared_ptr<const bound_var_t> callee,
+        llvm::Value *llvm_callee_value,
 		std::vector<llvm::Value *> llvm_values)
 {
-	assert(callee != nullptr);
-	llvm::Value *llvm_callee_value = callee->get_llvm_value(nullptr);
 	debug_above(9, log("found llvm_callee_value %s of type %s",
 				llvm_print(llvm_callee_value).c_str(),
 				llvm_print(llvm_callee_value->getType()).c_str()));
@@ -156,7 +152,6 @@ llvm::CallInst *llvm_create_call_inst(
 
 	return builder.CreateCall(llvm_function, llvm_args_array);
 }
-#endif
 
 llvm::Module *llvm_get_module(llvm::IRBuilder<> &builder) {
 	return builder.GetInsertBlock()->getParent()->getParent();

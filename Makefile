@@ -4,7 +4,7 @@ ZION=$(HOME)/var/zion/zion
 zion:
 	mkdir -p $(HOME)/var/zion
 	(cd $(HOME)/var/zion && \
-		make 2>&1)
+		make -j8 2>&1)
 
 clean:
 	(export LLVM_DIR=$(LLVM_DIR) ; \
