@@ -105,14 +105,14 @@ void check_patterns(
 	match::Pattern::ref uncovered = match::all_of(location, maybe<identifier_t>(make_iid(expr)), tenv, pattern_value_type);
 	for (auto pattern_block : pattern_blocks) {
 		match::Pattern::ref covering = pattern_block->predicate->get_pattern(
-				pattern_value_type, tenv);
+			pattern_value_type, tenv);
 		if (match::intersect(uncovered, covering)->asNothing() != nullptr) {
 			auto error = user_error(pattern_block->predicate->get_location(), "this pattern is already covered");
 			if (uncovered->asNothing() != nullptr) {
 				error.add_info(pattern_block->predicate->get_location(), "there is nothing left to match by this point");
 			} else {
 				error.add_info(pattern_block->predicate->get_location(), "so far you haven't covered: %s",
-						uncovered->str().c_str());
+							   uncovered->str().c_str());
 			}
 			throw error;
 		}
@@ -123,10 +123,10 @@ void check_patterns(
 	}
 
 	if (uncovered->asNothing() == nullptr) {
-			auto error = user_error(location, "not all patterns are covered");
-			error.add_info(location, "uncovered patterns: %s",
-					uncovered->str().c_str());
-			throw error;
+		auto error = user_error(location, "not all patterns are covered");
+		error.add_info(location, "uncovered patterns: %s",
+					   uncovered->str().c_str());
+		throw error;
 	}
 }
 
@@ -152,28 +152,28 @@ expr_t *translate_match_expr(
 	auto scrutinee_type = tenv.get_type(match->scrutinee);
 
 	check_patterns(
-			scrutinee_expr->get_location(),
-			match->scrutinee->str(),
-			tenv,
-			match->pattern_blocks,
-			scrutinee_type);
+		scrutinee_expr->get_location(),
+		match->scrutinee->str(),
+		tenv,
+		match->pattern_blocks,
+		scrutinee_type);
 
 	identifier_t scrutinee_id = make_iid("__scrutinee_" + fresh());
 	auto new_match = new let_t(
+		scrutinee_id,
+		scrutinee_expr,
+		build_patterns(
+			for_defn_id,
+			match->pattern_blocks,
+			0,
+			bound_vars,
+			tenv,
+			typing,
+			needed_defns,
+			returns,
 			scrutinee_id,
-			scrutinee_expr,
-			build_patterns(
-				for_defn_id,
-				match->pattern_blocks,
-				0,
-				bound_vars,
-				tenv,
-				typing,
-				needed_defns,
-				returns,
-				scrutinee_id,
-				typing[scrutinee_expr],
-				expected_type));
+			typing[scrutinee_expr],
+			expected_type));
 	typing[new_match] = expected_type;
 	return new_match;
 }
@@ -213,13 +213,13 @@ expr_t *literal_t::translate(
 	typing[scrutinee] = type;
 
 	auto cond = new conditional_t(
+		new application_t(
 			new application_t(
-				new application_t(
-					literal_cmp,
-					scrutinee),
-				new literal_t(token)),
-			matched(bound_vars, tenv, typing, needed_defns, truthy_returns),
-			failed(bound_vars, tenv, typing, needed_defns, falsey_returns));
+				literal_cmp,
+				scrutinee),
+			new literal_t(token)),
+		matched(bound_vars, tenv, typing, needed_defns, truthy_returns),
+		failed(bound_vars, tenv, typing, needed_defns, falsey_returns));
 	assert(!returns);
 	returns = returns || (truthy_returns && falsey_returns);
 	return cond;
@@ -248,29 +248,29 @@ expr_t *translate_next(
 	bound_vars.insert(param_id.name);
 
 	auto matching = [&for_defn_id, param_index, dim_offset, &matched, &failed, &params, &scrutinee_id, &scrutinee_type, &param_types, do_checks](
-			const std::unordered_set<std::string> &bound_vars,
-			const translation_env_t &tenv,
-			tracked_types_t &typing,
-			needed_defns_t &needed_defns,
-			bool &returns)
+		const std::unordered_set<std::string> &bound_vars,
+		const translation_env_t &tenv,
+		tracked_types_t &typing,
+		needed_defns_t &needed_defns,
+		bool &returns)
 	{
 		if (param_index + 1 < params.size()) {
 			return translate_next(
-					for_defn_id,
-					scrutinee_id,
-					scrutinee_type,
-					param_types,
-					do_checks,
-					bound_vars,
-					params,
-					param_index + 1,
-					dim_offset,
-					tenv,
-					typing,
-					needed_defns,
-					returns,
-					matched,
-					failed);
+				for_defn_id,
+				scrutinee_id,
+				scrutinee_type,
+				param_types,
+				do_checks,
+				bound_vars,
+				params,
+				param_index + 1,
+				dim_offset,
+				tenv,
+				typing,
+				needed_defns,
+				returns,
+				matched,
+				failed);
 		} else {
 			return matched(bound_vars, tenv, typing, needed_defns, returns);
 		}
@@ -295,23 +295,23 @@ expr_t *translate_next(
 	typing[dim] = param_types[param_index];
 
 	auto body = params[param_index]->translate(
-			for_defn_id,
-			param_id,
-			param_types[param_index],
-			do_checks,
-			bound_vars,
-			tenv,
-			typing,
-			needed_defns,
-			returns,
-			matching,
-			failed);
+		for_defn_id,
+		param_id,
+		param_types[param_index],
+		do_checks,
+		bound_vars,
+		tenv,
+		typing,
+		needed_defns,
+		returns,
+		matching,
+		failed);
 	assert(in(body, typing));
 
 	auto let = new let_t(
-			param_id,
-			dim,
-			body);
+		param_id,
+		dim,
+		body);
 	typing[let] = typing[body];
 	return let;
 }

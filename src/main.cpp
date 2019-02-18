@@ -712,22 +712,22 @@ void specialize(
 		decl_t *decl_to_check = defn_map.maybe_lookup(defn_id);
 		if (decl_to_check == nullptr) {
 			throw user_error(defn_id.id.location, "could not find a definition for %s :: %s",
-					defn_id.id.str().c_str(), defn_id.scheme->str().c_str());
+							 defn_id.id.str().c_str(), defn_id.scheme->str().c_str());
 		}
 
 		expr_t *to_check = decl_to_check->value;
 		auto as_defn = new as_t(to_check, defn_id.scheme, false);
 		check(
-				identifier_t{defn_id.repr_public(), defn_id.id.location},
-				as_defn,
-				env);
+			identifier_t{defn_id.repr_public(), defn_id.id.location},
+			as_defn,
+			env);
 
 		if (debug_compiled_env) {
 			for (auto pair : *tracked_types) {
 				log_location(
-						pair.first->get_location(),
-						"%s :: %s", pair.first->str().c_str(),
-						pair.second->str().c_str());
+					pair.first->get_location(),
+					"%s :: %s", pair.first->str().c_str(),
+					pair.second->str().c_str());
 			}
 		}
 
@@ -736,21 +736,21 @@ void specialize(
 		INDENT(6, string_format("----------- specialize %s ------------", defn_id.str().c_str()));
 		bool returns = true;
 		auto translated_decl = translate(
-				defn_id,
-				as_defn,
-				bound_vars,
-				tenv,
-				needed_defns,
-				returns);
+			defn_id,
+			as_defn,
+			bound_vars,
+			tenv,
+			needed_defns,
+			returns);
 
 		assert(returns);
 
 		if (debug_all_translated_defns) {
 			log_location(
-					defn_id.id.location,
-					"%s = %s",
-					defn_id.str().c_str(),
-					translated_decl->str().c_str());
+				defn_id.id.location,
+				"%s = %s",
+				defn_id.str().c_str(),
+				translated_decl->str().c_str());
 		}
 
 		translation_map[defn_id.id.name][type] = translated_decl;
@@ -789,13 +789,13 @@ phase_3_t specialize(const phase_2_t &phase_2) {
 		auto next_defn_id = needed_defns.begin()->first;
 		try {
 			specialize(
-					phase_2.defn_map,
-					phase_2.typing,
-					phase_2.ctor_id_map,
-					phase_2.data_ctors_map,
-					next_defn_id,
-					translation_map,
-					needed_defns);
+				phase_2.defn_map,
+				phase_2.typing,
+				phase_2.ctor_id_map,
+				phase_2.data_ctors_map,
+				next_defn_id,
+				translation_map,
+				needed_defns);
 		} catch (user_error &e) {
 			print_exception(e);
 			/* and continue */
@@ -808,9 +808,9 @@ phase_3_t specialize(const phase_2_t &phase_2) {
 		for (auto pair : translation_map) {
 			for (auto overload : pair.second) {
 				log_location(overload.second->get_location(), "%s :: %s = %s",
-						pair.first.c_str(),
-						overload.first->str().c_str(),
-						overload.second->str().c_str());
+							 pair.first.c_str(),
+							 overload.first->str().c_str(),
+							 overload.second->str().c_str());
 			}
 		}
 	}
@@ -871,30 +871,30 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 				assert(type != nullptr);
 
 				gen::value_t::ref value = gen::maybe_get_env_var(
-						env,
-						{pair.first, overload.second->expr->get_location()},
-						type);
+					env,
+					{pair.first, overload.second->expr->get_location()},
+					type);
 				if (value != nullptr) {
 					continue;
 				} else {
 					gen::set_env_var(
-							env,
+						env,
+						pair.first,
+						std::make_shared<gen::proxy_value_t>(
+							overload.second->get_location(),
 							pair.first,
-							std::make_shared<gen::proxy_value_t>(
-								overload.second->get_location(),
-								pair.first,
-								overload.first));
+							overload.first));
 					codes.push_back(
-							code_symbol_t{pair.first, overload.first, overload.second->typing, overload.second->expr}
-							);
+						code_symbol_t{pair.first, overload.first, overload.second->typing, overload.second->expr}
+						);
 				}
 			}
 		}
 		gen::builder_t program_builder(module);
 		auto init_func = program_builder.create_function(
-				"__program_init", {},
-				INTERNAL_LOC(),
-				type_arrows({type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())}));
+			"__program_init", {},
+			INTERNAL_LOC(),
+			type_arrows({type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())}));
 
 		/* initialization will happen inside of the __program_init function */
 		gen::builder_t builder(init_func);
@@ -910,17 +910,17 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 			debug_above(5, log("running gen phase for %s :: %s", name.c_str(), type->str().c_str()));
 
 			gen::gen(
-					name,
-					builder,
-					expr,
-					typing,
-					env,
-					globals);
+				name,
+				builder,
+				expr,
+				typing,
+				env,
+				globals);
 		}
 
 		builder.ensure_terminator([](gen::builder_t &builder) {
-				builder.create_return(builder.create_unit(INTERNAL_LOC(), ""));
-				});
+			builder.create_return(builder.create_unit(INTERNAL_LOC(), ""));
+		});
 
 		return {phase_3, env};
 	} catch (user_error &e) {

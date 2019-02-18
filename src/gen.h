@@ -115,6 +115,12 @@ namespace gen {
 		std::weak_ptr<function_t> parent;
 		std::string const name;
 		instructions_t instructions;
+
+        struct comparator_t {
+            bool operator()(const block_t::ref &a, const block_t::ref &b) const {
+                return a->name < b->name;
+            }
+        };
 	};
 
 	struct cast_t : public instruction_t {

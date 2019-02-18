@@ -81,6 +81,10 @@ void llvm_create_if_branch(
 		llvm::BasicBlock *else_bb);
 
 llvm::Type *llvm_deref_type(llvm::Type *llvm_pointer_type);
+llvm::CallInst *llvm_create_call_inst(
+		llvm::IRBuilder<> &builder,
+        llvm::Value *llvm_callee_value,
+		std::vector<llvm::Value *> llvm_values);
 llvm::Function *llvm_start_function(
 		llvm::IRBuilder<> &builder, 
 		llvm::Module *llvm_module,
