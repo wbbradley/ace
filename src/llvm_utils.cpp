@@ -4,7 +4,6 @@
 #include "location.h"
 #include "llvm_utils.h"
 #include "compiler.h"
-#include "llvm_types.h"
 
 const char *GC_STRATEGY = "zion";
 

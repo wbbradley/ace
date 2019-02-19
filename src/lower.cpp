@@ -139,8 +139,11 @@ namespace lower {
 			assert_not_impl();
 			return nullptr;
 		} else if (auto cast = dyncast<gen::cast_t>(value)) {
-			assert_not_impl();
-			return nullptr;
+			auto llvm_inner_value = lower_value(builder, cast->value, locals, block_map, env);
+			auto llvm_value = builder.CreateBitCast(
+				llvm_inner_value, get_llvm_type(builder, cast->type));
+			locals[cast->name] = llvm_value;
+			return llvm_value;
 		} else if (auto function = dyncast<gen::function_t>(value)) {
 			auto llvm_value = get(env, function->name, function->type, (llvm::Value *)nullptr);
 			assert(llvm_value != nullptr);
