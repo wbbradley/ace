@@ -632,7 +632,7 @@ namespace gen {
 	}
 
 	value_t::ref builder_t::create_unit(location_t location, std::string name) {
-		return std::make_shared<unit_t>(location);
+		return std::make_shared<unit_t>(location, block);
 	}
 
 	value_t::ref builder_t::create_tuple_deref(location_t location, value_t::ref value, int index, std::string name) {
