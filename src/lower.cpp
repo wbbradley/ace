@@ -119,6 +119,7 @@ namespace lower {
 		gen::value_t::ref value_,
 		std::map<std::string, llvm::Value *> &locals,
 		const std::map<gen::block_t::ref, llvm::BasicBlock *, gen::block_t::comparator_t> &block_map,
+		std::map<gen::block_t::ref, bool> &blocks_visited,
 		const env_t &env)
 	{
 		auto value = gen::resolve_proxy(value_);
@@ -139,7 +140,7 @@ namespace lower {
 			assert_not_impl();
 			return nullptr;
 		} else if (auto cast = dyncast<gen::cast_t>(value)) {
-			auto llvm_inner_value = lower_value(builder, cast->value, locals, block_map, env);
+			auto llvm_inner_value = lower_value(builder, cast->value, locals, block_map, blocks_visited, env);
 			auto llvm_value = builder.CreateBitCast(
 				llvm_inner_value, get_llvm_type(builder, cast->type));
 			locals[cast->name] = llvm_value;
@@ -165,14 +166,14 @@ namespace lower {
 		} else if (auto callsite = dyncast<gen::callsite_t>(value)) {
 			std::vector<llvm::Value *> llvm_params;
 			for (auto param: callsite->params) {
-				llvm_params.push_back(lower_value(builder, param, locals, block_map, env));
+				llvm_params.push_back(lower_value(builder, param, locals, block_map, blocks_visited, env));
 			}
-			llvm::Value *llvm_callee = lower_value(builder, callsite->callable, locals, block_map, env);
+			llvm::Value *llvm_callee = lower_value(builder, callsite->callable, locals, block_map, blocks_visited, env);
 			auto llvm_callsite = llvm_create_call_inst(builder, llvm_callee, llvm_params);
 			locals[callsite->name] = llvm_callsite;
 			return llvm_callsite;
 		} else if (auto return_ = dyncast<gen::return_t>(value)) {
-			llvm::Value *llvm_return_value = lower_value(builder, return_->value, locals, block_map, env);
+			llvm::Value *llvm_return_value = lower_value(builder, return_->value, locals, block_map, blocks_visited, env);
 			return builder.CreateRet(llvm_return_value);
 		} else if (auto load = dyncast<gen::load_t>(value)) {
 			assert_not_impl();
@@ -189,6 +190,42 @@ namespace lower {
 		}
 		assert_not_impl();
 		return nullptr;
+	}
+
+	void lower_block(
+		llvm::IRBuilder<> &builder,
+		gen::block_t::ref block,
+		std::map<std::string, llvm::Value *> &locals,
+		const std::map<gen::block_t::ref, llvm::BasicBlock *, gen::block_t::comparator_t> &block_map,
+		std::map<gen::block_t::ref, bool> &blocks_visited,
+		env_t &env)
+	{
+		auto visited_iter = blocks_visited.find(block);
+		if (visited_iter == blocks_visited.end()) {
+			assert(!blocks_visited[block]);
+
+			/* mark this block as grey */
+			blocks_visited[block] = false;
+
+			std::map<gen::block_t::ref, bool> blocks_visited;
+			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+			builder.SetInsertPoint(block_map.at(block));
+			for (auto instruction: block->instructions) {
+				locals[instruction->name] = lower_value(
+					builder,
+					instruction,
+					locals,
+					block_map,
+					blocks_visited,
+					env);
+			}
+
+			/* mark this block as white */
+			blocks_visited[block] = true;
+		} else {
+			/* if this assert fires, then a value that dominates its own use somehow */
+			assert(visited_iter->second);
+		}
 	}
 
 	void lower_function(
@@ -214,21 +251,15 @@ namespace lower {
 		}
 
 		std::map<gen::block_t::ref, llvm::BasicBlock *, gen::block_t::comparator_t> block_map;
+		std::map<gen::block_t::ref, bool> blocks_visited;
+
 		for (auto block: function->blocks) {
 			block_map[block] = llvm::BasicBlock::Create(builder.getContext(), block->name, llvm_function);
 		}
 		std::cout << llvm_print(llvm_function) << std::endl;
 
 		for (auto block: function->blocks) {
-			builder.SetInsertPoint(block_map[block]);
-			for (auto instruction: block->instructions) {
-				locals[instruction->name] = lower_value(
-					builder,
-					instruction,
-					locals,
-					block_map,
-					env);
-			}
+			lower_block(builder, block, locals, block_map, blocks_visited, env);
 		}
 	}
 

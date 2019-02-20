@@ -882,6 +882,7 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 						pair.first,
 						std::make_shared<gen::proxy_value_t>(
 							overload.second->get_location(),
+							std::weak_ptr<gen::block_t>{},
 							pair.first,
 							overload.first));
 					codes.push_back(

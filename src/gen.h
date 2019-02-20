@@ -5,12 +5,15 @@
 #include "user_error.h"
 
 namespace gen {
+	struct block_t;
+
 	struct value_t {
 		typedef std::shared_ptr<value_t> ref;
 		typedef std::vector<ref> refs;
 
-		value_t(location_t location, types::type_t::ref type, std::string name) :
+		value_t(location_t location, std::weak_ptr<block_t> parent, types::type_t::ref type, std::string name) :
 		   	location(location),
+            parent(parent),
 		   	type(types::unitize(type)),
 		   	name(name.size() == 0 ? bitter::fresh() : name)
 		{}
@@ -23,12 +26,13 @@ namespace gen {
 		location_t const location;
 		types::type_t::ref const type;
 
+        std::weak_ptr<block_t> parent;
 		std::string name;
 	};
 
 	struct proxy_value_t : public value_t {
-		proxy_value_t(location_t location, std::string name, types::type_t::ref type) :
-		   	value_t(location, type, name)
+		proxy_value_t(location_t location, std::weak_ptr<block_t> parent, std::string name, types::type_t::ref type) :
+		   	value_t(location, parent, type, name)
 		{}
 
 		void set_proxy_impl(value_t::ref impl_);
@@ -52,7 +56,6 @@ namespace gen {
 		env_t env;
 	};
 
-	struct block_t;
 	struct function_t;
 
 	struct instruction_t : public value_t {
@@ -61,19 +64,16 @@ namespace gen {
 		std::string str() const override final;
 
 		instruction_t(location_t location, types::type_t::ref type, std::weak_ptr<block_t> parent, std::string name="") :
-			value_t(location, type, name),
-			parent(parent)
+			value_t(location, parent, type, name)
 			{}
 
 		virtual ~instruction_t() {}
-
-		std::weak_ptr<block_t> parent;
 	};
 
 	typedef std::list<instruction_t::ref> instructions_t;
 
 	struct unit_t : public value_t {
-		unit_t(location_t location) : value_t(location, type_unit(INTERNAL_LOC()), "") {}
+		unit_t(location_t location, std::weak_ptr<block_t> parent) : value_t(location, parent, type_unit(INTERNAL_LOC()), "") {}
 		std::string str() const override { return C_GOOD "()" C_RESET; }
 		std::ostream &render(std::ostream &os) const override { return os << str(); }
 	};
@@ -142,7 +142,7 @@ namespace gen {
 		typedef std::weak_ptr<function_t> wref;
 
 		function_t(module_t::ref module, std::string name, location_t location, types::type_t::ref type) :
-			value_t(location, type, name),
+			value_t(location, {}, type, name),
 			parent(module)
 		{
 			assert(dyncast<const types::type_operator_t>(type));
@@ -174,7 +174,7 @@ namespace gen {
 	struct argument_t : public value_t {
 		typedef std::shared_ptr<argument_t> ref;
 		argument_t(identifier_t id, types::type_t::ref type, int index, function_t::wref function) :
-		   	value_t(id.location, type, id.name),
+		   	value_t(id.location, {}, type, id.name),
 		   	index(index),
 			function(function)
 		{}
