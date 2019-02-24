@@ -324,7 +324,7 @@ namespace gen {
 
 			/* let's add the closure argument to this function */
 			function->args.push_back(
-					std::make_shared<argument_t>(identifier_t{"closure", INTERNAL_LOC()}, closure->type, 1, function));
+					std::make_shared<argument_t>(identifier_t{"__closure", INTERNAL_LOC()}, closure->type, 1, function));
 
 			// new_env["__self"] = builder.create_gep(function->args.back(), {0});
 			int arg_index = 0;
@@ -332,7 +332,10 @@ namespace gen {
 				/* inject the closed over vars into the new environment within the closure */
 				auto new_closure_var = new_builder.create_tuple_deref(
 						typed_id.id.location,
-						function->args.back(),
+						new_builder.create_cast(typed_id.id.location,
+												function->args.back(),
+											   	tuple_type(dims),
+												"__closure_" + bitter::fresh()),
 						arg_index + 1);
 				set_env_var(new_env, typed_id.id.name, new_closure_var, true /*allow_shadowing*/);
 				++arg_index;
@@ -492,10 +495,10 @@ namespace gen {
 			} else if (auto as = dcast<const bitter::as_t*>(expr)) {
 				assert(as->force_cast);
 				return builder.create_cast(
-						as->get_location(),
-						gen(builder, as->expr, typing, env, globals),
-					   	as->scheme->instantiate(INTERNAL_LOC()),
-						name);
+					as->get_location(),
+					gen(builder, as->expr, typing, env, globals),
+					as->scheme->instantiate(INTERNAL_LOC()),
+					name);
 			} else if (auto sizeof_ = dcast<const bitter::sizeof_t*>(expr)) {
 				assert(false);
 			} else if (auto match = dcast<const bitter::match_t*>(expr)) {
@@ -615,7 +618,12 @@ namespace gen {
 		return callsite;
 	}
 
-	value_t::ref builder_t::create_cast(location_t location, value_t::ref value, types::type_t::ref type, std::string name) {
+	value_t::ref builder_t::create_cast(
+        location_t location,
+        value_t::ref value,
+        types::type_t::ref type,
+        std::string name)
+    {
 		auto cast = std::make_shared<cast_t>(location, block, value, type, name);
 		insert_instruction(cast);
 		return cast;
@@ -695,9 +703,9 @@ namespace gen {
 
 	std::ostream &builtin_t::render(std::ostream &os) const {
 		os << C_ID << name << C_RESET << " := " << id.str();
-		if (values.size() != 0) {
+		if (params.size() != 0) {
 			os << "(";
-			os << join_str(values, ", ");
+			os << join_str(params, ", ");
 			os << ")";
 		}
 		return os;
