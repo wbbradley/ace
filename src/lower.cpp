@@ -124,7 +124,7 @@ namespace lower {
 		std::map<gen::block_t::ref, bool, gen::block_t::comparator_t> &blocks_visited,
 		const env_t &env);
 
-#define assert_not_impl() do { std::cout << llvm_print(llvm_get_function(builder)) << std::endl; assert(false); } while (0)
+#define assert_not_impl() do { std::cout << llvm_print_module(*llvm_get_module(builder)) << std::endl; assert(false); } while (0)
 
 	llvm::Value *lower_builtin(llvm::IRBuilder<> &builder, const std::string &name, const std::vector<llvm::Value *> &params) {
 		log("lowering builtin %s(%s)...",
@@ -166,6 +166,7 @@ namespace lower {
 			/* scheme({}, {}, type_arrows({Float, Float})) */
 		} else if (name == "__builtin_add_ptr") {
 			/* scheme({"a"}, {}, type_arrows({tp_a, Int, tp_a})) */
+			return builder.CreateGEP(params[0], std::vector<llvm::Value *>{params[1]});
 		} else if (name == "__builtin_ptr_eq") {
 			/* scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool})) */
 		} else if (name == "__builtin_ptr_ne") {
@@ -292,6 +293,21 @@ namespace lower {
 			assert_not_impl();
 			return nullptr;
 		} else if (auto tuple = dyncast<gen::tuple_t>(value)) {
+			std::vector<llvm::Value *> llvm_dims;
+			for (auto dim: tuple->dims) {
+				llvm_dims.push_back(lower_value(builder, dim, locals, block_map, blocks_visited, env));
+			}
+			auto llvm_type = get_llvm_type(builder, tuple->type);
+			std::vector<llvm::Type *> alloc_terms{builder.getInt64Ty()};
+			log("need to allocated a tuple of type %s", llvm_print(llvm_type).c_str());
+			auto llvm_module = llvm_get_module(builder);
+			auto llvm_alloc_func_decl = llvm::cast<llvm::Function>(
+				llvm_module->getOrInsertFunction(
+					"malloc",
+					llvm_create_function_type(
+						builder,
+						alloc_terms,
+						builder.getInt8Ty()->getPointerTo())));
 			assert_not_impl();
 			return nullptr;
 		} else if (auto tuple_deref = dyncast<gen::tuple_deref_t>(value)) {
@@ -309,7 +325,7 @@ namespace lower {
 
 			std::cout << "llvm_value = " << llvm_print(llvm_value) << std::endl;
 			std::cout << "llvm_value->getType = " << llvm_print(llvm_value->getType()) << std::endl;
-			assert(tuple_deref->index == 1);
+			assert(tuple_deref->index >= 0);
 			auto gep_path = std::vector<llvm::Value *>{
 				builder.getInt32(0),
 				builder.getInt32(tuple_deref->index)};
