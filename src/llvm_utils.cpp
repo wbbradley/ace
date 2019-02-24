@@ -693,7 +693,7 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder, const types::type_t::ref &
 		} else if (name == FLOAT_TYPE) {
 			return builder.getFloatTy();
 		} else {
-			return builder.getVoidTy()->getPointerTo();
+			return builder.getInt8Ty()->getPointerTo();
 		}
 	} else if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
 		std::vector<llvm::Type *> llvm_types = get_llvm_types(builder, tuple_type->dimensions);
@@ -701,18 +701,18 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder, const types::type_t::ref &
 				builder,
 				type->repr(),
 				llvm_types);
-		return llvm_struct_type;
+		return llvm_struct_type->getPointerTo();
 	} else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
 		types::type_t::refs terms;
 		unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, terms);
 		if (terms.size() <= 1) {
-			return builder.getVoidTy()->getPointerTo();
+			return builder.getInt8Ty()->getPointerTo();
 		} else {
 			auto llvm_types = get_llvm_types(builder, terms);
 			return llvm_create_function_type(
 					builder,
 					vec_slice(llvm_types, 0, llvm_types.size()-1),
-					llvm_types.back());
+					llvm_types.back())->getPointerTo();
 		}
 	} else if (auto variable = dyncast<const types::type_variable_t>(type)) {
 		assert(false);

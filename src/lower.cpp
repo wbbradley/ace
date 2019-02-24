@@ -75,6 +75,9 @@ namespace lower {
 		} else if (auto function = dyncast<gen::function_t>(value)) {
 			types::type_t::refs type_terms;
 			unfold_binops_rassoc(ARROW_TYPE_OPERATOR, function->type, type_terms);
+			if (function->args.size() != 0 && function->args.back()->name == "__closure") {
+				type_terms.insert(type_terms.end() - 1, type_id(make_iid("__closure_t")));
+			}
 			llvm::Function *llvm_function = llvm_start_function(builder, llvm_module, type_terms, name + " :: " + function->type->repr());
 			set_llvm_value(env, name, function->type, llvm_function, false /*allow_shadowing*/);
 			return;
@@ -113,13 +116,113 @@ namespace lower {
 		throw user_error(value->get_location(), "unhandled lower for %s :: %s", value->str().c_str());
 	}
 
+	void lower_block(
+		llvm::IRBuilder<> &builder,
+		gen::block_t::ref block,
+		std::map<std::string, llvm::Value *> &locals,
+		const std::map<gen::block_t::ref, llvm::BasicBlock *, gen::block_t::comparator_t> &block_map,
+		std::map<gen::block_t::ref, bool, gen::block_t::comparator_t> &blocks_visited,
+		const env_t &env);
+
 #define assert_not_impl() do { std::cout << llvm_print(llvm_get_function(builder)) << std::endl; assert(false); } while (0)
+
+	llvm::Value *lower_builtin(llvm::IRBuilder<> &builder, const std::string &name, const std::vector<llvm::Value *> &params) {
+		log("lowering builtin %s(%s)...",
+			name.c_str(),
+			join_with(params, ", ", [](llvm::Value *lv) { return llvm_print(lv); }).c_str());
+
+		if (name == "__builtin_word_size") {
+			/* scheme({}, {}, Int) */
+		} else if (name == "__builtin_min_int") {
+			/* scheme({}, {}, Int) */
+		} else if (name == "__builtin_max_int") {
+			/* scheme({}, {}, Int) */
+		} else if (name == "__builtin_multiply_int") {
+			/* scheme({}, {}, type_arrows({Int, Int, Int})) */
+		} else if (name == "__builtin_divide_int") {
+			/* scheme({}, {}, type_arrows({Int, Int, Int})) */
+		} else if (name == "__builtin_subtract_int") {
+			/* scheme({}, {}, type_arrows({Int, Int, Int})) */
+		} else if (name == "__builtin_add_int") {
+			/* scheme({}, {}, type_arrows({Int, Int, Int})) */
+		} else if (name == "__builtin_negate_int") {
+			/* scheme({}, {}, type_arrows({Int, Int})) */
+			return builder.CreateNeg(params[0]);
+		} else if (name == "__builtin_abs_int") {
+			/* scheme({}, {}, type_arrows({Int, Int})) */
+		} else if (name == "__builtin_multiply_float") {
+			/* scheme({}, {}, type_arrows({Float, Float, Float})) */
+		} else if (name == "__builtin_divide_float") {
+			/* scheme({}, {}, type_arrows({Float, Float, Float})) */
+		} else if (name == "__builtin_subtract_float") {
+			/* scheme({}, {}, type_arrows({Float, Float, Float})) */
+		} else if (name == "__builtin_add_float") {
+			/* scheme({}, {}, type_arrows({Float, Float, Float})) */
+		} else if (name == "__builtin_abs_float") {
+			/* scheme({}, {}, type_arrows({Float, Float})) */
+		} else if (name == "__builtin_int_to_float") {
+			/* scheme({}, {}, type_arrows({Int, Float})) */
+		} else if (name == "__builtin_negate_float") {
+			/* scheme({}, {}, type_arrows({Float, Float})) */
+		} else if (name == "__builtin_add_ptr") {
+			/* scheme({"a"}, {}, type_arrows({tp_a, Int, tp_a})) */
+		} else if (name == "__builtin_ptr_eq") {
+			/* scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool})) */
+		} else if (name == "__builtin_ptr_ne") {
+			/* scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool})) */
+		} else if (name == "__builtin_ptr_load") {
+			/* scheme({"a"}, {}, type_arrows({tp_a, tv_a})) */
+		} else if (name == "__builtin_get_dim") {
+			/* scheme({"a", "b"}, {}, type_arrows({tv_a, Int, tv_b})) */
+		} else if (name == "__builtin_get_ctor_id") {
+			/* scheme({"a"}, {}, type_arrows({tv_a, Int})) */
+		} else if (name == "__builtin_int_eq") {
+			/* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+		} else if (name == "__builtin_int_ne") {
+			/* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+		} else if (name == "__builtin_int_lt") {
+			/* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+		} else if (name == "__builtin_int_lte") {
+			/* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+		} else if (name == "__builtin_int_gt") {
+			/* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+		} else if (name == "__builtin_int_gte") {
+			/* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+		} else if (name == "__builtin_float_eq") {
+			/* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+		} else if (name == "__builtin_float_ne") {
+			/* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+		} else if (name == "__builtin_float_lt") {
+			/* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+		} else if (name == "__builtin_float_lte") {
+			/* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+		} else if (name == "__builtin_float_gt") {
+			/* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+		} else if (name == "__builtin_float_gte") {
+			/* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+		} else if (name == "__builtin_print") {
+			/* scheme({}, {}, type_arrows({String, type_unit(INTERNAL_LOC())})) */
+		} else if (name == "__builtin_exit") {
+			/* scheme({}, {}, type_arrows({Int, type_bottom()})) */
+		} else if (name == "__builtin_calloc") {
+			/* scheme({"a"}, {}, type_arrows({Int, tp_a})) */
+		} else if (name == "__builtin_store_ref") {
+			/* scheme({"a"}, {}, type_arrows({ type_operator(type_id(make_iid(REF_TYPE_OPERATOR)), tv_a), tv_a, type_unit(INTERNAL_LOC())})) */
+		} else if (name == "__builtin_store_ptr") {
+			/* scheme({"a"}, {}, type_arrows({ type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a), tv_a, type_unit(INTERNAL_LOC())})) */
+		}
+
+		log("Need an impl for " c_id("%s"), name.c_str());
+		assert_not_impl();
+		return nullptr;
+	}
+
 	llvm::Value *lower_value(
 		llvm::IRBuilder<> &builder,
 		gen::value_t::ref value_,
 		std::map<std::string, llvm::Value *> &locals,
 		const std::map<gen::block_t::ref, llvm::BasicBlock *, gen::block_t::comparator_t> &block_map,
-		std::map<gen::block_t::ref, bool> &blocks_visited,
+		std::map<gen::block_t::ref, bool, gen::block_t::comparator_t> &blocks_visited,
 		const env_t &env)
 	{
 		auto value = gen::resolve_proxy(value_);
@@ -127,6 +230,9 @@ namespace lower {
 			log("skipping %s", value_->name.c_str());
 			return nullptr;
 		}
+
+		/* make sure that the block that this value is defined in has been evaluated */
+		lower_block(builder, value->parent.lock(), locals, block_map, blocks_visited, env);
 
 		llvm::Value *llvm_previously_computed_value = get(locals, value->name, (llvm::Value *)nullptr);
 		if (llvm_previously_computed_value != nullptr) {
@@ -150,8 +256,12 @@ namespace lower {
 			assert(llvm_value != nullptr);
 			return llvm_value;
 		} else if (auto builtin = dyncast<gen::builtin_t>(value)) {
-			assert_not_impl();
-			return nullptr;
+			std::vector<llvm::Value *> params;
+			for (auto param: builtin->params) {
+				params.push_back(lower_value(builder, param, locals, block_map, blocks_visited, env));
+			}
+
+			return lower_builtin(builder, builtin->id.name, params);
 		} else if (auto argument = dyncast<gen::argument_t>(value)) {
 			assert_not_impl();
 			auto llvm_value = get(locals, argument->name, (llvm::Value *)nullptr);
@@ -185,8 +295,25 @@ namespace lower {
 			assert_not_impl();
 			return nullptr;
 		} else if (auto tuple_deref = dyncast<gen::tuple_deref_t>(value)) {
-			assert_not_impl();
-			return nullptr;
+			std::stringstream ss;
+			tuple_deref->render(ss);
+			log("tuple_deref = %s", ss.str().c_str());
+			llvm::Value *llvm_value = lower_value(builder, tuple_deref->value, locals, block_map, blocks_visited, env);
+
+			/*
+			   llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
+			   llvm_value->getType()->getPointerElementType());
+			   assert(llvm_struct_type != nullptr);
+			   std::cout << "llvm_struct_type = " << llvm_print(llvm_struct_type) << std::endl;
+			   */
+
+			std::cout << "llvm_value = " << llvm_print(llvm_value) << std::endl;
+			std::cout << "llvm_value->getType = " << llvm_print(llvm_value->getType()) << std::endl;
+			assert(tuple_deref->index == 1);
+			auto gep_path = std::vector<llvm::Value *>{
+				builder.getInt32(0),
+				builder.getInt32(tuple_deref->index)};
+			return builder.CreateLoad(builder.CreateInBoundsGEP(llvm_value, gep_path));
 		}
 		assert_not_impl();
 		return nullptr;
@@ -197,9 +324,19 @@ namespace lower {
 		gen::block_t::ref block,
 		std::map<std::string, llvm::Value *> &locals,
 		const std::map<gen::block_t::ref, llvm::BasicBlock *, gen::block_t::comparator_t> &block_map,
-		std::map<gen::block_t::ref, bool> &blocks_visited,
-		env_t &env)
+		std::map<gen::block_t::ref, bool, gen::block_t::comparator_t> &blocks_visited,
+		const env_t &env)
 	{
+		if (block == nullptr) {
+			/* maybe the value we are lowering doesn't need a block */
+			return;
+		}
+
+		if (block_map.at(block) == builder.GetInsertBlock()) {
+			/* we're already checking this block right now, so be cool */
+			return;
+		}
+
 		auto visited_iter = blocks_visited.find(block);
 		if (visited_iter == blocks_visited.end()) {
 			assert(!blocks_visited[block]);
@@ -207,7 +344,6 @@ namespace lower {
 			/* mark this block as grey */
 			blocks_visited[block] = false;
 
-			std::map<gen::block_t::ref, bool> blocks_visited;
 			llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 			builder.SetInsertPoint(block_map.at(block));
 			for (auto instruction: block->instructions) {
@@ -237,21 +373,34 @@ namespace lower {
 		llvm::Value *llvm_value,
 		env_t &env)
 	{
+		std::cout << "Lowering " << name << std::endl;
+		function->render(std::cout);
+
 		llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 		llvm::Function *llvm_function = llvm::dyn_cast<llvm::Function>(llvm_value);
 		assert(llvm_function != nullptr);
 
 		// std::vector<std::shared_ptr<gen::argument_t>> args;
 		std::map<std::string, llvm::Value *> locals;
-		llvm_function->args();
 		auto arg_iterator = llvm_function->arg_begin();
 		for (auto arg: function->args) {
-			assert(arg_iterator != llvm_function->arg_end());
+			if (arg_iterator == llvm_function->arg_end()) {
+				log("arguments for %s :: %s and %s don't match",
+					function->str().c_str(),
+					function->type->str().c_str(),
+					llvm_print(llvm_function).c_str());
+				log("function = %s(%s)",
+					function->name.c_str(),
+					join_str(function->args, ", ").c_str());
+
+				assert_not_impl();
+			}
+
 			locals[arg->name] = arg_iterator++;
 		}
 
 		std::map<gen::block_t::ref, llvm::BasicBlock *, gen::block_t::comparator_t> block_map;
-		std::map<gen::block_t::ref, bool> blocks_visited;
+		std::map<gen::block_t::ref, bool, gen::block_t::comparator_t> blocks_visited;
 
 		for (auto block: function->blocks) {
 			block_map[block] = llvm::BasicBlock::Create(builder.getContext(), block->name, llvm_function);

@@ -159,16 +159,16 @@ namespace gen {
 	struct builtin_t : public instruction_t {
 		typedef std::shared_ptr<builtin_t> ref;
 
-		builtin_t(location_t location, std::weak_ptr<block_t> parent, identifier_t id, value_t::refs values, types::type_t::ref type, std::string name) :
+		builtin_t(location_t location, std::weak_ptr<block_t> parent, identifier_t id, value_t::refs params, types::type_t::ref type, std::string name) :
 			instruction_t(location, type, parent, name),
 			id(id),
-			values(values)
+			params(params)
 		{}
 
 		std::ostream &render(std::ostream &os) const override;
 
 		identifier_t id;
-		value_t::refs values;
+		value_t::refs params;
 	};
 
 	struct argument_t : public value_t {
