@@ -142,6 +142,11 @@ llvm::CallInst *llvm_create_call_inst(
 	debug_above(3, log(log_info, "creating call to %s",
 				llvm_print(llvm_function_type).c_str()));
 
+	if (llvm_function_type->getNumParams() - 1 == llvm_values.size()) {
+		/* no closure, but we need to pad the inputs in this case. */
+		llvm_values.push_back(llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()));
+	}
+
 	llvm::ArrayRef<llvm::Value *> llvm_args_array(llvm_values);
 
 	debug_above(3, log(log_info, "creating call to " c_id("%s") " %s with [%s]",
@@ -696,6 +701,9 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder, const types::type_t::ref &
 			return builder.getInt8Ty()->getPointerTo();
 		}
 	} else if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
+		if (tuple_type->dimensions.size() == 0) {
+			return builder.getInt8Ty()->getPointerTo();
+		}
 		std::vector<llvm::Type *> llvm_types = get_llvm_types(builder, tuple_type->dimensions);
 		llvm::StructType *llvm_struct_type = llvm_create_struct_type(
 				builder,

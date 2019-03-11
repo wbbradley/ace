@@ -557,6 +557,17 @@ namespace types {
 		}
 		return type->rebind(bindings);
 	}
+
+	bool is_callable(const type_t::ref &t) {
+		auto op = dyncast<const types::type_operator_t>(t);
+		if (op != nullptr) {
+			auto nested_op = dyncast<const types::type_operator_t>(op->oper);
+			if (nested_op != nullptr) {
+				return is_type_id(nested_op->oper, ARROW_TYPE_OPERATOR);
+			}
+		}
+		return false;
+	}
 }
 
 types::type_t::ref type_id(identifier_t id) {

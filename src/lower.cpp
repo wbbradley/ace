@@ -22,6 +22,8 @@ namespace lower {
 							llvm_print(overload.second).c_str());
 				}
 			}
+			print_exception(error, 10);
+			dbg();
 			throw error;
 		}
 		return llvm_value;
@@ -76,6 +78,7 @@ namespace lower {
 			types::type_t::refs type_terms;
 			unfold_binops_rassoc(ARROW_TYPE_OPERATOR, function->type, type_terms);
 			if (function->args.size() != 0 && function->args.back()->name == "__closure") {
+				/* this function will not be called directly, it will be packaged into a closure */
 				type_terms.insert(type_terms.end() - 1, type_id(make_iid("__closure_t")));
 			}
 			llvm::Function *llvm_function = llvm_start_function(builder, llvm_module, type_terms, name + " :: " + function->type->repr());
@@ -173,6 +176,7 @@ namespace lower {
 			/* scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool})) */
 		} else if (name == "__builtin_ptr_load") {
 			/* scheme({"a"}, {}, type_arrows({tp_a, tv_a})) */
+			return builder.CreateLoad(params[0]);
 		} else if (name == "__builtin_get_dim") {
 			/* scheme({"a", "b"}, {}, type_arrows({tv_a, Int, tv_b})) */
 		} else if (name == "__builtin_get_ctor_id") {
@@ -218,6 +222,22 @@ namespace lower {
 		return nullptr;
 	}
 
+	llvm::Value *lower_literal(
+		llvm::IRBuilder<> &builder,
+		types::type_t::ref type,
+		const token_t &token)
+	{
+		log("emitting literal %s :: %s",
+			token.str().c_str(),
+			type->str().c_str());
+		if (type_equality(type, type_id(make_iid(INT_TYPE)))) {
+			return builder.getZionInt(atoll(token.text.c_str()));
+		}
+
+		assert_not_impl();
+		return nullptr;
+	}
+
 	llvm::Value *lower_value(
 		llvm::IRBuilder<> &builder,
 		gen::value_t::ref value_,
@@ -240,16 +260,20 @@ namespace lower {
 			return llvm_previously_computed_value;
 		}
 
-		if (auto literal = dyncast<gen::literal_t>(value)) {
-			assert_not_impl();
-			return nullptr;
+		std::stringstream ss;
+		value->render(ss);
+		log("Lowering value %s", ss.str().c_str());
+		if (auto unit = dyncast<gen::unit_t>(value)) {
+			return llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo());
+		} else if (auto literal = dyncast<gen::literal_t>(value)) {
+			return lower_literal(builder, literal->type, literal->token);
 		} else if (auto phi_node = dyncast<gen::phi_node_t>(value)) {
 			assert_not_impl();
 			return nullptr;
 		} else if (auto cast = dyncast<gen::cast_t>(value)) {
 			auto llvm_inner_value = lower_value(builder, cast->value, locals, block_map, blocks_visited, env);
-			auto llvm_value = builder.CreateBitCast(
-				llvm_inner_value, get_llvm_type(builder, cast->type));
+			auto llvm_value = builder.CreateBitCast(llvm_inner_value,
+													get_llvm_type(builder, cast->type));
 			locals[cast->name] = llvm_value;
 			return llvm_value;
 		} else if (auto function = dyncast<gen::function_t>(value)) {
@@ -308,8 +332,11 @@ namespace lower {
 						builder,
 						alloc_terms,
 						builder.getInt8Ty()->getPointerTo())));
-			assert_not_impl();
-			return nullptr;
+			return builder.CreateBitCast(
+				builder.CreateCall(
+					llvm_alloc_func_decl,
+					std::vector<llvm::Value *>{llvm_sizeof_type(builder, llvm_type->getPointerElementType())}),
+				llvm_type);
 		} else if (auto tuple_deref = dyncast<gen::tuple_deref_t>(value)) {
 			std::stringstream ss;
 			tuple_deref->render(ss);
@@ -328,7 +355,7 @@ namespace lower {
 			assert(tuple_deref->index >= 0);
 			auto gep_path = std::vector<llvm::Value *>{
 				builder.getInt32(0),
-				builder.getInt32(tuple_deref->index)};
+					builder.getInt32(tuple_deref->index)};
 			return builder.CreateLoad(builder.CreateInBoundsGEP(llvm_value, gep_path));
 		}
 		assert_not_impl();
@@ -421,7 +448,6 @@ namespace lower {
 		for (auto block: function->blocks) {
 			block_map[block] = llvm::BasicBlock::Create(builder.getContext(), block->name, llvm_function);
 		}
-		std::cout << llvm_print(llvm_function) << std::endl;
 
 		for (auto block: function->blocks) {
 			lower_block(builder, block, locals, block_map, blocks_visited, env);
