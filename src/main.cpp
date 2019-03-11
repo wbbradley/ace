@@ -18,8 +18,11 @@
 #include "gen.h"
 #include "lower.h"
 
+#define IMPL_SUFFIX "-impl"
+
 using namespace bitter;
 
+bool get_help = false;
 bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
 bool debug_types = getenv("SHOW_TYPES") != nullptr;
 bool debug_all_expr_types = getenv("SHOW_EXPR_TYPES") != nullptr;
@@ -681,8 +684,8 @@ void specialize(
 	auto translation = get(translation_map, defn_id.id.name, type, translation_t::ref{});
 	if (translation != nullptr) {
 		debug_above(6, log("we have already specialized %s. it is %s",
-					defn_id.str().c_str(),
-					translation->str().c_str()));
+						   defn_id.str().c_str(),
+						   translation->str().c_str()));
 		return;
 	}
 
@@ -716,11 +719,57 @@ void specialize(
 		}
 
 		expr_t *to_check = decl_to_check->value;
+		// TODO: find a cleaner way to structure this function so that we don't have to use this
+		// stateful variable "final_name".
+		std::string final_name = defn_id.id.name;
+
+		if (types::is_callable(type)) {
+			/* from this point forward use the -impl suffix */
+			final_name += IMPL_SUFFIX;
+
+			assert(get(translation_map, defn_id.id.name + IMPL_SUFFIX, type, translation_t::ref{}) == nullptr);
+
+			log("specializing callable %s :: %s, should be creating something like (%s, ())",
+				defn_id.id.name.c_str(),
+				type->str().c_str(),
+				(defn_id.id.name + IMPL_SUFFIX).c_str());
+
+			expr_t *empty_closure = unit_expr(INTERNAL_LOC());
+			(*tracked_types)[empty_closure] = type;
+			expr_t *callable_var_ref = new var_t(identifier_t{final_name, INTERNAL_LOC()});
+			(*tracked_types)[callable_var_ref] = type;
+
+			expr_t *as_callable = new tuple_t(
+				INTERNAL_LOC(),
+				std::vector<bitter::expr_t *>{
+					callable_var_ref,
+					empty_closure});
+
+			translation_env_t tenv{tracked_types, ctor_id_map, data_ctors_map};
+			(*tracked_types)[as_callable] = type;
+			std::unordered_set<std::string> bound_vars;
+			bool returns = false;
+			auto callable_decl = translate(
+				defn_id,
+				as_callable,
+				bound_vars,
+				tenv,
+				needed_defns,
+				returns);
+			assert(!returns);
+
+			log("setting %s :: %s = %s",
+				defn_id.id.name.c_str(),
+				type->str().c_str(),
+				callable_decl->str().c_str());
+			translation_map[defn_id.id.name][type] = callable_decl;
+
+		}
+
 		auto as_defn = new as_t(to_check, defn_id.scheme, false);
-		check(
-			identifier_t{defn_id.repr_public(), defn_id.id.location},
-			as_defn,
-			env);
+		check(identifier_t{defn_id.repr_public(), defn_id.id.location},
+			  as_defn,
+			  env);
 
 		if (debug_compiled_env) {
 			for (auto pair : *tracked_types) {
@@ -753,13 +802,18 @@ void specialize(
 				translated_decl->str().c_str());
 		}
 
-		translation_map[defn_id.id.name][type] = translated_decl;
+		log("setting %s :: %s = %s",
+			final_name.c_str(),
+			type->str().c_str(),
+			translated_decl->str().c_str());
+		translation_map[final_name][type] = translated_decl;
 	} catch (...) {
 		assert(get(translation_map, defn_id.id.name, type, translation_t::ref{}) == nullptr);
 		translation_map[defn_id.id.name].erase(type);
 		throw;
 	}
 }
+
 struct phase_3_t {
 	phase_2_t phase_2;
 	translation_map_t translation_map;
@@ -875,8 +929,17 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 					{pair.first, overload.second->expr->get_location()},
 					type);
 				if (value != nullptr) {
+					log("found an env var for %s :: %s = %s",
+						pair.first.c_str(),
+						type->str().c_str(),
+						value->str().c_str());
 					continue;
 				} else {
+					auto expr = overload.second->expr;
+					log("making a placeholder proxy value for %s :: %s = %s",
+						pair.first.c_str(),
+						type->str().c_str(),
+						expr->str().c_str());
 					gen::set_env_var(
 						env,
 						pair.first,
@@ -886,8 +949,11 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 							pair.first,
 							overload.first));
 					codes.push_back(
-						code_symbol_t{pair.first, overload.first, overload.second->typing, overload.second->expr}
-						);
+						code_symbol_t{
+							pair.first,
+							overload.first,
+							overload.second->typing,
+							expr});
 				}
 			}
 		}
@@ -908,15 +974,20 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 
 			auto &typing = code.typing;
 			auto expr = code.expr;
-			debug_above(5, log("running gen phase for %s :: %s", name.c_str(), type->str().c_str()));
+			log("running gen phase for %s :: %s", name.c_str(), type->str().c_str());
 
-			gen::gen(
+			auto value = gen::gen(
 				name,
 				builder,
 				expr,
 				typing,
 				env,
 				globals);
+			if (!ends_with(name, IMPL_SUFFIX)) {
+				log("we should create a global variable and make sure that %s is visible",
+					value->str().c_str());
+				gen::set_env_var(env, name, value, false /*allow_shadowing*/);
+			}
 		}
 
 		builder.ensure_terminator([](gen::builder_t &builder) {
@@ -938,26 +1009,42 @@ struct job_t {
 };
 
 int run_job(const job_t &job) {
+	get_help = in_vector("-help", job.opts) || in_vector("--help", job.opts);
 	debug_compiled_env = (getenv("SHOW_ENV") != nullptr) || in_vector("-show-env", job.opts);
 	debug_types = (getenv("SHOW_TYPES") != nullptr) || in_vector("-show-types", job.opts);
 	debug_all_expr_types = (getenv("SHOW_EXPR_TYPES") != nullptr) || in_vector("-show-expr-types", job.opts);
 	debug_all_translated_defns = (getenv("SHOW_DEFN_TYPES") != nullptr) || in_vector("-show-defn-types", job.opts);
 	max_tuple_size = (getenv("ZION_MAX_TUPLE") != nullptr) ? atoi(getenv("ZION_MAX_TUPLE")) : 16;
 
-	if (job.cmd == "test") {
+	std::map<std::string, std::function<int (bool)>> cmd_map;
+	cmd_map["test"] = [&](bool explain) {
+		if (explain) {
+			std::cerr << "test: run tests" << std::endl;
+			return EXIT_FAILURE;
+		}
 		assert(alphabetize(0) == "a");
 		assert(alphabetize(1) == "b");
 		assert(alphabetize(2) == "c");
 		assert(alphabetize(26) == "aa");
 		assert(alphabetize(27) == "ab");
 		return run_job({"lower", {}, {"test_basic"}});
-	} else if (job.cmd == "find") {
+	};
+	cmd_map["find"] = [&](bool explain) {
+		if (explain) {
+			std::cerr << "find: resolve module filenames" << std::endl;
+			return EXIT_FAILURE;
+		}
 		if (job.args.size() != 1) {
 			return run_job({"help", {}, {}});
 		}
 		log("%s", compiler::resolve_module_filename(INTERNAL_LOC(), job.args[0], ".zion").c_str());
 		return EXIT_SUCCESS;
-	} else if (job.cmd == "parse") {
+	};
+   	cmd_map["parse"] = [&](bool explain) {
+		if (explain) {
+			std::cerr << "parse: parses Zion into an intermediate lambda calculus" << std::endl;
+			return EXIT_FAILURE;
+		}
 		if (job.args.size() != 1) {
 			return run_job({"help", {}});
 		}
@@ -978,33 +1065,62 @@ int run_job(const job_t &job) {
 			return EXIT_SUCCESS;
 		}
 		return EXIT_FAILURE;
-	} else if (job.cmd == "compile") {
+	};
+	cmd_map["compile"] = [&](bool explain) {
+		if (explain) {
+			std::cerr << "compile: parses and compiles Zion into an intermediate lambda calculus. this performs type checking" << std::endl;
+			return EXIT_FAILURE;
+		}
 		if (job.args.size() != 1) {
 			return run_job({"help", {}});
 		} else {
 			auto phase_2 = compile(job.args[0]);
+			if (user_error::errors_occurred()) {
+				return EXIT_FAILURE;
+			}
 			phase_2.dump(std::cout);
 
 			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		}
-	} else if (job.cmd == "specialize") {
+	};
+	cmd_map["specialize"] = [&](bool explain) {
+		if (explain) {
+			std::cerr << "specialize: compiles, then specializes the Zion lambda calculus to a monomorphized form" << std::endl;
+			return EXIT_FAILURE;
+		}
 		if (job.args.size() != 1) {
 			return run_job({"help", {}});
 		} else {
 			auto phase_3 = specialize(compile(job.args[0]));
+			if (user_error::errors_occurred()) {
+				return EXIT_FAILURE;
+			}
 			phase_3.dump(std::cout);
 			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		}
-	} else if (job.cmd == "ssa-gen") {
+	};
+	cmd_map["ssa-gen"] = [&](bool explain) {
+		if (explain) {
+			std::cerr << "ssa-gen: compiles, specializes, then ssa-gens output to Zion SSA form" << std::endl;
+			return EXIT_FAILURE;
+		}
 		if (job.args.size() != 1) {
 			return run_job({"help", {}});
 		} else {
 			auto phase_4 = ssa_gen(specialize(compile(job.args[0])));
+			if (user_error::errors_occurred()) {
+				return EXIT_FAILURE;
+			}
 			phase_4.dump(std::cout);
 
 			return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
 		}
-	} else if (job.cmd == "lower") {
+	};
+	cmd_map["lower"] = [&](bool explain) {
+		if (explain) {
+			std::cerr << "lower: compiles, specializes, ssa-gens, then lowers output to LLIR" << std::endl;
+			return EXIT_FAILURE;
+		}
 		if (job.args.size() < 1) {
 			return run_job({"help", {}});
 		} else {
@@ -1016,14 +1132,15 @@ int run_job(const job_t &job) {
 
 			return lower::lower(phase_4.phase_3.phase_2.compilation->program_name + ".main", phase_4.env);
 		}
-	} else if (job.cmd == "help") {
-		std::cout << "zion {compile, test}" << std::endl;
+	};
+	if (!in(job.cmd, cmd_map)) {
+		std::cerr << "bad CLI invocation of " << job.cmd << " " << join(job.args, " ") << std::endl;
+		for (auto pair : cmd_map) {
+			pair.second(true /*explain*/);
+		}
 		return EXIT_FAILURE;
-	} else if (!starts_with(job.cmd, "-")) {
-		return run_job({"ssa-gen", {}, {job.cmd}});
 	} else {
-		panic(string_format("bad CLI invocation of %s %s", job.cmd.c_str(), join(job.args, " ").c_str()));
-		return EXIT_FAILURE;
+		return cmd_map[job.cmd](get_help);
 	}
 }
 

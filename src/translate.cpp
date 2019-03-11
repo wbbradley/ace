@@ -378,7 +378,11 @@ location_t translation_t::get_location() const {
 
 types::type_t::ref translation_env_t::get_type(const bitter::expr_t *e) const {
 	auto t = (*tracked_types)[e];
-	assert(t != nullptr);
+	if (t == nullptr) {
+		log(log_error, "translation env does not contain a type for %s",
+			e->str().c_str());
+		assert(false && !!"missing type for expression");
+	}
 	return t;
 }
 

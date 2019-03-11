@@ -324,7 +324,10 @@ namespace gen {
 
 			/* let's add the closure argument to this function */
 			function->args.push_back(
-					std::make_shared<argument_t>(identifier_t{"__closure", INTERNAL_LOC()}, closure->type, 1, function));
+					std::make_shared<argument_t>(identifier_t{"__closure", INTERNAL_LOC()},
+												 closure->type,
+												 1,
+												 function));
 
 			// new_env["__self"] = builder.create_gep(function->args.back(), {0});
 			int arg_index = 0;
@@ -346,9 +349,15 @@ namespace gen {
 
 		gen("", new_builder, lambda->body, typing, new_env, globals);
 		new_builder.ensure_terminator([](builder_t &builder) {
-				builder.create_return(builder.create_unit(INTERNAL_LOC()));
-				});
-		return free_vars.count() != 0 ? closure : function;
+			builder.create_return(builder.create_unit(INTERNAL_LOC()));
+		});
+		return (
+			(free_vars.count() != 0)
+			? builder.create_cast(closure->get_location(),
+								  closure,
+								  function->type,
+								  "__closure_as_func_" + bitter::fresh())
+			: function);
 	}
 
 	value_t::ref gen(

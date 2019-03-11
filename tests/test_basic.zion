@@ -1,21 +1,7 @@
-fn f(mf Maybe Float) {
-    var p
-    match mf {
-        Just(a) {
-            p = a > 4.0 ? "big" : "small"
-        }
-        Nothing {
-            p = "nothing"
-        }
-    }
-    print(p)
-}
-
 fn main() {
-    xyz := new [Int]
-    append(xyz, 1)
-    print(xyz[0])
-    print(xyz[0] == 2 ? "no" : "yes")
-    f(Just(4.5))
-    f(Nothing)
+    x := 4
+    let f = fn () {
+        return x
+    }
+    print(f())
 }
