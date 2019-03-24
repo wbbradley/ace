@@ -1,22 +1,18 @@
 ZION=$(HOME)/var/zion/zion
 
-zion:
-	mkdir -p $(HOME)/var/zion
-	(cd $(HOME)/var/zion && \
-		make -j8 2>&1)
+.PHONY: zion
+zion: $(HOME)/var/zion/build.ninja
+	-((rm zion 2>&1) > /dev/null; true)
+	ninja -C $(HOME)/var/zion zion
+	ln -s $(ZION) zion
 
-clean: $(LLVM_DIR)/LLVMConfig.cmake
-	(cd $(HOME)/var && \
-		rm -rf zion && \
-		mkdir -p zion && \
-		cd zion && \
-		cmake $(HOME)/src/zion)
+clean:
+	(cd $(HOME)/var && rm -rf zion)
+	-rm zion
 
-clean-zion: clean
-	make zion
+$(HOME)/var/zion/build.ninja: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
+	-mkdir -p $(HOME)/var/zion
+	(cd $(HOME)/var/zion && cmake $(HOME)/src/zion -G Ninja)
 
-clean-test: clean-zion
-	make test
-
-test: zion
+test: $(ZION)
 	$(ZION) compile test_basic
