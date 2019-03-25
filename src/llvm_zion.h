@@ -1,10 +1,10 @@
 #pragma once
 
+#include <llvm/CodeGen/LinkAllCodegenComponents.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/GenericValue.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/ExecutionEngine/RuntimeDyld.h>
-#include <llvm/CodeGen/LinkAllCodegenComponents.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/IRBuilder.h>

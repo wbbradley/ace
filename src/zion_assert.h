@@ -1,11 +1,8 @@
-#include "logger_decls.h"
 #include <csignal>
 
-void _emit_assert(
-		const char *filename,
-		int line,
-		const char *assertion,
-		const char *function);
+#include "logger_decls.h"
+
+void _emit_assert(const char *filename, int line, const char *assertion, const char *function);
 
 #ifdef assert
 #undef assert
@@ -18,8 +15,14 @@ void _emit_assert(
 #define verbose() (getenv("DEBUG") != nullptr)
 
 #ifdef ZION_DEBUG
-#define assert(x) do { if (!(x)) { _emit_assert(__FILE__, __LINE__, #x, __PRETTY_FUNCTION__); } } while (0)
-#define null_impl() (_emit_assert(__FILE__, __LINE__, "null impl", __PRETTY_FUNCTION__), nullptr)
+#define assert(x)                                                                             \
+    do {                                                                                      \
+        if (!(x)) {                                                                           \
+            _emit_assert(__FILE__, __LINE__, #x, __PRETTY_FUNCTION__);                        \
+        }                                                                                     \
+    } while (0)
+#define null_impl()                                                                           \
+    (_emit_assert(__FILE__, __LINE__, "null impl", __PRETTY_FUNCTION__), nullptr)
 #else
 #define assert(x) ((void)0)
 #define null_impl() nullptr
@@ -32,11 +35,20 @@ void _emit_assert(
 #endif
 
 #ifndef ship_assert
-#define ship_assert(x) do { int y = (x); if (!y) panic(#x); } while (0)
+#define ship_assert(x)                                                                        \
+    do {                                                                                      \
+        int y = (x);                                                                          \
+        if (!y)                                                                               \
+            panic(#x);                                                                        \
+    } while (0)
 #endif
 
 #ifdef ZION_DEBUG
-#define assert_implies(x, y) do { if (x) assert(y); } while (0)
+#define assert_implies(x, y)                                                                  \
+    do {                                                                                      \
+        if (x)                                                                                \
+            assert(y);                                                                        \
+    } while (0)
 #else
 #define assert_implies(x, y)
 #endif
@@ -46,4 +58,3 @@ void _emit_assert(
 #endif
 
 #define panic(msg) panic_(__FILE__, __LINE__, msg)
-

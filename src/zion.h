@@ -1,19 +1,20 @@
 #pragma once
-#include "zion_assert.h"
-#include <cstdlib>
+#include <algorithm>
 #include <cctype>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string>
-#include <math.h>
+#include <cstdlib>
 #include <glob.h>
-#include <algorithm> 
 #include <locale>
+#include <math.h>
 #include <memory>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
+
+#include "builtins.h"
 #include "logger_decls.h"
 #include "ptr.h"
-#include "builtins.h"
+#include "zion_assert.h"
 
 #define ZION 1
 #define GLOBAL_SCOPE_NAME "std"

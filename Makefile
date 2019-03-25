@@ -16,3 +16,8 @@ $(HOME)/var/zion/build.ninja: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 
 test: $(ZION)
 	$(ZION) compile test_basic
+
+.PHONY: format
+format:
+	clang-format -style=file -i src/*.cpp src/*.h
+
