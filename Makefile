@@ -2,7 +2,7 @@ ZION=$(HOME)/var/zion/zion
 
 .PHONY: zion
 zion: $(HOME)/var/zion/build.ninja
-	-((rm zion 2>&1) > /dev/null; true)
+	-rm zion 2>/dev/null
 	ninja -C $(HOME)/var/zion zion
 	ln -s $(ZION) zion
 
