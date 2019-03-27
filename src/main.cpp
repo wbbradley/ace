@@ -44,7 +44,8 @@ int run_program(std::string executable, std::vector<const char *> args) {
     pid_t pid = fork();
 
     if (pid == -1) {
-        perror(string_format("unable to fork() child process %s", executable.c_str()).c_str());
+        perror(
+            string_format("unable to fork() child process %s", executable.c_str()).c_str());
     } else if (pid > 0) {
         /* parent */
         int status;
@@ -247,11 +248,12 @@ void check_decls(std::string entry_point_name,
 
             /* keep trying other decls, and pretend like this function gives back
              * whatever the user wants... */
-            env.extend(decl->var,
-                       type_arrow(type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC()))
-                           ->generalize(env.get_predicate_map())
-                           ->normalize(),
-                       false /*allow_subscoping*/);
+            env.extend(
+                decl->var,
+                type_arrow(type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC()))
+                    ->generalize(env.get_predicate_map())
+                    ->normalize(),
+                false /*allow_subscoping*/);
         }
     }
 }
@@ -379,7 +381,8 @@ void check_instance_for_type_class_overloads(instance_t *instance,
                              "extraneous declaration %s found in instance %s %s "
                              "(names_checked = {%s})",
                              decl->var.str().c_str(), type_class->id.str().c_str(),
-                             instance->type->str().c_str(), join(names_checked, ", ").c_str());
+                             instance->type->str().c_str(),
+                             join(names_checked, ", ").c_str());
         }
     }
 }
@@ -539,8 +542,8 @@ class defn_map_t {
         }
 
         for (auto pair : overrides_map) {
-            debug_above(8,
-                        log("populating defn_map with override %s", pair.first.str().c_str()));
+            debug_above(
+                8, log("populating defn_map with override %s", pair.first.str().c_str()));
             assert(!in(pair.first, map));
             map[pair.first] = pair.second;
         }
@@ -773,15 +776,15 @@ void specialize(defn_map_t const &defn_map,
 
         if (debug_compiled_env) {
             for (auto pair : *tracked_types) {
-                log_location(pair.first->get_location(), "%s :: %s", pair.first->str().c_str(),
-                             pair.second->str().c_str());
+                log_location(pair.first->get_location(), "%s :: %s",
+                             pair.first->str().c_str(), pair.second->str().c_str());
             }
         }
 
         translation_env_t tenv{tracked_types, ctor_id_map, data_ctors_map};
         std::unordered_set<std::string> bound_vars;
-        INDENT(6,
-               string_format("----------- specialize %s ------------", defn_id.str().c_str()));
+        INDENT(6, string_format("----------- specialize %s ------------",
+                                defn_id.str().c_str()));
         bool returns = true;
         auto translated_decl =
             translate(defn_id, as_defn, bound_vars, tenv, needed_defns, returns);

@@ -107,8 +107,8 @@ unification_t bind(std::string a, type_t::ref type, const std::set<std::string> 
 
         type =
             type_variable(gensym(type->get_location()), set_union(instances, tv->predicates));
-        debug_above(10, log("adding a binding from %s to new freshie %s", tv->id.str().c_str(),
-                            type->str().c_str()));
+        debug_above(10, log("adding a binding from %s to new freshie %s",
+                            tv->id.str().c_str(), type->str().c_str()));
         unification.bindings[tv->id.name] = type;
     } else {
         for (auto instance : instances) {

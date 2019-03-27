@@ -77,8 +77,8 @@ void check_patterns(location_t location,
                     const translation_env_t &tenv,
                     const pattern_blocks_t &pattern_blocks,
                     types::type_t::ref pattern_value_type) {
-    match::Pattern::ref uncovered =
-        match::all_of(location, maybe<identifier_t>(make_iid(expr)), tenv, pattern_value_type);
+    match::Pattern::ref uncovered = match::all_of(
+        location, maybe<identifier_t>(make_iid(expr)), tenv, pattern_value_type);
     for (auto pattern_block : pattern_blocks) {
         match::Pattern::ref covering =
             pattern_block->predicate->get_pattern(pattern_value_type, tenv);
@@ -116,7 +116,8 @@ expr_t *translate_match_expr(const defn_id_t &for_defn_id,
                              bool &returns) {
     auto expected_type = tenv.get_type(match);
 
-    debug_above(6, log("match expression is expecting type %s", expected_type->str().c_str()));
+    debug_above(6,
+                log("match expression is expecting type %s", expected_type->str().c_str()));
 
     auto scrutinee_expr =
         texpr(for_defn_id, match->scrutinee, bound_vars, tenv, typing, needed_defns, returns);
@@ -237,9 +238,9 @@ expr_t *translate_next(const defn_id_t &for_defn_id,
                                  0 /*ignored in gen phase*/);
     typing[dim] = param_types[param_index];
 
-    auto body = params[param_index]->translate(for_defn_id, param_id, param_types[param_index],
-                                               do_checks, bound_vars, tenv, typing,
-                                               needed_defns, returns, matching, failed);
+    auto body = params[param_index]->translate(
+        for_defn_id, param_id, param_types[param_index], do_checks, bound_vars, tenv, typing,
+        needed_defns, returns, matching, failed);
     assert(in(body, typing));
 
     auto let = new let_t(param_id, dim, body);
@@ -341,11 +342,12 @@ expr_t *tuple_predicate_t::translate(const defn_id_t &for_defn_id,
                                      translate_continuation_t &failed) const {
     auto tuple_type = safe_dyncast<const types::type_tuple_t>(scrutinee_type);
 
-    return (params.size() != 0) ? translate_next(for_defn_id, scrutinee_id, scrutinee_type,
-                                                 tuple_type->dimensions, do_checks, bound_vars,
-                                                 params, 0, 0 /*dim_offset*/, tenv, typing,
-                                                 needed_defns, returns, matched, failed)
-                                : matched(bound_vars, tenv, typing, needed_defns, returns);
+    return (params.size() != 0)
+               ? translate_next(for_defn_id, scrutinee_id, scrutinee_type,
+                                tuple_type->dimensions, do_checks, bound_vars, params, 0,
+                                0 /*dim_offset*/, tenv, typing, needed_defns, returns,
+                                matched, failed)
+               : matched(bound_vars, tenv, typing, needed_defns, returns);
 }
 
 void irrefutable_predicate_t::get_bound_vars(

@@ -209,7 +209,8 @@ void proxy_value_t::set_proxy_impl(value_t::ref impl_) {
     }
     if (impl != nullptr) {
         std::stringstream ss;
-        ss << "set_proxy_impl called on a value that already has an impl value: setting equal "
+        ss << "set_proxy_impl called on a value that already has an impl value: setting "
+              "equal "
               "to ";
         impl_->render(ss);
         ss << " when we already have ";
@@ -445,7 +446,8 @@ value_t::ref gen(std::string name,
             return builder.create_branch(break_->get_location(), builder.break_to_block);
         } else if (auto continue_ = dcast<const bitter::continue_t *>(expr)) {
             assert(builder.continue_to_block != nullptr);
-            return builder.create_branch(continue_->get_location(), builder.continue_to_block);
+            return builder.create_branch(continue_->get_location(),
+                                         builder.continue_to_block);
         } else if (auto while_ = dcast<const bitter::while_t *>(expr)) {
             auto cond_block = builder.create_block("while_cond" + bitter::fresh(),
                                                    false /*insert_in_new_block*/);

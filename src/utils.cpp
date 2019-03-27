@@ -500,7 +500,8 @@ std::string get_pkg_config_libs(std::string pkg_name) {
 void check_command_line_text(location_t location, std::string text) {
     for (auto ch : "`$%&()|\"'") {
         if (text.find(ch) != std::string::npos) {
-            throw user_error(location, "illegal command-line text found in link in statement");
+            throw user_error(location,
+                             "illegal command-line text found in link in statement");
         }
     }
 }

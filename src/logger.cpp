@@ -201,7 +201,10 @@ void note_logger::logv(log_level_t level,
     }
 }
 
-void note_logger::log(log_level_t level, const location_t *location, const char *format, ...) {
+void note_logger::log(log_level_t level,
+                      const location_t *location,
+                      const char *format,
+                      ...) {
     va_list args;
     va_start(args, format);
     logv(level, location, format, args);
@@ -584,7 +587,8 @@ void print_stacktrace(FILE *p_out, unsigned int p_max_frames) {
             } else {
                 // demangling failed. Output function name as a C function with
                 // no arguments.
-                write_fp(p_out, "  %s : %s() + %s\n", symbollist[i], begin_name, begin_offset);
+                write_fp(p_out, "  %s : %s() + %s\n", symbollist[i], begin_name,
+                         begin_offset);
             }
         } else {
             // couldn't parse the line? print the whole line.
@@ -623,9 +627,9 @@ standard_logger::~standard_logger() {
     close();
 }
 
-#define CaseError(error)                                                                      \
-    case error:                                                                               \
-        error_string = #error;                                                                \
+#define CaseError(error)                                                                     \
+    case error:                                                                              \
+        error_string = #error;                                                               \
         break
 
 bool check_errno(const char *tag) {

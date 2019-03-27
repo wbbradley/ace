@@ -71,30 +71,30 @@ bool zion_lexer_t::get_token(token_t &token, bool &newline, std::vector<token_t>
     return token.tk != tk_none;
 }
 
-#define gts_keyword_case_ex(wor, letter, _gts)                                                \
-    case gts_##wor:                                                                           \
-        if (ch != letter) {                                                                   \
-            assert(tk == tk_identifier);                                                      \
-            gts = gts_token;                                                                  \
-            scan_ahead = false;                                                               \
-        } else {                                                                              \
-            gts = _gts;                                                                       \
-        }                                                                                     \
+#define gts_keyword_case_ex(wor, letter, _gts)                                               \
+    case gts_##wor:                                                                          \
+        if (ch != letter) {                                                                  \
+            assert(tk == tk_identifier);                                                     \
+            gts = gts_token;                                                                 \
+            scan_ahead = false;                                                              \
+        } else {                                                                             \
+            gts = _gts;                                                                      \
+        }                                                                                    \
         break
 
 #define gts_keyword_case(wor, letter, word) gts_keyword_case_ex(wor, letter, gts_##word)
 
-#define gts_keyword_case_last_ex(word, _gts)                                                  \
-    case _gts:                                                                                \
-        if (istchar(ch)) {                                                                    \
-            assert(tk == tk_identifier);                                                      \
-            gts = gts_token;                                                                  \
-            scan_ahead = false;                                                               \
-        } else {                                                                              \
-            tk = tk_##word;                                                                   \
-            gts = gts_end;                                                                    \
-            scan_ahead = false;                                                               \
-        }                                                                                     \
+#define gts_keyword_case_last_ex(word, _gts)                                                 \
+    case _gts:                                                                               \
+        if (istchar(ch)) {                                                                   \
+            assert(tk == tk_identifier);                                                     \
+            gts = gts_token;                                                                 \
+            scan_ahead = false;                                                              \
+        } else {                                                                             \
+            tk = tk_##word;                                                                  \
+            gts = gts_end;                                                                   \
+            scan_ahead = false;                                                              \
+        }                                                                                    \
         break;
 
 #define gts_keyword_case_last(word) gts_keyword_case_last_ex(word, gts_##word)
@@ -667,7 +667,8 @@ bool zion_lexer_t::_get_tokens() {
             }
             break;
         case gts_error:
-            log(log_warning, "token lexing error occurred, so far = (%s)", token_text.c_str());
+            log(log_warning, "token lexing error occurred, so far = (%s)",
+                token_text.c_str());
             break;
         case gts_end:
             break;

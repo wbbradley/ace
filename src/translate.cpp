@@ -99,8 +99,8 @@ expr_t *texpr(const defn_id_t &for_defn_id,
             assert(lambda_terms.size() >= 2);
             if (!lambda_returns &&
                 !unify(lambda_terms.back(), type_unit(INTERNAL_LOC())).result) {
-                auto error =
-                    user_error(lambda->get_location(), "not all control paths return a value");
+                auto error = user_error(lambda->get_location(),
+                                        "not all control paths return a value");
                 error.add_info(lambda_terms.back()->get_location(), "return type is %s",
                                lambda_terms.back()->str().c_str());
                 throw error;
@@ -109,10 +109,10 @@ expr_t *texpr(const defn_id_t &for_defn_id,
             typing[new_lambda] = type;
             return new_lambda;
         } else if (auto application = dcast<application_t *>(expr)) {
-            auto a = texpr(for_defn_id, application->a, bound_vars, tenv, typing, needed_defns,
-                           returns);
-            auto b = texpr(for_defn_id, application->b, bound_vars, tenv, typing, needed_defns,
-                           returns);
+            auto a = texpr(for_defn_id, application->a, bound_vars, tenv, typing,
+                           needed_defns, returns);
+            auto b = texpr(for_defn_id, application->b, bound_vars, tenv, typing,
+                           needed_defns, returns);
             auto new_app = new application_t(a, b);
             typing[new_app] = type;
             return new_app;
@@ -149,8 +149,8 @@ expr_t *texpr(const defn_id_t &for_defn_id,
                 if (returns && !starts_already_returned) {
                     throw user_error(stmt->get_location(), "this code will never run");
                 }
-                statements.push_back(
-                    texpr(for_defn_id, stmt, bound_vars, tenv, typing, needed_defns, returns));
+                statements.push_back(texpr(for_defn_id, stmt, bound_vars, tenv, typing,
+                                           needed_defns, returns));
             }
             auto new_block = new block_t(statements);
             typing[new_block] = type;
@@ -210,8 +210,8 @@ expr_t *texpr(const defn_id_t &for_defn_id,
         } else if (auto builtin = dcast<builtin_t *>(expr)) {
             std::vector<expr_t *> exprs;
             for (auto expr : builtin->exprs) {
-                exprs.push_back(
-                    texpr(for_defn_id, expr, bound_vars, tenv, typing, needed_defns, returns));
+                exprs.push_back(texpr(for_defn_id, expr, bound_vars, tenv, typing,
+                                      needed_defns, returns));
             }
             auto new_builtin = new builtin_t(
                 dynamic_cast<var_t *>(texpr(for_defn_id, builtin->var, bound_vars, tenv,

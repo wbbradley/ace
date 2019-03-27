@@ -90,7 +90,8 @@ expr_t *parse_assign_tuple(parse_state_t &ps, tuple_t *tuple) {
 expr_t *parse_var_decl(parse_state_t &ps, bool is_let, bool allow_tuple_destructuring) {
     if (ps.token.tk == tk_lparen) {
         if (!is_let) {
-            throw user_error(ps.token.location, "mutable tuple destructuring is not yet impl");
+            throw user_error(ps.token.location,
+                             "mutable tuple destructuring is not yet impl");
         }
         if (!allow_tuple_destructuring) {
             throw user_error(ps.token.location, "tuple destructuring is not allowed here");
@@ -126,13 +127,14 @@ expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let) {
         eat_token();
         initializer = parse_expr(ps);
     } else {
-        initializer = new application_t(new var_t(ps.id_mapped(identifier_t{"new", location})),
-                                        unit_expr(INTERNAL_LOC()));
+        initializer =
+            new application_t(new var_t(ps.id_mapped(identifier_t{"new", location})),
+                              unit_expr(INTERNAL_LOC()));
     }
 
     if (!is_let) {
-        initializer = new application_t(new var_t(ps.id_mapped(identifier_t{"Ref", location})),
-                                        initializer);
+        initializer = new application_t(
+            new var_t(ps.id_mapped(identifier_t{"Ref", location})), initializer);
     }
 
     return new let_t(var_id, initializer, parse_block(ps, false /*expression_means_return*/));
@@ -421,11 +423,12 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 
             auto range_body = new application_t(
                 new application_t(
-                    new application_t(new var_t(ps.id_mapped(identifier_t{"Range", location})),
-                                      new var_t(range_min)),
                     new application_t(
-                        new application_t(new var_t(make_iid("std.-")), new var_t(range_next)),
-                        new var_t(range_min))),
+                        new var_t(ps.id_mapped(identifier_t{"Range", location})),
+                        new var_t(range_min)),
+                    new application_t(new application_t(new var_t(make_iid("std.-")),
+                                                        new var_t(range_next)),
+                                      new var_t(range_min))),
                 new var_t(range_max));
 
             auto let_range_max = new let_t(
@@ -440,10 +443,10 @@ expr_t *parse_array_literal(parse_state_t &ps) {
                 range_next,
                 (i == 2)
                     ? exprs[1]
-                    : new application_t(
-                          new application_t(new var_t(make_iid("std.+")),
-                                            new literal_t(token_t{location, tk_integer, "1"})),
-                          new var_t(range_min)),
+                    : new application_t(new application_t(new var_t(make_iid("std.+")),
+                                                          new literal_t(token_t{
+                                                              location, tk_integer, "1"})),
+                                        new var_t(range_min)),
                 let_range_max);
 
             auto let_range_min = new let_t(range_min, exprs[0], let_range_next);
@@ -469,7 +472,8 @@ expr_t *parse_array_literal(parse_state_t &ps) {
     for (auto expr : exprs) {
         stmts.push_back(new application_t(
             new application_t(
-                new var_t(ps.id_mapped(identifier_t{"append", ps.token.location})), array_var),
+                new var_t(ps.id_mapped(identifier_t{"append", ps.token.location})),
+                array_var),
             expr));
     }
 
@@ -668,8 +672,8 @@ expr_t *parse_prefix_expr(parse_state_t &ps) {
 expr_t *parse_times_expr(parse_state_t &ps) {
     expr_t *expr = parse_prefix_expr(ps);
 
-    while (!ps.line_broke() &&
-           (ps.token.tk == tk_times || ps.token.tk == tk_divide_by || ps.token.tk == tk_mod)) {
+    while (!ps.line_broke() && (ps.token.tk == tk_times || ps.token.tk == tk_divide_by ||
+                                ps.token.tk == tk_mod)) {
         identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
         ps.advance();
 
@@ -688,7 +692,8 @@ expr_t *parse_plus_expr(parse_state_t &ps) {
         identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
         ps.advance();
 
-        expr = new application_t(new application_t(new var_t(op), expr), parse_times_expr(ps));
+        expr =
+            new application_t(new application_t(new var_t(op), expr), parse_times_expr(ps));
     }
 
     return expr;
@@ -1008,10 +1013,12 @@ while_t *parse_while(parse_state_t &ps) {
     token_t condition_token = ps.token;
     if (condition_token.is_ident(K(match))) {
         /* sugar for while match ... which becomes while true { match ... } */
-        return new while_t(new var_t(ps.id_mapped(identifier_t{"True", while_token.location})),
-                           parse_match(ps));
+        return new while_t(
+            new var_t(ps.id_mapped(identifier_t{"True", while_token.location})),
+            parse_match(ps));
     } else {
-        return new while_t(parse_expr(ps), parse_block(ps, false /*expression_means_return*/));
+        return new while_t(parse_expr(ps),
+                           parse_block(ps, false /*expression_means_return*/));
     }
 }
 

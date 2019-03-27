@@ -38,7 +38,10 @@ class standard_logger : public logger {
     standard_logger(const std::string &name, const std::string &root_file_path);
     virtual ~standard_logger();
 
-    void logv(log_level_t level, const location_t *location, const char *format, va_list args);
+    void logv(log_level_t level,
+              const location_t *location,
+              const char *format,
+              va_list args);
     void log(log_level_t level, const location_t *location, const char *format, ...);
     void close();
     void open();
@@ -102,7 +105,7 @@ struct indent_logger : logger {
 };
 
 #ifdef ZION_DEBUG
-#define INDENT(level, message)                                                                \
+#define INDENT(level, message)                                                               \
     indent_logger _indent(INTERNAL_LOC(), level, debug_above_else(level, message, ""))
 #else
 #define INDENT(level, message)

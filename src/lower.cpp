@@ -5,9 +5,8 @@
 
 namespace lower {
 
-typedef std::map<std::string,
-                 std::map<types::type_t::ref, llvm::Value *, types::compare_type_t>>
-    env_t;
+using env_t =
+    std::map<std::string, std::map<types::type_t::ref, llvm::Value *, types::compare_type_t>>;
 
 llvm::Value *maybe_get_llvm_value(const env_t &env,
                                   std::string name,
@@ -40,8 +39,9 @@ void set_llvm_value(env_t &env,
                     types::type_t::ref type,
                     llvm::Value *llvm_value,
                     bool allow_shadowing) {
-    debug_above(5, log("setting env[%s][%s] = %s", name.c_str(), type->str().c_str(),
-                       llvm_print(llvm_value).c_str()));
+    debug_above(5,
+                log("setting env[%s][%s] = %s", name.c_str(),
+                    type->str().c_str(), llvm_print(llvm_value).c_str()));
     assert(name.size() != 0);
     auto existing_llvm_value = get(env, name, type, static_cast<llvm::Value *>(nullptr));
     if (existing_llvm_value == nullptr) {
@@ -65,6 +65,21 @@ llvm::Constant *lower_decl(std::string name,
                        value->str().c_str(), value->type->str().c_str()));
 
     assert(value != nullptr);
+    auto new_value = gen::resolve_proxy(value);
+
+    if (new_value == nullptr) {
+        llvm::Value *llvm_value = maybe_get_llvm_value(env, name, value->type);
+        if (llvm_value != nullptr) {
+            llvm::Constant *llvm_constant = llvm::dyn_cast<llvm::Constant>(llvm_value);
+            assert(llvm_constant != nullptr);
+            return llvm_constant;
+        }
+        log(log_error, "what should I do with unbound proxy value for %s (%s)", name.c_str(),
+            value->str().c_str());
+        dbg();
+    } else {
+        value = new_value;
+    }
 
     if (auto unit = dyncast<gen::unit_t>(value)) {
         return llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo());
@@ -121,7 +136,8 @@ llvm::Constant *lower_decl(std::string name,
         for (auto dim : tuple->dims) {
             llvm::Value *llvm_value = maybe_get_llvm_value(env, dim->name, dim->type);
             if (llvm_value == nullptr) {
-                log("%s does not exist, normally this would have been registered by a call to "
+                log("%s does not exist, normally this would have been registered by a call "
+                    "to "
                     "lower::set_llvm_value. Going to try to recurse for it...",
                     dim->name.c_str());
                 llvm_value = lower_decl(dim->name, builder, llvm_module, dim, env);
@@ -148,7 +164,6 @@ llvm::Constant *lower_decl(std::string name,
         assert(false);
         return nullptr;
     }
-    dbg();
 
     throw user_error(value->get_location(), "unhandled lower for %s", value->str().c_str());
     return nullptr;
@@ -163,10 +178,10 @@ void lower_block(
     std::map<gen::block_t::ref, bool, gen::block_t::comparator_t> &blocks_visited,
     const env_t &env);
 
-#define assert_not_impl()                                                                     \
-    do {                                                                                      \
-        std::cout << llvm_print_module(*llvm_get_module(builder)) << std::endl;               \
-        assert(false);                                                                        \
+#define assert_not_impl()                                                                    \
+    do {                                                                                     \
+        std::cout << llvm_print_module(*llvm_get_module(builder)) << std::endl;              \
+        assert(false);                                                                       \
     } while (0)
 
 llvm::Value *lower_builtin(llvm::IRBuilder<> &builder,
@@ -317,7 +332,8 @@ llvm::Value *lower_value(
         locals[cast->name] = llvm_value;
         return llvm_value;
     } else if (auto function = dyncast<gen::function_t>(value)) {
-        auto llvm_value = get(env, function->name, function->type, (llvm::Value *)nullptr);
+        auto llvm_value =
+            get(env, function->name, function->type, (llvm::Value *)nullptr);
         assert(llvm_value != nullptr);
         return llvm_value;
     } else if (auto builtin = dyncast<gen::builtin_t>(value)) {
@@ -577,8 +593,10 @@ int lower(std::string main_function, const gen::env_t &env) {
                 types::type_t::ref type = overload.first;
                 gen::value_t::ref value = overload.second;
 
+                std::stringstream ss;
+                value->render(ss);
                 log("emitting #%d " c_id("%s") " :: %s = %s", lowering_index, name.c_str(),
-                    type->str().c_str(), value->str().c_str());
+                    type->str().c_str(), ss.str().c_str()); // value->str().c_str());
                 ++lowering_index;
 
                 if (maybe_get_llvm_value(lower_env, name, type) != nullptr) {
@@ -589,6 +607,12 @@ int lower(std::string main_function, const gen::env_t &env) {
                     lower_decl(name, builder, module, overload.second, lower_env);
                 if (llvm_decl != nullptr) {
                     /* we were able to create a lowered version of `name` */
+                    if (auto bb = builder.GetInsertBlock()) {
+                        log("in the function %s",
+                            llvm_print_function(bb->getParent()).c_str());
+                    } else {
+                        log("in global scope");
+                    }
                     set_llvm_value(lower_env, name, type, llvm_decl,
                                    false /*allow_shadowing*/);
                 } else {

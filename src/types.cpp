@@ -65,7 +65,8 @@ types::predicate_map merge(const types::predicate_map &a, const types::predicate
     return c;
 }
 
-types::predicate_map safe_merge(const types::predicate_map &a, const types::predicate_map &b) {
+types::predicate_map safe_merge(const types::predicate_map &a,
+                                const types::predicate_map &b) {
     types::predicate_map c;
     mutating_merge(a, c);
     for (auto pair : b) {
@@ -123,7 +124,8 @@ type_id_t::type_id_t(identifier_t id) : id(id) {
     }
     assert(id.name.size() > dot_index);
     if (islower(id.name[dot_index])) {
-        throw user_error(id.location, "type identifiers must begin with an upper-case letter");
+        throw user_error(id.location,
+                         "type identifiers must begin with an upper-case letter");
     }
 
     static bool seen_bottom = false;
@@ -615,7 +617,8 @@ types::type_t::ref type_bool(location_t location) {
 }
 
 types::type_t::ref type_vector_type(types::type_t::ref element) {
-    return type_operator(type_id(identifier_t{VECTOR_TYPE, element->get_location()}), element);
+    return type_operator(type_id(identifier_t{VECTOR_TYPE, element->get_location()}),
+                         element);
 }
 
 types::type_t::ref type_string(location_t location) {
@@ -664,7 +667,8 @@ types::name_index_t get_name_index_from_ids(identifiers_t ids) {
 }
 
 types::type_t::ref type_map(types::type_t::ref a, types::type_t::ref b) {
-    return type_operator(type_operator(type_id(identifier_t{"Map", a->get_location()}), a), b);
+    return type_operator(type_operator(type_id(identifier_t{"Map", a->get_location()}), a),
+                         b);
 }
 
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions) {
