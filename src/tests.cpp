@@ -16,12 +16,12 @@
 #include "unification.h"
 #include "utils.h"
 
-#define test_assert(x)                                                                        \
-    if (!(x)) {                                                                               \
-        log(log_error, "test_assert " c_error(#x) " failed at " c_line_ref("%s:%d"),          \
-            __FILE__, __LINE__);                                                              \
-        return false;                                                                         \
-    } else {                                                                                  \
+#define test_assert(x)                                                                       \
+    if (!(x)) {                                                                              \
+        log(log_error, "test_assert " c_error(#x) " failed at " c_line_ref("%s:%d"),         \
+            __FILE__, __LINE__);                                                             \
+        return false;                                                                        \
+    } else {                                                                                 \
     }
 
 const char *PASSED_TESTS_FILENAME = "tests-passed";

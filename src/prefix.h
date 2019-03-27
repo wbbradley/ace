@@ -6,7 +6,9 @@
 #include "identifier.h"
 
 std::string prefix(const std::set<std::string> &bindings, std::string pre, std::string name);
-identifier_t prefix(const std::set<std::string> &bindings, std::string pre, identifier_t name);
+identifier_t prefix(const std::set<std::string> &bindings,
+                    std::string pre,
+                    identifier_t name);
 token_t prefix(const std::set<std::string> &bindings, std::string pre, token_t name);
 bitter::expr_t *prefix(const std::set<std::string> &bindings,
                        std::string pre,

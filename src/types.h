@@ -233,7 +233,9 @@ types::type_t::ref type_unit(location_t location);
 types::type_t::ref type_null(location_t location);
 types::type_t::ref type_void(location_t location);
 types::type_t::ref type_map(types::type_t::ref a, types::type_t::ref b);
-types::type_t::ref type_arrow(location_t location, types::type_t::ref a, types::type_t::ref b);
+types::type_t::ref type_arrow(location_t location,
+                              types::type_t::ref a,
+                              types::type_t::ref b);
 types::type_t::ref type_arrow(types::type_t::ref a, types::type_t::ref b);
 types::type_t::ref type_arrows(types::type_t::refs types, int offset = 0);
 types::type_t::ref type_integer(types::type_t::ref size, types::type_t::ref is_signed);

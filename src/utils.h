@@ -79,7 +79,8 @@ template <typename T> struct maybe {
     T const t;
     bool const valid = false;
 
-    template <typename U> friend std::ostream &operator<<(std::ostream &os, const maybe<U> &m);
+    template <typename U>
+    friend std::ostream &operator<<(std::ostream &os, const maybe<U> &m);
 
     maybe() {
     }

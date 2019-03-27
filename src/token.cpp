@@ -66,8 +66,8 @@ std::string token_t::str() const {
     return ss.str();
 }
 
-#define tk_case(x)                                                                            \
-    case tk_##x:                                                                              \
+#define tk_case(x)                                                                           \
+    case tk_##x:                                                                             \
         return #x
 
 const char *tkstr(token_kind tk) {

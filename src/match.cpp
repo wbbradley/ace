@@ -673,8 +673,8 @@ Pattern::ref ctor_predicate_t::get_pattern(type_t::ref type,
     }
 
     /* found the ctor we're matching on */
-    return std::make_shared<CtorPattern>(location,
-                                         CtorPatternValue{type->repr(), ctor_name.name, args});
+    return std::make_shared<CtorPattern>(
+        location, CtorPatternValue{type->repr(), ctor_name.name, args});
 }
 Pattern::ref irrefutable_predicate_t::get_pattern(type_t::ref type,
                                                   const translation_env_t &tenv) const {

@@ -113,11 +113,11 @@ std::string resolve_module_filename(location_t location,
          * the source paths */
         return working_resolution;
     } else {
-        throw user_error(
-            location,
-            "module not found: " c_error("`%s`") " (Note that module names should not have "
-                                                 ".zion extensions.) Looked in ZION_PATH=[%s]",
-            name.c_str(), join(get_zion_paths(), ":").c_str());
+        throw user_error(location,
+                         "module not found: " c_error(
+                             "`%s`") " (Note that module names should not have "
+                                     ".zion extensions.) Looked in ZION_PATH=[%s]",
+                         name.c_str(), join(get_zion_paths(), ":").c_str());
         return "";
     }
 }
@@ -139,7 +139,8 @@ struct global_parser_state_t {
         }
         std::string module_filename =
             compiler::resolve_module_filename(module_id.location, module_id.name, ".zion");
-        if (auto module = get(modules_map_by_filename, module_filename, (module_t *)nullptr)) {
+        if (auto module =
+                get(modules_map_by_filename, module_filename, (module_t *)nullptr)) {
             return module;
         }
 

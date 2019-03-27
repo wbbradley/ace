@@ -191,7 +191,8 @@ types::type_t::map prefix(const std::set<std::string> &bindings,
                           const types::type_t::map &data_ctors) {
     types::type_t::map new_data_ctors;
     for (auto pair : data_ctors) {
-        new_data_ctors[prefix(bindings, pre, pair.first)] = prefix(bindings, pre, pair.second);
+        new_data_ctors[prefix(bindings, pre, pair.first)] =
+            prefix(bindings, pre, pair.second);
     }
     return new_data_ctors;
 }

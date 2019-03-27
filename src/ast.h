@@ -235,7 +235,8 @@ struct lambda_t : public expr_t {
 };
 
 struct let_t : public expr_t {
-    let_t(identifier_t var, expr_t *value, expr_t *body) : var(var), value(value), body(body) {
+    let_t(identifier_t var, expr_t *value, expr_t *body)
+        : var(var), value(value), body(body) {
     }
     location_t get_location() const override;
     std::ostream &render(std::ostream &os, int parent_precedence) const override;
@@ -246,7 +247,8 @@ struct let_t : public expr_t {
 };
 
 struct tuple_t : public expr_t {
-    tuple_t(location_t location, std::vector<expr_t *> dims) : location(location), dims(dims) {
+    tuple_t(location_t location, std::vector<expr_t *> dims)
+        : location(location), dims(dims) {
     }
     location_t get_location() const override;
     std::ostream &render(std::ostream &os, int parent_precedence) const override;
