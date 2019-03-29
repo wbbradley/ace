@@ -6,6 +6,6 @@
 #include "location.h"
 
 struct scope_t {
-    identifier_t const id;
-    bool const is_let;
+  identifier_t const id;
+  bool const is_let;
 };

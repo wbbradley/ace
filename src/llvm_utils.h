@@ -105,6 +105,10 @@ llvm::Function *llvm_start_function(llvm::IRBuilder<> &builder,
                                     const types::type_t::refs &terms,
                                     std::string name);
 
+llvm::Constant *llvm_create_global_string_constant(llvm::IRBuilder<> &builder,
+                                                   llvm::Module &M,
+                                                   std::string str);
+
 // NOTE: the explain function is a tool to learn about LLVM types, it does not
 // handle cyclic types, so it should only be used for debugging.
 void explain(llvm::Type *llvm_type);

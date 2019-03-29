@@ -9,13 +9,13 @@
 #include "types.h"
 
 struct unification_t {
-    bool result;
-    location_t error_location;
-    std::string error_string;
-    types::type_t::map bindings;
-    std::vector<instance_requirement_t> instance_requirements;
+  bool result;
+  location_t error_location;
+  std::string error_string;
+  types::type_t::map bindings;
+  std::vector<instance_requirement_t> instance_requirements;
 
-    void add_instance_requirement(const instance_requirement_t &ir);
+  void add_instance_requirement(const instance_requirement_t &ir);
 };
 
 types::type_t::map solver(const types::type_t::map &bindings,
