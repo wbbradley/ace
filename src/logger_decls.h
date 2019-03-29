@@ -4,10 +4,10 @@
 #include "location.h"
 
 enum log_level_t {
-    log_info = 1,
-    log_warning = 2,
-    log_error = 4,
-    log_panic = 8,
+  log_info = 1,
+  log_warning = 2,
+  log_error = 4,
+  log_panic = 8,
 };
 
 void log_enable(int log_level);
