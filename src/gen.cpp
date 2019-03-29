@@ -681,7 +681,9 @@ value_t::ref builder_t::create_cast(location_t location,
                                     types::type_t::ref type,
                                     std::string name) {
   auto cast = std::make_shared<cast_t>(location, block, value, type, name);
-  insert_instruction(cast);
+  if (block != nullptr) {
+    insert_instruction(cast);
+  }
   return cast;
 }
 
@@ -692,7 +694,9 @@ value_t::ref builder_t::create_tuple(location_t location,
     return create_unit(location, name);
   } else {
     auto tuple = std::make_shared<tuple_t>(location, block, dims, name);
-    insert_instruction(tuple);
+    if (block != nullptr) {
+      insert_instruction(tuple);
+    }
     return tuple;
   }
 }
@@ -843,7 +847,8 @@ std::ostream &function_t::render(std::ostream &os) const {
 }
 
 std::ostream &tuple_t::render(std::ostream &os) const {
-  return os << C_ID << name << C_RESET << " := " C_GOOD "make_tuple" C_RESET "("
+  return os << C_ID << name << C_RESET << " := " C_GOOD
+            << (parent.lock() ? "alloc_tuple" : "global_tuple") << C_RESET "("
             << join_str(dims, ", ") << ")";
 }
 

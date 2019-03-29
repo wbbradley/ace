@@ -4,11 +4,50 @@
 #include "logger.h"
 #include "types.h"
 
+#define assert_not_impl()                                                      \
+  do {                                                                         \
+    std::cout << llvm_print_module(*llvm_get_module(builder)) << std::endl;    \
+    assert(false);                                                             \
+  } while (0)
+
 namespace lower {
 
 using env_t = std::map<
     std::string,
     std::map<types::type_t::ref, llvm::Value *, types::compare_type_t>>;
+
+llvm::Constant *lower_decl(std::string name,
+                           llvm::IRBuilder<> &builder,
+                           llvm::Module *llvm_module,
+                           gen::value_t::ref value,
+                           const env_t &env);
+
+void lower_block(llvm::IRBuilder<> &builder,
+                 gen::block_t::ref block,
+                 std::map<std::string, llvm::Value *> &locals,
+                 const std::map<gen::block_t::ref,
+                                llvm::BasicBlock *,
+                                gen::block_t::comparator_t> &block_map,
+                 std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
+                     &blocks_visited,
+                 const env_t &env);
+
+llvm::Value *lower_value(
+    llvm::IRBuilder<> &builder,
+    gen::value_t::ref value,
+    std::map<std::string, llvm::Value *> &locals,
+    const std::map<gen::block_t::ref,
+                   llvm::BasicBlock *,
+                   gen::block_t::comparator_t> &block_map,
+    std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
+        &blocks_visited,
+    const env_t &env);
+
+llvm::Constant *lower_tuple_global(std::string name,
+                                   llvm::IRBuilder<> &builder,
+                                   llvm::Module *llvm_module,
+                                   gen::tuple_t::ref tuple,
+                                   const env_t &env);
 
 llvm::Value *maybe_get_llvm_value(const env_t &env,
                                   std::string name,
@@ -65,7 +104,7 @@ llvm::Constant *lower_decl(std::string name,
                            llvm::IRBuilder<> &builder,
                            llvm::Module *llvm_module,
                            gen::value_t::ref value,
-                           env_t &env) {
+                           const env_t &env) {
   debug_above(4, log("lower_decl(%s, ..., %s :: %s, ...)", name.c_str(),
                      value->str().c_str(), value->type->str().c_str()));
 
@@ -138,42 +177,13 @@ llvm::Constant *lower_decl(std::string name,
     assert(false);
     return nullptr;
   } else if (auto tuple = dyncast<gen::tuple_t>(value)) {
-    llvm::Type *llvm_type = get_llvm_type(builder, tuple->type);
-    llvm::StructType *llvm_struct_type =
-        llvm::dyn_cast<llvm::StructType>(llvm_type->getPointerElementType());
-    assert(llvm_struct_type != nullptr);
-
-    std::vector<llvm::Constant *> llvm_struct_data;
-    for (auto dim : tuple->dims) {
-      llvm::Value *llvm_value = maybe_get_llvm_value(env, dim->name, dim->type);
-      if (llvm_value == nullptr) {
-        log("%s does not exist, normally this would have been registered by a "
-            "call "
-            "to "
-            "lower::set_llvm_value. Going to try to recurse for it...",
-            dim->name.c_str());
-        llvm_value = lower_decl(dim->name, builder, llvm_module, dim, env);
-      }
-
-      if (llvm_value != nullptr) {
-        llvm::Constant *llvm_dim_const =
-            llvm::dyn_cast<llvm::Constant>(llvm_value);
-        if (llvm_dim_const == nullptr) {
-          throw user_error(dim->get_location(),
-                           "non-constant global dim element found %s",
-                           dim->name.c_str());
-        }
-        llvm_struct_data.push_back(llvm_dim_const);
-      } else {
-        throw user_error(dim->get_location(),
-                         "unable to find llvm_value for %s",
-                         dim->str().c_str());
-      }
+    if (tuple->parent.lock() == nullptr) {
+        return lower_tuple_global(name, builder, llvm_module, tuple, env);
+    } else {
+      // TODO: handle make_tuple calls onto the heap
+      assert_not_impl();
+      return nullptr;
     }
-
-    log("found %d elements for struct", (int)llvm_struct_data.size());
-    return llvm_create_struct_instance(name, llvm_module, llvm_struct_type,
-                                       llvm_struct_data);
   } else if (auto tuple_deref = dyncast<gen::tuple_deref_t>(value)) {
     assert(false);
     return nullptr;
@@ -183,22 +193,6 @@ llvm::Constant *lower_decl(std::string name,
   throw user_error(value->get_location(), "unhandled lower for %s",
                    value->str().c_str());
 }
-
-void lower_block(llvm::IRBuilder<> &builder,
-                 gen::block_t::ref block,
-                 std::map<std::string, llvm::Value *> &locals,
-                 const std::map<gen::block_t::ref,
-                                llvm::BasicBlock *,
-                                gen::block_t::comparator_t> &block_map,
-                 std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
-                     &blocks_visited,
-                 const env_t &env);
-
-#define assert_not_impl()                                                      \
-  do {                                                                         \
-    std::cout << llvm_print_module(*llvm_get_module(builder)) << std::endl;    \
-    assert(false);                                                             \
-  } while (0)
 
 llvm::Value *lower_builtin(llvm::IRBuilder<> &builder,
                            const std::string &name,
@@ -320,6 +314,77 @@ llvm::Value *lower_literal(llvm::IRBuilder<> &builder,
   return nullptr;
 }
 
+llvm::Value *lower_tuple_alloc(
+    llvm::IRBuilder<> &builder,
+    gen::tuple_t::ref tuple,
+    std::map<std::string, llvm::Value *> &locals,
+    const std::map<gen::block_t::ref,
+                   llvm::BasicBlock *,
+                   gen::block_t::comparator_t> &block_map,
+    std::map<gen::block_t::ref, bool, gen::block_t::comparator_t> &blocks_visited,
+    const env_t &env) {
+  std::vector<llvm::Value *> llvm_dims;
+  for (auto dim : tuple->dims) {
+    llvm_dims.push_back(
+        lower_value(builder, dim, locals, block_map, blocks_visited, env));
+  }
+  auto llvm_type = get_llvm_type(builder, tuple->type);
+  std::vector<llvm::Type *> alloc_terms{builder.getInt64Ty()};
+  log("need to allocate a tuple of type %s", llvm_print(llvm_type).c_str());
+  auto llvm_module = llvm_get_module(builder);
+  auto llvm_alloc_func_decl =
+      llvm::cast<llvm::Function>(llvm_module->getOrInsertFunction(
+          "malloc",
+          llvm_create_function_type(builder, alloc_terms,
+                                    builder.getInt8Ty()->getPointerTo())));
+  return builder.CreateBitCast(
+      builder.CreateCall(llvm_alloc_func_decl,
+                         std::vector<llvm::Value *>{llvm_sizeof_type(
+                             builder, llvm_type->getPointerElementType())}),
+      llvm_type);
+}
+
+llvm::Constant *lower_tuple_global(std::string name,
+                                   llvm::IRBuilder<> &builder,
+                                   llvm::Module *llvm_module,
+                                   gen::tuple_t::ref tuple,
+                                   const env_t &env) {
+  llvm::Type *llvm_type = get_llvm_type(builder, tuple->type);
+  llvm::StructType *llvm_struct_type =
+      llvm::dyn_cast<llvm::StructType>(llvm_type->getPointerElementType());
+  assert(llvm_struct_type != nullptr);
+
+  std::vector<llvm::Constant *> llvm_struct_data;
+  for (auto dim : tuple->dims) {
+    llvm::Value *llvm_value = maybe_get_llvm_value(env, dim->name, dim->type);
+    if (llvm_value == nullptr) {
+      log("%s does not exist, normally this would have been registered by "
+          "a call to lower::set_llvm_value. Going to try to recurse for "
+          "it...",
+          dim->name.c_str());
+      llvm_value = lower_decl(dim->name, builder, llvm_module, dim, env);
+    }
+
+    if (llvm_value != nullptr) {
+      llvm::Constant *llvm_dim_const =
+          llvm::dyn_cast<llvm::Constant>(llvm_value);
+      if (llvm_dim_const == nullptr) {
+        throw user_error(dim->get_location(),
+                         "non-constant global dim element found %s",
+                         dim->name.c_str());
+      }
+      llvm_struct_data.push_back(llvm_dim_const);
+    } else {
+      throw user_error(dim->get_location(), "unable to find llvm_value for %s",
+                       dim->str().c_str());
+    }
+  }
+
+  log("found %d elements for struct", (int)llvm_struct_data.size());
+  return llvm_create_struct_instance(name, llvm_module, llvm_struct_type,
+                                     llvm_struct_data);
+}
+
 llvm::Value *lower_value(
     llvm::IRBuilder<> &builder,
     gen::value_t::ref value,
@@ -409,25 +474,13 @@ llvm::Value *lower_value(
     assert_not_impl();
     return nullptr;
   } else if (auto tuple = dyncast<gen::tuple_t>(value)) {
-    std::vector<llvm::Value *> llvm_dims;
-    for (auto dim : tuple->dims) {
-      llvm_dims.push_back(
-          lower_value(builder, dim, locals, block_map, blocks_visited, env));
+    if (tuple->parent.lock() != nullptr) {
+      return lower_tuple_alloc(builder, tuple, locals, block_map,
+                               blocks_visited, env);
+    } else {
+      return lower_tuple_global("" /*name*/, builder, llvm_get_module(builder),
+                                tuple, env);
     }
-    auto llvm_type = get_llvm_type(builder, tuple->type);
-    std::vector<llvm::Type *> alloc_terms{builder.getInt64Ty()};
-    log("need to allocated a tuple of type %s", llvm_print(llvm_type).c_str());
-    auto llvm_module = llvm_get_module(builder);
-    auto llvm_alloc_func_decl =
-        llvm::cast<llvm::Function>(llvm_module->getOrInsertFunction(
-            "malloc",
-            llvm_create_function_type(builder, alloc_terms,
-                                      builder.getInt8Ty()->getPointerTo())));
-    return builder.CreateBitCast(
-        builder.CreateCall(llvm_alloc_func_decl,
-                           std::vector<llvm::Value *>{llvm_sizeof_type(
-                               builder, llvm_type->getPointerElementType())}),
-        llvm_type);
   } else if (auto tuple_deref = dyncast<gen::tuple_deref_t>(value)) {
     std::stringstream ss;
     tuple_deref->render(ss);
