@@ -32,7 +32,8 @@ location_t static_print_t::get_location() const {
   return location;
 }
 
-std::ostream &static_print_t::render(std::ostream &os, int parent_precedence) const {
+std::ostream &static_print_t::render(std::ostream &os,
+                                     int parent_precedence) const {
   os << "(static_print ";
   expr->render(os, 0);
   return os << ")";
@@ -75,11 +76,13 @@ location_t application_t::get_location() const {
   return a->get_location();
 }
 
-std::ostream &application_t::render(std::ostream &os, int parent_precedence) const {
+std::ostream &application_t::render(std::ostream &os,
+                                    int parent_precedence) const {
   const int precedence = 5;
   if (auto inner_app = dcast<application_t *>(a)) {
     if (auto oper = dcast<var_t *>(inner_app->a)) {
-      if (strspn(oper->id.name.c_str(), MATHY_SYMBOLS) == oper->id.name.size()) {
+      if (strspn(oper->id.name.c_str(), MATHY_SYMBOLS) ==
+          oper->id.name.size()) {
         os << "(";
         inner_app->b->render(os, precedence + 1);
         os << " ";
@@ -103,7 +106,8 @@ location_t continue_t::get_location() const {
   return location;
 }
 
-std::ostream &continue_t::render(std::ostream &os, int parent_precedence) const {
+std::ostream &continue_t::render(std::ostream &os,
+                                 int parent_precedence) const {
   return os << "(" C_CONTROL "continue!" C_RESET ")";
 }
 
@@ -119,7 +123,8 @@ location_t return_statement_t::get_location() const {
   return value->get_location();
 }
 
-std::ostream &return_statement_t::render(std::ostream &os, int parent_precedence) const {
+std::ostream &return_statement_t::render(std::ostream &os,
+                                         int parent_precedence) const {
   const int precedence = 4;
   parens_t parens(os, parent_precedence, precedence);
   os << C_CONTROL "return! " C_RESET;
@@ -253,7 +258,8 @@ location_t tuple_deref_t::get_location() const {
   return expr->get_location();
 }
 
-std::ostream &tuple_deref_t::render(std::ostream &os, int parent_precedence) const {
+std::ostream &tuple_deref_t::render(std::ostream &os,
+                                    int parent_precedence) const {
   const int precedence = 20;
   expr->render(os, precedence);
   return os << "[" << index << " of " << max << "]";
@@ -277,7 +283,8 @@ location_t conditional_t::get_location() const {
   return cond->get_location();
 }
 
-std::ostream &conditional_t::render(std::ostream &os, int parent_precedence) const {
+std::ostream &conditional_t::render(std::ostream &os,
+                                    int parent_precedence) const {
   const int precedence = 11;
   parens_t parens(os, parent_precedence, precedence);
   os << "(" C_CONTROL "if " C_RESET;
@@ -366,7 +373,8 @@ identifier_t tuple_predicate_t::instantiate_name_assignment() const {
 }
 
 std::ostream &irrefutable_predicate_t::render(std::ostream &os) const {
-  return os << C_ID << (name_assignment.valid ? name_assignment.t.name : "_") << C_RESET;
+  return os << C_ID << (name_assignment.valid ? name_assignment.t.name : "_")
+            << C_RESET;
 }
 
 location_t irrefutable_predicate_t::get_location() const {
@@ -411,7 +419,8 @@ std::string type_class_t::str() const {
   return string_format(
       "class %s %s {\n\t%s%s\n}", id.name.c_str(), type_var_id.name.c_str(),
       superclasses.size() != 0
-          ? string_format("has %s\n\t", join(superclasses, ", ").c_str()).c_str()
+          ? string_format("has %s\n\t", join(superclasses, ", ").c_str())
+                .c_str()
           : "",
       ::str(overloads).c_str());
 }

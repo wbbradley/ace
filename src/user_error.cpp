@@ -28,11 +28,14 @@ void print_exception(const user_error &e, int level) {
 
 user_error::user_error(log_level_t log_level, location_t location)
     : log_level(log_level), location(location),
-      extra_info(std::make_shared<std::vector<std::pair<location_t, std::string>>>()) {
+      extra_info(
+          std::make_shared<std::vector<std::pair<location_t, std::string>>>()) {
   ::errors_occurred = true;
 }
 
-user_error::user_error(log_level_t log_level, location_t location, const char *format...)
+user_error::user_error(log_level_t log_level,
+                       location_t location,
+                       const char *format...)
     : user_error(log_level, location) {
   va_list args;
   va_start(args, format);

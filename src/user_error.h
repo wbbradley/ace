@@ -8,7 +8,10 @@
 struct user_error : std::exception {
   user_error(log_level_t log_level, location_t location);
   user_error(log_level_t log_level, location_t location, const char *format...);
-  user_error(log_level_t log_level, location_t location, const char *format, va_list args);
+  user_error(log_level_t log_level,
+             location_t location,
+             const char *format,
+             va_list args);
   user_error(location_t location, const char *format...);
   user_error(location_t location, const char *format, va_list args);
 

@@ -66,8 +66,8 @@ std::string token_t::str() const {
   return ss.str();
 }
 
-#define tk_case(x)                                                                           \
-  case tk_##x:                                                                               \
+#define tk_case(x)                                                             \
+  case tk_##x:                                                                 \
     return #x
 
 const char *tkstr(token_kind tk) {
@@ -199,7 +199,9 @@ void ensure_indented_line(bool &indented_line, int indent_level) {
   }
 }
 
-void token_t::emit(int &indent_level, token_kind &last_tk, bool &indented_line) {
+void token_t::emit(int &indent_level,
+                   token_kind &last_tk,
+                   bool &indented_line) {
   /* Pretty print this token in a stream. */
   if (tkvisible(tk)) {
     ensure_indented_line(indented_line, indent_level);

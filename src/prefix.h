@@ -5,11 +5,15 @@
 #include "ast.h"
 #include "identifier.h"
 
-std::string prefix(const std::set<std::string> &bindings, std::string pre, std::string name);
+std::string prefix(const std::set<std::string> &bindings,
+                   std::string pre,
+                   std::string name);
 identifier_t prefix(const std::set<std::string> &bindings,
                     std::string pre,
                     identifier_t name);
-token_t prefix(const std::set<std::string> &bindings, std::string pre, token_t name);
+token_t prefix(const std::set<std::string> &bindings,
+               std::string pre,
+               token_t name);
 bitter::expr_t *prefix(const std::set<std::string> &bindings,
                        std::string pre,
                        bitter::expr_t *value);
@@ -42,7 +46,8 @@ bitter::expr_t *prefix(const std::set<std::string> &bindings,
 std::vector<bitter::expr_t *> prefix(const std::set<std::string> &bindings,
                                      std::string pre,
                                      std::vector<bitter::expr_t *> values);
-bitter::module_t *prefix(const std::set<std::string> &bindings, bitter::module_t *module);
+bitter::module_t *prefix(const std::set<std::string> &bindings,
+                         bitter::module_t *module);
 bitter::instance_t *prefix(const std::set<std::string> &bindings,
                            std::string pre,
                            bitter::instance_t *instance);
@@ -83,7 +88,8 @@ std::map<std::string, T> prefix(const std::set<std::string> &bindings,
   std::map<std::string, T> new_map;
   for (auto pair : map) {
     if (include_keys) {
-      new_map[prefix(bindings, pre, pair.first)] = prefix(bindings, pre, pair.second);
+      new_map[prefix(bindings, pre, pair.first)] =
+          prefix(bindings, pre, pair.second);
     } else {
       new_map[pair.first] = prefix(bindings, pre, pair.second);
     }
@@ -92,14 +98,16 @@ std::map<std::string, T> prefix(const std::set<std::string> &bindings,
 }
 
 template <typename T>
-std::unordered_map<std::string, T> prefix(const std::set<std::string> &bindings,
-                                          std::string pre,
-                                          const std::unordered_map<std::string, T> &map,
-                                          bool include_keys) {
+std::unordered_map<std::string, T> prefix(
+    const std::set<std::string> &bindings,
+    std::string pre,
+    const std::unordered_map<std::string, T> &map,
+    bool include_keys) {
   std::unordered_map<std::string, T> new_map;
   for (auto pair : map) {
     if (include_keys) {
-      new_map[prefix(bindings, pre, pair.first)] = prefix(bindings, pre, pair.second);
+      new_map[prefix(bindings, pre, pair.first)] =
+          prefix(bindings, pre, pair.second);
     } else {
       new_map[pair.first] = prefix(bindings, pre, pair.second);
     }

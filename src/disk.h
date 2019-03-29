@@ -12,7 +12,10 @@
 void print_dir(FILE *fp, const char *directory, const char *match);
 bool folder_exists(const std::string &path);
 bool file_exists(const std::string &file_path);
-bool get_line_col(const std::string &file_path, size_t offset, size_t &line, size_t &col);
+bool get_line_col(const std::string &file_path,
+                  size_t offset,
+                  size_t &line,
+                  size_t &col);
 off_t file_size(const char *filename);
 void make_relative_to_same_dir(std::string filename,
                                const std::string &existing_file,

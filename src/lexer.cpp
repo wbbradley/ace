@@ -41,7 +41,9 @@ bool zion_lexer_t::eof() {
   return m_is.eof();
 }
 
-bool zion_lexer_t::get_token(token_t &token, bool &newline, std::vector<token_t> *comments) {
+bool zion_lexer_t::get_token(token_t &token,
+                             bool &newline,
+                             std::vector<token_t> *comments) {
   newline = false;
   do {
     for (int i = 0; i < 2 && m_token_queue.empty(); ++i) {
@@ -64,37 +66,39 @@ bool zion_lexer_t::get_token(token_t &token, bool &newline, std::vector<token_t>
     if (comments != nullptr && token.tk == tk_comment) {
       comments->push_back(token);
     }
-  } while (token.tk == tk_newline || token.tk == tk_space || token.tk == tk_comment);
+  } while (token.tk == tk_newline || token.tk == tk_space ||
+           token.tk == tk_comment);
 
-  debug_lexer(log(log_info, "lexed (%s) \"%s\"@%s", tkstr(token.tk), token.text.c_str(),
-                  token.location().c_str()));
+  debug_lexer(log(log_info, "lexed (%s) \"%s\"@%s", tkstr(token.tk),
+                  token.text.c_str(), token.location().c_str()));
   return token.tk != tk_none;
 }
 
-#define gts_keyword_case_ex(wor, letter, _gts)                                               \
-  case gts_##wor:                                                                            \
-    if (ch != letter) {                                                                      \
-      assert(tk == tk_identifier);                                                           \
-      gts = gts_token;                                                                       \
-      scan_ahead = false;                                                                    \
-    } else {                                                                                 \
-      gts = _gts;                                                                            \
-    }                                                                                        \
+#define gts_keyword_case_ex(wor, letter, _gts)                                 \
+  case gts_##wor:                                                              \
+    if (ch != letter) {                                                        \
+      assert(tk == tk_identifier);                                             \
+      gts = gts_token;                                                         \
+      scan_ahead = false;                                                      \
+    } else {                                                                   \
+      gts = _gts;                                                              \
+    }                                                                          \
     break
 
-#define gts_keyword_case(wor, letter, word) gts_keyword_case_ex(wor, letter, gts_##word)
+#define gts_keyword_case(wor, letter, word)                                    \
+  gts_keyword_case_ex(wor, letter, gts_##word)
 
-#define gts_keyword_case_last_ex(word, _gts)                                                 \
-  case _gts:                                                                                 \
-    if (istchar(ch)) {                                                                       \
-      assert(tk == tk_identifier);                                                           \
-      gts = gts_token;                                                                       \
-      scan_ahead = false;                                                                    \
-    } else {                                                                                 \
-      tk = tk_##word;                                                                        \
-      gts = gts_end;                                                                         \
-      scan_ahead = false;                                                                    \
-    }                                                                                        \
+#define gts_keyword_case_last_ex(word, _gts)                                   \
+  case _gts:                                                                   \
+    if (istchar(ch)) {                                                         \
+      assert(tk == tk_identifier);                                             \
+      gts = gts_token;                                                         \
+      scan_ahead = false;                                                      \
+    } else {                                                                   \
+      tk = tk_##word;                                                          \
+      gts = gts_end;                                                           \
+      scan_ahead = false;                                                      \
+    }                                                                          \
     break;
 
 #define gts_keyword_case_last(word) gts_keyword_case_last_ex(word, gts_##word)
@@ -502,7 +506,8 @@ bool zion_lexer_t::_get_tokens() {
             gts = gts_token;
             tk = tk_identifier;
           } else {
-            log(log_warning, "unknown character parsed at start of token (0x%02x) '%c'",
+            log(log_warning,
+                "unknown character parsed at start of token (0x%02x) '%c'",
                 (int)ch, isprint(ch) ? ch : '?');
             gts = gts_error;
           }
@@ -666,7 +671,8 @@ bool zion_lexer_t::_get_tokens() {
       }
       break;
     case gts_error:
-      log(log_warning, "token lexing error occurred, so far = (%s)", token_text.c_str());
+      log(log_warning, "token lexing error occurred, so far = (%s)",
+          token_text.c_str());
       break;
     case gts_end:
       break;
@@ -732,10 +738,11 @@ void zion_lexer_t::pop_nested(token_kind tk) {
   if (back_tk == tk) {
     nested_tks.pop_back();
   } else if (back_tk != tk) {
-    log_location(log_error,
-                 nested_tks.size() == 0 ? location_t{m_filename, m_line, m_col - 1}
-                                        : nested_tks.back().first,
-                 "detected unbalanced brackets %s != %s", tkstr(back_tk), tkstr(tk));
+    log_location(
+        log_error,
+        nested_tks.size() == 0 ? location_t{m_filename, m_line, m_col - 1}
+                               : nested_tks.back().first,
+        "detected unbalanced brackets %s != %s", tkstr(back_tk), tkstr(tk));
   }
 }
 

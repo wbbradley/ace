@@ -56,7 +56,10 @@ off_t file_size(const char *filename) {
   return 0;
 }
 
-bool get_line_col(const std::string &file_path, size_t offset, size_t &line, size_t &col) {
+bool get_line_col(const std::string &file_path,
+                  size_t offset,
+                  size_t &line,
+                  size_t &col) {
   FILE *fp = fopen(file_path.c_str(), "rt");
   if (fp != NULL) {
     char ch;
@@ -89,13 +92,15 @@ bool list_files(const std::string &folder,
   DIR *stDirIn;
 
   if (lstat(folder.c_str(), &stDirInfo) < 0) {
-    debug(log(log_info, "list_files : error : error in lstat of %s", folder.c_str()));
+    debug(log(log_info, "list_files : error : error in lstat of %s",
+              folder.c_str()));
     return false;
   }
   if (!S_ISDIR(stDirInfo.st_mode))
     return false;
   if ((stDirIn = opendir(folder.c_str())) == NULL) {
-    debug(log(log_info, "list_files : error : funky error #3 on %s", folder.c_str()));
+    debug(log(log_info, "list_files : error : funky error #3 on %s",
+              folder.c_str()));
     return false;
   }
   leaf_names.resize(0);
@@ -128,14 +133,16 @@ bool move_files(const std::string &source, const std::string &dest) {
   struct stat stFileInfo;
 
   if (lstat(source.c_str(), &stDirInfo) < 0) {
-    debug(log(log_info, "move_files : error : error in lstat of %s", source.c_str()));
+    debug(log(log_info, "move_files : error : error in lstat of %s",
+              source.c_str()));
     return false;
   }
   if (!S_ISDIR(stDirInfo.st_mode)) {
     return false;
   }
   if ((stDirIn = opendir(source.c_str())) == NULL) {
-    debug(log(log_info, "move_files : error : funky error #3 on %s", source.c_str()));
+    debug(log(log_info, "move_files : error : funky error #3 on %s",
+              source.c_str()));
     return false;
   }
   while ((stFiles = readdir(stDirIn)) != NULL) {
@@ -153,8 +160,8 @@ bool move_files(const std::string &source, const std::string &dest) {
     }
 
     std::string full_target_path = dest + "/" + leaf_name;
-    debug(log(log_info, "move_files : info : renaming %s to %s", full_source_path.c_str(),
-              full_target_path.c_str()));
+    debug(log(log_info, "move_files : info : renaming %s to %s",
+              full_source_path.c_str(), full_target_path.c_str()));
     if (rename(full_source_path.c_str(), full_target_path.c_str()) != 0) {
       closedir(stDirIn);
       return false;

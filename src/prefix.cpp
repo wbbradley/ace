@@ -2,7 +2,9 @@
 
 using namespace bitter;
 
-std::string prefix(const std::set<std::string> &bindings, std::string pre, std::string name) {
+std::string prefix(const std::set<std::string> &bindings,
+                   std::string pre,
+                   std::string name) {
   if (in(name, bindings)) {
     return pre + "." + name;
   } else {
@@ -16,12 +18,17 @@ identifier_t prefix(const std::set<std::string> &bindings,
   return {prefix(bindings, pre, name.name), name.location};
 }
 
-token_t prefix(const std::set<std::string> &bindings, std::string pre, token_t name) {
+token_t prefix(const std::set<std::string> &bindings,
+               std::string pre,
+               token_t name) {
   assert(name.tk == tk_identifier);
-  return token_t{name.location, tk_identifier, prefix(bindings, pre, name.text)};
+  return token_t{name.location, tk_identifier,
+                 prefix(bindings, pre, name.text)};
 }
 
-expr_t *prefix(const std::set<std::string> &bindings, std::string pre, expr_t *value);
+expr_t *prefix(const std::set<std::string> &bindings,
+               std::string pre,
+               expr_t *value);
 
 predicate_t *prefix(const std::set<std::string> &bindings,
                     std::string pre,
@@ -49,7 +56,8 @@ predicate_t *prefix(const std::set<std::string> &bindings,
     for (auto param : p->params) {
       new_params.push_back(prefix(bindings, pre, param, new_symbols));
     }
-    return new ctor_predicate_t(p->location, new_params, prefix(bindings, pre, p->ctor_name),
+    return new ctor_predicate_t(p->location, new_params,
+                                prefix(bindings, pre, p->ctor_name),
                                 p->name_assignment);
   } else if (auto p = dcast<literal_t *>(predicate)) {
     return p;
@@ -63,14 +71,19 @@ pattern_block_t *prefix(const std::set<std::string> &bindings,
                         std::string pre,
                         pattern_block_t *pattern_block) {
   std::set<std::string> new_symbols;
-  predicate_t *new_predicate = prefix(bindings, pre, pattern_block->predicate, new_symbols);
+  predicate_t *new_predicate =
+      prefix(bindings, pre, pattern_block->predicate, new_symbols);
 
   return new pattern_block_t(
-      new_predicate, prefix(set_diff(bindings, new_symbols), pre, pattern_block->result));
+      new_predicate,
+      prefix(set_diff(bindings, new_symbols), pre, pattern_block->result));
 }
 
-decl_t *prefix(const std::set<std::string> &bindings, std::string pre, decl_t *value) {
-  return new decl_t(prefix(bindings, pre, value->var), prefix(bindings, pre, value->value));
+decl_t *prefix(const std::set<std::string> &bindings,
+               std::string pre,
+               decl_t *value) {
+  return new decl_t(prefix(bindings, pre, value->var),
+                    prefix(bindings, pre, value->value));
 }
 
 type_decl_t prefix(const std::set<std::string> &bindings,
@@ -79,7 +92,8 @@ type_decl_t prefix(const std::set<std::string> &bindings,
   return type_decl_t{prefix(bindings, pre, type_decl.id), type_decl.params};
 }
 
-std::set<std::string> only_uppercase_bindings(const std::set<std::string> &bindings) {
+std::set<std::string> only_uppercase_bindings(
+    const std::set<std::string> &bindings) {
   std::set<std::string> only_uppercase_bindings;
   for (auto binding : bindings) {
     if (isupper(binding[0])) {
@@ -117,7 +131,9 @@ types::type_t::ref prefix(const std::set<std::string> &bindings,
   return type->prefix_ids(uppercase_bindings, pre);
 }
 
-expr_t *prefix(const std::set<std::string> &bindings, std::string pre, expr_t *value) {
+expr_t *prefix(const std::set<std::string> &bindings,
+               std::string pre,
+               expr_t *value) {
   if (auto static_print = dcast<static_print_t *>(value)) {
     return new static_print_t(static_print->location,
                               prefix(bindings, pre, static_print->expr));
@@ -129,17 +145,19 @@ expr_t *prefix(const std::set<std::string> &bindings, std::string pre, expr_t *v
   } else if (auto block = dcast<block_t *>(value)) {
     return new block_t(prefix(bindings, pre, block->statements));
   } else if (auto as = dcast<as_t *>(value)) {
-    return new as_t(prefix(bindings, pre, as->expr), prefix(bindings, pre, as->scheme),
-                    as->force_cast);
+    return new as_t(prefix(bindings, pre, as->expr),
+                    prefix(bindings, pre, as->scheme), as->force_cast);
   } else if (auto application = dcast<application_t *>(value)) {
     return new application_t(prefix(bindings, pre, application->a),
                              prefix(bindings, pre, application->b));
   } else if (auto lambda = dcast<lambda_t *>(value)) {
-    return new lambda_t(lambda->var, prefix(bindings, pre, lambda->param_type),
-                        prefix(bindings, pre, lambda->return_type),
-                        prefix(without(bindings, lambda->var.name), pre, lambda->body));
+    return new lambda_t(
+        lambda->var, prefix(bindings, pre, lambda->param_type),
+        prefix(bindings, pre, lambda->return_type),
+        prefix(without(bindings, lambda->var.name), pre, lambda->body));
   } else if (auto let = dcast<let_t *>(value)) {
-    return new let_t(let->var, prefix(without(bindings, let->var.name), pre, let->value),
+    return new let_t(let->var,
+                     prefix(without(bindings, let->var.name), pre, let->value),
                      prefix(without(bindings, let->var.name), pre, let->body));
   } else if (auto conditional = dcast<conditional_t *>(value)) {
     return new conditional_t(prefix(bindings, pre, conditional->cond),
@@ -157,10 +175,11 @@ expr_t *prefix(const std::set<std::string> &bindings, std::string pre, expr_t *v
   } else if (auto tuple = dcast<tuple_t *>(value)) {
     return new tuple_t(tuple->location, prefix(bindings, pre, tuple->dims));
   } else if (auto tuple_deref = dcast<tuple_deref_t *>(value)) {
-    return new tuple_deref_t(prefix(bindings, pre, tuple_deref->expr), tuple_deref->index,
-                             tuple_deref->max);
+    return new tuple_deref_t(prefix(bindings, pre, tuple_deref->expr),
+                             tuple_deref->index, tuple_deref->max);
   } else if (auto sizeof_ = dcast<sizeof_t *>(value)) {
-    return new sizeof_t(sizeof_->location, prefix(bindings, pre, sizeof_->type));
+    return new sizeof_t(sizeof_->location,
+                        prefix(bindings, pre, sizeof_->type));
   } else if (auto break_ = dcast<break_t *>(value)) {
     return break_;
   } else if (auto builtin = dcast<builtin_t *>(value)) {
@@ -191,7 +210,8 @@ types::type_t::map prefix(const std::set<std::string> &bindings,
                           const types::type_t::map &data_ctors) {
   types::type_t::map new_data_ctors;
   for (auto pair : data_ctors) {
-    new_data_ctors[prefix(bindings, pre, pair.first)] = prefix(bindings, pre, pair.second);
+    new_data_ctors[prefix(bindings, pre, pair.first)] =
+        prefix(bindings, pre, pair.second);
   }
   return new_data_ctors;
 }
@@ -208,14 +228,15 @@ data_ctors_map_t prefix(const std::set<std::string> &bindings,
 }
 
 module_t *prefix(const std::set<std::string> &bindings, module_t *module) {
-  return new module_t(
-      module->name, prefix(bindings, module->name, module->decls),
-      prefix(bindings, module->name, module->type_decls),
-      prefix(bindings, module->name, module->type_classes),
-      prefix(bindings, module->name, module->instances),
-      prefix(bindings, module->name, module->ctor_id_map, true /*include_keys*/),
-      prefix(bindings, module->name, module->data_ctors_map),
-      prefix(bindings, module->name, module->newtypes));
+  return new module_t(module->name,
+                      prefix(bindings, module->name, module->decls),
+                      prefix(bindings, module->name, module->type_decls),
+                      prefix(bindings, module->name, module->type_classes),
+                      prefix(bindings, module->name, module->instances),
+                      prefix(bindings, module->name, module->ctor_id_map,
+                             true /*include_keys*/),
+                      prefix(bindings, module->name, module->data_ctors_map),
+                      prefix(bindings, module->name, module->newtypes));
 }
 
 types::scheme_t::ref prefix(const std::set<std::string> &bindings,

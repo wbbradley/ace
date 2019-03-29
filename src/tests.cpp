@@ -16,12 +16,13 @@
 #include "unification.h"
 #include "utils.h"
 
-#define test_assert(x)                                                                       \
-  if (!(x)) {                                                                                \
-    log(log_error, "test_assert " c_error(#x) " failed at " c_line_ref("%s:%d"), __FILE__,   \
-        __LINE__);                                                                           \
-    return false;                                                                            \
-  } else {                                                                                   \
+#define test_assert(x)                                                         \
+  if (!(x)) {                                                                  \
+    log(log_error,                                                             \
+        "test_assert " c_error(#x) " failed at " c_line_ref("%s:%d"),          \
+        __FILE__, __LINE__);                                                   \
+    return false;                                                              \
+  } else {                                                                     \
   }
 
 const char *PASSED_TESTS_FILENAME = "tests-passed";
@@ -53,7 +54,8 @@ template <typename T> bool check_tks_match(T &expect, T &result) {
 
   while (e_iter != e_end && r_iter != r_end) {
     if (*e_iter != *r_iter) {
-      log(log_error, "expected %s, but got %s", to_str(*e_iter), to_str(*r_iter));
+      log(log_error, "expected %s, but got %s", to_str(*e_iter),
+          to_str(*r_iter));
       return false;
     }
     ++e_iter;
@@ -63,7 +65,8 @@ template <typename T> bool check_tks_match(T &expect, T &result) {
   bool e_at_end = (e_iter == e_end);
   bool r_at_end = (r_iter == r_end);
   if (e_at_end != r_at_end) {
-    const char *who_ended = e_at_end ? "expected and end" : "got a premature end";
+    const char *who_ended =
+        e_at_end ? "expected and end" : "got a premature end";
     log(log_error, "%s from list", who_ended);
     return false;
   }
@@ -71,7 +74,8 @@ template <typename T> bool check_tks_match(T &expect, T &result) {
   return (e_iter == e_end) && (r_iter == r_end);
 }
 
-template <typename T> void log_list(log_level_t level, const char *prefix, T &xs) {
+template <typename T>
+void log_list(log_level_t level, const char *prefix, T &xs) {
   std::stringstream ss;
   const char *sep = "";
   for (auto x : xs) {
@@ -88,7 +92,8 @@ bool check_lexer(std::string text,
                  std::vector<token_t> &comments) {
   std::istringstream iss(text);
   zion_lexer_t lexer("check_lexer", iss);
-  std::vector<token_kind> result_tks = get_tks(lexer, include_newlines, comments);
+  std::vector<token_kind> result_tks =
+      get_tks(lexer, include_newlines, comments);
   if (!check_tks_match(expect_tks, result_tks)) {
     log(log_info, "for text: '%s'", text.c_str());
     log_list(log_info, "expected", expect_tks);
@@ -161,8 +166,10 @@ bool test_lex_functions() {
       {"fn A", {tk_identifier, tk_identifier}},
       {"fn A\n", {tk_identifier, tk_identifier}},
       {"fn A {\nstatement\nstatement\n}",
-       {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_identifier, tk_rcurly}},
-      {"fn A {pass}", {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_rcurly}},
+       {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_identifier,
+        tk_rcurly}},
+      {"fn A {pass}",
+       {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_rcurly}},
   };
   return lexer_test(tests);
 }
@@ -180,8 +187,8 @@ bool test_lex_operators() {
   lexer_tests tests = {
       {"and", {tk_identifier}},
       {"( ),{};[]:",
-       {tk_lparen, tk_rparen, tk_comma, tk_lcurly, tk_rcurly, tk_semicolon, tk_lsquare,
-        tk_rsquare, tk_colon}},
+       {tk_lparen, tk_rparen, tk_comma, tk_lcurly, tk_rcurly, tk_semicolon,
+        tk_lsquare, tk_rsquare, tk_colon}},
       {"or", {tk_identifier}},
       {"not", {tk_identifier}},
       {"in", {tk_identifier}},
@@ -230,8 +237,8 @@ bool test_lex_syntax() {
       {"retur not note", {tk_identifier, tk_identifier, tk_identifier}},
       {"return note not", {tk_identifier, tk_identifier, tk_identifier}},
       {"return var = == pass.pass..",
-       {tk_identifier, tk_identifier, tk_assign, tk_equal, tk_identifier, tk_dot,
-        tk_identifier, tk_double_dot}},
+       {tk_identifier, tk_identifier, tk_assign, tk_equal, tk_identifier,
+        tk_dot, tk_identifier, tk_double_dot}},
       {"not", {tk_identifier}},
       {"null", {tk_identifier}},
       {"while", {tk_identifier}},
@@ -245,17 +252,18 @@ bool test_lex_syntax() {
       {"continue", {tk_identifier}},
       {"continually", {tk_identifier}},
       {"while true\n{ foo() }",
-       {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_lparen, tk_rparen,
-        tk_rcurly}},
+       {tk_identifier, tk_identifier, tk_lcurly, tk_identifier, tk_lparen,
+        tk_rparen, tk_rcurly}},
       {"not in", {tk_identifier, tk_identifier}},
       {"true false", {tk_identifier, tk_identifier}},
       {" not", {tk_identifier}},
       {" nothing", {tk_identifier}},
       {" not\nnot", {tk_identifier, tk_identifier}},
-      {"? + - * / %", {tk_maybe, tk_plus, tk_minus, tk_times, tk_divide_by, tk_mod}},
+      {"? + - * / %",
+       {tk_maybe, tk_plus, tk_minus, tk_times, tk_divide_by, tk_mod}},
       {"+=-=*=/=%=:=?=",
-       {tk_plus_eq, tk_minus_eq, tk_times_eq, tk_divide_by_eq, tk_mod_eq, tk_becomes,
-        tk_maybe_eq}},
+       {tk_plus_eq, tk_minus_eq, tk_times_eq, tk_divide_by_eq, tk_mod_eq,
+        tk_becomes, tk_maybe_eq}},
   };
   return lexer_test(tests);
 }

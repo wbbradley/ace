@@ -29,10 +29,10 @@ bool scheme_equality(types::scheme_t::ref a, types::scheme_t::ref b) {
   auto tb = b->instantiate(INTERNAL_LOC());
   auto unification = unify(ta, tb);
   if (!unification.result) {
-    debug_above(3,
-                log_location(unification.error_location,
-                             "schemes %s and %s do not match because %s", ta->str().c_str(),
-                             tb->str().c_str(), unification.error_string.c_str()));
+    debug_above(3, log_location(unification.error_location,
+                                "schemes %s and %s do not match because %s",
+                                ta->str().c_str(), tb->str().c_str(),
+                                unification.error_string.c_str()));
   }
   return unification.result;
 }
@@ -51,7 +51,8 @@ bool type_equality(types::type_t::ref a, types::type_t::ref b) {
     }
   } else if (auto tv_a = dyncast<const type_variable_t>(a)) {
     if (auto tv_b = dyncast<const type_variable_t>(b)) {
-      return tv_a->id.name == tv_b->id.name && tv_a->predicates == tv_b->predicates;
+      return tv_a->id.name == tv_b->id.name &&
+             tv_a->predicates == tv_b->predicates;
     } else {
       return false;
     }
@@ -75,9 +76,11 @@ bool type_equality(types::type_t::ref a, types::type_t::ref b) {
       return true;
     }
   } else {
-    auto error = user_error(a->get_location(),
-                            "type_equality is not implemented between these two types");
-    error.add_info(b->get_location(), "%s and %s", a->str().c_str(), b->str().c_str());
+    auto error =
+        user_error(a->get_location(),
+                   "type_equality is not implemented between these two types");
+    error.add_info(b->get_location(), "%s and %s", a->str().c_str(),
+                   b->str().c_str());
     throw error;
   }
   return false;
@@ -87,14 +90,16 @@ bool occurs_check(std::string a, type_t::ref type) {
   return in(a, type->get_predicate_map());
 }
 
-unification_t bind(std::string a, type_t::ref type, const std::set<std::string> &instances) {
+unification_t bind(std::string a,
+                   type_t::ref type,
+                   const std::set<std::string> &instances) {
   if (occurs_check(a, type)) {
-    return unification_t{
-        false,
-        type->get_location(),
-        string_format("infinite type detected! %s = %s", a.c_str(), type->str().c_str()),
-        {},
-        {}};
+    return unification_t{false,
+                         type->get_location(),
+                         string_format("infinite type detected! %s = %s",
+                                       a.c_str(), type->str().c_str()),
+                         {},
+                         {}};
   }
 
   unification_t unification{true, INTERNAL_LOC(), "", {}, {}};
@@ -105,19 +110,22 @@ unification_t bind(std::string a, type_t::ref type, const std::set<std::string> 
       return {true, INTERNAL_LOC(), "", {}, {}};
     }
 
-    type = type_variable(gensym(type->get_location()), set_union(instances, tv->predicates));
-    debug_above(10, log("adding a binding from %s to new freshie %s", tv->id.str().c_str(),
-                        type->str().c_str()));
+    type = type_variable(gensym(type->get_location()),
+                         set_union(instances, tv->predicates));
+    debug_above(10, log("adding a binding from %s to new freshie %s",
+                        tv->id.str().c_str(), type->str().c_str()));
     unification.bindings[tv->id.name] = type;
   } else {
     for (auto instance : instances) {
-      unification.add_instance_requirement({instance, type->get_location(), type});
+      unification.add_instance_requirement(
+          {instance, type->get_location(), type});
     }
   }
 
   unification.bindings[a] = type;
-  debug_above(6, log("binding type variable %s to %s gives bindings %s", a.c_str(),
-                     type->str().c_str(), str(unification.bindings).c_str()));
+  debug_above(6,
+              log("binding type variable %s to %s gives bindings %s", a.c_str(),
+                  type->str().c_str(), str(unification.bindings).c_str()));
   return unification;
 }
 
@@ -133,7 +141,8 @@ unification_t unify(type_t::ref a, type_t::ref b) {
     return bind(tv_b->id.name, a, tv_b->predicates);
   } else if (auto to_a = dyncast<const type_operator_t>(a)) {
     if (auto to_b = dyncast<const type_operator_t>(b)) {
-      return unify_many({to_a->oper, to_a->operand}, {to_b->oper, to_b->operand});
+      return unify_many({to_a->oper, to_a->operand},
+                        {to_b->oper, to_b->operand});
     }
   } else if (auto tup_a = dyncast<const type_tuple_t>(a)) {
     if (auto tup_b = dyncast<const type_tuple_t>(b)) {
@@ -164,49 +173,54 @@ types::type_t::map solver(const types::type_t::map &bindings,
       env.add_instance_requirement(instance_requirement);
     }
     env.rebind(new_bindings);
-    return solver(new_bindings, rebind_constraints(constraints, new_bindings), env);
+    return solver(new_bindings, rebind_constraints(constraints, new_bindings),
+                  env);
   } else {
-    auto error =
-        user_error(unification.error_location, "%s", unification.error_string.c_str());
+    auto error = user_error(unification.error_location, "%s",
+                            unification.error_string.c_str());
     error.add_info(constraints[0].info.location, "while checking that %s",
                    constraints[0].info.reason.c_str());
     throw error;
   }
 }
 
-types::type_t::map compose(const types::type_t::map &a, const types::type_t::map &b) {
-  debug_above(11, log("composing {%s} with {%s}",
-                      join_with(a, ", ",
-                                [](const auto &pair) {
-                                  return string_format("%s: %s", pair.first.c_str(),
-                                                       pair.second->str().c_str());
-                                })
-                          .c_str(),
-                      join_with(b, ", ", [](const auto &pair) {
-                        return string_format("%s: %s", pair.first.c_str(),
-                                             pair.second->str().c_str());
-                      }).c_str()));
+types::type_t::map compose(const types::type_t::map &a,
+                           const types::type_t::map &b) {
+  debug_above(11,
+              log("composing {%s} with {%s}",
+                  join_with(a, ", ",
+                            [](const auto &pair) {
+                              return string_format("%s: %s", pair.first.c_str(),
+                                                   pair.second->str().c_str());
+                            })
+                      .c_str(),
+                  join_with(b, ", ", [](const auto &pair) {
+                    return string_format("%s: %s", pair.first.c_str(),
+                                         pair.second->str().c_str());
+                  }).c_str()));
   types::type_t::map m;
   for (auto pair : b) {
     m[pair.first] = pair.second->rebind(a);
   }
   for (auto pair : a) {
     debug_above(11, log("-- check %s in %s when going to assign it to %s -- ",
-                        pair.first.c_str(), str(m).c_str(), pair.second->str().c_str()));
+                        pair.first.c_str(), str(m).c_str(),
+                        pair.second->str().c_str()));
     assert(!in(pair.first, m));
     m[pair.first] = pair.second;
   }
-  debug_above(11, log("which gives: %s", join_with(m, ", ", [](const auto &pair) {
-                                           return string_format("%s: %s", pair.first.c_str(),
-                                                                pair.second->str().c_str());
-                                         }).c_str()));
+  debug_above(11, log("which gives: %s",
+                      join_with(m, ", ", [](const auto &pair) {
+                        return string_format("%s: %s", pair.first.c_str(),
+                                             pair.second->str().c_str());
+                      }).c_str()));
   return m;
 }
 
 unification_t compose(const unification_t &a, const unification_t &b) {
   if (a.result && b.result) {
-    auto unification =
-        unification_t{true, INTERNAL_LOC(), "", compose(a.bindings, b.bindings), {}};
+    auto unification = unification_t{
+        true, INTERNAL_LOC(), "", compose(a.bindings, b.bindings), {}};
     unification.instance_requirements.reserve(a.instance_requirements.size() +
                                               b.instance_requirements.size());
 
@@ -247,7 +261,8 @@ constraints_t rebind_constraints(const constraints_t &constraints,
   return new_constraints;
 }
 
-unification_t unify_many(const types::type_t::refs &as, const types::type_t::refs &bs) {
+unification_t unify_many(const types::type_t::refs &as,
+                         const types::type_t::refs &bs) {
   debug_above(8, log("unify_many([%s], [%s])", join_str(as, ", ").c_str(),
                      join_str(bs, ", ").c_str()));
   if (as.size() == 0 && bs.size() == 0) {
@@ -258,13 +273,15 @@ unification_t unify_many(const types::type_t::refs &as, const types::type_t::ref
   }
 
   auto u1 = unify(as[0], bs[0]);
-  auto u2 = unify_many(rebind_tails(as, u1.bindings), rebind_tails(bs, u1.bindings));
+  auto u2 =
+      unify_many(rebind_tails(as, u1.bindings), rebind_tails(bs, u1.bindings));
   return compose(u2, u1);
 }
 
 void unification_t::add_instance_requirement(const instance_requirement_t &ir) {
   debug_above(6,
-              log_location(log_info, ir.location, "adding type class requirement for %s %s",
+              log_location(log_info, ir.location,
+                           "adding type class requirement for %s %s",
                            ir.type_class_name.c_str(), ir.type->str().c_str()));
   instance_requirements.push_back(ir);
 }

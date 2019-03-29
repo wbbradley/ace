@@ -38,8 +38,14 @@ public:
   standard_logger(const std::string &name, const std::string &root_file_path);
   virtual ~standard_logger();
 
-  void logv(log_level_t level, const location_t *location, const char *format, va_list args);
-  void log(log_level_t level, const location_t *location, const char *format, ...);
+  void logv(log_level_t level,
+            const location_t *location,
+            const char *format,
+            va_list args);
+  void log(log_level_t level,
+           const location_t *location,
+           const char *format,
+           ...);
   void close();
   void open();
   void flush();
@@ -68,7 +74,10 @@ struct tee_logger : public logger {
                     const location_t *location,
                     const char *format,
                     va_list args);
-  virtual void log(log_level_t level, const location_t *location, const char *format, ...);
+  virtual void log(log_level_t level,
+                   const location_t *location,
+                   const char *format,
+                   ...);
   void dump();
 
   std::string captured_logs_as_string() const;
@@ -77,7 +86,8 @@ struct tee_logger : public logger {
   }
 
   logger *logger_old;
-  std::list<std::tuple<log_level_t, maybe<location_t>, std::string>> captured_logs;
+  std::list<std::tuple<log_level_t, maybe<location_t>, std::string>>
+      captured_logs;
 };
 
 struct indent_logger : logger {
@@ -88,7 +98,10 @@ struct indent_logger : logger {
                     const location_t *location,
                     const char *format,
                     va_list args);
-  virtual void log(log_level_t level, const location_t *location, const char *format, ...);
+  virtual void log(log_level_t level,
+                   const location_t *location,
+                   const char *format,
+                   ...);
   virtual void dump();
 
   virtual int get_depth() const {
@@ -102,8 +115,9 @@ struct indent_logger : logger {
 };
 
 #ifdef ZION_DEBUG
-#define INDENT(level, message)                                                               \
-  indent_logger _indent(INTERNAL_LOC(), level, debug_above_else(level, message, ""))
+#define INDENT(level, message)                                                 \
+  indent_logger _indent(INTERNAL_LOC(), level,                                 \
+                        debug_above_else(level, message, ""))
 #else
 #define INDENT(level, message)
 #endif
@@ -116,7 +130,10 @@ struct note_logger : logger {
                     const location_t *location,
                     const char *format,
                     va_list args);
-  virtual void log(log_level_t level, const location_t *location, const char *format, ...);
+  virtual void log(log_level_t level,
+                   const location_t *location,
+                   const char *format,
+                   ...);
   virtual void dump();
   virtual int get_depth() const {
     return logger_old->get_depth() + 1;

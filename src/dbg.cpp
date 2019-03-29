@@ -37,7 +37,8 @@ void _emit_assert(const char *filename,
   DEBUG_BREAK();
 }
 
-depth_guard_t::depth_guard_t(location_t location, int &depth, int max_depth) : depth(depth) {
+depth_guard_t::depth_guard_t(location_t location, int &depth, int max_depth)
+    : depth(depth) {
   ++depth;
   if (!__depth_level_override && (depth > max_depth)) {
     throw user_error(location, "maximum recursion depth reached");

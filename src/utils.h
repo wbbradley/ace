@@ -15,13 +15,18 @@
 
 struct shared_comparator {
   template <typename T>
-  bool operator()(const std::shared_ptr<T> &lhs, const std::shared_ptr<T> &rhs) const {
+  bool operator()(const std::shared_ptr<T> &lhs,
+                  const std::shared_ptr<T> &rhs) const {
     return (*lhs) < (*rhs);
   }
 };
 
-void base64_encode(const void *buffer, unsigned long size, std::string &encoded_output);
-bool base64_decode(const std::string &input, char **const output, size_t *const size);
+void base64_encode(const void *buffer,
+                   unsigned long size,
+                   std::string &encoded_output);
+bool base64_decode(const std::string &input,
+                   char **const output,
+                   size_t *const size);
 
 bool regex_exists(std::string input, std::string regex);
 bool regex_match(std::string input, std::string regex);
@@ -79,7 +84,8 @@ template <typename T> struct maybe {
   T const t;
   bool const valid = false;
 
-  template <typename U> friend std::ostream &operator<<(std::ostream &os, const maybe<U> &m);
+  template <typename U>
+  friend std::ostream &operator<<(std::ostream &os, const maybe<U> &m);
 
   maybe() {
   }
@@ -106,7 +112,8 @@ template <typename T> struct maybe {
   }
 };
 
-template <typename T, typename U> std::vector<U> values(const std::map<T, U> &map) {
+template <typename T, typename U>
+std::vector<U> values(const std::map<T, U> &map) {
   std::vector<U> v;
   v.reserve(map.size());
   for (auto &pair : map) {
@@ -115,7 +122,8 @@ template <typename T, typename U> std::vector<U> values(const std::map<T, U> &ma
   return v;
 }
 
-template <typename T> std::ostream &operator<<(std::ostream &os, const maybe<T> &m) {
+template <typename T>
+std::ostream &operator<<(std::ostream &os, const maybe<T> &m) {
   if (m.valid) {
     assert(false);
     // return os << m.t;
@@ -125,7 +133,8 @@ template <typename T> std::ostream &operator<<(std::ostream &os, const maybe<T> 
   }
 }
 
-template <typename U, typename V> std::vector<U> keys(const std::map<U, V> &map) {
+template <typename U, typename V>
+std::vector<U> keys(const std::map<U, V> &map) {
   std::vector<U> k;
   for (auto it = map.begin(); it != map.end(); ++it) {
     k.push_back(it->first);
@@ -177,7 +186,8 @@ V get(const std::map<K, V, Comp> &t, K k, V default_) {
   }
 }
 
-template <typename K, typename V> V get(const std::unordered_map<K, V> &t, K k, V default_) {
+template <typename K, typename V>
+V get(const std::unordered_map<K, V> &t, K k, V default_) {
   auto iter = t.find(k);
   if (iter != t.end()) {
     return iter->second;
@@ -198,14 +208,16 @@ V get(const C &t, K1 k1, K2 k2, V default_) {
 
 static inline std::string &ltrim(std::string &s) {
   s.erase(s.begin(),
-          ::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+          ::find_if(s.begin(), s.end(),
+                    std::not1(std::ptr_fun<int, int>(std::isspace))));
   return s;
 }
 
 static inline std::string &rtrim(std::string &s) {
-  s.erase(
-      ::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(),
-      s.end());
+  s.erase(::find_if(s.rbegin(), s.rend(),
+                    std::not1(std::ptr_fun<int, int>(std::isspace)))
+              .base(),
+          s.end());
   return s;
 }
 
@@ -223,7 +235,8 @@ template <typename X> std::string join(const X &xs, std::string delim = ", ") {
   return ss.str();
 }
 
-template <typename X> std::string join_str(const X &xs, std::string delim = ", ") {
+template <typename X>
+std::string join_str(const X &xs, std::string delim = ", ") {
   std::stringstream ss;
   const char *sep = "";
   for (const auto &x : xs) {
@@ -233,7 +246,8 @@ template <typename X> std::string join_str(const X &xs, std::string delim = ", "
   return ss.str();
 }
 
-template <typename X> std::string join_str(X begin, X end, std::string delim = ", ") {
+template <typename X>
+std::string join_str(X begin, X end, std::string delim = ", ") {
   std::stringstream ss;
   const char *sep = "";
   for (X iter = begin; iter != end; ++iter) {
@@ -243,7 +257,8 @@ template <typename X> std::string join_str(X begin, X end, std::string delim = "
   return ss.str();
 }
 
-template <typename X, typename F> std::string join_with(const X &xs, std::string delim, F f) {
+template <typename X, typename F>
+std::string join_with(const X &xs, std::string delim, F f) {
   std::stringstream ss;
   const char *sep = "";
   for (const auto &x : xs) {
@@ -265,7 +280,8 @@ void escape_json_quotes(std::ostream &ss, const std::string &str);
 std::string unescape_json_quotes(const std::string &s);
 size_t utf8_sequence_length(char ch_);
 
-template <typename K, typename V> bool contains_value(const std::map<K, V> &map, V value) {
+template <typename K, typename V>
+bool contains_value(const std::map<K, V> &map, V value) {
   for (auto pair : map) {
     if (pair.second == value) {
       return true;
@@ -288,7 +304,8 @@ template <typename U, typename COLL> bool in(U item, const COLL &set) {
   return set.find(item) != set.end();
 }
 
-template <typename C1, typename C2> bool all_in(const C1 &items, const C2 &set) {
+template <typename C1, typename C2>
+bool all_in(const C1 &items, const C2 &set) {
   for (auto item : items) {
     if (!in(item, set)) {
       return false;

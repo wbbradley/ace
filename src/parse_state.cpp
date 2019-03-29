@@ -21,7 +21,8 @@ parse_state_t::parse_state_t(std::string filename,
       module_name(module_name.size() != 0
                       ? module_name
                       : strip_zion_extension(leaf_from_file_path(filename))),
-      lexer(lexer), comments(comments), link_ins(link_ins), builtin_arities(builtin_arities) {
+      lexer(lexer), comments(comments), link_ins(link_ins),
+      builtin_arities(builtin_arities) {
   advance();
 }
 
@@ -73,7 +74,9 @@ void parse_state_t::error(const char *format, ...) {
   throw error;
 }
 
-void parse_state_t::add_term_map(location_t location, std::string key, std::string value) {
+void parse_state_t::add_term_map(location_t location,
+                                 std::string key,
+                                 std::string value) {
   // log("adding %s to term map => %s", key.c_str(), value.c_str());
   if (in(key, term_map)) {
     throw user_error(location, "symbol imported twice");
