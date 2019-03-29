@@ -12,7 +12,8 @@ std::string defn_id_t::str() const {
 
 defn_id_t defn_id_t::unitize() const {
   assert(scheme->btvs() == 0);
-  return {id, types::unitize(scheme->instantiate(INTERNAL_LOC()))->generalize({})};
+  return {id,
+          types::unitize(scheme->instantiate(INTERNAL_LOC()))->generalize({})};
 }
 
 std::string defn_id_t::repr() const {
@@ -34,14 +35,14 @@ bool defn_id_t::operator<(const defn_id_t &rhs) const {
 }
 
 types::type_t::ref defn_id_t::get_lambda_param_type() const {
-  auto lambda_type =
-      safe_dyncast<const types::type_operator_t>(scheme->instantiate(INTERNAL_LOC()));
+  auto lambda_type = safe_dyncast<const types::type_operator_t>(
+      scheme->instantiate(INTERNAL_LOC()));
   return lambda_type->oper;
 }
 
 types::type_t::ref defn_id_t::get_lambda_return_type() const {
-  auto lambda_type =
-      safe_dyncast<const types::type_operator_t>(scheme->instantiate(INTERNAL_LOC()));
+  auto lambda_type = safe_dyncast<const types::type_operator_t>(
+      scheme->instantiate(INTERNAL_LOC()));
   return lambda_type->operand;
 }
 

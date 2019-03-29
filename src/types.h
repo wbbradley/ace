@@ -60,7 +60,8 @@ struct type_t : public std::enable_shared_from_this<type_t> {
   }
 
   virtual type_t::ref rebind(const map &bindings) const = 0;
-  virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const = 0;
+  virtual type_t::ref remap_vars(
+      const std::map<std::string, std::string> &map) const = 0;
   virtual type_t::ref prefix_ids(const std::set<std::string> &bindings,
                                  const std::string &pre) const = 0;
   virtual type_t::ref apply(ref type) const;
@@ -79,7 +80,8 @@ struct compare_type_t {
 struct type_variable_t : public type_t {
   type_variable_t(identifier_t id, std::set<std::string> predicates);
   type_variable_t(identifier_t id);
-  type_variable_t(location_t location /* auto-generated fresh type variables */);
+  type_variable_t(
+      location_t location /* auto-generated fresh type variables */);
   identifier_t id;
   std::set<std::string> predicates;
 
@@ -89,7 +91,8 @@ struct type_variable_t : public type_t {
   virtual int ftv_count() const;
   virtual predicate_map get_predicate_map() const;
   virtual type_t::ref rebind(const map &bindings) const;
-  virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
+  virtual type_t::ref remap_vars(
+      const std::map<std::string, std::string> &map) const;
   virtual type_t::ref prefix_ids(const std::set<std::string> &bindings,
                                  const std::string &pre) const;
   virtual location_t get_location() const;
@@ -105,7 +108,8 @@ struct type_id_t : public type_t {
   virtual int ftv_count() const;
   virtual predicate_map get_predicate_map() const;
   virtual type_t::ref rebind(const map &bindings) const;
-  virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
+  virtual type_t::ref remap_vars(
+      const std::map<std::string, std::string> &map) const;
   virtual type_t::ref prefix_ids(const std::set<std::string> &bindings,
                                  const std::string &pre) const;
   virtual location_t get_location() const;
@@ -128,7 +132,8 @@ struct type_operator_t : public type_t {
   virtual int ftv_count() const;
   virtual predicate_map get_predicate_map() const;
   virtual type_t::ref rebind(const map &bindings) const;
-  virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
+  virtual type_t::ref remap_vars(
+      const std::map<std::string, std::string> &map) const;
   virtual type_t::ref prefix_ids(const std::set<std::string> &bindings,
                                  const std::string &pre) const;
   virtual location_t get_location() const;
@@ -145,7 +150,8 @@ struct type_tuple_t : public type_t {
   virtual int ftv_count() const;
   virtual predicate_map get_predicate_map() const;
   virtual type_t::ref rebind(const map &bindings) const;
-  virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
+  virtual type_t::ref remap_vars(
+      const std::map<std::string, std::string> &map) const;
   virtual type_t::ref prefix_ids(const std::set<std::string> &bindings,
                                  const std::string &pre) const;
   virtual location_t get_location() const;
@@ -167,7 +173,8 @@ struct type_lambda_t : public type_t {
   virtual int ftv_count() const;
   virtual predicate_map get_predicate_map() const;
   virtual type_t::ref rebind(const map &bindings) const;
-  virtual type_t::ref remap_vars(const std::map<std::string, std::string> &map) const;
+  virtual type_t::ref remap_vars(
+      const std::map<std::string, std::string> &map) const;
   virtual type_t::ref prefix_ids(const std::set<std::string> &bindings,
                                  const std::string &pre) const;
   virtual type_t::ref apply(types::type_t::ref type) const;
@@ -208,7 +215,8 @@ bool is_callable(const types::type_t::ref &type);
 }; // namespace types
 
 typedef std::map<std::string, types::type_t::map> data_ctors_map_t;
-typedef std::unordered_map<const bitter::expr_t *, types::type_t::ref> tracked_types_t;
+typedef std::unordered_map<const bitter::expr_t *, types::type_t::ref>
+    tracked_types_t;
 typedef std::unordered_map<std::string, int> ctor_id_map_t;
 struct defn_ref_t {
   location_t location;
@@ -238,12 +246,15 @@ types::type_t::ref type_arrow(location_t location,
                               types::type_t::ref b);
 types::type_t::ref type_arrow(types::type_t::ref a, types::type_t::ref b);
 types::type_t::ref type_arrows(types::type_t::refs types, int offset = 0);
-types::type_t::ref type_integer(types::type_t::ref size, types::type_t::ref is_signed);
+types::type_t::ref type_integer(types::type_t::ref size,
+                                types::type_t::ref is_signed);
 types::type_t::ref type_id(identifier_t var);
-types::type_t::ref type_variable(identifier_t id, const std::set<std::string> &predicates);
+types::type_t::ref type_variable(identifier_t id,
+                                 const std::set<std::string> &predicates);
 types::type_t::ref type_variable(identifier_t name);
 types::type_t::ref type_variable(location_t location);
-types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand);
+types::type_t::ref type_operator(types::type_t::ref operator_,
+                                 types::type_t::ref operand);
 types::type_t::ref type_operator(const types::type_t::refs &xs);
 types::type_t::ref type_deref(types::type_t::ref type);
 types::scheme_t::ref scheme(std::vector<std::string> vars,
@@ -253,7 +264,9 @@ types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body);
 types::type_t::ref type_vector_type(types::type_t::ref element);
-types::type_t::ref type_tuple_accessor(int i, int max, const std::vector<std::string> &vars);
+types::type_t::ref type_tuple_accessor(int i,
+                                       int max,
+                                       const std::vector<std::string> &vars);
 
 std::string str(types::type_t::refs refs);
 std::string str(const types::type_t::map &coll);
@@ -262,15 +275,20 @@ std::string str(const data_ctors_map_t &data_ctors_map);
 std::ostream &operator<<(std::ostream &out, const types::type_t::ref &type);
 bool operator<(const types::type_t::ref &lhs, const types::type_t::ref &rhs);
 
-types::type_t::ref tuple_deref_type(location_t location, types::type_t::ref tuple, int index);
+types::type_t::ref tuple_deref_type(location_t location,
+                                    types::type_t::ref tuple,
+                                    int index);
 void unfold_binops_rassoc(std::string id,
                           types::type_t::ref t,
                           types::type_t::refs &unfolding);
 void unfold_ops_lassoc(types::type_t::ref t, types::type_t::refs &unfolding);
-void mutating_merge(const types::predicate_map::value_type &pair, types::predicate_map &c);
+void mutating_merge(const types::predicate_map::value_type &pair,
+                    types::predicate_map &c);
 void mutating_merge(const types::predicate_map &a, types::predicate_map &c);
-types::predicate_map merge(const types::predicate_map &a, const types::predicate_map &b);
-types::predicate_map safe_merge(const types::predicate_map &a, const types::predicate_map &b);
+types::predicate_map merge(const types::predicate_map &a,
+                           const types::predicate_map &b);
+types::predicate_map safe_merge(const types::predicate_map &a,
+                                const types::predicate_map &b);
 
 std::ostream &join_dimensions(std::ostream &os,
                               const types::type_t::refs &dimensions,

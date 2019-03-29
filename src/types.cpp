@@ -28,8 +28,9 @@ void reset_generics() {
 
 identifier_t gensym(location_t location) {
   /* generate fresh "any" variables */
-  return identifier_t{string_format("__%s", alphabetize(next_generic++).c_str()).c_str(),
-                      location};
+  return identifier_t{
+      string_format("__%s", alphabetize(next_generic++).c_str()).c_str(),
+      location};
 }
 
 std::string get_name_from_index(const types::name_index_t &name_index, int i) {
@@ -43,7 +44,8 @@ std::string get_name_from_index(const types::name_index_t &name_index, int i) {
   return name;
 }
 
-void mutating_merge(const types::predicate_map::value_type &pair, types::predicate_map &c) {
+void mutating_merge(const types::predicate_map::value_type &pair,
+                    types::predicate_map &c) {
   if (!in(pair.first, c)) {
     c.insert(pair);
   } else {
@@ -58,7 +60,8 @@ void mutating_merge(const types::predicate_map &a, types::predicate_map &c) {
   }
 }
 
-types::predicate_map merge(const types::predicate_map &a, const types::predicate_map &b) {
+types::predicate_map merge(const types::predicate_map &a,
+                           const types::predicate_map &b) {
   types::predicate_map c;
   mutating_merge(a, c);
   mutating_merge(b, c);
@@ -96,7 +99,8 @@ std::string type_t::repr(const map &bindings) const {
   return ss.str();
 }
 
-std::shared_ptr<scheme_t> type_t::generalize(const types::predicate_map &pm) const {
+std::shared_ptr<scheme_t> type_t::generalize(
+    const types::predicate_map &pm) const {
   std::vector<std::string> vs;
   auto type_ftvs = get_predicate_map();
   // auto env_ftvs = env.get_predicate_map();
@@ -124,7 +128,8 @@ type_id_t::type_id_t(identifier_t id) : id(id) {
   }
   assert(id.name.size() > dot_index);
   if (islower(id.name[dot_index])) {
-    throw user_error(id.location, "type identifiers must begin with an upper-case letter");
+    throw user_error(id.location,
+                     "type identifiers must begin with an upper-case letter");
   }
 
   static bool seen_bottom = false;
@@ -153,7 +158,8 @@ type_t::ref type_id_t::rebind(const map &bindings) const {
   return shared_from_this();
 }
 
-type_t::ref type_id_t::remap_vars(const std::map<std::string, std::string> &map) const {
+type_t::ref type_id_t::remap_vars(
+    const std::map<std::string, std::string> &map) const {
   return shared_from_this();
 }
 
@@ -170,7 +176,8 @@ location_t type_id_t::get_location() const {
   return id.location;
 }
 
-type_variable_t::type_variable_t(identifier_t id, std::set<std::string> predicates)
+type_variable_t::type_variable_t(identifier_t id,
+                                 std::set<std::string> predicates)
     : id(id), predicates(predicates) {
   for (auto ch : id.name) {
     assert(islower(ch) || !isalpha(ch));
@@ -197,7 +204,8 @@ std::ostream &type_variable_t::emit(std::ostream &os,
     if (predicates.size() == 0) {
       return os << string_format("%s", id.name.c_str());
     } else {
-      return os << string_format("%s|[%s]", id.name.c_str(), join(predicates, ", ").c_str());
+      return os << string_format("%s|[%s]", id.name.c_str(),
+                                 join(predicates, ", ").c_str());
     }
   }
 }
@@ -217,7 +225,8 @@ type_t::ref type_variable_t::rebind(const map &bindings) const {
   return get(bindings, id.name, shared_from_this());
 }
 
-type_t::ref type_variable_t::remap_vars(const std::map<std::string, std::string> &map) const {
+type_t::ref type_variable_t::remap_vars(
+    const std::map<std::string, std::string> &map) const {
   auto iter = map.find(id.name);
   assert(iter != map.end());
   return type_variable(identifier_t{iter->second, id.location});
@@ -248,7 +257,8 @@ std::ostream &type_operator_t::emit(std::ostream &os,
     auto rebound_oper = oper->rebind(bindings);
     if (auto op = dyncast<const type_operator_t>(rebound_oper)) {
       if (auto inner_op = dyncast<const type_id_t>(op->oper)) {
-        if (strspn(inner_op->id.name.c_str(), MATHY_SYMBOLS) == inner_op->id.name.size()) {
+        if (strspn(inner_op->id.name.c_str(), MATHY_SYMBOLS) ==
+            inner_op->id.name.size()) {
           op->operand->emit(os, {}, get_precedence());
           os << " " << inner_op->id.name << " ";
           return operand->emit(os, bindings, get_precedence());
@@ -278,13 +288,15 @@ type_t::ref type_operator_t::rebind(const map &bindings) const {
   return ::type_operator(oper->rebind(bindings), operand->rebind(bindings));
 }
 
-type_t::ref type_operator_t::remap_vars(const std::map<std::string, std::string> &map) const {
+type_t::ref type_operator_t::remap_vars(
+    const std::map<std::string, std::string> &map) const {
   return ::type_operator(oper->remap_vars(map), operand->remap_vars(map));
 }
 
 type_t::ref type_operator_t::prefix_ids(const std::set<std::string> &bindings,
                                         const std::string &pre) const {
-  return ::type_operator(oper->prefix_ids(bindings, pre), operand->prefix_ids(bindings, pre));
+  return ::type_operator(oper->prefix_ids(bindings, pre),
+                         operand->prefix_ids(bindings, pre));
 }
 
 location_t type_operator_t::get_location() const {
@@ -348,7 +360,8 @@ type_t::ref type_tuple_t::rebind(const map &bindings) const {
   }
 }
 
-type_t::ref type_tuple_t::remap_vars(const std::map<std::string, std::string> &map) const {
+type_t::ref type_tuple_t::remap_vars(
+    const std::map<std::string, std::string> &map) const {
   bool anything_was_rebound = false;
   refs type_dimensions;
   for (auto dimension : dimensions) {
@@ -441,7 +454,8 @@ type_t::ref type_lambda_t::rebind(const map &bindings_) const {
   return ::type_lambda(binding, body->rebind(bindings));
 }
 
-type_t::ref type_lambda_t::remap_vars(const std::map<std::string, std::string> &map_) const {
+type_t::ref type_lambda_t::remap_vars(
+    const std::map<std::string, std::string> &map_) const {
   assert(false);
   if (in(binding.name, map_)) {
     std::map<std::string, std::string> map = map_;
@@ -449,14 +463,16 @@ type_t::ref type_lambda_t::remap_vars(const std::map<std::string, std::string> &
     map[binding.name] = new_binding;
     assert(!in(new_binding, map_));
     assert(!in(new_binding, get_predicate_map()));
-    return ::type_lambda(identifier_t{new_binding, binding.location}, body->remap_vars(map));
+    return ::type_lambda(identifier_t{new_binding, binding.location},
+                         body->remap_vars(map));
   }
   return ::type_lambda(binding, body->remap_vars(map_));
 }
 
 type_t::ref type_lambda_t::prefix_ids(const std::set<std::string> &bindings,
                                       const std::string &pre) const {
-  return type_lambda(binding, body->prefix_ids(without(bindings, binding.name), pre));
+  return type_lambda(binding,
+                     body->prefix_ids(without(bindings, binding.name), pre));
 }
 
 type_t::ref type_lambda_t::apply(types::type_t::ref type) const {
@@ -493,7 +509,8 @@ types::type_t::ref scheme_t::instantiate(location_t location) {
   return type->rebind(subst);
 }
 
-type_t::map remove_bindings(const type_t::map &env, const std::vector<std::string> &vars) {
+type_t::map remove_bindings(const type_t::map &env,
+                            const std::vector<std::string> &vars) {
   type_t::map new_map{env};
   for (auto var : vars) {
     new_map.erase(var);
@@ -506,7 +523,8 @@ scheme_t::ref scheme_t::rebind(const types::type_t::map &bindings) {
    * within the not-yet-normalized scheme. This is because the map containing
    * the schemes is a working set of types that are waiting to be bound. In some
    * cases the variability of the inner types can be resolved. */
-  return scheme(vars, predicates, type->rebind(remove_bindings(bindings, vars)));
+  return scheme(vars, predicates,
+                type->rebind(remove_bindings(bindings, vars)));
 }
 
 scheme_t::ref scheme_t::normalize() {
@@ -590,7 +608,8 @@ types::type_t::ref type_variable(identifier_t id) {
   return std::make_shared<types::type_variable_t>(id);
 }
 
-types::type_t::ref type_variable(identifier_t id, const std::set<std::string> &predicates) {
+types::type_t::ref type_variable(identifier_t id,
+                                 const std::set<std::string> &predicates) {
   return std::make_shared<types::type_variable_t>(id, predicates);
 }
 
@@ -603,7 +622,8 @@ types::type_t::ref type_unit(location_t location) {
 }
 
 types::type_t::ref type_bottom() {
-  static auto bottom_type = std::make_shared<types::type_id_t>(make_iid(BOTTOM_TYPE));
+  static auto bottom_type =
+      std::make_shared<types::type_id_t>(make_iid(BOTTOM_TYPE));
   return bottom_type;
 }
 
@@ -612,7 +632,8 @@ types::type_t::ref type_bool(location_t location) {
 }
 
 types::type_t::ref type_vector_type(types::type_t::ref element) {
-  return type_operator(type_id(identifier_t{VECTOR_TYPE, element->get_location()}), element);
+  return type_operator(
+      type_id(identifier_t{VECTOR_TYPE, element->get_location()}), element);
 }
 
 types::type_t::ref type_string(location_t location) {
@@ -631,7 +652,8 @@ types::type_t::ref type_void(location_t location) {
   return std::make_shared<types::type_id_t>(identifier_t{VOID_TYPE, location});
 }
 
-types::type_t::ref type_operator(types::type_t::ref operator_, types::type_t::ref operand) {
+types::type_t::ref type_operator(types::type_t::ref operator_,
+                                 types::type_t::ref operand) {
   return std::make_shared<types::type_operator_t>(operator_, operand);
 }
 
@@ -661,7 +683,8 @@ types::name_index_t get_name_index_from_ids(identifiers_t ids) {
 }
 
 types::type_t::ref type_map(types::type_t::ref a, types::type_t::ref b) {
-  return type_operator(type_operator(type_id(identifier_t{"Map", a->get_location()}), a), b);
+  return type_operator(
+      type_operator(type_id(identifier_t{"Map", a->get_location()}), a), b);
 }
 
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions) {
@@ -675,8 +698,9 @@ types::type_t::ref type_arrow(types::type_t::ref a, types::type_t::ref b) {
 types::type_t::ref type_arrow(location_t location,
                               types::type_t::ref a,
                               types::type_t::ref b) {
-  return type_operator(type_operator(type_id(identifier_t{ARROW_TYPE_OPERATOR, location}), a),
-                       b);
+  return type_operator(
+      type_operator(type_id(identifier_t{ARROW_TYPE_OPERATOR, location}), a),
+      b);
 }
 
 types::type_t::ref type_arrows(types::type_t::refs types, int offset) {
@@ -690,14 +714,17 @@ types::type_t::ref type_arrows(types::type_t::refs types, int offset) {
 }
 
 types::type_t::ref type_ptr(types::type_t::ref raw) {
-  return type_operator(type_id(identifier_t{PTR_TYPE_OPERATOR, raw->get_location()}), raw);
+  return type_operator(
+      type_id(identifier_t{PTR_TYPE_OPERATOR, raw->get_location()}), raw);
 }
 
 types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body) {
   return std::make_shared<types::type_lambda_t>(binding, body);
 }
 
-types::type_t::ref type_tuple_accessor(int i, int max, const std::vector<std::string> &vars) {
+types::type_t::ref type_tuple_accessor(int i,
+                                       int max,
+                                       const std::vector<std::string> &vars) {
   types::type_t::refs dims;
   for (int j = 0; j < max; ++j) {
     dims.push_back(type_variable(make_iid(vars[j])));
@@ -838,7 +865,8 @@ types::type_t::ref tuple_deref_type(location_t location,
   auto tuple = safe_dyncast<const types::type_tuple_t>(tuple_);
   if (tuple->dimensions.size() < index || index < 0) {
     auto error = user_error(
-        location, "attempt to access type of element at index %d which is out of range",
+        location,
+        "attempt to access type of element at index %d which is out of range",
         index);
     error.add_info(tuple_->get_location(), "type is %s", tuple_->str().c_str());
     throw error;

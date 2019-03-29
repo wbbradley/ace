@@ -19,12 +19,14 @@ struct expr_t {
   virtual ~expr_t() throw() {
   }
   virtual location_t get_location() const = 0;
-  virtual std::ostream &render(std::ostream &os, int parent_precedence) const = 0;
+  virtual std::ostream &render(std::ostream &os,
+                               int parent_precedence) const = 0;
   std::string str() const;
 };
 
 struct static_print_t : public expr_t {
-  static_print_t(location_t location, expr_t *expr) : location(location), expr(expr) {
+  static_print_t(location_t location, expr_t *expr)
+      : location(location), expr(expr) {
   }
   location_t get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
@@ -68,12 +70,15 @@ struct predicate_t {
   virtual ~predicate_t() {
   }
   virtual std::ostream &render(std::ostream &os) const = 0;
-  virtual match::Pattern::ref get_pattern(types::type_t::ref type,
-                                          const translation_env_t &env) const = 0;
-  virtual types::type_t::ref infer(env_t &env, constraints_t &constraints) const = 0;
+  virtual match::Pattern::ref get_pattern(
+      types::type_t::ref type,
+      const translation_env_t &env) const = 0;
+  virtual types::type_t::ref infer(env_t &env,
+                                   constraints_t &constraints) const = 0;
   virtual location_t get_location() const = 0;
   virtual identifier_t instantiate_name_assignment() const = 0;
-  virtual void get_bound_vars(std::unordered_set<std::string> &bound_vars) const = 0;
+  virtual void get_bound_vars(
+      std::unordered_set<std::string> &bound_vars) const = 0;
   virtual expr_t *translate(const defn_id_t &defn_id,
                             const identifier_t &scrutinee_id,
                             const types::type_t::ref &scrutinee_type,
@@ -97,9 +102,11 @@ struct tuple_predicate_t : public predicate_t {
   std::ostream &render(std::ostream &os) const override;
   match::Pattern::ref get_pattern(types::type_t::ref type,
                                   const translation_env_t &env) const override;
-  types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
+  types::type_t::ref infer(env_t &env,
+                           constraints_t &constraints) const override;
   identifier_t instantiate_name_assignment() const override;
-  void get_bound_vars(std::unordered_set<std::string> &bound_vars) const override;
+  void get_bound_vars(
+      std::unordered_set<std::string> &bound_vars) const override;
   expr_t *translate(const defn_id_t &defn_id,
                     const identifier_t &scrutinee_id,
                     const types::type_t::ref &scrutinee_type,
@@ -119,15 +126,18 @@ struct tuple_predicate_t : public predicate_t {
 };
 
 struct irrefutable_predicate_t : public predicate_t {
-  irrefutable_predicate_t(location_t location, maybe<identifier_t> name_assignment)
+  irrefutable_predicate_t(location_t location,
+                          maybe<identifier_t> name_assignment)
       : location(location), name_assignment(name_assignment) {
   }
   std::ostream &render(std::ostream &os) const override;
   match::Pattern::ref get_pattern(types::type_t::ref type,
                                   const translation_env_t &env) const override;
-  types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
+  types::type_t::ref infer(env_t &env,
+                           constraints_t &constraints) const override;
   identifier_t instantiate_name_assignment() const override;
-  void get_bound_vars(std::unordered_set<std::string> &bound_vars) const override;
+  void get_bound_vars(
+      std::unordered_set<std::string> &bound_vars) const override;
   expr_t *translate(const defn_id_t &defn_id,
                     const identifier_t &scrutinee_id,
                     const types::type_t::ref &scrutinee_type,
@@ -156,9 +166,11 @@ struct ctor_predicate_t : public predicate_t {
   std::ostream &render(std::ostream &os) const override;
   match::Pattern::ref get_pattern(types::type_t::ref type,
                                   const translation_env_t &env) const override;
-  types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
+  types::type_t::ref infer(env_t &env,
+                           constraints_t &constraints) const override;
   identifier_t instantiate_name_assignment() const override;
-  void get_bound_vars(std::unordered_set<std::string> &bound_vars) const override;
+  void get_bound_vars(
+      std::unordered_set<std::string> &bound_vars) const override;
   expr_t *translate(const defn_id_t &defn_id,
                     const identifier_t &scrutinee_id,
                     const types::type_t::ref &scrutinee_type,
@@ -235,7 +247,8 @@ struct lambda_t : public expr_t {
 };
 
 struct let_t : public expr_t {
-  let_t(identifier_t var, expr_t *value, expr_t *body) : var(var), value(value), body(body) {
+  let_t(identifier_t var, expr_t *value, expr_t *body)
+      : var(var), value(value), body(body) {
   }
   location_t get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
@@ -246,7 +259,8 @@ struct let_t : public expr_t {
 };
 
 struct tuple_t : public expr_t {
-  tuple_t(location_t location, std::vector<expr_t *> dims) : location(location), dims(dims) {
+  tuple_t(location_t location, std::vector<expr_t *> dims)
+      : location(location), dims(dims) {
   }
   location_t get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
@@ -256,7 +270,8 @@ struct tuple_t : public expr_t {
 };
 
 struct tuple_deref_t : public expr_t {
-  tuple_deref_t(expr_t *expr, int index, int max) : expr(expr), index(index), max(max) {
+  tuple_deref_t(expr_t *expr, int index, int max)
+      : expr(expr), index(index), max(max) {
   }
 
   location_t get_location() const override;
@@ -285,9 +300,11 @@ struct literal_t : public expr_t, public predicate_t {
   std::ostream &render(std::ostream &os) const override;
   match::Pattern::ref get_pattern(types::type_t::ref type,
                                   const translation_env_t &env) const override;
-  types::type_t::ref infer(env_t &env, constraints_t &constraints) const override;
+  types::type_t::ref infer(env_t &env,
+                           constraints_t &constraints) const override;
   identifier_t instantiate_name_assignment() const override;
-  void get_bound_vars(std::unordered_set<std::string> &bound_vars) const override;
+  void get_bound_vars(
+      std::unordered_set<std::string> &bound_vars) const override;
   expr_t *translate(const defn_id_t &defn_id,
                     const identifier_t &scrutinee_id,
                     const types::type_t::ref &scrutinee_type,
@@ -340,7 +357,8 @@ struct break_t : public expr_t {
 };
 
 struct while_t : public expr_t {
-  while_t(expr_t *condition, expr_t *block) : condition(condition), block(block) {
+  while_t(expr_t *condition, expr_t *block)
+      : condition(condition), block(block) {
   }
   location_t get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
@@ -368,7 +386,8 @@ struct decl_t {
 };
 
 struct type_decl_t {
-  type_decl_t(identifier_t id, const identifiers_t &params) : id(id), params(params) {
+  type_decl_t(identifier_t id, const identifiers_t &params)
+      : id(id), params(params) {
   }
 
   identifier_t const id;
@@ -385,7 +404,8 @@ struct type_class_t {
                identifier_t type_var_id,
                const std::set<std::string> &superclasses,
                const types::type_t::map &overloads)
-      : id(id), type_var_id(type_var_id), superclasses(superclasses), overloads(overloads) {
+      : id(id), type_var_id(type_var_id), superclasses(superclasses),
+        overloads(overloads) {
   }
 
   location_t get_location() const;
@@ -420,8 +440,9 @@ struct module_t {
            const ctor_id_map_t &ctor_id_map,
            const data_ctors_map_t &data_ctors_map,
            const std::set<identifier_t> &newtypes)
-      : name(name), decls(decls), type_decls(type_decls), type_classes(type_classes),
-        instances(instances), ctor_id_map(ctor_id_map), data_ctors_map(data_ctors_map),
+      : name(name), decls(decls), type_decls(type_decls),
+        type_classes(type_classes), instances(instances),
+        ctor_id_map(ctor_id_map), data_ctors_map(data_ctors_map),
         newtypes(newtypes) {
   }
 
@@ -440,7 +461,8 @@ struct program_t {
             const std::vector<type_class_t *> &type_classes,
             const std::vector<instance_t *> &instances,
             expr_t *expr)
-      : decls(decls), type_classes(type_classes), instances(instances), expr(expr) {
+      : decls(decls), type_classes(type_classes), instances(instances),
+        expr(expr) {
   }
 
   std::vector<decl_t *> const decls;

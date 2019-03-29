@@ -1,9 +1,9 @@
 #pragma once
 #include <ostream>
 
-#define INTERNAL_LOC()                                                                       \
-  ::location_t {                                                                             \
-    __FILE__, __LINE__, 1                                                                    \
+#define INTERNAL_LOC()                                                         \
+  ::location_t {                                                               \
+    __FILE__, __LINE__, 1                                                      \
   }
 
 struct location_t {

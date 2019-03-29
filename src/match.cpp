@@ -35,7 +35,8 @@ struct CtorPatternValue {
 
 struct CtorPattern : std::enable_shared_from_this<CtorPattern>, Pattern {
   CtorPatternValue cpv;
-  CtorPattern(location_t location, CtorPatternValue cpv) : Pattern(location), cpv(cpv) {
+  CtorPattern(location_t location, CtorPatternValue cpv)
+      : Pattern(location), cpv(cpv) {
   }
 
   virtual std::string str() const;
@@ -65,7 +66,8 @@ struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
   virtual std::string str() const;
 };
 
-template <typename T> struct Scalars : std::enable_shared_from_this<Scalars<T>>, Pattern {
+template <typename T>
+struct Scalars : std::enable_shared_from_this<Scalars<T>>, Pattern {
   enum Kind { Include, Exclude } kind;
   std::set<T> collection;
 
@@ -115,7 +117,8 @@ std::shared_ptr<const AllOf> asAllOf(Pattern::ref pattern) {
   return dyncast<const AllOf>(pattern);
 }
 
-template <typename T> std::shared_ptr<const Scalars<T>> asScalars(Pattern::ref pattern) {
+template <typename T>
+std::shared_ptr<const Scalars<T>> asScalars(Pattern::ref pattern) {
   return dyncast<const Scalars<T>>(pattern);
 }
 
@@ -197,39 +200,45 @@ Pattern::ref intersect(location_t location,
   Pattern::ref intersection = theNothing;
   for (auto &cpv : lhs) {
     Pattern::ref init = std::make_shared<CtorPattern>(location, cpv);
-    intersection = pattern_union(std::accumulate(rhs.begin(), rhs.end(), init, cpv_intersect),
-                                 intersection);
+    intersection = pattern_union(
+        std::accumulate(rhs.begin(), rhs.end(), init, cpv_intersect),
+        intersection);
   }
   return intersection;
 }
 
-template <typename T> Pattern::ref intersect(const Scalars<T> &lhs, const Scalars<T> &rhs) {
+template <typename T>
+Pattern::ref intersect(const Scalars<T> &lhs, const Scalars<T> &rhs) {
   typename Scalars<T>::Kind new_kind;
   std::set<T> new_collection;
 
   if (lhs.kind == Scalars<T>::Exclude && rhs.kind == Scalars<T>::Exclude) {
     new_kind = Scalars<T>::Exclude;
-    std::set_union(lhs.collection.begin(), lhs.collection.end(), rhs.collection.begin(),
-                   rhs.collection.end(),
-                   std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
-  } else if (lhs.kind == Scalars<T>::Exclude && rhs.kind == Scalars<T>::Include) {
+    std::set_union(lhs.collection.begin(), lhs.collection.end(),
+                   rhs.collection.begin(), rhs.collection.end(),
+                   std::insert_iterator<std::set<T>>(new_collection,
+                                                     new_collection.begin()));
+  } else if (lhs.kind == Scalars<T>::Exclude &&
+             rhs.kind == Scalars<T>::Include) {
     new_kind = Scalars<T>::Include;
-    std::set_difference(
-        rhs.collection.begin(), rhs.collection.end(), lhs.collection.begin(),
-        lhs.collection.end(),
-        std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
-  } else if (lhs.kind == Scalars<T>::Include && rhs.kind == Scalars<T>::Exclude) {
+    std::set_difference(rhs.collection.begin(), rhs.collection.end(),
+                        lhs.collection.begin(), lhs.collection.end(),
+                        std::insert_iterator<std::set<T>>(
+                            new_collection, new_collection.begin()));
+  } else if (lhs.kind == Scalars<T>::Include &&
+             rhs.kind == Scalars<T>::Exclude) {
     new_kind = Scalars<T>::Include;
-    std::set_difference(
-        lhs.collection.begin(), lhs.collection.end(), rhs.collection.begin(),
-        rhs.collection.end(),
-        std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
-  } else if (lhs.kind == Scalars<T>::Include && rhs.kind == Scalars<T>::Include) {
+    std::set_difference(lhs.collection.begin(), lhs.collection.end(),
+                        rhs.collection.begin(), rhs.collection.end(),
+                        std::insert_iterator<std::set<T>>(
+                            new_collection, new_collection.begin()));
+  } else if (lhs.kind == Scalars<T>::Include &&
+             rhs.kind == Scalars<T>::Include) {
     new_kind = Scalars<T>::Include;
-    std::set_intersection(
-        lhs.collection.begin(), lhs.collection.end(), rhs.collection.begin(),
-        rhs.collection.end(),
-        std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
+    std::set_intersection(lhs.collection.begin(), lhs.collection.end(),
+                          rhs.collection.begin(), rhs.collection.end(),
+                          std::insert_iterator<std::set<T>>(
+                              new_collection, new_collection.begin()));
   } else {
     return null_impl();
   }
@@ -294,7 +303,8 @@ Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
     return intersect(*lhs_strings, *rhs_strings);
   }
 
-  log_location(log_error, lhs->location, "intersect is not implemented yet (%s vs. %s)",
+  log_location(log_error, lhs->location,
+               "intersect is not implemented yet (%s vs. %s)",
                lhs->str().c_str(), rhs->str().c_str());
 
   throw user_error(INTERNAL_LOC(), "not implemented");
@@ -340,7 +350,8 @@ Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
   }
 
   if (lhs_ctor_pattern && rhs_ctor_pattern) {
-    std::vector<CtorPatternValue> cpvs{lhs_ctor_pattern->cpv, rhs_ctor_pattern->cpv};
+    std::vector<CtorPatternValue> cpvs{lhs_ctor_pattern->cpv,
+                                       rhs_ctor_pattern->cpv};
     return std::make_shared<CtorPatterns>(lhs->location, cpvs);
   }
 
@@ -350,7 +361,9 @@ Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
   return nullptr;
 }
 
-Pattern::ref from_type(location_t location, const translation_env_t &tenv, type_t::ref type) {
+Pattern::ref from_type(location_t location,
+                       const translation_env_t &tenv,
+                       type_t::ref type) {
   if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
     std::vector<Pattern::ref> args;
     for (auto dim : tuple_type->dimensions) {
@@ -374,8 +387,8 @@ Pattern::ref from_type(location_t location, const translation_env_t &tenv, type_
       args.reserve(ctor_terms.size() - 1);
 
       for (size_t i = 0; i < ctor_terms.size() - 1; ++i) {
-        args.push_back(
-            std::make_shared<AllOf>(location, maybe<identifier_t>(), tenv, ctor_terms[i]));
+        args.push_back(std::make_shared<AllOf>(location, maybe<identifier_t>(),
+                                               tenv, ctor_terms[i]));
       }
       /* add a ctor */
       cpvs.push_back(CtorPatternValue{type->repr(), ctor_name, args});
@@ -393,8 +406,9 @@ Pattern::ref from_type(location_t location, const translation_env_t &tenv, type_
   /* just accept all of whatever this is */
   return std::make_shared<AllOf>(
       type->get_location(),
-      maybe<identifier_t>(identifier_t{string_format("AllOf(%s)", type->str().c_str()),
-                                       type->get_location()}),
+      maybe<identifier_t>(
+          identifier_t{string_format("AllOf(%s)", type->str().c_str()),
+                       type->get_location()}),
       tenv, type);
 }
 
@@ -421,8 +435,8 @@ void difference(location_t location,
       } else {
         std::vector<Pattern::ref> args = lhs.args;
         args[i] = arg;
-        send(std::make_shared<CtorPattern>(location,
-                                           CtorPatternValue{lhs.type_name, lhs.name, args}));
+        send(std::make_shared<CtorPattern>(
+            location, CtorPatternValue{lhs.type_name, lhs.name, args}));
       }
     };
 
@@ -432,33 +446,38 @@ void difference(location_t location,
   }
 }
 
-template <typename T> Pattern::ref difference(const Scalars<T> &lhs, const Scalars<T> &rhs) {
+template <typename T>
+Pattern::ref difference(const Scalars<T> &lhs, const Scalars<T> &rhs) {
   typename Scalars<T>::Kind new_kind;
   std::set<T> new_collection;
 
   if (lhs.kind == Scalars<T>::Exclude && rhs.kind == Scalars<T>::Exclude) {
     new_kind = Scalars<T>::Include;
-    std::set_difference(
-        rhs.collection.begin(), rhs.collection.end(), lhs.collection.begin(),
-        lhs.collection.end(),
-        std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
-  } else if (lhs.kind == Scalars<T>::Exclude && rhs.kind == Scalars<T>::Include) {
+    std::set_difference(rhs.collection.begin(), rhs.collection.end(),
+                        lhs.collection.begin(), lhs.collection.end(),
+                        std::insert_iterator<std::set<T>>(
+                            new_collection, new_collection.begin()));
+  } else if (lhs.kind == Scalars<T>::Exclude &&
+             rhs.kind == Scalars<T>::Include) {
     new_kind = Scalars<T>::Exclude;
-    std::set_union(rhs.collection.begin(), rhs.collection.end(), lhs.collection.begin(),
-                   lhs.collection.end(),
-                   std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
-  } else if (lhs.kind == Scalars<T>::Include && rhs.kind == Scalars<T>::Exclude) {
+    std::set_union(rhs.collection.begin(), rhs.collection.end(),
+                   lhs.collection.begin(), lhs.collection.end(),
+                   std::insert_iterator<std::set<T>>(new_collection,
+                                                     new_collection.begin()));
+  } else if (lhs.kind == Scalars<T>::Include &&
+             rhs.kind == Scalars<T>::Exclude) {
     new_kind = Scalars<T>::Include;
-    std::set_intersection(
-        rhs.collection.begin(), rhs.collection.end(), lhs.collection.begin(),
-        lhs.collection.end(),
-        std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
-  } else if (lhs.kind == Scalars<T>::Include && rhs.kind == Scalars<T>::Include) {
+    std::set_intersection(rhs.collection.begin(), rhs.collection.end(),
+                          lhs.collection.begin(), lhs.collection.end(),
+                          std::insert_iterator<std::set<T>>(
+                              new_collection, new_collection.begin()));
+  } else if (lhs.kind == Scalars<T>::Include &&
+             rhs.kind == Scalars<T>::Include) {
     new_kind = Scalars<T>::Include;
-    std::set_difference(
-        lhs.collection.begin(), lhs.collection.end(), rhs.collection.begin(),
-        rhs.collection.end(),
-        std::insert_iterator<std::set<T>>(new_collection, new_collection.begin()));
+    std::set_difference(lhs.collection.begin(), lhs.collection.end(),
+                        rhs.collection.begin(), rhs.collection.end(),
+                        std::insert_iterator<std::set<T>>(
+                            new_collection, new_collection.begin()));
   } else {
     return null_impl();
   }
@@ -472,8 +491,8 @@ template <typename T> Pattern::ref difference(const Scalars<T> &lhs, const Scala
 void difference(Pattern::ref lhs,
                 Pattern::ref rhs,
                 const std::function<void(Pattern::ref)> &send) {
-  debug_above(8, log_location(rhs->location, "computing %s \\ %s", lhs->str().c_str(),
-                              rhs->str().c_str()));
+  debug_above(8, log_location(rhs->location, "computing %s \\ %s",
+                              lhs->str().c_str(), rhs->str().c_str()));
 
   auto lhs_nothing = lhs->asNothing();
   auto rhs_nothing = rhs->asNothing();
@@ -501,18 +520,21 @@ void difference(Pattern::ref lhs,
         return;
       }
 
-      auto error = user_error(lhs->location,
-                              "type mismatch when comparing ctors for pattern intersection");
+      auto error = user_error(
+          lhs->location,
+          "type mismatch when comparing ctors for pattern intersection");
       error.add_info(rhs->location, "comparing this type");
       throw error;
     }
 
-    difference(from_type(lhs->location, lhs_allof->tenv, lhs_allof->type), rhs, send);
+    difference(from_type(lhs->location, lhs_allof->tenv, lhs_allof->type), rhs,
+               send);
     return;
   }
 
   if (rhs_allof) {
-    difference(lhs, from_type(rhs->location, rhs_allof->tenv, rhs_allof->type), send);
+    difference(lhs, from_type(rhs->location, rhs_allof->tenv, rhs_allof->type),
+               send);
     return;
   }
 
@@ -522,8 +544,9 @@ void difference(Pattern::ref lhs,
   if (lhs_ctor_patterns) {
     if (rhs_ctor_patterns) {
       for (auto &cpv : lhs_ctor_patterns->cpvs) {
-        difference(std::make_shared<CtorPattern>(lhs_ctor_patterns->location, cpv), rhs,
-                   send);
+        difference(
+            std::make_shared<CtorPattern>(lhs_ctor_patterns->location, cpv),
+            rhs, send);
       }
       return;
     } else if (rhs_ctor_pattern) {
@@ -547,13 +570,15 @@ void difference(Pattern::ref lhs,
       for (auto &b : rhs_ctor_patterns->cpvs) {
         auto current_a = new_a;
         new_a = theNothing;
-        difference(current_a, std::make_shared<CtorPattern>(rhs->location, b), new_a_send);
+        difference(current_a, std::make_shared<CtorPattern>(rhs->location, b),
+                   new_a_send);
       }
 
       send(new_a);
       return;
     } else if (rhs_ctor_pattern) {
-      difference(lhs->location, lhs_ctor_pattern->cpv, rhs_ctor_pattern->cpv, send);
+      difference(lhs->location, lhs_ctor_pattern->cpv, rhs_ctor_pattern->cpv,
+                 send);
       return;
     }
   }
@@ -608,8 +633,9 @@ std::string CtorPattern::str() const {
 }
 
 std::string CtorPatterns::str() const {
-  return ::join_with(cpvs, " and ",
-                     [](const CtorPatternValue &cpv) -> std::string { return cpv.str(); });
+  return ::join_with(
+      cpvs, " and ",
+      [](const CtorPatternValue &cpv) -> std::string { return cpv.str(); });
 }
 
 std::string CtorPatternValue::str() const {
@@ -627,8 +653,9 @@ namespace bitter {
 using namespace ::match;
 using namespace ::types;
 
-Pattern::ref tuple_predicate_t::get_pattern(type_t::ref type,
-                                            const translation_env_t &tenv) const {
+Pattern::ref tuple_predicate_t::get_pattern(
+    type_t::ref type,
+    const translation_env_t &tenv) const {
   std::vector<Pattern::ref> args;
   if (auto tuple_type = dyncast<const type_tuple_t>(type)) {
     if (tuple_type->dimensions.size() != params.size()) {
@@ -642,8 +669,8 @@ Pattern::ref tuple_predicate_t::get_pattern(type_t::ref type,
     for (size_t i = 0; i < params.size(); ++i) {
       args.push_back(params[i]->get_pattern(tuple_type->dimensions[i], tenv));
     }
-    return std::make_shared<CtorPattern>(location,
-                                         CtorPatternValue{tuple_type->repr(), "tuple", args});
+    return std::make_shared<CtorPattern>(
+        location, CtorPatternValue{tuple_type->repr(), "tuple", args});
   } else {
     throw user_error(location,
                      "type mismatch on pattern. incoming type is %s. "
@@ -652,8 +679,9 @@ Pattern::ref tuple_predicate_t::get_pattern(type_t::ref type,
     return nullptr;
   }
 }
-Pattern::ref ctor_predicate_t::get_pattern(type_t::ref type,
-                                           const translation_env_t &tenv) const {
+Pattern::ref ctor_predicate_t::get_pattern(
+    type_t::ref type,
+    const translation_env_t &tenv) const {
   auto ctor_terms = tenv.get_data_ctor_terms(type, ctor_name);
 
   std::vector<Pattern::ref> args;
@@ -661,7 +689,8 @@ Pattern::ref ctor_predicate_t::get_pattern(type_t::ref type,
     throw user_error(location,
                      "%s has an incorrect number of sub-patterns. there are "
                      "%d, there should be %d",
-                     ctor_name.name.c_str(), int(params.size()), int(ctor_terms.size() - 1));
+                     ctor_name.name.c_str(), int(params.size()),
+                     int(ctor_terms.size() - 1));
   }
 
   for (size_t i = 0; i < params.size(); ++i) {
@@ -669,35 +698,40 @@ Pattern::ref ctor_predicate_t::get_pattern(type_t::ref type,
   }
 
   /* found the ctor we're matching on */
-  return std::make_shared<CtorPattern>(location,
-                                       CtorPatternValue{type->repr(), ctor_name.name, args});
+  return std::make_shared<CtorPattern>(
+      location, CtorPatternValue{type->repr(), ctor_name.name, args});
 }
-Pattern::ref irrefutable_predicate_t::get_pattern(type_t::ref type,
-                                                  const translation_env_t &tenv) const {
+Pattern::ref irrefutable_predicate_t::get_pattern(
+    type_t::ref type,
+    const translation_env_t &tenv) const {
   return std::make_shared<AllOf>(location, name_assignment, tenv, type);
 }
-Pattern::ref literal_t::get_pattern(type_t::ref type, const translation_env_t &tenv) const {
+Pattern::ref literal_t::get_pattern(type_t::ref type,
+                                    const translation_env_t &tenv) const {
   if (type_equality(type, type_int(INTERNAL_LOC()))) {
     if (token.tk == tk_integer) {
       int64_t value = parse_int_value(token);
-      return std::make_shared<Scalars<int64_t>>(token.location, Scalars<int64_t>::Include,
-                                                std::set<int64_t>{value});
+      return std::make_shared<Scalars<int64_t>>(
+          token.location, Scalars<int64_t>::Include, std::set<int64_t>{value});
     } else if (token.tk == tk_identifier) {
-      return std::make_shared<Scalars<int64_t>>(token.location, Scalars<int64_t>::Exclude,
-                                                std::set<int64_t>{});
+      return std::make_shared<Scalars<int64_t>>(
+          token.location, Scalars<int64_t>::Exclude, std::set<int64_t>{});
     }
   } else if (type_equality(type, type_string(INTERNAL_LOC()))) {
     if (token.tk == tk_string) {
       std::string value = unescape_json_quotes(token.text);
       return std::make_shared<Scalars<std::string>>(
-          token.location, Scalars<std::string>::Include, std::set<std::string>{value});
+          token.location, Scalars<std::string>::Include,
+          std::set<std::string>{value});
     } else if (token.tk == tk_identifier) {
       return std::make_shared<Scalars<std::string>>(
-          token.location, Scalars<std::string>::Exclude, std::set<std::string>{});
+          token.location, Scalars<std::string>::Exclude,
+          std::set<std::string>{});
     }
   }
 
-  throw user_error(token.location, "invalid type for literal '%s'. should be a %s",
+  throw user_error(token.location,
+                   "invalid type for literal '%s'. should be a %s",
                    token.text.c_str(), type->str().c_str());
   return nullptr;
 }

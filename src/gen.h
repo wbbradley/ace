@@ -53,14 +53,17 @@ struct proxy_value_t : public value_t {
   value_t::ref impl;
 };
 
-typedef std::unordered_map<std::string,
-                           std::map<types::type_t::ref, value_t::ref, types::compare_type_t>>
+typedef std::unordered_map<
+    std::string,
+    std::map<types::type_t::ref, value_t::ref, types::compare_type_t>>
     gen_env_t;
 
 value_t::ref maybe_get_env_var(const gen_env_t &env,
                                identifier_t id,
                                types::type_t::ref type);
-value_t::ref get_env_var(const gen_env_t &env, identifier_t id, types::type_t::ref type);
+value_t::ref get_env_var(const gen_env_t &env,
+                         identifier_t id,
+                         types::type_t::ref type);
 void set_env_var(gen_env_t &env,
                  std::string name,
                  value_t::ref value,
@@ -105,7 +108,9 @@ struct unit_t : public value_t {
 };
 
 struct literal_t : public instruction_t {
-  literal_t(token_t token, std::weak_ptr<block_t> parent, types::type_t::ref type)
+  literal_t(token_t token,
+            std::weak_ptr<block_t> parent,
+            types::type_t::ref type)
       : instruction_t(token.location, type, parent), token(token) {
   }
 
@@ -116,10 +121,13 @@ struct literal_t : public instruction_t {
 
 struct phi_node_t : public instruction_t {
   typedef std::shared_ptr<phi_node_t> ref;
-  phi_node_t(location_t location, std::weak_ptr<block_t> parent, types::type_t::ref type)
+  phi_node_t(location_t location,
+             std::weak_ptr<block_t> parent,
+             types::type_t::ref type)
       : instruction_t(location, type, parent) {
     if (type_equality(type, type_unit(INTERNAL_LOC()))) {
-      throw user_error(location, "it is unnecessary to use phi nodes on unit typed values");
+      throw user_error(
+          location, "it is unnecessary to use phi nodes on unit typed values");
     }
   }
 
@@ -127,13 +135,15 @@ struct phi_node_t : public instruction_t {
 
   void add_incoming_value(value_t::ref value, std::shared_ptr<block_t> block);
 
-  std::vector<std::pair<value_t::ref, std::shared_ptr<block_t>>> incoming_values;
+  std::vector<std::pair<value_t::ref, std::shared_ptr<block_t>>>
+      incoming_values;
 };
 
 struct block_t {
   typedef std::shared_ptr<block_t> ref;
 
-  block_t(std::weak_ptr<function_t> parent, std::string name) : parent(parent), name(name) {
+  block_t(std::weak_ptr<function_t> parent, std::string name)
+      : parent(parent), name(name) {
   }
   std::string str() const;
 
@@ -206,8 +216,12 @@ struct builtin_t : public instruction_t {
 
 struct argument_t : public value_t {
   typedef std::shared_ptr<argument_t> ref;
-  argument_t(identifier_t id, types::type_t::ref type, int index, function_t::wref function)
-      : value_t(id.location, {}, type, id.name), index(index), function(function) {
+  argument_t(identifier_t id,
+             types::type_t::ref type,
+             int index,
+             function_t::wref function)
+      : value_t(id.location, {}, type, id.name), index(index),
+        function(function) {
   }
 
   std::string str() const override;
@@ -218,8 +232,11 @@ struct argument_t : public value_t {
 };
 
 struct goto_t : public instruction_t {
-  goto_t(location_t location, std::weak_ptr<block_t> parent, block_t::ref branch)
-      : instruction_t(location, type_unit(INTERNAL_LOC()), parent), branch(branch) {
+  goto_t(location_t location,
+         std::weak_ptr<block_t> parent,
+         block_t::ref branch)
+      : instruction_t(location, type_unit(INTERNAL_LOC()), parent),
+        branch(branch) {
   }
 
   std::ostream &render(std::ostream &os) const override;
@@ -234,8 +251,8 @@ struct cond_branch_t : public instruction_t {
                 block_t::ref truthy_branch,
                 block_t::ref falsey_branch,
                 std::string name)
-      : instruction_t(location, type_unit(INTERNAL_LOC()), parent, name), cond(cond),
-        truthy_branch(truthy_branch), falsey_branch(falsey_branch) {
+      : instruction_t(location, type_unit(INTERNAL_LOC()), parent, name),
+        cond(cond), truthy_branch(truthy_branch), falsey_branch(falsey_branch) {
   }
 
   std::ostream &render(std::ostream &os) const override;
@@ -263,8 +280,11 @@ struct callsite_t : public instruction_t {
 };
 
 struct return_t : public instruction_t {
-  return_t(location_t location, std::weak_ptr<block_t> parent, value_t::ref value)
-      : instruction_t(location, type_unit(INTERNAL_LOC()), parent), value(value) {
+  return_t(location_t location,
+           std::weak_ptr<block_t> parent,
+           value_t::ref value)
+      : instruction_t(location, type_unit(INTERNAL_LOC()), parent),
+        value(value) {
   }
 
   std::ostream &render(std::ostream &os) const override;
@@ -293,7 +313,8 @@ struct store_t : public instruction_t {
           value_t::ref lhs,
           value_t::ref rhs,
           std::string name)
-      : instruction_t(location, type_bottom(), parent, name), lhs(lhs), rhs(rhs) {
+      : instruction_t(location, type_bottom(), parent, name), lhs(lhs),
+        rhs(rhs) {
   }
   value_t::ref lhs, rhs;
 };
@@ -318,7 +339,10 @@ struct tuple_deref_t : public instruction_t {
                 value_t::ref value,
                 int index,
                 std::string name)
-      : instruction_t(location, tuple_deref_type(location, value->type, index), parent, name),
+      : instruction_t(location,
+                      tuple_deref_type(location, value->type, index),
+                      parent,
+                      name),
         value(value), index(index) {
   }
   std::ostream &render(std::ostream &os) const override;
@@ -333,7 +357,8 @@ struct builder_t {
   typedef gen::builder_t saved_state;
   builder_t(module_t::ref module) : module(module) {
   }
-  builder_t(function_t::ref function) : module(function->parent), function(function) {
+  builder_t(function_t::ref function)
+      : module(function->parent), function(function) {
   }
 
   block_t::ref create_block(std::string name, bool insert_in_new_block = true);
@@ -390,8 +415,8 @@ public:
   block_t::ref block;
   block_t::ref break_to_block;
   block_t::ref continue_to_block;
-  // std::shared_ptr<std::iterator<std::output_iterator_tag, void, void, void, void>>
-  // inserter;
+  // std::shared_ptr<std::iterator<std::output_iterator_tag, void, void, void,
+  // void>> inserter;
 };
 
 phi_node_t::ref phi_node(types::type_t::ref type);

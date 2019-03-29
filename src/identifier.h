@@ -25,11 +25,11 @@ using identifiers_t = std::vector<identifier_t>;
 
 std::string str(identifiers_t ids);
 
-#define make_iid(name_)                                                                      \
-  identifier_t {                                                                             \
-    name_, location_t {                                                                      \
-      __FILE__, __LINE__, 1                                                                  \
-    }                                                                                        \
+#define make_iid(name_)                                                        \
+  identifier_t {                                                               \
+    name_, location_t {                                                        \
+      __FILE__, __LINE__, 1                                                    \
+    }                                                                          \
   }
 
 namespace std {

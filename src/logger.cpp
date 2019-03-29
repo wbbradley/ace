@@ -19,7 +19,8 @@
 
 #define STDERR stdout
 
-static int _max_log_depth = atoi(getenv("LOG_DEPTH") != nullptr ? getenv("LOG_DEPTH") : "0");
+static int _max_log_depth =
+    atoi(getenv("LOG_DEPTH") != nullptr ? getenv("LOG_DEPTH") : "0");
 
 int logger_level = log_info | log_warning | log_error | log_panic;
 
@@ -120,9 +121,12 @@ void tee_logger::logv(log_level_t level,
   if (_max_log_depth == 0 || get_depth() < _max_log_depth) {
     auto str = string_formatv(format, args);
 
-    captured_logs.push_back(std::tuple<log_level_t, maybe<location_t>, std::string>(
-        level, location != nullptr ? maybe<location_t>(*location) : maybe<location_t>(),
-        str));
+    captured_logs.push_back(
+        std::tuple<log_level_t, maybe<location_t>, std::string>(
+            level,
+            location != nullptr ? maybe<location_t>(*location)
+                                : maybe<location_t>(),
+            str));
 
     if (logger_old != nullptr) {
       logger_old->log(level, location, "%s", str.c_str());
@@ -130,7 +134,10 @@ void tee_logger::logv(log_level_t level,
   }
 }
 
-void tee_logger::log(log_level_t level, const location_t *location, const char *format, ...) {
+void tee_logger::log(log_level_t level,
+                     const location_t *location,
+                     const char *format,
+                     ...) {
   va_list args;
   va_start(args, format);
   logv(level, location, format, args);
@@ -166,8 +173,8 @@ void indent_logger::logv(log_level_t level,
   if (_max_log_depth == 0 || get_depth() < _max_log_depth) {
     auto str = string_formatv(format, args);
     if (logger_old != nullptr) {
-      logger_old->log(level, location, "%s%s", (location != nullptr) ? "" : "  ",
-                      str.c_str());
+      logger_old->log(level, location, "%s%s",
+                      (location != nullptr) ? "" : "  ", str.c_str());
     }
   }
 }
@@ -211,7 +218,8 @@ void note_logger::log(log_level_t level,
   va_end(args);
 }
 
-standard_logger::standard_logger(const std::string &name, const std::string &root_file_path)
+standard_logger::standard_logger(const std::string &name,
+                                 const std::string &root_file_path)
     : m_name(name), m_fp(NULL) {
   m_root_file_path = root_file_path;
   if (m_root_file_path[m_root_file_path.size() - 1] != '/') {
@@ -246,13 +254,15 @@ void append_time(std::ostream &os,
   os.setf(std::ios::fixed, std::ios::floatfield);
   os.fill('0'); // Pad on left with '0'
   if (for_humans) {
-    os << std::setw(2) << tdata.tm_mon + 1 << '/' << std::setw(2) << tdata.tm_mday << '/'
-       << std::setw(2) << tdata.tm_year + 1900 << sep << std::setw(2) << tdata.tm_hour << ':'
-       << std::setw(2) << tdata.tm_min << ':' << std::setw(2) << tdata.tm_sec;
+    os << std::setw(2) << tdata.tm_mon + 1 << '/' << std::setw(2)
+       << tdata.tm_mday << '/' << std::setw(2) << tdata.tm_year + 1900 << sep
+       << std::setw(2) << tdata.tm_hour << ':' << std::setw(2) << tdata.tm_min
+       << ':' << std::setw(2) << tdata.tm_sec;
   } else {
-    os << std::setw(2) << tdata.tm_year + 1900 << std::setw(2) << tdata.tm_mon + 1
-       << std::setw(2) << tdata.tm_mday << 'T' << std::setw(2) << tdata.tm_hour
-       << std::setw(2) << tdata.tm_min << std::setw(2) << tdata.tm_sec;
+    os << std::setw(2) << tdata.tm_year + 1900 << std::setw(2)
+       << tdata.tm_mon + 1 << std::setw(2) << tdata.tm_mday << 'T'
+       << std::setw(2) << tdata.tm_hour << std::setw(2) << tdata.tm_min
+       << std::setw(2) << tdata.tm_sec;
     if (exact) {
       double decimals = (time_exact - (double)time);
       /* Turn it into milliseconds */
@@ -298,8 +308,8 @@ void standard_logger::open() {
 
 void standard_logger::dump() {
   write_fp(STDERR,
-           "| standard_logger : " c_id("%s") " - " C_FILENAME "%s" C_RESET " - " C_FILENAME
-                                             "%s" C_RESET "\n",
+           "| standard_logger : " c_id("%s") " - " C_FILENAME "%s" C_RESET
+                                             " - " C_FILENAME "%s" C_RESET "\n",
            m_name.c_str(), m_root_file_path.c_str(), m_current_logfile.c_str());
 }
 
@@ -307,7 +317,8 @@ void tee_logger::dump() {
   if (logger_old != nullptr) {
     logger_old->dump();
   }
-  write_fp(STDERR, "| tee_logger : %d logs captured\n", (int)captured_logs.size());
+  write_fp(STDERR, "| tee_logger : %d logs captured\n",
+           (int)captured_logs.size());
 }
 
 void indent_logger::dump() {
@@ -337,12 +348,16 @@ void log_dump() {
 }
 
 void panic_(const char *filename, int line, std::string msg) {
-  write_fp(STDERR, "%s:%d: " C_PANIC "PANIC" C_RESET " %s\n", filename, line, msg.c_str());
+  write_fp(STDERR, "%s:%d: " C_PANIC "PANIC" C_RESET " %s\n", filename, line,
+           msg.c_str());
   dbg();
   raise(SIGKILL);
 }
 
-void log_location(log_level_t level, const location_t &location, const char *format, ...) {
+void log_location(log_level_t level,
+                  const location_t &location,
+                  const char *format,
+                  ...) {
   va_list args;
   va_start(args, format);
   logv_location(level, location, format, args);
@@ -481,7 +496,8 @@ void print_stacktrace(FILE *p_out, unsigned int p_max_frames) {
     // BCH 24 Dec 2014: backtrace_symbols() on OS X seems to return strings in a
     // different, non-standard format. Added this code in an attempt to parse
     // that format.  No doubt it could be done more cleanly.  :->
-    if (!(begin_name && begin_offset && end_offset && begin_name < begin_offset)) {
+    if (!(begin_name && begin_offset && end_offset &&
+          begin_name < begin_offset)) {
       enum class ParseState {
         kInWhitespace1 = 1,
         kInLineNumber,
@@ -578,16 +594,19 @@ void print_stacktrace(FILE *p_out, unsigned int p_max_frames) {
       // offset in [begin_offset, end_offset). now apply __cxa_demangle():
 
       int status;
-      char *ret = abi::__cxa_demangle(begin_name, funcname, &funcnamesize, &status);
+      char *ret =
+          abi::__cxa_demangle(begin_name, funcname, &funcnamesize, &status);
 
       if (status == 0) {
         funcname = ret; // use possibly realloc()-ed string; static analyzer
                         // doesn't like this but it is OK I think
-        write_fp(p_out, "  %s : %s + %s\n", symbollist[i], funcname, begin_offset);
+        write_fp(p_out, "  %s : %s + %s\n", symbollist[i], funcname,
+                 begin_offset);
       } else {
         // demangling failed. Output function name as a C function with
         // no arguments.
-        write_fp(p_out, "  %s : %s() + %s\n", symbollist[i], begin_name, begin_offset);
+        write_fp(p_out, "  %s : %s() + %s\n", symbollist[i], begin_name,
+                 begin_offset);
       }
     } else {
       // couldn't parse the line? print the whole line.
@@ -626,9 +645,9 @@ standard_logger::~standard_logger() {
   close();
 }
 
-#define CaseError(error)                                                                     \
-  case error:                                                                                \
-    error_string = #error;                                                                   \
+#define CaseError(error)                                                       \
+  case error:                                                                  \
+    error_string = #error;                                                     \
     break
 
 bool check_errno(const char *tag) {

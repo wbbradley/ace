@@ -70,7 +70,8 @@ char hexdigit_lc(int ch) {
 }
 
 char base64(int i) {
-  const char base64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const char base64[] =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   if (i < 0 || i >= 64) {
     assert(false);
     return '*';
@@ -78,9 +79,12 @@ char base64(int i) {
   return base64[i];
 }
 
-void base64_encode(const void *payload, unsigned long payload_size, std::string &encoding) {
+void base64_encode(const void *payload,
+                   unsigned long payload_size,
+                   std::string &encoding) {
   /* rfc 1521 */
-  const unsigned char *octets = reinterpret_cast<const unsigned char *>(payload);
+  const unsigned char *octets =
+      reinterpret_cast<const unsigned char *>(payload);
   const size_t len = payload_size;
   std::stringstream ss;
 
@@ -111,7 +115,9 @@ void base64_encode(const void *payload, unsigned long payload_size, std::string 
 
 const static char ch_pad = '=';
 
-bool base64_decode(const std::string &input, char **const output, size_t *const size) {
+bool base64_decode(const std::string &input,
+                   char **const output,
+                   size_t *const size) {
   if (input.size() % 4) // Sanity check
   {
     log(log_error, "invalid base64");
@@ -216,13 +222,15 @@ bool regex_match(std::string input, std::string regex_) {
 }
 
 std::string string_formatv(const std::string fmt_str, va_list args_) {
-  int final_n, n = ((int)fmt_str.size()) *
-                   2; /* Reserve two times as much as the length of the fmt_str */
+  int final_n,
+      n = ((int)fmt_str.size()) *
+          2; /* Reserve two times as much as the length of the fmt_str */
   std::unique_ptr<char[]> formatted;
   va_list args;
   while (1) {
-    formatted.reset(new char[n]); /* Wrap the plain char array into the unique_ptr */
-                                  // strcpy(&formatted[0], fmt_str.c_str());
+    formatted.reset(
+        new char[n]); /* Wrap the plain char array into the unique_ptr */
+                      // strcpy(&formatted[0], fmt_str.c_str());
     va_copy(args, args_);
     final_n = vsnprintf(&formatted[0], n, fmt_str.c_str(), args);
     va_end(args_);
@@ -335,8 +343,8 @@ std::string get_cwd() {
 std::vector<std::string> readlines(std::string filename) {
   std::vector<std::string> lines;
   std::ifstream ifs(filename);
-  std::copy(std::istream_iterator<std::string>(ifs), std::istream_iterator<std::string>(),
-            std::back_inserter(lines));
+  std::copy(std::istream_iterator<std::string>(ifs),
+            std::istream_iterator<std::string>(), std::back_inserter(lines));
   return lines;
 }
 
@@ -469,7 +477,8 @@ std::string shell_get_line(std::string command) {
   check_command_line_text(INTERNAL_LOC(), command);
   FILE *fp = popen(command.c_str(), "r");
   if (fp == nullptr) {
-    throw user_error(INTERNAL_LOC(), "failed to invoke command %s", command.c_str());
+    throw user_error(INTERNAL_LOC(), "failed to invoke command %s",
+                     command.c_str());
   }
 
   char *linep = nullptr;
@@ -477,7 +486,8 @@ std::string shell_get_line(std::string command) {
   auto cb = getline(&linep, &linecap, fp);
 
   if (cb == -1) {
-    throw user_error(INTERNAL_LOC(), "failed to read output of command %s", command.c_str());
+    throw user_error(INTERNAL_LOC(), "failed to read output of command %s",
+                     command.c_str());
   }
 
   pclose(fp);
@@ -499,7 +509,8 @@ std::string get_pkg_config_libs(std::string pkg_name) {
 void check_command_line_text(location_t location, std::string text) {
   for (auto ch : "`$%&()|\"'") {
     if (text.find(ch) != std::string::npos) {
-      throw user_error(location, "illegal command-line text found in link in statement");
+      throw user_error(location,
+                       "illegal command-line text found in link in statement");
     }
   }
 }

@@ -44,7 +44,9 @@ int run_program(std::string executable, std::vector<const char *> args) {
   pid_t pid = fork();
 
   if (pid == -1) {
-    perror(string_format("unable to fork() child process %s", executable.c_str()).c_str());
+    perror(
+        string_format("unable to fork() child process %s", executable.c_str())
+            .c_str());
   } else if (pid > 0) {
     /* parent */
     int status;
@@ -126,49 +128,70 @@ const types::scheme_t::map &get_builtins() {
     (*map)["__builtin_word_size"] = scheme({}, {}, Int);
     (*map)["__builtin_min_int"] = scheme({}, {}, Int);
     (*map)["__builtin_max_int"] = scheme({}, {}, Int);
-    (*map)["__builtin_multiply_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-    (*map)["__builtin_divide_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-    (*map)["__builtin_subtract_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
+    (*map)["__builtin_multiply_int"] =
+        scheme({}, {}, type_arrows({Int, Int, Int}));
+    (*map)["__builtin_divide_int"] =
+        scheme({}, {}, type_arrows({Int, Int, Int}));
+    (*map)["__builtin_subtract_int"] =
+        scheme({}, {}, type_arrows({Int, Int, Int}));
     (*map)["__builtin_add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
     (*map)["__builtin_negate_int"] = scheme({}, {}, type_arrows({Int, Int}));
     (*map)["__builtin_abs_int"] = scheme({}, {}, type_arrows({Int, Int}));
-    (*map)["__builtin_multiply_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-    (*map)["__builtin_divide_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-    (*map)["__builtin_subtract_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
-    (*map)["__builtin_add_float"] = scheme({}, {}, type_arrows({Float, Float, Float}));
+    (*map)["__builtin_multiply_float"] =
+        scheme({}, {}, type_arrows({Float, Float, Float}));
+    (*map)["__builtin_divide_float"] =
+        scheme({}, {}, type_arrows({Float, Float, Float}));
+    (*map)["__builtin_subtract_float"] =
+        scheme({}, {}, type_arrows({Float, Float, Float}));
+    (*map)["__builtin_add_float"] =
+        scheme({}, {}, type_arrows({Float, Float, Float}));
     (*map)["__builtin_abs_float"] = scheme({}, {}, type_arrows({Float, Float}));
-    (*map)["__builtin_int_to_float"] = scheme({}, {}, type_arrows({Int, Float}));
-    (*map)["__builtin_negate_float"] = scheme({}, {}, type_arrows({Float, Float}));
-    (*map)["__builtin_add_ptr"] = scheme({"a"}, {}, type_arrows({tp_a, Int, tp_a}));
-    (*map)["__builtin_ptr_eq"] = scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
-    (*map)["__builtin_ptr_ne"] = scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
+    (*map)["__builtin_int_to_float"] =
+        scheme({}, {}, type_arrows({Int, Float}));
+    (*map)["__builtin_negate_float"] =
+        scheme({}, {}, type_arrows({Float, Float}));
+    (*map)["__builtin_add_ptr"] =
+        scheme({"a"}, {}, type_arrows({tp_a, Int, tp_a}));
+    (*map)["__builtin_ptr_eq"] =
+        scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
+    (*map)["__builtin_ptr_ne"] =
+        scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
     (*map)["__builtin_ptr_load"] = scheme({"a"}, {}, type_arrows({tp_a, tv_a}));
-    (*map)["__builtin_get_dim"] = scheme({"a", "b"}, {}, type_arrows({tv_a, Int, tv_b}));
-    (*map)["__builtin_get_ctor_id"] = scheme({"a"}, {}, type_arrows({tv_a, Int}));
+    (*map)["__builtin_get_dim"] =
+        scheme({"a", "b"}, {}, type_arrows({tv_a, Int, tv_b}));
+    (*map)["__builtin_get_ctor_id"] =
+        scheme({"a"}, {}, type_arrows({tv_a, Int}));
     (*map)["__builtin_int_eq"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_ne"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_lt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_lte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_gt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_gte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-    (*map)["__builtin_float_eq"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_ne"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_lt"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_lte"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_gt"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_gte"] = scheme({}, {}, type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_float_eq"] =
+        scheme({}, {}, type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_float_ne"] =
+        scheme({}, {}, type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_float_lt"] =
+        scheme({}, {}, type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_float_lte"] =
+        scheme({}, {}, type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_float_gt"] =
+        scheme({}, {}, type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_float_gte"] =
+        scheme({}, {}, type_arrows({Float, Float, Bool}));
     (*map)["__builtin_print"] =
         scheme({}, {}, type_arrows({String, type_unit(INTERNAL_LOC())}));
-    (*map)["__builtin_exit"] = scheme({}, {}, type_arrows({Int, type_bottom()}));
+    (*map)["__builtin_exit"] =
+        scheme({}, {}, type_arrows({Int, type_bottom()}));
     (*map)["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
-    (*map)["__builtin_store_ref"] =
-        scheme({"a"}, {},
-               type_arrows({type_operator(type_id(make_iid(REF_TYPE_OPERATOR)), tv_a), tv_a,
-                            type_unit(INTERNAL_LOC())}));
-    (*map)["__builtin_store_ptr"] =
-        scheme({"a"}, {},
-               type_arrows({type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a), tv_a,
-                            type_unit(INTERNAL_LOC())}));
+    (*map)["__builtin_store_ref"] = scheme(
+        {"a"}, {},
+        type_arrows({type_operator(type_id(make_iid(REF_TYPE_OPERATOR)), tv_a),
+                     tv_a, type_unit(INTERNAL_LOC())}));
+    (*map)["__builtin_store_ptr"] = scheme(
+        {"a"}, {},
+        type_arrows({type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a),
+                     tv_a, type_unit(INTERNAL_LOC())}));
   }
   return *map;
 }
@@ -189,9 +212,9 @@ std::map<std::string, type_class_t *> check_type_classes(
   for (type_class_t *type_class : type_classes) {
     try {
       if (in(type_class->id.name, type_class_map)) {
-        auto error =
-            user_error(type_class->id.location, "type class name %s is already taken",
-                       type_class->id.str().c_str());
+        auto error = user_error(type_class->id.location,
+                                "type class name %s is already taken",
+                                type_class->id.str().c_str());
         error.add_info(type_class_map[type_class->id.name]->get_location(),
                        "see earlier type class declaration here");
         throw error;
@@ -208,10 +231,11 @@ std::map<std::string, type_class_t *> check_type_classes(
 
       for (auto pair : type_class->overloads) {
         if (in(pair.first, env.map)) {
-          auto error =
-              user_error(pair.second->get_location(),
-                         "the name " c_id("%s") " is already in use", pair.first.c_str());
-          error.add_info(env.map[pair.first]->get_location(), "see first declaration here");
+          auto error = user_error(pair.second->get_location(),
+                                  "the name " c_id("%s") " is already in use",
+                                  pair.first.c_str());
+          error.add_info(env.map[pair.first]->get_location(),
+                         "see first declaration here");
           throw error;
         }
 
@@ -234,7 +258,8 @@ void check_decls(std::string entry_point_name,
     try {
       if (decl->var.name == entry_point_name) {
         /* make sure that the "main" function has the correct signature */
-        check(decl->var, new as_t(decl->value, program_main_scheme, false /*force_cast*/),
+        check(decl->var,
+              new as_t(decl->value, program_main_scheme, false /*force_cast*/),
               env);
       } else {
         check(decl->var, decl->value, env);
@@ -245,7 +270,8 @@ void check_decls(std::string entry_point_name,
       /* keep trying other decls, and pretend like this function gives back
        * whatever the user wants... */
       env.extend(decl->var,
-                 type_arrow(type_variable(INTERNAL_LOC()), type_variable(INTERNAL_LOC()))
+                 type_arrow(type_variable(INTERNAL_LOC()),
+                            type_variable(INTERNAL_LOC()))
                      ->generalize(env.get_predicate_map())
                      ->normalize(),
                  false /*allow_subscoping*/);
@@ -254,33 +280,37 @@ void check_decls(std::string entry_point_name,
 }
 
 #define INSTANCE_ID_SEP "/"
-identifier_t make_instance_id(std::string type_class_name, instance_t *instance) {
-  return identifier_t{type_class_name + INSTANCE_ID_SEP + instance->type->repr(),
+identifier_t make_instance_id(std::string type_class_name,
+                              instance_t *instance) {
+  return identifier_t{type_class_name + INSTANCE_ID_SEP +
+                          instance->type->repr(),
                       instance->get_location()};
 }
 
 identifier_t make_instance_decl_id(std::string type_class_name,
                                    instance_t *instance,
                                    identifier_t decl_id) {
-  return identifier_t{make_instance_id(type_class_name, instance).name + INSTANCE_ID_SEP +
-                          decl_id.name,
+  return identifier_t{make_instance_id(type_class_name, instance).name +
+                          INSTANCE_ID_SEP + decl_id.name,
                       decl_id.location};
 }
 
-identifier_t make_instance_dict_id(std::string type_class_name, instance_t *instance) {
+identifier_t make_instance_dict_id(std::string type_class_name,
+                                   instance_t *instance) {
   auto id = make_instance_id(type_class_name, instance);
   return identifier_t{"dict" INSTANCE_ID_SEP + id.name, id.location};
 }
 
-void check_instance_for_type_class_overload(std::string name,
-                                            types::type_t::ref type,
-                                            instance_t *instance,
-                                            type_class_t *type_class,
-                                            const types::type_t::map &subst,
-                                            std::set<std::string> &names_checked,
-                                            std::vector<decl_t *> &instance_decls,
-                                            std::map<defn_id_t, decl_t *> &overrides_map,
-                                            env_t &env) {
+void check_instance_for_type_class_overload(
+    std::string name,
+    types::type_t::ref type,
+    instance_t *instance,
+    type_class_t *type_class,
+    const types::type_t::map &subst,
+    std::set<std::string> &names_checked,
+    std::vector<decl_t *> &instance_decls,
+    std::map<defn_id_t, decl_t *> &overrides_map,
+    env_t &env) {
   bool found = false;
   for (auto decl : instance->decls) {
     assert(name.find(".") != std::string::npos);
@@ -288,22 +318,28 @@ void check_instance_for_type_class_overload(std::string name,
     if (decl->var.name == name) {
       found = true;
       if (in(name, names_checked)) {
-        throw user_error(decl->get_location(), "name %s already duplicated in this instance",
+        throw user_error(decl->get_location(),
+                         "name %s already duplicated in this instance",
                          decl->var.str().c_str());
       }
       names_checked.insert(decl->var.name);
 
       env_t local_env{env};
       local_env.instance_requirements.resize(0);
-      auto instance_decl_id = make_instance_decl_id(type_class->id.name, instance, decl->var);
-      auto expected_scheme = type->rebind(subst)->generalize(local_env.get_predicate_map());
+      auto instance_decl_id =
+          make_instance_decl_id(type_class->id.name, instance, decl->var);
+      auto expected_scheme =
+          type->rebind(subst)->generalize(local_env.get_predicate_map());
 
-      auto instance_decl_expr = new as_t(decl->value, expected_scheme, false /*force_cast*/);
+      auto instance_decl_expr =
+          new as_t(decl->value, expected_scheme, false /*force_cast*/);
       check(instance_decl_id, instance_decl_expr, local_env);
-      debug_above(5, log("checking the instance fn %s gave scheme %s. we expected %s.",
-                         instance_decl_id.str().c_str(),
-                         local_env.map[instance_decl_id.name]->normalize()->str().c_str(),
-                         expected_scheme->normalize()->str().c_str()));
+      debug_above(
+          5,
+          log("checking the instance fn %s gave scheme %s. we expected %s.",
+              instance_decl_id.str().c_str(),
+              local_env.map[instance_decl_id.name]->normalize()->str().c_str(),
+              expected_scheme->normalize()->str().c_str()));
 
       if (!scheme_equality(local_env.map[instance_decl_id.name],
                            expected_scheme->normalize())) {
@@ -311,10 +347,12 @@ void check_instance_for_type_class_overload(std::string name,
                                 "instance component %s appears to be more "
                                 "constrained than the type class",
                                 decl->var.str().c_str());
-        error.add_info(instance_decl_id.location,
-                       "instance component declaration has scheme %s",
-                       local_env.map[instance_decl_id.name]->normalize()->str().c_str());
-        error.add_info(type->get_location(), "type class component declaration has scheme %s",
+        error.add_info(
+            instance_decl_id.location,
+            "instance component declaration has scheme %s",
+            local_env.map[instance_decl_id.name]->normalize()->str().c_str());
+        error.add_info(type->get_location(),
+                       "type class component declaration has scheme %s",
                        expected_scheme->normalize()->str().c_str());
         throw error;
       }
@@ -329,23 +367,26 @@ void check_instance_for_type_class_overload(std::string name,
 
       env.map[instance_decl_id.name] = expected_scheme;
 
-      instance_decls.push_back(new decl_t(instance_decl_id, instance_decl_expr));
+      instance_decls.push_back(
+          new decl_t(instance_decl_id, instance_decl_expr));
       auto defn_id = defn_id_t{decl->var, expected_scheme};
       overrides_map[defn_id] = instance_decls.back();
     }
   }
   if (!found) {
-    throw user_error(type->get_location(), "could not find decl for %s in instance %s %s",
+    throw user_error(type->get_location(),
+                     "could not find decl for %s in instance %s %s",
                      name.c_str(), type_class->id.str().c_str(),
                      instance->type->str().c_str());
   }
 }
 
-void check_instance_for_type_class_overloads(instance_t *instance,
-                                             type_class_t *type_class,
-                                             std::vector<decl_t *> &instance_decls,
-                                             std::map<defn_id_t, decl_t *> &overrides_map,
-                                             env_t &env) {
+void check_instance_for_type_class_overloads(
+    instance_t *instance,
+    type_class_t *type_class,
+    std::vector<decl_t *> &instance_decls,
+    std::map<defn_id_t, decl_t *> &overrides_map,
+    env_t &env) {
   /* make a template for the type that the instance implementation should
    * conform to */
   types::type_t::map subst;
@@ -358,9 +399,9 @@ void check_instance_for_type_class_overloads(instance_t *instance,
   for (auto pair : type_class->overloads) {
     auto name = pair.first;
     auto type = pair.second;
-    check_instance_for_type_class_overload(name, type, instance, type_class, subst,
-                                           names_checked, instance_decls, overrides_map,
-                                           env /*, type_class->defaults*/);
+    check_instance_for_type_class_overload(
+        name, type, instance, type_class, subst, names_checked, instance_decls,
+        overrides_map, env /*, type_class->defaults*/);
   }
 
   /* check for unrelated declarations inside of an instance */
@@ -370,7 +411,8 @@ void check_instance_for_type_class_overloads(instance_t *instance,
                        "extraneous declaration %s found in instance %s %s "
                        "(names_checked = {%s})",
                        decl->var.str().c_str(), type_class->id.str().c_str(),
-                       instance->type->str().c_str(), join(names_checked, ", ").c_str());
+                       instance->type->str().c_str(),
+                       join(names_checked, ", ").c_str());
     }
   }
 }
@@ -386,9 +428,10 @@ std::vector<decl_t *> check_instances(
     try {
       auto iter = type_class_map.find(instance->type_class_id.name);
       if (iter == type_class_map.end()) {
-        auto error = user_error(
-            instance->type_class_id.location, "could not find type class for instance %s %s",
-            instance->type_class_id.str().c_str(), instance->type->str().c_str());
+        auto error = user_error(instance->type_class_id.location,
+                                "could not find type class for instance %s %s",
+                                instance->type_class_id.str().c_str(),
+                                instance->type->str().c_str());
         auto leaf_name = split(instance->type_class_id.name, ".").back();
         for (auto type_class_pair : type_class_map) {
           auto type_class = type_class_pair.second;
@@ -404,12 +447,13 @@ std::vector<decl_t *> check_instances(
        * type_class */
       type_class_t *type_class = iter->second;
 
-      check_instance_for_type_class_overloads(instance, type_class, instance_decls,
-                                              overrides_map, env);
+      check_instance_for_type_class_overloads(
+          instance, type_class, instance_decls, overrides_map, env);
 
     } catch (user_error &e) {
-      e.add_info(instance->type_class_id.location, "while checking instance %s %s",
-                 instance->type_class_id.str().c_str(), instance->type->str().c_str());
+      e.add_info(
+          instance->type_class_id.location, "while checking instance %s %s",
+          instance->type_class_id.str().c_str(), instance->type->str().c_str());
       print_exception(e);
     }
   }
@@ -428,7 +472,8 @@ bool instance_matches_requirement(instance_t *instance,
                          instance->type->generalize(pm)->normalize());
 }
 
-void check_instance_requirements(const std::vector<instance_t *> &instances, env_t &env) {
+void check_instance_requirements(const std::vector<instance_t *> &instances,
+                                 env_t &env) {
   for (auto ir : env.instance_requirements) {
     debug_above(8, log("checking instance requirement %s", ir.str().c_str()));
     std::vector<instance_t *> matching_instances;
@@ -439,15 +484,18 @@ void check_instance_requirements(const std::vector<instance_t *> &instances, env
     }
 
     if (matching_instances.size() == 0) {
-      throw user_error(ir.location,
-                       "could not find an instance that supports the requirement %s",
-                       ir.str().c_str());
+      throw user_error(
+          ir.location,
+          "could not find an instance that supports the requirement %s",
+          ir.str().c_str());
     } else if (matching_instances.size() != 1) {
-      auto error = user_error(ir.location, "found multiple instances implementing %s",
-                              ir.str().c_str());
+      auto error =
+          user_error(ir.location, "found multiple instances implementing %s",
+                     ir.str().c_str());
       for (auto mi : matching_instances) {
         error.add_info(mi->get_location(), "matching instance found is %s %s",
-                       mi->type_class_id.str().c_str(), mi->type->str().c_str());
+                       mi->type_class_id.str().c_str(),
+                       mi->type->str().c_str());
       }
       throw error;
     }
@@ -476,7 +524,8 @@ public:
       if (pair.first.id.name == defn_id.id.name) {
         if (scheme_equality(pair.first.scheme, defn_id.scheme)) {
           if (decl != nullptr) {
-            throw user_error(defn_id.id.location, "found ambiguous instance method");
+            throw user_error(defn_id.id.location,
+                             "found ambiguous instance method");
           }
           decl = pair.second;
         }
@@ -497,8 +546,9 @@ public:
   decl_t *lookup(defn_id_t defn_id) const {
     auto decl = maybe_lookup(defn_id);
     if (decl == nullptr) {
-      auto error = user_error(defn_id.id.location, "symbol %s does not seem to exist",
-                              defn_id.id.str().c_str());
+      auto error =
+          user_error(defn_id.id.location, "symbol %s does not seem to exist",
+                     defn_id.id.str().c_str());
       std::stringstream ss;
 
       for (auto pair : decl_map) {
@@ -520,7 +570,8 @@ public:
      * of compilation */
     for (auto pair : decl_map) {
       assert(pair.first == pair.second->var.name);
-      auto scheme = env.lookup_env(pair.second->var)->generalize({})->normalize();
+      auto scheme =
+          env.lookup_env(pair.second->var)->generalize({})->normalize();
       auto defn_id = defn_id_t{pair.second->var, scheme};
       assert(!in(defn_id, map));
       debug_above(8, log("populating defn_map with %s", defn_id.str().c_str()));
@@ -528,7 +579,8 @@ public:
     }
 
     for (auto pair : overrides_map) {
-      debug_above(8, log("populating defn_map with override %s", pair.first.str().c_str()));
+      debug_above(8, log("populating defn_map with override %s",
+                         pair.first.str().c_str()));
       assert(!in(pair.first, map));
       map[pair.first] = pair.second;
     }
@@ -546,7 +598,8 @@ struct phase_2_t {
     for (auto pair : defn_map.decl_map) {
       auto scheme = get(typing, pair.first, types::scheme_t::ref{});
       assert(scheme != nullptr);
-      os << pair.first << " = " << pair.second->str() << " :: " << scheme->str() << std::endl;
+      os << pair.first << " = " << pair.second->str() << " :: " << scheme->str()
+         << std::endl;
     }
     return os;
   }
@@ -557,20 +610,23 @@ std::map<std::string, int> get_builtin_arities() {
   std::map<std::string, int> builtin_arities;
   for (auto pair : map) {
     types::type_t::refs terms;
-    unfold_binops_rassoc(ARROW_TYPE_OPERATOR, pair.second->instantiate(INTERNAL_LOC()),
-                         terms);
+    unfold_binops_rassoc(ARROW_TYPE_OPERATOR,
+                         pair.second->instantiate(INTERNAL_LOC()), terms);
     builtin_arities[pair.first] = terms.size() - 1;
   }
-  debug_above(7, log("builtin_arities are %s",
-                     join_with(builtin_arities, ", ", [](std::pair<std::string, int> a) {
-                       return string_format("%s: %d", a.first.c_str(), a.second);
-                     }).c_str()));
+  debug_above(
+      7,
+      log("builtin_arities are %s",
+          join_with(builtin_arities, ", ", [](std::pair<std::string, int> a) {
+            return string_format("%s: %d", a.first.c_str(), a.second);
+          }).c_str()));
   return builtin_arities;
 }
 
 phase_2_t compile(std::string user_program_name_) {
   auto builtin_arities = get_builtin_arities();
-  auto compilation = compiler::parse_program(user_program_name_, builtin_arities);
+  auto compilation =
+      compiler::parse_program(user_program_name_, builtin_arities);
   if (compilation == nullptr) {
     exit(EXIT_FAILURE);
   }
@@ -641,7 +697,8 @@ phase_2_t compile(std::string user_program_name_) {
     INDENT(0, "--debug_all_expr_types--");
     log(c_good("All Expression Types"));
     for (auto pair : *env.tracked_types) {
-      log_location(pair.first->get_location(), "%s :: %s", pair.first->str().c_str(),
+      log_location(pair.first->get_location(), "%s :: %s",
+                   pair.first->str().c_str(),
                    pair.second->generalize({})->str().c_str());
     }
   }
@@ -652,8 +709,9 @@ phase_2_t compile(std::string user_program_name_) {
           compilation->data_ctors_map};
 }
 
-typedef std::map<std::string,
-                 std::map<types::type_t::ref, translation_t::ref, types::compare_type_t>>
+typedef std::map<
+    std::string,
+    std::map<types::type_t::ref, translation_t::ref, types::compare_type_t>>
     translation_map_t;
 
 void specialize_core(defn_map_t const &defn_map,
@@ -680,17 +738,19 @@ void specialize_core(defn_map_t const &defn_map,
   assert(defn_id.scheme->btvs() == 0);
 
   const auto type = defn_id.scheme->instantiate({});
-  auto translation = get(translation_map, defn_id.id.name, type, translation_t::ref{});
+  auto translation =
+      get(translation_map, defn_id.id.name, type, translation_t::ref{});
   if (translation != nullptr) {
-    debug_above(6, log("we have already specialized %s. it is %s", defn_id.str().c_str(),
-                       translation->str().c_str()));
+    debug_above(6, log("we have already specialized %s. it is %s",
+                       defn_id.str().c_str(), translation->str().c_str()));
     return;
   }
 
   /* ... like a GRAY mark in the visited set... */
   translation_map[defn_id.id.name][type] = nullptr;
   try {
-    debug_above(7, log(c_good("Specializing subprogram %s"), defn_id.str().c_str()));
+    debug_above(
+        7, log(c_good("Specializing subprogram %s"), defn_id.str().c_str()));
 
     /* cross-check all our data sources */
 #if 0
@@ -716,7 +776,8 @@ void specialize_core(defn_map_t const &defn_map,
 
     decl_t *decl_to_check = defn_map.maybe_lookup(defn_id);
     if (decl_to_check == nullptr) {
-      throw user_error(defn_id.id.location, "could not find a definition for %s :: %s",
+      throw user_error(defn_id.id.location,
+                       "could not find a definition for %s :: %s",
                        defn_id.id.str().c_str(), defn_id.scheme->str().c_str());
     }
 
@@ -732,39 +793,45 @@ void specialize_core(defn_map_t const &defn_map,
       assert(get(translation_map, defn_id.id.name + IMPL_SUFFIX, type,
                  translation_t::ref{}) == nullptr);
 
-      log("specializing callable %s :: %s, should be creating something like (%s, ())",
+      log("specializing callable %s :: %s, should be creating something like "
+          "(%s, ())",
           defn_id.id.name.c_str(), type->str().c_str(),
           (defn_id.id.name + IMPL_SUFFIX).c_str());
 
       expr_t *empty_closure = unit_expr(INTERNAL_LOC());
       (*tracked_types)[empty_closure] = type_unit(INTERNAL_LOC());
-      expr_t *callable_var_ref = new var_t(identifier_t{final_name, INTERNAL_LOC()});
+      expr_t *callable_var_ref =
+          new var_t(identifier_t{final_name, INTERNAL_LOC()});
       (*tracked_types)[callable_var_ref] = type;
 
       expr_t *encoded_callable = new tuple_t(
-          INTERNAL_LOC(), std::vector<bitter::expr_t *>{callable_var_ref, empty_closure});
+          INTERNAL_LOC(),
+          std::vector<bitter::expr_t *>{callable_var_ref, empty_closure});
 
-      types::type_t::ref closure_type = type_tuple({type, type_unit(INTERNAL_LOC())});
+      types::type_t::ref closure_type =
+          type_tuple({type, type_unit(INTERNAL_LOC())});
       translation_env_t tenv{tracked_types, ctor_id_map, data_ctors_map};
       (*tracked_types)[encoded_callable] = closure_type;
 
-      expr_t *as_function = new as_t(encoded_callable, type->generalize({}), true);
+      expr_t *as_function =
+          new as_t(encoded_callable, type->generalize({}), true);
       (*tracked_types)[as_function] = type;
 
       std::unordered_set<std::string> bound_vars;
       bool returns = false;
-      auto callable_decl =
-          translate(defn_id, as_function, bound_vars, tenv, needed_defns, returns);
+      auto callable_decl = translate(defn_id, as_function, bound_vars, tenv,
+                                     needed_defns, returns);
       assert(!returns);
 
-      log("setting %s :: %s = %s", defn_id.id.name.c_str(), closure_type->str().c_str(),
-          callable_decl->str().c_str());
+      log("setting %s :: %s = %s", defn_id.id.name.c_str(),
+          closure_type->str().c_str(), callable_decl->str().c_str());
       assert(translation_map[defn_id.id.name][type] == nullptr);
       translation_map[defn_id.id.name][type] = callable_decl;
     }
 
     auto as_defn = new as_t(to_check, defn_id.scheme, false);
-    check(identifier_t{defn_id.repr_public(), defn_id.id.location}, as_defn, env);
+    check(identifier_t{defn_id.repr_public(), defn_id.id.location}, as_defn,
+          env);
 
 #if 0
         if (debug_compiled_env) {
@@ -777,7 +844,8 @@ void specialize_core(defn_map_t const &defn_map,
 
     translation_env_t tenv{tracked_types, ctor_id_map, data_ctors_map};
     std::unordered_set<std::string> bound_vars;
-    INDENT(6, string_format("----------- specialize %s ------------", defn_id.str().c_str()));
+    INDENT(6, string_format("----------- specialize %s ------------",
+                            defn_id.str().c_str()));
     bool returns = true;
     auto translated_decl =
         translate(defn_id, as_defn, bound_vars, tenv, needed_defns, returns);
@@ -793,7 +861,8 @@ void specialize_core(defn_map_t const &defn_map,
         translated_decl->str().c_str());
     translation_map[final_name][type] = translated_decl;
   } catch (...) {
-    assert(get(translation_map, defn_id.id.name, type, translation_t::ref{}) == nullptr);
+    assert(get(translation_map, defn_id.id.name, type, translation_t::ref{}) ==
+           nullptr);
     translation_map[defn_id.id.name].erase(type);
     throw;
   }
@@ -819,7 +888,8 @@ phase_3_t specialize(const phase_2_t &phase_2) {
     throw user_error(INTERNAL_LOC(), "quitting");
   }
   decl_t *program_main = phase_2.defn_map.lookup(
-      {make_iid(phase_2.compilation->program_name + ".main"), program_main_scheme});
+      {make_iid(phase_2.compilation->program_name + ".main"),
+       program_main_scheme});
 
   needed_defns_t needed_defns;
   defn_id_t main_defn{program_main->var, program_main_scheme};
@@ -830,7 +900,8 @@ phase_3_t specialize(const phase_2_t &phase_2) {
     auto next_defn_id = needed_defns.begin()->first;
     try {
       specialize_core(phase_2.defn_map, phase_2.typing, phase_2.ctor_id_map,
-                      phase_2.data_ctors_map, next_defn_id, translation_map, needed_defns);
+                      phase_2.data_ctors_map, next_defn_id, translation_map,
+                      needed_defns);
     } catch (user_error &e) {
       print_exception(e);
       /* and continue */
@@ -844,8 +915,9 @@ phase_3_t specialize(const phase_2_t &phase_2) {
       for (auto overload : pair.second) {
         if (pair.first == "std.Ref") {
           assert(overload.second != nullptr);
-          log_location(overload.second->get_location(), "%s :: %s = %s", pair.first.c_str(),
-                       overload.first->str().c_str(), overload.second->str().c_str());
+          log_location(overload.second->get_location(), "%s :: %s = %s",
+                       pair.first.c_str(), overload.first->str().c_str(),
+                       overload.second->str().c_str());
         }
       }
     }
@@ -903,7 +975,8 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
     debug_above(6, log("globals are %s", join(globals).c_str()));
     for (auto pair : phase_3.translation_map) {
       for (auto overload : pair.second) {
-        log("fetching %s expression type from translated types", pair.first.c_str());
+        log("fetching %s expression type from translated types",
+            pair.first.c_str());
 
         auto type = get(overload.second->typing, overload.second->expr, {});
         assert(type != nullptr);
@@ -912,24 +985,28 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
             gen_env, {pair.first, overload.second->expr->get_location()}, type);
         assert(value == nullptr);
         auto expr = overload.second->expr;
-        log("making a placeholder proxy value for %s :: %s = %s", pair.first.c_str(),
-            type->str().c_str(), expr->str().c_str());
+        log("making a placeholder proxy value for %s :: %s = %s",
+            pair.first.c_str(), type->str().c_str(), expr->str().c_str());
         gen::set_env_var(gen_env, pair.first,
-                         std::make_shared<gen::proxy_value_t>(overload.second->get_location(),
-                                                              std::weak_ptr<gen::block_t>{},
-                                                              pair.first, overload.first));
-        codes.push_back(
-            code_symbol_t{pair.first, overload.first, overload.second->typing, expr});
+                         std::make_shared<gen::proxy_value_t>(
+                             overload.second->get_location(),
+                             std::weak_ptr<gen::block_t>{}, pair.first,
+                             overload.first));
+        codes.push_back(code_symbol_t{pair.first, overload.first,
+                                      overload.second->typing, expr});
       }
     }
+
+#if 0
     gen::builder_t program_builder(module);
     auto init_func = program_builder.create_function(
         "__program_init", {}, INTERNAL_LOC(),
         type_arrows({type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())}));
-
-    /* initialization will happen inside of the __program_init function */
-    gen::builder_t builder(init_func);
-    builder.create_block("program_entry");
+#endif
+    // TODO: differentiate between globals and functions...
+    // global initialization will happen inside of the __program_init function
+    gen::builder_t builder; // (init_func);
+    // builder.create_block("program_entry");
 
     for (auto code : codes) {
       auto name = code.name;
@@ -943,7 +1020,8 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
       auto value = gen::gen(name, builder, expr, typing, gen_env, globals);
       std::stringstream ss;
       value->render(ss);
-      log("generated %s :: %s == %s", name.c_str(), type->str().c_str(), ss.str().c_str());
+      log("generated %s :: %s == %s", name.c_str(), type->str().c_str(),
+          ss.str().c_str());
       gen::set_env_var(gen_env, name, value, false /*allow_shadowing*/);
     }
 
@@ -967,14 +1045,17 @@ struct job_t {
 
 int run_job(const job_t &job) {
   get_help = in_vector("-help", job.opts) || in_vector("--help", job.opts);
-  debug_compiled_env = (getenv("SHOW_ENV") != nullptr) || in_vector("-show-env", job.opts);
-  debug_types = (getenv("SHOW_TYPES") != nullptr) || in_vector("-show-types", job.opts);
-  debug_all_expr_types =
-      (getenv("SHOW_EXPR_TYPES") != nullptr) || in_vector("-show-expr-types", job.opts);
-  debug_all_translated_defns =
-      (getenv("SHOW_DEFN_TYPES") != nullptr) || in_vector("-show-defn-types", job.opts);
-  max_tuple_size =
-      (getenv("ZION_MAX_TUPLE") != nullptr) ? atoi(getenv("ZION_MAX_TUPLE")) : 16;
+  debug_compiled_env =
+      (getenv("SHOW_ENV") != nullptr) || in_vector("-show-env", job.opts);
+  debug_types =
+      (getenv("SHOW_TYPES") != nullptr) || in_vector("-show-types", job.opts);
+  debug_all_expr_types = (getenv("SHOW_EXPR_TYPES") != nullptr) ||
+                         in_vector("-show-expr-types", job.opts);
+  debug_all_translated_defns = (getenv("SHOW_DEFN_TYPES") != nullptr) ||
+                               in_vector("-show-defn-types", job.opts);
+  max_tuple_size = (getenv("ZION_MAX_TUPLE") != nullptr)
+                       ? atoi(getenv("ZION_MAX_TUPLE"))
+                       : 16;
 
   std::map<std::string, std::function<int(bool)>> cmd_map;
   cmd_map["test"] = [&](bool explain) {
@@ -998,12 +1079,14 @@ int run_job(const job_t &job) {
       return run_job({"help", {}, {}});
     }
     log("%s",
-        compiler::resolve_module_filename(INTERNAL_LOC(), job.args[0], ".zion").c_str());
+        compiler::resolve_module_filename(INTERNAL_LOC(), job.args[0], ".zion")
+            .c_str());
     return EXIT_SUCCESS;
   };
   cmd_map["parse"] = [&](bool explain) {
     if (explain) {
-      std::cerr << "parse: parses Zion into an intermediate lambda calculus" << std::endl;
+      std::cerr << "parse: parses Zion into an intermediate lambda calculus"
+                << std::endl;
       return EXIT_FAILURE;
     }
     if (job.args.size() != 1) {
@@ -1011,7 +1094,8 @@ int run_job(const job_t &job) {
     }
 
     std::string user_program_name = job.args[0];
-    auto compilation = compiler::parse_program(user_program_name, get_builtin_arities());
+    auto compilation =
+        compiler::parse_program(user_program_name, get_builtin_arities());
     if (compilation != nullptr) {
       for (auto decl : compilation->program->decls) {
         log_location(decl->var.location, "%s = %s", decl->var.str().c_str(),
@@ -1021,7 +1105,8 @@ int run_job(const job_t &job) {
         log_location(type_class->id.location, "%s", type_class->str().c_str());
       }
       for (auto instance : compilation->program->instances) {
-        log_location(instance->type_class_id.location, "%s", instance->str().c_str());
+        log_location(instance->type_class_id.location, "%s",
+                     instance->str().c_str());
       }
       return EXIT_SUCCESS;
     }
@@ -1099,13 +1184,14 @@ int run_job(const job_t &job) {
         return EXIT_FAILURE;
       }
 
-      return lower::lower(phase_4.phase_3.phase_2.compilation->program_name + ".main",
+      return lower::lower(phase_4.phase_3.phase_2.compilation->program_name +
+                              ".main",
                           phase_4.gen_env);
     }
   };
   if (!in(job.cmd, cmd_map)) {
-    std::cerr << "bad CLI invocation of " << job.cmd << " " << join(job.args, " ")
-              << std::endl;
+    std::cerr << "bad CLI invocation of " << job.cmd << " "
+              << join(job.args, " ") << std::endl;
     for (auto pair : cmd_map) {
       pair.second(true /*explain*/);
     }

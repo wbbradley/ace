@@ -48,7 +48,8 @@ bool token_begins_type(const token_t &token) {
   };
 }
 
-std::vector<std::pair<int, identifier_t>> extract_ids(const std::vector<expr_t *> &dims) {
+std::vector<std::pair<int, identifier_t>> extract_ids(
+    const std::vector<expr_t *> &dims) {
   std::vector<std::pair<int, identifier_t>> refs;
   int i = 0;
   for (auto dim : dims) {
@@ -57,7 +58,8 @@ std::vector<std::pair<int, identifier_t>> extract_ids(const std::vector<expr_t *
         refs.push_back({i, var->id});
       }
     } else {
-      throw user_error(dim->get_location(), "only reference expressions are allowed here");
+      throw user_error(dim->get_location(),
+                       "only reference expressions are allowed here");
     }
     ++i;
   }
@@ -79,32 +81,40 @@ expr_t *parse_assign_tuple(parse_state_t &ps, tuple_t *tuple) {
   for (int i = refs.size() - 1; i >= 0; --i) {
     body = new let_t(
         refs[i].second,
-        new application_t(new var_t(make_iid(string_format("__[%d]__", i))), rhs_var), body);
+        new application_t(new var_t(make_iid(string_format("__[%d]__", i))),
+                          rhs_var),
+        body);
   }
 
   return new let_t(rhs_var->id, rhs, body);
 }
 
-expr_t *parse_var_decl(parse_state_t &ps, bool is_let, bool allow_tuple_destructuring) {
+expr_t *parse_var_decl(parse_state_t &ps,
+                       bool is_let,
+                       bool allow_tuple_destructuring) {
   if (ps.token.tk == tk_lparen) {
     if (!is_let) {
-      throw user_error(ps.token.location, "mutable tuple destructuring is not yet impl");
+      throw user_error(ps.token.location,
+                       "mutable tuple destructuring is not yet impl");
     }
     if (!allow_tuple_destructuring) {
-      throw user_error(ps.token.location, "tuple destructuring is not allowed here");
+      throw user_error(ps.token.location,
+                       "tuple destructuring is not allowed here");
     }
 
     auto prior_token = ps.token;
     auto tuple = dcast<tuple_t *>(parse_tuple_expr(ps));
     if (tuple == nullptr) {
-      throw user_error(prior_token.location,
-                       "tuple destructuring detected an invalid expression on the lhs");
+      throw user_error(
+          prior_token.location,
+          "tuple destructuring detected an invalid expression on the lhs");
     }
 
     if (ps.token.tk == tk_assign) {
       return parse_assign_tuple(ps, tuple);
     } else {
-      throw user_error(ps.token.location, "destructured tuples must be assigned to an rhs");
+      throw user_error(ps.token.location,
+                       "destructured tuples must be assigned to an rhs");
     }
   } else {
     expect_token(tk_identifier);
@@ -119,20 +129,23 @@ expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let) {
   auto location = ps.token.location;
   expr_t *initializer = nullptr;
 
-  if (!ps.line_broke() && (ps.token.tk == tk_assign || ps.token.tk == tk_becomes)) {
+  if (!ps.line_broke() &&
+      (ps.token.tk == tk_assign || ps.token.tk == tk_becomes)) {
     eat_token();
     initializer = parse_expr(ps);
   } else {
-    initializer = new application_t(new var_t(ps.id_mapped(identifier_t{"new", location})),
-                                    unit_expr(INTERNAL_LOC()));
+    initializer = new application_t(
+        new var_t(ps.id_mapped(identifier_t{"new", location})),
+        unit_expr(INTERNAL_LOC()));
   }
 
   if (!is_let) {
-    initializer = new application_t(new var_t(ps.id_mapped(identifier_t{"Ref", location})),
-                                    initializer);
+    initializer = new application_t(
+        new var_t(ps.id_mapped(identifier_t{"Ref", location})), initializer);
   }
 
-  return new let_t(var_id, initializer, parse_block(ps, false /*expression_means_return*/));
+  return new let_t(var_id, initializer,
+                   parse_block(ps, false /*expression_means_return*/));
 }
 
 expr_t *parse_return_statement(parse_state_t &ps) {
@@ -212,7 +225,8 @@ expr_t *parse_with_block(parse_state_t &ps) {
 
 expr_t *wrap_with_iter(parse_state_t &ps, expr_t *expr) {
   return new application_t(
-      new var_t(ps.id_mapped(identifier_t{"iter", expr->get_location()})), expr);
+      new var_t(ps.id_mapped(identifier_t{"iter", expr->get_location()})),
+      expr);
 }
 
 expr_t *parse_for_block(parse_state_t &ps) {
@@ -239,25 +253,29 @@ expr_t *parse_for_block(parse_state_t &ps) {
           auto iterator_id = identifier_t{fresh(), var.location};
           return new let_t(
               iterator_id,
-              new application_t(
-                  new var_t(ps.id_mapped(identifier_t{"iter", in_token.location})), iterable),
+              new application_t(new var_t(ps.id_mapped(
+                                    identifier_t{"iter", in_token.location})),
+                                iterable),
               new while_t(
-                  new var_t(ps.id_mapped(identifier_t{"True", in_token.location})),
+                  new var_t(
+                      ps.id_mapped(identifier_t{"True", in_token.location})),
                   new match_t(
                       new application_t(new var_t(iterator_id),
                                         unit_expr(iterator_id.location)),
                       {new pattern_block_t(
                            new ctor_predicate_t(
                                iterator_id.location,
-                               {new irrefutable_predicate_t(var.location,
-                                                            maybe<identifier_t>(var))},
-                               ps.id_mapped(identifier_t{"Just", iterator_id.location}),
+                               {new irrefutable_predicate_t(
+                                   var.location, maybe<identifier_t>(var))},
+                               ps.id_mapped(
+                                   identifier_t{"Just", iterator_id.location}),
                                maybe<identifier_t>()),
                            block),
                        new pattern_block_t(
                            new ctor_predicate_t(
                                iterator_id.location, {},
-                               ps.id_mapped(identifier_t{"Nothing", iterator_id.location}),
+                               ps.id_mapped(identifier_t{"Nothing",
+                                                         iterator_id.location}),
                                maybe<identifier_t>()),
                            new break_t(in_token.location))})));
         }
@@ -275,8 +293,9 @@ expr_t *parse_defer(parse_state_t &ps) {
 
 expr_t *parse_new_expr(parse_state_t &ps) {
   ps.advance();
-  return new as_t(new application_t(new var_t(ps.id_mapped({"new", ps.prior_token.location})),
-                                    unit_expr(ps.token.location)),
+  return new as_t(new application_t(
+                      new var_t(ps.id_mapped({"new", ps.prior_token.location})),
+                      unit_expr(ps.token.location)),
                   scheme({}, {}, parse_type(ps)), false /*force_cast*/);
 }
 
@@ -293,10 +312,12 @@ expr_t *parse_statement(parse_state_t &ps) {
 
   if (ps.token.is_ident(K(var))) {
     ps.advance();
-    return parse_var_decl(ps, false /*is_let*/, true /*allow_tuple_destructuring*/);
+    return parse_var_decl(ps, false /*is_let*/,
+                          true /*allow_tuple_destructuring*/);
   } else if (ps.token.is_ident(K(let))) {
     ps.advance();
-    return parse_var_decl(ps, true /*is_let*/, true /*allow_tuple_destructuring*/);
+    return parse_var_decl(ps, true /*is_let*/,
+                          true /*allow_tuple_destructuring*/);
   } else if (ps.token.is_ident(K(if))) {
     return parse_if(ps);
   } else if (ps.token.is_ident(K(while))) {
@@ -312,8 +333,9 @@ expr_t *parse_statement(parse_state_t &ps) {
         } else if (ps.token.is_ident(K(fn))) {
           ps.advance();
           if (ps.token.tk == tk_identifier) {
-            return new let_t(identifier_t::from_token(ps.token), parse_lambda(ps),
-                             parse_block(ps, false /*expression_means_return*/));
+            return new let_t(
+                identifier_t::from_token(ps.token), parse_lambda(ps),
+                parse_block(ps, false /*expression_means_return*/));
           } else {
             return parse_lambda(ps);
           }
@@ -338,8 +360,8 @@ expr_t *parse_var_ref(parse_state_t &ps) {
 
   if (ps.token.is_ident(K(__filename__))) {
     auto token = ps.token_and_advance();
-    return new literal_t(
-        token_t{token.location, tk_string, escape_json_quotes(token.location.filename)});
+    return new literal_t(token_t{token.location, tk_string,
+                                 escape_json_quotes(token.location.filename)});
   } else if (in(ps.token.text, ps.builtin_arities)) {
     int arity = get(ps.builtin_arities, ps.token.text, -1);
     assert(arity >= 0);
@@ -380,11 +402,12 @@ expr_t *parse_base_expr(parse_state_t &ps) {
   } else if (ps.token.is_ident(K(match))) {
     return parse_match(ps);
   } else if (ps.token.is_ident(K(null))) {
-    return new as_t(
-        new literal_t(token_t{ps.token_and_advance().location, tk_integer, "0"}),
-        scheme({"a"}, {},
-               type_ptr(type_variable(identifier_t{"a", ps.prior_token.location}))),
-        true /*force_cast*/);
+    return new as_t(new literal_t(token_t{ps.token_and_advance().location,
+                                          tk_integer, "0"}),
+                    scheme({"a"}, {},
+                           type_ptr(type_variable(
+                               identifier_t{"a", ps.prior_token.location}))),
+                    true /*force_cast*/);
   } else if (ps.token.tk == tk_identifier) {
     return parse_var_ref(ps);
   } else {
@@ -416,27 +439,30 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 
       auto range_body = new application_t(
           new application_t(
-              new application_t(new var_t(ps.id_mapped(identifier_t{"Range", location})),
-                                new var_t(range_min)),
               new application_t(
-                  new application_t(new var_t(make_iid("std.-")), new var_t(range_next)),
-                  new var_t(range_min))),
+                  new var_t(ps.id_mapped(identifier_t{"Range", location})),
+                  new var_t(range_min)),
+              new application_t(new application_t(new var_t(make_iid("std.-")),
+                                                  new var_t(range_next)),
+                                new var_t(range_min))),
           new var_t(range_max));
 
       auto let_range_max =
           new let_t(range_max,
                     (ps.token.tk != tk_rsquare)
                         ? parse_expr(ps)
-                        : new application_t(new var_t(ps.id_mapped(make_iid("max_bound"))),
-                                            unit_expr(location)),
+                        : new application_t(
+                              new var_t(ps.id_mapped(make_iid("max_bound"))),
+                              unit_expr(location)),
                     range_body);
 
       auto let_range_next = new let_t(
           range_next,
           (i == 2) ? exprs[1]
                    : new application_t(
-                         new application_t(new var_t(make_iid("std.+")),
-                                           new literal_t(token_t{location, tk_integer, "1"})),
+                         new application_t(
+                             new var_t(make_iid("std.+")),
+                             new literal_t(token_t{location, tk_integer, "1"})),
                          new var_t(range_min)),
           let_range_max);
 
@@ -447,9 +473,10 @@ expr_t *parse_array_literal(parse_state_t &ps) {
     } else if (ps.token.tk == tk_comma) {
       ps.advance();
     } else if (ps.token.tk != tk_rsquare) {
-      throw user_error(ps.token.location,
-                       "found something (%s) that does not make sense in an array literal",
-                       ps.token.str().c_str());
+      throw user_error(
+          ps.token.location,
+          "found something (%s) that does not make sense in an array literal",
+          ps.token.str().c_str());
     }
   }
   chomp_token(tk_rsquare);
@@ -461,8 +488,9 @@ expr_t *parse_array_literal(parse_state_t &ps) {
   std::vector<expr_t *> stmts;
   for (auto expr : exprs) {
     stmts.push_back(new application_t(
-        new application_t(new var_t(ps.id_mapped(identifier_t{"append", ps.token.location})),
-                          array_var),
+        new application_t(
+            new var_t(ps.id_mapped(identifier_t{"append", ps.token.location})),
+            array_var),
         expr));
   }
 
@@ -473,10 +501,12 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 
   return new let_t(
       array_var->id,
-      new as_t(new application_t(new var_t(ps.id_mapped({"new", ps.prior_token.location})),
-                                 unit_expr(ps.token.location)),
-               scheme({"a"}, {}, type_vector_type(type_variable(make_iid("a")))),
-               false /*force_cast*/),
+      new as_t(
+          new application_t(
+              new var_t(ps.id_mapped({"new", ps.prior_token.location})),
+              unit_expr(ps.token.location)),
+          scheme({"a"}, {}, type_vector_type(type_variable(make_iid("a")))),
+          false /*force_cast*/),
       new block_t(stmts));
 }
 
@@ -495,7 +525,8 @@ expr_t *parse_literal(parse_state_t &ps) {
   case tk_identifier:
     throw user_error(
         ps.token.location,
-        "unexpected token found when parsing literal expression. '" c_error("%s") "'",
+        "unexpected token found when parsing literal expression. '" c_error(
+            "%s") "'",
         ps.token.text.c_str());
 
   default:
@@ -508,10 +539,11 @@ expr_t *parse_literal(parse_state_t &ps) {
       }
       throw error;
     } else {
-      throw user_error(ps.token.location,
-                       "out of place token found when parsing literal expression. '" c_error(
-                           "%s") "' (%s)",
-                       ps.token.text.c_str(), tkstr(ps.token.tk));
+      throw user_error(
+          ps.token.location,
+          "out of place token found when parsing literal expression. '" c_error(
+              "%s") "' (%s)",
+          ps.token.text.c_str(), tkstr(ps.token.tk));
     }
   }
 }
@@ -520,7 +552,8 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
   expr_t *expr = parse_base_expr(ps);
 
   while (!ps.line_broke() &&
-         (ps.token.tk == tk_lsquare || ps.token.tk == tk_lparen || ps.token.tk == tk_dot)) {
+         (ps.token.tk == tk_lsquare || ps.token.tk == tk_lparen ||
+          ps.token.tk == tk_dot)) {
     switch (ps.token.tk) {
     case tk_lparen: {
       /* function call */
@@ -546,11 +579,12 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
       ps.advance();
       expect_token(tk_identifier);
       if (!islower(ps.token.text[0])) {
-        throw user_error(ps.token.location,
-                         "property accessors must start with lowercase letters");
+        throw user_error(
+            ps.token.location,
+            "property accessors must start with lowercase letters");
       }
-      auto iid =
-          identifier_t{"__get_" + ps.token_and_advance().text, ps.prior_token.location};
+      auto iid = identifier_t{"__get_" + ps.token_and_advance().text,
+                              ps.prior_token.location};
       expr = new application_t(new var_t(iid), expr);
       break;
     }
@@ -573,13 +607,15 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
           auto rhs = parse_expr(ps);
           expr = new application_t(
               new application_t(
-                  new application_t(new var_t({"std.set_indexed_item", location}), expr),
+                  new application_t(
+                      new var_t({"std.set_indexed_item", location}), expr),
                   start),
               rhs);
         } else {
           expr = new application_t(
               new application_t(
-                  new var_t(identifier_t{is_slice ? "__getslice2__" : "std.get_indexed_item",
+                  new var_t(identifier_t{is_slice ? "__getslice2__"
+                                                  : "std.get_indexed_item",
                                          ps.token.location}),
                   expr),
               start);
@@ -590,10 +626,11 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
 
         assert(is_slice);
         expr = new application_t(
-            new application_t(new application_t(new var_t(ps.id_mapped(identifier_t{
-                                                    "__getslice3__", ps.token.location})),
-                                                expr),
-                              start),
+            new application_t(
+                new application_t(new var_t(ps.id_mapped(identifier_t{
+                                      "__getslice3__", ps.token.location})),
+                                  expr),
+                start),
             stop);
       }
       break;
@@ -620,17 +657,18 @@ expr_t *parse_prefix_expr(parse_state_t &ps) {
     return parse_sizeof(ps);
   }
 
-  maybe<token_t> prefix =
-      (ps.token.tk == tk_minus || ps.token.is_ident(K(not)) || ps.token.tk == tk_bang)
-          ? maybe<token_t>(ps.token)
-          : maybe<token_t>();
+  maybe<token_t> prefix = (ps.token.tk == tk_minus ||
+                           ps.token.is_ident(K(not)) || ps.token.tk == tk_bang)
+                              ? maybe<token_t>(ps.token)
+                              : maybe<token_t>();
 
   if (prefix.valid) {
     ps.advance();
   }
 
   expr_t *rhs;
-  if (ps.token.is_ident(K(not)) || ps.token.tk == tk_minus || ps.token.tk == tk_bang) {
+  if (ps.token.is_ident(K(not)) || ps.token.tk == tk_minus ||
+      ps.token.tk == tk_bang) {
     /* recurse to find more prefix expressions */
     rhs = parse_prefix_expr(ps);
   } else {
@@ -641,13 +679,15 @@ expr_t *parse_prefix_expr(parse_state_t &ps) {
   if (prefix.valid) {
     if (prefix.t.text == "-") {
       return new application_t(
-          new var_t(ps.id_mapped(identifier_t{"negate", prefix.t.location})), rhs);
+          new var_t(ps.id_mapped(identifier_t{"negate", prefix.t.location})),
+          rhs);
     } else if (prefix.t.text == "!") {
-      return new application_t(new var_t(identifier_t{"std.load_value", prefix.t.location}),
-                               rhs);
-    } else {
       return new application_t(
-          new var_t(ps.id_mapped(identifier_t{prefix.t.text, prefix.t.location})), rhs);
+          new var_t(identifier_t{"std.load_value", prefix.t.location}), rhs);
+    } else {
+      return new application_t(new var_t(ps.id_mapped(identifier_t{
+                                   prefix.t.text, prefix.t.location})),
+                               rhs);
     }
   } else {
     return rhs;
@@ -658,11 +698,13 @@ expr_t *parse_times_expr(parse_state_t &ps) {
   expr_t *expr = parse_prefix_expr(ps);
 
   while (!ps.line_broke() &&
-         (ps.token.tk == tk_times || ps.token.tk == tk_divide_by || ps.token.tk == tk_mod)) {
+         (ps.token.tk == tk_times || ps.token.tk == tk_divide_by ||
+          ps.token.tk == tk_mod)) {
     identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new application_t(new application_t(new var_t(op), expr), parse_prefix_expr(ps));
+    expr = new application_t(new application_t(new var_t(op), expr),
+                             parse_prefix_expr(ps));
   }
 
   return expr;
@@ -672,11 +714,13 @@ expr_t *parse_plus_expr(parse_state_t &ps) {
   auto expr = parse_times_expr(ps);
 
   while (!ps.line_broke() &&
-         (ps.token.tk == tk_plus || ps.token.tk == tk_minus || ps.token.tk == tk_backslash)) {
+         (ps.token.tk == tk_plus || ps.token.tk == tk_minus ||
+          ps.token.tk == tk_backslash)) {
     identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new application_t(new application_t(new var_t(op), expr), parse_times_expr(ps));
+    expr = new application_t(new application_t(new var_t(op), expr),
+                             parse_times_expr(ps));
   }
 
   return expr;
@@ -690,7 +734,8 @@ expr_t *parse_shift_expr(parse_state_t &ps) {
     identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new application_t(new application_t(new var_t(op), expr), parse_plus_expr(ps));
+    expr = new application_t(new application_t(new var_t(op), expr),
+                             parse_plus_expr(ps));
   }
 
   return expr;
@@ -707,7 +752,8 @@ expr_t *parse_binary_eq_expr(parse_state_t &ps) {
   identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
   ps.advance();
 
-  return new application_t(new application_t(new var_t(op), lhs), parse_shift_expr(ps));
+  return new application_t(new application_t(new var_t(op), lhs),
+                           parse_shift_expr(ps));
 }
 
 expr_t *parse_ineq_expr(parse_state_t &ps) {
@@ -721,7 +767,8 @@ expr_t *parse_ineq_expr(parse_state_t &ps) {
   identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
   ps.advance();
 
-  return new application_t(new application_t(new var_t(op), lhs), parse_shift_expr(ps));
+  return new application_t(new application_t(new var_t(op), lhs),
+                           parse_shift_expr(ps));
 }
 
 expr_t *parse_eq_expr(parse_state_t &ps) {
@@ -734,15 +781,18 @@ expr_t *parse_eq_expr(parse_state_t &ps) {
   }
 
   if (ps.line_broke() ||
-      !(ps.token.is_ident(K(in)) || ps.token.tk == tk_equal || ps.token.tk == tk_inequal)) {
+      !(ps.token.is_ident(K(in)) || ps.token.tk == tk_equal ||
+        ps.token.tk == tk_inequal)) {
     /* there is no rhs */
     return lhs;
   }
 
-  identifier_t op = ps.id_mapped({not_in ? "not-in" : ps.token.text, ps.token.location});
+  identifier_t op =
+      ps.id_mapped({not_in ? "not-in" : ps.token.text, ps.token.location});
   ps.advance();
 
-  return new application_t(new application_t(new var_t(op), lhs), parse_ineq_expr(ps));
+  return new application_t(new application_t(new var_t(op), lhs),
+                           parse_ineq_expr(ps));
 }
 
 expr_t *parse_bitwise_and(parse_state_t &ps) {
@@ -752,7 +802,8 @@ expr_t *parse_bitwise_and(parse_state_t &ps) {
     identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new application_t(new application_t(new var_t(op), expr), parse_eq_expr(ps));
+    expr = new application_t(new application_t(new var_t(op), expr),
+                             parse_eq_expr(ps));
   }
 
   return expr;
@@ -765,7 +816,8 @@ expr_t *parse_bitwise_xor(parse_state_t &ps) {
     identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new application_t(new application_t(new var_t(op), expr), parse_bitwise_and(ps));
+    expr = new application_t(new application_t(new var_t(op), expr),
+                             parse_bitwise_and(ps));
   }
   return expr;
 }
@@ -777,7 +829,8 @@ expr_t *parse_bitwise_or(parse_state_t &ps) {
     identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new application_t(new application_t(new var_t(op), expr), parse_bitwise_xor(ps));
+    expr = new application_t(new application_t(new var_t(op), expr),
+                             parse_bitwise_xor(ps));
   }
 
   return expr;
@@ -788,7 +841,8 @@ expr_t *fold_and_exprs(std::vector<expr_t *> exprs, int index) {
     /* let a = exprs[index] in if a then recurse else False */
     identifier_t term_id = make_iid(fresh());
     return new let_t(term_id, exprs[index],
-                     new conditional_t(new var_t(term_id), fold_and_exprs(exprs, index + 1),
+                     new conditional_t(new var_t(term_id),
+                                       fold_and_exprs(exprs, index + 1),
                                        new var_t(make_iid("std.False"))));
   } else {
     return exprs[index];
@@ -849,7 +903,8 @@ expr_t *parse_or_expr(parse_state_t &ps) {
     identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new application_t(new application_t(new var_t(op), expr), parse_and_expr(ps));
+    expr = new application_t(new application_t(new var_t(op), expr),
+                             parse_and_expr(ps));
   }
 
   return expr;
@@ -880,7 +935,8 @@ expr_t *parse_assignment(parse_state_t &ps) {
     ps.advance();
     expr_t *rhs = parse_expr(ps);
     return new application_t(
-        new application_t(new var_t(identifier_t{"std.store_value", ps.token.location}), lhs),
+        new application_t(
+            new var_t(identifier_t{"std.store_value", ps.token.location}), lhs),
         rhs);
   }
 
@@ -890,7 +946,8 @@ expr_t *parse_assignment(parse_state_t &ps) {
     } else if (auto tuple = dcast<tuple_t *>(lhs)) {
       return parse_assign_tuple(ps, tuple);
     } else {
-      throw user_error(ps.token.location, ":= may only come after a new symbol name");
+      throw user_error(ps.token.location,
+                       ":= may only come after a new symbol name");
     }
   } else {
     return lhs;
@@ -923,8 +980,9 @@ expr_t *parse_block(parse_state_t &ps, bool expression_means_return) {
         }
       }
 
-      if (ps.token.tk != tk_rparen && ps.token.tk != tk_rcurly && ps.token.tk != tk_rsquare &&
-          ps.token.tk != tk_comma && !ps.line_broke()) {
+      if (ps.token.tk != tk_rparen && ps.token.tk != tk_rcurly &&
+          ps.token.tk != tk_rsquare && ps.token.tk != tk_comma &&
+          !ps.line_broke()) {
         throw user_error(ps.token.location,
                          "this looks hard to read. you should have a line "
                          "break after = blocks, unless they are immediately "
@@ -932,7 +990,8 @@ expr_t *parse_block(parse_state_t &ps, bool expression_means_return) {
       }
       return statement;
     } else {
-      throw user_error(ps.token.location, "empty expression blocks are not allowed");
+      throw user_error(ps.token.location,
+                       "empty expression blocks are not allowed");
     }
   } else {
     std::vector<expr_t *> stmts;
@@ -983,7 +1042,8 @@ conditional_t *parse_if(parse_state_t &ps) {
   }
 
   return new conditional_t(condition, block,
-                           else_ != nullptr ? else_ : unit_expr(ps.token.location));
+                           else_ != nullptr ? else_
+                                            : unit_expr(ps.token.location));
 }
 
 while_t *parse_while(parse_state_t &ps) {
@@ -992,14 +1052,17 @@ while_t *parse_while(parse_state_t &ps) {
   token_t condition_token = ps.token;
   if (condition_token.is_ident(K(match))) {
     /* sugar for while match ... which becomes while true { match ... } */
-    return new while_t(new var_t(ps.id_mapped(identifier_t{"True", while_token.location})),
-                       parse_match(ps));
+    return new while_t(
+        new var_t(ps.id_mapped(identifier_t{"True", while_token.location})),
+        parse_match(ps));
   } else {
-    return new while_t(parse_expr(ps), parse_block(ps, false /*expression_means_return*/));
+    return new while_t(parse_expr(ps),
+                       parse_block(ps, false /*expression_means_return*/));
   }
 }
 
-predicate_t *parse_ctor_predicate(parse_state_t &ps, maybe<identifier_t> name_assignment) {
+predicate_t *parse_ctor_predicate(parse_state_t &ps,
+                                  maybe<identifier_t> name_assignment) {
   assert(ps.token.tk == tk_identifier && isupper(ps.token.text[0]));
   identifier_t ctor_name = ps.identifier_and_advance();
 
@@ -1007,25 +1070,27 @@ predicate_t *parse_ctor_predicate(parse_state_t &ps, maybe<identifier_t> name_as
   if (ps.token.tk == tk_lparen) {
     ps.advance();
     while (ps.token.tk != tk_rparen) {
-      params.push_back(parse_predicate(ps, false /*allow_else*/,
-                                       maybe<identifier_t>() /*name_assignment*/));
+      params.push_back(parse_predicate(
+          ps, false /*allow_else*/, maybe<identifier_t>() /*name_assignment*/));
       if (ps.token.tk != tk_rparen) {
         chomp_token(tk_comma);
       }
     }
     chomp_token(tk_rparen);
   }
-  return new ctor_predicate_t(ctor_name.location, params, ctor_name, name_assignment);
+  return new ctor_predicate_t(ctor_name.location, params, ctor_name,
+                              name_assignment);
 }
 
-predicate_t *parse_tuple_predicate(parse_state_t &ps, maybe<identifier_t> name_assignment) {
+predicate_t *parse_tuple_predicate(parse_state_t &ps,
+                                   maybe<identifier_t> name_assignment) {
   assert(ps.token.tk == tk_lparen);
   ps.advance();
 
   std::vector<predicate_t *> params;
   while (ps.token.tk != tk_rparen) {
-    params.push_back(
-        parse_predicate(ps, false /*allow_else*/, maybe<identifier_t>() /*name_assignment*/));
+    params.push_back(parse_predicate(
+        ps, false /*allow_else*/, maybe<identifier_t>() /*name_assignment*/));
     if (ps.token.tk != tk_rparen || params.size() == 1) {
       chomp_token(tk_comma);
     }
@@ -1040,13 +1105,15 @@ predicate_t *parse_predicate(parse_state_t &ps,
                              maybe<identifier_t> name_assignment) {
   if (ps.token.is_ident(K(else))) {
     if (!allow_else) {
-      throw user_error(ps.token.location,
-                       "illegal keyword " c_type("%s") " in a pattern match context",
-                       ps.token.text.c_str());
+      throw user_error(
+          ps.token.location,
+          "illegal keyword " c_type("%s") " in a pattern match context",
+          ps.token.text.c_str());
     }
   } else if (is_restricted_var_name(ps.token.text)) {
-    throw user_error(ps.token.location,
-                     "irrefutable predicates are restricted to non-keyword symbols");
+    throw user_error(
+        ps.token.location,
+        "irrefutable predicates are restricted to non-keyword symbols");
   }
 
   if (ps.token.tk == tk_lparen) {
@@ -1057,8 +1124,9 @@ predicate_t *parse_predicate(parse_state_t &ps,
       return parse_ctor_predicate(ps, name_assignment);
     } else {
       if (name_assignment.valid) {
-        throw user_error(ps.token.location,
-                         "pattern name assignment is only allowed once per term");
+        throw user_error(
+            ps.token.location,
+            "pattern name assignment is only allowed once per term");
       } else {
         /* match anything */
         auto symbol = identifier_t::from_token(ps.token);
@@ -1074,8 +1142,9 @@ predicate_t *parse_predicate(parse_state_t &ps,
     }
   } else {
     if (name_assignment.valid) {
-      throw user_error(ps.token.location, "pattern name assignment is only allowed for data "
-                                          "constructor matching");
+      throw user_error(ps.token.location,
+                       "pattern name assignment is only allowed for data "
+                       "constructor matching");
     }
 
     std::string sign;
@@ -1085,9 +1154,10 @@ predicate_t *parse_predicate(parse_state_t &ps,
       sign = ps.token.text;
       ps.advance();
       if (ps.token.tk != tk_integer && ps.token.tk != tk_float) {
-        throw user_error(ps.prior_token.location,
-                         "unary prefix %s is not allowed before %s in this context",
-                         ps.prior_token.text.c_str(), ps.token.text.c_str());
+        throw user_error(
+            ps.prior_token.location,
+            "unary prefix %s is not allowed before %s in this context",
+            ps.prior_token.text.c_str(), ps.token.text.c_str());
       }
       break;
     default:
@@ -1103,14 +1173,16 @@ predicate_t *parse_predicate(parse_state_t &ps,
     case tk_integer:
     case tk_float: {
       /* match a literal */
-      predicate_t *literal = new literal_t(
-          sign != "" ? token_t(ps.token.location, ps.token.tk, sign + ps.token.text)
-                     : ps.token);
+      predicate_t *literal =
+          new literal_t(sign != "" ? token_t(ps.token.location, ps.token.tk,
+                                             sign + ps.token.text)
+                                   : ps.token);
       ps.advance();
       return literal;
     }
     default:
-      throw user_error(ps.token.location, "unexpected token for pattern " c_warn("%s"),
+      throw user_error(ps.token.location,
+                       "unexpected token for pattern " c_warn("%s"),
                        ps.token.text.c_str());
     }
     return null_impl();
@@ -1119,7 +1191,8 @@ predicate_t *parse_predicate(parse_state_t &ps,
 
 pattern_block_t *parse_pattern_block(parse_state_t &ps) {
   return new pattern_block_t(
-      parse_predicate(ps, true /*allow_else*/, maybe<identifier_t>() /*name_assignment*/),
+      parse_predicate(ps, true /*allow_else*/,
+                      maybe<identifier_t>() /*name_assignment*/),
       parse_block(ps, false /*expression_means_return*/));
 }
 
@@ -1167,7 +1240,8 @@ match_t *parse_match(parse_state_t &ps) {
   return new match_t(scrutinee, pattern_blocks);
 }
 
-std::pair<identifier_t, types::type_t::ref> parse_lambda_param_core(parse_state_t &ps) {
+std::pair<identifier_t, types::type_t::ref> parse_lambda_param_core(
+    parse_state_t &ps) {
   auto param_token = ps.token_and_advance();
   types::type_t::ref type;
   if (token_begins_type(ps.token)) {
@@ -1177,13 +1251,15 @@ std::pair<identifier_t, types::type_t::ref> parse_lambda_param_core(parse_state_
   return {iid(param_token), type};
 }
 
-std::pair<identifier_t, types::type_t::ref> parse_lambda_param(parse_state_t &ps) {
+std::pair<identifier_t, types::type_t::ref> parse_lambda_param(
+    parse_state_t &ps) {
   if (ps.token.tk == tk_lparen) {
     ps.advance();
     if (ps.token.tk == tk_identifier) {
       return parse_lambda_param_core(ps);
     } else if (ps.token.tk == tk_rparen) {
-      return {identifier_t{"_", ps.token.location}, type_unit(ps.token.location)};
+      return {identifier_t{"_", ps.token.location},
+              type_unit(ps.token.location)};
     }
   } else if (ps.token.tk == tk_comma) {
     ps.advance();
@@ -1305,8 +1381,9 @@ types::type_t::ref parse_type(parse_state_t &ps) {
   /* look for type application */
   std::vector<types::type_t::ref> types;
   if (ps.line_broke()) {
-    throw user_error(ps.token.location,
-                     "encountered a line break where a type annotation was expected");
+    throw user_error(
+        ps.token.location,
+        "encountered a line break where a type annotation was expected");
   }
 
   while (token_begins_type(ps.token) && !ps.line_broke()) {
@@ -1320,10 +1397,11 @@ types::type_t::ref parse_type(parse_state_t &ps) {
     } else if (ps.token.tk == tk_identifier) {
       types.push_back(parse_named_type(ps));
     } else if (ps.token.tk == tk_times) {
-      types.push_back(
-          type_id(identifier_t{PTR_TYPE_OPERATOR, ps.token_and_advance().location}));
+      types.push_back(type_id(
+          identifier_t{PTR_TYPE_OPERATOR, ps.token_and_advance().location}));
     } else {
-      auto error = user_error(ps.token.location, "unhandled syntax for type specification");
+      auto error = user_error(ps.token.location,
+                              "unhandled syntax for type specification");
       error.add_info(ps.token.location, "type components found so far: [%s]",
                      join_str(types, ", ").c_str());
       throw error;
@@ -1343,15 +1421,17 @@ type_decl_t parse_type_decl(parse_state_t &ps) {
 
   auto class_id = iid(ps.token_and_advance());
   if (!isupper(class_id.name[0])) {
-    throw user_error(class_id.location,
-                     "names in type-space must begin with an upper-case letter");
+    throw user_error(
+        class_id.location,
+        "names in type-space must begin with an upper-case letter");
   }
 
   std::vector<identifier_t> params;
   while (true) {
     if (ps.token.tk == tk_identifier) {
       if (!islower(ps.token.text[0])) {
-        throw user_error(ps.token.location, "type declaration parameters must be lowercase");
+        throw user_error(ps.token.location,
+                         "type declaration parameters must be lowercase");
       }
       params.push_back(iid(ps.token_and_advance()));
     } else {
@@ -1381,7 +1461,8 @@ expr_t *create_ctor(location_t location,
   std::vector<expr_t *> dims;
   if (ctor_id.valid) {
     /* add the ctor's id value as the first element in the tuple */
-    dims.push_back(new literal_t({location, tk_integer, string_format("%d", ctor_id.t)}));
+    dims.push_back(
+        new literal_t({location, tk_integer, string_format("%d", ctor_id.t)}));
   }
 
   std::vector<identifier_t> params;
@@ -1391,14 +1472,16 @@ expr_t *create_ctor(location_t location,
     dims.push_back(new var_t(params.back()));
   }
 
-  expr_t *expr = new as_t(new tuple_t(location, dims), scheme({}, {}, type_decl.get_type()),
-                          true /*force_cast*/);
+  expr_t *expr =
+      new as_t(new tuple_t(location, dims),
+               scheme({}, {}, type_decl.get_type()), true /*force_cast*/);
 
   assert_implies(ctor_id.valid, dims.size() == params.size() + 1);
   assert_implies(!ctor_id.valid, dims.size() == params.size());
   for (int i = params.size() - 1; i >= 0; --i) {
     /* (λx y z . return! (ctor_id, x, y, z) as! type_decl) */
-    expr = new lambda_t(params[i], param_types[i], nullptr, new return_statement_t(expr));
+    expr = new lambda_t(params[i], param_types[i], nullptr,
+                        new return_statement_t(expr));
   }
 
   return expr;
@@ -1409,7 +1492,8 @@ struct data_type_decl_t {
   std::vector<decl_t *> decls;
 };
 
-data_type_decl_t parse_struct_decl(parse_state_t &ps, types::type_t::map &data_ctors) {
+data_type_decl_t parse_struct_decl(parse_state_t &ps,
+                                   types::type_t::map &data_ctors) {
   auto type_decl = parse_type_decl(ps);
   std::vector<decl_t *> decls;
   types::type_t::refs dims;
@@ -1423,7 +1507,8 @@ data_type_decl_t parse_struct_decl(parse_state_t &ps, types::type_t::map &data_c
     expect_token(tk_identifier);
 
     if (!islower(ps.token.text[0])) {
-      throw user_error(ps.token.location, "struct members must begin with lowercase letters");
+      throw user_error(ps.token.location,
+                       "struct members must begin with lowercase letters");
     }
 
     member_ids.push_back(iid(ps.token_and_advance()));
@@ -1434,12 +1519,13 @@ data_type_decl_t parse_struct_decl(parse_state_t &ps, types::type_t::map &data_c
     decls.push_back(new decl_t(
         /* accessor function names look like __.x */
         make_accessor_id(member_ids[i]),
-        new lambda_t(identifier_t{"obj", member_ids[i].location}, type_decl.get_type(),
-                     dims[i],
-                     new return_statement_t(new tuple_deref_t(
-                         new as_t(new var_t(identifier_t{"obj", member_ids[i].location}),
-                                  scheme({}, {}, type_tuple(dims)), true /*force_cast*/),
-                         i, dims.size())))));
+        new lambda_t(
+            identifier_t{"obj", member_ids[i].location}, type_decl.get_type(),
+            dims[i],
+            new return_statement_t(new tuple_deref_t(
+                new as_t(new var_t(identifier_t{"obj", member_ids[i].location}),
+                         scheme({}, {}, type_tuple(dims)), true /*force_cast*/),
+                i, dims.size())))));
   }
 
   chomp_token(tk_rcurly);
@@ -1447,10 +1533,11 @@ data_type_decl_t parse_struct_decl(parse_state_t &ps, types::type_t::map &data_c
   /* there is only one ctor for structs which are just product types */
   auto ctor_id = type_decl.id;
 
-  data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl, dims);
-  decls.push_back(
-      new decl_t(ctor_id, create_ctor(ctor_id.location, maybe<int>(0, false /*valid*/),
-                                      type_decl, dims)));
+  data_ctors[ctor_id.name] =
+      create_ctor_type(ctor_id.location, type_decl, dims);
+  decls.push_back(new decl_t(
+      ctor_id, create_ctor(ctor_id.location, maybe<int>(0, false /*valid*/),
+                           type_decl, dims)));
   // log("parsed struct with decls %s", join_str(decls, ", ").c_str());
 
   return {type_decl, decls};
@@ -1484,9 +1571,11 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps,
     } else {
       /* this is a constant (like an enum) */
     }
-    data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl, param_types);
-    decls.push_back(new decl_t(
-        ctor_id, create_ctor(ctor_id.location, maybe<int>(i), type_decl, param_types)));
+    data_ctors[ctor_id.name] =
+        create_ctor_type(ctor_id.location, type_decl, param_types);
+    decls.push_back(
+        new decl_t(ctor_id, create_ctor(ctor_id.location, maybe<int>(i),
+                                        type_decl, param_types)));
     ctor_id_map[ctor_id.name] = i;
 
     if (ps.token.tk == tk_rcurly) {
@@ -1514,7 +1603,8 @@ instance_t *parse_type_class_instance(parse_state_t &ps) {
     } else if (ps.token.tk != tk_rcurly) {
       /* instance-level let vars */
       auto name_token = ps.token_and_advance();
-      auto id = ps.id_mapped(identifier_t{name_token.text, name_token.location});
+      auto id =
+          ps.id_mapped(identifier_t{name_token.text, name_token.location});
       chomp_token(tk_assign);
       decls.push_back(new decl_t(id, parse_expr(ps)));
     } else {
@@ -1530,8 +1620,9 @@ type_class_t *parse_type_class(parse_state_t &ps) {
   auto type_decl = parse_type_decl(ps);
 
   if (type_decl.params.size() != 1) {
-    throw user_error(type_decl.id.location,
-                     "type classes must be parameterized over (only) one type variable");
+    throw user_error(
+        type_decl.id.location,
+        "type classes must be parameterized over (only) one type variable");
   }
 
   chomp_token(tk_lcurly);
@@ -1542,8 +1633,9 @@ type_class_t *parse_type_class(parse_state_t &ps) {
       ps.advance();
       expect_token(tk_identifier);
       if (!isupper(ps.token.text[0])) {
-        throw user_error(ps.token.location, "type class requirements need to be upper-case "
-                                            "because type classes need to be uppercase");
+        throw user_error(ps.token.location,
+                         "type class requirements need to be upper-case "
+                         "because type classes need to be uppercase");
       }
       if (in(ps.token.text, superclasses)) {
         throw user_error(ps.token.location,
@@ -1564,15 +1656,16 @@ type_class_t *parse_type_class(parse_state_t &ps) {
       bindings[type_decl.params[0].name] =
       type_variable(gensym(type_decl.params[0].location), predicates);
       */
-      overloads[id.name] =
-          parse_function_type(ps); // ->rebind(bindings)->generalize({})->normalize();
+      overloads[id.name] = parse_function_type(
+          ps); // ->rebind(bindings)->generalize({})->normalize();
     } else {
       chomp_token(tk_rcurly);
       break;
     }
   }
 
-  return new type_class_t(type_decl.id, type_decl.params[0], superclasses, overloads);
+  return new type_class_t(type_decl.id, type_decl.params[0], superclasses,
+                          overloads);
 }
 
 module_t *parse_module(parse_state_t &ps,
@@ -1584,8 +1677,8 @@ module_t *parse_module(parse_state_t &ps,
     if (aim == nullptr) {
       continue;
     }
-    std::set<std::string> tlds =
-        compiler::get_top_level_decls(aim->decls, aim->type_decls, aim->type_classes);
+    std::set<std::string> tlds = compiler::get_top_level_decls(
+        aim->decls, aim->type_decls, aim->type_classes);
     for (auto tld : tlds) {
       debug_above(9, log("adding tld %s -> %s in %s", tld.c_str(),
                          (aim->name + "." + tld).c_str(), ps.filename.c_str()));
@@ -1608,8 +1701,9 @@ module_t *parse_module(parse_state_t &ps,
       while (true) {
         expect_token(tk_identifier);
         if (starts_with(ps.token.text, "_")) {
-          throw user_error(ps.token.location, "it is not possible to import module-scoped "
-                                              "variables into other modules");
+          throw user_error(ps.token.location,
+                           "it is not possible to import module-scoped "
+                           "variables into other modules");
         }
         ps.add_term_map(ps.token.location, ps.token.text,
                         module_name.name + "." + ps.token.text);
@@ -1672,6 +1766,7 @@ module_t *parse_module(parse_state_t &ps,
   if (ps.token.tk != tk_none) {
     throw user_error(ps.token.location, "unknown stuff here");
   }
-  return new module_t(ps.module_name, decls, type_decls, type_classes, instances,
-                      ps.ctor_id_map, ps.data_ctors_map, ps.newtypes);
+  return new module_t(ps.module_name, decls, type_decls, type_classes,
+                      instances, ps.ctor_id_map, ps.data_ctors_map,
+                      ps.newtypes);
 }

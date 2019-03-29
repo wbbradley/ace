@@ -27,7 +27,8 @@ types::type_t::ref env_t::lookup_env(identifier_t id) const {
   if (type != nullptr) {
     return type;
   }
-  throw user_error(id.location, "unbound variable " C_ID "%s" C_RESET, id.name.c_str());
+  throw user_error(id.location, "unbound variable " C_ID "%s" C_RESET,
+                   id.name.c_str());
 }
 
 void env_t::rebind(const types::type_t::map &bindings) {
@@ -39,8 +40,8 @@ void env_t::rebind(const types::type_t::map &bindings) {
   }
   std::vector<instance_requirement_t> new_instance_requirements;
   for (auto &ir : instance_requirements) {
-    new_instance_requirements.push_back(
-        instance_requirement_t{ir.type_class_name, ir.location, ir.type->rebind(bindings)});
+    new_instance_requirements.push_back(instance_requirement_t{
+        ir.type_class_name, ir.location, ir.type->rebind(bindings)});
   }
   std::swap(instance_requirements, new_instance_requirements);
   assert(tracked_types != nullptr);
@@ -52,7 +53,8 @@ void env_t::rebind(const types::type_t::map &bindings) {
   temp_tracked_types.swap(*tracked_types);
 }
 
-types::type_t::ref env_t::track(const bitter::expr_t *expr, types::type_t::ref type) {
+types::type_t::ref env_t::track(const bitter::expr_t *expr,
+                                types::type_t::ref type) {
   assert(tracked_types != nullptr);
   assert(!in(expr, *tracked_types));
   (*tracked_types)[expr] = type;
@@ -62,7 +64,8 @@ types::type_t::ref env_t::track(const bitter::expr_t *expr, types::type_t::ref t
 types::type_t::ref env_t::get_tracked_type(bitter::expr_t *expr) const {
   auto type = maybe_get_tracked_type(expr);
   if (type == nullptr) {
-    throw user_error(expr->get_location(), "could not find type for expression %s",
+    throw user_error(expr->get_location(),
+                     "could not find type for expression %s",
                      expr->str().c_str());
   }
 
@@ -77,19 +80,24 @@ types::type_t::ref env_t::maybe_get_tracked_type(bitter::expr_t *expr) const {
 
 void env_t::add_instance_requirement(const instance_requirement_t &ir) {
   debug_above(6,
-              log_location(log_info, ir.location, "adding type class requirement for %s %s",
+              log_location(log_info, ir.location,
+                           "adding type class requirement for %s %s",
                            ir.type_class_name.c_str(), ir.type->str().c_str()));
   instance_requirements.push_back(ir);
 }
 
-void env_t::extend(identifier_t id, types::scheme_t::ref scheme, bool allow_subscoping) {
+void env_t::extend(identifier_t id,
+                   types::scheme_t::ref scheme,
+                   bool allow_subscoping) {
   if (!allow_subscoping && in(id.name, map)) {
-    throw user_error(id.location,
-                     "duplicate symbol " c_id("%s") " (TODO: make this error better)",
-                     id.name.c_str());
+    throw user_error(
+        id.location,
+        "duplicate symbol " c_id("%s") " (TODO: make this error better)",
+        id.name.c_str());
   }
   map[id.name] = scheme;
-  debug_above(9, log("extending env with %s => %s", id.str().c_str(), scheme->str().c_str()));
+  debug_above(9, log("extending env with %s => %s", id.str().c_str(),
+                     scheme->str().c_str()));
 }
 
 types::predicate_map env_t::get_predicate_map() const {
@@ -104,7 +112,8 @@ std::string str(const types::scheme_t::map &m) {
   std::stringstream ss;
   ss << "{";
   ss << join_with(m, ", ", [](const auto &pair) {
-    return string_format("%s: %s", pair.first.c_str(), pair.second->str().c_str());
+    return string_format("%s: %s", pair.first.c_str(),
+                         pair.second->str().c_str());
   });
   ss << "}";
   return ss.str();
@@ -121,8 +130,8 @@ std::string env_t::str() const {
        << join_with(instance_requirements, ", ",
                     [](const instance_requirement_t &ir) {
                       std::stringstream ss;
-                      ss << "{" << ir.type_class_name << ", " << ir.location << ", "
-                         << ir.type->str() << "}";
+                      ss << "{" << ir.type_class_name << ", " << ir.location
+                         << ", " << ir.type->str() << "}";
                       return ss.str();
                     })
        << "]";

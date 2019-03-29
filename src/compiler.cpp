@@ -84,25 +84,29 @@ std::string resolve_module_filename(location_t location,
     if (file_exists(test_path)) {
       std::string test_resolution;
       if (real_path(test_path, test_resolution)) {
-        if (working_resolution.size() && working_resolution != test_resolution) {
+        if (working_resolution.size() &&
+            working_resolution != test_resolution) {
           throw user_error(location,
                            "multiple " C_FILENAME "%s" C_RESET
                            " modules found with the same name in source "
                            "path [%s, %s]",
-                           name.c_str(), working_resolution.c_str(), test_resolution.c_str());
+                           name.c_str(), working_resolution.c_str(),
+                           test_resolution.c_str());
         } else {
           working_resolution = test_resolution;
-          debug_above(11, log(log_info, "searching for file %s, found it at %s", name.c_str(),
-                              working_resolution.c_str()));
+          debug_above(11, log(log_info, "searching for file %s, found it at %s",
+                              name.c_str(), working_resolution.c_str()));
         }
       } else {
         /* if the file exists, it should have a real_path */
-        panic(string_format("searching for file %s, unable to resolve its real path (%s)",
-                            name.c_str(), test_path.c_str()));
+        panic(string_format(
+            "searching for file %s, unable to resolve its real path (%s)",
+            name.c_str(), test_path.c_str()));
       }
     } else {
-      debug_above(11, log(log_info, "searching for file %s, did not find it at %s",
-                          name.c_str(), test_path.c_str()));
+      debug_above(11,
+                  log(log_info, "searching for file %s, did not find it at %s",
+                      name.c_str(), test_path.c_str()));
     }
   }
 
@@ -111,11 +115,11 @@ std::string resolve_module_filename(location_t location,
      * the source paths */
     return working_resolution;
   } else {
-    throw user_error(
-        location,
-        "module not found: " c_error("`%s`") " (Note that module names should not have "
-                                             ".zion extensions.) Looked in ZION_PATH=[%s]",
-        name.c_str(), join(get_zion_paths(), ":").c_str());
+    throw user_error(location,
+                     "module not found: " c_error(
+                         "`%s`") " (Note that module names should not have "
+                                 ".zion extensions.) Looked in ZION_PATH=[%s]",
+                     name.c_str(), join(get_zion_paths(), ":").c_str());
     return "";
   }
 }
@@ -132,12 +136,14 @@ struct global_parser_state_t {
   const std::map<std::string, int> &builtin_arities;
 
   module_t *parse_module_statefully(identifier_t module_id) {
-    if (auto module = get(modules_map_by_name, module_id.name, (module_t *)nullptr)) {
+    if (auto module =
+            get(modules_map_by_name, module_id.name, (module_t *)nullptr)) {
       return module;
     }
-    std::string module_filename =
-        compiler::resolve_module_filename(module_id.location, module_id.name, ".zion");
-    if (auto module = get(modules_map_by_filename, module_filename, (module_t *)nullptr)) {
+    std::string module_filename = compiler::resolve_module_filename(
+        module_id.location, module_id.name, ".zion");
+    if (auto module = get(modules_map_by_filename, module_filename,
+                          (module_t *)nullptr)) {
       return module;
     }
 
@@ -146,19 +152,23 @@ struct global_parser_state_t {
     ifs.open(module_filename.c_str());
 
     if (ifs.good()) {
-      debug_above(11, log(log_info, "parsing module " c_id("%s"), module_filename.c_str()));
+      debug_above(11, log(log_info, "parsing module " c_id("%s"),
+                          module_filename.c_str()));
       zion_lexer_t lexer({module_filename}, ifs);
 
-      parse_state_t ps(module_filename, "", lexer, comments, link_ins, builtin_arities);
+      parse_state_t ps(module_filename, "", lexer, comments, link_ins,
+                       builtin_arities);
 
       std::set<identifier_t> dependencies;
-      module_t *module = ::parse_module(ps, {modules_map_by_name["std"]}, dependencies);
+      module_t *module =
+          ::parse_module(ps, {modules_map_by_name["std"]}, dependencies);
 
       modules.push_back(module);
       modules_map_by_name[ps.module_name] = module;
       modules_map_by_filename[ps.filename] = module;
 
-      debug_above(8, log("while parsing %s got dependencies {%s}", module_id.str().c_str(),
+      debug_above(8, log("while parsing %s got dependencies {%s}",
+                         module_id.str().c_str(),
                          join(dependencies, ", ").c_str()));
       for (auto dependency : dependencies) {
         parse_module_statefully(dependency);
@@ -167,7 +177,8 @@ struct global_parser_state_t {
       return module;
     } else {
       auto error =
-          user_error(module_id.location, "could not open \"%s\" when trying to link module",
+          user_error(module_id.location,
+                     "could not open \"%s\" when trying to link module",
                      module_filename.c_str());
       error.add_info(module_id.location, "imported here");
       throw error;
@@ -175,9 +186,10 @@ struct global_parser_state_t {
   }
 };
 
-std::set<std::string> get_top_level_decls(const std::vector<decl_t *> &decls,
-                                          const std::vector<type_decl_t> &type_decls,
-                                          const std::vector<type_class_t *> &type_classes) {
+std::set<std::string> get_top_level_decls(
+    const std::vector<decl_t *> &decls,
+    const std::vector<type_decl_t> &type_decls,
+    const std::vector<type_class_t *> &type_classes) {
   std::map<std::string, location_t> module_decls;
   for (decl_t *decl : decls) {
     if (module_decls.find(decl->var.name) != module_decls.end()) {
@@ -204,9 +216,11 @@ std::set<std::string> get_top_level_decls(const std::vector<decl_t *> &decls,
   return top_level_decls;
 }
 
-compilation_t::ref parse_program(std::string user_program_name,
-                                 const std::map<std::string, int> &builtin_arities) {
-  std::string program_name = strip_zion_extension(leaf_from_file_path(user_program_name));
+compilation_t::ref parse_program(
+    std::string user_program_name,
+    const std::map<std::string, int> &builtin_arities) {
+  std::string program_name =
+      strip_zion_extension(leaf_from_file_path(user_program_name));
   try {
     /* first just parse all the modules that are reachable from the initial
      * module and bring them into our whole ast */
@@ -223,8 +237,8 @@ compilation_t::ref parse_program(std::string user_program_name,
     gps.parse_module_statefully(
         {module_name, location_t{"command line build parameters", 0, 0}});
 
-    debug_above(11, log(log_info, "parse_module of %s succeeded", module_name.c_str(),
-                        false /*global*/));
+    debug_above(11, log(log_info, "parse_module of %s succeeded",
+                        module_name.c_str(), false /*global*/));
 
     std::vector<decl_t *> program_decls;
     std::vector<type_class_t *> program_type_classes;
@@ -235,8 +249,8 @@ compilation_t::ref parse_program(std::string user_program_name,
     /* next, merge the entire set of modules into one program */
     for (module_t *module : gps.modules) {
       /* get a list of all top-level decls */
-      std::set<std::string> bindings =
-          get_top_level_decls(module->decls, module->type_decls, module->type_classes);
+      std::set<std::string> bindings = get_top_level_decls(
+          module->decls, module->type_decls, module->type_classes);
 
       module_t *module_rebound = prefix(bindings, module);
 
@@ -266,9 +280,9 @@ compilation_t::ref parse_program(std::string user_program_name,
 
     return std::make_shared<compilation_t>(
         program_name,
-        new program_t(
-            program_decls, program_type_classes, program_instances,
-            new application_t(new var_t(make_iid("main")), new tuple_t(INTERNAL_LOC(), {}))),
+        new program_t(program_decls, program_type_classes, program_instances,
+                      new application_t(new var_t(make_iid("main")),
+                                        new tuple_t(INTERNAL_LOC(), {}))),
         gps.comments, gps.link_ins, ctor_id_map, data_ctors_map);
   } catch (user_error &e) {
     print_exception(e);

@@ -1,12 +1,14 @@
 #include "lower.h"
 
 #include "llvm_utils.h"
+#include "logger.h"
 #include "types.h"
 
 namespace lower {
 
-using env_t =
-    std::map<std::string, std::map<types::type_t::ref, llvm::Value *, types::compare_type_t>>;
+using env_t = std::map<
+    std::string,
+    std::map<types::type_t::ref, llvm::Value *, types::compare_type_t>>;
 
 llvm::Value *maybe_get_llvm_value(const env_t &env,
                                   std::string name,
@@ -15,15 +17,19 @@ llvm::Value *maybe_get_llvm_value(const env_t &env,
   return get(env, name, type, static_cast<llvm::Value *>(nullptr));
 }
 
-llvm::Value *get_llvm_value(const env_t &env, std::string name, types::type_t::ref type) {
+llvm::Value *get_llvm_value(const env_t &env,
+                            std::string name,
+                            types::type_t::ref type) {
   auto llvm_value = maybe_get_llvm_value(env, name, type);
   if (llvm_value == nullptr) {
-    auto error = user_error(INTERNAL_LOC(), "we need an llvm definition for %s :: %s",
-                            name.c_str(), type->str().c_str());
+    auto error =
+        user_error(INTERNAL_LOC(), "we need an llvm definition for %s :: %s",
+                   name.c_str(), type->str().c_str());
     for (auto pair : env) {
       for (auto overload : pair.second) {
         error.add_info(INTERNAL_LOC(), "%s :: %s = %s", pair.first.c_str(),
-                       overload.first->str().c_str(), llvm_print(overload.second).c_str());
+                       overload.first->str().c_str(),
+                       llvm_print(overload.second).c_str());
       }
     }
     print_exception(error, 10);
@@ -38,10 +44,11 @@ void set_llvm_value(env_t &env,
                     types::type_t::ref type,
                     llvm::Value *llvm_value,
                     bool allow_shadowing) {
-  debug_above(5, log("setting env[%s][%s] = %s", name.c_str(), type->str().c_str(),
-                     llvm_print(llvm_value).c_str()));
+  debug_above(5, log("setting env[%s][%s] = %s", name.c_str(),
+                     type->str().c_str(), llvm_print(llvm_value).c_str()));
   assert(name.size() != 0);
-  auto existing_llvm_value = get(env, name, type, static_cast<llvm::Value *>(nullptr));
+  auto existing_llvm_value =
+      get(env, name, type, static_cast<llvm::Value *>(nullptr));
   if (existing_llvm_value == nullptr) {
     env[name][type] = llvm_value;
   } else {
@@ -59,8 +66,8 @@ llvm::Constant *lower_decl(std::string name,
                            llvm::Module *llvm_module,
                            gen::value_t::ref value,
                            env_t &env) {
-  debug_above(4, log("lower_decl(%s, ..., %s :: %s, ...)", name.c_str(), value->str().c_str(),
-                     value->type->str().c_str()));
+  debug_above(4, log("lower_decl(%s, ..., %s :: %s, ...)", name.c_str(),
+                     value->str().c_str(), value->type->str().c_str()));
 
   assert(value != nullptr);
   auto new_value = gen::resolve_proxy(value);
@@ -68,12 +75,13 @@ llvm::Constant *lower_decl(std::string name,
   if (new_value == nullptr) {
     llvm::Value *llvm_value = maybe_get_llvm_value(env, name, value->type);
     if (llvm_value != nullptr) {
-      llvm::Constant *llvm_constant = llvm::dyn_cast<llvm::Constant>(llvm_value);
+      llvm::Constant *llvm_constant =
+          llvm::dyn_cast<llvm::Constant>(llvm_value);
       assert(llvm_constant != nullptr);
       return llvm_constant;
     }
-    log(log_error, "what should I do with unbound proxy value for %s (%s)", name.c_str(),
-        value->str().c_str());
+    log(log_error, "what should I do with unbound proxy value for %s (%s)",
+        name.c_str(), value->str().c_str());
     dbg();
   } else {
     value = new_value;
@@ -88,15 +96,17 @@ llvm::Constant *lower_decl(std::string name,
     assert(false);
     return nullptr;
   } else if (auto cast = dyncast<gen::cast_t>(value)) {
-    auto llvm_inner_value = lower_decl(name, builder, llvm_module, cast->value, env);
-    auto llvm_value =
-        builder.CreateBitCast(llvm_inner_value, get_llvm_type(builder, cast->type));
+    auto llvm_inner_value =
+        lower_decl(name, builder, llvm_module, cast->value, env);
+    auto llvm_value = builder.CreateBitCast(llvm_inner_value,
+                                            get_llvm_type(builder, cast->type));
     auto llvm_constant = llvm::dyn_cast<llvm::Constant>(llvm_value);
     return llvm_constant;
   } else if (auto function = dyncast<gen::function_t>(value)) {
     types::type_t::refs type_terms;
     unfold_binops_rassoc(ARROW_TYPE_OPERATOR, function->type, type_terms);
-    if (function->args.size() != 0 && function->args.back()->name == "__closure") {
+    if (function->args.size() != 0 &&
+        function->args.back()->name == "__closure") {
       /* this function will not be called directly, it will be packaged into a
        * closure */
       type_terms.insert(type_terms.end() - 1, type_id(make_iid("__closure_t")));
@@ -146,49 +156,57 @@ llvm::Constant *lower_decl(std::string name,
       }
 
       if (llvm_value != nullptr) {
-        llvm::Constant *llvm_dim_const = llvm::dyn_cast<llvm::Constant>(llvm_value);
+        llvm::Constant *llvm_dim_const =
+            llvm::dyn_cast<llvm::Constant>(llvm_value);
         if (llvm_dim_const == nullptr) {
-          throw user_error(dim->get_location(), "non-constant global dim element found %s",
+          throw user_error(dim->get_location(),
+                           "non-constant global dim element found %s",
                            dim->name.c_str());
         }
         llvm_struct_data.push_back(llvm_dim_const);
       } else {
-        throw user_error(dim->get_location(), "unable to find llvm_value for %s",
+        throw user_error(dim->get_location(),
+                         "unable to find llvm_value for %s",
                          dim->str().c_str());
       }
     }
 
     log("found %d elements for struct", (int)llvm_struct_data.size());
-    return llvm_create_struct_instance(name, llvm_module, llvm_struct_type, llvm_struct_data);
+    return llvm_create_struct_instance(name, llvm_module, llvm_struct_type,
+                                       llvm_struct_data);
   } else if (auto tuple_deref = dyncast<gen::tuple_deref_t>(value)) {
     assert(false);
     return nullptr;
   }
 
   dbg();
-  throw user_error(value->get_location(), "unhandled lower for %s", value->str().c_str());
+  throw user_error(value->get_location(), "unhandled lower for %s",
+                   value->str().c_str());
 }
 
-void lower_block(
-    llvm::IRBuilder<> &builder,
-    gen::block_t::ref block,
-    std::map<std::string, llvm::Value *> &locals,
-    const std::map<gen::block_t::ref, llvm::BasicBlock *, gen::block_t::comparator_t>
-        &block_map,
-    std::map<gen::block_t::ref, bool, gen::block_t::comparator_t> &blocks_visited,
-    const env_t &env);
+void lower_block(llvm::IRBuilder<> &builder,
+                 gen::block_t::ref block,
+                 std::map<std::string, llvm::Value *> &locals,
+                 const std::map<gen::block_t::ref,
+                                llvm::BasicBlock *,
+                                gen::block_t::comparator_t> &block_map,
+                 std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
+                     &blocks_visited,
+                 const env_t &env);
 
-#define assert_not_impl()                                                                    \
-  do {                                                                                       \
-    std::cout << llvm_print_module(*llvm_get_module(builder)) << std::endl;                  \
-    assert(false);                                                                           \
+#define assert_not_impl()                                                      \
+  do {                                                                         \
+    std::cout << llvm_print_module(*llvm_get_module(builder)) << std::endl;    \
+    assert(false);                                                             \
   } while (0)
 
 llvm::Value *lower_builtin(llvm::IRBuilder<> &builder,
                            const std::string &name,
                            const std::vector<llvm::Value *> &params) {
   log("lowering builtin %s(%s)...", name.c_str(),
-      join_with(params, ", ", [](llvm::Value *lv) { return llvm_print(lv); }).c_str());
+      join_with(params, ", ", [](llvm::Value *lv) {
+        return llvm_print(lv);
+      }).c_str());
 
   if (name == "__builtin_word_size") {
     /* scheme({}, {}, Int) */
@@ -288,11 +306,14 @@ llvm::Value *lower_literal(llvm::IRBuilder<> &builder,
   log("emitting literal %s :: %s", token.str().c_str(), type->str().c_str());
   if (type_equality(type, type_id(make_iid(INT_TYPE)))) {
     return builder.getZionInt(atoll(token.text.c_str()));
-  } else if (type_equality(type, type_operator({type_id(make_iid(PTR_TYPE_OPERATOR)),
-                                                type_id(make_iid(CHAR_TYPE))}))) {
+  } else if (type_equality(type,
+                           type_operator({type_id(make_iid(PTR_TYPE_OPERATOR)),
+                                          type_id(make_iid(CHAR_TYPE))}))) {
     /* char * */
-    return llvm_create_global_string_constant(builder, *llvm_get_module(builder),
-                                              unescape_json_quotes(token.text));
+    auto llvm_literal = llvm_create_global_string_constant(
+        builder, *llvm_get_module(builder), unescape_json_quotes(token.text));
+    log("emitting llvm literal %s", llvm_print(llvm_literal).c_str());
+    return llvm_literal;
   }
 
   assert_not_impl();
@@ -303,22 +324,26 @@ llvm::Value *lower_value(
     llvm::IRBuilder<> &builder,
     gen::value_t::ref value,
     std::map<std::string, llvm::Value *> &locals,
-    const std::map<gen::block_t::ref, llvm::BasicBlock *, gen::block_t::comparator_t>
-        &block_map,
-    std::map<gen::block_t::ref, bool, gen::block_t::comparator_t> &blocks_visited,
+    const std::map<gen::block_t::ref,
+                   llvm::BasicBlock *,
+                   gen::block_t::comparator_t> &block_map,
+    std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
+        &blocks_visited,
     const env_t &env) {
   value = resolve_proxy(value);
   assert(value != nullptr);
 
-  /* make sure that the block that this value is defined in has been evaluated
-   */
-  lower_block(builder, value->parent.lock(), locals, block_map, blocks_visited, env);
-
   llvm::Value *llvm_previously_computed_value =
       get(locals, value->name, (llvm::Value *)nullptr);
+
   if (llvm_previously_computed_value != nullptr) {
     return llvm_previously_computed_value;
   }
+
+  /* make sure that the block that this value is defined in has been evaluated
+   */
+  lower_block(builder, value->parent.lock(), locals, block_map, blocks_visited,
+              env);
 
   std::stringstream ss;
   value->render(ss);
@@ -331,20 +356,22 @@ llvm::Value *lower_value(
     assert_not_impl();
     return nullptr;
   } else if (auto cast = dyncast<gen::cast_t>(value)) {
-    auto llvm_inner_value =
-        lower_value(builder, cast->value, locals, block_map, blocks_visited, env);
-    auto llvm_value =
-        builder.CreateBitCast(llvm_inner_value, get_llvm_type(builder, cast->type));
+    auto llvm_inner_value = lower_value(builder, cast->value, locals, block_map,
+                                        blocks_visited, env);
+    auto llvm_value = builder.CreateBitCast(llvm_inner_value,
+                                            get_llvm_type(builder, cast->type));
     locals[cast->name] = llvm_value;
     return llvm_value;
   } else if (auto function = dyncast<gen::function_t>(value)) {
-    auto llvm_value = get(env, function->name, function->type, (llvm::Value *)nullptr);
+    auto llvm_value =
+        get(env, function->name, function->type, (llvm::Value *)nullptr);
     assert(llvm_value != nullptr);
     return llvm_value;
   } else if (auto builtin = dyncast<gen::builtin_t>(value)) {
     std::vector<llvm::Value *> params;
     for (auto param : builtin->params) {
-      params.push_back(lower_value(builder, param, locals, block_map, blocks_visited, env));
+      params.push_back(
+          lower_value(builder, param, locals, block_map, blocks_visited, env));
     }
 
     return lower_builtin(builder, builtin->id.name, params);
@@ -365,14 +392,15 @@ llvm::Value *lower_value(
       llvm_params.push_back(
           lower_value(builder, param, locals, block_map, blocks_visited, env));
     }
-    llvm::Value *llvm_callee =
-        lower_value(builder, callsite->callable, locals, block_map, blocks_visited, env);
-    auto llvm_callsite = llvm_create_call_inst(builder, llvm_callee, llvm_params);
+    llvm::Value *llvm_callee = lower_value(builder, callsite->callable, locals,
+                                           block_map, blocks_visited, env);
+    auto llvm_callsite =
+        llvm_create_call_inst(builder, llvm_callee, llvm_params);
     locals[callsite->name] = llvm_callsite;
     return llvm_callsite;
   } else if (auto return_ = dyncast<gen::return_t>(value)) {
-    llvm::Value *llvm_return_value =
-        lower_value(builder, return_->value, locals, block_map, blocks_visited, env);
+    llvm::Value *llvm_return_value = lower_value(
+        builder, return_->value, locals, block_map, blocks_visited, env);
     return builder.CreateRet(llvm_return_value);
   } else if (auto load = dyncast<gen::load_t>(value)) {
     assert_not_impl();
@@ -383,15 +411,18 @@ llvm::Value *lower_value(
   } else if (auto tuple = dyncast<gen::tuple_t>(value)) {
     std::vector<llvm::Value *> llvm_dims;
     for (auto dim : tuple->dims) {
-      llvm_dims.push_back(lower_value(builder, dim, locals, block_map, blocks_visited, env));
+      llvm_dims.push_back(
+          lower_value(builder, dim, locals, block_map, blocks_visited, env));
     }
     auto llvm_type = get_llvm_type(builder, tuple->type);
     std::vector<llvm::Type *> alloc_terms{builder.getInt64Ty()};
     log("need to allocated a tuple of type %s", llvm_print(llvm_type).c_str());
     auto llvm_module = llvm_get_module(builder);
-    auto llvm_alloc_func_decl = llvm::cast<llvm::Function>(llvm_module->getOrInsertFunction(
-        "malloc", llvm_create_function_type(builder, alloc_terms,
-                                            builder.getInt8Ty()->getPointerTo())));
+    auto llvm_alloc_func_decl =
+        llvm::cast<llvm::Function>(llvm_module->getOrInsertFunction(
+            "malloc",
+            llvm_create_function_type(builder, alloc_terms,
+                                      builder.getInt8Ty()->getPointerTo())));
     return builder.CreateBitCast(
         builder.CreateCall(llvm_alloc_func_decl,
                            std::vector<llvm::Value *>{llvm_sizeof_type(
@@ -401,8 +432,8 @@ llvm::Value *lower_value(
     std::stringstream ss;
     tuple_deref->render(ss);
     log("tuple_deref = %s", ss.str().c_str());
-    llvm::Value *llvm_value =
-        lower_value(builder, tuple_deref->value, locals, block_map, blocks_visited, env);
+    llvm::Value *llvm_value = lower_value(builder, tuple_deref->value, locals,
+                                          block_map, blocks_visited, env);
 
     /*
        llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
@@ -413,32 +444,50 @@ llvm::Value *lower_value(
        */
 
     std::cout << "llvm_value = " << llvm_print(llvm_value) << std::endl;
-    std::cout << "llvm_value->getType = " << llvm_print(llvm_value->getType()) << std::endl;
+    std::cout << "llvm_value->getType = " << llvm_print(llvm_value->getType())
+              << std::endl;
     assert(tuple_deref->index >= 0);
-    auto gep_path =
-        std::vector<llvm::Value *>{builder.getInt32(0), builder.getInt32(tuple_deref->index)};
+    auto gep_path = std::vector<llvm::Value *>{
+        builder.getInt32(0), builder.getInt32(tuple_deref->index)};
     return builder.CreateLoad(builder.CreateInBoundsGEP(llvm_value, gep_path));
   }
   assert_not_impl();
   return nullptr;
 }
 
-void lower_block(
-    llvm::IRBuilder<> &builder,
-    gen::block_t::ref block,
-    std::map<std::string, llvm::Value *> &locals,
-    const std::map<gen::block_t::ref, llvm::BasicBlock *, gen::block_t::comparator_t>
-        &block_map,
-    std::map<gen::block_t::ref, bool, gen::block_t::comparator_t> &blocks_visited,
-    const env_t &env) {
+void lower_block(llvm::IRBuilder<> &builder,
+                 gen::block_t::ref block,
+                 std::map<std::string, llvm::Value *> &locals,
+                 const std::map<gen::block_t::ref,
+                                llvm::BasicBlock *,
+                                gen::block_t::comparator_t> &block_map,
+                 std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
+                     &blocks_visited,
+                 const env_t &env) {
   if (block == nullptr) {
     /* maybe the value we are lowering doesn't need a block */
     return;
   }
 
-  if (block_map.at(block) == builder.GetInsertBlock()) {
+  llvm::BasicBlock *llvm_block =
+      get(block_map, block, (llvm::BasicBlock *)nullptr);
+
+  if (llvm_block == builder.GetInsertBlock()) {
     /* we're already checking this block right now, so be cool */
     return;
+  }
+
+  INDENT(1,
+         string_format(
+             "lower_block(..., %s, locals={%s}, ...)", block->str().c_str(),
+             join_with(locals, ", ",
+                       [](const std::pair<std::string, llvm::Value *> &pair) {
+                         return pair.first + ": " + llvm_print(pair.second);
+                       })
+                 .c_str()));
+
+  if (!in(block, block_map)) {
+    dbg();
   }
 
   auto visited_iter = blocks_visited.find(block);
@@ -449,10 +498,10 @@ void lower_block(
     blocks_visited[block] = false;
 
     llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-    builder.SetInsertPoint(block_map.at(block));
+    builder.SetInsertPoint(llvm_block);
     for (auto instruction : block->instructions) {
-      locals[instruction->name] =
-          lower_value(builder, instruction, locals, block_map, blocks_visited, env);
+      locals[instruction->name] = lower_value(builder, instruction, locals,
+                                              block_map, blocks_visited, env);
     }
 
     /* mark this block as white */
@@ -493,12 +542,13 @@ void lower_function(llvm::IRBuilder<> &builder,
     locals[arg->name] = arg_iterator++;
   }
 
-  std::map<gen::block_t::ref, llvm::BasicBlock *, gen::block_t::comparator_t> block_map;
+  std::map<gen::block_t::ref, llvm::BasicBlock *, gen::block_t::comparator_t>
+      block_map;
   std::map<gen::block_t::ref, bool, gen::block_t::comparator_t> blocks_visited;
 
   for (auto block : function->blocks) {
-    block_map[block] =
-        llvm::BasicBlock::Create(builder.getContext(), block->name, llvm_function);
+    block_map[block] = llvm::BasicBlock::Create(builder.getContext(),
+                                                block->name, llvm_function);
   }
 
   for (auto block : function->blocks) {
@@ -513,7 +563,8 @@ void lower_populate(llvm::IRBuilder<> &builder,
                     gen::value_t::ref value,
                     llvm::Value *llvm_value,
                     env_t &env) {
-  debug_above(4, log("lower_populate(%s, ..., %s, ...)", name.c_str(), value->str().c_str()));
+  debug_above(4, log("lower_populate(%s, ..., %s, ...)", name.c_str(),
+                     value->str().c_str()));
 
   assert(value != nullptr);
   auto resolved_value = resolve_proxy(value);
@@ -571,7 +622,8 @@ void lower_populate(llvm::IRBuilder<> &builder,
     return;
   }
 
-  throw user_error(value->get_location(), "unhandled lower for %s", value->str().c_str());
+  throw user_error(value->get_location(), "unhandled lower for %s",
+                   value->str().c_str());
 }
 
 int lower(std::string main_function, const gen::gen_env_t &gen_env) {
@@ -610,8 +662,8 @@ int lower(std::string main_function, const gen::gen_env_t &gen_env) {
 
         std::stringstream ss;
         value->render(ss);
-        log("emitting #%d " c_id("%s") " :: %s = %s", lowering_index, name.c_str(),
-            type->str().c_str(),
+        log("emitting #%d " c_id("%s") " :: %s = %s", lowering_index,
+            name.c_str(), type->str().c_str(),
             ss.str().c_str()); // value->str().c_str());
         ++lowering_index;
 
@@ -624,11 +676,13 @@ int lower(std::string main_function, const gen::gen_env_t &gen_env) {
         if (llvm_decl != nullptr) {
           /* we were able to create a lowered version of `name` */
           if (auto bb = builder.GetInsertBlock()) {
-            log("in the function %s", llvm_print_function(bb->getParent()).c_str());
+            log("in the function %s",
+                llvm_print_function(bb->getParent()).c_str());
           } else {
             log("in global scope");
           }
-          set_llvm_value(lower_env, name, type, llvm_decl, false /*allow_shadowing*/);
+          set_llvm_value(lower_env, name, type, llvm_decl,
+                         false /*allow_shadowing*/);
         } else {
           assert(false);
         }
@@ -642,11 +696,13 @@ int lower(std::string main_function, const gen::gen_env_t &gen_env) {
         gen::value_t::ref value = overload.second;
 
         llvm::Value *llvm_value = get_llvm_value(lower_env, name, type);
-        lower_populate(builder, module, name, type, value, llvm_value, lower_env);
+        lower_populate(builder, module, name, type, value, llvm_value,
+                       lower_env);
       }
     }
     std::cout << llvm_print_module(*module) << std::endl;
-    std::cout << "Created " << lower_env.size() << " named variables." << std::endl;
+    std::cout << "Created " << lower_env.size() << " named variables."
+              << std::endl;
     return EXIT_SUCCESS;
   } catch (user_error &e) {
     print_exception(e);

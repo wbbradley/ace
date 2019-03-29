@@ -9,27 +9,32 @@
 
 const char *GC_STRATEGY = "zion";
 
-llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder, std::string value) {
+llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder,
+                                       std::string value) {
   return builder.CreateGlobalStringPtr(value);
 }
 
 llvm::Constant *llvm_get_pointer_to_constant(llvm::IRBuilder<> &builder,
                                              llvm::Constant *llvm_constant) {
-  assert(llvm::dyn_cast<llvm::PointerType>(llvm_constant->getType()) != nullptr);
+  assert(llvm::dyn_cast<llvm::PointerType>(llvm_constant->getType()) !=
+         nullptr);
 
-  debug_above(
-      9, log(log_info, "getting pointer to constant %s", llvm_print(llvm_constant).c_str()));
+  debug_above(9, log(log_info, "getting pointer to constant %s",
+                     llvm_print(llvm_constant).c_str()));
 
-  std::vector<llvm::Constant *> gep_indices = {builder.getInt32(0), builder.getInt32(0)};
+  std::vector<llvm::Constant *> gep_indices = {builder.getInt32(0),
+                                               builder.getInt32(0)};
 
-  return llvm::ConstantExpr::getInBoundsGetElementPtr(nullptr, llvm_constant, gep_indices);
+  return llvm::ConstantExpr::getInBoundsGetElementPtr(nullptr, llvm_constant,
+                                                      gep_indices);
 }
 
 llvm::Constant *llvm_create_global_string_constant(llvm::IRBuilder<> &builder,
                                                    llvm::Module &M,
                                                    std::string str) {
   llvm::LLVMContext &Context = builder.getContext();
-  llvm::Constant *StrConstant = llvm::ConstantDataArray::getString(Context, str);
+  llvm::Constant *StrConstant =
+      llvm::ConstantDataArray::getString(Context, str);
   std::string name = std::string("__global_") + str;
   llvm::GlobalVariable *llvm_value =
       llvm_get_global(&M, name, StrConstant, true /*is_constant*/);
@@ -48,11 +53,13 @@ llvm::ConstantInt *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value) {
   return builder.getZionInt(value);
 }
 
-llvm::ConstantInt *llvm_create_int16(llvm::IRBuilder<> &builder, int16_t value) {
+llvm::ConstantInt *llvm_create_int16(llvm::IRBuilder<> &builder,
+                                     int16_t value) {
   return builder.getInt16(value);
 }
 
-llvm::ConstantInt *llvm_create_int32(llvm::IRBuilder<> &builder, int32_t value) {
+llvm::ConstantInt *llvm_create_int32(llvm::IRBuilder<> &builder,
+                                     int32_t value) {
   return builder.getInt32(value);
 }
 
@@ -60,11 +67,13 @@ llvm::Value *llvm_create_double(llvm::IRBuilder<> &builder, double value) {
   return llvm::ConstantFP::get(builder.getContext(), llvm::APFloat(value));
 }
 
-llvm::FunctionType *llvm_create_function_type(llvm::IRBuilder<> &builder,
-                                              const std::vector<llvm::Type *> &llvm_type_args,
-                                              llvm::Type *llvm_return_type) {
-  return llvm::FunctionType::get(
-      llvm_return_type, llvm::ArrayRef<llvm::Type *>(llvm_type_args), false /*isVarArg*/);
+llvm::FunctionType *llvm_create_function_type(
+    llvm::IRBuilder<> &builder,
+    const std::vector<llvm::Type *> &llvm_type_args,
+    llvm::Type *llvm_return_type) {
+  return llvm::FunctionType::get(llvm_return_type,
+                                 llvm::ArrayRef<llvm::Type *>(llvm_type_args),
+                                 false /*isVarArg*/);
 }
 
 llvm::Type *llvm_resolve_type(llvm::Value *llvm_value) {
@@ -76,7 +85,8 @@ llvm::Type *llvm_resolve_type(llvm::Value *llvm_value) {
   }
 }
 
-llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder, llvm::Value *llvm_value) {
+llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder,
+                                  llvm::Value *llvm_value) {
   if (llvm::AllocaInst *alloca = llvm::dyn_cast<llvm::AllocaInst>(llvm_value)) {
     return builder.CreateLoad(alloca);
   } else {
@@ -95,24 +105,28 @@ llvm::CallInst *llvm_create_call_inst(llvm::IRBuilder<> &builder,
   llvm::FunctionType *llvm_function_type = nullptr;
   llvm::Function *llvm_func_decl = nullptr;
 
-  if (llvm::Function *llvm_callee_fn = llvm::dyn_cast<llvm::Function>(llvm_callee_value)) {
+  if (llvm::Function *llvm_callee_fn =
+          llvm::dyn_cast<llvm::Function>(llvm_callee_value)) {
     /* see if we have an exact function we want to call */
 
     /* get the current module we're inserting code into */
     llvm::Module *llvm_module = llvm_get_module(builder);
 
-    debug_above(3, log(log_info, "looking for function in LLVM " c_id("%s") " with type %s",
-                       llvm_callee_fn->getName().str().c_str(),
-                       llvm_print(llvm_callee_fn->getFunctionType()).c_str()));
+    debug_above(3,
+                log(log_info,
+                    "looking for function in LLVM " c_id("%s") " with type %s",
+                    llvm_callee_fn->getName().str().c_str(),
+                    llvm_print(llvm_callee_fn->getFunctionType()).c_str()));
 
     /* before we can call a function, we must make sure it either exists in
      * this module, or a declaration exists */
-    llvm_func_decl = llvm::cast<llvm::Function>(llvm_module->getOrInsertFunction(
-        llvm_callee_fn->getName(), llvm_callee_fn->getFunctionType(),
-        llvm_callee_fn->getAttributes()));
+    llvm_func_decl =
+        llvm::cast<llvm::Function>(llvm_module->getOrInsertFunction(
+            llvm_callee_fn->getName(), llvm_callee_fn->getFunctionType(),
+            llvm_callee_fn->getAttributes()));
 
-    llvm_function_type =
-        llvm::dyn_cast<llvm::FunctionType>(llvm_func_decl->getType()->getElementType());
+    llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(
+        llvm_func_decl->getType()->getElementType());
     llvm_function = llvm_func_decl;
   } else {
     llvm_function = llvm_callee_value;
@@ -121,25 +135,29 @@ llvm::CallInst *llvm_create_call_inst(llvm::IRBuilder<> &builder,
         llvm::dyn_cast<llvm::PointerType>(llvm_callee_value->getType());
     assert(llvm_ptr_type != nullptr);
 
-    debug_above(8, log("llvm_ptr_type is %s", llvm_print(llvm_ptr_type).c_str()));
-    llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(llvm_ptr_type->getElementType());
+    debug_above(8,
+                log("llvm_ptr_type is %s", llvm_print(llvm_ptr_type).c_str()));
+    llvm_function_type =
+        llvm::dyn_cast<llvm::FunctionType>(llvm_ptr_type->getElementType());
     assert(llvm_function_type != nullptr);
   }
 
   assert(llvm_function != nullptr);
   assert(llvm_function_type != nullptr);
-  debug_above(3,
-              log(log_info, "creating call to %s", llvm_print(llvm_function_type).c_str()));
+  debug_above(3, log(log_info, "creating call to %s",
+                     llvm_print(llvm_function_type).c_str()));
 
   if (llvm_function_type->getNumParams() - 1 == llvm_values.size()) {
     /* no closure, but we need to pad the inputs in this case. */
-    llvm_values.push_back(llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()));
+    llvm_values.push_back(
+        llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()));
   }
 
   llvm::ArrayRef<llvm::Value *> llvm_args_array(llvm_values);
 
   debug_above(3, log(log_info, "creating call to " c_id("%s") " %s with [%s]",
-                     llvm_func_decl ? llvm_func_decl->getName().str().c_str() : "a function",
+                     llvm_func_decl ? llvm_func_decl->getName().str().c_str()
+                                    : "a function",
                      llvm_print(llvm_function_type).c_str(),
                      join_with(llvm_values, ", ", llvm_print_value).c_str()));
 
@@ -224,10 +242,12 @@ llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function,
                             llvm_function->getEntryBlock().begin());
 
   /* create the local variable */
-  return builder.CreateAlloca(get_llvm_type(builder, type), nullptr, var_name.c_str());
+  return builder.CreateAlloca(get_llvm_type(builder, type), nullptr,
+                              var_name.c_str());
 }
 
-llvm::Value *llvm_zion_bool_to_i1(llvm::IRBuilder<> &builder, llvm::Value *llvm_value) {
+llvm::Value *llvm_zion_bool_to_i1(llvm::IRBuilder<> &builder,
+                                  llvm::Value *llvm_value) {
   if (llvm_value->getType()->isIntegerTy(1)) {
     return llvm_value;
   }
@@ -248,7 +268,8 @@ void llvm_create_if_branch(llvm::IRBuilder<> &builder,
                            llvm::BasicBlock *else_bb) {
   /* the job of this function is to derive a value from the input value that is
    * a valid input to a branch instruction */
-  builder.CreateCondBr(llvm_zion_bool_to_i1(builder, llvm_value), then_bb, else_bb);
+  builder.CreateCondBr(llvm_zion_bool_to_i1(builder, llvm_value), then_bb,
+                       else_bb);
 }
 
 #if 0
@@ -325,14 +346,18 @@ bound_var_t::ref create_global_str(
 }
 #endif
 
-llvm::Constant *llvm_create_struct_instance(std::string var_name,
-                                            llvm::Module *llvm_module,
-                                            llvm::StructType *llvm_struct_type,
-                                            std::vector<llvm::Constant *> llvm_struct_data) {
-  debug_above(5, log("creating struct %s with %s", llvm_print(llvm_struct_type).c_str(),
-                     join_with(llvm_struct_data, ", ", [](llvm::Constant *c) -> std::string {
-                       return llvm_print(c);
-                     }).c_str()));
+llvm::Constant *llvm_create_struct_instance(
+    std::string var_name,
+    llvm::Module *llvm_module,
+    llvm::StructType *llvm_struct_type,
+    std::vector<llvm::Constant *> llvm_struct_data) {
+  debug_above(5, log("creating struct %s with %s",
+                     llvm_print(llvm_struct_type).c_str(),
+                     join_with(llvm_struct_data, ", ",
+                               [](llvm::Constant *c) -> std::string {
+                                 return llvm_print(c);
+                               })
+                         .c_str()));
 
   return llvm_get_global(
       llvm_module, var_name,
@@ -350,26 +375,30 @@ llvm::Constant *llvm_create_constant_struct_instance(
   return llvm::ConstantStruct::get(llvm_struct_type, llvm_struct_data);
 }
 
-llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder,
-                                          std::string name,
-                                          const std::vector<llvm::Type *> &llvm_types) {
+llvm::StructType *llvm_create_struct_type(
+    llvm::IRBuilder<> &builder,
+    std::string name,
+    const std::vector<llvm::Type *> &llvm_types) {
   llvm::ArrayRef<llvm::Type *> llvm_dims{llvm_types};
 
-  auto llvm_struct_type = llvm::StructType::create(builder.getContext(), llvm_dims);
+  auto llvm_struct_type =
+      llvm::StructType::create(builder.getContext(), llvm_dims);
 
   /* give the struct a helpful name internally */
   llvm_struct_type->setName(name);
 
-  debug_above(3, log(log_info, "created struct type " c_id("%s") " %s", name.c_str(),
-                     llvm_print(llvm_struct_type).c_str()));
+  debug_above(3, log(log_info, "created struct type " c_id("%s") " %s",
+                     name.c_str(), llvm_print(llvm_struct_type).c_str()));
 
   return llvm_struct_type;
 }
 
-llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder,
-                                          std::string name,
-                                          const types::type_t::refs &dimensions) {
-  return llvm_create_struct_type(builder, name, get_llvm_types(builder, dimensions));
+llvm::StructType *llvm_create_struct_type(
+    llvm::IRBuilder<> &builder,
+    std::string name,
+    const types::type_t::refs &dimensions) {
+  return llvm_create_struct_type(builder, name,
+                                 get_llvm_types(builder, dimensions));
 }
 
 void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
@@ -386,8 +415,8 @@ void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
   if (llvm::verifyFunction(*llvm_function, &os)) {
     os.flush();
     ss << llvm_print_function(llvm_function);
-    auto error =
-        user_error(location, "LLVM function verification failed: %s", ss.str().c_str());
+    auto error = user_error(location, "LLVM function verification failed: %s",
+                            ss.str().c_str());
     error.add_info(location_t{llir_filename, 1, 1}, "consult LLVM module dump");
     throw error;
   }
@@ -398,14 +427,17 @@ void llvm_verify_module(llvm::Module &llvm_module) {
   llvm::raw_os_ostream os(ss);
   if (llvm::verifyModule(llvm_module, &os)) {
     os.flush();
-    throw user_error(location_t{}, "module %s: failed verification. %s\nModule listing:\n%s",
+    throw user_error(location_t{},
+                     "module %s: failed verification. %s\nModule listing:\n%s",
                      llvm_module.getName().str().c_str(), ss.str().c_str(),
                      llvm_print_module(llvm_module).c_str());
   }
 }
 
-llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_type) {
-  llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_type);
+llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder,
+                                 llvm::Type *llvm_type) {
+  llvm::StructType *llvm_struct_type =
+      llvm::dyn_cast<llvm::StructType>(llvm_type);
   if (llvm_struct_type != nullptr) {
     if (llvm_struct_type->isOpaque()) {
       debug_above(1, log("llvm_struct_type is opaque when we're trying to get "
@@ -417,10 +449,11 @@ llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder, llvm::Type *llvm_ty
   }
 
   llvm::Constant *alloc_size_const = llvm::ConstantExpr::getSizeOf(llvm_type);
-  llvm::Constant *size_value =
-      llvm::ConstantExpr::getTruncOrBitCast(alloc_size_const, builder.getInt64Ty());
-  debug_above(3, log(log_info, "size of %s is: %s", llvm_print(llvm_type).c_str(),
-                     llvm_print(*size_value).c_str()));
+  llvm::Constant *size_value = llvm::ConstantExpr::getTruncOrBitCast(
+      alloc_size_const, builder.getInt64Ty());
+  debug_above(3,
+              log(log_info, "size of %s is: %s", llvm_print(llvm_type).c_str(),
+                  llvm_print(*size_value).c_str()));
   return size_value;
 }
 
@@ -470,10 +503,13 @@ llvm::Function *llvm_start_function(llvm::IRBuilder<> &builder,
   return llvm_function;
 }
 
-void check_struct_initialization(llvm::ArrayRef<llvm::Constant *> llvm_struct_initialization,
-                                 llvm::StructType *llvm_struct_type) {
-  if (llvm_struct_type->elements().size() != llvm_struct_initialization.size()) {
-    debug_above(7, log(log_error, "mismatch in number of elements for %s (%d != %d)",
+void check_struct_initialization(
+    llvm::ArrayRef<llvm::Constant *> llvm_struct_initialization,
+    llvm::StructType *llvm_struct_type) {
+  if (llvm_struct_type->elements().size() !=
+      llvm_struct_initialization.size()) {
+    debug_above(7, log(log_error,
+                       "mismatch in number of elements for %s (%d != %d)",
                        llvm_print(llvm_struct_type).c_str(),
                        (int)llvm_struct_type->elements().size(),
                        (int)llvm_struct_initialization.size()));
@@ -481,13 +517,15 @@ void check_struct_initialization(llvm::ArrayRef<llvm::Constant *> llvm_struct_in
   }
 
   for (unsigned i = 0, e = llvm_struct_initialization.size(); i != e; ++i) {
-    if (llvm_struct_initialization[i]->getType() == llvm_struct_type->getElementType(i)) {
+    if (llvm_struct_initialization[i]->getType() ==
+        llvm_struct_type->getElementType(i)) {
       continue;
     } else {
-      debug_above(7,
-                  log(log_error, "llvm_struct_initialization[%d] mismatch is %s should be %s",
-                      i, llvm_print(*llvm_struct_initialization[i]).c_str(),
-                      llvm_print(llvm_struct_type->getElementType(i)).c_str()));
+      debug_above(
+          7, log(log_error,
+                 "llvm_struct_initialization[%d] mismatch is %s should be %s",
+                 i, llvm_print(*llvm_struct_initialization[i]).c_str(),
+                 llvm_print(llvm_struct_type->getElementType(i)).c_str()));
       assert(false);
     }
   }
@@ -498,8 +536,9 @@ llvm::GlobalVariable *llvm_get_global(llvm::Module *llvm_module,
                                       llvm::Constant *llvm_constant,
                                       bool is_constant) {
   auto llvm_global_variable = new llvm::GlobalVariable(
-      *llvm_module, llvm_constant->getType(), is_constant, llvm::GlobalValue::PrivateLinkage,
-      llvm_constant, name, nullptr, llvm::GlobalVariable::NotThreadLocal);
+      *llvm_module, llvm_constant->getType(), is_constant,
+      llvm::GlobalValue::PrivateLinkage, llvm_constant, name, nullptr,
+      llvm::GlobalVariable::NotThreadLocal);
 
   // llvm_global_variable->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
   return llvm_global_variable;
@@ -552,9 +591,11 @@ llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder,
   }
 
   if (llvm_type->isPointerTy()) {
-    debug_above(6, log("attempting to cast %s to a %s", llvm_print(llvm_value).c_str(),
+    debug_above(6, log("attempting to cast %s to a %s",
+                       llvm_print(llvm_value).c_str(),
                        llvm_print(llvm_type).c_str()));
-    assert(llvm_value->getType()->isPointerTy() || llvm_value->getType()->isIntegerTy());
+    assert(llvm_value->getType()->isPointerTy() ||
+           llvm_value->getType()->isIntegerTy());
     assert(llvm_value->getType() != llvm_type->getPointerTo());
 
     if (llvm_type != llvm_value->getType()) {
@@ -595,8 +636,9 @@ void explain(llvm::Type *llvm_type) {
 
 bool llvm_value_is_handle(llvm::Value *llvm_value) {
   llvm::Type *llvm_type = llvm_value->getType();
-  return llvm_type->isPointerTy() &&
-         llvm::cast<llvm::PointerType>(llvm_type)->getElementType()->isPointerTy();
+  return llvm_type->isPointerTy() && llvm::cast<llvm::PointerType>(llvm_type)
+                                         ->getElementType()
+                                         ->isPointerTy();
 }
 
 bool llvm_value_is_pointer(llvm::Value *llvm_value) {
@@ -607,7 +649,8 @@ bool llvm_value_is_pointer(llvm::Value *llvm_value) {
 llvm::StructType *llvm_find_struct(llvm::Type *llvm_type) {
   if (auto llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_type)) {
     return llvm_struct_type;
-  } else if (auto llvm_ptr_type = llvm::dyn_cast<llvm::PointerType>(llvm_type)) {
+  } else if (auto llvm_ptr_type =
+                 llvm::dyn_cast<llvm::PointerType>(llvm_type)) {
     return llvm_find_struct(llvm_ptr_type->getElementType());
   } else {
     return nullptr;
@@ -642,14 +685,16 @@ llvm::Instruction *llvm_dead_return(llvm::IRBuilder<> &builder,
 
 llvm::Value *llvm_last_param(llvm::Function *llvm_function) {
   llvm::Value *last = nullptr;
-  for (auto arg = llvm_function->arg_begin(); arg != llvm_function->arg_end(); ++arg) {
+  for (auto arg = llvm_function->arg_begin(); arg != llvm_function->arg_end();
+       ++arg) {
     last = &*arg;
   }
   assert(last != nullptr);
   return last;
 }
 
-llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder, const types::type_t::ref &type) {
+llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
+                          const types::type_t::ref &type) {
   debug_above(7, log("get_llvm_type(%s)...", type->str().c_str()));
   if (auto id = dyncast<const types::type_id_t>(type)) {
     const std::string &name = id->id.name;
@@ -664,7 +709,8 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder, const types::type_t::ref &
     if (tuple_type->dimensions.size() == 0) {
       return builder.getInt8Ty()->getPointerTo();
     }
-    std::vector<llvm::Type *> llvm_types = get_llvm_types(builder, tuple_type->dimensions);
+    std::vector<llvm::Type *> llvm_types =
+        get_llvm_types(builder, tuple_type->dimensions);
     llvm::StructType *llvm_struct_type =
         llvm_create_struct_type(builder, type->repr(), llvm_types);
     return llvm_struct_type->getPointerTo();
@@ -676,7 +722,8 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder, const types::type_t::ref &
     } else {
       auto llvm_types = get_llvm_types(builder, terms);
       return llvm_create_function_type(
-                 builder, vec_slice(llvm_types, 0, llvm_types.size() - 1), llvm_types.back())
+                 builder, vec_slice(llvm_types, 0, llvm_types.size() - 1),
+                 llvm_types.back())
           ->getPointerTo();
     }
   } else if (auto variable = dyncast<const types::type_variable_t>(type)) {

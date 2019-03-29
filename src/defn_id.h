@@ -10,7 +10,8 @@ struct type_t;
 } // namespace types
 
 struct defn_id_t {
-  defn_id_t(identifier_t const id, std::shared_ptr<types::scheme_t> const scheme)
+  defn_id_t(identifier_t const id,
+            std::shared_ptr<types::scheme_t> const scheme)
       : id(id), scheme(scheme) {
   }
 
