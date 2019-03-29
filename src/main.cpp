@@ -1005,7 +1005,7 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 #endif
     // TODO: differentiate between globals and functions...
     // global initialization will happen inside of the __program_init function
-    gen::builder_t builder; // (init_func);
+    gen::builder_t builder(module); // (init_func);
     // builder.create_block("program_entry");
 
     for (auto code : codes) {
@@ -1025,9 +1025,11 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
       gen::set_env_var(gen_env, name, value, false /*allow_shadowing*/);
     }
 
+#if 0
     builder.ensure_terminator([](gen::builder_t &builder) {
       builder.create_return(builder.create_unit(INTERNAL_LOC(), ""));
     });
+#endif
 
     return phase_4_t{phase_3, gen_env};
   } catch (user_error &e) {

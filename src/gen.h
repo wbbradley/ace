@@ -322,6 +322,8 @@ struct store_t : public instruction_t {
 types::type_t::ref tuple_type(const std::vector<value_t::ref> &dims);
 
 struct tuple_t : public instruction_t {
+  typedef std::shared_ptr<tuple_t> ref;
+
   std::ostream &render(std::ostream &os) const override;
   tuple_t(location_t location,
           std::weak_ptr<block_t> parent,
