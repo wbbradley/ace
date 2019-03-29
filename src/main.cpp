@@ -624,6 +624,7 @@ phase_2_t compile(std::string user_program_name_) {
         decl_map[decl->var.name] = decl;
     }
 
+#if 0
     if (debug_compiled_env) {
         INDENT(0, "--debug_compiled_env--");
         for (auto pair : env.map) {
@@ -631,16 +632,19 @@ phase_2_t compile(std::string user_program_name_) {
                 pair.second->normalize()->str().c_str());
         }
     }
+#endif
 
     for (auto pair : decl_map) {
         assert(pair.first == pair.second->var.name);
 
         auto type = env.lookup_env(make_iid(pair.first));
+#if 0
         if (debug_compiled_env) {
             INDENT(0, "--debug_compiled_env--");
             log("%s " c_good("::") " %s", pair.second->str().c_str(),
                 env.map[pair.first]->str().c_str());
         }
+#endif
     }
 
     try {
@@ -668,13 +672,13 @@ typedef std::map<std::string,
                  std::map<types::type_t::ref, translation_t::ref, types::compare_type_t>>
     translation_map_t;
 
-void specialize(defn_map_t const &defn_map,
-                types::scheme_t::map const &typing,
-                ctor_id_map_t const &ctor_id_map,
-                data_ctors_map_t const &data_ctors_map,
-                defn_id_t defn_id,
-                /* output */ translation_map_t &translation_map,
-                /* output */ needed_defns_t &needed_defns) {
+void specialize_core(defn_map_t const &defn_map,
+                     types::scheme_t::map const &typing,
+                     ctor_id_map_t const &ctor_id_map,
+                     data_ctors_map_t const &data_ctors_map,
+                     defn_id_t defn_id,
+                     /* output */ translation_map_t &translation_map,
+                     /* output */ needed_defns_t &needed_defns) {
     if (starts_with(defn_id.id.name, "__builtin_")) {
         return;
     }
@@ -691,7 +695,7 @@ void specialize(defn_map_t const &defn_map,
      * inner specialization. */
     assert(defn_id.scheme->btvs() == 0);
 
-    auto type = defn_id.scheme->instantiate({});
+    const auto type = defn_id.scheme->instantiate({});
     auto translation = get(translation_map, defn_id.id.name, type, translation_t::ref{});
     if (translation != nullptr) {
         debug_above(6, log("we have already specialized %s. it is %s", defn_id.str().c_str(),
@@ -744,42 +748,49 @@ void specialize(defn_map_t const &defn_map,
             assert(get(translation_map, defn_id.id.name + IMPL_SUFFIX, type,
                        translation_t::ref{}) == nullptr);
 
-            log("specializing callable %s :: %s, should be creating something like "
-                "(%s, ())",
+            log("specializing callable %s :: %s, should be creating something like (%s, ())",
                 defn_id.id.name.c_str(), type->str().c_str(),
                 (defn_id.id.name + IMPL_SUFFIX).c_str());
 
             expr_t *empty_closure = unit_expr(INTERNAL_LOC());
-            (*tracked_types)[empty_closure] = type;
+            (*tracked_types)[empty_closure] = type_unit(INTERNAL_LOC());
             expr_t *callable_var_ref = new var_t(identifier_t{final_name, INTERNAL_LOC()});
             (*tracked_types)[callable_var_ref] = type;
 
-            expr_t *as_callable =
+            expr_t *encoded_callable =
                 new tuple_t(INTERNAL_LOC(),
                             std::vector<bitter::expr_t *>{callable_var_ref, empty_closure});
 
+            types::type_t::ref closure_type = type_tuple({type, type_unit(INTERNAL_LOC())});
             translation_env_t tenv{tracked_types, ctor_id_map, data_ctors_map};
-            (*tracked_types)[as_callable] = type;
+            (*tracked_types)[encoded_callable] = closure_type;
+
+            expr_t *as_function = new as_t(encoded_callable, type->generalize({}), true);
+            (*tracked_types)[as_function] = type;
+
             std::unordered_set<std::string> bound_vars;
             bool returns = false;
             auto callable_decl =
-                translate(defn_id, as_callable, bound_vars, tenv, needed_defns, returns);
+                translate(defn_id, as_function, bound_vars, tenv, needed_defns, returns);
             assert(!returns);
 
-            log("setting %s :: %s = %s", defn_id.id.name.c_str(), type->str().c_str(),
+            log("setting %s :: %s = %s", defn_id.id.name.c_str(), closure_type->str().c_str(),
                 callable_decl->str().c_str());
+            assert(translation_map[defn_id.id.name][type] == nullptr);
             translation_map[defn_id.id.name][type] = callable_decl;
         }
 
         auto as_defn = new as_t(to_check, defn_id.scheme, false);
         check(identifier_t{defn_id.repr_public(), defn_id.id.location}, as_defn, env);
 
+#if 0
         if (debug_compiled_env) {
             for (auto pair : *tracked_types) {
                 log_location(pair.first->get_location(), "%s :: %s",
                              pair.first->str().c_str(), pair.second->str().c_str());
             }
         }
+#endif
 
         translation_env_t tenv{tracked_types, ctor_id_map, data_ctors_map};
         std::unordered_set<std::string> bound_vars;
@@ -836,8 +847,9 @@ phase_3_t specialize(const phase_2_t &phase_2) {
     while (needed_defns.size() != 0) {
         auto next_defn_id = needed_defns.begin()->first;
         try {
-            specialize(phase_2.defn_map, phase_2.typing, phase_2.ctor_id_map,
-                       phase_2.data_ctors_map, next_defn_id, translation_map, needed_defns);
+            specialize_core(phase_2.defn_map, phase_2.typing, phase_2.ctor_id_map,
+                            phase_2.data_ctors_map, next_defn_id, translation_map,
+                            needed_defns);
         } catch (user_error &e) {
             print_exception(e);
             /* and continue */
@@ -849,9 +861,12 @@ phase_3_t specialize(const phase_2_t &phase_2) {
         INDENT(0, "--debug_compiled_env--");
         for (auto pair : translation_map) {
             for (auto overload : pair.second) {
-                log_location(overload.second->get_location(), "%s :: %s = %s",
-                             pair.first.c_str(), overload.first->str().c_str(),
-                             overload.second->str().c_str());
+                if (pair.first == "std.Ref") {
+                    assert(overload.second != nullptr);
+                    log_location(overload.second->get_location(), "%s :: %s = %s",
+                                 pair.first.c_str(), overload.first->str().c_str(),
+                                 overload.second->str().c_str());
+                }
             }
         }
     }
@@ -860,9 +875,9 @@ phase_3_t specialize(const phase_2_t &phase_2) {
 
 struct phase_4_t {
     phase_3_t phase_3;
-    gen::env_t env;
+    gen::gen_env_t gen_env;
     std::ostream &dump(std::ostream &os) {
-        for (auto pair : env) {
+        for (auto pair : gen_env) {
             for (auto overload : pair.second) {
                 os << pair.first << " :: " << overload.first->repr() << ": ";
                 gen::value_t::ref value = gen::resolve_proxy(overload.second);
@@ -888,7 +903,7 @@ struct code_symbol_t {
 
 phase_4_t ssa_gen(const phase_3_t phase_3) {
     gen::module_t::ref module = std::make_shared<gen::module_t>();
-    gen::env_t &env = module->env;
+    gen::gen_env_t &gen_env = module->gen_env;
 
     try {
         std::unordered_set<std::string> globals;
@@ -908,27 +923,25 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
         debug_above(6, log("globals are %s", join(globals).c_str()));
         for (auto pair : phase_3.translation_map) {
             for (auto overload : pair.second) {
+                log("fetching %s expression type from translated types",
+                    pair.first.c_str());
+
                 auto type = get(overload.second->typing, overload.second->expr, {});
                 assert(type != nullptr);
 
                 gen::value_t::ref value = gen::maybe_get_env_var(
-                    env, {pair.first, overload.second->expr->get_location()}, type);
-                if (value != nullptr) {
-                    log("found an env var for %s :: %s = %s", pair.first.c_str(),
-                        type->str().c_str(), value->str().c_str());
-                    continue;
-                } else {
-                    auto expr = overload.second->expr;
-                    log("making a placeholder proxy value for %s :: %s = %s",
-                        pair.first.c_str(), type->str().c_str(), expr->str().c_str());
-                    gen::set_env_var(
-                        env, pair.first,
-                        std::make_shared<gen::proxy_value_t>(overload.second->get_location(),
-                                                             std::weak_ptr<gen::block_t>{},
-                                                             pair.first, overload.first));
-                    codes.push_back(code_symbol_t{pair.first, overload.first,
-                                                  overload.second->typing, expr});
-                }
+                    gen_env, {pair.first, overload.second->expr->get_location()}, type);
+                assert(value == nullptr);
+                auto expr = overload.second->expr;
+                log("making a placeholder proxy value for %s :: %s = %s", pair.first.c_str(),
+                    type->str().c_str(), expr->str().c_str());
+                gen::set_env_var(
+                    gen_env, pair.first,
+                    std::make_shared<gen::proxy_value_t>(overload.second->get_location(),
+                                                         std::weak_ptr<gen::block_t>{},
+                                                         pair.first, overload.first));
+                codes.push_back(
+                    code_symbol_t{pair.first, overload.first, overload.second->typing, expr});
             }
         }
         gen::builder_t program_builder(module);
@@ -949,26 +962,24 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
             auto expr = code.expr;
             log("running gen phase for %s :: %s", name.c_str(), type->str().c_str());
 
-            auto value = gen::gen(name, builder, expr, typing, env, globals);
+            auto value = gen::gen(name, builder, expr, typing, gen_env, globals);
             std::stringstream ss;
             value->render(ss);
-            log("generated %s", ss.str().c_str());
-            log("we should create a global variable and make sure that %s is "
-                "visible",
-                value->str().c_str());
-            gen::set_env_var(env, name, value, false /*allow_shadowing*/);
+            log("generated %s :: %s == %s", name.c_str(), type->str().c_str(),
+                ss.str().c_str());
+            gen::set_env_var(gen_env, name, value, false /*allow_shadowing*/);
         }
 
         builder.ensure_terminator([](gen::builder_t &builder) {
             builder.create_return(builder.create_unit(INTERNAL_LOC(), ""));
         });
 
-        return {phase_3, env};
+        return phase_4_t{phase_3, gen_env};
     } catch (user_error &e) {
         print_exception(e);
         /* and continue */
     }
-    return phase_4_t{phase_3, {module->env}};
+    return phase_4_t{phase_3, {module->gen_env}};
 }
 
 struct job_t {
@@ -1113,7 +1124,7 @@ int run_job(const job_t &job) {
             }
 
             return lower::lower(phase_4.phase_3.phase_2.compilation->program_name + ".main",
-                                phase_4.env);
+                                phase_4.gen_env);
         }
     };
     if (!in(job.cmd, cmd_map)) {

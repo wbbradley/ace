@@ -55,10 +55,13 @@ struct proxy_value_t : public value_t {
 
 typedef std::unordered_map<std::string,
                            std::map<types::type_t::ref, value_t::ref, types::compare_type_t>>
-    env_t;
-value_t::ref maybe_get_env_var(const env_t &env, identifier_t id, types::type_t::ref type);
-value_t::ref get_env_var(const env_t &env, identifier_t id, types::type_t::ref type);
-void set_env_var(env_t &env,
+    gen_env_t;
+
+value_t::ref maybe_get_env_var(const gen_env_t &env,
+                               identifier_t id,
+                               types::type_t::ref type);
+value_t::ref get_env_var(const gen_env_t &env, identifier_t id, types::type_t::ref type);
+void set_env_var(gen_env_t &env,
                  std::string name,
                  value_t::ref value,
                  bool allow_shadowing = false);
@@ -66,7 +69,7 @@ void set_env_var(env_t &env,
 struct module_t {
     typedef std::shared_ptr<module_t> ref;
 
-    env_t env;
+    gen_env_t gen_env;
 };
 
 struct function_t;
@@ -400,6 +403,7 @@ value_t::ref gen(std::string name,
                  builder_t &builder,
                  const bitter::expr_t *expr,
                  const tracked_types_t &typing,
-                 const env_t &env,
+                 const gen_env_t &env,
                  const std::unordered_set<std::string> &globals);
+bool is_proxy(value_t::ref value);
 } // namespace gen
