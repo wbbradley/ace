@@ -39,9 +39,8 @@ void set_llvm_value(env_t &env,
                     types::type_t::ref type,
                     llvm::Value *llvm_value,
                     bool allow_shadowing) {
-    debug_above(5,
-                log("setting env[%s][%s] = %s", name.c_str(),
-                    type->str().c_str(), llvm_print(llvm_value).c_str()));
+    debug_above(5, log("setting env[%s][%s] = %s", name.c_str(), type->str().c_str(),
+                       llvm_print(llvm_value).c_str()));
     assert(name.size() != 0);
     auto existing_llvm_value = get(env, name, type, static_cast<llvm::Value *>(nullptr));
     if (existing_llvm_value == nullptr) {
@@ -90,8 +89,11 @@ llvm::Constant *lower_decl(std::string name,
         assert(false);
         return nullptr;
     } else if (auto cast = dyncast<gen::cast_t>(value)) {
-        assert(false);
-        return nullptr;
+        auto llvm_inner_value = lower_decl(name, builder, llvm_module, cast->value, env);
+        auto llvm_value =
+            builder.CreateBitCast(llvm_inner_value, get_llvm_type(builder, cast->type));
+        auto llvm_constant = llvm::dyn_cast<llvm::Constant>(llvm_value);
+        return llvm_constant;
     } else if (auto function = dyncast<gen::function_t>(value)) {
         types::type_t::refs type_terms;
         unfold_binops_rassoc(ARROW_TYPE_OPERATOR, function->type, type_terms);
@@ -332,8 +334,7 @@ llvm::Value *lower_value(
         locals[cast->name] = llvm_value;
         return llvm_value;
     } else if (auto function = dyncast<gen::function_t>(value)) {
-        auto llvm_value =
-            get(env, function->name, function->type, (llvm::Value *)nullptr);
+        auto llvm_value = get(env, function->name, function->type, (llvm::Value *)nullptr);
         assert(llvm_value != nullptr);
         return llvm_value;
     } else if (auto builtin = dyncast<gen::builtin_t>(value)) {
@@ -568,7 +569,7 @@ void lower_populate(llvm::IRBuilder<> &builder,
     throw user_error(value->get_location(), "unhandled lower for %s", value->str().c_str());
 }
 
-int lower(std::string main_function, const gen::env_t &env) {
+int lower(std::string main_function, const gen::gen_env_t &gen_env) {
     llvm::LLVMContext context;
     llvm::Module *module = new llvm::Module("program", context);
     llvm::IRBuilder<> builder(context);
@@ -576,18 +577,26 @@ int lower(std::string main_function, const gen::env_t &env) {
     try {
         lower::env_t lower_env;
         int lowering_index = 0;
-        for (auto pair : env) {
+        for (auto pair : gen_env) {
             for (auto overload : pair.second) {
                 const std::string &name = pair.first;
                 types::type_t::ref type = overload.first;
                 gen::value_t::ref value = overload.second;
+                std::stringstream ss;
+                value->render(ss);
                 log("%d: " c_id("%s") " :: %s = %s", lowering_index, name.c_str(),
-                    type->str().c_str(), value->str().c_str());
+                    type->str().c_str(), ss.str().c_str());
+                if (resolve_proxy(value) == nullptr) {
+                    log("we got to the lower stage and yet the gen::proxy_value_t for %s :: "
+                        "%s is not resolved to an actual gen::value_t",
+                        name.c_str(), type->str().c_str());
+                    dbg();
+                }
                 ++lowering_index;
             }
         }
         lowering_index = 0;
-        for (auto pair : env) {
+        for (auto pair : gen_env) {
             for (auto overload : pair.second) {
                 const std::string &name = pair.first;
                 types::type_t::ref type = overload.first;
@@ -620,7 +629,7 @@ int lower(std::string main_function, const gen::env_t &env) {
                 }
             }
         }
-        for (auto pair : env) {
+        for (auto pair : gen_env) {
             for (auto overload : pair.second) {
                 const std::string &name = pair.first;
                 types::type_t::ref type = overload.first;

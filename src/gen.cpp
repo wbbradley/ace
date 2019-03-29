@@ -127,18 +127,20 @@ void get_free_vars(const bitter::expr_t *expr,
     }
 }
 
-value_t::ref maybe_get_env_var(const env_t &env, identifier_t id, types::type_t::ref type) {
+value_t::ref maybe_get_env_var(const gen_env_t &gen_env,
+                               identifier_t id,
+                               types::type_t::ref type) {
     type = types::unitize(type);
-    return get(env, id.name, type, value_t::ref{});
+    return get(gen_env, id.name, type, value_t::ref{});
 }
 
-value_t::ref get_env_var(const env_t &env, identifier_t id, types::type_t::ref type) {
-    value_t::ref value = maybe_get_env_var(env, id, type);
+value_t::ref get_env_var(const gen_env_t &gen_env, identifier_t id, types::type_t::ref type) {
+    value_t::ref value = maybe_get_env_var(gen_env, id, type);
     if (value == nullptr) {
         type = types::unitize(type);
         auto error = user_error(id.location, "we need a definition for %s :: %s",
                                 id.str().c_str(), type->str().c_str());
-        for (auto pair : env) {
+        for (auto pair : gen_env) {
             for (auto overload : pair.second) {
                 error.add_info(id.location, "%s :: %s = %s", pair.first.c_str(),
                                overload.first->str().c_str(), overload.second->str().c_str());
@@ -149,23 +151,39 @@ value_t::ref get_env_var(const env_t &env, identifier_t id, types::type_t::ref t
     return value;
 }
 
-void set_env_var(env_t &env, std::string name, value_t::ref value, bool allow_shadowing) {
-    debug_above(5, log("setting env[%s][%s] = %s", name.c_str(), value->type->str().c_str(),
-                       value->str().c_str()));
+void set_env_var(gen_env_t &gen_env,
+                 std::string name,
+                 value_t::ref value,
+                 bool allow_shadowing) {
+    std::stringstream ss;
+    value->render(ss);
+    debug_above(5,
+                log("gen::set_env_var(0x%08llx, " c_id("%s") " :: %s, %s, %s)",
+                    (unsigned long long)(&gen_env), name.c_str(),
+                    value->type->str().c_str(), ss.str().c_str(), boolstr(allow_shadowing)));
     assert(name.size() != 0);
     auto type = types::unitize(value->type);
-    value_t::ref existing_value = get(env, name, type, value_t::ref{});
+    value_t::ref existing_value = get(gen_env, name, type, value_t::ref{});
+    // dbg_when(name == "std.Ref" && type->repr().find("* Char ->") != std::string::npos);
     if (existing_value == nullptr) {
-        env[name][type] = value;
+        log("found no value in the gen_env 0x%08llx for %s :: %s, adding a new value",
+            (unsigned long long)&gen_env, name.c_str(), type->str().c_str());
+        gen_env[name].insert({type, value});
     } else if (auto proxy = dyncast<proxy_value_t>(existing_value)) {
         assert(!allow_shadowing);
+        log("found proxy value in the gen_env for %s :: %s, updating it", name.c_str(),
+            type->str().c_str());
+        assert(!is_proxy(value));
         proxy->set_proxy_impl(value);
     } else if (allow_shadowing) {
-        env[name][type] = value;
+        log("overwriting any existing value in the gen_env for %s :: %s", name.c_str(),
+            type->str().c_str());
+        gen_env[name].insert({type, value});
     } else {
         /* what now? probably shouldn't have happened */
         assert(false);
     }
+    assert(get(gen_env, name, type, value_t::ref{}) != nullptr);
 }
 
 void value_t::set_name(identifier_t id) {
@@ -279,7 +297,7 @@ function_t::ref builder_t::create_function(std::string name,
             std::make_shared<argument_t>(param_ids[i], param_type, i, function));
     }
 
-    set_env_var(module->env, function->get_name(), function);
+    set_env_var(module->gen_env, function->get_name(), function);
     return function;
 }
 
@@ -288,7 +306,7 @@ value_t::ref gen_lambda(std::string name,
                         const bitter::lambda_t *lambda,
                         types::type_t::ref type,
                         const tracked_types_t &typing,
-                        const env_t &env,
+                        const gen_env_t &gen_env,
                         const std::unordered_set<std::string> &globals) {
     auto lambda_type = safe_dyncast<const types::type_operator_t>(type);
     auto param_type = lambda_type->oper;
@@ -305,7 +323,7 @@ value_t::ref gen_lambda(std::string name,
     new_builder.create_block("entry");
 
     /* put the param in scope */
-    auto new_env = env;
+    auto new_env = gen_env;
     set_env_var(new_env, lambda->var.name, function->args.back(), true /*allow_shadowing*/);
 
     value_t::ref closure;
@@ -322,7 +340,7 @@ value_t::ref gen_lambda(std::string name,
 
         for (auto typed_id : free_vars.typed_ids) {
             /* add a copy of each closed over variable */
-            dims.push_back(get_env_var(env, typed_id.id, typed_id.type));
+            dims.push_back(get_env_var(gen_env, typed_id.id, typed_id.type));
         }
 
         closure = builder.create_tuple(lambda->get_location(), dims);
@@ -345,7 +363,7 @@ value_t::ref gen_lambda(std::string name,
             ++arg_index;
         }
     } else {
-        /* this can be considered a top-level function that takes no closure env */
+        /* this can be considered a top-level function that takes no closure gen_env */
     }
 
     gen("", new_builder, lambda->body, typing, new_env, globals);
@@ -361,16 +379,16 @@ value_t::ref gen_lambda(std::string name,
 value_t::ref gen(builder_t &builder,
                  const bitter::expr_t *expr,
                  const tracked_types_t &typing,
-                 const env_t &env,
+                 const gen_env_t &gen_env,
                  const std::unordered_set<std::string> &globals) {
-    return gen("", builder, expr, typing, env, globals);
+    return gen("", builder, expr, typing, gen_env, globals);
 }
 
 value_t::ref gen(std::string name,
                  builder_t &builder,
                  const bitter::expr_t *expr,
                  const tracked_types_t &typing,
-                 const env_t &env,
+                 const gen_env_t &gen_env,
                  const std::unordered_set<std::string> &globals) {
     try {
         auto type = get(typing, expr, {});
@@ -386,22 +404,22 @@ value_t::ref gen(std::string name,
         } else if (auto static_print = dcast<const bitter::static_print_t *>(expr)) {
             assert(false);
         } else if (auto var = dcast<const bitter::var_t *>(expr)) {
-            return get_env_var(env, var->id, type);
+            return get_env_var(gen_env, var->id, type);
         } else if (auto lambda = dcast<const bitter::lambda_t *>(expr)) {
-            return gen_lambda(name, builder, lambda, type, typing, env, globals);
+            return gen_lambda(name, builder, lambda, type, typing, gen_env, globals);
         } else if (auto application = dcast<const bitter::application_t *>(expr)) {
-            return builder.create_call(gen(builder, application->a, typing, env, globals),
-                                       {gen(builder, application->b, typing, env, globals)},
-                                       type, name);
+            return builder.create_call(
+                gen(builder, application->a, typing, gen_env, globals),
+                {gen(builder, application->b, typing, gen_env, globals)}, type, name);
         } else if (auto let = dcast<const bitter::let_t *>(expr)) {
-            auto new_env = env;
-            auto let_value = gen(builder, let->value, typing, env, globals);
+            auto new_env = gen_env;
+            auto let_value = gen(builder, let->value, typing, gen_env, globals);
             set_env_var(new_env, let->var.name, let_value, true /*allow_shadowing*/);
             return gen(builder, let->body, typing, new_env, globals);
         } else if (auto fix = dcast<const bitter::fix_t *>(expr)) {
             assert(false);
         } else if (auto condition = dcast<const bitter::conditional_t *>(expr)) {
-            auto cond = gen(builder, condition->cond, typing, env, globals);
+            auto cond = gen(builder, condition->cond, typing, gen_env, globals);
             block_t::ref truthy_branch = builder.create_block("truthy" + bitter::fresh(),
                                                               false /*insert_in_new_block*/);
             block_t::ref falsey_branch = builder.create_block("falsey" + bitter::fresh(),
@@ -411,7 +429,8 @@ value_t::ref gen(std::string name,
             builder.create_cond_branch(cond, truthy_branch, falsey_branch);
 
             builder.set_insertion_block(truthy_branch);
-            value_t::ref truthy_value = gen(builder, condition->truthy, typing, env, globals);
+            value_t::ref truthy_value =
+                gen(builder, condition->truthy, typing, gen_env, globals);
             bool truthy_terminates = has_terminator(builder.block->instructions);
             if (!truthy_terminates) {
                 merge_branch = builder.create_block("merge" + bitter::fresh(),
@@ -421,7 +440,8 @@ value_t::ref gen(std::string name,
             }
 
             builder.set_insertion_block(falsey_branch);
-            value_t::ref falsey_value = gen(builder, condition->falsey, typing, env, globals);
+            value_t::ref falsey_value =
+                gen(builder, condition->falsey, typing, gen_env, globals);
             bool falsey_terminates = has_terminator(builder.block->instructions);
             if (!falsey_terminates) {
                 if (merge_branch == nullptr) {
@@ -454,7 +474,7 @@ value_t::ref gen(std::string name,
             builder.create_branch(while_->get_location(), cond_block);
             builder.set_insertion_block(cond_block);
 
-            auto cond = gen(builder, while_->condition, typing, env, globals);
+            auto cond = gen(builder, while_->condition, typing, gen_env, globals);
             auto while_block = builder.create_block("while_block" + bitter::fresh(),
                                                     false /*insert_in_new_block*/);
             auto else_block = builder.create_block("while_break" + bitter::fresh(),
@@ -463,7 +483,7 @@ value_t::ref gen(std::string name,
             builder.create_cond_branch(cond, while_block, else_block);
             builder.set_insertion_block(while_block);
             loop_guard_t loop_guard(builder, else_block, cond_block);
-            gen(builder, while_->block, typing, env, globals);
+            gen(builder, while_->block, typing, gen_env, globals);
             builder.ensure_terminator([cond_block, while_](builder_t &builder) {
                 builder.create_branch(while_->get_location(), cond_block);
             });
@@ -478,7 +498,7 @@ value_t::ref gen(std::string name,
 
             value_t::ref block_value;
             for (auto statement : block->statements) {
-                auto value = gen(builder, statement, typing, env, globals);
+                auto value = gen(builder, statement, typing, gen_env, globals);
                 if (inst_counter == 0) {
                     block_value = value;
                 }
@@ -486,15 +506,16 @@ value_t::ref gen(std::string name,
             return block_value != nullptr ? block_value
                                           : builder.create_unit(block->get_location(), name);
         } else if (auto return_ = dcast<const bitter::return_statement_t *>(expr)) {
-            return builder.create_return(gen(builder, return_->value, typing, env, globals));
+            return builder.create_return(
+                gen(builder, return_->value, typing, gen_env, globals));
         } else if (auto tuple = dcast<const bitter::tuple_t *>(expr)) {
             std::vector<value_t::ref> dim_values;
             for (auto dim : tuple->dims) {
-                dim_values.push_back(gen(builder, dim, typing, env, globals));
+                dim_values.push_back(gen(builder, dim, typing, gen_env, globals));
             }
             return builder.create_tuple(tuple->get_location(), dim_values, name);
         } else if (auto tuple_deref = dcast<const bitter::tuple_deref_t *>(expr)) {
-            auto td = gen(builder, tuple_deref->expr, typing, env, globals);
+            auto td = gen(builder, tuple_deref->expr, typing, gen_env, globals);
             debug_above(10, log_location(tuple_deref->expr->get_location(),
                                          "created tuple deref %s from %s", td->str().c_str(),
                                          tuple_deref->expr->str().c_str()));
@@ -503,7 +524,7 @@ value_t::ref gen(std::string name,
         } else if (auto as = dcast<const bitter::as_t *>(expr)) {
             assert(as->force_cast);
             return builder.create_cast(as->get_location(),
-                                       gen(builder, as->expr, typing, env, globals),
+                                       gen(builder, as->expr, typing, gen_env, globals),
                                        as->scheme->instantiate(INTERNAL_LOC()), name);
         } else if (auto sizeof_ = dcast<const bitter::sizeof_t *>(expr)) {
             assert(false);
@@ -512,7 +533,7 @@ value_t::ref gen(std::string name,
         } else if (auto builtin = dcast<const bitter::builtin_t *>(expr)) {
             std::vector<value_t::ref> values;
             for (auto expr : builtin->exprs) {
-                values.push_back(gen(builder, expr, typing, env, globals));
+                values.push_back(gen(builder, expr, typing, gen_env, globals));
             }
             return builder.create_builtin(builtin->var->id, values, type, name);
         }
@@ -751,8 +772,7 @@ std::string argument_t::str() const {
 }
 
 std::ostream &argument_t::render(std::ostream &os) const {
-    assert(false);
-    return os;
+    return os << str();
 }
 
 std::string function_t::str() const {
