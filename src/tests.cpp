@@ -65,8 +65,8 @@ template <typename T> bool check_tks_match(T &expect, T &result) {
   bool e_at_end = (e_iter == e_end);
   bool r_at_end = (r_iter == r_end);
   if (e_at_end != r_at_end) {
-    const char *who_ended =
-        e_at_end ? "expected and end" : "got a premature end";
+    const char *who_ended = e_at_end ? "expected and end"
+                                     : "got a premature end";
     log(log_error, "%s from list", who_ended);
     return false;
   }
@@ -92,8 +92,8 @@ bool check_lexer(std::string text,
                  std::vector<token_t> &comments) {
   std::istringstream iss(text);
   zion_lexer_t lexer("check_lexer", iss);
-  std::vector<token_kind> result_tks =
-      get_tks(lexer, include_newlines, comments);
+  std::vector<token_kind> result_tks = get_tks(lexer, include_newlines,
+                                               comments);
   if (!check_tks_match(expect_tks, result_tks)) {
     log(log_info, "for text: '%s'", text.c_str());
     log_list(log_info, "expected", expect_tks);

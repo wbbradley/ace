@@ -16,8 +16,8 @@ int __depth_level_override = 0;
 
 void init_dbg() {
   __dbg_level = atoi((getenv("DEBUG") != nullptr) ? getenv("DEBUG") : "0");
-  __depth_level_override =
-      atoi((getenv("IGNORE_DEPTH") != nullptr) ? getenv("IGNORE_DEPTH") : "0");
+  __depth_level_override = atoi(
+      (getenv("IGNORE_DEPTH") != nullptr) ? getenv("IGNORE_DEPTH") : "0");
 }
 
 void _emit_assert(const char *filename,

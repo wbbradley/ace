@@ -88,8 +88,8 @@ std::map<std::string, T> prefix(const std::set<std::string> &bindings,
   std::map<std::string, T> new_map;
   for (auto pair : map) {
     if (include_keys) {
-      new_map[prefix(bindings, pre, pair.first)] =
-          prefix(bindings, pre, pair.second);
+      new_map[prefix(bindings, pre, pair.first)] = prefix(bindings, pre,
+                                                          pair.second);
     } else {
       new_map[pair.first] = prefix(bindings, pre, pair.second);
     }
@@ -106,8 +106,8 @@ std::unordered_map<std::string, T> prefix(
   std::unordered_map<std::string, T> new_map;
   for (auto pair : map) {
     if (include_keys) {
-      new_map[prefix(bindings, pre, pair.first)] =
-          prefix(bindings, pre, pair.second);
+      new_map[prefix(bindings, pre, pair.first)] = prefix(bindings, pre,
+                                                          pair.second);
     } else {
       new_map[pair.first] = prefix(bindings, pre, pair.second);
     }

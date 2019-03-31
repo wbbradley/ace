@@ -76,9 +76,9 @@ bool type_equality(types::type_t::ref a, types::type_t::ref b) {
       return true;
     }
   } else {
-    auto error =
-        user_error(a->get_location(),
-                   "type_equality is not implemented between these two types");
+    auto error = user_error(
+        a->get_location(),
+        "type_equality is not implemented between these two types");
     error.add_info(b->get_location(), "%s and %s", a->str().c_str(),
                    b->str().c_str());
     throw error;
@@ -273,8 +273,8 @@ unification_t unify_many(const types::type_t::refs &as,
   }
 
   auto u1 = unify(as[0], bs[0]);
-  auto u2 =
-      unify_many(rebind_tails(as, u1.bindings), rebind_tails(bs, u1.bindings));
+  auto u2 = unify_many(rebind_tails(as, u1.bindings),
+                       rebind_tails(bs, u1.bindings));
   return compose(u2, u1);
 }
 

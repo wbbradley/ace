@@ -447,14 +447,14 @@ expr_t *parse_array_literal(parse_state_t &ps) {
                                 new var_t(range_min))),
           new var_t(range_max));
 
-      auto let_range_max =
-          new let_t(range_max,
-                    (ps.token.tk != tk_rsquare)
-                        ? parse_expr(ps)
-                        : new application_t(
-                              new var_t(ps.id_mapped(make_iid("max_bound"))),
-                              unit_expr(location)),
-                    range_body);
+      auto let_range_max = new let_t(
+          range_max,
+          (ps.token.tk != tk_rsquare)
+              ? parse_expr(ps)
+              : new application_t(
+                    new var_t(ps.id_mapped(make_iid("max_bound"))),
+                    unit_expr(location)),
+          range_body);
 
       auto let_range_next = new let_t(
           range_next,
@@ -523,11 +523,10 @@ expr_t *parse_literal(parse_state_t &ps) {
     //	return assoc_array_expr_t::parse(ps);
 
   case tk_identifier:
-    throw user_error(
-        ps.token.location,
-        "unexpected token found when parsing literal expression. '" c_error(
-            "%s") "'",
-        ps.token.text.c_str());
+    throw user_error(ps.token.location,
+                     "unexpected token found when parsing literal expression. "
+                     "'" c_error("%s") "'",
+                     ps.token.text.c_str());
 
   default:
     if (ps.token.tk == tk_lcurly) {
@@ -539,11 +538,10 @@ expr_t *parse_literal(parse_state_t &ps) {
       }
       throw error;
     } else {
-      throw user_error(
-          ps.token.location,
-          "out of place token found when parsing literal expression. '" c_error(
-              "%s") "' (%s)",
-          ps.token.text.c_str(), tkstr(ps.token.tk));
+      throw user_error(ps.token.location,
+                       "out of place token found when parsing literal "
+                       "expression. '" c_error("%s") "' (%s)",
+                       ps.token.text.c_str(), tkstr(ps.token.tk));
     }
   }
 }
@@ -787,8 +785,8 @@ expr_t *parse_eq_expr(parse_state_t &ps) {
     return lhs;
   }
 
-  identifier_t op =
-      ps.id_mapped({not_in ? "not-in" : ps.token.text, ps.token.location});
+  identifier_t op = ps.id_mapped(
+      {not_in ? "not-in" : ps.token.text, ps.token.location});
   ps.advance();
 
   return new application_t(new application_t(new var_t(op), lhs),
@@ -1173,10 +1171,10 @@ predicate_t *parse_predicate(parse_state_t &ps,
     case tk_integer:
     case tk_float: {
       /* match a literal */
-      predicate_t *literal =
-          new literal_t(sign != "" ? token_t(ps.token.location, ps.token.tk,
-                                             sign + ps.token.text)
-                                   : ps.token);
+      predicate_t *literal = new literal_t(
+          sign != ""
+              ? token_t(ps.token.location, ps.token.tk, sign + ps.token.text)
+              : ps.token);
       ps.advance();
       return literal;
     }
@@ -1472,9 +1470,9 @@ expr_t *create_ctor(location_t location,
     dims.push_back(new var_t(params.back()));
   }
 
-  expr_t *expr =
-      new as_t(new tuple_t(location, dims),
-               scheme({}, {}, type_decl.get_type()), true /*force_cast*/);
+  expr_t *expr = new as_t(new tuple_t(location, dims),
+                          scheme({}, {}, type_decl.get_type()),
+                          true /*force_cast*/);
 
   assert_implies(ctor_id.valid, dims.size() == params.size() + 1);
   assert_implies(!ctor_id.valid, dims.size() == params.size());
@@ -1533,8 +1531,8 @@ data_type_decl_t parse_struct_decl(parse_state_t &ps,
   /* there is only one ctor for structs which are just product types */
   auto ctor_id = type_decl.id;
 
-  data_ctors[ctor_id.name] =
-      create_ctor_type(ctor_id.location, type_decl, dims);
+  data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl,
+                                              dims);
   decls.push_back(new decl_t(
       ctor_id, create_ctor(ctor_id.location, maybe<int>(0, false /*valid*/),
                            type_decl, dims)));
@@ -1571,8 +1569,8 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps,
     } else {
       /* this is a constant (like an enum) */
     }
-    data_ctors[ctor_id.name] =
-        create_ctor_type(ctor_id.location, type_decl, param_types);
+    data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl,
+                                                param_types);
     decls.push_back(
         new decl_t(ctor_id, create_ctor(ctor_id.location, maybe<int>(i),
                                         type_decl, param_types)));
@@ -1603,8 +1601,8 @@ instance_t *parse_type_class_instance(parse_state_t &ps) {
     } else if (ps.token.tk != tk_rcurly) {
       /* instance-level let vars */
       auto name_token = ps.token_and_advance();
-      auto id =
-          ps.id_mapped(identifier_t{name_token.text, name_token.location});
+      auto id = ps.id_mapped(
+          identifier_t{name_token.text, name_token.location});
       chomp_token(tk_assign);
       decls.push_back(new decl_t(id, parse_expr(ps)));
     } else {

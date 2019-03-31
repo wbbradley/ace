@@ -71,8 +71,8 @@ pattern_block_t *prefix(const std::set<std::string> &bindings,
                         std::string pre,
                         pattern_block_t *pattern_block) {
   std::set<std::string> new_symbols;
-  predicate_t *new_predicate =
-      prefix(bindings, pre, pattern_block->predicate, new_symbols);
+  predicate_t *new_predicate = prefix(bindings, pre, pattern_block->predicate,
+                                      new_symbols);
 
   return new pattern_block_t(
       new_predicate,
@@ -210,8 +210,8 @@ types::type_t::map prefix(const std::set<std::string> &bindings,
                           const types::type_t::map &data_ctors) {
   types::type_t::map new_data_ctors;
   for (auto pair : data_ctors) {
-    new_data_ctors[prefix(bindings, pre, pair.first)] =
-        prefix(bindings, pre, pair.second);
+    new_data_ctors[prefix(bindings, pre, pair.first)] = prefix(bindings, pre,
+                                                               pair.second);
   }
   return new_data_ctors;
 }
@@ -221,8 +221,8 @@ data_ctors_map_t prefix(const std::set<std::string> &bindings,
                         const data_ctors_map_t &data_ctors_map) {
   data_ctors_map_t new_data_ctors_map;
   for (auto pair : data_ctors_map) {
-    new_data_ctors_map[prefix(bindings, pre, pair.first)] =
-        prefix(bindings, pre, pair.second);
+    new_data_ctors_map[prefix(bindings, pre, pair.first)] = prefix(
+        bindings, pre, pair.second);
   }
   return new_data_ctors_map;
 }
